@@ -226,7 +226,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
         scene = CTX_data_scene(C);
       }
 
-      BKE_add_template_variables_for_render_path(variables, scene);
+      BKE_add_template_variables_for_render_path(variables, *scene);
     }
   }
 
@@ -266,40 +266,38 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
   }
 }
 
-void BKE_add_template_variables_for_render_path(VariableMap &variables, const Scene *scene)
+void BKE_add_template_variables_for_render_path(VariableMap &variables, const Scene &scene)
 {
-  if (scene) {
-    /* Resolution variables. */
-    int res_x, res_y;
-    BKE_render_resolution(&scene->r, false, &res_x, &res_y);
-    variables.add_integer("resolution_x", res_x);
-    variables.add_integer("resolution_y", res_y);
+  /* Resolution variables. */
+  int res_x, res_y;
+  BKE_render_resolution(&scene.r, false, &res_x, &res_y);
+  variables.add_integer("resolution_x", res_x);
+  variables.add_integer("resolution_y", res_y);
 
-    /* FPS variable.
-     *
-     * FPS eval code copied from `BKE_cachefile_filepath_get()`.
-     *
-     * TODO: should probably use one function for this everywhere to ensure that
-     * fps is computed consistently, but at the time of writing no such function
-     * seems to exist. Every place in the code base just has its own bespoke
-     * code, using different precision, etc. */
-    const double fps = double(scene->r.frs_sec) / double(scene->r.frs_sec_base);
-    variables.add_float("fps", fps);
+  /* FPS variable.
+   *
+   * FPS eval code copied from `BKE_cachefile_filepath_get()`.
+   *
+   * TODO: should probably use one function for this everywhere to ensure that
+   * fps is computed consistently, but at the time of writing no such function
+   * seems to exist. Every place in the code base just has its own bespoke
+   * code, using different precision, etc. */
+  const double fps = double(scene.r.frs_sec) / double(scene.r.frs_sec_base);
+  variables.add_float("fps", fps);
 
-    /* Scene name variable. */
-    variables.add_string("scene_name", scene->id.name + 2);
+  /* Scene name variable. */
+  variables.add_string("scene_name", scene.id.name + 2);
 
-    /* Camera name variable. */
-    if (scene->camera) {
-      variables.add_string("camera_name", scene->camera->id.name + 2);
-    }
+  /* Camera name variable. */
+  if (scene.camera) {
+    variables.add_string("camera_name", scene.camera->id.name + 2);
   }
 }
 
 void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableMap &variables,
-                                         const bNode &bnode)
+                                         const bNode &owning_node)
 {
-  variables.add_string("node_name", bnode.name);
+  variables.add_string("node_name", owning_node.name);
 }
 
 /* -------------------------------------------------------------------- */

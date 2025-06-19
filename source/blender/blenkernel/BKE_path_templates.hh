@@ -209,37 +209,56 @@ bool operator==(const Error &left, const Error &right);
 std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
     const bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 
+/**
+ * Add the general variables that should be available for all path templates to
+ * a variable map.
+ *
+ * This is typically used when building a variable map to pass to
+ * `BKE_path_apply_template()`.
+ *
+ * \param path_owner_id: the ID that owns the path property that will be
+ * evaluated with the produced variable map. Passing a nullptr is allowed, but
+ * doing so has semantic meaning: it means that there *is no* owning ID. Only
+ * pass nullptr when that is actually true, not just out of convenience, because
+ * it alters the produced variables.
+ *
+ * \see BKE_path_apply_template()
+ */
 void BKE_add_template_variables_general(blender::bke::path_templates::VariableMap &variables,
                                         const ID *path_owner_id);
 
 /**
- * Build a template variable map for render output paths.
+ * Add the variables that should be available for render output paths to a
+ * variable map.
  *
- * All parameters are allowed to be null, in which case the variables derived
- * from those parameters will simply not be included.
- *
- * This is typically used to create the variables passed to
+ * This is typically used when building a variable map to pass to
  * `BKE_path_apply_template()`.
  *
- * \param path_owner_id: the ID that actually owns the path that's going to be
- * processed.
- *
- * \param scene: used to generate most of the variables, such as output
- * resolution and fps. Note for the future: when we add a "current frame number"
- * variable it should *not* come from this parameter, but be passed separately.
- * This is because the callers of this function sometimes have the current frame
- * defined separately from the available RenderData (see e.g.
- * `do_makepicstring()`).
+ * \param scene: scene to use to get the variable values. Note for the future:
+ * when we add a "current frame number" variable it should *not* come from this
+ * parameter, but be passed separately. This is because the callers of this
+ * function sometimes have the current frame defined separately from the
+ * available RenderData (see e.g. `do_makepicstring()`).
  *
  * \see BKE_path_apply_template()
- *
- * \see BLI_path_abs()
  */
 void BKE_add_template_variables_for_render_path(
-    blender::bke::path_templates::VariableMap &variables, const Scene *scene);
+    blender::bke::path_templates::VariableMap &variables, const Scene &scene);
 
+/**
+ * Add the variables that should be available for paths owned by a node to
+ * variable map.
+ *
+ * This is typically used when building a variable map to pass to
+ * `BKE_path_apply_template()`.
+ *
+ * \param owning_node: the node that owns the path property that will be
+ * evaluated with the produced variable map.
+ *
+ * \see BKE_path_apply_template()
+ */
 void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableMap &variables,
-                                         const bNode &bnode);
+                                         const bNode &owning_node);
 
 /**
  * Check if a path contains any templating syntax at all.

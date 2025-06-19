@@ -873,7 +873,7 @@ class FileOutputOperation : public NodeOperation {
     path_templates::VariableMap template_variables;
     {
       BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
-      BKE_add_template_variables_for_render_path(template_variables, &context().get_scene());
+      BKE_add_template_variables_for_render_path(template_variables, context().get_scene());
       BKE_add_template_variables_for_node(template_variables, this->bnode());
     }
 
@@ -959,7 +959,7 @@ class FileOutputOperation : public NodeOperation {
     path_templates::VariableMap template_variables;
     {
       BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
-      BKE_add_template_variables_for_render_path(template_variables, scene);
+      BKE_add_template_variables_for_render_path(template_variables, *scene);
       BKE_add_template_variables_for_node(template_variables, this->bnode());
     }
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);

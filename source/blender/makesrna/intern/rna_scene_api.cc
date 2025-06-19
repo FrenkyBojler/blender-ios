@@ -121,7 +121,7 @@ static void rna_SceneRender_get_frame_path(ID *id,
     blender::bke::path_templates::VariableMap template_variables;
     {
       BKE_add_template_variables_general(template_variables, &scene->id);
-      BKE_add_template_variables_for_render_path(template_variables, scene);
+      BKE_add_template_variables_for_render_path(template_variables, *scene);
     }
     const char *relbase = BKE_main_blendfile_path(bmain);
 

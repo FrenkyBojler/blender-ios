@@ -2090,7 +2090,7 @@ void RE_RenderFrame(Render *re,
         path_templates::VariableMap template_variables;
         {
           BKE_add_template_variables_general(template_variables, &scene->id);
-          BKE_add_template_variables_for_render_path(template_variables, scene);
+          BKE_add_template_variables_for_render_path(template_variables, *scene);
         }
         const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath_override,
@@ -2327,7 +2327,7 @@ static bool do_write_image_or_movie(
         path_templates::VariableMap template_variables;
         {
           BKE_add_template_variables_general(template_variables, &scene->id);
-          BKE_add_template_variables_for_render_path(template_variables, scene);
+          BKE_add_template_variables_for_render_path(template_variables, *scene);
         }
         const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath,
@@ -2532,7 +2532,7 @@ void RE_RenderAnim(Render *re,
       path_templates::VariableMap template_variables;
       {
         BKE_add_template_variables_general(template_variables, &scene->id);
-        BKE_add_template_variables_for_render_path(template_variables, scene);
+        BKE_add_template_variables_for_render_path(template_variables, *scene);
       }
       const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
           filepath,
