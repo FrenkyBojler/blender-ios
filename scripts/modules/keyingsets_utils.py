@@ -44,6 +44,9 @@ def path_add_property(path, prop):
 
 # selected objects (active object must be in object mode)
 def RKS_POLL_selected_objects(_ksi, context):
+    if context.area.type == 'SEQUENCE_EDITOR':
+        return False
+
     ob = context.active_object
     if ob:
         return ob.mode == 'OBJECT'
@@ -53,6 +56,9 @@ def RKS_POLL_selected_objects(_ksi, context):
 
 # selected bones
 def RKS_POLL_selected_bones(_ksi, context):
+    if context.area.type == 'SEQUENCE_EDITOR':
+        return False
+
     # we must be in Pose Mode, and there must be some bones selected
     ob = context.active_object
     if ob and ob.mode == 'POSE':
