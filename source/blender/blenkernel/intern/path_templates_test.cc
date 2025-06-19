@@ -215,6 +215,9 @@ TEST(path_templates, VariableMap_convenience_methods)
 
     EXPECT_TRUE(map.add_path_up_to_file("f", "/", "fallback"));
     EXPECT_EQ("fallback", map.get_string("f"));
+
+    EXPECT_TRUE(map.add_path_up_to_file("g", "", "fallback"));
+    EXPECT_EQ("fallback", map.get_string("g"));
   }
 }
 
