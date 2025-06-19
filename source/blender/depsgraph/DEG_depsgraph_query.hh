@@ -311,6 +311,27 @@ void DEG_iterator_objects_end(BLI_Iterator *iter);
   } \
   ((void)0)
 
+/**
+ * Helper functions for handling dupli instances iteration manually (ie. without passing
+ * DEG_ITER_OBJECT_FLAG_DUPLI to DEGObjectIterSettings::flags)
+ */
+
+/* Returns true if the dupli instance should be visible on the given context.  */
+bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eval_mode);
+/* Generates a temporary object for a given dupli instance.
+ * Returns true if the resulting object should be visible, otherwise the temp object shoud be
+ * considered invalid. NOTE: DEG_iterator_temp_object_free_properties should be called regardless.
+ * If do_matrix_setup is false, the temp_object won't have valid object_to_world/world_to_object
+ * matrices, and the OB_NEG_SCALE flag will never be set. */
+bool DEG_iterator_temp_object_from_dupli(Object *dupli_parent,
+                                         DupliObject *dupli,
+                                         Object *temp_object,
+                                         ObjectRuntimeHandle *temp_runtime,
+                                         eEvaluationMode eval_mode,
+                                         bool do_matrix_setup = true);
+/* Frees any property allocated when calling DEG_iterator_temp_object_from_dupli. */
+void DEG_iterator_temp_object_free_properties(const DupliObject *dupli, Object *temp_object);
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

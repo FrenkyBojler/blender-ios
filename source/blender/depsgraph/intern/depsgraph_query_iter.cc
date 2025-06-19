@@ -77,20 +77,7 @@ void ensure_id_properties_freed(const Object *dupli_object, Object *temp_dupli_o
   temp_dupli_object->id.properties = nullptr;
 }
 
-void free_owned_memory(DEGObjectIterData *data)
-{
-  if (data->dupli_object_current == nullptr) {
-    /* We didn't enter duplication yet, so we can't have any dangling pointers. */
-    return;
-  }
-
-  const Object *dupli_object = data->dupli_object_current->ob;
-  Object *temp_dupli_object = &data->temp_dupli_object;
-
-  ensure_id_properties_freed(dupli_object, temp_dupli_object);
-}
-
-bool deg_object_hide_original(eEvaluationMode eval_mode, Object *ob, DupliObject *dob)
+bool deg_object_hide_original(eEvaluationMode eval_mode, const Object *ob, const DupliObject *dob)
 {
   /* Automatic hiding if this object is being instanced on verts/faces/frames
    * by its parent. Ideally this should not be needed, but due to the wrong
@@ -139,16 +126,11 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
       data->dupli_object_next_index = -1;
     }
 
-    if (dob->no_draw) {
-      continue;
-    }
-    if (dob->ob_data && GS(dob->ob_data->name) == ID_MB) {
-      continue;
-    }
-    if (obd->type != OB_MBALL && deg_object_hide_original(data->eval_mode, dob->ob, dob)) {
+    if (DEG_iterator_dupli_is_visible(dob, data->eval_mode)) {
       continue;
     }
 
+    /* TODO: Can this be removed? included_objects is already passed to object_duplilist(). */
     DEGObjectIterSettings *settings = data->settings;
     if (settings->included_objects) {
       Object *object_orig = DEG_get_original(obd);
@@ -157,51 +139,25 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
       }
     }
 
-    free_owned_memory(data);
+    if (data->dupli_object_current) {
+      DEG_iterator_temp_object_free_properties(data->dupli_object_current,
+                                               &data->temp_dupli_object);
+    }
 
     data->dupli_object_current = dob;
 
-    /* Temporary object to evaluate. */
-    Object *dupli_parent = data->dupli_parent;
-    Object *temp_dupli_object = &data->temp_dupli_object;
-
-    *temp_dupli_object = blender::dna::shallow_copy(*dob->ob);
-    temp_dupli_object->runtime = &data->temp_dupli_object_runtime;
-    *temp_dupli_object->runtime = *dob->ob->runtime;
-
-    temp_dupli_object->base_flag = dupli_parent->base_flag | BASE_FROM_DUPLI;
-    temp_dupli_object->base_local_view_bits = dupli_parent->base_local_view_bits;
-    temp_dupli_object->runtime->local_collections_bits =
-        dupli_parent->runtime->local_collections_bits;
-    temp_dupli_object->dt = std::min(temp_dupli_object->dt, dupli_parent->dt);
-    copy_v4_v4(temp_dupli_object->color, dupli_parent->color);
-    temp_dupli_object->runtime->select_id = dupli_parent->runtime->select_id;
-    if (dob->ob->data != dob->ob_data) {
-      BKE_object_replace_data_on_shallow_copy(temp_dupli_object, dob->ob_data);
+    if (DEG_iterator_temp_object_from_dupli(data->dupli_parent,
+                                            data->dupli_object_current,
+                                            &data->temp_dupli_object,
+                                            &data->temp_dupli_object_runtime,
+                                            data->eval_mode))
+    {
+      data->next_object = &data->temp_dupli_object;
+      return true;
     }
-
-    /* Duplicated elements shouldn't care whether their original collection is visible or not. */
-    temp_dupli_object->base_flag |= BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT;
-
-    int ob_visibility = BKE_object_visibility(temp_dupli_object, data->eval_mode);
-    if ((ob_visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES)) == 0) {
-      continue;
-    }
-
-    /* This could be avoided by refactoring make_dupli() in order to track all negative scaling
-     * recursively. */
-    bool is_neg_scale = is_negative_m4(dob->mat);
-    SET_FLAG_FROM_TEST(data->temp_dupli_object.transflag, is_neg_scale, OB_NEG_SCALE);
-
-    copy_m4_m4(data->temp_dupli_object.runtime->object_to_world.ptr(), dob->mat);
-    invert_m4_m4(data->temp_dupli_object.runtime->world_to_object.ptr(),
-                 data->temp_dupli_object.object_to_world().ptr());
-    data->next_object = &data->temp_dupli_object;
-    BLI_assert(deg::deg_validate_eval_copy_datablock(&data->temp_dupli_object.id));
-    return true;
   }
 
-  free_owned_memory(data);
+  DEG_iterator_temp_object_free_properties(data->dupli_object_current, &data->temp_dupli_object);
   data->dupli_list.clear();
   data->dupli_parent = nullptr;
   data->dupli_object_next = nullptr;
@@ -287,10 +243,11 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
       }
     }
 
-    if (ob_visibility & OB_VISIBLE_INSTANCES) {
-      if ((data->flag & DEG_ITER_OBJECT_FLAG_DUPLI) &&
-          ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
-      {
+    if ((ob_visibility & OB_VISIBLE_INSTANCES) &&
+        ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
+    {
+      data->dupli_parent = object;
+      if (data->flag & DEG_ITER_OBJECT_FLAG_DUPLI) {
         BLI_assert(deg::deg_validate_eval_copy_datablock(&object->id));
         object_duplilist(
             data->graph, data->scene, object, data->settings->included_objects, data->dupli_list);
@@ -507,3 +464,80 @@ void DEG_iterator_ids_next(BLI_Iterator *iter)
 }
 
 void DEG_iterator_ids_end(BLI_Iterator * /*iter*/) {}
+
+bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eval_mode)
+{
+  if (dupli->no_draw) {
+    return true;
+  }
+  if (dupli->ob_data && GS(dupli->ob_data->name) == ID_MB) {
+    return true;
+  }
+  if (dupli->ob->type != OB_MBALL && deg_object_hide_original(eval_mode, dupli->ob, dupli)) {
+    return true;
+  }
+
+  return false;
+}
+
+bool DEG_iterator_temp_object_from_dupli(Object *dupli_parent,
+                                         DupliObject *dupli,
+                                         Object *temp_object,
+                                         ObjectRuntimeHandle *temp_runtime,
+                                         eEvaluationMode eval_mode,
+                                         bool do_matrix_setup)
+{
+  *temp_object = blender::dna::shallow_copy(*dupli->ob);
+  temp_object->runtime = temp_runtime;
+  *temp_object->runtime = *dupli->ob->runtime;
+
+  temp_object->base_flag = dupli_parent->base_flag | BASE_FROM_DUPLI;
+  temp_object->base_local_view_bits = dupli_parent->base_local_view_bits;
+  temp_object->runtime->local_collections_bits = dupli_parent->runtime->local_collections_bits;
+  temp_object->dt = std::min(temp_object->dt, dupli_parent->dt);
+  copy_v4_v4(temp_object->color, dupli_parent->color);
+  temp_object->runtime->select_id = dupli_parent->runtime->select_id;
+  if (dupli->ob->data != dupli->ob_data) {
+    BKE_object_replace_data_on_shallow_copy(temp_object, dupli->ob_data);
+  }
+
+  /* Duplicated elements shouldn't care whether their original collection is visible or not. */
+  temp_object->base_flag |= BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT;
+
+  /* TODO: Could this be computed in DEG_iterator_dupli_is_visible,
+   * before setting up the shallow copy?  */
+  int ob_visibility = BKE_object_visibility(temp_object, eval_mode);
+  if ((ob_visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES)) == 0) {
+    return false;
+  }
+
+  if (do_matrix_setup) {
+    /* This could be avoided by refactoring make_dupli() in order to track all negative scaling
+     * recursively. */
+    bool is_neg_scale = is_negative_m4(dupli->mat);
+    SET_FLAG_FROM_TEST(temp_object->transflag, is_neg_scale, OB_NEG_SCALE);
+
+    copy_m4_m4(temp_object->runtime->object_to_world.ptr(), dupli->mat);
+    invert_m4_m4(temp_object->runtime->world_to_object.ptr(),
+                 temp_object->object_to_world().ptr());
+  }
+
+  BLI_assert(deg::deg_validate_eval_copy_datablock(&temp_object->id));
+
+  return true;
+}
+
+void DEG_iterator_temp_object_free_properties(const DupliObject *dupli, Object *temp_object)
+{
+  if (temp_object->id.properties == nullptr) {
+    /* No ID properties in temp data-block -- no leak is possible. */
+    return;
+  }
+  if (temp_object->id.properties == dupli->ob->id.properties) {
+    /* Temp copy of object did not modify ID properties. */
+    return;
+  }
+  /* Free memory which is owned by temporary storage which is about to get overwritten. */
+  IDP_FreeProperty(temp_object->id.properties);
+  temp_object->id.properties = nullptr;
+}
