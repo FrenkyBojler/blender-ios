@@ -577,10 +577,7 @@ void gpu::MTLTexture::update_sub_depth_2d(
     int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data)
 {
   /* Verify we are in a valid configuration. */
-  BLI_assert(ELEM(format_,
-                  GPU_DEPTH_COMPONENT32F,
-                  GPU_DEPTH_COMPONENT16,
-                  GPU_DEPTH32F_STENCIL8));
+  BLI_assert(ELEM(format_, GPU_DEPTH_COMPONENT32F, GPU_DEPTH_COMPONENT16, GPU_DEPTH32F_STENCIL8));
   BLI_assert(validate_data_format(format_, type));
   BLI_assert(ELEM(type, GPU_DATA_FLOAT, GPU_DATA_UINT_24_8, GPU_DATA_UINT));
 
