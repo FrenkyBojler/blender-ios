@@ -147,6 +147,7 @@ set(SRC
   engines/overlay/overlay_armature.cc
   engines/overlay/overlay_engine.cc
   engines/overlay/overlay_instance.cc
+  engines/overlay/overlay_mode_transfer.cc
   engines/overlay/overlay_shader.cc
   engines/overlay/overlay_shape.cc
 
@@ -250,7 +251,6 @@ set(SRC
   engines/overlay/overlay_camera.hh
   engines/overlay/overlay_cursor.hh
   engines/overlay/overlay_curve.hh
-  engines/overlay/overlay_text.hh
   engines/overlay/overlay_empty.hh
   engines/overlay/overlay_engine.h
   engines/overlay/overlay_facing.hh
@@ -279,6 +279,7 @@ set(SRC
   engines/overlay/overlay_relation.hh
   engines/overlay/overlay_sculpt.hh
   engines/overlay/overlay_speaker.hh
+  engines/overlay/overlay_text.hh
   engines/overlay/overlay_wireframe.hh
   engines/overlay/overlay_xray_fade.hh
   engines/select/select_defines.hh

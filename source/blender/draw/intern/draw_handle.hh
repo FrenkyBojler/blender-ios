@@ -74,32 +74,17 @@ struct ResourceHandle {
 /* Refers to a range of contiguous handles in the resource arrays.
  * Typically used to render instances of an object, but can represent a single instance too.
  * The associated objects will all share handedness and state and can be rendered together. */
-struct ResourceHandleRange {
-  /* First handle in the range. */
-  ResourceHandle handle_first = 0;
+struct ResourceHandleRange : ResourceHandle {
   /* Number of handle in the range. */
   uint32_t count = 0;
-  /* TODO: Remove */
-  uint32_t raw = 0;
 
-  ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : handle_first(handle), count(1) {}
-  ResourceHandleRange(ResourceHandle handle, uint len) : handle_first(handle), count(len) {}
-
-  bool has_inverted_handedness() const
-  {
-    return handle_first.has_inverted_handedness();
-  }
-
-  /* TODO: Remove. */
-  uint resource_index() const
-  {
-    return handle_first.resource_index();
-  }
+  ResourceHandleRange() : ResourceHandle(0) {}
+  ResourceHandleRange(ResourceHandle handle) : ResourceHandle(handle), count(1) {}
+  ResourceHandleRange(ResourceHandle handle, uint len) : ResourceHandle(handle), count(len) {}
 
   IndexRange index_range() const
   {
-    return {handle_first.raw, count};
+    return {raw, count};
   }
 };
 
@@ -116,8 +101,8 @@ class ObjectRef {
   Object *const dupli_parent_ = nullptr;
 
   /** Unique handle per object ref. */
-  ResourceHandleRange handle_ = {0, 0};
-  ResourceHandleRange sculpt_handle_ = {0, 0};
+  ResourceHandleRange handle_ = {};
+  ResourceHandleRange sculpt_handle_ = {};
 
   const DrawObjectKey *draw_object_key_ = nullptr;
   const VectorList<DupliObject *> *duplis_ = nullptr;
@@ -126,11 +111,13 @@ class ObjectRef {
   Object *const object;
 
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
-  ObjectRef(Object *ob, Object *dupli_parent = nullptr, DupliObject *dupli_object = nullptr);
-  ObjectRef(Object &ob,
-            Object *dupli_parent,
-            const DrawObjectKey &draw_object_key,
-            const VectorList<DupliObject *> &duplis);
+  explicit ObjectRef(Object *ob,
+                     Object *dupli_parent = nullptr,
+                     DupliObject *dupli_object = nullptr);
+  explicit ObjectRef(Object &ob,
+                     Object *dupli_parent,
+                     const DrawObjectKey &draw_object_key,
+                     const VectorList<DupliObject *> &duplis);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const

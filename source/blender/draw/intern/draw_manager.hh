@@ -157,10 +157,10 @@ class Manager {
    * Get resource id for particle system. The draw-calls for this resource won't be culled. The
    * associated object info will contain the info from its parent object.
    */
-  ResourceHandleRange resource_handle_for_psys(const ObjectRef &ref, const float4x4 &model_matrix);
+  ResourceHandle resource_handle_for_psys(const ObjectRef &ref, const float4x4 &model_matrix);
 
   /** Update the bounds of an already created handle. */
-  void update_handle_bounds(ResourceHandleRange handle,
+  void update_handle_bounds(ResourceHandle handle,
                             const ObjectRef &ref,
                             float inflate_bounds = 0.0f);
 
@@ -168,10 +168,10 @@ class Manager {
    * Populate additional per resource data on demand.
    * IMPORTANT: Should be called only **once** per object.
    */
-  void extract_object_attributes(ResourceHandleRange handle,
+  void extract_object_attributes(ResourceHandle handle,
                                  const ObjectRef &ref,
                                  const GPUMaterial *material);
-  void extract_object_attributes(ResourceHandleRange handle,
+  void extract_object_attributes(ResourceHandle handle,
                                  const ObjectRef &ref,
                                  Span<GPUMaterial *> materials);
 
@@ -314,7 +314,7 @@ class Manager {
 
 inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
 {
-  if (ref.handle_.count == 0) {
+  if (ref.handle_.raw == 0) {
     /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
     const_cast<ObjectRef &>(ref).handle_ = resource_handle(ref);
   }
@@ -394,8 +394,8 @@ inline ResourceHandle Manager::resource_handle(const float4x4 &model_matrix,
   return ResourceHandle(resource_len_++, false);
 }
 
-inline ResourceHandleRange Manager::resource_handle_for_psys(const ObjectRef &ref,
-                                                             const float4x4 &model_matrix)
+inline ResourceHandle Manager::resource_handle_for_psys(const ObjectRef &ref,
+                                                        const float4x4 &model_matrix)
 {
   BLI_assert(!ref.duplis_);
   matrix_buf.current().get_or_resize(resource_len_).sync(model_matrix);
@@ -404,14 +404,14 @@ inline ResourceHandleRange Manager::resource_handle_for_psys(const ObjectRef &re
   return ResourceHandle(resource_len_++, (ref.object->transflag & OB_NEG_SCALE) != 0);
 }
 
-inline void Manager::update_handle_bounds(ResourceHandleRange handle,
+inline void Manager::update_handle_bounds(ResourceHandle handle,
                                           const ObjectRef &ref,
                                           float inflate_bounds)
 {
   bounds_buf.current()[handle.resource_index()].sync(*ref.object, inflate_bounds);
 }
 
-inline void Manager::extract_object_attributes(ResourceHandleRange handle,
+inline void Manager::extract_object_attributes(ResourceHandle handle,
                                                const ObjectRef &ref,
                                                const GPUMaterial *material)
 {
@@ -431,7 +431,7 @@ inline void Manager::extract_object_attributes(ResourceHandleRange handle,
   }
 }
 
-inline void Manager::extract_object_attributes(ResourceHandleRange handle,
+inline void Manager::extract_object_attributes(ResourceHandle handle,
                                                const ObjectRef &ref,
                                                Span<GPUMaterial *> materials)
 {

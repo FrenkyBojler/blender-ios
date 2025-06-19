@@ -398,7 +398,6 @@ class Instance : public DrawEngine {
                  ParticleSystem *psys,
                  ModifierData *md)
   {
-    /* Skip frustum culling. */
     ResourceHandleRange handle = manager.resource_handle_for_psys(
         ob_ref, ob_ref.object->object_to_world());
 
@@ -421,7 +420,6 @@ class Instance : public DrawEngine {
 
   void curves_sync(Manager &manager, ObjectRef &ob_ref, const ObjectState &object_state)
   {
-    /* Skip frustum culling. */
     ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
     Material mat = this->get_material(ob_ref, object_state.color_type);
@@ -591,9 +589,9 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
     dtxl->color = GPU_texture_create_2d(
         "txl.color", size.x, size.y, 1, GPU_RGBA16F, usage, nullptr);
     dtxl->depth = GPU_texture_create_2d(
-        "txl.depth", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
+        "txl.depth", size.x, size.y, 1, GPU_DEPTH32F_STENCIL8, usage, nullptr);
     dtxl->depth_in_front = GPU_texture_create_2d(
-        "txl.depth_in_front", size.x, size.y, 1, GPU_DEPTH24_STENCIL8, usage, nullptr);
+        "txl.depth_in_front", size.x, size.y, 1, GPU_DEPTH32F_STENCIL8, usage, nullptr);
   }
 
   if (!(dtxl->depth && dtxl->color && dtxl->depth_in_front)) {
