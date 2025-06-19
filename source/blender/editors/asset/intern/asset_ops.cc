@@ -1117,8 +1117,8 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   }
   else {
     /* Clamp points to window bounds, so the screenshot area is always valid. */
-    clamp_point_to_window(p1, win);
-    clamp_point_to_window(p2, win);
+    p1 = clamp_point_to_window(p1, win);
+    p2 = clamp_point_to_window(p2, win);
   }
 
   sort_points(p1, p2);
