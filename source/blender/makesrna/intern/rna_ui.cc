@@ -1431,16 +1431,6 @@ static void rna_UILayout_red_alert_set(PointerRNA *ptr, bool value)
 {
   uiLayoutSetRedAlert(static_cast<uiLayout *>(ptr->data), value);
 }
-
-static bool rna_UILayout_keep_aspect_get(PointerRNA *ptr)
-{
-  return uiLayoutGetKeepAspect(static_cast<uiLayout *>(ptr->data));
-}
-
-static void rna_UILayout_keep_aspect_set(PointerRNA *ptr, int value)
-{
-  uiLayoutSetKeepAspect(static_cast<uiLayout *>(ptr->data), value);
-}
 #  endif
 
 static int rna_UILayout_alignment_get(PointerRNA *ptr)
