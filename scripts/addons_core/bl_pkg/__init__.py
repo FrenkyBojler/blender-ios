@@ -478,7 +478,7 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
             pass
         case DownloadStatus.FINISHED_SUCCESSFULLY:
             wm.asset_library_status_finished_loading(downloader._remote_url)
-        case DownloadStatus.FAILURE:
+        case DownloadStatus.FAILED:
             wm.asset_library_status_failed_loading(downloader._remote_url, message=downloader.error_message)
 
 

@@ -6,6 +6,8 @@
  * \ingroup asset_system
  */
 
+#include "BLT_translation.hh"
+
 #include "BLI_map.hh"
 #include "BLI_string_ref.hh"
 
@@ -62,17 +64,35 @@ void remote_library_status_set_failure(StringRef url, std::optional<StringRef> f
   }
 }
 
-void remote_library_status_handle_timeout(StringRef url)
+std::optional<StringRef> remote_library_status_failure_message(StringRef url)
 {
   if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    if (status->status == RemoteLibraryLoadingStatus::Failure) {
+      return status->failure_message;
+    }
+  }
+
+  return {};
+}
+
+bool remote_library_status_handle_timeout(StringRef url)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    if (status->status != RemoteLibraryLoadingStatus::Loading) {
+      /* Only handle timeouts while loading. */
+      return false;
+    }
+
     std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
                                            status->last_updated_time_point;
     if (elapsed.count() >= status->timeout) {
       status->status = RemoteLibraryLoadingStatus::Failure;
-      // TODO timeout message
-      // status->failure_message = RPT
+      status->failure_message = RPT_("Asset system lost connection to downloader (timed out)");
+      return true;
     }
   }
+
+  return false;
 }
 
 }  // namespace blender::asset_system

@@ -35,7 +35,11 @@ void remote_library_status_ensure_loading(StringRef url, float timeout);
 std::optional<RemoteLibraryLoadingStatus::Status> remote_library_status_get(StringRef url);
 void remote_library_status_set_finished(StringRef url);
 void remote_library_status_set_failure(StringRef url, std::optional<StringRef> failure_message);
+std::optional<StringRef> remote_library_status_failure_message(StringRef url);
 
-void remote_library_status_handle_timeout(StringRef url);
+/**
+ * \return True if the loading status switched to #Status::Failure due to timing out.
+ */
+bool remote_library_status_handle_timeout(StringRef url);
 
 }  // namespace blender::asset_system

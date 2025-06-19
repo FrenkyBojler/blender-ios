@@ -51,6 +51,7 @@ set(SRC
 set(LIB
   PRIVATE bf::blenkernel
   PRIVATE bf::blenlib
+  PRIVATE bf::blentranslation
   PRIVATE bf::dna
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog

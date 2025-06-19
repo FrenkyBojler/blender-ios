@@ -25,8 +25,8 @@
 #endif
 
 #include "AS_asset_library.hh"
-#include "AS_remote_library.hh"
 #include "AS_asset_representation.hh"
+#include "AS_remote_library.hh"
 
 #include "MEM_guardedalloc.h"
 
@@ -289,9 +289,8 @@ struct FileList {
 
   /** Called from the main thread when starting the job. */
   void (*start_read_fn)(FileListReadJob *job_params);
-  /** Called from the main thread in regular intervals, when the read files are pulled into the
-   * main thread's file list. */
-  void (*update_fn)(FileListReadJob *job_params);
+  /** Called from the main thread in regular intervals. */
+  void (*timer_step_fn)(FileListReadJob *job_params);
   /** Fill `filelist` (to be called by read job). */
   void (*read_job_fn)(FileListReadJob *job_params, bool *stop, bool *do_update, float *progress);
 
@@ -363,7 +362,7 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
                                                   bool *do_update,
                                                   float *progress);
 static void filelist_start_read_remote_asset_library(FileListReadJob *job_params);
-static void filelist_update_remote_asset_library(FileListReadJob *job_params);
+static void filelist_timer_step_remote_asset_library(FileListReadJob *job_params);
 static void filelist_readjob_all_asset_library(FileListReadJob *job_params,
                                                bool *stop,
                                                bool *do_update,
@@ -1848,7 +1847,7 @@ void filelist_settype(FileList *filelist, short type)
   filelist->indexer = &file_indexer_noop;
   filelist->check_dir_fn = nullptr;
   filelist->start_read_fn = nullptr;
-  filelist->update_fn = nullptr;
+  filelist->timer_step_fn = nullptr;
   filelist->read_job_fn = nullptr;
   filelist->prepare_filter_fn = nullptr;
   filelist->filter_fn = nullptr;
@@ -1881,7 +1880,7 @@ void filelist_settype(FileList *filelist, short type)
     case FILE_ASSET_LIBRARY_REMOTE:
       filelist->check_dir_fn = filelist_checkdir_return_always_valid;
       filelist->start_read_fn = filelist_start_read_remote_asset_library;
-      filelist->update_fn = filelist_update_remote_asset_library;
+      filelist->timer_step_fn = filelist_timer_step_remote_asset_library;
       filelist->read_job_fn = filelist_readjob_remote_asset_library;
       filelist->prepare_filter_fn = prepare_filter_asset_library;
       filelist->filter_fn = is_filtered_asset_library;
@@ -3075,6 +3074,10 @@ struct FileListReadJob {
   const wmWindowManager *wm = nullptr;
   FileList *filelist = nullptr;
 
+  /** Code requested to cancel the read job. */
+  /* TODO only remote asset library loading respects this so far. */
+  std::atomic<bool> cancel;
+
   /** The path currently being read, relative to the filelist root directory. Needed for recursive
    * reading. The full file path is then composed like: `<filelist root>/<cur_relbase>/<file name>.
    * (whereby the file name may also be a library path within a .blend, e.g.
@@ -4070,7 +4073,7 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
    * pending pages whenever #FileListReadJob.is_asset_library_updated_extern is true. */
   /* TODO: Somehow ignore old pages. */
   if (!index::read_remote_listing(dirpath, [&](index::RemoteListingAssetEntry &movable_entry) {
-        if (*stop) {
+        if (*stop || job_params->cancel) {
           /* Cancel reading when requested. */
           return false;
         }
@@ -4176,7 +4179,7 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
   BLI_assert(job_params->filelist->asset_library_ref != nullptr);
 
   readjob_wait_while_asset_library_loading_extern(job_params, stop, do_update);
-  if (*stop) {
+  if (*stop || job_params->cancel) {
     return;
   }
 
@@ -4195,7 +4198,7 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
 
 static void filelist_remote_asset_library_update_loading_flag(FileListReadJob *job_params)
 {
-  bUserAssetLibrary *library = BKE_preferences_asset_library_find_index(
+  const bUserAssetLibrary *library = BKE_preferences_asset_library_find_index(
       &U, job_params->filelist->asset_library_ref->custom_library_index);
 
   if (!library || !(library->flag & ASSET_LIBRARY_USE_REMOTE_URL)) {
@@ -4205,7 +4208,9 @@ static void filelist_remote_asset_library_update_loading_flag(FileListReadJob *j
   }
 
   /* On timeout the loading status will be set to cancelled. */
-  asset_system::remote_library_status_handle_timeout(library->remote_url);
+  if (asset_system::remote_library_status_handle_timeout(library->remote_url)) {
+    job_params->cancel = true;
+  }
 
   job_params->is_asset_library_loading_extern = asset_system::remote_library_status_get(
                                                     library->remote_url) ==
@@ -4217,7 +4222,7 @@ static void filelist_start_read_remote_asset_library(FileListReadJob *job_params
   filelist_remote_asset_library_update_loading_flag(job_params);
 }
 
-static void filelist_update_remote_asset_library(FileListReadJob *job_params)
+static void filelist_timer_step_remote_asset_library(FileListReadJob *job_params)
 {
   filelist_remote_asset_library_update_loading_flag(job_params);
 }
@@ -4382,10 +4387,6 @@ static void filelist_readjob_update(void *flrjv)
   ListBase new_entries = {nullptr};
   int entries_num, new_entries_num = 0;
 
-  if (flrj->filelist->update_fn) {
-    flrj->filelist->update_fn(flrj);
-  }
-
   BLI_movelisttolist(&new_entries, &fl_intern->entries);
   entries_num = flrj->filelist->filelist.entries_num;
 
@@ -4418,6 +4419,15 @@ static void filelist_readjob_update(void *flrjv)
   /* if no new_entries_num, this is NOP */
   BLI_movelisttolist(&fl_intern->entries, &new_entries);
   flrj->filelist->filelist.entries_num = std::max(entries_num, 0) + new_entries_num;
+}
+
+static void filelist_readjob_timer_step(void *flrjv)
+{
+  FileListReadJob *flrj = static_cast<FileListReadJob *>(flrjv);
+
+  if (flrj->filelist->timer_step_fn) {
+    flrj->filelist->timer_step_fn(flrj);
+  }
 }
 
 static void filelist_readjob_endjob(void *flrjv)
@@ -4521,7 +4531,8 @@ static void filelist_readjob_start_ex(FileList *filelist,
                        WM_JOB_PROGRESS,
                        filelist_jobtype_get(filelist));
   WM_jobs_customdata_set(wm_job, flrj, filelist_readjob_free);
-  WM_jobs_timer(wm_job, 0.01, space_notifier, space_notifier | NA_JOB_FINISHED);
+  WM_jobs_timer(
+      wm_job, 0.01, space_notifier, space_notifier | NA_JOB_FINISHED, filelist_readjob_timer_step);
   WM_jobs_callbacks(wm_job,
                     filelist->asset_library_ref ? assetlibrary_readjob_startjob :
                                                   filelist_readjob_startjob,
