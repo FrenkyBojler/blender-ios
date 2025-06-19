@@ -1410,69 +1410,10 @@ static void bm_to_mesh_loops(const BMesh &bm, const Span<const BMLoop *> bm_loop
 
 }  // namespace blender
 
-static void bm_to_mesh_update(BMesh *bm)
+static void bm_to_mesh_update_all(BMesh *bm)
 {
   using namespace blender;
-  if (bm->mesh == nullptr) {
-    bm->mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-    bm->update_all = true;
-  }
   Mesh *mesh = bm->mesh;
-
-  assert_bmesh_has_no_mesh_only_attributes(*bm);
-  bke::MutableAttributeAccessor attrs = mesh->attributes_for_write();
-
-  if (!bm->update_all) {
-    if (bm->update_selection) {
-      BM_mesh_elem_table_ensure(bm, BM_VERT | BM_EDGE | BM_FACE);
-
-      bke::SpanAttributeWriter<bool> select_vert = attrs.lookup_or_add_for_write_only_span<bool>(
-          ".select_vert", AttrDomain::Point);
-      bke::SpanAttributeWriter<bool> select_edge = attrs.lookup_or_add_for_write_only_span<bool>(
-          ".select_edge", AttrDomain::Edge);
-      bke::SpanAttributeWriter<bool> select_poly = attrs.lookup_or_add_for_write_only_span<bool>(
-          ".select_poly", AttrDomain::Face);
-      threading::parallel_invoke(
-          [&]() {
-            threading::parallel_for(IndexRange(bm->totvert), 1024, [&](const IndexRange range) {
-              for (const int vert_i : range) {
-                select_vert.span[vert_i] = BM_elem_flag_test(bm->vtable[vert_i], BM_ELEM_SELECT);
-              }
-            });
-          },
-          [&]() {
-            threading::parallel_for(IndexRange(bm->totedge), 1024, [&](const IndexRange range) {
-              for (const int edge_i : range) {
-                select_edge.span[edge_i] = BM_elem_flag_test(bm->etable[edge_i], BM_ELEM_SELECT);
-              }
-            });
-          },
-          [&]() {
-            threading::parallel_for(IndexRange(bm->totface), 1024, [&](const IndexRange range) {
-              for (const int face_i : range) {
-                select_poly.span[face_i] = BM_elem_flag_test(bm->ftable[face_i], BM_ELEM_SELECT);
-              }
-            });
-          });
-      select_vert.finish();
-      select_edge.finish();
-      select_poly.finish();
-      bm->update_selection = false;
-    }
-    if (bm->update_positions || true) {
-      BM_mesh_elem_table_ensure(bm, BM_VERT);
-      MutableSpan<float3> positions = mesh->vert_positions_for_write();
-      threading::parallel_for(IndexRange(bm->totvert), 1024, [&](const IndexRange range) {
-        for (const int vert_i : range) {
-          positions[vert_i] = bm->vtable[vert_i]->co;
-        }
-      });
-      mesh->tag_positions_changed();
-      bm->update_positions = false;
-    }
-    return;
-  }
-
   // const int old_verts_num = mesh->verts_num;
 
   BKE_mesh_clear_geometry(mesh);
@@ -1540,6 +1481,7 @@ static void bm_to_mesh_update(BMesh *bm)
   }
 
   /* Add optional mesh attributes before parallel iteration. */
+  bke::MutableAttributeAccessor attrs = mesh->attributes_for_write();
   bke::SpanAttributeWriter<bool> select_vert;
   bke::SpanAttributeWriter<bool> hide_vert;
   bke::SpanAttributeWriter<bool> select_edge;
@@ -1685,6 +1627,81 @@ static void bm_to_mesh_update(BMesh *bm)
   bm->update_positions = false;
 }
 
+static void bm_to_mesh_update_partial(BMesh *bm)
+{
+  using namespace blender;
+  Mesh *mesh = bm->mesh;
+  bke::MutableAttributeAccessor attrs = mesh->attributes_for_write();
+  if (bm->update_selection) {
+    BM_mesh_elem_table_ensure(bm, BM_VERT | BM_EDGE | BM_FACE);
+
+    bke::SpanAttributeWriter<bool> select_vert = attrs.lookup_or_add_for_write_only_span<bool>(
+        ".select_vert", AttrDomain::Point);
+    bke::SpanAttributeWriter<bool> select_edge = attrs.lookup_or_add_for_write_only_span<bool>(
+        ".select_edge", AttrDomain::Edge);
+    bke::SpanAttributeWriter<bool> select_poly = attrs.lookup_or_add_for_write_only_span<bool>(
+        ".select_poly", AttrDomain::Face);
+    threading::parallel_invoke(
+        [&]() {
+          threading::parallel_for(IndexRange(bm->totvert), 1024, [&](const IndexRange range) {
+            for (const int vert_i : range) {
+              select_vert.span[vert_i] = BM_elem_flag_test(bm->vtable[vert_i], BM_ELEM_SELECT);
+            }
+          });
+        },
+        [&]() {
+          threading::parallel_for(IndexRange(bm->totedge), 1024, [&](const IndexRange range) {
+            for (const int edge_i : range) {
+              select_edge.span[edge_i] = BM_elem_flag_test(bm->etable[edge_i], BM_ELEM_SELECT);
+            }
+          });
+        },
+        [&]() {
+          threading::parallel_for(IndexRange(bm->totface), 1024, [&](const IndexRange range) {
+            for (const int face_i : range) {
+              select_poly.span[face_i] = BM_elem_flag_test(bm->ftable[face_i], BM_ELEM_SELECT);
+            }
+          });
+        });
+    select_vert.finish();
+    select_edge.finish();
+    select_poly.finish();
+    bm->update_selection = false;
+  }
+  if (bm->update_positions || true) {
+    BM_mesh_elem_table_ensure(bm, BM_VERT);
+    MutableSpan<float3> positions = mesh->vert_positions_for_write();
+    threading::parallel_for(IndexRange(bm->totvert), 1024, [&](const IndexRange range) {
+      for (const int vert_i : range) {
+        positions[vert_i] = bm->vtable[vert_i]->co;
+      }
+    });
+    mesh->tag_positions_changed();
+    bm->update_positions = false;
+  }
+}
+
+static void bm_to_mesh_update(BMesh *bm)
+{
+  using namespace blender;
+  /* Mutex could be stored on BMesh. */
+  static Mutex mutex;
+  std::lock_guard lock(mutex);
+  threading::isolate_task([&]() {
+    if (bm->mesh == nullptr) {
+      bm->mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
+      bm->update_all = true;
+    }
+    assert_bmesh_has_no_mesh_only_attributes(*bm);
+
+    if (!bm->update_all) {
+      bm_to_mesh_update_partial(bm);
+      return;
+    }
+    bm_to_mesh_update_all(bm);
+  });
+}
+
 void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParams *params)
 {
   bm_to_mesh_update(bm);
@@ -1700,11 +1717,11 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
   CustomData_init_from(&bm->mesh->corner_data, &mesh->corner_data, CD_MASK_ALL, mesh->corners_num);
   CustomData_init_from(&bm->mesh->face_data, &mesh->face_data, CD_MASK_ALL, mesh->faces_num);
   mesh->attribute_storage.wrap() = bm->mesh->attribute_storage.wrap();
-  mesh->face_offset_indices = bm->mesh->face_offset_indices;
-  if (mesh->runtime->face_offsets_sharing_info) {
-    mesh->runtime->face_offsets_sharing_info = bm->mesh->runtime->face_offsets_sharing_info;
-    mesh->runtime->face_offsets_sharing_info->add_user();
-  }
+
+  blender::implicit_sharing::copy_shared_pointer(bm->mesh->face_offset_indices,
+                                                 bm->mesh->runtime->face_offsets_sharing_info,
+                                                 &mesh->face_offset_indices,
+                                                 &mesh->runtime->face_offsets_sharing_info);
 }
 
 void BM_mesh_bm_to_me_compact(BMesh &bm,
