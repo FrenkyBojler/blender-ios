@@ -58,6 +58,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Constraint Iterations").default_value(5).min(0);
   b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+  b.add_input<decl::Vector>("Gravity").default_value(float3(0, 0, -9.81f)).hide_value();
+  b.add_input<decl::Vector>("Force").field_on_all().hide_value();
+  b.add_input<decl::Vector>("Torque").field_on_all().hide_value();
 
   b.add_output<decl::Geometry>("Hair").propagate_all();
 }
@@ -144,7 +147,7 @@ static bool apply_impulse(GeometryComponent &component,
   const GField field = Field<float3>(
       fn::FieldOperation::Create(apply_impulse_fn,
                                  {bke::AttributeFieldInput::Create<float3>(velocity_attr),
-                                  bke::AttributeFieldInput::Create<float3>(inv_mass_attr),
+                                  bke::AttributeFieldInput::Create<float>(inv_mass_attr),
                                   impulse}));
 
   return bke::try_capture_field_on_geometry(
@@ -173,7 +176,7 @@ static bool apply_angular_impulse(GeometryComponent &component,
                                   angular_impulse}));
 
   return bke::try_capture_field_on_geometry(
-      component, velocity_attr, bke::AttrDomain::Point, selection_field, field);
+      component, angular_velocity_attr, bke::AttrDomain::Point, selection_field, field);
 }
 
 /* Note: force is applied in object space. */
@@ -204,17 +207,80 @@ static bool apply_torque(GeometryComponent &component,
   return apply_angular_impulse(component, selection_field, field);
 }
 
-static bool integrate_positions(GeometryComponent &component,
-                                const Field<bool> &selection_field,
-                                const float delta_time,
-                                const float linear_factor)
+static bool integrate_velocity(GeometryComponent &component,
+                               const Field<bool> &selection_field,
+                               const float delta_time,
+                               const float linear_factor,
+                               const float3 &gravity,
+                               const Field<float3> &external_force)
 {
-  const auto integrate_positions_fn = fn::multi_function::build::SI2_SO<float3, float3, float3>(
+  if (linear_factor == 0.0f) {
+    return true;
+  }
+
+  const auto integrate_velocity_fn =
+      fn::multi_function::build::SI3_SO<float3, float, float3, float3>(
+          "Integrate Velocity",
+          [=](const float3 &velocity, const float inv_mass, const float3 &ext_force) -> float3 {
+            return velocity + delta_time * linear_factor * (gravity + inv_mass * ext_force);
+          });
+  const GField field = Field<float3>(
+      fn::FieldOperation::Create(integrate_velocity_fn,
+                                 {bke::AttributeFieldInput::Create<float3>(velocity_attr),
+                                  bke::AttributeFieldInput::Create<float>(inv_mass_attr),
+                                  external_force}));
+
+  return bke::try_capture_field_on_geometry(
+      component, velocity_attr, bke::AttrDomain::Point, selection_field, field);
+}
+
+static bool integrate_angular_velocity(GeometryComponent &component,
+                                       const Field<bool> &selection_field,
+                                       const float delta_time,
+                                       const float angular_factor,
+                                       const Field<float3> &external_torque)
+{
+  if (angular_factor == 0.0f) {
+    return true;
+  }
+
+  const auto integrate_angular_velocity_fn =
+      fn::multi_function::build::SI4_SO<float3, float3, float3, float3, float3>(
+          "Integrate Angular Velocity",
+          [=](const float3 &angular_velocity,
+              const float3 &inertia,
+              const float3 &inv_inertia,
+              const float3 &ext_torque) -> float3 {
+            const float3 precession = math::cross(angular_velocity, angular_velocity * inertia);
+            return angular_velocity +
+                   delta_time * angular_factor * (inv_inertia * (ext_torque - precession));
+          });
+  const GField field = Field<float3>(
+      fn::FieldOperation::Create(integrate_angular_velocity_fn,
+                                 {bke::AttributeFieldInput::Create<float3>(angular_velocity_attr),
+                                  bke::AttributeFieldInput::Create<float3>(inertia_attr),
+                                  bke::AttributeFieldInput::Create<float3>(inv_inertia_attr),
+                                  external_torque}));
+
+  return bke::try_capture_field_on_geometry(
+      component, angular_velocity_attr, bke::AttrDomain::Point, selection_field, field);
+}
+
+static bool integrate_position(GeometryComponent &component,
+                               const Field<bool> &selection_field,
+                               const float delta_time,
+                               const float linear_factor)
+{
+  if (linear_factor == 0.0f) {
+    return true;
+  }
+
+  const auto integrate_position_fn = fn::multi_function::build::SI2_SO<float3, float3, float3>(
       "Integrate Positions", [=](const float3 &position, const float3 &velocity) -> float3 {
         return position + linear_factor * delta_time * velocity;
       });
   const GField field = Field<float3>(
-      fn::FieldOperation::Create(integrate_positions_fn,
+      fn::FieldOperation::Create(integrate_position_fn,
                                  {bke::AttributeFieldInput::Create<float3>(position_attr),
                                   bke::AttributeFieldInput::Create<float3>(velocity_attr)}));
 
@@ -222,12 +288,16 @@ static bool integrate_positions(GeometryComponent &component,
       component, position_attr, bke::AttrDomain::Point, selection_field, field);
 }
 
-static bool integrate_rotations(GeometryComponent &component,
-                                const Field<bool> &selection_field,
-                                const float delta_time,
-                                const float angular_factor)
+static bool integrate_rotation(GeometryComponent &component,
+                               const Field<bool> &selection_field,
+                               const float delta_time,
+                               const float angular_factor)
 {
-  const auto integrate_rotations_fn =
+  if (angular_factor == 0.0f) {
+    return true;
+  }
+
+  const auto integrate_rotation_fn =
       fn::multi_function::build::SI2_SO<math::Quaternion, float3, math::Quaternion>(
           "Integrate Rotations",
           [=](const math::Quaternion &rotation,
@@ -238,9 +308,9 @@ static bool integrate_rotations(GeometryComponent &component,
                 math::Quaternion(rotation.w + factor * direction.w,
                                  rotation.imaginary_part() + factor * direction.imaginary_part()));
           });
-  const GField field = Field<float3>(fn::FieldOperation::Create(
-      integrate_rotations_fn,
-      {bke::AttributeFieldInput::Create<float3>(rotation_attr),
+  const GField field = Field<math::Quaternion>(fn::FieldOperation::Create(
+      integrate_rotation_fn,
+      {bke::AttributeFieldInput::Create<math::Quaternion>(rotation_attr),
        bke::AttributeFieldInput::Create<float3>(angular_velocity_attr)}));
 
   return bke::try_capture_field_on_geometry(
@@ -251,10 +321,18 @@ static void cosserat_rod_dynamics_integration(GeometryComponent &component,
                                               const Field<bool> &selection_field,
                                               const float delta_time,
                                               const float linear_factor,
-                                              const float angular_factor)
+                                              const float angular_factor,
+                                              const float3 &gravity,
+                                              const Field<float3> &external_force,
+                                              const Field<float3> &external_torque)
 {
-  integrate_positions(component, selection_field, delta_time, linear_factor);
-  integrate_rotations(component, selection_field, delta_time, angular_factor);
+  integrate_velocity(
+      component, selection_field, delta_time, linear_factor, gravity, external_force);
+  integrate_angular_velocity(
+      component, selection_field, delta_time, angular_factor, external_torque);
+
+  integrate_position(component, selection_field, delta_time, linear_factor);
+  integrate_rotation(component, selection_field, delta_time, angular_factor);
 }
 
 static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
@@ -545,6 +623,9 @@ static void node_geo_exec(GeoNodeExecParams params)
                                              0);
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  float3 gravity = params.extract_input<float3>("Gravity");
+  Field<float3> force_field = params.extract_input<Field<float3>>("Force");
+  Field<float3> torque_field = params.extract_input<Field<float3>>("Torque");
 
   if (!hair_geometry.has_curves()) {
     params.set_default_remaining_outputs();
@@ -568,7 +649,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   capture_motion_state(hair_curves, selection_field);
 
   /* Unconstrained motion. */
-  cosserat_rod_dynamics_integration(hair_curves, selection_field, delta_time, 1.0f, 1.0f);
+
+  cosserat_rod_dynamics_integration(
+      hair_curves, selection_field, delta_time, 1.0f, 1.0f, gravity, force_field, torque_field);
 
   params.set_output("Hair", std::move(hair_geometry));
 }
