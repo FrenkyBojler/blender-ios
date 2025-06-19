@@ -180,10 +180,10 @@ static bool apply_angular_impulse(GeometryComponent &component,
 }
 
 /* Note: force is applied in object space. */
-static bool apply_force(GeometryComponent &component,
-                        const Field<bool> &selection_field,
-                        const float delta_time,
-                        const Field<float3> &force)
+static bool UNUSED_FUNCTION(apply_force)(GeometryComponent &component,
+                                         const Field<bool> &selection_field,
+                                         const float delta_time,
+                                         const Field<float3> &force)
 {
   const auto impulse_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Compute Impulse from Force",
@@ -194,10 +194,10 @@ static bool apply_force(GeometryComponent &component,
 }
 
 /* Note: torque is applied in local body space. */
-static bool apply_torque(GeometryComponent &component,
-                         const Field<bool> &selection_field,
-                         const float delta_time,
-                         const Field<float3> &torque)
+static bool UNUSED_FUNCTION(apply_torque)(GeometryComponent &component,
+                                          const Field<bool> &selection_field,
+                                          const float delta_time,
+                                          const Field<float3> &torque)
 {
   const auto angular_impulse_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Compute Angular Impulse from Torque",
@@ -335,7 +335,7 @@ static void cosserat_rod_dynamics_integration(GeometryComponent &component,
   integrate_rotation(component, selection_field, delta_time, angular_factor);
 }
 
-static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
+static void UNUSED_FUNCTION(zero_init_solver)(MutableSpan<ConstraintEvalData> constraint_data)
 {
   for (ConstraintEvalData &data : constraint_data) {
     if (!data.geometry) {
@@ -347,8 +347,8 @@ static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
   }
 }
 
-static void warm_start_solver(const ConstraintEvalParams &eval_params,
-                              MutableSpan<ConstraintEvalData> constraint_data)
+static void UNUSED_FUNCTION(warm_start_solver)(const ConstraintEvalParams &eval_params,
+                                               MutableSpan<ConstraintEvalData> constraint_data)
 {
   for (ConstraintEvalData &data : constraint_data) {
     if (!data.geometry) {
@@ -362,10 +362,10 @@ static void warm_start_solver(const ConstraintEvalParams &eval_params,
   }
 }
 
-static void estimate_velocity(ConstraintEvalParams &params,
-                              Array<float3> &orig_velocities,
-                              Array<float3> &orig_angular_velocities,
-                              ConstraintVariables &vars)
+static void UNUSED_FUNCTION(estimate_velocity)(ConstraintEvalParams &params,
+                                               Array<float3> &orig_velocities,
+                                               Array<float3> &orig_angular_velocities,
+                                               ConstraintVariables &vars)
 {
   const Span<float3> old_positions = params.old_positions;
   const Span<math::Quaternion> old_rotations = params.old_rotations;
@@ -392,9 +392,10 @@ static void estimate_velocity(ConstraintEvalParams &params,
   });
 }
 
-static void do_position_constraints_iteration(const ConstraintEvalParams &eval_params,
-                                              MutableSpan<ConstraintEvalData> constraint_data,
-                                              ConstraintVariables &variables)
+static void UNUSED_FUNCTION(do_position_constraints_iteration)(
+    const ConstraintEvalParams &eval_params,
+    MutableSpan<ConstraintEvalData> constraint_data,
+    ConstraintVariables &variables)
 {
   IndexMaskMemory memory;
 
@@ -416,9 +417,10 @@ static void do_position_constraints_iteration(const ConstraintEvalParams &eval_p
   }
 }
 
-static void do_velocity_constraints_iteration(const ConstraintEvalParams &eval_params,
-                                              MutableSpan<ConstraintEvalData> constraint_data,
-                                              ConstraintVariables &variables)
+static void UNUSED_FUNCTION(do_velocity_constraints_iteration)(
+    const ConstraintEvalParams &eval_params,
+    MutableSpan<ConstraintEvalData> constraint_data,
+    ConstraintVariables &variables)
 {
   IndexMaskMemory memory;
 
@@ -440,10 +442,11 @@ static void do_velocity_constraints_iteration(const ConstraintEvalParams &eval_p
   }
 }
 
-static void solve_constraints(GeometrySet &hair_geometry, const int iterations)
+static void UNUSED_FUNCTION(solve_constraints)(GeometrySet &hair_geometry, const int iterations)
 {
   /* TODO warm start doesn't work properly yet. */
   const bool warm_start = false;
+  UNUSED_VARS(hair_geometry, iterations, warm_start);
 
   // Field<float> mass_field = params.extract_input<Field<float>>("Mass");
   // Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
@@ -619,8 +622,8 @@ static void solve_constraints(GeometrySet &hair_geometry, const int iterations)
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
-  const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
-                                             0);
+  // const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
+  //                                            0);
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   float3 gravity = params.extract_input<float3>("Gravity");
