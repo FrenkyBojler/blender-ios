@@ -4338,7 +4338,7 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
   jd->dir = area_getorientation(jd->sa1, area);
   jd->dock_target = area_docking_target(jd, event);
 
-  if (jd->sa2 != area && jd->dir != SCREEN_DIR_NONE && jd->dock_target == AreaDockTarget::None) {
+  if (jd->sa2 != area) {
     jd->start_time = BLI_time_now_seconds();
     jd->end_time = jd->start_time + AREA_DOCK_FADEIN;
   }

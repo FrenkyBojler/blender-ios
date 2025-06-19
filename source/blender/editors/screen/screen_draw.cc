@@ -389,9 +389,10 @@ void screen_draw_join_highlight(
     const wmWindow *win, ScrArea *sa1, ScrArea *sa2, eScreenDir dir, float anim_factor)
 {
   if (dir == SCREEN_DIR_NONE || !sa2) {
-    /* Darken source if docking. Done here because it might be a different window. */
+    /* Darken source if docking. Done here because it might be a different window.
+     * Do not animate this as we don't want to reset every time we change areas. */
     screen_draw_area_closed(
-        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, anim_factor);
+        sa1->totrct.xmin, sa1->totrct.xmax, sa1->totrct.ymin, sa1->totrct.ymax, 1.0f);
     return;
   }
 
@@ -615,8 +616,8 @@ void screen_draw_split_preview(ScrArea *area,
                                const float split_factor,
                                const float anim_factor)
 {
-  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f * anim_factor};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f * anim_factor};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
   float border[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, border);
   border[3] *= anim_factor;
@@ -636,8 +637,8 @@ void screen_draw_split_preview(ScrArea *area,
   x = std::clamp(x, rect.xmin, rect.xmax);
   y = std::clamp(y, rect.ymin, rect.ymax);
   float half_line_width = float(U.border_width) * UI_SCALE_FAC * anim_factor;
-  if (half_line_width < 1.0f) {
-    half_line_width = -1.0f * UI_SCALE_FAC;
+  if (half_line_width < 0.5f) {
+    half_line_width = -U.pixelsize;
   }
 
   /* Outlined rectangle to left/above split position. */
@@ -651,15 +652,13 @@ void screen_draw_split_preview(ScrArea *area,
   UI_draw_roundbox_4fv_ex(&rect, inner, nullptr, 1.0f, outline, U.pixelsize, EDITORRADIUS);
 
   /* Outlined rectangle to right/below split position. */
-  if (half_line_width > 0.0f) {
-    if (dir_axis == SCREEN_AXIS_H) {
-      rect.ymin = y + half_line_width;
-      rect.ymax = area->totrct.ymax;
-    }
-    else {
-      rect.xmin = x + half_line_width;
-      rect.xmax = area->totrct.xmax;
-    }
+  if (dir_axis == SCREEN_AXIS_H) {
+    rect.ymin = y + half_line_width;
+    rect.ymax = area->totrct.ymax;
+  }
+  else {
+    rect.xmin = x + half_line_width;
+    rect.xmax = area->totrct.xmax;
   }
 
   rounded_corners(rect,
