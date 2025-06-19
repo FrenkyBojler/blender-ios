@@ -3733,8 +3733,7 @@ static void outliner_draw_struct_marks(ARegion *region,
   }
 }
 
-static void outliner_draw_highlights(uint pos,
-                                     const ARegion *region,
+static void outliner_draw_highlights(const ARegion *region,
                                      const SpaceOutliner *space_outliner,
                                      const float col_selection[4],
                                      const float col_active[4],
@@ -3784,26 +3783,19 @@ static void outliner_draw_highlights(uint pos,
         UI_GetThemeColorBlend4f(TH_TEXT, TH_BACK, 0.4f, col_outline);
 
         if (tselem->flag & TSE_DRAG_BEFORE) {
-          GPU_blend(GPU_BLEND_ALPHA);
-          immUniformColor4fv(col_outline);
-          immRectf(pos,
-                   start_x,
-                   start_y + UI_UNIT_Y - U.pixelsize,
-                   end_x,
-                   start_y + UI_UNIT_Y + U.pixelsize);
-          GPU_blend(GPU_BLEND_NONE);
+          rect.ymax += (1.0f * UI_SCALE_FAC) + (1.0f * U.pixelsize);
+          rect.ymin = rect.ymax - (2.0f * U.pixelsize);
+          UI_draw_roundbox_4fv(&rect, true, 0.0f, col_outline);
         }
         else if (tselem->flag & TSE_DRAG_AFTER) {
-          GPU_blend(GPU_BLEND_ALPHA);
-          immUniformColor4fv(col_outline);
-          immRectf(pos, start_x, start_y - U.pixelsize, end_x, start_y + U.pixelsize);
-          GPU_blend(GPU_BLEND_NONE);
+          rect.ymin -= (1.0f * UI_SCALE_FAC) + (1.0f * U.pixelsize);
+          rect.ymax = rect.ymin + (2.0f * U.pixelsize);
+          UI_draw_roundbox_4fv(&rect, true, 0.0f, col_outline);
         }
         else {
           float col_bg[4];
           UI_GetThemeColorShade4fv(TH_BACK, 40, col_bg);
-          UI_draw_roundbox_4fv(&rect, true, radius, col_bg);
-          UI_draw_roundbox_4fv(&rect, false, radius, col_outline);
+          UI_draw_roundbox_4fv_ex(&rect, col_bg, nullptr, 1.0f, col_outline, U.pixelsize, radius);
         }
       }
       else {
@@ -3839,11 +3831,7 @@ static void outliner_draw_highlights(ARegion *region,
   col_searchmatch[3] = 0.5f;
 
   GPU_blend(GPU_BLEND_ALPHA);
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  outliner_draw_highlights(pos,
-                           region,
+  outliner_draw_highlights(region,
                            space_outliner,
                            col_selection,
                            col_active,
@@ -3851,7 +3839,6 @@ static void outliner_draw_highlights(ARegion *region,
                            col_searchmatch,
                            startx,
                            starty);
-  immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);
 }
 
