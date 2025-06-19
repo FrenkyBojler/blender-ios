@@ -1738,166 +1738,23 @@ void BM_mesh_bm_to_me_compact(BMesh &bm,
   /* Just in case, clear the derived geometry caches from the input mesh. */
   BKE_mesh_runtime_clear_geometry(&mesh);
 
-  mesh.verts_num = bm.totvert;
-  mesh.edges_num = bm.totedge;
-  mesh.totface_legacy = 0;
-  mesh.corners_num = bm.totloop;
-  mesh.faces_num = bm.totface;
+  bm_to_mesh_update(&bm);
 
-  mesh.runtime->deformed_only = true;
+  mesh.verts_num = bm.mesh->verts_num;
+  mesh.edges_num = bm.mesh->edges_num;
+  mesh.corners_num = bm.mesh->corners_num;
+  mesh.faces_num = bm.mesh->faces_num;
 
-  const bool use_threading = (mesh.faces_num + mesh.edges_num) > 1024;
+  CustomData_init_from(&bm.mesh->vert_data, &mesh.vert_data, CD_MASK_ALL, mesh.verts_num);
+  CustomData_init_from(&bm.mesh->edge_data, &mesh.edge_data, CD_MASK_ALL, mesh.edges_num);
+  CustomData_init_from(&bm.mesh->corner_data, &mesh.corner_data, CD_MASK_ALL, mesh.corners_num);
+  CustomData_init_from(&bm.mesh->face_data, &mesh.face_data, CD_MASK_ALL, mesh.faces_num);
+  mesh.attribute_storage.wrap() = bm.mesh->attribute_storage.wrap();
 
-  /* In a first pass, update indices of BMesh elements and build tables for easy iteration later.
-   * Also check if some optional mesh attributes should be added in the next step. Since each
-   * domain has no effect on others, process the independent domains on separate threads. */
-  bool need_select_vert = false;
-  bool need_select_edge = false;
-  bool need_select_poly = false;
-  bool need_hide_vert = false;
-  bool need_hide_edge = false;
-  bool need_hide_poly = false;
-  bool need_material_index = false;
-  bool need_sharp_edge = false;
-  bool need_sharp_face = false;
-  bool need_uv_seams = false;
-
-  Array<const BMVert *> vert_table;
-  Array<const BMEdge *> edge_table;
-  Array<const BMFace *> face_table;
-  Array<const BMLoop *> loop_table;
-  Vector<int> loop_layers_not_to_copy;
-  threading::parallel_invoke(
-      use_threading,
-      [&]() {
-        vert_table.reinitialize(bm.totvert);
-        bm_vert_table_build(bm, vert_table, need_select_vert, need_hide_vert);
-      },
-      [&]() {
-        edge_table.reinitialize(bm.totedge);
-        bm_edge_table_build(
-            bm, edge_table, need_select_edge, need_hide_edge, need_sharp_edge, need_uv_seams);
-      },
-      [&]() {
-        face_table.reinitialize(bm.totface);
-        loop_table.reinitialize(bm.totloop);
-        bm_face_loop_table_build(bm,
-                                 face_table,
-                                 loop_table,
-                                 need_select_poly,
-                                 need_hide_poly,
-                                 need_sharp_face,
-                                 need_material_index,
-                                 loop_layers_not_to_copy);
-        for (const int i : loop_layers_not_to_copy) {
-          bm.ldata.layers[i].flag |= CD_FLAG_NOCOPY;
-        }
-      });
-  bm.elem_index_dirty &= ~(BM_VERT | BM_EDGE | BM_FACE | BM_LOOP);
-
-  if (mask) {
-    CustomData_merge_layout(&bm.vdata, &mesh.vert_data, mask->vmask, CD_CONSTRUCT, mesh.verts_num);
-    CustomData_merge_layout(&bm.edata, &mesh.edge_data, mask->emask, CD_CONSTRUCT, mesh.edges_num);
-    CustomData_merge_layout(
-        &bm.ldata, &mesh.corner_data, mask->lmask, CD_CONSTRUCT, mesh.corners_num);
-    CustomData_merge_layout(&bm.pdata, &mesh.face_data, mask->pmask, CD_CONSTRUCT, mesh.faces_num);
-  }
-
-  /* Add optional mesh attributes before parallel iteration. */
-  assert_bmesh_has_no_mesh_only_attributes(bm);
-  bke::SpanAttributeWriter<bool> select_vert;
-  bke::SpanAttributeWriter<bool> hide_vert;
-  bke::SpanAttributeWriter<bool> select_edge;
-  bke::SpanAttributeWriter<bool> hide_edge;
-  bke::SpanAttributeWriter<bool> sharp_edge;
-  bke::SpanAttributeWriter<bool> uv_seams;
-  bke::SpanAttributeWriter<bool> select_poly;
-  bke::SpanAttributeWriter<bool> hide_poly;
-  bke::SpanAttributeWriter<bool> sharp_face;
-  bke::SpanAttributeWriter<int> material_index;
-
-  if (add_mesh_attributes) {
-    bke::MutableAttributeAccessor attrs = mesh.attributes_for_write();
-    if (need_select_vert) {
-      select_vert = attrs.lookup_or_add_for_write_only_span<bool>(".select_vert",
-                                                                  AttrDomain::Point);
-    }
-    if (need_hide_vert) {
-      hide_vert = attrs.lookup_or_add_for_write_only_span<bool>(".hide_vert", AttrDomain::Point);
-    }
-    if (need_select_edge) {
-      select_edge = attrs.lookup_or_add_for_write_only_span<bool>(".select_edge",
-                                                                  AttrDomain::Edge);
-    }
-    if (need_sharp_edge) {
-      sharp_edge = attrs.lookup_or_add_for_write_only_span<bool>("sharp_edge", AttrDomain::Edge);
-    }
-    if (need_uv_seams) {
-      uv_seams = attrs.lookup_or_add_for_write_only_span<bool>("uv_seam", AttrDomain::Edge);
-    }
-    if (need_hide_edge) {
-      hide_edge = attrs.lookup_or_add_for_write_only_span<bool>(".hide_edge", AttrDomain::Edge);
-    }
-    if (need_select_poly) {
-      select_poly = attrs.lookup_or_add_for_write_only_span<bool>(".select_poly",
-                                                                  AttrDomain::Face);
-    }
-    if (need_hide_poly) {
-      hide_poly = attrs.lookup_or_add_for_write_only_span<bool>(".hide_poly", AttrDomain::Face);
-    }
-    if (need_sharp_face) {
-      sharp_face = attrs.lookup_or_add_for_write_only_span<bool>("sharp_face", AttrDomain::Face);
-    }
-    if (need_material_index) {
-      material_index = attrs.lookup_or_add_for_write_only_span<int>("material_index",
-                                                                    AttrDomain::Face);
-    }
-  }
-
-  /* Loop over all elements in parallel, copying attributes and building the Mesh topology. */
-  threading::parallel_invoke(
-      use_threading,
-      [&]() { bm_to_mesh_verts(bm, vert_table, mesh, select_vert.span, hide_vert.span); },
-      [&]() {
-        bm_to_mesh_edges(bm,
-                         edge_table,
-                         mesh,
-                         select_edge.span,
-                         hide_edge.span,
-                         sharp_edge.span,
-                         uv_seams.span);
-      },
-      [&]() {
-        bm_to_mesh_faces(bm,
-                         face_table,
-                         mesh,
-                         select_poly.span,
-                         hide_poly.span,
-                         sharp_face.span,
-                         material_index.span);
-        if (bm.act_face) {
-          mesh.act_face = BM_elem_index_get(bm.act_face);
-        }
-      },
-      [&]() {
-        bm_to_mesh_loops(bm, loop_table, mesh);
-        for (const int i : loop_layers_not_to_copy) {
-          bm.ldata.layers[i].flag &= ~CD_FLAG_NOCOPY;
-        }
-      });
-
-  if (add_mesh_attributes) {
-    select_vert.finish();
-    hide_vert.finish();
-    select_edge.finish();
-    hide_edge.finish();
-    sharp_edge.finish();
-    uv_seams.finish();
-    select_poly.finish();
-    hide_poly.finish();
-    sharp_face.finish();
-    material_index.finish();
-  }
+  blender::implicit_sharing::copy_shared_pointer(bm.mesh->face_offset_indices,
+                                                 bm.mesh->runtime->face_offsets_sharing_info,
+                                                 &mesh.face_offset_indices,
+                                                 &mesh.runtime->face_offsets_sharing_info);
 }
 
 void BM_mesh_bm_to_me_for_eval(BMesh &bm, Mesh &mesh, const CustomData_MeshMasks *cd_mask_extra)
