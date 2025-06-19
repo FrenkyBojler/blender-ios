@@ -430,7 +430,7 @@ static wmOperatorStatus object_hide_collection_exec(bContext *C, wmOperator *op)
 
   DEG_id_tag_update(&scene->id, ID_RECALC_BASE_FLAGS);
 
-  if (v3d->flag & V3D_LOCAL_COLLECTIONS) {
+  if (v3d && v3d->flag & V3D_LOCAL_COLLECTIONS) {
     if (lc->runtime_flag & LAYER_COLLECTION_HIDE_VIEWPORT) {
       return OPERATOR_CANCELLED;
     }
@@ -513,6 +513,15 @@ static wmOperatorStatus object_hide_collection_invoke(bContext *C,
   return OPERATOR_INTERFACE;
 }
 
+static bool object_hide_collection_poll(bContext *C)
+{
+  if (SpaceOutliner *space_outliner = CTX_wm_space_outliner(C)) {
+    return space_outliner->outlinevis == SO_VIEW_LAYER;
+  }
+
+  return ED_operator_view3d_active(C);
+}
+
 void OBJECT_OT_hide_collection(wmOperatorType *ot)
 {
   /* identifiers */
@@ -523,7 +532,7 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = object_hide_collection_exec;
   ot->invoke = object_hide_collection_invoke;
-  ot->poll = ED_operator_view3d_active;
+  ot->poll = object_hide_collection_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
