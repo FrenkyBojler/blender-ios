@@ -1214,6 +1214,17 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   int2 p1 = data->p1;
   int2 p2 = data->p2;
 
+  if (data->force_square) {
+    /* Squaring has to happen before sorting so the area is squared from the point where
+     * dragging started. */
+    square_points_clamped_to_window(p1, p2, window);
+  }
+  else {
+    /* Clamp points to window bounds, so the screenshot area is always valid. */
+    p1 = clamp_point_to_window(p1, window);
+    p2 = clamp_point_to_window(p2, window);
+  }
+
   sort_points(p1, p2);
 
   /* Drawing rect just out of the screenshot area to not capture the box in the picture. */
