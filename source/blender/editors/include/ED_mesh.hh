@@ -82,7 +82,6 @@ private:
   blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;
   blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
   blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
-  
 };
 
 template <typename Func>
@@ -114,7 +113,6 @@ void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face, Func operation_
     operation_lambda(mirror_face);
   }
 }
-
 
 /**
  * \param em: Edit-mesh used for generating mirror data.
