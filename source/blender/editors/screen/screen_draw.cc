@@ -617,10 +617,9 @@ void screen_draw_split_preview(ScrArea *area,
                                const float anim_factor)
 {
   float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f};
   float border[4];
   UI_GetThemeColor4fv(TH_EDITOR_BORDER, border);
-  border[3] *= anim_factor;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
   rctf rect;
