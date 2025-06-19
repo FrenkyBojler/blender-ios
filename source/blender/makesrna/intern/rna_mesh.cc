@@ -3309,7 +3309,7 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "", 0);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop, "Has Custom Normals", "True if there are custom normals data in this mesh");
+      prop, "Has Custom Normals", "True if there is custom normal data for this mesh");
   RNA_def_property_boolean_funcs(prop, "rna_Mesh_has_custom_normals_get", nullptr);
   RNA_define_verify_sdna(true);
 
