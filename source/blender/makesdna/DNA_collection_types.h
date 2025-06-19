@@ -144,7 +144,7 @@ typedef struct Collection {
   uint8_t lineart_usage; /* #eCollectionLineArt_Usage */
   uint8_t lineart_flags; /* #eCollectionLineArt_Flags */
   uint8_t lineart_intersection_mask;
-  uint8_t lineart_intersection_priority;
+  char _pad2;
 
   struct ViewLayer *view_layer DNA_DEPRECATED;
 

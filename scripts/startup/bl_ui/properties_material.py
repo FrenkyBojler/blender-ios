@@ -410,12 +410,6 @@ class MATERIAL_PT_lineart(MaterialButtonsPanel, Panel):
         row = layout.row(align=True, heading="Custom Occlusion")
         row.prop(lineart, "mat_occlusion", text="Levels")
 
-        row = layout.row(heading="Intersection Priority")
-        row.prop(lineart, "use_intersection_priority_override", text="")
-        subrow = row.row()
-        subrow.active = lineart.use_intersection_priority_override
-        subrow.prop(lineart, "intersection_priority", text="")
-
 
 class MATERIAL_PT_animation(MaterialButtonsPanel, Panel, PropertiesAnimationMixin):
     COMPAT_ENGINES = {

@@ -725,7 +725,6 @@ static void lineart_triangle_post(LineartTriangle *tri, LineartTriangle *orig)
   tri->intersection_mask = orig->intersection_mask;
   tri->material_mask_bits = orig->material_mask_bits;
   tri->mat_occlusion = orig->mat_occlusion;
-  tri->intersection_priority = orig->intersection_priority;
   tri->target_reference = orig->target_reference;
 }
 
@@ -1846,10 +1845,6 @@ static void lineart_load_tri_task(void *__restrict userdata,
                                   mat->lineart.material_mask_bits :
                                   0);
   tri->mat_occlusion |= (mat ? mat->lineart.mat_occlusion : 1);
-  tri->intersection_priority = ((mat && (mat->lineart.flags &
-                                         LRT_MATERIAL_CUSTOM_INTERSECTION_PRIORITY)) ?
-                                    mat->lineart.intersection_priority :
-                                    ob_info->intersection_priority);
   tri->flags |= (mat && (mat->blend_flag & MA_BL_CULL_BACKFACE)) ?
                     LRT_TRIANGLE_MAT_BACK_FACE_CULLING :
                     0;
@@ -2328,26 +2323,6 @@ static uchar lineart_intersection_mask_check(Collection *c, Object *ob)
   return 0;
 }
 
-static uchar lineart_intersection_priority_check(Collection *c, Object *ob)
-{
-  if (ob->lineart.flags & OBJECT_LRT_OWN_INTERSECTION_PRIORITY) {
-    return ob->lineart.intersection_priority;
-  }
-
-  LISTBASE_FOREACH (CollectionChild *, cc, &c->children) {
-    uchar result = lineart_intersection_priority_check(cc->collection, ob);
-    if (result) {
-      return result;
-    }
-  }
-  if (BKE_collection_has_object(c, ob)) {
-    if (c->lineart_flags & COLLECTION_LRT_USE_INTERSECTION_PRIORITY) {
-      return c->lineart_intersection_priority;
-    }
-  }
-  return 0;
-}
-
 /**
  * See if this object in such collection is used for generating line art,
  * Disabling a collection for line art will doable all objects inside.
@@ -2480,7 +2455,6 @@ static void lineart_object_load_single_instance(LineartData *ld,
   Object *ob_eval = instance->object_eval;
   obi->usage = lineart_usage_check(scene->master_collection, ob, is_render);
   obi->override_intersection_mask = lineart_intersection_mask_check(scene->master_collection, ob);
-  obi->intersection_priority = lineart_intersection_priority_check(scene->master_collection, ob);
   Mesh *use_mesh;
 
   if (obi->usage == OBJECT_LRT_EXCLUDE) {
@@ -4814,8 +4788,8 @@ static void lineart_create_edges_from_isec_data(LineartIsecData *d)
       LineartElementLinkNode *eln2 = obi1 == obi2 ? eln1 :
                                                     lineart_find_matching_eln(
                                                         &ld->geom.line_buffer_pointers, obi2);
-      LineartInstance *inst1=eln1 ? eln1->instance_ref : nullptr;
-      LineartInstance *inst2=eln2 ? eln2->instance_ref : nullptr;
+      LineartInstance *inst1 = eln1 ? eln1->instance_ref : nullptr;
+      LineartInstance *inst2 = eln2 ? eln2->instance_ref : nullptr;
       e->instance_ref = inst1;
       e->instance_ref2 = inst2;
 

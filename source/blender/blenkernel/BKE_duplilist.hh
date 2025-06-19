@@ -80,12 +80,13 @@ using DupliList = blender::VectorList<DupliObject>;
  *   #DupliObject::parents_stack set. Note that it's up to the caller to deconstruct
  *   #recorded_parents_stack.
  */
-void object_duplilist(Depsgraph *depsgraph,
-                      Scene *sce,
-                      Object *ob,
-                      blender::Set<const Object *> *include_objects,
-                      DupliList &r_duplilist,
-                      blender::Vector<blender::Vector<Object *>> *recorded_parents_stack = nullptr);
+void object_duplilist(
+    Depsgraph *depsgraph,
+    Scene *sce,
+    Object *ob,
+    blender::Set<const Object *> *include_objects,
+    DupliList &r_duplilist,
+    blender::Vector<blender::Vector<Object *>> *recorded_parents_stack = nullptr);
 
 /**
  * Fill a Vector of #DupliObject for the preview geometry referenced by the #ViewerPath.

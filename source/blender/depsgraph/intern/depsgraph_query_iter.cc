@@ -292,9 +292,12 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
           ((object->transflag & OB_DUPLI) || object->runtime->geometry_set_eval != nullptr))
       {
 
-        object_duplilist(
-            data->graph, data->scene, object, data->settings->included_objects, data->dupli_list, 
-                                            data->settings->parents_stack);
+        object_duplilist(data->graph,
+                         data->scene,
+                         object,
+                         data->settings->included_objects,
+                         data->dupli_list,
+                         data->settings->parents_stack);
         deg_iterator_duplis_init(data, object);
       }
     }

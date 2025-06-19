@@ -109,10 +109,6 @@ typedef struct ObjectLineArt {
 
   /** if OBJECT_LRT_OWN_CREASE is set */
   float crease_threshold;
-
-  unsigned char intersection_priority;
-
-  char _pad[7];
 } ObjectLineArt;
 
 /**
@@ -131,7 +127,7 @@ ENUM_OPERATORS(eObjectLineArt_Usage, OBJECT_LRT_FORCE_INTERSECTION);
 
 enum eObjectLineArt_Flags {
   OBJECT_LRT_OWN_CREASE = (1 << 0),
-  OBJECT_LRT_OWN_INTERSECTION_PRIORITY = (1 << 1),
+  /* OBJECT_LRT_OWN_INTERSECTION_PRIORITY = (1 << 1), Removed. */
 };
 
 /* Evaluated light linking state needed for the render engines integration. */

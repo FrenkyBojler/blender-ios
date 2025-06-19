@@ -63,9 +63,6 @@ struct LineartTriangle {
   /* target_reference = (obi->obindex | triangle_index) */
   /*        higher 12 bits-------^         ^-----index in object, lower 20 bits */
   uint32_t target_reference;
-
-  uint8_t intersection_priority;
-
   /**
    * Only use single link list, because we don't need to go back in order.
    * This variable is also reused to store the pointer to adjacent lines of this triangle before
@@ -535,7 +532,6 @@ struct LineartObjectInfo {
   LineartElementLinkNode *v_eln;
   int usage;
   uint8_t override_intersection_mask;
-  uint8_t intersection_priority;
   int global_i_offset;
 
   /* Shifted LRT_OBINDEX_SHIFT bits to be combined with object triangle index. */
