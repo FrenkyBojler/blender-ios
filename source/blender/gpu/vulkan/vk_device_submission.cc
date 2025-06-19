@@ -307,6 +307,8 @@ void VKDevice::deinit_submission_pool()
 {
   CLOG_INFO(&LOG, 3, "cancelling submission pool");
   BLI_task_pool_cancel(submission_pool_);
+  CLOG_INFO(&LOG, 3, "waiting for completion");
+  BLI_task_pool_work_and_wait(submission_pool_);
   CLOG_INFO(&LOG, 3, "freeing submission pool");
   BLI_task_pool_free(submission_pool_);
   submission_pool_ = nullptr;
