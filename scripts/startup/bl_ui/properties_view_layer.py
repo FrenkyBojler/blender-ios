@@ -276,7 +276,6 @@ class VIEWLAYER_PT_override(ViewLayerButtonsPanel, Panel):
     bl_options = {'DEFAULT_CLOSED'}
     COMPAT_ENGINES = {
         'BLENDER_EEVEE',
-        'CYCLES',
     }
 
     def draw(self, context):
@@ -310,6 +309,7 @@ classes = (
     VIEWLAYER_PT_layer_passes_aov,
     VIEWLAYER_PT_layer_passes_lightgroups,
     VIEWLAYER_PT_filter,
+    VIEWLAYER_PT_override,
     VIEWLAYER_PT_layer_custom_props,
     VIEWLAYER_UL_aov,
 )
