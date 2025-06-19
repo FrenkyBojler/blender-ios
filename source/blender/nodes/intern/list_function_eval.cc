@@ -17,6 +17,7 @@ static ListPtr create_repeated_list(ListPtr list, const int64_t dst_size)
   }
   if (const auto *data = std::get_if<nodes::ArrayData>(&list->data())) {
     const int64_t size = list->size();
+    BLI_assert(size > 0);
     const CPPType &cpp_type = list->cpp_type();
     ArrayData new_data = ArrayData::ForUninitialized(cpp_type, dst_size);
     const int64_t chunks = dst_size / size;
@@ -70,7 +71,12 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
       params.add_readonly_single_input(GPointer(cpp_type, value));
     }
     else if (input_variant.is_list()) {
-      repeated_lists[i] = create_repeated_list(input_variant.get<ListPtr>(), max_size);
+      ListPtr list_ptr = input_variant.get<ListPtr>();
+      if (list_ptr->size() == 0) {
+        params.add_readonly_single_input(GPointer(cpp_type, cpp_type.default_value()));
+        continue;
+      }
+      repeated_lists[i] = create_repeated_list(std::move(list_ptr), max_size);
       const List &list = *repeated_lists[i];
       BLI_assert(cpp_type == list.cpp_type());
       if (const auto *array_data = std::get_if<nodes::ArrayData>(&list.data())) {

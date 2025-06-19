@@ -62,8 +62,8 @@ class ListFieldContext : public FieldContext {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const int count = params.extract_input<int>("Count");
-  if (count <= 0) {
-    params.error_message_add(NodeWarningType::Error, "Count must be greater than 0");
+  if (count < 0) {
+    params.error_message_add(NodeWarningType::Error, "Count must be positive");
     params.set_default_remaining_outputs();
     return;
   }
