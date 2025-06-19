@@ -131,9 +131,9 @@ static bool capture_motion_state(GeometryComponent &component, const Field<bool>
 }
 
 /* Note: impulse is applied in object space, like the velocity attribute. */
-static bool apply_external_impulse(GeometryComponent &component,
-                                   const Field<bool> &selection_field,
-                                   const Field<float3> &impulse)
+static bool apply_impulse(GeometryComponent &component,
+                          const Field<bool> &selection_field,
+                          const Field<float3> &impulse)
 {
   static const auto apply_impulse_fn =
       fn::multi_function::build::SI3_SO<float3, float, float3, float3>(
@@ -141,7 +141,7 @@ static bool apply_external_impulse(GeometryComponent &component,
           [](const float3 &velocity, const float inv_mass, const float3 &impulse) -> float3 {
             return velocity + inv_mass * impulse;
           });
-  static const GField field = Field<float3>(
+  const GField field = Field<float3>(
       fn::FieldOperation::Create(apply_impulse_fn,
                                  {bke::AttributeFieldInput::Create<float3>(velocity_attr),
                                   bke::AttributeFieldInput::Create<float3>(inv_mass_attr),
@@ -153,9 +153,9 @@ static bool apply_external_impulse(GeometryComponent &component,
 
 /* Note: angular_impulse is expected to be in local body space, like the angular velocity
  * attribute. */
-static bool apply_external_angular_impulse(GeometryComponent &component,
-                                           const Field<bool> &selection_field,
-                                           const Field<float3> &angular_impulse)
+static bool apply_angular_impulse(GeometryComponent &component,
+                                  const Field<bool> &selection_field,
+                                  const Field<float3> &angular_impulse)
 {
   static const auto apply_angular_impulse_fn =
       fn::multi_function::build::SI3_SO<float3, float3, float3, float3>(
@@ -165,7 +165,7 @@ static bool apply_external_angular_impulse(GeometryComponent &component,
              const float3 &angular_impulse) -> float3 {
             return angular_velocity + inv_inertia * angular_impulse;
           });
-  static const GField field = Field<float3>(
+  const GField field = Field<float3>(
       fn::FieldOperation::Create(apply_angular_impulse_fn,
                                  {bke::AttributeFieldInput::Create<float3>(angular_velocity_attr),
                                   bke::AttributeFieldInput::Create<float3>(inv_inertia_attr),
@@ -177,31 +177,31 @@ static bool apply_external_angular_impulse(GeometryComponent &component,
 }
 
 /* Note: force is applied in object space. */
-static bool apply_external_force(GeometryComponent &component,
-                                 const Field<bool> &selection_field,
-                                 const float delta_time,
-                                 const Field<float3> &force)
+static bool apply_force(GeometryComponent &component,
+                        const Field<bool> &selection_field,
+                        const float delta_time,
+                        const Field<float3> &force)
 {
   const auto impulse_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Compute Impulse from Force",
       [=](const float3 &force) -> float3 { return force * delta_time; });
   const GField field = Field<float3>(fn::FieldOperation::Create(impulse_fn, {force}));
 
-  return apply_external_impulse(component, selection_field, field);
+  return apply_impulse(component, selection_field, field);
 }
 
 /* Note: torque is applied in local body space. */
-static bool apply_external_torque(GeometryComponent &component,
-                                  const Field<bool> &selection_field,
-                                  const float delta_time,
-                                  const Field<float3> &torque)
+static bool apply_torque(GeometryComponent &component,
+                         const Field<bool> &selection_field,
+                         const float delta_time,
+                         const Field<float3> &torque)
 {
   const auto angular_impulse_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Compute Angular Impulse from Torque",
       [=](const float3 &torque) -> float3 { return torque * delta_time; });
   const GField field = Field<float3>(fn::FieldOperation::Create(angular_impulse_fn, {torque}));
 
-  return apply_external_angular_impulse(component, selection_field, field);
+  return apply_angular_impulse(component, selection_field, field);
 }
 
 static bool integrate_positions(GeometryComponent &component,
