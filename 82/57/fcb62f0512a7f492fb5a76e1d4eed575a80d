@@ -1,2 +1,3 @@
 Referenced by issue #139388, Regression: Nodes: Frame node with text has wrong margins and line breaks
 Referenced by issue #139401, Geometry Nodes: 'Index of Nearest' does not work with single-value position input
+Referenced by pull request #140099, VSE: Add preference for matching scene framerate to movie
