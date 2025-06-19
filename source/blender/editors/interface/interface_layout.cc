@@ -5101,11 +5101,6 @@ uiLayout &uiLayout::split(float percentage, bool align)
   return *split;
 }
 
-void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect)
-{
-  layout->keepaspect_ = keepaspect;
-}
-
 void uiLayout::emboss_set(blender::ui::EmbossType emboss)
 {
   emboss_ = emboss;
@@ -5134,11 +5129,6 @@ void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep)
 Panel *uiLayout::root_panel() const
 {
   return this->block()->panel;
-}
-
-bool uiLayoutGetKeepAspect(uiLayout *layout)
-{
-  return layout->keepaspect_;
 }
 
 blender::ui::EmbossType uiLayout::emboss() const
