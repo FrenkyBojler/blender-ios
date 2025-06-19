@@ -173,6 +173,11 @@ void World::sync_volume(const WorldHandle &world_handle, bool wait_ready)
   /* Studio lights have no volume shader. */
   ::World *world = inst_.use_studio_light() ? nullptr : inst_.scene->world;
 
+  ::World *world_override = DEG_get_evaluated(inst_.depsgraph, inst_.view_layer->world_override);
+  if (world_override) {
+    world = world_override;
+  }
+
   GPUMaterial *gpumat = nullptr;
 
   /* Only the scene world nodetree can have volume shader. */
