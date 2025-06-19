@@ -3842,8 +3842,17 @@ static bool area_join_apply(bContext *C, wmOperator *op)
 
   bScreen *screen = CTX_wm_screen(C);
 
-  rcti combined = jd->sa1->totrct;
-  BLI_rcti_union(&combined, &jd->sa2->totrct);
+  /* Rect of the combined areas. */
+  const bool vertical = SCREEN_DIR_IS_VERTICAL(jd->dir);
+  rcti combined{};
+  combined.xmin = vertical ? std::max(jd->sa1->totrct.xmin, jd->sa2->totrct.xmin) :
+                             std::min(jd->sa1->totrct.xmin, jd->sa2->totrct.xmin);
+  combined.xmax = vertical ? std::min(jd->sa1->totrct.xmax, jd->sa2->totrct.xmax) :
+                             std::max(jd->sa1->totrct.xmax, jd->sa2->totrct.xmax);
+  combined.ymin = vertical ? std::min(jd->sa1->totrct.ymin, jd->sa2->totrct.ymin) :
+                             std::max(jd->sa1->totrct.ymin, jd->sa2->totrct.ymin);
+  combined.ymax = vertical ? std::max(jd->sa1->totrct.ymax, jd->sa2->totrct.ymax) :
+                             std::min(jd->sa1->totrct.ymax, jd->sa2->totrct.ymax);
   float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
   float inner_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
   float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
