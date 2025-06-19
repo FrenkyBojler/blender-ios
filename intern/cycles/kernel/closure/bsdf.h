@@ -62,9 +62,9 @@ ccl_device_inline float bsdf_get_roughness_pass_squared(const ccl_private Shader
  * by Alejandro Conty Estevez, Pascal Lecocq, and Clifford Stein. It preserves detail
  * close to the shadow terminator, and doesn't "wash out" intermediate bumps using a
  * Cook-Torrance GGX function for shading. */
-ccl_device_inline float bump_shadowing_term(ccl_private ShaderData *sd,
+ccl_device_inline float bump_shadowing_term(const ccl_private ShaderData *sd,
                                             const ccl_private ShaderClosure *sc,
-                                            ccl_private float3 I,
+                                            const float3 I,
                                             const bool is_eval)
 {
   if (isequal(sc->N, sd->N)) {
@@ -75,10 +75,6 @@ ccl_device_inline float bump_shadowing_term(ccl_private ShaderData *sd,
   if (sd->type & PRIMITIVE_CURVE) {
     return 1.0f;
   }
-
-  const float cosNsI = dot(sd->N, I);
-  const float cosNsN = dot(sd->N, sc->N);
-  const float cosNI = dot(sc->N, I);
 
   /* In order to avoid artifacts at the shadow terminator when using smooth normals,
    * the BSDF evaluation functions allow for light leaking through the actual geometry
@@ -92,6 +88,9 @@ ccl_device_inline float bump_shadowing_term(ccl_private ShaderData *sd,
    * dot(Ns, I) * dot(Ns, N) tells us if I and N are on the same side of the smoothed geometry.
    * If incoming(I) and normal(N) are on the same side we reject refractions, dot(N, I) < 0.
    * If they are on different sides we reject reflections, dot(N, I) > 0. */
+  const float cosNsI = dot(sd->N, I);
+  const float cosNsN = dot(sd->N, sc->N);
+  const float cosNI = dot(sc->N, I);
   const bool is_diffuse = CLOSURE_IS_BSDF_DIFFUSE(sc->type);
   if (cosNsI * cosNsN * cosNI < 0.0f && (is_eval || is_diffuse)) {
     return 0.0f;
