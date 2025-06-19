@@ -39,6 +39,7 @@ def set_view3d_context_override(context_override):
                 context_override["area"] = area
                 context_override["region"] = region
 
+
 def try_reorder_vertices_spatial():
     import bpy
     """
@@ -49,7 +50,6 @@ def try_reorder_vertices_spatial():
         print("Successfully reordered vertices spatially")
     except Exception as e:
         print(f"Error calling reorder_vertices_spatial: {e}")
-
 
 
 def prepare_sculpt_scene(context: any, mode: SculptMode):

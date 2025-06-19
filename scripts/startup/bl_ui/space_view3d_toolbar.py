@@ -1070,8 +1070,9 @@ class VIEW3D_PT_sculpt_options(Panel, View3DPaintPanel):
         return (context.sculpt_object and context.tool_settings.sculpt)
 
     def draw(self, context):
-         layout = self.layout
-         layout.use_property_split = True
+        layout = self.layout
+        layout.use_property_split = True
+
 
 class VIEW3D_PT_sculpt_options_gravity(Panel, View3DPaintPanel):
     bl_context = ".sculpt_mode"  # dot on purpose (access from topbar)
@@ -2942,6 +2943,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_gap_closure(View3DPanel, Panel):
         if gp_settings.fill_extend_mode == 'EXTEND':
             row = col.row(align=True)
             row.prop(gp_settings, "use_collide_strokes")
+
 
 classes = (
     VIEW3D_MT_brush_context_menu,

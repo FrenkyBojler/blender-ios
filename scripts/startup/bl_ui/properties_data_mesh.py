@@ -685,6 +685,7 @@ class DATA_PT_vertex_colors(MeshButtonsPanel, Panel):
 
         draw_attribute_warnings(context, layout, mesh.color_attributes)
 
+
 class DATA_PT_reorder_vertices_spatial(Panel):
     bl_label = "Reorder Vertices"
     bl_space_type = 'PROPERTIES'
@@ -693,6 +694,7 @@ class DATA_PT_reorder_vertices_spatial(Panel):
     def draw(self, context):
         layout = self.layout
         layout.operator("mesh.reorder_vertices_spatial", text="Reorder Vertices Spatially", icon='SCULPTMODE_HLT')
+
 
 classes = (
     MESH_MT_vertex_group_context_menu,
