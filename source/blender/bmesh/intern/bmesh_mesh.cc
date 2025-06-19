@@ -8,6 +8,7 @@
  * BM mesh level functions.
  */
 
+#include "BKE_lib_id.hh"
 #include "MEM_guardedalloc.h"
 
 #include "DNA_listBase.h"
@@ -159,6 +160,11 @@ void BM_mesh_data_free(BMesh *bm)
 
   BMIter iter;
   BMIter itersub;
+
+  if (bm->mesh) {
+    BKE_id_free(nullptr, blender::id_cast<ID *>(bm->mesh));
+    bm->mesh = nullptr;
+  }
 
   const bool is_ldata_free = CustomData_bmesh_has_free(&bm->ldata);
   const bool is_pdata_free = CustomData_bmesh_has_free(&bm->pdata);
