@@ -53,12 +53,18 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
 [[maybe_unused]] static float compute_fog_glow_kernel_value(int x, int y, int kernel_size)
 {
   const int half_kernel_size = kernel_size / 2;
-  const float scale = 0.25f * math::sqrt(math::square(kernel_size));
   const float v = ((y - half_kernel_size) / float(half_kernel_size));
   const float u = ((x - half_kernel_size) / float(half_kernel_size));
-  const float r = (math::square(u) + math::square(v)) * scale;
-  const float d = -math::sqrt(math::sqrt(math::sqrt(r))) * 9.0f;
-  const float kernel_value = math::exp(d);
+  const double r = math::sqrt(math::square(u) + math::square(v));
+
+  const double x0 = 3.555281584; /* @ y = 0 */
+  const double y0 = 6.357282945; /* @ x = 0 */
+
+  const double f0 = 2.61 * math::pow(10, 6) * math::exp(-math::sqrt((r * x0) / 0.02));
+  const double f1 = 20.91 / math::pow((r * x0) + 0.02, 3.0);
+  const double f2 = 72.37 / math::pow((r * x0) + 0.02, 2.0);
+
+  const float kernel_value = log10f((0.384 * f0 + 0.478 * f1 + 0.138 * f2)) / y0;
 
   const float window = (0.5f + 0.5f * math::cos(u * math::numbers::pi)) *
                        (0.5f + 0.5f * math::cos(v * math::numbers::pi));
