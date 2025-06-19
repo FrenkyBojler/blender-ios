@@ -78,8 +78,8 @@ void main()
                           all(lessThan(grid_coord, hole_end));
   if (crave_hole) {
     /* Discard vertex. */
-    gl_Position = float4(NAN_FLT);
-    return;
+    // gl_Position = float4(NAN_FLT);
+    // return;
   }
 
   const bool is_higher_level = any(equal(abs(grid_coord) % next_divider, int2(0)));

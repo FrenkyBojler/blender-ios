@@ -391,8 +391,13 @@ class GridMesh : Overlay {
     return GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
   }
 
-  gpu::Batch *generate_batch(int resolution)
+  gpu::Batch *generate_batch(int resolution, int next_subdivision)
   {
+    if (next_subdivision == 1) {
+      /* This only happens for the last level. In this case, do not skip any line. */
+      next_subdivision = INT_MAX;
+    }
+
     GPUIndexBufBuilder builder;
     GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(resolution) * 2, 0xFFFFFFFEu);
     auto vertex_id_at = [](int x, int y) { return ((x + 0x7FFF) << 16) | (y + 0x7FFF); };
@@ -401,8 +406,12 @@ class GridMesh : Overlay {
       for (int j : IndexRange(resolution)) {
         int x = i - resolution / 2;
         int y = j - resolution / 2;
-        GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
-        GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
+        if (i != resolution && (y % next_subdivision) != 0) {
+          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
+        }
+        if (j != resolution && (x % next_subdivision) != 0) {
+          GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
+        }
       }
     }
     gpu::IndexBuf *ibo = GPU_indexbuf_build(&builder);
@@ -490,7 +499,7 @@ class GridMesh : Overlay {
           /* TODO: Reduce to the amount that can be seen on screen. */
           const int res = ceil_to_multiple_u(256, subdiv_level) * 2;
           levels_[i].resolution = res;
-          level_grids_[i] = generate_batch(res);
+          level_grids_[i] = generate_batch(res, subdiv_level);
         }
 
         if (i_acc > 0) {
