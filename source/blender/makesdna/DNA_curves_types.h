@@ -117,10 +117,7 @@ typedef struct CurvesGeometry {
    */
   int *curve_offsets;
 
-  /**
-   * Curve and point domain attributes. Currently unused at runtime, but used for forward
-   * compatibility when reading files (see #122398).
-   */
+  /** Curve and point domain attributes. */
   struct AttributeStorage attribute_storage;
 
   /**
@@ -132,7 +129,7 @@ typedef struct CurvesGeometry {
   /**
    * All attributes stored on curves (#AttrDomain::Curve).
    */
-  CustomData curve_data;
+  CustomData curve_data_legacy;
 
   /**
    * The total number of control points in all curves.

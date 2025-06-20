@@ -78,6 +78,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "attribute_storage_access.hh"
+
 using blender::float3;
 using blender::int3;
 using blender::Span;
@@ -318,9 +320,6 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
   CustomData_blend_read(reader, &grease_pencil->layers_data, grease_pencil->layers().size());
   grease_pencil->attribute_storage.wrap().blend_read(*reader);
 
-  /* Forward compatibility. To be removed when runtime format changes. */
-  blender::bke::grease_pencil_convert_storage_to_customdata(*grease_pencil);
-
   /* Read materials. */
   BLO_read_pointer_array(reader,
                          grease_pencil->material_array_num,
@@ -367,40 +366,6 @@ constexpr StringRef ATTR_RADIUS = "radius";
 constexpr StringRef ATTR_OPACITY = "opacity";
 constexpr StringRef ATTR_VERTEX_COLOR = "vertex_color";
 constexpr StringRef ATTR_FILL_COLOR = "fill_color";
-
-/* Curves attributes getters */
-static int domain_num(const CurvesGeometry &curves, const AttrDomain domain)
-{
-  return domain == AttrDomain::Point ? curves.points_num() : curves.curves_num();
-}
-static CustomData &domain_custom_data(CurvesGeometry &curves, const AttrDomain domain)
-{
-  return domain == AttrDomain::Point ? curves.point_data : curves.curve_data;
-}
-template<typename T>
-static MutableSpan<T> get_mutable_attribute(CurvesGeometry &curves,
-                                            const AttrDomain domain,
-                                            const StringRef name,
-                                            const T default_value = T())
-{
-  const int num = domain_num(curves, domain);
-  if (num <= 0) {
-    return {};
-  }
-  const eCustomDataType type = cpp_type_to_custom_data_type(CPPType::get<T>());
-  CustomData &custom_data = domain_custom_data(curves, domain);
-
-  T *data = (T *)CustomData_get_layer_named_for_write(&custom_data, type, name, num);
-  if (data != nullptr) {
-    return {data, num};
-  }
-  data = (T *)CustomData_add_layer_named(&custom_data, type, CD_SET_DEFAULT, num, name);
-  MutableSpan<T> span = {data, num};
-  if (span.first() != default_value) {
-    span.fill(default_value);
-  }
-  return span;
-}
 
 Drawing::Drawing()
 {
@@ -513,7 +478,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
       MutableSpan<int3> r_tris = triangles.slice(triangle_offsets[curve_i]);
 
-      float(*projverts)[2] = static_cast<float(*)[2]>(
+      float (*projverts)[2] = static_cast<float (*)[2]>(
           BLI_memarena_alloc(pf_arena, sizeof(*projverts) * size_t(points.size())));
 
       float3x3 axis_mat;
@@ -524,7 +489,7 @@ static void update_triangle_cache(const Span<float3> positions,
       }
 
       BLI_polyfill_calc_arena(
-          projverts, points.size(), 0, reinterpret_cast<uint32_t(*)[3]>(r_tris.data()), pf_arena);
+          projverts, points.size(), 0, reinterpret_cast<uint32_t (*)[3]>(r_tris.data()), pf_arena);
       BLI_memarena_clear(pf_arena);
     }
   });
@@ -823,8 +788,8 @@ VArray<float> Drawing::radii() const
 
 MutableSpan<float> Drawing::radii_for_write()
 {
-  return get_mutable_attribute<float>(
-      this->strokes_for_write(), AttrDomain::Point, ATTR_RADIUS, 0.01f);
+  return blender::bke::get_mutable_attribute<float>(
+      this->strokes_for_write().attribute_storage.wrap(), AttrDomain::Point, ATTR_RADIUS, 0.01f);
 }
 
 VArray<float> Drawing::opacities() const
@@ -835,8 +800,8 @@ VArray<float> Drawing::opacities() const
 
 MutableSpan<float> Drawing::opacities_for_write()
 {
-  return get_mutable_attribute<float>(
-      this->strokes_for_write(), AttrDomain::Point, ATTR_OPACITY, 1.0f);
+  return blender::bke::get_mutable_attribute<float>(
+      this->strokes_for_write().attribute_storage.wrap(), AttrDomain::Point, ATTR_OPACITY, 1.0f);
 }
 
 VArray<ColorGeometry4f> Drawing::vertex_colors() const
@@ -847,10 +812,11 @@ VArray<ColorGeometry4f> Drawing::vertex_colors() const
 
 MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
 {
-  return get_mutable_attribute<ColorGeometry4f>(this->strokes_for_write(),
-                                                AttrDomain::Point,
-                                                ATTR_VERTEX_COLOR,
-                                                ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+  return blender::bke::get_mutable_attribute<ColorGeometry4f>(
+      this->strokes_for_write().attribute_storage.wrap(),
+      AttrDomain::Point,
+      ATTR_VERTEX_COLOR,
+      ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 VArray<ColorGeometry4f> Drawing::fill_colors() const
@@ -861,10 +827,11 @@ VArray<ColorGeometry4f> Drawing::fill_colors() const
 
 MutableSpan<ColorGeometry4f> Drawing::fill_colors_for_write()
 {
-  return get_mutable_attribute<ColorGeometry4f>(this->strokes_for_write(),
-                                                AttrDomain::Curve,
-                                                ATTR_FILL_COLOR,
-                                                ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
+  return blender::bke::get_mutable_attribute<ColorGeometry4f>(
+      this->strokes_for_write().attribute_storage.wrap(),
+      AttrDomain::Curve,
+      ATTR_FILL_COLOR,
+      ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
 void Drawing::tag_texture_matrices_changed()

@@ -328,8 +328,8 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
 
   StringRef curve_data_render_uv;
   StringRef point_data_render_uv;
-  if (CustomData_has_layer(&curves_id.geometry.curve_data, CD_PROP_FLOAT2)) {
-    curve_data_render_uv = CustomData_get_render_layer_name(&curves_id.geometry.curve_data,
+  if (CustomData_has_layer(&curves_id.geometry.curve_data_legacy, CD_PROP_FLOAT2)) {
+    curve_data_render_uv = CustomData_get_render_layer_name(&curves_id.geometry.curve_data_legacy,
                                                             CD_PROP_FLOAT2);
   }
   if (CustomData_has_layer(&curves_id.geometry.point_data, CD_PROP_FLOAT2)) {

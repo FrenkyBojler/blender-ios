@@ -178,6 +178,15 @@ static void reorder_customdata_groups(CustomData &data,
   data = new_data;
 }
 
+static void reorder_attribute_groups(bke::AttributeStorage &storage,
+                                     const bke::AttrDomain domain,
+                                     const OffsetIndices<int> old_offsets,
+                                     const OffsetIndices<int> new_offsets,
+                                     const Span<int> new_by_old_map)
+{
+  // TODO
+}
+
 void debug_randomize_face_order(Mesh *mesh)
 {
   if (mesh == nullptr || mesh->faces_num == 0 || !use_debug_randomization()) {
@@ -226,7 +235,9 @@ void debug_randomize_curve_order(bke::CurvesGeometry *curves)
   const Array<int> new_by_old_map = get_permutation(curves->curve_num, seed);
   const Array<int> old_by_new_map = invert_permutation(new_by_old_map);
 
-  reorder_customdata(curves->curve_data, new_by_old_map);
+  bke::AttributeStorage &attributes = curves->attribute_storage.wrap();
+
+  reorder_attribute_domain(attributes, bke::AttrDomain::Curve, new_by_old_map);
 
   const OffsetIndices old_points_by_curve = curves->points_by_curve();
   Array<int> new_curve_offsets = make_new_offset_indices(old_points_by_curve, old_by_new_map);
@@ -234,6 +245,11 @@ void debug_randomize_curve_order(bke::CurvesGeometry *curves)
 
   reorder_customdata_groups(
       curves->point_data, old_points_by_curve, new_points_by_curve, new_by_old_map);
+  reorder_attribute_groups(attributes,
+                           bke::AttrDomain::Point,
+                           old_points_by_curve,
+                           new_points_by_curve,
+                           new_by_old_map);
 
   curves->offsets_for_write().copy_from(new_curve_offsets);
 

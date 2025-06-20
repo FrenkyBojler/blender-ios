@@ -736,7 +736,7 @@ static bool ensure_attributes(const Curves &curves,
                               CurvesBatchCache &cache,
                               const GPUMaterial *gpu_material)
 {
-  const CustomData &cd_curve = curves.geometry.curve_data;
+  const CustomData &cd_curve = curves.geometry.curve_data_legacy;
   const CustomData &cd_point = curves.geometry.point_data;
   CurvesEvalFinalCache &final_cache = cache.eval_cache.final;
 

@@ -212,9 +212,10 @@ static AttributeOwner owner_from_attribute_pointer_rna(PointerRNA *ptr)
   /* TODO: Because we don't know the path to the `ptr`, we need to look though all possible
    * candidates and search for the `layer` currently. This should be just a simple lookup. */
   if (GS(owner_id->name) == ID_GP) {
-    const CustomDataLayer *layer = static_cast<const CustomDataLayer *>(ptr->data);
+    bke::Attribute *attr = static_cast<bke::Attribute *>(ptr->data);
     GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(owner_id);
     /* First check the layer attributes. */
+    // TODOODODODODODO
     CustomData *layers_data = &grease_pencil->layers_data;
     for (int i = 0; i < layers_data->totlayer; i++) {
       if (&layers_data->layers[i] == layer) {
@@ -225,9 +226,9 @@ static AttributeOwner owner_from_attribute_pointer_rna(PointerRNA *ptr)
     for (GreasePencilDrawingBase *base : grease_pencil->drawings()) {
       if (base->type == GP_DRAWING) {
         GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(base);
-        CustomData *curve_data = &drawing->geometry.curve_data;
-        for (int i = 0; i < curve_data->totlayer; i++) {
-          if (&curve_data->layers[i] == layer) {
+        CustomData *curve_data_legacy = &drawing->geometry.curve_data_legacy;
+        for (int i = 0; i < curve_data_legacy->totlayer; i++) {
+          if (&curve_data_legacy->layers[i] == layer) {
             return AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
           }
         }

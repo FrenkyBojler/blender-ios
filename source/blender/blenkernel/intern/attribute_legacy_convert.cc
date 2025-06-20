@@ -271,17 +271,11 @@ void mesh_convert_customdata_to_storage(Mesh &mesh)
        {AttrDomain::Corner, {mesh.corner_data, mesh.corners_num}}});
 }
 
-void curves_convert_storage_to_customdata(CurvesGeometry &curves)
-{
-  convert_storage_to_customdata(curves.attribute_storage.wrap(),
-                                {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
-                                 {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
-}
 void curves_convert_customdata_to_storage(CurvesGeometry &curves)
 {
   curves.attribute_storage.wrap() = attribute_legacy_convert_customdata_to_storage(
       {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
-       {AttrDomain::Curve, {curves.curve_data, curves.curves_num()}}});
+       {AttrDomain::Curve, {curves.curve_data_legacy, curves.curves_num()}}});
 }
 
 void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
@@ -290,12 +284,6 @@ void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
       {{AttrDomain::Point, {pointcloud.pdata_legacy, pointcloud.totpoint}}});
 }
 
-void grease_pencil_convert_storage_to_customdata(GreasePencil &grease_pencil)
-{
-  convert_storage_to_customdata(
-      grease_pencil.attribute_storage.wrap(),
-      {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
-}
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 {
   grease_pencil.attribute_storage.wrap() = attribute_legacy_convert_customdata_to_storage(

@@ -114,6 +114,9 @@ static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(const AttributeOwner 
   std::array<DomainInfo, ATTR_DOMAIN_NUM> info;
 
   switch (owner.type()) {
+    case AttributeOwnerType::Curves:
+    case AttributeOwnerType::GreasePencil:
+    case AttributeOwnerType::GreasePencilDrawing:
     case AttributeOwnerType::PointCloud: {
       /* This should be implemented with #AttributeStorage instead. */
       BLI_assert_unreachable();
@@ -142,28 +145,6 @@ static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(const AttributeOwner 
         info[int(AttrDomain::Face)].customdata = &mesh->face_data;
         info[int(AttrDomain::Face)].length = mesh->faces_num;
       }
-      break;
-    }
-    case AttributeOwnerType::Curves: {
-      Curves *curves = owner.get_curves();
-      info[int(AttrDomain::Point)].customdata = &curves->geometry.point_data;
-      info[int(AttrDomain::Point)].length = curves->geometry.point_num;
-      info[int(AttrDomain::Curve)].customdata = &curves->geometry.curve_data;
-      info[int(AttrDomain::Curve)].length = curves->geometry.curve_num;
-      break;
-    }
-    case AttributeOwnerType::GreasePencil: {
-      GreasePencil *grease_pencil = owner.get_grease_pencil();
-      info[int(AttrDomain::Layer)].customdata = &grease_pencil->layers_data;
-      info[int(AttrDomain::Layer)].length = grease_pencil->layers().size();
-      break;
-    }
-    case AttributeOwnerType::GreasePencilDrawing: {
-      blender::bke::greasepencil::Drawing &drawing = owner.get_grease_pencil_drawing()->wrap();
-      info[int(AttrDomain::Point)].customdata = &drawing.geometry.point_data;
-      info[int(AttrDomain::Point)].length = drawing.geometry.point_num;
-      info[int(AttrDomain::Curve)].customdata = &drawing.geometry.curve_data;
-      info[int(AttrDomain::Curve)].length = drawing.geometry.curve_num;
       break;
     }
   }

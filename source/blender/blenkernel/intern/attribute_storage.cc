@@ -97,6 +97,17 @@ Attribute::ArrayData Attribute::ArrayData::ForConstructed(const CPPType &type,
   return data;
 }
 
+Attribute::ArrayData Attribute::ArrayData::ForUninitialized(const CPPType &type,
+                                                            const int64_t domain_size)
+{
+  Attribute::ArrayData data{};
+  data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
+  data.size = domain_size;
+  BLI_assert(type.is_trivially_destructible);
+  data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
+  return data;
+}
+
 Attribute::SingleData Attribute::SingleData::ForValue(const GPointer &value)
 {
   Attribute::SingleData data{};
