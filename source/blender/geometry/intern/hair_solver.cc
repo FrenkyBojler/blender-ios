@@ -2,14 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_array_utils.hh"
+#include "BLI_enumerable_thread_specific.hh"
+
 #include "BKE_attribute.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_instances.hh"
 
 #include "GEO_hair_constraint_functions.hh"
 #include "GEO_hair_solver.hh"
-
-#include "BLI_enumerable_thread_specific.hh"
 
 #include <fmt/format.h>
 
@@ -86,7 +87,7 @@ void apply_gauss_seidel_positions_group(const ConstraintEvalParams &eval_params,
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
     eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, group_and_active_mask, variables);
+        label, &constraints, constraint_info.type, group_and_active_mask, variables);
   }
 }
 
@@ -149,7 +150,7 @@ void apply_gauss_seidel_velocities_group(const ConstraintEvalParams &eval_params
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
     eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, group_and_active_mask, variables);
+        label, &constraints, constraint_info.type, group_and_active_mask, variables);
   }
 }
 
@@ -256,7 +257,7 @@ void add_jacobi_position_deltas(const ConstraintEvalParams &eval_params,
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
     eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, active_mask, variables);
+        label, &constraints, constraint_info.type, active_mask, variables);
   }
 }
 
@@ -357,7 +358,7 @@ void add_jacobi_velocity_deltas(const ConstraintEvalParams &eval_params,
   if (eval_params.debug_recorder) {
     const std::string label = fmt::format("Evaluate: {}", constraint_info.ui_name);
     eval_params.debug_recorder->record_step(
-        label, &constraints, constraint_info.type_code, active_mask, variables);
+        label, &constraints, constraint_info.type, active_mask, variables);
   }
 }
 
@@ -444,6 +445,78 @@ static void write_constraint_attributes(MutableSpan<ConstraintEvalData> constrai
         BLI_assert_unreachable();
         break;
     }
+  }
+}
+
+Vector<IndexMask> build_group_masks(const IndexMask &constraints,
+                                    const VArray<int> &solver_groups,
+                                    IndexMaskMemory &memory)
+{
+  if (solver_groups.is_empty()) {
+    return {};
+  }
+
+  VectorSet<int> unique_group_ids;
+  Vector<IndexMask> group_index_masks = IndexMask::from_group_ids(
+      constraints, solver_groups, memory, unique_group_ids);
+
+  /* Sort group indices to ensure solver groups are executed in consistent order.
+   * IndexMask::from_group_ids creates masks in the order they appear in the data:
+   * whichever element comes first creates a mask and index, regardless of the actual group ID
+   * values and their relative ordering.
+   */
+  Array<int> sorted_group_indices(unique_group_ids.size());
+  array_utils::fill_index_range(sorted_group_indices.as_mutable_span());
+  std::sort(sorted_group_indices.begin(),
+            sorted_group_indices.end(),
+            [&](const int index_a, const int index_b) {
+              const int group_id_a = unique_group_ids[index_a];
+              const int group_id_b = unique_group_ids[index_b];
+              return group_id_a < group_id_b;
+            });
+
+  Vector<IndexMask> group_masks;
+  group_masks.resize(sorted_group_indices.size());
+  for (const int i : sorted_group_indices.index_range()) {
+    /* Group ID is not really relevant at this point. */
+    /* const int group_id = unique_group_ids[i_group]; */
+
+    group_masks[i] = std::move(group_index_masks[sorted_group_indices[i]]);
+  }
+  return group_masks;
+}
+
+ConstraintEvalData::ConstraintEvalData(const ConstraintTypeInfo &type)
+{
+  this->type = &type;
+  this->geometry = {};
+  this->constraints = {};
+  this->group_masks = {};
+}
+
+ConstraintEvalData::ConstraintEvalData(const ConstraintTypeInfo &type,
+                                       const bke::GeometrySet &geometry_set,
+                                       IndexMaskMemory &memory)
+{
+  this->type = &type;
+
+  if (geometry_set.has_pointcloud()) {
+    const AttributeAccessor attributes =
+        *geometry_set.get_component<PointCloudComponent>()->attributes();
+    const VArray<int> solver_groups = *attributes.lookup_or_default<int>(
+        "solver_group", AttrDomain::Point, 0);
+
+    IndexMask constraints_mask = IndexRange(attributes.domain_size(AttrDomain::Point));
+    Vector<IndexMask> group_masks = build_group_masks(
+        constraints_mask, std::move(solver_groups), memory);
+    this->geometry = geometry_set;
+    this->constraints = std::move(constraints_mask);
+    this->group_masks = std::move(group_masks);
+  }
+  else {
+    this->geometry = {};
+    this->constraints = {};
+    this->group_masks = {};
   }
 }
 

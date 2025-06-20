@@ -18,12 +18,21 @@ using geometry::hair_constraints::ConstraintVariables;
 /** \name Solver Parameters
  * \{ */
 
+Vector<IndexMask> build_group_masks(const IndexMask &constraints,
+                                    const VArray<int> &solver_groups,
+                                    IndexMaskMemory &memory);
+
 /* A closure and associated solver group masks. */
 struct ConstraintEvalData {
   const ConstraintTypeInfo *type;
   std::optional<bke::GeometrySet> geometry;
   IndexMask constraints;
   Vector<IndexMask> group_masks;
+
+  ConstraintEvalData(const ConstraintTypeInfo &type);
+  ConstraintEvalData(const ConstraintTypeInfo &type,
+                     const bke::GeometrySet &geometry_set,
+                     IndexMaskMemory &memory);
 };
 
 struct VariableIndexArrays {

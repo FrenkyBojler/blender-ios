@@ -474,7 +474,7 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
     case SolverMethod::GaussSeidel: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Gauss-Seidel, ");
-        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+        eval_params.debug_recorder->record_step(label, nullptr, std::nullopt, {}, variables);
       }
 
       for ([[maybe_unused]] const int i : IndexRange(gauss_seidel_iterations)) {
@@ -492,7 +492,7 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
     case SolverMethod::Jacobi: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Jacobi, ");
-        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+        eval_params.debug_recorder->record_step(label, nullptr, std::nullopt, {}, variables);
       }
 
       for ([[maybe_unused]] const int i : IndexRange(jacobi_iterations)) {
@@ -509,7 +509,7 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
     case SolverMethod::GaussSeidelJacobi: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Gauss-Seidel/Jacobi, ");
-        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+        eval_params.debug_recorder->record_step(label, nullptr, std::nullopt, {}, variables);
       }
 
       for ([[maybe_unused]] const int i : IndexRange(gauss_seidel_iterations)) {
@@ -530,7 +530,7 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
     case SolverMethod::ProjectiveDynamics: {
       if (eval_params.debug_recorder) {
         const std::string label = fmt::format("Initialize Projective Dynamics, ");
-        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+        eval_params.debug_recorder->record_step(label, nullptr, std::nullopt, {}, variables);
       }
 
       do_global_solve(EvaluationTarget::Positions, eval_params, constraint_data, variables);
@@ -550,134 +550,47 @@ static void execute_solver_method_on_geometry(const SolverMethod method,
 
 static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
 {
-  const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
-  const float delta_time_squared = delta_time * delta_time;
-  const float inv_delta_time = math::safe_rcp(delta_time);
-  const float inv_delta_time_squared = math::safe_rcp(delta_time_squared);
-  const bool debug_check = params.extract_input<bool>("Debug Checks");
-  const bool use_debug_steps = params.output_is_required("Debug Steps");
-
-  ConstraintEvalParams eval_params;
-  eval_params.delta_time = delta_time;
-  eval_params.delta_time_squared = delta_time_squared;
-  eval_params.inv_delta_time = inv_delta_time;
-  eval_params.inv_delta_time_squared = inv_delta_time_squared;
-  eval_params.error_message_add = [params](const StringRef message) {
-    params.error_message_add(NodeWarningType::Warning, message);
-  };
-  eval_params.debug_check = debug_check;
-  if (use_debug_steps) {
-    eval_params.debug_recorder = std::make_unique<DebugRecorder>(
-        params.extract_input<GeometrySet>("Debug Steps"));
+  std::optional<GeometrySet> debug_steps;
+  if (params.output_is_required("Debug Steps")) {
+    debug_steps = params.extract_input<GeometrySet>("Debug Steps");
   }
-
-  return eval_params;
+  return ConstraintEvalParams(
+      params.extract_input<float>("Delta Time"),
+      [params](const StringRef message) {
+        params.error_message_add(NodeWarningType::Warning, message);
+      },
+      params.extract_input<bool>("Debug Checks"),
+      debug_steps);
 }
 
-static Vector<IndexMask> build_group_masks(const IndexMask &constraints,
-                                           const VArray<int> &solver_groups,
-                                           IndexMaskMemory &memory)
+static Vector<ConstraintEvalData> constraint_bundle_to_eval_data(BundlePtr &&constraint_bundle,
+                                                                 const bool debug_output,
+                                                                 IndexMaskMemory &memory)
 {
-  if (solver_groups.is_empty()) {
+  if (!constraint_bundle) {
     return {};
   }
 
-  VectorSet<int> unique_group_ids;
-  Vector<IndexMask> group_index_masks = IndexMask::from_group_ids(
-      constraints, solver_groups, memory, unique_group_ids);
-
-  /* Sort group indices to ensure solver groups are executed in consistent order.
-   * IndexMask::from_group_ids creates masks in the order they appear in the data:
-   * whichever element comes first creates a mask and index, regardless of the actual group ID
-   * values and their relative ordering.
-   */
-  Array<int> sorted_group_indices(unique_group_ids.size());
-  array_utils::fill_index_range(sorted_group_indices.as_mutable_span());
-  std::sort(sorted_group_indices.begin(),
-            sorted_group_indices.end(),
-            [&](const int index_a, const int index_b) {
-              const int group_id_a = unique_group_ids[index_a];
-              const int group_id_b = unique_group_ids[index_b];
-              return group_id_a < group_id_b;
-            });
-
-  Vector<IndexMask> group_masks;
-  group_masks.resize(sorted_group_indices.size());
-  for (const int i : sorted_group_indices.index_range()) {
-    /* Group ID is not really relevant at this point. */
-    /* const int group_id = unique_group_ids[i_group]; */
-
-    group_masks[i] = std::move(group_index_masks[sorted_group_indices[i]]);
-  }
-  return group_masks;
-}
-
-static void get_constraint_data(GeoNodeExecParams params,
-                                const bool debug_output,
-                                Vector<ConstraintEvalData> &constraint_data,
-                                IndexMaskMemory &memory)
-{
-  const BundlePtr constraints_ptr = params.extract_input<BundlePtr>("Constraints");
-
   const Span<ConstraintTypeInfo> constraint_infos =
       geometry::hair_constraints::get_constraint_info_ordered(debug_output);
-  constraint_data.reinitialize(constraint_infos.size());
-
+  Vector<ConstraintEvalData> constraint_data(constraint_infos.size());
   for (const int i : constraint_infos.index_range()) {
     const ConstraintTypeInfo &info = constraint_infos[i];
-    constraint_data[i].type = &info;
-
-    if (!constraints_ptr) {
-      continue;
-    }
-    const std::optional<Bundle::Item> item = constraints_ptr->lookup(
-        SocketInterfaceKey(info.ui_name));
-    if (!item || item->type != bke::node_socket_type_find_static(SOCK_GEOMETRY)) {
-      continue;
-    }
-
-    const GeometrySet &geometry_set = *static_cast<const GeometrySet *>(item->value);
-    if (geometry_set.has_pointcloud()) {
-      const AttributeAccessor attributes =
-          *geometry_set.get_component<PointCloudComponent>()->attributes();
-      const VArray<int> solver_groups = *attributes.lookup_or_default<int>(
-          "solver_group", AttrDomain::Point, 0);
-
-      IndexMask constraints_mask = IndexRange(attributes.domain_size(AttrDomain::Point));
-      Vector<IndexMask> group_masks = build_group_masks(
-          constraints_mask, std::move(solver_groups), memory);
-      constraint_data[i].geometry = geometry_set;
-      constraint_data[i].constraints = std::move(constraints_mask);
-      constraint_data[i].group_masks = std::move(group_masks);
-    }
-    else {
-      constraint_data[i].geometry = {};
-      constraint_data[i].constraints = {};
-      constraint_data[i].group_masks = {};
-    }
+    GeometrySet geometry_set = hair_constraints::lookup_constraints(*constraint_bundle, info.type);
+    constraint_data[i] = ConstraintEvalData(info, geometry_set, memory);
   }
+  return constraint_data;
 }
 
-static void set_constraint_data_output(GeoNodeExecParams params,
-                                       const Span<ConstraintEvalData> constraint_data)
+static BundlePtr constraint_eval_data_to_bundle(const Span<ConstraintEvalData> constraint_data)
 {
-  BundlePtr constraints_ptr = Bundle::create();
-  BLI_assert(constraints_ptr->is_mutable());
-  Bundle &constraints = const_cast<Bundle &>(*constraints_ptr);
-
+  BundlePtr constraint_bundle = Bundle::create();
   for (const ConstraintEvalData &data : constraint_data) {
-    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(SOCK_GEOMETRY);
-
     if (data.geometry) {
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &(*data.geometry));
-    }
-    else {
-      const GeometrySet geometry = {};
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &geometry);
+      hair_constraints::set_constraints(constraint_bundle, data.type->type, *data.geometry);
     }
   }
-
-  params.set_output("Constraints", std::move(constraints_ptr));
+  return constraint_bundle;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -721,9 +634,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   ConstraintEvalParams eval_params = extract_eval_params(params);
   const bool debug_output = (eval_params.debug_recorder != nullptr);
 
-  Vector<ConstraintEvalData> constraint_data;
   IndexMaskMemory memory;
-  get_constraint_data(params, debug_output, constraint_data, memory);
+  Vector<ConstraintEvalData> constraint_data = constraint_bundle_to_eval_data(
+      params.extract_input<BundlePtr>("Constraints"), debug_output, memory);
 
   init_constraints(init_mode, eval_params, constraint_data);
 
@@ -816,7 +729,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   });
 
   params.set_output("Geometry", geometry_set);
-  set_constraint_data_output(params, constraint_data);
+  params.set_output("Constraints", constraint_eval_data_to_bundle(constraint_data));
   if (eval_params.debug_recorder) {
     params.set_output("Debug Steps", eval_params.debug_recorder->debug_steps());
   }

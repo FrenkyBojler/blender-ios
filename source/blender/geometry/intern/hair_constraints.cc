@@ -476,7 +476,7 @@ void DebugRecorder::set_geometry(const GeometrySet &geometry_set,
 
 void DebugRecorder::record_step(const StringRef label,
                                 GeometrySet *constraints,
-                                const int constraint_type_code,
+                                const std::optional<ConstraintType> constraint_type,
                                 const IndexMask &group_mask,
                                 const ConstraintVariables &variables)
 {
@@ -536,7 +536,7 @@ void DebugRecorder::record_step(const StringRef label,
       "type_code", AttrDomain::Instance);
   type_code_writer.varray.set(0, -1);
   if (constraints) {
-    type_code_writer.varray.set(1, constraint_type_code);
+    type_code_writer.varray.set(1, constraint_type ? int(*constraint_type) : -1);
   }
   type_code_writer.finish();
 
@@ -546,6 +546,29 @@ void DebugRecorder::record_step(const StringRef label,
 const GeometrySet &DebugRecorder::debug_steps() const
 {
   return debug_steps_;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Solver Parameters
+ * \{ */
+
+ConstraintEvalParams::ConstraintEvalParams(const float delta_time,
+                                           ErrorFn &&error_fn,
+                                           const bool debug_check,
+                                           const std::optional<GeometrySet> debug_steps)
+{
+  this->delta_time = std::max(delta_time, 0.0f);
+  this->delta_time_squared = math::square(this->delta_time);
+  this->inv_delta_time = math::safe_rcp(this->delta_time);
+  this->inv_delta_time_squared = math::safe_rcp(this->delta_time_squared);
+  this->error_message_add = std::move(error_fn);
+  this->debug_check = debug_check;
+  if (debug_steps) {
+    this->debug_recorder = std::make_unique<geometry::hair_constraints::DebugRecorder>(
+        *debug_steps);
+  }
 }
 
 /** \} */
@@ -1887,7 +1910,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
       ConstraintType::StretchShear,
       ConstraintTypeInfo{"Stretch/Shear Constraints",
                          "Enforces edge length and aligns forward direction with the edge vector",
-                         2,
+                         ConstraintType::StretchShear,
                          stretch_shear::get_size,
                          stretch_shear::get_variable_indices,
                          stretch_shear::init_step,
@@ -1899,7 +1922,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
       ConstraintTypeInfo{
           "Bend/Twist Constraints",
           "Enforces angles between neighboring edges to their relative rest orientation",
-          3,
+          ConstraintType::BendTwist,
           bend_twist::get_size,
           bend_twist::get_variable_indices,
           bend_twist::init_step,
@@ -1909,7 +1932,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
   info_map.add_new(ConstraintType::PositionGoal,
                    ConstraintTypeInfo{"Position Goal Constraints",
                                       "Set position of a point to a target vector",
-                                      0,
+                                      ConstraintType::PositionGoal,
                                       position_goal::get_size,
                                       position_goal::get_variable_indices,
                                       position_goal::init_step,
@@ -1919,7 +1942,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
   info_map.add_new(ConstraintType::RotationGoal,
                    ConstraintTypeInfo{"Rotation Goal Constraints",
                                       "Set orientation of an edge to a target rotation",
-                                      1,
+                                      ConstraintType::RotationGoal,
                                       rotation_goal::get_size,
                                       rotation_goal::get_variable_indices,
                                       rotation_goal::init_step,
@@ -1929,7 +1952,7 @@ template<bool debug_check> static ConstraintTypeInfoMap create_type_info_map()
   info_map.add_new(ConstraintType::Contact,
                    ConstraintTypeInfo{"Contact Constraints",
                                       "Keep contact points from penetrating",
-                                      4,
+                                      ConstraintType::Contact,
                                       contact::get_size,
                                       contact::get_variable_indices,
                                       contact::init_step,

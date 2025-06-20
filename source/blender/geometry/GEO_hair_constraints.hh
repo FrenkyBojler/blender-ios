@@ -107,7 +107,7 @@ struct DebugRecorder {
 
   void record_step(const StringRef label,
                    bke::GeometrySet *constraints,
-                   const int constraint_type_code,
+                   const std::optional<ConstraintType> constraint_type,
                    const IndexMask &group_mask,
                    const ConstraintVariables &variables);
 
@@ -153,6 +153,11 @@ struct ConstraintEvalParams {
   Span<float4x4> collider_transforms;
   /** Collider transforms at the end of the previous frame. */
   Span<float4x4> old_collider_transforms;
+
+  ConstraintEvalParams(float delta_time,
+                       ErrorFn &&error_fn,
+                       bool debug_check,
+                       std::optional<bke::GeometrySet> debug_steps);
 };
 
 struct ConstraintVariables {
@@ -288,7 +293,7 @@ struct ConstraintTypeInfo {
 
   std::string ui_name;
   std::string ui_description;
-  int type_code;
+  ConstraintType type;
 
   ConstraintSizeFunc get_size;
   ConstraintVariableIndicesFunc get_variable_indices;

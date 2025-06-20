@@ -205,14 +205,20 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Float>("Delta Time").min(0.0f).hide_value();
   b.add_input<decl::Int>("Constraint Iterations").default_value(5).min(0);
+
   b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
+  b.add_output<decl::Geometry>("Hair").propagate_all().align_with_previous();
+
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Density").default_value(1000.0f).field_on_all();
   b.add_input<decl::Vector>("Gravity").default_value(float3(0, 0, -9.81f)).hide_value();
   b.add_input<decl::Vector>("Force").field_on_all().hide_value();
   b.add_input<decl::Vector>("Torque").field_on_all().hide_value();
 
-  b.add_output<decl::Geometry>("Hair").propagate_all();
+  b.add_input<decl::Bundle>("Constraints").description("Bundle of constraint geometries");
+  b.add_output<decl::Bundle>("Constraints")
+      .description("Bundle of constraint geometries")
+      .align_with_previous();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -565,10 +571,10 @@ static void UNUSED_FUNCTION(warm_start_solver)(const ConstraintEvalParams &eval_
   }
 }
 
-static void UNUSED_FUNCTION(estimate_velocity)(ConstraintEvalParams &params,
-                                               Array<float3> &orig_velocities,
-                                               Array<float3> &orig_angular_velocities,
-                                               ConstraintVariables &vars)
+static void estimate_velocity(ConstraintEvalParams &params,
+                              Array<float3> &orig_velocities,
+                              Array<float3> &orig_angular_velocities,
+                              ConstraintVariables &vars)
 {
   const Span<float3> old_positions = params.old_positions;
   const Span<math::Quaternion> old_rotations = params.old_rotations;
@@ -595,10 +601,9 @@ static void UNUSED_FUNCTION(estimate_velocity)(ConstraintEvalParams &params,
   });
 }
 
-static void UNUSED_FUNCTION(do_position_constraints_iteration)(
-    const ConstraintEvalParams &eval_params,
-    MutableSpan<ConstraintEvalData> constraint_data,
-    ConstraintVariables &variables)
+static void do_position_constraints_iteration(const ConstraintEvalParams &eval_params,
+                                              MutableSpan<ConstraintEvalData> constraint_data,
+                                              ConstraintVariables &variables)
 {
   IndexMaskMemory memory;
 
@@ -620,10 +625,9 @@ static void UNUSED_FUNCTION(do_position_constraints_iteration)(
   }
 }
 
-static void UNUSED_FUNCTION(do_velocity_constraints_iteration)(
-    const ConstraintEvalParams &eval_params,
-    MutableSpan<ConstraintEvalData> constraint_data,
-    ConstraintVariables &variables)
+static void do_velocity_constraints_iteration(const ConstraintEvalParams &eval_params,
+                                              MutableSpan<ConstraintEvalData> constraint_data,
+                                              ConstraintVariables &variables)
 {
   IndexMaskMemory memory;
 
@@ -645,11 +649,59 @@ static void UNUSED_FUNCTION(do_velocity_constraints_iteration)(
   }
 }
 
-static void UNUSED_FUNCTION(solve_constraints)(GeometrySet &hair_geometry, const int iterations)
+static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
+{
+  // std::optional<GeometrySet> debug_steps;
+  // if (params.output_is_required("Debug Steps")) {
+  //   debug_steps = params.extract_input<GeometrySet>("Debug Steps");
+  // }
+  return ConstraintEvalParams(
+      params.extract_input<float>("Delta Time"),
+      [params](const StringRef message) {
+        params.error_message_add(NodeWarningType::Warning, message);
+      },
+      false /*params.extract_input<bool>("Debug Checks")*/,
+      std::nullopt /*debug_steps*/);
+}
+
+static Vector<ConstraintEvalData> constraint_bundle_to_eval_data(BundlePtr &&constraint_bundle,
+                                                                 const bool debug_output,
+                                                                 IndexMaskMemory &memory)
+{
+  if (!constraint_bundle) {
+    return {};
+  }
+
+  const Span<ConstraintTypeInfo> constraint_infos =
+      geometry::hair_constraints::get_constraint_info_ordered(debug_output);
+  Vector<ConstraintEvalData> constraint_data(constraint_infos.size());
+  for (const int i : constraint_infos.index_range()) {
+    const ConstraintTypeInfo &info = constraint_infos[i];
+    GeometrySet geometry_set = hair_constraints::lookup_constraints(*constraint_bundle, info.type);
+    constraint_data[i] = ConstraintEvalData(info, geometry_set, memory);
+  }
+  return constraint_data;
+}
+
+static BundlePtr constraint_eval_data_to_bundle(const Span<ConstraintEvalData> constraint_data)
+{
+  BundlePtr constraint_bundle = Bundle::create();
+  for (const ConstraintEvalData &data : constraint_data) {
+    if (data.geometry) {
+      hair_constraints::set_constraints(constraint_bundle, data.type->type, *data.geometry);
+    }
+  }
+  return constraint_bundle;
+}
+
+static void solve_constraints(ConstraintEvalParams &eval_params,
+                              GeometryComponent &component,
+                              const int iterations,
+                              const MutableSpan<ConstraintEvalData> constraint_data)
 {
   /* TODO warm start doesn't work properly yet. */
   const bool warm_start = false;
-  UNUSED_VARS(hair_geometry, iterations, warm_start);
+  UNUSED_VARS(warm_start);
 
   // Field<float> mass_field = params.extract_input<Field<float>>("Mass");
   // Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
@@ -675,7 +727,6 @@ static void UNUSED_FUNCTION(solve_constraints)(GeometrySet &hair_geometry, const
   //                                          colliders_geometry_set.get_instances()->transforms()
   //                                          : Span<float4x4>{};
 
-  // ConstraintEvalParams eval_params = extract_eval_params(params);
   // const bool debug_output = (eval_params.debug_recorder != nullptr);
 
   // Vector<ConstraintEvalData> constraint_data;
@@ -684,19 +735,10 @@ static void UNUSED_FUNCTION(solve_constraints)(GeometrySet &hair_geometry, const
 
   // init_constraints(init_mode, eval_params, constraint_data);
 
-  // static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
-  //                                                      bke::GeometryComponent::Type::PointCloud,
-  //                                                      bke::GeometryComponent::Type::Curve,
-  //                                                      bke::GeometryComponent::Type::GreasePencil};
-  // geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-  //   for (const bke::GeometryComponent::Type component_type : types) {
-  //     if (geometry_set.has(component_type)) {
-  //       bke::GeometryComponent &component =
-  //       geometry_set.get_component_for_write(component_type);
-  //       std::optional<bke::MutableAttributeAccessor> attributes =
-  //       component.attributes_for_write(); if (!attributes) {
-  //         continue;
-  //       }
+  std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
+  if (!attributes) {
+    return;
+  }
 
   //      if (eval_params.debug_recorder) {
   //        eval_params.debug_recorder->set_geometry(geometry_set, component_type);
@@ -733,26 +775,18 @@ static void UNUSED_FUNCTION(solve_constraints)(GeometrySet &hair_geometry, const
   //       * colliders. */
   //      eval_params.old_collider_transforms = eval_params.collider_transforms;
 
-  //      // execute_solver_method_on_geometry(solver_method,
-  //      //                                   eval_params,
-  //      //                                   constraint_data,
-  //      //                                   vars,
-  //      //                                   gauss_seidel_iterations,
-  //      //                                   jacobi_iterations);
-  //      if (eval_params.debug_recorder) {
-  //        const std::string label = fmt::format("Initialize Gauss-Seidel, ");
-  //        eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
-  //      }
+  // if (eval_params.debug_recorder) {
+  //   const std::string label = fmt::format("Initialize Gauss-Seidel, ");
+  //   eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
+  // }
 
-  //      for ([[maybe_unused]] const int i : IndexRange(gauss_seidel_iterations)) {
-  //        do_gauss_seidel_iteration(
-  //            EvaluationTarget::Positions, eval_params, constraint_data, variables);
-  //      }
+  for ([[maybe_unused]] const int i : IndexRange(iterations)) {
+    do_position_constraints_iteration(eval_params, constraint_data, variables);
+  }
 
-  //      estimate_velocity(eval_params, orig_velocities, orig_angular_velocities, variables);
+  estimate_velocity(eval_params, orig_velocities, orig_angular_velocities, variables);
 
-  //      do_gauss_seidel_iteration(
-  //          EvaluationTarget::Velocities, eval_params, constraint_data, variables);
+  do_velocity_constraints_iteration(eval_params, constraint_data, variables);
 
   //      if (position_output_id) {
   //        AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
@@ -785,15 +819,6 @@ static void UNUSED_FUNCTION(solve_constraints)(GeometrySet &hair_geometry, const
   //        angular_velocities_writer.varray.set_all(vars.angular_velocities);
   //        angular_velocities_writer.finish();
   //      }
-  //    }
-  //  }
-  //});
-
-  // params.set_output("Geometry", geometry_set);
-  // set_constraint_data_output(params, constraint_data);
-  // if (eval_params.debug_recorder) {
-  //   params.set_output("Debug Steps", eval_params.debug_recorder->debug_steps());
-  // }
 }
 
 // static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
@@ -825,20 +850,24 @@ static void UNUSED_FUNCTION(solve_constraints)(GeometrySet &hair_geometry, const
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
-  // const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
-  //                                            0);
+  const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
+                                             0);
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   Field<float> density_field = params.extract_input<Field<float>>("Density");
   float3 gravity = params.extract_input<float3>("Gravity");
   Field<float3> force_field = params.extract_input<Field<float3>>("Force");
   Field<float3> torque_field = params.extract_input<Field<float3>>("Torque");
+  BundlePtr constraint_bundle = params.extract_input<BundlePtr>("Constraints");
 
   if (!hair_geometry.has_curves()) {
     params.set_default_remaining_outputs();
     return;
   }
   CurveComponent &hair_curves = hair_geometry.get_component_for_write<CurveComponent>();
+
+  ConstraintEvalParams eval_params = extract_eval_params(params);
+  const bool debug_output = (eval_params.debug_recorder != nullptr);
 
   /* Zero time step initializes the hair simulation. */
   if (delta_time == 0.0f) {
@@ -847,18 +876,24 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
     init_hair_physics(hair_curves, selection_field, density_field);
 
-    BundlePtr constraint_bundle = Bundle::create();
+    /* Clear any existing constraint data. */
+    constraint_bundle = Bundle::create();
     generate_elastic_rod_constraints(constraint_bundle, hair_curves, selection_field);
     generate_root_attachment_constraints(constraint_bundle, hair_curves, selection_field);
   }
+
+  IndexMaskMemory memory;
+  Vector<ConstraintEvalData> constraint_data = constraint_bundle_to_eval_data(
+      std::move(constraint_bundle), debug_output, memory);
 
   /* Store current motion state for later velocity estimation. */
   capture_motion_state(hair_curves, selection_field);
 
   /* Unconstrained motion. */
-
   cosserat_rod_dynamics_integration(
       hair_curves, selection_field, delta_time, 1.0f, 1.0f, gravity, force_field, torque_field);
+
+  solve_constraints(eval_params, hair_curves, constraint_iterations, constraint_data);
 
   /* Remove temporary captured attributes. */
   hair_curves.attributes_for_write()->remove(position_cache_attr);
@@ -867,6 +902,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   hair_curves.attributes_for_write()->remove(area_moment_attr);
 
   params.set_output("Hair", std::move(hair_geometry));
+  params.set_output("Constraints", constraint_eval_data_to_bundle(constraint_data));
 }
 
 static void node_rna(StructRNA *srna)
