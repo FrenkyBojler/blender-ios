@@ -601,7 +601,7 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
   }
 
   if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8_DEPRECATED) {
-    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` in stead", 1);
+    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` instead", 1);
   }
 
   if (!IN_RANGE_INCL(channels, 1, 4)) {

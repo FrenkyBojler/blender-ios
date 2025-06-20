@@ -381,7 +381,7 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
     return nullptr;
   }
   if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8_DEPRECATED) {
-    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` in stead", 1);
+    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` instead", 1);
   }
 
   int shape = PySequence_Size(py_values);
