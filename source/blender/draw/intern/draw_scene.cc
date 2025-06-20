@@ -61,18 +61,33 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
   DEGObjectIterSettings deg_iter_settings = {nullptr};
   deg_iter_settings.depsgraph = depsgraph;
   deg_iter_settings.flags = DEG_ITER_OBJECT_FLAG_LINKED_DIRECTLY |
-                            DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET | DEG_ITER_OBJECT_FLAG_VISIBLE;
+                            DEG_ITER_OBJECT_FLAG_LINKED_VIA_SET;
   if (v3d && v3d->flag2 & V3D_SHOW_VIEWER) {
     deg_iter_settings.viewer_path = &v3d->viewer_path;
   }
 
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
-    if (should_draw_object_cb(*ob)) {
+
+#if 0
+    /* TODO: Not accesible from here. */
+    if (ob->type != OB_MBALL && deg_object_hide_original(eval_mode, ob, nullptr)) {
+      continue;
+    }
+#endif
+
+    int visibility = BKE_object_visibility(ob, eval_mode);
+    bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);
+
+    if (ob_visible && should_draw_object_cb(*ob)) {
       ObjectRef ob_ref(data_, ob);
       draw_object_cb(ob_ref);
     }
 
-    if (!data_.dupli_parent) {
+    bool instances_visible = (visibility & OB_VISIBLE_INSTANCES) &&
+                             ((ob->transflag & OB_DUPLI) ||
+                              ob->runtime->geometry_set_eval != nullptr);
+
+    if (!instances_visible) {
       continue;
     }
 
@@ -91,14 +106,20 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
         continue;
       }
 
+      /* TODO: Optimize.
+       * We can't check the dupli.ob since visibility may be different than the dupli itself.
+       * But we should be able to check the dupli visibility without creating a temp object. */
+#if 0
       if (!should_draw_object_cb(*dupli.ob)) {
         continue;
       }
+#endif
 
       if (!engines_support_handle_ranges || !supports_handle_ranges(dupli.ob)) {
         /* Sync the dupli as a single object. */
         if (!DEG_iterator_setup_temp_object(
-                ob, dupli.ob, dupli.ob_data, &tmp_object, &tmp_runtime, eval_mode))
+                ob, dupli.ob, dupli.ob_data, &tmp_object, &tmp_runtime, eval_mode) ||
+            !should_draw_object_cb(tmp_object))
         {
           DEG_iterator_free_temp_object_properties(dupli.ob, &tmp_object);
           continue;
@@ -143,7 +164,8 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
 
     for (const auto &[key, instances] : dupli_map.items()) {
       if (!DEG_iterator_setup_temp_object(
-              ob, key.object, key.ob_data, &tmp_object, &tmp_runtime, eval_mode))
+              ob, key.object, key.ob_data, &tmp_object, &tmp_runtime, eval_mode) ||
+          !should_draw_object_cb(tmp_object))
       {
         DEG_iterator_free_temp_object_properties(key.object, &tmp_object);
         continue;

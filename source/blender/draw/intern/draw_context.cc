@@ -1232,16 +1232,8 @@ static void drw_draw_render_loop_3d(DRWContext &draw_ctx, RenderEngineType *engi
   const bool do_populate_loop = internal_engine || overlays_on || !draw_type_render ||
                                 gpencil_engine_needed;
 
-  const int object_type_exclude_viewport = v3d ? v3d->object_type_exclude_viewport : 0;
-
   auto should_draw_object = [&](Object &ob) -> bool {
-    if (object_type_exclude_viewport & (1 << ob.type)) {
-      return false;
-    }
-    if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
-      return false;
-    }
-    return true;
+    return BKE_object_is_visible_in_viewport(v3d, &ob);
   };
 
   draw_ctx.enable_engines(gpencil_engine_needed, engine_type);
@@ -1562,14 +1554,10 @@ void DRW_render_object_iter(
 
   DRWContext &draw_ctx = drw_get();
   View3D *v3d = draw_ctx.v3d;
-  const int object_type_exclude_viewport = v3d ? v3d->object_type_exclude_viewport : 0;
 
   auto should_draw_object = [&](Object &ob) -> bool {
-    if (object_type_exclude_viewport & (1 << ob.type)) {
-      return false;
-    }
-    if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
-      return false;
+    if (v3d) {
+      return BKE_object_is_visible_in_viewport(v3d, &ob);
     }
     return true;
   };
@@ -1835,11 +1823,7 @@ void DRW_draw_depth_loop(Depsgraph *depsgraph,
   draw_ctx.acquire_data();
   draw_ctx.enable_engines(use_gpencil);
   draw_ctx.engines_init_and_sync([&](DupliCacheManager &duplis, ExtractionGraph &extraction) {
-    const int object_type_exclude_viewport = v3d->object_type_exclude_viewport;
     auto should_draw_object = [&](Object &ob) {
-      if (object_type_exclude_viewport & (1 << ob.type)) {
-        return false;
-      }
       if (!BKE_object_is_visible_in_viewport(v3d, &ob)) {
         return false;
       }
