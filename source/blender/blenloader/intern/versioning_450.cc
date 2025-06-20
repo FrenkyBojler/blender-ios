@@ -43,6 +43,8 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_paint.hh"
 
+#include "MOV_enums.hh"
+
 #include "SEQ_iterator.hh"
 #include "SEQ_sequencer.hh"
 
@@ -4545,6 +4547,14 @@ static void clamp_subdivision_node_level_input(bNodeTree &tree)
   version_socket_update_is_used(&tree);
 }
 
+/* FFmpeg updated its internal codec IDs, which are stored in DNA. The old AV1 codec ID was 226. */
+static void fix_ffmpeg_av1_codec_id(Scene *scene)
+{
+  if (scene->r.ffcodecdata.codec == 226) {
+    scene->r.ffcodecdata.codec = FFMPEG_CODEC_ID_AV1;
+  }
+}
+
 void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 8)) {
@@ -6430,6 +6440,12 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 88)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      fix_ffmpeg_av1_codec_id(scene);
+    }
   }
 
   /* Always run this versioning (keep at the bottom of the function). Meshes are written with the
