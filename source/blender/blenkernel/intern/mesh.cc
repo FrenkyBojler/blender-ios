@@ -625,11 +625,18 @@ static Bounds<float3> negative_bounds()
   return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
 }
 
+struct LocalMeshGroup {
+  Array<int> unique_verts;
+  Array<int> faces;
+  Array<int> shared_verts;
+  int corner_count;
+  int parent;
+  int children_offset;
+};
+
 static void partition_faces_recursively(const Span<float3> face_centers,
                                         MutableSpan<int> face_indices,
-                                        Vector<int> &children_offsets,
-                                        Vector<int> &parent_offsets,
-                                        Vector<Array<int>> &face_data,
+                                        Vector<LocalMeshGroup> &groups,
                                         int node_index,
                                         int depth,
                                         const std::optional<Bounds<float3>> &bounds_precalc,
@@ -639,21 +646,19 @@ static void partition_faces_recursively(const Span<float3> face_centers,
 
   if (face_indices.size() <= target_group_size || depth >= 99) {
     if (!blender::bke::pbvh::leaf_needs_material_split(face_indices, material_indices)) {
-      children_offsets[node_index] = 0;
-      face_data[node_index] = Array<int>(face_indices.size(), NoInitialization());
-      std::memcpy(
-          face_data[node_index].data(), face_indices.data(), face_indices.size() * sizeof(int));
+      groups[node_index].children_offset = 0;
+      groups[node_index].faces = Array<int>(face_indices.size(), NoInitialization());
+      std::copy(face_indices.begin(), face_indices.end(), groups[node_index].faces.begin());
       return;
     }
   }
 
-  children_offsets[node_index] = children_offsets.size();
-  children_offsets.resize(children_offsets.size() + 2);
-  parent_offsets.resize(parent_offsets.size() + 2);
-  face_data.resize(face_data.size() + 2);
+  const int children_start = groups.size();
+  groups[node_index].children_offset = children_start;
 
-  parent_offsets[children_offsets[node_index]] = node_index;
-  parent_offsets[children_offsets[node_index] + 1] = node_index;
+  groups.resize(groups.size() + 2);
+  groups[children_start].parent = node_index;
+  groups[children_start + 1].parent = node_index;
 
   int split;
   if (!(face_indices.size() <= target_group_size || depth >= 99)) {
@@ -685,65 +690,52 @@ static void partition_faces_recursively(const Span<float3> face_centers,
 
   partition_faces_recursively(face_centers,
                               face_indices.take_front(split),
-                              children_offsets,
-                              parent_offsets,
-                              face_data,
-                              children_offsets[node_index],
+                              groups,
+                              children_start,
                               depth + 1,
                               std::nullopt,
                               material_indices);
   partition_faces_recursively(face_centers,
                               face_indices.drop_front(split),
-                              children_offsets,
-                              parent_offsets,
-                              face_data,
-                              children_offsets[node_index] + 1,
+                              groups,
+                              children_start + 1,
                               depth + 1,
                               std::nullopt,
                               material_indices);
 }
-struct LeafGroupsResult {
-  Vector<Array<int>> vert_groups;
-  Vector<int> unique_counts;
-  Vector<int> corner_counts;
-};
 
-static LeafGroupsResult build_mesh_leaf_nodes(const int verts_num,
-                                              const OffsetIndices<int> faces,
-                                              const Span<int> corner_verts,
-                                              const Vector<Array<int>> &leaf_groups)
+static void build_vertex_groups_for_leaves(const int verts_num,
+                                           const OffsetIndices<int> faces,
+                                           const Span<int> corner_verts,
+                                           Vector<LocalMeshGroup> &groups)
 {
-  Vector<Array<int>> vert_groups;
-  vert_groups.resize(leaf_groups.size());
-  Vector<int> unique_counts;
-  unique_counts.resize(leaf_groups.size());
-  Vector<int> corner_counts;
-  corner_counts.resize(leaf_groups.size());
+  Vector<int> leaf_indices;
+  for (const int i : groups.index_range()) {
+    if (groups[i].children_offset == 0 && !groups[i].faces.is_empty()) {
+      leaf_indices.append(i);
+    }
+  }
 
-  Array<Array<int>> verts_per_node(leaf_groups.size(), NoInitialization());
+  Array<Array<int>> verts_per_leaf(leaf_indices.size(), NoInitialization());
 
-  threading::parallel_for(leaf_groups.index_range(), 8, [&](const IndexRange range) {
+  threading::parallel_for(leaf_indices.index_range(), 8, [&](const IndexRange range) {
     Set<int> verts;
     for (const int i : range) {
+      const int group_idx = leaf_indices[i];
+      LocalMeshGroup &group = groups[group_idx];
       verts.clear();
       int corners_count = 0;
 
-      if (leaf_groups[i].is_empty()) {
-        new (&verts_per_node[i]) Array<int>();
-        corner_counts[i] = 0;
-        continue;
-      }
-
-      for (const int face_index : leaf_groups[i]) {
+      for (const int face_index : group.faces) {
         const IndexRange face = faces[face_index];
         verts.add_multiple(corner_verts.slice(face));
         corners_count += face.size();
       }
 
-      new (&verts_per_node[i]) Array<int>(verts.size());
-      std::copy(verts.begin(), verts.end(), verts_per_node[i].begin());
-      std::sort(verts_per_node[i].begin(), verts_per_node[i].end());
-      corner_counts[i] = corners_count;
+      new (&verts_per_leaf[i]) Array<int>(verts.size());
+      std::copy(verts.begin(), verts.end(), verts_per_leaf[i].begin());
+      std::sort(verts_per_leaf[i].begin(), verts_per_leaf[i].end());
+      group.corner_count = corners_count;
     }
   });
 
@@ -751,11 +743,13 @@ static LeafGroupsResult build_mesh_leaf_nodes(const int verts_num,
   Vector<int> shared_verts;
   BitVector<> vert_used(verts_num);
 
-  for (const int i : leaf_groups.index_range()) {
+  for (const int i : leaf_indices.index_range()) {
+    const int group_idx = leaf_indices[i];
+    LocalMeshGroup &group = groups[group_idx];
     owned_verts.clear();
     shared_verts.clear();
 
-    for (const int vert : verts_per_node[i]) {
+    for (const int vert : verts_per_leaf[i]) {
       if (vert_used[vert]) {
         shared_verts.append(vert);
       }
@@ -765,44 +759,24 @@ static LeafGroupsResult build_mesh_leaf_nodes(const int verts_num,
       }
     }
 
-    unique_counts[i] = owned_verts.size();
-
-    const int total_verts = owned_verts.size() + shared_verts.size();
-    vert_groups[i] = Array<int>(total_verts, NoInitialization());
-
     if (!owned_verts.is_empty()) {
-      std::copy(owned_verts.begin(), owned_verts.end(), vert_groups[i].begin());
+      group.unique_verts = Array<int>(owned_verts.size());
+      std::copy(owned_verts.begin(), owned_verts.end(), group.unique_verts.begin());
     }
+
     if (!shared_verts.is_empty()) {
-      std::copy(
-          shared_verts.begin(), shared_verts.end(), vert_groups[i].begin() + owned_verts.size());
+      group.shared_verts = Array<int>(shared_verts.size());
+      std::copy(shared_verts.begin(), shared_verts.end(), group.shared_verts.begin());
     }
   }
-
-  return {std::move(vert_groups), std::move(unique_counts), std::move(corner_counts)};
 }
-
-struct LocalMeshGroup {
-  Array<int> unique_verts;
-  Array<int> faces;
-  Array<int> shared_verts;
-  int corner_count;
-  int parent;
-  int children_offset;
-};
 
 static Array<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
 {
-  Vector<Array<int>> face_groups;
-  Vector<Array<int>> vert_groups;
-  Vector<int> corner_counts;
-  Vector<int> unique_counts;
-  Vector<int> parent_offsets;
-  Vector<int> children_offsets;
-
   const Span<float3> vert_positions = mesh.vert_positions();
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
+
   if (faces.is_empty()) {
     return {};
   }
@@ -827,67 +801,20 @@ static Array<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
   Array<int> prim_face_indices(mesh.faces_num);
   array_utils::fill_index_range<int>(prim_face_indices);
 
-  Vector<Array<int>> face_data;
-
-  children_offsets.resize(1);
-  parent_offsets.resize(1, -1);
-  face_data.resize(1);
+  Vector<LocalMeshGroup> groups;
+  groups.resize(1);
+  groups[0].parent = -1;
+  groups[0].children_offset = 0;
 
   const AttributeAccessor attributes = mesh.attributes();
   const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
 
-  partition_faces_recursively(face_centers,
-                              prim_face_indices,
-                              children_offsets,
-                              parent_offsets,
-                              face_data,
-                              0,
-                              0,
-                              bounds,
-                              material_index);
+  partition_faces_recursively(
+      face_centers, prim_face_indices, groups, 0, 0, bounds, material_index);
 
-  for (const int i : children_offsets.index_range()) {
-    if (children_offsets[i] == 0) {
-      face_groups.append(std::move(face_data[i]));
-    }
-    else {
-      face_groups.append(Array<int>());
-    }
-  }
+  build_vertex_groups_for_leaves(mesh.verts_num, faces, corner_verts, groups);
 
-  auto [vertex_groups, vertex_unique_counts, vertex_corner_counts] = build_mesh_leaf_nodes(
-      mesh.verts_num, faces, corner_verts, face_groups);
-  vert_groups = std::move(vertex_groups);
-  unique_counts = std::move(vertex_unique_counts);
-  corner_counts = std::move(vertex_corner_counts);
-
-  Array<LocalMeshGroup> local_groups(face_groups.size());
-
-  for (const int i : face_groups.index_range()) {
-    LocalMeshGroup &group = local_groups[i];
-    group.faces = std::move(face_groups[i]);
-    group.corner_count = corner_counts[i];
-    group.parent = parent_offsets[i];
-    group.children_offset = children_offsets[i];
-    const int unique_count = unique_counts[i];
-    const int total_verts = vert_groups[i].size();
-    const int shared_count = total_verts - unique_count;
-
-    if (unique_count > 0) {
-      group.unique_verts = Array<int>(unique_count);
-      std::copy(vert_groups[i].begin(),
-                vert_groups[i].begin() + unique_count,
-                group.unique_verts.begin());
-    }
-
-    if (shared_count > 0) {
-      group.shared_verts = Array<int>(shared_count);
-      std::copy(
-          vert_groups[i].begin() + unique_count, vert_groups[i].end(), group.shared_verts.begin());
-    }
-  }
-
-  return local_groups;
+  return groups.as_span();
 }
 
 void mesh_apply_spatial_organization(Mesh &mesh)
@@ -905,10 +832,6 @@ void mesh_apply_spatial_organization(Mesh &mesh)
   Vector<int> group_unique_offsets;
   group_unique_offsets.reserve(local_groups.size() + 1);
   group_unique_offsets.append(0);
-
-  Vector<int> group_all_offsets;
-  group_all_offsets.reserve(local_groups.size() + 1);
-  group_all_offsets.append(0);
 
   Vector<int> group_face_offsets;
   group_face_offsets.reserve(local_groups.size() + 1);
@@ -931,7 +854,6 @@ void mesh_apply_spatial_organization(Mesh &mesh)
         added_verts[vert_idx].set();
       }
     }
-    group_all_offsets.append(new_vert_order.size());
 
     for (const int face_idx : local_group.faces) {
       new_face_order.append(face_idx);
@@ -940,7 +862,6 @@ void mesh_apply_spatial_organization(Mesh &mesh)
   }
 
   Array<int> vert_reverse_map(mesh.verts_num);
-
   for (const int i : IndexRange(mesh.verts_num)) {
     vert_reverse_map[new_vert_order[i]] = i;
   }
@@ -958,7 +879,6 @@ void mesh_apply_spatial_organization(Mesh &mesh)
   int new_corner_idx = 0;
   for (const int old_face_idx : new_face_order) {
     const IndexRange face = old_faces[old_face_idx];
-
     for (const int corner : face) {
       new_corner_verts[new_corner_idx] = vert_reverse_map[corner_verts[corner]];
       new_corner_idx++;
@@ -998,7 +918,6 @@ void mesh_apply_spatial_organization(Mesh &mesh)
       int new_corner_idx = 0;
       for (const int old_face_idx : new_face_order) {
         const IndexRange face = old_faces[old_face_idx];
-
         for (const int old_corner_idx : face) {
           type.copy_construct(attribute_data[old_corner_idx], new_values[new_corner_idx]);
           new_corner_idx++;
