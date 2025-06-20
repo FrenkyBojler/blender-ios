@@ -553,7 +553,7 @@ typedef struct BevelModifierData {
 } BevelModifierData;
 
 /** #BevelModifierData.flags and BevelModifierData.lim_flags */
-enum {
+typedef enum {
 #ifdef DNA_DEPRECATED_ALLOW
   MOD_BEVEL_VERT_DEPRECATED = (1 << 1),
 #endif
