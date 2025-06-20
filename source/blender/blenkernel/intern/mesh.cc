@@ -771,7 +771,7 @@ static void build_vertex_groups_for_leaves(const int verts_num,
   }
 }
 
-static Array<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
+static Vector<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
 {
   const Span<float3> vert_positions = mesh.vert_positions();
   const OffsetIndices<int> faces = mesh.faces();
@@ -814,12 +814,12 @@ static Array<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
 
   build_vertex_groups_for_leaves(mesh.verts_num, faces, corner_verts, groups);
 
-  return groups.as_span();
+  return groups;
 }
 
 void mesh_apply_spatial_organization(Mesh &mesh)
 {
-  Array<LocalMeshGroup> local_groups = compute_local_mesh_groups(mesh);
+  Vector<LocalMeshGroup> local_groups = compute_local_mesh_groups(mesh);
 
   Vector<int> new_vert_order;
   new_vert_order.reserve(mesh.verts_num);
@@ -975,9 +975,9 @@ void mesh_apply_spatial_organization(Mesh &mesh)
     }
   }
 
-  mesh.runtime->spatial_groups = std::make_unique<Array<MeshGroup>>(std::move(nodes));
   mesh.tag_positions_changed();
   mesh.tag_topology_changed();
+  mesh.runtime->spatial_groups = std::make_unique<Array<MeshGroup>>(std::move(nodes));
 }
 
 }  // namespace blender::bke
