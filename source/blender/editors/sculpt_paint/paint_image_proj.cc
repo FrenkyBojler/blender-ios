@@ -99,7 +99,7 @@
 
 #include "NOD_shader.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -5773,7 +5773,7 @@ static void paint_proj_stroke_ps(const bContext * /*C*/,
     paint_brush_color_get(scene,
                           paint,
                           brush,
-                          *ps_handle->initial_hsv_jitter,
+                          ps_handle->initial_hsv_jitter,
                           false,
                           ps->mode == BRUSH_STROKE_INVERT,
                           distance,
@@ -6809,6 +6809,7 @@ static bool proj_paint_add_slot(bContext *C, wmOperator *op)
 
     DEG_id_tag_update(&ntree->id, 0);
     DEG_id_tag_update(&ma->id, ID_RECALC_SHADING);
+    DEG_relations_tag_update(bmain);
     ED_area_tag_redraw(CTX_wm_area(C));
 
     ED_paint_proj_mesh_data_check(*scene, *ob, nullptr, nullptr, nullptr, nullptr);

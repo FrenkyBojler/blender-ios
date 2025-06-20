@@ -212,7 +212,6 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/radial_tiling.h
   svm/radial_tiling_generic.generic
   svm/sepcomb_color.h
-  svm/sepcomb_hsv.h
   svm/sepcomb_vector.h
   svm/sky.h
   svm/tex_coord.h
@@ -223,7 +222,6 @@ set(SRC_KERNEL_SVM_HEADERS
   svm/vector_rotate.h
   svm/vector_transform.h
   svm/voronoi.h
-  svm/voxel.h
   svm/wave.h
   svm/white_noise.h
   svm/vertex_color.h
