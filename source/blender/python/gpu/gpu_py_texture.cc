@@ -349,6 +349,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg format: The format that describes the content of a single item.\n"
     "      Possible values are `FLOAT`, `INT`, `UINT`, `UBYTE`, `UINT_24_8` and `10_11_11_REV`.\n"
+    "      `UINT_24_8` is deprecated, use `FLOAT` instead.\n"
     "   :type format: str\n"
     "   :arg value: Sequence each representing the value to fill. Sizes 1..4 are supported.\n"
     "   :type value: Sequence[float]\n");
@@ -378,6 +379,9 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
           args, kwds, &_parser, PyC_ParseStringEnum, &pygpu_dataformat, &py_values))
   {
     return nullptr;
+  }
+  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8) {
+    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` in stead", 1);
   }
 
   int shape = PySequence_Size(py_values);

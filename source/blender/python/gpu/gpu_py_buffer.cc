@@ -386,6 +386,9 @@ static PyObject *pygpu_buffer__tp_new(PyTypeObject * /*type*/, PyObject *args, P
   {
     return nullptr;
   }
+  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8) {
+    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` instead", 1);
+  }
 
   if (!pygpu_buffer_pyobj_as_shape(length_ob, shape, &shape_len)) {
     return nullptr;
@@ -676,6 +679,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg format: Format type to interpret the buffer.\n"
     "      Possible values are `FLOAT`, `INT`, `UINT`, `UBYTE`, `UINT_24_8` and `10_11_11_REV`.\n"
+    "      `UINT_24_8` is deprecated, use `FLOAT` instead.\n"
     "   :type format: str\n"
     "   :arg dimensions: Array describing the dimensions.\n"
     "   :type dimensions: int\n"
