@@ -520,7 +520,8 @@ class GridMesh : Overlay {
     for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
       float snap_to = levels_[i].subdiv_level * grid_steps_[i];
       levels_[i].origin_offset = -int3(floor(view.location() / snap_to)) * levels_[i].subdiv_level;
-      std::cout << "levels_[i].origin_offset" << levels_[i].origin_offset << std::endl;
+      /* Could be used if we draw the 2D grid with the mesh grid. But we currently don't. */
+      levels_[i].origin_offset.z = 0;
     }
 
     GPU_framebuffer_bind(framebuffer);
