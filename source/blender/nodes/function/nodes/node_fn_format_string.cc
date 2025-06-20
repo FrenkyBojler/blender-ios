@@ -8,7 +8,7 @@
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
@@ -447,7 +447,7 @@ static std::optional<ProcessedPythonCompatibleFormat> preprocess_python_compatib
   return result;
 }
 
-static void format_with_fmt(const fmt::format_string<> format,
+static void format_with_fmt(const fmt::runtime_format_string<> format,
                             const GVArray &input,
                             const GVArray *widths,
                             const GVArray *precisions,

@@ -1364,6 +1364,17 @@ static void draw_selected_name(
     char frame[16];
   } info_buffers;
 
+  /* Info can contain:
+   * - 1 frame number `(7 + 2)`.
+   * - 1 collection name `(MAX_ID_NAME - 2 + 3)`.
+   * - 1 object name `(MAX_ID_NAME - 2)`.
+   * - 1 object data name `(MAX_ID_NAME - 2)`.
+   * - 2 non-ID data names (bones, shapekeys...) `(MAX_NAME * 2)`.
+   * - 2 BREAD_CRUMB_SEPARATOR(s) `(6)`.
+   * - 1 SHAPE_KEY_PINNED marker and a trailing '\0' `(9+1)` - translated, so give some room!
+   * - 1 marker name `(MAX_NAME + 3)`.
+   */
+
   SNPRINTF(info_buffers.frame, "(%d)", cfra);
   info_array[i++] = info_buffers.frame;
 
@@ -1376,15 +1387,6 @@ static void draw_selected_name(
       info_array[i++] = " |";
     }
   }
-
-  /* Info can contain:
-   * - A frame `(7 + 2)`.
-   * - A collection name `(MAX_NAME + 3)`.
-   * - 3 object names `(MAX_NAME)`.
-   * - 2 BREAD_CRUMB_SEPARATOR(s) `(6)`.
-   * - A SHAPE_KEY_PINNED marker and a trailing '\0' `(9+1)` - translated, so give some room!
-   * - A marker name `(MAX_NAME + 3)`.
-   */
 
   /* get name of marker on current frame (if available) */
   const char *markern = BKE_scene_find_marker_name(scene, cfra);
@@ -1477,9 +1479,12 @@ static void draw_selected_name(
   }
 
   BLI_assert(i < int(ARRAY_SIZE(info_array)));
-  char info[300];
-  /* It's expected there will be enough room for the buffer (if not, increase it). */
+
+  char info[MAX_ID_NAME * 4];
+  /* It's expected there will be enough room for the whole string in the the buffer. If not,
+   * increase it. */
   BLI_assert(BLI_string_len_array(info_array, i) < sizeof(info));
+
   BLI_string_join_array(info, sizeof(info), info_array, i);
 
   *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
@@ -1656,7 +1661,7 @@ RenderEngineType *ED_view3d_engine_type(const Scene *scene, int drawtype)
    */
   RenderEngineType *type = RE_engines_find(scene->r.engine);
   if (drawtype == OB_MATERIAL && (type->flag & RE_USE_EEVEE_VIEWPORT)) {
-    return RE_engines_find(RE_engine_id_BLENDER_EEVEE_NEXT);
+    return RE_engines_find(RE_engine_id_BLENDER_EEVEE);
   }
   return type;
 }
@@ -2429,23 +2434,15 @@ static ViewDepths *view3d_depths_create(ARegion *region)
 {
   ViewDepths *d = MEM_callocN<ViewDepths>("ViewDepths");
 
-  {
-    GPUViewport *viewport = WM_draw_region_get_viewport(region);
-    GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
-    uint32_t *int_depths = static_cast<uint32_t *>(
-        GPU_texture_read(depth_tx, GPU_DATA_UINT_24_8, 0));
-    d->w = GPU_texture_width(depth_tx);
-    d->h = GPU_texture_height(depth_tx);
-    d->depths = (float *)int_depths;
-    /* Convert in-place. */
-    int pixel_count = d->w * d->h;
-    for (int i = 0; i < pixel_count; i++) {
-      d->depths[i] = (int_depths[i] >> 8u) / float(0xFFFFFF);
-    }
-    /* Assumed to be this as they are never changed. */
-    d->depth_range[0] = 0.0;
-    d->depth_range[1] = 1.0;
-  }
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
+  GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
+  d->w = GPU_texture_width(depth_tx);
+  d->h = GPU_texture_height(depth_tx);
+  d->depths = static_cast<float *>(GPU_texture_read(depth_tx, GPU_DATA_FLOAT, 0));
+  /* Assumed to be this as they are never changed. */
+  d->depth_range[0] = 0.0;
+  d->depth_range[1] = 1.0;
+
   return d;
 }
 
@@ -2590,7 +2587,7 @@ bool ED_view3d_has_depth_buffer_updated(const Depsgraph *depsgraph, const View3D
   bool is_viewport_preview_solid = v3d->shading.type == OB_SOLID;
   bool is_viewport_preview_material = v3d->shading.type == OB_MATERIAL;
   bool is_viewport_render_eevee = v3d->shading.type == OB_RENDER &&
-                                  (STREQ(engine_name, RE_engine_id_BLENDER_EEVEE_NEXT));
+                                  (STREQ(engine_name, RE_engine_id_BLENDER_EEVEE));
   bool is_viewport_render_workbench = v3d->shading.type == OB_RENDER &&
                                       STREQ(engine_name, RE_engine_id_BLENDER_WORKBENCH);
   bool is_viewport_render_external_with_overlay = v3d->shading.type == OB_RENDER &&

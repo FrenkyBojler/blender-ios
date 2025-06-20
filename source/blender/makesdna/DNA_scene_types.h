@@ -1968,11 +1968,11 @@ typedef struct SceneEEVEE {
   int volumetric_shadow_samples;
   int volumetric_ray_depth;
 
-  float gtao_distance;
-  float gtao_thickness;
-  float gtao_focus;
-  int gtao_resolution;
+  float gtao_distance DNA_DEPRECATED;
+  float gtao_thickness DNA_DEPRECATED;
 
+  float fast_gi_bias;
+  int fast_gi_resolution;
   int fast_gi_step_count;
   int fast_gi_ray_count;
   float fast_gi_quality;
@@ -2085,7 +2085,7 @@ typedef struct Scene {
   /** Various settings. */
   short flag;
 
-  char use_nodes;
+  char use_nodes DNA_DEPRECATED;
   char _pad3[1];
 
   struct bNodeTree *nodetree DNA_DEPRECATED;
@@ -2359,9 +2359,10 @@ enum {
 
 /** #RenderData::engine (scene.cc) */
 extern const char *RE_engine_id_BLENDER_EEVEE;
-extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 extern const char *RE_engine_id_BLENDER_WORKBENCH;
 extern const char *RE_engine_id_CYCLES;
+/** Only used for versioning. Was used during the transition period between 4.2 and 5.0. */
+extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 
 /** \} */
 

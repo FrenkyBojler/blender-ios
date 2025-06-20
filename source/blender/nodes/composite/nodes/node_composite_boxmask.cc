@@ -13,7 +13,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -48,14 +48,6 @@ static void cmp_node_boxmask_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Rotation").subtype(PROP_ANGLE).compositor_expects_single_value();
 
   b.add_output<decl::Float>("Mask");
-}
-
-static void node_composit_init_boxmask(bNodeTree * /*ntree*/, bNode *node)
-{
-  /* All members are deprecated and needn't be set, but the data is still allocated for forward
-   * compatibility. */
-  NodeBoxMask *data = MEM_callocN<NodeBoxMask>(__func__);
-  node->storage = data;
 }
 
 static void node_composit_buts_boxmask(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -295,9 +287,6 @@ static void register_node_type_cmp_boxmask()
   ntype.nclass = NODE_CLASS_MATTE;
   ntype.declare = file_ns::cmp_node_boxmask_declare;
   ntype.draw_buttons = file_ns::node_composit_buts_boxmask;
-  ntype.initfunc = file_ns::node_composit_init_boxmask;
-  blender::bke::node_type_storage(
-      ntype, "NodeBoxMask", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
   blender::bke::node_register_type(ntype);

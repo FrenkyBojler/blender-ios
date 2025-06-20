@@ -12,6 +12,7 @@ from bpy.app.translations import (
     pgettext_iface as iface_,
     contexts as i18n_contexts,
 )
+from bl_ui import anim
 from bl_ui.utils import PresetPanel
 from bl_ui.properties_grease_pencil_common import (
     AnnotationDataPanel,
@@ -20,9 +21,9 @@ from bl_ui.space_toolsystem_common import (
     ToolActivePanelHelper,
 )
 from bl_ui.properties_material import (
-    EEVEE_NEXT_MATERIAL_PT_settings,
-    EEVEE_NEXT_MATERIAL_PT_settings_surface,
-    EEVEE_NEXT_MATERIAL_PT_settings_volume,
+    EEVEE_MATERIAL_PT_settings,
+    EEVEE_MATERIAL_PT_settings_surface,
+    EEVEE_MATERIAL_PT_settings_volume,
     MATERIAL_PT_viewport,
 )
 from bl_ui.properties_world import (
@@ -145,9 +146,6 @@ class NODE_HT_header(Header):
         elif snode.tree_type == 'CompositorNodeTree':
 
             NODE_MT_editor_menus.draw_collapsible(context, layout)
-
-            if snode_id:
-                layout.prop(snode_id, "use_nodes")
 
             layout.separator_spacer()
             row = layout.row()
@@ -1120,6 +1118,37 @@ class NODE_PT_node_tree_properties(Panel):
                 col.prop(group, "is_tool")
 
 
+class NODE_PT_node_tree_animation(Panel):
+    bl_space_type = 'NODE_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Group"
+    bl_label = "Animation"
+    bl_options = {'DEFAULT_CLOSED'}
+
+    @classmethod
+    def poll(cls, context):
+        snode = context.space_data
+        if snode is None:
+            return False
+        group = snode.edit_tree
+        if group is None:
+            return False
+        if group.is_embedded_data:
+            return False
+        return True
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        snode = context.space_data
+        group = snode.edit_tree
+
+        col = layout.column(align=True)
+        anim.draw_action_and_slot_selector_for_id(col, group)
+
+
 # Grease Pencil properties
 class NODE_PT_annotation(AnnotationDataPanel, Panel):
     bl_space_type = 'NODE_EDITOR'
@@ -1175,6 +1204,7 @@ classes = (
     NODE_MT_node_tree_interface_context_menu,
     NODE_PT_node_tree_interface,
     NODE_PT_node_tree_interface_panel_toggle,
+    NODE_PT_node_tree_animation,
     NODE_PT_active_node_generic,
     NODE_PT_active_node_color,
     NODE_PT_texture_mapping,
@@ -1186,9 +1216,9 @@ classes = (
     NODE_PT_active_node_properties,
     NODE_PT_gizmo_display,
 
-    node_panel(EEVEE_NEXT_MATERIAL_PT_settings),
-    node_panel(EEVEE_NEXT_MATERIAL_PT_settings_surface),
-    node_panel(EEVEE_NEXT_MATERIAL_PT_settings_volume),
+    node_panel(EEVEE_MATERIAL_PT_settings),
+    node_panel(EEVEE_MATERIAL_PT_settings_surface),
+    node_panel(EEVEE_MATERIAL_PT_settings_volume),
     node_panel(MATERIAL_PT_viewport),
     node_panel(WORLD_PT_viewport_display),
     node_panel(DATA_PT_light),
