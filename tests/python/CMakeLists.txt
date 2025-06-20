@@ -904,7 +904,6 @@ if(TEST_SRC_DIR_EXISTS)
     output
     color
     filter
-    texture
     utilities    
     vector
 
@@ -940,7 +939,6 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
     output
     color
     filter
-    texture
     utilities    
     vector
 
