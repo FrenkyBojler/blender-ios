@@ -4454,12 +4454,10 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
         else if (jd->sa1 && jd->sa1 == jd->sa2) {
           /* Same area so split. */
           if (area_split_allowed(jd->sa1, jd->split_dir) && jd->split_fac > 0.0001) {
-
             float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
             float outline[4] = {1.0f, 1.0f, 1.0f, 0.3f};
             screen_animate_area_highlight(
                 jd->win1, CTX_wm_screen(C), &jd->sa1->totrct, inner, outline, AREA_SPLIT_FADEOUT);
-
             jd->sa2 = area_split(jd->win2,
                                  WM_window_get_active_screen(jd->win1),
                                  jd->sa1,
