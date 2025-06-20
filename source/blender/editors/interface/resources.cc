@@ -203,8 +203,10 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           setting = ts->background_type;
           break;
         case TH_TEXT:
-          if (g_theme_state.regionid == RGN_TYPE_WINDOW) {
-            cp = ts->text;
+          if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS) ||
+              g_theme_state.spacetype == SPACE_PROPERTIES)
+          {
+            cp = btheme->tui.panel_text;
           }
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_text;
@@ -217,14 +219,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header_text;
           }
           else {
-            cp = ts->button_text;
+            cp = ts->text;
           }
           break;
         case TH_TEXT_HI:
-          if (g_theme_state.regionid == RGN_TYPE_WINDOW) {
-            cp = ts->text_hi;
-          }
-          else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
+          if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_text_hi;
           }
           else if (ELEM(g_theme_state.regionid,
@@ -235,14 +234,11 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header_text_hi;
           }
           else {
-            cp = ts->button_text_hi;
+            cp = ts->text_hi;
           }
           break;
         case TH_TITLE:
-          if (g_theme_state.regionid == RGN_TYPE_WINDOW) {
-            cp = ts->title;
-          }
-          else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
+          if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list_title;
           }
           else if (ELEM(g_theme_state.regionid,
@@ -253,7 +249,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
             cp = ts->header_title;
           }
           else {
-            cp = ts->button_title;
+            cp = ts->title;
           }
           break;
 
@@ -271,6 +267,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_PANEL_HEADER:
           cp = btheme->tui.panel_header;
           break;
+        case TH_PANEL_TITLE:
+          cp = btheme->tui.panel_title;
+          break;
         case TH_PANEL_BACK:
           cp = btheme->tui.panel_back;
           break;
@@ -283,12 +282,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
 
         case TH_BUTBACK:
           cp = ts->button;
-          break;
-        case TH_BUTBACK_TEXT:
-          cp = ts->button_text;
-          break;
-        case TH_BUTBACK_TEXT_HI:
-          cp = ts->button_text_hi;
           break;
 
         case TH_TAB_TEXT:
