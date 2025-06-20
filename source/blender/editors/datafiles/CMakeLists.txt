@@ -759,10 +759,6 @@ if(WITH_BLENDER)
       record_off
       record_on
       recover_last
-      region_bottom
-      region_left
-      region_right
-      region_top
       remove
       renderlayers
       render_animation
