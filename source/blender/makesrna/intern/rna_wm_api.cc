@@ -1519,6 +1519,8 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
 
   func = RNA_def_function(
       srna, "asset_library_status_begin_loading", "rna_asset_library_status_begin_loading");
+  RNA_def_function_ui_description(
+      func, "Inform the asset system that the asset library at the given URL is being loaded.");
   RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
@@ -1532,13 +1534,16 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
       "Timeout",
       "Maximum time in seconds after which the asset library loading will be considered "
       "cancelled, if no further status reporting is done (e.g. by repeated calls to "
-      "`asset_library_status_is_loading()`). Defaults to 0.3 seconds.",
+      "`asset_library_status_ping_still_loading()`).",
       0.0,
       FLT_MAX);
 
   func = RNA_def_function(srna,
                           "asset_library_status_ping_still_loading",
                           "rna_asset_library_status_ping_still_loading");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that the loading is still ongoing. "
+                                  "Call this regularly to prevent the loading status to timeout.");
   RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
@@ -1546,6 +1551,9 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
 
   func = RNA_def_function(
       srna, "asset_library_status_finished_loading", "rna_asset_library_status_finished_loading");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that the asset library at the given "
+                                  "URL has successfully finished loading.");
   RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
@@ -1553,6 +1561,9 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
 
   func = RNA_def_function(
       srna, "asset_library_status_failed_loading", "rna_asset_library_status_failed_loading");
+  RNA_def_function_ui_description(func,
+                                  "Inform the asset system that the asset library at the given "
+                                  "URL failed loading, and should be aborted.");
   RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
