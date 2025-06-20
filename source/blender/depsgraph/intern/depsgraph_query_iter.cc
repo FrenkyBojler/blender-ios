@@ -148,9 +148,10 @@ bool deg_iterator_duplis_step(DEGObjectIterData *data)
 
     if (DEG_iterator_temp_object_from_dupli(data->dupli_parent,
                                             data->dupli_object_current,
+                                            data->eval_mode,
+                                            true,
                                             &data->temp_dupli_object,
-                                            &data->temp_dupli_object_runtime,
-                                            data->eval_mode))
+                                            &data->temp_dupli_object_runtime))
     {
       data->next_object = &data->temp_dupli_object;
       return true;
@@ -480,33 +481,33 @@ bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eva
   return false;
 }
 
-bool DEG_iterator_temp_object_from_dupli(Object *dupli_parent,
-                                         DupliObject *dupli,
-                                         Object *temp_object,
-                                         ObjectRuntimeHandle *temp_runtime,
+bool DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
+                                         const DupliObject *dupli,
                                          eEvaluationMode eval_mode,
-                                         bool do_matrix_setup)
+                                         bool do_matrix_setup,
+                                         Object *r_temp_object,
+                                         ObjectRuntimeHandle *r_temp_runtime)
 {
-  *temp_object = blender::dna::shallow_copy(*dupli->ob);
-  temp_object->runtime = temp_runtime;
-  *temp_object->runtime = *dupli->ob->runtime;
+  *r_temp_object = blender::dna::shallow_copy(*dupli->ob);
+  r_temp_object->runtime = r_temp_runtime;
+  *r_temp_object->runtime = *dupli->ob->runtime;
 
-  temp_object->base_flag = dupli_parent->base_flag | BASE_FROM_DUPLI;
-  temp_object->base_local_view_bits = dupli_parent->base_local_view_bits;
-  temp_object->runtime->local_collections_bits = dupli_parent->runtime->local_collections_bits;
-  temp_object->dt = std::min(temp_object->dt, dupli_parent->dt);
-  copy_v4_v4(temp_object->color, dupli_parent->color);
-  temp_object->runtime->select_id = dupli_parent->runtime->select_id;
+  r_temp_object->base_flag = dupli_parent->base_flag | BASE_FROM_DUPLI;
+  r_temp_object->base_local_view_bits = dupli_parent->base_local_view_bits;
+  r_temp_object->runtime->local_collections_bits = dupli_parent->runtime->local_collections_bits;
+  r_temp_object->dt = std::min(r_temp_object->dt, dupli_parent->dt);
+  copy_v4_v4(r_temp_object->color, dupli_parent->color);
+  r_temp_object->runtime->select_id = dupli_parent->runtime->select_id;
   if (dupli->ob->data != dupli->ob_data) {
-    BKE_object_replace_data_on_shallow_copy(temp_object, dupli->ob_data);
+    BKE_object_replace_data_on_shallow_copy(r_temp_object, dupli->ob_data);
   }
 
   /* Duplicated elements shouldn't care whether their original collection is visible or not. */
-  temp_object->base_flag |= BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT;
+  r_temp_object->base_flag |= BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT;
 
   /* TODO: Could this be computed in DEG_iterator_dupli_is_visible,
    * before setting up the shallow copy?  */
-  int ob_visibility = BKE_object_visibility(temp_object, eval_mode);
+  int ob_visibility = BKE_object_visibility(r_temp_object, eval_mode);
   if ((ob_visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES)) == 0) {
     return false;
   }
@@ -515,14 +516,14 @@ bool DEG_iterator_temp_object_from_dupli(Object *dupli_parent,
     /* This could be avoided by refactoring make_dupli() in order to track all negative scaling
      * recursively. */
     bool is_neg_scale = is_negative_m4(dupli->mat);
-    SET_FLAG_FROM_TEST(temp_object->transflag, is_neg_scale, OB_NEG_SCALE);
+    SET_FLAG_FROM_TEST(r_temp_object->transflag, is_neg_scale, OB_NEG_SCALE);
 
-    copy_m4_m4(temp_object->runtime->object_to_world.ptr(), dupli->mat);
-    invert_m4_m4(temp_object->runtime->world_to_object.ptr(),
-                 temp_object->object_to_world().ptr());
+    copy_m4_m4(r_temp_object->runtime->object_to_world.ptr(), dupli->mat);
+    invert_m4_m4(r_temp_object->runtime->world_to_object.ptr(),
+                 r_temp_object->object_to_world().ptr());
   }
 
-  BLI_assert(deg::deg_validate_eval_copy_datablock(&temp_object->id));
+  BLI_assert(deg::deg_validate_eval_copy_datablock(&r_temp_object->id));
 
   return true;
 }

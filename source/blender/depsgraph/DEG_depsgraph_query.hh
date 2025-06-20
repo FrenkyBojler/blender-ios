@@ -323,12 +323,6 @@ void DEG_iterator_objects_end(BLI_Iterator *iter);
  * Returns true if the dupli instance should be visible on the given context.
  */
 bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eval_mode);
-bool DEG_iterator_temp_object_from_dupli(Object *dupli_parent,
-                                         DupliObject *dupli,
-                                         Object *temp_object,
-                                         ObjectRuntimeHandle *temp_runtime,
-                                         eEvaluationMode eval_mode,
-                                         bool do_matrix_setup = true);
 
 /**
  * Generates a temporary object for a given dupli instance.
@@ -340,6 +334,12 @@ bool DEG_iterator_temp_object_from_dupli(Object *dupli_parent,
  * \param do_matrix_setup: If false, the temp_object won't have valid
  * object_to_world/world_to_object matrices, and the OB_NEG_SCALE flag will never be set.
  */
+bool DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
+                                         const DupliObject *dupli,
+                                         eEvaluationMode eval_mode,
+                                         bool do_matrix_setup,
+                                         Object *r_temp_object,
+                                         ObjectRuntimeHandle *r_temp_runtime);
 
 /**
  * Frees any property allocated when calling DEG_iterator_temp_object_from_dupli.
