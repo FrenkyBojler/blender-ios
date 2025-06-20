@@ -1040,23 +1040,13 @@ class NodeTreeMainUpdater {
       if (node->is_type("GeometryNodeTransform")) {
         bNodeSocket &enum_input = node->input_socket(0);
         BLI_assert(enum_input.is_available() && enum_input.type == SOCK_MENU);
-        RuntimeNodeEnumItems *enum_items = new RuntimeNodeEnumItems();
         if (const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
                 enum_input.runtime->declaration))
         {
-          enum_items->items.reinitialize(socket_decl->items.size());
-          for (const int i : socket_decl->items.index_range()) {
-            const EnumPropertyItem &src = socket_decl->items[i];
-            RuntimeNodeEnumItem &dst = enum_items->items[i];
-            dst.identifier = src.value;
-            dst.name = src.name;
-            dst.description = src.description;
-          }
+          this->set_enum_ptr(*enum_input.default_value_typed<bNodeSocketValueMenu>(),
+                             socket_decl->items.get());
+          locally_defined_enums.append(&enum_input);
         }
-        this->set_enum_ptr(*enum_input.default_value_typed<bNodeSocketValueMenu>(), enum_items);
-        /* Remove initial user. */
-        enum_items->remove_user_and_delete_if_last();
-        locally_defined_enums.append(&enum_input);
       }
 
       /* Clear current enum references. */

@@ -5,12 +5,9 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.hh"
 
-#include "NOD_rna_define.hh"
-
 #include "GEO_transform.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
 
@@ -31,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
 
-  b.add_input<decl::Menu>("Mode").items(mode_items);
+  b.add_input<decl::Menu>("Mode").static_items(mode_items);
   b.add_input<decl::Geometry>("Geometry");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Vector>("Translation").subtype(PROP_TRANSLATION);
