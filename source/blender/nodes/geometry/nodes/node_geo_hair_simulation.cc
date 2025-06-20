@@ -99,7 +99,89 @@ class ShiftedIndexOnCurveInput final : public bke::CurvesFieldInput {
   }
 };
 
+class IsStartPointFieldInput final : public bke::CurvesFieldInput {
+ public:
+  IsStartPointFieldInput() : bke::CurvesFieldInput(CPPType::get<bool>(), "Is Start Point node")
+  {
+    category_ = Category::Generated;
+  }
+
+  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
+                                 AttrDomain domain,
+                                 const IndexMask &mask) const final
+  {
+    if (domain != AttrDomain::Point) {
+      return {};
+    }
+
+    Array<bool> selection(curves.points_num(), false);
+    MutableSpan<bool> selection_span = selection.as_mutable_span();
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange curves_range) {
+      for (const int i : curves_range) {
+        const IndexRange points = points_by_curve[i];
+        if (!points.is_empty()) {
+          selection_span[points.first()] = true;
+        }
+      }
+    });
+
+    return VArray<bool>::ForContainer(std::move(selection));
+  };
+
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
+  {
+    return AttrDomain::Point;
+  }
+};
+
+class IsEndPointFieldInput final : public bke::CurvesFieldInput {
+ public:
+  IsEndPointFieldInput() : bke::CurvesFieldInput(CPPType::get<bool>(), "Is End Point node")
+  {
+    category_ = Category::Generated;
+  }
+
+  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
+                                 AttrDomain domain,
+                                 const IndexMask &mask) const final
+  {
+    if (domain != AttrDomain::Point) {
+      return {};
+    }
+
+    Array<bool> selection(curves.points_num(), false);
+    MutableSpan<bool> selection_span = selection.as_mutable_span();
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange curves_range) {
+      for (const int i : curves_range) {
+        const IndexRange points = points_by_curve[i];
+        if (!points.is_empty()) {
+          selection_span[points.last()] = true;
+        }
+      }
+    });
+
+    return VArray<bool>::ForContainer(std::move(selection));
+  };
+
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
+  {
+    return AttrDomain::Point;
+  }
+};
+
 namespace field_inputs {
+
+static Field<bool> is_start_point()
+{
+  return Field<bool>{std::make_shared<IsStartPointFieldInput>()};
+}
+
+static Field<bool> is_end_point()
+{
+  return Field<bool>{std::make_shared<IsEndPointFieldInput>()};
+}
 
 static Field<float3> position()
 {
@@ -156,6 +238,11 @@ static Field<float3> inverse_inertia()
   return bke::AttributeFieldInput::Create<float3>(inv_inertia_attr);
 }
 
+static Field<float> segment_length()
+{
+  return bke::AttributeFieldInput::Create<float>(segment_length_attr);
+}
+
 }  // namespace field_inputs
 
 namespace field_ops {
@@ -187,24 +274,32 @@ static Field<float3> area_moment(const Field<float> radius_field)
 static Field<float> segment_length(const Field<float3> &position_field)
 {
   static const auto segment_length_fn = fn::multi_function::build::SI2_SO<float3, float3, float>(
-      "Segment Length",
-      [](const float3 &p1, const float3 &p2) -> float { return math::distance(p1, p2); });
-  Field<float3> next_position_field = field_ops::shifted_curve_value(position_field, 1);
+      "Segment Length", [](const float3 &pt, const float3 &pt_next) -> float {
+        return math::distance(pt, pt_next);
+      });
   return Field<float>(fn::FieldOperation::Create(
-      segment_length_fn, {position_field, std::move(next_position_field)}));
+      segment_length_fn, {position_field, field_ops::shifted_curve_value(position_field, 1)}));
 }
 
-/* Average segment length from both sides of a point to determine average volume. */
-static Field<float> average_segment_length(const Field<float> &segment_length_field)
+static Field<float> average_segment_length(const Field<float3> &position_field)
 {
-  static const auto avg_segment_length_fn = fn::multi_function::build::SI2_SO<float, float, float>(
-      "Mean Segment Length", [](const float length1, const float length2) -> float {
-        return 0.5f * (length1 + length2);
-      });
-  Field<float> prev_segment_length_field = field_ops::shifted_curve_value(segment_length_field,
-                                                                          -1);
-  return Field<float>(fn::FieldOperation::Create(
-      avg_segment_length_fn, {segment_length_field, std::move(prev_segment_length_field)}));
+  static const auto avg_segment_length_fn =
+      fn::multi_function::build::SI4_SO<float, float, bool, bool, float>(
+          "Average Segment Length",
+          [](const float length_prev, const float length, const bool is_start, const bool is_end)
+              -> float {
+            const float weight_prev = !is_start;
+            const float weight = !is_end;
+            return math::safe_divide(length_prev * weight_prev + length * weight,
+                                     weight_prev + weight);
+          });
+  Field<float> segment_length_field = segment_length(position_field);
+  return Field<float>(
+      fn::FieldOperation::Create(avg_segment_length_fn,
+                                 {field_ops::shifted_curve_value(segment_length_field, -1),
+                                  segment_length_field,
+                                  field_inputs::is_start_point(),
+                                  field_inputs::is_end_point()}));
 }
 
 static Field<float> point_mass(const Field<float> &segment_length_field,
@@ -303,55 +398,60 @@ static bool init_hair_physics(GeometryComponent &component,
                               const Field<bool> &selection_field,
                               const Field<float> &density_field)
 {
-  const Field<float> radius_field = field_inputs::radius();
-  const Field<float> cross_section_field = field_ops::cross_section(radius_field);
-  const Field<float3> area_moment_field = field_ops::area_moment(radius_field);
-  if (!bke::try_capture_fields_on_geometry(component,
-                                           {cross_section_attr, area_moment_attr},
-                                           bke::AttrDomain::Point,
-                                           selection_field,
-                                           {cross_section_field, area_moment_field}))
   {
-    return false;
+    const Field<float> radius_field = field_inputs::radius();
+    const Field<float> cross_section_field = field_ops::cross_section(radius_field);
+    const Field<float3> area_moment_field = field_ops::area_moment(radius_field);
+    if (!bke::try_capture_fields_on_geometry(component,
+                                             {cross_section_attr, area_moment_attr},
+                                             bke::AttrDomain::Point,
+                                             selection_field,
+                                             {cross_section_field, area_moment_field}))
+    {
+      return false;
+    }
   }
 
-  const Field<float3> position_field = field_inputs::position();
-  const Field<float> segment_length_field = field_ops::segment_length(position_field);
-  if (!bke::try_capture_field_on_geometry(component,
-                                          segment_length_attr,
-                                          bke::AttrDomain::Point,
-                                          selection_field,
-                                          segment_length_field))
   {
-    return false;
+    const Field<float3> position_field = field_inputs::position();
+    const Field<float> segment_length_field = field_ops::average_segment_length(position_field);
+    if (!bke::try_capture_field_on_geometry(component,
+                                            segment_length_attr,
+                                            bke::AttrDomain::Point,
+                                            selection_field,
+                                            segment_length_field))
+    {
+      return false;
+    }
   }
 
-  const Field<float> avg_segment_length_field = field_ops::average_segment_length(
-      segment_length_field);
-  const Field<float> point_mass_field = field_ops::point_mass(
-      avg_segment_length_field,
-      AttributeFieldInput::Create<float>(cross_section_attr),
-      density_field);
-  const Field<float3> segment_inertia_field = field_ops::segment_inertia(
-      avg_segment_length_field,
-      AttributeFieldInput::Create<float3>(area_moment_attr),
-      density_field);
-
-  const Field<float> inv_point_mass_field = field_ops::inverse_mass(point_mass_field);
-  const Field<float3> inv_segment_inertia_field = field_ops::inverse_inertia(
-      segment_inertia_field);
-
-  if (!bke::try_capture_fields_on_geometry(
-          component,
-          {mass_attr, inertia_attr, inv_mass_attr, inv_inertia_attr},
-          bke::AttrDomain::Point,
-          selection_field,
-          {point_mass_field,
-           segment_inertia_field,
-           inv_point_mass_field,
-           inv_segment_inertia_field}))
   {
-    return false;
+    const Field<float> segment_length_field = field_inputs::segment_length();
+    const Field<float> point_mass_field = field_ops::point_mass(
+        segment_length_field,
+        AttributeFieldInput::Create<float>(cross_section_attr),
+        density_field);
+    const Field<float3> segment_inertia_field = field_ops::segment_inertia(
+        segment_length_field,
+        AttributeFieldInput::Create<float3>(area_moment_attr),
+        density_field);
+
+    const Field<float> inv_point_mass_field = field_ops::inverse_mass(point_mass_field);
+    const Field<float3> inv_segment_inertia_field = field_ops::inverse_inertia(
+        segment_inertia_field);
+
+    if (!bke::try_capture_fields_on_geometry(
+            component,
+            {mass_attr, inertia_attr, inv_mass_attr, inv_inertia_attr},
+            bke::AttrDomain::Point,
+            selection_field,
+            {point_mass_field,
+             segment_inertia_field,
+             inv_point_mass_field,
+             inv_segment_inertia_field}))
+    {
+      return false;
+    }
   }
 
   return true;
