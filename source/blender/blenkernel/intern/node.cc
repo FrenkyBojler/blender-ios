@@ -684,6 +684,24 @@ static void write_legacy_properties(bNodeTree &ntree)
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Mode");
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (node->type_legacy == GEO_NODE_POINTS_TO_VOLUME) {
+          NodeGeometryPointsToVolume &storage = *static_cast<NodeGeometryPointsToVolume *>(
+              node->storage);
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Resolution Mode");
+          storage.resolution_mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == GEO_NODE_TRIANGULATE) {
+          const bNodeSocket *quad_method_socket = node_find_socket(*node, SOCK_IN, "Quad Method");
+          const bNodeSocket *ngon_method_socket = node_find_socket(*node, SOCK_IN, "N-gon Method");
+          node->custom1 = quad_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+          node->custom2 = ngon_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
+        else if (node->type_legacy == GEO_NODE_VOLUME_TO_MESH) {
+          NodeGeometryVolumeToMesh &storage = *static_cast<NodeGeometryVolumeToMesh *>(
+              node->storage);
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Resolution Mode");
+          storage.resolution_mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
       }
       break;
     }

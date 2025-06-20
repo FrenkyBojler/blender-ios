@@ -442,10 +442,45 @@ static void do_version_transform_geometry_options_to_inputs(bNodeTree &ntree, bN
   if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
     return;
   }
-  bNodeSocket &mode_socket = version_node_add_socket(
-      ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
-  bNodeSocketValueMenu &mode_value = *mode_socket.default_value_typed<bNodeSocketValueMenu>();
-  mode_value.value = node.custom1;
+  bNodeSocket &socket = version_node_add_socket(ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
+static void do_version_points_to_volume_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Resolution Mode")) {
+    return;
+  }
+  const NodeGeometryPointsToVolume &storage = *static_cast<NodeGeometryPointsToVolume *>(
+      node.storage);
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Resolution Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.resolution_mode;
+}
+
+static void do_version_triangulate_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "Quad Method")) {
+    bNodeSocket &socket = version_node_add_socket(
+        ntree, node, SOCK_IN, "NodeSocketMenu", "Quad Method");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+  }
+  if (!blender::bke::node_find_socket(node, SOCK_IN, "N-gon Method")) {
+    bNodeSocket &socket = version_node_add_socket(
+        ntree, node, SOCK_IN, "NodeSocketMenu", "N-gon Method");
+    socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom2;
+  }
+}
+
+static void do_version_volume_to_mesh_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Resolution Mode")) {
+    return;
+  }
+  const NodeGeometryVolumeToMesh &storage = *static_cast<NodeGeometryVolumeToMesh *>(node.storage);
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Resolution Mode");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.resolution_mode;
 }
 
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
@@ -612,6 +647,15 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == GEO_NODE_TRANSFORM_GEOMETRY) {
             do_version_transform_geometry_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_POINTS_TO_VOLUME) {
+            do_version_points_to_volume_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_TRIANGULATE) {
+            do_version_triangulate_options_to_inputs(*node_tree, *node);
+          }
+          else if (node->type_legacy == GEO_NODE_VOLUME_TO_MESH) {
+            do_version_volume_to_mesh_options_to_inputs(*node_tree, *node);
           }
         }
       }
