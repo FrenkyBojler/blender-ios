@@ -263,8 +263,12 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
 
   /* For each non-selected vertex, find distance to the nearest selected vertex. */
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    tc->foreach_index_selected([&](const int i) {
+    tc->foreach_index([&](const int i) {
       TransData *td = &tc->data[i];
+      if (td->flag & TD_SELECTED) {
+        return true;
+      }
+
       const float3 vec = prop_dist_loc_get(tc, td, use_island, proj_vec);
 
       KDTreeNearest_3d nearest;
@@ -283,6 +287,7 @@ static void set_prop_dist(TransInfo *t, const bool with_dist)
       if (with_dist) {
         td->dist = td->rdist;
       }
+      return true;
     });
   }
 
