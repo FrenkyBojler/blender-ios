@@ -437,6 +437,17 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
   }
 }
 
+static void do_version_transform_geometry_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Mode")) {
+    return;
+  }
+  bNodeSocket &mode_socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Mode");
+  bNodeSocketValueMenu &mode_value = *mode_socket.default_value_typed<bNodeSocketValueMenu>();
+  mode_value.value = node.custom1;
+}
+
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**
@@ -589,6 +600,19 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (node_tree->type == NTREE_COMPOSIT) {
         LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
           do_version_normal_node_dot_product(node_tree, node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 23)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_GEOMETRY) {
+        LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == GEO_NODE_TRANSFORM_GEOMETRY) {
+            do_version_transform_geometry_options_to_inputs(*node_tree, *node);
+          }
         }
       }
     }
