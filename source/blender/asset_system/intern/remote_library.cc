@@ -28,7 +28,7 @@ void RemoteLibraryLoadingStatus::reset_timeout()
   this->last_updated_time_point = std::chrono::steady_clock::now();
 }
 
-void remote_library_status_ensure_loading(StringRef url, const float timeout)
+void remote_library_status_begin_loading(StringRef url, const float timeout)
 {
   BLI_assert(timeout > 0.0f);
 
@@ -37,6 +37,15 @@ void remote_library_status_ensure_loading(StringRef url, const float timeout)
   new_status.status = RemoteLibraryLoadingStatus::Loading;
   new_status.reset_timeout();
   library_to_status_map().add_overwrite(url, new_status);
+}
+
+void remote_library_status_ping_still_loading(StringRef url)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    if (status->status == RemoteLibraryLoadingStatus::Loading) {
+      status->reset_timeout();
+    }
+  }
 }
 
 std::optional<RemoteLibraryLoadingStatus::Status> remote_library_status_get(StringRef url)

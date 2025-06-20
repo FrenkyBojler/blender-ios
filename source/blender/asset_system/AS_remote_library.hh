@@ -31,7 +31,8 @@ struct RemoteLibraryLoadingStatus {
   void reset_timeout();
 };
 
-void remote_library_status_ensure_loading(StringRef url, float timeout);
+void remote_library_status_begin_loading(StringRef url, float timeout);
+void remote_library_status_ping_still_loading(StringRef url);
 std::optional<RemoteLibraryLoadingStatus::Status> remote_library_status_get(StringRef url);
 void remote_library_status_set_finished(StringRef url);
 void remote_library_status_set_failure(StringRef url, std::optional<StringRef> failure_message);
