@@ -432,6 +432,7 @@ class BaseSocketDeclarationBuilder {
    * values and based on which outputs are used.
    */
   BaseSocketDeclarationBuilder &usage_inference(InputSocketUsageInferenceFn fn);
+  BaseSocketDeclarationBuilder &usage_inference_simple_menu(const int menu_value);
 
   /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is

@@ -7,11 +7,8 @@
 
 #include "UI_interface.hh"
 
-#include "RNA_enum_types.hh"
-
 #include "node_function_util.hh"
 
-#include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
 namespace blender::nodes::node_fn_match_string_cc {

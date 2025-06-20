@@ -4,12 +4,9 @@
 
 #include "DNA_mesh_types.h"
 
-#include "NOD_rna_define.hh"
-
 #include "GEO_mesh_triangulate.hh"
 
 #include "UI_interface.hh"
-#include "UI_resources.hh"
 
 #include "GEO_randomize.hh"
 

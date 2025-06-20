@@ -5,6 +5,7 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
+#include "NOD_socket_usage_inference.hh"
 
 #include "BLI_assert.h"
 #include "BLI_utildefines.h"
@@ -785,6 +786,27 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference(
 {
   decl_base_->usage_inference_fn = std::make_unique<InputSocketUsageInferenceFn>(std::move(fn));
   return *this;
+}
+
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference_simple_menu(
+    const int menu_value)
+{
+  return this->usage_inference(
+      [menu_value](
+          const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
+        for (const bNodeSocket *socket : params.node.input_sockets()) {
+          if (!socket->is_available()) {
+            continue;
+          }
+          if (socket->type != SOCK_MENU) {
+            continue;
+          }
+          return params.menu_input_may_be(socket->identifier, menu_value);
+        }
+        /* Expected to find a menu input. */
+        BLI_assert_unreachable();
+        return true;
+      });
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::align_with_previous(const bool value)
