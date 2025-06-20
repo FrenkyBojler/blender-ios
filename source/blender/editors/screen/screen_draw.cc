@@ -673,10 +673,8 @@ struct AreaAnimateHighlightData {
   wmWindow *win;
   bScreen *screen;
   rctf rect;
-  float inner_from[4];
-  float inner_to[4];
-  float outline_from[4];
-  float outline_to[4];
+  float inner[4];
+  float outline[4];
   double start_time;
   double end_time;
   void *draw_callback;
@@ -685,8 +683,8 @@ struct AreaAnimateHighlightData {
 static void area_animate_highlight_cb(const wmWindow * /*win*/, void *userdata)
 {
   const AreaAnimateHighlightData *data = static_cast<const AreaAnimateHighlightData *>(userdata);
-  double now = BLI_time_now_seconds();
 
+  double now = BLI_time_now_seconds();
   if (now > data->end_time) {
     WM_draw_cb_exit(data->win, data->draw_callback);
     MEM_freeN(const_cast<AreaAnimateHighlightData *>(data));
@@ -695,32 +693,31 @@ static void area_animate_highlight_cb(const wmWindow * /*win*/, void *userdata)
   }
 
   const float factor = pow((now - data->start_time) / (data->end_time - data->start_time), 2);
+  const bool do_inner = data->inner[3] > 0.0f;
+  const bool do_outline = data->outline[3] > 0.0f;
 
-  bool do_inner = (data->inner_from[3] > 0.0f || data->inner_to[3] > 0.0f);
-  bool do_outline = (data->outline_from[3] > 0.0f || data->outline_to[3] > 0.0f);
-
-  float inner[4];
+  float inner_color[4];
   if (do_inner) {
-    inner[0] = ((1.0f - factor) * data->inner_from[0] + factor * data->inner_to[0]);
-    inner[1] = ((1.0f - factor) * data->inner_from[1] + factor * data->inner_to[1]);
-    inner[2] = ((1.0f - factor) * data->inner_from[2] + factor * data->inner_to[2]);
-    inner[3] = ((1.0f - factor) * data->inner_from[3] + factor * data->inner_to[3]);
+    inner_color[0] = data->inner[0];
+    inner_color[1] = data->inner[1];
+    inner_color[2] = data->inner[2];
+    inner_color[3] = (1.0f - factor) * data->inner[3];
   }
 
-  float outline[4];
+  float outline_color[4];
   if (do_outline) {
-    outline[0] = ((1.0f - factor) * data->outline_from[0] + factor * data->outline_to[0]);
-    outline[1] = ((1.0f - factor) * data->outline_from[1] + factor * data->outline_to[1]);
-    outline[2] = ((1.0f - factor) * data->outline_from[2] + factor * data->outline_to[2]);
-    outline[3] = ((1.0f - factor) * data->outline_from[3] + factor * data->outline_to[3]);
+    outline_color[0] = data->outline[0];
+    outline_color[1] = data->outline[1];
+    outline_color[2] = data->outline[2];
+    outline_color[3] = (1.0f - factor) * data->outline[3];
   }
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   UI_draw_roundbox_4fv_ex(&data->rect,
-                          do_inner ? inner : nullptr,
+                          do_inner ? inner_color : nullptr,
                           nullptr,
                           1.0f,
-                          do_outline ? outline : nullptr,
+                          do_outline ? outline_color : nullptr,
                           U.pixelsize,
                           EDITORRADIUS);
 
@@ -730,10 +727,8 @@ static void area_animate_highlight_cb(const wmWindow * /*win*/, void *userdata)
 void screen_animate_area_highlight(wmWindow *win,
                                    bScreen *screen,
                                    const rcti *rect,
-                                   float inner_from[4],
-                                   float inner_to[4],
-                                   float outline_from[4],
-                                   float outline_to[4],
+                                   float inner[4],
+                                   float outline[4],
                                    float seconds)
 {
   AreaAnimateHighlightData *data = MEM_callocN<AreaAnimateHighlightData>(
@@ -741,29 +736,11 @@ void screen_animate_area_highlight(wmWindow *win,
   data->win = win;
   data->screen = screen;
   BLI_rctf_rcti_copy(&data->rect, rect);
-  if (inner_from) {
-    copy_v4_v4(data->inner_from, inner_from);
+  if (inner) {
+    copy_v4_v4(data->inner, inner);
   }
-  else {
-    copy_v4_fl(data->inner_from, 0.0f);
-  }
-  if (inner_to) {
-    copy_v4_v4(data->inner_to, inner_to);
-  }
-  else {
-    copy_v4_fl(data->inner_to, 0.0f);
-  }
-  if (outline_from) {
-    copy_v4_v4(data->outline_from, outline_from);
-  }
-  else {
-    copy_v4_fl(data->outline_from, 0.0f);
-  }
-  if (outline_to) {
-    copy_v4_v4(data->outline_to, outline_to);
-  }
-  else {
-    copy_v4_fl(data->outline_to, 0.0f);
+  if (outline) {
+    copy_v4_v4(data->outline, outline);
   }
   data->start_time = BLI_time_now_seconds();
   data->end_time = data->start_time + seconds;

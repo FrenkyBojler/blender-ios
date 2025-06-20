@@ -80,10 +80,10 @@ enum class AreaDockTarget {
 /* Less expansion needed for global edges. */
 #define BORDERPADDING_GLOBAL (3.0f * UI_SCALE_FAC)
 
-#define AREA_CLOSE_FADEOUT 0.25f /* seconds */
-#define AREA_DOCK_FADEOUT 0.2f   /* seconds */
+#define AREA_CLOSE_FADEOUT 0.22f /* seconds */
+#define AREA_DOCK_FADEOUT 0.20f  /* seconds */
 #define AREA_JOIN_FADEOUT 0.15f  /* seconds */
-#define AREA_SPLIT_FADEOUT 0.1f  /* seconds */
+#define AREA_SPLIT_FADEOUT 0.15f /* seconds */
 
 /* `area.cc` */
 
@@ -120,10 +120,8 @@ void screen_draw_region_scale_highlight(ARegion *region);
 void screen_animate_area_highlight(wmWindow *win,
                                    bScreen *screen,
                                    const rcti *rect,
-                                   float inner_from[4],
-                                   float inner_to[4],
-                                   float outline_from[4],
-                                   float outline_to[4],
+                                   float inner[4],
+                                   float outline[4],
                                    float seconds);
 
 /* `screen_edit.cc` */

@@ -1583,16 +1583,9 @@ static wmOperatorStatus area_close_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  float inner_from[4] = {0.0f, 0.0f, 0.0f, 0.7f};
-  float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  screen_animate_area_highlight(CTX_wm_window(C),
-                                CTX_wm_screen(C),
-                                &area->totrct,
-                                inner_from,
-                                inner_to,
-                                nullptr,
-                                nullptr,
-                                AREA_CLOSE_FADEOUT);
+  float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+  screen_animate_area_highlight(
+      CTX_wm_window(C), CTX_wm_screen(C), &area->totrct, inner, nullptr, AREA_CLOSE_FADEOUT);
 
   if (!screen_area_close(C, op->reports, screen, area)) {
     BKE_report(op->reports, RPT_ERROR, "Unable to close area");
@@ -2608,17 +2601,13 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
 
     case LEFTMOUSE:
       if (sd->previewmode) {
-        float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
-        float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-        float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
-        float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+        float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+        float outline[4] = {1.0f, 1.0f, 1.0f, 0.3f};
         screen_animate_area_highlight(CTX_wm_window(C),
                                       CTX_wm_screen(C),
                                       &sd->sarea->totrct,
-                                      inner_from,
-                                      inner_to,
-                                      outline_from,
-                                      outline_to,
+                                      inner,
+                                      outline,
                                       AREA_SPLIT_FADEOUT);
         area_split_apply(C, op);
         area_split_exit(C, op);
@@ -3853,18 +3842,10 @@ static bool area_join_apply(bContext *C, wmOperator *op)
                              std::max(jd->sa1->totrct.ymin, jd->sa2->totrct.ymin);
   combined.ymax = vertical ? std::max(jd->sa1->totrct.ymax, jd->sa2->totrct.ymax) :
                              std::min(jd->sa1->totrct.ymax, jd->sa2->totrct.ymax);
-  float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
-  float inner_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
-  float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
-  float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
-  screen_animate_area_highlight(CTX_wm_window(C),
-                                screen,
-                                &combined,
-                                inner_from,
-                                inner_to,
-                                outline_from,
-                                outline_to,
-                                AREA_JOIN_FADEOUT);
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+  screen_animate_area_highlight(
+      CTX_wm_window(C), screen, &combined, inner, outline, AREA_JOIN_FADEOUT);
 
   if (!screen_area_join(C, op->reports, screen, jd->sa1, jd->sa2)) {
     return false;
@@ -4018,20 +3999,12 @@ void static area_docking_apply(bContext *C, wmOperator *op)
     return;
   }
 
-  float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.15f};
-  float inner_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
-  float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.15f};
+  float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
   jd->sa2->flag |= AREA_FLAG_REGION_SIZE_UPDATE;
   ED_area_update_region_sizes(CTX_wm_manager(C), jd->win2, jd->sa2);
-  screen_animate_area_highlight(jd->win2,
-                                CTX_wm_screen(C),
-                                &jd->sa2->totrct,
-                                inner_from,
-                                inner_to,
-                                outline_from,
-                                outline_to,
-                                AREA_DOCK_FADEOUT);
+  screen_animate_area_highlight(
+      jd->win2, CTX_wm_screen(C), &jd->sa2->totrct, inner, outline, AREA_DOCK_FADEOUT);
 
   if (!aligned_neighbors || !screen_area_join(C, op->reports, CTX_wm_screen(C), jd->sa1, jd->sa2))
   {
@@ -4046,16 +4019,9 @@ void static area_docking_apply(bContext *C, wmOperator *op)
       WM_window_get_active_screen(jd->win2)->active_region = nullptr;
     }
     else {
-      float inner_from[4] = {0.0f, 0.0f, 0.0f, 0.7f};
-      float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-      screen_animate_area_highlight(jd->win1,
-                                    CTX_wm_screen(C),
-                                    &jd->sa1->totrct,
-                                    inner_from,
-                                    inner_to,
-                                    nullptr,
-                                    nullptr,
-                                    AREA_CLOSE_FADEOUT);
+      float inner[4] = {0.0f, 0.0f, 0.0f, 0.7f};
+      screen_animate_area_highlight(
+          jd->win1, CTX_wm_screen(C), &jd->sa1->totrct, inner, nullptr, AREA_CLOSE_FADEOUT);
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
     }
   }
@@ -4489,18 +4455,10 @@ static wmOperatorStatus area_join_modal(bContext *C, wmOperator *op, const wmEve
           /* Same area so split. */
           if (area_split_allowed(jd->sa1, jd->split_dir) && jd->split_fac > 0.0001) {
 
-            float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
-            float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-            float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
-            float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
-            screen_animate_area_highlight(jd->win1,
-                                          CTX_wm_screen(C),
-                                          &jd->sa1->totrct,
-                                          inner_from,
-                                          inner_to,
-                                          outline_from,
-                                          outline_to,
-                                          AREA_SPLIT_FADEOUT);
+            float inner[4] = {1.0f, 1.0f, 1.0f, 0.1f};
+            float outline[4] = {1.0f, 1.0f, 1.0f, 0.3f};
+            screen_animate_area_highlight(
+                jd->win1, CTX_wm_screen(C), &jd->sa1->totrct, inner, outline, AREA_SPLIT_FADEOUT);
 
             jd->sa2 = area_split(jd->win2,
                                  WM_window_get_active_screen(jd->win1),
