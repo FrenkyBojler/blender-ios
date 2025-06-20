@@ -498,7 +498,7 @@ OSLGlobals *Device::get_cpu_osl_memory()
 
 void *Device::host_alloc(const MemoryType /*type*/, const size_t size)
 {
-  return util_aligned_malloc(size, MIN_ALIGNMENT_CPU_DATA_TYPES);
+  return util_aligned_malloc(size, MIN_ALIGNMENT_DEVICE_MEMORY);
 }
 
 void Device::host_free(const MemoryType /*type*/, void *host_pointer, const size_t size)
