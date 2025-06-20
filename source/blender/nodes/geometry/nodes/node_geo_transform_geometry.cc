@@ -35,15 +35,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Vector>("Translation")
       .subtype(PROP_TRANSLATION)
-      .usage_inference_simple_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
-  b.add_input<decl::Rotation>("Rotation")
-      .usage_inference_simple_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
+      .usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
+  b.add_input<decl::Rotation>("Rotation").usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
   b.add_input<decl::Vector>("Scale")
       .default_value({1, 1, 1})
       .subtype(PROP_XYZ)
-      .usage_inference_simple_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
-  b.add_input<decl::Matrix>("Transform")
-      .usage_inference_simple_menu(GEO_NODE_TRANSFORM_MODE_MATRIX);
+      .usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_COMPONENTS);
+  b.add_input<decl::Matrix>("Transform").usage_by_single_menu(GEO_NODE_TRANSFORM_MODE_MATRIX);
 }
 
 static bool use_translate(const math::Quaternion &rotation, const float3 scale)

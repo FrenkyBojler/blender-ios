@@ -432,7 +432,12 @@ class BaseSocketDeclarationBuilder {
    * values and based on which outputs are used.
    */
   BaseSocketDeclarationBuilder &usage_inference(InputSocketUsageInferenceFn fn);
-  BaseSocketDeclarationBuilder &usage_inference_simple_menu(const int menu_value);
+
+  /**
+   * Utility method for the case when the node has a single menu input and this socket is only used
+   * when the menu input has a specific value.
+   */
+  BaseSocketDeclarationBuilder &usage_by_single_menu(const int menu_value);
 
   /**
    * Puts this socket on the same row as the previous socket. This only works when one of them is

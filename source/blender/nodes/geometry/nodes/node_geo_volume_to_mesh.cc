@@ -48,11 +48,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .default_value(0.3f)
       .min(0.01f)
       .subtype(PROP_DISTANCE)
-      .usage_inference_simple_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE);
+      .usage_by_single_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_SIZE);
   b.add_input<decl::Float>("Voxel Amount")
       .default_value(64.0f)
       .min(0.0f)
-      .usage_inference_simple_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT);
+      .usage_by_single_menu(VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT);
   b.add_input<decl::Float>("Threshold")
       .default_value(0.1f)
       .description("Values larger than the threshold are inside the generated mesh");

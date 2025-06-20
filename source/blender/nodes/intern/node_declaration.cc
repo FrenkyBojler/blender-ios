@@ -816,7 +816,7 @@ static const bNodeSocket &find_single_menu_input(const bNode &node)
   return node.input_socket(0);
 }
 
-BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference_simple_menu(
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_by_single_menu(
     const int menu_value)
 {
   this->make_available([menu_value](bNode &node) {
