@@ -10,6 +10,8 @@
 
 #include <fmt/format.h>
 
+#include "DNA_sequence_types.h"
+#include "ED_sequencer.hh"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_string.h"
@@ -306,7 +308,12 @@ static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
   ScrArea *area = CTX_wm_area(C);
 
   if (area && area->spacetype == SPACE_SEQ) {
-    CTX_data_selected_strips(C, r_selection);
+    blender::VectorSet<Strip *> strips = blender::ed::vse::selected_strips_from_context(C);
+    for (Strip *strip : strips) {
+      PointerRNA ptr;
+      ptr = RNA_pointer_create_discrete(&CTX_data_scene(C)->id, &RNA_Strip, strip);
+      r_selection->append(ptr);
+    }
     return true;
   }
 
