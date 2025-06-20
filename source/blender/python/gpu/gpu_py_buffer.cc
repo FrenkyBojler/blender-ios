@@ -125,7 +125,7 @@ static const char *pygpu_buffer_formatstr(eGPUDataFormat data_format)
       return "I";
     case GPU_DATA_UBYTE:
       return "B";
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
     case GPU_DATA_10_11_11_REV:
       return "I";
     default:
@@ -182,7 +182,7 @@ static PyObject *pygpu_buffer__sq_item(BPyGPUBuffer *self, Py_ssize_t i)
       case GPU_DATA_UBYTE:
         return Py_BuildValue(formatstr, self->buf.as_byte[i]);
       case GPU_DATA_UINT:
-      case GPU_DATA_UINT_24_8:
+      case GPU_DATA_UINT_24_8_DEPRECATED:
       case GPU_DATA_10_11_11_REV:
         return Py_BuildValue(formatstr, self->buf.as_uint[i]);
     }
@@ -386,7 +386,7 @@ static PyObject *pygpu_buffer__tp_new(PyTypeObject * /*type*/, PyObject *args, P
   {
     return nullptr;
   }
-  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8) {
+  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8_DEPRECATED) {
     PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` instead", 1);
   }
 
@@ -483,7 +483,7 @@ static int pygpu_buffer__sq_ass_item(BPyGPUBuffer *self, Py_ssize_t i, PyObject 
     case GPU_DATA_UBYTE:
       return PyArg_Parse(v, "b:Expected ints", &self->buf.as_byte[i]) ? 0 : -1;
     case GPU_DATA_UINT:
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
     case GPU_DATA_10_11_11_REV:
       return PyArg_Parse(v, "I:Expected unsigned ints", &self->buf.as_uint[i]) ? 0 : -1;
     default:

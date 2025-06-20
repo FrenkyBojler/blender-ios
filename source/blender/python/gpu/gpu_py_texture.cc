@@ -380,7 +380,7 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
   {
     return nullptr;
   }
-  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8) {
+  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8_DEPRECATED) {
     PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` in stead", 1);
   }
 
@@ -394,7 +394,8 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
     return nullptr;
   }
 
-  if (shape != 1 && ELEM(pygpu_dataformat.value_found, GPU_DATA_UINT_24_8, GPU_DATA_10_11_11_REV))
+  if (shape != 1 &&
+      ELEM(pygpu_dataformat.value_found, GPU_DATA_UINT_24_8_DEPRECATED, GPU_DATA_10_11_11_REV))
   {
     PyErr_SetString(PyExc_AttributeError,
                     "`UINT_24_8` and `10_11_11_REV` only support single values");
@@ -446,7 +447,7 @@ static PyObject *pygpu_texture_read(BPyGPUTexture *self)
       best_data_format = GPU_DATA_FLOAT;
       break;
     case GPU_DEPTH32F_STENCIL8:
-      best_data_format = GPU_DATA_UINT_24_8;
+      best_data_format = GPU_DATA_UINT_24_8_DEPRECATED;
       break;
     case GPU_R8UI:
     case GPU_R16UI:
