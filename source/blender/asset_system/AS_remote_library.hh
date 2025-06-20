@@ -24,6 +24,8 @@ namespace blender::asset_system {
  * Another important use is coordinating the Python side downloading with the C++ side loading.
  * The C++ asset library loading might have to wait for Python to be done downloading and
  * validating individual asset listing pages, and load in these new pages as they become ready.
+ *
+ * All functions must be called on the same thread.
  */
 class RemoteLibraryLoadingStatus {
  public:
@@ -33,23 +35,30 @@ class RemoteLibraryLoadingStatus {
     Failure,
     Cancelled,
   };
+  using TimePoint = std::chrono::time_point<std::chrono::steady_clock>;
 
  private:
   float timeout_;
-  std::chrono::time_point<std::chrono::steady_clock> last_updated_time_point_;
+  TimePoint last_updated_time_point_;
+  TimePoint last_new_pages_time_point_;
 
   Status status_;
   std::optional<StringRefNull> failure_message_;
+  bool metafiles_in_place_;
 
  public:
   static void begin_loading(StringRef url, float timeout);
   /** Let the state know that the loading is still ongoing, resetting the timeout. */
   static void ping_still_loading(StringRef url);
+  static void ping_new_pages(StringRef url);
+  static void ping_metafiles_in_place(StringRef url);
   static void set_finished(StringRef url);
   static void set_failure(StringRef url, std::optional<StringRefNull> failure_message);
 
   static std::optional<StringRefNull> failure_message(StringRef url);
   static std::optional<RemoteLibraryLoadingStatus::Status> status(StringRef url);
+  static std::optional<bool> metafiles_in_place(StringRef url);
+  static std::optional<TimePoint> last_new_pages_time(StringRef url);
 
   /**
    * \return True if the loading status switched to #Status::Failure due to timing out.

@@ -452,8 +452,10 @@ def remote_asset_libraries_sync(library: bpy.types.UserAssetLibrary, *args) -> N
     downloader = index_downloader.RemoteAssetListingDownloader(
         library.remote_url,
         library.path,
-        _remote_asset_libraries_sync_update,
-        _remote_asset_libraries_sync_done,
+        on_update_callback=_remote_asset_libraries_sync_update,
+        on_done_callback=_remote_asset_libraries_sync_done,
+        on_metafiles_done_callback=_remote_asset_libraries_sync_metafiles_done,
+        on_page_done_callback=_remote_asset_libraries_sync_new_page_done,
     )
     downloader.download_and_process()
 
@@ -477,9 +479,9 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
         case DownloadStatus.LOADING:
             pass
         case DownloadStatus.FINISHED_SUCCESSFULLY:
-            wm.asset_library_status_finished_loading(downloader._remote_url)
+            wm.asset_library_status_finished_loading(downloader.remote_url)
         case DownloadStatus.FAILED:
-            wm.asset_library_status_failed_loading(downloader._remote_url, message=downloader.error_message)
+            wm.asset_library_status_failed_loading(downloader.remote_url, message=downloader.error_message)
 
 
 def _remote_asset_libraries_sync_update(downloader: _RemoteAssetListingDownloader) -> None:
@@ -488,7 +490,17 @@ def _remote_asset_libraries_sync_update(downloader: _RemoteAssetListingDownloade
     # Only call `asset_library_status_ping_still_loading()` if the loading is still going on.
     if downloader.status == DownloadStatus.LOADING:
         wm = bpy.context.window_manager
-        wm.asset_library_status_ping_still_loading(downloader._remote_url)
+        wm.asset_library_status_ping_still_loading(downloader.remote_url)
+
+
+def _remote_asset_libraries_sync_metafiles_done(downloader: _RemoteAssetListingDownloader) -> None:
+    wm = bpy.context.window_manager
+    wm.asset_library_status_ping_metafiles_in_place(downloader.remote_url)
+
+
+def _remote_asset_libraries_sync_new_page_done(downloader: _RemoteAssetListingDownloader) -> None:
+    wm = bpy.context.window_manager
+    wm.asset_library_status_ping_loaded_new_pages(downloader.remote_url)
 
 
 @bpy.app.handlers.persistent

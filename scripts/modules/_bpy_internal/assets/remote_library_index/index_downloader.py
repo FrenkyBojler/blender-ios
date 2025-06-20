@@ -34,16 +34,20 @@ class RemoteAssetListingDownloader:
     _remote_url: str
     _local_path: Path
 
-    OnDoneCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
-    _on_done_callback: OnDoneCallback
     OnUpdateCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
     _on_update_callback: OnUpdateCallback
+    OnDoneCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
+    _on_done_callback: OnDoneCallback
+    OnMetafilesDoneCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
+    _on_metafiles_done_callback: OnMetafilesDoneCallback
+    OnPageDoneCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
+    _on_page_done_callback: OnPageDoneCallback
 
     _bgdownloader: http_dl.BackgroundDownloader
     _num_asset_pages_pending: int
 
-    status: DownloadStatus
-    error_message: str | None
+    _status: DownloadStatus
+    _error_message: str | None
     """An error message to show to the user.
 
     Should be set on errors to communicate a message to users. Calling report()
@@ -72,6 +76,8 @@ class RemoteAssetListingDownloader:
         local_path: Path | str,
         on_update_callback: OnUpdateCallback,
         on_done_callback: OnDoneCallback,
+        on_metafiles_done_callback: OnMetafilesDoneCallback | None = None,
+        on_page_done_callback: OnPageDoneCallback | None = None,
     ) -> None:
         """Create a downloader for the remote index of this library.
 
@@ -86,6 +92,12 @@ class RemoteAssetListingDownloader:
             (_DOWNLOAD_POLL_INTERVAL) while the download is ongoing, and once
             just after the download is done.
 
+        :param on_metafiles_done_callback: called with one parameter (this
+            RemoteAssetListingDownloader) whenever the meta files
+            (ASSET_TOP_METADATA_FILENAME, ASSET_INDEX_JSON_FILENAME, and
+            blender_assets.cats.txt) are in their final location and ready to
+            be picked up by the asset system.
+
         :param on_done_callback: called with one parameter (this
             RemoteAssetListingDownloader) whenever the downloader is "done".
 
@@ -98,13 +110,15 @@ class RemoteAssetListingDownloader:
         self._local_path = Path(local_path)
         self._on_done_callback = on_done_callback
         self._on_update_callback = on_update_callback
+        self._on_metafiles_done_callback = on_metafiles_done_callback
+        self._on_page_done_callback = on_page_done_callback
 
         self._num_asset_pages_pending = 0
         self._referenced_local_files = []
         self._library_meta = None
 
-        self.status = DownloadStatus.LOADING
-        self.error_message = ""
+        self._status = DownloadStatus.LOADING
+        self._error_message = ""
 
         # Work around a limitation of Blender, see bug report #139720 for details.
         self.on_timer_event = self.on_timer_event  # type: ignore[method-assign]
@@ -182,7 +196,7 @@ class RemoteAssetListingDownloader:
             self.report({'ERROR'}, msg)
             logger.error(msg)
 
-            self.status = DownloadStatus.FAILED
+            self._status = DownloadStatus.FAILED
             self._bg_downloader.shutdown()
             return
 
@@ -222,6 +236,10 @@ class RemoteAssetListingDownloader:
         logger.info("Writing catalogs to %s", catalogs_file)
         asset_catalogs.write(asset_index.catalogs or [], catalogs_file, self._library_meta)
 
+        # Meta files are ready to be picked up by the asset system.
+        if self._on_metafiles_done_callback:
+            self._on_metafiles_done_callback(self)
+
         # Download the asset pages.
         self._num_asset_pages_pending = len(page_urls)
         for page_index, page_url in enumerate(page_urls):
@@ -249,6 +267,9 @@ class RemoteAssetListingDownloader:
 
         self._num_asset_pages_pending -= 1
         assert self._num_asset_pages_pending >= 0
+
+        if self._on_page_done_callback:
+            self._on_page_done_callback(self)
 
         logger.debug("Asset index page downloaded: %s", local_file)
 
@@ -344,12 +365,12 @@ class RemoteAssetListingDownloader:
     def report(self, level: set[str], message: str) -> None:
         # logger.info("Report: {:s}: {:s}".format("/".join(level), message))
         if 'ERROR' in level:
-            self.error_message = message
+            self._error_message = message
 
     def shutdown(self, status: DownloadStatus) -> None:
         """Stop the background downloader, update the status and call the 'done' callback."""
 
-        self.status = status
+        self._status = status
 
         # The timer is no longer necessary, the bg_downloader.shutdown() call
         # takes care of the last queued messages.
@@ -390,6 +411,18 @@ class RemoteAssetListingDownloader:
         self._on_update_callback(self)
 
         return self._DOWNLOAD_POLL_INTERVAL
+
+    @property
+    def remote_url(self) -> str:
+        return self._remote_url
+
+    @property
+    def status(self) -> DownloadStatus:
+        return self._status
+
+    @property
+    def error_message(self) -> str | None:
+        return self._error_message
 
     # Below here: CachingDownloadReporter functions:
 

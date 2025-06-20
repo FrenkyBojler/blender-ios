@@ -789,14 +789,27 @@ static void rna_asset_library_status_begin_loading(const char *url, float timeou
 {
   RemoteLibraryLoadingStatus::begin_loading(url, timeout);
 }
+
 static void rna_asset_library_status_ping_still_loading(const char *url)
 {
   RemoteLibraryLoadingStatus::ping_still_loading(url);
 }
+
+static void rna_asset_library_status_ping_metafiles_in_place(const char *url)
+{
+  RemoteLibraryLoadingStatus::ping_metafiles_in_place(url);
+}
+
+static void rna_asset_library_status_ping_loaded_new_pages(const char *url)
+{
+  RemoteLibraryLoadingStatus::ping_new_pages(url);
+}
+
 static void rna_asset_library_status_finished_loading(const char *url)
 {
   RemoteLibraryLoadingStatus::set_finished(url);
 }
+
 static void rna_asset_library_status_failed_loading(const char *url, const char *message)
 {
   RemoteLibraryLoadingStatus::set_failure(
@@ -1546,6 +1559,27 @@ void RNA_api_asset_library_loading_status(StructRNA *srna)
   RNA_def_function_ui_description(func,
                                   "Inform the asset system that the loading is still ongoing. "
                                   "Call this regularly to prevent the loading status to timeout.");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(
+      func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_metafiles_in_place",
+                          "rna_asset_library_status_ping_metafiles_in_place");
+  RNA_def_function_ui_description(
+      func,
+      "Inform the asset system that the asset meta files (_asset-library-meta.json, "
+      "asset-listing.json, blender_assets.cats.txt) are in place and ready to be loaded");
+  RNA_def_function_flag(func, FUNC_NO_SELF);
+  parm = RNA_def_string(
+      func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+
+  func = RNA_def_function(srna,
+                          "asset_library_status_ping_loaded_new_pages",
+                          "rna_asset_library_status_ping_loaded_new_pages");
+  RNA_def_function_ui_description(func, "Inform the asset system that new content");
   RNA_def_function_flag(func, FUNC_NO_SELF);
   parm = RNA_def_string(
       func, "url", nullptr, 0, "URL", "The URL identifying the asset library being loaded");

@@ -41,6 +41,7 @@ enum class ReadingResult {
  */
 ReadingResult read_remote_listing_v1(StringRefNull listing_root_dirpath,
                                      StringRefNull version_listing_filepath,
-                                     RemoteListingEntryProcessFn process_fn);
+                                     RemoteListingEntryProcessFn process_fn,
+                                     RemoteListingWaitForPagesFn wait_fn = nullptr);
 
 }  // namespace blender::ed::asset::index

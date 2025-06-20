@@ -157,7 +157,9 @@ static std::optional<ApiVersionInfo> choose_api_version(const AssetLibraryMeta &
   return {};
 }
 
-bool read_remote_listing(StringRefNull root_dirpath, RemoteListingEntryProcessFn process_fn)
+bool read_remote_listing(StringRefNull root_dirpath,
+                         RemoteListingEntryProcessFn process_fn,
+                         RemoteListingWaitForPagesFn wait_fn)
 {
   /* TODO: Error reporting for all false return branches. */
 
@@ -183,7 +185,7 @@ bool read_remote_listing(StringRefNull root_dirpath, RemoteListingEntryProcessFn
   switch (api_version_relpath->version_nr) {
     case 1: {
       const ReadingResult result = read_remote_listing_v1(
-          root_dirpath, version_listing_filepath, process_fn);
+          root_dirpath, version_listing_filepath, process_fn, wait_fn);
       if (result == ReadingResult::Failure) {
         printf("Couldn't read V1 listing");
         return false;
