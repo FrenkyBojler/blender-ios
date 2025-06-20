@@ -79,6 +79,7 @@
 #include "ED_uvedit.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -1678,8 +1679,9 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
   }
 
   /* The image is typically passed to the operator via layout/button context (e.g.
-   * #uiLayoutSetContextPointer()). The File Browser doesn't support restoring this context
-   * when calling `exec()` though, so we have to pass it the image via custom data. */
+   * #uiLayout::context_ptr_set. The File Browser doesn't support
+   * restoring this context when calling `exec()` though, so we have to pass it the image via
+   * custom data. */
   op->customdata = ima;
 
   image_filesel(C, op, filepath);
