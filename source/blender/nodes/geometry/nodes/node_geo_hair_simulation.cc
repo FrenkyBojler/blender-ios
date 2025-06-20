@@ -114,7 +114,7 @@ class IsStartPointFieldInput final : public bke::CurvesFieldInput {
       return {};
     }
 
-    Array<bool> selection(curves.points_num(), false);
+    Array<bool> selection(mask.min_array_size(), false);
     MutableSpan<bool> selection_span = selection.as_mutable_span();
     const OffsetIndices points_by_curve = curves.points_by_curve();
     threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange curves_range) {
@@ -150,7 +150,7 @@ class IsEndPointFieldInput final : public bke::CurvesFieldInput {
       return {};
     }
 
-    Array<bool> selection(curves.points_num(), false);
+    Array<bool> selection(mask.min_array_size(), false);
     MutableSpan<bool> selection_span = selection.as_mutable_span();
     const OffsetIndices points_by_curve = curves.points_by_curve();
     threading::parallel_for(curves.curves_range(), 1024, [&](IndexRange curves_range) {
@@ -355,6 +355,9 @@ enum class VectorSpace {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+
   b.add_input<decl::Float>("Delta Time").min(0.0f).hide_value();
   b.add_input<decl::Int>("Constraint Iterations").default_value(5).min(0);
 
@@ -362,15 +365,17 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Geometry>("Hair").propagate_all().align_with_previous();
 
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
+
+  b.add_input<decl::Bundle>("Data").description("Simulation state from the previous iteration");
+  b.add_output<decl::Bundle>("Data")
+      .description("Simulation state that should be passed to the next iteration")
+      .align_with_previous();
+
+  b.add_input<decl::Bundle>("Behavior")
+      .description("Parameters for controlling simulation behavior");
   b.add_input<decl::Float>("Density").default_value(1000.0f).field_on_all();
-  b.add_input<decl::Vector>("Gravity").default_value(float3(0, 0, -9.81f)).hide_value();
   b.add_input<decl::Vector>("Force").field_on_all().hide_value();
   b.add_input<decl::Vector>("Torque").field_on_all().hide_value();
-
-  b.add_input<decl::Bundle>("Constraints").description("Bundle of constraint geometries");
-  b.add_output<decl::Bundle>("Constraints")
-      .description("Bundle of constraint geometries")
-      .align_with_previous();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -381,6 +386,69 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   UNUSED_VARS(node);
+}
+
+struct Behavior {
+  struct {
+    float3 direction = float3(0, 0, -9.81f);
+  } gravity;
+};
+
+template<typename T>
+static std::optional<T> get_from_bundle(const BundlePtr &bundle, const StringRef name)
+{
+  if (!bundle) {
+    return std::nullopt;
+  }
+
+  BLI_assert(!name.is_empty());
+  const CPPType &output_cpp_type = CPPType::get<T>();
+  const std::optional<eNodeSocketDatatype> socket_type =
+      bke::geo_nodes_base_cpp_type_to_socket_type(output_cpp_type);
+  BLI_assert(socket_type.has_value());
+  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(*socket_type);
+  BLI_assert(stype != nullptr);
+
+  const std::optional<Bundle::Item> value = bundle->lookup(SocketInterfaceKey(name));
+  if (!value) {
+    return std::nullopt;
+  }
+
+  // XXX MAKE THIS GOODER!!!
+  BUFFER_FOR_CPP_TYPE_VALUE(*stype->geometry_nodes_cpp_type, socket_output_value);
+  if (implicitly_convert_socket_value(*value->type, value->value, *stype, socket_output_value)) {
+    if (stype->geometry_nodes_cpp_type == &output_cpp_type) {
+      T result;
+      output_cpp_type.copy_assign(&socket_output_value, &result);
+      return result;
+    }
+    else if (stype->geometry_nodes_cpp_type == &CPPType::get<SocketValueVariant>()) {
+      return static_cast<SocketValueVariant *>(socket_output_value)->extract<T>();
+    }
+  }
+
+  return std::nullopt;
+}
+
+template<typename T>
+static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &result)
+{
+  if (std::optional<T> value = get_from_bundle<T>(bundle, name)) {
+    result = *value;
+    return true;
+  }
+  return false;
+}
+
+static Behavior separate_behavior_bundle(const BundlePtr &bundle)
+{
+  Behavior behavior;
+
+  if (auto gravity = get_from_bundle<BundlePtr>(bundle, "Gravity")) {
+    get_from_bundle(*gravity, "Direction", behavior.gravity.direction);
+  }
+
+  return behavior;
 }
 
 static bool store_hair_rest_shape(GeometryComponent &hair_component)
@@ -506,11 +574,8 @@ static bool apply_impulse(GeometryComponent &component,
           [](const float3 &velocity, const float inv_mass, const float3 &impulse) -> float3 {
             return velocity + inv_mass * impulse;
           });
-  const GField field = Field<float3>(
-      fn::FieldOperation::Create(apply_impulse_fn,
-                                 {field_inputs::velocity(),
-                                  bke::AttributeFieldInput::Create<float>(inv_mass_attr),
-                                  impulse}));
+  const GField field = Field<float3>(fn::FieldOperation::Create(
+      apply_impulse_fn, {field_inputs::velocity(), field_inputs::inverse_mass(), impulse}));
 
   return bke::try_capture_field_on_geometry(
       component, velocity_attr, bke::AttrDomain::Point, selection_field, field);
@@ -530,11 +595,9 @@ static bool apply_angular_impulse(GeometryComponent &component,
              const float3 &angular_impulse) -> float3 {
             return angular_velocity + inv_inertia * angular_impulse;
           });
-  const GField field = Field<float3>(
-      fn::FieldOperation::Create(apply_angular_impulse_fn,
-                                 {field_inputs::angular_velocity(),
-                                  bke::AttributeFieldInput::Create<float3>(inv_inertia_attr),
-                                  angular_impulse}));
+  const GField field = Field<float3>(fn::FieldOperation::Create(
+      apply_angular_impulse_fn,
+      {field_inputs::angular_velocity(), field_inputs::inverse_inertia(), angular_impulse}));
 
   return bke::try_capture_field_on_geometry(
       component, angular_velocity_attr, bke::AttrDomain::Point, selection_field, field);
@@ -585,11 +648,9 @@ static bool integrate_velocity(GeometryComponent &component,
           [=](const float3 &velocity, const float inv_mass, const float3 &ext_force) -> float3 {
             return velocity + delta_time * linear_factor * (gravity + inv_mass * ext_force);
           });
-  const GField field = Field<float3>(
-      fn::FieldOperation::Create(integrate_velocity_fn,
-                                 {field_inputs::velocity(),
-                                  bke::AttributeFieldInput::Create<float>(inv_mass_attr),
-                                  external_force}));
+  const GField field = Field<float3>(fn::FieldOperation::Create(
+      integrate_velocity_fn,
+      {field_inputs::velocity(), field_inputs::inverse_mass(), external_force}));
 
   return bke::try_capture_field_on_geometry(
       component, velocity_attr, bke::AttrDomain::Point, selection_field, field);
@@ -616,12 +677,11 @@ static bool integrate_angular_velocity(GeometryComponent &component,
             return angular_velocity +
                    delta_time * angular_factor * (inv_inertia * (ext_torque - precession));
           });
-  const GField field = Field<float3>(
-      fn::FieldOperation::Create(integrate_angular_velocity_fn,
-                                 {field_inputs::angular_velocity(),
-                                  bke::AttributeFieldInput::Create<float3>(inertia_attr),
-                                  bke::AttributeFieldInput::Create<float3>(inv_inertia_attr),
-                                  external_torque}));
+  const GField field = Field<float3>(fn::FieldOperation::Create(integrate_angular_velocity_fn,
+                                                                {field_inputs::angular_velocity(),
+                                                                 field_inputs::inertia(),
+                                                                 field_inputs::inverse_inertia(),
+                                                                 external_torque}));
 
   return bke::try_capture_field_on_geometry(
       component, angular_velocity_attr, bke::AttrDomain::Point, selection_field, field);
@@ -912,11 +972,11 @@ static void node_geo_exec(GeoNodeExecParams params)
                                              0);
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
+  const Behavior behavior = separate_behavior_bundle(params.extract_input<BundlePtr>("Behavior"));
   Field<float> density_field = params.extract_input<Field<float>>("Density");
-  float3 gravity = params.extract_input<float3>("Gravity");
   Field<float3> force_field = params.extract_input<Field<float3>>("Force");
   Field<float3> torque_field = params.extract_input<Field<float3>>("Torque");
-  BundlePtr constraint_bundle = params.extract_input<BundlePtr>("Constraints");
+  BundlePtr constraint_bundle = params.extract_input<BundlePtr>("Data");
   // GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
   // Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
   //                                          colliders_geometry_set.get_instances()->transforms()
@@ -960,7 +1020,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                    delta_time,
                    linear_factor,
                    angular_factor,
-                   gravity,
+                   behavior.gravity.direction,
                    force_field,
                    torque_field);
 
@@ -973,8 +1033,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   hair_curves.attributes_for_write()->remove(area_moment_attr);
 
   params.set_output("Hair", std::move(hair_geometry));
-  params.set_output("Constraints",
-                    hair_constraints::constraint_eval_data_to_bundle(constraint_data));
+  params.set_output("Data", hair_constraints::constraint_eval_data_to_bundle(constraint_data));
 }
 
 static void node_rna(StructRNA *srna)
