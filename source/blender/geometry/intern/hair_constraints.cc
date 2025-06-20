@@ -574,7 +574,7 @@ ConstraintEvalParams::ConstraintEvalParams(const float delta_time,
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Constraint Types
+/** \name Constraint Type Info
  * \{ */
 
 constexpr GrainSize constraint_grain_size = GrainSize(1024);

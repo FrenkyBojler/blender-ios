@@ -695,6 +695,9 @@ NOD_REGISTER_NODE(node_register)
 
 namespace hair_constraints {
 
+using geometry::hair_solver::ConstraintEvalData;
+using geometry::hair_solver::ConstraintTypeInfo;
+
 /* -------------------------------------------------------------------- */
 /** \name Constraint Bundle Access
  * \{ */
@@ -801,6 +804,36 @@ void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &ite
   items.position_constraints = lookup_constraints(bundle, ConstraintType::PositionGoal);
   items.rotation_constraints = lookup_constraints(bundle, ConstraintType::RotationGoal);
   items.contact_constraints = lookup_constraints(bundle, ConstraintType::Contact);
+}
+
+Vector<ConstraintEvalData> constraint_bundle_to_eval_data(BundlePtr &&constraint_bundle,
+                                                          const bool debug_output,
+                                                          IndexMaskMemory &memory)
+{
+  if (!constraint_bundle) {
+    return {};
+  }
+
+  const Span<ConstraintTypeInfo> constraint_infos =
+      geometry::hair_constraints::get_constraint_info_ordered(debug_output);
+  Vector<ConstraintEvalData> constraint_data;
+  constraint_data.reserve(constraint_infos.size());
+  for (const ConstraintTypeInfo &info : constraint_infos) {
+    GeometrySet geometry_set = hair_constraints::lookup_constraints(*constraint_bundle, info.type);
+    constraint_data.append(ConstraintEvalData(info, geometry_set, memory));
+  }
+  return constraint_data;
+}
+
+BundlePtr constraint_eval_data_to_bundle(const Span<ConstraintEvalData> constraint_data)
+{
+  BundlePtr constraint_bundle = Bundle::create();
+  for (const ConstraintEvalData &data : constraint_data) {
+    if (data.geometry) {
+      hair_constraints::set_constraints(constraint_bundle, data.type->type, *data.geometry);
+    }
+  }
+  return constraint_bundle;
 }
 
 /** \} */

@@ -7,6 +7,7 @@
 #include "BKE_geometry_set.hh"
 
 #include "GEO_hair_constraints.hh"
+#include "GEO_hair_solver.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
 
@@ -33,6 +34,11 @@ void set_constraints(BundlePtr &bundle_ptr, ConstraintType type, const bke::Geom
 bke::GeometrySet lookup_constraints(const Bundle &bundle, ConstraintType type);
 BundlePtr combine_constraint_bundle(const ConstraintBundleItems &items);
 void separate_constraint_bundle(const Bundle &bundle, ConstraintBundleItems &items);
+
+Vector<geometry::hair_solver::ConstraintEvalData> constraint_bundle_to_eval_data(
+    BundlePtr &&constraint_bundle, const bool debug_output, IndexMaskMemory &memory);
+BundlePtr constraint_eval_data_to_bundle(
+    const Span<geometry::hair_solver::ConstraintEvalData> constraint_data);
 
 /** \} */
 

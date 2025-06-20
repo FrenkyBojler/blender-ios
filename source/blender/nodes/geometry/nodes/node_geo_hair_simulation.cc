@@ -46,28 +46,24 @@ static const std::string radius_attr = "radius";
 static const std::string segment_length_attr = "segment_length";
 
 /* XXX These should be anonymous attributes. */
-static const std::string position_cache_attr = ".old_position";
-static const std::string rotation_cache_attr = ".old_rotation";
+static const std::string old_position_attr = ".old_position";
+static const std::string old_rotation_attr = ".old_rotation";
 static const std::string cross_section_attr = ".cross_section";
 static const std::string area_moment_attr = ".area_moment";
 
-namespace fields {
-
-using namespace bke;
-
 /* Shift point indices along the curve.
  * Indices at the start or end are clamped to the curve range. */
-class ShiftedIndexOnCurveInput final : public CurvesFieldInput {
+class ShiftedIndexOnCurveInput final : public bke::CurvesFieldInput {
  private:
   int offset_;
 
  public:
   ShiftedIndexOnCurveInput(const int offset)
-      : CurvesFieldInput(CPPType::get<int>(), "Shifted Index on Curve"), offset_(offset)
+      : bke::CurvesFieldInput(CPPType::get<int>(), "Shifted Index on Curve"), offset_(offset)
   {
   }
 
-  GVArray get_varray_for_context(const CurvesGeometry &curves,
+  GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
                                  AttrDomain domain,
                                  const IndexMask &mask) const final
   {
@@ -97,27 +93,88 @@ class ShiftedIndexOnCurveInput final : public CurvesFieldInput {
     return VArray<int>::ForContainer(std::move(output));
   }
 
-  std::optional<AttrDomain> preferred_domain(const CurvesGeometry & /*curves*/) const final
+  std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
   {
     return AttrDomain::Point;
   }
 };
 
-static GField create_shifted_curve_input(const GField &value_field, const int offset)
+namespace field_inputs {
+
+static Field<float3> position()
+{
+  return bke::AttributeFieldInput::Create<float3>(position_attr);
+}
+
+static Field<math::Quaternion> rotation()
+{
+  return bke::AttributeFieldInput::Create<math::Quaternion>(rotation_attr);
+}
+
+static Field<float3> old_position()
+{
+  return bke::AttributeFieldInput::Create<float3>(old_position_attr);
+}
+
+static Field<math::Quaternion> old_rotation()
+{
+  return bke::AttributeFieldInput::Create<math::Quaternion>(old_rotation_attr);
+}
+
+static Field<float3> velocity()
+{
+  return bke::AttributeFieldInput::Create<float3>(velocity_attr);
+}
+
+static Field<float3> angular_velocity()
+{
+  return bke::AttributeFieldInput::Create<float3>(angular_velocity_attr);
+}
+
+static Field<float> radius()
+{
+  return bke::AttributeFieldInput::Create<float>(radius_attr);
+}
+
+static Field<float> mass()
+{
+  return bke::AttributeFieldInput::Create<float>(mass_attr);
+}
+
+static Field<float> inverse_mass()
+{
+  return bke::AttributeFieldInput::Create<float>(inv_mass_attr);
+}
+
+static Field<float3> inertia()
+{
+  return bke::AttributeFieldInput::Create<float3>(inertia_attr);
+}
+
+static Field<float3> inverse_inertia()
+{
+  return bke::AttributeFieldInput::Create<float3>(inv_inertia_attr);
+}
+
+}  // namespace field_inputs
+
+namespace field_ops {
+
+static GField shifted_curve_value(const GField &value_field, const int offset)
 {
   Field<int> index_field{std::make_shared<ShiftedIndexOnCurveInput>(offset)};
-  return GField{std::make_shared<EvaluateAtIndexInput>(
+  return GField{std::make_shared<bke::EvaluateAtIndexInput>(
       std::move(index_field), value_field, AttrDomain::Point)};
 }
 
-static Field<float> create_cross_section(const Field<float> radius_field)
+static Field<float> cross_section(const Field<float> radius_field)
 {
   static const auto cross_section_fn = fn::multi_function::build::SI1_SO<float, float>(
       "Rod Cross Section", [](const float radius) -> float { return M_PI * radius * radius; });
   return Field<float>(fn::FieldOperation::Create(cross_section_fn, {radius_field}));
 }
 
-static Field<float3> create_area_moment(const Field<float> radius_field)
+static Field<float3> area_moment(const Field<float> radius_field)
 {
   static const auto area_moment_fn = fn::multi_function::build::SI1_SO<float, float3>(
       "Second Moment of Area", [](const float radius) -> float3 {
@@ -127,32 +184,32 @@ static Field<float3> create_area_moment(const Field<float> radius_field)
   return Field<float3>(fn::FieldOperation::Create(area_moment_fn, {radius_field}));
 }
 
-static Field<float> create_segment_length(const Field<float3> &position_field)
+static Field<float> segment_length(const Field<float3> &position_field)
 {
   static const auto segment_length_fn = fn::multi_function::build::SI2_SO<float3, float3, float>(
       "Segment Length",
       [](const float3 &p1, const float3 &p2) -> float { return math::distance(p1, p2); });
-  Field<float3> next_position_field = fields::create_shifted_curve_input(position_field, 1);
+  Field<float3> next_position_field = field_ops::shifted_curve_value(position_field, 1);
   return Field<float>(fn::FieldOperation::Create(
       segment_length_fn, {position_field, std::move(next_position_field)}));
 }
 
 /* Average segment length from both sides of a point to determine average volume. */
-static Field<float> create_average_segment_length(const Field<float> &segment_length_field)
+static Field<float> average_segment_length(const Field<float> &segment_length_field)
 {
   static const auto avg_segment_length_fn = fn::multi_function::build::SI2_SO<float, float, float>(
       "Mean Segment Length", [](const float length1, const float length2) -> float {
         return 0.5f * (length1 + length2);
       });
-  Field<float> prev_segment_length_field = fields::create_shifted_curve_input(segment_length_field,
-                                                                              -1);
+  Field<float> prev_segment_length_field = field_ops::shifted_curve_value(segment_length_field,
+                                                                          -1);
   return Field<float>(fn::FieldOperation::Create(
       avg_segment_length_fn, {segment_length_field, std::move(prev_segment_length_field)}));
 }
 
-static Field<float> create_point_mass_field(const Field<float> &segment_length_field,
-                                            const Field<float> &cross_section_field,
-                                            const Field<float> &density_field)
+static Field<float> point_mass(const Field<float> &segment_length_field,
+                               const Field<float> &cross_section_field,
+                               const Field<float> &density_field)
 {
   static const auto point_mass_fn = fn::multi_function::build::SI3_SO<float, float, float, float>(
       "Point Mass",
@@ -163,9 +220,9 @@ static Field<float> create_point_mass_field(const Field<float> &segment_length_f
       point_mass_fn, {segment_length_field, cross_section_field, density_field}));
 }
 
-static Field<float3> create_segment_inertia_field(const Field<float> &segment_length_field,
-                                                  const Field<float3> &area_moment_field,
-                                                  const Field<float> &density_field)
+static Field<float3> segment_inertia(const Field<float> &segment_length_field,
+                                     const Field<float3> &area_moment_field,
+                                     const Field<float> &density_field)
 {
   static const auto segment_inertia_fn =
       fn::multi_function::build::SI3_SO<float, float3, float, float3>(
@@ -177,14 +234,14 @@ static Field<float3> create_segment_inertia_field(const Field<float> &segment_le
       segment_inertia_fn, {segment_length_field, area_moment_field, density_field}));
 }
 
-static Field<float> create_inverse_mass_field(const Field<float> &mass_field)
+static Field<float> inverse_mass(const Field<float> &mass_field)
 {
   static const auto inv_mass_fn = fn::multi_function::build::SI1_SO<float, float>(
       "Inverse Mass", [](const float mass) -> float { return math::safe_rcp(mass); });
   return Field<float>(fn::FieldOperation::Create(inv_mass_fn, {mass_field}));
 }
 
-static Field<float3> create_inverse_inertia_field(const Field<float3> &inertia_field)
+static Field<float3> inverse_inertia(const Field<float3> &inertia_field)
 {
   static const auto inv_inertia_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Inverse Moment of Inertia",
@@ -192,7 +249,7 @@ static Field<float3> create_inverse_inertia_field(const Field<float3> &inertia_f
   return Field<float3>(fn::FieldOperation::Create(inv_inertia_fn, {inertia_field}));
 }
 
-}  // namespace fields
+}  // namespace field_ops
 
 enum class VectorSpace {
   /* Object space. */
@@ -246,9 +303,9 @@ static bool init_hair_physics(GeometryComponent &component,
                               const Field<bool> &selection_field,
                               const Field<float> &density_field)
 {
-  const Field<float> radius_field = bke::AttributeFieldInput::Create<float>(radius_attr);
-  const Field<float> cross_section_field = fields::create_cross_section(radius_field);
-  const Field<float3> area_moment_field = fields::create_area_moment(radius_field);
+  const Field<float> radius_field = field_inputs::radius();
+  const Field<float> cross_section_field = field_ops::cross_section(radius_field);
+  const Field<float3> area_moment_field = field_ops::area_moment(radius_field);
   if (!bke::try_capture_fields_on_geometry(component,
                                            {cross_section_attr, area_moment_attr},
                                            bke::AttrDomain::Point,
@@ -258,8 +315,8 @@ static bool init_hair_physics(GeometryComponent &component,
     return false;
   }
 
-  const Field<float3> position_field{bke::AttributeFieldInput::Create<float3>(position_attr)};
-  const Field<float> segment_length_field = fields::create_segment_length(position_field);
+  const Field<float3> position_field = field_inputs::position();
+  const Field<float> segment_length_field = field_ops::segment_length(position_field);
   if (!bke::try_capture_field_on_geometry(component,
                                           segment_length_attr,
                                           bke::AttrDomain::Point,
@@ -269,19 +326,19 @@ static bool init_hair_physics(GeometryComponent &component,
     return false;
   }
 
-  const Field<float> avg_segment_length_field = fields::create_average_segment_length(
+  const Field<float> avg_segment_length_field = field_ops::average_segment_length(
       segment_length_field);
-  const Field<float> point_mass_field = fields::create_point_mass_field(
+  const Field<float> point_mass_field = field_ops::point_mass(
       avg_segment_length_field,
       AttributeFieldInput::Create<float>(cross_section_attr),
       density_field);
-  const Field<float3> segment_inertia_field = fields::create_segment_inertia_field(
+  const Field<float3> segment_inertia_field = field_ops::segment_inertia(
       avg_segment_length_field,
       AttributeFieldInput::Create<float3>(area_moment_attr),
       density_field);
 
-  const Field<float> inv_point_mass_field = fields::create_inverse_mass_field(point_mass_field);
-  const Field<float3> inv_segment_inertia_field = fields::create_inverse_inertia_field(
+  const Field<float> inv_point_mass_field = field_ops::inverse_mass(point_mass_field);
+  const Field<float3> inv_segment_inertia_field = field_ops::inverse_inertia(
       segment_inertia_field);
 
   if (!bke::try_capture_fields_on_geometry(
@@ -331,15 +388,11 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
 /* Capture motions state attribute for later velocity estimation. */
 static bool capture_motion_state(GeometryComponent &component, const Field<bool> &selection_field)
 {
-  const Field<float3> position_field{AttributeFieldInput::Create<float3>(position_attr)};
-  const Field<math::Quaternion> rotation_field{
-      AttributeFieldInput::Create<math::Quaternion>(rotation_attr)};
-  return bke::try_capture_fields_on_geometry(
-      component,
-      {position_cache_attr, rotation_cache_attr},
-      AttrDomain::Point,
-      selection_field,
-      {std::move(position_field), std::move(rotation_field)});
+  return bke::try_capture_fields_on_geometry(component,
+                                             {old_position_attr, old_rotation_attr},
+                                             AttrDomain::Point,
+                                             selection_field,
+                                             {field_inputs::position(), field_inputs::rotation()});
 }
 
 /* Note: impulse is applied in object space, like the velocity attribute. */
@@ -355,7 +408,7 @@ static bool apply_impulse(GeometryComponent &component,
           });
   const GField field = Field<float3>(
       fn::FieldOperation::Create(apply_impulse_fn,
-                                 {bke::AttributeFieldInput::Create<float3>(velocity_attr),
+                                 {field_inputs::velocity(),
                                   bke::AttributeFieldInput::Create<float>(inv_mass_attr),
                                   impulse}));
 
@@ -379,9 +432,8 @@ static bool apply_angular_impulse(GeometryComponent &component,
           });
   const GField field = Field<float3>(
       fn::FieldOperation::Create(apply_angular_impulse_fn,
-                                 {bke::AttributeFieldInput::Create<float3>(angular_velocity_attr),
+                                 {field_inputs::angular_velocity(),
                                   bke::AttributeFieldInput::Create<float3>(inv_inertia_attr),
-                                  bke::AttributeFieldInput::Create<float3>(rotation_attr),
                                   angular_impulse}));
 
   return bke::try_capture_field_on_geometry(
@@ -435,7 +487,7 @@ static bool integrate_velocity(GeometryComponent &component,
           });
   const GField field = Field<float3>(
       fn::FieldOperation::Create(integrate_velocity_fn,
-                                 {bke::AttributeFieldInput::Create<float3>(velocity_attr),
+                                 {field_inputs::velocity(),
                                   bke::AttributeFieldInput::Create<float>(inv_mass_attr),
                                   external_force}));
 
@@ -466,7 +518,7 @@ static bool integrate_angular_velocity(GeometryComponent &component,
           });
   const GField field = Field<float3>(
       fn::FieldOperation::Create(integrate_angular_velocity_fn,
-                                 {bke::AttributeFieldInput::Create<float3>(angular_velocity_attr),
+                                 {field_inputs::angular_velocity(),
                                   bke::AttributeFieldInput::Create<float3>(inertia_attr),
                                   bke::AttributeFieldInput::Create<float3>(inv_inertia_attr),
                                   external_torque}));
@@ -488,10 +540,8 @@ static bool integrate_position(GeometryComponent &component,
       "Integrate Positions", [=](const float3 &position, const float3 &velocity) -> float3 {
         return position + linear_factor * delta_time * velocity;
       });
-  const GField field = Field<float3>(
-      fn::FieldOperation::Create(integrate_position_fn,
-                                 {bke::AttributeFieldInput::Create<float3>(position_attr),
-                                  bke::AttributeFieldInput::Create<float3>(velocity_attr)}));
+  const GField field = Field<float3>(fn::FieldOperation::Create(
+      integrate_position_fn, {field_inputs::position(), field_inputs::velocity()}));
 
   return bke::try_capture_field_on_geometry(
       component, position_attr, bke::AttrDomain::Point, selection_field, field);
@@ -518,22 +568,20 @@ static bool integrate_rotation(GeometryComponent &component,
                                  rotation.imaginary_part() + factor * direction.imaginary_part()));
           });
   const GField field = Field<math::Quaternion>(fn::FieldOperation::Create(
-      integrate_rotation_fn,
-      {bke::AttributeFieldInput::Create<math::Quaternion>(rotation_attr),
-       bke::AttributeFieldInput::Create<float3>(angular_velocity_attr)}));
+      integrate_rotation_fn, {field_inputs::rotation(), field_inputs::angular_velocity()}));
 
   return bke::try_capture_field_on_geometry(
       component, rotation_attr, bke::AttrDomain::Point, selection_field, field);
 }
 
-static void cosserat_rod_dynamics_integration(GeometryComponent &component,
-                                              const Field<bool> &selection_field,
-                                              const float delta_time,
-                                              const float linear_factor,
-                                              const float angular_factor,
-                                              const float3 &gravity,
-                                              const Field<float3> &external_force,
-                                              const Field<float3> &external_torque)
+static void integrate_motion(GeometryComponent &component,
+                             const Field<bool> &selection_field,
+                             const float delta_time,
+                             const float linear_factor,
+                             const float angular_factor,
+                             const float3 &gravity,
+                             const Field<float3> &external_force,
+                             const Field<float3> &external_torque)
 {
   integrate_velocity(
       component, selection_field, delta_time, linear_factor, gravity, external_force);
@@ -544,7 +592,7 @@ static void cosserat_rod_dynamics_integration(GeometryComponent &component,
   integrate_rotation(component, selection_field, delta_time, angular_factor);
 }
 
-static void UNUSED_FUNCTION(zero_init_solver)(MutableSpan<ConstraintEvalData> constraint_data)
+static void zero_init_solver(MutableSpan<ConstraintEvalData> constraint_data)
 {
   for (ConstraintEvalData &data : constraint_data) {
     if (!data.geometry) {
@@ -556,8 +604,8 @@ static void UNUSED_FUNCTION(zero_init_solver)(MutableSpan<ConstraintEvalData> co
   }
 }
 
-static void UNUSED_FUNCTION(warm_start_solver)(const ConstraintEvalParams &eval_params,
-                                               MutableSpan<ConstraintEvalData> constraint_data)
+static void warm_start_solver(const ConstraintEvalParams &eval_params,
+                              MutableSpan<ConstraintEvalData> constraint_data)
 {
   for (ConstraintEvalData &data : constraint_data) {
     if (!data.geometry) {
@@ -664,36 +712,6 @@ static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
       std::nullopt /*debug_steps*/);
 }
 
-static Vector<ConstraintEvalData> constraint_bundle_to_eval_data(BundlePtr &&constraint_bundle,
-                                                                 const bool debug_output,
-                                                                 IndexMaskMemory &memory)
-{
-  if (!constraint_bundle) {
-    return {};
-  }
-
-  const Span<ConstraintTypeInfo> constraint_infos =
-      geometry::hair_constraints::get_constraint_info_ordered(debug_output);
-  Vector<ConstraintEvalData> constraint_data(constraint_infos.size());
-  for (const int i : constraint_infos.index_range()) {
-    const ConstraintTypeInfo &info = constraint_infos[i];
-    GeometrySet geometry_set = hair_constraints::lookup_constraints(*constraint_bundle, info.type);
-    constraint_data[i] = ConstraintEvalData(info, geometry_set, memory);
-  }
-  return constraint_data;
-}
-
-static BundlePtr constraint_eval_data_to_bundle(const Span<ConstraintEvalData> constraint_data)
-{
-  BundlePtr constraint_bundle = Bundle::create();
-  for (const ConstraintEvalData &data : constraint_data) {
-    if (data.geometry) {
-      hair_constraints::set_constraints(constraint_bundle, data.type->type, *data.geometry);
-    }
-  }
-  return constraint_bundle;
-}
-
 static void solve_constraints(ConstraintEvalParams &eval_params,
                               GeometryComponent &component,
                               const int iterations,
@@ -701,154 +719,94 @@ static void solve_constraints(ConstraintEvalParams &eval_params,
 {
   /* TODO warm start doesn't work properly yet. */
   const bool warm_start = false;
-  UNUSED_VARS(warm_start);
 
-  // Field<float> mass_field = params.extract_input<Field<float>>("Mass");
-  // Field<float3> inertia_field = params.extract_input<Field<float3>>("Inertia");
-  // Field<float3> old_position_field = params.extract_input<Field<float3>>("Old Position");
-  // Field<math::Quaternion> old_rotation_field = params.extract_input<Field<math::Quaternion>>(
-  //     "Old Rotation");
-  // Field<float3> position_field = params.extract_input<Field<float3>>("Position");
-  // Field<math::Quaternion> rotation_field = params.extract_input<Field<math::Quaternion>>(
-  //     "Rotation");
-  // Field<float3> velocity_field = params.extract_input<Field<float3>>("Velocity");
-  // Field<float3> angular_velocity_field = params.extract_input<Field<float3>>("Angular
-  // Velocity"); std::optional<std::string> position_output_id =
-  //     params.get_output_anonymous_attribute_id_if_needed("Position");
-  // std::optional<std::string> rotation_output_id =
-  //     params.get_output_anonymous_attribute_id_if_needed("Rotation");
-  // std::optional<std::string> velocity_output_id =
-  //     params.get_output_anonymous_attribute_id_if_needed("Velocity");
-  // std::optional<std::string> angular_velocity_output_id =
-  //     params.get_output_anonymous_attribute_id_if_needed("Angular Velocity");
+  const int num_points = component.attribute_domain_size(AttrDomain::Point);
+  ConstraintVariables variables;
+  variables.positions.reinitialize(num_points);
+  variables.rotations.reinitialize(num_points);
+  variables.velocities.reinitialize(num_points);
+  variables.angular_velocities.reinitialize(num_points);
 
-  // GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
-  // Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
-  //                                          colliders_geometry_set.get_instances()->transforms()
-  //                                          : Span<float4x4>{};
+  const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
+  fn::FieldEvaluator evaluator{field_context, num_points};
+  evaluator.add(field_inputs::mass());
+  evaluator.add(field_inputs::inertia());
+  evaluator.add(field_inputs::old_position());
+  evaluator.add(field_inputs::old_rotation());
+  evaluator.add_with_destination(field_inputs::position(), variables.positions.as_mutable_span());
+  evaluator.add_with_destination(field_inputs::rotation(), variables.rotations.as_mutable_span());
+  evaluator.add_with_destination(field_inputs::velocity(), variables.velocities.as_mutable_span());
+  evaluator.add_with_destination(field_inputs::angular_velocity(),
+                                 variables.angular_velocities.as_mutable_span());
+  evaluator.evaluate();
 
-  // const bool debug_output = (eval_params.debug_recorder != nullptr);
+  eval_params.masses = evaluator.get_evaluated<float>(0);
+  eval_params.local_inertia = evaluator.get_evaluated<float3>(1);
+  eval_params.old_positions = evaluator.get_evaluated<float3>(2);
+  eval_params.old_rotations = evaluator.get_evaluated<math::Quaternion>(3);
 
-  // Vector<ConstraintEvalData> constraint_data;
-  // IndexMaskMemory memory;
-  // get_constraint_data(params, debug_output, constraint_data, memory);
-
-  // init_constraints(init_mode, eval_params, constraint_data);
-
-  std::optional<bke::MutableAttributeAccessor> attributes = component.attributes_for_write();
-  if (!attributes) {
-    return;
-  }
-
-  //      if (eval_params.debug_recorder) {
-  //        eval_params.debug_recorder->set_geometry(geometry_set, component_type);
-  //      }
-
-  //      const int num_points = attributes->domain_size(AttrDomain::Point);
-  //      ConstraintVariables vars;
-  //      vars.positions.reinitialize(num_points);
-  //      vars.rotations.reinitialize(num_points);
-  //      vars.velocities.reinitialize(num_points);
-  //      vars.angular_velocities.reinitialize(num_points);
-
-  //      const bke::GeometryFieldContext field_context{component, AttrDomain::Point};
-  //      fn::FieldEvaluator evaluator{field_context, num_points};
-  //      evaluator.add(mass_field);
-  //      evaluator.add(inertia_field);
-  //      evaluator.add(old_position_field);
-  //      evaluator.add(old_rotation_field);
-  //      evaluator.add_with_destination(position_field, vars.positions.as_mutable_span());
-  //      evaluator.add_with_destination(rotation_field, vars.rotations.as_mutable_span());
-  //      evaluator.add_with_destination(velocity_field, vars.velocities.as_mutable_span());
-  //      evaluator.add_with_destination(angular_velocity_field,
-  //                                     vars.angular_velocities.as_mutable_span());
-  //      evaluator.evaluate();
-  //      eval_params.masses = evaluator.get_evaluated<float>(0);
-  //      eval_params.local_inertia = evaluator.get_evaluated<float3>(1);
-  //      eval_params.old_positions = evaluator.get_evaluated<float3>(2);
-  //      eval_params.old_rotations = evaluator.get_evaluated<math::Quaternion>(3);
-
-  //      eval_params.collider_transforms = collider_transforms;
-  //      /* XXX Transforms of the previous frame are not currently available, these are always the
-  //       * same as the current frame. Eventually this will allow transfer of velocity from
-  //       animated
-  //       * colliders. */
-  //      eval_params.old_collider_transforms = eval_params.collider_transforms;
+  // eval_params.collider_transforms = collider_transforms;
+  // /* XXX Transforms of the previous frame are not currently available, these are always the
+  //  * same as the current frame. Eventually this will allow transfer of velocity from
+  //  animated
+  //  * colliders. */
+  // eval_params.old_collider_transforms = eval_params.collider_transforms;
 
   // if (eval_params.debug_recorder) {
   //   const std::string label = fmt::format("Initialize Gauss-Seidel, ");
   //   eval_params.debug_recorder->record_step(label, nullptr, -1, {}, variables);
   // }
 
+  if (warm_start) {
+    warm_start_solver(eval_params, constraint_data);
+  }
+  else {
+    zero_init_solver(constraint_data);
+  }
+
   for ([[maybe_unused]] const int i : IndexRange(iterations)) {
     do_position_constraints_iteration(eval_params, constraint_data, variables);
   }
 
+  Array<float3> orig_velocities;
+  Array<float3> orig_angular_velocities;
   estimate_velocity(eval_params, orig_velocities, orig_angular_velocities, variables);
 
   do_velocity_constraints_iteration(eval_params, constraint_data, variables);
 
-  //      if (position_output_id) {
-  //        AttributeWriter<float3> positions_writer = attributes->lookup_or_add_for_write<float3>(
-  //            *position_output_id, AttrDomain::Point);
-  //        BLI_assert(vars.positions.size() == num_points);
-  //        positions_writer.varray.set_all(vars.positions);
-  //        positions_writer.finish();
-  //      }
-  //      if (rotation_output_id) {
-  //        AttributeWriter<math::Quaternion> rotations_writer =
-  //            attributes->lookup_or_add_for_write<math::Quaternion>(*rotation_output_id,
-  //                                                                  AttrDomain::Point);
-  //        BLI_assert(vars.rotations.size() == num_points);
-  //        rotations_writer.varray.set_all(vars.rotations);
-  //        rotations_writer.finish();
-  //      }
-  //      if (velocity_output_id) {
-  //        AttributeWriter<float3> velocities_writer =
-  //        attributes->lookup_or_add_for_write<float3>(
-  //            *velocity_output_id, AttrDomain::Point);
-  //        BLI_assert(vars.velocities.size() == num_points);
-  //        velocities_writer.varray.set_all(vars.velocities);
-  //        velocities_writer.finish();
-  //      }
-  //      if (angular_velocity_output_id) {
-  //        AttributeWriter<float3> angular_velocities_writer =
-  //            attributes->lookup_or_add_for_write<float3>(*angular_velocity_output_id,
-  //                                                        AttrDomain::Point);
-  //        BLI_assert(vars.angular_velocities.size() == num_points);
-  //        angular_velocities_writer.varray.set_all(vars.angular_velocities);
-  //        angular_velocities_writer.finish();
-  //      }
-}
+  {
+    MutableAttributeAccessor attributes = *component.attributes_for_write();
+    AttributeWriter<float3> positions_writer = attributes.lookup_or_add_for_write<float3>(
+        position_attr, AttrDomain::Point);
+    AttributeWriter<math::Quaternion> rotations_writer =
+        attributes.lookup_or_add_for_write<math::Quaternion>(rotation_attr, AttrDomain::Point);
+    AttributeWriter<float3> velocities_writer = attributes.lookup_or_add_for_write<float3>(
+        velocity_attr, AttrDomain::Point);
+    AttributeWriter<float3> angular_velocities_writer = attributes.lookup_or_add_for_write<float3>(
+        angular_velocity_attr, AttrDomain::Point);
 
-// static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
-//{
-//   const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
-//   const float delta_time_squared = delta_time * delta_time;
-//   const float inv_delta_time = math::safe_rcp(delta_time);
-//   const float inv_delta_time_squared = math::safe_rcp(delta_time_squared);
-//   const bool debug_check = params.extract_input<bool>("Debug Checks");
-//   const bool use_debug_steps = params.output_is_required("Debug Steps");
-//
-//   ConstraintEvalParams eval_params;
-//   eval_params.delta_time = delta_time;
-//   eval_params.delta_time_squared = delta_time_squared;
-//   eval_params.inv_delta_time = inv_delta_time;
-//   eval_params.inv_delta_time_squared = inv_delta_time_squared;
-//   eval_params.error_message_add = [params](const StringRef message) {
-//     params.error_message_add(NodeWarningType::Warning, message);
-//   };
-//   eval_params.debug_check = debug_check;
-//   if (use_debug_steps) {
-//     eval_params.debug_recorder = std::make_unique<xpbd_constraints::DebugRecorder>(
-//         params.extract_input<GeometrySet>("Debug Steps"));
-//   }
-//
-//   return eval_params;
-// }
+    BLI_assert(variables.positions.size() == num_points);
+    BLI_assert(variables.rotations.size() == num_points);
+    BLI_assert(variables.velocities.size() == num_points);
+    BLI_assert(variables.angular_velocities.size() == num_points);
+
+    positions_writer.varray.set_all(variables.positions);
+    rotations_writer.varray.set_all(variables.rotations);
+    velocities_writer.varray.set_all(variables.velocities);
+    angular_velocities_writer.varray.set_all(variables.angular_velocities);
+
+    positions_writer.finish();
+    rotations_writer.finish();
+    velocities_writer.finish();
+    angular_velocities_writer.finish();
+  }
+}
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
+  const float linear_factor = 1.0f;
+  const float angular_factor = 1.0f;
+
   const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
   const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
                                              0);
@@ -859,6 +817,10 @@ static void node_geo_exec(GeoNodeExecParams params)
   Field<float3> force_field = params.extract_input<Field<float3>>("Force");
   Field<float3> torque_field = params.extract_input<Field<float3>>("Torque");
   BundlePtr constraint_bundle = params.extract_input<BundlePtr>("Constraints");
+  // GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
+  // Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
+  //                                          colliders_geometry_set.get_instances()->transforms()
+  //                                          : Span<float4x4>{};
 
   if (!hair_geometry.has_curves()) {
     params.set_default_remaining_outputs();
@@ -868,6 +830,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   ConstraintEvalParams eval_params = extract_eval_params(params);
   const bool debug_output = (eval_params.debug_recorder != nullptr);
+  if (debug_output) {
+    eval_params.debug_recorder->set_geometry(hair_geometry, GeometryComponent::Type::Curve);
+  }
 
   /* Zero time step initializes the hair simulation. */
   if (delta_time == 0.0f) {
@@ -883,26 +848,33 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   IndexMaskMemory memory;
-  Vector<ConstraintEvalData> constraint_data = constraint_bundle_to_eval_data(
+  Vector<ConstraintEvalData> constraint_data = hair_constraints::constraint_bundle_to_eval_data(
       std::move(constraint_bundle), debug_output, memory);
 
   /* Store current motion state for later velocity estimation. */
   capture_motion_state(hair_curves, selection_field);
 
   /* Unconstrained motion. */
-  cosserat_rod_dynamics_integration(
-      hair_curves, selection_field, delta_time, 1.0f, 1.0f, gravity, force_field, torque_field);
+  integrate_motion(hair_curves,
+                   selection_field,
+                   delta_time,
+                   linear_factor,
+                   angular_factor,
+                   gravity,
+                   force_field,
+                   torque_field);
 
   solve_constraints(eval_params, hair_curves, constraint_iterations, constraint_data);
 
   /* Remove temporary captured attributes. */
-  hair_curves.attributes_for_write()->remove(position_cache_attr);
-  hair_curves.attributes_for_write()->remove(rotation_cache_attr);
+  hair_curves.attributes_for_write()->remove(old_position_attr);
+  hair_curves.attributes_for_write()->remove(old_rotation_attr);
   hair_curves.attributes_for_write()->remove(cross_section_attr);
   hair_curves.attributes_for_write()->remove(area_moment_attr);
 
   params.set_output("Hair", std::move(hair_geometry));
-  params.set_output("Constraints", constraint_eval_data_to_bundle(constraint_data));
+  params.set_output("Constraints",
+                    hair_constraints::constraint_eval_data_to_bundle(constraint_data));
 }
 
 static void node_rna(StructRNA *srna)

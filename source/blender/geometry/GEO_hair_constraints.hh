@@ -14,6 +14,14 @@ namespace blender::geometry::hair_constraints {
 
 struct ConstraintVariables;
 
+enum class ConstraintType {
+  StretchShear,
+  BendTwist,
+  PositionGoal,
+  RotationGoal,
+  Contact,
+};
+
 /* -------------------------------------------------------------------- */
 /** \name Constraint Geometry Setup
  * \{ */
@@ -277,16 +285,8 @@ using ConstraintPositionLinearSolveElementsFunc =
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Constraint Types
+/** \name Constraint Type Info
  * \{ */
-
-enum class ConstraintType {
-  StretchShear,
-  BendTwist,
-  PositionGoal,
-  RotationGoal,
-  Contact,
-};
 
 struct ConstraintTypeInfo {
   using ErrorFn = ConstraintEvalParams::ErrorFn;

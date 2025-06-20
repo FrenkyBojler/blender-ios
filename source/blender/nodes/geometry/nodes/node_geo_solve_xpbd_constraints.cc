@@ -563,36 +563,6 @@ static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
       debug_steps);
 }
 
-static Vector<ConstraintEvalData> constraint_bundle_to_eval_data(BundlePtr &&constraint_bundle,
-                                                                 const bool debug_output,
-                                                                 IndexMaskMemory &memory)
-{
-  if (!constraint_bundle) {
-    return {};
-  }
-
-  const Span<ConstraintTypeInfo> constraint_infos =
-      geometry::hair_constraints::get_constraint_info_ordered(debug_output);
-  Vector<ConstraintEvalData> constraint_data(constraint_infos.size());
-  for (const int i : constraint_infos.index_range()) {
-    const ConstraintTypeInfo &info = constraint_infos[i];
-    GeometrySet geometry_set = hair_constraints::lookup_constraints(*constraint_bundle, info.type);
-    constraint_data[i] = ConstraintEvalData(info, geometry_set, memory);
-  }
-  return constraint_data;
-}
-
-static BundlePtr constraint_eval_data_to_bundle(const Span<ConstraintEvalData> constraint_data)
-{
-  BundlePtr constraint_bundle = Bundle::create();
-  for (const ConstraintEvalData &data : constraint_data) {
-    if (data.geometry) {
-      hair_constraints::set_constraints(constraint_bundle, data.type->type, *data.geometry);
-    }
-  }
-  return constraint_bundle;
-}
-
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const SolverMethod solver_method = SolverMethod(params.node().custom1);
@@ -635,7 +605,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const bool debug_output = (eval_params.debug_recorder != nullptr);
 
   IndexMaskMemory memory;
-  Vector<ConstraintEvalData> constraint_data = constraint_bundle_to_eval_data(
+  Vector<ConstraintEvalData> constraint_data = hair_constraints::constraint_bundle_to_eval_data(
       params.extract_input<BundlePtr>("Constraints"), debug_output, memory);
 
   init_constraints(init_mode, eval_params, constraint_data);
@@ -729,7 +699,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   });
 
   params.set_output("Geometry", geometry_set);
-  params.set_output("Constraints", constraint_eval_data_to_bundle(constraint_data));
+  params.set_output("Constraints",
+                    hair_constraints::constraint_eval_data_to_bundle(constraint_data));
   if (eval_params.debug_recorder) {
     params.set_output("Debug Steps", eval_params.debug_recorder->debug_steps());
   }

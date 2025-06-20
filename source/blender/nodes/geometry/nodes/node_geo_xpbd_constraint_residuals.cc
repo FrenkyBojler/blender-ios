@@ -61,80 +61,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
 {
-  ConstraintEvalParams eval_params;
-  eval_params.delta_time = 0.0f;
-  eval_params.delta_time_squared = 0.0f;
-  eval_params.inv_delta_time = 0.0f;
-  eval_params.inv_delta_time_squared = 0.0f;
-  eval_params.error_message_add = [params](const StringRef message) {
-    params.error_message_add(NodeWarningType::Warning, message);
-  };
-  eval_params.debug_check = false;
-
-  return eval_params;
-}
-
-static void get_constraint_data(GeoNodeExecParams params,
-                                const bool debug_output,
-                                Vector<ConstraintEvalData> &constraint_data)
-{
-  const BundlePtr constraints_ptr = params.extract_input<BundlePtr>("Constraints");
-
-  const Span<ConstraintTypeInfo> constraint_infos =
-      geometry::hair_constraints ::get_constraint_info_ordered(debug_output);
-  constraint_data.reinitialize(constraint_infos.size());
-
-  for (const int i : constraint_infos.index_range()) {
-    const ConstraintTypeInfo &info = constraint_infos[i];
-    constraint_data[i].type = &info;
-
-    if (!constraints_ptr) {
-      continue;
-    }
-    const std::optional<Bundle::Item> item = constraints_ptr->lookup(
-        SocketInterfaceKey(info.ui_name));
-    if (!item || item->type != bke::node_socket_type_find_static(SOCK_GEOMETRY)) {
-      continue;
-    }
-
-    const GeometrySet &geometry_set = *static_cast<const GeometrySet *>(item->value);
-    if (geometry_set.has_pointcloud()) {
-      const AttributeAccessor attributes =
-          *geometry_set.get_component<PointCloudComponent>()->attributes();
-
-      IndexMask constraints_mask = IndexRange(attributes.domain_size(AttrDomain::Point));
-      constraint_data[i].geometry = geometry_set;
-      constraint_data[i].constraints = std::move(constraints_mask);
-      constraint_data[i].group_masks = {};
-    }
-    else {
-      constraint_data[i].geometry = {};
-      constraint_data[i].constraints = {};
-      constraint_data[i].group_masks = {};
-    }
-  }
-}
-
-static void set_constraint_data_output(GeoNodeExecParams params,
-                                       const Span<ConstraintEvalData> constraint_data)
-{
-  BundlePtr constraints_ptr = Bundle::create();
-  BLI_assert(constraints_ptr->is_mutable());
-  Bundle &constraints = const_cast<Bundle &>(*constraints_ptr);
-
-  for (const ConstraintEvalData &data : constraint_data) {
-    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(SOCK_GEOMETRY);
-
-    if (data.geometry) {
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &(*data.geometry));
-    }
-    else {
-      const GeometrySet geometry = {};
-      constraints.add(SocketInterfaceKey(data.type->ui_name), *stype, &geometry);
-    }
-  }
-
-  params.set_output("Constraints", std::move(constraints_ptr));
+  return ConstraintEvalParams(
+      0.0f,
+      [params](const StringRef message) {
+        params.error_message_add(NodeWarningType::Warning, message);
+      },
+      false,
+      std::nullopt);
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -169,8 +102,9 @@ static void node_geo_exec(GeoNodeExecParams params)
     return;
   }
 
-  Vector<ConstraintEvalData> constraint_data;
-  get_constraint_data(params, false, constraint_data);
+  IndexMaskMemory memory;
+  Vector<ConstraintEvalData> constraint_data = hair_constraints::constraint_bundle_to_eval_data(
+      params.extract_input<BundlePtr>("Constraints"), false, memory);
 
   static const Array<GeometryComponent::Type> types = {bke::GeometryComponent::Type::Mesh,
                                                        bke::GeometryComponent::Type::PointCloud,
@@ -211,7 +145,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  set_constraint_data_output(params, constraint_data);
+  params.set_output("Constraints",
+                    hair_constraints::constraint_eval_data_to_bundle(constraint_data));
 }
 
 static void node_register()

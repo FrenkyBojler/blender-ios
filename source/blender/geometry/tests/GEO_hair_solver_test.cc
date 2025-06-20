@@ -145,12 +145,8 @@ struct SolverTestData {
 static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_types,
                                          const bool use_velocities)
 {
-  SolverTestData solver_test;
-
-  solver_test.params.delta_time = 0.2f;
-  solver_test.params.delta_time_squared = 0.2f * 0.2f;
-  solver_test.params.inv_delta_time = 1.0f / 0.2f;
-  solver_test.params.inv_delta_time_squared = 1.0f / (0.2f * 0.2f);
+  SolverTestData solver_test{ConstraintEvalParams(
+      0.2f, [](StringRef) {}, false, std::nullopt)};
 
   solver_test.params.masses = VArray<float>::ForContainer(Array<float>{1.0f, 3.0f, 0.5f});
   solver_test.params.local_inertia = VArray<float3>::ForContainer(
@@ -196,8 +192,7 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
                      bke::AttributeInitVArray(GVArray::ForSpan(info.second)));
     }
 
-    solver_test.data.append({});
-    solver_test.data.last().type = &type;
+    solver_test.data.append({type});
     solver_test.data.last().geometry = bke::GeometrySet::from_pointcloud(std::move(constraints));
     solver_test.data.last().constraints = IndexRange(
         attributes.domain_size(bke::AttrDomain::Point));
