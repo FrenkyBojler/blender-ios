@@ -67,7 +67,6 @@ namespace blender::ed::transform {
 
 typedef struct TransEdgeMirrorData {
   BMEdge *edge;
-  float mirror_ival;
 } TransEdgeMirrorData;
 
 typedef struct TransVertMirrorData {
@@ -84,7 +83,7 @@ static void transdata_elem_value(const TransInfo * /*t*/,
                                  const float value)
 {
   if (td->val == nullptr) {
-    return;
+    return; 
   }
 
   *td->val = td->ival + value * td->factor;
