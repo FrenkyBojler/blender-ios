@@ -38,7 +38,9 @@ static EnumPropertyItem resolution_mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Menu>("Resolution Mode").static_items(resolution_mode_items);
+  b.add_input<decl::Menu>("Resolution Mode")
+      .static_items(resolution_mode_items)
+      .description("How the voxel size is specified");
   b.add_input<decl::Geometry>("Volume")
       .supported_type(GeometryComponent::Type::Volume)
       .translation_context(BLT_I18NCONTEXT_ID_ID)

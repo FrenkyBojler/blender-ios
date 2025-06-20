@@ -1037,21 +1037,23 @@ class NodeTreeMainUpdater {
         }
         locally_defined_enums.append(&enum_input);
       }
-      for (bNodeSocket *input_socket : node->input_sockets()) {
-        if (!input_socket->is_available()) {
-          continue;
+      else {
+        for (bNodeSocket *input_socket : node->input_sockets()) {
+          if (!input_socket->is_available()) {
+            continue;
+          }
+          if (input_socket->type != SOCK_MENU) {
+            continue;
+          }
+          const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
+              input_socket->runtime->declaration);
+          if (!socket_decl) {
+            continue;
+          }
+          this->set_enum_ptr(*input_socket->default_value_typed<bNodeSocketValueMenu>(),
+                             socket_decl->items.get());
+          locally_defined_enums.append(input_socket);
         }
-        if (input_socket->type != SOCK_MENU) {
-          continue;
-        }
-        const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
-            input_socket->runtime->declaration);
-        if (!socket_decl) {
-          continue;
-        }
-        this->set_enum_ptr(*input_socket->default_value_typed<bNodeSocketValueMenu>(),
-                           socket_decl->items.get());
-        locally_defined_enums.append(input_socket);
       }
 
       /* Clear current enum references. */
