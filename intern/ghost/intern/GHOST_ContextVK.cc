@@ -852,48 +852,19 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT &&
-        format.format == VK_FORMAT_R16G16B16A16_SFLOAT)
-    {
-      r_surfaceFormat = format;
-      return true;
-    }
-  }
+  std::vector<std::pair<VkColorSpaceKHR, VkFormat>> selection_order = {
+      std::make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
+      std::make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
+      std::make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
+      std::make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
+  };
 
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT &&
-        format.format == VK_FORMAT_R16G16B16A16_SFLOAT)
-    {
-      r_surfaceFormat = format;
-      return true;
-    }
-  }
-
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-        format.format == VK_FORMAT_R16G16B16A16_SFLOAT)
-    {
-      r_surfaceFormat = format;
-      return true;
-    }
-  }
-
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-        format.format == VK_FORMAT_R8G8B8A8_UNORM)
-    {
-      r_surfaceFormat = format;
-      return true;
-    }
-  }
-
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-        format.format == VK_FORMAT_B8G8R8A8_UNORM)
-    {
-      r_surfaceFormat = format;
-      return true;
+  for (std::pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
+    for (const VkSurfaceFormatKHR &format : formats) {
+      if (format.colorSpace == pair.first && format.format == pair.second) {
+        r_surfaceFormat = format;
+        return true;
+      }
     }
   }
 

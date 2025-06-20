@@ -228,7 +228,6 @@ class VKDevice : public NonCopyable {
   std::string glsl_frag_patch_;
   std::string glsl_comp_patch_;
   Vector<VKThreadData *> thread_data_;
-  GPUShader *vk_backbuffer_blit_sh_ = nullptr;
 
  public:
   render_graph::VKResourceStateTracker resources;
@@ -460,17 +459,6 @@ class VKDevice : public NonCopyable {
   void memory_statistics_get(int *r_total_mem_kb, int *r_free_mem_kb) const;
   static void debug_print(std::ostream &os, const VKDiscardPool &discard_pool);
   void debug_print();
-
-  /**
-   * Get the shader to blit the backbuffer to the surface.
-   */
-  GPUShader *vk_backbuffer_blit_sh_get()
-  {
-    if (vk_backbuffer_blit_sh_ == nullptr) {
-      vk_backbuffer_blit_sh_ = GPU_shader_create_from_info_name("vk_backbuffer_blit");
-    }
-    return vk_backbuffer_blit_sh_;
-  }
 
   /** \} */
 

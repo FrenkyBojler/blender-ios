@@ -101,7 +101,6 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
       GCaps.hdr_viewport_support = U.experimental.use_vulkan_hdr &&
                                    (swap_chain_format_.format == VK_FORMAT_R16G16B16A16_SFLOAT) &&
                                    ELEM(swap_chain_format_.colorSpace,
-                                        VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT,
                                         VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT,
                                         VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     }
@@ -390,43 +389,27 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   framebuffer.rendering_end(*this);
   GPU_debug_group_begin("BackBuffer.Blit");
 
-  bool surface_is_linear = ELEM(swap_chain_data.surface_format.colorSpace,
-                                VK_COLOR_SPACE_EXTENDED_SRGB_LINEAR_EXT);
-  /* Using a compute shader when color space is linear. VkFormat doesn't
-   * contain sRGB information so regular blitting would not do the sRGB decoding. */
-  if (surface_is_linear) {
-    GPUShader *shader = device.vk_backbuffer_blit_sh_get();
-    Shader::set_framebuffer_srgb_target(true);
-    GPU_shader_bind(shader);
-    state_manager_get().image_bind(color_attachment, 0);
-    state_manager_get().image_bind(&swap_chain_texture, 1);
-    int2 dispatch_size = math::divide_ceil(
-        int2(swap_chain_data.extent.width, swap_chain_data.extent.height), int2(16));
-    VKBackend::get().compute_dispatch(UNPACK2(dispatch_size), 1);
-  }
-  else {
-    render_graph::VKBlitImageNode::CreateInfo blit_image = {};
-    blit_image.src_image = color_attachment->vk_image_handle();
-    blit_image.dst_image = swap_chain_data.image;
-    blit_image.filter = VK_FILTER_LINEAR;
+  render_graph::VKBlitImageNode::CreateInfo blit_image = {};
+  blit_image.src_image = color_attachment->vk_image_handle();
+  blit_image.dst_image = swap_chain_data.image;
+  blit_image.filter = VK_FILTER_LINEAR;
 
-    VkImageBlit &region = blit_image.region;
-    region.srcOffsets[0] = {0, 0, 0};
-    region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
-    region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.srcSubresource.mipLevel = 0;
-    region.srcSubresource.baseArrayLayer = 0;
-    region.srcSubresource.layerCount = 1;
+  VkImageBlit &region = blit_image.region;
+  region.srcOffsets[0] = {0, 0, 0};
+  region.srcOffsets[1] = {color_attachment->width_get(), color_attachment->height_get(), 1};
+  region.srcSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.srcSubresource.mipLevel = 0;
+  region.srcSubresource.baseArrayLayer = 0;
+  region.srcSubresource.layerCount = 1;
 
-    region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
-    region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
-    region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
-    region.dstSubresource.mipLevel = 0;
-    region.dstSubresource.baseArrayLayer = 0;
-    region.dstSubresource.layerCount = 1;
+  region.dstOffsets[0] = {0, int32_t(swap_chain_data.extent.height), 0};
+  region.dstOffsets[1] = {int32_t(swap_chain_data.extent.width), 0, 1};
+  region.dstSubresource.aspectMask = VK_IMAGE_ASPECT_COLOR_BIT;
+  region.dstSubresource.mipLevel = 0;
+  region.dstSubresource.baseArrayLayer = 0;
+  region.dstSubresource.layerCount = 1;
 
-    render_graph.add_node(blit_image);
-  }
+  render_graph.add_node(blit_image);
 
   render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
   synchronization.vk_image = swap_chain_data.image;
