@@ -36,6 +36,8 @@ using hair_constraints::ConstraintBundleItems;
 
 static const std::string position_attr = "position";
 static const std::string rotation_attr = "rotation";
+static const std::string rest_position_attr = "rest_position";
+static const std::string rest_rotation_attr = "rest_rotation";
 static const std::string velocity_attr = "velocity";
 static const std::string angular_velocity_attr = "angular_velocity";
 static const std::string mass_attr = "mass";
@@ -205,6 +207,16 @@ static Field<float3> position()
 static Field<math::Quaternion> rotation()
 {
   return bke::AttributeFieldInput::Create<math::Quaternion>(rotation_attr);
+}
+
+static Field<float3> rest_position()
+{
+  return bke::AttributeFieldInput::Create<float3>(rest_position_attr);
+}
+
+static Field<math::Quaternion> rest_rotation()
+{
+  return bke::AttributeFieldInput::Create<math::Quaternion>(rest_rotation_attr);
 }
 
 static Field<float3> old_position()
@@ -454,6 +466,13 @@ struct Behavior {
   struct {
     Field<float> density = field_constants::constant_field<float>(1000.0f);
   } material;
+
+  struct {
+    Field<float> stretch_compliance = field_constants::constant_field<float>(0.0f);
+    Field<float> stretch_damping = field_constants::constant_field<float>(0.0f);
+    Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
+    Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
+  } rod_constraints;
 };
 
 static Behavior separate_behavior_bundle(const BundlePtr &bundle)
@@ -476,12 +495,10 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
 
 static bool store_hair_rest_shape(GeometryComponent &hair_component)
 {
-  Field<float3> position_field{AttributeFieldInput::Create<float3>("position")};
-  Field<float3> normal_field{std::make_shared<bke::NormalFieldInput>(false, false)};
   return bke::try_capture_fields_on_geometry(hair_component,
-                                             {"rest_position", "rest_normal"},
+                                             {rest_position_attr, rest_rotation_attr},
                                              AttrDomain::Point,
-                                             {position_field, normal_field});
+                                             {field_inputs::position(), field_inputs::rotation()});
 }
 
 /* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
@@ -550,13 +567,24 @@ static bool init_hair_physics(GeometryComponent &component,
 
 /* Create internal stretch/shear and bending constraints. */
 static void generate_elastic_rod_constraints(BundlePtr &bundle,
-                                             const GeometryComponent &hair_component,
-                                             const Field<bool> selection_field)
+                                             const CurveComponent &component,
+                                             const Field<bool> selection_field,
+                                             const Behavior &behavior)
 {
-  GeometrySet stretch_constraints;
-  GeometrySet bending_constraints;
-
-  UNUSED_VARS(hair_component, selection_field);
+  GeometrySet stretch_constraints =
+      geometry::hair_constraints::create_stretch_shear_constraints_from_curves(
+          component,
+          selection_field,
+          behavior.rod_constraints.stretch_compliance,
+          behavior.rod_constraints.stretch_damping,
+          field_inputs::rest_position());
+  GeometrySet bending_constraints =
+      geometry::hair_constraints::create_bend_twist_constraints_from_curves(
+          component,
+          selection_field,
+          behavior.rod_constraints.bend_compliance,
+          behavior.rod_constraints.bend_damping,
+          field_inputs::rest_rotation());
 
   hair_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
   hair_constraints::set_constraints(bundle, ConstraintType::BendTwist, bending_constraints);
@@ -564,16 +592,20 @@ static void generate_elastic_rod_constraints(BundlePtr &bundle,
 
 /* Create root attachment constraints. */
 static void generate_root_attachment_constraints(BundlePtr &bundle,
-                                                 const GeometryComponent &hair_component,
-                                                 const Field<bool> selection_field)
+                                                 const GeometryComponent &component,
+                                                 const Field<bool> selection_field,
+                                                 const Behavior &behavior)
 {
-  GeometrySet position_constraints;
-  GeometrySet rotation_constraints;
+  // GeometrySet position_constraints =
+  //     geometry::hair_constraints::create_position_goal_constraints_from_points(
+  //         component,
+  //         selection_field,
+  //         field_constants::constant_field<float>(0.0f),
+  //         field_constants::constant_field<float>(0.0f), );
+  // GeometrySet rotation_constraints;
 
-  UNUSED_VARS(hair_component, selection_field);
-
-  hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
-  hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
+  // hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
+  // hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
 }
 
 /* Capture motions state attribute for later velocity estimation. */
@@ -1023,8 +1055,9 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     /* Clear any existing constraint data. */
     constraint_bundle = Bundle::create();
-    generate_elastic_rod_constraints(constraint_bundle, hair_curves, selection_field);
-    generate_root_attachment_constraints(constraint_bundle, hair_curves, selection_field);
+    generate_elastic_rod_constraints(constraint_bundle, hair_curves, selection_field, behavior);
+    generate_root_attachment_constraints(
+        constraint_bundle, hair_curves, selection_field, behavior);
   }
 
   IndexMaskMemory memory;
