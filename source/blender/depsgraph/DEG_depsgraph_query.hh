@@ -334,12 +334,12 @@ bool DEG_iterator_dupli_is_visible(const DupliObject *dupli, eEvaluationMode eva
  * \param do_matrix_setup: If false, the temp_object won't have valid
  * object_to_world/world_to_object matrices, and the OB_NEG_SCALE flag will never be set.
  */
-bool DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
-                                         const DupliObject *dupli,
-                                         eEvaluationMode eval_mode,
-                                         bool do_matrix_setup,
-                                         Object *r_temp_object,
-                                         ObjectRuntimeHandle *r_temp_runtime);
+[[nodiscard]] bool DEG_iterator_temp_object_from_dupli(const Object *dupli_parent,
+                                                       const DupliObject *dupli,
+                                                       eEvaluationMode eval_mode,
+                                                       bool do_matrix_setup,
+                                                       Object *r_temp_object,
+                                                       ObjectRuntimeHandle *r_temp_runtime);
 
 /**
  * Frees any property allocated when calling DEG_iterator_temp_object_from_dupli.
