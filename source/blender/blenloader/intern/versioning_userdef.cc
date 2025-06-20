@@ -339,9 +339,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   if (!USER_VERSION_ATLEAST(500, 25)) {
     FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
     FROM_DEFAULT_V4_UCHAR(space_properties.button);
-    FROM_DEFAULT_V4_UCHAR(space_properties.button_title);
-    FROM_DEFAULT_V4_UCHAR(space_properties.button_text);
-    FROM_DEFAULT_V4_UCHAR(space_properties.button_text_hi);
   }
 
   /**
