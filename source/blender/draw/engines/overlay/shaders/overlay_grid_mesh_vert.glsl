@@ -101,12 +101,6 @@ void main()
     finalColor.a *= mix_fade;
   }
 
-  /* Angle fading. */
-  finalColor.a *= 1.0 - square(square(1.0 - abs(view_angle)));
-
-  /* Distance fading. */
-  finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
-
   /* Discard segment if any point has zero alpha.
    * This can create some popping but it is almost unnoticeable and allows better blending with
    * other overlays. */
@@ -115,6 +109,12 @@ void main()
     gl_Position = float4(NAN_FLT);
     return;
   }
+
+  /* Angle fading. */
+  finalColor.a *= smoothstep(-1.0, 1.0, abs(view_angle));
+
+  /* Distance fading. */
+  finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
 
   edgePos = edgeStart = ss_P;
 
