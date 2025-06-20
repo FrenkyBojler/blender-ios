@@ -6,7 +6,7 @@
 
 #include "BKE_attribute_math.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_socket_search_link.hh"
@@ -41,14 +41,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "clamp", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "clamp", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometrySampleIndex *data = MEM_cnew<NodeGeometrySampleIndex>(__func__);
+  NodeGeometrySampleIndex *data = MEM_callocN<NodeGeometrySampleIndex>(__func__);
   data->data_type = CD_PROP_FLOAT;
   data->domain = int8_t(AttrDomain::Point);
   data->clamp = 0;
@@ -252,11 +252,11 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometrySampleIndex", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometrySampleIndex", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

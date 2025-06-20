@@ -13,7 +13,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -43,7 +43,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void ensure_group_geometries(Map<int, std::unique_ptr<GeometrySet>> &geometry_by_group_id,
@@ -362,7 +362,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

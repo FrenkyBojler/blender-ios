@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0 */
 
 #include "scene/shader_nodes.h"
+#include "kernel/svm/types.h"
 #include "scene/colorspace.h"
 #include "scene/constant_fold.h"
 #include "scene/film.h"
@@ -20,6 +21,7 @@
 #include "util/color.h"
 
 #include "util/log.h"
+#include "util/math_base.h"
 #include "util/transform.h"
 
 #include "kernel/svm/color_util.h"
@@ -263,7 +265,6 @@ ImageTextureNode::ImageTextureNode() : ImageSlotTextureNode(get_node_type())
 {
   colorspace = u_colorspace_raw;
   animated = false;
-  tiles.push_back_slow(1001);
 }
 
 ShaderNode *ImageTextureNode::clone(ShaderGraph *graph) const
@@ -289,8 +290,10 @@ void ImageTextureNode::cull_tiles(Scene *scene, ShaderGraph *graph)
   /* Box projection computes its own UVs that always lie in the
    * 1001 tile, so there's no point in loading any others. */
   if (projection == NODE_IMAGE_PROJ_BOX) {
-    tiles.clear();
-    tiles.push_back_slow(1001);
+    if (tiles.size()) {
+      tiles.clear();
+      tiles.push_back_slow(1001);
+    }
     return;
   }
 
@@ -301,8 +304,8 @@ void ImageTextureNode::cull_tiles(Scene *scene, ShaderGraph *graph)
     return;
   }
 
-  /* Only check UVs for tile culling if there are multiple tiles. */
-  if (tiles.size() < 2) {
+  /* Only check UVs for tile culling when using tiles. */
+  if (tiles.size() == 0) {
     return;
   }
 
@@ -396,7 +399,7 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
   if (projection != NODE_IMAGE_PROJ_BOX) {
     /* If there only is one image (a very common case), we encode it as a negative value. */
     int num_nodes;
-    if (handle.num_tiles() == 1) {
+    if (handle.num_tiles() == 0) {
       num_nodes = -handle.svm_slot();
     }
     else {
@@ -429,7 +432,7 @@ void ImageTextureNode::compile(SVMCompiler &compiler)
     }
   }
   else {
-    assert(handle.num_tiles() == 1);
+    assert(handle.num_svm_slots() == 1);
     compiler.add_node(NODE_TEX_IMAGE_BOX,
                       handle.svm_slot(),
                       compiler.encode_uchar4(vector_offset,
@@ -471,7 +474,7 @@ void ImageTextureNode::compile(OSLCompiler &compiler)
                                    alpha_type == IMAGE_ALPHA_IGNORE);
   const bool is_tiled = (filename.find("<UDIM>") != string::npos ||
                          filename.find("<UVTILE>") != string::npos) ||
-                        handle.num_tiles() > 1;
+                        handle.num_tiles() > 0;
 
   compiler.parameter(this, "projection");
   compiler.parameter(this, "projection_blend");
@@ -628,11 +631,6 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 
 /* Sky Texture */
 
-static float2 sky_spherical_coordinates(const float3 dir)
-{
-  return make_float2(acosf(dir.z), atan2f(dir.x, dir.y));
-}
-
 struct SunSky {
   /* sun direction in spherical and cartesian */
   float theta, phi;
@@ -641,118 +639,6 @@ struct SunSky {
   float radiance_x, radiance_y, radiance_z;
   float config_x[9], config_y[9], config_z[9], nishita_data[10];
 };
-
-/* Preetham model */
-static float sky_perez_function(const float lam[6], float theta, const float gamma)
-{
-  return (1.0f + lam[0] * expf(lam[1] / cosf(theta))) *
-         (1.0f + lam[2] * expf(lam[3] * gamma) + lam[4] * cosf(gamma) * cosf(gamma));
-}
-
-static void sky_texture_precompute_preetham(SunSky *sunsky,
-                                            const float3 dir,
-                                            const float turbidity)
-{
-  /*
-   * We re-use the SunSky struct of the new model, to avoid extra variables
-   * zenith_Y/x/y is now radiance_x/y/z
-   * perez_Y/x/y is now config_x/y/z
-   */
-
-  const float2 spherical = sky_spherical_coordinates(dir);
-  const float theta = spherical.x;
-  const float phi = spherical.y;
-
-  sunsky->theta = theta;
-  sunsky->phi = phi;
-
-  const float theta2 = theta * theta;
-  const float theta3 = theta2 * theta;
-  const float T = turbidity;
-  const float T2 = T * T;
-
-  const float chi = (4.0f / 9.0f - T / 120.0f) * (M_PI_F - 2.0f * theta);
-  sunsky->radiance_x = (4.0453f * T - 4.9710f) * tanf(chi) - 0.2155f * T + 2.4192f;
-  sunsky->radiance_x *= 0.06f;
-
-  sunsky->radiance_y = (0.00166f * theta3 - 0.00375f * theta2 + 0.00209f * theta) * T2 +
-                       (-0.02903f * theta3 + 0.06377f * theta2 - 0.03202f * theta + 0.00394f) * T +
-                       (0.11693f * theta3 - 0.21196f * theta2 + 0.06052f * theta + 0.25886f);
-
-  sunsky->radiance_z = (0.00275f * theta3 - 0.00610f * theta2 + 0.00317f * theta) * T2 +
-                       (-0.04214f * theta3 + 0.08970f * theta2 - 0.04153f * theta + 0.00516f) * T +
-                       (0.15346f * theta3 - 0.26756f * theta2 + 0.06670f * theta + 0.26688f);
-
-  sunsky->config_x[0] = (0.1787f * T - 1.4630f);
-  sunsky->config_x[1] = (-0.3554f * T + 0.4275f);
-  sunsky->config_x[2] = (-0.0227f * T + 5.3251f);
-  sunsky->config_x[3] = (0.1206f * T - 2.5771f);
-  sunsky->config_x[4] = (-0.0670f * T + 0.3703f);
-
-  sunsky->config_y[0] = (-0.0193f * T - 0.2592f);
-  sunsky->config_y[1] = (-0.0665f * T + 0.0008f);
-  sunsky->config_y[2] = (-0.0004f * T + 0.2125f);
-  sunsky->config_y[3] = (-0.0641f * T - 0.8989f);
-  sunsky->config_y[4] = (-0.0033f * T + 0.0452f);
-
-  sunsky->config_z[0] = (-0.0167f * T - 0.2608f);
-  sunsky->config_z[1] = (-0.0950f * T + 0.0092f);
-  sunsky->config_z[2] = (-0.0079f * T + 0.2102f);
-  sunsky->config_z[3] = (-0.0441f * T - 1.6537f);
-  sunsky->config_z[4] = (-0.0109f * T + 0.0529f);
-
-  /* unused for old sky model */
-  for (int i = 5; i < 9; i++) {
-    sunsky->config_x[i] = 0.0f;
-    sunsky->config_y[i] = 0.0f;
-    sunsky->config_z[i] = 0.0f;
-  }
-
-  sunsky->radiance_x /= sky_perez_function(sunsky->config_x, 0, theta);
-  sunsky->radiance_y /= sky_perez_function(sunsky->config_y, 0, theta);
-  sunsky->radiance_z /= sky_perez_function(sunsky->config_z, 0, theta);
-}
-
-/* Hosek / Wilkie */
-static void sky_texture_precompute_hosek(SunSky *sunsky,
-                                         const float3 dir,
-                                         float turbidity,
-                                         const float ground_albedo)
-{
-  /* Calculate Sun Direction and save coordinates */
-  const float2 spherical = sky_spherical_coordinates(dir);
-  float theta = spherical.x;
-  const float phi = spherical.y;
-
-  /* Clamp Turbidity */
-  turbidity = clamp(turbidity, 0.0f, 10.0f);
-
-  /* Clamp to Horizon */
-  theta = clamp(theta, 0.0f, M_PI_2_F);
-
-  sunsky->theta = theta;
-  sunsky->phi = phi;
-
-  const float solarElevation = M_PI_2_F - theta;
-
-  /* Initialize Sky Model */
-  SKY_ArHosekSkyModelState *sky_state;
-  sky_state = SKY_arhosek_xyz_skymodelstate_alloc_init(
-      (double)turbidity, (double)ground_albedo, (double)solarElevation);
-
-  /* Copy values from sky_state to SunSky */
-  for (int i = 0; i < 9; ++i) {
-    sunsky->config_x[i] = (float)sky_state->configs[0][i];
-    sunsky->config_y[i] = (float)sky_state->configs[1][i];
-    sunsky->config_z[i] = (float)sky_state->configs[2][i];
-  }
-  sunsky->radiance_x = (float)sky_state->radiances[0];
-  sunsky->radiance_y = (float)sky_state->radiances[1];
-  sunsky->radiance_z = (float)sky_state->radiances[2];
-
-  /* Free sky_state */
-  SKY_arhosekskymodelstate_free(sky_state);
-}
 
 /* Nishita improved */
 static void sky_texture_precompute_nishita(SunSky *sunsky,
@@ -853,14 +739,9 @@ NODE_DEFINE(SkyTextureNode)
   TEXTURE_MAPPING_DEFINE(SkyTextureNode);
 
   static NodeEnum type_enum;
-  type_enum.insert("preetham", NODE_SKY_PREETHAM);
-  type_enum.insert("hosek_wilkie", NODE_SKY_HOSEK);
   type_enum.insert("nishita_improved", NODE_SKY_NISHITA);
   SOCKET_ENUM(sky_type, "Type", type_enum, NODE_SKY_NISHITA);
 
-  SOCKET_VECTOR(sun_direction, "Sun Direction", make_float3(0.0f, 0.0f, 1.0f));
-  SOCKET_FLOAT(turbidity, "Turbidity", 2.2f);
-  SOCKET_FLOAT(ground_albedo, "Ground Albedo", 0.3f);
   SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
   SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
   SOCKET_FLOAT(sun_intensity, "Sun Intensity", 1.0f);
@@ -917,96 +798,48 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   ShaderOutput *color_out = output("Color");
 
   SunSky sunsky;
-  if (sky_type == NODE_SKY_PREETHAM) {
-    sky_texture_precompute_preetham(&sunsky, sun_direction, turbidity);
-  }
-  else if (sky_type == NODE_SKY_HOSEK) {
-    sky_texture_precompute_hosek(&sunsky, sun_direction, turbidity, ground_albedo);
-  }
-  else if (sky_type == NODE_SKY_NISHITA) {
-    /* Clamp altitude to reasonable values.
-     * Below 1m causes numerical issues and above 60km is space. */
-    const float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
+  /* Clamp altitude to reasonable values.
+   * Below 1m causes numerical issues and above 60km is space. */
+  const float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
 
-    sky_texture_precompute_nishita(&sunsky,
-                                   sun_disc,
-                                   get_sun_size(),
-                                   sun_intensity,
-                                   sun_elevation,
-                                   sun_rotation,
-                                   clamped_altitude,
-                                   air_density,
-                                   dust_density);
-    /* precomputed texture image parameters */
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    ImageParams impar;
-    impar.interpolation = INTERPOLATION_LINEAR;
-    impar.extension = EXTENSION_EXTEND;
+  sky_texture_precompute_nishita(&sunsky,
+                                 sun_disc,
+                                 get_sun_size(),
+                                 sun_intensity,
+                                 sun_elevation,
+                                 sun_rotation,
+                                 clamped_altitude,
+                                 air_density,
+                                 dust_density);
+  /* precomputed texture image parameters */
+  ImageManager *image_manager = compiler.scene->image_manager.get();
+  ImageParams impar;
+  impar.interpolation = INTERPOLATION_LINEAR;
+  impar.extension = EXTENSION_EXTEND;
 
-    /* precompute sky texture */
-    if (handle.empty()) {
-      unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
-          sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
-      handle = image_manager->add_image(std::move(loader), impar);
-    }
-  }
-  else {
-    assert(false);
+  /* precompute sky texture */
+  if (handle.empty()) {
+    unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
+        sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
+    handle = image_manager->add_image(std::move(loader), impar);
   }
 
   const int vector_offset = tex_mapping.compile_begin(compiler, vector_in);
 
   compiler.stack_assign(color_out);
   compiler.add_node(NODE_TEX_SKY, vector_offset, compiler.stack_assign(color_out), sky_type);
-  /* nishita doesn't need this data */
-  if (sky_type != NODE_SKY_NISHITA) {
-    compiler.add_node(__float_as_uint(sunsky.phi),
-                      __float_as_uint(sunsky.theta),
-                      __float_as_uint(sunsky.radiance_x),
-                      __float_as_uint(sunsky.radiance_y));
-    compiler.add_node(__float_as_uint(sunsky.radiance_z),
-                      __float_as_uint(sunsky.config_x[0]),
-                      __float_as_uint(sunsky.config_x[1]),
-                      __float_as_uint(sunsky.config_x[2]));
-    compiler.add_node(__float_as_uint(sunsky.config_x[3]),
-                      __float_as_uint(sunsky.config_x[4]),
-                      __float_as_uint(sunsky.config_x[5]),
-                      __float_as_uint(sunsky.config_x[6]));
-    compiler.add_node(__float_as_uint(sunsky.config_x[7]),
-                      __float_as_uint(sunsky.config_x[8]),
-                      __float_as_uint(sunsky.config_y[0]),
-                      __float_as_uint(sunsky.config_y[1]));
-    compiler.add_node(__float_as_uint(sunsky.config_y[2]),
-                      __float_as_uint(sunsky.config_y[3]),
-                      __float_as_uint(sunsky.config_y[4]),
-                      __float_as_uint(sunsky.config_y[5]));
-    compiler.add_node(__float_as_uint(sunsky.config_y[6]),
-                      __float_as_uint(sunsky.config_y[7]),
-                      __float_as_uint(sunsky.config_y[8]),
-                      __float_as_uint(sunsky.config_z[0]));
-    compiler.add_node(__float_as_uint(sunsky.config_z[1]),
-                      __float_as_uint(sunsky.config_z[2]),
-                      __float_as_uint(sunsky.config_z[3]),
-                      __float_as_uint(sunsky.config_z[4]));
-    compiler.add_node(__float_as_uint(sunsky.config_z[5]),
-                      __float_as_uint(sunsky.config_z[6]),
-                      __float_as_uint(sunsky.config_z[7]),
-                      __float_as_uint(sunsky.config_z[8]));
-  }
-  else {
-    compiler.add_node(__float_as_uint(sunsky.nishita_data[0]),
-                      __float_as_uint(sunsky.nishita_data[1]),
-                      __float_as_uint(sunsky.nishita_data[2]),
-                      __float_as_uint(sunsky.nishita_data[3]));
-    compiler.add_node(__float_as_uint(sunsky.nishita_data[4]),
-                      __float_as_uint(sunsky.nishita_data[5]),
-                      __float_as_uint(sunsky.nishita_data[6]),
-                      __float_as_uint(sunsky.nishita_data[7]));
-    compiler.add_node(__float_as_uint(sunsky.nishita_data[8]),
-                      __float_as_uint(sunsky.nishita_data[9]),
-                      handle.svm_slot(),
-                      0);
-  }
+  compiler.add_node(__float_as_uint(sunsky.nishita_data[0]),
+                    __float_as_uint(sunsky.nishita_data[1]),
+                    __float_as_uint(sunsky.nishita_data[2]),
+                    __float_as_uint(sunsky.nishita_data[3]));
+  compiler.add_node(__float_as_uint(sunsky.nishita_data[4]),
+                    __float_as_uint(sunsky.nishita_data[5]),
+                    __float_as_uint(sunsky.nishita_data[6]),
+                    __float_as_uint(sunsky.nishita_data[7]));
+  compiler.add_node(__float_as_uint(sunsky.nishita_data[8]),
+                    __float_as_uint(sunsky.nishita_data[9]),
+                    handle.svm_slot(),
+                    0);
 
   tex_mapping.compile_end(compiler, vector_in, vector_offset);
 }
@@ -1016,41 +849,30 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   tex_mapping.compile(compiler);
 
   SunSky sunsky;
-  if (sky_type == NODE_SKY_PREETHAM) {
-    sky_texture_precompute_preetham(&sunsky, sun_direction, turbidity);
-  }
-  else if (sky_type == NODE_SKY_HOSEK) {
-    sky_texture_precompute_hosek(&sunsky, sun_direction, turbidity, ground_albedo);
-  }
-  else if (sky_type == NODE_SKY_NISHITA) {
-    /* Clamp altitude to reasonable values.
-     * Below 1m causes numerical issues and above 60km is space. */
-    const float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
+  /* Clamp altitude to reasonable values.
+   * Below 1m causes numerical issues and above 60km is space. */
+  const float clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
 
-    sky_texture_precompute_nishita(&sunsky,
-                                   sun_disc,
-                                   get_sun_size(),
-                                   sun_intensity,
-                                   sun_elevation,
-                                   sun_rotation,
-                                   clamped_altitude,
-                                   air_density,
-                                   dust_density);
-    /* precomputed texture image parameters */
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    ImageParams impar;
-    impar.interpolation = INTERPOLATION_LINEAR;
-    impar.extension = EXTENSION_EXTEND;
+  sky_texture_precompute_nishita(&sunsky,
+                                 sun_disc,
+                                 get_sun_size(),
+                                 sun_intensity,
+                                 sun_elevation,
+                                 sun_rotation,
+                                 clamped_altitude,
+                                 air_density,
+                                 dust_density);
+  /* precomputed texture image parameters */
+  ImageManager *image_manager = compiler.scene->image_manager.get();
+  ImageParams impar;
+  impar.interpolation = INTERPOLATION_LINEAR;
+  impar.extension = EXTENSION_EXTEND;
 
-    /* precompute sky texture */
-    if (handle.empty()) {
-      unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
-          sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
-      handle = image_manager->add_image(std::move(loader), impar);
-    }
-  }
-  else {
-    assert(false);
+  /* precompute sky texture */
+  if (handle.empty()) {
+    unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
+        sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
+    handle = image_manager->add_image(std::move(loader), impar);
   }
 
   compiler.parameter(this, "sky_type");
@@ -1062,10 +884,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   compiler.parameter_array("config_y", sunsky.config_y, 9);
   compiler.parameter_array("config_z", sunsky.config_z, 9);
   compiler.parameter_array("nishita_data", sunsky.nishita_data, 10);
-  /* nishita texture */
-  if (sky_type == NODE_SKY_NISHITA) {
-    compiler.parameter_texture("filename", handle);
-  }
+  compiler.parameter_texture("filename", handle);
   compiler.add(this, "node_sky_texture");
 }
 
@@ -1851,156 +1670,6 @@ void BrickTextureNode::compile(OSLCompiler &compiler)
   compiler.parameter(this, "squash");
   compiler.parameter(this, "squash_frequency");
   compiler.add(this, "node_brick_texture");
-}
-
-/* Point Density Texture */
-
-NODE_DEFINE(PointDensityTextureNode)
-{
-  NodeType *type = NodeType::add("point_density_texture", create, NodeType::SHADER);
-
-  SOCKET_STRING(filename, "Filename", ustring());
-
-  static NodeEnum space_enum;
-  space_enum.insert("object", NODE_TEX_VOXEL_SPACE_OBJECT);
-  space_enum.insert("world", NODE_TEX_VOXEL_SPACE_WORLD);
-  SOCKET_ENUM(space, "Space", space_enum, NODE_TEX_VOXEL_SPACE_OBJECT);
-
-  static NodeEnum interpolation_enum;
-  interpolation_enum.insert("closest", INTERPOLATION_CLOSEST);
-  interpolation_enum.insert("linear", INTERPOLATION_LINEAR);
-  interpolation_enum.insert("cubic", INTERPOLATION_CUBIC);
-  interpolation_enum.insert("smart", INTERPOLATION_SMART);
-  SOCKET_ENUM(interpolation, "Interpolation", interpolation_enum, INTERPOLATION_LINEAR);
-
-  SOCKET_TRANSFORM(tfm, "Transform", transform_identity());
-
-  SOCKET_IN_POINT(vector, "Vector", zero_float3(), SocketType::LINK_POSITION);
-
-  SOCKET_OUT_FLOAT(density, "Density");
-  SOCKET_OUT_COLOR(color, "Color");
-
-  return type;
-}
-
-PointDensityTextureNode::PointDensityTextureNode() : ShaderNode(get_node_type()) {}
-
-PointDensityTextureNode::~PointDensityTextureNode() = default;
-
-ShaderNode *PointDensityTextureNode::clone(ShaderGraph *graph) const
-{
-  /* Increase image user count for new node. We need to ensure to not call
-   * add_image again, to work around access of freed data on the Blender
-   * side. A better solution should be found to avoid this. */
-  PointDensityTextureNode *node = graph->create_node<PointDensityTextureNode>(*this);
-  node->handle = handle; /* TODO: not needed? */
-  return node;
-}
-
-void PointDensityTextureNode::attributes(Shader *shader, AttributeRequestSet *attributes)
-{
-  if (shader->has_volume) {
-    attributes->add(ATTR_STD_GENERATED_TRANSFORM);
-  }
-
-  ShaderNode::attributes(shader, attributes);
-}
-
-ImageParams PointDensityTextureNode::image_params() const
-{
-  ImageParams params;
-  params.interpolation = interpolation;
-  return params;
-}
-
-void PointDensityTextureNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *vector_in = input("Vector");
-  ShaderOutput *density_out = output("Density");
-  ShaderOutput *color_out = output("Color");
-
-  const bool use_density = !density_out->links.empty();
-  const bool use_color = !color_out->links.empty();
-
-  if (!(use_density || use_color)) {
-    return;
-  }
-
-  /* Point Density is only supported for volume shaders. */
-  if (compiler.output_type() != SHADER_TYPE_VOLUME) {
-    if (use_density) {
-      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
-    }
-    if (use_color) {
-      compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
-      compiler.add_node(NODE_VALUE_V, zero_float3());
-    }
-    return;
-  }
-
-  if (handle.empty()) {
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    handle = image_manager->add_image(filename.string(), image_params());
-  }
-
-  const int slot = handle.svm_slot();
-  if (slot != -1) {
-    compiler.stack_assign(vector_in);
-    compiler.add_node(NODE_TEX_VOXEL,
-                      slot,
-                      compiler.encode_uchar4(compiler.stack_assign(vector_in),
-                                             compiler.stack_assign_if_linked(density_out),
-                                             compiler.stack_assign_if_linked(color_out),
-                                             space));
-    if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
-      compiler.add_node(tfm.x);
-      compiler.add_node(tfm.y);
-      compiler.add_node(tfm.z);
-    }
-  }
-  else {
-    if (use_density) {
-      compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(density_out));
-    }
-    if (use_color) {
-      compiler.add_node(NODE_VALUE_V, compiler.stack_assign(color_out));
-      compiler.add_node(
-          NODE_VALUE_V,
-          make_float3(TEX_IMAGE_MISSING_R, TEX_IMAGE_MISSING_G, TEX_IMAGE_MISSING_B));
-    }
-  }
-}
-
-void PointDensityTextureNode::compile(OSLCompiler &compiler)
-{
-  ShaderOutput *density_out = output("Density");
-  ShaderOutput *color_out = output("Color");
-
-  const bool use_density = !density_out->links.empty();
-  const bool use_color = !color_out->links.empty();
-
-  if (!(use_density || use_color)) {
-    return;
-  }
-
-  /* Point Density is only supported for volume shaders. */
-  if (compiler.output_type() != SHADER_TYPE_VOLUME) {
-    compiler.add(this, "node_voxel_texture_zero");
-    return;
-  }
-
-  if (handle.empty()) {
-    ImageManager *image_manager = compiler.scene->image_manager.get();
-    handle = image_manager->add_image(filename.string(), image_params());
-  }
-
-  compiler.parameter_texture("filename", handle);
-  if (space == NODE_TEX_VOXEL_SPACE_WORLD) {
-    compiler.parameter("mapping", tfm);
-    compiler.parameter("use_mapping", 1);
-  }
-  compiler.parameter(this, "interpolation");
-  compiler.add(this, "node_voxel_texture");
 }
 
 /* Normal */
@@ -3223,6 +2892,7 @@ NODE_DEFINE(EmissionNode)
   SOCKET_IN_COLOR(color, "Color", make_float3(0.8f, 0.8f, 0.8f));
   SOCKET_IN_FLOAT(strength, "Strength", 10.0f);
   SOCKET_IN_FLOAT(surface_mix_weight, "SurfaceMixWeight", 0.0f, SocketType::SVM_INTERNAL);
+  SOCKET_IN_FLOAT(volume_mix_weight, "VolumeMixWeight", 0.0f, SocketType::SVM_INTERNAL);
 
   SOCKET_OUT_CLOSURE(emission, "Emission");
 
@@ -3509,6 +3179,11 @@ NODE_DEFINE(ScatterVolumeNode)
   return type;
 }
 
+ScatterVolumeNode::ScatterVolumeNode(const NodeType *node_type) : VolumeNode(node_type)
+{
+  closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
+}
+
 ScatterVolumeNode::ScatterVolumeNode() : VolumeNode(get_node_type())
 {
   closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
@@ -3544,6 +3219,111 @@ void ScatterVolumeNode::compile(OSLCompiler &compiler)
 {
   compiler.parameter(this, "phase");
   compiler.add(this, "node_scatter_volume");
+}
+
+/* Volume Coefficients Closure */
+
+NODE_DEFINE(VolumeCoefficientsNode)
+{
+  NodeType *type = NodeType::add("volume_coefficients", create, NodeType::SHADER);
+
+  SOCKET_IN_VECTOR(scatter_coeffs, "Scatter Coefficients", make_float3(1.0f, 1.0f, 1.0f));
+  SOCKET_IN_VECTOR(absorption_coeffs, "Absorption Coefficients", make_float3(1.0f, 1.0f, 1.0f));
+  SOCKET_IN_FLOAT(anisotropy, "Anisotropy", 0.0f);
+  SOCKET_IN_FLOAT(IOR, "IOR", 1.33f);
+  SOCKET_IN_FLOAT(backscatter, "Backscatter", 0.1f);
+  SOCKET_IN_FLOAT(alpha, "Alpha", 0.5f);
+  SOCKET_IN_FLOAT(diameter, "Diameter", 20.0f);
+  SOCKET_IN_VECTOR(emission_coeffs, "Emission Coefficients", make_float3(0.0f, 0.0f, 0.0f));
+
+  static NodeEnum phase_enum;
+  phase_enum.insert("Henyey-Greenstein", CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID);
+  phase_enum.insert("Fournier-Forand", CLOSURE_VOLUME_FOURNIER_FORAND_ID);
+  phase_enum.insert("Draine", CLOSURE_VOLUME_DRAINE_ID);
+  phase_enum.insert("Rayleigh", CLOSURE_VOLUME_RAYLEIGH_ID);
+  phase_enum.insert("Mie", CLOSURE_VOLUME_MIE_ID);
+  SOCKET_ENUM(phase, "Phase", phase_enum, CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID);
+
+  SOCKET_IN_FLOAT(volume_mix_weight, "VolumeMixWeight", 0.0f, SocketType::SVM_INTERNAL);
+
+  SOCKET_OUT_CLOSURE(volume, "Volume");
+
+  return type;
+}
+
+VolumeCoefficientsNode::VolumeCoefficientsNode() : ScatterVolumeNode(get_node_type())
+{
+  closure = CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID;
+}
+
+void VolumeCoefficientsNode::compile(SVMCompiler &compiler)
+{
+  closure = phase;
+  ShaderInput *param1 = nullptr;
+  ShaderInput *param2 = nullptr;
+
+  switch (phase) {
+    case CLOSURE_VOLUME_HENYEY_GREENSTEIN_ID:
+      param1 = input("Anisotropy");
+      break;
+    case CLOSURE_VOLUME_FOURNIER_FORAND_ID:
+      param1 = input("IOR");
+      param2 = input("Backscatter");
+      break;
+    case CLOSURE_VOLUME_RAYLEIGH_ID:
+      break;
+    case CLOSURE_VOLUME_DRAINE_ID:
+      param1 = input("Anisotropy");
+      param2 = input("Alpha");
+      break;
+    case CLOSURE_VOLUME_MIE_ID:
+      param1 = input("Diameter");
+      break;
+    default:
+      assert(false);
+      break;
+  }
+  ShaderInput *coeffs_in = input("Scatter Coefficients");
+  ShaderInput *absorption_coeffs_in = input("Absorption Coefficients");
+  ShaderInput *emission_coeffs_in = input("Emission Coefficients");
+
+  if (coeffs_in->link) {
+    compiler.add_node(NODE_CLOSURE_WEIGHT, compiler.stack_assign(coeffs_in));
+  }
+  else {
+    compiler.add_node(NODE_CLOSURE_SET_WEIGHT, scatter_coeffs);
+  }
+
+  const uint mix_weight_ofs = compiler.closure_mix_weight_offset();
+
+  if (param2 == nullptr) {
+    /* More efficient packing if we don't need the second parameter. */
+    const uint param1_ofs = (param1) ? compiler.stack_assign_if_linked(param1) : SVM_STACK_INVALID;
+    compiler.add_node(NODE_VOLUME_COEFFICIENTS,
+                      compiler.encode_uchar4(closure, 0, param1_ofs, mix_weight_ofs),
+                      __float_as_int((param1) ? get_float(param1->socket_type) : 0.0f),
+                      compiler.encode_uchar4(compiler.stack_assign(absorption_coeffs_in),
+                                             compiler.stack_assign(emission_coeffs_in),
+                                             0,
+                                             0));
+  }
+  else {
+    const uint param1_ofs = (param1) ? compiler.stack_assign(param1) : SVM_STACK_INVALID;
+    const uint param2_ofs = (param2) ? compiler.stack_assign(param2) : SVM_STACK_INVALID;
+    compiler.add_node(NODE_VOLUME_COEFFICIENTS,
+                      compiler.encode_uchar4(closure, 0, param1_ofs, mix_weight_ofs),
+                      param2_ofs,
+                      compiler.encode_uchar4(compiler.stack_assign(absorption_coeffs_in),
+                                             compiler.stack_assign(emission_coeffs_in),
+                                             0,
+                                             0));
+  }
+}
+
+void VolumeCoefficientsNode::compile(OSLCompiler &compiler)
+{
+  compiler.parameter(this, "phase");
+  compiler.add(this, "node_volume_coefficients");
 }
 
 /* Principled Volume Closure */
@@ -3947,32 +3727,38 @@ void GeometryNode::compile(SVMCompiler &compiler)
 
   out = output("Position");
   if (!out->links.empty()) {
-    compiler.add_node(geom_node, NODE_GEOM_P, compiler.stack_assign(out));
+    compiler.add_node(
+        geom_node, NODE_GEOM_P, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
   }
 
   out = output("Normal");
   if (!out->links.empty()) {
-    compiler.add_node(geom_node, NODE_GEOM_N, compiler.stack_assign(out));
+    compiler.add_node(
+        geom_node, NODE_GEOM_N, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
   }
 
   out = output("Tangent");
   if (!out->links.empty()) {
-    compiler.add_node(geom_node, NODE_GEOM_T, compiler.stack_assign(out));
+    compiler.add_node(
+        geom_node, NODE_GEOM_T, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
   }
 
   out = output("True Normal");
   if (!out->links.empty()) {
-    compiler.add_node(geom_node, NODE_GEOM_Ng, compiler.stack_assign(out));
+    compiler.add_node(
+        geom_node, NODE_GEOM_Ng, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
   }
 
   out = output("Incoming");
   if (!out->links.empty()) {
-    compiler.add_node(geom_node, NODE_GEOM_I, compiler.stack_assign(out));
+    compiler.add_node(
+        geom_node, NODE_GEOM_I, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
   }
 
   out = output("Parametric");
   if (!out->links.empty()) {
-    compiler.add_node(geom_node, NODE_GEOM_uv, compiler.stack_assign(out));
+    compiler.add_node(
+        geom_node, NODE_GEOM_uv, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
   }
 
   out = output("Backfacing");
@@ -3983,8 +3769,10 @@ void GeometryNode::compile(SVMCompiler &compiler)
   out = output("Pointiness");
   if (!out->links.empty()) {
     if (compiler.output_type() != SHADER_TYPE_VOLUME) {
-      compiler.add_node(
-          attr_node, ATTR_STD_POINTINESS, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+      compiler.add_node(attr_node,
+                        ATTR_STD_POINTINESS,
+                        compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                        __float_as_uint(bump_filter_width));
     }
     else {
       compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(out));
@@ -3996,8 +3784,8 @@ void GeometryNode::compile(SVMCompiler &compiler)
     if (compiler.output_type() != SHADER_TYPE_VOLUME) {
       compiler.add_node(attr_node,
                         ATTR_STD_RANDOM_PER_ISLAND,
-                        compiler.stack_assign(out),
-                        NODE_ATTR_OUTPUT_FLOAT);
+                        compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                        __float_as_uint(bump_filter_width));
     }
     else {
       compiler.add_node(NODE_VALUE_F, __float_as_int(0.0f), compiler.stack_assign(out));
@@ -4016,6 +3804,7 @@ void GeometryNode::compile(OSLCompiler &compiler)
   else {
     compiler.parameter("bump_offset", "center");
   }
+  compiler.parameter("bump_filter_width", bump_filter_width);
 
   compiler.add(this, "node_geometry");
 }
@@ -4088,41 +3877,65 @@ void TextureCoordinateNode::compile(SVMCompiler &compiler)
   out = output("Generated");
   if (!out->links.empty()) {
     if (compiler.background) {
-      compiler.add_node(geom_node, NODE_GEOM_P, compiler.stack_assign(out));
+      compiler.add_node(
+          geom_node, NODE_GEOM_P, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
     }
     else {
       if (from_dupli) {
-        compiler.add_node(texco_node, NODE_TEXCO_DUPLI_GENERATED, compiler.stack_assign(out));
+        compiler.add_node(texco_node,
+                          NODE_TEXCO_DUPLI_GENERATED,
+                          compiler.stack_assign(out),
+                          __float_as_uint(bump_filter_width));
       }
       else if (compiler.output_type() == SHADER_TYPE_VOLUME) {
-        compiler.add_node(texco_node, NODE_TEXCO_VOLUME_GENERATED, compiler.stack_assign(out));
+        compiler.add_node(texco_node,
+                          NODE_TEXCO_VOLUME_GENERATED,
+                          compiler.stack_assign(out),
+                          __float_as_uint(bump_filter_width));
       }
       else {
         const int attr = compiler.attribute(ATTR_STD_GENERATED);
-        compiler.add_node(attr_node, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT3);
+        compiler.add_node(
+            attr_node,
+            attr,
+            compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT3),
+            __float_as_uint(bump_filter_width));
       }
     }
   }
 
   out = output("Normal");
   if (!out->links.empty()) {
-    compiler.add_node(texco_node, NODE_TEXCO_NORMAL, compiler.stack_assign(out));
+    compiler.add_node(texco_node,
+                      NODE_TEXCO_NORMAL,
+                      compiler.stack_assign(out),
+                      __float_as_uint(bump_filter_width));
   }
 
   out = output("UV");
   if (!out->links.empty()) {
     if (from_dupli) {
-      compiler.add_node(texco_node, NODE_TEXCO_DUPLI_UV, compiler.stack_assign(out));
+      compiler.add_node(texco_node,
+                        NODE_TEXCO_DUPLI_UV,
+                        compiler.stack_assign(out),
+                        __float_as_uint(bump_filter_width));
     }
     else {
       const int attr = compiler.attribute(ATTR_STD_UV);
-      compiler.add_node(attr_node, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT3);
+      compiler.add_node(
+          attr_node,
+          attr,
+          compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT3),
+          __float_as_uint(bump_filter_width));
     }
   }
 
   out = output("Object");
   if (!out->links.empty()) {
-    compiler.add_node(texco_node, NODE_TEXCO_OBJECT, compiler.stack_assign(out), use_transform);
+    compiler.add_node(texco_node,
+                      (use_transform) ? NODE_TEXCO_OBJECT_WITH_TRANSFORM : NODE_TEXCO_OBJECT,
+                      compiler.stack_assign(out),
+                      __float_as_uint(bump_filter_width));
     if (use_transform) {
       const Transform ob_itfm = transform_inverse(ob_tfm);
       compiler.add_node(ob_itfm.x);
@@ -4133,21 +3946,31 @@ void TextureCoordinateNode::compile(SVMCompiler &compiler)
 
   out = output("Camera");
   if (!out->links.empty()) {
-    compiler.add_node(texco_node, NODE_TEXCO_CAMERA, compiler.stack_assign(out));
+    compiler.add_node(texco_node,
+                      NODE_TEXCO_CAMERA,
+                      compiler.stack_assign(out),
+                      __float_as_uint(bump_filter_width));
   }
 
   out = output("Window");
   if (!out->links.empty()) {
-    compiler.add_node(texco_node, NODE_TEXCO_WINDOW, compiler.stack_assign(out));
+    compiler.add_node(texco_node,
+                      NODE_TEXCO_WINDOW,
+                      compiler.stack_assign(out),
+                      __float_as_uint(bump_filter_width));
   }
 
   out = output("Reflection");
   if (!out->links.empty()) {
     if (compiler.background) {
-      compiler.add_node(geom_node, NODE_GEOM_I, compiler.stack_assign(out));
+      compiler.add_node(
+          geom_node, NODE_GEOM_I, compiler.stack_assign(out), __float_as_uint(bump_filter_width));
     }
     else {
-      compiler.add_node(texco_node, NODE_TEXCO_REFLECTION, compiler.stack_assign(out));
+      compiler.add_node(texco_node,
+                        NODE_TEXCO_REFLECTION,
+                        compiler.stack_assign(out),
+                        __float_as_uint(bump_filter_width));
     }
   }
 }
@@ -4163,6 +3986,7 @@ void TextureCoordinateNode::compile(OSLCompiler &compiler)
   else {
     compiler.parameter("bump_offset", "center");
   }
+  compiler.parameter("bump_filter_width", bump_filter_width);
 
   if (compiler.background) {
     compiler.parameter("is_background", true);
@@ -4231,7 +4055,10 @@ void UVMapNode::compile(SVMCompiler &compiler)
 
   if (!out->links.empty()) {
     if (from_dupli) {
-      compiler.add_node(texco_node, NODE_TEXCO_DUPLI_UV, compiler.stack_assign(out));
+      compiler.add_node(texco_node,
+                        NODE_TEXCO_DUPLI_UV,
+                        compiler.stack_assign(out),
+                        __float_as_uint(bump_filter_width));
     }
     else {
       if (!attribute.empty()) {
@@ -4241,7 +4068,11 @@ void UVMapNode::compile(SVMCompiler &compiler)
         attr = compiler.attribute(ATTR_STD_UV);
       }
 
-      compiler.add_node(attr_node, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT3);
+      compiler.add_node(
+          attr_node,
+          attr,
+          compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT3),
+          __float_as_uint(bump_filter_width));
     }
   }
 }
@@ -4257,6 +4088,7 @@ void UVMapNode::compile(OSLCompiler &compiler)
   else {
     compiler.parameter("bump_offset", "center");
   }
+  compiler.parameter("bump_filter_width", bump_filter_width);
 
   compiler.parameter(this, "from_dupli");
   compiler.parameter(this, "attribute");
@@ -4522,8 +4354,9 @@ void ParticleInfoNode::attributes(Shader *shader, AttributeRequestSet *attribute
     attributes->add(ATTR_STD_PARTICLE);
   }
 #if 0 /* not yet supported */
-  if (!output("Rotation")->links.empty())
+  if (!output("Rotation")->links.empty()) {
     attributes->add(ATTR_STD_PARTICLE);
+  }
 #endif
   if (!output("Size")->links.empty()) {
     attributes->add(ATTR_STD_PARTICLE);
@@ -4648,13 +4481,19 @@ void HairInfoNode::compile(SVMCompiler &compiler)
   out = output("Intercept");
   if (!out->links.empty()) {
     const int attr = compiler.attribute(ATTR_STD_CURVE_INTERCEPT);
-    compiler.add_node(NODE_ATTR, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+    compiler.add_node(NODE_ATTR,
+                      attr,
+                      compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                      __float_as_uint(0.0f));
   }
 
   out = output("Length");
   if (!out->links.empty()) {
     const int attr = compiler.attribute(ATTR_STD_CURVE_LENGTH);
-    compiler.add_node(NODE_ATTR, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+    compiler.add_node(NODE_ATTR,
+                      attr,
+                      compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                      __float_as_uint(0.0f));
   }
 
   out = output("Thickness");
@@ -4670,7 +4509,10 @@ void HairInfoNode::compile(SVMCompiler &compiler)
   out = output("Random");
   if (!out->links.empty()) {
     const int attr = compiler.attribute(ATTR_STD_CURVE_RANDOM);
-    compiler.add_node(NODE_ATTR, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+    compiler.add_node(NODE_ATTR,
+                      attr,
+                      compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                      __float_as_uint(0.0f));
   }
 }
 
@@ -4722,7 +4564,10 @@ void PointInfoNode::compile(SVMCompiler &compiler)
   out = output("Random");
   if (!out->links.empty()) {
     const int attr = compiler.attribute(ATTR_STD_POINT_RANDOM);
-    compiler.add_node(NODE_ATTR, attr, compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT);
+    compiler.add_node(NODE_ATTR,
+                      attr,
+                      compiler.encode_uchar4(compiler.stack_assign(out), NODE_ATTR_OUTPUT_FLOAT),
+                      __float_as_uint(0.0f));
   }
 }
 
@@ -4856,8 +4701,11 @@ void VertexColorNode::compile(SVMCompiler &compiler)
     node = NODE_VERTEX_COLOR;
   }
 
-  compiler.add_node(
-      node, layer_id, compiler.stack_assign(color_out), compiler.stack_assign(alpha_out));
+  compiler.add_node(node,
+                    compiler.encode_uchar4(layer_id,
+                                           compiler.stack_assign(color_out),
+                                           compiler.stack_assign(alpha_out)),
+                    __float_as_uint(bump_filter_width));
 }
 
 void VertexColorNode::compile(OSLCompiler &compiler)
@@ -4871,6 +4719,7 @@ void VertexColorNode::compile(OSLCompiler &compiler)
   else {
     compiler.parameter("bump_offset", "center");
   }
+  compiler.parameter("bump_filter_width", bump_filter_width);
 
   if (layer_name.empty()) {
     compiler.parameter("layer_name", ustring("geom:vertex_color"));
@@ -5508,52 +5357,6 @@ void CombineColorNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_combine_color");
 }
 
-/* Combine RGB */
-
-NODE_DEFINE(CombineRGBNode)
-{
-  NodeType *type = NodeType::add("combine_rgb", create, NodeType::SHADER);
-
-  SOCKET_IN_FLOAT(r, "R", 0.0f);
-  SOCKET_IN_FLOAT(g, "G", 0.0f);
-  SOCKET_IN_FLOAT(b, "B", 0.0f);
-
-  SOCKET_OUT_COLOR(image, "Image");
-
-  return type;
-}
-
-CombineRGBNode::CombineRGBNode() : ShaderNode(get_node_type()) {}
-
-void CombineRGBNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    folder.make_constant(make_float3(r, g, b));
-  }
-}
-
-void CombineRGBNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *red_in = input("R");
-  ShaderInput *green_in = input("G");
-  ShaderInput *blue_in = input("B");
-  ShaderOutput *color_out = output("Image");
-
-  compiler.add_node(
-      NODE_COMBINE_VECTOR, compiler.stack_assign(red_in), 0, compiler.stack_assign(color_out));
-
-  compiler.add_node(
-      NODE_COMBINE_VECTOR, compiler.stack_assign(green_in), 1, compiler.stack_assign(color_out));
-
-  compiler.add_node(
-      NODE_COMBINE_VECTOR, compiler.stack_assign(blue_in), 2, compiler.stack_assign(color_out));
-}
-
-void CombineRGBNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_combine_rgb");
-}
-
 /* Combine XYZ */
 
 NODE_DEFINE(CombineXYZNode)
@@ -5598,49 +5401,6 @@ void CombineXYZNode::compile(SVMCompiler &compiler)
 void CombineXYZNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_combine_xyz");
-}
-
-/* Combine HSV */
-
-NODE_DEFINE(CombineHSVNode)
-{
-  NodeType *type = NodeType::add("combine_hsv", create, NodeType::SHADER);
-
-  SOCKET_IN_FLOAT(h, "H", 0.0f);
-  SOCKET_IN_FLOAT(s, "S", 0.0f);
-  SOCKET_IN_FLOAT(v, "V", 0.0f);
-
-  SOCKET_OUT_COLOR(color, "Color");
-
-  return type;
-}
-
-CombineHSVNode::CombineHSVNode() : ShaderNode(get_node_type()) {}
-
-void CombineHSVNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    folder.make_constant(hsv_to_rgb(make_float3(h, s, v)));
-  }
-}
-
-void CombineHSVNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *hue_in = input("H");
-  ShaderInput *saturation_in = input("S");
-  ShaderInput *value_in = input("V");
-  ShaderOutput *color_out = output("Color");
-
-  compiler.add_node(NODE_COMBINE_HSV,
-                    compiler.stack_assign(hue_in),
-                    compiler.stack_assign(saturation_in),
-                    compiler.stack_assign(value_in));
-  compiler.add_node(NODE_COMBINE_HSV, compiler.stack_assign(color_out));
-}
-
-void CombineHSVNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_combine_hsv");
 }
 
 /* Gamma */
@@ -5800,57 +5560,6 @@ void SeparateColorNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_separate_color");
 }
 
-/* Separate RGB */
-
-NODE_DEFINE(SeparateRGBNode)
-{
-  NodeType *type = NodeType::add("separate_rgb", create, NodeType::SHADER);
-
-  SOCKET_IN_COLOR(color, "Image", zero_float3());
-
-  SOCKET_OUT_FLOAT(r, "R");
-  SOCKET_OUT_FLOAT(g, "G");
-  SOCKET_OUT_FLOAT(b, "B");
-
-  return type;
-}
-
-SeparateRGBNode::SeparateRGBNode() : ShaderNode(get_node_type()) {}
-
-void SeparateRGBNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    for (int channel = 0; channel < 3; channel++) {
-      if (outputs[channel] == folder.output) {
-        folder.make_constant(color[channel]);
-        return;
-      }
-    }
-  }
-}
-
-void SeparateRGBNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *color_in = input("Image");
-  ShaderOutput *red_out = output("R");
-  ShaderOutput *green_out = output("G");
-  ShaderOutput *blue_out = output("B");
-
-  compiler.add_node(
-      NODE_SEPARATE_VECTOR, compiler.stack_assign(color_in), 0, compiler.stack_assign(red_out));
-
-  compiler.add_node(
-      NODE_SEPARATE_VECTOR, compiler.stack_assign(color_in), 1, compiler.stack_assign(green_out));
-
-  compiler.add_node(
-      NODE_SEPARATE_VECTOR, compiler.stack_assign(color_in), 2, compiler.stack_assign(blue_out));
-}
-
-void SeparateRGBNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_separate_rgb");
-}
-
 /* Separate XYZ */
 
 NODE_DEFINE(SeparateXYZNode)
@@ -5900,56 +5609,6 @@ void SeparateXYZNode::compile(SVMCompiler &compiler)
 void SeparateXYZNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_separate_xyz");
-}
-
-/* Separate HSV */
-
-NODE_DEFINE(SeparateHSVNode)
-{
-  NodeType *type = NodeType::add("separate_hsv", create, NodeType::SHADER);
-
-  SOCKET_IN_COLOR(color, "Color", zero_float3());
-
-  SOCKET_OUT_FLOAT(h, "H");
-  SOCKET_OUT_FLOAT(s, "S");
-  SOCKET_OUT_FLOAT(v, "V");
-
-  return type;
-}
-
-SeparateHSVNode::SeparateHSVNode() : ShaderNode(get_node_type()) {}
-
-void SeparateHSVNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    float3 hsv = rgb_to_hsv(color);
-
-    for (int channel = 0; channel < 3; channel++) {
-      if (outputs[channel] == folder.output) {
-        folder.make_constant(hsv[channel]);
-        return;
-      }
-    }
-  }
-}
-
-void SeparateHSVNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *color_in = input("Color");
-  ShaderOutput *hue_out = output("H");
-  ShaderOutput *saturation_out = output("S");
-  ShaderOutput *value_out = output("V");
-
-  compiler.add_node(NODE_SEPARATE_HSV,
-                    compiler.stack_assign(color_in),
-                    compiler.stack_assign(hue_out),
-                    compiler.stack_assign(saturation_out));
-  compiler.add_node(NODE_SEPARATE_HSV, compiler.stack_assign(value_out));
-}
-
-void SeparateHSVNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_separate_hsv");
 }
 
 /* Hue/Saturation/Value */
@@ -6051,21 +5710,34 @@ void AttributeNode::compile(SVMCompiler &compiler)
   if (!color_out->links.empty() || !vector_out->links.empty()) {
     if (!color_out->links.empty()) {
       compiler.add_node(
-          attr_node, attr, compiler.stack_assign(color_out), NODE_ATTR_OUTPUT_FLOAT3);
+          attr_node,
+          attr,
+          compiler.encode_uchar4(compiler.stack_assign(color_out), NODE_ATTR_OUTPUT_FLOAT3),
+          __float_as_uint(bump_filter_width));
     }
     if (!vector_out->links.empty()) {
       compiler.add_node(
-          attr_node, attr, compiler.stack_assign(vector_out), NODE_ATTR_OUTPUT_FLOAT3);
+          attr_node,
+          attr,
+          compiler.encode_uchar4(compiler.stack_assign(vector_out), NODE_ATTR_OUTPUT_FLOAT3),
+          __float_as_uint(bump_filter_width));
     }
   }
 
   if (!fac_out->links.empty()) {
-    compiler.add_node(attr_node, attr, compiler.stack_assign(fac_out), NODE_ATTR_OUTPUT_FLOAT);
+    compiler.add_node(
+        attr_node,
+        attr,
+        compiler.encode_uchar4(compiler.stack_assign(fac_out), NODE_ATTR_OUTPUT_FLOAT),
+        __float_as_uint(bump_filter_width));
   }
 
   if (!alpha_out->links.empty()) {
     compiler.add_node(
-        attr_node, attr, compiler.stack_assign(alpha_out), NODE_ATTR_OUTPUT_FLOAT_ALPHA);
+        attr_node,
+        attr,
+        compiler.encode_uchar4(compiler.stack_assign(alpha_out), NODE_ATTR_OUTPUT_FLOAT_ALPHA),
+        __float_as_uint(bump_filter_width));
   }
 }
 
@@ -6080,6 +5752,7 @@ void AttributeNode::compile(OSLCompiler &compiler)
   else {
     compiler.parameter("bump_offset", "center");
   }
+  compiler.parameter("bump_filter_width", bump_filter_width);
 
   if (Attribute::name_standard(attribute.c_str()) != ATTR_STD_NONE) {
     compiler.parameter("name", (string("geom:") + attribute.c_str()).c_str());
@@ -6233,10 +5906,11 @@ void WireframeNode::compile(SVMCompiler &compiler)
   else if (bump == SHADER_BUMP_DY) {
     bump_offset = NODE_BUMP_OFFSET_DY;
   }
-  compiler.add_node(NODE_WIREFRAME,
-                    compiler.stack_assign(size_in),
-                    compiler.stack_assign(fac_out),
-                    compiler.encode_uchar4(use_pixel_size, bump_offset, 0, 0));
+  compiler.add_node(
+      NODE_WIREFRAME,
+      compiler.stack_assign(size_in),
+      __float_as_uint(bump_filter_width),
+      compiler.encode_uchar4(use_pixel_size, bump_offset, compiler.stack_assign(fac_out), 0));
 }
 
 void WireframeNode::compile(OSLCompiler &compiler)
@@ -6250,6 +5924,8 @@ void WireframeNode::compile(OSLCompiler &compiler)
   else {
     compiler.parameter("bump_offset", "center");
   }
+  compiler.parameter("bump_filter_width", bump_filter_width);
+
   compiler.parameter(this, "use_pixel_size");
   compiler.add(this, "node_wireframe");
 }
@@ -6773,6 +6449,8 @@ NODE_DEFINE(VectorMathNode)
   type_enum.insert("wrap", NODE_VECTOR_MATH_WRAP);
   type_enum.insert("fraction", NODE_VECTOR_MATH_FRACTION);
   type_enum.insert("absolute", NODE_VECTOR_MATH_ABSOLUTE);
+  type_enum.insert("power", NODE_VECTOR_MATH_POWER);
+  type_enum.insert("sign", NODE_VECTOR_MATH_SIGN);
   type_enum.insert("minimum", NODE_VECTOR_MATH_MINIMUM);
   type_enum.insert("maximum", NODE_VECTOR_MATH_MAXIMUM);
 
@@ -6975,6 +6653,7 @@ NODE_DEFINE(BumpNode)
   SOCKET_IN_NORMAL(normal, "Normal", zero_float3(), SocketType::LINK_NORMAL);
   SOCKET_IN_FLOAT(strength, "Strength", 1.0f);
   SOCKET_IN_FLOAT(distance, "Distance", 0.1f);
+  SOCKET_IN_FLOAT(filter_width, "Filter Width", 0.1f);
 
   SOCKET_OUT_NORMAL(normal, "Normal");
 
@@ -7008,6 +6687,7 @@ void BumpNode::compile(SVMCompiler &compiler)
                              compiler.stack_assign(dy_in),
                              compiler.stack_assign(strength_in)),
       compiler.encode_uchar4(compiler.stack_assign(normal_out), compiler.get_bump_state_offset()));
+  compiler.add_node(__float_as_uint(filter_width));
 }
 
 void BumpNode::compile(OSLCompiler &compiler)
@@ -7393,6 +7073,26 @@ OSLNode::~OSLNode()
 ShaderNode *OSLNode::clone(ShaderGraph *graph) const
 {
   return OSLNode::create(graph, this->inputs.size(), this);
+}
+
+void OSLNode::attributes(Shader *shader, AttributeRequestSet *attributes)
+{
+  /* the added geometry node's attributes function unfortunately doesn't
+   * request the need for ATTR_STD_GENERATED in-time somehow, so we request it
+   * here if there are any sockets that have LINK_TANGENT or
+   * LINK_TEXTURE_GENERATED flags */
+  if (shader->has_surface_link()) {
+    for (const ShaderInput *in : inputs) {
+      if (!in->link && (in->flags() & SocketType::LINK_TANGENT ||
+                        in->flags() & SocketType::LINK_TEXTURE_GENERATED))
+      {
+        attributes->add(ATTR_STD_GENERATED);
+        break;
+      }
+    }
+  }
+
+  ShaderNode::attributes(shader, attributes);
 }
 
 OSLNode *OSLNode::create(ShaderGraph *graph, const size_t num_inputs, const OSLNode *from)

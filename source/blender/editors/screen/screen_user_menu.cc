@@ -7,8 +7,6 @@
  */
 
 #include <cfloat>
-#include <cmath>
-#include <cstdio>
 #include <cstring>
 
 #include "MEM_guardedalloc.h"
@@ -29,7 +27,7 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -228,15 +226,11 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             ui_name = CTX_IFACE_(ot->translation_context, ui_name->c_str());
           }
           if (umi_op->op_prop_enum[0] == '\0') {
-            IDProperty *prop = umi_op->prop ? IDP_CopyProperty(umi_op->prop) : nullptr;
-            uiItemFullO_ptr(menu->layout,
-                            ot,
-                            ui_name,
-                            ICON_NONE,
-                            prop,
-                            wmOperatorCallContext(umi_op->opcontext),
-                            UI_ITEM_NONE,
-                            nullptr);
+            PointerRNA ptr = menu->layout->op(
+                ot, ui_name, ICON_NONE, wmOperatorCallContext(umi_op->opcontext), UI_ITEM_NONE);
+            if (umi_op->prop) {
+              IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op->prop);
+            }
           }
           else {
             /* umi_op->prop could be used to set other properties but it's currently unsupported.
@@ -249,7 +243,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         else {
           if (show_missing) {
             SNPRINTF(label, RPT_("Missing: %s"), umi_op->op_idname);
-            uiItemL(menu->layout, label, ICON_NONE);
+            menu->layout->label(label, ICON_NONE);
           }
         }
       }
@@ -257,13 +251,13 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         bUserMenuItem_Menu *umi_mt = (bUserMenuItem_Menu *)umi;
         MenuType *mt = WM_menutype_find(umi_mt->mt_idname, false);
         if (mt != nullptr) {
-          uiItemM_ptr(menu->layout, mt, ui_name, ICON_NONE);
+          menu->layout->menu(mt, ui_name, ICON_NONE);
           is_empty = false;
         }
         else {
           if (show_missing) {
             SNPRINTF(label, RPT_("Missing: %s"), umi_mt->mt_idname);
-            uiItemL(menu->layout, label, ICON_NONE);
+            menu->layout->label(label, ICON_NONE);
           }
         }
       }
@@ -276,7 +270,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         }
         PointerRNA ptr = CTX_data_pointer_get(C, umi_pr->context_data_path);
         if (ptr.type == nullptr) {
-          PointerRNA ctx_ptr = RNA_pointer_create(nullptr, &RNA_Context, (void *)C);
+          PointerRNA ctx_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Context, (void *)C);
           if (!RNA_path_resolve_full(&ctx_ptr, umi_pr->context_data_path, &ptr, nullptr, nullptr))
           {
             ptr.type = nullptr;
@@ -297,14 +291,8 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             prop = RNA_struct_find_property(&prop_ptr, umi_pr->prop_id);
             if (prop) {
               ok = true;
-              uiItemFullR(menu->layout,
-                          &prop_ptr,
-                          prop,
-                          umi_pr->prop_index,
-                          0,
-                          UI_ITEM_NONE,
-                          ui_name,
-                          ICON_NONE);
+              menu->layout->prop(
+                  &prop_ptr, prop, umi_pr->prop_index, 0, UI_ITEM_NONE, ui_name, ICON_NONE);
               is_empty = false;
             }
           }
@@ -312,12 +300,12 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
         if (!ok) {
           if (show_missing) {
             SNPRINTF(label, RPT_("Missing: %s.%s"), umi_pr->context_data_path, umi_pr->prop_id);
-            uiItemL(menu->layout, label, ICON_NONE);
+            menu->layout->label(label, ICON_NONE);
           }
         }
       }
       else if (umi->type == USER_MENU_TYPE_SEP) {
-        uiItemS(menu->layout);
+        menu->layout->separator();
       }
     }
   }
@@ -326,14 +314,14 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
   }
 
   if (is_empty) {
-    uiItemL(menu->layout, RPT_("No menu items found"), ICON_NONE);
-    uiItemL(menu->layout, RPT_("Right click on buttons to add them to this menu"), ICON_NONE);
+    menu->layout->label(RPT_("No menu items found"), ICON_NONE);
+    menu->layout->label(RPT_("Right click on buttons to add them to this menu"), ICON_NONE);
   }
 }
 
 void ED_screen_user_menu_register()
 {
-  MenuType *mt = static_cast<MenuType *>(MEM_callocN(sizeof(MenuType), __func__));
+  MenuType *mt = MEM_callocN<MenuType>(__func__);
   STRNCPY(mt->idname, "SCREEN_MT_user_menu");
   STRNCPY(mt->label, N_("Quick Favorites"));
   STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);

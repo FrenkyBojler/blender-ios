@@ -8,6 +8,7 @@
 
 #include <string>
 
+#include "BLI_listbase.h"
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_sort.hh"
@@ -95,6 +96,7 @@ static void geometry_to_blender_geometry_set(const OBJImportParams &import_param
       geometry_set = bke::GeometrySet::from_curves(curves_id);
     }
 
+    geometry_set.name = geometry->geometry_name_;
     geometries.append(std::move(geometry_set));
   }
 }
@@ -205,6 +207,7 @@ void importer_main(Main *bmain,
   OBJParser obj_parser{import_params, read_buffer_size};
   obj_parser.parse(all_geometries, global_vertices);
 
+  /* Parse all referenced MTL files */
   for (StringRefNull mtl_library : obj_parser.mtl_libraries()) {
     MTLParser mtl_parser{mtl_library, import_params.filepath};
     mtl_parser.parse_and_store(materials);
@@ -213,6 +216,8 @@ void importer_main(Main *bmain,
   if (import_params.clear_selection) {
     BKE_view_layer_base_deselect_all(scene, view_layer);
   }
+
+  /* Create Blender objects from the parsed geometries */
   geometry_to_blender_objects(bmain,
                               scene,
                               view_layer,

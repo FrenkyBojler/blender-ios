@@ -4,10 +4,10 @@
 
 #include <utility>
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_type_conversions.hh"
 
@@ -26,11 +26,92 @@
 
 #include "FN_field.hh"
 
-#include "CLG_log.h"
-
 #include "attribute_access_intern.hh"
 
+#ifndef NDEBUG
+#  include <iostream>
+#endif
+
 namespace blender::bke {
+
+const CPPType &attribute_type_to_cpp_type(const AttrType type)
+{
+  switch (type) {
+    case AttrType::Bool:
+      return CPPType::get<bool>();
+    case AttrType::Int8:
+      return CPPType::get<int8_t>();
+    case AttrType::Int16_2D:
+      return CPPType::get<short2>();
+    case AttrType::Int32:
+      return CPPType::get<int>();
+    case AttrType::Int32_2D:
+      return CPPType::get<int2>();
+    case AttrType::Float:
+      return CPPType::get<float>();
+    case AttrType::Float2:
+      return CPPType::get<float2>();
+    case AttrType::Float3:
+      return CPPType::get<float3>();
+    case AttrType::Float4x4:
+      return CPPType::get<float4x4>();
+    case AttrType::ColorByte:
+      return CPPType::get<ColorGeometry4b>();
+    case AttrType::ColorFloat:
+      return CPPType::get<ColorGeometry4f>();
+    case AttrType::Quaternion:
+      return CPPType::get<math::Quaternion>();
+    case AttrType::String:
+      return CPPType::get<MStringProperty>();
+  }
+  BLI_assert_unreachable();
+  return CPPType::get<bool>();
+}
+
+AttrType cpp_type_to_attribute_type(const CPPType &type)
+{
+  if (type.is<float>()) {
+    return AttrType::Float;
+  }
+  if (type.is<float2>()) {
+    return AttrType::Float2;
+  }
+  if (type.is<float3>()) {
+    return AttrType::Float3;
+  }
+  if (type.is<int>()) {
+    return AttrType::Int32;
+  }
+  if (type.is<int2>()) {
+    return AttrType::Int32_2D;
+  }
+  if (type.is<ColorGeometry4f>()) {
+    return AttrType::ColorFloat;
+  }
+  if (type.is<bool>()) {
+    return AttrType::Bool;
+  }
+  if (type.is<int8_t>()) {
+    return AttrType::Int8;
+  }
+  if (type.is<ColorGeometry4b>()) {
+    return AttrType::ColorByte;
+  }
+  if (type.is<math::Quaternion>()) {
+    return AttrType::Quaternion;
+  }
+  if (type.is<float4x4>()) {
+    return AttrType::Float4x4;
+  }
+  if (type.is<short2>()) {
+    return AttrType::Int16_2D;
+  }
+  if (type.is<MStringProperty>()) {
+    return AttrType::String;
+  }
+  BLI_assert_unreachable();
+  return AttrType::Bool;
+}
 
 const blender::CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
 {
@@ -107,7 +188,7 @@ eCustomDataType cpp_type_to_custom_data_type(const blender::CPPType &type)
   if (type.is<MStringProperty>()) {
     return CD_PROP_STRING;
   }
-  return static_cast<eCustomDataType>(-1);
+  return eCustomDataType(-1);
 }
 
 const char *no_procedural_access_message = N_(
@@ -392,8 +473,7 @@ bool BuiltinCustomDataLayerProvider::try_delete(void *owner) const
     return {};
   }
 
-  const int element_num = custom_data_access_.get_element_num(owner);
-  if (CustomData_free_layer_named(custom_data, name_, element_num)) {
+  if (CustomData_free_layer_named(custom_data, name_)) {
     if (update_on_change_ != nullptr) {
       update_on_change_(owner);
     }
@@ -497,11 +577,10 @@ bool CustomDataAttributeProvider::try_delete(void *owner, const StringRef attrib
   if (custom_data == nullptr) {
     return false;
   }
-  const int element_num = custom_data_access_.get_element_num(owner);
   for (const int i : IndexRange(custom_data->totlayer)) {
     const CustomDataLayer &layer = custom_data->layers[i];
     if (this->type_is_supported(eCustomDataType(layer.type)) && layer.name == attribute_id) {
-      CustomData_free_layer(custom_data, eCustomDataType(layer.type), element_num, i);
+      CustomData_free_layer(custom_data, eCustomDataType(layer.type), i);
       if (custom_data_access_.get_tag_modified_function != nullptr) {
         if (const std::function<void()> fn = custom_data_access_.get_tag_modified_function(
                 owner, attribute_id))
@@ -864,6 +943,9 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     if (!(ATTR_DOMAIN_AS_MASK(iter.domain) & domain_mask)) {
       return;
     }
+    if (iter.data_type == CD_PROP_STRING) {
+      return;
+    }
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
@@ -955,6 +1037,14 @@ void gather_attributes_group_to_group(const AttributeAccessor src_attributes,
                                       const IndexMask &selection,
                                       MutableAttributeAccessor dst_attributes)
 {
+  if (selection.size() == src_offsets.size()) {
+    if (src_attributes.domain_size(src_domain) == dst_attributes.domain_size(src_domain)) {
+      /* When all groups are selected and the domains are the same size, all values are copied,
+       * because corresponding groups are required to be the same size. */
+      copy_attributes(src_attributes, src_domain, dst_domain, attribute_filter, dst_attributes);
+      return;
+    }
+  }
   src_attributes.foreach_attribute([&](const AttributeIter &iter) {
     if (iter.domain != src_domain) {
       return;
@@ -1012,12 +1102,12 @@ void copy_attributes(const AttributeAccessor src_attributes,
                      MutableAttributeAccessor dst_attributes)
 {
   BLI_assert(src_attributes.domain_size(src_domain) == dst_attributes.domain_size(dst_domain));
-  return gather_attributes(src_attributes,
-                           src_domain,
-                           dst_domain,
-                           attribute_filter,
-                           IndexMask(src_attributes.domain_size(src_domain)),
-                           dst_attributes);
+  gather_attributes(src_attributes,
+                    src_domain,
+                    dst_domain,
+                    attribute_filter,
+                    IndexMask(src_attributes.domain_size(src_domain)),
+                    dst_attributes);
 }
 
 void copy_attributes_group_to_group(const AttributeAccessor src_attributes,

@@ -5,6 +5,7 @@
 #include "workbench_private.hh"
 
 #include "BLI_jitter_2d.h"
+#include "BLI_math_geom.h"
 #include "BLI_smaa_textures.h"
 
 namespace blender::workbench {
@@ -148,7 +149,7 @@ void AntiAliasingPass::sync(const SceneState &scene_state, SceneResources &resou
   taa_accumulation_tx_.ensure_2d(GPU_RGBA16F,
                                  scene_state.resolution,
                                  GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
-  sample0_depth_tx_.ensure_2d(GPU_DEPTH24_STENCIL8,
+  sample0_depth_tx_.ensure_2d(GPU_DEPTH32F_STENCIL8,
                               scene_state.resolution,
                               GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
@@ -157,36 +158,36 @@ void AntiAliasingPass::sync(const SceneState &scene_state, SceneResources &resou
                                      DRW_STATE_WRITE_COLOR :
                                      DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ADD_FULL);
   taa_accumulation_ps_.shader_set(ShaderCache::get().taa_accumulation.get());
-  taa_accumulation_ps_.bind_texture("colorBuffer", &resources.color_tx);
+  taa_accumulation_ps_.bind_texture("color_buffer", &resources.color_tx);
   taa_accumulation_ps_.push_constant("samplesWeights", weights_, 9);
   taa_accumulation_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
   smaa_edge_detect_ps_.init();
   smaa_edge_detect_ps_.state_set(DRW_STATE_WRITE_COLOR);
   smaa_edge_detect_ps_.shader_set(ShaderCache::get().smaa_edge_detect.get());
-  smaa_edge_detect_ps_.bind_texture("colorTex", &taa_accumulation_tx_);
-  smaa_edge_detect_ps_.push_constant("viewportMetrics", &smaa_viewport_metrics_, 1);
+  smaa_edge_detect_ps_.bind_texture("color_tx", &taa_accumulation_tx_);
+  smaa_edge_detect_ps_.push_constant("viewport_metrics", &smaa_viewport_metrics_, 1);
   smaa_edge_detect_ps_.clear_color(float4(0.0f));
   smaa_edge_detect_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
   smaa_aa_weight_ps_.init();
   smaa_aa_weight_ps_.state_set(DRW_STATE_WRITE_COLOR);
   smaa_aa_weight_ps_.shader_set(ShaderCache::get().smaa_aa_weight.get());
-  smaa_aa_weight_ps_.bind_texture("edgesTex", &smaa_edge_tx_);
-  smaa_aa_weight_ps_.bind_texture("areaTex", smaa_area_tx_);
-  smaa_aa_weight_ps_.bind_texture("searchTex", smaa_search_tx_);
-  smaa_aa_weight_ps_.push_constant("viewportMetrics", &smaa_viewport_metrics_, 1);
+  smaa_aa_weight_ps_.bind_texture("edges_tx", &smaa_edge_tx_);
+  smaa_aa_weight_ps_.bind_texture("area_tx", smaa_area_tx_);
+  smaa_aa_weight_ps_.bind_texture("search_tx", smaa_search_tx_);
+  smaa_aa_weight_ps_.push_constant("viewport_metrics", &smaa_viewport_metrics_, 1);
   smaa_aa_weight_ps_.clear_color(float4(0.0f));
   smaa_aa_weight_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 
   smaa_resolve_ps_.init();
   smaa_resolve_ps_.state_set(DRW_STATE_WRITE_COLOR);
   smaa_resolve_ps_.shader_set(ShaderCache::get().smaa_resolve.get());
-  smaa_resolve_ps_.bind_texture("blendTex", &smaa_weight_tx_);
-  smaa_resolve_ps_.bind_texture("colorTex", &taa_accumulation_tx_);
-  smaa_resolve_ps_.push_constant("viewportMetrics", &smaa_viewport_metrics_, 1);
-  smaa_resolve_ps_.push_constant("mixFactor", &smaa_mix_factor_, 1);
-  smaa_resolve_ps_.push_constant("taaAccumulatedWeight", &weight_accum_, 1);
+  smaa_resolve_ps_.bind_texture("blend_tx", &smaa_weight_tx_);
+  smaa_resolve_ps_.bind_texture("color_tx", &taa_accumulation_tx_);
+  smaa_resolve_ps_.push_constant("viewport_metrics", &smaa_viewport_metrics_, 1);
+  smaa_resolve_ps_.push_constant("mix_factor", &smaa_mix_factor_, 1);
+  smaa_resolve_ps_.push_constant("taa_accumulated_weight", &weight_accum_, 1);
   smaa_resolve_ps_.clear_color(float4(0.0f));
   smaa_resolve_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
@@ -235,7 +236,8 @@ void AntiAliasingPass::setup_view(View &view, const SceneState &scene_state)
   view.sync(viewmat, winmat);
 }
 
-void AntiAliasingPass::draw(Manager &manager,
+void AntiAliasingPass::draw(const DRWContext *draw_ctx,
+                            Manager &manager,
                             View &view,
                             const SceneState &scene_state,
                             SceneResources &resources,
@@ -258,14 +260,14 @@ void AntiAliasingPass::draw(Manager &manager,
       GPU_texture_copy(sample0_depth_tx_, resources.depth_tx);
       if (resources.depth_in_front_tx.is_valid()) {
         sample0_depth_in_front_tx_.ensure_2d(
-            GPU_DEPTH24_STENCIL8, scene_state.resolution, GPU_TEXTURE_USAGE_ATTACHMENT);
+            GPU_DEPTH32F_STENCIL8, scene_state.resolution, GPU_TEXTURE_USAGE_ATTACHMENT);
         GPU_texture_copy(sample0_depth_in_front_tx_, resources.depth_in_front_tx);
       }
       else {
         sample0_depth_in_front_tx_.free();
       }
     }
-    else if (!DRW_state_is_scene_render() || last_sample) {
+    else if (!draw_ctx->is_scene_render() || last_sample) {
       /* Copy back the saved depth buffer for correct overlays. */
       GPU_texture_copy(resources.depth_tx, sample0_depth_tx_);
       if (sample0_depth_in_front_tx_.is_valid()) {
@@ -299,7 +301,7 @@ void AntiAliasingPass::draw(Manager &manager,
                         GPU_RG8,
                         GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
-  if (!DRW_state_is_image_render() || last_sample) {
+  if (!draw_ctx->is_image_render() || last_sample || taa_finished) {
     /* After a certain point SMAA is no longer necessary. */
     if (smaa_mix_factor_ > 0.0f) {
       smaa_edge_fb_.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(smaa_edge_tx_));

@@ -19,7 +19,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_points_to_volume_cc {
@@ -108,12 +108,11 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
     BLI_assert_msg(0, "Unknown volume resolution mode");
   }
 
-  const double determinant = std::pow(double(voxel_size), 3.0);
-  if (!BKE_volume_grid_determinant_valid(determinant)) {
+  if (!BKE_volume_voxel_size_valid(float3(voxel_size))) {
     return;
   }
 
-  Volume *volume = reinterpret_cast<Volume *>(BKE_id_new_nomain(ID_VO, nullptr));
+  Volume *volume = BKE_id_new_nomain<Volume>(nullptr);
 
   const float density = params.get_input<float>("Density");
   blender::geometry::fog_volume_grid_add_from_points(
@@ -166,12 +165,12 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "resolution_mode", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
+  layout->prop(ptr, "resolution_mode", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryPointsToVolume *data = MEM_cnew<NodeGeometryPointsToVolume>(__func__);
+  NodeGeometryPointsToVolume *data = MEM_callocN<NodeGeometryPointsToVolume>(__func__);
   data->resolution_mode = GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT;
   node->storage = data;
 }
@@ -224,16 +223,14 @@ static void node_register()
   ntype.ui_description = "Generate a fog volume sphere around every point";
   ntype.enum_name_legacy = "POINTS_TO_VOLUME";
   ntype.nclass = NODE_CLASS_GEOMETRY;
-  blender::bke::node_type_storage(&ntype,
-                                  "NodeGeometryPointsToVolume",
-                                  node_free_standard_storage,
-                                  node_copy_standard_storage);
-  bke::node_type_size(&ntype, 170, 120, 700);
+  blender::bke::node_type_storage(
+      ntype, "NodeGeometryPointsToVolume", node_free_standard_storage, node_copy_standard_storage);
+  bke::node_type_size(ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

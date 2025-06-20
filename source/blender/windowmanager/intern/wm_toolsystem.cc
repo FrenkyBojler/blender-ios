@@ -29,6 +29,7 @@
 #include "BKE_asset_edit.hh"
 #include "BKE_brush.hh"
 #include "BKE_context.hh"
+#include "BKE_global.hh"
 #include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
@@ -115,7 +116,7 @@ bool WM_toolsystem_ref_ensure(WorkSpace *workspace, const bToolKey *tkey, bToolR
     *r_tref = tref;
     return false;
   }
-  tref = static_cast<bToolRef *>(MEM_callocN(sizeof(*tref), __func__));
+  tref = MEM_callocN<bToolRef>(__func__);
   BLI_addhead(&workspace->tools, tref);
   tref->space_type = tkey->space_type;
   tref->mode = tkey->mode;
@@ -212,6 +213,12 @@ static bool brush_type_matches_active_tool(bContext *C, const int brush_type)
 {
   const bToolRef *active_tool = toolsystem_active_tool_from_context_or_view3d(C);
 
+  if (active_tool->runtime == nullptr) {
+    /* Should only ever be null in background mode. */
+    BLI_assert(G.background);
+    return false;
+  }
+
   if (!(active_tool->runtime->flag & TOOLREF_FLAG_USE_BRUSHES)) {
     return false;
   }
@@ -269,7 +276,7 @@ static void toolsystem_brush_type_binding_update(Paint *paint,
   }
   /* Add new reference. */
   else {
-    NamedBrushAssetReference *new_brush_ref = MEM_cnew<NamedBrushAssetReference>(__func__);
+    NamedBrushAssetReference *new_brush_ref = MEM_callocN<NamedBrushAssetReference>(__func__);
 
     new_brush_ref->name = BLI_strdup(brush_type_name);
     new_brush_ref->brush_asset_reference = MEM_new<AssetWeakReference>(
@@ -588,7 +595,7 @@ void WM_toolsystem_ref_set_from_runtime(bContext *C,
   tref->idname_pending[0] = '\0';
 
   if (tref->runtime == nullptr) {
-    tref->runtime = static_cast<bToolRef_Runtime *>(MEM_callocN(sizeof(*tref->runtime), __func__));
+    tref->runtime = MEM_callocN<bToolRef_Runtime>(__func__);
   }
 
   if (tref_rt != tref->runtime) {
@@ -691,7 +698,7 @@ static bool toolsystem_key_ensure_check(const bToolKey *tkey)
     case SPACE_VIEW3D:
       return true;
     case SPACE_IMAGE:
-      if (ELEM(tkey->mode, SI_MODE_PAINT, SI_MODE_UV)) {
+      if (ELEM(tkey->mode, SI_MODE_PAINT, SI_MODE_UV, SI_MODE_VIEW)) {
         return true;
       }
       break;
@@ -922,7 +929,7 @@ bToolRef *WM_toolsystem_ref_set_by_id_ex(
     return nullptr;
   }
 
-/* Some contexts use the current space type (image editor for e.g.),
+/* Some contexts use the current space type (e.g. image editor),
  * ensure this is set correctly or there is no area. */
 #ifndef NDEBUG
   /* Exclude this check for some space types where the space type isn't used. */
@@ -981,7 +988,7 @@ static void toolsystem_ref_set_by_brush_type(bContext *C, const char *brush_type
     return;
   }
 
-/* Some contexts use the current space type (image editor for e.g.),
+/* Some contexts use the current space type (e.g. image editor),
  * ensure this is set correctly or there is no area. */
 #ifndef NDEBUG
   /* Exclude this check for some space types where the space type isn't used. */
@@ -1101,6 +1108,8 @@ static const char *toolsystem_default_tool(const bToolKey *tkey)
       switch (tkey->mode) {
         case SI_MODE_PAINT:
           return "builtin.brush";
+        case SI_MODE_VIEW:
+          return "builtin.sample";
       }
       break;
     case SPACE_NODE: {
@@ -1233,7 +1242,7 @@ static IDProperty *idprops_ensure_named_group(IDProperty *group, const char *idn
   if ((prop == nullptr) || (prop->type != IDP_GROUP)) {
     prop = blender::bke::idprop::create_group(__func__).release();
     STRNCPY(prop->name, idname);
-    IDP_ReplaceInGroup_ex(group, prop, nullptr);
+    IDP_ReplaceInGroup_ex(group, prop, nullptr, 0);
   }
   return prop;
 }
@@ -1262,7 +1271,7 @@ bool WM_toolsystem_ref_properties_get_ex(bToolRef *tref,
 {
   IDProperty *group = WM_toolsystem_ref_properties_get_idprops(tref);
   IDProperty *prop = group ? IDP_GetPropertyFromGroup(group, idname) : nullptr;
-  *r_ptr = RNA_pointer_create(nullptr, type, prop);
+  *r_ptr = RNA_pointer_create_discrete(nullptr, type, prop);
   return (prop != nullptr);
 }
 
@@ -1273,7 +1282,7 @@ void WM_toolsystem_ref_properties_ensure_ex(bToolRef *tref,
 {
   IDProperty *group = WM_toolsystem_ref_properties_ensure_idprops(tref);
   IDProperty *prop = idprops_ensure_named_group(group, idname);
-  *r_ptr = RNA_pointer_create(nullptr, type, prop);
+  *r_ptr = RNA_pointer_create_discrete(nullptr, type, prop);
 }
 
 void WM_toolsystem_ref_properties_init_for_keymap(bToolRef *tref,

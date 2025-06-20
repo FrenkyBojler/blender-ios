@@ -6,9 +6,9 @@
  * \ingroup shader_fx
  */
 
-#include "BLI_math_base.h"
-
 #include "BLT_translation.hh"
+
+#include "BLI_math_base.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -16,7 +16,7 @@
 #include "BKE_screen.hh"
 #include "BKE_shader_fx.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -69,9 +69,9 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   uiLayoutSetPropSep(layout, true);
 
-  uiItemR(layout, ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "object", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "radius", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "angle", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   shaderfx_panel_end(layout, ptr);
 }

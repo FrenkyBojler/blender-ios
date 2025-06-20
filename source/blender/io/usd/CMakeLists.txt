@@ -69,6 +69,7 @@ set(SRC
   intern/usd_capi_import.cc
   intern/usd_hierarchy_iterator.cc
   intern/usd_hook.cc
+  intern/usd_instancing_utils.cc
   intern/usd_light_convert.cc
   intern/usd_mesh_utils.cc
   intern/usd_utils.cc
@@ -82,12 +83,15 @@ set(SRC
   intern/usd_writer_material.cc
   intern/usd_writer_mesh.cc
   intern/usd_writer_metaball.cc
+  intern/usd_writer_pointinstancer.cc
   intern/usd_writer_points.cc
+  intern/usd_writer_text.cc
   intern/usd_writer_transform.cc
   intern/usd_writer_volume.cc
 
   intern/usd_reader_camera.cc
   intern/usd_reader_curve.cc
+  intern/usd_reader_domelight.cc
   intern/usd_reader_geom.cc
   intern/usd_reader_instance.cc
   intern/usd_reader_light.cc
@@ -117,6 +121,7 @@ set(SRC
   intern/usd_hash_types.hh
   intern/usd_hierarchy_iterator.hh
   intern/usd_hook.hh
+  intern/usd_instancing_utils.hh
   intern/usd_light_convert.hh
   intern/usd_mesh_utils.hh
   intern/usd_utils.hh
@@ -130,12 +135,15 @@ set(SRC
   intern/usd_writer_material.hh
   intern/usd_writer_mesh.hh
   intern/usd_writer_metaball.hh
+  intern/usd_writer_pointinstancer.hh
   intern/usd_writer_points.hh
+  intern/usd_writer_text.hh
   intern/usd_writer_transform.hh
   intern/usd_writer_volume.hh
 
   intern/usd_reader_camera.hh
   intern/usd_reader_curve.hh
+  intern/usd_reader_domelight.hh
   intern/usd_reader_geom.hh
   intern/usd_reader_instance.hh
   intern/usd_reader_light.hh
@@ -206,7 +214,6 @@ set(LIB
 )
 
 list(APPEND LIB
-  ${BOOST_LIBRARIES}
   ${BOOST_PYTHON_LIBRARIES}
   ${PYTHON_LIBRARIES}
   ${USD_LIBRARIES}

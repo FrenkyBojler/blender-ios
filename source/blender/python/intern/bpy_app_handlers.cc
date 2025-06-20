@@ -5,13 +5,15 @@
 /** \file
  * \ingroup pythonintern
  *
- * This file defines a 'PyStructSequence' accessed via 'bpy.app.handlers',
+ * This file defines a #PyStructSequence accessed via `bpy.app.handlers`,
  * which exposes various lists that the script author can add callback
- * functions into (called via blenders generic BLI_cb api)
+ * functions into (called via blenders generic BLI_cb API)
  */
 
 #include "BLI_utildefines.h"
 #include <Python.h>
+
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BKE_callbacks.hh"
 
@@ -270,7 +272,7 @@ PyObject *BPY_app_handlers_struct()
   BlenderAppCbType.tp_init = nullptr;
   BlenderAppCbType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppCbType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppCbType.tp_hash = (hashfunc)Py_HashPointer;
 
   /* assign the C callbacks */
   if (ret) {
@@ -292,10 +294,8 @@ PyObject *BPY_app_handlers_struct()
 
 void BPY_app_handlers_reset(const bool do_all)
 {
-  PyGILState_STATE gilstate;
+  PyGILState_STATE gilstate = PyGILState_Ensure();
   int pos = 0;
-
-  gilstate = PyGILState_Ensure();
 
   if (do_all) {
     for (pos = 0; pos < BKE_CB_EVT_TOT; pos++) {

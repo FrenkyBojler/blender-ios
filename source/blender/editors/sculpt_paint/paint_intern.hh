@@ -8,20 +8,27 @@
 
 #pragma once
 
+#include "BLI_array.hh"
+#include "BLI_compiler_compat.h"
+#include "BLI_function_ref.hh"
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_set.hh"
 #include "BLI_span.hh"
+#include "BLI_vector.hh"
 
 #include "DNA_object_enums.h"
 #include "DNA_scene_enums.h"
 #include "DNA_vec_types.h"
+#include "DNA_windowmanager_enums.h"
+
+#include <optional>
 
 enum class PaintMode : int8_t;
 
 struct ARegion;
 struct bContext;
 struct Brush;
-struct ColorManagedDisplay;
 struct Depsgraph;
 struct Image;
 struct ImagePool;
@@ -47,16 +54,21 @@ struct wmKeyMap;
 struct wmOperator;
 struct wmOperatorType;
 namespace blender {
-namespace bke {
-namespace pbvh {
+
+namespace bke::pbvh {
 class Node;
 }
-}  // namespace bke
+
 namespace ed::sculpt_paint {
 struct PaintStroke;
 struct StrokeCache;
 }  // namespace ed::sculpt_paint
+
+namespace ocio {
+class Display;
+}
 }  // namespace blender
+using ColorManagedDisplay = blender::ocio::Display;
 
 /* paint_stroke.cc */
 
@@ -139,8 +151,11 @@ wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf);
  * 6. Return to step 3 while stroke is ongoing.
  * 7. Call `StrokeDone` when finished to perform any cleanup or finalization.
  */
-int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p);
-int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke);
+wmOperatorStatus paint_stroke_modal(bContext *C,
+                                    wmOperator *op,
+                                    const wmEvent *event,
+                                    PaintStroke **stroke_p);
+wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke);
 void paint_stroke_cancel(bContext *C, wmOperator *op, PaintStroke *stroke);
 bool paint_stroke_flipped(PaintStroke *stroke);
 bool paint_stroke_inverted(PaintStroke *stroke);
@@ -312,7 +327,7 @@ void paint_2d_stroke(void *ps,
                      float distance,
                      float base_size);
 /**
- * This function expects linear space color values.
+ * This function expects sRGB space color values.
  */
 void paint_2d_bucket_fill(const bContext *C,
                           const float color[3],
@@ -337,16 +352,16 @@ void paint_proj_stroke_done(void *ps_handle_p);
 void paint_brush_color_get(Scene *scene,
                            const Paint *paint,
                            Brush *br,
+                           std::optional<blender::float3> &initial_hsv_jitter,
                            bool color_correction,
                            bool invert,
                            float distance,
                            float pressure,
-                           ColorManagedDisplay *display,
+                           const ColorManagedDisplay *display,
                            float r_color[3]);
-bool paint_use_opacity_masking(Brush *brush);
+bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Brush *brush);
 void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);
-bool image_paint_poll(bContext *C);
 
 void PAINT_OT_grab_clone(wmOperatorType *ot);
 void PAINT_OT_sample_color(wmOperatorType *ot);
@@ -479,6 +494,19 @@ bool paint_curve_poll(bContext *C);
 bool facemask_paint_poll(bContext *C);
 
 namespace blender::ed::sculpt_paint {
+
+/**
+ * Determines whether a given symmetry pass is valid.
+ *
+ * Uses the #ePaintSymmetryFlags enum.
+ *
+ * symm is a bit combination of XYZ.
+ * 1 is X; 2 is Y; 3 is XY; 4 is Z; 5 is XZ; 6 is YZ; 7 is XYZ
+ */
+inline bool is_symmetry_iteration_valid(const char i, const char symm)
+{
+  return i == 0 || (symm & i && (symm != 5 || i != 3) && (symm != 6 || !ELEM(i, 3, 5)));
+}
 
 inline float3 symmetry_flip(const float3 &src, const ePaintSymmetryFlags symm)
 {

@@ -266,13 +266,6 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
 
   /* Initialize samplers. */
   this->sampler_state_cache_init();
-
-  if (GPU_use_parallel_compilation()) {
-    compiler = new MTLShaderCompiler();
-  }
-  else {
-    compiler = new ShaderCompilerGeneric();
-  }
 }
 
 MTLContext::~MTLContext()
@@ -291,8 +284,8 @@ MTLContext::~MTLContext()
   /* Wait for all GPU work to finish. */
   main_command_buffer.wait_until_active_command_buffers_complete();
 
-  /* Free framebuffers in base class. */
-  free_framebuffers();
+  /* Free textures and frame-buffers in base class. */
+  free_resources();
 
   /* Release context textures. */
   if (default_fbo_gputexture_) {
@@ -382,7 +375,7 @@ MTLContext::~MTLContext()
     [this->device release];
   }
 
-  delete compiler;
+  this->process_frame_timings();
 }
 
 void MTLContext::begin_frame()
@@ -405,6 +398,8 @@ void MTLContext::end_frame()
 
   /* Increment frame counter. */
   is_inside_frame_ = false;
+
+  this->process_frame_timings();
 }
 
 void MTLContext::check_error(const char * /*info*/)
@@ -663,29 +658,24 @@ gpu::MTLTexture *MTLContext::get_dummy_texture(eGPUTextureType type,
       if (!dummy_verts_[sampler_format]) {
         GPU_vertformat_clear(&dummy_vertformat_[sampler_format]);
 
-        GPUVertCompType comp_type = GPU_COMP_F32;
-        GPUVertFetchMode fetch_mode = GPU_FETCH_FLOAT;
+        VertAttrType attr_type = VertAttrType::SFLOAT_32_32_32_32;
 
         switch (sampler_format) {
           case GPU_SAMPLER_TYPE_FLOAT:
           case GPU_SAMPLER_TYPE_DEPTH:
-            comp_type = GPU_COMP_F32;
-            fetch_mode = GPU_FETCH_FLOAT;
+            attr_type = VertAttrType::SFLOAT_32_32_32_32;
             break;
           case GPU_SAMPLER_TYPE_INT:
-            comp_type = GPU_COMP_I32;
-            fetch_mode = GPU_FETCH_INT;
+            attr_type = VertAttrType::SINT_32_32_32_32;
             break;
           case GPU_SAMPLER_TYPE_UINT:
-            comp_type = GPU_COMP_U32;
-            fetch_mode = GPU_FETCH_INT;
+            attr_type = VertAttrType::UINT_32_32_32_32;
             break;
           default:
             BLI_assert_unreachable();
         }
 
-        GPU_vertformat_attr_add(
-            &dummy_vertformat_[sampler_format], "dummy", comp_type, 4, fetch_mode);
+        GPU_vertformat_attr_add(&dummy_vertformat_[sampler_format], "dummy", attr_type);
         dummy_verts_[sampler_format] = GPU_vertbuf_create_with_format_ex(
             dummy_vertformat_[sampler_format],
             GPU_USAGE_STATIC | GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
@@ -716,6 +706,13 @@ void MTLContext::free_dummy_resources()
       GPU_vertbuf_discard(dummy_verts_[format]);
     }
   }
+}
+
+void MTLContext::specialization_constants_set(
+    const shader::SpecializationConstants *constants_state)
+{
+  this->constants_state = (constants_state != nullptr) ? *constants_state :
+                                                         shader::SpecializationConstants{};
 }
 
 /** \} */
@@ -989,39 +986,6 @@ bool MTLContext::ensure_render_pipeline_state(MTLPrimitiveType mtl_prim_type)
     if (shader_interface->get_total_textures() > 0) {
       this->ensure_texture_bindings(rec, shader_interface, pipeline_state_instance);
     }
-
-    /* Transform feedback buffer binding. */
-    VertBuf *tf_vbo = this->pipeline_state.active_shader->get_transform_feedback_active_buffer();
-    if (tf_vbo != nullptr && pipeline_state_instance->transform_feedback_buffer_index >= 0) {
-
-      /* Ensure primitive type is either GPU_LINES, GPU_TRIANGLES or GPU_POINT */
-      BLI_assert(mtl_prim_type == MTLPrimitiveTypeLine ||
-                 mtl_prim_type == MTLPrimitiveTypeTriangle ||
-                 mtl_prim_type == MTLPrimitiveTypePoint);
-
-      /* Fetch active transform feedback buffer from vertbuf */
-      MTLVertBuf *tf_vbo_mtl = static_cast<MTLVertBuf *>(reinterpret_cast<VertBuf *>(tf_vbo));
-      /* Ensure TF buffer is ready. */
-      tf_vbo_mtl->bind();
-      id<MTLBuffer> tf_buffer_mtl = tf_vbo_mtl->get_metal_buffer();
-      BLI_assert(tf_buffer_mtl != nil);
-
-      if (tf_buffer_mtl != nil) {
-        [rec setVertexBuffer:tf_buffer_mtl
-                      offset:0
-                     atIndex:pipeline_state_instance->transform_feedback_buffer_index];
-        MTL_LOG_INFO("Successfully bound VBO: %p for transform feedback (MTL Buffer: %p)",
-                     tf_vbo_mtl,
-                     tf_buffer_mtl);
-      }
-    }
-
-    /* Matrix Bindings. */
-    /* This is now called upon shader bind. We may need to re-evaluate this though,
-     * as was done here to ensure uniform changes between draws were tracked.
-     * NOTE(Metal): We may be able to remove this. */
-    GPU_matrix_bind(reinterpret_cast<struct GPUShader *>(
-        static_cast<Shader *>(this->pipeline_state.active_shader)));
 
     /* Bind buffers.
      * NOTE: `ensure_buffer_bindings` must be called after `ensure_texture_bindings` to allow
@@ -2227,11 +2191,10 @@ const MTLComputePipelineStateInstance *MTLContext::ensure_compute_pipeline_state
   MTLShader *active_shader = this->pipeline_state.active_shader;
 
   /* Set descriptor to default shader constants . */
-  MTLComputePipelineStateDescriptor compute_pipeline_descriptor(active_shader->constants.values);
+  MTLComputePipelineStateDescriptor compute_pipeline_descriptor(this->constants_state.values);
 
   const MTLComputePipelineStateInstance *compute_pso_inst =
-      this->pipeline_state.active_shader->bake_compute_pipeline_state(this,
-                                                                      compute_pipeline_descriptor);
+      active_shader->bake_compute_pipeline_state(this, compute_pipeline_descriptor);
 
   if (compute_pso_inst == nullptr || compute_pso_inst->pso == nil) {
     MTL_LOG_WARNING("No valid compute PSO for compute dispatch!", );

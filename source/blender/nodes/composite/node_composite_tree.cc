@@ -6,13 +6,10 @@
  * \ingroup nodes
  */
 
-#include <cstdio>
-
-#include "BLI_string.h"
-
-#include "DNA_color_types.h"
 #include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+
+#include "BLI_listbase.h"
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -32,8 +29,6 @@
 #include "NOD_composite.hh"
 #include "node_composite_util.hh"
 
-#include "COM_compositor.hh"
-
 static void composite_get_from_context(const bContext *C,
                                        blender::bke::bNodeTreeType * /*treetype*/,
                                        bNodeTree **r_ntree,
@@ -44,7 +39,7 @@ static void composite_get_from_context(const bContext *C,
 
   *r_from = nullptr;
   *r_id = &scene->id;
-  *r_ntree = scene->nodetree;
+  *r_ntree = scene->compositing_node_group;
 }
 
 static void foreach_nodeclass(void *calldata, blender::bke::bNodeClassCallback func)
@@ -99,7 +94,7 @@ static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
   blender::bke::node_preview_merge_tree(ntree, localtree, true);
 
   LISTBASE_FOREACH (bNode *, lnode, &localtree->nodes) {
-    if (bNode *orig_node = blender::bke::node_find_node_by_name(ntree, lnode->name)) {
+    if (bNode *orig_node = blender::bke::node_find_node_by_name(*ntree, lnode->name)) {
       if (lnode->type_legacy == CMP_NODE_VIEWER) {
         if (lnode->id && (lnode->flag & NODE_DO_OUTPUT)) {
           /* image_merge does sanity check for pointers */
@@ -124,7 +119,7 @@ static void local_merge(Main *bmain, bNodeTree *localtree, bNodeTree *ntree)
 
 static void update(bNodeTree *ntree)
 {
-  blender::bke::node_tree_set_output(ntree);
+  blender::bke::node_tree_set_output(*ntree);
 
   ntree_update_reroute_nodes(ntree);
 }
@@ -142,8 +137,14 @@ static void composite_node_add_init(bNodeTree * /*bnodetree*/, bNode *bnode)
 static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*ntreetype*/,
                                                   blender::bke::bNodeSocketType *socket_type)
 {
-  return blender::bke::node_is_static_socket_type(socket_type) &&
-         ELEM(socket_type->type, SOCK_FLOAT, SOCK_INT, SOCK_VECTOR, SOCK_RGBA);
+  return blender::bke::node_is_static_socket_type(*socket_type) &&
+         ELEM(socket_type->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA);
+}
+
+static bool composite_validate_link(eNodeSocketDatatype /*from*/, eNodeSocketDatatype /*to*/)
+{
+  /* All supported types can be implicitly converted to other types. */
+  return true;
 }
 
 blender::bke::bNodeTreeType *ntreeType_Composite;
@@ -166,11 +167,12 @@ void register_node_tree_type_cmp()
   tt->update = update;
   tt->get_from_context = composite_get_from_context;
   tt->node_add_init = composite_node_add_init;
+  tt->validate_link = composite_validate_link;
   tt->valid_socket_type = composite_node_tree_socket_type_valid;
 
   tt->rna_ext.srna = &RNA_CompositorNodeTree;
 
-  blender::bke::node_tree_type_add(tt);
+  blender::bke::node_tree_type_add(*tt);
 }
 
 /* *********************************************** */
@@ -203,13 +205,13 @@ void ntreeCompositTagRender(Scene *scene)
   for (Scene *sce_iter = (Scene *)G_MAIN->scenes.first; sce_iter;
        sce_iter = (Scene *)sce_iter->id.next)
   {
-    if (sce_iter->nodetree) {
-      for (bNode *node : sce_iter->nodetree->all_nodes()) {
+    if (sce_iter->compositing_node_group) {
+      for (bNode *node : sce_iter->compositing_node_group->all_nodes()) {
         if (node->id == (ID *)scene || node->type_legacy == CMP_NODE_COMPOSITE) {
-          BKE_ntree_update_tag_node_property(sce_iter->nodetree, node);
+          BKE_ntree_update_tag_node_property(sce_iter->compositing_node_group, node);
         }
         else if (node->type_legacy == CMP_NODE_TEXTURE) /* uses scene size_x/size_y */ {
-          BKE_ntree_update_tag_node_property(sce_iter->nodetree, node);
+          BKE_ntree_update_tag_node_property(sce_iter->compositing_node_group, node);
         }
       }
     }

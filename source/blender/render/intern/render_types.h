@@ -12,10 +12,9 @@
 /* exposed internal in render module only! */
 /* ------------------------------------------------------------------------- */
 
-#include <mutex>
-
 #include "DNA_scene_types.h"
 
+#include "BLI_mutex.hh"
 #include "BLI_threads.h"
 
 #include "RE_compositor.hh"
@@ -26,6 +25,7 @@
 namespace blender::compositor {
 class RenderContext;
 class Profiler;
+enum class OutputTypes : uint8_t;
 }  // namespace blender::compositor
 
 struct bNodeTree;
@@ -50,7 +50,8 @@ struct BaseRender {
                                   const bNodeTree &node_tree,
                                   const char *view_name,
                                   blender::compositor::RenderContext *render_context,
-                                  blender::compositor::Profiler *profiler) = 0;
+                                  blender::compositor::Profiler *profiler,
+                                  blender::compositor::OutputTypes needed_outputs) = 0;
   virtual void compositor_free() = 0;
 
   virtual void display_init(RenderResult *render_result) = 0;
@@ -102,7 +103,8 @@ struct ViewRender : public BaseRender {
                           const bNodeTree & /*node_tree*/,
                           const char * /*view_name*/,
                           blender::compositor::RenderContext * /*render_context*/,
-                          blender::compositor::Profiler * /*profiler*/) override
+                          blender::compositor::Profiler * /*profiler*/,
+                          blender::compositor::OutputTypes /*needed_outputs*/) override
   {
   }
   void compositor_free() override {}
@@ -135,7 +137,7 @@ struct Render : public BaseRender {
   /* NOTE: Currently unused, provision for the future.
    * Add these now to allow the guarded memory allocator to catch C-specific function calls. */
   Render() = default;
-  virtual ~Render();
+  ~Render() override;
 
   blender::render::TilesHighlight *get_tile_highlight() override
   {
@@ -147,7 +149,8 @@ struct Render : public BaseRender {
                           const bNodeTree &node_tree,
                           const char *view_name,
                           blender::compositor::RenderContext *render_context,
-                          blender::compositor::Profiler *profiler) override;
+                          blender::compositor::Profiler *profiler,
+                          blender::compositor::OutputTypes needed_outputs) override;
   void compositor_free() override;
 
   void display_init(RenderResult *render_result) override;
@@ -212,7 +215,7 @@ struct Render : public BaseRender {
   /* Compositor.
    * NOTE: Use bare pointer instead of smart pointer because the it is a fully opaque type. */
   blender::render::Compositor *compositor = nullptr;
-  std::mutex compositor_mutex;
+  blender::Mutex compositor_mutex;
 
   /* Callbacks for the corresponding base class method implementation. */
   void (*display_init_cb)(void *handle, RenderResult *rr) = nullptr;

@@ -30,9 +30,9 @@
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
 
-#include "UI_interface.hh"
-
 #include "WM_api.hh"
+
+#include <numeric>
 
 /**
  * The code below uses a prefix naming convention to indicate the coordinate space:

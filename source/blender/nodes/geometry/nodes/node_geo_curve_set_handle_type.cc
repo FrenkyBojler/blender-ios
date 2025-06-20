@@ -6,7 +6,7 @@
 
 #include "BKE_curves.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -17,20 +17,23 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveSetHandles)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
+  b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
-  b.add_output<decl::Geometry>("Curve").propagate_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "handle_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "handle_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveSetHandles *data = MEM_cnew<NodeGeometryCurveSetHandles>(__func__);
+  NodeGeometryCurveSetHandles *data = MEM_callocN<NodeGeometryCurveSetHandles>(__func__);
 
   data->handle_type = GEO_NODE_CURVE_HANDLE_AUTO;
   data->mode = GEO_NODE_CURVE_HANDLE_LEFT | GEO_NODE_CURVE_HANDLE_RIGHT;
@@ -128,13 +131,13 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryCurveSetHandles",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

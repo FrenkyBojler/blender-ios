@@ -15,7 +15,7 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_types.hh"
 #include "UI_view2d.hh"
 
 #include "BLT_translation.hh"
@@ -25,6 +25,8 @@
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Animation Translation)
@@ -157,3 +159,5 @@ TransModeInfo TransMode_timetranslate = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

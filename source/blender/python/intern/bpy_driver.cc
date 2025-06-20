@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pythonintern
  *
- * This file defines the 'BPY_driver_exec' to execute python driver expressions,
+ * This file defines the #BPY_driver_exec to execute python driver expressions,
  * called by the animation system, there are also some utility functions
  * to deal with the name-space used for driver execution.
  */
@@ -208,7 +208,7 @@ static void bpy_pydriver_namespace_clear_self()
 
 static PyObject *bpy_pydriver_depsgraph_as_pyobject(Depsgraph *depsgraph)
 {
-  PointerRNA depsgraph_ptr = RNA_pointer_create(nullptr, &RNA_Depsgraph, depsgraph);
+  PointerRNA depsgraph_ptr = RNA_pointer_create_discrete(nullptr, &RNA_Depsgraph, depsgraph);
   return pyrna_struct_CreatePyObject(&depsgraph_ptr);
 }
 
@@ -265,7 +265,6 @@ void BPY_driver_reset()
 {
   PyGILState_STATE gilstate;
   const bool use_gil = true; /* !PyC_IsInterpreterActive(); */
-
   if (use_gil) {
     gilstate = PyGILState_Ensure();
   }
@@ -327,7 +326,9 @@ static bool is_opcode_secure(const int opcode)
     OK_OP(UNARY_NEGATIVE)
     OK_OP(UNARY_NOT)
     OK_OP(UNARY_INVERT)
-    OK_OP(BINARY_SUBSCR)
+#  if PY_VERSION_HEX < 0x030e0000
+    OK_OP(BINARY_SUBSCR) /* Replaced with existing `BINARY_OP`. */
+#  endif
     OK_OP(GET_LEN)
 #  if PY_VERSION_HEX < 0x030c0000
     OK_OP(LIST_TO_TUPLE)

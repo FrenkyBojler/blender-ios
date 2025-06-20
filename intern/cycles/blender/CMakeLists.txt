@@ -4,7 +4,6 @@
 
 set(INC
   ..
-  ../../mikktspace
   ../../../source/blender/makesrna
   ${CMAKE_BINARY_DIR}/source/blender/makesrna/intern
 )
@@ -34,7 +33,6 @@ set(SRC
   session.cpp
   shader.cpp
   sync.cpp
-  texture.cpp
   viewport.cpp
   volume.cpp
 
@@ -49,7 +47,6 @@ set(SRC
   output_driver.h
   sync.h
   session.h
-  texture.h
   util.h
   viewport.h
 )
@@ -70,8 +67,6 @@ set(LIB
   cycles_session
   cycles_subd
   cycles_util
-
-  bf_intern_mikktspace
 
   ${Epoxy_LIBRARIES}
   ${PYTHON_LINKFLAGS}

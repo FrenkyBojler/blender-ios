@@ -8,15 +8,18 @@
 #include "usd.hh"
 #include "usd_hierarchy_iterator.hh"
 #include "usd_hook.hh"
+#include "usd_instancing_utils.hh"
 #include "usd_light_convert.hh"
 #include "usd_private.hh"
 
 #include <pxr/base/tf/token.h>
 #include <pxr/pxr.h>
 #include <pxr/usd/sdf/assetPath.h>
+#include <pxr/usd/sdf/path.h>
 #include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usd/usdGeom/metrics.h>
+#include <pxr/usd/usdGeom/pointInstancer.h>
 #include <pxr/usd/usdGeom/tokens.h>
 #include <pxr/usd/usdGeom/xform.h>
 #include <pxr/usd/usdGeom/xformCommonAPI.h>
@@ -61,18 +64,18 @@ static CLG_LogRef LOG = {"io.usd"};
 namespace blender::io::usd {
 
 struct ExportJobData {
-  Main *bmain;
-  Depsgraph *depsgraph;
-  wmWindowManager *wm;
-  Scene *scene;
+  Main *bmain = nullptr;
+  Depsgraph *depsgraph = nullptr;
+  wmWindowManager *wm = nullptr;
+  Scene *scene = nullptr;
 
   /** Unarchived_filepath is used for USDA/USDC/USD export. */
-  char unarchived_filepath[FILE_MAX];
-  char usdz_filepath[FILE_MAX];
-  USDExportParams params;
+  char unarchived_filepath[FILE_MAX] = {};
+  char usdz_filepath[FILE_MAX] = {};
+  USDExportParams params = {};
 
-  bool export_ok;
-  timeit::TimePoint start_time;
+  bool export_ok = false;
+  timeit::TimePoint start_time = {};
 
   bool targets_usdz() const
   {
@@ -105,7 +108,7 @@ static bool prim_path_valid(const char *path)
   /* Check path syntax. */
   std::string errMsg;
   if (!pxr::SdfPath::IsValidPathString(path, &errMsg)) {
-    WM_reportf(RPT_ERROR, "USD Export: invalid path string '%s': %s", path, errMsg.c_str());
+    WM_global_reportf(RPT_ERROR, "USD Export: invalid path string '%s': %s", path, errMsg.c_str());
     return false;
   }
 
@@ -114,12 +117,12 @@ static bool prim_path_valid(const char *path)
 
   pxr::SdfPath sdf_path(path);
   if (!sdf_path.IsAbsolutePath()) {
-    WM_reportf(RPT_ERROR, "USD Export: path '%s' is not an absolute path", path);
+    WM_global_reportf(RPT_ERROR, "USD Export: path '%s' is not an absolute path", path);
     return false;
   }
 
   if (!sdf_path.IsPrimPath()) {
-    WM_reportf(RPT_ERROR, "USD Export: path string '%s' is not a prim path", path);
+    WM_global_reportf(RPT_ERROR, "USD Export: path string '%s' is not a prim path", path);
     return false;
   }
 
@@ -169,7 +172,7 @@ static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &p
   }
 
   if (params.convert_scene_units) {
-    xf_api.SetScale(pxr::GfVec3f(float(1.0 / get_meters_per_unit(&params))));
+    xf_api.SetScale(pxr::GfVec3f(float(1.0 / get_meters_per_unit(params))));
   }
 
   if (params.convert_orientation) {
@@ -369,11 +372,11 @@ std::string cache_image_color(const float color[4])
     return file_path;
   }
 
-  ImBuf *ibuf = IMB_allocImBuf(4, 4, 32, IB_rectfloat);
+  ImBuf *ibuf = IMB_allocImBuf(4, 4, 32, IB_float_data);
   IMB_rectfill(ibuf, color);
   ibuf->ftype = IMB_FTYPE_RADHDR;
 
-  if (IMB_saveiff(ibuf, file_path.c_str(), IB_rectfloat)) {
+  if (IMB_save_image(ibuf, file_path.c_str(), IB_float_data)) {
     CLOG_INFO(&LOG, 1, "%s", file_path.c_str());
   }
   else {
@@ -383,6 +386,71 @@ std::string cache_image_color(const float color[4])
   IMB_freeImBuf(ibuf);
 
   return file_path;
+}
+
+static void mark_point_instancer_prototypes_as_over(const pxr::UsdStageRefPtr &stage,
+                                                    const pxr::SdfPath &wrapper_path,
+                                                    std::set<pxr::SdfPath> &visited)
+{
+  pxr::UsdPrim wrapper_prim = stage->GetPrimAtPath(wrapper_path);
+  if (!wrapper_prim || !wrapper_prim.IsValid()) {
+    return;
+  }
+
+  std::string real_path_str;
+
+  for (const pxr::SdfPrimSpecHandle &primSpec : wrapper_prim.GetPrimStack()) {
+    if (!primSpec || !primSpec->HasReferences()) {
+      continue;
+    }
+
+    for (const pxr::SdfReference &ref : primSpec->GetReferenceList().GetPrependedItems()) {
+      if (ref.GetAssetPath().empty() && !ref.GetPrimPath().IsEmpty()) {
+        real_path_str = ref.GetPrimPath().GetString();
+        break;
+      }
+    }
+    if (!real_path_str.empty()) {
+      break;
+    }
+  }
+
+  if (real_path_str.empty()) {
+    CLOG_WARN(&LOG, "No prototype reference found for: %s", wrapper_path.GetText());
+    return;
+  }
+
+  const pxr::SdfPath real_path(real_path_str);
+  pxr::UsdPrim proto_prim = stage->GetPrimAtPath(real_path);
+
+  if (visited.count(real_path)) {
+    return;
+  }
+  visited.insert(real_path);
+
+  if (!proto_prim || !proto_prim.IsValid()) {
+    CLOG_WARN(&LOG, "Referenced prototype not found at: %s", real_path.GetText());
+    return;
+  }
+
+  proto_prim.SetSpecifier(pxr::SdfSpecifierOver);
+
+  std::string doc_message = fmt::format(
+      "This prim is used as a prototype by the PointInstancer \"{}\" so we override the def "
+      "with an \"over\" so that it isn't imaged in the scene, but is available as a prototype "
+      "that can be referenced.",
+      wrapper_prim.GetName().GetString());
+  proto_prim.SetDocumentation(doc_message);
+
+  if (wrapper_prim.IsA<pxr::UsdGeomPointInstancer>()) {
+    pxr::UsdGeomPointInstancer nested_instancer(wrapper_prim);
+    pxr::SdfPathVector nested_targets;
+    if (nested_instancer.GetPrototypesRel().GetTargets(&nested_targets)) {
+      for (const pxr::SdfPath &nested_wrapper_path : nested_targets) {
+        mark_point_instancer_prototypes_as_over(stage, nested_wrapper_path, visited);
+      }
+    }
+  }
 }
 
 pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
@@ -431,15 +499,17 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
 
   pxr::VtValue upAxis = pxr::VtValue(pxr::UsdGeomTokens->z);
   if (params.convert_orientation) {
-    if (params.up_axis == IO_AXIS_X)
+    if (params.up_axis == IO_AXIS_X) {
       upAxis = pxr::VtValue(pxr::UsdGeomTokens->x);
-    else if (params.up_axis == IO_AXIS_Y)
+    }
+    else if (params.up_axis == IO_AXIS_Y) {
       upAxis = pxr::VtValue(pxr::UsdGeomTokens->y);
+    }
   }
 
   usd_stage->SetMetadata(pxr::UsdGeomTokens->upAxis, upAxis);
 
-  const double meters_per_unit = get_meters_per_unit(&params);
+  const double meters_per_unit = get_meters_per_unit(params);
   pxr::UsdGeomSetStageMetersPerUnit(usd_stage, meters_per_unit);
 
   ensure_root_prim(usd_stage, params);
@@ -501,6 +571,10 @@ pxr::UsdStageRefPtr export_to_stage(const USDExportParams &params,
     }
   }
 
+  if (params.use_instancing) {
+    process_scene_graph_instances(params, usd_stage);
+  }
+
   call_export_hooks(usd_stage, depsgraph, params.worker_status->reports);
 
   worker_status->progress = 0.88f;
@@ -557,6 +631,22 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
                 "USD Export: unable to find suitable USD plugin to write %s",
                 data->unarchived_filepath);
     return;
+  }
+
+  /* Traverse the point instancer to make sure the prototype referenced by nested point instancers
+   * are also marked as over. */
+  std::set<pxr::SdfPath> visited;
+  for (const pxr::UsdPrim &prim : usd_stage->Traverse()) {
+    if (!prim.IsA<pxr::UsdGeomPointInstancer>()) {
+      continue;
+    }
+    pxr::UsdGeomPointInstancer instancer(prim);
+    pxr::SdfPathVector targets;
+    if (instancer.GetPrototypesRel().GetTargets(&targets)) {
+      for (const pxr::SdfPath &wrapper_path : targets) {
+        mark_point_instancer_prototypes_as_over(usd_stage, wrapper_path, visited);
+      }
+    }
   }
 
   usd_stage->GetRootLayer()->Save();
@@ -661,8 +751,7 @@ bool USD_export(const bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   Scene *scene = CTX_data_scene(C);
 
-  blender::io::usd::ExportJobData *job = static_cast<blender::io::usd::ExportJobData *>(
-      MEM_mallocN(sizeof(blender::io::usd::ExportJobData), "ExportJobData"));
+  blender::io::usd::ExportJobData *job = MEM_new<blender::io::usd::ExportJobData>("ExportJobData");
 
   job->bmain = CTX_data_main(C);
   job->wm = CTX_wm_manager(C);
@@ -703,7 +792,9 @@ bool USD_export(const bContext *C,
         job->wm, CTX_wm_window(C), scene, "USD Export", WM_JOB_PROGRESS, WM_JOB_TYPE_USD_EXPORT);
 
     /* setup job */
-    WM_jobs_customdata_set(wm_job, job, MEM_freeN);
+    WM_jobs_customdata_set(wm_job, job, [](void *j) {
+      MEM_delete(static_cast<blender::io::usd::ExportJobData *>(j));
+    });
     WM_jobs_timer(wm_job, 0.1, NC_SCENE | ND_FRAME, NC_SCENE | ND_FRAME);
     WM_jobs_callbacks(wm_job,
                       blender::io::usd::export_startjob,
@@ -722,7 +813,7 @@ bool USD_export(const bContext *C,
     blender::io::usd::export_endjob(job);
     export_ok = job->export_ok;
 
-    MEM_freeN(job);
+    MEM_delete(job);
   }
 
   return export_ok;
@@ -742,10 +833,10 @@ int USD_get_version()
   return PXR_VERSION;
 }
 
-double get_meters_per_unit(const USDExportParams *params)
+double get_meters_per_unit(const USDExportParams &params)
 {
   double result;
-  switch (params->convert_scene_units) {
+  switch (params.convert_scene_units) {
     case USD_SCENE_UNITS_CENTIMETERS:
       result = 0.01;
       break;
@@ -765,7 +856,7 @@ double get_meters_per_unit(const USDExportParams *params)
       result = 0.9144;
       break;
     case USD_SCENE_UNITS_CUSTOM:
-      result = double(params->custom_meters_per_unit);
+      result = double(params.custom_meters_per_unit);
       break;
     default:
       result = 1.0;

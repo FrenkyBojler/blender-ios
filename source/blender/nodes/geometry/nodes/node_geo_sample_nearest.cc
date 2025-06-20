@@ -2,14 +2,16 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
 
+#include "BLI_math_vector.hh"
+
 #include "BKE_bvhutils.hh"
-#include "BKE_mesh.hh"
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -56,13 +58,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Geometry")
       .supported_type({GeometryComponent::Type::Mesh, GeometryComponent::Type::PointCloud});
-  b.add_input<decl::Vector>("Sample Position").implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Sample Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_output<decl::Int>("Index").dependent_field({1});
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -89,7 +91,7 @@ static void get_closest_pointcloud_points(const bke::BVHTreeFromPointCloud &tree
     nearest.index = -1;
     nearest.dist_sq = FLT_MAX;
     const float3 position = positions[i];
-    BLI_bvhtree_find_nearest(tree_data.tree.get(),
+    BLI_bvhtree_find_nearest(tree_data.tree,
                              position,
                              &nearest,
                              tree_data.nearest_callback,
@@ -176,22 +178,22 @@ static void get_closest_mesh_corners(const Mesh &mesh,
 
     /* Find the closest vertex in the face. */
     float min_distance_sq = FLT_MAX;
-    int closest_vert_index = 0;
-    int closest_loop_index = 0;
-    for (const int loop_index : faces[face_index]) {
-      const int vertex_index = corner_verts[loop_index];
-      const float distance_sq = math::distance_squared(position, vert_positions[vertex_index]);
+    int closest_vert = 0;
+    int closest_corner = 0;
+    for (const int corner : faces[face_index]) {
+      const int vert = corner_verts[corner];
+      const float distance_sq = math::distance_squared(position, vert_positions[vert]);
       if (distance_sq < min_distance_sq) {
         min_distance_sq = distance_sq;
-        closest_loop_index = loop_index;
-        closest_vert_index = vertex_index;
+        closest_corner = corner;
+        closest_vert = vert;
       }
     }
     if (!r_corner_indices.is_empty()) {
-      r_corner_indices[i] = closest_loop_index;
+      r_corner_indices[i] = closest_corner;
     }
     if (!r_positions.is_empty()) {
-      r_positions[i] = vert_positions[closest_vert_index];
+      r_positions[i] = vert_positions[closest_vert];
     }
     if (!r_distances_sq.is_empty()) {
       r_distances_sq[i] = min_distance_sq;
@@ -340,7 +342,7 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

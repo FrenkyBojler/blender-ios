@@ -14,14 +14,17 @@ set(INC_SYS
 set(SRC
   intern/add_curves_on_mesh.cc
   intern/curve_constraints.cc
+  intern/curves_remove_and_split.cc
   intern/extend_curves.cc
   intern/extract_elements.cc
   intern/fillet_curves.cc
+  intern/fit_curves.cc
   intern/interpolate_curves.cc
   intern/join_geometries.cc
   intern/merge_curves.cc
   intern/merge_layers.cc
   intern/mesh_boolean.cc
+  intern/mesh_boolean_manifold.cc
   intern/mesh_copy_selection.cc
   intern/mesh_merge_by_distance.cc
   intern/mesh_primitive_cuboid.cc
@@ -55,9 +58,11 @@ set(SRC
 
   GEO_add_curves_on_mesh.hh
   GEO_curve_constraints.hh
+  GEO_curves_remove_and_split.hh
   GEO_extend_curves.hh
   GEO_extract_elements.hh
   GEO_fillet_curves.hh
+  GEO_fit_curves.hh
   GEO_interpolate_curves.hh
   GEO_join_geometries.hh
   GEO_merge_curves.hh
@@ -93,6 +98,7 @@ set(SRC
   GEO_uv_pack.hh
   GEO_uv_parametrizer.hh
   GEO_volume_grid_resample.hh
+  intern/mesh_boolean_manifold.hh
 )
 
 set(LIB
@@ -105,6 +111,8 @@ set(LIB
   PRIVATE bf::intern::atomic
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::extern::fmtlib
+  PRIVATE bf::extern::curve_fit_nd
+  PRIVATE bf::dependencies::optional::manifold
 )
 
 if(WITH_UV_SLIM)
@@ -138,6 +146,10 @@ if(WITH_GMP)
   list(APPEND LIB
     ${GMP_LIBRARIES}
   )
+endif()
+
+if(WITH_MANIFOLD)
+  add_definitions(-DWITH_MANIFOLD)
 endif()
 
 blender_add_lib(bf_geometry "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -21,18 +21,13 @@
 #include <cstring>
 
 #include "BLI_listbase.h"
-#include "BLI_string.h"
-#include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_curve.hh"
 #include "BKE_global.hh"
 #include "BKE_gpencil_legacy.h"
-#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
-#include "BKE_mesh_types.hh"
-#include "BKE_object_types.hh"
 #include "BKE_scene.hh"
 
 #include "DEG_depsgraph.hh"
@@ -43,15 +38,11 @@
 #include "DNA_ID.h"
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
-#include "DNA_gpencil_legacy_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_modifier_types.h"
 #include "DNA_object_types.h"
 #include "DNA_particle_types.h"
-#include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_sequence_types.h"
-#include "DNA_sound_types.h"
 
 #include "DRW_engine.hh"
 
@@ -68,12 +59,12 @@
 #  include "DNA_world_types.h"
 #endif
 
-#include "BKE_action.hh"
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_armature.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_mesh_types.hh"
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_pointcache.h"
@@ -131,9 +122,6 @@ void nested_id_hack_discard_pointers(ID *id_cow)
 
     case ID_SCE: {
       Scene *scene_cow = (Scene *)id_cow;
-      /* Node trees always have their own ID node in the graph, and are
-       * being copied as part of their copy-on-evaluation process. */
-      scene_cow->nodetree = nullptr;
       /* Tool settings pointer is shared with the original scene. */
       scene_cow->toolsettings = nullptr;
       break;
@@ -180,7 +168,6 @@ const ID *nested_id_hack_get_discarded_pointers(NestedIDHackTempStorage *storage
     case ID_SCE: {
       storage->scene = *(Scene *)id;
       storage->scene.toolsettings = nullptr;
-      storage->scene.nodetree = nullptr;
       return &storage->scene.id;
     }
 
@@ -208,7 +195,6 @@ void nested_id_hack_restore_pointers(const ID *old_id, ID *new_id)
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree)
     SPECIAL_CASE(ID_LA, Light, nodetree)
     SPECIAL_CASE(ID_MA, Material, nodetree)
-    SPECIAL_CASE(ID_SCE, Scene, nodetree)
     SPECIAL_CASE(ID_TE, Tex, nodetree)
     SPECIAL_CASE(ID_WO, World, nodetree)
 
@@ -245,7 +231,6 @@ void ntree_hack_remap_pointers(const Depsgraph *depsgraph, ID *id_cow)
     SPECIAL_CASE(ID_LS, FreestyleLineStyle, nodetree, bNodeTree)
     SPECIAL_CASE(ID_LA, Light, nodetree, bNodeTree)
     SPECIAL_CASE(ID_MA, Material, nodetree, bNodeTree)
-    SPECIAL_CASE(ID_SCE, Scene, nodetree, bNodeTree)
     SPECIAL_CASE(ID_TE, Tex, nodetree, bNodeTree)
     SPECIAL_CASE(ID_WO, World, nodetree, bNodeTree)
 
@@ -304,7 +289,7 @@ bool scene_copy_inplace_no_main(const Scene *scene, Scene *new_scene)
 {
 
   if (G.debug & G_DEBUG_DEPSGRAPH_UID) {
-    SEQ_relations_check_uids_unique_and_report(scene);
+    seq::relations_check_uids_unique_and_report(scene);
   }
 
 #ifdef NESTED_ID_NASTY_WORKAROUND

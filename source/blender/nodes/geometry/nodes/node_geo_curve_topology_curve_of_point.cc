@@ -11,7 +11,7 @@ namespace blender::nodes::node_geo_curve_topology_curve_of_point_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Point Index")
-      .implicit_field(implicit_field_inputs::index)
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("The control point to retrieve data from");
   b.add_output<decl::Int>("Curve Index")
       .field_source_reference_all()
@@ -122,7 +122,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

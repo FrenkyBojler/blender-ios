@@ -41,6 +41,7 @@ set(SRC
   intern/action_mirror.cc
   intern/addon.cc
   intern/anim_data.cc
+  intern/anim_data_bmain_utils.cc
   intern/anim_path.cc
   intern/anim_sys.cc
   intern/anim_visualization.cc
@@ -55,7 +56,9 @@ set(SRC
   intern/asset_weak_reference.cc
   intern/attribute.cc
   intern/attribute_access.cc
+  intern/attribute_legacy_convert.cc
   intern/attribute_math.cc
+  intern/attribute_storage.cc
   intern/autoexec.cc
   intern/bake_data_block_map.cc
   intern/bake_geometry_nodes_modifier.cc
@@ -211,6 +214,7 @@ set(SRC
   intern/mesh_sample.cc
   intern/mesh_tangent.cc
   intern/mesh_tessellate.cc
+  intern/mesh_topology_state.cc
   intern/mesh_validate.cc
   intern/mesh_wrapper.cc
   intern/modifier.cc
@@ -235,6 +239,7 @@ set(SRC
   intern/node_tree_field_inferencing.cc
   intern/node_tree_interface.cc
   intern/node_tree_reference_lifetimes.cc
+  intern/node_tree_structure_type_inferencing.cc
   intern/node_tree_update.cc
   intern/node_tree_zones.cc
   intern/object.cc
@@ -251,6 +256,7 @@ set(SRC
   intern/particle_child.cc
   intern/particle_distribute.cc
   intern/particle_system.cc
+  intern/path_templates.cc
   intern/pbvh.cc
   intern/pbvh_bmesh.cc
   intern/pbvh_pixels.cc
@@ -301,12 +307,14 @@ set(SRC
   intern/type_conversions.cc
   intern/undo_system.cc
   intern/unit.cc
+  intern/uvproject.cc
   intern/vfont.cc
   intern/vfont_curve.cc
   intern/vfontdata_freetype.cc
   intern/viewer_path.cc
   intern/volume.cc
   intern/volume_grid.cc
+  intern/volume_grid_fields.cc
   intern/volume_grid_file_cache.cc
   intern/volume_render.cc
   intern/volume_to_mesh.cc
@@ -330,7 +338,10 @@ set(SRC
   BKE_attribute.hh
   BKE_attribute_filter.hh
   BKE_attribute_filters.hh
+  BKE_attribute_legacy_convert.hh
   BKE_attribute_math.hh
+  BKE_attribute_storage.hh
+  BKE_attribute_storage_blend_write.hh
   BKE_autoexec.hh
   BKE_bake_data_block_id.hh
   BKE_bake_data_block_map.hh
@@ -362,6 +373,8 @@ set(SRC
   BKE_colorband.hh
   BKE_colortools.hh
   BKE_compositor.hh
+  BKE_compute_context_cache.hh
+  BKE_compute_context_cache_fwd.hh
   BKE_compute_contexts.hh
   BKE_constraint.h
   BKE_context.hh
@@ -453,6 +466,7 @@ set(SRC
   BKE_mesh_runtime.hh
   BKE_mesh_sample.hh
   BKE_mesh_tangent.hh
+  BKE_mesh_topology_state.hh
   BKE_mesh_types.hh
   BKE_mesh_wrapper.hh
   BKE_modifier.hh
@@ -479,6 +493,7 @@ set(SRC
   BKE_paint_bvh.hh
   BKE_paint_bvh_pixels.hh
   BKE_particle.h
+  BKE_path_templates.hh
   BKE_pointcache.h
   BKE_pointcloud.hh
   BKE_pose_backup.h
@@ -489,7 +504,6 @@ set(SRC
   BKE_scene.hh
   BKE_scene_runtime.hh
   BKE_screen.hh
-  BKE_sequencer_offscreen.h
   BKE_shader_fx.h
   BKE_shrinkwrap.hh
   BKE_softbody.h
@@ -512,12 +526,14 @@ set(SRC
   BKE_type_conversions.hh
   BKE_undo_system.hh
   BKE_unit.hh
+  BKE_uvproject.h
   BKE_vfont.hh
   BKE_vfontdata.hh
   BKE_viewer_path.hh
   BKE_volume.hh
   BKE_volume_enums.hh
   BKE_volume_grid.hh
+  BKE_volume_grid_fields.hh
   BKE_volume_grid_file_cache.hh
   BKE_volume_grid_fwd.hh
   BKE_volume_grid_type_traits.hh
@@ -632,19 +648,19 @@ if(WITH_BULLET)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_IMAGE_OPENJPEG)
-  add_definitions(-DWITH_OPENJPEG)
+  add_definitions(-DWITH_IMAGE_OPENJPEG)
 endif()
 
 if(WITH_IMAGE_CINEON)
-  add_definitions(-DWITH_CINEON)
+  add_definitions(-DWITH_IMAGE_CINEON)
 endif()
 
 if(WITH_IMAGE_WEBP)
-  add_definitions(-DWITH_WEBP)
+  add_definitions(-DWITH_IMAGE_WEBP)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -796,6 +812,10 @@ if(WITH_XR_OPENXR)
   add_definitions(-DWITH_XR_OPENXR)
 endif()
 
+if(WITH_INPUT_IME)
+  add_definitions(-DWITH_INPUT_IME)
+endif()
+
 # # Warnings as errors, this is too strict!
 # if(MSVC)
 #    string(APPEND CMAKE_C_FLAGS " /WX")
@@ -813,7 +833,9 @@ if(WITH_GTESTS)
     intern/action_test.cc
     intern/armature_test.cc
     intern/asset_metadata_test.cc
+    intern/attribute_storage_test.cc
     intern/bpath_test.cc
+    intern/brush_test.cc
     intern/cryptomatte_test.cc
     intern/curves_geometry_test.cc
     intern/fcurve_test.cc
@@ -830,11 +852,14 @@ if(WITH_GTESTS)
     intern/lib_remap_test.cc
     intern/main_test.cc
     intern/nla_test.cc
+    intern/path_templates_test.cc
     intern/subdiv_ccg_test.cc
     intern/tracking_test.cc
     intern/volume_test.cc
   )
   set(TEST_INC
+    # WARNING: this is a bad-level include which is only acceptable for tests
+    # and even then it would be good if the dependency could be removed.
     ../editors/include
   )
   set(TEST_LIB

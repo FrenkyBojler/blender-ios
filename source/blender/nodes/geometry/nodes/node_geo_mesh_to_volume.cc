@@ -4,14 +4,16 @@
 
 #include "node_geometry_util.hh"
 
+#include "DNA_mesh_types.h"
+#include "DNA_volume_types.h"
+
 #include "BKE_lib_id.hh"
-#include "BKE_mesh.hh"
 
 #include "GEO_mesh_to_volume.hh"
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_mesh_to_volume_cc {
@@ -49,12 +51,12 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "resolution_mode", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
+  layout->prop(ptr, "resolution_mode", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshToVolume *data = MEM_cnew<NodeGeometryMeshToVolume>(__func__);
+  NodeGeometryMeshToVolume *data = MEM_callocN<NodeGeometryMeshToVolume>(__func__);
   data->resolution_mode = MESH_TO_VOLUME_RESOLUTION_MODE_VOXEL_AMOUNT;
   node->storage = data;
 }
@@ -97,7 +99,7 @@ static Volume *create_volume_from_mesh(const Mesh &mesh, GeoNodeExecParams &para
       0.0f,
       mesh_to_volume_space_transform);
 
-  Volume *volume = reinterpret_cast<Volume *>(BKE_id_new_nomain(ID_VO, nullptr));
+  Volume *volume = BKE_id_new_nomain<Volume>(nullptr);
 
   /* Convert mesh to grid and add to volume. */
   geometry::fog_volume_grid_add_from_mesh(volume,
@@ -168,13 +170,13 @@ static void node_register()
   ntype.enum_name_legacy = "MESH_TO_VOLUME";
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
-  bke::node_type_size(&ntype, 200, 120, 700);
+  bke::node_type_size(ntype, 200, 120, 700);
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryMeshToVolume", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(&ntype);
+      ntype, "NodeGeometryMeshToVolume", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

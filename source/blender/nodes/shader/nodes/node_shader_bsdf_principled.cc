@@ -4,11 +4,9 @@
 
 #include <map>
 
-#include "BLI_string.h"
-
 #include "node_shader_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BKE_node_runtime.hh"
@@ -83,7 +81,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   /* Panel for Subsurface scattering settings. */
   PanelDeclarationBuilder &sss = b.add_panel("Subsurface").default_closed(true);
   sss.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-    uiItemR(layout, ptr, "subsurface_method", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout->prop(ptr, "subsurface_method", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
   sss.add_input<decl::Float>("Subsurface Weight")
       .default_value(0.0f)
@@ -100,7 +98,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(100.0f)
       .short_label("Radius")
-      .description("Scattering radius to use for subsurface component (multiplied with Scale)");
+      .description("Scattering radius per color channel (RGB), multiplied with Scale");
 #define SOCK_SUBSURFACE_RADIUS_ID 9
   sss.add_input<decl::Float>("Subsurface Scale")
       .default_value(0.05f)
@@ -108,7 +106,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(10.0f)
       .subtype(PROP_DISTANCE)
       .short_label("Scale")
-      .description("Scale of the subsurface scattering (multiplied with Radius)");
+      .description("Scale factor of the subsurface scattering radius");
 #define SOCK_SUBSURFACE_SCALE_ID 10
   sss.add_input<decl::Float>("Subsurface IOR")
       .default_value(1.4f)
@@ -134,7 +132,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   /* Panel for Specular settings. */
   PanelDeclarationBuilder &spec = b.add_panel("Specular").default_closed(true);
   spec.add_layout([](uiLayout *layout, bContext * /*C*/, PointerRNA *ptr) {
-    uiItemR(layout, ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    layout->prop(ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   });
   spec.add_input<decl::Float>("Specular IOR Level")
       .default_value(0.5f)
@@ -351,14 +349,6 @@ static int node_shader_gpu_bsdf_principled(GPUMaterial *mat,
     flag |= GPU_MATFLAG_COAT;
   }
 
-  if (use_subsurf) {
-    bNodeSocket *socket = (bNodeSocket *)BLI_findlink(&node->runtime->original->inputs,
-                                                      SOCK_SUBSURFACE_RADIUS_ID);
-    bNodeSocketValueRGBA *socket_data = (bNodeSocketValueRGBA *)socket->default_value;
-    /* For some reason it seems that the socket value is in ARGB format. */
-    use_subsurf = GPU_material_sss_profile_create(mat, &socket_data->value[1]);
-  }
-
   float use_multi_scatter = (node->custom1 == SHD_GLOSSY_MULTI_GGX) ? 1.0f : 0.0f;
 
   GPU_material_flag_set(mat, flag);
@@ -371,12 +361,13 @@ static void node_shader_update_principled(bNodeTree *ntree, bNode *node)
 {
   const int sss_method = node->custom2;
 
-  bke::node_set_socket_availability(ntree,
-                                    bke::node_find_socket(node, SOCK_IN, "Subsurface IOR"),
+  bke::node_set_socket_availability(*ntree,
+                                    *bke::node_find_socket(*node, SOCK_IN, "Subsurface IOR"),
                                     sss_method == SHD_SUBSURFACE_RANDOM_WALK_SKIN);
-  bke::node_set_socket_availability(ntree,
-                                    bke::node_find_socket(node, SOCK_IN, "Subsurface Anisotropy"),
-                                    sss_method != SHD_SUBSURFACE_BURLEY);
+  bke::node_set_socket_availability(
+      *ntree,
+      *bke::node_find_socket(*node, SOCK_IN, "Subsurface Anisotropy"),
+      sss_method != SHD_SUBSURFACE_BURLEY);
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -386,35 +377,41 @@ NODE_SHADER_MATERIALX_BEGIN
 
   /* NOTE: commented inputs aren't used for node creation. */
   auto bsdf_inputs = [&]() -> InputsType {
-    return {
-        {"base_color", get_input_value("Base Color", NodeItem::Type::Color3)},
-        {"diffuse_roughness", get_input_value("Diffuse Roughness", NodeItem::Type::Float)},
-        {"subsurface", get_input_value("Subsurface Weight", NodeItem::Type::Float)},
-        {"subsurface_scale", get_input_value("Subsurface Scale", NodeItem::Type::Float)},
-        {"subsurface_radius", get_input_value("Subsurface Radius", NodeItem::Type::Vector3)},
-        //{"subsurface_ior", get_input_value("Subsurface IOR", NodeItem::Type::Vector3)},
-        {"subsurface_anisotropy", get_input_value("Subsurface Anisotropy", NodeItem::Type::Float)},
-        {"metallic", get_input_value("Metallic", NodeItem::Type::Float)},
-        {"specular", get_input_value("Specular IOR Level", NodeItem::Type::Float)},
-        {"specular_tint", get_input_value("Specular Tint", NodeItem::Type::Color3)},
-        {"roughness", get_input_value("Roughness", NodeItem::Type::Float)},
-        {"anisotropic", get_input_value("Anisotropic", NodeItem::Type::Float)},
-        {"anisotropic_rotation", get_input_value("Anisotropic Rotation", NodeItem::Type::Float)},
-        {"sheen", get_input_value("Sheen Weight", NodeItem::Type::Float)},
-        {"sheen_roughness", get_input_value("Sheen Roughness", NodeItem::Type::Float)},
-        {"sheen_tint", get_input_value("Sheen Tint", NodeItem::Type::Color3)},
-        {"coat", get_input_value("Coat Weight", NodeItem::Type::Float)},
-        {"coat_roughness", get_input_value("Coat Roughness", NodeItem::Type::Float)},
-        {"coat_ior", get_input_value("Coat IOR", NodeItem::Type::Float)},
-        {"coat_tint", get_input_value("Coat Tint", NodeItem::Type::Color3)},
-        {"ior", get_input_value("IOR", NodeItem::Type::Float)},
-        {"transmission", get_input_value("Transmission Weight", NodeItem::Type::Float)},
-        {"thin_film_thickness", get_input_value("Thin Film Thickness", NodeItem::Type::Float)},
-        {"thin_film_IOR", get_input_value("Thin Film IOR", NodeItem::Type::Float)},
-        {"alpha", get_input_value("Alpha", NodeItem::Type::Float)},
-        {"normal", get_input_link("Normal", NodeItem::Type::Vector3)},
-        {"coat_normal", get_input_link("Coat Normal", NodeItem::Type::Vector3)},
-        {"tangent", get_input_link("Tangent", NodeItem::Type::Vector3)},
+    return
+    {
+      {"base_color", get_input_value("Base Color", NodeItem::Type::Color3)},
+          {"diffuse_roughness", get_input_value("Diffuse Roughness", NodeItem::Type::Float)},
+          {"subsurface", get_input_value("Subsurface Weight", NodeItem::Type::Float)},
+          {"subsurface_scale", get_input_value("Subsurface Scale", NodeItem::Type::Float)},
+#  if MATERIALX_MAJOR_VERSION <= 1 && MATERIALX_MINOR_VERSION <= 38
+          {"subsurface_radius", get_input_value("Subsurface Radius", NodeItem::Type::Vector3)},
+#  else
+          {"subsurface_radius", get_input_value("Subsurface Radius", NodeItem::Type::Color3)},
+#  endif
+          //{"subsurface_ior", get_input_value("Subsurface IOR", NodeItem::Type::Vector3)},
+          {"subsurface_anisotropy",
+           get_input_value("Subsurface Anisotropy", NodeItem::Type::Float)},
+          {"metallic", get_input_value("Metallic", NodeItem::Type::Float)},
+          {"specular", get_input_value("Specular IOR Level", NodeItem::Type::Float)},
+          {"specular_tint", get_input_value("Specular Tint", NodeItem::Type::Color3)},
+          {"roughness", get_input_value("Roughness", NodeItem::Type::Float)},
+          {"anisotropic", get_input_value("Anisotropic", NodeItem::Type::Float)},
+          {"anisotropic_rotation", get_input_value("Anisotropic Rotation", NodeItem::Type::Float)},
+          {"sheen", get_input_value("Sheen Weight", NodeItem::Type::Float)},
+          {"sheen_roughness", get_input_value("Sheen Roughness", NodeItem::Type::Float)},
+          {"sheen_tint", get_input_value("Sheen Tint", NodeItem::Type::Color3)},
+          {"coat", get_input_value("Coat Weight", NodeItem::Type::Float)},
+          {"coat_roughness", get_input_value("Coat Roughness", NodeItem::Type::Float)},
+          {"coat_ior", get_input_value("Coat IOR", NodeItem::Type::Float)},
+          {"coat_tint", get_input_value("Coat Tint", NodeItem::Type::Color3)},
+          {"ior", get_input_value("IOR", NodeItem::Type::Float)},
+          {"transmission", get_input_value("Transmission Weight", NodeItem::Type::Float)},
+          {"thin_film_thickness", get_input_value("Thin Film Thickness", NodeItem::Type::Float)},
+          {"thin_film_IOR", get_input_value("Thin Film IOR", NodeItem::Type::Float)},
+          {"alpha", get_input_value("Alpha", NodeItem::Type::Float)},
+          {"normal", get_input_link("Normal", NodeItem::Type::Vector3)},
+          {"coat_normal", get_input_link("Coat Normal", NodeItem::Type::Vector3)},
+          {"tangent", get_input_link("Tangent", NodeItem::Type::Vector3)},
     };
   };
 
@@ -596,49 +593,86 @@ NODE_SHADER_MATERIALX_BEGIN
       auto e_in = edf_inputs();
       in.insert(e_in.begin(), e_in.end());
 
-      NodeItem roughness = in["roughness"];
       NodeItem base_color = in["base_color"];
-      NodeItem anisotropic = in["anisotropic"];
-      NodeItem rotation = in["anisotropic_rotation"];
 
-      res = create_node(
-          "standard_surface",
-          NodeItem::Type::SurfaceShader,
-          {{"base", val(1.0f)},
-           {"base_color", base_color},
-           {"diffuse_roughness", in["diffuse_roughness"]},
-           {"metalness", in["metallic"]},
-           {"specular", in["specular"]},
-           {"specular_color", in["specular_tint"]},
-           {"specular_roughness", roughness},
-           {"specular_IOR", in["ior"]},
-           {"specular_anisotropy", anisotropic},
-           {"specular_rotation", rotation},
-           {"transmission", in["transmission"]},
-           {"transmission_color", base_color},
-           {"transmission_extra_roughness", roughness},
-           {"subsurface", in["subsurface"]},
-           {"subsurface_color", base_color},
-           {"subsurface_radius",
-            (in["subsurface_radius"] * in["subsurface_scale"]).convert(NodeItem::Type::Color3)},
-           {"subsurface_anisotropy", in["subsurface_anisotropy"]},
-           {"sheen", in["sheen"]},
-           {"sheen_color", in["sheen_tint"]},
-           {"sheen_roughness", in["sheen_roughness"]},
-           {"coat", in["coat"]},
-           {"coat_color", in["coat_tint"]},
-           {"coat_roughness", in["coat_roughness"]},
-           {"coat_IOR", in["coat_ior"]},
-           {"coat_anisotropy", anisotropic},
-           {"coat_rotation", rotation},
-           {"coat_normal", in["coat_normal"]},
-           {"emission", in["emission"]},
-           {"emission_color", in["emission_color"]},
-           {"thin_film_thickness", in["thin_film_thickness"]},
-           {"thin_film_IOR", in["thin_film_IOR"]},
-           {"normal", in["normal"]},
-           {"tangent", in["tangent"]},
-           {"opacity", in["alpha"].convert(NodeItem::Type::Color3)}});
+      NodeItem anisotropy = in["anisotropic"];
+      NodeItem tangent = in["tangent"];
+      if (anisotropy) {
+        /* Anisotropy scaled down to approximately match the principled BSDF. */
+        anisotropy = anisotropy * val(0.7f);
+
+        /* Rotation is offset by 90 degrees and inverted to approximately align visually with
+         * principled BSDF direction. */
+        NodeItem rotation = -((in["anisotropic_rotation"] * val(360.0f)) + val(90.0f));
+
+        /* Only create a normal node locally if we need to use it to rotate the tangent vector.
+         * we don't actually pass this to the exported material. */
+        NodeItem normal = in["normal"];
+        if (!normal) {
+          const std::string world = "world";
+          normal =
+              create_node("normal", NodeItem::Type::Vector3, {{"space", val(world)}}).normalize();
+        }
+
+        if (!tangent) {
+          const std::string world = "world";
+          tangent =
+              create_node("tangent", NodeItem::Type::Vector3, {{"space", val(world)}}).normalize();
+        }
+
+        NodeItem n_tangent_rotate_normalize = tangent.rotate(rotation, normal).normalize();
+        tangent = anisotropy.if_else(
+            NodeItem::CompareOp::Greater, val(0.0f), n_tangent_rotate_normalize, tangent);
+      }
+
+      /* Enable OpenPBR thin film only if thickness > 0. */
+      NodeItem thin_film_thickness = in["thin_film_thickness"] * val(0.001f);
+      NodeItem thin_film_weight = thin_film_thickness.if_else(
+          NodeItem::CompareOp::Greater, val(0.0f), val(1.0f), val(0.0f));
+
+      /* "specular" here is "Specular IOR Level" in principled BSDF
+       * 0 = no specular
+       * 0.5 = full weight specular
+       * 1 = double specular weight */
+      NodeItem specular_weight = in["specular"] * val(2.0f);
+
+      res = create_node("open_pbr_surface",
+                        NodeItem::Type::SurfaceShader,
+                        {{"base_weight", val(1.0f)},
+                         {"base_color", base_color},
+                         {"base_diffuse_roughness", in["diffuse_roughness"]},
+                         {"base_metalness", in["metallic"]},
+                         {"specular_weight", specular_weight},
+                         {"specular_color", in["specular_tint"]},
+                         {"specular_roughness", in["roughness"]},
+                         {"specular_ior", in["ior"]},
+                         {"specular_roughness_anisotropy", anisotropy},
+                         {"transmission_weight", in["transmission"]},
+                         {"transmission_color", base_color},
+                         {"subsurface_weight", in["subsurface"]},
+                         {"subsurface_color", base_color},
+                         {"subsurface_radius_scale", in["subsurface_radius"]},
+                         {"subsurface_radius", in["subsurface_scale"]},
+                         {"subsurface_scatter_anisotropy", in["subsurface_anisotropy"]},
+                         {"fuzz_weight", in["sheen"]},
+                         {"fuzz_color", in["sheen_tint"]},
+                         {"fuzz_roughness", in["sheen_roughness"]},
+                         {"coat_weight", in["coat"]},
+                         {"coat_color", in["coat_tint"]},
+                         {"coat_roughness", in["coat_roughness"]},
+                         {"coat_ior", in["coat_ior"]},
+                         /* Principled BSDF does not support anisotropy for the coat
+                          *  {"coat_roughness_anisotropy", anisotropic},
+                          *  {"geometry_coat_tangent", tangent}, */
+                         {"emission_luminance", in["emission"]},
+                         {"emission_color", in["emission_color"]},
+                         {"thin_film_weight", thin_film_weight},
+                         {"thin_film_thickness", thin_film_thickness},
+                         {"thin_film_ior", in["thin_film_IOR"]},
+                         {"geometry_normal", in["normal"]},
+                         {"geometry_coat_normal", in["coat_normal"]},
+                         {"geometry_tangent", tangent},
+                         {"geometry_opacity", in["alpha"]}});
       break;
     }
 
@@ -673,11 +707,11 @@ void register_node_type_sh_bsdf_principled()
   ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   ntype.initfunc = file_ns::node_shader_init_principled;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_principled;
   ntype.updatefunc = file_ns::node_shader_update_principled;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

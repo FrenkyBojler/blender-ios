@@ -8,24 +8,13 @@
 
 #include <cstdlib>
 
-#include "MEM_guardedalloc.h"
-
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
-#include "DNA_object_types.h"
 
-#include "BLI_math_base.h"
-#include "BLI_math_geom.h"
-#include "BLI_math_rotation.h"
-#include "BLI_string_utf8.h"
-#include "BLI_utildefines.h"
-
-#include "BKE_attribute.hh"
+#include "BKE_attribute.h"
 #include "BKE_editmesh.hh"
 #include "BKE_mesh_types.hh"
 
-#include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
@@ -53,12 +42,16 @@ static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "DNA_material_types.h"
 #  include "DNA_scene_types.h"
+#  include "DNA_world_types.h"
 
+#  include "BLI_math_geom.h"
 #  include "BLI_math_vector.h"
 
 #  include "BKE_attribute.hh"
 #  include "BKE_customdata.hh"
+#  include "BKE_lib_id.hh"
 #  include "BKE_main.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_mesh_runtime.hh"
@@ -71,6 +64,8 @@ static const EnumPropertyItem rna_enum_mesh_remesh_mode_items[] = {
 #  include "WM_api.hh"
 
 #  include "rna_mesh_utils.hh"
+
+using blender::StringRef;
 
 /* -------------------------------------------------------------------- */
 /** \name Generic Helpers
@@ -345,6 +340,7 @@ static void rna_Mesh_loop_triangles_begin(CollectionPropertyIterator *iter, Poin
   const Mesh *mesh = rna_mesh(ptr);
   const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
   rna_iterator_array_begin(iter,
+                           ptr,
                            const_cast<blender::int3 *>(corner_tris.data()),
                            sizeof(blender::int3),
                            corner_tris.size(),
@@ -365,9 +361,10 @@ bool rna_Mesh_loop_triangles_lookup_int(PointerRNA *ptr, int index, PointerRNA *
     return false;
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
-  r_ptr->owner_id = (ID *)&mesh->id;
-  r_ptr->type = &RNA_MeshLoopTriangle;
-  r_ptr->data = const_cast<blender::int3 *>(&mesh->corner_tris()[index]);
+  rna_pointer_create_with_ancestors(*ptr,
+                                    &RNA_MeshLoopTriangle,
+                                    const_cast<blender::int3 *>(&mesh->corner_tris()[index]),
+                                    *r_ptr);
   return true;
 }
 
@@ -376,6 +373,7 @@ static void rna_Mesh_loop_triangle_polygons_begin(CollectionPropertyIterator *it
 {
   const Mesh *mesh = rna_mesh(ptr);
   rna_iterator_array_begin(iter,
+                           ptr,
                            const_cast<int *>(mesh->corner_tri_faces().data()),
                            sizeof(int),
                            BKE_mesh_runtime_corner_tris_len(mesh),
@@ -390,9 +388,8 @@ bool rna_Mesh_loop_triangle_polygons_lookup_int(PointerRNA *ptr, int index, Poin
     return false;
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
-  r_ptr->owner_id = (ID *)&mesh->id;
-  r_ptr->type = &RNA_ReadOnlyInteger;
-  r_ptr->data = const_cast<int *>(&mesh->corner_tri_faces()[index]);
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_ReadOnlyInteger, const_cast<int *>(&mesh->corner_tri_faces()[index]), *r_ptr);
   return true;
 }
 
@@ -781,10 +778,11 @@ static void rna_MeshVertex_groups_begin(CollectionPropertyIterator *iter, Pointe
     const int index = rna_MeshVertex_index_get(ptr);
     MDeformVert *dvert = &dverts[index];
 
-    rna_iterator_array_begin(iter, dvert->dw, sizeof(MDeformWeight), dvert->totweight, 0, nullptr);
+    rna_iterator_array_begin(
+        iter, ptr, dvert->dw, sizeof(MDeformWeight), dvert->totweight, 0, nullptr);
   }
   else {
-    rna_iterator_array_begin(iter, nullptr, 0, 0, 0, nullptr);
+    rna_iterator_array_begin(iter, ptr, nullptr, 0, 0, 0, nullptr);
   }
 }
 
@@ -946,7 +944,7 @@ static void rna_MeshUVLoopLayer_data_begin(CollectionPropertyIterator *iter, Poi
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
   const int length = (mesh->runtime->edit_mesh) ? 0 : mesh->corners_num;
   CustomData_ensure_data_is_mutable(layer, length);
-  rna_iterator_array_begin(iter, layer->data, sizeof(float[2]), length, 0, nullptr);
+  rna_iterator_array_begin(iter, ptr, layer->data, sizeof(float[2]), length, 0, nullptr);
 }
 
 static int rna_MeshUVLoopLayer_data_length(PointerRNA *ptr)
@@ -955,7 +953,7 @@ static int rna_MeshUVLoopLayer_data_length(PointerRNA *ptr)
   return (mesh->runtime->edit_mesh) ? 0 : mesh->corners_num;
 }
 
-static MBoolProperty *MeshUVLoopLayer_get_bool_layer(Mesh *mesh, char const *name)
+static MBoolProperty *MeshUVLoopLayer_get_bool_layer(Mesh *mesh, const StringRef name)
 {
   void *layer = CustomData_get_layer_named_for_write(
       &mesh->corner_data, CD_PROP_BOOL, name, mesh->corners_num);
@@ -971,15 +969,16 @@ static MBoolProperty *MeshUVLoopLayer_get_bool_layer(Mesh *mesh, char const *nam
 
 static void bool_layer_begin(CollectionPropertyIterator *iter,
                              PointerRNA *ptr,
-                             const char *(*layername_func)(const char *uv_name, char *name))
+                             StringRef (*layername_func)(const StringRef uv_name, char *buffer))
 {
-  char bool_layer_name[MAX_CUSTOMDATA_LAYER_NAME];
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
   Mesh *mesh = rna_mesh(ptr);
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-  layername_func(layer->name, bool_layer_name);
+  const StringRef name = layername_func(layer->name, buffer);
 
   rna_iterator_array_begin(iter,
-                           MeshUVLoopLayer_get_bool_layer(mesh, bool_layer_name),
+                           ptr,
+                           MeshUVLoopLayer_get_bool_layer(mesh, name),
                            sizeof(MBoolProperty),
                            (mesh->runtime->edit_mesh) ? 0 : mesh->corners_num,
                            0,
@@ -989,19 +988,18 @@ static void bool_layer_begin(CollectionPropertyIterator *iter,
 static bool bool_layer_lookup_int(PointerRNA *ptr,
                                   int index,
                                   PointerRNA *r_ptr,
-                                  const char *(*layername_func)(const char *uv_name, char *name))
+                                  StringRef (*layername_func)(const StringRef uv_name,
+                                                              char *buffer))
 {
-  char bool_layer_name[MAX_CUSTOMDATA_LAYER_NAME];
+  char buffer[MAX_CUSTOMDATA_LAYER_NAME];
   Mesh *mesh = rna_mesh(ptr);
   if (mesh->runtime->edit_mesh || index < 0 || index >= mesh->corners_num) {
     return 0;
   }
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-  layername_func(layer->name, bool_layer_name);
-
-  r_ptr->owner_id = &mesh->id;
-  r_ptr->type = &RNA_BoolAttributeValue;
-  r_ptr->data = MeshUVLoopLayer_get_bool_layer(mesh, bool_layer_name) + index;
+  const StringRef name = layername_func(layer->name, buffer);
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_BoolAttributeValue, MeshUVLoopLayer_get_bool_layer(mesh, name) + index, *r_ptr);
   return 1;
 }
 
@@ -1050,6 +1048,7 @@ static void rna_MeshUVLoopLayer_uv_begin(CollectionPropertyIterator *iter, Point
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
 
   rna_iterator_array_begin(iter,
+                           ptr,
                            layer->data,
                            sizeof(float[2]),
                            (mesh->runtime->edit_mesh) ? 0 : mesh->corners_num,
@@ -1064,10 +1063,8 @@ bool rna_MeshUVLoopLayer_uv_lookup_int(PointerRNA *ptr, int index, PointerRNA *r
     return 0;
   }
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
-
-  r_ptr->owner_id = &mesh->id;
-  r_ptr->type = &RNA_Float2AttributeValue;
-  r_ptr->data = (float *)layer->data + 2 * index;
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_Float2AttributeValue, (float *)layer->data + 2 * index, *r_ptr);
   return 1;
 }
 
@@ -1111,7 +1108,7 @@ static PointerRNA rna_Mesh_vertex_color_active_get(PointerRNA *ptr)
   AttributeOwner owner = AttributeOwner::from_id(ptr->owner_id);
   CustomDataLayer *layer = BKE_attribute_search_for_write(
       owner, mesh->active_color_attribute, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_CORNER);
-  return rna_pointer_inherit_refine(ptr, &RNA_MeshLoopColorLayer, layer);
+  return RNA_pointer_create_with_parent(*ptr, &RNA_MeshLoopColorLayer, layer);
 }
 
 static void rna_Mesh_vertex_color_active_set(PointerRNA *ptr,
@@ -1162,6 +1159,7 @@ static void rna_MeshLoopColorLayer_data_begin(CollectionPropertyIterator *iter, 
   Mesh *mesh = rna_mesh(ptr);
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
   rna_iterator_array_begin(iter,
+                           ptr,
                            layer->data,
                            sizeof(MLoopCol),
                            (mesh->runtime->edit_mesh) ? 0 : mesh->corners_num,
@@ -1234,6 +1232,7 @@ static void rna_MeshSkinVertexLayer_data_begin(CollectionPropertyIterator *iter,
   Mesh *mesh = rna_mesh(ptr);
   CustomDataLayer *layer = (CustomDataLayer *)ptr->data;
   rna_iterator_array_begin(iter,
+                           ptr,
                            layer->data,
                            sizeof(MVertSkin),
                            (mesh->runtime->edit_mesh) ? 0 : mesh->verts_num,
@@ -1526,6 +1525,7 @@ static void rna_Mesh_vertices_begin(CollectionPropertyIterator *iter, PointerRNA
 {
   Mesh *mesh = rna_mesh(ptr);
   rna_iterator_array_begin(iter,
+                           ptr,
                            mesh->vert_positions_for_write().data(),
                            sizeof(blender::float3),
                            mesh->verts_num,
@@ -1543,9 +1543,8 @@ bool rna_Mesh_vertices_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
   if (index < 0 || index >= mesh->verts_num) {
     return false;
   }
-  r_ptr->owner_id = &mesh->id;
-  r_ptr->type = &RNA_MeshVertex;
-  r_ptr->data = &mesh->vert_positions_for_write()[index];
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_MeshVertex, &mesh->vert_positions_for_write()[index], *r_ptr);
   return true;
 }
 
@@ -1555,7 +1554,8 @@ static void rna_Mesh_edges_begin(CollectionPropertyIterator *iter, PointerRNA *p
   Mesh *mesh = rna_mesh(ptr);
   blender::int2 *edges = static_cast<blender::int2 *>(CustomData_get_layer_named_for_write(
       &mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts", mesh->edges_num));
-  rna_iterator_array_begin(iter, edges, sizeof(blender::int2), mesh->edges_num, false, nullptr);
+  rna_iterator_array_begin(
+      iter, ptr, edges, sizeof(blender::int2), mesh->edges_num, false, nullptr);
 }
 static int rna_Mesh_edges_length(PointerRNA *ptr)
 {
@@ -1571,17 +1571,20 @@ bool rna_Mesh_edges_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
   }
   blender::int2 *edges = static_cast<blender::int2 *>(CustomData_get_layer_named_for_write(
       &mesh->edge_data, CD_PROP_INT32_2D, ".edge_verts", mesh->edges_num));
-  r_ptr->owner_id = &mesh->id;
-  r_ptr->type = &RNA_MeshEdge;
-  r_ptr->data = &edges[index];
+  rna_pointer_create_with_ancestors(*ptr, &RNA_MeshEdge, &edges[index], *r_ptr);
   return true;
 }
 
 static void rna_Mesh_polygons_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Mesh *mesh = rna_mesh(ptr);
-  rna_iterator_array_begin(
-      iter, mesh->face_offsets_for_write().data(), sizeof(int), mesh->faces_num, false, nullptr);
+  rna_iterator_array_begin(iter,
+                           ptr,
+                           mesh->face_offsets_for_write().data(),
+                           sizeof(int),
+                           mesh->faces_num,
+                           false,
+                           nullptr);
 }
 static int rna_Mesh_polygons_length(PointerRNA *ptr)
 {
@@ -1594,17 +1597,21 @@ bool rna_Mesh_polygons_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
   if (index < 0 || index >= mesh->faces_num) {
     return false;
   }
-  r_ptr->owner_id = &mesh->id;
-  r_ptr->type = &RNA_MeshPolygon;
-  r_ptr->data = &mesh->face_offsets_for_write()[index];
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_MeshPolygon, &mesh->face_offsets_for_write()[index], *r_ptr);
   return true;
 }
 
 static void rna_Mesh_loops_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   Mesh *mesh = rna_mesh(ptr);
-  rna_iterator_array_begin(
-      iter, mesh->corner_verts_for_write().data(), sizeof(int), mesh->corners_num, false, nullptr);
+  rna_iterator_array_begin(iter,
+                           ptr,
+                           mesh->corner_verts_for_write().data(),
+                           sizeof(int),
+                           mesh->corners_num,
+                           false,
+                           nullptr);
 }
 static int rna_Mesh_loops_length(PointerRNA *ptr)
 {
@@ -1617,9 +1624,8 @@ bool rna_Mesh_loops_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_ptr)
   if (index < 0 || index >= mesh->corners_num) {
     return false;
   }
-  r_ptr->owner_id = &mesh->id;
-  r_ptr->type = &RNA_MeshLoop;
-  r_ptr->data = &mesh->corner_verts_for_write()[index];
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_MeshLoop, &mesh->corner_verts_for_write()[index], *r_ptr);
   return true;
 }
 
@@ -1633,6 +1639,7 @@ static void rna_Mesh_vertex_normals_begin(CollectionPropertyIterator *iter, Poin
   const Mesh *mesh = rna_mesh(ptr);
   const blender::Span<blender::float3> normals = mesh->vert_normals();
   rna_iterator_array_begin(iter,
+                           ptr,
                            const_cast<blender::float3 *>(normals.data()),
                            sizeof(blender::float3),
                            normals.size(),
@@ -1653,9 +1660,10 @@ bool rna_Mesh_vertex_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *
     return false;
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
-  r_ptr->owner_id = (ID *)&mesh->id;
-  r_ptr->type = &RNA_MeshNormalValue;
-  r_ptr->data = const_cast<blender::float3 *>(&mesh->vert_normals()[index]);
+  rna_pointer_create_with_ancestors(*ptr,
+                                    &RNA_MeshNormalValue,
+                                    const_cast<blender::float3 *>(&mesh->vert_normals()[index]),
+                                    *r_ptr);
   return true;
 }
 
@@ -1664,6 +1672,7 @@ static void rna_Mesh_poly_normals_begin(CollectionPropertyIterator *iter, Pointe
   const Mesh *mesh = rna_mesh(ptr);
   const blender::Span<blender::float3> normals = mesh->face_normals();
   rna_iterator_array_begin(iter,
+                           ptr,
                            const_cast<blender::float3 *>(normals.data()),
                            sizeof(blender::float3),
                            normals.size(),
@@ -1684,9 +1693,10 @@ bool rna_Mesh_poly_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *r_
     return false;
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
-  r_ptr->owner_id = (ID *)&mesh->id;
-  r_ptr->type = &RNA_MeshNormalValue;
-  r_ptr->data = const_cast<blender::float3 *>(&mesh->face_normals()[index]);
+  rna_pointer_create_with_ancestors(*ptr,
+                                    &RNA_MeshNormalValue,
+                                    const_cast<blender::float3 *>(&mesh->face_normals()[index]),
+                                    *r_ptr);
   return true;
 }
 
@@ -1699,7 +1709,7 @@ static void rna_Mesh_corner_normals_begin(CollectionPropertyIterator *iter, Poin
     return;
   }
   rna_iterator_array_begin(
-      iter, (void *)normals.data(), sizeof(float[3]), mesh->corners_num, false, nullptr);
+      iter, ptr, (void *)normals.data(), sizeof(float[3]), mesh->corners_num, false, nullptr);
 }
 
 static int rna_Mesh_corner_normals_length(PointerRNA *ptr)
@@ -1716,9 +1726,8 @@ bool rna_Mesh_corner_normals_lookup_int(PointerRNA *ptr, int index, PointerRNA *
     return false;
   }
   /* Casting away const is okay because this RNA type doesn't allow changing the value. */
-  r_ptr->owner_id = (ID *)&mesh->id;
-  r_ptr->type = &RNA_MeshNormalValue;
-  r_ptr->data = (float *)&normals[index];
+  rna_pointer_create_with_ancestors(
+      *ptr, &RNA_MeshNormalValue, const_cast<blender::float3 *>(&normals[index]), *r_ptr);
   return true;
 }
 
@@ -1726,14 +1735,16 @@ static std::optional<std::string> rna_MeshUVLoop_path(const PointerRNA *ptr)
 {
   return rna_LoopCustomData_data_path(ptr, "uv_layers", CD_PROP_FLOAT2);
 }
-/* The rna_MeshUVLoop_*_get/set() functions get passed a pointer to
+/**
+ * The `rna_MeshUVLoop_*_get/set()` functions get passed a pointer to
  * the (float2) uv attribute. This is for historical reasons because
- * the api used to wrap MLoopUV, which contained the uv and all the selection
+ * the API used to wrap `MLoopUV`, which contained the UV and all the selection
  * pin states in a single struct. But since that struct no longer exists and
  * we still can use only a single pointer to access these, we need to look up
- * the original attribute layer and the index of the uv in it to be able to
- * find the associated bool layers. So we scan the available foat2 layers
- * to find into which layer the pointer we got passed points. */
+ * the original attribute layer and the index of the UV in it to be able to
+ * find the associated bool layers. So we scan the available #float2 layers
+ * to find into which layer the pointer we got passed points.
+ */
 static bool get_uv_index_and_layer(const PointerRNA *ptr,
                                    int *r_uv_map_index,
                                    int *r_index_in_attribute)
@@ -1889,7 +1900,7 @@ static PointerRNA rna_Mesh_vertex_color_new(Mesh *mesh,
     }
   }
 
-  PointerRNA ptr = RNA_pointer_create(&mesh->id, &RNA_MeshLoopColorLayer, cdl);
+  PointerRNA ptr = RNA_pointer_create_discrete(&mesh->id, &RNA_MeshLoopColorLayer, cdl);
   return ptr;
 }
 
@@ -1913,7 +1924,7 @@ static PointerRNA rna_Mesh_uv_layers_new(Mesh *mesh,
     cdl = &ldata->layers[CustomData_get_layer_index_n(ldata, CD_PROP_FLOAT2, index)];
   }
 
-  PointerRNA ptr = RNA_pointer_create(&mesh->id, &RNA_MeshUVLoopLayer, cdl);
+  PointerRNA ptr = RNA_pointer_create_discrete(&mesh->id, &RNA_MeshUVLoopLayer, cdl);
   return ptr;
 }
 
@@ -2036,10 +2047,12 @@ static void rna_def_mvert(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_MeshVertex_select_get", "rna_MeshVertex_select_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Select", "");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_select");
 
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Hide", "");
   RNA_def_property_boolean_funcs(prop, "rna_MeshVertex_hide_get", "rna_MeshVertex_hide_set");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_select");
@@ -2088,15 +2101,18 @@ static void rna_def_medge(BlenderRNA *brna)
   prop = RNA_def_property(srna, "vertices", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "x");
   RNA_def_property_array(prop, 2);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Vertices", "Vertex indices");
   /* XXX allows creating invalid meshes */
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_MeshEdge_select_get", "rna_MeshEdge_select_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Select", "");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_select");
 
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Hide", "");
   RNA_def_property_boolean_funcs(prop, "rna_MeshEdge_hide_get", "rna_MeshEdge_hide_set");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_select");
@@ -2210,11 +2226,13 @@ static void rna_def_mloop(BlenderRNA *brna)
   prop = RNA_def_property(srna, "vertex_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_funcs(
       prop, "rna_MeshLoop_vertex_index_get", "rna_MeshLoop_vertex_index_set", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Vertex", "Vertex index");
 
   prop = RNA_def_property(srna, "edge_index", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_funcs(
       prop, "rna_MeshLoop_edge_index_get", "rna_MeshLoop_edge_index_set", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Edge", "Edge index");
 
   prop = RNA_def_property(srna, "index", PROP_INT, PROP_UNSIGNED);
@@ -2287,11 +2305,13 @@ static void rna_def_mpolygon(BlenderRNA *brna)
   RNA_def_property_dynamic_array_funcs(prop, "rna_MeshPoly_vertices_get_length");
   RNA_def_property_int_funcs(
       prop, "rna_MeshPoly_vertices_get", "rna_MeshPoly_vertices_set", nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Vertices", "Vertex indices");
 
   /* these are both very low level access */
   prop = RNA_def_property(srna, "loop_start", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_int_sdna(prop, nullptr, "i");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Loop Start", "Index of the first loop of this face");
   /* also low level */
   prop = RNA_def_property(srna, "loop_total", PROP_INT, PROP_UNSIGNED);
@@ -2310,10 +2330,12 @@ static void rna_def_mpolygon(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_MeshPolygon_select_get", "rna_MeshPolygon_select_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Select", "");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_select");
 
   prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Hide", "");
   RNA_def_property_boolean_funcs(prop, "rna_MeshPolygon_hide_get", "rna_MeshPolygon_hide_set");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_select");
@@ -2396,6 +2418,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
   prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(
       prop, "rna_MeshUVLoopLayer_active_get", "rna_MeshUVLoopLayer_active_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active", "Set the map as active for display and editing");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
@@ -2403,6 +2426,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "active_rnd", 0);
   RNA_def_property_boolean_funcs(
       prop, "rna_MeshUVLoopLayer_active_render_get", "rna_MeshUVLoopLayer_active_render_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active Render", "Set the UV map as active for rendering");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
@@ -2410,6 +2434,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "active_clone", 0);
   RNA_def_property_boolean_funcs(
       prop, "rna_MeshUVLoopLayer_clone_get", "rna_MeshUVLoopLayer_clone_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active Clone", "Set the map as active for cloning");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
@@ -2429,6 +2454,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "vertex_selection", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "BoolAttributeValue");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "UV Vertex Selection", "Selection state of the face corner the UV editor");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
@@ -2444,6 +2470,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "edge_selection", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "BoolAttributeValue");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(
       prop, "UV Edge Selection", "Selection state of the edge in the UV editor");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
@@ -2459,6 +2486,7 @@ static void rna_def_mloopuv(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "pin", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "BoolAttributeValue");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "UV Pin", "UV pinned state in the UV editor");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
   RNA_def_property_collection_funcs(prop,
@@ -2483,15 +2511,18 @@ static void rna_def_mloopuv(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "pin_uv", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_MeshUVLoop_pin_uv_get", "rna_MeshUVLoop_pin_uv_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "UV Pinned", "");
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_MeshUVLoop_select_get", "rna_MeshUVLoop_select_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "UV Select", "");
 
   prop = RNA_def_property(srna, "select_edge", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(
       prop, "rna_MeshUVLoop_select_edge_get", "rna_MeshUVLoop_select_edge_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "UV Edge Select", "");
 }
 
@@ -2516,6 +2547,7 @@ static void rna_def_mloopcol(BlenderRNA *brna)
 
   prop = RNA_def_property(srna, "active", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_funcs(prop, "rna_mesh_color_active_get", "rna_mesh_color_active_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active", "Sets the layer as active for display and editing");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
@@ -2523,6 +2555,7 @@ static void rna_def_mloopcol(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "active_rnd", 0);
   RNA_def_property_boolean_funcs(
       prop, "rna_mesh_color_active_render_get", "rna_mesh_color_active_render_set");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active Render", "Sets the layer as active for rendering");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
@@ -2702,6 +2735,7 @@ static void rna_def_mesh_polygons(BlenderRNA *brna, PropertyRNA *cprop)
 
   prop = RNA_def_property(srna, "active", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "act_face");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active Polygon", "The active face for this mesh");
 
   func = RNA_def_function(srna, "add", "ED_mesh_faces_add");
@@ -2774,6 +2808,7 @@ static void rna_def_loop_colors(BlenderRNA *brna, PropertyRNA *cprop)
                              "rna_Mesh_vertex_color_active_index_get",
                              "rna_Mesh_vertex_color_active_index_set",
                              "rna_Mesh_vertex_color_index_range");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active Vertex Color Index", "Active vertex color index");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_edit_active_color");
 }
@@ -2806,7 +2841,7 @@ static void rna_def_uv_layers(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_function_return(func, parm);
 
   func = RNA_def_function(srna, "remove", "rna_Mesh_uv_layers_remove");
-  RNA_def_function_ui_description(func, "Remove a vertex color layer");
+  RNA_def_function_ui_description(func, "Remove a UV map layer");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
   parm = RNA_def_pointer(func, "layer", "MeshUVLoopLayer", "", "The layer to remove");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED);
@@ -2815,6 +2850,7 @@ static void rna_def_uv_layers(BlenderRNA *brna, PropertyRNA *cprop)
   RNA_def_property_struct_type(prop, "MeshUVLoopLayer");
   RNA_def_property_pointer_funcs(
       prop, "rna_Mesh_uv_layer_active_get", "rna_Mesh_uv_layer_active_set", nullptr, nullptr);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_NEVER_UNLINK);
   RNA_def_property_ui_text(prop, "Active UV Map Layer", "Active UV Map layer");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
@@ -2824,6 +2860,7 @@ static void rna_def_uv_layers(BlenderRNA *brna, PropertyRNA *cprop)
                              "rna_Mesh_uv_layer_active_index_get",
                              "rna_Mesh_uv_layer_active_index_set",
                              "rna_Mesh_uv_layer_index_range");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Active UV Map Index", "Active UV map index");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 }
@@ -3114,6 +3151,7 @@ static void rna_def_mesh(BlenderRNA *brna)
                              "rna_Mesh_uv_layer_clone_index_get",
                              "rna_Mesh_uv_layer_clone_index_set",
                              "rna_Mesh_uv_layer_index_range");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Clone UV Loop Layer Index", "Clone UV loop layer index");
 
   prop = RNA_def_property(srna, "uv_layer_stencil", PROP_POINTER, PROP_NONE);
@@ -3129,6 +3167,7 @@ static void rna_def_mesh(BlenderRNA *brna)
                              "rna_Mesh_uv_layer_stencil_index_get",
                              "rna_Mesh_uv_layer_stencil_index_set",
                              "rna_Mesh_uv_layer_index_range");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Mask UV Loop Layer Index", "Mask UV loop layer index");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_data_legacy_deg_tag_all");
 
@@ -3176,14 +3215,17 @@ static void rna_def_mesh(BlenderRNA *brna)
 
   /* Remesh */
   prop = RNA_def_property(srna, "remesh_voxel_size", PROP_FLOAT, PROP_DISTANCE);
+  /* NOTE: allow zero (which skips computation), to avoid zero clamping
+   * to a small value which is likely to run out of memory, see: #130526. */
   RNA_def_property_float_sdna(prop, nullptr, "remesh_voxel_size");
-  RNA_def_property_range(prop, 0.0001f, FLT_MAX);
+  RNA_def_property_range(prop, 0, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.0001f, FLT_MAX, 0.01, 4);
   RNA_def_property_ui_text(prop,
                            "Voxel Size",
                            "Size of the voxel in object space used for volume evaluation. Lower "
                            "values preserve finer details.");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
 
   prop = RNA_def_property(srna, "remesh_voxel_adaptivity", PROP_FLOAT, PROP_DISTANCE);
@@ -3196,12 +3238,14 @@ static void rna_def_mesh(BlenderRNA *brna)
       "Reduces the final face count by simplifying geometry where detail is not needed, "
       "generating triangles. A value greater than 0 disables Fix Poles.");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
 
   prop = RNA_def_property(srna, "use_remesh_fix_poles", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ME_REMESH_FIX_POLES);
   RNA_def_property_ui_text(prop, "Fix Poles", "Produces fewer poles and a better topology flow");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
 
   prop = RNA_def_property(srna, "use_remesh_preserve_volume", PROP_BOOLEAN, PROP_NONE);
@@ -3211,12 +3255,14 @@ static void rna_def_mesh(BlenderRNA *brna)
       "Preserve Volume",
       "Projects the mesh to preserve the volume and details of the original mesh");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
 
   prop = RNA_def_property(srna, "use_remesh_preserve_attributes", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ME_REMESH_REPROJECT_ATTRIBUTES);
   RNA_def_property_ui_text(prop, "Preserve Attributes", "Transfer all attributes to the new mesh");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
 
   prop = RNA_def_property(srna, "remesh_mode", PROP_ENUM, PROP_NONE);
@@ -3224,6 +3270,7 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_enum_items(prop, rna_enum_mesh_remesh_mode_items);
   RNA_def_property_ui_text(prop, "Remesh Mode", "");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
 
   /* End remesh */
@@ -3231,21 +3278,25 @@ static void rna_def_mesh(BlenderRNA *brna)
   /* Symmetry */
   prop = RNA_def_property(srna, "use_mirror_x", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "symmetry", ME_SYMMETRY_X);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "X", "Enable symmetry in the X axis");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
   prop = RNA_def_property(srna, "use_mirror_y", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "symmetry", ME_SYMMETRY_Y);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Y", "Enable symmetry in the Y axis");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
   prop = RNA_def_property(srna, "use_mirror_z", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "symmetry", ME_SYMMETRY_Z);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Z", "Enable symmetry in the Z axis");
   RNA_def_property_update(prop, 0, "rna_Mesh_update_draw");
 
   prop = RNA_def_property(srna, "use_mirror_vertex_groups", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "editflag", ME_EDIT_MIRROR_VERTEX_GROUPS);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop,
                            "Mirror Vertex Groups",
                            "Mirror the left/right vertex groups when painting. The symmetry axis "
@@ -3297,6 +3348,7 @@ static void rna_def_mesh(BlenderRNA *brna)
   /* editflag */
   prop = RNA_def_property(srna, "use_mirror_topology", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "editflag", ME_EDIT_MIRROR_TOPO);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop,
                            "Topology Mirror",
                            "Use topology based mirroring "
@@ -3305,18 +3357,21 @@ static void rna_def_mesh(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_paint_bone_selection", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(
       prop, nullptr, "editflag", ME_EDIT_PAINT_FACE_SEL | ME_EDIT_PAINT_VERT_SEL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Bone Selection", "Bone selection during painting");
   RNA_def_property_ui_icon(prop, ICON_BONE_DATA, 0);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Mesh_update_bone_selection_mode");
 
   prop = RNA_def_property(srna, "use_paint_mask", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "editflag", ME_EDIT_PAINT_FACE_SEL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Paint Mask", "Face selection masking for painting");
   RNA_def_property_ui_icon(prop, ICON_FACESEL, 0);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Mesh_update_facemask");
 
   prop = RNA_def_property(srna, "use_paint_mask_vertex", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "editflag", ME_EDIT_PAINT_VERT_SEL);
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Vertex Selection", "Vertex selection masking for painting");
   RNA_def_property_ui_icon(prop, ICON_VERTEXSEL, 0);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_VIEW3D, "rna_Mesh_update_vertmask");

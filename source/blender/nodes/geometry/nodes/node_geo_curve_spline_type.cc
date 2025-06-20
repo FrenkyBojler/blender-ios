@@ -6,7 +6,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_set_curve_type.hh"
@@ -28,12 +28,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "spline_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "spline_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryCurveSplineType *data = MEM_cnew<NodeGeometryCurveSplineType>(__func__);
+  NodeGeometryCurveSplineType *data = MEM_callocN<NodeGeometryCurveSplineType>(__func__);
 
   data->spline_type = CURVE_TYPE_POLY;
   node->storage = data;
@@ -100,13 +100,13 @@ static void node_register()
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.initfunc = node_init;
-  blender::bke::node_type_storage(&ntype,
+  blender::bke::node_type_storage(ntype,
                                   "NodeGeometryCurveSplineType",
                                   node_free_standard_storage,
                                   node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

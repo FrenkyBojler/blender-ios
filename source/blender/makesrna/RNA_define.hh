@@ -508,6 +508,7 @@ void RNA_def_property_string_funcs(PropertyRNA *prop,
 void RNA_def_property_string_search_func(PropertyRNA *prop,
                                          const char *search,
                                          eStringPropertySearchFlag search_flag);
+void RNA_def_property_string_filepath_filter_func(PropertyRNA *prop, const char *filter);
 void RNA_def_property_pointer_funcs(
     PropertyRNA *prop, const char *get, const char *set, const char *type_fn, const char *poll);
 void RNA_def_property_collection_funcs(PropertyRNA *prop,
@@ -523,6 +524,7 @@ void RNA_def_property_collection_funcs(PropertyRNA *prop,
 void RNA_def_property_float_default_func(PropertyRNA *prop, const char *get_default);
 void RNA_def_property_int_default_func(PropertyRNA *prop, const char *get_default);
 void RNA_def_property_boolean_default_func(PropertyRNA *prop, const char *get_default);
+void RNA_def_property_enum_default_func(PropertyRNA *prop, const char *get_default);
 
 void RNA_def_property_srna(PropertyRNA *prop, const char *type);
 void RNA_def_py_data(PropertyRNA *prop, void *py_data);
@@ -581,6 +583,8 @@ void RNA_def_parameter_flags(PropertyRNA *prop,
 void RNA_def_parameter_clear_flags(PropertyRNA *prop,
                                    PropertyFlag flag_property,
                                    ParameterFlag flag_parameter);
+void RNA_def_property_path_template_type(PropertyRNA *prop,
+                                         PropertyPathTemplateType path_template_type);
 
 /* Dynamic Enums
  * strings are not freed, assumed pointing to static location. */

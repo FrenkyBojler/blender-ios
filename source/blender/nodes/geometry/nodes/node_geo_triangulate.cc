@@ -2,13 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
 
 #include "NOD_rna_define.hh"
 
 #include "GEO_mesh_triangulate.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_randomize.hh"
@@ -19,15 +19,18 @@ namespace blender::nodes::node_geo_triangulate_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
-  b.add_output<decl::Geometry>("Mesh").propagate_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "quad_method", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "ngon_method", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "quad_method", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "ngon_method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void geo_triangulate_init(bNodeTree * /*tree*/, bNode *node)
@@ -163,7 +166,7 @@ static void node_register()
   ntype.initfunc = geo_triangulate_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

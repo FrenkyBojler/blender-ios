@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_type_conversions.hh"
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
@@ -9,7 +11,7 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -26,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   }
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
 
-  b.add_input(data_type, "Grid").hide_value();
+  b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_input<decl::Int>("X").supports_field();
   b.add_input<decl::Int>("Y").supports_field();
   b.add_input<decl::Int>("Z").supports_field();
@@ -94,7 +96,7 @@ static void node_gather_link_search_ops(GatherLinkSearchOpParams &params)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -251,7 +253,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

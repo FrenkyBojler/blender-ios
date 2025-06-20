@@ -19,15 +19,18 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
 #include "UI_view2d.hh"
 
 #include "BLT_translation.hh"
+
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Animation Time Slide)
@@ -193,12 +196,8 @@ static void initTimeSlide(TransInfo *t, wmOperator * /*op*/)
           val = BKE_nla_tweakedit_remap(adt, val, NLATIME_CONVERT_MAP);
         }
 
-        if (min > val) {
-          min = val;
-        }
-        if (max < val) {
-          max = val;
-        }
+        min = std::min(min, val);
+        max = std::max(max, val);
       }
     }
 
@@ -238,3 +237,5 @@ TransModeInfo TransMode_timeslide = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

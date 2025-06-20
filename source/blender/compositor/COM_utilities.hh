@@ -19,6 +19,9 @@ namespace blender::compositor {
 
 using namespace nodes::derived_node_tree_types;
 
+/* Returns true if the socket is available and not virtual. Returns false otherwise. */
+bool is_socket_available(const bNodeSocket *socket);
+
 /**
  * Get the origin socket of the given node input. If the input is not linked, the socket itself is
  * returned. If the input is linked, the socket that is linked to it is returned, which could
@@ -47,7 +50,7 @@ bool is_output_linked_to_node_conditioned(DOutputSocket output,
 int number_of_inputs_linked_to_output_conditioned(DOutputSocket output,
                                                   FunctionRef<bool(DInputSocket)> condition);
 
-/** A node is a pixel node if it defines a method to get a shader node operation. */
+/** A node is a pixel node if it defines a method to get a pixel node operation. */
 bool is_pixel_node(DNode node);
 
 /** Get the input descriptor of the given input socket. */

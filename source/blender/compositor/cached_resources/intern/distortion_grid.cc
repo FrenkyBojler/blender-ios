@@ -7,9 +7,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
-#include "BLI_index_range.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_task.hh"
 
 #include "DNA_defaults.h"
 #include "DNA_movieclip_types.h"
@@ -67,18 +65,25 @@ DistortionGrid::DistortionGrid(
   int left_delta;
   int bottom_delta;
   int top_delta;
-  BKE_tracking_distortion_bounds_deltas(&movie_clip->tracking,
+  BKE_tracking_distortion_bounds_deltas(distortion,
                                         size,
+                                        calibration_size,
                                         type == DistortionType::Undistort,
                                         &right_delta,
                                         &left_delta,
                                         &bottom_delta,
                                         &top_delta);
 
+  /* Clamp deltas to avoid excessive memory requirements in case of extreme distortion. */
+  right_delta = math::min(right_delta, size.x);
+  left_delta = math::min(left_delta, size.x);
+  bottom_delta = math::min(bottom_delta, size.y);
+  top_delta = math::min(top_delta, size.y);
+
   /* Extend the size by the deltas of the bounds. */
   const int2 extended_size = size + int2(right_delta + left_delta, bottom_delta + top_delta);
 
-  distortion_grid_ = Array<float2>(extended_size.x * extended_size.y);
+  distortion_grid_ = Array<float2>(int64_t(extended_size.x) * extended_size.y);
   parallel_for(extended_size, [&](const int2 texel) {
     /* The tracking distortion functions expect the coordinates to be in the space of the image
      * where the tracking camera was calibrated. So we first remap the coordinates into that space,
@@ -100,7 +105,8 @@ DistortionGrid::DistortionGrid(
     /* Note that we should remap the coordinates back into the original size by dividing by the
      * calibration size and multiplying by the size, however, we skip the latter to store the
      * coordinates in normalized form, since this is what the shader expects. */
-    distortion_grid_[texel.y * extended_size.x + texel.x] = coordinates / float2(calibration_size);
+    distortion_grid_[texel.y * int64_t(extended_size.x) + texel.x] = coordinates /
+                                                                     float2(calibration_size);
   });
 
   BKE_tracking_distortion_free(distortion);

@@ -14,6 +14,7 @@
 #include "AS_asset_library.hh"
 
 #include "BLI_function_ref.hh"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -31,6 +32,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_tree_view.hh"
 #include "UI_view2d.hh"
@@ -512,7 +514,7 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   const uiStyle *style = UI_style_get_dpi();
   const int padding_y = main_region_padding_y();
@@ -687,7 +689,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
   static const char *context_dir[] = {
       "asset_shelf",
       "asset_library_reference",
-      "active_file", /* XXX yuk... */
+      "asset",
       nullptr,
   };
 
@@ -721,8 +723,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
     return CTX_RESULT_OK;
   }
 
-  /* XXX hack. Get the asset from the active item, but needs to be the file... */
-  if (CTX_data_equals(member, "active_file")) {
+  if (CTX_data_equals(member, "asset")) {
     const ARegion *region = CTX_wm_region(C);
     const uiBut *but = UI_region_views_find_active_item_but(region);
     if (!but) {
@@ -734,13 +735,13 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
       return CTX_RESULT_NO_DATA;
     }
 
-    const PointerRNA *file_ptr = CTX_store_ptr_lookup(
-        but_context, "active_file", &RNA_FileSelectEntry);
-    if (!file_ptr) {
+    const PointerRNA *asset_ptr = CTX_store_ptr_lookup(
+        but_context, "asset", &RNA_AssetRepresentation);
+    if (!asset_ptr) {
       return CTX_RESULT_NO_DATA;
     }
 
-    CTX_data_pointer_set_ptr(result, file_ptr);
+    CTX_data_pointer_set_ptr(result, asset_ptr);
     return CTX_RESULT_OK;
   }
 
@@ -793,7 +794,7 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
 
 static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
   AssetShelfSettings &shelf_settings = shelf.settings;
 
   /* "All" tab. */
@@ -808,7 +809,7 @@ static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
     });
   }
 
-  uiItemS(&layout);
+  layout.separator();
 
   /* Regular catalog tabs. */
   settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
@@ -835,16 +836,16 @@ static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
 static void asset_shelf_header_draw(const bContext *C, Header *header)
 {
   uiLayout *layout = header->layout;
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
 
   list::storage_fetch(library_ref, C);
 
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
+  UI_block_emboss_set(block, blender::ui::EmbossType::None);
   uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
-  uiItemS(layout);
+  layout->separator();
 
   PointerRNA shelf_ptr = active_shelf_ptr_from_context(C);
   if (AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data)) {
@@ -854,15 +855,15 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
   uiItemSpacer(layout);
 
   uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
-  uiLayout *sub = uiLayoutRow(layout, false);
+  uiLayout *sub = &layout->row(false);
   /* Same as file/asset browser header. */
-  uiLayoutSetUnitsX(sub, 8);
-  uiItemR(sub, &shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
+  sub->ui_units_x_set(8);
+  sub->prop(&shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
 }
 
 static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
-  HeaderType *ht = MEM_cnew<HeaderType>(__func__);
+  HeaderType *ht = MEM_callocN<HeaderType>(__func__);
   STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
   ht->space_type = space_type;
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;

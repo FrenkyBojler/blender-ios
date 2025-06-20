@@ -696,7 +696,7 @@ def dump_py_messages_from_files(msgs, reports, files, settings):
         for node in ast.walk(root_node):
             if type(node) == ast.Call:
                 # ~ print("found function at")
-                # ~ print("%s:%d" % (fp, node.lineno))
+                # ~ print("{:s}:{:d}".format(fp, node.lineno))
 
                 # We can't skip such situations! from blah import foo\nfoo("bar") would also be an ast.Name func!
                 if type(node.func) == ast.Name:
@@ -1128,9 +1128,6 @@ def dump_messages(do_messages, do_checks, settings):
     for lng in settings.LANGUAGES:
         process_msg(msgs, settings.DEFAULT_CONTEXT, lng[1], "Languages’ labels from bl_i18n_utils/settings.py",
                     reports, None, settings)
-    for cat in settings.LANGUAGES_CATEGORIES:
-        process_msg(msgs, settings.DEFAULT_CONTEXT, cat[1],
-                    "Language categories’ labels from bl_i18n_utils/settings.py", reports, None, settings)
 
     # Get strings from asset catalogs and blend files.
     # This loads each asset blend file in turn.

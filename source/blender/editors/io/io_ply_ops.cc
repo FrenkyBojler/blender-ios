@@ -29,6 +29,7 @@
 #  include "BLT_translation.hh"
 
 #  include "UI_interface.hh"
+#  include "UI_interface_layout.hh"
 #  include "UI_resources.hh"
 
 #  include "IO_orientation.hh"
@@ -51,7 +52,9 @@ static const EnumPropertyItem ply_vertex_colors_mode[] = {
      "Vertex colors in the file are in linear color space"},
     {0, nullptr, 0, nullptr, nullptr}};
 
-static int wm_ply_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus wm_ply_export_invoke(bContext *C,
+                                             wmOperator *op,
+                                             const wmEvent * /*event*/)
 {
   ED_fileselect_ensure_default_filepath(C, op, ".ply");
 
@@ -59,7 +62,7 @@ static int wm_ply_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*e
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int wm_ply_export_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_ply_export_exec(bContext *C, wmOperator *op)
 {
   if (!RNA_struct_property_is_set_ex(op->ptr, "filepath", false)) {
     BKE_report(op->reports, RPT_ERROR, "No filepath given");
@@ -89,7 +92,12 @@ static int wm_ply_export_exec(bContext *C, wmOperator *op)
 
   PLY_export(C, export_params);
 
-  return BKE_reports_contain(op->reports, RPT_ERROR) ? OPERATOR_CANCELLED : OPERATOR_FINISHED;
+  if (BKE_reports_contain(op->reports, RPT_ERROR)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  BKE_report(op->reports, RPT_INFO, "File exported successfully");
+  return OPERATOR_FINISHED;
 }
 
 static void wm_ply_export_draw(bContext *C, wmOperator *op)
@@ -100,40 +108,34 @@ static void wm_ply_export_draw(bContext *C, wmOperator *op)
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "PLY_export_general", false, IFACE_("General"))) {
-    uiLayout *col = uiLayoutColumn(panel, false);
+  if (uiLayout *panel = layout->panel(C, "PLY_export_general", false, IFACE_("General"))) {
+    uiLayout *col = &panel->column(false);
 
-    uiLayout *sub = uiLayoutColumnWithHeading(col, false, IFACE_("Format"));
-    uiItemR(sub, ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
+    uiLayout *sub = &col->column(false, IFACE_("Format"));
+    sub->prop(ptr, "ascii_format", UI_ITEM_NONE, IFACE_("ASCII"), ICON_NONE);
 
     /* The Selection only options only make sense when using regular export. */
     if (CTX_wm_space_file(C)) {
-      sub = uiLayoutColumnWithHeading(col, false, IFACE_("Include"));
-      uiItemR(
-          sub, ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
+      sub = &col->column(false, IFACE_("Include"));
+      sub->prop(ptr, "export_selected_objects", UI_ITEM_NONE, IFACE_("Selection Only"), ICON_NONE);
     }
 
-    uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
-    uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, IFACE_("Up Axis"), ICON_NONE);
+    col->prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "forward_axis", UI_ITEM_NONE, IFACE_("Forward Axis"), ICON_NONE);
+    col->prop(ptr, "up_axis", UI_ITEM_NONE, IFACE_("Up Axis"), ICON_NONE);
   }
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "PLY_export_geometry", false, IFACE_("Geometry")))
-  {
-    uiLayout *col = uiLayoutColumn(panel, false);
+  if (uiLayout *panel = layout->panel(C, "PLY_export_geometry", false, IFACE_("Geometry"))) {
+    uiLayout *col = &panel->column(false);
 
-    uiItemR(col, ptr, "export_uv", UI_ITEM_NONE, IFACE_("UV Coordinates"), ICON_NONE);
-    uiItemR(col, ptr, "export_normals", UI_ITEM_NONE, IFACE_("Vertex Normals"), ICON_NONE);
-    uiItemR(col, ptr, "export_attributes", UI_ITEM_NONE, IFACE_("Vertex Attributes"), ICON_NONE);
-    uiItemR(col, ptr, "export_colors", UI_ITEM_NONE, IFACE_("Vertex Colors"), ICON_NONE);
+    col->prop(ptr, "export_uv", UI_ITEM_NONE, IFACE_("UV Coordinates"), ICON_NONE);
+    col->prop(ptr, "export_normals", UI_ITEM_NONE, IFACE_("Vertex Normals"), ICON_NONE);
+    col->prop(ptr, "export_attributes", UI_ITEM_NONE, IFACE_("Vertex Attributes"), ICON_NONE);
+    col->prop(ptr, "export_colors", UI_ITEM_NONE, IFACE_("Vertex Colors"), ICON_NONE);
 
-    uiItemR(col,
-            ptr,
-            "export_triangulated_mesh",
-            UI_ITEM_NONE,
-            IFACE_("Triangulated Mesh"),
-            ICON_NONE);
-    uiItemR(col, ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
+    col->prop(
+        ptr, "export_triangulated_mesh", UI_ITEM_NONE, IFACE_("Triangulated Mesh"), ICON_NONE);
+    col->prop(ptr, "apply_modifiers", UI_ITEM_NONE, IFACE_("Apply Modifiers"), ICON_NONE);
   }
 }
 
@@ -245,7 +247,7 @@ void WM_OT_ply_export(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
-static int wm_ply_import_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus wm_ply_import_exec(bContext *C, wmOperator *op)
 {
   PLYImportParams params;
   params.forward_axis = eIOAxis(RNA_enum_get(op->ptr, "forward_axis"));
@@ -283,18 +285,18 @@ static void ui_ply_import_settings(const bContext *C, uiLayout *layout, PointerR
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "PLY_import_general", false, IFACE_("General"))) {
-    uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "use_scene_unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "forward_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (uiLayout *panel = layout->panel(C, "PLY_import_general", false, IFACE_("General"))) {
+    uiLayout *col = &panel->column(false);
+    col->prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "use_scene_unit", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "forward_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "up_axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "PLY_import_options", false, IFACE_("Options"))) {
-    uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "merge_verts", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "import_colors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (uiLayout *panel = layout->panel(C, "PLY_import_options", false, IFACE_("Options"))) {
+    uiLayout *col = &panel->column(false);
+    col->prop(ptr, "merge_verts", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "import_colors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 

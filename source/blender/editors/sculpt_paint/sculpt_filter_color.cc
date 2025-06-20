@@ -40,7 +40,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include <cmath>
@@ -371,6 +371,7 @@ static void sculpt_color_presmooth_init(const Mesh &mesh, Object &object)
 static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
+  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   MutableSpan<bke::pbvh::MeshNode> nodes = pbvh.nodes<bke::pbvh::MeshNode>();
@@ -388,6 +389,11 @@ static void sculpt_color_filter_apply(bContext *C, wmOperator *op, Object &ob)
   }
 
   const IndexMask &node_mask = ss.filter_cache->node_mask;
+  if (auto_mask::is_enabled(sd, ob, nullptr) && ss.filter_cache->automasking &&
+      ss.filter_cache->automasking->settings.flags & BRUSH_AUTOMASKING_CAVITY_ALL)
+  {
+    ss.filter_cache->automasking->calc_cavity_factor(depsgraph, ob, node_mask);
+  }
 
   const OffsetIndices<int> faces = mesh.faces();
   const Span<int> corner_verts = mesh.corner_verts();
@@ -426,7 +432,9 @@ static void sculpt_color_filter_end(bContext *C, Object &ob)
   flush_update_done(C, ob, UpdateType::Color);
 }
 
-static int sculpt_color_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_color_filter_modal(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
@@ -470,8 +478,8 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
     if (v3d) {
       /* Update the active face set manually as the paint cursor is not enabled when using the Mesh
        * Filter Tool. */
-      SculptCursorGeometryInfo sgi;
-      SCULPT_cursor_geometry_info_update(C, &sgi, mval_fl, false);
+      CursorGeometryInfo cgi;
+      cursor_geometry_info_update(C, &cgi, mval_fl, false);
     }
   }
 
@@ -501,12 +509,12 @@ static int sculpt_color_filter_init(bContext *C, wmOperator *op)
   const SculptSession &ss = *ob.sculpt;
   filter::Cache *filter_cache = ss.filter_cache;
   filter_cache->active_face_set = SCULPT_FACE_SET_NONE;
-  filter_cache->automasking = auto_mask::cache_init(*depsgraph, sd, ob);
+  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
 
   return OPERATOR_PASS_THROUGH;
 }
 
-static int sculpt_color_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_color_filter_exec(bContext *C, wmOperator *op)
 {
   Object &ob = *CTX_data_active_object(C);
 
@@ -520,7 +528,9 @@ static int sculpt_color_filter_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int sculpt_color_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_color_filter_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   View3D *v3d = CTX_wm_view3d(C);
@@ -554,10 +564,10 @@ static void sculpt_color_filter_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "strength", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (FilterType(RNA_enum_get(op->ptr, "type")) == FilterType::Fill) {
-    uiItemR(layout, op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(op->ptr, "fill_color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -568,7 +578,7 @@ void SCULPT_OT_color_filter(wmOperatorType *ot)
   ot->idname = "SCULPT_OT_color_filter";
   ot->description = "Applies a filter to modify the active color attribute";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = sculpt_color_filter_invoke;
   ot->exec = sculpt_color_filter_exec;
   ot->modal = sculpt_color_filter_modal;

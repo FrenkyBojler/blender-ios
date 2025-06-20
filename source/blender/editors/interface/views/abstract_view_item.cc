@@ -12,7 +12,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 #include "UI_abstract_view.hh"
@@ -166,12 +166,12 @@ static AbstractViewItem *find_item_from_rename_button(const uiBut &rename_but)
   /* A minimal sanity check, can't do much more here. */
   BLI_assert(rename_but.type == UI_BTYPE_TEXT && rename_but.poin);
 
-  LISTBASE_FOREACH (uiBut *, but, &rename_but.block->buttons) {
+  for (const std::unique_ptr<uiBut> &but : rename_but.block->buttons) {
     if (but->type != UI_BTYPE_VIEW_ITEM) {
       continue;
     }
 
-    uiButViewItem *view_item_but = (uiButViewItem *)but;
+    uiButViewItem *view_item_but = (uiButViewItem *)but.get();
     AbstractViewItem *item = reinterpret_cast<AbstractViewItem *>(view_item_but->view_item);
     const AbstractView &view = item->get_view();
 

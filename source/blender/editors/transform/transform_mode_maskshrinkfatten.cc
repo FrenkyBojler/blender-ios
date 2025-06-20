@@ -15,15 +15,17 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
-
 #include "BLT_translation.hh"
+
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Mask Shrink/Fatten)
@@ -135,3 +137,5 @@ TransModeInfo TransMode_maskshrinkfatten = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

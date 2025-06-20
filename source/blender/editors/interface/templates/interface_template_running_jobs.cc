@@ -12,6 +12,7 @@
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_time.h"
 
@@ -22,7 +23,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 #define B_STOPRENDER 1
@@ -69,7 +70,9 @@ struct ProgressTooltip_Store {
   void *owner;
 };
 
-static std::string progress_tooltip_func(bContext * /*C*/, void *argN, const char * /*tip*/)
+static std::string progress_tooltip_func(bContext * /*C*/,
+                                         void *argN,
+                                         const blender::StringRef /*tip*/)
 {
   ProgressTooltip_Store *arg = static_cast<ProgressTooltip_Store *>(argN);
   wmWindowManager *wm = arg->wm;
@@ -105,7 +108,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
   const char *op_name = nullptr;
   const char *op_description = nullptr;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_layout_set_current(block, layout);
 
   UI_block_func_handle_set(block, do_running_jobs, nullptr);
@@ -218,8 +221,8 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
     const bool active = !(G.is_break || WM_jobs_is_stopped(wm, owner));
 
-    uiLayout *row = uiLayoutRow(layout, false);
-    block = uiLayoutGetBlock(row);
+    uiLayout *row = &layout->row(false);
+    block = row->block();
 
     /* get percentage done and set it as the UI text */
     const float progress = WM_jobs_progress(wm, owner);
@@ -259,9 +262,9 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
                      "");
 
     /* stick progress bar and cancel button together */
-    row = uiLayoutRow(layout, true);
-    uiLayoutSetActive(row, active);
-    block = uiLayoutGetBlock(row);
+    row = &layout->row(true);
+    row->active_set(active);
+    block = row->block();
 
     {
       ProgressTooltip_Store *tip_arg = static_cast<ProgressTooltip_Store *>(

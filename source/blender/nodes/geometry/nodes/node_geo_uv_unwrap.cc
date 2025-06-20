@@ -2,11 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "DNA_mesh_types.h"
+
+#include "GEO_uv_pack.hh"
 #include "GEO_uv_parametrizer.hh"
 
-#include "BKE_mesh.hh"
-
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
@@ -41,12 +42,12 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "method", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryUVUnwrap *data = MEM_cnew<NodeGeometryUVUnwrap>(__func__);
+  NodeGeometryUVUnwrap *data = MEM_callocN<NodeGeometryUVUnwrap>(__func__);
   data->method = GEO_NODE_UV_UNWRAP_METHOD_ANGLE_BASED;
   node->storage = data;
 }
@@ -114,6 +115,10 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
     geometry::uv_parametrizer_edge_set_seam(handle, vkeys);
   });
 
+  blender::geometry::UVPackIsland_Params params;
+  params.margin = margin;
+  params.rotate_method = ED_UVPACK_ROTATION_ANY;
+
   /* TODO: once field input nodes are able to emit warnings (#94039), emit a
    * warning if we fail to solve an island. */
   geometry::uv_parametrizer_construct_end(handle, fill_holes, false, nullptr);
@@ -123,7 +128,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   geometry::uv_parametrizer_lscm_solve(handle, nullptr, nullptr);
   geometry::uv_parametrizer_lscm_end(handle);
   geometry::uv_parametrizer_average(handle, true, false, false);
-  geometry::uv_parametrizer_pack(handle, margin, true, true);
+  geometry::uv_parametrizer_pack(handle, params);
   geometry::uv_parametrizer_flush(handle);
   delete (handle);
 
@@ -219,11 +224,11 @@ static void node_register()
   ntype.nclass = NODE_CLASS_CONVERTER;
   ntype.initfunc = node_init;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryUVUnwrap", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryUVUnwrap", node_free_standard_storage, node_copy_standard_storage);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

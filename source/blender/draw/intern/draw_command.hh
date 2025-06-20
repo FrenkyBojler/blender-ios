@@ -15,8 +15,10 @@
 
 #include "BKE_global.hh"
 #include "BLI_map.hh"
+#include "BLI_math_base.h"
 #include "DRW_gpu_wrapper.hh"
 
+#include "GPU_index_buffer.hh"
 #include "draw_command_shared.hh"
 #include "draw_handle.hh"
 #include "draw_state.hh"
@@ -42,6 +44,11 @@ class DrawMultiBuf;
  * Keep track of several states and avoid redundant state changes.
  */
 struct RecordingState {
+  gpu::shader::SpecializationConstants specialization_constants;
+  /* True if specialization_constants was set. */
+  bool specialization_constants_in_use = false;
+  /* True if the bound shader uses specialization. */
+  bool shader_use_specialization = false;
   GPUShader *shader = nullptr;
   bool front_facing = true;
   bool inverted_view = false;
@@ -74,6 +81,11 @@ struct RecordingState {
       GPU_texture_unbind_all();
       GPU_uniformbuf_debug_unbind_all();
     }
+  }
+
+  const gpu::shader::SpecializationConstants *specialization_constants_get()
+  {
+    return shader_use_specialization ? &specialization_constants : nullptr;
   }
 };
 
@@ -346,7 +358,7 @@ struct SpecializeConstant {
   SpecializeConstant(GPUShader *sh, int loc, const bool *val)
       : shader(sh), bool_ref(val), location(loc), type(Type::BoolReference){};
 
-  void execute() const;
+  void execute(RecordingState &state) const;
   std::string serialize() const;
 };
 
@@ -372,8 +384,7 @@ struct Draw {
     BLI_assert(batch != nullptr);
     this->batch = batch;
     this->handle = handle;
-    BLI_assert(instance_len < SHRT_MAX);
-    this->instance_len = uint16_t(instance_len);
+    this->instance_len = uint16_t(min_uu(instance_len, USHRT_MAX));
     this->vertex_len = vertex_len;
     this->vertex_first = vertex_first;
     this->expand_prim_type = expanded_prim_type;

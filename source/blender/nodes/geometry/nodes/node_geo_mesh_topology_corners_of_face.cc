@@ -3,9 +3,8 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BLI_array_utils.hh"
-#include "BLI_task.hh"
 
-#include "BKE_mesh.hh"
+#include "DNA_mesh_types.h"
 
 #include "node_geometry_util.hh"
 
@@ -14,7 +13,7 @@ namespace blender::nodes::node_geo_mesh_topology_corners_of_face_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Int>("Face Index")
-      .implicit_field(implicit_field_inputs::index)
+      .implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD)
       .description("The face to retrieve data from. Defaults to the face from the context");
   b.add_input<decl::Float>("Weights").supports_field().hide_value().description(
       "Values used to sort the face's corners. Uses indices by default");
@@ -199,7 +198,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_INPUT;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

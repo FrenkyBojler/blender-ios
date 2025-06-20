@@ -11,10 +11,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
-
-#include "DNA_scene_types.h"
 
 #include "COM_algorithm_jump_flooding.hh"
 #include "COM_algorithm_symmetric_separable_blur_variable_size.hh"
@@ -32,12 +29,13 @@ static void cmp_node_inpaint_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
-}
+  b.add_input<decl::Int>("Size")
+      .default_value(0)
+      .min(0)
+      .description("The size of the inpaint in pixels")
+      .compositor_expects_single_value();
 
-static void node_composit_buts_inpaint(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  uiItemR(layout, ptr, "distance", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  b.add_output<decl::Color>("Image");
 }
 
 using namespace blender::compositor;
@@ -48,10 +46,10 @@ class InpaintOperation : public NodeOperation {
 
   void execute() override
   {
-    Result &input = get_input("Image");
-    Result &output = get_result("Image");
-    if (input.is_single_value() || get_max_distance() == 0) {
-      input.pass_through(output);
+    const Result &input = this->get_input("Image");
+    if (input.is_single_value() || this->get_max_distance() == 0) {
+      Result &output = this->get_result("Image");
+      output.share_data(input);
       return;
     }
 
@@ -347,7 +345,7 @@ class InpaintOperation : public NodeOperation {
 
   int get_max_distance()
   {
-    return bnode().custom2;
+    return math::max(0, this->get_input("Size").get_single_value_default(0));
   }
 };
 
@@ -358,7 +356,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_inpaint_cc
 
-void register_node_type_cmp_inpaint()
+static void register_node_type_cmp_inpaint()
 {
   namespace file_ns = blender::nodes::node_composite_inpaint_cc;
 
@@ -370,8 +368,8 @@ void register_node_type_cmp_inpaint()
   ntype.enum_name_legacy = "INPAINT";
   ntype.nclass = NODE_CLASS_OP_FILTER;
   ntype.declare = file_ns::cmp_node_inpaint_declare;
-  ntype.draw_buttons = file_ns::node_composit_buts_inpaint;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_inpaint)

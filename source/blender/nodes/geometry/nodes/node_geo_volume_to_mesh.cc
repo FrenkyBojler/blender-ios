@@ -17,7 +17,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_randomize.hh"
@@ -65,12 +65,12 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayoutSetPropSep(layout, true);
   uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "resolution_mode", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
+  layout->prop(ptr, "resolution_mode", UI_ITEM_NONE, IFACE_("Resolution"), ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryVolumeToMesh *data = MEM_cnew<NodeGeometryVolumeToMesh>(__func__);
+  NodeGeometryVolumeToMesh *data = MEM_callocN<NodeGeometryVolumeToMesh>(__func__);
   data->resolution_mode = VOLUME_TO_MESH_RESOLUTION_MODE_GRID;
   node->storage = data;
 }
@@ -251,12 +251,12 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_type_size(&ntype, 170, 120, 700);
+      ntype, "NodeGeometryVolumeToMesh", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_type_size(ntype, 170, 120, 700);
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

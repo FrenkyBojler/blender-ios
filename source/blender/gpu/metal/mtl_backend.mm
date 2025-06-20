@@ -6,6 +6,10 @@
  * \ingroup gpu
  */
 
+#include <cstring>
+
+#include "BLI_threads.h"
+
 #include "BKE_global.hh"
 
 #include "gpu_backend.hh"
@@ -38,6 +42,16 @@ thread_local int g_autoreleasepool_depth = 0;
 /* -------------------------------------------------------------------- */
 /** \name Metal Backend
  * \{ */
+
+void MTLBackend::init_resources()
+{
+  compiler_ = MEM_new<MTLShaderCompiler>(__func__);
+}
+
+void MTLBackend::delete_resources()
+{
+  MEM_delete(compiler_);
+}
 
 void MTLBackend::samplers_update(){
     /* Placeholder -- Handled in MTLContext. */
@@ -243,6 +257,17 @@ void MTLBackend::platform_init(MTLContext *ctx)
            renderer,
            version,
            architecture_type);
+
+  /* UUID is not supported on Metal. */
+  GPG.device_uuid.reinitialize(0);
+
+  /* LUID is registryID on Metal, or at least this is what libraries like OIDN expects. */
+  const uint64_t luid = mtl_device.registryID;
+  GPG.device_luid.reinitialize(sizeof(luid));
+  std::memcpy(GPG.device_luid.data(), &luid, sizeof(luid));
+
+  /* Metal only has one device per LUID, so only the first bit will always be active.. */
+  GPG.device_luid_node_mask = 1;
 }
 
 void MTLBackend::platform_exit()
@@ -448,6 +473,16 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   }
 #endif
 
+  /** Identify support for tile inputs. */
+  const bool is_tile_based_arch = (GPU_platform_architecture() == GPU_ARCHITECTURE_TBDR);
+  if (is_tile_based_arch) {
+    MTLBackend::capabilities.supports_native_tile_inputs = true;
+  }
+  else {
+    /* NOTE: If emulating tile input reads, we must ensure we also expose position data. */
+    MTLBackend::capabilities.supports_native_tile_inputs = false;
+  }
+
   /* CPU Info */
   MTLBackend::capabilities.num_performance_cores = get_num_performance_cpu_cores(ctx->device);
   MTLBackend::capabilities.num_efficiency_cores = get_num_efficiency_cpu_cores(ctx->device);
@@ -490,12 +525,15 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
 
   GCaps.geometry_shader_support = false;
 
-  /* Compile shaders on performance cores but leave one free so UI is still responsive */
-  GCaps.max_parallel_compilations = MTLBackend::capabilities.num_performance_cores - 1;
+  /* Compile shaders on performance cores but leave one free so UI is still responsive.
+   * Also respect command line option to reduce number of threads. */
+  GCaps.max_parallel_compilations = std::min(BLI_system_thread_count(),
+                                             MTLBackend::capabilities.num_performance_cores - 1);
 
   /* Maximum buffer bindings: 31. Consider required slot for uniforms/UBOs/Vertex attributes.
    * Can use argument buffers if a higher limit is required. */
   GCaps.max_shader_storage_buffer_bindings = 14;
+  GCaps.max_compute_shader_storage_blocks = 14;
   GCaps.max_storage_buffer_size = size_t(ctx->device.maxBufferLength);
   GCaps.storage_buffer_alignment = 256; /* TODO(fclem): But also unused. */
 
@@ -512,8 +550,8 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   GCaps.max_work_group_size[1] = max_threads_per_threadgroup_per_dim;
   GCaps.max_work_group_size[2] = max_threads_per_threadgroup_per_dim;
 
-  GCaps.transform_feedback_support = true;
   GCaps.stencil_export_support = true;
+  GCaps.clip_control_support = true;
 
   /* OPENGL Related workarounds -- none needed for Metal. */
   GCaps.extensions_len = 0;
@@ -527,6 +565,18 @@ void MTLBackend::capabilities_init(MTLContext *ctx)
   /* Minimum per-vertex stride is 4 bytes in Metal.
    * A bound vertex buffer must contribute at least 4 bytes per vertex. */
   GCaps.minimum_per_vertex_stride = 4;
+
+  /* Force workarounds when starting blender with `--debug-gpu-force-workarounds`.
+   *
+   * Not all workarounds are listed here as some capabilities are currently assumed to be present
+   * on all devices. */
+  if (G.debug & G_DEBUG_GPU_FORCE_WORKAROUNDS) {
+    /* Texture gather is supported on AMD, but results are non consistent with Apple Silicon GPUs
+     * and can be disabled. */
+    MTLBackend::capabilities.supports_texture_gather = false;
+    MTLBackend::capabilities.supports_texture_atomics = false;
+    MTLBackend::capabilities.supports_native_tile_inputs = false;
+  }
 }
 
 /** \} */

@@ -10,6 +10,7 @@
 
 #include "DNA_screen_types.h"
 #include "DNA_space_types.h"
+#include "DNA_userdef_types.h"
 #include "DNA_workspace_types.h"
 
 #include "WM_types.hh"
@@ -210,7 +211,7 @@ void ED_area_and_region_types_init(ScrArea *area);
 /**
  * Called in screen_refresh, or screens_init, also area size changes.
  */
-void ED_area_init(wmWindowManager *wm, wmWindow *win, ScrArea *area);
+void ED_area_init(bContext *C, const wmWindow *win, ScrArea *area);
 void ED_area_exit(bContext *C, ScrArea *area);
 blender::StringRefNull ED_area_name(const ScrArea *area);
 int ED_area_icon(const ScrArea *area);
@@ -508,7 +509,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph);
  * Toggle operator.
  */
 void ED_reset_audio_device(bContext *C);
-int ED_screen_animation_play(bContext *C, int sync, int mode);
+wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Find window that owns the animation timer.
  */
@@ -583,6 +584,8 @@ bool ED_operator_nla_active(bContext *C);
 bool ED_operator_info_active(bContext *C);
 bool ED_operator_console_active(bContext *C);
 
+/** Only check there is an active object (no visibility check). */
+bool ED_operator_object_active_only(bContext *C);
 bool ED_operator_object_active(bContext *C);
 bool ED_operator_object_active_editable_ex(bContext *C, const Object *ob);
 bool ED_operator_object_active_editable(bContext *C);
@@ -682,6 +685,7 @@ void ED_region_generic_tools_region_message_subscribe(
  * Callback for #ARegionType.snap_size
  */
 int ED_region_generic_tools_region_snap_size(const ARegion *region, int size, int axis);
+int ED_region_generic_panel_region_snap_size(const ARegion *region, int size, int axis);
 
 /* `area_query.cc` */
 

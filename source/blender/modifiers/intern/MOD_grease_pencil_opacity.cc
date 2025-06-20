@@ -17,7 +17,7 @@
 
 #include "BLO_read_write.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -75,14 +75,15 @@ static void modify_stroke_color(const GreasePencilOpacityModifierData &omd,
 {
   const bool use_uniform_opacity = (omd.flag & MOD_GREASE_PENCIL_OPACITY_USE_UNIFORM_OPACITY);
   const bool use_weight_as_factor = (omd.flag & MOD_GREASE_PENCIL_OPACITY_USE_WEIGHT_AS_FACTOR);
-  const bool invert_vertex_group = (omd.influence.flag &
-                                    GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP);
   const bool use_curve = (omd.influence.flag & GREASE_PENCIL_INFLUENCE_USE_CUSTOM_CURVE);
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
   bke::SpanAttributeWriter<float> opacities = attributes.lookup_or_add_for_write_span<float>(
       "opacity", bke::AttrDomain::Point);
+  if (!opacities) {
+    return;
+  }
   const VArray<float> vgroup_weights = modifier::greasepencil::get_influence_vertex_weights(
       curves, omd.influence);
 
@@ -110,9 +111,8 @@ static void modify_stroke_color(const GreasePencilOpacityModifierData &omd,
       }
       else {
         /* Use vertex group weights as influence factors. */
-        const float vgroup_influence = invert_vertex_group ? 1.0f - vgroup_weight : vgroup_weight;
         opacities.span[point_i] = std::clamp(
-            opacities.span[point_i] + (omd.color_factor * curve_factor - 1.0f) * vgroup_influence,
+            opacities.span[point_i] + (omd.color_factor * curve_factor - 1.0f) * vgroup_weight,
             0.0f,
             1.0f);
       }
@@ -127,8 +127,6 @@ static void modify_fill_color(const GreasePencilOpacityModifierData &omd,
                               const IndexMask &curves_mask)
 {
   const bool use_vgroup_opacity = (omd.flag & MOD_GREASE_PENCIL_OPACITY_USE_WEIGHT_AS_FACTOR);
-  const bool invert_vertex_group = (omd.influence.flag &
-                                    GREASE_PENCIL_INFLUENCE_INVERT_VERTEX_GROUP);
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
 
   bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
@@ -146,15 +144,13 @@ static void modify_fill_color(const GreasePencilOpacityModifierData &omd,
     const float vgroup_weight_first = vgroup_weights[points.first()];
     float stroke_weight = vgroup_weight_first;
     if (use_vgroup_opacity) {
-      if (points.is_empty() || (vgroup_weight_first <= 0.0f)) {
+      if (points.is_empty() || (stroke_weight <= 0.0f)) {
         stroke_weight = 1.0f;
       }
-      const float stroke_influence = invert_vertex_group ? 1.0f - stroke_weight : stroke_weight;
-
-      fill_opacities.span[curve_i] = std::clamp(stroke_influence, 0.0f, 1.0f);
+      fill_opacities.span[curve_i] = std::clamp(stroke_weight, 0.0f, 1.0f);
     }
     else {
-      if (!points.is_empty() && (vgroup_weight_first > 0.0f)) {
+      if (!points.is_empty() && (stroke_weight > 0.0f)) {
         fill_opacities.span[curve_i] = std::clamp(omd.color_factor * stroke_weight, 0.0f, 1.0f);
       }
     }
@@ -239,30 +235,30 @@ static void panel_draw(const bContext *C, Panel *panel)
   const GreasePencilModifierColorMode color_mode = GreasePencilModifierColorMode(
       RNA_enum_get(ptr, "color_mode"));
 
-  uiItemR(layout, ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "color_mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (color_mode == MOD_GREASE_PENCIL_COLOR_HARDNESS) {
-    uiItemR(layout, ptr, "hardness_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "hardness_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else {
     const bool use_uniform_opacity = RNA_boolean_get(ptr, "use_uniform_opacity");
     const bool use_weight_as_factor = RNA_boolean_get(ptr, "use_weight_as_factor");
 
-    uiItemR(layout, ptr, "use_uniform_opacity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "use_uniform_opacity", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     const char *text = (use_uniform_opacity) ? IFACE_("Opacity") : IFACE_("Opacity Factor");
 
-    uiLayout *row = uiLayoutRow(layout, true);
-    uiLayoutSetActive(row, !use_weight_as_factor || use_uniform_opacity);
-    uiItemR(row, ptr, "color_factor", UI_ITEM_NONE, text, ICON_NONE);
+    uiLayout *row = &layout->row(true);
+    row->active_set(!use_weight_as_factor || use_uniform_opacity);
+    row->prop(ptr, "color_factor", UI_ITEM_NONE, text, ICON_NONE);
     if (!use_uniform_opacity) {
-      uiLayout *sub = uiLayoutRow(row, true);
-      uiLayoutSetActive(sub, true);
-      uiItemR(row, ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
+      uiLayout *sub = &row->row(true);
+      sub->active_set(true);
+      row->prop(ptr, "use_weight_as_factor", UI_ITEM_NONE, "", ICON_MOD_VERTEX_WEIGHT);
     }
   }
 
-  if (uiLayout *influence_panel = uiLayoutPanelProp(
-          C, layout, ptr, "open_influence_panel", IFACE_("Influence")))
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
   {
     modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
@@ -270,7 +266,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_custom_curve_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
