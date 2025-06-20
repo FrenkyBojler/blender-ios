@@ -7,10 +7,10 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_global.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
-#include "BKE_global.hh"
 
 #include "ANIM_bone_collections.hh"
 #include "intern/bone_collections_internal.hh"
