@@ -2564,9 +2564,30 @@ static int edbm_normals_make_consistent_exec(bContext *C, wmOperator *op)
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
 
-    if (em->bm->totfacesel == 0) {
+    if (bm->totfacesel == 0) {
       continue;
+    }
+
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit);
+
+    char hflag = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag);
+
+      BMIter iter;
+      BMFace *f;
+      BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT) ||
+            (symmetry_helper->is_any_mirror_face_selected(f, BM_ELEM_SELECT)))
+        {
+          BM_elem_flag_enable(f, hflag);
+        }
+      }
     }
 
     BMLoopNorEditDataArray *lnors_ed_arr = nullptr;
@@ -2576,16 +2597,24 @@ static int edbm_normals_make_consistent_exec(bContext *C, wmOperator *op)
       lnors_ed_arr = flip_custom_normals_init_data(em->bm);
     }
 
-    if (!EDBM_op_callf(em, op, "recalc_face_normals faces=%hf", BM_ELEM_SELECT)) {
-      continue;
-    }
-
-    if (inside) {
-      EDBM_op_callf(em, op, "reverse_faces faces=%hf flip_multires=%b", BM_ELEM_SELECT, true);
-      flip_custom_normals(em->bm, lnors_ed_arr);
+    if (!EDBM_op_callf(em, op, "recalc_face_normals faces=%hf", hflag)) {
       if (lnors_ed_arr != nullptr) {
         BM_loop_normal_editdata_array_free(lnors_ed_arr);
       }
+      continue;
+    }
+
+      if (inside) {
+        EDBM_op_callf(em, op, "reverse_faces faces=%hf flip_multires=%b", hflag, true);
+        flip_custom_normals(em->bm, lnors_ed_arr);
+      }
+
+      if (lnors_ed_arr != nullptr) {
+        BM_loop_normal_editdata_array_free(lnors_ed_arr);
+      }
+
+      if (hflag != BM_ELEM_SELECT) {
+        EDBM_flag_disable_all(em, hflag);
     }
 
     EDBMUpdate_Params params{};
