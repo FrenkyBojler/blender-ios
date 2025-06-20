@@ -227,6 +227,7 @@ class Menu : public SocketDeclaration {
 
   int32_t default_value;
   bool is_expanded = false;
+  blender::Vector<EnumPropertyItem> items;
 
   friend MenuBuilder;
 
@@ -244,6 +245,10 @@ class MenuBuilder : public SocketDeclarationBuilder<Menu> {
 
   /** Draw the menu items next to each other instead of as a drop-down menu. */
   MenuBuilder &expanded(bool value = true);
+
+  MenuBuilder &items(blender::Vector<EnumPropertyItem> items);
+
+  MenuBuilder &items(const EnumPropertyItem *items);
 };
 
 class BundleBuilder;
@@ -591,6 +596,21 @@ inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
 inline MenuBuilder &MenuBuilder::expanded(const bool value)
 {
   decl_->is_expanded = value;
+  return *this;
+}
+
+inline MenuBuilder &MenuBuilder::items(blender::Vector<EnumPropertyItem> items)
+{
+  decl_->items = std::move(items);
+  return *this;
+}
+
+inline MenuBuilder &MenuBuilder::items(const EnumPropertyItem *items)
+{
+  for (const EnumPropertyItem *item = items; item->identifier; item++) {
+    decl_->items.append(*item);
+  }
+
   return *this;
 }
 
