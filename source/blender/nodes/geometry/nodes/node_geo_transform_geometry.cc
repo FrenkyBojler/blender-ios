@@ -9,6 +9,8 @@
 
 #include "UI_interface.hh"
 
+#include "NOD_socket_usage_inference.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_transform_geometry_cc {
@@ -23,6 +25,18 @@ static EnumPropertyItem mode_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static std::optional<bool> used_for_matrix(
+    const socket_usage_inference::InputSocketUsageParams &params)
+{
+  return params.menu_input_may_be("Mode", GEO_NODE_TRANSFORM_MODE_MATRIX);
+}
+
+static std::optional<bool> used_for_components(
+    const socket_usage_inference::InputSocketUsageParams &params)
+{
+  return params.menu_input_may_be("Mode", GEO_NODE_TRANSFORM_MODE_COMPONENTS);
+}
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -31,10 +45,13 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Mode").static_items(mode_items);
   b.add_input<decl::Geometry>("Geometry");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
-  b.add_input<decl::Vector>("Translation").subtype(PROP_TRANSLATION);
-  b.add_input<decl::Rotation>("Rotation");
-  b.add_input<decl::Vector>("Scale").default_value({1, 1, 1}).subtype(PROP_XYZ);
-  b.add_input<decl::Matrix>("Transform");
+  b.add_input<decl::Vector>("Translation")
+      .subtype(PROP_TRANSLATION)
+      .usage_inference(used_for_components);
+  b.add_input<decl::Rotation>("Rotation").usage_inference(used_for_components);
+  b.add_input<decl::Vector>("Scale").default_value({1, 1, 1}).subtype(PROP_XYZ).usage_inference(
+      used_for_components);
+  b.add_input<decl::Matrix>("Transform").usage_inference(used_for_matrix);
 }
 
 static bool use_translate(const math::Quaternion &rotation, const float3 scale)

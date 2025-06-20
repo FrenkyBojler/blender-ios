@@ -7,6 +7,8 @@
 #include "BLI_array.hh"
 #include "BLI_generic_pointer.hh"
 
+#include "BKE_node.hh"
+
 #include "NOD_geometry_nodes_execute.hh"
 #include "NOD_socket_usage_inference_fwd.hh"
 
@@ -15,6 +17,32 @@ struct bNodeSocket;
 struct IDProperty;
 
 namespace blender::nodes::socket_usage_inference {
+
+struct SocketUsageInferencer;
+
+class InputSocketUsageParams {
+ private:
+  SocketUsageInferencer &inferencer_;
+  const ComputeContext *compute_context_ = nullptr;
+
+ public:
+  const bNodeTree &tree;
+  const bNode &node;
+  const bNodeSocket &socket;
+
+  InputSocketUsageParams(SocketUsageInferencer &inferencer,
+                         const ComputeContext *compute_context,
+                         const bNodeTree &tree,
+                         const bNode &node,
+                         const bNodeSocket &socket);
+
+  std::optional<bool> request_output_usage(StringRef identifier) const;
+
+  const void *get_input(StringRef identifier) const;
+  template<typename T> const T *get_input(StringRef identifier) const;
+
+  std::optional<bool> menu_input_may_be(StringRef identifier, int enum_value) const;
+};
 
 /**
  * Get a boolean value for each input socket in the given tree that indicates whether that input is
@@ -51,5 +79,13 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const PropertiesVectorSet &properties,
                                         MutableSpan<SocketUsage> r_input_usages);
+
+template<typename T> const T *InputSocketUsageParams::get_input(const StringRef identifier) const
+{
+  BLI_assert(this->node.input_by_identifier(identifier).typeinfo->base_cpp_type ==
+             &CPPType::get<T>());
+  const void *value = this->get_input(identifier);
+  return static_cast<const T *>(value);
+}
 
 }  // namespace blender::nodes::socket_usage_inference

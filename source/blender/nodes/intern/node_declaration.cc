@@ -780,6 +780,13 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::custom_draw(CustomSo
   return *this;
 }
 
+BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference(
+    InputSocketUsageInferenceFn fn)
+{
+  decl_base_->usage_inference_fn = std::make_unique<InputSocketUsageInferenceFn>(std::move(fn));
+  return *this;
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::align_with_previous(const bool value)
 {
   decl_base_->align_with_previous_socket = value;
