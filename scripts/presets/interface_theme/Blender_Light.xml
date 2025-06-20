@@ -15,6 +15,7 @@
         panel_header="#ccccccff"
         panel_back="#ccccccff"
         panel_sub_back="#0000001f"
+        panel_outline="#ffffff22"
         transparent_checker_primary="#333333"
         transparent_checker_secondary="#262626"
         transparent_checker_size="8"
@@ -459,6 +460,16 @@
         outline_width="1"
         object_origin_size="6"
         >
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
         <space>
           <ThemeSpaceGradient
             title="#000000"
@@ -467,11 +478,6 @@
             header="#99999900"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#99999900"
-            button_title="#1a1a1a"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#656565ff"
             >
             <gradients>
               <ThemeGradientColors
@@ -529,11 +535,6 @@
             header="#adadadff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#999999e6"
-            button_title="#1a1a1a"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#999999ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -546,6 +547,16 @@
             >
           </ThemeSpaceListGeneric>
         </space_list>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeGraphEditor>
     </graph_editor>
     <file_browser>
@@ -562,14 +573,19 @@
             header="#adadadff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#b3b3b3ff"
-            button_title="#1a1a1a"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#999999ff"
             >
           </ThemeSpaceGeneric>
         </space>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeFileBrowser>
     </file_browser>
     <nla_editor>
@@ -608,11 +624,6 @@
             header="#adadadff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -625,6 +636,16 @@
             >
           </ThemeSpaceListGeneric>
         </space_list>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeNLAEditor>
     </nla_editor>
     <dopesheet_editor>
@@ -673,11 +694,6 @@
             header="#adadadff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -690,6 +706,16 @@
             >
           </ThemeSpaceListGeneric>
         </space_list>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeDopeSheet>
     </dopesheet_editor>
     <image_editor>
@@ -747,14 +773,19 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#99999900"
-            button_title="#1a1a1a"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#656565ff"
             >
           </ThemeSpaceGeneric>
         </space>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeImageEditor>
     </image_editor>
     <sequence_editor>
@@ -806,11 +837,6 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#99999900"
-            button_title="#1a1a1a"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#656565ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -823,6 +849,16 @@
             >
           </ThemeSpaceListGeneric>
         </space_list>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeSequenceEditor>
     </sequence_editor>
     <properties>
@@ -839,14 +875,19 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#303030ff"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#a6a6a6ff"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeProperties>
     </properties>
     <text_editor>
@@ -873,14 +914,19 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeTextEditor>
     </text_editor>
     <node_editor>
@@ -928,23 +974,19 @@
             header="#b3b3b3ff"
             header_text="#eeeeee"
             header_text_hi="#ffffff"
-            button="#99999900"
-            button_title="#1a1a1a"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#656565ff"
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#a5a5a5"
-            list_title="#000000"
-            list_text="#000000"
-            list_text_hi="#ffffff"
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
             >
-          </ThemeSpaceListGeneric>
-        </space_list>
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeNodeEditor>
     </node_editor>
     <outliner>
@@ -966,11 +1008,6 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -999,11 +1036,6 @@
             header="#b3b3b3ff"
             header_text="#1a1a1a"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -1020,14 +1052,19 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemePreferences>
     </preferences>
     <console>
@@ -1048,11 +1085,6 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#30303000"
-            button_title="#ffffff"
-            button_text="#cccccc"
-            button_text_hi="#ffffff"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -1101,11 +1133,6 @@
             header="#b3b3b3ff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#7272727f"
-            button_title="#000000"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#404040ff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -1118,6 +1145,16 @@
             >
           </ThemeSpaceListGeneric>
         </space_list>
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
+            >
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeClipEditor>
     </clip_editor>
     <topbar>
@@ -1131,11 +1168,6 @@
             header="#999999ff"
             header_text="#eeeeee"
             header_text_hi="#ffffff"
-            button="#2f303599"
-            button_title="#ffffff"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#28292dff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -1152,11 +1184,6 @@
             header="#999999ff"
             header_text="#1a1a1a"
             header_text_hi="#ffffff"
-            button="#2f303500"
-            button_title="#ffffff"
-            button_text="#ffffff"
-            button_text_hi="#000000"
-            tab_back="#28292dff"
             >
           </ThemeSpaceGeneric>
         </space>
@@ -1175,23 +1202,19 @@
             header="#adadadff"
             header_text="#000000"
             header_text_hi="#ffffff"
-            button="#b3b3b3ff"
-            button_title="#1a1a1a"
-            button_text="#000000"
-            button_text_hi="#000000"
-            tab_back="#999999ff"
             >
           </ThemeSpaceGeneric>
         </space>
-        <space_list>
-          <ThemeSpaceListGeneric
-            list="#adadad"
-            list_title="#c3c3c3"
-            list_text="#c3c3c3"
-            list_text_hi="#00ffff"
+        <space_region>
+          <ThemeSpaceRegionGeneric
+            button="#b3b3b300"
+            button_title="#1a1a1a"
+            button_text="#1a1a1a"
+            button_text_hi="#000000"
+            tab_back="#b3b3b300"
             >
-          </ThemeSpaceListGeneric>
-        </space_list>
+          </ThemeSpaceRegionGeneric>
+        </space_region>
       </ThemeSpreadsheet>
     </spreadsheet>
     <asset_shelf>
