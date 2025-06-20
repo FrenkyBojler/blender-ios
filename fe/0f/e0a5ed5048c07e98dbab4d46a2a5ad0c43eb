@@ -1,2 +1,3 @@
 Referenced by pull request #140728, Fix: Theme: Properties editor missing region style
 Referenced by commit dbba0baa03e721d94a6707c40d0c02afd6735cc6, Fix: Theme: Properties editor missing region style
+Referenced by issue #140737, Crash when extracting the face (Blender 5 with 4.5 save file)
