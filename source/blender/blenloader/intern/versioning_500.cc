@@ -483,6 +483,16 @@ static void do_version_volume_to_mesh_options_to_inputs(bNodeTree &ntree, bNode 
   socket.default_value_typed<bNodeSocketValueMenu>()->value = storage.resolution_mode;
 }
 
+static void do_version_match_string_options_to_inputs(bNodeTree &ntree, bNode &node)
+{
+  if (blender::bke::node_find_socket(node, SOCK_IN, "Operation")) {
+    return;
+  }
+  bNodeSocket &socket = version_node_add_socket(
+      ntree, node, SOCK_IN, "NodeSocketMenu", "Operation");
+  socket.default_value_typed<bNodeSocketValueMenu>()->value = node.custom1;
+}
+
 void do_versions_after_linking_500(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**
@@ -656,6 +666,9 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           }
           else if (node->type_legacy == GEO_NODE_VOLUME_TO_MESH) {
             do_version_volume_to_mesh_options_to_inputs(*node_tree, *node);
+          }
+          else if (STREQ(node->idname, "FunctionNodeMatchString")) {
+            do_version_match_string_options_to_inputs(*node_tree, *node);
           }
         }
       }

@@ -702,6 +702,10 @@ static void write_legacy_properties(bNodeTree &ntree)
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Resolution Mode");
           storage.resolution_mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (STREQ(node->idname, "FunctionNodeMatchString")) {
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Operation");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
       }
       break;
     }
