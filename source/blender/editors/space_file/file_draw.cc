@@ -76,6 +76,8 @@
 
 #include "file_intern.hh" /* own include */
 
+using RemoteLibraryLoadingStatus = blender::asset_system::RemoteLibraryLoadingStatus;
+
 void ED_file_path_button(bScreen *screen,
                          const SpaceFile *sfile,
                          FileSelectParams *params,
@@ -1792,9 +1794,8 @@ static void file_draw_asset_library_remote_loading_failed_hint(const bContext *C
   const int pad_y = sfile->layout->tile_border_y * 2;
   const int available_width = BLI_rctf_size_x(&v2d->tot) - (2 * pad_x);
   const int line_height = sfile->layout->text_line_height;
-  StringRefNull message = asset_system::RemoteLibraryLoadingStatus::failure_message(
-                              library->remote_url)
-                              .value_or("Unknown reason");
+  StringRefNull message =
+      RemoteLibraryLoadingStatus::failure_message(library->remote_url).value_or("Unknown reason");
 
   const int message_width = UI_fontstyle_string_width(&UI_style_get()->widget, message.c_str());
   const int box_width = std::min({available_width, UI_UNIT_X * 28, message_width + (2 * pad_x)});
@@ -1950,9 +1951,8 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
       file_draw_asset_library_internet_access_required_hint(C, sfile, region);
       return true;
     }
-    if (remote_library &&
-        blender::asset_system::RemoteLibraryLoadingStatus::status(remote_library->remote_url) ==
-            blender::asset_system::RemoteLibraryLoadingStatus::Failure)
+    if (remote_library && RemoteLibraryLoadingStatus::status(remote_library->remote_url) ==
+                              RemoteLibraryLoadingStatus::Failure)
     {
       setup_view();
       file_draw_asset_library_remote_loading_failed_hint(C, sfile, region, remote_library);

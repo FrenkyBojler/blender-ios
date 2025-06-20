@@ -3067,6 +3067,8 @@ struct TodoDir {
   char *dir;
 };
 
+using RemoteLibraryLoadingStatus = blender::asset_system::RemoteLibraryLoadingStatus;
+
 struct FileListReadJob {
   blender::Mutex lock;
   char main_filepath[FILE_MAX] = "";
@@ -3099,7 +3101,7 @@ struct FileListReadJob {
    * the filelist loading running while the library is being downloaded by other code. */
   std::atomic<bool> is_asset_library_loading_extern = false;
   std::atomic<bool> is_asset_library_metafiles_in_place = false;
-  asset_system::RemoteLibraryLoadingStatus::TimePoint last_new_pages_time;
+  RemoteLibraryLoadingStatus::TimePoint last_new_pages_time;
   std::atomic<bool> is_asset_library_new_pages_available = false;
 
   /** Shallow copy of #filelist for thread-safe access.
@@ -4218,19 +4220,19 @@ static void filelist_remote_asset_library_update_loading_flags(FileListReadJob *
                                                                const bUserAssetLibrary *library)
 {
   /* On timeout the loading status will be set to cancelled. */
-  if (asset_system::RemoteLibraryLoadingStatus::handle_timeout(library->remote_url)) {
+  if (RemoteLibraryLoadingStatus::handle_timeout(library->remote_url)) {
     job_params->cancel = true;
   }
 
-  const auto last_new_pages_time = asset_system::RemoteLibraryLoadingStatus::last_new_pages_time(
+  const auto last_new_pages_time = RemoteLibraryLoadingStatus::last_new_pages_time(
       library->remote_url);
   if (last_new_pages_time && *last_new_pages_time != job_params->last_new_pages_time) {
     job_params->is_asset_library_new_pages_available = true;
     job_params->last_new_pages_time = *last_new_pages_time;
   }
-  job_params->is_asset_library_loading_extern = asset_system::RemoteLibraryLoadingStatus::status(
+  job_params->is_asset_library_loading_extern = RemoteLibraryLoadingStatus::status(
                                                     library->remote_url) ==
-                                                asset_system::RemoteLibraryLoadingStatus::Loading;
+                                                RemoteLibraryLoadingStatus::Loading;
   job_params->is_asset_library_metafiles_in_place =
       asset_system::RemoteLibraryLoadingStatus::metafiles_in_place(library->remote_url)
           .value_or(false);
