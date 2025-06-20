@@ -8,6 +8,7 @@
 #include "NOD_socket_usage_inference.hh"
 
 #include "BLI_assert.h"
+#include "BLI_listbase.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_geometry_fields.hh"
@@ -788,25 +789,47 @@ BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference(
   return *this;
 }
 
+static const bNodeSocket &find_single_menu_input(const bNode &node)
+{
+#ifndef NDEBUG
+  int menu_input_count = 0;
+  /* Topology cache may not be available here and this function may be called while doing tree
+   * modifications. */
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+    if (socket->type == SOCK_MENU) {
+      menu_input_count++;
+    }
+  }
+  BLI_assert(menu_input_count == 1);
+#endif
+
+  LISTBASE_FOREACH (bNodeSocket *, socket, &node.inputs) {
+    if (!socket->is_available()) {
+      continue;
+    }
+    if (socket->type != SOCK_MENU) {
+      continue;
+    }
+    return *socket;
+  }
+  BLI_assert_unreachable();
+  return node.input_socket(0);
+}
+
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::usage_inference_simple_menu(
     const int menu_value)
 {
-  return this->usage_inference(
-      [menu_value](
-          const socket_usage_inference::InputSocketUsageParams &params) -> std::optional<bool> {
-        for (const bNodeSocket *socket : params.node.input_sockets()) {
-          if (!socket->is_available()) {
-            continue;
-          }
-          if (socket->type != SOCK_MENU) {
-            continue;
-          }
-          return params.menu_input_may_be(socket->identifier, menu_value);
-        }
-        /* Expected to find a menu input. */
-        BLI_assert_unreachable();
-        return true;
-      });
+  this->make_available([menu_value](bNode &node) {
+    bNodeSocket &socket = const_cast<bNodeSocket &>(find_single_menu_input(node));
+    bNodeSocketValueMenu *value = socket.default_value_typed<bNodeSocketValueMenu>();
+    value->value = menu_value;
+  });
+  this->usage_inference([menu_value](const socket_usage_inference::InputSocketUsageParams &params)
+                            -> std::optional<bool> {
+    const bNodeSocket &socket = find_single_menu_input(params.node);
+    return params.menu_input_may_be(socket.identifier, menu_value);
+  });
+  return *this;
 }
 
 BaseSocketDeclarationBuilder &BaseSocketDeclarationBuilder::align_with_previous(const bool value)
