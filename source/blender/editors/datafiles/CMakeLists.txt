@@ -774,6 +774,7 @@ if(WITH_BLENDER)
       restrict_select_on
       restrict_view_off
       restrict_view_on
+      rew
       rightarrow
       rightarrow_thin
       right_off

@@ -866,14 +866,9 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
   AZone *az = nullptr;
 
   for (az = static_cast<AZone *>(area->actionzones.first); az; az = az->next) {
-    az->active = false;
-  }
-
-  for (az = static_cast<AZone *>(area->actionzones.first); az; az = az->next) {
     rcti az_rect;
     area_actionzone_get_rect(az, &az_rect);
     if (BLI_rcti_isect_pt_v(&az_rect, xy)) {
-      az->active = true;
 
       if (az->type == AZONE_AREA) {
         break;
@@ -893,7 +888,6 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
           break;
         }
 
-        ED_area_tag_redraw(area);
         break;
       }
       if (az->type == AZONE_FULLSCREEN) {
