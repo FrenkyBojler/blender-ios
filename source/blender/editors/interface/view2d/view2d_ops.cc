@@ -1538,7 +1538,7 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
 
     v2dViewPanData *vpd = static_cast<v2dViewPanData *>(op->customdata);
     view_pan_apply_ex(C, vpd, -pan_vec[0], -pan_vec[1]);
-  
+
     view_pan_exit(op);
   }
 

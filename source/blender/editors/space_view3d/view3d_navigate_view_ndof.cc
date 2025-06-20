@@ -165,7 +165,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
     /* "zoom in" or "translate"? depends on zoom mode in user settings? */
     if (ndof.tvec[2]) {
       float zoom_distance = rv3d->dist * ndof.time_delta * pan_vec_no_navigation[2];
-        rv3d->dist += zoom_distance;
+      rv3d->dist += zoom_distance;
       }
     }
 else {
