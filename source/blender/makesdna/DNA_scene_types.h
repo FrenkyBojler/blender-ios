@@ -1813,12 +1813,9 @@ typedef struct ToolSettings {
 
   /**
    * Unified Paint Settings.
-   *
-   * TODO(Sean): Add DNA_DEPRECATED once RNA access is removed from rna_scene.cc
-   *
    * \warning Deprecated, see the per-paint mode values on the `Paint` struct.
    */
-  struct UnifiedPaintSettings unified_paint_settings;
+  struct UnifiedPaintSettings unified_paint_settings DNA_DEPRECATED;
 
   struct CurvePaintSettings curve_paint_settings;
 
