@@ -47,6 +47,7 @@
 #include "ED_view3d.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "paint_intern.hh" /* own include */
@@ -366,7 +367,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
   uiLayout *layout = UI_popup_menu_layout(pup);
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_vertex_group_set_active", false);
   wmOperatorCallContext opcontext = WM_OP_EXEC_DEFAULT;
-  uiLayoutSetOperatorContext(layout, opcontext);
+  layout->operator_context_set(opcontext);
   int i = 0;
   LISTBASE_FOREACH_INDEX (bDeformGroup *, dg, &mesh->vertex_group_names, i) {
     if (groups[i] == false) {

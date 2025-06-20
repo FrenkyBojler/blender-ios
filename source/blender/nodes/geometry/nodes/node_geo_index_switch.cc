@@ -4,7 +4,7 @@
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geo_index_switch.hh"
@@ -77,7 +77,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
     for (const int i : IndexRange(storage.items_num)) {
       uiLayout *row = &col->row(false);
       row->label(node.input_socket(i + 1).name, ICON_NONE);
-      uiItemIntO(row, "", ICON_REMOVE, "node.index_switch_item_remove", "index", i);
+      PointerRNA op_ptr = row->op("node.index_switch_item_remove", "", ICON_REMOVE);
+      RNA_int_set(&op_ptr, "index", i);
     }
   }
 }

@@ -33,6 +33,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_screen.hh"
@@ -1393,7 +1394,7 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   WM_operatortype_props_advanced_begin(ot);
 
-  properties_register(ot, P_SNAP | P_VIEW2D_EDGE_PAN);
+  properties_register(ot, P_OPTIONS | P_SNAP | P_VIEW2D_EDGE_PAN);
 }
 
 static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)

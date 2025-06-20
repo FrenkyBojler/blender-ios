@@ -239,8 +239,7 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     {
       const bool is_solo_active = armature_.flag & ARM_BCOLL_SOLO_ACTIVE;
       uiLayout *visibility_sub = &sub->row(true);
-      uiLayoutSetActive(visibility_sub,
-                        !is_solo_active && bone_collection_.is_visible_ancestors());
+      visibility_sub->active_set(!is_solo_active && bone_collection_.is_visible_ancestors());
 
       const int icon = bone_collection_.is_visible() ? ICON_HIDE_OFF : ICON_HIDE_ON;
       PointerRNA bcoll_ptr = rna_pointer();
@@ -462,7 +461,7 @@ void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C)
   }
   BLI_assert(GS(armature->id.name) == ID_AR);
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,
