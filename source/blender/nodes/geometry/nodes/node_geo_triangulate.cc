@@ -68,7 +68,9 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("N-gon Method")
       .default_value(int(geometry::TriangulateNGonMode::Beauty))
       .static_items(rna_node_geometry_triangulate_ngon_method_items);
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .is_default_link_socket();
   b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
 }

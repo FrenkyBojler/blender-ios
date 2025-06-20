@@ -138,7 +138,7 @@ static EnumPropertyItem resolution_mode_items[] = {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Menu>("Resolution Mode").static_items(resolution_mode_items);
-  b.add_input<decl::Geometry>("Points");
+  b.add_input<decl::Geometry>("Points").is_default_link_socket();
   b.add_input<decl::Float>("Density").default_value(1.0f).min(0.0f);
   b.add_input<decl::Float>("Voxel Size")
       .default_value(0.3f)
