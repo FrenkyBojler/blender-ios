@@ -1062,7 +1062,7 @@ static void panel_title_color_get(const Panel *panel,
 
   const bool search_match = UI_panel_matches_search_filter(panel);
 
-  UI_GetThemeColor4ubv(TH_PANEL_TITLE, r_color);
+  UI_GetThemeColor4ubv(TH_TITLE, r_color);
   if (region_search_filter_active && !search_match) {
     r_color[0] *= 0.5;
     r_color[1] *= 0.5;

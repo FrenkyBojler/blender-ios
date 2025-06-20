@@ -73,7 +73,6 @@ enum ThemeColorID {
 
   /* panels */
   TH_PANEL_HEADER,
-  TH_PANEL_TITLE,
   TH_PANEL_BACK,
   TH_PANEL_SUB_BACK,
   TH_PANEL_OUTLINE,
