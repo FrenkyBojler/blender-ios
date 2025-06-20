@@ -1011,9 +1011,7 @@ static inline int2 clamp_point_to_window(const int2 &point, const wmWindow *wind
 /* Ensures that the x and y distance to from p1 to p2 is equal and the resulting square remains
  * fully within the window bounds. The two points can be in any spacial relation to each other i.e.
  * if p1 was top left, it remains top left. */
-static inline void square_points_clamped_to_window(const int2 &p1,
-                                                   int2 &p2,
-                                                   const wmWindow *window)
+static inline void square_points_clamp_to_window(const int2 &p1, int2 &p2, const wmWindow *window)
 {
   const int2 delta = p2 - p1;
 
@@ -1110,15 +1108,14 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
   RNA_int_get_array(op->ptr, "p1", p1);
   RNA_int_get_array(op->ptr, "p2", p2);
 
+  /* Clamp points to window bounds, so the screenshot area is always valid. */
+  p1 = clamp_point_to_window(p1, win);
+  p2 = clamp_point_to_window(p2, win);
+
+  /* Squaring has to happen before sorting so the area is squared from the point where
+   * dragging started. */
   if (RNA_boolean_get(op->ptr, "force_square")) {
-    /* Squaring has to happen before sorting so the area is squared from the point where
-     * dragging started. */
-    square_points_clamped_to_window(p1, p2, win);
-  }
-  else {
-    /* Clamp points to window bounds, so the screenshot area is always valid. */
-    p1 = clamp_point_to_window(p1, win);
-    p2 = clamp_point_to_window(p2, win);
+    square_points_clamp_to_window(p1, p2, win);
   }
 
   sort_points(p1, p2);
@@ -1214,15 +1211,14 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
   int2 p1 = data->p1;
   int2 p2 = data->p2;
 
+  /* Clamp points to window bounds, so the screenshot area is always valid. */
+  p1 = clamp_point_to_window(p1, window);
+  p2 = clamp_point_to_window(p2, window);
+
+  /* Squaring has to happen before sorting so the area is squared from the point where
+   * dragging started. */
   if (data->force_square) {
-    /* Squaring has to happen before sorting so the area is squared from the point where
-     * dragging started. */
-    square_points_clamped_to_window(p1, p2, window);
-  }
-  else {
-    /* Clamp points to window bounds, so the screenshot area is always valid. */
-    p1 = clamp_point_to_window(p1, window);
-    p2 = clamp_point_to_window(p2, window);
+    square_points_clamp_to_window(p1, p2, window);
   }
 
   sort_points(p1, p2);
@@ -1371,9 +1367,6 @@ static wmOperatorStatus screenshot_preview_modal(bContext *C, wmOperator *op, co
         }
 
         if (data->crossed_threshold) {
-          if (data->force_square) {
-            square_points_clamped_to_window(data->p1, data->drag_end, win);
-          }
           data->p2 = data->drag_end;
         }
       }
