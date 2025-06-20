@@ -4018,6 +4018,21 @@ void static area_docking_apply(bContext *C, wmOperator *op)
     return;
   }
 
+  float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.15f};
+  float inner_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+  float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.4f};
+  float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
+  jd->sa2->flag |= AREA_FLAG_REGION_SIZE_UPDATE;
+  ED_area_update_region_sizes(CTX_wm_manager(C), jd->win2, jd->sa2);
+  screen_animate_area_highlight(jd->win2,
+                                CTX_wm_screen(C),
+                                &jd->sa2->totrct,
+                                inner_from,
+                                inner_to,
+                                outline_from,
+                                outline_to,
+                                AREA_DOCK_FADEOUT);
+
   if (!aligned_neighbors || !screen_area_join(C, op->reports, CTX_wm_screen(C), jd->sa1, jd->sa2))
   {
     ED_area_swapspace(C, jd->sa2, jd->sa1);
@@ -4033,7 +4048,7 @@ void static area_docking_apply(bContext *C, wmOperator *op)
     else {
       float inner_from[4] = {0.0f, 0.0f, 0.0f, 0.7f};
       float inner_to[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-      screen_animate_area_highlight(CTX_wm_window(C),
+      screen_animate_area_highlight(jd->win1,
                                     CTX_wm_screen(C),
                                     &jd->sa1->totrct,
                                     inner_from,
@@ -4044,19 +4059,6 @@ void static area_docking_apply(bContext *C, wmOperator *op)
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
     }
   }
-
-  float inner_from[4] = {1.0f, 1.0f, 1.0f, 0.1f};
-  float inner_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
-  float outline_from[4] = {1.0f, 1.0f, 1.0f, 0.3f};
-  float outline_to[4] = {1.0f, 1.0f, 1.0f, 0.0f};
-  screen_animate_area_highlight(CTX_wm_window(C),
-                                CTX_wm_screen(C),
-                                &jd->sa2->totrct,
-                                inner_from,
-                                inner_to,
-                                outline_from,
-                                outline_to,
-                                AREA_DOCK_FADEOUT);
 
   if (jd && jd->sa2 == CTX_wm_area(C)) {
     CTX_wm_area_set(C, nullptr);

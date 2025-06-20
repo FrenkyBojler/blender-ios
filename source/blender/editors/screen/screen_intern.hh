@@ -80,8 +80,8 @@ enum class AreaDockTarget {
 /* Less expansion needed for global edges. */
 #define BORDERPADDING_GLOBAL (3.0f * UI_SCALE_FAC)
 
-#define AREA_CLOSE_FADEOUT 0.15f /* seconds */
-#define AREA_DOCK_FADEOUT 0.15f  /* seconds */
+#define AREA_CLOSE_FADEOUT 0.25f /* seconds */
+#define AREA_DOCK_FADEOUT 0.2f   /* seconds */
 #define AREA_JOIN_FADEOUT 0.15f  /* seconds */
 #define AREA_SPLIT_FADEOUT 0.1f  /* seconds */
 
