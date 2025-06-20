@@ -56,6 +56,7 @@
 #include "ANIM_rna.hh"
 
 #include "RNA_path.hh"
+#include "SEQ_relations.hh"
 #include "UI_interface.hh"
 #include "UI_resources.hh"
 
@@ -976,6 +977,14 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   }
 
   if (confirm) {
+    for (PointerRNA &id_ptr : selection) {
+      if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+        ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
+        blender::seq::relations_invalidate_cache(scene, strip);
+      }
+    }
+    DEG_id_tag_update(&scene->id, ID_RECALC_ANIMATION);
+
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
     if (selected_strips_success_len) {
       BKE_reportf(op->reports,
