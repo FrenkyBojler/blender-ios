@@ -18,9 +18,13 @@ from bl_ui.properties_grease_pencil_common import (
 )
 from bl_ui.space_toolsystem_common import (
     ToolActivePanelHelper,
+)
+from bl_ui.utils import (
     PlayheadSnappingPanel,
 )
+
 from rna_prop_ui import PropertyPanel
+from bl_ui.space_time import playback_controls
 
 
 def _space_view_types(st):
@@ -186,7 +190,8 @@ class SEQUENCER_HT_header(Header):
         row.prop(tool_settings, "use_snap_sequencer", text="")
         sub = row.row(align=True)
         sub.popover(panel="SEQUENCER_PT_snapping")
-        layout.popover(panel="SEQUENCER_PT_playhead_snapping")
+        if st.view_type in {'SEQUENCER', 'SEQUENCER_PREVIEW'}:
+            layout.popover(panel="SEQUENCER_PT_playhead_snapping")
         layout.separator_spacer()
 
         if st.view_type in {'PREVIEW', 'SEQUENCER_PREVIEW'}:
@@ -209,6 +214,16 @@ class SEQUENCER_HT_header(Header):
         sub = row.row(align=True)
         sub.popover(panel="SEQUENCER_PT_overlay", text="")
         sub.active = st.show_overlays
+
+
+class SEQUENCER_HT_playback_controls(Header):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+
+        playback_controls(layout, context)
 
 
 class SEQUENCER_MT_editor_menus(Menu):
@@ -464,6 +479,7 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
+        layout.prop(st, "show_region_footer")
         layout.separator()
 
         if is_preview:
@@ -656,8 +672,8 @@ class SEQUENCER_MT_change(Menu):
             del bpy_data_scenes_len
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.operator("sequencer.change_effect_input")
         layout.menu("SEQUENCER_MT_strip_effect_change")
+        layout.operator("sequencer.swap_inputs")
         props = layout.operator("sequencer.change_path", text="Path/Files")
 
         if strip:
@@ -817,8 +833,8 @@ class SEQUENCER_MT_add_transitions(Menu):
         layout.separator()
 
         col = layout.column()
-        col.operator("sequencer.effect_strip_add", text="Cross").type = 'CROSS'
-        col.operator("sequencer.effect_strip_add", text="Gamma Cross").type = 'GAMMA_CROSS'
+        col.operator("sequencer.effect_strip_add", text="Crossfade").type = 'CROSS'
+        col.operator("sequencer.effect_strip_add", text="Gamma Crossfade").type = 'GAMMA_CROSS'
 
         col.separator()
 
@@ -999,7 +1015,6 @@ class SEQUENCER_MT_strip_effect(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("sequencer.change_effect_input")
         layout.menu("SEQUENCER_MT_strip_effect_change")
         layout.operator("sequencer.reassign_inputs")
         layout.operator("sequencer.swap_inputs")
@@ -1014,6 +1029,7 @@ class SEQUENCER_MT_strip_effect_change(Menu):
         strip = context.active_strip
 
         col = layout.column()
+        col.operator("sequencer.change_effect_type", text="Adjustment Layer").type = 'ADJUSTMENT'
         col.operator("sequencer.change_effect_type", text="Multicam Selector").type = 'MULTICAM'
         col.enabled = strip.input_count == 0
 
@@ -1035,6 +1051,9 @@ class SEQUENCER_MT_strip_effect_change(Menu):
         col.operator("sequencer.change_effect_type", text="Alpha Over").type = 'ALPHA_OVER'
         col.operator("sequencer.change_effect_type", text="Alpha Under").type = 'ALPHA_UNDER'
         col.operator("sequencer.change_effect_type", text="Color Mix").type = 'COLORMIX'
+        col.operator("sequencer.change_effect_type", text="Crossfade").type = 'CROSS'
+        col.operator("sequencer.change_effect_type", text="Gamma Crossfade").type = 'GAMMA_CROSS'
+        col.operator("sequencer.change_effect_type", text="Wipe").type = 'WIPE'
         col.enabled = strip.input_count == 2
 
 
@@ -2564,6 +2583,10 @@ class SEQUENCER_PT_cache_settings(SequencerButtonsPanel, Panel):
 
         ed = context.scene.sequence_editor
 
+        col = layout.column()
+        if ed:
+            col.prop(ed, "use_prefetch")
+
         col = layout.column(heading="Cache", align=True)
 
         col.prop(ed, "use_cache_raw", text="Raw")
@@ -2753,10 +2776,6 @@ class SEQUENCER_PT_view(SequencerButtonsPanel_Output, Panel):
         col.prop(st, "use_proxies")
         if st.proxy_render_size in {'NONE', 'SCENE'}:
             col.enabled = False
-
-        col = layout.column()
-        if ed:
-            col.prop(ed, "use_prefetch")
 
         col.prop(st, "display_channel", text="Channel")
 
@@ -3128,6 +3147,7 @@ classes = (
     SEQUENCER_MT_change,
     SEQUENCER_HT_tool_header,
     SEQUENCER_HT_header,
+    SEQUENCER_HT_playback_controls,
     SEQUENCER_MT_editor_menus,
     SEQUENCER_MT_range,
     SEQUENCER_MT_view,

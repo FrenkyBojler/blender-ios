@@ -54,7 +54,7 @@
 #include "RNA_define.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "bmesh.hh"
@@ -172,7 +172,7 @@ void cache_init(bContext *C,
 
     float radius;
     if (brush) {
-      object_space_radius_get(vc, *scene, *brush, co, area_normal_radius);
+      radius = object_space_radius_get(vc, *scene, *brush, co, area_normal_radius);
     }
     else {
       radius = paint_calc_object_space_radius(vc, co, float(ups->size) * area_normal_radius);

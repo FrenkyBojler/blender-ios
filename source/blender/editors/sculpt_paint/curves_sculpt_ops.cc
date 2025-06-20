@@ -50,6 +50,7 @@
 #include "paint_intern.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_immediate.hh"
@@ -965,9 +966,12 @@ static void min_distance_edit_draw(bContext *C,
 
   GPUVertFormat *format3d = immVertexFormat();
 
-  const uint pos3d = GPU_vertformat_attr_add(format3d, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
-  const uint col3d = GPU_vertformat_attr_add(format3d, "color", GPU_COMP_F32, 4, GPU_FETCH_FLOAT);
-  const uint siz3d = GPU_vertformat_attr_add(format3d, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  const uint pos3d = GPU_vertformat_attr_add(
+      format3d, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
+  const uint col3d = GPU_vertformat_attr_add(
+      format3d, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+  const uint siz3d = GPU_vertformat_attr_add(
+      format3d, "size", blender::gpu::VertAttrType::SFLOAT_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POINT_VARYING_SIZE_VARYING_COLOR);
   GPU_program_point_size(true);
@@ -1009,7 +1013,7 @@ static void min_distance_edit_draw(bContext *C,
   GPU_matrix_translate_2f(float(op_data.initial_mouse.x), float(op_data.initial_mouse.y));
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos2d = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos2d = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
