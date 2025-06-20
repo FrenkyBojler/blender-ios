@@ -444,10 +444,8 @@ static PyObject *pygpu_texture_read(BPyGPUTexture *self)
   switch (tex_format) {
     case GPU_DEPTH_COMPONENT16:
     case GPU_DEPTH_COMPONENT32F:
-      best_data_format = GPU_DATA_FLOAT;
-      break;
     case GPU_DEPTH32F_STENCIL8:
-      best_data_format = GPU_DATA_UINT_24_8_DEPRECATED;
+      best_data_format = GPU_DATA_FLOAT;
       break;
     case GPU_R8UI:
     case GPU_R16UI:
