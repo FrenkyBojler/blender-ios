@@ -438,6 +438,7 @@ struct GWL_Cursor {
   /** Wayland core types. */
   struct {
     wp_cursor_shape_device_v1 *cursor_shape = nullptr;
+    int shape_enum = 0;
     /* Everything below in this wl struct is used for custom cursor shapes. */
     wl_surface *surface_cursor = nullptr;
     wl_buffer *buffer = nullptr;
@@ -513,6 +514,7 @@ struct GWL_TabletTool {
      * Tablets have a separate cursor to the 'pointer',
      * this surface is used for cursor drawing.
      */
+    int shape_enum = 0;
     wl_surface *surface_cursor = nullptr;
     wp_cursor_shape_device_v1 *cursor_shape = nullptr;
   } wl;
@@ -2776,10 +2778,16 @@ static void gwl_seat_cursor_buffer_show(GWL_Seat *seat)
   const GWL_Cursor *cursor = &seat->cursor;
 
   if (seat->wl.pointer) {
-    const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x);
-    const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y);
-    wl_pointer_set_cursor(
-        seat->wl.pointer, seat->pointer.serial, cursor->wl.surface_cursor, hotspot_x, hotspot_y);
+    if (seat->cursor.wl.cursor_shape) {
+      wp_cursor_shape_device_v1_set_shape(
+          seat->cursor.wl.cursor_shape, seat->pointer.serial, seat->cursor.wl.shape_enum);
+    }
+    else {
+      const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x);
+      const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y);
+      wl_pointer_set_cursor(
+          seat->wl.pointer, seat->pointer.serial, cursor->wl.surface_cursor, hotspot_x, hotspot_y);
+    }
   }
 
   if (!seat->wp.tablet_tools.empty()) {
@@ -2788,14 +2796,20 @@ static void gwl_seat_cursor_buffer_show(GWL_Seat *seat)
     for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
       GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
           zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-      zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
-                                    seat->tablet.serial,
-                                    tablet_tool->wl.surface_cursor,
-                                    hotspot_x,
-                                    hotspot_y);
+      if (tablet_tool->wl.cursor_shape) {
+        wp_cursor_shape_device_v1_set_shape(
+            tablet_tool->wl.cursor_shape, seat->tablet.serial, tablet_tool->wl.shape_enum);
+      }
+      else {
+        zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
+                                      seat->tablet.serial,
+                                      tablet_tool->wl.surface_cursor,
+                                      hotspot_x,
+                                      hotspot_y);
 #ifdef USE_KDE_TABLET_HIDDEN_CURSOR_HACK
-      wl_surface_commit(tablet_tool->wl.surface_cursor);
+        wl_surface_commit(tablet_tool->wl.surface_cursor);
 #endif
+      }
     }
   }
 }
@@ -8412,6 +8426,8 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
     }
     wp_cursor_shape_device_v1_set_shape(
         seat->cursor.wl.cursor_shape, seat->pointer.serial, wl_shape);
+    /* Set this to make sure we remember which shape we set when unhiding cursors. */
+    seat->cursor.wl.shape_enum = wl_shape;
 
     GWL_Cursor *cursor = &seat->cursor;
     cursor->visible = true;
@@ -8431,6 +8447,8 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
     }
     wp_cursor_shape_device_v1_set_shape(
         tablet_tool->wl.cursor_shape, seat->tablet.serial, wl_shape);
+    /* Set this to make sure we remember which shape we set when unhiding cursors. */
+    tablet_tool->wl.shape_enum = wl_shape;
   }
   return GHOST_kSuccess;
 }
