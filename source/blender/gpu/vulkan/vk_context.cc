@@ -86,7 +86,7 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
           swap_chain_data.extent.height,
           1,
           to_gpu_format(swap_chain_data.surface_format.format),
-          GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ,
+          GPU_TEXTURE_USAGE_ATTACHMENT,
           nullptr);
 
       back_left->attachment_set(GPU_FB_COLOR_ATTACHMENT0,
@@ -381,9 +381,6 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
 
   VKDevice &device = VKBackend::get().device;
   device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
-  VKTexture swap_chain_texture("SwapchainImage");
-  swap_chain_texture.init(
-      swap_chain_data.image, to_gpu_format(swap_chain_data.surface_format.format), GPU_TEXTURE_2D);
 
   render_graph::VKRenderGraph &render_graph = this->render_graph();
   framebuffer.rendering_end(*this);
@@ -419,7 +416,7 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   GPU_debug_group_end();
 
   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
-                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+                     VK_PIPELINE_STAGE_TRANSFER_BIT,
                      swap_chain_data.acquire_semaphore,
                      swap_chain_data.present_semaphore,
                      swap_chain_data.submission_fence);

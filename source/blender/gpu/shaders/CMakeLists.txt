@@ -76,7 +76,6 @@ set(SRC_GLSL_FRAG
   gpu_shader_uniform_color_frag.glsl
 )
 
-
 set(SRC_GLSL_COMP
   # TODO rename them properly to enable compilation.
   # gpu_shader_index_2d_array_lines.glsl
@@ -96,6 +95,5 @@ if(WITH_GPU_SHADER_CPP_COMPILATION)
   compile_sources_as_cpp(gpu_cpp_shaders_frag "${SRC_GLSL_FRAG}" "GPU_FRAGMENT_SHADER")
   # Only enable to make sure they compile on their own.
   # Otherwise it creates a warning about `pragma once`.
-  # compile_sources_as_cpp(gpu_cpp_shaders_comp "${SRC_GLSL_COMP}" "GPU_COMPUTE_SHADER")
   # compile_sources_as_cpp(gpu_cpp_shaders_lib "${SRC_GLSL_LIB}" "GPU_LIBRARY_SHADER")
 endif()
