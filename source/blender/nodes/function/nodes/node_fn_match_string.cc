@@ -37,7 +37,7 @@ const EnumPropertyItem rna_enum_node_match_string_items[] = {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Menu>("Operation").static_items(rna_enum_node_match_string_items);
-  b.add_input<decl::String>("String").hide_label();
+  b.add_input<decl::String>("String").hide_label().is_default_link_socket();
   b.add_input<decl::String>("Key").hide_label().description(
       "The string to find in the input string");
   b.add_output<decl::Bool>("Result");
