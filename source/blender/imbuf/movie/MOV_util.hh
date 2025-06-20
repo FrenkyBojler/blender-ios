@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include "MOV_enums.hh"
+
 struct FFMpegCodecData;
 struct ImageFormatData;
 struct RenderData;
@@ -48,3 +50,5 @@ int MOV_codec_valid_bit_depths(int av_codec_id);
  * related settings in render data.
  */
 void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf);
+
+int MOV_av_codec_id_get(IMB_Ffmpeg_Codec_ID id);

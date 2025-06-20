@@ -540,3 +540,62 @@ bool MOV_codec_supports_crf(int av_codec_id)
   return false;
 #endif
 }
+
+int MOV_av_codec_id_get(IMB_Ffmpeg_Codec_ID id)
+{
+  switch (id) {
+    case FFMPEG_CODEC_ID_NONE:
+      return AV_CODEC_ID_NONE;
+    case FFMPEG_CODEC_ID_MPEG1VIDEO:
+      return AV_CODEC_ID_MPEG1VIDEO;
+    case FFMPEG_CODEC_ID_MPEG2VIDEO:
+      return AV_CODEC_ID_MPEG2VIDEO;
+    case FFMPEG_CODEC_ID_MPEG4:
+      return AV_CODEC_ID_MPEG4;
+    case FFMPEG_CODEC_ID_FLV1:
+      return AV_CODEC_ID_FLV1;
+    case FFMPEG_CODEC_ID_DVVIDEO:
+      return AV_CODEC_ID_DVVIDEO;
+    case FFMPEG_CODEC_ID_HUFFYUV:
+      return AV_CODEC_ID_HUFFYUV;
+    case FFMPEG_CODEC_ID_H264:
+      return AV_CODEC_ID_H264;
+    case FFMPEG_CODEC_ID_THEORA:
+      return AV_CODEC_ID_THEORA;
+    case FFMPEG_CODEC_ID_FFV1:
+      return AV_CODEC_ID_FFV1;
+    case FFMPEG_CODEC_ID_QTRLE:
+      return AV_CODEC_ID_QTRLE;
+    case FFMPEG_CODEC_ID_PNG:
+      return AV_CODEC_ID_PNG;
+    case FFMPEG_CODEC_ID_DNXHD:
+      return AV_CODEC_ID_DNXHD;
+    case FFMPEG_CODEC_ID_VP9:
+      return AV_CODEC_ID_VP9;
+    case FFMPEG_CODEC_ID_H265:
+      return AV_CODEC_ID_H265;
+    case FFMPEG_CODEC_ID_AV1:
+      return AV_CODEC_ID_AV1;
+    case FFMPEG_CODEC_ID_PRORES:
+      return AV_CODEC_ID_PRORES;
+    case FFMPEG_CODEC_ID_PCM_S16LE:
+      return AV_CODEC_ID_PCM_S16LE;
+    case FFMPEG_CODEC_ID_MP2:
+      return AV_CODEC_ID_MP2;
+    case FFMPEG_CODEC_ID_MP3:
+      return AV_CODEC_ID_MP3;
+    case FFMPEG_CODEC_ID_AAC:
+      return AV_CODEC_ID_AAC;
+    case FFMPEG_CODEC_ID_AC3:
+      return AV_CODEC_ID_AC3;
+    case FFMPEG_CODEC_ID_VORBIS:
+      return AV_CODEC_ID_VORBIS;
+    case FFMPEG_CODEC_ID_FLAC:
+      return AV_CODEC_ID_FLAC;
+    case FFMPEG_CODEC_ID_OPUS:
+      return AV_CODEC_ID_OPUS;
+  }
+
+  BLI_assert_unreachable();
+  return FFMPEG_CODEC_ID_NONE;
+}

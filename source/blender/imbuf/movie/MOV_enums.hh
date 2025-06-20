@@ -33,7 +33,8 @@ enum {
   FFMPEG_PRESET_AV1 = 4,
 };
 
-/* Note: match ffmpeg AVCodecID enum values. */
+/* Note: These used to match `AVCodecID` enum values. Kept old values to keep file compatibility.
+ * Use `MOV_av_codec_id_get()` to get `AVCodecID` value. */
 enum IMB_Ffmpeg_Codec_ID {
   FFMPEG_CODEC_ID_NONE = 0,
   FFMPEG_CODEC_ID_MPEG1VIDEO = 1,
