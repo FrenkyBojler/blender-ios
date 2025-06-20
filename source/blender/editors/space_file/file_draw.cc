@@ -1792,7 +1792,8 @@ static void file_draw_asset_library_remote_loading_failed_hint(const bContext *C
   const int pad_y = sfile->layout->tile_border_y * 2;
   const int available_width = BLI_rctf_size_x(&v2d->tot) - (2 * pad_x);
   const int line_height = sfile->layout->text_line_height;
-  StringRef message = asset_system::remote_library_status_failure_message(library->remote_url)
+  StringRef message = asset_system::RemoteLibraryLoadingStatus::failure_message(
+                          library->remote_url)
                           .value_or("Unknown reason");
 
   const int box_width = std::min(available_width, UI_UNIT_X * 28);
@@ -1949,7 +1950,7 @@ bool file_draw_hint_if_invalid(const bContext *C, const SpaceFile *sfile, ARegio
       return true;
     }
     if (remote_library &&
-        blender::asset_system::remote_library_status_get(remote_library->remote_url) ==
+        blender::asset_system::RemoteLibraryLoadingStatus::status(remote_library->remote_url) ==
             blender::asset_system::RemoteLibraryLoadingStatus::Failure)
     {
       setup_view();

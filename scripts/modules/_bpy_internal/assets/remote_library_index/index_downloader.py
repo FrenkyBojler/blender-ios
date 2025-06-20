@@ -346,7 +346,6 @@ class RemoteAssetListingDownloader:
         if 'ERROR' in level:
             self.error_message = message
 
-
     def shutdown(self, status: DownloadStatus) -> None:
         """Stop the background downloader, update the status and call the 'done' callback."""
 

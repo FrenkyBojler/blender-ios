@@ -4208,11 +4208,11 @@ static void filelist_remote_asset_library_update_loading_flag(FileListReadJob *j
   }
 
   /* On timeout the loading status will be set to cancelled. */
-  if (asset_system::remote_library_status_handle_timeout(library->remote_url)) {
+  if (asset_system::RemoteLibraryLoadingStatus::handle_timeout(library->remote_url)) {
     job_params->cancel = true;
   }
 
-  job_params->is_asset_library_loading_extern = asset_system::remote_library_status_get(
+  job_params->is_asset_library_loading_extern = asset_system::RemoteLibraryLoadingStatus::status(
                                                     library->remote_url) ==
                                                 asset_system::RemoteLibraryLoadingStatus::Loading;
 }

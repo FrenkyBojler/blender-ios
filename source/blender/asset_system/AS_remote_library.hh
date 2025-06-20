@@ -15,32 +15,49 @@
 
 namespace blender::asset_system {
 
+/**
+ * Status information about an externally loaded asset library listing, stored globally.
+ *
+ * Remote asset library downloading is handled in Python. This API allows storing status
+ * information globally per URL. Asset UIs can then query the status and reflect it accordingly.
+ *
+ * Another important use is coordinating the Python side downloading with the C++ side loading.
+ * The C++ asset library loading might have to wait for Python to be done downloading and
+ * validating individual asset listing pages, and load in these new pages as they become ready.
+ */
 struct RemoteLibraryLoadingStatus {
-  float timeout;
-  std::chrono::time_point<std::chrono::steady_clock> last_updated_time_point;
-
+ public:
   enum Status {
     Loading,
     Finished,
     Failure,
     Cancelled,
-  } status;
-  std::optional<StringRef> failure_message;
+  };
+
+ private:
+  float timeout_;
+  std::chrono::time_point<std::chrono::steady_clock> last_updated_time_point_;
+
+  Status status_;
+  std::optional<StringRef> failure_message_;
 
   /** Update the last update time point, effectively resetting the timout timer. */
   void reset_timeout();
+
+ public:
+  static void begin_loading(StringRef url, float timeout);
+  /** Let the state know that the loading is still ongoing, resetting the timeout. */
+  static void ping_still_loading(StringRef url);
+  static void set_finished(StringRef url);
+  static void set_failure(StringRef url, std::optional<StringRef> failure_message);
+
+  static std::optional<StringRef> failure_message(StringRef url);
+  static std::optional<RemoteLibraryLoadingStatus::Status> status(StringRef url);
+
+  /**
+   * \return True if the loading status switched to #Status::Failure due to timing out.
+   */
+  static bool handle_timeout(StringRef url);
 };
-
-void remote_library_status_begin_loading(StringRef url, float timeout);
-void remote_library_status_ping_still_loading(StringRef url);
-std::optional<RemoteLibraryLoadingStatus::Status> remote_library_status_get(StringRef url);
-void remote_library_status_set_finished(StringRef url);
-void remote_library_status_set_failure(StringRef url, std::optional<StringRef> failure_message);
-std::optional<StringRef> remote_library_status_failure_message(StringRef url);
-
-/**
- * \return True if the loading status switched to #Status::Failure due to timing out.
- */
-bool remote_library_status_handle_timeout(StringRef url);
 
 }  // namespace blender::asset_system

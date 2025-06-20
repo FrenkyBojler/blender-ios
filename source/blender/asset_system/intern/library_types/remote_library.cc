@@ -8,8 +8,11 @@
 
 #include "BLI_listbase.h"
 
+#include "BLT_translation.hh"
+
 #include "DNA_userdef_types.h"
 
+#include "AS_remote_library.hh"
 #include "remote_library.hh"
 
 namespace blender::asset_system {
@@ -45,5 +48,101 @@ void RemoteAssetLibrary::refresh_catalogs()
 {
   this->catalog_service().reload_catalogs();
 }
+
+/* -------------------------------------------------------------------- */
+/** \name Remote Library Loading Status
+ * \{ */
+
+using UrlToLibraryStatusMap = Map<std::string /*url*/, asset_system::RemoteLibraryLoadingStatus>;
+
+static UrlToLibraryStatusMap &library_to_status_map()
+{
+  static UrlToLibraryStatusMap map = UrlToLibraryStatusMap{};
+  return map;
+}
+
+void RemoteLibraryLoadingStatus::reset_timeout()
+{
+  this->last_updated_time_point_ = std::chrono::steady_clock::now();
+}
+
+void RemoteLibraryLoadingStatus::begin_loading(StringRef url, const float timeout)
+{
+  BLI_assert(timeout > 0.0f);
+
+  RemoteLibraryLoadingStatus new_status{};
+  new_status.timeout_ = timeout;
+  new_status.status_ = RemoteLibraryLoadingStatus::Loading;
+  new_status.reset_timeout();
+  library_to_status_map().add_overwrite(url, new_status);
+}
+
+void RemoteLibraryLoadingStatus::ping_still_loading(StringRef url)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
+      status->reset_timeout();
+    }
+  }
+}
+
+std::optional<RemoteLibraryLoadingStatus::Status> RemoteLibraryLoadingStatus::status(StringRef url)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    return status->status_;
+  }
+  return {};
+}
+
+void RemoteLibraryLoadingStatus::set_finished(StringRef url)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    status->status_ = RemoteLibraryLoadingStatus::Finished;
+    status->reset_timeout();
+  }
+}
+
+void RemoteLibraryLoadingStatus::set_failure(StringRef url,
+                                             std::optional<StringRef> failure_message)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    status->status_ = RemoteLibraryLoadingStatus::Failure;
+    status->failure_message_ = failure_message;
+    status->reset_timeout();
+  }
+}
+
+std::optional<StringRef> RemoteLibraryLoadingStatus::failure_message(StringRef url)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    if (status->status_ == RemoteLibraryLoadingStatus::Failure) {
+      return status->failure_message_;
+    }
+  }
+
+  return {};
+}
+
+bool RemoteLibraryLoadingStatus::handle_timeout(StringRef url)
+{
+  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
+    if (status->status_ != RemoteLibraryLoadingStatus::Loading) {
+      /* Only handle timeouts while loading. */
+      return false;
+    }
+
+    std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
+                                           status->last_updated_time_point_;
+    if (elapsed.count() >= status->timeout_) {
+      status->status_ = RemoteLibraryLoadingStatus::Failure;
+      status->failure_message_ = RPT_("Asset system lost connection to downloader (timed out)");
+      return true;
+    }
+  }
+
+  return false;
+}
+
+/** \} */
 
 }  // namespace blender::asset_system

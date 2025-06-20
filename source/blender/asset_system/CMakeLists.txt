@@ -27,7 +27,6 @@ set(SRC
   intern/library_types/remote_library.cc
   intern/library_types/runtime_library.cc
   intern/utils.cc
-  intern/remote_library.cc
 
   AS_asset_catalog.hh
   AS_asset_catalog_path.hh

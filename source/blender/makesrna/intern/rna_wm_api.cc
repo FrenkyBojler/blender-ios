@@ -783,21 +783,23 @@ static wmEvent *rna_Window_event_add_simulate(wmWindow *win,
   return WM_event_add_simulate(win, &e);
 }
 
+using RemoteLibraryLoadingStatus = blender::asset_system::RemoteLibraryLoadingStatus;
+
 static void rna_asset_library_status_begin_loading(const char *url, float timeout)
 {
-  blender::asset_system::remote_library_status_begin_loading(url, timeout);
+  RemoteLibraryLoadingStatus::begin_loading(url, timeout);
 }
 static void rna_asset_library_status_ping_still_loading(const char *url)
 {
-  blender::asset_system::remote_library_status_ping_still_loading(url);
+  RemoteLibraryLoadingStatus::ping_still_loading(url);
 }
 static void rna_asset_library_status_finished_loading(const char *url)
 {
-  blender::asset_system::remote_library_status_set_finished(url);
+  RemoteLibraryLoadingStatus::set_finished(url);
 }
 static void rna_asset_library_status_failed_loading(const char *url, const char *message)
 {
-  blender::asset_system::remote_library_status_set_failure(
+  RemoteLibraryLoadingStatus::set_failure(
       url, message ? std::optional<blender::StringRef>{message} : std::nullopt);
 }
 
