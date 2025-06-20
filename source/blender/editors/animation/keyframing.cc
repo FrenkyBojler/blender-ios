@@ -320,11 +320,6 @@ static bool get_selection(bContext *C, blender::Vector<PointerRNA> *r_selection)
 
   switch (context_mode) {
     case CTX_MODE_OBJECT: {
-      ScrArea *area = CTX_wm_area(C);
-      if (area && area->spacetype == SPACE_SEQ) {
-        CTX_data_selected_strips(C, r_selection);
-        break;
-      }
       CTX_data_selected_objects(C, r_selection);
       break;
     }
