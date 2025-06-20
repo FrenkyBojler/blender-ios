@@ -106,9 +106,13 @@ typedef struct uiStyle {
   char _pad0[2];
 } uiStyle;
 
-typedef struct ThemeCommon {
+typedef struct ThemeCommonAnim {
   /** Preview range overlay. */
-  unsigned char anim_preview_range[4];
+  unsigned char preview_range[4];
+} ThemeCommonAnim;
+
+typedef struct ThemeCommon {
+  ThemeCommonAnim anim;
   char _pad[4];
 } ThemeCommon;
 

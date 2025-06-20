@@ -274,7 +274,9 @@ const bTheme U_theme_default = {
     .panel_outline = RGBA(0xffffff11),
   },
   .common = {
-    .anim_preview_range = RGBA(0xa14d0066),
+    .anim = {
+      .preview_range = RGBA(0xa14d0066),
+    },
   },
   .space_properties = {
     .back = RGBA(0x30303000),

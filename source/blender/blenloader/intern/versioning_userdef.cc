@@ -328,7 +328,7 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
   }
 
   if (!USER_VERSION_ATLEAST(500, 23)) {
-    FROM_DEFAULT_V4_UCHAR(common.anim_preview_range);
+    FROM_DEFAULT_V4_UCHAR(common.anim.preview_range);
   }
 
   /**

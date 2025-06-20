@@ -2125,18 +2125,35 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update_icons");
 }
 
+static void rna_def_userdef_theme_common_anim(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ThemeCommonAnim", nullptr);
+  RNA_def_struct_sdna(srna, "ThemeCommonAnim");
+  RNA_def_struct_ui_text(srna, "Common Animation Properties", "Shared animation theme properties");
+
+  prop = RNA_def_property(srna, "preview_range", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_float_sdna(prop, nullptr, "preview_range");
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Preview Range", "Color of preview range overlay");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+}
+
 static void rna_def_userdef_theme_common(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
 
+  rna_def_userdef_theme_common_anim(brna);
+
   srna = RNA_def_struct(brna, "ThemeCommon", nullptr);
   RNA_def_struct_ui_text(srna, "Common Theme Properties", "Theme properties shared by different editors");
 
-  prop = RNA_def_property(srna, "preview_range", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_float_sdna(prop, nullptr, "anim_preview_range");
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Preview Range", "Color of preview range overlay");
+  prop = RNA_def_property(srna, "anim", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_ui_text(prop, "Animation", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
