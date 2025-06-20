@@ -82,10 +82,10 @@ static void report_errors(GeoNodeExecParams &params,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const bool use_matrix = params.get_input<int>("Mode") == GEO_NODE_TRANSFORM_MODE_MATRIX;
+  const auto mode = params.get_input<NodeGeometryTransformMode>("Mode");
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
 
-  if (use_matrix) {
+  if (mode == GEO_NODE_TRANSFORM_MODE_MATRIX) {
     const float4x4 transform = params.extract_input<float4x4>("Transform");
     if (auto errors = geometry::transform_geometry(geometry_set, transform)) {
       report_errors(params, *errors);
