@@ -21,14 +21,12 @@ float approximate_grid_cell_screen_size(float dist_to_cam, float view_angle)
   return (ss_P.y - 0.5) * uniform_buf.size_viewport.y * sqrt(abs(view_angle));
 }
 
-float4 get_homogenous_space_grid_point(
-    const int x, const int y, out float dist_to_cam, out float z_to_cam, out float view_angle)
+float4 get_homogenous_space_grid_point(const int3 grid_coord,
+                                       out float dist_to_cam,
+                                       out float z_to_cam,
+                                       out float view_angle)
 {
-  float3 ls_P = float3(x, y, 0.0) * unit_scale;
-
-  if (axis == 3) {
-    ls_P = ls_P.zzx;
-  }
+  float3 ls_P = float3(grid_coord) * unit_scale;
 
   /* Round to grid increment. */
   float3 camera_P = drw_view_position();
@@ -64,35 +62,25 @@ void main()
 {
   int x = int(uint(gl_VertexID) >> 16u) - 0x7FFF;
   int y = int(uint(gl_VertexID) & (~0x0u >> 16u)) - 0x7FFF;
-  int2 grid_coord = int2(x, y);
-  /* The largest grid level can overlap with the axes display.
-   * Discard vertices that can overlap. */
-  const bool is_over_axis = any(equal(grid_coord, origin_offset));
-  axis_tag = float(is_over_axis);
+  int3 grid_coord = int3(x, y, 0);
 
-  if (is_over_axis) {
-    /* Discard vertex. */
-    // gl_Position = float4(NAN_FLT);
-    // return;
+  if (axis == 3) {
+    grid_coord = grid_coord.zzx;
   }
 
-  const bool crave_hole = all(greaterThan(grid_coord, hole_start)) &&
-                          all(lessThan(grid_coord, hole_end));
-  if (crave_hole) {
-    /* Discard vertex. */
-    // gl_Position = float4(NAN_FLT);
-    // return;
+  axis_tag = float3(0.0);
+  if (show_axis_x && grid_coord.x == origin_offset.x) {
+    axis_tag.y = 1.0;
   }
-
-  const bool is_higher_level = any(equal(abs(grid_coord) % next_divider, int2(0)));
-  if (is_higher_level) {
-    /* Discard vertex. */
-    // gl_Position = float4(NAN_FLT);
-    // return;
+  if (show_axis_y && grid_coord.y == origin_offset.y) {
+    axis_tag.x = 1.0;
+  }
+  if (show_axis_z && grid_coord.z == origin_offset.z) {
+    axis_tag.z = 1.0;
   }
 
   float dist_to_cam, z_to_cam, view_angle;
-  float4 hs_P = get_homogenous_space_grid_point(x, y, dist_to_cam, z_to_cam, view_angle);
+  float4 hs_P = get_homogenous_space_grid_point(grid_coord, dist_to_cam, z_to_cam, view_angle);
 
   /* Convert to screen position [0..sizeVp]. */
   float2 ss_P = drw_ndc_to_screen(drw_perspective_divide(hs_P)).xy * uniform_buf.size_viewport;
@@ -106,7 +94,6 @@ void main()
     float mix_highlight = smoothstep(20.0, 300.0, size);
     finalColor = mix(uniform_buf.colors.grid, uniform_buf.colors.grid_emphasis, mix_highlight);
     finalColor.a *= mix_fade;
-    // finalColor = uniform_buf.colors.grid;
   }
 
   /* Angle fading. */
@@ -115,27 +102,9 @@ void main()
   /* Distance fading. */
   finalColor.a *= smoothstep(far_clip, far_clip * 0.5f, z_to_cam);
 
-  if (grid_coord.x == origin_offset.x) {
-    finalColorAxis = uniform_buf.colors.grid_axis_y;
-  }
-  else if (grid_coord.y == origin_offset.y) {
-    finalColorAxis = uniform_buf.colors.grid_axis_x;
-  }
-  else if (axis == 1) {
-    finalColorAxis = uniform_buf.colors.grid_axis_x;
-  }
-  else if (axis == 2) {
-    finalColorAxis = uniform_buf.colors.grid_axis_y;
-  }
-  else if (axis == 3) {
-    finalColorAxis = uniform_buf.colors.grid_axis_z;
-  }
-  else {
-    finalColorAxis = finalColor;
-  }
-
-  finalColorAxis.a = finalColor.a;
-
+  /* Discard segment if any point has zero alpha.
+   * This can create some popping but it is almost unnoticeable and allows better blending with
+   * other overlays. */
   if (finalColor.a <= 0.0) {
     /* Discard vertex. */
     gl_Position = float4(NAN_FLT);

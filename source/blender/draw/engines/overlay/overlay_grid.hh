@@ -349,10 +349,7 @@ class GridMesh : Overlay {
     /* Number of cell on one axis. Must be even. */
     int resolution;
     /* Offset to the origin in grid increment. */
-    int2 origin_offset;
-    /* Coordinate for the hole used for the higher subdivision level in grid increment. */
-    int2 hole_start;
-    int2 hole_end;
+    int3 origin_offset;
   };
   std::array<GridLevel, SI_GRID_STEPS_LEN> levels_ = {};
 
@@ -421,6 +418,28 @@ class GridMesh : Overlay {
       return;
     }
 
+    grid_steps_ = {0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
+    ED_view3d_grid_steps(state.scene, state.v3d, state.rv3d, grid_steps_.data());
+
+    /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
+    for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
+      const bool is_last_level = i == (SI_GRID_STEPS_LEN - 1);
+
+      int subdiv_level = (is_last_level) ? 1 : int(roundf(grid_steps_[i + 1] / grid_steps_[i]));
+
+      if (assign_if_different(levels_[i].subdiv_level, subdiv_level)) {
+        GPU_BATCH_DISCARD_SAFE(level_grids_[i]);
+      }
+
+      if (level_grids_[i] == nullptr) {
+        /* Chosen as for a maximum of 8px grid in 4K. */
+        /* TODO: Reduce to the amount that can be seen on screen. */
+        const int res = ceil_to_multiple_u(256, subdiv_level) * 2;
+        levels_[i].resolution = res;
+        level_grids_[i] = generate_batch(res, subdiv_level);
+      }
+    }
+
     const bool show_axis_x = (state.v3d_gridflag & V3D_SHOW_X) != 0;
     const bool show_axis_y = (state.v3d_gridflag & V3D_SHOW_Y) != 0;
     const bool show_axis_z = (state.v3d_gridflag & V3D_SHOW_Z) != 0;
@@ -444,36 +463,26 @@ class GridMesh : Overlay {
       /* TODO(fclem): Set unit to camera far plane. */
       grid_ps_.push_constant("unit_scale", 100.0f);
       grid_ps_.push_constant("next_divider", int(1)); /* UNUSED. */
-      grid_ps_.push_constant("origin_offset", int2(INT_MAX));
+      grid_ps_.push_constant("origin_offset", int3(INT_MAX));
+      grid_ps_.push_constant("show_axis_x", show_axis_x);
+      grid_ps_.push_constant("show_axis_y", show_axis_y);
+      grid_ps_.push_constant("show_axis_z", show_axis_z);
 
-      // if (show_axis_x) {
-      //   grid_ps_.push_constant("axis", int(1));
-      //   grid_ps_.draw(axes_[0]);
-      // }
-      // else if (show_floor) {
-      //   /* Still show the line without color. */
-      //   grid_ps_.push_constant("axis", int(4));
-      //   grid_ps_.draw(axes_[0]);
-      // }
+      if (show_axis_x && !show_floor) {
+        grid_ps_.push_constant("axis", int(1));
+        grid_ps_.draw(axes_[0]);
+      }
 
-      // if (show_axis_y) {
-      //   grid_ps_.push_constant("axis", int(2));
-      //   grid_ps_.draw(axes_[1]);
-      // }
-      // else if (show_floor) {
-      //   /* Still show the line without color. */
-      //   grid_ps_.push_constant("axis", int(4));
-      //   grid_ps_.draw(axes_[1]);
-      // }
+      if (show_axis_y && !show_floor) {
+        grid_ps_.push_constant("axis", int(2));
+        grid_ps_.draw(axes_[1]);
+      }
 
-      // if (show_axis_z) {
-      //   grid_ps_.push_constant("axis", int(3));
-      //   grid_ps_.draw(axes_[0]);
-      // }
+      if (show_axis_z) {
+        grid_ps_.push_constant("axis", int(3));
+        grid_ps_.draw(axes_[0]);
+      }
     }
-
-    grid_steps_ = {0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
-    ED_view3d_grid_steps(state.scene, state.v3d, state.rv3d, grid_steps_.data());
 
     if (show_floor) {
       /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
@@ -481,21 +490,6 @@ class GridMesh : Overlay {
         /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
          * write from transparent pixel in smaller grid level. */
         int i = (SI_GRID_STEPS_LEN - 1) - i_acc;
-
-        int subdiv_level = (i_acc == 0) ? 1 : int(roundf(grid_steps_[i + 1] / grid_steps_[i]));
-        std::cout << "grid_steps_[i] " << grid_steps_[i] << " " << subdiv_level << std::endl;
-
-        if (assign_if_different(levels_[i].subdiv_level, subdiv_level)) {
-          GPU_BATCH_DISCARD_SAFE(level_grids_[i]);
-        }
-
-        if (level_grids_[i] == nullptr) {
-          /* Chosen as for a maximum of 8px grid in 4K. */
-          /* TODO: Reduce to the amount that can be seen on screen. */
-          const int res = ceil_to_multiple_u(256, subdiv_level) * 2;
-          levels_[i].resolution = res;
-          level_grids_[i] = generate_batch(res, subdiv_level);
-        }
 
         if (i_acc > 0) {
           /* Check if next step is the same. */
@@ -506,12 +500,10 @@ class GridMesh : Overlay {
         }
 
         grid_ps_.push_constant("axis", 0);
+        grid_ps_.push_constant("show_axis_z", false);
         grid_ps_.push_constant("unit_scale", &grid_steps_[i]);
         grid_ps_.push_constant("origin_offset", &levels_[i].origin_offset);
         grid_ps_.push_constant("next_divider", levels_[i].subdiv_level);
-        /* Carve a hole in the grid for the next level. */
-        grid_ps_.push_constant("hole_start", &levels_[i].hole_start);
-        grid_ps_.push_constant("hole_end", &levels_[i].hole_end);
         grid_ps_.draw(level_grids_[i]);
       }
     }
@@ -527,35 +519,10 @@ class GridMesh : Overlay {
 
     for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
       float snap_to = levels_[i].subdiv_level * grid_steps_[i];
-      levels_[i].origin_offset = -int2(floor(view.location().xy() / snap_to)) *
-                                 levels_[i].subdiv_level;
+      levels_[i].origin_offset = -int3(floor(view.location() / snap_to)) * levels_[i].subdiv_level;
       std::cout << "levels_[i].origin_offset" << levels_[i].origin_offset << std::endl;
     }
 
-    for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
-      if (i > 0) {
-        float snap_prev = levels_[i - 1].subdiv_level * grid_steps_[i - 1];
-        int2 offset_prev = int2(floor(view.location().xy() / snap_prev));
-
-        float snap_curr = levels_[i].subdiv_level * grid_steps_[i];
-        int2 offset_curr = int2(floor(view.location().xy() / snap_curr));
-
-        // std::cout << "snap_prev" << snap_prev << std::endl;
-        // std::cout << "snap_curr" << snap_curr << std::endl;
-        // std::cout << "offset_prev" << offset_prev << std::endl;
-        // std::cout << "offset_curr" << offset_curr << std::endl;
-
-        int2 shift = (offset_prev - offset_curr * levels_[i].subdiv_level);
-        // std::cout << "shift" << shift << std::endl;
-        int hole_size = (levels_[i - 1].resolution / 2) / levels_[i - 1].subdiv_level;
-        levels_[i].hole_start = int2(-hole_size) + shift;
-        levels_[i].hole_end = int2(hole_size) + shift;
-      }
-      else {
-        levels_[i].hole_start = int2(INT_MAX);
-        levels_[i].hole_end = int2(-INT_MAX);
-      }
-    }
     GPU_framebuffer_bind(framebuffer);
     manager.submit(grid_ps_, view);
   }
