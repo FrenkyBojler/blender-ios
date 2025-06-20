@@ -1,2 +1,3 @@
 Referenced by issue #140608, gpencil crash
 Referenced by issue #140635, Mem leak on undo since AttributeStorage changes
+Referenced by issue #140704, Mem leak on undo since AttributeStorage changes
