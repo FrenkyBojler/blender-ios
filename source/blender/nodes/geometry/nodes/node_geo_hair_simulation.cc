@@ -171,6 +171,20 @@ class IsEndPointFieldInput final : public bke::CurvesFieldInput {
   }
 };
 
+namespace field_constants {
+
+template<typename T> static Field<T> constant_field(const T &value)
+{
+  return Field<T>{std::make_shared<fn::FieldConstant>(CPPType::get<T>(), &value)};
+}
+
+static Field<float3> zero_vector()
+{
+  return constant_field<float3>(float3(0.0f));
+}
+
+}  // namespace field_constants
+
 namespace field_inputs {
 
 static Field<bool> is_start_point()
@@ -373,9 +387,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Bundle>("Behavior")
       .description("Parameters for controlling simulation behavior");
-  b.add_input<decl::Float>("Density").default_value(1000.0f).field_on_all();
-  b.add_input<decl::Vector>("Force").field_on_all().hide_value();
-  b.add_input<decl::Vector>("Torque").field_on_all().hide_value();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -388,12 +399,6 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   UNUSED_VARS(node);
 }
 
-struct Behavior {
-  struct {
-    float3 direction = float3(0, 0, -9.81f);
-  } gravity;
-};
-
 template<typename T>
 static std::optional<T> get_from_bundle(const BundlePtr &bundle, const StringRef name)
 {
@@ -402,31 +407,27 @@ static std::optional<T> get_from_bundle(const BundlePtr &bundle, const StringRef
   }
 
   BLI_assert(!name.is_empty());
-  const CPPType &output_cpp_type = CPPType::get<T>();
-  const std::optional<eNodeSocketDatatype> socket_type =
-      bke::geo_nodes_base_cpp_type_to_socket_type(output_cpp_type);
-  BLI_assert(socket_type.has_value());
-  const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(*socket_type);
-  BLI_assert(stype != nullptr);
-
   const std::optional<Bundle::Item> value = bundle->lookup(SocketInterfaceKey(name));
   if (!value) {
     return std::nullopt;
   }
 
-  // XXX MAKE THIS GOODER!!!
-  BUFFER_FOR_CPP_TYPE_VALUE(*stype->geometry_nodes_cpp_type, socket_output_value);
-  if (implicitly_convert_socket_value(*value->type, value->value, *stype, socket_output_value)) {
-    if (stype->geometry_nodes_cpp_type == &output_cpp_type) {
-      T result;
-      output_cpp_type.copy_assign(&socket_output_value, &result);
-      return result;
+  if constexpr (GeoNodeExecParams::stored_as_SocketValueVariant_v<T>) {
+    if (value->type->geometry_nodes_cpp_type == &CPPType::get<SocketValueVariant>()) {
+      return static_cast<const SocketValueVariant *>(value->value)->get<T>();
     }
-    else if (stype->geometry_nodes_cpp_type == &CPPType::get<SocketValueVariant>()) {
-      return static_cast<SocketValueVariant *>(socket_output_value)->extract<T>();
+    return std::nullopt;
+  }
+  else {
+    if (value->type->geometry_nodes_cpp_type == &CPPType::get<GeometrySet>()) {
+      if constexpr (std::is_same_v<T, GeometrySet>) {
+        return *static_cast<const GeometrySet *>(value->value);
+      }
+    }
+    else if (value->type->geometry_nodes_cpp_type == &CPPType::get<T>()) {
+      return *static_cast<const T *>(value->value);
     }
   }
-
   return std::nullopt;
 }
 
@@ -440,12 +441,34 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
   return false;
 }
 
+struct Behavior {
+  struct {
+    float3 direction = float3(0, 0, -9.81f);
+  } gravity;
+
+  struct {
+    Field<float3> force = field_constants::zero_vector();
+    Field<float3> torque = field_constants::zero_vector();
+  } forces;
+
+  struct {
+    Field<float> density = field_constants::constant_field<float>(1000.0f);
+  } material;
+};
+
 static Behavior separate_behavior_bundle(const BundlePtr &bundle)
 {
   Behavior behavior;
 
   if (auto gravity = get_from_bundle<BundlePtr>(bundle, "Gravity")) {
     get_from_bundle(*gravity, "Direction", behavior.gravity.direction);
+  }
+  if (auto forces = get_from_bundle<BundlePtr>(bundle, "Forces")) {
+    get_from_bundle(*forces, "Force", behavior.forces.force);
+    get_from_bundle(*forces, "Torque", behavior.forces.torque);
+  }
+  if (auto material = get_from_bundle<BundlePtr>(bundle, "Material")) {
+    get_from_bundle(*material, "Density", behavior.material.density);
   }
 
   return behavior;
@@ -464,7 +487,7 @@ static bool store_hair_rest_shape(GeometryComponent &hair_component)
 /* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
 static bool init_hair_physics(GeometryComponent &component,
                               const Field<bool> &selection_field,
-                              const Field<float> &density_field)
+                              const Behavior &behavior)
 {
   {
     const Field<float> radius_field = field_inputs::radius();
@@ -498,11 +521,11 @@ static bool init_hair_physics(GeometryComponent &component,
     const Field<float> point_mass_field = field_ops::point_mass(
         segment_length_field,
         AttributeFieldInput::Create<float>(cross_section_attr),
-        density_field);
+        behavior.material.density);
     const Field<float3> segment_inertia_field = field_ops::segment_inertia(
         segment_length_field,
         AttributeFieldInput::Create<float3>(area_moment_attr),
-        density_field);
+        behavior.material.density);
 
     const Field<float> inv_point_mass_field = field_ops::inverse_mass(point_mass_field);
     const Field<float3> inv_segment_inertia_field = field_ops::inverse_inertia(
@@ -973,9 +996,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Behavior behavior = separate_behavior_bundle(params.extract_input<BundlePtr>("Behavior"));
-  Field<float> density_field = params.extract_input<Field<float>>("Density");
-  Field<float3> force_field = params.extract_input<Field<float3>>("Force");
-  Field<float3> torque_field = params.extract_input<Field<float3>>("Torque");
   BundlePtr constraint_bundle = params.extract_input<BundlePtr>("Data");
   // GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
   // Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
@@ -999,7 +1019,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!store_hair_rest_shape(hair_curves)) {
       params.error_message_add(NodeWarningType::Error, "Could not store rest shape");
     }
-    init_hair_physics(hair_curves, selection_field, density_field);
+    init_hair_physics(hair_curves, selection_field, behavior);
 
     /* Clear any existing constraint data. */
     constraint_bundle = Bundle::create();
@@ -1021,8 +1041,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                    linear_factor,
                    angular_factor,
                    behavior.gravity.direction,
-                   force_field,
-                   torque_field);
+                   behavior.forces.force,
+                   behavior.forces.torque);
 
   solve_constraints(eval_params, hair_curves, constraint_iterations, constraint_data);
 
