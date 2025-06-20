@@ -36,12 +36,17 @@ class InputSocketUsageParams {
                          const bNode &node,
                          const bNodeSocket &socket);
 
-  std::optional<bool> request_output_usage(StringRef identifier) const;
-
+  /**
+   * Get an the statically known input value for the given socket identifier. The value may be
+   * unknown, in which case null is returned.
+   */
   const void *get_input(StringRef identifier) const;
   template<typename T> const T *get_input(StringRef identifier) const;
 
-  std::optional<bool> menu_input_may_be(StringRef identifier, int enum_value) const;
+  /**
+   * Utility for the case when the socket depends on a specific menu input to have a certain value.
+   */
+  bool menu_input_may_be(StringRef identifier, int enum_value) const;
 };
 
 /**

@@ -63,8 +63,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
+  /* Still used for forward compatibility. */
   NodeGeometryVolumeToMesh *data = MEM_callocN<NodeGeometryVolumeToMesh>(__func__);
-  data->resolution_mode = VOLUME_TO_MESH_RESOLUTION_MODE_GRID;
   node->storage = data;
 }
 

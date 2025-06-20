@@ -1545,17 +1545,6 @@ InputSocketUsageParams::InputSocketUsageParams(SocketUsageInferencer &inferencer
 {
 }
 
-std::optional<bool> InputSocketUsageParams::request_output_usage(const StringRef identifier) const
-{
-  const SocketInContext output_socket{compute_context_,
-                                      &this->node.output_by_identifier(identifier)};
-  const std::optional<bool> is_used = inferencer_.all_socket_usages_.lookup_try(output_socket);
-  if (!is_used.has_value()) {
-    inferencer_.push_usage_task(output_socket);
-  }
-  return is_used;
-}
-
 const void *InputSocketUsageParams::get_input(const StringRef identifier) const
 {
   const SocketInContext input_socket{compute_context_,
@@ -1563,8 +1552,8 @@ const void *InputSocketUsageParams::get_input(const StringRef identifier) const
   return inferencer_.get_socket_value(input_socket);
 }
 
-std::optional<bool> InputSocketUsageParams::menu_input_may_be(const StringRef identifier,
-                                                              const int enum_value) const
+bool InputSocketUsageParams::menu_input_may_be(const StringRef identifier,
+                                               const int enum_value) const
 {
   BLI_assert(this->node.input_by_identifier(identifier).type == SOCK_MENU);
   const int *value = this->get_input<int>(identifier);

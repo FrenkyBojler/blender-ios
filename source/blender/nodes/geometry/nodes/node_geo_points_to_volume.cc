@@ -161,8 +161,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
+  /* Still used for forward compatibility. */
   NodeGeometryPointsToVolume *data = MEM_callocN<NodeGeometryPointsToVolume>(__func__);
-  data->resolution_mode = GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT;
   node->storage = data;
 }
 
