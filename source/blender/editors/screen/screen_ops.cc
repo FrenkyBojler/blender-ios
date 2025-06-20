@@ -1753,7 +1753,7 @@ static void area_move_set_limits(wmWindow *win,
       }
     }
     else {
-      const int x1 = area->winx - (AREAMINX * UI_SCALE_FAC);
+      const int x1 = area->winx - int(AREAMINX * UI_SCALE_FAC) - 1;
       /* if left or right edge selected, test width */
       if (area->v1->editflag && area->v2->editflag) {
         *bigger = min_ii(*bigger, x1);
@@ -3978,6 +3978,10 @@ void static area_docking_apply(bContext *C, wmOperator *op)
         BLI_listbase_is_empty(&jd->win1->global_areas.areabase))
     {
       jd->close_win = true;
+      /* Clear the active region in each screen, otherwise they are pointing
+       * at incorrect regions and will cause errors in uiTemplateInputStatus. */
+      WM_window_get_active_screen(jd->win1)->active_region = nullptr;
+      WM_window_get_active_screen(jd->win2)->active_region = nullptr;
     }
     else {
       screen_area_close(C, op->reports, CTX_wm_screen(C), jd->sa1);
@@ -5196,7 +5200,7 @@ void ED_screens_header_tools_menu_create(bContext *C, uiLayout *layout, void * /
 
     ARegion *region_header = BKE_area_find_region_type(area, RGN_TYPE_HEADER);
     uiLayout *col = &layout->column(false);
-    uiLayoutSetActive(col, (region_header->flag & RGN_FLAG_HIDDEN) == 0);
+    col->active_set((region_header->flag & RGN_FLAG_HIDDEN) == 0);
 
     if (BKE_area_find_region_type(area, RGN_TYPE_TOOL_HEADER)) {
       col->prop(
@@ -5241,7 +5245,7 @@ void ED_screens_region_flip_menu_create(bContext *C, uiLayout *layout, void * /*
                                                                     IFACE_("Flip to Bottom");
 
   /* default is WM_OP_INVOKE_REGION_WIN, which we don't want here. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
   layout->op("SCREEN_OT_region_flip", but_flip_str, ICON_NONE);
 }
@@ -5292,7 +5296,7 @@ static wmOperatorStatus screen_context_menu_invoke(bContext *C,
       uiLayout *layout = UI_popup_menu_layout(pup);
 
       /* We need WM_OP_INVOKE_DEFAULT in case menu item is over another area. */
-      uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
+      layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
       layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 
       ED_screens_region_flip_menu_create(C, layout, nullptr);
@@ -5407,6 +5411,12 @@ static bool match_region_with_redraws(const ScrArea *area,
        * don't need to be updated. */
       SpaceAction *saction = (SpaceAction *)area->spacedata.first;
       return saction->mode == SACTCONT_TIMELINE;
+    }
+  }
+  else if (regiontype == RGN_TYPE_FOOTER) {
+    /* The footer region in animation editors shows the current frame. */
+    if (ELEM(spacetype, SPACE_ACTION, SPACE_GRAPH, SPACE_SEQ, SPACE_NLA)) {
+      return true;
     }
   }
   else if (regiontype == RGN_TYPE_PREVIEW) {
@@ -6090,7 +6100,7 @@ static std::string userpref_show_get_description(bContext *C,
       return fmt::format(fmt::runtime(TIP_("Show {} preferences")), section_name);
     }
   }
-  /* Fallback to default. */
+  /* Fall back to default. */
   return "";
 }
 

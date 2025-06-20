@@ -24,7 +24,7 @@
 
 #include "BLI_array.hh"
 #include "BLI_bounds.hh"
-#include "BLI_convexhull_2d.h"
+#include "BLI_convexhull_2d.hh"
 #include "BLI_function_ref.hh"
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -153,6 +153,12 @@ struct TreeDrawContext {
    * Label for reroute nodes that is derived from upstream reroute nodes.
    */
   Map<const bNode *, StringRef> reroute_auto_labels;
+
+  /**
+   * Precomputed extra info rows for each node. This avoids having to compute them multiple times
+   * during drawing. The array is indexed by `bNode::index()`.
+   */
+  Array<Vector<NodeExtraInfoRow>> extra_info_rows_per_node;
 };
 
 float grid_size_get()
@@ -432,10 +438,10 @@ static bool node_update_basis_buttons(const bContext &C,
                                      UI_style_get_dpi());
 
   if (node.is_muted()) {
-    uiLayoutSetActive(layout, false);
+    layout->active_set(false);
   }
 
-  uiLayoutSetContextPointer(layout, "node", &nodeptr);
+  layout->context_ptr_set("node", &nodeptr);
 
   draw_buttons(layout, (bContext *)&C, &nodeptr);
 
@@ -515,19 +521,19 @@ static bool node_update_basis_socket(const bContext &C,
                                      UI_style_get_dpi());
 
   if (node.is_muted()) {
-    uiLayoutSetActive(layout, false);
+    layout->active_set(false);
   }
 
   uiLayout *row = &layout->row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
-  uiLayoutSetContextPointer(row, "node", &nodeptr);
+  row->context_ptr_set("node", &nodeptr);
 
   if (input_socket) {
     /* Context pointers for current node and socket. */
     PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, input_socket);
-    uiLayoutSetContextPointer(row, "socket", &sockptr);
+    row->context_ptr_set("socket", &sockptr);
 
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_EXPAND);
+    row->alignment_set(blender::ui::LayoutAlign::Expand);
 
     input_socket->typeinfo->draw(
         (bContext *)&C, row, &sockptr, &nodeptr, node_socket_get_label(input_socket, panel_label));
@@ -535,10 +541,10 @@ static bool node_update_basis_socket(const bContext &C,
   else {
     /* Context pointers for current node and socket. */
     PointerRNA sockptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, output_socket);
-    uiLayoutSetContextPointer(row, "socket", &sockptr);
+    row->context_ptr_set("socket", &sockptr);
 
     /* Align output buttons to the right. */
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+    row->alignment_set(blender::ui::LayoutAlign::Right);
 
     output_socket->typeinfo->draw((bContext *)&C,
                                   row,
@@ -1148,10 +1154,10 @@ static void node_update_basis_from_declaration(
                                                0,
                                                UI_style_get_dpi());
             if (node.is_muted()) {
-              uiLayoutSetActive(layout, false);
+              layout->active_set(false);
             }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
-            uiLayoutSetContextPointer(layout, "node", &node_ptr);
+            layout->context_ptr_set("node", &node_ptr);
             decl.draw(layout, const_cast<bContext *>(&C), &node_ptr);
             UI_block_align_end(&block);
             int buty;
@@ -1488,7 +1494,7 @@ void node_socket_color_get(const bContext &C,
                            float r_color[4])
 {
   if (!sock.typeinfo->draw_color) {
-    /* Fallback to the simple variant. If not defined either, fallback to a magenta color. */
+    /* Fall back to the simple variant. If not defined either, fall back to a magenta color. */
     if (sock.typeinfo->draw_color_simple) {
       sock.typeinfo->draw_color_simple(sock.typeinfo, r_color);
     }
@@ -2303,7 +2309,7 @@ static bool draw_node_details(const SpaceNode &snode)
 static void node_draw_preview_background(rctf *rect)
 {
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_2D_CHECKER);
 
@@ -3266,7 +3272,8 @@ static void node_draw_extra_info_panel(const bContext &C,
     /* If the preview has an non-drawable size, just don't draw it. */
     preview = nullptr;
   }
-  Vector<NodeExtraInfoRow> extra_info_rows = node_get_extra_info(C, tree_draw_ctx, snode, node);
+  const Span<NodeExtraInfoRow> extra_info_rows =
+      tree_draw_ctx.extra_info_rows_per_node[node.index()];
   if (extra_info_rows.is_empty() && !preview) {
     return;
   }
@@ -3480,7 +3487,7 @@ static void node_draw_basis(const bContext &C,
       UI_GetThemeColorBlend4f(TH_BACK, color_id, 0.1f, color_header);
     }
     else {
-      UI_GetThemeColorBlend4f(TH_NODE, color_id, 0.4f, color_header);
+      UI_GetThemeColor4fv(color_id, color_header);
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
@@ -3862,7 +3869,7 @@ static void node_draw_hidden(const bContext &C,
       rgba_float_args_set(color, node.color[0], node.color[1], node.color[2], 1.0f);
     }
     else {
-      UI_GetThemeColorBlend4f(TH_NODE, color_id, 0.4f, color);
+      UI_GetThemeColor4fv(color_id, color);
     }
 
     /* Draw selected nodes fully opaque. */
@@ -3967,7 +3974,8 @@ static void node_draw_hidden(const bContext &C,
   }
 
   /* Scale widget thing. */
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -4159,7 +4167,7 @@ static rctf calc_node_frame_dimensions(const bContext &C,
      * This has to get the full extra_rows information (including all the text strings), even
      * though all that's actually needed is the count of how many info_rows there are. */
     if (snode.overlay.flag & SN_OVERLAY_SHOW_OVERLAYS) {
-      extra_row_padding = node_get_extra_info(C, tree_draw_ctx, snode, node).size() *
+      extra_row_padding = tree_draw_ctx.extra_info_rows_per_node[node.index()].size() *
                           EXTRA_INFO_ROW_HEIGHT;
     }
 
@@ -4767,10 +4775,7 @@ static void find_bounds_by_zone_recursive(const SpaceNode &snode,
   }
 
   Vector<int> convex_indices(possible_bounds.size());
-  const int convex_positions_num = BLI_convexhull_2d(
-      reinterpret_cast<float(*)[2]>(possible_bounds.data()),
-      possible_bounds.size(),
-      convex_indices.data());
+  const int convex_positions_num = BLI_convexhull_2d(possible_bounds, convex_indices.data());
   convex_indices.resize(convex_positions_num);
 
   for (const int i : convex_indices) {
@@ -4843,7 +4848,7 @@ static void node_draw_zones_and_frames(const ARegion &region,
   };
 
   const uint pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   using ZoneOrNode = std::variant<const bNodeTreeZone *, const bNode *>;
   Vector<ZoneOrNode> draw_order;
@@ -5182,7 +5187,9 @@ static void node_draw_nodetree(const bContext &C,
   uiBlock &invalid_links_block = invalid_links_uiblock_init(C);
   for (auto &&item : ntree.runtime->link_errors.items()) {
     if (const bNodeLink *link = item.key.try_find(ntree)) {
-      draw_link_errors(C, snode, *link, item.value, invalid_links_block);
+      if (!bke::node_link_is_hidden(*link)) {
+        draw_link_errors(C, snode, *link, item.value, invalid_links_block);
+      }
     }
   }
   UI_block_end(&C, &invalid_links_block);
@@ -5232,11 +5239,8 @@ static void snode_setup_v2d(SpaceNode &snode, ARegion &region, const float2 &cen
 static bool compositor_is_in_use(const bContext &context)
 {
   const Scene *scene = CTX_data_scene(&context);
-  if (!scene->use_nodes) {
-    return false;
-  }
 
-  if (!scene->nodetree) {
+  if (!scene->compositing_node_group) {
     return false;
   }
 
@@ -5282,6 +5286,7 @@ static void draw_nodetree(const bContext &C,
   tree_draw_ctx.scene = CTX_data_scene(&C);
   tree_draw_ctx.region = CTX_wm_region(&C);
   tree_draw_ctx.depsgraph = CTX_data_depsgraph_pointer(&C);
+  tree_draw_ctx.extra_info_rows_per_node.reinitialize(nodes.size());
 
   BLI_SCOPED_DEFER([&]() { ntree.runtime->sockets_on_active_gizmo_paths.clear(); });
   if (ntree.type == NTREE_GEOMETRY) {
@@ -5310,6 +5315,12 @@ static void draw_nodetree(const bContext &C,
            snode->overlay.flag & SN_OVERLAY_SHOW_PREVIEWS)
   {
     tree_draw_ctx.nested_group_infos = get_nested_previews(C, *snode);
+  }
+
+  for (const int i : nodes.index_range()) {
+    const bNode &node = *nodes[i];
+    tree_draw_ctx.extra_info_rows_per_node[node.index()] = node_get_extra_info(
+        C, tree_draw_ctx, *snode, node);
   }
 
   node_update_nodetree(C, tree_draw_ctx, ntree, nodes, blocks);
