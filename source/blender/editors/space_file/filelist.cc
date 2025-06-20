@@ -4041,7 +4041,7 @@ static void filelist_readjob_asset_library(FileListReadJob *job_params,
   }
 }
 
-/* TODO handle \a stop and \a progress. */
+/* TODO handle \a progress. */
 static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *job_params,
                                                              bool *stop,
                                                              bool *do_update,
@@ -4149,17 +4149,13 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
 }
 
 static void readjob_wait_while_asset_library_loading_extern(FileListReadJob *job_params,
-                                                            bool *stop,
-                                                            bool *do_update)
+                                                            bool *stop)
 {
   while (job_params->is_asset_library_loading_extern) {
     /* Active waiting. */
     if (*stop) {
       return;
     }
-    /* Always set this to true so the library loading status is queried/updated while the library
-     * is loading. The actual update is only done once per timer step. */
-    *do_update = true;
   }
 }
 
@@ -4178,7 +4174,7 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
 
   BLI_assert(job_params->filelist->asset_library_ref != nullptr);
 
-  readjob_wait_while_asset_library_loading_extern(job_params, stop, do_update);
+  readjob_wait_while_asset_library_loading_extern(job_params, stop);
   if (*stop || job_params->cancel) {
     return;
   }

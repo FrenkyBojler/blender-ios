@@ -53,6 +53,14 @@ void RemoteAssetLibrary::refresh_catalogs()
 /** \name Remote Library Loading Status
  * \{ */
 
+/*
+ * Note: Some of the status setters here only modify status if the current status is
+ * #RemoteLibraryLoadingStatus::Loading. That is done to avoid status changes after loading ended,
+ * mostly after a timeout. E.g. if the status is failed after a timeout, but Python is actually
+ * still processing items, it might send a #RemoteLibraryLoadingStatus::set_finished(). The UI
+ * would stop displaying an error on the next redraw, even though C++ side loading was aborted.
+ */
+
 using UrlToLibraryStatusMap = Map<std::string /*url*/, asset_system::RemoteLibraryLoadingStatus>;
 
 static UrlToLibraryStatusMap &library_to_status_map()
@@ -97,22 +105,26 @@ std::optional<RemoteLibraryLoadingStatus::Status> RemoteLibraryLoadingStatus::st
 void RemoteLibraryLoadingStatus::set_finished(StringRef url)
 {
   if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    status->status_ = RemoteLibraryLoadingStatus::Finished;
-    status->reset_timeout();
+    if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
+      status->status_ = RemoteLibraryLoadingStatus::Finished;
+      status->reset_timeout();
+    }
   }
 }
 
 void RemoteLibraryLoadingStatus::set_failure(StringRef url,
-                                             std::optional<StringRef> failure_message)
+                                             std::optional<StringRefNull> failure_message)
 {
   if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    status->status_ = RemoteLibraryLoadingStatus::Failure;
-    status->failure_message_ = failure_message;
-    status->reset_timeout();
+    if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
+      status->status_ = RemoteLibraryLoadingStatus::Failure;
+      status->failure_message_ = failure_message;
+      status->reset_timeout();
+    }
   }
 }
 
-std::optional<StringRef> RemoteLibraryLoadingStatus::failure_message(StringRef url)
+std::optional<StringRefNull> RemoteLibraryLoadingStatus::failure_message(StringRef url)
 {
   if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
     if (status->status_ == RemoteLibraryLoadingStatus::Failure) {
@@ -135,7 +147,7 @@ bool RemoteLibraryLoadingStatus::handle_timeout(StringRef url)
                                            status->last_updated_time_point_;
     if (elapsed.count() >= status->timeout_) {
       status->status_ = RemoteLibraryLoadingStatus::Failure;
-      status->failure_message_ = RPT_("Asset system lost connection to downloader (timed out)");
+      status->failure_message_ = RPT_("Asset system lost connection to downloader (timed out).");
       return true;
     }
   }

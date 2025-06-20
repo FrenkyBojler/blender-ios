@@ -800,7 +800,7 @@ static void rna_asset_library_status_finished_loading(const char *url)
 static void rna_asset_library_status_failed_loading(const char *url, const char *message)
 {
   RemoteLibraryLoadingStatus::set_failure(
-      url, message ? std::optional<blender::StringRef>{message} : std::nullopt);
+      url, message ? std::optional<blender::StringRefNull>{message} : std::nullopt);
 }
 
 #else

@@ -1792,11 +1792,12 @@ static void file_draw_asset_library_remote_loading_failed_hint(const bContext *C
   const int pad_y = sfile->layout->tile_border_y * 2;
   const int available_width = BLI_rctf_size_x(&v2d->tot) - (2 * pad_x);
   const int line_height = sfile->layout->text_line_height;
-  StringRef message = asset_system::RemoteLibraryLoadingStatus::failure_message(
-                          library->remote_url)
-                          .value_or("Unknown reason");
+  StringRefNull message = asset_system::RemoteLibraryLoadingStatus::failure_message(
+                              library->remote_url)
+                              .value_or("Unknown reason");
 
-  const int box_width = std::min(available_width, UI_UNIT_X * 28);
+  const int message_width = UI_fontstyle_string_width(&UI_style_get()->widget, message.c_str());
+  const int box_width = std::min({available_width, UI_UNIT_X * 28, message_width + (2 * pad_x)});
   /* The width we have available inside the box. */
   const int wrap_width = box_width - 2 * pad_x;
   const rcti message_textbox = file_measure_string_multiline(message, wrap_width);

@@ -25,7 +25,7 @@ namespace blender::asset_system {
  * The C++ asset library loading might have to wait for Python to be done downloading and
  * validating individual asset listing pages, and load in these new pages as they become ready.
  */
-struct RemoteLibraryLoadingStatus {
+class RemoteLibraryLoadingStatus {
  public:
   enum Status {
     Loading,
@@ -39,25 +39,26 @@ struct RemoteLibraryLoadingStatus {
   std::chrono::time_point<std::chrono::steady_clock> last_updated_time_point_;
 
   Status status_;
-  std::optional<StringRef> failure_message_;
-
-  /** Update the last update time point, effectively resetting the timout timer. */
-  void reset_timeout();
+  std::optional<StringRefNull> failure_message_;
 
  public:
   static void begin_loading(StringRef url, float timeout);
   /** Let the state know that the loading is still ongoing, resetting the timeout. */
   static void ping_still_loading(StringRef url);
   static void set_finished(StringRef url);
-  static void set_failure(StringRef url, std::optional<StringRef> failure_message);
+  static void set_failure(StringRef url, std::optional<StringRefNull> failure_message);
 
-  static std::optional<StringRef> failure_message(StringRef url);
+  static std::optional<StringRefNull> failure_message(StringRef url);
   static std::optional<RemoteLibraryLoadingStatus::Status> status(StringRef url);
 
   /**
    * \return True if the loading status switched to #Status::Failure due to timing out.
    */
   static bool handle_timeout(StringRef url);
+
+ private:
+  /** Update the last update time point, effectively resetting the timout timer. */
+  void reset_timeout();
 };
 
 }  // namespace blender::asset_system
