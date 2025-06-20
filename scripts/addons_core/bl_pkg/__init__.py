@@ -485,7 +485,7 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
 def _remote_asset_libraries_sync_update(downloader: _RemoteAssetListingDownloader) -> None:
     from _bpy_internal.assets.remote_library_index.index_downloader import DownloadStatus
 
-    # Only call `asset_library_status_is_loading()` if the loading is still going on.
+    # Only call `asset_library_status_ping_still_loading()` if the loading is still going on.
     if downloader.status == DownloadStatus.LOADING:
         wm = bpy.context.window_manager
         wm.asset_library_status_ping_still_loading(downloader._remote_url)
