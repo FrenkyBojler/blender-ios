@@ -463,7 +463,7 @@ class GridMesh : Overlay {
       /* TODO(fclem): Set unit to camera far plane. */
       grid_ps_.push_constant("unit_scale", 100.0f);
       grid_ps_.push_constant("next_divider", int(1)); /* UNUSED. */
-      grid_ps_.push_constant("origin_offset", int3(INT_MAX));
+      grid_ps_.push_constant("origin_offset", int3(0));
       grid_ps_.push_constant("show_axis_x", show_axis_x);
       grid_ps_.push_constant("show_axis_y", show_axis_y);
       grid_ps_.push_constant("show_axis_z", show_axis_z);

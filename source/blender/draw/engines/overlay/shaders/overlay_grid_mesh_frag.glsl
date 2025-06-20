@@ -17,14 +17,15 @@ FRAGMENT_SHADER_CREATE_INFO(overlay_grid_mesh)
 void main()
 {
   fragColor = finalColor;
-  if (axis_tag.x >= 1.0) {
+  /* NOTE: Checking for 0 for precision. */
+  if (axis_tag.z == 0.0) {
+    fragColor.rgb = uniform_buf.colors.grid_axis_z.rgb;
+  }
+  else if (axis_tag.x == 0.0) {
     fragColor.rgb = uniform_buf.colors.grid_axis_x.rgb;
   }
-  else if (axis_tag.y >= 1.0) {
+  else if (axis_tag.y == 0.0) {
     fragColor.rgb = uniform_buf.colors.grid_axis_y.rgb;
-  }
-  else if (axis_tag.z >= 1.0) {
-    fragColor.rgb = uniform_buf.colors.grid_axis_z.rgb;
   }
 
   lineOutput = pack_line_data(gl_FragCoord.xy, edgeStart, edgePos);

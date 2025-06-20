@@ -30,15 +30,20 @@ float4 get_homogenous_space_grid_point(const int3 grid_coord,
 
   /* Round to grid increment. */
   float3 camera_P = drw_view_position();
-  if (axis > 0) {
-    /* TODO(fclem): Slide on the axis only. */
+  if (axis == 1) {
+    ls_P.yz -= camera_P.yz;
+  }
+  else if (axis == 2) {
+    ls_P.xz -= camera_P.xz;
+  }
+  else if (axis == 3) {
     ls_P.xy -= camera_P.xy;
   }
   else {
     float snap_to = float(next_divider) * unit_scale;
     ls_P.xy -= fract(camera_P.xy / snap_to) * snap_to;
+    ls_P.z -= camera_P.z;
   }
-  ls_P.z -= camera_P.z;
 
   dist_to_cam = length(ls_P);
 
@@ -68,15 +73,15 @@ void main()
     grid_coord = grid_coord.zzx;
   }
 
-  axis_tag = float3(0.0);
-  if (show_axis_x && grid_coord.x == origin_offset.x) {
-    axis_tag.y = 1.0;
+  axis_tag = float3(1.0);
+  if (show_axis_z && grid_coord.x == origin_offset.x && grid_coord.y == origin_offset.y) {
+    axis_tag.z = 0.0;
   }
-  if (show_axis_y && grid_coord.y == origin_offset.y) {
-    axis_tag.x = 1.0;
+  if (show_axis_x && grid_coord.y == origin_offset.y && grid_coord.z == origin_offset.z) {
+    axis_tag.x = 0.0;
   }
-  if (show_axis_z && grid_coord.z == origin_offset.z) {
-    axis_tag.z = 1.0;
+  if (show_axis_y && grid_coord.z == origin_offset.z && grid_coord.x == origin_offset.x) {
+    axis_tag.y = 0.0;
   }
 
   float dist_to_cam, z_to_cam, view_angle;
