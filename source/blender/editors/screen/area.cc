@@ -16,6 +16,7 @@
 
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_math_vector.h"
 #include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
@@ -62,35 +63,49 @@
 
 static void header_edge_gradient(const ScrArea *area, const ARegion *region)
 {
+  float opaque[4];
+  UI_GetThemeColor4fv(TH_BACK, opaque);
+
+  const bool is_header = RGN_TYPE_IS_HEADER_ANY(region->regiontype);
   const bool is_topbar = (area->spacetype == SPACE_TOPBAR);
-  const bool is_header = (ELEM(region->regiontype,
-                               RGN_TYPE_HEADER,
-                               RGN_TYPE_TOOL_HEADER,
-                               RGN_TYPE_FOOTER,
-                               RGN_TYPE_ASSET_SHELF_HEADER));
   const bool is_outliner = area->spacetype == SPACE_OUTLINER &&
                            region->regiontype == RGN_TYPE_WINDOW;
-
   const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
                        (BLI_rcti_size_y(&region->v2d.mask) + 1);
 
-  float opaque[4];
-  UI_GetThemeColor4fv(is_topbar ? TH_BACK : TH_BLACK, opaque);
-  const float max_alpha = is_topbar ? 1.0f : is_header ? 0.4f : 0.3f;
-  opaque[3] = max_alpha;
+  if (region->regiontype == RGN_TYPE_NAV_BAR) {
+    UI_GetThemeColor4fv(TH_TAB_BACK, opaque);
+  }
+  else if (is_header) {
+    UI_GetThemeColor4fv(TH_HEADER, opaque);
+  }
+  else if (region->overlap && opaque[3] < 0.2f) {
+    if (region->regiontype == RGN_TYPE_TOOLS) {
+      const bTheme *btheme = UI_GetTheme();
+      const uiWidgetColors *wcol = &btheme->tui.wcol_toolbar_item;
+      rgba_uchar_to_float(opaque, wcol->inner);
+
+    }
+    else if (region->panels.first) {
+      UI_GetThemeColor4fv(TH_PANEL_BACK, opaque);
+    }
+  }
+
+  if (!is_topbar) {
+    mul_v3_fl(opaque, 0.85f);
+  }
+  opaque[3] = 1.0f;
 
   float transparent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
-  if (area->spacetype == SPACE_TOPBAR) {
-    UI_GetThemeColor3fv(TH_BACK, transparent);
-  }
+  copy_v3_v3(transparent, opaque);
+  transparent[3] = 0.0f;
 
   rctf rect{};
   int offset_x = 0;
   int width = BLI_rcti_size_x(&region->winrct) + 1;
   int height = BLI_rcti_size_y(&region->winrct) + 1;
-  const float gradient_width = (is_header ? 20.0f : 6.0f) * UI_SCALE_FAC;
-  const float transition = 30.0f * UI_SCALE_FAC;
-  const float padding = is_header ? (3 * UI_SCALE_FAC) : 0.0f;
+  const float gradient_width = (is_header ? 25.0f : 8.0f) * UI_SCALE_FAC;
+  const float transition = 40.0f * UI_SCALE_FAC;
 
   LISTBASE_FOREACH (Panel *, panel, &region->panels) {
     offset_x = std::max(panel->ofsx, offset_x);
@@ -111,20 +126,18 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
     /* Right Edge. */
     rect.xmax = offset_x + width;
     rect.xmin = offset_x + rect.xmax - gradient_width;
-    rect.ymin = padding;
-    rect.ymax = height - padding;
-    opaque[3] = max_alpha *
-                std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
+    rect.ymin = 3.0 * UI_SCALE_FAC;
+    rect.ymax = height;
+    opaque[3] = std::min((region->v2d.tot.xmax - region->v2d.cur.xmax) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 0.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.xmin > region->v2d.tot.xmin) {
     /* Left Edge. */
-    rect.xmin = offset_x + offset_x;
+    rect.xmin = offset_x;
     rect.xmax = offset_x + gradient_width;
-    rect.ymin = padding;
-    rect.ymax = height - padding;
-    opaque[3] = max_alpha *
-                std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
+    rect.ymin = 3.0 * UI_SCALE_FAC;
+    rect.ymax = height;
+    opaque[3] = std::min((region->v2d.cur.xmin - region->v2d.tot.xmin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 0.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.ymax < region->v2d.tot.ymax && !is_header) {
@@ -133,8 +146,7 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
     rect.xmax = offset_x + width;
     rect.ymax = height;
     rect.ymin = rect.ymax - gradient_width;
-    opaque[3] = max_alpha *
-                std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
+    opaque[3] = std::min((region->v2d.tot.ymax - region->v2d.cur.ymax) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, opaque, transparent, 1.0f, nullptr, 0.0f, 0.0f);
   }
   if (region->v2d.cur.ymin > region->v2d.tot.ymin && !is_header) {
@@ -143,8 +155,7 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
     rect.xmax = offset_x + width;
     rect.ymin = 0;
     rect.ymax = gradient_width;
-    opaque[3] = max_alpha *
-                std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
+    opaque[3] = std::min((region->v2d.cur.ymin - region->v2d.tot.ymin) / transition, 1.0f);
     UI_draw_roundbox_4fv_ex(&rect, transparent, opaque, 1.0f, nullptr, 0.0f, 0.0f);
   }
 }
