@@ -2149,7 +2149,8 @@ static void rna_def_userdef_theme_common(BlenderRNA *brna)
   rna_def_userdef_theme_common_anim(brna);
 
   srna = RNA_def_struct(brna, "ThemeCommon", nullptr);
-  RNA_def_struct_ui_text(srna, "Common Theme Properties", "Theme properties shared by different editors");
+  RNA_def_struct_ui_text(
+      srna, "Common Theme Properties", "Theme properties shared by different editors");
 
   prop = RNA_def_property(srna, "anim", PROP_POINTER, PROP_NONE);
   RNA_def_property_flag(prop, PROP_NEVER_NULL);
@@ -4461,7 +4462,7 @@ static void rna_def_userdef_themes(BlenderRNA *brna)
   static const EnumPropertyItem active_theme_area[] = {
       {0, "USER_INTERFACE", ICON_WORKSPACE, "User Interface", ""},
       {19, "STYLE", ICON_FONTPREVIEW, "Text Style", ""},
-      {24, "COMMON", ICON_OVERLAY, "Common", ""},
+      {25, "COMMON", ICON_OVERLAY, "Common", ""},
       {24, "ASSET_SHELF", ICON_ASSET_MANAGER, "Asset Shelf", ""},
       {1, "VIEW_3D", ICON_VIEW3D, "3D Viewport", ""},
       {4, "DOPESHEET_EDITOR", ICON_ACTION, "Dope Sheet/Timeline", ""},
