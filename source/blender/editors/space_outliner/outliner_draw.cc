@@ -3739,7 +3739,7 @@ static void outliner_draw_highlights(const ARegion *region,
                                      const float col_active[4],
                                      const float col_highlight[4],
                                      const float col_searchmatch[4],
-                                     int start_x,
+                                     int /* start_x */,
                                      int *io_start_y)
 {
   const bool is_searching = (SEARCHING_OUTLINER(space_outliner) ||
@@ -3775,8 +3775,6 @@ static void outliner_draw_highlights(const ARegion *region,
 
     /* Highlights. */
     if (tselem->flag & (TSE_DRAG_ANY | TSE_HIGHLIGHTED | TSE_SEARCHMATCH)) {
-      const int end_x = int(region->v2d.cur.xmax);
-
       if (tselem->flag & TSE_DRAG_ANY) {
         /* Drag and drop highlight. */
         float col_outline[4];
