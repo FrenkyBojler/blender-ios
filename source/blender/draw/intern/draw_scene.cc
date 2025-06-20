@@ -68,12 +68,9 @@ void foreach_obref_in_scene(DRWContext &draw_ctx,
 
   DEG_OBJECT_ITER_BEGIN (&deg_iter_settings, ob) {
 
-#if 0
-    /* TODO: Not accesible from here. */
-    if (ob->type != OB_MBALL && deg_object_hide_original(eval_mode, ob, nullptr)) {
+    if (ob->type != OB_MBALL && DEG_iterator_object_hide_original(eval_mode, ob, nullptr)) {
       continue;
     }
-#endif
 
     int visibility = BKE_object_visibility(ob, eval_mode);
     bool ob_visible = visibility & (OB_VISIBLE_SELF | OB_VISIBLE_PARTICLES);

@@ -77,29 +77,6 @@ void ensure_id_properties_freed(const Object *dupli_object, Object *temp_dupli_o
   temp_dupli_object->id.properties = nullptr;
 }
 
-bool deg_object_hide_original(eEvaluationMode eval_mode, const Object *ob, const DupliObject *dob)
-{
-  /* Automatic hiding if this object is being instanced on verts/faces/frames
-   * by its parent. Ideally this should not be needed, but due to the wrong
-   * dependency direction in the data design there is no way to keep the object
-   * visible otherwise. The better solution eventually would be for objects
-   * to specify which object they instance, instead of through parenting.
-   *
-   * This function should not be used for meta-balls. They have custom visibility rules, as hiding
-   * the base meta-ball will also hide all the other balls in the group. */
-  if (eval_mode == DAG_EVAL_RENDER || dob) {
-    const int hide_original_types = OB_DUPLIVERTS | OB_DUPLIFACES;
-
-    if (!dob || !(dob->type & hide_original_types)) {
-      if (ob->parent && (ob->parent->transflag & hide_original_types)) {
-        return true;
-      }
-    }
-  }
-
-  return false;
-}
-
 void deg_iterator_duplis_init(DEGObjectIterData *data, Object *object)
 {
   data->dupli_parent = object;
@@ -251,7 +228,9 @@ bool deg_iterator_objects_step(DEGObjectIterData *data)
     if (data->flag & DEG_ITER_OBJECT_FLAG_VISIBLE) {
       ob_visibility = BKE_object_visibility(object, data->eval_mode);
 
-      if (object->type != OB_MBALL && deg_object_hide_original(data->eval_mode, object, nullptr)) {
+      if (object->type != OB_MBALL &&
+          DEG_iterator_object_hide_original(data->eval_mode, object, nullptr))
+      {
         continue;
       }
     }
@@ -478,6 +457,31 @@ void DEG_iterator_ids_next(BLI_Iterator *iter)
 
 void DEG_iterator_ids_end(BLI_Iterator * /*iter*/) {}
 
+bool DEG_iterator_object_hide_original(eEvaluationMode eval_mode,
+                                       const Object *ob,
+                                       const DupliObject *dob)
+{
+  /* Automatic hiding if this object is being instanced on verts/faces/frames
+   * by its parent. Ideally this should not be needed, but due to the wrong
+   * dependency direction in the data design there is no way to keep the object
+   * visible otherwise. The better solution eventually would be for objects
+   * to specify which object they instance, instead of through parenting.
+   *
+   * This function should not be used for meta-balls. They have custom visibility rules, as hiding
+   * the base meta-ball will also hide all the other balls in the group. */
+  if (eval_mode == DAG_EVAL_RENDER || dob) {
+    const int hide_original_types = OB_DUPLIVERTS | OB_DUPLIFACES;
+
+    if (!dob || !(dob->type & hide_original_types)) {
+      if (ob->parent && (ob->parent->transflag & hide_original_types)) {
+        return true;
+      }
+    }
+  }
+
+  return false;
+}
+
 bool DEG_iterator_should_skip_dupli(eEvaluationMode eval_mode, const DupliObject *dob)
 {
   if (dob->no_draw) {
@@ -486,7 +490,7 @@ bool DEG_iterator_should_skip_dupli(eEvaluationMode eval_mode, const DupliObject
   if (dob->ob_data && GS(dob->ob_data->name) == ID_MB) {
     return true;
   }
-  if (dob->ob->type != OB_MBALL && deg_object_hide_original(eval_mode, dob->ob, dob)) {
+  if (dob->ob->type != OB_MBALL && DEG_iterator_object_hide_original(eval_mode, dob->ob, dob)) {
     return true;
   }
 
