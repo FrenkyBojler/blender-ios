@@ -899,11 +899,11 @@ static void eval_positions(const ConstraintEvalParams &params,
     }
     else {
       const float3 weight_rot = math::safe_rcp(params.local_inertia[point]);
-      const float alpha = alphas[index] * params.inv_delta_time_squared;
+      const float3 alpha = alphas[index] * params.inv_delta_time_squared;
       eval_rotation_goal2<linearized_quaternion>(weight_rot,
                                                  goal,
                                                  alpha,
-                                                 0.0f,
+                                                 float3(0.0f),
                                                  lambda,
                                                  rotations[point],
                                                  math::Quaternion::identity(),
