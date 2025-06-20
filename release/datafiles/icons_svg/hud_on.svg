@@ -24,7 +24,7 @@
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
      inkscape:zoom="0.251875"
-     inkscape:cx="674.93797"
+     inkscape:cx="440.69479"
      inkscape:cy="1002.4814"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
@@ -46,10 +46,11 @@
   <g
      fill="#ffffff"
      transform="matrix(0,100,-100,0,66200.253,-29899.758)"
-     id="g1">
+     id="g1"
+     style="fill:#ffffff;fill-opacity:0.80000001">
     <path
        id="path3"
-       style="opacity:1;fill:#ffffff;fill-opacity:1"
+       style="opacity:1;fill:#ffffff;fill-opacity:0.80000001"
        d="m 312.50001,661.00486 c 0.82235,0 1.5,-0.67765 1.5,-1.5 V 648.5 c 0,-0.82235 -0.67765,-1.5 -1.5,-1.5 h -11 c -0.82235,0 -1.5,0.67765 -1.5,1.5 v 11.00486 c 0,0.82235 0.67765,1.5 1.5,1.5 z m 0.5,-1 h -12 v -11.99474 h 12 z"
        sodipodi:nodetypes="sssssssssccccc" />
   </g>
@@ -61,7 +62,7 @@
     <path
        id="path3-8"
        style="opacity:1;fill:#ffffff;fill-opacity:1"
-       d="m 313.64145,661.00486 0.0112,-3.99866 -6,-0.01 -0.009,4.00858 z"
+       d="m 313.64641,661.00486 0.001,-5.00114 -6,-8e-5 -0.004,5.00114 z"
        sodipodi:nodetypes="ccccc" />
   </g>
 </svg>
