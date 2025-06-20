@@ -15,8 +15,6 @@
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_to_mesh.hh"
 
-#include "UI_interface.hh"
-
 #include "GEO_randomize.hh"
 
 namespace blender::nodes::node_geo_volume_to_mesh_cc {
@@ -71,10 +69,8 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static bke::VolumeToMeshResolution get_resolution_param(const GeoNodeExecParams &params)
 {
-  const NodeGeometryVolumeToMesh &storage = node_storage(params.node());
-
   bke::VolumeToMeshResolution resolution;
-  resolution.mode = (VolumeToMeshResolutionMode)storage.resolution_mode;
+  resolution.mode = params.get_input<VolumeToMeshResolutionMode>("Resolution Mode");
   if (resolution.mode == VOLUME_TO_MESH_RESOLUTION_MODE_VOXEL_AMOUNT) {
     resolution.settings.voxel_amount = std::max(params.get_input<float>("Voxel Amount"), 0.0f);
   }
