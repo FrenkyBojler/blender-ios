@@ -77,16 +77,8 @@ void RNA_def_struct_refine_func(StructRNA *srna, const char *refine);
 void RNA_def_struct_idprops_func(StructRNA *srna, const char *idproperties);
 /**
  * Define the callback to access the struct's system IDProperty root.
- *
- * \param generate_rna_property If `true`, also generate a `PropertyGroup` RNA pointer property, to
- * give access to the system properties through the 'dict-like' `bl_system_properties` member.
- * There are a few cases where this is not desired, see e.g.
- * #rna_def_ID_properties/#rna_def_idproperty_wrap_ptr for PropertyGroup, and #rna_def_operator for
- * Operator types.
  */
-void RNA_def_struct_system_idprops_func(StructRNA *srna,
-                                        const char *system_idproperties,
-                                        bool generate_rna_property);
+void RNA_def_struct_system_idprops_func(StructRNA *srna, const char *system_idproperties);
 void RNA_def_struct_register_funcs(StructRNA *srna,
                                    const char *reg,
                                    const char *unreg,

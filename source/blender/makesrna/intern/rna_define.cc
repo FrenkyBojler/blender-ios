@@ -1214,22 +1214,13 @@ void RNA_def_struct_idprops_func(StructRNA *srna, const char *idproperties)
 }
 
 #ifdef RNA_RUNTIME
-PointerRNA rna_struct_system_properties_get(PointerRNA *ptr)
+IDPropertyGroup *rna_struct_system_properties_get_func(PointerRNA ptr, bool do_create)
 {
-  IDProperty *system_idprops_root = RNA_struct_system_idprops(ptr, false);
-
-  return RNA_pointer_create_with_parent(*ptr, &RNA_PropertyGroup, system_idprops_root);
-}
-
-void rna_struct_system_properties_ensure_func(PointerRNA ptr)
-{
-  RNA_struct_system_idprops(&ptr, true);
+  return reinterpret_cast<IDPropertyGroup *>(RNA_struct_system_idprops(&ptr, do_create));
 }
 #endif
 
-void RNA_def_struct_system_idprops_func(StructRNA *srna,
-                                        const char *system_idproperties,
-                                        const bool generate_rna_property)
+void RNA_def_struct_system_idprops_func(StructRNA *srna, const char *system_idproperties)
 {
   if (!DefRNA.preprocess) {
     CLOG_ERROR(&LOG, "only during preprocessing.");
@@ -1242,35 +1233,27 @@ void RNA_def_struct_system_idprops_func(StructRNA *srna,
   srna->system_idproperties = reinterpret_cast<IDPropertiesFunc>(
       const_cast<char *>(system_idproperties));
 
-  if (!generate_rna_property) {
-    return;
-  }
-  PropertyRNA *prop = RNA_def_pointer(
-      srna,
-      "bl_system_properties",
-      "PropertyGroup",
-      "System Properties Storage",
+  FunctionRNA *func = RNA_def_function(
+      srna, "bl_system_properties_get", "rna_struct_system_properties_get_func");
+  RNA_def_function_ui_description(
+      func,
       "DEBUG ONLY. Internal access to runtime-defined RNA data storage, intended solely for "
       "testing and debugging purposes. Do not access it in regular scripting work, and in "
       "particular, do not assume that it contains writable data");
-  RNA_def_property_pointer_funcs(
-      prop, "rna_struct_system_properties_get", nullptr, nullptr, nullptr);
-  /* These IDProperties should never be used directly, but only accessed through their RNA property
-   * wrappers. As such, they should never be used when comparing two different RNA data. */
-  RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
-
-  /* NOTE: Since, unlike 'user properties', the owner RNA data is not used directly as a dict-like
-   * object, trying to do so directly on a not-yet-created `bl_system_properties` in Python will
-   * generate errors, as `bl_system_properties` is still `None` in that case.
-   *
-   * (Debug or test) scripts that need to create such system properties must then call
-   * `bl_system_properties_ensure()` first.
-   */
-  FunctionRNA *func = RNA_def_function(
-      srna, "bl_system_properties_ensure", "rna_struct_system_properties_ensure_func");
-  RNA_def_function_ui_description(
-      func, "DEBUG ONLY. Ensure that the data contains an initialized system properties storage");
   RNA_def_function_flag(func, FUNC_SELF_AS_RNA);
+  RNA_def_boolean(func,
+                  "do_create",
+                  false,
+                  "",
+                  "Ensure that system properties are created if they do not exist yet");
+  PropertyRNA *prop = RNA_def_pointer(
+      func,
+      "system_properties",
+      "PropertyGroup",
+      "",
+      "The system properties root container, or None if there are no system properties stored in "
+      "this data yet, and its creation was not rquested");
+  RNA_def_function_return(func, prop);
 }
 
 void RNA_def_struct_register_funcs(StructRNA *srna,
