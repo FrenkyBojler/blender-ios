@@ -472,7 +472,12 @@ struct Behavior {
     Field<float> stretch_damping = field_constants::constant_field<float>(0.0f);
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
-  } rod_constraints;
+  } curve_constraints;
+
+  struct {
+    Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
+    Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
+  } root_constraints;
 };
 
 static Behavior separate_behavior_bundle(const BundlePtr &bundle)
@@ -488,6 +493,20 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
   }
   if (auto material = get_from_bundle<BundlePtr>(bundle, "Material")) {
     get_from_bundle(*material, "Density", behavior.material.density);
+  }
+  if (auto curve_constraints = get_from_bundle<BundlePtr>(bundle, "Curve Constraints")) {
+    get_from_bundle(
+        *curve_constraints, "Stretch Compliance", behavior.curve_constraints.stretch_compliance);
+    get_from_bundle(
+        *curve_constraints, "Stretch Damping", behavior.curve_constraints.stretch_damping);
+    get_from_bundle(
+        *curve_constraints, "Bend Compliance", behavior.curve_constraints.bend_compliance);
+    get_from_bundle(*curve_constraints, "Bend Damping", behavior.curve_constraints.bend_damping);
+  }
+  if (auto root_constraints = get_from_bundle<BundlePtr>(bundle, "Root Constraints")) {
+    get_from_bundle(
+        *root_constraints, "Bend Compliance", behavior.root_constraints.bend_compliance);
+    get_from_bundle(*root_constraints, "Bend Damping", behavior.root_constraints.bend_damping);
   }
 
   return behavior;
@@ -575,15 +594,15 @@ static void generate_elastic_rod_constraints(BundlePtr &bundle,
       geometry::hair_constraints::create_stretch_shear_constraints_from_curves(
           component,
           selection_field,
-          behavior.rod_constraints.stretch_compliance,
-          behavior.rod_constraints.stretch_damping,
+          behavior.curve_constraints.stretch_compliance,
+          behavior.curve_constraints.stretch_damping,
           field_inputs::rest_position());
   GeometrySet bending_constraints =
       geometry::hair_constraints::create_bend_twist_constraints_from_curves(
           component,
           selection_field,
-          behavior.rod_constraints.bend_compliance,
-          behavior.rod_constraints.bend_damping,
+          behavior.curve_constraints.bend_compliance,
+          behavior.curve_constraints.bend_damping,
           field_inputs::rest_rotation());
 
   hair_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
@@ -596,16 +615,21 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
                                                  const Field<bool> selection_field,
                                                  const Behavior &behavior)
 {
-  // GeometrySet position_constraints =
-  //     geometry::hair_constraints::create_position_goal_constraints_from_points(
-  //         component,
-  //         selection_field,
-  //         field_constants::constant_field<float>(0.0f),
-  //         field_constants::constant_field<float>(0.0f), );
-  // GeometrySet rotation_constraints;
+  GeometrySet position_constraints =
+      geometry::hair_constraints::create_position_goal_constraints_from_points(
+          component,
+          selection_field,
+          field_constants::constant_field<float>(0.0f),
+          field_constants::constant_field<float>(0.0f));
+  GeometrySet rotation_constraints =
+      geometry::hair_constraints::create_rotation_goal_constraints_from_points(
+          component,
+          selection_field,
+          behavior.root_constraints.bend_compliance,
+          behavior.root_constraints.bend_damping);
 
-  // hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
-  // hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
+  hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
+  hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
 }
 
 /* Capture motions state attribute for later velocity estimation. */

@@ -78,7 +78,7 @@ GeometrySet create_position_goal_constraints(const IndexMask &selection,
 }
 
 GeometrySet create_rotation_goal_constraints(const IndexMask &selection,
-                                             const VArray<float> &compliance,
+                                             const VArray<float3> &compliance,
                                              const VArray<float> &damping,
                                              const VArray<math::Quaternion> &goal_rotation)
 {
@@ -86,8 +86,8 @@ GeometrySet create_rotation_goal_constraints(const IndexMask &selection,
   MutableAttributeAccessor attributes = points->attributes_for_write();
   SpanAttributeWriter<int> output_point1 = attributes.lookup_or_add_for_write_only_span<int>(
       ATTR_POINT1, AttrDomain::Point);
-  SpanAttributeWriter<float> output_compliance =
-      attributes.lookup_or_add_for_write_only_span<float>(ATTR_ALPHA, AttrDomain::Point);
+  SpanAttributeWriter<float3> output_compliance =
+      attributes.lookup_or_add_for_write_only_span<float3>(ATTR_ALPHA, AttrDomain::Point);
   SpanAttributeWriter<float> output_damping = attributes.lookup_or_add_for_write_only_span<float>(
       ATTR_BETA, AttrDomain::Point);
   SpanAttributeWriter<math::Quaternion> output_goal_rotation =
@@ -277,48 +277,71 @@ bke::GeometrySet create_position_goal_constraints_from_points(
     const bke::GeometryComponent &component,
     const fn::Field<bool> &selection_field,
     const fn::Field<float> &compliance_field,
-    const fn::Field<float> &damping_field,
-    const fn::Field<float3> &goal_position_field)
+    const fn::Field<float> &damping_field)
 {
+  const int num_points = component.attribute_domain_size(AttrDomain::Point);
   bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
+  fn::FieldEvaluator evaluator{context, num_points};
   evaluator.set_selection(selection_field);
   evaluator.add(compliance_field);
   evaluator.add(damping_field);
-  evaluator.add(goal_position_field);
   evaluator.evaluate();
 
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
   const VArray<float> compliance = evaluator.get_evaluated<float>(0);
   const VArray<float> damping = evaluator.get_evaluated<float>(1);
-  const VArray<float3> goal_position = evaluator.get_evaluated<float3>(2);
+  const VArray<float3> goal_position = VArray<float3>::ForSingle(float3(0.0f), num_points);
 
   return geometry::hair_constraints::create_position_goal_constraints(
       selection, compliance, damping, goal_position);
 }
 
+void update_position_goal_constraints(bke::GeometrySet &constraints,
+                                      const fn::Field<bool> &selection_field,
+                                      const fn::Field<float3> &goal_position_field)
+{
+  if (!constraints.has_pointcloud()) {
+    return;
+  }
+  PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
+  bke::try_capture_field_on_geometry(
+      component, "goal_position", AttrDomain::Point, selection_field, goal_position_field);
+}
+
 bke::GeometrySet create_rotation_goal_constraints_from_points(
     const bke::GeometryComponent &component,
     const fn::Field<bool> &selection_field,
-    const fn::Field<float> &compliance_field,
-    const fn::Field<float> &damping_field,
-    const fn::Field<math::Quaternion> &goal_rotation_field)
+    const fn::Field<float3> &compliance_field,
+    const fn::Field<float> &damping_field)
 {
+  const int num_points = component.attribute_domain_size(AttrDomain::Point);
   bke::GeometryFieldContext context{component, AttrDomain::Point};
-  fn::FieldEvaluator evaluator{context, component.attribute_domain_size(AttrDomain::Point)};
+  fn::FieldEvaluator evaluator{context, num_points};
   evaluator.set_selection(selection_field);
   evaluator.add(compliance_field);
   evaluator.add(damping_field);
-  evaluator.add(goal_rotation_field);
   evaluator.evaluate();
 
   const IndexMask selection = evaluator.get_evaluated_selection_as_mask();
-  const VArray<float> compliance = evaluator.get_evaluated<float>(0);
+  const VArray<float3> compliance = evaluator.get_evaluated<float3>(0);
   const VArray<float> damping = evaluator.get_evaluated<float>(1);
-  const VArray<math::Quaternion> goal_rotation = evaluator.get_evaluated<math::Quaternion>(2);
+  const VArray<math::Quaternion> goal_rotation = VArray<math::Quaternion>::ForSingle(
+      math::Quaternion::identity(), num_points);
 
   return geometry::hair_constraints::create_rotation_goal_constraints(
       selection, compliance, damping, goal_rotation);
+}
+
+void update_rotation_goal_constraints(bke::GeometrySet &constraints,
+                                      const fn::Field<bool> &selection_field,
+                                      const fn::Field<math::Quaternion> &goal_rotation_field)
+{
+  if (!constraints.has_pointcloud()) {
+    return;
+  }
+  PointCloudComponent &component = constraints.get_component_for_write<PointCloudComponent>();
+  bke::try_capture_field_on_geometry(
+      component, "goal_rotation", AttrDomain::Point, selection_field, goal_rotation_field);
 }
 
 bke::GeometrySet create_stretch_shear_constraints_from_curves(

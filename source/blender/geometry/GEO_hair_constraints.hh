@@ -59,15 +59,21 @@ bke::GeometrySet create_position_goal_constraints_from_points(
     const bke::GeometryComponent &component,
     const fn::Field<bool> &selection_field,
     const fn::Field<float> &compliance_field,
-    const fn::Field<float> &damping_field,
-    const fn::Field<float3> &goal_position_field);
+    const fn::Field<float> &damping_field);
+
+void update_position_goal_constraints(bke::GeometrySet &constraints,
+                                      const fn::Field<bool> &selection_field,
+                                      const fn::Field<float3> &goal_position_field);
 
 bke::GeometrySet create_rotation_goal_constraints_from_points(
     const bke::GeometryComponent &component,
     const fn::Field<bool> &selection_field,
-    const fn::Field<float> &compliance_field,
-    const fn::Field<float> &damping_field,
-    const fn::Field<math::Quaternion> &goal_rotation_field);
+    const fn::Field<float3> &compliance_field,
+    const fn::Field<float> &damping_field);
+
+void update_rotation_goal_constraints(bke::GeometrySet &constraints,
+                                      const fn::Field<bool> &selection_field,
+                                      const fn::Field<math::Quaternion> &goal_rotation_field);
 
 bke::GeometrySet create_stretch_shear_constraints_from_curves(
     const bke::CurveComponent &component,

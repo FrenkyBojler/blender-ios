@@ -37,8 +37,6 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
   b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
-  b.add_input<decl::Vector>("Goal").field_on_all().description(
-      "Target location of the constraint");
 
   b.add_output<decl::Geometry>("Constraints");
 }
@@ -56,8 +54,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                         *geometry.get_component<CurveComponent>(),
                         params.extract_input<Field<bool>>("Selection"),
                         params.extract_input<Field<float>>("Compliance"),
-                        params.extract_input<Field<float>>("Damping"),
-                        params.extract_input<Field<float3>>("Goal")));
+                        params.extract_input<Field<float>>("Damping")));
 }
 
 static void node_register()
@@ -83,10 +80,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Geometry>("Curves").supported_type(GeometryComponent::Type::Curve);
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
 
-  b.add_input<decl::Float>("Compliance").min(0.0f).field_on_all();
+  b.add_input<decl::Vector>("Compliance").min(0.0f).field_on_all();
   b.add_input<decl::Float>("Damping").min(0.0f).field_on_all();
-  b.add_input<decl::Rotation>("Goal").field_on_all().description(
-      "Target rotation of the constraint");
 
   b.add_output<decl::Geometry>("Constraints");
 }
@@ -103,9 +98,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                     geometry::hair_constraints::create_rotation_goal_constraints_from_points(
                         *geometry.get_component<CurveComponent>(),
                         params.extract_input<Field<bool>>("Selection"),
-                        params.extract_input<Field<float>>("Compliance"),
-                        params.extract_input<Field<float>>("Damping"),
-                        params.extract_input<Field<math::Quaternion>>("Goal")));
+                        params.extract_input<Field<float3>>("Compliance"),
+                        params.extract_input<Field<float>>("Damping")));
 }
 
 static void node_register()
