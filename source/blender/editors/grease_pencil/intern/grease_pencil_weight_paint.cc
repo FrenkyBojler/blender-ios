@@ -1230,8 +1230,8 @@ static void init_weight_gradient_tool(const bContext &C,
   tool.object = CTX_data_active_object(&C);
   tool.grease_pencil = static_cast<GreasePencil *>(tool.object->data);
   tool.brush = BKE_paint_brush(paint);
-  tool.brush_strength = BKE_brush_alpha_get(&scene, tool.brush);
-  tool.brush_weight = BKE_brush_weight_get(&scene, tool.brush);
+  tool.brush_strength = BKE_brush_alpha_get(paint, tool.brush);
+  tool.brush_weight = BKE_brush_weight_get(paint, tool.brush);
 
   BKE_curvemapping_init(tool.brush->curve);
 
