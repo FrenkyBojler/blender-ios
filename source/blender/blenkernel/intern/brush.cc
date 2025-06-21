@@ -280,6 +280,12 @@ static void brush_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   }
 
   BKE_previewimg_blend_write(writer, brush->preview);
+
+  /* Restore original values after writing, so current working file is not affected. Despite this
+   * data working off of a local copy, reverting can cause the user to encounter issues when using
+   * brush assets stored in the current mainfile. */
+  brush->size /= 2;
+  brush->unprojected_radius /= 2.0f;
 }
 
 static void brush_blend_read_data(BlendDataReader *reader, ID *id)
