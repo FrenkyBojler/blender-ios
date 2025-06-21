@@ -1246,14 +1246,14 @@ void RNA_def_struct_system_idprops_func(StructRNA *srna, const char *system_idpr
                   false,
                   "",
                   "Ensure that system properties are created if they do not exist yet");
-  PropertyRNA *prop = RNA_def_pointer(
+  PropertyRNA *parm = RNA_def_pointer(
       func,
       "system_properties",
       "PropertyGroup",
       "",
       "The system properties root container, or None if there are no system properties stored in "
       "this data yet, and its creation was not rquested");
-  RNA_def_function_return(func, prop);
+  RNA_def_function_return(func, parm);
 }
 
 void RNA_def_struct_register_funcs(StructRNA *srna,
