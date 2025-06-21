@@ -232,7 +232,7 @@ void average_data_grids(const SubdivCCG &subdiv_ccg,
                             CCG_grid_xy_to_index(key.grid_size, neighbor.x, neighbor.y);
           sum += src[index];
         }
-        dst[node_vert_index] = math::safe_divide(sum, neighbors.coords.size());
+        dst[node_vert_index] = math::safe_divide(sum, float(neighbors.coords.size()));
       }
     }
   }
@@ -250,7 +250,7 @@ void average_data_bmesh(const Span<T> src, const Set<BMVert *, 0> &verts, const 
     for (const BMVert *neighbor : neighbors) {
       sum += src[BM_elem_index_get(neighbor)];
     }
-    dst[i] = math::safe_divide(sum, neighbors.size());
+    dst[i] = math::safe_divide(sum, float(neighbors.size()));
     i++;
   }
 }
