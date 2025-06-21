@@ -203,94 +203,56 @@ static void area_draw_azone(short /*x1*/, short /*y1*/, short /*x2*/, short /*y2
 /**
  * \brief Edge widgets to show hidden panels such as the toolbar and headers.
  */
-static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge)
+static void draw_azone_arrow(AZone *az)
 {
-  const float size = 0.2f * U.widget_unit;
-  const float l = 1.0f;  /* arrow length */
-  const float s = 0.25f; /* arrow thickness */
-  const float hl = l / 2.0f;
-  const float points[6][2] = {
-      {0, -hl}, {l, hl}, {l - s, hl + s}, {0, s + s - hl}, {s - l, hl + s}, {-l, hl}};
-  const float center[2] = {(x1 + x2) / 2, (y1 + y2) / 2};
+  rctf rect{float(az->x1), float(az->x2), float(az->y1), float(az->y2)};
+  const float line_width = 2.0f * U.pixelsize;
+  const float shadow_width = 2.0f * U.pixelsize;
+  const float width = line_width + (2.0f * shadow_width);
+  const float offset = shadow_width;
 
-  int axis;
-  int sign;
-  switch (edge) {
+  switch (az->edge) {
     case AE_BOTTOM_TO_TOPLEFT:
-      axis = 0;
-      sign = 1;
+      rect.ymin = rect.ymax - width;
+      if (az->active) {
+        rect.xmin = az->region->winrct.xmin + EDITORRADIUS;
+        rect.xmax = az->region->winrct.xmax - EDITORRADIUS;
+      }
+      BLI_rctf_translate(&rect, 0.0f, -offset);
       break;
     case AE_TOP_TO_BOTTOMRIGHT:
-      axis = 0;
-      sign = -1;
+      rect.ymax = rect.ymin + width;
+      if (az->active) {
+        rect.xmin = az->region->winrct.xmin + EDITORRADIUS;
+        rect.xmax = az->region->winrct.xmax - EDITORRADIUS;
+      }
+      BLI_rctf_translate(&rect, 0.0f, offset);
       break;
     case AE_LEFT_TO_TOPRIGHT:
-      axis = 1;
-      sign = 1;
+      rect.xmin = rect.xmax - width;
+      if (az->active) {
+        rect.ymin = az->region->winrct.ymin + EDITORRADIUS;
+        rect.ymax = az->region->winrct.ymax - EDITORRADIUS;
+      }
+      BLI_rctf_translate(&rect, -offset, 0.0f);
       break;
     case AE_RIGHT_TO_TOPLEFT:
-      axis = 1;
-      sign = -1;
+      rect.xmax = rect.xmin + width;
+      if (az->active) {
+        rect.ymin = az->region->winrct.ymin + EDITORRADIUS;
+        rect.ymax = az->region->winrct.ymax - EDITORRADIUS;
+      }
+      BLI_rctf_translate(&rect, offset, 0.0f);
       break;
     default:
       BLI_assert(0);
       return;
   }
 
-  GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-
-  GPU_blend(GPU_BLEND_ALPHA);
-  immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-  immUniformColor4f(0.8f, 0.8f, 0.8f, 0.4f);
-
-  immBegin(GPU_PRIM_TRI_FAN, 6);
-  for (int i = 0; i < 6; i++) {
-    if (axis == 0) {
-      immVertex2f(pos, center[0] + points[i][0] * size, center[1] + points[i][1] * sign * size);
-    }
-    else {
-      immVertex2f(pos, center[0] + points[i][1] * sign * size, center[1] + points[i][0] * size);
-    }
-  }
-  immEnd();
-
-  immUnbindProgram();
-  GPU_blend(GPU_BLEND_NONE);
-}
-
-static void region_draw_azone_tab_arrow(ScrArea *area, ARegion *region, AZone *az)
-{
-  GPU_blend(GPU_BLEND_ALPHA);
-
-  /* add code to draw region hidden as 'too small' */
-  switch (az->edge) {
-    case AE_TOP_TO_BOTTOMRIGHT:
-      UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_TOP_RIGHT);
-      break;
-    case AE_BOTTOM_TO_TOPLEFT:
-      UI_draw_roundbox_corner_set(UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT);
-      break;
-    case AE_LEFT_TO_TOPRIGHT:
-      UI_draw_roundbox_corner_set(UI_CNR_TOP_LEFT | UI_CNR_BOTTOM_LEFT);
-      break;
-    case AE_RIGHT_TO_TOPLEFT:
-      UI_draw_roundbox_corner_set(UI_CNR_TOP_RIGHT | UI_CNR_BOTTOM_RIGHT);
-      break;
-  }
-
-  /* Workaround for different color spaces between normal areas and the ones using GPUViewports. */
-  float alpha = WM_region_use_viewport(area, region) ? 0.6f : 0.4f;
-  const float color[4] = {0.05f, 0.05f, 0.05f, alpha};
-  rctf rect{};
-  /* Hit size is a bit larger than visible background. */
-  rect.xmin = float(az->x1) + U.pixelsize;
-  rect.xmax = float(az->x2) - U.pixelsize;
-  rect.ymin = float(az->y1) + U.pixelsize;
-  rect.ymax = float(az->y2) - U.pixelsize;
-  UI_draw_roundbox_aa(&rect, true, 4.0f, color);
-
-  draw_azone_arrow(float(az->x1), float(az->y1), float(az->x2), float(az->y2), az->edge);
+  float inner[4] = {1.0f, 1.0f, 1.0f, 0.2f};
+  float outline[4] = {0.0f, 0.0f, 0.0f, 0.2f};
+  UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  UI_draw_roundbox_4fv_ex(&rect, inner, nullptr, 1.0f, outline, shadow_width, 2.5f * UI_SCALE_FAC);
 }
 
 static void area_azone_tag_update(ScrArea *area)
@@ -323,7 +285,7 @@ static void region_draw_azones(ScrArea *area, ARegion *region)
         if (az->region && !(az->region->flag & RGN_FLAG_POLL_FAILED)) {
           /* only display tab or icons when the region is hidden */
           if (az->region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_TOO_SMALL)) {
-            region_draw_azone_tab_arrow(area, region, az);
+            draw_azone_arrow(az);
           }
         }
       }
@@ -1155,7 +1117,7 @@ static void region_azone_edge(const ScrArea *area, AZone *az, const ARegion *reg
 static void region_azone_tab_plus(ScrArea *area, AZone *az, ARegion *region)
 {
   float edge_offset = 1.0f;
-  const float tab_size_x = 1.0f * U.widget_unit;
+  const float tab_size_x = 2.0f * U.widget_unit;
   const float tab_size_y = 0.5f * U.widget_unit;
 
   switch (az->edge) {

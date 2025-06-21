@@ -283,25 +283,25 @@ void screen_draw_region_scale_highlight(ARegion *region)
 
   switch (region->alignment) {
     case RGN_ALIGN_RIGHT:
-      rect.xmax = rect.xmin - U.pixelsize;
+      rect.xmax = rect.xmin - (2.0f * U.pixelsize);
       rect.xmin = rect.xmax - (4.0f * U.pixelsize);
       rect.ymax -= EDITORRADIUS;
       rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_LEFT:
-      rect.xmin = rect.xmax + U.pixelsize;
+      rect.xmin = rect.xmax + (2.0f * U.pixelsize);
       rect.xmax = rect.xmin + (4.0f * U.pixelsize);
       rect.ymax -= EDITORRADIUS;
       rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_TOP:
-      rect.ymax = rect.ymin - U.pixelsize;
+      rect.ymax = rect.ymin - (2.0f * U.pixelsize);
       rect.ymin = rect.ymax - (4.0f * U.pixelsize);
       rect.xmax -= EDITORRADIUS;
       rect.xmin += EDITORRADIUS;
       break;
     case RGN_ALIGN_BOTTOM:
-      rect.ymin = rect.ymax + U.pixelsize;
+      rect.ymin = rect.ymax + (2.0f * U.pixelsize);
       rect.ymax = rect.ymin + (4.0f * U.pixelsize);
       rect.xmax -= EDITORRADIUS;
       rect.xmin += EDITORRADIUS;
