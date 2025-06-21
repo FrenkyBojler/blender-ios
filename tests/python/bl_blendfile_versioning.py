@@ -352,7 +352,7 @@ class TestBlendFileOpenLinkSaveAllTestFiles(TestHelper):
             print(f"Removing {tmp_save_path}", flush=True)
         bpy.ops.wm.read_homefile(use_empty=True, use_factory_startup=True)
         # For some reasons, this can fail randomely... Juts ignore, this is only here to cleanup
-        # the hundreds of written files, not worth failing the test if it cannot be removed. 
+        # the hundreds of written files, not worth failing the test if it cannot be removed.
         if os.path.exists(tmp_save_path):
             os.remove(tmp_save_path)
         # The 'backup' blendfile created when resaving over an exisitng one.
