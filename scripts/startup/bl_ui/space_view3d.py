@@ -9023,15 +9023,26 @@ class VIEW3D_PT_viewport_debug(Panel):
 
         layout.prop(overlay, "grid_topology")
         if overlay.grid_topology:
+            layout.use_property_split = True
             layout.prop(overlay, "grid_name")
-            layout.prop(overlay, "grid_topology_root_nodes")
-            layout.prop(overlay, "grid_topology_disabled_root_nodes")
 
-            layout.prop(overlay, "grid_topology_internal_nodes")
-            layout.prop(overlay, "grid_topology_disabled_internal_nodes")
+            row = layout.row(align=True)
+            row = row.split(factor=0.2)
+            row.label(text="Root")
 
-            layout.prop(overlay, "grid_topology_leaf_nodes")
-            layout.prop(overlay, "grid_topology_disabled_leaf_nodes")
+            row_2 = row.row()
+            row_2.prop(overlay, "grid_topology_root_nodes", toggle=True, text="Enabled")
+            row_2.prop(overlay, "grid_topology_disabled_root_nodes", toggle=True, text="Disabled")
+
+            line = layout.row(align=True)
+            layout.label(text="Internal")
+            line.prop(overlay, "grid_topology_internal_nodes", text="Enabled")
+            line.prop(overlay, "grid_topology_disabled_internal_nodes", text="Disabled")
+
+            line = layout.row(align=True)
+            layout.label(text="Leaf")
+            line.prop(overlay, "grid_topology_leaf_nodes", text="Enabled")
+            line.prop(overlay, "grid_topology_disabled_leaf_nodes", text="Disabled")
 
 
 class View3DAssetShelf(BrushAssetShelf):
