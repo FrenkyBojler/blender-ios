@@ -14,6 +14,7 @@
 #include "GEO_hair_solver.hh"
 
 #include "NOD_geo_hair_constraints.hh"
+#include "NOD_geometry_nodes_closure_eval.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
@@ -455,32 +456,37 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
   return false;
 }
 
+static ClosurePtr create_root_constraint_update_closure()
+{
+  return nullptr;
+}
+
 /**
- * The behavior configures various details of the hair simulation.
- * It is initialized using an input bundle, but has a default implementation
- * for each part that should provide reasonable behavior without user changes.
- * Parts of the bundle can be modified without affecting the other behaviors.
- * Each item is identified by name.
- *
- * "Gravity": Single vector defining the direction of gravity in the simulation.
- *
- * "Force": Vector field of external forces acting on points. Force is defined in object space.
- * "Torque": Vector field of external torque acting on curve segments. Torque is defined in local
- *   space of a curve segment.
- *
- * "Material" Bundle of parameters defining the physical properties of hair.
- *   Hair material properties can be defined in several ways:
- *   - "Density" and radius: Hair properties are calculated based on a model of cylindrical rods
- *     around the center line. This is the default method if no other attributes are defined.
- *     Radius attribute must be defined on curves, otherwise a default radius is used.
- *   - "Mass" and "Inertia": If both of these fields are defined they explicitly define the
- *     material properties of hair curve points and segments.
-       This is an advanced method that is not recommended for most users.
- *   TODO: Document how stiffness and damping are calculated based on Young's modulus for
- *     cylindrical rods.
- *
- *
- */
+* The behavior configures various details of the hair simulation.
+* It is initialized using an input bundle, but has a default implementation
+* for each part that should provide reasonable behavior without user changes.
+* Parts of the bundle can be modified without affecting the other behaviors.
+* Each item is identified by name.
+*
+* "Gravity": Single vector defining the direction of gravity in the simulation.
+*
+* "Force": Vector field of external forces acting on points. Force is defined in object space.
+* "Torque": Vector field of external torque acting on curve segments. Torque is defined in local
+*   space of a curve segment.
+*
+* "Material" Bundle of parameters defining the physical properties of hair.
+*   Hair material properties can be defined in several ways:
+*   - "Density" and radius: Hair properties are calculated based on a model of cylindrical rods
+*     around the center line. This is the default method if no other attributes are defined.
+*     Radius attribute must be defined on curves, otherwise a default radius is used.
+*   - "Mass" and "Inertia": If both of these fields are defined they explicitly define the
+*     material properties of hair curve points and segments.
+   This is an advanced method that is not recommended for most users.
+*   TODO: Document how stiffness and damping are calculated based on Young's modulus for
+*     cylindrical rods.
+*
+*
+*/
 struct Behavior {
   float3 gravity = float3(0, 0, -9.81f);
 
@@ -499,11 +505,15 @@ struct Behavior {
     Field<float> stretch_damping = field_constants::constant_field<float>(0.0f);
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
+
+    ClosurePtr update = nullptr;
   } curve_constraints;
 
   struct {
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
+
+    ClosurePtr update = create_root_constraint_update_closure();
   } root_constraints;
 };
 
@@ -530,12 +540,16 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
     get_from_bundle(
         *curve_constraints, "Bend Compliance", behavior.curve_constraints.bend_compliance);
     get_from_bundle(*curve_constraints, "Bend Damping", behavior.curve_constraints.bend_damping);
+
+    get_from_bundle(*curve_constraints, "Update", behavior.curve_constraints.update);
   }
 
   if (auto root_constraints = get_from_bundle<BundlePtr>(bundle, "Root Constraints")) {
     get_from_bundle(
         *root_constraints, "Bend Compliance", behavior.root_constraints.bend_compliance);
     get_from_bundle(*root_constraints, "Bend Damping", behavior.root_constraints.bend_damping);
+
+    get_from_bundle(*root_constraints, "Update", behavior.root_constraints.update);
   }
 
   return behavior;
@@ -733,6 +747,68 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
 
   hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
   hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
+}
+
+static void update_constraints(BundlePtr &bundle,
+                               const Behavior &behavior,
+                               GeoNodesUserData *user_data)
+{
+  static const bke::bNodeSocketType *stype_geometry = bke::node_socket_type_find_static(
+      SOCK_GEOMETRY);
+
+  if (!bundle) {
+    return;
+  }
+  if (bundle->is_mutable()) {
+    bundle->tag_ensured_mutable();
+  }
+  else {
+    bundle = BundlePtr(MEM_new<Bundle>(__func__, *bundle));
+  }
+
+  if (behavior.curve_constraints.update) {
+    GeometrySet stretch_constraints = hair_constraints::lookup_constraints(
+        *bundle, ConstraintType::StretchShear);
+    GeometrySet bend_constraints = hair_constraints::lookup_constraints(*bundle,
+                                                                        ConstraintType::BendTwist);
+
+    ClosureEagerEvalParams params;
+    params.inputs.append(
+        {SocketInterfaceKey("Stretch Constraints"), stype_geometry, &stretch_constraints});
+    params.inputs.append(
+        {SocketInterfaceKey("Bend Constraints"), stype_geometry, &bend_constraints});
+    params.outputs.append(
+        {SocketInterfaceKey("Stretch Constraints"), stype_geometry, &stretch_constraints});
+    params.outputs.append(
+        {SocketInterfaceKey("Bend Constraints"), stype_geometry, &bend_constraints});
+    params.user_data = user_data;
+    evaluate_closure_eagerly(*behavior.curve_constraints.update, params);
+
+    hair_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
+    hair_constraints::set_constraints(bundle, ConstraintType::BendTwist, bend_constraints);
+  }
+
+  if (behavior.root_constraints.update) {
+    GeometrySet position_constraints = hair_constraints::lookup_constraints(
+        *bundle, ConstraintType::PositionGoal);
+    GeometrySet rotation_constraints = hair_constraints::lookup_constraints(
+        *bundle, ConstraintType::RotationGoal);
+
+    ClosureEagerEvalParams params;
+    params.inputs.append(
+        {SocketInterfaceKey("Position Constraints"), stype_geometry, &position_constraints});
+    params.inputs.append(
+        {SocketInterfaceKey("Rotation Constraints"), stype_geometry, &rotation_constraints});
+    params.outputs.append(
+        {SocketInterfaceKey("Position Constraints"), stype_geometry, &position_constraints});
+    params.outputs.append(
+        {SocketInterfaceKey("Rotation Constraints"), stype_geometry, &rotation_constraints});
+    params.user_data = user_data;
+    evaluate_closure_eagerly(*behavior.root_constraints.update, params);
+
+    hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
+    hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
+  }
 }
 
 /* Capture motions state attribute for later velocity estimation. */
@@ -1189,6 +1265,8 @@ static void node_geo_exec(GeoNodeExecParams params)
     generate_root_attachment_constraints(
         constraint_bundle, hair_curves, selection_field, behavior);
   }
+
+  update_constraints(constraint_bundle, behavior, params.user_data());
 
   IndexMaskMemory memory;
   Vector<ConstraintEvalData> constraint_data = hair_constraints::constraint_bundle_to_eval_data(
