@@ -25,7 +25,7 @@ class VolumeTopologyGrid : Overlay {
 
   PassSimple topology_pass_ = {"topology_pass_"};
 
-  ShapeInstanceBuf<ExtraInstanceData> voxel_buf_ = {selection_type_, "voxel_buf_"};
+  PointPrimitiveBuf<ExtraInstanceData> voxel_buf_ = {selection_type_, "voxel_buf_"};
 
  public:
   VolumeTopologyGrid(const SelectionType selection_type) : selection_type_(selection_type){};
@@ -128,12 +128,9 @@ class VolumeTopologyGrid : Overlay {
           constexpr int64_t root_tile_size = RootT::ChildNodeType::DIM;
           const openvdb::Vec3d centre = iter.getCoord() + openvdb::Vec3d(0.5f);
 
-          const float4x4 tile_transform = transform *
-                                          math::from_loc_scale<float4x4>(
-                                              float3(centre.x(), centre.y(), centre.z()),
-                                              float3(root_tile_size));
+          const float4 tile_transform = transform * float3(centre.x(), centre.y(), centre.z());
           const float4 color(0.9, 0.46, 0.81, 0.5f);
-          voxel_buf_.append({tile_transform, color, 1.0f}, sel_id);
+          voxel_buf_.append(tile_transform, color, sel_id);
         }
       }
 
