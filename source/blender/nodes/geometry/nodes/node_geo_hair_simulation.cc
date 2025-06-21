@@ -456,6 +456,153 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
   return false;
 }
 
+struct ClosureInputItem {
+  StringRef name;
+  eNodeSocketDatatype type;
+};
+struct ClosureOutputItem {
+  StringRef name;
+  eNodeSocketDatatype type;
+};
+
+static void create_closure(fn::lazy_function::LazyFunction *body_fn,
+                           const Span<int> input_indices,
+                           const Span<int> input_indices_for_output_usage,
+                           const Span<int> output_indices,
+                           const Span<int> output_indices_for_input_usage,
+                           const Span<ClosureInputItem> inputs,
+                           const Span<ClosureOutputItem> outputs,
+                           GeoNodesUserData *user_data)
+{
+  std::shared_ptr<ClosureSignature> closure_signature = std::make_shared<ClosureSignature>();
+  for (const ClosureInputItem &item : inputs) {
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
+    closure_signature->inputs.append({SocketInterfaceKey(item.name), stype});
+  }
+  for (const ClosureOutputItem &item : outputs) {
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
+    closure_signature->outputs.append({SocketInterfaceKey(item.name), stype});
+  }
+
+  ///* All border links are captured currently. */
+  // for (const int i : zone_.border_links.index_range()) {
+  //   params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
+  // }
+
+  // const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_bnode_.storage);
+
+  std::unique_ptr<ResourceScope> closure_scope = std::make_unique<ResourceScope>();
+
+  lf::Graph &lf_graph = closure_scope->construct<lf::Graph>("Closure Graph");
+  lf::FunctionNode &lf_body_node = lf_graph.add_function(*body_fn);
+  ClosureFunctionIndices closure_indices;
+  Vector<const void *> default_input_values;
+
+  for (const int i : inputs.index_range()) {
+    const ClosureInputItem &item = inputs[i];
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
+    const CPPType &cpp_type = *stype->geometry_nodes_cpp_type;
+
+    lf::GraphInputSocket &lf_graph_input = lf_graph.add_input(cpp_type, item.name);
+    lf_graph.add_link(lf_graph_input, lf_body_node.input(input_indices[i]));
+
+    lf::GraphOutputSocket &lf_graph_input_usage = lf_graph.add_output(
+        CPPType::get<bool>(), "Usage: " + StringRef(item.name));
+    lf_graph.add_link(lf_body_node.output(output_indices_for_input_usage[i]),
+                      lf_graph_input_usage);
+
+    void *default_value = closure_scope->allocate_owned(cpp_type);
+    construct_socket_default_value(*stype, default_value);
+    default_input_values.append(default_value);
+  }
+  closure_indices.inputs.main = lf_graph.graph_inputs().index_range().take_back(inputs.size());
+  closure_indices.outputs.input_usages = lf_graph.graph_outputs().index_range().take_back(
+      inputs.size());
+
+  for (const int i : outputs.index_range()) {
+    const ClosureOutputItem &item = outputs[i];
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
+    const CPPType &cpp_type = *stype->geometry_nodes_cpp_type;
+
+    lf::GraphOutputSocket &lf_graph_output = lf_graph.add_output(cpp_type, item.name);
+    lf_graph.add_link(lf_body_node.output(output_indices[i]), lf_graph_output);
+
+    lf::GraphInputSocket &lf_graph_output_usage = lf_graph.add_input(
+        CPPType::get<bool>(), "Usage: " + StringRef(item.name));
+    lf_graph.add_link(lf_graph_output_usage,
+                      lf_body_node.input(input_indices_for_output_usage[i]));
+  }
+  closure_indices.outputs.main = lf_graph.graph_outputs().index_range().take_back(outputs.size());
+  closure_indices.inputs.output_usages = lf_graph.graph_inputs().index_range().take_back(
+      outputs.size());
+
+  // for (const int i : zone_.border_links.index_range()) {
+  //   const CPPType &cpp_type = *zone_.border_links[i]->tosock->typeinfo->geometry_nodes_cpp_type;
+  //   void *input_ptr = params.try_get_input_data_ptr(zone_info_.indices.inputs.border_links[i]);
+  //   void *stored_ptr = closure_scope->allocate_owned(cpp_type);
+  //   cpp_type.move_construct(input_ptr, stored_ptr);
+  //   lf_body_node.input(body_fn_.indices.inputs.border_links[i]).set_default_value(stored_ptr);
+  // }
+
+  // for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
+  //   const ReferenceSetInfo &reference_set =
+  //       btree_.runtime->reference_lifetimes_info->reference_sets[item.key];
+  //   if (reference_set.type == ReferenceSetType::ClosureOutputData) {
+  //     const bNodeSocket &socket = *reference_set.socket;
+  //     const bNode &node = socket.owner_node();
+  //     if (&node == zone_.output_node()) {
+  //       /* This reference set is passed in by the code that invokes the closure. */
+  //       lf::GraphInputSocket &lf_graph_input = lf_graph.add_input(
+  //           CPPType::get<bke::GeometryNodesReferenceSet>(),
+  //           StringRef("Reference Set: ") + reference_set.socket->name);
+  //       lf_graph.add_link(
+  //           lf_graph_input,
+  //           lf_body_node.input(body_fn_.indices.inputs.reference_sets.lookup(item.key)));
+  //       closure_indices.inputs.output_data_reference_sets.add_new(reference_set.socket->index(),
+  //                                                                 lf_graph_input.index());
+  //       continue;
+  //     }
+  //   }
+
+  //  auto &input_reference_set = *params.try_get_input_data_ptr<bke::GeometryNodesReferenceSet>(
+  //      zone_info_.indices.inputs.reference_sets.lookup(item.key));
+  //  auto &stored = closure_scope->construct<bke::GeometryNodesReferenceSet>(
+  //      std::move(input_reference_set));
+  //  lf_body_node.input(body_fn_.indices.inputs.reference_sets.lookup(item.key))
+  //      .set_default_value(&stored);
+  //}
+
+  // const bNodeTree &btree_orig = *DEG_get_original(&btree_);
+  // if (btree_orig.runtime->logged_zone_graphs) {
+  //   std::lock_guard lock{btree_orig.runtime->logged_zone_graphs->mutex};
+  //   btree_orig.runtime->logged_zone_graphs->graph_by_zone_id.lookup_or_add_cb(
+  //       output_bnode_.identifier, [&]() { return lf_graph.to_dot(); });
+  // }
+
+  lf_graph.update_node_indices();
+
+  // const auto &side_effect_provider =
+  //     closure_scope->construct<ClosureIntermediateGraphSideEffectProvider>(lf_body_node);
+  lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
+      lf_graph, nullptr, nullptr /*&side_effect_provider*/, nullptr);
+  // ClosureSourceLocation source_location{
+  //     &btree_,
+  //     output_bnode_.identifier,
+  //     user_data.compute_context->hash(),
+  // };
+  ClosurePtr closure{MEM_new<Closure>(__func__,
+                                      closure_signature,
+                                      std::move(closure_scope),
+                                      lf_graph_executor,
+                                      closure_indices,
+                                      std::move(default_input_values),
+                                      std::nullopt /*source_location*/,
+                                      std::make_shared<ClosureEvalLog>())};
+
+  // params.set_output(zone_info_.indices.outputs.main[0],
+  //                   bke::SocketValueVariant(std::move(closure)));
+}
+
 static ClosurePtr create_root_constraint_update_closure()
 {
   return nullptr;
