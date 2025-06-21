@@ -567,6 +567,8 @@ static bool try_capture_mass_attributes(GeometryComponent &component,
   {
     return false;
   }
+
+  return true;
 }
 
 static bool try_init_hair_from_mass(GeometryComponent &component,
