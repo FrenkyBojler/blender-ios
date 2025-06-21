@@ -21,7 +21,8 @@
 
 namespace blender::draw::overlay {
 
-static float3 grid_leaf_on_positions(const openvdb::GridBase &grid_base, Vector<float3> &r_position)
+static float3 grid_leaf_on_positions(const openvdb::GridBase &grid_base,
+                                     Vector<float3> &r_position)
 {
   const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
   BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
@@ -39,11 +40,12 @@ static float3 grid_leaf_on_positions(const openvdb::GridBase &grid_base, Vector<
       }
     }
   });
-  
+
   return float3(1.0f);
 }
 
-static float3 grid_leaf_off_positions(const openvdb::GridBase &grid_base, Vector<float3> &r_position)
+static float3 grid_leaf_off_positions(const openvdb::GridBase &grid_base,
+                                      Vector<float3> &r_position)
 {
   const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
   BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
@@ -61,11 +63,12 @@ static float3 grid_leaf_off_positions(const openvdb::GridBase &grid_base, Vector
       }
     }
   });
-  
+
   return float3(1.0f);
 }
 
-static float3 grid_root_tiles_positions(const openvdb::GridBase &grid_base, Vector<float3> &r_position)
+static float3 grid_root_tiles_positions(const openvdb::GridBase &grid_base,
+                                        Vector<float3> &r_position)
 {
   int64_t root_tile_size = -1;
   const VolumeGridType grid_type = bke::volume_grid::get_type(grid_base);
@@ -82,7 +85,7 @@ static float3 grid_root_tiles_positions(const openvdb::GridBase &grid_base, Vect
       r_position.append(float3(centre.x(), centre.y(), centre.z()));
     }
   });
-  
+
   return float3(root_tile_size);
 }
 
@@ -102,9 +105,10 @@ static void grid_all_child_nodes_positions(const openvdb::GridBase &grid_base,
     for (typename TreeT::NodeCIter iter = grid.tree().cbeginNode(); iter; ++iter) {
       const openvdb::Coord centre = iter.getCoord();
       r_position[iter.getLevel()].append(float3(centre.x(), centre.y(), centre.z()));
-      
+
       const openvdb::CoordBBox node_box = iter.getBoundingBox();
-      r_sizes[iter.getLevel()] = float3(node_box.dim().x(), node_box.dim().y(), node_box.dim().z());
+      r_sizes[iter.getLevel()] = float3(
+          node_box.dim().x(), node_box.dim().y(), node_box.dim().z());
     }
   });
 }
@@ -128,9 +132,10 @@ static void grid_all_tiles_positions(const openvdb::GridBase &grid_base,
       }
       const openvdb::Coord centre = iter.getCoord();
       r_position[iter.getLevel()].append(float3(centre.x(), centre.y(), centre.z()));
-      
+
       const openvdb::CoordBBox node_box = iter.getBoundingBox();
-      r_sizes[iter.getLevel()] = float3(node_box.dim().x(), node_box.dim().y(), node_box.dim().z());
+      r_sizes[iter.getLevel()] = float3(
+          node_box.dim().x(), node_box.dim().y(), node_box.dim().z());
     }
   });
 }
@@ -153,22 +158,20 @@ static gpu::Batch *batch_for_voxels(const Span<float3> position, const float3 vo
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, position.size() * 8);
 
-  std::array<float3, 8> voxel_corners = {
-    float3(0.5f, 0.5f, 0.5f),
-    float3(0.5f, -0.5f, 0.5f),
-    float3(-0.5f, -0.5f, 0.5f),
-    float3(-0.5f, 0.5f, 0.5f),
-    float3(0.5f, 0.5f, -0.5f),
-    float3(0.5f, -0.5f, -0.5f),
-    float3(-0.5f, -0.5f, -0.5f),
-    float3(-0.5f, 0.5f, -0.5f)};
+  std::array<float3, 8> voxel_corners = {float3(0.5f, 0.5f, 0.5f),
+                                         float3(0.5f, -0.5f, 0.5f),
+                                         float3(-0.5f, -0.5f, 0.5f),
+                                         float3(-0.5f, 0.5f, 0.5f),
+                                         float3(0.5f, 0.5f, -0.5f),
+                                         float3(0.5f, -0.5f, -0.5f),
+                                         float3(-0.5f, -0.5f, -0.5f),
+                                         float3(-0.5f, 0.5f, -0.5f)};
 
-  std::transform(voxel_corners.begin(),
-                 voxel_corners.end(),
-                 voxel_corners.begin(),
-                 [&](const float3 point) -> float3 {
-                   return (point + float3(0.5f)) * voxel_size;
-                 });
+  std::transform(
+      voxel_corners.begin(),
+      voxel_corners.end(),
+      voxel_corners.begin(),
+      [&](const float3 point) -> float3 { return (point + float3(0.5f)) * voxel_size; });
 
   MutableSpan<float3> voxel_positions = vbo->data<float3>();
   threading::parallel_for(position.index_range(), 2048, [&](const IndexRange range) {
@@ -177,9 +180,7 @@ static gpu::Batch *batch_for_voxels(const Span<float3> position, const float3 vo
       std::transform(voxel_corners.begin(),
                      voxel_corners.end(),
                      voxel_positions.begin() + i * 8,
-                     [&](const float3 point) -> float3 {
-                       return centre + point;
-                     });
+                     [&](const float3 point) -> float3 { return centre + point; });
     }
   });
 
@@ -187,19 +188,18 @@ static gpu::Batch *batch_for_voxels(const Span<float3> position, const float3 vo
   GPU_indexbuf_init(&elb, GPU_PRIM_LINES, position.size() * 12, position.size() * 8);
   MutableSpan<uint2> lines = GPU_indexbuf_get_data(&elb).cast<uint2>();
 
-  static const std::array<uint2, 12> voxel_edges = {
-    uint2(0, 1),
-    uint2(1, 2),
-    uint2(2, 3),
-    uint2(3, 0),
-    uint2(4, 5),
-    uint2(5, 6),
-    uint2(6, 7),
-    uint2(7, 4),
-    uint2(4, 0),
-    uint2(5, 1),
-    uint2(6, 2),
-    uint2(7, 3)};
+  static const std::array<uint2, 12> voxel_edges = {uint2(0, 1),
+                                                    uint2(1, 2),
+                                                    uint2(2, 3),
+                                                    uint2(3, 0),
+                                                    uint2(4, 5),
+                                                    uint2(5, 6),
+                                                    uint2(6, 7),
+                                                    uint2(7, 4),
+                                                    uint2(4, 0),
+                                                    uint2(5, 1),
+                                                    uint2(6, 2),
+                                                    uint2(7, 3)};
 
   threading::parallel_for(position.index_range(), 2048, [&](const IndexRange range) {
     for (const int i : range) {
@@ -207,9 +207,7 @@ static gpu::Batch *batch_for_voxels(const Span<float3> position, const float3 vo
       std::transform(voxel_edges.begin(),
                      voxel_edges.end(),
                      lines.begin() + i * 12,
-                     [&](const uint2 edge) -> uint2 {
-                       return edge + voxel_start_i;
-                     });
+                     [&](const uint2 edge) -> uint2 { return edge + voxel_start_i; });
     }
   });
 
@@ -312,7 +310,8 @@ class VolumeTopologyGrid : Overlay {
     if (state.show_grid_root_nodes()) {
       const float3 voxel_size = grid_root_tiles_positions(grid_base, position);
       if (!position.is_empty()) {
-        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(batch_for_voxels(position.as_span(), voxel_size)));
+        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(
+            batch_for_voxels(position.as_span(), voxel_size)));
       }
     }
 
@@ -320,7 +319,8 @@ class VolumeTopologyGrid : Overlay {
       position.clear();
       const float3 voxel_size = grid_leaf_on_positions(grid_base, position);
       if (!position.is_empty()) {
-        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(batch_for_voxels(position.as_span(), voxel_size)));
+        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(
+            batch_for_voxels(position.as_span(), voxel_size)));
       }
     }
 
@@ -328,7 +328,8 @@ class VolumeTopologyGrid : Overlay {
       position.clear();
       const float3 voxel_size = grid_leaf_off_positions(grid_base, position);
       if (!position.is_empty()) {
-        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(batch_for_voxels(position.as_span(), voxel_size)));
+        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(
+            batch_for_voxels(position.as_span(), voxel_size)));
       }
     }
 
@@ -341,7 +342,8 @@ class VolumeTopologyGrid : Overlay {
         if (position[i].is_empty()) {
           continue;
         }
-        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(batch_for_voxels(position[i].as_span(), sizes[i])));
+        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(
+            batch_for_voxels(position[i].as_span(), sizes[i])));
       }
     }
 
@@ -354,7 +356,8 @@ class VolumeTopologyGrid : Overlay {
         if (position[i].is_empty()) {
           continue;
         }
-        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(batch_for_voxels(position[i].as_span(), sizes[i])));
+        batches_.append(std::unique_ptr<gpu::Batch, BatchDeleter>(
+            batch_for_voxels(position[i].as_span(), sizes[i])));
       }
     }
 
