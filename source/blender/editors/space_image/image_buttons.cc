@@ -46,6 +46,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "image_intern.hh"
@@ -1198,7 +1199,7 @@ void uiTemplateImageInfo(uiLayout *layout, bContext *C, Image *ima, ImageUser *i
   ImBuf *ibuf = BKE_image_acquire_ibuf(ima, iuser, &lock);
 
   uiLayout *col = &layout->column(true);
-  uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_RIGHT);
+  col->alignment_set(blender::ui::LayoutAlign::Right);
 
   if (ibuf == nullptr) {
     col->label(RPT_("Can't Load Image"), ICON_NONE);
