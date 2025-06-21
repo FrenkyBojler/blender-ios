@@ -426,6 +426,7 @@ static std::optional<T> get_from_bundle(const BundlePtr &bundle, const StringRef
   }
 
   if constexpr (GeoNodeExecParams::stored_as_SocketValueVariant_v<T>) {
+    // TODO NEEDS ERROR HANDLING/CONVERSION OF MISMATCHING TYPES!
     if (value->type->geometry_nodes_cpp_type == &CPPType::get<SocketValueVariant>()) {
       return static_cast<const SocketValueVariant *>(value->value)->get<T>();
     }
