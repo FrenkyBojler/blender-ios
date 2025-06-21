@@ -615,16 +615,23 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
                                                  const Field<bool> selection_field,
                                                  const Behavior &behavior)
 {
+  static const auto root_selection_fn = fn::multi_function::build::SI2_SO<bool, bool, bool>(
+      "Root Selection", [](const bool selected, const bool is_start_point) -> bool {
+        return selected && is_start_point;
+      });
+  Field<bool> root_selection{FieldOperation::Create(
+      root_selection_fn, {selection_field, field_inputs::is_start_point()})};
+
   GeometrySet position_constraints =
       geometry::hair_constraints::create_position_goal_constraints_from_points(
           component,
-          selection_field,
+          root_selection,
           field_constants::constant_field<float>(0.0f),
           field_constants::constant_field<float>(0.0f));
   GeometrySet rotation_constraints =
       geometry::hair_constraints::create_rotation_goal_constraints_from_points(
           component,
-          selection_field,
+          root_selection,
           behavior.root_constraints.bend_compliance,
           behavior.root_constraints.bend_damping);
 
