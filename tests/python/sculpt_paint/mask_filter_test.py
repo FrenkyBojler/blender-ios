@@ -48,7 +48,6 @@ class ShrinkMaskTest(unittest.TestCase):
         bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "partially_masked_sphere.blend"), load_ui=False)
         bpy.ops.ed.undo_push()
 
-
     def test_shrink_decreases_number_of_masked_vertices(self):
         mesh = bpy.context.object.data
         mask_attr = mesh.attributes['.sculpt_mask']
@@ -64,6 +63,7 @@ class ShrinkMaskTest(unittest.TestCase):
         mask_attr.data.foreach_get('value', new_mask_data)
 
         self.assertLess(np.count_nonzero(new_mask_data), np.count_nonzero(old_mask_data))
+
 
 def main():
     global args
