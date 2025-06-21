@@ -453,10 +453,17 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
   return false;
 }
 
+/**
+ * The behavior configures various details of the hair simulation.
+ * It is initialized using an input bundle, but has a default implementation
+ * for each part that should provide reasonable behavior without user changes.
+ * Parts of the bundle can be modified without affecting the other behaviors.
+ * Each item is identified by name.
+ *
+ * "Gravity": Single vector defining the direction of gravity in the simulation.
+ */
 struct Behavior {
-  struct {
-    float3 direction = float3(0, 0, -9.81f);
-  } gravity;
+  float3 gravity = float3(0, 0, -9.81f);
 
   struct {
     Field<float3> force = field_constants::zero_vector();
@@ -484,16 +491,17 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
 {
   Behavior behavior;
 
-  if (auto gravity = get_from_bundle<BundlePtr>(bundle, "Gravity")) {
-    get_from_bundle(*gravity, "Direction", behavior.gravity.direction);
-  }
+  get_from_bundle(bundle, "Gravity", behavior.gravity);
+
   if (auto forces = get_from_bundle<BundlePtr>(bundle, "Forces")) {
     get_from_bundle(*forces, "Force", behavior.forces.force);
     get_from_bundle(*forces, "Torque", behavior.forces.torque);
   }
+
   if (auto material = get_from_bundle<BundlePtr>(bundle, "Material")) {
     get_from_bundle(*material, "Density", behavior.material.density);
   }
+
   if (auto curve_constraints = get_from_bundle<BundlePtr>(bundle, "Curve Constraints")) {
     get_from_bundle(
         *curve_constraints, "Stretch Compliance", behavior.curve_constraints.stretch_compliance);
@@ -503,6 +511,7 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
         *curve_constraints, "Bend Compliance", behavior.curve_constraints.bend_compliance);
     get_from_bundle(*curve_constraints, "Bend Damping", behavior.curve_constraints.bend_damping);
   }
+
   if (auto root_constraints = get_from_bundle<BundlePtr>(bundle, "Root Constraints")) {
     get_from_bundle(
         *root_constraints, "Bend Compliance", behavior.root_constraints.bend_compliance);
@@ -1104,7 +1113,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                    delta_time,
                    linear_factor,
                    angular_factor,
-                   behavior.gravity.direction,
+                   behavior.gravity,
                    behavior.forces.force,
                    behavior.forces.torque);
 
