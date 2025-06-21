@@ -45,13 +45,14 @@ static const std::string inv_mass_attr = "inv_mass";
 static const std::string inertia_attr = "inertia";
 static const std::string inv_inertia_attr = "inv_inertia";
 static const std::string radius_attr = "radius";
-static const std::string segment_length_attr = "segment_length";
 
 /* XXX These should be anonymous attributes. */
 static const std::string old_position_attr = ".old_position";
 static const std::string old_rotation_attr = ".old_rotation";
 static const std::string cross_section_attr = ".cross_section";
 static const std::string area_moment_attr = ".area_moment";
+/* Segment length attribute for material calculation purposes. */
+static const std::string material_length_attr = ".material_length";
 
 /* Shift point indices along the curve.
  * Indices at the start or end are clamped to the curve range. */
@@ -264,9 +265,9 @@ static Field<float3> inverse_inertia()
   return bke::AttributeFieldInput::Create<float3>(inv_inertia_attr);
 }
 
-static Field<float> segment_length()
+static Field<float> material_length()
 {
-  return bke::AttributeFieldInput::Create<float>(segment_length_attr);
+  return bke::AttributeFieldInput::Create<float>(material_length_attr);
 }
 
 }  // namespace field_inputs
@@ -461,6 +462,23 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
  * Each item is identified by name.
  *
  * "Gravity": Single vector defining the direction of gravity in the simulation.
+ *
+ * "Force": Vector field of external forces acting on points. Force is defined in object space.
+ * "Torque": Vector field of external torque acting on curve segments. Torque is defined in local
+ *   space of a curve segment.
+ *
+ * "Material" Bundle of parameters defining the physical properties of hair.
+ *   Hair material properties can be defined in several ways:
+ *   - "Density" and radius: Hair properties are calculated based on a model of cylindrical rods
+ *     around the center line. This is the default method if no other attributes are defined.
+ *     Radius attribute must be defined on curves, otherwise a default radius is used.
+ *   - "Mass" and "Inertia": If both of these fields are defined they explicitly define the
+ *     material properties of hair curve points and segments.
+       This is an advanced method that is not recommended for most users.
+ *   TODO: Document how stiffness and damping are calculated based on Young's modulus for
+ *     cylindrical rods.
+ *
+ *
  */
 struct Behavior {
   float3 gravity = float3(0, 0, -9.81f);
@@ -470,6 +488,9 @@ struct Behavior {
 
   struct {
     Field<float> density = field_constants::constant_field<float>(1000.0f);
+    /* Mass is calculated from density and radius by default, but can be defined explicitly. */
+    Field<float> mass;
+    Field<float3> inertia;
   } material;
 
   struct {
@@ -495,6 +516,8 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
   get_from_bundle(bundle, "Torque", behavior.torque);
 
   if (auto material = get_from_bundle<BundlePtr>(bundle, "Material")) {
+    get_from_bundle(*material, "Mass", behavior.material.mass);
+    get_from_bundle(*material, "Inertia", behavior.material.inertia);
     get_from_bundle(*material, "Density", behavior.material.density);
   }
 
@@ -517,6 +540,8 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
   return behavior;
 }
 
+using ErrorFn = std::function<void(NodeWarningType type, const StringRef message)>;
+
 static bool store_hair_rest_shape(GeometryComponent &hair_component)
 {
   return bke::try_capture_fields_on_geometry(hair_component,
@@ -525,68 +550,131 @@ static bool store_hair_rest_shape(GeometryComponent &hair_component)
                                              {field_inputs::position(), field_inputs::rotation()});
 }
 
-/* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
-static bool init_hair_physics(GeometryComponent &component,
-                              const Field<bool> &selection_field,
-                              const Behavior &behavior)
+static bool try_capture_mass_attributes(GeometryComponent &component,
+                                        const Field<bool> &selection_field,
+                                        const Field<float> &mass_field,
+                                        const Field<float3> &inertia_field)
 {
+  const Field<float> inv_mass_field = field_ops::inverse_mass(mass_field);
+  const Field<float3> inv_inertia_field = field_ops::inverse_inertia(inertia_field);
+
+  if (!bke::try_capture_fields_on_geometry(
+          component,
+          {mass_attr, inertia_attr, inv_mass_attr, inv_inertia_attr},
+          bke::AttrDomain::Point,
+          selection_field,
+          {mass_field, inertia_field, inv_mass_field, inv_inertia_field}))
   {
-    const Field<float> radius_field = field_inputs::radius();
-    const Field<float> cross_section_field = field_ops::cross_section(radius_field);
-    const Field<float3> area_moment_field = field_ops::area_moment(radius_field);
-    if (!bke::try_capture_fields_on_geometry(component,
-                                             {cross_section_attr, area_moment_attr},
-                                             bke::AttrDomain::Point,
-                                             selection_field,
-                                             {cross_section_field, area_moment_field}))
-    {
-      return false;
+    return false;
+  }
+}
+
+static bool try_init_hair_from_mass(GeometryComponent &component,
+                                    const Field<bool> &selection_field,
+                                    const Field<float> &mass_field,
+                                    const Field<float3> &inertia_field,
+                                    ErrorFn error_fn)
+{
+  /* Use a different method not all necessary fields are defined. */
+  if (!mass_field || !inertia_field) {
+    if (mass_field) {
+      error_fn(NodeWarningType::Warning, "Incomplete material behavior, \"Mass\" field ignored");
     }
+    if (inertia_field) {
+      error_fn(NodeWarningType::Warning,
+               "Incomplete material behavior, \"Inertia\" field ignored");
+    }
+    return false;
   }
 
-  {
-    const Field<float3> position_field = field_inputs::position();
-    const Field<float> segment_length_field = field_ops::average_segment_length(position_field);
-    if (!bke::try_capture_field_on_geometry(component,
-                                            segment_length_attr,
-                                            bke::AttrDomain::Point,
-                                            selection_field,
-                                            segment_length_field))
-    {
-      return false;
-    }
-  }
-
-  {
-    const Field<float> segment_length_field = field_inputs::segment_length();
-    const Field<float> point_mass_field = field_ops::point_mass(
-        segment_length_field,
-        AttributeFieldInput::Create<float>(cross_section_attr),
-        behavior.material.density);
-    const Field<float3> segment_inertia_field = field_ops::segment_inertia(
-        segment_length_field,
-        AttributeFieldInput::Create<float3>(area_moment_attr),
-        behavior.material.density);
-
-    const Field<float> inv_point_mass_field = field_ops::inverse_mass(point_mass_field);
-    const Field<float3> inv_segment_inertia_field = field_ops::inverse_inertia(
-        segment_inertia_field);
-
-    if (!bke::try_capture_fields_on_geometry(
-            component,
-            {mass_attr, inertia_attr, inv_mass_attr, inv_inertia_attr},
-            bke::AttrDomain::Point,
-            selection_field,
-            {point_mass_field,
-             segment_inertia_field,
-             inv_point_mass_field,
-             inv_segment_inertia_field}))
-    {
-      return false;
-    }
+  if (!try_capture_mass_attributes(component, selection_field, mass_field, inertia_field)) {
+    return false;
   }
 
   return true;
+}
+
+static bool try_init_hair_from_density(GeometryComponent &component,
+                                       const Field<bool> &selection_field,
+                                       const Field<float> &density_field,
+                                       const Field<float> &radius_field,
+                                       ErrorFn error_fn)
+{
+  /* Use a different method not all necessary fields are defined. */
+  if (!density_field) {
+    return false;
+  }
+
+  const Field<float> cross_section_field = field_ops::cross_section(radius_field);
+  const Field<float3> area_moment_field = field_ops::area_moment(radius_field);
+  if (!bke::try_capture_fields_on_geometry(component,
+                                           {cross_section_attr, area_moment_attr},
+                                           bke::AttrDomain::Point,
+                                           selection_field,
+                                           {cross_section_field, area_moment_field}))
+  {
+    return false;
+  }
+
+  const Field<float> material_length_field = field_inputs::material_length();
+  const Field<float> point_mass_field = field_ops::point_mass(
+      material_length_field,
+      AttributeFieldInput::Create<float>(cross_section_attr),
+      density_field);
+  const Field<float3> segment_inertia_field = field_ops::segment_inertia(
+      material_length_field, AttributeFieldInput::Create<float3>(area_moment_attr), density_field);
+
+  if (!try_capture_mass_attributes(
+          component, selection_field, point_mass_field, segment_inertia_field))
+  {
+    return false;
+  }
+
+  return true;
+}
+
+/* Capture hair attributes for mass, moments of inertia, rod stiffness and damping. */
+static bool init_hair_physics(GeometryComponent &component,
+                              const Field<bool> &selection_field,
+                              const Behavior &behavior,
+                              ErrorFn error_fn)
+{
+  /* Compute segment length. */
+  {
+    const Field<float3> position_field = field_inputs::position();
+    const Field<float> material_length_field = field_ops::average_segment_length(position_field);
+    if (!bke::try_capture_field_on_geometry(component,
+                                            material_length_attr,
+                                            bke::AttrDomain::Point,
+                                            selection_field,
+                                            material_length_field))
+    {
+      return false;
+    }
+  }
+
+  if (try_init_hair_from_mass(
+          component, selection_field, behavior.material.mass, behavior.material.inertia, error_fn))
+  {
+    return true;
+  }
+  else if (try_init_hair_from_density(component,
+                                      selection_field,
+                                      behavior.material.density,
+                                      field_inputs::radius(),
+                                      error_fn))
+  {
+    return true;
+  }
+  else {
+    /* Fall back on default values with a warning. */
+    error_fn(NodeWarningType::Warning, "Missing density and radius");
+    return try_init_hair_from_density(component,
+                                      selection_field,
+                                      field_constants::constant_field<float>(1000.0f),
+                                      field_constants::constant_field<float>(0.01f),
+                                      error_fn);
+  }
 }
 
 /* Create internal stretch/shear and bending constraints. */
@@ -1087,7 +1175,10 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (!store_hair_rest_shape(hair_curves)) {
       params.error_message_add(NodeWarningType::Error, "Could not store rest shape");
     }
-    init_hair_physics(hair_curves, selection_field, behavior);
+    init_hair_physics(
+        hair_curves, selection_field, behavior, [params](NodeWarningType type, StringRef message) {
+          params.error_message_add(type, message);
+        });
 
     /* Clear any existing constraint data. */
     constraint_bundle = Bundle::create();
