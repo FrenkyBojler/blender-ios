@@ -3279,16 +3279,11 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
 
   /* Code ensuring conversion to/from new 'system IDProperties'. This needs to run before any other
    * data versioning. Otherwise, things like Cycles versioning code cannot work as expected. */
-  if (!MAIN_VERSION_FILE_ATLEAST(main, 500, 0)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(main, 500, 26)) {
     /* Generate System IDProperties by copying the whole 'user-defined' historic IDProps into new
      * system-defined-only storage. While not optimal (as it also duplicates actual user-defined
-     * IDProperties), this seems to be the only safe and sound to handle the migration. */
+     * IDProperties), this seems to be the only safe and sound way to handle the migration. */
     version_system_idprops_generate(main);
-  }
-  else {
-    /* Merge (with overwrite) future system properties storage into current IDProperties, for 4.5
-     * being able to open 5.0 blendfiles. */
-    version_forward_compat_system_idprops(main);
   }
 
   if (G.debug & G_DEBUG) {
