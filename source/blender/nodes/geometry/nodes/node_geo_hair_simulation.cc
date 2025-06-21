@@ -465,10 +465,8 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
 struct Behavior {
   float3 gravity = float3(0, 0, -9.81f);
 
-  struct {
-    Field<float3> force = field_constants::zero_vector();
-    Field<float3> torque = field_constants::zero_vector();
-  } forces;
+  Field<float3> force = field_constants::zero_vector();
+  Field<float3> torque = field_constants::zero_vector();
 
   struct {
     Field<float> density = field_constants::constant_field<float>(1000.0f);
@@ -493,10 +491,8 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
 
   get_from_bundle(bundle, "Gravity", behavior.gravity);
 
-  if (auto forces = get_from_bundle<BundlePtr>(bundle, "Forces")) {
-    get_from_bundle(*forces, "Force", behavior.forces.force);
-    get_from_bundle(*forces, "Torque", behavior.forces.torque);
-  }
+  get_from_bundle(bundle, "Force", behavior.force);
+  get_from_bundle(bundle, "Torque", behavior.torque);
 
   if (auto material = get_from_bundle<BundlePtr>(bundle, "Material")) {
     get_from_bundle(*material, "Density", behavior.material.density);
@@ -1114,8 +1110,8 @@ static void node_geo_exec(GeoNodeExecParams params)
                    linear_factor,
                    angular_factor,
                    behavior.gravity,
-                   behavior.forces.force,
-                   behavior.forces.torque);
+                   behavior.force,
+                   behavior.torque);
 
   solve_constraints(eval_params, hair_curves, constraint_iterations, constraint_data);
 
