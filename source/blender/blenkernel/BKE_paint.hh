@@ -386,12 +386,17 @@ struct PersistentMultiresData {
   blender::MutableSpan<float> displacements;
 };
 
+struct MultiresRuntime {
+  blender::Vector<blender::Vector<blender::float3>> disp_at_level;
+};
+
 struct SculptSession : blender::NonCopyable, blender::NonMovable {
   /* Mesh data (not copied) can come either directly from a Mesh, or from a MultiresDM */
   struct { /* Special handling for multires meshes */
     bool active = false;
     MultiresModifierData *modifier = nullptr;
     int level = 0;
+    MultiresRuntime runtime = {};
   } multires = {};
 
   KeyBlock *shapekey_active = nullptr;

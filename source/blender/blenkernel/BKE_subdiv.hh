@@ -12,6 +12,7 @@
 
 struct Mesh;
 struct MultiresModifierData;
+struct Object;
 struct OpenSubdiv_Converter;
 struct OpenSubdiv_Evaluator;
 namespace blender::opensubdiv {
@@ -250,6 +251,7 @@ void free(Subdiv *subdiv);
  */
 
 void displacement_attach_from_multires(Subdiv *subdiv,
+                                       Object *object,
                                        Mesh *mesh,
                                        const MultiresModifierData *mmd);
 

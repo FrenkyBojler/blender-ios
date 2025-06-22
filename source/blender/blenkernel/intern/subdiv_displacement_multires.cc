@@ -9,7 +9,9 @@
 #include <cmath>
 
 #include "BKE_subdiv.hh"
+#include "BKE_paint.hh"
 
+#include "DNA_object_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
 #include "DNA_modifier_types.h"
@@ -491,6 +493,7 @@ static void displacement_data_init_mapping(Displacement &displacement, const Mes
 
 static void displacement_init_data(Displacement &displacement,
                                    Subdiv &subdiv,
+                                   Object &object,
                                    Mesh &mesh,
                                    const MultiresModifierData &mmd)
 {
@@ -503,9 +506,9 @@ static void displacement_init_data(Displacement &displacement,
   data.mesh = &mesh;
   data.mmd = &mmd;
   data.faces = mesh.faces();
-  printf("Init Data - Addr: %p\n", &mesh.runtime->multires_runtime);
-  printf("Current: %d Total Levels: %lld\n", data.level, mesh.runtime->multires_runtime.disp_at_level.size());
-  data.level_displacements = mesh.runtime->multires_runtime.disp_at_level[data.level - 1];
+  printf("Init Data - Addr: %p\n", &object.sculpt->multires.runtime);
+  printf("Current: %d Total Levels: %lld\n", data.level, object.sculpt->multires.runtime.disp_at_level.size());
+  data.level_displacements = object.sculpt->multires.runtime.disp_at_level[data.level - 1];
   BLI_assert(data.level_displacements.size() == data.mesh->corners_num * data.grid_size * data.grid_size);
   data.mdisps = static_cast<const MDisps *>(CustomData_get_layer(&mesh.corner_data, CD_MDISPS));
   data.face_ptex_offset = face_ptex_offset_get(&subdiv);
@@ -520,7 +523,7 @@ static void displacement_init_functions(Displacement *displacement)
   displacement->free = free_displacement;
 }
 
-void displacement_attach_from_multires(Subdiv *subdiv, Mesh *mesh, const MultiresModifierData *mmd)
+void displacement_attach_from_multires(Subdiv *subdiv, Object *object, Mesh *mesh, const MultiresModifierData *mmd)
 {
   /* Make sure we don't have previously assigned displacement. */
   displacement_detach(subdiv);
@@ -532,7 +535,7 @@ void displacement_attach_from_multires(Subdiv *subdiv, Mesh *mesh, const Multire
   /* Allocate all required memory. */
   Displacement *displacement = MEM_callocN<Displacement>("multires displacement");
   displacement->user_data = MEM_new<MultiresDisplacementData>("multires displacement data");
-  displacement_init_data(*displacement, *subdiv, *mesh, *mmd);
+  displacement_init_data(*displacement, *subdiv, *object, *mesh, *mmd);
   displacement_init_functions(displacement);
   /* Finish. */
   subdiv->displacement_evaluator = displacement;

@@ -20,6 +20,7 @@
 #include "multires_reshape.hh"
 
 #include "BKE_mesh_types.hh"
+#include "BKE_paint.hh"
 
 static const int multires_grid_tot[] = {
     0, 4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
@@ -256,7 +257,7 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   }
 
   /* Create layer for new level. */
-  blender::bke::MultiresRuntime &multires_runtime = coarse_mesh->runtime->multires_runtime;
+  MultiresRuntime &multires_runtime = object->sculpt->multires.runtime;
   const int level_idx = top_level - 1;
   BLI_assert(level_idx >= 0);
   if (top_level > multires_runtime.disp_at_level.size()) {

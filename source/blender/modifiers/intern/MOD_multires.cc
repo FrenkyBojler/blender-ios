@@ -132,7 +132,7 @@ static Mesh *multires_as_mesh(MultiresModifierData *mmd,
   if (mesh_settings.resolution < 3) {
     return result;
   }
-  blender::bke::subdiv::displacement_attach_from_multires(subdiv, mesh, mmd);
+  blender::bke::subdiv::displacement_attach_from_multires(subdiv, object, mesh, mmd);
   result = blender::bke::subdiv::subdiv_to_mesh(subdiv, &mesh_settings, mesh);
   return result;
 }
@@ -166,7 +166,7 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
   if (ccg_settings.resolution < 3) {
     return result;
   }
-  blender::bke::subdiv::displacement_attach_from_multires(subdiv, mesh, mmd);
+  blender::bke::subdiv::displacement_attach_from_multires(subdiv, ctx->object, mesh, mmd);
   result = BKE_subdiv_to_ccg_mesh(*subdiv, ccg_settings, *mesh);
 
   /* NOTE: CCG becomes an owner of Subdiv descriptor, so can not share
@@ -284,7 +284,7 @@ static void deform_matrices(ModifierData *md,
     /* Happens on bad topology, also on empty input mesh. */
     return;
   }
-  blender::bke::subdiv::displacement_attach_from_multires(subdiv, mesh, mmd);
+  blender::bke::subdiv::displacement_attach_from_multires(subdiv, ctx->object, mesh, mmd);
   blender::bke::subdiv::deform_coarse_vertices(subdiv, mesh, positions);
   if (subdiv != runtime_data->subdiv) {
     blender::bke::subdiv::free(subdiv);
