@@ -1664,7 +1664,8 @@ static size_t unit_as_string(char *str,
    * This reduces text jumping when changing values. */
   if (prec < 0) {
     strip_skip = true;
-    prec *= -1;
+    /* Use max precision of 6 when there is no value yet to reduce the initial text jump. */
+    prec = value_conv == 0.0f ? 6 : -prec;
   }
 
   /* Adjust precision to expected number of significant digits.
