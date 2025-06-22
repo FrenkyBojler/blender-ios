@@ -38,7 +38,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "ED_id_management.hh"
 
@@ -5106,11 +5106,6 @@ void uiLayoutSetRedAlert(uiLayout *layout, bool redalert)
   layout->redalert_ = redalert;
 }
 
-void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect)
-{
-  layout->keepaspect_ = keepaspect;
-}
-
 void uiLayout::emboss_set(blender::ui::EmbossType emboss)
 {
   emboss_ = emboss;
@@ -5154,11 +5149,6 @@ Panel *uiLayoutGetRootPanel(uiLayout *layout)
 bool uiLayoutGetRedAlert(uiLayout *layout)
 {
   return layout->redalert_;
-}
-
-bool uiLayoutGetKeepAspect(uiLayout *layout)
-{
-  return layout->keepaspect_;
 }
 
 int uiLayoutGetWidth(uiLayout *layout)
