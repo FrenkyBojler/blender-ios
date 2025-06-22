@@ -1018,7 +1018,9 @@ void LightManager::device_update_background(Device *device,
     }
     if (node->type == SkyTextureNode::get_node_type()) {
       SkyTextureNode *sky = (SkyTextureNode *)node;
-      if (sky->get_sky_type() == NODE_SKY_SINGLE_SCATTERING && sky->get_sun_disc()) {
+      if ((sky->get_sky_type() == NODE_SKY_SINGLE_SCATTERING && sky->get_sun_disc()) ||
+          (sky->get_sky_type() == NODE_SKY_MULTIPLE_SCATTERING && sky->get_sun_disc()))
+      {
         /* Ensure that the input coordinates aren't transformed before they reach the node.
          * If that is the case, the logic used for sampling the sun's location does not work
          * and we have to fall back to map-based sampling. */

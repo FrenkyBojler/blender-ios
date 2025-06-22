@@ -63,7 +63,7 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
           xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
         }
       }
-      /* limb darkening, coefficient is 0.6f */
+      /* limb darkening (coefficient is 0.6) */
       const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
                                                                            half_angular))));
       xyz *= limb_darkening;

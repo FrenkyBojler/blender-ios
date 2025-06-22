@@ -9,8 +9,6 @@
 extern "C" {
 #endif
 
-/* Single Scattering sky model */
-
 void SKY_single_scattering_skymodel_precompute_texture(float *pixels,
                                                        int stride,
                                                        int start_y,
@@ -30,6 +28,26 @@ void SKY_single_scattering_skymodel_precompute_sun(float sun_elevation,
                                                    float dust_density,
                                                    float *r_pixel_bottom,
                                                    float *r_pixel_top);
+
+void SKY_multiple_scattering_skymodel_precompute_texture(float *pixels,
+                                                         int stride,
+                                                         int start_y,
+                                                         int end_y,
+                                                         int width,
+                                                         int height,
+                                                         float sun_elevation,
+                                                         float altitude,
+                                                         float air_density,
+                                                         float dust_density,
+                                                         float ozone_density);
+
+void SKY_multiple_scattering_skymodel_precompute_sun(float sun_elevation,
+                                                     float angular_diameter,
+                                                     float altitude,
+                                                     float air_density,
+                                                     float dust_density,
+                                                     float *r_pixel_bottom,
+                                                     float *r_pixel_top);
 
 #ifdef __cplusplus
 }

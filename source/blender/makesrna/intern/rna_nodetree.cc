@@ -5048,14 +5048,17 @@ static void def_sh_tex(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
 {
-  static const EnumPropertyItem prop_sky_type[] = {
-      {SHD_SKY_SINGLE_SCATTERING,
-       "SINGLE_SCATTERING",
-       0,
-       "Single Scattering",
-       "Single scattering sky model"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
+  static const EnumPropertyItem prop_sky_type[] = {{SHD_SKY_SINGLE_SCATTERING,
+                                                    "SINGLE_SCATTERING",
+                                                    0,
+                                                    "Single Scattering",
+                                                    "Single scattering sky model"},
+                                                   {SHD_SKY_MULTIPLE_SCATTERING,
+                                                    "MULTIPLE_SCATTERING",
+                                                    0,
+                                                    "Multiple Scattering",
+                                                    "Multiple scattering sky model"},
+                                                   {0, nullptr, 0, nullptr, nullptr}};
 
   PropertyRNA *prop;
 

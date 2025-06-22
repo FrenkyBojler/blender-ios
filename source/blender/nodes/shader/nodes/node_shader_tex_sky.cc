@@ -32,31 +32,29 @@ static void node_shader_buts_tex_sky(uiLayout *layout, bContext *C, PointerRNA *
 {
   layout->prop(ptr, "sky_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
-  if (RNA_enum_get(ptr, "sky_type") == SHD_SKY_SINGLE_SCATTERING) {
-    Scene *scene = CTX_data_scene(C);
-    if (BKE_scene_uses_blender_eevee(scene)) {
-      layout->label(RPT_("Sun disc not available in EEVEE"), ICON_ERROR);
-    }
-    layout->prop(ptr, "sun_disc", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-
-    uiLayout *col;
-    if (RNA_boolean_get(ptr, "sun_disc")) {
-      col = &layout->column(true);
-      col->prop(ptr, "sun_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-      col->prop(ptr, "sun_intensity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    }
-
-    col = &layout->column(true);
-    col->prop(ptr, "sun_elevation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    col->prop(ptr, "sun_rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-
-    layout->prop(ptr, "altitude", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-
-    col = &layout->column(true);
-    col->prop(ptr, "air_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    col->prop(ptr, "dust_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    col->prop(ptr, "ozone_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  Scene *scene = CTX_data_scene(C);
+  if (BKE_scene_uses_blender_eevee(scene)) {
+    layout->label(RPT_("Sun disc not available in EEVEE"), ICON_ERROR);
   }
+  layout->prop(ptr, "sun_disc", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+
+  uiLayout *col;
+  if (RNA_boolean_get(ptr, "sun_disc")) {
+    col = &layout->column(true);
+    col->prop(ptr, "sun_size", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+    col->prop(ptr, "sun_intensity", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  }
+
+  col = &layout->column(true);
+  col->prop(ptr, "sun_elevation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "sun_rotation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+
+  layout->prop(ptr, "altitude", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+
+  col = &layout->column(true);
+  col->prop(ptr, "air_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "dust_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "ozone_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
@@ -73,7 +71,7 @@ static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
   tex->air_density = 1.0f;
   tex->dust_density = 1.0f;
   tex->ozone_density = 1.0f;
-  tex->sky_model = SHD_SKY_SINGLE_SCATTERING;
+  tex->sky_model = SHD_SKY_MULTIPLE_SCATTERING;
   node->storage = tex;
 }
 
@@ -139,8 +137,7 @@ static void node_shader_update_sky(bNodeTree *ntree, bNode *node)
   bNodeSocket *sockVector = bke::node_find_socket(*node, SOCK_IN, "Vector");
 
   NodeTexSky *tex = (NodeTexSky *)node->storage;
-  bke::node_set_socket_availability(
-      *ntree, *sockVector, !(tex->sky_model == 0 && tex->sun_disc == 1));
+  bke::node_set_socket_availability(*ntree, *sockVector, !(tex->sun_disc == 1));
 }
 
 static void node_gather_link_searches(GatherLinkSearchOpParams &params)

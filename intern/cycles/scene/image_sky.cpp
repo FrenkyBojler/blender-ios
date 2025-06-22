@@ -10,12 +10,14 @@
 
 CCL_NAMESPACE_BEGIN
 
-SkyLoader::SkyLoader(const float sun_elevation,
+SkyLoader::SkyLoader(const int sky_model,
+                     const float sun_elevation,
                      const float altitude,
                      const float air_density,
                      const float dust_density,
                      const float ozone_density)
-    : sun_elevation(sun_elevation),
+    : sky_model(sky_model),
+      sun_elevation(sun_elevation),
       altitude(altitude),
       air_density(air_density),
       dust_density(dust_density),
@@ -48,20 +50,38 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
 
   /* precompute sky texture */
   const int rows_per_task = divide_up(1024, width);
-  parallel_for(blocked_range<size_t>(0, height, rows_per_task),
-               [&](const blocked_range<size_t> &r) {
-                 SKY_single_scattering_skymodel_precompute_texture(pixel_data,
-                                                                   metadata.channels,
-                                                                   r.begin(),
-                                                                   r.end(),
-                                                                   width,
-                                                                   height,
-                                                                   sun_elevation,
-                                                                   altitude,
-                                                                   air_density,
-                                                                   dust_density,
-                                                                   ozone_density);
-               });
+  if (sky_model == 0) {
+    parallel_for(blocked_range<size_t>(0, height, rows_per_task),
+                 [&](const blocked_range<size_t> &r) {
+                   SKY_single_scattering_skymodel_precompute_texture(pixel_data,
+                                                                     metadata.channels,
+                                                                     r.begin(),
+                                                                     r.end(),
+                                                                     width,
+                                                                     height,
+                                                                     sun_elevation,
+                                                                     altitude,
+                                                                     air_density,
+                                                                     dust_density,
+                                                                     ozone_density);
+                 });
+  }
+  if (sky_model == 1) {
+    parallel_for(blocked_range<size_t>(0, height, rows_per_task),
+                 [&](const blocked_range<size_t> &r) {
+                   SKY_multiple_scattering_skymodel_precompute_texture(pixel_data,
+                                                                       metadata.channels,
+                                                                       r.begin(),
+                                                                       r.end(),
+                                                                       width,
+                                                                       height,
+                                                                       sun_elevation,
+                                                                       altitude,
+                                                                       air_density,
+                                                                       dust_density,
+                                                                       ozone_density);
+                 });
+  }
 
   return true;
 }

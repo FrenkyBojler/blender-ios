@@ -634,8 +634,7 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 struct SunSky {
   /* sun direction in spherical and cartesian */
   float theta, phi;
-
-  /* Parameter */
+  /* parameters */
   float single_scattering_data[10];
 };
 
@@ -739,6 +738,7 @@ NODE_DEFINE(SkyTextureNode)
 
   static NodeEnum type_enum;
   type_enum.insert("single_scattering", NODE_SKY_SINGLE_SCATTERING);
+  type_enum.insert("single_scattering", NODE_SKY_MULTIPLE_SCATTERING);
   SOCKET_ENUM(sky_type, "Type", type_enum, NODE_SKY_SINGLE_SCATTERING);
 
   SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
@@ -817,9 +817,10 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   impar.extension = EXTENSION_EXTEND;
 
   /* precompute sky texture */
+  int sky_model = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? 0 : 1;
   if (handle.empty()) {
     unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
-        sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
+        sky_model, sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
     handle = image_manager->add_image(std::move(loader), impar);
   }
 
@@ -868,9 +869,10 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   impar.extension = EXTENSION_EXTEND;
 
   /* precompute sky texture */
-  if (handle.empty()) {
+  int sky_model = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? 0 : 1;
+  {
     unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
-        sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
+        sky_model, sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
     handle = image_manager->add_image(std::move(loader), impar);
   }
 
