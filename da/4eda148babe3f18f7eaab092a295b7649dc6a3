@@ -1,1 +1,2 @@
 Referenced by issue #140791, Building blender_test/bf_editor_sculpt_paint compile error in visual studio 2022
+Referenced by commit 8f4f94aabcb352d7a7baa24d964aa6aa8a2169d7, Tests: Fix file removal failure from Python in unittests.
