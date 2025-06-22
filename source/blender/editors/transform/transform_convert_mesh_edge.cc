@@ -15,9 +15,6 @@
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
 
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-
 #include "transform.hh"
 #include "transform_convert.hh"
 
@@ -26,11 +23,6 @@ namespace blender::ed::transform {
 /* -------------------------------------------------------------------- */
 /** \name Edge (for crease) Transform Creation
  * \{ */
-
-typedef struct TransEdgeMirrorData {
-  BMEdge *edge;
-  float mirror_ival;
-} TransEdgeMirrorData;
 
 static void createTransEdge(bContext * /*C*/, TransInfo *t)
 {
@@ -94,16 +86,22 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
 
     BLI_assert(cd_edge_float_offset != -1);
 
-    BMIter iter2;
-    BM_ITER_MESH (eed, &iter2, em->bm, BM_EDGES_OF_MESH) {
+    BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
       if (!BM_elem_flag_test(eed, BM_ELEM_HIDDEN) &&
           (BM_elem_flag_test(eed, BM_ELEM_SELECT) || is_prop_edit))
       {
         float *fl_ptr;
         /* Need to set center for center calculations. */
         mid_v3_v3v3(td->center, eed->v1->co, eed->v2->co);
+
         td->loc = nullptr;
-        td->flag = BM_elem_flag_test(eed, BM_ELEM_SELECT) ? TD_SELECTED : 0;
+        if (BM_elem_flag_test(eed, BM_ELEM_SELECT)) {
+          td->flag = TD_SELECTED;
+        }
+        else {
+          td->flag = 0;
+        }
+
         copy_m3_m3(td->smtx, smtx);
         copy_m3_m3(td->mtx, mtx);
 
@@ -113,13 +111,6 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
         td->val = fl_ptr;
         td->ival = *fl_ptr;
 
-        {
-          TransEdgeMirrorData *med = static_cast<TransEdgeMirrorData *>(
-              MEM_mallocN(sizeof(TransEdgeMirrorData), "trans edge mirror data"));
-          med->edge = eed;
-          med->mirror_ival = *fl_ptr;
-          td->extra = med;
-        }
         td++;
       }
     }
