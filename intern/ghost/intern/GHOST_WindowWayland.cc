@@ -1259,9 +1259,6 @@ static void ghost_wl_libdecor_configuration_free(libdecor_configuration *configu
 /** \name Listener (XDG Top Level), #xdg_toplevel_listener
  * \{ */
 
-static CLG_LogRef LOG_WL_XDG_TOPLEVEL = {"ghost.wl.handle.xdg_toplevel"};
-#define LOG (&LOG_WL_XDG_TOPLEVEL)
-
 static void xdg_toplevel_handle_configure(void *data,
                                           xdg_toplevel * /*xdg_toplevel*/,
                                           const int32_t width,
@@ -1269,7 +1266,7 @@ static void xdg_toplevel_handle_configure(void *data,
                                           wl_array *states)
 {
   /* TODO: log `states`, not urgent. */
-  CLOG_DEBUG(LOG, "configure (size=[%d, %d])", width, height);
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG top level configure (size=[%d, %d])", width, height);
 
   GWL_Window *win = static_cast<GWL_Window *>(data);
 
@@ -1312,7 +1309,7 @@ static void xdg_toplevel_handle_configure(void *data,
 
 static void xdg_toplevel_handle_close(void *data, xdg_toplevel * /*xdg_toplevel*/)
 {
-  CLOG_DEBUG(LOG, "close");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG top level close");
 
   GWL_Window *win = static_cast<GWL_Window *>(data);
 
@@ -1325,7 +1322,8 @@ static void xdg_toplevel_handle_configure_bounds(void *data,
                                                  int32_t height)
 {
   /* Only available in interface version 4. */
-  CLOG_DEBUG(LOG, "configure_bounds (size=[%d, %d])", width, height);
+  CLOG_DEBUG(
+      LOG_GHOST_WINDOW, "Handle XDG top level configure_bounds (size=[%d, %d])", width, height);
 
   /* No need to lock as this only runs on window creation. */
   GWL_Window *win = static_cast<GWL_Window *>(data);
@@ -1340,7 +1338,7 @@ static void xdg_toplevel_handle_wm_capabilities(void * /*data*/,
                                                 wl_array * /*capabilities*/)
 {
   /* Only available in interface version 5. */
-  CLOG_DEBUG(LOG, "wm_capabilities");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG top level wm_capabilities");
 
   /* NOTE: this would be useful if blender had CSD. */
 }
@@ -1351,8 +1349,6 @@ static const xdg_toplevel_listener xdg_toplevel_listener = {
     /*configure_bounds*/ xdg_toplevel_handle_configure_bounds,
     /*wm_capabilities*/ xdg_toplevel_handle_wm_capabilities,
 };
-
-#undef LOG
 
 /** \} */
 
@@ -1395,9 +1391,6 @@ static const xdg_activation_token_v1_listener *xdg_activation_listener_get()
  * Used by #gwl_window_activate.
  * \{ */
 
-static CLG_LogRef LOG_WL_FRACTIONAL_SCALE = {"ghost.wl.handle.fractional_scale"};
-#define LOG (&LOG_WL_FRACTIONAL_SCALE)
-
 static void wp_fractional_scale_handle_preferred_scale(
     void *data, wp_fractional_scale_v1 * /*wp_fractional_scale_v1*/, uint preferred_scale)
 {
@@ -1405,7 +1398,7 @@ static void wp_fractional_scale_handle_preferred_scale(
   std::lock_guard lock_frame_guard{static_cast<GWL_Window *>(data)->frame_pending_mutex};
 #endif
   CLOG_DEBUG(LOG,
-             "preferred_scale (preferred_scale=%.6f)",
+             "Handle fractional scale preferred_scale (preferred_scale=%.6f)",
              double(preferred_scale) / FRACTIONAL_DENOMINATOR);
 
   GWL_Window *win = static_cast<GWL_Window *>(data);
@@ -1420,8 +1413,6 @@ static const wp_fractional_scale_v1_listener wp_fractional_scale_listener = {
     /*preferred_scale*/ wp_fractional_scale_handle_preferred_scale,
 };
 
-#undef LOG
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1430,14 +1421,11 @@ static const wp_fractional_scale_v1_listener wp_fractional_scale_listener = {
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
 
-static CLG_LogRef LOG_WL_LIBDECOR_FRAME = {"ghost.wl.handle.libdecor_frame"};
-#  define LOG (&LOG_WL_LIBDECOR_FRAME)
-
 static void libdecor_frame_handle_configure(libdecor_frame *frame,
                                             libdecor_configuration *configuration,
                                             void *data)
 {
-  CLOG_DEBUG(LOG, "configure");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle libdecor configure");
 
 #  ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_frame_guard{static_cast<GWL_Window *>(data)->frame_pending_mutex};
@@ -1574,7 +1562,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
 
 static void libdecor_frame_handle_close(libdecor_frame * /*frame*/, void *data)
 {
-  CLOG_DEBUG(LOG, "close");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle libdecor close");
 
   GWL_Window *win = static_cast<GWL_Window *>(data);
 
@@ -1583,7 +1571,7 @@ static void libdecor_frame_handle_close(libdecor_frame * /*frame*/, void *data)
 
 static void libdecor_frame_handle_commit(libdecor_frame * /*frame*/, void *data)
 {
-  CLOG_DEBUG(LOG, "commit");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle libdecor commit");
 
 #  if 0
   GWL_Window *win = static_cast<GWL_Window *>(data);
@@ -1600,8 +1588,6 @@ static libdecor_frame_interface libdecor_frame_iface = {
     /*commit*/ libdecor_frame_handle_commit,
 };
 
-#  undef LOG
-
 #endif /* WITH_GHOST_WAYLAND_LIBDECOR. */
 
 /** \} */
@@ -1610,13 +1596,10 @@ static libdecor_frame_interface libdecor_frame_iface = {
 /** \name Listener (XDG Decoration Listener), #zxdg_toplevel_decoration_v1_listener
  * \{ */
 
-static CLG_LogRef LOG_WL_XDG_TOPLEVEL_DECORATION = {"ghost.wl.handle.xdg_toplevel_decoration"};
-#define LOG (&LOG_WL_XDG_TOPLEVEL_DECORATION)
-
 static void xdg_toplevel_decoration_handle_configure(
     void *data, zxdg_toplevel_decoration_v1 * /*zxdg_toplevel_decoration_v1*/, const uint32_t mode)
 {
-  CLOG_DEBUG(LOG, "configure (mode=%u)", mode);
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG decoration configure (mode=%u)", mode);
 
   GWL_Window *win = static_cast<GWL_Window *>(data);
 
@@ -1627,16 +1610,11 @@ static const zxdg_toplevel_decoration_v1_listener xdg_toplevel_decoration_v1_lis
     /*configure*/ xdg_toplevel_decoration_handle_configure,
 };
 
-#undef LOG
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Listener (XDG Surface Handle Configure), #xdg_surface_listener
  * \{ */
-
-static CLG_LogRef LOG_WL_XDG_SURFACE = {"ghost.wl.handle.xdg_surface"};
-#define LOG (&LOG_WL_XDG_SURFACE)
 
 static void xdg_surface_handle_configure(void *data,
                                          xdg_surface *xdg_surface,
@@ -1645,10 +1623,10 @@ static void xdg_surface_handle_configure(void *data,
   GWL_Window *win = static_cast<GWL_Window *>(data);
 
   if (win->xdg_decor->surface != xdg_surface) {
-    CLOG_DEBUG(LOG, "configure (skipped)");
+    CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG surface configure (skipped)");
     return;
   }
-  CLOG_DEBUG(LOG, "configure");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG surface configure");
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_frame_guard{static_cast<GWL_Window *>(data)->frame_pending_mutex};
@@ -1675,24 +1653,19 @@ static const xdg_surface_listener xdg_surface_listener = {
     /*configure*/ xdg_surface_handle_configure,
 };
 
-#undef LOG
-
 /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name Listener (Surface), #wl_surface_listener
  * \{ */
 
-static CLG_LogRef LOG_WL_SURFACE = {"ghost.wl.handle.surface"};
-#define LOG (&LOG_WL_SURFACE)
-
 static void surface_handle_enter(void *data, wl_surface * /*wl_surface*/, wl_output *wl_output)
 {
   if (!ghost_wl_output_own(wl_output)) {
-    CLOG_DEBUG(LOG, "enter (skipped)");
+    CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG surface enter (skipped)");
     return;
   }
-  CLOG_DEBUG(LOG, "enter");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG surface enter");
 
   GWL_Output *reg_output = ghost_wl_output_user_data(wl_output);
   GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(data);
@@ -1704,10 +1677,10 @@ static void surface_handle_enter(void *data, wl_surface * /*wl_surface*/, wl_out
 static void surface_handle_leave(void *data, wl_surface * /*wl_surface*/, wl_output *wl_output)
 {
   if (!ghost_wl_output_own(wl_output)) {
-    CLOG_DEBUG(LOG, "leave (skipped)");
+    CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG surface leave (skipped)");
     return;
   }
-  CLOG_DEBUG(LOG, "leave");
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG surface leave");
 
   GWL_Output *reg_output = ghost_wl_output_user_data(wl_output);
   GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(data);
@@ -1723,7 +1696,7 @@ static void surface_handle_preferred_buffer_scale(void * /*data*/,
                                                   int32_t factor)
 {
   /* Only available in interface version 6. */
-  CLOG_DEBUG(LOG, "handle_preferred_buffer_scale (factor=%d)", factor);
+  CLOG_DEBUG(LOG_GHOST_WINDOW, "Handle XDG surface preferred_buffer_scale (factor=%d)", factor);
 }
 
 static void surface_handle_preferred_buffer_transform(void * /*data*/,
@@ -1731,7 +1704,8 @@ static void surface_handle_preferred_buffer_transform(void * /*data*/,
                                                       uint32_t transform)
 {
   /* Only available in interface version 6. */
-  CLOG_DEBUG(LOG, "handle_preferred_buffer_transform (transform=%u)", transform);
+  CLOG_DEBUG(
+      LOG_GHOST_WINDOW, "Handle XDG surface preferred_buffer_transform (transform=%u)", transform);
 }
 #endif /* WL_SURFACE_PREFERRED_BUFFER_SCALE_SINCE_VERSION && \
         * WL_SURFACE_PREFERRED_BUFFER_TRANSFORM_SINCE_VERSION */
@@ -1745,8 +1719,6 @@ static const wl_surface_listener wl_surface_listener = {
     /*preferred_buffer_transform*/ surface_handle_preferred_buffer_transform,
 #endif
 };
-
-#undef LOG
 
 /** \} */
 

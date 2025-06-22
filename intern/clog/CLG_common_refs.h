@@ -174,3 +174,14 @@ extern CLG_LogRef *LOG_UNDO_SCULPT;
 
 /* XR and VR */
 extern CLG_LogRef *LOG_XR;
+
+/* GHOST */
+extern CLG_LogRef *LOG_GHOST_CONTEXT;
+extern CLG_LogRef *LOG_GHOST_DRAGNDROP;
+extern CLG_LogRef *LOG_GHOST_KEYBOARD;
+extern CLG_LogRef *LOG_GHOST_NDOF;
+extern CLG_LogRef *LOG_GHOST_POINTER;
+extern CLG_LogRef *LOG_GHOST_SYSTEM;
+extern CLG_LogRef *LOG_GHOST_TABLET;
+extern CLG_LogRef *LOG_GHOST_TOUCH;
+extern CLG_LogRef *LOG_GHOST_WINDOW;

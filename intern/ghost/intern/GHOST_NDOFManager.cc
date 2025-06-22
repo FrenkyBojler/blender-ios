@@ -19,8 +19,6 @@
 #include <cstring> /* For memory functions. */
 #include <map>
 
-static CLG_LogRef LOG = {"ghost.ndof"};
-
 /**
  * 3Dconnexion keyboards and keypads use specific keys that have no standard equivalent.
  * These could be supported as generic "custom" keys, see !124155 review for details.
@@ -305,7 +303,7 @@ bool GHOST_NDOFManager::setDevice(ushort vendor_id, ushort product_id)
           break;
         }
         default: {
-          CLOG_INFO(&LOG, "Unknown Logitech product %04hx", product_id);
+          CLOG_INFO(LOG_GHOST_NDOF, "Unknown Logitech product %04hx", product_id);
         }
       }
       break;
@@ -347,23 +345,26 @@ bool GHOST_NDOFManager::setDevice(ushort vendor_id, ushort product_id)
           break;
         }
         default: {
-          CLOG_INFO(&LOG, "Unknown 3Dconnexion product %04hx", product_id);
+          CLOG_INFO(LOG_GHOST_NDOF, "Unknown 3Dconnexion product %04hx", product_id);
         }
       }
       break;
     default:
-      CLOG_INFO(&LOG, "Unknown device %04hx:%04hx", vendor_id, product_id);
+      CLOG_INFO(LOG_GHOST_NDOF, "Unknown device %04hx:%04hx", vendor_id, product_id);
   }
 
   if (device_type_ != NDOF_UnknownDevice) {
-    CLOG_INFO(&LOG, "Using %s", ndof_device_names[device_type_]);
+    CLOG_INFO(LOG_GHOST_NDOF, "Using %s", ndof_device_names[device_type_]);
   }
 
   if (hid_map_button_mask_ == 0) {
     hid_map_button_mask_ = int(~(UINT_MAX << hid_map_button_num_));
   }
 
-  CLOG_DEBUG(&LOG, "Device %d buttons -> hex:%X", hid_map_button_num_, uint(hid_map_button_mask_));
+  CLOG_DEBUG(LOG_GHOST_NDOF,
+             "Device %d buttons -> hex:%X",
+             hid_map_button_num_,
+             uint(hid_map_button_mask_));
 
   return device_type_ != NDOF_UnknownDevice;
 }
@@ -502,12 +503,14 @@ void GHOST_NDOFManager::sendKeyEvent(GHOST_TKey key,
 void GHOST_NDOFManager::updateButton(GHOST_NDOF_ButtonT button, bool press, uint64_t time)
 {
   if (button == GHOST_NDOF_BUTTON_INVALID) {
-    CLOG_DEBUG(
-        &LOG, "Update button=%d, press=%d (mapped to none, ignoring!)", int(button), int(press));
+    CLOG_DEBUG(LOG_GHOST_NDOF,
+               "Update button=%d, press=%d (mapped to none, ignoring!)",
+               int(button),
+               int(press));
     return;
   }
 
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_GHOST_NDOF,
              "Update button=%d, press=%d, name=%s",
              button,
              int(press),
@@ -544,8 +547,10 @@ void GHOST_NDOFManager::updateButtonRAW(int button_number, bool press, uint64_t 
       bitmask_devices_.end())
   {
     if (button_number >= hid_map_button_num_) {
-      CLOG_DEBUG(
-          &LOG, "Update button=%d, press=%d (out of range, ignoring!)", button_number, int(press));
+      CLOG_DEBUG(LOG_GHOST_NDOF,
+                 "Update button=%d, press=%d (out of range, ignoring!)",
+                 button_number,
+                 int(press));
       return;
     }
     button = hid_map_[button_number];
@@ -644,7 +649,8 @@ void GHOST_NDOFManager::setDeadZone(float dz)
   motion_dead_zone_ = dz;
 
   /* Warn the rogue user/developer about high dead-zone, but allow it. */
-  CLOG_INFO(&LOG, "Dead zone set to %.2f%s", dz, (dz > 0.5f) ? " (unexpectedly high)" : "");
+  CLOG_DEBUG(
+      LOG_GHOST_NDOF, "Dead zone set to %.2f%s", dz, (dz > 0.5f) ? " (unexpectedly high)" : "");
 }
 
 static bool atHomePosition(const GHOST_TEventNDOFMotionData *ndof)
@@ -725,7 +731,7 @@ bool GHOST_NDOFManager::sendMotionEvent()
       }
       else {
         /* Send no event and keep current state. */
-        CLOG_DEBUG(&LOG, "Motion ignored");
+        CLOG_DEBUG(LOG_GHOST_NDOF, "Motion ignored");
         delete event;
         return false;
       }
@@ -749,7 +755,7 @@ bool GHOST_NDOFManager::sendMotionEvent()
   }
 
 #if 1
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_GHOST_NDOF,
              "Motion sent, T=(%.2f,%.2f,%.2f), R=(%.2f,%.2f,%.2f) dt=%.3f, status=%s",
              data->tx,
              data->ty,
@@ -761,7 +767,7 @@ bool GHOST_NDOFManager::sendMotionEvent()
              ndof_progress_string[data->progress]);
 #else
   /* Raw values, may be useful for debugging. */
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_GHOST_NDOF,
              "Motion sent, T=(%d,%d,%d) R=(%d,%d,%d) status=%s",
              translation_[0],
              translation_[1],

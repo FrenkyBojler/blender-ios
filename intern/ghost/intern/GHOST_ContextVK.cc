@@ -39,8 +39,6 @@
 
 using namespace std;
 
-static CLG_LogRef LOG = {"ghost.context"};
-
 static const char *vulkan_error_as_string(VkResult result)
 {
 #define FORMAT_ERROR(X) \
@@ -96,7 +94,7 @@ static const char *vulkan_error_as_string(VkResult result)
   do { \
     VkResult r = (__expression); \
     if (r != VK_SUCCESS) { \
-      CLOG_ERROR(&LOG, \
+      CLOG_ERROR(LOG_GHOST_CONTEXT, \
                  "Vulkan: %s resulted in code %s.", \
                  __STR(__expression), \
                  vulkan_error_as_string(r)); \
@@ -252,11 +250,13 @@ class GHOST_DeviceVK {
     for (const char *optional_extension : optional_extensions) {
       const bool extension_found = has_extensions({optional_extension});
       if (extension_found) {
-        CLOG_DEBUG(&LOG, "Vulkan: enable optional extension: `%s`", optional_extension);
+        CLOG_DEBUG(
+            LOG_GHOST_CONTEXT, "Vulkan: enable optional extension: `%s`", optional_extension);
         device_extensions.push_back(optional_extension);
       }
       else {
-        CLOG_DEBUG(&LOG, "Vulkan: optional extension not found: `%s`", optional_extension);
+        CLOG_DEBUG(
+            LOG_GHOST_CONTEXT, "Vulkan: optional extension not found: `%s`", optional_extension);
       }
     }
 
@@ -529,7 +529,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
   }
 
   if (best_physical_device == VK_NULL_HANDLE) {
-    CLOG_ERROR(&LOG, "No suitable Vulkan Device found!");
+    CLOG_ERROR(LOG_GHOST_CONTEXT, "No suitable Vulkan Device found!");
     return GHOST_kFailure;
   }
 
@@ -670,7 +670,8 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
       recreateSwapchain(use_hdr_swapchain);
     }
   }
-  CLOG_DEBUG(&LOG, "Vulkan: render_frame=%lu, image_index=%u", m_render_frame, image_index);
+  CLOG_DEBUG(
+      LOG_GHOST_CONTEXT, "Vulkan: render_frame=%lu, image_index=%u", m_render_frame, image_index);
   GHOST_SwapchainImage &swapchain_image = m_swapchain_images[image_index];
 
   GHOST_VulkanSwapChainData swap_chain_data;
@@ -709,7 +710,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
     return GHOST_kSuccess;
   }
   if (present_result != VK_SUCCESS) {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_GHOST_CONTEXT,
                "Vulkan: failed to present swap chain image : %s",
                vulkan_error_as_string(acquire_result));
   }
@@ -811,7 +812,7 @@ static void requireExtension(const vector<VkExtensionProperties> &extensions_ava
     extensions_enabled.push_back(extension_name);
   }
   else {
-    CLOG_ERROR(&LOG, "Vulkan: required extension not found: %s", extension_name);
+    CLOG_ERROR(LOG_GHOST_CONTEXT, "Vulkan: required extension not found: %s", extension_name);
   }
 }
 
@@ -1092,7 +1093,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
   for (int index = 0; index < actual_image_count; index++) {
     m_swapchain_images[index].vk_image = swapchain_images[index];
   }
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_GHOST_CONTEXT,
              "Vulkan: recreating swapchain: width=%u, height=%u, format=%d, colorSpace=%d, "
              "present_mode=%d, image_count_requested=%u, image_count_acquired=%u, swapchain=%lx, "
              "old_swapchain=%lx",
