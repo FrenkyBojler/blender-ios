@@ -325,11 +325,37 @@ static bool edbm_bevel_calc(wmOperator *op)
   for (BevelObjectStore &ob_store : opdata->ob_store) {
     Object *obedit = ob_store.ob;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
 
     /* revert to original mesh */
     if (opdata->is_modal) {
       EDBM_redo_state_restore(&ob_store.mesh_backup, em, false);
     }
+
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit);
+
+    if (symmetry_helper) {
+      if (affect == BEVEL_AFFECT_VERTICES) {
+        BMIter v_iter;
+        BMVert *v;
+        BM_ITER_MESH (v, &v_iter, bm, BM_VERTS_OF_MESH) {
+          if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+            symmetry_helper->set_flag_on_mirror_verts(v, BM_ELEM_SELECT, true);
+          }
+        }
+      }
+      else {
+        BMIter e_iter;
+        BMEdge *e;
+        BM_ITER_MESH (e, &e_iter, bm, BM_EDGES_OF_MESH) {
+          if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+            symmetry_helper->set_flag_on_mirror_edges(e, BM_ELEM_SELECT, true);
+          }
+        }
+      }
+    }
+
 
     const int material = std::clamp(material_init, -1, obedit->totcol - 1);
 
