@@ -358,6 +358,7 @@ void EDBM_selectmode_set(BMEditMesh *em);
 void EDBM_selectmode_convert(BMEditMesh *em, short selectmode_old, short selectmode_new);
 
 /**
+ * User access this.
  * Select-mode setting utility.
  * This operates on tool-settings and all objects passed in.
  */
@@ -370,7 +371,7 @@ bool EDBM_selectmode_set_multi_ex(Scene *scene,
  */
 bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
 /**
- * User facing function, handles notification.
+ * User facing function, does notification.
  *
  * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
  */
@@ -597,7 +598,7 @@ void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 int ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
 int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op);
 
-/* Mirror lookup API. */
+/* mirror lookup api */
 
 /* Spatial Mirror */
 void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_eval);
