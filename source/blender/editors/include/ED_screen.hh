@@ -147,6 +147,7 @@ void ED_region_visibility_change_update(bContext *C, ScrArea *area, ARegion *reg
  * \note Assumes that \a region itself is not a split version from previous region.
  */
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region);
+void ED_region_add_timer(bContext *C, ScrArea *area, ARegion *region);
 
 void ED_region_clear(const bContext *C, const ARegion *region, int /*ThemeColorID*/ colorid);
 

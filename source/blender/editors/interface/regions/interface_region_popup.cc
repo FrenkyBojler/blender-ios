@@ -957,6 +957,8 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
     type.listener = ui_block_region_popup_window_listener;
   }
 
+  ED_region_add_timer(C, handle->ctx_area, region);
+
   return handle;
 }
 

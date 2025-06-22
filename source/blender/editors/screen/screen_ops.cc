@@ -6448,6 +6448,29 @@ static void region_blend_end(bContext *C, ARegion *region, const bool is_running
   WM_event_timer_remove(CTX_wm_manager(C), nullptr, region->runtime->regiontimer); /* frees rgi */
   region->runtime->regiontimer = nullptr;
 }
+
+void ED_region_add_timer(bContext *C, ScrArea *area, ARegion *region)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  wmWindow *win = CTX_wm_window(C);
+
+  /* end running timer */
+  if (region->runtime->regiontimer) {
+    region_blend_end(C, region, true);
+  }
+
+  RegionAlphaInfo *rgi = MEM_callocN<RegionAlphaInfo>("RegionAlphaInfo");
+
+  rgi->hidden = region->flag & RGN_FLAG_HIDDEN;
+  rgi->area = area;
+  rgi->region = region;
+  region->flag &= ~RGN_FLAG_HIDDEN;
+
+  /* new timer */
+  region->runtime->regiontimer = WM_event_timer_add(wm, win, TIMERREGION, TIMESTEP);
+  region->runtime->regiontimer->customdata = rgi;
+}
+
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
