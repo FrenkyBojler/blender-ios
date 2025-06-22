@@ -476,72 +476,68 @@ struct ClosureOutputItem {
   eNodeSocketDatatype type;
 };
 
-class LazyFunctionForCurveConstraintUpdatePassThrough : public LazyFunction {
- private:
-  int input_stretch_index_, input_bend_index_;
-  int output_stretch_index_, output_bend_index_;
-  // XXX Redundant with indices above, used to set some outputs automatically.
+class LazyFunctionForClosure : public LazyFunction {
+ protected:
   LazyFunctionIndices lf_indices_;
+  Vector<ClosureInputItem> input_items_;
+  Vector<ClosureOutputItem> output_items_;
 
  public:
-  template<typename T> int add_input(const char *name, LazyFunctionIndices &lf_indices)
+  const LazyFunctionIndices &lf_indices() const
   {
+    return lf_indices_;
+  }
+
+  Span<ClosureInputItem> input_items() const
+  {
+    return input_items_;
+  }
+
+  Span<ClosureOutputItem> output_items() const
+  {
+    return output_items_;
+  }
+
+  int add_input(const char *name, const eNodeSocketDatatype socket_type)
+  {
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+    BLI_assert(stype != nullptr);
+
     const int main_index = inputs_.append_and_get_index_as(
-        name, CPPType::get<T>(), lf::ValueUsage::Maybe);
+        name, *stype->geometry_nodes_cpp_type, lf::ValueUsage::Maybe);
     const int used_index = outputs_.append_and_get_index_as("Usage", CPPType::get<bool>());
-    lf_indices.inputs.main_indices.append(main_index);
-    lf_indices.outputs.input_usage_indices.append(used_index);
+
+    lf_indices_.inputs.main_indices.append(main_index);
+    lf_indices_.outputs.input_usage_indices.append(used_index);
+
+    input_items_.append(ClosureInputItem{name, socket_type});
+
     return main_index;
   }
 
-  template<typename T> int add_output(const char *name, LazyFunctionIndices &lf_indices)
+  int add_output(const char *name, const eNodeSocketDatatype socket_type)
   {
-    const int main_index = outputs_.append_and_get_index_as(name, CPPType::get<T>());
+    const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(socket_type);
+    BLI_assert(stype != nullptr);
+
+    const int main_index = outputs_.append_and_get_index_as(name, *stype->geometry_nodes_cpp_type);
     const int used_index = inputs_.append_and_get_index_as(
         "Usage", CPPType::get<bool>(), lf::ValueUsage::Maybe);
-    lf_indices.outputs.main_indices.append(main_index);
-    lf_indices.inputs.output_usage_indices.append(used_index);
+    lf_indices_.outputs.main_indices.append(main_index);
+    lf_indices_.inputs.output_usage_indices.append(used_index);
+
+    output_items_.append(ClosureOutputItem{name, socket_type});
+
     return main_index;
-  }
-
-  LazyFunctionForCurveConstraintUpdatePassThrough(const char *debug_name,
-                                                  LazyFunctionIndices &lf_indices,
-                                                  Vector<ClosureInputItem> &input_items,
-                                                  Vector<ClosureOutputItem> &output_items)
-  {
-    debug_name_ = debug_name;
-
-    input_stretch_index_ = add_input<GeometrySet>("Stretch Constraints", lf_indices);
-    input_bend_index_ = add_input<GeometrySet>("Bend Constraints", lf_indices);
-    output_stretch_index_ = add_output<GeometrySet>("Stretch Constraints", lf_indices);
-    output_bend_index_ = add_output<GeometrySet>("Bend Constraints", lf_indices);
-    lf_indices_ = lf_indices;
-
-    input_items.append(ClosureInputItem{"Stretch Constraints", SOCK_GEOMETRY});
-    input_items.append(ClosureInputItem{"Bend Constraints", SOCK_GEOMETRY});
-    output_items.append(ClosureOutputItem{"Stretch Constraints", SOCK_GEOMETRY});
-    output_items.append(ClosureOutputItem{"Bend Constraints", SOCK_GEOMETRY});
-  }
-
-  void execute_impl(lf::Params &params, const lf::Context &context) const override
-  {
-    // const ScopedNodeTimer node_timer{context, node_};
-
-    GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
-
-    GeometrySet stretch_constraints = params.get_input<GeometrySet>(input_stretch_index_);
-    GeometrySet bend_constraints = params.get_input<GeometrySet>(input_bend_index_);
-    params.set_output(output_stretch_index_, std::move(stretch_constraints));
-    params.set_output(output_bend_index_, std::move(bend_constraints));
   }
 };
 
-static ClosurePtr create_closure_for_lazy_function(const fn::lazy_function::LazyFunction *body_fn,
-                                                   const LazyFunctionIndices &lf_indices,
-                                                   const Span<ClosureInputItem> inputs,
-                                                   const Span<ClosureOutputItem> outputs)
+static ClosurePtr create_closure_for_lazy_function(const LazyFunctionForClosure &body_fn)
 {
+  const LazyFunctionIndices &lf_indices = body_fn.lf_indices();
+  const Span<ClosureInputItem> inputs = body_fn.input_items();
+  const Span<ClosureOutputItem> outputs = body_fn.output_items();
+
   std::shared_ptr<ClosureSignature> closure_signature = std::make_shared<ClosureSignature>();
   for (const ClosureInputItem &item : inputs) {
     const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
@@ -555,7 +551,7 @@ static ClosurePtr create_closure_for_lazy_function(const fn::lazy_function::Lazy
   std::unique_ptr<ResourceScope> closure_scope = std::make_unique<ResourceScope>();
 
   lf::Graph &lf_graph = closure_scope->construct<lf::Graph>("Closure Graph");
-  lf::FunctionNode &lf_body_node = lf_graph.add_function(*body_fn);
+  lf::FunctionNode &lf_body_node = lf_graph.add_function(body_fn);
   ClosureFunctionIndices closure_indices;
   Vector<const void *> default_input_values;
 
@@ -613,15 +609,80 @@ static ClosurePtr create_closure_for_lazy_function(const fn::lazy_function::Lazy
   return closure;
 }
 
+class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
+ private:
+  int input_stretch_index_, input_bend_index_;
+  int output_stretch_index_, output_bend_index_;
+
+ public:
+  LazyFunctionForCurveConstraintUpdate(const char *debug_name)
+  {
+    debug_name_ = debug_name;
+
+    input_stretch_index_ = add_input("Stretch Constraints", SOCK_GEOMETRY);
+    input_bend_index_ = add_input("Bend Constraints", SOCK_GEOMETRY);
+    output_stretch_index_ = add_output("Stretch Constraints", SOCK_GEOMETRY);
+    output_bend_index_ = add_output("Bend Constraints", SOCK_GEOMETRY);
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
+  {
+    // const ScopedNodeTimer node_timer{context, node_};
+
+    GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
+    BLI_assert(user_data != nullptr);
+
+    GeometrySet stretch_constraints = params.get_input<GeometrySet>(input_stretch_index_);
+    GeometrySet bend_constraints = params.get_input<GeometrySet>(input_bend_index_);
+    params.set_output(output_stretch_index_, std::move(stretch_constraints));
+    params.set_output(output_bend_index_, std::move(bend_constraints));
+  }
+};
+
+class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
+ private:
+  int input_position_index_, input_rotation_index_;
+  int output_position_index_, output_rotation_index_;
+
+ public:
+  LazyFunctionForRootConstraintUpdate(const char *debug_name)
+  {
+    debug_name_ = debug_name;
+
+    input_position_index_ = add_input("Position Goal Constraints", SOCK_GEOMETRY);
+    input_rotation_index_ = add_input("Rotation Goal Constraints", SOCK_GEOMETRY);
+    output_position_index_ = add_output("Position Goal Constraints", SOCK_GEOMETRY);
+    output_rotation_index_ = add_output("Rotation Goal Constraints", SOCK_GEOMETRY);
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
+  {
+    // const ScopedNodeTimer node_timer{context, node_};
+
+    GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
+    BLI_assert(user_data != nullptr);
+
+    GeometrySet position_constraints = params.get_input<GeometrySet>(input_position_index_);
+    GeometrySet rotation_constraints = params.get_input<GeometrySet>(input_rotation_index_);
+    params.set_output(output_position_index_, std::move(position_constraints));
+    params.set_output(output_rotation_index_, std::move(rotation_constraints));
+  }
+};
+
 static ClosurePtr create_curve_constraint_update_closure()
 {
-  static LazyFunctionIndices lf_indices;
-  static Vector<ClosureInputItem> input_items;
-  static Vector<ClosureOutputItem> output_items;
-  static const auto *body_fn = MEM_new<LazyFunctionForCurveConstraintUpdatePassThrough>(
-      __func__, "Curve Constraint Update Closure", lf_indices, input_items, output_items);
+  static const auto *body_fn = MEM_new<LazyFunctionForCurveConstraintUpdate>(
+      __func__, "Curve Constraint Update Closure");
 
-  return create_closure_for_lazy_function(body_fn, lf_indices, input_items, output_items);
+  return create_closure_for_lazy_function(*body_fn);
+}
+
+static ClosurePtr create_root_constraint_update_closure()
+{
+  static const auto *body_fn = MEM_new<LazyFunctionForRootConstraintUpdate>(
+      __func__, "Root Constraint Update Closure");
+
+  return create_closure_for_lazy_function(*body_fn);
 }
 
 /**
@@ -676,7 +737,7 @@ struct Behavior {
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
 
-    ClosurePtr update = nullptr;
+    ClosurePtr update = create_root_constraint_update_closure();
   } root_constraints;
 };
 
