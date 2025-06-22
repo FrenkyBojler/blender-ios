@@ -77,6 +77,9 @@ bool BKE_volume_load(const Volume *volume, const Main *bmain);
 void BKE_volume_unload(Volume *volume);
 bool BKE_volume_is_loaded(const Volume *volume);
 
+/* Reloads all of the grid data from the file. */
+bool BKE_volume_reload(Volume *volume);
+
 int BKE_volume_num_grids(const Volume *volume);
 const char *BKE_volume_grids_error_msg(const Volume *volume);
 const char *BKE_volume_grids_frame_filepath(const Volume *volume);

@@ -55,9 +55,11 @@ class DATA_PT_volume_file(DataButtonsPanel, Panel):
         volume = context.volume
         volume.grids.load()
 
-        layout.prop(volume, "filepath", text="")
+        row = layout.row(align=True)
+        row.prop(volume, "filepath", text="")
 
         if volume.filepath:
+            row.operator("object.volume_reload", text="", icon='FILE_REFRESH')
             layout.use_property_split = True
             layout.use_property_decorate = False
 
@@ -168,7 +170,6 @@ class DATA_PT_volume_viewport_display(DataButtonsPanel, Panel):
         col = layout.column()
         col.prop(display, "density")
         col.prop(display, "interpolation_method")
-
 
 class DATA_PT_volume_viewport_display_slicing(DataButtonsPanel, Panel):
     bl_label = ""

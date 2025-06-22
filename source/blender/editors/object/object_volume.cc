@@ -179,4 +179,43 @@ void OBJECT_OT_volume_import(wmOperatorType *ot)
   add_generic_props(ot, false);
 }
 
+/* Volume Reload */
+
+static wmOperatorStatus volume_reload_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = CTX_data_active_object(C);
+  if (ob == NULL || ob->type != OB_VOLUME) {
+    return OPERATOR_CANCELLED;
+  }
+  Volume *volume = (Volume *)ob->data;
+  if (BKE_volume_reload(volume)) {
+    WM_event_add_notifier(C, NC_OBJECT | ND_DATA | NC_GEOM, ob);
+    return OPERATOR_FINISHED;
+  }
+  BKE_report(op->reports, RPT_ERROR, "Could not reload vdb file");
+  return OPERATOR_CANCELLED;
+}
+
+static bool volume_reload_poll(bContext *C)
+{
+  const Object *ob = CTX_data_active_object(C);
+  return ob != NULL && ob->type == OB_VOLUME;
+}
+
+void OBJECT_OT_volume_reload(wmOperatorType* ot)
+{
+  /* identifiers */
+  ot->name = "Reload VDB File";
+  ot->description = "Reload the VDB file";
+  ot->idname = "OBJECT_OT_volume_reload";
+
+  /* API callbacks. */
+  ot->exec = volume_reload_exec;
+  ot->poll = volume_reload_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+}
+
+
 }  // namespace blender::ed::object

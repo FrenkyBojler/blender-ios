@@ -23,10 +23,14 @@
 namespace blender::bke::volume_grid::file_cache {
 
 /**
- * Get the volume grid identified by the parameters from a cache. This does not load the tree data
- * in grid because that is done on demand when it is accessed.
+ * Get the volume grid identified by the parameters from a cache.
  */
-GVolumeGrid get_grid_from_file(StringRef file_path, StringRef grid_name, int simplify_level = 0);
+GVolumeGrid get_grid_from_file(const StringRef file_path,
+                               const StringRef grid_name,
+                               const int simplify_level = 0);
+
+/* Forces a reload of a cached grid. */
+void reload_cached_grid_from_file(const StringRef file_path, const StringRef grid_name);
 
 struct GridsFromFile {
   /**

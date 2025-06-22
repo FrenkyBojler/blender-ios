@@ -422,6 +422,26 @@ bool BKE_volume_is_loaded(const Volume *volume)
 #endif
 }
 
+bool BKE_volume_reload(Volume *volume)
+{
+#ifdef WITH_OPENVDB
+  if (BKE_volume_is_loaded(volume)) {
+    blender::bke::VolumeGridData *grid_data = BKE_volume_grid_get_for_write(
+      volume,
+      volume->active_grid
+    );
+    if (!BLI_is_file(volume->filepath))
+      return false;
+    blender::bke::volume_grid::file_cache::reload_cached_grid_from_file(
+      StringRef(volume->filepath), StringRef(grid_data->name())
+    );
+    DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
+    return true;
+  }
+#endif
+  return false;
+}
+
 bool BKE_volume_set_velocity_grid_by_name(Volume *volume, const StringRef ref_base_name)
 {
   const std::string base_name = ref_base_name;

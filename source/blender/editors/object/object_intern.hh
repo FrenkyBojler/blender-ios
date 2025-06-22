@@ -151,6 +151,7 @@ void OBJECT_OT_volume_add(wmOperatorType *ot);
  * Called by other space types too.
  */
 void OBJECT_OT_volume_import(wmOperatorType *ot);
+void OBJECT_OT_volume_reload(wmOperatorType *ot);
 
 /* `object_hook.cc` */
 
