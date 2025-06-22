@@ -78,7 +78,7 @@ static void dump_span_with_stride(Span<T> span, int stride, const std::string &n
 }
 
 template<typename T>
-static void dump_vector(std::vector<T> vec, int stride, const std::string &name)
+static void dump_vector(const std::vector<T> &vec, int stride, const std::string &name)
 {
   std::cout << name << ":";
   for (int i = 0; i < vec.size(); i++) {
@@ -91,6 +91,26 @@ static void dump_vector(std::vector<T> vec, int stride, const std::string &name)
     }
   }
   std::cout << "\n";
+}
+
+template<typename T>
+static void dump_vector_values(const std::string indent,
+                               const std::string &assign_to,
+                               const std::vector<T> &vec)
+{
+  std::cout << indent << assign_to << " = { ";
+  for (int i = 0; i < vec.size(); i++) {
+    if (i > 0 && (i % 10) == 0) {
+      std::cout << "\n" << indent << indent;
+    }
+    std::cout << vec[i];
+    if (i == vec.size() - 1) {
+      std::cout << " };\n";
+    }
+    else {
+      std::cout << ", ";
+    }
+  }
 }
 
 static void dump_meshgl(const MeshGL &mgl, const std::string &name)
@@ -107,6 +127,27 @@ static void dump_meshgl(const MeshGL &mgl, const std::string &name)
   }
   dump_vector(mgl.runIndex, 1, "runIndex");
   dump_vector(mgl.runOriginalID, 1, "runOrigiinalID");
+}
+
+[[maybe_unused]] static void dump_meshgl_for_debug(const MeshGL &mgl)
+{
+  std::string indent = "    ";
+  std::cout << indent << "MeshGL m;\n";
+  std::cout << indent << "m.numProp = " << mgl.numProp << ";\n";
+  dump_vector_values(indent, "m.vertProperties", mgl.vertProperties);
+  dump_vector_values(indent, "m.triVerts", mgl.triVerts);
+  if (!mgl.mergeFromVert.empty()) {
+    dump_vector_values(indent, "m.mergeFromVert", mgl.mergeFromVert);
+    dump_vector_values(indent, "m.mergeToVert", mgl.mergeToVert);
+  }
+  dump_vector_values(indent, "m.runIndex", mgl.runIndex);
+  dump_vector_values(indent, "m.runOriginalID", mgl.runOriginalID);
+  dump_vector_values(indent, "m.faceID", mgl.faceID);
+  BLI_assert(mgl.runTransform.size() == 0);
+  BLI_assert(mgl.halfedgeTangent.size() == 0);
+  if (mgl.tolerance != 0) {
+    std::cout << indent << "m.tolerance = " << mgl.tolerance << ";\n";
+  }
 }
 
 static const char *domain_names[] = {
@@ -282,6 +323,9 @@ static void get_manifold(Manifold &manifold,
   }
   if (dbg_level > 0) {
     dump_meshgl(meshgl, "converted result for mesh " + std::to_string(mesh_index));
+    if (dbg_level > 1) {
+      dump_meshgl_for_debug(meshgl);
+    }
   }
   {
 #  ifdef DEBUG_TIME
