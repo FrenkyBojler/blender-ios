@@ -92,8 +92,7 @@ static bool add_gpu_lut_1D2D(internal::GPUTextures &textures,
     lut.texture = GPU_texture_create_1d(
         texture_name, width, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, values);
   }
-  else
-  {
+  else {
     lut.texture = GPU_texture_create_2d(
         texture_name, width, height, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, values);
   }
