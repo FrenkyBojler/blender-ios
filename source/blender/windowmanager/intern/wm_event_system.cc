@@ -68,6 +68,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "WM_api.hh"
@@ -812,7 +813,6 @@ void wm_event_do_notifiers(bContext *C)
   /* Auto-run warning. */
   wm_test_autorun_warning(C);
   /* Deprecation warning. */
-  wm_test_opengl_deprecation_warning(C);
   wm_test_gpu_backend_fallback(C);
 
   GPU_render_end();

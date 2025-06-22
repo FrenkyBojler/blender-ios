@@ -757,8 +757,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   /* Be sure to use the correct pixel format(e.g. RGB, YUV) */
 
-  if (codec->pix_fmts) {
-    c->pix_fmt = codec->pix_fmts[0];
+  const enum AVPixelFormat *pix_fmts = ffmpeg_get_pix_fmts(c, codec);
+  if (pix_fmts) {
+    c->pix_fmt = pix_fmts[0];
   }
   else {
     /* makes HuffYUV happy ... */
@@ -1312,9 +1313,7 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
   const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-      filepath,
-      FILE_MAX,
-      BKE_build_template_variables_for_render_path(BKE_main_blendfile_path_from_global(), rd));
+      filepath, FILE_MAX, BKE_build_template_variables_for_render_path(rd));
   if (!errors.is_empty()) {
     BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
     return false;

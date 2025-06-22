@@ -96,24 +96,26 @@ struct ResourceHandleRange {
 };
 
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
-struct ObjectRef {
+class ObjectRef {
+  friend class Manager;
   friend class ObjectKey;
   friend DupliCacheManager;
 
  private:
   /** Duplicated object that corresponds to the current object. */
-  DupliObject *dupli_object_;
+  DupliObject *const dupli_object_ = nullptr;
   /** Object that created the dupli-list the current object is part of. */
-  Object *dupli_parent_;
+  Object *const dupli_parent_ = nullptr;
+
+  /** Unique handle per object ref. */
+  ResourceHandleRange handle_ = {0, 0};
+  ResourceHandleRange sculpt_handle_ = {0, 0};
 
  public:
-  Object *object;
-  /** Unique handle per object ref. */
-  ResourceHandleRange handle;
+  Object *const object;
 
-  ObjectRef() = default;
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
-  ObjectRef(Object *ob);
+  explicit ObjectRef(Object *ob);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
@@ -154,8 +156,7 @@ struct ObjectRef {
 
   int recalc_flags(uint64_t last_update) const
   {
-    /* TODO: There should also be a way to get the the min last_update for all objects in the
-     * range.  */
+    /* TODO: There should also be a way to get the min last_update for all objects in the range. */
     auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
       int flags = 0;
       SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);
