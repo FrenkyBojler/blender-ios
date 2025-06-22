@@ -21,8 +21,6 @@
 
 #include "fmt/format.h"
 
-static CLG_LogRef LOG = {"gpu.shader"};
-
 namespace blender::gpu {
 
 /* -------------------------------------------------------------------- */
@@ -51,7 +49,7 @@ void Shader::print_log(Span<StringRefNull> sources,
   std::string sources_combined = fmt::to_string(fmt::join(sources, ""));
   DynStr *dynstr = BLI_dynstr_new();
 
-  if (!CLG_color_support_get(&LOG)) {
+  if (!CLG_color_support_get(LOG_GPU_SHADER)) {
     err_col[0] = warn_col[0] = info_col[0] = reset_col[0] = '\0';
   }
 
@@ -248,12 +246,12 @@ void Shader::print_log(Span<StringRefNull> sources,
 
   CLG_Level level = error ? CLG_LEVEL_ERROR : CLG_LEVEL_WARN;
 
-  if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO) && level >= CLG_LEVEL_WARN) {
+  if (CLOG_CHECK(LOG_GPU_SHADER, CLG_LEVEL_INFO) && level >= CLG_LEVEL_WARN) {
     if (DEBUG_LOG_SHADER_SRC_ON_ERROR && error) {
-      CLG_log_str(LOG.type, level, this->name, stage, sources_combined.c_str());
+      CLG_log_str(LOG_GPU_SHADER->type, level, this->name, stage, sources_combined.c_str());
     }
     const char *_str = BLI_dynstr_get_cstring(dynstr);
-    CLG_log_str(LOG.type, level, this->name, stage, _str);
+    CLG_log_str(LOG_GPU_SHADER->type, level, this->name, stage, _str);
     MEM_freeN(_str);
   }
 

@@ -24,7 +24,6 @@
 #include <pxr/usd/usdSkel/utils.h>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 /**
  * Get the pose matrix for the given channel.
@@ -158,7 +157,8 @@ static void add_anim_sample(pxr::UsdSkelAnimation &skel_anim,
     set_attribute(skel_anim.GetScalesAttr(), scales, time, value_writer);
   }
   else {
-    CLOG_WARN(&LOG, "Could not decompose skeleton transforms for frame time %f", time.GetValue());
+    CLOG_WARN(
+        LOG_IO_USD, "Could not decompose skeleton transforms for frame time %f", time.GetValue());
   }
 }
 
@@ -176,7 +176,7 @@ void USDArmatureWriter::do_write(HierarchyContext &context)
   pxr::UsdSkelSkeleton skel = pxr::UsdSkelSkeleton::Define(stage, usd_export_context_.usd_path);
 
   if (!skel) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't define UsdSkelSkeleton %s",
               usd_export_context_.usd_path.GetString().c_str());
     return;
@@ -197,7 +197,7 @@ void USDArmatureWriter::do_write(HierarchyContext &context)
     skel_anim = pxr::UsdSkelAnimation::Define(stage, anim_path);
 
     if (!skel_anim) {
-      CLOG_WARN(&LOG, "Couldn't define UsdSkelAnimation %s", anim_path.GetString().c_str());
+      CLOG_WARN(LOG_IO_USD, "Couldn't define UsdSkelAnimation %s", anim_path.GetString().c_str());
       return;
     }
   }

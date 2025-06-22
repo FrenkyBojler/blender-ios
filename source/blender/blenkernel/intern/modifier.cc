@@ -77,7 +77,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"object.modifier"};
 static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {nullptr};
 static VirtualModifierData virtualModifierCommonData;
 
@@ -422,7 +421,11 @@ void BKE_modifier_set_error(const Object *ob, ModifierData *md, const char *_for
   }
 #endif
 
-  CLOG_WARN(&LOG, "Object: \"%s\", Modifier: \"%s\", %s", ob->id.name + 2, md->name, md->error);
+  CLOG_WARN(LOG_OBJECT_MODIFIER,
+            "Object: \"%s\", Modifier: \"%s\", %s",
+            ob->id.name + 2,
+            md->name,
+            md->error);
 }
 
 void BKE_modifier_set_warning(const Object *ob, ModifierData *md, const char *_format, ...)

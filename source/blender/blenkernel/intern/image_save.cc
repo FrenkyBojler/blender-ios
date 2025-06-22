@@ -42,8 +42,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG_RENDER = {"render"};
-
 using blender::Vector;
 
 bool BKE_image_save_options_init(ImageSaveOptions *opts,
@@ -1043,7 +1041,7 @@ static void image_render_print_save_message(ReportList *reports,
   if (ok) {
     /* no need to report, just some helpful console info */
     if (!G.quiet) {
-      CLOG_INFO(&LOG_RENDER, "Saved: '%s'", filepath);
+      CLOG_INFO(LOG_RENDER, "Saved: '%s'", filepath);
     }
   }
   else {

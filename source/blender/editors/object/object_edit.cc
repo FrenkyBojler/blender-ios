@@ -112,8 +112,6 @@
 
 namespace blender::ed::object {
 
-static CLG_LogRef LOG = {"object.edit"};
-
 /* prototypes */
 static ListBase selected_objects_get(bContext *C);
 
@@ -598,7 +596,7 @@ static bool editmode_load_free_ex(Main *bmain,
 
     if (mesh->runtime->edit_mesh->bm->totvert > MESH_MAX_VERTS) {
       /* This used to be warned int the UI, we could warn again although it's quite rare. */
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_OBJECT_EDIT,
                 "Too many vertices for mesh '%s' (%d)",
                 mesh->id.name + 2,
                 mesh->runtime->edit_mesh->bm->totvert);
@@ -831,7 +829,9 @@ bool editmode_enter_ex(Main *bmain, Scene *scene, Object *ob, int flag)
 
   if (BKE_object_obdata_is_libdata(ob)) {
     /* Ideally the caller should check this. */
-    CLOG_WARN(&LOG, "Unable to enter edit-mode on library data for object '%s'", ob->id.name + 2);
+    CLOG_WARN(LOG_OBJECT_EDIT,
+              "Unable to enter edit-mode on library data for object '%s'",
+              ob->id.name + 2);
     return false;
   }
 

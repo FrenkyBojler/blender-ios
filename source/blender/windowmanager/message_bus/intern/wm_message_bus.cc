@@ -176,7 +176,7 @@ wmMsgSubscribeKey *WM_msg_subscribe_with_key(wmMsgBus *mbus,
 
 void WM_msg_publish_with_key(wmMsgBus *mbus, wmMsgSubscribeKey *msg_key)
 {
-  CLOG_DEBUG(WM_LOG_MSGBUS_SUB,
+  CLOG_DEBUG(LOG_MSGBUS_SUB,
              "tagging subscribers: (ptr=%p, len=%d)",
              msg_key,
              BLI_listbase_count(&msg_key->values));

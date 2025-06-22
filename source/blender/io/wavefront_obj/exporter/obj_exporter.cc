@@ -34,7 +34,6 @@
 #include "obj_export_file_writer.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.obj"};
 
 namespace blender::io::obj {
 
@@ -84,7 +83,7 @@ void OBJDepsgraph::update_for_newframe()
 
 static void print_exception_error(const std::system_error &ex)
 {
-  CLOG_ERROR(&LOG, "[%s] %s", ex.code().category().name(), ex.what());
+  CLOG_ERROR(LOG_IO_OBJ, "[%s] %s", ex.code().category().name(), ex.what());
 }
 
 static bool is_curve_nurbs_compatible(const Nurb *nurb)
@@ -369,7 +368,7 @@ void exporter_main(bContext *C, const OBJExportParams &export_params)
   for (int frame = export_params.start_frame; frame <= export_params.end_frame; frame++) {
     const bool filepath_ok = append_frame_to_filename(filepath, frame, filepath_with_frames);
     if (!filepath_ok) {
-      CLOG_ERROR(&LOG, "File Path too long: %s", filepath_with_frames);
+      CLOG_ERROR(LOG_IO_OBJ, "File Path too long: %s", filepath_with_frames);
       return;
     }
 

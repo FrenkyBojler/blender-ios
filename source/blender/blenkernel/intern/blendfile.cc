@@ -1345,8 +1345,6 @@ void BKE_blendfile_read_setup_undo(bContext *C,
   BKE_blendfile_read_setup_readfile(C, bfd, params, nullptr, reports, false, nullptr);
 }
 
-static CLG_LogRef LOG_BLEND = {"blend"};
-
 BlendFileData *BKE_blendfile_read(const char *filepath,
                                   const BlendFileReadParams *params,
                                   BlendFileReadReport *reports)
@@ -1354,7 +1352,7 @@ BlendFileData *BKE_blendfile_read(const char *filepath,
   /* Don't print startup file loading. */
   if (params->is_startup == false) {
     if (!G.quiet) {
-      CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
+      CLOG_INFO_NOCHECK(LOG_BLEND, "Read blend: \"%s\"", filepath);
     }
   }
 
@@ -1746,8 +1744,6 @@ void BKE_blendfile_workspace_config_data_free(WorkspaceConfigFileData *workspace
 /** \name Blend File Write (Partial)
  * \{ */
 
-static CLG_LogRef LOG_PARTIALWRITE = {"blend.partial_write"};
-
 namespace blender::bke::blendfile {
 
 PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
@@ -1782,7 +1778,7 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
     /* Another ID in the context, who has a matching ID in current G_MAIN, is sharing the same
      * session UID. This marks a critical corruption somewhere! */
     CLOG_FATAL(
-        &LOG_PARTIALWRITE,
+        LOG_BLEND_PARTIAL_WRITE,
         "Different matching IDs sharing the same session UID in the partial write context.");
     return;
   }
@@ -1794,7 +1790,7 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
   matching_ctx_id = BKE_main_idmap_lookup_uid(this->bmain.id_map, session_uid);
   BLI_assert(matching_ctx_id != ctx_id);
   if (matching_ctx_id) {
-    CLOG_DEBUG(&LOG_PARTIALWRITE,
+    CLOG_DEBUG(LOG_BLEND_PARTIAL_WRITE,
                "Non-matching IDs sharing the same session UID in the partial write context.");
     BKE_main_idmap_remove_id(this->bmain.id_map, matching_ctx_id);
     /* FIXME: Allow #BKE_lib_libblock_session_uid_renew to work with temp IDs? */
@@ -1997,7 +1993,7 @@ ID *PartialWriteContext::id_add(
 
     if (clear_dependencies) {
       if (cb_data->cb_flag & IDWALK_CB_NEVER_NULL) {
-        CLOG_WARN(&LOG_PARTIALWRITE,
+        CLOG_WARN(LOG_BLEND_PARTIAL_WRITE,
                   "Clearing a 'never null' ID usage of '%s' by '%s', this is likely not a "
                   "desired action",
                   (*id_ptr)->name,
@@ -2025,7 +2021,7 @@ ID *PartialWriteContext::id_add(
          * 'normal' IDs, like e.g. the parent collections ones. This implies that currently, all
          * attempt to adding a collection to a partial write context should make usage of a custom
          * `dependencies_filter_cb` function to explicitly clear these pointers. */
-        CLOG_ERROR(&LOG_PARTIALWRITE,
+        CLOG_ERROR(LOG_BLEND_PARTIAL_WRITE,
                    "First dependency to ID '%s' found through a 'loopback' usage from ID '%s', "
                    "this should never happen",
                    (*id_ptr)->name,
@@ -2111,7 +2107,7 @@ void PartialWriteContext::remove_unused(const bool clear_extra_user)
   }
   BKE_lib_query_unused_ids_tag(&this->bmain, ID_TAG_DOIT, parameters);
 
-  CLOG_DEBUG(&LOG_PARTIALWRITE,
+  CLOG_DEBUG(LOG_BLEND_PARTIAL_WRITE,
              "Removing %d unused IDs from current partial write context",
              parameters.num_total[INDEX_ID_NULL]);
   ID *id_iter;
@@ -2142,7 +2138,8 @@ bool PartialWriteContext::is_valid()
   FOREACH_MAIN_ID_BEGIN (&this->bmain, id_iter) {
     ids_in_context.add(id_iter);
     if (session_uids_in_context.contains(id_iter->session_uid)) {
-      CLOG_ERROR(&LOG_PARTIALWRITE, "ID %s does not have a unique session_uid", id_iter->name);
+      CLOG_ERROR(
+          LOG_BLEND_PARTIAL_WRITE, "ID %s does not have a unique session_uid", id_iter->name);
       is_valid = false;
     }
     else {
@@ -2167,14 +2164,14 @@ bool PartialWriteContext::is_valid()
     if (*id_p && !ids_in_context.contains(*id_p)) {
       if (owner_id != self_id) {
         CLOG_ERROR(
-            &LOG_PARTIALWRITE,
+            LOG_BLEND_PARTIAL_WRITE,
             "ID %s (used by ID '%s', embedded ID '%s') is not in current partial write context",
             (*id_p)->name,
             owner_id->name,
             self_id->name);
       }
       else {
-        CLOG_ERROR(&LOG_PARTIALWRITE,
+        CLOG_ERROR(LOG_BLEND_PARTIAL_WRITE,
                    "ID %s (used by ID '%s') is not in current partial write context",
                    (*id_p)->name,
                    owner_id->name);
@@ -2211,7 +2208,7 @@ bool PartialWriteContext::write(const char *write_filepath,
   /* Will likely change in the near future (embedded linked IDs, virtual libraries...), but
    * currently this should never happen. */
   if (make_local_libs.size() > 1) {
-    CLOG_WARN(&LOG_PARTIALWRITE,
+    CLOG_WARN(LOG_BLEND_PARTIAL_WRITE,
               "%d libraries found using the same filepath as destination one ('%s'), should "
               "never happen.",
               int32_t(make_local_libs.size()),

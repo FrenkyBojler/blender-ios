@@ -40,8 +40,6 @@
  */
 #define IDP_ARRAY_REALLOC_LIMIT 200
 
-static CLG_LogRef LOG = {"lib.idprop"};
-
 /** Local size table, aligned with #eIDPropertyType. */
 static size_t idp_size_table[] = {
     1,                 /* #IDP_STRING */
@@ -1047,7 +1045,7 @@ IDProperty *IDP_New(const char type,
         prop->len = prop->totallen = val->array.len;
         break;
       }
-      CLOG_ERROR(&LOG, "bad array type.");
+      CLOG_ERROR(LOG_LIB_IDPROP, "bad array type.");
       return nullptr;
     }
     case IDP_STRING: {

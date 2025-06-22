@@ -35,7 +35,6 @@
 #include "fbx_import_util.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.fbx"};
 
 namespace blender::io::fbx {
 
@@ -324,7 +323,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
 {
   FILE *file = BLI_fopen(params.filepath, "rb");
   if (!file) {
-    CLOG_ERROR(&LOG, "Failed to open FBX file '%s'", params.filepath);
+    CLOG_ERROR(LOG_IO_FBX, "Failed to open FBX file '%s'", params.filepath);
     BKE_reportf(params.reports, RPT_ERROR, "FBX Import: Cannot open file '%s'", params.filepath);
     return;
   }
@@ -367,7 +366,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
   fclose(file);
 
   if (!fbx) {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_IO_FBX,
                "Failed to import FBX file '%s': '%s'\n",
                params.filepath,
                fbx_error.description.data);

@@ -155,8 +155,6 @@ static void wm_history_file_write();
 
 static void wm_test_autorun_revert_action_exec(bContext *C);
 
-static CLG_LogRef LOG = {"blend"};
-
 /**
  * Fast-path for down-scaling byte buffers.
  *
@@ -959,17 +957,19 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
                                   &duration_lib_override_recursive_resync_seconds,
                                   nullptr);
 
-  CLOG_INFO(
-      &LOG, "Blender file read in %.0fm%.2fs", duration_whole_minutes, duration_whole_seconds);
-  CLOG_INFO(&LOG,
+  CLOG_INFO(LOG_BLEND,
+            "Blender file read in %.0fm%.2fs",
+            duration_whole_minutes,
+            duration_whole_seconds);
+  CLOG_INFO(LOG_BLEND,
             " * Loading libraries: %.0fm%.2fs",
             duration_libraries_minutes,
             duration_libraries_seconds);
-  CLOG_INFO(&LOG,
+  CLOG_INFO(LOG_BLEND,
             " * Applying overrides: %.0fm%.2fs",
             duration_lib_override_minutes,
             duration_lib_override_seconds);
-  CLOG_INFO(&LOG,
+  CLOG_INFO(LOG_BLEND,
             " * Resyncing overrides: %.0fm%.2fs (%d root overrides), including recursive "
             "resyncs: %.0fm%.2fs)",
             duration_lib_override_resync_minutes,
@@ -1001,7 +1001,7 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
   }
   else {
     if (bf_reports->count.missing_obdata != 0) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_BLEND,
                 "%d local ObjectData are reported to be missing, this should never happen",
                 bf_reports->count.missing_obdata);
     }
@@ -1370,7 +1370,7 @@ void wm_homefile_read_ex(bContext *C,
     else if (!use_factory_settings && BLI_exists(filepath_userdef)) {
       UserDef *userdef = BKE_blendfile_userdef_read(filepath_userdef, nullptr);
       if (userdef != nullptr) {
-        CLOG_INFO(&LOG, "Read prefs: \"%s\"", filepath_userdef);
+        CLOG_INFO(LOG_BLEND, "Read prefs: \"%s\"", filepath_userdef);
 
         BKE_blender_userdef_data_set_and_free(userdef);
         userdef = nullptr;
@@ -1427,7 +1427,7 @@ void wm_homefile_read_ex(bContext *C,
       BlendFileData *bfd = BKE_blendfile_read(filepath_startup, &params, &bf_reports);
 
       if (bfd != nullptr) {
-        CLOG_INFO(&LOG, "Read startup: \"%s\"", filepath_startup);
+        CLOG_INFO(LOG_BLEND, "Read startup: \"%s\"", filepath_startup);
 
         /* Frees the current main and replaces it with the new one read from file. */
         BKE_blendfile_read_setup_readfile(C,
@@ -1505,7 +1505,7 @@ void wm_homefile_read_ex(bContext *C,
       if (BLI_exists(temp_path)) {
         userdef_template = BKE_blendfile_userdef_read(temp_path, nullptr);
         if (userdef_template) {
-          CLOG_INFO(&LOG, "Read prefs from app-template: \"%s\"", temp_path);
+          CLOG_INFO(LOG_BLEND, "Read prefs from app-template: \"%s\"", temp_path);
         }
       }
       if (userdef_template == nullptr) {
@@ -2049,7 +2049,7 @@ static ImBuf *blend_file_thumb_from_camera(const bContext *C,
   }
   else {
     /* '*r_thumb' needs to stay nullptr to prevent a bad thumbnail from being handled. */
-    CLOG_WARN(&LOG, "failed to create thumbnail: %s", err_out);
+    CLOG_WARN(LOG_BLEND, "failed to create thumbnail: %s", err_out);
     thumb = nullptr;
   }
 

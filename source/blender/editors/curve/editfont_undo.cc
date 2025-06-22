@@ -44,7 +44,6 @@
 #endif
 
 /** Only needed this locally. */
-static CLG_LogRef LOG = {"undo.font"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion
@@ -375,7 +374,7 @@ static void font_undosys_step_decode(
   undofont_to_editfont(&us->data, cu);
   DEG_id_tag_update(&cu->id, ID_RECALC_GEOMETRY);
 
-  ED_undo_object_set_active_or_warn(scene, view_layer, obedit, us_p->name, &LOG);
+  ED_undo_object_set_active_or_warn(scene, view_layer, obedit, us_p->name, LOG_UNDO_FONT);
 
   /* Check after setting active (unless undoing into another scene). */
   BLI_assert(font_undosys_poll(C) || (scene != CTX_data_scene(C)));

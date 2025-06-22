@@ -26,8 +26,6 @@
 #include "BKE_main.hh"
 #include "BKE_node.hh"
 
-static CLG_LogRef LOG = {"lib.query"};
-
 /* status */
 enum {
   IDWALK_STOP = 1 << 0,
@@ -978,7 +976,8 @@ static void lib_query_unused_ids_tag(UnusedIDsData &data)
     }
   }
   if (loop_num >= max_loop_num) {
-    CLOG_WARN(&LOG, "Unexpected levels of dependencies between non-instantiated but used Objects");
+    CLOG_WARN(LOG_LIB_QUERY,
+              "Unexpected levels of dependencies between non-instantiated but used Objects");
   }
 
   if (!data.do_recursive) {

@@ -100,8 +100,6 @@
 /* Constraint Target Macros */
 #define VALID_CONS_TARGET(ct) ((ct) && (ct->tar))
 
-static CLG_LogRef LOG = {"object.constraint"};
-
 /* ************************ Constraints - General Utilities *************************** */
 /* These functions here don't act on any specific constraints, and are therefore should/will
  * not require any of the special function-pointers afforded by the relevant constraint
@@ -5502,7 +5500,8 @@ const bConstraintTypeInfo *BKE_constraint_typeinfo_from_type(int type)
     return constraintsTypeInfo[type];
   }
 
-  CLOG_WARN(&LOG, "No valid constraint type-info data available. Type = %i", type);
+  CLOG_WARN(
+      LOG_OBJECT_CONSTRAINT, "No valid constraint type-info data available. Type = %i", type);
 
   return nullptr;
 }

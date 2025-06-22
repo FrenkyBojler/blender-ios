@@ -19,7 +19,6 @@
 #include "DNA_mesh_types.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 /* TfToken objects are not cheap to construct, so we do it once. */
 namespace usdtokens {
@@ -53,7 +52,7 @@ bool set_vec_attrib(const pxr::UsdPrim &prim,
   pxr::UsdAttribute vec_attr = prim.CreateAttribute(prop_token, type_name, true);
 
   if (!vec_attr) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't create USD attribute for array property %s",
               prop_token.GetString().c_str());
     return false;
@@ -76,7 +75,7 @@ static void create_vector_attrib(const pxr::UsdPrim &prim,
   }
 
   if (prop->type != IDP_ARRAY) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Property %s is not an array type and can't be converted to a vector attribute",
               prop->name);
     return;
@@ -129,15 +128,16 @@ static void create_vector_attrib(const pxr::UsdPrim &prim,
   }
 
   if (!type_name) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't determine USD type name for array property %s",
               prop_token.GetString().c_str());
     return;
   }
 
   if (!success) {
-    CLOG_WARN(
-        &LOG, "Couldn't set USD attribute from array property %s", prop_token.GetString().c_str());
+    CLOG_WARN(LOG_IO_USD,
+              "Couldn't set USD attribute from array property %s",
+              prop_token.GetString().c_str());
     return;
   }
 }
@@ -265,7 +265,7 @@ pxr::UsdShadeMaterial USDAbstractWriter::ensure_usd_material(const HierarchyCont
   pxr::UsdShadeMaterial proto_material = pxr::UsdShadeMaterial::Define(stage, usd_path);
 
   if (!proto_material.GetPrim().GetReferences().AddInternalReference(library_material.GetPath())) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Unable to add a material reference from %s to %s for prototype %s",
               proto_material.GetPath().GetAsString().c_str(),
               library_material.GetPath().GetAsString().c_str(),
@@ -295,7 +295,7 @@ bool USDAbstractWriter::mark_as_instance(const HierarchyContext &context, const 
   BLI_assert(context.is_instance());
 
   if (context.export_path == context.original_export_path) {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_IO_USD,
                "Reference error: export path matches reference path: %s",
                context.export_path.c_str());
     BLI_assert_msg(0, "USD reference error");
@@ -317,7 +317,7 @@ bool USDAbstractWriter::mark_as_instance(const HierarchyContext &context, const 
     /* See this URL for a description for why referencing may fail"
      * https://graphics.pixar.com/usd/docs/api/class_usd_references.html#Usd_Failing_References
      */
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Unable to add reference from %s to %s, not instancing object for export",
               context.export_path.c_str(),
               context.original_export_path.c_str());

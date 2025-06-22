@@ -44,8 +44,6 @@ enum {
 
 /* GLOBALS */
 
-static CLG_LogRef LOG = {"lib.icons"};
-
 /* Protected by gIconMutex. */
 static GHash *gIcons = nullptr;
 
@@ -280,7 +278,7 @@ int BKE_icon_id_ensure(ID *id)
   id->icon_id = get_next_free_id();
 
   if (!id->icon_id) {
-    CLOG_ERROR(&LOG, "not enough IDs");
+    CLOG_ERROR(LOG_LIB_ICONS, "not enough IDs");
     return 0;
   }
 
@@ -325,7 +323,7 @@ int BKE_icon_gplayer_color_ensure(bGPDlayer *gpl)
   gpl->runtime.icon_id = get_next_free_id();
 
   if (!gpl->runtime.icon_id) {
-    CLOG_ERROR(&LOG, "not enough IDs");
+    CLOG_ERROR(LOG_LIB_ICONS, "not enough IDs");
     return 0;
   }
 
@@ -355,7 +353,7 @@ int BKE_icon_preview_ensure(ID *id, PreviewImage *preview)
   preview->runtime->icon_id = get_next_free_id();
 
   if (!preview->runtime->icon_id) {
-    CLOG_ERROR(&LOG, "not enough IDs");
+    CLOG_ERROR(LOG_LIB_ICONS, "not enough IDs");
     return 0;
   }
 
@@ -386,11 +384,11 @@ ImBuf *BKE_icon_imbuf_get_buffer(int icon_id)
 {
   Icon *icon = icon_ghash_lookup(icon_id);
   if (!icon) {
-    CLOG_ERROR(&LOG, "no icon for icon ID: %d", icon_id);
+    CLOG_ERROR(LOG_LIB_ICONS, "no icon for icon ID: %d", icon_id);
     return nullptr;
   }
   if (icon->obj_type != ICON_DATA_IMBUF) {
-    CLOG_ERROR(&LOG, "icon ID does not refer to an imbuf icon: %d", icon_id);
+    CLOG_ERROR(LOG_LIB_ICONS, "icon ID does not refer to an imbuf icon: %d", icon_id);
     return nullptr;
   }
 
@@ -406,7 +404,7 @@ Icon *BKE_icon_get(const int icon_id)
   icon = icon_ghash_lookup(icon_id);
 
   if (!icon) {
-    CLOG_ERROR(&LOG, "no icon for icon ID: %d", icon_id);
+    CLOG_ERROR(LOG_LIB_ICONS, "no icon for icon ID: %d", icon_id);
     return nullptr;
   }
 
@@ -419,7 +417,7 @@ void BKE_icon_set(const int icon_id, Icon *icon)
 
   std::scoped_lock lock(gIconMutex);
   if (BLI_ghash_ensure_p(gIcons, POINTER_FROM_INT(icon_id), &val_p)) {
-    CLOG_ERROR(&LOG, "icon already set: %d", icon_id);
+    CLOG_ERROR(LOG_LIB_ICONS, "icon already set: %d", icon_id);
     return;
   }
 

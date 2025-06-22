@@ -104,8 +104,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"geom.bmesh.convert"};
-
 using blender::Array;
 using blender::float3;
 using blender::IndexRange;
@@ -917,12 +915,12 @@ static void bm_to_mesh_shape(BMesh *bm,
     else {
       /* No original layer data, use fallback information. */
       if (currkey->data && (cd_shape_keyindex_offset != -1)) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_GEOM_BMESH_CONVERT,
                   "Found shape-key but no CD_SHAPEKEY layers to read from, "
                   "using existing shake-key data where possible");
       }
       else {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_GEOM_BMESH_CONVERT,
                   "Found shape-key but no CD_SHAPEKEY layers to read from, "
                   "using basis shape-key data");
       }

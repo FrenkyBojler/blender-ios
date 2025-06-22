@@ -105,8 +105,6 @@
 
 namespace blender::ed::object {
 
-static CLG_LogRef LOG = {"object"};
-
 static void modifier_skin_customdata_delete(Object *ob);
 
 /* ------------------------------------------------------------------- */
@@ -759,7 +757,7 @@ static void add_shapekey_layers(Mesh &mesh_dest, const Mesh &mesh_src)
   LISTBASE_FOREACH_INDEX (const KeyBlock *, kb, &mesh_src.key->block, i) {
     void *array;
     if (mesh_src.verts_num != kb->totelem) {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_OBJECT,
                  "vertex size mismatch (Mesh '%s':%d != KeyBlock '%s':%d)",
                  mesh_src.id.name + 2,
                  mesh_src.verts_num,

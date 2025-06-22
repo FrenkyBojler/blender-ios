@@ -70,8 +70,6 @@
 #include "rna_access_internal.hh"
 #include "rna_internal.hh"
 
-static CLG_LogRef LOG = {"rna.access"};
-
 /* Init/Exit */
 
 /* NOTE: Initializing this object here is fine for now, as it should not allocate any memory. */
@@ -888,7 +886,7 @@ PropertyRNA *RNA_struct_find_property_check(PointerRNA &props,
   if (prop_type == property_type_check) {
     return prop;
   }
-  CLOG_WARN(&LOG,
+  CLOG_WARN(LOG_RNA_ACCESS,
             "'%s : %s()' expected, got '%s : %s()'",
             name,
             rna_property_type_identifier(property_type_check),
@@ -913,7 +911,7 @@ PropertyRNA *RNA_struct_find_collection_property_check(PointerRNA &props,
   }
 
   if (prop_type != PROP_COLLECTION) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_RNA_ACCESS,
               "'%s : %s(type = %s)' expected, got '%s : %s()'",
               name,
               rna_property_type_identifier(PROP_COLLECTION),
@@ -923,7 +921,7 @@ PropertyRNA *RNA_struct_find_collection_property_check(PointerRNA &props,
     return nullptr;
   }
 
-  CLOG_WARN(&LOG,
+  CLOG_WARN(LOG_RNA_ACCESS,
             "'%s : %s(type = %s)' expected, got '%s : %s(type = %s)'.",
             name,
             rna_property_type_identifier(PROP_COLLECTION),

@@ -31,9 +31,6 @@
 
 #include "versioning_common.hh"
 
-// #include "CLG_log.h"
-// static CLG_LogRef LOG = {"blend.doversion"};
-
 void do_versions_after_linking_xxx(FileData * /*fd*/, Main * /*bmain*/)
 {
   /**

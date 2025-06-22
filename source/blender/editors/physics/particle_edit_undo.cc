@@ -35,7 +35,6 @@
 #include "particle_edit_utildefines.h"
 
 /** Only needed this locally. */
-static CLG_LogRef LOG = {"undo.particle"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion
@@ -264,7 +263,7 @@ static void particle_undosys_step_decode(
   }
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
 
-  ED_undo_object_set_active_or_warn(scene, view_layer, ob, us_p->name, &LOG);
+  ED_undo_object_set_active_or_warn(scene, view_layer, ob, us_p->name, LOG_UNDO_PARTICLE);
 
   /* Check after setting active (unless undoing into another scene). */
   BLI_assert(particle_undosys_poll(C) || (scene != CTX_data_scene(C)));

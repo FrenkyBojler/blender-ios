@@ -13,8 +13,6 @@
 
 #include "evaluation_internal.hh"
 
-static CLG_LogRef LOG = {"anim.evaluation"};
-
 namespace blender::animrig {
 
 using namespace internal;
@@ -164,7 +162,7 @@ static EvaluationResult evaluate_keyframe_data(PointerRNA &animated_id_ptr,
     {
       /* Log this at quite a high level, because it can get _very_ noisy when playing back
        * animation. */
-      CLOG_DEBUG(&LOG,
+      CLOG_DEBUG(LOG_ANIM_EVALUATION,
                  "Cannot resolve RNA path %s[%d] on ID %s\n",
                  fcu->rna_path,
                  fcu->array_index,

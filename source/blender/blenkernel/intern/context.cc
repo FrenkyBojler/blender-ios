@@ -51,8 +51,6 @@
 
 using blender::Vector;
 
-static CLG_LogRef LOG = {"context"};
-
 /* struct */
 
 struct bContext {
@@ -298,7 +296,7 @@ static void *ctx_wm_python_context_get(const bContext *C,
           return result.ptr.data;
         }
 
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_CONTEXT,
                   "PyContext '%s' is a '%s', expected a '%s'",
                   member,
                   RNA_struct_identifier(result.ptr.type),
@@ -503,7 +501,7 @@ PointerRNA CTX_data_pointer_get_type(const bContext *C, const char *member, Stru
       return ptr;
     }
 
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_CONTEXT,
               "member '%s' is '%s', not '%s'",
               member,
               RNA_struct_identifier(ptr.type),

@@ -8,7 +8,6 @@
 #include "BLI_string.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.common"};
 
 namespace blender::io {
 
@@ -67,18 +66,18 @@ void path_reference_copy(const Set<std::pair<std::string, std::string>> &copy_se
     const char *src = copy.first.c_str();
     const char *dst = copy.second.c_str();
     if (!BLI_exists(src)) {
-      CLOG_WARN(&LOG, "Missing source file '%s', not copying", src);
+      CLOG_WARN(LOG_IO_COMMON, "Missing source file '%s', not copying", src);
       continue;
     }
     if (0 == BLI_path_cmp_normalized(src, dst)) {
       continue; /* Source and destination are the same. */
     }
     if (!BLI_file_ensure_parent_dir_exists(dst)) {
-      CLOG_WARN(&LOG, "Can't make directory for '%s', not copying", dst);
+      CLOG_WARN(LOG_IO_COMMON, "Can't make directory for '%s', not copying", dst);
       continue;
     }
     if (BLI_copy(src, dst) != 0) {
-      CLOG_WARN(&LOG, "Can't copy '%s' to '%s'", src, dst);
+      CLOG_WARN(LOG_IO_COMMON, "Can't copy '%s' to '%s'", src, dst);
       continue;
     }
   }

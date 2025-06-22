@@ -29,7 +29,6 @@
 #include <vector>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace usdtokens {
 static const pxr::TfToken Anim("Anim", pxr::TfToken::Immortal);
@@ -86,7 +85,7 @@ void ensure_blend_shape_skeleton(pxr::UsdStageRefPtr stage, pxr::UsdPrim &mesh_p
   pxr::UsdSkelBindingAPI skel_api = pxr::UsdSkelBindingAPI::Apply(mesh_prim);
 
   if (!skel_api) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't apply UsdSkelBindingAPI to mesh prim %s",
               mesh_prim.GetPath().GetAsString().c_str());
     return;
@@ -98,7 +97,7 @@ void ensure_blend_shape_skeleton(pxr::UsdStageRefPtr stage, pxr::UsdPrim &mesh_p
     skel = pxr::UsdSkelSkeleton::Define(stage, skel_path);
 
     if (!skel) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Couldn't find or create skeleton bound to mesh prim %s",
                 mesh_prim.GetPath().GetAsString().c_str());
       return;
@@ -130,7 +129,7 @@ void ensure_blend_shape_skeleton(pxr::UsdStageRefPtr stage, pxr::UsdPrim &mesh_p
   pxr::UsdSkelAnimation anim = pxr::UsdSkelAnimation::Define(stage, anim_path);
 
   if (!anim) {
-    CLOG_WARN(&LOG, "Couldn't define animation at path %s", anim_path.GetAsString().c_str());
+    CLOG_WARN(LOG_IO_USD, "Couldn't define animation at path %s", anim_path.GetAsString().c_str());
     return;
   }
 
@@ -155,14 +154,14 @@ void ensure_blend_shape_skeleton(pxr::UsdStageRefPtr stage, pxr::UsdPrim &mesh_p
   skel_api = pxr::UsdSkelBindingAPI::Apply(skel.GetPrim());
 
   if (!skel_api) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't apply UsdSkelBindingAPI to skeleton prim %s",
               skel.GetPath().GetAsString().c_str());
     return;
   }
 
   if (!skel_api.CreateAnimationSourceRel().AddTarget(pxr::SdfPath(usdtokens::Anim))) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't set animation source on skeleton %s",
               skel.GetPath().GetAsString().c_str());
   }
@@ -203,7 +202,7 @@ void create_blend_shapes(pxr::UsdStageRefPtr stage,
   pxr::UsdSkelBindingAPI skel_api = pxr::UsdSkelBindingAPI::Apply(mesh_prim);
 
   if (!skel_api) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't apply UsdSkelBindingAPI to mesh prim %s",
               mesh_prim.GetPath().GetAsString().c_str());
     return;
@@ -307,7 +306,7 @@ void remap_blend_shape_anim(pxr::UsdStageRefPtr stage,
   pxr::UsdSkelBindingAPI skel_api = pxr::UsdSkelBindingAPI::Get(stage, skel_path);
 
   if (!skel_api) {
-    CLOG_WARN(&LOG, "Couldn't get skeleton from path %s", skel_path.GetAsString().c_str());
+    CLOG_WARN(LOG_IO_USD, "Couldn't get skeleton from path %s", skel_path.GetAsString().c_str());
     return;
   }
 
@@ -323,7 +322,8 @@ void remap_blend_shape_anim(pxr::UsdStageRefPtr stage,
   }
 
   if (!anim) {
-    CLOG_WARN(&LOG, "Couldn't get animation under skeleton %s", skel_path.GetAsString().c_str());
+    CLOG_WARN(
+        LOG_IO_USD, "Couldn't get animation under skeleton %s", skel_path.GetAsString().c_str());
     return;
   }
 
@@ -343,7 +343,7 @@ void remap_blend_shape_anim(pxr::UsdStageRefPtr stage,
     pxr::UsdPrim mesh_prim = stage->GetPrimAtPath(mesh_path);
     pxr::UsdSkelBindingAPI mesh_skel_api = pxr::UsdSkelBindingAPI::Apply(mesh_prim);
     if (!mesh_skel_api) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Couldn't apply UsdSkelBindingAPI to mesh prim %s",
                 mesh_path.GetAsString().c_str());
       continue;
@@ -425,7 +425,7 @@ void remap_blend_shape_anim(pxr::UsdStageRefPtr stage,
       pxr::VtFloatArray src_weights;
       if (info.src_weights_attr.Get(&src_weights, time)) {
         if (!info.anim_map.Remap(src_weights.AsConst(), &dst_weights)) {
-          CLOG_WARN(&LOG, "Failed remapping blend shape weights");
+          CLOG_WARN(LOG_IO_USD, "Failed remapping blend shape weights");
         }
       }
     }
@@ -451,7 +451,8 @@ Mesh *get_shape_key_basis_mesh(Object *obj)
   const KeyBlock *basis = reinterpret_cast<KeyBlock *>(mesh->key->block.first);
 
   if (mesh->verts_num != basis->totelem) {
-    CLOG_WARN(&LOG, "Vertex and shape key element count mismatch for mesh %s", obj->id.name + 2);
+    CLOG_WARN(
+        LOG_IO_USD, "Vertex and shape key element count mismatch for mesh %s", obj->id.name + 2);
     return nullptr;
   }
 

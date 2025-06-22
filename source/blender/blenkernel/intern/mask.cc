@@ -47,8 +47,6 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"mask"};
-
 /** Reset runtime mask fields when data-block is being initialized. */
 static void mask_runtime_reset(Mask *mask)
 {
@@ -1556,7 +1554,7 @@ void BKE_mask_layer_shape_from_mask(MaskLayer *masklay, MaskLayerShape *masklay_
     }
   }
   else {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_MASK,
                "vert mismatch %d != %d (frame %d)",
                masklay_shape->tot_vert,
                tot,
@@ -1579,7 +1577,7 @@ void BKE_mask_layer_shape_to_mask(MaskLayer *masklay, MaskLayerShape *masklay_sh
     }
   }
   else {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_MASK,
                "vert mismatch %d != %d (frame %d)",
                masklay_shape->tot_vert,
                tot,
@@ -1626,7 +1624,7 @@ void BKE_mask_layer_shape_to_mask_interp(MaskLayer *masklay,
     }
   }
   else {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_MASK,
                "vert mismatch %d != %d != %d (frame %d - %d)",
                masklay_shape_a->tot_vert,
                masklay_shape_b->tot_vert,
@@ -1893,7 +1891,7 @@ void BKE_mask_layer_shape_changed_add(MaskLayer *masklay,
         masklay_shape->data = data_resized;
       }
       else {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MASK,
                    "vert mismatch %d != %d (frame %d)",
                    masklay_shape->tot_vert,
                    tot,
@@ -1931,7 +1929,7 @@ void BKE_mask_layer_shape_changed_remove(MaskLayer *masklay, int index, int coun
       masklay_shape->data = data_resized;
     }
     else {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_MASK,
                  "vert mismatch %d != %d (frame %d)",
                  masklay_shape->tot_vert - count,
                  tot,

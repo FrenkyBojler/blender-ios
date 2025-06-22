@@ -12,8 +12,10 @@ set(INC_SYS
 
 set(SRC
   clog.cc
+  clog_common_refs.cc
 
   CLG_log.h
+  CLG_common_refs.h
 )
 
 set(LIB

@@ -64,8 +64,6 @@
 
 #include <fmt/core.h>
 
-static CLG_LogRef LOG = {"io.usd"};
-
 namespace blender::io::usd {
 
 static void decref(USDPrimReader *reader)
@@ -113,7 +111,7 @@ static void set_instance_collection(
     instance_reader->set_instance_collection(collection);
   }
   else {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't find prototype collection for %s",
               instance_reader->prim_path().GetAsString().c_str());
   }
@@ -707,7 +705,7 @@ void USDStageReader::call_material_import_hooks(Main *bmain) const
 
     if (!success) {
       /* None of the hooks succeeded, so fall back on importing USD Preview Surface if possible. */
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "USD hook 'on_material_import' for material %s failed, attempting to convert USD "
                 "Preview Surface material",
                 usd_mtl.GetPath().GetAsString().c_str());
@@ -792,7 +790,7 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
   for (const auto &item : proto_readers_.items()) {
     Collection *collection = proto_collection_map.lookup_default(item.key, nullptr);
     if (collection == nullptr) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Couldn't find collection when adding objects for prototype %s",
                 item.key.GetAsString().c_str());
       continue;

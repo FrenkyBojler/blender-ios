@@ -53,8 +53,6 @@
 
 #include "WM_api.hh"
 
-static CLG_LogRef LOG = {"undo.image"};
-
 /* -------------------------------------------------------------------- */
 /** \name Thread Locking
  * \{ */
@@ -604,7 +602,7 @@ static void uhandle_restore_list(ListBase *undo_handles, bool use_init)
 
     ImBuf *ibuf = BKE_image_acquire_ibuf(image, &uh->iuser, nullptr);
     if (UNLIKELY(ibuf == nullptr)) {
-      CLOG_ERROR(&LOG, "Unable to get buffer for image '%s'", image->id.name + 2);
+      CLOG_ERROR(LOG_UNDO_IMAGE, "Unable to get buffer for image '%s'", image->id.name + 2);
       continue;
     }
     bool changed = false;

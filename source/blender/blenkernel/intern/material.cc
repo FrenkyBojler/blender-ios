@@ -79,8 +79,6 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"material"};
-
 static void material_init_data(ID *id)
 {
   Material *material = (Material *)id;
@@ -1400,7 +1398,7 @@ bool BKE_object_material_slot_remove(Main *bmain, Object *ob)
 
   /* this should never happen and used to crash */
   if (ob->actcol <= 0) {
-    CLOG_ERROR(&LOG, "invalid material index %d, report a bug!", ob->actcol);
+    CLOG_ERROR(LOG_MATERIAL, "invalid material index %d, report a bug!", ob->actcol);
     return false;
   }
 

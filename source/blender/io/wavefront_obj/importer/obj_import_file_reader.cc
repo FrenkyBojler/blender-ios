@@ -25,7 +25,6 @@
 #include <charconv>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.obj"};
 
 namespace blender::io::obj {
 
@@ -155,7 +154,7 @@ static const char *parse_vertex_index(const char *p, const char *end, size_t n_e
   if (r_index != INT32_MAX) {
     r_index += r_index < 0 ? n_elems : -1;
     if (r_index < 0 || r_index >= n_elems) {
-      CLOG_WARN(&LOG, "Invalid vertex index %i (valid range [0, %zu))", r_index, n_elems);
+      CLOG_WARN(LOG_IO_OBJ, "Invalid vertex index %i (valid range [0, %zu))", r_index, n_elems);
       r_index = INT32_MAX;
     }
   }
@@ -181,7 +180,7 @@ static void geom_add_polyline(Geometry *geom,
   p = parse_vertex_index(p, end, r_global_vertices.vertices.size(), last_vertex_index);
 
   if (last_vertex_index == INT32_MAX) {
-    CLOG_WARN(&LOG, "Skipping invalid OBJ polyline.");
+    CLOG_WARN(LOG_IO_OBJ, "Skipping invalid OBJ polyline.");
     return;
   }
   geom->track_vertex_index(last_vertex_index);
@@ -255,7 +254,7 @@ static void geom_add_polygon(Geometry *geom,
     /* Always keep stored indices non-negative and zero-based. */
     corner.vert_index += corner.vert_index < 0 ? global_vertices.vertices.size() : -1;
     if (corner.vert_index < 0 || corner.vert_index >= global_vertices.vertices.size()) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_OBJ,
                 "Invalid vertex index %i (valid range [0, %zu)), ignoring face",
                 corner.vert_index,
                 size_t(global_vertices.vertices.size()));
@@ -268,7 +267,7 @@ static void geom_add_polygon(Geometry *geom,
     if (got_uv && !global_vertices.uv_vertices.is_empty()) {
       corner.uv_vert_index += corner.uv_vert_index < 0 ? global_vertices.uv_vertices.size() : -1;
       if (corner.uv_vert_index < 0 || corner.uv_vert_index >= global_vertices.uv_vertices.size()) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_IO_OBJ,
                   "Invalid UV index %i (valid range [0, %zu)), ignoring face",
                   corner.uv_vert_index,
                   size_t(global_vertices.uv_vertices.size()));
@@ -285,7 +284,7 @@ static void geom_add_polygon(Geometry *geom,
       if (corner.vertex_normal_index < 0 ||
           corner.vertex_normal_index >= global_vertices.vert_normals.size())
       {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_IO_OBJ,
                   "Invalid normal index %i (valid range [0, %zu)), ignoring face",
                   corner.vertex_normal_index,
                   size_t(global_vertices.vert_normals.size()));
@@ -320,7 +319,7 @@ static Geometry *geom_set_curve_type(Geometry *geom,
 {
   p = drop_whitespace(p, end);
   if (!StringRef(p, end).startswith("bspline") && !StringRef(p, end).startswith("rat bspline")) {
-    CLOG_WARN(&LOG, "Curve type not supported: '%s'", string(p, end).c_str());
+    CLOG_WARN(LOG_IO_OBJ, "Curve type not supported: '%s'", string(p, end).c_str());
     return geom;
   }
   geom = create_geometry(geom, GEOM_CURVE, group_name, r_all_geometries);
@@ -357,11 +356,11 @@ static void geom_add_curve_parameters(Geometry *geom, const char *p, const char 
 {
   p = drop_whitespace(p, end);
   if (p == end) {
-    CLOG_ERROR(&LOG, "Invalid OBJ curve parm line");
+    CLOG_ERROR(LOG_IO_OBJ, "Invalid OBJ curve parm line");
     return;
   }
   if (*p != 'u') {
-    CLOG_WARN(&LOG, "OBJ curve surfaces are not supported, found '%c'", *p);
+    CLOG_WARN(LOG_IO_OBJ, "OBJ curve surfaces are not supported, found '%c'", *p);
     return;
   }
   ++p;
@@ -373,7 +372,7 @@ static void geom_add_curve_parameters(Geometry *geom, const char *p, const char 
       geom->nurbs_element_.parm.append(val);
     }
     else {
-      CLOG_ERROR(&LOG, "OBJ curve parm line has invalid number");
+      CLOG_ERROR(LOG_IO_OBJ, "OBJ curve parm line has invalid number");
       return;
     }
   }
@@ -429,7 +428,7 @@ OBJParser::OBJParser(const OBJImportParams &import_params, size_t read_buffer_si
 {
   obj_file_ = BLI_fopen(import_params_.filepath, "rb");
   if (!obj_file_) {
-    CLOG_ERROR(&LOG, "Cannot read from OBJ file:'%s'.", import_params_.filepath);
+    CLOG_ERROR(LOG_IO_OBJ, "Cannot read from OBJ file:'%s'.", import_params_.filepath);
     BKE_reportf(import_params_.reports,
                 RPT_ERROR,
                 "OBJ Import: Cannot open file '%s'",
@@ -608,7 +607,7 @@ size_t OBJParser::parse_string_buffer(StringRef &buffer_str,
       /* End of curve definition, nothing else to do. */
     }
     else {
-      CLOG_WARN(&LOG, "OBJ element not recognized: '%s'", string(p, end).c_str());
+      CLOG_WARN(LOG_IO_OBJ, "OBJ element not recognized: '%s'", string(p, end).c_str());
     }
   }
   return read_lines_num;
@@ -677,7 +676,7 @@ void OBJParser::parse(Vector<std::unique_ptr<Geometry>> &r_all_geometries,
     }
     if (buffer[last_nl] != '\n') {
       /* Whole line did not fit into our read buffer. Warn and exit. */
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_IO_OBJ,
                  "OBJ file contains a line #%zu that is too long (max. length %zu)",
                  line_number,
                  read_buffer_size_);
@@ -783,7 +782,7 @@ static bool parse_texture_option(const char *&p,
     tex_map.projection_type = SHD_PROJ_SPHERE;
     const StringRef line = StringRef(p, end);
     if (!line.startswith("sphere")) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_OBJ,
                 "Only the 'sphere' MTL projection type is supported, found: '%s'",
                 string(line).c_str());
     }
@@ -820,7 +819,7 @@ static void parse_texture_map(const char *p,
   MTLTexMapType key = mtl_line_start_to_texture_type(p, end);
   if (key == MTLTexMapType::Count) {
     /* No supported texture map found. */
-    CLOG_WARN(&LOG, "MTL texture map type not supported: '%s'", string(line).c_str());
+    CLOG_WARN(LOG_IO_OBJ, "MTL texture map type not supported: '%s'", string(line).c_str());
     return;
   }
   MTLTexMap &tex_map = material->tex_map_of_type(key);
@@ -885,7 +884,7 @@ void MTLParser::parse_and_store(Map<string, std::unique_ptr<MTLMaterial>> &r_mat
   size_t buffer_len;
   void *buffer = BLI_file_read_text_as_mem(mtl_file_path_, 0, &buffer_len);
   if (buffer == nullptr) {
-    CLOG_ERROR(&LOG, "OBJ import: cannot read from MTL file: '%s'", mtl_file_path_);
+    CLOG_ERROR(LOG_IO_OBJ, "OBJ import: cannot read from MTL file: '%s'", mtl_file_path_);
     return;
   }
 

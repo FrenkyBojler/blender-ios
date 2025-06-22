@@ -110,8 +110,6 @@ using blender::nodes::OutputFieldDependency;
 using blender::nodes::OutputSocketFieldType;
 using blender::nodes::SocketDeclaration;
 
-static CLG_LogRef LOG = {"node"};
-
 namespace blender::bke {
 
 /* Forward declaration. */
@@ -1529,7 +1527,7 @@ void node_tree_blend_read_data(BlendDataReader *reader, ID *owner_id, bNodeTree 
      * do_version takes place. Keeping it here also ensures future (or unknown existing) similar
      * bugs won't go easily unnoticed. */
     if (BLO_read_fileversion_get(reader) > 300) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_NODE,
                 "Fixing root node tree '%s' owned by '%s' missing EMBEDDED tag, please consider "
                 "re-saving your (startup) file",
                 ntree->id.name,
@@ -2431,7 +2429,7 @@ void node_modify_socket_type(bNodeTree &ntree,
   bNodeSocketType *socktype = node_socket_type_find(idname);
 
   if (!socktype) {
-    CLOG_ERROR(&LOG, "node socket type %s undefined", idname.c_str());
+    CLOG_ERROR(LOG_NODE, "node socket type %s undefined", idname.c_str());
     return;
   }
 
@@ -2493,7 +2491,7 @@ void node_modify_socket_type_static(
   const std::optional<StringRefNull> idname = node_static_socket_type(type, subtype);
 
   if (!idname.has_value()) {
-    CLOG_ERROR(&LOG, "static node socket type %d undefined", type);
+    CLOG_ERROR(LOG_NODE, "static node socket type %d undefined", type);
     return;
   }
 
@@ -2904,7 +2902,7 @@ bNodeSocket *node_add_static_socket(bNodeTree &ntree,
   const std::optional<StringRefNull> idname = node_static_socket_type(type, subtype);
 
   if (!idname.has_value()) {
-    CLOG_ERROR(&LOG, "static node socket type %d undefined", type);
+    CLOG_ERROR(LOG_NODE, "static node socket type %d undefined", type);
     return nullptr;
   }
 
@@ -3186,7 +3184,7 @@ bNode *node_add_static_node(const bContext *C, bNodeTree &ntree, const int type)
     }
   }
   if (!idname) {
-    CLOG_ERROR(&LOG, "static node type %d undefined", type);
+    CLOG_ERROR(LOG_NODE, "static node type %d undefined", type);
     return nullptr;
   }
   return node_add_node(C, ntree, *idname);

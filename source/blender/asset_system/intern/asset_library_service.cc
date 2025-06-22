@@ -41,8 +41,6 @@
  */
 // #define WITH_DESTROY_VIA_LOAD_HANDLER
 
-static CLG_LogRef LOG = {"asset.library"};
-
 namespace blender::asset_system {
 
 std::unique_ptr<AssetLibraryService> AssetLibraryService::instance_;
@@ -124,7 +122,7 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(
     bUserAssetLibrary *preferences_library)
 {
   if (OnDiskAssetLibrary *lib = this->lookup_on_disk_library(library_type, root_path)) {
-    CLOG_DEBUG(&LOG, "get \"%s\" (cached)", root_path.c_str());
+    CLOG_DEBUG(LOG_ASSET_LIBRARY, "get \"%s\" (cached)", root_path.c_str());
     if (load_catalogs) {
       lib->load_or_reload_catalogs();
     }
@@ -158,7 +156,7 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk(
   }
 
   on_disk_libraries_.add_new({library_type, normalized_root_path}, std::move(lib_uptr));
-  CLOG_DEBUG(&LOG, "get \"%s\" (loaded)", normalized_root_path.c_str());
+  CLOG_DEBUG(LOG_ASSET_LIBRARY, "get \"%s\" (loaded)", normalized_root_path.c_str());
   return lib;
 }
 
@@ -190,11 +188,11 @@ AssetLibrary *AssetLibraryService::get_asset_library_on_disk_builtin(eAssetLibra
 AssetLibrary *AssetLibraryService::get_asset_library_current_file()
 {
   if (current_file_library_) {
-    CLOG_DEBUG(&LOG, "get current file lib (cached)");
+    CLOG_DEBUG(LOG_ASSET_LIBRARY, "get current file lib (cached)");
     current_file_library_->refresh_catalogs();
   }
   else {
-    CLOG_DEBUG(&LOG, "get current file lib (loaded)");
+    CLOG_DEBUG(LOG_ASSET_LIBRARY, "get current file lib (loaded)");
     current_file_library_ = std::make_unique<RuntimeAssetLibrary>();
   }
 
@@ -293,11 +291,11 @@ AssetLibrary *AssetLibraryService::get_asset_library_all(const Main *bmain)
   }
 
   if (!all_library_) {
-    CLOG_DEBUG(&LOG, "get all lib (loaded)");
+    CLOG_DEBUG(LOG_ASSET_LIBRARY, "get all lib (loaded)");
     all_library_ = std::make_unique<AllAssetLibrary>();
   }
   else {
-    CLOG_DEBUG(&LOG, "get all lib (cached)");
+    CLOG_DEBUG(LOG_ASSET_LIBRARY, "get all lib (cached)");
   }
 
   /* Don't reload catalogs, they've just been loaded above. */

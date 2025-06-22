@@ -17,7 +17,6 @@
 #include "stl_import_mesh.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.stl"};
 
 namespace blender::io::stl {
 
@@ -57,10 +56,10 @@ bool STLMeshHelper::add_triangle(const PackedTriangle &data)
 Mesh *STLMeshHelper::to_mesh()
 {
   if (degenerate_tris_num_ > 0) {
-    CLOG_WARN(&LOG, "Removed %d degenerate triangles during import", degenerate_tris_num_);
+    CLOG_WARN(LOG_IO_STL, "Removed %d degenerate triangles during import", degenerate_tris_num_);
   }
   if (duplicate_tris_num_ > 0) {
-    CLOG_WARN(&LOG, "Removed %d duplicate triangles during import", duplicate_tris_num_);
+    CLOG_WARN(LOG_IO_STL, "Removed %d duplicate triangles during import", duplicate_tris_num_);
   }
 
   Mesh *mesh = BKE_mesh_new_nomain(verts_.size(), 0, tris_.size(), tris_.size() * 3);

@@ -14,8 +14,6 @@
 
 namespace blender::gpu {
 
-static CLG_LogRef LOG = {"gpu.vulkan"};
-
 VKPixelBuffer::VKPixelBuffer(size_t size) : PixelBuffer(size) {}
 
 void VKPixelBuffer::create(bool memory_export)
@@ -72,7 +70,7 @@ GPUPixelBufferNativeHandle VKPixelBuffer::get_native_handle()
   size_t memory_size = 0;
   VkDeviceMemory memory = buffer_.export_memory_get(memory_size);
   if (memory == nullptr) {
-    CLOG_ERROR(&LOG, "Failed to get device memory for Vulkan pixel buffer");
+    CLOG_ERROR(LOG_GPU_VULKAN, "Failed to get device memory for Vulkan pixel buffer");
     return native_handle;
   }
 
@@ -86,7 +84,7 @@ GPUPixelBufferNativeHandle VKPixelBuffer::get_native_handle()
 
   HANDLE handle = 0;
   if (device.functions.vkGetMemoryWin32Handle(device.vk_handle(), &info, &handle) != VK_SUCCESS) {
-    CLOG_ERROR(&LOG, "Failed to get Windows handle for Vulkan pixel buffer");
+    CLOG_ERROR(LOG_GPU_VULKAN, "Failed to get Windows handle for Vulkan pixel buffer");
     return native_handle;
   }
 
@@ -102,7 +100,7 @@ GPUPixelBufferNativeHandle VKPixelBuffer::get_native_handle()
 
   int fd = -1;
   if (device.functions.vkGetMemoryFd(device.vk_handle(), &info, &fd) != VK_SUCCESS) {
-    CLOG_ERROR(&LOG, "Failed to get file descriptor for Vulkan pixel buffer");
+    CLOG_ERROR(LOG_GPU_VULKAN, "Failed to get file descriptor for Vulkan pixel buffer");
     return native_handle;
   }
 

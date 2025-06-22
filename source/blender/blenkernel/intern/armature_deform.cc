@@ -14,6 +14,7 @@
 #include <cstdlib>
 #include <cstring>
 
+#include "CLG_common_refs.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -41,8 +42,6 @@
 #include "BKE_mesh.hh"
 
 #include "CLG_log.h"
-
-static CLG_LogRef LOG = {"geom.armature_deform"};
 
 /* -------------------------------------------------------------------- */
 /** \name Armature Deform Internal Utilities
@@ -605,7 +604,7 @@ static bool verify_armature_deform_valid(const Object &ob_arm)
     return false;
   }
   if ((ob_arm.pose->flag & POSE_RECALC) != 0) {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_GEOM_ARMATURE_DEFORM,
                "Trying to evaluate influence of armature '%s' which needs Pose recalc!",
                ob_arm.id.name);
     BLI_assert_unreachable();

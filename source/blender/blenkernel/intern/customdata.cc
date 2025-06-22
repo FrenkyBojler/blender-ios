@@ -85,8 +85,6 @@ using blender::Vector;
 BLI_STATIC_ASSERT(BOUNDED_ARRAY_TYPE_SIZE<decltype(CustomData::typemap)>() == CD_NUMTYPES,
                   "size mismatch");
 
-static CLG_LogRef LOG = {"geom.customdata"};
-
 /* -------------------------------------------------------------------- */
 /** \name Mesh Mask Utilities
  * \{ */
@@ -694,7 +692,11 @@ static bool layerRead_mdisps(CDataFile *cdf, void *data, const int count)
     }
 
     if (!cdf_read_data(cdf, sizeof(float[3]) * d[i].totdisp, d[i].disps)) {
-      CLOG_ERROR(&LOG, "failed to read multires displacement %d/%d %d", i, count, d[i].totdisp);
+      CLOG_ERROR(LOG_GEOM_CUSTOMDATA,
+                 "failed to read multires displacement %d/%d %d",
+                 i,
+                 count,
+                 d[i].totdisp);
       return false;
     }
   }
@@ -708,7 +710,11 @@ static bool layerWrite_mdisps(CDataFile *cdf, const void *data, const int count)
 
   for (int i = 0; i < count; i++) {
     if (!cdf_write_data(cdf, sizeof(float[3]) * d[i].totdisp, d[i].disps)) {
-      CLOG_ERROR(&LOG, "failed to write multires displacement %d/%d %d", i, count, d[i].totdisp);
+      CLOG_ERROR(LOG_GEOM_CUSTOMDATA,
+                 "failed to write multires displacement %d/%d %d",
+                 i,
+                 count,
+                 d[i].totdisp);
       return false;
     }
   }
@@ -3377,7 +3383,7 @@ void CustomData_copy_data_layer(const CustomData *source,
 
   if (!count || !src_data || !dst_data) {
     if (count && !(src_data == nullptr && dst_data == nullptr)) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_GEOM_CUSTOMDATA,
                 "null data for %s type (%p --> %p), skipping",
                 layerType_getName(eCustomDataType(source->layers[src_layer_index].type)),
                 (void *)src_data,
@@ -4475,7 +4481,8 @@ bool CustomData_verify_versions(CustomData *data, const int index)
                    CD_CREASE))
     {
       keeplayer = false;
-      CLOG_WARN(&LOG, ".blend file read: removing a data layer that should not have been written");
+      CLOG_WARN(LOG_GEOM_CUSTOMDATA,
+                ".blend file read: removing a data layer that should not have been written");
     }
   }
 
@@ -4519,7 +4526,7 @@ static bool CustomData_layer_ensure_data_exists(CustomDataLayer *layer, size_t c
 
     default:
       /* Log an error so we can collect instances of bad files. */
-      CLOG_WARN(&LOG, "CustomDataLayer->data is null for type %d.", layer->type);
+      CLOG_WARN(LOG_GEOM_CUSTOMDATA, "CustomDataLayer->data is null for type %d.", layer->type);
       break;
   }
   return false;
@@ -4611,7 +4618,7 @@ void CustomData_external_read(CustomData *data, ID *id, eCustomDataMask mask, co
   CDataFile *cdf = cdf_create(CDF_TYPE_MESH);
   if (!cdf_read_open(cdf, filepath)) {
     cdf_free(cdf);
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_GEOM_CUSTOMDATA,
                "Failed to read %s layer from %s.",
                layerType_getName(eCustomDataType(layer->type)),
                filepath);
@@ -4703,7 +4710,7 @@ void CustomData_external_write(
   }
 
   if (!cdf_write_open(cdf, filepath)) {
-    CLOG_ERROR(&LOG, "Failed to open %s for writing.", filepath);
+    CLOG_ERROR(LOG_GEOM_CUSTOMDATA, "Failed to open %s for writing.", filepath);
     cdf_free(cdf);
     return;
   }
@@ -4731,7 +4738,7 @@ void CustomData_external_write(
   }
 
   if (i != data->totlayer) {
-    CLOG_ERROR(&LOG, "Failed to write data to %s.", filepath);
+    CLOG_ERROR(LOG_GEOM_CUSTOMDATA, "Failed to write data to %s.", filepath);
     cdf_write_close(cdf);
     cdf_free(cdf);
     return;
@@ -4851,7 +4858,7 @@ static void copy_bit_flag(void *dst, const void *src, const size_t data_size, co
       COPY_BIT_FLAG(uint64_t, dst, src, flag);
       break;
     default:
-      // CLOG_ERROR(&LOG, "Unknown flags-container size (%zu)", datasize);
+      // CLOG_ERROR(LOG_GEOM_CUSTOMDATA, "Unknown flags-container size (%zu)", datasize);
       break;
   }
 
@@ -4870,7 +4877,7 @@ static bool check_bit_flag(const void *data, const size_t data_size, const uint6
     case 8:
       return ((*((uint64_t *)data) & uint64_t(flag)) != 0);
     default:
-      // CLOG_ERROR(&LOG, "Unknown flags-container size (%zu)", datasize);
+      // CLOG_ERROR(LOG_GEOM_CUSTOMDATA, "Unknown flags-container size (%zu)", datasize);
       return false;
   }
 }
@@ -5372,7 +5379,7 @@ static void blend_read_layer_data(BlendDataReader *reader, CustomDataLayer &laye
     /* Under normal operations, this shouldn't happen, but...
      * For a CD_PROP_BOOL example, see #84935.
      * For a CD_MLOOPUV example, see #90620. */
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_GEOM_CUSTOMDATA,
               "Allocated custom data layer that was not saved correctly for layer.type = %d.",
               layer.type);
   }

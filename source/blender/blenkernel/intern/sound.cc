@@ -344,7 +344,6 @@ static void sound_free_audio(bSound *sound)
 }
 
 #ifdef WITH_AUDASPACE
-static CLG_LogRef LOG = {"sound"};
 
 namespace {
 
@@ -375,7 +374,7 @@ GlobalState g_state;
 static void sound_device_close_no_lock()
 {
   if (g_state.sound_device) {
-    CLOG_DEBUG(&LOG, "Closing audio device");
+    CLOG_DEBUG(LOG_SOUND, "Closing audio device");
     AUD_exit(g_state.sound_device);
     g_state.sound_device = nullptr;
   }
@@ -385,7 +384,7 @@ static void sound_device_open_no_lock(AUD_DeviceSpecs requested_specs)
 {
   BLI_assert(!g_state.sound_device);
 
-  CLOG_DEBUG(&LOG, "Opening audio device name:%s", g_state.device_name);
+  CLOG_DEBUG(LOG_SOUND, "Opening audio device name:%s", g_state.device_name);
 
   g_state.sound_device = AUD_init(
       g_state.device_name, requested_specs, g_state.buffer_size, "Blender");
@@ -448,7 +447,7 @@ static void delayed_close_thread_run()
 
   while (!g_state.need_exit) {
     if (!g_state.use_delayed_close) {
-      CLOG_DEBUG(&LOG, "Delayed device close is disabled");
+      CLOG_DEBUG(LOG_SOUND, "Delayed device close is disabled");
       /* Don't do anything here as delayed close is disabled.
        * Wait so that we don't spin around in the while loop. */
       g_state.delayed_close_cv.wait(lock);
@@ -474,7 +473,7 @@ static void delayed_close_thread_run()
     }
 
     if (g_state.need_exit) {
-      CLOG_DEBUG(&LOG, "System exit requested");
+      CLOG_DEBUG(LOG_SOUND, "System exit requested");
       break;
     }
 
@@ -485,14 +484,14 @@ static void delayed_close_thread_run()
     }
 
     if (!g_state.sound_device) {
-      CLOG_DEBUG(&LOG, "Device is not open, nothing to do");
+      CLOG_DEBUG(LOG_SOUND, "Device is not open, nothing to do");
       continue;
     }
 
-    CLOG_DEBUG(&LOG, "Checking last device usage and timestamp");
+    CLOG_DEBUG(LOG_SOUND, "Checking last device usage and timestamp");
 
     if (g_state.num_device_users) {
-      CLOG_DEBUG(&LOG, "Device is used by %d user(s)", g_state.num_device_users);
+      CLOG_DEBUG(LOG_SOUND, "Device is used by %d user(s)", g_state.num_device_users);
       continue;
     }
 
@@ -502,7 +501,7 @@ static void delayed_close_thread_run()
     }
   }
 
-  CLOG_DEBUG(&LOG, "Delayed device close thread finished");
+  CLOG_DEBUG(LOG_SOUND, "Delayed device close thread finished");
 }
 
 static SoundJackSyncCallback sound_jack_sync_callback = nullptr;
@@ -525,7 +524,7 @@ void BKE_sound_init_once()
 {
   AUD_initOnce();
   if (sound_use_close_thread()) {
-    CLOG_DEBUG(&LOG, "Using delayed device close thread");
+    CLOG_DEBUG(LOG_SOUND, "Using delayed device close thread");
     g_state.delayed_close_thread = std::thread(delayed_close_thread_run);
   }
 }

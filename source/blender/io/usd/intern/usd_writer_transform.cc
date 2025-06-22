@@ -16,7 +16,6 @@
 #include "BLI_vector.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace blender::io::usd {
 
@@ -75,7 +74,7 @@ void USDTransformWriter::do_write(HierarchyContext &context)
   pxr::UsdGeomXformable xform = create_xformable();
 
   if (!xform) {
-    CLOG_ERROR(&LOG, "USDTransformWriter: couldn't create xformable");
+    CLOG_ERROR(LOG_IO_USD, "USDTransformWriter: couldn't create xformable");
     return;
   }
 
@@ -166,7 +165,7 @@ void USDTransformWriter::set_xform_ops(float parent_relative_matrix[4][4],
         xformOps_.append(xf.AddTransformOp());
         break;
       default:
-        CLOG_WARN(&LOG, "Unknown XformOp type");
+        CLOG_WARN(LOG_IO_USD, "Unknown XformOp type");
         xformOps_.append(xf.AddTransformOp());
         break;
     }

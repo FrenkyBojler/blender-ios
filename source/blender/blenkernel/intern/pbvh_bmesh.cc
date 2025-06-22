@@ -25,8 +25,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"sculpt.bmesh"};
-
 namespace blender::bke::pbvh {
 
 /**
@@ -1278,7 +1276,9 @@ static bool pbvh_bmesh_subdivide_long_edges(const EdgeQueueContext *eq_ctx,
   pbvh_bmesh_edge_tag_verify(pbvh);
 #endif
 
-  CLOG_DEBUG(&LOG, "Long edge subdivision took %f seconds.", BLI_time_now_seconds() - start_time);
+  CLOG_DEBUG(LOG_SCULPT_BMESH,
+             "Long edge subdivision took %f seconds.",
+             BLI_time_now_seconds() - start_time);
 
   return any_subdivided;
 }
@@ -1346,7 +1346,7 @@ static void merge_flap_edge_data(BMesh &bm,
   /* The `l_del->next->v` and `l_del->prev->v` are v1 and v2, but in an unknown order. */
   BMEdge *edge_v1_v2 = BM_edge_exists(l_del->next->v, l_del->prev->v);
   if (!edge_v1_v2) {
-    CLOG_WARN(&LOG, "Unable to find edge shared between deleting and flap faces");
+    CLOG_WARN(LOG_SCULPT_BMESH, "Unable to find edge shared between deleting and flap faces");
     return;
   }
 
@@ -1376,7 +1376,7 @@ static void merge_flap_edge_data(BMesh &bm,
 
   for (const BMEdge *src_edge : source_edges) {
     if (!src_edge) {
-      CLOG_WARN(&LOG, "Unable to find source edge for flap attributes merge");
+      CLOG_WARN(LOG_SCULPT_BMESH, "Unable to find source edge for flap attributes merge");
       continue;
     }
 
@@ -1499,7 +1499,7 @@ static void merge_face_edge_data(BMesh &bm,
   /* The l_del->next->v and l_del->prev->v are v1 and v2, but in an unknown order. */
   BMEdge *edge_v1_v2 = BM_edge_exists(l_del->next->v, l_del->prev->v);
   if (!edge_v1_v2) {
-    CLOG_WARN(&LOG, "Unable to find edge shared between old and new faces");
+    CLOG_WARN(LOG_SCULPT_BMESH, "Unable to find edge shared between old and new faces");
     return;
   }
 
@@ -1522,7 +1522,7 @@ static void merge_face_edge_data(BMesh &bm,
       merge_edge_data(bm, *dst_edge, *src_edge);
     }
     else {
-      CLOG_WARN(&LOG, "Unable to find edge to merge attributes from");
+      CLOG_WARN(LOG_SCULPT_BMESH, "Unable to find edge to merge attributes from");
     }
   }
 }
@@ -1786,7 +1786,9 @@ static bool pbvh_bmesh_collapse_short_edges(const EdgeQueueContext *eq_ctx,
                              eq_ctx);
   }
 
-  CLOG_DEBUG(&LOG, "Short edge collapse took %f seconds.", BLI_time_now_seconds() - start_time);
+  CLOG_DEBUG(LOG_SCULPT_BMESH,
+             "Short edge collapse took %f seconds.",
+             BLI_time_now_seconds() - start_time);
 
   return any_collapsed;
 }

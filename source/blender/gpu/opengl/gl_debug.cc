@@ -27,8 +27,6 @@
 
 #include "gl_debug.hh"
 
-static CLG_LogRef LOG = {"gpu.debug"};
-
 /* Avoid too much NVidia buffer info in the output log. */
 #define TRIM_NVIDIA_BUFFER_INFO 1
 /* Avoid unneeded shader statistics. */
@@ -79,10 +77,10 @@ static void APIENTRY debug_callback(GLenum /*source*/,
     return;
   }
 
-  const bool use_color = CLG_color_support_get(&LOG);
+  const bool use_color = CLG_color_support_get(LOG_GPU_DEBUG);
 
   if (ELEM(severity, GL_DEBUG_SEVERITY_LOW, GL_DEBUG_SEVERITY_NOTIFICATION)) {
-    if (CLOG_CHECK(&LOG, CLG_LEVEL_INFO)) {
+    if (CLOG_CHECK(LOG_GPU_DEBUG, CLG_LEVEL_INFO)) {
       const char *format = use_color ? "\033[2m%s\033[0m" : "%s";
       CLG_logf(LOG.type, CLG_LEVEL_INFO, "Notification", "", format, message);
     }
@@ -114,7 +112,7 @@ static void APIENTRY debug_callback(GLenum /*source*/,
         break;
     }
 
-    if (CLOG_CHECK(&LOG, clog_level)) {
+    if (CLOG_CHECK(LOG_GPU_DEBUG, clog_level)) {
       CLG_logf(LOG.type, clog_level, debug_groups, "", "%s", message);
       if (severity == GL_DEBUG_SEVERITY_HIGH) {
         /* Focus on error message. */
@@ -135,7 +133,7 @@ static void APIENTRY debug_callback(GLenum /*source*/,
 
 void init_gl_callbacks()
 {
-  CLOG_ENSURE(&LOG);
+  CLOG_ENSURE(LOG_GPU_DEBUG);
 
   char msg[256] = "";
   const char format[] = "Successfully hooked OpenGL debug callback using %s";
@@ -166,7 +164,8 @@ void init_gl_callbacks()
                             msg);
   }
   else {
-    CLOG_STR_WARN(&LOG, "Failed to hook OpenGL debug callback. Use fallback debug layer.");
+    CLOG_STR_WARN(LOG_GPU_DEBUG,
+                  "Failed to hook OpenGL debug callback. Use fallback debug layer.");
     init_debug_layer();
   }
 }
@@ -441,7 +440,7 @@ void GLContext::debug_group_end()
       break;
     }
     if (i == 0) {
-      CLOG_ERROR(&LOG, "Profile GPU error: Extra GPU_debug_group_end() call.");
+      CLOG_ERROR(LOG_GPU_DEBUG, "Profile GPU error: Extra GPU_debug_group_end() call.");
     }
   }
 }
@@ -461,7 +460,7 @@ void GLContext::process_frame_timings()
     for (int i = queries.size() - 1; i >= 0; i--) {
       if (!queries[i].finished) {
         frame_is_valid = false;
-        CLOG_ERROR(&LOG, "Profile GPU error: Missing GPU_debug_group_end() call");
+        CLOG_ERROR(LOG_GPU_DEBUG, "Profile GPU error: Missing GPU_debug_group_end() call");
       }
       else {
         glGetQueryObjectiv(queries.last().handle_end, GL_QUERY_RESULT_AVAILABLE, &frame_is_ready);

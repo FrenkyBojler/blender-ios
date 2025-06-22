@@ -50,8 +50,6 @@
 #  include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 #endif
 
-static CLG_LogRef LOG = {"lib.bpath"};
-
 /* -------------------------------------------------------------------- */
 /** \name Generic Utilities
  * \{ */
@@ -323,7 +321,7 @@ static bool missing_files_find__recursive(const char *search_directory,
     BLI_path_join(path, sizeof(path), search_directory, de->d_name);
 
     if (BLI_stat(path, &status) == -1) {
-      CLOG_WARN(&LOG, "Cannot get file status (`stat()`) of '%s'", path);
+      CLOG_WARN(LOG_LIB_BPATH, "Cannot get file status (`stat()`) of '%s'", path);
       continue;
     }
 
@@ -595,7 +593,7 @@ static void bpath_absolute_relative_convert(Main *bmain,
 
   BLI_assert(basedir[0] != '\0');
   if (basedir[0] == '\0') {
-    CLOG_ERROR(&LOG, "basedir='', this is a bug");
+    CLOG_ERROR(LOG_LIB_BPATH, "basedir='', this is a bug");
     return;
   }
 

@@ -102,8 +102,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"render"};
-
 namespace path_templates = blender::bke::path_templates;
 
 /* render flow
@@ -205,7 +203,7 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
   std::scoped_lock lock(mutex);
 
   if (!G.quiet) {
-    CLOG_STR_INFO(&LOG, rs->infostr);
+    CLOG_STR_INFO(LOG_RENDER, rs->infostr);
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
     fflush(stdout);
   }
@@ -1364,7 +1362,7 @@ static void do_render_compositor(Render *re)
                             blender::compositor::OutputTypes::Previews;
         }
 
-        CLOG_STR_INFO(&LOG, "Executing compositor");
+        CLOG_STR_INFO(LOG_RENDER, "Executing compositor");
         blender::compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
@@ -1507,7 +1505,7 @@ static void do_render_sequencer(Render *re)
   int view_id, tot_views;
   int re_x, re_y;
 
-  CLOG_STR_INFO(&LOG, "Executing sequencer");
+  CLOG_STR_INFO(LOG_RENDER, "Executing sequencer");
 
   re->i.cfra = cfra;
 
@@ -2349,7 +2347,7 @@ static bool do_write_image_or_movie(
   }
 
   if (!G.quiet) {
-    CLOG_STR_INFO(&LOG, message.c_str());
+    CLOG_STR_INFO(LOG_RENDER, message.c_str());
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
     fflush(stdout);
   }
@@ -2407,10 +2405,10 @@ void RE_RenderAnim(Render *re,
                    int tfra)
 {
   if (sfra == efra) {
-    CLOG_INFO(&LOG, "Rendering single frame (frame %d)", sfra);
+    CLOG_INFO(LOG_RENDER, "Rendering single frame (frame %d)", sfra);
   }
   else {
-    CLOG_INFO(&LOG, "Rendering animation (frames %d..%d)", sfra, efra);
+    CLOG_INFO(LOG_RENDER, "Rendering animation (frames %d..%d)", sfra, efra);
   }
 
   /* Call hooks before taking a copy of scene->r, so user can alter the render settings prior to

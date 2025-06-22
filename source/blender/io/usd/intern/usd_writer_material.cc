@@ -47,7 +47,6 @@
 #endif
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 /* `TfToken` objects are not cheap to construct, so we do it once. */
 namespace usdtokens {
@@ -460,7 +459,7 @@ static void create_usd_preview_surface_material(const USDExporterContext &usd_ex
   /* Handle the "displacement" output if it meets our requirements. */
   if (bNode *displacement_node = find_displacement_node(material)) {
     if (displacement_node->custom1 != SHD_SPACE_OBJECT) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Skipping displacement. Only Object Space displacement is supported by the "
                 "UsdPreviewSurface.");
       return;
@@ -469,7 +468,7 @@ static void create_usd_preview_surface_material(const USDExporterContext &usd_ex
     bNodeSocket *sock_mid = bke::node_find_socket(*displacement_node, SOCK_IN, "Midlevel");
     bNodeSocket *sock_scale = bke::node_find_socket(*displacement_node, SOCK_IN, "Scale");
     if (sock_mid->link || sock_scale->link) {
-      CLOG_WARN(&LOG, "Skipping displacement. Midlevel and Scale must be constants.");
+      CLOG_WARN(LOG_IO_USD, "Skipping displacement. Midlevel and Scale must be constants.");
       return;
     }
 
@@ -822,7 +821,7 @@ static void export_in_memory_imbuf(ImBuf *imbuf,
     return;
   }
 
-  CLOG_DEBUG(&LOG, "Exporting in-memory texture to '%s'", export_path);
+  CLOG_DEBUG(LOG_IO_USD, "Exporting in-memory texture to '%s'", export_path);
 
   if (BKE_imbuf_write_as(imbuf, export_path, &imageFormat, true) == false) {
     BKE_reportf(
@@ -949,7 +948,7 @@ static void export_packed_texture(Image *ima,
       return;
     }
 
-    CLOG_DEBUG(&LOG, "Exporting packed texture to '%s'", export_path.c_str());
+    CLOG_DEBUG(LOG_IO_USD, "Exporting packed texture to '%s'", export_path.c_str());
 
     write_to_path(pf->data, pf->size, export_path, reports);
   }
@@ -1286,7 +1285,7 @@ static void copy_tiled_textures(Image *ima,
 
   /* Only <UDIM> tile formats are supported by USD right now. */
   if (tile_format != UDIM_TILE_FORMAT_UDIM) {
-    CLOG_WARN(&LOG, "Unsupported tile format for '%s'", src_path);
+    CLOG_WARN(LOG_IO_USD, "Unsupported tile format for '%s'", src_path);
     MEM_SAFE_FREE(udim_pattern);
     return;
   }
@@ -1312,7 +1311,8 @@ static void copy_tiled_textures(Image *ima,
       continue;
     }
 
-    CLOG_DEBUG(&LOG, "Copying texture tile from '%s' to '%s'", src_tile_path, dest_tile_path);
+    CLOG_DEBUG(
+        LOG_IO_USD, "Copying texture tile from '%s' to '%s'", src_tile_path, dest_tile_path);
 
     /* Copy the file. */
     if (BLI_copy(src_tile_path, dest_tile_path) != 0) {
@@ -1350,7 +1350,7 @@ static void copy_single_file(const Image *ima,
     return;
   }
 
-  CLOG_DEBUG(&LOG, "Copying texture from '%s' to '%s'", source_path, dest_path);
+  CLOG_DEBUG(LOG_IO_USD, "Copying texture from '%s' to '%s'", source_path, dest_path);
 
   /* Copy the file. */
   if (BLI_copy(source_path, dest_path) != 0) {
@@ -1369,7 +1369,7 @@ void export_texture(Image *ima,
 {
   std::string dest_dir = get_export_textures_dir(stage);
   if (dest_dir.empty()) {
-    CLOG_ERROR(&LOG, "Couldn't determine textures directory path");
+    CLOG_ERROR(LOG_IO_USD, "Couldn't determine textures directory path");
     return;
   }
 

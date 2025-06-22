@@ -35,15 +35,14 @@
 #include "stl_import_binary_reader.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.stl"};
 
 namespace blender::io::stl {
 
 void stl_import_report_error(FILE *file)
 {
-  CLOG_ERROR(&LOG, "STL Importer: failed to read file");
+  CLOG_ERROR(LOG_IO_STL, "STL Importer: failed to read file");
   if (feof(file)) {
-    CLOG_ERROR(&LOG, "End of file reached");
+    CLOG_ERROR(LOG_IO_STL, "End of file reached");
   }
   else if (ferror(file)) {
     perror("Error");
@@ -54,7 +53,7 @@ Mesh *read_stl_file(const STLImportParams &import_params)
 {
   FILE *file = BLI_fopen(import_params.filepath, "rb");
   if (!file) {
-    CLOG_ERROR(&LOG, "Failed to open STL file:'%s'.", import_params.filepath);
+    CLOG_ERROR(LOG_IO_STL, "Failed to open STL file:'%s'.", import_params.filepath);
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
                 "STL Import: Cannot open file '%s'",
@@ -85,7 +84,7 @@ Mesh *read_stl_file(const STLImportParams &import_params)
                    read_stl_binary(file, import_params.use_facet_normal);
 
   if (mesh == nullptr) {
-    CLOG_ERROR(&LOG, "STL Importer: Failed to import mesh '%s'", import_params.filepath);
+    CLOG_ERROR(LOG_IO_STL, "STL Importer: Failed to import mesh '%s'", import_params.filepath);
     BKE_reportf(import_params.reports,
                 RPT_ERROR,
                 "STL Import: Failed to import mesh from file '%s'",

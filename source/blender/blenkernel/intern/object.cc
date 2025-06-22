@@ -153,8 +153,6 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
 
-static CLG_LogRef LOG = {"object"};
-
 /**
  * NOTE(@sergey): Vertex parent modifies original #BMesh which is not safe for threading.
  * Ideally such a modification should be handled as a separate DAG update
@@ -1976,7 +1974,7 @@ static const char *get_obdata_defname(int type)
     case OB_GREASE_PENCIL:
       return DATA_("GreasePencil");
     default:
-      CLOG_ERROR(&LOG, "Internal error, bad type: %d", type);
+      CLOG_ERROR(LOG_OBJECT, "Internal error, bad type: %d", type);
       return CTX_DATA_(BLT_I18NCONTEXT_ID_ID, "Empty");
   }
 }
@@ -2047,7 +2045,7 @@ void *BKE_object_obdata_add_from_type(Main *bmain, int type, const char *name)
     case OB_EMPTY:
       return nullptr;
     default:
-      CLOG_ERROR(&LOG, "Internal error, bad type: %d", type);
+      CLOG_ERROR(LOG_OBJECT, "Internal error, bad type: %d", type);
       return nullptr;
   }
 }
@@ -3045,8 +3043,10 @@ static void ob_parbone(const Object *ob, const Object *par, float r_mat[4][4])
   /* Make sure the bone is still valid */
   const bPoseChannel *pchan = BKE_pose_channel_find_name(par->pose, ob->parsubstr);
   if (!pchan || !pchan->bone) {
-    CLOG_WARN(
-        &LOG, "Parent Bone: '%s' for Object: '%s' doesn't exist", ob->parsubstr, ob->id.name + 2);
+    CLOG_WARN(LOG_OBJECT,
+              "Parent Bone: '%s' for Object: '%s' doesn't exist",
+              ob->parsubstr,
+              ob->id.name + 2);
     unit_m4(r_mat);
     return;
   }
@@ -3140,7 +3140,7 @@ static void give_parvert(const Object *par, int nr, float vec[3], const bool use
       }
     }
     else {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_OBJECT,
                  "Evaluated mesh is needed to solve parenting, "
                  "object position can be wrong now");
     }

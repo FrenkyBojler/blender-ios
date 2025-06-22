@@ -30,7 +30,6 @@
 #include "WM_types.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 #include <memory>
 
@@ -120,7 +119,7 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
 
     /* The exception message can be very cryptic (just "iostream error" on Linux, for example),
      * so better not to include it in the report. */
-    CLOG_ERROR(&LOG, "%s: %s", error_message.c_str(), ex.what());
+    CLOG_ERROR(LOG_IO_ALEMBIC, "%s: %s", error_message.c_str(), ex.what());
     WM_global_report(RPT_ERROR, error_message.c_str());
     data->export_ok = false;
     return;
@@ -137,7 +136,7 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   ABCHierarchyIterator iter(data->bmain, data->depsgraph, abc_archive.get(), data->params);
 
   if (export_animation) {
-    CLOG_STR_DEBUG(&LOG, "Exporting animation");
+    CLOG_STR_DEBUG(LOG_IO_ALEMBIC, "Exporting animation");
 
     /* Writing the animated frames is not 100% of the work, but it's our best guess. */
     const float progress_per_frame = 1.0f / std::max(size_t(1), abc_archive->total_frame_count());
@@ -156,7 +155,7 @@ static void export_startjob(void *customdata, wmJobWorkerStatus *worker_status)
       scene->r.subframe = float(frame - scene->r.cfra);
       BKE_scene_graph_update_for_newframe(data->depsgraph);
 
-      CLOG_DEBUG(&LOG, "Exporting frame %.2f", frame);
+      CLOG_DEBUG(LOG_IO_ALEMBIC, "Exporting frame %.2f", frame);
       ExportSubset export_subset = abc_archive->export_subset_for_frame(frame);
       iter.set_export_subset(export_subset);
       iter.iterate_and_write();

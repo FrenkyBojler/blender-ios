@@ -13,7 +13,6 @@
 #include <system_error>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.ply"};
 
 namespace blender::io::ply {
 
@@ -45,7 +44,8 @@ void FileBuffer::close_file()
     return;
   }
   if (close_status) {
-    CLOG_ERROR(&LOG, "Error: could not close file '%s' properly, it may be corrupted.", filepath_);
+    CLOG_ERROR(
+        LOG_IO_PLY, "Error: could not close file '%s' properly, it may be corrupted.", filepath_);
   }
 }
 

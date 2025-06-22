@@ -59,7 +59,6 @@ static const char _str_null[] = "(null)";
  * \{ */
 
 /* local */
-static CLG_LogRef LOG = {"system.path"};
 
 static struct {
   /** Full path to program executable. */
@@ -286,16 +285,16 @@ static bool test_path(char *targetpath,
   const int path_array_num = (folder_name ? (subfolder_name ? 3 : 2) : 1);
   BLI_path_join_array(targetpath, targetpath_maxncpy, path_array, path_array_num);
   if (check_is_dir == false) {
-    CLOG_DEBUG(&LOG, "Using (without test): '%s'", targetpath);
+    CLOG_DEBUG(LOG_SYSTEM_PATH, "Using (without test): '%s'", targetpath);
     return true;
   }
 
   if (BLI_is_dir(targetpath)) {
-    CLOG_DEBUG(&LOG, "Found '%s'", targetpath);
+    CLOG_DEBUG(LOG_SYSTEM_PATH, "Found '%s'", targetpath);
     return true;
   }
 
-  CLOG_DEBUG(&LOG, "Missing '%s'", targetpath);
+  CLOG_DEBUG(LOG_SYSTEM_PATH, "Missing '%s'", targetpath);
 
   /* Path not found, don't accidentally use it,
    * otherwise call this function with `check_is_dir` set to false. */
@@ -323,16 +322,16 @@ static bool test_env_path(char *path, const char *envvar, const bool check_is_di
   BLI_strncpy(path, env_path, FILE_MAX);
 
   if (check_is_dir == false) {
-    CLOG_DEBUG(&LOG, "Using env '%s' (without test): '%s'", envvar, env_path);
+    CLOG_DEBUG(LOG_SYSTEM_PATH, "Using env '%s' (without test): '%s'", envvar, env_path);
     return true;
   }
 
   if (BLI_is_dir(env_path)) {
-    CLOG_DEBUG(&LOG, "Env '%s' found: %s", envvar, env_path);
+    CLOG_DEBUG(LOG_SYSTEM_PATH, "Env '%s' found: %s", envvar, env_path);
     return true;
   }
 
-  CLOG_DEBUG(&LOG, "Env '%s' missing: %s", envvar, env_path);
+  CLOG_DEBUG(LOG_SYSTEM_PATH, "Env '%s' missing: %s", envvar, env_path);
 
   /* Path not found, don't accidentally use it,
    * otherwise call this function with `check_is_dir` set to false. */
@@ -361,7 +360,7 @@ static bool get_path_local_ex(char *targetpath,
 {
   char relfolder[FILE_MAX];
 
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_SYSTEM_PATH,
              "Get path local: folder='%s', subfolder='%s'",
              STR_OR_FALLBACK(folder_name),
              STR_OR_FALLBACK(subfolder_name));
@@ -517,7 +516,7 @@ static bool get_path_user_ex(char *targetpath,
     return false;
   }
 
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_SYSTEM_PATH,
              "Get path user: '%s', folder='%s', subfolder='%s'",
              user_path,
              STR_OR_FALLBACK(folder_name),
@@ -572,7 +571,7 @@ static bool get_path_system_ex(char *targetpath,
     return false;
   }
 
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_SYSTEM_PATH,
              "Get path system: '%s', folder='%s', subfolder='%s'",
              system_path,
              STR_OR_FALLBACK(folder_name),
@@ -876,7 +875,7 @@ static void where_am_i(char *program_filepath,
     if (GetModuleFileNameW(0, fullname_16, program_filepath_maxncpy)) {
       conv_utf_16_to_8(fullname_16, program_filepath, program_filepath_maxncpy);
       if (!BLI_exists(program_filepath)) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_SYSTEM_PATH,
                    "Program path can't be found: \"%.*s\"",
                    int(program_filepath_maxncpy),
                    program_filepath);
@@ -918,7 +917,8 @@ static void where_am_i(char *program_filepath,
 
 #  ifndef NDEBUG
     if (!STREQ(program_name, program_filepath)) {
-      CLOG_DEBUG(&LOG, "Program path guessing '%s' == '%s'", program_name, program_filepath);
+      CLOG_DEBUG(
+          LOG_SYSTEM_PATH, "Program path guessing '%s' == '%s'", program_name, program_filepath);
     }
 #  endif
   }
@@ -1186,7 +1186,7 @@ static void tempdir_session_create(char *tempdir_session,
     }
   }
 
-  CLOG_WARN(&LOG,
+  CLOG_WARN(LOG_SYSTEM_PATH,
             "Could not generate a temp file name for '%s', falling back to '%s'",
             tempdir_session,
             tempdir);

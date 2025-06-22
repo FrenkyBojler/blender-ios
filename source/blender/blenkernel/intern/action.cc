@@ -75,8 +75,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"anim.action"};
-
 using namespace blender;
 
 /* *********************** NOTE ON POSE AND ACTION **********************
@@ -1918,13 +1916,15 @@ void BKE_pose_copy_pchan_result(bPoseChannel *pchanto, const bPoseChannel *pchan
 bool BKE_pose_copy_result(bPose *to, bPose *from)
 {
   if (to == nullptr || from == nullptr) {
-    CLOG_ERROR(
-        &LOG, "Pose copy error, pose to:%p from:%p", (void *)to, (void *)from); /* debug temp */
+    CLOG_ERROR(LOG_ANIM_ACTION,
+               "Pose copy error, pose to:%p from:%p",
+               (void *)to,
+               (void *)from); /* debug temp */
     return false;
   }
 
   if (to == from) {
-    CLOG_ERROR(&LOG, "source and target are the same");
+    CLOG_ERROR(LOG_ANIM_ACTION, "source and target are the same");
     return false;
   }
 

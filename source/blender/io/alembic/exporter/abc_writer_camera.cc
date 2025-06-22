@@ -17,7 +17,6 @@
 #include "DNA_scene_types.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 namespace blender::io::alembic {
 
@@ -35,7 +34,7 @@ bool ABCCameraWriter::is_supported(const HierarchyContext *context) const
 
 void ABCCameraWriter::create_alembic_objects(const HierarchyContext * /*context*/)
 {
-  CLOG_DEBUG(&LOG, "exporting %s", args_.abc_path.c_str());
+  CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting %s", args_.abc_path.c_str());
   abc_camera_ = OCamera(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_camera_schema_ = abc_camera_.getSchema();
 

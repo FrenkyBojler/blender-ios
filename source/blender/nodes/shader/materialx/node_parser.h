@@ -14,8 +14,6 @@
 
 namespace blender::nodes::materialx {
 
-extern struct CLG_LogRef *LOG_IO_MATERIALX;
-
 class GroupNodeParser;
 
 /**

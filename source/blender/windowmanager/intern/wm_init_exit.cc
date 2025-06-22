@@ -116,14 +116,6 @@
 
 #include "DRW_engine.hh"
 
-CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_OPERATORS, "operator");
-CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_EVENTS, "event");
-CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_TOOL_GIZMO, "tool.gizmo");
-CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_MSGBUS_PUB, "msgbus.pub");
-CLG_LOGREF_DECLARE_GLOBAL(WM_LOG_MSGBUS_SUB, "msgbus.sub");
-
-static CLG_LogRef LOG_BLEND = {"blend"};
-
 static void wm_init_scripts_extensions_once(bContext *C);
 
 static bool wm_start_with_console = false;
@@ -471,7 +463,7 @@ void WM_exit_ex(bContext *C, const bool do_python_exit, const bool do_user_exit_
       BlendFileWriteParams blend_file_write_params{};
       if (BLO_write_file(bmain, filepath, fileflags, &blend_file_write_params, nullptr)) {
         if (!G.quiet) {
-          CLOG_INFO_NOCHECK(&LOG_BLEND, "Saved session recovery to \"%s\"", filepath);
+          CLOG_INFO_NOCHECK(LOG_BLEND, "Saved session recovery to \"%s\"", filepath);
         }
       }
     }

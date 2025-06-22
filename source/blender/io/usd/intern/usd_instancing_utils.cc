@@ -20,7 +20,6 @@
 #include <string>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace blender::io::usd {
 
@@ -40,7 +39,7 @@ static void convert_proto_to_instance(pxr::UsdStageRefPtr stage,
   pxr::UsdPrim proto_prim = stage->GetPrimAtPath(proto_path);
 
   if (!proto_prim) {
-    CLOG_ERROR(&LOG, "Couldn't find prototype prim %s", proto_path.GetAsString().c_str());
+    CLOG_ERROR(LOG_IO_USD, "Couldn't find prototype prim %s", proto_path.GetAsString().c_str());
     return;
   }
 
@@ -101,7 +100,8 @@ void process_scene_graph_instances(const USDExportParams &export_params, pxr::Us
 
   /* Create the abstract prim under which prototypes will be copied. */
   if (!stage->CreateClassPrim(protos_root_path)) {
-    CLOG_ERROR(&LOG, "Couldn't create class prim %s.", protos_root_path.GetAsString().c_str());
+    CLOG_ERROR(
+        LOG_IO_USD, "Couldn't create class prim %s.", protos_root_path.GetAsString().c_str());
     return;
   }
 
@@ -119,7 +119,7 @@ void process_scene_graph_instances(const USDExportParams &export_params, pxr::Us
     static pxr::TfToken xform_type_tok("Xform");
     pxr::UsdPrim dest_prim = stage->DefinePrim(copy_path, xform_type_tok);
     if (!dest_prim) {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_IO_USD,
                  "Couldn't create destination prim %s for copying protoype %s",
                  copy_path.GetAsString().c_str(),
                  proto_path.GetAsString().c_str());
@@ -135,7 +135,8 @@ void process_scene_graph_instances(const USDExportParams &export_params, pxr::Us
     pxr::SdfPath inst_path = item.key;
     pxr::UsdPrim inst_prim = stage->GetPrimAtPath(item.key);
     if (!inst_prim) {
-      CLOG_ERROR(&LOG, "Couldn't get prim for instance %s.", inst_path.GetAsString().c_str());
+      CLOG_ERROR(
+          LOG_IO_USD, "Couldn't get prim for instance %s.", inst_path.GetAsString().c_str());
       continue;
     }
 
@@ -174,7 +175,7 @@ void process_scene_graph_instances(const USDExportParams &export_params, pxr::Us
     if (!pxr::SdfCopySpec(
             stage->GetRootLayer(), riter->first, stage->GetRootLayer(), riter->second))
     {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Couldn't copy prim %s to %s",
                 src_path.GetAsString().c_str(),
                 dst_path.GetAsString().c_str());

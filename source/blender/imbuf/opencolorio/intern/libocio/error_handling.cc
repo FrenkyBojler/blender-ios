@@ -12,16 +12,14 @@
 
 namespace blender::ocio {
 
-static CLG_LogRef LOG = {"image.color_management"};
-
 void report_exception(const OCIO_NAMESPACE::Exception &exception)
 {
-  CLOG_ERROR(&LOG, "OpenColorIO Error: %s", exception.what());
+  CLOG_ERROR(LOG_IMAGE_COLOR_MANAGEMENT, "OpenColorIO Error: %s", exception.what());
 }
 
 void report_error(const StringRefNull error)
 {
-  CLOG_ERROR(&LOG, "OpenColorIO Error: %s", error.c_str());
+  CLOG_ERROR(LOG_IMAGE_COLOR_MANAGEMENT, "OpenColorIO Error: %s", error.c_str());
 }
 
 }  // namespace blender::ocio

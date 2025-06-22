@@ -26,7 +26,6 @@
 #include "BKE_object.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 using Alembic::AbcGeom::OCompoundProperty;
 using Alembic::AbcGeom::OCurves;
@@ -50,7 +49,7 @@ ABCCurveWriter::ABCCurveWriter(const ABCWriterConstructorArgs &args) : ABCAbstra
 
 void ABCCurveWriter::create_alembic_objects(const HierarchyContext *context)
 {
-  CLOG_DEBUG(&LOG, "exporting %s", args_.abc_path.c_str());
+  CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting %s", args_.abc_path.c_str());
   abc_curve_ = OCurves(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_curve_schema_ = abc_curve_.getSchema();
 
@@ -121,12 +120,13 @@ void ABCCurveWriter::do_write(HierarchyContext &context)
                                                   curve_type_counts.end(),
                                                   [](const int count) { return count > 0; });
   if (number_of_curve_types > 1) {
-    CLOG_WARN(&LOG, "Cannot export mixed curve types in the same Curves object");
+    CLOG_WARN(LOG_IO_ALEMBIC, "Cannot export mixed curve types in the same Curves object");
     return;
   }
 
   if (array_utils::booleans_mix_calc(curves.cyclic()) == array_utils::BooleanMix::Mixed) {
-    CLOG_WARN(&LOG, "Cannot export mixed cyclic and non-cyclic curves in the same Curves object");
+    CLOG_WARN(LOG_IO_ALEMBIC,
+              "Cannot export mixed cyclic and non-cyclic curves in the same Curves object");
     return;
   }
 

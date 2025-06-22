@@ -54,8 +54,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"lib.packedfile"};
-
 using namespace blender;
 
 int BKE_packedfile_seek(PackedFile *pf, int offset, int whence)
@@ -998,7 +996,7 @@ void BKE_packedfile_blend_read(BlendDataReader *reader, PackedFile **pf_p, Strin
   if (pf->data == nullptr) {
     /* We cannot allow a #PackedFile with a nullptr data field,
      * the whole code assumes this is not possible. See #70315. */
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_LIB_PACKEDFILE,
               "%s: nullptr packedfile data (source: '%s'), cleaning up...",
               __func__,
               filepath.c_str());

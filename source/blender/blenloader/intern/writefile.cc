@@ -156,8 +156,6 @@
 
 #define ZSTD_COMPRESSION_LEVEL 3
 
-static CLG_LogRef LOG = {"blend.writefile"};
-
 /** Use if we want to store how many bytes have been written to the file. */
 // #define USE_WRITE_DATA_LEN
 
@@ -719,7 +717,7 @@ static bool write_at_address_validate(WriteData *wd, const int filecode, const v
 
   if (wd->is_writing_id && filecode == BLO_CODE_DATA) {
     if (!wd->validation_data.per_id_addresses_set.add(address)) {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_BLEND_WRITEFILE,
                  "Same identifier (old address) used several times for a same ID, skipping this "
                  "block to avoid critical corruption of the Blender file.");
       return false;
@@ -759,7 +757,8 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
   bh.len = bhead.len;
   /* Check that the written buffer size is compatible with the limits of #SmallBHead8. */
   if (bhead.len > std::numeric_limits<decltype(bh.len)>::max()) {
-    CLOG_ERROR(&LOG, "Written .blend file is corrupt, because a memory block is too large.");
+    CLOG_ERROR(LOG_BLEND_WRITEFILE,
+               "Written .blend file is corrupt, because a memory block is too large.");
     return;
   }
   mywrite(wd, &bh, sizeof(bh));
@@ -787,7 +786,7 @@ static void writestruct_at_address_nr(WriteData *wd,
       USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
   {
     if (len_in_bytes > INT32_MAX) {
-      CLOG_ERROR(&LOG, "Cannot write chunks bigger than INT_MAX.");
+      CLOG_ERROR(LOG_BLEND_WRITEFILE, "Cannot write chunks bigger than INT_MAX.");
       return;
     }
   }
@@ -1183,7 +1182,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
     /* Write placeholders for linked data-blocks that are used. */
     for (const ID *id : ids_used_from_library) {
       if (!BKE_idtype_idcode_is_linkable(GS(id->name))) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_BLEND_WRITEFILE,
                    "Data-block '%s' from lib '%s' is not linkable, but is flagged as "
                    "directly linked",
                    id->name,
@@ -1901,7 +1900,7 @@ void BLO_write_struct_array_by_name(BlendWriter *writer,
 {
   int struct_id = BLO_get_struct_id_by_name(writer, struct_name);
   if (UNLIKELY(struct_id == -1)) {
-    CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
+    CLOG_ERROR(LOG_BLEND_WRITEFILE, "Can't find SDNA code <%s>", struct_name);
     return;
   }
   BLO_write_struct_array_by_id(writer, struct_id, array_size, data_ptr);
@@ -1956,7 +1955,7 @@ void BLO_write_struct_list_by_name(BlendWriter *writer, const char *struct_name,
 {
   int struct_id = BLO_get_struct_id_by_name(writer, struct_name);
   if (UNLIKELY(struct_id == -1)) {
-    CLOG_ERROR(&LOG, "Can't find SDNA code <%s>", struct_name);
+    CLOG_ERROR(LOG_BLEND_WRITEFILE, "Can't find SDNA code <%s>", struct_name);
     return;
   }
   BLO_write_struct_list_by_id(writer, struct_id, list);

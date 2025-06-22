@@ -56,8 +56,6 @@
 static blender::Mutex python_driver_lock;
 #endif
 
-static CLG_LogRef LOG = {"anim.fcurve"};
-
 /* -------------------------------------------------------------------- */
 /** \name Driver Variables
  * \{ */
@@ -183,7 +181,8 @@ static float dtar_get_prop_val(const AnimationEvalContext *anim_eval_context,
   PointerRNA property_ptr;
   if (!driver_get_target_property(&driver_target_context, dvar, dtar, &property_ptr)) {
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG, "driver has an invalid target to use (path = %s)", dtar->rna_path);
+      CLOG_ERROR(
+          LOG_ANIM_FCURVE, "driver has an invalid target to use (path = %s)", dtar->rna_path);
     }
 
     driver->flag |= DRIVER_FLAG_INVALID;
@@ -205,7 +204,7 @@ static float dtar_get_prop_val(const AnimationEvalContext *anim_eval_context,
 
     /* Path couldn't be resolved. */
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_ANIM_FCURVE,
                  "Driver Evaluation Error: cannot resolve target for %s -> %s",
                  property_ptr.owner_id->name,
                  dtar->rna_path);
@@ -225,7 +224,7 @@ static float dtar_get_prop_val(const AnimationEvalContext *anim_eval_context,
 
       /* Out of bounds. */
       if (G.debug & G_DEBUG) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_ANIM_FCURVE,
                    "Driver Evaluation Error: array index is out of bounds for %s -> %s (%d)",
                    property_ptr.owner_id->name,
                    dtar->rna_path,
@@ -303,7 +302,8 @@ eDriverVariablePropertyResult driver_get_variable_property(
   PointerRNA target_ptr;
   if (!driver_get_target_property(&driver_target_context, dvar, dtar, &target_ptr)) {
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG, "driver has an invalid target to use (path = %s)", dtar->rna_path);
+      CLOG_ERROR(
+          LOG_ANIM_FCURVE, "driver has an invalid target to use (path = %s)", dtar->rna_path);
     }
 
     driver->flag |= DRIVER_FLAG_INVALID;
@@ -329,7 +329,7 @@ eDriverVariablePropertyResult driver_get_variable_property(
 
     /* Path couldn't be resolved. */
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_ANIM_FCURVE,
                  "Driver Evaluation Error: cannot resolve target for %s -> %s",
                  target_ptr.owner_id->name,
                  dtar->rna_path);
@@ -357,7 +357,7 @@ eDriverVariablePropertyResult driver_get_variable_property(
 
       /* Out of bounds. */
       if (G.debug & G_DEBUG) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_ANIM_FCURVE,
                    "Driver Evaluation Error: array index is out of bounds for %s -> %s (%d)",
                    ptr.owner_id->name,
                    dtar->rna_path,
@@ -424,7 +424,7 @@ static float dvar_eval_rotDiff(const AnimationEvalContext * /*anim_eval_context*
   /* Make sure we have enough valid targets to use - all or nothing for now. */
   if (driver_check_valid_targets(driver, dvar) != 2) {
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_ANIM_FCURVE,
                 "RotDiff DVar: not enough valid targets (n = %d) (a = %p, b = %p)",
                 valid_targets,
                 dvar->targets[0].id,
@@ -489,7 +489,7 @@ static float dvar_eval_locDiff(const AnimationEvalContext * /*anim_eval_context*
   /* Make sure we have enough valid targets to use - all or nothing for now. */
   if (valid_targets < dvar->num_targets) {
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_ANIM_FCURVE,
                 "LocDiff DVar: not enough valid targets (n = %d) (a = %p, b = %p)",
                 valid_targets,
                 dvar->targets[0].id,
@@ -1165,14 +1165,15 @@ static bool driver_evaluate_simple_expr(const AnimationEvalContext *anim_eval_co
     case EXPR_PYLIKE_DIV_BY_ZERO:
     case EXPR_PYLIKE_MATH_ERROR:
       message = (status == EXPR_PYLIKE_DIV_BY_ZERO) ? "Division by Zero" : "Math Domain Error";
-      CLOG_ERROR(&LOG, "%s in Driver: '%s'", message, driver->expression);
+      CLOG_ERROR(LOG_ANIM_FCURVE, "%s in Driver: '%s'", message, driver->expression);
 
       driver->flag |= DRIVER_FLAG_INVALID;
       return true;
 
     default:
       /* Arriving here means a bug, not user error. */
-      CLOG_ERROR(&LOG, "simple driver expression evaluation failed: '%s'", driver->expression);
+      CLOG_ERROR(
+          LOG_ANIM_FCURVE, "simple driver expression evaluation failed: '%s'", driver->expression);
       return false;
   }
 }

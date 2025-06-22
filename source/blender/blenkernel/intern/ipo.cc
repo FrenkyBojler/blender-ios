@@ -72,8 +72,6 @@
 #  include "BLI_math_base.h" /* M_PI */
 #endif
 
-static CLG_LogRef LOG = {"anim.ipo"};
-
 using namespace blender;
 
 static void ipo_free_data(ID *id)
@@ -389,7 +387,7 @@ static const char *pchan_adrcodes_to_paths(int adrcode, int *r_array_index)
   }
 
   /* for debugging only */
-  CLOG_ERROR(&LOG, "unmatched PoseChannel setting (code %d)", adrcode);
+  CLOG_ERROR(LOG_ANIM_IPO, "unmatched PoseChannel setting (code %d)", adrcode);
   return nullptr;
 }
 
@@ -1099,7 +1097,7 @@ static char *get_rna_access(ID *id,
 
     /* TODO: add other block-types. */
     default:
-      CLOG_WARN(&LOG, "No path for blocktype %d, adrcode %d yet", blocktype, adrcode);
+      CLOG_WARN(LOG_ANIM_IPO, "No path for blocktype %d, adrcode %d yet", blocktype, adrcode);
       break;
   }
 
@@ -1879,7 +1877,7 @@ static void ipo_to_animdata(
     return;
   }
   if (adt == nullptr) {
-    CLOG_ERROR(&LOG, "adt invalid");
+    CLOG_ERROR(LOG_ANIM_IPO, "adt invalid");
     return;
   }
 
@@ -2128,7 +2126,7 @@ void do_versions_ipos_to_layered_actions(Main *bmain)
   ID *id;
 
   if (bmain == nullptr) {
-    CLOG_ERROR(&LOG, "Argh! Main is nullptr");
+    CLOG_ERROR(LOG_ANIM_IPO, "Argh! Main is nullptr");
     return;
   }
 

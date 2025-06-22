@@ -90,8 +90,6 @@ static struct {
 #  define PLAY_FRAME_CACHE_MAX 30
 #endif
 
-static CLG_LogRef LOG = {"image"};
-
 /** Used in user viable messages. */
 static const char *message_prefix = "Animation Player";
 
@@ -857,7 +855,7 @@ static void build_pict_list_from_anim(ListBase &picsbase,
   /* OCIO_TODO: support different input color space. */
   MovieReader *anim = MOV_open_file(filepath_first, IB_byte_data, 0, false, nullptr);
   if (anim == nullptr) {
-    CLOG_WARN(&LOG, "couldn't open anim '%s'", filepath_first);
+    CLOG_WARN(LOG_IMAGE, "couldn't open anim '%s'", filepath_first);
     return;
   }
 
@@ -879,7 +877,7 @@ static void build_pict_list_from_anim(ListBase &picsbase,
   const PlayAnimPict *picture = static_cast<const PlayAnimPict *>(picsbase.last);
   if (!(picture && picture->anim == anim)) {
     MOV_close(anim);
-    CLOG_WARN(&LOG, "no frames added for: '%s'", filepath_first);
+    CLOG_WARN(LOG_IMAGE, "no frames added for: '%s'", filepath_first);
   }
 }
 
@@ -950,7 +948,7 @@ static void build_pict_list_from_image_sequence(ListBase &picsbase,
     const bool display_imbuf = g_playanim.total_time > 1.0;
 
     if (has_error) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IMAGE,
                 "Picture %s failed: %s",
                 filepath,
                 error_message ? error_message : "<unknown error>");

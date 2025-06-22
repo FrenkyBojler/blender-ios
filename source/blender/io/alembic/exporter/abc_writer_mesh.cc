@@ -28,7 +28,6 @@
 #include "DNA_object_types.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 using Alembic::Abc::FloatArraySample;
 using Alembic::Abc::Int32ArraySample;
@@ -78,12 +77,12 @@ void ABCGenericMeshWriter::create_alembic_objects(const HierarchyContext *contex
   }
 
   if (is_subd_) {
-    CLOG_DEBUG(&LOG, "exporting OSubD %s", args_.abc_path.c_str());
+    CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting OSubD %s", args_.abc_path.c_str());
     abc_subdiv_ = OSubD(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_subdiv_schema_ = abc_subdiv_.getSchema();
   }
   else {
-    CLOG_DEBUG(&LOG, "exporting OPolyMesh %s", args_.abc_path.c_str());
+    CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting OPolyMesh %s", args_.abc_path.c_str());
     abc_poly_mesh_ = OPolyMesh(args_.abc_parent, args_.abc_name, timesample_index_);
     abc_poly_mesh_schema_ = abc_poly_mesh_.getSchema();
 

@@ -107,8 +107,6 @@
 #  define FACE_ASSERT(face, vert_max)
 #endif
 
-static CLG_LogRef LOG = {"mask.rasterize"};
-
 static void rotate_point_v2(
     float r_p[2], const float p[2], const float cent[2], const float angle, const float asp[2])
 {
@@ -1436,7 +1434,7 @@ float BKE_maskrasterize_handle_sample(MaskRasterHandle *mr_handle, const float x
         value = fabsf(value - value_layer);
         break;
       default: /* same as add */
-        CLOG_ERROR(&LOG, "unhandled blend type: %d", layer->blend);
+        CLOG_ERROR(LOG_MASK_RASTERIZE, "unhandled blend type: %d", layer->blend);
         BLI_assert(0);
         value += value_layer;
         break;

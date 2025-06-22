@@ -23,7 +23,6 @@
 #include "BKE_particle.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 using Alembic::Abc::P3fArraySamplePtr;
 using Alembic::AbcGeom::OCurves;
@@ -40,7 +39,7 @@ ABCHairWriter::ABCHairWriter(const ABCWriterConstructorArgs &args)
 
 void ABCHairWriter::create_alembic_objects(const HierarchyContext * /*context*/)
 {
-  CLOG_DEBUG(&LOG, "exporting %s", args_.abc_path.c_str());
+  CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting %s", args_.abc_path.c_str());
   abc_curves_ = OCurves(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_curves_schema_ = abc_curves_.getSchema();
 }
@@ -269,7 +268,7 @@ void ABCHairWriter::write_hair_child_sample(const HierarchyContext &context,
       const int num = pc->num;
       if (num < 0) {
         CLOG_WARN(
-            &LOG,
+            LOG_IO_ALEMBIC,
             "Child particle of hair system %s has unknown face index of geometry of %s, skipping "
             "child hair.",
             psys->name,

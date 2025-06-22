@@ -80,8 +80,6 @@
 #include "sculpt_face_set.hh"
 #include "sculpt_intern.hh"
 
-static CLG_LogRef LOG = {"undo.sculpt"};
-
 namespace blender::ed::sculpt_paint::undo {
 
 /* Implementation of undo system for objects in sculpt mode.
@@ -849,7 +847,7 @@ static void restore_list(bContext *C, Depsgraph *depsgraph, StepData &step_data)
   if ((multires_undo_step && pbvh.type() != bke::pbvh::Type::Grids) ||
       (!multires_undo_step && pbvh.type() != bke::pbvh::Type::Mesh))
   {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_UNDO_SCULPT,
               "Undo step type and sculpt geometry type do not match: skipping undo state restore");
     return;
   }

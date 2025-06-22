@@ -54,7 +54,6 @@
 #include "DEG_depsgraph_query.hh"
 
 #ifdef WITH_BULLET
-static CLG_LogRef LOG = {"physics.rigidbody"};
 #endif
 
 #ifndef WITH_BULLET
@@ -295,7 +294,8 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob,
     totvert = (mesh) ? mesh->verts_num : 0;
   }
   else {
-    CLOG_ERROR(&LOG, "cannot make Convex Hull collision shape for non-Mesh object");
+    CLOG_ERROR(LOG_PHYSICS_RIGIDBODY,
+               "cannot make Convex Hull collision shape for non-Mesh object");
   }
 
   if (totvert) {
@@ -303,7 +303,7 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob,
         (float *)positions, sizeof(float[3]), totvert, margin, can_embed);
   }
   else {
-    CLOG_ERROR(&LOG, "no vertices to define Convex Hull collision shape with");
+    CLOG_ERROR(LOG_PHYSICS_RIGIDBODY, "no vertices to define Convex Hull collision shape with");
   }
 
   return shape;
@@ -330,8 +330,9 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
 
     /* sanity checking - potential case when no data will be present */
     if ((totvert == 0) || (tottri == 0)) {
-      CLOG_WARN(
-          &LOG, "no geometry data converted for Mesh Collision Shape (ob = %s)", ob->id.name + 2);
+      CLOG_WARN(LOG_PHYSICS_RIGIDBODY,
+                "no geometry data converted for Mesh Collision Shape (ob = %s)",
+                ob->id.name + 2);
     }
     else {
       rbMeshData *mdata;
@@ -379,7 +380,8 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
     }
   }
   else {
-    CLOG_ERROR(&LOG, "cannot make Triangular Mesh collision shape for non-Mesh object");
+    CLOG_ERROR(LOG_PHYSICS_RIGIDBODY,
+               "cannot make Triangular Mesh collision shape for non-Mesh object");
   }
 
   return shape;

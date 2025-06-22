@@ -59,7 +59,6 @@
 #include "WM_types.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace blender::io::usd {
 
@@ -230,7 +229,7 @@ static void process_usdz_textures(const ExportJobData *data, const char *path)
     if (!BLI_is_dir(entries[index].path)) {
       Image *im = BKE_image_load(data->bmain, entries[index].path);
       if (!im) {
-        CLOG_WARN(&LOG, "Unable to open file for downscaling: %s", entries[index].path);
+        CLOG_WARN(LOG_IO_USD, "Unable to open file for downscaling: %s", entries[index].path);
         continue;
       }
 
@@ -251,14 +250,14 @@ static void process_usdz_textures(const ExportJobData *data, const char *path)
         {
           bool result = BKE_image_save(nullptr, data->bmain, im, nullptr, &opts);
           if (!result) {
-            CLOG_ERROR(&LOG,
+            CLOG_ERROR(LOG_IO_USD,
                        "Unable to resave '%s' (new size: %dx%d)",
                        data->usdz_filepath,
                        width_adjusted,
                        height_adjusted);
           }
           else {
-            CLOG_DEBUG(&LOG,
+            CLOG_DEBUG(LOG_IO_USD,
                        "Downscaled '%s' to %dx%d",
                        entries[index].path,
                        width_adjusted,
@@ -376,10 +375,10 @@ std::string cache_image_color(const float color[4])
   ibuf->ftype = IMB_FTYPE_RADHDR;
 
   if (IMB_save_image(ibuf, file_path.c_str(), IB_float_data)) {
-    CLOG_INFO(&LOG, "%s", file_path.c_str());
+    CLOG_INFO(LOG_IO_USD, "%s", file_path.c_str());
   }
   else {
-    CLOG_ERROR(&LOG, "Can't save %s", file_path.c_str());
+    CLOG_ERROR(LOG_IO_USD, "Can't save %s", file_path.c_str());
     file_path = "";
   }
   IMB_freeImBuf(ibuf);
@@ -423,7 +422,7 @@ static void collect_point_instancer_prototypes_and_set_extent(
   }
 
   if (real_path_str.empty()) {
-    CLOG_WARN(&LOG, "No prototype reference found for: %s", wrapper_path.GetText());
+    CLOG_WARN(LOG_IO_USD, "No prototype reference found for: %s", wrapper_path.GetText());
     return;
   }
 
@@ -431,7 +430,7 @@ static void collect_point_instancer_prototypes_and_set_extent(
   pxr::UsdPrim proto_prim = stage->GetPrimAtPath(real_path);
 
   if (!proto_prim || !proto_prim.IsValid()) {
-    CLOG_WARN(&LOG, "Referenced prototype not found at: %s", real_path.GetText());
+    CLOG_WARN(LOG_IO_USD, "Referenced prototype not found at: %s", real_path.GetText());
     return;
   }
 

@@ -29,8 +29,6 @@
 
 #include "BLO_readfile.hh"
 
-static CLG_LogRef LOG = {"lib.override.proxy_conversion"};
-
 bool BKE_lib_override_library_proxy_convert(Main *bmain,
                                             Scene *scene,
                                             ViewLayer *view_layer,
@@ -104,8 +102,9 @@ static void lib_override_library_proxy_convert_do(Main *bmain,
   const bool success = BKE_lib_override_library_proxy_convert(bmain, scene, nullptr, ob_proxy);
 
   if (success) {
-    CLOG_INFO(
-        &LOG, "Proxy object '%s' successfully converted to library overrides", ob_proxy->id.name);
+    CLOG_INFO(LOG_LIB_OVERRIDE_PROXY_CONVERSION,
+              "Proxy object '%s' successfully converted to library overrides",
+              ob_proxy->id.name);
     /* Remove the instance empty from this scene, the items now have an overridden collection
      * instead. */
     if (is_override_instancing_object) {
@@ -147,13 +146,13 @@ void BKE_lib_override_library_main_proxy_convert(Main *bmain, BlendFileReadRepor
   LISTBASE_FOREACH (Object *, object, &bmain->objects) {
     if (object->proxy_group != nullptr || object->proxy != nullptr) {
       if (ID_IS_LINKED(object)) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_LIB_OVERRIDE_PROXY_CONVERSION,
                   "Linked proxy object '%s' from '%s' failed to be converted to library override",
                   object->id.name + 2,
                   object->id.lib->filepath);
       }
       else {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_LIB_OVERRIDE_PROXY_CONVERSION,
                   "Proxy object '%s' failed to be converted to library override",
                   object->id.name + 2);
       }

@@ -23,8 +23,6 @@
 
 #include "BKE_idtype.hh"
 
-// static CLG_LogRef LOG = {"lib.idtype"};
-
 uint BKE_idtype_cache_key_hash(const void *key_v)
 {
   const IDCacheKey *key = static_cast<const IDCacheKey *>(key_v);

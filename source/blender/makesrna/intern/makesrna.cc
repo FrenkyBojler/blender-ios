@@ -32,8 +32,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"makesrna"};
-
 /**
  * Variable to control debug output of makesrna.
  * debugSRNA:
@@ -140,13 +138,14 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
         fclose(fp_new); \
       } \
       if (remove(orgfile) != 0) { \
-        CLOG_ERROR(&LOG, "remove error (%s): \"%s\"", strerror(errno), orgfile); \
+        CLOG_ERROR(LOG_MAKESRNA, "remove error (%s): \"%s\"", strerror(errno), orgfile); \
         return -1; \
       } \
     } \
   } \
   if (rename(tmpfile, orgfile) != 0) { \
-    CLOG_ERROR(&LOG, "rename error (%s): \"%s\" -> \"%s\"", strerror(errno), tmpfile, orgfile); \
+    CLOG_ERROR( \
+        LOG_MAKESRNA, "rename error (%s): \"%s\" -> \"%s\"", strerror(errno), tmpfile, orgfile); \
     return -1; \
   } \
   remove(tmpfile); \
@@ -218,7 +217,7 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
 
   if (fp_new == nullptr) {
     /* Shouldn't happen, just to be safe. */
-    CLOG_ERROR(&LOG, "open error: \"%s\"", tmpfile);
+    CLOG_ERROR(LOG_MAKESRNA, "open error: \"%s\"", tmpfile);
     fclose(fp_org);
     return -1;
   }
@@ -243,10 +242,10 @@ static int replace_if_different(const char *tmpfile, const char *dep_files[])
   arr_org = MEM_malloc_arrayN<char>(size_t(len_org), "rna_cmp_file_org");
 
   if (fread(arr_new, sizeof(char), len_new, fp_new) != len_new) {
-    CLOG_ERROR(&LOG, "unable to read file %s for comparison.", tmpfile);
+    CLOG_ERROR(LOG_MAKESRNA, "unable to read file %s for comparison.", tmpfile);
   }
   if (fread(arr_org, sizeof(char), len_org, fp_org) != len_org) {
-    CLOG_ERROR(&LOG, "unable to read file %s for comparison.", orgfile);
+    CLOG_ERROR(LOG_MAKESRNA, "unable to read file %s for comparison.", orgfile);
   }
 
   fclose(fp_new);
@@ -706,7 +705,7 @@ static char *rna_def_property_get_func(
 
   if (!manualfunc) {
     if (!dp->dnastructname || !dp->dnaname) {
-      CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
+      CLOG_ERROR(LOG_MAKESRNA, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
       DefRNA.error = true;
       return nullptr;
     }
@@ -718,7 +717,7 @@ static char *rna_def_property_get_func(
         if (IS_DNATYPE_FLOAT_COMPAT(dp->dnatype) == 0) {
           /* Colors are an exception. these get translated. */
           if (prop->subtype != PROP_COLOR_GAMMA) {
-            CLOG_ERROR(&LOG,
+            CLOG_ERROR(LOG_MAKESRNA,
                        "%s.%s is a '%s' but wrapped as type '%s'.",
                        srna->identifier,
                        prop->identifier,
@@ -731,7 +730,7 @@ static char *rna_def_property_get_func(
       }
       else if (prop->type == PROP_BOOLEAN) {
         if (IS_DNATYPE_BOOLEAN_COMPAT(dp->dnatype) == 0) {
-          CLOG_ERROR(&LOG,
+          CLOG_ERROR(LOG_MAKESRNA,
                      "%s.%s is a '%s' but wrapped as type '%s'.",
                      srna->identifier,
                      prop->identifier,
@@ -743,7 +742,7 @@ static char *rna_def_property_get_func(
       }
       else if (ELEM(prop->type, PROP_INT, PROP_ENUM)) {
         if (IS_DNATYPE_INT_COMPAT(dp->dnatype) == 0) {
-          CLOG_ERROR(&LOG,
+          CLOG_ERROR(LOG_MAKESRNA,
                      "%s.%s is a '%s' but wrapped as type '%s'.",
                      srna->identifier,
                      prop->identifier,
@@ -760,8 +759,10 @@ static char *rna_def_property_get_func(
       FloatPropertyRNA *fprop = (FloatPropertyRNA *)prop;
       /* NOTE: UI_BTYPE_NUM_SLIDER can't have a softmin of zero. */
       if ((fprop->ui_scale_type == PROP_SCALE_LOG) && (fprop->hardmin < 0 || fprop->softmin < 0)) {
-        CLOG_ERROR(
-            &LOG, "\"%s.%s\", range for log scale < 0.", srna->identifier, prop->identifier);
+        CLOG_ERROR(LOG_MAKESRNA,
+                   "\"%s.%s\", range for log scale < 0.",
+                   srna->identifier,
+                   prop->identifier);
         DefRNA.error = true;
         return nullptr;
       }
@@ -771,8 +772,10 @@ static char *rna_def_property_get_func(
       /* Only UI_BTYPE_NUM_SLIDER is implemented and that one can't have a softmin of zero. */
       if ((iprop->ui_scale_type == PROP_SCALE_LOG) && (iprop->hardmin <= 0 || iprop->softmin <= 0))
       {
-        CLOG_ERROR(
-            &LOG, "\"%s.%s\", range for log scale <= 0.", srna->identifier, prop->identifier);
+        CLOG_ERROR(LOG_MAKESRNA,
+                   "\"%s.%s\", range for log scale <= 0.",
+                   srna->identifier,
+                   prop->identifier);
         DefRNA.error = true;
         return nullptr;
       }
@@ -1193,7 +1196,8 @@ static char *rna_def_property_set_func(
   if (!manualfunc) {
     if (!dp->dnastructname || !dp->dnaname) {
       if (prop->flag & PROP_EDITABLE) {
-        CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
+        CLOG_ERROR(
+            LOG_MAKESRNA, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
         DefRNA.error = true;
       }
       return nullptr;
@@ -1520,7 +1524,8 @@ static char *rna_def_property_length_func(
   if (prop->type == PROP_STRING) {
     if (!manualfunc) {
       if (!dp->dnastructname || !dp->dnaname) {
-        CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
+        CLOG_ERROR(
+            LOG_MAKESRNA, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
         DefRNA.error = true;
         return nullptr;
       }
@@ -1555,7 +1560,8 @@ static char *rna_def_property_length_func(
       if (prop->type == PROP_COLLECTION &&
           (!(dp->dnalengthname || dp->dnalengthfixed) || !dp->dnaname))
       {
-        CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
+        CLOG_ERROR(
+            LOG_MAKESRNA, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
         DefRNA.error = true;
         return nullptr;
       }
@@ -1605,7 +1611,7 @@ static char *rna_def_property_begin_func(
 
   if (!manualfunc) {
     if (!dp->dnastructname || !dp->dnaname) {
-      CLOG_ERROR(&LOG, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
+      CLOG_ERROR(LOG_MAKESRNA, "%s.%s has no valid dna info.", srna->identifier, prop->identifier);
       DefRNA.error = true;
       return nullptr;
     }
@@ -2052,7 +2058,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       if (!(prop->flag & PROP_EDITABLE) &&
           (bprop->set || bprop->set_ex || bprop->setarray || bprop->setarray_ex))
       {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2062,7 +2068,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       if (!prop->arraydimension &&
           (bprop->getarray || bprop->getarray_ex || bprop->setarray || bprop->setarray_ex))
       {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is not an array but defines an array callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2093,7 +2099,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       if (!(prop->flag & PROP_EDITABLE) &&
           (iprop->set || iprop->set_ex || iprop->setarray || iprop->setarray_ex))
       {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2103,7 +2109,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       if (!prop->arraydimension &&
           (iprop->getarray || iprop->getarray_ex || iprop->setarray || iprop->setarray_ex))
       {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is not an array but defines an array callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2138,7 +2144,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       if (!(prop->flag & PROP_EDITABLE) &&
           (fprop->set || fprop->set_ex || fprop->setarray || fprop->setarray_ex))
       {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2148,7 +2154,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       if (!prop->arraydimension &&
           (fprop->getarray || fprop->getarray_ex || fprop->setarray || fprop->setarray_ex))
       {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is not an array but defines an array callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2181,7 +2187,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
 
       if (!(prop->flag & PROP_EDITABLE) && (eprop->set || eprop->set_ex)) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2202,7 +2208,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
 
       if (!(prop->flag & PROP_EDITABLE) && (sprop->set || sprop->set_ex)) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2223,7 +2229,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       PointerPropertyRNA *pprop = (PointerPropertyRNA *)prop;
 
       if (!(prop->flag & PROP_EDITABLE) && pprop->set) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, is read-only but has defines a \"set\" callback.",
                    srna->identifier,
                    prop->identifier);
@@ -2235,8 +2241,10 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
       pprop->set = reinterpret_cast<PropPointerSetFunc>(
           rna_def_property_set_func(f, srna, prop, dp, (const char *)pprop->set));
       if (!pprop->type) {
-        CLOG_ERROR(
-            &LOG, "%s.%s, pointer must have a struct type.", srna->identifier, prop->identifier);
+        CLOG_ERROR(LOG_MAKESRNA,
+                   "%s.%s, pointer must have a struct type.",
+                   srna->identifier,
+                   prop->identifier);
         DefRNA.error = true;
       }
       break;
@@ -2286,21 +2294,21 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
 
       if (!(prop->flag & PROP_IDPROPERTY)) {
         if (!cprop->begin) {
-          CLOG_ERROR(&LOG,
+          CLOG_ERROR(LOG_MAKESRNA,
                      "%s.%s, collection must have a begin function.",
                      srna->identifier,
                      prop->identifier);
           DefRNA.error = true;
         }
         if (!cprop->next) {
-          CLOG_ERROR(&LOG,
+          CLOG_ERROR(LOG_MAKESRNA,
                      "%s.%s, collection must have a next function.",
                      srna->identifier,
                      prop->identifier);
           DefRNA.error = true;
         }
         if (!cprop->get) {
-          CLOG_ERROR(&LOG,
+          CLOG_ERROR(LOG_MAKESRNA,
                      "%s.%s, collection must have a get function.",
                      srna->identifier,
                      prop->identifier);
@@ -2308,7 +2316,7 @@ static void rna_def_property_funcs(FILE *f, StructRNA *srna, PropertyDefRNA *dp)
         }
       }
       if (!cprop->item_type) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s.%s, collection must have a struct type.",
                    srna->identifier,
                    prop->identifier);
@@ -4187,7 +4195,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
 
         if (prop->flag & PROP_ENUM_FLAG) {
           if (eprop->defaultvalue & ~totflag) {
-            CLOG_ERROR(&LOG,
+            CLOG_ERROR(LOG_MAKESRNA,
                        "%s%s.%s, enum default includes unused bits (%d).",
                        srna->identifier,
                        errnest,
@@ -4198,7 +4206,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
         }
         else {
           if (!defaultfound && !(eprop->item_fn && eprop->item == rna_enum_dummy_NULL_items)) {
-            CLOG_ERROR(&LOG,
+            CLOG_ERROR(LOG_MAKESRNA,
                        "%s%s.%s, enum default is not in items.",
                        srna->identifier,
                        errnest,
@@ -4208,7 +4216,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
         }
       }
       else {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_MAKESRNA,
                    "%s%s.%s, enum must have items defined.",
                    srna->identifier,
                    errnest,
@@ -4801,8 +4809,9 @@ static void rna_generate_struct(BlenderRNA * /*brna*/, StructRNA *srna, FILE *f)
   fprintf(f, "\t%s,\n", rna_function_string(srna->system_idproperties));
 
   if (srna->reg && !srna->refine) {
-    CLOG_ERROR(
-        &LOG, "%s has a register function, must also have refine function.", srna->identifier);
+    CLOG_ERROR(LOG_MAKESRNA,
+               "%s has a register function, must also have refine function.",
+               srna->identifier);
     DefRNA.error = true;
   }
 

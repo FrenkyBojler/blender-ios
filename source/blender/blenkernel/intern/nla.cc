@@ -48,8 +48,6 @@
 
 #include "nla_private.h"
 
-static CLG_LogRef LOG = {"anim.nla"};
-
 using namespace blender;
 
 /**
@@ -2145,7 +2143,7 @@ bool BKE_nla_action_stash(const OwnedAnimData owned_adt, const bool is_liboverri
 
   /* sanity check */
   if (ELEM(nullptr, adt, adt->action)) {
-    CLOG_ERROR(&LOG, "Invalid argument - %p %p", adt, adt->action);
+    CLOG_ERROR(LOG_ANIM_NLA, "Invalid argument - %p %p", adt, adt->action);
     return false;
   }
 

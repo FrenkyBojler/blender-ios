@@ -26,13 +26,11 @@
 
 extern "C" char datatoc_glsl_shader_defines_glsl[];
 
-static CLG_LogRef LOG = {"gpu.vulkan"};
-
 namespace blender::gpu {
 
 void VKExtensions::log() const
 {
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_GPU_VULKAN,
              "Device features\n"
              " - [%c] shader output viewport index\n"
              " - [%c] shader output layer\n"

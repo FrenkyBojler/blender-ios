@@ -81,8 +81,6 @@ using namespace blender::color;
 using namespace blender::ed::sculpt_paint; /* For vwpaint namespace. */
 using blender::ed::sculpt_paint::vwpaint::NormalAnglePrecalc;
 
-static CLG_LogRef LOG = {"paint.vertex"};
-
 /* -------------------------------------------------------------------- */
 /** \name Internal Utilities
  * \{ */
@@ -584,7 +582,8 @@ void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
 
   if (!smooth_brush) {
     BKE_paint_brush_set(paint, cur_brush);
-    CLOG_WARN(&LOG, "Switching to the blur (smooth) brush not possible, corresponding brush not");
+    CLOG_WARN(LOG_PAINT_VERTEX,
+              "Switching to the blur (smooth) brush not possible, corresponding brush not");
     cache->saved_active_brush = nullptr;
     return;
   }

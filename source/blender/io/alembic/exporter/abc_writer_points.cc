@@ -19,7 +19,6 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 namespace blender::io::alembic {
 
@@ -31,7 +30,7 @@ ABCPointsWriter::ABCPointsWriter(const ABCWriterConstructorArgs &args) : ABCAbst
 
 void ABCPointsWriter::create_alembic_objects(const HierarchyContext * /*context*/)
 {
-  CLOG_DEBUG(&LOG, "exporting OPoints %s", args_.abc_path.c_str());
+  CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting OPoints %s", args_.abc_path.c_str());
   abc_points_ = OPoints(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_points_schema_ = abc_points_.getSchema();
 }

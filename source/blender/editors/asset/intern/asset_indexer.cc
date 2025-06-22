@@ -36,8 +36,6 @@
 
 #include <sstream>
 
-static CLG_LogRef LOG = {"asset.index"};
-
 namespace blender::ed::asset::index {
 
 using namespace blender::asset_system;
@@ -418,7 +416,7 @@ struct AssetLibraryIndex {
       }
 
       const std::string &file_path = preexisting_index.key;
-      CLOG_DEBUG(&LOG, "Remove unused index file \"%s\".", file_path.c_str());
+      CLOG_DEBUG(LOG_ASSET_INDEX, "Remove unused index file \"%s\".", file_path.c_str());
       files_to_remove.add(preexisting_index.key);
     }
 
@@ -584,7 +582,9 @@ class AssetIndexFile : public AbstractFile {
   {
     JsonFormatter formatter;
     if (!ensure_parent_path_exists()) {
-      CLOG_ERROR(&LOG, "Index not created: couldn't create folder \"%s\".", this->get_file_path());
+      CLOG_ERROR(LOG_ASSET_INDEX,
+                 "Index not created: couldn't create folder \"%s\".",
+                 this->get_file_path());
       return;
     }
 
@@ -629,7 +629,8 @@ int AssetLibraryIndex::remove_broken_index_files()
       continue;
     }
     if (IN_RANGE(stat.st_mtime, timestamp_from, timestamp_to)) {
-      CLOG_DEBUG(&LOG, "Remove potentially broken index file \"%s\".", index_path.c_str());
+      CLOG_DEBUG(
+          LOG_ASSET_INDEX, "Remove potentially broken index file \"%s\".", index_path.c_str());
       files_to_remove.add(index_path);
     }
   }
@@ -665,7 +666,7 @@ static eFileIndexerResult read_index(const char *filename,
 
   if (asset_index_file.is_older_than(asset_file)) {
     CLOG_DEBUG(
-        &LOG,
+        LOG_ASSET_INDEX,
         "Asset index file \"%s\" needs to be refreshed as it is older than the asset file \"%s\".",
         asset_index_file.filename.c_str(),
         filename);
@@ -673,7 +674,7 @@ static eFileIndexerResult read_index(const char *filename,
   }
 
   if (!asset_index_file.constains_entries()) {
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_ASSET_INDEX,
                "Asset file index is to small to contain any entries. \"%s\"",
                asset_index_file.filename.c_str());
     *r_read_entries_len = 0;
@@ -682,12 +683,12 @@ static eFileIndexerResult read_index(const char *filename,
 
   std::unique_ptr<AssetIndex> contents = asset_index_file.read_contents();
   if (!contents) {
-    CLOG_DEBUG(&LOG, "Asset file index is ignored; failed to read contents.");
+    CLOG_DEBUG(LOG_ASSET_INDEX, "Asset file index is ignored; failed to read contents.");
     return FILE_INDEXER_NEEDS_UPDATE;
   }
 
   if (!contents->is_latest_version()) {
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_ASSET_INDEX,
                "Asset file index is ignored; expected version %d but file is version %d \"%s\".",
                AssetIndex::CURRENT_VERSION,
                contents->get_version(),
@@ -696,7 +697,7 @@ static eFileIndexerResult read_index(const char *filename,
   }
 
   const int read_entries_len = contents->extract_into(*entries);
-  CLOG_INFO(&LOG, "Read %d entries for \"%s\".", read_entries_len, filename);
+  CLOG_INFO(LOG_ASSET_INDEX, "Read %d entries for \"%s\".", read_entries_len, filename);
   *r_read_entries_len = read_entries_len;
 
   return FILE_INDEXER_ENTRIES_LOADED;
@@ -707,7 +708,7 @@ static void update_index(const char *filename, FileIndexerEntries *entries, void
   AssetLibraryIndex &library_index = *static_cast<AssetLibraryIndex *>(user_data);
   BlendFile asset_file(filename);
   AssetIndexFile asset_index_file(library_index, asset_file);
-  CLOG_INFO(&LOG,
+  CLOG_INFO(LOG_ASSET_INDEX,
             "Update for \"%s\" store index in \"%s\".",
             asset_file.get_file_path(),
             asset_index_file.get_file_path());
@@ -735,7 +736,7 @@ static void filelist_finished(void *user_data)
   AssetLibraryIndex &library_index = *static_cast<AssetLibraryIndex *>(user_data);
   const int num_indices_removed = library_index.remove_unused_index_files();
   if (num_indices_removed > 0) {
-    CLOG_INFO(&LOG, "Removed %d unused indices.", num_indices_removed);
+    CLOG_INFO(LOG_ASSET_INDEX, "Removed %d unused indices.", num_indices_removed);
   }
 }
 

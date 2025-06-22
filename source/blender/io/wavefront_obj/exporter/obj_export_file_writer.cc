@@ -30,7 +30,6 @@
 #include "obj_export_file_writer.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.obj"};
 
 namespace blender::io::obj {
 /**
@@ -64,7 +63,7 @@ OBJWriter::OBJWriter(const char *filepath, const OBJExportParams &export_params)
 OBJWriter::~OBJWriter()
 {
   if (outfile_ && std::fclose(outfile_)) {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_IO_OBJ,
                "Error: could not close file '%s' properly, it may be corrupted.",
                outfile_path_.c_str());
   }
@@ -568,7 +567,7 @@ MTLWriter::~MTLWriter()
   if (outfile_) {
     fmt_handler_.write_to_file(outfile_);
     if (std::fclose(outfile_)) {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_IO_OBJ,
                  "Error: could not close file '%s' properly, it may be corrupted.",
                  mtl_filepath_.c_str());
     }

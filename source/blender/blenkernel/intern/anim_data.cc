@@ -51,8 +51,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"anim.data"};
-
 using namespace blender;
 
 /* ***************************************** */
@@ -522,7 +520,7 @@ void BKE_animdata_merge_copy(
   /* TODO: we must unset all "tweak-mode" flags. */
   if ((src->flag & ADT_NLA_EDIT_ON) || (dst->flag & ADT_NLA_EDIT_ON)) {
     CLOG_ERROR(
-        &LOG,
+        LOG_ANIM_DATA,
         "Merging AnimData blocks while editing NLA is dangerous as it may cause data corruption");
     return;
   }
@@ -626,7 +624,7 @@ static void action_move_fcurves_by_basepath(bAction *srcAct,
   /* sanity checks */
   if (ELEM(nullptr, srcAct, dstAct, src_basepath, dst_basepath)) {
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_ANIM_DATA,
                  "srcAct: %p, dstAct: %p, src_basepath: %p, dst_basepath: %p has insufficient "
                  "info to work with",
                  (void *)srcAct,
@@ -679,7 +677,7 @@ void BKE_animdata_transfer_by_basepath(Main *bmain, ID *srcID, ID *dstID, ListBa
   /* sanity checks */
   if (ELEM(nullptr, srcID, dstID)) {
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG, "no source or destination ID to separate AnimData with");
+      CLOG_ERROR(LOG_ANIM_DATA, "no source or destination ID to separate AnimData with");
     }
     return;
   }
@@ -690,7 +688,7 @@ void BKE_animdata_transfer_by_basepath(Main *bmain, ID *srcID, ID *dstID, ListBa
 
   if (ELEM(nullptr, srcAdt, dstAdt)) {
     if (G.debug & G_DEBUG) {
-      CLOG_ERROR(&LOG, "no AnimData for this pair of ID's");
+      CLOG_ERROR(LOG_ANIM_DATA, "no AnimData for this pair of ID's");
     }
     return;
   }
@@ -699,7 +697,7 @@ void BKE_animdata_transfer_by_basepath(Main *bmain, ID *srcID, ID *dstID, ListBa
   if (srcAdt->action) {
     const OwnedAnimData dst_owned_adt = {*dstID, *dstAdt};
     if (dstAdt->action == srcAdt->action) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_ANIM_DATA,
                 "Source and Destination share animation! "
                 "('%s' and '%s' both use '%s') Making new empty action",
                 srcID->name,
@@ -971,7 +969,7 @@ char *BKE_animsys_fix_rna_path_rename(ID *owner_id,
   /* if no action, no need to proceed */
   if (ELEM(nullptr, owner_id, old_path)) {
     if (G.debug & G_DEBUG) {
-      CLOG_WARN(&LOG, "early abort");
+      CLOG_WARN(LOG_ANIM_DATA, "early abort");
     }
     return old_path;
   }

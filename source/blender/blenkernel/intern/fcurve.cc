@@ -53,8 +53,6 @@
 #define SMALL -1.0e-10
 #define SELECT 1
 
-static CLG_LogRef LOG = {"anim.fcurve"};
-
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Data Create
  * \{ */
@@ -441,7 +439,7 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
    * - Keyframe to be added would replace one of the existing ones on bounds.
    */
   if (arraylen <= 0 || array == nullptr) {
-    CLOG_WARN(&LOG, "encountered invalid array");
+    CLOG_WARN(LOG_ANIM_FCURVE, "encountered invalid array");
     return 0;
   }
 
@@ -494,10 +492,10 @@ static int BKE_fcurve_bezt_binarysearch_index_ex(const BezTriple array[],
 
   /* Print error if loop-limit exceeded. */
   if (loopbreaker == (maxloop - 1)) {
-    CLOG_ERROR(&LOG, "search taking too long");
+    CLOG_ERROR(LOG_ANIM_FCURVE, "search taking too long");
 
     /* Include debug info. */
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_ANIM_FCURVE,
                "\tround = %d: start = %d, end = %d, arraylen = %d",
                loopbreaker,
                start,
@@ -990,11 +988,12 @@ void fcurve_store_samples(FCurve *fcu, void *data, int start, int end, FcuSample
   /* Sanity checks. */
   /* TODO: make these tests report errors using reports not CLOG's (Joshua Leung 2009) */
   if (ELEM(nullptr, fcu, sample_cb)) {
-    CLOG_ERROR(&LOG, "No F-Curve with F-Curve Modifiers to Bake");
+    CLOG_ERROR(LOG_ANIM_FCURVE, "No F-Curve with F-Curve Modifiers to Bake");
     return;
   }
   if (start > end) {
-    CLOG_ERROR(&LOG, "Error: Frame range for Sampled F-Curve creation is inappropriate");
+    CLOG_ERROR(LOG_ANIM_FCURVE,
+               "Error: Frame range for Sampled F-Curve creation is inappropriate");
     return;
   }
 
@@ -1037,18 +1036,18 @@ void fcurve_samples_to_keyframes(FCurve *fcu, const int start, const int end)
   /* Sanity checks. */
   /* TODO: make these tests report errors using reports not CLOG's (Joshua Leung 2009). */
   if (fcu == nullptr) {
-    CLOG_ERROR(&LOG, "No F-Curve with F-Curve Modifiers to Un-Bake");
+    CLOG_ERROR(LOG_ANIM_FCURVE, "No F-Curve with F-Curve Modifiers to Un-Bake");
     return;
   }
 
   if (start > end) {
-    CLOG_ERROR(&LOG, "Error: Frame range to unbake F-Curve is inappropriate");
+    CLOG_ERROR(LOG_ANIM_FCURVE, "Error: Frame range to unbake F-Curve is inappropriate");
     return;
   }
 
   if (fcu->fpt == nullptr) {
     /* No data to unbake. */
-    CLOG_ERROR(&LOG, "Error: Curve contains no baked keyframes");
+    CLOG_ERROR(LOG_ANIM_FCURVE, "Error: Curve contains no baked keyframes");
     return;
   }
 

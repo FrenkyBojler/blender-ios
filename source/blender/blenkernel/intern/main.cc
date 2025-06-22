@@ -43,8 +43,6 @@
 
 using namespace blender::bke;
 
-static CLG_LogRef LOG = {"lib.main"};
-
 Main::Main()
 {
   SpinLock *main_lock = MEM_mallocN<SpinLock>("main lock");
@@ -309,7 +307,7 @@ static void main_merge_add_id_to_move(Main *bmain_dst,
      * `bmain_src`. Fact that no match was found is worth a warning, although it could happen
      * e.g. in case `bmain_dst` has been updated since it file was loaded as library in
      * `bmain_src`. */
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_LIB_MAIN,
               "ID '%s' defined in source Main as linked from destination Main (file '%s') not "
               "found in given destination Main",
               id_src->name,

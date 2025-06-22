@@ -33,8 +33,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"translation"};
-
 #ifdef WITH_INTERNATIONAL
 
 #  include "BLI_fileops.h"
@@ -69,7 +67,7 @@ static void fill_locales()
 {
   std::optional<std::string> languages_path = BKE_appdir_folder_id(BLENDER_DATAFILES, "locale");
   if (!languages_path.has_value()) {
-    CLOG_WARN(&LOG, "'locale' data path for translations not found");
+    CLOG_WARN(LOG_TRANSLATION, "'locale' data path for translations not found");
     return;
   }
 
@@ -211,7 +209,7 @@ void BLT_lang_init()
     old_locale = BLI_strdup(old_locale);
     if (setlocale(LC_ALL, lang) == nullptr) {
       setenv("LANG", "C", 1);
-      CLOG_WARN(&LOG, "Falling back to standard locale (\"C\")");
+      CLOG_WARN(LOG_TRANSLATION, "Falling back to standard locale (\"C\")");
     }
     setlocale(LC_ALL, old_locale);
     MEM_freeN(old_locale);

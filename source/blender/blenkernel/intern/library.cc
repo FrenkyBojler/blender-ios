@@ -38,8 +38,6 @@
 
 struct BlendDataReader;
 
-static CLG_LogRef LOG = {"lib.library"};
-
 using namespace blender::bke::library;
 
 static void library_runtime_reset(Library *lib)
@@ -127,7 +125,7 @@ static void library_blend_write_data(BlendWriter *writer, ID *id, const void *id
   if (library->packedfile) {
     BKE_packedfile_blend_write(writer, library->packedfile);
     if (!is_undo) {
-      CLOG_DEBUG(&LOG, "Write packed .blend: %s", library->filepath);
+      CLOG_DEBUG(LOG_LIB_LIBRARY, "Write packed .blend: %s", library->filepath);
     }
   }
 }

@@ -27,8 +27,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"asset.catalog"};
-
 namespace blender::asset_system {
 
 const CatalogFilePath AssetCatalogService::DEFAULT_CATALOG_FILENAME = "blender_assets.cats.txt";
@@ -309,7 +307,7 @@ void AssetCatalogService::load_from_disk(const CatalogFilePath &file_or_director
   BLI_stat_t status;
   if (BLI_stat(file_or_directory_path.data(), &status) == -1) {
     /* TODO(@sybren): throw an appropriate exception. */
-    CLOG_WARN(&LOG, "path not found: %s", file_or_directory_path.data());
+    CLOG_WARN(LOG_ASSET_CATALOG, "path not found: %s", file_or_directory_path.data());
     return;
   }
 
@@ -345,7 +343,7 @@ void AssetCatalogService::load_directory_recursive(const CatalogFilePath &direct
 
   if (!BLI_exists(file_path.data())) {
     /* No file to be loaded is perfectly fine. */
-    CLOG_DEBUG(&LOG, "path not found: %s", file_path.data());
+    CLOG_DEBUG(LOG_ASSET_CATALOG, "path not found: %s", file_path.data());
     return;
   }
 

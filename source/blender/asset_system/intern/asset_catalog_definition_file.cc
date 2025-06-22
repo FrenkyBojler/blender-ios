@@ -15,8 +15,6 @@
 
 #include "asset_catalog_definition_file.hh"
 
-static CLG_LogRef LOG = {"asset.catalog"};
-
 namespace blender::asset_system {
 
 const int AssetCatalogDefinitionFile::SUPPORTED_VERSION = 1;
@@ -56,7 +54,7 @@ void AssetCatalogDefinitionFile::parse_catalog_file(
   fstream infile(catalog_definition_file_path, std::ios::in);
 
   if (!infile.is_open()) {
-    CLOG_ERROR(&LOG, "%s: unable to open file", catalog_definition_file_path.c_str());
+    CLOG_ERROR(LOG_ASSET_CATALOG, "%s: unable to open file", catalog_definition_file_path.c_str());
     return;
   }
   bool seen_version_number = false;

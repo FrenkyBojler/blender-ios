@@ -92,8 +92,6 @@ static void fluid_modifier_reset_ex(FluidModifierData *fmd, bool need_lock);
 #ifdef WITH_FLUID
 // #define DEBUG_PRINT
 
-static CLG_LogRef LOG = {"physics.fluid"};
-
 /* -------------------------------------------------------------------- */
 /** \name Fluid API
  * \{ */
@@ -3694,7 +3692,7 @@ static void fluid_modifier_processDomain(FluidModifierData *fmd,
 
   /* Fluid domain init must not fail in order to continue modifier evaluation. */
   if (!fds->fluid && !fluid_modifier_init(fmd, depsgraph, ob, scene, mesh)) {
-    CLOG_ERROR(&LOG, "Fluid initialization failed. Should not happen!");
+    CLOG_ERROR(LOG_PHYSICS_FLUID, "Fluid initialization failed. Should not happen!");
     return;
   }
   BLI_assert(fds->fluid);

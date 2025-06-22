@@ -56,7 +56,6 @@
 #include <algorithm>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace usdtokens {
 /* Materials */
@@ -125,8 +124,9 @@ static void assign_materials(Main *bmain,
       pxr::UsdShadeMaterial usd_mat(prim);
 
       if (!usd_mat) {
-        CLOG_WARN(
-            &LOG, "Couldn't construct USD material from prim %s", item.key.GetAsString().c_str());
+        CLOG_WARN(LOG_IO_USD,
+                  "Couldn't construct USD material from prim %s",
+                  item.key.GetAsString().c_str());
         continue;
       }
 
@@ -137,7 +137,7 @@ static void assign_materials(Main *bmain,
       assigned_mat = mat_reader.add_material(usd_mat, !have_import_hook);
 
       if (!assigned_mat) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_IO_USD,
                   "Couldn't create Blender material from USD material %s",
                   item.key.GetAsString().c_str());
         continue;
@@ -163,7 +163,7 @@ static void assign_materials(Main *bmain,
     }
     else {
       /* This shouldn't happen. */
-      CLOG_WARN(&LOG, "Couldn't assign material %s", item.key.GetAsString().c_str());
+      CLOG_WARN(LOG_IO_USD, "Couldn't assign material %s", item.key.GetAsString().c_str());
     }
   }
   if (ob->totcol > 0) {
@@ -323,7 +323,7 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
           "data will most likely be lost");
       const std::string prim_path = this->prim_path().GetAsString();
       BKE_reportf(this->reports(), RPT_WARNING, message, prim_path.c_str());
-      CLOG_WARN(&LOG, message, prim_path.c_str());
+      CLOG_WARN(LOG_IO_USD, message, prim_path.c_str());
     }
     BKE_mesh_validate(mesh, false, false);
   }
@@ -469,13 +469,14 @@ void USDMeshReader::read_vertex_creases(Mesh *mesh, const double motionSampleTim
 
   /* It is fine to have fewer indices than vertices, but never the other way other. */
   if (usd_corner_indices.size() > mesh->verts_num) {
-    CLOG_WARN(
-        &LOG, "Too many vertex creases for mesh %s", this->prim_path().GetAsString().c_str());
+    CLOG_WARN(LOG_IO_USD,
+              "Too many vertex creases for mesh %s",
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
   if (usd_corner_indices.size() != usd_corner_sharpnesses.size()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Vertex crease and sharpness count mismatch for mesh %s",
               this->prim_path().GetAsString().c_str());
     return;
@@ -515,7 +516,7 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
 
   /* There should be as many sharpness values as lengths. */
   if (usd_crease_lengths.size() != usd_crease_sharpness.size()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Edge crease and sharpness count mismatch for mesh %s",
               this->prim_path().GetAsString().c_str());
     return;
@@ -552,7 +553,7 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
     if (length < 2) {
       /* Since each crease must be at least one edge long, each element of this array must be at
        * least two. If this is not the case it would not be safe to continue. */
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Edge crease length %d is invalid for mesh %s",
                 length,
                 this->prim_path().GetAsString().c_str());
@@ -560,7 +561,7 @@ void USDMeshReader::read_edge_creases(Mesh *mesh, const double motionSampleTime)
     }
 
     if (index_start + length > crease_indices.size()) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Edge crease lengths are out of bounds for mesh %s",
                 this->prim_path().GetAsString().c_str());
       break;
@@ -610,7 +611,7 @@ void USDMeshReader::process_normals_vertex_varying(Mesh *mesh)
   }
 
   if (normals_.size() != mesh->verts_num) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Vertex varying normals count mismatch for mesh '%s'",
               this->prim_path().GetAsString().c_str());
     return;
@@ -629,8 +630,9 @@ void USDMeshReader::process_normals_face_varying(Mesh *mesh) const
 
   /* Check for normals count mismatches to prevent crashes. */
   if (normals_.size() != mesh->corners_num) {
-    CLOG_WARN(
-        &LOG, "Loop normal count mismatch for mesh '%s'", this->prim_path().GetAsString().c_str());
+    CLOG_WARN(LOG_IO_USD,
+              "Loop normal count mismatch for mesh '%s'",
+              this->prim_path().GetAsString().c_str());
     return;
   }
 
@@ -665,7 +667,7 @@ void USDMeshReader::process_normals_uniform(Mesh *mesh) const
 
   /* Check for normals count mismatches to prevent crashes. */
   if (normals_.size() != mesh->faces_num) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Uniform normal count mismatch for mesh '%s'",
               this->prim_path().GetAsString().c_str());
     return;
@@ -875,7 +877,7 @@ void USDMeshReader::assign_facesets_to_material_indices(double motionSampleTime,
       pxr::TfToken element_type;
       subset.GetElementTypeAttr().Get(&element_type, motionSampleTime);
       if (element_type != pxr::UsdGeomTokens->face) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_IO_USD,
                   "UsdGeomSubset '%s' uses unsupported elementType: %s",
                   subset_prim.GetName().GetText(),
                   element_type.GetText());
@@ -896,7 +898,7 @@ void USDMeshReader::assign_facesets_to_material_indices(double motionSampleTime,
       }
 
       if (bad_element_count > 0) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_IO_USD,
                   "UsdGeomSubset '%s' contains invalid indices; material assignment may be "
                   "incorrect (%d were out of range)",
                   subset_prim.GetName().GetText(),

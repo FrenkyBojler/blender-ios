@@ -26,8 +26,6 @@
 #include "io_drop_import_file.hh"
 #include "io_utils.hh"
 
-static CLG_LogRef LOG = {"io.drop_import_file"};
-
 /**
  * Return a vector of file handlers that support any file path in `paths` and the call to
  * `poll_drop` returns #true. Unlike `bke::file_handlers_poll_file_drop`, it ensures that file
@@ -93,7 +91,7 @@ static void file_handler_import_operator_write_ptr(
     const char *message =
         "Expected operator properties filepath or files and directory not found. Refer to "
         "FileHandler documentation for details.";
-    CLOG_WARN(&LOG, "%s", message);
+    CLOG_WARN(LOG_IO_DROP_IMPORT_FILE, "%s", message);
   }
 }
 

@@ -11,7 +11,6 @@
 #include <pxr/usd/usd/attribute.h>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace {
 
@@ -34,7 +33,7 @@ void set_array_prop(IDProperty *idgroup,
   val.array.len = int(vec.dimension);
 
   if (val.array.len <= 0) {
-    CLOG_WARN(&LOG, "Invalid array length for prop %s", prop_name.c_str());
+    CLOG_WARN(LOG_IO_USD, "Invalid array length for prop %s", prop_name.c_str());
     return;
   }
 
@@ -51,14 +50,14 @@ void set_array_prop(IDProperty *idgroup,
     val.array.type = IDP_INT;
   }
   else {
-    CLOG_WARN(&LOG, "Couldn't determine array type for prop %s", prop_name.c_str());
+    CLOG_WARN(LOG_IO_USD, "Couldn't determine array type for prop %s", prop_name.c_str());
     return;
   }
 
   IDProperty *prop = IDP_New(IDP_ARRAY, &val, prop_name);
 
   if (!prop) {
-    CLOG_WARN(&LOG, "Couldn't create array prop %s", prop_name.c_str());
+    CLOG_WARN(LOG_IO_USD, "Couldn't create array prop %s", prop_name.c_str());
     return;
   }
 

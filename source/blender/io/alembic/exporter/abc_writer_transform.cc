@@ -19,7 +19,6 @@
 #include "DNA_object_types.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 namespace blender::io::alembic {
 
@@ -36,7 +35,7 @@ ABCTransformWriter::ABCTransformWriter(const ABCWriterConstructorArgs &args)
 
 void ABCTransformWriter::create_alembic_objects(const HierarchyContext * /*context*/)
 {
-  CLOG_DEBUG(&LOG, "exporting %s", args_.abc_path.c_str());
+  CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting %s", args_.abc_path.c_str());
   abc_xform_ = OXform(args_.abc_parent, args_.abc_name, timesample_index_);
   abc_xform_schema_ = abc_xform_.getSchema();
 }

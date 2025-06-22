@@ -11,7 +11,6 @@
 #include "DNA_mesh_types.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace blender::io::usd {
 
@@ -33,7 +32,8 @@ static void read_face_display_color(Mesh *mesh,
   bke::SpanAttributeWriter<ColorGeometry4f> color_data =
       attributes.lookup_or_add_for_write_only_span<ColorGeometry4f>(attr_name, color_domain);
   if (!color_data) {
-    CLOG_WARN(&LOG, "Primvar '%s' could not be added to Blender", primvar.GetBaseName().GetText());
+    CLOG_WARN(
+        LOG_IO_USD, "Primvar '%s' could not be added to Blender", primvar.GetBaseName().GetText());
     return;
   }
 
@@ -92,7 +92,7 @@ void read_generic_mesh_primvar(Mesh *mesh,
   const std::optional<bke::AttrType> type = convert_usd_type_to_blender(pv_type);
 
   if (!domain.has_value() || !type.has_value()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Primvar '%s' (interpolation %s, type %s) cannot be converted to Blender",
               pv_name.GetText(),
               pv_interp.GetText(),

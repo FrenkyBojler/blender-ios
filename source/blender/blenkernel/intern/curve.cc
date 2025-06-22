@@ -66,7 +66,6 @@ using blender::Span;
 /* globals */
 
 /* local */
-// static CLG_LogRef LOG = {"geom.curve"};
 
 enum class NURBSValidationStatus {
   Valid,

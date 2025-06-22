@@ -25,8 +25,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"addon"};
-
 /* -------------------------------------------------------------------- */
 /** \name Add-on New/Free
  * \{ */
@@ -92,12 +90,12 @@ bAddonPrefType *BKE_addon_pref_type_find(const char *idname, bool quiet)
     }
 
     if (!quiet) {
-      CLOG_WARN(&LOG, "search for unknown addon-pref '%s'", idname);
+      CLOG_WARN(LOG_ADDON, "search for unknown addon-pref '%s'", idname);
     }
   }
   else {
     if (!quiet) {
-      CLOG_WARN(&LOG, "search for empty addon-pref");
+      CLOG_WARN(LOG_ADDON, "search for empty addon-pref");
     }
   }
 

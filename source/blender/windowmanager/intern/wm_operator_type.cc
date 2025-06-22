@@ -87,12 +87,12 @@ wmOperatorType *WM_operatortype_find(const char *idname, bool quiet)
     }
 
     if (!quiet) {
-      CLOG_INFO(WM_LOG_OPERATORS, "Search for unknown operator '%s', '%s'", idname_bl, idname);
+      CLOG_INFO(LOG_OPERATORS, "Search for unknown operator '%s', '%s'", idname_bl, idname);
     }
   }
   else {
     if (!quiet) {
-      CLOG_INFO(WM_LOG_OPERATORS, "Search for empty operator");
+      CLOG_INFO(LOG_OPERATORS, "Search for empty operator");
     }
   }
 
@@ -121,7 +121,7 @@ static wmOperatorType *wm_operatortype_append__begin()
 static void wm_operatortype_append__end(wmOperatorType *ot)
 {
   if (ot->name == nullptr) {
-    CLOG_ERROR(WM_LOG_OPERATORS, "Operator '%s' has no name property", ot->idname);
+    CLOG_ERROR(LOG_OPERATORS, "Operator '%s' has no name property", ot->idname);
   }
   BLI_assert((ot->description == nullptr) || (ot->description[0]));
 
@@ -331,7 +331,7 @@ static wmOperatorStatus wm_macro_exec(bContext *C, wmOperator *op)
 
   LISTBASE_FOREACH (wmOperator *, opm, &op->macro) {
     if (opm->type->exec == nullptr) {
-      CLOG_WARN(WM_LOG_OPERATORS, "'%s' can't exec macro", opm->type->idname);
+      CLOG_WARN(LOG_OPERATORS, "'%s' can't exec macro", opm->type->idname);
       continue;
     }
 
@@ -401,7 +401,7 @@ static wmOperatorStatus wm_macro_modal(bContext *C, wmOperator *op, const wmEven
   wmOperatorStatus retval = OPERATOR_FINISHED;
 
   if (opm == nullptr) {
-    CLOG_ERROR(WM_LOG_OPERATORS, "macro error, calling nullptr modal()");
+    CLOG_ERROR(LOG_OPERATORS, "macro error, calling nullptr modal()");
   }
   else {
     retval = opm->type->modal(C, opm, event);
@@ -485,7 +485,7 @@ wmOperatorType *WM_operatortype_append_macro(const char *idname,
   const char *i18n_context;
 
   if (WM_operatortype_find(idname, true)) {
-    CLOG_ERROR(WM_LOG_OPERATORS, "operator %s exists, cannot create macro", idname);
+    CLOG_ERROR(LOG_OPERATORS, "operator %s exists, cannot create macro", idname);
     return nullptr;
   }
 

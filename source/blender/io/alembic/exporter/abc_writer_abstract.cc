@@ -14,7 +14,6 @@
 #include <Alembic/AbcGeom/Visibility.h>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 namespace blender::io::alembic {
 
@@ -101,7 +100,7 @@ void ABCAbstractWriter::update_bounding_box(Object *object)
   const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(object);
   if (!bounds) {
     if (object->type != OB_CAMERA) {
-      CLOG_WARN(&LOG, "Bounding box is null!");
+      CLOG_WARN(LOG_IO_ALEMBIC, "Bounding box is null!");
     }
     bounding_box_.min.x = bounding_box_.min.y = bounding_box_.min.z = 0;
     bounding_box_.max.x = bounding_box_.max.y = bounding_box_.max.z = 0;

@@ -18,8 +18,6 @@
 
 #include "gpu_profile_report.hh"
 
-static CLG_LogRef LOG = {"gpu.vulkan"};
-
 namespace blender::gpu {
 void VKContext::debug_group_begin(const char *name, int)
 {
@@ -53,7 +51,7 @@ void VKContext::debug_group_end()
       break;
     }
     if (i == 0) {
-      CLOG_ERROR(&LOG, "Profile GPU error: Extra GPU_debug_group_end() call.");
+      CLOG_ERROR(LOG_GPU_VULKAN, "Profile GPU error: Extra GPU_debug_group_end() call.");
     }
   }
 }
@@ -71,7 +69,7 @@ void VKContext::process_frame_timings()
   for (int i = queries.size() - 1; i >= 0; i--) {
     if (!queries[i].finished) {
       frame_is_valid = false;
-      CLOG_ERROR(&LOG, "Profile GPU error: Missing GPU_debug_group_end() call");
+      CLOG_ERROR(LOG_GPU_VULKAN, "Profile GPU error: Missing GPU_debug_group_end() call");
     }
     break;
   }
@@ -161,7 +159,7 @@ namespace blender::gpu::debug {
 
 void VKDebuggingTools::init(VkInstance vk_instance)
 {
-  CLG_logref_init(&LOG);
+  CLG_logref_init(LOG_GPU_VULKAN);
   init_messenger(vk_instance);
 }
 
@@ -233,7 +231,7 @@ messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
   }
 
   const char *format = "{0x%x}% s\n %s ";
-  CLOG_AT_LEVEL(&LOG,
+  CLOG_AT_LEVEL(LOG_GPU_VULKAN,
                 level,
                 format,
                 callback_data->messageIdNumber,
@@ -241,7 +239,7 @@ messenger_callback(VkDebugUtilsMessageSeverityFlagBitsEXT message_severity,
                 callback_data->pMessage);
   const bool do_labels = (callback_data->objectCount + callback_data->cmdBufLabelCount +
                           callback_data->queueLabelCount) > 0;
-  const bool log_active = CLOG_CHECK(&LOG, CLG_LEVEL_INFO) || level >= CLG_LEVEL_WARN;
+  const bool log_active = CLOG_CHECK(LOG_GPU_VULKAN, CLG_LEVEL_INFO) || level >= CLG_LEVEL_WARN;
   if (do_labels && log_active) {
     VKDebuggingTools &debugging_tools = *reinterpret_cast<VKDebuggingTools *>(user_data);
     debugging_tools.print_labels(callback_data);

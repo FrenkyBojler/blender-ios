@@ -900,7 +900,7 @@ static bool operator_last_properties_init_impl(wmOperator *op, IDProperty *last_
   RNA_PROP_END;
 
   if (changed) {
-    CLOG_DEBUG(WM_LOG_OPERATORS, "Loading previous properties for '%s'", op->type->idname);
+    CLOG_DEBUG(LOG_OPERATORS, "Loading previous properties for '%s'", op->type->idname);
   }
   IDP_MergeGroup(op->properties, replaceprops, true);
   IDP_FreeProperty(replaceprops);
@@ -931,7 +931,7 @@ bool WM_operator_last_properties_store(wmOperator *op)
 
   if (op->properties) {
     if (!BLI_listbase_is_empty(&op->properties->data.group)) {
-      CLOG_DEBUG(WM_LOG_OPERATORS, "Storing properties for '%s'", op->type->idname);
+      CLOG_DEBUG(LOG_OPERATORS, "Storing properties for '%s'", op->type->idname);
     }
     op->type->last_properties = IDP_CopyProperty(op->properties);
   }
@@ -1088,10 +1088,10 @@ wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallCo
   PropertyRNA *prop = op->type->prop;
 
   if (prop == nullptr) {
-    CLOG_ERROR(WM_LOG_OPERATORS, "'%s' has no enum property set", op->type->idname);
+    CLOG_ERROR(LOG_OPERATORS, "'%s' has no enum property set", op->type->idname);
   }
   else if (RNA_property_type(prop) != PROP_ENUM) {
-    CLOG_ERROR(WM_LOG_OPERATORS,
+    CLOG_ERROR(LOG_OPERATORS,
                "'%s', '%s' is not an enum property",
                op->type->idname,
                RNA_property_identifier(prop));

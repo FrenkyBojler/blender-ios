@@ -30,7 +30,6 @@
 #include "obj_import_mesh.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.obj"};
 
 namespace blender::io::obj {
 
@@ -229,7 +228,7 @@ void MeshFromGeometry::create_faces(Mesh *mesh, bool use_vertex_groups)
     const FaceElem &curr_face = mesh_geometry_.face_elements_[face_idx];
     if (curr_face.corner_count_ < 3) {
       /* Don't add single vertex face, or edges. */
-      CLOG_WARN(&LOG, "Face with less than 3 vertices found, skipping.");
+      CLOG_WARN(LOG_IO_OBJ, "Face with less than 3 vertices found, skipping.");
       continue;
     }
 

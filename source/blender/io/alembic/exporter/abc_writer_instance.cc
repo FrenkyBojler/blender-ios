@@ -12,7 +12,6 @@
 #include "BLI_assert.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.alembic"};
 
 namespace blender::io::alembic {
 
@@ -28,10 +27,10 @@ void ABCInstanceWriter::create_alembic_objects(const HierarchyContext *context)
   OObject original = args_.hierarchy_iterator->get_alembic_object(context->original_export_path);
   OObject abc_parent = args_.abc_parent;
   if (!abc_parent.addChildInstance(original, args_.abc_name)) {
-    CLOG_WARN(&LOG, "unable to export %s as instance", args_.abc_path.c_str());
+    CLOG_WARN(LOG_IO_ALEMBIC, "unable to export %s as instance", args_.abc_path.c_str());
     return;
   }
-  CLOG_DEBUG(&LOG, "exporting instance %s", args_.abc_path.c_str());
+  CLOG_DEBUG(LOG_IO_ALEMBIC, "exporting instance %s", args_.abc_path.c_str());
 }
 
 void ABCInstanceWriter::ensure_custom_properties_exporter(const HierarchyContext & /*context*/)

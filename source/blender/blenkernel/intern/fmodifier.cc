@@ -29,8 +29,6 @@
 
 #include "BKE_fcurve.hh"
 
-static CLG_LogRef LOG = {"anim.fmodifier"};
-
 /* -------------------------------------------------------------------- */
 /** \name F-Curve Modifier Types
  * \{ */
@@ -345,7 +343,7 @@ static void fcm_fn_generator_evaluate(const FCurve * /*fcu*/,
       break;
     }
     default:
-      CLOG_ERROR(&LOG, "Invalid Function-Generator for F-Modifier - %d", data->type);
+      CLOG_ERROR(LOG_ANIM_FMODIFIER, "Invalid Function-Generator for F-Modifier - %d", data->type);
       break;
   }
 
@@ -517,7 +515,7 @@ int BKE_fcm_envelope_find_index(FCM_EnvelopeData array[],
    * - keyframe to be added would replace one of the existing ones on bounds
    */
   if ((arraylen <= 0) || (array == nullptr)) {
-    CLOG_WARN(&LOG, "encountered invalid array");
+    CLOG_WARN(LOG_ANIM_FMODIFIER, "encountered invalid array");
     return 0;
   }
 
@@ -572,10 +570,10 @@ int BKE_fcm_envelope_find_index(FCM_EnvelopeData array[],
 
   /* print error if loop-limit exceeded */
   if (loopbreaker == (maxloop - 1)) {
-    CLOG_ERROR(&LOG, "binary search was taking too long");
+    CLOG_ERROR(LOG_ANIM_FMODIFIER, "binary search was taking too long");
 
     /* Include debug info. */
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_ANIM_FMODIFIER,
                "\tround = %d: start = %d, end = %d, arraylen = %d",
                loopbreaker,
                start,
@@ -1048,7 +1046,8 @@ const FModifierTypeInfo *get_fmodifier_typeinfo(const int type)
     return fmodifiersTypeInfo[type];
   }
 
-  CLOG_ERROR(&LOG, "No valid F-Curve Modifier type-info data available. Type = %i", type);
+  CLOG_ERROR(
+      LOG_ANIM_FMODIFIER, "No valid F-Curve Modifier type-info data available. Type = %i", type);
 
   return nullptr;
 }
@@ -1083,7 +1082,7 @@ FModifier *add_fmodifier(ListBase *modifiers, int type, FCurve *owner_fcu)
   if ((modifiers->first) && (type == FMODIFIER_TYPE_CYCLES)) {
     /* cycles modifier must be first in stack, so for now, don't add if it can't be */
     /* TODO: perhaps there is some better way, but for now, */
-    CLOG_STR_ERROR(&LOG,
+    CLOG_STR_ERROR(LOG_ANIM_FMODIFIER,
                    "Cannot add 'Cycles' modifier to F-Curve, as 'Cycles' modifier can only be "
                    "first in stack.");
     return nullptr;
@@ -1212,7 +1211,7 @@ bool remove_fmodifier(ListBase *modifiers, FModifier *fcm)
   }
 
   /* XXX this case can probably be removed some day, as it shouldn't happen... */
-  CLOG_STR_ERROR(&LOG, "no modifier stack given");
+  CLOG_STR_ERROR(LOG_ANIM_FMODIFIER, "no modifier stack given");
   MEM_freeN(fcm);
   return false;
 }
@@ -1494,7 +1493,7 @@ void fcurve_bake_modifiers(FCurve *fcu, int start, int end)
   /* sanity checks */
   /* TODO: make these tests report errors using reports not CLOG's */
   if (ELEM(nullptr, fcu, fcu->modifiers.first)) {
-    CLOG_ERROR(&LOG, "No F-Curve with F-Curve Modifiers to Bake");
+    CLOG_ERROR(LOG_ANIM_FMODIFIER, "No F-Curve with F-Curve Modifiers to Bake");
     return;
   }
 

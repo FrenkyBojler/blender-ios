@@ -24,7 +24,6 @@
 #include "ply_file_buffer_binary.hh"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.ply"};
 
 namespace blender::io::ply {
 
@@ -76,7 +75,7 @@ void exporter_main(bContext *C, const PLYExportParams &export_params)
     }
   }
   catch (const std::system_error &ex) {
-    CLOG_ERROR(&LOG, "[%s] %s", ex.code().category().name(), ex.what());
+    CLOG_ERROR(LOG_IO_PLY, "[%s] %s", ex.code().category().name(), ex.what());
     BKE_reportf(export_params.reports,
                 RPT_ERROR,
                 "PLY Export: Cannot open file '%s'",

@@ -6,6 +6,7 @@
  * \ingroup blenloader
  */
 
+#include "CLG_common_refs.h"
 #include "fmt/core.h"
 
 #include <cerrno>
@@ -174,9 +175,6 @@
  */
 #define USE_BHEAD_READ_ON_DEMAND
 
-static CLG_LogRef LOG = {"blend.readfile"};
-static CLG_LogRef LOG_UNDO = {"undo"};
-
 #if ENDIAN_ORDER == B_ENDIAN
 #  warning "Support for Big Endian endianness is deprecated and will be removed in Blender 5.0"
 #endif
@@ -228,7 +226,7 @@ void BLO_reportf_wrap(BlendFileReadReport *reports,
   BKE_report(reports->reports, type, fixed_buf);
 
   if (G.background == 0) {
-    BKE_report_log(type, fixed_buf, &LOG);
+    BKE_report_log(type, fixed_buf, LOG_BLEND_READFILE);
   }
 }
 
@@ -401,7 +399,7 @@ static void split_libdata(ListBase *lb_src, Main **lib_main_array, const uint li
         BLI_addtail(lb_dst, id);
       }
       else {
-        CLOG_ERROR(&LOG, "Invalid library for '%s'", id->name);
+        CLOG_ERROR(LOG_BLEND_READFILE, "Invalid library for '%s'", id->name);
       }
     }
   }
@@ -560,7 +558,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
 
     if (BLI_path_cmp(filepath_abs, libname) == 0) {
       if (G.debug & G_DEBUG) {
-        CLOG_DEBUG(&LOG, "Found library %s", libname);
+        CLOG_DEBUG(LOG_BLEND_READFILE, "Found library %s", libname);
       }
       return m;
     }
@@ -588,7 +586,7 @@ static Main *blo_find_main(FileData *fd, const char *filepath, const char *relab
   read_file_version(fd, m);
 
   if (G.debug & G_DEBUG) {
-    CLOG_DEBUG(&LOG, "Added new lib %s", filepath);
+    CLOG_DEBUG(LOG_BLEND_READFILE, "Added new lib %s", filepath);
   }
   return m;
 }
@@ -998,7 +996,7 @@ static void long_id_names_ensure_unique_id_names(Main *bmain)
           *bmain, *lb_iter, *id_iter, nullptr, IDNewNameMode::RenameExistingNever, false);
       BLI_assert(!used_names.contains(id_iter->name));
       used_names.add_new(id_iter->name);
-      CLOG_DEBUG(&LOG, "ID name has been de-duplicated to '%s'", id_iter->name);
+      CLOG_DEBUG(LOG_BLEND_READFILE, "ID name has been de-duplicated to '%s'", id_iter->name);
     }
   }
   FOREACH_MAIN_LISTBASE_END;
@@ -1029,7 +1027,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
         bAction *act = reinterpret_cast<bAction *>(id_iter);
         for (int i = 0; i < act->slot_array_num; i++) {
           if (BLI_str_utf8_truncate_at_size(act->slot_array[i]->identifier, MAX_ID_NAME)) {
-            CLOG_DEBUG(&LOG,
+            CLOG_DEBUG(LOG_BLEND_READFILE,
                        "Truncated too long action slot name to '%s'",
                        act->slot_array[i]->identifier);
             has_truncated_slot_identifer = true;
@@ -1069,7 +1067,7 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
           }
           bActionConstraint *constraint_data = static_cast<bActionConstraint *>(constraint.data);
           if (BLI_str_utf8_truncate_at_size(constraint_data->last_slot_identifier, MAX_ID_NAME)) {
-            CLOG_DEBUG(&LOG,
+            CLOG_DEBUG(LOG_BLEND_READFILE,
                        "Truncated too long bActionConstraint.last_slot_identifier to '%s'",
                        constraint_data->last_slot_identifier);
           }
@@ -1093,19 +1091,19 @@ static void long_id_names_process_action_slots_identifiers(Main *bmain)
         AnimData *anim_data = BKE_animdata_from_id(id_iter);
         if (anim_data) {
           if (BLI_str_utf8_truncate_at_size(anim_data->last_slot_identifier, MAX_ID_NAME)) {
-            CLOG_DEBUG(&LOG,
+            CLOG_DEBUG(LOG_BLEND_READFILE,
                        "Truncated too long AnimData.last_slot_identifier to '%s'",
                        anim_data->last_slot_identifier);
           }
           if (BLI_str_utf8_truncate_at_size(anim_data->tmp_last_slot_identifier, MAX_ID_NAME)) {
-            CLOG_DEBUG(&LOG,
+            CLOG_DEBUG(LOG_BLEND_READFILE,
                        "Truncated too long AnimData.tmp_last_slot_identifier to '%s'",
                        anim_data->tmp_last_slot_identifier);
           }
 
           blender::bke::nla::foreach_strip_adt(*anim_data, [&](NlaStrip *strip) -> bool {
             if (BLI_str_utf8_truncate_at_size(strip->last_slot_identifier, MAX_ID_NAME)) {
-              CLOG_DEBUG(&LOG,
+              CLOG_DEBUG(LOG_BLEND_READFILE,
                          "Truncated too long NlaStrip.last_slot_identifier to '%s'",
                          strip->last_slot_identifier);
             }
@@ -1178,7 +1176,7 @@ static bool is_minversion_older_than_blender(FileData *fd, ReportList *reports)
                   RPT_ERROR,
                   "The file was saved by a newer version, open it with Blender %s or later",
                   min_reader_ver_str);
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_BLEND_READFILE,
                 "%s: File saved by a newer version of Blender (%s), Blender %s or later is "
                 "needed to open it.",
                 fd->relabase,
@@ -1942,7 +1940,7 @@ static ID *read_id_struct(FileData *fd, BHead *bh, const char *blockname, const 
    * #long_id_names_ensure_unique_id_names in #blo_read_file_internal. */
   if (BLI_str_utf8_truncate_at_size(id->name + 2, MAX_ID_NAME - 2)) {
     fd->flags |= FD_FLAGS_HAS_INVALID_ID_NAMES;
-    CLOG_DEBUG(&LOG, "Truncated too long ID name to '%s'", id->name);
+    CLOG_DEBUG(LOG_BLEND_READFILE, "Truncated too long ID name to '%s'", id->name);
   }
 
   return id;
@@ -2003,13 +2001,13 @@ static void after_liblink_id_embedded_id_process(BlendLibReader *reader, ID *id)
     after_liblink_id_process(reader, &nodetree->id);
 
     if (nodetree->owner_id == nullptr) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_BLEND_READFILE,
                 "NULL owner_id pointer for embedded NodeTree of %s, should never happen",
                 id->name);
       nodetree->owner_id = id;
     }
     else if (nodetree->owner_id != id) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_BLEND_READFILE,
                 "Inconsistent owner_id pointer for embedded NodeTree of %s, should never happen",
                 id->name);
       nodetree->owner_id = id;
@@ -2022,13 +2020,13 @@ static void after_liblink_id_embedded_id_process(BlendLibReader *reader, ID *id)
       after_liblink_id_process(reader, &scene->master_collection->id);
 
       if (scene->master_collection->owner_id == nullptr) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_BLEND_READFILE,
                   "NULL owner_id pointer for embedded Scene Collection of %s, should never happen",
                   id->name);
         scene->master_collection->owner_id = id;
       }
       else if (scene->master_collection->owner_id != id) {
-        CLOG_WARN(&LOG,
+        CLOG_WARN(LOG_BLEND_READFILE,
                   "Inconsistent owner_id pointer for embedded Scene Collection of %s, should "
                   "never happen",
                   id->name);
@@ -2411,7 +2409,8 @@ static void lib_link_scenes_check_set(Main *bmain)
     if (sce->flag & SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK) {
       sce->flag &= ~SCE_READFILE_LIBLINK_NEED_SETSCENE_CHECK;
       if (!scene_validate_setscene__liblink(sce, totscene)) {
-        CLOG_WARN(&LOG, "Found cyclic background scene when linking %s", sce->id.name + 2);
+        CLOG_WARN(
+            LOG_BLEND_READFILE, "Found cyclic background scene when linking %s", sce->id.name + 2);
       }
     }
   }
@@ -2642,7 +2641,7 @@ static BHead *read_data_into_datamap(FileData *fd,
     if (data) {
       const bool is_new = oldnewmap_insert(fd->datamap, bhead->old, data, 0);
       if (!is_new) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_BLEND_READFILE,
                    "Blendfile corruption: Invalid, or multiple `bhead` with same old address "
                    "value (%p) for a given ID.",
                    bhead->old);
@@ -2758,10 +2757,10 @@ static bool read_libblock_undo_restore_library(FileData *fd,
    * That means we have to carefully check whether current lib or
    * libdata already exits in old main, if it does we merely copy it over into new main area,
    * otherwise we have to do a full read of that bhead... */
-  CLOG_DEBUG(&LOG_UNDO, "UNDO: restore library %s", id->name);
+  CLOG_DEBUG(LOG_UNDO, "UNDO: restore library %s", id->name);
 
   if (id_old == nullptr) {
-    CLOG_DEBUG(&LOG_UNDO, "    -> NO match");
+    CLOG_DEBUG(LOG_UNDO, "    -> NO match");
     return false;
   }
 
@@ -2771,7 +2770,7 @@ static bool read_libblock_undo_restore_library(FileData *fd,
    * modified should not be an issue currently. */
   for (Main *libmain : fd->old_bmain->split_mains->as_span().drop_front(1)) {
     if (&libmain->curlib->id == id_old) {
-      CLOG_DEBUG(&LOG_UNDO,
+      CLOG_DEBUG(LOG_UNDO,
                  "    compare with %s -> match (existing libpath: %s)",
                  libmain->curlib ? libmain->curlib->id.name : "<none>",
                  libmain->curlib ? libmain->curlib->runtime->filepath_abs : "<none>");
@@ -2801,7 +2800,7 @@ static ID *library_id_is_yet_read(FileData *fd, Main *mainvar, BHead *bhead);
 static bool read_libblock_undo_restore_linked(
     FileData *fd, Main *libmain, const ID *id, ID **r_id_old, BHead *bhead)
 {
-  CLOG_DEBUG(&LOG_UNDO, "UNDO: restore linked datablock %s", id->name);
+  CLOG_DEBUG(LOG_UNDO, "UNDO: restore linked datablock %s", id->name);
 
   if (*r_id_old == nullptr) {
     /* If the linked ID had to be re-read at some point, its session_uid may not be the same as
@@ -2809,14 +2808,14 @@ static bool read_libblock_undo_restore_linked(
     *r_id_old = library_id_is_yet_read(fd, libmain, bhead);
 
     if (*r_id_old == nullptr) {
-      CLOG_DEBUG(&LOG_UNDO,
+      CLOG_DEBUG(LOG_UNDO,
                  "    from %s (%s): NOT found",
                  libmain->curlib ? libmain->curlib->id.name : "<nullptr>",
                  libmain->curlib ? libmain->curlib->filepath : "<nullptr>");
       return false;
     }
 
-    CLOG_DEBUG(&LOG_UNDO,
+    CLOG_DEBUG(LOG_UNDO,
                "    from %s (%s): found by name",
                libmain->curlib ? libmain->curlib->id.name : "<nullptr>",
                libmain->curlib ? libmain->curlib->filepath : "<nullptr>");
@@ -2826,7 +2825,7 @@ static bool read_libblock_undo_restore_linked(
                                 fd->new_idmap_uid, (*r_id_old)->session_uid)));
   }
   else {
-    CLOG_DEBUG(&LOG_UNDO,
+    CLOG_DEBUG(LOG_UNDO,
                "    from %s (%s): found by session_uid",
                libmain->curlib ? libmain->curlib->id.name : "<nullptr>",
                libmain->curlib ? libmain->curlib->filepath : "<nullptr>");
@@ -2971,7 +2970,7 @@ static bool read_libblock_undo_restore(
   }
   else if (id_type->flags & IDTYPE_FLAGS_NO_MEMFILE_UNDO) {
     CLOG_DEBUG(
-        &LOG_UNDO, "UNDO: skip restore datablock %s, 'NO_MEMFILE_UNDO' type of ID", id->name);
+        LOG_UNDO, "UNDO: skip restore datablock %s, 'NO_MEMFILE_UNDO' type of ID", id->name);
 
     /* If that local noundo ID still exists currently, the call to
      * #read_undo_reuse_noundo_local_ids at the beginning of #blo_read_file_internal will already
@@ -2989,7 +2988,7 @@ static bool read_libblock_undo_restore(
   }
 
   if (!do_partial_undo) {
-    CLOG_DEBUG(&LOG_UNDO,
+    CLOG_DEBUG(LOG_UNDO,
                "UNDO: read %s (uid %u) -> no partial undo, always read at new address",
                id->name,
                id->session_uid);
@@ -2999,10 +2998,8 @@ static bool read_libblock_undo_restore(
   /* Restore local datablocks. */
   if (id_old != nullptr && read_libblock_is_identical(fd, bhead)) {
     /* Local datablock was unchanged, restore from the old main. */
-    CLOG_DEBUG(&LOG_UNDO,
-               "UNDO: read %s (uid %u) -> keep identical datablock",
-               id->name,
-               id->session_uid);
+    CLOG_DEBUG(
+        LOG_UNDO, "UNDO: read %s (uid %u) -> keep identical datablock", id->name, id->session_uid);
 
     read_libblock_undo_restore_identical(fd, main, id, id_old, bhead, id_tag);
 
@@ -3011,7 +3008,7 @@ static bool read_libblock_undo_restore(
   }
   if (id_old != nullptr) {
     /* Local datablock was changed. Restore at the address of the old datablock. */
-    CLOG_DEBUG(&LOG_UNDO,
+    CLOG_DEBUG(LOG_UNDO,
                "UNDO: read %s (uid %u) -> read to old existing address",
                id->name,
                id->session_uid);
@@ -3020,8 +3017,7 @@ static bool read_libblock_undo_restore(
   }
 
   /* Local datablock does not exist in the undo step, so read from scratch. */
-  CLOG_DEBUG(
-      &LOG_UNDO, "UNDO: read %s (uid %u) -> read at new address", id->name, id->session_uid);
+  CLOG_DEBUG(LOG_UNDO, "UNDO: read %s (uid %u) -> read at new address", id->name, id->session_uid);
   return false;
 }
 
@@ -3081,7 +3077,7 @@ static BHead *read_libblock(FileData *fd,
   ListBase *lb = which_libbase(main, idcode);
   if (lb == nullptr) {
     /* Unknown ID type. */
-    CLOG_WARN(&LOG, "Unknown id code '%c%c'", (idcode & 0xff), (idcode >> 8));
+    CLOG_WARN(LOG_BLEND_READFILE, "Unknown id code '%c%c'", (idcode & 0xff), (idcode >> 8));
     MEM_freeN(id);
     if (r_id) {
       *r_id = nullptr;
@@ -3302,8 +3298,8 @@ static void do_versions(FileData *fd, Library *lib, Main *main)
       STRNCPY(build_commit_datetime, "unknown");
     }
 
-    CLOG_INFO(&LOG, "Read file %s", fd->relabase);
-    CLOG_INFO(&LOG,
+    CLOG_INFO(LOG_BLEND_READFILE, "Read file %s", fd->relabase);
+    CLOG_INFO(LOG_BLEND_READFILE,
               "    Version %d sub %d date %s hash %s",
               main->versionfile,
               main->subversionfile,
@@ -3366,7 +3362,7 @@ static void do_versions_after_linking(FileData *fd, Main *main)
 {
   BLI_assert(fd != nullptr);
 
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_BLEND_READFILE,
              "Processing %s (%s), %d.%d",
              main->curlib ? main->curlib->filepath : main->filepath,
              main->curlib ? "LIB" : "MAIN",
@@ -3739,7 +3735,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
 
   const bool is_undo = (fd->flags & FD_FLAGS_IS_MEMFILE) != 0;
   if (is_undo) {
-    CLOG_DEBUG(&LOG_UNDO, "UNDO: read step");
+    CLOG_DEBUG(LOG_UNDO, "UNDO: read step");
   }
 
   /* Prevent any run of layer collections rebuild during readfile process, and the do_versions
@@ -4481,7 +4477,7 @@ static ID *link_named_part(
     }
     else {
       /* already linked */
-      CLOG_WARN(&LOG, "Append: ID '%s' is already linked", id->name);
+      CLOG_WARN(LOG_BLEND_READFILE, "Append: ID '%s' is already linked", id->name);
       oldnewmap_lib_insert(fd, bhead->old, id, bhead->code);
       if (!force_indirect && (id->tag & ID_TAG_INDIRECT)) {
         id->tag &= ~ID_TAG_INDIRECT;
@@ -4837,7 +4833,7 @@ static void read_library_linked_id(
     read_libblock(fd, mainvar, bhead, id->tag, BLO_readfile_id_runtime_tags(*id), false, r_id);
   }
   else {
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_BLEND_READFILE,
                "LIB: %s: '%s' missing from '%s', parent '%s'",
                BKE_idtype_idcode_to_name(GS(id->name)),
                id->name + 2,
@@ -4939,7 +4935,7 @@ static void read_library_clear_weak_links(FileData *basefd, Main *mainvar)
       if (BLO_readfile_id_runtime_tags(*id).is_link_placeholder &&
           (id->flag & ID_FLAG_INDIRECT_WEAK_LINK))
       {
-        CLOG_DEBUG(&LOG, "Dropping weak link to '%s'", id->name);
+        CLOG_DEBUG(LOG_BLEND_READFILE, "Dropping weak link to '%s'", id->name);
         change_link_placeholder_to_real_ID_pointer(basefd, id, nullptr);
         BLI_freelinkN(lbarray[a], id);
       }
@@ -5044,7 +5040,7 @@ static void read_libraries(FileData *basefd)
       Main *libmain = (*bmain->split_mains)[i];
       /* Does this library have any more linked data-blocks we need to read? */
       if (has_linked_ids_to_read(libmain)) {
-        CLOG_DEBUG(&LOG,
+        CLOG_DEBUG(LOG_BLEND_READFILE,
                    "Reading linked data-blocks from %s (%s)",
                    libmain->curlib->id.name,
                    libmain->curlib->filepath);

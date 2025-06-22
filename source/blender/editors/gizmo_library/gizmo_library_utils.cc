@@ -36,8 +36,6 @@
 /* own includes */
 #include "gizmo_library_intern.hh"
 
-static CLG_LogRef LOG = {"tool.gizmo"};
-
 /* factor for precision tweaking */
 #define GIZMO_PRECISION_FAC 0.05f
 
@@ -182,7 +180,7 @@ bool gizmo_window_project_2d(
   }
 
   if (!invert_m4_m4(imat, mat)) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_TOOL_GIZMO,
               "Gizmo \"%s\" of group \"%s\" has matrix that could not be inverted "
               "(projection will fail)",
               gz->type->idname,
@@ -227,7 +225,7 @@ bool gizmo_window_project_3d(
   }
 
   if (!invert_m4_m4(imat, mat)) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_TOOL_GIZMO,
               "Gizmo \"%s\" of group \"%s\" has matrix that could not be inverted "
               "(projection will fail)",
               gz->type->idname,

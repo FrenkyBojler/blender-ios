@@ -58,8 +58,6 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"geom.gpencil"};
-
 static void greasepencil_copy_data(Main * /*bmain*/,
                                    std::optional<Library *> /*owner_library*/,
                                    ID *id_dst,
@@ -486,8 +484,9 @@ bGPDframe *BKE_gpencil_frame_addnew(bGPDlayer *gpl, int cframe)
 
   /* check whether frame was added successfully */
   if (state == -1) {
-    CLOG_ERROR(
-        &LOG, "Frame (%d) existed already for this layer_active. Using existing frame", cframe);
+    CLOG_ERROR(LOG_GEOM_GPENCIL,
+               "Frame (%d) existed already for this layer_active. Using existing frame",
+               cframe);
 
     /* free the newly created one, and use the old one instead */
     MEM_freeN(gpf);
@@ -998,7 +997,7 @@ bGPDframe *BKE_gpencil_layer_frame_get(bGPDlayer *gpl, int cframe, eGP_GetFrame_
       }
       else {
         /* Unresolved erogenous situation! */
-        CLOG_STR_ERROR(&LOG, "cannot find appropriate gp-frame");
+        CLOG_STR_ERROR(LOG_GEOM_GPENCIL, "cannot find appropriate gp-frame");
         /* `gpl->actframe` should still be nullptr. */
       }
     }

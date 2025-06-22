@@ -36,8 +36,6 @@
 
 #include "vk_backend.hh"
 
-static CLG_LogRef LOG = {"gpu.vulkan"};
-
 namespace blender::gpu {
 
 static const char *vk_extension_get(int index)
@@ -187,7 +185,7 @@ static Vector<StringRefNull> missing_capabilities_get(VkPhysicalDevice vk_physic
 
 bool VKBackend::is_supported()
 {
-  CLG_logref_init(&LOG);
+  CLG_logref_init(LOG_GPU_VULKAN);
 
   /*
    * Disable implicit layers and only allow layers that we trust.
@@ -222,7 +220,7 @@ bool VKBackend::is_supported()
   VkInstance vk_instance = VK_NULL_HANDLE;
   vkCreateInstance(&vk_instance_info, nullptr, &vk_instance);
   if (vk_instance == VK_NULL_HANDLE) {
-    CLOG_ERROR(&LOG, "Unable to initialize a Vulkan 1.2 instance.");
+    CLOG_ERROR(LOG_GPU_VULKAN, "Unable to initialize a Vulkan 1.2 instance.");
     return false;
   }
 
@@ -237,7 +235,7 @@ bool VKBackend::is_supported()
     vkGetPhysicalDeviceProperties(vk_physical_device, &vk_properties);
 
     if (!GPU_vulkan_is_supported_driver(vk_physical_device)) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_GPU_VULKAN,
                 "Installed driver for device [%s] has known issues and will not be used. Updating "
                 "driver might improve compatibility.",
                 vk_properties.deviceName);
@@ -249,7 +247,7 @@ bool VKBackend::is_supported()
     if (missing_capabilities.is_empty()) {
       /* This device meets minimum requirements. */
       CLOG_DEBUG(
-          &LOG,
+          LOG_GPU_VULKAN,
           "Device [%s] supports minimum requirements. Skip checking other GPUs. Another GPU "
           "can still be selected during auto-detection.",
           vk_properties.deviceName);
@@ -266,13 +264,13 @@ bool VKBackend::is_supported()
     }
     ss.seekp(-2, std::ios_base::end);
     ss << "]";
-    CLOG_WARN(&LOG, "%s", ss.str().c_str());
+    CLOG_WARN(LOG_GPU_VULKAN, "%s", ss.str().c_str());
   }
 
   /* No device found meeting the minimum requirements. */
 
   vkDestroyInstance(vk_instance, nullptr);
-  CLOG_ERROR(&LOG,
+  CLOG_ERROR(LOG_GPU_VULKAN,
              "No Vulkan device found that meets the minimum requirements. "
              "Updating GPU driver can improve compatibility.");
   return false;
@@ -379,7 +377,7 @@ void VKBackend::platform_init(const VKDevice &device)
     GPG.device_luid_node_mask = 0;
   }
 
-  CLOG_INFO(&LOG,
+  CLOG_INFO(LOG_GPU_VULKAN,
             "Using vendor [%s] device [%s] driver version [%s].",
             vendor_name.c_str(),
             device.vk_physical_device_properties_.deviceName,

@@ -106,8 +106,6 @@ using blender::Set;
 using blender::Span;
 using blender::Vector;
 
-static CLG_LogRef LOG = {"sculpt"};
-
 namespace blender::ed::sculpt_paint {
 
 /* TODO: This should be moved to either BKE_paint.hh or BKE_brush.hh */
@@ -3876,7 +3874,7 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
 
   if (!smooth_brush) {
     BKE_paint_brush_set(paint, cur_brush);
-    CLOG_WARN(&LOG, "Switching to the smooth brush not possible, corresponding brush not");
+    CLOG_WARN(LOG_SCULPT, "Switching to the smooth brush not possible, corresponding brush not");
     cache->saved_active_brush = nullptr;
     return;
   }

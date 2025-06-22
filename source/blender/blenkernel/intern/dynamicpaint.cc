@@ -81,8 +81,6 @@ using blender::int3;
 // #  pragma GCC diagnostic ignored "-Wdouble-promotion"
 #endif
 
-static CLG_LogRef LOG = {"object.dynamicpaint"};
-
 /* precalculated gaussian factors for 5x super sampling */
 static const float gaussianFactors[5] = {
     0.996849f,
@@ -304,7 +302,7 @@ static bool setError(DynamicPaintCanvasSettings *canvas, const char *string)
 {
   /* Add error to canvas ui info label */
   STRNCPY(canvas->error, string);
-  CLOG_STR_ERROR(&LOG, string);
+  CLOG_STR_ERROR(LOG_OBJECT_DYNAMICPAINT, string);
   return false;
 }
 
@@ -2861,8 +2859,11 @@ int dynamicPaint_createUVSurface(Scene *scene,
   /*
    * Start generating the surface
    */
-  CLOG_DEBUG(
-      &LOG, "Preparing UV surface of %ix%i pixels and %i tris.", w, h, int(corner_tris.size()));
+  CLOG_DEBUG(LOG_OBJECT_DYNAMICPAINT,
+             "Preparing UV surface of %ix%i pixels and %i tris.",
+             w,
+             h,
+             int(corner_tris.size()));
 
   /* Init data struct */
   if (surface->data) {
@@ -4631,7 +4632,7 @@ static bool dynamicPaint_paintParticles(DynamicPaintSurface *surface,
     particlesAdded++;
   }
   if (invalidParticles) {
-    CLOG_WARN(&LOG, "Invalid particle(s) found!");
+    CLOG_WARN(LOG_OBJECT_DYNAMICPAINT, "Invalid particle(s) found!");
   }
 
   /* If no suitable particles were found, exit */

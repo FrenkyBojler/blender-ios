@@ -50,7 +50,6 @@
 #include <vector>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace {
 
@@ -225,13 +224,13 @@ void import_skeleton_curves(Main *bmain,
   for (const double frame : samples) {
     pxr::VtMatrix4dArray joint_local_xforms;
     if (!skel_query.ComputeJointLocalTransforms(&joint_local_xforms, frame)) {
-      CLOG_WARN(&LOG, "Couldn't compute joint local transforms on frame %f", frame);
+      CLOG_WARN(LOG_IO_USD, "Couldn't compute joint local transforms on frame %f", frame);
       continue;
     }
 
     if (joint_local_xforms.size() != joint_order.size()) {
       CLOG_WARN(
-          &LOG,
+          LOG_IO_USD,
           "Number of joint local transform entries %zu doesn't match the number of joints %zu",
           joint_local_xforms.size(),
           joint_order.size());
@@ -247,7 +246,7 @@ void import_skeleton_curves(Main *bmain,
       pxr::GfVec3h s;
 
       if (!pxr::UsdSkelDecomposeTransform(bone_xform, &t, &qrot, &s)) {
-        CLOG_WARN(&LOG, "Error decomposing matrix on frame %f", frame);
+        CLOG_WARN(LOG_IO_USD, "Error decomposing matrix on frame %f", frame);
         continue;
       }
 
@@ -257,7 +256,7 @@ void import_skeleton_curves(Main *bmain,
       for (int j = 0; j < 3; ++j) {
         const int k = curves_per_joint * i + j;
         if (k >= fcurves.size()) {
-          CLOG_ERROR(&LOG, "Out of bounds translation curve index %d", k);
+          CLOG_ERROR(LOG_IO_USD, "Out of bounds translation curve index %d", k);
           break;
         }
         if (FCurve *fcu = fcurves[k]) {
@@ -268,7 +267,7 @@ void import_skeleton_curves(Main *bmain,
       for (int j = 0; j < 4; ++j) {
         const int k = curves_per_joint * i + j + 3;
         if (k >= fcurves.size()) {
-          CLOG_ERROR(&LOG, "Out of bounds rotation curve index %d", k);
+          CLOG_ERROR(LOG_IO_USD, "Out of bounds rotation curve index %d", k);
           break;
         }
         if (FCurve *fcu = fcurves[k]) {
@@ -284,7 +283,7 @@ void import_skeleton_curves(Main *bmain,
       for (int j = 0; j < 3; ++j) {
         const int k = curves_per_joint * i + j + 7;
         if (k >= fcurves.size()) {
-          CLOG_ERROR(&LOG, "Out of bounds scale curve index %d", k);
+          CLOG_ERROR(LOG_IO_USD, "Out of bounds scale curve index %d", k);
           break;
         }
         if (FCurve *fcu = fcurves[k]) {
@@ -313,7 +312,7 @@ void add_skinned_mesh_bindings(const pxr::UsdSkelSkeleton &skel,
   pxr::UsdSkelBindingAPI skel_api = pxr::UsdSkelBindingAPI::Apply(mesh_prim);
 
   if (!skel_api) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't apply UsdSkelBindingAPI to skinned mesh prim %s",
               mesh_prim.GetPath().GetAsString().c_str());
     return;
@@ -332,7 +331,7 @@ void add_skinned_mesh_bindings(const pxr::UsdSkelSkeleton &skel,
     geom_bind_attr.Set(bind_xf);
   }
   else {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't create geom bind transform attribute for skinned mesh %s",
               mesh_prim.GetPath().GetAsString().c_str());
   }
@@ -506,7 +505,7 @@ void import_blendshapes(Main *bmain,
       int a = 0;
       for (const int point : point_indices.AsConst()) {
         if (point < 0 || point > kb->totelem) {
-          CLOG_WARN(&LOG,
+          CLOG_WARN(LOG_IO_USD,
                     "Out of bounds point index %d for blendshape %s",
                     point,
                     path.GetAsString().c_str());
@@ -618,13 +617,13 @@ void import_blendshapes(Main *bmain,
   for (double frame : times) {
     pxr::VtFloatArray usd_weights;
     if (!weights_attr.Get(&usd_weights, frame)) {
-      CLOG_WARN(&LOG, "Couldn't get blendshape weights for time %f", frame);
+      CLOG_WARN(LOG_IO_USD, "Couldn't get blendshape weights for time %f", frame);
       continue;
     }
 
     if (usd_weights.size() != curves.size()) {
       CLOG_WARN(
-          &LOG,
+          LOG_IO_USD,
           "Number of weight samples doesn't match number of shapekey curve entries for frame %f",
           frame);
       continue;
@@ -851,7 +850,7 @@ void import_skeleton(Main *bmain,
       continue;
     }
     if (parent_idx >= edit_bones.size()) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Out of bounds parent index for bone %s on skeleton %s",
                 pxr::SdfPath(joint_order[i]).GetAsString().c_str(),
                 skel.GetPath().GetAsString().c_str());
@@ -1081,7 +1080,8 @@ void import_mesh_skel_bindings(Object *mesh_obj, const pxr::UsdPrim &prim, Repor
     if (std::find(used_indices.begin(), used_indices.end(), index) == used_indices.end()) {
       /* We haven't accounted for this index yet. */
       if (index < 0 || index >= joints.size()) {
-        CLOG_ERROR(&LOG, "Out of bound joint index %d for mesh %s", index, mesh_obj->id.name + 2);
+        CLOG_ERROR(
+            LOG_IO_USD, "Out of bound joint index %d for mesh %s", index, mesh_obj->id.name + 2);
         return;
       }
       used_indices.append(index);
@@ -1171,7 +1171,7 @@ void skinned_mesh_export_chaser(pxr::UsdStageRefPtr stage,
     /* Get the mesh prim from the stage. */
     pxr::UsdPrim mesh_prim = stage->GetPrimAtPath(mesh_path);
     if (!mesh_prim) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Invalid export map prim path %s for mesh object %s",
                 mesh_path.GetAsString().c_str(),
                 mesh_obj->id.name + 2);
@@ -1181,20 +1181,21 @@ void skinned_mesh_export_chaser(pxr::UsdStageRefPtr stage,
     /* Get the armature bound to the mesh's armature modifier. */
     const Object *arm_obj = get_armature_modifier_obj(*mesh_obj, depsgraph);
     if (!arm_obj) {
-      CLOG_WARN(&LOG, "Invalid armature modifier for skinned mesh %s", mesh_obj->id.name + 2);
+      CLOG_WARN(
+          LOG_IO_USD, "Invalid armature modifier for skinned mesh %s", mesh_obj->id.name + 2);
       continue;
     }
     /* Look up the USD skeleton corresponding to the armature object. */
     const pxr::SdfPath *path = armature_export_map.lookup_ptr(arm_obj);
     if (!path) {
-      CLOG_WARN(&LOG, "No export map entry for armature object %s", mesh_obj->id.name + 2);
+      CLOG_WARN(LOG_IO_USD, "No export map entry for armature object %s", mesh_obj->id.name + 2);
       continue;
     }
     /* Get the skeleton prim. */
     pxr::UsdPrim skel_prim = stage->GetPrimAtPath(*path);
     pxr::UsdSkelSkeleton skel(skel_prim);
     if (!skel) {
-      CLOG_WARN(&LOG, "Invalid USD skeleton for armature object %s", arm_obj->id.name + 2);
+      CLOG_WARN(LOG_IO_USD, "Invalid USD skeleton for armature object %s", arm_obj->id.name + 2);
       continue;
     }
 
@@ -1219,7 +1220,7 @@ void shape_key_export_chaser(pxr::UsdStageRefPtr stage,
     /* Get the mesh prim from the stage. */
     pxr::UsdPrim mesh_prim = stage->GetPrimAtPath(mesh_path);
     if (!mesh_prim) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Invalid export map prim path %s for mesh object %s",
                 mesh_path.GetAsString().c_str(),
                 mesh_obj->id.name + 2);
@@ -1232,7 +1233,7 @@ void shape_key_export_chaser(pxr::UsdStageRefPtr stage,
     pxr::UsdSkelBindingAPI skel_api = pxr::UsdSkelBindingAPI::Apply(mesh_prim);
 
     if (!skel_api) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Couldn't apply UsdSkelBindingAPI to prim %s",
                 mesh_prim.GetPath().GetAsString().c_str());
       return;

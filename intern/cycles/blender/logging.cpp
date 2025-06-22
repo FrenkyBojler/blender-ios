@@ -7,14 +7,12 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"cycles"};
-
 void CCL_log_init()
 {
   /* Set callback to pass log messages to CLOG. */
   ccl::log_init(
       [](const ccl::LogLevel level, const char *file_line, const char *func, const char *msg) {
-        const CLG_LogType *log_type = CLOG_ENSURE(&LOG);
+        const CLG_LogType *log_type = CLOG_ENSURE(LOG_CYCLES);
         switch (level) {
           case ccl::LOG_LEVEL_FATAL:
           case ccl::LOG_LEVEL_DFATAL:
@@ -40,7 +38,7 @@ void CCL_log_init()
       });
 
   /* Map log level from CLOG. */
-  const CLG_LogType *log_type = CLOG_ENSURE(&LOG);
+  const CLG_LogType *log_type = CLOG_ENSURE(LOG_CYCLES);
   switch (log_type->level) {
     case CLG_LEVEL_FATAL:
       ccl::log_level_set(ccl::LOG_LEVEL_FATAL);

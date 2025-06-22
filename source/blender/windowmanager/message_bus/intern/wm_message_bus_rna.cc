@@ -240,7 +240,7 @@ void WM_msg_publish_rna_params(wmMsgBus *mbus, const wmMsgParams_RNA *msg_key_pa
   wmMsgSubscribeKey_RNA *key;
 
   const char *none = "<none>";
-  CLOG_DEBUG(WM_LOG_MSGBUS_PUB,
+  CLOG_DEBUG(LOG_MSGBUS_PUB,
              "rna(id='%s', %s.%s)",
              msg_key_params->ptr.owner_id ? ((ID *)msg_key_params->ptr.owner_id)->name : none,
              msg_key_params->ptr.type ? RNA_struct_identifier(msg_key_params->ptr.type) : none,
@@ -304,7 +304,7 @@ void WM_msg_subscribe_rna_params(wmMsgBus *mbus,
   msg_key_test.msg.params = *msg_key_params;
 
   const char *none = "<none>";
-  CLOG_TRACE(WM_LOG_MSGBUS_SUB,
+  CLOG_TRACE(LOG_MSGBUS_SUB,
              "rna(id='%s', %s.%s, info='%s')",
              msg_key_params->ptr.owner_id ? ((ID *)msg_key_params->ptr.owner_id)->name : none,
              msg_key_params->ptr.type ? RNA_struct_identifier(msg_key_params->ptr.type) : none,

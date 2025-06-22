@@ -12,8 +12,6 @@ namespace blender::nodes::materialx {
 
 constexpr StringRef TEXCOORD_NODE_NAME = "node_texcoord";
 
-CLG_LOGREF_DECLARE_GLOBAL(LOG_IO_MATERIALX, "io.materialx");
-
 NodeParser::NodeParser(NodeGraph &graph,
                        const bNode *node,
                        const bNodeSocket *socket_out,

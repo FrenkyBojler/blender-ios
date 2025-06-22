@@ -117,8 +117,6 @@
 
 using blender::Array;
 
-static CLG_LogRef LOG = {"image"};
-
 static void image_init(Image *ima, short source, short type);
 static void image_free_packedfiles(Image *ima);
 static void copy_image_packedfiles(ListBase *lb_dst, const ListBase *lb_src);
@@ -1388,7 +1386,7 @@ static bool image_memorypack_imbuf(
   IMB_save_image(ibuf, filepath, IB_byte_data | IB_mem);
 
   if (ibuf->encoded_buffer.data == nullptr) {
-    CLOG_STR_ERROR(&LOG, "memory save for pack error");
+    CLOG_STR_ERROR(LOG_IMAGE, "memory save for pack error");
     IMB_freeImBuf(ibuf);
     image_free_packedfiles(ima);
     return false;
@@ -2711,7 +2709,7 @@ MovieReader *openanim(const char *filepath,
     else {
       reason = "not an anim";
     }
-    CLOG_INFO(&LOG, "unable to load anim, %s: %s", reason, filepath);
+    CLOG_INFO(LOG_IMAGE, "unable to load anim, %s: %s", reason, filepath);
 
     MOV_close(anim);
     return nullptr;

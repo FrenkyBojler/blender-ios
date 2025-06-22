@@ -277,8 +277,6 @@ const EnumPropertyItem rna_enum_property_string_search_flag_items[] = {
 
 #  include <fmt/format.h>
 
-static CLG_LogRef LOG_COMPARE_OVERRIDE = {"rna.rna_compare_override"};
-
 /* Struct */
 
 static void rna_Struct_identifier_get(PointerRNA *ptr, char *value)
@@ -1625,7 +1623,7 @@ static void rna_property_override_diff_propptr(Main *bmain,
                * not change the 'match reference' status of its ID pointer properties overrides,
                * since many non-matching ones are likely due to missing resync. */
               CLOG_DEBUG(
-                  &LOG_COMPARE_OVERRIDE,
+                  LOG_RNA_RNA_COMPARE_OVERRIDE,
                   "Not checking matching ID pointer properties, since owner %s is tagged as "
                   "needing resync.\n",
                   id_a->name);
@@ -2140,7 +2138,7 @@ void rna_property_override_diff_default(Main *bmain, RNAPropertyOverrideDiffCont
       if (!has_liboverride_apply_cb &&
           (prop_a->rnaprop->flag_override & PROPOVERRIDE_LIBRARY_INSERTION) != 0)
       {
-        CLOG_ERROR(&LOG_COMPARE_OVERRIDE,
+        CLOG_ERROR(LOG_RNA_RNA_COMPARE_OVERRIDE,
                    "RNA collection '%s' defined as supporting liboverride insertion of items, but "
                    "no liboverride apply callback defined for it. No insertion will happen.",
                    rna_path);
@@ -2630,7 +2628,7 @@ bool rna_property_override_apply_default(Main *bmain,
     std::optional<std::string> prop_rna_path = rnaapply_ctx.liboverride_property ?
                                                    rnaapply_ctx.liboverride_property->rna_path :
                                                    RNA_path_from_ID_to_property(ptr_dst, prop_dst);
-    CLOG_WARN(&LOG_COMPARE_OVERRIDE,
+    CLOG_WARN(LOG_RNA_RNA_COMPARE_OVERRIDE,
               "%s.%s: Inconsistency between stored property type (%d) and linked reference one "
               "(%d), skipping liboverride apply",
               ptr_dst->owner_id->name,
@@ -2917,7 +2915,7 @@ bool rna_property_override_apply_default(Main *bmain,
       const bool is_dst_idprop = (prop_dst->magic != RNA_MAGIC) ||
                                  (prop_dst->flag & PROP_IDPROPERTY) != 0;
       if (!(is_src_idprop && is_dst_idprop)) {
-        CLOG_ERROR(&LOG_COMPARE_OVERRIDE,
+        CLOG_ERROR(LOG_RNA_RNA_COMPARE_OVERRIDE,
                    "'%s': Override operations on RNA collections require a specific override "
                    "apply callback to be defined.",
                    rnaapply_ctx.liboverride_property->rna_path);

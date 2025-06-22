@@ -38,7 +38,6 @@
 #include <pxr/usd/usdShade/shader.h>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace usdtokens {
 
@@ -117,13 +116,13 @@ static void link_nodes(bNodeTree *ntree,
 {
   bNodeSocket *source_socket = blender::bke::node_find_socket(*source, SOCK_OUT, sock_out);
   if (!source_socket) {
-    CLOG_ERROR(&LOG, "Couldn't find output socket %s", sock_out.c_str());
+    CLOG_ERROR(LOG_IO_USD, "Couldn't find output socket %s", sock_out.c_str());
     return;
   }
 
   bNodeSocket *dest_socket = blender::bke::node_find_socket(*dest, SOCK_IN, sock_in);
   if (!dest_socket) {
-    CLOG_ERROR(&LOG, "Couldn't find input socket %s", sock_in.c_str());
+    CLOG_ERROR(LOG_IO_USD, "Couldn't find input socket %s", sock_in.c_str());
     return;
   }
 
@@ -665,13 +664,13 @@ bool USDMaterialReader::set_node_input(const pxr::UsdShadeInput &usd_input,
 
   bNodeSocket *sock = blender::bke::node_find_socket(*dest_node, SOCK_IN, dest_socket_name);
   if (!sock) {
-    CLOG_ERROR(&LOG, "Couldn't get destination node socket %s", dest_socket_name.c_str());
+    CLOG_ERROR(LOG_IO_USD, "Couldn't get destination node socket %s", dest_socket_name.c_str());
     return false;
   }
 
   pxr::VtValue val;
   if (!usd_input.Get(&val)) {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_IO_USD,
                "Couldn't get value for usd shader input %s",
                usd_input.GetPrim().GetPath().GetAsString().c_str());
     return false;
@@ -710,7 +709,7 @@ bool USDMaterialReader::set_node_input(const pxr::UsdShadeInput &usd_input,
       }
       break;
     default:
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Unexpected type %s for destination node socket %s",
                 sock->idname,
                 dest_socket_name.c_str());
@@ -987,7 +986,7 @@ bool USDMaterialReader::follow_connection(const pxr::UsdShadeInput &usd_input,
 
   pxr::TfToken shader_id;
   if (!source_shader.GetShaderId(&shader_id)) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't get shader id for source shader %s",
               source_shader.GetPath().GetAsString().c_str());
     return false;
@@ -1259,7 +1258,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   pxr::UsdShadeInput file_input = usd_shader.GetInput(usdtokens::file);
 
   if (!file_input) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't get file input property for USD shader %s",
               usd_shader.GetPath().GetAsString().c_str());
     return;
@@ -1276,7 +1275,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
       file_input = source.GetInput(source_name);
     }
     else {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_IO_USD,
                 "Couldn't get connected source for file input %s (%s)\n",
                 file_input.GetPrim().GetPath().GetText(),
                 file_input.GetFullName().GetText());
@@ -1285,7 +1284,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
 
   pxr::VtValue file_val;
   if (!file_input.Get(&file_val) || !file_val.IsHolding<pxr::SdfAssetPath>()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't get file input value for USD shader %s",
               usd_shader.GetPath().GetAsString().c_str());
     return;
@@ -1307,7 +1306,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   }
 
   if (file_path.empty()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't resolve image asset '%s' for Texture Image node",
               asset_path.GetAssetPath().c_str());
     return;
@@ -1347,7 +1346,7 @@ void USDMaterialReader::load_tex_image(const pxr::UsdShadeShader &usd_shader,
   const char *im_file = file_path.c_str();
   Image *image = BKE_image_load_exists(&bmain_, im_file);
   if (!image) {
-    CLOG_WARN(&LOG, "Couldn't open image file '%s' for Texture Image node", im_file);
+    CLOG_WARN(LOG_IO_USD, "Couldn't open image file '%s' for Texture Image node", im_file);
     return;
   }
 

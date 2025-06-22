@@ -39,7 +39,6 @@
 #include "WM_types.hh"
 
 /** We only need this locally. */
-static CLG_LogRef LOG = {"undo.lattice"};
 
 /* -------------------------------------------------------------------- */
 /** \name Undo Conversion
@@ -240,7 +239,7 @@ static void lattice_undosys_step_decode(
     Lattice *lt = static_cast<Lattice *>(obedit->data);
     if (lt->editlatt == nullptr) {
       /* Should never fail, may not crash but can give odd behavior. */
-      CLOG_ERROR(&LOG,
+      CLOG_ERROR(LOG_UNDO_LATTICE,
                  "name='%s', failed to enter edit-mode for object '%s', undo state invalid",
                  us_p->name,
                  obedit->id.name);
@@ -253,7 +252,7 @@ static void lattice_undosys_step_decode(
 
   /* The first element is always active */
   ED_undo_object_set_active_or_warn(
-      scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, &LOG);
+      scene, view_layer, us->elems[0].obedit_ref.ptr, us_p->name, LOG_UNDO_LATTICE);
 
   /* Check after setting active (unless undoing into another scene). */
   BLI_assert(lattice_undosys_poll(C) || (scene != CTX_data_scene(C)));

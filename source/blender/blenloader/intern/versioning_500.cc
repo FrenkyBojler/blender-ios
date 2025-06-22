@@ -46,9 +46,6 @@
 
 #include "versioning_common.hh"
 
-// #include "CLG_log.h"
-// static CLG_LogRef LOG = {"blend.doversion"};
-
 void version_system_idprops_generate(Main *bmain)
 {
   auto idprops_process = [](IDProperty *idprops, IDProperty **system_idprops) -> void {

@@ -40,7 +40,6 @@
 #include "DNA_modifier_types.h"
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace blender::io::usd {
 
@@ -736,7 +735,7 @@ void USDMeshWriter::init_skinned_mesh(const HierarchyContext &context)
   pxr::UsdPrim mesh_prim = stage->GetPrimAtPath(usd_export_context_.usd_path);
 
   if (!mesh_prim.IsValid()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "%s: couldn't get valid mesh prim for mesh %s",
               __func__,
               usd_export_context_.usd_path.GetAsString().c_str());
@@ -746,7 +745,7 @@ void USDMeshWriter::init_skinned_mesh(const HierarchyContext &context)
   pxr::UsdSkelBindingAPI skel_api = pxr::UsdSkelBindingAPI::Apply(mesh_prim);
 
   if (!skel_api) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't apply UsdSkelBindingAPI to mesh prim %s",
               usd_export_context_.usd_path.GetAsString().c_str());
     return;
@@ -756,7 +755,7 @@ void USDMeshWriter::init_skinned_mesh(const HierarchyContext &context)
                                                     usd_export_context_.depsgraph);
 
   if (!arm_obj) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't get armature modifier object for skinned mesh %s",
               usd_export_context_.usd_path.GetAsString().c_str());
     return;
@@ -767,7 +766,7 @@ void USDMeshWriter::init_skinned_mesh(const HierarchyContext &context)
       arm_obj, usd_export_context_.export_params.only_deform_bones, bone_names);
 
   if (bone_names.is_empty()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "No armature bones for skinned mesh %s",
               usd_export_context_.usd_path.GetAsString().c_str());
     return;
@@ -802,7 +801,7 @@ void USDMeshWriter::init_blend_shapes(const HierarchyContext &context)
   pxr::UsdPrim mesh_prim = stage->GetPrimAtPath(usd_export_context_.usd_path);
 
   if (!mesh_prim.IsValid()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't get valid mesh prim for mesh %s",
               mesh_prim.GetPath().GetAsString().c_str());
     return;
@@ -879,7 +878,7 @@ void USDMeshWriter::add_shape_key_weights_sample(const Object *obj)
   pxr::UsdPrim mesh_prim = stage->GetPrimAtPath(usd_export_context_.usd_path);
 
   if (!mesh_prim.IsValid()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't get valid mesh prim for mesh %s",
               usd_export_context_.usd_path.GetAsString().c_str());
     return;
@@ -894,7 +893,7 @@ void USDMeshWriter::add_shape_key_weights_sample(const Object *obj)
       TempBlendShapeWeightsPrimvarName, pxr::SdfValueTypeNames->FloatArray);
 
   if (!temp_weights_attr) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't create primvar %s on prim %s",
               TempBlendShapeWeightsPrimvarName.GetText(),
               mesh_prim.GetPath().GetAsString().c_str());

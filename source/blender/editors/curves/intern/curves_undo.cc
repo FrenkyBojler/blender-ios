@@ -24,8 +24,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-static CLG_LogRef LOG = {"undo.curves"};
-
 namespace blender::ed::curves {
 namespace undo {
 
@@ -101,7 +99,7 @@ static void step_decode(
   }
 
   ED_undo_object_set_active_or_warn(
-      scene, view_layer, us->objects.first().obedit_ref.ptr, us_p->name, &LOG);
+      scene, view_layer, us->objects.first().obedit_ref.ptr, us_p->name, LOG_UNDO_CURVES);
 
   bmain->is_memfile_undo_flush_needed = true;
 

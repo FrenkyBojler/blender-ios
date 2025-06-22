@@ -106,8 +106,6 @@
 /* could be made into a pointcache option */
 #define DURIAN_POINTCACHE_LIB_OK 1
 
-static CLG_LogRef LOG = {"physics.pointcache"};
-
 static int ptcache_data_size[] = {
     sizeof(uint),     /* BPHYS_DATA_INDEX */
     sizeof(float[3]), /* BPHYS_DATA_LOCATION */
@@ -722,7 +720,9 @@ static int ptcache_dynamicpaint_read(PTCacheFile *pf, void *dp_v)
   /* version header */
   ptcache_file_read(pf, version, 1, sizeof(char[4]));
   if (!STREQLEN(version, DPAINT_CACHE_VERSION, 4)) {
-    CLOG_ERROR(&LOG, "Dynamic Paint: Invalid cache version: '%c%c%c%c'!", UNPACK4(version));
+    CLOG_ERROR(LOG_PHYSICS_POINTCACHE,
+               "Dynamic Paint: Invalid cache version: '%c%c%c%c'!",
+               UNPACK4(version));
     return 0;
   }
 

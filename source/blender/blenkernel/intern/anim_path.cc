@@ -24,8 +24,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"anim"};
-
 /* ******************************************************************** */
 /* Curve Paths - for curve deforms and/or curve following */
 
@@ -62,7 +60,7 @@ void BKE_anim_path_calc_data(Object *ob)
     return;
   }
   if (ob->runtime->curve_cache == nullptr) {
-    CLOG_WARN(&LOG, "No curve cache!");
+    CLOG_WARN(LOG_ANIM_MOTION_PATH, "No curve cache!");
     return;
   }
 
@@ -212,7 +210,7 @@ static bool binary_search_anim_path(const float *accum_len_arr,
 
     if (UNLIKELY(cur_step == 0)) {
       /* This should never happen unless there is something horribly wrong. */
-      CLOG_ERROR(&LOG, "Couldn't find any valid point on the animation path!");
+      CLOG_ERROR(LOG_ANIM_MOTION_PATH, "Couldn't find any valid point on the animation path!");
       BLI_assert_msg(0, "Couldn't find any valid point on the animation path!");
       return false;
     }
@@ -240,17 +238,17 @@ bool BKE_where_on_path(const Object *ob,
   }
   Curve *cu = static_cast<Curve *>(ob->data);
   if (ob->runtime->curve_cache == nullptr) {
-    CLOG_WARN(&LOG, "No curve cache!");
+    CLOG_WARN(LOG_ANIM_MOTION_PATH, "No curve cache!");
     return false;
   }
   if (ob->runtime->curve_cache->anim_path_accum_length == nullptr) {
-    CLOG_WARN(&LOG, "No anim path!");
+    CLOG_WARN(LOG_ANIM_MOTION_PATH, "No anim path!");
     return false;
   }
   /* We only use the first curve. */
   BevList *bl = static_cast<BevList *>(ob->runtime->curve_cache->bev.first);
   if (bl == nullptr || !bl->nr) {
-    CLOG_WARN(&LOG, "No bev list data!");
+    CLOG_WARN(LOG_ANIM_MOTION_PATH, "No bev list data!");
     return false;
   }
 

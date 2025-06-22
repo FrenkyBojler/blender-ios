@@ -195,3 +195,5 @@ int CLG_color_support_get(CLG_LogRef *clg_ref);
 #define CLOG_INFO_NOCHECK(clg_ref, format, ...) \
   CLOG_AT_LEVEL_NOCHECK(clg_ref, CLG_LEVEL_INFO, format, __VA_ARGS__)
 #define CLOG_STR_INFO_NOCHECK(clg_ref, str) CLOG_STR_AT_LEVEL_NOCHECK(clg_ref, CLG_LEVEL_INFO, str)
+
+#include "CLG_common_refs.h"

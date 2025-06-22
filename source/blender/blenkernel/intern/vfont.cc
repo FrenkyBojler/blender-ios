@@ -43,8 +43,6 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"geom.vfont"};
-
 /* -------------------------------------------------------------------- */
 /** \name Prototypes
  * \{ */
@@ -222,7 +220,7 @@ void BKE_vfont_data_ensure(VFont *vfont)
       }
     }
     if (!pf) {
-      CLOG_WARN(&LOG, "Font file doesn't exist: %s", vfont->filepath);
+      CLOG_WARN(LOG_GEOM_VFONT, "Font file doesn't exist: %s", vfont->filepath);
 
       /* NOTE(@ideasman42): Don't attempt to find a fallback.
        * If the font requested by the user doesn't load, font rendering will display
@@ -284,7 +282,7 @@ void BKE_vfont_builtin_register(const void *mem, int size)
 static PackedFile *packedfile_new_from_builtin()
 {
   if (!builtin_font_data) {
-    CLOG_ERROR(&LOG, "Internal error, builtin font not loaded");
+    CLOG_ERROR(LOG_GEOM_VFONT, "Internal error, builtin font not loaded");
 
     return nullptr;
   }

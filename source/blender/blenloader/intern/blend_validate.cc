@@ -36,8 +36,6 @@
 
 #include "readfile.hh"
 
-static CLG_LogRef LOG = {"blend.validate"};
-
 bool BLO_main_validate_libraries(Main *bmain, ReportList *reports)
 {
   blo_split_main(bmain);
@@ -243,15 +241,16 @@ void BLO_main_validate_embedded_flag(Main *bmain, ReportList * /*reports*/)
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (bmain, id_iter) {
     if (id_iter->flag & ID_FLAG_EMBEDDED_DATA) {
-      CLOG_ERROR(
-          &LOG, "ID %s is flagged as embedded, while existing in Main data-base", id_iter->name);
+      CLOG_ERROR(LOG_BLEND_VALIDATE,
+                 "ID %s is flagged as embedded, while existing in Main data-base",
+                 id_iter->name);
       id_iter->flag &= ~ID_FLAG_EMBEDDED_DATA;
     }
 
     bNodeTree *node_tree = blender::bke::node_tree_from_id(id_iter);
     if (node_tree) {
       if ((node_tree->id.flag & ID_FLAG_EMBEDDED_DATA) == 0) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_BLEND_VALIDATE,
                    "ID %s has an embedded nodetree which is not flagged as embedded",
                    id_iter->name);
         node_tree->id.flag |= ID_FLAG_EMBEDDED_DATA;
@@ -263,7 +262,7 @@ void BLO_main_validate_embedded_flag(Main *bmain, ReportList * /*reports*/)
       if (scene->master_collection &&
           (scene->master_collection->id.flag & ID_FLAG_EMBEDDED_DATA) == 0)
       {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_BLEND_VALIDATE,
                    "ID %s has an embedded Collection which is not flagged as embedded",
                    id_iter->name);
         scene->master_collection->id.flag |= ID_FLAG_EMBEDDED_DATA;

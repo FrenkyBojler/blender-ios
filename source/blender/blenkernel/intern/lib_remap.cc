@@ -39,8 +39,6 @@
 
 using namespace blender::bke::id;
 
-static CLG_LogRef LOG = {"lib.remap"};
-
 BKE_library_free_notifier_reference_cb free_notifier_reference_cb = nullptr;
 
 void BKE_library_callback_free_notifier_reference_set(BKE_library_free_notifier_reference_cb func)
@@ -577,7 +575,7 @@ static void libblock_remap_foreach_idpair(ID *old_id, ID *new_id, Main *bmain, i
 
   const int skipped_refcounted = old_id->runtime.remap.skipped_refcounted;
   if (old_id->us - skipped_refcounted < 0) {
-    CLOG_ERROR(&LOG,
+    CLOG_ERROR(LOG_LIB_REMAP,
                "Error in remapping process from '%s' (%p) to '%s' (%p): "
                "wrong user count in old ID after process (summing up to %d)",
                old_id->name,

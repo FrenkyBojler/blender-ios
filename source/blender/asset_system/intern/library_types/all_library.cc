@@ -16,8 +16,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"asset.library"};
-
 namespace blender::asset_system {
 
 AllAssetLibrary::AllAssetLibrary() : AssetLibrary(ASSET_LIBRARY_ALL) {}
@@ -45,13 +43,13 @@ void AllAssetLibrary::rebuild_catalogs_from_nested(const bool reload_nested_cata
             /*on_duplicate_items=*/[](const AssetCatalog &existing,
                                       const AssetCatalog &to_be_ignored) {
               if (existing.path == to_be_ignored.path) {
-                CLOG_DEBUG(&LOG,
+                CLOG_DEBUG(LOG_ASSET_LIBRARY,
                            "multiple definitions of catalog %s (path: %s), ignoring duplicate",
                            existing.catalog_id.str().c_str(),
                            existing.path.c_str());
               }
               else {
-                CLOG_ERROR(&LOG,
+                CLOG_ERROR(LOG_ASSET_LIBRARY,
                            "multiple definitions of catalog %s with differing paths (%s vs. %s), "
                            "ignoring second one",
                            existing.catalog_id.str().c_str(),

@@ -67,8 +67,6 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-static CLG_LogRef LOG = {"physics.softbody"};
-
 /* callbacks for errors and interrupts and some goo */
 static int (*SB_localInterruptCallBack)() = nullptr;
 
@@ -221,7 +219,7 @@ static float _final_goal(Object *ob, BodyPoint *bp) /* jow_go_for2_5 */
       return f;
     }
   }
-  CLOG_ERROR(&LOG, "sb or bp == NULL");
+  CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "sb or bp == NULL");
   return f; /* Using crude but spot able values some times helps debugging. */
 }
 
@@ -233,7 +231,7 @@ static float _final_mass(Object *ob, BodyPoint *bp)
       return (bp->mass * sb->nodemass);
     }
   }
-  CLOG_ERROR(&LOG, "sb or bp == NULL");
+  CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "sb or bp == NULL");
   return 1.0f;
 }
 /* Helper functions for everything is animatable jow_go_for2_5. */
@@ -651,7 +649,7 @@ static void add_2nd_order_roller(Object *ob, float /*stiffness*/, int *counter, 
           notthis = bs->v1;
         }
         else {
-          CLOG_ERROR(&LOG, "oops we should not get here");
+          CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "oops we should not get here");
         }
       }
       if (bpo) { /* so now we have a 2nd order humpdidump */
@@ -1013,7 +1011,7 @@ static int sb_detect_aabb_collisionCached(float /*force*/[3], Object *vertexowne
         }
         else {
           /* Aye that should be cached. */
-          CLOG_ERROR(&LOG, "missing cache error");
+          CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "missing cache error");
           BLI_ghashIterator_step(ihash);
           continue;
         }
@@ -1082,7 +1080,7 @@ static int sb_detect_face_pointCached(const float face_v1[3],
         }
         else {
           /* Aye that should be cached. */
-          CLOG_ERROR(&LOG, "missing cache error");
+          CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "missing cache error");
           BLI_ghashIterator_step(ihash);
           continue;
         }
@@ -1180,7 +1178,7 @@ static int sb_detect_face_collisionCached(const float face_v1[3],
         }
         else {
           /* Aye that should be cached. */
-          CLOG_ERROR(&LOG, "missing cache error");
+          CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "missing cache error");
           BLI_ghashIterator_step(ihash);
           continue;
         }
@@ -1361,7 +1359,7 @@ static int sb_detect_edge_collisionCached(const float edge_v1[3],
         }
         else {
           /* Aye that should be cached. */
-          CLOG_ERROR(&LOG, "missing cache error");
+          CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "missing cache error");
           BLI_ghashIterator_step(ihash);
           continue;
         }
@@ -1670,7 +1668,7 @@ static int sb_detect_vertex_collisionCached(float opco[3],
         }
         else {
           /* Aye that should be cached. */
-          CLOG_ERROR(&LOG, "missing cache error");
+          CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "missing cache error");
           BLI_ghashIterator_step(ihash);
           continue;
         }
@@ -1892,7 +1890,7 @@ static void sb_spring_force(Object *ob, int bpi, BodySpring *bs, float iks, floa
   }
   else {
     /* TODO: make this debug option. */
-    CLOG_WARN(&LOG, "bodypoint <bpi> is not attached to spring  <*bs>");
+    CLOG_WARN(LOG_PHYSICS_SOFTBODY, "bodypoint <bpi> is not attached to spring  <*bs>");
     return;
   }
 
@@ -1975,7 +1973,7 @@ static int _softbody_calc_forces_slice_in_a_thread(Scene *scene,
     /* --- could be done on object level to squeeze out the last bits of it */
   }
   else {
-    CLOG_ERROR(&LOG, "expected a SB here");
+    CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "expected a SB here");
     return 999;
   }
 
@@ -3477,7 +3475,7 @@ static void softbody_step(
 
   } /* SOLVER SELECT */
   else {
-    CLOG_ERROR(&LOG, "softbody no valid solver ID!");
+    CLOG_ERROR(LOG_PHYSICS_SOFTBODY, "softbody no valid solver ID!");
   } /* SOLVER SELECT */
   if (sb->plastic) {
     apply_spring_memory(ob);

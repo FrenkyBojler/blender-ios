@@ -59,8 +59,6 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"object.layer"};
-
 /* Set of flags which are dependent on a collection settings. */
 static const short g_base_collection_flags = (BASE_ENABLED_AND_MAYBE_VISIBLE_IN_VIEWPORT |
                                               BASE_ENABLED_AND_VISIBLE_IN_DEFAULT_VIEWPORT |
@@ -370,7 +368,7 @@ static void view_layer_bases_hash_create(ViewLayer *view_layer, const bool do_ba
             BLI_freelinkN(&view_layer->object_bases, base);
           }
           else {
-            CLOG_FATAL(&LOG,
+            CLOG_FATAL(LOG_OBJECT_LAYER,
                        "Object '%s' has more than one entry in view layer's object bases listbase",
                        base->object->id.name + 2);
           }
@@ -864,7 +862,7 @@ static LayerCollectionResync *layer_collection_resync_create_recurse(
     }
   }
 
-  CLOG_DEBUG(&LOG,
+  CLOG_DEBUG(LOG_OBJECT_LAYER,
              "Old LayerCollection for %s is...\n\tusable: %d\n\tvalid parent: %d\n\tvalid child: "
              "%d\n\tused: %d\n",
              layer_resync->collection ? layer_resync->collection->id.name : "<NONE>",
@@ -965,7 +963,7 @@ static void layer_collection_resync_unused_layers_free(ViewLayer *view_layer,
   }
 
   if (!layer_resync->is_used) {
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_OBJECT_LAYER,
                "Freeing unused LayerCollection for %s",
                layer_resync->collection != nullptr ? layer_resync->collection->id.name :
                                                      "<Deleted Collection>");
@@ -1128,13 +1126,13 @@ static void layer_collection_sync(ViewLayer *view_layer,
       BLI_assert(child_layer_resync->is_usable);
 
       if (child_layer_resync->is_used) {
-        CLOG_DEBUG(&LOG,
+        CLOG_DEBUG(LOG_OBJECT_LAYER,
                    "Found same existing LayerCollection for %s as child of %s",
                    child_collection->id.name,
                    layer_resync->collection->id.name);
       }
       else {
-        CLOG_DEBUG(&LOG,
+        CLOG_DEBUG(LOG_OBJECT_LAYER,
                    "Found a valid unused LayerCollection for %s as child of %s, re-using it",
                    child_collection->id.name,
                    layer_resync->collection->id.name);
@@ -1152,7 +1150,7 @@ static void layer_collection_sync(ViewLayer *view_layer,
       BLI_addtail(&new_lb_layer, child_layer_resync->layer);
     }
     else {
-      CLOG_DEBUG(&LOG,
+      CLOG_DEBUG(LOG_OBJECT_LAYER,
                  "No available LayerCollection for %s as child of %s, creating a new one",
                  child_collection->id.name,
                  layer_resync->collection->id.name);
@@ -1258,7 +1256,7 @@ static bool view_layer_objects_base_cache_validate(ViewLayer *view_layer, LayerC
       }
       if (BLI_ghash_lookup(view_layer->object_bases_hash, cob->ob) == nullptr) {
         CLOG_FATAL(
-            &LOG,
+            LOG_OBJECT_LAYER,
             "Object '%s' from collection '%s' has no entry in view layer's object bases cache",
             cob->ob->id.name + 2,
             layer->collection->id.name + 2);

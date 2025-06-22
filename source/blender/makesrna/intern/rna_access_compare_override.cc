@@ -47,8 +47,6 @@
 #include "rna_access_internal.hh"
 #include "rna_internal.hh"
 
-static CLG_LogRef LOG = {"rna.access_compare_override"};
-
 /**
  * Find the actual ID owner of the given \a ptr #PointerRNA, in override sense, and generate the
  * full rna path from it to given \a prop #PropertyRNA if \a rna_path is given.
@@ -377,7 +375,7 @@ static int rna_property_override_diff(Main *bmain,
 
   if (override_diff == nullptr) {
     CLOG_ERROR(
-        &LOG,
+        LOG_RNA_ACCESS_COMPARE_OVERRIDE,
         "'%s' gives unmatching or nullptr RNA diff callbacks, should not happen (%d vs. %d)",
         rna_path ? rna_path : prop_a->identifier,
         !prop_a->is_idprop,
@@ -472,7 +470,7 @@ static bool rna_property_override_operation_store(Main *bmain,
 
   if (override_store == nullptr) {
     CLOG_ERROR(
-        &LOG,
+        LOG_RNA_ACCESS_COMPARE_OVERRIDE,
         "'%s' gives unmatching or nullptr RNA store callbacks, should not happen (%d vs. %d)",
         op->rna_path,
         prop_local->magic == RNA_MAGIC,
@@ -560,7 +558,7 @@ static bool rna_property_override_operation_apply(Main *bmain,
 
   if (override_apply == nullptr) {
     CLOG_ERROR(
-        &LOG,
+        LOG_RNA_ACCESS_COMPARE_OVERRIDE,
         "'%s' gives unmatching or nullptr RNA apply callbacks, should not happen (%d vs. %d)",
         prop_dst->magic != RNA_MAGIC ? ((IDProperty *)prop_dst)->name : prop_dst->identifier,
         prop_dst->magic == RNA_MAGIC,
@@ -746,7 +744,7 @@ bool RNA_struct_override_matches(Main *bmain,
       continue;
     }
 
-    CLOG_DEBUG(&LOG, "Override Checking %s", rna_path->c_str());
+    CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE, "Override Checking %s", rna_path->c_str());
 
     if (ignore_overridden) {
       IDOverrideLibraryProperty *op = BKE_lib_override_library_property_find(liboverride,
@@ -832,7 +830,7 @@ bool RNA_struct_override_matches(Main *bmain,
               const bool is_restored = rna_property_override_operation_apply(bmain, rnaapply_ctx);
 
               if (is_restored) {
-                CLOG_DEBUG(&LOG,
+                CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                            "Restoreed forbidden liboverride `%s` for override data '%s'",
                            rna_path->c_str(),
                            ptr_local->owner_id->name);
@@ -841,7 +839,7 @@ bool RNA_struct_override_matches(Main *bmain,
                 }
               }
               else {
-                CLOG_DEBUG(&LOG,
+                CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                            "Failed to restore forbidden liboverride `%s` for override data '%s'",
                            rna_path->c_str(),
                            ptr_local->owner_id->name);
@@ -874,7 +872,7 @@ bool RNA_struct_override_matches(Main *bmain,
               liboverride->runtime->tag |= LIBOVERRIDE_TAG_NEEDS_RESTORE;
 
               CLOG_DEBUG(
-                  &LOG,
+                  LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                   "Tagging for restoration forbidden liboverride `%s` for override data '%s'",
                   rna_path->c_str(),
                   ptr_local->owner_id->name);
@@ -1287,7 +1285,7 @@ static void rna_property_override_collection_subitem_lookup(
       ((opop->subitem_reference_name != nullptr && opop->subitem_reference_name[0] != '\0') ||
        opop->subitem_reference_index != -1))
   {
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                "Failed to find destination sub-item '%s' (%d) of '%s' in new override data '%s'",
                opop->subitem_reference_name != nullptr ? opop->subitem_reference_name : "",
                opop->subitem_reference_index,
@@ -1298,7 +1296,7 @@ static void rna_property_override_collection_subitem_lookup(
       ((opop->subitem_local_name != nullptr && opop->subitem_local_name[0] != '\0') ||
        opop->subitem_local_index != -1))
   {
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                "Failed to find source sub-item '%s' (%d) of '%s' in old override data '%s'",
                opop->subitem_local_name != nullptr ? opop->subitem_local_name : "",
                opop->subitem_local_index,
@@ -1354,7 +1352,7 @@ static void rna_property_override_check_resync(Main *bmain,
     if (ID_IS_LINKED(id_owner_src)) {
       id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                "Local override %s detected as needing resync due to mismatch in its used IDs",
                id_owner_dst->name);
   }
@@ -1363,7 +1361,7 @@ static void rna_property_override_check_resync(Main *bmain,
     if (ID_IS_LINKED(id_owner_src)) {
       id_owner_src->lib->runtime->tag |= LIBRARY_TAG_RESYNC_REQUIRED;
     }
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                "Local override %s detected as needing resync as its liboverride reference is "
                "already tagged for resync",
                id_owner_dst->name);
@@ -1385,7 +1383,9 @@ static void rna_property_override_apply_ex(Main *bmain,
         !ELEM(opop->operation, LIBOVERRIDE_OP_INSERT_AFTER, LIBOVERRIDE_OP_INSERT_BEFORE))
     {
       if (!do_insert) {
-        CLOG_DEBUG(&LOG, "Skipping insert override operations in first pass (%s)", op->rna_path);
+        CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
+                   "Skipping insert override operations in first pass (%s)",
+                   op->rna_path);
       }
       continue;
     }
@@ -1395,7 +1395,7 @@ static void rna_property_override_apply_ex(Main *bmain,
     rna_property_override_collection_subitem_lookup(rnaapply_ctx);
 
     if (!rna_property_override_operation_apply(bmain, rnaapply_ctx)) {
-      CLOG_DEBUG(&LOG,
+      CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                  "Failed to apply '%s' override operation on %s\n",
                  op->rna_path,
                  rnaapply_ctx.ptr_src.owner_id->name);
@@ -1430,7 +1430,7 @@ static bool override_apply_property_check_skip(Main *bmain,
 
   /* IDProperties case. */
   if (rnaapply_ctx.prop_dst->magic != RNA_MAGIC) {
-    CLOG_DEBUG(&LOG,
+    CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                "%s: Ignoring local override on ID pointer custom property '%s', as requested by "
                "RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
                id_ptr_dst->owner_id->name,
@@ -1448,7 +1448,7 @@ static bool override_apply_property_check_skip(Main *bmain,
         BLI_assert(id_ptr_dst->owner_id == rna_property_override_property_real_id_owner(
                                                bmain, &rnaapply_ctx.ptr_dst, nullptr, nullptr));
 
-        CLOG_DEBUG(&LOG,
+        CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                    "%s: Ignoring local override on ID pointer property '%s', as requested by "
                    "RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
                    id_ptr_dst->owner_id->name,
@@ -1461,7 +1461,7 @@ static bool override_apply_property_check_skip(Main *bmain,
       /* For collections of ID pointers just completely skip the override ops here... A tad brutal,
        * but this is a backup 'fix the mess' tool, and in practice this should never be an issue.
        * Can always be refined later if needed. */
-      CLOG_DEBUG(&LOG,
+      CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                  "%s: Ignoring all local override on ID pointer collection property '%s', as "
                  "requested by RNA_OVERRIDE_APPLY_FLAG_IGNORE_ID_POINTERS flag",
                  id_ptr_dst->owner_id->name,
@@ -1518,7 +1518,7 @@ void RNA_struct_override_apply(Main *bmain,
                                                        &rnaapply_ctx.prop_src,
                                                        &rnaapply_ctx.ptr_item_src)))
       {
-        CLOG_DEBUG(&LOG,
+        CLOG_DEBUG(LOG_RNA_ACCESS_COMPARE_OVERRIDE,
                    "Failed to apply library override operation to '%s.%s' "
                    "(could not resolve some properties, local:  %d, override: %d)",
                    static_cast<ID *>(id_ptr_src->owner_id)->name,

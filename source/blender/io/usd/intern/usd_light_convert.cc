@@ -44,7 +44,6 @@
 #include <string>
 
 #include "CLG_log.h"
-static CLG_LogRef LOG = {"io.usd"};
 
 namespace usdtokens {
 // Attribute values.
@@ -287,7 +286,7 @@ void world_material_to_dome_light(const USDExportParams &params,
     BLI_path_append(dest_path, FILE_MAX, file_path);
 
     if (BLI_copy(source_path.c_str(), dest_path) != 0) {
-      CLOG_WARN(&LOG, "USD Export: Couldn't write world color image to %s", dest_path);
+      CLOG_WARN(LOG_IO_USD, "USD Export: Couldn't write world color image to %s", dest_path);
     }
     else {
       res.env_tex_found = true;
@@ -389,7 +388,6 @@ void dome_light_to_world_material(const USDImportParams &params,
 
   if (!bgshader) {
     bgshader = append_node(output, SH_NODE_BACKGROUND, "Background", "Surface", ntree, 200);
-
     /* Set the default background color. */
     bNodeSocket *color_sock = bke::node_find_socket(*bgshader, SOCK_IN, "Color");
     copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &scene->world->horr);
@@ -442,7 +440,7 @@ void dome_light_to_world_material(const USDImportParams &params,
                  dome_light_data.color.data());
     }
     else {
-      CLOG_WARN(&LOG, "Couldn't find vector multiply second vector socket");
+      CLOG_WARN(LOG_IO_USD, "Couldn't find vector multiply second vector socket");
     }
   }
 
@@ -464,7 +462,7 @@ void dome_light_to_world_material(const USDImportParams &params,
   /* Load the texture image. */
   const std::string &resolved_path = dome_light_data.tex_path.GetResolvedPath();
   if (resolved_path.empty()) {
-    CLOG_WARN(&LOG,
+    CLOG_WARN(LOG_IO_USD,
               "Couldn't get resolved path for asset %s",
               dome_light_data.tex_path.GetAssetPath().c_str());
     return;
@@ -472,7 +470,7 @@ void dome_light_to_world_material(const USDImportParams &params,
 
   Image *image = load_image(resolved_path, bmain, params);
   if (!image) {
-    CLOG_WARN(&LOG, "Couldn't load image file %s", resolved_path.c_str());
+    CLOG_WARN(LOG_IO_USD, "Couldn't load image file %s", resolved_path.c_str());
     return;
   }
 
@@ -485,7 +483,7 @@ void dome_light_to_world_material(const USDImportParams &params,
   pxr::UsdStageRefPtr stage = prim.GetStage();
 
   if (!stage) {
-    CLOG_WARN(&LOG, "Couldn't get stage for dome light %s", prim.GetPath().GetText());
+    CLOG_WARN(LOG_IO_USD, "Couldn't get stage for dome light %s", prim.GetPath().GetText());
     return;
   }
 

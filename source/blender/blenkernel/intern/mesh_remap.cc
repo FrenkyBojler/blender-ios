@@ -37,8 +37,6 @@
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
-static CLG_LogRef LOG = {"geom.mesh"};
-
 /* -------------------------------------------------------------------- */
 /** \name Some Generic Helpers
  * \{ */
@@ -660,7 +658,7 @@ void BKE_mesh_remap_calc_verts_from_mesh(const int mode,
       MEM_freeN(weights);
     }
     else {
-      CLOG_WARN(&LOG, "Unsupported mesh-to-mesh vertex mapping mode (%d)!", mode);
+      CLOG_WARN(LOG_GEOM_MESH, "Unsupported mesh-to-mesh vertex mapping mode (%d)!", mode);
       memset(r_map->items, 0, sizeof(*r_map->items) * size_t(numverts_dst));
     }
   }
@@ -1003,7 +1001,7 @@ void BKE_mesh_remap_calc_edges_from_mesh(const int mode,
       MEM_freeN(weights);
     }
     else {
-      CLOG_WARN(&LOG, "Unsupported mesh-to-mesh edge mapping mode (%d)!", mode);
+      CLOG_WARN(LOG_GEOM_MESH, "Unsupported mesh-to-mesh edge mapping mode (%d)!", mode);
       memset(r_map->items, 0, sizeof(*r_map->items) * size_t(numedges_dst));
     }
   }
@@ -2274,7 +2272,7 @@ void BKE_mesh_remap_calc_faces_from_mesh(const int mode,
       BLI_rng_free(rng);
     }
     else {
-      CLOG_WARN(&LOG, "Unsupported mesh-to-mesh face mapping mode (%d)!", mode);
+      CLOG_WARN(LOG_GEOM_MESH, "Unsupported mesh-to-mesh face mapping mode (%d)!", mode);
       memset(r_map->items, 0, sizeof(*r_map->items) * size_t(faces_dst.size()));
     }
   }

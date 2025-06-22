@@ -98,8 +98,6 @@
 
 namespace blender::ed::outliner {
 
-static CLG_LogRef LOG = {"outliner.tools"};
-
 /* -------------------------------------------------------------------- */
 /** \name ID/Library/Data Set/Un-link Utilities
  * \{ */
@@ -1412,7 +1410,8 @@ static void id_override_library_reset(bContext *C,
   const bool do_hierarchy = data->do_hierarchy;
 
   if (!ID_IS_OVERRIDE_LIBRARY_REAL(id_root) || ID_IS_LINKED(id_root)) {
-    CLOG_WARN(&LOG, "Could not reset library override of data block '%s'", id_root->name);
+    CLOG_WARN(
+        LOG_EDITOR_OUTLINER, "Could not reset library override of data block '%s'", id_root->name);
     return;
   }
 
@@ -1520,7 +1519,9 @@ static void id_override_library_resync(OutlinerLibOverrideData *data, TreeStoreE
   ID *id_root = tselem->id;
 
   if (!ID_IS_OVERRIDE_LIBRARY_REAL(id_root) || ID_IS_LINKED(id_root)) {
-    CLOG_WARN(&LOG, "Could not resync library override of data block '%s'", id_root->name);
+    CLOG_WARN(LOG_EDITOR_OUTLINER,
+              "Could not resync library override of data block '%s'",
+              id_root->name);
     return;
   }
 
@@ -1563,7 +1564,9 @@ static void id_override_library_delete_hierarchy(OutlinerLibOverrideData *data,
   ID *id_root = tselem->id;
 
   if (!ID_IS_OVERRIDE_LIBRARY_REAL(id_root) || ID_IS_LINKED(id_root)) {
-    CLOG_WARN(&LOG, "Could not delete library override of data block '%s'", id_root->name);
+    CLOG_WARN(LOG_EDITOR_OUTLINER,
+              "Could not delete library override of data block '%s'",
+              id_root->name);
     return;
   }
 

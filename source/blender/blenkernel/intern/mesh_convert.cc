@@ -60,8 +60,6 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::StringRefNull;
 
-static CLG_LogRef LOG = {"geom.mesh.convert"};
-
 static Mesh *mesh_nurbs_displist_to_mesh(const Curve *cu, const ListBase *dispbase)
 {
   using namespace blender;
@@ -1022,7 +1020,8 @@ static int find_object_active_key_uid(const Key &key, const Object &object)
   const int active_kb_index = object.shapenr - 1;
   const KeyBlock *kb = (const KeyBlock *)BLI_findlink(&key.block, active_kb_index);
   if (!kb) {
-    CLOG_ERROR(&LOG, "Could not find object's active shapekey %d", active_kb_index);
+    CLOG_ERROR(
+        LOG_GEOM_MESH_CONVERT, "Could not find object's active shapekey %d", active_kb_index);
     return -1;
   }
   return kb->uid;
@@ -1057,7 +1056,9 @@ static void move_shapekey_layers_to_keyblocks(const Mesh &mesh,
       MEM_SAFE_FREE(kb->data);
       kb->totelem = mesh.verts_num;
       kb->data = MEM_calloc_arrayN<float3>(kb->totelem, __func__);
-      CLOG_ERROR(&LOG, "Data for shape key '%s' on mesh missing from evaluated mesh ", kb->name);
+      CLOG_ERROR(LOG_GEOM_MESH_CONVERT,
+                 "Data for shape key '%s' on mesh missing from evaluated mesh ",
+                 kb->name);
     }
   }
 }
@@ -1110,7 +1111,9 @@ void BKE_mesh_nomain_to_mesh(Mesh *mesh_src, Mesh *mesh_dst, Object *ob, bool pr
         move_shapekey_layers_to_keyblocks(*mesh_dst, mesh_src->vert_data, *key_dst, uid_active);
       }
       else if (verts_num_changed) {
-        CLOG_WARN(&LOG, "Shape key data lost when replacing mesh '%s' in Main", mesh_src->id.name);
+        CLOG_WARN(LOG_GEOM_MESH_CONVERT,
+                  "Shape key data lost when replacing mesh '%s' in Main",
+                  mesh_src->id.name);
         id_us_min(&mesh_dst->key->id);
         mesh_dst->key = nullptr;
       }

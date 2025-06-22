@@ -28,8 +28,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"reports"};
-
 void BKE_report_log(eReportType type, const char *message, CLG_LogRef *log)
 {
   switch (type) {
@@ -157,7 +155,7 @@ void BKE_report(ReportList *reports, eReportType type, const char *_message)
   const char *message = RPT_(_message);
 
   if (BKE_reports_print_test(reports, type)) {
-    BKE_report_log(type, message, &LOG);
+    BKE_report_log(type, message, LOG_REPORTS);
     fflush(stdout); /* this ensures the message is printed before a crash */
   }
 
@@ -188,7 +186,7 @@ void BKE_reportf(ReportList *reports, eReportType type, const char *_format, ...
     va_start(args, _format);
     const char *message = BLI_vsprintfN(format, args);
     va_end(args);
-    BKE_report_log(type, message, &LOG);
+    BKE_report_log(type, message, LOG_REPORTS);
     fflush(stdout); /* this ensures the message is printed before a crash */
     MEM_freeN(message);
   }

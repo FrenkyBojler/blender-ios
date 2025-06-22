@@ -102,8 +102,6 @@
 
 #include "versioning_common.hh"
 
-static CLG_LogRef LOG = {"blend.doversion"};
-
 static IDProperty *idproperty_find_ui_container(IDProperty *idprop_group)
 {
   LISTBASE_FOREACH (IDProperty *, prop, &idprop_group->data.group) {
@@ -1811,7 +1809,7 @@ static void version_liboverride_rnacollections_insertion_object_constraints(
 
     if (constraint_src == nullptr) {
       /* Invalid case, just remove that override property operation. */
-      CLOG_ERROR(&LOG, "Could not find source constraint in stored override data");
+      CLOG_ERROR(LOG_BLEND_DOVERSION, "Could not find source constraint in stored override data");
       BKE_lib_override_library_property_operation_delete(op, opop);
       continue;
     }
@@ -1845,7 +1843,7 @@ static void version_liboverride_rnacollections_insertion_object(Object *object)
 
       if (mod_src == nullptr) {
         /* Invalid case, just remove that override property operation. */
-        CLOG_ERROR(&LOG, "Could not find source modifier in stored override data");
+        CLOG_ERROR(LOG_BLEND_DOVERSION, "Could not find source modifier in stored override data");
         BKE_lib_override_library_property_operation_delete(op, opop);
         continue;
       }
@@ -1875,7 +1873,8 @@ static void version_liboverride_rnacollections_insertion_object(Object *object)
 
       if (gp_mod_src == nullptr) {
         /* Invalid case, just remove that override property operation. */
-        CLOG_ERROR(&LOG, "Could not find source GP modifier in stored override data");
+        CLOG_ERROR(LOG_BLEND_DOVERSION,
+                   "Could not find source GP modifier in stored override data");
         BKE_lib_override_library_property_operation_delete(op, opop);
         continue;
       }

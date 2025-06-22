@@ -84,8 +84,6 @@ using blender::Vector;
 
 using namespace blender::bke::id;
 
-static CLG_LogRef LOG = {"lib.id"};
-
 IDTypeInfo IDType_ID_LINK_PLACEHOLDER = {
     /*id_code*/ ID_LINK_PLACEHOLDER,
     /*id_filter*/ 0,
@@ -138,7 +136,7 @@ static bool lib_id_library_local_paths_callback(BPathForeachPathData *bpath_data
   const char *base_old = data[1];
 
   if (BLI_path_is_rel(base_old)) {
-    CLOG_ERROR(&LOG, "old base path '%s' is not absolute.", base_old);
+    CLOG_ERROR(LOG_LIB_ID, "old base path '%s' is not absolute.", base_old);
     return false;
   }
 
@@ -312,7 +310,7 @@ void id_us_ensure_real(ID *id)
     id->tag |= ID_TAG_EXTRAUSER;
     if (id->us <= limit) {
       if (id->us < limit || ((id->us == limit) && (id->tag & ID_TAG_EXTRAUSER_SET))) {
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_LIB_ID,
                    "ID user count error: %s (from '%s')",
                    id->name,
                    id->lib ? id->lib->runtime->filepath_abs : "[Main]");
@@ -367,7 +365,7 @@ void id_us_min(ID *id)
       if (!ID_TYPE_IS_DEPRECATED(GS(id->name))) {
         /* Do not assert on deprecated ID types, we cannot really ensure that their ID
          * reference-counting is valid. */
-        CLOG_ERROR(&LOG,
+        CLOG_ERROR(LOG_LIB_ID,
                    "ID user decrement error: %s (from '%s'): %d <= %d",
                    id->name,
                    id->lib ? id->lib->runtime->filepath_abs : "[Main]",

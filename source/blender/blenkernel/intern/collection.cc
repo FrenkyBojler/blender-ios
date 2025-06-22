@@ -55,8 +55,6 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"object.collection"};
-
 /**
  * Extra asserts that #Collection.gobject_hash is valid which are too slow even for debug mode.
  */
@@ -330,7 +328,7 @@ void BKE_collection_blend_read_data(BlendDataReader *reader, Collection *collect
      * do_version takes place. Keeping it here also ensures future (or unknown existing) similar
      * bugs won't go easily unnoticed. */
     if (BLO_read_fileversion_get(reader) > 300) {
-      CLOG_WARN(&LOG,
+      CLOG_WARN(LOG_OBJECT_COLLECTION,
                 "Fixing root node tree '%s' owned by '%s' missing EMBEDDED tag, please consider "
                 "re-saving your (startup) file",
                 collection->id.name,

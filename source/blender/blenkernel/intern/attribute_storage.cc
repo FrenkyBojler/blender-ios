@@ -21,8 +21,6 @@
 #include "BKE_attribute_storage.hh"
 #include "BKE_attribute_storage_blend_write.hh"
 
-static CLG_LogRef LOG = {"geom.attribute"};
-
 namespace blender::bke {
 
 class ArrayDataImplicitSharing : public ImplicitSharingInfo {
@@ -503,7 +501,8 @@ void AttributeStorage::blend_read(BlendDataReader &reader)
     attribute->data_ = std::move(*data);
 
     if (!this->runtime->attributes.add(std::move(attribute))) {
-      CLOG_ERROR(&LOG, "Ignoring attribute with duplicate name: \"%s\"", dna_attr.name);
+      CLOG_ERROR(
+          LOG_GEOM_ATTRIBUTE, "Ignoring attribute with duplicate name: \"%s\"", dna_attr.name);
     }
   }
 

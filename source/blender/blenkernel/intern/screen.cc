@@ -58,8 +58,6 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG_BLEND_DOVERSION = {"blend.doversion"};
-
 using blender::Span;
 using blender::StringRef;
 using blender::Vector;
@@ -1449,7 +1447,7 @@ static void regions_remove_invalid(SpaceType *space_type, ListBase *regionbase)
       continue;
     }
 
-    CLOG_WARN(&LOG_BLEND_DOVERSION,
+    CLOG_WARN(LOG_BLEND_DOVERSION,
               "Region type %d missing in space type \"%s\" (id: %d) - removing region",
               region->regiontype,
               space_type->name,

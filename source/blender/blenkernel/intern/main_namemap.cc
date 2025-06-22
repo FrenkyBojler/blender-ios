@@ -30,8 +30,6 @@
 
 #include <fmt/format.h>
 
-static CLG_LogRef LOG = {"lib.main_namemap"};
-
 // #define DEBUG_PRINT_MEMORY_USAGE
 
 using namespace blender;
@@ -497,7 +495,7 @@ static bool id_name_final_build(UniqueName_TypeMap &type_map,
    * It is not expected to ever be reached in practice. It is also virtually impossible to actually
    * test that case, given the enormous amount of IDs that would need to be created before it is
    * reached. */
-  CLOG_ERROR(&LOG,
+  CLOG_ERROR(LOG_LIB_MAIN_NAMEMAP,
              "Impossible to find an available name for '%s' base name, even by editing that base "
              "name. This should never happen in real-life scenarii. Now trying to brute-force "
              "generate random names until a free one is found.",
@@ -648,7 +646,7 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
       if (!id_names_libs.add(key)) {
         is_valid = false;
         if (do_fix) {
-          CLOG_WARN(&LOG,
+          CLOG_WARN(LOG_LIB_MAIN_NAMEMAP,
                     "ID name '%s' (from library '%s') is found more than once",
                     id_iter->name,
                     id_iter->lib != nullptr ? id_iter->lib->filepath : "<None>");
@@ -666,17 +664,17 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
           if (!id_names_libs.add(key)) {
             /* This is a serious error, very likely a bug, keep it as CLOG_ERROR even when doing
              * fixes. */
-            CLOG_ERROR(&LOG,
+            CLOG_ERROR(LOG_LIB_MAIN_NAMEMAP,
                        "\tID has been renamed to '%s', but it still seems to be already in use",
                        id_iter->name);
           }
           else {
-            CLOG_WARN(&LOG, "\tID has been renamed to '%s'", id_iter->name);
+            CLOG_WARN(LOG_LIB_MAIN_NAMEMAP, "\tID has been renamed to '%s'", id_iter->name);
             id_validated.add(id_iter);
           }
         }
         else {
-          CLOG_ERROR(&LOG,
+          CLOG_ERROR(LOG_LIB_MAIN_NAMEMAP,
                      "ID name '%s' (from library '%s') is found more than once",
                      id_iter->name,
                      id_iter->lib != nullptr ? id_iter->lib->filepath : "<None>");
@@ -695,7 +693,7 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
         is_valid = false;
         if (do_fix) {
           CLOG_WARN(
-              &LOG,
+              LOG_LIB_MAIN_NAMEMAP,
               "ID name '%s' (from library '%s') exists in current Main, but is not listed in "
               "the namemap",
               id_iter->name,
@@ -703,7 +701,7 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
         }
         else {
           CLOG_ERROR(
-              &LOG,
+              LOG_LIB_MAIN_NAMEMAP,
               "ID name '%s' (from library '%s') exists in current Main, but is not listed in "
               "the namemap",
               id_iter->name,
@@ -729,14 +727,14 @@ static bool main_namemap_validate_and_fix(Main &bmain, const bool do_fix)
           if (!id_names_libs.contains(key)) {
             is_valid = false;
             if (do_fix) {
-              CLOG_WARN(&LOG,
+              CLOG_WARN(LOG_LIB_MAIN_NAMEMAP,
                         "ID name '%s' (from library '%s') is listed in the namemap, but does not "
                         "exists in current Main",
                         key.name.c_str(),
                         lib != nullptr ? lib->filepath : "<None>");
             }
             else {
-              CLOG_ERROR(&LOG,
+              CLOG_ERROR(LOG_LIB_MAIN_NAMEMAP,
                          "ID name '%s' (from library '%s') is listed in the namemap, but does not "
                          "exists in current Main",
                          key.name.c_str(),
