@@ -129,6 +129,10 @@ struct TrianglesCache {
   void tag_dirty();
 };
 
+struct MultiresRuntime {
+  Vector<Vector<float3>> disp_at_level;
+};
+
 struct MeshRuntime {
   /**
    * "Evaluated" mesh owned by this mesh. Used for objects which don't have effective modifiers, so
@@ -271,6 +275,8 @@ struct MeshRuntime {
 
   /** Stores weak references to material data blocks. */
   std::unique_ptr<bake::BakeMaterialsList> bake_materials;
+
+  MultiresRuntime multires_runtime;
 
   MeshRuntime();
   ~MeshRuntime();

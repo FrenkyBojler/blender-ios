@@ -174,6 +174,10 @@ void multiresModifier_subdivide_to_level(Object *object,
                                          MultiresModifierData *mmd,
                                          int top_level,
                                          MultiresSubdivideModeType mode);
+void multiresModifier_subdivide_to_level_v2(Object *object,
+                                            MultiresModifierData *mmd,
+                                            int top_level,
+                                            MultiresSubdivideModeType mode);
 
 /* Subdivision integration, defined in multires_subdiv.cc */
 

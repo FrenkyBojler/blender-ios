@@ -19,6 +19,11 @@
 
 #include "multires_reshape.hh"
 
+#include "BKE_mesh_types.hh"
+
+static const int multires_grid_tot[] = {
+    0, 4, 9, 25, 81, 289, 1089, 4225, 16641, 66049, 263169, 1050625, 4198401, 16785409};
+
 /* -------------------------------------------------------------------- */
 /** \name Reshape from object
  * \{ */
@@ -212,6 +217,83 @@ void multiresModifier_subdivide_to_level(Object *object,
   else {
     multires_reshape_smooth_object_grids_with_details(&reshape_context);
   }
+
+  multires_reshape_object_grids_to_tangent_displacement(&reshape_context);
+  multires_reshape_context_free(&reshape_context);
+
+  multires_set_tot_level(object, mmd, top_level);
+}
+
+void multiresModifier_subdivide_to_level_v2(Object *object,
+                                            MultiresModifierData *mmd,
+                                            int top_level,
+                                            MultiresSubdivideModeType mode)
+{
+
+  if (top_level <= mmd->totlvl) {
+    return;
+  }
+  if (ELEM(mode, MultiresSubdivideModeType::Linear, MultiresSubdivideModeType::Simple)) {
+    /* Ignore non-catmull clark subdivision for now */
+    return;
+  }
+
+  Mesh *coarse_mesh = static_cast<Mesh *>(object->data);
+  if (coarse_mesh->corners_num == 0) {
+    /* If there are no loops in the mesh implies there is no CD_MDISPS as well. So can early output
+     * from here as there is nothing to subdivide. */
+    return;
+  }
+
+  MultiresReshapeContext reshape_context;
+
+  /* There was no multires at all, all displacement is at 0. Can simply make sure all mdisps grids
+   * are allocated at a proper level and return. */
+  const bool has_mdisps = CustomData_has_layer(&coarse_mesh->corner_data, CD_MDISPS);
+  if (!has_mdisps) {
+    CustomData_add_layer(
+        &coarse_mesh->corner_data, CD_MDISPS, CD_SET_DEFAULT, coarse_mesh->corners_num);
+  }
+
+  /* Create layer for new level. */
+  blender::bke::MultiresRuntime &multires_runtime = coarse_mesh->runtime->multires_runtime;
+  const int level_idx = top_level - 1;
+  BLI_assert(level_idx >= 0);
+  if (top_level > multires_runtime.disp_at_level.size()) {
+    printf("Creating new runtime layer (Current: %lld, Requested: %d)\n", multires_runtime.disp_at_level.size(), top_level);
+    blender::Vector<blender::float3> level_disp(multires_grid_tot[top_level] * coarse_mesh->corners_num);
+    multires_runtime.disp_at_level.append(std::move(level_disp));
+  }
+
+  /* NOTE: Subdivision happens from the top level of the existing multires modifier. If it is set
+   * to 0 and there is mdisps layer it would mean that the modifier went out of sync with the data.
+   * This happens when, for example, linking modifiers from one object to another.
+   *
+   * In such cases simply ensure grids to be the proper level.
+   *
+   * If something smarter is needed it is up to the operators which does data synchronization, so
+   * that the mdisps layer is also synchronized. */
+  if (!has_mdisps || top_level == 1 || mmd->totlvl == 0) {
+    multires_set_tot_level(object, mmd, top_level);
+    return;
+  }
+
+  multires_flush_sculpt_updates(object);
+
+  if (!multires_reshape_context_create_from_modifier(&reshape_context, object, mmd, top_level)) {
+    return;
+  }
+
+  multires_reshape_store_original_grids(&reshape_context);
+  multires_reshape_ensure_grids(coarse_mesh, reshape_context.top.level);
+  multires_reshape_assign_final_elements_from_orig_mdisps(&reshape_context);
+
+  /* Free original grids which makes it so smoothing with details thinks all the details were
+   * added against base mesh's limit surface. This is similar behavior to as if we've done all
+   * displacement in sculpt mode at the old top level and then propagated to the new top level. */
+  multires_reshape_free_original_grids(&reshape_context);
+
+  multires_reshape_smooth_object_grids_with_details(&reshape_context);
 
   multires_reshape_object_grids_to_tangent_displacement(&reshape_context);
   multires_reshape_context_free(&reshape_context);
