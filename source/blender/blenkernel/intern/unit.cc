@@ -1759,15 +1759,22 @@ static size_t unit_as_string_split_pair(char *str,
 
   /* Check the 2 is a smaller unit. */
   if (unit_b > unit_a) {
+    const bool strip_skip = prec < 0;
+    /* Always strip zeroes for the larger unit (negative `prec` disables it). */
+    prec = abs(prec);
     size_t i = unit_as_string(str, str_maxncpy, value_a, prec, usys, unit_a, '\0');
 
-    prec -= integer_digits_d(value_a / unit_b->scalar) -
-            integer_digits_d(value_b / unit_b->scalar);
+    prec -= max_ii(integer_digits_d(value_a / unit_b->scalar) -
+                       integer_digits_d(value_b / unit_b->scalar),
+                   0);
     prec = max_ii(prec, 0);
 
     /* Is there enough space for at least 1 char of the next unit? */
     if (i + 2 < str_maxncpy) {
       str[i++] = ' ';
+
+      /* Restore "strip skip" state stored above. */
+      prec = strip_skip ? -prec : prec;
 
       /* Use low precision since this is a smaller unit. */
       i += unit_as_string(str + i, str_maxncpy - i, value_b, prec, usys, unit_b, '\0');
@@ -1851,10 +1858,12 @@ static size_t unit_as_string_main(char *str,
 
   if (split && unit_should_be_split(type)) {
     int length = unit_as_string_split_pair(str, str_maxncpy, value, prec, usys, main_unit);
-    /* Failed when length is negative, fall back to no split. */
+    /* Split failed when length is negative, fall back to no split. */
     if (length >= 0) {
       return length;
     }
+    /* Strip zeroes to match behavior when split succeeds (negative `prec` disables it). */
+    prec = abs(prec);
   }
 
   return unit_as_string(str, str_maxncpy, value, prec, usys, main_unit, pad ? ' ' : '\0');
