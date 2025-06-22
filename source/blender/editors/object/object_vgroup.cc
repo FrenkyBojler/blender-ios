@@ -2315,25 +2315,26 @@ static void vgroup_assign_verts(Object *ob, Scene &scene, const float weight)
       BMEditMesh *em = mesh->runtime->edit_mesh.get();
       int cd_dvert_offset;
 
-      BMIter iter;
-      BMVert *eve;
+      std::optional<EditMeshSymmetryHelper> symmetry_helper =
+          EditMeshSymmetryHelper::create_if_needed(ob);
 
       if (!CustomData_has_layer(&em->bm->vdata, CD_MDEFORMVERT)) {
         BM_data_layer_add(em->bm, &em->bm->vdata, CD_MDEFORMVERT);
       }
-
       cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
 
-      /* Go through the list of edit-vertices and assign them. */
+      BMIter iter;
+      BMVert *eve;
       BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
         if (BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
-          MDeformVert *dv;
-          MDeformWeight *dw;
-          dv = static_cast<MDeformVert *>(
-              BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset)); /* can be nullptr */
-          dw = BKE_defvert_ensure_index(dv, def_nr);
+          MDeformVert *dv = static_cast<MDeformVert *>(
+              BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset));
+          MDeformWeight *dw = BKE_defvert_ensure_index(dv, def_nr);
           if (dw) {
             dw->weight = weight;
+          }
+          if (symmetry_helper) {
+            symmetry_helper->assign_weight_on_mirror_verts(eve, def_nr, weight);
           }
         }
       }
@@ -2810,13 +2811,36 @@ static int vertex_group_remove_from_exec(bContext *C, wmOperator *op)
       return OPERATOR_CANCELLED;
     }
 
-    if (ob->type == OB_GREASE_PENCIL) {
-      grease_pencil_clear_from_vgroup(scene, *ob, dg, !use_all_verts);
+    if (ob->type == OB_MESH && BKE_object_is_in_editmode(ob)) {
+      Mesh *mesh = static_cast<Mesh *>(ob->data);
+      BMEditMesh *em = mesh->runtime->edit_mesh.get();
+      int cd_dvert_offset = CustomData_get_offset(&em->bm->vdata, CD_MDEFORMVERT);
+      if (cd_dvert_offset == -1) {
+        return OPERATOR_CANCELLED;
+      }
+
+      std::optional<EditMeshSymmetryHelper> symmetry_helper =
+          EditMeshSymmetryHelper::create_if_needed(ob);
+      const int def_nr = BKE_object_defgroup_active_index_get(ob) - 1;
+
+      BMIter iter;
+      BMVert *eve;
+      BM_ITER_MESH (eve, &iter, em->bm, BM_VERTS_OF_MESH) {
+        if (!use_all_verts && !BM_elem_flag_test(eve, BM_ELEM_SELECT)) {
+          continue;
+        }
+        MDeformVert *dv = static_cast<MDeformVert *>(BM_ELEM_CD_GET_VOID_P(eve, cd_dvert_offset));
+        MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
+        if (dw) {
+          BKE_defvert_remove_group(dv, dw);
+
+          if (symmetry_helper) {
+            symmetry_helper->remove_weight_on_mirror_verts(eve, def_nr);
+          }
+        }
+      }
     }
-    else if (BKE_object_defgroup_clear(ob, dg, !use_all_verts) == false) {
-      return OPERATOR_CANCELLED;
     }
-  }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
