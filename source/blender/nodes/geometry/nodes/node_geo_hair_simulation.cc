@@ -456,6 +456,17 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
   return false;
 }
 
+struct LazyFunctionIndices {
+  struct {
+    Vector<int> main_indices;
+    Vector<int> output_usage_indices;
+  } inputs;
+  struct {
+    Vector<int> main_indices;
+    Vector<int> input_usage_indices;
+  } outputs;
+};
+
 struct ClosureInputItem {
   StringRef name;
   eNodeSocketDatatype type;
@@ -465,14 +476,71 @@ struct ClosureOutputItem {
   eNodeSocketDatatype type;
 };
 
-static void create_closure(fn::lazy_function::LazyFunction *body_fn,
-                           const Span<int> input_indices,
-                           const Span<int> input_indices_for_output_usage,
-                           const Span<int> output_indices,
-                           const Span<int> output_indices_for_input_usage,
-                           const Span<ClosureInputItem> inputs,
-                           const Span<ClosureOutputItem> outputs,
-                           GeoNodesUserData *user_data)
+class LazyFunctionForCurveConstraintUpdatePassThrough : public LazyFunction {
+ private:
+  int input_stretch_index_, input_bend_index_;
+  int output_stretch_index_, output_bend_index_;
+  // XXX Redundant with indices above, used to set some outputs automatically.
+  LazyFunctionIndices lf_indices_;
+
+ public:
+  template<typename T> int add_input(const char *name, LazyFunctionIndices &lf_indices)
+  {
+    const int main_index = inputs_.append_and_get_index_as(
+        name, CPPType::get<T>(), lf::ValueUsage::Maybe);
+    const int used_index = outputs_.append_and_get_index_as("Usage", CPPType::get<bool>());
+    lf_indices.inputs.main_indices.append(main_index);
+    lf_indices.outputs.input_usage_indices.append(used_index);
+    return main_index;
+  }
+
+  template<typename T> int add_output(const char *name, LazyFunctionIndices &lf_indices)
+  {
+    const int main_index = outputs_.append_and_get_index_as(name, CPPType::get<T>());
+    const int used_index = inputs_.append_and_get_index_as(
+        "Usage", CPPType::get<bool>(), lf::ValueUsage::Maybe);
+    lf_indices.outputs.main_indices.append(main_index);
+    lf_indices.inputs.output_usage_indices.append(used_index);
+    return main_index;
+  }
+
+  LazyFunctionForCurveConstraintUpdatePassThrough(const char *debug_name,
+                                                  LazyFunctionIndices &lf_indices,
+                                                  Vector<ClosureInputItem> &input_items,
+                                                  Vector<ClosureOutputItem> &output_items)
+  {
+    debug_name_ = debug_name;
+
+    input_stretch_index_ = add_input<GeometrySet>("Stretch Constraints", lf_indices);
+    input_bend_index_ = add_input<GeometrySet>("Bend Constraints", lf_indices);
+    output_stretch_index_ = add_output<GeometrySet>("Stretch Constraints", lf_indices);
+    output_bend_index_ = add_output<GeometrySet>("Bend Constraints", lf_indices);
+    lf_indices_ = lf_indices;
+
+    input_items.append(ClosureInputItem{"Stretch Constraints", SOCK_GEOMETRY});
+    input_items.append(ClosureInputItem{"Bend Constraints", SOCK_GEOMETRY});
+    output_items.append(ClosureOutputItem{"Stretch Constraints", SOCK_GEOMETRY});
+    output_items.append(ClosureOutputItem{"Bend Constraints", SOCK_GEOMETRY});
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context &context) const override
+  {
+    // const ScopedNodeTimer node_timer{context, node_};
+
+    GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
+    BLI_assert(user_data != nullptr);
+
+    GeometrySet stretch_constraints = params.get_input<GeometrySet>(input_stretch_index_);
+    GeometrySet bend_constraints = params.get_input<GeometrySet>(input_bend_index_);
+    params.set_output(output_stretch_index_, std::move(stretch_constraints));
+    params.set_output(output_bend_index_, std::move(bend_constraints));
+  }
+};
+
+static ClosurePtr create_closure_for_lazy_function(const fn::lazy_function::LazyFunction *body_fn,
+                                                   const LazyFunctionIndices &lf_indices,
+                                                   const Span<ClosureInputItem> inputs,
+                                                   const Span<ClosureOutputItem> outputs)
 {
   std::shared_ptr<ClosureSignature> closure_signature = std::make_shared<ClosureSignature>();
   for (const ClosureInputItem &item : inputs) {
@@ -483,13 +551,6 @@ static void create_closure(fn::lazy_function::LazyFunction *body_fn,
     const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.type);
     closure_signature->outputs.append({SocketInterfaceKey(item.name), stype});
   }
-
-  ///* All border links are captured currently. */
-  // for (const int i : zone_.border_links.index_range()) {
-  //   params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
-  // }
-
-  // const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(output_bnode_.storage);
 
   std::unique_ptr<ResourceScope> closure_scope = std::make_unique<ResourceScope>();
 
@@ -504,11 +565,11 @@ static void create_closure(fn::lazy_function::LazyFunction *body_fn,
     const CPPType &cpp_type = *stype->geometry_nodes_cpp_type;
 
     lf::GraphInputSocket &lf_graph_input = lf_graph.add_input(cpp_type, item.name);
-    lf_graph.add_link(lf_graph_input, lf_body_node.input(input_indices[i]));
+    lf_graph.add_link(lf_graph_input, lf_body_node.input(lf_indices.inputs.main_indices[i]));
 
     lf::GraphOutputSocket &lf_graph_input_usage = lf_graph.add_output(
         CPPType::get<bool>(), "Usage: " + StringRef(item.name));
-    lf_graph.add_link(lf_body_node.output(output_indices_for_input_usage[i]),
+    lf_graph.add_link(lf_body_node.output(lf_indices.outputs.input_usage_indices[i]),
                       lf_graph_input_usage);
 
     void *default_value = closure_scope->allocate_owned(cpp_type);
@@ -525,71 +586,21 @@ static void create_closure(fn::lazy_function::LazyFunction *body_fn,
     const CPPType &cpp_type = *stype->geometry_nodes_cpp_type;
 
     lf::GraphOutputSocket &lf_graph_output = lf_graph.add_output(cpp_type, item.name);
-    lf_graph.add_link(lf_body_node.output(output_indices[i]), lf_graph_output);
+    lf_graph.add_link(lf_body_node.output(lf_indices.outputs.main_indices[i]), lf_graph_output);
 
     lf::GraphInputSocket &lf_graph_output_usage = lf_graph.add_input(
         CPPType::get<bool>(), "Usage: " + StringRef(item.name));
     lf_graph.add_link(lf_graph_output_usage,
-                      lf_body_node.input(input_indices_for_output_usage[i]));
+                      lf_body_node.input(lf_indices.inputs.output_usage_indices[i]));
   }
   closure_indices.outputs.main = lf_graph.graph_outputs().index_range().take_back(outputs.size());
   closure_indices.inputs.output_usages = lf_graph.graph_inputs().index_range().take_back(
       outputs.size());
 
-  // for (const int i : zone_.border_links.index_range()) {
-  //   const CPPType &cpp_type = *zone_.border_links[i]->tosock->typeinfo->geometry_nodes_cpp_type;
-  //   void *input_ptr = params.try_get_input_data_ptr(zone_info_.indices.inputs.border_links[i]);
-  //   void *stored_ptr = closure_scope->allocate_owned(cpp_type);
-  //   cpp_type.move_construct(input_ptr, stored_ptr);
-  //   lf_body_node.input(body_fn_.indices.inputs.border_links[i]).set_default_value(stored_ptr);
-  // }
-
-  // for (const auto &item : body_fn_.indices.inputs.reference_sets.items()) {
-  //   const ReferenceSetInfo &reference_set =
-  //       btree_.runtime->reference_lifetimes_info->reference_sets[item.key];
-  //   if (reference_set.type == ReferenceSetType::ClosureOutputData) {
-  //     const bNodeSocket &socket = *reference_set.socket;
-  //     const bNode &node = socket.owner_node();
-  //     if (&node == zone_.output_node()) {
-  //       /* This reference set is passed in by the code that invokes the closure. */
-  //       lf::GraphInputSocket &lf_graph_input = lf_graph.add_input(
-  //           CPPType::get<bke::GeometryNodesReferenceSet>(),
-  //           StringRef("Reference Set: ") + reference_set.socket->name);
-  //       lf_graph.add_link(
-  //           lf_graph_input,
-  //           lf_body_node.input(body_fn_.indices.inputs.reference_sets.lookup(item.key)));
-  //       closure_indices.inputs.output_data_reference_sets.add_new(reference_set.socket->index(),
-  //                                                                 lf_graph_input.index());
-  //       continue;
-  //     }
-  //   }
-
-  //  auto &input_reference_set = *params.try_get_input_data_ptr<bke::GeometryNodesReferenceSet>(
-  //      zone_info_.indices.inputs.reference_sets.lookup(item.key));
-  //  auto &stored = closure_scope->construct<bke::GeometryNodesReferenceSet>(
-  //      std::move(input_reference_set));
-  //  lf_body_node.input(body_fn_.indices.inputs.reference_sets.lookup(item.key))
-  //      .set_default_value(&stored);
-  //}
-
-  // const bNodeTree &btree_orig = *DEG_get_original(&btree_);
-  // if (btree_orig.runtime->logged_zone_graphs) {
-  //   std::lock_guard lock{btree_orig.runtime->logged_zone_graphs->mutex};
-  //   btree_orig.runtime->logged_zone_graphs->graph_by_zone_id.lookup_or_add_cb(
-  //       output_bnode_.identifier, [&]() { return lf_graph.to_dot(); });
-  // }
-
   lf_graph.update_node_indices();
 
-  // const auto &side_effect_provider =
-  //     closure_scope->construct<ClosureIntermediateGraphSideEffectProvider>(lf_body_node);
   lf::GraphExecutor &lf_graph_executor = closure_scope->construct<lf::GraphExecutor>(
-      lf_graph, nullptr, nullptr /*&side_effect_provider*/, nullptr);
-  // ClosureSourceLocation source_location{
-  //     &btree_,
-  //     output_bnode_.identifier,
-  //     user_data.compute_context->hash(),
-  // };
+      lf_graph, nullptr, nullptr, nullptr);
   ClosurePtr closure{MEM_new<Closure>(__func__,
                                       closure_signature,
                                       std::move(closure_scope),
@@ -599,13 +610,18 @@ static void create_closure(fn::lazy_function::LazyFunction *body_fn,
                                       std::nullopt /*source_location*/,
                                       std::make_shared<ClosureEvalLog>())};
 
-  // params.set_output(zone_info_.indices.outputs.main[0],
-  //                   bke::SocketValueVariant(std::move(closure)));
+  return closure;
 }
 
-static ClosurePtr create_root_constraint_update_closure()
+static ClosurePtr create_curve_constraint_update_closure()
 {
-  return nullptr;
+  static LazyFunctionIndices lf_indices;
+  static Vector<ClosureInputItem> input_items;
+  static Vector<ClosureOutputItem> output_items;
+  static const auto *body_fn = MEM_new<LazyFunctionForCurveConstraintUpdatePassThrough>(
+      __func__, "Curve Constraint Update Closure", lf_indices, input_items, output_items);
+
+  return create_closure_for_lazy_function(body_fn, lf_indices, input_items, output_items);
 }
 
 /**
@@ -653,14 +669,14 @@ struct Behavior {
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
 
-    ClosurePtr update = nullptr;
+    ClosurePtr update = create_curve_constraint_update_closure();
   } curve_constraints;
 
   struct {
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
 
-    ClosurePtr update = create_root_constraint_update_closure();
+    ClosurePtr update = nullptr;
   } root_constraints;
 };
 
