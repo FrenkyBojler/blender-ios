@@ -148,7 +148,7 @@ void multiresModifier_subdivide(Object *object,
                                 const MultiresSubdivideModeType mode)
 {
   const int top_level = mmd->totlvl + 1;
-  multiresModifier_subdivide_to_level(object, mmd, top_level, mode);
+  multiresModifier_subdivide_to_level_v2(object, mmd, top_level, mode);
 }
 
 void multiresModifier_subdivide_to_level(Object *object,
@@ -263,6 +263,7 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
     printf("Creating new runtime layer (Current: %lld, Requested: %d)\n", multires_runtime.disp_at_level.size(), top_level);
     blender::Vector<blender::float3> level_disp(multires_grid_tot[top_level] * coarse_mesh->corners_num);
     multires_runtime.disp_at_level.append(std::move(level_disp));
+    printf("Resulting size: %lld, Addr: %p\n", multires_runtime.disp_at_level.size(), &multires_runtime);
   }
 
   /* NOTE: Subdivision happens from the top level of the existing multires modifier. If it is set
