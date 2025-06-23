@@ -1227,10 +1227,10 @@ context_type_map = {
     "particle_settings": [("ParticleSettings", False)],
     "particle_system": [("ParticleSystem", False)],
     "particle_system_editable": [("ParticleSystem", False)],
-    "property": [("AnyType", False), ("str", False), ("int", False)],
     "pointcloud": [("PointCloud", False)],
     "pose_bone": [("PoseBone", False)],
     "pose_object": [("Object", False)],
+    "property": [("AnyType", False), ("str", False), ("int", False)],
     "scene": [("Scene", False)],
     "sculpt_object": [("Object", False)],
     "selectable_objects": [("Object", True)],
@@ -1275,6 +1275,13 @@ context_type_map = {
     "volume": [("Volume", False)],
     "world": [("World", False)],
 }
+
+if bpy.app.build_options.experimental_features:
+    for key, value in {
+        # No experimental members in context currently.
+    }.items():
+        assert key not in context_type_map, "Duplicate, the member must be removed from one of the dictionaries"
+        context_type_map[key] = value
 
 
 def pycontext2sphinx(basepath):

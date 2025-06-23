@@ -809,8 +809,11 @@ class USERPREF_PT_system_memory(SystemPanel, CenterAlignMixIn, Panel):
 
         if sys.platform != "darwin":
             layout.separator()
-            col = layout.column()
-            col.prop(system, "max_shader_compilation_subprocesses")
+            col = layout.column(align=True)
+            col.active = system.gpu_backend != 'VULKAN'
+            col.row().prop(system, "shader_compilation_method", expand=True)
+            label = "Threads" if system.shader_compilation_method == 'THREAD' else "Subprocesses"
+            col.prop(system, "gpu_shader_workers", text=label)
 
 
 class USERPREF_PT_system_video_sequencer(SystemPanel, CenterAlignMixIn, Panel):
@@ -903,17 +906,6 @@ class USERPREF_PT_viewport_textures(ViewportPanel, CenterAlignMixIn, Panel):
         col.prop(system, "anisotropic_filter")
         col.prop(system, "gl_clip_alpha", slider=True)
         col.prop(system, "image_draw_method", text="Image Display Method")
-
-
-class USERPREF_PT_viewport_selection(ViewportPanel, CenterAlignMixIn, Panel):
-    bl_label = "Selection"
-    bl_options = {'DEFAULT_CLOSED'}
-
-    def draw_centered(self, context, layout):
-        prefs = context.preferences
-        system = prefs.system
-
-        layout.prop(system, "use_select_pick_depth")
 
 
 class USERPREF_PT_viewport_subdivision(ViewportPanel, CenterAlignMixIn, Panel):
@@ -2072,25 +2064,17 @@ class USERPREF_PT_ndof_settings(Panel):
 
     @staticmethod
     def draw_settings(layout, props, show_3dview_settings=True):
-        col = layout.column()
-        col.prop(props, "ndof_sensitivity", text="Pan Sensitivity")
-        col.prop(props, "ndof_orbit_sensitivity")
-        col.prop(props, "ndof_deadzone")
 
         layout.separator()
 
         if show_3dview_settings:
             col = layout.column()
-            col.row().prop(props, "ndof_view_navigate_method", expand=True, text="Navigation")
-            col.row().prop(props, "ndof_view_rotate_method", expand=True, text="Rotation")
+            col.row().prop(props, "ndof_navigation_mode", text="Navigation Mode")
+            col.prop(props, "ndof_lock_horizon", text="Lock Horizon")
 
             layout.separator()
 
         if show_3dview_settings:
-            col = layout.column(heading="Show Guides")
-            col.prop(props, "ndof_show_guide_orbit_axis", text="Orbit Axis")
-            col.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
-
             col = layout.column(heading="Orbit Center")
             col.prop(props, "ndof_orbit_center_auto")
             colsub = col.column()
@@ -2099,36 +2083,43 @@ class USERPREF_PT_ndof_settings(Panel):
             del colsub
             col.separator()
 
-        col = layout.column(heading="Zoom")
-        col.prop(props, "ndof_zoom_invert")
-        col.prop(props, "ndof_lock_camera_pan_zoom")
-        row = col.row(heading="Pan")
-        row.prop(props, "ndof_pan_yz_swap_axis", text="Swap Y and Z Axes")
+            col = layout.column(heading="Show")
+            col.prop(props, "ndof_show_guide_orbit_axis", text="Orbit Axis")
+            col.prop(props, "ndof_show_guide_orbit_center", text="Orbit Center")
 
         layout.separator()
 
-        row = layout.row(heading=("Invert Axis Pan" if show_3dview_settings else "Invert Pan Axis"))
-        for text, attr in (
-                ("X", "ndof_panx_invert_axis"),
-                ("Y", "ndof_pany_invert_axis"),
-                ("Z", "ndof_panz_invert_axis"),
-        ):
-            row.prop(props, attr, text=text, toggle=True)
+        layout_header, layout_advanced = layout.panel("NDOF_advanced", default_closed=True)
+        layout_header.label(text="Advanced")
+        if layout_advanced:
+            col = layout_advanced.column()
+            col.prop(props, "ndof_sensitivity", text="Pan Sensitivity")
+            col.prop(props, "ndof_orbit_sensitivity")
+            col.prop(props, "ndof_deadzone")
 
-        if show_3dview_settings:
-            row = layout.row(heading="Orbit")
+            col.separator()
+            col.row().prop(props, "ndof_zoom_direction", expand=True)
+            col.separator()
+
+            row = col.row(heading=("Invert Pan" if show_3dview_settings else "Invert Pan Axis"))
             for text, attr in (
-                    ("X", "ndof_rotx_invert_axis"),
-                    ("Y", "ndof_roty_invert_axis"),
-                    ("Z", "ndof_rotz_invert_axis"),
+                    ("X", "ndof_panx_invert_axis"),
+                    ("Y", "ndof_pany_invert_axis"),
+                    ("Z", "ndof_panz_invert_axis"),
             ):
                 row.prop(props, attr, text=text, toggle=True)
 
-            layout.separator()
+            if show_3dview_settings:
+                row = col.row(heading="Invert Rotate")
+                for text, attr in (
+                        ("X", "ndof_rotx_invert_axis"),
+                        ("Y", "ndof_roty_invert_axis"),
+                        ("Z", "ndof_rotz_invert_axis"),
+                ):
+                    row.prop(props, attr, text=text, toggle=True)
 
-            col = layout.column(heading="Fly/Walk")
-            col.prop(props, "ndof_lock_horizon")
-            col.prop(props, "ndof_fly_helicopter")
+            if show_3dview_settings:
+                col.prop(props, "ndof_lock_camera_pan_zoom")
 
     def draw(self, context):
         layout = self.layout
@@ -2937,7 +2928,6 @@ classes = (
     USERPREF_PT_viewport_display,
     USERPREF_PT_viewport_quality,
     USERPREF_PT_viewport_textures,
-    USERPREF_PT_viewport_selection,
     USERPREF_PT_viewport_subdivision,
 
     USERPREF_PT_edit_objects,

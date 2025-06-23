@@ -19,7 +19,7 @@
 #include "GPU_uniform_buffer.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 #include "../mathutils/mathutils.hh"
@@ -928,6 +928,8 @@ PyDoc_STRVAR(
     pygpu_shader__tp_doc,
     ".. class:: GPUShader(vertexcode, fragcode, geocode=None, libcode=None, defines=None, "
     "name='pyGPUShader')\n"
+    "\n"
+    "   Deprecated, use gpu.shader.create_from_info(shader_info) instead.\n"
     "\n"
     "   GPUShader combines multiple GLSL shaders into a program used for drawing.\n"
     "   It must contain at least a vertex and fragment shaders.\n"

@@ -2015,6 +2015,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
 #endif /* USE_FRAME_CACHE_LIMIT */
 
           STRNCPY(ibuf->filepath, ps.picture->filepath);
+          ibuf->fileframe = ps.picture->frame;
         }
 
         while (pupdate_time()) {
@@ -2148,6 +2149,7 @@ static bool wm_main_playanim_intern(int argc, const char **argv, PlayArgs *args_
   /* NOTE: Must happen before GPU Context destruction as GPU resources are released via
    * Color Management module. */
   IMB_exit();
+  MOV_exit();
 
   if (ps.ghost_data.gpu_context) {
     GPU_context_active_set(ps.ghost_data.gpu_context);

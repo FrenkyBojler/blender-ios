@@ -404,7 +404,7 @@ static void brush_blend_read_data(BlendDataReader *reader, ID *id)
 
   /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To ensure
    * correct behavior, convert this when reading newer files. */
-  if (BLO_read_fileversion_get(reader) > 500) {
+  if (BLO_read_fileversion_get(reader) >= 500) {
     brush->size = std::max(brush->size / 2, 1);
     brush->unprojected_radius = std::max(brush->unprojected_radius / 2, 0.001f);
   }
@@ -1460,6 +1460,12 @@ void BKE_brush_calc_curve_factors(const eBrushCurvePreset preset,
       break;
     }
     case BRUSH_CURVE_CONSTANT: {
+      for (const int i : distances.index_range()) {
+        const float distance = distances[i];
+        if (distance >= brush_radius) {
+          factors[i] = 0.0f;
+        }
+      }
       break;
     }
     case BRUSH_CURVE_SPHERE: {

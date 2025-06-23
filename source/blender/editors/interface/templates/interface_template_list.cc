@@ -250,14 +250,15 @@ void UI_list_filter_and_sort_items(uiList *ui_list,
           dyn_data->items_filter_flags[i] = UILST_FLT_ITEM_NEVER_SHOW;
         }
         else if (filter_result == UI_LIST_ITEM_FILTER_MATCHES) {
-          dyn_data->items_filter_flags[i] = UILST_FLT_ITEM;
           if (!filter_exclude) {
+            dyn_data->items_filter_flags[i] = UILST_FLT_ITEM;
             dyn_data->items_shown++;
             do_order = order_by_name;
           }
           // printf("%s: '%s' matches '%s'\n", __func__, name, filter);
         }
         else if (filter_exclude) {
+          dyn_data->items_filter_flags[i] = UILST_FLT_ITEM;
           dyn_data->items_shown++;
           do_order = order_by_name;
         }
@@ -311,11 +312,6 @@ bool UI_list_item_index_is_filtered_visible(const uiList *ui_list, const int ite
 
   if (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM_NEVER_SHOW) {
     return false;
-  }
-
-  if (ui_list->filter_byname[0] == '\0') {
-    /* Show all elements when search string is empty. */
-    return true;
   }
 
   return (dyn_data->items_filter_flags[item_idx] & UILST_FLT_ITEM);
