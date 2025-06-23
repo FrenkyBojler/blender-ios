@@ -506,20 +506,6 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
   return false;
 }
 
-template<typename T>
-static bool get_from_bundle_or_default(const BundlePtr &bundle,
-                                       const StringRef name,
-                                       const T &default_value,
-                                       T &result)
-{
-  if (std::optional<T> value = get_from_bundle<T>(bundle, name)) {
-    result = *value;
-    return true;
-  }
-  result = default_value;
-  return false;
-}
-
 struct LazyFunctionIndices {
   struct {
     Vector<int> main_indices;
@@ -848,10 +834,10 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
   LazyFunctionForRootConstraintUpdate(const int32_t node_identifier, const char *debug_name)
       : LazyFunctionForClosure(node_identifier, debug_name)
   {
-    input_position_index_ = add_input("Position Goal Constraints", SOCK_GEOMETRY);
-    input_rotation_index_ = add_input("Rotation Goal Constraints", SOCK_GEOMETRY);
-    output_position_index_ = add_output("Position Goal Constraints", SOCK_GEOMETRY);
-    output_rotation_index_ = add_output("Rotation Goal Constraints", SOCK_GEOMETRY);
+    input_position_index_ = add_input("Position Constraints", SOCK_GEOMETRY);
+    input_rotation_index_ = add_input("Rotation Constraints", SOCK_GEOMETRY);
+    output_position_index_ = add_output("Position Constraints", SOCK_GEOMETRY);
+    output_rotation_index_ = add_output("Rotation Constraints", SOCK_GEOMETRY);
   }
 
   void execute_impl(lf::Params &params, const lf::Context &context) const override
@@ -956,8 +942,8 @@ struct Behavior {
   struct {
     Field<float> density = field_constants::constant_field<float>(1000.0f);
     /* Mass is calculated from density and radius by default, but can be defined explicitly. */
-    Field<float> mass;
-    Field<float3> inertia;
+    Field<float> mass = field_constants::constant_field<float>(1.0f);
+    Field<float3> inertia = field_constants::constant_field<float3>(float3(1.0f));
   } material;
 
   struct {
@@ -975,13 +961,20 @@ struct Behavior {
 
     ClosurePtr update;
   } root_constraints;
+
+  /* Constructor requires a resource scope and a node identifier to create default closures. */
+  Behavior(ResourceScope &scope, const int32_t node_identifier)
+  {
+    curve_constraints.update = create_curve_constraint_update_closure(scope, node_identifier);
+    root_constraints.update = create_root_constraint_update_closure(scope, node_identifier);
+  }
 };
 
 static Behavior separate_behavior_bundle(const BundlePtr &bundle,
                                          ResourceScope &scope,
                                          const int32_t node_identifier)
 {
-  Behavior behavior;
+  Behavior behavior(scope, node_identifier);
 
   get_from_bundle(bundle, "Gravity", behavior.gravity);
 
@@ -1003,10 +996,7 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle,
         *curve_constraints, "Bend Compliance", behavior.curve_constraints.bend_compliance);
     get_from_bundle(*curve_constraints, "Bend Damping", behavior.curve_constraints.bend_damping);
 
-    get_from_bundle_or_default(*curve_constraints,
-                               "Update",
-                               create_curve_constraint_update_closure(scope, node_identifier),
-                               behavior.curve_constraints.update);
+    get_from_bundle(*curve_constraints, "Update", behavior.curve_constraints.update);
   }
 
   if (auto root_constraints = get_from_bundle<BundlePtr>(bundle, "Root Constraints")) {
@@ -1014,10 +1004,7 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle,
         *root_constraints, "Bend Compliance", behavior.root_constraints.bend_compliance);
     get_from_bundle(*root_constraints, "Bend Damping", behavior.root_constraints.bend_damping);
 
-    get_from_bundle_or_default(*root_constraints,
-                               "Update",
-                               create_root_constraint_update_closure(scope, node_identifier),
-                               behavior.root_constraints.update);
+    get_from_bundle(*root_constraints, "Update", behavior.root_constraints.update);
   }
 
   return behavior;
