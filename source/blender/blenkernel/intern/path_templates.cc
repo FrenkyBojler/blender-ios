@@ -180,39 +180,25 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
    * This function should be maintained such that it always produces variables
    * consistent with the variables produced elsewhere in the code base for the
    * same property. For example, render paths are processed in the rendering
-   * code and the variables are built for that purpose there, and this function
-   * should produce variables consistent with that for those render path
+   * code and the variables for that purpose are built there; this function
+   * should produce variables consistent with that for the same render path
    * properties here.
    *
-   * There are three general categories of variables:
+   * This function is organized into three sections: one for "general"
+   * variables, one for "purpose-specific" variables, and one for
+   * "type-specific" variables. (See the top-level documentation in
+   * BKE_path_templates.hh for details on what that means).
    *
-   * - General variables, which are made available to all paths that support
-   *   path templates. For example, the name of the current blend file.
-   * - Purpose-specific variables, which are determined by by the path's
-   *   `PropertyPathTemplateType`. For example, render output paths will be
-   *   marked as `PROP_VARIABLES_RENDER_OUTPUT`, and will therefore get access
-   *   to variables like `fps`, which are rendering-specific.
-   * - Type-specific variables, which are variables made available to all
-   *   path-template paths owned by a particular type of struct. For example,
-   *   paths owned by a `bNode` will have access to the `node_name` variable,
-   *   which provides the name of the owning node.
-   *
-   * This function is broken up into three sections: one for each of those types
-   * of variables. In each section, it defers to other functions like
-   * `BKE_add_template_variables_general()`,
-   * `BKE_add_template_variables_for_render_path`, and
-   * `BKE_add_template_variables_for_node()` to add the actual variables. Those
-   * same functions are also used to add the variables at the actual path
-   * evaluation call sites, ensuring consistency.
-   *
-   * The recommended strategy when adding support for additional variables is:
+   * The recommended strategy when adding support for additional variables here
+   * is:
    *
    * - For "general" variables, simply add them to
-   *   `BKE_add_template_variables_general()`.
+   *   `BKE_add_template_variables_general()`. Nothing special needs to be done
+   *   here.
    * - For "purpose-specific" variables, add them to the appropriate
    *   purpose-specific function (e.g.
-   *   `BKE_add_template_variables_for_render_path`). If no function exists for
-   *   your purpose yet, add a new enum to `PropertyPathTemplateType`, and a
+   *   `BKE_add_template_variables_for_render_path()`). If no function exists
+   *   for your purpose yet, add a new enum to `PropertyPathTemplateType`, and a
    *   corresponding new function, add your variable there, and then call it
    *   from the `switch` on `RNA_property_path_template_type()` below.
    * - For "type-specific" variables, add them to the appropriate type-specific
@@ -271,7 +257,8 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 
 void BKE_add_template_variables_general(VariableMap &variables, const ID *path_owner_id)
 {
-  /* Global blend filepath variables. */
+  /* Global blend filepath (a.k.a. path to the blend file that's currently
+   * open). */
   {
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
 
@@ -282,7 +269,7 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
         "blend_dir", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
 
-  /* ID-owning blend filepath variables. */
+  /* Library blend filepath (a.k.a. path to the blend file that actually owns the ID). */
   if (path_owner_id) {
     const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(path_owner_id);
     variables.add_filename(

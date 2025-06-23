@@ -4,8 +4,63 @@
 
 /** \file
  *
- * \brief Functions and classes for applying templates with variable expressions
- * to filepaths.
+ * \brief Functions and classes for evaluating template expressions in
+ * filepaths.
+ *
+ * To add support for path templates to a path property:
+ *
+ * 1. Enable `PROP_PATH_SUPPORTS_TEMPLATES` in its RNA property flags.
+ * 2. Optionally set its RNA path template type (`PropertyPathTemplateType`) via
+ *    `RNA_def_property_path_template_type()`, if you want it to have access to
+ *    any purpose-specific variables (see further below).
+ * 3. Wherever the evaluated path is needed, generate an appropriate
+ *    `VariableMap` for it via the `BKE_add_template_variables_*()` functions,
+ *    and use that to evaluate the path via `BKE_path_apply_template()`.
+ *
+ * An example of what step 3 might look like:
+ *
+ * ```
+ * VariableMap template_variables;
+ * BKE_add_template_variables_general(template_variables, owner_id);
+ * BKE_add_template_variables_for_render_path(template_variables, scene);
+ * BKE_add_template_variables_for_node(template_variables, owner_node);
+ *
+ * BKE_path_apply_template(filepath, FILE_MAX, template_variables);
+ * ```
+ *
+ * This calls three functions, one for each "kind" of variable (see below), to
+ * build the `VariableMap`.
+ *
+ * Currently the path template system has three kinds of variables that can be
+ * used in expressions:
+ *
+ * - General variables, which are made available to all paths that support path
+ *   templates. For example, the name of the current blend file.
+ * - Purpose-specific variables, which are determined by by the path property's
+ *   `PropertyPathTemplateType` flag. For example, render output paths will be
+ *   marked as `PROP_VARIABLES_RENDER_OUTPUT`, and will therefore get access to
+ *   variables like `fps`, which are rendering-specific.
+ * - Type-specific variables, which are variables made available to all
+ *   path-template paths owned by a particular type of struct. For example,
+ *   paths owned by a `bNode` will have access to the `node_name` variable,
+ *   which provides the name of the owning node.
+ *
+ * At the moment there is no strict code structure that enforces this, just the
+ * following conventions:
+ *
+ * - All general variables are added by `BKE_add_template_variables_general()`.
+ * - Purpose-specific variables are organized into multiple functions: one
+ *   function per per variant in `PropertyPathTemplateType`, with all variables
+ *   for a variant going into the same function. Example:
+ *   `BKE_add_template_variables_for_render_path()`
+ * - Type-specific variables are organized into multiple functions: one per
+ *   struct type, with all variables for a struct type going into the same
+ *   function. Example: `BKE_add_template_variables_for_node()`
+ *
+ * When adding new `PropertyPathTemplateType` variants or adding support for new
+ * owning struct types, make sure that you also call their variable-adding
+ * functions from `BKE_build_template_variables_for_prop()`, which is used for
+ * highlighting template path errors in the UI for users.
  */
 #pragma once
 
@@ -210,8 +265,7 @@ std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_vari
     const bContext *C, PointerRNA *ptr, PropertyRNA *prop);
 
 /**
- * Add the general variables that should be available for all path templates to
- * a variable map.
+ * Add the general variables that should be available for all path templates.
  *
  * This is typically used when building a variable map to pass to
  * `BKE_path_apply_template()`.
@@ -228,8 +282,9 @@ void BKE_add_template_variables_general(blender::bke::path_templates::VariableMa
                                         const ID *path_owner_id);
 
 /**
- * Add the variables that should be available for render output paths to a
- * variable map.
+ * Add the variables that should be available for templated render output paths.
+ *
+ * Corresponds to `PropertyPathTemplateType::PROP_VARIABLES_RENDER_OUTPUT`.
  *
  * This is typically used when building a variable map to pass to
  * `BKE_path_apply_template()`.
@@ -246,8 +301,8 @@ void BKE_add_template_variables_for_render_path(
     blender::bke::path_templates::VariableMap &variables, const Scene &scene);
 
 /**
- * Add the variables that should be available for paths owned by a node to
- * variable map.
+ * Add the variables that should be available for templated paths owned by a
+ * node.
  *
  * This is typically used when building a variable map to pass to
  * `BKE_path_apply_template()`.
