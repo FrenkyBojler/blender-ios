@@ -201,6 +201,23 @@ void ED_screen_draw_edges(wmWindow *win)
   rctf bounds;
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, outline1);
   UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, outline2);
+
+  static ScrArea *last_active_area = nullptr;
+  double now = BLI_time_now_seconds();
+  static double start_time = now;
+  float factor = 1.0f;
+  if (active_area != last_active_area) {
+    start_time = now;
+  }
+  last_active_area = active_area;
+
+  const double end_time = start_time + AREA_ACTIVE_FADEIN;
+  if (now < end_time) {
+    factor = pow((now - start_time) / (end_time - start_time), 2);
+    UI_GetThemeColorBlend4f(TH_EDITOR_OUTLINE, TH_EDITOR_OUTLINE_ACTIVE, factor, outline2);
+    screen->do_refresh = true;
+  }
+
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     BLI_rctf_rcti_copy(&bounds, &area->totrct);
