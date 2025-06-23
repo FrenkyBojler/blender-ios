@@ -186,6 +186,15 @@ typedef struct FFMpegCodecData {
   {
     return IMB_Ffmpeg_Codec_ID(audio_codec);
   };
+  void codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    codec = codec_id;
+  };
+  void audio_codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    audio_codec = codec_id;
+  };
+
 #endif
 } FFMpegCodecData;
 

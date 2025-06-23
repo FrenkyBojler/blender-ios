@@ -442,7 +442,7 @@ static void ffmpeg_preset_set(RenderData *rd, int preset)
   switch (preset) {
     case FFMPEG_PRESET_H264:
       rd->ffcodecdata.type = FFMPEG_AVI;
-      rd->ffcodecdata.codec = FFMPEG_CODEC_ID_H264;
+      rd->ffcodecdata.codec_id_set(FFMPEG_CODEC_ID_H264);
       rd->ffcodecdata.video_bitrate = 6000;
       rd->ffcodecdata.gop_size = is_ntsc ? 18 : 15;
       rd->ffcodecdata.rc_max_rate = 9000;
@@ -456,11 +456,11 @@ static void ffmpeg_preset_set(RenderData *rd, int preset)
     case FFMPEG_PRESET_XVID:
       if (preset == FFMPEG_PRESET_XVID) {
         rd->ffcodecdata.type = FFMPEG_AVI;
-        rd->ffcodecdata.codec = FFMPEG_CODEC_ID_MPEG4;
+        rd->ffcodecdata.codec_id_set(FFMPEG_CODEC_ID_MPEG4);
       }
       else if (preset == FFMPEG_PRESET_THEORA) {
         rd->ffcodecdata.type = FFMPEG_OGG; /* XXX broken */
-        rd->ffcodecdata.codec = FFMPEG_CODEC_ID_THEORA;
+        rd->ffcodecdata.codec_id_set(FFMPEG_CODEC_ID_THEORA);
       }
 
       rd->ffcodecdata.video_bitrate = 6000;
@@ -474,7 +474,7 @@ static void ffmpeg_preset_set(RenderData *rd, int preset)
 
     case FFMPEG_PRESET_AV1:
       rd->ffcodecdata.type = FFMPEG_AV1;
-      rd->ffcodecdata.codec = FFMPEG_CODEC_ID_AV1;
+      rd->ffcodecdata.codec_id_set(FFMPEG_CODEC_ID_AV1);
       rd->ffcodecdata.video_bitrate = 6000;
       rd->ffcodecdata.gop_size = is_ntsc ? 18 : 15;
       rd->ffcodecdata.rc_max_rate = 9000;
@@ -493,8 +493,8 @@ void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
   int audio = 0;
 
   if (imf->imtype == R_IMF_IMTYPE_FFMPEG) {
-    if (rd->ffcodecdata.type <= 0 || rd->ffcodecdata.codec <= 0 ||
-        rd->ffcodecdata.audio_codec < 0 || rd->ffcodecdata.video_bitrate <= 1)
+    if (rd->ffcodecdata.type <= 0 || rd->ffcodecdata.codec_id_get() <= 0 ||
+        rd->ffcodecdata.audio_codec_id_get() < 0 || rd->ffcodecdata.video_bitrate <= 1)
     {
       ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
       rd->ffcodecdata.constant_rate_factor = FFM_CRF_MEDIUM;
@@ -508,32 +508,32 @@ void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
     audio = 1;
   }
   else if (imf->imtype == R_IMF_IMTYPE_H264) {
-    if (rd->ffcodecdata.codec != FFMPEG_CODEC_ID_H264) {
+    if (rd->ffcodecdata.codec_id_get() != FFMPEG_CODEC_ID_H264) {
       ffmpeg_preset_set(rd, FFMPEG_PRESET_H264);
       audio = 1;
     }
   }
   else if (imf->imtype == R_IMF_IMTYPE_XVID) {
-    if (rd->ffcodecdata.codec != FFMPEG_CODEC_ID_MPEG4) {
+    if (rd->ffcodecdata.codec_id_get() != FFMPEG_CODEC_ID_MPEG4) {
       ffmpeg_preset_set(rd, FFMPEG_PRESET_XVID);
       audio = 1;
     }
   }
   else if (imf->imtype == R_IMF_IMTYPE_THEORA) {
-    if (rd->ffcodecdata.codec != FFMPEG_CODEC_ID_THEORA) {
+    if (rd->ffcodecdata.codec_id_get() != FFMPEG_CODEC_ID_THEORA) {
       ffmpeg_preset_set(rd, FFMPEG_PRESET_THEORA);
       audio = 1;
     }
   }
   else if (imf->imtype == R_IMF_IMTYPE_AV1) {
-    if (rd->ffcodecdata.codec != FFMPEG_CODEC_ID_AV1) {
+    if (rd->ffcodecdata.codec_id_get() != FFMPEG_CODEC_ID_AV1) {
       ffmpeg_preset_set(rd, FFMPEG_PRESET_AV1);
       audio = 1;
     }
   }
 
-  if (audio && rd->ffcodecdata.audio_codec < 0) {
-    rd->ffcodecdata.audio_codec = FFMPEG_CODEC_ID_NONE;
+  if (audio && rd->ffcodecdata.audio_codec_id_get() < 0) {
+    rd->ffcodecdata.audio_codec_id_set(FFMPEG_CODEC_ID_NONE);
     rd->ffcodecdata.audio_bitrate = 128;
   }
 #else
