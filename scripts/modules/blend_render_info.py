@@ -89,6 +89,7 @@ def _read_blend_rend_chunk_from_file(blendfile, filepath):
     while bhead := blendfile_header.BlockHeader(blendfile, block_header_struct):
         if bhead.code == b'ENDB':
             break
+        remaining_bytes = bhead.size
         if bhead.code == b'REND':
             rend_block_struct = get_render_info_structure(endian_str, bhead.size)
             start_frame, end_frame, scene_name = rend_block_struct.unpack(blendfile.read(rend_block_struct.size))
