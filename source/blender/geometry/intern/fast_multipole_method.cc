@@ -258,7 +258,8 @@ static BLI_NOINLINE void sqrt_n_add_single(MutableSpan<float> values, const floa
   ispc::sqrt_n_add_single(values.data(), values.size(), offset_value);
 }
 
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(
+    const int power_value)
 {
   switch (power_value) {
     case 0:
@@ -501,7 +502,7 @@ static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_ha
   }
 }
 
-}  // namespace blender::ispc_math
+}  // namespace blender::fast_math
 #else
 namespace blender::fast_math {
 
@@ -757,7 +758,8 @@ static BLI_NOINLINE void sqrt_n_add_single(MutableSpan<float> values, const floa
   }
 }
 
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(const int power_value)
+static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_values(
+    const int power_value)
 {
   constexpr auto rpow = [&](auto pow_i, float value) -> float {
     float accum = value;
@@ -839,7 +841,8 @@ static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_rcp_for_v
   }
 }
 
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_half_rcp_for_values(const int power_value)
+static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_half_rcp_for_values(
+    const int power_value)
 {
   constexpr auto rpow = [&](auto pow_i, float value) -> float {
     float accum = value;
@@ -924,7 +927,8 @@ static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_half_rcp_
   }
 }
 
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_rcp_for_values(const int power_value)
+static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_rcp_for_values(
+    const int power_value)
 {
   constexpr auto rpow = [&](auto pow_i, float value) -> float {
     float accum = value;
@@ -1006,7 +1010,8 @@ static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_rc
   }
 }
 
-static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_half_rcp_for_values(const int power_value)
+static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_half_rcp_for_values(
+    const int power_value)
 {
   constexpr auto rpow = [&](auto pow_i, float value) -> float {
     float accum = value;
@@ -1091,7 +1096,7 @@ static BLI_NOINLINE FunctionRef<void(int, MutableSpan<float>)> powered_unsafe_ha
   }
 }
 
-}  // namespace blender::math
+}  // namespace blender::fast_math
 #endif
 
 namespace blender::geometry::fmm {
@@ -1158,7 +1163,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
   const bool has_offset = offset_value != 0.0f;
 
   const FunctionRef<void(int, MutableSpan<float>)> distance_invertion =
-      has_offset ? fast_math::powered_rcp_for_values(power_value) : fast_math::powered_half_rcp_for_values(power_value);
+      has_offset ? fast_math::powered_rcp_for_values(power_value) :
+                   fast_math::powered_half_rcp_for_values(power_value);
   const FunctionRef<void(int, MutableSpan<float>)> fast_distance_invertion =
       has_offset ? fast_math::powered_unsafe_rcp_for_values(power_value) :
                    fast_math::powered_unsafe_half_rcp_for_values(power_value);
@@ -1359,7 +1365,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     const int bucket_size = joint_backet.size();
     static_assert(sizeof(float) == sizeof(int));
-    const int aligned_bucket_size = round_up_for<int>(bucket_size, sse_min_alignment / sizeof(float));
+    const int aligned_bucket_size = round_up_for<int>(bucket_size,
+                                                      sse_min_alignment / sizeof(float));
 
     bucket_position_data.reinitialize(aligned_bucket_size * 3);
     for (const int axis_i : IndexRange(3)) {
