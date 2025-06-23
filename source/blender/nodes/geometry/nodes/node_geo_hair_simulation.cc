@@ -422,6 +422,45 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   UNUSED_VARS(node);
 }
 
+template<typename T> struct VariantConverter {
+  static std::optional<T> convert(const SocketValueVariant &variant)
+  {
+    if (!variant.is_single()) {
+      return std::nullopt;
+    }
+
+    std::optional<eNodeSocketDatatype> socket_type = bke::geo_nodes_base_cpp_type_to_socket_type(
+        CPPType::get<T>());
+    if (!socket_type) {
+      return std::nullopt;
+    }
+    if (!variant.valid_for_socket(*socket_type)) {
+      return std::nullopt;
+    }
+    return variant.get<T>();
+  }
+};
+
+template<typename U> struct VariantConverter<Field<U>> {
+  static std::optional<Field<U>> convert(const SocketValueVariant &variant)
+  {
+    if (!variant.is_context_dependent_field()) {
+      std::optional<U> single_value = VariantConverter<U>::convert(variant);
+      if (!single_value) {
+        return std::nullopt;
+      }
+      return Field<U>{std::make_shared<fn::FieldConstant>(CPPType::get<U>(), &(*single_value))};
+    }
+
+    std::optional<eNodeSocketDatatype> socket_type = bke::geo_nodes_base_cpp_type_to_socket_type(
+        CPPType::get<U>());
+    if (!variant.valid_for_socket(*socket_type)) {
+      return std::nullopt;
+    }
+    return variant.get<Field<U>>();
+  }
+};
+
 template<typename T>
 static std::optional<T> get_from_bundle(const BundlePtr &bundle, const StringRef name)
 {
@@ -436,9 +475,11 @@ static std::optional<T> get_from_bundle(const BundlePtr &bundle, const StringRef
   }
 
   if constexpr (GeoNodeExecParams::stored_as_SocketValueVariant_v<T>) {
-    // TODO NEEDS ERROR HANDLING/CONVERSION OF MISMATCHING TYPES!
+    // TODO This does not support implicit conversions yet!
+    // The type of the variant (bundle item) has to match the parameter T exactly.
     if (value->type->geometry_nodes_cpp_type == &CPPType::get<SocketValueVariant>()) {
-      return static_cast<const SocketValueVariant *>(value->value)->get<T>();
+      const SocketValueVariant &variant = *static_cast<const SocketValueVariant *>(value->value);
+      return VariantConverter<T>::convert(variant);
     }
     return std::nullopt;
   }
