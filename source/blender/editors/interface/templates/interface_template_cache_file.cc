@@ -25,7 +25,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 using blender::StringRefNull;
@@ -245,7 +245,7 @@ void uiTemplateCacheFile(uiLayout *layout,
 
   uiLayout *row, *sub;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   row = &layout->row(true);
   row->prop(&fileptr, "filepath", UI_ITEM_NONE, std::nullopt, ICON_NONE);

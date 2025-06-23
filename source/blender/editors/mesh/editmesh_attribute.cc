@@ -30,7 +30,7 @@
 
 #include "DNA_object_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "mesh_intern.hh"
@@ -244,7 +244,7 @@ static wmOperatorStatus mesh_set_attribute_invoke(bContext *C,
 static void mesh_set_attribute_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = &op->layout->column(true);
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiLayoutSetPropDecorate(layout, false);
 
   Mesh *mesh = ED_mesh_context(C);

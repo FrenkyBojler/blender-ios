@@ -33,6 +33,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_mesh.hh"
@@ -895,7 +896,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   int offset_type = RNA_enum_get(op->ptr, "offset_type");
   bool affect_type = RNA_enum_get(op->ptr, "affect");
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiLayoutSetPropDecorate(layout, false);
 
   row = &layout->row(false);

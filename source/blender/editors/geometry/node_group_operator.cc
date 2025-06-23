@@ -59,7 +59,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_asset.hh"
@@ -880,7 +880,7 @@ static std::string run_node_group_get_description(bContext *C,
 static void run_node_group_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiLayoutSetPropDecorate(layout, false);
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);

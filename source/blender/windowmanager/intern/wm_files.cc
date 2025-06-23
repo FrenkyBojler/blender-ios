@@ -120,6 +120,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -4018,7 +4019,7 @@ static wmOperatorStatus wm_clear_recent_files_exec(bContext * /*C*/, wmOperator 
 static void wm_clear_recent_files_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiLayoutSetPropDecorate(layout, false);
 
   layout->separator();
