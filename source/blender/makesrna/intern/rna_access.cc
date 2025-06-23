@@ -937,8 +937,9 @@ std::optional<AncestorPointerRNA> RNA_struct_find_self_or_ancestor_that_is_a(Poi
     return {{ptr->type, ptr->data}};
   }
   else {
-    for (const AncestorPointerRNA &ancestor : ptr->ancestors) {
-      if (RNA_struct_is_a(ancestor.type, &RNA_Node)) {
+    for (int i = ptr->ancestors.size() - 1; i >= 0; i--) {
+      const AncestorPointerRNA &ancestor = ptr->ancestors[i];
+      if (RNA_struct_is_a(ancestor.type, srna)) {
         return ancestor;
       }
     }
