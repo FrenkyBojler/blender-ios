@@ -6,8 +6,17 @@
 
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_curves.hh"
+#include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
+#include "BKE_lib_id.hh"
+#include "BKE_mesh.hh"
+#include "BKE_mesh_wrapper.hh"
+#include "BKE_modifier.hh"
 #include "BKE_type_conversions.hh"
+
+#include "DEG_depsgraph_query.hh"
+
+#include "DNA_mesh_types.h"
 
 #include "FN_field.hh"
 
@@ -618,7 +627,6 @@ class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
   LazyFunctionForCurveConstraintUpdate(const char *debug_name)
   {
     debug_name_ = debug_name;
-
     input_stretch_index_ = add_input("Stretch Constraints", SOCK_GEOMETRY);
     input_bend_index_ = add_input("Bend Constraints", SOCK_GEOMETRY);
     output_stretch_index_ = add_output("Stretch Constraints", SOCK_GEOMETRY);
@@ -639,6 +647,136 @@ class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
   }
 };
 
+// TODO share this with node_geo_deform_curves_on_surface.cc
+// TODO make it non-copyable? (prevent potential double free of allocated mesh data)
+class HairSurfaceData {
+ private:
+  Object *surface_ob_orig_ = nullptr;
+  Object *surface_ob_eval_ = nullptr;
+  Mesh *surface_mesh_orig_ = nullptr;
+  Mesh *surface_mesh_eval_ = nullptr;
+  bool free_suface_mesh_orig_ = false;
+  StringRefNull uv_map_name_;
+
+ public:
+  ~HairSurfaceData()
+  {
+    if (free_suface_mesh_orig_) {
+      BKE_id_free(nullptr, surface_mesh_orig_);
+    }
+  }
+
+  bool is_valid() const
+  {
+    return surface_ob_orig_ != nullptr && surface_ob_eval_ != nullptr;
+  }
+
+  operator bool() const
+  {
+    return is_valid();
+  }
+
+  Object &surface_ob_orig() const
+  {
+    return *this->surface_ob_orig_;
+  }
+  Object &surface_ob_eval() const
+  {
+    return *surface_ob_eval_;
+  }
+  Mesh &surface_mesh_orig() const
+  {
+    return *surface_mesh_orig_;
+  }
+  Mesh &surface_mesh_eval() const
+  {
+    return *surface_mesh_eval_;
+  }
+  StringRefNull uv_map_name() const
+  {
+    return uv_map_name_;
+  }
+
+  struct Error {
+    NodeWarningType type;
+    std::string message;
+  };
+
+  using Result = std::tuple<HairSurfaceData, std::optional<Error>>;
+
+  static Result result_valid(HairSurfaceData &&data)
+  {
+    return {data, std::nullopt};
+  }
+
+  static Result result_error(const NodeWarningType type, StringRef message)
+  {
+    return {HairSurfaceData{}, std::make_optional<Error>({type, message})};
+  }
+
+  static Result from_object(const Object *self_ob_eval)
+  {
+    static const StringRefNull rest_position_name = "rest_position";
+
+    if (self_ob_eval == nullptr || self_ob_eval->type != OB_CURVES) {
+      return result_error(NodeWarningType::Error, TIP_("Node only works for curves objects"));
+    }
+    const Curves *self_curves_eval = static_cast<const Curves *>(self_ob_eval->data);
+    if (self_curves_eval->surface_uv_map == nullptr || self_curves_eval->surface_uv_map[0] == '\0')
+    {
+      return result_error(NodeWarningType::Error, TIP_("Surface UV map not defined"));
+    }
+    /* Take surface information from self-object. */
+    HairSurfaceData result;
+    result.surface_ob_eval_ = self_curves_eval->surface;
+    result.uv_map_name_ = self_curves_eval->surface_uv_map;
+
+    if (result.surface_ob_eval_ == nullptr || result.surface_ob_eval_->type != OB_MESH) {
+      return result_error(NodeWarningType::Error, TIP_("Curves not attached to a surface"));
+    }
+    result.surface_ob_orig_ = DEG_get_original(result.surface_ob_eval_);
+    Mesh &surface_object_data = *static_cast<Mesh *>(result.surface_ob_orig_->data);
+
+    if (BMEditMesh *em = surface_object_data.runtime->edit_mesh.get()) {
+      result.surface_mesh_orig_ = BKE_mesh_from_bmesh_for_eval_nomain(
+          em->bm, nullptr, &surface_object_data);
+      result.free_suface_mesh_orig_ = true;
+    }
+    else {
+      result.surface_mesh_orig_ = &surface_object_data;
+    }
+    result.surface_mesh_eval_ = BKE_modifier_get_evaluated_mesh_from_evaluated_object(
+        result.surface_ob_eval_);
+    if (result.surface_mesh_eval_ == nullptr) {
+      return result_error(NodeWarningType::Error, TIP_("Surface has no mesh"));
+    }
+
+    BKE_mesh_wrapper_ensure_mdata(result.surface_mesh_eval_);
+
+    const AttributeAccessor mesh_attributes_eval = result.surface_mesh_eval_->attributes();
+    const AttributeAccessor mesh_attributes_orig = result.surface_mesh_orig_->attributes();
+
+    if (!mesh_attributes_eval.contains(result.uv_map_name_)) {
+      return result_error(
+          NodeWarningType::Error,
+          fmt::format(fmt::runtime(TIP_("Evaluated surface missing UV map: \"{}\"")),
+                      result.uv_map_name_));
+    }
+    if (!mesh_attributes_orig.contains(result.uv_map_name_)) {
+      return result_error(
+          NodeWarningType::Error,
+          fmt::format(fmt::runtime(TIP_("Original surface missing UV map: \"{}\"")),
+                      result.uv_map_name_));
+    }
+    if (!mesh_attributes_eval.contains(rest_position_name)) {
+      return result_error(NodeWarningType::Error,
+                          TIP_("Evaluated surface missing attribute: \"rest_position\""));
+    }
+
+    return result_valid(std::move(result));
+  }
+};
+
 class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
  private:
   int input_position_index_, input_rotation_index_;
@@ -648,7 +786,6 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
   LazyFunctionForRootConstraintUpdate(const char *debug_name)
   {
     debug_name_ = debug_name;
-
     input_position_index_ = add_input("Position Goal Constraints", SOCK_GEOMETRY);
     input_rotation_index_ = add_input("Rotation Goal Constraints", SOCK_GEOMETRY);
     output_position_index_ = add_output("Position Goal Constraints", SOCK_GEOMETRY);
@@ -661,9 +798,47 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
 
     GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
     BLI_assert(user_data != nullptr);
+    auto error_message_add = [&](const NodeWarningType type, const StringRef message) {
+      GeoNodesLocalUserData *local_user_data = static_cast<GeoNodesLocalUserData *>(
+          context.local_user_data);
+      if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data->try_get_tree_logger(
+              *user_data))
+      {
+        // XXX we don't have access to the node here
+        // tree_logger->node_warnings.append(
+        //     *tree_logger->allocator,
+        //     {node.identifier_, {type, tree_logger->allocator->copy_string(message)}});
+      }
+    };
 
     GeometrySet position_constraints = params.get_input<GeometrySet>(input_position_index_);
     GeometrySet rotation_constraints = params.get_input<GeometrySet>(input_rotation_index_);
+    auto pass_through_input = [&]() {
+      params.set_output(output_position_index_, std::move(position_constraints));
+      params.set_output(output_rotation_index_, std::move(rotation_constraints));
+    };
+
+    // }; GeometrySet curves_geometry = params.extract_input<GeometrySet>("Curves"); if
+    // (!curves_geometry.has_curves()) {
+    //   pass_through_input();
+    //   return;
+    // }
+    // Curves &curves_id = *curves_geometry.get_curves_for_write();
+    // CurvesGeometry &curves = curves_id.geometry.wrap();
+    // if (curves.surface_uv_coords().is_empty() && curves.curves_num() > 0) {
+    //   pass_through_input();
+    //   params.error_message_add(NodeWarningType::Error,
+    //                            TIP_("Curves are not attached to any UV map"));
+    //   return;
+    // }
+    const Object *self_ob_eval = user_data->call_data->self_object();
+    auto [surface_data, surface_error] = HairSurfaceData::from_object(self_ob_eval);
+    if (surface_error) {
+      pass_through_input();
+      error_message_add(surface_error->type, surface_error->message);
+      return;
+    }
+
     params.set_output(output_position_index_, std::move(position_constraints));
     params.set_output(output_rotation_index_, std::move(rotation_constraints));
   }
@@ -686,31 +861,31 @@ static ClosurePtr create_root_constraint_update_closure()
 }
 
 /**
-* The behavior configures various details of the hair simulation.
-* It is initialized using an input bundle, but has a default implementation
-* for each part that should provide reasonable behavior without user changes.
-* Parts of the bundle can be modified without affecting the other behaviors.
-* Each item is identified by name.
-*
-* "Gravity": Single vector defining the direction of gravity in the simulation.
-*
-* "Force": Vector field of external forces acting on points. Force is defined in object space.
-* "Torque": Vector field of external torque acting on curve segments. Torque is defined in local
-*   space of a curve segment.
-*
-* "Material" Bundle of parameters defining the physical properties of hair.
-*   Hair material properties can be defined in several ways:
-*   - "Density" and radius: Hair properties are calculated based on a model of cylindrical rods
-*     around the center line. This is the default method if no other attributes are defined.
-*     Radius attribute must be defined on curves, otherwise a default radius is used.
-*   - "Mass" and "Inertia": If both of these fields are defined they explicitly define the
-*     material properties of hair curve points and segments.
-   This is an advanced method that is not recommended for most users.
-*   TODO: Document how stiffness and damping are calculated based on Young's modulus for
-*     cylindrical rods.
-*
-*
-*/
+ * The behavior configures various details of the hair simulation.
+ * It is initialized using an input bundle, but has a default implementation
+ * for each part that should provide reasonable behavior without user changes.
+ * Parts of the bundle can be modified without affecting the other behaviors.
+ * Each item is identified by name.
+ *
+ * "Gravity": Single vector defining the direction of gravity in the simulation.
+ *
+ * "Force": Vector field of external forces acting on points. Force is defined in object space.
+ * "Torque": Vector field of external torque acting on curve segments. Torque is defined in local
+ *   space of a curve segment.
+ *
+ * "Material" Bundle of parameters defining the physical properties of hair.
+ *   Hair material properties can be defined in several ways:
+ *   - "Density" and radius: Hair properties are calculated based on a model of cylindrical rods
+ *     around the center line. This is the default method if no other attributes are defined.
+ *     Radius attribute must be defined on curves, otherwise a default radius is used.
+ *   - "Mass" and "Inertia": If both of these fields are defined they explicitly define the
+ *     material properties of hair curve points and segments.
+ *     This is an advanced method that is not recommended for most users.
+ *   TODO: Document how stiffness and damping are calculated based on Young's modulus for
+ *     cylindrical rods.
+ *
+ *
+ */
 struct Behavior {
   float3 gravity = float3(0, 0, -9.81f);
 
@@ -839,7 +1014,7 @@ static bool try_init_hair_from_density(GeometryComponent &component,
                                        const Field<bool> &selection_field,
                                        const Field<float> &density_field,
                                        const Field<float> &radius_field,
-                                       ErrorFn error_fn)
+                                       ErrorFn /*error_fn*/)
 {
   /* Use a different method not all necessary fields are defined. */
   if (!density_field) {
