@@ -88,105 +88,128 @@ void RemoteLibraryLoadingStatus::begin_loading(StringRef url, const float timeou
 
 void RemoteLibraryLoadingStatus::ping_still_loading(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
-      status->reset_timeout();
-    }
+  RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return;
+  }
+
+  if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
+    status->reset_timeout();
   }
 }
 
 void RemoteLibraryLoadingStatus::ping_new_pages(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
-      status->reset_timeout();
-      status->last_new_pages_time_point_ = std::chrono::steady_clock::now();
-    }
+  RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return;
+  }
+
+  if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
+    status->reset_timeout();
+    status->last_new_pages_time_point_ = std::chrono::steady_clock::now();
   }
 }
 
 void RemoteLibraryLoadingStatus::ping_metafiles_in_place(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    status->metafiles_in_place_ = true;
+  RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return;
   }
+
+  status->metafiles_in_place_ = true;
 }
 
 std::optional<RemoteLibraryLoadingStatus::Status> RemoteLibraryLoadingStatus::status(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    return status->status_;
+  const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return {};
   }
-  return {};
+
+  return status->status_;
 }
 
 std::optional<bool> RemoteLibraryLoadingStatus::metafiles_in_place(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    return status->metafiles_in_place_;
+  const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return {};
   }
-  return {};
+
+  return status->metafiles_in_place_;
 }
 
 std::optional<RemoteLibraryLoadingStatus::TimePoint> RemoteLibraryLoadingStatus::
     last_new_pages_time(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    return status->last_new_pages_time_point_;
+  const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return {};
   }
-  return {};
+
+  return status->last_new_pages_time_point_;
 }
 
 void RemoteLibraryLoadingStatus::set_finished(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
-      status->status_ = RemoteLibraryLoadingStatus::Finished;
-      status->reset_timeout();
-    }
+  RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return;
+  }
+
+  if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
+    status->status_ = RemoteLibraryLoadingStatus::Finished;
+    status->reset_timeout();
   }
 }
 
 void RemoteLibraryLoadingStatus::set_failure(StringRef url,
                                              std::optional<StringRefNull> failure_message)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
-      status->status_ = RemoteLibraryLoadingStatus::Failure;
-      status->failure_message_ = failure_message;
-      status->reset_timeout();
-    }
+  RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return;
+  }
+
+  if (status->status_ == RemoteLibraryLoadingStatus::Loading) {
+    status->status_ = RemoteLibraryLoadingStatus::Failure;
+    status->failure_message_ = failure_message;
+    status->reset_timeout();
   }
 }
 
 std::optional<StringRefNull> RemoteLibraryLoadingStatus::failure_message(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    if (status->status_ == RemoteLibraryLoadingStatus::Failure) {
-      return status->failure_message_;
-    }
+  const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status) {
+    return {};
+  }
+
+  if (status->status_ == RemoteLibraryLoadingStatus::Failure) {
+    return status->failure_message_;
   }
   return {};
 }
 
 bool RemoteLibraryLoadingStatus::handle_timeout(StringRef url)
 {
-  if (RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url)) {
-    if (status->status_ != RemoteLibraryLoadingStatus::Loading) {
-      /* Only handle timeouts while loading. */
-      return false;
-    }
-
-    std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
-                                           status->last_updated_time_point_;
-    if (elapsed.count() >= status->timeout_) {
-      status->status_ = RemoteLibraryLoadingStatus::Failure;
-      status->failure_message_ = RPT_("Asset system lost connection to downloader (timed out).");
-      return true;
-    }
+  RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
+  if (!status || status->status_ != RemoteLibraryLoadingStatus::Loading) {
+    /* Only handle timeouts while loading. */
+    return false;
   }
 
-  return false;
+  std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
+                                         status->last_updated_time_point_;
+  if (elapsed.count() < status->timeout_) {
+    return false;
+  }
+
+  status->status_ = RemoteLibraryLoadingStatus::Failure;
+  status->failure_message_ = RPT_("Asset system lost connection to downloader (timed out).");
+  return true;
 }
 
 /** \} */
