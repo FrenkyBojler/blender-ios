@@ -40,6 +40,8 @@ class RemoteLibraryLoadingStatus {
  private:
   float timeout_;
   TimePoint last_updated_time_point_;
+  /* See #RemoteLibraryLoadingStatus::handle_timeout(). */
+  TimePoint last_timeout_handled_time_point_;
   TimePoint last_new_pages_time_point_;
 
   Status status_;

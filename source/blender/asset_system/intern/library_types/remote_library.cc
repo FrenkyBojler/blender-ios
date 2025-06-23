@@ -203,8 +203,16 @@ bool RemoteLibraryLoadingStatus::handle_timeout(const StringRef url)
     return false;
   }
 
-  const std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
-                                               status->last_updated_time_point_;
+  const TimePoint now = std::chrono::steady_clock::now();
+  /* Keep track of how long ago the timeout was checked last. This is to avoid blocking processes
+   * from interfering with the timeout handling. If the timeout wasn't checked for a longer period
+   * of time (more than `0.9 * timeout_`), we skip timeout handling. */
+  if ((now - status->last_timeout_handled_time_point_).count() > (0.9f * status->timeout_)) {
+    return false;
+  }
+  status->last_timeout_handled_time_point_ = now;
+
+  const std::chrono::duration<float> elapsed = now - status->last_updated_time_point_;
   if (elapsed.count() < status->timeout_) {
     return false;
   }
