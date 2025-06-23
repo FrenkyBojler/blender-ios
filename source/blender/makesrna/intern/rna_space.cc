@@ -609,7 +609,6 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 #  include "BKE_image.hh"
 #  include "BKE_key.hh"
 #  include "BKE_layer.hh"
-#  include "BKE_modifier.hh"
 #  include "BKE_nla.hh"
 #  include "BKE_node.hh"
 #  include "BKE_paint.hh"
