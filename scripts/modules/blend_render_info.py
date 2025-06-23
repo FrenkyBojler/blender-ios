@@ -58,6 +58,17 @@ class RawBlendFileReader:
         return False
 
 
+def get_render_info_structure(endian_str, size):
+    import struct
+    if size == 2 * 4 + 24:
+        return struct.Struct(endian_str + b'ii24s')
+    if size == 2 * 4 + 64:
+        return struct.Struct(endian_str + b'ii64s')
+    if size == 2 * 4 + 256:
+        return struct.Struct(endian_str + b'ii256s')
+    raise ValueError("Unknown REND chunk size: {:d}".format(size))
+
+
 def _read_blend_rend_chunk_from_file(blendfile, filepath):
     import struct
     import sys
@@ -78,11 +89,10 @@ def _read_blend_rend_chunk_from_file(blendfile, filepath):
     while bhead := blendfile_header.BlockHeader(blendfile, block_header_struct):
         if bhead.code == b'ENDB':
             break
-        remaining_bytes = bhead.size
         if bhead.code == b'REND':
-            structure = struct.Struct(endian_str + b'ii64s')
-            start_frame, end_frame, scene_name = structure.unpack(blendfile.read(structure.size))
-            remaining_bytes -= structure.size
+            rend_block_struct = get_render_info_structure(endian_str, bhead.size)
+            start_frame, end_frame, scene_name = rend_block_struct.unpack(blendfile.read(rend_block_struct.size))
+            remaining_bytes -= rend_block_struct.size
 
             scene_name = scene_name[:scene_name.index(b'\0')]
             # It's possible old blend files are not UTF8 compliant, use `surrogateescape`.
