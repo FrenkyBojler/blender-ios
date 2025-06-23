@@ -2309,12 +2309,19 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
         C, is_move ? "OBJECT_MT_move_to_collection" : "OBJECT_MT_link_to_collection", 0);
     return OPERATOR_FINISHED;
   }
-  int collection_uid = RNA_property_int_get(op->ptr, prop);
-  Collection *collection = BKE_collection_from_session_uid(CTX_data_main(C), collection_uid);
 
   if (!RNA_boolean_get(op->ptr, "is_new")) {
     return move_to_collection_exec(C, op);
   }
+
+  int collection_uid = RNA_property_int_get(op->ptr, prop);
+  Collection *collection = BKE_collection_from_session_uid(CTX_data_main(C), collection_uid);
+
+  if (!collection) {
+    BKE_report(op->reports, RPT_ERROR, "Unexpected error, collection not found");
+    return OPERATOR_CANCELLED;
+  }
+
   prop = RNA_struct_find_property(op->ptr, "new_collection_name");
   if (!RNA_property_is_set(op->ptr, prop)) {
     char name[MAX_NAME];
