@@ -26,7 +26,7 @@ static const char *get_shader_name(const ResultType type, const PaddingMethod pa
     case PaddingMethod::Extend:
       switch (type) {
         case ResultType::Float2:
-          return "compositor_pad_extend_float4";
+          return "compositor_pad_extend_float2";
         case ResultType::Float:
           return "compositor_pad_extend_float";
         default:
