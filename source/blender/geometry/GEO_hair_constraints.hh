@@ -32,7 +32,7 @@ bke::GeometrySet create_position_goal_constraints(const IndexMask &selection,
                                                   const VArray<float3> &goal_position);
 
 bke::GeometrySet create_rotation_goal_constraints(const IndexMask &selection,
-                                                  const VArray<float> &compliance,
+                                                  const VArray<float3> &compliance,
                                                   const VArray<float> &damping,
                                                   const VArray<math::Quaternion> &goal_rotation);
 
