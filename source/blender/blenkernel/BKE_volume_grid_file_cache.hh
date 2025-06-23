@@ -29,8 +29,10 @@ GVolumeGrid get_grid_from_file(const StringRef file_path,
                                const StringRef grid_name,
                                const int simplify_level = 0);
 
-/* Forces a reload of a cached grid. */
-void reload_cached_grid_from_file(const StringRef file_path, const StringRef grid_name);
+/**
+ * Clears the caches related to this file and reloads the metadata.
+ */
+void reload_file(const StringRef file_path);
 
 struct GridsFromFile {
   /**

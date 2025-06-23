@@ -10,7 +10,6 @@
 #  include "BLI_map.hh"
 #  include "BLI_memory_cache.hh"
 #  include "BLI_memory_counter.hh"
-#  include "BLI_fileops.hh"
 
 #  include <openvdb/openvdb.h>
 
@@ -195,8 +194,10 @@ static openvdb::GridBase::Ptr load_single_grid_from_disk(const StringRef file_pa
   return file.readGrid(grid_name);
 }
 
-/* This is used to load grid data into the cache. It loads the actual grid file data
-   into memory and optionally generates the specified simplify level. */
+/**
+ * This is used to load grid data into the memory cache. It loads the heavy grid file
+ * data into memory and optionally generates the specified simplify level.
+ */
 static std::unique_ptr<GridReadValue> load_grid_cache_value(const GridReadKey &key)
 {
   openvdb::GridBase::Ptr grid;
@@ -249,7 +250,8 @@ static LazyLoadedGrid load_single_grid_from_disk_cached(const StringRef file_pat
 }
 
 /**
- * Checks if there is already a cached grid for the parameters and creates it otherwise.
+ * Checks if there is already a cached grid for the parameters and creates it otherwise.This does
+ * not load the tree, because that is done on-demand.
  */
 static GVolumeGrid get_cached_grid(const StringRef file_path,
                                    GridCache &grid_cache,
@@ -292,23 +294,29 @@ GVolumeGrid get_grid_from_file(const StringRef file_path,
   return {};
 }
 
-void reload_cached_grid_from_file(const StringRef file_path, const StringRef grid_name) {
+void reload_file(const StringRef file_path)
+{
   GlobalCache &global_cache = get_global_cache();
   std::lock_guard lock{global_cache.mutex};
+  /* Manually evict any of this file's heavy grid data currently in the memory cache.
+   * This is to ensure the grid tree data is replaced by the new data (since it
+   * could have the same key), and to avoid unnecessarily growing the memory
+   * cache if the file is frequently modified. */
   FileCache &file_cache = get_file_cache(file_path);
-
-  if (GridCache *grid_cache = file_cache.grid_cache_by_name(grid_name)) {
+  for (auto &grid : file_cache.grids) {
     GridReadKey key;
     key.file_path = file_path;
-    key.grid_name = grid_name;
-    key.simplify_level = 0;
-
-    memory_cache::remove_if(
-        [&key](const GenericKey &entry_key) -> bool { return entry_key == key; });
-    /* Reload the file by retrieving the deleted key */
-    std::shared_ptr<const GridReadValue> value_cached = memory_cache::get<GridReadValue>(
-        key, [&key]() { return load_grid_cache_value(key); });
+    key.grid_name = grid.meta_data_grid->getName();
+    const unsigned n_simplify_levels = grid.grid_by_simplify_level.size();
+    for (unsigned level = 0; level < n_simplify_levels; ++level) {
+      key.simplify_level = level;
+      memory_cache::remove_if(
+          [&key](const GenericKey &entry_key) -> bool { return entry_key == key; }
+      );
+    }
   }
+  /* Replace the file cache (metadata). */
+  file_cache = create_file_cache(file_path);
 }
 
 GridsFromFile get_all_grids_from_file(const StringRef file_path, const int simplify_level)

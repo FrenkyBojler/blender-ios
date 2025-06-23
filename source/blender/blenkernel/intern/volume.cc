@@ -423,15 +423,9 @@ bool BKE_volume_reload(Volume *volume)
 {
 #ifdef WITH_OPENVDB
   if (BKE_volume_is_loaded(volume)) {
-    blender::bke::VolumeGridData *grid_data = BKE_volume_grid_get_for_write(
-      volume,
-      volume->active_grid
-    );
     if (!BLI_is_file(volume->filepath))
       return false;
-    blender::bke::volume_grid::file_cache::reload_cached_grid_from_file(
-      StringRef(volume->filepath), StringRef(grid_data->name())
-    );
+    blender::bke::volume_grid::file_cache::reload_file(volume->filepath);
     DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
     return true;
   }
