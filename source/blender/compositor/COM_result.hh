@@ -10,6 +10,7 @@
 #include <variant>
 
 #include "BLI_assert.h"
+#include "BLI_compiler_compat.h"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
@@ -394,6 +395,12 @@ class Result {
    * works. */
   void store_pixel_generic_type(const int2 &texel, const float4 &pixel_value);
 
+  // TODO: implement
+  float4 sample(const float2 &coordinates,
+                const Interpolation &interpolation,
+                const BorderCondition &extend_mode_x,
+                const BorderCondition &extend_mode_y) const;
+
   /* Equivalent to the GLSL texture() function with nearest interpolation and zero boundary
    * condition. The coordinates are thus expected to have half-pixels offsets. A float4 is always
    * returned regardless of the number of channels of the buffer, the remaining channels will be
@@ -588,6 +595,92 @@ BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
                                                         const float4 &pixel_value)
 {
   this->get_cpp_type().copy_assign(pixel_value, this->cpu_data()[this->get_pixel_index(texel)]);
+}
+
+BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
+                                        const Interpolation &interpolation,
+                                        const BorderCondition &extend_mode_x,
+                                        const BorderCondition &extend_mode_y) const
+{
+
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  if (is_single_value_) {
+    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
+    return pixel_value;
+  }
+
+  const int2 size = domain_.size;
+  const float2 texel_coordinates = coordinates * float2(size);
+
+  const float *buffer = static_cast<const float *>(this->cpu_data().data());
+
+  /* Map border condition to wrap mode. */
+  math::InterpWrapMode mode_x{};
+  math::InterpWrapMode mode_y{};
+
+  switch (extend_mode_x) {
+    case BorderCondition::Zero:
+      mode_x = math::InterpWrapMode::Border;
+      break;
+    case BorderCondition::Repeat:
+      mode_x = math::InterpWrapMode::Repeat;
+      break;
+    case BorderCondition::Extend:
+      mode_x = math::InterpWrapMode::Extend;
+      break;
+  }
+  switch (extend_mode_y) {
+    case BorderCondition::Zero:
+      mode_y = math::InterpWrapMode::Border;
+      break;
+    case BorderCondition::Repeat:
+      mode_y = math::InterpWrapMode::Repeat;
+      break;
+    case BorderCondition::Extend:
+      mode_y = math::InterpWrapMode::Extend;
+      break;
+  }
+
+  switch (interpolation) {
+    case Interpolation::Nearest:
+      math::interpolate_nearest_wrapmode_fl(buffer,
+                                            pixel_value,
+                                            size.x,
+                                            size.y,
+                                            this->channels_count(),
+                                            texel_coordinates.x,
+                                            texel_coordinates.y,
+                                            mode_x,
+                                            mode_y);
+      break;
+    /* Bilinear only handles `Zero` and `Extend` and no `Wrap`. */
+    case Interpolation::Bilinear:
+      math::interpolate_bilinear_wrapmode_fl(buffer,
+                                             pixel_value,
+                                             size.x,
+                                             size.y,
+                                             this->channels_count(),
+                                             texel_coordinates.x,
+                                             texel_coordinates.y,
+                                             mode_x,
+                                             mode_y);
+      break;
+    /* The anisotropic sampling requires separate handling with EWA. */
+    case Interpolation::Anisotropic:
+    case Interpolation::Bicubic:
+      math::interpolate_cubic_bspline_wrapmode_fl(buffer,
+                                                  pixel_value,
+                                                  size.x,
+                                                  size.y,
+                                                  this->channels_count(),
+                                                  texel_coordinates.x,
+                                                  texel_coordinates.y,
+                                                  mode_x,
+                                                  mode_y);
+      break;
+  }
+
+  return pixel_value;
 }
 
 BLI_INLINE_METHOD float4 Result::sample_nearest_zero(const float2 &coordinates) const

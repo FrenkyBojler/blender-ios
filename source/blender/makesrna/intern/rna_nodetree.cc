@@ -570,6 +570,13 @@ const EnumPropertyItem rna_enum_geometry_nodes_linear_gizmo_draw_style_items[] =
 };
 
 #ifndef RNA_RUNTIME
+static const EnumPropertyItem cmp_border_condition_items[] = {
+    {CMP_NODE_BORDER_CONDITION_ZERO, "ZERO", 0, "Zero", "Use zero padding"},
+    {CMP_NODE_BORDER_CONDITION_REPEAT, "REPEAT", 0, "Repeat", "Repeat border pixel"},
+    {CMP_NODE_BORDER_CONDITION_EXTEND, "EXTEND", 0, "Extend", "Extend border pixel"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static const EnumPropertyItem cmp_interpolation_items[] = {
     {CMP_NODE_INTERPOLATION_NEAREST, "NEAREST", 0, "Nearest", "Use Nearest interpolation"},
     {CMP_NODE_INTERPOLATION_BILINEAR, "BILINEAR", 0, "Bilinear", "Use Bilinear interpolation"},
@@ -7452,14 +7459,6 @@ static void def_cmp_trackpos(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_cmp_translate(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  static const EnumPropertyItem translate_repeat_axis_items[] = {
-      {CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE, "NONE", 0, "None", "No repeating"},
-      {CMP_NODE_TRANSLATE_REPEAT_AXIS_X, "XAXIS", 0, "X Axis", "Repeats on the X axis"},
-      {CMP_NODE_TRANSLATE_REPEAT_AXIS_Y, "YAXIS", 0, "Y Axis", "Repeats on the Y axis"},
-      {CMP_NODE_TRANSLATE_REPEAT_AXIS_XY, "BOTH", 0, "Both Axes", "Repeats on both axes"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   PropertyRNA *prop;
 
   RNA_def_struct_sdna_from(srna, "NodeTranslateData", "storage");
@@ -7470,10 +7469,18 @@ static void def_cmp_translate(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(prop, "", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "wrap_axis", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "wrap_axis");
-  RNA_def_property_enum_items(prop, translate_repeat_axis_items);
-  RNA_def_property_ui_text(prop, "Repeat", "Repeats image on a specific axis");
+  prop = RNA_def_property(srna, "border_condition_x", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "border_condition_x");
+  RNA_def_property_enum_items(prop, cmp_border_condition_items);
+  // TODO: requires some naming of UI label
+  RNA_def_property_ui_text(prop, "", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "border_condition_y", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "border_condition_y");
+  RNA_def_property_enum_items(prop, cmp_border_condition_items);
+  // TODO: requires some naming of UI label
+  RNA_def_property_ui_text(prop, "", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
