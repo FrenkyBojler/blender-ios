@@ -5906,12 +5906,11 @@ void uiLayoutSetTooltipCustomFunc(uiLayout *layout,
         continue;
       }
       UI_but_func_tooltip_custom_set(bitem->but, func, arg, free_arg);
-      arg_used = true;
     }
     else {
       uiLayoutSetTooltipCustomFunc(static_cast<uiLayout *>(item), func, arg, copy_arg, free_arg);
-      arg_used = true;
     }
+    arg_used = true;
   }
 
   if (free_arg != nullptr && !arg_used) {
