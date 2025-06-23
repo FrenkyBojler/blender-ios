@@ -983,7 +983,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
         blender::seq::relations_invalidate_cache(scene, strip);
       }
     }
-    DEG_id_tag_update(&scene->id, ID_RECALC_ANIMATION);
 
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
     if (selected_strips_success_len) {
