@@ -553,13 +553,9 @@ const EnumPropertyItem rna_enum_shrinkwrap_face_cull_items[] = {
 };
 
 const EnumPropertyItem rna_enum_node_warning_type_items[] = {
-    {int(blender::nodes::geo_eval_log::NodeWarningType::Error), "ERROR", ICON_CANCEL, "Error", ""},
-    {int(blender::nodes::geo_eval_log::NodeWarningType::Warning),
-     "WARNING",
-     ICON_ERROR,
-     "Warning",
-     ""},
-    {int(blender::nodes::geo_eval_log::NodeWarningType::Info), "INFO", ICON_INFO, "Info", ""},
+    {int(blender::nodes::NodeWarningType::Error), "ERROR", ICON_CANCEL, "Error", ""},
+    {int(blender::nodes::NodeWarningType::Warning), "WARNING", ICON_ERROR, "Warning", ""},
+    {int(blender::nodes::NodeWarningType::Info), "INFO", ICON_INFO, "Info", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -7816,7 +7812,7 @@ static void rna_def_modifier_weightednormal(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", MOD_WEIGHTEDNORMAL_KEEP_SHARP);
   RNA_def_property_ui_text(prop,
                            "Keep Sharp",
-                           "Keep sharp edges as computed for default split normals, "
+                           "Keep sharp edges as computed for default custom normals, "
                            "instead of setting a single weighted normal for each vertex");
   RNA_def_property_update(prop, 0, "rna_Modifier_update");
 

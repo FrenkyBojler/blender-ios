@@ -165,7 +165,7 @@ typedef struct wmWindowManager {
   /**
    * \note `CTX_wm_window(C)` is usually preferred.
    * Avoid relying on this where possible as this may become NULL during when handling
-   * events that close or replace windows (opening a file for e.g.).
+   * events that close or replace windows (e.g. opening a file).
    * While this happens rarely in practice, it can cause difficult to reproduce bugs.
    */
   struct wmWindow *winactive;
@@ -286,7 +286,7 @@ typedef struct wmWindow {
   /** Temporary when switching. */
   struct Scene *new_scene;
   /** Active view layer displayed in this window. */
-  char view_layer_name[64];
+  char view_layer_name[/*MAX_NAME*/ 64];
   /** The workspace may temporarily override the window's scene with scene pinning. This is the
    * "overridden" or "default" scene to restore when entering a workspace with no scene pinned. */
   struct Scene *unpinned_scene;
