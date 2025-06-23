@@ -2,11 +2,15 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_assert.h"
+#include "BLI_math_interp.hh"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "COM_domain.hh"
+#include "GPU_texture.hh"
+#include <utility>
 
 namespace blender::compositor {
 
@@ -40,6 +44,37 @@ bool operator==(const Domain &a, const Domain &b)
 bool operator!=(const Domain &a, const Domain &b)
 {
   return !(a == b);
+}
+
+math::InterpWrapMode map_border_condition_cpu(const BorderCondition &mode)
+{
+  switch (mode) {
+    case BorderCondition::Zero:
+      return math::InterpWrapMode::Border;
+    case BorderCondition::Repeat:
+      return math::InterpWrapMode::Repeat;
+    case BorderCondition::Extend:
+      return math::InterpWrapMode::Extend;
+  }
+  BLI_assert_unreachable();
+  return math::InterpWrapMode::Border;
+}
+
+GPUSamplerExtendMode map_border_condition_gpu(const BorderCondition &mode)
+{
+  switch (mode) {
+    case blender::compositor::BorderCondition::Zero:
+      return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
+
+    case blender::compositor::BorderCondition::Extend:
+      return GPU_SAMPLER_EXTEND_MODE_EXTEND;
+
+    case blender::compositor::BorderCondition::Repeat:
+      return GPU_SAMPLER_EXTEND_MODE_REPEAT;
+  }
+
+  BLI_assert_unreachable();
+  return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 }
 
 }  // namespace blender::compositor

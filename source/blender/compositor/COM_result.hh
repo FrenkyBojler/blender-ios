@@ -5,6 +5,8 @@
 #pragma once
 
 #include <cstdint>
+#include <type_traits>
+#include <utility>
 #include <variant>
 
 #include "BLI_assert.h"
@@ -609,34 +611,10 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                        (coordinates * float2(size)) - 0.5f;
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  const math::InterpWrapMode mode_x = map_border_condition_cpu(extend_mode_x);
+  const math::InterpWrapMode mode_y = map_border_condition_cpu(extend_mode_y);
 
   /* Map border condition to wrap mode. */
-  math::InterpWrapMode mode_x{};
-  math::InterpWrapMode mode_y{};
-
-  switch (extend_mode_x) {
-    case BorderCondition::Zero:
-      mode_x = math::InterpWrapMode::Border;
-      break;
-    case BorderCondition::Repeat:
-      mode_x = math::InterpWrapMode::Repeat;
-      break;
-    case BorderCondition::Extend:
-      mode_x = math::InterpWrapMode::Extend;
-      break;
-  }
-  switch (extend_mode_y) {
-    case BorderCondition::Zero:
-      mode_y = math::InterpWrapMode::Border;
-      break;
-    case BorderCondition::Repeat:
-      mode_y = math::InterpWrapMode::Repeat;
-      break;
-    case BorderCondition::Extend:
-      mode_y = math::InterpWrapMode::Extend;
-      break;
-  }
-
   switch (interpolation) {
     case Interpolation::Nearest:
       math::interpolate_nearest_wrapmode_fl(buffer,
@@ -649,7 +627,6 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                             mode_x,
                                             mode_y);
       break;
-    /* Bilinear only handles `Zero` and `Extend` and no `Wrap`. */
     case Interpolation::Bilinear:
       math::interpolate_bilinear_wrapmode_fl(buffer,
                                              pixel_value,

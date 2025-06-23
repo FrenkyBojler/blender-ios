@@ -102,32 +102,9 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   /* Maps the `BorderCondition` to the `GPUSamplerExtendMode`. If the input repeats, set a
    * repeating extend mode for out-of-bound texture access. Otherwise, make out-of-bound texture
    * access return zero by setting a clamp to border extend mode. */
-  GPUSamplerExtendMode mode_x{};
-  GPUSamplerExtendMode mode_y{};
 
-  switch (realization_options.extend_mode_x) {
-    case blender::compositor::BorderCondition::Zero:
-      mode_x = GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
-      break;
-    case blender::compositor::BorderCondition::Extend:
-      mode_x = GPU_SAMPLER_EXTEND_MODE_EXTEND;
-      break;
-    case blender::compositor::BorderCondition::Repeat:
-      mode_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-      break;
-  }
-
-  switch (realization_options.extend_mode_y) {
-    case blender::compositor::BorderCondition::Zero:
-      mode_y = GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
-      break;
-    case blender::compositor::BorderCondition::Extend:
-      mode_y = GPU_SAMPLER_EXTEND_MODE_EXTEND;
-      break;
-    case blender::compositor::BorderCondition::Repeat:
-      mode_y = GPU_SAMPLER_EXTEND_MODE_REPEAT;
-      break;
-  }
+  GPUSamplerExtendMode mode_x = map_border_condition_gpu(realization_options.extend_mode_x);
+  GPUSamplerExtendMode mode_y = map_border_condition_gpu(realization_options.extend_mode_y);
 
   GPU_texture_extend_mode_x(input, mode_x);
   GPU_texture_extend_mode_y(input, mode_y);
