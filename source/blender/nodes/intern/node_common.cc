@@ -446,8 +446,6 @@ static void node_group_declare_panel_recursive(
 
 void node_group_declare(NodeDeclarationBuilder &b)
 {
-  b.use_custom_socket_order();
-  b.allow_any_socket_order();
   const bNode *node = b.node_or_null();
   if (node == nullptr) {
     return;
