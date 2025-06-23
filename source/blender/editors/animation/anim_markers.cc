@@ -1605,11 +1605,13 @@ static void MARKER_OT_select_all(wmOperatorType *ot)
 enum eMarkers_LeftRightSelect_Mode {
   MARKERS_LRSEL_LEFT = 0,
   MARKERS_LRSEL_RIGHT,
+  MARKERS_LRSEL_TEST,
 };
 
 static const EnumPropertyItem prop_markers_select_leftright_modes[] = {
     {MARKERS_LRSEL_LEFT, "LEFT", 0, "Before Current Frame", ""},
     {MARKERS_LRSEL_RIGHT, "RIGHT", 0, "After Current Frame", ""},
+    {MARKERS_LRSEL_TEST, "CHECK", 0, "Check if Select Left or Right", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1655,6 +1657,37 @@ static wmOperatorStatus ed_marker_select_leftright_exec(bContext *C, wmOperator 
   return OPERATOR_FINISHED;
 }
 
+static wmOperatorStatus ed_marker_select_leftright_invoke(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent *event)
+{
+  bAnimContext ac;
+
+  if (ANIM_animdata_get_context(C, &ac) == 0) {
+    return OPERATOR_CANCELLED;
+  }
+
+  eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
+      RNA_enum_get(op->ptr, "mode"));
+
+  if (mode == MARKERS_LRSEL_TEST) {
+    Scene *scene = ac.scene;
+    ARegion *region = ac.region;
+    View2D *v2d = &region->v2d;
+    float mouse_frame = UI_view2d_region_to_view_x(v2d, event->mval[0]);
+
+    if (mouse_frame < scene->r.cfra) {
+      RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_LEFT);
+    }
+    else {
+      RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_RIGHT);
+    }
+  }
+
+  return ed_marker_select_leftright_exec(C, op);
+}
+
+
 static void MARKER_OT_select_leftright(wmOperatorType *ot)
 {
   /* identifiers */
@@ -1663,6 +1696,7 @@ static void MARKER_OT_select_leftright(wmOperatorType *ot)
   ot->idname = "MARKER_OT_select_leftright";
 
   /* API callbacks. */
+  ot->invoke = ed_marker_select_leftright_invoke;
   ot->exec = ed_marker_select_leftright_exec;
   ot->poll = ed_markers_poll_markers_exist;
 
