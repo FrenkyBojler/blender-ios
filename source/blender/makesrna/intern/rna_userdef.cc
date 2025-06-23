@@ -1054,6 +1054,11 @@ static PointerRNA rna_Theme_space_gradient_get(PointerRNA *ptr)
   return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceGradient, ptr->data);
 }
 
+static PointerRNA rna_Theme_space_region_generic_get(PointerRNA *ptr)
+{
+  return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceRegionGeneric, ptr->data);
+}
+
 static PointerRNA rna_Theme_space_list_generic_get(PointerRNA *ptr)
 {
   return RNA_pointer_create_with_parent(*ptr, &RNA_ThemeSpaceListGeneric, ptr->data);
@@ -2001,6 +2006,16 @@ static void rna_def_userdef_theme_ui(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Panel Header", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
+  prop = RNA_def_property(srna, "panel_title", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Panel Title", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  prop = RNA_def_property(srna, "panel_text", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 3);
+  RNA_def_property_ui_text(prop, "Panel Text", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
   prop = RNA_def_property(srna, "panel_back", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_ui_text(prop, "Panel Background", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
@@ -2183,34 +2198,6 @@ static void rna_def_userdef_theme_space_common(StructRNA *srna)
   RNA_def_property_array(prop, 3);
   RNA_def_property_ui_text(prop, "Header Text Highlight", "");
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  /* buttons */
-  // if (!ELEM(spacetype, SPACE_PROPERTIES, SPACE_OUTLINER)) {
-  prop = RNA_def_property(srna, "button", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Region Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "button_title", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Region Text Titles", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "button_text", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Region Text", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  prop = RNA_def_property(srna, "button_text_hi", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Region Text Highlight", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
-
-  /* tabs */
-  prop = RNA_def_property(srna, "tab_back", PROP_FLOAT, PROP_COLOR_GAMMA);
-  RNA_def_property_array(prop, 4);
-  RNA_def_property_ui_text(prop, "Navigation/Tabs Background", "");
-  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
 static void rna_def_userdef_theme_space_gradient(BlenderRNA *brna)
@@ -2248,6 +2235,28 @@ static void rna_def_userdef_theme_space_generic(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_space_common(srna);
+}
+
+/* sidebar / toolbar region */
+static void rna_def_userdef_theme_space_region_generic(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "ThemeSpaceRegionGeneric", nullptr);
+  RNA_def_struct_sdna(srna, "ThemeSpace");
+  RNA_def_struct_ui_text(srna, "Theme Space Region Settings", "");
+
+  prop = RNA_def_property(srna, "button", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Region Background", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
+
+  /* tabs */
+  prop = RNA_def_property(srna, "tab_back", PROP_FLOAT, PROP_COLOR_GAMMA);
+  RNA_def_property_array(prop, 4);
+  RNA_def_property_ui_text(prop, "Navigation/Tabs Background", "");
+  RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 }
 
 /* list / channels */
@@ -2301,6 +2310,18 @@ static void rna_def_userdef_theme_spaces_gradient(StructRNA *srna)
   RNA_def_property_struct_type(prop, "ThemeSpaceGradient");
   RNA_def_property_pointer_funcs(prop, "rna_Theme_space_gradient_get", nullptr, nullptr, nullptr);
   RNA_def_property_ui_text(prop, "Theme Space", "Settings for space");
+}
+
+static void rna_def_userdef_theme_spaces_region_main(StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "space_region", PROP_POINTER, PROP_NONE);
+  RNA_def_property_flag(prop, PROP_NEVER_NULL);
+  RNA_def_property_struct_type(prop, "ThemeSpaceRegionGeneric");
+  RNA_def_property_pointer_funcs(
+      prop, "rna_Theme_space_region_generic_get", nullptr, nullptr, nullptr);
+  RNA_def_property_ui_text(prop, "Toolbar/Sidebar", "Settings for space region");
 }
 
 static void rna_def_userdef_theme_spaces_list_main(StructRNA *srna)
@@ -2641,6 +2662,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "ThemeSpace");
   RNA_def_struct_ui_text(srna, "Theme 3D Viewport", "Theme settings for the 3D viewport");
 
+  rna_def_userdef_theme_spaces_region_main(srna);
   rna_def_userdef_theme_spaces_gradient(srna);
 
   /* General Viewport options */
@@ -2775,7 +2797,7 @@ static void rna_def_userdef_theme_space_view3d(BlenderRNA *brna)
   prop = RNA_def_property(srna, "split_normal", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "loop_normal");
   RNA_def_property_array(prop, 3);
-  RNA_def_property_ui_text(prop, "Split Normal", "");
+  RNA_def_property_ui_text(prop, "Custom Normal", "");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
 
   /* Armature Object specific. */
@@ -2887,6 +2909,7 @@ static void rna_def_userdef_theme_space_graph(BlenderRNA *brna)
 
   rna_def_userdef_theme_spaces_main(srna);
   rna_def_userdef_theme_spaces_list_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -2972,6 +2995,7 @@ static void rna_def_userdef_theme_space_file(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Theme File Browser", "Theme settings for the File Browser");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "selected_file", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "hilite");
@@ -3045,6 +3069,7 @@ static void rna_def_userdef_theme_space_userpref(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Theme Preferences", "Theme settings for the Blender Preferences");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 }
 
 static void rna_def_userdef_theme_space_console(BlenderRNA *brna)
@@ -3178,6 +3203,7 @@ static void rna_def_userdef_theme_space_text(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Theme Text Editor", "Theme settings for the Text Editor");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "line_numbers", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_float_sdna(prop, nullptr, "line_numbers");
@@ -3273,6 +3299,7 @@ static void rna_def_userdef_theme_space_node(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Theme Node Editor", "Theme settings for the Node Editor");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -3498,6 +3525,7 @@ static void rna_def_userdef_theme_space_buts(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 }
 
 static void rna_def_userdef_theme_space_image(BlenderRNA *brna)
@@ -3512,6 +3540,7 @@ static void rna_def_userdef_theme_space_image(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Theme Image Editor", "Theme settings for the Image Editor");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
@@ -3625,6 +3654,7 @@ static void rna_def_userdef_theme_space_seq(BlenderRNA *brna)
 
   rna_def_userdef_theme_spaces_main(srna);
   rna_def_userdef_theme_spaces_list_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -3856,6 +3886,7 @@ static void rna_def_userdef_theme_space_action(BlenderRNA *brna)
 
   rna_def_userdef_theme_spaces_main(srna);
   rna_def_userdef_theme_spaces_list_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -4078,6 +4109,7 @@ static void rna_def_userdef_theme_space_nla(BlenderRNA *brna)
 
   rna_def_userdef_theme_spaces_main(srna);
   rna_def_userdef_theme_spaces_list_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 3);
@@ -4310,6 +4342,7 @@ static void rna_def_userdef_theme_space_clip(BlenderRNA *brna)
 
   rna_def_userdef_theme_spaces_main(srna);
   rna_def_userdef_theme_spaces_list_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 
   prop = RNA_def_property(srna, "grid", PROP_FLOAT, PROP_COLOR_GAMMA);
   RNA_def_property_array(prop, 4);
@@ -4473,6 +4506,7 @@ static void rna_def_userdef_theme_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_update(prop, 0, "rna_userdef_theme_update");
 
   rna_def_userdef_theme_spaces_main(srna);
+  rna_def_userdef_theme_spaces_region_main(srna);
 }
 
 static void rna_def_userdef_themes(BlenderRNA *brna)
@@ -4869,6 +4903,7 @@ static void rna_def_userdef_dothemes(BlenderRNA *brna)
   rna_def_userdef_theme_space_generic(brna);
   rna_def_userdef_theme_space_gradient(brna);
   rna_def_userdef_theme_space_list_generic(brna);
+  rna_def_userdef_theme_space_region_generic(brna);
 
   rna_def_userdef_theme_space_view3d(brna);
   rna_def_userdef_theme_space_graph(brna);
@@ -7617,12 +7652,6 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Recompute all ID usercounts before saving to a blendfile. Allows to "
                            "work around invalid usercount handling in code that may lead to loss "
                            "of data due to wrongly detected unused data-blocks");
-
-  prop = RNA_def_property(srna, "use_attribute_storage_write", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_ui_text(prop,
-                           "Write New Attribute Storage Format",
-                           "Instead of writing with the older \"CustomData\" format for forward "
-                           "compatibility, use the new \"AttributeStorage\" format");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)
