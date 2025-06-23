@@ -161,40 +161,6 @@ TEST(path_templates, VariableMap_convenience_methods)
     EXPECT_EQ("fallback", map.get_string("i"));
   }
 
-  /* Parent directory name from filepath. */
-  {
-    VariableMap map;
-
-    EXPECT_TRUE(map.add_file_parent_directory_name(
-        "a", "/home/bob/project_joe/scene_3.blend", "fallback"));
-    EXPECT_EQ("project_joe", map.get_string("a"));
-
-    EXPECT_TRUE(
-        map.add_file_parent_directory_name("b", "bob/project_joe/scene_3.blend", "fallback"));
-    EXPECT_EQ("project_joe", map.get_string("b"));
-
-    EXPECT_TRUE(map.add_file_parent_directory_name("c", "project_joe/scene_3.blend", "fallback"));
-    EXPECT_EQ("project_joe", map.get_string("c"));
-
-    EXPECT_TRUE(map.add_file_parent_directory_name("d", "/scene_3.blend", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("d"));
-
-    /* No parent directory. */
-    EXPECT_TRUE(map.add_file_parent_directory_name("f", "scene_3.blend", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("f"));
-
-    /* No file. */
-    EXPECT_TRUE(map.add_file_parent_directory_name("e", "/home/bob/project_joe/", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("e"));
-
-    /* No file *or* parent directory. */
-    EXPECT_TRUE(map.add_file_parent_directory_name("g", "/", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("g"));
-
-    EXPECT_TRUE(map.add_file_parent_directory_name("h", "", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("h"));
-  }
-
   /* Path up-to-but-not-including the filename from filepath. */
   {
     VariableMap map;

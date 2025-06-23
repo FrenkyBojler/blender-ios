@@ -123,24 +123,6 @@ bool VariableMap::add_filename(StringRef var_name, StringRefNull full_path, Stri
   }
 }
 
-bool VariableMap::add_file_parent_directory_name(StringRef var_name,
-                                                 StringRefNull full_path,
-                                                 StringRef fallback)
-{
-  /* If there is no filename at the end. */
-  if (BLI_path_basename(full_path.c_str()) == full_path.end()) {
-    return this->add_string(var_name, fallback);
-  }
-
-  int offset, length;
-  if (!BLI_path_name_at_index(full_path.data(), -2, &offset, &length)) {
-    /* If no parent directory path, default to the fallback. */
-    return this->add_string(var_name, fallback);
-  }
-
-  return this->add_string(var_name, full_path.substr(offset, length));
-}
-
 bool VariableMap::add_path_up_to_file(StringRef var_name,
                                       StringRefNull full_path,
                                       StringRef fallback)
@@ -263,8 +245,6 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
 
     variables.add_filename("blend_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_file_parent_directory_name(
-        "blend_dir_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_path_up_to_file(
         "blend_dir", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
@@ -274,8 +254,6 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
     const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(path_owner_id);
     variables.add_filename(
         "blend_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_file_parent_directory_name(
-        "blend_dir_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
     variables.add_path_up_to_file(
         "blend_dir_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
   }
