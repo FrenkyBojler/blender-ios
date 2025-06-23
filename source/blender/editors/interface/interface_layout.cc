@@ -38,7 +38,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "ED_id_management.hh"
 
@@ -222,7 +222,7 @@ static int ui_item_fit(const int item,
                        const int all,
                        const int available,
                        const bool is_last,
-                       const int alignment,
+                       const blender::ui::LayoutAlign alignment,
                        float *extra_pixel)
 {
   /* available == 0 is unlimited */
@@ -242,7 +242,7 @@ static int ui_item_fit(const int item,
   }
 
   /* contents is smaller or equal to available space */
-  if (alignment == UI_LAYOUT_ALIGN_EXPAND) {
+  if (alignment == blender::ui::LayoutAlign::Expand) {
     if (is_last) {
       return available - pos;
     }
@@ -261,7 +261,7 @@ static int ui_item_fit(const int item,
 static int ui_layout_vary_direction(uiLayout *layout)
 {
   return ((ELEM(layout->root_->type, UI_LAYOUT_HEADER, UI_LAYOUT_PIEMENU) ||
-           (layout->alignment_ != UI_LAYOUT_ALIGN_EXPAND)) ?
+           (layout->alignment_ != blender::ui::LayoutAlign::Expand)) ?
               UI_ITEM_VARY_X :
               UI_ITEM_VARY_Y);
 }
@@ -322,7 +322,7 @@ static int ui_text_icon_width_ex(uiLayout *layout,
       return unit_x * (1.0f + pad_factor.icon_only);
     }
 
-    if (layout->alignment_ != UI_LAYOUT_ALIGN_EXPAND) {
+    if (layout->alignment_ != blender::ui::LayoutAlign::Expand) {
       layout->flag_ |= uiItemInternalFlag::FixedSize;
     }
 
@@ -1890,10 +1890,10 @@ static void ui_layout_heading_label_add(uiLayout *layout,
                                         bool right_align,
                                         bool respect_prop_split)
 {
-  const int prev_alignment = layout->alignment_;
+  const blender::ui::LayoutAlign prev_alignment = layout->alignment_;
 
   if (right_align) {
-    uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_RIGHT);
+    layout->alignment_set(blender::ui::LayoutAlign::Right);
   }
 
   if (respect_prop_split) {
@@ -3142,7 +3142,7 @@ static uiBut *uiItemL_(uiLayout *layout, const StringRef name, int icon)
   /* to compensate for string size padding in ui_text_icon_width,
    * make text aligned right if the layout is aligned right.
    */
-  if (uiLayoutGetAlignment(layout) == UI_LAYOUT_ALIGN_RIGHT) {
+  if (layout->alignment() == blender::ui::LayoutAlign::Right) {
     but->drawflag &= ~UI_BUT_TEXT_LEFT; /* default, needs to be unset */
     but->drawflag |= UI_BUT_TEXT_RIGHT;
   }
@@ -3189,7 +3189,7 @@ uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout)
   uiLayout *layout_split = &layout_row->split(UI_ITEM_PROP_SEP_DIVIDE, true);
 
   split_wrapper.label_column = &layout_split->column(true);
-  split_wrapper.label_column->alignment_ = UI_LAYOUT_ALIGN_RIGHT;
+  split_wrapper.label_column->alignment_ = blender::ui::LayoutAlign::Right;
   split_wrapper.property_row = ui_item_prop_split_layout_hack(parent_layout, layout_split);
   split_wrapper.decorate_column = uiLayoutGetPropDecorate(parent_layout) ?
                                       &layout_row->column(true) :
@@ -3683,9 +3683,9 @@ static void ui_litem_layout_row(uiLayout *litem)
       /* ignore min flag for rows with right or center alignment */
       if (item->type_ != uiItemType::Button &&
           ELEM((static_cast<uiLayout *>(item))->alignment_,
-               UI_LAYOUT_ALIGN_RIGHT,
-               UI_LAYOUT_ALIGN_CENTER) &&
-          litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND &&
+               blender::ui::LayoutAlign::Right,
+               blender::ui::LayoutAlign::Center) &&
+          litem->alignment_ == blender::ui::LayoutAlign::Expand &&
           bool(litem->flag_ & uiItemInternalFlag::FixedSize))
       {
         min_flag = false;
@@ -3744,12 +3744,12 @@ static void ui_litem_layout_row(uiLayout *litem)
 
     /* align right/center */
     offset = 0;
-    if (litem->alignment_ == UI_LAYOUT_ALIGN_RIGHT) {
+    if (litem->alignment_ == blender::ui::LayoutAlign::Right) {
       if (freew + fixedw > 0 && freew + fixedw < w) {
         offset = w - (fixedw + freew);
       }
     }
-    else if (litem->alignment_ == UI_LAYOUT_ALIGN_CENTER) {
+    else if (litem->alignment_ == blender::ui::LayoutAlign::Center) {
       if (freew + fixedw > 0 && freew + fixedw < w) {
         offset = (w - (fixedw + freew)) / 2;
       }
@@ -3766,7 +3766,7 @@ static void ui_litem_layout_row(uiLayout *litem)
 
   /* add extra pixel */
   int extra_pixel_move = litem->w_ - (x - litem->x_);
-  if (extra_pixel_move > 0 && litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND &&
+  if (extra_pixel_move > 0 && litem->alignment_ == blender::ui::LayoutAlign::Expand &&
       last_free_item_idx >= 0 && item_last &&
       bool(item_last->flag_ & uiItemInternalFlag::AutoFixedSize))
   {
@@ -4038,7 +4038,7 @@ static void ui_litem_estimate_panel_header(uiLayout *litem)
 static void ui_litem_layout_panel_header(uiLayout *litem)
 {
   uiLayoutItemPanelHeader *header_litem = static_cast<uiLayoutItemPanelHeader *>(litem);
-  Panel *panel = litem->block()->panel;
+  Panel *panel = litem->root_panel();
 
   BLI_assert(litem->items_.size() == 1);
   uiItem *item = litem->items_.first();
@@ -4062,7 +4062,7 @@ static void ui_litem_estimate_panel_body(uiLayout *litem)
 
 static void ui_litem_layout_panel_body(uiLayout *litem)
 {
-  Panel *panel = litem->block()->panel;
+  Panel *panel = litem->root_panel();
   ui_litem_layout_column(litem, false, false);
   const float offset = UI_style_get_dpi()->panelspace;
   panel->runtime->layout_panels.bodies.append({
@@ -4220,7 +4220,7 @@ static void ui_litem_layout_column_flow(uiLayout *litem)
   for (uiItem *item : litem->items_) {
     ui_item_size(item, &itemw, &itemh);
 
-    itemw = (litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND) ? w : min_ii(w, itemw);
+    itemw = (litem->alignment_ == blender::ui::LayoutAlign::Expand) ? w : min_ii(w, itemw);
 
     y -= itemh;
     emy -= itemh;
@@ -4590,8 +4590,8 @@ static void ui_litem_layout_grid_flow(uiLayout *litem)
     const int w = widths[col];
     const int h = heights[row];
 
-    item_w = (litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND) ? w : min_ii(w, item_w);
-    item_h = (litem->alignment_ == UI_LAYOUT_ALIGN_EXPAND) ? h : min_ii(h, item_h);
+    item_w = (litem->alignment_ == blender::ui::LayoutAlign::Expand) ? w : min_ii(w, item_w);
+    item_h = (litem->alignment_ == blender::ui::LayoutAlign::Expand) ? h : min_ii(h, item_h);
 
     ui_item_position(item, cos_x[col], cos_y[row], item_w, item_h);
     i++;
@@ -4887,7 +4887,7 @@ uiLayout *uiLayout::panel_prop(const bContext *C,
 
 PanelLayout uiLayout::panel(const bContext *C, const StringRef idname, const bool default_closed)
 {
-  Panel *root_panel = uiLayoutGetRootPanel(this);
+  Panel *root_panel = this->root_panel();
   BLI_assert(root_panel != nullptr);
 
   LayoutPanelState *state = BKE_panel_layout_panel_state_ensure(
@@ -5101,21 +5101,6 @@ uiLayout &uiLayout::split(float percentage, bool align)
   return *split;
 }
 
-void uiLayoutSetRedAlert(uiLayout *layout, bool redalert)
-{
-  layout->redalert_ = redalert;
-}
-
-void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect)
-{
-  layout->keepaspect_ = keepaspect;
-}
-
-void uiLayoutSetAlignment(uiLayout *layout, char alignment)
-{
-  layout->alignment_ = alignment;
-}
-
 void uiLayout::emboss_set(blender::ui::EmbossType emboss)
 {
   emboss_ = emboss;
@@ -5141,39 +5126,9 @@ void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep)
   SET_FLAG_FROM_TEST(layout->flag_, is_sep, uiItemInternalFlag::PropDecorate);
 }
 
-void uiLayoutSetSearchWeight(uiLayout *layout, const float weight)
+Panel *uiLayout::root_panel() const
 {
-  layout->search_weight_ = weight;
-}
-
-float uiLayoutGetSearchWeight(uiLayout *layout)
-{
-  return layout->search_weight_;
-}
-
-Panel *uiLayoutGetRootPanel(uiLayout *layout)
-{
-  return layout->block()->panel;
-}
-
-bool uiLayoutGetRedAlert(uiLayout *layout)
-{
-  return layout->redalert_;
-}
-
-bool uiLayoutGetKeepAspect(uiLayout *layout)
-{
-  return layout->keepaspect_;
-}
-
-int uiLayoutGetAlignment(uiLayout *layout)
-{
-  return layout->alignment_;
-}
-
-int uiLayoutGetWidth(uiLayout *layout)
-{
-  return layout->w_;
+  return this->block()->panel;
 }
 
 blender::ui::EmbossType uiLayout::emboss() const
@@ -5193,7 +5148,7 @@ void uiLayoutListItemAddPadding(uiLayout *layout)
 {
   uiBlock *block = layout->block();
   uiLayout *row = &layout->row(true);
-  uiLayoutSetFixedSize(row, true);
+  row->fixed_size_set(true);
 
   uiDefBut(
       block, UI_BTYPE_SEPR, 0, "", 0, 0, uiLayoutListItemPaddingWidth(), 0, nullptr, 0.0, 0.0, "");
@@ -5787,19 +5742,14 @@ bool ui_layout_replace_but_ptr(uiLayout *layout, const void *old_but_ptr, uiBut 
   return true;
 }
 
-void uiLayoutSetFixedSize(uiLayout *layout, bool fixed_size)
+void uiLayout::fixed_size_set(bool fixed_size)
 {
-  if (fixed_size) {
-    layout->flag_ |= uiItemInternalFlag::FixedSize;
-  }
-  else {
-    layout->flag_ &= ~uiItemInternalFlag::FixedSize;
-  }
+  SET_FLAG_FROM_TEST(flag_, fixed_size, uiItemInternalFlag::FixedSize);
 }
 
-bool uiLayoutGetFixedSize(uiLayout *layout)
+bool uiLayout::fixed_size() const
 {
-  return bool(layout->flag_ & uiItemInternalFlag::FixedSize);
+  return bool(flag_ & uiItemInternalFlag::FixedSize);
 }
 
 void uiLayout::operator_context_set(wmOperatorCallContext opcontext)
@@ -6299,7 +6249,7 @@ uiLayout *uiItemsAlertBox(uiBlock *block,
   /* Alert icon on the left. */
   uiLayout *layout = &split_block->row(false);
   /* Using 'align_left' with 'row' avoids stretching the icon along the width of column. */
-  uiLayoutSetAlignment(layout, UI_LAYOUT_ALIGN_LEFT);
+  layout->alignment_set(blender::ui::LayoutAlign::Left);
   uiDefButAlert(block, icon, 0, 0, icon_size, icon_size);
 
   /* The rest of the content on the right. */

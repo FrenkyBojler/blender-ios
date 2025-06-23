@@ -25,6 +25,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -324,7 +325,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   sub = &layout->row(true);
   sub->emboss_set(blender::ui::EmbossType::None);
   if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
-    uiLayoutSetRedAlert(sub, true);
+    sub->red_alert_set(true);
   }
   PointerRNA op_ptr = sub->op("OBJECT_OT_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
   RNA_string_set(&op_ptr, "modifier", md->name);
@@ -448,7 +449,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     name_row->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+    row->alignment_set(blender::ui::LayoutAlign::Right);
   }
 
   /* Extra padding for delete button. */
