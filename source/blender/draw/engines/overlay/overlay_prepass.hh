@@ -146,7 +146,7 @@ class Prepass : Overlay {
           if ((state.is_wireframe_mode == false) && (part->draw_as == PART_DRAW_REND)) {
             /* Case where the render engine should have rendered it, but we need to draw it for
              * selection purpose. */
-            if (handle.raw == 0u) {
+            if (!handle.is_valid()) {
               handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
             }
 

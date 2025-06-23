@@ -412,7 +412,7 @@ class Instance : public DrawEngine {
     this->draw_to_mesh_pass(ob_ref, mat.is_transparent(), [&](MeshPass &mesh_pass) {
       PassMain::Sub &pass =
           mesh_pass.get_subpass(eGeometryType::CURVES, &texture).sub("Hair SubPass");
-      pass.push_constant("emitter_object_id", int(emitter_handle.raw));
+      pass.push_constant("emitter_object_id", int(emitter_handle.raw()));
       gpu::Batch *batch = hair_sub_pass_setup(pass, scene_state_.scene, ob_ref, psys, md);
       pass.draw(batch, handle, material_index);
     });

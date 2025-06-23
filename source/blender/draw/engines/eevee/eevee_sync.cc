@@ -400,7 +400,7 @@ void SyncModule::sync_curves(Object *ob,
     mat_nr = particle_sys->part->omat;
   }
 
-  if (res_handle.raw == 0) {
+  if (!res_handle.is_valid()) {
     /* For curve objects. */
     res_handle = inst_.manager->unique_handle(ob_ref);
   }

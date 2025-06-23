@@ -69,20 +69,57 @@ struct ResourceHandle {
   }
 };
 
-/* Refers to a range of contiguous handles in the resource arrays.
+/**
+ * Refers to a range of contiguous handles in the resource arrays.
  * Typically used to render instances of an object, but can represent a single instance too.
- * The associated objects will all share handedness and state and can be rendered together. */
-struct ResourceHandleRange : ResourceHandle {
+ * The associated objects will all share handedness and state and can be rendered together.
+ */
+class ResourceHandleRange {
+ private:
+  /* First handle in the range. */
+  ResourceHandle first_ = {0};
   /* Number of handle in the range. */
-  uint32_t count = 0;
+  uint32_t count_ = 0;
 
-  ResourceHandleRange() : ResourceHandle(0) {}
-  ResourceHandleRange(ResourceHandle handle) : ResourceHandle(handle), count(1) {}
-  ResourceHandleRange(ResourceHandle handle, uint len) : ResourceHandle(handle), count(len) {}
+ public:
+  ResourceHandleRange() = default;
+  ResourceHandleRange(ResourceHandle handle) : first_(handle), count_(1) {}
+  ResourceHandleRange(ResourceHandle handle, uint len) : first_(handle), count_(len) {}
+
+  bool is_valid() const
+  {
+    return count_ != 0;
+  }
+
+  bool has_inverted_handedness() const
+  {
+    return first_.has_inverted_handedness();
+  }
 
   IndexRange index_range() const
   {
-    return {raw, count};
+    return {first_.raw, count_};
+  }
+
+  /* These functions are to keep existing code to work.
+   * Should be used only for objects and code paths that don't support ranged synchronization. */
+
+  operator ResourceHandle() const
+  {
+    BLI_assert(count_ == 1);
+    return first_;
+  }
+
+  uint32_t raw() const
+  {
+    BLI_assert(count_ == 1);
+    return first_.raw;
+  }
+
+  uint resource_index() const
+  {
+    BLI_assert(count_ == 1);
+    return first_.resource_index();
   }
 };
 

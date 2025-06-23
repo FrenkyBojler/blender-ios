@@ -198,7 +198,7 @@ class Particles : Overlay {
         continue;
       }
 
-      if (handle.raw == 0u) {
+      if (!handle.is_valid()) {
         handle = manager.resource_handle_for_psys(ob_ref, ob_ref.particles_matrix());
       }
 
