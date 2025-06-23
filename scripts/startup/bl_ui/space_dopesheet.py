@@ -745,8 +745,8 @@ class DOPESHEET_MT_gpencil_channel(Menu):
         layout.operator("anim.channels_delete")
 
         layout.separator()
-        layout.operator("anim.grease_pencil_layer_group")
-        layout.operator("anim.grease_pencil_layer_ungroup")
+        layout.operator("anim.channels_group")
+        layout.operator("anim.channels_ungroup")
 
         layout.separator()
         layout.operator("anim.channels_setting_toggle")
