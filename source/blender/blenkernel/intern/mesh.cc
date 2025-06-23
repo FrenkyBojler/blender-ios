@@ -616,7 +616,7 @@ static Bounds<float3> negative_bounds()
   return {float3(std::numeric_limits<float>::max()), float3(std::numeric_limits<float>::lowest())};
 }
 
-struct LocalMeshGroup {
+struct NonContiguousGroup {
   Array<int> unique_verts;
   Array<int> faces;
   Array<int> shared_verts;
@@ -627,7 +627,7 @@ struct LocalMeshGroup {
 
 static void partition_faces_recursively(const Span<float3> face_centers,
                                         MutableSpan<int> face_indices,
-                                        Vector<LocalMeshGroup> &groups,
+                                        Vector<NonContiguousGroup> &groups,
                                         int node_index,
                                         int depth,
                                         const std::optional<Bounds<float3>> &bounds_precalc,
@@ -699,7 +699,7 @@ static void partition_faces_recursively(const Span<float3> face_centers,
 static void build_vertex_groups_for_leaves(const int verts_num,
                                            const OffsetIndices<int> faces,
                                            const Span<int> corner_verts,
-                                           Vector<LocalMeshGroup> &groups)
+                                           Vector<NonContiguousGroup> &groups)
 {
   Vector<int> leaf_indices;
   for (const int i : groups.index_range()) {
@@ -714,7 +714,7 @@ static void build_vertex_groups_for_leaves(const int verts_num,
     Set<int> verts;
     for (const int i : range) {
       const int group_idx = leaf_indices[i];
-      LocalMeshGroup &group = groups[group_idx];
+      NonContiguousGroup &group = groups[group_idx];
       verts.clear();
       int corners_count = 0;
 
@@ -737,7 +737,7 @@ static void build_vertex_groups_for_leaves(const int verts_num,
 
   for (const int i : leaf_indices.index_range()) {
     const int group_idx = leaf_indices[i];
-    LocalMeshGroup &group = groups[group_idx];
+    NonContiguousGroup &group = groups[group_idx];
     owned_verts.clear();
     shared_verts.clear();
 
@@ -763,7 +763,7 @@ static void build_vertex_groups_for_leaves(const int verts_num,
   }
 }
 
-static Vector<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
+static Vector<NonContiguousGroup> compute_local_mesh_groups(Mesh &mesh)
 {
   const Span<float3> vert_positions = mesh.vert_positions();
   const OffsetIndices<int> faces = mesh.faces();
@@ -793,7 +793,7 @@ static Vector<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
   Array<int> prim_face_indices(mesh.faces_num);
   array_utils::fill_index_range<int>(prim_face_indices);
 
-  Vector<LocalMeshGroup> groups;
+  Vector<NonContiguousGroup> groups;
   groups.resize(1);
   groups[0].parent = -1;
   groups[0].children_offset = 0;
@@ -811,7 +811,7 @@ static Vector<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
 
 void mesh_apply_spatial_organization(Mesh &mesh)
 {
-  Vector<LocalMeshGroup> local_groups = compute_local_mesh_groups(mesh);
+  Vector<NonContiguousGroup> local_groups = compute_local_mesh_groups(mesh);
 
   Vector<int> new_vert_order;
   new_vert_order.reserve(mesh.verts_num);
@@ -830,7 +830,7 @@ void mesh_apply_spatial_organization(Mesh &mesh)
   group_face_offsets.append(0);
 
   for (const int group_index : local_groups.index_range()) {
-    const LocalMeshGroup &local_group = local_groups[group_index];
+    const NonContiguousGroup &local_group = local_groups[group_index];
 
     for (const int vert_idx : local_group.unique_verts) {
       if (!added_verts[vert_idx]) {
@@ -920,7 +920,7 @@ void mesh_apply_spatial_organization(Mesh &mesh)
     }
   });
 
-  for (LocalMeshGroup &local_group : local_groups) {
+  for (NonContiguousGroup &local_group : local_groups) {
     for (int &vert_idx : local_group.unique_verts) {
       vert_idx = vert_reverse_map[vert_idx];
     }
@@ -932,7 +932,7 @@ void mesh_apply_spatial_organization(Mesh &mesh)
   Array<MeshGroup> nodes(local_groups.size());
 
   for (const int node_idx : local_groups.index_range()) {
-    const LocalMeshGroup &local_group = local_groups[node_idx];
+    const NonContiguousGroup &local_group = local_groups[node_idx];
     MeshGroup &node = nodes[node_idx];
 
     node.parent = local_group.parent;
