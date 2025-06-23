@@ -196,38 +196,46 @@ void ED_screen_draw_edges(wmWindow *win)
     drawscredge_area(*area, edge_thickness);
   }
 
-  float outline1[4];
-  float outline2[4];
+  float col_inactive[4];
+  float col_active[4];
+  float col_active_last[4];
   rctf bounds;
-  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, outline1);
-  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, outline2);
+  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, col_inactive);
+  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE, col_active_last);
+  UI_GetThemeColor4fv(TH_EDITOR_OUTLINE_ACTIVE, col_active);
 
+  static ScrArea *current_active_area = nullptr;
   static ScrArea *last_active_area = nullptr;
   double now = BLI_time_now_seconds();
   static double start_time = now;
   float factor = 1.0f;
-  if (active_area != last_active_area) {
-    start_time = now;
+
+  if (active_area != current_active_area) {
+    if (now > start_time + AREA_ACTIVE_FADEIN) {
+      start_time = now;
+    }
+    last_active_area = current_active_area;
+    current_active_area = active_area;
   }
-  last_active_area = active_area;
 
   const double end_time = start_time + AREA_ACTIVE_FADEIN;
   if (now < end_time) {
     factor = pow((now - start_time) / (end_time - start_time), 2);
-    UI_GetThemeColorBlend4f(TH_EDITOR_OUTLINE, TH_EDITOR_OUTLINE_ACTIVE, factor, outline2);
+    UI_GetThemeColorBlend4f(TH_EDITOR_OUTLINE, TH_EDITOR_OUTLINE_ACTIVE, factor, col_active);
+    UI_GetThemeColorBlend4f(TH_EDITOR_OUTLINE_ACTIVE, TH_EDITOR_OUTLINE, factor, col_active_last);
     screen->do_refresh = true;
   }
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     BLI_rctf_rcti_copy(&bounds, &area->totrct);
-    UI_draw_roundbox_4fv_ex(&bounds,
-                            nullptr,
-                            nullptr,
-                            1.0f,
-                            (area == active_area) ? outline2 : outline1,
-                            U.pixelsize,
-                            EDITORRADIUS);
+    float *color = (area == active_area) ? col_active : col_inactive;
+
+    if (area == last_active_area) {
+      color = col_active_last;
+    }
+
+    UI_draw_roundbox_4fv_ex(&bounds, nullptr, nullptr, 1.0f, color, U.pixelsize, EDITORRADIUS);
   }
 
   GPU_blend(GPU_BLEND_NONE);
