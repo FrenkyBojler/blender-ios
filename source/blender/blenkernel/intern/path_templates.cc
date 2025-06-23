@@ -245,8 +245,11 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
 
     variables.add_filename("blend_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_path_up_to_file(
-        "blend_dir", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+
+    /* Note: fallback to "./" for unsaved files, which if used at the start of a
+     * path is equivalent to the current working directory. This is consistent
+     * with how "//" works. */
+    variables.add_path_up_to_file("blend_dir", g_blend_file_path, blender::StringRef("./"));
   }
 
   /* Library blend filepath (a.k.a. path to the blend file that actually owns the ID). */
@@ -254,8 +257,11 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
     const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(path_owner_id);
     variables.add_filename(
         "blend_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
-    variables.add_path_up_to_file(
-        "blend_dir_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+
+    /* Note: fallback to "./" for unsaved files, which if used at the start of a
+     * path is equivalent to the current working directory. This is consistent
+     * with how "//" works. */
+    variables.add_path_up_to_file("blend_dir_lib", lib_blend_file_path, blender::StringRef("./"));
   }
 }
 
