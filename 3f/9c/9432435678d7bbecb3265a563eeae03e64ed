@@ -1,1 +1,2 @@
 Referenced by commit a37c5e7d6c9c0a6fde00a0e2315981dc8d9f739e, Fix: API doc build error after adding `asset` to context
+Referenced by commit 3bc41b4175a640cc5488123fa1d07c6ff57b72a7, Fix: File browser "asset" context query not ensuring file is asset
