@@ -1169,13 +1169,13 @@ static void resize_attribute_domain(AttributeStorage &storage, AttrDomain domain
 
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
-  // TODO
   if (points_num != this->point_num) {
+    this->attribute_storage.wrap().resize(AttrDomain::Point, points_num);
     CustomData_realloc(&this->point_data, this->points_num(), points_num);
     this->point_num = points_num;
   }
   if (curves_num != this->curve_num) {
-    CustomData_realloc(&this->curve_data_legacy, this->curves_num(), curves_num);
+    this->attribute_storage.wrap().resize(AttrDomain::Curve, curves_num);
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
                                            this->curve_num == 0 ? 0 : (this->curve_num + 1),
@@ -1375,8 +1375,8 @@ void CurvesGeometry::count_memory(MemoryCounter &memory) const
   memory.add_shared(this->runtime->curve_offsets_sharing_info, this->offsets().size_in_bytes());
   memory.add_shared(this->runtime->custom_knots_sharing_info,
                     this->nurbs_custom_knots().size_in_bytes());
+  this->attribute_storage.wrap().count_memory(memory);
   CustomData_count_memory(this->point_data, this->point_num, memory);
-  CustomData_count_memory(this->curve_data_legacy, this->curve_num, memory);
 }
 
 static void copy_point_selection_custom_knots(const CurvesGeometry &curves,
@@ -1717,7 +1717,7 @@ CurvesGeometry curves_new_no_attributes(int point_num, int curve_num)
 {
   CurvesGeometry curves(0, curve_num);
   curves.point_num = point_num;
-  CustomData_free_layer_named(&curves.point_data, "position");
+  curves.attribute_storage.wrap().remove("position");
   return curves;
 }
 

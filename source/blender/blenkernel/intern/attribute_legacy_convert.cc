@@ -287,7 +287,8 @@ void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
 void grease_pencil_convert_customdata_to_storage(GreasePencil &grease_pencil)
 {
   grease_pencil.attribute_storage.wrap() = attribute_legacy_convert_customdata_to_storage(
-      {{AttrDomain::Layer, {grease_pencil.layers_data, int(grease_pencil.layers().size())}}});
+      {{AttrDomain::Layer,
+        {grease_pencil.layers_data_legacy, int(grease_pencil.layers().size())}}});
 }
 
 }  // namespace blender::bke

@@ -466,7 +466,7 @@ typedef struct GreasePencil {
   /**
    * All attributes stored on the grease pencil layers (#AttrDomain::Layer).
    */
-  CustomData layers_data;
+  CustomData layers_data_legacy;
 
   /**
    * Layer domain attributes. Currently unused at runtime, but used for forward

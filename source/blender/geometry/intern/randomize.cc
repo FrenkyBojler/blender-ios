@@ -184,7 +184,36 @@ static void reorder_attribute_groups(bke::AttributeStorage &storage,
                                      const OffsetIndices<int> new_offsets,
                                      const Span<int> new_by_old_map)
 {
-  // TODO
+  const int groups_num = new_by_old_map.size();
+  storage.foreach([&](bke::Attribute &attr) {
+    if (attr.domain() != domain) {
+      return;
+    }
+    const CPPType &type = bke::attribute_type_to_cpp_type(attr.data_type());
+    switch (attr.storage_type()) {
+      case bke::AttrStorageType::Array: {
+        const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
+
+        auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, new_by_old_map.size());
+        threading::parallel_for(IndexRange(groups_num), 1024, [&](const IndexRange range) {
+          for (const int old_i : range) {
+            const int new_i = new_by_old_map[old_i];
+            const IndexRange old_range = old_offsets[old_i];
+            const IndexRange new_range = new_offsets[new_i];
+            BLI_assert(old_range.size() == new_range.size());
+            type.copy_construct_n(POINTER_OFFSET(data.data, old_range.start() * type.size),
+                                  POINTER_OFFSET(new_data.data, new_range.start() * type.size),
+                                  old_range.size());
+          }
+        });
+
+        attr.data_for_write() = std::move(new_data);
+      }
+      case bke::AttrStorageType::Single: {
+        return;
+      }
+    }
+  });
 }
 
 void debug_randomize_face_order(Mesh *mesh)

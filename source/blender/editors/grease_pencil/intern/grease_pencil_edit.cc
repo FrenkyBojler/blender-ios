@@ -4850,13 +4850,13 @@ static void join_object_with_active(Main &bmain,
                            layer_name_map);
 
   /* Copy custom attributes for new layers. */
-  CustomData_merge_layout(&grease_pencil_src.layers_data,
-                          &grease_pencil_dst.layers_data,
+  CustomData_merge_layout(&grease_pencil_src.layers_data_legacy,
+                          &grease_pencil_dst.layers_data_legacy,
                           CD_MASK_ALL,
                           CD_SET_DEFAULT,
                           grease_pencil_dst.layers().size());
-  CustomData_copy_data(&grease_pencil_src.layers_data,
-                       &grease_pencil_dst.layers_data,
+  CustomData_copy_data(&grease_pencil_src.layers_data_legacy,
+                       &grease_pencil_dst.layers_data_legacy,
                        0,
                        orig_layers_num,
                        grease_pencil_src.layers().size());

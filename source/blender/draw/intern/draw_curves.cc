@@ -326,16 +326,7 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
     sub_ps.bind_texture("l", curves_cache->proc_length_buf);
   }
 
-  StringRef curve_data_render_uv;
-  StringRef point_data_render_uv;
-  if (CustomData_has_layer(&curves_id.geometry.curve_data_legacy, CD_PROP_FLOAT2)) {
-    curve_data_render_uv = CustomData_get_render_layer_name(&curves_id.geometry.curve_data_legacy,
-                                                            CD_PROP_FLOAT2);
-  }
-  if (CustomData_has_layer(&curves_id.geometry.point_data, CD_PROP_FLOAT2)) {
-    point_data_render_uv = CustomData_get_render_layer_name(&curves_id.geometry.point_data,
-                                                            CD_PROP_FLOAT2);
-  }
+  // TODO: Figure out curve UV thing? There were no active or default UV layers.
 
   const VectorSet<std::string> &attrs = curves_cache->final.attr_used;
   for (const int i : attrs.index_range()) {
@@ -348,18 +339,12 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
         continue;
       }
       sub_ps.bind_texture(sampler_name, curves_cache->proc_attributes_buf[i]);
-      if (name == curve_data_render_uv) {
-        sub_ps.bind_texture("a", curves_cache->proc_attributes_buf[i]);
-      }
     }
     else {
       if (!curves_cache->final.attributes_buf[i]) {
         continue;
       }
       sub_ps.bind_texture(sampler_name, curves_cache->final.attributes_buf[i]);
-      if (name == point_data_render_uv) {
-        sub_ps.bind_texture("a", curves_cache->final.attributes_buf[i]);
-      }
     }
 
     /* Some attributes may not be used in the shader anymore and were not garbage collected yet, so
