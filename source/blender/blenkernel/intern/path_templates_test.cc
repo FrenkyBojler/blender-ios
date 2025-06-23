@@ -174,17 +174,18 @@ TEST(path_templates, VariableMap_convenience_methods)
     EXPECT_TRUE(map.add_path_up_to_file("c", "/scene_3.blend", "fallback"));
     EXPECT_EQ("/", map.get_string("c"));
 
+    /* No file. */
+    EXPECT_TRUE(map.add_path_up_to_file("e", "/home/bob/project_joe/", "fallback"));
+    EXPECT_EQ("/home/bob/project_joe/", map.get_string("e"));
+
+    EXPECT_TRUE(map.add_path_up_to_file("f", "/", "fallback"));
+    EXPECT_EQ("/", map.get_string("f"));
+
     /* No leading path. */
     EXPECT_TRUE(map.add_path_up_to_file("d", "scene_3.blend", "fallback"));
     EXPECT_EQ("fallback", map.get_string("d"));
 
-    /* No file. */
-    EXPECT_TRUE(map.add_path_up_to_file("e", "/home/bob/project_joe/", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("e"));
-
-    EXPECT_TRUE(map.add_path_up_to_file("f", "/", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("f"));
-
+    /* Empty path. */
     EXPECT_TRUE(map.add_path_up_to_file("g", "", "fallback"));
     EXPECT_EQ("fallback", map.get_string("g"));
   }

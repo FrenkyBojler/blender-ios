@@ -127,9 +127,14 @@ bool VariableMap::add_path_up_to_file(StringRef var_name,
                                       StringRefNull full_path,
                                       StringRef fallback)
 {
-  /* If there is no filename at the end. */
-  if (BLI_path_basename(full_path.c_str()) == full_path.end()) {
+  /* Empty path. */
+  if (full_path.is_empty()) {
     return this->add_string(var_name, fallback);
+  }
+
+  /* No filename at the end. */
+  if (BLI_path_basename(full_path.c_str()) == full_path.end()) {
+    return this->add_string(var_name, full_path);
   }
 
   Vector<char> dir_path(full_path.size() + 1);
