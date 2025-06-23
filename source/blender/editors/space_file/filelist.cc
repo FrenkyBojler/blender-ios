@@ -4109,15 +4109,23 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
           },
           /*wait_fn=*/
           [&]() {
-            while (!job_params->is_asset_library_new_pages_available &&
-                   job_params->is_asset_library_loading_extern)
-            {
+            while (true) {
               if (*stop || job_params->cancel) {
                 return false;
               }
+
+              /* Atomically test and reset the new pages flag. */
+              if (job_params->is_asset_library_new_pages_available.exchange(false) ||
+                  !job_params->is_asset_library_loading_extern)
+              {
+                /* New pages available or loading ended. Done waiting. */
+                return true;
+              }
+
+              /* Busy waiting for new files, with some sleeping to avoid wasting a lot of CPU
+               * cycles. */
+              std::this_thread::sleep_for(std::chrono::milliseconds(10));
             }
-            job_params->is_asset_library_new_pages_available = false;
-            return true;
           }))
   {
     return;
@@ -4181,7 +4189,9 @@ static void filelist_readjob_remote_asset_library(FileListReadJob *job_params,
   while (job_params->is_asset_library_loading_extern &&
          !job_params->is_asset_library_metafiles_in_place)
   {
-    /* Busy waiting for the metafiles. */
+    /* Busy waiting for the metafiles, with some sleeping to avoid wasting a lot of CPU
+     * cycles. */
+    std::this_thread::sleep_for(std::chrono::milliseconds(20));
 
     if (*stop || job_params->cancel) {
       return;
