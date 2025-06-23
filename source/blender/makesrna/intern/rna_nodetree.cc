@@ -6899,15 +6899,10 @@ static void def_cmp_double_edge_mask(BlenderRNA * /*brna*/, StructRNA *srna)
 
 static void def_cmp_map_uv(BlenderRNA * /*brna*/, StructRNA *srna)
 {
-  static const EnumPropertyItem filter_type_items[] = {
-      {CMP_NODE_MAP_UV_FILTERING_NEAREST, "NEAREST", 0, "Nearest", ""},
-      {CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC, "ANISOTROPIC", 0, "Anisotropic", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
 
   PropertyRNA *prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "custom2");
-  RNA_def_property_enum_items(prop, filter_type_items);
+  RNA_def_property_enum_items(prop, cmp_interpolation_items);
   RNA_def_property_ui_text(prop, "Filter Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -10491,8 +10486,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeCameraData");
   define("ShaderNode", "ShaderNodeClamp", def_clamp);
   define("ShaderNode", "ShaderNodeCombineColor", def_sh_combsep_color);
-  define("ShaderNode", "ShaderNodeCombineHSV");
-  define("ShaderNode", "ShaderNodeCombineRGB");
   define("ShaderNode", "ShaderNodeCombineXYZ");
   define("ShaderNode", "ShaderNodeDisplacement", def_sh_displacement);
   define("ShaderNode", "ShaderNodeEeveeSpecular");
@@ -10529,8 +10522,6 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("ShaderNode", "ShaderNodeRGBToBW");
   define("ShaderNode", "ShaderNodeScript", def_sh_script);
   define("ShaderNode", "ShaderNodeSeparateColor", def_sh_combsep_color);
-  define("ShaderNode", "ShaderNodeSeparateHSV");
-  define("ShaderNode", "ShaderNodeSeparateRGB");
   define("ShaderNode", "ShaderNodeSeparateXYZ");
   define("ShaderNode", "ShaderNodeShaderToRGB");
   define("ShaderNode", "ShaderNodeSqueeze");

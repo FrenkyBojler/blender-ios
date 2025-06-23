@@ -14,6 +14,7 @@
 #include "DNA_screen_types.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "rna_internal.hh"
@@ -373,12 +374,12 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
     flag |= UI_ITEM_O_DEPRESS;
   }
 
-  const float prev_weight = uiLayoutGetSearchWeight(layout);
-  uiLayoutSetSearchWeight(layout, search_weight);
+  const float prev_weight = layout->search_weight();
+  layout->search_weight_set(search_weight);
 
   PointerRNA opptr = layout->op(ot, text, icon, layout->operator_context(), flag);
 
-  uiLayoutSetSearchWeight(layout, prev_weight);
+  layout->search_weight_set(prev_weight);
   return opptr;
 }
 
@@ -541,6 +542,16 @@ static void rna_uiItemProgress(uiLayout *layout,
 static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
 {
   layout->separator(factor, LayoutSeparatorType(type));
+}
+
+static void rna_uiLayoutContextPointerSet(uiLayout *layout, const char *name, PointerRNA *ptr)
+{
+  layout->context_ptr_set(name, ptr);
+}
+
+static void rna_uiLayoutContextStringSet(uiLayout *layout, const char *name, const char *value)
+{
+  layout->context_string_set(name, value);
 }
 
 static void rna_uiTemplateID(uiLayout *layout,
@@ -855,7 +866,7 @@ void rna_uiLayoutPanelProp(uiLayout *layout,
                            uiLayout **r_layout_header,
                            uiLayout **r_layout_body)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
+  Panel *panel = layout->root_panel();
   if (panel == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Layout panels can not be used in this context");
     *r_layout_header = nullptr;
@@ -876,7 +887,7 @@ void rna_uiLayoutPanel(uiLayout *layout,
                        uiLayout **r_layout_header,
                        uiLayout **r_layout_body)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
+  Panel *panel = layout->root_panel();
   if (panel == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Layout panels can not be used in this context");
     *r_layout_header = nullptr;
@@ -1056,7 +1067,7 @@ PointerRNA rna_uiTemplatePopupConfirm(uiLayout *layout,
   if (opname[0] ? (!ot || !ot->srna) : false) {
     RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
   }
-  else if (!UI_popup_block_template_confirm_is_supported(uiLayoutGetBlock(layout))) {
+  else if (!UI_popup_block_template_confirm_is_supported(layout->block())) {
     BKE_reportf(reports, RPT_ERROR, "template_popup_confirm used outside of a popup");
   }
   else {
@@ -1604,13 +1615,13 @@ void RNA_api_ui_layout(StructRNA *srna)
                "The type of progress indicator");
 
   /* context */
-  func = RNA_def_function(srna, "context_pointer_set", "uiLayoutSetContextPointer");
+  func = RNA_def_function(srna, "context_pointer_set", "rna_uiLayoutContextPointerSet");
   parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of entry in the context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_pointer(func, "data", "AnyType", "", "Pointer to put in context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
 
-  func = RNA_def_function(srna, "context_string_set", "uiLayoutSetContextString");
+  func = RNA_def_function(srna, "context_string_set", "rna_uiLayoutContextStringSet");
   parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of entry in the context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_string(func, "value", nullptr, 0, "Value", "String to put in context");

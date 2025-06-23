@@ -52,6 +52,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -1814,8 +1815,8 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
   /* Padding around each area, except at window edges. */
   const short px = short(std::max(float(U.border_width) * UI_SCALE_FAC, UI_SCALE_FAC));
 
-  /* Padding at window edges. */
-  const short px_edge = int(UI_SCALE_FAC * 2.0f);
+  /* Padding at window edges. Cannot be less than border width. */
+  const short px_edge = short(std::min(UI_SCALE_FAC * 2.0f, float(U.border_width) * UI_SCALE_FAC));
 
   area->totrct.xmin = area->v1->vec.x;
   area->totrct.xmax = area->v4->vec.x;
@@ -3613,7 +3614,7 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
       }
 
       /* for view2d */
-      xco = uiLayoutGetWidth(layout);
+      xco = layout->width();
       maxco = std::max(xco, maxco);
     }
 

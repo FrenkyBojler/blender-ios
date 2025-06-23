@@ -314,6 +314,7 @@ if(TEST_SRC_DIR_EXISTS)
       --debug
       --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_versioning.py --
       --src-test-dir ${TEST_SRC_DIR}/
+      --output-dir ${TEST_OUT_DIR}/blendfile_io/
       --slice-range ${BLENDFILE_VERSIONING_SPLIT_RANGE}
       --slice-index ${idx}
     )
@@ -338,6 +339,12 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
     --output-dir ${TEST_OUT_DIR}/blendfile_io/
     --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
+  )
+
+  add_blender_test(
+    blendfile_header
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_header.py --
+    --testdir "${TEST_SRC_DIR}/io_tests/blend_parsing"
   )
 endif()
 
@@ -576,6 +583,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_node_field_type_inference
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_field_type_inference.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
+
+  add_blender_test(
+    bl_node_structure_type_inference
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_structure_type_inference.py
     --
     --testdir "${TEST_SRC_DIR}/node_group"
   )
