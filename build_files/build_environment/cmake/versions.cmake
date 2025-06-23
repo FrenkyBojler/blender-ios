@@ -396,6 +396,40 @@ set(OPENVDB_HOMEPAGE http://www.openvdb.org/)
 set(OPENVDB_LICENSE SPDX:MPL-2.0)
 set(OPENVDB_COPYRIGHT "Copyright Contributors to the OpenVDB Project")
 
+set(JXL_VERSION 0.11.1)
+set(JXL_NAME libjxl)
+set(JXL_URI https://github.com/libjxl/libjxl/archive/refs/tags/v${JXL_VERSION}.tar.gz)
+set(JXL_HASH 8f26fc954c2d9cb377544a5f029182ef)
+set(JXL_HASH_TYPE MD5)
+set(JXL_FILE libjxl-${JXL_VERSION}.tar.gz)
+set(JXL_HOMEPAGE https://github.com/libjxl/libjxl)
+set(JXL_LICENSE SPDX:BSD-3-Clause)
+set(JXL_COPYRIGHT "Copyright (c) the JPEG XL Project Authors")
+
+set(HIGHWAY_VERSION 1.2.0)
+set(HIGHWAY_NAME highway)
+set(HIGHWAY_URI https://github.com/google/highway/archive/refs/tags/${HIGHWAY_VERSION}.tar.gz)
+set(HIGHWAY_HASH 8b3d090a2d081730b40bca5ae0d65f11)
+set(HIGHWAY_HASH_TYPE MD5)
+set(HIGHWAY_FILE highway-${HIGHWAY_VERSION}.tar.gz)
+set(HIGHWAY_HOMEPAGE https://github.com/google/highway)
+set(HIGHWAY_LICENSE SPDX:BSD-3-Clause)
+set(HIGHWAY_COPYRIGHT [=[
+Copyright 2019 Google LLC
+Copyright 2024 Arm Limited and/or its affiliates <open-source-office@arm.com>
+]=])
+
+# Version taken from libjxl's deps.sh
+set(SKCMS_VERSION 42030a771244ba67f86b1c1c76a6493f873c5f91)
+set(SKCMS_NAME skcms)
+set(SKCMS_URI https://skia.googlesource.com/skcms/+archive/${SKCMS_VERSION}.tar.gz)
+set(SKCMS_HASH 8747493a4ad7acb39ea0cb565825d66b)
+set(SKCMS_HASH_TYPE MD5)
+set(SKCMS_FILE skcms-${SKCMS_VERSION}.tar.gz)
+set(SKCMS_HOMEPAGE https://skia.googlesource.com/skcms/)
+set(SKCMS_LICENSE SPDX:BSD-3-Clause)
+set(SKCMS_COPYRIGHT "Copyright 2018 Google Inc.")
+
 # ------------------------------------------------------------------------------
 # Python Modules
 

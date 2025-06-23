@@ -636,6 +636,14 @@ if(WIN32)
         ${LIBDIR}/OpenImageDenoise/bin/OpenImageDenoise_device_cuda.dll
     )
   endif()
+  if(EXISTS ${LIBDIR}/jxl/bin/jxl.dll) # 5.0
+    windows_install_shared_manifest(
+      FILES
+        ${LIBDIR}/jxl/bin/jxl.dll
+        ${LIBDIR}/jxl/bin/jxl_threads.dll
+        ${LIBDIR}/jxl/bin/jxl_cms.dll
+    )
+  endif()  
 endif()
 
 # Show helpful tip.
