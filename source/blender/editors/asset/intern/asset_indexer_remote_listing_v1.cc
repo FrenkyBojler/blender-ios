@@ -240,7 +240,8 @@ ReadingResult read_remote_listing_v1(StringRefNull listing_root_dirpath,
       }
     }
 
-    if (done_pages.size() == listing->page_rel_paths.size()) {
+    BLI_assert(done_pages.size() <= listing->page_rel_paths.size());
+    if (done_pages.size() >= listing->page_rel_paths.size()) {
       break;
     }
     if (!wait_fn) {
@@ -249,7 +250,7 @@ ReadingResult read_remote_listing_v1(StringRefNull listing_root_dirpath,
     if (!wait_fn()) {
       return ReadingResult::Cancelled;
     }
-  };
+  }
 
   return ReadingResult::Success;
 }

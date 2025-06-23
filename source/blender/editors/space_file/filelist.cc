@@ -4071,63 +4071,66 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
    * below, which is allowed by the API. */
   Vector<std::unique_ptr<index::RemoteListingAssetEntry>> entries_store;
 
+  /* #index::read_remote_listing() below calls this for every asset entry it finished reading from
+   * the asset listing pages. */
+  auto process_asset_fn = [&](index::RemoteListingAssetEntry &movable_entry) {
+    if (*stop || job_params->cancel) {
+      /* Cancel reading when requested. */
+      return false;
+    }
+
+    /* Move into own storage for later access. */
+    entries_store.append(
+        std::make_unique<index::RemoteListingAssetEntry>(std::move(movable_entry)));
+
+    index::RemoteListingAssetEntry &entry = *entries_store.last();
+
+    const char *group_name = BKE_idtype_idcode_to_name(entry.idcode);
+    ListBase entries = {nullptr};
+
+    filelist_readjob_list_lib_add_datablock(
+        job_params, &entries, &entry.datablock_info, true, entry.idcode, group_name);
+    assets_per_blend_path.add(entry.archive_url, &entry);
+
+    int entries_num = 0;
+    LISTBASE_FOREACH (FileListInternEntry *, entry, &entries) {
+      entry->uid = filelist_uid_generate(filelist);
+      char dir[FILE_MAX_LIBEXTRA];
+      entry->name = fileentry_uiname(dirpath, entry, dir);
+      entry->free_name = true;
+      entries_num++;
+    }
+
+    if (filelist_readjob_append_entries(job_params, &entries, entries_num)) {
+      *do_update = true;
+    }
+    return true;
+  };
+  /* A busy wait function for while asset listing pages are being downloaded.
+   * #index::read_remote_listing() calls this every time it's done looking for new pages, until all
+   * pages are there (or until this returns false). */
+  auto wait_for_pages_fn = [&]() {
+    while (true) {
+      if (*stop || job_params->cancel) {
+        return false;
+      }
+
+      /* Atomically test and reset the new pages flag. */
+      if (job_params->is_asset_library_new_pages_available.exchange(false) ||
+          !job_params->is_asset_library_loading_extern)
+      {
+        /* New pages available or loading ended. Done waiting. */
+        return true;
+      }
+
+      /* Busy waiting for new files, with some sleeping to avoid wasting a lot of CPU
+       * cycles. */
+      std::this_thread::sleep_for(std::chrono::milliseconds(10));
+    }
+  };
+
   /* TODO: Somehow ignore old pages. */
-  if (!index::read_remote_listing(
-          dirpath,
-          [&](index::RemoteListingAssetEntry &movable_entry) {
-            if (*stop || job_params->cancel) {
-              /* Cancel reading when requested. */
-              return false;
-            }
-
-            /* Move into own storage for later access. */
-            entries_store.append(
-                std::make_unique<index::RemoteListingAssetEntry>(std::move(movable_entry)));
-
-            index::RemoteListingAssetEntry &entry = *entries_store.last();
-
-            const char *group_name = BKE_idtype_idcode_to_name(entry.idcode);
-            ListBase entries = {nullptr};
-
-            filelist_readjob_list_lib_add_datablock(
-                job_params, &entries, &entry.datablock_info, true, entry.idcode, group_name);
-            assets_per_blend_path.add(entry.archive_url, &entry);
-
-            int entries_num = 0;
-            LISTBASE_FOREACH (FileListInternEntry *, entry, &entries) {
-              entry->uid = filelist_uid_generate(filelist);
-              char dir[FILE_MAX_LIBEXTRA];
-              entry->name = fileentry_uiname(dirpath, entry, dir);
-              entry->free_name = true;
-              entries_num++;
-            }
-
-            if (filelist_readjob_append_entries(job_params, &entries, entries_num)) {
-              *do_update = true;
-            }
-            return true;
-          },
-          /*wait_fn=*/
-          [&]() {
-            while (true) {
-              if (*stop || job_params->cancel) {
-                return false;
-              }
-
-              /* Atomically test and reset the new pages flag. */
-              if (job_params->is_asset_library_new_pages_available.exchange(false) ||
-                  !job_params->is_asset_library_loading_extern)
-              {
-                /* New pages available or loading ended. Done waiting. */
-                return true;
-              }
-
-              /* Busy waiting for new files, with some sleeping to avoid wasting a lot of CPU
-               * cycles. */
-              std::this_thread::sleep_for(std::chrono::milliseconds(10));
-            }
-          }))
-  {
+  if (!index::read_remote_listing(dirpath, process_asset_fn, wait_for_pages_fn)) {
     return;
   }
 
@@ -4226,9 +4229,14 @@ static const bUserAssetLibrary *lookup_remote_library(const FileListReadJob *job
   return library;
 }
 
-static void filelist_remote_asset_library_update_loading_flags(FileListReadJob *job_params,
-                                                               const bUserAssetLibrary *library)
+static void filelist_remote_asset_library_update_loading_flags(FileListReadJob *job_params)
 {
+  const bUserAssetLibrary *library = lookup_remote_library(job_params);
+  if (!library) {
+    job_params->is_asset_library_loading_extern = false;
+    return;
+  }
+
   /* On timeout the loading status will be set to cancelled. */
   if (RemoteLibraryLoadingStatus::handle_timeout(library->remote_url)) {
     job_params->cancel = true;
@@ -4250,24 +4258,12 @@ static void filelist_remote_asset_library_update_loading_flags(FileListReadJob *
 
 static void filelist_start_job_remote_asset_library(FileListReadJob *job_params)
 {
-  const bUserAssetLibrary *library = lookup_remote_library(job_params);
-  if (!library) {
-    job_params->is_asset_library_loading_extern = false;
-    return;
-  }
-
-  filelist_remote_asset_library_update_loading_flags(job_params, library);
+  filelist_remote_asset_library_update_loading_flags(job_params);
 }
 
 static void filelist_timer_step_remote_asset_library(FileListReadJob *job_params)
 {
-  const bUserAssetLibrary *library = lookup_remote_library(job_params);
-  if (!library) {
-    job_params->is_asset_library_loading_extern = false;
-    return;
-  }
-
-  filelist_remote_asset_library_update_loading_flags(job_params, library);
+  filelist_remote_asset_library_update_loading_flags(job_params);
 }
 
 static void filelist_readjob_main(FileListReadJob *job_params,
