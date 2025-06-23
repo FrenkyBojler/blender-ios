@@ -38,6 +38,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_anim_api.hh"
@@ -318,7 +319,7 @@ static void fmodifier_panel_header(const bContext *C, Panel *panel)
   }
   /* Right align. */
   sub = &layout->row(true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
+  sub->alignment_set(blender::ui::LayoutAlign::Right);
   sub->emboss_set(blender::ui::EmbossType::None);
 
   /* 'Mute' button. */
