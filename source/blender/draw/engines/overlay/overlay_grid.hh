@@ -341,6 +341,8 @@ class GridMesh : Overlay {
   /* Contains only an index buffer connecting visible vertices.
    * Position is derived from indices. */
   std::array<gpu::Batch *, SI_GRID_STEPS_LEN> level_grids_ = {};
+  /* Only contains the lines that overlaps the level above. */
+  std::array<gpu::Batch *, SI_GRID_STEPS_LEN> level_fills_ = {};
 
   std::array<gpu::Batch *, 2> axes_ = {};
 
@@ -361,6 +363,9 @@ class GridMesh : Overlay {
   ~GridMesh()
   {
     for (gpu::Batch *&batch : level_grids_) {
+      GPU_BATCH_DISCARD_SAFE(batch);
+    }
+    for (gpu::Batch *&batch : level_fills_) {
       GPU_BATCH_DISCARD_SAFE(batch);
     }
     for (gpu::Batch *&batch : axes_) {
@@ -388,7 +393,7 @@ class GridMesh : Overlay {
     return GPU_batch_create_ex(GPU_PRIM_LINES, nullptr, ibo, GPU_BATCH_OWNS_INDEX);
   }
 
-  gpu::Batch *generate_batch(int resolution, int next_subdivision)
+  gpu::Batch *generate_batch(int resolution, int next_subdivision, bool only_next_subdivision)
   {
     GPUIndexBufBuilder builder;
     GPU_indexbuf_init(&builder, GPU_PRIM_LINES, square_i(resolution) * 2, 0xFFFFFFFEu);
@@ -398,10 +403,13 @@ class GridMesh : Overlay {
       for (int j : IndexRange(resolution)) {
         int x = i - resolution / 2;
         int y = j - resolution / 2;
-        if (i != resolution && ((next_subdivision == 1) || (y % next_subdivision) != 0)) {
+        /* Does this line overlap with next subdivision. */
+        const bool y_next_subdivision = (y % next_subdivision) == 0 && (next_subdivision != 1);
+        const bool x_next_subdivision = (x % next_subdivision) == 0 && (next_subdivision != 1);
+        if (i != resolution && y_next_subdivision == only_next_subdivision) {
           GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x + 1, y));
         }
-        if (j != resolution && ((next_subdivision == 1) || (x % next_subdivision) != 0)) {
+        if (j != resolution && x_next_subdivision == only_next_subdivision) {
           GPU_indexbuf_add_line_verts(&builder, vertex_id_at(x, y), vertex_id_at(x, y + 1));
         }
       }
@@ -421,7 +429,23 @@ class GridMesh : Overlay {
     grid_steps_ = {0.001f, 0.01f, 0.1f, 1.0f, 10.0f, 100.0f, 1000.0f, 10000.0f};
     ED_view3d_grid_steps(state.scene, state.v3d, state.rv3d, grid_steps_.data());
 
-    /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
+    int min_level = SI_GRID_STEPS_LEN;
+    int max_level = 0;
+
+    /* Only draw levels that are visible. */
+    for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
+      if (grid_steps_[i] > state.v3d->clip_start) {
+        min_level = math::min(min_level, i);
+      }
+      if (grid_steps_[i] < state.v3d->clip_end) {
+        max_level = math::max(max_level, i);
+      }
+    }
+
+    max_level = math::max(max_level + 1, SI_GRID_STEPS_LEN - 1);
+
+    IndexRange visible_levels(min_level, max_level - min_level);
+
     for (auto i : IndexRange(SI_GRID_STEPS_LEN)) {
       const bool is_last_level = i == (SI_GRID_STEPS_LEN - 1);
 
@@ -436,7 +460,8 @@ class GridMesh : Overlay {
         /* TODO: Reduce to the amount that can be seen on screen. */
         const int res = ceil_to_multiple_u(256, subdiv_level) * 2;
         levels_[i].resolution = res;
-        level_grids_[i] = generate_batch(res, subdiv_level);
+        level_grids_[i] = generate_batch(res, subdiv_level, false);
+        level_fills_[i] = generate_batch(res, subdiv_level, true);
       }
     }
 
@@ -486,10 +511,10 @@ class GridMesh : Overlay {
 
     if (show_floor) {
       /* TODO(fclem): Only draw levels that are visible using camera position and near/far clip. */
-      for (auto i_acc : IndexRange(SI_GRID_STEPS_LEN)) {
+      for (auto i_acc : visible_levels) {
         /* Draw in reverse order to avoid missing pixels in farthest grid level caused by depth
          * write from transparent pixel in smaller grid level. */
-        int i = (SI_GRID_STEPS_LEN - 1) - i_acc;
+        int i = visible_levels.last() - i_acc;
 
         if (i_acc > 0) {
           /* Check if next step is the same. */
@@ -505,6 +530,9 @@ class GridMesh : Overlay {
         grid_ps_.push_constant("origin_offset", &levels_[i].origin_offset);
         grid_ps_.push_constant("next_divider", levels_[i].subdiv_level);
         grid_ps_.draw(level_grids_[i]);
+        if (i_acc == 0) {
+          grid_ps_.draw(level_fills_[i]);
+        }
       }
     }
   }
