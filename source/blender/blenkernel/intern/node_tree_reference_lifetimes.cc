@@ -55,7 +55,9 @@ std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &info)
 
 static bool socket_may_have_reference(const bNodeTree &tree, const bNodeSocket &socket)
 {
-  return tree.runtime->field_states[socket.index_in_tree()] == FieldSocketState::IsField;
+  return ELEM(tree.runtime->inferred_structure_types[socket.index_in_tree()],
+              nodes::StructureType::Field,
+              nodes::StructureType::Dynamic);
 }
 
 static bool or_into_each_other_masked(MutableBoundedBitSpan a,
