@@ -230,11 +230,9 @@ void ED_screen_draw_edges(wmWindow *win)
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
     BLI_rctf_rcti_copy(&bounds, &area->totrct);
     float *color = (area == active_area) ? col_active : col_inactive;
-
     if (area == last_active_area) {
       color = col_active_last;
     }
-
     UI_draw_roundbox_4fv_ex(&bounds, nullptr, nullptr, 1.0f, color, U.pixelsize, EDITORRADIUS);
   }
 
