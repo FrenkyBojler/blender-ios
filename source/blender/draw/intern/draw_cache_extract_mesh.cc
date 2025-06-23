@@ -9,6 +9,7 @@
  */
 
 #include "BKE_attribute.hh"
+
 #include "DNA_mesh_types.h"
 #include "DNA_scene_types.h"
 
