@@ -20,7 +20,8 @@ struct Tex;
 struct Image;
 struct Material;
 
-BLI_CPP_TYPE_MAKE(blender::bke::GeometrySet, CPPTypeFlags::Printable);
+BLI_CPP_TYPE_MAKE(blender::bke::GeometrySet,
+                  CPPTypeFlags::Printable | CPPTypeFlags::EqualityComparable);
 BLI_CPP_TYPE_MAKE(blender::bke::InstanceReference, CPPTypeFlags::None)
 
 BLI_VECTOR_CPP_TYPE_MAKE(blender::bke::GeometrySet);
@@ -32,8 +33,8 @@ BLI_CPP_TYPE_MAKE(Image *, CPPTypeFlags::BasicType)
 BLI_CPP_TYPE_MAKE(Material *, CPPTypeFlags::BasicType)
 
 BLI_CPP_TYPE_MAKE(MStringProperty, CPPTypeFlags::None);
-BLI_CPP_TYPE_MAKE(blender::nodes::BundlePtr, CPPTypeFlags::None);
-BLI_CPP_TYPE_MAKE(blender::nodes::ClosurePtr, CPPTypeFlags::None);
+BLI_CPP_TYPE_MAKE(blender::nodes::BundlePtr, CPPTypeFlags::EqualityComparable);
+BLI_CPP_TYPE_MAKE(blender::nodes::ClosurePtr, CPPTypeFlags::EqualityComparable);
 
 BLI_CPP_TYPE_MAKE(blender::bke::GeometryNodesReferenceSet, CPPTypeFlags::None);
 BLI_CPP_TYPE_MAKE(blender::bke::SocketValueVariant, CPPTypeFlags::Printable);

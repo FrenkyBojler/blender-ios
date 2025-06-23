@@ -211,15 +211,15 @@ struct SocketUsageInferencer {
 
   bool socket_has_default_value(const SocketInContext &socket)
   {
-    const void *value = this->get_socket_value(socket);
-    if (value == nullptr) {
+    const InferenceValue value = this->get_socket_value(socket);
+    if (value.is_unknown()) {
       return false;
     }
     const CPPType &type = *socket->typeinfo->base_cpp_type;
     if (!type.is_equality_comparable()) {
       return false;
     }
-    return type.is_equal(value, type.default_value());
+    return type.is_equal(value.data(), type.default_value());
   }
 
  private:
