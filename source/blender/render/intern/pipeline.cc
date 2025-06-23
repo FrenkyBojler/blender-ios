@@ -715,7 +715,7 @@ void RE_FreeUnusedGPUResources()
 
       /* Detect if scene is using GPU compositing, and if either a node editor is
        * showing the nodes, or an image editor is showing the render result or viewer. */
-      if (!(scene->use_nodes && scene->compositing_node_group &&
+      if (!(scene->compositing_node_group &&
             scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU))
       {
         continue;
@@ -939,8 +939,6 @@ void RE_InitState(Render *re,
   BLI_rw_mutex_unlock(&re->resultmutex);
 
   RE_init_threadcount(re);
-
-  RE_point_density_fix_linking();
 }
 
 void RE_display_init_cb(Render *re, void *handle, void (*f)(void *handle, RenderResult *rr))
@@ -1224,9 +1222,6 @@ static bool compositor_needs_render(Scene *scene)
   if (ntree == nullptr) {
     return true;
   }
-  if (scene->use_nodes == false) {
-    return true;
-  }
   if ((scene->r.scemode & R_DOCOMP) == 0) {
     return true;
   }
@@ -1362,7 +1357,7 @@ static void do_render_compositor(Render *re)
   }
 
   if (!re->test_break()) {
-    if (ntree && re->scene->use_nodes && re->r.scemode & R_DOCOMP) {
+    if (ntree && re->r.scemode & R_DOCOMP) {
       /* checks if there are render-result nodes that need scene */
       if ((re->r.scemode & R_SINGLE_LAYER) == 0) {
         do_render_compositor_scenes(re);
@@ -1680,7 +1675,7 @@ static bool check_valid_compositing_camera(Scene *scene,
                                            Object *camera_override,
                                            ReportList *reports)
 {
-  if (scene->r.scemode & R_DOCOMP && scene->use_nodes) {
+  if (scene->r.scemode & R_DOCOMP && scene->compositing_node_group) {
     for (bNode *node : scene->compositing_node_group->all_nodes()) {
       if (node->type_legacy == CMP_NODE_R_LAYERS && !node->is_muted()) {
         Scene *sce = node->id ? (Scene *)node->id : scene;
@@ -1861,13 +1856,8 @@ bool RE_is_rendering_allowed(Scene *scene,
       return false;
     }
   }
-  else if ((scemode & R_DOCOMP) && scene->use_nodes) {
+  else if (scemode & R_DOCOMP && scene->compositing_node_group) {
     /* Compositor */
-    if (!scene->compositing_node_group) {
-      BKE_report(reports, RPT_ERROR, "No node tree in scene");
-      return false;
-    }
-
     if (!check_compositor_output(scene)) {
       BKE_report(reports, RPT_ERROR, "No render output node in scene");
       return false;
@@ -2098,7 +2088,7 @@ void RE_RenderFrame(Render *re,
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
         const path_templates::VariableMap template_variables =
-            BKE_build_template_variables_for_render_path(relbase, &scene->r);
+            BKE_build_template_variables_for_render_path(&scene->r);
         const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath_override,
             rd.pic,
@@ -2164,7 +2154,7 @@ void RE_RenderFreestyleStrokes(Render *re, Main *bmain, Scene *scene, const bool
       char scene_engine[32];
       STRNCPY(scene_engine, re->r.engine);
       if (use_eevee_for_freestyle_render(re)) {
-        change_renderdata_engine(re, RE_engine_id_BLENDER_EEVEE_NEXT);
+        change_renderdata_engine(re, RE_engine_id_BLENDER_EEVEE);
       }
 
       RE_engine_render(re, false);
@@ -2330,7 +2320,7 @@ static bool do_write_image_or_movie(
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
         const path_templates::VariableMap template_variables =
-            BKE_build_template_variables_for_render_path(relbase, &scene->r);
+            BKE_build_template_variables_for_render_path(&scene->r);
         const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath,
             scene->r.pic,
@@ -2531,9 +2521,8 @@ void RE_RenderAnim(Render *re,
 
     /* Touch/NoOverwrite options are only valid for image's */
     if (is_movie == false && do_write_file) {
-      const char *relbase = BKE_main_blendfile_path(bmain);
       const path_templates::VariableMap template_variables =
-          BKE_build_template_variables_for_render_path(relbase, &rd);
+          BKE_build_template_variables_for_render_path(&rd);
       const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
           filepath,
           rd.pic,

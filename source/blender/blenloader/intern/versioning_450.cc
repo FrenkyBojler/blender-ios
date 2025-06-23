@@ -191,27 +191,27 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 {
   LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
     switch (node->type_legacy) {
-      case CMP_NODE_VALUE:
+      case CMP_NODE_VALUE_DEPRECATED:
         node->type_legacy = SH_NODE_VALUE;
         STRNCPY(node->idname, "ShaderNodeValue");
         break;
-      case CMP_NODE_MATH:
+      case CMP_NODE_MATH_DEPRECATED:
         node->type_legacy = SH_NODE_MATH;
         STRNCPY(node->idname, "ShaderNodeMath");
         break;
-      case CMP_NODE_COMBINE_XYZ:
+      case CMP_NODE_COMBINE_XYZ_DEPRECATED:
         node->type_legacy = SH_NODE_COMBXYZ;
         STRNCPY(node->idname, "ShaderNodeCombineXYZ");
         break;
-      case CMP_NODE_SEPARATE_XYZ:
+      case CMP_NODE_SEPARATE_XYZ_DEPRECATED:
         node->type_legacy = SH_NODE_SEPXYZ;
         STRNCPY(node->idname, "ShaderNodeSeparateXYZ");
         break;
-      case CMP_NODE_CURVE_VEC:
+      case CMP_NODE_CURVE_VEC_DEPRECATED:
         node->type_legacy = SH_NODE_CURVE_VEC;
         STRNCPY(node->idname, "ShaderNodeVectorCurve");
         break;
-      case CMP_NODE_VALTORGB: {
+      case CMP_NODE_VALTORGB_DEPRECATED: {
         node->type_legacy = SH_NODE_VALTORGB;
         STRNCPY(node->idname, "ShaderNodeValToRGB");
 
@@ -223,7 +223,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 
         break;
       }
-      case CMP_NODE_MAP_RANGE: {
+      case CMP_NODE_MAP_RANGE_DEPRECATED: {
         node->type_legacy = SH_NODE_MAP_RANGE;
         STRNCPY(node->idname, "ShaderNodeMapRange");
 
@@ -242,7 +242,7 @@ static void do_version_convert_to_generic_nodes(bNodeTree *node_tree)
 
         break;
       }
-      case CMP_NODE_MIX_RGB: {
+      case CMP_NODE_MIX_RGB_DEPRECATED: {
         node->type_legacy = SH_NODE_MIX;
         STRNCPY(node->idname, "ShaderNodeMix");
 
@@ -421,6 +421,9 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
       blender::bke::node_remove_link(node_tree, *link);
     }
 
+    MEM_freeN(&texture_mapping);
+    node->storage = nullptr;
+
     blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
 
     version_socket_update_is_used(node_tree);
@@ -528,6 +531,9 @@ static void do_version_map_value_node(bNodeTree *node_tree, bNode *node)
     blender::bke::node_remove_link(node_tree, *link);
   }
 
+  MEM_freeN(&texture_mapping);
+  node->storage = nullptr;
+
   blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
 
   version_socket_update_is_used(node_tree);
@@ -568,7 +574,7 @@ static void do_version_convert_to_generic_nodes_after_linking(Main *bmain,
 
         break;
       }
-      case CMP_NODE_MAP_VALUE: {
+      case CMP_NODE_MAP_VALUE_DEPRECATED: {
         do_version_map_value_node(node_tree, node);
         break;
       }
@@ -683,6 +689,9 @@ static void do_version_bokeh_image_node_options_to_inputs(bNodeTree *node_tree, 
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Color Shift", "Color Shift");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->lensshift;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -821,6 +830,9 @@ static void do_version_mask_node_options_to_inputs(bNodeTree *node_tree, bNode *
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Motion Blur Shutter", "Shutter");
     input->default_value_typed<bNodeSocketValueFloat>()->value = node->custom3;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -1489,6 +1501,9 @@ static void do_version_anti_alias_node_options_to_inputs(bNodeTree *node_tree, b
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Corner Rounding", "Corner Rounding");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->corner_rounding;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -1550,6 +1565,9 @@ static void do_version_vector_blur_node_options_to_inputs(bNodeTree *node_tree, 
     /* Shutter was previously divided by 2. */
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->fac * 2.0f;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -1667,6 +1685,9 @@ static void do_version_chroma_matte_node_options_to_inputs(bNodeTree *node_tree,
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Falloff", "Falloff");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->fstrength;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -1730,6 +1751,9 @@ static void do_version_color_matte_node_options_to_inputs(bNodeTree *node_tree, 
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Value", "Value");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->t3;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -1787,6 +1811,9 @@ static void do_version_difference_matte_node_options_to_inputs(bNodeTree *node_t
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Falloff", "Falloff");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->t2;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -1895,6 +1922,9 @@ static void do_version_luminance_matte_node_options_to_inputs(bNodeTree *node_tr
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Maximum", "Maximum");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->t1;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -2561,6 +2591,9 @@ static void do_version_color_correction_node_options_to_inputs(bNodeTree *node_t
         *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Apply On Blue", "Apply On Blue");
     input->default_value_typed<bNodeSocketValueBoolean>()->value = bool(node->custom1 & (1 << 2));
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -2756,6 +2789,9 @@ static void do_version_box_mask_node_options_to_inputs(bNodeTree *node_tree, bNo
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_ANGLE, "Rotation", "Rotation");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->rotation;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -2830,6 +2866,9 @@ static void do_version_ellipse_mask_node_options_to_inputs(bNodeTree *node_tree,
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_ANGLE, "Rotation", "Rotation");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->rotation;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -2898,6 +2937,9 @@ static void do_version_sun_beams_node_options_to_inputs(bNodeTree *node_tree, bN
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_FACTOR, "Length", "Length");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->ray_length;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -2978,6 +3020,9 @@ static void do_version_directional_blur_node_options_to_inputs(bNodeTree *node_t
     /* Scale was previously minus 1. */
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->zoom + 1.0f;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -3054,6 +3099,9 @@ static void do_version_bilateral_blur_node_options_to_inputs(bNodeTree *node_tre
     /* Threshold was previously multiplied by 3. */
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->sigma_color / 3.0f;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -3349,6 +3397,14 @@ static void do_version_alpha_over_remove_premultiply(bNodeTree *node_tree)
     version_node_add_link(*node_tree, *mix_node, *mix_output, *link->tonode, *link->tosock);
 
     blender::bke::node_remove_link(node_tree, *link);
+  }
+
+  LISTBASE_FOREACH (bNode *, node, &node_tree->nodes) {
+    if (node->type_legacy == CMP_NODE_ALPHAOVER) {
+      NodeTwoFloats *storage = static_cast<NodeTwoFloats *>(node->storage);
+      MEM_freeN(storage);
+      node->storage = nullptr;
+    }
   }
 }
 
@@ -3781,6 +3837,8 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
 
   /* If Relative is not enabled or no image is connected, nothing else to do. */
   if (!bool(node->custom2) || !image_link) {
+    MEM_freeN(storage);
+    node->storage = nullptr;
     return;
   }
 
@@ -3891,6 +3949,9 @@ static void do_version_crop_node_options_to_inputs(bNodeTree *node_tree, bNode *
                         *image_link->fromsock,
                         *height_relative_to_pixel_node,
                         *height_image_input);
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -4019,6 +4080,9 @@ static void do_version_color_balance_node_options_to_inputs(bNodeTree *node_tree
         *node_tree, *node, SOCK_IN, SOCK_FLOAT, PROP_NONE, "Output Tint", "Tint");
     input->default_value_typed<bNodeSocketValueFloat>()->value = storage->output_tint;
   }
+
+  MEM_freeN(storage);
+  node->storage = nullptr;
 }
 
 /* The options were converted into inputs. */
@@ -4423,6 +4487,69 @@ static void do_version_flip_node_options_to_inputs(bNodeTree *node_tree, bNode *
         *node_tree, *node, SOCK_IN, SOCK_BOOLEAN, PROP_NONE, "Flip Y", "Flip Y");
     input->default_value_typed<bNodeSocketValueBoolean>()->value = ELEM(node->custom1, 1, 2);
   }
+}
+
+static void clamp_subdivision_node_level_input(bNodeTree &tree)
+{
+  blender::Map<bNodeSocket *, bNodeLink *> links_to_level_and_max_inputs;
+  LISTBASE_FOREACH (bNodeLink *, link, &tree.links) {
+    if (link->tosock) {
+      if (ELEM(blender::StringRef(link->tosock->identifier), "Level", "Max")) {
+        links_to_level_and_max_inputs.add(link->tosock, link);
+      }
+    }
+  }
+  LISTBASE_FOREACH_MUTABLE (bNode *, node, &tree.nodes) {
+    if (!ELEM(node->type_legacy, GEO_NODE_SUBDIVISION_SURFACE, GEO_NODE_SUBDIVIDE_MESH)) {
+      continue;
+    }
+    bNodeSocket *level_input = blender::bke::node_find_socket(*node, SOCK_IN, "Level");
+    if (!level_input || level_input->type != SOCK_INT) {
+      continue;
+    }
+    bNodeLink *link = links_to_level_and_max_inputs.lookup_default(level_input, nullptr);
+    if (link) {
+      bNode *origin_node = link->fromnode;
+      if (origin_node->type_legacy == SH_NODE_CLAMP) {
+        bNodeSocket *max_input_socket = blender::bke::node_find_socket(
+            *origin_node, SOCK_IN, "Max");
+        if (max_input_socket->type == SOCK_FLOAT &&
+            !links_to_level_and_max_inputs.contains(max_input_socket))
+        {
+          if (max_input_socket->default_value_typed<bNodeSocketValueFloat>()->value <= 11.0f) {
+            /* There is already a clamp node, so no need to add another one. */
+            continue;
+          }
+        }
+      }
+      /* Insert clamp node. */
+      bNode &clamp_node = version_node_add_empty(tree, "ShaderNodeClamp");
+      clamp_node.parent = node->parent;
+      clamp_node.location[0] = node->location[0] - 25;
+      clamp_node.location[1] = node->location[1];
+      bNodeSocket &clamp_value_input = version_node_add_socket(
+          tree, clamp_node, SOCK_IN, "NodeSocketFloat", "Value");
+      bNodeSocket &clamp_min_input = version_node_add_socket(
+          tree, clamp_node, SOCK_IN, "NodeSocketFloat", "Min");
+      bNodeSocket &clamp_max_input = version_node_add_socket(
+          tree, clamp_node, SOCK_IN, "NodeSocketFloat", "Max");
+      bNodeSocket &clamp_value_output = version_node_add_socket(
+          tree, clamp_node, SOCK_OUT, "NodeSocketFloat", "Result");
+
+      static_cast<bNodeSocketValueFloat *>(clamp_min_input.default_value)->value = 0.0f;
+      static_cast<bNodeSocketValueFloat *>(clamp_max_input.default_value)->value = 11.0f;
+
+      link->tosock = &clamp_value_input;
+      version_node_add_link(tree, clamp_node, clamp_value_output, *node, *level_input);
+    }
+    else {
+      /* Clamp value directly. */
+      bNodeSocketValueInt *value = level_input->default_value_typed<bNodeSocketValueInt>();
+      value->value = std::clamp(value->value, 0, 11);
+    }
+  }
+
+  version_socket_update_is_used(&tree);
 }
 
 void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
@@ -6252,6 +6379,15 @@ void blo_do_versions_450(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 86)) {
     fix_curve_nurbs_knot_mode_custom(bmain);
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 87)) {
+    FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+      if (tree->type == NTREE_GEOMETRY) {
+        clamp_subdivision_node_level_input(*tree);
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   /**

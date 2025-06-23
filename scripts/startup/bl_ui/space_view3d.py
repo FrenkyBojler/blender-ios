@@ -253,7 +253,7 @@ class _draw_tool_settings_context_mode:
         tool_settings = context.tool_settings
         capabilities = brush.sculpt_capabilities
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
 
         if capabilities.has_color:
             row = layout.row(align=True)
@@ -396,7 +396,7 @@ class _draw_tool_settings_context_mode:
         tool_settings = context.tool_settings
         capabilities = brush.sculpt_capabilities
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
 
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
@@ -487,7 +487,7 @@ class _draw_tool_settings_context_mode:
 
         if brush.gpencil_vertex_brush_type not in {'BLUR', 'AVERAGE', 'SMEAR'}:
             layout.separator(factor=0.4)
-            ups = context.tool_settings.unified_paint_settings
+            ups = paint.unified_paint_settings
             prop_owner = ups if ups.use_unified_color else brush
             layout.prop_with_popover(prop_owner, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
 
@@ -6565,7 +6565,7 @@ class VIEW3D_PT_shading_lighting(Panel):
             return True
         if shading.type == 'RENDERED':
             engine = context.scene.render.engine
-            if engine == 'BLENDER_EEVEE_NEXT':
+            if engine == 'BLENDER_EEVEE':
                 return True
         return False
 
@@ -6871,7 +6871,7 @@ class VIEW3D_PT_shading_render_pass(Panel):
     bl_region_type = 'HEADER'
     bl_label = "Render Pass"
     bl_parent_id = "VIEW3D_PT_shading"
-    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -7040,8 +7040,6 @@ class VIEW3D_PT_overlay_object(Panel):
     bl_label = "Objects"
 
     def draw(self, context):
-        shading = VIEW3D_PT_shading.get_shading(context)
-
         layout = self.layout
         view = context.space_data
         overlay = view.overlay
@@ -7067,10 +7065,6 @@ class VIEW3D_PT_overlay_object(Panel):
         subsub = sub.column()
         subsub.active = overlay.show_object_origins
         subsub.prop(overlay, "show_object_origins_all", text="Origins (All)")
-
-        if shading.type == 'WIREFRAME' or shading.show_xray:
-            layout.separator()
-            layout.prop(overlay, "bone_wire_alpha")
 
 
 class VIEW3D_PT_overlay_geometry(Panel):
@@ -7541,6 +7535,7 @@ class VIEW3D_PT_overlay_bones(Panel):
 
     def draw(self, context):
         layout = self.layout
+        shading = VIEW3D_PT_shading.get_shading(context)
         view = context.space_data
         mode = context.mode
         overlay = view.overlay
@@ -7560,6 +7555,9 @@ class VIEW3D_PT_overlay_bones(Panel):
         elif mode == 'PAINT_WEIGHT':
             row = col.row()
             row.prop(overlay, "show_xray_bone")
+            row = col.row()
+            row.active = shading.type == 'WIREFRAME'
+            row.prop(overlay, "bone_wire_alpha")
 
 
 class VIEW3D_PT_overlay_texture_paint(Panel):
@@ -8493,10 +8491,11 @@ class VIEW3D_PT_greasepencil_sculpt_context_menu(Panel):
 
     def draw(self, context):
         tool_settings = context.tool_settings
-        brush = tool_settings.gpencil_sculpt_paint.brush
+        paint = tool_settings.gpencil_sculpt_paint
+        brush = paint.brush
         layout = self.layout
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         size_owner = ups if ups.use_unified_size else brush
         strength_owner = ups if ups.use_unified_strength else brush
         layout.prop(size_owner, "size", text="")
@@ -8530,8 +8529,8 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'REPLACE'}:
             split = layout.split(factor=0.1)
-            split.prop(tool_settings.unified_paint_settings, "color", text="")
-            split.template_color_picker(tool_settings.unified_paint_settings, "color", value_slider=True)
+            split.prop(settings.unified_paint_settings, "color", text="")
+            split.template_color_picker(settings.unified_paint_settings, "color", value_slider=True)
 
             col = layout.column()
             col.separator()
@@ -8539,7 +8538,7 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
             col.separator()
 
         row = col.row(align=True)
-        row.prop(tool_settings.unified_paint_settings, "size", text="Radius")
+        row.prop(settings.unified_paint_settings, "size", text="Radius")
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'BLUR', 'SMEAR'}:
@@ -8804,7 +8803,8 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
     def draw(self, context):
         layout = self.layout
 
-        brush = context.tool_settings.sculpt.brush
+        paint = context.tool_settings.sculpt
+        brush = paint.brush
         capabilities = brush.sculpt_capabilities
 
         if capabilities.has_color:
@@ -8813,7 +8813,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
             UnifiedPaintPanel.prop_unified_color_picker(split, context, brush, "color", value_slider=True)
             layout.prop(brush, "blend", text="")
 
-        ups = context.tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
@@ -8897,7 +8897,7 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
             paint = context.scene.tool_settings.gpencil_vertex_paint
         use_unified_paint = (ob.mode != 'PAINT_GREASE_PENCIL')
 
-        ups = context.tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         brush = paint.brush
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 

@@ -179,6 +179,17 @@ typedef struct Mesh {
   char *default_color_attribute;
 
   /**
+   * The UV map currently selected in the list and edited by a user.
+   * Currently only used for file reading/writing (see #AttributeStorage).
+   */
+  char *active_uv_map_attribute;
+  /**
+   * The UV map used by default (i.e. for rendering) if no name is given explicitly.
+   * Currently only used for file reading/writing (see #AttributeStorage).
+   */
+  char *default_uv_map_attribute;
+
+  /**
    * User-defined symmetry flag (#eMeshSymmetryType) that causes editing operations to maintain
    * symmetrical geometry. Supported by operations such as transform and weight-painting.
    */
@@ -542,10 +553,10 @@ enum {
 };
 
 /** #SubsurfModifierData.subdivType */
-enum {
+typedef enum MeshSubdivType {
   ME_CC_SUBSURF = 0,
   ME_SIMPLE_SUBSURF = 1,
-};
+} MeshSubdivType;
 
 /** #Mesh.symmetry */
 typedef enum eMeshSymmetryType {
