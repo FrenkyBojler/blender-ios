@@ -2,3 +2,4 @@ Referenced by issue #138868, Regression: Slow start up on when using certain ext
 Referenced by issue #139769, ERROR (gpu.shader): OCIO_Display FragShader:4.4.3 and 4.5.0 have some error with ACEs 2.0 OCIO Configs from Academy Software Foundation But ACES 1.3 worked fine.
 Referenced by issue #140693, Switching to override in color mangement setting when saving image causes crash
 Referenced by pull request #140729, Fix #140693: Crash on enabling override in file output color settings
+Referenced by commit 7519586ec09990160f419c0226fdf0f66885bd85, Fix #140693: Crash on enabling override in file output color settings
