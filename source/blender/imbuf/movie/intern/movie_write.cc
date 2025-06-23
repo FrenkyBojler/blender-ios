@@ -1043,10 +1043,8 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   int ret = 0;
 
   context->ffmpeg_type = rd->ffcodecdata.type;
-  context->ffmpeg_codec = AVCodecID(
-      MOV_av_codec_id_get(IMB_Ffmpeg_Codec_ID(rd->ffcodecdata.codec)));
-  context->ffmpeg_audio_codec = AVCodecID(
-      MOV_av_codec_id_get(IMB_Ffmpeg_Codec_ID(rd->ffcodecdata.audio_codec)));
+  context->ffmpeg_codec = mov_av_codec_id_get(rd->ffcodecdata.codec_id_get());
+  context->ffmpeg_audio_codec = mov_av_codec_id_get(rd->ffcodecdata.audio_codec_id_get());
   context->ffmpeg_video_bitrate = rd->ffcodecdata.video_bitrate;
   context->ffmpeg_audio_bitrate = rd->ffcodecdata.audio_bitrate;
   context->ffmpeg_gop_size = rd->ffcodecdata.gop_size;
