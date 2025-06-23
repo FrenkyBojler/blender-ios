@@ -1412,7 +1412,6 @@ Array<SocketUsage> infer_all_sockets_usage(const bNodeTree &tree)
   const Span<const bNodeSocket *> all_input_sockets = tree.all_input_sockets();
   const Span<const bNodeSocket *> all_output_sockets = tree.all_output_sockets();
   Array<SocketUsage> all_usages(tree.all_sockets().size());
-  Array<bool> all_output_is_default(all_output_sockets.size());
 
   {
     /* Find actual socket usages. */
@@ -1420,10 +1419,6 @@ Array<SocketUsage> infer_all_sockets_usage(const bNodeTree &tree)
     inferencer.mark_top_level_node_outputs_as_used();
     for (const bNodeSocket *socket : all_input_sockets) {
       all_usages[socket->index_in_tree()].is_used = inferencer.is_socket_used({nullptr, socket});
-    }
-    for (const bNodeSocket *socket : all_output_sockets) {
-      all_output_is_default[socket->index_in_all_outputs()] = inferencer.socket_has_default_value(
-          {nullptr, socket});
     }
   }
 
