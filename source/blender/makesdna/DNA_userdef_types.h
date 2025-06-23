@@ -602,10 +602,10 @@ typedef struct UserDef {
 
   float collection_instance_empty_size;
   char text_flag;
-  char _pad10[1];
 
-  char file_preview_type; /* eUserpref_File_Preview_Type */
-  char statusbar_flag;    /* eUserpref_StatusBar_Flag */
+  char file_preview_type;  /* eUserpref_File_Preview_Type */
+  char statusbar_flag;     /* eUserpref_StatusBar_Flag */
+  char accessibility_flag; /* eUserpref_Accessibility_Flag */
 
   struct WalkNavigation walk_navigation;
 
@@ -849,6 +849,11 @@ typedef enum eUserpref_StatusBar_Flag {
   STATUSBAR_SHOW_SCENE_DURATION = (1 << 4),
   STATUSBAR_SHOW_EXTENSIONS_UPDATES = (1 << 5),
 } eUserpref_StatusBar_Flag;
+
+/** #UserDef.accessibility_flag */
+typedef enum eUserpref_Accessibility_Flag {
+  USER_A11Y_REDUCE_MOTION = (1 << 0),
+} eUserpref_Accessibility_Flag;
 
 /**
  * Auto-Keying mode.
