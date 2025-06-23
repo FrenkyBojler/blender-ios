@@ -7,10 +7,6 @@
 
 #include "GEO_transform.hh"
 
-#include "UI_interface.hh"
-
-#include "NOD_socket_usage_inference.hh"
-
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_transform_geometry_cc {

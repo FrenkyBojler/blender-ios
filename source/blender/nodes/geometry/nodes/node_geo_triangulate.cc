@@ -6,8 +6,6 @@
 
 #include "GEO_mesh_triangulate.hh"
 
-#include "UI_interface.hh"
-
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"
