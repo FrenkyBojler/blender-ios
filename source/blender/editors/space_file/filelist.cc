@@ -4073,7 +4073,7 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
 
   /* #index::read_remote_listing() below calls this for every asset entry it finished reading from
    * the asset listing pages. */
-  auto process_asset_fn = [&](index::RemoteListingAssetEntry &movable_entry) {
+  const auto process_asset_fn = [&](index::RemoteListingAssetEntry &movable_entry) {
     if (*stop || job_params->cancel) {
       /* Cancel reading when requested. */
       return false;
@@ -4109,7 +4109,7 @@ static void filelist_readjob_remote_asset_library_index_read(FileListReadJob *jo
   /* A busy wait function for while asset listing pages are being downloaded.
    * #index::read_remote_listing() calls this every time it's done looking for new pages, until all
    * pages are there (or until this returns false). */
-  auto wait_for_pages_fn = [&]() {
+  const auto wait_for_pages_fn = [&]() {
     while (true) {
       if (*stop || job_params->cancel) {
         return false;

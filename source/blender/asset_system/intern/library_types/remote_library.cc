@@ -74,7 +74,7 @@ void RemoteLibraryLoadingStatus::reset_timeout()
   this->last_updated_time_point_ = std::chrono::steady_clock::now();
 }
 
-void RemoteLibraryLoadingStatus::begin_loading(StringRef url, const float timeout)
+void RemoteLibraryLoadingStatus::begin_loading(const StringRef url, const float timeout)
 {
   BLI_assert(timeout > 0.0f);
 
@@ -86,7 +86,7 @@ void RemoteLibraryLoadingStatus::begin_loading(StringRef url, const float timeou
   library_to_status_map().add_overwrite(url, new_status);
 }
 
-void RemoteLibraryLoadingStatus::ping_still_loading(StringRef url)
+void RemoteLibraryLoadingStatus::ping_still_loading(const StringRef url)
 {
   RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -98,7 +98,7 @@ void RemoteLibraryLoadingStatus::ping_still_loading(StringRef url)
   }
 }
 
-void RemoteLibraryLoadingStatus::ping_new_pages(StringRef url)
+void RemoteLibraryLoadingStatus::ping_new_pages(const StringRef url)
 {
   RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -111,7 +111,7 @@ void RemoteLibraryLoadingStatus::ping_new_pages(StringRef url)
   }
 }
 
-void RemoteLibraryLoadingStatus::ping_metafiles_in_place(StringRef url)
+void RemoteLibraryLoadingStatus::ping_metafiles_in_place(const StringRef url)
 {
   RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -121,7 +121,8 @@ void RemoteLibraryLoadingStatus::ping_metafiles_in_place(StringRef url)
   status->metafiles_in_place_ = true;
 }
 
-std::optional<RemoteLibraryLoadingStatus::Status> RemoteLibraryLoadingStatus::status(StringRef url)
+std::optional<RemoteLibraryLoadingStatus::Status> RemoteLibraryLoadingStatus::status(
+    const StringRef url)
 {
   const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -131,7 +132,7 @@ std::optional<RemoteLibraryLoadingStatus::Status> RemoteLibraryLoadingStatus::st
   return status->status_;
 }
 
-std::optional<bool> RemoteLibraryLoadingStatus::metafiles_in_place(StringRef url)
+std::optional<bool> RemoteLibraryLoadingStatus::metafiles_in_place(const StringRef url)
 {
   const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -142,7 +143,7 @@ std::optional<bool> RemoteLibraryLoadingStatus::metafiles_in_place(StringRef url
 }
 
 std::optional<RemoteLibraryLoadingStatus::TimePoint> RemoteLibraryLoadingStatus::
-    last_new_pages_time(StringRef url)
+    last_new_pages_time(const StringRef url)
 {
   const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -152,7 +153,7 @@ std::optional<RemoteLibraryLoadingStatus::TimePoint> RemoteLibraryLoadingStatus:
   return status->last_new_pages_time_point_;
 }
 
-void RemoteLibraryLoadingStatus::set_finished(StringRef url)
+void RemoteLibraryLoadingStatus::set_finished(const StringRef url)
 {
   RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -165,8 +166,8 @@ void RemoteLibraryLoadingStatus::set_finished(StringRef url)
   }
 }
 
-void RemoteLibraryLoadingStatus::set_failure(StringRef url,
-                                             std::optional<StringRefNull> failure_message)
+void RemoteLibraryLoadingStatus::set_failure(const StringRef url,
+                                             const std::optional<StringRefNull> failure_message)
 {
   RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -180,7 +181,7 @@ void RemoteLibraryLoadingStatus::set_failure(StringRef url,
   }
 }
 
-std::optional<StringRefNull> RemoteLibraryLoadingStatus::failure_message(StringRef url)
+std::optional<StringRefNull> RemoteLibraryLoadingStatus::failure_message(const StringRef url)
 {
   const RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status) {
@@ -193,7 +194,7 @@ std::optional<StringRefNull> RemoteLibraryLoadingStatus::failure_message(StringR
   return {};
 }
 
-bool RemoteLibraryLoadingStatus::handle_timeout(StringRef url)
+bool RemoteLibraryLoadingStatus::handle_timeout(const StringRef url)
 {
   RemoteLibraryLoadingStatus *status = library_to_status_map().lookup_ptr(url);
   if (!status || status->status_ != RemoteLibraryLoadingStatus::Loading) {
@@ -201,8 +202,8 @@ bool RemoteLibraryLoadingStatus::handle_timeout(StringRef url)
     return false;
   }
 
-  std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
-                                         status->last_updated_time_point_;
+  const std::chrono::duration<float> elapsed = std::chrono::steady_clock::now() -
+                                               status->last_updated_time_point_;
   if (elapsed.count() < status->timeout_) {
     return false;
   }

@@ -85,7 +85,7 @@ static std::optional<RemoteListingAssetEntry> listing_entry_from_asset_dictionar
 }
 
 static ReadingResult listing_entries_from_root(const DictionaryValue &value,
-                                               RemoteListingEntryProcessFn process_fn)
+                                               const RemoteListingEntryProcessFn process_fn)
 {
   const ArrayValue *entries = value.lookup_array("assets");
   BLI_assert(entries != nullptr);
@@ -111,15 +111,15 @@ static ReadingResult listing_entries_from_root(const DictionaryValue &value,
   return ReadingResult::Success;
 }
 
-ReadingResult AssetLibraryListingPageV1::read_asset_entries(const StringRefNull filepath,
-                                                            RemoteListingEntryProcessFn process_fn)
+ReadingResult AssetLibraryListingPageV1::read_asset_entries(
+    const StringRefNull filepath, const RemoteListingEntryProcessFn process_fn)
 {
   if (!BLI_exists(filepath.c_str())) {
     /** TODO report error message? */
     return ReadingResult::Failure;
   }
 
-  std::unique_ptr<Value> contents = read_contents(filepath);
+  const std::unique_ptr<Value> contents = read_contents(filepath);
   if (!contents) {
     /** TODO report error message? */
     return ReadingResult::Failure;
@@ -131,7 +131,7 @@ ReadingResult AssetLibraryListingPageV1::read_asset_entries(const StringRefNull 
     return ReadingResult::Failure;
   }
 
-  ReadingResult result = listing_entries_from_root(*root, process_fn);
+  const ReadingResult result = listing_entries_from_root(*root, process_fn);
   if (result != ReadingResult::Success) {
     return result;
   }
@@ -155,17 +155,18 @@ struct AssetLibraryListingV1 {
    * root_dirpath. */
   Vector<std::string> page_rel_paths;
 
-  static std::optional<AssetLibraryListingV1> read(StringRefNull listing_filepath);
+  static std::optional<AssetLibraryListingV1> read(const StringRefNull listing_filepath);
 };
 
-std::optional<AssetLibraryListingV1> AssetLibraryListingV1::read(StringRefNull listing_filepath)
+std::optional<AssetLibraryListingV1> AssetLibraryListingV1::read(
+    const StringRefNull listing_filepath)
 {
   if (!BLI_exists(listing_filepath.c_str())) {
     /** TODO report error message? */
     return {};
   }
 
-  std::unique_ptr<Value> contents = read_contents(listing_filepath);
+  const std::unique_ptr<Value> contents = read_contents(listing_filepath);
   if (!contents) {
     /** TODO report error message? */
     return {};
@@ -204,10 +205,10 @@ std::optional<AssetLibraryListingV1> AssetLibraryListingV1::read(StringRefNull l
 
 /** \} */
 
-ReadingResult read_remote_listing_v1(StringRefNull listing_root_dirpath,
-                                     StringRefNull version_listing_filepath,
-                                     RemoteListingEntryProcessFn process_fn,
-                                     RemoteListingWaitForPagesFn wait_fn)
+ReadingResult read_remote_listing_v1(const StringRefNull listing_root_dirpath,
+                                     const StringRefNull version_listing_filepath,
+                                     const RemoteListingEntryProcessFn process_fn,
+                                     const RemoteListingWaitForPagesFn wait_fn)
 {
   const std::optional<AssetLibraryListingV1> listing = AssetLibraryListingV1::read(
       version_listing_filepath);
