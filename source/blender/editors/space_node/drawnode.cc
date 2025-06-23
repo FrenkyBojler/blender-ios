@@ -2191,12 +2191,7 @@ static bool node_link_is_field_link(const SpaceNode &snode, const bNodeLink &lin
   if (tree.type != NTREE_GEOMETRY) {
     return false;
   }
-  const Span<nodes::StructureType> inferred_structure_types =
-      tree.runtime->inferred_structure_types;
-  if (link.fromsock && ELEM(inferred_structure_types[link.fromsock->index_in_tree()],
-                            nodes::StructureType::Field,
-                            nodes::StructureType::Dynamic))
-  {
+  if (link.fromsock && link.fromsock->may_be_field()) {
     return true;
   }
   return false;

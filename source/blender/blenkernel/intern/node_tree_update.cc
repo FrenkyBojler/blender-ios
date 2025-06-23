@@ -858,16 +858,12 @@ class NodeTreeMainUpdater {
     /* Automatically tag a bake item as attribute when the input is a field. The flag should not be
      * removed automatically even when the field input is disconnected because the baked data may
      * still contain attribute data instead of a single value. */
-    const Span<StructureType> inferred_structure_types = ntree.runtime->inferred_structure_types;
     for (bNode *node : ntree.nodes_by_type("GeometryNodeBake")) {
       NodeGeometryBake &storage = *static_cast<NodeGeometryBake *>(node->storage);
       for (const int i : IndexRange(storage.items_num)) {
         const bNodeSocket &socket = node->input_socket(i);
         NodeGeometryBakeItem &item = storage.items[i];
-        if (ELEM(inferred_structure_types[socket.index_in_tree()],
-                 StructureType::Field,
-                 StructureType::Dynamic))
-        {
+        if (socket.may_be_field()) {
           item.flag |= GEO_NODE_BAKE_ITEM_IS_ATTRIBUTE;
         }
       }
@@ -1328,15 +1324,7 @@ class NodeTreeMainUpdater {
         continue;
       }
       if (ntree.type == NTREE_GEOMETRY) {
-        const Span<nodes::StructureType> inferred_structure_types =
-            ntree.runtime->inferred_structure_types;
-        if (ELEM(inferred_structure_types[link->fromsock->index_in_tree()],
-                 StructureType::Field,
-                 StructureType::Dynamic) &&
-            !ELEM(inferred_structure_types[link->tosock->index_in_tree()],
-                  StructureType::Field,
-                  StructureType::Dynamic))
-        {
+        if (link->fromsock->may_be_field() && !link->tosock->may_be_field()) {
           link->flag &= ~NODE_LINK_VALID;
           ntree.runtime->link_errors.add(
               NodeLinkKey{*link}, NodeLinkError{TIP_("The node input does not support fields")});
