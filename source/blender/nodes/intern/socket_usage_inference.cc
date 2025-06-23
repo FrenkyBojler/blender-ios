@@ -162,6 +162,19 @@ struct SocketUsageInferencer {
     return all_socket_values_.lookup(socket);
   }
 
+  bool socket_has_default_value(const SocketInContext &socket)
+  {
+    const void *value = this->get_socket_value(socket);
+    if (value == nullptr) {
+      return false;
+    }
+    const CPPType &type = *socket->typeinfo->base_cpp_type;
+    if (!type.is_equality_comparable()) {
+      return false;
+    }
+    return type.is_equal(value, type.default_value());
+  }
+
  private:
   void usage_task(const SocketInContext &socket)
   {
@@ -1366,19 +1379,24 @@ static bool input_may_affect_visibility(const bNodeSocket &socket)
   return socket.type == SOCK_MENU;
 }
 
-Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree)
+Array<SocketUsage> infer_all_sockets_usage(const bNodeTree &tree)
 {
   tree.ensure_topology_cache();
   const Span<const bNodeSocket *> all_input_sockets = tree.all_input_sockets();
-  Array<SocketUsage> all_usages(all_input_sockets.size());
+  const Span<const bNodeSocket *> all_output_sockets = tree.all_output_sockets();
+  Array<SocketUsage> all_usages(tree.all_sockets().size());
+  Array<bool> all_output_is_default(all_output_sockets.size());
 
   {
     /* Find actual socket usages. */
     SocketUsageInferencer inferencer{tree, std::nullopt};
     inferencer.mark_top_level_node_outputs_as_used();
-    for (const int i : all_input_sockets.index_range()) {
-      const bNodeSocket &socket = *all_input_sockets[i];
-      all_usages[i].is_used = inferencer.is_socket_used({nullptr, &socket});
+    for (const bNodeSocket *socket : all_input_sockets) {
+      all_usages[socket->index_in_tree()].is_used = inferencer.is_socket_used({nullptr, socket});
+    }
+    for (const bNodeSocket *socket : all_output_sockets) {
+      all_output_is_default[socket->index_in_all_outputs()] = inferencer.socket_has_default_value(
+          {nullptr, socket});
     }
   }
 
@@ -1395,23 +1413,37 @@ Array<SocketUsage> infer_all_input_sockets_usage(const bNodeTree &tree)
   SocketUsageInferencer inferencer_only_controllers{tree, std::nullopt, only_controllers_used};
   inferencer_all_unknown.mark_top_level_node_outputs_as_used();
   inferencer_only_controllers.mark_top_level_node_outputs_as_used();
-  for (const int i : all_input_sockets.index_range()) {
-    if (all_usages[i].is_used) {
+  for (const bNodeSocket *socket : all_input_sockets) {
+    SocketUsage &usage = all_usages[socket->index_in_tree()];
+    if (usage.is_used) {
       /* Used inputs are always visible. */
       continue;
     }
-    const SocketInContext socket{nullptr, all_input_sockets[i]};
-    if (inferencer_only_controllers.is_socket_used((socket))) {
+    const SocketInContext socket_ctx{nullptr, socket};
+    if (inferencer_only_controllers.is_socket_used(socket_ctx)) {
       /* The input should be visible if it's used if only visibility-controlling inputs are
        * considered. */
       continue;
     }
-    if (!inferencer_all_unknown.is_socket_used(socket)) {
+    if (!inferencer_all_unknown.is_socket_used(socket_ctx)) {
       /* The input should be visible if it's never used, regardless of any inputs. Its usage does
        * not depend on any visibility-controlling input. */
       continue;
     }
-    all_usages[i].is_visible = false;
+    usage.is_visible = false;
+  }
+  for (const bNodeSocket *socket : all_output_sockets) {
+    const SocketInContext socket_ctx{nullptr, socket};
+    if (inferencer_all_unknown.socket_has_default_value(socket_ctx)) {
+      /* The output always has the default value unconditionally. */
+      continue;
+    }
+    if (!inferencer_only_controllers.socket_has_default_value(socket_ctx)) {
+      /* The output does not have the default value, so it's used. */
+      continue;
+    }
+    SocketUsage &usage = all_usages[socket->index_in_tree()];
+    usage.is_visible = false;
   }
 
   return all_usages;

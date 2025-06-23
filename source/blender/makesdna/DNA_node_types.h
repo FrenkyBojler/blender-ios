@@ -239,7 +239,7 @@ typedef struct bNodeSocket {
    * usage depends on a menu (as opposed to e.g. a boolean input). By convention, sockets whose
    * visibility is controlled by a menu should be hidden.
    */
-  bool inferred_input_socket_visibility() const;
+  bool inferred_socket_visibility() const;
 
   bool is_multi_input() const;
   bool is_input() const;
