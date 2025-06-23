@@ -41,6 +41,7 @@
 #include "SEQ_iterator.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -560,7 +561,7 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
   uiLayoutSetPropDecorate(layout, false);
 
   AUD_Container container = AUD_Container(RNA_enum_get(op->ptr, "container"));
