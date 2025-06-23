@@ -3222,6 +3222,18 @@ static void do_brush_action(const Depsgraph &depsgraph,
     push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
 
+  /* TODO: Ultimately, we should ensure that normals are always updated prior to using it during
+   * a deformation that requires updated normal information.
+   *
+   * Currently (through 4.5), this process happens as part of the draw loop, meaning that Cycles
+   * and other non-EEVEE / Workbench engines may not have up-to-date data. Those updates should be
+   * removed so we can have stronger guarantees about data validity */
+  const Mesh *mesh = static_cast<Mesh *>(ob.data);
+  const bool external_engine = ss.rv3d && ss.rv3d->view_render != nullptr;
+  if (external_engine && mesh->runtime->vert_normals_true_cache.is_dirty()) {
+    bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+    bke::pbvh::update_normals(depsgraph, ob, pbvh);
+  }
   if (sculpt_brush_needs_normal(ss, brush)) {
     update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
   }
@@ -5110,16 +5122,6 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
       tag_mesh_positions_changed(ob, use_pbvh_draw);
     }
-  }
-
-  /* When using an external engine and are sculpting on the base mesh, we need to explicitly
-   * recalculate the normals after tagging them as dirty so that the next sculpt step will be
-   * correctly evaluated. */
-  const Mesh *mesh = static_cast<Mesh *>(ob.data);
-  const bool external_engine = rv3d && rv3d->view_render != nullptr;
-  if (external_engine && mesh->runtime->vert_normals_true_cache.is_dirty()) {
-    Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-    bke::pbvh::update_normals(*depsgraph, ob, pbvh);
   }
 }
 
