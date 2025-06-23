@@ -171,18 +171,18 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
    * "type-specific" variables. (See the top-level documentation in
    * BKE_path_templates.hh for details on what that means).
    *
-   * The recommended strategy when adding support for additional variables here
-   * is:
+   * To add support for additional variables here:
    *
    * - For "general" variables, simply add them to
-   *   `BKE_add_template_variables_general()`. Nothing special needs to be done
-   *   here.
+   *   `BKE_add_template_variables_general()`. Nothing else special needs to be
+   *   done.
    * - For "purpose-specific" variables, add them to the appropriate
    *   purpose-specific function (e.g.
    *   `BKE_add_template_variables_for_render_path()`). If no function exists
-   *   for your purpose yet, add a new enum to `PropertyPathTemplateType`, and a
-   *   corresponding new function, add your variable there, and then call it
-   *   from the `switch` on `RNA_property_path_template_type()` below.
+   *   for your purpose yet, add a new enum item to `PropertyPathTemplateType`
+   *   and a corresponding new function, add your variable to the new function,
+   *   and then call it from the `switch` on `RNA_property_path_template_type()`
+   *   below.
    * - For "type-specific" variables, add them to the appropriate type-specific
    *   function (e.g. `BKE_add_template_variables_for_node()`). If no function
    *   exists for that type yet, create a new function for it, add the variable

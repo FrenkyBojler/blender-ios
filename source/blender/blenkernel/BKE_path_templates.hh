@@ -28,8 +28,8 @@
  * BKE_path_apply_template(filepath, FILE_MAX, template_variables);
  * ```
  *
- * This calls three functions, one for each "kind" of variable (see below), to
- * build the `VariableMap`.
+ * This calls three functions to build the `VariableMap`, one for each "kind" of
+ * variable (see below).
  *
  * Currently the path template system has three kinds of variables that can be
  * used in expressions:
@@ -50,8 +50,8 @@
  *
  * - All general variables are added by `BKE_add_template_variables_general()`.
  * - Purpose-specific variables are organized into multiple functions: one
- *   function per per variant in `PropertyPathTemplateType`, with all variables
- *   for a variant going into the same function. Example:
+ *   function per variant in `PropertyPathTemplateType`, with all variables for
+ *   a variant going into the same function. Example:
  *   `BKE_add_template_variables_for_render_path()`
  * - Type-specific variables are organized into multiple functions: one per
  *   struct type, with all variables for a struct type going into the same
@@ -262,7 +262,7 @@ void BKE_add_template_variables_general(blender::bke::path_templates::VariableMa
                                         const ID *path_owner_id);
 
 /**
- * Add the variables that should be available for templated render output paths.
+ * Add the variables that should be available for render output paths.
  *
  * Corresponds to `PropertyPathTemplateType::PROP_VARIABLES_RENDER_OUTPUT`.
  *
@@ -281,8 +281,7 @@ void BKE_add_template_variables_for_render_path(
     blender::bke::path_templates::VariableMap &variables, const Scene &scene);
 
 /**
- * Add the variables that should be available for templated paths owned by a
- * node.
+ * Add the variables that should be available for paths owned by a node.
  *
  * This is typically used when building a variable map to pass to
  * `BKE_path_apply_template()`.
