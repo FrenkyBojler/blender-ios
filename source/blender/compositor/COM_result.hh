@@ -604,7 +604,9 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
   }
 
   const int2 size = domain_.size;
-  const float2 texel_coordinates = coordinates * float2(size);
+  const float2 texel_coordinates = (interpolation == Interpolation::Nearest) ?
+                                       coordinates * float2(size) :
+                                       (coordinates * float2(size)) - 0.5f;
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
 
