@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_defs.h"
 #include "DNA_listBase.h"
 #include "DNA_node_tree_interface_types.h"
 #include "DNA_scene_types.h" /* for #ImageFormatData */
@@ -1566,10 +1567,11 @@ typedef struct NodeTrackPosData {
 } NodeTrackPosData;
 
 typedef struct NodeTranslateData {
-  char border_condition_x;
-  char border_condition_y;
+  char wrap_axis DNA_DEPRECATED;
   char relative DNA_DEPRECATED;
-  char interpolation;
+  short border_condition_x;
+  short border_condition_y;
+  short interpolation;
 } NodeTranslateData;
 
 typedef struct NodeScaleData {
