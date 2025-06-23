@@ -25,6 +25,7 @@ struct Collection;
 struct ID;
 struct CollectionChild;
 struct CollectionExport;
+struct FileHandlerType;
 struct GHash;
 struct Main;
 struct Object;
@@ -110,6 +111,16 @@ void BKE_collection_add_from_collection(Main *bmain,
  * Free (or release) any data used by this collection (does not free the collection itself).
  */
 void BKE_collection_free_data(Collection *collection);
+
+/**
+ * Add a new collection exporter to the collection.
+ */
+CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idname, char *label);
+
+/**
+ * Remove a collection exporter from the collection.
+ */
+void BKE_collection_exporter_remove(Collection *collection, CollectionExport *data);
 
 /**
  * Assigns a unique name to the collection exporter.

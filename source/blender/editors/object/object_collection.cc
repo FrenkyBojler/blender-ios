@@ -478,7 +478,6 @@ static wmOperatorStatus collection_exporter_add_exec(bContext *C, wmOperator *op
 {
   using namespace blender;
   Collection *collection = CTX_data_collection(C);
-  ListBase *exporters = &collection->exporters;
 
   char name[MAX_ID_NAME - 2]; /* id name */
   RNA_string_get(op->ptr, "name", name);
@@ -495,19 +494,7 @@ static wmOperatorStatus collection_exporter_add_exec(bContext *C, wmOperator *op
     return OPERATOR_CANCELLED;
   }
 
-  /* Add a new #CollectionExport item to our handler list and fill it with #FileHandlerType
-   * information. Also load in the operator's properties now as well. */
-  CollectionExport *data = MEM_callocN<CollectionExport>("CollectionExport");
-  STRNCPY(data->fh_idname, fh->idname);
-
-  BKE_collection_exporter_name_set(exporters, data, fh->label);
-
-  IDPropertyTemplate val{};
-  data->export_properties = IDP_New(IDP_GROUP, &val, "export_properties");
-  data->flag |= IO_HANDLER_PANEL_OPEN;
-
-  BLI_addtail(exporters, data);
-  collection->active_exporter_index = BLI_listbase_count(exporters) - 1;
+  BKE_collection_exporter_add(collection, fh->idname, fh->label);
 
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
@@ -546,14 +533,7 @@ static wmOperatorStatus collection_exporter_remove_exec(bContext *C, wmOperator 
     return OPERATOR_CANCELLED;
   }
 
-  BLI_remlink(exporters, data);
-  BKE_collection_exporter_free_data(data);
-
-  MEM_freeN(data);
-
-  const int count = BLI_listbase_count(exporters);
-  const int new_index = count == 0 ? 0 : std::min(collection->active_exporter_index, count - 1);
-  collection->active_exporter_index = new_index;
+  BKE_collection_exporter_remove(collection, data);
 
   BKE_view_layer_need_resync_tag(CTX_data_view_layer(C));
   DEG_id_tag_update(&collection->id, ID_RECALC_SYNC_TO_EVAL);
