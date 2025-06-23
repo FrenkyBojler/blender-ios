@@ -877,7 +877,7 @@ class NodeTreeMainUpdater {
     if (decl.identifier == "__extend__") {
       return SOCK_DISPLAY_SHAPE_CIRCLE;
     }
-    if (nodes::socket_type_always_single(decl.socket_type)) {
+    if (socket_type_always_single(decl.socket_type)) {
       return SOCK_DISPLAY_SHAPE_LINE;
     }
     switch (structure_type) {

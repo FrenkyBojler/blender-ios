@@ -563,6 +563,7 @@ bool socket_type_always_single(const eNodeSocketDatatype socket_type)
     case SOCK_MATRIX:
       return false;
   }
+  return false;
 }
 
 }  // namespace blender::nodes
