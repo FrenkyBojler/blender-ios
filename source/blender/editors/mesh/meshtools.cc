@@ -1577,7 +1577,7 @@ void MESH_OT_reorder_vertices_spatial(wmOperatorType *ot)
   ot->idname = "MESH_OT_reorder_vertices_spatial";
   ot->description =
       "Reorder mesh faces and vertices based on their spatial position for better BVH building "
-      "and sculpting performance ";
+      "and sculpting performance.";
 
   ot->exec = mesh_reorder_vertices_spatial_exec;
   ot->poll = mesh_reorder_vertices_spatial_poll;

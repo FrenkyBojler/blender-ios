@@ -75,6 +75,8 @@
 
 #include "BLO_read_write.hh"
 
+#define STACK_FIXED_DEPTH 100
+
 using blender::float3;
 using blender::int2;
 using blender::MutableSpan;
@@ -629,11 +631,10 @@ static void partition_faces_recursively(const Span<float3> face_centers,
                                         int node_index,
                                         int depth,
                                         const std::optional<Bounds<float3>> &bounds_precalc,
-                                        const Span<int> material_indices)
+                                        const Span<int> material_indices,
+                                        int target_group_size)
 {
-  const int target_group_size = 2500;
-
-  if (face_indices.size() <= target_group_size || depth >= 99) {
+  if (face_indices.size() <= target_group_size || depth >= STACK_FIXED_DEPTH - 1) {
     if (!blender::bke::pbvh::leaf_needs_material_split(face_indices, material_indices)) {
       groups[node_index].children_offset = 0;
       groups[node_index].faces = Array<int>(face_indices.size(), NoInitialization());
@@ -650,7 +651,7 @@ static void partition_faces_recursively(const Span<float3> face_centers,
   groups[children_start + 1].parent = node_index;
 
   int split;
-  if (!(face_indices.size() <= target_group_size || depth >= 99)) {
+  if (!(face_indices.size() <= target_group_size || depth >= STACK_FIXED_DEPTH - 1)) {
     Bounds<float3> bounds;
     if (bounds_precalc) {
       bounds = *bounds_precalc;
@@ -683,14 +684,16 @@ static void partition_faces_recursively(const Span<float3> face_centers,
                               children_start,
                               depth + 1,
                               std::nullopt,
-                              material_indices);
+                              material_indices,
+                              target_group_size);
   partition_faces_recursively(face_centers,
                               face_indices.drop_front(split),
                               groups,
                               children_start + 1,
                               depth + 1,
                               std::nullopt,
-                              material_indices);
+                              material_indices,
+                              target_group_size);
 }
 
 static void build_vertex_groups_for_leaves(const int verts_num,
@@ -799,7 +802,7 @@ static Vector<LocalMeshGroup> compute_local_mesh_groups(Mesh &mesh)
   const VArraySpan material_index = *attributes.lookup<int>("material_index", AttrDomain::Face);
 
   partition_faces_recursively(
-      face_centers, prim_face_indices, groups, 0, 0, bounds, material_index);
+      face_centers, prim_face_indices, groups, 0, 0, bounds, material_index, 2500);
 
   build_vertex_groups_for_leaves(mesh.verts_num, faces, corner_verts, groups);
 
