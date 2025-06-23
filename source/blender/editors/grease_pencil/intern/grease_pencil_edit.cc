@@ -4849,6 +4849,8 @@ static void join_object_with_active(Main &bmain,
                            grease_pencil_src.root_group(),
                            layer_name_map);
 
+  // TODO
+
   /* Copy custom attributes for new layers. */
   CustomData_merge_layout(&grease_pencil_src.layers_data_legacy,
                           &grease_pencil_dst.layers_data_legacy,
