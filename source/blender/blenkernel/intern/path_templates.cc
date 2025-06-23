@@ -180,19 +180,46 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
    * This function should be maintained such that it always produces variables
    * consistent with the variables produced elsewhere in the code base for the
    * same property. For example, render paths are processed in the rendering
-   * code and variables are built for that purpose there, and this function
+   * code and the variables are built for that purpose there, and this function
    * should produce variables consistent with that for those render path
    * properties here.
    *
-   * The recommended strategy when adding support for additional path templating
-   * use cases (that don't already have an appropriate
-   * `PropertyPathTemplateType` item) is to:
+   * There are three general categories of variables:
    *
-   * 1. Create a separate function to build variables for that use case (see
-   *    e.g. `BKE_build_template_variables_for_render_path()`).
-   * 2. Call that function from here in the switch statement below.
-   * 3. Also call that function from the other parts of the code base that need
-   *    it.
+   * - General variables, which are made available to all paths that support
+   *   path templates. For example, the name of the current blend file.
+   * - Purpose-specific variables, which are determined by by the path's
+   *   `PropertyPathTemplateType`. For example, render output paths will be
+   *   marked as `PROP_VARIABLES_RENDER_OUTPUT`, and will therefore get access
+   *   to variables like `fps`, which are rendering-specific.
+   * - Type-specific variables, which are variables made available to all
+   *   path-template paths owned by a particular type of struct. For example,
+   *   paths owned by a `bNode` will have access to the `node_name` variable,
+   *   which provides the name of the owning node.
+   *
+   * This function is broken up into three sections: one for each of those types
+   * of variables. In each section, it defers to other functions like
+   * `BKE_add_template_variables_general()`,
+   * `BKE_add_template_variables_for_render_path`, and
+   * `BKE_add_template_variables_for_node()` to add the actual variables. Those
+   * same functions are also used to add the variables at the actual path
+   * evaluation call sites, ensuring consistency.
+   *
+   * The recommended strategy when adding support for additional variables is:
+   *
+   * - For "general" variables, simply add them to
+   *   `BKE_add_template_variables_general()`.
+   * - For "purpose-specific" variables, add them to the appropriate
+   *   purpose-specific function (e.g.
+   *   `BKE_add_template_variables_for_render_path`). If no function exists for
+   *   your purpose yet, add a new enum to `PropertyPathTemplateType`, and a
+   *   corresponding new function, add your variable there, and then call it
+   *   from the `switch` on `RNA_property_path_template_type()` below.
+   * - For "type-specific" variables, add them to the appropriate type-specific
+   *   function (e.g. `BKE_add_template_variables_for_node()`). If no function
+   *   exists for that type yet, create a new function for it, add the variable
+   *   there, and then call it from the bottom section of this function, with an
+   *   appropriate guard on the struct type.
    */
 
   /* No property passed, or it doesn't support path templates. */
@@ -204,16 +231,14 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 
   VariableMap variables;
 
-  /* Variables that all template-supporting paths get. */
+  /* General variables. */
   BKE_add_template_variables_general(variables, ptr->owner_id);
 
-  /* Path-type-specific variables. */
+  /* Purpose-specific variables. */
   switch (RNA_property_path_template_type(prop)) {
     case PROP_VARIABLES_NONE: {
-      BLI_assert_msg(
-          false,
-          "Should never have `PROP_VARIABLES_NONE` for a path that supports path templates.");
-      return variables;
+      /* Do nothing: no purpose-specific variables. */
+      break;
     }
 
     /* Scene render output path, the compositor's File Output node's paths, etc. */
@@ -227,10 +252,13 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
       }
 
       BKE_add_template_variables_for_render_path(variables, *scene);
+      break;
     }
   }
 
-  /* Variables specific to paths in nodes. */
+  /* Type-specific variables. */
+
+  /* Nodes. */
   if (std::optional<AncestorPointerRNA> node_rna_ptr = RNA_struct_find_self_or_ancestor_that_is_a(
           ptr, &RNA_Node))
   {
