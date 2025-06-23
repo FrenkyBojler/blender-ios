@@ -88,7 +88,7 @@ class ResourceHandleRange {
 
   bool is_valid() const
   {
-    return count_ != 0;
+    return first_.raw != 0 && count_ != 0;
   }
 
   bool has_inverted_handedness() const
@@ -106,19 +106,19 @@ class ResourceHandleRange {
 
   operator ResourceHandle() const
   {
-    BLI_assert(count_ == 1);
+    BLI_assert(count_ <= 1);
     return first_;
   }
 
   uint32_t raw() const
   {
-    BLI_assert(count_ == 1);
+    BLI_assert(count_ <= 1);
     return first_.raw;
   }
 
   uint resource_index() const
   {
-    BLI_assert(count_ == 1);
+    BLI_assert(count_ <= 1);
     return first_.resource_index();
   }
 };
