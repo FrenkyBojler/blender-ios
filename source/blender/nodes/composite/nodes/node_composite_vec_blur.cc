@@ -13,7 +13,6 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_compute.hh"
@@ -506,10 +505,7 @@ static void motion_blur_cpu(const Result &input_image,
 
 class VectorBlurOperation : public NodeOperation {
  public:
-  VectorBlurOperation(Context &context, DNode node) : NodeOperation(context, node)
-  {
-    this->get_input_descriptor("Speed").type = ResultType::Float4;
-  }
+  using NodeOperation::NodeOperation;
 
   void execute() override
   {

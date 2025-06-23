@@ -12,7 +12,7 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -255,14 +255,13 @@ class EllipseMaskOperation : public NodeOperation {
 
   float2 get_location()
   {
-    return this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy();
+    return this->get_input("Position").get_single_value_default(float2(0.5f));
   }
 
   float2 get_size()
   {
-    return math::max(
-        float2(0.0f),
-        this->get_input("Size").get_single_value_default(float3(0.2f, 0.1f, 0.0f)).xy());
+    return math::max(float2(0.0f),
+                     this->get_input("Size").get_single_value_default(float2(0.2f, 0.1f)));
   }
 
   float get_angle()
