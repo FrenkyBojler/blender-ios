@@ -551,7 +551,16 @@ bool socket_type_always_single(const eNodeSocketDatatype socket_type)
     case SOCK_BUNDLE:
     case SOCK_STRING:
       return true;
-    default:
+    case SOCK_CUSTOM:
+    case SOCK_FLOAT:
+    case SOCK_VECTOR:
+    case SOCK_RGBA:
+    case SOCK_SHADER:
+    case SOCK_BOOLEAN:
+    case SOCK_INT:
+    case SOCK_ROTATION:
+    case SOCK_MENU:
+    case SOCK_MATRIX:
       return false;
   }
 }
