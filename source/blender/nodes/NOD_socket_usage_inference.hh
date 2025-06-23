@@ -20,6 +20,53 @@ namespace blender::nodes::socket_usage_inference {
 
 struct SocketUsageInferencer;
 
+/**
+ * During socket usage inferencing, some socket values are computed. This class represents such a
+ * computed value. Not all possible values can be presented here, only "basic" once (like int, but
+ * not int-field). A value can also be unknown if it can't be determined statically.
+ */
+class InferenceValue {
+ private:
+  /**
+   * Non-owning pointer to a value of type #bNodeSocketType.base_cpp_type of the corresponding
+   * socket. If this is null, the value is assumed to be unknown (aka, it can't be determined
+   * statically).
+   */
+  const void *value_ = nullptr;
+
+ public:
+  explicit InferenceValue(const void *value) : value_(value) {}
+
+  static InferenceValue Unknown()
+  {
+    return InferenceValue(nullptr);
+  }
+
+  bool is_unknown() const
+  {
+    return value_ == nullptr;
+  }
+
+  const void *data() const
+  {
+    return value_;
+  }
+
+  template<typename T> T get_known() const
+  {
+    BLI_assert(!this->is_unknown());
+    return *static_cast<const T *>(this->value_);
+  }
+
+  template<typename T> std::optional<T> get() const
+  {
+    if (this->is_unknown()) {
+      return std::nullopt;
+    }
+    return this->get_known<T>();
+  }
+};
+
 class InputSocketUsageParams {
  private:
   SocketUsageInferencer &inferencer_;
@@ -40,8 +87,7 @@ class InputSocketUsageParams {
    * Get an the statically known input value for the given socket identifier. The value may be
    * unknown, in which case null is returned.
    */
-  const void *get_input(StringRef identifier) const;
-  template<typename T> const T *get_input(StringRef identifier) const;
+  InferenceValue get_input(StringRef identifier) const;
 
   /**
    * Utility for the case when the socket depends on a specific menu input to have a certain value.
@@ -84,13 +130,5 @@ void infer_group_interface_inputs_usage(const bNodeTree &group,
 void infer_group_interface_inputs_usage(const bNodeTree &group,
                                         const PropertiesVectorSet &properties,
                                         MutableSpan<SocketUsage> r_input_usages);
-
-template<typename T> const T *InputSocketUsageParams::get_input(const StringRef identifier) const
-{
-  BLI_assert(this->node.input_by_identifier(identifier).typeinfo->base_cpp_type ==
-             &CPPType::get<T>());
-  const void *value = this->get_input(identifier);
-  return static_cast<const T *>(value);
-}
 
 }  // namespace blender::nodes::socket_usage_inference

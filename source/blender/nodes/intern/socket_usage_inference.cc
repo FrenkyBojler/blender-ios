@@ -28,53 +28,6 @@
 
 namespace blender::nodes::socket_usage_inference {
 
-/**
- * During socket usage inferencing, some socket values are computed. This class represents such a
- * computed value. Not all possible values can be presented here, only "basic" once (like int, but
- * not int-field). A value can also be unknown if it can't be determined statically.
- */
-class InferenceValue {
- private:
-  /**
-   * Non-owning pointer to a value of type #bNodeSocketType.base_cpp_type of the corresponding
-   * socket. If this is null, the value is assumed to be unknown (aka, it can't be determined
-   * statically).
-   */
-  const void *value_ = nullptr;
-
- public:
-  explicit InferenceValue(const void *value) : value_(value) {}
-
-  static InferenceValue Unknown()
-  {
-    return InferenceValue(nullptr);
-  }
-
-  bool is_unknown() const
-  {
-    return value_ == nullptr;
-  }
-
-  const void *data() const
-  {
-    return value_;
-  }
-
-  template<typename T> T get_known() const
-  {
-    BLI_assert(!this->is_unknown());
-    return *static_cast<const T *>(this->value_);
-  }
-
-  template<typename T> std::optional<T> get() const
-  {
-    if (this->is_unknown()) {
-      return std::nullopt;
-    }
-    return this->get_known<T>();
-  }
-};
-
 /** Utility class to simplify passing global state into all the functions during inferencing. */
 struct SocketUsageInferencer {
  private:
@@ -1572,7 +1525,7 @@ InputSocketUsageParams::InputSocketUsageParams(SocketUsageInferencer &inferencer
 {
 }
 
-const void *InputSocketUsageParams::get_input(const StringRef identifier) const
+InferenceValue InputSocketUsageParams::get_input(const StringRef identifier) const
 {
   const SocketInContext input_socket{compute_context_,
                                      &this->node.input_by_identifier(identifier)};
@@ -1583,12 +1536,12 @@ bool InputSocketUsageParams::menu_input_may_be(const StringRef identifier,
                                                const int enum_value) const
 {
   BLI_assert(this->node.input_by_identifier(identifier).type == SOCK_MENU);
-  const int *value = this->get_input<int>(identifier);
-  if (value == nullptr) {
+  const InferenceValue value = this->get_input(identifier);
+  if (value.is_unknown()) {
     /* The value is unknown, so it may be the requested enum value. */
     return true;
   }
-  return *value == enum_value;
+  return value.get_known<int>() == enum_value;
 }
 
 }  // namespace blender::nodes::socket_usage_inference
