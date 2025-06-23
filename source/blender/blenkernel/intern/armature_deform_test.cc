@@ -190,7 +190,7 @@ class ArmatureDeformTestBase {
     return data;
   }
 
-  Mesh *create_test_mesh() const
+  static Mesh *create_test_mesh()
   {
     Mesh *mesh = BKE_mesh_new_nomain(vertex_positions().size(), 0, 0, 0);
     mesh->vert_positions_for_write().copy_from(vertex_positions());
@@ -376,7 +376,7 @@ class ArmatureDeformTestBase {
     return {};
   }
 
-  Span<float3x3> expected_deform_mats(const WeightingTest weighting)
+  static Span<float3x3> expected_deform_mats(const WeightingTest weighting)
   {
     static Array<float3x3> data_zero = identity_deform_mats();
     static Array<float3x3> data = {float3x3::identity(),
@@ -399,7 +399,7 @@ class ArmatureDeformTestBase {
     return {};
   }
 
-  int get_deform_flag(const InterpolationTest interpolation, const WeightingTest weighting)
+  static int get_deform_flag(const InterpolationTest interpolation, const WeightingTest weighting)
   {
     int deform_flag = 0;
 
@@ -430,7 +430,7 @@ class ArmatureDeformTestBase {
     return deform_flag;
   }
 
-  const char *get_defgrp_name(const MaskingTest masking)
+  static const char *get_defgrp_name(const MaskingTest masking)
   {
     switch (masking) {
       case MaskingTest::All:
