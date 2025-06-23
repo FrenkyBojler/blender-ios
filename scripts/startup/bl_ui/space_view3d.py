@@ -3258,8 +3258,8 @@ class VIEW3D_MT_object_collection(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("object.move_to_collection")
-        layout.operator("object.link_to_collection")
+        layout.menu("OBJECT_MT_move_to_collection")
+        layout.menu("OBJECT_MT_link_to_collection")
 
         layout.separator()
 
