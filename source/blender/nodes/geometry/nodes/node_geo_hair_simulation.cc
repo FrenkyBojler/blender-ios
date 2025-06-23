@@ -465,6 +465,20 @@ static bool get_from_bundle(const BundlePtr &bundle, const StringRef name, T &re
   return false;
 }
 
+template<typename T>
+static bool get_from_bundle_or_default(const BundlePtr &bundle,
+                                       const StringRef name,
+                                       const T &default_value,
+                                       T &result)
+{
+  if (std::optional<T> value = get_from_bundle<T>(bundle, name)) {
+    result = *value;
+    return true;
+  }
+  result = default_value;
+  return false;
+}
+
 struct LazyFunctionIndices {
   struct {
     Vector<int> main_indices;
@@ -487,11 +501,18 @@ struct ClosureOutputItem {
 
 class LazyFunctionForClosure : public LazyFunction {
  protected:
+  int32_t node_identifier_;
   LazyFunctionIndices lf_indices_;
   Vector<ClosureInputItem> input_items_;
   Vector<ClosureOutputItem> output_items_;
 
  public:
+  LazyFunctionForClosure(const int32_t node_identifier, const char *debug_name)
+      : node_identifier_(node_identifier)
+  {
+    debug_name_ = debug_name;
+  }
+
   const LazyFunctionIndices &lf_indices() const
   {
     return lf_indices_;
@@ -624,9 +645,9 @@ class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
   int output_stretch_index_, output_bend_index_;
 
  public:
-  LazyFunctionForCurveConstraintUpdate(const char *debug_name)
+  LazyFunctionForCurveConstraintUpdate(const int32_t node_identifier, const char *debug_name)
+      : LazyFunctionForClosure(node_identifier, debug_name)
   {
-    debug_name_ = debug_name;
     input_stretch_index_ = add_input("Stretch Constraints", SOCK_GEOMETRY);
     input_bend_index_ = add_input("Bend Constraints", SOCK_GEOMETRY);
     output_stretch_index_ = add_output("Stretch Constraints", SOCK_GEOMETRY);
@@ -783,9 +804,9 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
   int output_position_index_, output_rotation_index_;
 
  public:
-  LazyFunctionForRootConstraintUpdate(const char *debug_name)
+  LazyFunctionForRootConstraintUpdate(const int32_t node_identifier, const char *debug_name)
+      : LazyFunctionForClosure(node_identifier, debug_name)
   {
-    debug_name_ = debug_name;
     input_position_index_ = add_input("Position Goal Constraints", SOCK_GEOMETRY);
     input_rotation_index_ = add_input("Rotation Goal Constraints", SOCK_GEOMETRY);
     output_position_index_ = add_output("Position Goal Constraints", SOCK_GEOMETRY);
@@ -804,10 +825,9 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
       if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data->try_get_tree_logger(
               *user_data))
       {
-        // XXX we don't have access to the node here
-        // tree_logger->node_warnings.append(
-        //     *tree_logger->allocator,
-        //     {node.identifier_, {type, tree_logger->allocator->copy_string(message)}});
+        tree_logger->node_warnings.append(
+            *tree_logger->allocator,
+            {node_identifier_, {type, tree_logger->allocator->copy_string(message)}});
       }
     };
 
@@ -844,20 +864,20 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
   }
 };
 
-static ClosurePtr create_curve_constraint_update_closure()
+static ClosurePtr create_curve_constraint_update_closure(ResourceScope &scope,
+                                                         const int32_t node_identifier)
 {
-  static const auto *body_fn = MEM_new<LazyFunctionForCurveConstraintUpdate>(
-      __func__, "Curve Constraint Update Closure");
-
-  return create_closure_for_lazy_function(*body_fn);
+  auto &body_fn = scope.construct<LazyFunctionForCurveConstraintUpdate>(
+      node_identifier, "Curve Constraint Update Closure");
+  return create_closure_for_lazy_function(body_fn);
 }
 
-static ClosurePtr create_root_constraint_update_closure()
+static ClosurePtr create_root_constraint_update_closure(ResourceScope &scope,
+                                                        const int32_t node_identifier)
 {
-  static const auto *body_fn = MEM_new<LazyFunctionForRootConstraintUpdate>(
-      __func__, "Root Constraint Update Closure");
-
-  return create_closure_for_lazy_function(*body_fn);
+  auto &body_fn = scope.construct<LazyFunctionForRootConstraintUpdate>(
+      node_identifier, "Root Constraint Update Closure");
+  return create_closure_for_lazy_function(body_fn);
 }
 
 /**
@@ -905,18 +925,20 @@ struct Behavior {
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
 
-    ClosurePtr update = create_curve_constraint_update_closure();
+    ClosurePtr update;
   } curve_constraints;
 
   struct {
     Field<float3> bend_compliance = field_constants::constant_field<float3>(float3(0.0f));
     Field<float> bend_damping = field_constants::constant_field<float>(0.0f);
 
-    ClosurePtr update = create_root_constraint_update_closure();
+    ClosurePtr update;
   } root_constraints;
 };
 
-static Behavior separate_behavior_bundle(const BundlePtr &bundle)
+static Behavior separate_behavior_bundle(const BundlePtr &bundle,
+                                         ResourceScope &scope,
+                                         const int32_t node_identifier)
 {
   Behavior behavior;
 
@@ -940,7 +962,10 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
         *curve_constraints, "Bend Compliance", behavior.curve_constraints.bend_compliance);
     get_from_bundle(*curve_constraints, "Bend Damping", behavior.curve_constraints.bend_damping);
 
-    get_from_bundle(*curve_constraints, "Update", behavior.curve_constraints.update);
+    get_from_bundle_or_default(*curve_constraints,
+                               "Update",
+                               create_curve_constraint_update_closure(scope, node_identifier),
+                               behavior.curve_constraints.update);
   }
 
   if (auto root_constraints = get_from_bundle<BundlePtr>(bundle, "Root Constraints")) {
@@ -948,7 +973,10 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle)
         *root_constraints, "Bend Compliance", behavior.root_constraints.bend_compliance);
     get_from_bundle(*root_constraints, "Bend Damping", behavior.root_constraints.bend_damping);
 
-    get_from_bundle(*root_constraints, "Update", behavior.root_constraints.update);
+    get_from_bundle_or_default(*root_constraints,
+                               "Update",
+                               create_root_constraint_update_closure(scope, node_identifier),
+                               behavior.root_constraints.update);
   }
 
   return behavior;
@@ -1627,9 +1655,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
   const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
                                              0);
+
+  ResourceScope scope;
   GeometrySet hair_geometry = params.extract_input<GeometrySet>("Hair");
   Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
-  const Behavior behavior = separate_behavior_bundle(params.extract_input<BundlePtr>("Behavior"));
+  const Behavior behavior = separate_behavior_bundle(
+      params.extract_input<BundlePtr>("Behavior"), scope, params.node().identifier);
   BundlePtr constraint_bundle = params.extract_input<BundlePtr>("Data");
   // GeometrySet colliders_geometry_set = params.extract_input<GeometrySet>("Colliders");
   // Span<float4x4> collider_transforms = colliders_geometry_set.has_instances() ?
