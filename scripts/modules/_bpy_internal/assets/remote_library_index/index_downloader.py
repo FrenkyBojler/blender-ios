@@ -47,7 +47,7 @@ class RemoteAssetListingDownloader:
     _num_asset_pages_pending: int
 
     _status: DownloadStatus
-    _error_message: str | None
+    _error_message: str
     """An error message to show to the user.
 
     Should be set on errors to communicate a message to users. Calling report()
@@ -88,15 +88,9 @@ class RemoteAssetListingDownloader:
         :param local_path: The directory to download the index files to.
 
         :param on_update_callback: Called with one parameter (this
-            RemoteAssetListingDownloader) in short regular intervals
+            RemoteAssetListingDownloader) in short, regular intervals
             (_DOWNLOAD_POLL_INTERVAL) while the download is ongoing, and once
             just after the download is done.
-
-        :param on_metafiles_done_callback: called with one parameter (this
-            RemoteAssetListingDownloader) whenever the meta files
-            (ASSET_TOP_METADATA_FILENAME, ASSET_INDEX_JSON_FILENAME, and
-            blender_assets.cats.txt) are in their final location and ready to
-            be picked up by the asset system.
 
         :param on_done_callback: called with one parameter (this
             RemoteAssetListingDownloader) whenever the downloader is "done".
@@ -104,6 +98,17 @@ class RemoteAssetListingDownloader:
             Here "done" does not imply "successful", as cancellations, network
             errors, or other issues can cause things to abort. In that case,
             this function is still called.
+
+        :param on_metafiles_done_callback: called with one parameter (this
+            RemoteAssetListingDownloader) whenever the meta files
+            (ASSET_TOP_METADATA_FILENAME, ASSET_INDEX_JSON_FILENAME, and
+            blender_assets.cats.txt) are in their final location and ready to
+            be picked up by the asset system.
+
+        :param on_page_done_callback: called with one parameter (this
+            RemoteAssetListingDownloader) when at least one new page of the
+            asset listing finished downloading and verification, and was put in
+            its final location, ready to be picked up by the asset system.
         """
 
         self._remote_url = remote_url
@@ -421,7 +426,7 @@ class RemoteAssetListingDownloader:
         return self._status
 
     @property
-    def error_message(self) -> str | None:
+    def error_message(self) -> str:
         return self._error_message
 
     # Below here: CachingDownloadReporter functions:

@@ -61,6 +61,13 @@ class RemoteLibraryLoadingStatus {
   static std::optional<TimePoint> last_new_pages_time(StringRef url);
 
   /**
+   * Checks if the status storage timed out, because it hasn't received status updates for the
+   * given timeout duration. Changes the status to failure in that case.
+   *
+   * Note that this function doesn't do more than check if the timeout is reached, and changing
+   * state to failure if so. It's meant to be called in regular, short intervalls to make the whole
+   * timeout handling work. Current remote asset library loading takes care of this.
+   *
    * \return True if the loading status switched to #Status::Failure due to timing out.
    */
   static bool handle_timeout(StringRef url);
