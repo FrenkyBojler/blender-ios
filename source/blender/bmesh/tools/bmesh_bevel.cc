@@ -643,6 +643,10 @@ static bool edges_face_connected_at_vert(BMEdge *bme1, BMEdge *bme2)
  */
 static UVFace *register_uv_face(BevelParams *bp, BMFace *fnew, BMFace *frep, BMFace **frep_arr)
 {
+  if (!fnew) {
+    return nullptr;
+  }
+
   UVFace *uv_face = (UVFace *)BLI_memarena_alloc(bp->mem_arena, sizeof(UVFace));
   uv_face->f = fnew;
   uv_face->attached_frep = nullptr;
@@ -705,7 +709,7 @@ static void update_uv_vert_map(BevelParams *bp,
         }
 
         UVFace *uv_face2 = find_uv_face(bp, l2->f);
-        if (!uv_face2) {
+        if (!uv_face2 || !uv_face2->attached_frep) {
           continue;
         }
 
