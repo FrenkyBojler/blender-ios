@@ -28,6 +28,11 @@
 
 namespace blender::nodes::socket_usage_inference {
 
+/**
+ * During socket usage inferencing, some socket values are computed. This class represents such a
+ * computed value. Not all possible values can be presented here, only "basic" once (like int, but
+ * not int-field). A value can also be unknown if it can't be determined statically.
+ */
 class InferenceValue {
  private:
   /**
