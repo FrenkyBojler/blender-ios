@@ -5,9 +5,13 @@
 #pragma once
 
 #include <cstdint>
+#include <utility>
 
+#include "BLI_math_interp.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
+
+#include "GPU_texture.hh"
 
 namespace blender::compositor {
 
@@ -18,6 +22,16 @@ enum class Interpolation : uint8_t {
   Bilinear,
   Bicubic,
   Anisotropic,
+};
+
+/* Possible border conditions when computing samples in the domain's exterior. */
+enum class BorderCondition : uint8_t {
+  /* Pads the domain exterior with zero values. */
+  Zero,
+  /* Pads the domain exterior with the color value at the border. */
+  Extend,
+  /* Pads the domain exterior with image copies. */
+  Repeat,
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -35,11 +49,11 @@ struct RealizationOptions {
   /* If true, the result will be repeated infinitely along the horizontal axis when realizing the
    * result. If false, regions outside of bounds of the result along the horizontal axis will be
    * filled with zeros. */
-  bool repeat_x = false;
+  BorderCondition extend_mode_x = BorderCondition::Zero;
   /* If true, the result will be repeated infinitely along the vertical axis when realizing the
    * result. If false, regions outside of bounds of the result along the vertical axis will be
    * filled with zeros. */
-  bool repeat_y = false;
+  BorderCondition extend_mode_y = BorderCondition::Zero;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -165,5 +179,8 @@ class Domain {
 /* Identical to the is_equal static method with zero epsilon. */
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
+
+math::InterpWrapMode map_border_condition_cpu(const BorderCondition &mode);
+GPUSamplerExtendMode map_border_condition_gpu(const BorderCondition &mode);
 
 }  // namespace blender::compositor
