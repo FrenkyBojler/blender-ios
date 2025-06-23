@@ -60,28 +60,54 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
   GHOST_TVulkanXRModes m_data_transfer_mode = GHOST_kVulkanXRModeCPU;
 
   std::list<std::vector<XrSwapchainImageVulkan2KHR>> m_image_cache;
+
+  /** Number of swapchain images (per view) */
+  uint32_t m_swapchain_size = 0;
+  /** Number of views */
+  uint32_t m_view_size = 0;
+
   VkCommandPool m_vk_command_pool = VK_NULL_HANDLE;
 
-  struct ImportedMemory {
-    char view_idx;
+  struct SharedData {
+    /**
+     * Reference of XrSwapchainImageVulkan2KHR inside m_image_cache that this shared data belongs
+     * to.
+     */
+    void *xr_swapchain_image_vulkan;
+    /**
+     * Rendered image, owned by Blender. Is used to sync with Blender to check if the image handle
+     * hasn't changed.
+     */
     VkImage vk_image_blender;
+    /**
+     * Imported rendered image, owned by XR.
+     */
     VkImage vk_image_xr;
+    /**
+     * Imported rendered image memory, owned by XR. The handle is owned by XR, but not the data it
+     * refers to.
+     */
     VkDeviceMemory vk_device_memory_xr;
+
+    /** Index to swapchain image resources. */
+    int64_t swapchain_index;
+    /** Index to view/swapchain image specific resources. */
+    int64_t view_swapchain_index;
   };
-  std::vector<ImportedMemory> m_imported_memory;
+  std::vector<SharedData> m_swapchain_data;
+
+  /** Command buffer per view/swapchain image. */
+  std::vector<VkCommandBuffer> m_vk_command_buffers;
+  /** Semaphore per view/swapchain image.  */
+  std::vector<VkSemaphore> m_vk_semaphores;
+  /** One global fence... (should become a fence per swapchain). */
+  // std::vector<VkFence> m_vk_fences;
 
   GHOST_TVulkanXRModes choseDataTransferMode();
   void submitToSwapchainImageCpu(XrSwapchainImageVulkan2KHR &swapchain_image,
                                  const GHOST_XrDrawViewInfo &draw_info);
   void submitToSwapchainImageGpu(XrSwapchainImageVulkan2KHR &swapchain_image,
                                  const GHOST_XrDrawViewInfo &draw_info);
-
-  /**
-   * Single VkCommandBuffer that is used for all views/swap-chains.
-   *
-   * This can be improved by having a single command buffer per swap-chain image.
-   */
-  VkCommandBuffer m_vk_command_buffer = VK_NULL_HANDLE;
 
   static PFN_xrGetVulkanGraphicsRequirements2KHR s_xrGetVulkanGraphicsRequirements2KHR_fn;
   static PFN_xrGetVulkanGraphicsDevice2KHR s_xrGetVulkanGraphicsDevice2KHR_fn;

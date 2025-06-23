@@ -473,7 +473,6 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
     case GHOST_kVulkanXRModeFD: {
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
                          RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
       if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
         VKMemoryExport exported_memory = color_attachment->export_memory(
@@ -490,7 +489,6 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
 
     case GHOST_kVulkanXRModeWin32: {
       flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                         RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
                          RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
       if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
         VKMemoryExport exported_memory = color_attachment->export_memory(
