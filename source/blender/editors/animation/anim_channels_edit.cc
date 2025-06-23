@@ -2732,7 +2732,7 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED; /* a blank label would create an invisible group */
   }
 
-  /* keep the full selection alive – freeing too early would revive the
+  /* keep the full selection alive - freeing too early would revive the
    *      use-after-free crash documented in the last report. */
   ListBase sel = {nullptr, nullptr};
   const int flt = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
@@ -2765,7 +2765,7 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
 
   /* run both branches so the user gets *two* groups named identically;
    *      this preserves the single-dialog workflow while respecting each
-   *      data-model’s constraints.
+   *      data-model's constraints.
    */
   if (gp_selected) {
     blender::ed::greasepencil::anim_gp_layer_group_exec(C, op);
@@ -2784,7 +2784,7 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
     }
   }
 
-  ANIM_animdata_freelist(&sel); /* safe now – no dangling uses */
+  ANIM_animdata_freelist(&sel); /* safe now - no dangling uses */
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   return OPERATOR_FINISHED;
 }
@@ -2855,7 +2855,7 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
     }
   }
 
-  /* Grease-Pencil ungroup runs first; its hierarchy edits can’t affect F-Curve data. */
+  /* Grease-Pencil ungroup runs first; its hierarchy edits can't affect F-Curve data. */
   if (gp_needed) {
     blender::ed::greasepencil::anim_gp_layer_ungroup_exec(C, op);
   }
