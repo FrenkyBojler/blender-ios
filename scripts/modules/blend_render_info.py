@@ -60,6 +60,8 @@ class RawBlendFileReader:
 
 def get_render_info_structure(endian_str, size):
     import struct
+    # The maximum size of the scene name changed over time, so create a different
+    # structure depending on the size of the entire block.
     if size == 2 * 4 + 24:
         return struct.Struct(endian_str + b'ii24s')
     if size == 2 * 4 + 64:
