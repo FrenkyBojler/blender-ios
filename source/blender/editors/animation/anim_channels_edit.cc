@@ -2492,7 +2492,7 @@ GreasePencil *from_selected_channel(bAnimContext *ac)
 {
   ListBase anim_data = {nullptr, nullptr};
   GreasePencil *grease_pencil = nullptr;
-  
+
   /* Filter to get all visible selected channels. */
   const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
                       ANIMFILTER_LIST_CHANNELS | ANIMFILTER_SEL);
@@ -2514,29 +2514,29 @@ GreasePencil *from_selected_channel(bAnimContext *ac)
       break;
     }
   }
-  
+
   ANIM_animdata_freelist(&anim_data);
-  
+
   return grease_pencil;
 }
 
 static wmOperatorStatus anim_gp_layer_group_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
-  
+
   bAnimContext ac;
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     BKE_report(op->reports, RPT_ERROR, "Could not get animation context");
     return OPERATOR_CANCELLED;
   }
-  
+
   /* Get the Grease Pencil datablock from selected channel. */
   GreasePencil *grease_pencil = from_selected_channel(&ac);
   if (!grease_pencil) {
     BKE_report(op->reports, RPT_ERROR, "No selected Grease Pencil channel found");
     return OPERATOR_CANCELLED;
   }
-  
+
   const char *name = RNA_string_get_alloc(op->ptr, "name", nullptr, 0, nullptr);
   BLI_SCOPED_DEFER([&] { MEM_SAFE_FREE(name); });
 
@@ -2587,7 +2587,7 @@ static wmOperatorStatus anim_gp_layer_ungroup_exec(bContext *C, wmOperator *op)
     BKE_report(op->reports, RPT_ERROR, "Could not get animation context");
     return OPERATOR_CANCELLED;
   }
-  
+
   /* Get Grease Pencil data from selected channel. */
   GreasePencil *grease_pencil = from_selected_channel(&ac);
   if (!grease_pencil) {
@@ -2607,7 +2607,7 @@ static wmOperatorStatus anim_gp_layer_ungroup_exec(bContext *C, wmOperator *op)
   for (Layer *layer : selected_layers) {
     LayerGroup &parent = layer->parent_group();
     if (&parent == grease_pencil->root_group_ptr) {
-      continue;  /* Skip layers not in a group. */
+      continue; /* Skip layers not in a group. */
     }
     grease_pencil->move_node_before(layer->as_node(), parent.as_node());
 
@@ -2725,14 +2725,14 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
   char name[MAX_NAME];
 
   if (ANIM_animdata_get_context(C, &ac) == 0) {
-    return OPERATOR_CANCELLED; /* why: editor has no valid animation context */
+    return OPERATOR_CANCELLED; /* editor has no valid animation context */
   }
   RNA_string_get(op->ptr, "name", name);
   if (name[0] == '\0') {
-    return OPERATOR_CANCELLED; /* why: a blank label would create an invisible group */
+    return OPERATOR_CANCELLED; /* a blank label would create an invisible group */
   }
 
-  /* why: keep the full selection alive – freeing too early would revive the
+  /* keep the full selection alive – freeing too early would revive the
    *      use-after-free crash documented in the last report. */
   ListBase sel = {nullptr, nullptr};
   const int flt = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
@@ -2756,14 +2756,14 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
 
   /* When both data-types are present we silently create two groups with the same
    * name, but many users still expect a heads-up.  An INFO report keeps the UI
-   * non-blocking while documenting that the grouping was split by type. */
+   * non-blocking while documenting that the grouping was split by GP Layers and F-Curves. */
   if (gp_selected && fcurve_selected) {
     BKE_report(op->reports,
                RPT_INFO,
                "F-Curves and Grease Pencil layers are grouped separately by type.");
   }
 
-  /* why: run both branches so the user gets *two* groups named identically;
+  /* run both branches so the user gets *two* groups named identically;
    *      this preserves the single-dialog workflow while respecting each
    *      data-model’s constraints.
    */
@@ -2784,7 +2784,7 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
     }
   }
 
-  ANIM_animdata_freelist(&sel); /* why: safe now – no dangling uses */
+  ANIM_animdata_freelist(&sel); /* safe now – no dangling uses */
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   return OPERATOR_FINISHED;
 }
@@ -2823,7 +2823,7 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
 
 static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
 {
-  /* why: abort early—no animation context → no-op but still poll-pass */
+  /* No animation context means nothing can be ungrouped and avoids an empty undo step. */
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
   int filter;
@@ -2831,15 +2831,15 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  /* why: keep the entire selection alive—GP ungroup rearranges the tree;
-   *      freeing too early invalidates any cached list nodes. */
+  /* The full selection must remain valid until both GP and F-Curve passes complete,
+   * otherwise GP tree edits would leave dangling nodes or invalid iterators. */
   ListBase sel = {nullptr, nullptr};
   const int flt = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
                   ANIMFILTER_NODUPLIS | ANIMFILTER_SEL;
   ANIM_animdata_filter(&ac, &sel, eAnimFilter_Flags(flt), ac.data, eAnimCont_Types(ac.datatype));
 
-  /* why: collect F-Curve nodes *before* we mutate the GP tree; the GP operator
-   *      can change selections and invalidate the F-Curve walk if we do it later. */
+  /* F-Curve nodes are cached before running the GP operator because that operator
+   * may deselect or reorder list elements, which would otherwise corrupt iteration. */
   blender::Vector<bAnimListElem *> fcurve_nodes;
   bool gp_needed = false;
   LISTBASE_FOREACH (bAnimListElem *, ale, &sel) {
@@ -2851,11 +2851,11 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
       gp_needed = true;
     }
     else if (ale->adt && ale->adt->action) {
-      fcurve_nodes.append(ale); /* safe: sel isn’t freed until the very end */
+      fcurve_nodes.append(ale);
     }
   }
 
-  /* why: run GP ungroup first—its hierarchy edits never touch F-Curve data */
+  /* Grease-Pencil ungroup runs first; its hierarchy edits can’t affect F-Curve data. */
   if (gp_needed) {
     blender::ed::greasepencil::anim_gp_layer_ungroup_exec(C, op);
   }
