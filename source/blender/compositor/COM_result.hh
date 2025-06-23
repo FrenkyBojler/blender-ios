@@ -597,7 +597,6 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                         const BorderCondition &extend_mode_x,
                                         const BorderCondition &extend_mode_y) const
 {
-
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
     this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
