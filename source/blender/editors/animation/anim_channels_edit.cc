@@ -2494,11 +2494,11 @@ GreasePencil *from_selected_channel(bAnimContext *ac)
   GreasePencil *grease_pencil = nullptr;
   
   /* Filter to get all visible selected channels. */
-  const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | 
-                ANIMFILTER_LIST_CHANNELS | ANIMFILTER_SEL);
-  ANIM_animdata_filter(ac, &anim_data, eAnimFilter_Flags(filter), 
-                       ac->data, eAnimCont_Types(ac->datatype));
-  
+  const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
+                      ANIMFILTER_LIST_CHANNELS | ANIMFILTER_SEL);
+  ANIM_animdata_filter(
+      ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
+
   /* Find the first selected Grease Pencil channel. */
   LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
     if (ale->type == ANIMTYPE_GREASE_PENCIL_LAYER) {
@@ -2715,63 +2715,77 @@ static void animchannels_group_channels(bAnimContext *ac,
   ANIM_animdata_freelist(&anim_data);
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Group Channels Operator (mixed selection = two groups, same name)
+ * \{ */
+
 static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
   char name[MAX_NAME];
 
-  /* get editor data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
-    return OPERATOR_CANCELLED;
+    return OPERATOR_CANCELLED; /* why: editor has no valid animation context */
+  }
+  RNA_string_get(op->ptr, "name", name);
+  if (name[0] == '\0') {
+    return OPERATOR_CANCELLED; /* why: a blank label would create an invisible group */
   }
 
-  /* get name for new group */
-  RNA_string_get(op->ptr, "name", name);
+  /* why: keep the full selection alive – freeing too early would revive the
+   *      use-after-free crash documented in the last report. */
+  ListBase sel = {nullptr, nullptr};
+  const int flt = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
+                  ANIMFILTER_NODUPLIS | ANIMFILTER_SEL;
+  ANIM_animdata_filter(&ac, &sel, eAnimFilter_Flags(flt), ac.data, eAnimCont_Types(ac.datatype));
 
-  /* XXX: name for group should never be empty... */
-  if (name[0]) {
-    ListBase anim_data = {nullptr, nullptr};
-    int filter;
+  bool gp_selected = false;
+  bool fcurve_selected = false;
+  LISTBASE_FOREACH (bAnimListElem *, ale, &sel) {
+    if (ELEM(ale->type,
+             ANIMTYPE_GREASE_PENCIL_LAYER,
+             ANIMTYPE_GPLAYER,
+             ANIMTYPE_GREASE_PENCIL_LAYER_GROUP))
+    {
+      gp_selected = true;
+    }
+    else if (ale->adt && ale->adt->action) {
+      fcurve_selected = true;
+    }
+  }
 
-    /* Check first if we have selected grease pencil layers */
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
-              ANIMFILTER_NODUPLIS | ANIMFILTER_SEL);
-    ANIM_animdata_filter(
-        &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+  /* When both data-types are present we silently create two groups with the same
+   * name, but many users still expect a heads-up.  An INFO report keeps the UI
+   * non-blocking while documenting that the grouping was split by type. */
+  if (gp_selected && fcurve_selected) {
+    BKE_report(op->reports,
+               RPT_INFO,
+               "F-Curves and Grease Pencil layers are grouped separately by type.");
+  }
 
-    /* Check if we're dealing with grease pencil layers */
-    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      if (ale->type == ANIMTYPE_GREASE_PENCIL_LAYER ||
-          ale->type == ANIMTYPE_GREASE_PENCIL_LAYER_GROUP)
+  /* why: run both branches so the user gets *two* groups named identically;
+   *      this preserves the single-dialog workflow while respecting each
+   *      data-model’s constraints.
+   */
+  if (gp_selected) {
+    blender::ed::greasepencil::anim_gp_layer_group_exec(C, op);
+  }
+
+  if (fcurve_selected) {
+    LISTBASE_FOREACH (bAnimListElem *, ale, &sel) {
+      if (ale->adt && ale->adt->action &&
+          !ELEM(ale->type,
+                ANIMTYPE_GREASE_PENCIL_LAYER,
+                ANIMTYPE_GPLAYER,
+                ANIMTYPE_GREASE_PENCIL_LAYER_GROUP))
       {
-        /* Free the list before calling the other function */
-        ANIM_animdata_freelist(&anim_data);
-
-        /* Call the grease pencil specific grouping function */
-        return blender::ed::greasepencil::anim_gp_layer_group_exec(C, op);
+        animchannels_group_channels(&ac, ale, name);
       }
     }
-
-    /* If we get here, no GP layers were found, so clear and get F-Curves */
-    ANIM_animdata_freelist(&anim_data);
-
-    /* Handle each animdata block separately, so that the regrouping doesn't flow into blocks. */
-    filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_ANIMDATA |
-              ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
-    ANIM_animdata_filter(
-        &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-
-    LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-      animchannels_group_channels(&ac, ale, name);
-    }
-
-    /* free temp data */
-    ANIM_animdata_freelist(&anim_data);
-
-    /* Updates. */
-    WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   }
 
+  ANIM_animdata_freelist(&sel); /* why: safe now – no dangling uses */
+  WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
   return OPERATOR_FINISHED;
 }
 
@@ -2809,32 +2823,41 @@ static void ANIM_OT_channels_group(wmOperatorType *ot)
 
 static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
 {
+  /* why: abort early—no animation context → no-op but still poll-pass */
   bAnimContext ac;
   ListBase anim_data = {nullptr, nullptr};
   int filter;
-
-  /* get editor data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
 
-  /* Check first if we have selected grease pencil layers */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
-            ANIMFILTER_NODUPLIS | ANIMFILTER_SEL);
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
+  /* why: keep the entire selection alive—GP ungroup rearranges the tree;
+   *      freeing too early invalidates any cached list nodes. */
+  ListBase sel = {nullptr, nullptr};
+  const int flt = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
+                  ANIMFILTER_NODUPLIS | ANIMFILTER_SEL;
+  ANIM_animdata_filter(&ac, &sel, eAnimFilter_Flags(flt), ac.data, eAnimCont_Types(ac.datatype));
 
-  /* Check if we're dealing with grease pencil layers */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    if (ale->type == ANIMTYPE_GREASE_PENCIL_LAYER ||
-        ale->type == ANIMTYPE_GREASE_PENCIL_LAYER_GROUP)
+  /* why: collect F-Curve nodes *before* we mutate the GP tree; the GP operator
+   *      can change selections and invalidate the F-Curve walk if we do it later. */
+  blender::Vector<bAnimListElem *> fcurve_nodes;
+  bool gp_needed = false;
+  LISTBASE_FOREACH (bAnimListElem *, ale, &sel) {
+    if (ELEM(ale->type,
+             ANIMTYPE_GREASE_PENCIL_LAYER,
+             ANIMTYPE_GPLAYER,
+             ANIMTYPE_GREASE_PENCIL_LAYER_GROUP))
     {
-      /* Free the list before calling the other function */
-      ANIM_animdata_freelist(&anim_data);
-
-      /* Call the grease pencil specific ungrouping function */
-      return blender::ed::greasepencil::anim_gp_layer_ungroup_exec(C, op);
+      gp_needed = true;
     }
+    else if (ale->adt && ale->adt->action) {
+      fcurve_nodes.append(ale); /* safe: sel isn’t freed until the very end */
+    }
+  }
+
+  /* why: run GP ungroup first—its hierarchy edits never touch F-Curve data */
+  if (gp_needed) {
+    blender::ed::greasepencil::anim_gp_layer_ungroup_exec(C, op);
   }
 
   /* Clear the list for reuse */
