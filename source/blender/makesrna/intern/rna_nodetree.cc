@@ -10937,6 +10937,7 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeSubdivideMesh");
   define("GeometryNode", "GeometryNodeSubdivisionSurface");
   define("GeometryNode", "GeometryNodeSwitch");
+  define("GeometryNode", "GeometryNodeTestClosureEagerly");
   define("GeometryNode", "GeometryNodeTool3DCursor");
   define("GeometryNode", "GeometryNodeToolActiveElement");
   define("GeometryNode", "GeometryNodeToolFaceSet");

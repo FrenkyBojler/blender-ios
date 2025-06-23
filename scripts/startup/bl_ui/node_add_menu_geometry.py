@@ -662,6 +662,7 @@ class NODE_MT_category_GEO_UTILITIES(Menu):
         if context.preferences.experimental.use_bundle_and_closure_nodes:
             node_add_menu.add_closure_zone(layout, label="Closure")
             node_add_menu.add_node_type(layout, "GeometryNodeEvaluateClosure")
+            node_add_menu.add_node_type(layout, "GeometryNodeTestClosureEagerly")
         node_add_menu.add_foreach_geometry_element_zone(layout, label="For Each Element")
         node_add_menu.add_node_type(layout, "GeometryNodeIndexSwitch")
         node_add_menu.add_node_type(layout, "GeometryNodeMenuSwitch")
