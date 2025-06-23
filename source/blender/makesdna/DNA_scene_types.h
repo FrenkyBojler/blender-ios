@@ -42,8 +42,6 @@ struct bNodeTree;
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
-// #  include "MOV_enums.hh"
-
 namespace blender {
 namespace bke {
 class SceneRuntime;
@@ -156,8 +154,8 @@ typedef enum IMB_Ffmpeg_Codec_ID {
 
 typedef struct FFMpegCodecData {
   int type;
-  int codec;       /* IMB_Ffmpeg_Codec_ID */
-  int audio_codec; /* IMB_Ffmpeg_Codec_ID */
+  int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
+  int audio_codec; /* Use `audio_codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
   int video_bitrate;
   int audio_bitrate;
   int audio_mixrate;
