@@ -874,7 +874,9 @@ class NWMergeNodes(Operator, NWBase):
                 elif nodes_list == selected_boolean:
                     add = nodes.new('FunctionNodeBooleanMath')
                     add.show_preview = False
-                    loc_y = loc_y + 50
+                    add.hide = do_hide
+                    if do_hide:
+                        loc_y = loc_y - 50
                     first = 0
                     second = 1
                 add.location = loc_x, loc_y
