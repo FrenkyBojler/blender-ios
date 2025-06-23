@@ -1226,6 +1226,10 @@ static void update_constraints(BundlePtr &bundle,
         *bundle, ConstraintType::StretchShear);
     GeometrySet bend_constraints = hair_constraints::lookup_constraints(*bundle,
                                                                         ConstraintType::BendTwist);
+    /* Uninitialized memory for output values. */
+    GeometrySet out_stretch_constraints, out_bend_constraints;
+    std::destroy_at(&out_stretch_constraints);
+    std::destroy_at(&out_bend_constraints);
 
     ClosureEagerEvalParams params;
     params.inputs.append(
@@ -1233,14 +1237,15 @@ static void update_constraints(BundlePtr &bundle,
     params.inputs.append(
         {SocketInterfaceKey("Bend Constraints"), stype_geometry, &bend_constraints});
     params.outputs.append(
-        {SocketInterfaceKey("Stretch Constraints"), stype_geometry, &stretch_constraints});
+        {SocketInterfaceKey("Stretch Constraints"), stype_geometry, &out_stretch_constraints});
     params.outputs.append(
-        {SocketInterfaceKey("Bend Constraints"), stype_geometry, &bend_constraints});
+        {SocketInterfaceKey("Bend Constraints"), stype_geometry, &out_bend_constraints});
     params.user_data = user_data;
     evaluate_closure_eagerly(*behavior.curve_constraints.update, params);
 
-    hair_constraints::set_constraints(bundle, ConstraintType::StretchShear, stretch_constraints);
-    hair_constraints::set_constraints(bundle, ConstraintType::BendTwist, bend_constraints);
+    hair_constraints::set_constraints(
+        bundle, ConstraintType::StretchShear, out_stretch_constraints);
+    hair_constraints::set_constraints(bundle, ConstraintType::BendTwist, out_bend_constraints);
   }
 
   if (behavior.root_constraints.update) {
@@ -1248,6 +1253,10 @@ static void update_constraints(BundlePtr &bundle,
         *bundle, ConstraintType::PositionGoal);
     GeometrySet rotation_constraints = hair_constraints::lookup_constraints(
         *bundle, ConstraintType::RotationGoal);
+    /* Uninitialized memory for output values. */
+    GeometrySet out_position_constraints, out_rotation_constraints;
+    std::destroy_at(&out_position_constraints);
+    std::destroy_at(&out_rotation_constraints);
 
     ClosureEagerEvalParams params;
     params.inputs.append(
@@ -1255,14 +1264,16 @@ static void update_constraints(BundlePtr &bundle,
     params.inputs.append(
         {SocketInterfaceKey("Rotation Constraints"), stype_geometry, &rotation_constraints});
     params.outputs.append(
-        {SocketInterfaceKey("Position Constraints"), stype_geometry, &position_constraints});
+        {SocketInterfaceKey("Position Constraints"), stype_geometry, &out_position_constraints});
     params.outputs.append(
-        {SocketInterfaceKey("Rotation Constraints"), stype_geometry, &rotation_constraints});
+        {SocketInterfaceKey("Rotation Constraints"), stype_geometry, &out_rotation_constraints});
     params.user_data = user_data;
     evaluate_closure_eagerly(*behavior.root_constraints.update, params);
 
-    hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
-    hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
+    hair_constraints::set_constraints(
+        bundle, ConstraintType::PositionGoal, out_position_constraints);
+    hair_constraints::set_constraints(
+        bundle, ConstraintType::RotationGoal, out_rotation_constraints);
   }
 }
 
