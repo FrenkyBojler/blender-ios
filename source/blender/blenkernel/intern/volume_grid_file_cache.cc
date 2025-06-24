@@ -250,7 +250,7 @@ static LazyLoadedGrid load_single_grid_from_disk_cached(const StringRef file_pat
 }
 
 /**
- * Checks if there is already a cached grid for the parameters and creates it otherwise.This does
+ * Checks if there is already a cached grid for the parameters and creates it otherwise. This does
  * not load the tree, because that is done on-demand.
  */
 static GVolumeGrid get_cached_grid(const StringRef file_path,
@@ -294,7 +294,7 @@ GVolumeGrid get_grid_from_file(const StringRef file_path,
   return {};
 }
 
-void reload_file(const StringRef file_path)
+void clear_file_cache(const StringRef file_path)
 {
   GlobalCache &global_cache = get_global_cache();
   std::lock_guard lock{global_cache.mutex};
