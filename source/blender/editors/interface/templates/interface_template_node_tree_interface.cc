@@ -23,6 +23,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_tree_view.hh"
 
@@ -101,10 +102,10 @@ class NodeSocketViewItem : public BasicTreeViewItem {
   void build_row(uiLayout &row) override
   {
     if (ID_IS_LINKED(&nodetree_)) {
-      uiLayoutSetEnabled(&row, false);
+      row.enabled_set(false);
     }
 
-    uiLayoutSetPropDecorate(&row, false);
+    row.use_property_decorate_set(false);
 
     uiLayout *input_socket_layout = &row.row(true);
     if (socket_.flag & NODE_INTERFACE_SOCKET_INPUT) {
@@ -191,7 +192,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
   void build_row(uiLayout &row) override
   {
     if (ID_IS_LINKED(&nodetree_)) {
-      uiLayoutSetEnabled(&row, false);
+      row.enabled_set(false);
     }
     /* Add boolean socket if panel has a toggle. */
     if (toggle_ != nullptr) {
@@ -205,7 +206,7 @@ class NodePanelViewItem : public BasicTreeViewItem {
     this->add_label(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
   }
 
  protected:
@@ -544,7 +545,7 @@ void uiTemplateNodeTreeInterface(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNodeTree &nodetree = *reinterpret_cast<bNodeTree *>(ptr->owner_id);
   bNodeTreeInterface &interface = *static_cast<bNodeTreeInterface *>(ptr->data);
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   blender::ui::AbstractTreeView *tree_view = UI_block_add_view(
       *block,

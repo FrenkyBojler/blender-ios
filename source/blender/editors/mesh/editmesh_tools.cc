@@ -70,6 +70,7 @@
 #include "ED_view3d.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "mesh_intern.hh" /* own include */
@@ -3930,11 +3931,10 @@ static void edbm_blend_from_shape_ui(bContext *C, wmOperator *op)
 
   PointerRNA ptr_key = RNA_id_pointer_create((ID *)mesh->key);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
-  uiItemPointerR(
-      layout, op->ptr, "shape", &ptr_key, "key_blocks", std::nullopt, ICON_SHAPEKEY_DATA);
+  layout->prop_search(op->ptr, "shape", &ptr_key, "key_blocks", std::nullopt, ICON_SHAPEKEY_DATA);
   layout->prop(op->ptr, "blend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "add", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -5730,20 +5730,20 @@ static void edbm_decimate_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout, *row, *col, *sub;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(op->ptr, "ratio", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   layout->prop(op->ptr, "use_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col = &layout->column(false);
-  uiLayoutSetActive(col, RNA_boolean_get(op->ptr, "use_vertex_group"));
+  col->active_set(RNA_boolean_get(op->ptr, "use_vertex_group"));
   col->prop(op->ptr, "vertex_group_factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->prop(op->ptr, "invert_vertex_group", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   row = &layout->row(true, IFACE_("Symmetry"));
   row->prop(op->ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
   sub = &row->row(true);
-  uiLayoutSetActive(sub, RNA_boolean_get(op->ptr, "use_symmetry"));
+  sub->active_set(RNA_boolean_get(op->ptr, "use_symmetry"));
   sub->prop(op->ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 }
 
@@ -6101,9 +6101,9 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   edbm_dissolve_prop__use_verts(ot, false, PROP_SKIP_SAVE);
+  edbm_dissolve_prop__use_angle_threshold(ot);
   edbm_dissolve_prop__use_face_split(ot);
   edbm_dissolve_prop__use_boundary_tear(ot);
-  edbm_dissolve_prop__use_angle_threshold(ot);
 }
 
 /** \} */
@@ -8673,7 +8673,7 @@ static void edbm_point_normals_ui(bContext *C, wmOperator *op)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   /* Main auto-draw call */
   uiDefAutoButsRNA(layout,
@@ -9165,7 +9165,7 @@ static void edbm_average_normals_ui(bContext *C, wmOperator *op)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   /* Main auto-draw call */
   uiDefAutoButsRNA(layout,

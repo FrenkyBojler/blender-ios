@@ -555,6 +555,8 @@ struct EnumPropertyRNA {
   PropEnumGetFuncEx get_ex;
   PropEnumSetFuncEx set_ex;
 
+  PropEnumGetFuncEx get_default;
+
   const EnumPropertyItem *item;
   int totitem;
 
@@ -665,8 +667,11 @@ struct StructRNA {
    */
   StructInstanceFunc instance;
 
-  /** Return the location of the struct's pointer to the root group IDProperty. */
+  /** Return the location of the struct's pointer to the user-defined root group IDProperty. */
   IDPropertiesFunc idproperties;
+
+  /** Return the location of the struct's pointer to the system-defined root group IDProperty. */
+  IDPropertiesFunc system_idproperties;
 
   /** Functions of this struct. */
   ListBase functions;
