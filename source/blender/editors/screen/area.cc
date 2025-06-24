@@ -92,13 +92,12 @@ static void header_edge_gradient(const ScrArea *area, const ARegion *region)
   }
 
   if (!is_topbar) {
-    mul_v3_fl(opaque, 0.85f);
+    mul_v3_fl(opaque, 0.8f);
   }
   opaque[3] = 1.0f;
 
   float transparent[4] = {0.0f, 0.0f, 0.0f, 0.0f};
   copy_v3_v3(transparent, opaque);
-  transparent[3] = 0.0f;
 
   rctf rect{};
   int offset_x = 0;
