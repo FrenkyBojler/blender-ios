@@ -708,10 +708,6 @@ const bTheme U_theme_default = {
     .row_alternate = RGBA(0xffffff04),
   },
   .space_node = {
-    .asset_shelf = {
-      .header_back = RGBA(0x181818ff),
-      .back = RGBA(0x303030ff),
-    },
     .back = RGBA(0x1d1d1d00),
     .title = RGBA(0xeeeeeeff),
     .text = RGBA(0xe6e6e6ff),

@@ -259,10 +259,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_statusbar.tab_back);
     FROM_DEFAULT_V4_UCHAR(space_spreadsheet.tab_back);
   }
-  if (!USER_VERSION_ATLEAST(500, 7)) {
-    FROM_DEFAULT_V4_UCHAR(space_node.asset_shelf.back);
-    FROM_DEFAULT_V4_UCHAR(space_node.asset_shelf.header_back);
-  }
 
   if (!USER_VERSION_ATLEAST(500, 6)) {
     /* Match the selected/unselected outline colors. */
