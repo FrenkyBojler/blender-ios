@@ -1,2 +1,3 @@
 Referenced by issue #140731, Snap while Changing the Origins causes to crash
 Referenced by issue #140197, Crash adding a loop cut to a mesh
+Referenced by issue #140831, rotate incremental crashes the blender
