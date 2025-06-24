@@ -42,6 +42,7 @@ VKContext::~VKContext()
     GPU_texture_free(surface_texture_);
     surface_texture_ = nullptr;
   }
+  GPU_TEXTURE_FREE_SAFE(xr_texture_);
   free_resources();
   VKBackend::get().device.context_unregister(*this);
 
@@ -466,43 +467,64 @@ void VKContext::openxr_acquire_framebuffer_image_handler(GHOST_VulkanOpenXRData 
     data_format = GPU_DATA_UBYTE;
   }
 
-  switch (openxr_data.data_transfer_mode) {
-    case GHOST_kVulkanXRModeCPU:
-      openxr_data.cpu.image_data = color_attachment->read(0, data_format);
-      break;
-
-    case GHOST_kVulkanXRModeFD: {
-      flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
-        VKMemoryExport exported_memory = color_attachment->export_memory(
-            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT);
-        openxr_data.gpu.image_handle = exported_memory.handle;
-        openxr_data.gpu.new_handle = true;
-        openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
-        openxr_data.gpu.memory_size = exported_memory.memory_size;
-        openxr_data.gpu.memory_offset = exported_memory.memory_offset;
-        openxr_data.gpu.vk_image_blender = color_attachment->vk_image_handle();
-      }
-      break;
-    }
-
-    case GHOST_kVulkanXRModeWin32: {
-      flush_render_graph(RenderGraphFlushFlags::SUBMIT |
-                         RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-      if (openxr_data.gpu.vk_image_blender != color_attachment->vk_image_handle()) {
-        VKMemoryExport exported_memory = color_attachment->export_memory(
-            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
-        openxr_data.gpu.image_handle = exported_memory.handle;
-        openxr_data.gpu.new_handle = true;
-        openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
-        openxr_data.gpu.memory_size = exported_memory.memory_size;
-        openxr_data.gpu.memory_offset = exported_memory.memory_offset;
-        openxr_data.gpu.vk_image_blender = color_attachment->vk_image_handle();
-      }
-      break;
-    }
+  if (openxr_data.data_transfer_mode == GHOST_kVulkanXRModeCPU) {
+    openxr_data.cpu.image_data = color_attachment->read(0, data_format);
+    return;
   }
+
+  BLI_assert(
+      ELEM(openxr_data.data_transfer_mode, GHOST_kVulkanXRModeFD, GHOST_kVulkanXRModeWin32));
+  /* Allocate and export texture to store the results on the first try. */
+  if (xr_texture_ == nullptr) {
+    xr_texture_ = GPU_texture_create_2d_array("xr.eyes",
+                                              openxr_data.extent.width,
+                                              openxr_data.extent.height,
+                                              openxr_data.gpu.views_len,
+                                              1,
+                                              device_format,
+                                              GPU_TEXTURE_USAGE_MEMORY_EXPORT,
+                                              nullptr);
+
+    VKMemoryExport exported_memory = color_attachment->export_memory(
+        openxr_data.data_transfer_mode == GHOST_kVulkanXRModeFD ?
+            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_FD_BIT :
+            VK_EXTERNAL_MEMORY_HANDLE_TYPE_OPAQUE_WIN32_BIT);
+    openxr_data.gpu.image_handle = exported_memory.handle;
+    openxr_data.gpu.new_handle = true;
+    openxr_data.gpu.image_format = to_vk_format(color_attachment->device_format_get());
+    openxr_data.gpu.memory_size = exported_memory.memory_size;
+    openxr_data.gpu.memory_offset = exported_memory.memory_offset;
+  }
+
+  VKTexture &xr_texture = *unwrap(unwrap(xr_texture_));
+  render_graph::VKRenderGraph &render_graph = this->render_graph();
+  /* Copy render result to a layer inside the xr_texture. */
+  render_graph::VKCopyImageNode::CreateInfo copy_image = {
+      {color_attachment->vk_image_handle(),
+       xr_texture.vk_image_handle(),
+       {{VK_IMAGE_ASPECT_COLOR_BIT, 0, 0, 1},
+        {0, 0, 0},
+        {VK_IMAGE_ASPECT_COLOR_BIT, 0, openxr_data.gpu.layer_index, 1},
+        {0, 0, 0},
+        {openxr_data.extent.width, openxr_data.extent.height, 1}}},
+      {VK_IMAGE_ASPECT_COLOR_BIT}};
+  render_graph.add_node(copy_image);
+  RenderGraphFlushFlags flush_flags = RenderGraphFlushFlags::SUBMIT |
+                                      RenderGraphFlushFlags::RENEW_RENDER_GRAPH;
+
+  /* Ensure that the xr texture is in general layout after updating the last eye.
+   * For now we wait for completion. */
+  /* TODO: Ideally we should use external semaphores.*/
+  if (openxr_data.gpu.is_last_view) {
+    render_graph::VKSynchronizationNode::CreateInfo synchronization = {
+        xr_texture.vk_image_handle(),
+        VK_IMAGE_LAYOUT_GENERAL,
+        VK_IMAGE_ASPECT_COLOR_BIT,
+    };
+    render_graph.add_node(synchronization);
+    flush_flags |= RenderGraphFlushFlags::WAIT_FOR_COMPLETION;
+  }
+  flush_render_graph(flush_flags);
 }
 
 void VKContext::openxr_release_framebuffer_image_handler(GHOST_VulkanOpenXRData &openxr_data)

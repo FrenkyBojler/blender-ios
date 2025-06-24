@@ -808,12 +808,6 @@ typedef struct {
     } cpu;
     struct {
       /**
-       * Vulkan handle of the image. When this is the same as last time the imported memory can be
-       * reused.
-       */
-      VkImage vk_image_blender;
-
-      /**
        * Did the memory address change and do we need to reimport the memory or can we still reuse
        * the previous imported memory.
        */
@@ -839,6 +833,23 @@ typedef struct {
        * Offset of the texture/buffer inside the allocated memory.
        */
       VkDeviceSize memory_offset;
+
+      /**
+       * Number of views/eyes per swapchain image.
+       */
+      uint32_t views_len;
+
+      /**
+       * Current layer to store the render result.
+       */
+      uint32_t layer_index;
+
+      /**
+       * Is this a request for the last view of the current swapchain image.
+       *
+       * This is a trigger for the renderer to wait for completion or trigger a semaphore.
+       */
+      bool is_last_view;
     } gpu;
   };
 

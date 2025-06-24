@@ -73,31 +73,21 @@ class GHOST_XrGraphicsBindingVulkan : public GHOST_IXrGraphicsBinding {
      * Reference of XrSwapchainImageVulkan2KHR inside m_image_cache that this shared data belongs
      * to.
      */
-    void *xr_swapchain_image_vulkan;
-    /**
-     * Rendered image, owned by Blender. Is used to sync with Blender to check if the image handle
-     * hasn't changed.
-     */
-    VkImage vk_image_blender;
+    void *xr_swapchain_image_vulkan = nullptr;
     /**
      * Imported rendered image, owned by XR.
      */
-    VkImage vk_image_xr;
+    VkImage vk_image_xr = VK_NULL_HANDLE;
     /**
      * Imported rendered image memory, owned by XR. The handle is owned by XR, but not the data it
      * refers to.
      */
-    VkDeviceMemory vk_device_memory_xr;
-
-    /** Index to swapchain image resources. */
-    int64_t swapchain_index;
-    /** Index to view/swapchain image specific resources. */
-    int64_t view_swapchain_index;
+    VkDeviceMemory vk_device_memory_xr = VK_NULL_HANDLE;
   };
-  std::vector<SharedData> m_swapchain_data;
+  SharedData m_imported_memory;
 
-  /** Command buffer per view/swapchain image. */
-  std::vector<VkCommandBuffer> m_vk_command_buffers;
+  VkCommandBuffer m_vk_command_buffer = VK_NULL_HANDLE;
+
   /** Semaphore per view/swapchain image.  */
   std::vector<VkSemaphore> m_vk_semaphores;
   /** One global fence... (should become a fence per swapchain). */

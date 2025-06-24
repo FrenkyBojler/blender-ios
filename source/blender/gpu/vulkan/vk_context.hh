@@ -44,6 +44,11 @@ class VKContext : public Context, NonCopyable {
   VkExtent2D vk_extent_ = {};
   VkSurfaceFormatKHR swap_chain_format_ = {};
   GPUTexture *surface_texture_ = nullptr;
+  /**
+   * Layered texture to store all views in layers to reduce syncing between GHOST_Xr and
+   * VkContext.
+   */
+  GPUTexture *xr_texture_ = nullptr;
   void *ghost_context_;
 
   /* Reusable data. Stored inside context to limit reallocations. */
