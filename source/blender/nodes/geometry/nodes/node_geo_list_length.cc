@@ -4,6 +4,7 @@
 
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_rna_define.hh"
+#include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -29,6 +30,34 @@ static void node_declare(NodeDeclarationBuilder &b)
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+}
+
+class SocketSearchOp {
+ public:
+  const StringRef socket_name;
+  eNodeSocketDatatype socket_type;
+  void operator()(LinkSearchOpParams &params)
+  {
+    bNode &node = params.add_node("GeometryNodeListLength");
+    node.custom1 = socket_type;
+    params.update_and_connect_available_socket(node, socket_name);
+  }
+};
+
+static void node_gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  if (!U.experimental.use_geometry_nodes_lists) {
+    return;
+  }
+  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(params.other_socket().type);
+  if (params.in_out() == SOCK_IN) {
+    params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
+  }
+  else {
+    if (params.node_tree().typeinfo->validate_link(socket_type, SOCK_INT)) {
+      params.add_item(IFACE_("Length"), SocketSearchOp{"Length", SOCK_INT});
+    }
+  }
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -91,6 +120,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
   ntype.draw_buttons = node_layout;
+  ntype.gather_link_search_ops = node_gather_link_searches;
   blender::bke::node_register_type(ntype);
   node_rna(ntype.rna_ext.srna);
 }
