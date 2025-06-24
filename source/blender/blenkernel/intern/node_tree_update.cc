@@ -518,6 +518,15 @@ class NodeTreeMainUpdater {
       if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
+    }
+
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
+      if (node_structure_type_inferencing::update_structure_type_interface(ntree)) {
+        result.interface_changed = true;
+      }
+    }
+
+    if (ntree.type == NTREE_GEOMETRY) {
       this->update_from_field_inference(ntree);
       if (node_tree_reference_lifetimes::analyse_reference_lifetimes(ntree)) {
         result.interface_changed = true;
@@ -525,14 +534,14 @@ class NodeTreeMainUpdater {
       if (nodes::gizmos::update_tree_gizmo_propagation(ntree)) {
         result.interface_changed = true;
       }
-      this->update_eval_dependencies(ntree);
     }
 
     if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
-      if (node_structure_type_inferencing::update_structure_type_interface(ntree)) {
-        result.interface_changed = true;
-      }
       this->update_socket_shapes(ntree);
+    }
+
+    if (ntree.type == NTREE_GEOMETRY) {
+      this->update_eval_dependencies(ntree);
     }
 
     result.output_changed = this->check_if_output_changed(ntree);
