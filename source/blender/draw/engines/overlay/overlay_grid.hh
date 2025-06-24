@@ -433,16 +433,29 @@ class GridMesh : Overlay {
     int max_level = 0;
 
     /* Only draw levels that are visible. */
-    for (int i : IndexRange(SI_GRID_STEPS_LEN)) {
-      if (grid_steps_[i] > state.v3d->clip_start) {
-        min_level = math::min(min_level, i);
+    for (const int i : IndexRange(SI_GRID_STEPS_LEN)) {
+      /* Threshold under which the grid has totally faded and isn't visible. */
+      const int minimum_cell_size_pixel = 8;
+      if (state.rv3d->is_persp) {
+        if (grid_steps_[i] > state.v3d->clip_start) {
+          min_level = math::min(min_level, i);
+        }
+        if (grid_steps_[i] < state.v3d->clip_end) {
+          max_level = math::max(max_level, i);
+        }
       }
-      if (grid_steps_[i] < state.v3d->clip_end) {
-        max_level = math::max(max_level, i);
+      else {
+        float min_cell_size = 2.0f * state.rv3d->pixsize * minimum_cell_size_pixel;
+        if (grid_steps_[i] > min_cell_size) {
+          min_level = math::min(min_level, i);
+          /* Always display up to only 3 level at most. */
+          max_level = math::max(max_level, i + 2);
+          break;
+        }
       }
     }
 
-    max_level = math::max(max_level + 1, SI_GRID_STEPS_LEN - 1);
+    // max_level = math::max(max_level + 1, SI_GRID_STEPS_LEN - 1);
 
     IndexRange visible_levels(min_level, max_level - min_level);
 
