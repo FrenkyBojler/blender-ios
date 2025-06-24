@@ -430,7 +430,7 @@ class RemoteAssetListingDownloader:
             return
 
         # Remove any dangling pages of assets (downloaded before, no longer referenced).
-        asset_page_dir = self._local_path / index_common.API_VERSIONED_SUBDIR
+        asset_page_dir = self._locator.local_path / index_common.API_VERSIONED_SUBDIR
         # TODO: when upgrading to Python 3.12+, add `case_sensitive=False` to the glob() call.
         for asset_page_file in asset_page_dir.glob("assets-*.json"):
             abs_path = asset_page_dir / asset_page_file
