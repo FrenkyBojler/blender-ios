@@ -1866,6 +1866,7 @@ static void gaussian_smooth_modal_update(bContext *C, wmOperator *op)
     smooth_fcurve_segment(segment->fcu,
                           segment->segment,
                           segment->samples,
+                          segment->sample_count,
                           factor,
                           filter_width,
                           operator_data->kernel);
@@ -1925,7 +1926,7 @@ static void gaussian_smooth_graph_keys(bAnimContext *ac,
       float *samples = MEM_calloc_arrayN<float>(sample_count, "Smooth FCurve Op Samples");
       blender::animrig::sample_fcurve_segment(
           fcu, left_bezt.vec[1][0] - filter_width, 1, samples, sample_count);
-      smooth_fcurve_segment(fcu, segment, samples, factor, filter_width, kernel);
+      smooth_fcurve_segment(fcu, segment, samples, sample_count, factor, filter_width, kernel);
       MEM_freeN(samples);
     }
 

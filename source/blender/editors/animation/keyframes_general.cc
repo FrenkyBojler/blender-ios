@@ -636,26 +636,44 @@ void ED_ANIM_get_1d_gauss_kernel(const float sigma, const int kernel_size, doubl
 void smooth_fcurve_segment(FCurve *fcu,
                            FCurveSegment *segment,
                            float *samples,
+                           const int sample_count,
                            const float factor,
                            const int kernel_size,
                            const double *kernel)
 {
   const int segment_end_index = segment->start_index + segment->length;
   const float segment_start_x = fcu->bezt[segment->start_index].vec[1][0];
+  float *filtered_samples = MEM_calloc_arrayN<float>(sample_count,
+                                                     "Butterworth Filtered FCurve Values");
+  for (int i = 0; i < sample_count; i++) {
+    /* Apply the kernel. */
+    double filter_result = samples[i] * kernel[0];
+    for (int j = 1; j <= kernel_size; j++) {
+      const double kernel_value = kernel[j];
+      filter_result += samples[i + j] * kernel_value;
+      filter_result += samples[i - j] * kernel_value;
+    }
+    filtered_samples[i] = filter_result;
+  }
+
   for (int i = segment->start_index; i < segment_end_index; i++) {
     /* Using round() instead of (int). The latter would create stepping on x-values that are just
      * below a full frame. */
-    const int sample_index = round(fcu->bezt[i].vec[1][0] - segment_start_x) + kernel_size;
-    /* Apply the kernel. */
-    double filter_result = samples[sample_index] * kernel[0];
-    for (int j = 1; j <= kernel_size; j++) {
-      const double kernel_value = kernel[j];
-      filter_result += samples[sample_index + j] * kernel_value;
-      filter_result += samples[sample_index - j] * kernel_value;
+    const float foo = fcu->bezt[i].vec[1][0] - segment_start_x;
+    const int sample_index = round(foo) + kernel_size;
+    /* Sampling the two closest indices to support subframe keys. */
+    int secondary_index = 0;
+    if (sample_index - foo > 0) {
+      secondary_index = min_ii(sample_index + 1, sample_count - 1);
     }
+    else {
+      secondary_index = max_ii(sample_index - 1, 0);
+    }
+    const float filter_result = filtered_samples[sample_index];
     const float key_y_value = interpf(float(filter_result), samples[sample_index], factor);
     BKE_fcurve_keyframe_move_value_with_handles(&fcu->bezt[i], key_y_value);
   }
+  MEM_freeN(filtered_samples);
 }
 /* ---------------- */
 

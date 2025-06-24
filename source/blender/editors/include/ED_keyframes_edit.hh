@@ -480,6 +480,7 @@ void butterworth_smooth_fcurve_segment(FCurve *fcu,
 void smooth_fcurve_segment(FCurve *fcu,
                            FCurveSegment *segment,
                            float *samples,
+                           const int sample_count,
                            float factor,
                            int kernel_size,
                            const double *kernel);
