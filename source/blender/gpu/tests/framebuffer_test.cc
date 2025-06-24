@@ -152,11 +152,9 @@ static void test_framebuffer_clear_depth()
 }
 GPU_TEST(framebuffer_clear_depth);
 
-#ifndef __APPLE__ /* Clearing with scissors is not supported on Metal. */
-
 static void test_framebuffer_scissor_test()
 {
-  const int2 size(2, 2);
+  const int2 size(3, 2);
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
   GPUTexture *texture = GPU_texture_create_2d(
       __func__, UNPACK2(size), 1, GPU_RGBA32F, usage, nullptr);
@@ -169,6 +167,7 @@ static void test_framebuffer_scissor_test()
   const float4 color1(0.0f);
   const float4 color2(0.5f);
   const float4 color3(1.0f);
+  const float4 color4(0.8f);
   GPU_framebuffer_clear_color(framebuffer, color1);
 
   GPU_scissor_test(true);
@@ -177,22 +176,25 @@ static void test_framebuffer_scissor_test()
 
   GPU_scissor(0, 0, 2, 1);
   GPU_framebuffer_clear_color(framebuffer, color3);
+
+  GPU_scissor(1, 1, 2, 1);
+  GPU_framebuffer_clear_color(framebuffer, color4);
   GPU_scissor_test(false);
   GPU_finish();
 
   float4 *read_data = static_cast<float4 *>(GPU_texture_read(texture, GPU_DATA_FLOAT, 0));
   EXPECT_EQ(color3, read_data[0]);
   EXPECT_EQ(color3, read_data[1]);
-  EXPECT_EQ(color2, read_data[2]);
-  EXPECT_EQ(color1, read_data[3]);
+  EXPECT_EQ(color1, read_data[2]);
+  EXPECT_EQ(color2, read_data[3]);
+  EXPECT_EQ(color4, read_data[4]);
+  EXPECT_EQ(color4, read_data[5]);
   MEM_freeN(read_data);
 
   GPU_framebuffer_free(framebuffer);
   GPU_texture_free(texture);
 }
 GPU_TEST(framebuffer_scissor_test);
-
-#endif
 
 /* Color each side of a cube-map with a different color. */
 static void test_framebuffer_cube()
