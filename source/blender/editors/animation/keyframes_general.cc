@@ -635,6 +635,7 @@ void ED_ANIM_get_1d_gauss_kernel(const float sigma, const int kernel_size, doubl
 
 void smooth_fcurve_segment(FCurve *fcu,
                            FCurveSegment *segment,
+                           const float *original_values,
                            float *samples,
                            const int sample_count,
                            const float factor,
@@ -643,9 +644,8 @@ void smooth_fcurve_segment(FCurve *fcu,
 {
   const int segment_end_index = segment->start_index + segment->length;
   const float segment_start_x = fcu->bezt[segment->start_index].vec[1][0];
-  float *filtered_samples = MEM_calloc_arrayN<float>(sample_count,
-                                                     "Butterworth Filtered FCurve Values");
-  for (int i = 0; i < sample_count; i++) {
+  float *filtered_samples = static_cast<float *>(MEM_dupallocN(samples));
+  for (int i = kernel_size; i < sample_count - kernel_size; i++) {
     /* Apply the kernel. */
     double filter_result = samples[i] * kernel[0];
     for (int j = 1; j <= kernel_size; j++) {
@@ -657,20 +657,19 @@ void smooth_fcurve_segment(FCurve *fcu,
   }
 
   for (int i = segment->start_index; i < segment_end_index; i++) {
+    const float sample_index_f = (fcu->bezt[i].vec[1][0] - segment_start_x) + kernel_size;
     /* Using round() instead of (int). The latter would create stepping on x-values that are just
      * below a full frame. */
-    const float foo = fcu->bezt[i].vec[1][0] - segment_start_x;
-    const int sample_index = round(foo) + kernel_size;
+    const int sample_index = round(sample_index_f);
     /* Sampling the two closest indices to support subframe keys. */
-    int secondary_index = 0;
-    if (sample_index - foo > 0) {
-      secondary_index = min_ii(sample_index + 1, sample_count - 1);
-    }
-    else {
-      secondary_index = max_ii(sample_index - 1, 0);
-    }
-    const float filter_result = filtered_samples[sample_index];
-    const float key_y_value = interpf(float(filter_result), samples[sample_index], factor);
+    const int secondary_index = clamp_i(
+        sample_index + signum_i(sample_index_f - sample_index), 0, sample_count - 1);
+
+    const float filter_result = interpf(filtered_samples[secondary_index],
+                                        filtered_samples[sample_index],
+                                        std::abs(sample_index_f - sample_index));
+    const float key_y_value = interpf(
+        filter_result, original_values[i - segment->start_index], factor);
     BKE_fcurve_keyframe_move_value_with_handles(&fcu->bezt[i], key_y_value);
   }
   MEM_freeN(filtered_samples);
