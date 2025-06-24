@@ -25,6 +25,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -115,7 +116,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
 
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_ShaderFx, fx);
-  uiLayoutSetContextPointer(layout, "shaderfx", &ptr);
+  layout->context_ptr_set("shaderfx", &ptr);
   layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
   layout->ui_units_x_set(4.0f);
@@ -163,12 +164,12 @@ static void shaderfx_panel_header(const bContext * /*C*/, Panel *panel)
 
   const ShaderFxTypeInfo *fxti = BKE_shaderfx_get_info(ShaderFxType(fx->type));
 
-  UI_block_lock_set(uiLayoutGetBlock(layout), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
+  UI_block_lock_set(layout->block(), (ob && !ID_IS_EDITABLE(ob)), ERROR_LIBDATA_MESSAGE);
 
   /* Effect type icon. */
   uiLayout *row = &layout->row(false);
   if (fxti->is_disabled && fxti->is_disabled(fx, false)) {
-    uiLayoutSetRedAlert(row, true);
+    row->red_alert_set(true);
   }
   row->label("", RNA_struct_ui_icon(ptr->type));
 

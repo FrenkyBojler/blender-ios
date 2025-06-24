@@ -240,6 +240,11 @@ typedef struct bNodeSocket {
    * visibility is controlled by a menu should be hidden.
    */
   bool inferred_input_socket_visibility() const;
+  /**
+   * True when the value of this socket may be a field. This is inferred during structure type
+   * inferencing.
+   */
+  bool may_be_field() const;
 
   bool is_multi_input() const;
   bool is_input() const;
@@ -3037,14 +3042,6 @@ typedef enum CMPNodeCombSepColorMode {
   CMP_NODE_COMBSEP_COLOR_YCC = 3,
   CMP_NODE_COMBSEP_COLOR_YUV = 4,
 } CMPNodeCombSepColorMode;
-
-/* Filtering modes Compositor MapUV node, stored in custom2. */
-typedef enum CMPNodeMapUVFiltering {
-  CMP_NODE_MAP_UV_FILTERING_NEAREST = 0,
-  CMP_NODE_MAP_UV_FILTERING_BILINEAR = 1,
-  CMP_NODE_MAP_UV_FILTERING_BICUBIC = 2,
-  CMP_NODE_MAP_UV_FILTERING_ANISOTROPIC = 3,
-} CMPNodeMapUVFiltering;
 
 /* Cryptomatte node source. */
 typedef enum CMPNodeCryptomatteSource {
