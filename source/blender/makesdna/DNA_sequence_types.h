@@ -458,7 +458,7 @@ typedef struct TextVars {
   int text_blf_id;
   float text_size;
   float color[4], shadow_color[4], box_color[4], outline_color[4];
-  float loc[2];
+  float loc[2] DNA_DEPRECATED;
   float wrap_width;
   float box_margin;
   float box_roundness;
@@ -476,7 +476,8 @@ typedef struct TextVars {
   int selection_end_offset;
 
   char align_y DNA_DEPRECATED /* Only used for versioning. */;
-  char anchor_x, anchor_y;
+  char anchor_x DNA_DEPRECATED;
+  char anchor_y DNA_DEPRECATED;
   char _pad1;
   TextVarsRuntime *runtime;
 

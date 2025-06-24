@@ -1785,27 +1785,6 @@ class SEQUENCER_PT_effect(SequencerButtonsPanel, Panel):
             row.prop(strip, "factor", slider=True)
 
 
-class SEQUENCER_PT_effect_text_layout(SequencerButtonsPanel, Panel):
-    bl_label = "Layout"
-    bl_parent_id = "SEQUENCER_PT_effect"
-    bl_category = "Strip"
-
-    @classmethod
-    def poll(cls, context):
-        strip = context.active_strip
-        return strip.type == 'TEXT'
-
-    def draw(self, context):
-        strip = context.active_strip
-        layout = self.layout
-        layout.use_property_split = True
-        col = layout.column()
-        col.prop(strip, "location", text="Location")
-        col.prop(strip, "alignment_x", text="Alignment X")
-        col.prop(strip, "anchor_x", text="Anchor X")
-        col.prop(strip, "anchor_y", text="Y")
-
-
 class SEQUENCER_PT_effect_text_style(SequencerButtonsPanel, Panel):
     bl_label = "Style"
     bl_parent_id = "SEQUENCER_PT_effect"
@@ -1830,6 +1809,7 @@ class SEQUENCER_PT_effect_text_style(SequencerButtonsPanel, Panel):
 
         col.prop(strip, "font_size")
         col.prop(strip, "color")
+        col.prop(strip, "alignment_x", text="Alignment X")
 
 
 class SEQUENCER_PT_effect_text_outline(SequencerButtonsPanel, Panel):
@@ -3211,7 +3191,6 @@ classes = (
     SEQUENCER_PT_effect_text_outline,
     SEQUENCER_PT_effect_text_shadow,
     SEQUENCER_PT_effect_text_box,
-    SEQUENCER_PT_effect_text_layout,
     SEQUENCER_PT_movie_clip,
 
     SEQUENCER_PT_adjust_comp,

@@ -675,7 +675,13 @@ static void rna_StripTransform_update(Main * /*bmain*/, Scene * /*scene*/, Point
   Editing *ed = blender::seq::editing_get(scene);
   Strip *strip = strip_get_by_transform(ed, static_cast<StripTransform *>(ptr->data));
 
-  blender::seq::relations_invalidate_cache(scene, strip);
+  /* Text effect raw image changes, because translation is directly applied to text rendering. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    blender::seq::relations_invalidate_cache_raw(scene, strip);
+  }
+  else {
+    blender::seq::relations_invalidate_cache(scene, strip);
+  }
 }
 
 static bool crop_strip_cmp_fn(Strip *strip, void *arg_pt)
@@ -3423,20 +3429,6 @@ static void rna_def_text(StructRNA *srna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static const EnumPropertyItem text_anchor_x_items[] = {
-      {SEQ_TEXT_ALIGN_X_LEFT, "LEFT", ICON_ANCHOR_LEFT, "Left", ""},
-      {SEQ_TEXT_ALIGN_X_CENTER, "CENTER", ICON_ANCHOR_CENTER, "Center", ""},
-      {SEQ_TEXT_ALIGN_X_RIGHT, "RIGHT", ICON_ANCHOR_RIGHT, "Right", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  static const EnumPropertyItem text_anchor_y_items[] = {
-      {SEQ_TEXT_ALIGN_Y_TOP, "TOP", ICON_ANCHOR_TOP, "Top", ""},
-      {SEQ_TEXT_ALIGN_Y_CENTER, "CENTER", ICON_ANCHOR_CENTER, "Center", ""},
-      {SEQ_TEXT_ALIGN_Y_BOTTOM, "BOTTOM", ICON_ANCHOR_BOTTOM, "Bottom", ""},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
   PropertyRNA *prop;
 
   RNA_def_struct_sdna_from(srna, "TextVars", "effectdata");
@@ -3508,13 +3500,6 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Box Color", "");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
-  prop = RNA_def_property(srna, "location", PROP_FLOAT, PROP_XYZ);
-  RNA_def_property_float_sdna(prop, nullptr, "loc");
-  RNA_def_property_ui_text(prop, "Location", "Location of the text");
-  RNA_def_property_range(prop, -FLT_MAX, FLT_MAX);
-  RNA_def_property_ui_range(prop, -10.0, 10.0, 1, -1);
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
   prop = RNA_def_property(srna, "wrap_width", PROP_FLOAT, PROP_NONE);
   RNA_def_property_float_sdna(prop, nullptr, "wrap_width");
   RNA_def_property_ui_text(prop, "Wrap Width", "Word wrap width as factor, zero disables");
@@ -3540,20 +3525,6 @@ static void rna_def_text(StructRNA *srna)
   RNA_def_property_enum_sdna(prop, nullptr, "align");
   RNA_def_property_enum_items(prop, text_alignment_x_items);
   RNA_def_property_ui_text(prop, "Align X", "Horizontal text alignment");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "anchor_x", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "anchor_x");
-  RNA_def_property_enum_items(prop, text_anchor_x_items);
-  RNA_def_property_ui_text(
-      prop, "Anchor X", "Horizontal position of the text box relative to Location");
-  RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
-
-  prop = RNA_def_property(srna, "anchor_y", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "anchor_y");
-  RNA_def_property_enum_items(prop, text_anchor_y_items);
-  RNA_def_property_ui_text(
-      prop, "Anchor Y", "Vertical position of the text box relative to Location");
   RNA_def_property_update(prop, NC_SCENE | ND_SEQUENCER, "rna_Strip_invalidate_raw_update");
 
   prop = RNA_def_property(srna, "text", PROP_STRING, PROP_NONE);

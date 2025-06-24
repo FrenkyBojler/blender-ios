@@ -455,8 +455,13 @@ static float3x3 sequencer_image_crop_transform_matrix(const Scene *scene,
    * interpolated. Interpolation with 0 user defined translation is unwanted behavior. */
   const int3 image_center_offs((out->x - in->x) / 2, (out->y - in->y) / 2, 0);
 
-  const float2 translation(transform->xofs * preview_scale_factor,
-                           transform->yofs * preview_scale_factor);
+  float2 translation(transform->xofs * preview_scale_factor,
+                     transform->yofs * preview_scale_factor);
+
+  /* Optimization for effect strip drawing. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    translation = {0.0f, 0.0f};
+  }
   const float rotation = transform->rotation;
   const float2 scale(transform->scale_x * image_scale_factor,
                      transform->scale_y * image_scale_factor);

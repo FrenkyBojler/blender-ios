@@ -627,7 +627,6 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
 
 float2 image_transform_origin_get(const Scene *scene, const Strip *strip)
 {
-
   const StripTransform *transform = strip->data->transform;
   if (strip->type != STRIP_TYPE_TEXT) {
     return {transform->origin[0], transform->origin[1]};
@@ -643,7 +642,9 @@ float2 image_transform_origin_get(const Scene *scene, const Strip *strip)
   const float2 origin_diff = origin_rel - origin_center;
 
   const float2 true_origin_relative = origin_center + origin_diff * scale;
-  return true_origin_relative;
+  const float2 translation_offset(transform->xofs / scene->r.xsch,
+                                  transform->yofs / scene->r.ysch);
+  return true_origin_relative + translation_offset;
 }
 
 float2 image_transform_origin_offset_pixelspace_get(const Scene *scene, const Strip *strip)
