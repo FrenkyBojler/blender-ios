@@ -95,7 +95,7 @@ ccl_device_forceinline float3 integrate_surface_ray_offset(KernelGlobals kg,
 }
 
 ccl_device_forceinline bool integrate_surface_holdout(KernelGlobals kg,
-                                                      ConstIntegratorState state,
+                                                      IntegratorState state,
                                                       ccl_private ShaderData *sd,
                                                       ccl_global float *ccl_restrict render_buffer)
 {
@@ -109,6 +109,7 @@ ccl_device_forceinline bool integrate_surface_holdout(KernelGlobals kg,
     const Spectrum throughput = INTEGRATOR_STATE(state, path, throughput);
     const float transparent = average(holdout_weight * throughput);
     film_write_holdout(kg, state, path_flag, transparent, render_buffer);
+    film_write_data_passes(kg, state, sd, render_buffer);
     if (isequal(holdout_weight, one_spectrum())) {
       return false;
     }
