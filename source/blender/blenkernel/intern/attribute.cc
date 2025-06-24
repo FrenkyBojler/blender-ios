@@ -126,7 +126,7 @@ std::optional<blender::bke::MutableAttributeAccessor> AttributeOwner::get_access
 {
   switch (type_) {
     case AttributeOwnerType::Mesh:
-      BLI_assert(this->get_mesh()->runtime->editmesh == nullptr);
+      BLI_assert(this->get_mesh()->runtime->edit_mesh == nullptr);
       return this->get_mesh()->attributes_for_write();
     case AttributeOwnerType::PointCloud:
       return this->get_pointcloud()->attributes_for_write();

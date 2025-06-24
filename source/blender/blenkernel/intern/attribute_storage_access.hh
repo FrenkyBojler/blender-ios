@@ -162,6 +162,8 @@ inline Span<T> get_span_attribute(const AttributeStorage &storage,
     return {};
   }
   if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
+    BLI_assert(array_data->size == domain_sizes(domain));
+    UNUSED_VARS_NDEBUG(domain_sizes);
     return Span(static_cast<const T *>(array_data->data), array_data->size);
   }
   return {};

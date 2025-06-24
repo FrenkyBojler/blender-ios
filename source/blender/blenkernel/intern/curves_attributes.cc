@@ -339,10 +339,11 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
                             const AttributeAccessor &accessor) {
     const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
 
-    foreach_vertex_group(owner, [&](const AttributeIter &iter) {
-      fn(iter);
-      return !iter.is_stopped();
-    });
+    const bool should_continue = foreach_vertex_group(
+        owner, [&](const AttributeIter &iter) { fn(iter); });
+    if (!should_continue) {
+      return;
+    }
 
     const AttributeStorage &storage = curves.attribute_storage.wrap();
     storage.foreach_with_stop([&](const Attribute &attribute) {

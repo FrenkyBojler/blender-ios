@@ -509,7 +509,7 @@ static void rna_Attribute_data_begin(CollectionPropertyIterator *iter, PointerRN
   using namespace blender;
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
   if (owner.type() != AttributeOwnerType::Mesh) {
-    bke::MutableAttributeAccessor accessor = owner.get_accessor();
+    bke::MutableAttributeAccessor accessor = *owner.get_accessor();
 
     bke::Attribute *attr = ptr->data_as<bke::Attribute>();
     const int domain_size = accessor.domain_size(attr->domain());
@@ -547,7 +547,7 @@ static int rna_Attribute_data_length(PointerRNA *ptr)
   AttributeOwner owner = owner_from_attribute_pointer_rna(ptr);
   if (owner.type() != AttributeOwnerType::Mesh) {
     const bke::Attribute *attr = ptr->data_as<bke::Attribute>();
-    const bke::AttributeAccessor accessor = owner.get_accessor();
+    const bke::AttributeAccessor accessor = *owner.get_accessor();
     return accessor.domain_size(attr->domain());
   }
 
@@ -646,7 +646,7 @@ static PointerRNA rna_AttributeGroupID_new(
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(id);
   if (owner.type() != AttributeOwnerType::Mesh) {
-    const bke::AttributeAccessor accessor = owner.get_accessor();
+    const bke::AttributeAccessor accessor = *owner.get_accessor();
     if (!accessor.domain_supported(AttrDomain(domain))) {
       BKE_report(reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
       return PointerRNA_NULL;
@@ -702,7 +702,7 @@ static void rna_AttributeGroupID_remove(ID *id, ReportList *reports, PointerRNA 
       return;
     }
 
-    bke::MutableAttributeAccessor accessor = owner.get_accessor();
+    bke::MutableAttributeAccessor accessor = *owner.get_accessor();
     accessor.remove(attr->name());
     attribute_ptr->invalidate();
 
@@ -1020,7 +1020,7 @@ static int rna_AttributeGroupID_domain_size(ID *id, const int domain)
   using namespace blender;
   AttributeOwner owner = AttributeOwner::from_id(id);
   if (owner.type() != AttributeOwnerType::Mesh) {
-    bke::AttributeAccessor attributes = owner.get_accessor();
+    bke::AttributeAccessor attributes = *owner.get_accessor();
     return attributes.domain_size(bke::AttrDomain(domain));
   }
 

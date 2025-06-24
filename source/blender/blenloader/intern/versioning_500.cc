@@ -30,6 +30,7 @@
 #include "BKE_animsys.h"
 #include "BKE_attribute_legacy_convert.hh"
 #include "BKE_colortools.hh"
+#include "BKE_curves.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"

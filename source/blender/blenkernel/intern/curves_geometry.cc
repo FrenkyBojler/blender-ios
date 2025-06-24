@@ -1974,7 +1974,13 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   }
 
   /* Recalculate curve type count cache that isn't saved in files. */
-  this->update_curve_types();
+  if (this->attribute_storage.wrap().count() == 0) {
+    // TODODODODODODODODODOD
+    BLI_assert_unreachable();
+  }
+  else {
+    this->update_curve_types();
+  }
 }
 
 CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
