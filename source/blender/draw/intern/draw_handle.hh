@@ -58,9 +58,11 @@ struct ResourceHandle {
     SET_FLAG_FROM_TEST(raw, inverted_handedness, 0x80000000u);
   }
 
-  bool is_valid() const
+  /* NOTE: From the draw_pass and draw_command perspective, it's still valid to pass a null handle
+   * to a draw call. Null handles point to default initialized Manager resources. */
+  bool is_null() const
   {
-    return raw != 0;
+    return raw == 0;
   }
 
   bool has_inverted_handedness() const
@@ -84,16 +86,18 @@ class ResourceHandleRange {
   /* First handle in the range. */
   ResourceHandle first_ = {0};
   /* Number of handle in the range. */
-  uint32_t count_ = 0;
+  uint32_t count_ = 1;
 
  public:
   ResourceHandleRange() = default;
   ResourceHandleRange(ResourceHandle handle) : first_(handle), count_(1) {}
   ResourceHandleRange(ResourceHandle handle, uint len) : first_(handle), count_(len) {}
 
-  bool is_valid() const
+  /* NOTE: From the draw_pass and draw_command perspective, it's still valid to pass a null handle
+   * to a draw call. Null handles point to default initialized Manager resources. */
+  bool is_null() const
   {
-    return first_.is_valid();
+    return first_.is_null();
   }
 
   bool has_inverted_handedness() const
@@ -111,19 +115,19 @@ class ResourceHandleRange {
 
   operator ResourceHandle() const
   {
-    BLI_assert(count_ <= 1);
+    BLI_assert(count_ == 1);
     return first_;
   }
 
   uint32_t raw() const
   {
-    BLI_assert(count_ <= 1);
+    BLI_assert(count_ == 1);
     return first_.raw;
   }
 
   uint resource_index() const
   {
-    BLI_assert(count_ <= 1);
+    BLI_assert(count_ == 1);
     return first_.resource_index();
   }
 };

@@ -314,7 +314,7 @@ class Manager {
 
 inline ResourceHandleRange Manager::unique_handle(const ObjectRef &ref)
 {
-  if (!ref.handle_.is_valid()) {
+  if (ref.handle_.is_null()) {
     /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
     const_cast<ObjectRef &>(ref).handle_ = resource_handle(ref);
   }
