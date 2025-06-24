@@ -45,22 +45,17 @@ struct DupliCacheManager;
 
 namespace blender::draw {
 
-struct ResourceHandle {
+struct ResourceIndex {
   /* Index for getting a specific resource in the resource arrays (e.g. object matrices).
    * Last bit contains handedness. */
   uint32_t raw;
 
-  ResourceHandle() = default;
-  ResourceHandle(uint raw_) : raw(raw_){};
-  ResourceHandle(uint index, bool inverted_handedness)
+  ResourceIndex() = default;
+  ResourceIndex(uint raw_) : raw(raw_){};
+  ResourceIndex(uint index, bool inverted_handedness)
   {
     raw = index;
     SET_FLAG_FROM_TEST(raw, inverted_handedness, 0x80000000u);
-  }
-
-  bool is_valid() const
-  {
-    return raw != 0;
   }
 
   bool has_inverted_handedness() const
@@ -75,26 +70,21 @@ struct ResourceHandle {
 };
 
 /**
- * Refers to a range of contiguous handles in the resource arrays.
+ * Refers to a range of contiguous indices in the resource arrays.
  * Typically used to render instances of an object, but can represent a single instance too.
  * The associated objects will all share handedness and state and can be rendered together.
  */
-class ResourceHandleRange {
- private:
+class ResourceIndexRange {
+ protected:
   /* First handle in the range. */
-  ResourceHandle first_ = {0};
-  /* Number of handle in the range. */
-  uint32_t count_ = 0;
+  ResourceIndex first_ = 0;
+  /* Number of handles in the range. */
+  uint32_t count_ = 1;
 
  public:
-  ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : first_(handle), count_(1) {}
-  ResourceHandleRange(ResourceHandle handle, uint len) : first_(handle), count_(len) {}
-
-  bool is_valid() const
-  {
-    return first_.is_valid();
-  }
+  ResourceIndexRange() = default;
+  ResourceIndexRange(ResourceIndex index) : first_(index), count_(1) {}
+  ResourceIndexRange(ResourceIndex index, uint len) : first_(index), count_(len) {}
 
   bool has_inverted_handedness() const
   {
@@ -105,25 +95,50 @@ class ResourceHandleRange {
   {
     return {first_.raw, count_};
   }
+};
 
-  /* These functions are to keep existing code to work.
+struct ResourceHandle : public ResourceIndex {
+  ResourceHandle() = default;
+  ResourceHandle(uint raw) : ResourceIndex(raw) {}
+  ResourceHandle(uint index, bool inverted_handedness) : ResourceIndex(index, inverted_handedness)
+  {
+  }
+
+  bool is_valid() const
+  {
+    return raw != 0;
+  }
+};
+
+class ResourceHandleRange : public ResourceIndexRange {
+ public:
+  ResourceHandleRange() = default;
+  ResourceHandleRange(ResourceHandle handle) : ResourceIndexRange(handle) {}
+  ResourceHandleRange(ResourceHandle handle, uint len) : ResourceIndexRange(handle, len) {}
+
+  bool is_valid() const
+  {
+    return first_.raw != 0;
+  }
+
+  /* These functions are to keep existing engine code to work.
    * Should be used only for objects and code paths that don't support ranged synchronization. */
 
   operator ResourceHandle() const
   {
-    BLI_assert(count_ <= 1);
-    return first_;
+    BLI_assert(count_ == 1);
+    return ResourceHandle(first_.raw);
   }
 
   uint32_t raw() const
   {
-    BLI_assert(count_ <= 1);
+    BLI_assert(count_ == 1);
     return first_.raw;
   }
 
   uint resource_index() const
   {
-    BLI_assert(count_ <= 1);
+    BLI_assert(count_ == 1);
     return first_.resource_index();
   }
 };
