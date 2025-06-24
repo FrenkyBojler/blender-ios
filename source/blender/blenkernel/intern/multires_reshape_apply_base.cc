@@ -58,7 +58,6 @@ static float v3_dist_from_plane(const blender::float3 &v,
                                 const blender::float3 &no)
 {
   const blender::float3 s = v - center;
-  ;
   return blender::math::dot(s, no);
 }
 
