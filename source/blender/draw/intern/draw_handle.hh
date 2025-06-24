@@ -58,6 +58,11 @@ struct ResourceHandle {
     SET_FLAG_FROM_TEST(raw, inverted_handedness, 0x80000000u);
   }
 
+  bool is_valid() const
+  {
+    return raw != 0;
+  }
+
   bool has_inverted_handedness() const
   {
     return (raw & 0x80000000u) != 0;
@@ -88,7 +93,7 @@ class ResourceHandleRange {
 
   bool is_valid() const
   {
-    return first_.raw != 0 && count_ != 0;
+    return first_.is_valid();
   }
 
   bool has_inverted_handedness() const
