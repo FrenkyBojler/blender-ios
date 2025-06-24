@@ -184,7 +184,8 @@ struct bNodeSocketType {
   ExtensionRNA ext_interface = {};
 
   /* for standard socket types in C */
-  int type = 0, subtype = 0;
+  eNodeSocketDatatype type = eNodeSocketDatatype(0);
+  int subtype = 0;
 
   /* When set, bNodeSocket->limit does not have any effect anymore. */
   bool use_link_limits_of_type = false;
@@ -1223,4 +1224,4 @@ inline bool bNodeType::is_type(const StringRef query_idname) const
 constexpr int NODE_DEFAULT_MAX_WIDTH = 700;
 constexpr int GROUP_NODE_DEFAULT_WIDTH = 140;
 constexpr int GROUP_NODE_MAX_WIDTH = NODE_DEFAULT_MAX_WIDTH;
-constexpr int GROUP_NODE_MIN_WIDTH = 40;
+constexpr int GROUP_NODE_MIN_WIDTH = 60;

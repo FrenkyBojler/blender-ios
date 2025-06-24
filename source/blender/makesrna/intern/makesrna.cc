@@ -2916,7 +2916,10 @@ static void rna_def_struct_function_call_impl_cpp(FILE *f, StructRNA *srna, Func
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
     WRITE_COMMA;
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "this->ptr");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "(::%s *) this->ptr.data", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3170,7 +3173,10 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   }
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "\tstruct PointerRNA _self;\n");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "\tstruct %s *_self;\n", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3251,7 +3257,10 @@ static void rna_def_function_funcs(FILE *f, StructDefRNA *dsrna, FunctionDefRNA 
   }
 
   if ((func->flag & FUNC_NO_SELF) == 0) {
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "\t_self = *_ptr;\n");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "\t_self = (struct %s *)_ptr->data;\n", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -3904,7 +3913,10 @@ static void rna_generate_static_parameter_prototypes(FILE *f,
     if (!first) {
       fprintf(f, ", ");
     }
-    if (dsrna->dnafromprop) {
+    if ((func->flag & FUNC_SELF_AS_RNA) != 0) {
+      fprintf(f, "struct PointerRNA _self");
+    }
+    else if (dsrna->dnafromprop) {
       fprintf(f, "struct %s *_self", dsrna->dnafromname);
     }
     else if (dsrna->dnaname) {
@@ -4350,6 +4362,7 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
           prop->flag_parameter,
           prop->flag_internal,
           prop->tags);
+  fprintf(f, "PropertyPathTemplateType(%d), ", prop->path_template_type);
   rna_print_c_string(f, prop->name);
   fprintf(f, ",\n\t");
   rna_print_c_string(f, prop->description);
@@ -4525,12 +4538,13 @@ static void rna_generate_property(FILE *f, StructRNA *srna, const char *nest, Pr
     case PROP_ENUM: {
       EnumPropertyRNA *eprop = (EnumPropertyRNA *)prop;
       fprintf(f,
-              "\t%s, %s, %s, %s, %s, ",
+              "\t%s, %s, %s, %s, %s, %s, ",
               rna_function_string(eprop->get),
               rna_function_string(eprop->set),
               rna_function_string(eprop->item_fn),
               rna_function_string(eprop->get_ex),
-              rna_function_string(eprop->set_ex));
+              rna_function_string(eprop->set_ex),
+              rna_function_string(eprop->get_default));
       if (eprop->item) {
         const char *item_global_id = rna_enum_id_from_pointer(eprop->item);
         if (item_global_id != nullptr) {
@@ -4784,6 +4798,7 @@ static void rna_generate_struct(BlenderRNA * /*brna*/, StructRNA *srna, FILE *f)
   fprintf(f, "\t%s,\n", rna_function_string(srna->unreg));
   fprintf(f, "\t%s,\n", rna_function_string(srna->instance));
   fprintf(f, "\t%s,\n", rna_function_string(srna->idproperties));
+  fprintf(f, "\t%s,\n", rna_function_string(srna->system_idproperties));
 
   if (srna->reg && !srna->refine) {
     CLOG_ERROR(

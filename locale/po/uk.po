@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'ba454989554a')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'a051f87fee73')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-26 07:36+0000\n"
+"POT-Creation-Date: 2025-06-23 08:33+0000\n"
 "PO-Revision-Date: 2025-04-14 08:44+0000\n"
 "Last-Translator: Bartosz <gang65@poczta.onet.pl>\n"
 "Language-Team: Ukrainian <https://translate.blender.org/projects/blender-ui/ui/uk/>\n"
@@ -26571,12 +26571,68 @@ msgid "Material slot name"
 msgstr "Назва гнізда матеріалу"
 
 
-msgid "Mirror"
-msgstr "Дзеркалення"
+msgid "Clean Up"
+msgstr "Вичищення"
+
+
+msgid "Show/Hide"
+msgstr "Показати/приховати"
+
+
+msgid "Special Characters"
+msgstr "Спеціальні символи"
+
+
+msgid "Kerning"
+msgstr "Кернінг"
+
+
+msgid "Text"
+msgstr "Текст"
+
+
+msgid "Metaball"
+msgstr "Метакуля"
+
+
+msgid "Names"
+msgstr "Назви"
+
+
+msgid "Bone Roll"
+msgstr "Прокручення Кістки"
+
+
+msgid "Pivot Point"
+msgstr "Точка Опертя"
 
 
 msgid "Snap"
 msgstr "Підхоп"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "Спад Пропорційного Редагування"
+
+
+msgid "Mask Edit"
+msgstr "Редагування Маски"
+
+
+msgid "Automasking"
+msgstr "Автомаскування"
+
+
+msgid "Face Sets Edit"
+msgstr "Редагування Наборів Граней"
+
+
+msgid "Vertex Group Locks"
+msgstr "Блокування Груп Вершин"
+
+
+msgid "Mirror"
+msgstr "Дзеркалення"
 
 
 msgid "UV Mapping"
@@ -26631,10 +26687,6 @@ msgid "Assign Material"
 msgstr "Призначити Матеріал"
 
 
-msgid "Metaball"
-msgstr "Метакуля"
-
-
 msgid "Light"
 msgstr "Слабко"
 
@@ -26667,14 +26719,6 @@ msgid "Quick Effects"
 msgstr "Швидкі ефекти"
 
 
-msgid "Show/Hide"
-msgstr "Показати/приховати"
-
-
-msgid "Clean Up"
-msgstr "Вичищення"
-
-
 msgid "Asset"
 msgstr "Актив"
 
@@ -26695,10 +26739,6 @@ msgid "Hooks"
 msgstr "Гачки"
 
 
-msgid "Vertex Group Locks"
-msgstr "Блокування Груп Вершин"
-
-
 msgid "Sculpt Set Pivot"
 msgstr "Ліплення Задати Опертя"
 
@@ -26717,10 +26757,6 @@ msgstr "У проміжках"
 
 msgid "Propagate"
 msgstr "Поширити"
-
-
-msgid "Names"
-msgstr "Назви"
 
 
 msgid "Toggle Bone Options"
@@ -26753,42 +26789,6 @@ msgstr "Задати Силу Грані"
 
 msgid "Merge"
 msgstr "Об'єднання"
-
-
-msgid "Special Characters"
-msgstr "Спеціальні символи"
-
-
-msgid "Kerning"
-msgstr "Кернінг"
-
-
-msgid "Text"
-msgstr "Текст"
-
-
-msgid "Bone Roll"
-msgstr "Прокручення Кістки"
-
-
-msgid "Pivot Point"
-msgstr "Точка Опертя"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "Спад Пропорційного Редагування"
-
-
-msgid "Mask Edit"
-msgstr "Редагування Маски"
-
-
-msgid "Automasking"
-msgstr "Автомаскування"
-
-
-msgid "Face Sets Edit"
-msgstr "Редагування Наборів Граней"
 
 
 msgid "Basic"
@@ -33800,6 +33800,10 @@ msgid "Influence of this track on 2D stabilization"
 msgstr "Вплив цієї стежки на 2D-стабілізацію"
 
 
+msgid "Starting"
+msgstr "Розпочато"
+
+
 msgid "NLA Strip"
 msgstr "Смужка НЛА"
 
@@ -34120,10 +34124,6 @@ msgid "Aspect Correction"
 msgstr "Корекція Пропорції Боків"
 
 
-msgid "Type of aspect correction to use"
-msgstr "Тип корекції пропорції боків для використання"
-
-
 msgid "Relative Size X"
 msgstr "Відносний розмір X"
 
@@ -34136,20 +34136,8 @@ msgid "Bokeh"
 msgstr "Боке"
 
 
-msgid "Use circular filter (slower)"
-msgstr "Використати круговий фільтр (повільніше)"
-
-
 msgid "Extend Bounds"
 msgstr "Розширити межі"
-
-
-msgid "Extend bounds of the input image to fully fit blurred image"
-msgstr "Розширити межі ввідного зображення для повної підгонки розмитого зображення"
-
-
-msgid "Use relative (percent) values to define blur radius"
-msgstr "Використати відносні (у відсотках) значення для визначення радіуса розмивання"
 
 
 msgid "Variable Size"
@@ -44916,10 +44904,6 @@ msgid "Make previously hidden curves visible again in Graph Editor view"
 msgstr "Показати у редакторі графіків раніше приховані криві"
 
 
-msgid "Are handles tested individually against the selection criteria"
-msgstr "Чи перевірені ручки за критерієм відбору"
-
-
 msgctxt "Operator"
 msgid "Smooth Keys"
 msgstr "Згладити ключі"
@@ -47453,10 +47437,6 @@ msgstr "Розчинити ребра, з'єднати грані"
 
 msgid "Dissolve Vertices"
 msgstr "Розчинити Вершини"
-
-
-msgid "Dissolve remaining vertices"
-msgstr "Розчинити вершини, що залишились"
 
 
 msgctxt "Operator"
@@ -56004,10 +55984,6 @@ msgid "Expand/Collapse Header Menus"
 msgstr "Розгорнути/згорнути меню заголовка"
 
 
-msgid "Expand or collapse the header pulldown menus"
-msgstr "Розгорнути або згорнути випадні меню заголовка"
-
-
 msgctxt "Operator"
 msgid "Show Info Log"
 msgstr "Показ Інфо Лог"
@@ -57096,11 +57072,6 @@ msgstr "Використати для релаксації метод HC"
 
 
 msgctxt "Operator"
-msgid "Change Effect Input"
-msgstr "Змінити ввід ефекту"
-
-
-msgctxt "Operator"
 msgid "Change Effect Type"
 msgstr "Змінити тип ефекту"
 
@@ -57110,21 +57081,9 @@ msgid "Type"
 msgstr "Тип"
 
 
-msgid "Sequencer effect type"
-msgstr "Тип ефекту відеорядника"
-
-
-msgid "Crossfade effect strip type"
-msgstr "Смужка з ефектом перехресного затухання"
-
-
 msgctxt "Sequence"
 msgid "Add"
 msgstr "Додавання"
-
-
-msgid "Add effect strip type"
-msgstr "Смужка з ефектом додавання"
 
 
 msgctxt "Sequence"
@@ -57132,17 +57091,9 @@ msgid "Subtract"
 msgstr "Віднімання"
 
 
-msgid "Subtract effect strip type"
-msgstr "Смужка з ефектом віднімання"
-
-
 msgctxt "Sequence"
 msgid "Alpha Over"
 msgstr "Альфа над"
-
-
-msgid "Alpha Over effect strip type"
-msgstr "Смужка з ефектом альфа-накладання"
 
 
 msgctxt "Sequence"
@@ -57150,26 +57101,9 @@ msgid "Alpha Under"
 msgstr "Альфа під"
 
 
-msgid "Alpha Under effect strip type"
-msgstr "Смужка з ефектом альфа-підкладки"
-
-
-msgctxt "Sequence"
-msgid "Gamma Cross"
-msgstr "Гамма перетин"
-
-
-msgid "Gamma Cross effect strip type"
-msgstr "Смужка з ефектом гамма-перетину"
-
-
 msgctxt "Sequence"
 msgid "Multiply"
 msgstr "Множення"
-
-
-msgid "Multiply effect strip type"
-msgstr "Смужка з ефектом множення"
 
 
 msgctxt "Sequence"
@@ -57177,17 +57111,9 @@ msgid "Wipe"
 msgstr "Затирання"
 
 
-msgid "Wipe effect strip type"
-msgstr "Смужка з ефектом затирання"
-
-
 msgctxt "Sequence"
 msgid "Glow"
 msgstr "Сяяння"
-
-
-msgid "Glow effect strip type"
-msgstr "Тип смужки ефекту сяяння"
 
 
 msgctxt "Sequence"
@@ -57195,17 +57121,9 @@ msgid "Transform"
 msgstr "Трансформа"
 
 
-msgid "Transform effect strip type"
-msgstr "Тип ефекту трансформування смужки"
-
-
 msgctxt "Sequence"
 msgid "Color"
 msgstr "Колір"
-
-
-msgid "Color effect strip type"
-msgstr "Смужка з колірним ефектом"
 
 
 msgctxt "Sequence"
@@ -57303,6 +57221,10 @@ msgstr "Не виправляти перекриття на нових смуж�
 
 msgid "Replace Selection"
 msgstr "Замінити вибір"
+
+
+msgid "Sequencer effect type"
+msgstr "Тип ефекту відеорядника"
 
 
 msgctxt "Operator"
@@ -62929,6 +62851,30 @@ msgid "Panel containing UI elements"
 msgstr "Панель, що містить елементи Інтерфейсу Користувача"
 
 
+msgid "Active Tool"
+msgstr "Активний Засіб"
+
+
+msgid "View Lock"
+msgstr "Блокувати Огляд"
+
+
+msgid "Shadow Settings"
+msgstr "Устави Тіні"
+
+
+msgid "SSAO Settings"
+msgstr "Устави Загороди Оточення Простору Екрану"
+
+
+msgid "Cavity"
+msgstr "Порожнинність"
+
+
+msgid "Render Pass"
+msgstr "Прохід Рендера"
+
+
 msgid "Overlays"
 msgstr "Накладки"
 
@@ -62991,30 +62937,6 @@ msgstr "Авто-Маскування"
 
 msgid "VR"
 msgstr "ВР"
-
-
-msgid "Active Tool"
-msgstr "Активний Засіб"
-
-
-msgid "View Lock"
-msgstr "Блокувати Огляд"
-
-
-msgid "Shadow Settings"
-msgstr "Устави Тіні"
-
-
-msgid "SSAO Settings"
-msgstr "Устави Загороди Оточення Простору Екрану"
-
-
-msgid "Cavity"
-msgstr "Порожнинність"
-
-
-msgid "Render Pass"
-msgstr "Прохід Рендера"
 
 
 msgid "Chain Scaling"
@@ -66048,12 +65970,8 @@ msgid "Device up/down directly controls the Z position of the 3D viewport"
 msgstr "Команди пристрою уверх/вниз безпосередньо керують позицією за Z для 3D оглядвікна"
 
 
-msgid "Lock Horizon"
-msgstr "Заблокувати горизонт"
-
-
-msgid "Keep horizon level while flying with 3D Mouse"
-msgstr "Дотримуватись рівня горизонту під час польоту з 3D-мишею"
+msgid "NDOF View Navigate"
+msgstr "3D-маніп. навігація у просторі"
 
 
 msgid "Orbit Sensitivity"
@@ -66062,14 +65980,6 @@ msgstr "Чутливість обльоту"
 
 msgid "Overall sensitivity of the 3D Mouse for orbiting"
 msgstr "Загальна чутливість 3D-маніпулятора для обльоту"
-
-
-msgid "Y/Z Swap Axis"
-msgstr "Обмін осей Y/Z"
-
-
-msgid "Pan using up/down on the device (otherwise forward/backward)"
-msgstr "Панорамувати кнопками вгору/вниз (замість вперед/назад)"
 
 
 msgid "Invert X Axis"
@@ -66102,50 +66012,6 @@ msgstr "Загальна чутливість 3D-маніпулятора при
 
 msgid "Display the center and axis during rotation"
 msgstr "Показувати центр та осі при обертанні"
-
-
-msgid "NDOF View Navigate"
-msgstr "3D-маніп. навігація у просторі"
-
-
-msgid "Navigation style in the viewport"
-msgstr "Стиль навігації у вікні"
-
-
-msgid "Use full 6 degrees of freedom by default"
-msgstr "Зробити стандартним режим з 6 ступенями вільності"
-
-
-msgid "Orbit about the view center by default"
-msgstr "Стандартно облітати навколо центру вигляду"
-
-
-msgid "NDOF View Rotation"
-msgstr "3D-маніп. оберт вигляду"
-
-
-msgid "Rotation style in the viewport"
-msgstr "Стиль обертання у вікні"
-
-
-msgid "Turntable"
-msgstr "Поворот-стіл"
-
-
-msgid "Use turntable style rotation in the viewport"
-msgstr "Використати у вікні стиль обертання поворотного столу"
-
-
-msgid "Use trackball style rotation in the viewport"
-msgstr "Використати у вікні стиль обертання трекболу"
-
-
-msgid "Invert Zoom"
-msgstr "Інвертувати зумування"
-
-
-msgid "Zoom using opposite direction"
-msgstr "Присувати/відсувати, використовуючи зворотний напрям"
 
 
 msgid "Softness"
@@ -66266,6 +66132,10 @@ msgstr "Метод Обльоту"
 
 msgid "Orbit method in the viewport"
 msgstr "Методи обльоту у вікні огляду"
+
+
+msgid "Turntable"
+msgstr "Поворот-стіл"
 
 
 msgid "Turntable keeps the Z-axis upright while orbiting"
@@ -66860,10 +66730,6 @@ msgid "Language used for translation"
 msgstr "Мова, вживана для перекладу"
 
 
-msgid "Automatically choose system's defined language if available, or fall-back to English"
-msgstr "Автоматично вибирати системну мову, якщо доступна, або повертатися на англійську"
-
-
 msgid "HDRI Preview Size"
 msgstr "Розмір перегляду HDRI"
 
@@ -67142,10 +67008,6 @@ msgstr "Товстіші лінії, ніж типово"
 
 msgid "Changes the size of the fonts and widgets in the interface"
 msgstr "Змінює розмір шрифтів та віджетів в інтерфейсі"
-
-
-msgid "Open menu buttons and pulldowns automatically when the mouse is hovering"
-msgstr "Відкривати меню та списки при наведенні вказівника автоматично"
 
 
 msgid "Save Prompt"
@@ -70110,10 +69972,6 @@ msgstr "Напрямок освітлювача для тіней та підс�
 
 msgid "Attenuation constant"
 msgstr "Константка затухання"
-
-
-msgid "Distance of object that contribute to the Cavity/Edge effect"
-msgstr "Відстань об'єкта, що привносить ефект Порожнинності/Краю"
 
 
 msgid "Number of samples"
@@ -73555,11 +73413,6 @@ msgid "Sound"
 msgstr "Звук"
 
 
-msgctxt "Sequence"
-msgid "Cross"
-msgstr "Перетин"
-
-
 msgid "Use Default Fade"
 msgstr "Вжити стандартне зникання"
 
@@ -73682,10 +73535,6 @@ msgstr "Смужка послідовності для створення зоб
 
 msgid "Effect Strip color"
 msgstr "Колір смужки ефекту"
-
-
-msgid "Cross Sequence"
-msgstr "Послідовність перетину"
 
 
 msgid "Sequence strip creating a gaussian blur"
@@ -74941,6 +74790,14 @@ msgid "Color of path before current frame"
 msgstr "Колір шляху перед поточним кадром"
 
 
+msgid "Preview Range"
+msgstr "Діапазон Передогляду"
+
+
+msgid "Color of preview range overlay"
+msgstr "Колір накладки діапазону передогляду"
+
+
 msgid "Selected Marker"
 msgstr "Обрана мітка"
 
@@ -75147,14 +75004,6 @@ msgstr "Довгий ключ"
 
 msgid "Long Key Selected"
 msgstr "Вибраний довгий ключ"
-
-
-msgid "Preview Range"
-msgstr "Діапазон Передогляду"
-
-
-msgid "Color of preview range overlay"
-msgstr "Колір накладки діапазону передогляду"
 
 
 msgid "Summary"
@@ -82445,16 +82294,6 @@ msgstr "Сцена..."
 
 
 msgctxt "Operator"
-msgid "Cross"
-msgstr "Перетин"
-
-
-msgctxt "Operator"
-msgid "Gamma Cross"
-msgstr "Перетин Гамма"
-
-
-msgctxt "Operator"
 msgid "Wipe"
 msgstr "Витирання"
 
@@ -83152,22 +82991,6 @@ msgid "Zoom Method"
 msgstr "Метод Зуму"
 
 
-msgid "Pan Sensitivity"
-msgstr "Чутливість Панорамування"
-
-
-msgid "Swap Y and Z Axes"
-msgstr "Обміняти Осі Y та Z"
-
-
-msgid "Invert Axis Pan"
-msgstr "Інвертувати Вісь Панорамування"
-
-
-msgid "Invert Pan Axis"
-msgstr "Інвертувати Панорамування Вісь"
-
-
 msgid "Use Light"
 msgstr "Вжити Освітлювач"
 
@@ -83189,8 +83012,16 @@ msgid "Invert Wheel Zoom Direction"
 msgstr "Інвертувати Напрямок Зуму Коліщатком"
 
 
-msgid "Fly/Walk"
-msgstr "Політ/Ходьба"
+msgid "Lock Horizon"
+msgstr "Заблокувати горизонт"
+
+
+msgid "Pan Sensitivity"
+msgstr "Чутливість Панорамування"
+
+
+msgid "Invert Pan Axis"
+msgstr "Інвертувати Панорамування Вісь"
 
 
 msgid "Error (see console)"
@@ -84798,6 +84629,10 @@ msgid "Auto-Velocity"
 msgstr "Авто-Скорість"
 
 
+msgid "Ignore Transparent"
+msgstr "Ігнорувати Прозоре"
+
+
 msgid "No Textures"
 msgstr "Нема Текстур"
 
@@ -84805,10 +84640,6 @@ msgstr "Нема Текстур"
 msgctxt "Operator"
 msgid "Add UVs"
 msgstr "Додати UVи"
-
-
-msgid "Ignore Transparent"
-msgstr "Ігнорувати Прозоре"
 
 
 msgid "Cannot change action, as it is still being edited in NLA"
@@ -89256,10 +89087,6 @@ msgid "No active collection"
 msgstr "Без активної колекції"
 
 
-msgid "Can't duplicate the master collection"
-msgstr "Неможливо дублювати головну колекцію"
-
-
 msgid "Could not find a valid parent collection for the new duplicate, it won't be linked to any view layer"
 msgstr "Неможливо знайти дійсну предківську колекцію для нового дубліката, він не буде пов'язаний з жодним шаром оглядом"
 
@@ -89440,20 +89267,8 @@ msgid "Cannot reassign inputs: recursion detected"
 msgstr "Неможливо перепризначити уводи: виявлена рекурсія"
 
 
-msgid "No valid inputs to swap"
-msgstr "Немає правильних вводів для обміну"
-
-
 msgid "Please select two strips"
 msgstr "Виберіть дві смужки"
-
-
-msgid "One of the effect inputs is unset, cannot swap"
-msgstr "Один з вводів ефекту не задано, обмін неможливий"
-
-
-msgid "New effect needs more input strips"
-msgstr "Новий ефект потребує більше ввідних смужок"
 
 
 msgid "Can't create subtitle file"
@@ -92035,148 +91850,4 @@ msgstr "Усі додатки, встановлені користувачем"
 
 msgid "Import-Export"
 msgstr "Імпорт-експорт"
-
-
-msgid "Japanese (日本語)"
-msgstr "Японська (日本語)"
-
-
-msgid "Italian (Italiano)"
-msgstr "Італійська (Italiano)"
-
-
-msgid "German (Deutsch)"
-msgstr "Німецька (Deutsch)"
-
-
-msgid "Finnish (Suomi)"
-msgstr "Фінська (Suomi)"
-
-
-msgid "Swedish (Svenska)"
-msgstr "Шведська (Svenska)"
-
-
-msgid "French (Français)"
-msgstr "Французька (Français)"
-
-
-msgid "Spanish (Español)"
-msgstr "Іспанська (Español)"
-
-
-msgid "Catalan (Català)"
-msgstr "Каталанська (Català)"
-
-
-msgid "Portuguese (Português)"
-msgstr "Португальська (Português)"
-
-
-msgid "Simplified Chinese (简体中文)"
-msgstr "Спрощена китайська (简体中文)"
-
-
-msgid "Traditional Chinese (繁體中文)"
-msgstr "Традиційна китайська  (繁體中文)"
-
-
-msgid "Russian (Русский)"
-msgstr "Російська (Русский)"
-
-
-msgid "Croatian (Hrvatski)"
-msgstr "Хорватська (Hrvatski)"
-
-
-msgid "Serbian (Српски)"
-msgstr "Сербська (Српски)"
-
-
-msgid "Polish (Polski)"
-msgstr "Польська (Polski)"
-
-
-msgid "Romanian (Român)"
-msgstr "Румунська (Român)"
-
-
-msgid "Bulgarian (Български)"
-msgstr "Болгарська (Български)"
-
-
-msgid "Greek (Ελληνικά)"
-msgstr "Грецька (Ελληνικά)"
-
-
-msgid "Nepali (नेपाली)"
-msgstr "Непальська (नेपाली)"
-
-
-msgid "Indonesian (Bahasa indonesia)"
-msgstr "Індонезійська (Bahasa indonesia)"
-
-
-msgid "Kyrgyz (Кыргыз тили)"
-msgstr "Киргизька (Кыргыз тили)"
-
-
-msgid "Turkish (Türkçe)"
-msgstr "Турецька (Türkçe)"
-
-
-msgid "Hungarian (Magyar)"
-msgstr "Угорська (Magyar)"
-
-
-msgid "Brazilian Portuguese (Português do Brasil)"
-msgstr "Бразильська португальська (Português do Brasil)"
-
-
-msgid "Esperanto (Esperanto)"
-msgstr "Есперанто (Esperanto)"
-
-
-msgid "Amharic (አማርኛ)"
-msgstr "Амхарська (አማርኛ)"
-
-
-msgid "Uzbek (Oʻzbek)"
-msgstr "Узбецька (Oʻzbek)"
-
-
-msgid "Uzbek Cyrillic (Ўзбек)"
-msgstr "Узбецька кирилиця (Ўзбек)"
-
-
-msgid "Basque (Euskara)"
-msgstr "Баскська (Euskara)"
-
-
-msgid "Hausa (Hausa)"
-msgstr "Hausa (Hausa)"
-
-
-msgid "Abkhaz (Аԥсуа бызшәа)"
-msgstr "Абхазська (Аԥсуа бызшәа)"
-
-
-msgid "Thai (ภาษาไทย)"
-msgstr "Тайська (ภาษาไทย)"
-
-
-msgid "Slovak (Slovenčina)"
-msgstr "Словацька (Slovenčina)"
-
-
-msgid "Complete"
-msgstr "Завершено"
-
-
-msgid "In Progress"
-msgstr "Триває"
-
-
-msgid "Starting"
-msgstr "Розпочато"
 

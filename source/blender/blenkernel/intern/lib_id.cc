@@ -943,6 +943,8 @@ static void id_swap(Main *bmain,
     /* Exception: IDProperties. */
     id_a->properties = id_b_back.properties;
     id_b->properties = id_a_back.properties;
+    id_a->system_properties = id_b_back.system_properties;
+    id_b->system_properties = id_a_back.system_properties;
     /* Exception: recalc flags. */
     id_a->recalc = id_b_back.recalc;
     id_b->recalc = id_a_back.recalc;
@@ -1608,6 +1610,9 @@ void BKE_libblock_copy_in_lib(Main *bmain,
 
   if (id->properties) {
     new_id->properties = IDP_CopyProperty_ex(id->properties, copy_data_flag);
+  }
+  if (id->system_properties) {
+    new_id->system_properties = IDP_CopyProperty_ex(id->system_properties, copy_data_flag);
   }
 
   /* This is never duplicated, only one existing ID should have a given weak ref to library/ID. */
@@ -2616,6 +2621,11 @@ void BKE_id_blend_write(BlendWriter *writer, ID *id)
   /* ID_WM's id->properties are considered runtime only, and never written in .blend file. */
   if (id->properties && !ELEM(GS(id->name), ID_WM)) {
     IDP_BlendWrite(writer, id->properties);
+  }
+  /* ID_WM's id->system_properties are considered runtime only, and never written in .blend file.
+   */
+  if (id->system_properties && !ELEM(GS(id->name), ID_WM)) {
+    IDP_BlendWrite(writer, id->system_properties);
   }
 
   BKE_animdata_blend_write(writer, id);
