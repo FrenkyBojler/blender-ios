@@ -157,16 +157,16 @@ static void transdata_elem_translate(const TransInfo *t,
  * \{ */
 
 static void translate_dist_to_str(char *r_str,
-                                  const int r_str_maxncpy,
+                                  const int str_maxncpy,
                                   const float val,
                                   const UnitSettings *unit)
 {
   if (unit && (unit->system != USER_UNIT_NONE)) {
-    BKE_unit_value_as_string_scaled(r_str, r_str_maxncpy, val, 4, B_UNIT_LENGTH, *unit, false);
+    BKE_unit_value_as_string_scaled(r_str, str_maxncpy, val, -4, B_UNIT_LENGTH, *unit, false);
   }
   else {
     /* Check range to prevent string buffer overflow. */
-    BLI_snprintf(r_str, r_str_maxncpy, IN_RANGE_INCL(val, -1e10f, 1e10f) ? "%.4f" : "%.4e", val);
+    BLI_snprintf(r_str, str_maxncpy, IN_RANGE_INCL(val, -1e10f, 1e10f) ? "%.4f" : "%.4e", val);
   }
 }
 
