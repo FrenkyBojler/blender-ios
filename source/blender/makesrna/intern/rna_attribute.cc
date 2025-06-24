@@ -263,7 +263,7 @@ static AttributeOwner owner_from_pointer_rna(PointerRNA *ptr)
 static std::optional<std::string> rna_Attribute_path(const PointerRNA *ptr)
 {
   using namespace blender;
-  if (ELEM(GS(ptr->owner_id->name), ID_PT, ID_GP, ID_CV)) {
+  if (GS(ptr->owner_id->name) != ID_ME) {
     bke::Attribute *attr = ptr->data_as<bke::Attribute>();
     const std::string escaped_name = BLI_str_escape(attr->name().c_str());
     return fmt::format("attributes[\"{}\"]", escaped_name);
@@ -312,7 +312,7 @@ static StructRNA *srna_by_custom_data_layer_type(const eCustomDataType type)
 static StructRNA *rna_Attribute_refine(PointerRNA *ptr)
 {
   using namespace blender;
-  if (ELEM(GS(ptr->owner_id->name), ID_PT, ID_GP, ID_CV)) {
+  if (GS(ptr->owner_id->name) != ID_ME) {
     bke::Attribute *attr = ptr->data_as<bke::Attribute>();
     const eCustomDataType data_type = *bke::attr_type_to_custom_data_type(attr->data_type());
     return srna_by_custom_data_layer_type(data_type);
@@ -387,7 +387,7 @@ static int rna_Attribute_name_editable(const PointerRNA *ptr, const char **r_inf
 static int rna_Attribute_type_get(PointerRNA *ptr)
 {
   using namespace blender;
-  if (GS(ptr->owner_id->name) == ID_PT) {
+  if (GS(ptr->owner_id->name) != ID_ME) {
     const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
     return *bke::attr_type_to_custom_data_type(attr->data_type());
   }
@@ -399,7 +399,7 @@ static int rna_Attribute_type_get(PointerRNA *ptr)
 static int rna_Attribute_storage_type_get(PointerRNA *ptr)
 {
   using namespace blender;
-  if (GS(ptr->owner_id->name) == ID_PT) {
+  if (GS(ptr->owner_id->name) != ID_ME) {
     const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
     return int(attr->storage_type());
   }
@@ -482,7 +482,7 @@ static int rna_Attribute_domain_get(PointerRNA *ptr)
 static bool rna_Attribute_is_internal_get(PointerRNA *ptr)
 {
   using namespace blender;
-  if (GS(ptr->owner_id->name) == ID_PT) {
+  if (GS(ptr->owner_id->name) != ID_ME) {
     const bke::Attribute *attr = static_cast<const bke::Attribute *>(ptr->data);
     return !bke::allow_procedural_attribute_access(attr->name());
   }
@@ -877,7 +877,7 @@ void rna_AttributeStorage_color_iterator_begin(CollectionPropertyIterator *iter,
 int rna_AttributeGroup_color_length(PointerRNA *ptr)
 {
   using namespace blender;
-  if (GS(ptr->owner_id->name) == ID_PT) {
+  if (GS(ptr->owner_id->name) != ID_ME) {
     PointCloud &pointcloud = *reinterpret_cast<PointCloud *>(ptr->owner_id);
     bke::AttributeStorage &storage = pointcloud.attribute_storage.wrap();
     int count = 0;

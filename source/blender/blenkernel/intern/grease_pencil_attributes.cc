@@ -53,6 +53,10 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     const int domain_size = get_domain_size(owner, AttrDomain::Layer);
     return attribute_to_reader(*attribute, AttrDomain::Layer, domain_size);
   };
+  fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
+    const BuiltinInfo &info = builtin_attributes().lookup(name);
+    return info.default_value;
+  };
   fn.adapt_domain = [](const void * /*owner*/,
                        const GVArray &varray,
                        const AttrDomain from_domain,

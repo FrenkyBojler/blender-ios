@@ -126,7 +126,7 @@ static const auto &builtin_attributes()
         [](int8_t value) { return std::max<int8_t>(value, 1); },
         mf::build::exec_presets::AllSpanOrSingle());
     static int nurbs_order_default = 4;
-    BuiltinInfo nurbs_order(AttrDomain::Point, AttrType::Int8);
+    BuiltinInfo nurbs_order(AttrDomain::Curve, AttrType::Int8);
     nurbs_order.default_value = &nurbs_order_default;
     nurbs_order.validator = AttributeValidator{&nurbs_order_clamp};
     map.add_new("nurbs_order", std::move(nurbs_order));
@@ -312,6 +312,10 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     BLI_assert(cd_type.has_value());
     return AttributeDomainAndType{info->domain, *cd_type};
   };
+  fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
+    const BuiltinInfo &info = builtin_attributes().lookup(name);
+    return info.default_value;
+  };
   fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
     const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
 
@@ -320,12 +324,12 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     }
 
     const AttributeStorage &storage = curves.attribute_storage.wrap();
-    const Attribute *attribute = storage.lookup(name);
-    if (!attribute) {
+    const Attribute *attr = storage.lookup(name);
+    if (!attr) {
       return {};
     }
-    const int domain_size = get_domain_size(owner, AttrDomain::Layer);
-    return attribute_to_reader(*attribute, AttrDomain::Layer, domain_size);
+    const int domain_size = get_domain_size(owner, attr->domain());
+    return attribute_to_reader(*attr, attr->domain(), domain_size);
   };
   fn.adapt_domain = [](const void *owner,
                        const GVArray &varray,
@@ -346,16 +350,16 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     }
 
     const AttributeStorage &storage = curves.attribute_storage.wrap();
-    storage.foreach_with_stop([&](const Attribute &attribute) {
+    storage.foreach_with_stop([&](const Attribute &attr) {
       const auto get_fn = [&]() {
-        const int domain_size = get_domain_size(owner, AttrDomain::Layer);
-        return attribute_to_reader(attribute, AttrDomain::Layer, domain_size);
+        const int domain_size = get_domain_size(owner, attr.domain());
+        return attribute_to_reader(attr, attr.domain(), domain_size);
       };
       const std::optional<eCustomDataType> cd_type = attr_type_to_custom_data_type(
-          attribute.data_type());
+          attr.data_type());
       BLI_assert(cd_type.has_value());
-      AttributeIter iter(attribute.name(), attribute.domain(), *cd_type, get_fn);
-      iter.is_builtin = builtin_attributes().contains(attribute.name());
+      AttributeIter iter(attr.name(), attr.domain(), *cd_type, get_fn);
+      iter.is_builtin = builtin_attributes().contains(attr.name());
       iter.accessor = &accessor;
       fn(iter);
       return !iter.is_stopped();
@@ -376,12 +380,12 @@ static AttributeAccessorFunctions get_curves_accessor_functions()
     }
 
     AttributeStorage &storage = curves.attribute_storage.wrap();
-    Attribute *attribute = storage.lookup(name);
-    if (!attribute) {
+    Attribute *attr = storage.lookup(name);
+    if (!attr) {
       return {};
     }
-    const int domain_size = get_domain_size(owner, AttrDomain::Layer);
-    return attribute_to_writer(&curves, {}, domain_size, *attribute);
+    const int domain_size = get_domain_size(owner, attr->domain());
+    return attribute_to_writer(&curves, changed_tags(), domain_size, *attr);
   };
   fn.remove = [](void *owner, const StringRef name) -> bool {
     CurvesGeometry &curves = *static_cast<CurvesGeometry *>(owner);
