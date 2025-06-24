@@ -253,13 +253,16 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
   if (t->con.mode & CON_APPLY) {
     switch (t->num.idx_max) {
       case 0:
-        ofs += BLI_snprintf_rlen(
-            str + ofs, UI_MAX_DRAW_STR - ofs, "D: %s (%s)%s", dvec_str[0], dist_str, t->con.text);
+        ofs += BLI_snprintf_rlen(str + ofs,
+                                 UI_MAX_DRAW_STR - ofs,
+                                 IFACE_("Translate: %s %s"),
+                                 dvec_str[0],
+                                 t->con.text);
         break;
       case 1:
         ofs += BLI_snprintf_rlen(str + ofs,
                                  UI_MAX_DRAW_STR - ofs,
-                                 "D: %s   D: %s (%s)%s",
+                                 IFACE_("Translate X: %s, Y: %s (Distance: %s) %s"),
                                  dvec_str[0],
                                  dvec_str[1],
                                  dist_str,
@@ -268,7 +271,7 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
       case 2:
         ofs += BLI_snprintf_rlen(str + ofs,
                                  UI_MAX_DRAW_STR - ofs,
-                                 "D: %s   D: %s   D: %s (%s)%s",
+                                 IFACE_("Translate X: %s, Y: %s, Z: %s (Distance: %s) %s"),
                                  dvec_str[0],
                                  dvec_str[1],
                                  dvec_str[2],
@@ -292,7 +295,7 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
       if (t->flag & T_2D_EDIT) {
         ofs += BLI_snprintf_rlen(str + ofs,
                                  UI_MAX_DRAW_STR - ofs,
-                                 "Dx: %s   Dy: %s (%s)%s",
+                                 IFACE_("Translate X: %s, Y: %s, (Distance %s) %s"),
                                  dvec_str[0],
                                  dvec_str[1],
                                  dist_str,
@@ -301,7 +304,7 @@ static void headerTranslation(TransInfo *t, const float vec[3], char str[UI_MAX_
       else {
         ofs += BLI_snprintf_rlen(str + ofs,
                                  UI_MAX_DRAW_STR - ofs,
-                                 "Dx: %s   Dy: %s   Dz: %s (%s)%s",
+                                 IFACE_("Translate X: %s, Y: %s, Z: %s, (Distance: %s) %s"),
                                  dvec_str[0],
                                  dvec_str[1],
                                  dvec_str[2],

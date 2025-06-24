@@ -57,17 +57,17 @@ static void headerTimeTranslate(TransInfo *t, char str[UI_MAX_DRAW_STR])
     }
 
     if (snap_mode == SCE_SNAP_TO_FRAME) {
-      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.2f (%.4f)", delta_x, val);
+      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, IFACE_("%.2f (to frame: %.4f)"), delta_x, val);
     }
     else if (snap_mode == SCE_SNAP_TO_SECOND) {
-      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.2f sec (%.4f)", delta_x, val);
+      BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, IFACE_("%.2fs (to frame: %.4f)"), delta_x, val);
     }
     else {
       BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", delta_x);
     }
   }
 
-  ofs += BLI_snprintf_rlen(str, UI_MAX_DRAW_STR, IFACE_("DeltaX: %s"), &tvec[0]);
+  ofs += BLI_snprintf_rlen(str, UI_MAX_DRAW_STR, IFACE_("Translate: %s"), &tvec[0]);
 
   if (t->flag & T_PROP_EDIT_ALL) {
     ofs += BLI_snprintf_rlen(
