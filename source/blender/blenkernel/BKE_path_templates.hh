@@ -36,7 +36,7 @@
  *
  * - General variables, which are made available to all paths that support path
  *   templates. For example, the name of the current blend file.
- * - Purpose-specific variables, which are determined by by the path property's
+ * - Purpose-specific variables, which are determined by the path property's
  *   `PropertyPathTemplateType` flag. For example, render output paths will be
  *   marked as `PROP_VARIABLES_RENDER_OUTPUT`, and will therefore get access to
  *   variables like `fps`, which are rendering-specific.

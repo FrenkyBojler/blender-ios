@@ -232,7 +232,7 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
   /* Type-specific variables. */
 
   /* Nodes. */
-  if (std::optional<AncestorPointerRNA> node_rna_ptr = RNA_struct_find_self_or_ancestor_that_is_a(
+  if (std::optional<AncestorPointerRNA> node_rna_ptr = RNA_struct_search_closest_ancestor_by_type(
           ptr, &RNA_Node))
   {
     const bNode *bnode = reinterpret_cast<const bNode *>(node_rna_ptr->data);
