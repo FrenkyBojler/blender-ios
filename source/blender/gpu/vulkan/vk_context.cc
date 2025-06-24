@@ -334,6 +334,12 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
   if (push_constants_layout.storage_type_get() == VKPushConstants::StorageType::PUSH_CONSTANTS) {
     r_pipeline_data.push_constants_size = push_constants_layout.size_in_bytes();
     r_pipeline_data.push_constants_data = vk_shader.push_constants.data();
+  } else {
+    const VKDevice &device = VKBackend::get().device;
+    if (device.extensions_get().descriptor_indexing) {
+      // Here we will push the single u32 indicating where the push constants uniform buffer
+      // is assigned.
+    }
   }
 
   /* Update descriptor set. */
