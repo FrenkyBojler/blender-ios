@@ -120,6 +120,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -3339,8 +3340,8 @@ static void wm_open_mainfile_ui(bContext * /*C*/, wmOperator *op)
   uiLayout *col = &layout->column(false);
   if (file_info->is_untrusted) {
     autoexec_text = IFACE_("Trusted Source [Untrusted Path]");
-    uiLayoutSetActive(col, false);
-    uiLayoutSetEnabled(col, false);
+    col->active_set(false);
+    col->enabled_set(false);
   }
   else {
     autoexec_text = IFACE_("Trusted Source");
