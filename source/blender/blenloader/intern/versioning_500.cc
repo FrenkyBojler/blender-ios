@@ -492,7 +492,7 @@ static void do_version_normal_node_dot_product(bNodeTree *node_tree, bNode *node
    * allow removal. */
   if (!is_normal_ontput_needed) {
     blender::bke::node_tree_set_type(*node_tree);
-    blender::bke::node_remove_node(nullptr, *node_tree, *node, false);
+    version_node_remove(*node_tree, *node);
   }
 }
 
@@ -965,17 +965,6 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 21)) {
-    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
-      if (node_tree->type == NTREE_COMPOSIT) {
-        LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
-          do_version_normal_node_dot_product(node_tree, node);
-        }
-      }
-    }
-    FOREACH_NODETREE_END;
-  }
-
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 27)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
@@ -1107,6 +1096,17 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         }
       }
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 21)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+          do_version_normal_node_dot_product(node_tree, node);
+        }
+      }
+    }
+    FOREACH_NODETREE_END;
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 23)) {
