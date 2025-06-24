@@ -6455,10 +6455,10 @@ void ED_region_add_animation_timer(bContext *C, ScrArea *area, ARegion *region)
   wmWindow *win = CTX_wm_window(C);
 
   /* end running timer */
+
   if (region->runtime->regiontimer) {
     region_blend_end(C, region, true);
   }
-
   RegionAlphaInfo *rgi = MEM_callocN<RegionAlphaInfo>("RegionAlphaInfo");
 
   rgi->hidden = region->flag & RGN_FLAG_HIDDEN;
