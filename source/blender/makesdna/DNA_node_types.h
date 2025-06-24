@@ -3337,6 +3337,21 @@ typedef struct NodeGeometryForeachGeometryInput {
   int32_t output_node_id;
 } NodeGeometryForeachGeometryInput;
 
+typedef struct NodeGeometryForeachGeometryOutputItem {
+  char *name;
+  int identifier;
+  int16_t socket_type;
+  char _pad[2];
+} NodeGeometryForeachGeometryOutputItem;
+
+typedef struct NodeGeometryForeachGeometryOutputItems {
+  NodeGeometryForeachGeometryOutputItem *items;
+  int items_num;
+  int active_index;
+  int next_identifier;
+  char _pad[4];
+} NodeGeometryForeachGeometryOutputItems;
+
 typedef struct NodeGeometryForeachGeometryOutput {
-  int inspection_index;
+  NodeGeometryForeachGeometryOutputItems output_items;
 } NodeGeometryForeachGeometryOutput;

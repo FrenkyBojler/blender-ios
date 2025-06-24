@@ -641,6 +641,7 @@ static const EnumPropertyItem node_cryptomatte_layer_name_items[] = {
 #  include "NOD_geo_bundle.hh"
 #  include "NOD_geo_capture_attribute.hh"
 #  include "NOD_geo_closure.hh"
+#  include "NOD_geo_foreach_geometry.hh"
 #  include "NOD_geo_foreach_geometry_element.hh"
 #  include "NOD_geo_index_switch.hh"
 #  include "NOD_geo_menu_switch.hh"
@@ -675,6 +676,7 @@ using blender::nodes::EvaluateClosureOutputItemsAccessor;
 using blender::nodes::ForeachGeometryElementGenerationItemsAccessor;
 using blender::nodes::ForeachGeometryElementInputItemsAccessor;
 using blender::nodes::ForeachGeometryElementMainItemsAccessor;
+using blender::nodes::ForeachGeometryOutputItemsAccessor;
 using blender::nodes::FormatStringItemsAccessor;
 using blender::nodes::IndexSwitchItemsAccessor;
 using blender::nodes::MenuSwitchItemsAccessor;
@@ -8438,19 +8440,44 @@ static void def_geo_closure_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_update(prop, NC_NODE, nullptr);
 }
 
-static void def_geo_foreach_geometry_output(BlenderRNA * /*brna*/, StructRNA *srna)
+static void rna_def_geo_foreach_geometry_output_item(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodeGeometryForeachGeometryOutputItem", nullptr);
+  RNA_def_struct_ui_text(srna, "For Each Geometry Output Item", "");
+  RNA_def_struct_sdna(srna, "NodeGeometryForeachGeometryOutputItem");
+
+  rna_def_node_item_array_socket_item_common(srna, "ForeachGeometryOutputItemsAccessor", true);
+}
+
+static void rna_def_geo_foreach_geometry_output_items(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "NodeGeometryForeachGeometryOutputItems", nullptr);
+  RNA_def_struct_sdna(srna, "bNode");
+  RNA_def_struct_ui_text(srna, "Output Items", "Collection of output items");
+
+  rna_def_node_item_array_new_with_socket_and_name(
+      srna, "NodeGeometryForeachGeometryOutputItem", "ForeachGeometryOutputItemsAccessor");
+  rna_def_node_item_array_common_functions(
+      srna, "NodeGeometryForeachGeometryOutputItem", "ForeachGeometryOutputItemsAccessor");
+}
+
+static void def_geo_foreach_geometry_output(BlenderRNA *brna, StructRNA *srna)
 {
   PropertyRNA *prop;
 
+  rna_def_geo_foreach_geometry_output_item(brna);
+  rna_def_geo_foreach_geometry_output_items(brna);
+
   RNA_def_struct_sdna_from(srna, "NodeGeometryForeachGeometryOutput", "storage");
 
-  prop = RNA_def_property(srna, "inspection_index", PROP_INT, PROP_NONE);
-  RNA_def_property_ui_range(prop, 0, INT32_MAX, 1, -1);
-  RNA_def_property_ui_text(prop,
-                           "Inspection Index",
-                           "Iteration index that is used by inspection features like the viewer "
-                           "node or socket inspection");
-  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
+  prop = RNA_def_property(srna, "output_items", PROP_COLLECTION, PROP_NONE);
+  RNA_def_property_collection_sdna(prop, nullptr, "output_items.items", "output_items.items_num");
+  RNA_def_property_struct_type(prop, "NodeGeometryForeachGeometryOutputItem");
+  RNA_def_property_srna(prop, "NodeGeometryForeachGeometryOutputItems");
 }
 
 static void rna_def_geo_capture_attribute_item(BlenderRNA *brna)
