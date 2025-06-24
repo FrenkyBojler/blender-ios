@@ -609,6 +609,7 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 #  include "BKE_image.hh"
 #  include "BKE_key.hh"
 #  include "BKE_layer.hh"
+#  include "BKE_modifier.hh"
 #  include "BKE_nla.hh"
 #  include "BKE_node.hh"
 #  include "BKE_paint.hh"
@@ -1268,7 +1269,12 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
        * using the ORCO layer. (see #63595) */
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
         const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
-        if (ELEM(mti->type, OnlyDeform, Constructive, Nonconstructive)) {
+        /* Any modifier that can generate an ORCO layer. */
+        if (ELEM(mti->type,
+                 ModifierTypeType::OnlyDeform,
+                 ModifierTypeType::Constructive,
+                 ModifierTypeType::Nonconstructive))
+        {
           DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
           break;
         }

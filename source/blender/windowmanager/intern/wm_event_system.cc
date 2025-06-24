@@ -488,6 +488,12 @@ static bool wm_notifier_is_clear(const wmNotifier *note)
   return note->category == NOTE_CATEGORY_TAG_CLEARED;
 }
 
+bool operator!=(const CustomData_MeshMasks &a, const CustomData_MeshMasks &b)
+{
+  return a.vmask != b.vmask || a.emask != b.emask || a.fmask != b.fmask || a.pmask != b.pmask ||
+         a.lmask != b.lmask;
+}
+
 void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
