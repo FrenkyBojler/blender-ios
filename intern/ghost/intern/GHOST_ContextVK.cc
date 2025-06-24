@@ -25,8 +25,7 @@
 
 #include "CLG_log.h"
 
-#include <vector>
-
+#include <array>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -34,6 +33,7 @@
 #include <mutex>
 #include <optional>
 #include <sstream>
+#include <vector>
 
 #include <sys/stat.h>
 
@@ -852,14 +852,14 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  std::vector<std::pair<VkColorSpaceKHR, VkFormat>> selection_order = {
-      std::make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
-      std::make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
-      std::make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
-      std::make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
+  array<pair<VkColorSpaceKHR, VkFormat>, 4> selection_order = {
+      make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
   };
 
-  for (std::pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
+  for (pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
     for (const VkSurfaceFormatKHR &format : formats) {
       if (format.colorSpace == pair.first && format.format == pair.second) {
         r_surfaceFormat = format;
