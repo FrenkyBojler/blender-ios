@@ -110,10 +110,6 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type);
 
 extern TransModeInfo TransMode_align;
 
-/* `transform_mode_baketime.cc` */
-
-extern TransModeInfo TransMode_baketime;
-
 /* `transform_mode_bbone_resize.cc` */
 
 extern TransModeInfo TransMode_bboneresize;
