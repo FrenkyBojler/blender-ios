@@ -841,7 +841,6 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
         layout = self.layout
 
         st = context.space_data
-        overlay_settings = st.timeline_overlay
         strip = context.active_strip
         sound = strip.sound
 
@@ -890,10 +889,9 @@ class STRIP_PT_adjust_sound(StripButtonsPanel, Panel):
             layout.use_property_split = False
             col = layout.column()
 
-            if overlay_settings.waveform_display_type == 'DEFAULT_WAVEFORMS':
-                split = col.split(factor=0.4)
-                split.label(text="")
-                split.prop(strip, "show_waveform") # XXX needs spaceseq, but those can have different waveform showing options. This setup is ilogical
+            split = col.split(factor=0.4)
+            split.label(text="")
+            split.prop(strip, "show_waveform") # XXX needs spaceseq, but those can have different waveform showing options. This setup is ilogical
 
 
 class STRIP_PT_adjust_comp(StripButtonsPanel, Panel):
