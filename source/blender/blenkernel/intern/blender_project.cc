@@ -14,14 +14,9 @@ static blender::bke::BlenderProject global_blender_project_;
 
 namespace blender::bke {
 
-StringRefNull BlenderProject::get_name() const
+bool BlenderProject::is_initialized()
 {
-  return StringRefNull(this->name_);
-}
-
-StringRefNull BlenderProject::get_root_path() const
-{
-  return StringRefNull(this->root_path_);
+  return !this->get_name().is_empty() && !this->get_root_path().is_empty();
 }
 
 void BlenderProject::init(StringRef name, StringRef root_path)
@@ -43,9 +38,19 @@ void BlenderProject::clear()
   this->root_path_.clear();
 }
 
-BlenderProject &BKE_blender_project()
+StringRefNull BlenderProject::get_name() const
 {
-  return global_blender_project_;
+  return StringRefNull(this->name_);
+}
+
+StringRefNull BlenderProject::get_root_path() const
+{
+  return StringRefNull(this->root_path_);
 }
 
 }  // namespace blender::bke
+
+blender::bke::BlenderProject &BKE_blender_project()
+{
+  return global_blender_project_;
+}

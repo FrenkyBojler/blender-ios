@@ -8,6 +8,7 @@
 
 #include "BLI_span.hh"
 
+#include "BKE_blender_project.hh"
 #include "BKE_context.hh"
 #include "BKE_main.hh"
 #include "BKE_path_templates.hh"
@@ -175,6 +176,14 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 VariableMap BKE_build_template_variables_for_render_path(const RenderData *render_data)
 {
   VariableMap variables;
+
+  /* Project variables. */
+  if (BKE_blender_project().is_initialized()) {
+    const blender::bke::BlenderProject &project = BKE_blender_project();
+
+    variables.add_string("project_name", project.get_name());
+    variables.add_string("project_root", project.get_root_path());
+  }
 
   /* Blend file name of the currently open blend file. */
   {

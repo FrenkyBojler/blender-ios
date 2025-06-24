@@ -21,6 +21,8 @@ class BlenderProject {
   std::string root_path_;
 
  public:
+  bool is_initialized();
+
   void init(StringRef name, StringRef root_path);
   void clear();
 
@@ -28,9 +30,9 @@ class BlenderProject {
   StringRefNull get_root_path() const;
 };
 
+}  // namespace blender::bke
+
 /**
  * Fetches the current Blender Project.
  */
-BlenderProject &BKE_blender_project();
-
-}  // namespace blender::bke
+blender::bke::BlenderProject &BKE_blender_project();

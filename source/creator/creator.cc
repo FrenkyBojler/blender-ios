@@ -39,6 +39,7 @@
 /* Mostly initialization functions. */
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
+#include "BKE_blender_project.hh"
 #include "BKE_brush.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
@@ -298,6 +299,9 @@ int main(int argc,
 #endif
 )
 {
+  /* TEMPORARY FOR TESTING BLENDER PROJECTS. */
+  BKE_blender_project().init("Foo", "/home/me/cool_blender_project/");
+
   bContext *C;
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
