@@ -509,7 +509,7 @@ static void COLLECTION_OT_exporter_add(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Add Exporter";
-  ot->description = "Add Exporter";
+  ot->description = "Add exporter to the exporter list";
   ot->idname = "COLLECTION_OT_exporter_add";
 
   /* API callbacks. */
@@ -556,7 +556,7 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Remove Exporter";
-  ot->description = "Remove Exporter";
+  ot->description = "Remove exporter from the exporter list";
   ot->idname = "COLLECTION_OT_exporter_remove";
 
   /* API callbacks. */
@@ -568,6 +568,60 @@ static void COLLECTION_OT_exporter_remove(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_int(ot->srna, "index", 0, 0, INT_MAX, "Index", "Exporter index", 0, INT_MAX);
+}
+
+static wmOperatorStatus collection_exporter_move_exec(bContext *C, wmOperator *op)
+{
+  using namespace blender;
+  Collection *collection = CTX_data_collection(C);
+  int from, to;
+  int dir = RNA_enum_get(op->ptr, "direction");
+
+  from = collection->active_exporter_index;
+
+  /* down */
+  if (dir == 1) {
+    to = from + 1;
+  }
+  /* up */
+  else {
+    to = from - 1;
+  }
+
+  if (!BKE_collection_exporter_move(collection, from, to)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  collection->active_exporter_index = to;
+  return OPERATOR_FINISHED;
+}
+
+static void COLLECTION_OT_exporter_move(wmOperatorType *ot)
+{
+  static const EnumPropertyItem exporter_move[] = {
+      {-1, "UP", 0, "Up", ""},
+      {1, "DOWN", 0, "Down", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* identifiers */
+  ot->name = "Move Exporter";
+  ot->description = "Move exporter up or down in the exporter list";
+  ot->idname = "COLLECTION_OT_exporter_move";
+
+  /* API callbacks. */
+  ot->exec = collection_exporter_move_exec;
+  ot->poll = collection_exporter_poll;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  RNA_def_enum(ot->srna,
+               "direction",
+               exporter_move,
+               0,
+               "Direction",
+               "Direction to move the active exporter");
 }
 
 static wmOperatorStatus collection_exporter_export(bContext *C,
@@ -832,6 +886,7 @@ void collection_exporter_register()
   WM_menutype_add(mt);
   WM_operatortype_append(COLLECTION_OT_exporter_add);
   WM_operatortype_append(COLLECTION_OT_exporter_remove);
+  WM_operatortype_append(COLLECTION_OT_exporter_move);
   WM_operatortype_append(COLLECTION_OT_exporter_export);
   WM_operatortype_append(COLLECTION_OT_export_all);
   WM_operatortype_append(WM_OT_collection_export_all);

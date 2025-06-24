@@ -1483,6 +1483,18 @@ void BKE_collection_exporter_remove(Collection *collection, CollectionExport *da
   collection->active_exporter_index = new_index;
 }
 
+bool BKE_collection_exporter_move(Collection *collection, int from, int to)
+{
+  if (from == to) {
+    return false;
+  }
+
+  if (!BLI_listbase_move_index(&collection->exporters, from, to)) {
+    return false;
+  }
+  return true;
+}
+
 static void collection_exporter_copy(Collection *collection, CollectionExport *data)
 {
   CollectionExport *new_data = MEM_callocN<CollectionExport>("CollectionExport");

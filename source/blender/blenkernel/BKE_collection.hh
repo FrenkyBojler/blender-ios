@@ -123,6 +123,11 @@ CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idna
 void BKE_collection_exporter_remove(Collection *collection, CollectionExport *data);
 
 /**
+ * Move a collection exporter from one position to another.
+ */
+bool BKE_collection_exporter_move(Collection *collection, int from, int to);
+
+/**
  * Assigns a unique name to the collection exporter.
  */
 void BKE_collection_exporter_name_set(const ListBase *exporters,
