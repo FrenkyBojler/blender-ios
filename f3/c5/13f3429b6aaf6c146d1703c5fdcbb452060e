@@ -1,2 +1,3 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by issue #137983, List of bug fixes per release override
+Referenced by issue #140903, Blender 4.5 regression - `obj.preview` is not added after `asset_generate_preview` for empties
