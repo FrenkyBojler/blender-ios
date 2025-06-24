@@ -1,2 +1,3 @@
 Referenced by commit 5b2771cd0c3, Cleanup: replace copy-by-value with const reference
 Referenced by issue #138742, Knife tool not locking to axis
+Referenced by commit 7e2926233d79dfd468685101dd0eecb766e30f1f, Fix #138742: Knife tool not locking to axis when snapping to edge
