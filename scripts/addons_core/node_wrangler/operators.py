@@ -684,6 +684,12 @@ class NWMergeNodes(Operator, NWBase):
             if node.select and node.outputs:
                 output = get_first_enabled_output(node)
                 output_type = output.type
+                if output_type == 'BOOLEAN':
+                    if merge_type == 'MATH' and mode != 'ADD':
+                        merge_type = 'AUTO'
+                        mode = 'MIX'
+                    if merge_type == 'AUTO' and mode == 'ADD':
+                        mode = 'MIX'
                 if merge_type == 'AUTO':
                     for (type, types_list, dst) in (
                             ('SHADER', ('MIX', 'ADD'), selected_shader),
@@ -726,7 +732,7 @@ class NWMergeNodes(Operator, NWBase):
                             ('ALPHAOVER', ('MIX', ), selected_alphaover),
                             ('BOOLEAN', (''), selected_boolean),
                     ):
-                        if (merge_type == type and mode in types_list and output_type != 'BOOLEAN') or (output_type == 'BOOLEAN' and type == 'BOOLEAN'):
+                        if (merge_type == type and mode in types_list):
                             dst.append(
                                 [i, node.location.x, node.location.y, node.dimensions.x, node.hide])
         # When nodes with output kinds 'RGBA' and 'VALUE' are selected at the same time
