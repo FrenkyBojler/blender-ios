@@ -1,2 +1,3 @@
 Referenced by issue #134430, Regression: Geometry tools crashes when using a duplicated tool.
 Referenced by issue #135164, Crash when deleting nodes from a node tree after appending
+Referenced by issue #139079, Crash when changing scene
