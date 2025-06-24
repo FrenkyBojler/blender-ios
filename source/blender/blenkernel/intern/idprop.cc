@@ -916,7 +916,7 @@ IDProperty *IDP_EnsureProperties(ID *id)
   if (id->properties == nullptr) {
     id->properties = MEM_callocN<IDProperty>("IDProperty");
     id->properties->type = IDP_GROUP;
-    id->system_properties->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+    id->properties->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
     /* NOTE(@ideasman42): Don't overwrite the data's name and type
      * some functions might need this if they
      * don't have a real ID, should be named elsewhere. */
