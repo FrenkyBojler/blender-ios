@@ -523,7 +523,6 @@ void OBJECT_OT_hide_collection(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = object_hide_collection_exec;
   ot->invoke = object_hide_collection_invoke;
-  ot->poll = ED_operator_view3d_active;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
