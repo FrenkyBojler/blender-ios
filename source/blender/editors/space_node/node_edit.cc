@@ -437,8 +437,9 @@ static blender::compositor::OutputTypes get_compositor_needed_outputs(const bCon
 
 void ED_node_composite_job(const bContext *C, bNodeTree *nodetree, Scene *scene_owner)
 {
-  /* None of the outputs are needed, so no need to execute the compositor. Except maybe previews
-   * which is a secondary output that needs another output to compute. */
+  /* None of the outputs are needed except maybe previews, so no need to execute the compositor.
+   * Previews are not considered because they are a secondary output that needs another output to
+   * be computed with. */
   blender::compositor::OutputTypes needed_outputs = get_compositor_needed_outputs(C);
   if (ELEM(needed_outputs,
            blender::compositor::OutputTypes::None,
