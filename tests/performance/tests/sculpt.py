@@ -176,6 +176,8 @@ def _run_brush_test(args: dict):
         context_override = context.copy()
         set_view3d_context_override(context_override)
         with context.temp_override(**context_override):
+            if args.get('spatial_reorder', False):
+                bpy.ops.mesh.reorder_vertices_spatial()
             start = time.time()
             bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
             measurements.append(time.time() - start)
@@ -200,7 +202,7 @@ def _run_bvh_test(args: dict):
     bpy.ops.ed.undo_push()
 
     min_measurements = 5
-    max_measurements = 100
+    max_measurements = 50
 
     measurements = []
     while True:
@@ -208,6 +210,8 @@ def _run_bvh_test(args: dict):
         context_override = context.copy()
         set_view3d_context_override(context_override)
         with context.temp_override(**context_override):
+            if args.get('spatial_reorder', False):
+                bpy.ops.mesh.reorder_vertices_spatial()
             start = time.time()
             bpy.ops.sculpt.optimize()
             measurements.append(time.time() - start)
@@ -219,43 +223,6 @@ def _run_bvh_test(args: dict):
 
     return sum(measurements) / len(measurements)
 
-
-def _run_spatial_bvh_test(args: dict):
-    import bpy
-    import time
-    context = bpy.context
-
-    timeout = 10
-    total_time_start = time.time()
-
-    # Create an undo stack explicitly. This isn't created by default in background mode.
-    bpy.ops.ed.undo_push()
-
-    min_measurements = 5
-    max_measurements = 50
-    
-    organized_measurements = []
-    
-    while True:
-        # Test unorganized mesh BVH rebuild
-        prepare_sculpt_scene(context, args['mode'])
-        context_override = context.copy()
-        set_view3d_context_override(context_override)
-        
-        with context.temp_override(**context_override):
-
-            bpy.ops.mesh.reorder_vertices_spatial()            
-            # Measure BVH rebuild time on organized mesh
-            start = time.time()
-            bpy.ops.sculpt.optimize()
-            organized_measurements.append(time.time() - start)
-
-        if len(organized_measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
-            break
-        if len(organized_measurements) >= max_measurements:
-            break
-
-    return sum(organized_measurements) / len(organized_measurements)
 
 class SculptBrushTest(api.Test):
     def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
@@ -273,6 +240,31 @@ class SculptBrushTest(api.Test):
         args = {
             'mode': self.mode,
             'brush_type': self.brush_type,
+            'spatial_reorder': False,
+        }
+
+        result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
+
+        return {'time': result}
+
+
+class SculptBrushAfterSpatialReorderingTest(api.Test):
+    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
+        self.filepath = filepath
+        self.mode = mode
+        self.brush_type = brush_type
+
+    def name(self):
+        return "{}_{}_{}".format(self.mode.name.lower(), self.brush_type.name.lower(), "after_reordering")
+
+    def category(self):
+        return "sculpt"
+
+    def run(self, env, _device_id):
+        args = {
+            'mode': self.mode,
+            'brush_type': self.brush_type,
+            'spatial_reorder': True,
         }
 
         result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
@@ -294,11 +286,13 @@ class SculptRebuildBVHTest(api.Test):
     def run(self, env, _device_id):
         args = {
             'mode': self.mode,
+            'spatial_reorder': False,
         }
 
         result, _ = env.run_in_blender(_run_bvh_test, args, [self.filepath])
 
         return {'time': result}
+
 
 class SculptRebuildSpatialBVHTest(api.Test):
     def __init__(self, filepath: pathlib.Path, mode: SculptMode):
@@ -314,19 +308,25 @@ class SculptRebuildSpatialBVHTest(api.Test):
     def run(self, env, _device_id):
         args = {
             'mode': self.mode,
+            'spatial_reorder': True,
         }
 
-        result, _ = env.run_in_blender(_run_spatial_bvh_test, args, [self.filepath])
+        result, _ = env.run_in_blender(_run_bvh_test, args, [self.filepath])
 
         return {'time': result}
+
 
 def generate(env):
     filepaths = env.find_blend_files('sculpt/*')
     # For now, we only expect there to ever be a single file to use as the basis for generating other brush tests
     assert len(filepaths) == 1
-    
+
     brush_tests = [SculptBrushTest(filepaths[0], mode, brush_type) for mode in SculptMode for brush_type in BrushType]
+    brush_tests_after_reordering = [
+        SculptBrushAfterSpatialReorderingTest(
+            filepaths[0],
+            SculptMode.MESH,
+            brush_type)for brush_type in BrushType]
     bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode) for mode in SculptMode]
-    spatial_bvh_tests = [SculptRebuildSpatialBVHTest(filepaths[0], mode) for mode in SculptMode]
-    
-    return brush_tests + bvh_tests + spatial_bvh_tests 
+    spatial_bvh_tests = [SculptRebuildSpatialBVHTest(filepaths[0], SculptMode.MESH)]
+    return brush_tests + brush_tests_after_reordering + bvh_tests + spatial_bvh_tests

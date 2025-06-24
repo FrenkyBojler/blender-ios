@@ -1,18 +1,19 @@
 import bpy
 import unittest
 
+
 class TestMeshSpatialOrganization(unittest.TestCase):
-    
+
     def setUp(self):
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.delete(use_global=False)
         if bpy.context.mode != 'OBJECT':
             bpy.ops.object.mode_set(mode='OBJECT')
-    
+
     def tearDown(self):
         bpy.ops.object.select_all(action='SELECT')
         bpy.ops.object.delete(use_global=False)
-    
+
     def create_subdivided_plane(self, subdivisions):
         bpy.ops.mesh.primitive_plane_add(size=2, location=(0, 0, 0))
         plane = bpy.context.active_object
@@ -21,7 +22,7 @@ class TestMeshSpatialOrganization(unittest.TestCase):
         bpy.ops.mesh.subdivide(number_cuts=subdivisions, smoothness=0.0)
         bpy.ops.object.mode_set(mode='OBJECT')
         return plane
-    
+
     def get_vertex_data(self, obj):
         mesh = obj.data
         vertices = [(v.co.x, v.co.y, v.co.z) for v in mesh.vertices]
@@ -38,13 +39,15 @@ class TestMeshSpatialOrganization(unittest.TestCase):
         self.assertEqual(initial_data['vertex_count'], final_data['vertex_count'])
         vertices_changed = initial_data['vertices'] != final_data['vertices']
         self.assertTrue(vertices_changed)
-    
+
+
 def run_tests():
     loader = unittest.TestLoader()
     suite = loader.loadTestsFromTestCase(TestMeshSpatialOrganization)
     runner = unittest.TextTestRunner(verbosity=2)
     result = runner.run(suite)
     return result.wasSuccessful()
+
 
 if __name__ == "__main__":
     success = run_tests()
