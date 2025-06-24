@@ -448,6 +448,34 @@ Mesh *BKE_subdiv_to_ccg_mesh(Subdiv &subdiv,
   return result;
 }
 
+Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
+                             const SubdivCCG& existing_ccg,
+                             const SubdivToCCGSettings &settings,
+                             const Mesh &coarse_mesh)
+{
+  /* Make sure evaluator is ready. */
+  stats_begin(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+  if (!eval_begin_from_mesh(&subdiv, &coarse_mesh, existing_ccg.positions, SUBDIV_EVALUATOR_TYPE_CPU, nullptr)) {
+    if (coarse_mesh.faces_num) {
+      return nullptr;
+    }
+  }
+  stats_end(&subdiv.stats, SUBDIV_STATS_SUBDIV_TO_CCG);
+  SubdivCCGMaskEvaluator mask_evaluator;
+  bool has_mask = BKE_subdiv_ccg_mask_init_from_paint(&mask_evaluator, &coarse_mesh);
+  std::unique_ptr<SubdivCCG> subdiv_ccg = BKE_subdiv_to_ccg(
+      subdiv, settings, coarse_mesh, has_mask ? &mask_evaluator : nullptr);
+  if (has_mask) {
+    mask_evaluator.free(&mask_evaluator);
+  }
+  if (!subdiv_ccg) {
+    return nullptr;
+  }
+  Mesh *result = BKE_mesh_copy_for_eval(coarse_mesh);
+  result->runtime->subdiv_ccg = std::move(subdiv_ccg);
+  return result;
+}
+
 SubdivCCG::~SubdivCCG()
 {
   if (this->subdiv != nullptr) {

@@ -203,6 +203,11 @@ Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
                              const SubdivToCCGSettings &settings,
                              const Mesh &coarse_mesh);
 
+Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
+                             const SubdivCCG& existing_ccg,
+                             const SubdivToCCGSettings &settings,
+                             const Mesh &coarse_mesh);
+
 /* Create a key for accessing grid elements at a given level. */
 CCGKey BKE_subdiv_ccg_key(const SubdivCCG &subdiv_ccg, int level);
 CCGKey BKE_subdiv_ccg_key_top_level(const SubdivCCG &subdiv_ccg);

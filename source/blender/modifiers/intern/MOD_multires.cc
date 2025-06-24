@@ -24,6 +24,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_multires.hh"
+#include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_subdiv.hh"
 #include "BKE_subdiv_ccg.hh"
@@ -166,7 +167,9 @@ static Mesh *multires_as_ccg(MultiresModifierData *mmd,
   if (ccg_settings.resolution < 3) {
     return result;
   }
+  /* TODO: Do we have a easy way to get the "current" ccg? For a fast path */
   blender::bke::subdiv::displacement_attach_from_multires(subdiv, ctx->object, mesh, mmd);
+  printf("MMD: %d\n", mmd->sculptlvl);
   result = BKE_subdiv_to_ccg_mesh(*subdiv, ccg_settings, *mesh);
 
   /* NOTE: CCG becomes an owner of Subdiv descriptor, so can not share

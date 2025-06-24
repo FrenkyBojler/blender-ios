@@ -261,10 +261,12 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
   const int level_idx = top_level - 1;
   BLI_assert(level_idx >= 0);
   if (top_level > multires_runtime.disp_at_level.size()) {
-    printf("Creating new runtime layer (Current: %lld, Requested: %d)\n", multires_runtime.disp_at_level.size(), top_level);
     blender::Vector<blender::float3> level_disp(multires_grid_tot[top_level] * coarse_mesh->corners_num);
     multires_runtime.disp_at_level.append(std::move(level_disp));
+#if 0
+    printf("Creating new runtime layer (Current: %lld, Requested: %d)\n", multires_runtime.disp_at_level.size(), top_level);
     printf("Resulting size: %lld, Addr: %p\n", multires_runtime.disp_at_level.size(), &multires_runtime);
+#endif
   }
 
   /* NOTE: Subdivision happens from the top level of the existing multires modifier. If it is set
