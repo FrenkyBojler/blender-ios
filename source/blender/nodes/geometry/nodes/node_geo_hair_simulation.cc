@@ -713,13 +713,13 @@ template<typename T> struct ResultOrError {
   ResultOrError(const T &value) : value(value) {}
   ResultOrError(T &&value) : value(std::move(value)) {}
   ResultOrError(const NodeWarningType type, StringRefNull message)
-      : error(std::make_optional<Error>(type, message))
+      : error(std::make_optional<Error>({type, message}))
   {
   }
   ResultOrError(const Error &error) : error(error) {}
-  ResultOrError(Error &&error) : error(std::move(errror)) {}
+  ResultOrError(Error &&error) : error(std::move(error)) {}
   ResultOrError(const std::optional<Error> &error) : error(error) {}
-  ResultOrError(std::optional<Error> &&error) : error(std::move(errror)) {}
+  ResultOrError(std::optional<Error> &&error) : error(std::move(error)) {}
 };
 
 // TODO share this with node_geo_deform_curves_on_surface.cc
@@ -966,7 +966,6 @@ static std::optional<Error> capture_surface_rest_offset(CurveComponent &componen
 {
   bke::CurvesGeometry &curves = component.get_for_write()->geometry.wrap();
   const int points_num = curves.points_num();
-  const int curves_num = curves.curves_num();
   const Array point_to_curve_map = curves.point_to_curve_map();
   MutableAttributeAccessor attributes = curves.attributes_for_write();
 
