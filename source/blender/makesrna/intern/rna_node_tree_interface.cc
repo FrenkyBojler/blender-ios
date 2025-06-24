@@ -534,7 +534,7 @@ static const EnumPropertyItem *rna_NodeTreeInterfaceSocket_structure_type_itemf(
         break;
       }
       case NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_LIST: {
-        if (U.experimental.use_socket_structure_type) {
+        if (U.experimental.use_socket_structure_type && U.experimental.use_geometry_nodes_lists) {
           if (supports_grids) {
             RNA_enum_item_add(&items, &items_count, item);
           }
