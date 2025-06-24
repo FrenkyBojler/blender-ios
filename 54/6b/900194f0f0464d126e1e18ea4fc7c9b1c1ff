@@ -1,2 +1,2 @@
 Referenced by commit 4eda60c2d82, Fix T80677: Absolute grid snapping doesn't work with constraints
-Referenced by issue #140718, Calculating Increment Snapping only on X axis
+Referenced by issue #140718, Incremental snapping on non sqaure images in incorrect on the X axis
