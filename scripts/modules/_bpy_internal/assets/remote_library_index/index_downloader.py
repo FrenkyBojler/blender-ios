@@ -40,7 +40,11 @@ time and requires resources on the server.
 
 
 class RemoteAssetListingLocator:
-    """Construct paths for various components of a remote asset library."""
+    """Construct paths for various components of a remote asset library.
+
+    Basically this determines where assets and their thumbnails are downloaded,
+    and what their filenames will be.
+    """
 
     _remote_url: str
     _local_path: Path
