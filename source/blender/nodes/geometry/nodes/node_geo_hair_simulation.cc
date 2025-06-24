@@ -7,6 +7,7 @@
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
@@ -46,6 +47,7 @@ using geometry::hair_solver::ConstraintEvalData;
 using geometry::hair_solver::VariableIndexArrays;
 using hair_constraints::ConstraintBundleItems;
 
+/* Curve geometry attributes. */
 static const std::string position_attr = "position";
 static const std::string rotation_attr = "rotation";
 static const std::string rest_position_attr = "rest_position";
@@ -57,6 +59,17 @@ static const std::string inv_mass_attr = "inv_mass";
 static const std::string inertia_attr = "inertia";
 static const std::string inv_inertia_attr = "inv_inertia";
 static const std::string radius_attr = "radius";
+/* Constraint point attributes. */
+enum TargetPointAttribute {
+  TargetPoint1,
+  TargetPoint2,
+  TargetPoint3,
+  TargetPoint4,
+};
+static const std::string target_point1_attr = "point1";
+static const std::string target_point2_attr = "point2";
+static const std::string target_point3_attr = "point3";
+static const std::string target_point4_attr = "point4";
 static const std::string surface_position_attr = "surface_position";
 static const std::string surface_rotation_attr = "surface_rotation";
 
@@ -282,6 +295,27 @@ static Field<float3> inverse_inertia()
 static Field<float> material_length()
 {
   return bke::AttributeFieldInput::Create<float>(material_length_attr);
+}
+
+static StringRef target_point_attribute(const TargetPointAttribute target_point_attr)
+{
+  switch (target_point_attr) {
+    case TargetPoint1:
+      return target_point1_attr;
+    case TargetPoint2:
+      return target_point2_attr;
+    case TargetPoint3:
+      return target_point3_attr;
+    case TargetPoint4:
+      return target_point4_attr;
+  }
+  BLI_assert_unreachable();
+  return "";
+}
+
+static Field<int> target_point(const TargetPointAttribute target_point_attr)
+{
+  return bke::AttributeFieldInput::Create<int>(target_point_attribute(target_point_attr));
 }
 
 }  // namespace field_inputs
@@ -738,6 +772,8 @@ class HairSurfaceData {
   bke::CurvesSurfaceTransforms transforms_;
 
  public:
+  HairSurfaceData() = default;
+  HairSurfaceData(HairSurfaceData &&other) = default;
   ~HairSurfaceData()
   {
     if (free_suface_mesh_) {
@@ -859,10 +895,10 @@ class HairSurfaceData {
 /**
  * Construct a surface reference frame for each curve based on hair surface attachment.
  */
-static Array<float4x4> compute_curve_surface_attachment(const CurveComponent &component,
+static Array<float4x4> compute_curve_surface_transforms(const bke::CurvesGeometry &curves,
+                                                        const IndexMask &selection,
                                                         const HairSurfaceData &surface_data)
 {
-  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
   const int curves_num = curves.curves_num();
   const AttributeAccessor attributes = curves.attributes();
   const float4x4 &curves_to_surface = surface_data.transforms().curves_to_surface;
@@ -900,117 +936,233 @@ static Array<float4x4> compute_curve_surface_attachment(const CurveComponent &co
   /* Compute surface reference frame for each curve. */
   Array<float4x4> surface_transforms(curves_num);
   std::atomic<int> invalid_uv_count;
-  threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange range) {
-    for (const int curve_i : range) {
-      const geometry::ReverseUVSampler::Result &surface_sample = surface_samples[curve_i];
-      if (surface_sample.type != geometry::ReverseUVSampler::ResultType::Ok) {
-        invalid_uv_count++;
-        continue;
-      }
-
-      const int3 &tri = corner_tris[surface_sample.tri_index];
-      const float3 &bary_weights = surface_sample.bary_weights;
-
-      const int corner_0 = tri[0];
-      const int corner_1 = tri[1];
-      const int corner_2 = tri[2];
-
-      const int vert_0 = corner_verts[corner_0];
-      const int vert_1 = corner_verts[corner_1];
-      const int vert_2 = corner_verts[corner_2];
-
-      const float3 &normal_0 = corner_normals[corner_0];
-      const float3 &normal_1 = corner_normals[corner_1];
-      const float3 &normal_2 = corner_normals[corner_2];
-      const float3 normal = math::normalize(
-          bke::attribute_math::mix3(bary_weights, normal_0, normal_1, normal_2));
-
-      const float3 &pos_0 = positions[vert_0];
-      const float3 &pos_1 = positions[vert_1];
-      const float3 &pos_2 = positions[vert_2];
-      const float3 pos = bke::attribute_math::mix3(bary_weights, pos_0, pos_1, pos_2);
-
-      const float3 &tangent_pos_0 = tangent_positions[vert_0];
-      const float3 &tangent_pos_1 = tangent_positions[vert_1];
-      const float3 tangent_reference_dir = tangent_pos_1 - tangent_pos_0;
-
-      /* Compute first local tangent based on the (potentially smoothed) normal and the tangent
-       * reference. */
-      const float3 tangent_x = math::normalize(math::cross(normal, tangent_reference_dir));
-
-      /* The second tangent defined by the normal and first tangent. */
-      const float3 tangent_y = math::normalize(math::cross(normal, tangent_x));
-
-      /* Construct rotation matrix that encodes the orientation of the old surface position. */
-      const float3x3 rotation(tangent_x, tangent_y, normal);
-
-      float4x4 transform = math::from_origin_transform<float4x4>(float4x4(rotation), pos);
-
-      /* Change the basis of the transformation so to that it can be applied in the local space of
-       * the curves. */
-      surface_transforms[curve_i] = surface_to_curves * transform * curves_to_surface;
+  selection.foreach_index(GrainSize(256), [&](const int curve_i) {
+    const geometry::ReverseUVSampler::Result &surface_sample = surface_samples[curve_i];
+    if (surface_sample.type != geometry::ReverseUVSampler::ResultType::Ok) {
+      invalid_uv_count++;
+      return;
     }
+
+    const int3 &tri = corner_tris[surface_sample.tri_index];
+    const float3 &bary_weights = surface_sample.bary_weights;
+
+    const int corner_0 = tri[0];
+    const int corner_1 = tri[1];
+    const int corner_2 = tri[2];
+
+    const int vert_0 = corner_verts[corner_0];
+    const int vert_1 = corner_verts[corner_1];
+    const int vert_2 = corner_verts[corner_2];
+
+    const float3 &normal_0 = corner_normals[corner_0];
+    const float3 &normal_1 = corner_normals[corner_1];
+    const float3 &normal_2 = corner_normals[corner_2];
+    const float3 normal = math::normalize(
+        bke::attribute_math::mix3(bary_weights, normal_0, normal_1, normal_2));
+
+    const float3 &pos_0 = positions[vert_0];
+    const float3 &pos_1 = positions[vert_1];
+    const float3 &pos_2 = positions[vert_2];
+    const float3 pos = bke::attribute_math::mix3(bary_weights, pos_0, pos_1, pos_2);
+
+    const float3 &tangent_pos_0 = tangent_positions[vert_0];
+    const float3 &tangent_pos_1 = tangent_positions[vert_1];
+    const float3 tangent_reference_dir = tangent_pos_1 - tangent_pos_0;
+
+    /* Compute first local tangent based on the (potentially smoothed) normal and the tangent
+     * reference. */
+    const float3 tangent_x = math::normalize(math::cross(normal, tangent_reference_dir));
+
+    /* The second tangent defined by the normal and first tangent. */
+    const float3 tangent_y = math::normalize(math::cross(normal, tangent_x));
+
+    /* Construct rotation matrix that encodes the orientation of the old surface position. */
+    const float3x3 rotation(tangent_x, tangent_y, normal);
+
+    float4x4 transform = math::from_origin_transform<float4x4>(float4x4(rotation), pos);
+
+    /* Change the basis of the transformation so to that it can be applied in the local space of
+     * the curves. */
+    surface_transforms[curve_i] = surface_to_curves * transform * curves_to_surface;
   });
 
   return surface_transforms;
 }
 
-/* Store the surface-relative rest position/rotation of curve points.
- * This relative transform is invariant under surface deformation, so the world-space rest pose
- * of a hair root can be found by applying the offset at the deformed surface
- * location/orientation. */
-static std::optional<Error> capture_surface_rest_offset(CurveComponent &component,
-                                                        const Field<bool> selection_field,
-                                                        const Object *self_ob_eval,
-                                                        const bool use_orig_surface_mesh = true)
-{
-  bke::CurvesGeometry &curves = component.get_for_write()->geometry.wrap();
-  const int points_num = curves.points_num();
-  const Array point_to_curve_map = curves.point_to_curve_map();
-  MutableAttributeAccessor attributes = curves.attributes_for_write();
+// class CurvesSurfaceTransformFieldInput final : public bke::CurvesFieldInput {
+//  private:
+//   HairSurfaceData surface_data_;
 
-  /* Find attachment points on the mesh. */
-  HairSurfaceData surface_data;
-  if (auto error = surface_data.init_from_object(self_ob_eval, use_orig_surface_mesh)) {
-    return error;
+//  public:
+//   CurvesSurfaceTransformFieldInput(HairSurfaceData &&surface_data)
+//       : bke::CurvesFieldInput(CPPType::get<float4x4>(), "Curves Surface Transform"),
+//         surface_data_(std::move(surface_data))
+//   {
+//   }
+
+//   GVArray get_varray_for_context(const bke::CurvesGeometry &curves,
+//                                  const AttrDomain domain,
+//                                  const IndexMask &mask) const final
+//   {
+//     if (domain == AttrDomain::Curve) {
+//       Array<float4x4> surface_transforms = compute_curve_surface_transforms(
+//           curves, mask, surface_data_);
+//       return VArray<float4x4>::ForContainer(std::move(surface_transforms));
+//     }
+//     if (domain == AttrDomain::Point) {
+//       /* Compute all surface transforms. */
+//       /* TODO could optimize by constructing a curve mask first and only compute necessary curve
+//        * transforms. */
+//       Array<float4x4> surface_transforms = compute_curve_surface_transforms(
+//           curves, curves.curves_range(), surface_data_);
+//       return curves.adapt_domain<float4x4>(
+//           VArray<float4x4>::ForContainer(std::move(surface_transforms)),
+//           AttrDomain::Curve,
+//           AttrDomain::Point);
+//     }
+//     return {};
+//   }
+
+//   uint64_t hash() const override
+//   {
+//     return get_default_hash(&surface_data_.surface_mesh());
+//   }
+
+//   bool is_equal_to(const fn::FieldNode &other) const override
+//   {
+//     if (const CurvesSurfaceTransformFieldInput *other_field =
+//             dynamic_cast<const CurvesSurfaceTransformFieldInput *>(&other))
+//     {
+//       return &surface_data_.surface_mesh() == &other_field->surface_data_.surface_mesh();
+//     }
+//     return false;
+//   }
+
+//   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const
+//   override
+//   {
+//     return AttrDomain::Curve;
+//   }
+// };
+
+// /* Store the surface-relative rest position/rotation of curve points.
+//  * This relative transform is invariant under surface deformation, so the world-space rest pose
+//  * of a hair root can be found by applying the offset at the deformed surface
+//  * location/orientation. */
+// static std::optional<Error> capture_surface_position(
+//     bke::GeometryComponent &component,
+//     const IndexMask &selection,
+//     const Span<float4x4> &inv_point_surface_transforms)
+// {
+//   const int points_num = component.attribute_domain_size(AttrDomain::Point);
+//   MutableAttributeAccessor attributes = *component.attributes_for_write();
+
+//   /* Store point offsets from their surface reference frame. */
+//   const VArraySpan positions = *attributes.lookup_or_default<float3>(
+//       position_attr, AttrDomain::Point, float3(0.0f));
+//   const VArraySpan rotations = *attributes.lookup_or_default<math::Quaternion>(
+//       rotation_attr, AttrDomain::Point, math::Quaternion::identity());
+//   SpanAttributeWriter surface_position_writer = attributes.lookup_or_add_for_write_span<float3>(
+//       surface_position_attr, AttrDomain::Point);
+//   SpanAttributeWriter surface_rotation_writer =
+//       attributes.lookup_or_add_for_write_span<math::Quaternion>(surface_rotation_attr,
+//                                                                 AttrDomain::Point);
+//   selection.foreach_index(GrainSize(256), [&](const int point_i) {
+//     const float4x4 &inv_surface_transform = inv_point_surface_transforms[point_i];
+//     surface_position_writer.span[point_i] = math::transform_point(inv_surface_transform,
+//                                                                   positions[point_i]);
+//     surface_rotation_writer.span[point_i] = math::to_quaternion(inv_surface_transform) *
+//                                             rotations[point_i];
+//   });
+
+//   surface_position_writer.finish();
+//   surface_rotation_writer.finish();
+
+//   return std::nullopt;
+// }
+
+// static std::optional<Error> capture_surface_rest_offset(
+//     bke::GeometryComponent &component,
+//     const Field<bool> selection_field,
+//     const bke::CurvesGeometry &curves,
+//     const VArray<float4x4> &curve_surface_transforms)
+// {
+//   const int points_num = component.attribute_domain_size(AttrDomain::Point);
+//   const Array point_to_curve_map = curves.point_to_curve_map();
+
+//   /* Evaluate point selection. */
+//   bke::GeometryFieldContext field_context(component, AttrDomain::Point);
+//   FieldEvaluator field_evaluator(field_context, points_num);
+//   field_evaluator.set_selection(selection_field);
+//   field_evaluator.add(field_inputs::target_point(TargetPointAttribute::TargetPoint1));
+//   field_evaluator.evaluate();
+//   const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
+//   const VArraySpan<int> target_point = field_evaluator.get_evaluated<int>(0);
+
+//   Array<float4x4>
+//   inv_point_surface_transforms(component.attribute_domain_size(AttrDomain::Point));
+//   selection.foreach_index(GrainSize(1024), [&](const int constraint_i) {
+//     const int target_point_i = target_point[constraint_i];
+//     if (!point_to_curve_map.index_range().contains(target_point_i)) {
+//       return;
+//     }
+//     const int target_curve_i = point_to_curve_map[target_point_i];
+//     inv_point_surface_transforms[target_point_i] = math::invert(
+//         curve_surface_transforms[target_curve_i]);
+//   });
+
+//   return capture_surface_rest_offset(component, selection, inv_point_surface_transforms);
+// }
+
+static std::optional<Error> compute_root_surface_position(
+    bke::PointCloudComponent &constraints,
+    const Field<bool> selection_field,
+    const bke::CurvesGeometry &curves,
+    const Span<float4x4> curve_surface_transforms)
+{
+  if (!constraints.has_pointcloud()) {
+    return std::nullopt;
   }
-  Array<float4x4> surface_transforms = compute_curve_surface_attachment(component, surface_data);
-  /* Inverse surface transforms are needed here. */
-  Array<float4x4> inv_surface_transforms(surface_transforms.size());
-  threading::parallel_for(surface_transforms.index_range(), 4096, [&](const IndexRange range) {
-    for (const int i : range) {
-      inv_surface_transforms[i] = math::invert(surface_transforms[i]);
-    }
-  });
+
+  const Array point_to_curve_map = curves.point_to_curve_map();
 
   /* Evaluate point selection. */
-  bke::GeometryFieldContext field_context(curves, AttrDomain::Point);
-  FieldEvaluator field_evaluator(field_context, points_num);
+  const int constraints_num = constraints.attribute_domain_size(AttrDomain::Point);
+  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
+  bke::PointCloudFieldContext field_context(*constraints.get_for_write());
+  FieldEvaluator field_evaluator(field_context, constraints_num);
   field_evaluator.set_selection(selection_field);
+  field_evaluator.add(field_inputs::target_point(TargetPointAttribute::TargetPoint1));
   field_evaluator.evaluate();
   const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
+  const VArraySpan<int> target_point = field_evaluator.get_evaluated<int>(0);
 
   /* Store point offsets from their surface reference frame. */
-  const VArraySpan positions = *attributes.lookup_or_default<float3>(
+  const VArraySpan positions = *constraint_attributes.lookup_or_default<float3>(
       position_attr, AttrDomain::Point, float3(0.0f));
-  const VArraySpan rotations = *attributes.lookup_or_default<math::Quaternion>(
-      rotation_attr, AttrDomain::Point, math::Quaternion::identity());
-  SpanAttributeWriter surface_position_writer = attributes.lookup_or_add_for_write_span<float3>(
-      surface_position_attr, AttrDomain::Point);
-  SpanAttributeWriter surface_rotation_writer =
-      attributes.lookup_or_add_for_write_span<math::Quaternion>(surface_rotation_attr,
-                                                                AttrDomain::Point);
-  selection.foreach_index(GrainSize(256), [&](const int point_i) {
-    const int curve_i = point_to_curve_map[point_i];
-    const float4x4 &inv_surface_transform = inv_surface_transforms[curve_i];
-    surface_position_writer.span[point_i] = math::transform_point(inv_surface_transform,
-                                                                  positions[point_i]);
-    surface_rotation_writer.span[point_i] = math::to_quaternion(inv_surface_transform) *
-                                            rotations[point_i];
+  // const VArraySpan rotations = *constraint_attributes.lookup_or_default<math::Quaternion>(
+  //     rotation_attr, AttrDomain::Point, math::Quaternion::identity());
+  SpanAttributeWriter surface_position_writer =
+      constraint_attributes.lookup_or_add_for_write_span<float3>(surface_position_attr,
+                                                                 AttrDomain::Point);
+  // SpanAttributeWriter surface_rotation_writer =
+  //     constraint_attributes.lookup_or_add_for_write_span<math::Quaternion>(surface_rotation_attr,
+  // AttrDomain::Point);
+  selection.foreach_index(GrainSize(256), [&](const int constraint_i) {
+    const int target_point_i = target_point[constraint_i];
+    if (!curves.points_range().contains(target_point_i)) {
+      return;
+    }
+    const int target_curve_i = point_to_curve_map[target_point_i];
+    const float4x4 &inv_surface_transform = math::invert(curve_surface_transforms[target_curve_i]);
+    surface_position_writer.span[constraint_i] = math::transform_point(inv_surface_transform,
+                                                                       positions[constraint_i]);
+    // surface_rotation_writer.span[point_i] = math::to_quaternion(inv_surface_transform) *
+    //                                         rotations[point_i];
   });
 
   surface_position_writer.finish();
-  surface_rotation_writer.finish();
+  // surface_rotation_writer.finish();
 
   return std::nullopt;
 }
@@ -1062,8 +1214,7 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
       pass_through_input();
       return;
     }
-    Curves &curves_id = *curves_geometry.get_curves_for_write();
-    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    bke::CurvesGeometry &curves = curves_geometry.get_curves_for_write()->geometry.wrap();
     if (curves.is_empty()) {
       pass_through_input();
       return;
@@ -1076,22 +1227,26 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
     const VArraySpan surface_uv_coords = *curves.attributes().lookup_or_default<float2>(
         "surface_uv_coordinate", AttrDomain::Curve, float2(0));
 
+    /* Find attachment points on the mesh. */
     const Object *self_ob_eval = user_data->call_data->self_object();
-    HairSurfaceData surface_data_orig, surface_data_eval;
-    if (auto error = surface_data_orig.init_from_object(self_ob_eval, true)) {
+    HairSurfaceData surface_data;
+    if (auto error = surface_data.init_from_object(self_ob_eval, true)) {
       pass_through_input();
       error_message_add(error->type, error->message);
       return;
     }
-    if (auto error = surface_data_eval.init_from_object(self_ob_eval, false)) {
-      pass_through_input();
-      error_message_add(error->type, error->message);
-      return;
+
+    const Array<float4x4> curve_surface_transforms = compute_curve_surface_transforms(
+        curves, curves.curves_range(), surface_data);
+
+    if (position_constraints.has_pointcloud()) {
+      PointCloudComponent &position_points =
+          position_constraints.get_component_for_write<PointCloudComponent>();
+      // compute_root_surface_position(position_points,
+      //                               field_constants::constant_field<bool>(true),
+      //                               curves,
+      //                               curve_surface_transforms);
     }
-    const geometry::ReverseUVSampler reverse_uv_sampler_orig =
-        surface_data_orig.reverse_uv_sampler();
-    const geometry::ReverseUVSampler reverse_uv_sampler_eval =
-        surface_data_eval.reverse_uv_sampler();
 
     params.set_output(output_position_index_, std::move(position_constraints));
     params.set_output(output_rotation_index_, std::move(rotation_constraints));
@@ -1360,7 +1515,8 @@ static bool init_hair_physics(GeometryComponent &component,
 static void generate_elastic_rod_constraints(BundlePtr &bundle,
                                              const CurveComponent &component,
                                              const Field<bool> selection_field,
-                                             const Behavior &behavior)
+                                             const Behavior &behavior,
+                                             GeoNodesUserData * /*user_data*/)
 {
   GeometrySet stretch_constraints =
       geometry::hair_constraints::create_stretch_shear_constraints_from_curves(
@@ -1381,11 +1537,52 @@ static void generate_elastic_rod_constraints(BundlePtr &bundle,
   hair_constraints::set_constraints(bundle, ConstraintType::BendTwist, bending_constraints);
 }
 
+static std::optional<Error> try_capture_root_constraint_offset(const bke::CurvesGeometry &curves,
+                                                               GeometrySet &position_constraints,
+                                                               GeometrySet &rotation_constraints,
+                                                               GeoNodesUserData *user_data)
+{
+  // auto error_message_add = [&](const NodeWarningType type, const StringRef message) {
+  //   GeoNodesLocalUserData *local_user_data = static_cast<GeoNodesLocalUserData *>(
+  //       context.local_user_data);
+  //   if (geo_eval_log::GeoTreeLogger *tree_logger = local_user_data->try_get_tree_logger(
+  //           *user_data))
+  //   {
+  //     tree_logger->node_warnings.append(
+  //         *tree_logger->allocator,
+  //         {node_identifier_, {type, tree_logger->allocator->copy_string(message)}});
+  //   }
+  // };
+
+  /* Find attachment points on the mesh. */
+  const Object *self_ob_eval = user_data->call_data->self_object();
+  HairSurfaceData surface_data;
+  if (auto error = surface_data.init_from_object(self_ob_eval, true)) {
+    // error_message_add(error->type, error->message);
+    return error;
+  }
+
+  Array<float4x4> curve_surface_transforms = compute_curve_surface_transforms(
+      curves, curves.curves_range(), surface_data);
+
+  if (position_constraints.has_pointcloud()) {
+    PointCloudComponent &position_points =
+        position_constraints.get_component_for_write<PointCloudComponent>();
+    compute_root_surface_position(position_points,
+                                  field_constants::constant_field<bool>(true),
+                                  curves,
+                                  curve_surface_transforms);
+  }
+
+  return std::nullopt;
+}
+
 /* Create root attachment constraints. */
 static void generate_root_attachment_constraints(BundlePtr &bundle,
                                                  const GeometryComponent &component,
                                                  const Field<bool> selection_field,
-                                                 const Behavior &behavior)
+                                                 const Behavior &behavior,
+                                                 GeoNodesUserData *user_data)
 {
   static const auto root_selection_fn = fn::multi_function::build::SI2_SO<bool, bool, bool>(
       "Root Selection", [](const bool selected, const bool is_start_point) -> bool {
@@ -1406,6 +1603,14 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
           root_selection,
           behavior.root_constraints.bend_compliance,
           behavior.root_constraints.bend_damping);
+
+  if (component.type() == GeometryComponent::Type::Curve) {
+    const CurveComponent &curve_component = static_cast<const CurveComponent &>(component);
+    try_capture_root_constraint_offset(curve_component.get()->geometry.wrap(),
+                                       position_constraints,
+                                       rotation_constraints,
+                                       user_data);
+  }
 
   hair_constraints::set_constraints(bundle, ConstraintType::PositionGoal, position_constraints);
   hair_constraints::set_constraints(bundle, ConstraintType::RotationGoal, rotation_constraints);
@@ -1937,9 +2142,10 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     /* Clear any existing constraint data. */
     constraint_bundle = Bundle::create();
-    generate_elastic_rod_constraints(constraint_bundle, hair_curves, selection_field, behavior);
+    generate_elastic_rod_constraints(
+        constraint_bundle, hair_curves, selection_field, behavior, params.user_data());
     generate_root_attachment_constraints(
-        constraint_bundle, hair_curves, selection_field, behavior);
+        constraint_bundle, hair_curves, selection_field, behavior, params.user_data());
   }
 
   update_constraints(constraint_bundle, behavior, params.user_data());

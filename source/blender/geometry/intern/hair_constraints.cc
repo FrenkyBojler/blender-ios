@@ -328,6 +328,8 @@ bke::GeometrySet create_rotation_goal_constraints_from_points(
   const VArray<math::Quaternion> goal_rotation = VArray<math::Quaternion>::ForSingle(
       math::Quaternion::identity(), num_points);
 
+  // capture_surface_rest_offset();
+
   return geometry::hair_constraints::create_rotation_goal_constraints(
       selection, compliance, damping, goal_rotation);
 }
