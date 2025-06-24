@@ -2342,10 +2342,11 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
 static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int icon)
 {
   uiLayout &layout = *menu->layout;
-  const char *ot_name = STREQ(menu->type->idname, "OBJECT_MT_move_to_collection") ?
-                            "OBJECT_OT_move_to_collection" :
-                            "OBJECT_OT_link_to_collection";
-  wmOperatorType *ot = WM_operatortype_find(ot_name, false);
+  bool is_move = ELEM(StringRefNull(menu->type->idname),
+                      "OBJECT_MT_move_to_collection",
+                      "OBJECT_MT_move_to_collection_recursive");
+  wmOperatorType *ot = WM_operatortype_find(
+      is_move ? "OBJECT_OT_move_to_collection" : "OBJECT_OT_link_to_collection", false);
 
   layout.operator_context_set(WM_OP_INVOKE_DEFAULT);
 
@@ -2367,25 +2368,19 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
       continue;
     }
     layout.context_int_set("collection_uid", collection->id.session_uid);
-    layout.menu(menu->type,
+    layout.menu(is_move ? "OBJECT_MT_move_to_collection_recursive" :
+                          "OBJECT_MT_link_to_collection_recursive",
                 BKE_collection_ui_name_get(collection),
                 UI_icon_color_from_collection(collection));
   }
 }
 
-static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
+static void move_to_collection_recursive_menu_draw(const bContext *C, Menu *menu)
 {
   uiLayout &layout = *menu->layout;
-  std::optional<int64_t> collection_uid = layout.context_int_get("collection_uid");
   Scene *scene = CTX_data_scene(C);
+  std::optional<int64_t> collection_uid = layout.context_int_get("collection_uid");
   if (!collection_uid) {
-    if (layout.operator_context() == WM_OP_EXEC_REGION_WIN) {
-      layout.operator_context_set(WM_OP_INVOKE_REGION_WIN);
-      PointerRNA op_ptr = layout.op("WM_OT_search_single_menu", "Search...", ICON_VIEWZOOM);
-      RNA_string_set(&op_ptr, "menu_idname", menu->type->idname);
-      layout.separator();
-    }
-    move_to_collection_menu_draw(menu, scene->master_collection, ICON_SCENE_DATA);
     return;
   }
   Collection *collection = BKE_collection_from_session_uid(scene, collection_uid.value());
@@ -2395,25 +2390,56 @@ static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
   move_to_collection_menu_draw(menu, collection, UI_icon_color_from_collection(collection));
 }
 
+static void move_to_collection_menu_draw(const bContext *C, Menu *menu)
+{
+  uiLayout &layout = *menu->layout;
+  Scene *scene = CTX_data_scene(C);
+  if (layout.operator_context() == WM_OP_EXEC_REGION_WIN) {
+    layout.operator_context_set(WM_OP_INVOKE_REGION_WIN);
+    PointerRNA op_ptr = layout.op("WM_OT_search_single_menu", "Search...", ICON_VIEWZOOM);
+    RNA_string_set(&op_ptr, "menu_idname", menu->type->idname);
+    layout.separator();
+  }
+  move_to_collection_menu_draw(menu, scene->master_collection, ICON_SCENE_DATA);
+}
+
 void move_to_colletion_menu_register()
 {
-  MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_move_to_collection");
+  /* Add recursive sub-menu type, to avoid each sub-menu from showing the main menu shortcut. */
+  MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_move_to_collection_recursive");
+  STRNCPY(mt->idname, "OBJECT_MT_move_to_collection_recursive");
+  STRNCPY(mt->label, N_("Move to Collection Recursive"));
+  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  mt->draw = move_to_collection_recursive_menu_draw;
+  mt->flag = MenuTypeFlag::ContextDependent;
+  WM_menutype_add(mt);
+
+  mt = MEM_callocN<MenuType>("OBJECT_MT_move_to_collection");
   STRNCPY(mt->idname, "OBJECT_MT_move_to_collection");
   STRNCPY(mt->label, N_("Move to Collection"));
   STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = move_to_collection_menu_draw;
-  mt->flag = MenuTypeFlag::SearchOnKeyPress | MenuTypeFlag::ContextDependent;
+  mt->flag = MenuTypeFlag::SearchOnKeyPress;
   WM_menutype_add(mt);
 }
 
 void link_to_colletion_menu_register()
 {
-  MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_link_to_collection");
+  /* Add recursive sub-menu type, to avoid each sub-menu from showing the main menu shortcut. */
+  MenuType *mt = MEM_callocN<MenuType>("OBJECT_MT_link_to_collection_recursive");
+  STRNCPY(mt->idname, "OBJECT_MT_link_to_collection_recursive");
+  STRNCPY(mt->label, N_("Link to Collection Recursive"));
+  STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  mt->draw = move_to_collection_recursive_menu_draw;
+  mt->flag = MenuTypeFlag::ContextDependent;
+  WM_menutype_add(mt);
+
+  mt = MEM_callocN<MenuType>("OBJECT_MT_link_to_collection");
   STRNCPY(mt->idname, "OBJECT_MT_link_to_collection");
   STRNCPY(mt->label, N_("Link to Collection"));
   STRNCPY(mt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   mt->draw = move_to_collection_menu_draw;
-  mt->flag = MenuTypeFlag::SearchOnKeyPress | MenuTypeFlag::ContextDependent;
+  mt->flag = MenuTypeFlag::SearchOnKeyPress;
   WM_menutype_add(mt);
 }
 
