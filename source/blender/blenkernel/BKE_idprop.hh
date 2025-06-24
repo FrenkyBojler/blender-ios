@@ -193,6 +193,13 @@ void IDP_FreeFromGroup(IDProperty *group, IDProperty *prop) ATTR_NONNULL();
 IDProperty *IDP_GetPropertyFromGroup(const IDProperty *prop,
                                      blender::StringRef name) ATTR_WARN_UNUSED_RESULT
     ATTR_NONNULL();
+
+/**
+ * Same as #IDP_GetPropertyFromGroup but allows the property group to be null, in which case null
+ * is returned.
+ */
+IDProperty *IDP_GetPropertyFromGroup_null(const IDProperty *prop,
+                                          blender::StringRef name) ATTR_WARN_UNUSED_RESULT;
 /**
  * Same as #IDP_GetPropertyFromGroup but ensure the `type` matches.
  */
