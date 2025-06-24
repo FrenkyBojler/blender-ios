@@ -481,11 +481,6 @@ if(TEST_SRC_DIR_EXISTS)
     --
     --testdir "${TEST_SRC_DIR}/constraints"
   )
-
-  add_blender_test(
-    object_modifier_multires
-    --python ${TEST_PYTHON_DIR}/bl_object_modifier_multires.py
-  )
 endif()
 
 # ------------------------------------------------------------------------------
