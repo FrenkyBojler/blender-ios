@@ -510,10 +510,13 @@ void wm_event_do_depsgraph(bContext *C, bool is_after_open_file)
     Scene *scene = WM_window_get_active_scene(win);
     ViewLayer *view_layer = WM_window_get_active_view_layer(win);
     Main *bmain = CTX_data_main(C);
-    /* Copied to set's in #scene_update_tagged_recursive(). */
-    scene->customdata_mask = win_combine_v3d_datamask;
     /* XXX, hack so operators can enforce data-masks #26482, GPU render. */
-    CustomData_MeshMasks_update(&scene->customdata_mask, &scene->customdata_mask_modal);
+    CustomData_MeshMasks_update(&win_combine_v3d_datamask, &scene->customdata_mask_modal);
+    /* Copied to set's in #scene_update_tagged_recursive(). */
+    if (blender::assign_if_different(scene->customdata_mask, win_combine_v3d_datamask)) {
+      /* We need to tag the scene for the mask to be propagated. */
+      DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
+    }
     /* TODO(sergey): For now all dependency graphs which are evaluated from
      * workspace are considered active. This will work all fine with "locked"
      * view layer and time across windows. This is to be granted separately,

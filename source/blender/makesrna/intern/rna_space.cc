@@ -1250,8 +1250,6 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
     return;
   }
 
-  bool update_scene = false;
-
   View3DShading *shading = static_cast<View3DShading *>(ptr->data);
   if (shading->type == OB_MATERIAL ||
       (shading->type == OB_RENDER && !BKE_scene_uses_blender_workbench(scene)))
@@ -1269,35 +1267,13 @@ static void rna_3DViewShading_type_update(Main *bmain, Scene *scene, PointerRNA 
        * false positive tagging. A better heuristic would be to tag only objects with materials
        * using the ORCO layer. (see #63595) */
       LISTBASE_FOREACH (ModifierData *, md, &ob->modifiers) {
-        if (ELEM(md->type,
-                 eModifierType_Armature,
-                 eModifierType_Cast,
-                 eModifierType_Curve,
-                 eModifierType_Displace,
-                 eModifierType_Hook,
-                 eModifierType_LaplacianDeform,
-                 eModifierType_Lattice,
-                 eModifierType_MeshDeform,
-                 eModifierType_Shrinkwrap,
-                 eModifierType_SimpleDeform,
-                 eModifierType_Smooth,
-                 eModifierType_CorrectiveSmooth,
-                 eModifierType_LaplacianSmooth,
-                 eModifierType_SurfaceDeform,
-                 eModifierType_Warp,
-                 eModifierType_Wave))
-        {
+        const ModifierTypeInfo *mti = BKE_modifier_get_info((ModifierType)md->type);
+        if (ELEM(mti->type, OnlyDeform, Constructive, Nonconstructive)) {
           DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-          update_scene = true;
           break;
         }
       }
     }
-  }
-
-  if (update_scene) {
-    /* We need to tag the scene for objects update to be propagated. */
-    DEG_id_tag_update(&scene->id, ID_RECALC_SYNC_TO_EVAL);
   }
 
   bScreen *screen = (bScreen *)ptr->owner_id;
