@@ -9,7 +9,7 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_numbers.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -114,7 +114,7 @@ class SplitOperation : public NodeOperation {
   float2 get_position(const Domain &domain)
   {
     const float2 relative_position =
-        this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy();
+        this->get_input("Position").get_single_value_default(float2(0.5f, 0.5f));
     return float2(domain.size) * relative_position;
   }
 
