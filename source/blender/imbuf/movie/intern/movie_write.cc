@@ -1317,10 +1317,9 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
   blender::bke::path_templates::VariableMap template_variables;
-  {
-    BKE_add_template_variables_general(template_variables, &scene->id);
-    BKE_add_template_variables_for_render_path(template_variables, *scene);
-  }
+  BKE_add_template_variables_general(template_variables, &scene->id);
+  BKE_add_template_variables_for_render_path(template_variables, *scene);
+
   const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
       filepath, FILE_MAX, template_variables);
   if (!errors.is_empty()) {

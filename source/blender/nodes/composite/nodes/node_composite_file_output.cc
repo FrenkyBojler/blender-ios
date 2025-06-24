@@ -872,11 +872,9 @@ class FileOutputOperation : public NodeOperation {
   bool get_single_layer_image_base_path(const char *base_name, char *r_base_path)
   {
     path_templates::VariableMap template_variables;
-    {
-      BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
-      BKE_add_template_variables_for_render_path(template_variables, context().get_scene());
-      BKE_add_template_variables_for_node(template_variables, this->bnode());
-    }
+    BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
+    BKE_add_template_variables_for_render_path(template_variables, context().get_scene());
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
@@ -958,11 +956,10 @@ class FileOutputOperation : public NodeOperation {
     const Scene *scene = &context().get_scene();
     const RenderData &render_data = context().get_render_data();
     path_templates::VariableMap template_variables;
-    {
-      BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
-      BKE_add_template_variables_for_render_path(template_variables, *scene);
-      BKE_add_template_variables_for_node(template_variables, this->bnode());
-    }
+    BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
+
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
     blender::Vector<path_templates::Error> errors = BKE_image_path_from_imtype(
