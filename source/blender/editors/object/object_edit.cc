@@ -2303,7 +2303,7 @@ static wmOperatorStatus move_to_collection_invoke(bContext *C,
   }
   BLI_freelistN(&objects);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "collection_uid");
-  bool is_move = op->type->idname == "OBJECT_OT_move_to_collection";
+  bool is_move = STREQ(op->type->idname, "OBJECT_OT_move_to_collection");
   if (!RNA_property_is_set(op->ptr, prop)) {
     WM_menu_name_call(
         C, is_move ? "OBJECT_MT_move_to_collection" : "OBJECT_MT_link_to_collection", 0);
@@ -2479,7 +2479,7 @@ void OBJECT_OT_link_to_collection(wmOperatorType *ot)
                      COLLECTION_INVALID_INDEX,
                      INT_MAX,
                      "Collection UID",
-                     "Session UID of the collection to lint to",
+                     "Session UID of the collection to link to",
                      0,
                      INT_MAX);
   RNA_def_property_flag(prop, PROP_SKIP_SAVE | PROP_HIDDEN);
