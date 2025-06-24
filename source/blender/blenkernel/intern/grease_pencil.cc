@@ -773,7 +773,11 @@ VArray<float> Drawing::radii() const
 MutableSpan<float> Drawing::radii_for_write()
 {
   return blender::bke::get_mutable_attribute<float>(
-      this->strokes_for_write().attribute_storage.wrap(), AttrDomain::Point, ATTR_RADIUS, 0.01f);
+      this->strokes_for_write().attribute_storage.wrap(),
+      AttrDomain::Point,
+      ATTR_RADIUS,
+      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
+      0.01f);
 }
 
 VArray<float> Drawing::opacities() const
@@ -785,7 +789,11 @@ VArray<float> Drawing::opacities() const
 MutableSpan<float> Drawing::opacities_for_write()
 {
   return blender::bke::get_mutable_attribute<float>(
-      this->strokes_for_write().attribute_storage.wrap(), AttrDomain::Point, ATTR_OPACITY, 1.0f);
+      this->strokes_for_write().attribute_storage.wrap(),
+      AttrDomain::Point,
+      ATTR_OPACITY,
+      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
+      1.0f);
 }
 
 VArray<ColorGeometry4f> Drawing::vertex_colors() const
@@ -800,6 +808,7 @@ MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Point,
       ATTR_VERTEX_COLOR,
+      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
@@ -815,6 +824,7 @@ MutableSpan<ColorGeometry4f> Drawing::fill_colors_for_write()
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Curve,
       ATTR_FILL_COLOR,
+      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
@@ -3784,7 +3794,7 @@ static void reorder_attribute_domain(blender::bke::AttributeStorage &data,
         bke::attribute_math::gather(GSpan(type, data.data, data.size),
                                     new_by_old_map,
                                     GMutableSpan(type, new_data.data, new_data.size));
-        attr.data_for_write() = std::move(new_data);
+        attr.assign_data(std::move(new_data));
       }
       case bke::AttrStorageType::Single: {
         return;
@@ -4128,7 +4138,7 @@ static void shrink_attribute_storage(blender::bke::AttributeStorage &storage,
             POINTER_OFFSET(new_data.data, type.size * (range_before.start() - 1)),
             range_after.size());
 
-        attr.data_for_write() = std::move(new_data);
+        attr.assign_data(std::move(new_data));
       }
       case bke::AttrStorageType::Single: {
         return;

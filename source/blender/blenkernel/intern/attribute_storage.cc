@@ -174,7 +174,7 @@ Attribute::DataVariant &Attribute::data_for_write()
       return data_;
     }
     const CPPType &type = attribute_type_to_cpp_type(type_);
-    ArrayData new_data = ArrayData::ForConstructed(type, data->size);
+    ArrayData new_data = ArrayData::ForUninitialized(type, data->size);
     type.copy_construct_n(data->data, new_data.data, data->size);
     *data = std::move(new_data);
   }
@@ -337,7 +337,7 @@ void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
                                   new_size - old_size);
         }
 
-        attr.data_for_write() = std::move(new_data);
+        attr.assign_data(std::move(new_data));
       }
       case bke::AttrStorageType::Single: {
         return;

@@ -184,7 +184,7 @@ inline MutableSpan<T> get_mutable_attribute(AttributeStorage &storage,
       if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
         /* Convert single value storage to array storage. */
         const GPointer g_value(CPPType::get<T>(), single_data->value);
-        attr->data_for_write() = bke::Attribute::ArrayData::ForValue(g_value, domain_size);
+        attr->assign_data(bke::Attribute::ArrayData::ForValue(g_value, domain_size));
       }
       auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
       return MutableSpan(static_cast<T *>(array_data.data), domain_size);

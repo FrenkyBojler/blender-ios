@@ -6,6 +6,8 @@
  * \ingroup blenloader
  */
 
+#include "DNA_curves_types.h"
+#include "DNA_grease_pencil_types.h"
 #define DNA_DEPRECATED_ALLOW
 
 #include <fmt/format.h>
@@ -1141,6 +1143,22 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 28)) {
+    LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
+      blender::bke::curves_convert_customdata_to_storage(curves->geometry.wrap());
+    }
+    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
+      blender::bke::grease_pencil_convert_customdata_to_storage(*grease_pencil);
+      for (const int i : IndexRange(grease_pencil->drawing_array_num)) {
+        GreasePencilDrawingBase *drawing_base = grease_pencil->drawing_array[i];
+        if (drawing_base->type == GP_DRAWING) {
+          GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
+          blender::bke::curves_convert_customdata_to_storage(drawing->geometry.wrap());
+        }
+      }
+    }
   }
 
   /**

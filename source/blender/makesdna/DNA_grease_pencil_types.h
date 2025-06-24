@@ -469,8 +469,7 @@ typedef struct GreasePencil {
   CustomData layers_data_legacy;
 
   /**
-   * Layer domain attributes. Currently unused at runtime, but used for forward
-   * compatibility when reading files (see #122398).
+   * Layer domain attributes.
    */
   struct AttributeStorage attribute_storage;
 

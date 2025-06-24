@@ -40,7 +40,11 @@ void fill_points(const OffsetIndices<int> points_by_curve,
 CurvesGeometry copy_only_curve_domain(const CurvesGeometry &src_curves)
 {
   CurvesGeometry dst_curves(0, src_curves.curves_num());
-  bke::copy_attributes(src_curves.attributes(), dst_curves.attributes(), AttrDomain::Curve);
+  bke::copy_attributes(src_curves.attributes(),
+                       AttrDomain::Curve,
+                       AttrDomain::Curve,
+                       {},
+                       dst_curves.attributes_for_write());
   dst_curves.runtime->type_counts = src_curves.runtime->type_counts;
   return dst_curves;
 }

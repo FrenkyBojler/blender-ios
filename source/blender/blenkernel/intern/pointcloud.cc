@@ -181,23 +181,38 @@ IDTypeInfo IDType_ID_PT = {
 
 Span<float3> PointCloud::positions() const
 {
-  return blender::bke::get_span_attribute<float3>(this->attribute_storage.wrap(), "position");
+  return blender::bke::get_span_attribute<float3>(
+      this->attribute_storage.wrap(),
+      blender::bke::AttrDomain::Point,
+      "position",
+      [&](const blender::bke::AttrDomain /*domain*/) { return this->totpoint; });
 }
 MutableSpan<float3> PointCloud::positions_for_write()
 {
   return blender::bke::get_mutable_attribute<float3>(
-      this->attribute_storage.wrap(), blender::bke::AttrDomain::Point, "position");
+      this->attribute_storage.wrap(),
+      blender::bke::AttrDomain::Point,
+      "position",
+      [&](const blender::bke::AttrDomain /*domain*/) { return this->totpoint; });
 }
 
 VArray<float> PointCloud::radius() const
 {
   return blender::bke::get_varray_attribute<float>(
-      this->attribute_storage.wrap(), "radius", 0.01f);
+      this->attribute_storage.wrap(),
+      blender::bke::AttrDomain::Point,
+      "radius",
+      [&](const blender::bke::AttrDomain /*domain*/) { return this->totpoint; },
+      0.01f);
 }
 MutableSpan<float> PointCloud::radius_for_write()
 {
   return blender::bke::get_mutable_attribute<float>(
-      this->attribute_storage.wrap(), blender::bke::AttrDomain::Point, "radius", 0.01f);
+      this->attribute_storage.wrap(),
+      blender::bke::AttrDomain::Point,
+      "radius",
+      [&](const blender::bke::AttrDomain /*domain*/) { return this->totpoint; },
+      0.01f);
 }
 
 PointCloud *BKE_pointcloud_add(Main *bmain, const char *name)
