@@ -6449,7 +6449,7 @@ static void region_blend_end(bContext *C, ARegion *region, const bool is_running
   region->runtime->regiontimer = nullptr;
 }
 
-void ED_region_add_timer(bContext *C, ScrArea *area, ARegion *region)
+void ED_region_add_animation_timer(bContext *C, ScrArea *area, ARegion *region)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
@@ -6473,20 +6473,11 @@ void ED_region_add_timer(bContext *C, ScrArea *area, ARegion *region)
 
 void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARegion *region)
 {
-  wmWindowManager *wm = CTX_wm_manager(C);
+  ED_region_add_animation_timer(C, area, region);
+
   wmWindow *win = CTX_wm_window(C);
 
-  /* end running timer */
-  if (region->runtime->regiontimer) {
-
-    region_blend_end(C, region, true);
-  }
-  RegionAlphaInfo *rgi = MEM_callocN<RegionAlphaInfo>("RegionAlphaInfo");
-
-  rgi->hidden = region->flag & RGN_FLAG_HIDDEN;
-  rgi->area = area;
-  rgi->region = region;
-  region->flag &= ~RGN_FLAG_HIDDEN;
+  RegionAlphaInfo *rgi = static_cast<RegionAlphaInfo *>(region->runtime->regiontimer->customdata);
 
   /* blend in, reinitialize regions because it got unhidden */
   if (rgi->hidden == 0) {
@@ -6501,10 +6492,6 @@ void ED_region_visibility_change_update_animated(bContext *C, ScrArea *area, ARe
       rgi->child_region = region->next;
     }
   }
-
-  /* new timer */
-  region->runtime->regiontimer = WM_event_timer_add(wm, win, TIMERREGION, TIMESTEP);
-  region->runtime->regiontimer->customdata = rgi;
 }
 
 /* timer runs in win->handlers, so it cannot use context to find area/region */

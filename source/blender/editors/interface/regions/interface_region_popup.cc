@@ -957,7 +957,11 @@ uiPopupBlockHandle *ui_popup_block_create(bContext *C,
     type.listener = ui_block_region_popup_window_listener;
   }
 
-  ED_region_add_timer(C, handle->ctx_area, region);
+  if (region->regiontype == RGN_TYPE_TEMPORARY && region->alignment == RGN_ALIGN_FLOAT &&
+      block->bounds_type == UI_BLOCK_BOUNDS_POPUP_CENTER)
+  {
+    ED_region_add_animation_timer(C, handle->ctx_area, region);
+  }
 
   return handle;
 }
