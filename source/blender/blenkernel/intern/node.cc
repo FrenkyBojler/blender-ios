@@ -685,8 +685,7 @@ static void write_legacy_properties(bNodeTree &ntree)
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
         else if (node->type_legacy == GEO_NODE_POINTS_TO_VOLUME) {
-          NodeGeometryPointsToVolume &storage = *static_cast<NodeGeometryPointsToVolume *>(
-              node->storage);
+          auto &storage = *static_cast<NodeGeometryPointsToVolume *>(node->storage);
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Resolution Mode");
           storage.resolution_mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
@@ -697,8 +696,7 @@ static void write_legacy_properties(bNodeTree &ntree)
           node->custom2 = ngon_method_socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
         else if (node->type_legacy == GEO_NODE_VOLUME_TO_MESH) {
-          NodeGeometryVolumeToMesh &storage = *static_cast<NodeGeometryVolumeToMesh *>(
-              node->storage);
+          auto &storage = *static_cast<NodeGeometryVolumeToMesh *>(node->storage);
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Resolution Mode");
           storage.resolution_mode = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
