@@ -1141,34 +1141,35 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
       FOREACH_NODETREE_END;
     }
+  }
 
-    if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 28)) {
-      FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-        if (ntree->type == NTREE_COMPOSIT) {
-          do_version_convert_to_generic_nodes(ntree);
-          if (ntree->type != NTREE_COMPOSIT) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 28)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        do_version_convert_to_generic_nodes(ntree);
+        if (ntree->type != NTREE_COMPOSIT) {
+          continue;
+        }
+        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+          if (node->type_legacy != CMP_NODE_TRANSLATE) {
             continue;
           }
-          LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-            if (node->type_legacy != CMP_NODE_TRANSLATE) {
-              continue;
-            }
-            if (node->storage != nullptr) {
-              continue;
-            }
-            NodeTranslateData *data = MEM_callocN<NodeTranslateData>(__func__);
-            data->border_condition_x = CMP_NODE_BORDER_CONDITION_ZERO;
-            data->border_condition_y = CMP_NODE_BORDER_CONDITION_ZERO;
-            node->storage = data;
+          if (node->storage != nullptr) {
+            continue;
           }
+          NodeTranslateData *data = MEM_callocN<NodeTranslateData>(__func__);
+          data->wrap_axis = CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE;
+          node->storage = data;
         }
-        FOREACH_NODETREE_END;
       }
-
-      /**
-       * Always bump subversion in BKE_blender_version.h when adding versioning
-       * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
-       *
-       * \note Keep this message at the bottom of the function.
-       */
+      FOREACH_NODETREE_END;
     }
+
+    /**
+     * Always bump subversion in BKE_blender_version.h when adding versioning
+     * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
+     *
+     * \note Keep this message at the bottom of the function.
+     */
+  }
+}
