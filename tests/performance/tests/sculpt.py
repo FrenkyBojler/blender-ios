@@ -202,7 +202,7 @@ def _run_bvh_test(args: dict):
     bpy.ops.ed.undo_push()
 
     min_measurements = 5
-    max_measurements = 50
+    max_measurements = 100
 
     measurements = []
     while True:
