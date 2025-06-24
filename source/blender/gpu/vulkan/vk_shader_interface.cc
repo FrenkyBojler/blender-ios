@@ -91,6 +91,7 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
       VKPushConstants::Layout::determine_storage_type(info, device, bindings_table_size_);
   if (push_constants_storage_type == VKPushConstants::StorageType::UNIFORM_BUFFER) {
     ubo_len_++;
+    bindings_table_size_++;
     names_size += PUSH_CONSTANTS_FALLBACK_NAME_LEN + 1;
   }
 
@@ -286,7 +287,6 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
     const VKBindType bind_type = to_bind_type(res.bind_type);
     descriptor_set_location_update(input, descriptor_set_location++, bind_type, res, arrayed);
   }
-  BLI_assert(!supports_descriptor_indexing || descriptor_set_location == bindings_table_size_);
 
   /* Post initializing push constants. */
   /* Determine the binding location of push constants fallback buffer. */
@@ -300,6 +300,8 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
                                    std::nullopt,
                                    VKImageViewArrayed::DONT_CARE);
   }
+
+  BLI_assert(!supports_descriptor_indexing || descriptor_set_location == bindings_table_size_);
 
   push_constants_layout_.init(
       info, *this, push_constants_storage_type, push_constant_descriptor_set_location);

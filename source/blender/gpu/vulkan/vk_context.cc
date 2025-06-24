@@ -13,6 +13,7 @@
 #include "gpu_capabilities_private.hh"
 
 #include "vk_backend.hh"
+#include "vk_bindless_table.hh"
 #include "vk_context.hh"
 #include "vk_debug.hh"
 #include "vk_framebuffer.hh"
@@ -23,6 +24,7 @@
 #include "vk_texture.hh"
 
 #include "GHOST_C-api.h"
+#include "vk_uniform_buffer.hh"
 
 namespace blender::gpu {
 
@@ -175,7 +177,7 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   }
   VKDevice &device = VKBackend::get().device;
   descriptor_set_get().upload_descriptor_sets();
-  if (!device.extensions_get().descriptor_buffer) {
+  if (!device.extensions_get().descriptor_buffer || !device.extensions_get().descriptor_indexing) {
     descriptor_pools_get().discard(*this);
   }
   TimelineValue timeline = device.render_graph_submit(
@@ -326,6 +328,15 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
   r_pipeline_data.vk_pipeline_layout = vk_shader.vk_pipeline_layout;
   r_pipeline_data.vk_pipeline = vk_pipeline;
 
+  /* Update descriptor set. */
+  r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+  r_pipeline_data.descriptor_buffer_device_address = 0;
+  r_pipeline_data.descriptor_buffer_offset = 0;
+  if (vk_shader.has_descriptor_set()) {
+    VKDescriptorSetTracker &descriptor_set = descriptor_set_get();
+    descriptor_set.update_descriptor_set(*this, access_info_, r_pipeline_data);
+  }
+
   /* Update push constants. */
   r_pipeline_data.push_constants_data = nullptr;
   r_pipeline_data.push_constants_size = 0;
@@ -334,21 +345,16 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
   if (push_constants_layout.storage_type_get() == VKPushConstants::StorageType::PUSH_CONSTANTS) {
     r_pipeline_data.push_constants_size = push_constants_layout.size_in_bytes();
     r_pipeline_data.push_constants_data = vk_shader.push_constants.data();
-  } else {
-    const VKDevice &device = VKBackend::get().device;
+  }
+  else {
+    VKDevice &device = VKBackend::get().device;
     if (device.extensions_get().descriptor_indexing) {
       // Here we will push the single u32 indicating where the push constants uniform buffer
       // is assigned.
+      r_pipeline_data.push_constants_size = sizeof(DescriptorSlot);
+      r_pipeline_data.push_constants_data =
+          vk_shader.push_constants.fallback_uniform_descriptor_slot();
     }
-  }
-
-  /* Update descriptor set. */
-  r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
-  r_pipeline_data.descriptor_buffer_device_address = 0;
-  r_pipeline_data.descriptor_buffer_offset = 0;
-  if (vk_shader.has_descriptor_set()) {
-    VKDescriptorSetTracker &descriptor_set = descriptor_set_get();
-    descriptor_set.update_descriptor_set(*this, access_info_, r_pipeline_data);
   }
 }
 

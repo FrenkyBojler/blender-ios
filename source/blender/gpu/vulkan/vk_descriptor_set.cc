@@ -555,15 +555,12 @@ void VKDescriptorSetPoolUpdator::upload_descriptor_sets()
 
 void VKBindlessDescriptorPoolUpdator::allocate_new_descriptor_set(
     VKDevice &device,
-    VKContext &context,
+    VKContext & /* context */,
     VKShader &shader,
-    VkDescriptorSetLayout vk_descriptor_set_layout,
+    VkDescriptorSetLayout /* vk_descriptor_set_layout */,
     render_graph::VKPipelineData &r_pipeline_data)
 {
-  // TODO: For now we keep this so that we have a place to bind the push constants
-  // uniform fallback buffer.
-  VKDescriptorSetPoolUpdator::allocate_new_descriptor_set(
-      device, context, shader, vk_descriptor_set_layout, r_pipeline_data);
+  r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
   bindings_table.resize(shader.interface_get().bindings_table_size_get());
 }
 
@@ -731,19 +728,20 @@ void VKBindlessDescriptorPoolUpdator::bind_push_constants(
   {
     return;
   }
+
   push_constants.update_uniform_buffer();
   const VKUniformBuffer &uniform_buffer = *push_constants.uniform_buffer_get();
 
-  // N.B. we are using the VKDescriptorSetPoolUpdator implementation of bind buffer
-  // in order to bind the buffer into the non-global descriptor set.
-  VKDescriptorSetPoolUpdator::bind_buffer(
-      device,
-      VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
-      uniform_buffer.vk_handle(),
-      uniform_buffer.device_address_get(),
-      0,
-      uniform_buffer.size_in_bytes(),
-      push_constants.layout_get().descriptor_set_location_get());
+  bind_buffer(device,
+              VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
+              uniform_buffer.vk_handle(),
+              uniform_buffer.device_address_get(),
+              0,
+              uniform_buffer.size_in_bytes(),
+              push_constants.layout_get().descriptor_set_location_get());
+  DescriptorSlot slot = device.bindless_table.getSlotForUniform(uniform_buffer.vk_handle());
+  push_constants.set_fallback_uniform_descriptor_slot(slot);
+
   access_info.buffers.append({uniform_buffer.vk_handle(), VK_ACCESS_UNIFORM_READ_BIT});
 }
 

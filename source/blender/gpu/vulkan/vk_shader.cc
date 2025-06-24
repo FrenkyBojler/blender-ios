@@ -415,7 +415,7 @@ static void print_resource_bindless(std::ostream &os,
       StringRef name_no_array = (array_offset == -1) ?
                                     res.storagebuf.name :
                                     StringRef(res.storagebuf.name.data(), array_offset);
-      os << "layout(set = 1, binding = " << VKBindlessTable::storage_buffer_binding
+      os << "layout(set = 0, binding = " << VKBindlessTable::storage_buffer_binding
          << ", std430) ";
       print_qualifier(os, res.storagebuf.qualifiers);
       os << "buffer _" << name_no_array << "_block"
@@ -435,7 +435,7 @@ static void print_resource_bindless(std::ostream &os,
       StringRef name_no_array = (array_offset == -1) ?
                                     res.uniformbuf.name :
                                     StringRef(res.uniformbuf.name.data(), array_offset);
-      os << "layout(set = 1, binding = " << VKBindlessTable::uniform_binding << ", std140) ";
+      os << "layout(set = 0, binding = " << VKBindlessTable::uniform_binding << ", std140) ";
       os << "uniform _" << name_no_array << "_block"
          << "{ " << res.uniformbuf.type_name << " "
          << "_" << res.uniformbuf.name << "; } "
@@ -456,7 +456,7 @@ static void print_resource_bindless(std::ostream &os,
       uint32_t binding = is_texture_buffer(res.sampler.type) ?
                              VKBindlessTable::uniform_texel_buffer_binding :
                              VKBindlessTable::combined_image_sampler_binding;
-      os << "layout(set = 1, binding = " << binding << ") ";
+      os << "layout(set = 0, binding = " << binding << ") ";
       os << "uniform ";
       print_image_type(os, res.sampler.type, res.bind_type);
       os << "_" << res.sampler.name << "[];\n";
@@ -468,7 +468,7 @@ static void print_resource_bindless(std::ostream &os,
       break;
     }
     case ShaderCreateInfo::Resource::IMAGE: {
-      os << "layout(set = 1, binding = " << VKBindlessTable::storage_image_binding;
+      os << "layout(set = 0, binding = " << VKBindlessTable::storage_image_binding;
       os << ", " << to_string(res.image.format) << ") ";
       os << "uniform ";
       print_qualifier(os, res.image.qualifiers);
@@ -806,6 +806,20 @@ bool VKShader::finalize_pipeline_layout(VKDevice &device,
     pipeline_info.pushConstantRangeCount = 1;
     pipeline_info.pPushConstantRanges = &push_constant_range;
   }
+  else {
+    // If we are using a uniform fallback buffer for push constants, and are also
+    // using descriptor indexing, we push a single push constant that tell the shaders
+    // where the fallback uniform buffer is located in the global binding
+    // table.
+    if (device.extensions_get().descriptor_indexing) {
+      push_constant_range.offset = 0;
+      push_constant_range.size = sizeof(DescriptorSlot);
+      push_constant_range.stageFlags = is_compute_shader_ ? VK_SHADER_STAGE_COMPUTE_BIT :
+                                                            VK_SHADER_STAGE_ALL_GRAPHICS;
+      pipeline_info.pushConstantRangeCount = 1;
+      pipeline_info.pPushConstantRanges = &push_constant_range;
+    }
+  }
 
   if (vkCreatePipelineLayout(device.vk_handle(), &pipeline_info, nullptr, &vk_pipeline_layout) !=
       VK_SUCCESS)
@@ -824,8 +838,15 @@ bool VKShader::finalize_descriptor_set_layouts(VKDevice &vk_device,
   bool created;
   bool needed;
 
-  vk_descriptor_set_layout_ = vk_device.descriptor_set_layouts_get().get_or_create(
-      shader_interface.descriptor_set_layout_info_get(), created, needed);
+  if (vk_device.extensions_get().descriptor_indexing) {
+    vk_descriptor_set_layout_ = vk_device.bindless_table.descriptor_set_layout;
+    needed = true;
+    created = false;
+  }
+  else {
+    vk_descriptor_set_layout_ = vk_device.descriptor_set_layouts_get().get_or_create(
+        shader_interface.descriptor_set_layout_info_get(), created, needed);
+  }
   if (created) {
     debug::object_label(vk_descriptor_set_layout_, name_get());
   }
@@ -950,8 +971,17 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
       ss << "layout(push_constant, std430) uniform constants\n";
     }
     else if (push_constants_storage == VKPushConstants::StorageType::UNIFORM_BUFFER) {
-      ss << "layout(binding = " << push_constants_layout.descriptor_set_location_get()
-         << ", std140) uniform constants\n";
+      if (extensions.descriptor_indexing) {
+        ss << "layout(push_constant, std430) uniform fallback_constants { uint "
+              "push_constants_binding; } "
+              "FallbackPushConstants;\n";
+        ss << "layout(set = 0, binding = " << VKBindlessTable::uniform_binding
+           << ", std140) uniform constants\n";
+      }
+      else {
+        ss << "layout(binding = " << push_constants_layout.descriptor_set_location_get()
+           << ", std140) uniform constants\n";
+      }
     }
     ss << "{\n";
     for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
@@ -970,18 +1000,42 @@ std::string VKShader::resources_declare(const shader::ShaderCreateInfo &info) co
       }
     }
 
-    ss << "} PushConstants;\n";
+    if (push_constants_storage == VKPushConstants::StorageType::UNIFORM_BUFFER &&
+        extensions.descriptor_indexing)
+    {
+      ss << "} PushConstants[];\n";
+    }
+    else {
+      ss << "} PushConstants;\n";
+    }
 
     for (const ShaderCreateInfo::PushConst &uniform : info.push_constants_) {
-      ss << "#define " << uniform.name << " (PushConstants.pc_" << uniform.name << ")\n";
+      if (push_constants_storage == VKPushConstants::StorageType::UNIFORM_BUFFER &&
+          extensions.descriptor_indexing)
+      {
+        ss << "#define " << uniform.name
+           << " (PushConstants[FallbackPushConstants.push_constants_binding].pc_" << uniform.name
+           << ")\n";
+      }
+      else {
+        ss << "#define " << uniform.name << " (PushConstants.pc_" << uniform.name << ")\n";
+      }
     }
 
     if (extensions.descriptor_indexing) {
       size_t bindings_table_size = interface_get().bindings_table_size_get();
       if (bindings_table_size > 0) {
-        ss << "#define "
-           << "bindings_table"
-           << " (PushConstants.pc_bindings_table)\n";
+        if (push_constants_storage == VKPushConstants::StorageType::UNIFORM_BUFFER) {
+          ss << "#define "
+             << "bindings_table"
+             << " (PushConstants[FallbackPushConstants.push_constants_binding].pc_bindings_table)"
+                "\n";
+        }
+        else {
+          ss << "#define "
+             << "bindings_table"
+             << " (PushConstants.pc_bindings_table)\n";
+        }
       }
     }
   }

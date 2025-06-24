@@ -24,8 +24,10 @@
 
 #include "gpu_shader_create_info.hh"
 
+#include "vk_bindless_table.hh"
 #include "vk_common.hh"
 #include "vk_descriptor_set.hh"
+#include <optional>
 
 namespace blender::gpu {
 class VKShaderInterface;
@@ -157,6 +159,7 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
 
  private:
   const Layout *layout_ = nullptr;
+  std::optional<DescriptorSlot> fallback_uniform_descriptor_slot_ = std::nullopt;
   void *data_ = nullptr;
   bool is_dirty_ = false;
 
@@ -193,6 +196,16 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
   const void *data() const
   {
     return data_;
+  }
+
+  const void *fallback_uniform_descriptor_slot() const
+  {
+    BLI_assert(fallback_uniform_descriptor_slot_.has_value());
+    return &fallback_uniform_descriptor_slot_.value();
+  }
+
+  void set_fallback_uniform_descriptor_slot(DescriptorSlot slot) {
+    fallback_uniform_descriptor_slot_ = slot;
   }
 
   /**
