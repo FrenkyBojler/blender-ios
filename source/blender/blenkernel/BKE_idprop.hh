@@ -10,6 +10,7 @@
 
 #include <memory>
 
+#include "DNA_ID.h"
 #include "DNA_ID_enums.h"
 
 #include "BLI_compiler_attrs.h"
@@ -17,6 +18,7 @@
 #include "BLI_span.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
+#include "BLI_vector_set.hh"
 
 struct BlendDataReader;
 struct BlendWriter;
@@ -422,6 +424,17 @@ class IDPropertyDeleter {
   {
     IDP_FreeProperty(id_prop);
   }
+};
+
+struct IDPropertyGroupChildrenSet {
+  struct IDPropNameGetter {
+    StringRef operator()(const IDProperty *value) const
+    {
+      return StringRef(value->name);
+    }
+  };
+
+  CustomIDVectorSet<IDProperty *, IDPropNameGetter, 16> children;
 };
 
 /** \brief Allocate a new IDProperty of type IDP_BOOLEAN, set its name and value. */

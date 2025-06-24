@@ -266,6 +266,7 @@ static IDProperty *pchan_EnsureProperties(bPoseChannel &pchan)
   if (pchan.prop == nullptr) {
     pchan.prop = MEM_callocN<IDProperty>("IDProperty");
     pchan.prop->type = IDP_GROUP;
+    pchan.prop->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
   }
   return pchan.prop;
 }
