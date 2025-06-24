@@ -13,7 +13,6 @@
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_screen_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -668,7 +667,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 27)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 27)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
       LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
         LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
