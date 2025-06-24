@@ -217,6 +217,14 @@ static SpaceLink *view3d_create(const ScrArea * /*area*/, const Scene *scene)
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
   region->flag = RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER;
 
+  region = BKE_area_region_new();
+
+  /* modal */
+  BLI_addtail(&v3d->regionbase, region);
+  region->regiontype = RGN_TYPE_MODAL;
+  region->alignment = RGN_ALIGN_TOP;
+  region->flag &= ~RGN_FLAG_HIDDEN;
+
   /* asset shelf */
   region = BKE_area_region_new();
 
@@ -1670,6 +1678,14 @@ void ED_spacetype_view3d()
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
   art->listener = view3d_header_region_listener;
   art->message_subscribe = view3d_header_region_message_subscribe;
+  art->init = view3d_header_region_init;
+  art->draw = view3d_header_region_draw;
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: modal */
+  art = MEM_callocN<ARegionType>("spacetype view3d modal region");
+  art->regionid = RGN_TYPE_MODAL;
+  art->prefsizey = HEADERY;
   art->init = view3d_header_region_init;
   art->draw = view3d_header_region_draw;
   BLI_addhead(&st->regiontypes, art);

@@ -365,8 +365,6 @@ static void region_draw_status_text(ScrArea * /*area*/, ARegion *region)
 
   /* Draw a background behind the text for extra contrast. */
   if (region->overlap) {
-    /* Center the text horizontally. */
-    x = (region->winx - width) / 2.0f;
     const float pad = 5.0f * UI_SCALE_FAC;
     const float x1 = x - pad;
     const float x2 = x + width + pad;
@@ -824,6 +822,11 @@ void ED_area_status_text(ScrArea *area, const char *str)
     }
     else if (region->regiontype == RGN_TYPE_TOOL_HEADER && region->runtime->visible) {
       /* Prefer tool header when we also have a header. */
+      ar = region;
+    }
+    else if (area->spacetype == SPACE_VIEW3D && region->regiontype == RGN_TYPE_MODAL &&
+             region->runtime->visible)
+    {
       ar = region;
       break;
     }
@@ -1450,6 +1453,7 @@ bool ED_region_is_overlap(int spacetype, int regiontype)
                RGN_TYPE_TOOL_PROPS,
                RGN_TYPE_FOOTER,
                RGN_TYPE_TOOL_HEADER,
+               RGN_TYPE_MODAL,
                RGN_TYPE_ASSET_SHELF,
                RGN_TYPE_ASSET_SHELF_HEADER))
       {
@@ -1536,6 +1540,9 @@ static void region_rect_recursive(
   }
   else if (region->regiontype == RGN_TYPE_FOOTER) {
     prefsizey = ED_area_footersize();
+  }
+  else if (region->regiontype == RGN_TYPE_MODAL) {
+    prefsizey = ED_area_headersize();
   }
   else if (region->regiontype == RGN_TYPE_ASSET_SHELF) {
     prefsizey = region->sizey > 1 ? (UI_SCALE_FAC * (region->sizey + 0.5f)) :
@@ -2867,6 +2874,11 @@ void ED_region_clear(const bContext *C, const ARegion *region, const int /*Theme
 
     float back[4];
     UI_GetThemeColor4fv(colorid, back);
+
+    /* Draw background always transparent for modal status region. */
+    if (region->regiontype == RGN_TYPE_MODAL) {
+      back[0] = back[1] = back[2] = back[3] = 0.0f;
+    }
     GPU_clear_color(back[3] * back[0], back[3] * back[1], back[3] * back[2], back[3]);
   }
   else {

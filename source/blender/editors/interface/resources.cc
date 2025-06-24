@@ -171,7 +171,8 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           else if (g_theme_state.regionid == RGN_TYPE_CHANNELS) {
             cp = ts->list;
           }
-          else if (ELEM(g_theme_state.regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER)) {
+          else if (ELEM(g_theme_state.regionid, RGN_TYPE_HEADER, RGN_TYPE_FOOTER, RGN_TYPE_MODAL))
+          {
             cp = ts->header;
           }
           else if (g_theme_state.regionid == RGN_TYPE_NAV_BAR) {
@@ -213,6 +214,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           else if (ELEM(g_theme_state.regionid,
                         RGN_TYPE_HEADER,
                         RGN_TYPE_FOOTER,
+                        RGN_TYPE_MODAL,
                         RGN_TYPE_ASSET_SHELF_HEADER))
           {
             cp = ts->header_text;
@@ -228,6 +230,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           else if (ELEM(g_theme_state.regionid,
                         RGN_TYPE_HEADER,
                         RGN_TYPE_FOOTER,
+                        RGN_TYPE_MODAL,
                         RGN_TYPE_ASSET_SHELF_HEADER))
           {
             cp = ts->header_text_hi;

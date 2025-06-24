@@ -2154,6 +2154,7 @@ static bool ui_but_drag_init(bContext *C,
                RGN_TYPE_NAV_BAR,
                RGN_TYPE_HEADER,
                RGN_TYPE_TOOL_HEADER,
+               RGN_TYPE_MODAL,
                RGN_TYPE_FOOTER,
                RGN_TYPE_ASSET_SHELF_HEADER))
       {

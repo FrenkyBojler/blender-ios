@@ -707,6 +707,7 @@ typedef enum eRegion_Type {
   RGN_TYPE_XR = 13,
   RGN_TYPE_ASSET_SHELF = 14,
   RGN_TYPE_ASSET_SHELF_HEADER = 15,
+  RGN_TYPE_MODAL = 16,
 
 #define RGN_TYPE_NUM (RGN_TYPE_ASSET_SHELF_HEADER + 1)
 } eRegion_Type;

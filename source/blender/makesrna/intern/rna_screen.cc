@@ -33,6 +33,7 @@ const EnumPropertyItem rna_enum_region_type_items[] = {
     {RGN_TYPE_NAV_BAR, "NAVIGATION_BAR", 0, "Navigation Bar", ""},
     {RGN_TYPE_EXECUTE, "EXECUTE", 0, "Execute Buttons", ""},
     {RGN_TYPE_FOOTER, "FOOTER", 0, "Footer", ""},
+    {RGN_TYPE_MODAL, "MODAL", 0, "Modal Status", ""},
     {RGN_TYPE_TOOL_HEADER, "TOOL_HEADER", 0, "Tool Header", ""},
     {RGN_TYPE_XR, "XR", 0, "XR", ""},
     {0, nullptr, 0, nullptr, nullptr},
