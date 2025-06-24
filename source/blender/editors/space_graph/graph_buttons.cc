@@ -48,6 +48,7 @@
 #include "ED_undo.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "graph_intern.hh" /* own include */
@@ -138,8 +139,8 @@ static void graph_panel_cursor(const bContext *C, Panel *panel)
   PointerRNA sceneptr = RNA_id_pointer_create(&scene->id);
   PointerRNA spaceptr = RNA_pointer_create_discrete(&screen->id, &RNA_SpaceGraphEditor, sipo);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* 2D-Cursor */
   col = &layout->column(false);
@@ -217,8 +218,8 @@ static void graph_panel_properties(const bContext *C, Panel *panel)
   }
   col->label(name, icon);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* RNA-Path Editing - only really should be enabled when things aren't working */
   col = &layout->column(false);
@@ -365,8 +366,8 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
   block = layout->block();
   // UI_block_func_handle_set(block, do_graph_region_buttons, nullptr);
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* only show this info if there are keyframes to edit */
   if (get_active_fcurve_keyframe_edit(fcu, &bezt, &prevbezt)) {
@@ -750,7 +751,7 @@ static void graph_panel_driverVar__singleProp(uiLayout *layout, ID *id, DriverVa
 
   /* Target ID */
   row = &layout->row(false);
-  uiLayoutSetRedAlert(row, ((dtar->flag & DTAR_FLAG_INVALID) && !dtar->id));
+  row->red_alert_set((dtar->flag & DTAR_FLAG_INVALID) && !dtar->id);
   uiTemplateAnyID(row, &dtar_ptr, "id", "id_type", IFACE_("Prop:"));
 
   /* Target Property */
@@ -760,7 +761,7 @@ static void graph_panel_driverVar__singleProp(uiLayout *layout, ID *id, DriverVa
 
     /* rna path */
     col = &layout->column(true);
-    uiLayoutSetRedAlert(col, (dtar->flag & (DTAR_FLAG_INVALID | DTAR_FLAG_FALLBACK_USED)));
+    col->red_alert_set(dtar->flag & (DTAR_FLAG_INVALID | DTAR_FLAG_FALLBACK_USED));
     uiTemplatePathBuilder(col,
                           &dtar_ptr,
                           "data_path",
@@ -788,7 +789,7 @@ static void graph_panel_driverVar__rotDiff(uiLayout *layout, ID *id, DriverVar *
 
   /* Object 1 */
   col = &layout->column(true);
-  uiLayoutSetRedAlert(col, (dtar->flag & DTAR_FLAG_INVALID)); /* XXX: per field... */
+  col->red_alert_set(dtar->flag & DTAR_FLAG_INVALID); /* XXX: per field... */
   col->prop(&dtar_ptr, "id", UI_ITEM_NONE, IFACE_("Object 1"), ICON_NONE);
 
   if (dtar->id && GS(dtar->id->name) == ID_OB && ob1->pose) {
@@ -798,7 +799,7 @@ static void graph_panel_driverVar__rotDiff(uiLayout *layout, ID *id, DriverVar *
 
   /* Object 2 */
   col = &layout->column(true);
-  uiLayoutSetRedAlert(col, (dtar2->flag & DTAR_FLAG_INVALID)); /* XXX: per field... */
+  col->red_alert_set(dtar2->flag & DTAR_FLAG_INVALID); /* XXX: per field... */
   col->prop(&dtar2_ptr, "id", UI_ITEM_NONE, IFACE_("Object 2"), ICON_NONE);
 
   if (dtar2->id && GS(dtar2->id->name) == ID_OB && ob2->pose) {
@@ -822,7 +823,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
 
   /* Object 1 */
   col = &layout->column(true);
-  uiLayoutSetRedAlert(col, (dtar->flag & DTAR_FLAG_INVALID)); /* XXX: per field... */
+  col->red_alert_set(dtar->flag & DTAR_FLAG_INVALID); /* XXX: per field... */
   col->prop(&dtar_ptr, "id", UI_ITEM_NONE, IFACE_("Object 1"), ICON_NONE);
 
   if (dtar->id && GS(dtar->id->name) == ID_OB && ob1->pose) {
@@ -832,13 +833,13 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
   }
 
   /* we can clear it again now - it's only needed when creating the ID/Bone fields */
-  uiLayoutSetRedAlert(col, false);
+  col->red_alert_set(false);
 
   col->prop(&dtar_ptr, "transform_space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   /* Object 2 */
   col = &layout->column(true);
-  uiLayoutSetRedAlert(col, (dtar2->flag & DTAR_FLAG_INVALID)); /* XXX: per field... */
+  col->red_alert_set(dtar2->flag & DTAR_FLAG_INVALID); /* XXX: per field... */
   col->prop(&dtar2_ptr, "id", UI_ITEM_NONE, IFACE_("Object 2"), ICON_NONE);
 
   if (dtar2->id && GS(dtar2->id->name) == ID_OB && ob2->pose) {
@@ -848,7 +849,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
   }
 
   /* we can clear it again now - it's only needed when creating the ID/Bone fields */
-  uiLayoutSetRedAlert(col, false);
+  col->red_alert_set(false);
 
   col->prop(&dtar2_ptr, "transform_space", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -865,7 +866,7 @@ static void graph_panel_driverVar__transChan(uiLayout *layout, ID *id, DriverVar
 
   /* properties */
   col = &layout->column(true);
-  uiLayoutSetRedAlert(col, (dtar->flag & DTAR_FLAG_INVALID)); /* XXX: per field... */
+  col->red_alert_set(dtar->flag & DTAR_FLAG_INVALID); /* XXX: per field... */
   col->prop(&dtar_ptr, "id", UI_ITEM_NONE, IFACE_("Object"), ICON_NONE);
 
   if (dtar->id && GS(dtar->id->name) == ID_OB && ob->pose) {
@@ -906,7 +907,7 @@ static void graph_panel_driverVar__contextProp(uiLayout *layout, ID *id, DriverV
   /* Target Path */
   {
     uiLayout *col = &layout->column(true);
-    uiLayoutSetRedAlert(col, (dtar->flag & (DTAR_FLAG_INVALID | DTAR_FLAG_FALLBACK_USED)));
+    col->red_alert_set(dtar->flag & (DTAR_FLAG_INVALID | DTAR_FLAG_FALLBACK_USED));
     uiTemplatePathBuilder(col,
                           &dtar_ptr,
                           "data_path",
