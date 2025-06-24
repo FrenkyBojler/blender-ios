@@ -21,6 +21,7 @@
 #include "FN_field.hh"
 
 #include "GEO_hair_solver.hh"
+#include "GEO_reverse_uv_sampler.hh"
 
 #include "NOD_geo_hair_constraints.hh"
 #include "NOD_geometry_nodes_closure_eval.hh"
@@ -668,6 +669,7 @@ static ClosurePtr create_closure_for_lazy_function(const LazyFunctionForClosure 
 
 class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
  private:
+  int input_geometry_index_;
   int input_stretch_index_, input_bend_index_;
   int output_stretch_index_, output_bend_index_;
 
@@ -675,6 +677,7 @@ class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
   LazyFunctionForCurveConstraintUpdate(const int32_t node_identifier, const char *debug_name)
       : LazyFunctionForClosure(node_identifier, debug_name)
   {
+    input_geometry_index_ = add_input("Geometry", SOCK_GEOMETRY);
     input_stretch_index_ = add_input("Stretch Constraints", SOCK_GEOMETRY);
     input_bend_index_ = add_input("Bend Constraints", SOCK_GEOMETRY);
     output_stretch_index_ = add_output("Stretch Constraints", SOCK_GEOMETRY);
@@ -698,25 +701,27 @@ class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
 // TODO share this with node_geo_deform_curves_on_surface.cc
 // TODO make it non-copyable? (prevent potential double free of allocated mesh data)
 class HairSurfaceData {
- private:
-  Object *surface_ob_orig_ = nullptr;
-  Object *surface_ob_eval_ = nullptr;
-  Mesh *surface_mesh_orig_ = nullptr;
-  Mesh *surface_mesh_eval_ = nullptr;
-  bool free_suface_mesh_orig_ = false;
+ public:
+  Mesh *surface_mesh_ = nullptr;
+  bool free_suface_mesh_ = false;
+
   StringRefNull uv_map_name_;
+  StringRefNull rest_position_name_;
+
+  VArraySpan<float2> uv_map_;
+  VArraySpan<float3> rest_positions_;
 
  public:
   ~HairSurfaceData()
   {
-    if (free_suface_mesh_orig_) {
-      BKE_id_free(nullptr, surface_mesh_orig_);
+    if (free_suface_mesh_) {
+      BKE_id_free(nullptr, surface_mesh_);
     }
   }
 
   bool is_valid() const
   {
-    return surface_ob_orig_ != nullptr && surface_ob_eval_ != nullptr;
+    return surface_mesh_ != nullptr;
   }
 
   operator bool() const
@@ -724,25 +729,23 @@ class HairSurfaceData {
     return is_valid();
   }
 
-  Object &surface_ob_orig() const
+  Mesh &surface_mesh() const
   {
-    return *this->surface_ob_orig_;
+    return *surface_mesh_;
   }
-  Object &surface_ob_eval() const
-  {
-    return *surface_ob_eval_;
-  }
-  Mesh &surface_mesh_orig() const
-  {
-    return *surface_mesh_orig_;
-  }
-  Mesh &surface_mesh_eval() const
-  {
-    return *surface_mesh_eval_;
-  }
+
   StringRefNull uv_map_name() const
   {
     return uv_map_name_;
+  }
+  StringRefNull rest_position_name() const
+  {
+    return rest_position_name_;
+  }
+
+  geometry::ReverseUVSampler reverse_uv_sampler() const
+  {
+    return geometry::ReverseUVSampler{uv_map_, surface_mesh_->corner_tris()};
   }
 
   struct Error {
@@ -750,83 +753,85 @@ class HairSurfaceData {
     std::string message;
   };
 
-  using Result = std::tuple<HairSurfaceData, std::optional<Error>>;
-
-  static Result result_valid(HairSurfaceData &&data)
+  std::optional<Error> init_from_object(const Object *self_ob_eval, const bool use_orig_mesh)
   {
-    return {data, std::nullopt};
-  }
-
-  static Result result_error(const NodeWarningType type, StringRef message)
-  {
-    return {HairSurfaceData{}, std::make_optional<Error>({type, message})};
-  }
-
-  static Result from_object(const Object *self_ob_eval)
-  {
-    static const StringRefNull rest_position_name = "rest_position";
-
     if (self_ob_eval == nullptr || self_ob_eval->type != OB_CURVES) {
-      return result_error(NodeWarningType::Error, TIP_("Node only works for curves objects"));
+      return Error{NodeWarningType::Error, TIP_("Node only works for curves objects")};
     }
     const Curves *self_curves_eval = static_cast<const Curves *>(self_ob_eval->data);
     if (self_curves_eval->surface_uv_map == nullptr || self_curves_eval->surface_uv_map[0] == '\0')
     {
-      return result_error(NodeWarningType::Error, TIP_("Surface UV map not defined"));
+      return Error{NodeWarningType::Error, TIP_("Surface UV map not defined")};
     }
     /* Take surface information from self-object. */
-    HairSurfaceData result;
-    result.surface_ob_eval_ = self_curves_eval->surface;
-    result.uv_map_name_ = self_curves_eval->surface_uv_map;
-
-    if (result.surface_ob_eval_ == nullptr || result.surface_ob_eval_->type != OB_MESH) {
-      return result_error(NodeWarningType::Error, TIP_("Curves not attached to a surface"));
+    Object *surface_ob_eval = self_curves_eval->surface;
+    if (surface_ob_eval == nullptr || surface_ob_eval->type != OB_MESH) {
+      return Error{NodeWarningType::Error, TIP_("Curves not attached to a surface")};
     }
-    result.surface_ob_orig_ = DEG_get_original(result.surface_ob_eval_);
-    Mesh &surface_object_data = *static_cast<Mesh *>(result.surface_ob_orig_->data);
 
-    if (BMEditMesh *em = surface_object_data.runtime->edit_mesh.get()) {
-      result.surface_mesh_orig_ = BKE_mesh_from_bmesh_for_eval_nomain(
-          em->bm, nullptr, &surface_object_data);
-      result.free_suface_mesh_orig_ = true;
+    Mesh *surface_mesh;
+    bool free_suface_mesh;
+    if (use_orig_mesh) {
+      Object *surface_ob_orig = DEG_get_original(surface_ob_eval);
+      Mesh &surface_object_data = *static_cast<Mesh *>(surface_ob_orig->data);
+      if (BMEditMesh *em = surface_object_data.runtime->edit_mesh.get()) {
+        surface_mesh = BKE_mesh_from_bmesh_for_eval_nomain(em->bm, nullptr, &surface_object_data);
+        free_suface_mesh = true;
+      }
+      else {
+        surface_mesh = &surface_object_data;
+        free_suface_mesh = false;
+      }
     }
     else {
-      result.surface_mesh_orig_ = &surface_object_data;
-    }
-    result.surface_mesh_eval_ = BKE_modifier_get_evaluated_mesh_from_evaluated_object(
-        result.surface_ob_eval_);
-    if (result.surface_mesh_eval_ == nullptr) {
-      return result_error(NodeWarningType::Error, TIP_("Surface has no mesh"));
-    }
-
-    BKE_mesh_wrapper_ensure_mdata(result.surface_mesh_eval_);
-
-    const AttributeAccessor mesh_attributes_eval = result.surface_mesh_eval_->attributes();
-    const AttributeAccessor mesh_attributes_orig = result.surface_mesh_orig_->attributes();
-
-    if (!mesh_attributes_eval.contains(result.uv_map_name_)) {
-      return result_error(
-          NodeWarningType::Error,
-          fmt::format(fmt::runtime(TIP_("Evaluated surface missing UV map: \"{}\"")),
-                      result.uv_map_name_));
-    }
-    if (!mesh_attributes_orig.contains(result.uv_map_name_)) {
-      return result_error(
-          NodeWarningType::Error,
-          fmt::format(fmt::runtime(TIP_("Original surface missing UV map: \"{}\"")),
-                      result.uv_map_name_));
-    }
-    if (!mesh_attributes_eval.contains(rest_position_name)) {
-      return result_error(NodeWarningType::Error,
-                          TIP_("Evaluated surface missing attribute: \"rest_position\""));
+      surface_mesh = BKE_modifier_get_evaluated_mesh_from_evaluated_object(surface_ob_eval);
+      free_suface_mesh = false;
+      if (surface_mesh == nullptr) {
+        return Error{NodeWarningType::Error, TIP_("Surface has no mesh")};
+      }
+      BKE_mesh_wrapper_ensure_mdata(surface_mesh);
     }
 
-    return result_valid(std::move(result));
+    const AttributeAccessor mesh_attributes = surface_mesh->attributes();
+    const StringRefNull uv_map_name = self_curves_eval->surface_uv_map;
+    const StringRefNull rest_position_name = "rest_position";
+
+    if (use_orig_mesh) {
+      if (!mesh_attributes.contains(uv_map_name)) {
+        return Error{NodeWarningType::Error,
+                     fmt::format(fmt::runtime(TIP_("Original surface missing UV map: \"{}\"")),
+                                 uv_map_name)};
+      }
+    }
+    else {
+      if (!mesh_attributes.contains(uv_map_name)) {
+        return Error{NodeWarningType::Error,
+                     fmt::format(fmt::runtime(TIP_("Evaluated surface missing UV map: \"{}\"")),
+                                 uv_map_name)};
+      }
+      if (!mesh_attributes.contains(rest_position_name)) {
+        return Error{NodeWarningType::Error,
+                     fmt::format(fmt::runtime(TIP_("Evaluated surface missing attribute: \"{}\"")),
+                                 rest_position_name)};
+      }
+    }
+
+    surface_mesh_ = surface_mesh;
+    free_suface_mesh_ = free_suface_mesh;
+    uv_map_name_ = uv_map_name;
+    rest_position_name_ = rest_position_name;
+    uv_map_ = *surface_mesh_->attributes().lookup<float2>(this->uv_map_name(), AttrDomain::Corner);
+    if (!use_orig_mesh) {
+      rest_positions_ = *surface_mesh_->attributes().lookup<float3>(this->rest_position_name(),
+                                                                    AttrDomain::Point);
+    }
+    return std::nullopt;
   }
 };
 
 class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
  private:
+  int input_geometry_index_;
   int input_position_index_, input_rotation_index_;
   int output_position_index_, output_rotation_index_;
 
@@ -834,6 +839,7 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
   LazyFunctionForRootConstraintUpdate(const int32_t node_identifier, const char *debug_name)
       : LazyFunctionForClosure(node_identifier, debug_name)
   {
+    input_geometry_index_ = add_input("Geometry", SOCK_GEOMETRY);
     input_position_index_ = add_input("Position Constraints", SOCK_GEOMETRY);
     input_rotation_index_ = add_input("Rotation Constraints", SOCK_GEOMETRY);
     output_position_index_ = add_output("Position Constraints", SOCK_GEOMETRY);
@@ -865,26 +871,41 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
       params.set_output(output_rotation_index_, std::move(rotation_constraints));
     };
 
-    // }; GeometrySet curves_geometry = params.extract_input<GeometrySet>("Curves"); if
-    // (!curves_geometry.has_curves()) {
-    //   pass_through_input();
-    //   return;
-    // }
-    // Curves &curves_id = *curves_geometry.get_curves_for_write();
-    // CurvesGeometry &curves = curves_id.geometry.wrap();
-    // if (curves.surface_uv_coords().is_empty() && curves.curves_num() > 0) {
-    //   pass_through_input();
-    //   params.error_message_add(NodeWarningType::Error,
-    //                            TIP_("Curves are not attached to any UV map"));
-    //   return;
-    // }
-    const Object *self_ob_eval = user_data->call_data->self_object();
-    auto [surface_data, surface_error] = HairSurfaceData::from_object(self_ob_eval);
-    if (surface_error) {
+    GeometrySet curves_geometry = params.get_input<GeometrySet>(input_geometry_index_);
+    if (!curves_geometry.has_curves()) {
       pass_through_input();
-      error_message_add(surface_error->type, surface_error->message);
       return;
     }
+    Curves &curves_id = *curves_geometry.get_curves_for_write();
+    bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    if (curves.is_empty()) {
+      pass_through_input();
+      return;
+    }
+    if (curves.surface_uv_coords().is_empty()) {
+      pass_through_input();
+      error_message_add(NodeWarningType::Error, TIP_("Curves are not attached to any UV map"));
+      return;
+    }
+    const VArraySpan surface_uv_coords = *curves.attributes().lookup_or_default<float2>(
+        "surface_uv_coordinate", AttrDomain::Curve, float2(0));
+
+    const Object *self_ob_eval = user_data->call_data->self_object();
+    HairSurfaceData surface_data_orig, surface_data_eval;
+    if (auto error = surface_data_orig.init_from_object(self_ob_eval, true)) {
+      pass_through_input();
+      error_message_add(error->type, error->message);
+      return;
+    }
+    if (auto error = surface_data_eval.init_from_object(self_ob_eval, false)) {
+      pass_through_input();
+      error_message_add(error->type, error->message);
+      return;
+    }
+    const geometry::ReverseUVSampler reverse_uv_sampler_orig =
+        surface_data_orig.reverse_uv_sampler();
+    const geometry::ReverseUVSampler reverse_uv_sampler_eval =
+        surface_data_eval.reverse_uv_sampler();
 
     params.set_output(output_position_index_, std::move(position_constraints));
     params.set_output(output_rotation_index_, std::move(rotation_constraints));
@@ -917,13 +938,13 @@ static ClosurePtr create_root_constraint_update_closure(ResourceScope &scope,
  * "Gravity": Single vector defining the direction of gravity in the simulation.
  *
  * "Force": Vector field of external forces acting on points. Force is defined in object space.
- * "Torque": Vector field of external torque acting on curve segments. Torque is defined in local
- *   space of a curve segment.
+ * "Torque": Vector field of external torque acting on curve segments. Torque is defined in
+ * local space of a curve segment.
  *
  * "Material" Bundle of parameters defining the physical properties of hair.
  *   Hair material properties can be defined in several ways:
- *   - "Density" and radius: Hair properties are calculated based on a model of cylindrical rods
- *     around the center line. This is the default method if no other attributes are defined.
+ *   - "Density" and radius: Hair properties are calculated based on a model of cylindrical
+ * rods around the center line. This is the default method if no other attributes are defined.
  *     Radius attribute must be defined on curves, otherwise a default radius is used.
  *   - "Mass" and "Inertia": If both of these fields are defined they explicitly define the
  *     material properties of hair curve points and segments.
