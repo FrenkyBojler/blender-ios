@@ -518,9 +518,6 @@ class NodeTreeMainUpdater {
       if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
-      if (node_structure_type_inferencing::update_structure_type_interface(ntree)) {
-        result.interface_changed = true;
-      }
       this->update_from_field_inference(ntree);
       if (node_tree_reference_lifetimes::analyse_reference_lifetimes(ntree)) {
         result.interface_changed = true;
@@ -528,8 +525,14 @@ class NodeTreeMainUpdater {
       if (nodes::gizmos::update_tree_gizmo_propagation(ntree)) {
         result.interface_changed = true;
       }
-      this->update_socket_shapes(ntree);
       this->update_eval_dependencies(ntree);
+    }
+
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
+      if (node_structure_type_inferencing::update_structure_type_interface(ntree)) {
+        result.interface_changed = true;
+      }
+      this->update_socket_shapes(ntree);
     }
 
     result.output_changed = this->check_if_output_changed(ntree);
@@ -954,18 +957,20 @@ class NodeTreeMainUpdater {
       }
     }
     else {
-      const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
-      for (bNodeSocket *socket : ntree.all_sockets()) {
-        switch (field_states[socket->index_in_tree()]) {
-          case bke::FieldSocketState::RequiresSingle:
-            socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
-            break;
-          case bke::FieldSocketState::CanBeField:
-            socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
-            break;
-          case bke::FieldSocketState::IsField:
-            socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND;
-            break;
+      if (ntree.type == NTREE_GEOMETRY) {
+        const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
+        for (bNodeSocket *socket : ntree.all_sockets()) {
+          switch (field_states[socket->index_in_tree()]) {
+            case bke::FieldSocketState::RequiresSingle:
+              socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+              break;
+            case bke::FieldSocketState::CanBeField:
+              socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
+              break;
+            case bke::FieldSocketState::IsField:
+              socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND;
+              break;
+          }
         }
       }
     }

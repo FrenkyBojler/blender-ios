@@ -29,12 +29,11 @@ static void cmp_node_split_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR)
       .min(0.0f)
       .max(1.0f)
-      .description("Specifies the position of the split")
-      .compositor_expects_single_value();
-  b.add_input<decl::Color>("Image");
-  b.add_input<decl::Color>("Image", "Image_001");
+      .description("Specifies the position of the split");
+  b.add_input<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_input<decl::Color>("Image", "Image_001").structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_buts_split(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
