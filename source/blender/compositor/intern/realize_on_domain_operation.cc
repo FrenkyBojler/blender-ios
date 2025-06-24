@@ -99,15 +99,10 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
       realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
   GPU_texture_filter_mode(input, use_bilinear);
 
-  /* Maps the `BorderCondition` to the `GPUSamplerExtendMode`. If the input repeats, set a
-   * repeating extend mode for out-of-bound texture access. Otherwise, make out-of-bound texture
-   * access return zero by setting a clamp to border extend mode. */
-
-  GPUSamplerExtendMode mode_x = map_border_condition_gpu(realization_options.extend_mode_x);
-  GPUSamplerExtendMode mode_y = map_border_condition_gpu(realization_options.extend_mode_y);
-
-  GPU_texture_extend_mode_x(input, mode_x);
-  GPU_texture_extend_mode_y(input, mode_y);
+  GPU_texture_extend_mode_x(input,
+                            map_boundary_mode_to_extend_mode(realization_options.extend_mode_x));
+  GPU_texture_extend_mode_y(input,
+                            map_boundary_mode_to_extend_mode(realization_options.extend_mode_y));
 
   input.bind_as_texture(shader, "input_tx");
 

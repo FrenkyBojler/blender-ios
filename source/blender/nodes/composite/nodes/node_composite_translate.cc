@@ -92,34 +92,34 @@ class TranslateOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  BorderCondition get_extend_mode_x()
+  BoundaryMode get_extend_mode_x()
   {
     switch (node_storage(bnode()).border_condition_x) {
       case CMP_NODE_BORDER_CONDITION_ZERO:
-        return BorderCondition::Zero;
+        return BoundaryMode::Zero;
       case CMP_NODE_BORDER_CONDITION_REPEAT:
-        return BorderCondition::Repeat;
+        return BoundaryMode::Repeat;
       case CMP_NODE_BORDER_CONDITION_EXTEND:
-        return BorderCondition::Extend;
+        return BoundaryMode::Extend;
     }
 
     BLI_assert_unreachable();
-    return BorderCondition::Zero;
+    return BoundaryMode::Zero;
   }
 
-  BorderCondition get_extend_mode_y()
+  BoundaryMode get_extend_mode_y()
   {
     switch (node_storage(bnode()).border_condition_y) {
       case CMP_NODE_BORDER_CONDITION_ZERO:
-        return BorderCondition::Zero;
+        return BoundaryMode::Zero;
       case CMP_NODE_BORDER_CONDITION_REPEAT:
-        return BorderCondition::Repeat;
+        return BoundaryMode::Repeat;
       case CMP_NODE_BORDER_CONDITION_EXTEND:
-        return BorderCondition::Extend;
+        return BoundaryMode::Extend;
     }
 
     BLI_assert_unreachable();
-    return BorderCondition::Zero;
+    return BoundaryMode::Zero;
   }
 };
 

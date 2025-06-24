@@ -5,7 +5,6 @@
 #pragma once
 
 #include <cstdint>
-#include <utility>
 
 #include "BLI_math_interp.hh"
 #include "BLI_math_matrix_types.hh"
@@ -24,8 +23,8 @@ enum class Interpolation : uint8_t {
   Anisotropic,
 };
 
-/* Possible border conditions when computing samples in the domain's exterior. */
-enum class BorderCondition : uint8_t {
+/* Possible boundary modes when computing samples in the domain's exterior. */
+enum class BoundaryMode : uint8_t {
   /* Pads the domain exterior with zero values. */
   Zero,
   /* Pads the domain exterior with the color value at the border. */
@@ -46,14 +45,10 @@ struct RealizationOptions {
    * result at arbitrary locations, the interpolation identifies the method used for computing the
    * value at those arbitrary locations. */
   Interpolation interpolation = Interpolation::Bilinear;
-  /* If true, the result will be repeated infinitely along the horizontal axis when realizing the
-   * result. If false, regions outside of bounds of the result along the horizontal axis will be
-   * filled with zeros. */
-  BorderCondition extend_mode_x = BorderCondition::Zero;
-  /* If true, the result will be repeated infinitely along the vertical axis when realizing the
-   * result. If false, regions outside of bounds of the result along the vertical axis will be
-   * filled with zeros. */
-  BorderCondition extend_mode_y = BorderCondition::Zero;
+  /* The extend mode for the x-axis. Defaults to Zero padding. */
+  BoundaryMode extend_mode_x = BoundaryMode::Zero;
+  /* The extend mode for the y-axis. Defaults to Zero padding. */
+  BoundaryMode extend_mode_y = BoundaryMode::Zero;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -180,7 +175,7 @@ class Domain {
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
-math::InterpWrapMode map_border_condition_cpu(const BorderCondition &mode);
-GPUSamplerExtendMode map_border_condition_gpu(const BorderCondition &mode);
+math::InterpWrapMode map_boundary_mode_to_wrap_mode(const BoundaryMode &mode);
+GPUSamplerExtendMode map_boundary_mode_to_extend_mode(const BoundaryMode &mode);
 
 }  // namespace blender::compositor

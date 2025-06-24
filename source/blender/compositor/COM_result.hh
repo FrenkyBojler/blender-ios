@@ -395,8 +395,8 @@ class Result {
 
   float4 sample(const float2 &coordinates,
                 const Interpolation &interpolation,
-                const BorderCondition &extend_mode_x,
-                const BorderCondition &extend_mode_y) const;
+                const BoundaryMode &extend_mode_x,
+                const BoundaryMode &extend_mode_y) const;
 
   /* Equivalent to the GLSL texture() function with nearest interpolation and zero boundary
    * condition. The coordinates are thus expected to have half-pixels offsets. A float4 is always
@@ -596,8 +596,8 @@ BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
 
 BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                         const Interpolation &interpolation,
-                                        const BorderCondition &extend_mode_x,
-                                        const BorderCondition &extend_mode_y) const
+                                        const BoundaryMode &extend_mode_x,
+                                        const BoundaryMode &extend_mode_y) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -611,8 +611,8 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                        (coordinates * float2(size)) - 0.5f;
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  const math::InterpWrapMode mode_x = map_border_condition_cpu(extend_mode_x);
-  const math::InterpWrapMode mode_y = map_border_condition_cpu(extend_mode_y);
+  const math::InterpWrapMode mode_x = map_boundary_mode_to_wrap_mode(extend_mode_x);
+  const math::InterpWrapMode mode_y = map_boundary_mode_to_wrap_mode(extend_mode_y);
 
   /* Map border condition to wrap mode. */
   switch (interpolation) {
@@ -640,6 +640,8 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
       break;
     /* The anisotropic sampling requires separate handling with EWA. */
     case Interpolation::Anisotropic:
+      BLI_assert_unreachable();
+      break;
     case Interpolation::Bicubic:
       math::interpolate_cubic_bspline_wrapmode_fl(buffer,
                                                   pixel_value,
