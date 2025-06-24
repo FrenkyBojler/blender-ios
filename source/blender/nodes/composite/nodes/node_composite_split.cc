@@ -7,8 +7,9 @@
  */
 
 #include "BLI_math_base.hh"
+#include "BLI_math_numbers.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -30,9 +31,9 @@ static void cmp_node_split_declare(NodeDeclarationBuilder &b)
       .default_value({0.5f, 0.5f})
       .min(0.0f)
       .max(1.0f)
-      .description("Line position where the image should be split.");
+      .description("Line position where the image should be split");
   b.add_input<decl::Float>("Rotation")
-      .default_value(float(M_PI_4))
+      .default_value(math::numbers::pi_v<float> / 4.0f)
       .subtype(PROP_ANGLE)
       .description("Line angle where the image should be split.");
 
@@ -66,7 +67,6 @@ class SplitOperation : public NodeOperation {
     const Domain domain = this->compute_domain();
 
     GPU_shader_uniform_2fv(shader, "position", this->get_position(domain));
-    GPU_shader_uniform_1f(shader, "rotation", this->get_rotation().radian());
 
     const float2 normal = {-math::sin(this->get_rotation()), math::cos(this->get_rotation())};
     GPU_shader_uniform_2fv(shader, "normal", normal);
@@ -102,8 +102,8 @@ class SplitOperation : public NodeOperation {
     const float2 line_point = this->get_position(domain);
 
     parallel_for(domain.size, [&](const int2 texel) {
-      const float2 pos_to_line_point = line_point - float2(texel);
-      const float projection = math::dot(normal, pos_to_line_point);
+      const float2 direction_to_line_point = line_point - float2(texel);
+      const float projection = math::dot(normal, direction_to_line_point);
       const bool is_below_line = projection <= 0;
       output_image.store_pixel(texel,
                                is_below_line ? first_image.load_pixel<float4, true>(texel) :
@@ -114,7 +114,7 @@ class SplitOperation : public NodeOperation {
   float2 get_position(const Domain &domain)
   {
     const float2 relative_position =
-        this->get_input("Position").get_single_value_default(float3(0.5f, 0.5f, 0.0f)).xy();
+        this->get_input("Position").get_single_value_default(float2(0.5f, 0.5f));
     return float2(domain.size) * relative_position;
   }
 

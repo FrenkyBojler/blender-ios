@@ -23,6 +23,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
@@ -37,7 +38,7 @@ static void cmp_node_trackpos_declare(NodeDeclarationBuilder &b)
 {
   b.add_output<decl::Float>("X");
   b.add_output<decl::Float>("Y");
-  b.add_output<decl::Vector>("Speed").subtype(PROP_VELOCITY).dimensions(2);
+  b.add_output<decl::Vector>("Speed").subtype(PROP_VELOCITY).dimensions(4);
 }
 
 static void init(const bContext *C, PointerRNA *ptr)
@@ -175,7 +176,6 @@ class TrackPositionOperation : public NodeOperation {
                                 speed_toward_next * float2(size));
 
     Result &result = get_result("Speed");
-    result.set_type(ResultType::Float4);
     result.allocate_single_value();
     result.set_single_value(speed);
   }
@@ -194,7 +194,6 @@ class TrackPositionOperation : public NodeOperation {
     }
     if (should_compute_output("Speed")) {
       Result &result = get_result("Speed");
-      result.set_type(ResultType::Float4);
       result.allocate_single_value();
       result.set_single_value(float4(0.0f));
     }

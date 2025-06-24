@@ -262,6 +262,11 @@ add_blender_test(
 )
 
 add_blender_test(
+  script_pyapi_bmesh
+  --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_bmesh.py
+)
+
+add_blender_test(
   script_pyapi_grease_pencil
   --python ${CMAKE_CURRENT_LIST_DIR}/bl_pyapi_grease_pencil.py
 )
@@ -309,6 +314,7 @@ if(TEST_SRC_DIR_EXISTS)
       --debug
       --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_versioning.py --
       --src-test-dir ${TEST_SRC_DIR}/
+      --output-dir ${TEST_OUT_DIR}/blendfile_io/
       --slice-range ${BLENDFILE_VERSIONING_SPLIT_RANGE}
       --slice-index ${idx}
     )
@@ -333,6 +339,12 @@ if(TEST_SRC_DIR_EXISTS)
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_library_overrides.py --
     --output-dir ${TEST_OUT_DIR}/blendfile_io/
     --test-dir "${TEST_SRC_DIR}/libraries_and_linking"
+  )
+
+  add_blender_test(
+    blendfile_header
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_blendfile_header.py --
+    --testdir "${TEST_SRC_DIR}/io_tests/blend_parsing"
   )
 endif()
 
@@ -571,6 +583,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_node_field_type_inference
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_field_type_inference.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
+
+  add_blender_test(
+    bl_node_structure_type_inference
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_structure_type_inference.py
     --
     --testdir "${TEST_SRC_DIR}/node_group"
   )
@@ -1255,6 +1274,13 @@ if(TEST_SRC_DIR_EXISTS)
   add_blender_test(
     bl_sculpt_brush_curve_presets
     --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/brush_strength_curves_test.py
+    --
+    --testdir "${TEST_SRC_DIR}/sculpting"
+  )
+
+  add_blender_test(
+    bl_sculpt_mask_filter
+    --python ${CMAKE_CURRENT_LIST_DIR}/sculpt_paint/mask_filter_test.py
     --
     --testdir "${TEST_SRC_DIR}/sculpting"
   )
