@@ -16,6 +16,7 @@
 #include "DEG_depsgraph.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
@@ -216,7 +217,7 @@ class LayerViewItem : public AbstractTreeViewItem {
     build_layer_name(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_layer_buttons(*sub);
   }
@@ -377,7 +378,7 @@ class LayerGroupViewItem : public AbstractTreeViewItem {
     build_layer_group_name(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_layer_group_buttons(*sub);
   }

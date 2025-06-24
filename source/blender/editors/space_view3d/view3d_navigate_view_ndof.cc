@@ -254,7 +254,8 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
   else {
     float quat[4];
     float axis[3];
-    float angle = ndof.time_delta * WM_event_ndof_to_axis_angle(ndof, axis);
+    float angle = ndof.time_delta *
+                  WM_event_ndof_rotation_get_axis_angle_for_navigation(ndof, axis);
 
     /* transform rotation axis from view to world coordinates */
     mul_qt_v3(view_inv, axis);
@@ -312,8 +313,7 @@ void view3d_ndof_fly(const wmNDOFMotionData &ndof,
       speed *= 0.2f;
     }
 
-    blender::float3 trans = WM_event_ndof_translation_get(ndof);
-    mul_v3_fl(trans, speed * ndof.time_delta);
+    blender::float3 trans = (speed * ndof.time_delta) * WM_event_ndof_translation_get(ndof);
     trans_orig_y = trans[1];
 
     if (U.ndof_flag & NDOF_FLY_HELICOPTER) {
@@ -355,7 +355,7 @@ void view3d_ndof_fly(const wmNDOFMotionData &ndof,
   if (has_rotate) {
     float rotation[4];
     float axis[3];
-    float angle = ndof.time_delta * WM_event_ndof_to_axis_angle(ndof, axis);
+    float angle = ndof.time_delta * WM_event_ndof_rotation_get_axis_angle(ndof, axis);
 
     if (fabsf(angle) > 0.0001f) {
       has_rotate = true;
@@ -608,7 +608,7 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   const bool has_translate = !is_zero_v2(ndof.tvec);
   const bool has_zoom = ndof.tvec[2] != 0.0f;
 
-  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get(ndof);
+  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
 
   /* NOTE: unlike image and clip views, the 2D pan doesn't have to be scaled by the zoom level.
    * #ED_view3d_camera_view_pan already takes the zoom level into account. */
@@ -628,12 +628,8 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   bool changed = false;
 
   if (has_translate) {
-    /* Use the X & Y of `pan_vec`.
-     * Negate while applying the delta time, matches 2D spaces. */
-
-    float pan_2d[2];
-    negate_v2_v2(pan_2d, pan_vec);
-    if (ED_view3d_camera_view_pan(region, pan_2d)) {
+    /* Use the X & Y of `pan_vec`. */
+    if (ED_view3d_camera_view_pan(region, pan_vec)) {
       changed = true;
     }
   }
