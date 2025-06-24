@@ -2240,31 +2240,31 @@ void ED_spacetype_node()
   art = MEM_callocN<ARegionType>("spacetype node asset shelf region");
   art->regionid = RGN_TYPE_ASSET_SHELF;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_FRAMES;
-  art->duplicate = blender::ed::asset::shelf::region_duplicate;
-  art->free = blender::ed::asset::shelf::region_free;
-  art->on_poll_success = blender::ed::asset::shelf::region_on_poll_success;
-  art->listener = blender::ed::asset::shelf::region_listen;
-  art->message_subscribe = blender::ed::asset::shelf::region_message_subscribe;
-  art->poll = blender::ed::asset::shelf::regions_poll;
-  art->snap_size = blender::ed::asset::shelf::region_snap;
-  art->on_user_resize = blender::ed::asset::shelf::region_on_user_resize;
-  art->context = blender::ed::asset::shelf::context;
+  art->duplicate = asset::shelf::region_duplicate;
+  art->free = asset::shelf::region_free;
+  art->on_poll_success = asset::shelf::region_on_poll_success;
+  art->listener = asset::shelf::region_listen;
+  art->message_subscribe = asset::shelf::region_message_subscribe;
+  art->poll = asset::shelf::regions_poll;
+  art->snap_size = asset::shelf::region_snap;
+  art->on_user_resize = asset::shelf::region_on_user_resize;
+  art->context = asset::shelf::context;
   art->init = node_asset_shelf_region_init;
-  art->layout = blender::ed::asset::shelf::region_layout;
-  art->draw = blender::ed::asset::shelf::region_draw;
+  art->layout = asset::shelf::region_layout;
+  art->draw = asset::shelf::region_draw;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: asset shelf header */
   art = MEM_callocN<ARegionType>("spacetype node asset shelf header region");
   art->regionid = RGN_TYPE_ASSET_SHELF_HEADER;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_ASSET_SHELF | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
-  art->init = blender::ed::asset::shelf::header_region_init;
-  art->poll = blender::ed::asset::shelf::regions_poll;
-  art->draw = blender::ed::asset::shelf::header_region;
-  art->listener = blender::ed::asset::shelf::header_region_listen;
-  art->context = blender::ed::asset::shelf::context;
+  art->init = asset::shelf::header_region_init;
+  art->poll = asset::shelf::regions_poll;
+  art->draw = asset::shelf::header_region;
+  art->listener = asset::shelf::header_region_listen;
+  art->context = asset::shelf::context;
   BLI_addhead(&st->regiontypes, art);
-  blender::ed::asset::shelf::types_register(art, SPACE_NODE);
+  asset::shelf::types_register(art, SPACE_NODE);
 
   /* regions: list-view/buttons */
   art = MEM_callocN<ARegionType>("spacetype node region");
