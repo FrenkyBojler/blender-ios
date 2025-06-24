@@ -121,16 +121,36 @@ class ClosureZoneType : public blender::bke::bNodeZoneType {
   }
 };
 
+class ForeachGeometryZoneType : public blender::bke::bNodeZoneType {
+ public:
+  ForeachGeometryZoneType()
+  {
+    this->input_idname = "GeometryNodeForeachGeometryInput";
+    this->output_idname = "GeometryNodeForeachGeometryOutput";
+    this->input_type = GEO_NODE_FOREACH_GEOMETRY_INPUT;
+    this->output_type = GEO_NODE_FOREACH_GEOMETRY_OUTPUT;
+    this->theme_id = TH_NODE_ZONE_FOREACH_GEOMETRY;
+  }
+
+  const int &get_corresponding_output_id(const bNode &input_bnode) const override
+  {
+    BLI_assert(input_bnode.type_legacy == this->input_type);
+    return static_cast<NodeGeometryForeachGeometryInput *>(input_bnode.storage)->output_node_id;
+  }
+};
+
 static void register_zone_types()
 {
   static SimulationZoneType simulation_zone_type;
   static RepeatZoneType repeat_zone_type;
   static ForeachGeometryElementZoneType foreach_geometry_element_zone_type;
   static ClosureZoneType closure_zone_type;
+  static ForeachGeometryZoneType foreach_geometry_zone_type;
   blender::bke::register_node_zone_type(simulation_zone_type);
   blender::bke::register_node_zone_type(repeat_zone_type);
   blender::bke::register_node_zone_type(foreach_geometry_element_zone_type);
   blender::bke::register_node_zone_type(closure_zone_type);
+  blender::bke::register_node_zone_type(foreach_geometry_zone_type);
 }
 
 void register_nodes()

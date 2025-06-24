@@ -3331,3 +3331,12 @@ typedef enum NodeGeometryTransformMode {
   GEO_NODE_TRANSFORM_MODE_COMPONENTS = 0,
   GEO_NODE_TRANSFORM_MODE_MATRIX = 1,
 } NodeGeometryTransformMode;
+
+typedef struct NodeGeometryForeachGeometryInput {
+  /** bNode.identifier of the corresponding output node. */
+  int32_t output_node_id;
+} NodeGeometryForeachGeometryInput;
+
+typedef struct NodeGeometryForeachGeometryOutput {
+  int inspection_index;
+} NodeGeometryForeachGeometryOutput;

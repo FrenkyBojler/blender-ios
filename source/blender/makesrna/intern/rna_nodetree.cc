@@ -7943,6 +7943,13 @@ static void def_geo_closure_input(BlenderRNA *brna, StructRNA *srna)
   def_common_zone_input(brna, srna);
 }
 
+static void def_geo_foreach_geometry_input(BlenderRNA *brna, StructRNA *srna)
+{
+  RNA_def_struct_sdna_from(srna, "NodeGeometryForeachGeometryInput", "storage");
+
+  def_common_zone_input(brna, srna);
+}
+
 static void rna_def_node_item_array_socket_item_common(StructRNA *srna,
                                                        const char *accessor,
                                                        const bool add_socket_type)
@@ -8429,6 +8436,21 @@ static void def_geo_closure_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);
   RNA_def_property_update(prop, NC_NODE, nullptr);
+}
+
+static void def_geo_foreach_geometry_output(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "NodeGeometryForeachGeometryOutput", "storage");
+
+  prop = RNA_def_property(srna, "inspection_index", PROP_INT, PROP_NONE);
+  RNA_def_property_ui_range(prop, 0, INT32_MAX, 1, -1);
+  RNA_def_property_ui_text(prop,
+                           "Inspection Index",
+                           "Iteration index that is used by inspection features like the viewer "
+                           "node or socket inspection");
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_geo_capture_attribute_item(BlenderRNA *brna)
@@ -10795,6 +10817,8 @@ static void rna_def_nodes(BlenderRNA *brna)
   define("GeometryNode", "GeometryNodeFlipFaces");
   define("GeometryNode", "GeometryNodeForeachGeometryElementInput", def_geo_foreach_geometry_element_input);
   define("GeometryNode", "GeometryNodeForeachGeometryElementOutput", def_geo_foreach_geometry_element_output);
+  define("GeometryNode", "GeometryNodeForeachGeometryInput", def_geo_foreach_geometry_input);
+  define("GeometryNode", "GeometryNodeForeachGeometryOutput", def_geo_foreach_geometry_output);
   define("GeometryNode", "GeometryNodeGeometryToInstance");
   define("GeometryNode", "GeometryNodeGetNamedGrid");
   define("GeometryNode", "GeometryNodeGizmoDial");

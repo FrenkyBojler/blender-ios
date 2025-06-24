@@ -348,6 +348,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
    * \note Keep this message at the bottom of the function.
    */
 
+  FROM_DEFAULT_V4_UCHAR(space_node.node_zone_foreach_geometry);
+
 #undef FROM_DEFAULT_V4_UCHAR
 
 #undef USER_VERSION_ATLEAST

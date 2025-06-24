@@ -2067,6 +2067,9 @@ struct GeometryNodesLazyFunctionBuilder {
         case GEO_NODE_CLOSURE_OUTPUT:
           this->build_closure_zone_function(zone);
           break;
+        case GEO_NODE_FOREACH_GEOMETRY_OUTPUT:
+          this->build_foreach_geometry_zone_function(zone);
+          break;
         default: {
           BLI_assert_unreachable();
           break;
@@ -2253,6 +2256,11 @@ struct GeometryNodesLazyFunctionBuilder {
         zone, "Closure Body", &scope_.construct<GeometryNodesLazyFunctionSideEffectProvider>());
     auto &zone_fn = build_closure_zone_lazy_function(scope_, btree_, zone, zone_info, body_fn);
     zone_info.lazy_function = &zone_fn;
+  }
+
+  void build_foreach_geometry_zone_function(const bNodeTreeZone & /*zone*/)
+  {
+    // TODO
   }
 
   /**
@@ -4240,6 +4248,7 @@ const GeometryNodesLazyFunctionGraphInfo *ensure_geometry_nodes_lazy_function_gr
      * missing (#133524). */
     return nullptr;
   }
+  return nullptr;
   const bNodeTreeZones *tree_zones = btree.zones();
   if (tree_zones == nullptr) {
     return nullptr;

@@ -154,6 +154,13 @@ def add_closure_zone(layout, label):
     return props
 
 
+def add_foreach_geometry_zone(layout, label):
+    props = layout.operator(
+        "node.add_foreach_geometry_zone", text=label, text_ctxt=i18n_contexts.default)
+    props.use_transform = True
+    return props
+
+
 def add_empty_group(layout):
     props = layout.operator("node.add_empty_group", text="New Group", text_ctxt=i18n_contexts.default)
     props.use_transform = True
