@@ -1,4 +1,4 @@
 Referenced by issue #134909, Gp3: Crazyspace issue with selecting points and view distance
 Referenced by pull request #135033, Fix #134909: Crazyspace has incorrect deformed positions due to armature modifier
 Referenced by commit 8cf9d01453e54a795db7978dc3852b3bfee5b317, Fix #134909: Crazyspace has incorrect deformed positions due to armature modifier
-Referenced by issue #139194, Gp3: Weight paint is using strokes original position instead of the current one
+Referenced by issue #139194, Grease Pencil 3  : Weight paint is using strokes original position instead of the current one
