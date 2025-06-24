@@ -34,8 +34,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
@@ -401,7 +401,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
           BLI_assert(label_align == UI_BUT_LABEL_ALIGN_SPLIT_COLUMN);
           col = &layout->column(true);
           /* Let uiLayout::prop() create the split layout. */
-          uiLayoutSetPropSep(col, true);
+          col->use_property_split_set(true);
         }
 
         break;

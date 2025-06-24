@@ -80,7 +80,7 @@ struct uiLayout : uiItem {
   uiLayout *parent_;
   blender::Vector<uiItem *> items_;
 
-  char heading_[UI_MAX_NAME_STR];
+  std::string heading_;
 
   /** Sub layout to add child items, if not the layout itself. */
   uiLayout *child_items_layout_;
@@ -159,15 +159,30 @@ struct uiLayout : uiItem {
   blender::ui::EmbossType emboss() const;
   void emboss_set(blender::ui::EmbossType emboss);
 
+  bool fixed_size() const;
+  void fixed_size_set(bool fixed_size);
+
   wmOperatorCallContext operator_context() const;
   /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
   void operator_context_set(wmOperatorCallContext opcontext);
+
+  bool red_alert() const;
+  /**
+   * When set to true new items added in the layout are highlighted with the error state
+   * color #TH_REDALERT.
+   */
+  void red_alert_set(bool red_alert);
+
+  Panel *root_panel() const;
 
   float scale_x() const;
   void scale_x_set(float scale);
 
   float scale_y() const;
   void scale_y_set(float scale);
+
+  float search_weight() const;
+  void search_weight_set(float weight);
 
   float ui_units_x() const;
   /** Sets a fixed width size for this layout. */
@@ -176,6 +191,21 @@ struct uiLayout : uiItem {
   float ui_units_y() const;
   /** Sets a fixed height size for this layout. */
   void ui_units_y_set(float height);
+
+  bool use_property_split() const;
+  /**
+   * Sets when to split property's label into a separate button when adding new property buttons.
+   */
+  void use_property_split_set(bool value);
+
+  bool use_property_decorate() const;
+  /**
+   * Sets when to add an extra button to insert keyframes next to new property buttons added in the
+   * layout.
+   */
+  void use_property_decorate_set(bool is_sep);
+
+  int width() const;
 
   /** Sub-layout items. */
 
@@ -414,6 +444,31 @@ struct uiLayout : uiItem {
             std::optional<blender::StringRef> name,
             int icon);
 
+  /**
+   * Adds a RNA enum/pointer/string/ property item, and exposes it into the layout. Button input
+   * would suggest values from the search property collection.
+   * \param searchprop: Collection property in \a searchptr from where to take input values.
+   * \param results_are_suggestions: Allow inputs that not match any suggested value.
+   */
+  void prop_search(PointerRNA *ptr,
+                   PropertyRNA *prop,
+                   PointerRNA *searchptr,
+                   PropertyRNA *searchprop,
+                   std::optional<blender::StringRefNull> name,
+                   int icon,
+                   bool results_are_suggestions);
+  /**
+   * Adds a RNA enum/pointer/string/ property item, and exposes it into the layout. Button input
+   * would suggest values from the search property collection, input must match a suggested value.
+   * \param searchprop: Collection property in \a searchptr from where to take input values.
+   */
+  void prop_search(PointerRNA *ptr,
+                   blender::StringRefNull propname,
+                   PointerRNA *searchptr,
+                   blender::StringRefNull searchpropname,
+                   std::optional<blender::StringRefNull> name,
+                   int icon);
+
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
@@ -469,6 +524,24 @@ inline void uiLayout::enabled_set(bool enabled)
   enabled_ = enabled;
 }
 
+inline bool uiLayout::red_alert() const
+{
+  return redalert_;
+}
+inline void uiLayout::red_alert_set(bool red_alert)
+{
+  redalert_ = red_alert;
+}
+
+inline float uiLayout::search_weight() const
+{
+  return search_weight_;
+}
+inline void uiLayout::search_weight_set(float weight)
+{
+  search_weight_ = weight;
+}
+
 inline float uiLayout::scale_x() const
 {
   return scale_[0];
@@ -504,6 +577,11 @@ inline void uiLayout::ui_units_y_set(float height)
 {
   units_[1] = height;
 };
+
+inline int uiLayout::width() const
+{
+  return this->w_;
+}
 
 enum {
   UI_LAYOUT_HORIZONTAL = 0,
@@ -619,20 +697,7 @@ void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout);
  */
 void UI_paneltype_draw(bContext *C, PanelType *pt, uiLayout *layout);
 
-void uiLayoutSetRedAlert(uiLayout *layout, bool redalert);
-void uiLayoutSetFixedSize(uiLayout *layout, bool fixed_size);
-void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
-void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
-void uiLayoutSetSearchWeight(uiLayout *layout, float weight);
-
-bool uiLayoutGetRedAlert(uiLayout *layout);
-bool uiLayoutGetFixedSize(uiLayout *layout);
-int uiLayoutGetWidth(uiLayout *layout);
-bool uiLayoutGetPropSep(uiLayout *layout);
-bool uiLayoutGetPropDecorate(uiLayout *layout);
-Panel *uiLayoutGetRootPanel(uiLayout *layout);
-float uiLayoutGetSearchWeight(uiLayout *layout);
 
 int uiLayoutListItemPaddingWidth();
 void uiLayoutListItemAddPadding(uiLayout *layout);
@@ -723,21 +788,6 @@ void uiItemEnumR_string(uiLayout *layout,
                         std::optional<blender::StringRefNull> name,
                         int icon);
 void uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
-void uiItemPointerR_prop(uiLayout *layout,
-                         PointerRNA *ptr,
-                         PropertyRNA *prop,
-                         PointerRNA *searchptr,
-                         PropertyRNA *searchprop,
-                         std::optional<blender::StringRefNull> name,
-                         int icon,
-                         bool results_are_suggestions);
-void uiItemPointerR(uiLayout *layout,
-                    PointerRNA *ptr,
-                    blender::StringRefNull propname,
-                    PointerRNA *searchptr,
-                    blender::StringRefNull searchpropname,
-                    std::optional<blender::StringRefNull> name,
-                    int icon);
 
 /**
  * Create a list of enum items.
