@@ -5,6 +5,7 @@
 #include "DNA_userdef_types.h"
 
 #include "BKE_anonymous_attribute_make.hh"
+#include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_geometry_set.hh"
@@ -56,6 +57,8 @@ static const std::string inv_mass_attr = "inv_mass";
 static const std::string inertia_attr = "inertia";
 static const std::string inv_inertia_attr = "inv_inertia";
 static const std::string radius_attr = "radius";
+static const std::string surface_position_attr = "surface_position";
+static const std::string surface_rotation_attr = "surface_rotation";
 
 /* XXX These should be anonymous attributes. */
 static const std::string old_position_attr = ".old_position";
@@ -698,6 +701,27 @@ class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
   }
 };
 
+struct Error {
+  NodeWarningType type;
+  std::string message;
+};
+
+template<typename T> struct ResultOrError {
+  T value;
+  std::optional<Error> error;
+
+  ResultOrError(const T &value) : value(value) {}
+  ResultOrError(T &&value) : value(std::move(value)) {}
+  ResultOrError(const NodeWarningType type, StringRefNull message)
+      : error(std::make_optional<Error>(type, message))
+  {
+  }
+  ResultOrError(const Error &error) : error(error) {}
+  ResultOrError(Error &&error) : error(std::move(errror)) {}
+  ResultOrError(const std::optional<Error> &error) : error(error) {}
+  ResultOrError(std::optional<Error> &&error) : error(std::move(errror)) {}
+};
+
 // TODO share this with node_geo_deform_curves_on_surface.cc
 // TODO make it non-copyable? (prevent potential double free of allocated mesh data)
 class HairSurfaceData {
@@ -710,6 +734,8 @@ class HairSurfaceData {
 
   VArraySpan<float2> uv_map_;
   VArraySpan<float3> rest_positions_;
+
+  bke::CurvesSurfaceTransforms transforms_;
 
  public:
   ~HairSurfaceData()
@@ -734,24 +760,24 @@ class HairSurfaceData {
     return *surface_mesh_;
   }
 
-  StringRefNull uv_map_name() const
+  const bke::CurvesSurfaceTransforms &transforms() const
   {
-    return uv_map_name_;
+    return transforms_;
   }
-  StringRefNull rest_position_name() const
+
+  Span<float2> uv_map() const
   {
-    return rest_position_name_;
+    return uv_map_;
+  }
+  Span<float3> rest_positions() const
+  {
+    return rest_positions_;
   }
 
   geometry::ReverseUVSampler reverse_uv_sampler() const
   {
     return geometry::ReverseUVSampler{uv_map_, surface_mesh_->corner_tris()};
   }
-
-  struct Error {
-    NodeWarningType type;
-    std::string message;
-  };
 
   std::optional<Error> init_from_object(const Object *self_ob_eval, const bool use_orig_mesh)
   {
@@ -818,16 +844,177 @@ class HairSurfaceData {
 
     surface_mesh_ = surface_mesh;
     free_suface_mesh_ = free_suface_mesh;
+    transforms_ = bke::CurvesSurfaceTransforms{*self_ob_eval, surface_ob_eval};
     uv_map_name_ = uv_map_name;
     rest_position_name_ = rest_position_name;
-    uv_map_ = *surface_mesh_->attributes().lookup<float2>(this->uv_map_name(), AttrDomain::Corner);
+    uv_map_ = *surface_mesh_->attributes().lookup<float2>(uv_map_name_, AttrDomain::Corner);
     if (!use_orig_mesh) {
-      rest_positions_ = *surface_mesh_->attributes().lookup<float3>(this->rest_position_name(),
+      rest_positions_ = *surface_mesh_->attributes().lookup<float3>(rest_position_name_,
                                                                     AttrDomain::Point);
     }
     return std::nullopt;
   }
 };
+
+/**
+ * Construct a surface reference frame for each curve based on hair surface attachment.
+ */
+static Array<float4x4> compute_curve_surface_attachment(const CurveComponent &component,
+                                                        const HairSurfaceData &surface_data)
+{
+  const bke::CurvesGeometry &curves = component.get()->geometry.wrap();
+  const int curves_num = curves.curves_num();
+  const AttributeAccessor attributes = curves.attributes();
+  const float4x4 &curves_to_surface = surface_data.transforms().curves_to_surface;
+  const float4x4 &surface_to_curves = surface_data.transforms().surface_to_curves;
+
+  /* Find samples from UV coordinates. */
+  const geometry::ReverseUVSampler reverse_uv_sampler = surface_data.reverse_uv_sampler();
+  Array<geometry::ReverseUVSampler::Result> surface_samples(curves_num);
+  const VArraySpan surface_uv_coords = *attributes.lookup_or_default<float2>(
+      "surface_uv_coordinate", AttrDomain::Curve, float2(0));
+  reverse_uv_sampler.sample_many(surface_uv_coords, surface_samples);
+
+  const Span<float3> positions = surface_data.surface_mesh().vert_positions();
+  /* The tangent reference direction is used to determine the rotation of
+   * the surface point around its normal axis. It's important that the tangent directions are
+   * computed in a consistent way. If the surface has not been rotated, the old and new tangent
+   * reference have to have the same direction. For that reason, the tangent reference is
+   * computed based on a reference position attribute instead of positions on the mesh. This way
+   * the old and new tangent reference use the same topology.
+   *
+   * TODO: Figure out if this can be smoothly interpolated across the surface as well.
+   * Currently, this is a source of discontinuity in the deformation, because the vector
+   * changes instantly from one triangle to the next. #128184
+   */
+  const Span<float3> tangent_positions = surface_data.rest_positions().is_empty() ?
+                                             surface_data.surface_mesh().vert_positions() :
+                                             surface_data.rest_positions();
+  const Span<int> corner_verts = surface_data.surface_mesh().corner_verts();
+  /* Retrieve face corner normals from each mesh. It's necessary to use face corner normals
+   * because face normals or vertex normals may lose information (custom normals, auto smooth) in
+   * some cases. */
+  const Span<float3> corner_normals = surface_data.surface_mesh().corner_normals();
+  const Span<int3> corner_tris = surface_data.surface_mesh().corner_tris();
+
+  /* Compute surface reference frame for each curve. */
+  Array<float4x4> surface_transforms(curves_num);
+  std::atomic<int> invalid_uv_count;
+  threading::parallel_for(curves.curves_range(), 256, [&](const IndexRange range) {
+    for (const int curve_i : range) {
+      const geometry::ReverseUVSampler::Result &surface_sample = surface_samples[curve_i];
+      if (surface_sample.type != geometry::ReverseUVSampler::ResultType::Ok) {
+        invalid_uv_count++;
+        continue;
+      }
+
+      const int3 &tri = corner_tris[surface_sample.tri_index];
+      const float3 &bary_weights = surface_sample.bary_weights;
+
+      const int corner_0 = tri[0];
+      const int corner_1 = tri[1];
+      const int corner_2 = tri[2];
+
+      const int vert_0 = corner_verts[corner_0];
+      const int vert_1 = corner_verts[corner_1];
+      const int vert_2 = corner_verts[corner_2];
+
+      const float3 &normal_0 = corner_normals[corner_0];
+      const float3 &normal_1 = corner_normals[corner_1];
+      const float3 &normal_2 = corner_normals[corner_2];
+      const float3 normal = math::normalize(
+          bke::attribute_math::mix3(bary_weights, normal_0, normal_1, normal_2));
+
+      const float3 &pos_0 = positions[vert_0];
+      const float3 &pos_1 = positions[vert_1];
+      const float3 &pos_2 = positions[vert_2];
+      const float3 pos = bke::attribute_math::mix3(bary_weights, pos_0, pos_1, pos_2);
+
+      const float3 &tangent_pos_0 = tangent_positions[vert_0];
+      const float3 &tangent_pos_1 = tangent_positions[vert_1];
+      const float3 tangent_reference_dir = tangent_pos_1 - tangent_pos_0;
+
+      /* Compute first local tangent based on the (potentially smoothed) normal and the tangent
+       * reference. */
+      const float3 tangent_x = math::normalize(math::cross(normal, tangent_reference_dir));
+
+      /* The second tangent defined by the normal and first tangent. */
+      const float3 tangent_y = math::normalize(math::cross(normal, tangent_x));
+
+      /* Construct rotation matrix that encodes the orientation of the old surface position. */
+      const float3x3 rotation(tangent_x, tangent_y, normal);
+
+      float4x4 transform = math::from_origin_transform<float4x4>(float4x4(rotation), pos);
+
+      /* Change the basis of the transformation so to that it can be applied in the local space of
+       * the curves. */
+      surface_transforms[curve_i] = surface_to_curves * transform * curves_to_surface;
+    }
+  });
+
+  return surface_transforms;
+}
+
+/* Store the surface-relative rest position/rotation of curve points.
+ * This relative transform is invariant under surface deformation, so the world-space rest pose
+ * of a hair root can be found by applying the offset at the deformed surface
+ * location/orientation. */
+static std::optional<Error> capture_surface_rest_offset(CurveComponent &component,
+                                                        const Field<bool> selection_field,
+                                                        const Object *self_ob_eval,
+                                                        const bool use_orig_surface_mesh = true)
+{
+  bke::CurvesGeometry &curves = component.get_for_write()->geometry.wrap();
+  const int points_num = curves.points_num();
+  const int curves_num = curves.curves_num();
+  const Array point_to_curve_map = curves.point_to_curve_map();
+  MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+  /* Find attachment points on the mesh. */
+  HairSurfaceData surface_data;
+  if (auto error = surface_data.init_from_object(self_ob_eval, use_orig_surface_mesh)) {
+    return error;
+  }
+  Array<float4x4> surface_transforms = compute_curve_surface_attachment(component, surface_data);
+  /* Inverse surface transforms are needed here. */
+  Array<float4x4> inv_surface_transforms(surface_transforms.size());
+  threading::parallel_for(surface_transforms.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      inv_surface_transforms[i] = math::invert(surface_transforms[i]);
+    }
+  });
+
+  /* Evaluate point selection. */
+  bke::GeometryFieldContext field_context(curves, AttrDomain::Point);
+  FieldEvaluator field_evaluator(field_context, points_num);
+  field_evaluator.set_selection(selection_field);
+  field_evaluator.evaluate();
+  const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
+
+  /* Store point offsets from their surface reference frame. */
+  const VArraySpan positions = *attributes.lookup_or_default<float3>(
+      position_attr, AttrDomain::Point, float3(0.0f));
+  const VArraySpan rotations = *attributes.lookup_or_default<math::Quaternion>(
+      rotation_attr, AttrDomain::Point, math::Quaternion::identity());
+  SpanAttributeWriter surface_position_writer = attributes.lookup_or_add_for_write_span<float3>(
+      surface_position_attr, AttrDomain::Point);
+  SpanAttributeWriter surface_rotation_writer =
+      attributes.lookup_or_add_for_write_span<math::Quaternion>(surface_rotation_attr,
+                                                                AttrDomain::Point);
+  selection.foreach_index(GrainSize(256), [&](const int point_i) {
+    const int curve_i = point_to_curve_map[point_i];
+    const float4x4 &inv_surface_transform = inv_surface_transforms[curve_i];
+    surface_position_writer.span[point_i] = math::transform_point(inv_surface_transform,
+                                                                  positions[point_i]);
+    surface_rotation_writer.span[point_i] = math::to_quaternion(inv_surface_transform) *
+                                            rotations[point_i];
+  });
+
+  surface_position_writer.finish();
+  surface_rotation_writer.finish();
+
+  return std::nullopt;
+}
 
 class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
  private:
