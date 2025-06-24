@@ -810,12 +810,14 @@ IDProperty *IDP_GetPropertyTypeFromGroup(const IDProperty *prop,
 static void IDP_FreeGroup(IDProperty *prop, const bool do_id_user)
 {
   BLI_assert(prop->type == IDP_GROUP);
+  BLI_assert(prop->data.children_map != nullptr);
 
   LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
     IDP_FreePropertyContent_ex(loop, do_id_user);
   }
-  BLI_freelistN(&prop->data.group);
   MEM_delete(prop->data.children_map);
+  prop->data.children_map = nullptr;
+  BLI_freelistN(&prop->data.group);
 }
 
 /** \} */
@@ -1292,6 +1294,9 @@ void IDP_ClearProperty(IDProperty *prop)
   IDP_FreePropertyContent(prop);
   prop->data.pointer = nullptr;
   prop->len = prop->totallen = 0;
+  if (prop->type == IDP_GROUP) {
+    prop->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+  }
 }
 
 void IDP_Reset(IDProperty *prop, const IDProperty *reference)
