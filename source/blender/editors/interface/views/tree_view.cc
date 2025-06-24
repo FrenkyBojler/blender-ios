@@ -18,7 +18,7 @@
 
 #include "interface_intern.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "WM_api.hh"
@@ -166,7 +166,8 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
 void AbstractTreeView::persistent_state_apply(const uiViewState &state)
 {
   if (state.custom_height) {
-    set_default_rows(round_fl_to_int(state.custom_height * UI_SCALE_FAC) / padded_item_height());
+    set_default_rows(std::max(
+        MIN_ROWS, round_fl_to_int(state.custom_height * UI_SCALE_FAC) / padded_item_height()));
   }
   if (state.scroll_offset) {
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
@@ -485,7 +486,7 @@ void AbstractTreeViewItem::add_indent(uiLayout &row) const
 {
   uiBlock *block = row.block();
   uiLayout *subrow = &row.row(true);
-  uiLayoutSetFixedSize(subrow, true);
+  subrow->fixed_size_set(true);
 
   uiDefBut(block, UI_BTYPE_SEPR, 0, "", 0, 0, this->indent_width(), 0, nullptr, 0.0, 0.0, "");
 
@@ -900,7 +901,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
 
   uiLayout &prev_layout = current_layout();
 
-  const int width = uiLayoutGetWidth(&prev_layout);
+  const int width = prev_layout.width();
   if (width < int(40 * UI_SCALE_FAC)) {
     return;
   }

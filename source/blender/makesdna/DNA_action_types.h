@@ -284,14 +284,18 @@ typedef struct bPoseChannel {
 
   struct bPoseChannel *next, *prev;
 
-  /** User-Defined Properties on this PoseChannel. */
+  /**
+   * User-defined custom properties storage on this PoseChannel. Typically Accessed through the
+   * 'dict' syntax from Python.
+   */
   IDProperty *prop;
 
   /**
-   * System-defined custom properties storage.
+   * System-defined custom properties storage. Used to store data dynamically defined either by
+   * Blender itself (e.g. the GeoNode modifier), or some python script, extension etc.
    *
-   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
-   * management consistency.
+   * Typically accessed through RNA paths (`C.object.my_dynamic_float_property = 33.3`), when
+   * wrapped/defined by RNA.
    */
   IDProperty *system_properties;
 
@@ -1184,7 +1188,7 @@ typedef struct ActionSlot {
    *
    * \see #AnimData::slot_name
    */
-  char identifier[/*MAX_ID_NAME*/ 66];
+  char identifier[/*MAX_ID_NAME*/ 258];
 
   /**
    * Type of ID-block that this slot is intended for.

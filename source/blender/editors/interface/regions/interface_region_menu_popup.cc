@@ -34,7 +34,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "BLT_translation.hh"
 
@@ -213,7 +213,7 @@ static void ui_popup_menu_create_block(bContext *C,
 
   if (pup->but) {
     if (pup->but->context) {
-      uiLayoutContextCopy(pup->layout, pup->but->context);
+      pup->layout->context_copy(pup->but->context);
     }
   }
 }
