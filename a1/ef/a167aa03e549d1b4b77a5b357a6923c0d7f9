@@ -1,1 +1,2 @@
 Referenced by issue #137644, Cryptomattes broken  in Blender 4.4 with complex input EXR sequences.
+Referenced by pull request #138096, Fix #134732: recalculate dist value when changing CoR
