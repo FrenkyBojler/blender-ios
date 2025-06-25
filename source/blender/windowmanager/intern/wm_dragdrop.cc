@@ -365,7 +365,8 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
 void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *C, wmDrag *drag)
 {
   BLI_assert(drag->type == WM_DRAG_PATH);
-  if (!CTX_wm_space_file(C)) {
+  const SpaceFile *sfile = CTX_wm_space_file(C);
+  if (!sfile) {
     return;
   }
   char dirpath[FILE_MAX];
@@ -377,7 +378,7 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
   for (const PointerRNA &file_ptr : files) {
     const FileDirEntry *file = static_cast<const FileDirEntry *>(file_ptr.data);
     char filepath[FILE_MAX];
-    BLI_path_join(filepath, sizeof(filepath), dirpath, file->name);
+    BLI_path_join(filepath, sizeof(filepath), sfile->params->dir, file->relpath);
 
     paths.append(allocator.copy_string(filepath).c_str());
   }
