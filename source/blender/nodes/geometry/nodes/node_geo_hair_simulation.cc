@@ -4,6 +4,8 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BLI_array_utils.hh"
+
 #include "BKE_anonymous_attribute_make.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
@@ -54,18 +56,36 @@ static const std::string rest_position_attr = "rest_position";
 static const std::string rest_rotation_attr = "rest_rotation";
 static const std::string radius_attr = "radius";
 /* Constraint point attributes. */
+static const std::string target_point1_attr = "point1";
+static const std::string target_point2_attr = "point2";
+static const std::string target_point3_attr = "point3";
+static const std::string target_point4_attr = "point4";
 enum TargetPointAttribute {
   TargetPoint1,
   TargetPoint2,
   TargetPoint3,
   TargetPoint4,
 };
-static const std::string target_point1_attr = "point1";
-static const std::string target_point2_attr = "point2";
-static const std::string target_point3_attr = "point3";
-static const std::string target_point4_attr = "point4";
+static StringRef target_point_attribute(const TargetPointAttribute target_point_attr)
+{
+  switch (target_point_attr) {
+    case TargetPoint1:
+      return target_point1_attr;
+    case TargetPoint2:
+      return target_point2_attr;
+    case TargetPoint3:
+      return target_point3_attr;
+    case TargetPoint4:
+      return target_point4_attr;
+  }
+  BLI_assert_unreachable();
+  return "";
+}
+
 static const std::string surface_position_attr = "surface_position";
 static const std::string surface_rotation_attr = "surface_rotation";
+static const std::string goal_position_attr = "goal_position";
+static const std::string goal_rotation_attr = "goal_rotation";
 
 /* XXX These should be anonymous attributes. */
 static const std::string old_position_attr = ".old_position";
@@ -119,22 +139,6 @@ static Field<float> radius()
 static Field<float> material_length()
 {
   return bke::AttributeFieldInput::Create<float>(material_length_attr);
-}
-
-static StringRef target_point_attribute(const TargetPointAttribute target_point_attr)
-{
-  switch (target_point_attr) {
-    case TargetPoint1:
-      return target_point1_attr;
-    case TargetPoint2:
-      return target_point2_attr;
-    case TargetPoint3:
-      return target_point3_attr;
-    case TargetPoint4:
-      return target_point4_attr;
-  }
-  BLI_assert_unreachable();
-  return "";
 }
 
 static Field<int> target_point(const TargetPointAttribute target_point_attr)
@@ -712,56 +716,247 @@ static Array<float4x4> compute_curve_surface_transforms(const bke::CurvesGeometr
   return surface_transforms;
 }
 
-static std::optional<Error> compute_root_surface_position(
+#if 0  // UNUSED for now, all these fields is hard ...
+/* Sample an attribute on the curve domain using a point index.
+ * This is a combination of "Evaluate on Domain" (mapping from curve domain to point domain) and
+ * "Sample Index" (get the transform from curves to constraint points).
+ *
+ * TODO The SampleIndexFunction class isn't publicly accessible, otherwise this might be
+ * constructed using a generic field operation instead of a customized multifunction.
+ */
+class SampleCurveByPointFunction : public mf::MultiFunction {
+  GeometrySet src_geometry_;
+  Array<int> point_to_curve_map_;
+  GField src_field_;
+
+  mf::Signature signature_;
+
+  std::optional<bke::CurvesFieldContext> field_context_;
+  std::unique_ptr<FieldEvaluator> evaluator_;
+  const GVArray *src_data_ = nullptr;
+
+ public:
+  SampleCurveByPointFunction(GeometrySet geometry, GField src_field)
+      : src_geometry_(std::move(geometry)), src_field_(std::move(src_field))
+  {
+    src_geometry_.ensure_owns_direct_data();
+
+    mf::SignatureBuilder builder{"Sample Index", signature_};
+    builder.single_input<int>("Point Index");
+    builder.single_output("Value", src_field_.cpp_type());
+    this->set_signature(&signature_);
+
+    this->evaluate_field();
+  }
+
+  void evaluate_field()
+  {
+    if (!src_geometry_.has_curves()) {
+      return;
+    }
+    const bke::CurvesGeometry &curves = src_geometry_.get_curves()->geometry.wrap();
+    const int curves_num = curves.curves_num();
+    if (curves_num == 0) {
+      return;
+    }
+
+    point_to_curve_map_ = curves.point_to_curve_map();
+    field_context_.emplace(bke::CurvesFieldContext(curves, AttrDomain::Curve));
+    evaluator_ = std::make_unique<FieldEvaluator>(*field_context_, curves_num);
+    evaluator_->add(src_field_);
+    evaluator_->evaluate();
+    src_data_ = &evaluator_->get_evaluated(0);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const VArraySpan<int> &indices = params.readonly_single_input<int>(0, "Point Index");
+    const IndexRange points = point_to_curve_map_.index_range();
+    GMutableSpan dst = params.uninitialized_single_output(1, "Value");
+
+    const CPPType &type = dst.type();
+    if (src_data_ == nullptr) {
+      type.value_initialize_indices(dst.data(), mask);
+      return;
+    }
+
+    bke::attribute_math::convert_to_static_type(type, [&](auto dummy) {
+      using T = decltype(dummy);
+      VArray<T> typed_src = src_data_->typed<T>();
+      MutableSpan<T> typed_dst = dst->typed<T>();
+      devirtualize_varray2(typed_src, indices, [&](const auto src, const auto indices) {
+        mask.foreach_index(GrainSize(4096), [&](const int i) {
+          const int point_index = indices[i];
+          /* Note: indices in point_to_curve_map_ are always valid. */
+          typed_dst[i] = (points.contains(point_index)) ? src[point_to_curve_map_[point_index]] :
+                                                          0;
+        });
+      });
+    });
+  }
+};
+#endif
+
+// meh ...
+#if 0
+/* Array of surface transforms for unilateral curve constraints. */
+static VArray<float4x4> curve_constraint_surface_transforms(
     bke::PointCloudComponent &constraints,
-    const Field<bool> selection_field,
     const bke::CurvesGeometry &curves,
     const Span<float4x4> curve_surface_transforms)
 {
+  const int points_num = constraints.attribute_domain_size(AttrDomain::Point);
+  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
+  Array point_to_curve_map = curves.point_to_curve_map();
+  IndexRange points = point_to_curve_map.index_range();
+
+  Array<int> target_point(points_num);
+  constraint_attributes.lookup<int>(target_point1_attr, AttrDomain::Point)
+      .varray.materialize_to_uninitialized(target_point);
+
+  return VArray<float4x4>::ForFunc(points_num, [=](const int index) {
+    const int target_point_i = target_point[index];
+    if (!points.contains(target_point_i)) {
+      return float4x4::identity();
+    }
+    const int target_curve_i = point_to_curve_map[target_point_i];
+    return curve_surface_transforms[target_curve_i];
+  });
+}
+#endif
+
+/* Utility for different variations of functions that sample curve surface transforms.
+ * TODO This should ultimately be field-based, but for now just avoids redundant code. */
+template<typename Fn>
+static void foreach_root_surface_transform(bke::PointCloudComponent &constraints,
+                                           const Field<bool> selection_field,
+                                           const bke::CurvesGeometry &curves,
+                                           const Span<float4x4> curve_surface_transforms,
+                                           Fn fn)
+{
   if (!constraints.has_pointcloud()) {
-    return std::nullopt;
+    return;
   }
 
+  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
   const Array point_to_curve_map = curves.point_to_curve_map();
+  const VArraySpan<int> target_point = *constraint_attributes.lookup<int>(target_point1_attr);
 
   /* Evaluate point selection. */
-  const int constraints_num = constraints.attribute_domain_size(AttrDomain::Point);
-  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
   bke::PointCloudFieldContext field_context(*constraints.get_for_write());
-  FieldEvaluator field_evaluator(field_context, constraints_num);
+  FieldEvaluator field_evaluator(field_context,
+                                 constraints.attribute_domain_size(AttrDomain::Point));
   field_evaluator.set_selection(selection_field);
-  field_evaluator.add(field_inputs::target_point(TargetPointAttribute::TargetPoint1));
   field_evaluator.evaluate();
   const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
-  const VArraySpan<int> target_point = field_evaluator.get_evaluated<int>(0);
 
-  /* Store point offsets from their surface reference frame. */
-  const VArraySpan positions = *constraint_attributes.lookup_or_default<float3>(
-      hairsim::attributes::position, AttrDomain::Point, float3(0.0f));
-  // const VArraySpan rotations = *constraint_attributes.lookup_or_default<math::Quaternion>(
-  //     rotation_attr, AttrDomain::Point, math::Quaternion::identity());
-  SpanAttributeWriter surface_position_writer =
-      constraint_attributes.lookup_or_add_for_write_span<float3>(surface_position_attr,
-                                                                 AttrDomain::Point);
-  // SpanAttributeWriter surface_rotation_writer =
-  //     constraint_attributes.lookup_or_add_for_write_span<math::Quaternion>(surface_rotation_attr,
-  // AttrDomain::Point);
   selection.foreach_index(GrainSize(256), [&](const int constraint_i) {
     const int target_point_i = target_point[constraint_i];
     if (!curves.points_range().contains(target_point_i)) {
       return;
     }
     const int target_curve_i = point_to_curve_map[target_point_i];
-    const float4x4 &inv_surface_transform = math::invert(curve_surface_transforms[target_curve_i]);
-    surface_position_writer.span[constraint_i] = math::transform_point(inv_surface_transform,
-                                                                       positions[constraint_i]);
-    // surface_rotation_writer.span[point_i] = math::to_quaternion(inv_surface_transform) *
-    //                                         rotations[point_i];
+    const float4x4 &surface_transform = curve_surface_transforms[target_curve_i];
+    fn(constraint_i, surface_transform);
   });
+}
 
+static std::optional<Error> capture_root_surface_position(
+    bke::PointCloudComponent &constraints,
+    const Field<bool> selection_field,
+    const bke::CurvesGeometry &curves,
+    const Span<float4x4> curve_surface_transforms)
+{
+  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
+  const VArraySpan positions = *constraint_attributes.lookup_or_default<float3>(
+      hairsim::attributes::position, AttrDomain::Point, float3(0.0f));
+  SpanAttributeWriter surface_position_writer =
+      constraint_attributes.lookup_or_add_for_write_span<float3>(surface_position_attr,
+                                                                 AttrDomain::Point);
+  foreach_root_surface_transform(
+      constraints,
+      selection_field,
+      curves,
+      curve_surface_transforms,
+      [&](const int constraint_i, const float4x4 &surface_transform) {
+        surface_position_writer.span[constraint_i] = math::transform_point(
+            math::invert(surface_transform), positions[constraint_i]);
+      });
   surface_position_writer.finish();
-  // surface_rotation_writer.finish();
+  return std::nullopt;
+}
 
+static std::optional<Error> capture_root_surface_rotation(
+    bke::PointCloudComponent &constraints,
+    const Field<bool> selection_field,
+    const bke::CurvesGeometry &curves,
+    const Span<float4x4> curve_surface_transforms)
+{
+  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
+  const VArraySpan rotations = *constraint_attributes.lookup_or_default<math::Quaternion>(
+      hairsim::attributes::rotation, AttrDomain::Point, math::Quaternion::identity());
+  SpanAttributeWriter surface_rotation_writer =
+      constraint_attributes.lookup_or_add_for_write_span<math::Quaternion>(surface_rotation_attr,
+                                                                           AttrDomain::Point);
+  foreach_root_surface_transform(constraints,
+                                 selection_field,
+                                 curves,
+                                 curve_surface_transforms,
+                                 [&](const int constraint_i, const float4x4 &surface_transform) {
+                                   surface_rotation_writer.span[constraint_i] =
+                                       math::to_quaternion(math::invert(surface_transform)) *
+                                       rotations[constraint_i];
+                                 });
+  surface_rotation_writer.finish();
+  return std::nullopt;
+}
+
+static std::optional<Error> apply_root_surface_position(
+    bke::PointCloudComponent &constraints,
+    const Field<bool> selection_field,
+    const bke::CurvesGeometry &curves,
+    const Span<float4x4> curve_surface_transforms)
+{
+  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
+  const VArraySpan surface_positions = *constraint_attributes.lookup_or_default<float3>(
+      surface_position_attr, AttrDomain::Point, float3(0.0f));
+  SpanAttributeWriter goal_position_writer =
+      constraint_attributes.lookup_or_add_for_write_span<float3>(goal_position_attr,
+                                                                 AttrDomain::Point);
+  foreach_root_surface_transform(constraints,
+                                 selection_field,
+                                 curves,
+                                 curve_surface_transforms,
+                                 [&](const int constraint_i, const float4x4 &surface_transform) {
+                                   goal_position_writer.span[constraint_i] = math::transform_point(
+                                       surface_transform, surface_positions[constraint_i]);
+                                 });
+  goal_position_writer.finish();
+  return std::nullopt;
+}
+
+static std::optional<Error> apply_root_surface_rotation(
+    bke::PointCloudComponent &constraints,
+    const Field<bool> selection_field,
+    const bke::CurvesGeometry &curves,
+    const Span<float4x4> curve_surface_transforms)
+{
+  MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
+  const VArraySpan surface_rotations = *constraint_attributes.lookup_or_default<math::Quaternion>(
+      surface_rotation_attr, AttrDomain::Point, math::Quaternion::identity());
+  SpanAttributeWriter goal_rotation_writer =
+      constraint_attributes.lookup_or_add_for_write_span<math::Quaternion>(goal_rotation_attr,
+                                                                           AttrDomain::Point);
+  foreach_root_surface_transform(
+      constraints,
+      selection_field,
+      curves,
+      curve_surface_transforms,
+      [&](const int constraint_i, const float4x4 &surface_transform) {
+        goal_rotation_writer.span[constraint_i] = math::to_quaternion(surface_transform) *
+                                                  surface_rotations[constraint_i];
+      });
+  goal_rotation_writer.finish();
   return std::nullopt;
 }
 
@@ -840,10 +1035,18 @@ class LazyFunctionForRootConstraintUpdate : public LazyFunctionForClosure {
     if (position_constraints.has_pointcloud()) {
       PointCloudComponent &position_points =
           position_constraints.get_component_for_write<PointCloudComponent>();
-      // compute_root_surface_position(position_points,
-      //                               field_constants::constant_field<bool>(true),
-      //                               curves,
-      //                               curve_surface_transforms);
+      apply_root_surface_position(position_points,
+                                  field_constants::constant_field<bool>(true),
+                                  curves,
+                                  curve_surface_transforms);
+    }
+    if (rotation_constraints.has_pointcloud()) {
+      PointCloudComponent &rotation_points =
+          rotation_constraints.get_component_for_write<PointCloudComponent>();
+      apply_root_surface_rotation(rotation_points,
+                                  field_constants::constant_field<bool>(true),
+                                  curves,
+                                  curve_surface_transforms);
     }
 
     params.set_output(output_position_index_, std::move(position_constraints));
@@ -1171,7 +1374,15 @@ static std::optional<Error> try_capture_root_constraint_offset(const bke::Curves
   if (position_constraints.has_pointcloud()) {
     PointCloudComponent &position_points =
         position_constraints.get_component_for_write<PointCloudComponent>();
-    compute_root_surface_position(position_points,
+    capture_root_surface_position(position_points,
+                                  field_constants::constant_field<bool>(true),
+                                  curves,
+                                  curve_surface_transforms);
+  }
+  if (rotation_constraints.has_pointcloud()) {
+    PointCloudComponent &rotation_points =
+        rotation_constraints.get_component_for_write<PointCloudComponent>();
+    capture_root_surface_rotation(rotation_points,
                                   field_constants::constant_field<bool>(true),
                                   curves,
                                   curve_surface_transforms);
@@ -1220,6 +1431,7 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
 }
 
 static void update_constraints(BundlePtr &bundle,
+                               const GeometrySet &hair_geometry,
                                const Behavior &behavior,
                                GeoNodesUserData *user_data)
 {
@@ -1237,6 +1449,7 @@ static void update_constraints(BundlePtr &bundle,
   }
 
   if (behavior.curve_constraints.update) {
+    GeometrySet input_geometry = hair_geometry;
     GeometrySet stretch_constraints = hair_constraints::lookup_constraints(
         *bundle, ConstraintType::StretchShear);
     GeometrySet bend_constraints = hair_constraints::lookup_constraints(*bundle,
@@ -1247,6 +1460,7 @@ static void update_constraints(BundlePtr &bundle,
     std::destroy_at(&out_bend_constraints);
 
     ClosureEagerEvalParams params;
+    params.inputs.append({SocketInterfaceKey("Geometry"), stype_geometry, &input_geometry});
     params.inputs.append(
         {SocketInterfaceKey("Stretch Constraints"), stype_geometry, &stretch_constraints});
     params.inputs.append(
@@ -1264,6 +1478,7 @@ static void update_constraints(BundlePtr &bundle,
   }
 
   if (behavior.root_constraints.update) {
+    GeometrySet input_geometry = hair_geometry;
     GeometrySet position_constraints = hair_constraints::lookup_constraints(
         *bundle, ConstraintType::PositionGoal);
     GeometrySet rotation_constraints = hair_constraints::lookup_constraints(
@@ -1274,6 +1489,7 @@ static void update_constraints(BundlePtr &bundle,
     std::destroy_at(&out_rotation_constraints);
 
     ClosureEagerEvalParams params;
+    params.inputs.append({SocketInterfaceKey("Geometry"), stype_geometry, &input_geometry});
     params.inputs.append(
         {SocketInterfaceKey("Position Constraints"), stype_geometry, &position_constraints});
     params.inputs.append(
@@ -1567,7 +1783,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         constraint_bundle, hair_curves, selection_field, behavior, params.user_data());
   }
 
-  update_constraints(constraint_bundle, behavior, params.user_data());
+  update_constraints(constraint_bundle, hair_geometry, behavior, params.user_data());
 
   IndexMaskMemory memory;
   Vector<ConstraintEvalData> constraint_data = hair_constraints::constraint_bundle_to_eval_data(
