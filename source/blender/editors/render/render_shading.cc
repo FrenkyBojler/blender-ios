@@ -750,6 +750,14 @@ void OBJECT_OT_material_slot_remove_unused(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
+static bool material_slot_remove_all_poll(bContext *C)
+{
+  const Object *ob_active = CTX_data_active_object(C);
+  if (ob_active->actcol <= 0) {
+    return false;
+  }
+  return true;
+}
 
 static wmOperatorStatus material_slot_remove_all_exec(bContext *C, wmOperator *op)
 {
@@ -810,9 +818,9 @@ void OBJECT_OT_material_slot_remove_all(wmOperatorType *ot)
 
   /* API callbacks. */
   ot->exec = material_slot_remove_all_exec;
-  ot->poll = object_materials_supported_poll;
-
+  ot->poll = material_slot_remove_all_poll;
   /* flags */
+
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
