@@ -142,6 +142,20 @@ void IDP_AppendArray(IDProperty *prop, IDProperty *item)
   IDP_SetIndexArray(prop, prop->len - 1, item);
 }
 
+static void idp_group_runtime_init(IDProperty &prop)
+{
+  prop.data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+}
+
+static void idp_group_runtime_free(IDProperty &prop)
+{
+  BLI_assert(prop.data.children_map != nullptr);
+  MEM_delete(prop.data.children_map);
+  /* Setting to null helps with error detection in case the #IDProperty is reused and free later
+   * again. */
+  prop.data.children_map = nullptr;
+}
+
 void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
 {
   BLI_assert(prop->type == IDP_IDPARRAY);
@@ -160,7 +174,7 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
       for (int i = prop->len; i < newlen; i++) {
         IDProperty *elem = GETPROP(prop, i);
         elem->type = IDP_GROUP;
-        elem->data.children_map = MEM_new<IDPropertyGroupChildrenSet>("IDP_ResizeIDPArray A");
+        idp_group_runtime_init(*elem);
       }
       prop->len = newlen;
       return;
@@ -189,7 +203,7 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   for (int i = prop->len; i < newlen; i++) {
     IDProperty *elem = GETPROP(prop, i);
     elem->type = IDP_GROUP;
-    elem->data.children_map = MEM_new<IDPropertyGroupChildrenSet>("IDP_ResizeIDPArray B");
+    idp_group_runtime_init(*elem);
   }
   prop->len = newlen;
   prop->totallen = newsize;
@@ -329,7 +343,7 @@ static IDProperty *idp_generic_copy(const IDProperty *prop, const int /*flag*/)
     newp->ui_data = IDP_ui_data_copy(prop);
   }
   if (newp->type == IDP_GROUP) {
-    newp->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+    idp_group_runtime_init(*newp);
   }
 
   return newp;
@@ -820,13 +834,11 @@ IDProperty *IDP_GetPropertyTypeFromGroup(const IDProperty *prop,
 static void IDP_FreeGroup(IDProperty *prop, const bool do_id_user)
 {
   BLI_assert(prop->type == IDP_GROUP);
-  BLI_assert(prop->data.children_map != nullptr);
 
   LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
     IDP_FreePropertyContent_ex(loop, do_id_user);
   }
-  MEM_delete(prop->data.children_map);
-  prop->data.children_map = nullptr;
+  idp_group_runtime_free(*prop);
   BLI_freelistN(&prop->data.group);
 }
 
@@ -926,7 +938,7 @@ IDProperty *IDP_EnsureProperties(ID *id)
   if (id->properties == nullptr) {
     id->properties = MEM_callocN<IDProperty>("IDProperty");
     id->properties->type = IDP_GROUP;
-    id->properties->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+    idp_group_runtime_init(*id->properties);
     /* NOTE(@ideasman42): Don't overwrite the data's name and type
      * some functions might need this if they
      * don't have a real ID, should be named elsewhere. */
@@ -945,7 +957,7 @@ IDProperty *IDP_ID_system_properties_ensure(ID *id)
   if (id->system_properties == nullptr) {
     id->system_properties = MEM_callocN<IDProperty>(__func__);
     id->system_properties->type = IDP_GROUP;
-    id->system_properties->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+    idp_group_runtime_init(*id->system_properties);
     /* NOTE(@ideasman42): Don't overwrite the data's name and type
      * some functions might need this if they
      * don't have a real ID, should be named elsewhere. */
@@ -1136,7 +1148,7 @@ IDProperty *IDP_New(const char type,
     case IDP_GROUP: {
       /* Values are set properly by calloc. */
       prop = MEM_callocN<IDProperty>("IDProperty group");
-      prop->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+      idp_group_runtime_init(*prop);
       break;
     }
     case IDP_ID: {
@@ -1305,7 +1317,7 @@ void IDP_ClearProperty(IDProperty *prop)
   prop->data.pointer = nullptr;
   prop->len = prop->totallen = 0;
   if (prop->type == IDP_GROUP) {
-    prop->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+    idp_group_runtime_init(*prop);
   }
 }
 
@@ -1661,7 +1673,7 @@ static void IDP_DirectLinkGroup(IDProperty *prop, BlendDataReader *reader)
   ListBase *lb = &prop->data.group;
 
   BLO_read_struct_list(reader, IDProperty, lb);
-  prop->data.children_map = MEM_new<IDPropertyGroupChildrenSet>(__func__);
+  idp_group_runtime_init(*prop);
 
   /* Link child id properties now. */
   LISTBASE_FOREACH (IDProperty *, loop, &prop->data.group) {
