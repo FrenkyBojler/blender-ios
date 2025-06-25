@@ -2791,10 +2791,10 @@ static void uvedit_unwrap_uniform(const Scene *scene,
       float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
       // Resize UVs to fit the island AABB.
       luv[0] = (luv[0] - (min[0] + cent[0])) * dx + (min[0] + cent[0]);
-      luv[1] = (luv[1] - (max[1] + cent[1])) * dy + (max[1] + cent[1]);
+      luv[1] = (luv[1] - (min[1] + cent[1])) * dy + (min[1] + cent[1]);
       // Translate UVs to the AABB center.
       luv[0] += (aabb->min[0] + aabb->cent[0]) - (min[0] + cent[0]);
-      luv[1] += (aabb->max[1] + aabb->cent[1]) - (max[1] + cent[1]);
+      luv[1] += (aabb->min[1] + aabb->cent[1]) - (min[1] + cent[1]);
     }
   }
 }
