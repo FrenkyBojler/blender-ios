@@ -877,9 +877,9 @@ void rna_AttributeStorage_color_iterator_begin(CollectionPropertyIterator *iter,
 int rna_AttributeGroup_color_length(PointerRNA *ptr)
 {
   using namespace blender;
-  if (GS(ptr->owner_id->name) != ID_ME) {
-    PointCloud &pointcloud = *reinterpret_cast<PointCloud *>(ptr->owner_id);
-    bke::AttributeStorage &storage = pointcloud.attribute_storage.wrap();
+  AttributeOwner owner = owner_from_pointer_rna(ptr);
+  if (owner.type() != AttributeOwnerType::Mesh) {
+    bke::AttributeStorage &storage = *owner.get_storage();
     int count = 0;
     storage.foreach([&](bke::Attribute &attr) {
       if (!(ATTR_DOMAIN_AS_MASK(attr.domain()) & ATTR_DOMAIN_MASK_COLOR)) {
