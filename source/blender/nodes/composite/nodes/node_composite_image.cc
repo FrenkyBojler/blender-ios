@@ -423,6 +423,19 @@ static void cmp_node_image_update(bNodeTree *ntree, bNode *node)
   /* avoid unnecessary updates, only changes to the image/image user data are of interest */
   if (node->runtime->update & NODE_UPDATE_ID) {
     cmp_node_image_verify_outputs(ntree, node, false);
+
+    bNodeSocket *frame_input = static_cast<bNodeSocket *>(
+        BLI_findstring(&node->inputs, "Frame", offsetof(bNodeSocket, identifier)));
+    if (!frame_input) {
+      frame_input = bke::node_add_static_socket(
+          *ntree, *node, SOCK_IN, SOCK_INT, PROP_NONE, "Frame", "Frame");
+    }
+    frame_input->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+    frame_input->flag |= SOCK_HIDE_VALUE;
+
+    Image *image = reinterpret_cast<Image *>(node->id);
+    blender::bke::node_set_socket_availability(
+        *ntree, *frame_input, image && ELEM(image->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE));
   }
 
   cmp_node_update_default(ntree, node);
@@ -432,9 +445,6 @@ static void node_composit_init_image(bNodeTree *ntree, bNode *node)
 {
   ImageUser *iuser = MEM_callocN<ImageUser>(__func__);
   node->storage = iuser;
-  iuser->frames = 1;
-  iuser->sfra = 1;
-  iuser->flag |= IMA_ANIM_ALWAYS;
 
   /* setup initial outputs */
   cmp_node_image_verify_outputs(ntree, node, false);
@@ -489,8 +499,9 @@ class ImageOperation : public NodeOperation {
       return;
     }
 
+    const ImageUser image_user = this->get_image_user();
     Result cached_image = context().cache_manager().cached_images.get(
-        context(), get_image(), get_image_user(), get_pass_name(identifier));
+        this->context(), this->get_image(), &image_user, this->get_pass_name(identifier));
 
     Result &result = get_result(identifier);
     if (!cached_image.is_allocated()) {
@@ -521,9 +532,20 @@ class ImageOperation : public NodeOperation {
     return reinterpret_cast<Image *>(bnode().id);
   }
 
-  ImageUser *get_image_user()
+  ImageUser get_image_user()
   {
-    return static_cast<ImageUser *>(bnode().storage);
+    ImageUser image_user_for_frame = *static_cast<ImageUser *>(bnode().storage);
+    image_user_for_frame.framenr = this->get_frame();
+    return image_user_for_frame;
+  }
+
+  int get_frame()
+  {
+    if (this->node()->input_by_identifier("Frame").is_directly_linked()) {
+      return this->get_input("Frame").get_single_value_default(this->context().get_frame_number());
+    }
+
+    return this->context().get_frame_number();
   }
 };
 

@@ -53,7 +53,7 @@ class CachedImage : public CachedResource {
   GPUTexture *texture_ = nullptr;
 
  public:
-  CachedImage(Context &context, Image *image, ImageUser *image_user, const char *pass_name);
+  CachedImage(Context &context, Image *image, const ImageUser *image_user, const char *pass_name);
 
   ~CachedImage();
 

@@ -288,7 +288,8 @@ static void node_buts_image_user(uiLayout *layout,
                                  PointerRNA *imaptr,
                                  PointerRNA *iuserptr,
                                  const bool show_layer_selection,
-                                 const bool show_color_management)
+                                 const bool show_color_management,
+                                 const bool show_frame)
 {
   Image *image = (Image *)imaptr->data;
   if (!image) {
@@ -302,24 +303,26 @@ static void node_buts_image_user(uiLayout *layout,
 
   const int source = RNA_enum_get(imaptr, "source");
 
-  if (source == IMA_SRC_SEQUENCE) {
-    /* don't use iuser->framenr directly
-     * because it may not be updated if auto-refresh is off */
-    Scene *scene = CTX_data_scene(C);
+  if (show_frame) {
+    if (source == IMA_SRC_SEQUENCE) {
+      /* don't use iuser->framenr directly
+       * because it may not be updated if auto-refresh is off */
+      Scene *scene = CTX_data_scene(C);
 
-    char numstr[32];
-    const int framenr = BKE_image_user_frame_get(iuser, scene->r.cfra, nullptr);
-    SNPRINTF(numstr, IFACE_("Frame: %d"), framenr);
-    layout->label(numstr, ICON_NONE);
-  }
+      char numstr[32];
+      const int framenr = BKE_image_user_frame_get(iuser, scene->r.cfra, nullptr);
+      SNPRINTF(numstr, IFACE_("Frame: %d"), framenr);
+      layout->label(numstr, ICON_NONE);
+    }
 
-  if (ELEM(source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
-    col = &layout->column(true);
-    col->prop(ptr, "frame_duration", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
-    col->prop(ptr, "frame_start", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
-    col->prop(ptr, "frame_offset", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
-    col->prop(ptr, "use_cyclic", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
-    col->prop(ptr, "use_auto_refresh", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+    if (ELEM(source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+      col = &layout->column(true);
+      col->prop(ptr, "frame_duration", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+      col->prop(ptr, "frame_start", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+      col->prop(ptr, "frame_offset", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_cyclic", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+      col->prop(ptr, "use_auto_refresh", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+    }
   }
 
   if (show_layer_selection && RNA_enum_get(imaptr, "type") == IMA_TYPE_MULTILAYER &&
@@ -370,7 +373,7 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
   /* NOTE: image user properties used directly here, unlike compositor image node,
    * which redefines them in the node struct RNA to get proper updates.
    */
-  node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr, false, true);
+  node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr, false, true, true);
 }
 
 static void node_shader_buts_tex_image_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -390,7 +393,7 @@ static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, Poin
   layout->prop(ptr, "interpolation", DEFAULT_FLAGS, "", ICON_NONE);
   layout->prop(ptr, "projection", DEFAULT_FLAGS, "", ICON_NONE);
 
-  node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr, false, true);
+  node_buts_image_user(layout, C, &iuserptr, &imaptr, &iuserptr, false, true, true);
 }
 
 static void node_shader_buts_tex_environment_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
@@ -516,7 +519,7 @@ static void node_composit_buts_image(uiLayout *layout, bContext *C, PointerRNA *
 
   PointerRNA imaptr = RNA_pointer_get(ptr, "image");
 
-  node_buts_image_user(layout, C, ptr, &imaptr, &iuserptr, true, true);
+  node_buts_image_user(layout, C, ptr, &imaptr, &iuserptr, true, true, false);
 
   node_buts_image_views(layout, C, ptr, &imaptr);
 }
@@ -600,7 +603,7 @@ static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *C, Pointe
         ptr->owner_id, &RNA_ImageUser, &crypto->iuser);
     layout->context_ptr_set("image_user", &iuserptr);
 
-    node_buts_image_user(col, C, ptr, &imaptr, &iuserptr, false, false);
+    node_buts_image_user(col, C, ptr, &imaptr, &iuserptr, false, false, true);
     node_buts_image_views(col, C, ptr, &imaptr);
   }
 

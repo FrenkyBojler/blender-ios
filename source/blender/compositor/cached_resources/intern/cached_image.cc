@@ -254,7 +254,7 @@ static ResultType get_result_type(const RenderResult *render_result,
 
 CachedImage::CachedImage(Context &context,
                          Image *image,
-                         ImageUser *image_user,
+                         const ImageUser *image_user,
                          const char *pass_name)
     : result(context)
 {
@@ -265,7 +265,8 @@ CachedImage::CachedImage(Context &context,
    * render result as a side effect. We also use that as a mean of validation, since we can early
    * exit if the returned image buffer is nullptr. This image buffer can be immediately released.
    * Since it carries no important information. */
-  ImBuf *initial_image_buffer = BKE_image_acquire_ibuf(image, image_user, nullptr);
+  ImBuf *initial_image_buffer = BKE_image_acquire_ibuf(
+      image, const_cast<ImageUser *>(image_user), nullptr);
   BKE_image_release_ibuf(image, initial_image_buffer, nullptr);
   if (!initial_image_buffer) {
     return;
@@ -406,11 +407,7 @@ Result CachedImageContainer::get(Context &context,
     return Result(context);
   }
 
-  /* Compute the effective frame number of the image if it was animated. */
-  ImageUser image_user_for_frame = *image_user;
-  BKE_image_user_frame_calc(image, &image_user_for_frame, context.get_frame_number());
-
-  const CachedImageKey key(image_user_for_frame, pass_name);
+  const CachedImageKey key(*image_user, pass_name);
 
   const std::string library_key = image->id.lib ? image->id.lib->id.name : "";
   const std::string id_key = std::string(image->id.name) + library_key;
@@ -423,9 +420,8 @@ Result CachedImageContainer::get(Context &context,
     cached_images_for_id.clear();
   }
 
-  auto &cached_image = *cached_images_for_id.lookup_or_add_cb(key, [&]() {
-    return std::make_unique<CachedImage>(context, image, &image_user_for_frame, pass_name);
-  });
+  auto &cached_image = *cached_images_for_id.lookup_or_add_cb(
+      key, [&]() { return std::make_unique<CachedImage>(context, image, image_user, pass_name); });
 
   /* Store the current update count to later compare to and check if the image changed. */
   update_counts_.add_overwrite(id_key, image->runtime->update_count);
