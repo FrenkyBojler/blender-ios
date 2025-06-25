@@ -8,6 +8,7 @@ set(INC
   intern
   ../compositor
   ../compositor/cached_resources
+  ../compositor/derived_resources
   ../draw/intern
   ../gpu/intern
   ../makesrna
@@ -81,7 +82,7 @@ if(WITH_IMAGE_OPENEXR)
   list(APPEND LIB
     bf_imbuf_openexr
   )
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_FREESTYLE)

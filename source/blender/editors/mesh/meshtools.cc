@@ -13,6 +13,7 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
@@ -33,6 +34,7 @@
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_key.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_mesh.hh"
@@ -334,7 +336,7 @@ static void mesh_join_offset_face_sets_ID(Mesh *mesh, int *face_set_offset)
   face_sets.finish();
 }
 
-int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -685,7 +687,7 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
   ob->totcol = mesh->totcol = totcol;
 
   /* other mesh users */
-  BKE_objects_materials_test_all(bmain, (ID *)mesh);
+  BKE_objects_materials_sync_length_all(bmain, (ID *)mesh);
 
   /* Free temporary copy of destination shape-keys (if applicable). */
   if (nkey) {
@@ -715,91 +717,68 @@ int ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
 /* -------------------------------------------------------------------- */
 /** \name Join as Shapes
  *
- * Append selected meshes vertex locations as shapes of the active mesh.
+ * Add vertex positions of selected meshes as shape keys to the active mesh.
  * \{ */
 
-int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op)
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *reports)
 {
+  using namespace blender;
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
-  Object *ob_active = CTX_data_active_object(C);
-  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Mesh *mesh = (Mesh *)ob_active->data;
-  Mesh *selme = nullptr;
-  Mesh *me_deformed = nullptr;
-  Key *key = mesh->key;
-  KeyBlock *kb;
-  bool ok = false, nonequal_verts = false;
+  Object &active_object = *CTX_data_active_object(C);
+  Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
+  Mesh &active_mesh = *static_cast<Mesh *>(active_object.data);
 
+  bool found_non_equal_verts_num = false;
+  Vector<Object *> compatible_objects;
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
-    if (ob_iter == ob_active) {
+    if (ob_iter == &active_object) {
       continue;
     }
-
-    if (ob_iter->type == OB_MESH) {
-      selme = (Mesh *)ob_iter->data;
-
-      if (selme->verts_num == mesh->verts_num) {
-        ok = true;
-      }
-      else {
-        nonequal_verts = true;
-      }
+    if (ob_iter->type != OB_MESH) {
+      continue;
     }
+    const Mesh &mesh = *static_cast<Mesh *>(ob_iter->data);
+    if (mesh.verts_num != active_mesh.verts_num) {
+      found_non_equal_verts_num = true;
+      continue;
+    }
+    compatible_objects.append(ob_iter);
   }
   CTX_DATA_END;
 
-  if (!ok) {
-    if (nonequal_verts) {
-      BKE_report(op->reports, RPT_WARNING, "Selected meshes must have equal numbers of vertices");
-    }
-    else {
-      BKE_report(op->reports,
-                 RPT_WARNING,
-                 "No additional selected meshes with equal vertex count to join");
-    }
+  if (found_non_equal_verts_num) {
+    BKE_report(reports, RPT_WARNING, "Selected meshes must have equal numbers of vertices");
     return OPERATOR_CANCELLED;
   }
 
-  if (key == nullptr) {
-    key = mesh->key = BKE_key_add(bmain, (ID *)mesh);
-    key->type = KEY_RELATIVE;
-
-    /* first key added, so it was the basis. initialize it with the existing mesh */
-    kb = BKE_keyblock_add(key, nullptr);
-    BKE_keyblock_convert_from_mesh(mesh, key, kb);
+  if (compatible_objects.is_empty()) {
+    BKE_report(
+        reports, RPT_WARNING, "No additional selected meshes with equal vertex count to join");
+    return OPERATOR_CANCELLED;
   }
 
-  /* now ready to add new keys from selected meshes */
-  CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
-    if (ob_iter == ob_active) {
+  if (!active_mesh.key) {
+    /* Initialize basis shape key with existing mesh. */
+    active_mesh.key = BKE_key_add(bmain, &active_mesh.id);
+    active_mesh.key->type = KEY_RELATIVE;
+    BKE_keyblock_convert_from_mesh(
+        &active_mesh, active_mesh.key, BKE_keyblock_add(active_mesh.key, nullptr));
+  }
+
+  Scene *scene_eval = DEG_get_evaluated_scene(&depsgraph);
+  for (Object *object : compatible_objects) {
+    Object *object_eval = DEG_get_evaluated_object(&depsgraph, object);
+    Mesh *deformed_mesh = blender::bke::mesh_get_eval_deform(
+        &depsgraph, scene_eval, object_eval, &CD_MASK_BAREMESH);
+    if (!deformed_mesh) {
       continue;
     }
-
-    if (ob_iter->type == OB_MESH) {
-      selme = (Mesh *)ob_iter->data;
-
-      if (selme->verts_num == mesh->verts_num) {
-        Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
-        Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob_iter);
-
-        me_deformed = blender::bke::mesh_get_eval_deform(
-            depsgraph, scene_eval, ob_eval, &CD_MASK_BAREMESH);
-
-        if (!me_deformed) {
-          continue;
-        }
-
-        kb = BKE_keyblock_add(key, ob_iter->id.name + 2);
-
-        blender::bke::mesh_eval_to_meshkey(me_deformed, mesh, kb);
-      }
-    }
+    KeyBlock *kb = BKE_keyblock_add(active_mesh.key, object->id.name + 2);
+    BKE_keyblock_convert_from_mesh(deformed_mesh, active_mesh.key, kb);
   }
-  CTX_DATA_END;
 
-  DEG_id_tag_update(&scene->id, ID_RECALC_SELECT);
-  WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+  DEG_id_tag_update(&active_mesh.id, ID_RECALC_GEOMETRY);
+  WM_main_add_notifier(NC_GEOM | ND_DATA, &active_mesh.id);
 
   return OPERATOR_FINISHED;
 }
@@ -1269,7 +1248,7 @@ bool ED_mesh_pick_face_vert(
       }
     }
 
-    /* map 'dm -> mesh' r_index if possible */
+    /* Map the `dm` to `mesh`, setting the `r_index` if possible. */
     if (v_idx_best != ORIGINDEX_NONE) {
       const int *index_mv_to_orig = (const int *)CustomData_get_layer(&mesh_eval->vert_data,
                                                                       CD_ORIGINDEX);
@@ -1282,6 +1261,49 @@ bool ED_mesh_pick_face_vert(
       *r_index = v_idx_best;
       return true;
     }
+  }
+
+  return false;
+}
+
+bool ED_mesh_pick_edge(bContext *C, Object *ob, const int mval[2], uint dist_px, uint *r_index)
+{
+  Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+
+  BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
+
+  if (!mesh || mesh->edges_num == 0) {
+    return false;
+  }
+
+  ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
+  ED_view3d_select_id_validate(&vc);
+  Base *base = BKE_view_layer_base_find(vc.view_layer, vc.obact);
+  DRW_select_buffer_context_create(vc.depsgraph, {base}, SCE_SELECT_EDGE);
+
+  uint edge_idx_best = ORIGINDEX_NONE;
+
+  if (dist_px) {
+    /* Sample rect to increase chances of selecting, so that when clicking
+     * on an edge in the back-buffer, we can still select a face. */
+    edge_idx_best = DRW_select_buffer_find_nearest_to_point(
+        vc.depsgraph, vc.region, vc.v3d, mval, 1, mesh->edges_num + 1, &dist_px);
+  }
+  else {
+    /* sample only on the exact position */
+    edge_idx_best = DRW_select_buffer_sample_point(vc.depsgraph, vc.region, vc.v3d, mval);
+  }
+
+  if (edge_idx_best == 0 || edge_idx_best > uint(mesh->edges_num)) {
+    return false;
+  }
+
+  edge_idx_best--;
+
+  if (edge_idx_best != ORIGINDEX_NONE) {
+    *r_index = edge_idx_best;
+    return true;
   }
 
   return false;

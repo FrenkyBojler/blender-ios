@@ -18,7 +18,6 @@
 #include "BKE_texture.h"
 
 #include "DNA_ID.h"
-#include "DNA_scene_types.h"
 #include "DNA_texture_types.h"
 
 #include "RE_texture.h"
@@ -26,7 +25,6 @@
 #include "COM_cached_texture.hh"
 #include "COM_context.hh"
 #include "COM_result.hh"
-#include "COM_utilities.hh"
 
 namespace blender::compositor {
 
@@ -127,6 +125,7 @@ void CachedTextureContainer::reset()
     cached_textures_for_id.remove_if([](auto item) { return !item.value->needed; });
   }
   map_.remove_if([](auto item) { return item.value.is_empty(); });
+  update_counts_.remove_if([&](auto item) { return !map_.contains(item.key); });
 
   /* Second, reset the needed status of the remaining cached textures to false to ready them to
    * track their needed status for the next evaluation. */
@@ -150,8 +149,10 @@ CachedTexture &CachedTextureContainer::get(Context &context,
   const std::string id_key = std::string(texture->id.name) + library_key;
   auto &cached_textures_for_id = map_.lookup_or_add_default(id_key);
 
-  /* Invalidate the cache for that texture ID if it was changed and reset the recalculate flag. */
-  if (context.query_id_recalc_flag(reinterpret_cast<ID *>(texture)) & ID_RECALC_ALL) {
+  /* Invalidate the cache for that texture if it was changed since it was cached. */
+  if (!cached_textures_for_id.is_empty() &&
+      texture->runtime.last_update != update_counts_.lookup(id_key))
+  {
     cached_textures_for_id.clear();
   }
 
@@ -159,6 +160,9 @@ CachedTexture &CachedTextureContainer::get(Context &context,
     return std::make_unique<CachedTexture>(
         context, texture, use_color_management, size, offset, scale);
   });
+
+  /* Store the current update count to later compare to and check if the texture changed. */
+  update_counts_.add_overwrite(id_key, texture->runtime.last_update);
 
   cached_texture.needed = true;
   return cached_texture;

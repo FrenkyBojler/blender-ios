@@ -44,6 +44,13 @@ template<typename T>
 }
 
 template<typename T>
+[[nodiscard]] inline std::optional<Bounds<T>> merge(const std::optional<Bounds<T>> &a,
+                                                    const Bounds<T> &b)
+{
+  return merge(a, std::optional<Bounds<T>>(b));
+}
+
+template<typename T>
 [[nodiscard]] inline std::optional<Bounds<T>> min_max(const std::optional<Bounds<T>> &a,
                                                       const T &b)
 {
@@ -196,7 +203,7 @@ template<typename T, int Size>
 
 template<typename T> inline bool Bounds<T>::is_empty() const
 {
-  if constexpr (std::is_integral<T>::value || std::is_floating_point<T>::value) {
+  if constexpr (std::is_integral_v<T> || std::is_floating_point_v<T>) {
     return this->max <= this->min;
   }
   else {

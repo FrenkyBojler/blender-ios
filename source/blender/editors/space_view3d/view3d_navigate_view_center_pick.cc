@@ -20,7 +20,7 @@
 /** \name View Center Pick Operator
  * \{ */
 
-static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   View3D *v3d = CTX_wm_view3d(C);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
@@ -33,7 +33,7 @@ static int viewcenter_pick_invoke(bContext *C, wmOperator *op, const wmEvent *ev
 
     ED_view3d_smooth_view_force_finish(C, v3d, region);
 
-    view3d_operator_needs_opengl(C);
+    view3d_operator_needs_gpu(C);
 
     /* Ensure the depth buffer is updated for #ED_view3d_autodist. */
     ED_view3d_depth_override(depsgraph, region, v3d, nullptr, V3D_DEPTH_NO_GPENCIL, true, nullptr);

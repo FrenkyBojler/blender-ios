@@ -12,7 +12,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
+#include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "BKE_context.hh"
 #include "BKE_lib_query.hh"
@@ -166,7 +167,6 @@ static void text_operatortypes()
   WM_operatortype_append(TEXT_OT_save_as);
   WM_operatortype_append(TEXT_OT_make_internal);
   WM_operatortype_append(TEXT_OT_run_script);
-  WM_operatortype_append(TEXT_OT_refresh_pyconstraints);
 
   WM_operatortype_append(TEXT_OT_paste);
   WM_operatortype_append(TEXT_OT_copy);

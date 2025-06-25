@@ -35,6 +35,7 @@ bool VKBuffer::create(size_t size_in_bytes,
   BLI_assert(mapped_memory_ == nullptr);
 
   size_in_bytes_ = size_in_bytes;
+  alloc_size_in_bytes_ = ceil_to_multiple_ul(max_ulul(size_in_bytes_, 16), 16);
   VKDevice &device = VKBackend::get().device;
 
   VmaAllocator allocator = device.mem_allocator_get();
@@ -45,7 +46,7 @@ bool VKBuffer::create(size_t size_in_bytes,
    * Vulkan doesn't allow empty buffers but some areas (DrawManager Instance data, PyGPU) create
    * them.
    */
-  create_info.size = max_ulul(size_in_bytes, 1);
+  create_info.size = alloc_size_in_bytes_;
   create_info.usage = buffer_usage;
   /* We use the same command queue for the compute and graphics pipeline, so it is safe to use
    * exclusive resource handling. */
@@ -79,8 +80,15 @@ bool VKBuffer::create(size_t size_in_bytes,
 
 void VKBuffer::update_immediately(const void *data) const
 {
+  update_sub_immediately(0, size_in_bytes_, data);
+}
+
+void VKBuffer::update_sub_immediately(size_t start_offset,
+                                      size_t data_size,
+                                      const void *data) const
+{
   BLI_assert_msg(is_mapped(), "Cannot update a non-mapped buffer.");
-  memcpy(mapped_memory_, data, size_in_bytes_);
+  memcpy(static_cast<uint8_t *>(mapped_memory_) + start_offset, data, data_size);
 }
 
 void VKBuffer::update_render_graph(VKContext &context, void *data) const
@@ -90,7 +98,7 @@ void VKBuffer::update_render_graph(VKContext &context, void *data) const
   update_buffer.dst_buffer = vk_buffer_;
   update_buffer.data_size = size_in_bytes_;
   update_buffer.data = data;
-  context.render_graph.add_node(update_buffer);
+  context.render_graph().add_node(update_buffer);
 }
 
 void VKBuffer::flush() const
@@ -105,16 +113,39 @@ void VKBuffer::clear(VKContext &context, uint32_t clear_value)
   render_graph::VKFillBufferNode::CreateInfo fill_buffer = {};
   fill_buffer.vk_buffer = vk_buffer_;
   fill_buffer.data = clear_value;
-  fill_buffer.size = size_in_bytes_;
-  context.render_graph.add_node(fill_buffer);
+  fill_buffer.size = alloc_size_in_bytes_;
+  context.render_graph().add_node(fill_buffer);
+}
+
+void VKBuffer::async_flush_to_host(VKContext &context)
+{
+  BLI_assert(async_timeline_ == 0);
+  context.rendering_end();
+  async_timeline_ = context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                                               RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
+}
+
+void VKBuffer::read_async(VKContext &context, void *data)
+{
+  BLI_assert_msg(is_mapped(), "Cannot read a non-mapped buffer.");
+  if (async_timeline_ == 0) {
+    async_flush_to_host(context);
+  }
+  VKDevice &device = VKBackend::get().device;
+  device.wait_for_timeline(async_timeline_);
+  async_timeline_ = 0;
+  memcpy(data, mapped_memory_, size_in_bytes_);
 }
 
 void VKBuffer::read(VKContext &context, void *data) const
 {
+
   BLI_assert_msg(is_mapped(), "Cannot read a non-mapped buffer.");
+  BLI_assert(async_timeline_ == 0);
   context.rendering_end();
-  context.descriptor_set_get().upload_descriptor_sets();
-  context.render_graph.submit_for_read();
+  context.flush_render_graph(RenderGraphFlushFlags::SUBMIT |
+                             RenderGraphFlushFlags::WAIT_FOR_COMPLETION |
+                             RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
   memcpy(data, mapped_memory_, size_in_bytes_);
 }
 
@@ -153,8 +184,7 @@ bool VKBuffer::free()
     unmap();
   }
 
-  VKDevice &device = VKBackend::get().device;
-  device.discard_pool_for_current_thread().discard_buffer(vk_buffer_, allocation_);
+  VKDiscardPool::discard_pool_get().discard_buffer(vk_buffer_, allocation_);
 
   allocation_ = VK_NULL_HANDLE;
   vk_buffer_ = VK_NULL_HANDLE;

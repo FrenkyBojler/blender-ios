@@ -11,6 +11,7 @@ set(INC
   ../../makesrna
   ../../compositor/algorithms
   ../../compositor/cached_resources
+  ../../compositor/derived_resources
   ../../compositor/utilities
 
   # RNA_prototypes.hh
@@ -62,6 +63,7 @@ set(SRC
   nodes/node_composite_huecorrect.cc
   nodes/node_composite_id_mask.cc
   nodes/node_composite_image.cc
+  nodes/node_composite_image_info.cc
   nodes/node_composite_inpaint.cc
   nodes/node_composite_invert.cc
   nodes/node_composite_keying.cc
@@ -140,7 +142,7 @@ if(WITH_OPENCOLORIO)
 endif()
 
 if(WITH_IMAGE_OPENEXR)
-  add_definitions(-DWITH_OPENEXR)
+  add_definitions(-DWITH_IMAGE_OPENEXR)
 endif()
 
 if(WITH_OPENIMAGEDENOISE)

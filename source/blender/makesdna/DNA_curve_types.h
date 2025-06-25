@@ -321,7 +321,7 @@ typedef struct Curve {
   void *batch_cache;
 
 #ifdef __cplusplus
-  /** Get the largest material index used by the curves or nullopt if there are none. */
+  /** Get the largest material index used by the curves or `nullopt` if there are none. */
   std::optional<int> material_index_max() const;
 #endif
 } Curve;
@@ -450,6 +450,7 @@ enum {
   CU_NURB_CYCLIC = 1 << 0,
   CU_NURB_ENDPOINT = 1 << 1,
   CU_NURB_BEZIER = 1 << 2,
+  CU_NURB_CUSTOM = 1 << 3,
 };
 
 #define CU_ACT_NONE -1

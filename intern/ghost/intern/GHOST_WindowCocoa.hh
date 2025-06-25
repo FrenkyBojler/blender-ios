@@ -94,6 +94,11 @@ class GHOST_WindowCocoa : public GHOST_Window {
   GHOST_TSuccess setPath(const char *filepath) override;
 
   /**
+   * Apply the window decoration style using the current flags and settings.
+   */
+  GHOST_TSuccess applyWindowDecorationStyle() override;
+
+  /**
    * Returns the window rectangle dimensions.
    * The dimensions are given in screen coordinates that are
    * relative to the upper-left corner of the screen.
@@ -220,16 +225,6 @@ class GHOST_WindowCocoa : public GHOST_Window {
   GHOST_TSuccess endProgressBar() override;
 
   void setNativePixelSize();
-
-  GHOST_TSuccess beginFullScreen() const override
-  {
-    return GHOST_kFailure;
-  }
-
-  GHOST_TSuccess endFullScreen() const override
-  {
-    return GHOST_kFailure;
-  }
 
   /** public function to get the window containing the view */
   BlenderWindow *getViewWindow() const

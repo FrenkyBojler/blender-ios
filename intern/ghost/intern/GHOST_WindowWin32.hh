@@ -128,6 +128,11 @@ class GHOST_WindowWin32 : public GHOST_Window {
   std::string getTitle() const;
 
   /**
+   * Apply the window decoration style using the current flags and settings.
+   */
+  GHOST_TSuccess applyWindowDecorationStyle() override;
+
+  /**
    * Returns the window rectangle dimensions.
    * The dimensions are given in screen coordinates that are
    * relative to the upper-left corner of the screen.
@@ -285,16 +290,6 @@ class GHOST_WindowWin32 : public GHOST_Window {
    * \return Most recent pointer tablet data.
    */
   GHOST_TabletData getTabletData();
-
-  GHOST_TSuccess beginFullScreen() const
-  {
-    return GHOST_kFailure;
-  }
-
-  GHOST_TSuccess endFullScreen() const
-  {
-    return GHOST_kFailure;
-  }
 
   void updateDPI();
 

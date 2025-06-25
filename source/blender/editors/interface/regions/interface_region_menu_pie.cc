@@ -16,6 +16,7 @@
 
 #include "DNA_userdef_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 #include "BLI_time.h"
 #include "BLI_utildefines.h"
@@ -95,9 +96,9 @@ uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmE
 
   wmWindow *win = CTX_wm_window(C);
 
-  uiPieMenu *pie = MEM_cnew<uiPieMenu>(__func__);
+  uiPieMenu *pie = MEM_callocN<uiPieMenu>(__func__);
 
-  pie->pie_block = UI_block_begin(C, nullptr, __func__, UI_EMBOSS);
+  pie->pie_block = UI_block_begin(C, nullptr, __func__, blender::ui::EmbossType::Emboss);
   /* may be useful later to allow spawning pies
    * from old positions */
   // pie->pie_block->flag |= UI_BLOCK_POPUP_MEMORY;
@@ -193,7 +194,7 @@ uiLayout *UI_pie_menu_layout(uiPieMenu *pie)
   return pie->layout;
 }
 
-int UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event)
+wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event)
 {
   uiPieMenu *pie;
   uiLayout *layout;
@@ -219,11 +220,11 @@ int UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event)
   return OPERATOR_INTERFACE;
 }
 
-int UI_pie_menu_invoke_from_operator_enum(bContext *C,
-                                          const StringRefNull title,
-                                          const StringRefNull opname,
-                                          const StringRefNull propname,
-                                          const wmEvent *event)
+wmOperatorStatus UI_pie_menu_invoke_from_operator_enum(bContext *C,
+                                                       const StringRefNull title,
+                                                       const StringRefNull opname,
+                                                       const StringRefNull propname,
+                                                       const wmEvent *event)
 {
   uiPieMenu *pie;
   uiLayout *layout;
@@ -239,10 +240,10 @@ int UI_pie_menu_invoke_from_operator_enum(bContext *C,
   return OPERATOR_INTERFACE;
 }
 
-int UI_pie_menu_invoke_from_rna_enum(bContext *C,
-                                     const char *title,
-                                     const char *path,
-                                     const wmEvent *event)
+wmOperatorStatus UI_pie_menu_invoke_from_rna_enum(bContext *C,
+                                                  const char *title,
+                                                  const char *path,
+                                                  const wmEvent *event)
 {
   PointerRNA r_ptr;
   PropertyRNA *r_prop;

@@ -6,15 +6,6 @@
 
 #ifndef GPU_SHADER
 #  include "GPU_shader_shared_utils.hh"
-
-#  ifndef __cplusplus
-typedef struct gpMaterial gpMaterial;
-typedef struct gpLight gpLight;
-typedef enum gpMaterialFlag gpMaterialFlag;
-#    ifdef GP_LIGHT
-typedef enum gpLightType gpLightType;
-#    endif
-#  endif
 #endif
 
 enum gpMaterialFlag : uint32_t {
@@ -69,7 +60,7 @@ struct gpMaterial {
   gpMaterialFlag flag;
 #else
   /* Some drivers are completely messing the alignment or the fetches here.
-   * We are forced to pack these into vec4 otherwise we only get 0.0 as value. */
+   * We are forced to pack these into float4 otherwise we only get 0.0 as value. */
   /* NOTE(@fclem): This was the case on MacOS OpenGL implementation.
    * This might be fixed in newer APIs. */
   float4 packed1;
@@ -100,7 +91,7 @@ struct gpLight {
   float _pad1;
 #  else
   /* Some drivers are completely messing the alignment or the fetches here.
-   * We are forced to pack these into vec4 otherwise we only get 0.0 as value. */
+   * We are forced to pack these into float4 otherwise we only get 0.0 as value. */
   /* NOTE(@fclem): This was the case on MacOS OpenGL implementation.
    * This might be fixed in newer APIs. */
   float4 packed0;

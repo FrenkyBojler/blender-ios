@@ -59,6 +59,7 @@
 
 #include "bmesh.hh"
 
+#include <algorithm>
 #include <cmath>
 #include <cstdlib>
 
@@ -123,7 +124,7 @@ void zero_disabled_axis_components(const filter::Cache &filter_cache,
   }
 }
 
-Cache::~Cache() {}
+Cache::~Cache() = default;
 
 void cache_init(bContext *C,
                 Object &ob,
@@ -1751,7 +1752,7 @@ static void calc_sharpen_filter(const Depsgraph &depsgraph,
         tls.translations.resize(verts.size());
         const MutableSpan<float3> translations = tls.translations;
 
-        Vector<BMVert *, 64> neighbors;
+        BMeshNeighborVerts neighbors;
 
         int i = 0;
         for (BMVert *vert : verts) {
@@ -1985,12 +1986,10 @@ static void mesh_filter_sharpen_init(const Depsgraph &depsgraph,
 
   float max_factor = 0.0f;
   for (int i = 0; i < totvert; i++) {
-    if (sharpen_factors[i] > max_factor) {
-      max_factor = sharpen_factors[i];
-    }
+    max_factor = std::max(sharpen_factors[i], max_factor);
   }
 
-  max_factor = 1.0f / max_factor;
+  max_factor = math::safe_rcp(max_factor);
   for (int i = 0; i < totvert; i++) {
     sharpen_factors[i] *= max_factor;
     sharpen_factors[i] = 1.0f - pow2f(1.0f - sharpen_factors[i]);
@@ -2180,10 +2179,10 @@ static void sculpt_mesh_filter_apply(bContext *C, wmOperator *op, bool is_replay
 
   bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   pbvh.tag_positions_changed(node_mask);
+  pbvh.update_bounds(depsgraph, ob);
 
   ss.filter_cache->iteration_count++;
 
-  bke::pbvh::update_bounds(depsgraph, ob, pbvh);
   flush_update_step(C, UpdateType::Position);
 }
 
@@ -2239,9 +2238,9 @@ static void sculpt_mesh_filter_end(bContext *C)
   flush_update_done(C, ob, UpdateType::Position);
 }
 
-static int sculpt_mesh_filter_confirm(SculptSession &ss,
-                                      wmOperator *op,
-                                      const MeshFilterType filter_type)
+static wmOperatorStatus sculpt_mesh_filter_confirm(SculptSession &ss,
+                                                   wmOperator *op,
+                                                   const MeshFilterType filter_type)
 {
   float initial_strength = ss.filter_cache->start_filter_strength;
   /* Don't update strength property if we're storing an event history. */
@@ -2265,10 +2264,10 @@ static void sculpt_mesh_filter_cancel(bContext *C, wmOperator * /*op*/)
 
   undo::restore_position_from_undo_step(depsgraph, ob);
   bke::pbvh::update_normals(depsgraph, ob, *pbvh);
-  bke::pbvh::update_bounds(depsgraph, ob, *pbvh);
+  pbvh->update_bounds(depsgraph, ob);
 }
 
-static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
@@ -2279,7 +2278,7 @@ static int sculpt_mesh_filter_modal(bContext *C, wmOperator *op, const wmEvent *
   sculpt_mesh_update_status_bar(C, op);
 
   if (event->type == EVT_MODAL_MAP) {
-    int ret = OPERATOR_FINISHED;
+    wmOperatorStatus ret = OPERATOR_FINISHED;
     switch (event->val) {
       case FILTER_MESH_MODAL_CANCEL:
         sculpt_mesh_filter_cancel(C, op);
@@ -2380,7 +2379,7 @@ static void sculpt_filter_specific_init(const Depsgraph &depsgraph,
 }
 
 /* Returns OPERATOR_PASS_THROUGH on success. */
-static int sculpt_mesh_filter_start(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_mesh_filter_start(bContext *C, wmOperator *op)
 {
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
@@ -2459,10 +2458,12 @@ static int sculpt_mesh_filter_start(bContext *C, wmOperator *op)
   return OPERATOR_PASS_THROUGH;
 }
 
-static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus sculpt_mesh_filter_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   RNA_int_set_array(op->ptr, "start_mouse", event->mval);
-  int ret = sculpt_mesh_filter_start(C, op);
+  wmOperatorStatus ret = sculpt_mesh_filter_start(C, op);
 
   if (ret == OPERATOR_PASS_THROUGH) {
     WM_event_add_modal_handler(C, op);
@@ -2472,9 +2473,9 @@ static int sculpt_mesh_filter_invoke(bContext *C, wmOperator *op, const wmEvent 
   return ret;
 }
 
-static int sculpt_mesh_filter_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus sculpt_mesh_filter_exec(bContext *C, wmOperator *op)
 {
-  int ret = sculpt_mesh_filter_start(C, op);
+  wmOperatorStatus ret = sculpt_mesh_filter_start(C, op);
 
   if (ret == OPERATOR_PASS_THROUGH) {
     int iterations = RNA_int_get(op->ptr, "iteration_count");
@@ -2522,7 +2523,7 @@ void register_operator_props(wmOperatorType *ot)
 
   /* Smooth filter requires entire event history. */
   prop = RNA_def_collection_runtime(ot->srna, "event_history", &RNA_OperatorStrokeElement, "", "");
-  RNA_def_property_flag(prop, PropertyFlag(int(PROP_HIDDEN) | int(PROP_SKIP_SAVE)));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 static void sculpt_mesh_ui_exec(bContext * /*C*/, wmOperator *op)

@@ -72,7 +72,6 @@
 #include "BLI_endian_switch.h"
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
-#include "BLI_memarena.h"
 #include "BLI_utildefines.h"
 
 #include "IMB_imbuf_enums.h"
@@ -497,6 +496,7 @@ const void *DNA_default_table[SDNA_TYPE_MAX] = {
     SDNA_DEFAULT_DECL_EX(SceneDisplay, Scene.display),
     SDNA_DEFAULT_DECL_EX(SceneEEVEE, Scene.eevee),
     SDNA_DEFAULT_DECL_EX(RaytraceEEVEE, Scene.eevee.ray_tracing_options),
+    SDNA_DEFAULT_DECL_EX(SceneGpencil, Scene.grease_pencil_settings),
 
     SDNA_DEFAULT_DECL(ToolSettings),
     SDNA_DEFAULT_DECL_EX(CurvePaintSettings, ToolSettings.curve_paint_settings),

@@ -239,7 +239,7 @@ BlendfileLinkAppendContextItem *BKE_blendfile_link_append_context_item_add(
  * \note #BKE_blendfile_link_append_context_library_add should never be called on the same
  *`lapp_context` after this function.
  *
- * \param id_types_filter: A set of `FILTER_ID` bitflags, the types of IDs to add to the items
+ * \param id_types_filter: A set of `FILTER_ID` bit-flags, the types of IDs to add to the items
  *                         list.
  * \param library_index: The index of the library to look into, in given `lapp_context`.
  *
@@ -410,3 +410,11 @@ void BKE_blendfile_library_relocate(BlendfileLinkAppendContext *lapp_context,
                                     ReportList *reports,
                                     Library *library,
                                     bool do_reload);
+
+/**
+ * Relocate a single linked ID.
+ *
+ * NOTE: content of `lapp_context` after execution of that function should not be assumed valid
+ * anymore, and should immediately be freed.
+ */
+void BKE_blendfile_id_relocate(BlendfileLinkAppendContext &lapp_context, ReportList *reports);

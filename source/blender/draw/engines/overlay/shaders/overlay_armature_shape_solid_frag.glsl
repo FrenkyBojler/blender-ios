@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "infos/overlay_armature_info.hh"
+
+FRAGMENT_SHADER_CREATE_INFO(overlay_armature_shape_solid)
+
 #include "select_lib.glsl"
 
 void main()
@@ -13,7 +17,7 @@ void main()
     discard;
     return;
   }
-  fragColor = vec4(finalColor.rgb, alpha);
-  lineOutput = vec4(0.0);
+  fragColor = float4(finalColor.rgb, alpha);
+  lineOutput = float4(0.0f);
   select_id_output(select_id);
 }

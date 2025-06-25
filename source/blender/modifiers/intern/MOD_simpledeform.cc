@@ -6,6 +6,8 @@
  * \ingroup modifiers
  */
 
+#include <algorithm>
+
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
@@ -76,12 +78,8 @@ BLI_INLINE void copy_v3_v3_unmap(float a[3], const float b[3], const uint map[3]
 static void axis_limit(const int axis, const float limits[2], float co[3], float dcut[3])
 {
   float val = co[axis];
-  if (limits[0] > val) {
-    val = limits[0];
-  }
-  if (limits[1] < val) {
-    val = limits[1];
-  }
+  val = std::max(limits[0], val);
+  val = std::min(limits[1], val);
 
   dcut[axis] = co[axis] - val;
   co[axis] = val;
@@ -201,15 +199,11 @@ static void simple_helper(void *__restrict userdata,
 {
   const DeformUserData *curr_deform_data = static_cast<const DeformUserData *>(userdata);
   float weight = BKE_defvert_array_find_weight_safe(
-      curr_deform_data->dvert, iter, curr_deform_data->vgroup);
+      curr_deform_data->dvert, iter, curr_deform_data->vgroup, curr_deform_data->invert_vgroup);
   const uint *axis_map = axis_map_table[(curr_deform_data->mode != MOD_SIMPLEDEFORM_MODE_BEND) ?
                                             curr_deform_data->deform_axis :
                                             2];
   const float base_limit[2] = {0.0f, 0.0f};
-
-  if (curr_deform_data->invert_vgroup) {
-    weight = 1.0f - weight;
-  }
 
   if (weight != 0.0f) {
     float co[3], dcut[3] = {0.0f, 0.0f, 0.0f};
@@ -312,12 +306,8 @@ static void SimpleDeformModifier_do(SimpleDeformModifierData *smd,
     smd->origin = nullptr; /* No self references */
   }
 
-  if (smd->limit[0] < 0.0f) {
-    smd->limit[0] = 0.0f;
-  }
-  if (smd->limit[0] > 1.0f) {
-    smd->limit[0] = 1.0f;
-  }
+  smd->limit[0] = std::max(smd->limit[0], 0.0f);
+  smd->limit[0] = std::min(smd->limit[0], 1.0f);
 
   smd->limit[0] = min_ff(smd->limit[0], smd->limit[1]); /* Upper limit >= than lower limit */
 

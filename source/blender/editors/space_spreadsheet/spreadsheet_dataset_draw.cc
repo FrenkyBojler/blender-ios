@@ -6,7 +6,6 @@
 
 #include "BLI_string.h"
 
-#include "DNA_collection_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
@@ -15,7 +14,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_geometry_set_instances.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
 #include "BKE_volume.hh"
@@ -600,11 +598,11 @@ GeometryInstancesTreeView &InstancesTreeViewItem::get_tree() const
 void InstancesTreeViewItem::get_parent_instance_ids(
     Vector<SpreadsheetInstanceID> &r_instance_ids) const
 {
-  if (auto *reference_item = dynamic_cast<const InstanceReferenceViewItem *>(this)) {
+  if (const auto *reference_item = dynamic_cast<const InstanceReferenceViewItem *>(this)) {
     r_instance_ids.append({reference_item->reference_index()});
   }
   this->foreach_parent([&](const ui::AbstractTreeViewItem &item) {
-    if (auto *reference_item = dynamic_cast<const InstanceReferenceViewItem *>(&item)) {
+    if (const auto *reference_item = dynamic_cast<const InstanceReferenceViewItem *>(&item)) {
       r_instance_ids.append({reference_item->reference_index()});
     }
   });
@@ -639,7 +637,8 @@ void InstancesTreeViewItem::on_activate(bContext &C)
   SpaceSpreadsheet &sspreadsheet = *CTX_wm_space_spreadsheet(&C);
 
   MEM_SAFE_FREE(sspreadsheet.instance_ids);
-  sspreadsheet.instance_ids = MEM_cnew_array<SpreadsheetInstanceID>(instance_ids.size(), __func__);
+  sspreadsheet.instance_ids = MEM_calloc_arrayN<SpreadsheetInstanceID>(instance_ids.size(),
+                                                                       __func__);
   sspreadsheet.instance_ids_num = instance_ids.size();
   initialized_copy_n(instance_ids.data(), instance_ids.size(), sspreadsheet.instance_ids);
 
@@ -654,7 +653,7 @@ void DataSetViewItem::on_activate(bContext &C)
       if (data_id) {
         return;
       }
-      if (auto *data_set_view_item = dynamic_cast<const DataSetViewItem *>(&item)) {
+      if (const auto *data_set_view_item = dynamic_cast<const DataSetViewItem *>(&item)) {
         data_id = data_set_view_item->get_geometry_data_id();
       }
     });

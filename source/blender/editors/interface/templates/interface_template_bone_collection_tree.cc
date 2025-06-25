@@ -284,9 +284,9 @@ class BoneCollectionItem : public AbstractTreeViewItem {
     PropertyRNA *prop = RNA_struct_find_property(&bcolls_ptr, "active_index");
 
     RNA_property_int_set(&bcolls_ptr, prop, bcoll_index_);
-    RNA_property_update(&const_cast<bContext &>(C), &bcolls_ptr, prop);
+    RNA_property_update(&C, &bcolls_ptr, prop);
 
-    ED_undo_push(&const_cast<bContext &>(C), "Change Armature's Active Bone Collection");
+    ED_undo_push(&C, "Change Armature's Active Bone Collection");
   }
 
   std::optional<bool> should_be_collapsed() const override
@@ -446,7 +446,7 @@ eWM_DragDataType BoneCollectionDragController::get_drag_type() const
 
 void *BoneCollectionDragController::create_drag_data() const
 {
-  ArmatureBoneCollection *drag_data = MEM_cnew<ArmatureBoneCollection>(__func__);
+  ArmatureBoneCollection *drag_data = MEM_callocN<ArmatureBoneCollection>(__func__);
   *drag_data = drag_arm_bcoll_;
   return drag_data;
 }
@@ -475,7 +475,7 @@ void uiTemplateBoneCollectionTree(uiLayout *layout, bContext *C)
       "Bone Collection Tree View",
       std::make_unique<blender::ui::bonecollections::BoneCollectionTreeView>(*armature));
   tree_view->set_context_menu_title("Bone Collection");
-  tree_view->set_default_rows(3);
+  tree_view->set_default_rows(5);
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

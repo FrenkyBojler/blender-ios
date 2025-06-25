@@ -13,6 +13,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
+#include "BLI_function_ref.hh"
+
 #include "BKE_screen.hh"
 
 #include "NOD_socket_items.hh"
@@ -37,7 +39,7 @@ static void draw_item_in_list(uiList * /*ui_list*/,
     RNA_float_get_array(itemptr, "color", color);
     uiTemplateNodeSocket(row, const_cast<bContext *>(C), color);
   }
-  uiLayoutSetEmboss(row, UI_EMBOSS_NONE);
+  uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
   uiItemR(row, itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -56,7 +58,7 @@ static void draw_items_list_with_operators(const bContext *C,
       const_cast<ID *>(&tree.id), &RNA_Node, const_cast<bNode *>(&node));
 
   static const uiListType *items_list = []() {
-    uiListType *list = MEM_cnew<uiListType>(Accessor::ui_idnames::list);
+    uiListType *list = MEM_callocN<uiListType>(Accessor::ui_idnames::list);
     STRNCPY(list->idname, Accessor::ui_idnames::list);
     list->draw_item = draw_item_in_list<Accessor>;
     WM_uilisttype_add(list);

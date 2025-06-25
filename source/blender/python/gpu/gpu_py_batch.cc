@@ -240,7 +240,7 @@ static const char *pygpu_shader_check_compatibility(blender::gpu::Batch *batch)
   }
 
   /* Check batch compatibility with shader. */
-  for (auto vert : blender::Span(batch->verts, ARRAY_SIZE(batch->verts))) {
+  for (auto *vert : blender::Span(batch->verts, ARRAY_SIZE(batch->verts))) {
     if (!vert) {
       continue;
     }
@@ -435,9 +435,14 @@ static PyObject *pygpu_batch_program_use_end(BPyGPUBatch *self)
   Py_RETURN_NONE;
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_batch__tp_methods[] = {
@@ -457,8 +462,12 @@ static PyMethodDef pygpu_batch__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 #ifdef USE_GPU_PY_REFERENCES

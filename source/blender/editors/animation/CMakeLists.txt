@@ -3,7 +3,9 @@
 # SPDX-License-Identifier: GPL-2.0-or-later
 
 set(INC
+  ../asset
   ../include
+  ../../asset_system
   ../../makesrna
   ../../../../extern/fmtlib/include
   # RNA_prototypes.hh
@@ -14,6 +16,7 @@ set(INC_SYS
 )
 
 set(SRC
+  anim_asset_ops.cc
   anim_channels_defines.cc
   anim_channels_edit.cc
   anim_deps.cc
@@ -34,6 +37,7 @@ set(SRC
   time_scrub_ui.cc
 
   anim_intern.hh
+  keyframes_general_intern.hh
 )
 
 set(LIB

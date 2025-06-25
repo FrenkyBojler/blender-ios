@@ -1,4 +1,6 @@
-/* SPDX-License-Identifier: GPL-2.0-or-later */
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #import <AppKit/NSImage.h>
 
@@ -17,7 +19,7 @@
  * 1. If an app is launched, or is registered with lsregister, its plugins also get registered.
  * 2. When a file thumbnail in Finder or QuickLook is requested, the system looks for a plugin
  *    that supports the file type UTI.
- * 3. The plugin is launched in a sandboxed environment and should call the handler with a reply.
+ * 3. The plugin is launched in a sand-boxed environment and should call the handler with a reply.
  *
  * # Plugin Info.plist
  * The Info.plist file should be properly configured with supported content type.
@@ -41,14 +43,14 @@
  *
  * LLDB/ Xcode etc., debuggers can be used to get extra logs than CLI invocation but breakpoints
  * still are a pain point. /usr/bin/qlmanage is the target executable. Other args to qlmanage
- * follow.
+ * follow. lldb qlmanage --  -t -x a.blend
  *
  * # Troubleshooting
  * - The appex shouldn't have any quarantine flag.
      xattr -rl bin/Blender.app/Contents/Plugins/blender-thumbnailer.appex
  * - Is it registered with lsregister and there isn't a conflict with another plugin taking
  *   precedence? lsregister -dump | grep blender-thumbnailer.appex
- * - For RBSLaunchRequest error: is the executable executable? chmod u+x
+ * - For RBSLaunchRequest error: is the executable flag set? chmod u+x
   bin/Blender.app/Contents/PlugIns/blender-thumbnailer.appex/Contents/MacOS/blender-thumbnailer
  * - Is it codesigned and sandboxed?
  *   codesign --display --verbose --entitlements - --xml \
@@ -60,7 +62,7 @@
  * - The code cannot attempt to do anything outside sandbox like writing to blend.
  *
  * # Triggering a thumbnail
- * - qlmanage -t -s 512 -o /tmp/ /path/to/file.blend
+ * - qlmanage -t -x /path/to/file.blend
  *
  * # External resources
  * https://developer.apple.com/library/archive/documentation/UserExperience/Conceptual/Quicklook_Programming_Guide/Introduction/Introduction.html#//apple_ref/doc/uid/TP40005020-CH1-SW1
@@ -150,23 +152,33 @@ static NSImage *generate_nsimage_for_file(const char *src_blend_path, NSError *e
   NSLog(@"Generating thumbnail for %@", request.fileURL.path);
   @autoreleasepool {
     NSError *error = nil;
-    NSImage *ns_image = generate_nsimage_for_file(request.fileURL.path.fileSystemRepresentation,
-                                                  error);
-    if (ns_image == nil) {
+    NSImage *image = generate_nsimage_for_file(request.fileURL.path.fileSystemRepresentation,
+                                               error);
+    if (image == nil || image.size.width <= 0 || image.size.height <= 0) {
       handler(nil, error);
       return;
     }
-    handler([QLThumbnailReply replyWithContextSize:request.maximumSize
-                        currentContextDrawingBlock:^BOOL {
-                          [ns_image drawInRect:NSMakeRect(0,
-                                                          0,
-                                                          request.maximumSize.width,
-                                                          request.maximumSize.height)];
-                          // Release the ns_image that was strongly captured by the block.
-                          [ns_image release];
-                          return YES;
-                        }],
-            nil);
+
+    const CGFloat width_ratio = request.maximumSize.width / image.size.width;
+    const CGFloat height_ratio = request.maximumSize.height / image.size.height;
+    const CGFloat scale_factor = MIN(width_ratio, height_ratio);
+
+    const NSSize context_size = NSMakeSize(image.size.width * scale_factor,
+                                           image.size.height * scale_factor);
+
+    const NSRect context_rect = NSMakeRect(0, 0, context_size.width, context_size.height);
+
+    QLThumbnailReply *thumbnailReply = [QLThumbnailReply replyWithContextSize:context_size
+                                                   currentContextDrawingBlock:^BOOL {
+                                                     [image drawInRect:context_rect];
+                                                     /* Release the image that was strongly
+                                                      * captured by this block. */
+                                                     [image release];
+                                                     return YES;
+                                                   }];
+
+    /* Return the thumbnail reply. */
+    handler(thumbnailReply, nil);
   }
   NSLog(@"Thumbnail generation succcessfully completed");
 }

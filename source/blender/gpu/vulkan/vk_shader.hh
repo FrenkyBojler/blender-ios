@@ -76,11 +76,6 @@ class VKShader : public Shader {
   bool is_ready() const;
   void warm_cache(int limit) override;
 
-  void transform_feedback_names_set(Span<const char *> name_list,
-                                    eGPUShaderTFBType geom_type) override;
-  bool transform_feedback_enable(VertBuf *) override;
-  void transform_feedback_disable() override;
-
   void bind() override;
   void unbind() override;
 
@@ -93,9 +88,6 @@ class VKShader : public Shader {
   std::string geometry_interface_declare(const shader::ShaderCreateInfo &info) const override;
   std::string geometry_layout_declare(const shader::ShaderCreateInfo &info) const override;
   std::string compute_layout_declare(const shader::ShaderCreateInfo &info) const override;
-
-  /* DEPRECATED: Kept only because of BGL API. */
-  int program_handle_get() const override;
 
   VkPipeline ensure_and_get_compute_pipeline();
   VkPipeline ensure_and_get_graphics_pipeline(GPUPrimType primitive,

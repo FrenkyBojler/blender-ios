@@ -14,8 +14,6 @@
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
 
-#include "BLI_sys_types.h" /* for bool */
-
 #include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
 #include "GPU_texture.hh" /* for GPUSamplerState */
 
@@ -188,7 +186,7 @@ GPUNodeLink *GPU_color_band(GPUMaterial *mat, int size, float *pixels, float *r_
  * The given function should return a float.
  * The result will be a vec2 containing dFdx and dFdy result of that function.
  */
-GPUNodeLink *GPU_differentiate_float_function(const char *function_name);
+GPUNodeLink *GPU_differentiate_float_function(const char *function_name, const float filter_width);
 
 bool GPU_link(GPUMaterial *mat, const char *name, ...);
 bool GPU_stack_link(GPUMaterial *mat,
@@ -219,7 +217,6 @@ char *GPU_material_split_sub_function(GPUMaterial *material,
                                       eGPUType return_type,
                                       GPUNodeLink **link);
 
-bool GPU_material_sss_profile_create(GPUMaterial *material, float radii[3]);
 /**
  * High level functions to create and use GPU materials.
  */
@@ -400,7 +397,7 @@ struct GPULayerAttr {
   GPULayerAttr *next, *prev;
 
   /* Meaningful part of the attribute set key. */
-  char name[68]; /* MAX_CUSTOMDATA_LAYER_NAME */
+  char name[256]; /* Multiple MAX_CUSTOMDATA_LAYER_NAME */
   /** Hash of name[68]. */
   uint32_t hash_code;
 
