@@ -8,6 +8,7 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_gpencil_geom_legacy.h"
@@ -17,7 +18,6 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_shader_fx.h"
-#include "BKE_compositor.hh"
 
 #include "BKE_camera.h"
 
@@ -172,8 +172,11 @@ void Instance::begin_sync()
   this->use_layer_fb = false;
   this->use_object_fb = false;
   this->use_mask_fb = false;
-  /* Always use high precision for render. */
-  this->use_signed_fb = 1;//!this->is_viewport;
+  this->use_separate_pass =
+      bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil");
+  /* Always use high precision for render and viewport compositor (viewport compositor only takes
+   * RGBA16F/32F formats). */
+  this->use_signed_fb = this->use_separate_pass || !this->is_viewport;
 
   if (draw_ctx->v3d) {
     const bool hide_overlay = ((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) != 0);
@@ -633,6 +636,11 @@ void Instance::acquire_resources()
                           GPU_ATTACHMENT_TEXTURE(this->color_tx),
                           GPU_ATTACHMENT_TEXTURE(this->reveal_tx));
 
+  if (this->use_separate_pass) {
+    this->pass_tx.acquire(size, format);
+    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(this->pass_tx));
+  }
+
   if (this->use_layer_fb) {
     this->color_layer_tx.acquire(size, format);
     this->reveal_layer_tx.acquire(size, format);
@@ -680,6 +688,7 @@ void Instance::release_resources()
   this->mask_tx.release();
   this->smaa_edge_tx.release();
   this->smaa_weight_tx.release();
+  this->pass_tx.release();
 }
 
 void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
@@ -881,13 +890,11 @@ void Instance::draw(Manager &manager)
     antialiasing_draw(manager);
   }
 
-  const bool is_pass_needed = bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil");
-  if(is_pass_needed){
+  if (this->use_separate_pass) {
     const int2 size = int2(draw_ctx->viewport_size_get());
-    eGPUTextureFormat format = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
     draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
-    output_pass_texture.acquire(size,format);
-    GPU_texture_copy(output_pass_texture,this->color_tx);
+    output_pass_texture.acquire(size, GPU_RGBA16F);
+    GPU_texture_copy(output_pass_texture, this->pass_tx);
   }
 
   this->release_resources();
