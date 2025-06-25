@@ -26,9 +26,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_output(data_type, "Value");
   }
 
-  b.add_output<decl::Bool>("Is Valid")
-      .description("Whether the string was converted successfully");
-  b.add_output<decl::Int>("Length").description("Length of the string that was converted");
+  b.add_output<decl::Int>("Length").description(
+      "Length of the string that was converted or 0 if the conversion failed");
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
@@ -78,8 +77,8 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem data_types[] = {
-      {SOCK_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-      {SOCK_INT, "INT", 0, "Integer", "32-bit integer"},
+      {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+      {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
