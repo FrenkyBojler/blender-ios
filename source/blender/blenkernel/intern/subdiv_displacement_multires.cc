@@ -28,6 +28,8 @@
 
 #include "MEM_guardedalloc.h"
 
+#include <iostream>
+
 namespace blender::bke::subdiv {
 
 struct PolyCornerIndex {
@@ -166,15 +168,15 @@ BLI_INLINE AverageWith read_displacement_grid_v2(const Span<float3> displacement
                                                  const int grid_size,
                                                  const float grid_u,
                                                  const float grid_v,
-                                                 float r_tangent_D[3])
+                                                 float3& r_tangent_D)
 {
   if (displacement_grid.is_empty()) {
-    zero_v3(r_tangent_D);
+    r_tangent_D = float3(0.0f);
     return AverageWith::None;
   }
   const int x = roundf(grid_u * (grid_size - 1));
   const int y = roundf(grid_v * (grid_size - 1));
-  copy_v3_v3(r_tangent_D, displacement_grid[y * grid_size + x]);
+  r_tangent_D = displacement_grid[y * grid_size + x];
   if (x == 0 && y == 0) {
     return AverageWith::All;
   }
@@ -443,6 +445,10 @@ static void eval_displacement_v2(Displacement *displacement,
   BKE_multires_construct_tangent_matrix(tangent_matrix, dPdu, dPdv, corner_of_quad);
 
   r_D = math::transform_direction(tangent_matrix, tangent_D);
+#if 0
+  std::cout << "tangent_D: " << tangent_D << "dP/du: " << dPdu << "dP/dv: " << dPdv << "result: " << r_D << std::endl;
+  BLI_assert(!std::isnan(r_D.x) && !std::isnan(r_D.y) && !std::isnan(r_D.z));
+#endif
   /* For the boundary points of grid average two (or all) neighbor grids. */
   const int corner = displacement_get_face_corner(data, ptex_face_index, u, v);
   average_displacement(*displacement, average_with, ptex_face_index, corner, grid_u, grid_v, r_D);
