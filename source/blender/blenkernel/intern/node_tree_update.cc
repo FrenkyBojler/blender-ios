@@ -523,6 +523,7 @@ class NodeTreeMainUpdater {
     this->update_internal_links(ntree);
     this->update_generic_callback(ntree);
     this->remove_unused_previews_when_necessary(ntree);
+    this->check_for_updated_sync_nodes(ntree);
     this->make_node_previews_dirty(ntree);
 
     this->propagate_runtime_flags(ntree);
@@ -799,6 +800,9 @@ class NodeTreeMainUpdater {
     ntree.typeinfo->update(&ntree);
   }
 
+  /**
+   * Checks if any node has been updated that may be synced with other nodes.
+   */
   void check_for_updated_sync_nodes(const bNodeTree &ntree)
   {
     if (found_updated_sync_node_) {
