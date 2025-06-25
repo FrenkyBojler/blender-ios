@@ -982,6 +982,11 @@ class NodeTreeMainUpdater {
           }
         }
       }
+      else if (ntree.type == NTREE_COMPOSIT) {
+        for (bNodeSocket *socket : ntree.all_sockets()) {
+          socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+        }
+      }
     }
   }
 
