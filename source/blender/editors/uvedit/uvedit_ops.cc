@@ -698,8 +698,8 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       cent[0] = (max[0] - min[0]) / 2.0;
       cent[1] = (max[1] - min[1]) / 2.0;
       float island_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
-                                 edit_mode_area) /
-                            scene->unit.scale_length;
+                                  edit_mode_area) /
+                             scene->unit.scale_length;
 
       float scale = active_density / island_density;
       if (ELEM(lock, UV_LOCK_X, UV_LOCK_Y)) {
@@ -707,16 +707,16 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       }
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
-        if (ELEM(lock,UV_LOCK_Y,UV_LOCK_NONE)) {
-          luv[0] = (luv[0] - (min[0]+ cent[0])) * scale + (min[0] +cent[0]);
+        if (ELEM(lock, UV_LOCK_Y, UV_LOCK_NONE)) {
+          luv[0] = (luv[0] - (min[0] + cent[0])) * scale + (min[0] + cent[0]);
         }
-        if (ELEM(lock,UV_LOCK_X,UV_LOCK_NONE)) {
+        if (ELEM(lock, UV_LOCK_X, UV_LOCK_NONE)) {
           luv[1] = (luv[1] - (min[1] + cent[1])) * scale + (min[1] + cent[1]);
         }
         changed = true;
       }
     }
-    if (changed){
+    if (changed) {
       uvedit_live_unwrap_update(sima, scene, obedit);
       DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
       WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
