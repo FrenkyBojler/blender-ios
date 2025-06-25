@@ -506,11 +506,14 @@ int WM_userdef_event_type_from_keymap_type(int kmitype)
 blender::float3 WM_event_ndof_translation_get_for_navigation(const wmNDOFMotionData &ndof)
 {
   const float sign = (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_OBJECT) ? -1.0f : 1.0f;
-  return {
-      ndof.tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -sign : sign),
-      ndof.tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -sign : sign),
-      ndof.tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -sign : sign),
-  };
+  const float x = ndof.tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -sign : sign);
+  const float y = ndof.tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -sign : sign);
+  const float z = ndof.tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -sign : sign);
+
+  if (U.ndof_flag & NDOF_PAN_ROT_YZ_SWAP_AXIS) {
+    return {x, -z, y};
+  }
+  return {x, y, z};
 }
 
 blender::float3 WM_event_ndof_rotation_get_for_navigation(const wmNDOFMotionData &ndof)
@@ -528,11 +531,14 @@ blender::float3 WM_event_ndof_rotation_get_for_navigation(const wmNDOFMotionData
 
 blender::float3 WM_event_ndof_translation_get(const wmNDOFMotionData &ndof)
 {
-  return {
-      ndof.tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f),
-      ndof.tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f),
-      ndof.tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -1.0f : 1.0f),
-  };
+  const float x = ndof.tvec[0] * ((U.ndof_flag & NDOF_PANX_INVERT_AXIS) ? -1.0f : 1.0f);
+  const float y = ndof.tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -1.0f : 1.0f);
+  const float z = ndof.tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -1.0f : 1.0f);
+
+  if (U.ndof_flag & NDOF_PAN_ROT_YZ_SWAP_AXIS) {
+    return {x, -z, y};
+  }
+  return {x, y, z};
 }
 
 blender::float3 WM_event_ndof_rotation_get(const wmNDOFMotionData &ndof)
