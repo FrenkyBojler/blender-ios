@@ -111,12 +111,28 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
   }
   const nodes::BundleSignature &signature = signatures[0];
 
+  auto &storage = *static_cast<NodeGeometrySeparateBundle *>(separate_bundle_node.storage);
+
+  Map<std::string, int> old_identifiers;
+  for (const int i : IndexRange(storage.items_num)) {
+    const NodeGeometrySeparateBundleItem &item = storage.items[i];
+    old_identifiers.add_new(StringRef(item.name), item.identifier);
+  }
+
   nodes::socket_items::clear<nodes::SeparateBundleItemsAccessor>(separate_bundle_node);
+  int max_identifier = 0;
   for (const nodes::BundleSignature::Item &item : signature.items) {
     const StringRefNull name = item.key.identifiers()[0];
-    nodes::socket_items::add_item_with_socket_type_and_name<nodes ::SeparateBundleItemsAccessor>(
-        separate_bundle_node, item.type->type, name.c_str());
+    NodeGeometrySeparateBundleItem &new_item =
+        *nodes::socket_items::add_item_with_socket_type_and_name<
+            nodes ::SeparateBundleItemsAccessor>(
+            separate_bundle_node, item.type->type, name.c_str());
+    if (const std::optional<int> old_identifier = old_identifiers.lookup_try(name)) {
+      new_item.identifier = *old_identifier;
+    }
+    max_identifier = std::max(max_identifier, new_item.identifier);
   }
+  storage.next_identifier = max_identifier + 1;
   BKE_ntree_update_tag_node_property(snode.edittree, &separate_bundle_node);
 }
 
