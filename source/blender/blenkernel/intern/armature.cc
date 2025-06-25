@@ -3147,8 +3147,13 @@ void BKE_pchan_minmax(const Object *ob,
   const bArmature *arm = static_cast<const bArmature *>(ob->data);
 
   Object *ob_custom = nullptr;
-  if (!(arm->flag & ARM_NO_CUSTOM)) {
-    if (pchan->custom && pchan->custom->type != OB_ARMATURE) {
+  if (!(arm->flag & ARM_NO_CUSTOM) && pchan->custom) {
+    /* This should not be possible, protected against in RNA code and
+     * BKE_pose_blend_read_after_liblink(). Just for safety do another check
+     * here, as otherwise this code can end in an infinite loop. */
+    BLI_assert(pchan->custom->type != OB_ARMATURE);
+
+    if (pchan->custom->type != OB_ARMATURE) {
       ob_custom = pchan->custom;
     }
   }
