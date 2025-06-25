@@ -662,7 +662,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   float active_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * active_uv_area) /
                               active_edit_mode_area) /
                          scene->unit.scale_length;
-
+  float cent[1], min[2], max[2];
   for (Object *obedit : objects) {
     if (obedit == active_object) {
       continue; /* Skip active object */
@@ -678,33 +678,40 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
 
     UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
     Set<BMFace *> ed_faces;
+
     for (int i = 0; i < element_map->total_islands; i++) {
       UvElement *element = element_map->storage + element_map->island_indices[i];
       float uv_area = 0.0f;
       float edit_mode_area = 0.0f;
       Set<BMFace *> visited_faces;
+
+      INIT_MINMAX2(min, max);
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
+        float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
+        minmax_v2v2_v2(min, max, luv);
         if (!visited_faces.contains(element[j].l->f)) {
           uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
           edit_mode_area += BM_face_calc_area(element[j].l->f);
           visited_faces.add(element[j].l->f);
         }
       }
-      float texel_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
+      cent[0] = (max[0] - min[0]) / 2.0;
+      cent[1] = (max[1] - min[1]) / 2.0;
+      float island_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
                                  edit_mode_area) /
                             scene->unit.scale_length;
 
-      float scale = active_density / texel_density;
+      float scale = active_density / island_density;
       if (ELEM(lock, UV_LOCK_X, UV_LOCK_Y)) {
         scale *= scale;
       }
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         if (ELEM(lock,UV_LOCK_Y,UV_LOCK_NONE)) {
-          luv[0] = (luv[0] - 0.5f) * scale + 0.5f;
+          luv[0] = (luv[0] - (min[0]+ cent[0])) * scale + (min[0] +cent[0]);
         }
         if (ELEM(lock,UV_LOCK_X,UV_LOCK_NONE)) {
-          luv[1] = (luv[1] - 0.5f) * scale + 0.5f;
+          luv[1] = (luv[1] - (min[1] + cent[1])) * scale + (min[1] + cent[1]);
         }
         changed = true;
       }
