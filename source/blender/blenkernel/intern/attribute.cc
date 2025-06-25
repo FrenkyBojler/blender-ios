@@ -126,6 +126,7 @@ std::optional<blender::bke::MutableAttributeAccessor> AttributeOwner::get_access
 {
   switch (type_) {
     case AttributeOwnerType::Mesh:
+      /* The attribute API isn't implemented for BMesh, so edit mode meshes are not supported. */
       BLI_assert(this->get_mesh()->runtime->edit_mesh == nullptr);
       return this->get_mesh()->attributes_for_write();
     case AttributeOwnerType::PointCloud:
