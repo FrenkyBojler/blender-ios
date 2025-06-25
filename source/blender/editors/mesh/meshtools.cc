@@ -1553,13 +1553,13 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   Scene *scene = CTX_data_scene(C);
 
-  if (ob->sculpt) {
+  if (ob->mode == OB_MODE_SCULPT) {
     blender::ed::sculpt_paint::undo::geometry_begin(*scene, *ob, op);
   }
 
   blender::bke::mesh_apply_spatial_organization(*mesh);
 
-  if (ob->sculpt) {
+  if (ob->mode == OB_MODE_SCULPT) {
     blender::ed::sculpt_paint::undo::geometry_end(*ob);
   }
 
