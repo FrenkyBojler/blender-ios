@@ -17,6 +17,7 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_shader_fx.h"
+#include "BKE_compositor.hh"
 
 #include "BKE_camera.h"
 
@@ -172,7 +173,7 @@ void Instance::begin_sync()
   this->use_object_fb = false;
   this->use_mask_fb = false;
   /* Always use high precision for render. */
-  this->use_signed_fb = !this->is_viewport;
+  this->use_signed_fb = 1;//!this->is_viewport;
 
   if (draw_ctx->v3d) {
     const bool hide_overlay = ((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) != 0);
@@ -878,6 +879,15 @@ void Instance::draw(Manager &manager)
 
   if (this->scene_fb) {
     antialiasing_draw(manager);
+  }
+
+  const bool is_pass_needed = bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil");
+  if(is_pass_needed){
+    const int2 size = int2(draw_ctx->viewport_size_get());
+    eGPUTextureFormat format = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
+    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
+    output_pass_texture.acquire(size,format);
+    GPU_texture_copy(output_pass_texture,this->color_tx);
   }
 
   this->release_resources();

@@ -232,6 +232,9 @@ static eViewLayerEEVEEPassType enabled_passes(const ViewLayer *view_layer)
   SET_FLAG_FROM_TEST(result,
                      view_layer->cryptomatte_flag & VIEW_LAYER_CRYPTOMATTE_MATERIAL,
                      EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL);
+  SET_FLAG_FROM_TEST(result,
+                     view_layer->grease_pencil_flags & GREASE_PENCIL_AS_SEPARATE_PASS,
+                     EEVEE_RENDER_PASS_GREASEPENCIL);
 
   return result;
 }
