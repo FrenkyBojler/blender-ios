@@ -57,7 +57,7 @@ static void cmp_node_crop_declare(NodeDeclarationBuilder &b)
           "Sets the areas outside of the crop region to be transparent instead of actually "
           "cropping the size of the image");
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 using namespace blender::compositor;
