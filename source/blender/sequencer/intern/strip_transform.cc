@@ -632,8 +632,10 @@ float2 image_transform_origin_get(const Scene *scene, const Strip *strip)
     return {transform->origin[0], transform->origin[1]};
   }
 
-  /* Text image size is different from true image size, so the origin position must be
-   * calculated. */
+  /* Text image size is different from true image size (`scene_render_size`). Normally, 0-1 range
+   represents boundary of the image. In case of all effect strips, this is `scene_render_size`. But
+   to the user, the range is presented as boundary of text boundbox, therefore it needs to be
+   remapped. This means, that the origin position will change when text is edited. */
   float2 scene_render_size(scene->r.xsch, scene->r.ysch);
   const float2 text_image_size = transform_image_raw_size_get(scene, strip);
   const float2 scale = text_image_size / scene_render_size;
@@ -642,6 +644,9 @@ float2 image_transform_origin_get(const Scene *scene, const Strip *strip)
   const float2 origin_diff = origin_rel - origin_center;
 
   const float2 true_origin_relative = origin_center + origin_diff * scale;
+  /* Translation is applied to text rendering instead of doing matrix transformation as with other
+   * strips. This means, that the pivot must be offset by the same amount, otherwise it would seem,
+   * that it is fixed to particular point on screen. */
   const float2 translation_offset(transform->xofs / scene->r.xsch,
                                   transform->yofs / scene->r.ysch);
   return true_origin_relative + translation_offset;
