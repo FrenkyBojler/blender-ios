@@ -188,5 +188,9 @@ NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
                                                  const bNode &separate_bundle_node);
 NodeSyncState sync_sockets_state_combine_bundle(const SpaceNode &snode,
                                                 const bNode &combine_bundle_node);
+NodeSyncState sync_sockets_state_closure_output(const SpaceNode &snode,
+                                                const bNode &closure_output_node);
+NodeSyncState sync_sockets_state_evaluate_closure(const SpaceNode &snode,
+                                                  const bNode &evaluate_closure_node);
 
 }  // namespace blender::ed::space_node

@@ -804,28 +804,7 @@ Vector<nodes::ClosureSignature> gather_linked_target_closure_signatures(
   Vector<nodes::ClosureSignature> signatures;
   for (const nodes::SocketInContext &target_socket : target_sockets) {
     const nodes::NodeInContext &target_node = target_socket.owner_node();
-    const auto &storage = *static_cast<const NodeGeometryEvaluateClosure *>(
-        target_node.node->storage);
-    nodes::ClosureSignature signature;
-    for (const int i : IndexRange(storage.input_items.items_num)) {
-      const NodeGeometryEvaluateClosureInputItem &item = storage.input_items.items[i];
-      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
-      {
-        signature.inputs.append({nodes::SocketInterfaceKey(item.name),
-                                 stype,
-                                 nodes::StructureType(item.structure_type)});
-      }
-    }
-    for (const int i : IndexRange(storage.output_items.items_num)) {
-      const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
-      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
-      {
-        signature.outputs.append({nodes::SocketInterfaceKey(item.name),
-                                  stype,
-                                  nodes::StructureType(item.structure_type)});
-      }
-    }
-    signatures.append(signature);
+    signatures.append(nodes::ClosureSignature::FromEvaluateClosureNode(*target_node.node));
   }
   return signatures;
 }
@@ -843,24 +822,7 @@ Vector<nodes::ClosureSignature> gather_linked_origin_closure_signatures(
   Vector<nodes::ClosureSignature> signatures;
   for (const nodes::SocketInContext &origin_socket : origin_sockets) {
     const nodes::NodeInContext &origin_node = origin_socket.owner_node();
-    const auto &storage = *static_cast<const NodeGeometryClosureOutput *>(
-        origin_node.node->storage);
-    nodes::ClosureSignature signature;
-    for (const int i : IndexRange(storage.input_items.items_num)) {
-      const NodeGeometryClosureInputItem &item = storage.input_items.items[i];
-      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
-      {
-        signature.inputs.append({nodes::SocketInterfaceKey(item.name), stype});
-      }
-    }
-    for (const int i : IndexRange(storage.output_items.items_num)) {
-      const NodeGeometryClosureOutputItem &item = storage.output_items.items[i];
-      if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type))
-      {
-        signature.outputs.append({nodes::SocketInterfaceKey(item.name), stype});
-      }
-    }
-    signatures.append(signature);
+    signatures.append(nodes::ClosureSignature::FromClosureOutputNode(*origin_node.node));
   }
   return signatures;
 }

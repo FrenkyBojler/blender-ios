@@ -160,6 +160,32 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
   node->storage = data;
 }
 
+static void node_layout(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
+{
+  const SpaceNode *snode = CTX_wm_space_node(C);
+  bNode &node = *static_cast<bNode *>(node_ptr->data);
+  NodeGeometryClosureOutput &storage = node_storage(node);
+  if (snode && storage.flag & NODE_GEO_CLOSURE_FLAG_MAY_NEED_SYNC) {
+    const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_closure_output(
+        *snode, node);
+    switch (state) {
+      case ed::space_node::NodeSyncState::NoSyncSource:
+      case ed::space_node::NodeSyncState::Synced: {
+        storage.flag &= ~NODE_GEO_CLOSURE_FLAG_MAY_NEED_SYNC;
+        break;
+      }
+      case ed::space_node::NodeSyncState::CanBeSynced: {
+        PointerRNA props = layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+        RNA_string_set(&props, "node_name", node.name);
+        break;
+      }
+      case ed::space_node::NodeSyncState::ConflictingSyncSources: {
+        break;
+      }
+    }
+  }
+}
+
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeGeometryClosureOutput &src_storage = node_storage(*src_node);
@@ -238,6 +264,7 @@ static void node_register()
   ntype.register_operators = node_operators;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.insert_link = node_insert_link;
+  ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
