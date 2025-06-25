@@ -187,7 +187,7 @@ bool read_remote_listing(const StringRefNull root_dirpath,
       const ReadingResult result = read_remote_listing_v1(
           root_dirpath, version_listing_filepath, process_fn, wait_fn);
       if (result == ReadingResult::Failure) {
-        printf("Couldn't read V1 listing");
+        printf("Couldn't read V1 listing from %s\n", version_listing_filepath);
         return false;
       }
       if (result == ReadingResult::Cancelled) {

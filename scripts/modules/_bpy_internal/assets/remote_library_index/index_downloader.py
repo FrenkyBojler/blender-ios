@@ -5,9 +5,13 @@
 from __future__ import annotations
 
 import enum
+import hashlib
 import logging
+import re
+import time
+import unicodedata
 import urllib.parse
-from pathlib import Path
+from pathlib import Path, PurePosixPath
 from typing import Callable, TypeAlias, TypeVar, Type
 
 import bpy
@@ -23,6 +27,23 @@ logger = logging.getLogger(__name__)
 
 PydanticModel = TypeVar("PydanticModel", bound=pydantic.BaseModel)
 
+# TODO: discuss & adjust this value, as this was just picked more or less randomly:
+THUMBNAIL_FRESH_DURATION_MINS = 60
+"""If a thumbnail was downloaded this many seconds ago, do not download it again.
+
+If the local timestamp of the thumbnail file indicates that it was downloaded
+less that this duration ago, do not attempt a re-download. Even though the
+downloader supports conditional downloads, and won't actually re-download when
+the server responds with a `304 Not Modified`, doing that request still takes
+time and requires resources on the server.
+"""
+
+
+class DownloadStatus(enum.Enum):
+    LOADING = 'loading'
+    FINISHED_SUCCESSFULLY = 'finished successfully'
+    FAILED = 'failed'
+
 
 class DownloadStatus(enum.Enum):
     LOADING = 'loading'
@@ -33,6 +54,9 @@ class DownloadStatus(enum.Enum):
 class RemoteAssetListingDownloader:
     _remote_url: str
     _local_path: Path
+
+    _remote_url_split: urllib.parse.SplitResult
+    _remote_url_path: PurePosixPath
 
     OnUpdateCallback: TypeAlias = Callable[['RemoteAssetListingDownloader'], None]
     _on_update_callback: OnUpdateCallback
@@ -69,6 +93,9 @@ class RemoteAssetListingDownloader:
     """
 
     _library_meta: api_models.AssetLibraryMeta | None
+
+    _noncritical_downloads: set[Path]
+    """Failing downloads to any of these files will not cause a complete shutdown."""
 
     def __init__(
         self,
@@ -121,12 +148,18 @@ class RemoteAssetListingDownloader:
         self._num_asset_pages_pending = 0
         self._referenced_local_files = []
         self._library_meta = None
+        self._noncritical_downloads = set()
 
         self._status = DownloadStatus.LOADING
         self._error_message = ""
 
         # Work around a limitation of Blender, see bug report #139720 for details.
         self.on_timer_event = self.on_timer_event  # type: ignore[method-assign]
+
+        # Parse the remote URL. As this URL should never change, this can just
+        # happen once here, instead of every time when this info is necessary.
+        self._remote_url_split = urllib.parse.urlsplit(self._remote_url)
+        self._remote_url_path = _sanitize_path_from_url(self._remote_url_split.path)
 
         self._http_metadata_provider = http_metadata.ExtraFileMetadataProvider(
             http_dl.MetadataProviderFilesystem(
@@ -232,7 +265,9 @@ class RemoteAssetListingDownloader:
 
         # The file passed validation, so can be marked safe.
         if used_unsafe_file:
-            self._rename_to_safe(unsafe_local_file)
+            local_file = self._rename_to_safe(unsafe_local_file)
+        else:
+            local_file = unsafe_local_file
 
         # Write the catalogs file. Even when there are no catalogs, this should
         # be done, because catalogs might have existed previously.
@@ -241,9 +276,16 @@ class RemoteAssetListingDownloader:
         logger.info("Writing catalogs to %s", catalogs_file)
         asset_catalogs.write(asset_index.catalogs or [], catalogs_file, self._library_meta)
 
-        # Meta files are ready to be picked up by the asset system.
-        if self._on_metafiles_done_callback:
-            self._on_metafiles_done_callback(self)
+        # Construct a "processed" version of the asset index file. This will be
+        # what Blender reads, and thus it should reference local files, and not
+        # the URLs where they were downloaded from.
+        processed_asset_index = asset_index.model_copy(deep=True)
+        # Catalogs are not read from here, but from the above-generated file. So
+        # no need to store them again.
+        processed_asset_index.catalogs = []
+        # The code below will re-fill the list with the relative file paths.
+        processed_asset_index.page_urls = []
+
 
         # Download the asset pages.
         self._num_asset_pages_pending = len(page_urls)
@@ -257,12 +299,26 @@ class RemoteAssetListingDownloader:
                 self.on_asset_page_downloaded)
 
             self._referenced_local_files.append(http_metadata.unsafe_to_safe_filename(download_to))
+            processed_asset_index.page_urls.append(local_path.as_posix())
+
+        # Save the processed index to a JSON file for Blender to pick up.
+        json_path = local_file.with_suffix(".processed{!s}".format(local_file.suffix))
+        as_json = processed_asset_index.model_dump_json(indent=2, exclude_defaults=True)
+        json_path.parent.mkdir(exist_ok=True, parents=True)
+        with json_path.open("w") as json_file:
+            json_file.write(as_json)
+
+        # Meta files are ready to be picked up by the asset system.
+        if self._on_metafiles_done_callback:
+            self._on_metafiles_done_callback(self)
 
     def on_asset_page_downloaded(self,
                                  http_req_descr: http_dl.RequestDescription,
                                  unsafe_local_file: Path,
                                  ) -> None:
-        _, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryIndexPageV1)
+        asset_page, used_unsafe_file = self._parse_api_model(unsafe_local_file, api_models.AssetLibraryIndexPageV1)
+
+        self._queue_thumbnail_downloads(asset_page)
 
         # The file passed validation, so can be marked safe.
         if used_unsafe_file:
@@ -296,7 +352,23 @@ class RemoteAssetListingDownloader:
             abs_path.unlink()
 
         self.report({'INFO'}, "Asset library index downloaded")
-        self.shutdown(DownloadStatus.FINISHED_SUCCESSFULLY)
+        self._shutdown_if_done()
+
+    def on_thumbnail_downloaded(self,
+                                http_req_descr: http_dl.RequestDescription,
+                                local_file: Path,
+                                ) -> None:
+        # Indicate to a future run that we just confirmed this file is still fresh.
+        local_file.touch()
+
+        # TODO: maybe poke the asset browser to load this thumbnail? Not sure if it's even necessary.
+
+        self._shutdown_if_done()
+
+    def _shutdown_if_done(self) -> None:
+        if self._num_asset_pages_pending == 0 and self._bg_downloader.all_downloads_done:
+            # Done downloading everything, let's shut down.
+            self.shutdown(DownloadStatus.FINISHED_SUCCESSFULLY)
 
     def _parse_api_model(self, unsafe_local_file: Path, api_model: Type[PydanticModel]) -> tuple[PydanticModel, bool]:
         """Use a Pydantic model to parse & validate a JSON file.
@@ -324,7 +396,7 @@ class RemoteAssetListingDownloader:
             path_to_load = safe_local_file
             used_unsafe_file = False
 
-        logger.info("Parsing %s", path_to_load)
+        logger.info("Validating %s", path_to_load)
         json_data = path_to_load.read_bytes()
         parsed_data = api_model.model_validate_json(json_data)
 
@@ -356,15 +428,158 @@ class RemoteAssetListingDownloader:
         self.report({'ERROR'}, "Asset library index had an issue, download aborted")
         self.shutdown(DownloadStatus.FAILED)
 
-    def _queue_download(self, relative_url: str, relative_path: Path | str,
+    def _queue_download(self, relative_url: str, download_to_path: Path | str,
                         on_done: Callable[[http_dl.RequestDescription, Path], None]) -> Path:
         """Queue up this download, returning the path to which it will be downloaded."""
         remote_url = urllib.parse.urljoin(self._remote_url, relative_url)
-        download_to_path = self._local_path / relative_path
+        download_to_path = self._local_path / download_to_path
 
         self._bg_downloader.queue_download(remote_url, download_to_path, on_done)
 
         return download_to_path
+
+    def _queue_thumbnail_downloads(self, asset_page: api_models.AssetLibraryIndexPageV1) -> None:
+        """Queue the download of all the thumbnails of all the assets in this page."""
+
+        # TODO: after all thumbnails of all asset listing pages have been
+        # processed, delete the ones that are no longer referenced.
+
+        num_queued_thumbs = 0
+        for asset in asset_page.assets:
+            if not asset.thumbnail_url:
+                # TODO: delete any existing thumbnail?
+                continue
+
+            thumbnail_path = self._thumbnail_download_path(asset)
+            if not thumbnail_path:
+                continue
+
+            # Check the age of the downloaded thumbnail. If it's too young,
+            # don't try a conditional download to avoid DOSsing the server.
+            if thumbnail_path.exists():
+                stat = thumbnail_path.stat()
+                now = time.time()
+                if (now - stat.st_mtime) / 60 < THUMBNAIL_FRESH_DURATION_MINS:
+                    continue
+
+            # Queue the thumbnail download, and remember that this is a
+            # non-critical download (so that errors don't cancel the entire download
+            # queue).
+            download_path = self._queue_download(asset.thumbnail_url, thumbnail_path, self.on_thumbnail_downloaded)
+            self._noncritical_downloads.add(download_path)
+
+            num_queued_thumbs += 1
+
+            # Because there can be a _lot_ of thumbnails in one page, call the
+            # update function periodically. Without this, the pipe between
+            # processes can deadlock.
+            if num_queued_thumbs % 100 == 0:
+                self._bg_downloader.update()
+
+    def _asset_download_path(self, asset: api_models.AssetV1) -> Path:
+        """Construct the absolute download path for this asset.
+
+        This assumes that the URL already ends in the correct filename. In other
+        words, any filename served in the HTTP response header
+        `Content-Disposition` will be ignored.
+
+        This can raise a ValueError if the archive URL is not suitable (either
+        downright invalid, or not ending in `.blend`).
+
+        >>> rald = RemoteAssetListingDownloader('http://localhost:8000/', Path('/tmp/dl'), lambda x: None)
+        >>> asset = api_models.AssetV1(
+        ...     name="Suzanne",
+        ...     id_type=api_models.AssetIDTypeV1.object,
+        ...     archive_url='http://localhost:8000/monkeys/suzanne.blend',
+        ...     archive_size_in_bytes=327,
+        ...     archive_hash='010203040506',
+        ... )
+        >>> rald._asset_download_path(asset)
+        PosixPath('/tmp/dl/monkeys/suzanne.blend')
+
+        >>> asset.archive_url = 'https://Slapi%C4%87.hr/apes/suzanne.blend'
+        >>> rald._asset_download_path(asset)
+        PosixPath('/tmp/dl/slapić.hr/apes/suzanne.blend')
+        """
+        assert asset.archive_url
+
+        asset_url_path, asset_split_url = self._path_from_url(asset.archive_url)
+
+        # TODO: support non-.blend downloads as well.
+        url_suffix = asset_url_path.suffix.lower()
+        if url_suffix != '.blend':
+            raise ValueError(
+                "asset url ({!s}) does not end in .blend (but in {!r})".format(
+                    asset.archive_url, url_suffix))
+
+        # TODO: support files that are served 'out of context', without an actual
+        # asset repository path structure in the URLs. For example, what you'd get
+        # when serving assets from S3 buckets like Dropbox.
+        #
+        # The approach below kinda works, but doesn't really guard against collisions.
+        if (asset_split_url.netloc == self._remote_url_split.netloc and
+                asset_url_path.is_relative_to(self._remote_url_path)):
+            # This URL is within the 'directory space' of the repository URL, so just
+            # use the relative path to construct the local location for the asset.
+            unsafe_relpath = asset_url_path.relative_to(self._remote_url_path)
+            relpath = _sanitize_path_from_url(unsafe_relpath)
+        else:
+            # We cannot use this URL directly, so just use the host & path
+            # components of the URL instead.
+            host_port = _sanitize_netloc_from_url(asset_split_url.netloc)
+            path = _sanitize_path_from_url(asset_split_url.path)
+            relpath = host_port / path
+
+        return self._local_path / relpath
+
+    def _thumbnail_download_path(self, asset: api_models.AssetV1) -> Path | None:
+        """Construct the download path suitable for this asset's thumbnail.
+
+        This assumes that the URL already ends in the correct extension. This is
+        not always the case, and using the content type in the HTTP response
+        headers is technically a possibility. Keeping this limitation makes the
+        code considerably simpler, as now the download filename is known
+        beforehand.
+        """
+        assert asset.thumbnail_url
+
+        try:
+            url_path, _ = self._path_from_url(asset.thumbnail_url)
+        except ValueError as ex:
+            logger.warning("thumbnail has invalid URL: %s", ex)
+            return None
+
+        url_suffix = url_path.suffix.lower()
+        if url_suffix not in {'.webp', '.png'}:
+            logger.warning(
+                "thumbnail url (%s) does not end in .webp or .png (but in %r), ignoring",
+                asset.thumbnail_url,
+                url_suffix)
+            return None
+
+        asset_download_path = self._asset_download_path(asset)
+        assert asset_download_path.is_absolute()
+
+        id_type = asset.id_type.value.title()  # turn 'object' into 'Object'.
+        hash = hashlib.md5(f"{asset_download_path}/{id_type}/{asset.name}".encode()).hexdigest()
+
+        relative_path = Path(hash[:2], hash[2:]).with_suffix(url_path.suffix)
+        return self._local_path / "_thumbs/large" / relative_path
+
+    def _path_from_url(self, url: str) -> tuple[PurePosixPath, urllib.parse.SplitResult]:
+        """Construct a PurePosixPath from the path component of this URL.
+
+        This function can throw a ValueError if the URL is not valid.
+        """
+        # An URL can only be correctly interpreted if it's a full URL, and not
+        # just a relative path.
+        abs_url = urllib.parse.urljoin(self._remote_url, url)
+        try:
+            split_url = urllib.parse.urlsplit(abs_url)
+        except ValueError as ex:
+            raise ValueError("invalid URL ({!s}): {!s}".format(abs_url, ' '.join(ex.args)))
+
+        return _sanitize_path_from_url(split_url.path), split_url
 
     # TODO: implement this in a more useful way:
     def report(self, level: set[str], message: str) -> None:
@@ -391,7 +606,7 @@ class RemoteAssetListingDownloader:
                 # of the reason of the cancellation and thus can provide more info.
                 num_pending = self._bg_downloader.num_pending_downloads
                 if num_pending:
-                    logger.info("Shutting down background downloader, %d downloads pending", num_pending)
+                    logger.warning("Shutting down background downloader, %d downloads pending", num_pending)
 
             self._bg_downloader.shutdown()
         finally:
@@ -433,7 +648,7 @@ class RemoteAssetListingDownloader:
 
     def download_starts(self, http_req_descr: http_dl.RequestDescription) -> None:
         self.report({'INFO'}, "Download starting: {}".format(http_req_descr.url))
-        logger.info("Download starting: %s", http_req_descr)
+        logger.debug("Download starting: %s", http_req_descr)
 
     def already_downloaded(
         self,
@@ -445,16 +660,25 @@ class RemoteAssetListingDownloader:
     def download_error(
         self,
         http_req_descr: http_dl.RequestDescription,
+        local_file: Path,
         error: Exception,
     ) -> None:
         if isinstance(error, http_dl.DownloadCancelled):
             if self._num_asset_pages_pending:
                 self.report({'WARNING'}, "Cancelled {} pending download".format(self._num_asset_pages_pending))
             logger.warning("Download cancelled: %s", http_req_descr)
-        else:
-            self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
-            logger.warning("Error downloading %s: %s", http_req_descr, error)
+            self.shutdown()
+            return
 
+        if local_file in self._noncritical_downloads:
+            logger.warning("Could not download non-critical file %s: %s", http_req_descr, error)
+            # This could have been the last to-be-downloaded file, so better
+            # check if there's anything left to do.
+            self._shutdown_if_done()
+            return
+
+        self.report({'ERROR'}, "Error downloading {}: {}".format(http_req_descr.url, error))
+        logger.error("Error downloading %s: %s", http_req_descr, error)
         self.shutdown(DownloadStatus.FAILED)
 
     def download_progress(
@@ -474,3 +698,142 @@ class RemoteAssetListingDownloader:
     ) -> None:
         self.report({'INFO'}, "Download finished: {}".format(http_req_descr.url))
         logger.info("Download finished: %s", http_req_descr)
+
+
+def _sanitize_path_from_url(urlpath: PurePosixPath | str) -> PurePosixPath:
+    """Safely convert some path (assumed from a URL) to a relative path.
+
+    Directory up-references ('/../') are removed.
+
+    >>> _sanitize_path_from_url(PurePosixPath('/normal/path/as/expected.blend'))
+    PurePosixPath('normal/path/as/expected.blend')
+
+    >>> _sanitize_path_from_url(PurePosixPath(''))
+    PurePosixPath('.')
+
+    >>> _sanitize_path_from_url(PurePosixPath('/path/sub/../filename.blend'))
+    PurePosixPath('path/filename.blend')
+
+    >>> _sanitize_path_from_url('/path/sub%2F%2E%2e/filename.blend')
+    PurePosixPath('path/filename.blend')
+
+    >>> _sanitize_path_from_url('path/filename.blend')
+    PurePosixPath('path/filename.blend')
+
+    >>> _sanitize_path_from_url(PurePosixPath('/longer/faster/path/../../filename.blend'))
+    PurePosixPath('longer/filename.blend')
+
+    >>> _sanitize_path_from_url(PurePosixPath('/faster/path/../../filename.blend'))
+    PurePosixPath('filename.blend')
+
+    >>> _sanitize_path_from_url('/faster/path/../../filename.blend')
+    PurePosixPath('filename.blend')
+
+    >>> _sanitize_path_from_url(PurePosixPath('/../../../../../etc/passwd'))
+    PurePosixPath('etc/passwd')
+    """
+
+    if isinstance(urlpath, str):
+        # Assumption: this string comes directly from urllib.parse.urlsplit(url).path
+        unquoted = urllib.parse.unquote(urlpath)
+        normalized = unicodedata.normalize('NFKC', unquoted)
+        urlpath = PurePosixPath(normalized)
+
+    # The URL could have entries like `..` in there, which should be removed.
+    # However, PurePosixPath does not have functionality for this (for good
+    # reason), but since this is about URL paths and not real filesystem paths
+    # (yet) we can just go ahead and do this ourselves.
+
+    parts = list(urlpath.parts)
+
+    if urlpath.is_absolute():
+        parts = parts[1:]
+
+    i = 0
+    while i < len(parts):
+        if parts[i] != '..':
+            i += 1
+            continue
+
+        if i == 0:
+            parts = parts[1:]
+            continue
+
+        parts = parts[:i - 1] + parts[i + 1:]
+        i -= 1
+
+    return PurePosixPath(*parts)
+
+
+_sanitize_netloc_invalid_chars_re = re.compile(r'[:\[\]\+*"/\\<>|?]+')
+
+
+def _sanitize_netloc_from_url(netloc: str) -> PurePosixPath:
+    """Safely convert a 'netloc' (from a URL) into a relative path.
+
+    'netloc' can contain authentication (username/password), which will be
+    stripped. Also the ':' in IPv6 addresses and between the hostname and port
+    number will be transformed.
+
+    >>> _sanitize_netloc_from_url('example.com')  # Just a simple host
+    PurePosixPath('example.com')
+
+    >>> _sanitize_netloc_from_url('/example.com')  # Hostname with slash?
+    PurePosixPath('example.com')
+
+    >>> _sanitize_netloc_from_url('example.com:8080')  # Host + port
+    PurePosixPath('example.com_8080')
+
+    >>> _sanitize_netloc_from_url('10.161.57.327:8080')   # IPv4 + port
+    PurePosixPath('10.161.57.327_8080')
+
+    >>> _sanitize_netloc_from_url('[fe80::1023:cafe:f00d:47]')  # IPv6 without port
+    PurePosixPath('fe80_1023_cafe_f00d_47')
+
+    >>> _sanitize_netloc_from_url('[fe80::1023:cafe:f00d:47]:555')  # IPv6 + port
+    PurePosixPath('fe80_1023_cafe_f00d_47_555')
+
+    >>> _sanitize_netloc_from_url('user:password@example.com')  # Auth info
+    PurePosixPath('example.com')
+    >>> _sanitize_netloc_from_url('user@example.com')  # Auth info
+    PurePosixPath('example.com')
+    >>> _sanitize_netloc_from_url(':password@example.com')  # Auth info
+    PurePosixPath('example.com')
+
+    >>> _sanitize_netloc_from_url('user:password@example.com:555')  # Auth info + port
+    PurePosixPath('example.com_555')
+
+    >>> _sanitize_netloc_from_url('user%3Apassword%40example.com%3A555')  # Quoted
+    PurePosixPath('example.com_555')
+
+    >>> _sanitize_netloc_from_url('Slapi%C4%87.hr')  # Quoted UTF-8
+    PurePosixPath('slapić.hr')
+
+    >>> _sanitize_netloc_from_url('Besanc%CC%A7on')  # Quoted UTF-8 not normalized
+    PurePosixPath('besançon')
+
+    >>> _sanitize_netloc_from_url('')  # Empty
+    Traceback (most recent call last):
+      ...
+    ValueError: empty netloc
+    """
+
+    if not netloc:
+        raise ValueError('empty netloc')
+
+    # Assumption: this string comes directly from urllib.parse.urlsplit(url).netloc
+    # TODO: add support for punycode.
+    unquoted = urllib.parse.unquote(netloc)
+    normalized = unicodedata.normalize('NFKC', unquoted)
+
+    parts = normalized.split('@')
+    hostname_port = parts[-1].lower()
+
+    netloc_path = _sanitize_netloc_invalid_chars_re.sub('_', hostname_port).strip('_')
+
+    return _sanitize_path_from_url(PurePosixPath(netloc_path))
+
+
+if __name__ == '__main__':
+    import doctest
+    doctest.testmod()
