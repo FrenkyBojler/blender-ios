@@ -172,9 +172,7 @@ bool read_remote_listing(StringRefNull root_dirpath, RemoteListingEntryProcessFn
     return false;
   }
 
-  /* Path to the listing meta-file is version-dependent. The downloader (see
-   * `RemoteAssetListingDownloader` in Python) places it in a predefined location. (e.g.
-   * `_v1/asset-index.json`). */
+  /* Path to the listing meta-file is version-dependent. */
   switch (api_version_info->version_nr) {
     case 1: {
       const ReadingResult result = read_remote_listing_v1(root_dirpath, process_fn);
