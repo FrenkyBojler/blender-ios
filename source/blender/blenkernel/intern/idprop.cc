@@ -157,6 +157,11 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
       return;
     }
     if (newlen >= prop->len) {
+      for (int i = prop->len; i < newlen; i++) {
+        IDProperty *elem = GETPROP(prop, i);
+        elem->type = IDP_GROUP;
+        elem->data.children_map = MEM_new<IDPropertyGroupChildrenSet>("IDP_ResizeIDPArray A");
+      }
       prop->len = newlen;
       return;
     }
@@ -181,6 +186,11 @@ void IDP_ResizeIDPArray(IDProperty *prop, int newlen)
   int newsize = newlen;
   newsize = (newsize >> 3) + (newsize < 9 ? 3 : 6) + newsize;
   prop->data.pointer = MEM_recallocN(prop->data.pointer, sizeof(IDProperty) * size_t(newsize));
+  for (int i = prop->len; i < newlen; i++) {
+    IDProperty *elem = GETPROP(prop, i);
+    elem->type = IDP_GROUP;
+    elem->data.children_map = MEM_new<IDPropertyGroupChildrenSet>("IDP_ResizeIDPArray B");
+  }
   prop->len = newlen;
   prop->totallen = newsize;
 }
