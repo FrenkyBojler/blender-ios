@@ -513,6 +513,12 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion *region);
  */
 void WM_cursor_warp(wmWindow *win, int x, int y);
 
+/**
+ * \return the preferred logical size for the cursor
+ * (before DPI/Hi-DPI scaling is applied).
+ */
+uint WM_cursor_preferred_logical_size();
+
 /* Handlers. */
 
 enum eWM_EventHandlerFlag {
