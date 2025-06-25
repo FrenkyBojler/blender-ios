@@ -400,19 +400,6 @@ void do_versions_after_linking_400(FileData *fd, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 34)) {
     BKE_mesh_legacy_face_map_to_generic(bmain);
   }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 88)) {
-    LISTBASE_FOREACH (Object *, ob, &bmain->objects) {
-      if (ob->type != OB_ARMATURE || ob->pose == nullptr) {
-        continue;
-      }
-      LISTBASE_FOREACH (bPoseChannel *, pchan, &ob->pose->chanbase) {
-        if (pchan->custom && pchan->custom->type == OB_ARMATURE) {
-          pchan->custom = nullptr;
-        }
-      }
-    }
-  }
 }
 
 static void version_mesh_legacy_to_struct_of_array_format(Mesh &mesh)
