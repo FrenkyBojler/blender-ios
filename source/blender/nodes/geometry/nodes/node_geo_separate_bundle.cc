@@ -73,6 +73,15 @@ static bool node_insert_link(bNodeTree *tree, bNode *node, bNodeLink *link)
       *tree, *node, *node, *link);
 }
 
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *node_ptr)
+{
+  bNode &node = *node_ptr->data_as<bNode>();
+  NodeGeometrySeparateBundle &storage = node_storage(node);
+  if (storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC) {
+    layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+  }
+}
+
 static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
 {
   bNodeTree &ntree = *reinterpret_cast<bNodeTree *>(node_ptr->owner_id);
@@ -180,6 +189,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.insert_link = node_insert_link;
   ntype.geometry_node_execute = node_geo_exec;
+  ntype.draw_buttons = node_layout;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.register_operators = node_operators;
