@@ -1179,8 +1179,8 @@ struct Behavior {
   struct {
     Field<float> density = field_constants::constant_field<float>(1000.0f);
     /* Mass is calculated from density and radius by default, but can be defined explicitly. */
-    Field<float> mass = field_constants::constant_field<float>(1.0f);
-    Field<float3> inertia = field_constants::constant_field<float3>(float3(1.0f));
+    Field<float> mass = {};
+    Field<float3> inertia = {};
   } material;
 
   struct {
