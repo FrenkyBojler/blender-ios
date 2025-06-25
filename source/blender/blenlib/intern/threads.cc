@@ -605,7 +605,9 @@ void BLI_condition_end(ThreadCondition *cond)
 /* ************************************************ */
 
 struct ThreadQueue {
-  GSQueue *queue;
+  GSQueue *queue_low_priority;
+  GSQueue *queue_normal_priority;
+  GSQueue *queue_high_priority;
   pthread_mutex_t mutex;
   pthread_cond_t push_cond;
   pthread_cond_t finish_cond;
@@ -618,7 +620,9 @@ ThreadQueue *BLI_thread_queue_init()
   ThreadQueue *queue;
 
   queue = MEM_callocN<ThreadQueue>("ThreadQueue");
-  queue->queue = BLI_gsqueue_new(sizeof(void *));
+  queue->queue_low_priority = BLI_gsqueue_new(sizeof(void *));
+  queue->queue_normal_priority = BLI_gsqueue_new(sizeof(void *));
+  queue->queue_high_priority = BLI_gsqueue_new(sizeof(void *));
 
   pthread_mutex_init(&queue->mutex, nullptr);
   pthread_cond_init(&queue->push_cond, nullptr);
@@ -634,7 +638,9 @@ void BLI_thread_queue_free(ThreadQueue *queue)
   pthread_cond_destroy(&queue->push_cond);
   pthread_mutex_destroy(&queue->mutex);
 
-  BLI_gsqueue_free(queue->queue);
+  BLI_gsqueue_free(queue->queue_low_priority);
+  BLI_gsqueue_free(queue->queue_normal_priority);
+  BLI_gsqueue_free(queue->queue_high_priority);
 
   MEM_freeN(queue);
 }
@@ -643,7 +649,19 @@ int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriori
 {
   pthread_mutex_lock(&queue->mutex);
 
-  BLI_gsqueue_push(queue->queue, &work);
+  switch (priority) {
+    case BLI_THREAD_QUEUE_WORK_PRIORITY_LOW:
+      BLI_gsqueue_push(queue->queue_low_priority, &work);
+      break;
+    case BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL:
+      BLI_gsqueue_push(queue->queue_normal_priority, &work);
+      break;
+    case BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH:
+      BLI_gsqueue_push(queue->queue_high_priority, &work);
+      break;
+    default:
+      BLI_assert_unreachable();
+  }
 
   /* signal threads waiting to pop */
   pthread_cond_signal(&queue->push_cond);
@@ -663,15 +681,32 @@ void *BLI_thread_queue_pop(ThreadQueue *queue)
 
   /* wait until there is work */
   pthread_mutex_lock(&queue->mutex);
-  while (BLI_gsqueue_is_empty(queue->queue) && !queue->nowait) {
+  while (BLI_gsqueue_is_empty(queue->queue_low_priority) &&
+         BLI_gsqueue_is_empty(queue->queue_normal_priority) &&
+         BLI_gsqueue_is_empty(queue->queue_high_priority) && !queue->nowait)
+  {
     pthread_cond_wait(&queue->push_cond, &queue->mutex);
   }
 
   /* if we have something, pop it */
-  if (!BLI_gsqueue_is_empty(queue->queue)) {
-    BLI_gsqueue_pop(queue->queue, &work);
+  if (!BLI_gsqueue_is_empty(queue->queue_high_priority)) {
+    BLI_gsqueue_pop(queue->queue_high_priority, &work);
 
-    if (BLI_gsqueue_is_empty(queue->queue)) {
+    if (BLI_gsqueue_is_empty(queue->queue_high_priority)) {
+      pthread_cond_broadcast(&queue->finish_cond);
+    }
+  }
+  else if (!BLI_gsqueue_is_empty(queue->queue_normal_priority)) {
+    BLI_gsqueue_pop(queue->queue_normal_priority, &work);
+
+    if (BLI_gsqueue_is_empty(queue->queue_normal_priority)) {
+      pthread_cond_broadcast(&queue->finish_cond);
+    }
+  }
+  else if (!BLI_gsqueue_is_empty(queue->queue_low_priority)) {
+    BLI_gsqueue_pop(queue->queue_low_priority, &work);
+
+    if (BLI_gsqueue_is_empty(queue->queue_low_priority)) {
       pthread_cond_broadcast(&queue->finish_cond);
     }
   }
@@ -727,7 +762,10 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
 
   /* wait until there is work */
   pthread_mutex_lock(&queue->mutex);
-  while (BLI_gsqueue_is_empty(queue->queue) && !queue->nowait) {
+  while (BLI_gsqueue_is_empty(queue->queue_low_priority) &&
+         BLI_gsqueue_is_empty(queue->queue_normal_priority) &&
+         BLI_gsqueue_is_empty(queue->queue_high_priority) && !queue->nowait)
+  {
     if (pthread_cond_timedwait(&queue->push_cond, &queue->mutex, &timeout) == ETIMEDOUT) {
       break;
     }
@@ -737,10 +775,24 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
   }
 
   /* if we have something, pop it */
-  if (!BLI_gsqueue_is_empty(queue->queue)) {
-    BLI_gsqueue_pop(queue->queue, &work);
+  if (!BLI_gsqueue_is_empty(queue->queue_high_priority)) {
+    BLI_gsqueue_pop(queue->queue_high_priority, &work);
 
-    if (BLI_gsqueue_is_empty(queue->queue)) {
+    if (BLI_gsqueue_is_empty(queue->queue_high_priority)) {
+      pthread_cond_broadcast(&queue->finish_cond);
+    }
+  }
+  else if (!BLI_gsqueue_is_empty(queue->queue_normal_priority)) {
+    BLI_gsqueue_pop(queue->queue_normal_priority, &work);
+
+    if (BLI_gsqueue_is_empty(queue->queue_normal_priority)) {
+      pthread_cond_broadcast(&queue->finish_cond);
+    }
+  }
+  else if (!BLI_gsqueue_is_empty(queue->queue_low_priority)) {
+    BLI_gsqueue_pop(queue->queue_low_priority, &work);
+
+    if (BLI_gsqueue_is_empty(queue->queue_low_priority)) {
       pthread_cond_broadcast(&queue->finish_cond);
     }
   }
@@ -755,7 +807,9 @@ int BLI_thread_queue_len(ThreadQueue *queue)
   int size;
 
   pthread_mutex_lock(&queue->mutex);
-  size = BLI_gsqueue_len(queue->queue);
+  size = BLI_gsqueue_len(queue->queue_low_priority) +
+         BLI_gsqueue_len(queue->queue_normal_priority) +
+         BLI_gsqueue_len(queue->queue_high_priority);
   pthread_mutex_unlock(&queue->mutex);
 
   return size;
@@ -766,7 +820,9 @@ bool BLI_thread_queue_is_empty(ThreadQueue *queue)
   bool is_empty;
 
   pthread_mutex_lock(&queue->mutex);
-  is_empty = BLI_gsqueue_is_empty(queue->queue);
+  is_empty = BLI_gsqueue_is_empty(queue->queue_low_priority) &&
+             BLI_gsqueue_is_empty(queue->queue_normal_priority) &&
+             BLI_gsqueue_is_empty(queue->queue_high_priority);
   pthread_mutex_unlock(&queue->mutex);
 
   return is_empty;
@@ -788,7 +844,10 @@ void BLI_thread_queue_wait_finish(ThreadQueue *queue)
   /* wait for finish condition */
   pthread_mutex_lock(&queue->mutex);
 
-  while (!BLI_gsqueue_is_empty(queue->queue)) {
+  while (!BLI_gsqueue_is_empty(queue->queue_low_priority) ||
+         !BLI_gsqueue_is_empty(queue->queue_normal_priority) ||
+         !BLI_gsqueue_is_empty(queue->queue_high_priority))
+  {
     pthread_cond_wait(&queue->finish_cond, &queue->mutex);
   }
 
