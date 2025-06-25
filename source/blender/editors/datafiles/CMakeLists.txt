@@ -284,6 +284,9 @@ if(WITH_BLENDER)
       cube
       current_file
       cursor
+      cursor_pointer
+      cursor_stop
+      cursor_text_edit
       curves
       curves_data
       curve_bezcircle
