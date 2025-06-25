@@ -38,6 +38,7 @@ namespace blender::ui {
 enum class ItemType : int8_t;
 enum class ItemInternalFlag : uint8_t;
 enum class EmbossType : uint8_t;
+enum class LayoutAlign : int8_t;
 }  // namespace blender::ui
 
 struct PanelLayout {
@@ -79,7 +80,7 @@ struct uiLayout : uiItem {
   uiLayout *parent_;
   blender::Vector<uiItem *> items_;
 
-  char heading_[UI_MAX_NAME_STR];
+  std::string heading_;
 
   /** Sub layout to add child items, if not the layout itself. */
   uiLayout *child_items_layout_;
@@ -93,10 +94,9 @@ struct uiLayout : uiItem {
   bool activate_init_;
   bool enabled_;
   bool redalert_;
-  bool keepaspect_;
   /** For layouts inside grid-flow, they and their items shall never have a fixed maximal size. */
   bool variable_size_;
-  char alignment_;
+  blender::ui::LayoutAlign alignment_;
   blender::ui::EmbossType emboss_;
   /** for fixed width or height to avoid UI size changes */
   float units_[2];
@@ -112,18 +112,77 @@ struct uiLayout : uiItem {
    */
   void active_set(bool active);
 
+  bool active_default() const;
+  /**
+   * When set to true the next operator button added in the layout will be highlighted as default
+   * action when pressing return, in popup dialogs this overrides default confirmation buttons.
+   */
+  void active_default_set(bool active_default);
+
+  bool activate_init() const;
+  /**
+   * When set to true, the next button added in the layout will be activated on first display.
+   * Only for popups dialogs and only the first button in the popup with this flag will be
+   * activated.
+   */
+  void activate_init_set(bool activate_init);
+
+  blender::ui::LayoutAlign alignment() const;
+  void alignment_set(blender::ui::LayoutAlign alignment);
+
+  uiBlock *block() const;
+
+  void context_copy(const bContextStore *context);
+
+  const PointerRNA *context_ptr_get(const blender::StringRef name, const StructRNA *type) const;
+  void context_ptr_set(blender::StringRef name, const PointerRNA *ptr);
+
+  std::optional<blender::StringRefNull> context_string_get(const blender::StringRef name) const;
+  void context_string_set(blender::StringRef name, blender::StringRef value);
+
+  std::optional<int64_t> context_int_get(const blender::StringRef name) const;
+  void context_int_set(blender::StringRef name, int64_t value);
+
+  /** Only for convenience. */
+  void context_set_from_but(const uiBut *but);
+
+  bContextStore *context_store() const;
+
+  bool enabled() const;
+  /**
+   * Sets the enabled state of the layout and its items.
+   * When false the layout and its buttons are grayed out, user can't interaction with them, only
+   * buttons tooltips are available on hovering.
+   */
+  void enabled_set(bool enabled);
+
   blender::ui::EmbossType emboss() const;
   void emboss_set(blender::ui::EmbossType emboss);
+
+  bool fixed_size() const;
+  void fixed_size_set(bool fixed_size);
 
   wmOperatorCallContext operator_context() const;
   /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
   void operator_context_set(wmOperatorCallContext opcontext);
+
+  bool red_alert() const;
+  /**
+   * When set to true new items added in the layout are highlighted with the error state
+   * color #TH_REDALERT.
+   */
+  void red_alert_set(bool red_alert);
+
+  Panel *root_panel() const;
 
   float scale_x() const;
   void scale_x_set(float scale);
 
   float scale_y() const;
   void scale_y_set(float scale);
+
+  float search_weight() const;
+  void search_weight_set(float weight);
 
   float ui_units_x() const;
   /** Sets a fixed width size for this layout. */
@@ -132,6 +191,21 @@ struct uiLayout : uiItem {
   float ui_units_y() const;
   /** Sets a fixed height size for this layout. */
   void ui_units_y_set(float height);
+
+  bool use_property_split() const;
+  /**
+   * Sets when to split property's label into a separate button when adding new property buttons.
+   */
+  void use_property_split_set(bool value);
+
+  bool use_property_decorate() const;
+  /**
+   * Sets when to add an extra button to insert keyframes next to new property buttons added in the
+   * layout.
+   */
+  void use_property_decorate_set(bool is_sep);
+
+  int width() const;
 
   /** Sub-layout items. */
 
@@ -370,6 +444,31 @@ struct uiLayout : uiItem {
             std::optional<blender::StringRef> name,
             int icon);
 
+  /**
+   * Adds a RNA enum/pointer/string/ property item, and exposes it into the layout. Button input
+   * would suggest values from the search property collection.
+   * \param searchprop: Collection property in \a searchptr from where to take input values.
+   * \param results_are_suggestions: Allow inputs that not match any suggested value.
+   */
+  void prop_search(PointerRNA *ptr,
+                   PropertyRNA *prop,
+                   PointerRNA *searchptr,
+                   PropertyRNA *searchprop,
+                   std::optional<blender::StringRefNull> name,
+                   int icon,
+                   bool results_are_suggestions);
+  /**
+   * Adds a RNA enum/pointer/string/ property item, and exposes it into the layout. Button input
+   * would suggest values from the search property collection, input must match a suggested value.
+   * \param searchprop: Collection property in \a searchptr from where to take input values.
+   */
+  void prop_search(PointerRNA *ptr,
+                   blender::StringRefNull propname,
+                   PointerRNA *searchptr,
+                   blender::StringRefNull searchpropname,
+                   std::optional<blender::StringRefNull> name,
+                   int icon);
+
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
 };
@@ -381,6 +480,66 @@ inline bool uiLayout::active() const
 inline void uiLayout::active_set(bool active)
 {
   active_ = active;
+}
+
+inline bool uiLayout::active_default() const
+{
+  return active_default_;
+}
+inline void uiLayout::active_default_set(bool active_default)
+{
+  active_default_ = active_default;
+}
+
+inline bool uiLayout::activate_init() const
+{
+  return activate_init_;
+}
+inline void uiLayout::activate_init_set(bool activate_init)
+{
+  activate_init_ = activate_init;
+}
+
+inline blender::ui::LayoutAlign uiLayout::alignment() const
+{
+  return alignment_;
+}
+
+inline void uiLayout::alignment_set(blender::ui::LayoutAlign alignment)
+{
+  alignment_ = alignment;
+}
+
+inline bContextStore *uiLayout::context_store() const
+{
+  return context_;
+}
+
+inline bool uiLayout::enabled() const
+{
+  return enabled_;
+}
+inline void uiLayout::enabled_set(bool enabled)
+{
+  enabled_ = enabled;
+}
+
+inline bool uiLayout::red_alert() const
+{
+  return redalert_;
+}
+inline void uiLayout::red_alert_set(bool red_alert)
+{
+  redalert_ = red_alert;
+}
+
+inline float uiLayout::search_weight() const
+{
+  return search_weight_;
+}
+inline void uiLayout::search_weight_set(float weight)
+{
+  search_weight_ = weight;
 }
 
 inline float uiLayout::scale_x() const
@@ -419,6 +578,11 @@ inline void uiLayout::ui_units_y_set(float height)
   units_[1] = height;
 };
 
+inline int uiLayout::width() const
+{
+  return this->w_;
+}
+
 enum {
   UI_LAYOUT_HORIZONTAL = 0,
   UI_LAYOUT_VERTICAL = 1,
@@ -433,12 +597,14 @@ enum {
   UI_LAYOUT_VERT_BAR = 5,
 };
 
-enum {
-  UI_LAYOUT_ALIGN_EXPAND = 0,
-  UI_LAYOUT_ALIGN_LEFT = 1,
-  UI_LAYOUT_ALIGN_CENTER = 2,
-  UI_LAYOUT_ALIGN_RIGHT = 3,
+namespace blender::ui {
+enum class LayoutAlign : int8_t {
+  Expand = 0,
+  Left = 1,
+  Center = 2,
+  Right = 3,
 };
+}  // namespace blender::ui
 
 enum eUI_Item_Flag : uint16_t {
   /* UI_ITEM_O_RETURN_PROPS = 1 << 0, */ /* UNUSED */
@@ -505,14 +671,7 @@ void UI_block_layout_free(uiBlock *block);
  */
 bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter);
 
-uiBlock *uiLayoutGetBlock(uiLayout *layout);
-
 void uiLayoutSetFunc(uiLayout *layout, uiMenuHandleFunc handlefunc, void *argv);
-void uiLayoutSetContextPointer(uiLayout *layout, blender::StringRef name, PointerRNA *ptr);
-void uiLayoutSetContextString(uiLayout *layout, blender::StringRef name, blender::StringRef value);
-void uiLayoutSetContextInt(uiLayout *layout, blender::StringRef name, int64_t value);
-bContextStore *uiLayoutGetContextStore(uiLayout *layout);
-void uiLayoutContextCopy(uiLayout *layout, const bContextStore *context);
 
 /**
  * Set tooltip function for all buttons in the layout.
@@ -538,33 +697,7 @@ void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout);
  */
 void UI_paneltype_draw(bContext *C, PanelType *pt, uiLayout *layout);
 
-/* Only for convenience. */
-void uiLayoutSetContextFromBut(uiLayout *layout, uiBut *but);
-
-void uiLayoutSetActiveDefault(uiLayout *layout, bool active_default);
-void uiLayoutSetActivateInit(uiLayout *layout, bool activate_init);
-void uiLayoutSetEnabled(uiLayout *layout, bool enabled);
-void uiLayoutSetRedAlert(uiLayout *layout, bool redalert);
-void uiLayoutSetAlignment(uiLayout *layout, char alignment);
-void uiLayoutSetFixedSize(uiLayout *layout, bool fixed_size);
-void uiLayoutSetKeepAspect(uiLayout *layout, bool keepaspect);
-void uiLayoutSetPropSep(uiLayout *layout, bool is_sep);
-void uiLayoutSetPropDecorate(uiLayout *layout, bool is_sep);
 int uiLayoutGetLocalDir(const uiLayout *layout);
-void uiLayoutSetSearchWeight(uiLayout *layout, float weight);
-
-bool uiLayoutGetActiveDefault(uiLayout *layout);
-bool uiLayoutGetActivateInit(uiLayout *layout);
-bool uiLayoutGetEnabled(uiLayout *layout);
-bool uiLayoutGetRedAlert(uiLayout *layout);
-int uiLayoutGetAlignment(uiLayout *layout);
-bool uiLayoutGetFixedSize(uiLayout *layout);
-bool uiLayoutGetKeepAspect(uiLayout *layout);
-int uiLayoutGetWidth(uiLayout *layout);
-bool uiLayoutGetPropSep(uiLayout *layout);
-bool uiLayoutGetPropDecorate(uiLayout *layout);
-Panel *uiLayoutGetRootPanel(uiLayout *layout);
-float uiLayoutGetSearchWeight(uiLayout *layout);
 
 int uiLayoutListItemPaddingWidth();
 void uiLayoutListItemAddPadding(uiLayout *layout);
@@ -655,21 +788,6 @@ void uiItemEnumR_string(uiLayout *layout,
                         std::optional<blender::StringRefNull> name,
                         int icon);
 void uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, blender::StringRefNull propname);
-void uiItemPointerR_prop(uiLayout *layout,
-                         PointerRNA *ptr,
-                         PropertyRNA *prop,
-                         PointerRNA *searchptr,
-                         PropertyRNA *searchprop,
-                         std::optional<blender::StringRefNull> name,
-                         int icon,
-                         bool results_are_suggestions);
-void uiItemPointerR(uiLayout *layout,
-                    PointerRNA *ptr,
-                    blender::StringRefNull propname,
-                    PointerRNA *searchptr,
-                    blender::StringRefNull searchpropname,
-                    std::optional<blender::StringRefNull> name,
-                    int icon);
 
 /**
  * Create a list of enum items.

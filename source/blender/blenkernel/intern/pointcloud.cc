@@ -118,7 +118,7 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
 
   ResourceScope scope;
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
-  attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(), {}, attribute_data);
+  attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(), attribute_data);
   BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
   pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
   pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
@@ -232,7 +232,7 @@ static MutableSpan<T> get_mutable_attribute(PointCloud &pointcloud,
       if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
         /* Convert single value storage to array storage. */
         const GPointer g_value(CPPType::get<T>(), single_data->value);
-        attr->data_for_write() = bke::Attribute::ArrayData::ForValue(g_value, pointcloud.totpoint);
+        attr->assign_data(bke::Attribute::ArrayData::ForValue(g_value, pointcloud.totpoint));
       }
       auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
       BLI_assert(array_data.size == pointcloud.totpoint);

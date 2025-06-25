@@ -207,7 +207,7 @@ static void scene_init_data(ID *id)
     pset->brush[PE_BRUSH_CUT].strength = 1.0f;
   }
 
-  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+  STRNCPY(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 
   STRNCPY(scene->r.pic, U.renderdir);
 
@@ -1009,6 +1009,12 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
     sce->nodetree = reinterpret_cast<bNodeTree *>(MEM_mallocN(1, "dummy pointer"));
   }
 
+  /* Todo(#140111): Forward compatibility support will be removed in 6.0. Remove mapping between
+   * `scene->use_nodes` and `scene->r.scemode`. */
+  if (sce->compositing_node_group && sce->r.scemode & R_DOCOMP) {
+    sce->use_nodes = true;
+  }
+
   /* write LibData */
   BLO_write_id_struct(writer, Scene, id_address, &sce->id);
   BKE_id_blend_write(writer, &sce->id);
@@ -1017,13 +1023,14 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
 
   /* direct data */
   ToolSettings *tos = sce->toolsettings;
-  BLO_write_struct(writer, ToolSettings, tos);
 
   /* In 5.0 we intend to change the brush.size value from representing radius to representing
    * diameter. This and the corresponding code in `brush_blend_read_data` should be removed once
    * that transition is complete. */
   tos->unified_paint_settings.size *= 2;
   tos->unified_paint_settings.unprojected_radius *= 2.0f;
+
+  BLO_write_struct(writer, ToolSettings, tos);
 
   if (tos->unified_paint_settings.curve_rand_hue) {
     BKE_curvemapping_blend_write(writer, tos->unified_paint_settings.curve_rand_hue);
@@ -1250,7 +1257,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
     /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To
      * ensure correct behavior, convert this when reading newer files. */
-    if (BLO_read_fileversion_get(reader) > 500) {
+    if (BLO_read_fileversion_get(reader) >= 500) {
       ups->size = std::max(ups->size / 2, 1);
       ups->unprojected_radius = std::max(ups->unprojected_radius / 2, 0.001f);
     }
@@ -2095,7 +2102,8 @@ int BKE_scene_base_iter_next(
   if (val == 0) {
     iter->phase = F_START;
     iter->dupob = nullptr;
-    iter->duplilist = nullptr;
+    iter->dupob_index = -1;
+    iter->duplilist.clear();
     iter->dupli_refob = nullptr;
   }
   else {
@@ -2164,13 +2172,14 @@ int BKE_scene_base_iter_next(
              * this enters eternal loop because of
              * makeDispListMBall getting called inside of collection_duplilist */
             if ((*base)->object->instance_collection == nullptr) {
-              iter->duplilist = object_duplilist(depsgraph, (*scene), (*base)->object);
+              object_duplilist(depsgraph, (*scene), (*base)->object, nullptr, iter->duplilist);
 
-              iter->dupob = static_cast<DupliObject *>(iter->duplilist->first);
+              iter->dupob = iter->duplilist.is_empty() ? nullptr : &iter->duplilist.first();
+              iter->dupob_index = 0;
 
               if (!iter->dupob) {
-                free_object_duplilist(iter->duplilist);
-                iter->duplilist = nullptr;
+                iter->duplilist.clear();
+                iter->dupob_index = -1;
               }
               iter->dupli_refob = nullptr;
             }
@@ -2193,7 +2202,13 @@ int BKE_scene_base_iter_next(
           }
           copy_m4_m4((*ob)->runtime->object_to_world.ptr(), iter->dupob->mat);
 
-          iter->dupob = iter->dupob->next;
+          if (++iter->dupob_index < iter->duplilist.size()) {
+            iter->dupob = &iter->duplilist[iter->dupob_index];
+          }
+          else {
+            iter->dupob = nullptr;
+            iter->dupob_index = -1;
+          }
         }
         else if (iter->phase == F_DUPLI) {
           iter->phase = F_SCENE;
@@ -2205,8 +2220,7 @@ int BKE_scene_base_iter_next(
             iter->dupli_refob = nullptr;
           }
 
-          free_object_duplilist(iter->duplilist);
-          iter->duplilist = nullptr;
+          iter->duplilist.clear();
           run_again = true;
         }
       }
@@ -2831,8 +2845,7 @@ bool BKE_scene_use_spherical_stereo(Scene *scene)
 
 bool BKE_scene_uses_blender_eevee(const Scene *scene)
 {
-  return STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE) ||
-         STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE_NEXT);
+  return STREQ(scene->r.engine, RE_engine_id_BLENDER_EEVEE);
 }
 
 bool BKE_scene_uses_blender_workbench(const Scene *scene)

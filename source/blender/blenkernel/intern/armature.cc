@@ -17,6 +17,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_alloca.h"
+#include "BLI_bounds.hh"
 #include "BLI_ghash.h"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
@@ -302,8 +303,9 @@ static void write_bone(BlendWriter *writer, Bone *bone)
   if (bone->prop) {
     IDP_BlendWrite(writer, bone->prop);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
-   * the matching call to #BLO_read_struct). */
+  if (bone->system_properties) {
+    IDP_BlendWrite(writer, bone->system_properties);
+  }
 
   /* Write Children */
   LISTBASE_FOREACH (Bone *, cbone, &bone->childbase) {
@@ -321,8 +323,9 @@ static void write_bone_collection(BlendWriter *writer, BoneCollection *bcoll)
   if (bcoll->prop) {
     IDP_BlendWrite(writer, bcoll->prop);
   }
-  /* Never write system_properties in Blender 4.5, will be reset to `nullptr` by reading code (by
-   * the matching call to #BLO_read_struct). */
+  if (bcoll->system_properties) {
+    IDP_BlendWrite(writer, bcoll->system_properties);
+  }
 
   BLO_write_struct_list(writer, BoneCollectionMember, &bcoll->bones);
 }
@@ -3172,9 +3175,9 @@ void BKE_pchan_minmax(const Object *ob,
                  pchan->custom_translation[1],
                  pchan->custom_translation[2]);
     mul_m4_series(mat.ptr(), tmp.ptr(), rmat.ptr(), smat.ptr());
-    BoundBox bb;
-    BKE_boundbox_init_from_minmax(&bb, bb_custom->min, bb_custom->max);
-    BKE_boundbox_minmax(bb, mat, r_min, r_max);
+    const Bounds tranformed_bounds = bounds::transform_bounds(mat, *bb_custom);
+    r_min = math::min(tranformed_bounds.min, r_min);
+    r_max = math::max(tranformed_bounds.max, r_max);
   }
   else {
     minmax_v3v3_v3(r_min, r_max, pchan_tx->pose_head);

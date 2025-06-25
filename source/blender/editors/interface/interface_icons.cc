@@ -47,7 +47,6 @@
 #include "ED_node.hh"
 #include "ED_render.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
@@ -281,9 +280,9 @@ static void vicon_keytype_draw_wrapper(const float x,
   sh_bindings.size_id = GPU_vertformat_attr_add(
       format, "size", blender::gpu::VertAttrType::SFLOAT_32);
   sh_bindings.color_id = GPU_vertformat_attr_add(
-      format, "color", blender::gpu::VertAttrType::SNORM_8_8_8_8);
+      format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.outline_color_id = GPU_vertformat_attr_add(
-      format, "outlineColor", blender::gpu::VertAttrType::SNORM_8_8_8_8);
+      format, "outlineColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.flags_id = GPU_vertformat_attr_add(
       format, "flags", blender::gpu::VertAttrType::UINT_32);
 
@@ -2096,11 +2095,12 @@ int UI_icon_from_idcode(const int idcode)
       return ICON_WORKSPACE;
     case ID_GP:
       return ICON_OUTLINER_DATA_GREASEPENCIL;
+    case ID_KE:
+      return ICON_SHAPEKEY_DATA;
 
     /* No icons for these ID-types. */
     case ID_LI:
     case ID_IP:
-    case ID_KE:
     case ID_SCR:
     case ID_WM:
       break;
