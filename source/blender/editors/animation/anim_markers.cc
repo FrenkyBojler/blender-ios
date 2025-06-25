@@ -1667,14 +1667,14 @@ static wmOperatorStatus ed_marker_select_leftright_invoke(bContext *C,
     return OPERATOR_CANCELLED;
   }
 
-  eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
+  const eMarkers_LeftRightSelect_Mode mode = eMarkers_LeftRightSelect_Mode(
       RNA_enum_get(op->ptr, "mode"));
 
   if (mode == MARKERS_LRSEL_TEST) {
     Scene *scene = ac.scene;
     ARegion *region = ac.region;
     View2D *v2d = &region->v2d;
-    float mouse_frame = UI_view2d_region_to_view_x(v2d, event->mval[0]);
+    const float mouse_frame = UI_view2d_region_to_view_x(v2d, event->mval[0]);
 
     if (mouse_frame < scene->r.cfra) {
       RNA_enum_set(op->ptr, "mode", MARKERS_LRSEL_LEFT);
