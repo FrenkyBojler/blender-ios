@@ -177,4 +177,14 @@ void sync_sockets_closure(SpaceNode &snode,
                           const bool initialize_internal_links,
                           ReportList *reports);
 
+enum class NodeSyncState {
+  Synced,
+  CanBeSynced,
+  NoSyncSource,
+  ConflictingSyncSources,
+};
+
+NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
+                                                 const bNode &separate_bundle_node);
+
 }  // namespace blender::ed::space_node

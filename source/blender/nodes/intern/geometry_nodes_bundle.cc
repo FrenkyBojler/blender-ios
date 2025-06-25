@@ -65,6 +65,19 @@ bool BundleSignature::matches_exactly(const BundleSignature &other) const
   return true;
 }
 
+bool BundleSignature::all_matching_exactly(const Span<BundleSignature> signatures)
+{
+  if (signatures.is_empty()) {
+    return true;
+  }
+  for (const BundleSignature &signature : signatures.drop_front(1)) {
+    if (!signatures[0].matches_exactly(signature)) {
+      return false;
+    }
+  }
+  return true;
+}
+
 Bundle::Bundle() = default;
 
 Bundle::~Bundle()
@@ -175,6 +188,34 @@ bool Bundle::contains(const SocketInterfaceKey &key) const
 void Bundle::delete_self()
 {
   MEM_delete(this);
+}
+
+BundleSignature BundleSignature::FromCombineBundleNode(const bNode &node)
+{
+  BLI_assert(node.is_type("GeometryNodeCombineBundle"));
+  const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node.storage);
+  BundleSignature signature;
+  for (const int i : IndexRange(storage.items_num)) {
+    const NodeGeometryCombineBundleItem &item = storage.items[i];
+    if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
+      signature.items.append({nodes::SocketInterfaceKey(item.name), stype});
+    }
+  }
+  return signature;
+}
+
+BundleSignature BundleSignature::FromSeparateBundleNode(const bNode &node)
+{
+  BLI_assert(node.is_type("GeometryNodeSeparateBundle"));
+  const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node.storage);
+  BundleSignature signature;
+  for (const int i : IndexRange(storage.items_num)) {
+    const NodeGeometrySeparateBundleItem &item = storage.items[i];
+    if (const bke::bNodeSocketType *stype = bke::node_socket_type_find_static(item.socket_type)) {
+      signature.items.append({nodes::SocketInterfaceKey(item.name), stype});
+    }
+  }
+  return signature;
 }
 
 }  // namespace blender::nodes

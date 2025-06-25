@@ -100,6 +100,33 @@ void sync_sockets_evaluate_closure(SpaceNode &snode,
   BKE_ntree_update_tag_node_property(snode.edittree, &evaluate_closure_node);
 }
 
+NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
+                                                 const bNode &separate_bundle_node)
+{
+  snode.edittree->ensure_topology_cache();
+  const bNodeSocket &bundle_socket = separate_bundle_node.input_socket(0);
+
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
+      snode, compute_context_cache, bundle_socket);
+  const Vector<nodes::BundleSignature> source_signatures =
+      ed::space_node::gather_linked_origin_bundle_signatures(
+          current_context, bundle_socket, compute_context_cache);
+  if (source_signatures.is_empty()) {
+    return NodeSyncState::NoSyncSource;
+  }
+  if (!nodes::BundleSignature::all_matching_exactly(source_signatures)) {
+    return NodeSyncState::ConflictingSyncSources;
+  }
+  const nodes::BundleSignature &source_signature = source_signatures[0];
+  const nodes::BundleSignature &current_signature = nodes::BundleSignature::FromSeparateBundleNode(
+      separate_bundle_node);
+  if (!source_signature.matches_exactly(current_signature)) {
+    return NodeSyncState::CanBeSynced;
+  }
+  return NodeSyncState::Synced;
+}
+
 void sync_sockets_separate_bundle(SpaceNode &snode,
                                   bNode &separate_bundle_node,
                                   ReportList *reports)

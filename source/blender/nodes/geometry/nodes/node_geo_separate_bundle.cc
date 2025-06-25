@@ -73,12 +73,28 @@ static bool node_insert_link(bNodeTree *tree, bNode *node, bNodeLink *link)
       *tree, *node, *node, *link);
 }
 
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *node_ptr)
+static void node_layout(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
 {
+  const SpaceNode *snode = CTX_wm_space_node(C);
   bNode &node = *node_ptr->data_as<bNode>();
   NodeGeometrySeparateBundle &storage = node_storage(node);
-  if (storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC) {
-    layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+  if (snode && storage.flag & NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC) {
+    const ed::space_node::NodeSyncState state = ed::space_node::sync_sockets_state_separate_bundle(
+        *snode, node);
+    switch (state) {
+      case ed::space_node::NodeSyncState::NoSyncSource:
+      case ed::space_node::NodeSyncState::Synced: {
+        storage.flag &= ~NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC;
+        break;
+      }
+      case ed::space_node::NodeSyncState::CanBeSynced: {
+        layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+        break;
+      }
+      case ed::space_node::NodeSyncState::ConflictingSyncSources: {
+        break;
+      }
+    }
   }
 }
 
