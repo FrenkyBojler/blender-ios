@@ -285,6 +285,8 @@ if(WITH_BLENDER)
       current_file
       cursor
       cursor_crosshair
+      cursor_eraser
+      cursor_eyedropper
       cursor_pencil
       cursor_pointer
       cursor_stop

@@ -873,6 +873,8 @@ DEF_ICON_CURSOR(CURSOR_TEXT_EDIT)
 DEF_ICON_CURSOR(CURSOR_STOP)
 DEF_ICON_CURSOR(CURSOR_CROSSHAIR)
 DEF_ICON_CURSOR(CURSOR_PENCIL)
+DEF_ICON_CURSOR(CURSOR_EYEDROPPER)
+DEF_ICON_CURSOR(CURSOR_ERASER)
 
 /* The items above are initiated sequentially while the ones that
  * follow are initiated individually. Therefore this item marks

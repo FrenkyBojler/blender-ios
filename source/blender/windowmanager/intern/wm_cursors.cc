@@ -200,6 +200,12 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
     case WM_CURSOR_PAINT_BRUSH:
       icon_id = ICON_CURSOR_PENCIL;
       break;
+    case WM_CURSOR_EYEDROPPER:
+      icon_id = ICON_CURSOR_EYEDROPPER;
+      break;
+    case WM_CURSOR_ERASER:
+      icon_id = ICON_CURSOR_ERASER;
+      break;
     case WM_CURSOR_EDIT:
     case WM_CURSOR_CROSS:
       icon_id = ICON_CURSOR_CROSSHAIR;
