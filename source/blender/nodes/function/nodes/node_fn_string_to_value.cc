@@ -9,6 +9,7 @@
 #include "NOD_rna_define.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include <charconv>
 #include <string>
@@ -32,18 +33,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
-  static auto str_to_float_fn = mf::build::SI1_SO3<std::string, float, bool, int>(
-      "String to Value",
-      [](const std::string &string, float &value, bool &valid, int &length) -> void {
+  static auto str_to_float_fn = mf::build::SI1_SO2<std::string, float, int>(
+      "String to Value", [](const std::string &string, float &value, int &length) -> void {
         const auto result = std::from_chars(string.data(), string.data() + string.size(), value);
-        valid = result.ec == std::errc();
         length = BLI_strnlen_utf8(string.data(), result.ptr - string.data());
       });
-  static auto str_to_int_fn = mf::build::SI1_SO3<std::string, int, bool, int>(
-      "String to Integer",
-      [](const std::string &string, int &value, bool &valid, int &length) -> void {
+  static auto str_to_int_fn = mf::build::SI1_SO2<std::string, int, int>(
+      "String to Integer", [](const std::string &string, int &value, int &length) -> void {
         const auto result = std::from_chars(string.data(), string.data() + string.size(), value);
-        valid = result.ec == std::errc();
         length = BLI_strnlen_utf8(string.data(), result.ptr - string.data());
       });
 
