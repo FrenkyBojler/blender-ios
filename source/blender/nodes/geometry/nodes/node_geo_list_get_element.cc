@@ -62,7 +62,7 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
     params.add_item(IFACE_("List"), SocketSearchOp{"List", socket_type});
   }
   else {
-    params.add_item(IFACE_("Value"), SocketSearchOp{"Value", SOCK_INT});
+    params.add_item(IFACE_("Value"), SocketSearchOp{"Value", socket_type});
   }
 }
 
