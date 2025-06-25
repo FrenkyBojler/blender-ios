@@ -134,7 +134,7 @@ void ShaderOperation::link_node_inputs(DNode node)
 
     /* The input is unavailable and unused, but it still needs to be linked as this is what the GPU
      * material compiler expects. */
-    if (!input->is_available()) {
+    if (!is_socket_available(input.bsocket())) {
       this->link_node_input_unavailable(input);
       continue;
     }
@@ -208,8 +208,8 @@ static void initialize_input_stack_value(const DInputSocket input, GPUNodeStack 
       break;
     }
     case SOCK_VECTOR: {
-      const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      copy_v3_v3(stack.vec, value);
+      const float4 value = float4(input->default_value_typed<bNodeSocketValueVector>()->value);
+      copy_v4_v4(stack.vec, value);
       break;
     }
     case SOCK_RGBA: {
@@ -410,7 +410,7 @@ void ShaderOperation::populate_results_for_node(DNode node)
   for (const bNodeSocket *output : node->output_sockets()) {
     const DOutputSocket doutput{node.context(), output};
 
-    if (!output->is_available()) {
+    if (!is_socket_available(output)) {
       continue;
     }
 

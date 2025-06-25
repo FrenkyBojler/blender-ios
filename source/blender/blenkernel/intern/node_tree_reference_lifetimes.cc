@@ -53,9 +53,9 @@ std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &info)
   return stream;
 }
 
-static bool socket_may_have_reference(const bNodeTree &tree, const bNodeSocket &socket)
+static bool socket_may_have_reference(const bNodeSocket &socket)
 {
-  return tree.runtime->field_states[socket.index_in_tree()] == FieldSocketState::IsField;
+  return socket.may_be_field();
 }
 
 static bool or_into_each_other_masked(MutableBoundedBitSpan a,
@@ -132,7 +132,7 @@ static Array<const aal::RelationsInNode *> prepare_relations_by_node(const bNode
             if (prev_geometry_index == -1) {
               continue;
             }
-            if (socket_may_have_reference(tree, socket)) {
+            if (socket_may_have_reference(socket)) {
               relations.eval_relations.append({i, prev_geometry_index});
             }
           }
@@ -148,7 +148,7 @@ static Array<const aal::RelationsInNode *> prepare_relations_by_node(const bNode
             if (prev_geometry_index == -1) {
               continue;
             }
-            if (socket_may_have_reference(tree, socket)) {
+            if (socket_may_have_reference(socket)) {
               relations.available_relations.append({i, prev_geometry_index});
             }
           }
@@ -162,7 +162,7 @@ static Array<const aal::RelationsInNode *> prepare_relations_by_node(const bNode
         for (const bNodeSocket *socket : node->output_sockets()) {
           if (can_contain_referenced_data(eNodeSocketDatatype(socket->type))) {
             for (const bNodeSocket *other_output : node->output_sockets()) {
-              if (socket_may_have_reference(tree, *other_output)) {
+              if (socket_may_have_reference(*other_output)) {
                 relations.available_relations.append({other_output->index(), socket->index()});
               }
             }
@@ -171,7 +171,7 @@ static Array<const aal::RelationsInNode *> prepare_relations_by_node(const bNode
         for (const bNodeSocket *socket : node->input_sockets()) {
           if (can_contain_referenced_data(eNodeSocketDatatype(socket->type))) {
             for (const bNodeSocket *other_input : node->input_sockets()) {
-              if (socket_may_have_reference(tree, *other_input)) {
+              if (socket_may_have_reference(*other_input)) {
                 relations.eval_relations.append({other_input->index(), socket->index()});
               }
             }
@@ -191,7 +191,7 @@ static Array<const aal::RelationsInNode *> prepare_relations_by_node(const bNode
             if (can_contain_referenced_data(eNodeSocketDatatype(input_socket.type))) {
               relations.propagate_relations.append({input_index, output_index});
             }
-            else if (socket_may_have_reference(tree, input_socket)) {
+            else if (socket_may_have_reference(input_socket)) {
               relations.reference_relations.append({input_index, output_index});
             }
           }
@@ -244,7 +244,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
   for (const int input_i : interface_inputs.index_range()) {
     const bNodeTreeInterfaceSocket &interface_input = *interface_inputs[input_i];
     const bNodeSocketType *stype = interface_input.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = stype ? eNodeSocketDatatype(stype->type) : SOCK_CUSTOM;
+    const eNodeSocketDatatype socket_type = stype ? stype->type : SOCK_CUSTOM;
     if (can_contain_reference(socket_type)) {
       reference_sets.append({ReferenceSetType::GroupInputReferenceSet, input_i});
     }
@@ -253,7 +253,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
   for (const int output_i : interface_outputs.index_range()) {
     const bNodeTreeInterfaceSocket &interface_output = *interface_outputs[output_i];
     const bNodeSocketType *stype = interface_output.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = stype ? eNodeSocketDatatype(stype->type) : SOCK_CUSTOM;
+    const eNodeSocketDatatype socket_type = stype ? stype->type : SOCK_CUSTOM;
     if (can_contain_referenced_data(socket_type)) {
       r_group_output_reference_sets.append(
           reference_sets.append_and_get_index({ReferenceSetType::GroupOutputData, output_i}));
@@ -263,7 +263,7 @@ static Vector<ReferenceSetInfo> find_reference_sets(
   for (const int input_i : interface_inputs.index_range()) {
     const bNodeTreeInterfaceSocket &interface_input = *interface_inputs[input_i];
     const bNodeSocketType *stype = interface_input.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = stype ? eNodeSocketDatatype(stype->type) : SOCK_CUSTOM;
+    const eNodeSocketDatatype socket_type = stype ? stype->type : SOCK_CUSTOM;
     if (can_contain_referenced_data(socket_type)) {
       for (const bNode *node : tree.group_input_nodes()) {
         const bNodeSocket &socket = node->output_socket(input_i);
@@ -865,8 +865,7 @@ static aal::RelationsInNode get_tree_relations(
 
   for (const int input_i : tree.interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &interface_input = *tree.interface_inputs()[input_i];
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(
-        interface_input.socket_typeinfo()->type);
+    const eNodeSocketDatatype socket_type = interface_input.socket_typeinfo()->type;
     if (can_contain_referenced_data(socket_type)) {
       BitVector<> required_data(required_data_by_socket.group_size(), false);
       for (const bNode *input_node : tree.group_input_nodes()) {

@@ -36,6 +36,7 @@ struct FieldInferencingInterface;
 struct GeometryNodesEvalDependencies;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
+struct StructureTypeInterface;
 namespace anonymous_attribute_lifetime {
 }
 namespace aal = anonymous_attribute_lifetime;
@@ -172,9 +173,16 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   std::unique_ptr<nodes::FieldInferencingInterface> field_inferencing_interface;
   /** Field status for every socket, accessed with #bNodeSocket::index_in_tree(). */
   Array<FieldSocketState> field_states;
+  /**
+   * Inferred structure type for every socket, accessed with #bNodeSocket::index_in_tree().
+   * This is not necessarily the structure type that is displayed in the node editor. E.g. it may
+   * be Single for an unconnected field input.
+   */
+  Array<nodes::StructureType> inferred_structure_types;
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
+  std::unique_ptr<nodes::StructureTypeInterface> structure_type_interface;
 
   /**
    * A bool for each input socket (indexed by `index_in_all_inputs()`) that indicates whether this
@@ -237,7 +245,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
 
   /**
    * Node previews for the compositor.
-   * Only available in base node trees (e.g. scene->node_tree).
+   * Only available in base node trees (e.g. scene->compositing_node_group).
    */
   Map<bNodeInstanceKey, bNodePreview> previews;
 
@@ -457,6 +465,10 @@ inline bool topology_cache_is_available(const bNodeSocket &socket)
 
 namespace node_field_inferencing {
 bool update_field_inferencing(const bNodeTree &tree);
+}
+
+namespace node_structure_type_inferencing {
+bool update_structure_type_interface(bNodeTree &tree);
 }
 
 }  // namespace blender::bke
@@ -1009,6 +1021,13 @@ inline bool bNodeSocket::is_icon_visible() const
 {
   return this->is_visible() &&
          (this->owner_node().flag & NODE_HIDDEN || !this->is_panel_collapsed());
+}
+
+inline bool bNodeSocket::may_be_field() const
+{
+  return ELEM(this->owner_tree().runtime->inferred_structure_types[this->index_in_tree()],
+              blender::nodes::StructureType::Field,
+              blender::nodes::StructureType::Dynamic);
 }
 
 inline bNode &bNodeSocket::owner_node()

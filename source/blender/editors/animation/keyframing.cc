@@ -58,6 +58,7 @@
 #include "RNA_path.hh"
 #include "SEQ_relations.hh"
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -531,12 +532,8 @@ static wmOperatorStatus insert_key_menu_invoke(bContext *C,
   for (int i = 0; i < totitem; i++) {
     const EnumPropertyItem *item = &item_array[i];
     if (item->identifier[0] != '\0') {
-      uiItemStringO(layout,
-                    item->name,
-                    item->icon,
-                    "ANIM_OT_keyframe_insert_by_name",
-                    "type",
-                    item->identifier);
+      PointerRNA op_ptr = layout->op("ANIM_OT_keyframe_insert_by_name", item->name, item->icon);
+      RNA_string_set(&op_ptr, "type", item->identifier);
     }
     else {
       /* This enum shouldn't contain headings, assert there are none.

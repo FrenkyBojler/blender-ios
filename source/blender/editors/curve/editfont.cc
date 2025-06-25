@@ -62,6 +62,7 @@
 #include "ED_view3d.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "curve_intern.hh"
 
@@ -409,13 +410,13 @@ static void text_update_edited(bContext *C, Object *obedit, const eEditFontMode 
 
   BLI_assert(ef->len >= 0);
 
-  /* run update first since it can move the cursor */
+  /* Run update first since it can move the cursor. */
   if (mode == FO_EDIT) {
-    /* re-tesselllate */
+    /* Re-tessellate. */
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   else {
-    /* depsgraph runs above, but since we're not tagging for update, call direct */
+    /* Depsgraph runs above, but since we're not tagging for update, call directly. */
     /* We need evaluated data here. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     BKE_vfont_to_curve(DEG_get_evaluated(depsgraph, obedit), mode);
@@ -423,10 +424,7 @@ static void text_update_edited(bContext *C, Object *obedit, const eEditFontMode 
 
   cu->curinfo = ef->textbufinfo[ef->pos ? ef->pos - 1 : 0];
 
-  if (obedit->totcol > 0) {
-    obedit->actcol = cu->curinfo.mat_nr + 1;
-    obedit->actcol = std::max(obedit->actcol, 1);
-  }
+  blender::ed::object::material_active_index_set(obedit, cu->curinfo.mat_nr);
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
@@ -512,7 +510,14 @@ static bool font_paste_wchar(Object *obedit,
               ef->textbufinfo + ef->pos,
               (ef->len - ef->pos + 1) * sizeof(CharInfo));
       if (str_info) {
-        std::copy_n(str_info, str_len, ef->textbufinfo + ef->pos);
+        const short mat_nr_max = std::max(0, obedit->totcol - 1);
+        const CharInfo *info_src = str_info;
+        CharInfo *info_dst = ef->textbufinfo + ef->pos;
+
+        for (int i = 0; i < str_len; i++, info_src++, info_dst++) {
+          *info_dst = *info_src;
+          CLAMP_MAX(info_dst->mat_nr, mat_nr_max);
+        }
       }
       else {
         std::fill_n(ef->textbufinfo + ef->pos, str_len, CharInfo{});
@@ -760,7 +765,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   UI_but_flag_enable(confirm, UI_BUT_ACTIVE_DEFAULT);
 
   int bounds_offset[2];
-  bounds_offset[0] = uiLayoutGetWidth(layout) * -0.2f;
+  bounds_offset[0] = layout->width() * -0.2f;
   bounds_offset[1] = UI_UNIT_Y * 2.5;
   UI_block_bounds_set_popup(block, 7 * UI_SCALE_FAC, bounds_offset);
 
@@ -2044,10 +2049,7 @@ static void font_cursor_set_apply(bContext *C, const wmEvent *event)
 
   cu->curinfo = ef->textbufinfo[ef->pos ? ef->pos - 1 : 0];
 
-  if (ob->totcol > 0) {
-    ob->actcol = cu->curinfo.mat_nr + 1;
-    ob->actcol = std::max(ob->actcol, 1);
-  }
+  blender::ed::object::material_active_index_set(ob, cu->curinfo.mat_nr);
 
   if (!ef->selboxes && (ef->selstart == 0)) {
     if (ef->pos == 0) {

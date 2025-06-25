@@ -139,7 +139,8 @@ class LazyFunctionForClosureZone : public LazyFunction {
       params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
     }
     if (!U.experimental.use_bundle_and_closure_nodes) {
-      params.set_output(zone_info_.indices.outputs.main[0], bke::SocketValueVariant(ClosurePtr()));
+      params.set_output(zone_info_.indices.outputs.main[0],
+                        bke::SocketValueVariant::From(ClosurePtr()));
       return;
     }
 
@@ -256,7 +257,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
                                         std::make_shared<ClosureEvalLog>())};
 
     params.set_output(zone_info_.indices.outputs.main[0],
-                      bke::SocketValueVariant(std::move(closure)));
+                      bke::SocketValueVariant::From(std::move(closure)));
   }
 };
 
@@ -347,7 +348,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
               {bnode_.identifier,
-               {geo_eval_log::NodeWarningType::Error, TIP_("Recursive closure is not allowed")}});
+               {NodeWarningType::Error, TIP_("Recursive closure is not allowed")}});
         }
         this->set_default_outputs(params);
         return;
@@ -375,7 +376,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         eval_storage.closure ? eval_storage.closure->source_location() : std::nullopt;
 
     bke::EvaluateClosureComputeContext closure_compute_context{
-        user_data.compute_context, bnode_.identifier, &bnode_, closure_source_location};
+        user_data.compute_context, bnode_.identifier, &btree_, closure_source_location};
     GeoNodesUserData closure_user_data = user_data;
     closure_user_data.compute_context = &closure_compute_context;
     closure_user_data.log_socket_values = should_log_socket_values_for_context(
@@ -395,7 +396,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
       if (const auto *closure_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
               context))
       {
-        if (closure_context->evaluate_node() == &bnode_) {
+        if (closure_context->node() == &bnode_) {
           return true;
         }
       }
@@ -436,7 +437,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
               {bnode_.identifier,
-               {geo_eval_log::NodeWarningType::Error,
+               {NodeWarningType::Error,
                 fmt::format(fmt::runtime(TIP_("Closure input has incompatible type: \"{}\"")),
                             item.name)}});
         }
@@ -446,7 +447,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
             *tree_logger->allocator,
             {bnode_.identifier,
              {
-                 geo_eval_log::NodeWarningType::Error,
+                 NodeWarningType::Error,
                  fmt::format(fmt::runtime(TIP_("Closure does not have input: \"{}\"")), item.name),
              }});
       }
@@ -463,7 +464,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
           tree_logger->node_warnings.append(
               *tree_logger->allocator,
               {bnode_.identifier,
-               {geo_eval_log::NodeWarningType::Error,
+               {NodeWarningType::Error,
                 fmt::format(fmt::runtime(TIP_("Closure output has incompatible type: \"{}\"")),
                             item.name)}});
         }
@@ -472,7 +473,7 @@ class LazyFunctionForEvaluateClosureNode : public LazyFunction {
         tree_logger->node_warnings.append(
             *tree_logger->allocator,
             {bnode_.identifier,
-             {geo_eval_log::NodeWarningType::Error,
+             {NodeWarningType::Error,
               fmt::format(fmt::runtime(TIP_("Closure does not have output: \"{}\"")),
                           item.name)}});
       }

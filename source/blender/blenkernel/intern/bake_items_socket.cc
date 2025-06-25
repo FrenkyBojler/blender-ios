@@ -45,8 +45,7 @@ static std::unique_ptr<BakeItem> move_common_socket_value_to_bake_item(
     std::optional<StringRef> name,
     Vector<GeometryBakeItem *> &r_geometry_bake_items)
 {
-  const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype.type);
-  switch (socket_type) {
+  switch (stype.type) {
     case SOCK_GEOMETRY: {
       GeometrySet &geometry = *static_cast<GeometrySet *>(socket_value);
       auto item = std::make_unique<GeometryBakeItem>(std::move(geometry));
@@ -239,7 +238,7 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(const Span<voi
         std::shared_ptr<AttributeFieldInput> attribute_field = make_attribute_field(base_type);
         r_attribute_map.add(item->name(), attribute_field->attribute_name());
         fn::GField field{attribute_field};
-        new (r_value) SocketValueVariant(std::move(field));
+        SocketValueVariant::ConstructIn(r_value, std::move(field));
         return true;
       }
 #ifdef WITH_OPENVDB
@@ -252,7 +251,7 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(const Span<voi
           return false;
         }
         if (grid_socket_type == socket_type) {
-          new (r_value) SocketValueVariant(*item->grid);
+          bke::SocketValueVariant::ConstructIn(r_value, std::move(*item->grid));
           return true;
         }
         return false;
@@ -281,14 +280,14 @@ Array<std::unique_ptr<BakeItem>> move_socket_values_to_bake_items(const Span<voi
           }
           BUFFER_FOR_CPP_TYPE_VALUE(*stype->geometry_nodes_cpp_type, buffer);
           if (!copy_bake_item_to_socket_value(
-                  *item.value, eNodeSocketDatatype(stype->type), {}, r_attribute_map, buffer))
+                  *item.value, stype->type, {}, r_attribute_map, buffer))
           {
             return false;
           }
           bundle.add(item.key, *stype, buffer);
           stype->geometry_nodes_cpp_type->destruct(buffer);
         }
-        new (r_value) SocketValueVariant(std::move(bundle_ptr));
+        bke::SocketValueVariant::ConstructIn(r_value, std::move(bundle_ptr));
         return true;
       }
       return false;
