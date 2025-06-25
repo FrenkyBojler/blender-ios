@@ -365,13 +365,13 @@ static bool sequencer_use_transform(const Strip *strip)
 {
   const StripTransform *transform = strip->data->transform;
 
-  if (transform->xofs != 0 || transform->yofs != 0 || transform->scale_x != 1 ||
-      transform->scale_y != 1 || transform->rotation != 0)
-  {
-    return true;
+  /* Text X/Y position is applied by text rendering. */
+  if (strip->type == STRIP_TYPE_TEXT) {
+    return transform->scale_x != 1 || transform->scale_y != 1 || transform->rotation != 0;
   }
 
-  return false;
+  return transform->xofs != 0 || transform->yofs != 0 || transform->scale_x != 1 ||
+         transform->scale_y != 1 || transform->rotation != 0;
 }
 
 static bool sequencer_use_crop(const Strip *strip)
