@@ -204,7 +204,7 @@ Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
                              const Mesh &coarse_mesh);
 
 Mesh *BKE_subdiv_to_ccg_mesh(blender::bke::subdiv::Subdiv &subdiv,
-                             const SubdivCCG& existing_ccg,
+                             const SubdivCCG &existing_ccg,
                              const SubdivToCCGSettings &settings,
                              const Mesh &coarse_mesh);
 
