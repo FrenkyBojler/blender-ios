@@ -335,46 +335,6 @@ int ffmpeg_deinterlace(
   return 0;
 }
 
-#endif /* WITH_FFMPEG */
-
-bool MOV_is_movie_file(const char *filepath)
-{
-  BLI_assert(!BLI_path_is_rel(filepath));
-
-#ifdef WITH_FFMPEG
-  if (isffmpeg(filepath)) {
-    return true;
-  }
-#else
-  UNUSED_VARS(filepath);
-#endif
-
-  return false;
-}
-
-void MOV_init()
-{
-#ifdef WITH_FFMPEG
-  avdevice_register_all();
-
-  ffmpeg_last_error_buffer[0] = '\0';
-
-  if (G.debug & G_DEBUG_FFMPEG) {
-    av_log_set_level(AV_LOG_DEBUG);
-  }
-
-  /* set separate callback which could store last error to report to UI */
-  av_log_set_callback(ffmpeg_log_callback);
-#endif
-}
-
-void MOV_exit()
-{
-#ifdef WITH_FFMPEG
-  ffmpeg_sws_exit();
-#endif
-}
-
 AVCodecID mov_av_codec_id_get(IMB_Ffmpeg_Codec_ID id)
 {
   switch (id) {
@@ -434,7 +394,6 @@ AVCodecID mov_av_codec_id_get(IMB_Ffmpeg_Codec_ID id)
   return AV_CODEC_ID_NONE;
 }
 
-#ifdef WITH_FFMPEG
 static void ffmpeg_preset_set(RenderData *rd, int preset)
 {
   bool is_ntsc = (rd->frs_sec != 25);
@@ -485,7 +444,91 @@ static void ffmpeg_preset_set(RenderData *rd, int preset)
       break;
   }
 }
+
+int MOV_codec_valid_bit_depths(AVCodecID av_codec_id)
+{
+  int bit_depths = R_IMF_CHAN_DEPTH_8;
+  /* Note: update properties_output.py `use_bpp` when changing this function. */
+  if (ELEM(av_codec_id,
+           AV_CODEC_ID_H264,
+           AV_CODEC_ID_H265,
+           AV_CODEC_ID_AV1,
+           AV_CODEC_ID_PRORES,
+           AV_CODEC_ID_FFV1))
+  {
+    bit_depths |= R_IMF_CHAN_DEPTH_10;
+  }
+  if (ELEM(av_codec_id, AV_CODEC_ID_H265, AV_CODEC_ID_AV1, AV_CODEC_ID_FFV1)) {
+    bit_depths |= R_IMF_CHAN_DEPTH_12;
+  }
+  if (ELEM(av_codec_id, AV_CODEC_ID_FFV1)) {
+    bit_depths |= R_IMF_CHAN_DEPTH_16;
+  }
+  return bit_depths;
+}
+
+bool MOV_codec_supports_alpha(AVCodecID av_codec_id, int ffmpeg_profile)
+{
+  if (av_codec_id == AV_CODEC_ID_PRORES) {
+    return ELEM(ffmpeg_profile, FFM_PRORES_PROFILE_4444, FFM_PRORES_PROFILE_4444_XQ);
+  }
+  return ELEM(av_codec_id,
+              AV_CODEC_ID_FFV1,
+              AV_CODEC_ID_QTRLE,
+              AV_CODEC_ID_PNG,
+              AV_CODEC_ID_VP9,
+              AV_CODEC_ID_HUFFYUV);
+}
+
+bool MOV_codec_supports_crf(AVCodecID av_codec_id)
+{
+  return ELEM(av_codec_id,
+              AV_CODEC_ID_H264,
+              AV_CODEC_ID_H265,
+              AV_CODEC_ID_MPEG4,
+              AV_CODEC_ID_VP9,
+              AV_CODEC_ID_AV1);
+}
+
+#endif /* WITH_FFMPEG */
+
+bool MOV_is_movie_file(const char *filepath)
+{
+  BLI_assert(!BLI_path_is_rel(filepath));
+
+#ifdef WITH_FFMPEG
+  if (isffmpeg(filepath)) {
+    return true;
+  }
+#else
+  UNUSED_VARS(filepath);
 #endif
+
+  return false;
+}
+
+void MOV_init()
+{
+#ifdef WITH_FFMPEG
+  avdevice_register_all();
+
+  ffmpeg_last_error_buffer[0] = '\0';
+
+  if (G.debug & G_DEBUG_FFMPEG) {
+    av_log_set_level(AV_LOG_DEBUG);
+  }
+
+  /* set separate callback which could store last error to report to UI */
+  av_log_set_callback(ffmpeg_log_callback);
+#endif
+}
+
+void MOV_exit()
+{
+#ifdef WITH_FFMPEG
+  ffmpeg_sws_exit();
+#endif
+}
 
 void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
 {
@@ -531,74 +574,30 @@ void MOV_validate_output_settings(RenderData *rd, const ImageFormatData *imf)
 
 int MOV_codec_valid_bit_depths(IMB_Ffmpeg_Codec_ID codec_id)
 {
-  return MOV_codec_valid_bit_depths(mov_av_codec_id_get(codec_id));
-}
-
-int MOV_codec_valid_bit_depths(AVCodecID av_codec_id)
-{
-  int bit_depths = R_IMF_CHAN_DEPTH_8;
 #ifdef WITH_FFMPEG
-  /* Note: update properties_output.py `use_bpp` when changing this function. */
-  if (ELEM(av_codec_id,
-           AV_CODEC_ID_H264,
-           AV_CODEC_ID_H265,
-           AV_CODEC_ID_AV1,
-           AV_CODEC_ID_PRORES,
-           AV_CODEC_ID_FFV1))
-  {
-    bit_depths |= R_IMF_CHAN_DEPTH_10;
-  }
-  if (ELEM(av_codec_id, AV_CODEC_ID_H265, AV_CODEC_ID_AV1, AV_CODEC_ID_FFV1)) {
-    bit_depths |= R_IMF_CHAN_DEPTH_12;
-  }
-  if (ELEM(av_codec_id, AV_CODEC_ID_FFV1)) {
-    bit_depths |= R_IMF_CHAN_DEPTH_16;
-  }
+  return MOV_codec_valid_bit_depths(mov_av_codec_id_get(codec_id));
 #else
-  UNUSED_VARS(av_codec_id);
+  UNUSED_VARS(codec_id);
+  return R_IMF_CHAN_DEPTH_8;
 #endif
-  return bit_depths;
 }
 
 bool MOV_codec_supports_alpha(IMB_Ffmpeg_Codec_ID codec_id, int ffmpeg_profile)
 {
-  return MOV_codec_supports_alpha(mov_av_codec_id_get(codec_id), ffmpeg_profile);
-}
-
-bool MOV_codec_supports_alpha(AVCodecID av_codec_id, int ffmpeg_profile)
-{
 #ifdef WITH_FFMPEG
-  if (av_codec_id == AV_CODEC_ID_PRORES) {
-    return ELEM(ffmpeg_profile, FFM_PRORES_PROFILE_4444, FFM_PRORES_PROFILE_4444_XQ);
-  }
-  return ELEM(av_codec_id,
-              AV_CODEC_ID_FFV1,
-              AV_CODEC_ID_QTRLE,
-              AV_CODEC_ID_PNG,
-              AV_CODEC_ID_VP9,
-              AV_CODEC_ID_HUFFYUV);
+  return MOV_codec_supports_alpha(mov_av_codec_id_get(codec_id), ffmpeg_profile);
 #else
-  UNUSED_VARS(av_codec_id, ffmpeg_profile);
+  UNUSED_VARS(codec_id, ffmpeg_profile);
   return false;
 #endif
 }
 
 bool MOV_codec_supports_crf(IMB_Ffmpeg_Codec_ID codec_id)
 {
-  return MOV_codec_supports_crf(mov_av_codec_id_get(codec_id));
-}
-
-bool MOV_codec_supports_crf(AVCodecID av_codec_id)
-{
 #ifdef WITH_FFMPEG
-  return ELEM(av_codec_id,
-              AV_CODEC_ID_H264,
-              AV_CODEC_ID_H265,
-              AV_CODEC_ID_MPEG4,
-              AV_CODEC_ID_VP9,
-              AV_CODEC_ID_AV1);
+  return MOV_codec_supports_crf(mov_av_codec_id_get(codec_id));
 #else
-  UNUSED_VARS(av_codec_id);
+  UNUSED_VARS(codec_id);
   return false;
 #endif
 }
