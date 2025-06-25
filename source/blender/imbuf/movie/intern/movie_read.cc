@@ -16,6 +16,7 @@
 #include <sys/types.h>
 
 #include "BLI_path_utils.hh"
+#include "BLI_span.hh"
 #include "BLI_string.h"
 #include "BLI_task.hh"
 #include "BLI_threads.h"
@@ -34,6 +35,8 @@
 #include "IMB_metadata.hh"
 #include "movie_proxy_indexer.hh"
 #include "movie_read.hh"
+
+#include "OCIO_colorspace.hh"
 
 #ifdef WITH_FFMPEG
 #  include "ffmpeg_swscale.hh"
@@ -98,6 +101,29 @@ IDProperty *MOV_load_metadata(MovieReader *anim)
   return anim->metadata;
 }
 
+static const char *get_first_resolved_colorspace_name(const blender::Span<const char *> names)
+{
+  for (const char *name : names) {
+    const ColorSpace *colorspace = IMB_colormanagement_space_get_named(name);
+    if (colorspace) {
+      return colorspace->name().c_str();
+    }
+  }
+  return nullptr;
+}
+
+static const char *rec2100_pq_display_colorspace_name()
+{
+  return get_first_resolved_colorspace_name(
+      {"Rec.2100-PQ", "Rec.2100-PQ - Display", "rec2100_pq", "rec2100_pq_display"});
+}
+
+static const char *rec2100_hlg_display_colorspace_name()
+{
+  return get_first_resolved_colorspace_name(
+      {"Rec.2100-HLG", "Rec.2100-HLG - Display", "rec2100_hlg", "rec2100_hlg_display"});
+}
+
 MovieReader *MOV_open_file(const char *filepath,
                            int ib_flags,
                            int streamindex,
@@ -110,6 +136,22 @@ MovieReader *MOV_open_file(const char *filepath,
   anim = MEM_new<MovieReader>("anim struct");
   if (anim != nullptr) {
     /* Initialize colorspace to default if not yet set. */
+
+    // TODO: Properly initialize the colorspace.
+    //
+    // Initialize the colorspace based on the meta-data of the movie file. It might need
+    // require always decoding one frame to properly access this information, or, maybe, there is
+    // a way to get this information from the file header?
+    //
+    // Once it is known whether it is a PQ or HLG file the colorspace can be initialized like:
+    //
+    //   const char *pq_name = rec2100_pq_display_colorspace_name();
+    //   if (pq_name) {
+    //     BLI_strncpy(colorspace, pq_name, IM_MAX_SPACE);
+    //   }
+    //
+    // if the PQ/HLG colorspace is not found use default_colorspace for initialization.
+
     const char *default_colorspace = IMB_colormanagement_role_colorspace_name_get(
         COLOR_ROLE_DEFAULT_BYTE);
     if (colorspace && colorspace[0] == '\0') {
@@ -1352,6 +1394,9 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
       MEM_mallocN_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));
   if (anim->is_float) {
     IMB_assign_float_buffer(cur_frame_final, (float *)buffer_data, IB_TAKE_OWNERSHIP);
+    // TODO: Float buffer in Blender is expected to be in Scene Linear.
+    // Areas like Sequencer might be fine if the buffer is not linearized, but other operations
+    // might fail (i.e. compositor).
     cur_frame_final->float_buffer.colorspace = colormanage_colorspace_get_named(anim->colorspace);
   }
   else {
