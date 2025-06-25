@@ -212,6 +212,10 @@ class ToolSelectPanelHelper:
     - A callable which takes a single context argument and returns a tuple of values described above.
       When the context is None, all potential tools must be returned.
     """
+    bl_region_type = 'TOOLS'
+    bl_label = "Tools"
+    bl_options = {'HIDE_HEADER'}
+    bl_category = "Tools"  # Default tab name, sub-classes may override this.
 
     @classmethod
     def tools_all(cls):

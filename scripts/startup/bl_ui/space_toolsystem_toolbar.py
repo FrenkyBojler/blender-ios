@@ -3066,9 +3066,6 @@ class _defs_sequencer_select:
 
 class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'IMAGE_EDITOR'
-    bl_region_type = 'TOOLS'
-    bl_label = "Tools"  # not visible
-    bl_options = {'HIDE_HEADER'}
 
     # Satisfy the `ToolSelectPanelHelper` API.
     keymap_prefix = "Image Editor Tool:"
@@ -3173,9 +3170,6 @@ class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
 
 class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'NODE_EDITOR'
-    bl_region_type = 'TOOLS'
-    bl_label = "Tools"  # not visible
-    bl_options = {'HIDE_HEADER'}
 
     # Satisfy the `ToolSelectPanelHelper` API.
     keymap_prefix = "Node Editor Tool:"
@@ -3237,9 +3231,6 @@ class NODE_PT_tools_active(ToolSelectPanelHelper, Panel):
 
 class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'VIEW_3D'
-    bl_region_type = 'TOOLS'
-    bl_label = "Tools"  # not visible
-    bl_options = {'HIDE_HEADER'}
 
     # Satisfy the `ToolSelectPanelHelper` API.
     keymap_prefix = "3D View Tool:"
@@ -3670,9 +3661,6 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
 
 class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'SEQUENCE_EDITOR'
-    bl_region_type = 'TOOLS'
-    bl_label = "Tools"  # not visible
-    bl_options = {'HIDE_HEADER'}
 
     # Satisfy the `ToolSelectPanelHelper` API.
     keymap_prefix = "Sequence Editor Tool:"
@@ -3740,11 +3728,41 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
     }
 
 
+class QuickFavoritesHelper:
+    bl_region_type = 'TOOLS'
+    bl_label = "Quick Favorites"  # not visible
+    bl_category = "Quick Favorites"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.menu_contents('SCREEN_MT_user_menu')
+
+
+class VIEW3D_PT_quick_favorites(QuickFavoritesHelper, Panel):
+    bl_space_type = 'VIEW_3D'
+
+
+class SEQUENCER_PT_quick_favorites(QuickFavoritesHelper, Panel):
+    bl_space_type = 'SEQUENCE_EDITOR'
+
+
+class IMAGE_PT_quick_favorites(QuickFavoritesHelper, Panel):
+    bl_space_type = 'IMAGE_EDITOR'
+
+
+class NODE_PT_quick_favorites(QuickFavoritesHelper, Panel):
+    bl_space_type = 'NODE_EDITOR'
+
+
 classes = (
+    IMAGE_PT_quick_favorites,
     IMAGE_PT_tools_active,
+    NODE_PT_quick_favorites,
     NODE_PT_tools_active,
-    VIEW3D_PT_tools_active,
+    SEQUENCER_PT_quick_favorites,
     SEQUENCER_PT_tools_active,
+    VIEW3D_PT_quick_favorites,
+    VIEW3D_PT_tools_active,
 )
 
 if __name__ == "__main__":  # only for live edit.
