@@ -109,7 +109,8 @@ bNode &version_node_add_empty(bNodeTree &ntree, const char *idname);
 
 /**
  * Removes a node for versioning purposes:
- * - Animation data are not removed, because they might not be available before linking.
+ * - Animation data (#AnimData) are not removed, because they might be using #bAction.id which
+ *   is not be available before linking.
  * - User count is not updated. This is ensured after blend file reading is done.
  */
 void version_node_remove(bNodeTree &ntree, bNode &node);
