@@ -3,3 +3,4 @@ Referenced by pull request #128953, Paint: Add color jitter support
 Referenced by issue #139013, HIP RT crash when copying materials to multiple objects
 Referenced by issue #139869, Blender runs but is permanently stuck at its "loading phase"
 Referenced by issue #140998, Blender 4.5b - Grease Pencil randomize per stroke not working for vertex color
+Referenced by pull request #141001, Fix #140998: Grease Pencil stroke-level color jitter doesn't work
