@@ -111,6 +111,7 @@ struct BundleSyncState {
 static BundleSyncState get_sync_state_separate_bundle(const SpaceNode &snode,
                                                       const bNode &separate_bundle_node)
 {
+  BLI_assert(separate_bundle_node.is_type("GeometryNodeSeparateBundle"));
   snode.edittree->ensure_topology_cache();
   const bNodeSocket &bundle_socket = separate_bundle_node.input_socket(0);
 
@@ -135,10 +136,44 @@ static BundleSyncState get_sync_state_separate_bundle(const SpaceNode &snode,
   return {NodeSyncState::Synced};
 }
 
+static BundleSyncState get_sync_state_combine_bundle(const SpaceNode &snode,
+                                                     const bNode &combine_bundle_node)
+{
+  BLI_assert(combine_bundle_node.is_type("GeometryNodeCombineBundle"));
+  snode.edittree->ensure_topology_cache();
+  const bNodeSocket &bundle_socket = combine_bundle_node.output_socket(0);
+
+  bke::ComputeContextCache compute_context_cache;
+  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
+      snode, compute_context_cache, bundle_socket);
+  const Vector<nodes::BundleSignature> source_signatures =
+      ed::space_node::gather_linked_target_bundle_signatures(
+          current_context, bundle_socket, compute_context_cache);
+  if (source_signatures.is_empty()) {
+    return {NodeSyncState::NoSyncSource};
+  }
+  if (!nodes::BundleSignature::all_matching_exactly(source_signatures)) {
+    return {NodeSyncState::ConflictingSyncSources};
+  }
+  const nodes::BundleSignature &source_signature = source_signatures[0];
+  const nodes::BundleSignature &current_signature = nodes::BundleSignature::FromCombineBundleNode(
+      combine_bundle_node);
+  if (!source_signature.matches_exactly(current_signature)) {
+    return {NodeSyncState::CanBeSynced, source_signature};
+  }
+  return {NodeSyncState::Synced};
+}
+
 NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
                                                  const bNode &separate_bundle_node)
 {
   return get_sync_state_separate_bundle(snode, separate_bundle_node).state;
+}
+
+NodeSyncState sync_sockets_state_combine_bundle(const SpaceNode &snode,
+                                                const bNode &combine_bundle_node)
+{
+  return get_sync_state_combine_bundle(snode, combine_bundle_node).state;
 }
 
 void sync_sockets_separate_bundle(SpaceNode &snode,
@@ -183,33 +218,19 @@ void sync_sockets_separate_bundle(SpaceNode &snode,
 
 void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node, ReportList *reports)
 {
-  snode.edittree->ensure_topology_cache();
-  bNodeSocket &bundle_socket = combine_bundle_node.output_socket(0);
-
-  bke::ComputeContextCache compute_context_cache;
-  const ComputeContext *current_context = ed::space_node::compute_context_for_edittree_socket(
-      snode, compute_context_cache, bundle_socket);
-  const Vector<nodes::BundleSignature> signatures =
-      ed::space_node::gather_linked_target_bundle_signatures(
-          current_context, bundle_socket, compute_context_cache);
-  if (signatures.is_empty()) {
-    BKE_report(reports, RPT_INFO, "No bundle signature found");
-    return;
-  }
-
-  bool all_matching = true;
-  for (const int i : IndexRange(signatures.size() - 1)) {
-    const nodes::BundleSignature &signature = signatures[i];
-    if (!signature.matches_exactly(signatures[i + 1])) {
-      all_matching = false;
+  const BundleSyncState sync_state = get_sync_state_combine_bundle(snode, combine_bundle_node);
+  switch (sync_state.state) {
+    case NodeSyncState::Synced:
+      return;
+    case NodeSyncState::NoSyncSource:
+      BKE_report(reports, RPT_INFO, "No bundle signature found");
+      return;
+    case NodeSyncState::ConflictingSyncSources:
+      BKE_report(reports, RPT_INFO, "Found conflicting bundle signatures");
+      return;
+    case NodeSyncState::CanBeSynced:
       break;
-    }
   }
-  if (!all_matching) {
-    BKE_report(reports, RPT_INFO, "Found conflicting bundle signatures");
-    return;
-  }
-  const nodes::BundleSignature &signature = signatures[0];
 
   auto &storage = *static_cast<NodeGeometryCombineBundle *>(combine_bundle_node.storage);
 
@@ -220,7 +241,7 @@ void sync_sockets_combine_bundle(SpaceNode &snode, bNode &combine_bundle_node, R
   }
 
   nodes::socket_items::clear<nodes::CombineBundleItemsAccessor>(combine_bundle_node);
-  for (const nodes::BundleSignature::Item &item : signature.items) {
+  for (const nodes::BundleSignature::Item &item : sync_state.source_signature->items) {
     const StringRefNull name = item.key.identifiers()[0];
     NodeGeometryCombineBundleItem &new_item =
         *nodes::socket_items::add_item_with_socket_type_and_name<

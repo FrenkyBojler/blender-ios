@@ -186,5 +186,7 @@ enum class NodeSyncState {
 
 NodeSyncState sync_sockets_state_separate_bundle(const SpaceNode &snode,
                                                  const bNode &separate_bundle_node);
+NodeSyncState sync_sockets_state_combine_bundle(const SpaceNode &snode,
+                                                const bNode &combine_bundle_node);
 
 }  // namespace blender::ed::space_node
