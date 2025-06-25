@@ -639,7 +639,7 @@ void BLI_thread_queue_free(ThreadQueue *queue)
   MEM_freeN(queue);
 }
 
-void BLI_thread_queue_push(ThreadQueue *queue, void *work)
+int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriority priority)
 {
   pthread_mutex_lock(&queue->mutex);
 
@@ -648,6 +648,13 @@ void BLI_thread_queue_push(ThreadQueue *queue, void *work)
   /* signal threads waiting to pop */
   pthread_cond_signal(&queue->push_cond);
   pthread_mutex_unlock(&queue->mutex);
+
+  return 0; /* TODO */
+}
+
+void BLI_thread_queue_cancel_work(int work_id)
+{
+  /* TODO */
 }
 
 void *BLI_thread_queue_pop(ThreadQueue *queue)

@@ -160,10 +160,17 @@ void BLI_condition_end(ThreadCondition *cond);
 
 typedef struct ThreadQueue ThreadQueue;
 
+typedef enum {
+  BLI_THREAD_QUEUE_WORK_PRIORITY_LOW,
+  BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL,
+  BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH,
+} eThreadQueueWorkPriority;
+
 ThreadQueue *BLI_thread_queue_init(void);
 void BLI_thread_queue_free(ThreadQueue *queue);
 
-void BLI_thread_queue_push(ThreadQueue *queue, void *work);
+int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriority priority);
+void BLI_thread_queue_cancel_work(int work_id);
 void *BLI_thread_queue_pop(ThreadQueue *queue);
 void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms);
 int BLI_thread_queue_len(ThreadQueue *queue);
