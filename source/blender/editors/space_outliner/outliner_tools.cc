@@ -3027,6 +3027,17 @@ static wmOperatorStatus outliner_id_operation_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
+static std::string id_operation_get_description(bContext * /*C*/,
+                                                wmOperatorType * /*ot*/,
+                                                PointerRNA *ptr)
+{
+  const eOutlinerIdOpTypes type = eOutlinerIdOpTypes(RNA_enum_get(ptr, "type"));
+  if (type == OUTLINER_IDOP_UNLINK) {
+    return "Delete selected ID from active scene";
+  }
+  return "";
+}
+
 void OUTLINER_OT_id_operation(wmOperatorType *ot)
 {
   /* identifiers */
@@ -3038,6 +3049,7 @@ void OUTLINER_OT_id_operation(wmOperatorType *ot)
   ot->invoke = WM_menu_invoke;
   ot->exec = outliner_id_operation_exec;
   ot->poll = outliner_operation_tree_element_poll;
+  ot->get_description = id_operation_get_description;
 
   ot->flag = 0;
 
