@@ -227,9 +227,9 @@ GridCoord multires_reshape_ptex_coord_to_grid(const MultiresReshapeContext *resh
 void multires_reshape_tangent_matrix_for_corner(const MultiresReshapeContext *reshape_context,
                                                 int face_index,
                                                 int corner,
-                                                const float dPdu[3],
-                                                const float dPdv[3],
-                                                float r_tangent_matrix[3][3]);
+                                                const blender::float3 &dPdu,
+                                                const blender::float3 &dPdv,
+                                                blender::float3x3 &r_tangent_matrix);
 
 /**
  * Get grid elements which are to be reshaped at a given or PTEX coordinate.
@@ -256,8 +256,8 @@ ReshapeConstGridElement multires_reshape_orig_grid_element_for_grid_coord(
  */
 void multires_reshape_evaluate_limit_at_grid(const MultiresReshapeContext *reshape_context,
                                              const GridCoord *grid_coord,
-                                             float r_P[3],
-                                             float r_tangent_matrix[3][3]);
+                                             blender::float3 &r_P,
+                                             blender::float3x3 &r_tangent_matrix);
 
 /* --------------------------------------------------------------------
  * Custom data preparation.
@@ -281,9 +281,7 @@ void multires_reshape_ensure_grids(Mesh *mesh, int level);
  * vertices at a reshape level.
  */
 bool multires_reshape_assign_final_coords_from_vertcos(
-    const MultiresReshapeContext *reshape_context,
-    const float (*vert_coords)[3],
-    int num_vert_coords);
+    const MultiresReshapeContext *reshape_context, blender::Span<blender::float3> positions);
 
 /* --------------------------------------------------------------------
  * Functions specific to reshaping from CCG.
