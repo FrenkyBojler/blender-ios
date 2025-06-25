@@ -60,7 +60,7 @@ class Context : public compositor::Context {
 
   const bNodeTree &get_node_tree() const override
   {
-    return *scene_->nodetree;
+    return *scene_->compositing_node_group;
   }
 
   bool use_gpu() const override
@@ -147,9 +147,7 @@ class Context : public compositor::Context {
 
   compositor::Result get_pass(const Scene *scene, int view_layer, const char *pass_name) override
   {
-    if (DEG_get_original_id(const_cast<ID *>(&scene->id)) !=
-        DEG_get_original_id(const_cast<ID *>(&scene_->id)))
-    {
+    if (DEG_get_original(scene) != DEG_get_original(scene_)) {
       return compositor::Result(*this);
     }
 

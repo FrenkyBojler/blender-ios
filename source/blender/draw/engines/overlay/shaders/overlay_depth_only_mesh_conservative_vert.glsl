@@ -58,13 +58,13 @@ void do_vertex(const uint i,
   if (all(is_subpixel)) {
     float2 ofs = (i == 0) ? float2(-1.0f) : ((i == 1) ? float2(2.0f, -1.0f) : float2(-1.0f, 2.0f));
     /* HACK: Fix cases where the triangle is too small make it cover at least one pixel. */
-    gl_Position.xy += sizeViewportInv * geom_in.hs_P.w * ofs;
+    gl_Position.xy += uniform_buf.size_viewport_inv * geom_in.hs_P.w * ofs;
   }
   /* Test if the triangle is almost parallel with the view to avoid precision issues. */
   else if (any(is_subpixel) || is_coplanar) {
     /* HACK: Fix cases where the triangle is Parallel to the view by deforming it slightly. */
     float2 ofs = (i == 0) ? float2(-1.0f) : ((i == 1) ? float2(1.0f, -1.0f) : float2(1.0f));
-    gl_Position.xy += sizeViewportInv * geom_in.hs_P.w * ofs;
+    gl_Position.xy += uniform_buf.size_viewport_inv * geom_in.hs_P.w * ofs;
   }
   else {
     /* Triangle expansion should happen here, but we decide to not implement it for
@@ -85,7 +85,7 @@ void geometry_main(VertOut geom_in[3],
   /* Compute NDC bound box. */
   float4 bbox = float4(min(min(pos0.xy, pos1.xy), pos2.xy), max(max(pos0.xy, pos1.xy), pos2.xy));
   /* Convert to pixel space. */
-  bbox = (bbox * 0.5f + 0.5f) * sizeViewport.xyxy;
+  bbox = (bbox * 0.5f + 0.5f) * uniform_buf.size_viewport.xyxy;
   /* Detect failure cases where triangles would produce no fragments. */
   bool2 is_subpixel = lessThan(bbox.zw - bbox.xy, float2(1.0f));
   /* View aligned triangle. */
@@ -104,22 +104,22 @@ void main()
   /* Triangle list primitive. */
   constexpr uint input_primitive_vertex_count = 3u;
   /* Triangle list primitive. */
-  constexpr uint ouput_primitive_vertex_count = 3u;
-  constexpr uint ouput_primitive_count = 1u;
-  constexpr uint ouput_invocation_count = 1u;
-  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                      ouput_primitive_vertex_count;
+  constexpr uint output_primitive_vertex_count = 3u;
+  constexpr uint output_primitive_count = 1u;
+  constexpr uint output_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = output_primitive_count *
+                                                      output_primitive_vertex_count;
   constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                           ouput_invocation_count;
+                                                           output_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
-  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
-  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
-                          ouput_primitive_count;
+  uint out_vertex_id = uint(gl_VertexID) % output_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / output_primitive_vertex_count) %
+                          output_primitive_count;
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
-                           ouput_invocation_count;
+                           output_invocation_count;
 
   VertIn vert_in[input_primitive_vertex_count];
   vert_in[0] = input_assembly(in_primitive_first_vertex + 0u);

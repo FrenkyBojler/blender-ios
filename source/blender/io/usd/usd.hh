@@ -234,7 +234,7 @@ struct USDImportParams {
   eUSDMtlNameCollisionMode mtl_name_collision_mode;
   eUSDTexImportMode import_textures_mode;
 
-  char import_textures_dir[768]; /* FILE_MAXDIR */
+  char import_textures_dir[/*FILE_MAXDIR*/ 768];
   eUSDTexNameCollisionMode tex_name_collision_mode;
   eUSDAttrImportMode attr_import_mode;
 
@@ -332,7 +332,7 @@ void USD_register_hook(std::unique_ptr<USDHook> hook);
  * Remove the given entry from the list of registered hooks and
  * free the allocated memory for the hook instance.
  */
-void USD_unregister_hook(USDHook *hook);
+void USD_unregister_hook(const USDHook *hook);
 USDHook *USD_find_hook_name(const char idname[]);
 
 double get_meters_per_unit(const USDExportParams &params);

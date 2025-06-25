@@ -532,7 +532,7 @@ static void PE_set_view3d_data(bContext *C, PEData *data)
 
 static bool PE_create_shape_tree(PEData *data, Object *shapeob)
 {
-  Object *shapeob_eval = DEG_get_evaluated_object(data->depsgraph, shapeob);
+  Object *shapeob_eval = DEG_get_evaluated(data->depsgraph, shapeob);
   const Mesh *mesh = BKE_object_get_evaluated_mesh(shapeob_eval);
 
   if (!mesh) {
@@ -1013,7 +1013,7 @@ static void PE_update_mirror_cache(Object *ob, ParticleSystem *psys)
 
   /* lookup particles and set in mirror cache */
   if (!edit->mirror_cache) {
-    edit->mirror_cache = static_cast<int *>(MEM_callocN(sizeof(int) * totpart, "PE mirror cache"));
+    edit->mirror_cache = MEM_calloc_arrayN<int>(totpart, "PE mirror cache");
   }
 
   LOOP_PARTICLES
@@ -1818,7 +1818,7 @@ void PARTICLE_OT_select_all(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_all";
   ot->description = "(De)select all particles' keys";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = pe_select_all_exec;
   ot->poll = PE_poll;
 
@@ -1873,7 +1873,7 @@ static bool pe_nearest_point_and_key(bContext *C,
   return found;
 }
 
-bool PE_mouse_particles(bContext *C, const int mval[2], const SelectPick_Params *params)
+bool PE_mouse_particles(bContext *C, const int mval[2], const SelectPick_Params &params)
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   Scene *scene = CTX_data_scene(C);
@@ -1891,18 +1891,18 @@ bool PE_mouse_particles(bContext *C, const int mval[2], const SelectPick_Params 
   bool changed = false;
   bool found = pe_nearest_point_and_key(C, mval, &point, &key);
 
-  if (params->sel_op == SEL_OP_SET) {
-    if ((found && params->select_passthrough) && (key->flag & PEK_SELECT)) {
+  if (params.sel_op == SEL_OP_SET) {
+    if ((found && params.select_passthrough) && (key->flag & PEK_SELECT)) {
       found = false;
     }
-    else if (found || params->deselect_all) {
+    else if (found || params.deselect_all) {
       /* Deselect everything. */
       changed |= PE_deselect_all_visible_ex(edit);
     }
   }
 
   if (found) {
-    switch (params->sel_op) {
+    switch (params.sel_op) {
       case SEL_OP_ADD: {
         if ((key->flag & PEK_SELECT) == 0) {
           key->flag |= PEK_SELECT;
@@ -2004,7 +2004,7 @@ void PARTICLE_OT_select_roots(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_roots";
   ot->description = "Select roots of all visible particles";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_roots_exec;
   ot->poll = PE_poll;
 
@@ -2079,7 +2079,7 @@ void PARTICLE_OT_select_tips(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_tips";
   ot->description = "Select tips of all visible particles";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_tips_exec;
   ot->poll = PE_poll;
 
@@ -2164,7 +2164,7 @@ void PARTICLE_OT_select_random(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_random";
   ot->description = "Select a randomly distributed set of hair or points";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_random_exec;
   ot->poll = PE_poll;
 
@@ -2208,7 +2208,7 @@ void PARTICLE_OT_select_linked(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_linked";
   ot->description = "Select all keys linked to already selected ones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_linked_exec;
   ot->poll = PE_poll;
 
@@ -2256,7 +2256,7 @@ void PARTICLE_OT_select_linked_pick(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_linked_pick";
   ot->description = "Select nearest particle from mouse pointer";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_linked_pick_exec;
   ot->invoke = select_linked_pick_invoke;
   ot->poll = PE_poll_view3d;
@@ -2352,12 +2352,12 @@ bool PE_box_select(bContext *C, const rcti *rect, const int sel_op)
 static void pe_select_cache_free_generic_userdata(void *data)
 {
   PE_data_free(static_cast<PEData *>(data));
-  MEM_freeN(data);
+  MEM_freeN(static_cast<PEData *>(data));
 }
 
 static void pe_select_cache_init_with_generic_userdata(bContext *C, wmGenericUserData *wm_userdata)
 {
-  PEData *data = static_cast<PEData *>(MEM_callocN(sizeof(*data), __func__));
+  PEData *data = MEM_callocN<PEData>(__func__);
   wm_userdata->data = data;
   wm_userdata->free_fn = pe_select_cache_free_generic_userdata;
   wm_userdata->use_free = true;
@@ -2550,7 +2550,7 @@ void PARTICLE_OT_hide(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_hide";
   ot->description = "Hide selected particles";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = hide_exec;
   ot->poll = PE_poll;
 
@@ -2602,7 +2602,7 @@ void PARTICLE_OT_reveal(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_reveal";
   ot->description = "Show hidden particles";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = reveal_exec;
   ot->poll = PE_poll;
 
@@ -2672,7 +2672,7 @@ void PARTICLE_OT_select_less(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_less";
   ot->description = "Deselect boundary selected keys of each particle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_less_exec;
   ot->poll = PE_poll;
 
@@ -2744,7 +2744,7 @@ void PARTICLE_OT_select_more(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_select_more";
   ot->description = "Select keys linked to boundary selected keys of each particle";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = select_more_exec;
   ot->poll = PE_poll;
 
@@ -2778,8 +2778,7 @@ static void rekey_particle(PEData *data, int pa_index)
 
   pa->flag |= PARS_REKEY;
 
-  key = new_keys = static_cast<HairKey *>(
-      MEM_callocN(data->totrekey * sizeof(HairKey), "Hair re-key keys"));
+  key = new_keys = MEM_calloc_arrayN<HairKey>(data->totrekey, "Hair re-key keys");
 
   okey = pa->hair;
   /* root and tip stay the same */
@@ -2807,8 +2806,7 @@ static void rekey_particle(PEData *data, int pa_index)
   if (point->keys) {
     MEM_freeN(point->keys);
   }
-  ekey = point->keys = static_cast<PTCacheEditKey *>(
-      MEM_callocN(pa->totkey * sizeof(PTCacheEditKey), "Hair re-key edit keys"));
+  ekey = point->keys = MEM_calloc_arrayN<PTCacheEditKey>(pa->totkey, "Hair re-key edit keys");
 
   for (k = 0, key = pa->hair; k < pa->totkey; k++, key++, ekey++) {
     ekey->co = key->co;
@@ -2848,7 +2846,7 @@ void PARTICLE_OT_rekey(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_rekey";
   ot->description = "Change the number of keys of selected particles (root and tip keys included)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = rekey_exec;
   ot->invoke = WM_operator_props_popup;
   ot->poll = PE_hair_poll;
@@ -2945,10 +2943,9 @@ static int remove_tagged_particles(Object *ob, ParticleSystem *psys, int mirror)
 
   if (new_totpart != psys->totpart) {
     if (new_totpart) {
-      npa = new_pars = static_cast<ParticleData *>(
-          MEM_callocN(new_totpart * sizeof(ParticleData), "ParticleData array"));
-      npoint = new_points = static_cast<PTCacheEditPoint *>(
-          MEM_callocN(new_totpart * sizeof(PTCacheEditPoint), "PTCacheEditKey array"));
+      npa = new_pars = MEM_calloc_arrayN<ParticleData>(new_totpart, "ParticleData array");
+      npoint = new_points = MEM_calloc_arrayN<PTCacheEditPoint>(new_totpart,
+                                                                "PTCacheEditKey array");
 
       if (ELEM(nullptr, new_pars, new_points)) {
         /* allocation error! */
@@ -3050,10 +3047,8 @@ static void remove_tagged_keys(Depsgraph *depsgraph, Object *ob, ParticleSystem 
     }
 
     if (new_totkey != pa->totkey) {
-      nhkey = new_hkeys = static_cast<HairKey *>(
-          MEM_callocN(new_totkey * sizeof(HairKey), "HairKeys"));
-      nkey = new_keys = static_cast<PTCacheEditKey *>(
-          MEM_callocN(new_totkey * sizeof(PTCacheEditKey), "particle edit keys"));
+      nhkey = new_hkeys = MEM_calloc_arrayN<HairKey>(new_totkey, "HairKeys");
+      nkey = new_keys = MEM_calloc_arrayN<PTCacheEditKey>(new_totkey, "particle edit keys");
 
       hkey = pa->hair;
       LOOP_KEYS {
@@ -3139,10 +3134,9 @@ static void subdivide_particle(PEData *data, int pa_index)
 
   pa->flag |= PARS_REKEY;
 
-  nkey = new_keys = static_cast<HairKey *>(
-      MEM_callocN((pa->totkey + totnewkey) * sizeof(HairKey), "Hair subdivide keys"));
-  nekey = new_ekeys = static_cast<PTCacheEditKey *>(
-      MEM_callocN((pa->totkey + totnewkey) * sizeof(PTCacheEditKey), "Hair subdivide edit keys"));
+  nkey = new_keys = MEM_calloc_arrayN<HairKey>((pa->totkey + totnewkey), "Hair subdivide keys");
+  nekey = new_ekeys = MEM_calloc_arrayN<PTCacheEditKey>((pa->totkey + totnewkey),
+                                                        "Hair subdivide edit keys");
 
   key = pa->hair;
   endtime = key[pa->totkey - 1].time;
@@ -3218,7 +3212,7 @@ void PARTICLE_OT_subdivide(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_subdivide";
   ot->description = "Subdivide selected particles segments (adds keys)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = subdivide_exec;
   ot->poll = PE_hair_poll;
 
@@ -3316,7 +3310,7 @@ void PARTICLE_OT_remove_doubles(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_remove_doubles";
   ot->description = "Remove selected particles close enough of others";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = remove_doubles_exec;
   ot->poll = PE_hair_poll;
 
@@ -3375,7 +3369,7 @@ void PARTICLE_OT_weight_set(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_weight_set";
   ot->description = "Set the weight of selected keys";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = weight_set_exec;
   ot->poll = PE_hair_poll;
 
@@ -3399,8 +3393,10 @@ void PARTICLE_OT_weight_set(wmOperatorType *ot)
 /** \name Cursor Drawing
  * \{ */
 
-static void brush_drawcursor(
-    bContext *C, int x, int y, float /*x_tilt*/, float /*y_tilt*/, void * /*customdata*/)
+static void brush_drawcursor(bContext *C,
+                             const blender::int2 &xy,
+                             const blender::float2 & /*tilt*/,
+                             void * /*customdata*/)
 {
   Scene *scene = CTX_data_scene(C);
   ParticleEditSettings *pset = PE_settings(scene);
@@ -3413,7 +3409,8 @@ static void brush_drawcursor(
   brush = &pset->brush[pset->brushtype];
 
   if (brush) {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
     immUniformColor4ub(255, 255, 255, 128);
@@ -3421,7 +3418,7 @@ static void brush_drawcursor(
     GPU_line_smooth(true);
     GPU_blend(GPU_BLEND_ALPHA);
 
-    imm_draw_circle_wire_2d(pos, float(x), float(y), pe_brush_size_get(scene, brush), 40);
+    imm_draw_circle_wire_2d(pos, float(xy.x), float(xy.y), pe_brush_size_get(scene, brush), 40);
 
     GPU_blend(GPU_BLEND_NONE);
     GPU_line_smooth(false);
@@ -3504,7 +3501,7 @@ void PARTICLE_OT_delete(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_delete";
   ot->description = "Delete selected particles or keys";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = delete_exec;
   ot->invoke = WM_menu_invoke;
   ot->poll = PE_hair_poll;
@@ -3594,10 +3591,8 @@ static void PE_mirror_x(Depsgraph *depsgraph, Scene *scene, Object *ob, int tagg
                                                                      CD_MFACE);
 
     /* allocate new arrays and copy existing */
-    new_pars = static_cast<ParticleData *>(
-        MEM_callocN(newtotpart * sizeof(ParticleData), "ParticleData new"));
-    new_points = static_cast<PTCacheEditPoint *>(
-        MEM_callocN(newtotpart * sizeof(PTCacheEditPoint), "PTCacheEditPoint new"));
+    new_pars = MEM_calloc_arrayN<ParticleData>(newtotpart, "ParticleData new");
+    new_points = MEM_calloc_arrayN<PTCacheEditPoint>(newtotpart, "PTCacheEditPoint new");
 
     if (psys->particles) {
       memcpy(new_pars, psys->particles, totpart * sizeof(ParticleData));
@@ -3732,7 +3727,7 @@ void PARTICLE_OT_mirror(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_mirror";
   ot->description = "Duplicate and mirror the selected particles along the local X axis";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = mirror_exec;
   ot->poll = mirror_poll;
 
@@ -4176,7 +4171,7 @@ static int particle_intersect_mesh(Depsgraph *depsgraph,
   if (mesh == nullptr) {
     psys_disable_all(ob);
 
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     mesh = BKE_object_get_evaluated_mesh(ob_eval);
     if (mesh == nullptr) {
       return 0;
@@ -4443,8 +4438,7 @@ static int brush_add(const bContext *C, PEData *data, short number)
     return 0;
   }
 
-  add_pars = static_cast<ParticleData *>(
-      MEM_callocN(number * sizeof(ParticleData), "ParticleData add"));
+  add_pars = MEM_calloc_arrayN<ParticleData>(number, "ParticleData add");
 
   rng = BLI_rng_new_srandom(psys->seed + data->mval[0] + data->mval[1]);
 
@@ -4511,11 +4505,9 @@ static int brush_add(const bContext *C, PEData *data, short number)
     int newtotpart = totpart + n;
     float hairmat[4][4], cur_co[3];
     KDTree_3d *tree = nullptr;
-    ParticleData *pa, *new_pars = static_cast<ParticleData *>(
-                          MEM_callocN(newtotpart * sizeof(ParticleData), "ParticleData new"));
-    PTCacheEditPoint *point,
-        *new_points = static_cast<PTCacheEditPoint *>(
-            MEM_callocN(newtotpart * sizeof(PTCacheEditPoint), "PTCacheEditPoint array new"));
+    ParticleData *pa, *new_pars = MEM_calloc_arrayN<ParticleData>(newtotpart, "ParticleData new");
+    PTCacheEditPoint *point, *new_points = MEM_calloc_arrayN<PTCacheEditPoint>(
+                                 newtotpart, "PTCacheEditPoint array new");
     PTCacheEditKey *key;
     HairKey *hkey;
 
@@ -4566,10 +4558,8 @@ static int brush_add(const bContext *C, PEData *data, short number)
 
     for (i = totpart; i < newtotpart; i++, pa++, point++) {
       memcpy(pa, add_pars + i - totpart, sizeof(ParticleData));
-      pa->hair = static_cast<HairKey *>(
-          MEM_callocN(pset->totaddkey * sizeof(HairKey), "BakeKey key add"));
-      key = point->keys = static_cast<PTCacheEditKey *>(
-          MEM_callocN(pset->totaddkey * sizeof(PTCacheEditKey), "PTCacheEditKey add"));
+      pa->hair = MEM_calloc_arrayN<HairKey>(pset->totaddkey, "BakeKey key add");
+      key = point->keys = MEM_calloc_arrayN<PTCacheEditKey>(pset->totaddkey, "PTCacheEditKey add");
       point->totkey = pa->totkey = pset->totaddkey;
 
       for (k = 0, hkey = pa->hair; k < pa->totkey; k++, hkey++, key++) {
@@ -4731,7 +4721,7 @@ static int brush_edit_init(bContext *C, wmOperator *op)
   PE_minmax(depsgraph, scene, view_layer, min, max);
   mid_v3_v3v3(min, min, max);
 
-  bedit = static_cast<BrushEdit *>(MEM_callocN(sizeof(BrushEdit), "BrushEdit"));
+  bedit = MEM_callocN<BrushEdit>("BrushEdit");
   bedit->first = 1;
   op->customdata = bedit;
 
@@ -5079,7 +5069,7 @@ void PARTICLE_OT_brush_edit(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_brush_edit";
   ot->description = "Apply a stroke of brush to the particles";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = brush_edit_exec;
   ot->invoke = brush_edit_invoke;
   ot->modal = brush_edit_modal;
@@ -5300,7 +5290,7 @@ void PARTICLE_OT_shape_cut(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_shape_cut";
   ot->description = "Cut hair to conform to the set shape object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = shape_cut_exec;
   ot->poll = shape_cut_poll;
 
@@ -5317,7 +5307,7 @@ void PARTICLE_OT_shape_cut(wmOperatorType *ot)
 void PE_create_particle_edit(
     Depsgraph *depsgraph, Scene *scene, Object *ob, PointCache *cache, ParticleSystem *psys)
 {
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   PTCacheEdit *edit;
   ParticleSystemModifierData *psmd = (psys) ? psys_get_modifier(ob, psys) : nullptr;
   ParticleSystemModifierData *psmd_eval = nullptr;
@@ -5356,9 +5346,8 @@ void PE_create_particle_edit(
 
     totpoint = psys ? psys->totpart : int(((PTCacheMem *)cache->mem_cache.first)->totpoint);
 
-    edit = static_cast<PTCacheEdit *>(MEM_callocN(sizeof(PTCacheEdit), "PE_create_particle_edit"));
-    edit->points = static_cast<PTCacheEditPoint *>(
-        MEM_callocN(totpoint * sizeof(PTCacheEditPoint), "PTCacheEditPoints"));
+    edit = MEM_callocN<PTCacheEdit>("PE_create_particle_edit");
+    edit->points = MEM_calloc_arrayN<PTCacheEditPoint>(totpoint, "PTCacheEditPoints");
     edit->totpoint = totpoint;
 
     if (psys && !cache) {
@@ -5376,8 +5365,7 @@ void PE_create_particle_edit(
       pa = psys->particles;
       LOOP_POINTS {
         point->totkey = pa->totkey;
-        point->keys = static_cast<PTCacheEditKey *>(
-            MEM_callocN(point->totkey * sizeof(PTCacheEditKey), "ParticleEditKeys"));
+        point->keys = MEM_calloc_arrayN<PTCacheEditKey>(point->totkey, "ParticleEditKeys");
         point->flag |= PEP_EDIT_RECALC;
 
         hkey = pa->hair;
@@ -5415,8 +5403,7 @@ void PE_create_particle_edit(
           }
 
           if (!point->totkey) {
-            key = point->keys = static_cast<PTCacheEditKey *>(
-                MEM_callocN(totframe * sizeof(PTCacheEditKey), "ParticleEditKeys"));
+            key = point->keys = MEM_calloc_arrayN<PTCacheEditKey>(totframe, "ParticleEditKeys");
             point->flag |= PEP_EDIT_RECALC;
           }
           else {
@@ -5498,7 +5485,7 @@ void ED_object_particle_edit_mode_enter_ex(Depsgraph *depsgraph, Scene *scene, O
     /* Make sure pointer to the evaluated modifier data is up to date,
      * with possible changes applied when object was outside of the
      * edit mode. */
-    Object *object_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *object_eval = DEG_get_evaluated(depsgraph, ob);
     edit->psmd_eval = (ParticleSystemModifierData *)BKE_modifiers_findby_name(
         object_eval, edit->psmd->modifier.name);
     recalc_emitter_field(depsgraph, ob, edit->psys);
@@ -5570,7 +5557,7 @@ void PARTICLE_OT_particle_edit_toggle(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_particle_edit_toggle";
   ot->description = "Toggle particle edit mode";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = particle_edit_toggle_exec;
   ot->poll = particle_edit_toggle_poll;
 
@@ -5624,7 +5611,7 @@ void PARTICLE_OT_edited_clear(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_edited_clear";
   ot->description = "Undo all edition performed on the particle system";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = clear_edited_exec;
   ot->poll = particle_edit_toggle_poll;
 
@@ -5741,7 +5728,7 @@ void PARTICLE_OT_unify_length(wmOperatorType *ot)
   ot->idname = "PARTICLE_OT_unify_length";
   ot->description = "Make selected hair the same length";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = unify_length_exec;
   ot->poll = PE_poll_view3d;
 

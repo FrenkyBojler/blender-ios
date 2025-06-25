@@ -208,12 +208,13 @@ int curve_merge_by_distance(const IndexRange points,
   return duplicate_count;
 }
 
-/* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
 blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curves,
                                                       const float merge_distance,
                                                       const IndexMask &selection,
                                                       const bke::AttributeFilter &attribute_filter)
 {
+  /* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
+
   const int src_point_size = src_curves.points_num();
   if (src_point_size == 0) {
     return {};
@@ -340,6 +341,10 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
     });
   });
 
+  if (dst_curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
   return dst_curves;
 }
 

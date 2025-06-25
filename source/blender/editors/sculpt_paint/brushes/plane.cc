@@ -41,7 +41,7 @@
 
 #include "bmesh.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 inline namespace plane_cc {
 
@@ -77,7 +77,7 @@ static void calc_local_positions(const float4x4 &mat,
  * the z-distances are divided by `height`, effectively scaling the
  * z-distances so that a vertex of local coordinates
  * `(0, 0, height)` has a z-distance of 1.
- .
+ *
  * When `height` is 0, the local distances are set to 1. In object space, this is
  * equivalent to setting the distances equal to the radius, resulting in
  * a falloff strength of 0 (no displacement).
@@ -231,6 +231,7 @@ static void calc_faces(const Depsgraph &depsgraph,
   tls.distances.resize(verts.size());
   const MutableSpan<float> distances = tls.distances;
   calc_local_distances(height, depth, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -284,6 +285,7 @@ static void calc_grids(const Depsgraph &depsgraph,
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
   calc_local_distances(height, depth, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -335,6 +337,7 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   tls.distances.resize(positions.size());
   const MutableSpan<float> distances = tls.distances;
   calc_local_distances(height, depth, local_positions, distances);
+  filter_distances_with_radius(1.0f, distances, factors);
 
   apply_hardness_to_distances(1.0f, cache.hardness, distances);
   BKE_brush_calc_curve_factors(
@@ -464,11 +467,11 @@ void do_plane_brush(const Depsgraph &depsgraph,
   pbvh.flush_bounds_to_parents();
 }
 
-namespace brushes::plane {
-NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
-                              Object &ob,
-                              const Brush &brush,
-                              IndexMaskMemory &memory)
+namespace plane {
+CursorSampleResult calc_node_mask(const Depsgraph &depsgraph,
+                                  Object &ob,
+                                  const Brush &brush,
+                                  IndexMaskMemory &memory)
 {
   const SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
@@ -502,6 +505,6 @@ NodeMaskResult calc_node_mask(const Depsgraph &depsgraph,
 
   return {plane_mask, plane_center, plane_normal};
 }
-}  // namespace brushes::plane
+}  // namespace plane
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes

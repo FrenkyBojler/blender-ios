@@ -24,6 +24,7 @@
 #include "RNA_define.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 
@@ -171,8 +172,8 @@ static void select_random_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiItemR(layout, op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  uiItemR(layout, op->ptr, "probability", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "seed", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(op->ptr, "probability", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 }
 
 static void POINTCLOUD_OT_select_random(wmOperatorType *ot)

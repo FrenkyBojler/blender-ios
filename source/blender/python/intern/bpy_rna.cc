@@ -5,7 +5,7 @@
 /** \file
  * \ingroup pythonintern
  *
- * This file is the main interface between Python and Blender's data api (RNA),
+ * This file is the main interface between Python and Blender's data API (RNA),
  * exposing RNA to Python so blender data can be accessed in a Python like way.
  *
  * The two main types are #BPy_StructRNA and #BPy_PropertyRNA - the base
@@ -69,7 +69,7 @@
 #include "../generic/idprop_py_ui_api.hh"
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 #define USE_PEDANTIC_WRITE
@@ -946,7 +946,7 @@ static PyObject *pyrna_struct_str(BPy_StructRNA *self)
   }
 
   ID *id = self->ptr->owner_id;
-  if (id && id != DEG_get_original_id(id)) {
+  if (id && id != DEG_get_original(id)) {
     extra_info = ", evaluated";
   }
 
@@ -961,7 +961,7 @@ static PyObject *pyrna_struct_str(BPy_StructRNA *self)
                                name,
                                self->ptr->data,
                                extra_info);
-    MEM_freeN((void *)name);
+    MEM_freeN(name);
     return ret;
   }
 
@@ -977,7 +977,7 @@ static PyObject *pyrna_struct_repr(BPy_StructRNA *self)
   PyObject *tmp_str;
   PyObject *ret;
 
-  if (id == nullptr || !PYRNA_STRUCT_IS_VALID(self) || (DEG_get_original_id(id) != id)) {
+  if (id == nullptr || !PYRNA_STRUCT_IS_VALID(self) || (DEG_get_original(id) != id)) {
     /* fallback */
     return pyrna_struct_str(self);
   }
@@ -1078,7 +1078,7 @@ static PyObject *pyrna_prop_str(BPy_PropertyRNA *self)
                                  RNA_struct_identifier(self->ptr->type),
                                  RNA_property_identifier(self->prop),
                                  name);
-      MEM_freeN((void *)name);
+      MEM_freeN(name);
       return ret;
     }
   }
@@ -1163,7 +1163,7 @@ static PyObject *pyrna_func_repr(BPy_FunctionRNA *self)
 
 static Py_hash_t pyrna_struct_hash(BPy_StructRNA *self)
 {
-  return _Py_HashPointer(self->ptr->data);
+  return Py_HashPointer(self->ptr->data);
 }
 
 /* From Python's meth_hash v3.1.2. */
@@ -1174,12 +1174,12 @@ static long pyrna_prop_hash(BPy_PropertyRNA *self)
     x = 0;
   }
   else {
-    x = _Py_HashPointer(self->ptr->data);
+    x = Py_HashPointer(self->ptr->data);
     if (x == -1) {
       return -1;
     }
   }
-  y = _Py_HashPointer((void *)(self->prop));
+  y = Py_HashPointer((void *)(self->prop));
   if (y == -1) {
     return -1;
   }
@@ -1237,7 +1237,7 @@ static const char *pyrna_enum_as_string(PointerRNA *ptr, PropertyRNA *prop)
   }
 
   if (free) {
-    MEM_freeN((void *)item);
+    MEM_freeN(item);
   }
 
   return result;
@@ -1263,7 +1263,7 @@ static int pyrna_string_to_enum(
                  error_prefix,
                  param,
                  enum_str);
-    MEM_freeN((void *)enum_str);
+    MEM_freeN(enum_str);
     return -1;
   }
 
@@ -1308,7 +1308,7 @@ static int pyrna_prop_to_enum_bitfield(
   }
 
   if (free) {
-    MEM_freeN((void *)item);
+    MEM_freeN(item);
   }
 
   return ret;
@@ -1374,7 +1374,7 @@ static PyObject *pyrna_enum_to_py(PointerRNA *ptr, PropertyRNA *prop, int val)
 #endif
 
         if (ptr_name) {
-          MEM_freeN((void *)ptr_name);
+          MEM_freeN(ptr_name);
         }
       }
 
@@ -1417,7 +1417,7 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
 
       buf = RNA_property_string_get_alloc(ptr, prop, buf_fixed, sizeof(buf_fixed), &buf_len);
 #ifdef USE_STRING_COERCE
-      /* Only file paths get special treatment, they may contain non UTF-8 chars. */
+      /* Only file paths get special treatment, they may contain non UTF8 chars. */
       if (subtype == PROP_BYTESTRING) {
         ret = PyBytes_FromStringAndSize(buf, buf_len);
       }
@@ -1436,7 +1436,7 @@ PyObject *pyrna_prop_to_py(PointerRNA *ptr, PropertyRNA *prop)
       }
 #endif /* USE_STRING_COERCE */
       if (buf_fixed != buf) {
-        MEM_freeN((void *)buf);
+        MEM_freeN(buf);
       }
       break;
     }
@@ -4749,7 +4749,7 @@ static int pyrna_struct_meta_idprop_setattro(PyObject *cls, PyObject *attr, PyOb
     }
   }
 
-  /* Fallback to standard Python's `delattr/setattr`. */
+  /* Fall back to standard Python's `delattr/setattr`. */
   return PyType_Type.tp_setattro(cls, attr, value);
 }
 
@@ -5708,7 +5708,7 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
       }
     }
 
-    /* Could not use the buffer, fallback to sequence. */
+    /* Could not use the buffer, fall back to sequence. */
     if (!buffer_is_compat) {
       array = PyMem_Malloc(size * tot);
 
@@ -5784,7 +5784,7 @@ static PyObject *foreach_getset(BPy_PropertyRNA *self, PyObject *args, int set)
       }
     }
 
-    /* Could not use the buffer, fallback to sequence. */
+    /* Could not use the buffer, fall back to sequence. */
     if (!buffer_is_compat) {
       array = PyMem_Malloc(size * tot);
 
@@ -6796,8 +6796,8 @@ static PyObject *pyrna_func_call(BPy_FunctionRNA *self, PyObject *args, PyObject
 
     BLI_dynstr_free(bad_args);
     BLI_dynstr_free(good_args);
-    MEM_freeN((void *)bad_args_str);
-    MEM_freeN((void *)good_args_str);
+    MEM_freeN(bad_args_str);
+    MEM_freeN(good_args_str);
 
     err = -1;
   }
@@ -7829,8 +7829,8 @@ static PyObject *pyrna_prop_collection_iter_next(PyObject *self)
     BPy_StructRNA *iter_data_struct = reinterpret_cast<BPy_StructRNA *>(iter_data);
     if (iter_data != Py_None) {
       /* hold a reference to the iterator since it may have
-       * allocated memory 'pyrna' needs. eg: introspecting dynamic enum's. */
-      /* TODO: we could have an api call to know if this is
+       * allocated memory `pyrna` needs. eg: introspecting dynamic enum's. */
+      /* TODO: we could have an API call to know if this is
        * needed since most collections don't */
       pyrna_struct_reference_set(iter_data_struct, self);
     }
@@ -8172,8 +8172,8 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
     pyrna_subtype_set_rna(newclass, srna);
     /* Add a reference for the return value. */
     Py_INCREF(newclass);
-  } /* create a new class instance with the C api
-     * mainly for the purposing of matching the C/RNA type hierarchy */
+  } /* Create a new class instance with the C API
+     * mainly for the purposing of matching the C/RNA type hierarchy. */
   else {
     /* subclass equivalents
      * - class myClass(myBase):
@@ -8197,7 +8197,7 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
     }
 #endif
 
-    if (RNA_struct_idprops_check(srna) &&
+    if (RNA_struct_system_idprops_check(srna) &&
         !PyObject_IsSubclass(py_base, (PyObject *)&pyrna_struct_meta_idprop_Type))
     {
       metaclass = (PyObject *)&pyrna_struct_meta_idprop_Type;
@@ -9148,7 +9148,7 @@ int pyrna_deferred_register_class(StructRNA *srna, PyTypeObject *py_class)
 {
   /* Panels and Menus don't need this
    * save some time and skip the checks here */
-  if (!RNA_struct_idprops_register_check(srna)) {
+  if (!RNA_struct_system_idprops_register_check(srna)) {
     return 0;
   }
 
@@ -9754,7 +9754,10 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
   return err;
 }
 
-static void bpy_class_free(void *pyob_ptr)
+/**
+ * \param decref: When true, decrease the reference.
+ */
+static void bpy_class_free_ex(PyObject *self, bool decref)
 {
 #ifdef WITH_PYTHON_MODULE
   /* This can happen when Python has exited before all Blender's RNA types have been freed.
@@ -9772,8 +9775,6 @@ static void bpy_class_free(void *pyob_ptr)
 #endif
 
   PyGILState_STATE gilstate = PyGILState_Ensure();
-
-  PyObject *self = (PyObject *)pyob_ptr;
 
   /* Breaks re-registering classes. */
   // PyDict_Clear(((PyTypeObject *)self)->tp_dict);
@@ -9794,21 +9795,20 @@ static void bpy_class_free(void *pyob_ptr)
   }
 #endif
 
-#ifdef WITH_PYTHON_MODULE
-  /* NOTE(@ideasman42) When finalizing the modules that store the types may have been cleared.
-   * This can cause negative a negative reference count base-classes used by the RNA types
-   * which asserts in debug builds of Python.
-   *
-   * If this is a reference counting issue on Blender's side that should be fixed
-   * however the problem is quite specific and more a technical issue.
-   * So skip clearing the reference when finalizing, see: #125376. */
-  if (!Py_IsFinalizing())
-#endif
-  {
+  if (decref) {
     Py_DECREF(self);
   }
 
   PyGILState_Release(gilstate);
+}
+
+static void bpy_class_free(void *pyob_ptr)
+{
+  /* Don't remove a reference because the argument passed in is from #ExtensionRNA::data
+   * which doesn't own the reference.
+   * This value is typically stored in #StructRNA::py_type which is handled separately. */
+  bool decref = false;
+  bpy_class_free_ex(static_cast<PyObject *>(pyob_ptr), decref);
 }
 
 /**
@@ -9915,10 +9915,12 @@ void pyrna_alloc_types()
 
 void BPY_free_srna_pytype(StructRNA *srna)
 {
-  void *py_ptr = RNA_struct_py_type_get(srna);
+  PyObject *py_ptr = static_cast<PyObject *>(RNA_struct_py_type_get(srna));
 
   if (py_ptr) {
-    bpy_class_free(py_ptr);
+    /* Remove a reference because `srna` owns it. */
+    bool decref = true;
+    bpy_class_free_ex(py_ptr, decref);
     RNA_struct_py_type_set(srna, nullptr);
   }
 }

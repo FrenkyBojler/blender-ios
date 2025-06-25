@@ -13,7 +13,7 @@
 
 #include "BLT_translation.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
 
@@ -161,7 +161,7 @@ static void template_search_buttons(const bContext *C,
                                     const char *unlinkop,
                                     const std::optional<StringRef> text)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiRNACollectionSearch *search_data = &template_search.search_data;
   const StructRNA *type = RNA_property_pointer_type(&search_data->target_ptr,
                                                     search_data->target_prop);
@@ -174,7 +174,7 @@ static void template_search_buttons(const bContext *C,
     type = active_ptr.type;
   }
 
-  uiLayout *row = uiLayoutRow(layout, true);
+  uiLayout *row = &layout->row(true);
   UI_block_align_begin(block);
 
   uiLayout *decorator_layout = nullptr;

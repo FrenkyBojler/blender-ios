@@ -14,6 +14,7 @@
 #include "BKE_node.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 struct ARegion;
@@ -85,6 +86,8 @@ struct SpaceNode_Runtime {
 
   /** Mouse position for drawing socket-less links and adding nodes. */
   float2 cursor;
+
+  std::optional<int> frame_identifier_to_highlight;
 
   /**
    * Indicates that the compositing int the space tree needs to be re-evaluated using
@@ -229,6 +232,10 @@ void NODE_OT_backimage_sample(wmOperatorType *ot);
 
 /* `drawnode.cc` */
 
+float2 socket_link_connection_location(const bNode &node,
+                                       const bNodeSocket &socket,
+                                       const bNodeLink &link);
+
 NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
                                               const bNode *node,
                                               int x,
@@ -294,10 +301,12 @@ void NODE_OT_add_material(wmOperatorType *ot);
 void NODE_OT_add_color(wmOperatorType *ot);
 void NODE_OT_add_import_node(wmOperatorType *ot);
 void NODE_OT_new_node_tree(wmOperatorType *ot);
+void NODE_OT_new_compositing_node_group(wmOperatorType *ot);
+void NODE_OT_add_group_input_node(wmOperatorType *ot);
 
 /* `node_group.cc` */
 
-StringRef node_group_idname(bContext *C);
+StringRef node_group_idname(const bContext *C);
 void NODE_OT_group_make(wmOperatorType *ot);
 void NODE_OT_group_insert(wmOperatorType *ot);
 void NODE_OT_group_ungroup(wmOperatorType *ot);
@@ -406,7 +415,15 @@ void node_geometry_add_attribute_search_button(const bContext &C,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
                                                uiLayout &layout,
-                                               StringRefNull placeholder = "");
+                                               StringRef placeholder = "");
+
+/* `node_geometry_layer_search.cc` */
+
+void node_geometry_add_layer_search_button(const bContext &C,
+                                           const bNode &node,
+                                           PointerRNA &socket_ptr,
+                                           uiLayout &layout,
+                                           StringRef placeholder = "");
 
 /* `node_context_path.cc` */
 
@@ -424,5 +441,9 @@ void invoke_node_link_drag_add_menu(bContext &C,
 MenuType add_catalog_assets_menu_type();
 MenuType add_unassigned_assets_menu_type();
 MenuType add_root_catalogs_menu_type();
+
+/* `node_sync_sockets.cc` */
+
+void NODE_OT_sockets_sync(wmOperatorType *ot);
 
 }  // namespace blender::ed::space_node

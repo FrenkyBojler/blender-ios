@@ -104,7 +104,7 @@ CHECKER_ARGS = (
 
         # Calling `memset` of float may technically be a bug but works in practice.
         "memsetClassFloat",
-        # There are various classes which don't have copy or equal constructors (GHOST windows for e.g.)
+        # There are various classes which don't have copy or equal constructors (GHOST windows for example)
         "noCopyConstructor",
         # Also noisy, looks like these are not issues to "solve".
         "unusedFunction",
@@ -258,6 +258,7 @@ def cppcheck(cppcheck_dir: str, temp_dir: str, log_fh: IO[bytes]) -> None:
     process_functions = []
 
     def my_process(i: int, c: str, cmd: list[str]) -> subprocess.Popen[Any]:
+        del c
         proc = subprocess.Popen(
             cmd,
             stderr=subprocess.PIPE,

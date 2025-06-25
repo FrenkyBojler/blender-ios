@@ -26,6 +26,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_set.hh"
 #include "BLI_string.h"
+#include "BLI_string_ref.hh"
 #include "BLI_string_utils.hh"
 
 #include "DNA_material_types.h"
@@ -41,6 +42,7 @@
 #ifdef WITH_MATERIALX
 #  include "shader/materialx/material.h"
 #  include <pxr/usd/sdf/copyUtils.h>
+#  include <pxr/usd/usdMtlx/materialXConfigAPI.h>
 #  include <pxr/usd/usdMtlx/reader.h>
 #endif
 
@@ -59,7 +61,10 @@ static const pxr::TfToken preview_shader("previewShader", pxr::TfToken::Immortal
 static const pxr::TfToken preview_surface("UsdPreviewSurface", pxr::TfToken::Immortal);
 static const pxr::TfToken UsdTransform2d("UsdTransform2d", pxr::TfToken::Immortal);
 static const pxr::TfToken uv_texture("UsdUVTexture", pxr::TfToken::Immortal);
+static const pxr::TfToken primvar_float("UsdPrimvarReader_float", pxr::TfToken::Immortal);
 static const pxr::TfToken primvar_float2("UsdPrimvarReader_float2", pxr::TfToken::Immortal);
+static const pxr::TfToken primvar_float3("UsdPrimvarReader_float3", pxr::TfToken::Immortal);
+static const pxr::TfToken primvar_vector("UsdPrimvarReader_vector", pxr::TfToken::Immortal);
 static const pxr::TfToken roughness("roughness", pxr::TfToken::Immortal);
 static const pxr::TfToken specular("specular", pxr::TfToken::Immortal);
 static const pxr::TfToken opacity("opacity", pxr::TfToken::Immortal);
@@ -107,16 +112,21 @@ struct InputSpec {
 };
 
 /* Map Blender socket names to USD Preview Surface InputSpec structs. */
-using InputSpecMap = blender::Map<std::string, InputSpec>;
+using InputSpecMap = blender::Map<StringRef, InputSpec>;
 
 /* Static function forward declarations. */
 static pxr::UsdShadeShader create_usd_preview_shader(const USDExporterContext &usd_export_context,
                                                      const pxr::UsdShadeMaterial &material,
-                                                     const char *name,
+                                                     const StringRef name,
                                                      int type);
 static pxr::UsdShadeShader create_usd_preview_shader(const USDExporterContext &usd_export_context,
                                                      const pxr::UsdShadeMaterial &material,
                                                      bNode *node);
+static pxr::UsdShadeShader create_primvar_reader_shader(
+    const USDExporterContext &usd_export_context,
+    const pxr::UsdShadeMaterial &material,
+    const pxr::TfToken &primvar_type,
+    const bNode *node);
 static void create_uv_input(const USDExporterContext &usd_export_context,
                             bNodeSocket *input_socket,
                             pxr::UsdShadeMaterial &usd_material,
@@ -181,14 +191,13 @@ static void process_inputs(const USDExporterContext &usd_export_context,
       continue;
     }
 
+    const InputSpec &input_spec = *spec;
+
     /* Allow scaling inputs. */
     float input_scale = 1.0;
 
-    const InputSpec &input_spec = *spec;
-    bNodeLink *input_link = traverse_channel(sock, SH_NODE_TEX_IMAGE);
-
+    /* Don't export emission color if strength is zero. */
     if (input_spec.input_name == usdtokens::emissive_color) {
-      /* Don't export emission color if strength is zero. */
       const bNodeSocket *emission_strength_sock = bke::node_find_socket(
           *node, SOCK_IN, "Emission Strength");
       if (!emission_strength_sock) {
@@ -201,6 +210,10 @@ static void process_inputs(const USDExporterContext &usd_export_context,
       }
     }
 
+    bool processed = false;
+
+    /* Check for an upstream Image node. */
+    const bNodeLink *input_link = traverse_channel(sock, SH_NODE_TEX_IMAGE);
     if (input_link) {
       /* Convert the texture image node connected to this input. */
       bNode *input_node = input_link->fromnode;
@@ -345,10 +358,60 @@ static void process_inputs(const USDExporterContext &usd_export_context,
           opacity_threshold_input.GetAttr().Set(pxr::VtValue(threshold));
         }
       }
-    }
-    else if (input_spec.set_default_value) {
-      /* Set hardcoded value. */
 
+      processed = true;
+    }
+
+    if (processed) {
+      continue;
+    }
+
+    /* No upstream Image was found. Check for an Attribute node instead */
+    input_link = traverse_channel(sock, SH_NODE_ATTRIBUTE);
+    if (input_link) {
+      const bNode *attr_node = input_link->fromnode;
+      const NodeShaderAttribute *storage = (NodeShaderAttribute *)attr_node->storage;
+
+      if (storage->type == SHD_ATTRIBUTE_GEOMETRY) {
+        pxr::SdfValueTypeName output_type;
+        pxr::UsdShadeShader usd_shader;
+        if (STREQ(input_link->fromsock->identifier, "Color")) {
+          output_type = pxr::SdfValueTypeNames->Float3;
+          usd_shader = create_primvar_reader_shader(
+              usd_export_context, usd_material, usdtokens::primvar_float3, attr_node);
+        }
+        else if (STREQ(input_link->fromsock->identifier, "Vector")) {
+          output_type = pxr::SdfValueTypeNames->Float3;
+          usd_shader = create_primvar_reader_shader(
+              usd_export_context, usd_material, usdtokens::primvar_vector, attr_node);
+        }
+        else if (STREQ(input_link->fromsock->identifier, "Fac")) {
+          output_type = pxr::SdfValueTypeNames->Float;
+          usd_shader = create_primvar_reader_shader(
+              usd_export_context, usd_material, usdtokens::primvar_float, attr_node);
+        }
+
+        std::string attr_name = make_safe_name(storage->name,
+                                               usd_export_context.export_params.allow_unicode);
+        usd_shader.CreateInput(usdtokens::varname, pxr::SdfValueTypeNames->String).Set(attr_name);
+
+        pxr::UsdShadeConnectionSourceInfo source_info(usd_shader.ConnectableAPI(),
+                                                      usdtokens::result,
+                                                      pxr::UsdShadeAttributeType::Output,
+                                                      output_type);
+        shader.CreateInput(input_spec.input_name, input_spec.input_type)
+            .ConnectToSource(source_info);
+
+        processed = true;
+      }
+    }
+
+    if (processed) {
+      continue;
+    }
+
+    /* No upstream nodes, just set a default constant. */
+    if (input_spec.set_default_value) {
       switch (sock->type) {
         case SOCK_FLOAT: {
           create_input<bNodeSocketValueFloat, float>(
@@ -536,7 +599,7 @@ static void create_uvmap_shader(const USDExporterContext &usd_export_context,
 
   BLI_assert(!uv_node || uv_node->type_legacy == SH_NODE_UVMAP);
 
-  const char *shader_name = uv_node ? uv_node->name : "uvmap";
+  const StringRef shader_name = uv_node ? uv_node->name : "uvmap";
 
   pxr::UsdShadeShader uv_shader = create_usd_preview_shader(
       usd_export_context, usd_material, shader_name, SH_NODE_UVMAP);
@@ -1007,7 +1070,7 @@ static bNode *find_displacement_node(Material *material)
 /* Creates a USD Preview Surface shader based on the given cycles node name and type. */
 static pxr::UsdShadeShader create_usd_preview_shader(const USDExporterContext &usd_export_context,
                                                      const pxr::UsdShadeMaterial &material,
-                                                     const char *name,
+                                                     const StringRef name,
                                                      const int type)
 {
   pxr::SdfPath shader_path = material.GetPath().AppendChild(
@@ -1080,6 +1143,20 @@ static pxr::UsdShadeShader create_usd_preview_shader(const USDExporterContext &u
     shader.CreateInput(usdtokens::wrapT, pxr::SdfValueTypeNames->Token).Set(wrap);
   }
 
+  return shader;
+}
+
+static pxr::UsdShadeShader create_primvar_reader_shader(
+    const USDExporterContext &usd_export_context,
+    const pxr::UsdShadeMaterial &material,
+    const pxr::TfToken &primvar_type,
+    const bNode *node)
+{
+  pxr::SdfPath shader_path = material.GetPath().AppendChild(
+      pxr::TfToken(make_safe_name(node->name, usd_export_context.export_params.allow_unicode)));
+  pxr::UsdShadeShader shader = pxr::UsdShadeShader::Define(usd_export_context.stage, shader_path);
+
+  shader.CreateIdAttr(pxr::VtValue(primvar_type));
   return shader;
 }
 
@@ -1345,7 +1422,7 @@ void export_texture(bNode *node,
   export_texture(ima, stage, allow_overwrite, reports);
 }
 
-pxr::TfToken token_for_input(const char *input_name)
+pxr::TfToken token_for_input(const StringRef input_name)
 {
   const InputSpecMap &input_map = preview_surface_input_map();
   const InputSpec *spec = input_map.lookup_ptr(input_name);
@@ -1464,6 +1541,18 @@ static void create_usd_materialx_material(const USDExporterContext &usd_export_c
   pxr::UsdShadeMaterial temp_material{temp_material_prim};
   if (!temp_material) {
     return;
+  }
+
+  /* Copy over the MateralXConfigAPI schema and associated attribute. */
+  pxr::UsdMtlxMaterialXConfigAPI temp_config_api{temp_material_prim};
+  if (temp_config_api) {
+    pxr::UsdMtlxMaterialXConfigAPI materialx_config_api = pxr::UsdMtlxMaterialXConfigAPI::Apply(
+        material_prim);
+    pxr::UsdAttribute temp_mtlx_version_attr = temp_config_api.GetConfigMtlxVersionAttr();
+    pxr::VtValue mtlx_version;
+    if (temp_mtlx_version_attr && temp_mtlx_version_attr.Get(&mtlx_version)) {
+      materialx_config_api.CreateConfigMtlxVersionAttr(mtlx_version);
+    }
   }
 
   /* Once we have the material, we need to prepare for renaming any conflicts.

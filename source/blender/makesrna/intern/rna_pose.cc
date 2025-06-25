@@ -105,7 +105,7 @@ static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRN
 
 static void rna_Pose_IK_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX: when to use this?  */
+  // ob->pose->flag |= (POSE_LOCKED | POSE_DO_UNLOCK); /* XXX: when to use this? */
   Object *ob = (Object *)ptr->owner_id;
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -169,6 +169,12 @@ static IDProperty **rna_PoseBone_idprops(PointerRNA *ptr)
 {
   bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
   return &pchan->prop;
+}
+
+static IDProperty **rna_PoseBone_system_idprops(PointerRNA *ptr)
+{
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr->data);
+  return &pchan->system_properties;
 }
 
 static void rna_Pose_ik_solver_set(PointerRNA *ptr, int value)
@@ -762,6 +768,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_struct_ui_text(srna, "Pose Bone", "Channel defining pose data for a bone in a Pose");
   RNA_def_struct_path_func(srna, "rna_PoseBone_path");
   RNA_def_struct_idprops_func(srna, "rna_PoseBone_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_PoseBone_system_idprops");
   RNA_def_struct_ui_icon(srna, ICON_BONE_DATA);
 
   /* Bone Constraints */
@@ -1147,7 +1154,7 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_float_sdna(prop, nullptr, "custom_shape_wire_width");
   RNA_def_property_ui_text(prop, "Wire Width", "Adjust the line thickness of custom shapes");
   /* When changing the upper limit of the range, also adjust the WIRE_WIDTH_COMPRESSION in
-   * overlay_shader_shared.h */
+   * overlay_shader_shared.hh */
   RNA_def_property_range(prop, 1.0f, 16.0f);
   RNA_def_property_ui_range(prop, 1.0f, 10.0f, 1, 1);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");

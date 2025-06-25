@@ -4,7 +4,8 @@
 
 #include "BKE_grease_pencil.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
 
@@ -26,7 +27,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "depth_order", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "depth_order", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

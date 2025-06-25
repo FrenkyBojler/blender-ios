@@ -338,7 +338,7 @@ void paint_sample_color(
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
     bool use_material = (imapaint->mode == IMAGEPAINT_MODE_MATERIAL);
 
@@ -414,7 +414,7 @@ void paint_sample_color(
                 }
                 else {
                   linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
-                  BKE_brush_color_set(scene, paint, br, rgba_f);
+                  BKE_brush_color_set(paint, br, rgba_f);
                 }
               }
               else {
@@ -427,7 +427,7 @@ void paint_sample_color(
                 else {
                   float rgba_f[3];
                   rgb_uchar_to_float(rgba_f, rgba);
-                  BKE_brush_color_set(scene, paint, br, rgba_f);
+                  BKE_brush_color_set(paint, br, rgba_f);
                 }
               }
               BKE_image_release_ibuf(image, ibuf, nullptr);
@@ -454,7 +454,7 @@ void paint_sample_color(
         copy_v3_v3(color->rgb, rgba_f);
       }
       else {
-        BKE_brush_color_set(scene, paint, br, rgba_f);
+        BKE_brush_color_set(paint, br, rgba_f);
       }
       return;
     }
@@ -471,7 +471,7 @@ void paint_sample_color(
       copy_v3_v3(color->rgb, rgb_fl);
     }
     else {
-      BKE_brush_color_set(scene, paint, br, rgb_fl);
+      BKE_brush_color_set(paint, br, rgb_fl);
     }
   }
 }
@@ -761,7 +761,7 @@ void PAINT_OT_vert_select_ungrouped(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vert_select_ungrouped";
   ot->description = "Select vertices without a group";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vert_select_ungrouped_exec;
   ot->poll = vert_paint_poll;
 

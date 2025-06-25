@@ -91,6 +91,7 @@
 #include "SEQ_utils.hh"
 
 #include "ANIM_action.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "anim_intern.hh"
@@ -243,7 +244,7 @@ static bool graphedit_get_context(bAnimContext *ac, SpaceGraph *sipo)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (sipo->ads == nullptr) {
-    sipo->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "GraphEdit DopeSheet"));
+    sipo->ads = MEM_callocN<bDopeSheet>("GraphEdit DopeSheet");
     sipo->ads->source = reinterpret_cast<ID *>(ac->scene);
   }
   ac->ads = sipo->ads;
@@ -291,7 +292,7 @@ static bool nlaedit_get_context(bAnimContext *ac, SpaceNla *snla)
 {
   /* init dopesheet data if non-existent (i.e. for old files) */
   if (snla->ads == nullptr) {
-    snla->ads = static_cast<bDopeSheet *>(MEM_callocN(sizeof(bDopeSheet), "NlaEdit DopeSheet"));
+    snla->ads = MEM_callocN<bDopeSheet>("NlaEdit DopeSheet");
   }
   ac->ads = snla->ads;
 
@@ -618,8 +619,7 @@ static bAnimListElem *make_new_animlistelem(
   }
 
   /* Allocate and set generic data. */
-  bAnimListElem *ale = static_cast<bAnimListElem *>(
-      MEM_callocN(sizeof(bAnimListElem), "bAnimListElem"));
+  bAnimListElem *ale = MEM_callocN<bAnimListElem>("bAnimListElem");
 
   ale->data = data;
   ale->type = datatype;
@@ -988,12 +988,8 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
         if (skip_hidden) {
           bArmature *arm = static_cast<bArmature *>(ob->data);
 
-          /* skipping - not visible on currently visible layers */
-          if (!ANIM_bonecoll_is_visible_pchan(arm, pchan)) {
-            return true;
-          }
-          /* skipping - is currently hidden */
-          if (pchan->bone->flag & BONE_HIDDEN_P) {
+          /* Skipping - is currently hidden. */
+          if (!blender::animrig::bone_is_visible_pchan(arm, pchan)) {
             return true;
           }
         }
@@ -1019,7 +1015,7 @@ static bool skip_fcurve_selected_data(bAnimContext *ac,
       /* Get strip name, and check if this strip is selected. */
       Editing *ed = blender::seq::editing_get(scene);
       if (ed) {
-        strip = blender::seq::get_sequence_by_name(ed->seqbasep, strip_name, false);
+        strip = blender::seq::get_strip_by_name(ed->seqbasep, strip_name, false);
       }
 
       /* Can only add this F-Curve if it is selected. */
@@ -3406,7 +3402,7 @@ static size_t animdata_filter_dopesheet_scene(bAnimContext *ac,
 
   /* filter data contained under object first */
   BEGIN_ANIMFILTER_SUBCHANNELS (EXPANDED_SCEC(sce)) {
-    bNodeTree *ntree = sce->nodetree;
+    bNodeTree *ntree = sce->compositing_node_group;
     World *wo = sce->world;
 
     /* Action, Drivers, or NLA for Scene */

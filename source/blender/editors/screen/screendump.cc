@@ -37,6 +37,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -65,8 +66,7 @@ static int screenshot_data_create(bContext *C, wmOperator *op, ScrArea *area)
   uint8_t *dumprect = WM_window_pixels_read(C, win, dumprect_size);
 
   if (dumprect) {
-    ScreenshotData *scd = static_cast<ScreenshotData *>(
-        MEM_callocN(sizeof(ScreenshotData), "screenshot"));
+    ScreenshotData *scd = MEM_callocN<ScreenshotData>("screenshot");
 
     scd->dumpsx = dumprect_size[0];
     scd->dumpsy = dumprect_size[1];
@@ -213,8 +213,8 @@ static void screenshot_draw(bContext * /*C*/, wmOperator *op)
   uiLayout *layout = op->layout;
   ScreenshotData *scd = static_cast<ScreenshotData *>(op->customdata);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* image template */
   PointerRNA ptr = RNA_pointer_create_discrete(nullptr, &RNA_ImageFormatSettings, &scd->im_format);

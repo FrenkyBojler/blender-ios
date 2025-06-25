@@ -138,12 +138,16 @@ static CursorSize window_size_calc()
    * The mid-sized 24x24 versions are a nice compromise size. */
   return CURSOR_SIZE_24;
 #endif
+  const uint32_t cursor_size = WM_cursor_preferred_logical_size();
+
+  const float cursor_scale = cursor_size ? (float(cursor_size) / WM_CURSOR_DEFAULT_LOGICAL_SIZE) :
+                                           1.0f;
 
   /* Use `U.dpi` without the `U.ui_scale` because the UI scale does not impact the
    * windowing-systems cursor size (only the size which is used for drawing the UI).
    * The DPI however is used for scaling defined by the windowing-system.
    * Ideally this would also be able to check the cursor size via GHOST. */
-  const int dpi_system = int(U.dpi / U.ui_scale);
+  const int dpi_system = int((U.dpi / U.ui_scale) * cursor_scale);
 
   if (dpi_system <= 72) {
     return CURSOR_SIZE_16;
@@ -211,7 +215,7 @@ void WM_cursor_set(wmWindow *win, int curs)
       window_set_custom_cursor(win, bcursor);
     }
     else {
-      /* Fallback to default cursor if no bitmap found. */
+      /* Fall back to default cursor if no bitmap found. */
       GHOST_SetCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                            GHOST_kStandardCursorDefault);
     }

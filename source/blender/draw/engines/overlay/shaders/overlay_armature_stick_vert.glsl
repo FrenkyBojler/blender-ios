@@ -15,7 +15,7 @@ VERTEX_SHADER_CREATE_INFO(overlay_armature_stick)
 /* project to screen space */
 float2 proj(float4 hs_P)
 {
-  return (0.5f * (hs_P.xy / hs_P.w) + 0.5f) * sizeViewport;
+  return (0.5f * (hs_P.xy / hs_P.w) + 0.5f) * uniform_buf.size_viewport;
 }
 
 void main()
@@ -23,15 +23,15 @@ void main()
   select_id_set(in_select_buf[gl_InstanceID]);
 
   StickBoneFlag bone_flag = StickBoneFlag(vclass);
-  finalInnerColor = flag_test(bone_flag, COL_HEAD) ? data_buf[gl_InstanceID].head_color :
-                                                     data_buf[gl_InstanceID].tail_color;
-  finalInnerColor = flag_test(bone_flag, COL_BONE) ? data_buf[gl_InstanceID].bone_color :
-                                                     finalInnerColor;
-  finalWireColor = (data_buf[gl_InstanceID].wire_color.a > 0.0f) ?
-                       data_buf[gl_InstanceID].wire_color :
-                       finalInnerColor;
-  colorFac = flag_test(bone_flag, COL_WIRE) ? 0.0f :
-                                              (flag_test(bone_flag, COL_BONE) ? 1.0f : 2.0f);
+  final_inner_color = flag_test(bone_flag, COL_HEAD) ? data_buf[gl_InstanceID].head_color :
+                                                       data_buf[gl_InstanceID].tail_color;
+  final_inner_color = flag_test(bone_flag, COL_BONE) ? data_buf[gl_InstanceID].bone_color :
+                                                       final_inner_color;
+  final_wire_color = (data_buf[gl_InstanceID].wire_color.a > 0.0f) ?
+                         data_buf[gl_InstanceID].wire_color :
+                         final_inner_color;
+  color_fac = flag_test(bone_flag, COL_WIRE) ? 0.0f :
+                                               (flag_test(bone_flag, COL_BONE) ? 1.0f : 2.0f);
 
   float4 boneStart_4d = float4(data_buf[gl_InstanceID].bone_start.xyz, 1.0f);
   float4 boneEnd_4d = float4(data_buf[gl_InstanceID].bone_end.xyz, 1.0f);
@@ -68,10 +68,10 @@ void main()
   vpos *= (drw_view().winmat[3][3] == 0.0f) ? h : 1.0f;
   vpos *= (data_buf[gl_InstanceID].wire_color.a > 0.0f) ? 1.0f : 0.5f;
 
-  if (finalInnerColor.a > 0.0f) {
-    float stick_size = sizePixel * 5.0f;
+  if (final_inner_color.a > 0.0f) {
+    float stick_size = theme.sizes.pixel * 5.0f;
     gl_Position = (is_head) ? p0 : p1;
-    gl_Position.xy += stick_size * (vpos * sizeViewportInv);
+    gl_Position.xy += stick_size * (vpos * uniform_buf.size_viewport_inv);
     gl_Position.z += (is_bone) ? 0.0f : 1e-6f; /* Avoid Z fighting of head/tails. */
     view_clipping_distances((is_head ? boneStart_4d : boneEnd_4d).xyz);
   }

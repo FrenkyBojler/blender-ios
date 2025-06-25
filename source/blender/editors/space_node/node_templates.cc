@@ -38,7 +38,7 @@
 #include "NOD_socket.hh"
 
 #include "../interface/interface_intern.hh" /* XXX bad level */
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "ED_node.hh" /* own include */
 #include "node_intern.hh"
@@ -483,7 +483,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
   bNodeSocket *sock = arg->sock;
   uiLayout *layout = arg->layout;
   uiLayout *column = nullptr;
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but;
   NodeLinkArg *argN;
   int first = 1;
@@ -538,10 +538,10 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       }
 
       if (first) {
-        column = uiLayoutColumn(layout, false);
+        column = &layout->column(false);
         UI_block_layout_set_current(block, column);
 
-        uiItemL(column, IFACE_(cname), ICON_NODE);
+        column->label(IFACE_(cname), ICON_NODE);
         but = block->buttons.last().get();
 
         first = 0;
@@ -550,7 +550,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       if (num > 1) {
         if (!cur_node_name || !STREQ(cur_node_name, item.node_name)) {
           cur_node_name = item.node_name;
-          /* XXX Do not use uiItemL here,
+          /* XXX Do not use uiLayout::label here,
            * it would add an empty icon as we are in a menu! */
           uiDefBut(block,
                    UI_BTYPE_LABEL,
@@ -608,7 +608,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiBut *but = (uiBut *)but_p;
   uiLayout *split, *column;
   NodeLinkArg *arg = (NodeLinkArg *)but->func_argN;
@@ -616,7 +616,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
   bke::bNodeTreeType *ntreetype = arg->ntree->typeinfo;
 
   UI_block_layout_set_current(block, layout);
-  split = uiLayoutSplit(layout, 0.0f, false);
+  split = &layout->split(0.0f, false);
 
   arg->bmain = bmain;
   arg->scene = scene;
@@ -626,11 +626,11 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
     ntreetype->foreach_nodeclass(arg, node_menu_column_foreach_cb);
   }
 
-  column = uiLayoutColumn(split, false);
+  column = &split->column(false);
   UI_block_layout_set_current(block, column);
 
   if (sock->link) {
-    uiItemL(column, IFACE_("Link"), ICON_NONE);
+    column->label(IFACE_("Link"), ICON_NONE);
     but = block->buttons.last().get();
     but->drawflag = UI_BUT_TEXT_LEFT;
 
@@ -674,7 +674,7 @@ void uiTemplateNodeLink(
 {
   using namespace blender::ed::space_node;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   NodeLinkArg *arg;
   uiBut *but;
   float socket_col[4];
@@ -739,22 +739,23 @@ static void ui_node_draw_recursive(uiLayout &layout,
   const nodes::SocketDeclaration *panel_toggle_decl = panel_decl.panel_input_decl();
   const std::string panel_id = fmt::format(
       "{}_{}_{}", ntree.id.name, node.identifier, panel_decl.identifier);
-  PanelLayout panel_layout = uiLayoutPanel(
-      &C, &layout, panel_id.c_str(), panel_decl.default_collapsed);
+  const StringRef panel_translation_context = panel_decl.translation_context.has_value() ?
+                                                  *panel_decl.translation_context :
+                                                  "";
+  PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
   if (panel_toggle_decl) {
-    uiLayoutSetPropSep(panel_layout.header, false);
-    uiLayoutSetPropDecorate(panel_layout.header, false);
+    panel_layout.header->use_property_split_set(false);
+    panel_layout.header->use_property_decorate_set(false);
     PointerRNA toggle_ptr = RNA_pointer_create_discrete(
         &ntree.id, &RNA_NodeSocket, &node.socket_by_decl(*panel_toggle_decl));
-    uiItemR(panel_layout.header,
-            &toggle_ptr,
-            "default_value",
-            UI_ITEM_NONE,
-            panel_decl.name,
-            ICON_NONE);
+    panel_layout.header->prop(&toggle_ptr,
+                              "default_value",
+                              UI_ITEM_NONE,
+                              CTX_IFACE_(panel_translation_context, panel_decl.name),
+                              ICON_NONE);
   }
   else {
-    uiItemL(panel_layout.header, panel_decl.name, ICON_NONE);
+    panel_layout.header->label(CTX_IFACE_(panel_translation_context, panel_decl.name), ICON_NONE);
   }
 
   if (!panel_layout.body) {
@@ -809,7 +810,7 @@ static void ui_node_draw_node(
   else {
     if (node.typeinfo->draw_buttons) {
       if (node.type_legacy != NODE_GROUP) {
-        uiLayoutSetPropSep(&layout, true);
+        layout.use_property_split_set(true);
         node.typeinfo->draw_buttons(&layout, &C, &nodeptr);
       }
     }
@@ -828,7 +829,7 @@ static void ui_node_draw_input(uiLayout &layout,
                                int depth,
                                const char *panel_label)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
   uiLayout *row = nullptr;
   bool dependency_loop;
 
@@ -849,16 +850,16 @@ static void ui_node_draw_input(uiLayout &layout,
   PointerRNA inputptr = RNA_pointer_create_discrete(&ntree.id, &RNA_NodeSocket, &input);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
 
-  row = uiLayoutRow(&layout, true);
+  row = &layout.row(true);
 
   uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(row);
   /* Decorations are added manually here. */
-  uiLayoutSetPropDecorate(row, false);
+  row->use_property_decorate_set(false);
   /* Empty decorator item for alignment. */
   bool add_dummy_decorator = false;
 
   {
-    uiLayout *sub = uiLayoutRow(split_wrapper.label_column, true);
+    uiLayout *sub = &split_wrapper.label_column->row(true);
 
     if (depth > 0) {
       UI_block_emboss_set(block, blender::ui::EmbossType::None);
@@ -867,19 +868,19 @@ static void ui_node_draw_input(uiLayout &layout,
                     (lnode->typeinfo->draw_buttons && lnode->type_legacy != NODE_GROUP)))
       {
         int icon = (input.flag & SOCK_COLLAPSED) ? ICON_RIGHTARROW : ICON_DOWNARROW_HLT;
-        uiItemR(sub, &inputptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", icon);
+        sub->prop(&inputptr, "show_expanded", UI_ITEM_R_ICON_ONLY, "", icon);
       }
 
       UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
     }
 
-    sub = uiLayoutRow(sub, true);
-    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
-    uiItemL(sub, node_socket_get_label(&input, panel_label), ICON_NONE);
+    sub = &sub->row(true);
+    sub->alignment_set(blender::ui::LayoutAlign::Right);
+    sub->label(node_socket_get_label(&input, panel_label), ICON_NONE);
   }
 
   if (dependency_loop) {
-    uiItemL(row, RPT_("Dependency Loop"), ICON_ERROR);
+    row->label(RPT_("Dependency Loop"), ICON_ERROR);
     add_dummy_decorator = true;
   }
   else if (lnode) {
@@ -889,14 +890,14 @@ static void ui_node_draw_input(uiLayout &layout,
 
     if (depth == 0 || !(input.flag & SOCK_COLLAPSED)) {
       if (depth == 0) {
-        uiItemS(&layout);
+        layout.separator();
       }
 
       ui_node_draw_node(layout, C, ntree, *lnode, depth);
     }
   }
   else {
-    uiLayout *sub = uiLayoutRow(row, true);
+    uiLayout *sub = &row->row(true);
 
     uiTemplateNodeLink(sub, &C, &ntree, &node, &input);
 
@@ -907,15 +908,15 @@ static void ui_node_draw_input(uiLayout &layout,
     else {
       switch (input.type) {
         case SOCK_VECTOR:
-          uiItemS(sub);
-          sub = uiLayoutColumn(sub, true);
+          sub->separator();
+          sub = &sub->column(true);
           ATTR_FALLTHROUGH;
         case SOCK_FLOAT:
         case SOCK_INT:
         case SOCK_ROTATION:
         case SOCK_BOOLEAN:
         case SOCK_RGBA:
-          uiItemR(sub, &inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
+          sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           if (split_wrapper.decorate_column) {
             uiItemDecoratorR(
                 split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
@@ -930,7 +931,7 @@ static void ui_node_draw_input(uiLayout &layout,
             node_geometry_add_attribute_search_button(C, node, inputptr, *sub);
           }
           else {
-            uiItemR(sub, &inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
+            sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           }
           if (split_wrapper.decorate_column) {
             uiItemDecoratorR(
@@ -939,7 +940,7 @@ static void ui_node_draw_input(uiLayout &layout,
           break;
         }
         case SOCK_MENU:
-          uiItemL(sub, RPT_("Unsupported Menu Socket"), ICON_NONE);
+          sub->label(RPT_("Unsupported Menu Socket"), ICON_NONE);
           break;
         case SOCK_CUSTOM:
           input.typeinfo->draw(&C, sub, &inputptr, &nodeptr, input.name);

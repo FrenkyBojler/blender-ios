@@ -25,8 +25,6 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
-
 #include "BLT_translation.hh"
 
 #include "IMB_colormanagement.hh"
@@ -632,7 +630,7 @@ static void ui_block_colorpicker(uiBlock *block,
   bt->custom_data = cpicker;
 
   /* Could use:
-   * uiItemFullR(col, ptr, prop, -1, 0, UI_ITEM_R_EXPAND | UI_ITEM_R_SLIDER, "", ICON_NONE);
+   * col->prop(ptr, prop, -1, 0, UI_ITEM_R_EXPAND | UI_ITEM_R_SLIDER, "", ICON_NONE);
    * but need to use UI_but_func_set for updating other fake buttons */
 
   /* HSV values */

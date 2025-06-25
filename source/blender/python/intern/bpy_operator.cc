@@ -21,7 +21,7 @@
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "BPY_extern.hh"
 #include "bpy_capi_utils.hh"
@@ -213,7 +213,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
                  msg ? msg : "failed, context is incorrect");
     CTX_wm_operator_poll_msg_clear(C);
     if (msg_free) {
-      MEM_freeN((void *)msg);
+      MEM_freeN(msg);
     }
     error_val = -1;
   }

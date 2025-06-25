@@ -176,7 +176,7 @@ void PAINTCURVE_OT_new(wmOperatorType *ot)
   ot->description = "Add new paint curve";
   ot->idname = "PAINTCURVE_OT_new";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = paintcurve_new_exec;
   ot->poll = paint_curve_poll;
 
@@ -200,8 +200,8 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
 
   ED_paintcurve_undo_push_begin(op->type->name);
 
-  PaintCurvePoint *pcp = static_cast<PaintCurvePoint *>(
-      MEM_mallocN((pc->tot_points + 1) * sizeof(PaintCurvePoint), "PaintCurvePoint"));
+  PaintCurvePoint *pcp = MEM_malloc_arrayN<PaintCurvePoint>((pc->tot_points + 1),
+                                                            "PaintCurvePoint");
   int add_index = pc->add_index;
 
   if (pc->points) {
@@ -220,7 +220,7 @@ static void paintcurve_point_add(bContext *C, wmOperator *op, const int loc[2])
   pc->tot_points++;
 
   /* initialize new point */
-  memset(&pcp[add_index], 0, sizeof(PaintCurvePoint));
+  pcp[add_index] = PaintCurvePoint{};
   copy_v3_v3(pcp[add_index].bez.vec[0], vec);
   copy_v3_v3(pcp[add_index].bez.vec[1], vec);
   copy_v3_v3(pcp[add_index].bez.vec[2], vec);
@@ -277,7 +277,7 @@ void PAINTCURVE_OT_add_point(wmOperatorType *ot)
   ot->description = ot->name;
   ot->idname = "PAINTCURVE_OT_add_point";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_add_point_invoke;
   ot->exec = paintcurve_add_point_exec;
   ot->poll = paint_curve_poll;
@@ -330,8 +330,7 @@ static wmOperatorStatus paintcurve_delete_point_exec(bContext *C, wmOperator *op
     int new_tot = pc->tot_points - tot_del;
     PaintCurvePoint *points_new = nullptr;
     if (new_tot > 0) {
-      points_new = static_cast<PaintCurvePoint *>(
-          MEM_mallocN(new_tot * sizeof(PaintCurvePoint), "PaintCurvePoint"));
+      points_new = MEM_malloc_arrayN<PaintCurvePoint>(new_tot, "PaintCurvePoint");
     }
 
     for (i = 0, pcp = pc->points; i < pc->tot_points; i++, pcp++) {
@@ -371,7 +370,7 @@ void PAINTCURVE_OT_delete_point(wmOperatorType *ot)
   ot->description = ot->name;
   ot->idname = "PAINTCURVE_OT_delete_point";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = paintcurve_delete_point_exec;
   ot->poll = paint_curve_poll;
 
@@ -519,7 +518,7 @@ void PAINTCURVE_OT_select(wmOperatorType *ot)
   ot->description = "Select a paint curve point";
   ot->idname = "PAINTCURVE_OT_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_select_point_invoke;
   ot->exec = paintcurve_select_point_exec;
   ot->poll = paint_curve_poll;
@@ -586,8 +585,7 @@ static wmOperatorStatus paintcurve_slide_invoke(bContext *C, wmOperator *op, con
   if (pcp) {
     ARegion *region = CTX_wm_region(C);
     wmWindow *window = CTX_wm_window(C);
-    PointSlideData *psd = static_cast<PointSlideData *>(
-        MEM_mallocN(sizeof(PointSlideData), "PointSlideData"));
+    PointSlideData *psd = MEM_mallocN<PointSlideData>("PointSlideData");
     copy_v2_v2_int(psd->initial_loc, event->mval);
     psd->event = event->type;
     psd->pcp = pcp;
@@ -666,7 +664,7 @@ void PAINTCURVE_OT_slide(wmOperatorType *ot)
   ot->description = "Select and slide paint curve point";
   ot->idname = "PAINTCURVE_OT_slide";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_slide_invoke;
   ot->modal = paintcurve_slide_modal;
   ot->poll = paint_curve_poll;
@@ -720,7 +718,7 @@ void PAINTCURVE_OT_draw(wmOperatorType *ot)
   ot->description = "Draw curve";
   ot->idname = "PAINTCURVE_OT_draw";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = paintcurve_draw_exec;
   ot->poll = paint_curve_poll;
 
@@ -765,7 +763,7 @@ void PAINTCURVE_OT_cursor(wmOperatorType *ot)
   ot->description = "Place cursor";
   ot->idname = "PAINTCURVE_OT_cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = paintcurve_cursor_invoke;
   ot->poll = paint_curve_poll;
 

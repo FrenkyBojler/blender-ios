@@ -8,7 +8,7 @@
 
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_inverse_eval_params.hh"
@@ -31,7 +31,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "operation", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_update(bNodeTree *ntree, bNode *node)
