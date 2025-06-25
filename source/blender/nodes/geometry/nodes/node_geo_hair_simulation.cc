@@ -141,7 +141,7 @@ static Field<float> material_length()
   return bke::AttributeFieldInput::Create<float>(material_length_attr);
 }
 
-static Field<int> target_point(const TargetPointAttribute target_point_attr)
+static Field<int> UNUSED_FUNCTION(target_point)(const TargetPointAttribute target_point_attr)
 {
   return bke::AttributeFieldInput::Create<int>(target_point_attribute(target_point_attr));
 }
@@ -857,7 +857,7 @@ static void foreach_root_surface_transform(bke::PointCloudComponent &constraints
     }
     const int target_curve_i = point_to_curve_map[target_point_i];
     const float4x4 &surface_transform = curve_surface_transforms[target_curve_i];
-    fn(constraint_i, surface_transform);
+    fn(constraint_i, target_point_i, surface_transform);
   });
 }
 
@@ -868,7 +868,7 @@ static std::optional<Error> capture_root_surface_position(
     const Span<float4x4> curve_surface_transforms)
 {
   MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
-  const VArraySpan positions = *constraint_attributes.lookup_or_default<float3>(
+  const VArraySpan curve_positions = *curves.attributes().lookup_or_default<float3>(
       hairsim::attributes::position, AttrDomain::Point, float3(0.0f));
   SpanAttributeWriter surface_position_writer =
       constraint_attributes.lookup_or_add_for_write_span<float3>(surface_position_attr,
@@ -878,9 +878,9 @@ static std::optional<Error> capture_root_surface_position(
       selection_field,
       curves,
       curve_surface_transforms,
-      [&](const int constraint_i, const float4x4 &surface_transform) {
+      [&](const int constraint_i, const int target_point_i, const float4x4 &surface_transform) {
         surface_position_writer.span[constraint_i] = math::transform_point(
-            math::invert(surface_transform), positions[constraint_i]);
+            math::invert(surface_transform), curve_positions[target_point_i]);
       });
   surface_position_writer.finish();
   return std::nullopt;
@@ -893,20 +893,21 @@ static std::optional<Error> capture_root_surface_rotation(
     const Span<float4x4> curve_surface_transforms)
 {
   MutableAttributeAccessor constraint_attributes = *constraints.attributes_for_write();
-  const VArraySpan rotations = *constraint_attributes.lookup_or_default<math::Quaternion>(
+  const VArraySpan curve_rotations = *curves.attributes().lookup_or_default<math::Quaternion>(
       hairsim::attributes::rotation, AttrDomain::Point, math::Quaternion::identity());
   SpanAttributeWriter surface_rotation_writer =
       constraint_attributes.lookup_or_add_for_write_span<math::Quaternion>(surface_rotation_attr,
                                                                            AttrDomain::Point);
-  foreach_root_surface_transform(constraints,
-                                 selection_field,
-                                 curves,
-                                 curve_surface_transforms,
-                                 [&](const int constraint_i, const float4x4 &surface_transform) {
-                                   surface_rotation_writer.span[constraint_i] =
-                                       math::to_quaternion(math::invert(surface_transform)) *
-                                       rotations[constraint_i];
-                                 });
+  foreach_root_surface_transform(
+      constraints,
+      selection_field,
+      curves,
+      curve_surface_transforms,
+      [&](const int constraint_i, const int target_point_i, const float4x4 &surface_transform) {
+        surface_rotation_writer.span[constraint_i] = math::to_quaternion(
+                                                         math::invert(surface_transform)) *
+                                                     curve_rotations[target_point_i];
+      });
   surface_rotation_writer.finish();
   return std::nullopt;
 }
@@ -927,7 +928,9 @@ static std::optional<Error> apply_root_surface_position(
                                  selection_field,
                                  curves,
                                  curve_surface_transforms,
-                                 [&](const int constraint_i, const float4x4 &surface_transform) {
+                                 [&](const int constraint_i,
+                                     const int /*target_point_i*/,
+                                     const float4x4 &surface_transform) {
                                    goal_position_writer.span[constraint_i] = math::transform_point(
                                        surface_transform, surface_positions[constraint_i]);
                                  });
@@ -952,7 +955,9 @@ static std::optional<Error> apply_root_surface_rotation(
       selection_field,
       curves,
       curve_surface_transforms,
-      [&](const int constraint_i, const float4x4 &surface_transform) {
+      [&](const int constraint_i,
+          const int /*target_point_i*/,
+          const float4x4 &surface_transform) {
         goal_rotation_writer.span[constraint_i] = math::to_quaternion(surface_transform) *
                                                   surface_rotations[constraint_i];
       });
