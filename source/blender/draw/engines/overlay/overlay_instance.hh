@@ -116,6 +116,10 @@ class Instance : public DrawEngine {
 
   Instance() : selection_type_(select::SelectionType::DISABLED){};
   Instance(const SelectionType selection_type) : selection_type_(selection_type){};
+  ~Instance()
+  {
+    DRW_text_cache_destroy(state.dt);
+  }
 
   blender::StringRefNull name_get() final
   {
@@ -152,6 +156,8 @@ class Instance : public DrawEngine {
   void draw_node(Manager &manager, View &view);
   void draw_v2d(Manager &manager, View &view);
   void draw_v3d(Manager &manager, View &view);
+
+  void draw_text(Framebuffer &framebuffer);
 
   void ensure_weight_ramp_texture();
 };
