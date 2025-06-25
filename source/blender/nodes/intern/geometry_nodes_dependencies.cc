@@ -51,7 +51,7 @@ void GeometryNodesEvalDependencies::add_object(Object *object,
   deps.geometry |= object_deps.geometry;
   deps.transform |= object_deps.transform;
   deps.camera_parameters |= object_deps.camera_parameters;
-  deps.armature_pose |= object_deps.armature_pose; // Добавляем зависимость от позы
+  deps.armature_pose |= object_deps.armature_pose;
 }
 
 void GeometryNodesEvalDependencies::merge(const GeometryNodesEvalDependencies &other)
@@ -171,14 +171,14 @@ static void add_own_transform_dependencies(const bNodeTree &tree,
     needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
   }
 
-  for (const bNode *node : tree.nodes_by_type("GeometryNodeArmatureInfo")) {
-    if (node->is_muted()) {
-      continue;
-    }
-    const NodeGeometryArmatureInfo &storage = *static_cast<const NodeGeometryArmatureInfo *>(
-        node->storage);
-    needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
-  }
+  // for (const bNode *node : tree.nodes_by_type("GeometryNodeArmatureInfo")) {
+  //   if (node->is_muted()) {
+  //     continue;
+  //   }
+  //   const NodeGeometryArmatureInfo &storage = *static_cast<const NodeGeometryArmatureInfo *>(
+  //       node->storage);
+  //   needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
+  // }
 
   deps.needs_own_transform |= needs_own_transform;
 }

@@ -12,7 +12,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -41,7 +41,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_output<decl::Rotation>("Rotation");
   b.add_output<decl::Vector>("Scale");
   b.add_output<decl::Geometry>("Geometry");
-  b.add_output<decl::Float>("Is Armature").description("Returns 1.0 if the object is an armature, otherwise 0.0");
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -57,20 +56,15 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Object *object = params.extract_input<Object *>("Object");
 
-  // Set "Is Armature" output immediately to avoid any issues with early returns
-  // Default to 0.0 when no object is provided
-  const float is_armature = (object && object->type == OB_ARMATURE) ? 1.0f : 0.0f;
-  params.set_output("Is Armature", is_armature);
-
   const Object *self_object = params.self_object();
   if (object == nullptr) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  const bool self_transform_evaluated = false;
-  const bool object_transform_evaluated = false;
-  const bool object_geometry_evaluated = false;
+  const bool self_transform_evaluated = DEG_object_transform_is_evaluated(*self_object);
+  const bool object_transform_evaluated = DEG_object_transform_is_evaluated(*object);
+  const bool object_geometry_evaluated = DEG_object_geometry_is_evaluated(*object);
 
   float4x4 output_transform = float4x4::identity();
   bool show_transform_error = false;

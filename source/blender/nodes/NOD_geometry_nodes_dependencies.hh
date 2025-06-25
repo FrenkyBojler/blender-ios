@@ -31,6 +31,7 @@ struct GeometryNodesEvalDependencies {
     /* Влияет ли поза объекта-арматуры на результат. */ 
     bool armature_pose = false;
 
+
     BLI_STRUCT_EQUALITY_OPERATORS_4(ObjectDependencyInfo, geometry, transform, camera_parameters, armature_pose);
   };
   static constexpr ObjectDependencyInfo all_object_deps{true, true, true, true};
