@@ -728,6 +728,37 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
+      if (node->is_type("GeometryNodeClosureInput")) {
+        const auto &input_storage = *static_cast<const NodeGeometryClosureInput *>(node->storage);
+        const bNode *closure_output_node = node->owner_tree().node_by_id(
+            input_storage.output_node_id);
+        if (!closure_output_node) {
+          continue;
+        }
+        const auto &output_storage = *static_cast<const NodeGeometryClosureOutput *>(
+            closure_output_node->storage);
+        const nodes::SocketInterfaceKey key(
+            output_storage.input_items.items[socket->index()].name);
+        const bNodeSocket &closure_output_socket = closure_output_node->output_socket(0);
+        const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
+            {socket.context, &closure_output_socket},
+            compute_context_cache,
+            "GeometryNodeEvaluateClosure",
+            true);
+        for (const nodes::SocketInContext &target_socket : target_sockets) {
+          const nodes::NodeInContext target_node = target_socket.owner_node();
+          const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
+              target_node.node->storage);
+          for (const int i : IndexRange(evaluate_storage.input_items.items_num)) {
+            const NodeGeometryEvaluateClosureInputItem &item =
+                evaluate_storage.input_items.items[i];
+            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+              add_if_new(target_node.input_socket(i + 1), bundle_path);
+            }
+          }
+        }
+        continue;
+      }
       if (node->is_type("GeometryNodeCombineBundle")) {
         if (bundle_path.is_empty()) {
           continue;
