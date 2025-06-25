@@ -89,13 +89,14 @@
 #include "RNA_enum_types.hh"
 #include "RNA_types.hh"
 
+#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 
 #include "CLG_log.h"
 
 /* For menu/popup icons etc. */
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -1925,8 +1926,8 @@ static void shade_auto_smooth_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->prop(op->ptr, "use_auto_smooth", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
