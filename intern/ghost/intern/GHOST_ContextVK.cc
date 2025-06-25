@@ -25,8 +25,7 @@
 
 #include "CLG_log.h"
 
-#include <vector>
-
+#include <array>
 #include <cassert>
 #include <cstdio>
 #include <cstring>
@@ -34,6 +33,7 @@
 #include <mutex>
 #include <optional>
 #include <sstream>
+#include <vector>
 
 #include <sys/stat.h>
 
@@ -164,7 +164,12 @@ class GHOST_DeviceVK {
 
   uint32_t generic_queue_family = 0;
 
-  VkPhysicalDeviceProperties properties = {};
+  VkPhysicalDeviceProperties2 properties = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_PROPERTIES_2,
+  };
+  VkPhysicalDeviceVulkan12Properties properties_12 = {
+      VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_2_PROPERTIES,
+  };
   VkPhysicalDeviceFeatures2 features = {};
   VkPhysicalDeviceVulkan11Features features_11 = {};
   VkPhysicalDeviceVulkan12Features features_12 = {};
@@ -182,7 +187,8 @@ class GHOST_DeviceVK {
   GHOST_DeviceVK(VkInstance vk_instance, VkPhysicalDevice vk_physical_device)
       : instance(vk_instance), physical_device(vk_physical_device)
   {
-    vkGetPhysicalDeviceProperties(physical_device, &properties);
+    properties.pNext = &properties_12;
+    vkGetPhysicalDeviceProperties2(physical_device, &properties);
 
     features.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FEATURES_2;
     features_11.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_VULKAN_1_1_FEATURES;
@@ -488,7 +494,7 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
 #endif
 
     int device_score = 0;
-    switch (device_vk.properties.deviceType) {
+    switch (device_vk.properties.properties.deviceType) {
       case VK_PHYSICAL_DEVICE_TYPE_DISCRETE_GPU:
         device_score = 400;
         break;
@@ -506,8 +512,8 @@ static GHOST_TSuccess ensure_vulkan_device(VkInstance vk_instance,
     }
     /* User has configured a preferred device. Add bonus score when vendor and device match. Driver
      * id isn't considered as drivers update more frequently and can break the device selection. */
-    if (device_vk.properties.deviceID == preferred_device.device_id &&
-        device_vk.properties.vendorID == preferred_device.vendor_id)
+    if (device_vk.properties.properties.deviceID == preferred_device.device_id &&
+        device_vk.properties.properties.vendorID == preferred_device.vendor_id)
     {
       device_score += 500;
       if (preferred_device.index == device_index) {
@@ -846,21 +852,19 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   vector<VkSurfaceFormatKHR> formats(format_count);
   vkGetPhysicalDeviceSurfaceFormatsKHR(physical_device, surface, &format_count, formats.data());
 
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-        format.format == VK_FORMAT_R8G8B8A8_UNORM)
-    {
-      r_surfaceFormat = format;
-      return true;
-    }
-  }
+  array<pair<VkColorSpaceKHR, VkFormat>, 4> selection_order = {
+      make_pair(VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R16G16B16A16_SFLOAT),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_R8G8B8A8_UNORM),
+      make_pair(VK_COLOR_SPACE_SRGB_NONLINEAR_KHR, VK_FORMAT_B8G8R8A8_UNORM),
+  };
 
-  for (const VkSurfaceFormatKHR &format : formats) {
-    if (format.colorSpace == VK_COLOR_SPACE_SRGB_NONLINEAR_KHR &&
-        format.format == VK_FORMAT_B8G8R8A8_UNORM)
-    {
-      r_surfaceFormat = format;
-      return true;
+  for (pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
+    for (const VkSurfaceFormatKHR &format : formats) {
+      if (format.colorSpace == pair.first && format.format == pair.second) {
+        r_surfaceFormat = format;
+        return true;
+      }
     }
   }
 
@@ -987,13 +991,18 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
    * Minimized windows have an extent of 0,0. Although it fits in the specs returned by
    * #vkGetPhysicalDeviceSurfaceCapabilitiesKHR.
    *
-   * Ref #138032
+   * The fix is limited to NVIDIA. AMD drivers finds the swapchain to be sub-optimal and
+   * asks Blender to recreate the swapchain over and over again until it gets out of memory.
+   *
+   * Ref #138032, #139815
    */
-  if (m_render_extent.width == 0) {
-    m_render_extent.width = 1;
-  }
-  if (m_render_extent.height == 0) {
-    m_render_extent.height = 1;
+  if (vulkan_device->properties_12.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
+    if (m_render_extent.width == 0) {
+      m_render_extent.width = 1;
+    }
+    if (m_render_extent.height == 0) {
+      m_render_extent.height = 1;
+    }
   }
 
   /* Use double buffering when using FIFO. Increasing the number of images could stall when doing
@@ -1042,7 +1051,7 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   create_info.imageExtent = m_render_extent;
   create_info.imageArrayLayers = 1;
   create_info.imageUsage = VK_IMAGE_USAGE_TRANSFER_DST_BIT;
-  create_info.preTransform = VK_SURFACE_TRANSFORM_IDENTITY_BIT_KHR;
+  create_info.preTransform = capabilities.currentTransform;
   create_info.compositeAlpha = VK_COMPOSITE_ALPHA_OPAQUE_BIT_KHR;
   create_info.presentMode = present_mode;
   create_info.clipped = VK_TRUE;
@@ -1196,6 +1205,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     requireExtension(extensions_available, extensions_enabled, VK_KHR_SURFACE_EXTENSION_NAME);
     requireExtension(extensions_available, extensions_enabled, native_surface_extension_name);
     required_device_extensions.push_back(VK_KHR_SWAPCHAIN_EXTENSION_NAME);
+    optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
 
     /* X11 doesn't use the correct swapchain offset, flipping can squash the first frames. */
     const bool use_swapchain_maintenance1 =

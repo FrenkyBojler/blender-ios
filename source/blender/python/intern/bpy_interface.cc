@@ -16,6 +16,7 @@
 #ifdef WITH_PYTHON_MODULE
 #  include "pylifecycle.h" /* For `Py_Version`. */
 #endif
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "CLG_log.h"
 
@@ -57,7 +58,6 @@
 
 /* `inittab` initialization functions. */
 #include "../bmesh/bmesh_py_api.hh"
-#include "../generic/bgl.hh"
 #include "../generic/bl_math_py_api.hh"
 #include "../generic/blf_py_api.hh"
 #include "../generic/idprop_py_api.hh"
@@ -272,7 +272,6 @@ static _inittab bpy_internal_modules[] = {
     {"mathutils.kdtree", PyInit_mathutils_kdtree},
 #endif
     {"_bpy_path", BPyInit__bpy_path},
-    {"bgl", BPyInit_bgl},
     {"blf", BPyInit_blf},
     {"bl_math", BPyInit_bl_math},
     {"imbuf", BPyInit_imbuf},
@@ -649,7 +648,7 @@ void BPY_python_backtrace(FILE *fp)
   fputs("\n# Python backtrace\n", fp);
 
   /* Can happen in rare cases. */
-  if (!_PyThreadState_UncheckedGet()) {
+  if (!PyThreadState_GetUnchecked()) {
     return;
   }
   PyFrameObject *frame = PyEval_GetFrame();
