@@ -123,6 +123,7 @@ static Mesh *remesh_quadriflow(const Mesh *input_mesh,
   }
 
   mesh_calc_edges(*mesh, false, false);
+
   MEM_freeN(qrd.out_faces);
   MEM_freeN(qrd.out_verts);
 

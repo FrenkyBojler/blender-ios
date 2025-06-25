@@ -229,7 +229,7 @@ Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
   Tree pbvh(Type::Mesh);
   const Span<float3> vert_positions = mesh.vert_positions();
 
-  const Array<MeshGroup> &spatial_groups = *mesh.runtime->spatial_groups;
+  const Span<MeshGroup> &spatial_groups = *mesh.runtime->spatial_groups;
 
   if (spatial_groups.is_empty()) {
     return pbvh;

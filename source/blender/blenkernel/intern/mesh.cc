@@ -75,6 +75,7 @@
 
 #include "BLO_read_write.hh"
 
+/** Using STACK_FIXED_DEPTH to keep the implementation in line with pbvh.cc.*/
 #define STACK_FIXED_DEPTH 100
 
 using blender::float3;
@@ -938,31 +939,22 @@ void mesh_apply_spatial_organization(Mesh &mesh)
     node.parent = local_group.parent;
     node.children_offset = local_group.children_offset;
     node.corners_count = local_group.corner_count;
+    node.unique_verts = IndexRange(0, 0);
+    node.faces = IndexRange(0, 0);
+    if (local_group.children_offset == 0 && !local_group.faces.is_empty()) {
+      int unique_start = (node_idx == 0) ? 0 : group_unique_offsets[node_idx];
+      int unique_end = group_unique_offsets[node_idx + 1];
+      node.unique_verts = IndexRange(unique_start, unique_end - unique_start);
 
-    if (local_group.children_offset != 0) {
-      node.unique_verts = IndexRange(0, 0);
-      node.faces = IndexRange(0, 0);
-    }
-    else {
-      if (!local_group.faces.is_empty()) {
-        int unique_start = (node_idx == 0) ? 0 : group_unique_offsets[node_idx];
-        int unique_end = group_unique_offsets[node_idx + 1];
-        node.unique_verts = IndexRange(unique_start, unique_end - unique_start);
+      int face_start = (node_idx == 0) ? 0 : group_face_offsets[node_idx];
+      int face_end = group_face_offsets[node_idx + 1];
+      node.faces = IndexRange(face_start, face_end - face_start);
 
-        int face_start = (node_idx == 0) ? 0 : group_face_offsets[node_idx];
-        int face_end = group_face_offsets[node_idx + 1];
-        node.faces = IndexRange(face_start, face_end - face_start);
-
-        if (!local_group.shared_verts.is_empty()) {
-          node.shared_verts = Array<int>(local_group.shared_verts.size());
-          for (const int j : local_group.shared_verts.index_range()) {
-            node.shared_verts[j] = local_group.shared_verts[j];
-          }
+      if (!local_group.shared_verts.is_empty()) {
+        node.shared_verts = Array<int>(local_group.shared_verts.size());
+        for (const int j : local_group.shared_verts.index_range()) {
+          node.shared_verts[j] = local_group.shared_verts[j];
         }
-      }
-      else {
-        node.unique_verts = IndexRange(0, 0);
-        node.faces = IndexRange(0, 0);
       }
     }
   }

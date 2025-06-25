@@ -1,3 +1,8 @@
+# SPDX-FileCopyrightText: 2022 Blender Authors
+#
+# SPDX-License-Identifier: Apache-2.0
+
+# ./blender.bin --background --python tests/python/bl_pyapi_text.py -- --verbose
 import bpy
 import unittest
 
@@ -31,6 +36,15 @@ class TestMeshSpatialOrganization(unittest.TestCase):
             'vertex_count': len(vertices)
         }
 
+    def create_reference_mesh(self, source_obj):
+        """Create a reference copy of the mesh for comparison"""
+        bpy.context.view_layer.objects.active = source_obj
+        source_obj.select_set(True)
+        bpy.ops.object.duplicate()
+        reference_obj = bpy.context.active_object
+        reference_obj.name = "reference_mesh"
+        return reference_obj
+
     def test_spatial_organization_changes_vertex_order(self):
         plane = self.create_subdivided_plane(subdivisions=50)
         initial_data = self.get_vertex_data(plane)
@@ -40,15 +54,16 @@ class TestMeshSpatialOrganization(unittest.TestCase):
         vertices_changed = initial_data['vertices'] != final_data['vertices']
         self.assertTrue(vertices_changed)
 
+    def test_spatial_organization_preserves_topology(self):
+        plane = self.create_subdivided_plane(subdivisions=50)
+        reference_plane = self.create_reference_mesh(plane)
+        bpy.ops.mesh.reorder_vertices_spatial()
 
-def run_tests():
-    loader = unittest.TestLoader()
-    suite = loader.loadTestsFromTestCase(TestMeshSpatialOrganization)
-    runner = unittest.TextTestRunner(verbosity=2)
-    result = runner.run(suite)
-    return result.wasSuccessful()
+        comparison_result = plane.data.unit_test_compare(mesh=reference_plane.data)
+        self.assertEqual(comparison_result, "The geometries are the same up to a change of indices")
 
 
-if __name__ == "__main__":
-    success = run_tests()
-    print(f"\nTests {'PASSED' if success else 'FAILED'}")
+if __name__ == '__main__':
+    import sys
+    sys.argv = [__file__] + (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
+    unittest.main()
