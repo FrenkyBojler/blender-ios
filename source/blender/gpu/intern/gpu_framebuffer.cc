@@ -481,6 +481,8 @@ void GPU_framebuffer_clear_color(GPUFrameBuffer *fb, const float clear_col[4])
 
   /* A dummy VBO containing 3 points, attributes are not used. */
   GPUVertFormat format = {0};
+  GPU_vertformat_attr_add(&format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32_32);
+
   blender::gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, 3);
   blender::gpu::Batch *batch = GPU_batch_create_ex(
