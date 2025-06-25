@@ -871,6 +871,8 @@ DEF_ICON(MEMORY)
 DEF_ICON_CURSOR(CURSOR_POINTER)
 DEF_ICON_CURSOR(CURSOR_TEXT_EDIT)
 DEF_ICON_CURSOR(CURSOR_STOP)
+DEF_ICON_CURSOR(CURSOR_CROSSHAIR)
+DEF_ICON_CURSOR(CURSOR_PENCIL)
 
 /* The items above are initiated sequentially while the ones that
  * follow are initiated individually. Therefore this item marks

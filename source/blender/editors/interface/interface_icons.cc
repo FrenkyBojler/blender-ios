@@ -978,6 +978,8 @@ static void init_internal_icons()
   def_internal_cursor(ICON_CURSOR_POINTER, 0.0f, 1.0f, 1.0f);
   def_internal_cursor(ICON_CURSOR_TEXT_EDIT, 0.5f, 0.5f, 0.7f);
   def_internal_cursor(ICON_CURSOR_STOP, 0.5f, 0.5f, 0.9f);
+  def_internal_cursor(ICON_CURSOR_CROSSHAIR, 0.5f, 0.5f, 1.0f);
+  def_internal_cursor(ICON_CURSOR_PENCIL, 0.0f, 1.0f, 1.0f);
 
   def_internal_vicon(ICON_RGB_RED, vicon_rgb_red_draw);
   def_internal_vicon(ICON_RGB_GREEN, vicon_rgb_green_draw);

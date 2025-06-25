@@ -284,6 +284,8 @@ if(WITH_BLENDER)
       cube
       current_file
       cursor
+      cursor_crosshair
+      cursor_pencil
       cursor_pointer
       cursor_stop
       cursor_text_edit

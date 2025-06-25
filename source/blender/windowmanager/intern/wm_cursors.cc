@@ -197,6 +197,13 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
     case WM_CURSOR_STOP:
       icon_id = ICON_CURSOR_STOP;
       break;
+    case WM_CURSOR_PAINT_BRUSH:
+      icon_id = ICON_CURSOR_PENCIL;
+      break;
+    case WM_CURSOR_EDIT:
+    case WM_CURSOR_CROSS:
+      icon_id = ICON_CURSOR_CROSSHAIR;
+      break;
     default:
       icon_id = ICON_CURSOR_POINTER;
   }
