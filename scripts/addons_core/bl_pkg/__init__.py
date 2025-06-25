@@ -478,7 +478,6 @@ def _remote_asset_libraries_sync_done(downloader: _RemoteAssetListingDownloader)
     match downloader.status:
         case DownloadStatus.LOADING:
             print("Unexpected: `on_done_callback` called while downloader status is loading")
-            pass
         case DownloadStatus.FINISHED_SUCCESSFULLY:
             wm.asset_library_status_finished_loading(downloader.remote_url)
         case DownloadStatus.FAILED:
