@@ -638,6 +638,11 @@ static void rna_PoseChannel_custom_shape_transform_set(PointerRNA *ptr,
       ob, (Object *)value.owner_id, static_cast<bPoseChannel *>(value.data));
 }
 
+bool rna_Pose_custom_shape_object_poll(PointerRNA * /*ptr*/, PointerRNA value)
+{
+  return (reinterpret_cast<Object *>(value.owner_id))->type != OB_ARMATURE;
+}
+
 #else
 
 void rna_def_actionbone_group_common(StructRNA *srna, int update_flag, const char *update_cb)
@@ -1099,6 +1104,8 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop, "Custom Object", "Object that defines custom display shape for this bone");
   RNA_def_property_editable_func(prop, "rna_PoseChannel_proxy_editable");
+  RNA_def_property_pointer_funcs(
+      prop, nullptr, nullptr, nullptr, "rna_Pose_custom_shape_object_poll");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_dependency_update");
 
   prop = RNA_def_property(srna, "custom_shape_scale_xyz", PROP_FLOAT, PROP_XYZ);
