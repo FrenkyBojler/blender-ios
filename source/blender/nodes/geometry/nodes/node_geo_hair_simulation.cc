@@ -1180,6 +1180,29 @@ static Behavior separate_behavior_bundle(const BundlePtr &bundle,
 
 using ErrorFn = std::function<void(NodeWarningType type, const StringRef message)>;
 
+/* Compute a rotation aligning the curve tangent with the Z axis and curve normal with X axis. */
+static void store_initial_curve_rotation(CurveComponent &hair_component)
+{
+  /* Use the segment direction here rather than the curve tangent, since the Z axis of the rotation
+   * should be perfectly aligned with the segment.*/
+  Field<float3> tangent = hairsim::field_ops::curve_segment(hairsim::field_inputs::position());
+  /* Arguments "legacy normals" and "true normals" are irrelevant for curves. */
+  Field<float3> normal(std::make_shared<bke::NormalFieldInput>(false, false));
+
+  auto rotation_fn = mf::build::SI2_SO<float3, float3, math::Quaternion>(
+      "Segment Rotation", [](const float3 &tangent, const float3 &normal) -> math::Quaternion {
+        const float3 z_axis = math::normalize(tangent);
+        const float3 y_axis = math::normalize(math::cross(z_axis, normal));
+        const float3 x_axis = math::cross(y_axis, z_axis);
+        const float3x3 rotation(x_axis, y_axis, z_axis);
+        return math::to_quaternion(rotation);
+      });
+  Field<math::Quaternion> rotation_field = {
+      FieldOperation::Create(rotation_fn, {tangent, normal})};
+  bke::try_capture_field_on_geometry(
+      hair_component, hairsim::attributes::rotation, AttrDomain::Point, rotation_field);
+}
+
 static bool store_hair_rest_shape(GeometryComponent &hair_component)
 {
   return bke::try_capture_fields_on_geometry(
@@ -1772,6 +1795,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   /* Zero time step initializes the hair simulation. */
   if (delta_time == 0.0f) {
+    store_initial_curve_rotation(hair_curves);
     if (!store_hair_rest_shape(hair_curves)) {
       params.error_message_add(NodeWarningType::Error, "Could not store rest shape");
     }

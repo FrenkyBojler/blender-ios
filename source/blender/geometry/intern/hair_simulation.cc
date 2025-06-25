@@ -228,6 +228,14 @@ Field<float> curve_segment_length(const Field<float3> &position_field)
       segment_length_fn, {position_field, field_ops::shifted_curve_value(position_field, 1)}));
 }
 
+Field<float3> curve_segment(const Field<float3> &position_field)
+{
+  static const auto segment_fn = fn::multi_function::build::SI2_SO<float3, float3, float3>(
+      "Segment", [](const float3 &pt, const float3 &pt_next) -> float3 { return pt_next - pt; });
+  return Field<float3>(fn::FieldOperation::Create(
+      segment_fn, {position_field, field_ops::shifted_curve_value(position_field, 1)}));
+}
+
 Field<float> staggered_curve_segment_length(const Field<float3> &position_field)
 {
   static const auto avg_segment_length_fn =

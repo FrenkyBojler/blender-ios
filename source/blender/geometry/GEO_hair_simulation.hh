@@ -57,6 +57,10 @@ fn::Field<float> curve_cross_section(const fn::Field<float> radius_field);
  */
 fn::Field<float3> curve_area_moment(const fn::Field<float> radius_field);
 /**
+ * Segment vector from a point to the next.
+ */
+fn::Field<float3> curve_segment(const fn::Field<float3> &position_field);
+/**
  * Length of segment from each point to the next. Last segment of a curve has zero length.
  */
 fn::Field<float> curve_segment_length(const fn::Field<float3> &position_field);
