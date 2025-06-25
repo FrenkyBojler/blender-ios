@@ -919,7 +919,7 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   if(WITH_LIBMV)
-    list(APPEND compositor_tests keying mask tracking transform)
+    list(APPEND compositor_tests keying mask tracking transform anisotropic_filtering)
   endif()
 
   foreach(comp_test ${compositor_tests})
