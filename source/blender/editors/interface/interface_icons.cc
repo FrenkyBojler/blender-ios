@@ -975,7 +975,7 @@ static void init_internal_icons()
     def_internal_icon(nullptr, x, 0, 0, 0, icontype.type, icontype.theme_color);
   }
 
-  def_internal_cursor(ICON_CURSOR_POINTER, 0.0f, 1.0f, 1.0f);
+  def_internal_cursor(ICON_CURSOR_POINTER, 0.0f, 0.0f, 1.0f);
   def_internal_cursor(ICON_CURSOR_TEXT_EDIT, 0.5f, 0.5f, 0.7f);
   def_internal_cursor(ICON_CURSOR_STOP, 0.5f, 0.5f, 0.9f);
   def_internal_cursor(ICON_CURSOR_CROSSHAIR, 0.5f, 0.5f, 1.0f);
@@ -1157,6 +1157,19 @@ bool UI_icon_get_theme_color(int icon_id, uchar color[4])
 
   DrawInfo *di = icon_ensure_drawinfo(icon);
   return UI_GetIconThemeColor4ubv(di->data.texture.theme_color, color);
+}
+
+bool UI_icon_cursor_get_hotspot(int icon_id, float &factor_x, float &factor_y)
+{
+  Icon *icon = BKE_icon_get(icon_id);
+  DrawInfo *di = static_cast<DrawInfo *>(icon->drawinfo);
+  if (di->type != ICON_TYPE_CURSOR) {
+    return false;
+  }
+
+  factor_x = di->data.cursor.hotspot_x;
+  factor_y = di->data.cursor.hotspot_y;
+  return true;
 }
 
 void UI_icons_init()

@@ -238,6 +238,14 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
     }
   }
 
+  int hotspot_x = 0;
+  int hotspot_y = 0;
+  float factor_x, factor_y;
+  if (UI_icon_cursor_get_hotspot(icon_id, factor_x, factor_y)) {
+    hotspot_x = int(factor_x * (imb->x - 1));
+    hotspot_y = int(factor_y * (imb->y - 1));
+  }
+
   IMB_freeImBuf(imb);
 
   return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
@@ -245,8 +253,8 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
                                     (uint8_t *)mask,
                                     32,
                                     32,
-                                    2,
-                                    2,
+                                    hotspot_x,
+                                    hotspot_y,
                                     false) == GHOST_kSuccess;
 }
 
