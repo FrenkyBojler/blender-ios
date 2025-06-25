@@ -988,7 +988,9 @@ static Map<StringRef, AttributeDomainAndType> gather_attributes_to_propagate(
         }
       }
       if (ELEM(iter.name, "instance_transform", ".reference_index")) {
-        /* These attributes reference potentially temporary instance components that are */
+        /* These attributes reference potentially temporary instance components in the set above.
+         * If we added these names, the string references in the result map would outlive the
+         * attributes they reference. */
         return;
       }
       if (iter.data_type == CD_PROP_STRING) {
