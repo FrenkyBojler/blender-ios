@@ -646,7 +646,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data_with_uvs(
       scene, view_layer, nullptr);
   eUVTexelLock lock = (eUVTexelLock)RNA_enum_get(op->ptr, "lock");
-
+  bool selected_faces = RNA_boolean_get(op->ptr, "use_selected_faces");
   Object *active_object = CTX_data_active_object(C);
   BMEditMesh *em = BKE_editmesh_from_object(active_object);
   BMesh *bm = em->bm;
@@ -656,8 +656,10 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   BMFace *f;
   BMIter iter;
   BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
-    uv_area += BM_face_calc_area_uv(f, offsets.uv);
-    object_area += BM_face_calc_area(f);
+    if (!selected_faces || (f->head.hflag & BM_ELEM_SELECT)) {
+      uv_area += BM_face_calc_area_uv(f, offsets.uv);
+      object_area += BM_face_calc_area(f);
+    }
   }
   float active_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
                               object_area) /
@@ -736,13 +738,16 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
 
   /* identifiers */
   ot->name = "Apply Texel Density";
-  ot->description = "Apply the texel density of active_object to the selected faces";
+  ot->description = "Apply the texel density of the active object to the selected islands";
   ot->idname = "UV_OT_apply_texel_density";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* API callbacks. */
   ot->exec = uv_apply_texel_density_exec;
   ot->poll = ED_operator_uvedit;
+ RNA_def_boolean(
+      ot->srna, "use_selected_faces", false, "Selected Faces", "Only use selected faces on the active object");
+
   RNA_def_enum(ot->srna, "lock", lock_items, UV_LOCK_NONE, "Lock Axis", "Lock axis scaling");
 }
 
