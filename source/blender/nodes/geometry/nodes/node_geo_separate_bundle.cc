@@ -88,7 +88,8 @@ static void node_layout(uiLayout *layout, bContext *C, PointerRNA *node_ptr)
         break;
       }
       case ed::space_node::NodeSyncState::CanBeSynced: {
-        layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+        PointerRNA props = layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
+        RNA_string_set(&props, "node_name", node.name);
         break;
       }
       case ed::space_node::NodeSyncState::ConflictingSyncSources: {

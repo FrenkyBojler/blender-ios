@@ -6,6 +6,9 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_enums.h"
 
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+
 #include "WM_api.hh"
 
 #include "BKE_compute_context_cache.hh"
@@ -343,10 +346,24 @@ static wmOperatorStatus sockets_sync_exec(bContext *C, wmOperator *op)
   const bke::bNodeZoneType &closure_zone_type = *bke::zone_type_by_node_type(
       GEO_NODE_CLOSURE_OUTPUT);
 
+  std::optional<std::string> node_name;
+  PropertyRNA *node_name_prop = RNA_struct_find_property(op->ptr, "node_name");
+  if (RNA_property_is_set(op->ptr, node_name_prop)) {
+    node_name = RNA_property_string_get(op->ptr, node_name_prop);
+  }
+
   for (bNode *node : tree.all_nodes()) {
-    if (!(node->flag & NODE_SELECT)) {
-      continue;
+    if (node_name.has_value()) {
+      if (node->name != node_name) {
+        continue;
+      }
     }
+    else {
+      if (!(node->flag & NODE_SELECT)) {
+        continue;
+      }
+    }
+
     if (node->is_type("GeometryNodeEvaluateClosure")) {
       sync_sockets_evaluate_closure(snode, *node, op->reports);
     }
@@ -387,6 +404,10 @@ void NODE_OT_sockets_sync(wmOperatorType *ot)
   ot->exec = sockets_sync_exec;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  PropertyRNA *prop;
+  prop = RNA_def_string(ot->srna, "node_name", nullptr, 0, "Node Name", nullptr);
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 }
 
 }  // namespace blender::ed::space_node
