@@ -648,32 +648,32 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   eUVTexelLock lock = (eUVTexelLock)RNA_enum_get(op->ptr, "lock");
 
   Object *active_object = CTX_data_active_object(C);
-  BMEditMesh *em_active = BKE_editmesh_from_object(active_object);
-  BMesh *bm_active = em_active->bm;
-  BMUVOffsets offsets = BM_uv_map_offsets_get(bm_active);
-  float active_uv_area = 0.0f;
-  float active_edit_mode_area = 0.0f;
+  BMEditMesh *em = BKE_editmesh_from_object(active_object);
+  BMesh *bm = em->bm;
+  BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
+  float uv_area = 0.0f;
+  float object_area = 0.0f;
   BMFace *f;
   BMIter iter;
-  BM_ITER_MESH (f, &iter, bm_active, BM_FACES_OF_MESH) {
-    active_uv_area += BM_face_calc_area_uv(f, offsets.uv);
-    active_edit_mode_area += BM_face_calc_area(f);
+  BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+    uv_area += BM_face_calc_area_uv(f, offsets.uv);
+    object_area += BM_face_calc_area(f);
   }
-  float active_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * active_uv_area) /
-                              active_edit_mode_area) /
+  float active_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
+                              object_area) /
                          scene->unit.scale_length;
   float cent[1], min[2], max[2];
   for (Object *obedit : objects) {
     if (obedit == active_object) {
       continue; /* Skip active object */
     }
-    float changed = false;
-    BMEditMesh *em = BKE_editmesh_from_object(obedit);
-    BMesh *bm = em->bm;
+    em = BKE_editmesh_from_object(obedit);
+    bm = em->bm;
     if (bm->totvertsel == 0) {
       continue; /* No selected vertices, nothing to do. */
     }
 
+    float changed = false;
     offsets = BM_uv_map_offsets_get(bm);
 
     UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
@@ -681,24 +681,24 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
 
     for (int i = 0; i < element_map->total_islands; i++) {
       UvElement *element = element_map->storage + element_map->island_indices[i];
-      float uv_area = 0.0f;
-      float edit_mode_area = 0.0f;
       Set<BMFace *> visited_faces;
-
       INIT_MINMAX2(min, max);
+      uv_area = 0.0f;
+      object_area = 0.0f;
+
       for (int j = 0; j < element_map->island_total_uvs[i]; j++) {
         float *luv = BM_ELEM_CD_GET_FLOAT_P(element[j].l, offsets.uv);
         minmax_v2v2_v2(min, max, luv);
         if (!visited_faces.contains(element[j].l->f)) {
           uv_area += BM_face_calc_area_uv(element[j].l->f, offsets.uv);
-          edit_mode_area += BM_face_calc_area(element[j].l->f);
+          object_area += BM_face_calc_area(element[j].l->f);
           visited_faces.add(element[j].l->f);
         }
       }
       cent[0] = (max[0] - min[0]) / 2.0;
       cent[1] = (max[1] - min[1]) / 2.0;
       float island_density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
-                                  edit_mode_area) /
+                                  object_area) /
                              scene->unit.scale_length;
 
       float scale = active_density / island_density;
@@ -728,14 +728,14 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
 static void UV_OT_apply_texel_density(wmOperatorType *ot)
 {
   static const EnumPropertyItem lock_items[] = {
-      {UV_LOCK_Y, "LOCK_Y", 0, "Y", "Lock scaling on the Y axis"},
-      {UV_LOCK_X, "LOCK_X", 0, "X", "Lock scaling on the X axis"},
+      {UV_LOCK_Y, "LOCK_Y", 0, "Y Axis", "Lock scaling on the Y axis"},
+      {UV_LOCK_X, "LOCK_X", 0, "X Axis", "Lock scaling on the X axis"},
       {UV_LOCK_NONE, "LOCK_NONE", 0, "None", "Lock scaling on none of the axis"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* identifiers */
-  ot->name = "Apply Texel Desnity";
+  ot->name = "Apply Texel Density";
   ot->description = "Apply the texel density of active_object to the selected faces";
   ot->idname = "UV_OT_apply_texel_density";
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -743,7 +743,7 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = uv_apply_texel_density_exec;
   ot->poll = ED_operator_uvedit;
-  RNA_def_enum(ot->srna, "lock", lock_items, UV_LOCK_NONE, "Lock axis", "Axis to lock scaling");
+  RNA_def_enum(ot->srna, "lock", lock_items, UV_LOCK_NONE, "Lock Axis", "Lock axis scaling");
 }
 
 /** \} */
