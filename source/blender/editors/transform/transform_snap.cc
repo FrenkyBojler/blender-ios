@@ -913,91 +913,8 @@ void initSnapping(TransInfo *t, wmOperator *op)
   t->tsnap.target_operation = snap_target_select_from_spacetype(t);
   t->tsnap.face_nearest_steps = max_ii(ts->snap_face_nearest_steps, 1);
 
-  /* If snap property exists. */
-  PropertyRNA *prop;
-  if (op && (prop = RNA_struct_find_property(op->ptr, "snap")) &&
-      RNA_property_is_set(op->ptr, prop))
-  {
-    if (RNA_property_boolean_get(op->ptr, prop)) {
-      t->modifiers |= MOD_SNAP;
-
-      if ((prop = RNA_struct_find_property(op->ptr, "snap_elements")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        t->tsnap.mode = eSnapMode(RNA_property_enum_get(op->ptr, prop));
-      }
-
-      /* TODO(@gfxcoder): Rename `snap_target` to `snap_source` to avoid previous ambiguity of
-       * "target" (now, "source" is geometry to be moved and "target" is geometry to which moved
-       * geometry is snapped). */
-      if ((prop = RNA_struct_find_property(op->ptr, "snap_target")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        snap_source = eSnapSourceOP(RNA_property_enum_get(op->ptr, prop));
-      }
-
-      if ((prop = RNA_struct_find_property(op->ptr, "snap_point")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        RNA_property_float_get_array(op->ptr, prop, t->tsnap.snap_target);
-        t->modifiers |= MOD_SNAP_FORCED;
-        t->tsnap.status |= SNAP_TARGET_FOUND;
-      }
-
-      /* Snap align only defined in specific cases. */
-      if ((prop = RNA_struct_find_property(op->ptr, "snap_align")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        SET_FLAG_FROM_TEST(
-            t->tsnap.flag, RNA_property_boolean_get(op->ptr, prop), SCE_SNAP_ROTATE);
-
-        RNA_float_get_array(op->ptr, "snap_normal", t->tsnap.snapNormal);
-        normalize_v3(t->tsnap.snapNormal);
-      }
-
-      if ((prop = RNA_struct_find_property(op->ptr, "use_snap_project")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        SET_FLAG_FROM_TEST(
-            t->tsnap.mode, RNA_property_boolean_get(op->ptr, prop), SCE_SNAP_INDIVIDUAL_PROJECT);
-      }
-
-      /* Use_snap_self is misnamed and should be use_snap_active. */
-      if ((prop = RNA_struct_find_property(op->ptr, "use_snap_self")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        SET_FLAG_FROM_TEST(t->tsnap.target_operation,
-                           !RNA_property_boolean_get(op->ptr, prop),
-                           SCE_SNAP_TARGET_NOT_ACTIVE);
-      }
-
-      if ((prop = RNA_struct_find_property(op->ptr, "use_snap_edit")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        SET_FLAG_FROM_TEST(t->tsnap.target_operation,
-                           !RNA_property_boolean_get(op->ptr, prop),
-                           SCE_SNAP_TARGET_NOT_EDITED);
-      }
-
-      if ((prop = RNA_struct_find_property(op->ptr, "use_snap_nonedit")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        SET_FLAG_FROM_TEST(t->tsnap.target_operation,
-                           !RNA_property_boolean_get(op->ptr, prop),
-                           SCE_SNAP_TARGET_NOT_NONEDITED);
-      }
-
-      if ((prop = RNA_struct_find_property(op->ptr, "use_snap_selectable")) &&
-          RNA_property_is_set(op->ptr, prop))
-      {
-        SET_FLAG_FROM_TEST(t->tsnap.target_operation,
-                           RNA_property_boolean_get(op->ptr, prop),
-                           SCE_SNAP_TARGET_ONLY_SELECTABLE);
-      }
-    }
-  }
   /* Use scene defaults only when transform is modal. */
-  else if (t->flag & T_MODAL) {
+  if (t->flag & T_MODAL) {
     if (t->tsnap.flag & SCE_SNAP) {
       t->modifiers |= MOD_SNAP;
     }
@@ -1014,6 +931,87 @@ void initSnapping(TransInfo *t, wmOperator *op)
     SET_FLAG_FROM_TEST(t->tsnap.target_operation,
                        (ts->snap_flag & SCE_SNAP_TO_ONLY_SELECTABLE),
                        SCE_SNAP_TARGET_ONLY_SELECTABLE);
+  }
+
+  /* If snap property exists. */
+  PropertyRNA *prop;
+  if (op && (prop = RNA_struct_find_property(op->ptr, "snap"))) {
+    if (RNA_property_is_set(op->ptr, prop)) {
+      SET_FLAG_FROM_TEST(t->modifiers, RNA_property_boolean_get(op->ptr, prop), MOD_SNAP);
+    }
+
+    if ((prop = RNA_struct_find_property(op->ptr, "snap_elements")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      t->tsnap.mode = eSnapMode(RNA_property_enum_get(op->ptr, prop));
+    }
+
+    /* TODO(@gfxcoder): Rename `snap_target` to `snap_source` to avoid previous ambiguity of
+     * "target" (now, "source" is geometry to be moved and "target" is geometry to which moved
+     * geometry is snapped). */
+    if ((prop = RNA_struct_find_property(op->ptr, "snap_target")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      snap_source = eSnapSourceOP(RNA_property_enum_get(op->ptr, prop));
+    }
+
+    if ((prop = RNA_struct_find_property(op->ptr, "snap_point")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      RNA_property_float_get_array(op->ptr, prop, t->tsnap.snap_target);
+      t->modifiers |= MOD_SNAP_FORCED;
+      t->tsnap.status |= SNAP_TARGET_FOUND;
+    }
+
+    /* Snap align only defined in specific cases. */
+    if ((prop = RNA_struct_find_property(op->ptr, "snap_align")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      SET_FLAG_FROM_TEST(t->tsnap.flag, RNA_property_boolean_get(op->ptr, prop), SCE_SNAP_ROTATE);
+
+      RNA_float_get_array(op->ptr, "snap_normal", t->tsnap.snapNormal);
+      normalize_v3(t->tsnap.snapNormal);
+    }
+
+    if ((prop = RNA_struct_find_property(op->ptr, "use_snap_project")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      SET_FLAG_FROM_TEST(
+          t->tsnap.mode, RNA_property_boolean_get(op->ptr, prop), SCE_SNAP_INDIVIDUAL_PROJECT);
+    }
+
+    /* Use_snap_self is misnamed and should be use_snap_active. */
+    if ((prop = RNA_struct_find_property(op->ptr, "use_snap_self")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      SET_FLAG_FROM_TEST(t->tsnap.target_operation,
+                         !RNA_property_boolean_get(op->ptr, prop),
+                         SCE_SNAP_TARGET_NOT_ACTIVE);
+    }
+
+    if ((prop = RNA_struct_find_property(op->ptr, "use_snap_edit")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      SET_FLAG_FROM_TEST(t->tsnap.target_operation,
+                         !RNA_property_boolean_get(op->ptr, prop),
+                         SCE_SNAP_TARGET_NOT_EDITED);
+    }
+
+    if ((prop = RNA_struct_find_property(op->ptr, "use_snap_nonedit")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      SET_FLAG_FROM_TEST(t->tsnap.target_operation,
+                         !RNA_property_boolean_get(op->ptr, prop),
+                         SCE_SNAP_TARGET_NOT_NONEDITED);
+    }
+
+    if ((prop = RNA_struct_find_property(op->ptr, "use_snap_selectable")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      SET_FLAG_FROM_TEST(t->tsnap.target_operation,
+                         RNA_property_boolean_get(op->ptr, prop),
+                         SCE_SNAP_TARGET_ONLY_SELECTABLE);
+    }
   }
 
   t->tsnap.source_operation = snap_source;
@@ -1469,7 +1467,7 @@ static void snap_source_closest_fn(TransInfo *t)
     /* Object mode. */
     if (t->options & CTX_OBJECT) {
       FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-        BLI_assert(tc->sorted_index_map);
+        BLI_assert(tc->sorted_index_map || !(t->flag & T_PROP_EDIT_ALL));
         tc->foreach_index_selected([&](const int i) {
           TransData *td = &tc->data[i];
 
@@ -1524,7 +1522,7 @@ static void snap_source_closest_fn(TransInfo *t)
     }
     else {
       FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-        BLI_assert(tc->sorted_index_map);
+        BLI_assert(tc->sorted_index_map || !(t->flag & T_PROP_EDIT_ALL));
         tc->foreach_index_selected([&](const int i) {
           TransData *td = &tc->data[i];
 

@@ -7460,7 +7460,13 @@ def km_3d_view_tool_edit_mesh_poly_build(params):
             ("mesh.polybuild_extrude_at_cursor_move", {"type": params.tool_mouse, "value": 'PRESS'},
              {"properties": [("TRANSFORM_OT_translate", [("release_confirm", True)])]}),
             ("mesh.polybuild_face_at_cursor_move", {"type": params.tool_mouse, "value": 'PRESS', "ctrl": True},
-             {"properties": [("TRANSFORM_OT_translate", [("release_confirm", True)])]}),
+             {"properties": [
+                 ("TRANSFORM_OT_translate", [
+                     ("release_confirm", True),
+                     # Ctrl inverts snap, so to keep snap enabled, set snap to false.
+                     ("snap", False),
+                 ]),
+             ]}),
             ("mesh.polybuild_delete_at_cursor", {"type": params.tool_mouse, "value": 'CLICK', "shift": True}, None),
         ]},
     )
