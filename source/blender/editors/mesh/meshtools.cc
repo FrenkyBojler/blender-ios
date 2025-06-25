@@ -54,6 +54,7 @@
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_sculpt.hh"
 #include "ED_view3d.hh"
 
 #include "WM_api.hh"
@@ -1550,8 +1551,17 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
   Object *ob = blender::ed::object::context_active_object(C);
 
   Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Scene *scene = CTX_data_scene(C);
+
+  if (ob->sculpt) {
+    blender::ed::sculpt_paint::undo::geometry_begin(*scene, *ob, op);
+  }
 
   blender::bke::mesh_apply_spatial_organization(*mesh);
+
+  if (ob->sculpt) {
+    blender::ed::sculpt_paint::undo::geometry_end(*ob);
+  }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
