@@ -281,7 +281,7 @@ void WM_cursor_set(wmWindow *win, int curs)
     GHOST_SetCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor);
   }
   else {
-    if (!icon_cursor(win, WMCursorType(curs), 28.0f * UI_SCALE_FAC)) {
+    if (!icon_cursor(win, WMCursorType(curs), 21.0f * UI_SCALE_FAC)) {
       /* Fallback to default cursor if no SVG cursor found. */
       GHOST_SetCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                            GHOST_kStandardCursorDefault);
