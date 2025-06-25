@@ -2220,9 +2220,16 @@ typedef struct NodeGeometryClosureOutputItems {
   char _pad[4];
 } NodeGeometryClosureOutputItems;
 
+typedef enum NodeGeometryClosureFlag {
+  NODE_GEO_CLOSURE_FLAG_MAY_NEED_SYNC = 1 << 0,
+} NodeGeometryClosureFlag;
+
 typedef struct NodeGeometryClosureOutput {
   NodeGeometryClosureInputItems input_items;
   NodeGeometryClosureOutputItems output_items;
+  /** #NodeGeometryClosureFlag */
+  uint32_t flag;
+  char _pad[4];
 } NodeGeometryClosureOutput;
 
 typedef struct NodeGeometryEvaluateClosureInputItem {
@@ -2261,9 +2268,16 @@ typedef struct NodeGeometryEvaluateClosureOutputItems {
   char _pad[4];
 } NodeGeometryEvaluateClosureOutputItems;
 
+typedef enum NodeGeometryEvaluateClosureFlag {
+  NODE_GEO_EVALUATE_CLOSURE_FLAG_MAY_NEED_SYNC = 1 << 0,
+} NodeGeometryEvaluateClosureFlag;
+
 typedef struct NodeGeometryEvaluateClosure {
   NodeGeometryEvaluateClosureInputItems input_items;
   NodeGeometryEvaluateClosureOutputItems output_items;
+  /** #NodeGeometryEvaluateClosureFlag */
+  uint32_t flag;
+  char _pad[4];
 } NodeGeometryEvaluateClosure;
 
 typedef struct IndexSwitchItem {
@@ -2387,12 +2401,17 @@ typedef struct NodeGeometryCombineBundleItem {
   char _pad[2];
 } NodeGeometryCombineBundleItem;
 
+typedef enum NodeGeometryCombineBundleFlag {
+  NODE_GEO_COMBINE_BUNDLE_FLAG_MAY_NEED_SYNC = 1 << 0,
+} NodeGeometryCombineBundleFlag;
+
 typedef struct NodeGeometryCombineBundle {
   NodeGeometryCombineBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeGeometryCombineBundleFlag */
+  uint32_t flag;
 } NodeGeometryCombineBundle;
 
 typedef struct NodeGeometrySeparateBundleItem {
@@ -2402,12 +2421,17 @@ typedef struct NodeGeometrySeparateBundleItem {
   char _pad[2];
 } NodeGeometrySeparateBundleItem;
 
+typedef enum NodeGeometrySeparateBundleFlag {
+  NODE_GEO_SEPARATE_BUNDLE_FLAG_MAY_NEED_SYNC = 1 << 0,
+} NodeGeometrySeparateBundleFlag;
+
 typedef struct NodeGeometrySeparateBundle {
   NodeGeometrySeparateBundleItem *items;
   int items_num;
   int next_identifier;
   int active_index;
-  char _pad[4];
+  /** #NodeGeometrySeparateBundleFlag */
+  uint32_t flag;
 } NodeGeometrySeparateBundle;
 
 typedef struct NodeFunctionFormatStringItem {
