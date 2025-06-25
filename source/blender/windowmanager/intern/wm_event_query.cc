@@ -511,7 +511,7 @@ blender::float3 WM_event_ndof_translation_get_for_navigation(const wmNDOFMotionD
       ndof.tvec[1] * ((U.ndof_flag & NDOF_PANY_INVERT_AXIS) ? -sign : sign),
       ndof.tvec[2] * ((U.ndof_flag & NDOF_PANZ_INVERT_AXIS) ? -sign : sign),
   };
-  }
+}
 
 blender::float3 WM_event_ndof_rotation_get_for_navigation(const wmNDOFMotionData &ndof)
 {
