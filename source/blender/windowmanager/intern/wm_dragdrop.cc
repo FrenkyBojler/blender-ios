@@ -369,9 +369,6 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
   if (!sfile) {
     return;
   }
-  char dirpath[FILE_MAX];
-  BLI_path_split_dir_part(WM_drag_get_single_path(drag), dirpath, FILE_MAX);
-
   blender::LinearAllocator<> allocator;
   blender::Vector<const char *> paths;
   const blender::Vector<PointerRNA> files = CTX_data_collection_get(C, "selected_files");

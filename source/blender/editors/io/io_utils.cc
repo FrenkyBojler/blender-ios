@@ -102,7 +102,7 @@ Vector<std::string> paths_from_operator_properties(PointerRNA *ptr)
     RNA_PROP_END;
   }
   PropertyRNA *filepath_prop = RNA_struct_find_property(ptr, "filepath");
-  if (filepath_prop && RNA_property_is_set(ptr, filepath_prop)) {
+  if (filepath_prop && RNA_property_is_set(ptr, filepath_prop) && paths.is_empty()) {
     char filepath[FILE_MAX];
     RNA_string_get(ptr, "filepath", filepath);
     if (is_relative_path && !BLI_path_is_rel(filepath)) {
