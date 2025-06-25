@@ -303,7 +303,7 @@ std::string import_asset(const std::string &src,
                   "or provide an absolute import directory path. "
                   "Can't import %s",
                   __func__,
-                  src);
+                  src.c_str());
       return src;
     }
     char path_temp[FILE_MAX];
@@ -436,7 +436,7 @@ bool write_to_path(const void *data, size_t size, const std::string &path, Repor
   pxr::ArResolvedPath resolved_path = ar.ResolveForNewAsset(path);
 
   if (resolved_path.IsEmpty()) {
-    BKE_reportf(reports, RPT_ERROR, "Can't resolve path %s for writing", path);
+    BKE_reportf(reports, RPT_ERROR, "Can't resolve path %s for writing", path.c_str());
     return false;
   }
 

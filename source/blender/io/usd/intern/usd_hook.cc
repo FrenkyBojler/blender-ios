@@ -282,7 +282,8 @@ class USDMaterialImportContext {
                                                              USD_TEX_NAME_COLLISION_OVERWRITE :
                                                              params_.tex_name_collision_mode;
 
-    std::string import_path = import_asset(asset_path, textures_dir, name_collision_mode, reports_);
+    std::string import_path = import_asset(
+        asset_path, textures_dir, name_collision_mode, reports_);
 
     if (import_path == asset_path) {
       /* Path is unchanged. */
