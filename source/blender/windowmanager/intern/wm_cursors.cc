@@ -180,7 +180,7 @@ static void window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
 {
   if (size > 32.0f) {
-    size = 32.0f; // Larger cursors not supported yet.
+    size = 32.0f;  // Larger cursors not supported yet.
   }
 
   int icon_id;
@@ -233,19 +233,14 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
 
   IMB_freeImBuf(imb);
 
-  if (GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                                 (uint8_t *)bitmap,
-                                 (uint8_t *)mask,
-                                 32,
-                                 32,
-                                 2,
-                                 2,
-                                 false) == GHOST_kSuccess)
-  {
-    return true;
-  }
-
-  return false;
+  return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                    (uint8_t *)bitmap,
+                                    (uint8_t *)mask,
+                                    32,
+                                    32,
+                                    2,
+                                    2,
+                                    false) == GHOST_kSuccess;
 }
 
 void WM_cursor_set(wmWindow *win, int curs)
@@ -278,6 +273,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
 
+  /* Turn off the retrieval of OS-supplied cursors for testing. */
   if (false && ghost_cursor != GHOST_kStandardCursorCustom &&
       GHOST_HasCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor))
   {
