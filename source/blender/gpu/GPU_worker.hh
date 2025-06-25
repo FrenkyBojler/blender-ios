@@ -4,6 +4,7 @@
 
 #pragma once
 
+#include "BLI_threads.h"
 #include "BLI_vector.hh"
 #include "GPU_context.hh"
 
@@ -16,10 +17,8 @@
 
 namespace blender::gpu {
 
-enum class WorkPriority { Low, Medium, High };
-
 using WorkCB = void (*)(void *);
-using work_id = int64_t;
+using work_id = int;
 
 /* Abstracts the creation and management of secondary threads with GPU contexts.
  * Must be created from the main thread.
@@ -28,11 +27,8 @@ using work_id = int64_t;
 class GPUWorker {
  private:
   Vector<std::unique_ptr<std::thread>> threads_;
-  std::condition_variable condition_var_;
-  std::mutex mutex_;
-  bool terminate_ = false;
-
-  std::unique_ptr<class WorkQueue> work_queue_;
+  ThreadQueue *work_queue_;
+  WorkCB callback;
 
  public:
   enum class ContextType {
@@ -42,11 +38,11 @@ class GPUWorker {
     PerThread,
   };
 
-  GPUWorker(uint32_t threads_count, ContextType context_type);
+  GPUWorker(uint32_t threads_count, ContextType context_type, WorkCB callback);
   ~GPUWorker();
 
-  work_id push_work(WorkCB callback, void *payload, WorkPriority priority);
-  void remove_work(work_id id);
+  work_id push_work(void *work, eThreadQueueWorkPriority priority);
+  void cancel_work(work_id id);
   bool is_empty();
 
  private:

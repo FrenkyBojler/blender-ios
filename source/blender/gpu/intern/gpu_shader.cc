@@ -989,6 +989,21 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   return shader;
 }
 
+static eThreadQueueWorkPriority to_work_priority(CompilationPriority priority)
+{
+  switch (priority) {
+    case CompilationPriority::Low:
+      return BLI_THREAD_QUEUE_WORK_PRIORITY_LOW;
+    case CompilationPriority::Medium:
+      return BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL;
+    case CompilationPriority::High:
+      return BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH;
+    default:
+      BLI_assert_unreachable();
+      return BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL;
+  }
+}
+
 ShaderCompiler::ShaderCompiler(uint32_t threads_count,
                                GPUWorker::ContextType context_type,
                                bool support_specializations)
@@ -996,7 +1011,8 @@ ShaderCompiler::ShaderCompiler(uint32_t threads_count,
   support_specializations_ = support_specializations;
 
   if (!GPU_use_main_context_workaround()) {
-    compilation_worker_ = std::make_unique<GPUWorker>(threads_count, context_type);
+    compilation_worker_ = std::make_unique<GPUWorker>(
+        threads_count, context_type, do_work_static_cb);
   }
 }
 
@@ -1031,8 +1047,8 @@ BatchHandle ShaderCompiler::batch_compile(Span<const shader::ShaderCreateInfo *>
     batch->pending_compilations = infos.size();
     for (int i : infos.index_range()) {
       batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
-      batch->works.last()->id = compilation_worker_->push_work(
-          do_work_static_cb, batch->works.last().get(), WorkPriority(priority));
+      batch->works.last()->id = compilation_worker_->push_work(batch->works.last().get(),
+                                                               to_work_priority(priority));
     }
   }
   else {
@@ -1052,7 +1068,7 @@ void ShaderCompiler::batch_cancel(BatchHandle &handle)
   for (std::unique_ptr<ParallelWork> &work : batch->works) {
     if (work->id) {
       batch->pending_compilations--;
-      compilation_worker_->remove_work(work->id);
+      compilation_worker_->cancel_work(work->id);
     }
   }
 
@@ -1116,8 +1132,8 @@ SpecializationBatchHandle ShaderCompiler::precompile_specializations(
 
   for (int i : specializations.index_range()) {
     batch->works.append(std::make_unique<ParallelWork>(ParallelWork{this, batch, i}));
-    batch->works.last()->id = compilation_worker_->push_work(
-        do_work_static_cb, batch->works.last().get(), WorkPriority(priority));
+    batch->works.last()->id = compilation_worker_->push_work(batch->works.last().get(),
+                                                             to_work_priority(priority));
   }
 
   return handle;
