@@ -44,6 +44,8 @@
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
+#include "BKE_paint.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
@@ -1553,6 +1555,12 @@ static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperat
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   Scene *scene = CTX_data_scene(C);
 
+  blender::bke::pbvh::Tree &pbvh = *blender::bke::object::pbvh_get(*ob);
+  if (pbvh.type() == blender::bke::pbvh::Type::BMesh) {
+    /* Dyntopo not supported. */
+    BKE_report(op->reports, RPT_INFO, "Not supported in dynamic topology sculpting");
+    return OPERATOR_CANCELLED;
+  }
   if (ob->mode == OB_MODE_SCULPT) {
     blender::ed::sculpt_paint::undo::geometry_begin(*scene, *ob, op);
   }
