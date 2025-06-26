@@ -376,7 +376,7 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
     const FileDirEntry *file = static_cast<const FileDirEntry *>(file_ptr.data);
     char filepath[FILE_MAX];
     BLI_path_join(filepath, sizeof(filepath), sfile->params->dir, file->relpath);
-
+    BLI_path_normalize(filepath);
     paths.append(allocator.copy_string(filepath).c_str());
   }
   if (paths.is_empty()) {

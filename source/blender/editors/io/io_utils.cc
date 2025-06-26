@@ -97,12 +97,13 @@ Vector<std::string> paths_from_operator_properties(PointerRNA *ptr)
       RNA_string_get(&file_ptr, "name", name);
       char path[FILE_MAX];
       BLI_path_join(path, sizeof(path), directory, name);
+      BLI_path_normalize(path);
       paths.append_non_duplicates(path);
     }
     RNA_PROP_END;
   }
   PropertyRNA *filepath_prop = RNA_struct_find_property(ptr, "filepath");
-  if (filepath_prop && RNA_property_is_set(ptr, filepath_prop) && paths.is_empty()) {
+  if (filepath_prop && RNA_property_is_set(ptr, filepath_prop)) {
     char filepath[FILE_MAX];
     RNA_string_get(ptr, "filepath", filepath);
     if (is_relative_path && !BLI_path_is_rel(filepath)) {
