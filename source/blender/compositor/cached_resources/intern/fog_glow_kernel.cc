@@ -65,7 +65,7 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
   const float field_of_viwe = 0.012f;
   const float half_length = tan(field_of_viwe / 2.0f);
   const float theta_degree = math::AngleRadian(math::atan(r * half_length)).degree();
-  const float f0 = 2.61f * 1e6 * math::exp(-math::square((theta_degree) / 0.02f));
+  const float f0 = 2.61f * 1e6f * math::exp(-math::square((theta_degree) / 0.02f));
   const float f1 = 20.91f / math::cube((theta_degree) + 0.02f);
   const float f2 = 72.37f / math::square((theta_degree) + 0.02f);
   const float kernel_value = (0.384f * f0 + 0.478f * f1 + 0.138f * f2);
