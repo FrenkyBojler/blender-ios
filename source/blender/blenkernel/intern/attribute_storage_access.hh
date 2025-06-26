@@ -74,11 +74,11 @@ GMutableSpan get_mutable_attribute(AttributeStorage &storage,
                                    const void *default_value);
 
 template<typename T>
-MutableSpan<T> get_mutable_attribute(AttributeStorage &storage,
-                                     const AttrDomain domain,
-                                     const StringRef name,
-                                     const int64_t domain_size,
-                                     const T &default_value = T())
+inline MutableSpan<T> get_mutable_attribute(AttributeStorage &storage,
+                                            const AttrDomain domain,
+                                            const StringRef name,
+                                            const int64_t domain_size,
+                                            const T &default_value = T())
 {
   const GMutableSpan span = get_mutable_attribute(
       storage, domain, CPPType::get<T>(), name, domain_size, &default_value);
