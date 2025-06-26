@@ -702,7 +702,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
 
         if system.gpu_backend == 'VULKAN':
             col = layout.column()
-            col.label(text="Vulkan backend limitations:", icon='INFO')
+            col.label(text="Current Vulkan backend limitations:", icon='INFO')
             col.label(text="\u2022 Low performance in VR", icon='BLANK1')
             if sys.platform == "win32" and gpu.platform.device_type_get() == 'QUALCOMM':
                 col.label(text="\u2022 Windows on ARM requires driver 31.0.112.0 or higher", icon='BLANK1')
