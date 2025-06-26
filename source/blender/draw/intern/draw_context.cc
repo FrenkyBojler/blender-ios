@@ -293,7 +293,12 @@ bool DRW_object_is_renderable(const Object *ob)
 
   if (ob->type == OB_MESH) {
     DRWContext &draw_ctx = drw_get();
-    if ((ob == draw_ctx.object_edit) || ob->mode == OB_MODE_EDIT) {
+    /* Filter out the case of geo nodes or legacy curves that generate other
+     * object types (see #140762). */
+    if (draw_ctx.object_edit && draw_ctx.object_edit->type != OB_MESH) {
+      /* Noop. */
+    }
+    else if ((ob == draw_ctx.object_edit) || ob->mode == OB_MODE_EDIT) {
       View3D *v3d = draw_ctx.v3d;
       if (v3d && ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && RETOPOLOGY_ENABLED(v3d)) {
         return false;
