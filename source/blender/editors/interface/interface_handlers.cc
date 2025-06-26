@@ -4034,7 +4034,6 @@ static int ui_do_but_textedit(
       case WHEELDOWNMOUSE:
       case EVT_DOWNARROWKEY:
         if (event->modifier == KM_CTRL) {
-          UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE);
           ui_numedit_but_inc(but, text_edit, -1);
           changed = true;
           retval = WM_UI_HANDLER_BREAK;
@@ -4059,7 +4058,6 @@ static int ui_do_but_textedit(
       case WHEELUPMOUSE:
       case EVT_UPARROWKEY:
         if (event->modifier == KM_CTRL) {
-          UI_but_flag_enable(but, UI_BUT_TEXTEDIT_UPDATE);
           ui_numedit_but_inc(but, text_edit, 1);
           changed = true;
           retval = WM_UI_HANDLER_BREAK;
