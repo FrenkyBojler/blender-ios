@@ -459,6 +459,32 @@ static void version_seq_text_from_legacy(Main *bmain)
   }
 }
 
+/* Convert text X/Y location to strip transform data. Assuming, that anchor is set to center. */
+static void version_seq_convert_text_offset(Main *bmain)
+{
+  LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+    if (scene->ed != nullptr) {
+      blender::float2 scene_render_size(scene->r.xsch, scene->r.ysch);
+
+      blender::seq::for_each_callback(&scene->ed->seqbase, [&](Strip *strip) -> bool {
+        if (strip->type == STRIP_TYPE_TEXT && strip->effectdata != nullptr) {
+          TextVars *data = static_cast<TextVars *>(strip->effectdata);
+          StripTransform *transform = strip->data->transform;
+          const blender::float2 relative_offset(data->loc[0] - 0.5f, data->loc[1] - 0.5f);
+
+          if (data->loc[0] != 0.5f) {
+            transform->xofs += relative_offset.x * scene_render_size.x;
+          }
+          if (data->loc[1] != 0.5f) {
+            transform->yofs += relative_offset.y * scene_render_size.y;
+          }
+        }
+        return true;
+      });
+    }
+  }
+}
+
 static void apply_unified_paint_settings_to_all_modes(Scene &scene)
 {
   const UnifiedPaintSettings &scene_ups = scene.toolsettings->unified_paint_settings;
@@ -665,6 +691,10 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       apply_unified_paint_settings_to_all_modes(*scene);
     }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 25)) {
+    version_seq_convert_text_offset(bmain);
   }
 
   /**

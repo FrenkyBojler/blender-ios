@@ -10,6 +10,7 @@
 
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_space_enums.h"
 
 #include "BLI_bounds.hh"
 #include "BLI_listbase.h"
@@ -27,6 +28,7 @@
 #include "SEQ_effects.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
+#include "SEQ_render.hh"
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
@@ -613,8 +615,15 @@ float2 transform_image_raw_size_get(const Scene *scene, const Strip *strip)
                            ((data->flag & SEQ_TEXT_ITALIC) ? BLF_ITALIC : 0);
     const int font = text_effect_font_init(nullptr, strip, font_flags);
 
+    /* It's easier to create RenderData than overloaded `text_effect_calc_runtime` function. */
+    RenderData render_data;
+    render_data.scene = const_cast<Scene *>(scene);
+    render_data.rectx = scene_render_size.x;
+    render_data.recty = scene_render_size.y;
+    render_data.preview_render_size = SEQ_RENDER_SIZE_FULL;
+
     const TextVarsRuntime *runtime = text_effect_calc_runtime(
-        strip, font, int2(scene_render_size));
+        &render_data, strip, font, int2(scene_render_size));
 
     const float2 text_size(float(BLI_rcti_size_x(&runtime->text_boundbox)),
                            float(BLI_rcti_size_y(&runtime->text_boundbox)));
