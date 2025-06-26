@@ -1,2 +1,2 @@
-Referenced by issue #138837, Blender 4.2+ EEVEE produces strange "fingerprint" shadows on simple meshes
+Referenced by issue #138837, Regression: EEVEE produces strange shadows on simple meshes
 Referenced by issue #138904, Blender crashes while opening Blender 4.4.3 and Blender 5.0 Alpha
