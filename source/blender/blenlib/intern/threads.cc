@@ -661,8 +661,6 @@ uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPr
     case BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH:
       queue->queue_high_priority.push_back(work_reference);
       break;
-    default:
-      BLI_assert_unreachable();
   }
 
   /* signal threads waiting to pop */
