@@ -24,11 +24,6 @@
 #include "nanosvgrast.h"
 #include "svg_cursors.h"
 
-#include "IMB_imbuf.hh"
-
-#include "UI_interface_icons.hh"
-#include "UI_resources.hh"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 #include "wm_cursors.hh"
@@ -174,20 +169,13 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
   nsvgDeleteRasterizer(rast);
   nsvgDelete(image);
 
-  ImBuf *imb = IMB_allocFromBuffer(
-      reinterpret_cast<uint8_t *>(render_bmp.data()), nullptr, dest_w, dest_h, 32);
-
-  if (!imb) {
-    return false;
-  }
-
   /* If we give GHOST_SetCustomCursorShape bit depth arguments
    * we could try sending full-color to it first. */
 
   /* Monochrome. */
 
-  char width = std::min(imb->x, 32);
-  char height = std::min(imb->y, 32);
+  char width = std::min(dest_w, 32);
+  char height = std::min(dest_h, 32);
   char bitmap[4 * 32] = {0};
   char mask[4 * 32] = {0};
 
@@ -196,8 +184,8 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
       int i = (y * width * 4) + (x * 4);
       int j = (y * 4) + (x >> 3);
       int k = (x % 8);
-      if (imb->byte_buffer.data[i + 3] > 128) {
-        if (imb->byte_buffer.data[i] > 128) {
+      if (render_bmp[i + 3] > 128) {
+        if (render_bmp[i] > 128) {
           bitmap[j] |= (1 << k);
         }
         mask[j] |= (1 << k);
@@ -205,10 +193,8 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
     }
   }
 
-  int hotspot_x = int(cursor->hotspot_x * (imb->x - 1));
-  int hotspot_y = int(cursor->hotspot_y * (imb->y - 1));
-
-  IMB_freeImBuf(imb);
+  int hotspot_x = int(cursor->hotspot_x * (dest_w - 1));
+  int hotspot_y = int(cursor->hotspot_y * (dest_h - 1));
 
   return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                                     (uint8_t *)bitmap,
