@@ -30,7 +30,7 @@ GVolumeGrid get_grid_from_file(StringRef file_path,
                                int simplify_level = 0);
 
 /**
- * Clears the caches related to this file and reloads the metadata.
+ * Clears the caches related to this file (they will reload if accessed again).
  */
 void clear_file_cache(StringRef file_path);
 

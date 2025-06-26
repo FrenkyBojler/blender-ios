@@ -307,16 +307,16 @@ void clear_file_cache(const StringRef file_path)
     GridReadKey key;
     key.file_path = file_path;
     key.grid_name = grid.meta_data_grid->getName();
-    const unsigned n_simplify_levels = grid.grid_by_simplify_level.size();
-    for (unsigned level = 0; level < n_simplify_levels; ++level) {
+    const int n_simplify_levels = grid.grid_by_simplify_level.size();
+    for (int level = 0; level < n_simplify_levels; ++level) {
       key.simplify_level = level;
       memory_cache::remove_if(
           [&key](const GenericKey &entry_key) -> bool { return entry_key == key; }
       );
     }
   }
-  /* Replace the file cache (metadata). */
-  file_cache = create_file_cache(file_path);
+  /* Remove the file cache. */
+  global_cache.file_map.remove(file_path);
 }
 
 GridsFromFile get_all_grids_from_file(const StringRef file_path, const int simplify_level)

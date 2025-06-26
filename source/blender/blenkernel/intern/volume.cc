@@ -425,7 +425,8 @@ bool BKE_volume_reload(Volume *volume)
   if (BKE_volume_is_loaded(volume)) {
     if (!BLI_is_file(volume->filepath))
       return false;
-    blender::bke::volume_grid::file_cache::reload_file(volume->filepath);
+    /* Clear the caches so that when the file is accessed again it will load new data. */
+    blender::bke::volume_grid::file_cache::clear_file_cache(volume->filepath);
     DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
     return true;
   }
