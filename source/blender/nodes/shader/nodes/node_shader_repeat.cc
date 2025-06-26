@@ -7,6 +7,7 @@
 
 #include "NOD_sh_zones.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 
@@ -16,6 +17,7 @@
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
+#include "dna_type_offsets.h"
 
 #include "BKE_screen.hh"
 
@@ -42,23 +44,25 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone) {
     return;
   }
-  if (!zone->output_node()) {
+  if (!zone->output_node_id) {
     return;
   }
   bNode &output_node = const_cast<bNode &>(*zone->output_node());
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "repeat_items", false, TIP_("Repeat Items"))) {
+  if (uiLayout *panel = layout->panel(C, "repeat_items", false, IFACE_("Repeat Items"))) {
     socket_items::ui::draw_items_list_with_operators<ShRepeatItemsAccessor>(
         C, panel, ntree, output_node);
     socket_items::ui::draw_active_item_props<ShRepeatItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
-          uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
+          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
+
+  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace repeat_input_node {
@@ -69,16 +73,15 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_output<decl::Float>("Iteration")
+  b.add_output<decl::Int>("Iteration")
       .description("Index of the current iteration. Starts counting at zero");
-  b.add_input<decl::Float>("Iterations").min(0.0f).default_value(1.0f);
+  b.add_input<decl::Int>("Iterations").min(0).default_value(1);
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
   if (node && tree) {
     const NodeShaderRepeatInput &storage = node_storage(*node);
-    const bNode *output_node = tree->node_by_id(storage.output_node_id);
-    if (output_node) {
+    if (const bNode *output_node = tree->node_by_id(storage.output_node_id)) {
       const auto &output_storage = *static_cast<const NodeShaderRepeatOutput *>(
           output_node->storage);
       for (const int i : IndexRange(output_storage.items_num)) {
@@ -86,27 +89,28 @@ static void node_declare(NodeDeclarationBuilder &b)
         const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
         const StringRef name = item.name ? item.name : "";
         const std::string identifier = ShRepeatItemsAccessor::socket_identifier_for_item(item);
-        if (socket_type == SOCK_RGBA) {
-          /* Make the color items black by default. */
-          b.add_input<decl::Color>(name, identifier)
-              .default_value(ColorGeometry4f(0.0f, 0.0f, 0.0f, 1.0f))
-              .socket_name_ptr(&tree->id, ShRepeatItemsAccessor::item_srna, &item, "name");
+        auto &input_decl = b.add_input(socket_type, name, identifier)
+                               .socket_name_ptr(
+                                   &tree->id, ShRepeatItemsAccessor::item_srna, &item, "name");
+        auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
+        if (socket_type_supports_fields(socket_type)) {
+          input_decl.supports_field();
+          output_decl.dependent_field({input_decl.index()});
         }
-        else {
-          b.add_input(socket_type, name, identifier)
-              .socket_name_ptr(&tree->id, ShRepeatItemsAccessor::item_srna, &item, "name");
-        }
-        b.add_output(socket_type, name, identifier).align_with_previous();
+        input_decl.structure_type(StructureType::Dynamic);
+        output_decl.structure_type(StructureType::Dynamic);
       }
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeShaderRepeatInput *data = MEM_cnew<NodeShaderRepeatInput>(__func__);
+  NodeShaderRepeatInput *data = MEM_callocN<NodeShaderRepeatInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
   node->storage = data;
@@ -144,8 +148,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   sh_node_type_base(&ntype, "ShaderNodeRepeatInput", SH_NODE_REPEAT_INPUT);
-  ntype.enum_name_legacy = "REPEAT_INPUT";
   ntype.ui_name = "Repeat Input";
+  ntype.enum_name_legacy = "REPEAT_INPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -155,11 +159,10 @@ static void node_register()
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderRepeatInput", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeShaderRepeatInput", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = node_shader_fn;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
-// NOD_REGISTER_NODE(node_register)
 
 }  // namespace repeat_input_node
 
@@ -180,23 +183,31 @@ static void node_declare(NodeDeclarationBuilder &b)
       const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
       const StringRef name = item.name ? item.name : "";
       const std::string identifier = ShRepeatItemsAccessor::socket_identifier_for_item(item);
-      b.add_input(socket_type, name, identifier)
-          .socket_name_ptr(&tree->id, ShRepeatItemsAccessor::item_srna, &item, "name")
-          .hide_value();
-      b.add_output(socket_type, name, identifier).align_with_previous();
+      auto &input_decl = b.add_input(socket_type, name, identifier)
+                             .socket_name_ptr(
+                                 &tree->id, ShRepeatItemsAccessor::item_srna, &item, "name");
+      auto &output_decl = b.add_output(socket_type, name, identifier).align_with_previous();
+      if (socket_type_supports_fields(socket_type)) {
+        input_decl.supports_field();
+        output_decl.dependent_field({input_decl.index()});
+      }
+      input_decl.structure_type(StructureType::Dynamic);
+      output_decl.structure_type(StructureType::Dynamic);
     }
   }
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeShaderRepeatOutput *data = MEM_cnew<NodeShaderRepeatOutput>(__func__);
+  NodeShaderRepeatOutput *data = MEM_callocN<NodeShaderRepeatOutput>(__func__);
 
   data->next_identifier = 0;
 
-  data->items = MEM_cnew_array<NodeShaderRepeatItem>(1, __func__);
+  data->items = MEM_calloc_arrayN<NodeShaderRepeatItem>(1, __func__);
   data->items[0].name = BLI_strdup(DATA_("Color"));
   data->items[0].socket_type = SOCK_RGBA;
   data->items[0].identifier = data->next_identifier++;
@@ -214,7 +225,7 @@ static void node_free_storage(bNode *node)
 static void node_copy_storage(bNodeTree * /*dst_tree*/, bNode *dst_node, const bNode *src_node)
 {
   const NodeShaderRepeatOutput &src_storage = node_storage(*src_node);
-  auto *dst_storage = MEM_cnew<NodeShaderRepeatOutput>(__func__, src_storage);
+  auto *dst_storage = MEM_dupallocN<NodeShaderRepeatOutput>(__func__, src_storage);
   dst_node->storage = dst_storage;
 
   socket_items::copy_array<ShRepeatItemsAccessor>(*src_node, *dst_node);
@@ -231,6 +242,16 @@ static void node_operators()
   socket_items::ops::make_common_operators<ShRepeatItemsAccessor>();
 }
 
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<ShRepeatItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<ShRepeatItemsAccessor>(&reader, node);
+}
+
 static int node_shader_fn(GPUMaterial *mat,
                           bNode *node,
                           bNodeExecData * /*execdata*/,
@@ -245,8 +266,8 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
   sh_node_type_base(&ntype, "ShaderNodeRepeatOutput", SH_NODE_REPEAT_OUTPUT);
-  ntype.enum_name_legacy = "REPEAT_OUTPUT";
   ntype.ui_name = "Repeat Output";
+  ntype.enum_name_legacy = "REPEAT_OUTPUT";
   ntype.nclass = NODE_CLASS_INTERFACE;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
@@ -255,12 +276,13 @@ static void node_register()
   ntype.no_muting = true;
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_type_storage(
-      &ntype, "NodeShaderRepeatOutput", node_free_storage, node_copy_storage);
+      ntype, "NodeShaderRepeatOutput", node_free_storage, node_copy_storage);
   ntype.gpu_fn = node_shader_fn;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
-// NOD_REGISTER_NODE(node_register)
 
 }  // namespace repeat_output_node
 
@@ -268,7 +290,7 @@ static void node_register()
 
 namespace blender::nodes {
 
-StructRNA *ShRepeatItemsAccessor::item_srna = &RNA_ShaderRepeatItem;
+StructRNA *ShRepeatItemsAccessor::item_srna = &RNA_RepeatItem;
 int ShRepeatItemsAccessor::node_type = SH_NODE_REPEAT_OUTPUT;
 int ShRepeatItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(NodeShaderRepeatItem);
 

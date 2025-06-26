@@ -72,18 +72,18 @@ struct ShZoneItemsAccessorBase : public socket_items::SocketItemsAccessorDefault
 
 struct ShRepeatItemsAccessor
     : ShZoneItemsAccessorBase<NodeShaderRepeatOutput, NodeShaderRepeatItem> {
-  static constexpr const char *node_idname = "ShaderNodeRepeatOutput";
+  static constexpr const StringRefNull node_idname = "ShaderNodeRepeatOutput";
   struct operator_idnames {
-    static constexpr const char *add_item = "NODE_OT_sh_repeat_zone_item_add";
-    static constexpr const char *remove_item = "NODE_OT_sh_repeat_zone_item_remove";
-    static constexpr const char *move_item = "NODE_OT_sh_repeat_zone_item_move";
+    static constexpr const StringRefNull add_item = "NODE_OT_sh_repeat_zone_item_add";
+    static constexpr const StringRefNull remove_item = "NODE_OT_sh_repeat_zone_item_remove";
+    static constexpr const StringRefNull move_item = "NODE_OT_sh_repeat_zone_item_move";
   };
   struct ui_idnames {
-    static constexpr const char *list = "DATA_UL_sh_repeat_zone_state";
+    static constexpr const StringRefNull list = "DATA_UL_sh_repeat_zone_state";
   };
   struct rna_names {
-    static constexpr const char *items = "repeat_items";
-    static constexpr const char *active_index = "active_index";
+    static constexpr const StringRefNull items = "repeat_items";
+    static constexpr const StringRefNull active_index = "active_index";
   };
   /* Defined in node_shader_repeat.cc */
   static StructRNA *item_srna;
