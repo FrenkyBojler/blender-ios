@@ -606,9 +606,9 @@ void BLI_condition_end(ThreadCondition *cond)
 /* ************************************************ */
 
 struct ThreadQueueWork {
-  static inline int current_id = 0;
+  static inline uint64_t current_id = 0;
   void *work;
-  int id;
+  uint64_t id;
 };
 
 struct ThreadQueue {
@@ -643,7 +643,7 @@ void BLI_thread_queue_free(ThreadQueue *queue)
   MEM_delete(queue);
 }
 
-int BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority)
+uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority)
 {
   pthread_mutex_lock(&queue->mutex);
 
@@ -672,7 +672,7 @@ int BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriorit
   return work_reference.id;
 }
 
-void BLI_thread_queue_cancel_work(ThreadQueue *queue, int work_id)
+void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
 {
   auto cancel = [work_id](std::deque<ThreadQueueWork> &queue) {
     queue.erase(std::remove_if(queue.begin(),

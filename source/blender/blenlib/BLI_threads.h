@@ -169,8 +169,8 @@ typedef enum {
 ThreadQueue *BLI_thread_queue_init(void);
 void BLI_thread_queue_free(ThreadQueue *queue);
 
-int BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority);
-void BLI_thread_queue_cancel_work(ThreadQueue *queue, int work_id);
+uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority);
+void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id);
 void *BLI_thread_queue_pop(ThreadQueue *queue);
 void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms);
 int BLI_thread_queue_len(ThreadQueue *queue);
