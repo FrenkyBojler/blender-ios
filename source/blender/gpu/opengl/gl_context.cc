@@ -84,13 +84,16 @@ GLContext::GLContext(void *ghost_window, GLSharedOrphanLists &shared_orphan_list
   active_fb = back_left;
   static_cast<GLStateManager *>(state_manager)->active_fb = static_cast<GLFrameBuffer *>(
       active_fb);
-
-  compiler = GLBackend::get()->get_compiler();
 }
 
 GLContext::~GLContext()
 {
-  free_framebuffers();
+  if (G.profile_gpu) {
+    /* Ensure query results are available. */
+    finish();
+    process_frame_timings();
+  }
+  free_resources();
   BLI_assert(orphaned_framebuffers_.is_empty());
   BLI_assert(orphaned_vertarrays_.is_empty());
   /* For now don't allow GPUFrameBuffers to be reuse in another context. */
@@ -161,7 +164,7 @@ void GLContext::begin_frame()
 
 void GLContext::end_frame()
 {
-  /* No-op. */
+  process_frame_timings();
 }
 
 /** \} */

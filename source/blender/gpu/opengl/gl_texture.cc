@@ -53,12 +53,6 @@ GLTexture::~GLTexture()
 
 bool GLTexture::init_internal()
 {
-  if ((format_ == GPU_DEPTH24_STENCIL8) && GPU_depth_blitting_workaround()) {
-    /* MacOS + Radeon Pro fails to blit depth on GPU_DEPTH24_STENCIL8
-     * but works on GPU_DEPTH32F_STENCIL8. */
-    format_ = GPU_DEPTH32F_STENCIL8;
-  }
-
   target_ = to_gl_target(type_);
 
   /* We need to bind once to define the texture type. */
@@ -138,7 +132,7 @@ bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset,
   debug::object_label(GL_TEXTURE, tex_id_, name_);
 
   /* Stencil view support. */
-  if (ELEM(format_, GPU_DEPTH24_STENCIL8, GPU_DEPTH32F_STENCIL8)) {
+  if (ELEM(format_, GPU_DEPTH32F_STENCIL8)) {
     stencil_texture_mode_set(use_stencil);
   }
 
@@ -269,7 +263,7 @@ void GLTexture::update_sub(int offset[3],
   GLContext::state_manager_active_get()->texture_bind_temp(this);
 
   /* Bind pixel buffer for source data. */
-  GLint pix_buf_handle = (GLint)GPU_pixel_buffer_get_native_handle(pixbuf);
+  GLint pix_buf_handle = (GLint)GPU_pixel_buffer_get_native_handle(pixbuf).handle;
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, pix_buf_handle);
 
   switch (dimensions) {
@@ -620,10 +614,11 @@ GLuint GLTexture::get_sampler(const GPUSamplerState &sampler_state)
  * Dummy texture to see if the implementation supports the requested size.
  * \{ */
 
-/* NOTE: This only checks if this mipmap is valid / supported.
- * TODO(fclem): make the check cover the whole mipmap chain. */
 bool GLTexture::proxy_check(int mip)
 {
+  /* NOTE: This only checks if this mipmap is valid / supported.
+   * TODO(fclem): make the check cover the whole mipmap chain. */
+
   /* Manual validation first, since some implementation have issues with proxy creation. */
   int max_size = GPU_max_texture_size();
   int max_3d_size = GPU_max_texture_3d_size();
@@ -809,9 +804,12 @@ void GLPixelBuffer::unmap()
   glBindBuffer(GL_PIXEL_UNPACK_BUFFER, 0);
 }
 
-int64_t GLPixelBuffer::get_native_handle()
+GPUPixelBufferNativeHandle GLPixelBuffer::get_native_handle()
 {
-  return int64_t(gl_id_);
+  GPUPixelBufferNativeHandle native_handle;
+  native_handle.handle = int64_t(gl_id_);
+  native_handle.size = size_;
+  return native_handle;
 }
 
 size_t GLPixelBuffer::get_size()

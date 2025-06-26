@@ -8,6 +8,8 @@
  * Primitive shapes.
  */
 
+#include <algorithm>
+
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_base_safe.h"
@@ -1137,9 +1139,7 @@ void BM_mesh_calc_uvs_sphere(BMesh *bm, const short oflag, const int cd_loop_uv_
     }
     BM_ITER_ELEM_INDEX (l, &iter2, f, BM_LOOPS_OF_FACE, loop_index) {
       float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
-      if (luv[0] < minx) {
-        minx = luv[0];
-      }
+      minx = std::min(luv[0], minx);
     }
   }
 
@@ -1156,7 +1156,7 @@ void BM_mesh_calc_uvs_sphere(BMesh *bm, const short oflag, const int cd_loop_uv_
 
 void bmo_create_monkey_exec(BMesh *bm, BMOperator *op)
 {
-  BMVert **tv = static_cast<BMVert **>(MEM_mallocN(sizeof(*tv) * monkeynv * 2, "tv"));
+  BMVert **tv = MEM_malloc_arrayN<BMVert *>(monkeynv * 2, "tv");
   float mat[4][4];
   int i;
 
@@ -1526,7 +1526,7 @@ void BM_mesh_calc_uvs_cone(BMesh *bm,
   const float uv_center_x_bottom = cap_ends ? 0.75f : 0.5f;
   const float uv_radius = cap_ends ? 0.24f : 0.5f;
 
-  /* Using the opposite's end uv_scale as fallback allows us to handle 'real cone' case. */
+  /* Using the opposite's end uv_scale as a fallback allows us to handle 'real cone' case. */
   const float uv_scale_top = (radius_top != 0.0f) ?
                                  (uv_radius / radius_top) :
                                  ((radius_bottom != 0.0f) ? (uv_radius / radius_bottom) :

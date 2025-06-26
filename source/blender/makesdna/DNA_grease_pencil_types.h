@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_attribute_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_listBase.h"
@@ -261,7 +262,7 @@ typedef struct GreasePencilLayerTreeNode {
   int8_t type;
   char _pad[7];
   /**
-   * Channel color for dopesheet.
+   * Channel color for dope-sheet.
    */
   float color[3];
   /**
@@ -441,6 +442,11 @@ typedef struct GreasePencilOnionSkinningSettings {
  * The grease pencil data-block.
  */
 typedef struct GreasePencil {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_GP;
+#endif
+
   ID id;
   /** Animation data. */
   struct AnimData *adt;
@@ -461,6 +467,13 @@ typedef struct GreasePencil {
    * All attributes stored on the grease pencil layers (#AttrDomain::Layer).
    */
   CustomData layers_data;
+
+  /**
+   * Layer domain attributes. Currently unused at runtime, but used for forward
+   * compatibility when reading files (see #122398).
+   */
+  struct AttributeStorage attribute_storage;
+
   /**
    * The index of the active attribute in the UI.
    *
@@ -551,10 +564,10 @@ typedef struct GreasePencil {
       blender::bke::greasepencil::LayerGroup &parent_group,
       blender::StringRef name,
       bool check_name_is_unique = true);
-  /** Duplicates the given layer to the top of the root group. */
+  /** Duplicates a layer from the same object to the top of the root group. */
   blender::bke::greasepencil::Layer &duplicate_layer(
       const blender::bke::greasepencil::Layer &duplicate_layer);
-  /** Duplicates the given layer to the top of the given group. */
+  /** Duplicates a layer from the same object to the top of the given group. */
   blender::bke::greasepencil::Layer &duplicate_layer(
       blender::bke::greasepencil::LayerGroup &parent_group,
       const blender::bke::greasepencil::Layer &duplicate_layer);
@@ -632,6 +645,10 @@ typedef struct GreasePencil {
    */
   bool remove_frames(blender::bke::greasepencil::Layer &layer, blender::Span<int> frame_numbers);
 
+  void copy_frames_from_layer(blender::bke::greasepencil::Layer &dst_layer,
+                              const GreasePencil &src_grease_pencil,
+                              const blender::bke::greasepencil::Layer &src_layer,
+                              const std::optional<int> frame_select = std::nullopt);
   /**
    * Adds multiple layers each with its own empty drawing. This can be more efficient than adding
    * every layer and drawing one by one.
@@ -714,11 +731,18 @@ typedef struct GreasePencil {
   blender::bke::greasepencil::Drawing *get_eval_drawing(
       const blender::bke::greasepencil::Layer &layer);
 
-  std::optional<blender::Bounds<blender::float3>> bounds_min_max(int frame) const;
-  std::optional<blender::Bounds<blender::float3>> bounds_min_max_eval() const;
+  std::optional<blender::Bounds<blender::float3>> bounds_min_max(int frame,
+                                                                 bool use_radius = true) const;
+  std::optional<blender::Bounds<blender::float3>> bounds_min_max_eval(
+      bool use_radius = true) const;
 
   blender::bke::AttributeAccessor attributes() const;
   blender::bke::MutableAttributeAccessor attributes_for_write();
+
+  /**
+   * Get the largest material index used by the evaluated layers or `nullopt` if they are empty.
+   */
+  std::optional<int> material_index_max_eval() const;
 
   void count_memory(blender::MemoryCounter &memory) const;
 

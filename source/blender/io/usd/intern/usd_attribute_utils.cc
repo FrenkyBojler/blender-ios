@@ -5,7 +5,6 @@
 #include "usd_attribute_utils.hh"
 #include "usd_hash_types.hh"
 
-#include "BLI_generic_span.hh"
 #include "BLI_map.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_sys_types.h"
@@ -80,7 +79,6 @@ std::optional<eCustomDataType> convert_usd_type_to_blender(const pxr::SdfValueTy
     map.add_new(pxr::SdfValueTypeNames->Color4fArray, CD_PROP_COLOR);
     map.add_new(pxr::SdfValueTypeNames->Color4hArray, CD_PROP_COLOR);
     map.add_new(pxr::SdfValueTypeNames->Color4dArray, CD_PROP_COLOR);
-    map.add_new(pxr::SdfValueTypeNames->StringArray, CD_PROP_STRING);
     map.add_new(pxr::SdfValueTypeNames->BoolArray, CD_PROP_BOOL);
     map.add_new(pxr::SdfValueTypeNames->QuatfArray, CD_PROP_QUATERNION);
     map.add_new(pxr::SdfValueTypeNames->QuatdArray, CD_PROP_QUATERNION);

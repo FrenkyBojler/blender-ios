@@ -23,7 +23,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 /* -------------------------------------------------------------------- */
@@ -52,7 +52,7 @@ static void operator_search_update_fn(const bContext *C,
   const int words_len = BLI_string_find_split_words(
       str, str_len, ' ', (int(*)[2])words.data(), words_max);
 
-  for (wmOperatorType *ot : WM_operatortype_map().values()) {
+  for (wmOperatorType *ot : WM_operatortypes_registered_get()) {
     const char *ot_ui_name = CTX_IFACE_(ot->translation_context, ot->name);
 
     if ((ot->flag & OPTYPE_INTERNAL) && (G.debug & G_DEBUG_WM) == 0) {
@@ -69,7 +69,7 @@ static void operator_search_update_fn(const bContext *C,
           name += *kmi_str;
         }
 
-        if (!UI_search_item_add(items, name.c_str(), ot, ICON_NONE, 0, 0)) {
+        if (!UI_search_item_add(items, name, ot, ICON_NONE, 0, 0)) {
           break;
         }
       }
@@ -101,7 +101,7 @@ void uiTemplateOperatorSearch(uiLayout *layout)
   uiBut *but;
   static char search[256] = "";
 
-  block = uiLayoutGetBlock(layout);
+  block = layout->block();
   UI_block_layout_set_current(block, layout);
 
   but = uiDefSearchBut(

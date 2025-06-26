@@ -5,7 +5,7 @@
 #include "IO_types.hh"
 #include "usd.hh"
 #include "usd_hook.hh"
-#include "usd_light_convert.hh"
+#include "usd_reader_domelight.hh"
 #include "usd_reader_geom.hh"
 #include "usd_reader_prim.hh"
 #include "usd_reader_stage.hh"
@@ -75,8 +75,7 @@ static bool gather_objects_paths(const pxr::UsdPrim &object, ListBase *object_pa
     gather_objects_paths(childPrim, object_paths);
   }
 
-  void *usd_path_void = MEM_callocN(sizeof(CacheObjectPath), "CacheObjectPath");
-  CacheObjectPath *usd_path = static_cast<CacheObjectPath *>(usd_path_void);
+  CacheObjectPath *usd_path = MEM_callocN<CacheObjectPath>("CacheObjectPath");
 
   STRNCPY(usd_path->path, object.GetPrimPath().GetString().c_str());
   BLI_addtail(object_paths, usd_path);
@@ -237,10 +236,10 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   archive->collect_readers();
 
   if (data->params.import_lights && data->params.create_world_material &&
-      !archive->dome_lights().is_empty())
+      !archive->dome_light_readers().is_empty())
   {
-    dome_light_to_world_material(
-        data->params, data->scene, data->bmain, archive->dome_lights().first());
+    USDDomeLightReader *dome_light_reader = archive->dome_light_readers().first();
+    dome_light_reader->create_object(data->scene, data->bmain);
   }
 
   if (data->params.import_materials && data->params.import_all_materials) {
@@ -264,7 +263,7 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
     if (!reader) {
       continue;
     }
-    reader->create_object(data->bmain, 0.0);
+    reader->create_object(data->bmain);
     if ((++i & 1023) == 0) {
       *data->do_update = true;
       *data->progress = 0.25f + 0.25f * (i / size);
@@ -315,7 +314,7 @@ static void import_endjob(void *customdata)
   /* Delete objects on cancellation. */
   if (data->was_canceled && data->archive) {
 
-    for (USDPrimReader *reader : data->archive->readers()) {
+    for (const USDPrimReader *reader : data->archive->readers()) {
 
       if (!reader) {
         continue;
@@ -342,7 +341,7 @@ static void import_endjob(void *customdata)
     data->archive->create_proto_collections(data->bmain, lc->collection);
 
     /* Add all objects to the collection. */
-    for (USDPrimReader *reader : data->archive->readers()) {
+    for (const USDPrimReader *reader : data->archive->readers()) {
       if (!reader) {
         continue;
       }
@@ -359,7 +358,7 @@ static void import_endjob(void *customdata)
 
     /* Sync and do the view layer operations. */
     BKE_view_layer_synced_ensure(scene, view_layer);
-    for (USDPrimReader *reader : data->archive->readers()) {
+    for (const USDPrimReader *reader : data->archive->readers()) {
       if (!reader) {
         continue;
       }
@@ -520,7 +519,7 @@ void USD_read_geometry(CacheReader *reader,
     return;
   }
 
-  return usd_reader->read_geometry(geometry_set, params, r_err_str);
+  usd_reader->read_geometry(geometry_set, params, r_err_str);
 }
 
 bool USD_mesh_topology_changed(CacheReader *reader,
@@ -622,7 +621,7 @@ void USD_get_transform(CacheReader *reader, float r_mat_world[4][4], float time,
   if (!reader) {
     return;
   }
-  USDXformReader *usd_reader = reinterpret_cast<USDXformReader *>(reader);
+  const USDXformReader *usd_reader = reinterpret_cast<USDXformReader *>(reader);
 
   bool is_constant = false;
 

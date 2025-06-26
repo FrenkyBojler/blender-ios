@@ -404,7 +404,7 @@ void MTLFrameBuffer::clear_attachment(GPUAttachmentType type,
 
   if (type == GPU_FB_DEPTH_STENCIL_ATTACHMENT) {
     if (this->has_depth_attachment() || this->has_stencil_attachment()) {
-      BLI_assert(data_format == GPU_DATA_UINT_24_8);
+      BLI_assert(data_format == GPU_DATA_UINT_24_8_DEPRECATED);
       float depth = ((*(uint32_t *)clear_value) & 0x00FFFFFFu) / (float)0x00FFFFFFu;
       int stencil = ((*(uint32_t *)clear_value) >> 24);
       this->set_depth_attachment_clear_value(depth);
@@ -476,11 +476,10 @@ void MTLFrameBuffer::clear_attachment(GPUAttachmentType type,
 void MTLFrameBuffer::subpass_transition_impl(const GPUAttachmentState /*depth_attachment_state*/,
                                              Span<GPUAttachmentState> color_attachment_states)
 {
-  const bool is_tile_based_arch = (GPU_platform_architecture() == GPU_ARCHITECTURE_TBDR);
-  if (!is_tile_based_arch) {
+  if (!MTLBackend::capabilities.supports_native_tile_inputs) {
     /* Break render-pass if tile memory is unsupported to ensure current frame-buffer results are
      * stored. */
-    context_->main_command_buffer.end_active_command_encoder();
+    context_->main_command_buffer.end_active_command_encoder(true);
 
     /* Bind frame-buffer attachments as textures.
      * NOTE: Follows behavior of gl_framebuffer. However, shaders utilizing subpass_in will
@@ -696,7 +695,7 @@ void MTLFrameBuffer::update_attachments(bool /*update_viewport*/)
           /* Check stencil component -- if supplied texture format supports stencil. */
           eGPUTextureFormat format = GPU_texture_format(attach.tex);
           bool use_stencil = (type == GPU_FB_DEPTH_STENCIL_ATTACHMENT) &&
-                             (format == GPU_DEPTH32F_STENCIL8 || format == GPU_DEPTH24_STENCIL8);
+                             (format == GPU_DEPTH32F_STENCIL8);
           if (use_stencil) {
             if (this->has_stencil_attachment()) {
               MTLAttachment stencil_attachment_prev = this->get_stencil_attachment();

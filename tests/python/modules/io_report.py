@@ -16,6 +16,7 @@ import pathlib
 
 from . import global_report
 from io import StringIO
+from mathutils import Matrix
 from typing import Callable
 
 
@@ -25,6 +26,21 @@ def fmtf(f: float) -> str:
     if abs(f) < 0.0005:
         return "0.000"
     return f"{f:.3f}"
+
+
+def fmtrot(f: float) -> str:
+    str = fmtf(f)
+    # rotation by -PI is the same as by +PI, due to platform
+    # precision differences we might get one or another. Make
+    # sure to emit consistent value.
+    if str == "-3.142":
+        str = "3.142"
+    return str
+
+
+def is_approx_identity(mat: Matrix, tol=0.001):
+    identity = Matrix.Identity(4)
+    return all(abs(mat[i][j] - identity[i][j]) <= tol for i in range(4) for j in range(4))
 
 
 class Report:
@@ -115,7 +131,7 @@ class Report:
             message += """<p><tt>BLENDER_TEST_UPDATE=1 ctest -R %s</tt></p>""" % test_suite_name
             message += """<p>The reference output of new and failing tests will be updated. """ \
                        """Be sure to commit the new reference """ \
-                       """files to the tests/data git submodule afterwards.</p>"""
+                       """files under the tests/files folder afterwards.</p>"""
             message += """</div>"""
             message += f"Tested files: {self.tested_count}, <b>failed: {len(self.failed_list)}</b>"
         else:
@@ -228,11 +244,11 @@ class Report:
         if isinstance(val, bpy.types.IntAttributeValue):
             return f"{val.value}"
         if isinstance(val, bpy.types.FloatAttributeValue):
-            return f"{val.value:.3f}"
+            return f"{fmtf(val.value)}"
         if isinstance(val, bpy.types.FloatVectorAttributeValue):
-            return f"({val.vector[0]:.3f}, {val.vector[1]:.3f}, {val.vector[2]:.3f})"
+            return f"({fmtf(val.vector[0])}, {fmtf(val.vector[1])}, {fmtf(val.vector[2])})"
         if isinstance(val, bpy.types.Float2AttributeValue):
-            return f"({val.vector[0]:.3f}, {val.vector[1]:.3f})"
+            return f"({fmtf(val.vector[0])}, {fmtf(val.vector[1])})"
         if isinstance(val, bpy.types.FloatColorAttributeValue) or isinstance(val, bpy.types.ByteColorAttributeValue):
             return f"({val.color[0]:.3f}, {val.color[1]:.3f}, {val.color[2]:.3f}, {val.color[3]:.3f})"
         if isinstance(val, bpy.types.Int2AttributeValue) or isinstance(val, bpy.types.Short2AttributeValue):
@@ -242,15 +258,22 @@ class Report:
         if isinstance(val, bpy.types.MeshLoop):
             return f"{val.vertex_index}"
         if isinstance(val, bpy.types.MeshEdge):
-            return f"{min(val.vertices[0],val.vertices[1])}/{max(val.vertices[0],val.vertices[1])}"
+            return f"{min(val.vertices[0], val.vertices[1])}/{max(val.vertices[0], val.vertices[1])}"
         if isinstance(val, bpy.types.MaterialSlot):
             return f"('{val.name}', {val.link})"
         if isinstance(val, bpy.types.VertexGroup):
             return f"'{val.name}'"
         if isinstance(val, bpy.types.Keyframe):
-            return f"({val.co[0]:.1f}, {val.co[1]:.1f} int:{val.interpolation} ease:{val.easing})"
+            res = f"({fmtf(val.co[0])}, {fmtf(val.co[1])})"
+            res += f" lh:({fmtf(val.handle_left[0])}, {fmtf(val.handle_left[1])} {val.handle_left_type})"
+            res += f" rh:({fmtf(val.handle_right[0])}, {fmtf(val.handle_right[1])} {val.handle_right_type})"
+            if val.interpolation != 'LINEAR':
+                res += f" int:{val.interpolation}"
+            if val.easing != 'AUTO':
+                res += f" ease:{val.easing}"
+            return res
         if isinstance(val, bpy.types.SplinePoint):
-            return f"({val.co[0]:.3f}, {val.co[1]:.3f}, {val.co[2]:.3f}) w:{val.weight:.3f}"
+            return f"({fmtf(val.co[0])}, {fmtf(val.co[1])}, {fmtf(val.co[2])}) w:{fmtf(val.weight)}"
         return str(val)
 
     # single-line dump of head/tail
@@ -300,7 +323,7 @@ class Report:
             Report._write_collection_multi(attr.data, desc)
 
     @staticmethod
-    def _write_custom_props(bid, desc: StringIO) -> None:
+    def _write_custom_props(bid, desc: StringIO, prefix='') -> None:
         items = bid.items()
         if not items:
             return
@@ -308,12 +331,12 @@ class Report:
         rna_properties = {prop.identifier for prop in bid.bl_rna.properties if prop.is_runtime}
 
         had_any = False
-        for k, v in items:
+        for k, v in sorted(items, key=lambda it: it[0]):
             if k in rna_properties:
                 continue
 
             if not had_any:
-                desc.write(f"  - props:")
+                desc.write(f"{prefix}  - props:")
                 had_any = True
 
             if isinstance(v, str):
@@ -324,9 +347,13 @@ class Report:
             elif isinstance(v, int):
                 desc.write(f" int:{k}={v}")
             elif isinstance(v, float):
-                desc.write(f" fl:{k}={v:.3f}")
+                desc.write(f" fl:{k}={fmtf(v)}")
+            elif len(v) == 2:
+                desc.write(f" f2:{k}=({fmtf(v[0])}, {fmtf(v[1])})")
             elif len(v) == 3:
-                desc.write(f" f3:{k}=({v[0]:.3f}, {v[1]:.3f}, {v[2]:.3f})")
+                desc.write(f" f3:{k}=({fmtf(v[0])}, {fmtf(v[1])}, {fmtf(v[2])})")
+            elif len(v) == 4:
+                desc.write(f" f4:{k}=({fmtf(v[0])}, {fmtf(v[1])}, {fmtf(v[2])}, {fmtf(v[3])})")
             else:
                 desc.write(f" o:{k}={str(v)}")
         if had_any:
@@ -336,11 +363,25 @@ class Report:
         if not tex or not tex.image:
             return ""
         # Get relative path of the image
-        try:
-            rel_path = pathlib.Path(tex.image.filepath).relative_to(self.input_dir).as_posix()
-        except ValueError:
-            rel_path = "<outside of test folder>"
+        tex_path = pathlib.Path(tex.image.filepath)
+        if tex.image.filepath.startswith('//'):  # already relative
+            rel_path = tex.image.filepath.replace('\\', '/')
+        elif tex_path.root == '':
+            rel_path = tex_path.as_posix()  # use just the filename
+        else:
+            try:
+                # note: we can't use Path.relative_to since walk_up parameter is only since Python 3.12
+                rel_path = pathlib.Path(os.path.relpath(tex_path, self.input_dir)).as_posix()
+            except ValueError:
+                rel_path = f"<outside of test folder>"
+        if rel_path.startswith('../../..'):  # if relative path is too high up, just emit filename
+            rel_path = tex_path.name
+
         desc = f" tex:'{tex.image.name}' ({rel_path}) a:{tex.use_alpha}"
+        if str(tex.colorspace_is_data) == "True":  # unset value is "Ellipsis"
+            desc += f" data"
+        if str(tex.colorspace_name) != "Ellipsis":
+            desc += f" {tex.colorspace_name}"
         if tex.texcoords != 'UV':
             desc += f" uv:{tex.texcoords}"
         if tex.extension != 'REPEAT':
@@ -446,10 +487,21 @@ class Report:
                     desc.write(f" data:'{obj.data.name}'")
                 if obj.parent:
                     desc.write(f" par:'{obj.parent.name}'")
+                if obj.parent_type != 'OBJECT':
+                    desc.write(f" par_type:{obj.parent_type}")
+                    if obj.parent_type == 'BONE':
+                        desc.write(f" par_bone:'{obj.parent_bone}'")
                 desc.write(f"\n")
+                mtx = obj.matrix_parent_inverse
+                if not is_approx_identity(mtx):
+                    desc.write(f"  - matrix_parent_inverse:\n")
+                    desc.write(f"      {fmtf(mtx[0][0])} {fmtf(mtx[0][1])} {fmtf(mtx[0][2])} {fmtf(mtx[0][3])}\n")
+                    desc.write(f"      {fmtf(mtx[1][0])} {fmtf(mtx[1][1])} {fmtf(mtx[1][2])} {fmtf(mtx[1][3])}\n")
+                    desc.write(f"      {fmtf(mtx[2][0])} {fmtf(mtx[2][1])} {fmtf(mtx[2][2])} {fmtf(mtx[2][3])}\n")
+
                 desc.write(f"  - pos {fmtf(obj.location[0])}, {fmtf(obj.location[1])}, {fmtf(obj.location[2])}\n")
                 desc.write(
-                    f"  - rot {fmtf(obj.rotation_euler[0])}, {fmtf(obj.rotation_euler[1])}, {fmtf(obj.rotation_euler[2])} ({obj.rotation_mode})\n")
+                    f"  - rot {fmtrot(obj.rotation_euler[0])}, {fmtrot(obj.rotation_euler[1])}, {fmtrot(obj.rotation_euler[2])} ({obj.rotation_mode})\n")
                 desc.write(f"  - scl {obj.scale[0]:.3f}, {obj.scale[1]:.3f}, {obj.scale[2]:.3f}\n")
                 if obj.vertex_groups:
                     desc.write(f"  - {len(obj.vertex_groups)} vertex groups\n")
@@ -467,6 +519,27 @@ class Report:
                             desc.write(
                                 f" levels:{mod.levels}/{mod.render_levels} type:{mod.subdivision_type} crease:{mod.use_creases}")
                         desc.write(f"\n")
+                # for a pose, only print bones that either have non-identity pose matrix, or custom properties
+                if obj.pose:
+                    bones = sorted(obj.pose.bones, key=lambda b: b.name)
+                    for bone in bones:
+                        mtx = bone.matrix_basis
+                        mtx_identity = is_approx_identity(mtx)
+                        desc_props = StringIO()
+                        Report._write_custom_props(bone, desc_props, '  ')
+                        props_str = desc_props.getvalue()
+                        if not mtx_identity or len(props_str) > 0:
+                            desc.write(f"  - posed bone '{bone.name}'\n")
+                            if not mtx_identity:
+                                desc.write(
+                                    f"      {fmtf(mtx[0][0])} {fmtf(mtx[0][1])} {fmtf(mtx[0][2])} {fmtf(mtx[0][3])}\n")
+                                desc.write(
+                                    f"      {fmtf(mtx[1][0])} {fmtf(mtx[1][1])} {fmtf(mtx[1][2])} {fmtf(mtx[1][3])}\n")
+                                desc.write(
+                                    f"      {fmtf(mtx[2][0])} {fmtf(mtx[2][1])} {fmtf(mtx[2][2])} {fmtf(mtx[2][3])}\n")
+                            if len(props_str) > 0:
+                                desc.write(props_str)
+
                 Report._write_animdata_desc(obj.animation_data, desc)
                 Report._write_custom_props(obj, desc)
             desc.write(f"\n")
@@ -492,7 +565,15 @@ class Report:
             desc.write(f"==== Lights: {len(bpy.data.lights)}\n")
             for light in bpy.data.lights:
                 desc.write(
-                    f"- Light '{light.name}' {light.type} col:({light.color[0]:.3f}, {light.color[1]:.3f}, {light.color[2]:.3f}) energy:{light.energy:.3f}\n")
+                    f"- Light '{light.name}' {light.type} col:({light.color[0]:.3f}, {light.color[1]:.3f}, {light.color[2]:.3f}) energy:{light.energy:.3f}")
+                if light.exposure != 0:
+                    desc.write(f" exposure:{fmtf(light.exposure)}")
+                if light.use_temperature:
+                    desc.write(
+                        f" temp:{fmtf(light.temperature)}")
+                if not light.normalize:
+                    desc.write(f" normalize_off")
+                desc.write(f"\n")
                 if isinstance(light, bpy.types.SpotLight):
                     desc.write(f"  - spot {light.spot_size:.3f} blend {light.spot_blend:.3f}\n")
                 Report._write_animdata_desc(light.animation_data, desc)
@@ -531,6 +612,19 @@ class Report:
                 if (wrap.normalmap_texture and wrap.normalmap_texture.image):
                     desc.write(
                         f"  - normalmap {wrap.normalmap_strength:.3f}{self._node_shader_image_desc(wrap.normalmap_texture)}\n")
+                if mat.alpha_threshold != 0.5:
+                    desc.write(f"  - alpha_threshold {fmtf(mat.alpha_threshold)}\n")
+                if mat.surface_render_method != 'DITHERED':
+                    desc.write(f"  - surface_render_method {mat.surface_render_method}\n")
+                if mat.displacement_method != 'BUMP':
+                    desc.write(f"  - displacement {mat.displacement_method}\n")
+                desc.write(
+                    f"  - viewport diffuse ({fmtf(mat.diffuse_color[0])}, {fmtf(mat.diffuse_color[1])}, {fmtf(mat.diffuse_color[2])}, {fmtf(mat.diffuse_color[3])})\n")
+                desc.write(
+                    f"  - viewport specular ({fmtf(mat.specular_color[0])}, {fmtf(mat.specular_color[1])}, {fmtf(mat.specular_color[2])}), intensity {fmtf(mat.specular_intensity)}\n")
+                desc.write(f"  - viewport metallic {fmtf(mat.metallic)}, roughness {fmtf(mat.roughness)}\n")
+                desc.write(
+                    f"  - backface {mat.use_backface_culling} probe {mat.use_backface_culling_lightprobe_volume} shadow {mat.use_backface_culling_shadow}\n")
                 Report._write_animdata_desc(mat.animation_data, desc)
                 Report._write_custom_props(mat, desc)
                 desc.write(f"\n")
@@ -539,12 +633,27 @@ class Report:
         if len(bpy.data.actions):
             desc.write(f"==== Actions: {len(bpy.data.actions)}\n")
             for act in sorted(bpy.data.actions, key=lambda a: a.name):
+                layers = sorted(act.layers, key=lambda l: l.name)
                 desc.write(
-                    f"- Action '{act.name}' curverange:({act.curve_frame_range[0]:.1f} .. {act.curve_frame_range[1]:.1f}) curves:{len(act.fcurves)}\n")
-                for fcu in act.fcurves[:5]:
-                    desc.write(
-                        f"  - fcu '{fcu.data_path}[{fcu.array_index}] smooth:{fcu.auto_smoothing} extra:{fcu.extrapolation} keyframes:{len(fcu.keyframe_points)}'\n")
-                    Report._write_collection_multi(fcu.keyframe_points, desc)
+                    f"- Action '{act.name}' curverange:({act.curve_frame_range[0]:.1f} .. {act.curve_frame_range[1]:.1f}) layers:{len(layers)}\n")
+                for layer in layers:
+                    desc.write(f"- ActionLayer {layer.name} strips:{len(layer.strips)}\n")
+                    for strip in layer.strips:
+                        if strip.type == 'KEYFRAME':
+                            desc.write(f" - Keyframe strip channelbags:{len(strip.channelbags)}\n")
+                            for chbag in strip.channelbags:
+                                curves = sorted(chbag.fcurves, key=lambda c: f"{c.data_path}[{c.array_index}]")
+                                desc.write(f" - Channelbag ")
+                                if chbag.slot:
+                                    desc.write(f"slot '{chbag.slot.identifier}' ")
+                                desc.write(f"curves:{len(curves)}\n")
+                                for fcu in curves[:15]:
+                                    grp = ''
+                                    if fcu.group:
+                                        grp = f" grp:'{fcu.group.name}'"
+                                    desc.write(
+                                        f"  - fcu '{fcu.data_path}[{fcu.array_index}]' smooth:{fcu.auto_smoothing} extra:{fcu.extrapolation} keyframes:{len(fcu.keyframe_points)}{grp}\n")
+                                    Report._write_collection_multi(fcu.keyframe_points, desc)
                 Report._write_custom_props(act, desc)
                 desc.write(f"\n")
 
@@ -552,16 +661,34 @@ class Report:
         if len(bpy.data.armatures):
             desc.write(f"==== Armatures: {len(bpy.data.armatures)}\n")
             for arm in bpy.data.armatures:
-                desc.write(f"- Armature '{arm.name}' {len(arm.bones)} bones\n")
-                for bone in arm.bones:
+                bones = sorted(arm.bones, key=lambda b: b.name)
+                desc.write(f"- Armature '{arm.name}' {len(bones)} bones")
+                if arm.display_type != 'OCTAHEDRAL':
+                    desc.write(f" display:{arm.display_type}")
+                desc.write("\n")
+                for bone in bones:
                     desc.write(f"  - bone '{bone.name}'")
                     if bone.parent:
                         desc.write(f" parent:'{bone.parent.name}'")
                     desc.write(
-                        f" h:({fmtf(bone.head[0])}, {fmtf(bone.head[1])}, {fmtf(bone.head[2])}) t:({fmtf(bone.tail[0]):}, {fmtf(bone.tail[1])}, {fmtf(bone.tail[2])})")
+                        f" h:({fmtf(bone.head[0])}, {fmtf(bone.head[1])}, {fmtf(bone.head[2])}) t:({fmtf(bone.tail[0])}, {fmtf(bone.tail[1])}, {fmtf(bone.tail[2])})")
+                    if bone.use_connect:
+                        desc.write(f" connect")
+                    if not bone.use_deform:
+                        desc.write(f" no-deform")
+                    if bone.inherit_scale != 'FULL':
+                        desc.write(f" inh_scale:{bone.inherit_scale}")
                     if bone.head_radius > 0.0 or bone.tail_radius > 0.0:
                         desc.write(f" radius h:{bone.head_radius:.3f} t:{bone.tail_radius:.3f}")
                     desc.write(f"\n")
+                    mtx = bone.matrix_local
+                    desc.write(f"      {fmtf(mtx[0][0])} {fmtf(mtx[0][1])} {fmtf(mtx[0][2])} {fmtf(mtx[0][3])}\n")
+                    desc.write(f"      {fmtf(mtx[1][0])} {fmtf(mtx[1][1])} {fmtf(mtx[1][2])} {fmtf(mtx[1][3])}\n")
+                    desc.write(f"      {fmtf(mtx[2][0])} {fmtf(mtx[2][1])} {fmtf(mtx[2][2])} {fmtf(mtx[2][3])}\n")
+                    # mtx[3] is always 0,0,0,1, not worth printing it
+                    Report._write_custom_props(bone, desc)
+                Report._write_animdata_desc(arm.animation_data, desc)
+                Report._write_custom_props(arm, desc)
                 desc.write(f"\n")
 
         # images

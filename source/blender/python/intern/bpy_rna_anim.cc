@@ -252,14 +252,6 @@ static int pyrna_struct_keyframe_parse(PointerRNA *ptr,
     return -1;
   }
 
-  if (pyrna_struct_anim_args_parse(ptr, error_prefix, path, r_path_full, r_index) == -1) {
-    return -1;
-  }
-
-  if (*r_cfra == FLT_MAX) {
-    *r_cfra = CTX_data_scene(BPY_context_get())->r.cfra;
-  }
-
   /* flag may be null (no option currently for remove keyframes e.g.). */
   if (r_options) {
     if (pyoptions &&
@@ -282,6 +274,14 @@ static int pyrna_struct_keyframe_parse(PointerRNA *ptr,
       return -1;
     }
     *r_keytype = eBezTriple_KeyframeType(keytype_as_int);
+  }
+
+  if (pyrna_struct_anim_args_parse(ptr, error_prefix, path, r_path_full, r_index) == -1) {
+    return -1;
+  }
+
+  if (*r_cfra == FLT_MAX) {
+    *r_cfra = CTX_data_scene(BPY_context_get())->r.cfra;
   }
 
   return 0; /* success */
@@ -429,7 +429,7 @@ PyObject *pyrna_struct_keyframe_insert(BPy_StructRNA *self, PyObject *args, PyOb
     result = success_count != 0;
   }
 
-  MEM_freeN((void *)path_full);
+  MEM_freeN(path_full);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, false) == -1) {
     BKE_reports_free(&reports);
@@ -559,7 +559,7 @@ PyObject *pyrna_struct_keyframe_delete(BPy_StructRNA *self, PyObject *args, PyOb
                   G.main, &reports, self->ptr->owner_id, rna_path, cfra) != 0);
   }
 
-  MEM_freeN((void *)path_full);
+  MEM_freeN(path_full);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
     return nullptr;
@@ -611,10 +611,14 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
                            DRIVER_TYPE_PYTHON);
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
-    return nullptr;
+    /* Pass. */
   }
-
-  if (result) {
+  else if (result == 0) {
+    /* XXX: should be handled by reports. */
+    PyErr_SetString(PyExc_TypeError,
+                    "bpy_struct.driver_add(): failed because of an internal error");
+  }
+  else {
     ID *id = self->ptr->owner_id;
     AnimData *adt = BKE_animdata_from_id(id);
     FCurve *fcu;
@@ -625,13 +629,13 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
       int i = 0;
       ret = PyList_New(0);
       while ((fcu = BKE_fcurve_find(&adt->drivers, path_full, i++))) {
-        tptr = RNA_pointer_create(id, &RNA_FCurve, fcu);
+        tptr = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
         PyList_APPEND(ret, pyrna_struct_CreatePyObject(&tptr));
       }
     }
     else {
       fcu = BKE_fcurve_find(&adt->drivers, path_full, index);
-      tptr = RNA_pointer_create(id, &RNA_FCurve, fcu);
+      tptr = RNA_pointer_create_discrete(id, &RNA_FCurve, fcu);
       ret = pyrna_struct_CreatePyObject(&tptr);
     }
 
@@ -640,14 +644,8 @@ PyObject *pyrna_struct_driver_add(BPy_StructRNA *self, PyObject *args)
     DEG_id_tag_update(id, ID_RECALC_SYNC_TO_EVAL);
     DEG_relations_tag_update(CTX_data_main(context));
   }
-  else {
-    /* XXX: should be handled by reports. */
-    PyErr_SetString(PyExc_TypeError,
-                    "bpy_struct.driver_add(): failed because of an internal error");
-    return nullptr;
-  }
 
-  MEM_freeN((void *)path_full);
+  MEM_freeN(path_full);
 
   return ret;
 }
@@ -689,7 +687,7 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
   result = ANIM_remove_driver(self->ptr->owner_id, path_full, index);
 
   if (path != path_full) {
-    MEM_freeN((void *)path_full);
+    MEM_freeN(path_full);
   }
 
   if (BPy_reports_to_error(&reports, PyExc_RuntimeError, true) == -1) {
@@ -698,6 +696,7 @@ PyObject *pyrna_struct_driver_remove(BPy_StructRNA *self, PyObject *args)
 
   bContext *context = BPY_context_get();
   WM_event_add_notifier(context, NC_ANIMATION | ND_FCURVES_ORDER, nullptr);
+  DEG_id_tag_update(self->ptr->owner_id, ID_RECALC_ANIMATION);
   DEG_relations_tag_update(CTX_data_main(context));
 
   return PyBool_FromLong(result);

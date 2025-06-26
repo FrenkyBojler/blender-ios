@@ -143,7 +143,7 @@ def pkg_manifest_zip_all_items(pkg_manifest_local, pkg_manifest_remote):
 
 # While this is not a strict definition (internally they're just add-ons from different places),
 # for the purposes of the UI it makes sense to differentiate add-ons this way because these add-on
-# characteristics are mutually exclusive (there is no such thing as a user-core-extension for e.g.).
+# characteristics are mutually exclusive (there is no such thing as a user-core-extension for example).
 
 # Add-On Types:
 
@@ -223,6 +223,7 @@ def addon_draw_item_expanded(
         item_warnings,  # `list[str]`
         item_doc_url,  # `str`
         item_tracker_url,  # `str`
+        show_developer_ui,  # `bool`
 ):
     from bpy.app.translations import (
         contexts as i18n_contexts,
@@ -295,7 +296,18 @@ def addon_draw_item_expanded(
 
     if addon_type != ADDON_TYPE_LEGACY_CORE:
         col_a.label(text="File")
-        col_b.label(text=mod.__file__, translate=False)
+        row = col_b.row()
+        row.label(text=mod.__file__, translate=False)
+
+        # Add a button to quickly open the add-on's folder for accessing its files and assets.
+        #
+        # Only show this with a developer UI since extensions should be
+        # usable without direct file-system access / manipulation.
+        # If non-technical users need this for some task then we could consider alternative solutions,
+        # see: #128474 discussion for details.
+        if show_developer_ui:
+            import os
+            row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(mod.__file__)
 
 
 # NOTE: this can be removed once upgrading from 4.1 is no longer relevant.
@@ -435,6 +447,7 @@ def addons_panel_draw_items(
         addon_extension_block_map,  # `dict[str, PkgBlock_Normalized]`
 
         show_development,  # `bool`
+        show_developer_ui,  # `bool`
 ):  # `-> set[str]`
     # NOTE: this duplicates logic from `USERPREF_PT_addons` eventually this logic should be used instead.
     # Don't de-duplicate the logic as this is a temporary state - as long as extensions remains experimental.
@@ -519,7 +532,7 @@ def addons_panel_draw_items(
             del value
 
             if show_expanded:
-                item_maintainer = value.split("<", 1)[0].rstrip() if (value := bl_info["author"]) else ""
+                item_maintainer = value if (value := bl_info["author"]) else ""
                 item_version = ".".join(str(x) for x in value) if (value := bl_info["version"]) else ""
                 item_doc_url = bl_info["doc_url"]
                 item_tracker_url = bl_info.get("tracker_url")
@@ -592,6 +605,7 @@ def addons_panel_draw_items(
                 item_doc_url=item_doc_url,
                 # pylint: disable-next=used-before-assignment
                 item_tracker_url=item_tracker_url,
+                show_developer_ui=show_developer_ui,
             )
 
             if is_enabled:
@@ -603,6 +617,8 @@ def addons_panel_draw_items(
 
 def addons_panel_draw_error_duplicates(layout):
     import addon_utils
+    import os
+
     box = layout.box()
     row = box.row()
     row.label(text="Multiple add-ons with the same name found!")
@@ -612,8 +628,14 @@ def addons_panel_draw_error_duplicates(layout):
         box.separator()
         sub_col = box.column(align=True)
         sub_col.label(text=addon_name + ":")
-        sub_col.label(text="    " + addon_file)
-        sub_col.label(text="    " + addon_path)
+
+        sub_row = sub_col.row()
+        sub_row.label(text="    " + addon_file)
+        sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_file)
+
+        sub_row = sub_col.row()
+        sub_row.label(text="    " + addon_path)
+        sub_row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = os.path.dirname(addon_path)
 
 
 def addons_panel_draw_error_generic(layout, lines):
@@ -633,6 +655,7 @@ def addons_panel_draw_impl(
         enabled_only,  # `bool`
         *,
         show_development,  # `bool`
+        show_developer_ui,  # `bool`
 ):
     """
     Show all the items... we may want to paginate at some point.
@@ -722,6 +745,7 @@ def addons_panel_draw_impl(
         addon_extension_manifest_map=addon_extension_manifest_map,
         addon_extension_block_map=addon_extension_block_map,
         show_development=show_development,
+        show_developer_ui=show_developer_ui,
     )
 
     # Append missing scripts.
@@ -797,6 +821,7 @@ def addons_panel_draw(panel, context):
         addon_tags_exclude,
         view.show_addons_enabled_only,
         show_development=prefs.experimental.use_extensions_debug,
+        show_developer_ui=prefs.view.show_developer_ui,
     )
 
 
@@ -1195,14 +1220,18 @@ def extensions_panel_draw_online_extensions_request_impl(
     row = box.row(align=True)
     row.alignment = 'LEFT'
     row.label(text="While offline, use \"Install from Disk\" instead.")
-    # TODO: the URL must be updated before release,
-    # this could be constructed using a function to account for Blender version & locale.
     row.operator(
         "wm.url_open",
         text="",
         icon='URL',
         emboss=False,
-    ).url = "https://docs.blender.org/manual/en/dev/editors/preferences/extensions.html#install"
+    ).url = (
+        "https://docs.blender.org/manual/"
+        "{:s}/{:d}.{:d}/editors/preferences/extensions.html#installing-extensions"
+    ).format(
+        bpy.utils.manual_language_code(),
+        *bpy.app.version[:2],
+    )
 
     row = box.row()
     props = row.operator("wm.context_set_boolean", text="Continue Offline", icon='X')
@@ -1259,6 +1288,7 @@ def extension_draw_item(
         repo_item,  # `RepoItem`
         operation_in_progress,  # `bool`
         extensions_warnings,  # `dict[str, list[str]]`
+        show_developer_ui,  # `bool`
 ):
     item = item_local or item_remote
     is_installed = item_local is not None
@@ -1429,7 +1459,12 @@ def extension_draw_item(
 
         if is_installed:
             col_a.label(text="Path")
-            col_b.label(text=os.path.join(repo_item.directory, pkg_id), translate=False)
+            row = col_b.row()
+            dirpath = os.path.join(repo_item.directory, pkg_id)
+            row.label(text=dirpath, translate=False)
+
+            if show_developer_ui:
+                row.operator("wm.path_open", text="", icon='FILE_FOLDER').filepath = dirpath
 
 
 def extensions_panel_draw_impl(
@@ -1511,7 +1546,7 @@ def extensions_panel_draw_impl(
     # Exceptions to this rule:
     # - *version*: when outdated, it's useful to show both versions as the user may wish to upgrade.
     #   Otherwise it's typically not useful to attempt to make the user aware of other minor discrepancies.
-    #   (changes to the description or maintainer for e.g.).
+    #   (changes to the description or maintainer for example).
     #
     # - *website*: the host of the remote repository may wish to override the website with a landing page for
     #   each extension, this page can show information managed by the organization hosting repository,
@@ -1710,6 +1745,7 @@ def extensions_panel_draw_impl(
                 repo_item=params.repos_all[ext_ui.repo_index],
                 operation_in_progress=operation_in_progress,
                 extensions_warnings=extensions_warnings,
+                show_developer_ui=prefs.view.show_developer_ui,
             )
 
     # Finally show any errors in a single panel which can be dismissed.
@@ -1961,7 +1997,7 @@ def extensions_panel_draw(panel, context):
     # When an update is in progress disallow any destructive operations.
     # While a non-blocking update is nice, users should *never* be performing
     # destructive operations with an outdated repository. There are a couple of reasons for this.
-    # - Pressing "Install" on an extension may either fail (the version may be old for e.g.).
+    # - Pressing "Install" on an extension may either fail (the version may be old for example).
     # - Pressing any buttons immediately before the UI refreshes risks the user installing or operating
     #   on the wrong extension, one which they may not trust!
     # Prevent these kinds of accidents by disabling parts of the extension UI while synchronize is in progress.
@@ -2083,7 +2119,14 @@ def extensions_repo_active_draw(self, _context):
     if (repo := repo_active_or_none()) is not None:
         layout.context_pointer_set("extension_repo", repo)
 
-    layout.operator("extensions.repo_sync_all", text="", icon='FILE_REFRESH').use_active_only = True
+    if repo is not None and repo.use_remote_url:
+        layout.operator("extensions.repo_sync_all", text="", icon='FILE_REFRESH').use_active_only = True
+    else:
+        # NOTE: this could be exposed for remote repositories, as it's possible users manipulate
+        # extensions on the file-system, then want to see the result of those changes locally.
+        # At the moment this can only be done by refreshing all local repositories from the top-level menu.
+        # Since it's a fairly obscure use case, leave this as-is.
+        layout.operator("extensions.repo_refresh_all", text="", icon='FILE_REFRESH').use_active_only = True
 
     layout.separator()
 
@@ -2166,9 +2209,9 @@ def tags_current(wm, tags_attr):
     active_theme_info = None
 
     # Currently only add-ons can make use of enabled by type (usefully) for tags.
-    if filter_by_type == "add-on":
+    if filter_by_type in {"", "add-on"}:
         addons_enabled = {addon.module for addon in prefs.addons}
-    elif filter_by_type == "theme":
+    if filter_by_type in {"", "theme"}:
         active_theme_info = pkg_repo_and_id_from_theme_path(repos_all, prefs.themes[0].filepath)
 
     params = ExtensionUI_FilterParams(

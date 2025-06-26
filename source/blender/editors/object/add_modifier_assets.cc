@@ -7,6 +7,7 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "BLI_listbase.h"
 #include "BLI_multi_value_map.hh"
 #include "BLI_string.h"
 
@@ -35,6 +36,7 @@
 #include "MOD_nodes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 
@@ -94,19 +96,12 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
   }
 
   uiLayout *layout = menu->layout;
-  uiItemS(layout);
+  layout->separator();
 
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : assets) {
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    IFACE_(asset->get_name().c_str()),
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_DEFAULT,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -139,15 +134,8 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
   uiLayout *layout = menu->layout;
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_modifier_add_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree.unassigned_assets) {
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    IFACE_(asset->get_name().c_str()),
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_DEFAULT,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -165,23 +153,16 @@ static void unassigned_assets_draw(const bContext *C, Menu *menu)
     }
 
     if (add_separator) {
-      uiItemS(layout);
+      layout->separator();
       add_separator = false;
     }
     if (first) {
-      uiItemL(layout, IFACE_("Non-Assets"), ICON_NONE);
+      layout->label(IFACE_("Non-Assets"), ICON_NONE);
       first = false;
     }
 
-    PointerRNA props_ptr;
-    uiItemFullO_ptr(layout,
-                    ot,
-                    group->id.name + 2,
-                    ICON_NONE,
-                    nullptr,
-                    WM_OP_INVOKE_DEFAULT,
-                    UI_ITEM_NONE,
-                    &props_ptr);
+    PointerRNA props_ptr = layout->op(
+        ot, group->id.name + 2, ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
   }
 }
@@ -202,10 +183,10 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
     return;
   }
 
-  uiItemS(layout);
+  layout->separator();
 
   if (!loading_finished) {
-    uiItemL(layout, IFACE_("Loading Asset Libraries"), ICON_INFO);
+    layout->label(IFACE_("Loading Asset Libraries"), ICON_INFO);
   }
 
   Set<std::string> all_builtin_menus = [&]() {
@@ -235,11 +216,9 @@ static void root_catalogs_draw(const bContext *C, Menu *menu)
   });
 
   if (!tree.unassigned_assets.is_empty() || unassigned_local_poll(*CTX_data_main(C))) {
-    uiItemS(layout);
-    uiItemM(layout,
-            "OBJECT_MT_add_modifier_unassigned_assets",
-            IFACE_("Unassigned"),
-            ICON_FILE_HIDDEN);
+    layout->separator();
+    layout->menu(
+        "OBJECT_MT_add_modifier_unassigned_assets", IFACE_("Unassigned"), ICON_FILE_HIDDEN);
   }
 }
 
@@ -277,7 +256,7 @@ static bNodeTree *get_node_group(const bContext &C, PointerRNA &ptr, ReportList 
   return node_group;
 }
 
-static int modifier_add_asset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus modifier_add_asset_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
   Scene *scene = CTX_data_scene(C);
@@ -321,7 +300,9 @@ static int modifier_add_asset_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int modifier_add_asset_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus modifier_add_asset_invoke(bContext *C,
+                                                  wmOperator *op,
+                                                  const wmEvent *event)
 {
   if (event->modifier & KM_ALT || CTX_wm_view3d(C)) {
     RNA_boolean_set(op->ptr, "use_selected_objects", true);
@@ -396,9 +377,9 @@ static MenuType modifier_add_root_catalogs_menu_type()
 
 void object_modifier_add_asset_register()
 {
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
-  WM_menutype_add(MEM_cnew<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_catalog_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_unassigned_assets_menu_type()));
+  WM_menutype_add(MEM_dupallocN<MenuType>(__func__, modifier_add_root_catalogs_menu_type()));
   WM_operatortype_append(OBJECT_OT_modifier_add_node_group);
 }
 
@@ -414,9 +395,9 @@ void ui_template_modifier_asset_menu_items(uiLayout &layout, const StringRef cat
   if (!all_library) {
     return;
   }
-  uiItemS(&layout);
-  uiLayout *col = uiLayoutColumn(&layout, false);
-  uiLayoutSetContextString(col, "asset_catalog_path", item->catalog_path().str());
+  layout.separator();
+  uiLayout *col = &layout.column(false);
+  col->context_string_set("asset_catalog_path", item->catalog_path().str());
   uiItemMContents(col, "OBJECT_MT_add_modifier_catalog_assets");
 }
 

@@ -148,19 +148,31 @@ void PathTraceWorkCPU::render_samples_full_pipeline(ThreadKernelGlobalsCPU *kern
       }
     }
 
-    kernels_.integrator_megakernel(kernel_globals, state, render_buffer);
-
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
     if (kernel_globals->data.integrator.train_guiding) {
+      assert(kernel_globals->opgl_path_segment_storage);
+      assert(kernel_globals->opgl_path_segment_storage->GetNumSegments() == 0);
+
+      kernels_.integrator_megakernel(kernel_globals, state, render_buffer);
+
       /* Push the generated sample data to the global sample data storage. */
       guiding_push_sample_data_to_global_storage(kernel_globals, state, render_buffer);
+
+      /* No training for shadow catcher paths. */
+      if (shadow_catcher_state) {
+        kernel_globals->data.integrator.train_guiding = false;
+        kernels_.integrator_megakernel(kernel_globals, shadow_catcher_state, render_buffer);
+        kernel_globals->data.integrator.train_guiding = true;
+      }
     }
+    else
 #endif
-
-    if (shadow_catcher_state) {
-      kernels_.integrator_megakernel(kernel_globals, shadow_catcher_state, render_buffer);
+    {
+      kernels_.integrator_megakernel(kernel_globals, state, render_buffer);
+      if (shadow_catcher_state) {
+        kernels_.integrator_megakernel(kernel_globals, shadow_catcher_state, render_buffer);
+      }
     }
-
     ++sample_work_tile.start_sample;
   }
 }
@@ -291,7 +303,7 @@ void PathTraceWorkCPU::cryptomatte_postproces()
   });
 }
 
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
 /* NOTE: It seems that this is called before every rendering iteration/progression and not once per
  * rendering. May be we find a way to call it only once per rendering. */
 void PathTraceWorkCPU::guiding_init_kernel_globals(void *guiding_field,

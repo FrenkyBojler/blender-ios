@@ -17,8 +17,6 @@
 
 #include "ED_grease_pencil.hh"
 
-#include <iostream>
-
 namespace blender::ed::greasepencil::tests {
 
 struct GreasePencilIDTestContext {
@@ -29,7 +27,7 @@ struct GreasePencilIDTestContext {
   {
     BKE_idtype_init();
     this->bmain = BKE_main_new();
-    this->grease_pencil = static_cast<GreasePencil *>(BKE_id_new(this->bmain, ID_GP, "GP"));
+    this->grease_pencil = BKE_id_new<GreasePencil>(this->bmain, "GP");
   }
   ~GreasePencilIDTestContext()
   {
@@ -244,6 +242,7 @@ TEST(grease_pencil_merge, merge_layer_attributes)
   SpanAttributeWriter<float> test_attribute =
       grease_pencil.attributes_for_write().lookup_or_add_for_write_only_span<float>(
           "test", AttrDomain::Layer);
+  EXPECT_TRUE(test_attribute);
   test_attribute.span.copy_from(test_float_values);
   test_attribute.finish();
 

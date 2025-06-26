@@ -11,7 +11,6 @@
 #include "BLI_map.hh"
 #include "BLI_set.hh"
 #include "BLI_string_ref.hh"
-#include "BLI_threads.h"
 
 #include "BKE_global.hh"
 
@@ -19,7 +18,6 @@
 #include "GPU_context.hh"
 #include "GPU_platform.hh"
 #include "GPU_shader.hh"
-#include "GPU_texture.hh"
 
 #include "gpu_shader_create_info.hh"
 #include "gpu_shader_create_info_private.hh"
@@ -98,6 +96,22 @@ bool ShaderCreateInfo::is_vulkan_compatible() const
 
 /** \} */
 
+void ShaderCreateInfo::resource_guard_defines(std::string &defines) const
+{
+  if (name_.startswith("MA") || name_.startswith("WO")) {
+    defines += "#define CREATE_INFO_Material\n";
+  }
+  else {
+    defines += "#define CREATE_INFO_" + name_ + "\n";
+  }
+  for (const auto &info_name : additional_infos_) {
+    const ShaderCreateInfo &info = *reinterpret_cast<const ShaderCreateInfo *>(
+        gpu_shader_create_info_get(info_name.c_str()));
+
+    info.resource_guard_defines(defines);
+  }
+}
+
 void ShaderCreateInfo::finalize(const bool recursive)
 {
   if (finalized_) {
@@ -134,6 +148,7 @@ void ShaderCreateInfo::finalize(const bool recursive)
     geometry_out_interfaces_.extend_non_duplicates(info.geometry_out_interfaces_);
     subpass_inputs_.extend_non_duplicates(info.subpass_inputs_);
     specialization_constants_.extend_non_duplicates(info.specialization_constants_);
+    compilation_constants_.extend_non_duplicates(info.compilation_constants_);
 
     validate_vertex_attributes(&info);
 
@@ -202,6 +217,23 @@ void ShaderCreateInfo::finalize(const bool recursive)
       assert_no_overlap(compute_source_.is_empty(), "Compute source already existing");
       compute_source_ = info.compute_source_;
     }
+
+    if (info.vertex_entry_fn_ != "main") {
+      assert_no_overlap(vertex_entry_fn_ == "main", "Vertex function already existing");
+      vertex_entry_fn_ = info.vertex_entry_fn_;
+    }
+    if (info.geometry_entry_fn_ != "main") {
+      assert_no_overlap(geometry_entry_fn_ == "main", "Geometry function already existing");
+      geometry_entry_fn_ = info.geometry_entry_fn_;
+    }
+    if (info.fragment_entry_fn_ != "main") {
+      assert_no_overlap(fragment_entry_fn_ == "main", "Fragment function already existing");
+      fragment_entry_fn_ = info.fragment_entry_fn_;
+    }
+    if (info.compute_entry_fn_ != "main") {
+      assert_no_overlap(compute_entry_fn_ == "main", "Compute function already existing");
+      compute_entry_fn_ = info.compute_entry_fn_;
+    }
   }
 
   if (!geometry_source_.is_empty() && bool(builtins_ & BuiltinBits::LAYER)) {
@@ -252,7 +284,7 @@ std::string ShaderCreateInfo::check_error() const
     if (this->vertex_source_.is_empty()) {
       error += "Missing vertex shader in " + this->name_ + ".\n";
     }
-    if (tf_type_ == GPU_SHADER_TFB_NONE && this->fragment_source_.is_empty()) {
+    if (this->fragment_source_.is_empty()) {
       error += "Missing fragment shader in " + this->name_ + ".\n";
     }
   }
@@ -314,6 +346,16 @@ std::string ShaderCreateInfo::check_error() const
       if (specialization_constants_[i].name == specialization_constants_[j].name) {
         error += this->name_ + " contains two specialization constants with the name: " +
                  std::string(specialization_constants_[i].name);
+      }
+    }
+  }
+
+  /* Validate compilation constants. */
+  for (int i = 0; i < compilation_constants_.size(); i++) {
+    for (int j = i + 1; j < compilation_constants_.size(); j++) {
+      if (compilation_constants_[i].name == compilation_constants_[j].name) {
+        error += this->name_ + " contains two compilation constants with the name: " +
+                 std::string(compilation_constants_[i].name);
       }
     }
   }
@@ -400,7 +442,7 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
   for (auto &attr : vertex_inputs_) {
     if (attr.index >= 16 || attr.index < 0) {
       std::cout << name_ << ": \"" << attr.name
-                << "\" : Type::MAT3 unsupported as vertex attribute." << std::endl;
+                << "\" : Type::float3x3_t unsupported as vertex attribute." << std::endl;
       BLI_assert(0);
     }
     if (attr.index >= 16 || attr.index < 0) {
@@ -408,7 +450,7 @@ void ShaderCreateInfo::validate_vertex_attributes(const ShaderCreateInfo *other_
       BLI_assert(0);
     }
     uint32_t attr_new = 0;
-    if (attr.type == Type::MAT4) {
+    if (attr.type == Type::float4x4_t) {
       for (int i = 0; i < 4; i++) {
         attr_new |= 1 << (attr.index + i);
       }
@@ -474,27 +516,16 @@ void gpu_shader_create_info_init()
 /* Declare, register and construct the infos. */
 #include "gpu_shader_create_info_list.hh"
 
-  /* WORKAROUND: Replace draw_mesh info with the legacy one for systems that have problems with UBO
-   * indexing. */
-  if (GPU_type_matches_ex(GPU_DEVICE_INTEL | GPU_DEVICE_INTEL_UHD,
-                          GPU_OS_ANY,
-                          GPU_DRIVER_ANY,
-                          GPU_BACKEND_OPENGL) ||
-      GPU_crappy_amd_driver())
-  {
-    draw_modelmat = draw_modelmat_legacy;
-  }
-
   /* WORKAROUND: Replace the use of gpu_BaseInstance by an instance attribute. */
   if (GPU_shader_draw_parameters_support() == false) {
-    draw_resource_id_new = draw_resource_id_fallback;
-    draw_resource_with_custom_id_new = draw_resource_with_custom_id_fallback;
+    draw_resource_id = draw_resource_id_fallback;
+    draw_resource_with_custom_id = draw_resource_with_custom_id_fallback;
   }
 
   if (GPU_stencil_clasify_buffer_workaround()) {
     /* WORKAROUND: Adding a dummy buffer that isn't used fixes a bug inside the Qualcomm driver. */
     eevee_deferred_tile_classify.storage_buf(
-        12, Qualifier::READ_WRITE, "uint", "dummy_workaround_buf[]");
+        12, Qualifier::read_write, "uint", "dummy_workaround_buf[]");
   }
 
   for (ShaderCreateInfo *info : g_create_infos->values()) {
@@ -565,8 +596,7 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
         continue;
       }
       if ((info->metal_backend_only_ && GPU_backend_get_type() != GPU_BACKEND_METAL) ||
-          (GPU_geometry_shader_support() == false && info->geometry_source_ != nullptr) ||
-          (GPU_transform_feedback_support() == false && info->tf_type_ != GPU_SHADER_TFB_NONE))
+          (GPU_geometry_shader_support() == false && info->geometry_source_ != nullptr))
       {
         skipped++;
         continue;
@@ -577,16 +607,8 @@ bool gpu_shader_create_info_compile(const char *name_starts_with_filter)
     }
   }
 
-  Vector<GPUShader *> result;
-  if (GPU_use_parallel_compilation() == false) {
-    for (const GPUShaderCreateInfo *info : infos) {
-      result.append(GPU_shader_create_from_info(info));
-    }
-  }
-  else {
-    BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
-    result = GPU_shader_batch_finalize(batch);
-  }
+  BatchHandle batch = GPU_shader_batch_create_from_infos(infos);
+  Vector<GPUShader *> result = GPU_shader_batch_finalize(batch);
 
   for (int i : result.index_range()) {
     const ShaderCreateInfo *info = reinterpret_cast<const ShaderCreateInfo *>(infos[i]);
