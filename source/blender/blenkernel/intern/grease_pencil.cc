@@ -776,7 +776,7 @@ MutableSpan<float> Drawing::radii_for_write()
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Point,
       ATTR_RADIUS,
-      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
+      this->strokes().points_num(),
       0.01f);
 }
 
@@ -792,7 +792,7 @@ MutableSpan<float> Drawing::opacities_for_write()
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Point,
       ATTR_OPACITY,
-      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
+      this->strokes().points_num(),
       1.0f);
 }
 
@@ -808,7 +808,7 @@ MutableSpan<ColorGeometry4f> Drawing::vertex_colors_for_write()
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Point,
       ATTR_VERTEX_COLOR,
-      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
+      this->strokes().points_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 
@@ -824,7 +824,7 @@ MutableSpan<ColorGeometry4f> Drawing::fill_colors_for_write()
       this->strokes_for_write().attribute_storage.wrap(),
       AttrDomain::Curve,
       ATTR_FILL_COLOR,
-      [&](const AttrDomain domain) { return this->strokes().attributes().domain_size(domain); },
+      this->strokes().curves_num(),
       ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f));
 }
 

@@ -892,7 +892,6 @@ int rna_AttributeGroup_color_length(PointerRNA *ptr)
     });
     return count;
   }
-  AttributeOwner owner = owner_from_pointer_rna(ptr);
   return BKE_attributes_length(owner, ATTR_DOMAIN_MASK_COLOR, CD_MASK_COLOR_ALL);
 }
 

@@ -15,14 +15,14 @@ namespace blender::bke::greasepencil {
 
 static const auto &changed_tags()
 {
-  static Map<StringRef, UpdateOnChange> attributes;
+  static Map<StringRef, AttrUpdateOnChange> attributes;
   return attributes;
 }
 
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
-    Map<StringRef, BuiltinInfo> map;
+    Map<StringRef, AttrBuiltinInfo> map;
     return map;
   }();
   return attributes;
@@ -54,7 +54,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     return attribute_to_reader(*attribute, AttrDomain::Layer, domain_size);
   };
   fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
-    const BuiltinInfo &info = builtin_attributes().lookup(name);
+    const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
   fn.adapt_domain = [](const void * /*owner*/,
@@ -87,7 +87,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     });
   };
   fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
-    const BuiltinInfo *info = builtin_attributes().lookup_ptr(name);
+    const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return {};
     }
@@ -106,12 +106,12 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
   fn.remove = [](void *owner, const StringRef name) -> bool {
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(owner);
     AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
-    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
       if (!info->deletable) {
         return false;
       }
     }
-    const std::optional<UpdateOnChange> fn = changed_tags().lookup_try(name);
+    const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name);
     const bool removed = storage.remove(name);
     if (!removed) {
       return false;
@@ -131,7 +131,7 @@ static AttributeAccessorFunctions get_grease_pencil_accessor_functions()
     AttributeStorage &storage = grease_pencil.attribute_storage.wrap();
     const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type);
     BLI_assert(type.has_value());
-    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
       if (info->domain != domain || info->type != type) {
         return false;
       }
