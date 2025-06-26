@@ -810,6 +810,7 @@ void OBJECT_OT_material_slot_remove_all(wmOperatorType *ot)
   /* API callbacks. */
   ot->exec = material_slot_remove_all_exec;
   ot->poll = material_slot_remove_all_poll;
+
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
