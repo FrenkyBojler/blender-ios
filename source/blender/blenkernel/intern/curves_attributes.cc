@@ -77,6 +77,105 @@ static const auto &changed_tags()
   return attributes;
 }
 
+static int get_domain_size(const void *owner, const AttrDomain domain)
+{
+  const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
+  switch (domain) {
+    case AttrDomain::Point:
+      return curves.points_num();
+    case AttrDomain::Curve:
+      return curves.curves_num();
+    default:
+      return 0;
+  }
+}
+
+static GAttributeReader reader_for_vertex_group_index(const CurvesGeometry &curves,
+                                                      const Span<MDeformVert> dverts,
+                                                      const int vertex_group_index)
+{
+  BLI_assert(vertex_group_index >= 0);
+  if (dverts.is_empty()) {
+    return {VArray<float>::ForSingle(0.0f, curves.points_num()), AttrDomain::Point};
+  }
+  return {varray_for_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
+}
+
+static GAttributeReader try_get_vertex_group(const void *owner, const StringRef attribute_id)
+{
+  const CurvesGeometry *curves = static_cast<const CurvesGeometry *>(owner);
+  if (curves == nullptr) {
+    return {};
+  }
+  const int vertex_group_index = BKE_defgroup_name_index(&curves->vertex_group_names,
+                                                         attribute_id);
+  if (vertex_group_index < 0) {
+    return {};
+  }
+  const Span<MDeformVert> dverts = curves->deform_verts();
+  return reader_for_vertex_group_index(*curves, dverts, vertex_group_index);
+}
+
+static GAttributeWriter try_get_vertex_group_for_write(void *owner, const StringRef attribute_id)
+{
+  CurvesGeometry *curves = static_cast<CurvesGeometry *>(owner);
+  if (curves == nullptr) {
+    return {};
+  }
+  const int vertex_group_index = BKE_defgroup_name_index(&curves->vertex_group_names,
+                                                         attribute_id);
+  if (vertex_group_index < 0) {
+    return {};
+  }
+  MutableSpan<MDeformVert> dverts = curves->deform_verts_for_write();
+  return {varray_for_mutable_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
+}
+
+static bool try_delete_vertex_group(void *owner, const StringRef name)
+{
+  CurvesGeometry *curves = static_cast<CurvesGeometry *>(owner);
+  if (curves == nullptr) {
+    return true;
+  }
+
+  int index;
+  bDeformGroup *group;
+  if (!BKE_defgroup_listbase_name_find(&curves->vertex_group_names, name, &index, &group)) {
+    return false;
+  }
+  BLI_remlink(&curves->vertex_group_names, group);
+  MEM_freeN(group);
+  if (curves->deform_verts().is_empty()) {
+    return true;
+  }
+
+  MutableSpan<MDeformVert> dverts = curves->deform_verts_for_write();
+  remove_defgroup_index(dverts, index);
+  return true;
+}
+
+static bool foreach_vertex_group(const void *owner, FunctionRef<void(const AttributeIter &)> fn)
+{
+  const CurvesGeometry *curves = static_cast<const CurvesGeometry *>(owner);
+  if (curves == nullptr) {
+    return true;
+  }
+  const Span<MDeformVert> dverts = curves->deform_verts();
+
+  int group_index = 0;
+  LISTBASE_FOREACH_INDEX (const bDeformGroup *, group, &curves->vertex_group_names, group_index) {
+    const auto get_fn = [&]() {
+      return reader_for_vertex_group_index(*curves, dverts, group_index);
+    };
+    AttributeIter iter{group->name, AttrDomain::Point, CD_PROP_FLOAT, get_fn};
+    fn(iter);
+    if (iter.is_stopped()) {
+      return false;
+    }
+  }
+  return true;
+}
+
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
@@ -192,105 +291,6 @@ static const auto &builtin_attributes()
     return map;
   }();
   return attributes;
-}
-
-static int get_domain_size(const void *owner, const AttrDomain domain)
-{
-  const CurvesGeometry &curves = *static_cast<const CurvesGeometry *>(owner);
-  switch (domain) {
-    case AttrDomain::Point:
-      return curves.points_num();
-    case AttrDomain::Curve:
-      return curves.curves_num();
-    default:
-      return 0;
-  }
-}
-
-static GAttributeReader reader_for_vertex_group_index(const CurvesGeometry &curves,
-                                                      const Span<MDeformVert> dverts,
-                                                      const int vertex_group_index)
-{
-  BLI_assert(vertex_group_index >= 0);
-  if (dverts.is_empty()) {
-    return {VArray<float>::ForSingle(0.0f, curves.points_num()), AttrDomain::Point};
-  }
-  return {varray_for_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
-}
-
-static GAttributeReader try_get_vertex_group(const void *owner, const StringRef attribute_id)
-{
-  const CurvesGeometry *curves = static_cast<const CurvesGeometry *>(owner);
-  if (curves == nullptr) {
-    return {};
-  }
-  const int vertex_group_index = BKE_defgroup_name_index(&curves->vertex_group_names,
-                                                         attribute_id);
-  if (vertex_group_index < 0) {
-    return {};
-  }
-  const Span<MDeformVert> dverts = curves->deform_verts();
-  return reader_for_vertex_group_index(*curves, dverts, vertex_group_index);
-}
-
-static GAttributeWriter try_get_vertex_group_for_write(void *owner, const StringRef attribute_id)
-{
-  CurvesGeometry *curves = static_cast<CurvesGeometry *>(owner);
-  if (curves == nullptr) {
-    return {};
-  }
-  const int vertex_group_index = BKE_defgroup_name_index(&curves->vertex_group_names,
-                                                         attribute_id);
-  if (vertex_group_index < 0) {
-    return {};
-  }
-  MutableSpan<MDeformVert> dverts = curves->deform_verts_for_write();
-  return {varray_for_mutable_deform_verts(dverts, vertex_group_index), AttrDomain::Point};
-}
-
-static bool try_delete_vertex_group(void *owner, const StringRef name)
-{
-  CurvesGeometry *curves = static_cast<CurvesGeometry *>(owner);
-  if (curves == nullptr) {
-    return true;
-  }
-
-  int index;
-  bDeformGroup *group;
-  if (!BKE_defgroup_listbase_name_find(&curves->vertex_group_names, name, &index, &group)) {
-    return false;
-  }
-  BLI_remlink(&curves->vertex_group_names, group);
-  MEM_freeN(group);
-  if (curves->deform_verts().is_empty()) {
-    return true;
-  }
-
-  MutableSpan<MDeformVert> dverts = curves->deform_verts_for_write();
-  remove_defgroup_index(dverts, index);
-  return true;
-}
-
-static bool foreach_vertex_group(const void *owner, FunctionRef<void(const AttributeIter &)> fn)
-{
-  const CurvesGeometry *curves = static_cast<const CurvesGeometry *>(owner);
-  if (curves == nullptr) {
-    return true;
-  }
-  const Span<MDeformVert> dverts = curves->deform_verts();
-
-  int group_index = 0;
-  LISTBASE_FOREACH_INDEX (const bDeformGroup *, group, &curves->vertex_group_names, group_index) {
-    const auto get_fn = [&]() {
-      return reader_for_vertex_group_index(*curves, dverts, group_index);
-    };
-    AttributeIter iter{group->name, AttrDomain::Point, CD_PROP_FLOAT, get_fn};
-    fn(iter);
-    if (iter.is_stopped()) {
-      return false;
-    }
-  }
-  return true;
 }
 
 /** \} */
