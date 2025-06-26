@@ -130,32 +130,28 @@ static float cursor_size()
   return 22.0f * UI_SCALE_FAC;
 }
 
-static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
+static blender::Array<uchar> cursor_bitmap_from_svg(const char *svg,
+                                                    float size,
+                                                    int &width,
+                                                    int &height)
 {
-  float size = cursor_size();
-
-  if (size > 32.0f) {
-    size = 32.0f;  // Larger cursors not supported yet.
-  }
-
-  std::string svg_source = cursor->svg_source;
+  /* Nano alters the source string. */
+  std::string svg_source = svg;
 
   /* Can edit the source here if we want. */
 
   NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
   if (image == nullptr) {
-    return false;
+    return {};
   }
-
   if (image->width == 0 || image->height == 0) {
     nsvgDelete(image);
-    return false;
+    return {};
   }
-
   NSVGrasterizer *rast = nsvgCreateRasterizer();
   if (rast == nullptr) {
     nsvgDelete(image);
-    return false;
+    return {};
   }
 
   float scale = (size / 1600.0f);
@@ -168,6 +164,25 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
   nsvgRasterize(rast, image, 0.0f, 0.0f, scale, render_bmp.data(), dest_w, dest_h, dest_w * 4);
   nsvgDeleteRasterizer(rast);
   nsvgDelete(image);
+
+  width = dest_w;
+  height = dest_h;
+
+  return render_bmp;
+}
+
+static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
+{
+  float size = cursor_size();
+
+  if (size > 32.0f) {
+    size = 32.0f;  // Larger cursors not supported yet.
+  }
+
+  int dest_w;
+  int dest_h;
+  blender::Array<uchar> render_bmp = cursor_bitmap_from_svg(
+      cursor->svg_source, size, dest_w, dest_h);
 
   /* If we give GHOST_SetCustomCursorShape bit depth arguments
    * we could try sending full-color to it first. */
