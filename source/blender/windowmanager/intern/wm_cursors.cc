@@ -125,9 +125,7 @@ static float cursor_size()
   return 24.0f;
 #endif
 
-  // const uint32_t cursor_size = WM_cursor_preferred_logical_size();
-  //  WM_CURSOR_DEFAULT_LOGICAL_SIZE)
-  return 22.0f * UI_SCALE_FAC;
+  return WM_cursor_preferred_logical_size() * UI_SCALE_FAC;
 }
 
 static blender::Array<uchar> cursor_bitmap_from_svg(const char *svg,
@@ -137,8 +135,6 @@ static blender::Array<uchar> cursor_bitmap_from_svg(const char *svg,
 {
   /* Nano alters the source string. */
   std::string svg_source = svg;
-
-  /* Can edit the source here if we want. */
 
   NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
   if (image == nullptr) {
@@ -173,21 +169,12 @@ static blender::Array<uchar> cursor_bitmap_from_svg(const char *svg,
 
 static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
-  float size = cursor_size();
-
-  if (size > 32.0f) {
-    size = 32.0f;  // Larger cursors not supported yet.
-  }
+  float size = std::min(cursor_size(), 32.0f);
 
   int dest_w;
   int dest_h;
   blender::Array<uchar> render_bmp = cursor_bitmap_from_svg(
       cursor->svg_source, size, dest_w, dest_h);
-
-  /* If we give GHOST_SetCustomCursorShape bit depth arguments
-   * we could try sending full-color to it first. */
-
-  /* Monochrome. */
 
   char width = std::min(dest_w, 32);
   char height = std::min(dest_h, 32);
@@ -251,7 +238,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
 
-  /* Turn off the retrieval of OS-supplied cursors for testing. */
+  /* Turn off the retrieval of OS-supplied cursors during testing. */
   if (false && ghost_cursor != GHOST_kStandardCursorCustom &&
       GHOST_HasCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor))
   {
@@ -260,9 +247,6 @@ void WM_cursor_set(wmWindow *win, int curs)
   }
   else {
     BCursor *bcursor = &BlenderCursor[curs];
-    if (curs == WM_CURSOR_EDIT) {
-      printf("here");
-    }
     if (!bcursor || !bcursor->svg_source || !window_set_custom_cursor(win, bcursor)) {
       /* Fall back to default cursor if no bitmap found. */
       GHOST_SetCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
