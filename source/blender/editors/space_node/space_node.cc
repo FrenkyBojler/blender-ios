@@ -575,7 +575,27 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
         }
         continue;
       }
-      // TODO: Closure output
+      if (node->is_type("GeometryNodeClosureOutput")) {
+        const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
+            node->storage);
+        const nodes::SocketInterfaceKey key(
+            closure_storage.output_items.items[socket->index()].name);
+        const Vector<nodes::SocketInContext> target_sockets = find_target_sockets_through_contexts(
+            node.output_socket(0), compute_context_cache, "GeometryNodeEvaluateClosure", true);
+        for (const auto &target_socket : target_sockets) {
+          const nodes::NodeInContext evaluate_node = target_socket.owner_node();
+          const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
+              evaluate_node->storage);
+          for (const int i : IndexRange(evaluate_storage.output_items.items_num)) {
+            const NodeGeometryEvaluateClosureOutputItem &item =
+                evaluate_storage.output_items.items[i];
+            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+              add_if_new(evaluate_node.output_socket(i), bundle_path);
+            }
+          }
+        }
+        continue;
+      }
       if (node->is_type("GeometryNodeEvaluateClosure")) {
         if (socket->index() == 0) {
           continue;
