@@ -18,7 +18,7 @@ static void tag_component_reference_index_changed(void *owner)
 
 static const auto &changed_tags()
 {
-  static Map<StringRef, UpdateOnChange> attributes{
+  static Map<StringRef, AttrUpdateOnChange> attributes{
       {".reference_index", tag_component_reference_index_changed},
   };
   return attributes;
@@ -138,7 +138,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
         return false;
       }
     }
-    const std::optional<UpdateOnChange> fn = changed_tags().lookup_try(name);
+    const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name);
     const bool removed = storage.remove(name);
     if (!removed) {
       return false;

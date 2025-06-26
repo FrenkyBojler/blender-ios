@@ -27,8 +27,8 @@ static void tag_radius_changed(void *owner)
 
 static const auto &changed_tags()
 {
-  static Map<StringRef, UpdateOnChange> attributes{{"position", tag_position_changed},
-                                                   {"radius", tag_radius_changed}};
+  static Map<StringRef, AttrUpdateOnChange> attributes{{"position", tag_position_changed},
+                                                       {"radius", tag_radius_changed}};
   return attributes;
 }
 
@@ -133,7 +133,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
         return false;
       }
     }
-    const std::optional<UpdateOnChange> fn = changed_tags().lookup_try(name);
+    const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name);
     const bool removed = storage.remove(name);
     if (!removed) {
       return false;

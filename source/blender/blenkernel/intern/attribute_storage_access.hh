@@ -7,7 +7,7 @@
 
 namespace blender::bke {
 
-using UpdateOnChange = void (*)(void *owner);
+using AttrUpdateOnChange = void (*)(void *owner);
 
 struct AttrBuiltinInfo {
   AttrDomain domain;
@@ -23,7 +23,7 @@ GAttributeReader attribute_to_reader(const Attribute &attribute,
                                      const int64_t domain_size);
 
 GAttributeWriter attribute_to_writer(void *owner,
-                                     const Map<StringRef, UpdateOnChange> &changed_tags,
+                                     const Map<StringRef, AttrUpdateOnChange> &changed_tags,
                                      const int64_t domain_size,
                                      Attribute &attribute);
 

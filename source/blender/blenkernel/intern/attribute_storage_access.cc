@@ -33,7 +33,7 @@ GAttributeReader attribute_to_reader(const Attribute &attribute,
 }
 
 GAttributeWriter attribute_to_writer(void *owner,
-                                     const Map<StringRef, UpdateOnChange> &changed_tags,
+                                     const Map<StringRef, AttrUpdateOnChange> &changed_tags,
                                      const int64_t domain_size,
                                      Attribute &attribute)
 {
@@ -44,7 +44,8 @@ GAttributeWriter attribute_to_writer(void *owner,
       BLI_assert(data.size == domain_size);
 
       std::function<void()> tag_modified_fn;
-      if (const UpdateOnChange update_fn = changed_tags.lookup_default(attribute.name(), nullptr))
+      if (const AttrUpdateOnChange update_fn = changed_tags.lookup_default(attribute.name(),
+                                                                           nullptr))
       {
         tag_modified_fn = [owner, update_fn]() { update_fn(owner); };
       };
