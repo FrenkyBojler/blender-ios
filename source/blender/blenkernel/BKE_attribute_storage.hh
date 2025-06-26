@@ -185,7 +185,10 @@ class AttributeStorage : public ::AttributeStorage {
   /** Change the name of a single existing attribute. */
   void rename(StringRef old_name, std::string new_name);
 
-  /** Resize the data for a given domain. */
+  /**
+   * Resize the data for a given domain. New values will be default initialized (meaning no zero
+   * initialization for trivial types).
+   */
   void resize(AttrDomain domain, int64_t new_size);
 
   /**
