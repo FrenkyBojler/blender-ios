@@ -738,9 +738,8 @@ static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
     if (iter.data_type == CD_PROP_FLOAT2) {
       name = iter.name;
-      return false;
+      iter.stop();
     }
-    return true;
   });
   return name;
 }
