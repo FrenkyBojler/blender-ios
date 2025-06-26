@@ -2,14 +2,17 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_string_utf8.h"
+
+#include "fast_float.h"
+
 #include "node_function_util.hh"
 
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "UI_interface_layout.hh"
-
-#include "fast_float.h"
+#include "UI_resources.hh"
 
 #include <charconv>
 
@@ -18,28 +21,31 @@ namespace blender::nodes::node_fn_string_to_value_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("String").hide_label();
+  b.add_input<decl::Int>("Position").default_value(0).min(0);
 
   const bNode *node = b.node_or_null();
   if (node != nullptr) {
     const eNodeSocketDatatype data_type = eNodeSocketDatatype(node->custom1);
     b.add_output(data_type, "Value");
   }
+  
+  b.add_output<decl::Int>("Length");
 }
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
-  static auto str_to_float_fn = mf::build::SI1_SO<std::string, float>(
-    "String to Value", [](const std::string &a) {
-      float value = 0.0f;
-      fast_float::from_chars(a.data(), a.data() + a.size(), value);
-      return value;
+  static auto str_to_float_fn = mf::build::SI2_SO2<std::string, int, float, int>(
+    "String to Value", [](const std::string &s, int position, float &value, int &length) -> void {
+      const auto start = s.data() + BLI_str_utf8_offset_from_index(s.data(), s.size(), std::max(0, position));
+      auto [end, _] = fast_float::from_chars(start, s.data() + s.size(), value);
+      length = BLI_strnlen_utf8(start, end - start);
     });
 
-  static auto str_to_int_fn = mf::build::SI1_SO<std::string, int>(
-    "String to Value", [](const std::string &a) {
-      int value = 0;
-      std::from_chars(a.data(), a.data() + a.size(), value);
-      return value;
+  static auto str_to_int_fn = mf::build::SI2_SO2<std::string, int, int, int>(
+    "String to Value", [](const std::string &s, int position, int &value, int &length) -> void {
+      const auto start = s.data() + BLI_str_utf8_offset_from_index(s.data(), s.size(), std::max(0, position));
+      auto [end, _] = std::from_chars(start, s.data() + s.size(), value);
+      length = BLI_strnlen_utf8(start, end - start);
     });
 
   switch (eNodeSocketDatatype(bnode.custom1)) {
@@ -74,6 +80,12 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "String");
       });
     }
+    else if (socket_type == SOCK_INT) {
+      params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("FunctionNodeStringToValue");
+        params.update_and_connect_available_socket(node, "Position");
+      });
+    }
   }
   else if (params.in_out() == SOCK_OUT) {
     if (socket_type == SOCK_INT || socket_type == SOCK_BOOLEAN) {
@@ -90,6 +102,13 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
         params.update_and_connect_available_socket(node, "Value");
       });
     }
+
+    if (socket_type == SOCK_INT) {
+      params.add_item(IFACE_("Length"), [](LinkSearchOpParams &params) {
+        bNode &node = params.add_node("FunctionNodeStringToValue");
+        params.update_and_connect_available_socket(node, "Length");
+      });
+    }
   }
 }
 
@@ -101,8 +120,8 @@ static void node_layout(uiLayout *layout, bContext *, PointerRNA *ptr)
 static void node_rna(StructRNA *srna)
 {
   static const EnumPropertyItem data_types[] = {
-    {SOCK_FLOAT, "FLOAT", 0, "Float", "Floating-point value"},
-    {SOCK_INT, "INT", 0, "Integer", "32-bit integer"},
+    {SOCK_FLOAT, "FLOAT", ICON_NODE_SOCKET_FLOAT, "Float", "Floating-point value"},
+    {SOCK_INT, "INT", ICON_NODE_SOCKET_INT, "Integer", "32-bit integer"},
     {0, nullptr, 0, nullptr, nullptr}
   };
 
