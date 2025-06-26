@@ -61,14 +61,14 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
   const float v = (y - half_kernel_size) / float(half_kernel_size);
   const float u = (x - half_kernel_size) / float(half_kernel_size);
   const float r = math::sqrt(math::square(u) + math::square(v));
-  /* The field of viwe value (in radians) was chosen based on the visual aspect. */
-  const float field_of_viwe = 0.012f;
-  const float half_length = tan(field_of_viwe / 2.0f);
+  /* The field of view value was chosen based on the visual judgement. */
+  const math::AngleRadian field_of_view = math::AngleRadian::from_degree(0.7f);
+  const float half_length = math::tan(field_of_view / 2.0f);
   const float theta_degree = math::AngleRadian(math::atan(r * half_length)).degree();
-  const float f0 = 2.61f * 1e6f * math::exp(-math::square((theta_degree) / 0.02f));
-  const float f1 = 20.91f / math::cube((theta_degree) + 0.02f);
-  const float f2 = 72.37f / math::square((theta_degree) + 0.02f);
-  const float kernel_value = (0.384f * f0 + 0.478f * f1 + 0.138f * f2);
+  const float f0 = 2.61f * 1e6f * math::exp(-math::square(theta_degree / 0.02f));
+  const float f1 = 20.91f / math::cube(theta_degree + 0.02f);
+  const float f2 = 72.37f / math::square(theta_degree + 0.02f);
+  const float kernel_value = 0.384f * f0 + 0.478f * f1 + 0.138f * f2;
 
   return kernel_value;
 }
