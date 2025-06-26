@@ -7795,7 +7795,9 @@ class VIEW3D_PT_transform_orientations(Panel):
         row = layout.row()
         col = row.column()
         col.prop(orient_slot, "type", expand=True)
-        row.operator("transform.create_orientation", text="", icon='ADD', emboss=False).use = True
+        col2 = row.column()
+        col2.operator("transform.create_orientation", text="", icon='ADD', emboss=False).use = True
+        col2.operator("transform.delete_all_orientations", text="", icon='TRASH', emboss=False)
 
         if orientation:
             row = layout.row(align=False)

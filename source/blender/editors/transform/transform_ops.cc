@@ -274,6 +274,74 @@ static void TRANSFORM_OT_delete_orientation(wmOperatorType *ot)
   ot->poll = delete_orientation_poll;
 }
 
+static wmOperatorStatus delete_all_orientations_exec(bContext *C, wmOperator * /*op*/)
+{
+  Scene *scene = CTX_data_scene(C);
+  bool deleted_any = false;
+  int max_count = BIF_countTransformOrientation(C);
+  
+  /* Keep trying to delete orientations until we can't anymore */
+  for (int i = max_count - 1; i >= 0; i--) {
+    int old_count = BIF_countTransformOrientation(C);
+    BIF_removeTransformOrientationIndex(C, i);
+    int new_count = BIF_countTransformOrientation(C);
+    
+    if (new_count < old_count) {
+      deleted_any = true;
+      i++;
+    }
+  }
+  
+  if (deleted_any) {
+    WM_event_add_notifier(C, NC_SCENE | NA_EDITED, scene);
+
+    wmMsgBus *mbus = CTX_wm_message_bus(C);
+    WM_msg_publish_rna_prop(mbus, &scene->id, scene, Scene, transform_orientation_slots);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus delete_all_orientations_invoke(bContext *C,
+                                                       wmOperator *op,
+                                                       const wmEvent * /*event*/)
+{
+  return delete_all_orientations_exec(C, op);
+}
+
+static bool delete_all_orientations_poll(bContext *C)
+{
+  if (ED_operator_areaactive(C) == 0) {
+    return false;
+  }
+
+  Scene *scene = CTX_data_scene(C);
+  
+  /* Check all orientation slots to see if any have custom orientations */
+  for (int i = 0; i < ARRAY_SIZE(scene->orientation_slots); i++) {
+    if ((scene->orientation_slots[i].type >= V3D_ORIENT_CUSTOM) &&
+        (scene->orientation_slots[i].index_custom != -1)) {
+      return true;
+    }
+  }
+  
+  return false;
+}
+
+static void TRANSFORM_OT_delete_all_orientations(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Delete All Orientations";
+  ot->description = "Delete all custom transformation orientations";
+  ot->idname = "TRANSFORM_OT_delete_all_orientations";
+  ot->flag = OPTYPE_UNDO;
+
+  /* API callbacks. */
+  ot->invoke = delete_all_orientations_invoke;
+  ot->exec = delete_all_orientations_exec;
+  ot->poll = delete_all_orientations_poll;
+}
+
 static wmOperatorStatus create_orientation_exec(bContext *C, wmOperator *op)
 {
   char name[MAX_NAME];
@@ -1519,6 +1587,8 @@ void transform_operatortypes()
   WM_operatortype_append(TRANSFORM_OT_select_orientation);
   WM_operatortype_append(TRANSFORM_OT_create_orientation);
   WM_operatortype_append(TRANSFORM_OT_delete_orientation);
+  WM_operatortype_append(TRANSFORM_OT_delete_all_orientations);
+
 
   WM_operatortype_append(TRANSFORM_OT_from_gizmo);
 }
