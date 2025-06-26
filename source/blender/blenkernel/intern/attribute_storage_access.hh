@@ -9,13 +9,13 @@ namespace blender::bke {
 
 using UpdateOnChange = void (*)(void *owner);
 
-struct BuiltinInfo {
+struct AttrBuiltinInfo {
   AttrDomain domain;
   AttrType type;
   GPointer default_value = {};
   AttributeValidator validator = {};
   bool deletable = true;
-  BuiltinInfo(AttrDomain domain, AttrType type) : domain(domain), type(type) {}
+  AttrBuiltinInfo(AttrDomain domain, AttrType type) : domain(domain), type(type) {}
 };
 
 GAttributeReader attribute_to_reader(const Attribute &attribute,

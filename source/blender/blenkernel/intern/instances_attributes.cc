@@ -27,7 +27,7 @@ static const auto &changed_tags()
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
-    Map<StringRef, BuiltinInfo> map;
+    Map<StringRef, AttrBuiltinInfo> map;
 
     /**
      * IDs of the instances. They are used for consistency over multiple frames for things like
@@ -35,15 +35,15 @@ static const auto &builtin_attributes()
      * in some situations, so this vector is allowed to be empty, in which case the index of each
      * instance will be used for the final ID.
      */
-    BuiltinInfo id(bke::AttrDomain::Instance, bke::AttrType::Int32);
+    AttrBuiltinInfo id(bke::AttrDomain::Instance, bke::AttrType::Int32);
     map.add_new("id", std::move(id));
 
-    BuiltinInfo instance_transform(bke::AttrDomain::Instance, bke::AttrType::Float4x4);
+    AttrBuiltinInfo instance_transform(bke::AttrDomain::Instance, bke::AttrType::Float4x4);
     instance_transform.deletable = false;
     map.add_new("instance_transform", std::move(instance_transform));
 
     /** Indices into `Instances::references_`. Determines what data is instanced. */
-    BuiltinInfo reference_index(bke::AttrDomain::Instance, bke::AttrType::Int32);
+    AttrBuiltinInfo reference_index(bke::AttrDomain::Instance, bke::AttrType::Int32);
     reference_index.deletable = false;
     map.add_new(".reference_index", std::move(reference_index));
 
@@ -65,7 +65,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
   };
   fn.builtin_domain_and_type = [](const void * /*owner*/,
                                   const StringRef name) -> std::optional<AttributeDomainAndType> {
-    const BuiltinInfo *info = builtin_attributes().lookup_ptr(name);
+    const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return std::nullopt;
     }
@@ -74,7 +74,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     return AttributeDomainAndType{info->domain, *cd_type};
   };
   fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
-    const BuiltinInfo &info = builtin_attributes().lookup(name);
+    const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
   fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
@@ -115,7 +115,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     });
   };
   fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
-    const BuiltinInfo *info = builtin_attributes().lookup_ptr(name);
+    const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return {};
     }
@@ -133,7 +133,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
   fn.remove = [](void *owner, const StringRef name) -> bool {
     Instances &instances = *static_cast<Instances *>(owner);
     AttributeStorage &storage = instances.attribute_storage();
-    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
       if (!info->deletable) {
         return false;
       }
@@ -158,7 +158,7 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     AttributeStorage &storage = instances.attribute_storage();
     const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type);
     BLI_assert(type.has_value());
-    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
       if (info->domain != domain || info->type != type) {
         return false;
       }
