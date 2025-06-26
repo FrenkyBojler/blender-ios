@@ -37,15 +37,15 @@ static const mf::MultiFunction *get_multi_function(const bNode &bnode)
   static auto str_to_float_fn = mf::build::SI2_SO2<std::string, int, float, int>(
     "String to Value", [](const std::string &s, int position, float &value, int &length) -> void {
       const auto start = s.data() + BLI_str_utf8_offset_from_index(s.data(), s.size(), std::max(0, position));
-      auto [end, _] = fast_float::from_chars(start, s.data() + s.size(), value);
-      length = BLI_strnlen_utf8(start, end - start);
+      const auto result = fast_float::from_chars(start, s.data() + s.size(), value);
+      length = BLI_strnlen_utf8(start, result.ptr - start);
     });
 
   static auto str_to_int_fn = mf::build::SI2_SO2<std::string, int, int, int>(
     "String to Value", [](const std::string &s, int position, int &value, int &length) -> void {
       const auto start = s.data() + BLI_str_utf8_offset_from_index(s.data(), s.size(), std::max(0, position));
-      auto [end, _] = std::from_chars(start, s.data() + s.size(), value);
-      length = BLI_strnlen_utf8(start, end - start);
+      const auto result = std::from_chars(start, s.data() + s.size(), value);
+      length = BLI_strnlen_utf8(start, result.ptr - start);
     });
 
   switch (eNodeSocketDatatype(bnode.custom1)) {
