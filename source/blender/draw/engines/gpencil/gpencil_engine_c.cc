@@ -668,12 +668,6 @@ void Instance::acquire_resources()
                          GPU_ATTACHMENT_TEXTURE(this->mask_tx));
   }
 
-  /* Combined pass for compositor */
-  GPUTexture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
-  if (combined_texture) {
-    this->combined_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(combined_texture));
-  }
-
   if (this->use_separate_pass) {
     const int2 size = int2(draw_ctx->viewport_size_get());
     draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
