@@ -61,7 +61,7 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
 
         if self.files:
             ret = {'CANCELLED'}
-            dirname = os.path.dirname(self.filepath)
+            dirname = os.path.dirname(self.directory)
             for file in self.files:
                 path = os.path.join(dirname, file.name)
                 if import_svg.load(self, context, filepath=path) == {'FINISHED'}:
