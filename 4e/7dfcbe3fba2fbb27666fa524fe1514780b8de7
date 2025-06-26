@@ -1,2 +1,3 @@
 Referenced by pull request #138432, Fix: Vertex group ui in edit mode
 Referenced by commit 5baf28b9d5b751a3dfbd568241fd381a63984325, Fix: Vertex group ui in edit mode
+Referenced by issue #141024, Vertex groups: Auto Normalize in Edit mode does not respect locked Vertex Groups
