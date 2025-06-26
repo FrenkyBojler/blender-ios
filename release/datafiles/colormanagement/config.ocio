@@ -80,7 +80,7 @@ displays:
     - !<View> {name: Raw, colorspace: Non-Color}
 active_displays: [sRGB, Display P3, Rec.1886, Rec.2020]
 active_views: [Standard, Khronos PBR Neutral, AgX, Filmic, Filmic Log, False Color, Raw]
-inactive_colorspaces: [Luminance Compensation Rec.2020, Luminance Compensation sRGB, Luminance Compensation P3, AgX False Color Rec.709, AgX False Color P3, AgX False Color Rec.2020]
+inactive_colorspaces: [Luminance Compensation Rec.2020, AgX False Color Rec.709, AgX False Color P3, AgX False Color Rec.2020]
 
 colorspaces:
   - !<ColorSpace>
@@ -116,7 +116,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
-        - !<MatrixTransform> {matrix: [3.2404373564920070, -1.5371305409000549, -0.4985288240756933, 0, -0.9692674982687597, 1.8760136862977035, 0.0415560804587997, 0, 0.0556434463874256, -0.2040259700872272, 1.0572254813610864, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [3.240437356492008, -1.537130540900055, -0.4985288240756934, 0, -0.9692674982687602, 1.8760136862977046, 0.04155608045879965, 0, 0.05564344638742567, -0.20402597008722723, 1.0572254813610866, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: Linear DCI-P3 D65
@@ -130,7 +130,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
-        - !<MatrixTransform> {matrix: [2.4935091239346101, -0.9313881794047790, -0.4027127567416516, 0, -0.8294732139295544, 1.7626305796003032, 0.0236242371055886, 0, 0.0358512644339181, -0.0761839369220759, 0.9570295866943110, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [2.4931707906211447, -0.9312618034289156, -0.40265811441447685, 0, -0.8295041874112483, 1.7626963982489028, 0.02362511926171275, 0, 0.0358536355853334, -0.07618897561883332, 0.9570928832640357, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: Linear Rec.2020
@@ -144,7 +144,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
-        - !<MatrixTransform> {matrix: [ 1.7166634277958805, -0.3556733197301399, -0.2533680878902478, 0, -0.6666738361988869, 1.6164557398246981, 0.0157682970961337, 0, 0.0176424817849772, -0.0427769763827532, 0.9422432810184308, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [1.7165059604949275, -0.3556406942796457, -0.2533448467654578, 0, -0.6666936926652487, 1.616503884955466, 0.015768766745074273, 0, 0.017643644000193512, -0.04277979435663377, 0.9423053521880089, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: ACES2065-1
@@ -186,7 +186,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ I-E, dst: Linear CIE-XYZ I-D65}
-        - !<MatrixTransform> {matrix: [ 0.7053968501, 0.1640413283, 0.08101774865, 0, 0.2801307241, 0.8202066415, -0.1003373656, 0, -0.1037815116, -0.07290725703, 1.265746519, 0, 0, 0, 0, 1], direction: inverse}
+        - !<MatrixTransform> {matrix: [1.5249737770602847, -0.31589714752406356, -0.12265191126007446, 0, -0.5091726698133802, 1.3333800707546952, 0.1382898269164182, 0, 0.09573240801027605, 0.050906517084630676, 0.7880962352252167, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: sRGB
@@ -304,44 +304,6 @@ colorspaces:
         - !<ColorSpaceTransform> {src: Linear FilmLight E-Gamut, dst: Linear Rec.2020}
 
   - !<ColorSpace>
-    name: Luminance Compensation sRGB
-    family: Utilities
-    equalitygroup:
-    bitdepth: 32f
-    description: |
-      Offset the negative values in BT.709 and compensate for luminance, ensuring there is no negative values in Rec.709
-    isdata: false
-    from_scene_reference: !<GroupTransform>
-      children:
-        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear FilmLight E-Gamut}
-        - !<MatrixTransform> {matrix: [0.960599732262383, 0.0196075412762159, 0.019792726461401, 0, 0.0105997322623829, 0.969607541276216, 0.0197927264614012, 0, 0.0105997322623829, 0.0196075412762162, 0.969792726461401, 0, 0, 0, 0, 1]}
-        - !<FileTransform> {src: Guard_Rail_Shaper_EOTF.spi1d, interpolation: linear, direction: inverse}
-        - !<FileTransform> {src: luminance_compensation_srgb.cube, interpolation: tetrahedral}
-        - !<FileTransform> {src: Guard_Rail_Shaper_EOTF.spi1d, interpolation: linear}
-        - !<MatrixTransform> {matrix: [0.960599732262383, 0.0196075412762159, 0.019792726461401, 0, 0.0105997322623829, 0.969607541276216, 0.0197927264614012, 0, 0.0105997322623829, 0.0196075412762162, 0.969792726461401, 0, 0, 0, 0, 1], direction: inverse}
-        - !<ColorSpaceTransform> {src: Linear FilmLight E-Gamut, dst: Linear Rec.709}
-        - !<RangeTransform> {min_in_value: 0, min_out_value: 0}
-
-  - !<ColorSpace>
-    name: Luminance Compensation P3
-    family: Utilities
-    equalitygroup:
-    bitdepth: 32f
-    description: |
-      Offset the negative values in P3 and compensate for luminance, ensuring there is no negative values in P3
-    isdata: false
-    from_scene_reference: !<GroupTransform>
-      children:
-        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear FilmLight E-Gamut}
-        - !<MatrixTransform> {matrix: [0.960599732262383, 0.0196075412762159, 0.019792726461401, 0, 0.0105997322623829, 0.969607541276216, 0.0197927264614012, 0, 0.0105997322623829, 0.0196075412762162, 0.969792726461401, 0, 0, 0, 0, 1]}
-        - !<FileTransform> {src: Guard_Rail_Shaper_EOTF.spi1d, interpolation: linear, direction: inverse}
-        - !<FileTransform> {src: luminance_compensation_p3.cube, interpolation: tetrahedral}
-        - !<FileTransform> {src: Guard_Rail_Shaper_EOTF.spi1d, interpolation: linear}
-        - !<MatrixTransform> {matrix: [0.960599732262383, 0.0196075412762159, 0.019792726461401, 0, 0.0105997322623829, 0.969607541276216, 0.0197927264614012, 0, 0.0105997322623829, 0.0196075412762162, 0.969792726461401, 0, 0, 0, 0, 1], direction: inverse}
-        - !<ColorSpaceTransform> {src: Linear FilmLight E-Gamut, dst: Linear DCI-P3 D65}
-        - !<RangeTransform> {min_in_value: 0, min_out_value: 0}
-
-  - !<ColorSpace>
     name: AgX Log
     family: Log Encodings
     equalitygroup:
@@ -352,7 +314,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Luminance Compensation Rec.2020}
-        # rotate = [3.0, -1, -2.0], inset = [0.4, 0.22, 0.13]
+        # Rec.2020 generated parameters rotate = [2.13976149, -1.22827335, -3.05174246], inset = [0.32965205, 0.28051336, 0.12475368]
         - !<MatrixTransform> {matrix: [0.856627153315983, 0.0951212405381588, 0.0482516061458583, 0, 0.137318972929847, 0.761241990602591, 0.101439036467562, 0, 0.11189821299995, 0.0767994186031903, 0.811302368396859, 0, 0, 0, 0, 1]}
         - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117]}
     to_scene_reference: !<GroupTransform>
@@ -453,7 +415,7 @@ colorspaces:
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: AgX Base Rec.2020}
         - !<ColorSpaceTransform> {src: Rec.2020, dst: Linear Rec.2020}
-        - !<MatrixTransform> {matrix: [0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0, 0, 0, 1]}
         - !<ExponentTransform> {value: 2.5, direction: inverse}
         - !<FileTransform> {src: AgX_False_Color.spi1d, interpolation: linear}
 
@@ -571,7 +533,7 @@ looks:
     transform: !<GroupTransform>
       children:
         - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117], direction: inverse}
-        - !<MatrixTransform> {matrix: [0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0, 0, 0, 1]}
         - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117]}
 
   - !<Look>
@@ -674,7 +636,7 @@ looks:
     transform: !<GroupTransform>
       children:
         - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117], direction: inverse}
-        - !<MatrixTransform> {matrix: [0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0.2658180370250449, 0.59846986045365, 0.1357121025213052, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0.2589235355689848, 0.6104985346066525, 0.13057792982436284, 0, 0, 0, 0, 1]}
         - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117]}
 
   - !<Look>
