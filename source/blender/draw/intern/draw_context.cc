@@ -293,8 +293,8 @@ bool DRW_object_is_renderable(const Object *ob)
 
   if (ob->type == OB_MESH) {
     DRWContext &draw_ctx = drw_get();
-    /* Filter out the case of geo nodes or legacy curves that generate other
-     * object types (see #140762). */
+    /* The evaluated object might be a mesh even though the original object has a different type.
+     * Also make sure the original object is a mesh (see #140762). */
     if (draw_ctx.object_edit && draw_ctx.object_edit->type != OB_MESH) {
       /* Noop. */
     }
