@@ -125,70 +125,73 @@ TEST(path_templates, VariableMap)
   EXPECT_FALSE(map.remove("what"));
 }
 
-TEST(path_templates, VariableMap_convenience_methods)
+TEST(path_templates, VariableMap_add_filename)
 {
-  /* Filename from filepath. */
-  {
-    VariableMap map;
+  VariableMap map;
 
-    EXPECT_TRUE(map.add_filename("a", "/home/bob/project_joe/scene_3.blend", "fallback"));
-    EXPECT_EQ("scene_3", map.get_string("a"));
+  EXPECT_TRUE(map.add_filename("a", "/home/bob/project_joe/scene_3.blend", "fallback"));
+  EXPECT_EQ("scene_3", map.get_string("a"));
 
-    EXPECT_TRUE(map.add_filename("b", "/home/bob/project_joe/scene_3", "fallback"));
-    EXPECT_EQ("scene_3", map.get_string("b"));
+  EXPECT_TRUE(map.add_filename("b", "/home/bob/project_joe/scene_3", "fallback"));
+  EXPECT_EQ("scene_3", map.get_string("b"));
 
-    EXPECT_TRUE(map.add_filename("c", "/home/bob/project_joe/scene.03.blend", "fallback"));
-    EXPECT_EQ("scene.03", map.get_string("c"));
+  EXPECT_TRUE(map.add_filename("c", "/home/bob/project_joe/scene.03.blend", "fallback"));
+  EXPECT_EQ("scene.03", map.get_string("c"));
 
-    EXPECT_TRUE(map.add_filename("d", "/home/bob/project_joe/.scene_3.blend", "fallback"));
-    EXPECT_EQ(".scene_3", map.get_string("d"));
+  EXPECT_TRUE(map.add_filename("d", "/home/bob/project_joe/.scene_3.blend", "fallback"));
+  EXPECT_EQ(".scene_3", map.get_string("d"));
 
-    EXPECT_TRUE(map.add_filename("e", "/home/bob/project_joe/.scene_3", "fallback"));
-    EXPECT_EQ(".scene_3", map.get_string("e"));
+  EXPECT_TRUE(map.add_filename("e", "/home/bob/project_joe/.scene_3", "fallback"));
+  EXPECT_EQ(".scene_3", map.get_string("e"));
 
-    EXPECT_TRUE(map.add_filename("f", "scene_3.blend", "fallback"));
-    EXPECT_EQ("scene_3", map.get_string("f"));
+  EXPECT_TRUE(map.add_filename("f", "scene_3.blend", "fallback"));
+  EXPECT_EQ("scene_3", map.get_string("f"));
 
-    EXPECT_TRUE(map.add_filename("g", "scene_3", "fallback"));
-    EXPECT_EQ("scene_3", map.get_string("g"));
+  EXPECT_TRUE(map.add_filename("g", "scene_3", "fallback"));
+  EXPECT_EQ("scene_3", map.get_string("g"));
 
-    /* No filename in path (ending slash means it's a directory). */
-    EXPECT_TRUE(map.add_filename("h", "/home/bob/project_joe/", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("h"));
+  /* No filename in path (ending slash means it's a directory). */
+  EXPECT_TRUE(map.add_filename("h", "/home/bob/project_joe/", "fallback"));
+  EXPECT_EQ("fallback", map.get_string("h"));
 
-    /* Empty path. */
-    EXPECT_TRUE(map.add_filename("i", "", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("i"));
-  }
+  /* Empty path. */
+  EXPECT_TRUE(map.add_filename("i", "", "fallback"));
+  EXPECT_EQ("fallback", map.get_string("i"));
 
-  /* Path up-to-but-not-including the filename from filepath. */
-  {
-    VariableMap map;
+  /* Attempt to add already-added variable. */
+  EXPECT_FALSE(map.add_filename("i", "", "fallback"));
+}
 
-    EXPECT_TRUE(map.add_path_up_to_file("a", "/home/bob/project_joe/scene_3.blend", "fallback"));
-    EXPECT_EQ("/home/bob/project_joe/", map.get_string("a"));
+TEST(path_templates, VariableMap_add_path_up_to_file)
+{
+  VariableMap map;
 
-    EXPECT_TRUE(map.add_path_up_to_file("b", "project_joe/scene_3.blend", "fallback"));
-    EXPECT_EQ("project_joe/", map.get_string("b"));
+  EXPECT_TRUE(map.add_path_up_to_file("a", "/home/bob/project_joe/scene_3.blend", "fallback"));
+  EXPECT_EQ("/home/bob/project_joe/", map.get_string("a"));
 
-    EXPECT_TRUE(map.add_path_up_to_file("c", "/scene_3.blend", "fallback"));
-    EXPECT_EQ("/", map.get_string("c"));
+  EXPECT_TRUE(map.add_path_up_to_file("b", "project_joe/scene_3.blend", "fallback"));
+  EXPECT_EQ("project_joe/", map.get_string("b"));
 
-    /* No file. */
-    EXPECT_TRUE(map.add_path_up_to_file("e", "/home/bob/project_joe/", "fallback"));
-    EXPECT_EQ("/home/bob/project_joe/", map.get_string("e"));
+  EXPECT_TRUE(map.add_path_up_to_file("c", "/scene_3.blend", "fallback"));
+  EXPECT_EQ("/", map.get_string("c"));
 
-    EXPECT_TRUE(map.add_path_up_to_file("f", "/", "fallback"));
-    EXPECT_EQ("/", map.get_string("f"));
+  /* No filename in path (ending slash means it's a directory). */
+  EXPECT_TRUE(map.add_path_up_to_file("e", "/home/bob/project_joe/", "fallback"));
+  EXPECT_EQ("/home/bob/project_joe/", map.get_string("e"));
 
-    /* No leading path. */
-    EXPECT_TRUE(map.add_path_up_to_file("d", "scene_3.blend", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("d"));
+  EXPECT_TRUE(map.add_path_up_to_file("f", "/", "fallback"));
+  EXPECT_EQ("/", map.get_string("f"));
 
-    /* Empty path. */
-    EXPECT_TRUE(map.add_path_up_to_file("g", "", "fallback"));
-    EXPECT_EQ("fallback", map.get_string("g"));
-  }
+  /* No leading path. */
+  EXPECT_TRUE(map.add_path_up_to_file("d", "scene_3.blend", "fallback"));
+  EXPECT_EQ("fallback", map.get_string("d"));
+
+  /* Empty path. */
+  EXPECT_TRUE(map.add_path_up_to_file("g", "", "fallback"));
+  EXPECT_EQ("fallback", map.get_string("g"));
+
+  /* Attempt to add already-added variable. */
+  EXPECT_FALSE(map.add_filename("g", "", "fallback"));
 }
 
 struct PathTemplateTestCase {
