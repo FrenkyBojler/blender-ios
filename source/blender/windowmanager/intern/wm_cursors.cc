@@ -34,7 +34,6 @@
 #include "wm_cursors.hh"
 #include "wm_window.hh"
 
-
 enum CursorSize {
   /** Size: 16x16. */
   CURSOR_SIZE_16 = 0,
@@ -192,7 +191,7 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
   switch (curs) {
     case WM_CURSOR_NONE:
       // might have to make a none?
-      //svg_source = datatoc_cursor_pointer_svg;
+      // svg_source = datatoc_cursor_pointer_svg;
       break;
     case WM_CURSOR_DEFAULT:
       svg_source = datatoc_cursor_pointer_svg;
@@ -220,8 +219,8 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
       svg_source = datatoc_cursor_pointer_svg;
   }
 
-  //if (svg_source) {
-    //edit_source_cb(svg_source);
+  // if (svg_source) {
+  // edit_source_cb(svg_source);
   //}
 
   NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
@@ -264,13 +263,11 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
   ImBuf *imb = IMB_allocFromBuffer(
       reinterpret_cast<uint8_t *>(render_bmp.data()), nullptr, dest_w, dest_h, 32);
 
-
-
-  //ImBuf *imb = UI_svg_icon_bitmap(icon_id, size, true);
+  // ImBuf *imb = UI_svg_icon_bitmap(icon_id, size, true);
   if (!imb) {
     return false;
   }
-  //IMB_flipy(imb);
+  // IMB_flipy(imb);
 
   /* If we give GHOST_SetCustomCursorShape bit depth arguments
    * we could try sending full-color to it first. */
@@ -298,11 +295,11 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
 
   int hotspot_x = 0;
   int hotspot_y = 0;
-  //float factor_x, factor_y;
-  //if (UI_icon_cursor_get_hotspot(icon_id, factor_x, factor_y)) {
-  //  hotspot_x = int(factor_x * (imb->x - 1));
-  //  hotspot_y = int(factor_y * (imb->y - 1));
-  //}
+  // float factor_x, factor_y;
+  // if (UI_icon_cursor_get_hotspot(icon_id, factor_x, factor_y)) {
+  //   hotspot_x = int(factor_x * (imb->x - 1));
+  //   hotspot_y = int(factor_y * (imb->y - 1));
+  // }
 
   IMB_freeImBuf(imb);
 
@@ -322,14 +319,13 @@ void WM_cursor_set(wmWindow *win, int curs)
     return; /* Can't set custom cursor before Window init. */
   }
 
-  //def_internal_cursor(ICON_CURSOR_POINTER, 0.0f, 0.0f, 1.0f);
-  //def_internal_cursor(ICON_CURSOR_TEXT_EDIT, 0.5f, 0.5f, 0.7f);
-  //def_internal_cursor(ICON_CURSOR_STOP, 0.5f, 0.5f, 0.9f);
-  //def_internal_cursor(ICON_CURSOR_CROSSHAIR, 0.5f, 0.5f, 1.0f);
-  //def_internal_cursor(ICON_CURSOR_PENCIL, 0.0f, 1.0f, 1.0f);
-  //def_internal_cursor(ICON_CURSOR_EYEDROPPER, 0.0f, 1.0f, 1.0f);
-  //def_internal_cursor(ICON_CURSOR_ERASER, 0.0f, 1.0f, 1.0f);
-
+  // def_internal_cursor(ICON_CURSOR_POINTER, 0.0f, 0.0f, 1.0f);
+  // def_internal_cursor(ICON_CURSOR_TEXT_EDIT, 0.5f, 0.5f, 0.7f);
+  // def_internal_cursor(ICON_CURSOR_STOP, 0.5f, 0.5f, 0.9f);
+  // def_internal_cursor(ICON_CURSOR_CROSSHAIR, 0.5f, 0.5f, 1.0f);
+  // def_internal_cursor(ICON_CURSOR_PENCIL, 0.0f, 1.0f, 1.0f);
+  // def_internal_cursor(ICON_CURSOR_EYEDROPPER, 0.0f, 1.0f, 1.0f);
+  // def_internal_cursor(ICON_CURSOR_ERASER, 0.0f, 1.0f, 1.0f);
 
   if (curs == WM_CURSOR_DEFAULT && win->modalcursor) {
     curs = win->modalcursor;
