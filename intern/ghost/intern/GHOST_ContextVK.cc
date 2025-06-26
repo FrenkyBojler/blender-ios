@@ -1208,11 +1208,17 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
     optional_device_extensions.push_back(VK_EXT_SWAPCHAIN_COLOR_SPACE_EXTENSION_NAME);
 
     /* X11 doesn't use the correct swapchain offset, flipping can squash the first frames. */
-    const bool use_swapchain_maintenance1 =
+    const bool use_swapchain_maintenance1 = false;
 #ifdef WITH_GHOST_X11
-        m_platform != GHOST_kVulkanPlatformX11 &&
+    m_platform !=
+            GHOST_kVulkanPlatformX11 &&
 #endif
-        contains_extension(extensions_available, VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
+#ifdef WITH_GHOST_WAYLAND
+                m_platform !=
+            GHOST_kVulkanPlatformWayland &&
+#endif
+                contains_extension(extensions_available,
+                                   VK_EXT_SURFACE_MAINTENANCE_1_EXTENSION_NAME) &&
         contains_extension(extensions_available, VK_KHR_GET_SURFACE_CAPABILITIES_2_EXTENSION_NAME);
     if (use_swapchain_maintenance1) {
       requireExtension(
