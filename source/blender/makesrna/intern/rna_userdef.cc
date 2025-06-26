@@ -218,6 +218,7 @@ static const EnumPropertyItem rna_enum_preferences_extension_repo_source_type_it
 #  include "MEM_CacheLimiterC-Api.h"
 #  include "MEM_guardedalloc.h"
 
+#  include "ED_asset_library.hh"
 #  include "ED_asset_list.hh"
 #  include "ED_screen.hh"
 
@@ -379,6 +380,10 @@ static void rna_userdef_asset_library_clear_update(bContext *C, PointerRNA *ptr)
 
 static void rna_userdef_asset_library_remote_sync_update(bContext *C, PointerRNA *ptr)
 {
+  bUserAssetLibrary *library = (bUserAssetLibrary *)ptr->data;
+  AssetLibraryReference library_ref = blender::ed::asset::user_library_to_library_ref(*library);
+  /* Make sure all visible instances of this asset library will be refreshed. */
+  blender::ed::asset::list::clear(&library_ref, C);
   BKE_callback_exec(CTX_data_main(C), &ptr, 1, BKE_CB_EVT_REMOTE_ASSET_LIBRARIES_SYNC);
   rna_userdef_asset_library_clear_update(C, ptr);
 }
@@ -4874,7 +4879,7 @@ static void rna_def_userdef_addon_pref(BlenderRNA *brna)
   RNA_def_struct_refine_func(srna, "rna_AddonPref_refine");
   RNA_def_struct_register_funcs(
       srna, "rna_AddonPref_register", "rna_AddonPref_unregister", nullptr);
-  RNA_def_struct_idprops_func(srna, "rna_AddonPref_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_AddonPref_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES); /* Mandatory! */
 
   USERDEF_TAG_DIRTY_PROPERTY_UPDATE_DISABLE;
@@ -6512,7 +6517,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
        0,
        "Forward/Backward",
        "Zoom by pulling the 3D Mouse cap upwards or pushing the cap downwards"},
-      {NDOF_PAN_YZ_SWAP_AXIS,
+      {NDOF_SWAP_XY_AXIS,
        "NDOF_ZOOM_UP",
        0,
        "Up/Down",
@@ -7647,6 +7652,12 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
                            "Recompute all ID usercounts before saving to a blendfile. Allows to "
                            "work around invalid usercount handling in code that may lead to loss "
                            "of data due to wrongly detected unused data-blocks");
+
+  prop = RNA_def_property(srna, "use_vulkan_hdr", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(
+      prop,
+      "Vulkan HDR support Linux/Wayland",
+      "Enables HDR on Linux/Wayland on HDR capable setups. Requires a restart");
 }
 
 static void rna_def_userdef_addon_collection(BlenderRNA *brna, PropertyRNA *cprop)
