@@ -173,7 +173,7 @@ ThreadQueue *BLI_thread_queue_init(void);
 
 /**
  * Deallocate the ThreadQueue.
- * Assumes no one is using queue anymore.
+ * Assumes no one is using the queue anymore.
  */
 void BLI_thread_queue_free(ThreadQueue *queue);
 
