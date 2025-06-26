@@ -27,7 +27,7 @@ class BrushAssetShelf:
         from bl_ui.space_toolsystem_common import ToolSelectPanelHelper
         space_type = context.space_data.type
 
-        brush_type_items = bpy.types.Brush.bl_rna.properties[cls.tool_prop].enum_items
+        brush_type_items = bpy.types.Brush.bl_rna.properties[cls.brush_type_prop].enum_items
 
         tool_helper_cls = ToolSelectPanelHelper._tool_class_from_space_type(space_type)
         for item in ToolSelectPanelHelper._tools_flatten(
@@ -271,7 +271,7 @@ class UnifiedPaintPanel:
         """ Generalized way of adding brush options to the UI,
             along with their pen pressure setting and global toggle, if they exist. """
         row = layout.row(align=True)
-        ups = context.tool_settings.unified_paint_settings
+        ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
         prop_owner = brush
         if unified_name and getattr(ups, unified_name):
             prop_owner = ups
@@ -289,13 +289,13 @@ class UnifiedPaintPanel:
 
     @staticmethod
     def prop_unified_color(parent, context, brush, prop_name, *, text=None):
-        ups = context.tool_settings.unified_paint_settings
+        ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
         prop_owner = ups if ups.use_unified_color else brush
         parent.prop(prop_owner, prop_name, text=text)
 
     @staticmethod
     def prop_unified_color_picker(parent, context, brush, prop_name, value_slider=True):
-        ups = context.tool_settings.unified_paint_settings
+        ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
         prop_owner = ups if ups.use_unified_color else brush
         parent.template_color_picker(prop_owner, prop_name, value_slider=value_slider)
 
@@ -832,7 +832,7 @@ def brush_settings(layout, context, brush, popover=False):
             layout.separator()
 
         if capabilities.has_color:
-            ups = context.scene.tool_settings.unified_paint_settings
+            ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
             row = layout.row(align=True)
             UnifiedPaintPanel.prop_unified_color(row, context, brush, "color", text="")
             UnifiedPaintPanel.prop_unified_color(row, context, brush, "secondary_color", text="")
@@ -1124,7 +1124,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
         strength = True
 
     ### Draw settings. ###
-    ups = context.scene.tool_settings.unified_paint_settings
+    ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
 
     if blend_mode:
         layout.prop(brush, "blend", text="Blend")
@@ -1179,7 +1179,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
 
 def color_jitter_panel(layout, context, brush):
     mode = UnifiedPaintPanel.get_brush_mode(context)
-    ups = context.scene.tool_settings.unified_paint_settings
+    ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
 
     is_sculpt_paint_mode = mode == 'SCULPT' and brush.sculpt_capabilities.has_color
     if mode in {'PAINT_TEXTURE', 'PAINT_2D', 'PAINT_VERTEX'} or is_sculpt_paint_mode:
@@ -1414,7 +1414,7 @@ def brush_settings_advanced(layout, context, settings, brush, popover=False):
 
 def draw_color_settings(context, layout, brush, color_type=False):
     """Draw color wheel and gradient settings."""
-    ups = context.scene.tool_settings.unified_paint_settings
+    ups = UnifiedPaintPanel.paint_settings(context).unified_paint_settings
 
     if color_type:
         row = layout.row()
