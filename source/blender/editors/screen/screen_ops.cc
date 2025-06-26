@@ -1512,7 +1512,7 @@ static bool area_dupli_open(bContext *C, ScrArea *area, const blender::int2 posi
                                     SPACE_EMPTY,
                                     false,
                                     false,
-                                    true,
+                                    false,
                                     WIN_ALIGN_ABSOLUTE,
                                     /* Initialize area from callback. */
                                     area_dupli_fn,
