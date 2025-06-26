@@ -1,3 +1,4 @@
 Referenced by issue #140881, Node tool inputs broken after recent change
 Referenced by commit 82534672d4cac41b678e9fc2b5da7ea35713b894, Fix broken Node Tools after IDProps storage split.
 Referenced by commit 301d4212344b9e0104cef5b18806f578a31e83fb, Fix missing brushes in UI after IDProps split commit.
+Referenced by issue #140983, Blender Doesn't Use Object Color Properties in Materials
