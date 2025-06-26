@@ -27,21 +27,21 @@ static void tag_radius_changed(void *owner)
 
 static const auto &changed_tags()
 {
-  static Map<StringRef, UpdateOnChange> attributes{{"position", tag_position_changed},
-                                                   {"radius", tag_radius_changed}};
+  static Map<StringRef, AttrUpdateOnChange> attributes{{"position", tag_position_changed},
+                                                       {"radius", tag_radius_changed}};
   return attributes;
 }
 
 static const auto &builtin_attributes()
 {
   static auto attributes = []() {
-    Map<StringRef, BuiltinInfo> map;
+    Map<StringRef, AttrBuiltinInfo> map;
 
-    BuiltinInfo position(bke::AttrDomain::Point, bke::AttrType::Float3);
+    AttrBuiltinInfo position(bke::AttrDomain::Point, bke::AttrType::Float3);
     position.deletable = false;
     map.add_new("position", std::move(position));
 
-    BuiltinInfo radius(bke::AttrDomain::Point, bke::AttrType::Float);
+    AttrBuiltinInfo radius(bke::AttrDomain::Point, bke::AttrType::Float);
     map.add_new("radius", std::move(radius));
 
     return map;
@@ -60,7 +60,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
   };
   fn.builtin_domain_and_type = [](const void * /*owner*/,
                                   const StringRef name) -> std::optional<AttributeDomainAndType> {
-    const BuiltinInfo *info = builtin_attributes().lookup_ptr(name);
+    const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return std::nullopt;
     }
@@ -69,7 +69,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     return AttributeDomainAndType{info->domain, *cd_type};
   };
   fn.get_builtin_default = [](const void * /*owner*/, StringRef name) -> GPointer {
-    const BuiltinInfo &info = builtin_attributes().lookup(name);
+    const AttrBuiltinInfo &info = builtin_attributes().lookup(name);
     return info.default_value;
   };
   fn.lookup = [](const void *owner, const StringRef name) -> GAttributeReader {
@@ -110,7 +110,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     });
   };
   fn.lookup_validator = [](const void * /*owner*/, const StringRef name) -> AttributeValidator {
-    const BuiltinInfo *info = builtin_attributes().lookup_ptr(name);
+    const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name);
     if (!info) {
       return {};
     }
@@ -128,12 +128,12 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
   fn.remove = [](void *owner, const StringRef name) -> bool {
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();
-    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
       if (!info->deletable) {
         return false;
       }
     }
-    const std::optional<UpdateOnChange> fn = changed_tags().lookup_try(name);
+    const std::optional<AttrUpdateOnChange> fn = changed_tags().lookup_try(name);
     const bool removed = storage.remove(name);
     if (!removed) {
       return false;
@@ -153,7 +153,7 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();
     const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type);
     BLI_assert(type.has_value());
-    if (const BuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
+    if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
       if (info->domain != domain || info->type != type) {
         return false;
       }

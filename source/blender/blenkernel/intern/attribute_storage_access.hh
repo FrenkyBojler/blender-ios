@@ -7,15 +7,15 @@
 
 namespace blender::bke {
 
-using UpdateOnChange = void (*)(void *owner);
+using AttrUpdateOnChange = void (*)(void *owner);
 
-struct BuiltinInfo {
+struct AttrBuiltinInfo {
   AttrDomain domain;
   AttrType type;
   GPointer default_value = {};
   AttributeValidator validator = {};
   bool deletable = true;
-  BuiltinInfo(AttrDomain domain, AttrType type) : domain(domain), type(type) {}
+  AttrBuiltinInfo(AttrDomain domain, AttrType type) : domain(domain), type(type) {}
 };
 
 GAttributeReader attribute_to_reader(const Attribute &attribute,
@@ -23,7 +23,7 @@ GAttributeReader attribute_to_reader(const Attribute &attribute,
                                      const int64_t domain_size);
 
 GAttributeWriter attribute_to_writer(void *owner,
-                                     const Map<StringRef, UpdateOnChange> &changed_tags,
+                                     const Map<StringRef, AttrUpdateOnChange> &changed_tags,
                                      const int64_t domain_size,
                                      Attribute &attribute);
 
@@ -31,90 +31,58 @@ Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
                                               const int64_t domain_size,
                                               const AttributeInit &initializer);
 
+GVArray get_varray_attribute(const AttributeStorage &storage,
+                             AttrDomain domain,
+                             const CPPType &cpp_type,
+                             StringRef name,
+                             int64_t domain_size,
+                             const void *default_value);
+
 template<typename T>
 inline VArray<T> get_varray_attribute(const AttributeStorage &storage,
                                       const AttrDomain domain,
                                       const StringRef name,
-                                      const FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                                      const int64_t domain_size,
                                       const T &default_value)
 {
-  const int64_t domain_size = domain_sizes(domain);
-  const bke::Attribute *attr = storage.wrap().lookup(name);
-  if (!attr) {
-    return VArray<T>::ForSingle(default_value, domain_size);
-  }
-  if (attr->domain() != domain) {
-    return VArray<T>::ForSingle(default_value, domain_size);
-  }
-  switch (attr->storage_type()) {
-    case bke::AttrStorageType::Array: {
-      const auto &data = std::get<bke::Attribute::ArrayData>(attr->data());
-      const Span span(static_cast<const T *>(data.data), data.size);
-      return VArray<T>::ForSpan(span);
-    }
-    case bke::AttrStorageType::Single: {
-      const auto &data = std::get<bke::Attribute::SingleData>(attr->data());
-      return VArray<T>::ForSingle(*static_cast<const T *>(data.value), domain_size);
-    }
-  }
-  return VArray<T>::ForSingle(default_value, domain_size);
+  GVArray varray = get_varray_attribute(
+      storage, domain, CPPType::get<T>(), name, domain_size, &default_value);
+  return varray.typed<T>();
 }
+
+GSpan get_span_attribute(const AttributeStorage &storage,
+                         AttrDomain domain,
+                         const CPPType &cpp_type,
+                         StringRef name,
+                         const int64_t domain_size);
 
 template<typename T>
 inline Span<T> get_span_attribute(const AttributeStorage &storage,
                                   const AttrDomain domain,
                                   const StringRef name,
-                                  const FunctionRef<int64_t(AttrDomain)> domain_sizes)
+                                  const int64_t domain_size)
 {
-  const bke::Attribute *attr = storage.wrap().lookup(name);
-  if (!attr) {
-    return {};
-  }
-  if (attr->domain() != domain) {
-    return {};
-  }
-  if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
-    BLI_assert(array_data->size == domain_sizes(domain));
-    UNUSED_VARS_NDEBUG(domain_sizes);
-    return Span(static_cast<const T *>(array_data->data), array_data->size);
-  }
-  return {};
+  const GSpan span = get_span_attribute(storage, domain, CPPType::get<T>(), name, domain_size);
+  return span.typed<T>();
 }
+
+GMutableSpan get_mutable_attribute(AttributeStorage &storage,
+                                   const AttrDomain domain,
+                                   const CPPType &cpp_type,
+                                   const StringRef name,
+                                   const int64_t domain_size,
+                                   const void *default_value);
 
 template<typename T>
 inline MutableSpan<T> get_mutable_attribute(AttributeStorage &storage,
                                             const AttrDomain domain,
                                             const StringRef name,
-                                            const FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                                            const int64_t domain_size,
                                             const T &default_value = T())
 {
-  const int64_t domain_size = domain_sizes(domain);
-  if (domain_size <= 0) {
-    return {};
-  }
-  const bke::AttrType type = bke::cpp_type_to_attribute_type(CPPType::get<T>());
-  if (bke::Attribute *attr = storage.wrap().lookup(name)) {
-    if (attr->data_type() == type) {
-      if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
-        /* Convert single value storage to array storage. */
-        const GPointer g_value(CPPType::get<T>(), single_data->value);
-        attr->assign_data(bke::Attribute::ArrayData::ForValue(g_value, domain_size));
-      }
-      auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
-      return MutableSpan(static_cast<T *>(array_data.data), domain_size);
-    }
-    /* The attribute has the wrong type. This shouldn't happen for builtin attributes, but just
-     * in case, remove it. */
-    storage.wrap().remove(name);
-  }
-  bke::Attribute &attr = storage.wrap().add(
-      name,
-      domain,
-      type,
-      bke::Attribute::ArrayData::ForValue({CPPType::get<T>(), &default_value}, domain_size));
-  auto &array_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write());
-  BLI_assert(array_data.size == domain_size);
-  return MutableSpan(static_cast<T *>(array_data.data), domain_size);
+  const GMutableSpan span = get_mutable_attribute(
+      storage, domain, CPPType::get<T>(), name, domain_size, &default_value);
+  return span.typed<T>();
 }
 
 }  // namespace blender::bke
