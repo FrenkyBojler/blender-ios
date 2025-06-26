@@ -319,6 +319,48 @@ def main():
         SpecMeshTest("CurveCurve", "testObjBezierCurveCurve", "expObjBezierCurveCurve",
                      [ModifierSpec('curve_Curve', 'CURVE', {'object': bpy.data.objects['NurbsCurve']})]),
 
+        #############################################
+        # Armature Deform Modifier Settings
+        #############################################
+        # 70
+        SpecMeshTest("ArmatureDefault", "testMonkeyArmatureDefault", "expectedMonkeyArmatureDefault",
+                     [ModifierSpec('armature', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmatureDefault'],
+                                    'use_vertex_groups': True})]),
+        SpecMeshTest("ArmatureEnvelope", "testMonkeyArmatureEnvelope", "expectedMonkeyArmatureEnvelope",
+                     [ModifierSpec('armature', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmatureEnvelope'],
+                                    'use_vertex_groups': False,
+                                    'use_bone_envelopes': True})]),
+        SpecMeshTest("ArmatureVGroupEnvelope", "testMonkeyArmatureVGroupEnvelope", "expectedMonkeyArmatureVGroupEnvelope",
+                     [ModifierSpec('armature', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmatureVGroupEnvelope'],
+                                    'use_vertex_groups': True,
+                                    'use_bone_envelopes': True})]),
+        SpecMeshTest("ArmaturePreserveVolume", "testMonkeyArmaturePreserveVolume", "expectedMonkeyArmaturePreserveVolume",
+                     [ModifierSpec('armature', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmaturePreserveVolume'],
+                                    'use_vertex_groups': True,
+                                    'use_deform_preserve_volume': True})]),
+        SpecMeshTest("ArmatureMasked", "testMonkeyArmatureMasked", "expectedMonkeyArmatureMasked",
+                     [ModifierSpec('armature', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmatureMasked'],
+                                    'use_vertex_groups': True,
+                                    'vertex_group': "Mask"})]),
+        SpecMeshTest("ArmatureMaskedInverse", "testMonkeyArmatureMaskedInverse", "expectedMonkeyArmatureMaskedInverse",
+                     [ModifierSpec('armature', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmatureMaskedInverse'],
+                                    'use_vertex_groups': True,
+                                    'vertex_group': "Mask",
+                                    'invert_vertex_group': True})]),
+        SpecMeshTest("ArmatureMultiModifier", "testMonkeyArmatureMultiModifier", "expectedMonkeyArmatureMultiModifier",
+                     [ModifierSpec('armature1', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmatureMultiModifier1'],
+                                    'use_vertex_groups': True}),
+                      ModifierSpec('armature2', 'ARMATURE',
+                                   {'object': bpy.data.objects['testArmatureMultiModifier2'],
+                                    'use_vertex_groups': True,
+                                    'use_multi_modifier': True})]),
     ]
 
     boolean_basename = "CubeBooleanDiffBMeshObject"
