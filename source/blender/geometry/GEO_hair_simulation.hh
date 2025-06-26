@@ -79,7 +79,7 @@ fn::Field<float> curve_point_mass(const fn::Field<float> &segment_length_field,
  * Principal moment of inertia of curve segments. Z axis is the segment direction.
  */
 fn::Field<float3> curve_segment_inertia(const fn::Field<float> &segment_length_field,
-                                        const fn::Field<float3> &area_moment_field,
+                                        const fn::Field<float> &radius_field,
                                         const fn::Field<float> &density_field);
 
 /**

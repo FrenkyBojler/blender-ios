@@ -271,17 +271,20 @@ Field<float> curve_point_mass(const Field<float> &segment_length_field,
 }
 
 Field<float3> curve_segment_inertia(const Field<float> &segment_length_field,
-                                    const Field<float3> &area_moment_field,
+                                    const Field<float> &radius_field,
                                     const Field<float> &density_field)
 {
   static const auto segment_inertia_fn =
-      fn::multi_function::build::SI3_SO<float, float3, float, float3>(
+      fn::multi_function::build::SI3_SO<float, float, float, float3>(
           "Segment Moment of Inertia",
-          [](const float length, const float3 &area_moment, const float density) -> float3 {
-            return length * area_moment * density;
+          [](const float length, const float radius, const float density) -> float3 {
+            const float mass = length * M_PI * radius * radius * density;
+            const float Ixy = mass * 0.25f * (radius * radius + length * length / 3.0f);
+            const float Iz = mass * 0.5f * radius * radius;
+            return float3(Ixy, Ixy, Iz);
           });
   return Field<float3>(fn::FieldOperation::Create(
-      segment_inertia_fn, {segment_length_field, area_moment_field, density_field}));
+      segment_inertia_fn, {segment_length_field, radius_field, density_field}));
 }
 
 Field<float> inverse_mass(const Field<float> &mass_field)

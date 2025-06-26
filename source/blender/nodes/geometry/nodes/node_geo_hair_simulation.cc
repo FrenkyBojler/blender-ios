@@ -448,12 +448,12 @@ class LazyFunctionForCurveConstraintUpdate : public LazyFunctionForClosure {
     output_bend_index_ = add_output("Bend Constraints", SOCK_GEOMETRY);
   }
 
-  void execute_impl(lf::Params &params, const lf::Context &context) const override
+  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
   {
     // const ScopedNodeTimer node_timer{context, node_};
 
-    GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
-    BLI_assert(user_data != nullptr);
+    // GeoNodesUserData *user_data = dynamic_cast<GeoNodesUserData *>(context.user_data);
+    // BLI_assert(user_data != nullptr);
 
     GeometrySet stretch_constraints = params.get_input<GeometrySet>(input_stretch_index_);
     GeometrySet bend_constraints = params.get_input<GeometrySet>(input_bend_index_);
@@ -1289,7 +1289,7 @@ static bool try_init_hair_from_density(GeometryComponent &component,
       AttributeFieldInput::Create<float>(cross_section_attr),
       density_field);
   const Field<float3> segment_inertia_field = hairsim::field_ops::curve_segment_inertia(
-      material_length_field, AttributeFieldInput::Create<float3>(area_moment_attr), density_field);
+      material_length_field, field_inputs::radius(), density_field);
 
   if (!try_capture_mass_attributes(
           component, selection_field, point_mass_field, segment_inertia_field))
