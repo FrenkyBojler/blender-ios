@@ -36,6 +36,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_context.hh"
 #include "BKE_curves_utils.hh"
 #include "BKE_customdata.hh"
@@ -4798,6 +4799,45 @@ static void remap_vertex_groups(bke::greasepencil::Drawing &drawing,
    * Only the names of the groups change. */
 }
 
+static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &src,
+                                              const bke::AttributeAccessor &dst,
+                                              const int dst_size)
+{
+  Map<std::string, eCustomDataType> new_types;
+  const auto add_or_upgrade_types = [&](const bke::AttributeAccessor &attributes) {
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      new_types.add_or_modify(
+          iter.name,
+          [&](eCustomDataType *value) { *value = iter.data_type; },
+          [&](eCustomDataType *value) {
+            *value = bke::attribute_data_type_highest_complexity({*value, iter.data_type});
+          });
+    });
+  };
+  add_or_upgrade_types(src);
+  add_or_upgrade_types(dst);
+
+  bke::AttributeStorage new_storage;
+  for (const auto &[name, type] : new_types.items()) {
+    const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(type);
+    auto new_data = bke::Attribute::ArrayData::ForUninitialized(cpp_type, dst_size);
+
+    const GVArray src_data = *src.lookup_or_default(name, bke::AttrDomain::Layer, type);
+    src_data.materialize_to_uninitialized(new_data.data);
+
+    const GVArray dst_data = *src.lookup_or_default(name, bke::AttrDomain::Layer, type);
+    dst_data.materialize_to_uninitialized(
+        POINTER_OFFSET(new_data.data, cpp_type.size * src.domain_size(bke::AttrDomain::Layer)));
+
+    new_storage.add(name,
+                    bke::AttrDomain::Layer,
+                    *bke::custom_data_type_to_attr_type(type),
+                    std::move(new_data));
+  }
+
+  return new_storage;
+}
+
 static void join_object_with_active(Main &bmain,
                                     Object &ob_src,
                                     Object &ob_dst,
@@ -4849,19 +4889,9 @@ static void join_object_with_active(Main &bmain,
                            grease_pencil_src.root_group(),
                            layer_name_map);
 
-  // TODO
-
-  /* Copy custom attributes for new layers. */
-  CustomData_merge_layout(&grease_pencil_src.layers_data_legacy,
-                          &grease_pencil_dst.layers_data_legacy,
-                          CD_MASK_ALL,
-                          CD_SET_DEFAULT,
-                          grease_pencil_dst.layers().size());
-  CustomData_copy_data(&grease_pencil_src.layers_data_legacy,
-                       &grease_pencil_dst.layers_data_legacy,
-                       0,
-                       orig_layers_num,
-                       grease_pencil_src.layers().size());
+  grease_pencil_dst.attribute_storage.wrap() = merge_attributes(grease_pencil_src.attributes(),
+                                                                grease_pencil_dst.attributes(),
+                                                                grease_pencil_dst.layers().size());
 
   /* Fix names, indices and transforms to keep relationships valid. */
   for (const int layer_index : grease_pencil_dst.layers().index_range()) {
