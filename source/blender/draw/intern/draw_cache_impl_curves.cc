@@ -732,6 +732,19 @@ static void calc_final_indices(const bke::CurvesGeometry &curves,
   cache.final.proc_hairs = GPU_batch_create_ex(prim_type, vbo, ibo, owns_flag);
 }
 
+static std::optional<StringRef> get_first_uv_name(const bke::AttributeAccessor &attributes)
+{
+  std::optional<StringRef> name;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.data_type == CD_PROP_FLOAT2) {
+      name = iter.name;
+      return false;
+    }
+    return true;
+  });
+  return name;
+}
+
 static bool ensure_attributes(const Curves &curves,
                               CurvesBatchCache &cache,
                               const GPUMaterial *gpu_material)
@@ -744,14 +757,17 @@ static bool ensure_attributes(const Curves &curves,
     VectorSet<std::string> attrs_needed;
     ListBase gpu_attrs = GPU_material_attributes(gpu_material);
     LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
-      const StringRef name = gpu_attr->name;
+      StringRef name = gpu_attr->name;
+      if (name.is_empty()) {
+        if (std::optional<StringRef> uv_name = get_first_uv_name(attributes)) {
+          drw_attributes_add_request(&attrs_needed, *uv_name);
+        }
+      }
       if (!attributes.contains(name)) {
         continue;
       }
       drw_attributes_add_request(&attrs_needed, name);
     }
-
-    // TODO: Reimplement default UV fallback thing? How did that even work?
 
     if (!drw_attributes_overlap(&final_cache.attr_used, &attrs_needed)) {
       /* Some new attributes have been added, free all and start over. */
