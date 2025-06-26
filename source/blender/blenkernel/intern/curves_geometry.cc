@@ -1897,15 +1897,7 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
   }
 
   /* Recalculate curve type count cache that isn't saved in files. */
-  if (const int8_t *types = static_cast<const int8_t *>(
-          CustomData_get_layer_named(&this->curve_data_legacy, CD_PROP_INT8, "curve_type")))
-  {
-    this->runtime->type_counts = calculate_type_counts(
-        VArray<int8_t>::ForSpan(Span(types, this->curves_num())));
-  }
-  else {
-    this->update_curve_types();
-  }
+  this->update_curve_types();
 }
 
 CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)

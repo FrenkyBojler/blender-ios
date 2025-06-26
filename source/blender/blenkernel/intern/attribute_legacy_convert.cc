@@ -275,6 +275,9 @@ void curves_convert_customdata_to_storage(CurvesGeometry &curves)
       {{AttrDomain::Point, {curves.point_data, curves.points_num()}},
        {AttrDomain::Curve, {curves.curve_data_legacy, curves.curves_num()}}},
       curves.attribute_storage.wrap());
+  /* Update the curve type count again (the first time was done on file-read, where
+   * #AttributeStorage data doesn't exist yet for older fiels). */
+  curves.update_curve_types();
 }
 
 void pointcloud_convert_customdata_to_storage(PointCloud &pointcloud)
