@@ -5590,7 +5590,7 @@ static void rna_def_userdef_view(BlenderRNA *brna)
 
   /* Accessibility. */
   prop = RNA_def_property(srna, "use_reduce_motion", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "accessibility_flag", USER_A11Y_REDUCE_MOTION);
+  RNA_def_property_boolean_sdna(prop, nullptr, "uiflag", USER_REDUCE_MOTION);
   RNA_def_property_ui_text(
       prop, "Reduce Motion", "Avoid animations and other motion effects in the interface");
   RNA_def_property_update(prop, 0, "rna_userdef_update");
