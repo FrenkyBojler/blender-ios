@@ -462,6 +462,17 @@ struct uiLayout : uiItem {
             std::optional<blender::StringRef> name,
             int icon);
 
+  void popover(const bContext *C,
+               PanelType *pt,
+               std::optional<blender::StringRef> name_opt,
+               int icon);
+  void popover(const bContext *C,
+               blender::StringRef panel_type,
+               std::optional<blender::StringRef> name_opt,
+               int icon);
+  void popover_group(
+      bContext *C, int space_id, int region_id, const char *context, const char *category);
+
   /**
    * Add a enum property value item. This button acts like a radio button that are used to chose
    * a single enum value from a set of the enum property value items.
@@ -555,17 +566,6 @@ struct uiLayout : uiItem {
                       std::optional<blender::StringRefNull> name,
                       int icon,
                       const char *menu_type);
-
-  void popover(const bContext *C,
-               PanelType *pt,
-               std::optional<blender::StringRef> name_opt,
-               int icon);
-  void popover(const bContext *C,
-               blender::StringRef panel_type,
-               std::optional<blender::StringRef> name_opt,
-               int icon);
-  void popover_group(
-      bContext *C, int space_id, int region_id, const char *context, const char *category);
 
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
