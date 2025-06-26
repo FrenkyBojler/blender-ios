@@ -526,16 +526,17 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
     new_opacities[point] = ed::greasepencil::randomize_opacity(
         *ptd.settings, ptd.stroke_random_opacity_factor, lengths[point], opacity, pressure);
     if (ptd.vertex_color) {
-      new_vertex_colors[point] = ed::greasepencil::randomize_color(
-          *ptd.settings,
+      std::optional<BrushColorJitterSettings> jitter_settings =
           BKE_brush_color_jitter_get_settings(
-              ptd.vc.scene, &ptd.vc.scene->toolsettings->gp_paint->paint, ptd.brush),
-          ptd.stroke_random_hue_factor,
-          ptd.stroke_random_sat_factor,
-          ptd.stroke_random_val_factor,
-          lengths[point],
-          *ptd.vertex_color,
-          pressure);
+              ptd.vc.scene, &ptd.vc.scene->toolsettings->gp_paint->paint, ptd.brush);
+      new_vertex_colors[point] = ed::greasepencil::randomize_color(*ptd.settings,
+                                                                   jitter_settings,
+                                                                   ptd.stroke_random_hue_factor,
+                                                                   ptd.stroke_random_sat_factor,
+                                                                   ptd.stroke_random_val_factor,
+                                                                   lengths[point],
+                                                                   *ptd.vertex_color,
+                                                                   pressure);
     }
     if (rotations) {
       new_rotations[point] = ed::greasepencil::randomize_rotation(

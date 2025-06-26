@@ -271,6 +271,8 @@ struct PaintOperationExecutor {
   Brush *brush_;
 
   BrushGpencilSettings *settings_;
+  std::optional<BrushColorJitterSettings> jitter_settings_;
+
   ColorGeometry4f vertex_color_ = ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
   ColorGeometry4f fill_color_ = ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
   float softness_;
@@ -299,6 +301,7 @@ struct PaintOperationExecutor {
       }
     }
     softness_ = 1.0f - settings_->hardness;
+    jitter_settings_ = BKE_brush_color_jitter_get_settings(scene_, paint, brush_);
   }
 
   void process_start_sample(PaintOperation &self,
@@ -349,15 +352,14 @@ struct PaintOperationExecutor {
     Paint *paint = BKE_paint_get_active_from_context(&C);
     Brush *brush = BKE_paint_brush(paint);
     if (use_vertex_color_) {
-      vertex_color_ = ed::greasepencil::randomize_color(
-          *settings_,
-          BKE_brush_color_jitter_get_settings(scene, paint, brush),
-          self.stroke_random_hue_factor_,
-          self.stroke_random_sat_factor_,
-          self.stroke_random_val_factor_,
-          0.0f,
-          vertex_color_,
-          start_sample.pressure);
+      vertex_color_ = ed::greasepencil::randomize_color(*settings_,
+                                                        jitter_settings_,
+                                                        self.stroke_random_hue_factor_,
+                                                        self.stroke_random_sat_factor_,
+                                                        self.stroke_random_val_factor_,
+                                                        0.0f,
+                                                        vertex_color_,
+                                                        start_sample.pressure);
     }
 
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
@@ -846,15 +848,15 @@ struct PaintOperationExecutor {
           self.drawing_->vertex_colors_for_write().slice(new_points);
       if (use_settings_random_ || attributes.contains("vertex_color")) {
         for (const int i : IndexRange(new_points_num)) {
-          new_vertex_colors[i] = ed::greasepencil::randomize_color(
-              *settings_,
-              BKE_brush_color_jitter_get_settings(scene, paint, brush),
-              self.stroke_random_hue_factor_,
-              self.stroke_random_sat_factor_,
-              self.stroke_random_val_factor_,
-              self.accum_distance_ + max_spacing_px * i,
-              vertex_color_,
-              extension_sample.pressure);
+          new_vertex_colors[i] = ed::greasepencil::randomize_color(*settings_,
+                                                                   jitter_settings_,
+                                                                   self.stroke_random_hue_factor_,
+                                                                   self.stroke_random_sat_factor_,
+                                                                   self.stroke_random_val_factor_,
+                                                                   self.accum_distance_ +
+                                                                       max_spacing_px * i,
+                                                                   vertex_color_,
+                                                                   extension_sample.pressure);
         }
       }
       else {
