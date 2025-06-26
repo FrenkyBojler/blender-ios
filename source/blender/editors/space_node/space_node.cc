@@ -799,7 +799,33 @@ static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
         }
         continue;
       }
-      // TODO: Evaluate closure
+      if (node->is_type("GeometryNodeEvaluateClosure")) {
+        const auto &evaluate_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
+            node->storage);
+        const nodes::SocketInterfaceKey key(
+            evaluate_storage.output_items.items[socket->index()].name);
+        const Vector<nodes::SocketInContext> origin_sockets = find_origin_sockets_through_contexts(
+            node.input_socket(0), compute_context_cache, "GeometryNodeClosureOutput", true);
+        for (const nodes::SocketInContext origin_socket : origin_sockets) {
+          const bNodeTree &closure_tree = origin_socket->owner_tree();
+          const nodes::NodeInContext closure_output_node = origin_socket.owner_node();
+          const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
+              closure_output_node->storage);
+          const ComputeContext &closure_context = compute_context_cache.for_evaluate_closure(
+              node.context,
+              node->identifier,
+              &node->owner_tree(),
+              nodes::ClosureSourceLocation{
+                  &closure_tree, closure_output_node->identifier, origin_socket.context_hash()});
+          for (const int i : IndexRange(closure_storage.output_items.items_num)) {
+            const NodeGeometryClosureOutputItem &item = closure_storage.output_items.items[i];
+            if (key.matches(nodes::SocketInterfaceKey(item.name))) {
+              add_if_new({&closure_context, &closure_output_node->input_socket(i)}, bundle_path);
+            }
+          }
+        }
+        continue;
+      }
       if (node->is_type("GeometryNodeClosureInput")) {
         const auto &input_storage = *static_cast<const NodeGeometryClosureInput *>(node->storage);
         const bNode *closure_output_node = node->owner_tree().node_by_id(
