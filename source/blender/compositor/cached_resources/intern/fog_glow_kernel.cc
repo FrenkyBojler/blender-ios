@@ -14,6 +14,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_range.hh"
+#include "BLI_math_angle_types.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_numbers.hh"
@@ -51,23 +52,22 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
  * compute the fog glow kernel value, the kernel value is calculated based on Equation (5) of
  * the paper:
  *
- *   G. Spencer, P. Shirley, K. Zimmerman, and D. P. Greenberg, “Physically-based glare effects
- * for digital images,” in Proc. 22nd Annu. Conf. Computer Graphics and Interactive Techniques
- * (SIGGRAPH '95), 1995, pp. 325–334, doi: 10.1145/218380.218466. */
+ *   Spencer, Greg, et al. "Physically-based glare effects for digital images." Proceedings of
+ *   the 22nd annual conference on Computer graphics and interactive techniques. 1995. */
 
 [[maybe_unused]] static float compute_fog_glow_kernel_value(int x, int y, int kernel_size)
 {
   const int half_kernel_size = kernel_size / 2;
-  const float v = ((y - half_kernel_size) / float(half_kernel_size));
-  const float u = ((x - half_kernel_size) / float(half_kernel_size));
+  const float v = (y - half_kernel_size) / float(half_kernel_size);
+  const float u = (x - half_kernel_size) / float(half_kernel_size);
   const float r = math::sqrt(math::square(u) + math::square(v));
-  /* The scale is chosen to map Equation (5) in the domain of (0 - ~10). as 10 corresponds to
-   * a range value of ~0.1 on the actual function plot. */
-  const float scale = 0.1f;
-  const float theta_deg = math::atan(r * scale) * 180.0f / 3.1415926f;
-  const float f0 = 2.61f * 1e6 * math::exp(-math::square((theta_deg) / 0.02f));
-  const float f1 = 20.91f / math::pow((theta_deg) + 0.02, 3.0);
-  const float f2 = 72.37f / math::pow((theta_deg) + 0.02, 2.0);
+  /* The field of viwe value (in radians) was chosen based on the visual aspect. */
+  const float field_of_viwe = 0.012f;
+  const float half_length = tan(field_of_viwe / 2.0f);
+  const float theta_degree = math::AngleRadian(math::atan(r * half_length)).degree();
+  const float f0 = 2.61f * 1e6 * math::exp(-math::square((theta_degree) / 0.02f));
+  const float f1 = 20.91f / math::cube((theta_degree) + 0.02f);
+  const float f2 = 72.37f / math::square((theta_degree) + 0.02f);
   const float kernel_value = (0.384f * f0 + 0.478f * f1 + 0.138f * f2);
 
   return kernel_value;
