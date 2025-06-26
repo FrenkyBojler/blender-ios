@@ -21,6 +21,9 @@
 #include "BKE_global.hh"
 #include "BKE_main.hh"
 
+#include "nanosvgrast.h"
+#include "svg_cursors.h"
+
 #include "IMB_imbuf.hh"
 
 #include "UI_interface_icons.hh"
@@ -30,6 +33,7 @@
 #include "WM_types.hh"
 #include "wm_cursors.hh"
 #include "wm_window.hh"
+
 
 enum CursorSize {
   /** Size: 16x16. */
@@ -183,42 +187,90 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
     size = 32.0f;  // Larger cursors not supported yet.
   }
 
-  int icon_id;
+  std::string svg_source;
+
   switch (curs) {
     case WM_CURSOR_NONE:
-      icon_id = ICON_BLANK1;
+      // might have to make a none?
+      //svg_source = datatoc_cursor_pointer_svg;
       break;
     case WM_CURSOR_DEFAULT:
-      icon_id = ICON_CURSOR_POINTER;
+      svg_source = datatoc_cursor_pointer_svg;
       break;
     case WM_CURSOR_TEXT_EDIT:
-      icon_id = ICON_CURSOR_TEXT_EDIT;
+      svg_source = datatoc_cursor_text_edit_svg;
       break;
     case WM_CURSOR_STOP:
-      icon_id = ICON_CURSOR_STOP;
+      svg_source = datatoc_cursor_stop_svg;
       break;
     case WM_CURSOR_PAINT_BRUSH:
-      icon_id = ICON_CURSOR_PENCIL;
+      svg_source = datatoc_cursor_pencil_svg;
       break;
     case WM_CURSOR_EYEDROPPER:
-      icon_id = ICON_CURSOR_EYEDROPPER;
+      svg_source = datatoc_cursor_eyedropper_svg;
       break;
     case WM_CURSOR_ERASER:
-      icon_id = ICON_CURSOR_ERASER;
+      svg_source = datatoc_cursor_eraser_svg;
       break;
     case WM_CURSOR_EDIT:
     case WM_CURSOR_CROSS:
-      icon_id = ICON_CURSOR_CROSSHAIR;
+      svg_source = datatoc_cursor_crosshair_svg;
       break;
     default:
-      icon_id = ICON_CURSOR_POINTER;
+      svg_source = datatoc_cursor_pointer_svg;
   }
 
-  ImBuf *imb = UI_svg_icon_bitmap(icon_id, size, true);
+  //if (svg_source) {
+    //edit_source_cb(svg_source);
+  //}
+
+  NSVGimage *image = nsvgParse(svg_source.data(), "px", 96.0f);
+  if (image == nullptr) {
+    return false;
+  }
+
+  if (image->width == 0 || image->height == 0) {
+    nsvgDelete(image);
+    return false;
+  }
+
+  NSVGrasterizer *rast = nsvgCreateRasterizer();
+  if (rast == nullptr) {
+    nsvgDelete(image);
+    return false;
+  }
+
+  float scale = (size / 1600.0f);
+  const int dest_w = int(ceil(image->width * scale));
+  const int dest_h = int(ceil(image->height * scale));
+  scale = float(dest_w) / image->width;
+
+  blender::Array<uchar> render_bmp(dest_w * dest_h * 4);
+
+  nsvgRasterize(rast, image, 0.0f, 0.0f, scale, render_bmp.data(), dest_w, dest_h, dest_w * 4);
+  nsvgDeleteRasterizer(rast);
+
+  /* Bitmaps vary in size, so calculate the offsets needed when drawn. */
+  const int offset_x = std::max(int(round((size - (image->width * scale)) / 2.0f)),
+                                int(-100.0f * scale));
+
+  const int offset_y = std::max(int(ceil((size + float(dest_h)) / 2.0f)),
+                                dest_h - int(100.0f * scale));
+
+  nsvgDelete(image);
+
+  // make imbuf from render_bmp?
+
+  ImBuf *imb = IMB_allocFromBuffer(
+      reinterpret_cast<uint8_t *>(render_bmp.data()), nullptr, dest_w, dest_h, 32);
+
+
+
+  //ImBuf *imb = UI_svg_icon_bitmap(icon_id, size, true);
   if (!imb) {
     return false;
   }
-  IMB_flipy(imb);
+  //IMB_flipy(imb);
 
   /* If we give GHOST_SetCustomCursorShape bit depth arguments
    * we could try sending full-color to it first. */
@@ -246,11 +298,11 @@ static bool icon_cursor(wmWindow *win, WMCursorType curs, float size)
 
   int hotspot_x = 0;
   int hotspot_y = 0;
-  float factor_x, factor_y;
-  if (UI_icon_cursor_get_hotspot(icon_id, factor_x, factor_y)) {
-    hotspot_x = int(factor_x * (imb->x - 1));
-    hotspot_y = int(factor_y * (imb->y - 1));
-  }
+  //float factor_x, factor_y;
+  //if (UI_icon_cursor_get_hotspot(icon_id, factor_x, factor_y)) {
+  //  hotspot_x = int(factor_x * (imb->x - 1));
+  //  hotspot_y = int(factor_y * (imb->y - 1));
+  //}
 
   IMB_freeImBuf(imb);
 
@@ -269,6 +321,15 @@ void WM_cursor_set(wmWindow *win, int curs)
   if (win == nullptr || G.background) {
     return; /* Can't set custom cursor before Window init. */
   }
+
+  //def_internal_cursor(ICON_CURSOR_POINTER, 0.0f, 0.0f, 1.0f);
+  //def_internal_cursor(ICON_CURSOR_TEXT_EDIT, 0.5f, 0.5f, 0.7f);
+  //def_internal_cursor(ICON_CURSOR_STOP, 0.5f, 0.5f, 0.9f);
+  //def_internal_cursor(ICON_CURSOR_CROSSHAIR, 0.5f, 0.5f, 1.0f);
+  //def_internal_cursor(ICON_CURSOR_PENCIL, 0.0f, 1.0f, 1.0f);
+  //def_internal_cursor(ICON_CURSOR_EYEDROPPER, 0.0f, 1.0f, 1.0f);
+  //def_internal_cursor(ICON_CURSOR_ERASER, 0.0f, 1.0f, 1.0f);
+
 
   if (curs == WM_CURSOR_DEFAULT && win->modalcursor) {
     curs = win->modalcursor;

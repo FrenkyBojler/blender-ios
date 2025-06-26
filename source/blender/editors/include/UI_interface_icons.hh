@@ -58,8 +58,6 @@ void UI_icons_init();
 
 bool UI_icon_get_theme_color(int icon_id, unsigned char color[4]);
 
-bool UI_icon_cursor_get_hotspot(int icon_id, float &factor_x, float &factor_y);
-
 /**
  * Render a #PreviewImage for the data block.
  *

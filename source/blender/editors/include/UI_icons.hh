@@ -36,9 +36,6 @@
 #ifndef DEF_ICON_FUND
 #  define DEF_ICON_FUND DEF_ICON
 #endif
-#ifndef DEF_ICON_CURSOR
-#  define DEF_ICON_CURSOR DEF_ICON
-#endif
 
 /* ICON_NONE has to be the first item here because it is hard-coded in places as 0. */
 DEF_ICON(NONE)
@@ -867,15 +864,6 @@ DEF_ICON(USER)
 DEF_ICON(EXPERIMENTAL)
 DEF_ICON(MEMORY)
 
-/* MOUSE CURSORS */
-DEF_ICON_CURSOR(CURSOR_POINTER)
-DEF_ICON_CURSOR(CURSOR_TEXT_EDIT)
-DEF_ICON_CURSOR(CURSOR_STOP)
-DEF_ICON_CURSOR(CURSOR_CROSSHAIR)
-DEF_ICON_CURSOR(CURSOR_PENCIL)
-DEF_ICON_CURSOR(CURSOR_EYEDROPPER)
-DEF_ICON_CURSOR(CURSOR_ERASER)
-
 /* The items above are initiated sequentially while the ones that
  * follow are initiated individually. Therefore this item marks
  * the boundary. Add regular SVG icons above this one. */
@@ -1162,5 +1150,4 @@ DEF_ICON_VECTOR(NODE_SOCKET_CLOSURE)
 #undef DEF_ICON_VECTOR
 #undef DEF_ICON_COLOR
 #undef DEF_ICON_FUND
-#undef DEF_ICON_CURSOR
 #undef DEF_ICON_BLANK

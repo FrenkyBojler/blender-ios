@@ -22,7 +22,6 @@
 #define DEF_ICON(name) {ICON_##name, (#name), 0, (#name), ""},
 #define DEF_ICON_VECTOR(name) {ICON_##name, (#name), 0, (#name), ""},
 #define DEF_ICON_COLOR(name) {ICON_##name, (#name), 0, (#name), ""},
-#define DEF_ICON_CURSOR(name) {ICON_##name, (#name), 0, (#name), ""},
 #define DEF_ICON_BLANK(name)
 const EnumPropertyItem rna_enum_icon_items[] = {
 #include "UI_icons.hh"

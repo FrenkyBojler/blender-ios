@@ -1,0 +1,11 @@
+#pragma once
+
+#ifdef __cplusplus
+extern "C" {
+#endif
+
+@SVG_CURSORS_CONTENTS_H@
+
+#ifdef __cplusplus
+}
+#endif

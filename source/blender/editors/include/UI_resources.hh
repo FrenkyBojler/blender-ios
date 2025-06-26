@@ -16,7 +16,6 @@ struct bTheme;
 #define DEF_ICON(name) ICON_##name,
 #define DEF_ICON_VECTOR(name) ICON_##name,
 #define DEF_ICON_COLOR(name) ICON_##name,
-#define DEF_ICON_CURSOR(name) ICON_##name,
 #define DEF_ICON_BLANK(name) ICON_BLANK_##name,
 
 /**
