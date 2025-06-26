@@ -4,6 +4,8 @@
 
 #include "BLI_cpp_type.hh"
 
+#include "BKE_node_runtime.hh"
+
 #include "NOD_geometry_nodes_bundle.hh"
 #include "NOD_geometry_nodes_bundle_signature.hh"
 
