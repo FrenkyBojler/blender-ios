@@ -4,6 +4,8 @@
 
 #pragma once
 
+#include <atomic>
+
 #include "scene/shader.h"
 #include "scene/shader_graph.h"
 
@@ -27,8 +29,6 @@ class SVMShaderManager : public ShaderManager {
  public:
   SVMShaderManager();
   ~SVMShaderManager() override;
-
-  void reset(Scene *scene) override;
 
   void device_update_specific(Device *device,
                               DeviceScene *dscene,

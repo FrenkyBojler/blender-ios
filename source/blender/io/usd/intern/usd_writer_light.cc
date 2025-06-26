@@ -25,22 +25,6 @@ bool USDLightWriter::is_supported(const HierarchyContext * /*context*/) const
   return true;
 }
 
-static void set_light_extents(const pxr::UsdPrim &prim,
-                              const pxr::UsdTimeCode time,
-                              pxr::UsdUtilsSparseValueWriter usd_value_writer)
-{
-  if (auto boundable = pxr::UsdGeomBoundable(prim)) {
-    pxr::VtArray<pxr::GfVec3f> extent;
-    pxr::UsdGeomBoundable::ComputeExtentFromPlugins(boundable, time, &extent);
-    pxr::UsdAttribute attr_extent = boundable.CreateExtentAttr(pxr::VtValue(), true);
-
-    set_attribute(attr_extent, extent, time, usd_value_writer);
-  }
-
-  /* We're intentionally not setting an error on non-boundable lights,
-   * because overly noisy errors are annoying. */
-}
-
 void USDLightWriter::do_write(HierarchyContext &context)
 {
   pxr::UsdStageRefPtr stage = usd_export_context_.stage;
@@ -158,12 +142,25 @@ void USDLightWriter::do_write(HierarchyContext &context)
                 intensity,
                 timecode,
                 usd_value_writer_);
-  set_attribute(
-      usd_light_api.CreateExposureAttr(pxr::VtValue(), true), 0.0f, timecode, usd_value_writer_);
+  set_attribute(usd_light_api.CreateExposureAttr(pxr::VtValue(), true),
+                light->exposure,
+                timecode,
+                usd_value_writer_);
+
   set_attribute(usd_light_api.CreateColorAttr(pxr::VtValue(), true),
                 pxr::GfVec3f(light->r, light->g, light->b),
                 timecode,
                 usd_value_writer_);
+  set_attribute(usd_light_api.CreateEnableColorTemperatureAttr(
+                    pxr::VtValue(), (light->mode & LA_USE_TEMPERATURE) != 0),
+                true,
+                timecode,
+                usd_value_writer_);
+  set_attribute(usd_light_api.CreateColorTemperatureAttr(pxr::VtValue(), true),
+                light->temperature,
+                timecode,
+                usd_value_writer_);
+
   set_attribute(usd_light_api.CreateDiffuseAttr(pxr::VtValue(), true),
                 light->diff_fac,
                 timecode,
@@ -172,13 +169,18 @@ void USDLightWriter::do_write(HierarchyContext &context)
                 light->spec_fac,
                 timecode,
                 usd_value_writer_);
-  set_attribute(
-      usd_light_api.CreateNormalizeAttr(pxr::VtValue(), true), true, timecode, usd_value_writer_);
+  set_attribute(usd_light_api.CreateNormalizeAttr(pxr::VtValue(), true),
+                (light->mode & LA_UNNORMALIZED) == 0,
+                timecode,
+                usd_value_writer_);
 
   pxr::UsdPrim prim = usd_light_api.GetPrim();
   write_id_properties(prim, light->id, timecode);
 
-  set_light_extents(prim, timecode, usd_value_writer_);
+  /* Only a subset of light types are "boundable". */
+  if (auto boundable = pxr::UsdGeomBoundable(prim)) {
+    this->author_extent(boundable, timecode);
+  }
 }
 
 }  // namespace blender::io::usd

@@ -22,6 +22,8 @@ from bpy.props import (
 
 from bpy.app.translations import (
     pgettext_tip as tip_,
+    pgettext_rpt as rpt_,
+    contexts as i18n_contexts,
 )
 from mathutils import Vector
 
@@ -36,7 +38,7 @@ from bpy_extras.io_utils import ImportHelper
 # -----------------------------------------------------------------------------
 # Constants
 
-COMPATIBLE_ENGINES = {'CYCLES', 'BLENDER_EEVEE_NEXT', 'BLENDER_WORKBENCH'}
+COMPATIBLE_ENGINES = {'CYCLES', 'BLENDER_EEVEE', 'BLENDER_WORKBENCH'}
 
 # -----------------------------------------------------------------------------
 # Image loading
@@ -355,6 +357,7 @@ class TextureProperties_MixIn:
 
     extension: EnumProperty(
         name="Extension",
+        translation_context=i18n_contexts.id_image,
         items=(
             ('CLIP', "Clip", "Clip to image size and set exterior pixels as transparent"),
             ('EXTEND', "Extend", "Extend by repeating edge pixels of the image"),
@@ -364,19 +367,19 @@ class TextureProperties_MixIn:
         description="How the image is extrapolated past its original bounds",
     )
 
-    t = bpy.types.Image.bl_rna.properties["alpha_mode"]
+    _Image_alpha_mode = bpy.types.Image.bl_rna.properties["alpha_mode"]
     alpha_mode: EnumProperty(
-        name=t.name,
-        items=tuple((e.identifier, e.name, e.description) for e in t.enum_items),
-        default=t.default,
-        description=t.description,
+        name=_Image_alpha_mode.name,
+        items=tuple((e.identifier, e.name, e.description) for e in _Image_alpha_mode.enum_items),
+        default=_Image_alpha_mode.default,
+        description=_Image_alpha_mode.description,
     )
 
-    t = bpy.types.ImageUser.bl_rna.properties["use_auto_refresh"]
+    _ImageUser_use_auto_refresh = bpy.types.ImageUser.bl_rna.properties["use_auto_refresh"]
     use_auto_refresh: BoolProperty(
-        name=t.name,
+        name=_ImageUser_use_auto_refresh.name,
         default=True,
-        description=t.description,
+        description=_ImageUser_use_auto_refresh.description,
     )
 
     relative: BoolProperty(
@@ -625,8 +628,9 @@ def get_shadeless_node(dest_node_tree):
 # -----------------------------------------------------------------------------
 # Operator
 
-class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, MaterialProperties_MixIn,
-                                     TextureProperties_MixIn, Operator):
+class IMAGE_OT_import_as_mesh_planes(
+        AddObjectHelper, ImportHelper, MaterialProperties_MixIn, TextureProperties_MixIn, Operator,
+):
     """Create mesh plane(s) from image files with the appropriate aspect ratio"""
 
     bl_idname = "image.import_as_mesh_planes"
@@ -849,13 +853,13 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, MaterialProp
     def invoke(self, context, _event):
         engine = context.scene.render.engine
         if engine not in COMPATIBLE_ENGINES:
-            self.report({'ERROR'}, tip_("Cannot generate materials for unknown {:s} render engine").format(engine))
+            self.report({'ERROR'}, rpt_("Cannot generate materials for unknown {:s} render engine").format(engine))
             return {'CANCELLED'}
 
         if engine == 'BLENDER_WORKBENCH':
             self.report(
                 {'WARNING'},
-                tip_("Generating Cycles/EEVEE compatible material, but won't be visible with {:s} engine").format(
+                rpt_("Generating Cycles/EEVEE compatible material, but won't be visible with {:s} engine").format(
                     engine,
                 ))
 
@@ -914,7 +918,7 @@ class IMAGE_OT_import_as_mesh_planes(AddObjectHelper, ImportHelper, MaterialProp
             plane.select_set(True)
 
         # All done!
-        self.report({'INFO'}, tip_("Added {:d} Image Plane(s)").format(len(planes)))
+        self.report({'INFO'}, rpt_("Added {:d} Image Plane(s)").format(len(planes)))
         return {'FINISHED'}
 
     # Operate on a single image.
@@ -1127,13 +1131,13 @@ class IMAGE_OT_convert_to_mesh_plane(MaterialProperties_MixIn, TextureProperties
         engine = scene.render.engine
 
         if engine not in COMPATIBLE_ENGINES:
-            self.report({'ERROR'}, tip_("Cannot generate materials for unknown {:s} render engine").format(engine))
+            self.report({'ERROR'}, rpt_("Cannot generate materials for unknown {:s} render engine").format(engine))
             return {'CANCELLED'}
 
         if engine == 'BLENDER_WORKBENCH':
             self.report(
                 {'WARNING'},
-                tip_("Generating Cycles/EEVEE compatible material, but won't be visible with {:s} engine").format(
+                rpt_("Generating Cycles/EEVEE compatible material, but won't be visible with {:s} engine").format(
                     engine,
                 ))
 
@@ -1203,7 +1207,7 @@ class IMAGE_OT_convert_to_mesh_plane(MaterialProperties_MixIn, TextureProperties
             self.report({'ERROR'}, "No images converted")
             return {'CANCELLED'}
 
-        self.report({'INFO'}, "{:d} image(s) converted to mesh plane(s)".format(converted))
+        self.report({'INFO'}, rpt_("{:d} image(s) converted to mesh plane(s)").format(converted))
         return {'FINISHED'}
 
     def draw(self, context):

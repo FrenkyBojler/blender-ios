@@ -697,6 +697,17 @@ def build_paths_expand_iter(
     path_swap = os.sep != "/"
     path_strip = path.rstrip(os.sep)
     for filepath in path_list:
+        # This is needed so it's possible to compare relative paths against string literals.
+        # So it's possible to know if a path list includes a path or not.
+        #
+        # Simple path normalization:
+        # - Remove redundant slashes.
+        # - Strip all `./`.
+        while "//" in filepath:
+            filepath = filepath.replace("//", "/")
+        while filepath.startswith("./"):
+            filepath = filepath[2:]
+
         if path_swap:
             filepath = filepath.replace("/", "\\")
 
@@ -2309,7 +2320,7 @@ def python_versions_from_wheel(wheel_filename: str) -> set[tuple[int] | tuple[in
     abi_tag = wheel_filename_split[-2]
 
     # NOTE(@ideasman42): when the ABI is set, simply return the major version,
-    # This is needed because older version of CPython (3.6) for e.g. are compatible with newer versions of CPython,
+    # This is needed because older version of CPython (3.6) for example are compatible with newer versions of CPython,
     # but returning the old version causes it not to register as being compatible.
     # So return the ABI version to allow any version of CPython 3.x.
     #
@@ -2435,6 +2446,24 @@ def repository_filter_skip(
         skip_message_fn: Callable[[str], None] | None,
         error_fn: Callable[[Exception], None],
 ) -> bool:
+    """
+    This function takes an ``item`` which represents un-validated extension meta-data.
+    Return True when the extension should be excluded.
+
+    The meta-data is a subset of the ``blender_manifest.toml`` which is extracted
+    into the ``index.json`` hosted by a remote server.
+
+    Filtering will exclude extensions when:
+
+    - They're incompatible with Blender, Python or the platform defined by the ``filter_*`` arguments.
+      ``skip_message_fn`` callback will run with the cause of the incompatibility.
+    - The meta-data is malformed, it doesn't confirm to ``blender_manifest.toml`` data-types.
+      ``error_fn`` callback will run with the cause of the error.
+
+    This is used so Blender's extensions listing only shows compatible extensions as well as
+    reporting errors if the user attempts to install an extension which isn't compatible with their system.
+    """
+
     if (platforms := item.get("platforms")) is not None:
         if not isinstance(platforms, list):
             # Possibly noisy, but this should *not* be happening on a regular basis.
@@ -2806,7 +2835,7 @@ def pkg_manifest_detect_duplicates(
             del python_versions_full
 
     # This can be expanded with additional values as needed.
-    # We could in principle have ABI flags (debug/release) for e.g.
+    # We could in principle have ABI flags (debug/release) for example
     PkgCfgKey = tuple[
         # Platform.
         str,
@@ -4706,6 +4735,20 @@ class subcmd_author:
                 msglog.fatal_error("Error building path list \"{:s}\"".format(str(ex)))
                 return False
 
+        if manifest.type == "add-on":
+            # We could have a more generic way to find expected files,
+            # for now perform specific checks.
+            is_valid_python_package = False
+            for _, filepath_rel in build_paths:
+                # Other Python module suffixes besides `.py` can be used.
+                if filepath_rel.startswith("__init__."):
+                    is_valid_python_package = True
+                    break
+            if not is_valid_python_package:
+                msglog.fatal_error("Not a Python package: missing \"__init__.*\" file, typically \"__init__.py\"")
+                return False
+            del is_valid_python_package
+
         request_exit = False
 
         # A pass-through when there are no platforms to split.
@@ -4827,7 +4870,7 @@ class subcmd_author:
             *,
             manifest: PkgManifest,
             # NOTE: This path is only for inclusion in the error message,
-            # the path may not exist on the file-system (it may refer to a path inside an archive for e.g.).
+            # the path may not exist on the file-system (it may refer to a path inside an archive for example).
             pkg_manifest_filepath: str,
             valid_tags_filepath: str,
     ) -> bool:
@@ -5105,18 +5148,22 @@ def unregister():
             *,
             time_duration: float,
             time_delay: float,
+            steps_limit: int,
     ) -> bool:
         import time
         request_exit = False
         time_start = time.time() if (time_duration > 0.0) else 0.0
         size_beg = 0
-        size_end = 100
+        size_end = steps_limit
         while time_duration == 0.0 or (time.time() - time_start < time_duration):
             request_exit |= msglog.progress("Demo", size_beg, size_end, 'BYTE')
             if request_exit:
                 break
             size_beg += 1
             if size_beg > size_end:
+                # Limit by the number of steps.
+                if time_duration == 0.0:
+                    break
                 size_beg = 0
             time.sleep(time_delay)
         if request_exit:
@@ -5424,15 +5471,15 @@ def argparse_create_dummy_repo(subparsers: "argparse._SubParsersAction[argparse.
         ),
     )
 
+
 # -----------------------------------------------------------------------------
 # Dummy Output
-
 
 def argparse_create_dummy_progress(subparsers: "argparse._SubParsersAction[argparse.ArgumentParser]") -> None:
     subparse = subparsers.add_parser(
         "dummy-progress",
         help="Dummy progress output.",
-        description="Demo output.",
+        description="Demo output, included for testing.",
         formatter_class=argparse.RawTextHelpFormatter,
     )
 
@@ -5455,6 +5502,16 @@ def argparse_create_dummy_progress(subparsers: "argparse._SubParsersAction[argpa
         default=0.05,
     )
 
+    subparse.add_argument(
+        "--steps-limit",
+        dest="steps_limit",
+        type=int,
+        help=(
+            "The number of steps to report"
+        ),
+        default=100,
+    )
+
     generic_arg_output_type(subparse)
 
     subparse.set_defaults(
@@ -5462,9 +5519,13 @@ def argparse_create_dummy_progress(subparsers: "argparse._SubParsersAction[argpa
             msglog_from_args(args),
             time_duration=args.time_duration,
             time_delay=args.time_delay,
+            steps_limit=max(1, args.steps_limit),
         ),
     )
 
+
+# -----------------------------------------------------------------------------
+# Top Level Argument Parser
 
 def argparse_create(
         args_internal: bool = True,
@@ -5579,6 +5640,9 @@ def main(
 
     # Run early to prevent a `KeyboardInterrupt` exception.
     signal.signal(signal.SIGINT, signal_handler_sigint)
+    if sys.platform == "win32":
+        # WIN32 needs to check for break as sending SIGINT isn't supported from the caller, see #131947.
+        signal.signal(signal.SIGBREAK, signal_handler_sigint)
 
     # Needed on WIN32 which doesn't default to `utf-8`.
     for fh in (sys.stdout, sys.stderr):

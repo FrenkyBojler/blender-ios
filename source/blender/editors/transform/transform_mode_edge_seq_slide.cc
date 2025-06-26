@@ -10,8 +10,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_vector.h"
+#include "BLI_string.h"
 
 #include "BKE_unit.hh"
 
@@ -22,7 +22,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -32,6 +32,8 @@
 #include "transform_convert.hh"
 #include "transform_mode.hh"
 #include "transform_snap.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Sequencer Slide)
@@ -87,7 +89,7 @@ static void applySeqSlide(TransInfo *t)
   else {
     copy_v2_v2(values_final, t->values);
     transform_snap_mixed_apply(t, values_final);
-    if (!sequencer_retiming_mode_is_active(t->context)) {
+    if (!vse::sequencer_retiming_mode_is_active(t->context)) {
       transform_convert_sequencer_channel_clamp(t, values_final);
     }
 
@@ -114,7 +116,7 @@ struct SeqSlideParams {
 
 static void initSeqSlide(TransInfo *t, wmOperator *op)
 {
-  SeqSlideParams *ssp = MEM_cnew<SeqSlideParams>(__func__);
+  SeqSlideParams *ssp = MEM_callocN<SeqSlideParams>(__func__);
   t->custom.mode.data = ssp;
   t->custom.mode.use_free = true;
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_restore_handle_selection");
@@ -128,10 +130,10 @@ static void initSeqSlide(TransInfo *t, wmOperator *op)
   t->num.flag = 0;
   t->num.idx_max = t->idx_max;
 
-  t->snap[0] = floorf(t->scene->r.frs_sec / t->scene->r.frs_sec_base);
-  t->snap[1] = 10.0f;
+  t->increment = float3(floorf(t->scene->r.frs_sec / t->scene->r.frs_sec_base));
+  t->increment_precision = 10.0f / t->increment[0];
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   /* Would be nice to have a time handling in units as well
    * (supporting frames in addition to "natural" time...). */
@@ -141,9 +143,6 @@ static void initSeqSlide(TransInfo *t, wmOperator *op)
 
 bool transform_mode_edge_seq_slide_use_restore_handle_selection(const TransInfo *t)
 {
-  if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
-    return false;
-  }
   SeqSlideParams *ssp = static_cast<SeqSlideParams *>(t->custom.mode.data);
   if (ssp == nullptr) {
     return false;
@@ -160,6 +159,8 @@ TransModeInfo TransMode_seqslide = {
     /*transform_matrix_fn*/ nullptr,
     /*handle_event_fn*/ nullptr,
     /*snap_distance_fn*/ nullptr,
-    /*snap_apply_fn*/ transform_snap_sequencer_apply_seqslide,
+    /*snap_apply_fn*/ snap_sequencer_apply_seqslide,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

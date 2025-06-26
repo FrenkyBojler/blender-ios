@@ -9,7 +9,7 @@
  *
  * View description and states.
  *
- * A `draw::View` object is required for drawing geometry using the DRW api and its internal
+ * A `draw::View` object is required for drawing geometry using the DRW API and its internal
  * culling system.
  *
  * One `View` object can actually contain multiple view matrices if the template parameter
@@ -205,6 +205,19 @@ class View {
 
       winmat[3][2] -= GPU_polygon_offset_calc(winmat.ptr(), view_dist, offset);
       return winmat;
+    }
+
+    /* Return unit offset to apply to `gl_Position.z`. To be scaled depending on purpose. */
+    float polygon_offset_factor(float4x4 winmat)
+    {
+      float view_dist = dist;
+      /* Special exception for orthographic camera:
+       * `view_dist` isn't used as the depth range isn't the same. */
+      if (persp == RV3D_CAMOB && is_persp == false) {
+        view_dist = 1.0f / max_ff(fabsf(winmat[0][0]), fabsf(winmat[1][1]));
+      }
+
+      return GPU_polygon_offset_calc(winmat.ptr(), view_dist, 1.0);
     }
   };
 

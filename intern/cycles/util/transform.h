@@ -293,7 +293,9 @@ ccl_device_inline Transform transform_identity()
 
 ccl_device_inline bool operator==(const Transform &A, const Transform &B)
 {
-  return A.x == B.x && A.y == B.y && A.z == B.z;
+  /* Using memcmp because it returns true for NaN unlike component ==,
+   * which we need for set_if_different for node sockets to copy the value. */
+  return memcmp(&A, &B, sizeof(Transform)) == 0;
 }
 
 ccl_device_inline bool operator!=(const Transform &A, const Transform &B)
@@ -408,7 +410,6 @@ ccl_device_inline float4 quat_interpolate(const float4 q1, const float4 q2, cons
 }
 
 #ifndef __KERNEL_GPU__
-void transform_inverse_cpu_sse42(const Transform &tfm, Transform &itfm);
 void transform_inverse_cpu_avx2(const Transform &tfm, Transform &itfm);
 #endif
 
@@ -495,11 +496,6 @@ ccl_device_inline Transform transform_inverse(const Transform tfm)
   if (system_cpu_support_avx2()) {
     Transform itfm;
     transform_inverse_cpu_avx2(tfm, itfm);
-    return itfm;
-  }
-  if (system_cpu_support_sse42()) {
-    Transform itfm;
-    transform_inverse_cpu_sse42(tfm, itfm);
     return itfm;
   }
 #endif
@@ -600,7 +596,7 @@ class BoundBox2D;
 
 ccl_device_inline bool operator==(const DecomposedTransform &A, const DecomposedTransform &B)
 {
-  return A.x == B.x && A.y == B.y && A.z == B.z && A.w == B.w;
+  return memcmp(&A, &B, sizeof(DecomposedTransform)) == 0;
 }
 
 float4 transform_to_quat(const Transform &tfm);

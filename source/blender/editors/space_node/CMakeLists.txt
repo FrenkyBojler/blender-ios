@@ -6,7 +6,12 @@ set(INC
   ../include
   ../io
   ../../compositor
+  ../../compositor/algorithms
+  ../../compositor/cached_resources
+  ../../compositor/derived_resources
+  ../../compositor/utilities
   ../../makesrna
+  ../../nodes/geometry/include
 
   # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
@@ -25,12 +30,14 @@ set(SRC
   node_draw.cc
   node_edit.cc
   node_geometry_attribute_search.cc
+  node_geometry_layer_search.cc
   node_gizmo.cc
   node_group.cc
   node_ops.cc
   node_relationships.cc
   node_select.cc
   node_shader_preview.cc
+  node_sync_sockets.cc
   node_templates.cc
   node_view.cc
   space_node.cc

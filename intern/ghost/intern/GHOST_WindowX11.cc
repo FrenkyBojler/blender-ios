@@ -124,7 +124,6 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
       m_empty_cursor(None),
       m_custom_cursor(None),
       m_visible_cursor(None),
-      m_taskbar("blender.desktop"),
 #ifdef WITH_XDND
       m_dropTarget(nullptr),
 #endif
@@ -253,8 +252,8 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
     xsizehints->y = top;
     xsizehints->width = width;
     xsizehints->height = height;
-    xsizehints->min_width = 320;  /* size hints, could be made apart of the ghost api */
-    xsizehints->min_height = 240; /* limits are also arbitrary, but should not allow 1x1 window */
+    xsizehints->min_width = 320;  /* Size hints, could be made apart of the GHOST API. */
+    xsizehints->min_height = 240; /* Limits are also arbitrary, but should not allow 1x1 window. */
     xsizehints->max_width = 65535;
     xsizehints->max_height = 65535;
     XSetWMNormalHints(m_display, m_window, xsizehints);
@@ -1232,7 +1231,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
         }
         delete context;
       }
-      /* EGL initialization failed, try to fallback to a GLX context. */
+      /* EGL initialization failed, try to fall back to a GLX context. */
 #  endif
 
       for (int minor = 6; minor >= 3; --minor) {
@@ -1496,58 +1495,6 @@ GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(uint8_t *bitmap,
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_WindowX11::beginFullScreen() const
-{
-  {
-    Window root_return;
-    int x_return, y_return;
-    uint w_return, h_return, border_w_return, depth_return;
-
-    XGetGeometry(m_display,
-                 m_window,
-                 &root_return,
-                 &x_return,
-                 &y_return,
-                 &w_return,
-                 &h_return,
-                 &border_w_return,
-                 &depth_return);
-
-    m_system->setCursorPosition(w_return / 2, h_return / 2);
-  }
-
-  /* Grab Keyboard & Mouse */
-  int err;
-
-  err = XGrabKeyboard(m_display, m_window, False, GrabModeAsync, GrabModeAsync, CurrentTime);
-  if (err != GrabSuccess) {
-    printf("XGrabKeyboard failed %d\n", err);
-  }
-
-  err = XGrabPointer(m_display,
-                     m_window,
-                     False,
-                     PointerMotionMask | ButtonPressMask | ButtonReleaseMask,
-                     GrabModeAsync,
-                     GrabModeAsync,
-                     m_window,
-                     None,
-                     CurrentTime);
-  if (err != GrabSuccess) {
-    printf("XGrabPointer failed %d\n", err);
-  }
-
-  return GHOST_kSuccess;
-}
-
-GHOST_TSuccess GHOST_WindowX11::endFullScreen() const
-{
-  XUngrabKeyboard(m_display, CurrentTime);
-  XUngrabPointer(m_display, CurrentTime);
-
-  return GHOST_kSuccess;
-}
-
 uint16_t GHOST_WindowX11::getDPIHint()
 {
   /* Try to read DPI setting set using xrdb */
@@ -1573,7 +1520,7 @@ uint16_t GHOST_WindowX11::getDPIHint()
     }
   }
 
-  /* Fallback to calculating DPI using X reported DPI, set using `xrandr --dpi`. */
+  /* Fall back to calculating DPI using X reported DPI, set using `xrandr --dpi`. */
   XWindowAttributes attr;
   if (!XGetWindowAttributes(m_display, m_window, &attr)) {
     /* Failed to get window attributes, return X11 default DPI */
@@ -1593,23 +1540,12 @@ uint16_t GHOST_WindowX11::getDPIHint()
   return dpi;
 }
 
-GHOST_TSuccess GHOST_WindowX11::setProgressBar(float progress)
+GHOST_TSuccess GHOST_WindowX11::setProgressBar(float /*progress*/)
 {
-  if (m_taskbar.is_valid()) {
-    m_taskbar.set_progress(progress);
-    m_taskbar.set_progress_enabled(true);
-    return GHOST_kSuccess;
-  }
-
   return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_WindowX11::endProgressBar()
 {
-  if (m_taskbar.is_valid()) {
-    m_taskbar.set_progress_enabled(false);
-    return GHOST_kSuccess;
-  }
-
   return GHOST_kFailure;
 }

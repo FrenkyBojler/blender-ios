@@ -35,21 +35,22 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
   const Scene &scene = *CTX_data_scene(&C);
   Paint &paint = *BKE_paint_get_active_from_context(&C);
   const Brush &brush = *BKE_paint_brush(&paint);
-  const float radius = brush_radius(scene, brush, extension_sample.pressure);
+  const float radius = brush_radius(paint, brush, extension_sample.pressure);
   const float radius_squared = radius * radius;
 
-  const bool is_masking = GPENCIL_ANY_VERTEX_MASK(
+  const bool use_selection_masking = GPENCIL_ANY_VERTEX_MASK(
       eGP_vertex_SelectMaskFlag(scene.toolsettings->gpencil_selectmode_vertex));
 
   const bool do_points = do_vertex_color_points(brush);
   const bool do_fill = do_vertex_color_fill(brush);
 
   /* Compute the average color under the brush. */
-  float3 average_color;
+  float3 average_color(0.0f);
   int color_count = 0;
   this->foreach_editable_drawing(C, [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory memory;
-    const IndexMask point_selection = point_selection_mask(params, is_masking, memory);
+    const IndexMask point_selection = point_mask_for_stroke_operation(
+        params, use_selection_masking, memory);
     if (!point_selection.is_empty() && do_points) {
       const Array<float2> view_positions = calculate_view_positions(params, point_selection);
       const VArray<ColorGeometry4f> vertex_colors = params.drawing.vertex_colors();
@@ -64,7 +65,8 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
         }
       });
     }
-    const IndexMask fill_selection = fill_selection_mask(params, is_masking, memory);
+    const IndexMask fill_selection = fill_mask_for_stroke_operation(
+        params, use_selection_masking, memory);
     if (!fill_selection.is_empty() && do_fill) {
       const OffsetIndices<int> points_by_curve = params.drawing.strokes().points_by_curve();
       const Array<float2> view_positions = calculate_view_positions(params, point_selection);
@@ -94,21 +96,23 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
 
   this->foreach_editable_drawing(C, GrainSize(1), [&](const GreasePencilStrokeParams &params) {
     IndexMaskMemory memory;
-    const IndexMask point_selection = point_selection_mask(params, is_masking, memory);
+    const IndexMask point_selection = point_mask_for_stroke_operation(
+        params, use_selection_masking, memory);
     if (!point_selection.is_empty() && do_points) {
       const Array<float2> view_positions = calculate_view_positions(params, point_selection);
       MutableSpan<ColorGeometry4f> vertex_colors = params.drawing.vertex_colors_for_write();
 
       point_selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
         const float influence = brush_point_influence(
-            scene, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
+            paint, brush, view_positions[point_i], extension_sample, params.multi_frame_falloff);
 
         ColorGeometry4f &color = vertex_colors[point_i];
         color = math::interpolate(color, mix_color, influence);
       });
     }
 
-    const IndexMask fill_selection = fill_selection_mask(params, is_masking, memory);
+    const IndexMask fill_selection = fill_mask_for_stroke_operation(
+        params, use_selection_masking, memory);
     if (!fill_selection.is_empty() && do_fill) {
       const OffsetIndices<int> points_by_curve = params.drawing.strokes().points_by_curve();
       const Array<float2> view_positions = calculate_view_positions(params, point_selection);
@@ -118,7 +122,7 @@ void VertexAverageOperation::on_stroke_extended(const bContext &C,
         const IndexRange points = points_by_curve[curve_i];
         const Span<float2> curve_view_positions = view_positions.as_span().slice(points);
         const float influence = brush_fill_influence(
-            scene, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
+            paint, brush, curve_view_positions, extension_sample, params.multi_frame_falloff);
 
         ColorGeometry4f &color = fill_colors[curve_i];
         color = math::interpolate(color, mix_color, influence);

@@ -10,8 +10,6 @@
 #include <cstdlib>
 #include <cstring>
 
-#include "MEM_guardedalloc.h"
-
 #include "DNA_anim_types.h"
 #include "DNA_screen_types.h"
 
@@ -33,8 +31,6 @@
 
 #include "ANIM_fcurve.hh"
 #include "ANIM_keyframing.hh"
-
-#include "UI_interface.hh"
 
 #include "RNA_access.hh"
 #include "RNA_path.hh"
@@ -131,16 +127,22 @@ static uiBut *ui_but_anim_decorate_find_attached_button(uiButDecorator *but)
 
   BLI_assert(UI_but_is_decorator(but));
   BLI_assert(but->decorated_rnapoin.data && but->decorated_rnaprop);
-
-  LISTBASE_CIRCULAR_BACKWARD_BEGIN (uiBut *, &but->block->buttons, but_iter, but->prev) {
+  if (but->block->buttons.is_empty()) {
+    return nullptr;
+  }
+  int i = but->block->but_index(but);
+  i = i > 0 ? i - 1 : but->block->buttons.size() - 1;
+  const int start = i;
+  do {
+    but_iter = but->block->buttons[i].get();
     if (but_iter != but &&
         ui_but_rna_equals_ex(
             but_iter, &but->decorated_rnapoin, but->decorated_rnaprop, but->decorated_rnaindex))
     {
       return but_iter;
     }
-  }
-  LISTBASE_CIRCULAR_BACKWARD_END(uiBut *, &but->block->buttons, but_iter, but->prev);
+    i = i > 0 ? i - 1 : but->block->buttons.size() - 1;
+  } while (i != start);
 
   return nullptr;
 }
@@ -264,9 +266,9 @@ bool ui_but_anim_expression_create(uiBut *but, const char *str)
     }
   }
 
-  /* make sure we have animdata for this */
+  /* Make sure we have animation-data for this. */
   /* FIXME: until materials can be handled by depsgraph,
-   * don't allow drivers to be created for them */
+   * don't allow drivers to be created for them. */
   id = but->rnapoin.owner_id;
   if ((id == nullptr) || (GS(id->name) == ID_MA) || (GS(id->name) == ID_TE)) {
     if (G.debug & G_DEBUG) {

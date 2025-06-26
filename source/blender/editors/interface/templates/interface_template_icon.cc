@@ -10,7 +10,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 using blender::StringRefNull;
@@ -32,7 +32,7 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
   const int w = UI_UNIT_X * (args.icon_scale);
   const int h = UI_UNIT_X * (args.icon_scale + args.show_labels);
 
-  uiBlock *block = UI_block_begin(C, region, "_popup", UI_EMBOSS_PULLDOWN);
+  uiBlock *block = UI_block_begin(C, region, "_popup", blender::ui::EmbossType::Pulldown);
   UI_block_flag_enable(block, UI_BLOCK_LOOP);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
@@ -62,11 +62,23 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
                                    -1,
                                    0,
                                    value,
-                                   nullptr);
+                                   std::nullopt);
     }
     else {
-      but = uiDefIconButR_prop(
-          block, UI_BTYPE_ROW, 0, icon, x, y, w, h, &args.ptr, args.prop, -1, 0, value, nullptr);
+      but = uiDefIconButR_prop(block,
+                               UI_BTYPE_ROW,
+                               0,
+                               icon,
+                               x,
+                               y,
+                               w,
+                               h,
+                               &args.ptr,
+                               args.prop,
+                               -1,
+                               0,
+                               value,
+                               std::nullopt);
     }
     ui_def_but_icon(but, icon, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
   }
@@ -75,7 +87,7 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
   UI_block_direction_set(block, UI_DIR_DOWN);
 
   if (free) {
-    MEM_freeN((void *)item);
+    MEM_freeN(item);
   }
 
   return block;
@@ -83,7 +95,7 @@ static uiBlock *ui_icon_view_menu_cb(bContext *C, ARegion *region, void *arg_lit
 
 void uiTemplateIcon(uiLayout *layout, int icon_value, float icon_scale)
 {
-  uiBlock *block = uiLayoutAbsoluteBlock(layout);
+  uiBlock *block = layout->absolute_block();
   uiBut *but = uiDefIconBut(block,
                             UI_BTYPE_LABEL,
                             0,
@@ -115,7 +127,7 @@ void uiTemplateIconView(uiLayout *layout,
     return;
   }
 
-  uiBlock *block = uiLayoutAbsoluteBlock(layout);
+  uiBlock *block = layout->absolute_block();
 
   int tot_items;
   bool free_items;
@@ -164,6 +176,6 @@ void uiTemplateIconView(uiLayout *layout,
   ui_def_but_icon(but, icon, UI_HAS_ICON | UI_BUT_ICON_PREVIEW);
 
   if (free_items) {
-    MEM_freeN((void *)items);
+    MEM_freeN(items);
   }
 }

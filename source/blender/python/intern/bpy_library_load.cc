@@ -6,7 +6,7 @@
  * \ingroup pythonintern
  *
  * This file exposed blend file library appending/linking to python, typically
- * this would be done via RNA api but in this case a hand written python api
+ * this would be done via RNA API but in this case a hand written Python API
  * allows us to use Python's context manager (`__enter__` and `__exit__`).
  *
  * Everything here is exposed via `bpy.data.libraries.load(...)` which returns
@@ -36,7 +36,7 @@
 #include "bpy_library.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 /* nifty feature. swap out strings for RNA data */
@@ -74,9 +74,14 @@ static PyObject *bpy_lib_enter(BPy_Library *self);
 static PyObject *bpy_lib_exit(BPy_Library *self, PyObject *args);
 static PyObject *bpy_lib_dir(BPy_Library *self);
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef bpy_lib_methods[] = {
@@ -86,8 +91,12 @@ static PyMethodDef bpy_lib_methods[] = {
     {nullptr} /* sentinel */
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 static void bpy_lib_dealloc(BPy_Library *self)
@@ -236,6 +245,32 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
     return nullptr;
   }
 
+  const char *blendfile_path = BKE_main_blendfile_path(bmain);
+  char filepath_rel[FILE_MAX];
+  char filepath_abs[FILE_MAX];
+
+  STRNCPY(filepath_rel, filepath_data.value);
+  STRNCPY(filepath_abs, filepath_rel);
+  BLI_path_abs(filepath_abs, blendfile_path);
+  Py_XDECREF(filepath_data.value_coerce);
+
+  if (blendfile_path[0]) {
+    /* NOTE: intentionally leave `filepath_abs` and only use normalizing for comparison.
+     * It's important that this comparison matches read-files logic for matching paths.
+     * See the logic inside #BKE_blendfile_link.
+     *
+     * This means it's not necessary to check if the paths are *actually* the same.
+     * It's possible to load from this file if a user makes a symbolic-link - for example.
+     * See #140929. */
+    char filepath_abs_normalized[FILE_MAX];
+    STRNCPY(filepath_abs_normalized, filepath_abs);
+    BLI_path_normalize(filepath_abs_normalized);
+    if (BLI_path_cmp(filepath_abs_normalized, blendfile_path) == 0) {
+      PyErr_SetString(PyExc_ValueError, "Cannot load from the current blend file.");
+      return nullptr;
+    }
+  }
+
   if (!is_link && create_liboverrides) {
     PyErr_SetString(PyExc_ValueError, "`link` is False but `create_liboverrides` is True");
     return nullptr;
@@ -253,11 +288,8 @@ static PyObject *bpy_lib_load(BPy_PropertyRNA *self, PyObject *args, PyObject *k
 
   ret = PyObject_New(BPy_Library, &bpy_lib_Type);
 
-  STRNCPY(ret->relpath, filepath_data.value);
-  Py_XDECREF(filepath_data.value_coerce);
-
-  STRNCPY(ret->abspath, ret->relpath);
-  BLI_path_abs(ret->abspath, BKE_main_blendfile_path(bmain));
+  STRNCPY(ret->relpath, filepath_rel);
+  STRNCPY(ret->abspath, filepath_abs);
 
   ret->bmain = bmain;
   ret->bmain_is_temp = (bmain != bmain_base);
@@ -586,9 +618,14 @@ static PyObject *bpy_lib_dir(BPy_Library *self)
   return PyDict_Keys(self->dict);
 }
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 PyMethodDef BPY_library_load_method_def = {
@@ -598,8 +635,12 @@ PyMethodDef BPY_library_load_method_def = {
     bpy_lib_load_doc,
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 int BPY_library_load_type_ready()

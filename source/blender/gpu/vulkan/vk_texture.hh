@@ -12,15 +12,24 @@
 
 #include "vk_context.hh"
 #include "vk_image_view.hh"
+#include "vk_memory.hh"
 
 namespace blender::gpu {
 
 class VKSampler;
 class VKDescriptorSetTracker;
 class VKVertexBuffer;
+class VKPixelBuffer;
+
+/** Additional modifiers when requesting image views. */
+enum class VKImageViewFlags {
+  DEFAULT = 0,
+  NO_SWIZZLING = 1 << 0,
+};
+ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
 
 class VKTexture : public Texture {
-  friend class VKDescriptorSetTracker;
+  friend class VKDescriptorSetUpdator;
 
   /**
    * Texture format how the texture is stored on the device.
@@ -43,6 +52,7 @@ class VKTexture : public Texture {
   VKVertexBuffer *source_buffer_ = nullptr;
   VkImage vk_image_ = VK_NULL_HANDLE;
   VmaAllocation allocation_ = VK_NULL_HANDLE;
+  VmaAllocationInfo allocation_info_ = {};
 
   /**
    * Image views are owned by VKTexture. When a specific image view is needed it will be created
@@ -50,15 +60,10 @@ class VKTexture : public Texture {
    */
   Vector<VKImageView> image_views_;
 
-  /* Last image layout of the texture. Frame-buffer and barriers can alter/require the actual
-   * layout to be changed. During this it requires to set the current layout in order to know which
-   * conversion should happen. #current_layout_ keep track of the layout so the correct conversion
-   * can be done. */
-  VkImageLayout current_layout_ = VK_IMAGE_LAYOUT_UNDEFINED;
-
   int layer_offset_ = 0;
   bool use_stencil_ = false;
 
+  char swizzle_[4] = {'r', 'g', 'b', 'a'};
   VKImageViewInfo image_view_info_ = {eImageViewUsage::ShaderBinding,
                                       IndexRange(0, VK_REMAINING_ARRAY_LAYERS),
                                       IndexRange(0, VK_REMAINING_MIP_LEVELS),
@@ -72,8 +77,6 @@ class VKTexture : public Texture {
 
   virtual ~VKTexture() override;
 
-  void init(VkImage vk_image, VkImageLayout layout, eGPUTextureFormat texture_format);
-
   void generate_mipmap() override;
   void copy_to(Texture *tex) override;
   void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
@@ -86,6 +89,13 @@ class VKTexture : public Texture {
   void *read(int mip, eGPUDataFormat format) override;
   void read_sub(
       int mip, eGPUDataFormat format, const int region[6], IndexRange layers, void *r_data);
+  void update_sub(int mip,
+                  int offset[3],
+                  int extent[3],
+                  eGPUDataFormat format,
+                  const void *data,
+                  VKPixelBuffer *pixel_buffer);
+
   void update_sub(
       int mip, int offset[3], int extent[3], eGPUDataFormat format, const void *data) override;
   void update_sub(int offset[3],
@@ -95,6 +105,13 @@ class VKTexture : public Texture {
 
   /* TODO(fclem): Legacy. Should be removed at some point. */
   uint gl_bindcode_get() const override;
+  /**
+   * Export the memory associated with this texture to be imported by a different
+   * API/Process/Instance.
+   *
+   * Returns the handle + offset of the image inside the handle.
+   */
+  VKMemoryExport export_memory(VkExternalMemoryHandleTypeFlagBits handle_type);
 
   VkImage vk_image_handle() const
   {
@@ -122,7 +139,7 @@ class VKTexture : public Texture {
   /**
    * Get the current image view for this texture.
    */
-  const VKImageView &image_view_get(VKImageViewArrayed arrayed);
+  const VKImageView &image_view_get(VKImageViewArrayed arrayed, VKImageViewFlags flags);
 
  protected:
   bool init_internal() override;

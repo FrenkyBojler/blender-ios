@@ -24,7 +24,6 @@
 #include "GPU_index_buffer.hh"
 #include "GPU_shader.hh"
 #include "GPU_storage_buffer.hh"
-#include "GPU_uniform_buffer.hh"
 #include "GPU_vertex_buffer.hh"
 
 struct GPUShader;
@@ -277,7 +276,10 @@ void GPU_batch_resource_id_buf_set(blender::gpu::Batch *batch, GPUStorageBuf *re
  * \note This need to be called first for the `GPU_batch_uniform_*` functions to work.
  */
 /* TODO(fclem): These should be removed and replaced by `GPU_shader_bind()`. */
-void GPU_batch_set_shader(blender::gpu::Batch *batch, GPUShader *shader);
+void GPU_batch_set_shader(
+    blender::gpu::Batch *batch,
+    GPUShader *shader,
+    const blender::gpu::shader::SpecializationConstants *constants_state = nullptr);
 void GPU_batch_program_set_builtin(blender::gpu::Batch *batch, eGPUBuiltinShader shader_id);
 void GPU_batch_program_set_builtin_with_config(blender::gpu::Batch *batch,
                                                eGPUBuiltinShader shader_id,
@@ -319,7 +321,10 @@ void GPU_batch_program_set_imm_shader(blender::gpu::Batch *batch);
 /**
  * Bind vertex and index buffers to SSBOs using `Frequency::GEOMETRY`.
  */
-void GPU_batch_bind_as_resources(blender::gpu::Batch *batch, GPUShader *shader);
+void GPU_batch_bind_as_resources(
+    blender::gpu::Batch *batch,
+    GPUShader *shader,
+    const blender::gpu::shader::SpecializationConstants *constants = nullptr);
 
 /** \} */
 
@@ -430,6 +435,40 @@ blender::IndexRange GPU_batch_draw_expanded_parameter_get(GPUPrimType input_prim
                                                           int vertex_count,
                                                           int vertex_first,
                                                           int output_primitive_cout);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Procedural drawing
+ *
+ * A draw-call always need a batch to be issued.
+ * These are dummy batches that contains no vertex data and can be used to render geometry
+ * without per vertex inputs.
+ * \{ */
+
+/**
+ * Batch with no attributes, suited for rendering procedural geometry.
+ * IMPORTANT: The returned batch is only valid for the current context.
+ */
+blender::gpu::Batch *GPU_batch_procedural_points_get();
+
+/**
+ * Batch with no attributes, suited for rendering procedural geometry.
+ * IMPORTANT: The returned batch is only valid for the current context.
+ */
+blender::gpu::Batch *GPU_batch_procedural_lines_get();
+
+/**
+ * Batch with no attributes, suited for rendering procedural geometry.
+ * IMPORTANT: The returned batch is only valid for the current context.
+ */
+blender::gpu::Batch *GPU_batch_procedural_triangles_get();
+
+/**
+ * Batch with no attributes, suited for rendering procedural geometry.
+ * IMPORTANT: The returned batch is only valid for the current context.
+ */
+blender::gpu::Batch *GPU_batch_procedural_triangle_strips_get();
 
 /** \} */
 

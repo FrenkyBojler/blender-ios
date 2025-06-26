@@ -9,7 +9,6 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
-#include "BLI_rect.h"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
 
@@ -602,6 +601,7 @@ static bke::CurvesGeometry boundary_to_curves(const Scene &scene,
   curves.curve_types_for_write().fill(CURVE_TYPE_POLY);
   curves.update_curve_types();
 
+  /* Note: We can assume that the writers here will be valid since we created new curves. */
   bke::SpanAttributeWriter<int> materials = attributes.lookup_or_add_for_write_span<int>(
       "material_index", bke::AttrDomain::Curve);
   bke::SpanAttributeWriter<bool> cyclic = attributes.lookup_or_add_for_write_span<bool>(
@@ -770,7 +770,7 @@ static bke::CurvesGeometry process_image(Image &ima,
 /** \} */
 
 constexpr const char *attr_material_index = "material_index";
-constexpr const char *attr_is_boundary = "is_boundary";
+constexpr const char *attr_is_fill_guide = ".is_fill_guide";
 
 static IndexMask get_visible_boundary_strokes(const Object &object,
                                               const DrawingInfo &info,
@@ -779,8 +779,8 @@ static IndexMask get_visible_boundary_strokes(const Object &object,
 {
   const bke::CurvesGeometry &strokes = info.drawing.strokes();
   const bke::AttributeAccessor attributes = strokes.attributes();
-  const VArray<int> materials = *attributes.lookup<int>(attr_material_index,
-                                                        bke::AttrDomain::Curve);
+  const VArray<int> materials = *attributes.lookup_or_default<int>(
+      attr_material_index, bke::AttrDomain::Curve, 0);
 
   auto is_visible_curve = [&](const int curve_i) {
     /* Check if stroke can be drawn. */
@@ -803,15 +803,15 @@ static IndexMask get_visible_boundary_strokes(const Object &object,
 
   /* On boundary layers only boundary strokes are rendered. */
   if (is_boundary_layer) {
-    const VArray<bool> boundary_strokes = *attributes.lookup_or_default<bool>(
-        attr_is_boundary, bke::AttrDomain::Curve, false);
+    const VArray<bool> fill_guides = *attributes.lookup_or_default<bool>(
+        attr_is_fill_guide, bke::AttrDomain::Curve, false);
 
     return IndexMask::from_predicate(
         strokes.curves_range(), GrainSize(512), memory, [&](const int curve_i) {
           if (!is_visible_curve(curve_i)) {
             return false;
           }
-          const bool is_boundary_stroke = boundary_strokes[curve_i];
+          const bool is_boundary_stroke = fill_guides[curve_i];
           return is_boundary_stroke;
         });
   }
@@ -885,10 +885,10 @@ static std::optional<Bounds<float2>> get_boundary_bounds(const ARegion &region,
     const VArray<float> radii = info.drawing.radii();
     const bke::CurvesGeometry &strokes = info.drawing.strokes();
     const bke::AttributeAccessor attributes = strokes.attributes();
-    const VArray<int> materials = *attributes.lookup<int>(attr_material_index,
-                                                          bke::AttrDomain::Curve);
+    const VArray<int> materials = *attributes.lookup_or_default<int>(
+        attr_material_index, bke::AttrDomain::Curve, 0);
     const VArray<bool> is_boundary_stroke = *attributes.lookup_or_default<bool>(
-        "is_boundary", bke::AttrDomain::Curve, false);
+        attr_is_fill_guide, bke::AttrDomain::Curve, false);
 
     IndexMaskMemory curve_mask_memory;
     const IndexMask curve_mask = get_visible_boundary_strokes(
@@ -937,18 +937,20 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
                                 const float2 fill_point,
                                 const bool uniform_zoom,
                                 const float max_zoom_factor,
-                                const float2 margin)
+                                const float2 margin,
+                                const float pixel_scale)
 {
   BLI_assert(max_zoom_factor >= 1.0f);
   const float min_zoom_factor = math::safe_rcp(max_zoom_factor);
+  /* These values are copied from GPv2. */
+  const int2 min_image_size = int2(128, 128);
 
   switch (fit_method) {
     case FillToolFitMethod::None:
-      return std::make_tuple(float2(1.0f), float2(0.0f), float3x3::identity());
+      return std::make_tuple(float2(1.0f), float2(0.0f), min_image_size, float3x3::identity());
 
     case FillToolFitMethod::FitToView: {
-      const Object &object_eval = *DEG_get_evaluated_object(view_context.depsgraph,
-                                                            view_context.obact);
+      const Object &object_eval = *DEG_get_evaluated(view_context.depsgraph, view_context.obact);
       /* Zoom and offset based on bounds, to fit all strokes within the render. */
       const std::optional<Bounds<float2>> boundary_bounds = get_boundary_bounds(
           *view_context.region,
@@ -958,7 +960,7 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
           boundary_layers,
           src_drawings);
       if (!boundary_bounds) {
-        return std::make_tuple(float2(1.0f), float2(0.0f), float3x3::identity());
+        return std::make_tuple(float2(1.0f), float2(0.0f), min_image_size, float3x3::identity());
       }
 
       /* Include fill point for computing zoom. */
@@ -969,6 +971,7 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
       }();
 
       const Bounds<float2> region_bounds = get_region_bounds(*view_context.region);
+      const int2 image_size = math::max(int2(region_bounds.size() * pixel_scale), min_image_size);
       const float2 zoom_factors = math::clamp(
           math::safe_divide(fill_bounds.size(), region_bounds.size()),
           float2(min_zoom_factor),
@@ -986,13 +989,13 @@ static auto fit_strokes_to_view(const ViewContext &view_context,
                                               region_bounds.size());
       /* Corner offset for boundary transform (pixels to strokes). */
       const float3x3 image_to_region = math::from_loc_scale<float3x3>(
-          render_bounds.min - region_bounds.min, zoom);
+          render_bounds.min - region_bounds.min, zoom * math::safe_rcp(pixel_scale));
 
-      return std::make_tuple(zoom, offset, image_to_region);
+      return std::make_tuple(zoom, offset, image_size, image_to_region);
     }
   }
 
-  return std::make_tuple(float2(1.0f), float2(0.0f), float3x3::identity());
+  return std::make_tuple(float2(1.0f), float2(0.0f), min_image_size, float3x3::identity());
 }
 
 static Image *render_strokes(const ViewContext &view_context,
@@ -1001,6 +1004,7 @@ static Image *render_strokes(const ViewContext &view_context,
                              const bke::greasepencil::Layer &layer,
                              const VArray<bool> &boundary_layers,
                              const Span<DrawingInfo> src_drawings,
+                             const int2 &image_size,
                              const std::optional<float> alpha_threshold,
                              const float2 &fill_point,
                              const ExtensionData &extensions,
@@ -1021,12 +1025,6 @@ static Image *render_strokes(const ViewContext &view_context,
   const float radius_scale = (brush.gpencil_settings->fill_draw_mode == GP_FILL_DMODE_CONTROL) ?
                                  0.0f :
                                  0.5f;
-
-  constexpr const int min_image_size = 128;
-  /* Pixel scale (aka. "fill_factor, aka. "Precision") to reduce image size. */
-  const float pixel_scale = brush.gpencil_settings->fill_factor;
-  const int2 region_size = int2(region.winx, region.winy);
-  const int2 image_size = math::max(region_size * pixel_scale, int2(min_image_size));
 
   /* Transform mouse coordinates into layer space for rendering alongside strokes. */
   const float3 fill_point_layer = placement.project(fill_point);
@@ -1066,8 +1064,8 @@ static Image *render_strokes(const ViewContext &view_context,
     const bke::CurvesGeometry &strokes = info.drawing.strokes();
     const bke::AttributeAccessor attributes = strokes.attributes();
     const VArray<float> opacities = info.drawing.opacities();
-    const VArray<int> materials = *attributes.lookup<int>(attr_material_index,
-                                                          bke::AttrDomain::Curve);
+    const VArray<int> materials = *attributes.lookup_or_default<int>(
+        attr_material_index, bke::AttrDomain::Curve, 0);
 
     IndexMaskMemory curve_mask_memory;
     const IndexMask curve_mask = get_visible_boundary_strokes(
@@ -1134,28 +1132,27 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
   Object &object = *view_context.obact;
 
   BLI_assert(object.type == OB_GREASE_PENCIL);
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object);
+  const Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
 
   /* Zoom and offset based on bounds, to fit all strokes within the render. */
   const bool uniform_zoom = true;
   const float max_zoom_factor = 5.0f;
   const float2 margin = float2(20);
-  const auto [zoom, offset, image_to_region] = fit_strokes_to_view(view_context,
-                                                                   boundary_layers,
-                                                                   src_drawings,
-                                                                   fit_method,
-                                                                   fill_point,
-                                                                   uniform_zoom,
-                                                                   max_zoom_factor,
-                                                                   margin);
+  /* Pixel scale (aka. "fill_factor, aka. "Precision") to reduce image size. */
+  const float pixel_scale = brush.gpencil_settings->fill_factor;
+  const auto [zoom, offset, image_size, image_to_region] = fit_strokes_to_view(view_context,
+                                                                               boundary_layers,
+                                                                               src_drawings,
+                                                                               fit_method,
+                                                                               fill_point,
+                                                                               uniform_zoom,
+                                                                               max_zoom_factor,
+                                                                               margin,
+                                                                               pixel_scale);
 
   ed::greasepencil::DrawingPlacement placement(scene, region, view3d, object_eval, &layer);
-  if (placement.use_project_to_surface()) {
+  if (placement.use_project_to_surface() || placement.use_project_to_stroke()) {
     placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-  }
-  else if (placement.use_project_to_nearest_stroke()) {
-    placement.cache_viewport_depths(&depsgraph, &region, &view3d);
-    placement.set_origin_to_nearest_stroke(fill_point);
   }
 
   Image *ima = render_strokes(view_context,
@@ -1164,6 +1161,7 @@ bke::CurvesGeometry fill_strokes(const ViewContext &view_context,
                               layer,
                               boundary_layers,
                               src_drawings,
+                              image_size,
                               alpha_threshold,
                               fill_point,
                               extensions,

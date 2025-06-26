@@ -13,6 +13,7 @@
 
 #include <Python.h>
 
+#include "BLI_math_base.h"
 #include "BLI_string.h"
 
 #include "DNA_image_types.h"
@@ -23,7 +24,7 @@
 #include "BKE_image.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "gpu_py.hh"
 #include "gpu_py_buffer.hh"
@@ -67,7 +68,7 @@ const PyC_StringEnumItems pygpu_textureformat_items[] = {
     {GPU_R16, "R16"},
     {GPU_R11F_G11F_B10F, "R11F_G11F_B10F"},
     {GPU_DEPTH32F_STENCIL8, "DEPTH32F_STENCIL8"},
-    {GPU_DEPTH24_STENCIL8, "DEPTH24_STENCIL8"},
+    {GPU_DEPTH24_STENCIL8_DEPRECATED, "DEPTH24_STENCIL8"},
     {GPU_SRGB8_A8, "SRGB8_A8"},
     {GPU_RGB16F, "RGB16F"},
     {GPU_SRGB8_A8_DXT1, "SRGB8_A8_DXT1"},
@@ -77,7 +78,7 @@ const PyC_StringEnumItems pygpu_textureformat_items[] = {
     {GPU_RGBA8_DXT3, "RGBA8_DXT3"},
     {GPU_RGBA8_DXT5, "RGBA8_DXT5"},
     {GPU_DEPTH_COMPONENT32F, "DEPTH_COMPONENT32F"},
-    {GPU_DEPTH_COMPONENT24, "DEPTH_COMPONENT24"},
+    {GPU_DEPTH_COMPONENT24_DEPRECATED, "DEPTH_COMPONENT24"},
     {GPU_DEPTH_COMPONENT16, "DEPTH_COMPONENT16"},
     {0, nullptr},
 };
@@ -149,6 +150,18 @@ static PyObject *pygpu_texture__tp_new(PyTypeObject * /*self*/, PyObject *args, 
                                         &pybuffer_obj))
   {
     return nullptr;
+  }
+
+  if (pygpu_textureformat.value_found == GPU_DEPTH24_STENCIL8_DEPRECATED) {
+    pygpu_textureformat.value_found = GPU_DEPTH32F_STENCIL8;
+    PyErr_WarnEx(
+        PyExc_DeprecationWarning, "'DEPTH24_STENCIL8' is deprecated. Use 'DEPTH32F_STENCIL8'.", 1);
+  }
+  if (pygpu_textureformat.value_found == GPU_DEPTH_COMPONENT24_DEPRECATED) {
+    pygpu_textureformat.value_found = GPU_DEPTH_COMPONENT32F;
+    PyErr_WarnEx(PyExc_DeprecationWarning,
+                 "'DEPTH_COMPONENT24' is deprecated. Use 'DEPTH_COMPONENT32F'.",
+                 1);
   }
 
   int len = 1;
@@ -336,6 +349,7 @@ PyDoc_STRVAR(
     "\n"
     "   :arg format: The format that describes the content of a single item.\n"
     "      Possible values are `FLOAT`, `INT`, `UINT`, `UBYTE`, `UINT_24_8` and `10_11_11_REV`.\n"
+    "      `UINT_24_8` is deprecated, use `FLOAT` instead.\n"
     "   :type format: str\n"
     "   :arg value: Sequence each representing the value to fill. Sizes 1..4 are supported.\n"
     "   :type value: Sequence[float]\n");
@@ -366,6 +380,9 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
   {
     return nullptr;
   }
+  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8_DEPRECATED) {
+    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` instead", 1);
+  }
 
   int shape = PySequence_Size(py_values);
   if (shape == -1) {
@@ -377,7 +394,8 @@ static PyObject *pygpu_texture_clear(BPyGPUTexture *self, PyObject *args, PyObje
     return nullptr;
   }
 
-  if (shape != 1 && ELEM(pygpu_dataformat.value_found, GPU_DATA_UINT_24_8, GPU_DATA_10_11_11_REV))
+  if (shape != 1 &&
+      ELEM(pygpu_dataformat.value_found, GPU_DATA_UINT_24_8_DEPRECATED, GPU_DATA_10_11_11_REV))
   {
     PyErr_SetString(PyExc_AttributeError,
                     "`UINT_24_8` and `10_11_11_REV` only support single values");
@@ -424,14 +442,10 @@ static PyObject *pygpu_texture_read(BPyGPUTexture *self)
    * So choose data_format here. */
   eGPUDataFormat best_data_format;
   switch (tex_format) {
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
     case GPU_DEPTH_COMPONENT32F:
-      best_data_format = GPU_DATA_FLOAT;
-      break;
-    case GPU_DEPTH24_STENCIL8:
     case GPU_DEPTH32F_STENCIL8:
-      best_data_format = GPU_DATA_UINT_24_8;
+      best_data_format = GPU_DATA_FLOAT;
       break;
     case GPU_R8UI:
     case GPU_R16UI:
@@ -511,9 +525,14 @@ static PyGetSetDef pygpu_texture__tp_getseters[] = {
     {nullptr, nullptr, nullptr, nullptr, nullptr} /* Sentinel */
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef pygpu_texture__tp_methods[] = {
@@ -528,8 +547,12 @@ static PyMethodDef pygpu_texture__tp_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyDoc_STRVAR(
@@ -578,7 +601,7 @@ PyDoc_STRVAR(
     "      `R16`,\n"
     "      `R11F_G11F_B10F`,\n"
     "      `DEPTH32F_STENCIL8`,\n"
-    "      `DEPTH24_STENCIL8`,\n"
+    "      `DEPTH24_STENCIL8` (deprecated, use `DEPTH32F_STENCIL8`),\n"
     "      `SRGB8_A8`,\n"
     "      `RGB16F`,\n"
     "      `SRGB8_A8_DXT1`,\n"
@@ -588,7 +611,7 @@ PyDoc_STRVAR(
     "      `RGBA8_DXT3`,\n"
     "      `RGBA8_DXT5`,\n"
     "      `DEPTH_COMPONENT32F`,\n"
-    "      `DEPTH_COMPONENT24`,\n"
+    "      `DEPTH_COMPONENT24`, (deprecated, use `DEPTH_COMPONENT32F`),\n"
     "      `DEPTH_COMPONENT16`,\n"
     "   :type format: str\n"
     "   :arg data: Buffer object to fill the texture.\n"

@@ -6,6 +6,8 @@
  * \ingroup sequencer
  */
 
+#include <algorithm>
+
 #include "BLI_task.hh"
 
 #include "DNA_sequence_types.h"
@@ -16,7 +18,7 @@
 
 #include "effects.hh"
 
-using namespace blender;
+namespace blender::seq {
 
 struct WipeZone {
   float angle;
@@ -217,12 +219,8 @@ static float check_zone(const WipeZone *wipezone, int x, int y, float fac)
         temp3 = temp1 - widthf * (1 - fac);
         temp4 = temp1 + widthf * fac;
       }
-      if (temp3 < 0) {
-        temp3 = 0;
-      }
-      if (temp4 > 2.0f * float(M_PI)) {
-        temp4 = 2.0f * float(M_PI);
-      }
+      temp3 = std::max<float>(temp3, 0);
+      temp4 = std::min(temp4, 2.0f * float(M_PI));
 
       if (temp2 < temp3) {
         output = 0;
@@ -290,7 +288,7 @@ static void init_wipe_effect(Strip *strip)
     MEM_freeN(strip->effectdata);
   }
 
-  strip->effectdata = MEM_callocN(sizeof(WipeVars), "wipevars");
+  strip->effectdata = MEM_callocN<WipeVars>("wipevars");
 }
 
 static int num_inputs_wipe()
@@ -355,7 +353,7 @@ static void do_wipe_effect(
   });
 }
 
-static ImBuf *do_wipe_effect(const SeqRenderData *context,
+static ImBuf *do_wipe_effect(const RenderData *context,
                              Strip *strip,
                              float /*timeline_frame*/,
                              float fac,
@@ -386,7 +384,7 @@ static ImBuf *do_wipe_effect(const SeqRenderData *context,
   return out;
 }
 
-void wipe_effect_get_handle(SeqEffectHandle &rval)
+void wipe_effect_get_handle(EffectHandle &rval)
 {
   rval.init = init_wipe_effect;
   rval.num_inputs = num_inputs_wipe;
@@ -396,3 +394,5 @@ void wipe_effect_get_handle(SeqEffectHandle &rval)
   rval.get_default_fac = get_default_fac_fade;
   rval.execute = do_wipe_effect;
 }
+
+}  // namespace blender::seq

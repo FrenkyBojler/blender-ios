@@ -16,10 +16,6 @@
 
 #include "BLI_sys_types.h"
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 using namespace Freestyle;
 
 ///////////////////////////////////////////////////////////////////////////////////////////
@@ -109,6 +105,16 @@ PyDoc_STRVAR(
 
 /*-----------------------Integrator module functions definitions---------------------------*/
 
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
+#endif
+
 static PyMethodDef module_functions[] = {
     {"integrate",
      (PyCFunction)Integrator_integrate,
@@ -116,6 +122,14 @@ static PyMethodDef module_functions[] = {
      Integrator_integrate_doc},
     {nullptr, nullptr, 0, nullptr},
 };
+
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
+#endif
 
 /*-----------------------Integrator module definition--------------------------------------*/
 
@@ -239,7 +253,3 @@ int IntegrationType_Init(PyObject *module)
 }
 
 ///////////////////////////////////////////////////////////////////////////////////////////
-
-#ifdef __cplusplus
-}
-#endif

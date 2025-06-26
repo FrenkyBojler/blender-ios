@@ -28,8 +28,6 @@ SVMShaderManager::SVMShaderManager() = default;
 
 SVMShaderManager::~SVMShaderManager() = default;
 
-void SVMShaderManager::reset(Scene * /*scene*/) {}
-
 void SVMShaderManager::device_update_shader(Scene *scene,
                                             Shader *shader,
                                             Progress &progress,
@@ -133,8 +131,6 @@ void SVMShaderManager::device_update_specific(Device *device,
   if (progress.get_cancel()) {
     return;
   }
-
-  dscene->svm_nodes.copy_to_device();
 
   device_update_common(device, dscene, scene, progress);
 

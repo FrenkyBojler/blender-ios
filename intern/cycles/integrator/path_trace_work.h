@@ -65,7 +65,7 @@ class PathTraceWork {
   virtual void render_samples(RenderStatistics &statistics,
                               const int start_sample,
                               const int samples_num,
-                              int sample_offset) = 0;
+                              const int sample_offset) = 0;
 
   /* Copy render result from this work to the corresponding place of the GPU display.
    *
@@ -143,7 +143,7 @@ class PathTraceWork {
     return device_;
   }
 
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   /* Initializes the per-thread guiding kernel data. */
   virtual void guiding_init_kernel_globals(void * /*unused*/,
                                            void * /*unused*/,

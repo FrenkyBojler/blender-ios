@@ -14,6 +14,7 @@
 
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
+#include "BLI_math_vector.h"
 #include "BLI_rand.hh"
 #include "BLI_utildefines.h"
 
@@ -59,6 +60,14 @@ struct PaintSample {
   float pressure;
 };
 
+/**
+ * Common structure for various paint operators (e.g. Sculpt, Grease Pencil, Curves Sculpt)
+ *
+ * Callback functions defined and stored on this struct (e.g. `StrokeGetLocation`) allow each of
+ * these modes to customize specific behavior while still sharing other common handing.
+ *
+ * See #paint_stroke_modal for the majority of the paint operator logic.
+ */
 struct PaintStroke {
   std::unique_ptr<PaintModeData> mode_data;
   void *stroke_cursor;
@@ -67,6 +76,7 @@ struct PaintStroke {
 
   /* Cached values */
   ViewContext vc;
+  Paint *paint;
   Brush *brush;
   UnifiedPaintSettings *ups;
 
@@ -110,8 +120,7 @@ struct PaintStroke {
   bool pen_flip;
 
   /* Tilt, as read from the event. */
-  float x_tilt;
-  float y_tilt;
+  float2 tilt;
 
   /* line constraint */
   bool constrain_line;
@@ -127,7 +136,10 @@ struct PaintStroke {
 };
 
 /*** Cursors ***/
-static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void *customdata)
+static void paint_draw_smooth_cursor(bContext *C,
+                                     const blender::int2 &xy,
+                                     const blender::float2 & /*tilt*/,
+                                     void *customdata)
 {
   const Paint *paint = BKE_paint_get_active_from_context(C);
   const Brush *brush = BKE_paint_brush_for_read(paint);
@@ -145,12 +157,12 @@ static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void
     const ARegion *region = stroke->vc.region;
 
     const uint pos = GPU_vertformat_attr_add(
-        immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(paint->paint_cursor_col);
 
     immBegin(GPU_PRIM_LINES, 2);
-    immVertex2f(pos, x, y);
+    immVertex2fv(pos, blender::float2(xy));
     immVertex2f(pos,
                 stroke->last_mouse_position[0] + region->winrct.xmin,
                 stroke->last_mouse_position[1] + region->winrct.ymin);
@@ -164,7 +176,10 @@ static void paint_draw_smooth_cursor(bContext *C, const int x, const int y, void
   }
 }
 
-static void paint_draw_line_cursor(bContext *C, const int x, const int y, void *customdata)
+static void paint_draw_line_cursor(bContext *C,
+                                   const blender::int2 &xy,
+                                   const blender::float2 & /*tilt*/,
+                                   void *customdata)
 {
   const Paint *paint = BKE_paint_get_active_from_context(C);
   PaintStroke *stroke = static_cast<PaintStroke *>(customdata);
@@ -172,7 +187,7 @@ static void paint_draw_line_cursor(bContext *C, const int x, const int y, void *
   GPU_line_smooth(true);
 
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -205,7 +220,7 @@ static void paint_draw_line_cursor(bContext *C, const int x, const int y, void *
                 stroke->last_mouse_position[0] + region->winrct.xmin,
                 stroke->last_mouse_position[1] + region->winrct.ymin);
 
-    immVertex2f(shdr_pos, x, y);
+    immVertex2fv(shdr_pos, float2(xy));
   }
 
   immEnd();
@@ -301,6 +316,7 @@ bool paint_brush_update(bContext *C,
                         bool *r_location_is_set)
 {
   Scene *scene = CTX_data_scene(C);
+  Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
   UnifiedPaintSettings &ups = *stroke->ups;
   bool location_sampled = false;
   bool location_success = false;
@@ -336,8 +352,8 @@ bool paint_brush_update(bContext *C,
   ups.stroke_active = true;
   ups.size_pressure_value = stroke->cached_size_pressure;
 
-  ups.pixel_radius = BKE_brush_size_get(scene, &brush);
-  ups.initial_pixel_radius = BKE_brush_size_get(scene, &brush);
+  ups.pixel_radius = BKE_brush_size_get(paint, &brush);
+  ups.initial_pixel_radius = BKE_brush_size_get(paint, &brush);
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, mode)) {
     ups.pixel_radius *= stroke->cached_size_pressure;
@@ -501,8 +517,7 @@ static bool paint_stroke_use_jitter(const PaintMode mode, const Brush &brush, co
   return use_jitter;
 }
 
-void paint_stroke_jitter_pos(Scene &scene,
-                             const PaintStroke &stroke,
+void paint_stroke_jitter_pos(const PaintStroke &stroke,
                              const PaintMode mode,
                              const Brush &brush,
                              const float pressure,
@@ -516,7 +531,7 @@ void paint_stroke_jitter_pos(Scene &scene,
       factor *= pressure;
     }
 
-    BKE_brush_jitter_pos(scene, brush, mval, r_mouse_out);
+    BKE_brush_jitter_pos(*stroke.paint, brush, mval, r_mouse_out);
 
     /* XXX: meh, this is round about because
      * BKE_brush_jitter_pos isn't written in the best way to
@@ -537,7 +552,6 @@ void paint_stroke_jitter_pos(Scene &scene,
 static void paint_brush_stroke_add_step(
     bContext *C, wmOperator *op, PaintStroke *stroke, const float2 mval, float pressure)
 {
-  Scene &scene = *CTX_data_scene(C);
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
@@ -578,7 +592,7 @@ static void paint_brush_stroke_add_step(
   if (paint_stroke_use_scene_spacing(brush, mode)) {
     float3 world_space_position;
 
-    if (SCULPT_stroke_get_location(
+    if (stroke_get_location_bvh(
             C, world_space_position, stroke->last_mouse_position, stroke->original))
     {
       stroke->last_world_space_position = math::transform_point(
@@ -591,7 +605,7 @@ static void paint_brush_stroke_add_step(
 
   float2 mouse_out;
   /* Get jitter position (same as mval if no jitter is used). */
-  paint_stroke_jitter_pos(scene, *stroke, mode, brush, pressure, mval, mouse_out);
+  paint_stroke_jitter_pos(*stroke, mode, brush, pressure, mval, mouse_out);
 
   float3 location;
   bool is_location_is_set;
@@ -625,8 +639,8 @@ static void paint_brush_stroke_add_step(
     /* Original mouse coordinates. */
     RNA_float_set_array(&itemptr, "mouse_event", mval);
     RNA_float_set(&itemptr, "pressure", pressure);
-    RNA_float_set(&itemptr, "x_tilt", stroke->x_tilt);
-    RNA_float_set(&itemptr, "y_tilt", stroke->y_tilt);
+    RNA_float_set(&itemptr, "x_tilt", stroke->tilt.x);
+    RNA_float_set(&itemptr, "y_tilt", stroke->tilt.y);
 
     stroke->update_step(C, op, stroke, &itemptr);
 
@@ -667,7 +681,6 @@ static bool paint_smooth_stroke(PaintStroke *stroke,
 }
 
 static float paint_space_stroke_spacing(const bContext *C,
-                                        const Scene *scene,
                                         PaintStroke *stroke,
                                         const float size_pressure,
                                         const float spacing_pressure)
@@ -676,22 +689,17 @@ static float paint_space_stroke_spacing(const bContext *C,
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(paint);
 
-  const float size = BKE_brush_size_get(scene, stroke->brush) * size_pressure;
   float size_clamp = 0.0f;
   if (paint_stroke_use_scene_spacing(brush, mode)) {
-    if (!BKE_brush_use_locked_size(scene, &brush)) {
-      const float3 last_object_space_position = math::transform_point(
-          stroke->vc.obact->world_to_object(), stroke->last_world_space_position);
-      size_clamp = paint_calc_object_space_radius(stroke->vc, last_object_space_position, size);
-    }
-    else {
-      size_clamp = BKE_brush_unprojected_radius_get(scene, &brush) * size_pressure;
-    }
+    const float3 last_object_space_position = math::transform_point(
+        stroke->vc.obact->world_to_object(), stroke->last_world_space_position);
+    size_clamp = object_space_radius_get(
+        stroke->vc, *paint, brush, last_object_space_position, size_pressure);
   }
   else {
     /* brushes can have a minimum size of 1.0 but with pressure it can be smaller than a pixel
      * causing very high step sizes, hanging blender #32381. */
-    size_clamp = max_ff(1.0f, size);
+    size_clamp = max_ff(1.0f, BKE_brush_size_get(stroke->paint, stroke->brush) * size_pressure);
   }
 
   float spacing = stroke->brush->spacing;
@@ -769,7 +777,6 @@ static float paint_stroke_integrate_overlap(const Brush &br, const float factor)
 }
 
 static float paint_space_stroke_spacing_variable(bContext *C,
-                                                 const Scene *scene,
                                                  PaintStroke *stroke,
                                                  const float pressure,
                                                  const float pressure_delta,
@@ -779,7 +786,7 @@ static float paint_space_stroke_spacing_variable(bContext *C,
     /* use pressure to modify size. set spacing so that at 100%, the circles
      * are aligned nicely with no overlap. for this the spacing needs to be
      * the average of the previous and next size. */
-    const float s = paint_space_stroke_spacing(C, scene, stroke, 1.0f, pressure);
+    const float s = paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
     const float q = s * pressure_delta / (2.0f * length);
     const float pressure_fac = (1.0f + q) / (1.0f - q);
 
@@ -787,16 +794,14 @@ static float paint_space_stroke_spacing_variable(bContext *C,
     const float new_size_pressure = stroke->last_pressure * pressure_fac;
 
     /* average spacing */
-    const float last_spacing = paint_space_stroke_spacing(
-        C, scene, stroke, last_size_pressure, pressure);
-    const float new_spacing = paint_space_stroke_spacing(
-        C, scene, stroke, new_size_pressure, pressure);
+    const float last_spacing = paint_space_stroke_spacing(C, stroke, last_size_pressure, pressure);
+    const float new_spacing = paint_space_stroke_spacing(C, stroke, new_size_pressure, pressure);
 
     return 0.5f * (last_spacing + new_spacing);
   }
 
   /* no size pressure */
-  return paint_space_stroke_spacing(C, scene, stroke, 1.0f, pressure);
+  return paint_space_stroke_spacing(C, stroke, 1.0f, pressure);
 }
 
 /* For brushes with stroke spacing enabled, moves mouse in steps
@@ -807,7 +812,6 @@ static int paint_space_stroke(bContext *C,
                               const float2 final_mouse,
                               const float final_pressure)
 {
-  const Scene *scene = CTX_data_scene(C);
   const ARegion *region = CTX_wm_region(C);
   UnifiedPaintSettings *ups = stroke->ups;
   const Paint &paint = *BKE_paint_get_active_from_context(C);
@@ -821,7 +825,7 @@ static int paint_space_stroke(bContext *C,
   const bool use_scene_spacing = paint_stroke_use_scene_spacing(brush, mode);
   if (use_scene_spacing) {
     float3 world_space_position;
-    const bool hit = SCULPT_stroke_get_location(
+    const bool hit = stroke_get_location_bvh(
         C, world_space_position, final_mouse, stroke->original);
     world_space_position = math::transform_point(stroke->vc.obact->object_to_world(),
                                                  world_space_position);
@@ -842,11 +846,11 @@ static int paint_space_stroke(bContext *C,
 
   float pressure = stroke->last_pressure;
   float pressure_delta = final_pressure - stroke->last_pressure;
-  const float no_pressure_spacing = paint_space_stroke_spacing(C, scene, stroke, 1.0f, 1.0f);
+  const float no_pressure_spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
   int count = 0;
   while (length > 0.0f) {
     const float spacing = paint_space_stroke_spacing_variable(
-        C, scene, stroke, pressure, pressure_delta, length);
+        C, stroke, pressure, pressure_delta, length);
     BLI_assert(spacing >= 0.0f);
 
     if (length >= spacing) {
@@ -898,9 +902,9 @@ PaintStroke *paint_stroke_new(bContext *C,
 {
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
   PaintStroke *stroke = MEM_new<PaintStroke>(__func__);
-  ToolSettings *toolsettings = CTX_data_tool_settings(C);
-  UnifiedPaintSettings *ups = &toolsettings->unified_paint_settings;
   Paint *paint = BKE_paint_get_active_from_context(C);
+  stroke->paint = paint;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   Brush *br = stroke->brush = BKE_paint_brush(paint);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -967,7 +971,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   BKE_paint_set_overlay_override(eOverlayFlags(br->overlay_flags));
 
-  ups->start_pixel_radius = BKE_brush_size_get(CTX_data_scene(C), br);
+  ups->start_pixel_radius = BKE_brush_size_get(stroke->paint, br);
 
   return stroke;
 }
@@ -1050,7 +1054,7 @@ bool paint_space_stroke_enabled(const Brush &br, const PaintMode mode)
     return false;
   }
 
-  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGreasePencil)) {
+  if (ELEM(mode, PaintMode::GPencil, PaintMode::SculptGPencil)) {
     /* No spacing needed for now. */
     return false;
   }
@@ -1158,7 +1162,7 @@ bool paint_supports_dynamic_tex_coords(const Brush &br, const PaintMode mode)
 
 wmKeyMap *paint_stroke_modal_keymap(wmKeyConfig *keyconf)
 {
-  static EnumPropertyItem modal_items[] = {
+  static const EnumPropertyItem modal_items[] = {
       {PAINT_STROKE_MODAL_CANCEL, "CANCEL", 0, "Cancel", "Cancel and undo a stroke in progress"},
       {0}};
 
@@ -1241,11 +1245,11 @@ static void paint_line_strokes_spacing(bContext *C,
   stroke->last_mouse_position = old_pos;
 
   if (use_scene_spacing) {
-    const bool hit_old = SCULPT_stroke_get_location(
+    const bool hit_old = stroke_get_location_bvh(
         C, world_space_position_old, old_pos, stroke->original);
 
     float3 world_space_position_new;
-    const bool hit_new = SCULPT_stroke_get_location(
+    const bool hit_new = stroke_get_location_bvh(
         C, world_space_position_new, new_pos, stroke->original);
 
     world_space_position_old = math::transform_point(stroke->vc.obact->object_to_world(),
@@ -1331,9 +1335,9 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
     return false;
   }
 
-  UnifiedPaintSettings &ups = CTX_data_tool_settings(C)->unified_paint_settings;
-  const Scene *scene = CTX_data_scene(C);
-  const float spacing = paint_space_stroke_spacing(C, scene, stroke, 1.0f, 1.0f);
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  UnifiedPaintSettings &ups = paint->unified_paint_settings;
+  const float spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
   const PaintCurve *pc = br.paint_curve;
 
   if (!pc) {
@@ -1390,7 +1394,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
         copy_v2_v2(stroke->last_mouse_position, data + 2 * j);
 
         if (paint_stroke_use_scene_spacing(br, BKE_paintmode_get_active_from_context(C))) {
-          stroke->stroke_over_mesh = SCULPT_stroke_get_location(
+          stroke->stroke_over_mesh = stroke_get_location_bvh(
               C, stroke->last_world_space_position, data + 2 * j, stroke->original);
           mul_m4_v3(stroke->vc.obact->object_to_world().ptr(), stroke->last_world_space_position);
         }
@@ -1445,9 +1449,11 @@ static void paint_stroke_line_constrain(PaintStroke *stroke, float2 &mouse)
   }
 }
 
-int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintStroke **stroke_p)
+wmOperatorStatus paint_stroke_modal(bContext *C,
+                                    wmOperator *op,
+                                    const wmEvent *event,
+                                    PaintStroke **stroke_p)
 {
-  const Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   PaintStroke *stroke = *stroke_p;
@@ -1476,7 +1482,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     stroke->last_tablet_event_pressure = pressure;
   }
 
-  const int input_samples = BKE_brush_input_samples_get(scene, br);
+  const int input_samples = BKE_brush_input_samples_get(stroke->paint, br);
   paint_stroke_add_sample(stroke, input_samples, event->mval[0], event->mval[1], pressure);
 
   PaintSample sample_average;
@@ -1484,8 +1490,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
 
   /* Tilt. */
   if (WM_event_is_tablet(event)) {
-    stroke->x_tilt = event->tablet.x_tilt;
-    stroke->y_tilt = event->tablet.y_tilt;
+    stroke->tilt = event->tablet.tilt;
   }
 
 #ifdef WITH_INPUT_NDOF
@@ -1516,7 +1521,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
     stroke->last_pressure = sample_average.pressure;
     stroke->last_mouse_position = sample_average.mouse;
     if (paint_stroke_use_scene_spacing(*br, mode)) {
-      stroke->stroke_over_mesh = SCULPT_stroke_get_location(
+      stroke->stroke_over_mesh = stroke_get_location_bvh(
           C, stroke->last_world_space_position, sample_average.mouse, stroke->original);
       stroke->last_world_space_position = math::transform_point(
           stroke->vc.obact->object_to_world(), stroke->last_world_space_position);
@@ -1559,6 +1564,27 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
       paint_stroke_cancel(C, op, stroke);
     }
     return OPERATOR_CANCELLED;
+  }
+
+  /* Handles shift-key active smooth toggling during a grease pencil stroke. */
+  if (mode == PaintMode::GPencil) {
+    if (event->modifier & KM_SHIFT) {
+      stroke->stroke_mode = BRUSH_STROKE_SMOOTH;
+      if (!stroke->stroke_cursor) {
+        stroke->stroke_cursor = WM_paint_cursor_activate(SPACE_TYPE_ANY,
+                                                         RGN_TYPE_ANY,
+                                                         paint_brush_cursor_poll,
+                                                         paint_draw_smooth_cursor,
+                                                         stroke);
+      }
+    }
+    else {
+      stroke->stroke_mode = BRUSH_STROKE_NORMAL;
+      if (stroke->stroke_cursor != nullptr) {
+        WM_paint_cursor_end(static_cast<wmPaintCursor *>(stroke->stroke_cursor));
+        stroke->stroke_cursor = nullptr;
+      }
+    }
   }
 
   float2 mouse;
@@ -1650,7 +1676,7 @@ int paint_stroke_modal(bContext *C, wmOperator *op, const wmEvent *event, PaintS
   return OPERATOR_RUNNING_MODAL;
 }
 
-int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
+wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
   /* only when executed for the first time */
   if (!stroke->stroke_started) {
@@ -1664,9 +1690,24 @@ int paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *stroke)
     }
   }
 
+  PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
+  const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
+                                 stroke->get_location;
   if (stroke->stroke_started) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
-      stroke->update_step(C, op, stroke, &itemptr);
+      if (override_location) {
+        float2 mval;
+        RNA_float_get_array(&itemptr, "mouse_event", mval);
+
+        float3 location;
+        if (stroke->get_location(C, location, mval, false)) {
+          RNA_float_set_array(&itemptr, "location", location);
+          stroke->update_step(C, op, stroke, &itemptr);
+        }
+      }
+      else {
+        stroke->update_step(C, op, stroke, &itemptr);
+      }
     }
     RNA_END;
   }

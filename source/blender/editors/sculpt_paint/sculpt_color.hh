@@ -11,7 +11,7 @@
 #include "DNA_scene_types.h"
 
 #include "BLI_generic_span.hh"
-#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
 
@@ -62,8 +62,7 @@ float4 color_vert_get(OffsetIndices<int> faces,
 bke::GAttributeReader active_color_attribute(const Mesh &mesh);
 bke::GSpanAttributeWriter active_color_attribute_for_write(Mesh &mesh);
 
-void do_paint_brush(const Scene &scene,
-                    const Depsgraph &depsgraph,
+void do_paint_brush(const Depsgraph &depsgraph,
                     PaintModeSettings &paint_mode_settings,
                     const Sculpt &sd,
                     Object &ob,

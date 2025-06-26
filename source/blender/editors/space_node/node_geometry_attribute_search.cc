@@ -11,6 +11,7 @@
 #include "DNA_space_types.h"
 
 #include "BKE_context.hh"
+#include "BKE_main_invariants.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
@@ -24,6 +25,7 @@
 #include "ED_undo.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geometry_nodes_log.hh"
@@ -67,18 +69,17 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
   if (!tree_zones) {
     return {};
   }
-  const Map<const bke::bNodeTreeZone *, GeoTreeLog *> log_by_zone =
-      GeoModifierLog::get_tree_log_by_zone_for_node_editor(*snode);
+  const ContextualGeoTreeLogs tree_logs = GeoNodesLog::get_contextual_tree_logs(*snode);
 
   Set<StringRef> names;
 
   /* For the attribute input node, collect attribute information from all nodes in the group. */
   if (node->type_legacy == GEO_NODE_INPUT_NAMED_ATTRIBUTE) {
     Vector<const GeometryAttributeInfo *> attributes;
-    for (GeoTreeLog *tree_log : log_by_zone.values()) {
-      tree_log->ensure_socket_values();
-      tree_log->ensure_existing_attributes();
-      for (const GeometryAttributeInfo *attribute : tree_log->existing_attributes) {
+    tree_logs.foreach_tree_log([&](GeoTreeLog &tree_log) {
+      tree_log.ensure_socket_values();
+      tree_log.ensure_existing_attributes();
+      for (const GeometryAttributeInfo *attribute : tree_log.existing_attributes) {
         if (!names.add(attribute->name)) {
           continue;
         }
@@ -87,11 +88,10 @@ static Vector<const GeometryAttributeInfo *> get_attribute_info_from_context(
         }
         attributes.append(attribute);
       }
-    }
+    });
     return attributes;
   }
-  const bke::bNodeTreeZone *zone = tree_zones->get_zone_by_node(node->identifier);
-  GeoTreeLog *tree_log = log_by_zone.lookup_default(zone, nullptr);
+  GeoTreeLog *tree_log = tree_logs.get_main_tree_log(*node);
   if (!tree_log) {
     return {};
   }
@@ -139,7 +139,7 @@ static void attribute_search_update_fn(
 
 /**
  * Some custom data types don't correspond to node types and therefore can't be
- * used by the named attribute input node. Find the best option or fallback to float.
+ * used by the named attribute input node. Find the best option or fall back to float.
  */
 static eCustomDataType data_type_in_attribute_input_node(const eCustomDataType type)
 {
@@ -205,7 +205,7 @@ static void attribute_search_exec_fn(bContext *C, void *data_v, void *item_v)
       /* Make the output socket with the new type on the attribute input node active. */
       nodes::update_node_declaration_and_sockets(*node_tree, *node);
       BKE_ntree_update_tag_node_property(node_tree, node);
-      ED_node_tree_propagate_change(*CTX_data_main(C), node_tree);
+      BKE_main_ensure_invariants(*CTX_data_main(C), node_tree->id);
     }
   }
 
@@ -226,9 +226,9 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
                                                const bNode &node,
                                                PointerRNA &socket_ptr,
                                                uiLayout &layout,
-                                               const StringRefNull placeholder)
+                                               const StringRef placeholder)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
                                  UI_BTYPE_SEARCH_MENU,
                                  0,
@@ -244,10 +244,10 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
                                  0.0f,
                                  0.0f,
                                  "");
-  UI_but_placeholder_set(but, placeholder.c_str());
+  UI_but_placeholder_set(but, placeholder);
 
   const bNodeSocket &socket = *static_cast<const bNodeSocket *>(socket_ptr.data);
-  AttributeSearchData *data = MEM_cnew<AttributeSearchData>(__func__);
+  AttributeSearchData *data = MEM_callocN<AttributeSearchData>(__func__);
   data->node_id = node.identifier;
   STRNCPY(data->socket_identifier, socket.identifier);
 

@@ -1,5 +1,5 @@
 /* SPDX-FileCopyrightText: 2001-2002 NaN Holding BV. All rights reserved.
- * SPDX-FileCopyrightText: 2024 Blender Authors
+ * SPDX-FileCopyrightText: 2024-2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -7,6 +7,7 @@
  * \ingroup imbuf
  */
 
+#include <algorithm>
 #include <cctype>
 #include <climits>
 #include <cmath>
@@ -14,9 +15,9 @@
 #include <cstdlib>
 #include <sys/types.h>
 
-#include "BLI_math_base.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
 
@@ -66,7 +67,7 @@ void MOV_close(MovieReader *anim)
   MOV_close_proxies(anim);
   IMB_metadata_free(anim->metadata);
 
-  MEM_freeN(anim);
+  MEM_delete(anim);
 }
 
 void MOV_get_filename(const MovieReader *anim, char *filename, int filename_maxncpy)
@@ -106,16 +107,17 @@ MovieReader *MOV_open_file(const char *filepath,
 
   BLI_assert(!BLI_path_is_rel(filepath));
 
-  anim = (MovieReader *)MEM_callocN(sizeof(MovieReader), "anim struct");
+  anim = MEM_new<MovieReader>("anim struct");
   if (anim != nullptr) {
-    if (colorspace) {
-      colorspace_set_default_role(colorspace, IM_MAX_SPACE, COLOR_ROLE_DEFAULT_BYTE);
-      STRNCPY(anim->colorspace, colorspace);
+    /* Initialize colorspace to default if not yet set. */
+    const char *default_colorspace = IMB_colormanagement_role_colorspace_name_get(
+        COLOR_ROLE_DEFAULT_BYTE);
+    if (colorspace && colorspace[0] == '\0') {
+      BLI_strncpy(colorspace, default_colorspace, IM_MAX_SPACE);
     }
-    else {
-      colorspace_set_default_role(
-          anim->colorspace, sizeof(anim->colorspace), COLOR_ROLE_DEFAULT_BYTE);
-    }
+
+    /* Inherit colorspace from argument if provided. */
+    STRNCPY(anim->colorspace, colorspace ? colorspace : default_colorspace);
 
     STRNCPY(anim->filepath, filepath);
     anim->ib_flags = ib_flags;
@@ -145,7 +147,7 @@ void MOV_set_multiview_suffix(MovieReader *anim, const char *suffix)
 
 #ifdef WITH_FFMPEG
 
-static double ffmpeg_stream_start_time_get(AVStream *stream)
+static double ffmpeg_stream_start_time_get(const AVStream *stream)
 {
   if (stream->start_time == AV_NOPTS_VALUE) {
     return 0.0;
@@ -154,7 +156,9 @@ static double ffmpeg_stream_start_time_get(AVStream *stream)
   return stream->start_time * av_q2d(stream->time_base);
 }
 
-static int ffmpeg_container_frame_count_get(AVFormatContext *pFormatCtx, AVStream *video_stream)
+static int ffmpeg_container_frame_count_get(const AVFormatContext *pFormatCtx,
+                                            const AVStream *video_stream,
+                                            const double frame_rate)
 {
   /* Find audio stream to guess the duration of the video.
    * Sometimes the audio AND the video stream have a start offset.
@@ -172,7 +176,6 @@ static int ffmpeg_container_frame_count_get(AVFormatContext *pFormatCtx, AVStrea
     }
   }
 
-  const AVRational frame_rate = av_guess_frame_rate(pFormatCtx, video_stream, nullptr);
   double stream_dur;
 
   if (video_start > audio_start) {
@@ -185,23 +188,24 @@ static int ffmpeg_container_frame_count_get(AVFormatContext *pFormatCtx, AVStrea
     stream_dur = double(pFormatCtx->duration) / AV_TIME_BASE;
   }
 
-  return lround(stream_dur * av_q2d(frame_rate));
+  return lround(stream_dur * frame_rate);
 }
 
-static int ffmpeg_frame_count_get(AVFormatContext *pFormatCtx, AVStream *video_stream)
+static int ffmpeg_frame_count_get(const AVFormatContext *pFormatCtx,
+                                  const AVStream *video_stream,
+                                  const double frame_rate)
 {
   /* Use stream duration to determine frame count. */
   if (video_stream->duration != AV_NOPTS_VALUE) {
-    const AVRational frame_rate = av_guess_frame_rate(pFormatCtx, video_stream, nullptr);
     const double stream_dur = video_stream->duration * av_q2d(video_stream->time_base);
-    return lround(stream_dur * av_q2d(frame_rate));
+    return lround(stream_dur * frame_rate);
   }
 
   /* Fall back to manually estimating the video stream duration.
    * This is because the video stream duration can be shorter than the `pFormatCtx->duration`.
    */
   if (pFormatCtx->duration != AV_NOPTS_VALUE) {
-    return ffmpeg_container_frame_count_get(pFormatCtx, video_stream);
+    return ffmpeg_container_frame_count_get(pFormatCtx, video_stream, frame_rate);
   }
 
   /* Read frame count from the stream if we can. Note, that this value can not be trusted. */
@@ -285,9 +289,9 @@ static AVFormatContext *init_format_context_vpx_workarounds(const char *filepath
     return nullptr;
   }
 
-  /* By default ffmpeg uses built-in VP8/VP9 decoders, however those do not detect
-   * alpha channel (see ffmpeg trac issue #8344 https://trac.ffmpeg.org/ticket/8344).
-   * The trick for VP8/VP9 is to explicitly force use of libvpx decoder.
+  /* By default FFMPEG uses built-in VP8/VP9 decoders, however those do not detect
+   * alpha channel (see FFMPEG issue #8344 https://trac.ffmpeg.org/ticket/8344).
+   * The trick for VP8/VP9 is to explicitly force use of LIBVPX decoder.
    * Only do this where alpha_mode=1 metadata is set. Note that in order to work,
    * the previously initialized format context must be closed and a fresh one
    * with explicitly requested codec must be created. */
@@ -296,7 +300,7 @@ static AVFormatContext *init_format_context_vpx_workarounds(const char *filepath
   if (ELEM(video_stream->codecpar->codec_id, AV_CODEC_ID_VP8, AV_CODEC_ID_VP9)) {
     AVDictionaryEntry *tag = nullptr;
     tag = av_dict_get(video_stream->metadata, "alpha_mode", tag, AV_DICT_IGNORE_SUFFIX);
-    if (tag && strcmp(tag->value, "1") == 0) {
+    if (tag && STREQ(tag->value, "1")) {
       r_codec = avcodec_find_decoder_by_name(
           video_stream->codecpar->codec_id == AV_CODEC_ID_VP8 ? "libvpx" : "libvpx-vp9");
       if (r_codec != nullptr) {
@@ -362,9 +366,20 @@ static int startffmpeg(MovieReader *anim)
     return -1;
   }
 
-  const AVRational frame_rate = av_guess_frame_rate(pFormatCtx, video_stream, nullptr);
-  int frs_num = frame_rate.num;
-  double frs_den = frame_rate.den;
+  /* Check if we need the "never seek, only decode one frame" ffmpeg bug workaround. */
+  const bool is_ogg_container = STREQ(pFormatCtx->iformat->name, "ogg");
+  const bool is_non_ogg_video = video_stream->codecpar->codec_id != AV_CODEC_ID_THEORA;
+  const bool is_video_thumbnail = (video_stream->disposition & AV_DISPOSITION_ATTACHED_PIC) != 0;
+  anim->never_seek_decode_one_frame = is_ogg_container && is_non_ogg_video && is_video_thumbnail;
+
+  anim->frame_rate = av_guess_frame_rate(pFormatCtx, video_stream, nullptr);
+  if (anim->never_seek_decode_one_frame) {
+    /* Files that need this workaround have nonsensical frame rates too, resulting
+     * in "millions of frames" if done through regular math. Treat frame-rate as 24/1 instead. */
+    anim->frame_rate = {24, 1};
+  }
+  int frs_num = anim->frame_rate.num;
+  double frs_den = anim->frame_rate.den;
 
   frs_den *= AV_TIME_BASE;
 
@@ -378,7 +393,8 @@ static int startffmpeg(MovieReader *anim)
   /* Save the relative start time for the video. IE the start time in relation to where playback
    * starts. */
   anim->start_offset = ffmpeg_stream_start_time_get(video_stream);
-  anim->duration_in_frames = ffmpeg_frame_count_get(pFormatCtx, video_stream);
+  anim->duration_in_frames = ffmpeg_frame_count_get(
+      pFormatCtx, video_stream, av_q2d(anim->frame_rate));
 
   anim->x = pCodecCtx->width;
   anim->y = pCodecCtx->height;
@@ -432,10 +448,10 @@ static int startffmpeg(MovieReader *anim)
     av_image_fill_arrays(
         anim->pFrameDeinterlaced->data,
         anim->pFrameDeinterlaced->linesize,
-        static_cast<const uint8_t *>(MEM_callocN(
+        MEM_calloc_arrayN<uint8_t>(
             av_image_get_buffer_size(
                 anim->pCodecCtx->pix_fmt, anim->pCodecCtx->width, anim->pCodecCtx->height, 1),
-            "ffmpeg deinterlace")),
+            "ffmpeg deinterlace"),
         anim->pCodecCtx->pix_fmt,
         anim->pCodecCtx->width,
         anim->pCodecCtx->height,
@@ -507,12 +523,11 @@ static int startffmpeg(MovieReader *anim)
   return 0;
 }
 
-static double ffmpeg_steps_per_frame_get(MovieReader *anim)
+static double ffmpeg_steps_per_frame_get(const MovieReader *anim)
 {
-  AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
-  AVRational time_base = v_st->time_base;
-  AVRational frame_rate = av_guess_frame_rate(anim->pFormatCtx, v_st, nullptr);
-  return av_q2d(av_inv_q(av_mul_q(frame_rate, time_base)));
+  const AVStream *v_st = anim->pFormatCtx->streams[anim->videoStream];
+  const AVRational time_base = v_st->time_base;
+  return av_q2d(av_inv_q(av_mul_q(anim->frame_rate, time_base)));
 }
 
 /* Store backup frame.
@@ -561,6 +576,96 @@ static AVFrame *ffmpeg_double_buffer_frame_fallback_get(MovieReader *anim)
   return nullptr;
 }
 
+/* Convert from ffmpeg planar GBRA layout to ImBuf interleaved RGBA, applying
+ * video rotation in the same go if needed. */
+static void float_planar_to_interleaved(const AVFrame *frame, const int rotation, ImBuf *ibuf)
+{
+  using namespace blender;
+  const size_t src_linesize = frame->linesize[0];
+  BLI_assert_msg(frame->linesize[1] == src_linesize && frame->linesize[2] == src_linesize &&
+                     frame->linesize[3] == src_linesize,
+                 "ffmpeg frame should be 4 same size planes for a floating point image case");
+  threading::parallel_for(IndexRange(ibuf->y), 256, [&](const IndexRange y_range) {
+    const int size_x = ibuf->x;
+    const int size_y = ibuf->y;
+    if (rotation == 90) {
+      /* 90 degree rotation. */
+      for (const int64_t y : y_range) {
+        int64_t src_offset = src_linesize * (size_y - y - 1);
+        const float *src_g = reinterpret_cast<const float *>(frame->data[0] + src_offset);
+        const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
+        const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
+        const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
+        float *dst = ibuf->float_buffer.data + (y + (size_x - 1) * size_y) * 4;
+        for (int x = 0; x < size_x; x++) {
+          dst[0] = *src_r++;
+          dst[1] = *src_g++;
+          dst[2] = *src_b++;
+          dst[3] = *src_a++;
+          dst -= size_y * 4;
+        }
+      }
+    }
+    else if (rotation == 180) {
+      /* 180 degree rotation. */
+      for (const int64_t y : y_range) {
+        int64_t src_offset = src_linesize * (size_y - y - 1);
+        const float *src_g = reinterpret_cast<const float *>(frame->data[0] + src_offset);
+        const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
+        const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
+        const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
+        float *dst = ibuf->float_buffer.data + ((size_y - y - 1) * size_x + size_x - 1) * 4;
+        for (int x = 0; x < size_x; x++) {
+          dst[0] = *src_r++;
+          dst[1] = *src_g++;
+          dst[2] = *src_b++;
+          dst[3] = *src_a++;
+          dst -= 4;
+        }
+      }
+    }
+    else if (rotation == 270) {
+      /* 270 degree rotation. */
+      for (const int64_t y : y_range) {
+        int64_t src_offset = src_linesize * (size_y - y - 1);
+        const float *src_g = reinterpret_cast<const float *>(frame->data[0] + src_offset);
+        const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
+        const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
+        const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
+        float *dst = ibuf->float_buffer.data + (size_y - y - 1) * 4;
+        for (int x = 0; x < size_x; x++) {
+          dst[0] = *src_r++;
+          dst[1] = *src_g++;
+          dst[2] = *src_b++;
+          dst[3] = *src_a++;
+          dst += size_y * 4;
+        }
+      }
+    }
+    else if (rotation == 0) {
+      /* No rotation. */
+      for (const int64_t y : y_range) {
+        int64_t src_offset = src_linesize * (size_y - y - 1);
+        const float *src_g = reinterpret_cast<const float *>(frame->data[0] + src_offset);
+        const float *src_b = reinterpret_cast<const float *>(frame->data[1] + src_offset);
+        const float *src_r = reinterpret_cast<const float *>(frame->data[2] + src_offset);
+        const float *src_a = reinterpret_cast<const float *>(frame->data[3] + src_offset);
+        float *dst = ibuf->float_buffer.data + size_x * y * 4;
+        for (int x = 0; x < size_x; x++) {
+          *dst++ = *src_r++;
+          *dst++ = *src_g++;
+          *dst++ = *src_b++;
+          *dst++ = *src_a++;
+        }
+      }
+    }
+  });
+
+  if (ELEM(rotation, 90, 270)) {
+    std::swap(ibuf->x, ibuf->y);
+  }
+}
+
 /**
  * Postprocess the image in anim->pFrame and do color conversion and de-interlacing stuff.
  *
@@ -603,32 +708,16 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
     }
   }
 
+  bool already_rotated = false;
   if (anim->is_float) {
-    /* Float images are converted into planar BGRA layout by swscale (since
+    /* Float images are converted into planar GBRA layout by swscale (since
      * it does not support direct YUV->RGBA float interleaved conversion).
      * Do vertical flip and interleave into RGBA manually. */
     /* Decode, then do vertical flip into destination. */
     ffmpeg_sws_scale_frame(anim->img_convert_ctx, anim->pFrameRGB, input);
 
-    const size_t src_linesize = anim->pFrameRGB->linesize[0];
-    BLI_assert_msg(anim->pFrameRGB->linesize[1] == src_linesize &&
-                       anim->pFrameRGB->linesize[2] == src_linesize &&
-                       anim->pFrameRGB->linesize[3] == src_linesize,
-                   "ffmpeg frame should be 4 same size planes for a floating point image case");
-    for (int y = 0; y < ibuf->y; y++) {
-      size_t src_offset = src_linesize * (ibuf->y - y - 1);
-      const float *src_g = reinterpret_cast<const float *>(anim->pFrameRGB->data[0] + src_offset);
-      const float *src_b = reinterpret_cast<const float *>(anim->pFrameRGB->data[1] + src_offset);
-      const float *src_r = reinterpret_cast<const float *>(anim->pFrameRGB->data[2] + src_offset);
-      const float *src_a = reinterpret_cast<const float *>(anim->pFrameRGB->data[3] + src_offset);
-      float *dst = ibuf->float_buffer.data + ibuf->x * y * 4;
-      for (int x = 0; x < ibuf->x; x++) {
-        *dst++ = *src_r++;
-        *dst++ = *src_g++;
-        *dst++ = *src_b++;
-        *dst++ = *src_a++;
-      }
-    }
+    float_planar_to_interleaved(anim->pFrameRGB, anim->video_rotation, ibuf);
+    already_rotated = true;
   }
   else {
     /* If final destination image layout matches that of decoded RGB frame (including
@@ -685,7 +774,7 @@ static void ffmpeg_postprocess(MovieReader *anim, AVFrame *input, ImBuf *ibuf)
   }
 
   /* Rotate video if display matrix is multiple of 90 degrees. */
-  if (ELEM(anim->video_rotation, 90, 180, 270)) {
+  if (!already_rotated && ELEM(anim->video_rotation, 90, 180, 270)) {
     IMB_rotate_orthogonal(ibuf, anim->video_rotation);
   }
 }
@@ -717,6 +806,11 @@ static AVFrame *ffmpeg_frame_by_pts_get(MovieReader *anim, int64_t pts_to_search
    */
   if (!anim->pFrame_complete) {
     return nullptr;
+  }
+
+  if (anim->never_seek_decode_one_frame) {
+    /* If we only decode one frame, return it. */
+    return anim->pFrame;
   }
 
   const bool backup_frame_ready = anim->pFrame_backup_complete;
@@ -853,9 +947,7 @@ static int64_t ffmpeg_get_seek_pts(MovieReader *anim, int64_t pts_to_search)
    */
   int64_t seek_pts = pts_to_search - (ffmpeg_steps_per_frame_get(anim) * 3);
 
-  if (seek_pts < 0) {
-    seek_pts = 0;
-  }
+  seek_pts = std::max<int64_t>(seek_pts, 0);
   return seek_pts;
 }
 
@@ -1138,21 +1230,30 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
   double pts_time_base = av_q2d(v_st->time_base);
   int64_t start_pts = v_st->start_time;
 
-  av_log(anim->pFormatCtx,
-         AV_LOG_DEBUG,
-         "FETCH: looking for PTS=%" PRId64 " (pts_timebase=%g, frame_rate=%g, start_pts=%" PRId64
-         ")\n",
-         int64_t(pts_to_search),
-         pts_time_base,
-         frame_rate,
-         start_pts);
-
-  if (ffmpeg_must_decode(anim, position)) {
-    if (ffmpeg_must_seek(anim, position)) {
-      ffmpeg_seek_to_key_frame(anim, position, tc_index, pts_to_search);
+  if (anim->never_seek_decode_one_frame) {
+    /* If we must only ever decode one frame, and never seek, do so here. */
+    if (!anim->pFrame_complete) {
+      ffmpeg_decode_video_frame(anim);
     }
+  }
+  else {
+    /* For all regular video files, do the seek/decode as needed. */
+    av_log(anim->pFormatCtx,
+           AV_LOG_DEBUG,
+           "FETCH: looking for PTS=%" PRId64 " (pts_timebase=%g, frame_rate=%g, start_pts=%" PRId64
+           ")\n",
+           int64_t(pts_to_search),
+           pts_time_base,
+           frame_rate,
+           start_pts);
 
-    ffmpeg_decode_video_frame_scan(anim, pts_to_search);
+    if (ffmpeg_must_decode(anim, position)) {
+      if (ffmpeg_must_seek(anim, position)) {
+        ffmpeg_seek_to_key_frame(anim, position, tc_index, pts_to_search);
+      }
+
+      ffmpeg_decode_video_frame_scan(anim, pts_to_search);
+    }
   }
 
   /* Update resolution as it can change per-frame with WebM. See #100741 & #100081. */
@@ -1331,7 +1432,8 @@ ImBuf *MOV_decode_frame(MovieReader *anim,
 #endif
 
   if (ibuf) {
-    SNPRINTF(ibuf->filepath, "%s.%04d", anim->filepath, anim->cur_position + 1);
+    STRNCPY(ibuf->filepath, anim->filepath);
+    ibuf->fileframe = anim->cur_position + 1;
   }
   return ibuf;
 }
