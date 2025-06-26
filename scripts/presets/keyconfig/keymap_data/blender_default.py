@@ -1339,6 +1339,7 @@ def km_outliner(params):
         # Copy/paste.
         ("outliner.id_copy", {"type": 'C', "value": 'PRESS', "ctrl": True}, None),
         ("outliner.id_paste", {"type": 'V', "value": 'PRESS', "ctrl": True}, None),
+        *_template_object_hide_collection_from_number_keys(),
     ])
 
     return keymap
@@ -3234,6 +3235,11 @@ def km_sequencer_preview(params):
         ("sequencer.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("sequencer.delete", {"type": 'DEL', "value": 'PRESS'}, None),
 
+        # Animation
+        ("anim.keyframe_insert", {"type": 'I', "value": 'PRESS'}, None),
+        ("anim.keying_set_active_set", {"type": 'K', "value": 'PRESS', "shift": True}, None),
+        ("anim.keyframe_insert_menu", {"type": 'K', "value": 'PRESS'}, {"properties": [("always_prompt", True)]}),
+
         *_template_items_context_menu("SEQUENCER_MT_preview_context_menu", params.context_menu_event),
     ])
 
@@ -4417,7 +4423,6 @@ def km_object_mode(params):
         ("object.link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}, None),
         *_template_items_hide_reveal_actions("object.hide_view_set", "object.hide_view_clear"),
         ("object.hide_collection", {"type": 'H', "value": 'PRESS', "ctrl": True}, None),
-        *_template_object_hide_collection_from_number_keys(),
         *_template_items_context_menu("VIEW3D_MT_object_context_menu", params.context_menu_event),
     ])
 
