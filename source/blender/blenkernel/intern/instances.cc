@@ -213,37 +213,25 @@ void Instances::add_instance(const int instance_handle, const float4x4 &transfor
 Span<int> Instances::reference_handles() const
 {
   return get_span_attribute<int>(
-      attributes_,
-      AttrDomain::Instance,
-      ".reference_index",
-      [&](const blender::bke::AttrDomain /*domain*/) { return instances_num_; });
+      attributes_, AttrDomain::Instance, ".reference_index", instances_num_);
 }
 
 MutableSpan<int> Instances::reference_handles_for_write()
 {
   return get_mutable_attribute<int>(
-      attributes_,
-      AttrDomain::Instance,
-      ".reference_index",
-      [&](const blender::bke::AttrDomain /*domain*/) { return instances_num_; });
+      attributes_, AttrDomain::Instance, ".reference_index", instances_num_);
 }
 
 Span<float4x4> Instances::transforms() const
 {
   return get_span_attribute<float4x4>(
-      attributes_,
-      AttrDomain::Instance,
-      "instance_transform",
-      [&](const blender::bke::AttrDomain /*domain*/) { return instances_num_; });
+      attributes_, AttrDomain::Instance, "instance_transform", instances_num_);
 }
 
 MutableSpan<float4x4> Instances::transforms_for_write()
 {
   return get_mutable_attribute<float4x4>(
-      attributes_,
-      AttrDomain::Instance,
-      "instance_transform",
-      [&](const blender::bke::AttrDomain /*domain*/) { return instances_num_; });
+      attributes_, AttrDomain::Instance, "instance_transform", instances_num_);
 }
 
 GeometrySet &Instances::geometry_set_from_reference(const int reference_index)

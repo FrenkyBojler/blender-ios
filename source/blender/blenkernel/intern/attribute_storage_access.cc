@@ -114,10 +114,9 @@ GVArray get_varray_attribute(const AttributeStorage &storage,
                              AttrDomain domain,
                              const CPPType &cpp_type,
                              StringRef name,
-                             FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                             int64_t domain_size,
                              const void *default_value)
 {
-  const int64_t domain_size = domain_sizes(domain);
   const bke::Attribute *attr = storage.wrap().lookup(name);
 
   const auto return_default = [&]() {
@@ -151,7 +150,7 @@ GSpan get_span_attribute(const AttributeStorage &storage,
                          const AttrDomain domain,
                          const CPPType &cpp_type,
                          const StringRef name,
-                         const FunctionRef<int64_t(AttrDomain)> domain_sizes)
+                         const int64_t domain_size)
 {
   const bke::Attribute *attr = storage.wrap().lookup(name);
   if (!attr) {
@@ -161,8 +160,8 @@ GSpan get_span_attribute(const AttributeStorage &storage,
     return {};
   }
   if (const auto *array_data = std::get_if<bke::Attribute::ArrayData>(&attr->data())) {
-    BLI_assert(array_data->size == domain_sizes(domain));
-    UNUSED_VARS_NDEBUG(domain_sizes);
+    BLI_assert(array_data->size == domain_size);
+    UNUSED_VARS_NDEBUG(domain_size);
     return GSpan(cpp_type, array_data->data, array_data->size);
   }
   return {};
@@ -172,10 +171,9 @@ GMutableSpan get_mutable_attribute(AttributeStorage &storage,
                                    const AttrDomain domain,
                                    const CPPType &cpp_type,
                                    const StringRef name,
-                                   const FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                                   const int64_t domain_size,
                                    const void *default_value)
 {
-  const int64_t domain_size = domain_sizes(domain);
   if (domain_size <= 0) {
     return {};
   }

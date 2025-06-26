@@ -35,18 +35,18 @@ GVArray get_varray_attribute(const AttributeStorage &storage,
                              AttrDomain domain,
                              const CPPType &cpp_type,
                              StringRef name,
-                             FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                             int64_t domain_size,
                              const void *default_value);
 
 template<typename T>
 inline VArray<T> get_varray_attribute(const AttributeStorage &storage,
                                       const AttrDomain domain,
                                       const StringRef name,
-                                      const FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                                      const int64_t domain_size,
                                       const T &default_value)
 {
   GVArray varray = get_varray_attribute(
-      storage, domain, CPPType::get<T>(), name, domain_sizes, &default_value);
+      storage, domain, CPPType::get<T>(), name, domain_size, &default_value);
   return varray.typed<T>();
 }
 
@@ -54,15 +54,15 @@ GSpan get_span_attribute(const AttributeStorage &storage,
                          AttrDomain domain,
                          const CPPType &cpp_type,
                          StringRef name,
-                         const FunctionRef<int64_t(AttrDomain)> domain_sizes);
+                         const int64_t domain_size);
 
 template<typename T>
 inline Span<T> get_span_attribute(const AttributeStorage &storage,
                                   const AttrDomain domain,
                                   const StringRef name,
-                                  const FunctionRef<int64_t(AttrDomain)> domain_sizes)
+                                  const int64_t domain_size)
 {
-  const GSpan span = get_span_attribute(storage, domain, CPPType::get<T>(), name, domain_sizes);
+  const GSpan span = get_span_attribute(storage, domain, CPPType::get<T>(), name, domain_size);
   return span.typed<T>();
 }
 
@@ -70,18 +70,18 @@ GMutableSpan get_mutable_attribute(AttributeStorage &storage,
                                    const AttrDomain domain,
                                    const CPPType &cpp_type,
                                    const StringRef name,
-                                   const FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                                   const int64_t domain_size,
                                    const void *default_value);
 
 template<typename T>
 MutableSpan<T> get_mutable_attribute(AttributeStorage &storage,
                                      const AttrDomain domain,
                                      const StringRef name,
-                                     const FunctionRef<int64_t(AttrDomain)> domain_sizes,
+                                     const int64_t domain_size,
                                      const T &default_value = T())
 {
   const GMutableSpan span = get_mutable_attribute(
-      storage, domain, CPPType::get<T>(), name, domain_sizes, &default_value);
+      storage, domain, CPPType::get<T>(), name, domain_size, &default_value);
   return span.typed<T>();
 }
 
