@@ -6,13 +6,13 @@
  * \ingroup blenloader
  */
 
-#include "DNA_curves_types.h"
-#include "DNA_grease_pencil_types.h"
 #define DNA_DEPRECATED_ALLOW
 
 #include <fmt/format.h>
 
 #include "DNA_ID.h"
+#include "DNA_curves_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
