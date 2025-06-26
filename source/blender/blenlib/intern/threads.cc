@@ -672,11 +672,12 @@ uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPr
 
 void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
 {
-  auto cancel = [work_id](std::deque<ThreadQueueWork> &queue) {
-    queue.erase(std::remove_if(queue.begin(),
-                               queue.end(),
-                               [&](const ThreadQueueWork &work) { return work.id == work_id; }),
-                queue.end());
+  auto cancel = [&](std::deque<ThreadQueueWork> &sub_queue) {
+    sub_queue.erase(
+        std::remove_if(sub_queue.begin(),
+                       sub_queue.end(),
+                       [&](const ThreadQueueWork &work) { return work.id == work_id; }),
+        sub_queue.end());
   };
 
   cancel(queue->queue_low_priority);
