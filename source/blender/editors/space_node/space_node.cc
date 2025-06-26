@@ -637,7 +637,6 @@ static Vector<nodes::SocketInContext> find_target_sockets_through_contexts(
             }
           }
         }
-
         continue;
       }
     }
