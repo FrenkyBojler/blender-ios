@@ -151,7 +151,6 @@ struct Instance final : public DrawEngine {
   TextureFromPool color_tx = {"color_tx"};
   TextureFromPool color_layer_tx = {"color_layer_tx"};
   TextureFromPool color_object_tx = {"color_object_tx"};
-  TextureFromPool pass_tx = {"pass_tx"};
   /* Revealage is 1 - alpha */
   TextureFromPool reveal_tx = {"reveal_tx"};
   TextureFromPool reveal_layer_tx = {"reveal_layer_tx"};
@@ -164,6 +163,7 @@ struct Instance final : public DrawEngine {
   TextureFromPool smaa_edge_tx = {"smaa_edge_tx"};
   TextureFromPool smaa_weight_tx = {"smaa_weight_tx"};
 
+  Framebuffer combined_pass_fb = {"combined_pass_fb"};
   Framebuffer render_fb = {"render_fb"};
   Framebuffer gpencil_fb = {"gpencil_fb"};
   Framebuffer gpencil_pass_fb = {"gpencil_pass_fb"};

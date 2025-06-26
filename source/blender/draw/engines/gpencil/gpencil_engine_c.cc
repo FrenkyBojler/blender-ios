@@ -636,11 +636,6 @@ void Instance::acquire_resources()
                           GPU_ATTACHMENT_TEXTURE(this->color_tx),
                           GPU_ATTACHMENT_TEXTURE(this->reveal_tx));
 
-  if (this->use_separate_pass) {
-    this->pass_tx.acquire(size, format);
-    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(this->pass_tx));
-  }
-
   if (this->use_layer_fb) {
     this->color_layer_tx.acquire(size, format);
     this->reveal_layer_tx.acquire(size, format);
@@ -672,6 +667,19 @@ void Instance::acquire_resources()
                          GPU_ATTACHMENT_TEXTURE(this->mask_color_tx),
                          GPU_ATTACHMENT_TEXTURE(this->mask_tx));
   }
+
+  /* Combined pass for compositor */
+  GPUTexture *combined_texture = DRW_context_get()->viewport_texture_list_get()->color;
+  if (combined_texture) {
+    this->combined_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(combined_texture));
+  }
+
+  if (this->use_separate_pass) {
+    const int2 size = int2(draw_ctx->viewport_size_get());
+    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
+    output_pass_texture.acquire(size, GPU_RGBA16F);
+    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(output_pass_texture));
+  }
 }
 
 void Instance::release_resources()
@@ -688,7 +696,6 @@ void Instance::release_resources()
   this->mask_tx.release();
   this->smaa_edge_tx.release();
   this->smaa_weight_tx.release();
-  this->pass_tx.release();
 }
 
 void Instance::draw_mask(View &view, tObject *ob, tLayer *layer)
@@ -888,13 +895,6 @@ void Instance::draw(Manager &manager)
 
   if (this->scene_fb) {
     antialiasing_draw(manager);
-  }
-
-  if (this->use_separate_pass) {
-    const int2 size = int2(draw_ctx->viewport_size_get());
-    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
-    output_pass_texture.acquire(size, GPU_RGBA16F);
-    GPU_texture_copy(output_pass_texture, this->pass_tx);
   }
 
   this->release_resources();
