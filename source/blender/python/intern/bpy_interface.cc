@@ -16,6 +16,7 @@
 #ifdef WITH_PYTHON_MODULE
 #  include "pylifecycle.h" /* For `Py_Version`. */
 #endif
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "CLG_log.h"
 
@@ -647,7 +648,7 @@ void BPY_python_backtrace(FILE *fp)
   fputs("\n# Python backtrace\n", fp);
 
   /* Can happen in rare cases. */
-  if (!_PyThreadState_UncheckedGet()) {
+  if (!PyThreadState_GetUnchecked()) {
     return;
   }
   PyFrameObject *frame = PyEval_GetFrame();
@@ -726,7 +727,7 @@ void BPY_modules_load_user(bContext *C)
   bpy_context_clear(C, &gilstate);
 }
 
-int BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result)
+bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result)
 {
   PyGILState_STATE gilstate;
   const bool use_gil = !PyC_IsInterpreterActive();

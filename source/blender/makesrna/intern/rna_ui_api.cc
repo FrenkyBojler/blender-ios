@@ -14,6 +14,7 @@
 #include "DNA_screen_types.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "rna_internal.hh"
@@ -236,7 +237,7 @@ static void rna_uiItemMenuEnumR(uiLayout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
-  uiItemMenuEnumR_prop(layout, ptr, prop, text, icon);
+  layout->prop_menu_enum(ptr, prop, text, icon);
 }
 
 static void rna_uiItemTabsEnumR(uiLayout *layout,
@@ -282,7 +283,7 @@ static void rna_uiItemTabsEnumR(uiLayout *layout,
     }
   }
 
-  uiItemTabsEnumR_prop(layout, C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
+  layout->prop_tabs_enum(C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
 }
 
 static void rna_uiItemEnumR_string(uiLayout *layout,
@@ -305,7 +306,12 @@ static void rna_uiItemEnumR_string(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
 
-  uiItemEnumR_string_prop(layout, ptr, prop, value, text, icon);
+  layout->prop_enum(ptr, prop, value, text, icon);
+}
+
+static void rna_uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, const char *propname)
+{
+  layout->props_enum(ptr, propname);
 }
 
 static void rna_uiItemPointerR(uiLayout *layout,
@@ -335,8 +341,7 @@ static void rna_uiItemPointerR(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
 
-  uiItemPointerR_prop(
-      layout, ptr, prop, searchptr, searchprop, text, icon, results_are_suggestions);
+  layout->prop_search(ptr, prop, searchptr, searchprop, text, icon, results_are_suggestions);
 }
 
 static PointerRNA rna_uiItemO(uiLayout *layout,
@@ -373,12 +378,12 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
     flag |= UI_ITEM_O_DEPRESS;
   }
 
-  const float prev_weight = uiLayoutGetSearchWeight(layout);
-  uiLayoutSetSearchWeight(layout, search_weight);
+  const float prev_weight = layout->search_weight();
+  layout->search_weight_set(search_weight);
 
   PointerRNA opptr = layout->op(ot, text, icon, layout->operator_context(), flag);
 
-  uiLayoutSetSearchWeight(layout, prev_weight);
+  layout->search_weight_set(prev_weight);
   return opptr;
 }
 
@@ -865,7 +870,7 @@ void rna_uiLayoutPanelProp(uiLayout *layout,
                            uiLayout **r_layout_header,
                            uiLayout **r_layout_body)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
+  Panel *panel = layout->root_panel();
   if (panel == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Layout panels can not be used in this context");
     *r_layout_header = nullptr;
@@ -886,7 +891,7 @@ void rna_uiLayoutPanel(uiLayout *layout,
                        uiLayout **r_layout_header,
                        uiLayout **r_layout_body)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
+  Panel *panel = layout->root_panel();
   if (panel == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Layout panels can not be used in this context");
     *r_layout_header = nullptr;
@@ -1421,7 +1426,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
   RNA_def_boolean(func, "invert_checkbox", false, "", "Draw checkbox value inverted");
 
-  func = RNA_def_function(srna, "props_enum", "uiItemsEnumR");
+  func = RNA_def_function(srna, "props_enum", "rna_uiItemsEnumR");
   api_ui_item_rna_common(func);
 
   func = RNA_def_function(srna, "prop_menu_enum", "rna_uiItemMenuEnumR");

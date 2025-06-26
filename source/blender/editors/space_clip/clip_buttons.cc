@@ -34,6 +34,7 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -752,7 +753,7 @@ void uiTemplateMovieclipInformation(uiLayout *layout,
   MovieClipUser *user = static_cast<MovieClipUser *>(userptr->data);
 
   uiLayout *col = &layout->column(false);
-  uiLayoutSetAlignment(col, UI_LAYOUT_ALIGN_RIGHT);
+  col->alignment_set(blender::ui::LayoutAlign::Right);
 
   /* NOTE: Put the frame to cache. If the panel is drawn, the display will also be shown, as well
    * as metadata panel. So if the cache is skipped here it is not really a memory saver, but

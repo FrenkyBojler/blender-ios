@@ -40,7 +40,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_string_search.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
@@ -1814,7 +1814,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* HACK: special group just for the enum,
    * otherwise we get ugly layout with text included too... */
   uiLayout *sub = &row->row(true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+  sub->alignment_set(blender::ui::LayoutAlign::Left);
 
   sub->prop(ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
@@ -1823,7 +1823,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* HACK: special group to counteract the effects of the previous enum,
    * which now pushes everything too far right. */
   sub = &row->row(true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);
+  sub->alignment_set(blender::ui::LayoutAlign::Expand);
 
   sub->prop(ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
 }

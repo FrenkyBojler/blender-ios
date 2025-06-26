@@ -56,6 +56,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -174,7 +175,6 @@ static void node_buts_texture(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNode *node = (bNode *)ptr->data;
 
   short multi = (node->id && ((Tex *)node->id)->use_nodes &&
-                 (node->type_legacy != CMP_NODE_TEXTURE) &&
                  (node->type_legacy != TEX_NODE_TEXTURE));
 
   uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
@@ -630,9 +630,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
       break;
     case CMP_NODE_TIME:
       ntype->draw_buttons = node_buts_time;
-      break;
-    case CMP_NODE_TEXTURE:
-      ntype->draw_buttons = node_buts_texture;
       break;
     case CMP_NODE_HUECORRECT:
       ntype->draw_buttons = node_composit_buts_huecorrect;
@@ -1169,7 +1166,7 @@ static void std_node_socket_draw(
   if (has_gizmo) {
     if (sock->in_out == SOCK_OUT && node->is_group_input()) {
       uiLayout *row = &layout->row(false);
-      uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+      row->alignment_set(blender::ui::LayoutAlign::Right);
       node_socket_button_label(C, row, ptr, node_ptr, text);
       row->label("", ICON_GIZMO);
       return;
@@ -2190,10 +2187,7 @@ static bool node_link_is_field_link(const SpaceNode &snode, const bNodeLink &lin
   if (tree.type != NTREE_GEOMETRY) {
     return false;
   }
-  const Span<bke::FieldSocketState> field_states = tree.runtime->field_states;
-  if (link.fromsock &&
-      field_states[link.fromsock->index_in_tree()] == bke::FieldSocketState::IsField)
-  {
+  if (link.fromsock && link.fromsock->may_be_field()) {
     return true;
   }
   return false;

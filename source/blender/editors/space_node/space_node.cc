@@ -1241,11 +1241,9 @@ static void node_area_refresh(const bContext *C, ScrArea *area)
   if (snode->nodetree) {
     if (snode->nodetree->type == NTREE_COMPOSIT) {
       Scene *scene = (Scene *)snode->id;
-      if (scene->use_nodes) {
-        if (snode->runtime->recalc_regular_compositing) {
-          snode->runtime->recalc_regular_compositing = false;
-          ED_node_composite_job(C, snode->nodetree, scene);
-        }
+      if (snode->runtime->recalc_regular_compositing) {
+        snode->runtime->recalc_regular_compositing = false;
+        ED_node_composite_job(C, snode->nodetree, scene);
       }
     }
   }
@@ -1881,7 +1879,6 @@ static void node_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
-  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_split);
 }
 
 static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
