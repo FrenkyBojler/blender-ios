@@ -1622,6 +1622,22 @@ static float smooth_view_rect_to_fac(const rctf *rect_a, const rctf *rect_b)
   return min_ff(fac_max, 1.0f);
 }
 
+/**
+ * Apply the smooth-view immediately without animation, for example when the preference
+ * for reducing motion is set, or when the view is already at the target.
+ */
+static void view2d_smooth_view_force_finish(const bContext *C,
+                                            ARegion *region,
+                                            SmoothView2DStore sms)
+{
+  View2D *v2d = &region->v2d;
+  v2d->cur = sms.new_cur;
+
+  UI_view2d_curRect_changed(C, v2d);
+  ED_region_tag_redraw_no_rebuild(region);
+  UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+}
+
 void UI_view2d_smooth_view(const bContext *C,
                            ARegion *region,
                            const rctf *cur,
@@ -1641,6 +1657,12 @@ void UI_view2d_smooth_view(const bContext *C,
   /* store the options we want to end with */
   if (cur) {
     sms.new_cur = *cur;
+  }
+
+  /* Do not animate if the Reduce Motion preference is set. */
+  if (U.uiflag & USER_REDUCE_MOTION) {
+    view2d_smooth_view_force_finish(C, region, sms);
+    return;
   }
 
   if (cur) {
@@ -1681,11 +1703,7 @@ void UI_view2d_smooth_view(const bContext *C,
 
   /* if we get here nothing happens */
   if (ok == false) {
-    v2d->cur = sms.new_cur;
-
-    UI_view2d_curRect_changed(C, v2d);
-    ED_region_tag_redraw_no_rebuild(region);
-    UI_view2d_sync(CTX_wm_screen(C), CTX_wm_area(C), v2d, V2D_LOCK_COPY);
+    view2d_smooth_view_force_finish(C, region, sms);
   }
 }
 
