@@ -164,12 +164,12 @@ typedef enum {
   BLI_THREAD_QUEUE_WORK_PRIORITY_LOW,
   BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL,
   BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH,
-} eThreadQueueWorkPriority;
+} ThreadQueueWorkPriority;
 
 ThreadQueue *BLI_thread_queue_init(void);
 void BLI_thread_queue_free(ThreadQueue *queue);
 
-int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriority priority);
+int BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority);
 void BLI_thread_queue_cancel_work(ThreadQueue *queue, int work_id);
 void *BLI_thread_queue_pop(ThreadQueue *queue);
 void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms);

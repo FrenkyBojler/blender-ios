@@ -643,7 +643,7 @@ void BLI_thread_queue_free(ThreadQueue *queue)
   MEM_delete(queue);
 }
 
-int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriority priority)
+int BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority)
 {
   pthread_mutex_lock(&queue->mutex);
 
