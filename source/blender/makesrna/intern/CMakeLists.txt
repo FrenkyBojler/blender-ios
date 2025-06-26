@@ -255,6 +255,7 @@ set(INC
   ../../nodes
   ../../nodes/function/include
   ../../nodes/geometry/include
+  ../../nodes/shader/include
   ../../sequencer
   ../../simulation
   ../../windowmanager

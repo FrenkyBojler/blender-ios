@@ -19,6 +19,7 @@
 #include "BLI_array.hh"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
+#include "BLI_map.hh"
 #include "BLI_math_vector.h"
 #include "BLI_set.hh"
 #include "BLI_threads.h"
@@ -468,10 +469,49 @@ static void ntree_shader_groups_remove_muted_links(bNodeTree *ntree)
   }
 }
 
+static bool is_zone_input_node(bNode *node)
+{
+  using namespace blender::bke;
+  if (const bNodeZoneType *zone_type = zone_type_by_node_type(node->type_legacy)) {
+    return node->type_legacy == zone_type->input_type;
+  }
+  return false;
+}
+
+static bool is_zone_output_node(bNode *node)
+{
+  using namespace blender::bke;
+  if (const bNodeZoneType *zone_type = zone_type_by_node_type(node->type_legacy)) {
+    return node->type_legacy == zone_type->output_type;
+  }
+  return false;
+}
+
+static bool is_zone_node(bNode *node)
+{
+  using namespace blender::bke;
+  return zone_type_by_node_type(node->type_legacy) != nullptr;
+}
+
+static int &node_zone_id(bNode *node)
+{
+  switch (node->type_legacy) {
+    case SH_NODE_REPEAT_INPUT:
+      return ((NodeShaderRepeatInput *)node->storage)->output_node_id;
+    case SH_NODE_REPEAT_OUTPUT:
+      return node->identifier;
+    default:
+      BLI_assert_unreachable();
+      return node->identifier;
+  }
+}
+
 static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
 {
   LinkNode *group_interface_nodes = nullptr;
   bNodeTree *ngroup = (bNodeTree *)gnode->id;
+
+  blender::Map<int, std::pair<bNode *, bNode *>> zone_ids;
 
   /* Add the nodes into the ntree */
   LISTBASE_FOREACH_MUTABLE (bNode *, node, &ngroup->nodes) {
@@ -484,12 +524,34 @@ static void flatten_group_do(bNodeTree *ntree, bNode *gnode)
     /* migrate node */
     BLI_remlink(&ngroup->nodes, node);
     BLI_addtail(&ntree->nodes, node);
+    int old_id = 0;
+    if (is_zone_node(node)) {
+      old_id = node_zone_id(node);
+      if (!zone_ids.contains(old_id)) {
+        zone_ids.add(old_id, {nullptr, nullptr});
+      }
+    }
     blender::bke::node_unique_id(*ntree, *node);
     /* ensure unique node name in the node tree */
     /* This is very slow and it has no use for GPU nodetree. (see #70609) */
     // blender::bke::node_unique_name(ntree, node);
+    if (is_zone_input_node(node)) {
+      zone_ids.lookup(old_id).first = node;
+    }
+    else if (is_zone_output_node(node)) {
+      zone_ids.lookup(old_id).second = node;
+    }
   }
   ngroup->runtime->nodes_by_id.clear();
+
+  for (auto &nodes : zone_ids.values()) {
+    if (nodes.first && nodes.second) {
+      node_zone_id(nodes.first) = node_zone_id(nodes.second);
+    }
+    else if (nodes.first) {
+      node_zone_id(nodes.first) = nodes.first->identifier;
+    }
+  }
 
   /* Save first and last link to iterate over flattened group links. */
   bNodeLink *glinks_first = static_cast<bNodeLink *>(ntree->links.last);

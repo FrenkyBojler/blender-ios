@@ -387,6 +387,17 @@ class NODE_MT_category_shader_group(Menu):
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
+class NODE_MT_category_shader_zones(Menu):
+    bl_idname = "NODE_MT_category_shader_zones"
+    bl_label = "Zones"
+
+    def draw(self, context):
+        layout = self.layout
+        node_add_menu.add_shader_repeat_zone(layout, label="Repeat")
+        if npr_shader_nodes_poll(context):
+            node_add_menu.add_shader_foreach_light_zone(layout, label="For Each Light")
+
+
 class NODE_MT_shader_node_add_all(Menu):
     bl_idname = "NODE_MT_shader_node_add_all"
     bl_label = "Add"
@@ -403,6 +414,7 @@ class NODE_MT_shader_node_add_all(Menu):
         layout.menu("NODE_MT_category_shader_texture")
         layout.menu("NODE_MT_category_shader_vector")
         layout.separator()
+        layout.menu("NODE_MT_category_shader_zones")
         layout.menu("NODE_MT_category_shader_script")
         layout.separator()
         layout.menu("NODE_MT_category_shader_group")
@@ -422,6 +434,7 @@ classes = (
     NODE_MT_category_shader_vector,
     NODE_MT_category_shader_script,
     NODE_MT_category_shader_group,
+    NODE_MT_category_shader_zones,
 )
 
 

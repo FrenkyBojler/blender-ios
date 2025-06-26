@@ -5,7 +5,9 @@
 set(INC
   .
   ..
+  include
   ../intern
+  ../../blenloader
   ../../editors/include
   ../../makesrna
   ../../../../intern/sky/include
@@ -73,6 +75,7 @@ set(SRC
   nodes/node_shader_output_world.cc
   nodes/node_shader_particle_info.cc
   nodes/node_shader_point_info.cc
+  nodes/node_shader_repeat.cc
   nodes/node_shader_rgb.cc
   nodes/node_shader_rgb_to_bw.cc
   nodes/node_shader_script.cc
@@ -117,6 +120,8 @@ set(SRC
 
   node_shader_register.hh
   node_shader_util.hh
+
+  include/NOD_sh_zones.hh
 )
 
 set(LIB
