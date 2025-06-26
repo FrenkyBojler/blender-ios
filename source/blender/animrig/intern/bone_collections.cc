@@ -998,7 +998,8 @@ void ANIM_armature_bonecoll_reconstruct(bArmature *armature)
 static bool any_bone_collection_visible(const bArmature *armature,
                                         const ListBase /*BoneCollectionRef*/ *collection_refs)
 {
-  /* Special case: Hide bone when solo is activ and it is not in any collection, see: #137090. */
+  /* Special case: Hide bone when solo is active and it doesn't belong to any collection, see:
+   * #137090. */
   if (BLI_listbase_is_empty(collection_refs) && !(armature->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     return true;
   }
