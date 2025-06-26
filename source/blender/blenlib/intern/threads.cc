@@ -699,29 +699,20 @@ void *BLI_thread_queue_pop(ThreadQueue *queue)
   }
 
   /* if we have something, pop it */
-  if (!queue->queue_high_priority.empty()) {
-    work_reference = queue->queue_high_priority.front();
-    queue->queue_high_priority.pop_front();
+  for (std::deque<ThreadQueueWork> *sub_queue :
+       {&queue->queue_high_priority, &queue->queue_normal_priority, &queue->queue_low_priority})
+  {
+    if (sub_queue->empty()) {
+      continue;
+    }
+    work_reference = sub_queue->front();
+    sub_queue->pop_front();
 
-    if (queue->queue_high_priority.empty()) {
+    if (sub_queue->empty()) {
       pthread_cond_broadcast(&queue->finish_cond);
     }
-  }
-  else if (!queue->queue_normal_priority.empty()) {
-    work_reference = queue->queue_normal_priority.front();
-    queue->queue_normal_priority.pop_front();
-
-    if (queue->queue_normal_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
-  }
-  else if (!queue->queue_low_priority.empty()) {
-    work_reference = queue->queue_low_priority.front();
-    queue->queue_low_priority.pop_front();
-
-    if (queue->queue_low_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
+    /* Don't pop more than one work. */
+    break;
   }
 
   pthread_mutex_unlock(&queue->mutex);
@@ -787,29 +778,20 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
   }
 
   /* if we have something, pop it */
-  if (!queue->queue_high_priority.empty()) {
-    work_reference = queue->queue_high_priority.front();
-    queue->queue_high_priority.pop_front();
+  for (std::deque<ThreadQueueWork> *sub_queue :
+       {&queue->queue_high_priority, &queue->queue_normal_priority, &queue->queue_low_priority})
+  {
+    if (sub_queue->empty()) {
+      continue;
+    }
+    work_reference = sub_queue->front();
+    sub_queue->pop_front();
 
-    if (queue->queue_high_priority.empty()) {
+    if (sub_queue->empty()) {
       pthread_cond_broadcast(&queue->finish_cond);
     }
-  }
-  else if (!queue->queue_normal_priority.empty()) {
-    work_reference = queue->queue_normal_priority.front();
-    queue->queue_normal_priority.pop_front();
-
-    if (queue->queue_normal_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
-  }
-  else if (!queue->queue_low_priority.empty()) {
-    work_reference = queue->queue_low_priority.front();
-    queue->queue_low_priority.pop_front();
-
-    if (queue->queue_low_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
+    /* Don't pop more than one work. */
+    break;
   }
 
   pthread_mutex_unlock(&queue->mutex);
