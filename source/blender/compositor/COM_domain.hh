@@ -24,7 +24,7 @@ enum class Interpolation : uint8_t {
 };
 
 /* Possible boundary modes when computing samples in the domain's exterior. */
-enum class BoundaryMode : uint8_t {
+enum class ExtensionMode : uint8_t {
   /* Pads the domain exterior with zero values. */
   Zero,
   /* Pads the domain exterior with the color value at the border. */
@@ -46,9 +46,9 @@ struct RealizationOptions {
    * value at those arbitrary locations. */
   Interpolation interpolation = Interpolation::Bilinear;
   /* The extend mode for the x-axis. Defaults to Zero padding. */
-  BoundaryMode extend_mode_x = BoundaryMode::Zero;
+  ExtensionMode extension_x = ExtensionMode::Zero;
   /* The extend mode for the y-axis. Defaults to Zero padding. */
-  BoundaryMode extend_mode_y = BoundaryMode::Zero;
+  ExtensionMode extension_y = ExtensionMode::Zero;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -175,7 +175,7 @@ class Domain {
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
 
-math::InterpWrapMode map_boundary_mode_to_wrap_mode(const BoundaryMode &mode);
-GPUSamplerExtendMode map_boundary_mode_to_extend_mode(const BoundaryMode &mode);
+math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode);
+GPUSamplerExtendMode map_extension_mode_to_extend_mode(const ExtensionMode &mode);
 
 }  // namespace blender::compositor

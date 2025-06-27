@@ -1158,7 +1158,25 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             continue;
           }
           NodeTranslateData *data = MEM_callocN<NodeTranslateData>(__func__);
-          data->wrap_axis = CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE;
+          /* Map old wrap axis to new extension mode. */
+          switch (data->wrap_axis) {
+            case CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE:
+              data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+              data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+              break;
+            case CMP_NODE_TRANSLATE_REPEAT_AXIS_X:
+              data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
+              data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+              break;
+            case CMP_NODE_TRANSLATE_REPEAT_AXIS_Y:
+              data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+              data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
+              break;
+            case CMP_NODE_TRANSLATE_REPEAT_AXIS_XY:
+              data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
+              data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
+              break;
+          }
           node->storage = data;
         }
       }

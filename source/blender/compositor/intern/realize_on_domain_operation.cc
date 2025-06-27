@@ -100,9 +100,9 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
   GPU_texture_filter_mode(input, use_bilinear);
 
   GPU_texture_extend_mode_x(input,
-                            map_boundary_mode_to_extend_mode(realization_options.extend_mode_x));
+                            map_extension_mode_to_extend_mode(realization_options.extension_x));
   GPU_texture_extend_mode_y(input,
-                            map_boundary_mode_to_extend_mode(realization_options.extend_mode_y));
+                            map_extension_mode_to_extend_mode(realization_options.extension_y));
 
   input.bind_as_texture(shader, "input_tx");
 
@@ -182,8 +182,8 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
 
     float4 sample = input.sample(normalized_coordinates,
                                  realization_options.interpolation,
-                                 realization_options.extend_mode_x,
-                                 realization_options.extend_mode_y);
+                                 realization_options.extension_x,
+                                 realization_options.extension_y);
     output.store_pixel_generic_type(texel, sample);
   });
 }

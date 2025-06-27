@@ -46,30 +46,30 @@ bool operator!=(const Domain &a, const Domain &b)
   return !(a == b);
 }
 
-math::InterpWrapMode map_boundary_mode_to_wrap_mode(const BoundaryMode &mode)
+math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode)
 {
   switch (mode) {
-    case BoundaryMode::Zero:
+    case ExtensionMode::Zero:
       return math::InterpWrapMode::Border;
-    case BoundaryMode::Repeat:
+    case ExtensionMode::Repeat:
       return math::InterpWrapMode::Repeat;
-    case BoundaryMode::Extend:
+    case ExtensionMode::Extend:
       return math::InterpWrapMode::Extend;
   }
   BLI_assert_unreachable();
   return math::InterpWrapMode::Border;
 }
 
-GPUSamplerExtendMode map_boundary_mode_to_extend_mode(const BoundaryMode &mode)
+GPUSamplerExtendMode map_extension_mode_to_extend_mode(const ExtensionMode &mode)
 {
   switch (mode) {
-    case blender::compositor::BoundaryMode::Zero:
+    case blender::compositor::ExtensionMode::Zero:
       return GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER;
 
-    case blender::compositor::BoundaryMode::Extend:
+    case blender::compositor::ExtensionMode::Extend:
       return GPU_SAMPLER_EXTEND_MODE_EXTEND;
 
-    case blender::compositor::BoundaryMode::Repeat:
+    case blender::compositor::ExtensionMode::Repeat:
       return GPU_SAMPLER_EXTEND_MODE_REPEAT;
   }
 

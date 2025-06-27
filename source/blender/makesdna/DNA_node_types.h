@@ -1569,8 +1569,8 @@ typedef struct NodeTrackPosData {
 typedef struct NodeTranslateData {
   char wrap_axis DNA_DEPRECATED;
   char relative DNA_DEPRECATED;
-  short border_condition_x;
-  short border_condition_y;
+  short extension_x;
+  short extension_y;
   short interpolation;
 } NodeTranslateData;
 
@@ -2888,10 +2888,10 @@ typedef enum CMPNodeTranslateRepeatAxis {
   CMP_NODE_TRANSLATE_REPEAT_AXIS_XY = 3,
 } CMPNodeTranslateRepeatAxis;
 
-typedef enum CMPNodeBorderCondition {
-  CMP_NODE_BORDER_CONDITION_ZERO = 0,
-  CMP_NODE_BORDER_CONDITION_EXTEND = 1,
-  CMP_NODE_BORDER_CONDITION_REPEAT = 2,
+typedef enum CMPExtensionMode {
+  CMP_NODE_EXTENSION_MODE_ZERO = 0,
+  CMP_NODE_EXTENSION_MODE_EXTEND = 1,
+  CMP_NODE_EXTENSION_MODE_REPEAT = 2,
 } CMPNodeBorderCondition;
 
 #define CMP_NODE_MASK_MBLUR_SAMPLES_MAX 64

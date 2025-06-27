@@ -51,8 +51,8 @@ static void node_composit_init_translate(bNodeTree * /*ntree*/, bNode *node)
 static void node_composit_buts_translate(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "border_condition_x", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  layout->prop(ptr, "border_condition_y", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -73,8 +73,8 @@ class TranslateOperation : public NodeOperation {
     output.share_data(input);
     output.transform(math::from_location<float3x3>(translation));
     output.get_realization_options().interpolation = this->get_interpolation();
-    output.get_realization_options().extend_mode_x = this->get_extend_mode_x();
-    output.get_realization_options().extend_mode_y = this->get_extend_mode_y();
+    output.get_realization_options().extension_x = this->get_extend_mode_x();
+    output.get_realization_options().extension_y = this->get_extend_mode_y();
   }
 
   Interpolation get_interpolation()
@@ -92,34 +92,34 @@ class TranslateOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  BoundaryMode get_extend_mode_x()
+  ExtensionMode get_extend_mode_x()
   {
-    switch (node_storage(bnode()).border_condition_x) {
-      case CMP_NODE_BORDER_CONDITION_ZERO:
-        return BoundaryMode::Zero;
-      case CMP_NODE_BORDER_CONDITION_REPEAT:
-        return BoundaryMode::Repeat;
-      case CMP_NODE_BORDER_CONDITION_EXTEND:
-        return BoundaryMode::Extend;
+    switch (node_storage(bnode()).extension_x) {
+      case CMP_NODE_EXTENSION_MODE_ZERO:
+        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
     }
 
     BLI_assert_unreachable();
-    return BoundaryMode::Zero;
+    return ExtensionMode::Zero;
   }
 
-  BoundaryMode get_extend_mode_y()
+  ExtensionMode get_extend_mode_y()
   {
-    switch (node_storage(bnode()).border_condition_y) {
-      case CMP_NODE_BORDER_CONDITION_ZERO:
-        return BoundaryMode::Zero;
-      case CMP_NODE_BORDER_CONDITION_REPEAT:
-        return BoundaryMode::Repeat;
-      case CMP_NODE_BORDER_CONDITION_EXTEND:
-        return BoundaryMode::Extend;
+    switch (node_storage(bnode()).extension_y) {
+      case CMP_NODE_EXTENSION_MODE_ZERO:
+        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
     }
 
     BLI_assert_unreachable();
-    return BoundaryMode::Zero;
+    return ExtensionMode::Zero;
   }
 };
 

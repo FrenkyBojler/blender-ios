@@ -570,18 +570,18 @@ const EnumPropertyItem rna_enum_geometry_nodes_linear_gizmo_draw_style_items[] =
 };
 
 #ifndef RNA_RUNTIME
-static const EnumPropertyItem cmp_border_condition_items[] = {
-    {CMP_NODE_BORDER_CONDITION_ZERO,
+static const EnumPropertyItem cmp_extension_mode_items[] = {
+    {CMP_NODE_EXTENSION_MODE_ZERO,
      "ZERO",
      0,
      "Zero",
      "Areas outside of the image filled with zero"},
-    {CMP_NODE_BORDER_CONDITION_EXTEND,
+    {CMP_NODE_EXTENSION_MODE_EXTEND,
      "EXTEND",
      0,
      "Extend",
      "Areas outside of the image are filled with the closest boundary pixel in the image"},
-    {CMP_NODE_BORDER_CONDITION_REPEAT,
+    {CMP_NODE_EXTENSION_MODE_REPEAT,
      "REPEAT",
      0,
      "Repeat",
@@ -7481,16 +7481,18 @@ static void def_cmp_translate(BlenderRNA * /*brna*/, StructRNA *srna)
   RNA_def_property_ui_text(prop, "", "");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "border_condition_x", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "border_condition_x");
-  RNA_def_property_enum_items(prop, cmp_border_condition_items);
-  RNA_def_property_ui_text(prop, "X", "The border condition applied to the X axis.");
+  prop = RNA_def_property(srna, "extension_x", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "extension_x");
+  RNA_def_property_enum_items(prop, cmp_extension_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Extension mode (x-axis)", "The extension mode applied to the X axis.");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "border_condition_y", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_sdna(prop, nullptr, "border_condition_y");
-  RNA_def_property_enum_items(prop, cmp_border_condition_items);
-  RNA_def_property_ui_text(prop, "Y", "The border condition applied to the Y axis.");
+  prop = RNA_def_property(srna, "extension_y", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "extension_y");
+  RNA_def_property_enum_items(prop, cmp_extension_mode_items);
+  RNA_def_property_ui_text(
+      prop, "Extension mode (y-axis)", "The extension mode applied to the Y axis.");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 

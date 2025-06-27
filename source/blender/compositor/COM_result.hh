@@ -395,8 +395,8 @@ class Result {
 
   float4 sample(const float2 &coordinates,
                 const Interpolation &interpolation,
-                const BoundaryMode &extend_mode_x,
-                const BoundaryMode &extend_mode_y) const;
+                const ExtensionMode &extend_mode_x,
+                const ExtensionMode &extend_mode_y) const;
 
   /* Equivalent to the GLSL texture() function with nearest interpolation and zero boundary
    * condition. The coordinates are thus expected to have half-pixels offsets. A float4 is always
@@ -596,8 +596,8 @@ BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
 
 BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                         const Interpolation &interpolation,
-                                        const BoundaryMode &extend_mode_x,
-                                        const BoundaryMode &extend_mode_y) const
+                                        const ExtensionMode &mode_x,
+                                        const ExtensionMode &mode_y) const
 {
   float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
   if (is_single_value_) {
@@ -611,10 +611,9 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                        (coordinates * float2(size)) - 0.5f;
 
   const float *buffer = static_cast<const float *>(this->cpu_data().data());
-  const math::InterpWrapMode mode_x = map_boundary_mode_to_wrap_mode(extend_mode_x);
-  const math::InterpWrapMode mode_y = map_boundary_mode_to_wrap_mode(extend_mode_y);
+  const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(mode_x);
+  const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(mode_y);
 
-  /* Map border condition to wrap mode. */
   switch (interpolation) {
     case Interpolation::Nearest:
       math::interpolate_nearest_wrapmode_fl(buffer,
@@ -624,8 +623,8 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                             this->channels_count(),
                                             texel_coordinates.x,
                                             texel_coordinates.y,
-                                            mode_x,
-                                            mode_y);
+                                            extension_mode_x,
+                                            extension_mode_y);
       break;
     case Interpolation::Bilinear:
       math::interpolate_bilinear_wrapmode_fl(buffer,
@@ -635,8 +634,8 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                              this->channels_count(),
                                              texel_coordinates.x,
                                              texel_coordinates.y,
-                                             mode_x,
-                                             mode_y);
+                                             extension_mode_x,
+                                             extension_mode_y);
       break;
     /* The anisotropic sampling requires separate handling with EWA. */
     case Interpolation::Anisotropic:
@@ -650,8 +649,8 @@ BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
                                                   this->channels_count(),
                                                   texel_coordinates.x,
                                                   texel_coordinates.y,
-                                                  mode_x,
-                                                  mode_y);
+                                                  extension_mode_x,
+                                                  extension_mode_y);
       break;
   }
 
