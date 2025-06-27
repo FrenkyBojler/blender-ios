@@ -1,3 +1,4 @@
 Referenced by issue #140574, Manifold boolean leaves redundant 2-edged vertices
 Referenced by issue #141026, Degenerate Dissolve crashes Blender
 Referenced by commit 08015e7401480c9ca700b3821706e74461a64623, Fix #141026: Degenerate Dissolve crashes Blender.
+Referenced by commit a20f36737958e5857aafaad84f7fe8590427cd08, Fix #141026: Degenerate Dissolve crashes Blender.
