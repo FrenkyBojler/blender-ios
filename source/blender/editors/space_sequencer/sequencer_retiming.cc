@@ -90,7 +90,7 @@ static wmOperatorStatus sequencer_retiming_data_show_exec(bContext *C, wmOperato
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *strip_act = seq::select_active_get(scene);
+  Strip *strip_act = seq::select_get_active_from_context(C);
 
   if (strip_act == nullptr) {
     return OPERATOR_CANCELLED;
