@@ -871,18 +871,6 @@ void node_tree_blend_write(BlendWriter *writer, bNodeTree *ntree)
       node_blend_write_storage(writer, ntree, node);
     }
 
-    if (node->type_legacy == CMP_NODE_OUTPUT_FILE) {
-      /* Inputs have their own storage data. */
-      NodeImageMultiFile *nimf = (NodeImageMultiFile *)node->storage;
-      BKE_image_format_blend_write(writer, &nimf->format);
-
-      LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
-        NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
-            sock->storage);
-        BLO_write_struct(writer, NodeImageMultiFileSocket, sockdata);
-        BKE_image_format_blend_write(writer, &sockdata->format);
-      }
-    }
     if (ELEM(node->type_legacy, CMP_NODE_IMAGE, CMP_NODE_R_LAYERS)) {
       /* Write extra socket info. */
       LISTBASE_FOREACH (bNodeSocket *, sock, &node->outputs) {
@@ -1361,14 +1349,6 @@ static void direct_link_node_socket_storage(BlendDataReader *reader,
    * 3bae60d0c9 and 9d91bc38d3). So no need to use the same versioning work-around for old files as
    * done for default values. */
   switch (node->type_legacy) {
-    case CMP_NODE_OUTPUT_FILE:
-      BLO_read_struct(reader, NodeImageMultiFileSocket, &sock->storage);
-      if (sock->storage) {
-        NodeImageMultiFileSocket *sockdata = static_cast<NodeImageMultiFileSocket *>(
-            sock->storage);
-        BKE_image_format_blend_read_data(reader, &sockdata->format);
-      }
-      break;
     case CMP_NODE_IMAGE:
     case CMP_NODE_R_LAYERS:
       BLO_read_struct(reader, NodeImageLayer, &sock->storage);
@@ -1498,11 +1478,6 @@ static void node_blend_read_data_storage(BlendDataReader *reader, bNodeTree *ntr
     case TEX_NODE_IMAGE: {
       ImageUser *iuser = static_cast<ImageUser *>(node->storage);
       iuser->scene = nullptr;
-      break;
-    }
-    case CMP_NODE_OUTPUT_FILE: {
-      NodeImageMultiFile *nimf = static_cast<NodeImageMultiFile *>(node->storage);
-      BKE_image_format_blend_read_data(reader, &nimf->format);
       break;
     }
     default:
@@ -1823,6 +1798,15 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
     ntype->initfunc(ntree, node);
   }
 
+  if (ntype->initfunc_api) {
+    PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
+
+    /* XXX WARNING: context can be nullptr in case nodes are added in do_versions.
+     * Delayed init is not supported for nodes with context-based `initfunc_api` at the moment. */
+    BLI_assert(C != nullptr);
+    ntype->initfunc_api(C, &ptr);
+  }
+
   if (ntree->typeinfo && ntree->typeinfo->node_add_init) {
     ntree->typeinfo->node_add_init(ntree, node);
   }
@@ -1833,15 +1817,6 @@ static void node_init(const bContext *C, bNodeTree *ntree, bNode *node)
 
   if (node->id) {
     id_us_plus(node->id);
-  }
-
-  if (ntype->initfunc_api) {
-    PointerRNA ptr = RNA_pointer_create_discrete(&ntree->id, &RNA_Node, node);
-
-    /* XXX WARNING: context can be nullptr in case nodes are added in do_versions.
-     * Delayed init is not supported for nodes with context-based `initfunc_api` at the moment. */
-    BLI_assert(C != nullptr);
-    ntype->initfunc_api(C, &ptr);
   }
 
   node->flag |= NODE_INIT;

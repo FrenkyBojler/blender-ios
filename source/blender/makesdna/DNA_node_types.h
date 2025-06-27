@@ -1241,30 +1241,52 @@ typedef struct NodeImageFile {
  * XXX: first struct fields should match #NodeImageFile to ensure forward compatibility.
  */
 typedef struct NodeImageMultiFile {
-  char base_path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
+  char base_path[/*FILE_MAX*/ 1024] DNA_DEPRECATED;
+  ImageFormatData format DNA_DEPRECATED;
   /** XXX old frame rand values from NodeImageFile for forward compatibility. */
   int sfra DNA_DEPRECATED, efra DNA_DEPRECATED;
   /** Selected input in details view list. */
-  int active_input;
-  char save_as_render;
+  int active_input DNA_DEPRECATED;
+  char save_as_render DNA_DEPRECATED;
   char _pad[3];
 } NodeImageMultiFile;
+
 typedef struct NodeImageMultiFileSocket {
   /* single layer file output */
   short use_render_format DNA_DEPRECATED;
   /** Use overall node image format. */
-  short use_node_format;
-  char save_as_render;
+  short use_node_format DNA_DEPRECATED;
+  char save_as_render DNA_DEPRECATED;
   char _pad1[3];
-  char path[/*FILE_MAX*/ 1024];
-  ImageFormatData format;
+  char path[/*FILE_MAX*/ 1024] DNA_DEPRECATED;
+  ImageFormatData format DNA_DEPRECATED;
 
   /* Multi-layer output. */
   /** Subtract 2 because '.' and channel char are appended. */
-  char layer[/*EXR_TOT_MAXNAME - 2*/ 62];
+  char layer[/*EXR_TOT_MAXNAME - 2*/ 62] DNA_DEPRECATED;
   char _pad2[2];
 } NodeImageMultiFileSocket;
+
+typedef struct NodeCompositorFileOutputItem {
+  char *name;
+  int identifier;
+  int16_t socket_type;
+
+  char override_node_format;
+  char save_as_render;
+  ImageFormatData format;
+} NodeCompositorFileOutputItem;
+
+typedef struct NodeCompositorFileOutput {
+  char base_path[/*FILE_MAX*/ 1024];
+  ImageFormatData format;
+  NodeCompositorFileOutputItem *items;
+  int items_count;
+  int next_identifier;
+  int active_index;
+  char save_as_render;
+  char _pad[3];
+} NodeCompositorFileOutput;
 
 typedef struct NodeChroma {
   float t1 DNA_DEPRECATED;
