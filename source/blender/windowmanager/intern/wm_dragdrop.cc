@@ -374,9 +374,8 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
   const blender::Vector<PointerRNA> files = CTX_data_collection_get(C, "selected_files");
   for (const PointerRNA &file_ptr : files) {
     const FileDirEntry *file = static_cast<const FileDirEntry *>(file_ptr.data);
-    char filepath[FILE_MAX];
-    BLI_path_join(filepath, sizeof(filepath), sfile->params->dir, file->relpath);
-    BLI_path_normalize(filepath);
+    char filepath[FILE_MAX_LIBEXTRA];
+    ED_filelist_file_get_full_path(sfile->files, file, filepath);
     paths.append(allocator.copy_string(filepath).c_str());
   }
   if (paths.is_empty()) {

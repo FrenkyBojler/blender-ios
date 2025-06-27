@@ -13,6 +13,7 @@
 struct ARegion;
 struct FileAssetSelectParams;
 struct FileDirEntry;
+struct FileList;
 struct FileSelectParams;
 struct FSMenu;
 struct FSMenuEntry;
@@ -208,6 +209,9 @@ void ED_fileselect_ensure_default_filepath(bContext *C, wmOperator *op, const ch
 int ED_path_extension_type(const char *path);
 int ED_file_extension_icon(const char *path);
 int ED_file_icon(const FileDirEntry *file);
+void ED_filelist_file_get_full_path(const FileList *filelist,
+                                    const FileDirEntry *file,
+                                    char r_filepath[/*FILE_MAX_LIBEXTRA*/ 1282]);
 
 void ED_file_read_bookmarks();
 
