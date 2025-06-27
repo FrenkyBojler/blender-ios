@@ -157,6 +157,7 @@ set(SRC
   intern/image.cc
   intern/image_format.cc
   intern/image_gen.cc
+  intern/image_gpu_streaming.cc
   intern/image_gpu.cc
   intern/image_partial_update.cc
   intern/image_save.cc

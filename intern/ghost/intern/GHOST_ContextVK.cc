@@ -393,6 +393,13 @@ class GHOST_DeviceVK {
       feature_struct_ptr.push_back(&fragment_shader_barycentric);
     }
 
+    /* Image view min lod */
+    VkPhysicalDeviceImageViewMinLodFeaturesEXT image_view_min_lod = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_IMAGE_VIEW_MIN_LOD_FEATURES_EXT, nullptr, VK_TRUE};
+    if (extension_enabled(VK_EXT_IMAGE_VIEW_MIN_LOD_EXTENSION_NAME)) {
+      feature_struct_ptr.push_back(&image_view_min_lod);
+    }
+
     /* Link all registered feature structs. */
     for (int i = 1; i < feature_struct_ptr.size(); i++) {
       ((VkBaseInStructure *)(feature_struct_ptr[i - 1]))->pNext =
@@ -1231,6 +1238,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #else
   required_device_extensions.push_back(VK_EXT_PROVOKING_VERTEX_EXTENSION_NAME);
 #endif
+  required_device_extensions.push_back(VK_EXT_IMAGE_VIEW_MIN_LOD_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME);
   optional_device_extensions.push_back(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
@@ -1243,7 +1251,6 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 
   VkInstance instance = VK_NULL_HANDLE;
   if (!vulkan_device.has_value()) {
-
     VkApplicationInfo app_info = {};
     app_info.sType = VK_STRUCTURE_TYPE_APPLICATION_INFO;
     app_info.pApplicationName = "Blender";

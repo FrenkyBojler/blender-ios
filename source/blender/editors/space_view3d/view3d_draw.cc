@@ -1648,6 +1648,31 @@ static void view3d_draw_view(const bContext *C, ARegion *region)
                             nullptr,
                             nullptr);
 
+  /* TODO(jbakker): Move this to blend file loading/image creation. This is just added for
+   * prototyping texture streaming. */
+  {
+    Main *main = CTX_data_main(C);
+    blender::Map<uint64_t, Image *> index_to_image;
+    LISTBASE_FOREACH (Image *, image, &main->images) {
+      if (image->type == IMA_TYPE_IMAGE && image->runtime->gpu_info_index != UINT64_MAX) {
+        index_to_image.add_new(image->runtime->gpu_info_index, image);
+      }
+    }
+    uint64_t next = 0;
+    LISTBASE_FOREACH (Image *, image, &main->images) {
+      if (image->type == IMA_TYPE_IMAGE && image->runtime->gpu_info_index == UINT64_MAX) {
+        for (uint64_t index = next;; index++) {
+          if (!index_to_image.contains(index)) {
+            index_to_image.add_new(index, image);
+            image->runtime->gpu_info_index = index;
+            next = index;
+            break;
+          }
+        }
+      }
+    }
+  }
+
   /* Only 100% compliant on new spec goes below */
   DRW_draw_view(C);
 }

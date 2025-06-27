@@ -330,6 +330,7 @@ void ForwardPipeline::sync()
       opaque_ps_.bind_resources(inst_.hiz_buffer.front);
       opaque_ps_.bind_resources(inst_.volume_probes);
       opaque_ps_.bind_resources(inst_.sphere_probes);
+      opaque_ps_.bind_resources(inst_.materials);
     }
 
     opaque_single_sided_ps_ = &opaque_ps_.sub("SingleSided");

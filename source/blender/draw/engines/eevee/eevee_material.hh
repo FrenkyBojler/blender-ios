@@ -378,6 +378,9 @@ class MaterialModule {
 
   Vector<GPUMaterialTexture *> texture_loading_queue_;
 
+  /* Desired */
+  SwapChain<TextureLodBuf, 5> texture_lod_buf_;
+
  public:
   MaterialModule(Instance &inst);
   ~MaterialModule();
@@ -403,6 +406,11 @@ class MaterialModule {
   ShaderGroups default_materials_wait_ready()
   {
     return default_materials_load(true);
+  }
+
+  template<typename PassType> void bind_resources(PassType &pass)
+  {
+    pass.bind_ssbo(MATERIAL_TEXTURE_LOD_SLOT, &texture_lod_buf_.current());
   }
 
  private:

@@ -2280,5 +2280,6 @@ using VelocityIndexBuf = draw::StorageArrayBuffer<VelocityIndex, 16>;
 using VelocityObjectBuf = draw::StorageArrayBuffer<float4x4, 16>;
 using CryptomatteObjectBuf = draw::StorageArrayBuffer<float2, 16>;
 using ClipPlaneBuf = draw::UniformBuffer<ClipPlaneData>;
+using TextureLodBuf = draw::StorageArrayBuffer<uint, 1024>;
 }  // namespace blender::eevee
 #endif

@@ -351,13 +351,28 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser)
   }
 }
 
+/**
+ * Can the given image be used for texture streaming.
+ *
+ * Not supported are:
+ *
+ * - Movies, sequences
+ * - UDIM/Tiled images
+ * - Preview/results
+ */
+static bool image_supports_texture_streaming(Image &image)
+{
+  return image.type == IMA_TYPE_IMAGE && image.source == IMA_SRC_FILE;
+}
+
 static ImageGPUTextures image_get_gpu_texture(Image *ima,
                                               ImageUser *iuser,
                                               const bool use_viewers,
                                               const bool use_tile_mapping,
+                                              std::optional<int> mipmap_level,
                                               bool try_only)
 {
-  ImageGPUTextures result = {};
+  ImageGPUTextures result = {nullptr, nullptr, -1};
 
   if (ima == nullptr) {
     return result;
@@ -410,13 +425,23 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     current_view = 0;
   }
 
-  result.texture = get_image_gpu_texture_ptr(ima, textarget, current_view);
-  if (textarget == TEXTARGET_2D_ARRAY) {
-    result.tile_mapping = get_image_gpu_texture_ptr(ima, TEXTARGET_TILE_MAPPING, current_view);
+  const bool use_texture_streaming = image_supports_texture_streaming(*ima) &&
+                                     mipmap_level.has_value();
+  if (use_texture_streaming) {
+    result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try();
+    /* Check if the current cached mipmap texture contains the requested mipmap level. */
+    if (*result.texture && result.loaded_mipmap_level == mipmap_level.value()) {
+      return result;
+    }
   }
-
-  if (*result.texture) {
-    return result;
+  else {
+    result.texture = get_image_gpu_texture_ptr(ima, textarget, current_view);
+    if (textarget == TEXTARGET_2D_ARRAY) {
+      result.tile_mapping = get_image_gpu_texture_ptr(ima, TEXTARGET_TILE_MAPPING, current_view);
+    }
+    if (*result.texture) {
+      return result;
+    }
   }
 
   if (try_only) {
@@ -452,6 +477,13 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     *result.texture = gpu_texture_create_tile_array(ima, ibuf);
     *result.tile_mapping = gpu_texture_create_tile_mapping(ima, iuser ? iuser->multiview_eye : 0);
   }
+  else if (use_texture_streaming) {
+    blender::bke::ImageMipmapCache &mipmap_cache = ima->runtime->mipmap_cache;
+    if (mipmap_cache.is_empty()) {
+      mipmap_cache.update_mipmap_cache(*ibuf);
+    }
+    result = mipmap_cache.gpu_mipmap_texture_get(mipmap_level.value());
+  }
   else {
     /* Single image texture. */
     const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
@@ -485,26 +517,28 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
 
 GPUTexture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser)
 {
-  return *image_get_gpu_texture(image, iuser, false, false, false).texture;
+  return *image_get_gpu_texture(image, iuser, false, false, std::nullopt, false).texture;
 }
 
 GPUTexture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser)
 {
-  return *image_get_gpu_texture(image, iuser, true, false, false).texture;
+  return *image_get_gpu_texture(image, iuser, true, false, std::nullopt, false).texture;
 }
 
 ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
                                                     ImageUser *iuser,
-                                                    const bool use_tile_mapping)
+                                                    const bool use_tile_mapping,
+                                                    std::optional<int> mipmap_level)
 {
-  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, false);
+  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, mipmap_level, false);
 }
 
 ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
                                                         ImageUser *iuser,
-                                                        const bool use_tile_mapping)
+                                                        const bool use_tile_mapping,
+                                                        std::optional<int> mipmap_level)
 {
-  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, true);
+  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, mipmap_level, true);
 }
 
 /** \} */

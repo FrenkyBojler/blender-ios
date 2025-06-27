@@ -7,8 +7,11 @@
  * \ingroup bke
  */
 
+#include "BLI_array.hh"
 #include "BLI_compiler_attrs.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_mutex.hh"
+#include "BLI_vector.hh"
 
 #include <cstdint>
 #include <optional>
@@ -39,7 +42,44 @@ struct StampData;
 #define IMA_MAX_SPACE 64
 #define IMA_UDIM_MAX 2000
 
+struct ImageGPUTextures {
+  GPUTexture **texture;
+  GPUTexture **tile_mapping;
+  int loaded_mipmap_level;
+};
+
 namespace blender::bke {
+struct ImageMipmapCache {
+  ImageMipmapCache();
+  ~ImageMipmapCache();
+
+  void update_mipmap_cache(const ImBuf &imbuf);
+
+  ImageGPUTextures gpu_mipmap_texture_get_try();
+  ImageGPUTextures gpu_mipmap_texture_get(int mipmap_level);
+
+  /** Check if the current mipmap texture 'covers' the provided mipmap_level. */
+  bool contains_mipmap(int mipmap_level) const;
+  bool is_empty() const
+  {
+    return bytes_all_mips_ == 0;
+  }
+
+ private:
+  Array<uint8_t> data_;
+  int64_t bytes_all_mips_;
+  Vector<int64_t> offsets_per_mipmap_;
+  Vector<int64_t> bytes_per_mipmap_;
+  Vector<uint2> resolution_per_mipmap_;
+  GPUTexture *last_texture_ = nullptr;
+  int last_texture_mipmap_level_;
+
+  void clear();
+
+  void init_resolution_size_offset_for_each_mipmap_level(uint2 mipmap0_resolution,
+                                                         int64_t bytes_per_pixel);
+  void update_mipmap(int mipmap_level, const ImBuf &imbuf);
+};
 
 struct ImageRuntime {
   /* Mutex used to guarantee thread-safe access to the cached ImBuf of the corresponding image ID.
@@ -57,6 +97,19 @@ struct ImageRuntime {
   /* Compositor viewer might be translated, and that translation will be stored in this runtime
    * vector by the compositor so that the editor draw code can draw the image translated. */
   float backdrop_offset[2] = {};
+
+  /**
+   * Unique index for syncing data between CPU and GPU.
+   *
+   * Used during texture streaming to communicate back to the CPU the first needed mipmap level.
+   *
+   * The index is given during file loading (index of the image inside the data) or when creating a
+   * new Image datablock (first unused index). For now this has been hacked into
+   * `view3d_draw_view`.
+   */
+  uint64_t gpu_info_index = UINT64_MAX;
+
+  ImageMipmapCache mipmap_cache;
 };
 
 }  // namespace blender::bke
@@ -603,19 +656,19 @@ GPUTexture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser);
  * Like BKE_image_get_gpu_texture, but can also return array and tile mapping texture for UDIM
  * tiles as used in material shaders.
  */
-struct ImageGPUTextures {
-  GPUTexture **texture;
-  GPUTexture **tile_mapping;
-};
 
-ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
-                                                    ImageUser *iuser,
-                                                    const bool use_tile_mapping);
+ImageGPUTextures BKE_image_get_gpu_material_texture(
+    Image *image,
+    ImageUser *iuser,
+    const bool use_tile_mapping,
+    std::optional<int> mipmap_level = std::nullopt);
 
 /* Same as BKE_image_get_gpu_material_texture but will not load the texture if it isn't already. */
-ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
-                                                        ImageUser *iuser,
-                                                        const bool use_tile_mapping);
+ImageGPUTextures BKE_image_get_gpu_material_texture_try(
+    Image *image,
+    ImageUser *iuser,
+    const bool use_tile_mapping,
+    std::optional<int> mipmap_level = std::nullopt);
 
 /**
  * Is the alpha of the `GPUTexture` for a given image/ibuf premultiplied.

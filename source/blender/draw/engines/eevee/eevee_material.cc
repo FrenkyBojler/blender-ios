@@ -147,6 +147,14 @@ MaterialModule::MaterialModule(Instance &inst) : inst_(inst)
 
     bke::node_set_active(*ntree, *output);
   }
+
+  {
+    for (int i : IndexRange(texture_lod_buf_.size())) {
+      UNUSED_VARS(i);
+      texture_lod_buf_.current().clear_to_zero();
+      texture_lod_buf_.swap();
+    }
+  }
 }
 
 MaterialModule::~MaterialModule()
@@ -173,6 +181,12 @@ void MaterialModule::begin_sync()
   texture_loading_queue_.clear();
   material_map_.clear();
   shader_map_.clear();
+
+  /* Trigger read-back for the last used texture_lod buf. It is one frame to late, but should be
+   * fine for prorotyping. */
+  texture_lod_buf_.current().async_flush_to_host();
+  texture_lod_buf_.swap();
+  texture_lod_buf_.current().read();
 }
 
 void MaterialModule::queue_texture_loading(GPUMaterial *material)
@@ -182,9 +196,11 @@ void MaterialModule::queue_texture_loading(GPUMaterial *material)
     if (tex->ima) {
       const bool use_tile_mapping = tex->tiled_mapping_name[0];
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
+      ::Image &image = *tex->ima;
+      int requested_mipmap_level = texture_lod_buf_.current()[image.runtime->gpu_info_index];
       ImageGPUTextures gputex = BKE_image_get_gpu_material_texture_try(
-          tex->ima, iuser, use_tile_mapping);
-      if (*gputex.texture == nullptr) {
+          &image, iuser, use_tile_mapping, requested_mipmap_level);
+      if (*gputex.texture == nullptr || requested_mipmap_level != gputex.loaded_mipmap_level) {
         texture_loading_queue_.append(tex);
       }
     }
@@ -193,6 +209,7 @@ void MaterialModule::queue_texture_loading(GPUMaterial *material)
 
 void MaterialModule::end_sync()
 {
+  texture_lod_buf_.current().clear_to_zero();
   if (texture_loading_queue_.is_empty()) {
     return;
   }
@@ -220,12 +237,14 @@ void MaterialModule::end_sync()
    * is not easily parallelized. */
   for (GPUMaterialTexture *tex : texture_loading_queue_) {
     BLI_assert(tex->ima);
-    GPU_debug_group_begin(tex->ima->id.name);
+    ::Image &image = *tex->ima;
+    GPU_debug_group_begin(image.id.name);
 
     const bool use_tile_mapping = tex->tiled_mapping_name[0];
+    const int requested_mipmap_level = texture_lod_buf_.current()[image.runtime->gpu_info_index];
     ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
     ImageGPUTextures gputex = BKE_image_get_gpu_material_texture(
-        tex->ima, iuser, use_tile_mapping);
+        tex->ima, iuser, use_tile_mapping, requested_mipmap_level);
 
     /* Acquire the textures since they were not existing inside `PassBase::material_set()`. */
     inst_.manager->acquire_texture(*gputex.texture);
