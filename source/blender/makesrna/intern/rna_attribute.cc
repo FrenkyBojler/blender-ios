@@ -1183,19 +1183,27 @@ static PointerRNA rna_AttributeGroupGreasePencilDrawing_new(ID *grease_pencil_id
                                                             const int type,
                                                             const int domain)
 {
+  using namespace blender;
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
-  CustomDataLayer *layer = BKE_attribute_new(
-      owner, name, eCustomDataType(type), AttrDomain(domain), reports);
-
-  if (!layer) {
+  const bke::AttributeAccessor accessor = *owner.get_accessor();
+  if (!accessor.domain_supported(AttrDomain(domain))) {
+    BKE_report(reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
     return PointerRNA_NULL;
   }
+  const int domain_size = accessor.domain_size(AttrDomain(domain));
+
+  bke::AttributeStorage &attributes = *owner.get_storage();
+  const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(eCustomDataType(type));
+  bke::Attribute &attr = attributes.add(
+      attributes.unique_name_calc(name),
+      AttrDomain(domain),
+      *bke::custom_data_type_to_attr_type(eCustomDataType(type)),
+      bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
 
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, grease_pencil_id);
 
-  PointerRNA ptr = RNA_pointer_create_discrete(grease_pencil_id, &RNA_Attribute, layer);
-  return ptr;
+  return RNA_pointer_create_discrete(grease_pencil_id, &RNA_Attribute, &attr);
 }
 
 static void rna_AttributeGroupGreasePencilDrawing_remove(ID *grease_pencil_id,
@@ -1203,9 +1211,16 @@ static void rna_AttributeGroupGreasePencilDrawing_remove(ID *grease_pencil_id,
                                                          ReportList *reports,
                                                          PointerRNA *attribute_ptr)
 {
+  using namespace blender;
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
-  const CustomDataLayer *layer = (const CustomDataLayer *)attribute_ptr->data;
-  BKE_attribute_remove(owner, layer->name, reports);
+  const bke::Attribute *attr = static_cast<const bke::Attribute *>(attribute_ptr->data);
+  if (BKE_attribute_required(owner, attr->name())) {
+    BKE_report(reports, RPT_ERROR, "Attribute is required and can't be removed");
+    return;
+  }
+
+  bke::MutableAttributeAccessor accessor = *owner.get_accessor();
+  accessor.remove(attr->name());
   attribute_ptr->invalidate();
 
   DEG_id_tag_update(grease_pencil_id, ID_RECALC_GEOMETRY);
@@ -1214,15 +1229,16 @@ static void rna_AttributeGroupGreasePencilDrawing_remove(ID *grease_pencil_id,
 
 static PointerRNA rna_AttributeGroupGreasePencilDrawing_active_get(PointerRNA *ptr)
 {
+  using namespace blender;
   GreasePencilDrawing *drawing = static_cast<GreasePencilDrawing *>(ptr->data);
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
   const std::optional<blender::StringRef> name = BKE_attributes_active_name_get(owner);
   if (!name) {
     return PointerRNA_NULL;
   }
-  CustomDataLayer *layer = BKE_attribute_search_for_write(
-      owner, *name, CD_MASK_PROP_ALL, ATTR_DOMAIN_MASK_ALL);
-  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_Attribute, layer);
+  bke::AttributeStorage &storage = *owner.get_storage();
+  bke::Attribute *attr = storage.lookup(*name);
+  return RNA_pointer_create_discrete(ptr->owner_id, &RNA_Attribute, attr);
 }
 
 static void rna_AttributeGroupGreasePencilDrawing_active_set(PointerRNA *ptr,
@@ -1268,7 +1284,7 @@ static void rna_AttributeGroupGreasePencilDrawing_active_index_range(
   GreasePencilDrawing *drawing = static_cast<GreasePencilDrawing *>(ptr->data);
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
   *min = -1;
-  *max = BKE_attributes_length(owner, ATTR_DOMAIN_MASK_ALL, CD_MASK_PROP_ALL);
+  *max = owner.get_storage()->count();
 
   *softmin = *min;
   *softmax = *max;
@@ -1278,7 +1294,7 @@ static int rna_AttributeGroupGreasePencilDrawing_domain_size(GreasePencilDrawing
                                                              const int domain)
 {
   AttributeOwner owner = AttributeOwner(AttributeOwnerType::GreasePencilDrawing, drawing);
-  return BKE_attribute_domain_size(owner, domain);
+  return owner.get_accessor()->domain_size(blender::bke::AttrDomain(domain));
 }
 
 #else
