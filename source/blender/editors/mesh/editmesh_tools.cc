@@ -5838,7 +5838,8 @@ static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot)
       "this threshold.",
       0.0f,
       DEG2RADF(180.0f));
-  RNA_def_property_float_default(prop, DEG2RADF(20.0f));
+  RNA_def_property_float_default(prop, DEG2RADF(180.0f));
+  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
 }
 
 static wmOperatorStatus edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
