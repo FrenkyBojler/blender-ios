@@ -335,6 +335,9 @@ static void rna_userdef_language_update(Main *bmain, Scene * /*scene*/, PointerR
     U.transopts |= (USER_TR_IFACE | USER_TR_TOOLTIPS | USER_TR_REPORTS | USER_TR_NEWDATANAME);
   }
 
+  /* The display path may contain translated text. */
+  MEM_SAFE_FREE(bmain->filepath_display);
+
   BKE_callback_exec_null(bmain, BKE_CB_EVT_TRANSLATION_UPDATE_POST);
   USERDEF_TAG_DIRTY;
 }
