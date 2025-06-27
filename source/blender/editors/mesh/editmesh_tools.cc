@@ -1131,7 +1131,7 @@ static int edbm_mark_sharp_exec(bContext *C, wmOperator *op)
       }
 
       bool process_edge = false;
-   
+      
       process_edge = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
                        (symmetry_helper &&
                         symmetry_helper->is_any_mirror_edge_selected(eed, BM_ELEM_SELECT));
