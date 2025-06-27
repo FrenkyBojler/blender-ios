@@ -64,6 +64,7 @@
 #include "BKE_object.hh"
 #include "BKE_pose_backup.h"
 #include "BKE_preview_image.hh"
+#include "BKE_report.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_texture.h"
@@ -1068,7 +1069,14 @@ static void action_preview_render(IconPreview *preview, IconPreviewSize *preview
 /** \name Scene Preview
  * \{ */
 
-static void scene_preview_render(IconPreview *preview, IconPreviewSize *preview_sized)
+static bool scene_preview_is_supported(const Scene *scene)
+{
+  return scene->camera != nullptr;
+}
+
+static void scene_preview_render(IconPreview *preview,
+                                 IconPreviewSize *preview_sized,
+                                 ReportList *reports)
 {
   Depsgraph *depsgraph = preview->depsgraph;
   /* Not all code paths that lead to this function actually provide a depsgraph.
@@ -1080,8 +1088,10 @@ static void scene_preview_render(IconPreview *preview, IconPreviewSize *preview_
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Object *camera_eval = scene_eval->camera;
   if (camera_eval == nullptr) {
-    printf("Scene has no camera, unable to render preview of %s without it.\n",
-           BKE_id_name(*preview->id));
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Scene has no camera, unable to render preview of %s without it.",
+                BKE_id_name(*preview->id));
     return;
   }
 
@@ -1103,7 +1113,11 @@ static void scene_preview_render(IconPreview *preview, IconPreviewSize *preview_
                                                       err_out);
 
   if (err_out[0] != '\0') {
-    printf("Error rendering Scene %s preview: %s\n", preview->id->name + 2, err_out);
+    BKE_reportf(reports,
+                RPT_ERROR,
+                "Error rendering Scene %s preview: %s.",
+                BKE_id_name(*preview->id),
+                err_out);
   }
 
   if (ibuf) {
@@ -1649,7 +1663,7 @@ static void icon_preview_startjob_all_sizes(void *customdata, wmJobWorkerStatus 
           action_preview_render(ip, cur_size);
           continue;
         case ID_SCE:
-          scene_preview_render(ip, cur_size);
+          scene_preview_render(ip, cur_size, worker_status->reports);
           continue;
         default:
           /* Fall through to the same code as the `ip->id == nullptr` case. */
@@ -1971,6 +1985,9 @@ bool ED_preview_id_is_supported(const ID *id, const char **r_disabled_hint)
             collection_preview_contains_geometry_recursive((const Collection *)id),
             RPT_("Collection does not contain object types that can be rendered for the automatic "
                  "preview")};
+      case ID_SCE:
+        return {scene_preview_is_supported((const Scene *)id),
+                RPT_("Scenes without a camera do not support previews")};
       default:
         return {BKE_previewimg_id_get_p(id) != nullptr,
                 RPT_("Data-block type does not support automatic previews")};
