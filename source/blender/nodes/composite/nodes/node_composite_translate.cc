@@ -66,8 +66,8 @@ class TranslateOperation : public NodeOperation {
     output.share_data(input);
     output.transform(math::from_location<float3x3>(translation));
     output.get_realization_options().interpolation = this->get_interpolation();
-    output.get_realization_options().extension_x = this->get_extend_mode_x();
-    output.get_realization_options().extension_y = this->get_extend_mode_y();
+    output.get_realization_options().extension_x = this->get_extension_mode_x();
+    output.get_realization_options().extension_y = this->get_extension_mode_y();
   }
 
   Interpolation get_interpolation()
@@ -85,7 +85,7 @@ class TranslateOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  ExtensionMode get_extend_mode_x()
+  ExtensionMode get_extension_mode_x()
   {
     switch (node_storage(bnode()).extension_x) {
       case CMP_NODE_EXTENSION_MODE_ZERO:
@@ -100,7 +100,7 @@ class TranslateOperation : public NodeOperation {
     return ExtensionMode::Zero;
   }
 
-  ExtensionMode get_extend_mode_y()
+  ExtensionMode get_extension_mode_y()
   {
     switch (node_storage(bnode()).extension_y) {
       case CMP_NODE_EXTENSION_MODE_ZERO:
