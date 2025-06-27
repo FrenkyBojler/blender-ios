@@ -2,3 +2,4 @@ Referenced by issue #135635, 'Ghost' effect in viewport on some type of actions.
 Referenced by issue #138516, Regression: Viewport render doesn't update when render pass is changed
 Referenced by commit ae652e4a098a08875eb129be6f636bf1b0142ef5, Fix #138516: EEVEE: Viewport doesn't update when render pass is changed
 Referenced by issue #139126, Undo in Texture Paint mode does not redraw object
+Referenced by issue #141070, Geometry node preview on/off shortcut fails to reload mesh in viewport.
