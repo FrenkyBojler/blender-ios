@@ -359,7 +359,7 @@ def main():
                                     'invert_vertex_group': True})]),
         SpecMeshTest("ArmatureMultiModifier", "testMonkeyArmatureMultiModifier", "expectedMonkeyArmatureMultiModifier",
                      [MultiModifierSpec(
-                         [ModifierSpec('armature1', 'ARMATURE', 
+                         [ModifierSpec('armature1', 'ARMATURE',
                                        {'object': bpy.data.objects['testArmatureMultiModifier1'],
                                         'use_vertex_groups': True}),
                           ModifierSpec('armature2', 'ARMATURE',
@@ -368,7 +368,7 @@ def main():
                                         'use_multi_modifier': True})])]),
         SpecMeshTest("ArmatureMultiModifierMasked", "testMonkeyArmatureMultiModifierMasked", "expectedMonkeyArmatureMultiModifierMasked",
                      [MultiModifierSpec(
-                         [ModifierSpec('armature1', 'ARMATURE', 
+                         [ModifierSpec('armature1', 'ARMATURE',
                                        {'object': bpy.data.objects['testArmatureMultiModifierMasked1'],
                                         'use_vertex_groups': True,
                                         'vertex_group': "Mask"}),

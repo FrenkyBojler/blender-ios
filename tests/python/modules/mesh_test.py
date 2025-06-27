@@ -532,7 +532,6 @@ class SpecMeshTest(MeshTest):
                 raise ValueError("Expected operation of type {} or {} or {} or {}. Got {}".
                                  format(type(ModifierSpec), type(OperatorSpecEditMode),
                                         type(OperatorSpecObjectMode), type(ParticleSystemSpec), type(operation)))
-        print(f"OBJECT: {evaluated_test_object.name}: modifiers=[{' '.join(md.name for md in evaluated_test_object.modifiers)}]")
 
     def _set_parameters_impl(self, modifier, modifier_parameters, nested_settings_path, modifier_name):
         """
