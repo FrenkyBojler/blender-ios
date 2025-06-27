@@ -818,6 +818,113 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
+static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator * /*op*/)
+{
+  using namespace blender::animrig;
+  bool changed = false;
+
+  Scene *scene = CTX_data_scene(C);
+
+  blender::Vector<PointerRNA> selection;
+  get_selection(C, &selection);
+
+  blender::Vector<std::string> selected_rna_paths;
+
+  for (PointerRNA &id_ptr : selection) {
+    /* get strips rna_path used later to compare if a fcurve belongs to a selected strip*/
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
+      selected_rna_paths.append(*rna_path);
+    }
+  }
+  /* just those in active action... */
+  if ((scene->adt) && (scene->adt->action)) {
+    AnimData *adt = scene->adt;
+    bAction *dna_action = adt->action;
+    FCurve *fcu, *fcn;
+
+    Action &action = dna_action->wrap();
+    if (action.is_action_layered()) {
+      blender::Vector<FCurve *> fcurves_to_delete;
+      foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+        /* check if fcurve belongs to a selected strip */
+        for (const std::string &strip_path : selected_rna_paths) {
+          if (fcurve.rna_path &&
+              std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
+          {
+            fcurves_to_delete.append(&fcurve);
+            break;
+          }
+        }
+      });
+      for (FCurve *fcurve : fcurves_to_delete) {
+        action_fcurve_remove(action, *fcurve);
+        changed = true;
+      }
+    }
+    else {
+      for (fcu = static_cast<FCurve *>(dna_action->curves.first); fcu; fcu = fcn) {
+        fcn = fcu->next;
+        /* delete F-Curve completely */
+        blender::animrig::animdata_fcurve_delete(adt, fcu);
+        DEG_id_tag_update(&scene->id, ID_RECALC_TRANSFORM);
+        changed = true;
+      }
+    }
+  }
+
+  if (!changed) {
+    return OPERATOR_CANCELLED;
+  }
+
+  for (PointerRNA &id_ptr : selection) {
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
+      blender::seq::relations_invalidate_cache(scene, strip);
+    }
+  }
+  /* send updates */
+  WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, nullptr);
+
+  WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+  WM_event_add_notifier(C, NC_ANIMATION, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus clear_anim_vse_invoke(bContext *C,
+                                              wmOperator *op,
+                                              const wmEvent * /*event*/)
+{
+  if (RNA_boolean_get(op->ptr, "confirm")) {
+    return WM_operator_confirm_ex(C,
+                                  op,
+                                  IFACE_("Remove animation from selected objects?"),
+                                  nullptr,
+                                  CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
+                                  ALERT_ICON_NONE,
+                                  false);
+  }
+  return clear_anim_vse_exec(C, op);
+}
+void ANIM_OT_keyframe_clear_vse(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "Remove Animation";
+  ot->description = "Remove all keyframe animation for selected strips";
+  ot->idname = "ANIM_OT_keyframe_clear_vse";
+
+  /* callbacks */
+  ot->invoke = clear_anim_vse_invoke;
+  ot->exec = clear_anim_vse_exec;
+
+  ot->poll = ED_operator_areaactive;
+
+  /* flags */
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+  WM_operator_properties_confirm_or_exec(ot);
+}
+
 static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
 {
   /* don't touch protected F-Curves */
