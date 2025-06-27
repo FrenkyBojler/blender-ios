@@ -49,7 +49,8 @@ const char *GHOST_SystemPathsCocoa::getUserDir(int /* version */, const char *ve
   return GetApplicationSupportDir(versionstr, NSUserDomainMask, tempPath, sizeof(tempPath));
 }
 
-std::optional<std::string> GHOST_SystemPathsCocoa::getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const
+std::optional<std::string> GHOST_SystemPathsCocoa::getUserSpecialDir(
+    GHOST_TUserSpecialDirTypes type) const
 {
   char tempPath[512] = "";
   @autoreleasepool {

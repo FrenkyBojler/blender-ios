@@ -62,7 +62,8 @@ const char *GHOST_SystemPathsWin32::getUserDir(int, const char *versionstr) cons
   return user_dir;
 }
 
-std::optional<std::string> GHOST_SystemPathsWin32::getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const
+std::optional<std::string> GHOST_SystemPathsWin32::getUserSpecialDir(
+    GHOST_TUserSpecialDirTypes type) const
 {
   const char *special_dir = nullptr;
 
