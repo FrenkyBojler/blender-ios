@@ -425,15 +425,6 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
     bm_face_split(bm, VERT_TAG, false);
   }
 
-  if (use_verts) {
-
-    /* Mark all verts that are candidates to be dissolved. */
-    BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
-      BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
-      BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
-    }
-  }
-
   /* Tag certain geometry around the selected edges, for later processing. */
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
 
@@ -459,6 +450,15 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
           BMO_edge_flag_enable(bm, l_iter->e, EDGE_ISGC);
         } while ((l_iter = l_iter->next) != l_first);
       }
+    }
+  }
+
+  if (use_verts) {
+
+    /* Mark all verts that are candidates to be dissolved. */
+    BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
+      BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
+      BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
     }
   }
 
