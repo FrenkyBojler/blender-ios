@@ -23,9 +23,9 @@
      inkscape:deskcolor="#d1d1d1"
      showgrid="true"
      showguides="true"
-     inkscape:zoom="0.32080236"
-     inkscape:cx="481.60494"
-     inkscape:cy="1158.0339"
+     inkscape:zoom="0.64160472"
+     inkscape:cx="564.98961"
+     inkscape:cy="1263.2388"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
      inkscape:window-x="1912"
@@ -101,8 +101,9 @@
        id="path8" />
     <path
        style="color:#000000;fill:#ffffff;-inkscape-stroke:none"
-       d="M 1599.7129,0.40039063 599.91992,0.50390625 601.13281,1000.5723 1599.8809,999.88281 Z m -99.9844,100.01171937 0.1348,799.54101 -798.85158,0.55079 -0.9707,-800.00977 z"
-       id="path9" />
+       d="M 1599.7129,0.40039063 599.91992,0.50390625 599.96387,999.793 l 999.91703,0.0898 z m -99.7896,99.62206937 -0.06,799.93066 -800.02052,-0.0337 0.003,-799.81495 z"
+       id="path9"
+       sodipodi:nodetypes="cccccccccc" />
   </g>
   <g
      id="path2">
@@ -112,17 +113,18 @@
        id="path6" />
     <path
        style="color:#000000;fill:#000000;-inkscape-stroke:none"
-       d="M 999.95898,599.76758 0.07617187,600.50781 -0.43359375,1600.3672 1000.2695,1600.7695 Z m -99.96875,100.07422 0.24805,800.8887 -800.621093,-0.3223 0.408203,-799.97461 z"
-       id="path7" />
+       d="M 999.95898,599.9624 0.07617187,600.11816 0.11745175,1600.3672 999.99398,1600.7695 Z m -99.96875,99.8794 -0.0275,800.0621 -800.345573,0.5043 0.13268,-800.25013 z"
+       id="path7"
+       sodipodi:nodetypes="cccccccccc" />
   </g>
   <path
      style="fill:#000000;fill-opacity:1;stroke-width:100;stroke-dasharray:none"
-     d="m 199.49978,1000.2703 0.72392,400.4474 399.75591,11.9339 z"
+     d="m 199.88943,1000.2703 0.33427,400.0578 399.75591,-0.1452 z"
      id="path1"
      sodipodi:nodetypes="cccc" />
   <path
      style="fill:#ffffff;fill-opacity:1;stroke-width:100;stroke-dasharray:none"
-     d="M 1400.5286,200.0346 H 999.70308 l 400.46352,400.11788 z"
+     d="M 1399.7493,200.0346 H 1000.0927 L 1399.777,599.76283 Z"
      id="path3"
      sodipodi:nodetypes="cccc" />
   <path
