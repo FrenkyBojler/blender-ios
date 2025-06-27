@@ -568,9 +568,7 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_NW_ARROW, datatoc_cursor_pointer_svg, 0.0f, 0.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, 0.0f, 0.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, 0.0f, 0.0f, 1.0f);
-
   wm_add_cursor(WM_CURSOR_TEXT_EDIT, datatoc_cursor_text_edit_svg, 0.5f, 0.5f, 0.7f);
-
   // WM_CURSOR_WAIT
   wm_add_cursor(WM_CURSOR_STOP, datatoc_cursor_stop_svg, 0.5f, 0.5f, 0.9f);
   wm_add_cursor(WM_CURSOR_EDIT, datatoc_cursor_crosshair_svg, 0.5f, 0.5f, 1.0f);
@@ -583,7 +581,7 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_CROSSC, datatoc_cursor_crossc_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_KNIFE, datatoc_cursor_knife_svg, 0.0f, 1.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_BLADE, datatoc_cursor_blade_svg, 0.0f, 0.375f, 1.0f);
-  // WM_CURSOR_VERTEX_LOOP
+  wm_add_cursor(WM_CURSOR_VERTEX_LOOP, datatoc_cursor_vertex_loop_svg, 0.0f, 0.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_PAINT_BRUSH, datatoc_cursor_pencil_svg, 0.0f, 1.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_ERASER, datatoc_cursor_eraser_svg, 0.0f, 1.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_EYEDROPPER, datatoc_cursor_eyedropper_svg, 0.0f, 1.0f, 1.0f);
@@ -603,7 +601,6 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_NS_SCROLL, datatoc_cursor_ns_scroll_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_ZOOM_IN, datatoc_cursor_zoom_in_svg, 0.32f, 0.32f, 1.0f);
   wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, 0.32f, 0.32f, 1.0f);
-  // WM_CURSOR_NONE
   // WM_CURSOR_MUTE
   wm_add_cursor(WM_CURSOR_PICK_AREA, datatoc_cursor_pick_area_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, 0.5f, 0.5f, 1.0f);

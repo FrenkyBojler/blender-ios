@@ -965,6 +965,7 @@ if(WITH_BLENDER)
       cursor_hand_point
       cursor_blade
       cursor_pick_area
+      cursor_vertex_loop
     )
 
     set(SVG_CONTENTS_H)
