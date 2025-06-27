@@ -691,17 +691,6 @@ def export_panel_animation(layout, operator):
         body.prop(operator, "bake_anim_simplify_factor")
 
 
-class IO_FH_fbx(bpy.types.FileHandler):
-    bl_idname = "IO_FH_fbx_py"
-    bl_label = "FBX"
-    bl_export_operator = "export_scene.fbx"
-    bl_file_extensions = ".fbx"
-
-    @classmethod
-    def poll_drop(cls, context):
-        return poll_file_object_drop(context)
-
-
 def menu_func_import(self, context):
     self.layout.operator(ImportFBX.bl_idname, text="FBX (.fbx) (Legacy)")
 
@@ -712,8 +701,7 @@ def menu_func_export(self, context):
 
 classes = (
     ImportFBX,
-    ExportFBX,
-    IO_FH_fbx,
+    ExportFBX
 )
 
 

@@ -219,6 +219,7 @@ void fbx_file_handler_add()
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
   STRNCPY(fh->idname, "IO_FH_fbx");
   STRNCPY(fh->import_operator, "WM_OT_fbx_import");
+  STRNCPY(fh->export_operator, "export_scene.fbx"); /* Use Python add-on for export. */
   STRNCPY(fh->label, "FBX");
   STRNCPY(fh->file_extensions_str, ".fbx");
   fh->poll_drop = poll_file_object_drop;
