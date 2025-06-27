@@ -116,7 +116,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
-        - !<MatrixTransform> {matrix: [3.240437356492008, -1.537130540900055, -0.4985288240756934, 0, -0.9692674982687602, 1.8760136862977046, 0.04155608045879965, 0, 0.05564344638742567, -0.20402597008722723, 1.0572254813610866, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [3.2409699, -1.5373832, -0.4986108, 0, -0.9692436, 1.8759675, 0.0415551, 0, 0.0556301, -0.2039770, 1.0569715, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: Linear DCI-P3 D65
@@ -130,7 +130,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
-        - !<MatrixTransform> {matrix: [2.4931707906211447, -0.9312618034289156, -0.40265811441447685, 0, -0.8295041874112483, 1.7626963982489028, 0.02362511926171275, 0, 0.0358536355853334, -0.07618897561883332, 0.9570928832640357, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [2.4934969, -0.9313836, -0.4027108, 0, -0.8294890, 1.7626641, 0.0236247, 0, 0.0358458, -0.0761724, 0.9568845, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: Linear Rec.2020
@@ -144,7 +144,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear CIE-XYZ D65}
-        - !<MatrixTransform> {matrix: [1.7165059604949275, -0.3556406942796457, -0.2533448467654578, 0, -0.6666936926652487, 1.616503884955466, 0.015768766745074273, 0, 0.017643644000193512, -0.04277979435663377, 0.9423053521880089, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [1.7166512, -0.3556708, -0.2533663, 0, -0.6666844, 1.6164812, 0.0157685, 0, 0.0176399, -0.0427706, 0.9421031, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: ACES2065-1
@@ -186,7 +186,7 @@ colorspaces:
     from_scene_reference: !<GroupTransform>
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ I-E, dst: Linear CIE-XYZ I-D65}
-        - !<MatrixTransform> {matrix: [1.5249737770602847, -0.31589714752406356, -0.12265191126007446, 0, -0.5091726698133802, 1.3333800707546952, 0.1382898269164182, 0, 0.09573240801027605, 0.050906517084630676, 0.7880962352252167, 0, 0, 0, 0, 1]}
+        - !<MatrixTransform> {matrix: [1.5250528, -0.3159135, -0.1226583, 0, -0.5091526, 1.3333274, 0.1382844, 0, 0.0957153, 0.0508974, 0.7879558, 0, 0, 0, 0, 1]}
 
   - !<ColorSpace>
     name: sRGB
