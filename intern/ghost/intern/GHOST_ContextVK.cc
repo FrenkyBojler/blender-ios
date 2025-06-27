@@ -1101,11 +1101,9 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   /* Construct new semaphores. It can be that image_count is larger than previously. We only need
    * to fill in where the handle is `VK_NULL_HANDLE`. */
   /* Previous handles from the frame data cannot be used and should be discarded. */
-  if (!vulkan_device->use_vk_ext_swapchain_maintenance_1) {
-    for (GHOST_Frame &frame : m_frame_data) {
-      discard_pile.semaphores.push_back(frame.acquire_semaphore);
-      frame.acquire_semaphore = VK_NULL_HANDLE;
-    }
+  for (GHOST_Frame &frame : m_frame_data) {
+    discard_pile.semaphores.push_back(frame.acquire_semaphore);
+    frame.acquire_semaphore = VK_NULL_HANDLE;
   }
   if (old_swapchain) {
     discard_pile.swapchains.push_back(old_swapchain);
