@@ -41,6 +41,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_appdir.hh"
 #include "BKE_blender_version.h"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -487,6 +488,26 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
   WM_main_add_notifier(NC_WINDOW | NA_REMOVED, nullptr);
 }
 
+static const char *wm_window_title_ensure_filepath_for_display(Main *bmain)
+{
+  const char *filepath = bmain->filepath;
+
+  if (bmain->filepath_display) {
+    return bmain->filepath_display;
+  }
+  if (filepath[0] == '\0') {
+    return filepath;
+  }
+
+  char filepath_display[FILE_MAX];
+  const size_t filepath_display_len = BKE_appdir_display_path_from_system_path(
+      filepath_display, sizeof(filepath_display), filepath);
+
+  bmain->filepath_display = BLI_strdupn(filepath_display, filepath_display_len);
+
+  return bmain->filepath_display;
+}
+
 void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
 {
   if (win->ghostwin == nullptr) {
@@ -517,18 +538,9 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
    * use `filepath` for display which is sanitized as needed. */
   const char *filepath_as_bytes = BKE_main_blendfile_path_from_global();
 
-  char _filepath_utf8_buf[FILE_MAX];
-  /* Allow non-UTF8 characters on systems that support it.
-   *
-   * On Wayland, invalid UTF8 characters will disconnect
+  /* On Wayland, invalid UTF8 characters will disconnect
    * from the server - exiting immediately. */
-  const char *filepath = (OS_MAC || OS_WINDOWS) ?
-                             filepath_as_bytes :
-                             BLI_str_utf8_invalid_substitute_as_needed(filepath_as_bytes,
-                                                                       strlen(filepath_as_bytes),
-                                                                       '?',
-                                                                       _filepath_utf8_buf,
-                                                                       sizeof(_filepath_utf8_buf));
+  const char *filepath = wm_window_title_ensure_filepath_for_display(G_MAIN);
 
   const char *filename = BLI_path_basename(filepath);
   const bool has_filepath = filepath[0] != '\0';

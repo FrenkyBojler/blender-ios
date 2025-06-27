@@ -75,6 +75,7 @@ void BKE_main_clear(Main &bmain)
                          LIB_ID_FREE_NO_USER_REFCOUNT | LIB_ID_FREE_NO_DEG_TAG);
 
   MEM_SAFE_FREE(bmain.blen_thumb);
+  MEM_SAFE_FREE(bmain.filepath_display);
 
   MainListsArray lbarray = BKE_main_lists_get(bmain);
   int a = lbarray.size();

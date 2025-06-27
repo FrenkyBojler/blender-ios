@@ -17,6 +17,7 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_tempfile.h"
 #include "BLI_utildefines.h"
@@ -1227,6 +1228,94 @@ void BKE_tempdir_session_purge()
   if (g_app.temp_dirname_session[0] && BLI_is_dir(g_app.temp_dirname_session)) {
     BLI_delete(g_app.temp_dirname_session, true, true);
   }
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Display Path
+ * \{ */
+
+//
+
+/**
+ * A utility to check for a common path prefix and use that prefix,
+ * writing it into `filepath_display`.
+ * Return 0 when the prefix isn't known.
+ */
+static size_t filepath_try_replace_prefix(const char *filepath,
+                                          const char *prefix,
+                                          const char *prefix_substitute,
+                                          char filepath_display[FILE_MAX])
+{
+  /* Since the prefix may be derived from a lookup, account for it returning nothing.
+   * That shouldn't happen often but isn't anything to worry about - bail out early. */
+  if (UNLIKELY(prefix == nullptr || prefix[0] == '\0')) {
+    return 0;
+  }
+
+  const size_t prefix_len = strlen(prefix);
+  if (BLI_path_ncmp(filepath, prefix, prefix_len) != 0) {
+    return 0;
+  }
+  if (filepath[prefix_len] != SEP) {
+    return 0;
+  }
+  return BLI_path_join(filepath_display, FILE_MAX, prefix_substitute, filepath + prefix_len);
+}
+
+size_t BKE_appdir_display_path_from_system_path(char *filepath_display,
+                                                size_t filepath_display_maxncpy,
+                                                const char *filepath_system)
+{
+  char filepath_temp[FILE_MAX];
+  size_t filepath_display_len = 0; /* Zero means un-handled. */
+
+  /* Replace known prefix. */
+  if (filepath_display_len == 0 && BKE_appdir_folder_documents(filepath_temp)) {
+    filepath_display_len = filepath_try_replace_prefix(
+        filepath_system, filepath_temp, "Documents", filepath_display);
+  }
+
+  if (filepath_display_len == 0) {
+    filepath_display_len = filepath_try_replace_prefix(
+        filepath_system,
+        GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDesktop),
+        "Desktop",
+        filepath_display);
+  }
+
+  if (filepath_display_len == 0) {
+    filepath_display_len = filepath_try_replace_prefix(
+        filepath_system,
+        GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDownloads),
+        "Downloads",
+        filepath_display);
+  }
+
+  /* Perform "HOME" last because other known paths are typically sub-directories of this. */
+  if (filepath_display_len == 0) {
+    const char *home_prefix = OS_WINDOWS ? "Home" : "~";
+    filepath_display_len = filepath_try_replace_prefix(
+        filepath_system, BLI_dir_home(), home_prefix, filepath_display);
+  }
+
+  /* NOTE(@ideasman42): we could include "Pictures", "Music" ... etc.
+   * Although these seem less likely to be useful. */
+
+  if (filepath_display_len == 0) {
+    /* Verbatim copy. */
+
+    /* Note that there is a small chance a non UTF8 aware copy will truncate, resulting in an
+     * invalid UTF8 string. Rely on the final invalid UTF8 substitute pass to ensure the final
+     * string is OK. In practice the display buffer should be #FILE_MAX so this isn't likely. */
+    filepath_display_len = BLI_strncpy_rlen(
+        filepath_display, filepath_system, filepath_display_maxncpy);
+  }
+
+  BLI_str_utf8_invalid_substitute(filepath_display, filepath_display_len, '?');
+
+  return filepath_display_len;
 }
 
 /** \} */

@@ -1207,6 +1207,7 @@ static void setup_app_data(bContext *C,
     bmain->recovered = true;
     STRNCPY(bmain->filepath, bfd->filepath);
   }
+  MEM_SAFE_FREE(bmain->filepath_display);
 
   /* Set the loaded .blend file path for crash recovery. */
   STRNCPY(G.filepath_last_blend, bmain->filepath);

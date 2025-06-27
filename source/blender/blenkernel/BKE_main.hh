@@ -155,6 +155,18 @@ struct Main {
   char filepath[/*FILE_MAX*/ 1024];
   short versionfile, subversionfile; /* see BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION */
   short minversionfile, minsubversionfile;
+
+  /**
+   * An optional "display" path to be used in the window title for example.
+   * This does *not* have to resolve to a path on the file-system.
+   *
+   * - Guaranteed to be valid UTF8 (unlike `filepath`).
+   * - May include abbreviations such as `~/` for the home directory.
+   *
+   * This is lazily created and should be cleared when `filepath` changes.
+   */
+  char *filepath_display;
+
   /**
    * The currently opened .blend file was written from a newer version of Blender, and has forward
    * compatibility issues (data loss).

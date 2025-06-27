@@ -2250,6 +2250,7 @@ static bool wm_file_write(bContext *C,
 
     if (use_save_as_copy == false) {
       STRNCPY(bmain->filepath, filepath); /* Is guaranteed current file. */
+      MEM_SAFE_FREE(bmain->filepath_display);
     }
 
     SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_COMPRESS, G_FILE_COMPRESS);

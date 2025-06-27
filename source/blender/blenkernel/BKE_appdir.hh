@@ -149,6 +149,21 @@ const char *BKE_tempdir_session() ATTR_WARN_UNUSED_RESULT ATTR_RETURNS_NONNULL;
 void BKE_tempdir_session_purge();
 
 /**
+ * Create a representation of a file path for display in the UI.
+ *
+ * - Guaranteed to be valid UTF8.
+ * - Abbreviations are allowed - this may not resolve to an actual path.
+ * - Path functions such as #BLI_path_basename must still work.
+ *
+ * The `/homr/userdir/test.blend` may be replaced by `~/test.blend` on UNIX for example.
+ *
+ * \return the length of `filepath_display` in bytes.
+ */
+size_t BKE_appdir_display_path_from_system_path(char *filepath_display,
+                                                size_t filepath_display_maxncpy,
+                                                const char *filepath_system);
+
+/**
  * The `folder_id` for #BKE_appdir_folder_id and related functions.
  *
  * Run-time only so existing values may change.

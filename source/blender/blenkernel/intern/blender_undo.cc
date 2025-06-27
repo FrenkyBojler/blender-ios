@@ -86,6 +86,7 @@ bool BKE_memfile_undo_decode(MemFileUndoData *mfu,
   /* Restore, bmain has been re-allocated. */
   bmain = CTX_data_main(C);
   STRNCPY(bmain->filepath, mainstr);
+  MEM_SAFE_FREE(bmain->filepath_display);
   G.fileflags = fileflags;
 
   if (success) {
