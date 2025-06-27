@@ -37,7 +37,6 @@
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
-#include "BKE_curves_utils.hh"
 #include "BKE_customdata.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
@@ -303,20 +302,14 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
 }
 
 template<typename PositionSpan>
-using CurvePointsCallback =
-    blender::FunctionRef<void(CurveType curve_type,
-                              blender::Span<blender::IndexRange> selected_point_ranges,
-                              PositionSpan positions)>;
-
-template<typename PositionSpan>
-using BezierHandlesCallback =
+using CurveSelectionCallback =
     blender::FunctionRef<void(const blender::IndexMask &selection, PositionSpan handle_positions)>;
 
 template<typename PositionSpan>
 static void handle_curves_selection(const blender::bke::CurvesGeometry &curves,
                                     const blender::Vector<PositionSpan> &positions,
-                                    CurvePointsCallback<PositionSpan> points_callback,
-                                    BezierHandlesCallback<PositionSpan> handles_callback)
+                                    CurveSelectionCallback<PositionSpan> points_callback,
+                                    CurveSelectionCallback<PositionSpan> handles_callback)
 {
   using namespace blender;
   using namespace ed::curves;
@@ -325,22 +318,11 @@ static void handle_curves_selection(const blender::bke::CurvesGeometry &curves,
     return;
   }
 
-  const Span<StringRef> selection_names = get_curves_selection_attribute_names(curves);
-  const VArray<int8_t> curve_types = curves.curve_types();
-
   IndexMaskMemory memory;
-  const IndexMask selection = retrieve_selected_points(curves, ".selection", memory);
+  points_callback(retrieve_selected_points(curves, ".selection", memory), positions.first());
 
-  bke::curves::foreach_selected_point_ranges_per_curve(
-      selection,
-      curves.points_by_curve(),
-      [&](const int curve,
-          const IndexRange /*curve_points*/,
-          const Span<IndexRange> selected_point_ranges) {
-        points_callback(CurveType(curve_types[curve]), selected_point_ranges, positions.first());
-      });
-
-  const Span<StringRef> bezier_selection_names = selection_names.drop_front(1);
+  const Span<StringRef> bezier_selection_names = get_curves_bezier_selection_attribute_names(
+      curves);
   const Vector<PositionSpan> bezier_handle_positions = positions.as_span().drop_front(1);
   for (int attribute_i : bezier_selection_names.index_range()) {
     const IndexMask selection = retrieve_selected_points(
@@ -363,25 +345,25 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
   using namespace blender;
   using namespace ed::curves;
 
+  const Array<int> point_to_curve = curves.point_to_curve_map();
+  const VArray<int8_t> curve_types = curves.curve_types();
   const Span<float> nurbs_weights = curves.nurbs_weights();
   const Vector<Span<float3>> positions = get_curves_positions(curves);
 
-  auto init_curve_points =
-      [&](CurveType curve_type, Span<IndexRange> selected_point_ranges, Span<float3> positions) {
-        const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
-        for (const IndexRange range : selected_point_ranges) {
-          total += range.size();
-          total_curve_points += range.size();
+  auto init_curve_points = [&](const IndexMask &selection, Span<float3> positions) {
+    total += selection.size();
+    total_curve_points += selection.size();
 
-          for (const int point : range) {
-            add_v3_v3(median.location, positions[point]);
-            total_nurbs_weights += is_nurbs;
-            median.nurbs_weight += is_nurbs ?
-                                       (nurbs_weights.is_empty() ? 1.0f : nurbs_weights[point]) :
-                                       0;
-          }
-        }
-      };
+    selection.foreach_index([&](const int point) {
+      const CurveType curve_type = CurveType(curve_types[point_to_curve[point]]);
+      const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+
+      add_v3_v3(median.location, positions[point]);
+      total_nurbs_weights += is_nurbs;
+      median.nurbs_weight += is_nurbs ? (nurbs_weights.is_empty() ? 1.0f : nurbs_weights[point]) :
+                                        0;
+    });
+  };
 
   auto init_bezier_handles = [&](const IndexMask &selection, Span<float3> handle_positions) {
     total += selection.size();
@@ -406,24 +388,23 @@ static bool apply_to_curves_selection(const int tot,
 
   bool changed = false;
 
-  const Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
+  const Array<int> point_to_curve = curves.point_to_curve_map();
+  const VArray<int8_t> curve_types = curves.curve_types();
   const MutableSpan<float> nurbs_weights = median.nurbs_weight ? curves.nurbs_weights_for_write() :
                                                                  MutableSpan<float>{};
+  const Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
 
-  auto apply_to_curve_points = [&](CurveType curve_type,
-                                   Span<IndexRange> selected_point_ranges,
-                                   MutableSpan<float3> positions) {
-    const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
-
-    for (const IndexRange range : selected_point_ranges) {
-      for (const int point : range) {
-        apply_raw_diff_v3(positions[point], tot, ve_median.location, median.location);
-        if (is_nurbs && median.nurbs_weight) {
-          apply_raw_diff(&nurbs_weights[point], tot, ve_median.nurbs_weight, median.nurbs_weight);
-          nurbs_weights[point] = math::clamp(nurbs_weights[point], 0.01f, 100.0f);
-        }
+  auto apply_to_curve_points = [&](const IndexMask &selection, MutableSpan<float3> positions) {
+    selection.foreach_index([&](const int point) {
+      const CurveType curve_type = CurveType(curve_types[point_to_curve[point]]);
+      const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+      if (is_nurbs && median.nurbs_weight) {
+        apply_raw_diff(&nurbs_weights[point], tot, ve_median.nurbs_weight, median.nurbs_weight);
+        nurbs_weights[point] = math::clamp(nurbs_weights[point], 0.01f, 100.0f);
       }
-    }
+
+      apply_raw_diff_v3(positions[point], tot, ve_median.location, median.location);
+    });
     changed = true;
   };
 
