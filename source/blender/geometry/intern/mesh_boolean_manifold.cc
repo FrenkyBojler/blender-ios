@@ -1592,6 +1592,40 @@ static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
 }
 
 /**
+ * The \a dst span should be the material_index property of the result.
+ * Rather than using the attribute from the joined mesh, we want to take
+ * the original face and map it using \a material_remaps.
+ */
+static void set_material_from_map(Span<int> out_to_in_map,
+                                  GMutableSpan dst,
+                                  Span<Array<short>> material_remaps,
+                                  Span<const Mesh *> meshes,
+                                  const MeshOffsets &mesh_offsets)
+{
+  BLI_assert(material_remaps.size() > 0);
+  const CPPType *dst_ty = dst.type_ptr();
+  BLI_assert(dst_ty == &CPPType::get<int32_t>());
+  Vector<bke::AttributeReader<int>> material_readers;
+  for (const int i : meshes.index_range()) {
+    bke::AttributeAccessor input_attrs = meshes[i]->attributes();
+    material_readers.append(
+        input_attrs.lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0));
+  }
+  threading::parallel_for(out_to_in_map.index_range(), 8192, [&](const IndexRange range) {
+    for (const int out_f : range) {
+      const int in_f = out_to_in_map[out_f];
+      const int mesh_id = mesh_id_for_face(in_f, mesh_offsets);
+      const int in_f_local = in_f - mesh_offsets.face_start[mesh_id];
+      const VArraySpan src(*material_readers[mesh_id]);
+      const int orig = src[in_f_local];
+      const Array<short> &map = material_remaps[mesh_id];
+      const int32_t mapped = (orig >= 0 && orig < map.size()) ? map[orig] : orig;
+      dst_ty->copy_assign(&mapped, dst[out_f]);
+    }
+  });
+}
+
+/**
  * Find the edges that are the result of intersecting one mesh with another,
  * and add their indices to \a r_intersecting_edges.
  */
@@ -1600,9 +1634,9 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
                                    OutToInMaps &out_to_in,
                                    const MeshOffsets &mesh_offsets)
 {
-  /* In a manifold mesh, every edge is adjacent to exactly two faces.
-   * Find them, and when we have a pair, check to see if those faces came
-   * from separate input meshes, and add the edge to r_intersecting_Edges if so. */
+/* In a manifold mesh, every edge is adjacent to exactly two faces.
+ * Find them, and when we have a pair, check to see if those faces came
+ * from separate input meshes, and add the edge to r_intersecting_Edges if so. */
 #  ifdef DEBUG_TIME
   timeit::ScopedTimer timer("get_intersecting_edges");
 #  endif
@@ -1690,6 +1724,8 @@ static MeshGL mesh_trim_manifold(Manifold &manifold0,
  */
 static Mesh *meshgl_to_mesh(MeshGL &mgl,
                             const Mesh *joined_mesh,
+                            Span<const Mesh *> meshes,
+                            const Span<Array<short>> material_remaps,
                             const MeshOffsets &mesh_offsets,
                             Vector<int> *r_intersecting_edges)
 {
@@ -1791,6 +1827,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       }
       Span<int> out_to_in_map;
       bool do_copy = true;
+      bool do_material_remap = false;
       switch (iter.domain) {
         case bke::AttrDomain::Point: {
           out_to_in_map = out_to_in.ensure_vertex_map();
@@ -1798,6 +1835,12 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         }
         case bke::AttrDomain::Face: {
           out_to_in_map = out_to_in.ensure_face_map();
+          /* If #material_remaps is non-empty, we need to use that map to set the
+           * face "material_index" property instead of taking it from the joined mesh.
+           * This should only happen if the user wants something other than the default
+           * "transfer the materials" mode, which has already happened in the joined mesh.
+           */
+          do_material_remap = material_remaps.size() > 0 && iter.name == "material_index";
           break;
         }
         case bke::AttrDomain::Edge: {
@@ -1821,7 +1864,12 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         }
         bke::GSpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_span(
             iter.name, iter.domain, iter.data_type);
-        copy_attribute_using_map(GVArraySpan(*iter.get()), out_to_in_map, dst.span);
+        if (do_material_remap) {
+          set_material_from_map(out_to_in_map, dst.span, material_remaps, meshes, mesh_offsets);
+        }
+        else {
+          copy_attribute_using_map(GVArraySpan(*iter.get()), out_to_in_map, dst.span);
+        }
         dst.finish();
       }
     });
@@ -1870,7 +1918,7 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<float4x4> transforms,
-                            const Span<Array<short>> /*material_remaps*/,
+                            const Span<Array<short>> material_remaps,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
                             BooleanError *r_error)
@@ -1953,7 +2001,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #  ifdef DEBUG_TIME
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
 #  endif
-      mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
+      mesh_result = meshgl_to_mesh(
+          meshgl_result, joined_mesh, meshes, material_remaps, mesh_offsets, r_intersecting_edges);
     }
     return mesh_result;
   }
