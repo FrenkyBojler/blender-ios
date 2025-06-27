@@ -339,15 +339,6 @@ Main *BKE_main_new();
  */
 void BKE_main_clear(Main &bmain);
 /**
- * Clear and free all data in given \a bmain, but does not free \a bmain itself.
- *
- * \note In most cases, #BKE_main_free should be used instead of this function.
- *
- * \note Unlike #BKE_main_free, only process the given \a bmain, without handling any potential
- * other linked Main.
- */
-void BKE_main_destroy(Main &bmain);
-/**
  * Completely destroy the given \a bmain, and all its linked 'libraries' ones if any (all other
  * bmains, following the #Main.next chained list).
  */

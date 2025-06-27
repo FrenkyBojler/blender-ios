@@ -70,12 +70,17 @@ Main::~Main()
   BLI_assert_msg(!(this->filepath[0] == '/' && this->filepath[1] == '/'),
                  "'.blend' relative \"//\" must not be used in Main!");
 
-  BKE_main_destroy(*this);
+  BKE_main_clear(*this);
+
+  BLI_spin_end(reinterpret_cast<SpinLock *>(this->lock));
+  /* The void cast is needed when building without TBB. */
+  MEM_freeN((void *)reinterpret_cast<SpinLock *>(this->lock));
+  this->lock = nullptr;
 }
 
 Main *BKE_main_new()
 {
-  Main *bmain = MEM_new<Main>("new main");
+  Main *bmain = MEM_new<Main>(__func__);
   return bmain;
 }
 
@@ -174,16 +179,6 @@ void BKE_main_clear(Main &bmain)
   /* NOTE: `name_map` in libraries are freed together with the library IDs above. */
   BKE_main_namemap_destroy(&bmain.name_map);
   BKE_main_namemap_destroy(&bmain.name_map_global);
-}
-
-void BKE_main_destroy(Main &bmain)
-{
-  BKE_main_clear(bmain);
-
-  BLI_spin_end(reinterpret_cast<SpinLock *>(bmain.lock));
-  /* The void cast is needed when building without TBB. */
-  MEM_freeN((void *)reinterpret_cast<SpinLock *>(bmain.lock));
-  bmain.lock = nullptr;
 }
 
 void BKE_main_free(Main *bmain)
