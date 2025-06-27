@@ -1087,20 +1087,30 @@ static ClosurePtr create_root_constraint_update_closure(ResourceScope &scope,
  *
  * "Force": Vector field of external forces acting on points. Force is defined in object space.
  * "Torque": Vector field of external torque acting on curve segments. Torque is defined in
- * local space of a curve segment.
+ *   local space of a curve segment.
  *
- * "Material" Bundle of parameters defining the physical properties of hair.
+ * "Material": Bundle of parameters defining the physical properties of hair.
  *   Hair material properties can be defined in several ways:
  *   - "Density" and radius: Hair properties are calculated based on a model of cylindrical
- * rods around the center line. This is the default method if no other attributes are defined.
+ *     rods around the center line. This is the default method if no other attributes are defined.
  *     Radius attribute must be defined on curves, otherwise a default radius is used.
  *   - "Mass" and "Inertia": If both of these fields are defined they explicitly define the
  *     material properties of hair curve points and segments.
  *     This is an advanced method that is not recommended for most users.
- *   TODO: Document how stiffness and damping are calculated based on Young's modulus for
- *     cylindrical rods.
- *
- *
+ * "Elasticity": Bundle of parameters for structural constraints.
+ *   - "Stretch Softness", "Bend Softness", "Twist Softness":
+ *   - "Stretch Damping", "Bend Damping", "Twist Damping": Damping for velocity of the constraint,
+ *     higher values let constraints retain their current velocity for longer.
+ *   - "Tension Modulus": Young's modulus of the material. Stiffness is calculated from this
+ *     modulus and the radius of the curve.
+ *   - "Torsion Modulus": Torsion (shear) modulus of the material. Computed automatically from the
+ *     Poisson ratio if undefined.
+ *   - "Poisson Ratio": Ratio of transverse and axial strain that couples tension and torsion
+ *     modulus.
+ *   - "Stretch Compliance", "Bend Compliance": Physical softness parameter for stretch and bend
+ *     constraints. With zero compliance hair will always try to match the target shape exactly,
+ *     while higher values allow some softness.
+ *   - "Stretch Stiffness", "Bend Stiffness": Inverse of the compliance.
  */
 struct Behavior {
   float3 gravity = float3(0, 0, -9.81f);
