@@ -1201,7 +1201,24 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 29)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 30)) {
+    LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
+      LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+        LISTBASE_FOREACH (SpaceLink *, sl, &area->spacedata) {
+          if (sl->spacetype != SPACE_FILE) {
+            continue;
+          }
+          SpaceFile *sfile = reinterpret_cast<SpaceFile *>(sl);
+          if (sfile->browse_mode != FILE_BROWSE_MODE_ASSETS) {
+            continue;
+          }
+          sfile->asset_params->base_params.filter_id |= FILTER_ID_SCE;
+        }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 31)) {
     LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
       blender::bke::curves_convert_customdata_to_storage(curves->geometry.wrap());
     }
