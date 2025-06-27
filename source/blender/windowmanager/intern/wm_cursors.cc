@@ -563,4 +563,11 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_ERASER, datatoc_cursor_eraser_svg, 0.0f, 1.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_EDIT, datatoc_cursor_crosshair_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_CROSS, datatoc_cursor_crosshair_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_KNIFE, datatoc_cursor_knife_svg, 0.0f, 1.0f, 1.0f);
+  wm_add_cursor(WM_CURSOR_H_SPLIT, datatoc_cursor_h_split_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_V_SPLIT, datatoc_cursor_v_split_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_N_ARROW, datatoc_cursor_n_arrow_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_S_ARROW, datatoc_cursor_s_arrow_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_E_ARROW, datatoc_cursor_e_arrow_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_W_ARROW, datatoc_cursor_w_arrow_svg, 0.5f, 0.5f, 1.0f);
 }

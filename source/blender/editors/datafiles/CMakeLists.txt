@@ -936,10 +936,17 @@ if(WITH_BLENDER)
       cursor_crosshair
       cursor_eraser
       cursor_eyedropper
+      cursor_knife
       cursor_pencil
       cursor_pointer
       cursor_stop
       cursor_text_edit
+      cursor_h_split
+      cursor_v_split
+      cursor_n_arrow
+      cursor_s_arrow
+      cursor_e_arrow
+      cursor_w_arrow
     )
 
     set(SVG_CONTENTS_H)
