@@ -98,7 +98,7 @@ struct TransformMedian_Lattice {
 };
 
 struct TransformMedian_Curves {
-  float location[3], nurbs_weight;
+  float location[3], nurbs_weight, radius, tilt;
 };
 
 union TransformMedian {
@@ -348,6 +348,8 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
   const Array<int> point_to_curve = curves.point_to_curve_map();
   const VArray<int8_t> curve_types = curves.curve_types();
   const Span<float> nurbs_weights = curves.nurbs_weights();
+  const VArray<float> radius = curves.radius();
+  const VArray<float> tilt = curves.tilt();
   const Vector<Span<float3>> positions = get_curves_positions(curves);
 
   auto init_curve_points = [&](const IndexMask &selection, Span<float3> positions) {
@@ -362,6 +364,8 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
       total_nurbs_weights += is_nurbs;
       median.nurbs_weight += is_nurbs ? (nurbs_weights.is_empty() ? 1.0f : nurbs_weights[point]) :
                                         0;
+      median.radius += radius[point];
+      median.tilt += tilt[point];
     });
   };
 
@@ -392,6 +396,9 @@ static bool apply_to_curves_selection(const int tot,
   const VArray<int8_t> curve_types = curves.curve_types();
   const MutableSpan<float> nurbs_weights = median.nurbs_weight ? curves.nurbs_weights_for_write() :
                                                                  MutableSpan<float>{};
+  const MutableSpan<float> radius = median.radius ? curves.radius_for_write() :
+                                                    MutableSpan<float>{};
+  const MutableSpan<float> tilt = median.tilt ? curves.tilt_for_write() : MutableSpan<float>{};
   const Vector<MutableSpan<float3>> positions = get_curves_positions_for_write(curves);
 
   auto apply_to_curve_points = [&](const IndexMask &selection, MutableSpan<float3> positions) {
@@ -401,6 +408,12 @@ static bool apply_to_curves_selection(const int tot,
       if (is_nurbs && median.nurbs_weight) {
         apply_raw_diff(&nurbs_weights[point], tot, ve_median.nurbs_weight, median.nurbs_weight);
         nurbs_weights[point] = math::clamp(nurbs_weights[point], 0.01f, 100.0f);
+      }
+      if (median.radius) {
+        apply_raw_diff(&radius[point], tot, ve_median.radius, median.radius);
+      }
+      if (median.tilt) {
+        apply_raw_diff(&tilt[point], tot, ve_median.tilt, median.tilt);
       }
 
       apply_raw_diff_v3(positions[point], tot, ve_median.location, median.location);
@@ -664,10 +677,12 @@ static void v3d_editvertex_buts(
     }
   }
   else if (total_curve_points_data) {
-    TransformMedian_Curves *median = &median_basis.curves;
+    TransformMedian_Curves &median = median_basis.curves;
     if (totcurvebweight) {
-      median->nurbs_weight /= float(totcurvebweight);
+      median.nurbs_weight /= totcurvebweight;
     }
+    median.radius /= total_curve_points_data;
+    median.tilt /= total_curve_points_data;
   }
   else if (totcurvedata) {
     TransformMedian_Curve *median = &median_basis.curve;
@@ -934,6 +949,44 @@ static void v3d_editvertex_buts(
         UI_but_number_step_size_set(but, 1);
         UI_but_number_precision_set(but, 2);
       }
+    }
+    /* Curve or GP... */
+    else if (total_curve_points_data) {
+      const bool is_single = total_curve_points_data == 1;
+      TransformMedian_Curves *ve_median = &tfp->ve_median.curves;
+
+      but = uiDefButF(block,
+                      UI_BTYPE_NUM,
+                      B_TRANSFORM_PANEL_MEDIAN,
+                      is_single ? IFACE_("Radius:") : IFACE_("Mean Radius:"),
+                      0,
+                      yi -= buth + but_margin,
+                      butw,
+                      buth,
+                      &ve_median->radius,
+                      0.0,
+                      100.0,
+                      is_single ?
+                          std::nullopt :
+                          std::optional<StringRef>{TIP_("Radius of curve control points")});
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, 3);
+      but = uiDefButF(block,
+                      UI_BTYPE_NUM,
+                      B_TRANSFORM_PANEL_MEDIAN,
+                      is_single ? IFACE_("Tilt:") : IFACE_("Mean Tilt:"),
+                      0,
+                      yi -= buth + but_margin,
+                      butw,
+                      buth,
+                      &ve_median->tilt,
+                      -tilt_limit,
+                      tilt_limit,
+                      is_single ? std::nullopt :
+                                  std::optional<StringRef>{TIP_("Tilt of curve control points")});
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, 3);
+      UI_but_unit_type_set(but, PROP_UNIT_ROTATION);
     }
     /* Curve... */
     else if (totcurvedata) {
@@ -1347,7 +1400,10 @@ static void v3d_editvertex_buts(
         bp++;
       }
     }
-    else if (ob->type == OB_GREASE_PENCIL && (apply_vcos || median_basis.curves.nurbs_weight)) {
+    else if (ob->type == OB_GREASE_PENCIL &&
+             (apply_vcos || median_basis.curves.nurbs_weight || median_basis.curves.radius ||
+              median_basis.curves.tilt))
+    {
       using namespace blender::ed::greasepencil;
       using namespace ed::curves;
       Scene &scene = *CTX_data_scene(C);
@@ -1362,7 +1418,9 @@ static void v3d_editvertex_buts(
         }
       });
     }
-    else if (ob->type == OB_CURVES && (apply_vcos || median_basis.curves.nurbs_weight)) {
+    else if (ob->type == OB_CURVES && (apply_vcos || median_basis.curves.nurbs_weight ||
+                                       median_basis.curves.radius || median_basis.curves.tilt))
+    {
       using namespace ed::curves;
       Curves &curves_id = *static_cast<Curves *>(ob->data);
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
