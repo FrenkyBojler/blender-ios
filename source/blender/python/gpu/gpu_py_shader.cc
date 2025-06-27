@@ -840,6 +840,42 @@ static void pygpu_shader__tp_dealloc(BPyGPUShader *self)
   Py_TYPE(self)->tp_free((PyObject *)self);
 }
 
+PyDoc_STRVAR(
+    /* Wrap. */
+    pygpu_shader__tp_doc,
+    ".. class:: GPUShader(vertexcode, fragcode, geocode=None, libcode=None, defines=None, "
+    "name='pyGPUShader')\n"
+    "\n"
+    "   Constructor is deprecated and will be removed in Blender 5.0, "
+    "use :func:`gpu.shader.create_from_info` instead.\n"
+    "\n"
+    "   GPUShader combines multiple GLSL shaders into a program used for drawing.\n"
+    "   It must contain at least a vertex and fragment shaders.\n"
+    "\n"
+    "   The GLSL ``#version`` directive is automatically included at the top of shaders,\n"
+    "   and set to 330. Some preprocessor directives are automatically added according to\n"
+    "   the Operating System or availability: ``GPU_ATI``, ``GPU_NVIDIA`` and ``GPU_INTEL``.\n"
+    "\n"
+    "   The following extensions are enabled by default if supported by the GPU:\n"
+    "   ``GL_ARB_texture_gather``, ``GL_ARB_texture_cube_map_array``\n"
+    "   and ``GL_ARB_shader_draw_parameters``.\n"
+    "\n"
+    "   For drawing user interface elements and gizmos, use\n"
+    "   ``fragOutput = blender_srgb_to_framebuffer_space(fragOutput)``\n"
+    "   to transform the output sRGB colors to the frame-buffer color-space.\n"
+    "\n"
+    "   :arg vertexcode: Vertex shader code.\n"
+    "   :type vertexcode: str\n"
+    "   :arg fragcode: Fragment shader code.\n"
+    "   :type value: str\n"
+    "   :arg geocode: Geometry shader code.\n"
+    "   :type value: str\n"
+    "   :arg libcode: Code with functions and presets to be shared between shaders.\n"
+    "   :type value: str\n"
+    "   :arg defines: Preprocessor directives.\n"
+    "   :type value: str\n"
+    "   :arg name: Name of shader code, for debugging purposes.\n"
+    "   :type value: str\n");
 PyTypeObject BPyGPUShader_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)
     /*tp_name*/ "GPUShader",
@@ -980,7 +1016,7 @@ PyDoc_STRVAR(
     "   Create shader from a GPUShaderCreateInfo.\n"
     "\n"
     "   :arg shader_info: GPUShaderCreateInfo\n"
-    "   :type shader_info: :class:`bpy.types.GPUShaderCreateInfo`\n"
+    "   :type shader_info: :class:`gpu.types.GPUShaderCreateInfo`\n"
     "   :return: Shader object corresponding to the given name.\n"
     "   :rtype: :class:`gpu.types.GPUShader`\n");
 static PyObject *pygpu_shader_create_from_info(BPyGPUShader * /*self*/, BPyGPUShaderCreateInfo *o)
