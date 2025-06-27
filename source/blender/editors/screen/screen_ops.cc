@@ -6844,8 +6844,13 @@ static void blend_file_drop_copy(bContext * /*C*/, wmDrag *drag, wmDropBox *drop
   RNA_string_set(drop->ptr, "filepath", WM_drag_get_single_path(drag));
 }
 
-static bool screen_drop_scene_poll(bContext * /*C*/, wmDrag *drag, const wmEvent * /*event*/)
+static bool screen_drop_scene_poll(bContext *C, wmDrag *drag, const wmEvent * /*event*/)
 {
+  /* Make sure we're dropping the scene outside the asset browser. */
+  SpaceFile *sfile = CTX_wm_space_file(C);
+  if (sfile && ED_fileselect_is_asset_browser(sfile)) {
+    return false;
+  }
   return WM_drag_is_ID_type(drag, ID_SCE);
 }
 
