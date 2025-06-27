@@ -136,7 +136,7 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, "GeometryNodeArmatureInfo", GEO_NODE_ARMATURE_INFO);
+  geo_node_type_base(&ntype, "GeometryNodeBoneInfo", GEO_NODE_BONE_INFO);
   ntype.ui_name = "Bone Info";
   ntype.ui_description = "Get information about armature bones";
   ntype.enum_name_legacy = "ARMATURE_INFO";

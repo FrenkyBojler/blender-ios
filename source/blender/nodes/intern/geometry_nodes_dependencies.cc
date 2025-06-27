@@ -170,16 +170,6 @@ static void add_own_transform_dependencies(const bNodeTree &tree,
         node->storage);
     needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
   }
-
-  // for (const bNode *node : tree.nodes_by_type("GeometryNodeArmatureInfo")) {
-  //   if (node->is_muted()) {
-  //     continue;
-  //   }
-  //   const NodeGeometryArmatureInfo &storage = *static_cast<const NodeGeometryArmatureInfo *>(
-  //       node->storage);
-  //   needs_own_transform |= storage.transform_space == GEO_NODE_TRANSFORM_SPACE_RELATIVE;
-  // }
-
   deps.needs_own_transform |= needs_own_transform;
 }
 
@@ -213,7 +203,7 @@ static void gather_geometry_nodes_eval_dependencies(
 
   add_eval_dependencies_from_node_data(ntree, deps);
   add_own_transform_dependencies(ntree, deps);
-  add_armature_pose_dependencies(ntree, deps); // Добавляем зависимости от позы арматуры
+  add_armature_pose_dependencies(ntree, deps);
 
   for (const bNode *node : ntree.group_nodes()) {
     if (!node->id) {
@@ -286,7 +276,7 @@ static void add_object_socket_pose_dependency(const bNodeSocket &socket,
 static void add_armature_pose_dependencies(const bNodeTree &tree,
                                            GeometryNodesEvalDependencies &deps)
 {
-  for (const bNode *node : tree.nodes_by_type("GeometryNodeArmatureInfo")) {
+  for (const bNode *node : tree.nodes_by_type("GeometryNodeBoneInfo")) {
     if (node->is_muted()) {
       continue;
     }

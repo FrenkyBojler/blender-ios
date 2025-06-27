@@ -22,13 +22,13 @@ struct GeometryNodesEvalDependencies {
    * on an object partially.
    */
   struct ObjectDependencyInfo {
-    /* Влияет ли какая-либо нода на геометрию объекта. */
+    /* Whether any node affects the object's geometry. */
     bool geometry = false;
-    /* Влияет ли какая-либо нода на трансформацию объекта. */
+    /* Whether any node affects the object's transform. */
     bool transform = false;
-    /* Влияют ли параметры камеры объекта на результат. */
+    /* Whether the object's camera parameters affect the result. */
     bool camera_parameters = false;
-    /* Влияет ли поза объекта-арматуры на результат. */ 
+    /* Whether the armature object's pose affects the result. */
     bool armature_pose = false;
 
 
