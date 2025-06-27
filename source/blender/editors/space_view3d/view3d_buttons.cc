@@ -6,6 +6,7 @@
  * \ingroup spview3d
  */
 
+#include <atomic>
 #include <cfloat>
 #include <cstring>
 
@@ -378,7 +379,6 @@ static bool apply_to_curves_selection(const int tot,
 
   bool changed = false;
 
-  const Array<int> point_to_curve = curves.point_to_curve_map();
   const VArray<int8_t> curve_types = curves.curve_types();
   const MutableSpan<float> nurbs_weights = median.nurbs_weight ? curves.nurbs_weights_for_write() :
                                                                  MutableSpan<float>{};
@@ -388,7 +388,7 @@ static bool apply_to_curves_selection(const int tot,
 
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_points(curves, ".selection", memory);
-  const bool update_location = math::length_manhattan(float3(median.location));
+  const bool update_location = math::length_manhattan(float3(median.location)) > 0;
   MutableSpan<float3> positions = update_location && !selection.is_empty() ?
                                       curves.positions_for_write() :
                                       MutableSpan<float3>();
@@ -424,36 +424,30 @@ static bool apply_to_curves_selection(const int tot,
       });
 
   /* Only location can be changed for Bezier handles. */
-  if (!update_location) {
+  if (!update_location || !curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return changed;
   }
 
-  const Span<StringRef> bezier_selection_names = get_curves_bezier_selection_attribute_names(
-      curves);
-
-  /* Writable handles will be retrieved only if needed. */
-  using GetPositions = MutableSpan<float3> (bke::CurvesGeometry::*)();
-  std::array<GetPositions, 2> get_positions{
-      &bke::CurvesGeometry::handle_positions_left_for_write,
-      &bke::CurvesGeometry::handle_positions_right_for_write};
-
-  for (int attribute_i : bezier_selection_names.index_range()) {
-    const IndexMask selection = retrieve_selected_points(
-        curves, bezier_selection_names[attribute_i], memory);
-
+  auto apply_to_handles = [&](StringRef selection_attribute, StringRef handles_attribute) {
+    const IndexMask selection = retrieve_selected_points(curves, selection_attribute, memory);
     if (selection.is_empty()) {
-      continue;
+      return;
     }
 
-    MutableSpan<float3> bezier_handle_positions = (curves.*(get_positions[attribute_i]))();
-
+    bke::SpanAttributeWriter<float3> handles =
+        curves.attributes_for_write().lookup_for_write_span<float3>(handles_attribute);
     selection.foreach_index([&](const int point) {
-      apply_raw_diff_v3(bezier_handle_positions[point], tot, ve_median.location, median.location);
+      apply_raw_diff_v3(handles.span[point], tot, ve_median.location, median.location);
     });
-    changed = true;
-  }
+    handles.finish();
 
-  if (changed && !bezier_selection_names.is_empty()) {
+    changed = true;
+  };
+
+  apply_to_handles(".selection_handle_left", "handle_left");
+  apply_to_handles(".selection_handle_right", "handle_right");
+
+  if (changed) {
     curves.calculate_bezier_auto_handles();
   }
 
