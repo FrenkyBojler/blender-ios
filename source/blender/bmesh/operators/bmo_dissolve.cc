@@ -357,13 +357,30 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
 
 /**
  * Given an edge, and vert that are part of a chain, finds the vert at the far end of the chain.
+ *
+ * If edge_oflag is provided, each edge along the chain is tagged, and walking stops when an
+ * edge that is already tagged is found.  This avoids repeatedly re-walking the chain.
  */
-static BMVert *bmo_find_end_of_chain(BMEdge *e, BMVert *v)
+static BMVert *bmo_find_end_of_chain(BMesh *bm, BMEdge *e, BMVert *v, const short edge_oflag = 0)
 {
   BMVert *v_init = v;
+
   while (BM_vert_is_edge_pair(v)) {
+
+    /* move one step down the chain*/
     e = BM_DISK_EDGE_NEXT(e, v);
     v = BM_edge_other_vert(e, v);
+
+    /* If we walk to an edge that has already been processed, there's no need to keep working.
+     * if oflag is 0, this test never breaks. */
+    if (BMO_edge_flag_test(bm, e, edge_oflag)) {
+      break;
+    }
+
+    /* Optionally mark along the chain.
+     * if oflag is 0, `hflag |= 0` is still faster than if + test + jump. */
+    BMO_edge_flag_enable(bm, e, edge_oflag);
+
     /* While this should never happen in the context this function is called.
      * Avoid an eternal loop even in the case of degenerate geometry. */
     BLI_assert(v != v_init);
