@@ -148,7 +148,8 @@ void transform_convert_mesh_customdatacorrect_init(TransInfo *t);
 
 /* `transform_convert_sequencer.cc` */
 
-void transform_convert_sequencer_channel_clamp(TransInfo *t, float r_val[2]);
+const rcti *transform_convert_sequencer_offset_clamp_get(const TransInfo *t);
+bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2]);
 
 /********************* intern **********************/
 
