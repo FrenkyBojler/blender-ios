@@ -12,10 +12,9 @@
 
 namespace blender::nodes {
 
-// Объявления функций, которые будут определены позже
 static void add_object_socket_pose_dependency(const bNodeSocket &socket,
                                              GeometryNodesEvalDependencies &deps);
-static void add_armature_pose_dependencies(const bNodeTree &tree,
+static void add_bone_pose_dependencies(const bNodeTree &tree,
                                           GeometryNodesEvalDependencies &deps);
 
 void GeometryNodesEvalDependencies::add_generic_id(ID *id)
@@ -203,7 +202,7 @@ static void gather_geometry_nodes_eval_dependencies(
 
   add_eval_dependencies_from_node_data(ntree, deps);
   add_own_transform_dependencies(ntree, deps);
-  add_armature_pose_dependencies(ntree, deps);
+  add_bone_pose_dependencies(ntree, deps);
 
   for (const bNode *node : ntree.group_nodes()) {
     if (!node->id) {
@@ -273,7 +272,7 @@ static void add_object_socket_pose_dependency(const bNodeSocket &socket,
   }
 }
 
-static void add_armature_pose_dependencies(const bNodeTree &tree,
+static void add_bone_pose_dependencies(const bNodeTree &tree,
                                            GeometryNodesEvalDependencies &deps)
 {
   for (const bNode *node : tree.nodes_by_type("GeometryNodeBoneInfo")) {
