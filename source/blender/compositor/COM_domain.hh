@@ -23,13 +23,13 @@ enum class Interpolation : uint8_t {
   Anisotropic,
 };
 
-/* Possible boundary modes when computing samples in the domain's exterior. */
+/* Possible extension modes when computing samples in the domain's exterior. */
 enum class ExtensionMode : uint8_t {
-  /* Pads the domain exterior with zero values. */
+  /* Areas outside of the image are filled with zero. */
   Zero,
-  /* Pads the domain exterior with the color value at the border. */
+  /* Areas outside of the image are filled with the closest boundary pixel in the image. */
   Extend,
-  /* Pads the domain exterior with image copies. */
+  /* Areas outside of the image are filled with repetitions of the image. */
   Repeat,
 };
 

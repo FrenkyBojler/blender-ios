@@ -575,7 +575,7 @@ static const EnumPropertyItem cmp_extension_mode_items[] = {
      "ZERO",
      0,
      "Zero",
-     "Areas outside of the image filled with zero"},
+     "Areas outside of the image are filled with zero"},
     {CMP_NODE_EXTENSION_MODE_EXTEND,
      "EXTEND",
      0,
