@@ -128,10 +128,10 @@ static float cursor_size()
   return 21.0f * UI_SCALE_FAC;
 }
 
-static blender::Array<uchar> cursor_bitmap_from_svg(const char *svg,
-                                                    float size,
-                                                    int &width,
-                                                    int &height)
+static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
+                                                      float size,
+                                                      size_t &width,
+                                                      size_t &height)
 {
   /* Nano alters the source string. */
   std::string svg_source = svg;
@@ -151,11 +151,11 @@ static blender::Array<uchar> cursor_bitmap_from_svg(const char *svg,
   }
 
   float scale = (size / 1600.0f);
-  const int dest_w = std::min(int(ceil(image->width * scale)), int(size));
-  const int dest_h = std::min(int(ceil(image->height * scale)), int(size));
+  const size_t dest_w = std::min(size_t(ceil(image->width * scale)), size_t(size));
+  const size_t dest_h = std::min(size_t(ceil(image->height * scale)), size_t(size));
   scale = float(dest_w) / image->width;
 
-  blender::Array<uchar> render_bmp(dest_w * dest_h * 4);
+  blender::Array<uint8_t> render_bmp(dest_w * dest_h * 4);
 
   nsvgRasterize(rast, image, 0.0f, 0.0f, scale, render_bmp.data(), dest_w, dest_h, dest_w * 4);
   nsvgDeleteRasterizer(rast);
@@ -167,38 +167,47 @@ static blender::Array<uchar> cursor_bitmap_from_svg(const char *svg,
   return render_bmp;
 }
 
-static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
+/* Convert 32-bit RGBA bitmap (1-32 x 1-32) to 32x32 1bpp XBitMap bitmap and mask. */
+static void cursor_rgba_to_xbm_32(const blender::Array<uint8_t> rgba,
+                                  const size_t width,
+                                  const size_t height,
+                                  uint8_t *bitmap,
+                                  uint8_t *mask)
 {
-  float size = std::min(cursor_size(), 32.0f);
-
-  int width;
-  int height;
-  blender::Array<uchar> render_bmp = cursor_bitmap_from_svg(
-      cursor->svg_source, size, width, height);
-
-  char bitmap[4 * 32] = {0};
-  char mask[4 * 32] = {0};
-
   for (int y = 0; y < height; y++) {
     for (int x = 0; x < width; x++) {
       int i = (y * width * 4) + (x * 4);
       int j = (y * 4) + (x >> 3);
       int k = (x % 8);
-      if (render_bmp[i + 3] > 128) {
-        if (render_bmp[i] > 128) {
+      if (rgba[i + 3] > 128) {
+        if (rgba[i] > 128) {
           bitmap[j] |= (1 << k);
         }
         mask[j] |= (1 << k);
       }
     }
   }
+}
+
+static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
+{
+  float size = std::min(cursor_size(), 32.0f);
+
+  size_t width;
+  size_t height;
+  blender::Array<uint8_t> render_bmp = cursor_bitmap_from_svg(
+      cursor->svg_source, size, width, height);
 
   int hotspot_x = int(cursor->hotspot_x * (width - 1));
   int hotspot_y = int(cursor->hotspot_y * (height - 1));
 
+  uint8_t bitmap[4 * 32] = {0};
+  uint8_t mask[4 * 32] = {0};
+  cursor_rgba_to_xbm_32(render_bmp, width, height, bitmap, mask);
+
   return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                                    (uint8_t *)bitmap,
-                                    (uint8_t *)mask,
+                                    bitmap,
+                                    mask,
                                     32,
                                     32,
                                     hotspot_x,
