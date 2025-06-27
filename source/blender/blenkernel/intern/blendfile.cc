@@ -1586,15 +1586,17 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
 bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
 {
-  Main mainb = {};
+  Main *mainb = MEM_new<Main>(__func__);
   bool ok = false;
 
   BlendFileWriteParams params{};
   params.use_userdef = true;
 
-  if (BLO_write_file(&mainb, filepath, 0, &params, reports)) {
+  if (BLO_write_file(mainb, filepath, 0, &params, reports)) {
     ok = true;
   }
+
+  MEM_delete(mainb);
 
   return ok;
 }
