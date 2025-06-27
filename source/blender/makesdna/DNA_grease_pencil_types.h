@@ -534,6 +534,7 @@ struct GreasePencil {
   bool has_active_group() const;
   const bke::greasepencil::LayerGroup *get_active_group() const;
   bke::greasepencil::LayerGroup *get_active_group();
+  void set_active_group(bke::greasepencil::LayerGroup *layer);
 
   /* Active node functions. */
   const bke::greasepencil::TreeNode *get_active_node() const;
@@ -561,6 +562,12 @@ struct GreasePencil {
   bke::greasepencil::LayerGroup &add_layer_group(bke::greasepencil::LayerGroup &parent_group,
                                                  StringRef name,
                                                  bool check_name_is_unique = true);
+  /**
+   * Duplicates a layer group from the same object and adds it to the top of the root group.
+   * All layers inside the group are duplicated with unique names and custom data preserved.
+   */
+  bke::greasepencil::LayerGroup &duplicate_layer_group(
+      const bke::greasepencil::LayerGroup &duplicate_group);
 
   /**
    *  Adds multiple layers with an empty name.

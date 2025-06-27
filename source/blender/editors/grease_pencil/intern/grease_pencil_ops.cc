@@ -99,6 +99,16 @@ bool active_grease_pencil_layer_group_poll(bContext *C)
   return grease_pencil && grease_pencil->has_active_group();
 }
 
+bool active_grease_pencil_layer_or_group_poll(bContext *C)
+{
+  if (!grease_pencil_context_poll(C)) {
+    return false;
+  }
+
+  const GreasePencil *grease_pencil = blender::ed::greasepencil::from_context(*C);
+  return grease_pencil && (grease_pencil->has_active_layer() || grease_pencil->has_active_group());
+}
+
 bool editable_grease_pencil_point_selection_poll(bContext *C)
 {
   if (!editable_grease_pencil_poll(C)) {

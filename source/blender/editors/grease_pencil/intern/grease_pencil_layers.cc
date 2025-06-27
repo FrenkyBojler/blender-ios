@@ -645,29 +645,72 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
   GreasePencil &grease_pencil = *ed::greasepencil::from_context(*C);
   const bool empty_keyframes = RNA_boolean_get(op->ptr, "empty_keyframes");
 
-  if (!grease_pencil.has_active_layer()) {
-    BKE_reportf(op->reports, RPT_ERROR, "No active layer to duplicate");
+  TreeNode *active_node = grease_pencil.get_active_node();
+  if (!active_node) {
+    BKE_report(op->reports, RPT_ERROR, "No active layer or group to duplicate");
     return OPERATOR_CANCELLED;
   }
 
-  /* Duplicate layer. */
-  Layer &active_layer = *grease_pencil.get_active_layer();
-  const bool duplicate_frames = true;
-  const bool duplicate_drawings = !empty_keyframes;
-  Layer &new_layer = grease_pencil.duplicate_layer(
-      active_layer, duplicate_frames, duplicate_drawings);
+  Vector<const Layer *> src_layers;
+  Vector<const Layer *> dst_layers;
 
-  WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+  if (active_node->is_group()) {
+    LayerGroup &active_group = active_node->as_group();
+    LayerGroup &new_group = grease_pencil.duplicate_layer_group(active_group);
 
-  grease_pencil.move_node_after(new_layer.as_node(), active_layer.as_node());
-  grease_pencil.set_active_layer(&new_layer);
+    WM_msg_publish_rna_prop(
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
+
+    grease_pencil.move_node_after(new_group.as_node(), active_group.as_node());
+    grease_pencil.set_active_group(&new_group);
+
+    src_layers = active_group.layers();
+    dst_layers = new_group.layers();
+
+    WM_msg_publish_rna_prop(
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
+  }
+  else {
+    Layer &active_layer = active_node->as_layer();
+    Layer &new_layer = grease_pencil.duplicate_layer(active_layer);
+    WM_msg_publish_rna_prop(
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layers);
+
+    src_layers.append(&active_layer);
+    dst_layers.append(&new_layer);
+
+    grease_pencil.move_node_after(new_layer.as_node(), active_layer.as_node());
+    grease_pencil.set_active_layer(&new_layer);
+
+    WM_msg_publish_rna_prop(
+        CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
+  }
+
+  // Duplicate keyframes and drawings from source to destination layer.
+  for (const int i : src_layers.index_range()) {
+    const Layer &src_layer = *src_layers[i];
+    Layer &dst_layer = *const_cast<Layer *>(dst_layers[i]);
+
+    dst_layer.frames_for_write().clear();
+
+    for (auto [frame_number, frame] : src_layer.frames().items()) {
+      const int duration = src_layer.get_frame_duration_at(frame_number);
+
+      Drawing *dst_drawing = grease_pencil.insert_frame(
+          dst_layer, frame_number, duration, eBezTriple_KeyframeType(frame.type));
+
+      if (!empty_keyframes) {
+        BLI_assert(dst_drawing != nullptr);
+        /* TODO: This can fail (return `nullptr`) if the drawing is a drawing reference! */
+        const Drawing &src_drawing = *grease_pencil.get_drawing_at(src_layer, frame_number);
+        /* Duplicate the drawing. */
+        *dst_drawing = src_drawing;
+      }
+    }
+  }
 
   DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_SELECTED, nullptr);
-
-  WM_msg_publish_rna_prop(
-      CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
 
   return OPERATOR_FINISHED;
 }
@@ -681,7 +724,7 @@ static void GREASE_PENCIL_OT_layer_duplicate(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = grease_pencil_layer_duplicate_exec;
-  ot->poll = active_grease_pencil_layer_poll;
+  ot->poll = active_grease_pencil_layer_or_group_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;

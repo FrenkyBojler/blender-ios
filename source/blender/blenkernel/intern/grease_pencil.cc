@@ -3626,6 +3626,15 @@ bke::greasepencil::LayerGroup *GreasePencil::get_active_group()
   return &active_node.as_group();
 }
 
+void GreasePencil::set_active_group(bke::greasepencil::LayerGroup *layer_group)
+{
+  this->active_node = reinterpret_cast<GreasePencilLayerTreeNode *>(&layer_group->as_node());
+
+  if (this->flag & GREASE_PENCIL_AUTOLOCK_LAYERS) {
+    this->autolock_inactive_layers();
+  }
+}
+
 const bke::greasepencil::TreeNode *GreasePencil::get_active_node() const
 {
   if (this->active_node == nullptr) {
@@ -3802,6 +3811,51 @@ bke::greasepencil::LayerGroup &GreasePencil::add_layer_group(
   bke::greasepencil::LayerGroup &new_group = this->add_layer_group(name, check_name_is_unique);
   move_node_into(new_group.as_node(), parent_group);
   return new_group;
+}
+
+bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
+    const bke::greasepencil::LayerGroup &duplicate_group)
+{
+  // copy group structure
+  std::string unique_name = unique_layer_group_name(*this, duplicate_group.name());
+  bke::greasepencil::LayerGroup *new_group = MEM_new<bke::greasepencil::LayerGroup>(
+      __func__, duplicate_group);
+
+  root_group().add_node(new_group->as_node());
+  new_group->set_name(unique_name);
+
+  // copy customData
+  Span<const bke::greasepencil::Layer *> layers_to_copy = duplicate_group.layers();
+  Span<const bke::greasepencil::Layer *> new_created_layers = new_group->layers();
+
+  const int num_layers = layers().size();
+  const int num_new_layers = layers_to_copy.size();
+  CustomData_realloc(&layers_data, num_layers, num_layers + num_new_layers);
+
+  int dst_index = num_layers;
+  for (int idx : layers_to_copy.index_range()) {
+    const bke::greasepencil::Layer *src_layer = layers_to_copy[idx];
+    bke::greasepencil::Layer *dst_layer = const_cast<bke::greasepencil::Layer *>(
+        new_created_layers[idx]);
+
+    // renaming newly created layers to ensure uniqueness
+    dst_layer->set_name(unique_layer_name(dst_layer->name()));
+
+    // update drawing references
+    update_drawing_users_for_layer(*dst_layer);
+
+    std::optional<int> src_index = get_layer_index(*src_layer);
+    BLI_assert(src_index.has_value());
+
+    for (const int layer_index : IndexRange(layers_data.totlayer)) {
+      CustomData_copy_data_layer(
+          &layers_data, &layers_data, layer_index, layer_index, *src_index, dst_index, 1);
+    }
+
+    ++dst_index;
+  }
+
+  return *new_group;
 }
 
 static void reorder_attribute_domain(bke::AttributeStorage &data,
