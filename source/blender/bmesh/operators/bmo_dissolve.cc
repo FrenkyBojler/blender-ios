@@ -391,6 +391,50 @@ static BMVert *bmo_find_end_of_chain(BMesh *bm, BMEdge *e, BMVert *v, const shor
   return v;
 }
 
+/* Determines if an unselected tri or quad would be altered if this vert was dissolved.
+ * When this is discovered, this vert will not be dissolved. */
+bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
+{
+  /* If the vert was already tested and marked, don't test again.*/
+  if (BMO_vert_flag_test(bm, v, VERT_MARK)) {
+    return false;
+  }
+
+  /* check each face at this vert by checking each loop. */
+  BMIter iter;
+  BMLoop *l_a;
+  BM_ITER_ELEM (l_a, &iter, v, BM_LOOPS_OF_VERT) {
+    BMLoop *l_b = BM_loop_other_edge_loop(l_a, v);
+
+    /* `l_a` and `l_b` are now the two edges of the face that share this vert.
+     * if both are untagged, and if the face is either a tri or a quad, return true. */
+    if (!BMO_edge_flag_test(bm, l_a->e, EDGE_TAG) && !BMO_edge_flag_test(bm, l_b->e, EDGE_TAG) &&
+        l_a->f->len <= 4)
+    {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+int bmo_vert_count_tagged_edges_max(BMesh *bm, BMVert *v, const short edge_oflag, const int max)
+{
+  int retval = 0;
+  BMIter iter;
+  BMEdge *e;
+  BM_ITER_ELEM (e, &iter, v, BM_EDGES_OF_VERT) {
+    if (BMO_edge_flag_test(bm, e, edge_oflag)) {
+      retval++;
+    }
+
+    if (retval == max) {
+      return retval;
+    }
+  }
+  return retval;
+}
+
 void bmo_dissolve_edges_init(BMOperator *op)
 {
   /* Set the default not to limit dissolving at all. */
@@ -421,9 +465,11 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
   const bool use_face_split = BMO_slot_bool_get(op->slots_in, "use_face_split");
 
-  if (use_face_split) {
+  if (use_face_split || use_verts) {
     BMO_slot_buffer_flag_enable(bm, op->slots_in, "edges", BM_EDGE, EDGE_TAG);
+  }
 
+  if (use_face_split) {
     BM_ITER_MESH (v, &iter, bm, BM_VERTS_OF_MESH) {
       BMIter itersub;
       int untag_count = 0;
@@ -454,6 +500,7 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
     BMFace *f_pair[2];
     if (BM_edge_face_pair(e, &f_pair[0], &f_pair[1])) {
+
       /* Tag all the edges and verts of the two faces on either side of this edge.
        * This edge is going to be dissolved, and after that happens, some of those elements of the
        * surrounding faces might end up as loose geometry, depending on how the dissolve affected
@@ -467,6 +514,15 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
           BMO_edge_flag_enable(bm, l_iter->e, EDGE_ISGC);
         } while ((l_iter = l_iter->next) != l_first);
       }
+
+      /* If using verts, and this edge is part of a chain that will be dissolved, then extend
+       * `EDGE_TAG` to both ends of the chain.  This marks any edges that, even though they might
+       * not be selected, will also be dissolved when the face merge happens.  This allows counting
+       * how many edges will remain after the dissolves are done later. */
+      if (use_verts && BMO_edge_flag_test(bm, e, EDGE_CHAIN)) {
+        bmo_find_end_of_chain(bm, e, e->v1, EDGE_TAG);
+        bmo_find_end_of_chain(bm, e, e->v2, EDGE_TAG);
+      }
     }
   }
 
@@ -474,15 +530,41 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
     /* Mark all verts that are candidates to be dissolved. */
     BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
+
+      /* Edges only dissolve if they are manifold, so if the edge won't be dissolved, then there's
+       * no reason to mark either of its ends for dissolve. */
+      BMFace *f_pair[2];
+      if (!BM_edge_face_pair(e, &f_pair[0], &f_pair[1])) {
+        continue;
+      }
+
       /* if `BM_faces_join_pair` will be done, mark the correct two verts at the ends for
        * dissolve.*/
       for (int i = 0; i < 2; i++) {
         BMVert *v_edge = *((&e->v1) + i);
 
+        /* An edge between two triangles should dissolve to a quad, akin to untriangulate.
+         * Prevent dissolving either corner, if doing so would collapse the corner, converting the
+         * quad to a tri or wire. This happens when two tris join, and the vert has two untagged
+         * edges, and the _only_ other tagged edge is this edge that's about to be dissolved.
+         * When that case is found, skip it, do not tag it.*/
+        if (f_pair[0]->len == 3 && f_pair[1]->len == 3 &&
+            bmo_vert_count_tagged_edges_max(bm, v_edge, EDGE_TAG, 2) == 1)
+        {
+          continue;
+        }
+
         /* If a chain, follow the chain until the end is found. The whole chain will dissolve, so
          * the test needs to happen there, at the end, where it meets other geometry, not here. */
         if (BM_vert_is_edge_pair(v_edge)) {
           v_edge = bmo_find_end_of_chain(bm, e, v_edge, EDGE_CHAIN);
+        }
+
+        /* If the vert touches a tri or quad that has no selected edges touching this vert, then
+         * dissolving the vert would alter unselected geometry.  Avoid doing this.  Do not mark
+         * this vert for dissolve. */
+        if (bmo_vert_touches_unselected_tri_or_quad(bm, v_edge)) {
+          continue;
         }
 
         /* Mark for dissolve. */
