@@ -442,7 +442,7 @@ static wmOperatorStatus drop_scene_asset_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-void SCENE_OT_drop_scene_asset(wmOperatorType *ot)
+static void SCENE_OT_drop_scene_asset(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Drop Scene";
