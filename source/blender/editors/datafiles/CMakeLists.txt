@@ -957,6 +957,9 @@ if(WITH_BLENDER)
       cursor_crossc
       cursor_zoom_in
       cursor_zoom_out
+      cursor_nsew_scroll
+      cursor_ew_scroll
+      cursor_ns_scroll
     )
 
     set(SVG_CONTENTS_H)

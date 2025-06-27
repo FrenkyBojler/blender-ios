@@ -596,9 +596,9 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_S_ARROW, datatoc_cursor_s_arrow_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_E_ARROW, datatoc_cursor_e_arrow_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_W_ARROW, datatoc_cursor_w_arrow_svg, 0.5f, 0.5f, 1.0f);
-  // WM_CURSOR_NSEW_SCROLL
-  // WM_CURSOR_NS_SCROLL
-  // WM_CURSOR_EW_SCROLL
+  wm_add_cursor(WM_CURSOR_NSEW_SCROLL, datatoc_cursor_nsew_scroll_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_EW_SCROLL, datatoc_cursor_ew_scroll_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_NS_SCROLL, datatoc_cursor_ns_scroll_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_ZOOM_IN, datatoc_cursor_zoom_in_svg, 0.32f, 0.32f, 1.0f);
   wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, 0.32f, 0.32f, 1.0f);
   // WM_CURSOR_NONE
