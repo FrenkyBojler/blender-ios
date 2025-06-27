@@ -5523,6 +5523,9 @@ PointerRNA rna_array_lookup_int(
   if (index < 0 || index >= length) {
     return PointerRNA_NULL;
   }
+  if (index > std::numeric_limits<uint64_t>::max() / itemsize) {
+    return PointerRNA_NULL;
+  }
 
   return RNA_pointer_create_with_parent(*ptr, type, ((char *)data) + itemsize * index);
 }
