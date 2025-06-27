@@ -21,7 +21,6 @@ namespace blender::nodes::node_fn_string_to_value_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::String>("String").hide_label();
-  b.add_input<decl::Int>("Position").default_value(0).min(0);
 
   const bNode *node = b.node_or_null();
   if (node != nullptr) {
@@ -34,18 +33,16 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static const mf::MultiFunction *get_multi_function(const bNode &bnode)
 {
-  static auto str_to_float_fn = mf::build::SI2_SO2<std::string, int, float, int>(
-    "String to Value", [](const std::string &s, int position, float &value, int &length) -> void {
-      const auto start = s.data() + BLI_str_utf8_offset_from_index(s.data(), s.size(), std::max(0, position));
-      const auto result = fast_float::from_chars(start, s.data() + s.size(), value);
-      length = BLI_strnlen_utf8(start, result.ptr - start);
+  static auto str_to_float_fn = mf::build::SI1_SO2<std::string, float, int>(
+    "String to Value", [](const std::string &s, float &value, int &length) -> void {
+      const auto result = fast_float::from_chars(s.data(), s.data() + s.size(), value);
+      length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
     });
 
-  static auto str_to_int_fn = mf::build::SI2_SO2<std::string, int, int, int>(
-    "String to Value", [](const std::string &s, int position, int &value, int &length) -> void {
-      const auto start = s.data() + BLI_str_utf8_offset_from_index(s.data(), s.size(), std::max(0, position));
-      const auto result = std::from_chars(start, s.data() + s.size(), value);
-      length = BLI_strnlen_utf8(start, result.ptr - start);
+  static auto str_to_int_fn = mf::build::SI1_SO2<std::string, int, int>(
+    "String to Value", [](const std::string &s, int &value, int &length) -> void {
+      const auto result = std::from_chars(s.data(), s.data() + s.size(), value);
+      length = BLI_strnlen_utf8(s.data(), result.ptr - s.data());
     });
 
   switch (eNodeSocketDatatype(bnode.custom1)) {
@@ -78,12 +75,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
       params.add_item(IFACE_("String"), [](LinkSearchOpParams &params) {
         bNode &node = params.add_node("FunctionNodeStringToValue");
         params.update_and_connect_available_socket(node, "String");
-      });
-    }
-    else if (socket_type == SOCK_INT) {
-      params.add_item(IFACE_("Position"), [](LinkSearchOpParams &params) {
-        bNode &node = params.add_node("FunctionNodeStringToValue");
-        params.update_and_connect_available_socket(node, "Position");
       });
     }
   }
