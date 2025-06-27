@@ -963,6 +963,7 @@ if(WITH_BLENDER)
       cursor_hand
       cursor_hand_closed
       cursor_hand_point
+      cursor_blade
     )
 
     set(SVG_CONTENTS_H)
