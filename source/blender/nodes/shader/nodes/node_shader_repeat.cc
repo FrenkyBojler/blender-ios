@@ -73,7 +73,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_output<decl::Int>("Iteration")
       .description("Index of the current iteration. Starts counting at zero");
-  b.add_input<decl::Int>("Iterations").min(0).default_value(1);
+
+  b.add_default_layout();
 
   const bNode *node = b.node_or_null();
   const bNodeTree *tree = b.tree_or_null();
@@ -144,8 +145,11 @@ static int node_shader_fn(GPUMaterial *mat,
                           GPUNodeStack *in,
                           GPUNodeStack *out)
 {
-  int zone_id = ((NodeShaderRepeatInput *)node->storage)->output_node_id;
-  return GPU_stack_link_zone(mat, node, "REPEAT_BEGIN", in, out, zone_id, false, 1, 1);
+  float &iterations = node_storage(*node).iterations_float;
+  iterations = node_storage(*node).iterations;
+  int zone_id = node_storage(*node).output_node_id;
+  Vector<GPUZoneConstant, 1> constants = {{GPU_constant(&iterations), GPU_FLOAT}};
+  return GPU_stack_link_zone(mat, node, "REPEAT_BEGIN", in, out, zone_id, false, 1, 1, constants);
 }
 
 static void node_register()
@@ -162,7 +166,7 @@ static void node_register()
   ntype.insert_link = node_insert_link;
   ntype.no_muting = true;
   ntype.draw_buttons = node_layout;
-  // ntype.draw_buttons_ex = node_layout_ex;
+  ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
       ntype, "NodeShaderRepeatInput", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = node_shader_fn;

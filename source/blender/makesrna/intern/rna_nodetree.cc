@@ -9307,8 +9307,9 @@ static void def_sh_repeat_input(BlenderRNA *brna, StructRNA *srna)
   PropertyRNA *prop;
 
   prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_range(prop, 1, 1024);
+  RNA_def_property_range(prop, 0, 1024);
   RNA_def_property_ui_text(prop, "Iterations", "Number of repeat iterations");
+  RNA_def_property_update(prop, NC_NODE, "rna_Node_update");
 }
 
 static void rna_def_sh_repeat_item(BlenderRNA *brna)

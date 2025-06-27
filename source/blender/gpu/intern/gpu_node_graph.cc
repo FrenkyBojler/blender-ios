@@ -848,7 +848,8 @@ bool GPU_stack_link_zone(GPUMaterial *material,
                          int zone_index,
                          bool is_zone_end,
                          int in_argument_count,
-                         int out_argument_count)
+                         int out_argument_count,
+                         blender::Span<GPUZoneConstant> constants)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(material);
   GPUNode *node;
@@ -860,6 +861,11 @@ bool GPU_stack_link_zone(GPUMaterial *material,
 
   totin = 0;
   totout = 0;
+
+  /* Constants go first. */
+  for (const GPUZoneConstant &constant : constants) {
+    gpu_node_input_link(node, constant.link, constant.type);
+  }
 
   if (in) {
     for (i = 0; !in[i].end; i++) {

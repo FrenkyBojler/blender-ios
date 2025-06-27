@@ -14,6 +14,7 @@
 #include "DNA_image_types.h"
 #include "DNA_listBase.h"
 
+#include "BLI_span.hh"
 #include "GPU_shader.hh"  /* for GPUShaderCreateInfo */
 #include "GPU_texture.hh" /* for GPUSamplerState */
 
@@ -345,6 +346,12 @@ bool GPU_stack_link(GPUMaterial *mat,
                     GPUNodeStack *in,
                     GPUNodeStack *out,
                     ...);
+
+struct GPUZoneConstant {
+  GPUNodeLink *link;
+  eGPUType type;
+};
+
 bool GPU_stack_link_zone(GPUMaterial *material,
                          const bNode *bnode,
                          const char *name,
@@ -353,7 +360,8 @@ bool GPU_stack_link_zone(GPUMaterial *material,
                          int zone_index,
                          bool is_zone_end,
                          int in_argument_count,
-                         int out_argument_count);
+                         int out_argument_count,
+                         blender::Span<GPUZoneConstant> constants = {});
 
 void GPU_material_output_surface(GPUMaterial *material, GPUNodeLink *link);
 void GPU_material_output_volume(GPUMaterial *material, GPUNodeLink *link);

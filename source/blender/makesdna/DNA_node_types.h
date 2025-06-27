@@ -2123,6 +2123,7 @@ typedef struct NodeShaderRepeatInput {
   /** bNode.identifier of the corresponding output node. */
   int32_t output_node_id;
   int32_t iterations;
+  float iterations_float;
 } NodeShaderRepeatInput;
 
 typedef struct NodeShaderRepeatOutput {
