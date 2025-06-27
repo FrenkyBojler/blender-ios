@@ -247,53 +247,53 @@ struct Main : blender::NonCopyable, blender::NonMovable {
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 
-  ListBase scenes = {};
-  ListBase libraries = {};
-  ListBase objects = {};
-  ListBase meshes = {};
-  ListBase curves = {};
-  ListBase metaballs = {};
-  ListBase materials = {};
-  ListBase textures = {};
-  ListBase images = {};
-  ListBase lattices = {};
-  ListBase lights = {};
-  ListBase cameras = {};
+  ListBase scenes = {nullptr, nullptr};
+  ListBase libraries = {nullptr, nullptr};
+  ListBase objects = {nullptr, nullptr};
+  ListBase meshes = {nullptr, nullptr};
+  ListBase curves = {nullptr, nullptr};
+  ListBase metaballs = {nullptr, nullptr};
+  ListBase materials = {nullptr, nullptr};
+  ListBase textures = {nullptr, nullptr};
+  ListBase images = {nullptr, nullptr};
+  ListBase lattices = {nullptr, nullptr};
+  ListBase lights = {nullptr, nullptr};
+  ListBase cameras = {nullptr, nullptr};
   /** Deprecated (only for versioning). */
-  ListBase ipo = {};
-  ListBase shapekeys = {};
-  ListBase worlds = {};
-  ListBase screens = {};
-  ListBase fonts = {};
-  ListBase texts = {};
-  ListBase speakers = {};
-  ListBase lightprobes = {};
-  ListBase sounds = {};
-  ListBase collections = {};
-  ListBase armatures = {};
-  ListBase actions = {};
-  ListBase nodetrees = {};
-  ListBase brushes = {};
-  ListBase particles = {};
-  ListBase palettes = {};
-  ListBase paintcurves = {};
+  ListBase ipo = {nullptr, nullptr};
+  ListBase shapekeys = {nullptr, nullptr};
+  ListBase worlds = {nullptr, nullptr};
+  ListBase screens = {nullptr, nullptr};
+  ListBase fonts = {nullptr, nullptr};
+  ListBase texts = {nullptr, nullptr};
+  ListBase speakers = {nullptr, nullptr};
+  ListBase lightprobes = {nullptr, nullptr};
+  ListBase sounds = {nullptr, nullptr};
+  ListBase collections = {nullptr, nullptr};
+  ListBase armatures = {nullptr, nullptr};
+  ListBase actions = {nullptr, nullptr};
+  ListBase nodetrees = {nullptr, nullptr};
+  ListBase brushes = {nullptr, nullptr};
+  ListBase particles = {nullptr, nullptr};
+  ListBase palettes = {nullptr, nullptr};
+  ListBase paintcurves = {nullptr, nullptr};
   /** Singleton (exception). */
-  ListBase wm = {};
+  ListBase wm = {nullptr, nullptr};
   /** Legacy Grease Pencil. */
-  ListBase gpencils = {};
-  ListBase grease_pencils = {};
-  ListBase movieclips = {};
-  ListBase masks = {};
-  ListBase linestyles = {};
-  ListBase cachefiles = {};
-  ListBase workspaces = {};
+  ListBase gpencils = {nullptr, nullptr};
+  ListBase grease_pencils = {nullptr, nullptr};
+  ListBase movieclips = {nullptr, nullptr};
+  ListBase masks = {nullptr, nullptr};
+  ListBase linestyles = {nullptr, nullptr};
+  ListBase cachefiles = {nullptr, nullptr};
+  ListBase workspaces = {nullptr, nullptr};
   /**
    * \note The name `hair_curves` is chosen to be different than `curves`,
    * but they are generic curve data-blocks, not just for hair.
    */
-  ListBase hair_curves = {};
-  ListBase pointclouds = {};
-  ListBase volumes = {};
+  ListBase hair_curves = {nullptr, nullptr};
+  ListBase pointclouds = {nullptr, nullptr};
+  ListBase volumes = {nullptr, nullptr};
 
   /**
    * Must be generated, used and freed by same code - never assume this is valid data unless you
