@@ -1270,6 +1270,11 @@ bool UI_context_copy_to_selected_list(bContext *C,
     *r_path = path;
   }
   else if (CTX_wm_space_outliner(C)) {
+    const ID *id = ptr->owner_id;
+    if (!(id && (GS(id->name) == ID_OB))) {
+      return false;
+    }
+
     ListBase selected_objects = {nullptr};
     ED_outliner_selected_objects_get(C, &selected_objects);
     LISTBASE_FOREACH (LinkData *, link, &selected_objects) {
