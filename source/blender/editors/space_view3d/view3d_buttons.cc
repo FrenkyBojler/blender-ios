@@ -453,6 +453,10 @@ static bool apply_to_curves_selection(const int tot,
     changed = true;
   }
 
+  if (changed && !bezier_selection_names.is_empty()) {
+    curves.calculate_bezier_auto_handles();
+  }
+
   return changed;
 }
 
