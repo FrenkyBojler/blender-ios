@@ -1780,6 +1780,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         int orient_axis = constraintModeToIndex(t);
         if (orient_axis != -1) {
           RNA_property_enum_set(op->ptr, prop, orient_axis);
+          t->con.mode &= ~CON_APPLY;
         }
       }
       else {
@@ -2213,6 +2214,17 @@ bool transform_apply_matrix(TransInfo *t, float mat[4][4])
 void transform_final_value_get(const TransInfo *t, float *value, const int value_num)
 {
   memcpy(value, t->values_final, sizeof(float) * value_num);
+}
+
+void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3])
+{
+  if (t->persp != RV3D_ORTHO) {
+    sub_v3_v3v3(r_vec, t->viewinv[3], focus);
+  }
+  else {
+    copy_v3_v3(r_vec, t->viewinv[2]);
+  }
+  normalize_v3(r_vec);
 }
 
 }  // namespace blender::ed::transform
