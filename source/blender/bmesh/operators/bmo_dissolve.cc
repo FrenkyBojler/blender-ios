@@ -418,7 +418,10 @@ bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
   return false;
 }
 
-int bmo_vert_tagged_edges_count_at_most(BMesh *bm, BMVert *v, const short edge_oflag, const int max)
+int bmo_vert_tagged_edges_count_at_most(BMesh *bm,
+                                        BMVert *v,
+                                        const short edge_oflag,
+                                        const int max)
 {
   int retval = 0;
   BMIter iter;
