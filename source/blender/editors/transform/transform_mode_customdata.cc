@@ -8,56 +8,18 @@
 
 #include <cstdlib>
 
-
 #include "BLI_math_vector.h"
-
 #include "BLI_string.h"
 #include "BLI_task.hh"
 
-#include "BKE_attribute.h"
-#include "BKE_context.hh"
-#include "BKE_customdata.hh"
-#include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_key.hh"
-#include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
-#include "BKE_material.hh"
-#include "BKE_mesh.hh"
-#include "BKE_mesh_types.hh"
-#include "BKE_object.hh"
-#include "BKE_object_types.hh"
-#include "BKE_report.hh"
 #include "BKE_unit.hh"
 
 #include "BLT_translation.hh"
-
-#include "DNA_key_types.h"
-#include "DNA_material_types.h"
-#include "DNA_mesh_types.h"
-#include "DNA_meshdata_types.h"
-#include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
-#include "DNA_scene_types.h"
-
-
-
 #include "ED_mesh.hh"
-
 #include "ED_screen.hh"
 
-
-#include "MEM_guardedalloc.h"
-
-
-#include "RNA_enum_types.hh"
-
 #include "UI_interface.hh"
-
-#include "WM_api.hh"
-#include "WM_types.hh"
-
-#include "bmesh_tools.hh"
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_mode.hh"
