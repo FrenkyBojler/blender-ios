@@ -654,6 +654,7 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
   Vector<const Layer *> src_layers;
   Vector<const Layer *> dst_layers;
 
+  /* Duplicate layer or layer group. */
   if (active_node->is_group()) {
     LayerGroup &active_group = active_node->as_group();
     LayerGroup &new_group = grease_pencil.duplicate_layer_group(active_group);
@@ -686,13 +687,12 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
         CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3Layers, active);
   }
 
-  // Duplicate keyframes and drawings from source to destination layer.
+  /* Clear source keyframes and recreate them with duplicated drawings. */
   for (const int i : src_layers.index_range()) {
     const Layer &src_layer = *src_layers[i];
     Layer &dst_layer = *const_cast<Layer *>(dst_layers[i]);
 
     dst_layer.frames_for_write().clear();
-
     for (auto [frame_number, frame] : src_layer.frames().items()) {
       const int duration = src_layer.get_frame_duration_at(frame_number);
 

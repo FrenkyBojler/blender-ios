@@ -563,8 +563,8 @@ struct GreasePencil {
                                                  StringRef name,
                                                  bool check_name_is_unique = true);
   /**
-   * Duplicates a layer group from the same object and adds it to the top of the root group.
-   * All layers inside the group are duplicated with unique names and custom data preserved.
+   * Duplicate the given layer group and add it to the top of the root group.
+   * All layers within the group are duplicated with unique names and custom data preserved.
    */
   bke::greasepencil::LayerGroup &duplicate_layer_group(
       const bke::greasepencil::LayerGroup &duplicate_group);

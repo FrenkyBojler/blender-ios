@@ -3824,7 +3824,6 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
   root_group().add_node(new_group->as_node());
   new_group->set_name(unique_name);
 
-  // copy customData
   Span<const bke::greasepencil::Layer *> layers_to_copy = duplicate_group.layers();
   Span<const bke::greasepencil::Layer *> new_created_layers = new_group->layers();
 
@@ -3838,12 +3837,12 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
     bke::greasepencil::Layer *dst_layer = const_cast<bke::greasepencil::Layer *>(
         new_created_layers[idx]);
 
-    // renaming newly created layers to ensure uniqueness
+    /* Ensure the new layer has a unique name. */
     dst_layer->set_name(unique_layer_name(dst_layer->name()));
 
-    // update drawing references
     update_drawing_users_for_layer(*dst_layer);
 
+    /* Copy Custom data associated with layer */
     std::optional<int> src_index = get_layer_index(*src_layer);
     BLI_assert(src_index.has_value());
 
