@@ -952,6 +952,8 @@ if(WITH_BLENDER)
       cursor_right_handle
       cursor_left_handle
       cursor_both_handles
+      cursor_paint
+      cursor_dot
     )
 
     set(SVG_CONTENTS_H)

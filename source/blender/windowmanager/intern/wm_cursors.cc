@@ -584,4 +584,6 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_LEFT_HANDLE, datatoc_cursor_left_handle_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_PAINT, datatoc_cursor_paint_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_DOT, datatoc_cursor_dot_svg, 0.5f, 0.5f, 1.0f);
 }
