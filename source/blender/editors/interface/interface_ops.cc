@@ -55,6 +55,7 @@
 
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "interface_intern.hh"
 
@@ -1011,9 +1012,9 @@ static bool override_idtemplate_menu_poll(const bContext *C_const, MenuType * /*
 static void override_idtemplate_menu_draw(const bContext * /*C*/, Menu *menu)
 {
   uiLayout *layout = menu->layout;
-  uiItemO(layout, IFACE_("Make"), ICON_NONE, "UI_OT_override_idtemplate_make");
-  uiItemO(layout, IFACE_("Reset"), ICON_NONE, "UI_OT_override_idtemplate_reset");
-  uiItemO(layout, IFACE_("Clear"), ICON_NONE, "UI_OT_override_idtemplate_clear");
+  layout->op("UI_OT_override_idtemplate_make", IFACE_("Make"), ICON_NONE);
+  layout->op("UI_OT_override_idtemplate_reset", IFACE_("Reset"), ICON_NONE);
+  layout->op("UI_OT_override_idtemplate_clear", IFACE_("Clear"), ICON_NONE);
 }
 
 static void override_idtemplate_menu()
@@ -1034,7 +1035,6 @@ static void override_idtemplate_menu()
 /** \name Copy To Selected Operator
  * \{ */
 
-#define NOT_NULL(assignment) ((assignment) != nullptr)
 #define NOT_RNA_NULL(assignment) ((assignment).data != nullptr)
 
 static void ui_context_selected_bones_via_pose(bContext *C, blender::Vector<PointerRNA> *r_lb)
@@ -2152,12 +2152,33 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
     /* redraw and get active button python info */
     ui_region_redraw_immediately(C, region);
 
+    /* It's possible the key button referenced in `ui_editsource_info` has been freed.
+     * This typically happens with popovers but could happen in other situations, see: #140439. */
+    blender::Set<const uiBut *> valid_buttons_in_region;
+    LISTBASE_FOREACH (uiBlock *, block_base, &region->runtime->uiblocks) {
+      uiBlock *block_pair[2] = {block_base, block_base->oldblock};
+      for (uiBlock *block : blender::Span(block_pair, block_pair[1] ? 2 : 1)) {
+        for (int i = 0; i < block->buttons.size(); i++) {
+          const uiBut *but = block->buttons[i].get();
+          valid_buttons_in_region.add(but);
+        }
+      }
+    }
+
     for (BLI_ghashIterator_init(&ghi, ui_editsource_info->hash);
          BLI_ghashIterator_done(&ghi) == false;
          BLI_ghashIterator_step(&ghi))
     {
       uiBut *but_key = static_cast<uiBut *>(BLI_ghashIterator_getKey(&ghi));
-      if (but_key && ui_editsource_uibut_match(&ui_editsource_info->but_orig, but_key)) {
+      if (but_key == nullptr) {
+        continue;
+      }
+
+      if (!valid_buttons_in_region.contains(but_key)) {
+        continue;
+      }
+
+      if (ui_editsource_uibut_match(&ui_editsource_info->but_orig, but_key)) {
         but_store = static_cast<uiEditSourceButStore *>(BLI_ghashIterator_getValue(&ghi));
         break;
       }
@@ -2689,6 +2710,11 @@ static wmOperatorStatus ui_view_scroll_invoke(bContext *C,
   }
 
   BLI_assert(view->supports_scrolling());
+  if (view->is_fully_visible()) {
+    /* The view does not need scrolling currently, so pass the event through. This allows scrolling
+     * e.g. the entire region even when hovering a tree-view that supports scrolling generally. */
+    return OPERATOR_PASS_THROUGH;
+  }
   view->scroll(*direction);
 
   ED_region_tag_redraw(region);

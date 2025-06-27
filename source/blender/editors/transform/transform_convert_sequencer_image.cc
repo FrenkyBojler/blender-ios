@@ -75,7 +75,8 @@ static void store_transform_properties(const Scene *scene,
   tdseq->orig_rotation = transform->rotation;
   tdseq->orig_flag = strip->flag;
   tdseq->orig_mirror = seq::image_transform_mirror_factor_get(strip);
-  tdseq->active_seq_orig_rotation = ed->act_strip->data->transform->rotation;
+  tdseq->active_seq_orig_rotation = ed->act_strip ? ed->act_strip->data->transform->rotation :
+                                                    transform->rotation;
   tdseq->strip = strip;
   td->extra = static_cast<void *>(tdseq);
 }
@@ -270,7 +271,7 @@ static void image_transform_set(TransInfo *t)
 
     /* Scale. */
     transform->scale_x = tdseq->orig_scale.x * result.scale.x;
-    transform->scale_y = tdseq->orig_scale.x * result.scale.x;
+    transform->scale_y = tdseq->orig_scale.y * result.scale.y;
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
@@ -307,7 +308,7 @@ static void image_transform_set(TransInfo *t)
       autokeyframe_sequencer_image(t->context, t->scene, transform, t->mode);
     }
 
-    seq::relations_invalidate_cache_preprocessed(t->scene, strip);
+    seq::relations_invalidate_cache(t->scene, strip);
   }
 }
 
@@ -332,14 +333,10 @@ static float2 calculate_new_origin_position(TransInfo *t, TransDataSeq *tdseq, T
 {
   Strip *strip = tdseq->strip;
 
-  float2 image_size(float(t->scene->r.xsch), float(t->scene->r.ysch));
-  if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
-    image_size.x = strip->data->stripdata->orig_width;
-    image_size.y = strip->data->stripdata->orig_height;
-  }
+  const float2 image_size = seq::transform_image_raw_size_get(t->scene, strip);
 
   const float2 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f};
-  float2 mirror = seq::image_transform_mirror_factor_get(strip);
+  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
   const float2 origin = tdseq->orig_origin_pixelspace;
   const float2 translation = transform_result_get(t, tdseq, td2d, strip).translation;
@@ -372,7 +369,7 @@ static void image_origin_set(TransInfo *t)
     transform->xofs = tdseq->orig_translation.x - delta_translation.x;
     transform->yofs = tdseq->orig_translation.y - delta_translation.y;
 
-    seq::relations_invalidate_cache_preprocessed(t->scene, strip);
+    seq::relations_invalidate_cache(t->scene, strip);
   }
 }
 

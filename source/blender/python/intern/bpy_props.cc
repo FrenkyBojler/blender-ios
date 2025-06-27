@@ -38,7 +38,7 @@
 
 #include "../generic/py_capi_rna.hh"
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 using blender::Array;
 
@@ -4611,7 +4611,7 @@ PyObject *BPY_rna_props()
   submodule = PyModule_Create(&props_module);
   PyDict_SetItemString(PyImport_GetModuleDict(), props_module.m_name, submodule);
 
-  /* api needs the PyObjects internally */
+  /* API needs the PyObjects internally. */
   submodule_dict = PyModule_GetDict(submodule);
 
 #define ASSIGN_STATIC(_name) pymeth_##_name = PyDict_GetItemString(submodule_dict, #_name)

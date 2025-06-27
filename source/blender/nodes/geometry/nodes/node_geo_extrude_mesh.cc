@@ -22,7 +22,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "FN_multi_function_builder.hh"
@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Vector>("Offset")
       .subtype(PROP_TRANSLATION)
-      .implicit_field_on_all(implicit_field_inputs::normal)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_NORMAL_FIELD)
       .hide_value();
   b.add_input<decl::Float>("Offset Scale").default_value(1.0f).field_on_all();
   auto &individual =
@@ -60,8 +60,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 

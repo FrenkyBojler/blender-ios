@@ -5,7 +5,7 @@
 /** \file
  * \ingroup GHOST
  *
- * C Api for GHOST
+ * C API for GHOST
  */
 
 #include <cstdlib>
@@ -314,6 +314,13 @@ GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
   return window->getCursorBitmap(bitmap);
+}
+
+uint32_t GHOST_GetCursorPreferredLogicalSize(const GHOST_SystemHandle systemhandle)
+{
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
+
+  return system->getCursorPreferredLogicalSize();
 }
 
 bool GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle)

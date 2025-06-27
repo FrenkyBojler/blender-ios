@@ -28,6 +28,7 @@
 #include "WM_api.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #define B_MATPRV 1
 
@@ -118,10 +119,9 @@ void uiTemplatePreview(uiLayout *layout,
   }
 
   /* layout */
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiLayout *row = &layout->row(false);
   uiLayout *col = &row->column(false);
-  uiLayoutSetKeepAspect(col, true);
 
   /* add preview */
   uiDefBut(
@@ -159,13 +159,13 @@ void uiTemplatePreview(uiLayout *layout,
       PointerRNA material_ptr = RNA_id_pointer_create(&ma->id);
 
       col = &row->column(true);
-      uiLayoutSetScaleX(col, 1.5);
+      col->scale_x_set(1.5);
       col->prop(&material_ptr, "preview_render_type", UI_ITEM_R_EXPAND, "", ICON_NONE);
 
       /* EEVEE preview file has baked lighting so use_preview_world has no effect,
        * just hide the option until this feature is supported. */
       if (!BKE_scene_uses_blender_eevee(CTX_data_scene(C))) {
-        uiItemS(col);
+        col->separator();
         col->prop(&material_ptr, "use_preview_world", UI_ITEM_NONE, "", ICON_WORLD);
       }
     }

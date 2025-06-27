@@ -59,8 +59,8 @@ static bool add_gpu_lut_1D2D(internal::GPUTextures &textures,
 {
   const char *texture_name = nullptr;
   const char *sampler_name = nullptr;
-  unsigned int width = 0;
-  unsigned int height = 0;
+  uint width = 0;
+  uint height = 0;
 
   GpuShaderCreator::TextureType channel = GpuShaderCreator::TEXTURE_RGB_CHANNEL;
   Interpolation interpolation = INTERP_LINEAR;
@@ -83,8 +83,19 @@ static bool add_gpu_lut_1D2D(internal::GPUTextures &textures,
                                                                                   GPU_R16F;
 
   internal::GPULutTexture lut;
-  lut.texture = GPU_texture_create_2d(
-      texture_name, width, height, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, values);
+  /* There does not appear to be an explicit way to check if a texture is 1D or 2D.
+   * It depends on more than height. So check instead by looking at the source.
+   * The Blender default config does not use 1D textures, but for example
+   * studio-config-v3.0.0_aces-v2.0_ocio-v2.4.ocio needs this code. */
+  std::string sampler1D_name = std::string("sampler1D ") + sampler_name;
+  if (strstr(shader_desc->getShaderText(), sampler1D_name.c_str()) != nullptr) {
+    lut.texture = GPU_texture_create_1d(
+        texture_name, width, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, values);
+  }
+  else {
+    lut.texture = GPU_texture_create_2d(
+        texture_name, width, height, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, values);
+  }
   if (lut.texture == nullptr) {
     return false;
   }
@@ -105,7 +116,7 @@ static bool add_gpu_lut_3D(internal::GPUTextures &textures,
 {
   const char *texture_name = nullptr;
   const char *sampler_name = nullptr;
-  unsigned int edgelen = 0;
+  uint edgelen = 0;
   Interpolation interpolation = INTERP_LINEAR;
   shader_desc->get3DTexture(index, texture_name, sampler_name, edgelen, interpolation);
 

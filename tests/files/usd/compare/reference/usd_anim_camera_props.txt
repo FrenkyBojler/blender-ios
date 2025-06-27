@@ -14,8 +14,6 @@
     - 0 0 0 0 0 ... 0 0 0 0 0 
   - attr 'material_index' INT FACE
     - 0 0 0 0 0 ... 0 0 0 0 0 
-  - attr 'sharp_face' BOOLEAN FACE
-    - 1 1 1 1 1 ... 1 1 1 1 1 
   - attr 'custom_normal' INT16_2D CORNER
     - (0, 0)
     - (0, 0)
@@ -48,8 +46,6 @@
     - 1 1 1 1 1 ... 1 1 1 1 1 
   - attr 'material_index' INT FACE
     - 0 0 0 0 0 0 0 0 0 
-  - attr 'sharp_face' BOOLEAN FACE
-    - 1 1 1 1 1 1 1 1 1 
   - attr 'custom_normal' INT16_2D CORNER
     - (0, 0)
     - (0, 0)
@@ -90,8 +86,6 @@
     - 1 1 1 1 1 ... 1 1 1 1 1 
   - attr 'material_index' INT FACE
     - 0 0 0 0 0 0 
-  - attr 'sharp_face' BOOLEAN FACE
-    - 1 1 1 1 1 1 
   - attr 'custom_normal' INT16_2D CORNER
     - (0, 0)
     - (0, 0)
@@ -132,8 +126,6 @@
     - 1 1 1 1 1 ... 1 1 1 1 1 
   - attr 'material_index' INT FACE
     - 0 0 0 0 0 0 0 0 0 0 
-  - attr 'sharp_face' BOOLEAN FACE
-    - 1 1 1 1 1 1 1 1 1 1 
   - attr 'custom_normal' INT16_2D CORNER
     - (0, 0)
     - (0, 0)
@@ -171,8 +163,6 @@
     - 0 0 0 0 
   - attr 'material_index' INT FACE
     - 0 
-  - attr 'sharp_face' BOOLEAN FACE
-    - 1 
   - attr 'custom_normal' INT16_2D CORNER
     - (0, 0)
     - (0, 0)
@@ -204,8 +194,6 @@
     - 1 1 1 1 1 ... 1 1 1 1 1 
   - attr 'material_index' INT FACE
     - 0 0 0 0 0 ... 0 0 0 0 0 
-  - attr 'sharp_face' BOOLEAN FACE
-    - 1 1 1 1 1 ... 1 1 1 1 1 
   - attr 'custom_normal' INT16_2D CORNER
     - (0, 0)
     - (0, 0)
@@ -302,19 +290,6 @@
 - Cam 'CamE' PERSP lens:50.0 MILLIMETERS near:0.100 far:1000.0 orthosize:6.0
   - fov 0.691 (h 0.691 v 0.400)
   - sensor 36.0x20.2 shift 0.000,0.000
-
-==== Materials: 1
-- Mat 'Dots Stroke'
-  - base color (0.800, 0.800, 0.800)
-  - specular ior 0.500
-  - specular tint (0.000, 0.000, 0.000)
-  - roughness 0.400
-  - metallic 0.000
-  - ior 1.000
-  - viewport diffuse (0.800, 0.800, 0.800, 1.000)
-  - viewport specular (1.000, 1.000, 1.000), intensity 0.500
-  - viewport metallic 0.000, roughness 0.400
-  - backface False probe True shadow False
 
 ==== Actions: 4
 - Action 'CamAAction' curverange:(1.0 .. 5.0) layers:1

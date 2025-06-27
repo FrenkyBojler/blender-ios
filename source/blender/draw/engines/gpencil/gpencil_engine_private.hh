@@ -204,6 +204,9 @@ struct Instance final : public DrawEngine {
   struct {
     tObject *first, *last;
   } tobjects, tobjects_infront;
+  /* Used to record whether the `tobjects` list is sorted. Do not sort drawings again in separate
+   * pass rendering to avoid generating infinite lists. */
+  bool is_sorted;
   /* Pointer to dtxl->depth */
   GPUTexture *scene_depth_tx;
   GPUFrameBuffer *scene_fb;
@@ -325,7 +328,7 @@ struct Instance final : public DrawEngine {
   static float2 antialiasing_sample_get(int sample_index, int sample_count);
 
  private:
-  tObject *object_sync_do(Object *ob, ResourceHandle res_handle);
+  tObject *object_sync_do(Object *ob, ResourceHandleRange res_handle);
 
   /* Check if the passed in layer is used by any other layer as a mask (in the viewlayer). */
   bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,

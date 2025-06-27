@@ -37,6 +37,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -330,8 +331,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   {
     uiLayout *column = &layout->column(true);
-    uiLayoutSetPropSep(column, true);
-    uiLayoutSetPropDecorate(column, false);
+    column->use_property_split_set(true);
+    column->use_property_decorate_set(false);
     column->prop(ptr, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   const bool save_as_render = RNA_boolean_get(ptr, "save_as_render");
@@ -339,8 +340,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   if (!save_as_render) {
     uiLayout *col = &layout->column(true);
-    uiLayoutSetPropSep(col, true);
-    uiLayoutSetPropDecorate(col, false);
+    col->use_property_split_set(true);
+    col->use_property_decorate_set(false);
 
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imfptr, "linear_colorspace_settings");
     col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
@@ -352,9 +353,9 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
     uiTemplateImageFormatViews(layout, &imfptr, nullptr);
   }
 
-  uiItemS(layout);
+  layout->separator();
 
-  uiItemO(layout, IFACE_("Add Input"), ICON_ADD, "NODE_OT_output_file_add_socket");
+  layout->op("NODE_OT_output_file_add_socket", IFACE_("Add Input"), ICON_ADD);
 
   row = &layout->row(false);
   col = &row->column(true);
@@ -403,10 +404,9 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   col = &row->column(true);
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  uiItemFullO_ptr(col, ot, "", ICON_TRIA_UP, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  op_ptr = col->op(ot, "", ICON_TRIA_UP, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 1);
-  uiItemFullO_ptr(
-      col, ot, "", ICON_TRIA_DOWN, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 2);
 
   if (active_input_ptr.data) {
@@ -416,14 +416,11 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       col->label(IFACE_("Layer:"), ICON_NONE);
       row = &col->row(false);
       row->prop(&active_input_ptr, "name", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      uiItemFullO(row,
-                  "NODE_OT_output_file_remove_active_socket",
-                  "",
-                  ICON_X,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_R_ICON_ONLY,
-                  nullptr);
+      row->op("NODE_OT_output_file_remove_active_socket",
+              "",
+              ICON_X,
+              WM_OP_EXEC_DEFAULT,
+              UI_ITEM_R_ICON_ONLY);
     }
     else {
       col = &layout->column(true);
@@ -431,14 +428,11 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       col->label(IFACE_("File Subpath:"), ICON_NONE);
       row = &col->row(false);
       row->prop(&active_input_ptr, "path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-      uiItemFullO(row,
-                  "NODE_OT_output_file_remove_active_socket",
-                  "",
-                  ICON_X,
-                  nullptr,
-                  WM_OP_EXEC_DEFAULT,
-                  UI_ITEM_R_ICON_ONLY,
-                  nullptr);
+      row->op("NODE_OT_output_file_remove_active_socket",
+              "",
+              ICON_X,
+              WM_OP_EXEC_DEFAULT,
+              UI_ITEM_R_ICON_ONLY);
 
       /* format details for individual files */
       imfptr = RNA_pointer_get(&active_input_ptr, "format");
@@ -456,8 +450,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       if (!use_node_format) {
         {
           uiLayout *column = &layout->column(true);
-          uiLayoutSetPropSep(column, true);
-          uiLayoutSetPropDecorate(column, false);
+          column->use_property_split_set(true);
+          column->use_property_decorate_set(false);
           column->prop(&active_input_ptr,
                        "save_as_render",
                        UI_ITEM_R_SPLIT_EMPTY_NAME,
@@ -472,8 +466,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
         if (!use_color_management) {
           uiLayout *col = &layout->column(true);
-          uiLayoutSetPropSep(col, true);
-          uiLayoutSetPropDecorate(col, false);
+          col->use_property_split_set(true);
+          col->use_property_decorate_set(false);
 
           PointerRNA linear_settings_ptr = RNA_pointer_get(&imfptr, "linear_colorspace_settings");
           col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
@@ -495,7 +489,7 @@ class FileOutputOperation : public NodeOperation {
   FileOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
   {
     for (const bNodeSocket *input : node->input_sockets()) {
-      if (!input->is_available()) {
+      if (!is_socket_available(input)) {
         continue;
       }
 
@@ -526,7 +520,7 @@ class FileOutputOperation : public NodeOperation {
   void execute_single_layer()
   {
     for (const bNodeSocket *input : this->node()->input_sockets()) {
-      if (!input->is_available()) {
+      if (!is_socket_available(input)) {
         continue;
       }
 
@@ -640,7 +634,7 @@ class FileOutputOperation : public NodeOperation {
     file_output.add_view(pass_view);
 
     for (const bNodeSocket *input : this->node()->input_sockets()) {
-      if (!input->is_available()) {
+      if (!is_socket_available(input)) {
         continue;
       }
 
@@ -877,12 +871,12 @@ class FileOutputOperation : public NodeOperation {
    */
   bool get_single_layer_image_base_path(const char *base_name, char *r_base_path)
   {
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(
-        BKE_main_blendfile_path_from_global(), &context().get_render_data());
+    const path_templates::VariableMap template_variables =
+        BKE_build_template_variables_for_render_path(&context().get_render_data());
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
-    BLI_strncpy(node_base_path, get_base_path(), FILE_MAX);
+    STRNCPY(node_base_path, get_base_path());
     {
       blender::Vector<path_templates::Error> errors = BKE_path_apply_template(
           node_base_path, FILE_MAX, template_variables);
@@ -895,7 +889,7 @@ class FileOutputOperation : public NodeOperation {
     if (base_name[0]) {
       /* Do template expansion on the socket's sub path ("base name"). */
       char sub_path[FILE_MAX] = "";
-      BLI_strncpy(sub_path, base_name, FILE_MAX);
+      STRNCPY(sub_path, base_name);
       {
         blender::Vector<path_templates::Error> errors = BKE_path_apply_template(
             sub_path, FILE_MAX, template_variables);
@@ -960,8 +954,8 @@ class FileOutputOperation : public NodeOperation {
     const RenderData &render_data = context().get_render_data();
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(
-        relbase, &render_data);
+    const path_templates::VariableMap template_variables =
+        BKE_build_template_variables_for_render_path(&render_data);
     blender::Vector<path_templates::Error> errors = BKE_image_path_from_imtype(
         r_image_path,
         base_path,
@@ -1019,7 +1013,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_file_output_cc
 
-void register_node_type_cmp_output_file()
+static void register_node_type_cmp_output_file()
 {
   namespace file_ns = blender::nodes::node_composite_file_output_cc;
 
@@ -1041,3 +1035,4 @@ void register_node_type_cmp_output_file()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_output_file)

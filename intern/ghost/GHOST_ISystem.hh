@@ -4,7 +4,7 @@
 
 /** \file
  * \ingroup GHOST
- * %Main interface file for C++ Api with declaration of GHOST_ISystem interface
+ * %Main interface file for C++ API with declaration of GHOST_ISystem interface
  * class.
  * Contains the DOXYGEN documentation main page.
  */
@@ -371,6 +371,11 @@ class GHOST_ISystem {
    * \return Indication of success.
    */
   virtual GHOST_TSuccess getCursorPosition(int32_t &x, int32_t &y) const = 0;
+
+  /**
+   * \return the size of the cursor in logical pixels (before Hi-DPI scaling is applied).
+   */
+  virtual uint32_t getCursorPreferredLogicalSize() const = 0;
 
   /**
    * Updates the location of the cursor (location in screen coordinates).

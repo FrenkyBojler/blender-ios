@@ -13,7 +13,7 @@
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_image_texture_cc {
@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Image>("Image").hide_label();
   b.add_input<decl::Vector>("Vector")
-      .implicit_field(implicit_field_inputs::position)
+      .implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description("Texture coordinates from 0 to 1");
   b.add_input<decl::Int>("Frame").min(0).max(MAXFRAMEF);
   b.add_output<decl::Color>("Color").no_muted_links().dependent_field().reference_pass_all();
