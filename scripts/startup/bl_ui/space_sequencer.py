@@ -797,9 +797,6 @@ class SEQUENCER_MT_add_scene(Menu):
         layout.operator_context = 'INVOKE_REGION_WIN'
         layout.operator("sequencer.scene_strip_add_new", text="New Scene", icon='ADD').type = 'NEW'
 
-        layout.separator()
-        layout.template_scene_asset_menu_items()
-
         bpy_data_scenes_len = len(bpy.data.scenes)
         if bpy_data_scenes_len > 10:
             layout.separator()
