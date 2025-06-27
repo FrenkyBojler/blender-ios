@@ -1075,12 +1075,13 @@ static void scene_preview_render(IconPreview *preview, IconPreviewSize *preview_
    * The "Refresh Asset Preview" button (#ED_OT_lib_id_generate_preview) does,
    * but #WM_OT_previews_ensure does not. */
   BLI_assert(depsgraph != nullptr);
+  BLI_assert(preview->id != nullptr);
 
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
   Object *camera_eval = scene_eval->camera;
   if (camera_eval == nullptr) {
     printf("Scene has no camera, unable to render preview of %s without it.\n",
-           preview->id->name + 2);
+           BKE_id_name(*preview->id));
     return;
   }
 
