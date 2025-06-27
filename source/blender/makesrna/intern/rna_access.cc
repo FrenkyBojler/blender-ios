@@ -6,10 +6,10 @@
  * \ingroup RNA
  */
 
-#include <cctype>
 #include <cstddef>
-#include <cstdlib>
+#include <cstdint>
 #include <cstring>
+#include <limits>
 #include <sstream>
 
 #include <fmt/format.h>
@@ -5443,8 +5443,8 @@ PointerRNA rna_listbase_lookup_int(PointerRNA *ptr, StructRNA *type, ListBase *l
 void rna_iterator_array_begin(CollectionPropertyIterator *iter,
                               PointerRNA *ptr,
                               void *data,
-                              int itemsize,
-                              int length,
+                              size_t itemsize,
+                              int64_t length,
                               bool free_ptr,
                               IteratorSkipFunc skip)
 {
@@ -5455,7 +5455,11 @@ void rna_iterator_array_begin(CollectionPropertyIterator *iter,
   if (data == nullptr) {
     length = 0;
   }
-  else if (length == 0) {
+  else if (length <= 0) {
+    data = nullptr;
+    itemsize = 0;
+  }
+  else if (length > std::numeric_limits<uint64_t>::max() / itemsize) {
     data = nullptr;
     itemsize = 0;
   }
@@ -5463,7 +5467,7 @@ void rna_iterator_array_begin(CollectionPropertyIterator *iter,
   internal = &iter->internal.array;
   internal->ptr = static_cast<char *>(data);
   internal->free_ptr = free_ptr ? data : nullptr;
-  internal->endptr = ((char *)data) + length * itemsize;
+  internal->endptr = ((char *)data) + itemsize * length;
   internal->itemsize = itemsize;
   internal->skip = skip;
   internal->length = length;
@@ -5514,13 +5518,13 @@ void rna_iterator_array_end(CollectionPropertyIterator *iter)
 }
 
 PointerRNA rna_array_lookup_int(
-    PointerRNA *ptr, StructRNA *type, void *data, int itemsize, int length, int index)
+    PointerRNA *ptr, StructRNA *type, void *data, size_t itemsize, int64_t length, int64_t index)
 {
   if (index < 0 || index >= length) {
     return PointerRNA_NULL;
   }
 
-  return RNA_pointer_create_with_parent(*ptr, type, ((char *)data) + index * itemsize);
+  return RNA_pointer_create_with_parent(*ptr, type, ((char *)data) + itemsize * index);
 }
 
 /* Quick name based property access */
