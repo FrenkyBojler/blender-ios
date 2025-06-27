@@ -95,7 +95,6 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
   char str[UI_MAX_DRAW_STR];
 
   value = t->values[0] + t->values_modal_offset[0];
-
   CLAMP_MAX(value, 1.0f);
 
   transform_snap_increment(t, &value);
@@ -114,6 +113,20 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(tc->obedit);
 
+    BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
+    int cd_offset = -1;
+
+    if (t->mode == TFM_VERT_CREASE) {
+      cd_offset = CustomData_get_offset_named(&em->bm->vdata, CD_PROP_FLOAT, "crease_vert");
+    }
+    else if (t->mode == TFM_EDGE_CREASE) {
+      cd_offset = CustomData_get_offset_named(&em->bm->edata, CD_PROP_FLOAT, "crease_edge");
+    }
+    else if (t->mode == TFM_BWEIGHT) {
+      cd_offset = CustomData_get_offset_named(
+          &em->bm->edata, CD_PROP_FLOAT, "bevel_weight_edge");
+    }
+
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
@@ -123,20 +136,17 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
 
         transdata_elem_value(t, tc, td, value);
 
-        if (symmetry_helper && td->extra) {
+        if (symmetry_helper && td->extra && cd_offset != -1) {
           if (t->mode == TFM_VERT_CREASE) {
             TransVertMirrorData *mvd = static_cast<TransVertMirrorData *>(td->extra);
             if (mvd && mvd->vert) {
-              symmetry_helper->set_crease_on_mirror_verts(mvd->vert, *td->val);
+              symmetry_helper->set_float_on_mirror_verts(mvd->vert, cd_offset, *td->val);
             }
-          } else {
+          }
+          else {
             TransEdgeMirrorData *med = static_cast<TransEdgeMirrorData *>(td->extra);
             if (med && med->edge) {
-              if (t->mode == TFM_EDGE_CREASE) {
-                symmetry_helper->set_crease_on_mirror_edges(med->edge, *td->val);
-              } else if (t->mode == TFM_BWEIGHT) {
-                symmetry_helper->set_bevel_weight_on_mirror_edges(med->edge, *td->val);
-              }
+              symmetry_helper->set_float_on_mirror_edges(med->edge, cd_offset, *td->val);
             }
           }
         }

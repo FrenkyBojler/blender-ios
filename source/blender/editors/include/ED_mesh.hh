@@ -51,18 +51,11 @@ class EditMeshSymmetryHelper {
 public:
   static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob);
 
-  bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
+  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
   void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
 
-  bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
-  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
-
-  bool is_any_mirror_face_selected(BMFace *face, char hflag) const;
-  void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
-
-  void set_crease_on_mirror_edges(BMEdge *edge, float value) const;
-  void set_bevel_weight_on_mirror_edges(BMEdge *edge, float value) const;
-  void set_crease_on_mirror_verts(BMVert *vert, float value) const;
+  void set_float_on_mirror_verts(BMVert *vert, int cd_offset, float value) const;
+  void set_float_on_mirror_edges(BMEdge *edge, int cd_offset, float value) const;
 
   void apply_on_mirror_verts(BMVert *vert, blender::FunctionRef<void(BMVert *)> op) const;
   void apply_on_mirror_edges(BMEdge *edge, blender::FunctionRef<void(BMEdge *)> op) const;
@@ -70,9 +63,6 @@ public:
 
 private:
   EditMeshSymmetryHelper(Object *ob);
-
-  void set_float_prop_on_mirror_edges(BMEdge *edge, const char *name, float value) const;
-  void set_float_prop_on_mirror_elements(BMVert *vert, const char *name, float value) const;
 
   BMEditMesh *em;
   Mesh *mesh;

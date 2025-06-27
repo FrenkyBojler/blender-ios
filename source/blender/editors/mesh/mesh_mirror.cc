@@ -139,18 +139,6 @@ void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face,
   }
 }
 
-bool EditMeshSymmetryHelper::is_any_mirror_edge_selected(BMEdge *edge, char hflag) const {
-  if (!edge_to_mirrors_map.contains(edge)) {
-    return false;
-  }
-  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
-    if (BM_elem_flag_test(mirror_edge, hflag) &&
-        !BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const {
   apply_on_mirror_edges(edge, [hflag, value](BMEdge *e_mir) {
@@ -164,18 +152,6 @@ void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, char hflag, 
   });
 }
 
-bool EditMeshSymmetryHelper::is_any_mirror_vert_selected(BMVert *vert, char hflag) const {
-  if (!vert_to_mirrors_map.contains(vert)) {
-    return false;
-  }
-  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
-    if (BM_elem_flag_test(mirror_vert, hflag) &&
-        !BM_elem_flag_test(mirror_vert, BM_ELEM_HIDDEN)) {
-      return true;
-    }
-  }
-  return false;
-}
 
 void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const {
   apply_on_mirror_verts(vert, [hflag, value](BMVert *v_mir) {
@@ -189,64 +165,9 @@ void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *vert, char hflag, 
   });
 }
 
-bool EditMeshSymmetryHelper::is_any_mirror_face_selected(BMFace *face, char hflag) const {
-  if (!face_to_mirrors_map.contains(face)) {
-    return false;
-  }
-  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
-    if (BM_elem_flag_test(mirror_face, hflag) &&
-        !BM_elem_flag_test(mirror_face, BM_ELEM_HIDDEN)) {
-      return true;
-    }
-  }
-  return false;
-}
-
-void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const {
-  apply_on_mirror_faces(face, [hflag, value](BMFace *f_mir) {
-    if (!BM_elem_flag_test(f_mir, BM_ELEM_HIDDEN)) {
-      if (value) {
-        BM_elem_flag_enable(f_mir, hflag);
-      } else {
-        BM_elem_flag_disable(f_mir, hflag);
-      }
-    }
-  });
-}
-
-void EditMeshSymmetryHelper::set_float_prop_on_mirror_edges(BMEdge *edge,
-                                                            const char *name,
-                                                            float value) const
-{
-  const int cd_offset = CustomData_get_offset_named(&this->em->bm->edata, CD_PROP_FLOAT, name);
-  if (cd_offset == -1) {
-    return;
-  }
-
-  this->apply_on_mirror_edges(edge, [cd_offset, value](BMEdge *e_mir) {
-    if (!BM_elem_flag_test(e_mir, BM_ELEM_HIDDEN)) {
-      float *mirror_val_ptr = static_cast<float *>(
-          BM_ELEM_CD_GET_VOID_P(e_mir, cd_offset));
-      *mirror_val_ptr = value;
-      CLAMP(*mirror_val_ptr, 0.0f, 1.0f);
-    }
-  });
-}
-
-void EditMeshSymmetryHelper::set_crease_on_mirror_edges(BMEdge *edge, float value) const
-{
-  this->set_float_prop_on_mirror_edges(edge, "crease_edge", value);
-}
-
-void EditMeshSymmetryHelper::set_bevel_weight_on_mirror_edges(BMEdge *edge, float value) const
-{
-  this->set_float_prop_on_mirror_edges(edge, "bevel_weight_edge", value);
-}
-
-void EditMeshSymmetryHelper::set_float_prop_on_mirror_elements(BMVert *vert,
-                                                               const char *name,
-                                                               float value) const {
-  const int cd_offset = CustomData_get_offset_named(&this->em->bm->vdata, CD_PROP_FLOAT, name);
+void EditMeshSymmetryHelper::set_float_on_mirror_verts(BMVert *vert,
+                                                       int cd_offset,
+                                                       float value) const {
   if (cd_offset == -1) {
     return;
   }
@@ -259,9 +180,21 @@ void EditMeshSymmetryHelper::set_float_prop_on_mirror_elements(BMVert *vert,
   });
 }
 
-void EditMeshSymmetryHelper::set_crease_on_mirror_verts(BMVert *vert, float value) const {
-  this->set_float_prop_on_mirror_elements(vert, "crease_vert", value);
+void EditMeshSymmetryHelper::set_float_on_mirror_edges(BMEdge *edge,
+                                                       int cd_offset,
+                                                       float value) const {
+  if (cd_offset == -1) {
+    return;
+  }
+  this->apply_on_mirror_edges(edge, [cd_offset, value](BMEdge *e_mir) {
+    if (!BM_elem_flag_test(e_mir, BM_ELEM_HIDDEN)) {
+      float *mirror_val_ptr = static_cast<float *>(BM_ELEM_CD_GET_VOID_P(e_mir, cd_offset));
+      *mirror_val_ptr = value;
+      CLAMP(*mirror_val_ptr, 0.0f, 1.0f);
+    }
+  });
 }
+
 
 #define KD_THRESH 0.00002f
 
