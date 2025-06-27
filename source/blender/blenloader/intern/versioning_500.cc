@@ -1147,47 +1147,52 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_convert_to_generic_nodes(ntree);
-        if (ntree->type != NTREE_COMPOSIT) {
-          continue;
-        }
-        LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-          if (node->type_legacy != CMP_NODE_TRANSLATE) {
-            continue;
-          }
-          if (node->storage != nullptr) {
-            continue;
-          }
-          NodeTranslateData *data = MEM_callocN<NodeTranslateData>(__func__);
-          /* Map old wrap axis to new extension mode. */
-          switch (data->wrap_axis) {
-            case CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE:
-              data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-              data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
-              break;
-            case CMP_NODE_TRANSLATE_REPEAT_AXIS_X:
-              data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
-              data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
-              break;
-            case CMP_NODE_TRANSLATE_REPEAT_AXIS_Y:
-              data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-              data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
-              break;
-            case CMP_NODE_TRANSLATE_REPEAT_AXIS_XY:
-              data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
-              data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
-              break;
-          }
-          node->storage = data;
-        }
       }
       FOREACH_NODETREE_END;
     }
-
-    /**
-     * Always bump subversion in BKE_blender_version.h when adding versioning
-     * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
-     *
-     * \note Keep this message at the bottom of the function.
-     */
   }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 29)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type != NTREE_COMPOSIT) {
+        continue;
+      }
+      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+        if (node->type_legacy != CMP_NODE_TRANSLATE) {
+          continue;
+        }
+        if (node->storage != nullptr) {
+          continue;
+        }
+        NodeTranslateData *data = static_cast<NodeTranslateData *>(node->storage);
+        /* Map old wrap axis to new extension mode. */
+        switch (data->wrap_axis) {
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_NONE:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+            break;
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_X:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+            break;
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_Y:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
+            break;
+          case CMP_NODE_TRANSLATE_REPEAT_AXIS_XY:
+            data->extension_x = CMP_NODE_EXTENSION_MODE_REPEAT;
+            data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
+            break;
+        }
+        node->storage = data;
+      }
+      FOREACH_NODETREE_END;
+    }
+  }
+  /**
+   * Always bump subversion in BKE_blender_version.h when adding versioning
+   * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
+   *
+   * \note Keep this message at the bottom of the function.
+   */
 }
