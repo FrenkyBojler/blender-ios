@@ -13,6 +13,7 @@
 #include "BLI_span.hh"
 #include "BLI_map.hh"
 #include "BLI_vector.hh"
+#include "BLI_function_ref.hh" 
 
 struct ARegion;
 struct BMBVHTree;
@@ -61,17 +62,15 @@ public:
 
   void set_crease_on_mirror_edges(BMEdge *edge, float value) const;
   void set_bevel_weight_on_mirror_edges(BMEdge *edge, float value) const;
-
-  template <typename Func>
-  void apply_on_mirror_verts(BMVert *vert, Func operation_lambda) const;
-  template <typename Func>
-  void apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const;
-  template <typename Func>
-  void apply_on_mirror_faces(BMFace *face, Func operation_lambda) const;
   void set_crease_on_mirror_verts(BMVert *vert, float value) const;
-  
+
+  void apply_on_mirror_verts(BMVert *vert, blender::FunctionRef<void(BMVert *)> op) const;
+  void apply_on_mirror_edges(BMEdge *edge, blender::FunctionRef<void(BMEdge *)> op) const;
+  void apply_on_mirror_faces(BMFace *face, blender::FunctionRef<void(BMFace *)> op) const;
+
 private:
   EditMeshSymmetryHelper(Object *ob);
+
   void set_float_prop_on_mirror_edges(BMEdge *edge, const char *name, float value) const;
   void set_float_prop_on_mirror_elements(BMVert *vert, const char *name, float value) const;
 
@@ -83,36 +82,6 @@ private:
   blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
   blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
 };
-
-template <typename Func>
-void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert, Func operation_lambda) const {
-  if (!vert_to_mirrors_map.contains(vert)) {
-    return;
-  }
-  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
-    operation_lambda(mirror_vert);
-  }
-}
-
-template <typename Func>
-void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge, Func operation_lambda) const {
-  if (!edge_to_mirrors_map.contains(edge)) {
-    return;
-  }
-  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
-    operation_lambda(mirror_edge);
-  }
-}
-
-template <typename Func>
-void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face, Func operation_lambda) const {
-  if (!face_to_mirrors_map.contains(face)) {
-    return;
-  }
-  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
-    operation_lambda(mirror_face);
-  }
-}
 
 /**
  * \param em: Edit-mesh used for generating mirror data.
