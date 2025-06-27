@@ -570,4 +570,9 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_S_ARROW, datatoc_cursor_s_arrow_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_E_ARROW, datatoc_cursor_e_arrow_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_W_ARROW, datatoc_cursor_w_arrow_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_X_MOVE, datatoc_cursor_x_move_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_Y_MOVE, datatoc_cursor_y_move_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, 0.5f, 0.5f, 1.0f);
+  wm_add_cursor(WM_CURSOR_LEFT_HANDLE, datatoc_cursor_left_handle_svg, 0.5f, 0.5f, 1.0f);
 }

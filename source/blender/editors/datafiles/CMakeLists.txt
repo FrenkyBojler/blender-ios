@@ -947,6 +947,11 @@ if(WITH_BLENDER)
       cursor_s_arrow
       cursor_e_arrow
       cursor_w_arrow
+      cursor_x_move
+      cursor_y_move
+      cursor_right_handle
+      cursor_left_handle
+      cursor_both_handles
     )
 
     set(SVG_CONTENTS_H)
