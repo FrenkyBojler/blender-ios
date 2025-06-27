@@ -216,6 +216,13 @@ BHead *blo_bhead_prev(FileData *fd, BHead *thisblock) ATTR_NONNULL(1, 2);
  */
 const char *blo_bhead_id_name(FileData *fd, const BHead *bhead);
 /**
+ * Warning! it's caller's responsibility to ensure that the given bhead **is** an ID one!
+ *
+ * Returns the ID flag value (or `0` if the blendfile is too old and the offset of the ID::flag
+ * member could not be computed).
+ */
+short blo_bhead_id_flag(const FileData *fd, const BHead *bhead);
+/**
  * Warning! Caller's responsibility to ensure given bhead **is** an ID one!
  */
 AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *bhead);

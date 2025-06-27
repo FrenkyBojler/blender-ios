@@ -81,10 +81,19 @@ static bool blendhandle_load_id_data_and_validate(FileData *fd,
                                                   BHead *bhead,
                                                   bool use_assets_only,
                                                   const char *&r_idname,
+                                                  short &r_idflag,
                                                   AssetMetaData *&r_asset_meta_data)
 {
   r_idname = blo_bhead_id_name(fd, bhead);
   if (!r_idname || r_idname[0] == '\0') {
+    return false;
+  }
+  r_idflag = blo_bhead_id_flag(fd, bhead);
+  /* Do not list (and therefore allow direct linkin of) packed data.
+   *    * While supporting this is conceptually possible, it would require significant changes in
+   * the UI (file browser) and UX (link operation) to convey this concept and handle it
+   * correctly. */
+  if (r_idflag & ID_FLAG_LINKED_AND_EMBEDDED) {
     return false;
   }
   r_asset_meta_data = blo_bhead_id_asset_data_address(fd, bhead);
@@ -107,9 +116,10 @@ LinkNode *BLO_blendhandle_get_datablock_names(BlendHandle *bh,
   for (bhead = blo_bhead_first(fd); bhead; bhead = blo_bhead_next(fd, bhead)) {
     if (bhead->code == ofblocktype) {
       const char *idname;
+      short idflag;
       AssetMetaData *asset_meta_data;
       if (!blendhandle_load_id_data_and_validate(
-              fd, bhead, use_assets_only, idname, asset_meta_data))
+              fd, bhead, use_assets_only, idname, idflag, asset_meta_data))
       {
         continue;
       }
@@ -146,9 +156,10 @@ LinkNode *BLO_blendhandle_get_datablock_info(BlendHandle *bh,
       BHead *id_bhead = bhead;
 
       const char *idname;
+      short idflag;
       AssetMetaData *asset_meta_data;
       if (!blendhandle_load_id_data_and_validate(
-              fd, id_bhead, use_assets_only, idname, asset_meta_data))
+              fd, id_bhead, use_assets_only, idname, idflag, asset_meta_data))
       {
         continue;
       }

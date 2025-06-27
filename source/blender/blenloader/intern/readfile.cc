@@ -824,6 +824,15 @@ const char *blo_bhead_id_name(FileData *fd, const BHead *bhead)
   return nullptr;
 }
 
+short blo_bhead_id_flag(const FileData *fd, const BHead *bhead)
+{
+  if (fd->id_flag_offset < 0) {
+    return 0;
+  }
+  return *reinterpret_cast<const short *>(
+      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_flag_offset));
+}
+
 AssetMetaData *blo_bhead_id_asset_data_address(const FileData *fd, const BHead *bhead)
 {
   BLI_assert(blo_bhead_is_id_valid_type(bhead));
@@ -838,8 +847,7 @@ static const IDHash *blo_bhead_id_deep_hash(const FileData *fd, const BHead *bhe
   if (fd->id_flag_offset < 0 || fd->id_deep_hash_offset < 0) {
     return nullptr;
   }
-  const short flag = *reinterpret_cast<const short *>(
-      POINTER_OFFSET(bhead, sizeof(*bhead) + fd->id_flag_offset));
+  const short flag = blo_bhead_id_flag(fd, bhead);
   if (!(flag & ID_FLAG_LINKED_AND_EMBEDDED)) {
     return nullptr;
   }
