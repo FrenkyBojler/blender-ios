@@ -474,8 +474,20 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
 
     /* Mark all verts that are candidates to be dissolved. */
     BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
-      BMO_vert_flag_enable(bm, e->v1, VERT_MARK);
-      BMO_vert_flag_enable(bm, e->v2, VERT_MARK);
+      /* if `BM_faces_join_pair` will be done, mark the correct two verts at the ends for
+       * dissolve.*/
+      for (int i = 0; i < 2; i++) {
+        BMVert *v_edge = *((&e->v1) + i);
+
+        /* If a chain, follow the chain until the end is found. The whole chain will dissolve, so
+         * the test needs to happen there, at the end, where it meets other geometry, not here. */
+        if (BM_vert_is_edge_pair(v_edge)) {
+          v_edge = bmo_find_end_of_chain(bm, e, v_edge, EDGE_CHAIN);
+        }
+
+        /* Mark for dissolve. */
+        BMO_vert_flag_enable(bm, v_edge, VERT_MARK);
+      }
     }
   }
 
@@ -483,21 +495,6 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
   BMO_ITER (e, &eiter, op->slots_in, "edges", BM_EDGE) {
     BMLoop *l_a, *l_b;
     if (BM_edge_loop_pair(e, &l_a, &l_b)) {
-
-      /* When #VERT_MARK is set on a vert in the middle of a chain, the flag needs to be moved to
-       * the end of the chain, because when all the chain edges between the two faces get cleaned
-       * up as part of #BM_faces_join_pair, the flagged vert would otherwise be lost.
-       * Find the end of the chain, where the dissolve test should be done, move the flag there. */
-      for (int i = 0; i < 2; i++) {
-        BMVert *v_edge = *((&e->v1) + i);
-        if (BMO_vert_flag_test(bm, v_edge, VERT_MARK)) {
-          BMVert *v_edge_chain_end = bmo_find_end_of_chain(e, v_edge);
-          if (v_edge != v_edge_chain_end) {
-            BMO_vert_flag_enable(bm, v_edge_chain_end, VERT_MARK);
-          }
-        }
-      }
-
       BM_faces_join_pair(bm, l_a, l_b, false, nullptr);
     }
   }
