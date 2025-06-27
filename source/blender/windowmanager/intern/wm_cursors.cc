@@ -605,7 +605,7 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_ZOOM_OUT, datatoc_cursor_zoom_out_svg, 0.32f, 0.32f, 1.0f);
   // WM_CURSOR_NONE
   // WM_CURSOR_MUTE
-  // WM_CURSOR_PICK_AREA,
+  wm_add_cursor(WM_CURSOR_PICK_AREA, datatoc_cursor_pick_area_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_BOTH_HANDLES, datatoc_cursor_both_handles_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_RIGHT_HANDLE, datatoc_cursor_right_handle_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_LEFT_HANDLE, datatoc_cursor_left_handle_svg, 0.5f, 0.5f, 1.0f);
