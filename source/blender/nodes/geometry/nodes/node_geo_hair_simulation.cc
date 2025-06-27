@@ -161,7 +161,8 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
 
   b.add_input<decl::Float>("Delta Time").min(0.0f).hide_value();
-  b.add_input<decl::Int>("Constraint Iterations").default_value(5).min(0);
+  b.add_input<decl::Int>("Substeps").default_value(5).min(0);
+  b.add_input<decl::Int>("Constraint Iterations").default_value(20).min(0);
 
   b.add_input<decl::Geometry>("Hair").supported_type(bke::GeometryComponent::Type::Curve);
   b.add_output<decl::Geometry>("Hair").propagate_all().align_with_previous();
@@ -1652,14 +1653,15 @@ static void do_velocity_constraints_iteration(const ConstraintEvalParams &eval_p
   }
 }
 
-static ConstraintEvalParams extract_eval_params(GeoNodeExecParams params)
+static ConstraintEvalParams create_eval_params(const GeoNodeExecParams &params,
+                                               const float delta_time)
 {
   // std::optional<GeometrySet> debug_steps;
   // if (params.output_is_required("Debug Steps")) {
   //   debug_steps = params.extract_input<GeometrySet>("Debug Steps");
   // }
   return ConstraintEvalParams(
-      params.extract_input<float>("Delta Time"),
+      delta_time,
       [params](const StringRef message) {
         params.error_message_add(NodeWarningType::Warning, message);
       },
@@ -1767,6 +1769,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float angular_factor = 1.0f;
 
   const float delta_time = std::max(params.extract_input<float>("Delta Time"), 0.0f);
+  const int substeps = std::max(params.extract_input<int>("Substeps"), 1);
   const int constraint_iterations = std::max(params.extract_input<int>("Constraint Iterations"),
                                              0);
 
@@ -1787,12 +1790,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
   CurveComponent &hair_curves = hair_geometry.get_component_for_write<CurveComponent>();
 
-  ConstraintEvalParams eval_params = extract_eval_params(params);
-  const bool debug_output = (eval_params.debug_recorder != nullptr);
-  if (debug_output) {
-    eval_params.debug_recorder->set_geometry(hair_geometry, GeometryComponent::Type::Curve);
-  }
-
   /* Zero time step initializes the hair simulation. */
   if (delta_time == 0.0f) {
     store_initial_curve_rotation(hair_curves);
@@ -1812,26 +1809,38 @@ static void node_geo_exec(GeoNodeExecParams params)
         constraint_bundle, hair_curves, selection_field, behavior, params.user_data());
   }
 
-  update_constraints(constraint_bundle, hair_geometry, behavior, params.user_data());
+  const float substep_delta_time = delta_time / substeps;
+  ConstraintEvalParams eval_params = create_eval_params(params, substep_delta_time);
+  const bool debug_output = (eval_params.debug_recorder != nullptr);
+  if (debug_output) {
+    eval_params.debug_recorder->set_geometry(hair_geometry, GeometryComponent::Type::Curve);
+  }
 
-  IndexMaskMemory memory;
-  Vector<ConstraintEvalData> constraint_data = hair_constraints::constraint_bundle_to_eval_data(
-      std::move(constraint_bundle), debug_output, memory);
+  for ([[maybe_unused]] const int substep_i : IndexRange(substeps)) {
 
-  /* Store current motion state for later velocity estimation. */
-  capture_motion_state(hair_curves, selection_field);
+    update_constraints(constraint_bundle, hair_geometry, behavior, params.user_data());
 
-  /* Unconstrained motion. */
-  hairsim::integrate_motion(hair_curves,
-                            selection_field,
-                            delta_time,
-                            linear_factor,
-                            angular_factor,
-                            behavior.gravity,
-                            behavior.force,
-                            behavior.torque);
+    IndexMaskMemory memory;
+    Vector<ConstraintEvalData> constraint_data = hair_constraints::constraint_bundle_to_eval_data(
+        std::move(constraint_bundle), debug_output, memory);
 
-  solve_constraints(eval_params, hair_curves, constraint_iterations, constraint_data);
+    /* Store current motion state for later velocity estimation. */
+    capture_motion_state(hair_curves, selection_field);
+
+    /* Unconstrained motion. */
+    hairsim::integrate_motion(hair_curves,
+                              selection_field,
+                              substep_delta_time,
+                              linear_factor,
+                              angular_factor,
+                              behavior.gravity,
+                              behavior.force,
+                              behavior.torque);
+
+    solve_constraints(eval_params, hair_curves, constraint_iterations, constraint_data);
+
+    constraint_bundle = hair_constraints::constraint_eval_data_to_bundle(constraint_data);
+  }
 
   /* Remove temporary captured attributes. */
   hair_curves.attributes_for_write()->remove(old_position_attr);
@@ -1840,7 +1849,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   hair_curves.attributes_for_write()->remove(area_moment_attr);
 
   params.set_output("Hair", std::move(hair_geometry));
-  params.set_output("Data", hair_constraints::constraint_eval_data_to_bundle(constraint_data));
+  params.set_output("Data", std::move(constraint_bundle));
 }
 
 static void node_rna(StructRNA *srna)
