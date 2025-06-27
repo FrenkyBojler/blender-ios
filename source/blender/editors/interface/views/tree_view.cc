@@ -18,7 +18,7 @@
 
 #include "interface_intern.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "WM_api.hh"
@@ -33,6 +33,7 @@
 namespace blender::ui {
 
 #define UI_TREEVIEW_INDENT short(0.7f * UI_UNIT_X)
+#define MIN_ROWS 4
 
 static int unpadded_item_height()
 {
@@ -138,6 +139,9 @@ AbstractTreeViewItem *AbstractTreeView::find_hovered(const ARegion &region, cons
 
 void AbstractTreeView::set_default_rows(int default_rows)
 {
+  BLI_assert_msg(default_rows >= MIN_ROWS,
+                 "Default value is smaller than the minimum rows. Limit is required to prevent "
+                 "resizing below specific height.");
   custom_height_ = std::make_unique<int>(default_rows * padded_item_height());
 }
 
@@ -162,7 +166,8 @@ std::optional<uiViewState> AbstractTreeView::persistent_state() const
 void AbstractTreeView::persistent_state_apply(const uiViewState &state)
 {
   if (state.custom_height) {
-    set_default_rows(round_fl_to_int(state.custom_height * UI_SCALE_FAC) / padded_item_height());
+    set_default_rows(std::max(
+        MIN_ROWS, round_fl_to_int(state.custom_height * UI_SCALE_FAC) / padded_item_height()));
   }
   if (state.scroll_offset) {
     scroll_value_ = std::make_shared<int>(state.scroll_offset);
@@ -364,10 +369,9 @@ std::optional<int> AbstractTreeView::tot_visible_row_count() const
   if (!custom_height_) {
     return {};
   }
-  if (*custom_height_ < UI_UNIT_Y) {
-    return 1;
-  }
-  return round_fl_to_int(float(*custom_height_) / padded_item_height());
+  const int calculate_rows = round_fl_to_int(float(*custom_height_) / padded_item_height());
+  /* Clamp value to prevent resizing below minimum number of rows. */
+  return math::max(MIN_ROWS, calculate_rows);
 }
 
 bool AbstractTreeView::supports_scrolling() const
@@ -471,9 +475,9 @@ int AbstractTreeViewItem::indent_width() const
 
 void AbstractTreeViewItem::add_indent(uiLayout &row) const
 {
-  uiBlock *block = uiLayoutGetBlock(&row);
+  uiBlock *block = row.block();
   uiLayout *subrow = &row.row(true);
-  uiLayoutSetFixedSize(subrow, true);
+  subrow->fixed_size_set(true);
 
   uiDefBut(block, UI_BTYPE_SEPR, 0, "", 0, 0, this->indent_width(), 0, nullptr, 0.0, 0.0, "");
 
@@ -537,7 +541,7 @@ void AbstractTreeViewItem::add_collapse_chevron(uiBlock &block) const
 
 void AbstractTreeViewItem::add_rename_button(uiLayout &row)
 {
-  uiBlock *block = uiLayoutGetBlock(&row);
+  uiBlock *block = row.block();
   blender::ui::EmbossType previous_emboss = UI_block_emboss_get(block);
 
   row.row(false);
@@ -786,9 +790,7 @@ class TreeViewLayoutBuilder {
   TreeViewLayoutBuilder(uiLayout &layout);
 };
 
-TreeViewLayoutBuilder::TreeViewLayoutBuilder(uiLayout &layout) : block_(*uiLayoutGetBlock(&layout))
-{
-}
+TreeViewLayoutBuilder::TreeViewLayoutBuilder(uiLayout &layout) : block_(*layout.block()) {}
 
 static int count_visible_items(AbstractTreeView &tree_view)
 {
@@ -802,7 +804,7 @@ static int count_visible_items(AbstractTreeView &tree_view)
 void TreeViewLayoutBuilder::build_from_tree(AbstractTreeView &tree_view)
 {
   uiLayout &parent_layout = this->current_layout();
-  uiBlock *block = uiLayoutGetBlock(&parent_layout);
+  uiBlock *block = parent_layout.block();
 
   uiLayout *col = nullptr;
   if (add_box_) {
@@ -890,7 +892,7 @@ void TreeViewLayoutBuilder::build_row(AbstractTreeViewItem &item) const
 
   uiLayout &prev_layout = current_layout();
 
-  const int width = uiLayoutGetWidth(&prev_layout);
+  const int width = prev_layout.width();
   if (width < int(40 * UI_SCALE_FAC)) {
     return;
   }
@@ -980,7 +982,7 @@ void TreeViewBuilder::build_tree_view(const bContext &C,
                                       std::optional<StringRef> search_string,
                                       const bool add_box)
 {
-  uiBlock &block = *uiLayoutGetBlock(&layout);
+  uiBlock &block = *layout.block();
 
   const ARegion *region = CTX_wm_region_popup(&C) ? CTX_wm_region_popup(&C) : CTX_wm_region(&C);
   if (region) {

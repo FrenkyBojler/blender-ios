@@ -1182,8 +1182,12 @@ static void node_group_make_insert_selected(const bContext &C,
 
   if (group.type == NTREE_GEOMETRY) {
     bke::node_field_inferencing::update_field_inferencing(group);
+  }
+
+  if (ELEM(group.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
     bke::node_structure_type_inferencing::update_structure_type_interface(group);
   }
+
   nodes::update_node_declaration_and_sockets(ntree, *gnode);
 
   /* Add new links to inputs outside of the group. */
@@ -1392,7 +1396,6 @@ static bNode *node_group_make_from_node_declaration(bContext &C,
 
   /* Assign the newly created wrapper group to the new group node. */
   gnode->id = &wrapper_group->id;
-  id_us_plus(gnode->id);
 
   /* Position node exactly where the old node was. */
   gnode->parent = src_node.parent;

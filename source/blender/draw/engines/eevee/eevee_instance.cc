@@ -212,7 +212,7 @@ void Instance::init(const int2 &output_res,
   ShaderGroups shader_request = DEFERRED_LIGHTING_SHADERS | SHADOW_SHADERS | FILM_SHADERS |
                                 HIZ_SHADERS | SPHERE_PROBE_SHADERS | VOLUME_PROBE_SHADERS |
                                 LIGHT_CULLING_SHADERS;
-  SET_FLAG_FROM_TEST(shader_request, depth_of_field.postfx_enabled(), DEPTH_OF_FIELD_SHADERS);
+  SET_FLAG_FROM_TEST(shader_request, depth_of_field.enabled(), DEPTH_OF_FIELD_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, needs_planar_probe_passes(), DEFERRED_PLANAR_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, needs_lightprobe_sphere_passes(), DEFERRED_CAPTURE_SHADERS);
   SET_FLAG_FROM_TEST(shader_request, motion_blur.postfx_enabled(), MOTION_BLUR_SHADERS);
@@ -390,11 +390,11 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager & /*manager*/)
   if (partsys_is_visible && ob != draw_ctx->object_edit) {
     auto sync_hair =
         [&](ObjectHandle hair_handle, ModifierData &md, ParticleSystem &particle_sys) {
-          ResourceHandle _res_handle = manager->resource_handle_for_psys(ob_ref,
-                                                                         ob->object_to_world());
+          ResourceHandleRange _res_handle = manager->resource_handle_for_psys(
+              ob_ref, ob->object_to_world());
           sync.sync_curves(ob, hair_handle, ob_ref, _res_handle, &md, &particle_sys);
         };
-    foreach_hair_particle_handle(ob, ob_handle, sync_hair);
+    foreach_hair_particle_handle(*this, ob_ref, ob_handle, sync_hair);
   }
 
   if (object_is_visible) {
@@ -698,6 +698,13 @@ void Instance::draw_viewport()
     if (!is_loaded(needed_shaders & ~WORLD_SHADERS)) {
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();
+    }
+    /* Do not swap if the velocity module didn't go through a full sync cycle. */
+    if (!is_loaded(needed_shaders)) {
+      /* The velocity module can reference some gpu::Batch. Calling this function
+       * make sure we release these references and don't de-reference them later as
+       * they might have been freed. */
+      velocity.step_swap();
     }
     return;
   }

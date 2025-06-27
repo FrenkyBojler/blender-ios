@@ -6646,20 +6646,19 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
               BKE_brush_tag_unsaved_changes(brush);
             }
             else {
-              Scene *scene = CTX_data_scene(C);
               bool updated = false;
 
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
-                BKE_brush_color_set(scene, paint, brush, color);
+                BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
               else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
                 IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
-                BKE_brush_color_set(scene, paint, brush, color);
+                BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
 
@@ -9643,7 +9642,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
                 /* Cancel because this `but` handles all events and we don't want
                  * the parent button's update function to do anything.
                  *
-                 * Causes issues with buttons defined by #uiItemFullR_with_popover. */
+                 * Causes issues with buttons defined by #uiLayout::prop_with_popover. */
                 block->handle->menuretval = UI_RETURN_CANCEL;
               }
               else if (ui_but_is_editable_as_text(but)) {

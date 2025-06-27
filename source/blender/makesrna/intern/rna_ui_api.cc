@@ -14,6 +14,7 @@
 #include "DNA_screen_types.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "rna_internal.hh"
@@ -184,7 +185,7 @@ static void rna_uiItemR_with_popover(uiLayout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
-  uiItemFullR_with_popover(layout, ptr, prop, -1, 0, flag, text, icon, panel_type);
+  layout->prop_with_popover(ptr, prop, -1, 0, flag, text, icon, panel_type);
 }
 
 static void rna_uiItemR_with_menu(uiLayout *layout,
@@ -215,7 +216,7 @@ static void rna_uiItemR_with_menu(uiLayout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
-  uiItemFullR_with_menu(layout, ptr, prop, -1, 0, flag, text, icon, menu_type);
+  layout->prop_with_menu(ptr, prop, -1, 0, flag, text, icon, menu_type);
 }
 
 static void rna_uiItemMenuEnumR(uiLayout *layout,
@@ -236,7 +237,7 @@ static void rna_uiItemMenuEnumR(uiLayout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
-  uiItemMenuEnumR_prop(layout, ptr, prop, text, icon);
+  layout->prop_menu_enum(ptr, prop, text, icon);
 }
 
 static void rna_uiItemTabsEnumR(uiLayout *layout,
@@ -282,7 +283,7 @@ static void rna_uiItemTabsEnumR(uiLayout *layout,
     }
   }
 
-  uiItemTabsEnumR_prop(layout, C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
+  layout->prop_tabs_enum(C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
 }
 
 static void rna_uiItemEnumR_string(uiLayout *layout,
@@ -305,7 +306,12 @@ static void rna_uiItemEnumR_string(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
 
-  uiItemEnumR_string_prop(layout, ptr, prop, value, text, icon);
+  layout->prop_enum(ptr, prop, value, text, icon);
+}
+
+static void rna_uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, const char *propname)
+{
+  layout->props_enum(ptr, propname);
 }
 
 static void rna_uiItemPointerR(uiLayout *layout,
@@ -335,8 +341,7 @@ static void rna_uiItemPointerR(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
 
-  uiItemPointerR_prop(
-      layout, ptr, prop, searchptr, searchprop, text, icon, results_are_suggestions);
+  layout->prop_search(ptr, prop, searchptr, searchprop, text, icon, results_are_suggestions);
 }
 
 static PointerRNA rna_uiItemO(uiLayout *layout,
@@ -373,12 +378,12 @@ static PointerRNA rna_uiItemO(uiLayout *layout,
     flag |= UI_ITEM_O_DEPRESS;
   }
 
-  const float prev_weight = uiLayoutGetSearchWeight(layout);
-  uiLayoutSetSearchWeight(layout, search_weight);
+  const float prev_weight = layout->search_weight();
+  layout->search_weight_set(search_weight);
 
   PointerRNA opptr = layout->op(ot, text, icon, layout->operator_context(), flag);
 
-  uiLayoutSetSearchWeight(layout, prev_weight);
+  layout->search_weight_set(prev_weight);
   return opptr;
 }
 
@@ -413,9 +418,7 @@ static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
     flag |= UI_ITEM_O_DEPRESS;
   }
 
-  PointerRNA opptr;
-  uiItemFullOMenuHold_ptr(layout, ot, text, icon, layout->operator_context(), flag, menu, &opptr);
-  return opptr;
+  return layout->op_menu_hold(ot, text, icon, layout->operator_context(), flag, menu);
 }
 
 static void rna_uiItemsEnumO(uiLayout *layout,
@@ -511,7 +514,7 @@ static void rna_uiItemPopoverPanel(uiLayout *layout,
     icon = icon_value;
   }
 
-  uiItemPopoverPanel(layout, C, panel_type, text, icon);
+  layout->popover(C, panel_type, text, icon);
 }
 
 static void rna_uiItemPopoverPanelFromGroup(uiLayout *layout,
@@ -521,7 +524,7 @@ static void rna_uiItemPopoverPanelFromGroup(uiLayout *layout,
                                             const char *context,
                                             const char *category)
 {
-  uiItemPopoverPanelFromGroup(layout, C, space_id, region_id, context, category);
+  layout->popover_group(C, space_id, region_id, context, category);
 }
 
 static void rna_uiItemProgress(uiLayout *layout,
@@ -541,6 +544,21 @@ static void rna_uiItemProgress(uiLayout *layout,
 static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
 {
   layout->separator(factor, LayoutSeparatorType(type));
+}
+
+static void rna_uiLayoutContextPointerSet(uiLayout *layout, const char *name, PointerRNA *ptr)
+{
+  layout->context_ptr_set(name, ptr);
+}
+
+static void rna_uiLayoutContextStringSet(uiLayout *layout, const char *name, const char *value)
+{
+  layout->context_string_set(name, value);
+}
+
+static void rna_uiLayoutSeparatorSpacer(uiLayout *layout)
+{
+  layout->separator_spacer();
 }
 
 static void rna_uiTemplateID(uiLayout *layout,
@@ -855,7 +873,7 @@ void rna_uiLayoutPanelProp(uiLayout *layout,
                            uiLayout **r_layout_header,
                            uiLayout **r_layout_body)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
+  Panel *panel = layout->root_panel();
   if (panel == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Layout panels can not be used in this context");
     *r_layout_header = nullptr;
@@ -876,7 +894,7 @@ void rna_uiLayoutPanel(uiLayout *layout,
                        uiLayout **r_layout_header,
                        uiLayout **r_layout_body)
 {
-  Panel *panel = uiLayoutGetRootPanel(layout);
+  Panel *panel = layout->root_panel();
   if (panel == nullptr) {
     BKE_reportf(reports, RPT_ERROR, "Layout panels can not be used in this context");
     *r_layout_header = nullptr;
@@ -1056,7 +1074,7 @@ PointerRNA rna_uiTemplatePopupConfirm(uiLayout *layout,
   if (opname[0] ? (!ot || !ot->srna) : false) {
     RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
   }
-  else if (!UI_popup_block_template_confirm_is_supported(uiLayoutGetBlock(layout))) {
+  else if (!UI_popup_block_template_confirm_is_supported(layout->block())) {
     BKE_reportf(reports, RPT_ERROR, "template_popup_confirm used outside of a popup");
   }
   else {
@@ -1411,7 +1429,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
   RNA_def_boolean(func, "invert_checkbox", false, "", "Draw checkbox value inverted");
 
-  func = RNA_def_function(srna, "props_enum", "uiItemsEnumR");
+  func = RNA_def_function(srna, "props_enum", "rna_uiItemsEnumR");
   api_ui_item_rna_common(func);
 
   func = RNA_def_function(srna, "prop_menu_enum", "rna_uiItemMenuEnumR");
@@ -1580,7 +1598,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                "Type",
                "The type of the separator");
 
-  func = RNA_def_function(srna, "separator_spacer", "uiItemSpacer");
+  func = RNA_def_function(srna, "separator_spacer", "rna_uiLayoutSeparatorSpacer");
   RNA_def_function_ui_description(
       func, "Item. Inserts horizontal spacing empty space into the layout between items.");
 
@@ -1604,13 +1622,13 @@ void RNA_api_ui_layout(StructRNA *srna)
                "The type of progress indicator");
 
   /* context */
-  func = RNA_def_function(srna, "context_pointer_set", "uiLayoutSetContextPointer");
+  func = RNA_def_function(srna, "context_pointer_set", "rna_uiLayoutContextPointerSet");
   parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of entry in the context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_pointer(func, "data", "AnyType", "", "Pointer to put in context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED | PARM_RNAPTR);
 
-  func = RNA_def_function(srna, "context_string_set", "uiLayoutSetContextString");
+  func = RNA_def_function(srna, "context_string_set", "rna_uiLayoutContextStringSet");
   parm = RNA_def_string(func, "name", nullptr, 0, "Name", "Name of entry in the context");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
   parm = RNA_def_string(func, "value", nullptr, 0, "Value", "String to put in context");

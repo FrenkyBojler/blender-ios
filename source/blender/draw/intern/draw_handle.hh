@@ -58,6 +58,11 @@ struct ResourceHandle {
     SET_FLAG_FROM_TEST(raw, inverted_handedness, 0x80000000u);
   }
 
+  bool is_valid() const
+  {
+    return raw != 0;
+  }
+
   bool has_inverted_handedness() const
   {
     return (raw & 0x80000000u) != 0;
@@ -69,51 +74,81 @@ struct ResourceHandle {
   }
 };
 
-/* Refers to a range of contiguous handles in the resource arrays.
+/**
+ * Refers to a range of contiguous handles in the resource arrays.
  * Typically used to render instances of an object, but can represent a single instance too.
- * The associated objects will all share handedness and state and can be rendered together. */
-struct ResourceHandleRange {
+ * The associated objects will all share handedness and state and can be rendered together.
+ */
+class ResourceHandleRange {
+ private:
   /* First handle in the range. */
-  ResourceHandle handle_first;
+  ResourceHandle first_ = {0};
   /* Number of handle in the range. */
-  uint32_t count;
+  uint32_t count_ = 0;
 
+ public:
   ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : handle_first(handle), count(1) {}
-  ResourceHandleRange(ResourceHandle handle, uint len) : handle_first(handle), count(len) {}
+  ResourceHandleRange(ResourceHandle handle) : first_(handle), count_(1) {}
+  ResourceHandleRange(ResourceHandle handle, uint len) : first_(handle), count_(len) {}
+
+  bool is_valid() const
+  {
+    return first_.is_valid();
+  }
+
+  bool has_inverted_handedness() const
+  {
+    return first_.has_inverted_handedness();
+  }
 
   IndexRange index_range() const
   {
-    return {handle_first.raw, count};
+    return {first_.raw, count_};
   }
 
-  /* TODO(fclem): Temporary workaround to keep existing code to work. Should be removed once we
-   * complete the instance optimization project. */
+  /* These functions are to keep existing code to work.
+   * Should be used only for objects and code paths that don't support ranged synchronization. */
+
   operator ResourceHandle() const
   {
-    return handle_first;
+    BLI_assert(count_ <= 1);
+    return first_;
+  }
+
+  uint32_t raw() const
+  {
+    BLI_assert(count_ <= 1);
+    return first_.raw;
+  }
+
+  uint resource_index() const
+  {
+    BLI_assert(count_ <= 1);
+    return first_.resource_index();
   }
 };
 
 /* TODO(fclem): Move to somewhere more appropriated after cleaning up the header dependencies. */
-struct ObjectRef {
+class ObjectRef {
+  friend class Manager;
   friend class ObjectKey;
   friend DupliCacheManager;
 
  private:
   /** Duplicated object that corresponds to the current object. */
-  DupliObject *dupli_object_;
+  DupliObject *const dupli_object_ = nullptr;
   /** Object that created the dupli-list the current object is part of. */
-  Object *dupli_parent_;
+  Object *const dupli_parent_ = nullptr;
+
+  /** Unique handle per object ref. */
+  ResourceHandleRange handle_ = {};
+  ResourceHandleRange sculpt_handle_ = {};
 
  public:
-  Object *object;
-  /** Unique handle per object ref. */
-  ResourceHandleRange handle;
+  Object *const object;
 
-  ObjectRef() = default;
   ObjectRef(DEGObjectIterData &iter_data, Object *ob);
-  ObjectRef(Object *ob);
+  explicit ObjectRef(Object *ob);
 
   /* Is the object coming from a Dupli system. */
   bool is_dupli() const
@@ -154,8 +189,7 @@ struct ObjectRef {
 
   int recalc_flags(uint64_t last_update) const
   {
-    /* TODO: There should also be a way to get the the min last_update for all objects in the
-     * range.  */
+    /* TODO: There should also be a way to get the min last_update for all objects in the range. */
     auto get_flags = [&](const ObjectRuntimeHandle &runtime) {
       int flags = 0;
       SET_FLAG_FROM_TEST(flags, runtime.last_update_transform > last_update, ID_RECALC_TRANSFORM);

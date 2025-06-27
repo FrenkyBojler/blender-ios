@@ -108,7 +108,7 @@
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -396,7 +396,7 @@ float new_primitive_matrix(bContext *C,
 
 static void view_align_update(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  RNA_struct_idprops_unset(ptr, "rotation");
+  RNA_struct_system_idprops_unset(ptr, "rotation");
 }
 
 void add_unit_props_size(wmOperatorType *ot)
@@ -2743,18 +2743,12 @@ static const EnumPropertyItem convert_target_items[] = {
      "MESH",
      ICON_OUTLINER_OB_MESH,
      "Mesh",
-#ifdef WITH_POINTCLOUD
      "Mesh from Curve, Surface, Metaball, Text, or Point Cloud objects"},
-#else
-     "Mesh from Curve, Surface, Metaball, or Text objects"},
-#endif
-#ifdef WITH_POINTCLOUD
     {OB_POINTCLOUD,
      "POINTCLOUD",
      ICON_OUTLINER_OB_POINTCLOUD,
      "Point Cloud",
      "Point Cloud from Mesh objects"},
-#endif
     {OB_CURVES, "CURVES", ICON_OUTLINER_OB_CURVES, "Curves", "Curves from evaluated curve data"},
     {OB_GREASE_PENCIL,
      "GREASEPENCIL",
@@ -4224,18 +4218,16 @@ static wmOperatorStatus object_convert_exec(bContext *C, wmOperator *op)
     if (incompatible_count == selected_editable_bases.size()) {
       BKE_reportf(op->reports,
                   RPT_INFO,
-                  "%s \"%s\"",
-                  RPT_("None of the objects are compatible of conversion to"),
-                  IFACE_(target_type_name));
+                  "None of the objects are compatible with a conversion to \"%s\"",
+                  RPT_(target_type_name));
     }
     else {
-      BKE_reportf(op->reports,
-                  RPT_INFO,
-                  "%s %d %s \"%s\"",
-                  RPT_("The selection included"),
-                  incompatible_count,
-                  RPT_("object(s) types which don't support conversion to"),
-                  IFACE_(target_type_name));
+      BKE_reportf(
+          op->reports,
+          RPT_INFO,
+          "The selection included %d object type(s) which do not support conversion to \"%s\"",
+          incompatible_count,
+          RPT_(target_type_name));
     }
   }
 
@@ -4252,7 +4244,7 @@ static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
