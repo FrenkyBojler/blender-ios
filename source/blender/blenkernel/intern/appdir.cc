@@ -1236,8 +1236,6 @@ void BKE_tempdir_session_purge()
 /** \name Display Path
  * \{ */
 
-//
-
 /**
  * A utility to check for a common path prefix and use that prefix,
  * writing it into `filepath_display`.
@@ -1278,19 +1276,20 @@ size_t BKE_appdir_display_path_from_system_path(char *filepath_display,
   }
 
   if (filepath_display_len == 0) {
-    filepath_display_len = filepath_try_replace_prefix(
-        filepath_system,
-        GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDesktop),
-        "Desktop",
-        filepath_display);
+    if (std::optional<std::string> prefix = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDesktop))
+    {
+      filepath_display_len = filepath_try_replace_prefix(
+          filepath_system, prefix->c_str(), "Desktop", filepath_display);
+    }
   }
 
   if (filepath_display_len == 0) {
-    filepath_display_len = filepath_try_replace_prefix(
-        filepath_system,
-        GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDownloads),
-        "Downloads",
-        filepath_display);
+    if (std::optional<std::string> prefix = GHOST_getUserSpecialDir(
+            GHOST_kUserSpecialDirDownloads))
+    {
+      filepath_display_len = filepath_try_replace_prefix(
+          filepath_system, prefix->c_str(), "Downloads", filepath_display);
+    }
   }
 
   /* Perform "HOME" last because other known paths are typically sub-directories of this. */

@@ -625,6 +625,11 @@ const char *BKE_main_blendfile_path(const Main *bmain) ATTR_NONNULL();
 const char *BKE_main_blendfile_path_from_global();
 
 /**
+ * Set the file-path of `bmain`.
+ */
+void BKE_main_blendfile_path_set(Main *bmain, const char *filepath);
+
+/**
  * \return A pointer to the \a ListBase of given \a bmain for requested \a type ID type.
  */
 ListBase *which_libbase(Main *bmain, short type);

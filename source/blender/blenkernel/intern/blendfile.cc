@@ -1199,15 +1199,14 @@ static void setup_app_data(bContext *C,
 
   /* `startup.blend` or recovered startup. */
   if (params->is_startup) {
-    bmain->filepath[0] = '\0';
+    BKE_main_blendfile_path_set(bmain, "");
   }
   else if (recover) {
     /* In case of auto-save or `quit.blend`, use original file-path instead
      * (see also #read_global in `readfile.cc`). */
     bmain->recovered = true;
-    STRNCPY(bmain->filepath, bfd->filepath);
+    BKE_main_blendfile_path_set(bmain, bfd->filepath);
   }
-  MEM_SAFE_FREE(bmain->filepath_display);
 
   /* Set the loaded .blend file path for crash recovery. */
   STRNCPY(G.filepath_last_blend, bmain->filepath);

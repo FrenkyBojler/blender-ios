@@ -1551,7 +1551,7 @@ void wm_homefile_read_ex(bContext *C,
   if (use_data) {
     WM_check(C); /* Opens window(s), checks keymaps. */
 
-    bmain->filepath[0] = '\0';
+    BKE_main_blendfile_path_set(bmain, "");
   }
 
   {
@@ -2249,8 +2249,7 @@ static bool wm_file_write(bContext *C,
                                         (CTX_wm_manager(C)->op_undo_depth == 0);
 
     if (use_save_as_copy == false) {
-      STRNCPY(bmain->filepath, filepath); /* Is guaranteed current file. */
-      MEM_SAFE_FREE(bmain->filepath_display);
+      BKE_main_blendfile_path_set(bmain, filepath); /* Is guaranteed current file. */
     }
 
     SET_FLAG_FROM_TEST(G.fileflags, fileflags & G_FILE_COMPRESS, G_FILE_COMPRESS);

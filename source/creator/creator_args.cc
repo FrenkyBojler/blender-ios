@@ -2611,7 +2611,8 @@ static bool handle_load_file(bContext *C, const char *filepath_arg, const bool l
      * Attempting to create the file at this point is possible but likely to cause more
      * trouble than it's worth (what with network drives), removable devices ... etc. */
 
-    STRNCPY(G_MAIN->filepath, filepath);
+    BKE_main_blendfile_path_set(G_MAIN, filepath);
+
     printf("... opened default scene instead; saving will write to: %s\n", filepath);
   }
 

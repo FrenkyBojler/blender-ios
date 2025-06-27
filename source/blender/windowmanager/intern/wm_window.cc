@@ -493,6 +493,13 @@ static const char *wm_window_title_ensure_filepath_for_display(Main *bmain)
   const char *filepath = bmain->filepath;
 
   if (bmain->filepath_display) {
+#ifndef NDEBUG
+    /* Assert if the display path is ever outdated. Likely caused by direct
+     * manipulation of #Main::filepath use #BKE_main_blendfile_path_set to resolve. */
+    char filepath_display[FILE_MAX];
+    BKE_appdir_display_path_from_system_path(filepath_display, sizeof(filepath_display), filepath);
+    BLI_assert(STREQ(bmain->filepath_display, filepath_display));
+#endif
     return bmain->filepath_display;
   }
   if (filepath[0] == '\0') {
