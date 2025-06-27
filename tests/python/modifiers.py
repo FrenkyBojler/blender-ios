@@ -366,6 +366,17 @@ def main():
                                        {'object': bpy.data.objects['testArmatureMultiModifier2'],
                                         'use_vertex_groups': True,
                                         'use_multi_modifier': True})])]),
+        SpecMeshTest("ArmatureMultiModifierMasked", "testMonkeyArmatureMultiModifierMasked", "expectedMonkeyArmatureMultiModifierMasked",
+                     [MultiModifierSpec(
+                         [ModifierSpec('armature1', 'ARMATURE', 
+                                       {'object': bpy.data.objects['testArmatureMultiModifierMasked1'],
+                                        'use_vertex_groups': True,
+                                        'vertex_group': "Mask"}),
+                          ModifierSpec('armature2', 'ARMATURE',
+                                       {'object': bpy.data.objects['testArmatureMultiModifierMasked2'],
+                                        'use_vertex_groups': True,
+                                        'vertex_group': "Mask",
+                                        'use_multi_modifier': True})])]),
     ]
 
     boolean_basename = "CubeBooleanDiffBMeshObject"
