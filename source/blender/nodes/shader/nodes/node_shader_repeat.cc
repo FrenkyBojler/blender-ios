@@ -61,8 +61,6 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
-
-  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace repeat_input_node {
