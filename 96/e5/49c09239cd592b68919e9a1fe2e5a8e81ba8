@@ -4,3 +4,4 @@ Referenced by issue #139013, HIP RT crash when copying materials to multiple obj
 Referenced by issue #139869, Blender runs but is permanently stuck at its "loading phase"
 Referenced by issue #140998, Blender 4.5b - Grease Pencil randomize per stroke not working for vertex color
 Referenced by pull request #141001, Fix #140998: Grease Pencil stroke-level color jitter doesn't work
+Referenced by commit b4725708751f12089b524e475eaf91542b4903e2, Fix #140998: Grease Pencil stroke-level color jitter doesn't work
