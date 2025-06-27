@@ -350,7 +350,13 @@ const DTreeContext &DerivedNodeTree::active_context() const
     return root_context();
   }
 
-  return *find_active_context_recursive(&root_context());
+  const DTreeContext *found_context = find_active_context_recursive(&root_context());
+  if (found_context == nullptr) {
+    /* Default to root context if no active context is found.*/
+    return root_context();
+  }
+
+  return *found_context;
 }
 
 /* Each nested node group gets its own cluster. Just as node groups, clusters can be nested. */
