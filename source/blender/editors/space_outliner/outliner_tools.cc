@@ -3033,7 +3033,7 @@ static std::string id_operation_get_description(bContext * /*C*/,
 {
   const eOutlinerIdOpTypes type = eOutlinerIdOpTypes(RNA_enum_get(ptr, "type"));
   if (type == OUTLINER_IDOP_UNLINK) {
-    return "Delete selected ID from active scene";
+    return "Delete from the active scene";
   }
   return "";
 }
