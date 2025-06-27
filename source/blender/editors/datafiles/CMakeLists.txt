@@ -960,6 +960,9 @@ if(WITH_BLENDER)
       cursor_nsew_scroll
       cursor_ew_scroll
       cursor_ns_scroll
+      cursor_hand
+      cursor_hand_closed
+      cursor_hand_point
     )
 
     set(SVG_CONTENTS_H)
