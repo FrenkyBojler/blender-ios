@@ -954,6 +954,9 @@ if(WITH_BLENDER)
       cursor_both_handles
       cursor_paint
       cursor_dot
+      cursor_crossc
+      cursor_zoom_in
+      cursor_zoom_out
     )
 
     set(SVG_CONTENTS_H)
