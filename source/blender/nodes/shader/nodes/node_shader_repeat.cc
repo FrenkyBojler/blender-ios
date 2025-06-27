@@ -106,11 +106,17 @@ static void node_declare(NodeDeclarationBuilder &b)
       .align_with_previous();
 }
 
+static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+{
+  layout->prop(ptr, "iterations", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+}
+
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
   NodeShaderRepeatInput *data = MEM_callocN<NodeShaderRepeatInput>(__func__);
   /* Needs to be initialized for the node to work. */
   data->output_node_id = 0;
+  data->iterations = 1;
   node->storage = data;
 }
 
@@ -155,7 +161,8 @@ static void node_register()
   ntype.gather_link_search_ops = nullptr;
   ntype.insert_link = node_insert_link;
   ntype.no_muting = true;
-  ntype.draw_buttons_ex = node_layout_ex;
+  ntype.draw_buttons = node_layout;
+  // ntype.draw_buttons_ex = node_layout_ex;
   blender::bke::node_type_storage(
       ntype, "NodeShaderRepeatInput", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = node_shader_fn;
