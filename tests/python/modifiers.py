@@ -10,7 +10,7 @@ from random import seed
 import bpy
 
 sys.path.append(os.path.dirname(os.path.realpath(__file__)))
-from modules.mesh_test import RunTest, ModifierSpec, SpecMeshTest, OperatorSpecObjectMode
+from modules.mesh_test import RunTest, ModifierSpec, MultiModifierSpec, SpecMeshTest, OperatorSpecObjectMode
 
 seed(0)
 
@@ -358,13 +358,14 @@ def main():
                                     'vertex_group': "Mask",
                                     'invert_vertex_group': True})]),
         SpecMeshTest("ArmatureMultiModifier", "testMonkeyArmatureMultiModifier", "expectedMonkeyArmatureMultiModifier",
-                     [ModifierSpec('armature1', 'ARMATURE',
-                                   {'object': bpy.data.objects['testArmatureMultiModifier1'],
-                                    'use_vertex_groups': True}),
-                      ModifierSpec('armature2', 'ARMATURE',
-                                   {'object': bpy.data.objects['testArmatureMultiModifier2'],
-                                    'use_vertex_groups': True,
-                                    'use_multi_modifier': True})]),
+                     [MultiModifierSpec(
+                         [ModifierSpec('armature1', 'ARMATURE', 
+                                       {'object': bpy.data.objects['testArmatureMultiModifier1'],
+                                        'use_vertex_groups': True}),
+                          ModifierSpec('armature2', 'ARMATURE',
+                                       {'object': bpy.data.objects['testArmatureMultiModifier2'],
+                                        'use_vertex_groups': True,
+                                        'use_multi_modifier': True})])]),
     ]
 
     boolean_basename = "CubeBooleanDiffBMeshObject"
