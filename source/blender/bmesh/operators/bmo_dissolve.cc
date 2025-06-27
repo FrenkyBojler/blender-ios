@@ -418,7 +418,7 @@ bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
   return false;
 }
 
-int bmo_vert_count_tagged_edges_max(BMesh *bm, BMVert *v, const short edge_oflag, const int max)
+int bmo_vert_tagged_edges_count_at_most(BMesh *bm, BMVert *v, const short edge_oflag, const int max)
 {
   int retval = 0;
   BMIter iter;
@@ -549,7 +549,7 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
          * edges, and the _only_ other tagged edge is this edge that's about to be dissolved.
          * When that case is found, skip it, do not tag it.*/
         if (f_pair[0]->len == 3 && f_pair[1]->len == 3 &&
-            bmo_vert_count_tagged_edges_max(bm, v_edge, EDGE_TAG, 2) == 1)
+            bmo_vert_tagged_edges_count_at_most(bm, v_edge, EDGE_TAG, 2) == 1)
         {
           continue;
         }
