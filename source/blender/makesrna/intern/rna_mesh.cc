@@ -3310,7 +3310,7 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_range(prop, 1, 64);
   RNA_def_property_ui_range(prop, 1, 32, 1, 1);
   RNA_def_property_ui_text(
-      prop, "Radial Symmetry Count", "Number of mirrored regions around a central axis" );
+      prop, "Radial Symmetry Count", "Number of mirrored regions around a central axis");
   /* End Symmetry */
 
   RNA_define_verify_sdna(false);
