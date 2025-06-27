@@ -569,7 +569,7 @@ void wm_init_cursor_data()
   wm_add_cursor(WM_CURSOR_COPY, datatoc_cursor_pointer_svg, 0.0f, 0.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_MOVE, datatoc_cursor_pointer_svg, 0.0f, 0.0f, 1.0f);
   wm_add_cursor(WM_CURSOR_TEXT_EDIT, datatoc_cursor_text_edit_svg, 0.5f, 0.5f, 0.7f);
-  // WM_CURSOR_WAIT
+  wm_add_cursor(WM_CURSOR_WAIT, datatoc_cursor_wait_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_STOP, datatoc_cursor_stop_svg, 0.5f, 0.5f, 0.9f);
   wm_add_cursor(WM_CURSOR_EDIT, datatoc_cursor_crosshair_svg, 0.5f, 0.5f, 1.0f);
   wm_add_cursor(WM_CURSOR_HAND, datatoc_cursor_hand_svg, 0.5f, 0.5f, 1.0f);

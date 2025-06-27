@@ -933,41 +933,42 @@ if(WITH_BLENDER)
     )
 
     set(SVG_CURSORS_FILENAMES_NOEXT
-      cursor_crosshair
-      cursor_eraser
-      cursor_eyedropper
-      cursor_knife
-      cursor_pencil
-      cursor_pointer
-      cursor_stop
-      cursor_text_edit
-      cursor_h_split
-      cursor_v_split
-      cursor_n_arrow
-      cursor_s_arrow
-      cursor_e_arrow
-      cursor_w_arrow
-      cursor_x_move
-      cursor_y_move
-      cursor_right_handle
-      cursor_left_handle
+      cursor_blade
       cursor_both_handles
-      cursor_paint
-      cursor_dot
       cursor_crossc
-      cursor_zoom_in
-      cursor_zoom_out
-      cursor_nsew_scroll
+      cursor_crosshair
+      cursor_dot
+      cursor_e_arrow
+      cursor_eraser
       cursor_ew_scroll
-      cursor_ns_scroll
+      cursor_eyedropper
       cursor_hand
       cursor_hand_closed
       cursor_hand_point
-      cursor_blade
-      cursor_pick_area
-      cursor_vertex_loop
+      cursor_h_split
+      cursor_knife
+      cursor_left_handle
       cursor_mute
+      cursor_n_arrow
+      cursor_nsew_scroll
+      cursor_ns_scroll
+      cursor_paint
+      cursor_pencil
+      cursor_pick_area
+      cursor_pointer
+      cursor_right_handle
+      cursor_s_arrow
+      cursor_stop
       cursor_swap_area
+      cursor_text_edit
+      cursor_v_split
+      cursor_vertex_loop
+      cursor_wait
+      cursor_w_arrow
+      cursor_x_move
+      cursor_y_move
+      cursor_zoom_in
+      cursor_zoom_out
     )
 
     set(SVG_CONTENTS_H)
