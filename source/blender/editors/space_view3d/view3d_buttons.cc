@@ -320,7 +320,7 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
   const Span<float> nurbs_weights = curves.nurbs_weights();
   const VArray<float> radius = curves.radius();
   const VArray<float> tilt = curves.tilt();
-  const Vector<Span<float3>> positions = get_curves_positions(curves);
+  const Span<float3> positions = curves.positions();
 
   IndexMaskMemory memory;
   bke::curves::foreach_selected_point_ranges_per_curve(
@@ -336,7 +336,7 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
           total_curve_points += range.size();
 
           for (const int point : range) {
-            add_v3_v3(median.location, positions.first()[point]);
+            add_v3_v3(median.location, positions[point]);
             total_nurbs_weights += is_nurbs;
             median.nurbs_weight += is_nurbs ?
                                        (nurbs_weights.is_empty() ? 1.0f : nurbs_weights[point]) :
@@ -347,23 +347,25 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
         }
       });
 
-  const Span<StringRef> bezier_selection_names = get_curves_bezier_selection_attribute_names(
-      curves);
-  const Vector<Span<float3>> bezier_handle_positions = positions.as_span().drop_front(1);
-  for (int attribute_i : bezier_selection_names.index_range()) {
-    const IndexMask selection = retrieve_selected_points(
-        curves, bezier_selection_names[attribute_i], memory);
+  if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
+    return;
+  }
+
+  auto add_handles = [&](StringRef selection_attribute, Span<float3> positions) {
+    const IndexMask selection = retrieve_selected_points(curves, selection_attribute, memory);
 
     if (selection.is_empty()) {
-      continue;
+      return;
     }
 
     total += selection.size();
 
-    selection.foreach_index([&](const int point) {
-      add_v3_v3(median.location, bezier_handle_positions[attribute_i][point]);
-    });
-  }
+    selection.foreach_index(
+        [&](const int point) { add_v3_v3(median.location, positions[point]); });
+  };
+
+  add_handles(".selection_handle_left", curves.handle_positions_left());
+  add_handles(".selection_handle_right", curves.handle_positions_right());
 }
 
 static bool apply_to_curves_selection(const int tot,
