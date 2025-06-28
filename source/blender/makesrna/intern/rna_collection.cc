@@ -464,27 +464,23 @@ static CollectionExport *rna_CollectionExport_new(Collection *collection,
                                                   int type,
                                                   const char *name)
 {
-  int i = 0;
-  CollectionExport *exporter;
-
-  for (const std::unique_ptr<blender::bke::FileHandlerType> &fh : blender::bke::file_handlers()) {
-    if (WM_operatortype_find(fh->export_operator, true)) {
-      if (i == type) {
-        exporter = BKE_collection_exporter_add(
-            collection, fh->idname, name ? (char *)name : fh->label);
-        break;
-      }
-      i++;
-    }
+  blender::bke::FileHandlerType *fh;
+  blender::Span<std::unique_ptr<blender::bke::FileHandlerType>> types =
+      blender::bke::file_handlers();
+  if (types.index_range().contains(type)) {
+    fh = types[type].get();
   }
+  if (fh) {
+    CollectionExport *exporter = BKE_collection_exporter_add(
+        collection, fh->idname, name ? (char *)name : fh->label);
 
-  if (!exporter) {
+    WM_main_add_notifier(NC_SCENE, nullptr);
+    return exporter;
+  }
+  else {
     BKE_reportf(reports, RPT_ERROR, "File handler not found");
     return nullptr;
   }
-
-  WM_main_add_notifier(NC_SCENE, nullptr);
-  return exporter;
 }
 
 static void rna_CollectionExport_remove(Collection *collection, CollectionExport *exporter)
@@ -517,12 +513,16 @@ static const EnumPropertyItem *rna_CollectionExport_type_itemf(bContext * /*C*/,
 {
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
+  blender::Span<std::unique_ptr<blender::bke::FileHandlerType>> types =
+      blender::bke::file_handlers();
 
-  for (const auto &fh : blender::bke::file_handlers()) {
+  for (const int i : types.index_range()) {
+    blender::bke::FileHandlerType *fh = types[i].get();
     if (WM_operatortype_find(fh->export_operator, true)) {
+      item_tmp.value = i;
       item_tmp.identifier = fh->idname;
       item_tmp.name = fh->label;
-      item_tmp.value = totitem;
+
       RNA_enum_item_add(&item, &totitem, &item_tmp);
     }
   }
