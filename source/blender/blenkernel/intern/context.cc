@@ -1405,11 +1405,6 @@ bool CTX_data_selected_objects(const bContext *C, blender::Vector<PointerRNA> *l
   return ctx_data_collection_get(C, "selected_objects", list);
 }
 
-bool CTX_data_selected_strips(const bContext *C, blender::Vector<PointerRNA> *list)
-{
-  return ctx_data_collection_get(C, "selected_strips", list);
-}
-
 bool CTX_data_selected_bases(const bContext *C, blender::Vector<PointerRNA> *list)
 {
   return ctx_data_base_collection_get(C, "selected_objects", list);
