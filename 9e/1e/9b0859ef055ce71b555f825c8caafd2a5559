@@ -1,2 +1,3 @@
 Referenced by issue #139617, Regression: crash when changing brushes in a specific file
 Referenced by issue #140668, Brush shortcut toggle doesn't work when using tools
+Referenced by pull request #141161, Fix #140668: Toggle brush support doesn't work with tool selection
