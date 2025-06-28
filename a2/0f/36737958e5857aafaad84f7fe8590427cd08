@@ -1,3 +1,4 @@
 Referenced by issue #141109, Render Layers node's unused sockets are constantly un-hiding
 Referenced by issue #141111, Starting playback with Time Stretching and Sync To Audio enabled causes weird offsets
 Referenced by issue #141112, Plane Probe is cut off in camera view if Shift X/Y in certain way
+Referenced by issue #141151, Viewport Compositor does not update while enabling/disabling it if Set Alpha is used
