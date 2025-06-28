@@ -3,3 +3,4 @@ Referenced by issue #140806, Snap tool crashes blender when on face/volume
 Referenced by issue #140831, rotate incremental crashes the blender
 Referenced by issue #140197, Crash adding a loop cut to a mesh
 Referenced by issue #140940, crash loop cut
+Referenced by issue #141116, Blender 4.5 beta crash during edit
