@@ -58,6 +58,8 @@ struct FresnelGeneralizedSchlick {
 };
 
 struct FresnelF82Tint {
+  FresnelThinFilm thin_film;
+
   /* Perpendicular reflectivity. */
   Spectrum f0;
   /* Precomputed (1-cos)^6 factor for edge tint. */

@@ -612,6 +612,9 @@ ccl_device void osl_closure_microfacet_f82_tint_setup(
   }
 
   fresnel->f0 = rgb_to_spectrum(closure->f0);
+  fresnel->thin_film.thickness = 0.0f;
+  fresnel->thin_film.ior = 0.0f;
+
   bsdf_microfacet_setup_fresnel_f82_tint(
       kg, bsdf, sd, fresnel, rgb_to_spectrum(closure->f82), preserve_energy);
 }
