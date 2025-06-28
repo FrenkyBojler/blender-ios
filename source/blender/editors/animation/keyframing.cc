@@ -899,7 +899,7 @@ static wmOperatorStatus clear_anim_vse_invoke(bContext *C,
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
                                   op,
-                                  IFACE_("Remove animation from selected objects?"),
+                                  IFACE_("Remove animation from selected strips?"),
                                   nullptr,
                                   CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
                                   ALERT_ICON_NONE,
