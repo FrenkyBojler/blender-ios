@@ -503,7 +503,7 @@ Span<float> CurvesGeometry::nurbs_weights() const
 }
 MutableSpan<float> CurvesGeometry::nurbs_weights_for_write()
 {
-  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_WEIGHT);
+  return get_mutable_attribute<float>(*this, AttrDomain::Point, ATTR_NURBS_WEIGHT, 1.0f);
 }
 
 VArray<int8_t> CurvesGeometry::nurbs_knots_modes() const
