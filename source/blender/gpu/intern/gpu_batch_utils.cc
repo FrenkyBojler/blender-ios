@@ -100,7 +100,7 @@ blender::gpu::Batch *GPU_batch_tris_from_poly_2d_encoded(const uchar *polys_flat
   }
 
   GPUIndexBufBuilder elb;
-  GPU_indexbuf_init(&elb, GPU_PRIM_TRIS, tris_len, verts_len);
+  GPU_indexbuf_allocate_uninitialized(&elb, GPU_PRIM_TRIS, tris_len, verts_len);
   for (uint i = 0; i < tris_len; i++) {
     GPU_indexbuf_add_tri_verts(&elb, UNPACK3(tris[i]));
   }
@@ -266,7 +266,7 @@ blender::gpu::Batch *GPU_batch_unit_cube()
   GPU_vertbuf_data_alloc(*vbo, vert_len);
 
   GPUIndexBufBuilder elb;
-  GPU_indexbuf_init(&elb, GPU_PRIM_TRIS, tri_len, vert_len);
+  GPU_indexbuf_allocate_uninitialized(&elb, GPU_PRIM_TRIS, tri_len, vert_len);
 
   int v = 0;
   for (int i = 0; i < vert_len; i++) {

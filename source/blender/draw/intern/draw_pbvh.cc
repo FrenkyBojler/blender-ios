@@ -1139,7 +1139,7 @@ static gpu::IndexBufPtr create_lines_index_faces(const OffsetIndices<int> faces,
   }
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, corners_count, INT_MAX);
+  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, corners_count, INT_MAX);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
 
   int node_corner_offset = 0;
@@ -1166,7 +1166,7 @@ static gpu::IndexBufPtr create_lines_index_bmesh(const Set<BMFace *, 0> &faces,
                                                  const int visible_faces_num)
 {
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, visible_faces_num * 3, INT_MAX);
+  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, visible_faces_num * 3, INT_MAX);
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
 
@@ -1510,7 +1510,7 @@ static gpu::IndexBufPtr create_tri_index_mesh(const OffsetIndices<int> faces,
   }
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, tris_num, INT_MAX);
+  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_TRIS, tris_num, INT_MAX);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
   int tri_index = 0;
@@ -1557,7 +1557,7 @@ static gpu::IndexBufPtr create_tri_index_grids(const CCGKey &key,
       grid_hidden, grid_indices, key.grid_size, display_gridsize);
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, 2 * visible_quad_len, INT_MAX);
+  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_TRIS, 2 * visible_quad_len, INT_MAX);
 
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
@@ -1590,7 +1590,7 @@ static gpu::IndexBufPtr create_lines_index_grids(const CCGKey &key,
   }
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_init(
+  GPU_indexbuf_allocate_uninitialized(
       &builder, GPU_PRIM_LINES, 2 * totgrid * display_gridsize * (display_gridsize - 1), INT_MAX);
 
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();

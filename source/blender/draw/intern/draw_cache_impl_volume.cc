@@ -200,7 +200,7 @@ static void drw_volume_wireframe_cb(
   else {
     /* Create edge index buffer. */
     GPUIndexBufBuilder elb;
-    GPU_indexbuf_init(&elb, GPU_PRIM_LINES, totedge, totvert);
+    GPU_indexbuf_allocate_uninitialized(&elb, GPU_PRIM_LINES, totedge, totvert);
     for (int i = 0; i < totedge; i++) {
       GPU_indexbuf_add_line_verts(&elb, edges[i][0], edges[i][1]);
     }
@@ -259,7 +259,7 @@ static void drw_volume_selection_surface_cb(
 
   /* Create index buffer. */
   GPUIndexBufBuilder elb;
-  GPU_indexbuf_init(&elb, GPU_PRIM_TRIS, tottris, totvert);
+  GPU_indexbuf_allocate_uninitialized(&elb, GPU_PRIM_TRIS, tottris, totvert);
   for (int i = 0; i < tottris; i++) {
     GPU_indexbuf_add_tri_verts(&elb, UNPACK3(tris[i]));
   }

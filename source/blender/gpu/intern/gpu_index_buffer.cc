@@ -69,7 +69,7 @@ void GPU_indexbuf_init_ex(GPUIndexBufBuilder *builder,
   builder->data = static_cast<uint *>(MEM_mallocN(int64_t(sizeof(uint)) * builder->max_index_len, "IndexBuf data"));
 }
 
-void GPU_indexbuf_init(GPUIndexBufBuilder *builder,
+void GPU_indexbuf_allocate_uninitialized(GPUIndexBufBuilder *builder,
                        GPUPrimType prim_type,
                        uint prim_len,
                        uint vertex_len)
