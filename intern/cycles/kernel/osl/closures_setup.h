@@ -383,6 +383,10 @@ ccl_device void osl_closure_conductor_bsdf_setup(KernelGlobals kg,
 
   fresnel->n = rgb_to_spectrum(closure->ior);
   fresnel->k = rgb_to_spectrum(closure->extinction);
+
+  fresnel->thin_film.thickness = 0.0f;
+  fresnel->thin_film.ior = 0.0f;
+
   bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd, fresnel, preserve_energy);
 }
 

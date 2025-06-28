@@ -42,6 +42,7 @@ struct FresnelDielectricTint {
 };
 
 struct FresnelConductor {
+  FresnelThinFilm thin_film;
   Spectrum n, k;
 };
 
@@ -250,7 +251,21 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
   }
   else if (bsdf->fresnel_type == MicrofacetFresnel::CONDUCTOR) {
     ccl_private FresnelConductor *fresnel = (ccl_private FresnelConductor *)bsdf->fresnel;
-    *r_reflectance = fresnel_conductor(cos_theta_i, fresnel->n, fresnel->k);
+
+    if (fresnel->thin_film.thickness > 0.1f) {
+      *r_reflectance = fresnel_iridescence(kg,
+                                           1.0f,
+                                           fresnel->thin_film.ior,
+                                           fresnel->n,
+                                           fresnel->k,
+                                           cos_theta_i,
+                                           fresnel->thin_film.thickness,
+                                           r_cos_theta_t);
+    }
+    else {
+      *r_reflectance = fresnel_conductor(cos_theta_i, fresnel->n, fresnel->k);
+    }
+
     *r_transmittance = zero_spectrum();
   }
   else if (bsdf->fresnel_type == MicrofacetFresnel::F82_TINT) {
@@ -273,7 +288,8 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
       F = fresnel_iridescence(kg,
                               1.0f,
                               fresnel->thin_film.ior,
-                              bsdf->ior,
+                              make_spectrum(bsdf->ior),
+                              -one_spectrum(),
                               cos_theta_i,
                               fresnel->thin_film.thickness,
                               r_cos_theta_t);

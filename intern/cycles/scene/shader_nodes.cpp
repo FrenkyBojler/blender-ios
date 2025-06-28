@@ -2144,6 +2144,9 @@ NODE_DEFINE(MetallicBsdfNode)
   SOCKET_IN_FLOAT(anisotropy, "Anisotropy", 0.0f);
   SOCKET_IN_FLOAT(rotation, "Rotation", 0.0f);
 
+  SOCKET_IN_FLOAT(thin_film_thickness, "Thin Film Thickness", 0.0f);
+  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.33f);
+
   SOCKET_OUT_CLOSURE(BSDF, "BSDF");
 
   return type;
@@ -2202,6 +2205,8 @@ void MetallicBsdfNode::compile(SVMCompiler &compiler)
   ShaderInput *anisotropy_in = input("Anisotropy");
   ShaderInput *rotation_in = input("Rotation");
   ShaderInput *roughness_in = input("Roughness");
+  ShaderInput *thin_film_thickness_in = input("Thin Film Thickness");
+  ShaderInput *thin_film_ior_in = input("Thin Film IOR");
   ShaderInput *tangent_in = input("Tangent");
 
   const int normal_offset = compiler.stack_assign_if_linked(input("Normal"));
@@ -2215,7 +2220,9 @@ void MetallicBsdfNode::compile(SVMCompiler &compiler)
                                            edge_tint_k_offset,
                                            compiler.stack_assign(rotation_in),
                                            compiler.stack_assign(tangent_in)),
-                    distribution);
+                    compiler.encode_uchar4(distribution,
+                                           compiler.stack_assign(thin_film_thickness_in),
+                                           compiler.stack_assign(thin_film_ior_in)));
   compiler.add_node(normal_offset);
 }
 

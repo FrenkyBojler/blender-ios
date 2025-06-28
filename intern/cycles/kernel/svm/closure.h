@@ -555,7 +555,17 @@ ccl_device
         bsdf->alpha_x = alpha_x;
         bsdf->alpha_y = alpha_y;
 
-        const ClosureType distribution = (ClosureType)node.w;
+        uint distribution_int;
+        uint thin_film_thickness_offset;
+        uint thin_film_ior_offset;
+        uint unused;
+        svm_unpack_node_uchar4(node.w,
+                               &distribution_int,
+                               &thin_film_thickness_offset,
+                               &thin_film_ior_offset,
+                               &unused);
+
+        const ClosureType distribution = (ClosureType)distribution_int;
         /* Setup BSDF */
         if (distribution == CLOSURE_BSDF_MICROFACET_BECKMANN_ID) {
           sd->flag |= bsdf_microfacet_beckmann_setup(bsdf);
@@ -570,12 +580,19 @@ ccl_device
           ccl_private FresnelConductor *fresnel = (ccl_private FresnelConductor *)
               closure_alloc_extra(sd, sizeof(FresnelConductor));
 
-          const float3 n = max(stack_load_float3(stack, base_ior_offset), zero_float3());
-          const float3 k = max(stack_load_float3(stack, edge_tint_k_offset), zero_float3());
+          if (fresnel) {
+            const float3 n = max(stack_load_float3(stack, base_ior_offset), zero_float3());
+            const float3 k = max(stack_load_float3(stack, edge_tint_k_offset), zero_float3());
 
-          fresnel->n = rgb_to_spectrum(n);
-          fresnel->k = rgb_to_spectrum(k);
-          bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd, fresnel, is_multiggx);
+            fresnel->n = rgb_to_spectrum(n);
+            fresnel->k = rgb_to_spectrum(k);
+
+            fresnel->thin_film.thickness = max(stack_load_float(stack, thin_film_thickness_offset),
+                                               1e-5f);
+            fresnel->thin_film.ior = max(stack_load_float(stack, thin_film_ior_offset), 1e-5f);
+
+            bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd, fresnel, is_multiggx);
+          }
         }
         else {
           ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)closure_alloc_extra(

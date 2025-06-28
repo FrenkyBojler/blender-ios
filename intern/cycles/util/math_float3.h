@@ -122,6 +122,11 @@ ccl_device_inline float3 operator+(const float3 a, const float f)
   return a + make_float3(f);
 }
 
+ccl_device_inline float3 operator+(const float f, const float3 a)
+{
+  return make_float3(f) + a;
+}
+
 ccl_device_inline float3 operator-(const float3 a, const float3 b)
 {
 #  ifdef __KERNEL_SSE__
@@ -134,6 +139,11 @@ ccl_device_inline float3 operator-(const float3 a, const float3 b)
 ccl_device_inline float3 operator-(const float3 a, const float f)
 {
   return a - make_float3(f);
+}
+
+ccl_device_inline float3 operator-(const float f, const float3 a)
+{
+  return make_float3(f) - a;
 }
 
 ccl_device_inline float3 operator+=(float3 &a, const float3 b)
@@ -430,6 +440,11 @@ ccl_device_inline float3 faceforward(const float3 vector,
   return (dot(reference, incident) < 0.0f) ? vector : -vector;
 }
 #endif
+
+ccl_device_inline float3 safe_sqrt(const float3 a)
+{
+  return sqrt(max(a, zero_float3()));
+}
 
 ccl_device_inline float3 project(const float3 v, const float3 v_proj)
 {

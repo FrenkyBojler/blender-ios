@@ -112,6 +112,44 @@ ccl_device_inline float fresnel_dielectric_Fss(const float eta)
   return (eta - 1.0f) / (4.08567f + 1.00071f * eta);
 }
 
+/* Calculates Fresnel reflectance at a dielectric-conductor interface for perpendicular (r_R_s) and
+ * parallel (r_R_p) polarized light using the exact Fresnel equations. If requested by the caller,
+ * also sets r_phi_s and r_phi_p to the phase shift due to reflection.
+ * Based on equations from section 14.4.1 of Principles of Optics 7th ed. by Born and Wolf. */
+ccl_device void fresnel_conductor_polarized(const float cosi,
+                                            const float eta1,
+                                            const Spectrum eta2,
+                                            const Spectrum k2,
+                                            ccl_private Spectrum *r_R_s,
+                                            ccl_private Spectrum *r_R_p,
+                                            ccl_private Spectrum *r_phi_s,
+                                            ccl_private Spectrum *r_phi_p)
+{
+  float sin_theta_sq = 1.0f - sqr(cosi);
+  Spectrum t1 = sqr(eta2) - sqr(k2) - sqr(eta1) * sin_theta_sq;
+  Spectrum t2 = sqrt(sqr(t1) + sqr(2.0f * eta2 * k2));
+  Spectrum u = safe_sqrt(0.5f * (t2 + t1));
+  Spectrum v = safe_sqrt(0.5f * (t2 - t1));
+
+  *r_R_s = (sqr(eta1 * cosi - u) + sqr(v)) / (sqr(eta1 * cosi + u) + sqr(v));
+
+  Spectrum t3 = (sqr(eta2) - sqr(k2)) * cosi;
+  Spectrum t4 = 2.0f * eta2 * k2 * cosi;
+  *r_R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) / (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
+
+  if (r_phi_s) {
+    *r_phi_s = atan2(2.0f * eta1 * cosi * v, sqr(u) + sqr(v) - sqr(eta1 * cosi));
+  }
+
+  if (r_phi_p) {
+    Spectrum y = 2.0f * eta1 * cosi * (2.0f * eta2 * k2 * u - (sqr(eta2) - sqr(k2)) * v);
+    Spectrum x = sqr((sqr(eta2) + sqr(k2)) * cosi) - sqr(eta1) * (sqr(u) + sqr(v));
+    *r_phi_p = atan2(y, x);
+  }
+}
+
+/* Calculates Fresnel reflectance at a dielectric-conductor interface given the relative IOR, using
+ * an approximation from PBRT v2. */
 ccl_device Spectrum fresnel_conductor(const float cosi, const Spectrum eta, const Spectrum k)
 {
   const Spectrum cosi2 = make_spectrum(cosi * cosi);
@@ -354,7 +392,7 @@ ccl_device_inline Spectrum closure_layering_weight(const Spectrum layer_albedo,
  */
 ccl_device_inline Spectrum iridescence_lookup_sensitivity(KernelGlobals kg,
                                                           const float OPD,
-                                                          const float shift)
+                                                          const Spectrum shift)
 {
   /* The LUT covers 0 to 60 um. */
   float x = M_2PI_F * OPD / 60000.0f;
@@ -375,26 +413,21 @@ ccl_device_inline Spectrum iridescence_lookup_sensitivity(KernelGlobals kg,
 ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
                                                     const float T121,
                                                     const float R12,
-                                                    const float R23,
+                                                    const Spectrum R23,
                                                     const float OPD,
-                                                    const float phi)
+                                                    const Spectrum phi)
 {
-  if (R23 == 1.0f) {
-    /* Shortcut for TIR on the bottom interface. */
-    return one_float3();
-  }
-
-  const float R123 = R12 * R23;
-  const float r123 = sqrtf(R123);
-  const float Rs = sqr(T121) * R23 / (1.0f - R123);
+  const Spectrum R123 = R12 * R23;
+  const Spectrum r123 = sqrt(R123);
+  const Spectrum Rs = sqr(T121) * R23 / (1.0f - R123);
 
   /* Perform summation over path order differences (equation 10). */
-  float3 R = make_float3(R12 + Rs); /* C0 */
-  float Cm = (Rs - T121);
+  Spectrum R = Rs + R12; /* C0 */
+  Spectrum Cm = (Rs - T121);
   /* Truncate after m=3, higher differences have barely any impact. */
   for (int m = 1; m < 4; m++) {
     Cm *= r123;
-    R += Cm * 2.0f * iridescence_lookup_sensitivity(kg, m * OPD, m * phi);
+    R += Cm * 2.0f * iridescence_lookup_sensitivity(kg, m * OPD, (float)m * phi);
   }
   return R;
 }
@@ -402,7 +435,8 @@ ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
 ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         float eta1,
                                         float eta2,
-                                        float eta3,
+                                        Spectrum eta3,
+                                        Spectrum k3,
                                         float cos_theta_1,
                                         const float thickness,
                                         ccl_private float *r_cos_theta_3)
@@ -415,7 +449,6 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
 
   float cos_theta_2;
   float2 phi12;
-  float2 phi23;
 
   /* Compute reflection at the top interface (ambient to film). */
   const float2 R12 = fresnel_dielectric_polarized(cos_theta_1, eta2 / eta1, &cos_theta_2, &phi12);
@@ -427,22 +460,41 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   /* Compute optical path difference inside the thin film. */
   const float OPD = -2.0f * eta2 * thickness * cos_theta_2;
 
+  Spectrum R23_s, R23_p, phi_s, phi_p;
+
   /* Compute reflection at the bottom interface (film to medium). */
-  const float2 R23 = fresnel_dielectric_polarized(
-      -cos_theta_2, eta3 / eta2, r_cos_theta_3, &phi23);
-  if (isequal(R23, one_float2())) {
-    /* TIR at the bottom interface.
-     * All the Airy summation math still simplifies to 1.0 in this case. */
-    return one_spectrum();
+  if (reduce_min(k3) >= 0.0f) {
+    /* Material is a conductor. */
+    Spectrum phi23_s, phi23_p;
+    fresnel_conductor_polarized(-cos_theta_2, eta2, eta3, k3, &R23_s, &R23_p, &phi23_s, &phi23_p);
+
+    phi_s = phi23_s + (M_PI_F - phi12.x);
+    phi_p = phi23_p + (M_PI_F - phi12.y);
+  }
+  else {
+    /* Material is a dielectric. */
+    float2 phi23;
+    const float2 R23 = fresnel_dielectric_polarized(
+        -cos_theta_2, eta3.x / eta2, r_cos_theta_3, &phi23);
+
+    if (isequal(R23, one_float2())) {
+      /* TIR at the bottom interface.
+       * All the Airy summation math still simplifies to 1.0 in this case. */
+      return one_spectrum();
+    }
+
+    R23_s = make_spectrum(R23.x);
+    R23_p = make_spectrum(R23.y);
+    phi_s = make_spectrum(phi23.x + M_PI_F - phi12.x);
+    phi_p = make_spectrum(phi23.y + M_PI_F - phi12.y);
   }
 
   /* Compute helper parameters. */
   const float2 T121 = one_float2() - R12;
-  const float2 phi = make_float2(M_PI_F, M_PI_F) - phi12 + phi23;
 
   /* Perform Airy summation and average the polarizations. */
-  float3 R = mix(iridescence_airy_summation(kg, T121.x, R12.x, R23.x, OPD, phi.x),
-                 iridescence_airy_summation(kg, T121.y, R12.y, R23.y, OPD, phi.y),
+  float3 R = mix(iridescence_airy_summation(kg, T121.x, R12.x, R23_s, OPD, phi_s),
+                 iridescence_airy_summation(kg, T121.y, R12.y, R23_p, OPD, phi_p),
                  0.5f);
 
   return saturate(R);

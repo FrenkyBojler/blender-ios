@@ -51,6 +51,17 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR)
       .description("Rotates the direction of anisotropy, with 1.0 going full circle");
+  b.add_input<decl::Float>("Thin Film Thickness")
+      .default_value(0.0)
+      .min(0.0f)
+      .max(100000.0f)
+      .subtype(PROP_WAVELENGTH)
+      .description("Thickness in nanometers of the thin film layer");
+  b.add_input<decl::Float>("Thin Film IOR")
+      .default_value(1.33f)
+      .min(1.0f)
+      .max(1000.0f)
+      .description("Refractive index of the thin film layer");
   b.add_input<decl::Vector>("Normal").hide_value();
   b.add_input<decl::Vector>("Tangent").hide_value();
   b.add_input<decl::Float>("Weight").available(false);
