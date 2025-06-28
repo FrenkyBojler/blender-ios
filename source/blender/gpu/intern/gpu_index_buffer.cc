@@ -33,7 +33,7 @@
 using namespace blender;
 using namespace blender::gpu;
 
-void GPU_indexbuf_init_ex(GPUIndexBufBuilder *builder,
+void GPU_indexbuf_allocate_uninitialized_ex(GPUIndexBufBuilder *builder,
                           GPUPrimType prim_type,
                           uint index_len,
                           uint vertex_len)
@@ -76,7 +76,7 @@ void GPU_indexbuf_allocate_uninitialized(GPUIndexBufBuilder *builder,
 {
   int verts_per_prim = GPU_indexbuf_primitive_len(prim_type);
   BLI_assert(verts_per_prim != -1);
-  GPU_indexbuf_init_ex(builder, prim_type, prim_len * uint(verts_per_prim), vertex_len);
+  GPU_indexbuf_allocate_uninitialized_ex(builder, prim_type, prim_len * uint(verts_per_prim), vertex_len);
 }
 
 IndexBuf *GPU_indexbuf_build_on_device(uint index_len)
