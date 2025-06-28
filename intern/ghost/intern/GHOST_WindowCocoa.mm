@@ -365,7 +365,7 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                                 styleMask:styleMask
                                                   backing:NSBackingStoreBuffered
                                                     defer:NO];
-    /* By default, AppKit replaces the window in the context of the current "mainMonitor"
+    /* By default, AppKit repositions the window in the context of the current "mainMonitor"
      * (the monitor which has focus), bypass this by forcing the window back into its correct
      * position. Since we use global screen coordinate indexed on the first, primary screen.
      */
