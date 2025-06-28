@@ -495,8 +495,8 @@ static void rna_CollectionExport_remove(Collection *collection, CollectionExport
 
 static void rna_CollectionExport_move(Collection *collection,
                                       ReportList *reports,
-                                      int from,
-                                      int to)
+                                      const int from,
+                                      const int to)
 {
   if (!BKE_collection_exporter_move(collection, from, to)) {
     BKE_reportf(reports,
@@ -517,16 +517,19 @@ static const EnumPropertyItem *rna_CollectionExport_type_itemf(bContext * /*C*/,
 {
   EnumPropertyItem *item = nullptr, item_tmp = {0};
   int totitem = 0;
-  int i = 0;
 
   for (const auto &fh : blender::bke::file_handlers()) {
     if (WM_operatortype_find(fh->export_operator, true)) {
       item_tmp.identifier = fh->idname;
       item_tmp.name = fh->label;
-      item_tmp.value = i;
+      item_tmp.value = totitem;
       RNA_enum_item_add(&item, &totitem, &item_tmp);
-      i++;
     }
+  }
+
+  if (totitem == 0) {
+    *r_free = false;
+    return rna_enum_dummy_NULL_items;
   }
 
   RNA_enum_item_end(&item, &totitem);
@@ -675,11 +678,10 @@ static void rna_def_collection_exporters(BlenderRNA *brna, PropertyRNA *cprop)
   func = RNA_def_function(srna, "new", "rna_CollectionExport_new");
   RNA_def_function_ui_description(func, "Add an export handler to the collection");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
-  parm = RNA_def_property(func, "type", PROP_ENUM, PROP_NONE);
-  RNA_def_property_enum_items(parm, rna_enum_dummy_NULL_items);
+  parm = RNA_def_enum(
+      func, "type", rna_enum_dummy_DEFAULT_items, 0, "Type", "The type of export handler to add");
   RNA_def_property_enum_funcs(parm, nullptr, nullptr, "rna_CollectionExport_type_itemf");
-  RNA_def_property_enum_default(parm, -1);
-  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
+  RNA_def_parameter_flags(parm, PROP_ENUM_NO_CONTEXT, PARM_REQUIRED);
   RNA_def_string(func, "name", nullptr, 0, "Name", "Name of the new export handler");
   parm = RNA_def_pointer(func, "exporter", "CollectionExport", "", "Newly created export handler");
   RNA_def_function_return(func, parm);

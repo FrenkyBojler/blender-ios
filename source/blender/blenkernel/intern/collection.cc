@@ -1483,7 +1483,7 @@ void BKE_collection_exporter_remove(Collection *collection, CollectionExport *da
   collection->active_exporter_index = new_index;
 }
 
-bool BKE_collection_exporter_move(Collection *collection, int from, int to)
+bool BKE_collection_exporter_move(Collection *collection, const int from, const int to)
 {
   if (from == to) {
     return false;

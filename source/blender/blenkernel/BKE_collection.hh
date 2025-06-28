@@ -25,7 +25,6 @@ struct Collection;
 struct ID;
 struct CollectionChild;
 struct CollectionExport;
-struct FileHandlerType;
 struct GHash;
 struct Main;
 struct Object;
@@ -125,7 +124,7 @@ void BKE_collection_exporter_remove(Collection *collection, CollectionExport *da
 /**
  * Move a collection exporter from one position to another.
  */
-bool BKE_collection_exporter_move(Collection *collection, int from, int to);
+bool BKE_collection_exporter_move(Collection *collection, const int from, const int to);
 
 /**
  * Assigns a unique name to the collection exporter.
