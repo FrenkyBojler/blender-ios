@@ -1269,34 +1269,50 @@ size_t BKE_appdir_display_path_from_system_path(char *filepath_display,
   char filepath_temp[FILE_MAX];
   size_t filepath_display_len = 0; /* Zero means un-handled. */
 
-  /* Replace known prefix. */
-  if (filepath_display_len == 0 && BKE_appdir_folder_documents(filepath_temp)) {
-    filepath_display_len = filepath_try_replace_prefix(
-        filepath_system, filepath_temp, DATA_("Documents"), filepath_display);
-  }
+  /* The choice of which to support is subjective.
+   * For now limit this and each platform may add support for them as needed. */
+  bool do_documents = false;
+  bool do_desktop = false;
+  bool do_downloads = false;
+  bool do_home = !(OS_WINDOWS || OS_MAC); /* Any generic UNIX. */
 
-  if (filepath_display_len == 0) {
-    if (std::optional<std::string> prefix = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDesktop))
-    {
+  /* Replace known prefix. */
+  if (do_documents) {
+    if (filepath_display_len == 0 && BKE_appdir_folder_documents(filepath_temp)) {
       filepath_display_len = filepath_try_replace_prefix(
-          filepath_system, prefix->c_str(), DATA_("Desktop"), filepath_display);
+          filepath_system, filepath_temp, DATA_("Documents"), filepath_display);
     }
   }
 
-  if (filepath_display_len == 0) {
-    if (std::optional<std::string> prefix = GHOST_getUserSpecialDir(
-            GHOST_kUserSpecialDirDownloads))
-    {
-      filepath_display_len = filepath_try_replace_prefix(
-          filepath_system, prefix->c_str(), DATA_("Downloads"), filepath_display);
+  if (do_desktop) {
+    if (filepath_display_len == 0) {
+      if (std::optional<std::string> prefix = GHOST_getUserSpecialDir(
+              GHOST_kUserSpecialDirDesktop))
+      {
+        filepath_display_len = filepath_try_replace_prefix(
+            filepath_system, prefix->c_str(), DATA_("Desktop"), filepath_display);
+      }
+    }
+  }
+
+  if (do_downloads) {
+    if (filepath_display_len == 0) {
+      if (std::optional<std::string> prefix = GHOST_getUserSpecialDir(
+              GHOST_kUserSpecialDirDownloads))
+      {
+        filepath_display_len = filepath_try_replace_prefix(
+            filepath_system, prefix->c_str(), DATA_("Downloads"), filepath_display);
+      }
     }
   }
 
   /* Perform "HOME" last because other known paths are typically sub-directories of this. */
-  if (filepath_display_len == 0) {
-    const char *home_prefix = OS_WINDOWS ? DATA_("Home") : "~";
-    filepath_display_len = filepath_try_replace_prefix(
-        filepath_system, BLI_dir_home(), home_prefix, filepath_display);
+  if (do_home) {
+    if (filepath_display_len == 0) {
+      const char *home_prefix = OS_WINDOWS ? DATA_("Home") : "~";
+      filepath_display_len = filepath_try_replace_prefix(
+          filepath_system, BLI_dir_home(), home_prefix, filepath_display);
+    }
   }
 
   /* NOTE(@ideasman42): we could include "Pictures", "Music" ... etc.
