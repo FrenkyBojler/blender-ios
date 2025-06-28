@@ -1,2 +1,3 @@
 Referenced by issue #141100, Compositor: Duplicated nodes when pressing Setup Tracking Scene.
 Referenced by pull request #141141, Fix #141100: Compositor: Duplicated nodes when pressing Setup Tracking Scene
+Referenced by commit 120c8165fc4097c7963959fe32a0602cb7657ccd, Fix #141100: Compositor: Duplicated nodes when pressing Setup Tracking Scene
