@@ -1030,7 +1030,7 @@ void ANIM_OT_keyframe_delete_vse(wmOperatorType *ot)
 {
   /* identifiers */
   ot->name = "Delete Keyframe";
-  ot->description = "Remove keyframes on current frame for selected objects and bones";
+  ot->description = "Remove keyframes on current frame for selected strips";
   ot->idname = "ANIM_OT_keyframe_delete_vse";
 
   /* callbacks */
