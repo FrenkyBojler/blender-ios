@@ -839,6 +839,14 @@ static bool versioning_convert_strip_speed_factor(Sequence *seq, void *user_data
   return true;
 }
 
+/* Old files may have `seq3` set, which can cause problems when strip is deleted in python.
+ * See #140885. */
+static bool versioning_fix_dangling_seq3(Sequence *seq, void * /*user_data*/)
+{
+  seq->seq3 = nullptr;
+  return true;
+}
+
 static bool all_scenes_use(Main *bmain, const blender::Span<const char *> engines)
 {
   if (!bmain->scenes.first) {
@@ -4342,6 +4350,15 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
             }
           }
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 402, 68)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      Editing *ed = SEQ_editing_get(scene);
+      if (ed != nullptr) {
+        SEQ_for_each_callback(&ed->seqbase, versioning_fix_dangling_seq3, nullptr);
       }
     }
   }
