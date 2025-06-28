@@ -120,11 +120,11 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
 static float cursor_size()
 {
 #if (OS_MAC)
-  /* MacOS always scales up this type of cursor for high-dpi displays.
-   * The mid-sized 24x24 versions are a nice compromise size. */
-  return 24.0f;
+  /* MacOS always scales up this type of cursor for high-dpi displays. */
+  return 21.0f;
 #endif
 
+  // return WM_cursor_preferred_logical_size() * (UI_SCALE_FAC / U.ui_scale);
   return 21.0f * UI_SCALE_FAC;
 }
 
@@ -191,7 +191,12 @@ static void cursor_rgba_to_xbm_32(const blender::Array<uint8_t> rgba,
 
 static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
-  float size = std::min(cursor_size(), 32.0f);
+#if (OS_WINDOWS)
+  int max_size = 128;
+#else
+  int max_size = 32;
+#endif
+  float size = std::min(cursor_size(), float(max_size));
 
   size_t width;
   size_t height;
@@ -201,10 +206,19 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
   int hotspot_x = int(cursor->hotspot_x * (width - 1));
   int hotspot_y = int(cursor->hotspot_y * (height - 1));
 
+#if (OS_WINDOWS)
+  return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                    render_bmp.data(),
+                                    nullptr,
+                                    width,
+                                    height,
+                                    hotspot_x,
+                                    hotspot_y,
+                                    false) == GHOST_kSuccess;
+#else
   uint8_t bitmap[4 * 32] = {0};
   uint8_t mask[4 * 32] = {0};
   cursor_rgba_to_xbm_32(render_bmp, width, height, bitmap, mask);
-
   return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
                                     bitmap,
                                     mask,
@@ -213,6 +227,7 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
                                     hotspot_x,
                                     hotspot_y,
                                     false) == GHOST_kSuccess;
+#endif
 }
 
 void WM_cursor_set(wmWindow *win, int curs)
