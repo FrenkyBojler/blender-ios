@@ -587,9 +587,9 @@ ccl_device
             fresnel->n = rgb_to_spectrum(n);
             fresnel->k = rgb_to_spectrum(k);
 
-            fresnel->thin_film.thickness = max(stack_load_float(stack, thin_film_thickness_offset),
-                                               1e-5f);
-            fresnel->thin_film.ior = max(stack_load_float(stack, thin_film_ior_offset), 1e-5f);
+            fresnel->thin_film.thickness = fmaxf(
+                stack_load_float(stack, thin_film_thickness_offset), 1e-5f);
+            fresnel->thin_film.ior = fmaxf(stack_load_float(stack, thin_film_ior_offset), 1e-5f);
 
             bsdf_microfacet_setup_fresnel_conductor(kg, bsdf, sd, fresnel, is_multiggx);
           }

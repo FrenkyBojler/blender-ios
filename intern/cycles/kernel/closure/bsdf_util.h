@@ -125,16 +125,15 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
                                             ccl_private Spectrum *r_phi_s,
                                             ccl_private Spectrum *r_phi_p)
 {
-  float sin_theta_sq = 1.0f - sqr(cosi);
-  Spectrum t1 = sqr(eta2) - sqr(k2) - sqr(eta1) * sin_theta_sq;
-  Spectrum t2 = sqrt(sqr(t1) + sqr(2.0f * eta2 * k2));
-  Spectrum u = safe_sqrt(0.5f * (t2 + t1));
-  Spectrum v = safe_sqrt(0.5f * (t2 - t1));
+  const Spectrum t1 = sqr(eta2) - sqr(k2) - sqr(eta1) * (1.0f - sqr(cosi));
+  const Spectrum t2 = sqrt(sqr(t1) + sqr(2.0f * eta2 * k2));
+  const Spectrum u = safe_sqrt(0.5f * (t2 + t1));
+  const Spectrum v = safe_sqrt(0.5f * (t2 - t1));
 
   *r_R_s = (sqr(eta1 * cosi - u) + sqr(v)) / (sqr(eta1 * cosi + u) + sqr(v));
 
-  Spectrum t3 = (sqr(eta2) - sqr(k2)) * cosi;
-  Spectrum t4 = 2.0f * eta2 * k2 * cosi;
+  const Spectrum t3 = (sqr(eta2) - sqr(k2)) * cosi;
+  const Spectrum t4 = 2.0f * eta2 * k2 * cosi;
   *r_R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) / (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
 
   if (r_phi_s) {
@@ -142,8 +141,8 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
   }
 
   if (r_phi_p) {
-    Spectrum y = 2.0f * eta1 * cosi * (2.0f * eta2 * k2 * u - (sqr(eta2) - sqr(k2)) * v);
-    Spectrum x = sqr((sqr(eta2) + sqr(k2)) * cosi) - sqr(eta1) * (sqr(u) + sqr(v));
+    const Spectrum y = 2.0f * eta1 * cosi * (2.0f * eta2 * k2 * u - (sqr(eta2) - sqr(k2)) * v);
+    const Spectrum x = sqr((sqr(eta2) + sqr(k2)) * cosi) - sqr(eta1) * (sqr(u) + sqr(v));
     *r_phi_p = atan2(y, x);
   }
 }
