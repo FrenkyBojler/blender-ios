@@ -867,7 +867,7 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
   if (BKE_fcurve_is_protected(fcu)) {
     BKE_reportf(reports,
                 RPT_WARNING,
-                "Not deleting keyframe for locked F-Curve '%s', object '%s'",
+                "Not deleting keyframe for locked F-Curve '%s', scene '%s'",
                 fcu->rna_path,
                 scene->id.name + 2);
     return false;
@@ -1017,7 +1017,7 @@ static wmOperatorStatus delete_key_vse_invoke(bContext *C,
   if (RNA_boolean_get(op->ptr, "confirm")) {
     return WM_operator_confirm_ex(C,
                                   op,
-                                  IFACE_("Delete keyframes from selected objects?"),
+                                  IFACE_("Delete keyframes from selected strips?"),
                                   nullptr,
                                   IFACE_("Delete"),
                                   ALERT_ICON_NONE,
