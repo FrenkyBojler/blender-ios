@@ -2025,14 +2025,15 @@ class GlareOperation : public NodeOperation {
   {
 #if defined(WITH_FFTW3)
 
+    const float size_selection = this->get_size();
     const int kernel_size = compute_fog_glow_kernel_size(highlights);
 
     /* Since we will be doing a circular convolution, we need to zero pad our input image by half
      * the kernel size to avoid the kernel affecting the pixels at the other side of image.
      * Therefore, zero boundary is assumed. */
-    const int needed_padding_amount = kernel_size / 2;
+    const int needed_padding_amount = kernel_size;
     const int2 image_size = highlights.domain().size;
-    const int2 needed_spatial_size = image_size + needed_padding_amount;
+    const int2 needed_spatial_size = image_size + needed_padding_amount - 1;
     const int2 spatial_size = fftw::optimal_size_for_real_transform(needed_spatial_size);
 
     /* The FFTW real to complex transforms utilizes the hermitian symmetry of real transforms and
@@ -2102,7 +2103,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const FogGlowKernel &fog_glow_kernel = context().cache_manager().fog_glow_kernels.get(
-        kernel_size, spatial_size);
+        kernel_size, spatial_size, size_selection);
 
     /* Multiply the kernel and the image in the frequency domain to perform the convolution. The
      * FFT is not normalized, meaning the result of the FFT followed by an inverse FFT will result
@@ -2196,7 +2197,7 @@ class GlareOperation : public NodeOperation {
   int compute_fog_glow_kernel_size(const Result &highlights)
   {
     /* The input size is relative to the larger dimension of the image. */
-    const int size = int(math::reduce_max(highlights.domain().size) * this->get_size());
+    const int size = int(math::reduce_max(highlights.domain().size));
 
     /* Make sure size is at least 3 pixels for implicitly since code deals with half kernel sizes
      * which will be zero if less than 3, causing zero division. */
