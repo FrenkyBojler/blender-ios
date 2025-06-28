@@ -340,12 +340,14 @@ static void grease_pencil_weight_batch_ensure(Object &object,
   }
 
   GPUIndexBufBuilder lines_builder;
-  GPU_indexbuf_allocate_uninitialized_ex(&lines_builder, GPU_PRIM_LINE_STRIP, total_line_ids_num, total_points_num);
+  GPU_indexbuf_allocate_uninitialized_ex(
+      &lines_builder, GPU_PRIM_LINE_STRIP, total_line_ids_num, total_points_num);
   MutableSpan<uint> lines_data = GPU_indexbuf_get_data(&lines_builder);
   int lines_ibo_index = 0;
 
   GPUIndexBufBuilder points_builder;
-  GPU_indexbuf_allocate_uninitialized(&points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
+  GPU_indexbuf_allocate_uninitialized(
+      &points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
   MutableSpan<uint> points_data = GPU_indexbuf_get_data(&points_builder);
   int points_ibo_index = 0;
 
@@ -989,7 +991,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   int lines_ibo_index = 0;
 
   GPUIndexBufBuilder points_builder;
-  GPU_indexbuf_allocate_uninitialized(&points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
+  GPU_indexbuf_allocate_uninitialized(
+      &points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
   MutableSpan<uint> points_data = GPU_indexbuf_get_data(&points_builder);
   int points_ibo_index = 0;
 

@@ -699,11 +699,13 @@ static void curve_create_edit_data_and_handles(CurveRenderData *rdata,
   GPUIndexBufBuilder elb_lines, *elbp_lines = nullptr;
   if (DRW_TEST_ASSIGN_IBO(ibo_edit_verts_points)) {
     elbp_verts = &elb_verts;
-    GPU_indexbuf_allocate_uninitialized(elbp_verts, GPU_PRIM_POINTS, verts_len_capacity, verts_len_capacity);
+    GPU_indexbuf_allocate_uninitialized(
+        elbp_verts, GPU_PRIM_POINTS, verts_len_capacity, verts_len_capacity);
   }
   if (DRW_TEST_ASSIGN_IBO(ibo_edit_lines)) {
     elbp_lines = &elb_lines;
-    GPU_indexbuf_allocate_uninitialized(elbp_lines, GPU_PRIM_LINES, edges_len_capacity, verts_len_capacity);
+    GPU_indexbuf_allocate_uninitialized(
+        elbp_lines, GPU_PRIM_LINES, edges_len_capacity, verts_len_capacity);
   }
 
 #undef DRW_TEST_ASSIGN_VBO

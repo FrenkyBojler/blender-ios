@@ -92,7 +92,8 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
     /* The `vertex_len` parameter is only used for asserts in the Debug build. */
     /* Not very useful in python since scripts are often tested in Release build. */
     /* Use `INT_MAX` instead of the actual number of vertices. */
-    GPU_indexbuf_allocate_uninitialized(&builder, GPUPrimType(prim_type.value_found), index_len, INT_MAX);
+    GPU_indexbuf_allocate_uninitialized(
+        &builder, GPUPrimType(prim_type.value_found), index_len, INT_MAX);
 
     uint *buf = static_cast<uint *>(pybuffer.buf);
     for (uint i = index_len; i--; buf++) {
@@ -117,7 +118,8 @@ static PyObject *pygpu_IndexBuf__tp_new(PyTypeObject * /*type*/, PyObject *args,
     /* The `vertex_len` parameter is only used for asserts in the Debug build. */
     /* Not very useful in python since scripts are often tested in Release build. */
     /* Use `INT_MAX` instead of the actual number of vertices. */
-    GPU_indexbuf_allocate_uninitialized(&builder, GPUPrimType(prim_type.value_found), index_len, INT_MAX);
+    GPU_indexbuf_allocate_uninitialized(
+        &builder, GPUPrimType(prim_type.value_found), index_len, INT_MAX);
 
     if (verts_per_prim == 1) {
       for (uint i = 0; i < seq_len; i++) {

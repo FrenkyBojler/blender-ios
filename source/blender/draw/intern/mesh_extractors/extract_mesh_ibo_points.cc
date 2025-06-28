@@ -240,9 +240,10 @@ static gpu::IndexBufPtr extract_points_subdiv_mesh(const MeshRenderData &mr,
   const int max_index = subdiv_cache.num_subdiv_loops + loose_edge_verts_num + loose_verts.size();
   GPUIndexBufBuilder builder;
   GPU_indexbuf_allocate_uninitialized(&builder,
-                    GPU_PRIM_POINTS,
-                    visible_corners.size() + loose_edges.size() * 2 + visible_loose.size(),
-                    max_index);
+                                      GPU_PRIM_POINTS,
+                                      visible_corners.size() + loose_edges.size() * 2 +
+                                          visible_loose.size(),
+                                      max_index);
   MutableSpan<uint> data = GPU_indexbuf_get_data(&builder);
 
   visible_corners.to_indices<int32_t>(data.take_front(visible_corners.size()).cast<int32_t>());
@@ -304,9 +305,10 @@ static gpu::IndexBufPtr extract_points_subdiv_bm(const MeshRenderData &mr,
   const int max_index = subdiv_cache.num_subdiv_loops + loose_edge_verts_num + loose_verts.size();
   GPUIndexBufBuilder builder;
   GPU_indexbuf_allocate_uninitialized(&builder,
-                    GPU_PRIM_POINTS,
-                    visible_corners.size() + loose_edges.size() * 2 + visible_loose.size(),
-                    max_index);
+                                      GPU_PRIM_POINTS,
+                                      visible_corners.size() + loose_edges.size() * 2 +
+                                          visible_loose.size(),
+                                      max_index);
   MutableSpan<uint> data = GPU_indexbuf_get_data(&builder);
 
   visible_corners.to_indices<int32_t>(data.take_front(visible_corners.size()).cast<int32_t>());

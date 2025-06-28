@@ -38,7 +38,8 @@ static gpu::IndexBufPtr extract_tris_mesh(const MeshRenderData &mr,
   const Span<bool> hide_poly = mr.hide_poly;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_TRIS, face_sorted.visible_tris_num, mr.corners_num);
+  GPU_indexbuf_allocate_uninitialized(
+      &builder, GPU_PRIM_TRIS, face_sorted.visible_tris_num, mr.corners_num);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
   const Span<int> face_tri_offsets = face_sorted.face_tri_offsets->as_span();
@@ -61,7 +62,8 @@ static gpu::IndexBufPtr extract_tris_bmesh(const MeshRenderData &mr,
                                            const SortedFaceData &face_sorted)
 {
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_TRIS, face_sorted.visible_tris_num, mr.corners_num);
+  GPU_indexbuf_allocate_uninitialized(
+      &builder, GPU_PRIM_TRIS, face_sorted.visible_tris_num, mr.corners_num);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
   BMesh &bm = *mr.bm;
