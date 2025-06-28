@@ -251,7 +251,7 @@ class ShaderManager {
                                 const float *table,
                                 const size_t n);
 
-  void compute_thin_film_table();
+  void compute_thin_film_table(const Transform &xyz_to_rgb);
 
   uint get_graph_kernel_features(ShaderGraph *graph);
 

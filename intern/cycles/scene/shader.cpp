@@ -869,7 +869,7 @@ static bool to_scene_linear_transform(OCIO::ConstConfigRcPtr &config,
 }
 #endif
 
-void ShaderManager::compute_thin_film_table()
+void ShaderManager::compute_thin_film_table(const Transform &xyz_to_rgb)
 {
   assert(sizeof(table_thin_film_cmf) == 6 * THIN_FILM_TABLE_SIZE * sizeof(float));
   thin_film_table.resize(6 * THIN_FILM_TABLE_SIZE);
@@ -884,8 +884,8 @@ void ShaderManager::compute_thin_film_table()
 
     /* Linearly combine precomputed data to produce the RGB equivalents. Works since both
      * resampling and Fourier transformation are linear operations. */
-    const float3 rgbReal{dot(xyzReal, xyz_to_r), dot(xyzReal, xyz_to_g), dot(xyzReal, xyz_to_b)};
-    const float3 rgbImag{dot(xyzImag, xyz_to_r), dot(xyzImag, xyz_to_g), dot(xyzImag, xyz_to_b)};
+    const float3 rgbReal = transform_direction(&xyz_to_rgb, xyzReal);
+    const float3 rgbImag = transform_direction(&xyz_to_rgb, xyzImag);
 
     /* We normalize all entries by the first element. Since that is the DC component, it normalizes
      * the CMF (in non-Fourier space) to an area of 1. */
@@ -939,6 +939,8 @@ void ShaderManager::init_xyz_transforms()
   rec709_to_g = make_float3(0.0f, 1.0f, 0.0f);
   rec709_to_b = make_float3(0.0f, 0.0f, 1.0f);
   is_rec709 = true;
+
+  compute_thin_film_table(xyz_to_rec709);
 
 #ifdef WITH_OCIO
   /* Get from OpenColorO config if it has the required roles. */
@@ -1005,9 +1007,9 @@ void ShaderManager::init_xyz_transforms()
   rec709_to_g = make_float3(rec709_to_rgb.y);
   rec709_to_b = make_float3(rec709_to_rgb.z);
   is_rec709 = transform_equal_threshold(xyz_to_rgb, xyz_to_rec709, 0.0001f);
-#endif
 
-  compute_thin_film_table();
+  compute_thin_film_table(xyz_to_rgb);
+#endif
 }
 
 size_t ShaderManager::ensure_bsdf_table_impl(DeviceScene *dscene,
