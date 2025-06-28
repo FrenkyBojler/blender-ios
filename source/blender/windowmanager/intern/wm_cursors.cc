@@ -191,11 +191,9 @@ static void cursor_rgba_to_xbm_32(const blender::Array<uint8_t> rgba,
 
 static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
-#if (OS_WINDOWS)
-  int max_size = 128;
-#else
-  int max_size = 32;
-#endif
+  const bool use_rgba = WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS;
+
+  int max_size = use_rgba ? 128 : 32;
   float size = std::min(cursor_size(), float(max_size));
 
   size_t width;
@@ -206,28 +204,29 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
   int hotspot_x = int(cursor->hotspot_x * (width - 1));
   int hotspot_y = int(cursor->hotspot_y * (height - 1));
 
-#if (OS_WINDOWS)
-  return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                                    render_bmp.data(),
-                                    nullptr,
-                                    width,
-                                    height,
-                                    hotspot_x,
-                                    hotspot_y,
-                                    false) == GHOST_kSuccess;
-#else
-  uint8_t bitmap[4 * 32] = {0};
-  uint8_t mask[4 * 32] = {0};
-  cursor_rgba_to_xbm_32(render_bmp, width, height, bitmap, mask);
-  return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
-                                    bitmap,
-                                    mask,
-                                    32,
-                                    32,
-                                    hotspot_x,
-                                    hotspot_y,
-                                    false) == GHOST_kSuccess;
-#endif
+  if (use_rgba) {
+    return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                      render_bmp.data(),
+                                      nullptr,
+                                      width,
+                                      height,
+                                      hotspot_x,
+                                      hotspot_y,
+                                      false) == GHOST_kSuccess;
+  }
+  else {
+    uint8_t bitmap[4 * 32] = {0};
+    uint8_t mask[4 * 32] = {0};
+    cursor_rgba_to_xbm_32(render_bmp, width, height, bitmap, mask);
+    return GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                                      bitmap,
+                                      mask,
+                                      32,
+                                      32,
+                                      hotspot_x,
+                                      hotspot_y,
+                                      false) == GHOST_kSuccess;
+  }
 }
 
 void WM_cursor_set(wmWindow *win, int curs)

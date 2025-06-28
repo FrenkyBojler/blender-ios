@@ -128,6 +128,10 @@ typedef enum {
    * Support for the "Hyper" modifier key.
    */
   GHOST_kCapabilityKeyboardHyperKey = (1 << 9),
+  /**
+   * Support for creation of RGBA mouse cursors.
+   */
+  GHOST_kCapabilityRGBACursors = (1 << 10),
 
 } GHOST_TCapabilityFlag;
 

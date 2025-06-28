@@ -1166,7 +1166,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
                                                              int hotY,
                                                              bool /*canInvertColor*/)
 {
-  if (false) {
+  if (0) {
     /* Old1bpp XBitMap bitmap and mask. */
     uint32_t andData[32];
     uint32_t xorData[32];
