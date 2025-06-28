@@ -215,7 +215,7 @@ class BVH_PT_import_animation(bpy.types.Panel):
         layout.prop(operator, "update_scene_fps")
         layout.prop(operator, "update_scene_duration")
 
-
+@orientation_helper(axis_forward='-Z', axis_up='Y')
 class ExportBVH(bpy.types.Operator, ExportHelper):
     """Save a BVH motion capture file from an armature"""
     bl_idname = "export_anim.bvh"
