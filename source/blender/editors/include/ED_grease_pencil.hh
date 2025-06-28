@@ -22,6 +22,7 @@
 #include "WM_api.hh"
 
 struct bContext;
+struct BrushColorJitterSettings;
 struct BrushGpencilSettings;
 struct Main;
 struct Object;
@@ -175,6 +176,7 @@ class DrawingPlacement {
   /**
    * Projects a screen space coordinate to the local drawing space.
    */
+  float3 project(float2 co, bool &clipped) const;
   float3 project(float2 co) const;
   void project(Span<float2> src, MutableSpan<float3> dst) const;
   /**
@@ -431,6 +433,7 @@ IndexMask retrieve_editable_and_selected_elements(Object &object,
                                                   int layer_index,
                                                   bke::AttrDomain selection_domain,
                                                   IndexMaskMemory &memory);
+bool has_editable_layer(const GreasePencil &grease_pencil);
 
 void create_blank(Main &bmain, Object &object, int frame_number);
 void create_stroke(Main &bmain, Object &object, const float4x4 &matrix, int frame_number);
@@ -986,6 +989,7 @@ float randomize_rotation(const BrushGpencilSettings &settings,
  * \param pressure: Pressure factor.
  */
 ColorGeometry4f randomize_color(const BrushGpencilSettings &settings,
+                                const std::optional<BrushColorJitterSettings> &jitter,
                                 float stroke_hue_factor,
                                 float stroke_saturation_factor,
                                 float stroke_value_factor,

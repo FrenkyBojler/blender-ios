@@ -373,6 +373,11 @@ class GHOST_ISystem {
   virtual GHOST_TSuccess getCursorPosition(int32_t &x, int32_t &y) const = 0;
 
   /**
+   * \return the size of the cursor in logical pixels (before Hi-DPI scaling is applied).
+   */
+  virtual uint32_t getCursorPreferredLogicalSize() const = 0;
+
+  /**
    * Updates the location of the cursor (location in screen coordinates).
    * Not all operating systems allow the cursor to be moved (without the input device being moved).
    * \param x: The x-coordinate of the cursor.
@@ -440,8 +445,11 @@ class GHOST_ISystem {
    ***************************************************************************************/
 
   /**
-   * Returns the selection buffer
-   * \return "unsigned char" from X11 XA_CUT_BUFFER0 buffer
+   * Return the clipboard buffer or null.
+   *
+   * \param selection: Use the "primary" selection.
+   * Check the #GHOST_kCapabilityPrimaryClipboard for backends that support this.
+   * \return Returns the clipboard data as a null terminated string or null when unavailable.
    */
   virtual char *getClipboard(bool selection) const = 0;
 

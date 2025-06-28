@@ -917,6 +917,13 @@ static std::optional<std::string> rna_BrushGpencilSettings_path(const PointerRNA
 static void rna_BrushGpencilSettings_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   Brush *br = reinterpret_cast<Brush *>(ptr->owner_id);
+  /* Synchronize the general randomization flag with the brush color jitter flag */
+  if (br->gpencil_settings->flag & GP_BRUSH_GROUP_RANDOM) {
+    br->flag2 |= BRUSH_JITTER_COLOR;
+  }
+  else {
+    br->flag2 &= ~BRUSH_JITTER_COLOR;
+  }
   BKE_brush_tag_unsaved_changes(br);
 }
 
@@ -2456,33 +2463,33 @@ static void rna_def_brush(BlenderRNA *brna)
    *
    * keep in sync with #BKE_paint_get_tool_prop_id_from_paintmode
    */
-  prop = RNA_def_property(srna, "sculpt_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "sculpt_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "sculpt_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_sculpt_brush_type_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "vertex_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "vertex_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "vertex_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_vertex_brush_type_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "weight_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "weight_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "weight_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_weight_brush_type_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "image_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "image_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "image_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_image_brush_type_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_BRUSH);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_IMAGE, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "gpencil_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "gpencil_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "gpencil_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_gpencil_types_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
@@ -2490,14 +2497,14 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "gpencil_vertex_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "gpencil_vertex_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "gpencil_vertex_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_gpencil_vertex_types_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "gpencil_sculpt_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "gpencil_sculpt_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "gpencil_sculpt_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_gpencil_sculpt_types_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
@@ -2505,14 +2512,14 @@ static void rna_def_brush(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "gpencil_weight_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "gpencil_weight_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "gpencil_weight_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_gpencil_weight_types_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_update(prop, 0, "rna_Brush_update");
 
-  prop = RNA_def_property(srna, "curves_sculpt_tool", PROP_ENUM, PROP_NONE);
+  prop = RNA_def_property(srna, "curves_sculpt_brush_type", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "curves_sculpt_brush_type");
   RNA_def_property_enum_items(prop, rna_enum_brush_curves_sculpt_brush_type_items);
   RNA_def_property_ui_text(prop, "Brush Type", "");
