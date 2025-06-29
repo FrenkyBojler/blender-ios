@@ -726,6 +726,10 @@ enum class LayoutAlign : int8_t {
   Center = 2,
   Right = 3,
 };
+enum class ButProgressType : int8_t {
+  Bar = 0,
+  Ring = 1,
+};
 }  // namespace blender::ui
 
 enum eUI_Item_Flag : uint16_t {
@@ -923,13 +927,6 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, blender::StringRef te
  * Label icon for dragging.
  */
 void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int icon);
-
-namespace blender::ui {
-enum class ButProgressType : int8_t {
-  Bar = 0,
-  Ring = 1,
-};
-}
 
 /**
  * Level items.
