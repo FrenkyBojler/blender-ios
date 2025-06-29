@@ -29,6 +29,13 @@
 #include "wm_cursors.hh"
 #include "wm_window.hh"
 
+/* Scale mouse cursor size with UI scale. Useful for magnified captures. */
+#define CURSORS_SCALE_UI_FAC true
+/* Use OS-supplied cursors when available. Set false to see only internal versions. */
+#define CURSORS_USE_OS_NATIVE false
+/* Force use of 1bpp XBitMap cursors even if platform supports RGBA. Useful for testing. */
+#define CURSORS_FORCE_1BPP false
+
 /* Blender custom cursor. */
 struct BCursor {
   const char *svg_source;
@@ -118,13 +125,16 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
 
 static float cursor_size()
 {
+  if (CURSORS_SCALE_UI_FAC) {
+    return 21.0f * UI_SCALE_FAC;
+  }
+
 #if (OS_MAC)
   /* MacOS always scales up this type of cursor for high-dpi displays. */
   return 21.0f;
 #endif
 
-  // return WM_cursor_preferred_logical_size() * (UI_SCALE_FAC / U.ui_scale);
-  return 21.0f * UI_SCALE_FAC;
+  return WM_cursor_preferred_logical_size() * (UI_SCALE_FAC / U.ui_scale);
 }
 
 static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
@@ -190,7 +200,7 @@ static void cursor_rgba_to_xbm_32(const blender::Array<uint8_t> rgba,
 
 static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
-  const bool use_rgba = WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS;
+  const bool use_rgba = !CURSORS_FORCE_1BPP && WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS;
 
   int max_size = use_rgba ? 128 : 32;
   float size = std::min(cursor_size(), float(max_size));
@@ -258,8 +268,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
 
-  /* Turn off the retrieval of OS-supplied cursors during testing. */
-  if (false && ghost_cursor != GHOST_kStandardCursorCustom &&
+  if (CURSORS_USE_OS_NATIVE && ghost_cursor != GHOST_kStandardCursorCustom &&
       GHOST_HasCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor))
   {
     /* Use native GHOST cursor when available. */

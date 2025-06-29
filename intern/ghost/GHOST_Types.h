@@ -144,7 +144,8 @@ typedef enum {
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
    GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
-   GHOST_kCapabilityWindowDecorationStyles | GHOST_kCapabilityKeyboardHyperKey)
+   GHOST_kCapabilityWindowDecorationStyles | GHOST_kCapabilityKeyboardHyperKey | \
+   GHOST_kCapabilityRGBACursors)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
