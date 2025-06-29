@@ -3378,7 +3378,7 @@ static void node_draw_extra_info_panel(const bContext &C,
       }
     }
     ColorTheme4f color;
-    if(snode.overlay.flag & SN_OVERLAY_SHOW_TIMINGS_COLOR & SN_OVERLAY_SHOW_TIMINGS){
+    if((snode.overlay.flag & SN_OVERLAY_SHOW_TIMINGS_COLOR) && (snode.overlay.flag & SN_OVERLAY_SHOW_TIMINGS)){
       color = node_get_execution_time_color(tree_draw_ctx, snode, node);
     } else {
       UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.75f, color);
