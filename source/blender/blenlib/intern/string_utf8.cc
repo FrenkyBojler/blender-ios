@@ -816,6 +816,687 @@ char32_t BLI_str_utf32_char_to_lower(const char32_t wc)
   return wc;
 }
 
+std::string BLI_str_utf8_to_upper(const char *str, size_t len)
+{
+  std::string result;
+  result.reserve(len);
+  char utf8_buf[4];
+
+  size_t i = 0;
+  while (str[i]) {
+    char32_t wc = BLI_str_utf8_as_unicode_step_safe(str, len, &i);
+    wc = BLI_str_utf32_char_to_upper(wc);
+    int utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
+    result.append(utf8_buf, utf8_buf_len);
+  }
+
+  result.shrink_to_fit();
+  return result;
+}
+
+std::string BLI_str_utf8_to_lower(const char *str, size_t len)
+{
+  std::string result;
+  result.reserve(len);
+  char utf8_buf[4];
+
+  size_t i = 0;
+  while (str[i]) {
+    char32_t wc = BLI_str_utf8_as_unicode_step_safe(str, len, &i);
+    wc = BLI_str_utf32_char_to_lower(wc);
+    int utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
+    result.append(utf8_buf, utf8_buf_len);
+  }
+
+  result.shrink_to_fit();
+  return result;
+}
+
+struct EUOrderRules {
+  int charcode;
+  int weight;
+  char alternate;
+  char lettercase;
+};
+
+static const EUOrderRules EORTable[] = {
+    /* European ordering rules  (EOR / EN 13710 NISO TR03-1999)
+     * https://www.open-std.org/cen/tc304/EOR/eorhome.html
+     * Three levels of weights for sort/collation. Primary considers "A" and "ã"
+     * same, secondary differentiates these without considering case (Ã = ã),
+     * tertiary is for case. Sorted by Unicode codepoint for quick lookup. */
+
+    /* Primary values: -1 Ignored, 0 spaces & treated as space, 1 (some) Puncuation marks,
+     * '$' Characters for commerce, '0'-'9' Numerals and number-like, 'a'-'z' Latin letters,
+     * 200 Thorn, 300-327, 400-488 Cyrillic */
+
+    {0x0020, 0, 0, 0},    /* Space. */
+    {0x0021, -1, 25, 0},  /* Exclamation mark ignored. */
+    {0x0022, -1, 15, 0},  /* Double quotation mark ignored. */
+    {0x0023, '$', 0, 0},  /* Number sign. */
+    {0x0024, '$', 1, 0},  /* Dollar sign. */
+    {0x0025, '$', 2, 0},  /* Percent sign. */
+    {0x0026, '$', 3, 0},  /* Ampersand sign. */
+    {0x0027, -1, 14, 0},  /* Apostrophe ignored. */
+    {0x0028, -1, 4, 0},   /* Open parenthesis ignored. */
+    {0x0029, -1, 5, 0},   /* Close parenthesis ignored. */
+    {0x002A, 1, 0, 0},    /* Asterisk sign. */
+    {0x002B, 1, 1, 0},    /* Plus sign. */
+    {0x002C, -1, 1, 0},   /* Comma ignored. */
+    {0x002D, 0, 14, 0},   /* Hyphen treated as space. */
+    {0x002E, -1, 0, 0},   /* Period (full stop) ignored. */
+    {0x002F, 0, 22, 0},   /* Slash treated as space. */
+    {0x0030, '0', 0, 0},  /* Digit 0. */
+    {0x0031, '1', 0, 0},  /* Digit 1. */
+    {0x0032, '2', 0, 0},  /* Digit 2. */
+    {0x0033, '3', 0, 0},  /* Digit 3. */
+    {0x0034, '4', 0, 0},  /* Digit 4. */
+    {0x0035, '5', 0, 0},  /* Digit 5. */
+    {0x0036, '6', 0, 0},  /* Digit 6. */
+    {0x0037, '7', 0, 0},  /* Digit 7. */
+    {0x0038, '8', 0, 0},  /* Digit 8. */
+    {0x0039, '9', 0, 0},  /* Digit 9. */
+    {0x003A, -1, 3, 0},   /* Colon ignored. */
+    {0x003B, -1, 2, 0},   /* Semi-colon ignored. */
+    {0x003C, -1, 8, 0},   /* Open angle bracket ignored. */
+    {0x003D, 1, 2, 0},    /* Equals sign. */
+    {0x003E, -1, 9, 0},   /* Close angle bracket ignored. */
+    {0x003F, -1, 27, 0},  /* Question mark ignored. */
+    {0x0040, '$', 4, 0},  /* Commercial at. */
+    {0x0041, 'a', 0, 1},  /* Capital Letter A. */
+    {0x0042, 'b', 0, 1},  /* Capital Letter B. */
+    {0x0043, 'c', 0, 1},  /* Capital Letter C. */
+    {0x0044, 'd', 0, 1},  /* Capital Letter D. */
+    {0x0045, 'e', 0, 1},  /* Capital Letter E. */
+    {0x0046, 'f', 0, 1},  /* Capital Letter F. */
+    {0x0047, 'g', 0, 1},  /* Capital Letter G. */
+    {0x0048, 'h', 0, 1},  /* Capital Letter H. */
+    {0x0049, 'i', 0, 1},  /* Capital Letter I. */
+    {0x004A, 'j', 0, 1},  /* Capital Letter J. */
+    {0x004B, 'k', 0, 1},  /* Capital Letter K. */
+    {0x004C, 'l', 0, 1},  /* Capital Letter L. */
+    {0x004D, 'm', 0, 1},  /* Capital Letter M. */
+    {0x004E, 'n', 0, 1},  /* Capital Letter N. */
+    {0x004F, 'o', 0, 1},  /* Capital Letter O. */
+    {0x0050, 'p', 0, 1},  /* Capital Letter P. */
+    {0x0051, 'q', 0, 1},  /* Capital Letter Q. */
+    {0x0052, 'r', 0, 1},  /* Capital Letter R. */
+    {0x0053, 's', 0, 1},  /* Capital Letter S. */
+    {0x0054, 't', 0, 1},  /* Capital Letter T. */
+    {0x0055, 'u', 0, 1},  /* Capital Letter U. */
+    {0x0056, 'v', 0, 1},  /* Capital Letter V. */
+    {0x0057, 'w', 0, 1},  /* Capital Letter W. */
+    {0x0058, 'x', 0, 1},  /* Capital Letter X. */
+    {0x0059, 'y', 0, 1},  /* Capital Letter Y. */
+    {0x005A, 'z', 0, 1},  /* Capital Letter Z. */
+    {0x005B, -1, 6, 0},   /* Open square brackets ignored. */
+    {0x005C, 1, 3, 0},    /* Backslash sign. */
+    {0x005D, -1, 7, 0},   /* Close square brackets ignored. */
+    {0x005E, 1, 4, 0},    /* Caret sign. */
+    {0x005F, 1, 5, 0},    /* Underscore sign. */
+    {0x0060, 1, 8, 0},    /* Grave accent sign. */
+    {0x0061, 'a', 0, 0},  /* Small Letter a. */
+    {0x0062, 'b', 0, 0},  /* Small Letter b. */
+    {0x0063, 'c', 0, 0},  /* Small Letter c. */
+    {0x0064, 'd', 0, 0},  /* Small Letter d. */
+    {0x0065, 'e', 0, 0},  /* Small Letter e. */
+    {0x0066, 'f', 0, 0},  /* Small Letter f. */
+    {0x0067, 'g', 0, 0},  /* Small Letter g. */
+    {0x0068, 'h', 0, 0},  /* Small Letter h. */
+    {0x0069, 'i', 0, 0},  /* Small Letter i. */
+    {0x006A, 'j', 0, 0},  /* Small Letter j. */
+    {0x006B, 'k', 0, 0},  /* Small Letter k. */
+    {0x006C, 'l', 0, 0},  /* Small Letter l. */
+    {0x006D, 'm', 0, 0},  /* Small Letter m. */
+    {0x006E, 'n', 0, 0},  /* Small Letter n. */
+    {0x006F, 'o', 0, 0},  /* Small Letter o. */
+    {0x0070, 'p', 0, 0},  /* Small Letter p. */
+    {0x0071, 'q', 0, 0},  /* Small Letter q. */
+    {0x0072, 'r', 0, 0},  /* Small Letter r. */
+    {0x0073, 's', 0, 0},  /* Small Letter s. */
+    {0x0074, 't', 0, 0},  /* Small Letter t. */
+    {0x0075, 'u', 0, 0},  /* Small Letter u. */
+    {0x0076, 'v', 0, 0},  /* Small Letter v. */
+    {0x0077, 'w', 0, 0},  /* Small Letter w. */
+    {0x0078, 'x', 0, 0},  /* Small Letter x. */
+    {0x0079, 'y', 0, 0},  /* Small Letter y. */
+    {0x007A, 'z', 0, 0},  /* Small Letter z. */
+    {0x007B, -1, 12, 0},  /* Left curly bracket ignored. */
+    {0x007C, 1, 6, 0},    /* Vertical bar sign. */
+    {0x007D, -1, 13, 0},  /* Right curly bracket ignored. */
+    {0x007E, 1, 7, 0},    /* Tilde sign. */
+    {0x00A1, -1, 26, 0},  /* Inverted exclamation mark ignored. */
+    {0x00A2, '$', 5, 0},  /* Cent. */
+    {0x00A3, '$', 6, 0},  /* Pound Sign. */
+    {0x00A4, '$', 7, 0},  /* Currency Sign. */
+    {0x00A5, '$', 8, 0},  /* Yen Sign. */
+    {0x00A6, 1, 9, 0},    /* Broken bar sign. */
+    {0x00A7, 1, 10, 0},   /* Section sign. */
+    {0x00A9, '$', 9, 0},  /* Copyright Sign. */
+    {0x00AB, -1, 10, 0},  /* Open double-angle bracket ignored. */
+    {0x00AE, '$', 10, 0}, /* Registered Sign. */
+    {0x00B2, '2', 1, 0},  /* Digit Superscript 2. */
+    {0x00B3, '3', 1, 0},  /* Digit Superscript 3. */
+    {0x00B5, 313, 1, 0},  /* Micro sign */
+    {0x00B9, '1', 1, 0},  /* Digit Superscript 1. */
+    {0x00BA, 'o', 1, 0},  /* Masculine Ordinal Indicator. */
+    {0x00BC, '1', 4, 0},  /* 1/4 fraction. */
+    {0x00BD, '1', 3, 0},  /* 1/2 fraction. */
+    {0x00BE, '3', 3, 0},  /* 3/4 fraction. */
+    {0x00BF, -1, 28, 0},  /* Inverted question mark ignored. */
+    {0x00C0, 'a', 2, 1},  /* Capital Letter A Grave. */
+    {0x00C1, 'a', 1, 1},  /* Capital Letter A Acute. */
+    {0x00C2, 'a', 4, 1},  /* Capital Letter A Circumflex. */
+    {0x00C3, 'a', 9, 1},  /* Capital Letter A Tilde. */
+    {0x00C4, 'a', 7, 1},  /* Capital Letter A Diaeresis. */
+    {0x00C5, 'a', 5, 1},  /* Capital Letter A Ring. */
+    {0x00C6, 'a', 13, 1}, /* Capital Letter AE Ligature. */
+    {0x00C7, 'c', 5, 1},  /* Capital Letter C with Cedilla. */
+    {0x00C8, 'e', 2, 1},  /* Capital Letter E with Grave. */
+    {0x00C9, 'e', 1, 1},  /* Capital Letter E with Acute. */
+    {0x00CA, 'e', 4, 1},  /* Capital Letter E with Circumflex. */
+    {0x00CB, 'e', 6, 1},  /* Capital Letter E with Diaeresis. */
+    {0x00CC, 'i', 2, 1},  /* Capital Letter I with Grave. */
+    {0x00CD, 'i', 1, 1},  /* Capital Letter I with Acute. */
+    {0x00CE, 'i', 4, 1},  /* Capital Letter I with Circumflex. */
+    {0x00CF, 'i', 5, 1},  /* Capital Letter I with Diaeresis. */
+    {0x00D0, 'd', 4, 1},  /* Capital Letter Eth. */
+    {0x00D1, 'n', 4, 1},  /* Capital Letter N with Tilde. */
+    {0x00D2, 'o', 3, 1},  /* Capital Letter O with Grave. */
+    {0x00D3, 'o', 2, 1},  /* Capital Letter O with Acute. */
+    {0x00D4, 'o', 5, 1},  /* Capital Letter O with Circumflex. */
+    {0x00D5, 'o', 8, 1},  /* Capital Letter O with Tilde. */
+    {0x00D6, 'o', 6, 1},  /* Capital Letter O with Diaeresis. */
+    {0x00D8, 'o', 12, 1}, /* Capital Letter O with Stroke. */
+    {0x00DA, 'u', 1, 1},  /* Capital Letter U with Acute. */
+    {0x00DB, 'u', 4, 1},  /* Capital Letter U with Circumflex. */
+    {0x00DC, 'u', 6, 1},  /* Capital Letter U with Diaeresis. */
+    {0x00DD, 'y', 1, 1},  /* Capital Letter Y with Acute. */
+    {0x00DE, 200, 0, 1},  /* Capital Letter Thorn. */
+    {0x00DF, 's', 9, 0},  /* Small Letter Sharp s. */
+    {0x00E0, 'a', 2, 0},  /* Small Letter a Grave. */
+    {0x00E1, 'a', 1, 0},  /* Small Letter a Acute. */
+    {0x00E2, 'a', 4, 0},  /* Small Letter a Circumflex. */
+    {0x00E3, 'a', 9, 0},  /* Small Letter a Tilde. */
+    {0x00E4, 'a', 7, 0},  /* Small Letter a Diaeresis. */
+    {0x00E5, 'a', 5, 0},  /* Small Letter a Ring. */
+    {0x00E6, 'a', 13, 0}, /* Small Letter ae Ligature. */
+    {0x00E7, 'c', 5, 0},  /* Small Letter c with Cedilla. */
+    {0x00E8, 'e', 2, 0},  /* Small Letter e with Grave. */
+    {0x00E9, 'e', 1, 0},  /* Small Letter e with Acute. */
+    {0x00EA, 'e', 4, 0},  /* Small Letter e with Circumflex. */
+    {0x00EB, 'e', 6, 0},  /* Small Letter e with Diaeresis. */
+    {0x00EC, 'i', 2, 0},  /* Small Letter i with Grave. */
+    {0x00ED, 'i', 1, 0},  /* Small Letter i with Acute. */
+    {0x00EE, 'i', 4, 0},  /* Small Letter i with Circumflex. */
+    {0x00EF, 'i', 5, 0},  /* Small Letter i with Diaeresis. */
+    {0x00F0, 'd', 4, 0},  /* Small Letter Eth. */
+    {0x00F1, 'n', 4, 0},  /* Small Letter n with Tilde. */
+    {0x00F2, 'o', 3, 0},  /* Small Letter o with Grave. */
+    {0x00F3, 'o', 2, 0},  /* Small Letter o with Acute. */
+    {0x00F4, 'o', 5, 0},  /* Small Letter o with Circumflex. */
+    {0x00F5, 'o', 8, 0},  /* Small Letter o with Tilde. */
+    {0x00F6, 'o', 6, 0},  /* Small Letter o with Diaeresis. */
+    {0x00F8, 'o', 12, 0}, /* Small Letter o with Stroke. */
+    {0x00FA, 'u', 1, 0},  /* Small Letter u with Acute. */
+    {0x00FB, 'u', 4, 0},  /* Small Letter u with Circumflex. */
+    {0x00FC, 'u', 6, 0},  /* Small Letter u with Diaeresis. */
+    {0x00FD, 'y', 1, 0},  /* Small Letter y with Acute. */
+    {0x00FE, 200, 0, 0},  /* Small Letter Thorn. */
+    {0x00FF, 'y', 4, 0},  /* Small Letter y with Diaeresis. */
+    {0x0100, 'a', 12, 1}, /* Capital Letter A Macron. */
+    {0x0101, 'a', 12, 0}, /* Small Letter a Macron. */
+    {0x0102, 'a', 3, 1},  /* Capital Letter A Breve. */
+    {0x0103, 'a', 3, 0},  /* Small Letter a Breve. */
+    {0x0104, 'a', 11, 1}, /* Capital Letter A Ogonek. */
+    {0x0105, 'a', 11, 0}, /* Small Letter a Ogonek. */
+    {0x0106, 'c', 1, 1},  /* Capital Letter C with Acute. */
+    {0x0107, 'c', 1, 0},  /* Small Letter c with Acute. */
+    {0x0108, 'c', 2, 1},  /* Capital Letter C with Circumflex. */
+    {0x0109, 'c', 2, 0},  /* Small Letter c with Circumflex. */
+    {0x010A, 'c', 4, 1},  /* Capital Letter C with Dot Above. */
+    {0x010B, 'c', 4, 0},  /* Small Letter c with Dot Above. */
+    {0x010C, 'c', 3, 1},  /* Capital Letter C with Caron. */
+    {0x010D, 'c', 3, 0},  /* Small Letter c with Caron. */
+    {0x010E, 'd', 1, 1},  /* Capital Letter D with Caron. */
+    {0x010F, 'd', 1, 0},  /* Small Letter d with Caron. */
+    {0x0110, 'd', 3, 1},  /* Capital Letter D with Stroke. */
+    {0x0111, 'd', 3, 0},  /* Small Letter d with Stroke. */
+    {0x0112, 'e', 8, 1},  /* Capital Letter E with Macron. */
+    {0x0113, 'e', 8, 0},  /* Small Letter e with Macron. */
+    {0x0114, 'e', 3, 1},  /* Capital Letter E with Breve. */
+    {0x0115, 'e', 3, 0},  /* Small Letter e with Breve. */
+    {0x0116, 'e', 9, 1},  /* Capital Letter E with Dot Above. */
+    {0x0117, 'e', 9, 0},  /* Small Letter e with Dot Above. */
+    {0x0118, 'e', 7, 1},  /* Capital Letter E with Ogonek. */
+    {0x0119, 'e', 7, 0},  /* Small Letter e with Ogonek. */
+    {0x011A, 'e', 5, 1},  /* Capital Letter E with Caron. */
+    {0x011B, 'e', 5, 0},  /* Small Letter e with Caron. */
+    {0x0120, 'g', 4, 1},  /* Capital Letter G with Dot Above. */
+    {0x0121, 'g', 4, 0},  /* Small Letter g with Dot Above. */
+    {0x0122, 'g', 5, 1},  /* Capital Letter G with Cedilla. */
+    {0x0123, 'g', 5, 0},  /* Small Letter g with Cedilla. */
+    {0x0124, 'h', 1, 1},  /* Capital Letter H with Circumflex. */
+    {0x0125, 'h', 1, 0},  /* Small Letter h with Circumflex. */
+    {0x0126, 'h', 3, 1},  /* Capital Letter H with Stroke. */
+    {0x0127, 'h', 3, 0},  /* Small Letter h with Stroke. */
+    {0x0128, 'i', 6, 1},  /* Capital Letter I with Tilde. */
+    {0x0129, 'i', 6, 0},  /* Small Letter i with Tilde. */
+    {0x012A, 'i', 9, 1},  /* Capital Letter I with Macron. */
+    {0x012B, 'i', 9, 0},  /* Small Letter i with Macron. */
+    {0x012C, 'i', 3, 1},  /* Capital Letter I with Breve. */
+    {0x012D, 'i', 3, 0},  /* Small Letter i with Breve. */
+    {0x012E, 'i', 8, 1},  /* Capital Letter I with Ogonek. */
+    {0x012F, 'i', 8, 0},  /* Small Letter i with Ogonek. */
+    {0x0130, 'i', 7, 1},  /* Capital Letter I with Dot Above. */
+    {0x0131, 'i', 10, 0}, /* Small Letter Dotless i. */
+    {0x0132, 'i', 11, 1}, /* Capital Ligature IJ. */
+    {0x0133, 'i', 11, 0}, /* Small Ligature ij. */
+    {0x0134, 'j', 1, 1},  /* Capital Letter J with Circumflex. */
+    {0x0135, 'j', 1, 0},  /* Small Letter j with Circumflex. */
+    {0x0136, 'k', 2, 1},  /* Capital Letter K with Cedilla. */
+    {0x0137, 'k', 2, 0},  /* Small Letter k with Cedilla. */
+    {0x0138, 'k', 3, 0},  /* Small Letter Kra. */
+    {0x0139, 'l', 1, 1},  /* Capital Letter L with Acute. */
+    {0x013A, 'l', 1, 0},  /* Small Letter l with Acute. */
+    {0x013B, 'l', 3, 1},  /* Capital Letter L with Cedilla. */
+    {0x013C, 'l', 3, 0},  /* Small Letter l with Cedilla. */
+    {0x013D, 'l', 2, 1},  /* Capital Letter L with Caron. */
+    {0x013E, 'l', 2, 0},  /* Small Letter l with Caron. */
+    {0x013F, 'l', 5, 1},  /* Capital Letter L with Middle Dot. */
+    {0x0140, 'l', 5, 0},  /* Small Letter l with Middle Dot. */
+    {0x0141, 'l', 4, 1},  /* Capital Letter L with Stroke. */
+    {0x0142, 'l', 4, 0},  /* Small Letter l with Stroke. */
+    {0x0143, 'n', 2, 1},  /* Capital Letter N with Acute. */
+    {0x0144, 'n', 2, 0},  /* Small Letter n with Acute. */
+    {0x0145, 'n', 5, 1},  /* Capital Letter N with Cedilla. */
+    {0x0146, 'n', 5, 0},  /* Small Letter n with Cedilla. */
+    {0x0147, 'n', 3, 1},  /* Capital Letter N with Caron. */
+    {0x0148, 'n', 3, 0},  /* Small Letter n with Caron. */
+    {0x0149, 'n', 7, 0},  /* Small Letter n Preceded by Apostrophe. */
+    {0x014A, 'n', 6, 1},  /* Capital Letter Eng. */
+    {0x014B, 'n', 6, 0},  /* Small Letter Eng. */
+    {0x014C, 'o', 11, 1}, /* Capital Letter O with Macron. */
+    {0x014D, 'o', 11, 0}, /* Small Letter o with Macron. */
+    {0x014E, 'o', 4, 1},  /* Capital Letter O with Breve. */
+    {0x014F, 'o', 4, 0},  /* Small Letter o with Breve. */
+    {0x0150, 'o', 7, 1},  /* Capital Letter O with Double Acute. */
+    {0x0151, 'o', 7, 0},  /* Small Letter o with Double Acute. */
+    {0x0152, 'o', 14, 1}, /* Capital Ligature OE. */
+    {0x0153, 'o', 14, 0}, /* Small Ligature oe. */
+    {0x0154, 'r', 1, 1},  /* Capital Letter R with Acute. */
+    {0x0155, 'r', 1, 0},  /* Small Letter R with Acute. */
+    {0x0156, 'r', 3, 1},  /* Capital Letter R with Cedilla. */
+    {0x0157, 'r', 3, 0},  /* Small Letter R with Cedilla. */
+    {0x0158, 'r', 2, 1},  /* Capital Letter R with Caron. */
+    {0x0159, 'r', 2, 0},  /* Small Letter R with Caron. */
+    {0x015A, 's', 1, 1},  /* Capital Letter S with Acute. */
+    {0x015B, 's', 1, 0},  /* Small Letter s with Acute. */
+    {0x015C, 's', 2, 1},  /* Capital Letter S with Circumflex. */
+    {0x015D, 's', 2, 0},  /* Small Letter s with Circumflex. */
+    {0x015E, 's', 5, 1},  /* Capital Letter S with Cedilla. */
+    {0x015F, 's', 5, 0},  /* Small Letter s with Cedilla. */
+    {0x0160, 's', 3, 1},  /* Capital Letter S with Caron. */
+    {0x0161, 's', 3, 0},  /* Small Letter s with Caron. */
+    {0x0162, 't', 3, 1},  /* Capital Letter T with Cedilla. */
+    {0x0163, 't', 3, 0},  /* Small Letter t with Cedilla. */
+    {0x0164, 't', 1, 1},  /* Capital Letter T with Caron. */
+    {0x0165, 't', 1, 0},  /* Small Letter t with Caron. */
+    {0x0166, 't', 5, 1},  /* Capital Letter T with Stroke. */
+    {0x0167, 't', 5, 0},  /* Small Letter t with Stroke. */
+    {0x0168, 'u', 8, 1},  /* Capital Letter U with Tilde. */
+    {0x0169, 'u', 8, 0},  /* Small Letter u with Tilde. */
+    {0x016A, 'u', 10, 1}, /* Capital Letter U with Macron. */
+    {0x016B, 'u', 10, 0}, /* Small Letter u with Macron. */
+    {0x016C, 'u', 3, 1},  /* Capital Letter U with Breve. */
+    {0x016D, 'u', 3, 0},  /* Small Letter u with Breve. */
+    {0x016E, 'u', 5, 1},  /* Capital Letter U with Ring Above. */
+    {0x016F, 'u', 5, 0},  /* Small Letter u with Ring Above. */
+    {0x0170, 'u', 7, 1},  /* Capital Letter U with Double Acute. */
+    {0x0171, 'u', 7, 0},  /* Small Letter u with Double Acute. */
+    {0x0172, 'u', 9, 1},  /* Capital Letter U with Ogonek. */
+    {0x0173, 'u', 9, 0},  /* Small Letter u with Ogonek. */
+    {0x0174, 'w', 3, 1},  /* Capital Letter W with Circumflex. */
+    {0x0175, 'w', 3, 0},  /* Small Letter w with Circumflex. */
+    {0x0176, 'y', 3, 1},  /* Capital Letter Y with Circumflex. */
+    {0x0177, 'y', 3, 0},  /* Small Letter y with Circumflex. */
+    {0x0178, 'y', 4, 1},  /* Capital Letter Y with Diaeresis. */
+    {0x0179, 'z', 1, 1},  /* Capital Letter Z with Acute. */
+    {0x017A, 'z', 1, 0},  /* Small Letter z with Acute. */
+    {0x017B, 'z', 3, 1},  /* Capital Letter Z with Dot Above. */
+    {0x017C, 'z', 3, 0},  /* Small Letter z with Dot Above. */
+    {0x017D, 'z', 2, 1},  /* Capital Letter Z with Caron. */
+    {0x017E, 'z', 2, 0},  /* Small Letter z with Caron. */
+    {0x017F, 's', 7, 0},  /* Small Letter Long s. */
+    {0x0183, 'b', 2, 0},  /* Small Letter b with Topbar. */
+    {0x018F, 'e', 10, 1}, /* Capital Letter Schwa. */
+    {0x0192, 'f', 2, 0},  /* Small Letter f with Hook. */
+    {0x01A1, 'o', 15, 0}, /* Small Letter o with Horn. */
+    {0x01A3, 'g', 7, 0},  /* Small Letter g with Stroke. */
+    {0x01A5, 'p', 2, 0},  /* Small Letter p with Hook. */
+    {0x01A8, 't', 7, 0},  /* Small Letter t with Retroflex Hook. */
+    {0x01B4, 'y', 5, 0},  /* Small Letter y with Hook. */
+    {0x01B6, 'z', 6, 0},  /* Small Letter z with Stroke. */
+    {0x01B7, 'z', 4, 1},  /* Capital Letter Ezh. */
+    {0x01B9, 'r', 5, 0},  /* Small Letter r with Tail. */
+    {0x01BD, 'v', 2, 0},  /* Small Letter v with Hook. */
+    {0x01C6, 'd', 5, 0},  /* Small Letter dz with Caron. */
+    {0x01C9, 'l', 6, 0},  /* Small Letter lj. */
+    {0x01CC, 'n', 8, 0},  /* Small Letter nj. */
+    {0x01CE, 'a', 16, 0}, /* Small Letter a with Caron. */
+    {0x01D0, 'i', 12, 0}, /* Small Letter i with Caron. */
+    {0x01D2, 'o', 16, 0}, /* Small Letter o with Caron. */
+    {0x01D4, 'u', 11, 0}, /* Small Letter u with Caron. */
+    {0x01D6, 'u', 12, 0}, /* Small Letter u with Diaeresis and Macron. */
+    {0x01D8, 'u', 13, 0}, /* Small Letter u with Diaeresis and Acute. */
+    {0x01DA, 'u', 14, 0}, /* Small Letter u with Diaeresis and Caron. */
+    {0x01DC, 'u', 15, 0}, /* Small Letter u with Diaeresis and Grave. */
+    {0x01DE, 'a', 8, 1},  /* Capital Letter A Diaeresis Macron. */
+    {0x01DF, 'a', 8, 0},  /* Small Letter a Diaeresis Macron. */
+    {0x01E0, 'a', 10, 1}, /* Capital Letter A Dot Above Macron. */
+    {0x01E1, 'a', 10, 0}, /* Small Letter a Dot Above Macron. */
+    {0x01E2, 'a', 15, 1}, /* Capital Letter AE Ligature Macron. */
+    {0x01E3, 'a', 15, 0}, /* Small Letter ae Ligature Macron. */
+    {0x01E4, 'g', 6, 1},  /* Capital Letter G with Stroke. */
+    {0x01E5, 'g', 6, 0},  /* Small Letter g with Stroke. */
+    {0x01E6, 'g', 3, 1},  /* Capital Letter G with Caron. */
+    {0x01E7, 'g', 3, 0},  /* Small Letter g with Caron. */
+    {0x01E8, 'k', 1, 1},  /* Capital Letter K with Caron. */
+    {0x01E9, 'k', 1, 0},  /* Small Letter k with Caron. */
+    {0x01EA, 'o', 9, 1},  /* Capital Letter O with Ogonek. */
+    {0x01EB, 'o', 9, 0},  /* Small Letter o with Ogonek. */
+    {0x01EC, 'o', 10, 1}, /* Capital Letter O with Ogonek and Macron. */
+    {0x01ED, 'o', 10, 0}, /* Small Letter o with Ogonek and Macron. */
+    {0x01EE, 'z', 5, 1},  /* Capital Letter Ezh with Caron. */
+    {0x01EF, 'z', 5, 0},  /* Small Letter Ezh with Caron. */
+    {0x01FA, 'a', 6, 1},  /* Capital Letter Ring Acute. */
+    {0x01FB, 'a', 6, 0},  /* Small Letter Ring Acute. */
+    {0x01FC, 'a', 14, 1}, /* Capital Letter AE Ligature Acute. */
+    {0x01FD, 'a', 14, 0}, /* Small Letter ae Ligature Acute. */
+    {0x01FE, 'o', 13, 1}, /* Capital Letter O with Stroke and Acute. */
+    {0x01FF, 'o', 13, 0}, /* Small Letter o with Stroke and Acute. */
+    {0x0218, 's', 6, 1},  /* Capital Letter S with Comma Below. */
+    {0x0219, 's', 6, 0},  /* Small Letter s with Comma Below. */
+    {0x021A, 't', 4, 1},  /* Capital Letter T with Comma Below. */
+    {0x021B, 't', 4, 0},  /* Small Letter t with Comma Below. */
+    {0x021E, 'h', 2, 1},  /* Capital Letter H with Caron. */
+    {0x021F, 'h', 2, 0},  /* Small Letter h with Caron. */
+    {0x0259, 'e', 10, 0}, /* Small Letter Schwa. */
+    {0x027C, 'r', 4, 0},  /* Small Letter r with Long Leg. */
+    {0x0292, 'z', 4, 0},  /* Small Letter Ezh. */
+    {0x0386, 300, 12, 1}, /* Greek capital alpha with tonos */
+    {0x0388, 304, 9, 1},  /* Greek capital epsilon with tonos */
+    {0x0389, 308, 12, 1}, /* Greek capital eta with tonos */
+    {0x038A, 310, 13, 1}, /* Greek capital iota with tonos */
+    {0x038C, 316, 9, 1},  /* Greek capital omicron with tonos */
+    {0x038E, 322, 12, 1}, /* Greek capital upsilon with tonos */
+    {0x038F, 326, 13, 1}, /* Greek capital omega with tonos */
+    {0x0390, 310, 19, 0}, /* Greek small iota with dialytika and tonos */
+    {0x0391, 300, 0, 1},  /* Greek capital alpha. */
+    {0x0392, 301, 0, 1},  /* Greek capital beta */
+    {0x0393, 302, 0, 1},  /* Greek capital gamma */
+    {0x0394, 303, 0, 1},  /* Greek capital delta */
+    {0x0395, 304, 0, 1},  /* Greek capital epsilon */
+    {0x0396, 307, 0, 1},  /* Greek capital zeta */
+    {0x0397, 308, 0, 1},  /* Greek capital eta */
+    {0x0398, 309, 0, 1},  /* Greek capital theta */
+    {0x0399, 310, 0, 1},  /* Greek capital iota */
+    {0x039A, 311, 0, 1},  /* Greek capital kappa */
+    {0x039B, 312, 0, 1},  /* Greek capital lamda */
+    {0x039C, 313, 0, 1},  /* Greek capital mu */
+    {0x039D, 314, 0, 1},  /* Greek capital nu */
+    {0x039E, 315, 0, 1},  /* Greek capital xi */
+    {0x039F, 316, 0, 1},  /* Greek capital omicron */
+    {0x03A0, 317, 0, 1},  /* Greek capital pi */
+    {0x03A1, 319, 0, 1},  /* Greek capital rho */
+    {0x03A3, 320, 0, 1},  /* Greek capital sigma */
+    {0x03A4, 321, 0, 1},  /* Greek capital tau */
+    {0x03A5, 322, 0, 1},  /* Greek capital upsilon */
+    {0x03A6, 323, 0, 1},  /* Greek capital phi */
+    {0x03A7, 324, 0, 1},  /* Greek capital chi */
+    {0x03A8, 325, 0, 1},  /* Greek capital psi */
+    {0x03A9, 326, 0, 1},  /* Greek capital omega */
+    {0x03AB, 322, 14, 1}, /* Greek capital upsilon with dialytika */
+    {0x03AC, 300, 12, 0}, /* Greek small alpha with tonos */
+    {0x03AD, 304, 9, 0},  /* Greek small epsilon with tonos */
+    {0x03AE, 308, 12, 0}, /* Greek small eta with tonos */
+    {0x03AF, 310, 13, 0}, /* Greek small iota with tonos */
+    {0x03B0, 322, 18, 0}, /* Greek small upsilon with dialytika and tonos */
+    {0x03B1, 300, 0, 0},  /* Small Greek alpha. */
+    {0x03B2, 301, 0, 0},  /* Greek small beta */
+    {0x03B3, 302, 0, 0},  /* Greek small gamma */
+    {0x03B4, 303, 0, 0},  /* Greek small delta */
+    {0x03B5, 304, 0, 0},  /* Greek small epsilon */
+    {0x03B6, 307, 0, 0},  /* Greek small zeta */
+    {0x03B7, 308, 0, 0},  /* Greek small eta */
+    {0x03B8, 309, 0, 0},  /* Greek small theta */
+    {0x03B9, 310, 0, 0},  /* Greek small iota */
+    {0x03BA, 311, 0, 0},  /* Greek small kappa */
+    {0x03BB, 312, 0, 0},  /* Greek small lamda */
+    {0x03BC, 313, 0, 0},  /* Greek small mu */
+    {0x03BD, 314, 0, 0},  /* Greek small nu */
+    {0x03BE, 315, 0, 0},  /* Greek small xi */
+    {0x03BF, 316, 0, 0},  /* Greek small omicron */
+    {0x03C0, 317, 0, 0},  /* Greek small pi */
+    {0x03C1, 319, 0, 0},  /* Greek small rho */
+    {0x03C2, 320, 1, 0},  /* Greek small final sigma */
+    {0x03C3, 320, 0, 0},  /* Greek small sigma */
+    {0x03C4, 321, 0, 0},  /* Greek small tau */
+    {0x03C5, 322, 0, 0},  /* Greek small upsilon */
+    {0x03C6, 323, 0, 0},  /* Greek small phi */
+    {0x03C7, 324, 0, 0},  /* Greek small chi */
+    {0x03C8, 325, 0, 0},  /* Greek small psi */
+    {0x03C9, 326, 0, 0},  /* Greek small omega */
+    {0x03CA, 310, 15, 0}, /* Greek small iota with dialytika */
+    {0x03CB, 322, 14, 0}, /* Greek small upsilon with dialytika */
+    {0x03CC, 316, 9, 0},  /* Greek small omicron with tonos */
+    {0x03CD, 322, 12, 0}, /* Greek small upsilon with tonos */
+    {0x03CE, 326, 13, 0}, /* Greek small omega with tonos */
+    {0x03D0, 301, 0, 0},  /* Greek small beta symbol */
+    {0x03D1, 309, 1, 0},  /* Greek theta symbol */
+    {0x03D5, 323, 1, 0},  /* Greek phi symbol */
+    {0x03D6, 317, 1, 0},  /* Greek pi symbol */
+    {0x03D7, 311, 2, 0},  /* Greek kai symbol */
+    {0x03DA, 306, 0, 1},  /* Greek capital stigma */
+    {0x03DB, 306, 0, 0},  /* Greek small stigma */
+    {0x03DC, 305, 0, 1},  /* Greek capital digamma */
+    {0x03DD, 305, 0, 0},  /* Greek small digamma */
+    {0x03DE, 318, 0, 1},  /* Greek capital koppa */
+    {0x03DF, 318, 0, 0},  /* Greek small koppa */
+    {0x03E0, 327, 0, 1},  /* Greek capital sampi */
+    {0x03E1, 327, 0, 0},  /* Greek small sampi */
+    {0x03F0, 311, 1, 0},  /* Greek kappa symbol */
+    {0x03F1, 319, 1, 0},  /* Greek rho symbol */
+    {0x0400, 415, 0, 1},  /* Cyrillic capital letter ie with grave */
+    {0x0401, 415, 1, 1},  /* Cyrillic capital letter io */
+    {0x0402, 412, 0, 1},  /* Cyrillic capital letter dje */
+    {0x0403, 412, 1, 1},  /* Cyrillic capital letter gje */
+    {0x0404, 417, 0, 1},  /* Cyrillic capital letter ukrainian ie */
+    {0x0405, 423, 0, 1},  /* Cyrillic capital letter dze */
+    {0x0406, 428, 0, 1},  /* Cyrillic capital letter byelorussian-ukrainian i */
+    {0x0407, 429, 0, 1},  /* Cyrillic capital letter yi */
+    {0x0408, 431, 0, 1},  /* Cyrillic capital letter je */
+    {0x0409, 439, 0, 1},  /* Cyrillic capital letter lje */
+    {0x040A, 445, 0, 1},  /* Cyrillic capital letter nje */
+    {0x040B, 457, 0, 1},  /* Cyrillic capital letter tshe */
+    {0x040C, 457, 1, 1},  /* Cyrillic capital letter kje */
+    {0x040D, 426, 0, 1},  /* Cyrillic capital letter i with grave */
+    {0x040E, 459, 0, 1},  /* Cyrillic capital letter short u */
+    {0x0410, 400, 0, 1},  /* Cyrillic capital letter a */
+    {0x0411, 406, 0, 1},  /* Cyrillic capital letter be */
+    {0x0412, 407, 0, 1},  /* Cyrillic capital letter ve */
+    {0x0413, 408, 0, 1},  /* Cyrillic capital letter ghe */
+    {0x0414, 411, 0, 1},  /* Cyrillic capital letter de */
+    {0x0415, 414, 0, 1},  /* Cyrillic capital letter ie */
+    {0x0416, 418, 0, 1},  /* Cyrillic capital letter zhe */
+    {0x0417, 421, 0, 1},  /* Cyrillic capital letter ze */
+    {0x0418, 425, 0, 1},  /* Cyrillic capital letter i */
+    {0x0419, 430, 0, 1},  /* Cyrillic capital letter short i */
+    {0x041A, 432, 0, 1},  /* Cyrillic capital letter ka */
+    {0x041B, 438, 0, 1},  /* Cyrillic capital letter el */
+    {0x041C, 440, 0, 1},  /* Cyrillic capital letter em */
+    {0x041D, 441, 0, 1},  /* Cyrillic capital letter en */
+    {0x041E, 446, 0, 1},  /* Cyrillic capital letter o */
+    {0x041F, 450, 0, 1},  /* Cyrillic capital letter pe */
+    {0x0420, 452, 0, 1},  /* Cyrillic capital letter er */
+    {0x0421, 453, 0, 1},  /* Cyrillic capital letter es */
+    {0x0422, 455, 0, 1},  /* Cyrillic capital letter te */
+    {0x0423, 458, 0, 1},  /* Cyrillic capital letter u */
+    {0x0424, 464, 0, 1},  /* Cyrillic capital letter ef */
+    {0x0425, 465, 0, 1},  /* Cyrillic capital letter ha */
+    {0x0426, 468, 0, 1},  /* Cyrillic capital letter tse */
+    {0x0427, 470, 0, 1},  /* Cyrillic capital letter che */
+    {0x0428, 478, 0, 1},  /* Cyrillic capital letter sha */
+    {0x0429, 479, 0, 1},  /* Cyrillic capital letter shcha */
+    {0x042A, 480, 0, 1},  /* Cyrillic capital letter hard sign */
+    {0x042B, 481, 0, 1},  /* Cyrillic capital letter yeru */
+    {0x042C, 483, 0, 1},  /* Cyrillic capital letter soft sign */
+    {0x042D, 484, 0, 1},  /* Cyrillic capital letter e */
+    {0x042E, 485, 0, 1},  /* Cyrillic capital letter yu */
+    {0x042F, 486, 0, 1},  /* Cyrillic capital letter ya */
+    {0x0430, 400, 0, 0},  /* Cyrillic small letter a */
+    {0x0431, 406, 0, 0},  /* Cyrillic small letter be */
+    {0x0432, 407, 0, 0},  /* Cyrillic small letter ve */
+    {0x0433, 408, 0, 0},  /* Cyrillic small letter ghe */
+    {0x0434, 411, 0, 0},  /* Cyrillic small letter de */
+    {0x0435, 414, 0, 0},  /* Cyrillic small letter ie */
+    {0x0436, 418, 0, 0},  /* Cyrillic small letter zhe */
+    {0x0437, 421, 0, 0},  /* Cyrillic small letter ze */
+    {0x0438, 425, 0, 0},  /* Cyrillic small letter i */
+    {0x0439, 430, 0, 0},  /* Cyrillic small letter short i */
+    {0x043A, 432, 0, 0},  /* Cyrillic small letter ka */
+    {0x043B, 438, 0, 0},  /* Cyrillic small letter el */
+    {0x043C, 440, 0, 0},  /* Cyrillic small letter em */
+    {0x043D, 441, 0, 0},  /* Cyrillic small letter en */
+    {0x043E, 446, 0, 0},  /* Cyrillic small letter o */
+    {0x043F, 450, 0, 0},  /* Cyrillic small letter pe */
+    {0x0440, 452, 0, 0},  /* Cyrillic small letter er */
+    {0x0441, 453, 0, 0},  /* Cyrillic small letter es */
+    {0x0442, 455, 0, 0},  /* Cyrillic small letter te */
+    {0x0443, 458, 0, 0},  /* Cyrillic small letter u */
+    {0x0444, 464, 0, 0},  /* Cyrillic small letter ef */
+    {0x0445, 465, 0, 0},  /* Cyrillic small letter ha */
+    {0x0446, 468, 0, 0},  /* Cyrillic small letter tse */
+    {0x0447, 470, 0, 0},  /* Cyrillic small letter che */
+    {0x0448, 478, 0, 0},  /* Cyrillic small letter sha */
+    {0x0449, 479, 0, 0},  /* Cyrillic small letter shcha */
+    {0x044A, 480, 0, 0},  /* Cyrillic small letter hard sign */
+    {0x044B, 481, 0, 0},  /* Cyrillic small letter yeru */
+    {0x044C, 483, 0, 0},  /* Cyrillic small letter soft sign */
+    {0x044D, 484, 0, 0},  /* Cyrillic small letter e */
+    {0x044E, 485, 0, 0},  /* Cyrillic small letter yu */
+    {0x044F, 486, 0, 0},  /* Cyrillic small letter ya */
+    {0x0450, 415, 0, 0},  /* Cyrillic small letter ie with grave */
+    {0x0451, 415, 1, 0},  /* Cyrillic small letter io */
+    {0x0452, 412, 0, 0},  /* Cyrillic small letter dje */
+    {0x0453, 412, 1, 0},  /* Cyrillic small letter gje */
+    {0x0454, 417, 0, 0},  /* Cyrillic small letter ukrainian ie */
+    {0x0455, 423, 0, 0},  /* Cyrillic small letter dze */
+    {0x0456, 428, 0, 0},  /* Cyrillic small letter byelorussian-ukrainian i */
+    {0x0457, 429, 0, 0},  /* Cyrillic small letter yi */
+    {0x0458, 431, 0, 0},  /* Cyrillic small letter je */
+    {0x0459, 439, 0, 0},  /* Cyrillic small letter lje */
+    {0x045A, 445, 0, 0},  /* Cyrillic small letter nje */
+    {0x045B, 457, 0, 0},  /* Cyrillic small letter tshe */
+    {0x045C, 457, 1, 0},  /* Cyrillic small letter kje */
+    {0x045D, 426, 0, 0},  /* Cyrillic small letter i with grave */
+    {0x045E, 459, 0, 0},  /* Cyrillic small letter short u */
+    {0x045F, 477, 0, 0},  /* Cyrillic small letter dzhe */
+    {0x0490, 408, 1, 1},  /* Cyrillic capital letter ghe with upturn */
+    {0x0491, 408, 1, 0},  /* Cyrillic small letter ghe with upturn */
+    {0x0492, 409, 0, 1},  /* Cyrillic capital letter ghe with stroke */
+    {0x0493, 409, 0, 0},  /* Cyrillic small letter ghe with stroke */
+    {0x0494, 410, 0, 1},  /* Cyrillic capital letter ghe with middle hook */
+    {0x0495, 410, 0, 0},  /* Cyrillic small letter ghe with middle hook */
+    {0x0496, 420, 0, 1},  /* Cyrillic capital letter zhe with descender */
+    {0x0497, 420, 0, 0},  /* Cyrillic small letter zhe with descender */
+    {0x0498, 413, 0, 1},  /* Cyrillic capital letter ze with descender */
+    {0x0499, 413, 0, 0},  /* Cyrillic small letter ze with descender */
+    {0x049A, 433, 0, 1},  /* Cyrillic capital letter ka with descender */
+    {0x049B, 433, 0, 0},  /* Cyrillic small letter ka with descender */
+    {0x049C, 437, 0, 1},  /* Cyrillic capital letter ka with vertical stroke */
+    {0x049D, 437, 0, 0},  /* Cyrillic small letter ka with vertical stroke */
+    {0x049E, 436, 0, 1},  /* Cyrillic capital letter ka with stroke */
+    {0x049F, 436, 0, 0},  /* Cyrillic small letter ka with stroke */
+    {0x04A0, 435, 0, 1},  /* Cyrillic capital letter bashkir ka */
+    {0x04A1, 435, 0, 0},  /* Cyrillic small letter bashkir ka */
+    {0x04A2, 442, 0, 1},  /* Cyrillic capital letter en with descender */
+    {0x04A3, 442, 0, 0},  /* Cyrillic small letter en with descender */
+    {0x04A4, 444, 0, 1},  /* Cyrillic capital ligature en ghe */
+    {0x04A5, 444, 0, 0},  /* Cyrillic small ligature en ghe */
+    {0x04A6, 451, 0, 1},  /* Cyrillic capital letter pe with middle hook */
+    {0x04A7, 451, 0, 0},  /* Cyrillic small letter pe with middle hook */
+    {0x04A8, 487, 0, 1},  /* Cyrillic capital letter abkhasian ha */
+    {0x04A9, 487, 0, 0},  /* Cyrillic small letter abkhasian ha */
+    {0x04AA, 454, 0, 1},  /* Cyrillic capital letter es with descender */
+    {0x04AB, 454, 0, 0},  /* Cyrillic small letter es with descender */
+    {0x04AC, 456, 0, 1},  /* Cyrillic capital letter te with descender */
+    {0x04AD, 456, 0, 0},  /* Cyrillic small letter te with descender */
+    {0x04AE, 462, 0, 1},  /* Cyrillic capital letter straight u */
+    {0x04AF, 462, 0, 0},  /* Cyrillic small letter straight u */
+    {0x04B0, 463, 0, 1},  /* Cyrillic capital letter straight u with stroke */
+    {0x04B1, 463, 0, 0},  /* Cyrillic small letter straight u with stroke */
+    {0x04B2, 466, 0, 1},  /* Cyrillic capital letter ha with descender */
+    {0x04B3, 466, 0, 0},  /* Cyrillic small letter ha with descender */
+    {0x04B4, 469, 0, 1},  /* Cyrillic capital ligature te tse */
+    {0x04B5, 469, 0, 0},  /* Cyrillic small ligature te tse */
+    {0x04B6, 472, 0, 1},  /* Cyrillic capital letter che with descender */
+    {0x04B7, 472, 0, 0},  /* Cyrillic small letter che with descender */
+    {0x04B8, 474, 0, 1},  /* Cyrillic capital letter che with vertical stroke */
+    {0x04B9, 474, 0, 0},  /* Cyrillic small letter che with vertical stroke */
+    {0x04BA, 467, 0, 1},  /* Cyrillic capital letter shha */
+    {0x04BB, 467, 0, 0},  /* Cyrillic small letter shha */
+    {0x04BC, 475, 0, 1},  /* Cyrillic capital letter abkhasian che */
+    {0x04BD, 475, 0, 0},  /* Cyrillic small letter abkhasian che */
+    {0x04BE, 476, 0, 1},  /* Cyrillic capital letter abkhasian che with descender */
+    {0x04BF, 476, 0, 0},  /* Cyrillic small letter abkhasian che with descender */
+    {0x04C0, 488, 0, 1},  /* Cyrillic letter palochka */
+    {0x04C1, 418, 1, 1},  /* Cyrillic capital letter zhe with breve */
+    {0x04C2, 418, 1, 0},  /* Cyrillic small letter zhe with breve */
+    {0x04C3, 434, 0, 1},  /* Cyrillic capital letter ka with hook */
+    {0x04C4, 434, 0, 0},  /* Cyrillic small letter ka with hook */
+    {0x04C7, 443, 0, 1},  /* Cyrillic capital letter en with hook */
+    {0x04C8, 443, 0, 0},  /* Cyrillic small letter en with hook */
+    {0x04D0, 401, 0, 1},  /* Cyrillic capital letter a with breve */
+    {0x04D1, 401, 0, 0},  /* Cyrillic small letter a with breve */
+    {0x04D2, 402, 0, 1},  /* Cyrillic capital letter a with diaeresis */
+    {0x04D3, 402, 0, 0},  /* Cyrillic small letter a with diaeresis */
+    {0x04D4, 405, 0, 1},  /* Cyrillic capital ligature a ie */
+    {0x04D5, 405, 0, 0},  /* Cyrillic small ligature a ie */
+    {0x04D6, 416, 0, 1},  /* Cyrillic capital letter ie with breve */
+    {0x04D7, 416, 0, 0},  /* Cyrillic small letter ie with breve */
+    {0x04D8, 403, 0, 1},  /* Cyrillic capital letter schwa */
+    {0x04D9, 403, 0, 0},  /* Cyrillic small letter schwa */
+    {0x04DA, 404, 0, 1},  /* Cyrillic capital letter schwa with diaeresis */
+    {0x04DB, 404, 0, 0},  /* Cyrillic small letter schwa with diaeresis */
+    {0x04DC, 419, 0, 1},  /* Cyrillic capital letter zhe with diaeresis */
+    {0x04DD, 419, 0, 0},  /* Cyrillic small letter zhe with diaeresis */
+    {0x04DE, 422, 0, 1},  /* Cyrillic capital letter ze with diaeresis */
+    {0x04DF, 422, 0, 0},  /* Cyrillic small letter ze with diaeresis */
+    {0x04E0, 424, 0, 1},  /* Cyrillic capital letter abkhasian dze */
+    {0x04E1, 424, 0, 0},  /* Cyrillic small letter abkhasian dze */
+    {0x04E2, 426, 1, 1},  /* Cyrillic capital letter i with macron */
+    {0x04E3, 426, 1, 0},  /* Cyrillic small letter i with macron */
+    {0x04E4, 427, 0, 1},  /* Cyrillic capital letter i with diaeresis */
+    {0x04E5, 427, 0, 0},  /* Cyrillic small letter i with diaeresis */
+    {0x04E6, 447, 0, 1},  /* Cyrillic capital letter o with diaeresis */
+    {0x04E7, 447, 0, 0},  /* Cyrillic small letter o with diaeresis */
+    {0x04E8, 448, 0, 1},  /* Cyrillic capital letter barred o */
+    {0x04E9, 448, 0, 0},  /* Cyrillic small letter barred o */
+    {0x04EA, 449, 0, 1},  /* Cyrillic capital letter barred o with diaeresis */
+    {0x04EB, 449, 0, 0},  /* Cyrillic small letter barred o with diaeresis */
+    {0x04EE, 458, 1, 1},  /* Cyrillic capital letter u with macron */
+    {0x04EF, 458, 1, 0},  /* Cyrillic small letter u with macron */
+    {0x04F0, 460, 0, 1},  /* Cyrillic capital letter u with diaeresis */
+    {0x04F1, 460, 0, 0},  /* Cyrillic small letter u with diaeresis */
+    {0x04F2, 461, 0, 1},  /* Cyrillic capital letter u with double acute */
+    {0x04F3, 461, 0, 0},  /* Cyrillic small letter u with double acute */
+    {0x04F4, 471, 0, 1},  /* Cyrillic capital letter che with diaeresis */
+    {0x04F5, 471, 0, 0},  /* Cyrillic small letter che with diaeresis */
+    {0x04F8, 482, 0, 1},  /* Cyrillic capital letter yeru with diaeresis */
+    {0x04F9, 482, 0, 0},  /* Cyrillic small letter yeru with diaeresis */
+};
+
 /* -------------------------------------------------------------------- */
 /** \name UTF32 Text Boundary Analysis
  *

@@ -219,6 +219,9 @@ char32_t BLI_str_utf32_char_to_upper(char32_t wc);
  */
 char32_t BLI_str_utf32_char_to_lower(char32_t wc);
 
+std::string BLI_str_utf8_to_upper(const std::string &str) ATTR_WARN_UNUSED_RESULT;
+std::string BLI_str_utf8_to_lower(const std::string &str) ATTR_WARN_UNUSED_RESULT;
+
 bool BLI_str_utf32_char_is_breaking_space(char32_t codepoint);
 bool BLI_str_utf32_char_is_optional_break_after(char32_t codepoint, char32_t codepoint_prev);
 bool BLI_str_utf32_char_is_optional_break_before(char32_t codepoint, char32_t codepoint_prev);
