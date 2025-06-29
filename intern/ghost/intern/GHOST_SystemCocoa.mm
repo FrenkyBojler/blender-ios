@@ -981,7 +981,7 @@ GHOST_TCapabilityFlag GHOST_SystemCocoa::getCapabilities() const
       ~(
           /* Cocoa has no support for a primary selection clipboard. */
           GHOST_kCapabilityPrimaryClipboard |
-          /* Not support yet for RGBA mouse cursors. */
+          /* No support yet for RGBA mouse cursors. */
           GHOST_kCapabilityRGBACursors |
           /* Cocoa doesn't define a Hyper modifier key,
            * it's possible another modifier could be optionally used in it's place. */
