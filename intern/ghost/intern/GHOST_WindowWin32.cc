@@ -1166,7 +1166,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
                                                              int hotY,
                                                              bool /*canInvertColor*/)
 {
-  if (0) {
+  if (mask) {
     /* Old1bpp XBitMap bitmap and mask. */
     uint32_t andData[32];
     uint32_t xorData[32];
@@ -1200,10 +1200,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
     }
 
     m_customCursor = ::CreateCursor(::GetModuleHandle(0), hotX, hotY, 32, 32, andData, xorData);
-    if (!m_customCursor) {
-      return GHOST_kFailure;
-    }
-    return GHOST_kSuccess;
+    return m_customCursor ? GHOST_kSuccess : GHOST_kFailure;
   }
 
   /* New unlimited RGBA. */
