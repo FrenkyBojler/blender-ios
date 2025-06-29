@@ -1200,7 +1200,16 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
     }
 
     m_customCursor = ::CreateCursor(::GetModuleHandle(0), hotX, hotY, 32, 32, andData, xorData);
-    return m_customCursor ? GHOST_kSuccess : GHOST_kFailure;
+
+    if (!m_customCursor) {
+      return GHOST_kFailure;
+    }
+
+    if (::GetForegroundWindow() == m_hWnd) {
+      loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
+    }
+
+    return GHOST_kSuccess;
   }
 
   /* New unlimited RGBA. */
@@ -1257,6 +1266,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
   if (::GetForegroundWindow() == m_hWnd) {
     loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
   }
+
   return GHOST_kSuccess;
 }
 
