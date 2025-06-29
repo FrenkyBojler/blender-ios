@@ -6,7 +6,7 @@
  * \ingroup intern_sky_modal
  */
 
-#include "sky_float3.h"
+#include "sky_math.h"
 #include "sky_model.h"
 
 /* Earth atmosphere parameters found in https://sebh.github.io/publications/egsr2020.pdf */
@@ -310,6 +310,7 @@ void SKY_single_scattering_skymodel_precompute_texture(float *pixels,
     float latitude = (M_PI_2_F + half_lat_step) * sqr(float(y) / height);
 
     float *pixel_row = pixels + (y * width * stride);
+
     for (int x = 0; x < half_width; x++) {
       float longitude = longitude_step * x - M_PI_F;
 

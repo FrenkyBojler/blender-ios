@@ -85,8 +85,6 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
   node_shader_gpu_tex_mapping(mat, node, in, out);
   NodeTexSky *tex = (NodeTexSky *)node->storage;
 
-  /* Single Scattering */
-
   Array<float> pixels(4 * GPU_SKY_WIDTH * GPU_SKY_HEIGHT);
 
   threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {

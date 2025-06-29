@@ -15,7 +15,7 @@ set(SRC
   source/sky_multiple_scattering.cpp
 
   include/sky_model.h
-  source/sky_float3.h
+  source/sky_math.h
 )
 
 set(LIB

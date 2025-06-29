@@ -632,13 +632,11 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 /* Sky Texture */
 
 struct SunSky {
-  /* sun direction in spherical and cartesian */
-  float theta, phi;
   /* parameters */
+  float theta, phi;
   float single_scattering_data[10];
 };
 
-/* Single Scattering */
 static void sky_texture_precompute_single_scattering(SunSky *sunsky,
                                                      bool sun_disc,
                                                      const float sun_size,
@@ -652,6 +650,7 @@ static void sky_texture_precompute_single_scattering(SunSky *sunsky,
   /* sample 2 sun pixels */
   float pixel_bottom[3];
   float pixel_top[3];
+
   SKY_single_scattering_skymodel_precompute_sun(
       sun_elevation, sun_size, altitude, air_density, dust_density, pixel_bottom, pixel_top);
 
@@ -675,6 +674,9 @@ float SkyTextureNode::get_sun_average_radiance()
 
   float pix_bottom[3];
   float pix_top[3];
+
+  calculate_transmittance();
+
   SKY_single_scattering_skymodel_precompute_sun(sun_elevation,
                                                 angular_diameter,
                                                 clamped_altitude,

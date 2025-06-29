@@ -29,8 +29,8 @@ SkyLoader::~SkyLoader() = default;
 
 bool SkyLoader::load_metadata(const ImageDeviceFeatures & /*features*/, ImageMetaData &metadata)
 {
-  metadata.width = 512;
-  metadata.height = 128;
+  metadata.width = 128;
+  metadata.height = 64;
   metadata.channels = 3;
   metadata.depth = 1;
   metadata.type = IMAGE_DATA_TYPE_FLOAT4;

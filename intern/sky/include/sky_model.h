@@ -49,6 +49,8 @@ void SKY_multiple_scattering_skymodel_precompute_sun(float sun_elevation,
                                                      float *r_pixel_bottom,
                                                      float *r_pixel_top);
 
+void calculate_transmittance();
+
 #ifdef __cplusplus
 }
 #endif
