@@ -14,7 +14,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -29,6 +29,7 @@ NODE_STORAGE_FUNCS(NodeColorspill)
 
 static void cmp_node_color_spill_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.use_custom_socket_order();
 
   b.add_output<decl::Color>("Image");
@@ -182,7 +183,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_color_spill_cc
 
-void register_node_type_cmp_color_spill()
+static void register_node_type_cmp_color_spill()
 {
   namespace file_ns = blender::nodes::node_composite_color_spill_cc;
 
@@ -204,3 +205,4 @@ void register_node_type_cmp_color_spill()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_color_spill)

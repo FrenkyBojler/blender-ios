@@ -26,7 +26,7 @@
 
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -310,7 +310,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   const auto mode = GreasePencilTextureModifierMode(tmd.mode);
   uiLayout *col;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -323,7 +323,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   }
 
   if (mode == MOD_GREASE_PENCIL_TEXTURE_STROKE_AND_FILL) {
-    uiItemS(layout);
+    layout->separator();
   }
 
   if (ELEM(mode, MOD_GREASE_PENCIL_TEXTURE_FILL, MOD_GREASE_PENCIL_TEXTURE_STROKE_AND_FILL)) {
@@ -340,7 +340,7 @@ static void panel_draw(const bContext *C, Panel *panel)
     modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
   }
 
-  modifier_panel_end(layout, ptr);
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)
