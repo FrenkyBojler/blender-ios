@@ -7957,6 +7957,12 @@ static void rna_def_space_node_overlay(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Show Timing", "Display each node's last execution time");
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
 
+  prop = RNA_def_property(srna, "show_timing_color", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SN_OVERLAY_SHOW_TIMINGS_COLOR);
+  RNA_def_property_boolean_default(prop, false);
+  RNA_def_property_ui_text(prop, "Show Timing Color", "Color-code node timing panel");
+  RNA_def_property_update(prop, NC_SPACE | ND_SPACE_NODE, nullptr);
+
   prop = RNA_def_property(srna, "show_context_path", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "overlay.flag", SN_OVERLAY_SHOW_PATH);
   RNA_def_property_boolean_default(prop, true);

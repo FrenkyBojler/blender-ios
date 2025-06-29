@@ -35,6 +35,7 @@
 #include "BLI_string.h"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
+#include "BLI_color.hh"
 
 #include "BLT_translation.hh"
 
@@ -2966,6 +2967,62 @@ struct NamedAttributeTooltipArg {
   Map<StringRefNull, geo_log::NamedAttributeUsage> usage_by_attribute;
 };
 
+static std::pair<std::chrono::nanoseconds, std::chrono::nanoseconds>
+get_execution_time_range(const TreeDrawContext &tree_draw_ctx, const SpaceNode &snode)
+{
+  const bNodeTree &ntree = *snode.edittree;
+
+  std::optional<std::chrono::nanoseconds> min_time;
+  std::optional<std::chrono::nanoseconds> max_time;
+
+  for (const bNode *node : ntree.all_nodes()) {
+    if (node->is_type("CompositorNodeViewer") || node->is_type("NodeGroupOutput")) {
+      continue; // Skip group output and viewer nodes
+    }
+
+    if (std::optional<std::chrono::nanoseconds> exec_time = node_get_execution_time(tree_draw_ctx, snode, *node)) {
+      if (!min_time.has_value() || *exec_time < *min_time) {
+        min_time = exec_time;
+      }
+      if (!max_time.has_value() || *exec_time > *max_time) {
+        max_time = exec_time;
+      }
+    }
+  }
+
+  if (!min_time || !max_time) {
+    // Fallback: 0–100ms if no times found
+    return {std::chrono::nanoseconds::zero(), std::chrono::milliseconds(100)};
+  }
+
+  return {*min_time, *max_time};
+}
+
+static ColorTheme4f node_get_execution_time_color(const TreeDrawContext &tree_draw_ctx,
+                                        const SpaceNode &snode,
+                                        const bNode &node)
+{
+  ColorTheme4f color;
+  std::optional<std::chrono::nanoseconds> exec_time =
+      node_get_execution_time(tree_draw_ctx, snode, node);
+  if (!exec_time.has_value() || node.is_type("CompositorNodeViewer") || node.is_type("NodeGroupOutput")) {
+    // Default blend when execution time is unavailable
+    UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.75f, color);
+    return color;
+  }
+
+  auto [min_time, max_time] = get_execution_time_range(tree_draw_ctx, snode);
+  float perf_factor = 0.0f;
+  if (max_time > min_time) {
+    double current = static_cast<double>(exec_time->count());
+    double min_val = static_cast<double>(min_time.count());
+    double max_val = static_cast<double>(max_time.count());
+    perf_factor = static_cast<float>((current - min_val) / (max_val - min_val));
+  }
+  // Lerp between the two colors based on normalized execution time
+  UI_GetThemeColorBlend4f(TH_NODE_PERFHIGH, TH_NODE_PERFLOW, perf_factor, color);
+  return color;
+}
 static std::string named_attribute_tooltip(bContext * /*C*/, void *argN, const StringRef /*tip*/)
 {
   NamedAttributeTooltipArg &arg = *static_cast<NamedAttributeTooltipArg *>(argN);
@@ -3229,7 +3286,9 @@ static void node_draw_extra_info_row(const bNode &node,
   }
 }
 
-static void node_draw_extra_info_panel_back(const bNode &node, const rctf &extra_info_rect)
+static void node_draw_extra_info_panel_back(const bNode &node, 
+                                            const rctf &extra_info_rect,
+                                            const ColorTheme4f &panel_color)
 {
   const rctf &node_rect = node.runtime->draw_bounds;
   rctf panel_back_rect = extra_info_rect;
@@ -3238,12 +3297,9 @@ static void node_draw_extra_info_panel_back(const bNode &node, const rctf &extra
     panel_back_rect.ymin = BLI_rctf_cent_y(&node_rect);
   }
 
-  ColorTheme4f color;
+  ColorTheme4f color = panel_color;
   if (node.is_muted()) {
     UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.2f, color);
-  }
-  else {
-    UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.75f, color);
   }
   color.a -= 0.35f;
 
@@ -3321,8 +3377,13 @@ static void node_draw_extra_info_panel(const bContext &C,
         extra_info_rect.ymax += preview_height;
       }
     }
-
-    node_draw_extra_info_panel_back(node, extra_info_rect);
+    ColorTheme4f color;
+    if(snode.overlay.flag & SN_OVERLAY_SHOW_TIMINGS_COLOR){
+      color = node_get_execution_time_color(tree_draw_ctx, snode, node);
+    } else {
+      UI_GetThemeColorBlend4f(TH_BACK, TH_NODE, 0.75f, color);
+    }
+    node_draw_extra_info_panel_back(node, extra_info_rect, color);
 
     if (preview) {
       node_draw_preview(scene, preview, &preview_rect);

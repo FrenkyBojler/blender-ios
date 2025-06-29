@@ -934,10 +934,12 @@ class NODE_PT_overlay(Panel):
         if snode.tree_type == 'GeometryNodeTree':
             col.separator()
             col.prop(overlay, "show_timing", text="Timings")
+            col.prop(overlay, "show_timing_color", text="Timing Color")
             col.prop(overlay, "show_named_attributes", text="Named Attributes")
 
         if snode.tree_type == 'CompositorNodeTree':
             col.prop(overlay, "show_timing", text="Timings")
+            col.prop(overlay, "show_timing_color", text="Timing Color")
 
 
 class NODE_MT_node_tree_interface_context_menu(Menu):

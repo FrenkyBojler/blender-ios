@@ -704,7 +704,12 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case TH_SIMULATED_FRAMES:
           cp = ts->simulated_frames;
           break;
-
+        case TH_NODE_PERFLOW:
+          cp = ts->node_perf_low;
+          break;
+        case TH_NODE_PERFHIGH:
+          cp = ts->node_perf_high;
+          break;
         case TH_SEQ_MOVIE:
           cp = ts->movie;
           break;

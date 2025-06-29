@@ -337,6 +337,8 @@ typedef struct ThemeSpace {
   unsigned char node_zone_repeat[4];
   unsigned char node_zone_foreach_geometry_element[4];
   unsigned char node_zone_closure[4];
+  unsigned char node_perf_low[4];
+  unsigned char node_perf_high[4];
   unsigned char simulated_frames[4];
   char _pad7[4];
 

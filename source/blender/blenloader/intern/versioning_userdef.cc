@@ -258,6 +258,8 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_topbar.tab_back);
     FROM_DEFAULT_V4_UCHAR(space_statusbar.tab_back);
     FROM_DEFAULT_V4_UCHAR(space_spreadsheet.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_perf_low);
+    FROM_DEFAULT_V4_UCHAR(space_node.node_perf_high);
   }
 
   if (!USER_VERSION_ATLEAST(500, 6)) {
