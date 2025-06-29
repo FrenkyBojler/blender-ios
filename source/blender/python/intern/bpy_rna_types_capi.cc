@@ -73,6 +73,10 @@ static PyMethodDef pyrna_blenddatalibraries_methods[] = {
 static PyMethodDef pyrna_uilayout_methods[] = {
     {nullptr, nullptr, 0, nullptr}, /* #BPY_rna_uilayout_introspect_method_def */
     {nullptr, nullptr, 0, nullptr},
+    {nullptr, nullptr, 0, nullptr},
+    {nullptr, nullptr, 0, nullptr},
+    {nullptr, nullptr, 0, nullptr},
+    {nullptr, nullptr, 0, nullptr},
 };
 
 /** \} */
@@ -293,8 +297,13 @@ void BPY_rna_types_extend_capi()
       &RNA_BlendDataLibraries, pyrna_blenddatalibraries_methods, nullptr);
 
   /* uiLayout */
-  ARRAY_SET_ITEMS(pyrna_uilayout_methods, BPY_rna_uilayout_introspect_method_def);
-  BLI_STATIC_ASSERT(ARRAY_SIZE(pyrna_uilayout_methods) == 2, "Unexpected number of methods")
+  ARRAY_SET_ITEMS(pyrna_uilayout_methods,
+                  BPY_rna_uilayout_introspect_method_def,
+                  BPY_rna_uilayout_context_string_get_def,
+                  BPY_rna_uilayout_context_int_get_def,
+                  BPY_rna_uilayout_context_int_set_def,
+                  BPY_rna_uilayout_context_pointer_get_def);
+  BLI_STATIC_ASSERT(ARRAY_SIZE(pyrna_uilayout_methods) == 6, "Unexpected number of methods")
   pyrna_struct_type_extend_capi(&RNA_UILayout, pyrna_uilayout_methods, nullptr);
 
   /* Space */
