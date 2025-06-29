@@ -1015,7 +1015,7 @@ void UI_panels_draw(const bContext *C, ARegion *region)
   /* Draw in reverse order, because #uiBlocks are added in reverse order
    * and we need child panels to draw on top. */
   LISTBASE_FOREACH_BACKWARD (uiBlock *, block, &region->runtime->uiblocks) {
-    if (block->active && block->panel && !UI_panel_is_dragging(block->panel) &&
+    if (block->active && block->panel && block->panel->runtime_flag & PANEL_ACTIVE && !UI_panel_is_dragging(block->panel) &&
         !UI_block_is_search_only(block))
     {
       UI_block_draw(C, block);
@@ -1023,7 +1023,7 @@ void UI_panels_draw(const bContext *C, ARegion *region)
   }
 
   LISTBASE_FOREACH_BACKWARD (uiBlock *, block, &region->runtime->uiblocks) {
-    if (block->active && block->panel && UI_panel_is_dragging(block->panel) &&
+    if (block->active && block->panel && block->panel->runtime_flag & PANEL_ACTIVE && UI_panel_is_dragging(block->panel) &&
         !UI_block_is_search_only(block))
     {
       UI_block_draw(C, block);
