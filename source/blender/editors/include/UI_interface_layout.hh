@@ -360,7 +360,8 @@ struct uiLayout : uiItem {
   void decorator(PointerRNA *ptr, PropertyRNA *prop, int index);
   /**
    * Insert a decorator item for a button with the same property as \a prop.
-   * To force inserting a blank dummy element, nullptr can be passed for \a ptr or \a propname.
+   * To force inserting a blank dummy element, nullptr can be passed for \a ptr or std::nullopt for
+   * \a propname.
    */
   void decorator(PointerRNA *ptr, std::optional<blender::StringRefNull> propname, int index);
 
