@@ -348,6 +348,11 @@ extern GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
                                             GHOST_CursorBitmapRef *bitmap);
 
 /**
+ * \return the size of the cursor in logical pixels (before Hi-DPI scaling is applied).
+ */
+extern uint32_t GHOST_GetCursorPreferredLogicalSize(const GHOST_SystemHandle systemhandle);
+
+/**
  * Returns the visibility state of the cursor.
  * \param windowhandle: The handle to the window.
  * \return The visibility state of the cursor.
@@ -920,7 +925,8 @@ extern GHOST_TSuccess GHOST_ClipRectangle(GHOST_RectangleHandle rectanglehandle,
 
 /**
  * Return the data from the clipboard
- * \param selection: Boolean to return the selection instead, X11 only feature.
+ * \param selection: Boolean to return the selection instead.
+ * The capability flag: #GHOST_kCapabilityPrimaryClipboard can be used to check for supported.
  * \return clipboard data
  */
 extern char *GHOST_getClipboard(bool selection);

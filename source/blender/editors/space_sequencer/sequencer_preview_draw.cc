@@ -949,7 +949,6 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
     UI_GetThemeColor3fv(TH_SEQ_SELECTED, col);
   }
   immUniformColor3fv(col);
-  immUniform1f("lineWidth", U.pixelsize);
   immBegin(GPU_PRIM_LINE_LOOP, 4);
   immVertex2f(pos, strip_image_quad[0].x, strip_image_quad[0].y);
   immVertex2f(pos, strip_image_quad[1].x, strip_image_quad[1].y);
@@ -1047,12 +1046,12 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
       text->lines[cursor_position.y].characters[cursor_position.x].position;
   /* Clamp cursor coords to be inside of text boundbox. Compensate for cursor width, but also line
    * width hardcoded in shader. */
-  rcti text_boundbox = text->text_boundbox;
-  text_boundbox.xmax -= cursor_width + U.pixelsize;
-  text_boundbox.xmin += U.pixelsize;
+  const float bound_left = float(text->text_boundbox.xmin) + U.pixelsize;
+  const float bound_right = float(text->text_boundbox.xmax) - (cursor_width + U.pixelsize);
+  /* Note: do not use std::clamp since due to math above left can become larger than right. */
+  cursor_coords.x = std::max(cursor_coords.x, bound_left);
+  cursor_coords.x = std::min(cursor_coords.x, bound_right);
 
-  cursor_coords.x = std::clamp(
-      cursor_coords.x, float(text_boundbox.xmin), float(text_boundbox.xmax));
   cursor_coords = coords_region_view_align(UI_view2d_fromcontext(C), cursor_coords);
 
   blender::float4x2 cursor_quad{
@@ -1078,42 +1077,6 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
   immEnd();
 }
 
-static void text_edit_draw_box(const bContext *C, const Strip *strip, uint pos)
-{
-  const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_scene(C);
-
-  const blender::float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
-  const float view_aspect = scene->r.xasp / scene->r.yasp;
-  blender::float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_scene(C), strip);
-  blender::float4x2 box_quad{
-      {float(text->text_boundbox.xmin), float(text->text_boundbox.ymin)},
-      {float(text->text_boundbox.xmin), float(text->text_boundbox.ymax)},
-      {float(text->text_boundbox.xmax), float(text->text_boundbox.ymax)},
-      {float(text->text_boundbox.xmax), float(text->text_boundbox.ymin)},
-  };
-
-  GPU_blend(GPU_BLEND_NONE);
-  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
-  blender::float3 col;
-  UI_GetThemeColorShade3fv(TH_SEQ_ACTIVE, -50, col);
-  immUniformColor3fv(col);
-  immUniform1f("lineWidth", U.pixelsize);
-  immUniform1f("dash_width", 10.0f);
-  immBegin(GPU_PRIM_LINE_LOOP, 4);
-
-  for (int i : blender::IndexRange(0, 4)) {
-    box_quad[i] += view_offs;
-    box_quad[i] = blender::math::transform_point(transform_mat, box_quad[i]);
-    box_quad[i].x *= view_aspect;
-    immVertex2f(pos, box_quad[i][0], box_quad[i][1]);
-  }
-
-  immEnd();
-  immUnbindProgram();
-}
-
 static void text_edit_draw(const bContext *C)
 {
   if (!sequencer_text_editing_active_poll(const_cast<bContext *>(C))) {
@@ -1137,8 +1100,6 @@ static void text_edit_draw(const bContext *C)
   immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
-
-  text_edit_draw_box(C, strip, pos);
 }
 
 /* Draw empty preview region.
