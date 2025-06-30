@@ -621,6 +621,10 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
 
   if (num_channels > 0) {
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
+
+    /* VSE notifier */
+    WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
+    WM_event_add_notifier(C, NC_ANIMATION, nullptr);
   }
 
   if (confirm) {
