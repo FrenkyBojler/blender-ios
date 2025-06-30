@@ -431,6 +431,17 @@ void sequencer_select_do_updates(const bContext *C, Scene *scene)
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER | NA_SELECTED, scene);
 }
 
+void selected_strips_invalidate_cache(bContext *C, Scene *scene)
+{
+  ScrArea *area = CTX_wm_area(C);
+  if (area && area->spacetype == SPACE_SEQ) {
+    blender::VectorSet<Strip *> strips = selected_strips_from_context(C);
+    for (Strip *strip : strips) {
+      blender::seq::relations_invalidate_cache(scene, strip);
+    }
+  }
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */

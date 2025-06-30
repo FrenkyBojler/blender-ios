@@ -81,4 +81,5 @@ StripSelection pick_strip_and_handle(const struct Scene *scene,
 bool can_select_handle(const Scene *scene, const Strip *strip, const View2D *v2d);
 bool handle_is_selected(const Strip *strip, eStripHandle handle);
 
+void selected_strips_invalidate_cache(bContext *C, Scene *scene);
 }  // namespace blender::ed::vse
