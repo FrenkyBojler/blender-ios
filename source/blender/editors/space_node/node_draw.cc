@@ -3673,7 +3673,7 @@ static void node_draw_basis(const bContext &C,
     UI_but_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_collapse_toggle");
+                    (void *)"NODE_OT_hide_toggle");
     UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
 
@@ -3924,7 +3924,7 @@ static void node_draw_collapsed(const bContext &C,
     UI_but_func_set(but,
                     node_toggle_button_cb,
                     POINTER_FROM_INT(node.identifier),
-                    (void *)"NODE_OT_collapse_toggle");
+                    (void *)"NODE_OT_hide_toggle");
     UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
   }
 
