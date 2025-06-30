@@ -886,10 +886,10 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   const float cfra = BKE_scene_frame_get(scene);
 
   int selected_strips_len = 0;
-  int selected_strips_success_len = 0;
-  int success_multi = 0;
+  int num_strips_modified = 0;
+  int keyframes_removed_total = 0;
 
-  int success = 0;
+  int keyframes_removed = 0;
 
   blender::Vector<PointerRNA> selection;
   get_selection(C, &selection);
@@ -946,7 +946,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     }
   });
 
-  success += modified_fcurves.size();
+  keyframes_removed += modified_fcurves.size();
   for (FCurve *fcurve : modified_fcurves) {
     if (BKE_fcurve_is_empty(fcurve)) {
       action_fcurve_remove(action, *fcurve);
@@ -958,12 +958,12 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
      * F-Curve was removed. */
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
-  if (success) {
-    selected_strips_success_len += 1;
-    success_multi += success;
+  if (keyframes_removed) {
+    num_strips_modified += 1;
+    keyframes_removed_total += keyframes_removed;
   }
 
-  if (selected_strips_success_len) {
+  if (num_strips_modified) {
     /* Key-frames on strips has been moved, so make sure related editors are informed. */
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
@@ -978,12 +978,12 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   if (confirm) {
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
-    if (selected_strips_success_len) {
+    if (num_strips_modified) {
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "%d strip(s) successfully had %d keyframes removed",
-                  selected_strips_success_len,
-                  success_multi);
+                  num_strips_modified,
+                  keyframes_removed_total);
     }
     else {
       BKE_reportf(
