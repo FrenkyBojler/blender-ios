@@ -886,7 +886,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   const float cfra = BKE_scene_frame_get(scene);
 
   int selected_strips_len = 0;
-  int num_strips_modified = 0;
   int keyframes_removed_total = 0;
 
   int keyframes_removed = 0;
@@ -926,6 +925,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
+  blender::VectorSet<std::string> modified_strips;
   blender::Vector<FCurve *> modified_fcurves;
   foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
     bool fcurve_belongs_to_selected_strip = false;
@@ -935,6 +935,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
           std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
       {
         fcurve_belongs_to_selected_strip = true;
+        modified_strips.add(strip_path);
         break;
       }
     }
@@ -959,11 +960,10 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
   if (keyframes_removed) {
-    num_strips_modified += 1;
     keyframes_removed_total += keyframes_removed;
   }
 
-  if (num_strips_modified) {
+  if (modified_strips.size()) {
     /* Key-frames on strips has been moved, so make sure related editors are informed. */
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
@@ -978,11 +978,11 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   if (confirm) {
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
-    if (num_strips_modified) {
+    if (modified_strips.size()) {
       BKE_reportf(op->reports,
                   RPT_INFO,
-                  "%d strip(s) successfully had %d keyframes removed",
-                  num_strips_modified,
+                  "%ld strip(s) successfully had %d keyframes removed",
+                  modified_strips.size(),
                   keyframes_removed_total);
     }
     else {
