@@ -370,9 +370,7 @@ bke::GeometrySet create_stretch_shear_constraints_from_curves(
   Array<bool> point_valid(curves.points_num(), true);
   IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
     const IndexRange points = points_by_curve[curve_i];
-    if (!points.is_empty()) {
-      point_valid[points.last()] = false;
-    }
+    point_valid.as_mutable_span().slice(points).take_back(1).fill(false);
   });
 
   IndexMaskMemory memory;
@@ -406,13 +404,11 @@ bke::GeometrySet create_bend_twist_constraints_from_curves(
   evaluator.add(rest_rotation_field);
   evaluator.evaluate();
 
-  /* Skip end points of curves, these cannot have bend/twist constraints. */
+  /* Skip last 2 points of curves, these cannot have bend/twist constraints to the next segment. */
   Array<bool> point_valid(curves.points_num(), true);
   IndexMask(curves.curves_range()).foreach_index(GrainSize(256), [&](const int curve_i) {
     const IndexRange points = points_by_curve[curve_i];
-    if (!points.is_empty()) {
-      point_valid[points.last()] = false;
-    }
+    point_valid.as_mutable_span().slice(points).take_back(2).fill(false);
   });
 
   IndexMaskMemory memory;
