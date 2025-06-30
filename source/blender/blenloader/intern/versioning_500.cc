@@ -1256,7 +1256,15 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 31)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 32)) {
+    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+      mesh->radial_symmetry[0] = 1;
+      mesh->radial_symmetry[1] = 1;
+      mesh->radial_symmetry[2] = 1;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 33)) {
     LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
       blender::bke::curves_convert_customdata_to_storage(curves->geometry.wrap());
     }
