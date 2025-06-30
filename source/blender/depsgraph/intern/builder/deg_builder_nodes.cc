@@ -493,12 +493,13 @@ void DepsgraphNodeBuilder::update_invalid_cow_pointers()
    * code), but cannot really be avoided currently. */
 
   for (const IDNode *id_node : graph_->id_nodes) {
-    if (id_node->previously_visible_components_mask == 0) {
-      /* Newly added node/ID, no need to check it. */
-      continue;
-    }
     if (ELEM(id_node->id_cow, id_node->id_orig, nullptr)) {
       /* Node/ID with no copy-on-eval data, no need to check it. */
+      continue;
+    }
+    if (!deg_eval_copy_is_expanded(id_node->id_cow)) {
+      /* Copy-on-eval data is not expanded yet, so this is a newly added node/ID that has not been
+       * evaluated yet. */
       continue;
     }
     if ((id_node->id_cow->recalc & ID_RECALC_SYNC_TO_EVAL) != 0) {
