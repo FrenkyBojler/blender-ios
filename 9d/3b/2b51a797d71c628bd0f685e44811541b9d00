@@ -1,2 +1,3 @@
 Referenced by issue #140885, VSE: Swapping cross dissolve sources via Python causes crash
 Referenced by pull request #141139, Fix #140885: Crash when deleting strip in python
+Referenced by pull request #141236, Fix #140885: Crash when deleting strip in python
