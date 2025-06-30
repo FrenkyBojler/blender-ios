@@ -891,7 +891,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   get_selection(C, &selection);
 
   if (selection.is_empty()) {
-    BKE_reportf(op->reports, RPT_WARNING, "Nothing selected to key");
+    BKE_reportf(op->reports, RPT_WARNING, "No strips selected");
     return OPERATOR_CANCELLED;
   }
 
