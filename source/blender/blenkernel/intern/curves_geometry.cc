@@ -1193,7 +1193,7 @@ void CurvesGeometry::resize(const int points_num, const int curves_num)
     CustomData_realloc(&this->curve_data, this->curves_num(), curves_num);
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
-                                           this->curve_num == 0 ? 0 : (this->curve_num + 1),
+                                           this->curve_num == 0 ? 1 : (this->curve_num + 1),
                                            curves_num + 1);
     /* Set common values for convenience. */
     this->curve_offsets[0] = 0;
