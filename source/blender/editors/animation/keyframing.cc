@@ -213,13 +213,7 @@ static wmOperatorStatus insert_key_with_keyingset(bContext *C, wmOperator *op, K
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   }
 
-  ScrArea *area = CTX_wm_area(C);
-  if (area && area->spacetype == SPACE_SEQ) {
-    blender::VectorSet<Strip *> strips = blender::ed::vse::selected_strips_from_context(C);
-    for (Strip *strip : strips) {
-      blender::seq::relations_invalidate_cache(scene, strip);
-    }
-  }
+  blender::ed::vse::selected_strips_invalidate_cache(C, scene);
 
   if (confirm) {
     /* if called by invoke (from the UI), make a note that we've inserted keyframes */
@@ -410,13 +404,7 @@ static wmOperatorStatus insert_key(bContext *C, wmOperator *op)
   WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_ADDED, nullptr);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
 
-  ScrArea *area = CTX_wm_area(C);
-  if (area && area->spacetype == SPACE_SEQ) {
-    blender::VectorSet<Strip *> strips = blender::ed::vse::selected_strips_from_context(C);
-    for (Strip *strip : strips) {
-      blender::seq::relations_invalidate_cache(scene, strip);
-    }
-  }
+  blender::ed::vse::selected_strips_invalidate_cache(C, scene);
 
   return OPERATOR_FINISHED;
 }
@@ -1139,13 +1127,7 @@ static wmOperatorStatus insert_key_button_exec(bContext *C, wmOperator *op)
   }
 
   if (changed) {
-    ScrArea *area = CTX_wm_area(C);
-    if (area && area->spacetype == SPACE_SEQ) {
-      blender::VectorSet<::Strip *> strips = blender::ed::vse::selected_strips_from_context(C);
-      for (::Strip *strip : strips) {
-        blender::seq::relations_invalidate_cache(scene, strip);
-      }
-    }
+    blender::ed::vse::selected_strips_invalidate_cache(C, scene);
     ID *id = ptr.owner_id;
     AnimData *adt = BKE_animdata_from_id(id);
     if (adt->action != nullptr) {
