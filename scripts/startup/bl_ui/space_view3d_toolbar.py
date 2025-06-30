@@ -265,11 +265,7 @@ class TEXTURE_UL_texpaintslots(UIList):
         if ima is not None and ima.is_editable:
             layout.enabled = False
 
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            layout.label(text=item.name, icon_value=item.icon_value)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="")
+        layout.label(text=item.name, icon_value=item.icon_value)
 
 
 class View3DPaintPanel(View3DPanel, UnifiedPaintPanel):
@@ -2163,7 +2159,7 @@ class VIEW3D_PT_tools_grease_pencil_brush_vertex_color(View3DPanel, Panel):
         settings = tool_settings.gpencil_vertex_paint
         brush = settings.brush
         use_unified_paint = (context.object.mode != 'PAINT_GREASE_PENCIL')
-        ups = context.tool_settings.unified_paint_settings
+        ups = settings.unified_paint_settings
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 
         col = layout.column()
@@ -2723,25 +2719,25 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
         col1 = col.column(align=True)
         col1.enabled = mode == 'VERTEXCOLOR' and gp_settings.use_settings_random
         row = col1.row(align=True)
-        row.prop(gp_settings, "random_hue_factor", slider=True)
-        row.prop(gp_settings, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
-        row.prop(gp_settings, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
-        if gp_settings.use_random_press_hue and self.is_popover is False:
-            col1.template_curve_mapping(gp_settings, "curve_random_hue", brush=True, use_negative_slope=True)
+        row.prop(brush, "hue_jitter", slider=True)
+        row.prop(brush, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
+        row.prop(brush, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
+        if brush.use_random_press_hue and self.is_popover is False:
+            col1.template_curve_mapping(brush, "curve_random_hue", brush=True, use_negative_slope=True)
 
         row = col1.row(align=True)
-        row.prop(gp_settings, "random_saturation_factor", slider=True)
-        row.prop(gp_settings, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
-        row.prop(gp_settings, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
-        if gp_settings.use_random_press_sat and self.is_popover is False:
-            col1.template_curve_mapping(gp_settings, "curve_random_saturation", brush=True, use_negative_slope=True)
+        row.prop(brush, "saturation_jitter", slider=True)
+        row.prop(brush, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
+        row.prop(brush, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
+        if brush.use_random_press_sat and self.is_popover is False:
+            col1.template_curve_mapping(brush, "curve_random_saturation", brush=True, use_negative_slope=True)
 
         row = col1.row(align=True)
-        row.prop(gp_settings, "random_value_factor", slider=True)
-        row.prop(gp_settings, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
-        row.prop(gp_settings, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
-        if gp_settings.use_random_press_val and self.is_popover is False:
-            col1.template_curve_mapping(gp_settings, "curve_random_value", brush=True, use_negative_slope=True)
+        row.prop(brush, "value_jitter", slider=True)
+        row.prop(brush, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
+        row.prop(brush, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
+        if brush.use_random_press_val and self.is_popover is False:
+            col1.template_curve_mapping(brush, "curve_random_value", brush=True, use_negative_slope=True)
 
         col.separator()
 
@@ -2824,7 +2820,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_mixcolor(View3DPanel, Panel):
         brush = settings.brush
         gp_settings = brush.gpencil_settings
         use_unified_paint = (context.object.mode != 'PAINT_GREASE_PENCIL')
-        ups = context.tool_settings.unified_paint_settings
+        ups = settings.unified_paint_settings
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 
         row = layout.row()
