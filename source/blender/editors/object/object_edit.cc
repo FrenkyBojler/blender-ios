@@ -115,8 +115,6 @@ namespace blender::ed::object {
 static CLG_LogRef LOG = {"ed.object.edit"};
 
 /* prototypes */
-struct MoveToCollectionData;
-static void move_to_collection_menus_items(uiLayout *layout, MoveToCollectionData *menu);
 static ListBase selected_objects_get(bContext *C);
 
 /* -------------------------------------------------------------------- */
@@ -2376,7 +2374,7 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
   }
 }
 
-static void move_to_collection_recursive_menu_draw(const bContext *C, Menu *menu)
+static void move_to_collection_recursive_menu_draw(const bContext * /*C*/, Menu *menu)
 {
   uiLayout &layout = *menu->layout;
   const PointerRNA *ptr = layout.context_ptr_get("collection", &RNA_Collection);
