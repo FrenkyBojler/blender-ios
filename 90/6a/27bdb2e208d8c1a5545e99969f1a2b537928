@@ -1,2 +1,3 @@
 Referenced by issue #141247, Assert using mesh, cloth, or color filters while sculpting
 Referenced by pull request #141248, Fix #141247: Assert while using sculpt filter tools
+Referenced by commit c45727c9d0ca460efc564b9e82ee67eecd76e6bc, Fix #141247: Assert while using sculpt filter tools
