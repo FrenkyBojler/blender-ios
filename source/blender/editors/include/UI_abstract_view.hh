@@ -307,6 +307,7 @@ class AbstractViewItem {
    */
   void activate(bContext &C);
   void deactivate();
+  void select();
   /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we
    * can't be sure about the item state.

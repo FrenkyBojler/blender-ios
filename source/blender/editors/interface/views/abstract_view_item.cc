@@ -87,6 +87,11 @@ void AbstractViewItem::deactivate()
   is_active_ = false;
 }
 
+void AbstractViewItem::select()
+{
+  is_selected_ = true;
+}
+
 /** \} */
 
 /* ---------------------------------------------------------------------- */

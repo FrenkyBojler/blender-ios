@@ -256,6 +256,7 @@ void template_tree(uiLayout *layout, bContext *C)
       std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));
   tree_view->set_context_menu_title("Shape Key");
   tree_view->set_default_rows(4);
+  tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }
