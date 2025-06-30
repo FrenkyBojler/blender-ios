@@ -476,7 +476,6 @@ static void toolsystem_brush_clear_paint_reference(Scene *scene, bToolRef *tref)
 {
   const PaintMode paint_mode = BKE_paintmode_get_from_tool(tref);
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, paint_mode);
-
   if (!paint) {
     return;
   }
