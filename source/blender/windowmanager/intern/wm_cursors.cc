@@ -30,7 +30,7 @@
 #include "wm_window.hh"
 
 /* Scale mouse cursor size with UI scale. Useful for magnified captures. */
-#define CURSORS_SCALE_UI_FAC true
+#define CURSORS_SCALE_UI_FAC false
 /* Use OS-supplied cursors when available. Set false to see only internal versions. */
 #define CURSORS_USE_OS_NATIVE false
 /* Force use of 1bpp XBitMap cursors even if platform supports RGBA. Useful for testing. */

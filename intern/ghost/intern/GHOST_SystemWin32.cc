@@ -509,6 +509,41 @@ GHOST_TSuccess GHOST_SystemWin32::getPixelAtCursor(float r_color[3]) const
   return GHOST_kSuccess;
 }
 
+uint32_t GHOST_SystemWin32::getCursorPreferredLogicalSize() const
+{
+  int size = -1;
+
+  HKEY hKey;
+  if (RegOpenKeyEx(HKEY_CURRENT_USER, "Control Panel\\Cursors", 0, KEY_READ, &hKey) ==
+      ERROR_SUCCESS)
+  {
+    DWORD cursorSizeSetting;
+    DWORD setting_size = sizeof(cursorSizeSetting);
+    // Get the DWORD value "CursorBaseSize" from the registry
+    if (RegQueryValueEx(hKey,
+                        "CursorBaseSize",
+                        nullptr,
+                        nullptr,
+                        reinterpret_cast<BYTE *>(&cursorSizeSetting),
+                        &setting_size) == ERROR_SUCCESS &&
+        setting_size == sizeof(cursorSizeSetting))
+    {
+      size = cursorSizeSetting;
+    }
+    RegCloseKey(hKey);
+  }
+
+  if (size == -1) {
+    size = GetSystemMetrics(SM_CXCURSOR);
+  }
+
+  /* Default size is 32 even though the cursor is smaller than this.
+   * Scale so 32 return 21. */
+  size = int(roundf(float(size) * 0.65f));
+
+  return size;
+}
+
 GHOST_IWindow *GHOST_SystemWin32::getWindowUnderCursor(int32_t /*x*/, int32_t /*y*/)
 {
   /* Get cursor position from the OS. Do not use the supplied positions as those
