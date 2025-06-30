@@ -4799,8 +4799,8 @@ static void remap_vertex_groups(bke::greasepencil::Drawing &drawing,
    * Only the names of the groups change. */
 }
 
-static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &src,
-                                              const bke::AttributeAccessor &dst,
+static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &a,
+                                              const bke::AttributeAccessor &b,
                                               const int dst_size)
 {
   Map<std::string, eCustomDataType> new_types;
@@ -4814,20 +4814,21 @@ static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &src,
           });
     });
   };
-  add_or_upgrade_types(src);
-  add_or_upgrade_types(dst);
+  add_or_upgrade_types(a);
+  add_or_upgrade_types(b);
+  const int64_t domain_size_a = a.domain_size(bke::AttrDomain::Layer);
 
   bke::AttributeStorage new_storage;
   for (const auto &[name, type] : new_types.items()) {
     const CPPType &cpp_type = *bke::custom_data_type_to_cpp_type(type);
     auto new_data = bke::Attribute::ArrayData::ForUninitialized(cpp_type, dst_size);
 
-    const GVArray src_data = *src.lookup_or_default(name, bke::AttrDomain::Layer, type);
-    src_data.materialize_to_uninitialized(new_data.data);
+    const GVArray data_a = *a.lookup_or_default(name, bke::AttrDomain::Layer, type);
+    data_a.materialize_to_uninitialized(new_data.data);
 
-    const GVArray dst_data = *src.lookup_or_default(name, bke::AttrDomain::Layer, type);
-    dst_data.materialize_to_uninitialized(
-        POINTER_OFFSET(new_data.data, cpp_type.size * src.domain_size(bke::AttrDomain::Layer)));
+    const GVArray data_b = *b.lookup_or_default(name, bke::AttrDomain::Layer, type);
+    data_b.materialize_to_uninitialized(
+        POINTER_OFFSET(new_data.data, cpp_type.size * domain_size_a));
 
     new_storage.add(name,
                     bke::AttrDomain::Layer,
