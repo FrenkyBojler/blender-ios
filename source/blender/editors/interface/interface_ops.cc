@@ -2801,22 +2801,27 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
   if (active_item == nullptr) {
     return OPERATOR_CANCELLED;
   }
-  const bool extend = RNA_boolean_get(op->ptr, "extend");
-  const bool range_select = RNA_boolean_get(op->ptr, "range_select");
+
   AbstractView &view = active_item->get_view();
+  const bool is_multiselect = view.is_multiselect_supported();
+  const bool extend = RNA_boolean_get(op->ptr, "extend") && is_multiselect;
+  const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
 
   if (range_select) {
     bool can_select = false;
     bool state_changed = false;
     view.foreach_view_item([&](AbstractViewItem &item) {
-      if (item.is_active() || &item == active_item) {
+      if ((item.is_active()) ^ (&item == active_item)) {
         can_select = !can_select;
         state_changed = true;
       }
       if (can_select || state_changed) {
         item.select();
         state_changed = false;
+        return;
       }
+      /* Deselect items outside of the range. */
+      item.deselect();
     });
     return OPERATOR_FINISHED;
   }
@@ -2824,7 +2829,6 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
   if (extend) {
     view.keep_previous_selection();
   }
-
   active_item->activate(*C);
 
   return OPERATOR_FINISHED;

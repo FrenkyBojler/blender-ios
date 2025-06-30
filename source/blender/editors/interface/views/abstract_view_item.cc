@@ -62,16 +62,16 @@ bool AbstractViewItem::set_state_active()
   }
 
   /* Deactivate other items in the view. */
-  this->get_view().foreach_view_item([&](auto &item) {
+  get_view().foreach_view_item([&](auto &item) {
     if (!get_view().keep_selection_) {
-      /* Keep previous selection for ctrl click. */
+      /* Keep previous selection for extend selection, see: !138979. */
       item.is_selected_ = false;
     }
     item.deactivate();
   });
 
   is_active_ = true;
-  is_selected_ = this->get_view().is_multiselect_supported();
+  is_selected_ = get_view().is_multiselect_supported_;
   return true;
 }
 
@@ -90,6 +90,11 @@ void AbstractViewItem::deactivate()
 void AbstractViewItem::select()
 {
   is_selected_ = true;
+}
+
+void AbstractViewItem::deselect()
+{
+  is_selected_ = false;
 }
 
 /** \} */
