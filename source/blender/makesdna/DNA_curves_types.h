@@ -125,9 +125,7 @@ typedef struct CurvesGeometry {
    */
   CustomData point_data;
 
-  /**
-   * All attributes stored on curves (#AttrDomain::Curve).
-   */
+  /** Used only for backward compatibility with old files. */
   CustomData curve_data_legacy;
 
   /**
