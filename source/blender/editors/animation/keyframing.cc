@@ -910,63 +910,57 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   }
 
   const bool confirm = op->flag & OP_IS_INVOKE;
-  if ((scene->adt) && (scene->adt->action)) {
-    AnimData *adt = scene->adt;
-    bAction *act = adt->action;
-    const float cfra_unmap = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
+  if (!((scene->adt) && (scene->adt->action))) {
+    /* TODO: @Ernst-Ellert add BKE_reportf */
+    return OPERATOR_CANCELLED;
+  }
 
-    Action &action = act->wrap();
-    if (action.is_action_layered()) {
-      blender::Vector<FCurve *> modified_fcurves;
-      foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
-        bool fcurve_belongs_to_selected_strip = false;
-        /* check if fcurve belongs to a selected strip */
-        for (const std::string &strip_path : selected_rna_paths) {
-          if (fcurve.rna_path &&
-              std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
-          {
-            fcurve_belongs_to_selected_strip = true;
-            break;
-          }
-        }
-        if (!can_delete_scene_key(&fcurve, scene) || !fcurve_belongs_to_selected_strip) {
-          return;
-        }
-        if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
-          modified_fcurves.append(&fcurve);
-        }
-      });
+  AnimData *adt = scene->adt;
+  bAction *act = adt->action;
+  Action &action = act->wrap();
 
-      success += modified_fcurves.size();
-      for (FCurve *fcurve : modified_fcurves) {
-        if (BKE_fcurve_is_empty(fcurve)) {
-          action_fcurve_remove(action, *fcurve);
-        }
+  const float cfra_unmap = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
+
+  if (!action.is_action_layered()) {
+    /* TODO: @Ernst-Ellert add BKE_reportf */
+    return OPERATOR_CANCELLED;
+  }
+
+  blender::Vector<FCurve *> modified_fcurves;
+  foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+    bool fcurve_belongs_to_selected_strip = false;
+    /* check if fcurve belongs to a selected strip */
+    for (const std::string &strip_path : selected_rna_paths) {
+      if (fcurve.rna_path &&
+          std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
+      {
+        fcurve_belongs_to_selected_strip = true;
+        break;
       }
     }
-    else {
-      FCurve *fcn;
-      for (FCurve *fcu = static_cast<FCurve *>(act->curves.first); fcu; fcu = fcn) {
-        fcn = fcu->next;
-        if (!can_delete_scene_key(fcn, scene)) {
-          continue;
-        }
-        /* Delete keyframes on current frame
-         * WARNING: this can delete the next F-Curve, hence the "fcn" copying.
-         */
-        success += delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
-      }
+    if (!can_delete_scene_key(&fcurve, scene) || !fcurve_belongs_to_selected_strip) {
+      return;
     }
+    if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
+      modified_fcurves.append(&fcurve);
+    }
+  });
 
-    if (scene->adt->action) {
-      /* The Action might have been unassigned, if it is legacy and the last
-       * F-Curve was removed. */
-      DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
+  success += modified_fcurves.size();
+  for (FCurve *fcurve : modified_fcurves) {
+    if (BKE_fcurve_is_empty(fcurve)) {
+      action_fcurve_remove(action, *fcurve);
     }
-    if (success) {
-      selected_strips_success_len += 1;
-      success_multi += success;
-    }
+  }
+
+  if (scene->adt->action) {
+    /* The Action might have been unassigned, if it is legacy and the last
+     * F-Curve was removed. */
+    DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
+  }
+  if (success) {
+    selected_strips_success_len += 1;
+    success_multi += success;
   }
 
   if (selected_strips_success_len) {
