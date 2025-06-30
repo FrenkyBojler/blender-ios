@@ -520,6 +520,30 @@ static proxy_output_ctx *alloc_proxy_output_ffmpeg(MovieReader *anim,
                                          height,
                                          rv->c->pix_fmt,
                                          SWS_FAST_BILINEAR);
+
+    int srcRange, dstRange, brightness, contrast, saturation;
+    int *table;
+    const int *inv_table;
+    if (sws_getColorspaceDetails(rv->sws_ctx,
+                                 (int **)&inv_table,
+                                 &srcRange,
+                                 &table,
+                                 &dstRange,
+                                 &brightness,
+                                 &contrast,
+                                 &saturation) >= 0)
+    {
+      srcRange = srcRange || codec_ctx->color_range == AVCOL_RANGE_JPEG;
+      dstRange = dstRange || codec_ctx->color_range == AVCOL_RANGE_JPEG;
+      sws_setColorspaceDetails(rv->sws_ctx,
+                               (int *)inv_table,
+                               srcRange,
+                               table,
+                               dstRange,
+                               brightness,
+                               contrast,
+                               saturation);
+    }
   }
 
   ret = avformat_write_header(rv->of, nullptr);
