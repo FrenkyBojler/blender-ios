@@ -88,7 +88,8 @@ static PyObject *bpy_rna_uilayout_context_int_get(PyObject *self, PyObject *valu
   }
   BPy_StructRNA *pyrna = (BPy_StructRNA *)self;
   uiLayout *layout = static_cast<uiLayout *>(pyrna->ptr->data);
-  std::optional<int64_t> context_int = layout->context_int_get(blender::StringRef(name, name_str_len));
+  std::optional<int64_t> context_int = layout->context_int_get(
+      blender::StringRef(name, name_str_len));
   if (!context_int) {
     Py_RETURN_NONE;
   }
@@ -129,7 +130,7 @@ PyDoc_STRVAR(
     "   :arg name: Name of entry in the context.\n"
     "   :type name: str\n"
     "   :arg type: RNA subclass of entry in the context.\n"
-    "   :type type: :class:`bpy.types.Struct`\n"
+    "   :type type: :class:`bpy.types.Struct` subclass\n"
     "\n"
     "   :return: RNA pointer set in the context.\n"
     "   :rtype: object | None\n");
