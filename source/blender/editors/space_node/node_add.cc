@@ -1605,9 +1605,9 @@ static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator 
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "New Compositing Node Tree";
+  ot->name = "New Compositing Node Group";
   ot->idname = "NODE_OT_new_compositing_node_group";
-  ot->description = "Create a new compositing node tree and initialize it with default nodes";
+  ot->description = "Create a new compositing node group and initialize it with default nodes";
 
   /* api callbacks */
   ot->exec = new_compositing_node_group_exec;
