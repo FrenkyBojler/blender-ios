@@ -1735,14 +1735,16 @@ static std::optional<std::string> rna_MeshUVLoop_path(const PointerRNA *ptr)
 {
   return rna_LoopCustomData_data_path(ptr, "uv_layers", CD_PROP_FLOAT2);
 }
-/* The rna_MeshUVLoop_*_get/set() functions get passed a pointer to
+/**
+ * The `rna_MeshUVLoop_*_get/set()` functions get passed a pointer to
  * the (float2) uv attribute. This is for historical reasons because
- * the api used to wrap MLoopUV, which contained the uv and all the selection
+ * the API used to wrap `MLoopUV`, which contained the UV and all the selection
  * pin states in a single struct. But since that struct no longer exists and
  * we still can use only a single pointer to access these, we need to look up
- * the original attribute layer and the index of the uv in it to be able to
- * find the associated bool layers. So we scan the available foat2 layers
- * to find into which layer the pointer we got passed points. */
+ * the original attribute layer and the index of the UV in it to be able to
+ * find the associated bool layers. So we scan the available #float2 layers
+ * to find into which layer the pointer we got passed points.
+ */
 static bool get_uv_index_and_layer(const PointerRNA *ptr,
                                    int *r_uv_map_index,
                                    int *r_index_in_attribute)
@@ -2187,8 +2189,8 @@ static void rna_def_mlooptri(BlenderRNA *brna)
   RNA_def_property_float_funcs(prop, "rna_MeshLoopTriangle_split_normals_get", nullptr, nullptr);
   RNA_def_property_ui_text(
       prop,
-      "Split Normals",
-      "Local space unit length split normal vectors of the face corners of this triangle");
+      "Custom Normals",
+      "Local space unit length custom normal vectors of the face corners of this triangle");
 
   prop = RNA_def_property(srna, "area", PROP_FLOAT, PROP_UNSIGNED);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
@@ -3307,7 +3309,7 @@ static void rna_def_mesh(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "", 0);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop, "Has Custom Normals", "True if there are custom split normals data in this mesh");
+      prop, "Has Custom Normals", "True if there is custom normal data for this mesh");
   RNA_def_property_boolean_funcs(prop, "rna_Mesh_has_custom_normals_get", nullptr);
   RNA_define_verify_sdna(true);
 

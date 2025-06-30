@@ -230,6 +230,9 @@ struct StrokeCache {
 
   /* The rest is temporary storage that isn't saved as a property */
 
+  /* Store initial starting points for perlin noise on the beginning of each stroke when using
+   * color jitter. */
+  std::optional<blender::float3> initial_hsv_jitter;
   /* Beginning of stroke may do some things special. */
   bool first_time = false;
 
@@ -239,6 +242,7 @@ struct StrokeCache {
   /* TODO: Clean this up! */
   ViewContext *vc = nullptr;
   const Brush *brush = nullptr;
+  const Paint *paint = nullptr;
 
   float special_rotation = 0.0f;
   float3 grab_delta = float3(0);
@@ -252,7 +256,7 @@ struct StrokeCache {
   SculptRakeData rake_data;
 
   /* The face set being painted. */
-  int paint_face_set = 0;
+  int paint_face_set = SCULPT_FACE_SET_NONE;
 
   /**
    * Symmetry index between 0 and 7 bit combo.
@@ -311,7 +315,7 @@ struct StrokeCache {
     float wet_mix = 0.0f;
     float wet_persistence = 0.0f;
 
-    float density_seed = 0.0f;
+    std::optional<float> density_seed;
     float density = 0.0f;
 
     /**
@@ -547,8 +551,10 @@ void sculpt_project_v3_normal_align(const SculptSession &ss,
 /** \name Sculpt mesh accessor API
  * \{ */
 
+namespace blender::ed::sculpt_paint {
 /** Ensure random access; required for blender::bke::pbvh::Type::BMesh */
-void SCULPT_vertex_random_access_ensure(Object &object);
+void vert_random_access_ensure(Object &object);
+}  // namespace blender::ed::sculpt_paint
 
 int SCULPT_vertex_count_get(const Object &object);
 
@@ -594,8 +600,6 @@ void SCULPT_fake_neighbors_free(Object &ob);
 /* -------------------------------------------------------------------- */
 /** \name Brush Utilities.
  * \{ */
-
-bool SCULPT_brush_type_needs_all_pbvh_nodes(const Brush &brush);
 
 namespace blender::ed::sculpt_paint {
 
@@ -849,11 +853,14 @@ inline bool brush_uses_vector_displacement(const Brush &brush)
          brush.mtex.brush_map_mode == MTEX_MAP_MODE_AREA;
 }
 
-void ensure_valid_pivot(const Object &ob, Scene &scene);
-float sculpt_calc_radius(const ViewContext &vc,
-                         const Brush &brush,
-                         const Scene &scene,
-                         float3 location);
+void ensure_valid_pivot(const Object &ob, Paint &paint);
+
+/** Retrieve or calculate the object space radius depending on brush settings. */
+float object_space_radius_get(const ViewContext &vc,
+                              const Paint &paint,
+                              const Brush &brush,
+                              const float3 &location,
+                              float scale_factor = 1.0);
 }  // namespace blender::ed::sculpt_paint
 
 /** \} */
@@ -873,8 +880,7 @@ bool SCULPT_paint_image_canvas_get(PaintModeSettings &paint_mode_settings,
                                    Object &ob,
                                    Image **r_image,
                                    ImageUser **r_image_user) ATTR_NONNULL();
-void SCULPT_do_paint_brush_image(const Scene &scene,
-                                 const Depsgraph &depsgraph,
+void SCULPT_do_paint_brush_image(const Depsgraph &depsgraph,
                                  PaintModeSettings &paint_mode_settings,
                                  const Sculpt &sd,
                                  Object &ob,

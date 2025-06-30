@@ -55,7 +55,7 @@
 #include "RNA_enum_types.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_join_geometries.hh"
@@ -798,12 +798,8 @@ static wmOperatorStatus curves_set_selection_domain_exec(bContext *C, wmOperator
      * and reset the active item afterwards.
      *
      * This would be unnecessary if the active attribute were stored as a string on the ID. */
-    std::string active_attribute;
     AttributeOwner owner = AttributeOwner::from_id(&curves_id->id);
-    const CustomDataLayer *layer = BKE_attributes_active_get(owner);
-    if (layer) {
-      active_attribute = layer->name;
-    }
+    const std::string active_attribute = BKE_attributes_active_name_get(owner).value_or("");
     for (const StringRef selection_name : get_curves_selection_attribute_names(curves)) {
       if (const GVArray src = *attributes.lookup(selection_name, domain)) {
         const CPPType &type = src.type();
@@ -1014,10 +1010,10 @@ static void select_ends_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   uiLayout *col = &layout->column(true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_decorate_set(false);
   col->prop(op->ptr, "amount_start", UI_ITEM_NONE, IFACE_("Amount Start"), ICON_NONE);
   col->prop(op->ptr, "amount_end", UI_ITEM_NONE, IFACE_("End"), ICON_NONE);
 }

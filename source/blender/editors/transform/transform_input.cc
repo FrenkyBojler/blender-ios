@@ -307,10 +307,6 @@ static int transform_seq_slide_strip_cursor_get(const Strip *strip)
 
 static int transform_seq_slide_cursor_get(TransInfo *t)
 {
-  if ((U.sequencer_editor_flag & USER_SEQ_ED_SIMPLE_TWEAKING) == 0) {
-    return WM_CURSOR_NSEW_SCROLL;
-  }
-
   const Scene *scene = t->scene;
   VectorSet<Strip *> strips = vse::selected_strips_from_context(t->context);
 
@@ -327,7 +323,7 @@ static int transform_seq_slide_cursor_get(TransInfo *t)
       SWAP(Strip *, strip1, strip2);
     }
 
-    if (strip1->machine != strip2->machine) {
+    if (strip1->channel != strip2->channel) {
       return WM_CURSOR_NSEW_SCROLL;
     }
 

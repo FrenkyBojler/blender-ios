@@ -242,7 +242,7 @@ struct DeferredLayerBase {
   {
     /* TODO(fclem): We could count the number of different tangent frame in the shader and use
      * min(tangent_frame_count, closure_count) once we have the normal reuse optimization.
-     * For now, allocate a split normal layer for each Closure. */
+     * For now, allocate a custom normal layer for each Closure. */
     int count = count_bits_i(closure_bits_ &
                              (CLOSURE_REFRACTION | CLOSURE_REFLECTION | CLOSURE_CLEARCOAT |
                               CLOSURE_DIFFUSE | CLOSURE_TRANSLUCENT));
@@ -250,6 +250,11 @@ struct DeferredLayerBase {
     count += count_bits_i(closure_bits_ &
                           (CLOSURE_SSS | CLOSURE_TRANSLUCENT | CLOSURE_REFRACTION));
     return count;
+  }
+
+  eClosureBits closure_bits_get() const
+  {
+    return closure_bits_;
   }
 
   void gbuffer_pass_sync(Instance &inst);
@@ -404,6 +409,11 @@ class DeferredPipeline {
   bool is_empty() const
   {
     return opaque_layer_.is_empty() && refraction_layer_.is_empty();
+  }
+
+  eClosureBits closure_bits_get() const
+  {
+    return opaque_layer_.closure_bits_get() | refraction_layer_.closure_bits_get();
   }
 
  private:

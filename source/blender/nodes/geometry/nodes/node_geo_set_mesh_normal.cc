@@ -4,7 +4,7 @@
 
 #include "BKE_mesh.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       case Mode::CornerFanSpace:
         b.add_input<decl::Vector>("Custom Normal")
             .subtype(PROP_XYZ)
-            .implicit_field(nodes::implicit_field_inputs::normal)
+            .implicit_field(NODE_DEFAULT_INPUT_NORMAL_FIELD)
             .hide_value();
         break;
     }

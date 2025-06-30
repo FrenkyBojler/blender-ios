@@ -289,6 +289,8 @@ const EnumPropertyItem rna_enum_object_axis_items[] = {
 
 #  include <fmt/format.h>
 
+#  include "BLI_bounds.hh"
+
 #  include "DNA_ID.h"
 #  include "DNA_constraint_types.h"
 #  include "DNA_gpencil_legacy_types.h"
@@ -559,7 +561,7 @@ static void rna_Object_data_set(PointerRNA *ptr, PointerRNA value, ReportList *r
     BKE_object_materials_sync_length(G_MAIN, ob, id);
 
     if (GS(id->name) == ID_CU_LEGACY) {
-      BKE_curve_type_test(ob);
+      BKE_curve_type_test(ob, true);
     }
     else if (ob->type == OB_ARMATURE) {
       BKE_pose_rebuild(G_MAIN, ob, static_cast<bArmature *>(ob->data), true);
@@ -1892,9 +1894,7 @@ static void rna_Object_boundbox_get(PointerRNA *ptr, float *values)
   using namespace blender;
   Object *ob = reinterpret_cast<Object *>(ptr->owner_id);
   if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_eval_cached_get(ob)) {
-    BoundBox bb;
-    BKE_boundbox_init_from_minmax(&bb, bounds->min, bounds->max);
-    memcpy(values, bb.vec, sizeof(bb.vec));
+    *reinterpret_cast<std::array<float3, 8> *>(values) = blender::bounds::corners(*bounds);
   }
   else {
     copy_vn_fl(values, 8 * 3, 0.0f);
@@ -3651,7 +3651,7 @@ static void rna_def_object(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Shadow Terminator Normal Offset",
-      "Offset rays from the surface to reduce shadow terminator artifact on low poly geometry."
+      "Offset rays from the surface to reduce shadow terminator artifact on low poly geometry. "
       "Only affect triangles that are affected by the geometry offset");
 
   RNA_def_property_update(prop, NC_OBJECT | ND_DRAW, nullptr);

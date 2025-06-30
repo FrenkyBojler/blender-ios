@@ -25,6 +25,22 @@ def add_node_type(layout, node_type, *, label=None, poll=None, search_weight=0.0
         return props
 
 
+def add_node_type_with_outputs(context, layout, node_type, subnames, *, label=None, search_weight=0.0):
+    bl_rna = bpy.types.Node.bl_rna_get_subclass(node_type)
+    if not label:
+        label = bl_rna.name if bl_rna else "Unknown"
+
+    props = []
+    props.append(add_node_type(layout, node_type, label=label, search_weight=search_weight))
+    if getattr(context, "is_menu_search", False):
+        for subname in subnames:
+            sublabel = "{} ▸ {}".format(iface_(label), iface_(subname))
+            item_props = add_node_type(layout, node_type, label=sublabel, search_weight=search_weight)
+            item_props.visible_output = subname
+            props.append(item_props)
+    return props
+
+
 def draw_node_group_add_menu(context, layout):
     """Add items to the layout used for interacting with node groups."""
     space_node = context.space_data
@@ -60,6 +76,9 @@ def draw_node_group_add_menu(context, layout):
                 ops = props.settings.add()
                 ops.name = "width"
                 ops.value = repr(group.default_group_node_width)
+                ops = props.settings.add()
+                ops.name = "name"
+                ops.value = repr(group.name)
 
 
 def draw_assets_for_catalog(layout, catalog_path):
@@ -147,7 +166,7 @@ class NODE_MT_category_layout(Menu):
 
     def draw(self, _context):
         layout = self.layout
-        node_add_menu.add_node_type(layout, "NodeFrame")
+        node_add_menu.add_node_type(layout, "NodeFrame", search_weight=-1)
         node_add_menu.add_node_type(layout, "NodeReroute")
 
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
