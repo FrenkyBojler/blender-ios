@@ -895,8 +895,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
-  blender::Set<ID *> ids;
-
   blender::Vector<std::string> selected_rna_paths;
 
   for (PointerRNA &id_ptr : selection) {
