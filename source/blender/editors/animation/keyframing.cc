@@ -879,6 +879,12 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
   return true;
 }
 
+static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &strip_path)
+{
+  return fcurve.rna_path &&
+         std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
+}
+
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
@@ -929,10 +935,8 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   blender::Vector<FCurve *> modified_fcurves;
   foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
     bool fcurve_belongs_to_selected_strip = false;
-    /* check if fcurve belongs to a selected strip */
     for (const std::string &strip_path : selected_rna_paths) {
-      if (fcurve.rna_path &&
-          std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
+      if (fcurve_belongs_to_strip(fcurve, strip_path))
       {
         fcurve_belongs_to_selected_strip = true;
         modified_strips.add(strip_path);
