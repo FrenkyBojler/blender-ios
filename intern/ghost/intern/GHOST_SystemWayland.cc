@@ -466,6 +466,8 @@ struct GWL_Cursor {
   void *custom_data = nullptr;
   /** The size of `custom_data` in bytes. */
   size_t custom_data_size = 0;
+  /* The requested size for the custom cursors from the env variable XCURSOR_SIZE. */
+  int theme_size = 0;
 };
 
 /** \} */
@@ -5928,6 +5930,24 @@ static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
   ghost_wl_surface_tag_cursor_pointer(seat->cursor.wl.surface_cursor);
 
   gwl_seat_capability_pointer_multitouch_enable(seat);
+  {
+    /* Check if XCURSOR_SIZE is set to provice a hint about the size we should use for custom
+     * cursors. At the moment, seems like only wlroot based compositors sets this. Gnome and KDE
+     * does not. */
+    const char *env;
+    env = getenv("XCURSOR_SIZE");
+    seat->cursor.theme_size = 24;
+
+    if (env && (*env != '\0')) {
+      char *env_end = nullptr;
+      /* While clamping is not needed on the WAYLAND side,
+       * GHOST's internal logic may get confused by negative values, so ensure it's at least 1. */
+      const long value = strtol(env, &env_end, 10);
+      if ((*env_end == '\0') && (value > 0)) {
+        seat->cursor.theme_size = int(value);
+      }
+    }
+  }
 }
 
 static void gwl_seat_capability_pointer_disable(GWL_Seat *seat)
