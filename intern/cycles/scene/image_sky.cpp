@@ -29,8 +29,8 @@ SkyLoader::~SkyLoader() = default;
 
 bool SkyLoader::load_metadata(const ImageDeviceFeatures & /*features*/, ImageMetaData &metadata)
 {
-  metadata.width = 128;
-  metadata.height = 64;
+  metadata.width = 512;
+  metadata.height = 256;
   metadata.channels = 3;
   metadata.depth = 1;
   metadata.type = IMAGE_DATA_TYPE_FLOAT4;
@@ -53,33 +53,33 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
   if (sky_model == 0) {
     parallel_for(blocked_range<size_t>(0, height, rows_per_task),
                  [&](const blocked_range<size_t> &r) {
-                   SKY_single_scattering_skymodel_precompute_texture(pixel_data,
-                                                                     metadata.channels,
-                                                                     r.begin(),
-                                                                     r.end(),
-                                                                     width,
-                                                                     height,
-                                                                     sun_elevation,
-                                                                     altitude,
-                                                                     air_density,
-                                                                     dust_density,
-                                                                     ozone_density);
+                   SKY_single_scattering_precompute_texture(pixel_data,
+                                                            metadata.channels,
+                                                            r.begin(),
+                                                            r.end(),
+                                                            width,
+                                                            height,
+                                                            sun_elevation,
+                                                            altitude,
+                                                            air_density,
+                                                            dust_density,
+                                                            ozone_density);
                  });
   }
   if (sky_model == 1) {
     parallel_for(blocked_range<size_t>(0, height, rows_per_task),
                  [&](const blocked_range<size_t> &r) {
-                   SKY_multiple_scattering_skymodel_precompute_texture(pixel_data,
-                                                                       metadata.channels,
-                                                                       r.begin(),
-                                                                       r.end(),
-                                                                       width,
-                                                                       height,
-                                                                       sun_elevation,
-                                                                       altitude,
-                                                                       air_density,
-                                                                       dust_density,
-                                                                       ozone_density);
+                   SKY_multiple_scattering_precompute_texture(pixel_data,
+                                                              metadata.channels,
+                                                              r.begin(),
+                                                              r.end(),
+                                                              width,
+                                                              height,
+                                                              sun_elevation,
+                                                              altitude,
+                                                              air_density,
+                                                              dust_density,
+                                                              ozone_density);
                  });
   }
 

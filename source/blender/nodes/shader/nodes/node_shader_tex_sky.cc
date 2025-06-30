@@ -87,19 +87,36 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
 
   Array<float> pixels(4 * GPU_SKY_WIDTH * GPU_SKY_HEIGHT);
 
-  threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
-    SKY_single_scattering_skymodel_precompute_texture(pixels.data(),
-                                                      4,
-                                                      range.first(),
-                                                      range.one_after_last(),
-                                                      GPU_SKY_WIDTH,
-                                                      GPU_SKY_HEIGHT,
-                                                      tex->sun_elevation,
-                                                      tex->altitude,
-                                                      tex->air_density,
-                                                      tex->dust_density,
-                                                      tex->ozone_density);
-  });
+  if (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) {
+    threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
+      SKY_single_scattering_precompute_texture(pixels.data(),
+                                               4,
+                                               range.first(),
+                                               range.one_after_last(),
+                                               GPU_SKY_WIDTH,
+                                               GPU_SKY_HEIGHT,
+                                               tex->sun_elevation,
+                                               tex->altitude,
+                                               tex->air_density,
+                                               tex->dust_density,
+                                               tex->ozone_density);
+    });
+  }
+  else {
+    threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
+      SKY_multiple_scattering_precompute_texture(pixels.data(),
+                                                 4,
+                                                 range.first(),
+                                                 range.one_after_last(),
+                                                 GPU_SKY_WIDTH,
+                                                 GPU_SKY_HEIGHT,
+                                                 tex->sun_elevation,
+                                                 tex->altitude,
+                                                 tex->air_density,
+                                                 tex->dust_density,
+                                                 tex->ozone_density);
+    });
+  }
 
   float sun_rotation = fmodf(tex->sun_rotation, 2.0f * M_PI);
   if (sun_rotation < 0.0f) {

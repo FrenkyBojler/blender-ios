@@ -283,47 +283,50 @@ static void single_scattering(float3 ray_dir,
   }
 }
 
-void SKY_single_scattering_skymodel_precompute_texture(float *pixels,
-                                                       int stride,
-                                                       int start_y,
-                                                       int end_y,
-                                                       int width,
-                                                       int height,
-                                                       float sun_elevation,
-                                                       float altitude,
-                                                       float air_density,
-                                                       float dust_density,
-                                                       float ozone_density)
+void SKY_single_scattering_precompute_texture(float *pixels,
+                                              int stride,
+                                              int start_y,
+                                              int end_y,
+                                              int width,
+                                              int height,
+                                              float sun_elevation,
+                                              float altitude,
+                                              float air_density,
+                                              float dust_density,
+                                              float ozone_density)
 {
-  /* calculate texture pixels */
+  /* Calculate texture pixels */
   float spectrum[num_wavelengths];
   int half_width = width / 2;
+  int half_height = height / 2;
   float3 cam_pos = make_float3(0, 0, earth_radius + altitude);
   float3 sun_dir = geographical_to_direction(sun_elevation, 0.0f);
-
-  float latitude_step = M_PI_2_F / height;
   float longitude_step = M_2PI_F / width;
-  float half_lat_step = latitude_step / 2.0f;
 
   for (int y = start_y; y < end_y; y++) {
-    /* sample more pixels toward the horizon */
-    float latitude = (M_PI_2_F + half_lat_step) * sqr(float(y) / height);
-
+    /* Sample more pixels toward the horizon */
+    float latitude = M_PI_2_F * sqr(float(y) / half_height - 1.0f);
     float *pixel_row = pixels + (y * width * stride);
 
     for (int x = 0; x < half_width; x++) {
-      float longitude = longitude_step * x - M_PI_F;
+      float3 xyz;
+      if (y > half_height) {
+        float longitude = longitude_step * x - M_PI_F;
+        float3 dir = geographical_to_direction(latitude, longitude);
+        single_scattering(
+            dir, sun_dir, cam_pos, air_density, dust_density, ozone_density, spectrum);
+        xyz = spec_to_xyz(spectrum);
+      }
+      else {
+        xyz = make_float3(0.0f, 0.0f, 0.0f);
+      }
 
-      float3 dir = geographical_to_direction(latitude, longitude);
-      single_scattering(dir, sun_dir, cam_pos, air_density, dust_density, ozone_density, spectrum);
-      float3 xyz = spec_to_xyz(spectrum);
-
-      /* store pixels */
+      /* Store pixels */
       int pos_x = x * stride;
       pixel_row[pos_x] = xyz.x;
       pixel_row[pos_x + 1] = xyz.y;
       pixel_row[pos_x + 2] = xyz.z;
-      /* mirror sky */
+      /* Mirror sky */
       int mirror_x = (width - x - 1) * stride;
       pixel_row[mirror_x] = xyz.x;
       pixel_row[mirror_x + 1] = xyz.y;
@@ -352,13 +355,13 @@ static void sun_radiation(float3 cam_dir,
   }
 }
 
-void SKY_single_scattering_skymodel_precompute_sun(float sun_elevation,
-                                                   float angular_diameter,
-                                                   float altitude,
-                                                   float air_density,
-                                                   float dust_density,
-                                                   float *r_pixel_bottom,
-                                                   float *r_pixel_top)
+void SKY_single_scattering_precompute_sun(float sun_elevation,
+                                          float angular_diameter,
+                                          float altitude,
+                                          float air_density,
+                                          float dust_density,
+                                          float *r_pixel_bottom,
+                                          float *r_pixel_top)
 {
   /* definitions */
   float half_angular = angular_diameter / 2.0f;
