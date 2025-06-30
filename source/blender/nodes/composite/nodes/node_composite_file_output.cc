@@ -931,7 +931,7 @@ class FileOutputOperation : public NodeOperation {
                                  context().get_frame_number(),
                                  &format,
                                  use_file_extension(),
-                                 true,
+                                 this->is_animation_render(),
                                  nullptr);
   }
 
@@ -972,7 +972,7 @@ class FileOutputOperation : public NodeOperation {
         context().get_frame_number(),
         R_IMF_IMTYPE_MULTILAYER,
         use_file_extension(),
-        true,
+        this->is_animation_render(),
         suffix);
 
     if (!errors.is_empty()) {
@@ -1011,6 +1011,14 @@ class FileOutputOperation : public NodeOperation {
   bool is_multi_view_scene()
   {
     return context().get_render_data().scemode & R_MULTIVIEW;
+  }
+
+  bool is_animation_render()
+  {
+    if (!this->context().render_context()) {
+      return false;
+    }
+    return this->context().render_context()->is_animation_render;
   }
 };
 

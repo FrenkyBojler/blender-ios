@@ -1384,6 +1384,7 @@ static void do_render_compositor(Render *re)
         }
 
         blender::compositor::RenderContext compositor_render_context;
+        compositor_render_context.is_animation_render = re->flag & R_ANIMATION;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
                       &re->r,
