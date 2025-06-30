@@ -6,7 +6,6 @@
  * \ingroup spview3d
  */
 
-#include <atomic>
 #include <cfloat>
 #include <cstring>
 
@@ -303,19 +302,51 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
   return static_cast<TransformProperties *>(v3d->runtime.properties_storage);
 }
 
-static void init_curves_selection_status(const blender::bke::CurvesGeometry &curves,
-                                         TransformMedian_Curves &median,
-                                         int &total,
-                                         int &total_curve_points,
-                                         int &total_nurbs_weights)
+struct CurvesSelectionStatus {
+  TransformMedian_Curves median;
+  int total;
+  int total_curve_points;
+  int total_nurbs_weights;
+
+  CurvesSelectionStatus(const TransformMedian_Curves &median,
+                        const int total,
+                        const int total_curve_points,
+                        const int total_nurbs_weights)
+      : median(median),
+        total(total),
+        total_curve_points(total_curve_points),
+        total_nurbs_weights(total_nurbs_weights)
+  {
+  }
+
+  CurvesSelectionStatus() : CurvesSelectionStatus({{0.0f, 0.0f, 0.0f}, 0.0f, 0.0f, 0.0f}, 0, 0, 0)
+  {
+  }
+
+  static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
+  {
+    const blender::float3 location = blender::float3(a.median.location) +
+                                     blender::float3(b.median.location);
+    return CurvesSelectionStatus({{location.x, location.y, location.z},
+                                  a.median.nurbs_weight + b.median.nurbs_weight,
+                                  a.median.radius + b.median.radius,
+                                  a.median.tilt + b.median.tilt},
+                                 a.total + b.total,
+                                 a.total_curve_points + b.total_curve_points,
+                                 a.total_nurbs_weights + b.total_nurbs_weights);
+  }
+};
+
+static CurvesSelectionStatus init_curves_selection_status(
+    const blender::bke::CurvesGeometry &curves)
 {
   using namespace blender;
   using namespace ed::curves;
 
   if (curves.is_empty()) {
-    return;
+    return CurvesSelectionStatus();
   }
-
+  const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
   const Span<float> nurbs_weights = curves.nurbs_weights();
   const VArray<float> radius = curves.radius();
@@ -323,32 +354,41 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
   const Span<float3> positions = curves.positions();
 
   IndexMaskMemory memory;
-  bke::curves::foreach_selected_point_ranges_per_curve(
-      retrieve_selected_points(curves, ".selection", memory),
-      curves.points_by_curve(),
-      [&](const int curve,
-          const IndexRange /*curve_points*/,
-          const Span<IndexRange> selected_point_ranges) {
-        const CurveType curve_type = CurveType(curve_types[curve]);
-        const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
-        for (const IndexRange range : selected_point_ranges) {
-          total += range.size();
-          total_curve_points += range.size();
+  const IndexMask selection = retrieve_selected_points(curves, ".selection", memory);
 
-          for (const int point : range) {
-            add_v3_v3(median.location, positions[point]);
-            total_nurbs_weights += is_nurbs;
-            median.nurbs_weight += is_nurbs ?
-                                       (nurbs_weights.is_empty() ? 1.0f : nurbs_weights[point]) :
-                                       0;
-            median.radius += radius[point];
-            median.tilt += tilt[point];
-          }
+  CurvesSelectionStatus status = threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      CurvesSelectionStatus(),
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        for (const int curve : range) {
+          const IndexRange curve_points = points_by_curve[curve];
+          const CurveType curve_type = CurveType(curve_types[curve]);
+          const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+          const IndexMask curve_selection = selection.slice_content(curve_points);
+
+          value.total += curve_selection.size();
+          value.total_curve_points += curve_selection.size();
+
+          curve_selection.foreach_index([&](const int point) {
+            add_v3_v3(value.median.location, positions[point]);
+            value.total_nurbs_weights += is_nurbs;
+            value.median.nurbs_weight += is_nurbs ?
+                                             (nurbs_weights.is_empty() ? 1.0f :
+                                                                         nurbs_weights[point]) :
+                                             0;
+            value.median.radius += radius[point];
+            value.median.tilt += tilt[point];
+          });
         }
-      });
+        return value;
+      },
+      CurvesSelectionStatus::sum);
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
-    return;
+    return status;
   }
 
   auto add_handles = [&](StringRef selection_attribute, Span<float3> positions) {
@@ -358,14 +398,15 @@ static void init_curves_selection_status(const blender::bke::CurvesGeometry &cur
       return;
     }
 
-    total += selection.size();
+    status.total += selection.size();
 
     selection.foreach_index(
-        [&](const int point) { add_v3_v3(median.location, positions[point]); });
+        [&](const int point) { add_v3_v3(status.median.location, positions[point]); });
   };
 
   add_handles(".selection_handle_left", curves.handle_positions_left());
   add_handles(".selection_handle_right", curves.handle_positions_right());
+  return status;
 }
 
 static bool apply_to_curves_selection(const int tot,
@@ -381,6 +422,7 @@ static bool apply_to_curves_selection(const int tot,
 
   bool changed = false;
 
+  const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
   const MutableSpan<float> nurbs_weights = median.nurbs_weight ? curves.nurbs_weights_for_write() :
                                                                  MutableSpan<float>{};
@@ -395,35 +437,34 @@ static bool apply_to_curves_selection(const int tot,
                                       curves.positions_for_write() :
                                       MutableSpan<float3>();
 
-  bke::curves::foreach_selected_point_ranges_per_curve(
-      selection,
-      curves.points_by_curve(),
-      [&](const int curve,
-          const IndexRange /*curve_points*/,
-          const Span<IndexRange> selected_point_ranges) {
-        const CurveType curve_type = CurveType(curve_types[curve]);
-        const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+  threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+    for (const int curve : range) {
+      const IndexRange curve_points = points_by_curve[curve];
+      const CurveType curve_type = CurveType(curve_types[curve]);
+      const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+      const IndexMask curve_selection = selection.slice_content(curve_points);
 
-        for (const IndexRange range : selected_point_ranges) {
-          for (const int point : range) {
-            if (is_nurbs && median.nurbs_weight) {
-              apply_raw_diff(
-                  &nurbs_weights[point], tot, ve_median.nurbs_weight, median.nurbs_weight);
-              nurbs_weights[point] = math::clamp(nurbs_weights[point], 0.01f, 100.0f);
-            }
-            if (median.radius) {
-              apply_raw_diff(&radius[point], tot, ve_median.radius, median.radius);
-            }
-            if (median.tilt) {
-              apply_raw_diff(&tilt[point], tot, ve_median.tilt, median.tilt);
-            }
-            if (update_location) {
-              apply_raw_diff_v3(positions[point], tot, ve_median.location, median.location);
-            }
-          }
-        }
+      if (!curve_selection.is_empty()) {
         changed = true;
+      }
+
+      curve_selection.foreach_index([&](const int point) {
+        if (is_nurbs && median.nurbs_weight) {
+          apply_raw_diff(&nurbs_weights[point], tot, ve_median.nurbs_weight, median.nurbs_weight);
+          nurbs_weights[point] = math::clamp(nurbs_weights[point], 0.01f, 100.0f);
+        }
+        if (median.radius) {
+          apply_raw_diff(&radius[point], tot, ve_median.radius, median.radius);
+        }
+        if (median.tilt) {
+          apply_raw_diff(&tilt[point], tot, ve_median.tilt, median.tilt);
+        }
+        if (update_location) {
+          apply_raw_diff_v3(positions[point], tot, ve_median.location, median.location);
+        }
       });
+    }
+  });
 
   /* Only location can be changed for Bezier handles. */
   if (!update_location || !curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
@@ -635,39 +676,42 @@ static void v3d_editvertex_buts(
       data_ptr = RNA_pointer_create_discrete(&lt->id, seltype, selp);
     }
   }
-  else if (ob->type == OB_GREASE_PENCIL) {
-    using namespace blender::ed::greasepencil;
-    using namespace ed::curves;
-    Scene &scene = *CTX_data_scene(C);
-    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
-    blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
-                                                                              grease_pencil);
+  else if (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES)) {
+    CurvesSelectionStatus status;
 
-    std::atomic<int> tot_a(0), total_curves_data_a(0), total_nurbs_weights_a(0);
+    if (ob->type == OB_GREASE_PENCIL) {
+      using namespace blender::ed::greasepencil;
+      using namespace ed::curves;
+      Scene &scene = *CTX_data_scene(C);
+      GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+      blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
+                                                                                grease_pencil);
 
-    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-      int tot_local(0), total_curve_points_data_local(0), total_nurbs_weights_local(0);
-      init_curves_selection_status(info.drawing.strokes(),
-                                   median_basis.curves,
-                                   tot_local,
-                                   total_curve_points_data_local,
-                                   total_nurbs_weights_local);
-      tot_a += tot_local;
-      total_curves_data_a += total_curve_points_data_local;
-      total_nurbs_weights_a += total_nurbs_weights_local;
-    });
-    tot = tot_a;
-    total_curve_points_data = total_curves_data_a;
-    totcurvebweight = total_nurbs_weights_a;
-  }
-  else if (ob->type == OB_CURVES) {
-    using namespace ed::curves;
-    const Curves &curves_id = *static_cast<Curves *>(ob->data);
-    init_curves_selection_status(curves_id.geometry.wrap(),
-                                 median_basis.curves,
-                                 tot,
-                                 total_curve_points_data,
-                                 totcurvebweight);
+      status = threading::parallel_reduce(
+          drawings.index_range(),
+          1L,
+          CurvesSelectionStatus(),
+          [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+            CurvesSelectionStatus value = acc;
+            for (const int drawing : range) {
+              value = CurvesSelectionStatus::sum(
+                  value, init_curves_selection_status(drawings[drawing].drawing.strokes()));
+            }
+            return value;
+          },
+          CurvesSelectionStatus::sum);
+    }
+    else {
+      using namespace ed::curves;
+      const Curves &curves_id = *static_cast<Curves *>(ob->data);
+      status = init_curves_selection_status(curves_id.geometry.wrap());
+    }
+
+    TransformMedian_Curves &median = median_basis.curves;
+    median = status.median;
+    tot = status.total;
+    total_curve_points_data = status.total_curve_points;
+    totcurvebweight = status.total_nurbs_weights;
   }
 
   if (tot == 0) {
