@@ -866,7 +866,7 @@ static const EUOrderRules EORTable[] = {
      * same, secondary differentiates these without considering case (Ã = ã),
      * tertiary is for case. Sorted by Unicode codepoint for quick lookup. */
 
-    /* Primary values: -1 Ignored, 0 spaces & treated as space, 1 (some) Puncuation marks,
+    /* Primary values: -1 Ignored, 0 spaces & treated as space, 10-20 (some) Puncuation marks,
      * '$' Characters for commerce, '0'-'9' Numerals and number-like, 'a'-'z' Latin letters,
      * 200 Thorn, 300-327, 400-488 Cyrillic */
 
@@ -880,8 +880,8 @@ static const EUOrderRules EORTable[] = {
     {0x0027, -1, 14, 0},  /* Apostrophe ignored. */
     {0x0028, -1, 4, 0},   /* Open parenthesis ignored. */
     {0x0029, -1, 5, 0},   /* Close parenthesis ignored. */
-    {0x002A, 1, 0, 0},    /* Asterisk sign. */
-    {0x002B, 1, 1, 0},    /* Plus sign. */
+    {0x002A, 10, 0, 0},   /* Asterisk sign. */
+    {0x002B, 11, 0, 0},   /* Plus sign. */
     {0x002C, -1, 1, 0},   /* Comma ignored. */
     {0x002D, 0, 14, 0},   /* Hyphen treated as space. */
     {0x002E, -1, 0, 0},   /* Period (full stop) ignored. */
@@ -899,7 +899,7 @@ static const EUOrderRules EORTable[] = {
     {0x003A, -1, 3, 0},   /* Colon ignored. */
     {0x003B, -1, 2, 0},   /* Semi-colon ignored. */
     {0x003C, -1, 8, 0},   /* Open angle bracket ignored. */
-    {0x003D, 1, 2, 0},    /* Equals sign. */
+    {0x003D, 13, 0, 0},   /* Equals sign. */
     {0x003E, -1, 9, 0},   /* Close angle bracket ignored. */
     {0x003F, -1, 27, 0},  /* Question mark ignored. */
     {0x0040, '$', 4, 0},  /* Commercial at. */
@@ -930,11 +930,11 @@ static const EUOrderRules EORTable[] = {
     {0x0059, 'y', 0, 1},  /* Capital Letter Y. */
     {0x005A, 'z', 0, 1},  /* Capital Letter Z. */
     {0x005B, -1, 6, 0},   /* Open square brackets ignored. */
-    {0x005C, 1, 3, 0},    /* Backslash sign. */
+    {0x005C, 12, 0, 0},   /* Backslash sign. */
     {0x005D, -1, 7, 0},   /* Close square brackets ignored. */
-    {0x005E, 1, 4, 0},    /* Caret sign. */
-    {0x005F, 1, 5, 0},    /* Underscore sign. */
-    {0x0060, 1, 8, 0},    /* Grave accent sign. */
+    {0x005E, 14, 0, 0},   /* Caret sign. */
+    {0x005F, 15, 0, 0},   /* Underscore sign. */
+    {0x0060, 18, 0, 0},   /* Grave accent sign. */
     {0x0061, 'a', 0, 0},  /* Small Letter a. */
     {0x0062, 'b', 0, 0},  /* Small Letter b. */
     {0x0063, 'c', 0, 0},  /* Small Letter c. */
@@ -962,16 +962,16 @@ static const EUOrderRules EORTable[] = {
     {0x0079, 'y', 0, 0},  /* Small Letter y. */
     {0x007A, 'z', 0, 0},  /* Small Letter z. */
     {0x007B, -1, 12, 0},  /* Left curly bracket ignored. */
-    {0x007C, 1, 6, 0},    /* Vertical bar sign. */
+    {0x007C, 16, 0, 0},   /* Vertical bar sign. */
     {0x007D, -1, 13, 0},  /* Right curly bracket ignored. */
-    {0x007E, 1, 7, 0},    /* Tilde sign. */
+    {0x007E, 17, 0, 0},   /* Tilde sign. */
     {0x00A1, -1, 26, 0},  /* Inverted exclamation mark ignored. */
     {0x00A2, '$', 5, 0},  /* Cent. */
     {0x00A3, '$', 6, 0},  /* Pound Sign. */
     {0x00A4, '$', 7, 0},  /* Currency Sign. */
     {0x00A5, '$', 8, 0},  /* Yen Sign. */
-    {0x00A6, 1, 9, 0},    /* Broken bar sign. */
-    {0x00A7, 1, 10, 0},   /* Section sign. */
+    {0x00A6, 19, 0, 0},   /* Broken bar sign. */
+    {0x00A7, 20, 0, 0},   /* Section sign. */
     {0x00A9, '$', 9, 0},  /* Copyright Sign. */
     {0x00AB, -1, 10, 0},  /* Open double-angle bracket ignored. */
     {0x00AE, '$', 10, 0}, /* Registered Sign. */
