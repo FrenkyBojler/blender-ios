@@ -506,7 +506,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     }
   }
 
-  if (*result.texture) {
+  if (!use_texture_streaming && *result.texture) {
     GPU_texture_original_size_set(*result.texture, ibuf->x, ibuf->y);
   }
 

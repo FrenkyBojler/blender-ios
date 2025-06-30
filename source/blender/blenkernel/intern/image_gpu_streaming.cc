@@ -6,7 +6,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"image.mipmap"};
+static CLG_LogRef LOG = {"image.streaming"};
 
 namespace blender::bke {
     ImageMipmapCache::ImageMipmapCache() {
@@ -54,16 +54,22 @@ namespace blender::bke {
     void ImageMipmapCache::update_mipmap_cache(const ImBuf& imbuf) {
       clear();
 
-      // TODO calculate correct bytes per pixel.
+      // TODO calculate correct bytes per pixel get texture format from imbuf.
       eGPUTextureFormat texture_format = GPU_RGBA8UI;
       int64_t bytes_per_pixel = 4;
       init_resolution_size_offset_for_each_mipmap_level(uint2(imbuf.x, imbuf.y), bytes_per_pixel);
 
       data_.reinitialize(bytes_all_mips_);
+      data_.fill(0);
     }
 
     ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get_try()
     {
+      CLOG_INFO(&LOG,
+                3,
+                "querying texture_ready=%c mipmap_level=%d",
+                last_texture_ == nullptr ? 'n' : 'y',
+                last_texture_mipmap_level_);
       return {&last_texture_, nullptr, last_texture_mipmap_level_};
     }
     ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(int mipmap_level)
@@ -81,13 +87,12 @@ namespace blender::bke {
       // TODO: in stead of copying all mipmaps, only copy the mipmap levels that are not available
       // in the last texture. The other could be copied from the current last texture.
       GPU_TEXTURE_FREE_SAFE(last_texture_);
-      last_texture_ = GPU_texture_create_compressed_2d(
-          __func__,
-          UNPACK2(resolution_per_mipmap_[mipmap_level]),
-          offsets_per_mipmap_.size() - mipmap_level,
-          GPU_RGBA8UI,
-          GPU_TEXTURE_USAGE_GENERAL,
-          data_.as_span().drop_front(offsets_per_mipmap_[mipmap_level]).data());
+      last_texture_ = GPU_texture_create_2d(__func__,
+                                            UNPACK2(resolution_per_mipmap_[mipmap_level]),
+                                            offsets_per_mipmap_.size() - mipmap_level,
+                                            GPU_RGBA8UI,
+                                            GPU_TEXTURE_USAGE_GENERAL,
+                                            nullptr);
       last_texture_mipmap_level_ = mipmap_level;
 
       return {&last_texture_, nullptr, last_texture_mipmap_level_};

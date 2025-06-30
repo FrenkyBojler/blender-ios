@@ -1140,11 +1140,16 @@ inline void PassBase<T>::material_set(Manager &manager,
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
 
       ImageGPUTextures gputex;
+      // TODO: need to do something here. perhaps store the mipmap level inside GPUMaterialTexture,
+      // or request it from the tex->ima
+      int required_mipmap_level = 0;
       if (deferred_texture_loading) {
-        gputex = BKE_image_get_gpu_material_texture_try(tex->ima, iuser, use_tile_mapping);
+        gputex = BKE_image_get_gpu_material_texture_try(
+            tex->ima, iuser, use_tile_mapping, required_mipmap_level);
       }
       else {
-        gputex = BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
+        gputex = BKE_image_get_gpu_material_texture(
+            tex->ima, iuser, use_tile_mapping, required_mipmap_level);
       }
 
       if (*gputex.texture == nullptr) {
