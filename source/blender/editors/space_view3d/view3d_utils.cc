@@ -549,7 +549,7 @@ bool ED_view3d_persp_ensure(const Depsgraph *depsgraph, View3D *v3d, ARegion *re
       char persp = (autopersp && RV3D_VIEW_IS_AXIS(rv3d->lview)) ? char(RV3D_PERSP) : rv3d->lpersp;
       ED_view3d_persp_switch_from_camera(depsgraph, v3d, rv3d, persp);
     }
-    else if (autopersp && RV3D_VIEW_IS_AXIS(rv3d->view)) {
+    else if (autopersp) {
       rv3d->persp = RV3D_PERSP;
     }
     return true;
