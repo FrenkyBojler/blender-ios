@@ -29,18 +29,12 @@
 #include "wm_cursors.hh"
 #include "wm_window.hh"
 
-/* Scale mouse cursor size with UI scale. Useful for magnified captures. */
-#define CURSORS_SCALE_UI_FAC false
-/* Use OS-supplied cursors when available. Set false to see only internal versions. */
-#define CURSORS_USE_OS_NATIVE false
-/* Force use of 1bpp XBitMap cursors even if platform supports RGBA. Useful for testing. */
-#define CURSORS_FORCE_1BPP false
-
 /* Blender custom cursor. */
 struct BCursor {
   const char *svg_source;
   float hotspot_x;
   float hotspot_y;
+  bool can_invert;
 };
 
 static BCursor BlenderCursor[WM_CURSOR_NUM] = {0};
@@ -125,7 +119,10 @@ static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
 
 static float cursor_size()
 {
-  if (CURSORS_SCALE_UI_FAC) {
+  /* Scaling with UI scale can be useful for magnified captures. */
+  const bool scale_cursor_with_ui_scale = false;
+
+  if (scale_cursor_with_ui_scale) {
     return 21.0f * UI_SCALE_FAC;
   }
 
@@ -200,7 +197,11 @@ static void cursor_rgba_to_xbm_32(const blender::Array<uint8_t> rgba,
 
 static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
 {
-  const bool use_rgba = !CURSORS_FORCE_1BPP && WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS;
+  /* Option to force use of 1bpp XBitMap cursors is needed for testing. */
+  const bool use_only_1bpp_cursors = false;
+
+  const bool use_rgba = !use_only_1bpp_cursors &&
+                        WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS;
 
   int max_size = use_rgba ? 128 : 32;
   float size = std::min(cursor_size(), float(max_size));
@@ -221,7 +222,7 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
                                       height,
                                       hotspot_x,
                                       hotspot_y,
-                                      false) == GHOST_kSuccess;
+                                      cursor->can_invert) == GHOST_kSuccess;
   }
   else {
     uint8_t bitmap[4 * 32] = {0};
@@ -234,12 +235,15 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
                                       32,
                                       hotspot_x,
                                       hotspot_y,
-                                      false) == GHOST_kSuccess;
+                                      cursor->can_invert) == GHOST_kSuccess;
   }
 }
 
 void WM_cursor_set(wmWindow *win, int curs)
 {
+  /* Option to not use any OS-supplied cursors is needed for testing. */
+  const bool use_only_custom_cursors = false;
+
   if (win == nullptr || G.background) {
     return; /* Can't set custom cursor before Window init. */
   }
@@ -268,7 +272,7 @@ void WM_cursor_set(wmWindow *win, int curs)
 
   GHOST_TStandardCursor ghost_cursor = convert_to_ghost_standard_cursor(WMCursorType(curs));
 
-  if (CURSORS_USE_OS_NATIVE && ghost_cursor != GHOST_kStandardCursorCustom &&
+  if (!use_only_custom_cursors && ghost_cursor != GHOST_kStandardCursorCustom &&
       GHOST_HasCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin), ghost_cursor))
   {
     /* Use native GHOST cursor when available. */
@@ -578,11 +582,13 @@ void WM_cursor_time(wmWindow *win, int nr)
 static void wm_add_cursor(WMCursorType cursor,
                           const char *svg_source,
                           float hotspot_x,
-                          float hotspot_y)
+                          float hotspot_y,
+                          bool can_invert = true)
 {
   BlenderCursor[cursor].svg_source = svg_source;
   BlenderCursor[cursor].hotspot_x = hotspot_x;
   BlenderCursor[cursor].hotspot_y = hotspot_y;
+  BlenderCursor[cursor].can_invert = can_invert;
 }
 
 void wm_init_cursor_data()
