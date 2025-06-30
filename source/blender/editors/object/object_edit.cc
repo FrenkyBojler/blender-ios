@@ -2367,7 +2367,8 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
       RNA_int_set(&op_ptr, "collection_uid", collection->id.session_uid);
       continue;
     }
-    layout.context_int_set("collection_uid", collection->id.session_uid);
+    const PointerRNA ptr = RNA_id_pointer_create(&collection->id);
+    layout.context_ptr_set("collection", &ptr);
     layout.menu(is_move ? "OBJECT_MT_move_to_collection_recursive" :
                           "OBJECT_MT_link_to_collection_recursive",
                 BKE_collection_ui_name_get(collection),
@@ -2378,12 +2379,8 @@ static void move_to_collection_menu_draw(Menu *menu, Collection *collection, int
 static void move_to_collection_recursive_menu_draw(const bContext *C, Menu *menu)
 {
   uiLayout &layout = *menu->layout;
-  Scene *scene = CTX_data_scene(C);
-  std::optional<int64_t> collection_uid = layout.context_int_get("collection_uid");
-  if (!collection_uid) {
-    return;
-  }
-  Collection *collection = BKE_collection_from_session_uid(scene, collection_uid.value());
+  const PointerRNA *ptr = layout.context_ptr_get("collection", &RNA_Collection);
+  Collection *collection = ptr ? ptr->data_as<Collection>() : nullptr;
   if (!collection) {
     return;
   }
