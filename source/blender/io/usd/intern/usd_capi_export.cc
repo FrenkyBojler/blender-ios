@@ -95,11 +95,9 @@ struct ExportJobData {
  * the requirements of the prim path manipulation logic
  * of the exporter. Also returns true if the path is
  * the empty string. Returns false otherwise. */
-static bool prim_path_valid(const char *path)
+static bool prim_path_valid(const std::string &path)
 {
-  BLI_assert(path);
-
-  if (path[0] == '\0') {
+  if (path.empty()) {
     /* Empty paths are ignored in the code,
      * so they can be passed through. */
     return true;
@@ -154,7 +152,7 @@ static bool export_params_valid(const USDExportParams &params)
  */
 static void ensure_root_prim(pxr::UsdStageRefPtr stage, const USDExportParams &params)
 {
-  if (params.root_prim_path[0] == '\0') {
+  if (params.root_prim_path.empty()) {
     return;
   }
 
