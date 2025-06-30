@@ -969,14 +969,14 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
   }
 
-  if (confirm) {
-    for (PointerRNA &id_ptr : selection) {
-      if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
-        ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
-        blender::seq::relations_invalidate_cache(scene, strip);
-      }
+  for (PointerRNA &id_ptr : selection) {
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
+      blender::seq::relations_invalidate_cache(scene, strip);
     }
+  }
 
+  if (confirm) {
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
     if (selected_strips_success_len) {
       BKE_reportf(op->reports,
