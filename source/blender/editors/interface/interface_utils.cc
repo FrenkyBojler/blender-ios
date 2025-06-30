@@ -541,6 +541,10 @@ void ui_rna_collection_search_update_fn(
         /* Also show an icon for the data-block type that each slot is intended for. */
         animrig::Slot &slot = reinterpret_cast<ActionSlot *>(itemptr.data)->wrap();
         iconid = UI_icon_from_idcode(slot.idtype);
+        /* So indentation is kept when no icon is present. */
+        if (iconid == ICON_NONE) {
+          iconid = ICON_BLANK1;
+        }
       }
       else {
         name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), nullptr);
