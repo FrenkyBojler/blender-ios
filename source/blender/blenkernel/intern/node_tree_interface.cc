@@ -4,6 +4,7 @@
 
 #include <queue>
 
+#include "BKE_colortools.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
@@ -247,6 +248,11 @@ void socket_data_copy_impl(bNodeSocketValueMenu &dst, const bNodeSocketValueMenu
     dst.enum_items->add_user();
   }
 }
+template<>
+void socket_data_copy_impl(bNodeSocketValueClosure &dst, const bNodeSocketValueClosure &src)
+{
+  dst.curve_mapping = BKE_curvemapping_copy(src.curve_mapping);
+}
 
 static void socket_data_copy(bNodeTreeInterfaceSocket &dst,
                              const bNodeTreeInterfaceSocket &src,
@@ -378,6 +384,14 @@ template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketV
   /* Clear runtime data. */
   (*data)->enum_items = nullptr;
   (*data)->runtime_flag = 0;
+}
+template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketValueClosure **data)
+{
+  BLO_read_struct(reader, bNodeSocketValueClosure, data);
+  BLO_read_struct(reader, CurveMapping, &(*data)->curve_mapping);
+  if ((*data)->curve_mapping) {
+    BKE_curvemapping_blend_read(reader, (*data)->curve_mapping);
+  }
 }
 
 static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSocket &socket)

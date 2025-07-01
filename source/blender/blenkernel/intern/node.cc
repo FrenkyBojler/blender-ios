@@ -1152,9 +1152,15 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_MENU:
         BLO_read_struct(reader, bNodeSocketValueMenu, &sock->default_value);
         break;
-      case SOCK_CLOSURE:
+      case SOCK_CLOSURE: {
         BLO_read_struct(reader, bNodeSocketValueClosure, &sock->default_value);
+        auto &default_value_closure = *sock->default_value_typed<bNodeSocketValueClosure>();
+        BLO_read_struct(reader, CurveMapping, &default_value_closure.curve_mapping);
+        if (default_value_closure.curve_mapping) {
+          BKE_curvemapping_blend_read(reader, default_value_closure.curve_mapping);
+        }
         break;
+      }
       case SOCK_MATRIX:
         /* Matrix sockets currently have no default value. */
       case SOCK_CUSTOM:
