@@ -1267,4 +1267,28 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
    *
    * \note Keep this message at the bottom of the function.
    */
+
+  FOREACH_NODETREE_BEGIN (bmain, tree, id) {
+    LISTBASE_FOREACH (bNode *, node, &tree->nodes) {
+      LISTBASE_FOREACH (bNodeSocket *, socket, &node->inputs) {
+        if (socket->type != SOCK_CLOSURE) {
+          continue;
+        }
+        if (socket->default_value) {
+          continue;
+        }
+        socket->default_value = MEM_callocN<bNodeSocketValueClosure>(__func__);
+      }
+      LISTBASE_FOREACH (bNodeSocket *, socket, &node->outputs) {
+        if (socket->type != SOCK_CLOSURE) {
+          continue;
+        }
+        if (socket->default_value) {
+          continue;
+        }
+        socket->default_value = MEM_callocN<bNodeSocketValueClosure>(__func__);
+      }
+    }
+  }
+  FOREACH_NODETREE_END;
 }

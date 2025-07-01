@@ -723,6 +723,9 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
     case SOCK_MENU:
       BLO_write_struct(writer, bNodeSocketValueMenu, sock->default_value);
       break;
+    case SOCK_CLOSURE:
+      BLO_write_struct(writer, bNodeSocketValueClosure, sock->default_value);
+      break;
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
       break;
@@ -732,7 +735,6 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
     case SOCK_BUNDLE:
-    case SOCK_CLOSURE:
       BLI_assert_unreachable();
       break;
   }
@@ -1150,6 +1152,9 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_MENU:
         BLO_read_struct(reader, bNodeSocketValueMenu, &sock->default_value);
         break;
+      case SOCK_CLOSURE:
+        BLO_read_struct(reader, bNodeSocketValueClosure, &sock->default_value);
+        break;
       case SOCK_MATRIX:
         /* Matrix sockets currently have no default value. */
       case SOCK_CUSTOM:
@@ -1157,7 +1162,6 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
       case SOCK_SHADER:
       case SOCK_GEOMETRY:
       case SOCK_BUNDLE:
-      case SOCK_CLOSURE:
         BLI_assert_unreachable();
         break;
     }

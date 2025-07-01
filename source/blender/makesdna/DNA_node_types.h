@@ -1050,6 +1050,18 @@ typedef struct bNodeSocketValueMenu {
 #endif
 } bNodeSocketValueMenu;
 
+typedef enum ClosureSocketValueType {
+  CLOSURE_SOCKET_VALUE_TYPE_NONE = 0,
+  CLOSURE_SOCKET_VALUE_TYPE_CURVE = 1,
+} ClosureSocketValueType;
+
+typedef struct bNodeSocketValueClosure {
+  /** #ClosureSocketValueType. */
+  uint8_t type;
+  char _pad[7];
+  CurveMapping *curve_mapping;
+} bNodeSocketValueClosure;
+
 typedef struct GeometryNodeAssetTraits {
   int flag;
 } GeometryNodeAssetTraits;
