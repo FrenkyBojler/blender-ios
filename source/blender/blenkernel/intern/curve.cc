@@ -3233,43 +3233,48 @@ static void calchandleNurb_intern(BezTriple *bezt,
   len_a = len_v3v3(p2, p2_h1);
   len_b = len_v3v3(p2, p2_h2);
 
-  if (len_a != 0.0 && len_b != 0.0) {
-    const float len_ratio = len_a / len_b;
+  if (len_a == 0.0f) {
+    len_a = 1.0f;
+  }
+  if (len_b == 0.0f) {
+    len_b = 1.0f;
+  }
 
-    if (bezt->f1 & handle_sel_flag) {                      /* order of calculation */
-      if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) { /* aligned */
-        if (len_a > eps) {
-          len = 1.0f / len_ratio;
-          p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
-          p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
-          p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
-        }
-      }
-      if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
-        if (len_b > eps) {
-          len = len_ratio;
-          p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
-          p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
-          p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
-        }
+  const float len_ratio = len_a / len_b;
+
+  if (bezt->f1 & handle_sel_flag) {                      /* order of calculation */
+    if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) { /* aligned */
+      if (len_a > eps) {
+        len = 1.0f / len_ratio;
+        p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
+        p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
+        p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
       }
     }
-    else {
-      if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
-        if (len_b > eps) {
-          len = len_ratio;
-          p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
-          p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
-          p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
-        }
+    if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
+      if (len_b > eps) {
+        len = len_ratio;
+        p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
+        p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
+        p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
       }
-      if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) { /* aligned */
-        if (len_a > eps) {
-          len = 1.0f / len_ratio;
-          p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
-          p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
-          p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
-        }
+    }
+  }
+  else {
+    if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
+      if (len_b > eps) {
+        len = len_ratio;
+        p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
+        p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
+        p2_h1[2] = p2[2] + len * (p2[2] - p2_h2[2]);
+      }
+    }
+    if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) { /* aligned */
+      if (len_a > eps) {
+        len = 1.0f / len_ratio;
+        p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
+        p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
+        p2_h2[2] = p2[2] + len * (p2[2] - p2_h1[2]);
       }
     }
   }
