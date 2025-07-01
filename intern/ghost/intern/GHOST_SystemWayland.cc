@@ -2249,6 +2249,8 @@ static GHOST_TTabletMode tablet_tool_map_type(enum zwp_tablet_tool_v2_type wp_ta
   return GHOST_kTabletModeStylus;
 }
 
+static const int default_cursor_size = 24;
+
 static constexpr const char *ghost_wl_mime_text_plain = "text/plain";
 static constexpr const char *ghost_wl_mime_text_utf8 = "text/plain;charset=utf-8";
 static constexpr const char *ghost_wl_mime_text_uri_list = "text/uri-list";
@@ -5976,8 +5978,6 @@ static void gwl_seat_capability_pointer_multitouch_disable(GWL_Seat *seat)
   }
 #endif
 }
-
-static const int default_cursor_size = 24;
 
 static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
 {
