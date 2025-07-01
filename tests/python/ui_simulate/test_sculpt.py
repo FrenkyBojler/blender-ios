@@ -5,6 +5,7 @@
 """
 This file does not run anything, it's methods are accessed for tests by: ``run.py``.
 """
+import datetime
 
 
 def _test_window(windows_exclude=None):
@@ -61,21 +62,26 @@ def _cursor_position_from_spacetype(window, space_type):
 def asset_shelf_brush_selection():
     e, t = _test_vars(window := _test_window())
 
-    yield e.shift.f5()                  # 3D Viewport.
-    yield e.ctrl.alt.space()            # Full-screen.
+    yield e.shift.f5()                              # 3D Viewport.
+    yield e.ctrl.alt.space()                        # Full-screen.
+    yield e.ctrl.tab().s()                          # Sculpt via pie menu.
 
-    yield e.numpad_period()             # View all.
-    yield e.ctrl.tab().s()              # Sculpt via pie menu.
+    area = _window_area_get_by_type(window, 'VIEW_3D')
+    # We use this hardcoded area percent position because the asset shelf is very large, this centers the cursor
+    # in the correct position.
+    position = (area.x + int(area.width * 0.30), area.y + area.height // 2)
+    e.cursor_position_set(*position, move=True)     # Move mouse
+    yield
 
-    pos_v3d = _cursor_position_from_spacetype(window, 'VIEW_3D')
-    e.cursor_position_set(*pos_v3d, move=True)
+    yield e.shift.space()                           # Asset Shelf
+    yield e.text("Blob")                            # Search for "Blob"
+    yield e.esc()
 
-    # View 3D: edit-mode
-    e.cursor_position_set(*pos_v3d, move=True)
+    # We repeat this again because the asset shelf is too large to fit on the screen the first time...
+    yield e.shift.space()                           # Asset Shelf
 
-    yield e.ctrl.space()                # Asset Shelf
-    yield e.text("Blob")                # Search for "Blob"
-    yield e.leftmouse.tap()             # Click on centered shelf
+    e.leftmouse.tap()
+    yield
 
     import bpy
     current_brush = bpy.context.tool_settings.sculpt.brush
