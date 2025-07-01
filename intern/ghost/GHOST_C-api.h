@@ -340,12 +340,10 @@ extern GHOST_TSuccess GHOST_HasCursorShape(GHOST_WindowHandle windowhandle,
  * \return Indication of success.
  */
 extern GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle,
-                                                 uint8_t *bitmap,
-                                                 uint8_t *mask,
-                                                 int sizex,
-                                                 int sizey,
-                                                 int hotX,
-                                                 int hotY,
+                                                 const uint8_t *bitmap,
+                                                 const uint8_t *mask,
+                                                 const int size[2],
+                                                 const int hot_spot[2],
                                                  bool canInvertColor);
 
 extern GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
