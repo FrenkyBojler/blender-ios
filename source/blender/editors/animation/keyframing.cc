@@ -818,6 +818,12 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
+static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &strip_path)
+{
+  return fcurve.rna_path &&
+         std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
+}
+
 static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
@@ -858,8 +864,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
       /* check if fcurve belongs to a selected strip */
       for (const std::string &strip_path : selected_rna_paths) {
-        if (fcurve.rna_path &&
-            std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
+        if (fcurve_belongs_to_strip(fcurve, strip_path))
         {
           fcurves_to_delete.append(&fcurve);
           break;
@@ -993,12 +998,6 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
     return false;
   }
   return true;
-}
-
-static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &strip_path)
-{
-  return fcurve.rna_path &&
-         std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
 }
 
 static bool delete_scene_action_keyframes_legacy(AnimData *adt,
