@@ -393,7 +393,7 @@ static BMVert *bmo_find_end_of_chain(BMesh *bm, BMEdge *e, BMVert *v, const shor
 
 /* Determines if an unselected tri or quad would be altered if this vert was dissolved.
  * When this is discovered, this vert will not be dissolved. */
-bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
+static bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
 {
   /* If the vert was already tested and marked, don't test again.*/
   if (BMO_vert_flag_test(bm, v, VERT_MARK)) {
@@ -418,10 +418,10 @@ bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
   return false;
 }
 
-int bmo_vert_tagged_edges_count_at_most(BMesh *bm,
-                                        BMVert *v,
-                                        const short edge_oflag,
-                                        const int max)
+static int bmo_vert_tagged_edges_count_at_most(BMesh *bm,
+                                               BMVert *v,
+                                               const short edge_oflag,
+                                               const int max)
 {
   int retval = 0;
   BMIter iter;
