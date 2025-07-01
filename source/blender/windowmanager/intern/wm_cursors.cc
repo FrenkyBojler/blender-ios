@@ -151,8 +151,8 @@ static float cursor_size()
 
 static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
                                                       float size,
-                                                      size_t &width,
-                                                      size_t &height)
+                                                      size_t &r_width,
+                                                      size_t &r_height)
 {
   /* Nano alters the source string. */
   std::string svg_source = svg;
@@ -182,8 +182,8 @@ static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
   nsvgDeleteRasterizer(rast);
   nsvgDelete(image);
 
-  width = dest_w;
-  height = dest_h;
+  r_width = dest_w;
+  r_height = dest_h;
 
   return render_bmp;
 }
