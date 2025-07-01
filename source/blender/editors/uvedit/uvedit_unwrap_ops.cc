@@ -144,13 +144,12 @@ static void uv_map_operator_property_correct_aspect(wmOperatorType *ot)
 /** \name UDIM Access
  * \{ */
 
-void blender::geometry::UVPackIsland_Params::setUDIMOffsetFromSpaceImage(const SpaceImage *sima,
-                                                                         bool pinned)
+void blender::geometry::UVPackIsland_Params::setUDIMOffsetFromSpaceImage(const SpaceImage *sima, bool pinned)
 {
   if (!sima) {
     return; /* Nothing to do. */
   }
-  if (pinned) {
+  if(pinned){
     return;
   }
   /* NOTE: Presently, when UDIM grid and tiled image are present together, only active tile for
@@ -1487,7 +1486,6 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       BLI_remlink(&island_list, island);
       const bool pinned = island_has_pins(scene, island, params);
       if (ignore_pinned && pinned) {
-        printf("Ignored: %d, Pinned: %d", ignore_pinned, pinned);
         MEM_freeN(island->faces);
         MEM_freeN(island);
         continue;
@@ -1788,8 +1786,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
       RNA_enum_get(op->ptr, "shape_method"));
 
   if (udim_source == PACK_UDIM_SRC_ACTIVE) {
-    pack_island_params.setUDIMOffsetFromSpaceImage(
-        sima, pack_island_params.pin_method != ED_UVPACK_PIN_NONE);
+    pack_island_params.setUDIMOffsetFromSpaceImage(sima, pack_island_params.pin_method != ED_UVPACK_PIN_NONE);
   }
 
   if (pid->use_job) {
