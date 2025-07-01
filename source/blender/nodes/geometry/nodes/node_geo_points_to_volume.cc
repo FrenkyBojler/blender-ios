@@ -69,7 +69,6 @@ static float compute_voxel_size_from_amount(const float voxel_amount,
  * The grid class should be either openvdb::GRID_FOG_VOLUME or openvdb::GRID_LEVEL_SET.
  */
 static void initialize_volume_component_from_points(GeoNodeExecParams &params,
-                                                    const NodeGeometryPointsToVolume &storage,
                                                     GeometrySet &r_geometry_set)
 {
   Vector<float3> positions;
@@ -90,11 +89,14 @@ static void initialize_volume_component_from_points(GeoNodeExecParams &params,
     return;
   }
 
+  const auto resolution_mode = params.get_input<GeometryNodePointsToVolumeResolutionMode>(
+      "Resolution Mode");
+
   float voxel_size = 0.0f;
-  if (storage.resolution_mode == GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE) {
+  if (resolution_mode == GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_SIZE) {
     voxel_size = params.get_input<float>("Voxel Size");
   }
-  else if (storage.resolution_mode == GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT) {
+  else if (resolution_mode == GEO_NODE_POINTS_TO_VOLUME_RESOLUTION_MODE_AMOUNT) {
     const float voxel_amount = params.get_input<float>("Voxel Amount");
     const float max_radius = *std::max_element(radii.begin(), radii.end());
     voxel_size = compute_voxel_size_from_amount(voxel_amount, positions, max_radius);
@@ -170,9 +172,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
 #ifdef WITH_OPENVDB
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Points");
-  const NodeGeometryPointsToVolume &storage = node_storage(params.node());
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
-    initialize_volume_component_from_points(params, storage, geometry_set);
+    initialize_volume_component_from_points(params, geometry_set);
   });
   params.set_output("Volume", std::move(geometry_set));
 #else
