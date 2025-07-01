@@ -37,7 +37,7 @@ struct BCursor {
   bool can_invert;
 };
 
-/* We currently support multiple types of mouse cursors. Prefered
+/* We currently support multiple types of mouse cursors. Preferred
  * is to use one provided by the OS. The availability of these are
  * checked with GHOST_HasCursorShape(). These cursors can include
  * platform-specific custom cursors. For example, on MacOS we provide
@@ -52,7 +52,7 @@ struct BCursor {
  * of the document size).
  */
 
-static BCursor BlenderCursor[WM_CURSOR_NUM] = {0};
+static BCursor BlenderCursor[WM_CURSOR_NUM] = {{nullptr}};
 
 /* Blender cursor to GHOST standard cursor conversion. */
 static GHOST_TStandardCursor convert_to_ghost_standard_cursor(WMCursorType curs)
