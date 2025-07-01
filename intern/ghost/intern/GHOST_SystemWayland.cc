@@ -468,7 +468,11 @@ struct GWL_Cursor {
   void *custom_data = nullptr;
   /** The size of `custom_data` in bytes. */
   size_t custom_data_size = 0;
-  /* The requested size for the custom cursors from the env variable XCURSOR_SIZE. */
+  /**
+   * The size of the cursor (when looking up a cursor theme).
+   * This must be scaled by the maximum output scale when passing to wl_cursor_theme_load.
+   * See #update_cursor_scale.
+   */
   int theme_size = 0;
   int custom_scale = 1;
 };
@@ -3628,12 +3632,16 @@ static const wl_buffer_listener cursor_buffer_listener = {
 static CLG_LogRef LOG_WL_CURSOR_SURFACE = {"ghost.wl.handle.cursor_surface"};
 #define LOG (&LOG_WL_CURSOR_SURFACE)
 
-static bool update_cursor_scale([[maybe_unused]] GWL_Cursor &cursor,
-                                [[maybe_unused]] wl_shm *shm,
-                                [[maybe_unused]] GWL_SeatStatePointer *seat_state_pointer,
-                                [[maybe_unused]] wl_surface *wl_surface_cursor)
+static bool update_cursor_scale(GWL_Cursor &cursor,
+                                wl_shm *shm,
+                                GWL_SeatStatePointer *seat_state_pointer,
+                                wl_surface *wl_surface_cursor)
 {
   /* TODO: do cursor scaling correctly. */
+  (void)cursor;
+  (void)shm;
+  (void)seat_state_pointer;
+  (void)wl_surface_cursor;
 #if 0
   int scale = 0;
   for (const GWL_Output *output : seat_state_pointer->outputs) {
@@ -5969,6 +5977,8 @@ static void gwl_seat_capability_pointer_multitouch_disable(GWL_Seat *seat)
 #endif
 }
 
+static const int default_cursor_size = 24;
+
 static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
 {
   if (seat->wl.pointer) {
@@ -5985,12 +5995,12 @@ static void gwl_seat_capability_pointer_enable(GWL_Seat *seat)
 
   gwl_seat_capability_pointer_multitouch_enable(seat);
   {
-    /* Check if XCURSOR_SIZE is set to provice a hint about the size we should use for custom
-     * cursors. At the moment, seems like only wlroot based compositors sets this. Gnome and KDE
-     * does not. */
+    /* Use environment variables, falling back to defaults.
+     * These environment variables are used by enough WAYLAND applications
+     * that it makes sense to check them (see `Xcursor` man page). */
     const char *env;
     env = getenv("XCURSOR_SIZE");
-    seat->cursor.theme_size = 24;
+    seat->cursor.theme_size = default_cursor_size;
 
     if (env && (*env != '\0')) {
       char *env_end = nullptr;
