@@ -2525,13 +2525,16 @@ void RNA_property_update_main(Main *bmain, Scene *scene, PointerRNA *ptr, Proper
 bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
 {
   BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
-  IDProperty *idprop;
   bool value;
 
   BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
   BLI_assert(RNA_property_array_check(prop) == false);
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  if (idprop) {
     value = IDP_Bool(idprop);
   }
   else if (bprop->get) {
@@ -2542,6 +2545,10 @@ bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
   }
   else {
     value = bprop->defaultvalue;
+  }
+
+  if (bprop->get_transform) {
+    value = bprop->get_transform(ptr, prop, value, prop_rna_or_id.is_set);
   }
 
   BLI_assert(ELEM(value, false, true));
@@ -2559,7 +2566,6 @@ bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
 void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
 {
   BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
-  IDProperty *idprop;
 
   BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
   BLI_assert(RNA_property_array_check(prop) == false);
@@ -2568,7 +2574,16 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
   /* just in case other values are passed */
   BLI_assert(ELEM(value, true, false));
 
-  if ((idprop = rna_idproperty_check(&prop, ptr))) {
+  PropertyRNAOrID prop_rna_or_id;
+  rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+
+  if (bprop->set_transform) {
+    const bool curr_value = RNA_property_boolean_get(ptr, prop);
+    value = bprop->set_transform(ptr, prop, value, curr_value, prop_rna_or_id.is_set);
+  }
+
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  if (idprop) {
     IDP_Bool(idprop) = value;
     rna_idproperty_touch(idprop);
   }

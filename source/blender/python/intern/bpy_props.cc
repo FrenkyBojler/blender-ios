@@ -127,9 +127,29 @@ struct BPyPropStore {
    * nullptr members are skipped.
    */
   struct {
-    /** Wrap: `RNA_def_property_*_funcs` (depending on type). */
+    /**
+     * Wrap: `RNA_def_property_*_funcs` (depending on type).
+     *
+     * - `get`/`set` are used to provide access to a non-standard storage for the value (i.e. not
+     *   in the default 'system-defined' IDProperties storage).
+     *   - Their fallback implementation uses the system IDProperties storage system.
+     *   - If `get` is specified, but not `set`, the property is considered read-only.
+     *   - If `set` is specified, but not `get`, this is an error.
+     * - `get_transform`/`set_transform` are used to perform some additional transformation of the
+     *   data, after `get` is called / before `set` is called (or their matching default get/set
+     *   implementations).
+     *   - Their fallback implementation is 'pass-through'.
+     *
+     * Conceptually, the flow of callings is:
+     * - getter:
+     *   `return get_transform(self, get(self), is_property_set(self, "prop"))`
+     * - setter:
+     *   `set(self, set_transform(self, new_value, get(self), is_property_set(self, "prop")))`
+     */
     PyObject *get_fn;
     PyObject *set_fn;
+    PyObject *get_transform_fn;
+    PyObject *set_transform_fn;
     /** Wrap: #RNA_def_property_update_runtime */
     PyObject *update_fn;
 
@@ -693,6 +713,55 @@ static bool bpy_prop_boolean_get_fn(PointerRNA *ptr, PropertyRNA *prop)
   return value;
 }
 
+static bool bpy_prop_boolean_get_transform_fn(PointerRNA *ptr,
+                                              PropertyRNA *prop,
+                                              bool curr_value,
+                                              bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *args;
+  PyObject *self;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.get_transform_fn;
+
+  args = PyTuple_New(3);
+  self = pyrna_struct_as_instance(ptr);
+  PyTuple_SET_ITEM(args, 0, self);
+  PyTuple_SET_ITEM(args, 1, PyBool_FromLong(curr_value));
+  PyTuple_SET_ITEM(args, 2, PyBool_FromLong(is_set));
+
+  ret = PyObject_CallObject(py_func, args);
+
+  Py_DECREF(args);
+
+  bool ret_value = curr_value;
+  if (ret == nullptr) {
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else {
+    const int value_i = PyC_Long_AsBool(ret);
+
+    if (value_i == -1 && PyErr_Occurred()) {
+      PyC_Err_PrintWithFunc(py_func);
+    }
+    else {
+      ret_value = bool(value_i);
+    }
+
+    Py_DECREF(ret);
+  }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
+}
+
 static void bpy_prop_boolean_set_fn(PointerRNA *ptr, PropertyRNA *prop, bool value)
 {
   const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
@@ -730,6 +799,54 @@ static void bpy_prop_boolean_set_fn(PointerRNA *ptr, PropertyRNA *prop, bool val
   }
 
   bpy_prop_gil_rna_writable_end(bpy_state);
+}
+
+static bool bpy_prop_boolean_set_transform_fn(
+    PointerRNA *ptr, PropertyRNA *prop, bool new_value, bool curr_value, bool is_set)
+{
+  const BPyPropGIL_RNAWritable_State bpy_state = bpy_prop_gil_rna_writable_begin();
+
+  BPyPropStore *prop_store = static_cast<BPyPropStore *>(RNA_property_py_data_get(prop));
+  PyObject *py_func;
+  PyObject *args;
+  PyObject *self;
+  PyObject *ret;
+
+  BLI_assert(prop_store != nullptr);
+
+  py_func = prop_store->py_data.set_transform_fn;
+
+  args = PyTuple_New(4);
+  self = pyrna_struct_as_instance(ptr);
+  PyTuple_SET_ITEM(args, 0, self);
+  PyTuple_SET_ITEM(args, 1, PyBool_FromLong(new_value));
+  PyTuple_SET_ITEM(args, 2, PyBool_FromLong(curr_value));
+  PyTuple_SET_ITEM(args, 3, PyBool_FromLong(is_set));
+
+  ret = PyObject_CallObject(py_func, args);
+
+  Py_DECREF(args);
+
+  bool ret_value = curr_value;
+  if (ret == nullptr) {
+    PyC_Err_PrintWithFunc(py_func);
+  }
+  else {
+    const int value_i = PyC_Long_AsBool(ret);
+
+    if (value_i == -1 && PyErr_Occurred()) {
+      PyC_Err_PrintWithFunc(py_func);
+    }
+    else {
+      ret_value = bool(value_i);
+    }
+
+    Py_DECREF(ret);
+  }
+
+  bpy_prop_gil_rna_writable_end(bpy_state);
+
+  return ret_value;
 }
 
 static void bpy_prop_boolean_array_get_fn(PointerRNA *ptr, PropertyRNA *prop, bool *values)
@@ -2029,10 +2146,16 @@ static void bpy_prop_callback_assign_pointer(PropertyRNA *prop, PyObject *poll_f
   }
 }
 
-static void bpy_prop_callback_assign_boolean(PropertyRNA *prop, PyObject *get_fn, PyObject *set_fn)
+static void bpy_prop_callback_assign_boolean(PropertyRNA *prop,
+                                             PyObject *get_fn,
+                                             PyObject *set_fn,
+                                             PyObject *get_transform_fn,
+                                             PyObject *set_transform_fn)
 {
   BooleanPropertyGetFunc rna_get_fn = nullptr;
   BooleanPropertySetFunc rna_set_fn = nullptr;
+  BooleanPropertyGetTransformFunc rna_get_transform_fn = nullptr;
+  BooleanPropertySetTransformFunc rna_set_transform_fn = nullptr;
 
   if (get_fn && get_fn != Py_None) {
     BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
@@ -2048,7 +2171,22 @@ static void bpy_prop_callback_assign_boolean(PropertyRNA *prop, PyObject *get_fn
     ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_fn, set_fn);
   }
 
-  RNA_def_property_boolean_funcs_runtime(prop, rna_get_fn, rna_set_fn);
+  if (get_transform_fn && get_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_get_transform_fn = bpy_prop_boolean_get_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.get_transform_fn, get_transform_fn);
+  }
+
+  if (set_transform_fn && set_transform_fn != Py_None) {
+    BPyPropStore *prop_store = bpy_prop_py_data_ensure(prop);
+
+    rna_set_transform_fn = bpy_prop_boolean_set_transform_fn;
+    ASSIGN_PYOBJECT_INCREF(prop_store->py_data.set_transform_fn, set_transform_fn);
+  }
+
+  RNA_def_property_boolean_funcs_runtime(
+      prop, rna_get_fn, rna_set_fn, rna_get_transform_fn, rna_set_transform_fn);
 }
 
 static void bpy_prop_callback_assign_boolean_array(PropertyRNA *prop,
@@ -2466,14 +2604,33 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "bool]\n"
 
 #define BPY_PROPDEF_GET_DOC(ty) \
-  "   :arg get: Function to be called when this value is 'read',\n" \
+  "   :arg get: Function to be called when this value is 'read', and the default,\n" \
+  "      system-defined storage is not used for this property.\n" \
   "      This function must take 1 value (self) and return the value of the property.\n" \
   "   :type get: Callable[[:class:`bpy.types.bpy_struct`], " ty "]\n"
 
 #define BPY_PROPDEF_SET_DOC(ty) \
-  "   :arg set: Function to be called when this value is 'written',\n" \
+  "   :arg set: Function to be called when this value is 'written', and the default,\n" \
+  "      system-defined storage is not used for this property.\n" \
   "      This function must take 2 values (self, value) and return None.\n" \
   "   :type set: Callable[[:class:`bpy.types.bpy_struct`, " ty "], None]\n"
+
+#define BPY_PROPDEF_GET_TRANSFORM_DOC(ty) \
+  "   :arg get_transform: Function to be called when this value is 'read',\n" \
+  "      if some additional processing must be performed on the stored value.\n" \
+  "      This function must take three arguments (self, the stored value,\n" \
+  "      and a boolean indicating if the property is currently set),\n" \
+  "      and return the final, transformed value of the property.\n" \
+  "   :type get: Callable[[:class:`bpy.types.bpy_struct`, " ty ", bool], " ty "]\n"
+
+#define BPY_PROPDEF_SET_TRANSFORM_DOC(ty) \
+  "   :arg set_transform: Function to be called when this value is 'written',\n" \
+  "      if some additional processing must be performed on the given value before storing it.\n" \
+  "      This function must take four arguments (self, the given value to store,\n" \
+  "      the currently stored value,\n" \
+  "      and a boolean indicating if the property is currently set),\n" \
+  "      and return the final, transformed value of the property.\n" \
+  "   :type get: Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "]\n"
 
 #define BPY_PROPDEF_SEARCH_DOC \
   "   :arg search: Function to be called to show candidates for this string (shown in the UI).\n" \
@@ -2543,12 +2700,15 @@ PyDoc_STRVAR(
     "subtype='NONE', "
     "update=None, "
     "get=None, "
-    "set=None)\n"
+    "set=None, "
+    "get_transform=None, "
+    "set_transform=None)\n"
     "\n"
     "   Returns a new boolean property definition.\n"
     "\n" BPY_PROPDEF_NAME_DOC BPY_PROPDEF_DESC_DOC BPY_PROPDEF_CTXT_DOC BPY_PROPDEF_OPTIONS_DOC
         BPY_PROPDEF_OPTIONS_OVERRIDE_DOC BPY_PROPDEF_TAGS_DOC BPY_PROPDEF_SUBTYPE_NUMBER_DOC
-            BPY_PROPDEF_UPDATE_DOC BPY_PROPDEF_GET_DOC("bool") BPY_PROPDEF_SET_DOC("bool"));
+            BPY_PROPDEF_UPDATE_DOC BPY_PROPDEF_GET_DOC("bool") BPY_PROPDEF_SET_DOC("bool")
+                BPY_PROPDEF_GET_TRANSFORM_DOC("bool") BPY_PROPDEF_SET_TRANSFORM_DOC("bool"));
 static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
 {
   StructRNA *srna;
@@ -2586,6 +2746,9 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
   PyObject *get_fn = nullptr;
   PyObject *set_fn = nullptr;
 
+  PyObject *get_transform_fn = nullptr;
+  PyObject *set_transform_fn = nullptr;
+
   static const char *_keywords[] = {
       "attr",
       "name",
@@ -2599,6 +2762,8 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
       "update",
       "get",
       "set",
+      "get_transform",
+      "set_transform",
       nullptr,
   };
   static _PyArg_Parser _parser = {
@@ -2616,6 +2781,8 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
       "O"  /* `update` */
       "O"  /* `get` */
       "O"  /* `set` */
+      "O"  /* `get_transform` */
+      "O"  /* `set_transform` */
       ":BoolProperty",
       _keywords,
       nullptr,
@@ -2640,7 +2807,9 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
                                         &subtype_enum,
                                         &update_fn,
                                         &get_fn,
-                                        &set_fn))
+                                        &set_fn,
+                                        &get_transform_fn,
+                                        &set_transform_fn))
   {
     return nullptr;
   }
@@ -2652,6 +2821,12 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
     return nullptr;
   }
   if (bpy_prop_callback_check(set_fn, "set", 2) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(get_fn, "get_transform", 3) == -1) {
+    return nullptr;
+  }
+  if (bpy_prop_callback_check(set_fn, "set_transform", 4) == -1) {
     return nullptr;
   }
 
@@ -2676,7 +2851,7 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
     bpy_prop_assign_flag_override(prop, override_enum.value);
   }
   bpy_prop_callback_assign_update(prop, update_fn);
-  bpy_prop_callback_assign_boolean(prop, get_fn, set_fn);
+  bpy_prop_callback_assign_boolean(prop, get_fn, set_fn, get_transform_fn, set_transform_fn);
   RNA_def_property_duplicate_pointers(srna, prop);
 
   Py_RETURN_NONE;

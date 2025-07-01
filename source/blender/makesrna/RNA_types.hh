@@ -661,10 +661,18 @@ struct EnumPropertyItem {
 /* extended versions with PropertyRNA argument */
 using BooleanPropertyGetFunc = bool (*)(PointerRNA *ptr, PropertyRNA *prop);
 using BooleanPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool value);
+using BooleanPropertyGetTransformFunc = bool (*)(PointerRNA *ptr,
+                                                 PropertyRNA *prop,
+                                                 bool value,
+                                                 bool is_set);
+using BooleanPropertySetTransformFunc =
+    bool (*)(PointerRNA *ptr, PropertyRNA *prop, bool new_value, bool curr_value, bool is_set);
+
 using BooleanArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool *values);
 using BooleanArrayPropertySetFunc = void (*)(PointerRNA *ptr,
                                              PropertyRNA *prop,
                                              const bool *values);
+
 using IntPropertyGetFunc = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using IntPropertySetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
 using IntArrayPropertyGetFunc = void (*)(PointerRNA *ptr, PropertyRNA *prop, int *values);

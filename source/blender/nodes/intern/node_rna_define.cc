@@ -59,7 +59,8 @@ PropertyRNA *RNA_def_node_boolean(StructRNA *srna,
                                   bool allow_animation)
 {
   PropertyRNA *prop = RNA_def_property(srna, identifier, PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_funcs_runtime(prop, accessors.getter, accessors.setter);
+  RNA_def_property_boolean_funcs_runtime(
+      prop, accessors.getter, accessors.setter, nullptr, nullptr);
   if (default_value.has_value()) {
     RNA_def_property_boolean_default(prop, *default_value);
   }

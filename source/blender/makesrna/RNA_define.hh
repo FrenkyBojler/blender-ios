@@ -535,7 +535,9 @@ void RNA_def_py_data(PropertyRNA *prop, void *py_data);
 
 void RNA_def_property_boolean_funcs_runtime(PropertyRNA *prop,
                                             BooleanPropertyGetFunc getfunc,
-                                            BooleanPropertySetFunc setfunc);
+                                            BooleanPropertySetFunc setfunc,
+                                            BooleanPropertyGetTransformFunc get_transform_fn,
+                                            BooleanPropertySetTransformFunc set_transform_fn);
 void RNA_def_property_boolean_array_funcs_runtime(PropertyRNA *prop,
                                                   BooleanArrayPropertyGetFunc getfunc,
                                                   BooleanArrayPropertySetFunc setfunc);

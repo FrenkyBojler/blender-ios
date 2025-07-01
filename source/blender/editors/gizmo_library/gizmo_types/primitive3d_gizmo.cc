@@ -290,8 +290,11 @@ static void GIZMO_GT_primitive_3d(wmGizmoType *gzt)
                                        nullptr);
 
   prop = RNA_def_boolean(gzt->srna, "draw_inner", true, "Draw Inner", "");
-  RNA_def_property_boolean_funcs_runtime(
-      prop, gizmo_primitive_rna__draw_inner_get_fn, gizmo_primitive_rna__draw_inner_set_fn);
+  RNA_def_property_boolean_funcs_runtime(prop,
+                                         gizmo_primitive_rna__draw_inner_get_fn,
+                                         gizmo_primitive_rna__draw_inner_set_fn,
+                                         nullptr,
+                                         nullptr);
 }
 
 void ED_gizmotypes_primitive_3d()

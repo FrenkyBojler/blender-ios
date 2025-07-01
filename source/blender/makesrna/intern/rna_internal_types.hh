@@ -126,6 +126,10 @@ using PropStringSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, const c
 using PropEnumGetFuncEx = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using PropEnumSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
 
+/* Transform step (applied after getting, or before setting the value). */
+using PropBooleanGetTransformFunc = BooleanPropertyGetTransformFunc;
+using PropBooleanSetTransformFunc = BooleanPropertySetTransformFunc;
+
 /* Handling override operations, and also comparison. */
 
 /** Structure storing all needed data to process all three kinds of RNA properties. */
@@ -457,6 +461,9 @@ struct BoolPropertyRNA {
   PropBooleanArrayGetFuncEx get_default_array;
   bool defaultvalue;
   const bool *defaultarray;
+
+  PropBooleanGetTransformFunc get_transform;
+  PropBooleanSetTransformFunc set_transform;
 };
 
 struct IntPropertyRNA {
