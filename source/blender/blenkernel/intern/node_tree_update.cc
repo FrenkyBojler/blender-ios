@@ -20,6 +20,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_anim_data.hh"
+#include "BKE_colortools.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_main.hh"
@@ -509,6 +510,7 @@ class NodeTreeMainUpdater {
     this->update_generic_callback(ntree);
     this->remove_unused_previews_when_necessary(ntree);
     this->make_node_previews_dirty(ntree);
+    this->ensure_socket_values(ntree);
 
     this->propagate_runtime_flags(ntree);
     if (ntree.type == NTREE_GEOMETRY) {
@@ -805,6 +807,34 @@ class NodeTreeMainUpdater {
       return;
     }
     blender::bke::node_preview_remove_unused(&ntree);
+  }
+
+  void ensure_socket_values(bNodeTree &ntree)
+  {
+    ntree.ensure_topology_cache();
+    for (bNodeSocket *socket : ntree.all_sockets()) {
+      if (socket->type == SOCK_CLOSURE) {
+        this->ensure_closure_socket_value(*socket->default_value_typed<bNodeSocketValueClosure>());
+      }
+    }
+    ntree.tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
+      if (item.item_type != NODE_INTERFACE_SOCKET) {
+        return true;
+      }
+      auto &socket_item = reinterpret_cast<bNodeTreeInterfaceSocket &>(item);
+      if (socket_item.socket_type == StringRef("NodeSocketClosure")) {
+        this->ensure_closure_socket_value(
+            *static_cast<bNodeSocketValueClosure *>(socket_item.socket_data));
+      }
+      return true;
+    });
+  }
+
+  void ensure_closure_socket_value(bNodeSocketValueClosure &socket_data)
+  {
+    if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_CURVE && !socket_data.curve_mapping) {
+      socket_data.curve_mapping = BKE_curvemapping_add(1, 0.0f, 1.0f, 0.0f, 1.0f);
+    }
   }
 
   void make_node_previews_dirty(bNodeTree &ntree)
