@@ -74,7 +74,7 @@ class UVPackIsland_Params {
   UVPackIsland_Params();
 
   void setFromUnwrapOptions(const UnwrapOptions &options);
-  void setUDIMOffsetFromSpaceImage(const SpaceImage *sima, bool pinned);
+  void setUDIMOffsetFromSpaceImage(const SpaceImage *sima);
   bool isCancelled() const;
 
   /** Restrictions around island rotation. */

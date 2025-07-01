@@ -144,14 +144,12 @@ static void uv_map_operator_property_correct_aspect(wmOperatorType *ot)
 /** \name UDIM Access
  * \{ */
 
-void blender::geometry::UVPackIsland_Params::setUDIMOffsetFromSpaceImage(const SpaceImage *sima, bool pinned)
+void blender::geometry::UVPackIsland_Params::setUDIMOffsetFromSpaceImage(const SpaceImage *sima)
 {
   if (!sima) {
     return; /* Nothing to do. */
   }
-  if(pinned){
-    return;
-  }
+
   /* NOTE: Presently, when UDIM grid and tiled image are present together, only active tile for
    * the tiled image is considered. */
   const Image *image = sima->image;
@@ -1589,6 +1587,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       float nearest_grid_tile_co[2] = {0.0f, 0.0f};
       nearest_grid_tile_dist = uv_nearest_grid_tile_distance(
           udim_grid, selection_center, nearest_grid_tile_co);
+
       base_offset[0] = (nearest_image_tile_dist < nearest_grid_tile_dist) ?
                            nearest_image_tile_co[0] :
                            nearest_grid_tile_co[0];
@@ -1785,8 +1784,8 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   pack_island_params.shape_method = eUVPackIsland_ShapeMethod(
       RNA_enum_get(op->ptr, "shape_method"));
 
-  if (udim_source == PACK_UDIM_SRC_ACTIVE) {
-    pack_island_params.setUDIMOffsetFromSpaceImage(sima, pack_island_params.pin_method != ED_UVPACK_PIN_NONE);
+  if (udim_source == PACK_UDIM_SRC_ACTIVE && pack_island_params.pin_method != ED_UVPACK_PIN_IGNORE) {
+    pack_island_params.setUDIMOffsetFromSpaceImage(sima);
   }
 
   if (pid->use_job) {
