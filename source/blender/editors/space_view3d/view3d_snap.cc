@@ -747,7 +747,6 @@ static int snap_selected_to_active_exec(bContext *C, wmOperator *op)
             }
           }
           
-          // Handle edge selection mirroring
           if (bm->totedgesel > 0) {
             BMIter e_iter;
             BMEdge *e;
