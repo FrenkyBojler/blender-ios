@@ -1465,7 +1465,6 @@ static void uvedit_pack_islands_multi(const Scene *scene,
     bool only_selected_faces = params->only_selected_faces;
     bool only_selected_uvs = params->only_selected_uvs;
     const bool ignore_pinned = params->pin_method == ED_UVPACK_PIN_IGNORE;
-
     if (ignore_pinned && params->pin_unselected) {
       only_selected_faces = false;
       only_selected_uvs = false;
