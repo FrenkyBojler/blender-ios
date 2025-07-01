@@ -95,7 +95,6 @@ struct SubdivCCGCoord {
 
 /* Definition of an edge which is adjacent to at least one of the faces. */
 struct SubdivCCGAdjacentEdge {
-  int num_adjacent_faces;
   /* Indexed by adjacent face index, then by point index on the edge.
    * points to a coordinate into the grids. */
   blender::Vector<blender::Array<SubdivCCGCoord>> boundary_coords;

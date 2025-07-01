@@ -721,7 +721,7 @@ static void subdiv_ccg_average_grids_boundary(SubdivCCG &subdiv_ccg,
                                               const SubdivCCGAdjacentEdge &adjacent_edge,
                                               MutableSpan<GridElementAccumulator> accumulators)
 {
-  const int num_adjacent_faces = adjacent_edge.num_adjacent_faces;
+  const int num_adjacent_faces = adjacent_edge.boundary_coords.size();
   const int grid_size2 = subdiv_ccg.grid_size * 2;
   if (num_adjacent_faces == 1) {
     /* Nothing to average with. */
@@ -1253,7 +1253,7 @@ static void neighbor_coords_edge_get(const SubdivCCG &subdiv_ccg,
   const SubdivCCGAdjacentEdge *adjacent_edge = &subdiv_ccg.adjacent_edges[adjacent_edge_index];
 
   /* 2 neighbor points along the edge, plus one inner point per every adjacent grid. */
-  const int num_adjacent_faces = adjacent_edge->num_adjacent_faces;
+  const int num_adjacent_faces = adjacent_edge->boundary_coords.size();
   int num_duplicates = 0;
   if (include_duplicates) {
     num_duplicates += num_adjacent_faces - 1;
