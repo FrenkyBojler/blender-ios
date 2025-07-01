@@ -73,6 +73,7 @@ void geometry_end(Object &ob);
  */
 void push_multires_mesh_begin(bContext *C, const char *str);
 void push_multires_mesh_end(bContext *C, const char *str);
+std::pair<size_t, int> get_total_sculpt_undo_memory(bContext *C);
 
 }  // namespace undo
 

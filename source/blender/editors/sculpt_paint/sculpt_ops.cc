@@ -25,6 +25,7 @@
 #include "BKE_brush.hh"
 #include "BKE_ccg.hh"
 #include "BKE_context.hh"
+#include "BKE_idprop.hh"
 #include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
@@ -191,6 +192,36 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER;
 }
 
+static wmOperatorStatus sculpt_undo_memory_info_exec(bContext *C, wmOperator *op)
+{
+  auto [total_memory, undo_steps_count] = undo::get_total_sculpt_undo_memory(C);
+  float total_memory_mb = total_memory / (1024.0f * 1024.0f);
+
+  Scene *scene = CTX_data_scene(C);
+  IDProperty *idprop = scene->id.properties;
+
+  IDP_AddToGroup(idprop, bke::idprop::create("sculpt_undo_memory_mb", total_memory_mb).release());
+  IDP_AddToGroup(idprop, bke::idprop::create("sculpt_undo_steps", undo_steps_count).release());
+  BKE_reportf(op->reports,
+              RPT_INFO,
+              "Sculpt Undo Memory: %.2f MB across %d steps",
+              total_memory_mb,
+              undo_steps_count);
+
+  return OPERATOR_FINISHED;
+}
+
+void SCULPT_OT_undo_memory_info(wmOperatorType *ot)
+{
+  ot->name = "Sculpt Undo Memory Info";
+  ot->idname = "SCULPT_OT_undo_memory_info";
+  ot->description = "Display total memory usage of sculpt undo steps";
+
+  ot->exec = sculpt_undo_memory_info_exec;
+  ot->poll = SCULPT_mode_poll;
+
+  ot->flag = OPTYPE_REGISTER;
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1586,6 +1617,7 @@ void operatortypes_sculpt()
   WM_operatortype_append(expand::SCULPT_OT_expand);
   WM_operatortype_append(mask::SCULPT_OT_mask_from_cavity);
   WM_operatortype_append(mask::SCULPT_OT_mask_from_boundary);
+  WM_operatortype_append(SCULPT_OT_undo_memory_info);
 }
 
 void keymap_sculpt(wmKeyConfig *keyconf)

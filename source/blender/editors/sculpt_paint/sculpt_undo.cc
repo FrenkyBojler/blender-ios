@@ -2173,7 +2173,41 @@ void push_multires_mesh_end(bContext *C, const char *str)
   push_end(*object);
 }
 
-/** \} */
+std::pair<size_t, int> get_total_sculpt_undo_memory(bContext *C)
+{
+  UndoStack *ustack = ED_undo_stack_get();
+  if (!ustack) {
+    return {0, 0};
+  }
+
+  Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *current_object = BKE_view_layer_active_object_get(view_layer);
+
+  if (!current_object) {
+    return {0, 0};
+  }
+
+  std::string current_object_name = current_object->id.name;
+
+  int undo_steps_count = 0;
+  size_t total_memory = 0;
+
+  for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
+
+    if (us->type == BKE_UNDOSYS_TYPE_SCULPT) {
+      SculptUndoStep *sculpt_us = reinterpret_cast<SculptUndoStep *>(us);
+
+      if (sculpt_us->data.object_name == current_object_name) {
+        total_memory += sculpt_us->data.undo_size;
+        undo_steps_count++;
+      }
+    }
+  }
+
+  return {total_memory, undo_steps_count};
+}
 
 }  // namespace blender::ed::sculpt_paint::undo
 
