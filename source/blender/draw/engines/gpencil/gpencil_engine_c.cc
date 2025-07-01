@@ -173,7 +173,9 @@ void Instance::begin_sync()
   this->use_object_fb = false;
   this->use_mask_fb = false;
   this->use_separate_pass =
-      bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil");
+      draw_ctx->is_viewport_compositor_enabled() ?
+          bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil") :
+          false;
   /* Always use high precision for render and viewport compositor (viewport compositor only takes
    * RGBA16F/32F formats). */
   this->use_signed_fb = this->use_separate_pass || !this->is_viewport;

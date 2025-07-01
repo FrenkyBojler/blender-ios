@@ -276,6 +276,8 @@ struct Instance final : public DrawEngine {
   bool use_layer_fb;
   bool use_object_fb;
   bool use_mask_fb;
+  /* If viewport compositor is active, we need to render grease pencil onto another additional
+   * pass. */
   bool use_separate_pass;
   /* Some blend mode needs to add negative values.
    * This is only supported if target texture is signed. */
