@@ -10,6 +10,7 @@
 
 #include <fmt/format.h>
 
+#include "BLI_listbase.h"
 #include "DNA_sequence_types.h"
 #include "ED_sequencer.hh"
 #include "MEM_guardedalloc.h"
@@ -885,6 +886,21 @@ static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &str
          std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
 }
 
+static void delete_scene_action_keyframes_legacy(AnimData *adt,
+                                                      bAction *act,
+                                                      Scene *scene,
+                                                      float cfra_unmap,
+                                                      blender::Vector<FCurve *> &modified_fcurves)
+{
+  LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
+    if (!can_delete_scene_key(fcu, scene)) {
+      continue;
+    }
+    blender::animrig::delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
+    modified_fcurves.append(fcu);
+  }
+}
+
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
@@ -921,34 +937,35 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   const float cfra_unmap = BKE_nla_tweakedit_remap(adt, cfra, NLATIME_CONVERT_UNMAP);
 
-  if (!action.is_action_layered()) {
-    /* TODO: @Ernst-Ellert add BKE_reportf */
-    return OPERATOR_CANCELLED;
-  }
-
   blender::VectorSet<std::string> modified_strips;
   blender::Vector<FCurve *> modified_fcurves;
-  foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
-    std::string changed_strip;
-    for (const std::string &strip_path : selected_strips_rna_paths) {
-      if (fcurve_belongs_to_strip(fcurve, strip_path)) {
-        changed_strip = strip_path;
-        break;
+
+  if (action.is_action_layered()) {
+    foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+      std::string changed_strip;
+      for (const std::string &strip_path : selected_strips_rna_paths) {
+        if (fcurve_belongs_to_strip(fcurve, strip_path)) {
+          changed_strip = strip_path;
+          break;
+        }
+      }
+      if (!can_delete_scene_key(&fcurve, scene) || changed_strip.empty()) {
+        return;
+      }
+      if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
+        modified_fcurves.append(&fcurve);
+        modified_strips.add(changed_strip);
+      }
+    });
+
+    for (FCurve *fcurve : modified_fcurves) {
+      if (BKE_fcurve_is_empty(fcurve)) {
+        action_fcurve_remove(action, *fcurve);
       }
     }
-    if (!can_delete_scene_key(&fcurve, scene) || changed_strip.empty()) {
-      return;
-    }
-    if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
-      modified_fcurves.append(&fcurve);
-      modified_strips.add(changed_strip);
-    }
-  });
-
-  for (FCurve *fcurve : modified_fcurves) {
-    if (BKE_fcurve_is_empty(fcurve)) {
-      action_fcurve_remove(action, *fcurve);
-    }
+  }
+  else {
+    delete_scene_action_keyframes_legacy(adt, act, scene, cfra_unmap, modified_fcurves);
   }
 
   if (scene->adt->action) {
