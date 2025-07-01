@@ -544,6 +544,7 @@ set(GLSL_SRC
   shaders/common/gpu_shader_shared_exponent_lib.glsl
   shaders/common/gpu_shader_smaa_lib.glsl
   shaders/common/gpu_shader_test_lib.glsl
+  shaders/common/gpu_shader_texture_streaming_lib.glsl
   shaders/common/gpu_shader_utildefines_lib.glsl
 
   shaders/material/gpu_shader_material_add_shader.glsl

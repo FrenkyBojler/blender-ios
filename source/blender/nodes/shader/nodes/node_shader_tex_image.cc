@@ -102,15 +102,16 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat,
 
     switch (tex->projection) {
       case SHD_PROJ_FLAT: {
-        GPUNodeLink *gpu_image = GPU_image(mat, ima, iuser, sampler_state);
-        GPU_stack_link(mat, node, gpu_node_name, in, out, gpu_image);
+        GPUNodeLink *gpu_image, *gpu_image_info;
+        GPU_image(mat, ima, iuser, sampler_state, &gpu_image, &gpu_image_info);
+        GPU_stack_link(mat, node, gpu_node_name, in, out, gpu_image, gpu_image_info);
         break;
       }
       case SHD_PROJ_BOX: {
         gpu_node_name = use_cubic ? "tex_box_sample_cubic" : "tex_box_sample_linear";
-        GPUNodeLink *vnor, *wnor, *col1, *col2, *col3;
+        GPUNodeLink *vnor, *wnor, *col1, *col2, *col3, *gpu_image, *gpu_image_info;
         GPUNodeLink *blend = GPU_uniform(&tex->projection_blend);
-        GPUNodeLink *gpu_image = GPU_image(mat, ima, iuser, sampler_state);
+        GPU_image(mat, ima, iuser, sampler_state, &gpu_image, &gpu_image_info);
         GPU_link(mat, "world_normals_get", &vnor);
         GPU_link(mat, "normal_transform_world_to_object", vnor, &wnor);
         GPU_link(mat, gpu_node_name, in[0].link, wnor, gpu_image, &col1, &col2, &col3);
@@ -121,7 +122,8 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat,
         /* This projection is known to have a derivative discontinuity.
          * Hide it by turning off mipmapping. */
         sampler_state.disable_filtering_flag(GPU_SAMPLER_FILTERING_MIPMAP);
-        GPUNodeLink *gpu_image = GPU_image(mat, ima, iuser, sampler_state);
+        GPUNodeLink *gpu_image, *gpu_image_info;
+        GPU_image(mat, ima, iuser, sampler_state, &gpu_image, &gpu_image_info);
         GPU_link(mat, "point_texco_remap_square", *texco, texco);
         GPU_link(mat, "point_map_to_sphere", *texco, texco);
         GPU_stack_link(mat, node, gpu_node_name, in, out, gpu_image);
@@ -131,7 +133,8 @@ static int node_shader_gpu_tex_image(GPUMaterial *mat,
         /* This projection is known to have a derivative discontinuity.
          * Hide it by turning off mipmapping. */
         sampler_state.disable_filtering_flag(GPU_SAMPLER_FILTERING_MIPMAP);
-        GPUNodeLink *gpu_image = GPU_image(mat, ima, iuser, sampler_state);
+        GPUNodeLink *gpu_image, *gpu_image_info;
+        GPU_image(mat, ima, iuser, sampler_state, &gpu_image, &gpu_image_info);
         GPU_link(mat, "point_texco_remap_square", *texco, texco);
         GPU_link(mat, "point_map_to_tube", *texco, texco);
         GPU_stack_link(mat, node, gpu_node_name, in, out, gpu_image);

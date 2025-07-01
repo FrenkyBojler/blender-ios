@@ -189,6 +189,17 @@ void MaterialModule::begin_sync()
   texture_lod_buf_.current().read();
 }
 
+static int decode_streaming_mask_to_lod(uint32_t feedback)
+{
+  /* Feedback won't be available the first frames or when the texture is fully clipped. */
+  if (feedback == 0) {
+    return 16;
+  }
+  int found_bit = 31u - bitscan_reverse_uint(feedback);
+  int tbit = 10;  // 1 << 10 = 1024 our texture size;
+  return std::clamp(tbit - found_bit, 0, 16);
+}
+
 void MaterialModule::queue_texture_loading(GPUMaterial *material)
 {
   ListBase textures = GPU_material_textures(material);
@@ -197,10 +208,11 @@ void MaterialModule::queue_texture_loading(GPUMaterial *material)
       const bool use_tile_mapping = tex->tiled_mapping_name[0];
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
       ::Image &image = *tex->ima;
-      int requested_mipmap_level = texture_lod_buf_.current()[image.runtime->gpu_info_index];
+      int requested_mipmap_level = decode_streaming_mask_to_lod(
+          texture_lod_buf_.current()[image.runtime->gpu_info_index]);
       ImageGPUTextures gputex = BKE_image_get_gpu_material_texture_try(
           &image, iuser, use_tile_mapping, requested_mipmap_level);
-      if (*gputex.texture == nullptr || requested_mipmap_level != gputex.loaded_mipmap_level) {
+      if (*gputex.texture == nullptr || gputex.recreate_mipmap_texture) {
         texture_loading_queue_.append(tex);
       }
     }
@@ -241,7 +253,8 @@ void MaterialModule::end_sync()
     GPU_debug_group_begin(image.id.name);
 
     const bool use_tile_mapping = tex->tiled_mapping_name[0];
-    const int requested_mipmap_level = texture_lod_buf_.current()[image.runtime->gpu_info_index];
+    const int requested_mipmap_level = decode_streaming_mask_to_lod(
+        texture_lod_buf_.current()[image.runtime->gpu_info_index]);
     ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
     ImageGPUTextures gputex = BKE_image_get_gpu_material_texture(
         tex->ima, iuser, use_tile_mapping, requested_mipmap_level);

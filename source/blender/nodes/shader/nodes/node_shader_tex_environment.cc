@@ -104,7 +104,9 @@ static int node_shader_gpu_tex_environment(GPUMaterial *mat,
   }
 
   /* Sample texture with correct interpolation. */
-  GPU_link(mat, gpu_fn, in[0].link, GPU_image(mat, ima, iuser, sampler), &out[0].link, &outalpha);
+  GPUNodeLink *gpu_image, *gpu_image_info;
+  GPU_image(mat, ima, iuser, sampler, &gpu_image, &gpu_image_info);
+  GPU_link(mat, gpu_fn, in[0].link, gpu_image, &out[0].link, &outalpha);
 
   if (out[0].hasoutput && ima) {
     if (ELEM(ima->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED) ||

@@ -168,7 +168,7 @@ IMAGE_FREQ(GBUF_CLOSURE_SLOT, GPU_RGB10_A2, write, image2DArray, out_gbuf_closur
 IMAGE_FREQ(GBUF_NORMAL_SLOT, GPU_RG16, write, image2DArray, out_gbuf_normal_img, PASS)
 /* Storage for additional infos that are shared across closures. */
 IMAGE_FREQ(GBUF_HEADER_SLOT, GPU_R32UI, write, uimage2DArray, out_gbuf_header_img, PASS)
-STORAGE_BUF(MATERIAL_TEXTURE_LOD_SLOT, read_write, uint, out_texture_lod)
+STORAGE_BUF(MATERIAL_TEXTURE_LOD_SLOT, read_write, uint, out_texture_lod[])
 /* Added at runtime because of test shaders not having `node_tree`. */
 // ADDITIONAL_INFO(eevee_render_pass_out)
 // ADDITIONAL_INFO(eevee_cryptomatte_out)

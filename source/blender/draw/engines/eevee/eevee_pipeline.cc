@@ -505,6 +505,7 @@ void DeferredLayerBase::gbuffer_pass_sync(Instance &inst)
   gbuffer_ps_.bind_resources(inst.shadows);
   gbuffer_ps_.bind_resources(inst.sphere_probes);
   gbuffer_ps_.bind_resources(inst.volume_probes);
+  gbuffer_ps_.bind_resources(inst.materials);
 
   DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_EQUAL | DRW_STATE_WRITE_STENCIL |
                    DRW_STATE_CLIP_CONTROL_UNIT_RANGE | DRW_STATE_STENCIL_ALWAYS;

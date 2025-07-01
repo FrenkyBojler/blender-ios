@@ -429,6 +429,7 @@ class MaterialModule {
 
   /* Push unloaded texture used by this material to the texture loading queue. */
   void queue_texture_loading(GPUMaterial *material);
+  
 
   ShaderGroups default_materials_load(bool block_until_ready = false);
 };

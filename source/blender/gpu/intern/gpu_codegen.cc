@@ -68,6 +68,8 @@ static std::ostream &operator<<(std::ostream &stream, const GPUInput *input)
       return stream << input->texture->sampler_name;
     case GPU_SOURCE_TEX_TILED_MAPPING:
       return stream << input->texture->tiled_mapping_name;
+    case GPU_SOURCE_TEX_INFO:
+      return stream << input->texture->info_index_name;
     default:
       BLI_assert(0);
       return stream;
@@ -242,6 +244,9 @@ void GPUCodegen::generate_resources()
     else {
       const char *name = info.name_buffer.append_sampler_name(tex->sampler_name);
       info.sampler(slot++, ImageType::Float2D, name, Frequency::BATCH);
+
+      const char *info_name = info.name_buffer.append_sampler_name(tex->info_index_name);
+      info.push_constant(shader::Type::float_t, info_name);
     }
   }
 

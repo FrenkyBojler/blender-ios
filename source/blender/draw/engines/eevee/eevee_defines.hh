@@ -273,7 +273,8 @@
 #define VELOCITY_INDIRECTION_BUF_SLOT 4
 
 /* Texture streaming read-back */
-#define MATERIAL_TEXTURE_LOD_SLOT 8
+// TODO: find a better slot. this is right after the debug slots.
+#define MATERIAL_TEXTURE_LOD_SLOT 16
 
 /* Treat closure as singular if the roughness is below this threshold. */
 #define BSDF_ROUGHNESS_THRESHOLD 2e-2

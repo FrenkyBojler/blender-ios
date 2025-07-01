@@ -1140,16 +1140,14 @@ inline void PassBase<T>::material_set(Manager &manager,
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
 
       ImageGPUTextures gputex;
-      // TODO: need to do something here. perhaps store the mipmap level inside GPUMaterialTexture,
-      // or request it from the tex->ima
-      int required_mipmap_level = 0;
       if (deferred_texture_loading) {
+        /* No need to use the actual mipmap level, try will provide the last loaded. */
+        constexpr int mipmap_level = 0;
         gputex = BKE_image_get_gpu_material_texture_try(
-            tex->ima, iuser, use_tile_mapping, required_mipmap_level);
+            tex->ima, iuser, use_tile_mapping, mipmap_level);
       }
       else {
-        gputex = BKE_image_get_gpu_material_texture(
-            tex->ima, iuser, use_tile_mapping, required_mipmap_level);
+        gputex = BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
       }
 
       if (*gputex.texture == nullptr) {
@@ -1159,6 +1157,9 @@ inline void PassBase<T>::material_set(Manager &manager,
         if (gputex.tile_mapping) {
           bind_texture(tex->tiled_mapping_name, gputex.tile_mapping, tex->sampler_state);
         }
+        int info_index = -1;
+        float *info_index_float = (float *)&info_index;
+        push_constant(tex->info_index_name, *info_index_float);
       }
       else {
         /* Texture is loaded. Acquire. */
@@ -1168,6 +1169,10 @@ inline void PassBase<T>::material_set(Manager &manager,
           manager.acquire_texture(*gputex.tile_mapping);
           bind_texture(tex->tiled_mapping_name, *gputex.tile_mapping, tex->sampler_state);
         }
+        // Perhaps be smarter as this will try to add the PC, even when the image doesn't use it
+        // sky/tiled/...
+        float *info_index_float = (float *)&tex->ima->runtime->gpu_info_index;
+        push_constant(tex->info_index_name, *info_index_float);
       }
     }
     else if (tex->colorband) {

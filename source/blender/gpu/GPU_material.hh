@@ -236,6 +236,7 @@ struct GPUMaterialTexture {
   GPUTexture **sky;
   char sampler_name[32];       /* Name of sampler in GLSL. */
   char tiled_mapping_name[32]; /* Name of tile mapping sampler in GLSL. */
+  char info_index_name[32];    /* Name of the info index in GLSL.*/
   int users;
   GPUSamplerState sampler_state;
 };
@@ -313,10 +314,12 @@ GPUNodeLink *GPU_uniform_attribute(GPUMaterial *mat,
                                    bool use_dupli,
                                    uint32_t *r_hash);
 GPUNodeLink *GPU_layer_attribute(GPUMaterial *mat, const char *name);
-GPUNodeLink *GPU_image(GPUMaterial *mat,
-                       Image *ima,
-                       ImageUser *iuser,
-                       GPUSamplerState sampler_state);
+void GPU_image(GPUMaterial *mat,
+               Image *ima,
+               ImageUser *iuser,
+               GPUSamplerState sampler_state,
+               GPUNodeLink **r_image_link,
+               GPUNodeLink **r_image_info);
 void GPU_image_tiled(GPUMaterial *mat,
                      Image *ima,
                      ImageUser *iuser,

@@ -45,7 +45,7 @@ struct StampData;
 struct ImageGPUTextures {
   GPUTexture **texture;
   GPUTexture **tile_mapping;
-  int loaded_mipmap_level;
+  bool recreate_mipmap_texture;
 };
 
 namespace blender::bke {

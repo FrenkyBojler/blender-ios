@@ -126,6 +126,10 @@ static void gpu_node_input_link(GPUNode *node, GPUNodeLink *link, const eGPUType
       input->source = GPU_SOURCE_TEX_TILED_MAPPING;
       input->texture = link->texture;
       break;
+    case GPU_NODE_LINK_IMAGE_INFO:
+      input->source = GPU_SOURCE_TEX_INFO;
+      input->texture = link->texture;
+      break;
     case GPU_NODE_LINK_ATTR:
       input->source = GPU_SOURCE_ATTR;
       input->attr = link->attr;
@@ -517,6 +521,7 @@ static GPUMaterialTexture *gpu_node_graph_add_texture(GPUNodeGraph *graph,
     if (is_tiled) {
       SNPRINTF(tex->tiled_mapping_name, "tsamp%d", num_textures);
     }
+    SNPRINTF(tex->info_index_name, "info%d", num_textures);
     BLI_addtail(&graph->textures, tex);
   }
 
@@ -650,17 +655,23 @@ GPUNodeLink *GPU_differentiate_float_function(const char *function_name, const f
   return link;
 }
 
-GPUNodeLink *GPU_image(GPUMaterial *mat,
-                       Image *ima,
-                       ImageUser *iuser,
-                       GPUSamplerState sampler_state)
+void GPU_image(GPUMaterial *mat,
+               Image *ima,
+               ImageUser *iuser,
+               GPUSamplerState sampler_state,
+               GPUNodeLink **r_image_link,
+               GPUNodeLink **r_image_info_link)
 {
   GPUNodeGraph *graph = gpu_material_node_graph(mat);
-  GPUNodeLink *link = gpu_node_link_create();
-  link->link_type = GPU_NODE_LINK_IMAGE;
-  link->texture = gpu_node_graph_add_texture(
+  GPUMaterialTexture *texture = gpu_node_graph_add_texture(
       graph, ima, iuser, nullptr, nullptr, false, sampler_state);
-  return link;
+  (*r_image_link) = gpu_node_link_create();
+  (*r_image_link)->link_type = GPU_NODE_LINK_IMAGE;
+  (*r_image_link)->texture = texture;
+
+  (*r_image_info_link) = gpu_node_link_create();
+  (*r_image_info_link)->link_type = GPU_NODE_LINK_IMAGE_INFO;
+  (*r_image_info_link)->texture = texture;
 }
 
 GPUNodeLink *GPU_image_sky(GPUMaterial *mat,

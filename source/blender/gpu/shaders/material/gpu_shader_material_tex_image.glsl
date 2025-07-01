@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "gpu_shader_bicubic_sampler_lib.glsl"
+#include "gpu_shader_texture_streaming_lib.glsl"
 
 void point_texco_remap_square(float3 vin, out float3 vout)
 {
@@ -54,7 +55,8 @@ void point_map_to_tube(float3 vin, out float3 vout)
 /* 16bits floats limits. Higher/Lower values produce +/-inf. */
 #define safe_color(a) (clamp(a, -65520.0f, 65520.0f))
 
-void node_tex_image_linear(float3 co, sampler2D ima, out float4 color, out float alpha)
+void node_tex_image_linear(
+    float3 co, sampler2D ima, float ima_info_float, out float4 color, out float alpha)
 {
 #ifdef GPU_FRAGMENT_SHADER
   float2 dx = gpu_dfdx(co.xy) * texture_lod_bias_get();
@@ -66,6 +68,14 @@ void node_tex_image_linear(float3 co, sampler2D ima, out float4 color, out float
 #endif
 
   alpha = color.a;
+
+#ifdef GPU_FRAGMENT_SHADER
+  int ima_info = floatBitsToInt(ima_info_float);
+  if (ima_info != -1) {
+
+    texture_streaming_write_feedback(ima_info, dx, dy);
+  }
+#endif
 }
 
 void node_tex_image_cubic(float3 co, sampler2D ima, out float4 color, out float alpha)

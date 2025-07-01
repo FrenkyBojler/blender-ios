@@ -373,7 +373,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
                                               std::optional<int> mipmap_level,
                                               bool try_only)
 {
-  ImageGPUTextures result = {nullptr, nullptr, -1};
+  ImageGPUTextures result = {nullptr, nullptr, false};
 
   if (ima == nullptr) {
     return result;
@@ -431,7 +431,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   if (use_texture_streaming) {
     result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try(mipmap_level.value());
     /* Check if the current cached mipmap texture contains the requested mipmap level. */
-    if (*result.texture && result.loaded_mipmap_level == mipmap_level.value()) {
+    if (*result.texture && !result.recreate_mipmap_texture) {
       return result;
     }
   }
