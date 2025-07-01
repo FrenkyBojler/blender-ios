@@ -2200,3 +2200,30 @@ GHOST_TSuccess GHOST_SystemCocoa::showMessageBox(const char *title,
   }
   return GHOST_kSuccess;
 }
+
+GHOST_TSuccess GHOST_SystemCocoa::isAccessibilityFeatureEnabled(
+    GHOST_TAccessibilityFlag flag) const
+{
+  NSWorkspace *sharedWorkspace = [NSWorkspace sharedWorkspace];
+
+  switch (flag) {
+    case GHOST_kAccessibilityDifferentiateWithoutColor:
+      return [sharedWorkspace accessibilityDisplayShouldDifferentiateWithoutColor] ?
+                 GHOST_kSuccess :
+                 GHOST_kFailure;
+    case GHOST_kAccessibilityIncreaseContrast:
+      return [sharedWorkspace accessibilityDisplayShouldIncreaseContrast] ? GHOST_kSuccess :
+                                                                            GHOST_kFailure;
+    case GHOST_kAccessibilityInvertColors:
+      return [sharedWorkspace accessibilityDisplayShouldInvertColors] ? GHOST_kSuccess :
+                                                                        GHOST_kFailure;
+    case GHOST_kAccessibilityReduceMotion:
+      return [sharedWorkspace accessibilityDisplayShouldReduceMotion] ? GHOST_kSuccess :
+                                                                        GHOST_kFailure;
+    case GHOST_kAccessibilityReduceTransparency:
+      return [sharedWorkspace accessibilityDisplayShouldReduceTransparency] ? GHOST_kSuccess :
+                                                                              GHOST_kFailure;
+  }
+
+  return GHOST_kFailure;
+}

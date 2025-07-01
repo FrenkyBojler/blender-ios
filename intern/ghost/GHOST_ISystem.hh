@@ -506,6 +506,9 @@ class GHOST_ISystem {
                                         const char * /*link*/,
                                         GHOST_DialogOptions /*dialog_options*/) const = 0;
 
+  virtual GHOST_TSuccess isAccessibilityFeatureEnabled(
+      GHOST_TAccessibilityFlag /*flag*/) const = 0;
+
   /***************************************************************************************
    * Debugging
    ***************************************************************************************/

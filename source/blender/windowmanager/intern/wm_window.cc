@@ -2025,6 +2025,20 @@ void wm_ghost_init(bContext *C)
     GHOST_UseNativePixels();
   }
 
+  printf(
+      "Accessibility Flags:\n"
+      "Differentiate without color: %d\n"
+      "Increase Contrast: %d\n"
+      "Invert Colors: %d\n"
+      "Reduce Motion: %d\n"
+      "Reduce Transparency: %d\n",
+
+      GHOST_isAccessibilityFeatureEnabled(g_system, GHOST_kAccessibilityDifferentiateWithoutColor),
+      GHOST_isAccessibilityFeatureEnabled(g_system, GHOST_kAccessibilityIncreaseContrast),
+      GHOST_isAccessibilityFeatureEnabled(g_system, GHOST_kAccessibilityInvertColors),
+      GHOST_isAccessibilityFeatureEnabled(g_system, GHOST_kAccessibilityReduceMotion),
+      GHOST_isAccessibilityFeatureEnabled(g_system, GHOST_kAccessibilityReduceTransparency));
+
   GHOST_UseWindowFocus(wm_init_state.window_focus);
 }
 

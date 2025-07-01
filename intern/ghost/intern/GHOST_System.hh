@@ -240,6 +240,13 @@ class GHOST_System : public GHOST_ISystem {
    */
   virtual GHOST_TSuccess getButtons(GHOST_Buttons &buttons) const = 0;
 
+  GHOST_TSuccess isAccessibilityFeatureEnabled(GHOST_TAccessibilityFlag /*flag*/) const override
+  {
+    /* By default, a backend that doesn't implement this function is deemed to not support any
+     * accessibility feature checks. */
+    return GHOST_kFailure;
+  }
+
   /***************************************************************************************
    * Debugging
    ***************************************************************************************/

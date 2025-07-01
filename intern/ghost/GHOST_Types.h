@@ -136,6 +136,14 @@ typedef enum {
 
 } GHOST_TCapabilityFlag;
 
+typedef enum {
+  GHOST_kAccessibilityDifferentiateWithoutColor,
+  GHOST_kAccessibilityIncreaseContrast,
+  GHOST_kAccessibilityInvertColors,
+  GHOST_kAccessibilityReduceMotion,
+  GHOST_kAccessibilityReduceTransparency
+} GHOST_TAccessibilityFlag;
+
 /**
  * Back-ends should use this, masking out features which are not supported
  * with notes as to why those features cannot be supported.

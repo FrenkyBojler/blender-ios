@@ -70,6 +70,13 @@ void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
   system->showMessageBox(title, message, help_label, continue_label, link, dialog_options);
 }
 
+GHOST_TSuccess GHOST_isAccessibilityFeatureEnabled(GHOST_SystemHandle systemhandle,
+                                                   GHOST_TAccessibilityFlag accessibilityFlag)
+{
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
+  return system->isAccessibilityFeatureEnabled(accessibilityFlag);
+}
+
 GHOST_EventConsumerHandle GHOST_CreateEventConsumer(GHOST_EventCallbackProcPtr eventCallback,
                                                     GHOST_TUserDataPtr user_data)
 {

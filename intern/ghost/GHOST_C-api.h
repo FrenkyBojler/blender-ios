@@ -64,6 +64,9 @@ extern void GHOST_ShowMessageBox(GHOST_SystemHandle systemhandle,
                                  const char *link,
                                  GHOST_DialogOptions dialog_options);
 
+GHOST_TSuccess GHOST_isAccessibilityFeatureEnabled(GHOST_SystemHandle systemhandle,
+                                                   GHOST_TAccessibilityFlag accessibilityFlag);
+
 /**
  * Creates an event consumer object
  * \param eventCallback: The event callback routine.

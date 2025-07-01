@@ -315,6 +315,8 @@ class GHOST_SystemCocoa : public GHOST_System {
                                 const char *link,
                                 GHOST_DialogOptions dialog_options) const override;
 
+  GHOST_TSuccess isAccessibilityFeatureEnabled(GHOST_TAccessibilityFlag /*flag*/) const override;
+
  protected:
   /**
    * Initializes the system.
