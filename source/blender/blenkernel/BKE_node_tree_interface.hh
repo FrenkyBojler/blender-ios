@@ -288,13 +288,15 @@ template<typename Fn> bool socket_data_to_static_type(const eNodeSocketDatatype 
     case SOCK_MENU:
       fn.template operator()<bNodeSocketValueMenu>();
       return true;
+    case SOCK_CLOSURE:
+      fn.template operator()<bNodeSocketValueClosure>();
+      return true;
 
     case SOCK_CUSTOM:
     case SOCK_SHADER:
     case SOCK_MATRIX:
     case SOCK_GEOMETRY:
     case SOCK_BUNDLE:
-    case SOCK_CLOSURE:
       return true;
   }
   return false;

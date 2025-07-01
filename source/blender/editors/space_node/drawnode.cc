@@ -1362,6 +1362,25 @@ static void std_node_socket_draw(
 
       break;
     }
+    case SOCK_CLOSURE: {
+      const bNodeSocketValueClosure *default_value =
+          sock->default_value_typed<bNodeSocketValueClosure>();
+      switch (ClosureSocketValueType(default_value->type)) {
+        case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
+          draw_node_socket_without_value(layout, sock, text);
+          break;
+        }
+        case CLOSURE_SOCKET_VALUE_TYPE_CURVE:
+          if (default_value->curve_mapping) {
+            uiTemplateCurveMapping(layout, ptr, "curve_mapping", 0, false, false, false, false);
+          }
+          else {
+            draw_node_socket_without_value(layout, sock, text);
+          }
+          break;
+      }
+      break;
+    }
     default:
       draw_node_socket_without_value(layout, sock, text);
       break;
@@ -1432,11 +1451,14 @@ static void std_node_socket_interface_draw(ID *id,
       col->prop(&ptr, "menu_expanded", DEFAULT_FLAGS, IFACE_("Expanded"), ICON_NONE);
       break;
     }
+    case SOCK_CLOSURE: {
+      col->prop(&ptr, "closure_type", DEFAULT_FLAGS, IFACE_("Closure Type"), ICON_NONE);
+      break;
+    }
     case SOCK_SHADER:
     case SOCK_GEOMETRY:
     case SOCK_MATRIX:
     case SOCK_BUNDLE:
-    case SOCK_CLOSURE:
       break;
 
     case SOCK_CUSTOM:

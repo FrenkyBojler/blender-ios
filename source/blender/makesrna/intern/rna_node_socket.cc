@@ -39,6 +39,12 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem rna_socket_closure_type_items[] = {
+    {CLOSURE_SOCKET_VALUE_TYPE_NONE, "NONE", 0, "None", ""},
+    {CLOSURE_SOCKET_VALUE_TYPE_CURVE, "CURVE", 0, "Curve", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 #ifdef RNA_RUNTIME
 
 #  include <fmt/format.h>
@@ -1680,22 +1686,50 @@ static void rna_def_node_socket_interface_bundle(BlenderRNA *brna, const char *i
 static void rna_def_node_socket_closure(BlenderRNA *brna, const char *identifier)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, identifier, "NodeSocketStandard");
   RNA_def_struct_ui_text(srna, "Closure Node Socket", "Closure socket of a node");
   RNA_def_struct_ui_icon(srna, ICON_NODE_SOCKET_CLOSURE);
   RNA_def_struct_sdna(srna, "bNodeSocket");
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocketValueClosure", "default_value");
+
+  prop = RNA_def_property(srna, "closure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "type");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, rna_socket_closure_type_items);
+  RNA_def_property_ui_text(prop, "Type", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocket_update");
+
+  prop = RNA_def_property(srna, "curve_mapping", PROP_POINTER, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Curve Mapping", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeSocket_update");
 }
 
 static void rna_def_node_socket_interface_closure(BlenderRNA *brna, const char *identifier)
 {
   StructRNA *srna;
+  PropertyRNA *prop;
 
   srna = RNA_def_struct(brna, identifier, "NodeTreeInterfaceSocket");
   RNA_def_struct_ui_text(srna, "Closure Node Socket Interface", "Closure socket of a node");
   RNA_def_struct_sdna(srna, "bNodeTreeInterfaceSocket");
 
   rna_def_node_tree_interface_socket_builtin(srna);
+
+  RNA_def_struct_sdna_from(srna, "bNodeSocketValueClosure", "socket_data");
+
+  prop = RNA_def_property(srna, "closure_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "type");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, rna_socket_closure_type_items);
+  RNA_def_property_ui_text(prop, "Type", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
+
+  prop = RNA_def_property(srna, "curve_mapping", PROP_POINTER, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Curve Mapping", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 }
 
 static void rna_def_node_socket_collection(BlenderRNA *brna, const char *identifier)

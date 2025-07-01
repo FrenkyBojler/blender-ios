@@ -188,6 +188,11 @@ template<> void socket_data_init_impl(bNodeSocketValueMenu &data)
   data.enum_items = nullptr;
   data.runtime_flag = 0;
 }
+template<> void socket_data_init_impl(bNodeSocketValueClosure &data)
+{
+  data.type = CLOSURE_SOCKET_VALUE_TYPE_NONE;
+  data.curve_mapping = nullptr;
+}
 
 static void *make_socket_data(const StringRef socket_type)
 {
@@ -339,6 +344,10 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMaterial
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &data)
 {
   BLO_write_struct(writer, bNodeSocketValueMenu, &data);
+}
+inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueClosure &data)
+{
+  BLO_write_struct(writer, bNodeSocketValueClosure, &data);
 }
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
