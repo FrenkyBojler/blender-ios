@@ -71,6 +71,8 @@
 
 #include "anim_intern.hh"
 
+using std::string;
+
 static KeyingSet *keyingset_get_from_op_with_error(wmOperator *op,
                                                    PropertyRNA *prop,
                                                    Scene *scene);
@@ -929,19 +931,19 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   blender::VectorSet<std::string> modified_strips;
   blender::Vector<FCurve *> modified_fcurves;
   foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
-    bool fcurve_belongs_to_selected_strip = false;
+    string changed_strip;
     for (const std::string &strip_path : selected_strips_rna_paths) {
       if (fcurve_belongs_to_strip(fcurve, strip_path)) {
-        fcurve_belongs_to_selected_strip = true;
-        modified_strips.add(strip_path);
+        changed_strip = strip_path;
         break;
       }
     }
-    if (!can_delete_scene_key(&fcurve, scene) || !fcurve_belongs_to_selected_strip) {
+    if (!can_delete_scene_key(&fcurve, scene) || changed_strip.empty()) {
       return;
     }
     if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
       modified_fcurves.append(&fcurve);
+      modified_strips.add(changed_strip);
     }
   });
 
@@ -972,7 +974,8 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   if (confirm) {
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
-    if (modified_strips.size()) {
+    printf("modified_strips.size() %ld\n", modified_strips.size());
+    if (modified_strips.size() > 0) {
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "%ld strip(s) successfully had %ld keyframes removed",
