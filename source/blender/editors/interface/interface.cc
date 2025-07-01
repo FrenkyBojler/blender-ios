@@ -2426,9 +2426,6 @@ int ui_but_is_pushed_ex(uiBut *but, double *value)
         is_push = -1;
         if (view_item_but->view_item) {
           is_push = view_item_but->view_item->is_active();
-          if (view_item_but->view_item->is_selected()) {
-            but->flag |= UI_SELECT_DRAW;
-          }
         }
         break;
       }
