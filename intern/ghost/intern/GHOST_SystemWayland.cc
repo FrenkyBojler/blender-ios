@@ -468,6 +468,7 @@ struct GWL_Cursor {
   size_t custom_data_size = 0;
   /* The requested size for the custom cursors from the env variable XCURSOR_SIZE. */
   int theme_size = 0;
+  int custom_scale = 1;
 };
 
 /** \} */
@@ -3624,6 +3625,57 @@ static const wl_buffer_listener cursor_buffer_listener = {
 
 static CLG_LogRef LOG_WL_CURSOR_SURFACE = {"ghost.wl.handle.cursor_surface"};
 #define LOG (&LOG_WL_CURSOR_SURFACE)
+
+static bool update_cursor_scale([[maybe_unused]] GWL_Cursor &cursor,
+                                [[maybe_unused]] wl_shm *shm,
+                                [[maybe_unused]] GWL_SeatStatePointer *seat_state_pointer,
+                                [[maybe_unused]] wl_surface *wl_surface_cursor)
+{
+  /* TODO: do cursor scaling correctly. */
+#if 0
+  int scale = 0;
+  for (const GWL_Output *output : seat_state_pointer->outputs) {
+    int output_scale_floor = output->scale;
+
+    /* It's important to round down in the case of fractional scale,
+     * otherwise the cursor can be scaled down to be unusably small.
+     * This is especially a problem when:
+     * - The cursor theme has one size (24px for the default cursor).
+     * - The fractional scaling is set just above 1 (typically 125%).
+     *
+     * In this case the `output->scale` is rounded up to 2 and a larger cursor is requested.
+     * It's assumed a large cursor is available but that's not always the case.
+     * When only a smaller cursor is available it's still assumed to be large,
+     * fractional scaling causes the cursor to be scaled down making it ~10px. see #105895. */
+    if (output_scale_floor > 1 && output->has_scale_fractional) {
+      output_scale_floor = std::max(1, output->scale_fractional / FRACTIONAL_DENOMINATOR);
+    }
+
+    scale = std::max(output_scale_floor, scale);
+  }
+
+  if (scale > 0 && seat_state_pointer->theme_scale != scale) {
+    seat_state_pointer->theme_scale = scale;
+    if (!cursor.is_custom) {
+      if (wl_surface_cursor) {
+        wl_surface_set_buffer_scale(wl_surface_cursor, scale);
+      }
+    }
+    wl_cursor_theme_destroy(cursor.wl.theme);
+    cursor.wl.theme = wl_cursor_theme_load(
+        (cursor.theme_name.empty() ? nullptr : cursor.theme_name.c_str()),
+        scale * cursor.theme_size,
+        shm);
+    if (cursor.wl.theme_cursor) {
+      cursor.wl.theme_cursor = wl_cursor_theme_get_cursor(cursor.wl.theme,
+                                                          cursor.wl.theme_cursor_name);
+    }
+
+    return true;
+  }
+#endif
+  return false;
+}
 
 static void cursor_surface_handle_enter(void *data, wl_surface *wl_surface, wl_output *wl_output)
 {
@@ -9249,6 +9301,25 @@ void GHOST_SystemWayland::output_scale_update(GWL_Output *output)
       const std::vector<GWL_Output *> &outputs = win->outputs_get();
       if (!(std::find(outputs.begin(), outputs.end(), output) == outputs.cend())) {
         win->outputs_changed_update_scale_tag();
+      }
+    }
+  }
+  for (GWL_Seat *seat : display_->seats) {
+    if (seat->pointer.outputs.count(output)) {
+      update_cursor_scale(seat->cursor,
+                          seat->system->wl_shm_get(),
+                          &seat->pointer,
+                          seat->cursor.wl.surface_cursor);
+    }
+
+    if (seat->tablet.outputs.count(output)) {
+      for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
+        GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
+            zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
+        update_cursor_scale(seat->cursor,
+                            seat->system->wl_shm_get(),
+                            &seat->tablet,
+                            tablet_tool->wl.surface_cursor);
       }
     }
   }
