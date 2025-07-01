@@ -10,7 +10,7 @@ __all__ = (
     "read_blend_rend_chunk",
 )
 
-import blendfile_header
+import _blendfile_header
 
 
 class RawBlendFileReader:
@@ -72,14 +72,13 @@ def get_render_info_structure(endian_str, size):
 
 
 def _read_blend_rend_chunk_from_file(blendfile, filepath):
-    import struct
     import sys
 
     from os import SEEK_CUR
 
     try:
-        blender_header = blendfile_header.BlendFileHeader(blendfile)
-    except blendfile_header.BlendHeaderError:
+        blender_header = _blendfile_header.BlendFileHeader(blendfile)
+    except _blendfile_header.BlendHeaderError:
         sys.stderr.write("Not a blend file: {:s}\n".format(filepath))
         return []
 
@@ -88,7 +87,7 @@ def _read_blend_rend_chunk_from_file(blendfile, filepath):
     endian_str = b'<' if blender_header.is_little_endian else b'>'
 
     block_header_struct = blender_header.create_block_header_struct()
-    while bhead := blendfile_header.BlockHeader(blendfile, block_header_struct):
+    while bhead := _blendfile_header.BlockHeader(blendfile, block_header_struct):
         if bhead.code == b'ENDB':
             break
         remaining_bytes = bhead.size
