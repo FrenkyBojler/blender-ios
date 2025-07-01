@@ -87,7 +87,8 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
 
   Array<float> pixels(4 * GPU_SKY_WIDTH * GPU_SKY_HEIGHT);
 
-  if (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) {
+  float sky_type = (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) ? 0.0f : 1.0f;
+  if (sky_type == 0.0f) {
     threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
       SKY_single_scattering_precompute_texture(pixels.data(),
                                                4,
@@ -103,6 +104,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
     });
   }
   else {
+    SKY_multiple_scattering_precompute_transmittance();
     threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
       SKY_multiple_scattering_precompute_texture(pixels.data(),
                                                  4,
@@ -136,9 +138,10 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
       mat, GPU_SKY_WIDTH, GPU_SKY_HEIGHT, pixels.data(), &layer, sampler);
   return GPU_stack_link(mat,
                         node,
-                        "node_tex_sky_single_scattering",
+                        "node_tex_sky",
                         in,
                         out,
+                        GPU_constant(&sky_type),
                         GPU_constant(&sun_rotation),
                         GPU_uniform(xyz_to_rgb.r),
                         GPU_uniform(xyz_to_rgb.g),

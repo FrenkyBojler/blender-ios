@@ -94,10 +94,10 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
       else {
         /* black ground fade */
         float fade = 1.0f + dir.z * 2.5f;
-        fade = sqr(fade) * fade;
+        fade = fade * fade * fade;
         /* interpolation */
         const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
-        xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.505f)) * fade;
+        xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f)) * fade;
       }
     }
   }
@@ -155,13 +155,12 @@ ccl_device_noinline int svm_node_tex_sky(KernelGlobals kg,
   const float3 dir = stack_load_float3(stack, dir_offset);
 
   /* Define variables */
-  float sky_data[4];
-
   float4 data = read_node_float(kg, &offset);
   const float3 pixel_bottom = make_float3(data.x, data.y, data.z);
   float3 pixel_top;
   pixel_top.x = data.w;
 
+  float sky_data[4];
   data = read_node_float(kg, &offset);
   pixel_top.y = data.x;
   pixel_top.z = data.y;

@@ -41,6 +41,14 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 float dust_density,
                                                 float ozone_density);
 
+void SKY_multiple_scattering_precompute_sun(float sun_elevation,
+                                            float angular_diameter,
+                                            float altitude,
+                                            float air_density,
+                                            float dust_density,
+                                            float *r_pixel_bottom,
+                                            float *r_pixel_top);
+
 void SKY_multiple_scattering_precompute_transmittance();
 
 #ifdef __cplusplus

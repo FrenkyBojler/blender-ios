@@ -656,9 +656,8 @@ static void sky_texture_precompute(SunSky *sunsky,
         sun_elevation, sun_size, altitude, air_density, dust_density, pixel_bottom, pixel_top);
   }
   else {
-    SKY_single_scattering_precompute_sun(
+    SKY_multiple_scattering_precompute_sun(
         sun_elevation, sun_size, altitude, air_density, dust_density, pixel_bottom, pixel_top);
-    SKY_multiple_scattering_precompute_transmittance();
   }
 
   /* Send data to svm_sky */
@@ -694,14 +693,13 @@ float SkyTextureNode::get_sun_average_radiance()
   }
   else {
     clamped_altitude = clamp(altitude, 1.0f, 99999.0f);
-    SKY_single_scattering_precompute_sun(sun_elevation,
-                                         angular_diameter,
-                                         clamped_altitude,
-                                         air_density,
-                                         dust_density,
-                                         pix_bottom,
-                                         pix_top);
-    SKY_multiple_scattering_precompute_transmittance();
+    SKY_multiple_scattering_precompute_sun(sun_elevation,
+                                           angular_diameter,
+                                           clamped_altitude,
+                                           air_density,
+                                           dust_density,
+                                           pix_bottom,
+                                           pix_top);
   }
 
   /* Approximate the direction's elevation as the sun's elevation. */
