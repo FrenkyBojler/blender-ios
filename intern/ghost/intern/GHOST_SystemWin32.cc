@@ -519,7 +519,6 @@ uint32_t GHOST_SystemWin32::getCursorPreferredLogicalSize() const
   {
     DWORD cursorSizeSetting;
     DWORD setting_size = sizeof(cursorSizeSetting);
-    // Get the DWORD value "CursorBaseSize" from the registry
     if (RegQueryValueEx(hKey,
                         "CursorBaseSize",
                         nullptr,
@@ -537,8 +536,8 @@ uint32_t GHOST_SystemWin32::getCursorPreferredLogicalSize() const
     size = GetSystemMetrics(SM_CXCURSOR);
   }
 
-  /* Default size is 32 even though the cursor is smaller than this.
-   * Scale so 32 return 21. */
+  /* Default size is 32 even though the cursor is smaller than this. Scale
+   * so that 32 returns 21 to better match our size to OS-supplied cursors. */
   size = int(roundf(float(size) * 0.65f));
 
   return size;
