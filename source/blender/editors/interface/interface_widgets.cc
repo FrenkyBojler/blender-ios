@@ -4369,6 +4369,7 @@ static void widget_list_itembut(uiBut *but,
                                 const float zoom)
 {
   rcti draw_rect = *rect;
+  bool is_selected = state->but_flag & UI_SELECT;
 
   if (but->type == UI_BTYPE_VIEW_ITEM) {
     uiButViewItem *item_but = static_cast<uiButViewItem *>(but);
@@ -4377,6 +4378,7 @@ static void widget_list_itembut(uiBut *but,
     if (!view_item.is_active() && view_item.is_selected()) {
       copy_v4_v4_uchar(wcol->inner, wcol->inner_sel);
       color_blend_v3_v3(wcol->inner, wcol->outline, 0.5);
+      is_selected = true;
     }
     if (item_but->draw_width > 0) {
       BLI_rcti_resize_x(&draw_rect, zoom * item_but->draw_width);
@@ -4394,8 +4396,7 @@ static void widget_list_itembut(uiBut *but,
 
   if (state->but_flag & UI_HOVER) {
     color_blend_v3_v3(wcol->inner, wcol->text, 0.2);
-    const bool hover_selected = (state->but_flag & UI_SELECT);
-    wcol->inner[3] = hover_selected ? 255 : 20;
+    wcol->inner[3] = is_selected ? 255 : 20;
   }
 
   widgetbase_draw(&wtb, wcol);
@@ -5266,8 +5267,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
 
   /* Override selected flag for drawing. */
   if (but->flag & UI_SELECT_DRAW) {
-    // state.but_flag |= UI_SELECT;
-    state.but_flag |= UI_SELECT_DRAW;
+    state.but_flag |= UI_SELECT;
   }
 
   if ((but->editstr) ||
