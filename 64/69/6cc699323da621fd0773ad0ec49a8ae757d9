@@ -1,2 +1,3 @@
 Referenced by issue #140165, The SpaceMouse (NDOF) panning function operates with reversed behavior across various editors.
 Referenced by commit a197b1811a1325bf1cbe1530414045ad90c6474d, Fix #140165: NDOF panning reversed
+Referenced by issue #141251, NODF or 3D mouse unable to Invert Zoom
