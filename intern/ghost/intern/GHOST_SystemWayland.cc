@@ -433,7 +433,9 @@ static void gwl_simple_buffer_set_from_string(GWL_SimpleBuffer *buffer, const ch
  */
 #define EVDEV_OFFSET 8
 
-/** Wayland cursor shape protocol types. */
+/** Wayland cursor shape protocol types.
+ * Not used if the compositor doesn't support the cursor shape protocol.
+ */
 struct GWL_CursorShape {
   /* The enum_id is currently only used to keep track of the last cursor shape used.
    * This is so we can restore it after hiding the cursor. */
