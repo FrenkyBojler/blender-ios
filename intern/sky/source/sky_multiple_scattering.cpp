@@ -187,14 +187,15 @@ static void get_atmosphere_collision_coefficients(float h,
                                                   float4 &aerosol_absorption,
                                                   float4 &aerosol_scattering,
                                                   float4 &molecular_absorption,
-                                                  float4 &molecular_scattering)
+                                                  float4 &molecular_scattering,
+                                                  float3 density_multipliers)
 {
   float altitude = fmax(h, 0.0f);  // in case height is negative
-  float aerosol_density = get_aerosol_density(altitude);
+  float aerosol_density = get_aerosol_density(altitude) * density_multipliers.y;
   aerosol_absorption = aerosol_absorption_cross_section * aerosol_density;
   aerosol_scattering = aerosol_scattering_cross_section * aerosol_density;
-  molecular_absorption = get_molecular_absorption_coefficient(altitude);
-  molecular_scattering = get_molecular_scattering_coefficient(altitude);
+  molecular_absorption = get_molecular_absorption_coefficient(altitude) * density_multipliers.z;
+  molecular_scattering = get_molecular_scattering_coefficient(altitude) * density_multipliers.x;
 }
 
 static float3 spectral_to_xyz(float4 L)
@@ -208,7 +209,7 @@ static float3 spectral_to_xyz(float4 L)
   return xyz;
 }
 
-static float4 transmittance_lut_calc(float2 coordinates)
+static float4 transmittance_lut_calc(float2 coordinates, float3 density_multipliers)
 {
   float2 uv = coordinates / transmittance_res;
   float sun_cos_theta = uv.x * 2.0f - 1.0f;
@@ -227,7 +228,8 @@ static float4 transmittance_lut_calc(float2 coordinates)
                                           aerosol_absorption,
                                           aerosol_scattering,
                                           molecular_absorption,
-                                          molecular_scattering);
+                                          molecular_scattering,
+                                          density_multipliers);
     float4 extinction = aerosol_absorption + aerosol_scattering + molecular_absorption +
                         molecular_scattering;
     result = result + extinction * dt;
@@ -239,7 +241,8 @@ static float4 transmittance_lut_calc(float2 coordinates)
   return transmittance;
 }
 
-static float4 compute_inscattering(float3 sun_dir, float3 ray_origin, float3 ray_dir, float t_d)
+static float4 compute_inscattering(
+    float3 sun_dir, float3 ray_origin, float3 ray_dir, float t_d, float3 density_multipliers)
 {
   float cos_theta = dot(-ray_dir, sun_dir);
   float molecular_phase = molecular_phase_function(cos_theta);
@@ -260,7 +263,8 @@ static float4 compute_inscattering(float3 sun_dir, float3 ray_origin, float3 ray
                                           aerosol_absorption,
                                           aerosol_scattering,
                                           molecular_absorption,
-                                          molecular_scattering);
+                                          molecular_scattering,
+                                          density_multipliers);
     float4 extinction = aerosol_absorption + aerosol_scattering + molecular_absorption +
                         molecular_scattering;
     float4 transmittance_to_sun = transmittance_from_lut(sample_cos_theta, normalized_altitude);
@@ -287,7 +291,10 @@ static float4 compute_inscattering(float3 sun_dir, float3 ray_origin, float3 ray
   return L_inscattering;
 }
 
-static float3 sky_lut(float3 sun_dir, float2 coordinates, float altitude)
+static float3 sky_lut(float3 sun_dir,
+                      float2 coordinates,
+                      float altitude,
+                      float3 density_multipliers)
 {
   float2 uv = coordinates / sky_res;
   float azimuth = 2.0f * M_PI_F * uv.x;
@@ -302,7 +309,7 @@ static float3 sky_lut(float3 sun_dir, float2 coordinates, float altitude)
   /* If no ground collision then use the distance to the outer atmosphere, else we have a collision
    * with the ground so we use the distance to it. */
   float t_d = (ground_dist < 0.0f) ? atmos_dist : ground_dist;
-  float4 L = compute_inscattering(sun_dir, ray_origin, ray_dir, t_d);
+  float4 L = compute_inscattering(sun_dir, ray_origin, ray_dir, t_d, density_multipliers);
   float3 xyz = spectral_to_xyz(L);
 
   return xyz;
@@ -313,13 +320,13 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 int start_y,
                                                 int end_y,
                                                 int width,
-                                                int height,
                                                 float sun_elevation,
                                                 float altitude,
                                                 float air_density,
                                                 float dust_density,
                                                 float ozone_density)
 {
+  float3 density_multipliers = make_float3(air_density, dust_density, ozone_density);
   int half_width = width / 2;
   float sun_zenith_cos_angle = cosf(M_PI_2_F - sun_elevation);
   float3 sun_dir = make_float3(
@@ -329,13 +336,13 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
     float *pixel_row = pixels + (y * width * stride);
     for (int x = 0; x < half_width; x++) {
       float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
-      float3 sky = sky_lut(sun_dir, coordinates, altitude / 1000.0f);
+      float3 sky = sky_lut(sun_dir, coordinates, altitude / 1000.0f, density_multipliers);
 
       /* Store pixels */
       int pos_x = x * stride;
-      pixel_row[pos_x] = 1.0f;
-      pixel_row[pos_x + 1] = 1.0f;
-      pixel_row[pos_x + 2] = 1.0f;
+      pixel_row[pos_x] = sky.x;
+      pixel_row[pos_x + 1] = sky.y;
+      pixel_row[pos_x + 2] = sky.z;
       /* Mirror sky */
       int mirror_x = (width - x - 1) * stride;
       pixel_row[mirror_x] = sky.x;
@@ -345,13 +352,16 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
   }
 }
 
-void SKY_multiple_scattering_precompute_transmittance()
+void SKY_multiple_scattering_precompute_transmittance(float air_density,
+                                                      float dust_density,
+                                                      float ozone_density)
 {
   /* Calculate and store transmittance LUT */
+  float3 density_multipliers = make_float3(air_density, dust_density, ozone_density);
   for (int x = 0; x < transmittance_res_x; x++) {
     for (int y = 0; y < transmittance_res_y; y++) {
       float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
-      float4 lut = transmittance_lut_calc(coordinates);
+      float4 lut = transmittance_lut_calc(coordinates, density_multipliers);
       int reverse_y = transmittance_res_y - y - 1;
       transmittance_lut[x][reverse_y][0] = lut.x;
       transmittance_lut[x][reverse_y][1] = lut.y;

@@ -67,7 +67,7 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
                  });
   }
   if (sky_model == 1) {
-    SKY_multiple_scattering_precompute_transmittance();
+    SKY_multiple_scattering_precompute_transmittance(air_density, dust_density, ozone_density);
     parallel_for(blocked_range<size_t>(0, height, rows_per_task),
                  [&](const blocked_range<size_t> &r) {
                    SKY_multiple_scattering_precompute_texture(pixel_data,
@@ -75,7 +75,6 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
                                                               r.begin(),
                                                               r.end(),
                                                               width,
-                                                              height,
                                                               sun_elevation,
                                                               altitude,
                                                               air_density,

@@ -104,14 +104,14 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
     });
   }
   else {
-    SKY_multiple_scattering_precompute_transmittance();
+    SKY_multiple_scattering_precompute_transmittance(
+        tex->air_density, tex->dust_density, tex->ozone_density);
     threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
       SKY_multiple_scattering_precompute_texture(pixels.data(),
                                                  4,
                                                  range.first(),
                                                  range.one_after_last(),
                                                  GPU_SKY_WIDTH,
-                                                 GPU_SKY_HEIGHT,
                                                  tex->sun_elevation,
                                                  tex->altitude,
                                                  tex->air_density,
