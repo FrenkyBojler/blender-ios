@@ -114,7 +114,8 @@ static void attr_create_generic(Scene *scene,
       return;
     }
 
-    if (b_attr.domain == blender::bke::AttrDomain::Corner && iter.data_type == CD_PROP_BYTE_COLOR)
+    if (b_attr.domain == blender::bke::AttrDomain::Corner &&
+        iter.data_type == blender::bke::AttrType::ColorByte)
     {
       Attribute *attr = attributes.add(name, TypeRGBA, ATTR_ELEMENT_CORNER_BYTE);
       if (is_render_color) {
@@ -221,7 +222,9 @@ static set<ustring> get_blender_uv_names(const ::Mesh &b_mesh)
 {
   set<ustring> uv_names;
   b_mesh.attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    if (iter.domain == blender::bke::AttrDomain::Corner && iter.data_type == CD_PROP_FLOAT2) {
+    if (iter.domain == blender::bke::AttrDomain::Corner &&
+        iter.data_type == blender::bke::AttrType::Float2)
+    {
       if (!blender::bke::attribute_name_is_anonymous(iter.name)) {
         uv_names.emplace(std::string_view(iter.name));
       }
@@ -627,7 +630,7 @@ static void create_mesh(Scene *scene,
   const bool need_default_tangent = (subdivision == false) && (blender_uv_names.empty()) &&
                                     (mesh->need_attribute(scene, ATTR_STD_UV_TANGENT));
   if (mesh->need_attribute(scene, ATTR_STD_GENERATED) || need_default_tangent) {
-    const float(*orco)[3] = static_cast<const float(*)[3]>(
+    const float (*orco)[3] = static_cast<const float (*)[3]>(
         CustomData_get_layer(&b_mesh.vert_data, CD_ORCO));
     Attribute *attr = attributes.add(ATTR_STD_GENERATED);
 
