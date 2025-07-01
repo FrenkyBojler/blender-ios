@@ -5075,7 +5075,12 @@ static void force_activate_view_item_but(bContext *C,
                                          const bool close_popup = true)
 {
   if (but->active) {
-    ui_apply_but(C, but->block, but, but->active, true);
+    if (region && region->regiontype == RGN_TYPE_TEMPORARY) {
+      /* For popups. Other abstract view instances correctly calls the select operator, see:
+       * #141235. */
+      but->view_item->activate(*C);
+    }
+
     ED_region_tag_redraw_no_rebuild(region);
     ED_region_tag_refresh_ui(region);
   }
