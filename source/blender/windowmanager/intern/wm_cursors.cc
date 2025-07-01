@@ -37,6 +37,21 @@ struct BCursor {
   bool can_invert;
 };
 
+/* We currently support multiple types of mouse cursors. Prefered
+ * is to use one provided by the OS. The availability of these are
+ * checked with GHOST_HasCursorShape(). These cursors can include
+ * platform-specific custom cursors. For example, on MacOS we provide
+ * vector PDF files and on Windows we have CUR files.
+ *
+ * If the OS cannot provide a built-in or custom platform cursor,
+ * then we use our own internal custom cursors. These are defined in
+ * SVG files, using a document size of 1600x1600 being the "normal"
+ * size, cropped to the image size and without any padding.  The hotspot
+ * for these are set during definition at the bottom of this file, and
+ * are a float factor (0-1) from the top-left corner of the image (not
+ * of the document size).
+ */
+
 static BCursor BlenderCursor[WM_CURSOR_NUM] = {0};
 
 /* Blender cursor to GHOST standard cursor conversion. */
@@ -201,10 +216,10 @@ static bool window_set_custom_cursor(wmWindow *win, BCursor *cursor)
   const bool use_only_1bpp_cursors = false;
 
   const bool use_rgba = !use_only_1bpp_cursors &&
-                        WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS;
+                        (WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS);
 
-  int max_size = use_rgba ? 128 : 32;
-  float size = std::min(cursor_size(), float(max_size));
+  const int max_size = use_rgba ? 128 : 32;
+  const float size = std::min(cursor_size(), float(max_size));
 
   size_t width;
   size_t height;
