@@ -17,7 +17,7 @@
 #include "BLI_math_angle_types.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
-#include "BLI_math_numbers.hh"
+#include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
 
@@ -56,15 +56,13 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
  *   Spencer, Greg, et al. "Physically-based glare effects for digital images." Proceedings of
  *   the 22nd annual conference on Computer graphics and interactive techniques. 1995. */
 
-[[maybe_unused]] static float compute_fog_glow_kernel_value(int x,
-                                                            int y,
+[[maybe_unused]] static float compute_fog_glow_kernel_value(int2 texel,
                                                             int kernel_size,
                                                             float glare_size)
 {
   const int half_kernel_size = kernel_size / 2;
-  const float v = (y - half_kernel_size) / float(half_kernel_size);
-  const float u = (x - half_kernel_size) / float(half_kernel_size);
-  const float r = math::sqrt(math::square(u) + math::square(v));
+  const float2 uv = float2(texel) / half_kernel_size;
+  const float r = math::length(uv);
   const float maximum_field_of_view = 180.0f;
   const float minimum_field_of_view = 6e-1f;
   /* The field of view value is calculated based on the user's size selection. */
@@ -104,27 +102,25 @@ FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float glare_siz
   /* Use a double to sum the kernel since floats are not stable with threaded summation. */
   threading::EnumerableThreadSpecific<double> sum_by_thread([]() { return 0.0; });
 
-  /* Compute the kernel while zero padding to match the padded image size. */
+  /* Initializing the entire kernel's spatial space using compute_fog_glow_kernel_value. */
   threading::parallel_for(IndexRange(spatial_size.y), 1, [&](const IndexRange sub_y_range) {
     double &sum = sum_by_thread.local();
     for (const int64_t y : sub_y_range) {
       for (const int64_t x : IndexRange(spatial_size.x)) {
+        const int2 texel = int2(x, y);
+        const int2 center_texel = spatial_size / 2;
+        const int2 kernel_texel = texel - center_texel;
+
+        const float kernel_value = compute_fog_glow_kernel_value(
+            kernel_texel, kernel_size, glare_size);
+        sum += kernel_value;
+
         /* We offset the computed kernel with wrap around such that it is centered at the zero
          * point, which is the expected format for doing circular convolutions in the frequency
          * domain. */
-        const int half_kernel_size = kernel_size / 2;
-        int64_t output_x = mod_i(x - half_kernel_size, spatial_size.x);
-        int64_t output_y = mod_i(y - half_kernel_size, spatial_size.y);
-
-        const bool is_inside_kernel = x < kernel_size && y < kernel_size;
-        if (is_inside_kernel) {
-          const float kernel_value = compute_fog_glow_kernel_value(x, y, kernel_size, glare_size);
-          kernel_spatial_domain[output_x + output_y * spatial_size.x] = kernel_value;
-          sum += kernel_value;
-        }
-        else {
-          kernel_spatial_domain[output_x + output_y * spatial_size.x] = 0.0f;
-        }
+        int64_t output_x = mod_i(kernel_texel.x, spatial_size.x);
+        int64_t output_y = mod_i(kernel_texel.y, spatial_size.y);
+        kernel_spatial_domain[output_x + output_y * spatial_size.x] = kernel_value;
       }
     }
   });
