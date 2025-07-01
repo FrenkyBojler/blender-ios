@@ -886,19 +886,20 @@ static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &str
          std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
 }
 
-static void delete_scene_action_keyframes_legacy(AnimData *adt,
-                                                      bAction *act,
-                                                      Scene *scene,
-                                                      float cfra_unmap,
-                                                      blender::Vector<FCurve *> &modified_fcurves)
+static bool delete_scene_action_keyframes_legacy(AnimData *adt,
+                                                 bAction *act,
+                                                 Scene *scene,
+                                                 float cfra_unmap,
+                                                 blender::Vector<FCurve *> &modified_fcurves)
 {
-  LISTBASE_FOREACH_MUTABLE (FCurve *, fcurve, &act->curves) {
-    if (!can_delete_scene_key(fcurve, scene)) {
+  LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
+    if (!can_delete_scene_key(fcu, scene)) {
       continue;
     }
-    blender::animrig::delete_keyframe_fcurve_legacy(adt, fcurve, cfra_unmap);
-    modified_fcurves.append(fcurve);
+    blender::animrig::delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
+    modified_fcurves.append(fcu);
   }
+  return true;
 }
 
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
@@ -939,6 +940,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   blender::VectorSet<std::string> modified_strips;
   blender::Vector<FCurve *> modified_fcurves;
+  bool use_legacy_report = false;
 
   if (action.is_action_layered()) {
     foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
@@ -965,7 +967,8 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     }
   }
   else {
-    delete_scene_action_keyframes_legacy(adt, act, scene, cfra_unmap, modified_fcurves);
+    use_legacy_report = delete_scene_action_keyframes_legacy(
+        adt, act, scene, cfra_unmap, modified_fcurves);
   }
 
   if (scene->adt->action) {
@@ -989,8 +992,12 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   if (confirm) {
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
-    printf("modified_strips.size() %ld\n", modified_strips.size());
     if (modified_strips.size() > 0) {
+      if (use_legacy_report) {
+        BKE_reportf(
+            op->reports, RPT_INFO, "Successfully removed %ld keyframes", modified_fcurves.size());
+        return OPERATOR_FINISHED;
+      }
       BKE_reportf(op->reports,
                   RPT_INFO,
                   "%ld strip(s) successfully had %ld keyframes removed",
