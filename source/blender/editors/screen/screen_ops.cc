@@ -867,10 +867,10 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
 
   for (az = static_cast<AZone *>(area->actionzones.first); az; az = az->next) {
     rcti az_rect;
-    az->active = false;
+    az->hover = false;
     area_actionzone_get_rect(az, &az_rect);
     if (BLI_rcti_isect_pt_v(&az_rect, xy)) {
-      az->active = true;
+      az->hover = true;
 
       if (az->type == AZONE_AREA) {
         break;

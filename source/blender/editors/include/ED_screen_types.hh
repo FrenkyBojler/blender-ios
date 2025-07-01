@@ -74,7 +74,7 @@ enum AZScrollDirection {
 struct AZone {
   AZone *next, *prev;
   ARegion *region;
-  bool active;
+  bool hover;
   int type;
 
   union {

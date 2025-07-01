@@ -205,43 +205,31 @@ static void area_draw_azone(short /*x1*/, short /*y1*/, short /*x2*/, short /*y2
  */
 static void draw_azone_arrow(AZone *az)
 {
+  if (G.moving & G_TRANSFORM_WM) {
+    return;
+  }
+
   rctf rect{float(az->x1), float(az->x2), float(az->y1), float(az->y2)};
-  const float line_width = 2.0f * U.pixelsize;
+  const float line_width = (az->hover ? 3.0f : 2.0f) * U.pixelsize;
   const float shadow_width = 2.0f * U.pixelsize;
   const float width = line_width + (2.0f * shadow_width);
-  const float offset = shadow_width;
+  const float offset = shadow_width + (az->hover ? U.pixelsize : 0.0f);
 
   switch (az->edge) {
     case AE_BOTTOM_TO_TOPLEFT:
       rect.ymin = rect.ymax - width;
-      if (az->active) {
-        rect.xmin = az->region->winrct.xmin + EDITORRADIUS;
-        rect.xmax = az->region->winrct.xmax - EDITORRADIUS;
-      }
       BLI_rctf_translate(&rect, 0.0f, -offset);
       break;
     case AE_TOP_TO_BOTTOMRIGHT:
       rect.ymax = rect.ymin + width;
-      if (az->active) {
-        rect.xmin = az->region->winrct.xmin + EDITORRADIUS;
-        rect.xmax = az->region->winrct.xmax - EDITORRADIUS;
-      }
       BLI_rctf_translate(&rect, 0.0f, offset);
       break;
     case AE_LEFT_TO_TOPRIGHT:
       rect.xmin = rect.xmax - width;
-      if (az->active) {
-        rect.ymin = az->region->winrct.ymin + EDITORRADIUS;
-        rect.ymax = az->region->winrct.ymax - EDITORRADIUS;
-      }
       BLI_rctf_translate(&rect, -offset, 0.0f);
       break;
     case AE_RIGHT_TO_TOPLEFT:
       rect.xmax = rect.xmin + width;
-      if (az->active) {
-        rect.ymin = az->region->winrct.ymin + EDITORRADIUS;
-        rect.ymax = az->region->winrct.ymax - EDITORRADIUS;
-      }
       BLI_rctf_translate(&rect, offset, 0.0f);
       break;
     default:
@@ -249,8 +237,8 @@ static void draw_azone_arrow(AZone *az)
       return;
   }
 
-  float inner[4] = {1.0f, 1.0f, 1.0f, 0.2f};
-  float outline[4] = {0.0f, 0.0f, 0.0f, 0.2f};
+  float inner[4] = {1.0f, 1.0f, 1.0f, az->hover ? 0.4f : 0.2f};
+  float outline[4] = {0.0f, 0.0f, 0.0f, az->hover ? 0.4f : 0.2f};
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
   UI_draw_roundbox_4fv_ex(&rect, inner, nullptr, 1.0f, outline, shadow_width, 2.5f * UI_SCALE_FAC);
 }

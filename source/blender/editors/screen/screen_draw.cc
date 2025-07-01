@@ -310,26 +310,26 @@ void screen_draw_region_scale_highlight(ARegion *region)
 
   switch (region->alignment) {
     case RGN_ALIGN_RIGHT:
-      rect.xmax = rect.xmin - (2.0f * U.pixelsize);
-      rect.xmin = rect.xmax - (4.0f * U.pixelsize);
+      rect.xmax = rect.xmin - (3.0f * U.pixelsize);
+      rect.xmin = rect.xmax - (5.0f * U.pixelsize);
       rect.ymax -= EDITORRADIUS;
       rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_LEFT:
-      rect.xmin = rect.xmax + (2.0f * U.pixelsize);
-      rect.xmax = rect.xmin + (4.0f * U.pixelsize);
+      rect.xmin = rect.xmax + (3.0f * U.pixelsize);
+      rect.xmax = rect.xmin + (5.0f * U.pixelsize);
       rect.ymax -= EDITORRADIUS;
       rect.ymin += EDITORRADIUS;
       break;
     case RGN_ALIGN_TOP:
-      rect.ymax = rect.ymin - (2.0f * U.pixelsize);
-      rect.ymin = rect.ymax - (4.0f * U.pixelsize);
+      rect.ymax = rect.ymin - (3.0f * U.pixelsize);
+      rect.ymin = rect.ymax - (5.0f * U.pixelsize);
       rect.xmax -= EDITORRADIUS;
       rect.xmin += EDITORRADIUS;
       break;
     case RGN_ALIGN_BOTTOM:
-      rect.ymin = rect.ymax + (2.0f * U.pixelsize);
-      rect.ymax = rect.ymin + (4.0f * U.pixelsize);
+      rect.ymin = rect.ymax + (3.0f * U.pixelsize);
+      rect.ymax = rect.ymin + (5.0f * U.pixelsize);
       rect.xmax -= EDITORRADIUS;
       rect.xmin += EDITORRADIUS;
       break;
@@ -338,9 +338,8 @@ void screen_draw_region_scale_highlight(ARegion *region)
   }
 
   float inner[4] = {1.0f, 1.0f, 1.0f, 0.4f};
-  float outline[4] = {0.0f, 0.0f, 0.0f, 0.3f};
-  UI_draw_roundbox_4fv_ex(
-      &rect, inner, nullptr, 1.0f, outline, 1.0f * U.pixelsize, 2.5f * UI_SCALE_FAC);
+  float outline[4] = {0.0f, 0.0f, 0.0f, 0.4f};
+  UI_draw_roundbox_4fv_ex(&rect, inner, nullptr, 1.0f, outline, U.pixelsize, 2.5f * UI_SCALE_FAC);
 }
 
 static void screen_draw_area_drag_tip(
