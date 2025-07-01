@@ -130,7 +130,7 @@ typedef enum {
   GHOST_kCapabilityKeyboardHyperKey = (1 << 9),
   /**
    * Support for creation of RGBA mouse cursors. This flag is likely
-   * to be temporary as our intention is to implement on a platforms.
+   * to be temporary as our intention is to implement on all platforms.
    */
   GHOST_kCapabilityRGBACursors = (1 << 10),
 

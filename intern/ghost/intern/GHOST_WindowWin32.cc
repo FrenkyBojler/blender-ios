@@ -1167,7 +1167,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
                                                              bool /*canInvertColor*/)
 {
   if (mask) {
-    /* Old1bpp XBitMap bitmap and mask. */
+    /* Old 1bpp XBitMap bitmap and mask. */
     uint32_t andData[32];
     uint32_t xorData[32];
     uint32_t fullBitRow, fullMaskRow;
@@ -1212,7 +1212,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
     return GHOST_kSuccess;
   }
 
-  /* New unlimited RGBA. */
+  /* New format: RGBA bitmap, size up to 128x128. */
 
   BITMAPV5HEADER header;
   memset(&header, 0, sizeof(BITMAPV5HEADER));
