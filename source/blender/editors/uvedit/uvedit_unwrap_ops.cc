@@ -1465,6 +1465,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
     bool only_selected_faces = params->only_selected_faces;
     bool only_selected_uvs = params->only_selected_uvs;
     const bool ignore_pinned = params->pin_method == ED_UVPACK_PIN_IGNORE;
+
     if (ignore_pinned && params->pin_unselected) {
       only_selected_faces = false;
       only_selected_uvs = false;
@@ -1566,7 +1567,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
   float base_offset[2] = {0.0f, 0.0f};
   copy_v2_v2(base_offset, params->udim_base_offset);
 
-  if (udim_source_closest && params->pin_method == ED_UVPACK_PIN_IGNORE) {
+  if (udim_source_closest) {
     const Image *image = udim_source_closest->image;
     const int *udim_grid = udim_source_closest->tile_grid_shape;
     /* Check if selection lies on a valid UDIM grid tile. */
@@ -1611,14 +1612,17 @@ static void uvedit_pack_islands_multi(const Scene *scene,
     invert_m2_m2(matrix_inverse, matrix);
 
     /* Add base_offset, post transform. */
-    mul_v2_m2v2(pre_translate, matrix_inverse, base_offset);
+    if(!pinned_vector[i] || params->pin_method != ED_UVPACK_PIN_LOCK_ALL){
+      mul_v2_m2v2(pre_translate, matrix_inverse, base_offset);
 
-    /* Add pre-translation from #pack_islands. */
-    pre_translate[0] += pack_island->pre_translate.x;
-    pre_translate[1] += pack_island->pre_translate.y;
+      /* Add pre-translation from #pack_islands. */
+      pre_translate[0] += pack_island->pre_translate.x;
+      pre_translate[1] += pack_island->pre_translate.y;
 
-    /* Perform the transformation. */
-    island_uv_transform(island, matrix, pre_translate);
+      /* Perform the transformation. */
+      island_uv_transform(island, matrix, pre_translate);
+    }
+
   }
 
   for (const int64_t i : pack_island_vector.index_range()) {
@@ -1784,7 +1788,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
   pack_island_params.shape_method = eUVPackIsland_ShapeMethod(
       RNA_enum_get(op->ptr, "shape_method"));
 
-  if (udim_source == PACK_UDIM_SRC_ACTIVE && pack_island_params.pin_method != ED_UVPACK_PIN_IGNORE) {
+  if (udim_source == PACK_UDIM_SRC_ACTIVE) {
     pack_island_params.setUDIMOffsetFromSpaceImage(sima);
   }
 
