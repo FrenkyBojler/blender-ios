@@ -216,6 +216,22 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
     }
   }
 
+  /* If the target is an extend socket, then connect the first unlinked available socket. If non
+   * are unlinked, select the first available socket.  */
+  if (STREQ(sock_target->idname, "NodeSocketVirtual")) {
+    LISTBASE_FOREACH (bNodeSocket *, output, &node->outputs) {
+      if (socket_is_available(ntree, output, false)) {
+        return output;
+      }
+    }
+
+    LISTBASE_FOREACH (bNodeSocket *, output, &node->outputs) {
+      if (socket_is_available(ntree, output, true)) {
+        return output;
+      }
+    }
+  }
+
   /* Always allow linking to an reroute node. The socket type of the reroute sockets might change
    * after the link has been created. */
   if (node->is_reroute()) {
@@ -236,7 +252,7 @@ static bNodeSocket *best_socket_input(bNodeTree *ntree, bNode *node, int num, in
 
   /* Find sockets of higher 'types' first (i.e. image). */
   int a = 0;
-  for (int socktype = maxtype; socktype >= 0; socktype--) {
+  for (int socktype = maxtype; socktype >= SOCK_CUSTOM; socktype--) {
     LISTBASE_FOREACH (bNodeSocket *, sock, &node->inputs) {
       if (!socket_is_available(ntree, sock, replace)) {
         a++;
@@ -270,7 +286,21 @@ static bool snode_autoconnect_input(SpaceNode &snode,
     bke::node_remove_socket_links(*ntree, *sock_to);
   }
 
-  bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
+  bNodeLink &link = bke::node_add_link(*ntree, *node_fr, *sock_fr, *node_to, *sock_to);
+
+  if (link.fromnode->typeinfo->insert_link) {
+    if (!link.fromnode->typeinfo->insert_link(ntree, link.fromnode, &link)) {
+      bke::node_remove_link(ntree, link);
+      return false;
+    }
+  }
+  if (link.tonode->typeinfo->insert_link) {
+    if (!link.tonode->typeinfo->insert_link(ntree, link.tonode, &link)) {
+      bke::node_remove_link(ntree, link);
+      return false;
+    }
+  }
+
   return true;
 }
 
