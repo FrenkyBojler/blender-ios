@@ -8652,10 +8652,8 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_check(const GHOST_TStandardCurs
 
 GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitmap,
                                                             const uint8_t *mask,
-                                                            const int sizex,
-                                                            const int sizey,
-                                                            const int hotX,
-                                                            const int hotY,
+                                                            const int size[2],
+                                                            const int hot_spot[2],
                                                             const bool /*canInvertColor*/)
 {
   /* Caller needs to lock `server_mutex`. */
@@ -8671,9 +8669,8 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
     cursor->custom_data_size = 0; /* Not needed, but the value is no longer meaningful. */
   }
 
-  const int32_t size_xy[2] = {sizex, sizey};
   wl_buffer *buffer = ghost_wl_buffer_create_for_image(display_->wl.shm,
-                                                       size_xy,
+                                                       size,
                                                        WL_SHM_FORMAT_ARGB8888,
                                                        &cursor->custom_data,
                                                        &cursor->custom_data_size);
@@ -8692,8 +8689,8 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
     uint8_t datab = 0, maskb = 0;
     uint32_t *px_dst = static_cast<uint32_t *>(cursor->custom_data);
 
-    for (int y = 0; y < sizey; y++) {
-      for (int x = 0; x < sizex; x++) {
+    for (int y = 0; y < size[1]; y++) {
+      for (int x = 0; x < size[0]; x++) {
         if ((x % 8) == 0) {
           datab = *bitmap++;
           maskb = *mask++;
@@ -8718,8 +8715,8 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
     /* RGBA color (direct copy). */
     const uint32_t *px_src = reinterpret_cast<const uint32_t *>(bitmap);
     uint32_t *px_dst = static_cast<uint32_t *>(cursor->custom_data);
-    for (int y = 0; y < sizey; y++) {
-      for (int x = 0; x < sizex; x++) {
+    for (int y = 0; y < size[1]; y++) {
+      for (int x = 0; x < size[0]; x++) {
         *px_dst++ = *px_src++;
       }
     }
@@ -8770,10 +8767,10 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
   }
 
   cursor->wl.buffer = buffer;
-  cursor->wl.image.width = uint32_t(sizex);
-  cursor->wl.image.height = uint32_t(sizey);
-  cursor->wl.image.hotspot_x = uint32_t(hotX);
-  cursor->wl.image.hotspot_y = uint32_t(hotY);
+  cursor->wl.image.width = uint32_t(size[0]);
+  cursor->wl.image.height = uint32_t(size[1]);
+  cursor->wl.image.hotspot_x = uint32_t(hot_spot[0]);
+  cursor->wl.image.hotspot_y = uint32_t(hot_spot[1]);
   cursor->wl.theme_cursor = nullptr;
   cursor->wl.theme_cursor_name = nullptr;
 

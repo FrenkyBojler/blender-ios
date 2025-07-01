@@ -330,10 +330,8 @@ static GHOST_TSuccess gwl_window_cursor_custom_load(const GWL_WindowCursorCustom
 {
   return system->cursor_shape_custom_set(ccs.bitmap,
                                          ccs.mask,
-                                         ccs.size[0],
-                                         ccs.size[1],
-                                         ccs.hot_spot[0],
-                                         ccs.hot_spot[1],
+                                         ccs.size,
+                                         ccs.hot_spot,
                                          ccs.can_invert_color);
 }
 

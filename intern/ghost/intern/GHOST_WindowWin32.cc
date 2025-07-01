@@ -1249,8 +1249,8 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
   HBITMAP empty_mask = CreateBitmap(size[0], size[1], 1, 1, NULL);
   ICONINFO icon_info;
   icon_info.fIcon = FALSE;
-  icon_info.xHotspot = (DWORD)hotX;
-  icon_info.yHotspot = (DWORD)hotY;
+  icon_info.xHotspot = (DWORD)hot_spot[0];
+  icon_info.yHotspot = (DWORD)hot_spot[1];
   icon_info.hbmMask = empty_mask;
   icon_info.hbmColor = bmp;
 
