@@ -64,9 +64,17 @@ void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path)
     if (i > 0) {
       sub_row->label("", ICON_RIGHTARROW_THIN);
     }
-    uiBut *but = uiItemL_ex(
-        sub_row, context_path[i].name.c_str(), context_path[i].icon, false, false);
-    UI_but_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
+    int parent_index = context_path.size() - i - 1;
+    if (context_path[i].icon == ICON_NODETREE && parent_index > 0) {
+      PointerRNA op_ptr = sub_row->op(
+          "NODE_OT_tree_path_parent", context_path[i].name, context_path[i].icon);
+      RNA_int_set(&op_ptr, "parent_index", parent_index);
+    }
+    else {
+      uiBut *but = uiItemL_ex(
+          sub_row, context_path[i].name.c_str(), context_path[i].icon, false, false);
+      UI_but_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
+    }
   }
 }
 

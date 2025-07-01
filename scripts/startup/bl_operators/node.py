@@ -320,6 +320,12 @@ class NODE_OT_tree_path_parent(Operator):
     bl_label = "Parent Node Tree"
     bl_options = {'REGISTER', 'UNDO'}
 
+    parent_index: IntProperty(
+        name="Parent Index",
+        description="Parent index in context path",
+        default=1,
+    )
+
     @classmethod
     def poll(cls, context):
         space = context.space_data
@@ -329,7 +335,8 @@ class NODE_OT_tree_path_parent(Operator):
     def execute(self, context):
         space = context.space_data
 
-        space.path.pop()
+        for _ in range(self.parent_index):
+            space.path.pop()
 
         return {'FINISHED'}
 
