@@ -935,8 +935,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
     bool fcurve_belongs_to_selected_strip = false;
     for (const std::string &strip_path : selected_rna_paths) {
-      if (fcurve_belongs_to_strip(fcurve, strip_path))
-      {
+      if (fcurve_belongs_to_strip(fcurve, strip_path)) {
         fcurve_belongs_to_selected_strip = true;
         modified_strips.add(strip_path);
         break;
@@ -986,8 +985,10 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
                   keyframes_removed);
     }
     else {
-      BKE_reportf(
-          op->reports, RPT_ERROR, "No keyframes removed from %d strip(s)", selected_strips_len);
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "No keyframes removed from %ld strip(s)",
+                  modified_strips.size());
     }
   }
 
