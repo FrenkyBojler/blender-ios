@@ -983,7 +983,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
       BKE_reportf(op->reports,
                   RPT_ERROR,
                   "No keyframes removed from %ld strip(s)",
-                  modified_strips.size());
+                  selected_strips_rna_paths.size());
     }
   }
 
