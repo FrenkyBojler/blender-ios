@@ -774,7 +774,7 @@ void do_versions_after_setup(Main *new_bmain,
 
   // todo(habib): in first versioning pass, we're not allowed to create new id data blocks. Is
   // there a way to achieve the same versioning as below before linking?
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 500, 32)) {
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 500, 33)) {
     LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
       bNodeTree *ntree = scene->world->nodetree;
       World *world = scene->world;
@@ -793,6 +793,8 @@ void do_versions_after_setup(Main *new_bmain,
             *blender::bke::node_find_socket(*shader, SOCK_OUT, "Background"),
             *output,
             *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
+
+        // todo(habib): position nodes nicely, maybe in a frame
 
         bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
         color_sock->default_value_typed<bNodeSocketValueVector>()->value[0] = world->horr;

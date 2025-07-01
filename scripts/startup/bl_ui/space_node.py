@@ -67,8 +67,6 @@ class NODE_HT_header(Header):
                 if snode_id:
                     row = layout.row()
 
-                    row.prop(snode_id, "use_nodes")
-
                 layout.separator_spacer()
 
                 types_that_support_material = {
@@ -100,8 +98,6 @@ class NODE_HT_header(Header):
 
                 if snode_id:
                     row = layout.row()
-                    if snode.shader_type != 'WORLD':
-                        row.prop(snode_id, "use_nodes")
 
                     if world and world.use_eevee_finite_volume:
                         row.operator("world.convert_volume_to_mesh", emboss=False, icon='WORLD', text="Convert Volume")

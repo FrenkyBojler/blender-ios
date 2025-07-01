@@ -11,11 +11,11 @@
 #include <fmt/format.h>
 
 #include "DNA_ID.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_numbers.hh"
@@ -37,7 +37,6 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
-#include "BKE_world.h"
 
 #include "SEQ_iterator.hh"
 
@@ -1252,6 +1251,49 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         node->storage = data;
       }
       FOREACH_NODETREE_END;
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 33)) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      if (material->use_nodes == false && material->nodetree) {
+        /* Preserve the current node tree. Add a new BSDF node that simulates the RGB values with
+         * use_nodes == false */
+        /* find existing active output node */
+        bNode *output = nullptr;
+        for (bNode *node : material->nodetree->all_nodes()) {
+          if (node->type_legacy == SH_NODE_OUTPUT_MATERIAL && node->flag & NODE_DO_OUTPUT) {
+            output = node;
+            bNodeSocket *in_surface = blender::bke::node_find_socket(*output, SOCK_IN, "Surface");
+            if (in_surface->link) {
+              blender::bke::node_remove_link(material->nodetree, *in_surface->link);
+            }
+            break;
+          }
+        }
+        if (output == nullptr) {
+          /* No output node found in the node tree, create one. */
+          output = blender::bke::node_add_static_node(
+              nullptr, *material->nodetree, SH_NODE_OUTPUT_MATERIAL);
+        }
+        bNode *bsdf = blender::bke::node_add_static_node(
+            nullptr, *material->nodetree, SH_NODE_BSDF_PRINCIPLED);
+        blender::bke::node_add_link(*material->nodetree,
+                                    *bsdf,
+                                    *blender::bke::node_find_socket(*bsdf, SOCK_OUT, "BSDF"),
+                                    *output,
+                                    *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
+
+        bNodeSocket *color_sock = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Color");
+        color_sock->default_value_typed<bNodeSocketValueVector>()->value[0] = material->r;
+        color_sock->default_value_typed<bNodeSocketValueVector>()->value[1] = material->g;
+        color_sock->default_value_typed<bNodeSocketValueVector>()->value[2] = material->b;
+        color_sock->default_value_typed<bNodeSocketValueVector>()->value[3] = material->a;
+        version_socket_update_is_used(material->nodetree);
+        // todo(habib): do the same for specular, roughness, metallic etc..
+
+        material->use_nodes = true;  // todo(habib): remove, should always be on.
+      }
     }
   }
 
