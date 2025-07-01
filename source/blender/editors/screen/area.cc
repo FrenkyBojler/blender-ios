@@ -213,7 +213,7 @@ static void draw_azone_arrow(AZone *az)
   const float line_width = (az->hover ? 3.0f : 2.0f) * U.pixelsize;
   const float shadow_width = 2.0f * U.pixelsize;
   const float width = line_width + (2.0f * shadow_width);
-  const float offset = shadow_width + (az->hover ? U.pixelsize : 0.0f);
+  const float offset = az->hover ? (2.0f * U.pixelsize) : U.pixelsize;
 
   switch (az->edge) {
     case AE_BOTTOM_TO_TOPLEFT:

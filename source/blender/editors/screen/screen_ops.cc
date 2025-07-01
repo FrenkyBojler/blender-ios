@@ -889,6 +889,7 @@ static AZone *area_actionzone_refresh_xy(ScrArea *area, const int xy[2], const b
           az = nullptr;
           break;
         }
+
         ED_area_tag_redraw(area);
         break;
       }
@@ -2864,6 +2865,7 @@ static void region_scale_draw_cb(const wmWindow * /*win*/, void *userdata)
 static void region_scale_exit(wmOperator *op)
 {
   RegionMoveData *rmd = static_cast<RegionMoveData *>(op->customdata);
+  ED_area_tag_redraw(rmd->area);
   WM_draw_cb_exit(rmd->win, rmd->draw_callback);
 
   MEM_freeN(rmd);
