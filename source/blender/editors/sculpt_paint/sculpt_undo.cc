@@ -1672,7 +1672,7 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
     return;
   }
   if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & ATTR_DOMAIN_MASK_COLOR) ||
-      !(CD_TYPE_AS_MASK(meta_data->data_type) & CD_MASK_COLOR_ALL))
+      !(ELEM(meta_data->data_type, bke::AttrType::ColorFloat, bke::AttrType::ColorByte)))
   {
     return;
   }

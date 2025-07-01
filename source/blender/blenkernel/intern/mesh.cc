@@ -545,7 +545,7 @@ void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
   if (bke::attribute_name_is_anonymous(id)) {
     return;
   }
-  if (!(CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) ||
+  if (!(CD_TYPE_AS_MASK(*attr_type_to_custom_data_type(data_type)) & CD_MASK_COLOR_ALL) ||
       !(ATTR_DOMAIN_AS_MASK(domain) & ATTR_DOMAIN_MASK_COLOR))
   {
     return;
@@ -578,7 +578,7 @@ static bool meta_data_matches(const std::optional<bke::AttributeMetaData> meta_d
   if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & domains)) {
     return false;
   }
-  if (!(CD_TYPE_AS_MASK(meta_data->data_type) & types)) {
+  if (!(CD_TYPE_AS_MASK(*attr_type_to_custom_data_type(meta_data->data_type)) & types)) {
     return false;
   }
   return true;

@@ -316,7 +316,7 @@ static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
   bool is_render, is_active;
   const char *prefix = "a";
 
-  if (CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) {
+  if (CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(data_type))) {
     prefix = "c";
     is_active = orig_mesh_data.active_color == name;
     is_render = orig_mesh_data.default_color == name;
