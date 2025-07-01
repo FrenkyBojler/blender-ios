@@ -1340,7 +1340,7 @@ typedef struct Sculpt {
 
   // /* Control tablet input. */
   // char tablet_size, tablet_strength; XXX not used?
-  int radial_symm_deprecated[3];
+  int radial_symm_legacy[3];
 
   /** Maximum edge length for dynamic topology sculpting (in pixels). */
   float detail_size;
