@@ -464,7 +464,7 @@ static CollectionExport *rna_CollectionExport_new(Collection *collection,
                                                   int type,
                                                   const char *name)
 {
-  blender::bke::FileHandlerType *fh;
+  blender::bke::FileHandlerType *fh = nullptr;
   blender::Span<std::unique_ptr<blender::bke::FileHandlerType>> types =
       blender::bke::file_handlers();
   if (types.index_range().contains(type)) {
