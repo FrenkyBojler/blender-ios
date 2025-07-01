@@ -151,7 +151,6 @@ static constexpr AttributeAccessorFunctions get_instances_accessor_functions()
     Instances &instances = *static_cast<Instances *>(owner);
     const int domain_size = instances.instances_num();
     AttributeStorage &storage = instances.attribute_storage();
-    BLI_assert(type.has_value());
     if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
       if (info->domain != domain || info->type != type) {
         return false;

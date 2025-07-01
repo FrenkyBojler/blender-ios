@@ -141,22 +141,21 @@ static constexpr AttributeAccessorFunctions get_pointcloud_accessor_functions()
   fn.add = [](void *owner,
               const StringRef name,
               const AttrDomain domain,
-              const bke::AttrType data_type,
+              const bke::AttrType type,
               const AttributeInit &initializer) {
     PointCloud &pointcloud = *static_cast<PointCloud *>(owner);
     const int domain_size = pointcloud.totpoint;
     AttributeStorage &storage = pointcloud.attribute_storage.wrap();
-    BLI_assert(type.has_value());
     if (const AttrBuiltinInfo *info = builtin_attributes().lookup_ptr(name)) {
-      if (info->domain != domain || info->type != data_type) {
+      if (info->domain != domain || info->type != type) {
         return false;
       }
     }
     if (storage.lookup(name)) {
       return false;
     }
-    Attribute::DataVariant data = attribute_init_to_data(data_type, domain_size, initializer);
-    storage.add(name, domain, data_type, std::move(data));
+    Attribute::DataVariant data = attribute_init_to_data(type, domain_size, initializer);
+    storage.add(name, domain, type, std::move(data));
     return true;
   };
 
