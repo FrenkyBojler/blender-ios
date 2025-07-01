@@ -1791,7 +1791,7 @@ struct tFCurveSegmentLink {
   FCurve *fcu;
   FCurveSegment *segment;
   /* Array of y-values. The length of the array equals the length of the
-   * segment.   */
+   * segment. */
   float *original_y_values;
   /* Array of y-values of the FCurve segment at regular intervals. */
   float *samples;

@@ -661,7 +661,9 @@ void smooth_fcurve_segment(FCurve *fcu,
     /* Using round() instead of (int). The latter would create stepping on x-values that are just
      * below a full frame. */
     const int sample_index = round(sample_index_f);
-    /* Sampling the two closest indices to support subframe keys. */
+    /* Sampling the two closest indices to support subframe keys. This can end up being the same
+     * index as sample_index, in which case the interpolation will happen between two identical
+     * values. */
     const int secondary_index = clamp_i(
         sample_index + signum_i(sample_index_f - sample_index), 0, sample_count - 1);
 
