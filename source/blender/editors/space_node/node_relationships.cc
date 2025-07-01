@@ -216,19 +216,31 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
     }
   }
 
-  /* If the target is an extend socket, then connect the first unlinked available socket. If non
-   * are unlinked, select the first available socket.  */
+  /* If the target is an extend socket, then connect the first available socket that is not
+   * already linked to the target node. */
+  ntree->ensure_topology_cache();
   if (STREQ(sock_target->idname, "NodeSocketVirtual")) {
     LISTBASE_FOREACH (bNodeSocket *, output, &node->outputs) {
-      if (socket_is_available(ntree, output, false)) {
-        return output;
+      if (!output->is_visible()) {
+        continue;
       }
-    }
 
-    LISTBASE_FOREACH (bNodeSocket *, output, &node->outputs) {
-      if (socket_is_available(ntree, output, true)) {
-        return output;
+      /* Find out if the socket is already linked to the target node. */
+      blender::Span<bNodeSocket *> directly_linked_sockets = output->directly_linked_sockets();
+      bool is_output_linked_to_target_node = false;
+      for (bNodeSocket *socket : directly_linked_sockets) {
+        if (&socket->owner_node() == &sock_target->owner_node()) {
+          is_output_linked_to_target_node = true;
+          break;
+        }
       }
+
+      /* Already linked, ignore it. */
+      if (is_output_linked_to_target_node) {
+        continue;
+      }
+
+      return output;
     }
   }
 
