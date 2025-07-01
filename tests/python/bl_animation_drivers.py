@@ -241,6 +241,33 @@ class SubDataDriverRemovalTest(AbstractEmptyDriverTest, unittest.TestCase):
         self.assertEqual(len(arm_ob.animation_data.drivers), 0,
                          "Removing the constraint should remove the driver on it")
 
+    def test_remove_bone_constraint_multiple(self):
+        arm = bpy.data.armatures.new('Armature')
+        arm_ob = bpy.data.objects.new('ArmObject', arm)
+        bpy.context.scene.collection.objects.link(arm_ob)
+        bpy.context.view_layer.objects.active = arm_ob
+        bpy.ops.object.mode_set(mode='EDIT')
+
+        for i in range(3):
+            ebone = arm.edit_bones.new(name="test" + str(i))
+            ebone.tail = (1, 0, 0)
+
+        bpy.ops.object.mode_set(mode='POSE')
+        for i in range(3):
+            bone_name = "test" + str(i)
+            pose_bone = arm_ob.pose.bones[bone_name]
+            constraint = pose_bone.constraints.new('LIMIT_DISTANCE')
+            constraint.name = "test"
+            arm_ob.driver_add('pose.bones["{}"].constraints["test"].distance'.format(bone_name))
+
+        for pose_bone in bpy.context.active_object.pose.bones:
+            for c in pose_bone.constraints:
+                pose_bone.constraints.remove(c)
+            self.assertEqual(len(pose_bone.constraints), 0)
+
+        self.assertEqual(len(arm_ob.animation_data.drivers), 0,
+                         "Should have removed all drivers from the object")
+
     def test_remove_shapekey(self):
         self.obj.shape_key_add(name="base")
         test_key = self.obj.shape_key_add(name="test")
