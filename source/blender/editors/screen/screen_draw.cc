@@ -639,10 +639,7 @@ void screen_draw_dock_preview(const wmWindow *win,
                                                                     IFACE_("Move area here"));
 }
 
-void screen_draw_split_preview(ScrArea *area,
-                               const eScreenAxis dir_axis,
-                               const float split_factor,
-                               const float anim_factor)
+void screen_draw_split_preview(ScrArea *area, const eScreenAxis dir_axis, const float factor)
 {
   float outline[4] = {1.0f, 1.0f, 1.0f, 0.4f};
   float inner[4] = {1.0f, 1.0f, 1.0f, 0.10f};
@@ -653,20 +650,17 @@ void screen_draw_split_preview(ScrArea *area,
   rctf rect;
   BLI_rctf_rcti_copy(&rect, &area->totrct);
 
-  if (split_factor < 0.0001 || split_factor > 0.9999) {
+  if (factor < 0.0001 || factor > 0.9999) {
     /* Highlight the entire area. */
     UI_draw_roundbox_4fv_ex(&rect, inner, nullptr, 1.0f, outline, U.pixelsize, EDITORRADIUS);
     return;
   }
 
-  float x = (1 - split_factor) * rect.xmin + split_factor * rect.xmax;
-  float y = (1 - split_factor) * rect.ymin + split_factor * rect.ymax;
+  float x = (1 - factor) * rect.xmin + factor * rect.xmax;
+  float y = (1 - factor) * rect.ymin + factor * rect.ymax;
   x = std::clamp(x, rect.xmin, rect.xmax);
   y = std::clamp(y, rect.ymin, rect.ymax);
-  float half_line_width = float(U.border_width) * UI_SCALE_FAC * anim_factor;
-  if (half_line_width < 0.5f) {
-    half_line_width = -U.pixelsize;
-  }
+  float half_line_width = float(U.border_width) * UI_SCALE_FAC;
 
   /* Outlined rectangle to left/above split position. */
   rect.xmax = (dir_axis == SCREEN_AXIS_V) ? x - half_line_width : rect.xmax;

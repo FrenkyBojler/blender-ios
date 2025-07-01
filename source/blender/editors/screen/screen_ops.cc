@@ -2217,9 +2217,6 @@ struct sAreaSplitData {
   int previewmode;       /* draw preview-line, then split. */
   void *draw_callback;   /* call `screen_draw_split_preview` */
   bool do_snap;
-  bScreen *screen;
-  double start_time;
-  double end_time;
 
   ScrEdge *nedge; /* new edge */
   ScrArea *sarea; /* start area */
@@ -2251,16 +2248,8 @@ static void area_split_draw_cb(const wmWindow * /*win*/, void *userdata)
   const eScreenAxis dir_axis = eScreenAxis(RNA_enum_get(op->ptr, "direction"));
 
   if (area_split_allowed(sd->sarea, dir_axis)) {
-    const float split_fac = RNA_float_get(op->ptr, "factor");
-
-    float factor = 1.0f;
-    const double now = BLI_time_now_seconds();
-    if (now < sd->end_time) {
-      factor = pow((now - sd->start_time) / (sd->end_time - sd->start_time), 2);
-      sd->screen->do_refresh = true;
-    }
-
-    screen_draw_split_preview(sd->sarea, dir_axis, split_fac, factor);
+    float fac = RNA_float_get(op->ptr, "factor");
+    screen_draw_split_preview(sd->sarea, dir_axis, fac);
   }
 }
 
@@ -2272,9 +2261,6 @@ static bool area_split_menu_init(bContext *C, wmOperator *op)
   op->customdata = sd;
 
   sd->sarea = CTX_wm_area(C);
-  sd->screen = CTX_wm_screen(C);
-  sd->start_time = BLI_time_now_seconds();
-  sd->end_time = sd->start_time + AREA_SPLIT_FADEIN;
 
   return true;
 }
@@ -2295,9 +2281,6 @@ static bool area_split_init(bContext *C, wmOperator *op)
   /* custom data */
   sAreaSplitData *sd = MEM_callocN<sAreaSplitData>("op_area_split");
   op->customdata = sd;
-  sd->screen = CTX_wm_screen(C);
-  sd->start_time = BLI_time_now_seconds();
-  sd->end_time = sd->start_time + AREA_SPLIT_FADEIN;
 
   sd->sarea = area;
   if (dir_axis == SCREEN_AXIS_V) {
@@ -2711,12 +2694,7 @@ static wmOperatorStatus area_split_modal(bContext *C, wmOperator *op, const wmEv
       area_split_preview_update_cursor(C, op);
 
       /* area context not set */
-      ScrArea *area = BKE_screen_find_area_xy(CTX_wm_screen(C), SPACE_TYPE_ANY, event->xy);
-      if (area != sd->sarea) {
-        sd->start_time = BLI_time_now_seconds();
-        sd->end_time = sd->start_time + AREA_SPLIT_FADEIN;
-      }
-      sd->sarea = area;
+      sd->sarea = BKE_screen_find_area_xy(CTX_wm_screen(C), SPACE_TYPE_ANY, event->xy);
 
       if (sd->sarea) {
         ScrArea *area = sd->sarea;
@@ -3781,7 +3759,7 @@ static void area_join_draw_cb(const wmWindow *win, void *userdata)
   }
 
   if (sd->sa1 == sd->sa2) {
-    screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac, factor);
+    screen_draw_split_preview(sd->sa1, sd->split_dir, sd->split_fac);
   }
   else {
     screen_draw_join_highlight(win, sd->sa1, sd->sa2, sd->dir, factor);
@@ -4402,10 +4380,6 @@ static void area_join_update_data(bContext *C, sAreaJoinData *jd, const wmEvent 
     eScreenAxis dir = (abs(event->xy[0] - jd->start_x) > abs(event->xy[1] - jd->start_y)) ?
                           SCREEN_AXIS_V :
                           SCREEN_AXIS_H;
-    if (dir != jd->split_dir) {
-      jd->start_time = BLI_time_now_seconds();
-      jd->end_time = jd->start_time + AREA_SPLIT_FADEIN;
-    }
     jd->split_dir = dir;
     jd->split_fac = area_split_factor(C, jd, event);
     return;
