@@ -890,14 +890,14 @@ static bool delete_scene_action_keyframes_legacy(AnimData *adt,
                                                  bAction *act,
                                                  Scene *scene,
                                                  float cfra_unmap,
-                                                 blender::Vector<FCurve *> &modified_fcurves)
+                                                 blender::Vector<FCurve *> &r_modified_fcurves)
 {
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
     if (!can_delete_scene_key(fcu, scene)) {
       continue;
     }
     blender::animrig::delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
-    modified_fcurves.append(fcu);
+    r_modified_fcurves.append(fcu);
   }
   return true;
 }
