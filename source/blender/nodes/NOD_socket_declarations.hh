@@ -270,6 +270,8 @@ class Closure : public SocketDeclaration {
  public:
   static constexpr eNodeSocketDatatype static_socket_type = SOCK_CLOSURE;
 
+  ClosureSocketValueType closure_type = CLOSURE_SOCKET_VALUE_TYPE_NONE;
+
   friend ClosureBuilder;
 
   using Builder = ClosureBuilder;
@@ -280,7 +282,10 @@ class Closure : public SocketDeclaration {
   bool can_connect(const bNodeSocket &socket) const override;
 };
 
-class ClosureBuilder : public SocketDeclarationBuilder<Closure> {};
+class ClosureBuilder : public SocketDeclarationBuilder<Closure> {
+ public:
+  ClosureBuilder &closure_type(ClosureSocketValueType type);
+};
 
 class IDSocketDeclaration : public SocketDeclaration {
  public:
@@ -591,6 +596,18 @@ inline MenuBuilder &MenuBuilder::default_value(const int32_t value)
 inline MenuBuilder &MenuBuilder::expanded(const bool value)
 {
   decl_->is_expanded = value;
+  return *this;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name #ClosureBuilder Inline Methods
+ * \{ */
+
+inline ClosureBuilder &ClosureBuilder::closure_type(ClosureSocketValueType type)
+{
+  decl_->closure_type = type;
   return *this;
 }
 

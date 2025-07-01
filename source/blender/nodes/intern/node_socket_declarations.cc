@@ -668,6 +668,8 @@ bNodeSocket &Closure::build(bNodeTree &ntree, bNode &node) const
                                                      this->identifier.c_str(),
                                                      this->name.c_str());
   this->set_common_flags(socket);
+  bNodeSocketValueClosure &value = *(bNodeSocketValueClosure *)socket.default_value;
+  value.type = this->closure_type;
   return socket;
 }
 
@@ -677,6 +679,10 @@ bool Closure::matches(const bNodeSocket &socket) const
     return false;
   }
   if (socket.type != SOCK_CLOSURE) {
+    return false;
+  }
+  bNodeSocketValueClosure &value = *(bNodeSocketValueClosure *)socket.default_value;
+  if (value.type != this->closure_type) {
     return false;
   }
   return true;
@@ -697,6 +703,8 @@ bNodeSocket &Closure::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket
     return this->build(ntree, node);
   }
   this->set_common_flags(socket);
+  auto &value = *static_cast<bNodeSocketValueClosure *>(socket.default_value);
+  value.type = this->closure_type;
   return socket;
 }
 
