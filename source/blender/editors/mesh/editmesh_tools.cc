@@ -7131,22 +7131,27 @@ static int edbm_bridge_tag_boundary_edges(BMesh *bm)
 
   return totface_del;
 }
-
 static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
-                                                      BMEditMesh *em,
-                                                      Mesh *mesh,
+                                                      Object *obedit,
                                                       const bool use_pairs,
                                                       const bool use_cyclic,
                                                       const bool use_merge,
                                                       const float merge_factor,
                                                       const int twist_offset)
 {
+  BMEditMesh *em = BKE_editmesh_from_object(obedit);
+  BMesh *bm = em->bm;
+  Mesh *mesh = static_cast<Mesh *>(obedit->data);
+
   BMOperator bmop;
   char edge_hflag;
   int totface_del = 0;
   BMFace **totface_del_arr = nullptr;
-  const bool use_faces = (em->bm->totfacesel != 0);
+  const bool use_faces = (bm->totfacesel != 0);
   bool changed = false;
+
+  std::optional<EditMeshSymmetryHelper> symmetry_helper =
+      EditMeshSymmetryHelper::create_if_needed(obedit);
 
   if (use_faces) {
     /* NOTE: When all faces are selected, all faces will be deleted with no edge-loops remaining.
@@ -7158,24 +7163,36 @@ static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
      * this is quite an expensive operation - to properly handle clearly invalid input.
      * Accept this limitation, the user must undo to restore the previous state, see: #123405. */
 
-    BMIter iter;
-    BMFace *f;
-    int i;
-
-    totface_del = edbm_bridge_tag_boundary_edges(em->bm);
-    totface_del_arr = static_cast<BMFace **>(
-        MEM_mallocN(sizeof(*totface_del_arr) * totface_del, __func__));
-
-    i = 0;
-    BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
-      if (BM_elem_flag_test(f, BM_ELEM_TAG)) {
-        totface_del_arr[i++] = f;
+    totface_del = edbm_bridge_tag_boundary_edges(bm);
+    if (symmetry_helper) {
+      blender::Vector<BMEdge *> tagged_edges;
+      BMIter e_iter;
+      BMEdge *e;
+      BM_ITER_MESH (e, &e_iter, bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_TAG)) {
+          tagged_edges.append(e);
+        }
+      }
+      for (BMEdge *e_tagged : tagged_edges) {
+        symmetry_helper->set_flag_on_mirror_edges(e_tagged, BM_ELEM_TAG, true);
       }
     }
     edge_hflag = BM_ELEM_TAG;
   }
   else {
     edge_hflag = BM_ELEM_SELECT;
+    if (symmetry_helper) {
+      edge_hflag = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, edge_hflag);
+      BMIter e_iter;
+      BMEdge *e;
+      BM_ITER_MESH (e, &e_iter, bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(e, edge_hflag);
+          symmetry_helper->set_flag_on_mirror_edges(e, edge_hflag, true);
+        }
+      }
+    }
   }
 
   EDBM_op_init(em,
@@ -7191,27 +7208,32 @@ static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
                twist_offset);
 
   if (use_faces && totface_del) {
-    int i;
-    BM_mesh_elem_hflag_disable_all(em->bm, BM_FACE, BM_ELEM_TAG, false);
+    totface_del_arr = static_cast<BMFace **>(
+        MEM_mallocN(sizeof(*totface_del_arr) * totface_del, __func__));
+    int i = 0;
+    BMIter iter;
+    BMFace *f;
+    BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
+      if (BM_elem_flag_test(f, BM_ELEM_TAG)) {
+        totface_del_arr[i++] = f;
+      }
+    }
+    BM_mesh_elem_hflag_disable_all(bm, BM_FACE, BM_ELEM_TAG, false);
     for (i = 0; i < totface_del; i++) {
       BM_elem_flag_enable(totface_del_arr[i], BM_ELEM_TAG);
     }
-    BMO_op_callf(em->bm,
-                 BMO_FLAG_DEFAULTS,
-                 "delete geom=%hf context=%i",
-                 BM_ELEM_TAG,
-                 DEL_FACES_KEEP_BOUNDARY);
+    BMO_op_callf(
+        bm, BMO_FLAG_DEFAULTS, "delete geom=%hf context=%i", BM_ELEM_TAG, DEL_FACES_KEEP_BOUNDARY);
     changed = true;
   }
 
-  BMO_op_exec(em->bm, &bmop);
+  BMO_op_exec(bm, &bmop);
 
-  if (!BMO_error_occurred_at_level(em->bm, BMO_ERROR_CANCEL)) {
-    /* when merge is used the edges are joined and remain selected */
+  if (!BMO_error_occurred_at_level(bm, BMO_ERROR_CANCEL)) {
     if (use_merge == false) {
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(
-          em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+          bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
 
       changed = true;
     }
@@ -7219,13 +7241,12 @@ static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
     if (use_merge == false) {
       EdgeRingOpSubdProps op_props;
       mesh_operator_edgering_props_get(op, &op_props);
-
       if (op_props.cuts) {
         BMOperator bmop_subd;
         /* we only need face normals updated */
         EDBM_mesh_normals_update(em);
 
-        BMO_op_initf(em->bm,
+        BMO_op_initf(bm,
                      &bmop_subd,
                      0,
                      "subdivide_edgering edges=%S interp_mode=%i cuts=%i smooth=%f "
@@ -7237,10 +7258,10 @@ static int edbm_bridge_edge_loops_for_single_editmesh(wmOperator *op,
                      op_props.smooth,
                      op_props.profile_shape,
                      op_props.profile_shape_factor);
-        BMO_op_exec(em->bm, &bmop_subd);
+        BMO_op_exec(bm, &bmop_subd);
         BMO_slot_buffer_hflag_enable(
-            em->bm, bmop_subd.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
-        BMO_op_finish(em->bm, &bmop_subd);
+            bm, bmop_subd.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+        BMO_op_finish(bm, &bmop_subd);
 
         changed = true;
       }
@@ -7287,18 +7308,11 @@ static int edbm_bridge_edge_loops_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_bridge_edge_loops_for_single_editmesh(op,
-                                               em,
-                                               static_cast<Mesh *>(obedit->data),
-                                               use_pairs,
-                                               use_cyclic,
-                                               use_merge,
-                                               merge_factor,
-                                               twist_offset);
+    edbm_bridge_edge_loops_for_single_editmesh(
+        op, obedit, use_pairs, use_cyclic, use_merge, merge_factor, twist_offset);
   }
   return OPERATOR_FINISHED;
 }
-
 void MESH_OT_bridge_edge_loops(wmOperatorType *ot)
 {
   static const EnumPropertyItem type_items[] = {
@@ -7946,9 +7960,6 @@ void MESH_OT_symmetry_snap(wmOperatorType *ot)
 
 static int edbm_mark_freestyle_edge_exec(bContext *C, wmOperator *op)
 {
-  BMEdge *eed;
-  BMIter iter;
-  FreestyleEdge *fed;
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
@@ -7968,24 +7979,30 @@ static int edbm_mark_freestyle_edge_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    if (!CustomData_has_layer(&em->bm->edata, CD_FREESTYLE_EDGE)) {
-      BM_data_layer_add(em->bm, &em->bm->edata, CD_FREESTYLE_EDGE);
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit);
+
+    if (!CustomData_has_layer(&bm->edata, CD_FREESTYLE_EDGE)) {
+      BM_data_layer_add(bm, &bm->edata, CD_FREESTYLE_EDGE);
     }
 
-    if (clear) {
-      BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-        if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-          fed = static_cast<FreestyleEdge *>(
-              CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE));
+    BMIter iter;
+    BMEdge *eed;
+    BM_ITER_MESH (eed, &iter, bm, BM_EDGES_OF_MESH) {
+      if (BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
+        continue;
+      }
+
+      if (BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+          (symmetry_helper &&
+           symmetry_helper->is_any_mirror_edge_selected(eed, BM_ELEM_SELECT))) {
+        FreestyleEdge *fed = static_cast<FreestyleEdge *>(
+            CustomData_bmesh_get(&bm->edata, eed->head.data, CD_FREESTYLE_EDGE));
+
+        if (clear) {
           fed->flag &= ~FREESTYLE_EDGE_MARK;
         }
-      }
-    }
-    else {
-      BM_ITER_MESH (eed, &iter, em->bm, BM_EDGES_OF_MESH) {
-        if (BM_elem_flag_test(eed, BM_ELEM_SELECT) && !BM_elem_flag_test(eed, BM_ELEM_HIDDEN)) {
-          fed = static_cast<FreestyleEdge *>(
-              CustomData_bmesh_get(&em->bm->edata, eed->head.data, CD_FREESTYLE_EDGE));
+        else {
           fed->flag |= FREESTYLE_EDGE_MARK;
         }
       }
