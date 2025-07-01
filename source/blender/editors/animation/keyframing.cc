@@ -818,7 +818,7 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
-static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
   bool changed = false;
@@ -827,6 +827,11 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator * /*op*/)
 
   blender::Vector<PointerRNA> selection;
   get_selection(C, &selection);
+
+  if (selection.is_empty()) {
+    BKE_reportf(op->reports, RPT_WARNING, "No strips selected");
+    return OPERATOR_CANCELLED;
+  }
 
   blender::Vector<std::string> selected_rna_paths;
 
