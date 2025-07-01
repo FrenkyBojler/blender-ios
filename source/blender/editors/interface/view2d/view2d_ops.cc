@@ -1532,7 +1532,7 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
   blender::float3 pan_vec = WM_event_ndof_translation_get_for_navigation(ndof);
 
   if (has_translate) {
-    mul_v2_fl(pan_vec, ndof.dt * pan_speed);
+    mul_v2_fl(pan_vec, ndof.time_delta * pan_speed);
 
     view_pan_init(C, op);
 
@@ -1543,7 +1543,7 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
   }
 
   if (has_zoom) {
-    float zoom_factor = zoom_sensitivity * ndof.dt * -pan_vec[2];
+    float zoom_factor = zoom_sensitivity * ndof.time_delta * -pan_vec[2];
 
     bool do_zoom_xy[2];
     view_zoom_axis_lock_defaults(C, do_zoom_xy);

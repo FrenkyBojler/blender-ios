@@ -164,7 +164,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
 
     /* "zoom in" or "translate"? depends on zoom mode in user settings? */
     if (ndof.tvec[2]) {
-      float zoom_distance = rv3d->dist * ndof.dt * pan_vec_no_navigation[2];
+      float zoom_distance = rv3d->dist * ndof.time_delta * pan_vec_no_navigation[2];
       rv3d->dist += zoom_distance;
     }
   }
@@ -180,7 +180,7 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
   if (has_translate) {
     const float speed = view3d_ndof_pan_speed_calc(rv3d);
 
-    pan_vec *= speed * ndof.dt;
+    pan_vec *= speed * ndof.time_delta;
 
     /* transform motion from view to world coordinates */
     float view_inv[4];
@@ -230,12 +230,12 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
     mul_qt_v3(view_inv, yvec);
 
     /* Perform the up/down rotation */
-    angle = ndof.dt * rot[0];
+    angle = ndof.time_delta * rot[0];
     axis_angle_to_quat(quat, xvec, angle);
     mul_qt_qtqt(rv3d->viewquat, rv3d->viewquat, quat);
 
     /* Perform the Z rotation. */
-    angle = ndof.dt * rot[1];
+    angle = ndof.time_delta * rot[1];
 
     /* Flip the turntable angle when the view is upside down. */
     if (yvec[2] < 0.0f) {
@@ -254,7 +254,8 @@ static void view3d_ndof_orbit(const wmNDOFMotionData &ndof,
   else {
     float quat[4];
     float axis[3];
-    float angle = ndof.dt * WM_event_ndof_rotation_get_axis_angle_for_navigation(ndof, axis);
+    float angle = ndof.time_delta *
+                  WM_event_ndof_rotation_get_axis_angle_for_navigation(ndof, axis);
 
     /* transform rotation axis from view to world coordinates */
     mul_qt_v3(view_inv, axis);
@@ -312,7 +313,7 @@ void view3d_ndof_fly(const wmNDOFMotionData &ndof,
       speed *= 0.2f;
     }
 
-    blender::float3 trans = (speed * ndof.dt) * WM_event_ndof_translation_get(ndof);
+    blender::float3 trans = (speed * ndof.time_delta) * WM_event_ndof_translation_get(ndof);
     trans_orig_y = trans[1];
 
     if (U.ndof_flag & NDOF_FLY_HELICOPTER) {
@@ -354,7 +355,7 @@ void view3d_ndof_fly(const wmNDOFMotionData &ndof,
   if (has_rotate) {
     float rotation[4];
     float axis[3];
-    float angle = ndof.dt * WM_event_ndof_rotation_get_axis_angle(ndof, axis);
+    float angle = ndof.time_delta * WM_event_ndof_rotation_get_axis_angle(ndof, axis);
 
     if (fabsf(angle) > 0.0001f) {
       has_rotate = true;
@@ -607,7 +608,7 @@ static wmOperatorStatus view3d_ndof_cameraview_pan_zoom(ViewOpsData *vod,
   const bool has_translate = !is_zero_v2(ndof.tvec);
   const bool has_zoom = ndof.tvec[2] != 0.0f;
 
-  blender::float3 pan_vec = ndof.dt * WM_event_ndof_translation_get_for_navigation(ndof);
+  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
 
   /* NOTE: unlike image and clip views, the 2D pan doesn't have to be scaled by the zoom level.
    * #ED_view3d_camera_view_pan already takes the zoom level into account. */
