@@ -27,6 +27,7 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 #include "BLI_utility_mixins.hh"
+#include "BLI_vector_set.hh"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
@@ -140,7 +141,12 @@ enum {
 };
 
 struct Main : blender::NonCopyable, blender::NonMovable {
-  Main *next = nullptr, *prev = nullptr;
+  /**
+   * Runtime vector storing all split Mains (one Main for each library data), during readfile or
+   * linking process.
+   * Shared accross all of the split mains when defined.
+   */
+  std::shared_ptr<blender::VectorSet<Main *>> split_mains = {};
   /**
    * The file-path of this blend file, an empty string indicates an unsaved file.
    *

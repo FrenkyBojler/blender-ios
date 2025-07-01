@@ -62,8 +62,14 @@ Main::~Main()
   /* In case this is called on a 'split-by-libraries' list of mains.
    *
    * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
-  if (this->next) {
-    MEM_delete(this->next);
+  if (this->split_mains) {
+    for (Main *main_it : *this->split_mains) {
+      if (main_it == this) {
+        continue;
+      }
+      main_it->split_mains.reset();
+      MEM_delete(main_it);
+    }
   }
 
   /* Include this check here as the path may be manipulated after creation. */
