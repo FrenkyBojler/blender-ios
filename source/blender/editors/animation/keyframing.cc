@@ -891,8 +891,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   Scene *scene = CTX_data_scene(C);
   const float cfra = BKE_scene_frame_get(scene);
 
-  int keyframes_removed = 0;
-
   blender::Vector<PointerRNA> selection;
   get_selection(C, &selection);
 
@@ -901,13 +899,13 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     return OPERATOR_CANCELLED;
   }
 
-  blender::Vector<std::string> selected_rna_paths;
+  blender::Vector<std::string> selected_strips_rna_paths;
 
   for (PointerRNA &id_ptr : selection) {
     /* get strips rna_path used later to compare if a fcurve belongs to a selected strip*/
     if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
       std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
-      selected_rna_paths.append(*rna_path);
+      selected_strips_rna_paths.append(*rna_path);
     }
   }
 
@@ -932,7 +930,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   blender::Vector<FCurve *> modified_fcurves;
   foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
     bool fcurve_belongs_to_selected_strip = false;
-    for (const std::string &strip_path : selected_rna_paths) {
+    for (const std::string &strip_path : selected_strips_rna_paths) {
       if (fcurve_belongs_to_strip(fcurve, strip_path)) {
         fcurve_belongs_to_selected_strip = true;
         modified_strips.add(strip_path);
@@ -947,7 +945,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     }
   });
 
-  keyframes_removed += modified_fcurves.size();
   for (FCurve *fcurve : modified_fcurves) {
     if (BKE_fcurve_is_empty(fcurve)) {
       action_fcurve_remove(action, *fcurve);
@@ -978,9 +975,9 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     if (modified_strips.size()) {
       BKE_reportf(op->reports,
                   RPT_INFO,
-                  "%ld strip(s) successfully had %d keyframes removed",
+                  "%ld strip(s) successfully had %ld keyframes removed",
                   modified_strips.size(),
-                  keyframes_removed);
+                  modified_fcurves.size());
     }
     else {
       BKE_reportf(op->reports,
