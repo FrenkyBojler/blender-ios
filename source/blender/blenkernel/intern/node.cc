@@ -2935,6 +2935,11 @@ static void node_socket_free(bNodeSocket *sock, const bool do_id_user)
         default_value_menu.enum_items->remove_user_and_delete_if_last();
       }
     }
+    // TODO: Extract function to free default value.
+    if (sock->type == SOCK_CLOSURE) {
+      auto &default_value_closure = *sock->default_value_typed<bNodeSocketValueClosure>();
+      BKE_curvemapping_free(default_value_closure.curve_mapping);
+    }
     MEM_freeN(sock->default_value);
   }
   if (sock->default_attribute_name) {
@@ -3216,6 +3221,12 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
         /* Copy of shared data pointer. */
         default_value_menu.enum_items->add_user();
       }
+    }
+    // TODO: use #node_socket_copy_default_value_data
+    if (sock_src->type == SOCK_CLOSURE) {
+      auto &default_value_closure = *sock_dst->default_value_typed<bNodeSocketValueClosure>();
+      default_value_closure.curve_mapping = BKE_curvemapping_copy(
+          default_value_closure.curve_mapping);
     }
   }
 
