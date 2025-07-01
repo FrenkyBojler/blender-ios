@@ -8356,6 +8356,15 @@ GHOST_TSuccess GHOST_SystemWayland::setCursorPosition(const int32_t x, const int
   return GHOST_kFailure;
 }
 
+uint32_t GHOST_SystemWayland::getCursorPreferredLogicalSize() const
+{
+#ifdef USE_EVENT_BACKGROUND_THREAD
+  std::lock_guard lock_server_guard{*server_mutex};
+#endif
+  GWL_Seat *seat = gwl_display_seat_active_get(display_);
+  return seat->cursor.theme_size;
+}
+
 void GHOST_SystemWayland::getMainDisplayDimensions(uint32_t &width, uint32_t &height) const
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
@@ -8674,32 +8683,45 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_custom_set(const uint8_t *bitma
 
   wl_buffer_add_listener(buffer, &cursor_buffer_listener, cursor);
 
-  static constexpr uint32_t black = 0xFF000000;
-  static constexpr uint32_t white = 0xFFFFFFFF;
-  static constexpr uint32_t transparent = 0x00000000;
+  if (mask) {
+    /* Monochrome & mask (expand to RGBA). */
+    static constexpr uint32_t black = 0xFF000000;
+    static constexpr uint32_t white = 0xFFFFFFFF;
+    static constexpr uint32_t transparent = 0x00000000;
 
-  uint8_t datab = 0, maskb = 0;
+    uint8_t datab = 0, maskb = 0;
+    uint32_t *px_dst = static_cast<uint32_t *>(cursor->custom_data);
 
-  for (int y = 0; y < sizey; ++y) {
-    uint32_t *pixel = &static_cast<uint32_t *>(cursor->custom_data)[y * sizex];
-    for (int x = 0; x < sizex; ++x) {
-      if ((x % 8) == 0) {
-        datab = *bitmap++;
-        maskb = *mask++;
+    for (int y = 0; y < sizey; y++) {
+      for (int x = 0; x < sizex; x++) {
+        if ((x % 8) == 0) {
+          datab = *bitmap++;
+          maskb = *mask++;
 
-        /* Reverse bit order. */
-        datab = uint8_t((datab * 0x0202020202ULL & 0x010884422010ULL) % 1023);
-        maskb = uint8_t((maskb * 0x0202020202ULL & 0x010884422010ULL) % 1023);
+          /* Reverse bit order. */
+          datab = uint8_t((datab * 0x0202020202ULL & 0x010884422010ULL) % 1023);
+          maskb = uint8_t((maskb * 0x0202020202ULL & 0x010884422010ULL) % 1023);
+        }
+
+        if (maskb & 0x80) {
+          *px_dst++ = (datab & 0x80) ? white : black;
+        }
+        else {
+          *px_dst++ = (datab & 0x80) ? white : transparent;
+        }
+        datab <<= 1;
+        maskb <<= 1;
       }
-
-      if (maskb & 0x80) {
-        *pixel++ = (datab & 0x80) ? white : black;
+    }
+  }
+  else {
+    /* RGBA color (direct copy). */
+    const uint32_t *px_src = reinterpret_cast<const uint32_t *>(bitmap);
+    uint32_t *px_dst = static_cast<uint32_t *>(cursor->custom_data);
+    for (int y = 0; y < sizey; y++) {
+      for (int x = 0; x < sizex; x++) {
+        *px_dst++ = *px_src++;
       }
-      else {
-        *pixel++ = (datab & 0x80) ? white : transparent;
-      }
-      datab <<= 1;
-      maskb <<= 1;
     }
   }
 
