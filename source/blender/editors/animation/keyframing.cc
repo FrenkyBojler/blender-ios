@@ -891,8 +891,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   Scene *scene = CTX_data_scene(C);
   const float cfra = BKE_scene_frame_get(scene);
 
-  int selected_strips_len = 0;
-
   int keyframes_removed = 0;
 
   blender::Vector<PointerRNA> selection;
