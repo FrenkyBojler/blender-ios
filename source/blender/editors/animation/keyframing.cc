@@ -892,7 +892,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   const float cfra = BKE_scene_frame_get(scene);
 
   int selected_strips_len = 0;
-  int keyframes_removed_total = 0;
 
   int keyframes_removed = 0;
 
@@ -963,9 +962,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
      * F-Curve was removed. */
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
-  if (keyframes_removed) {
-    keyframes_removed_total += keyframes_removed;
-  }
 
   if (modified_strips.size()) {
     /* Key-frames on strips has been moved, so make sure related editors are informed. */
@@ -987,7 +983,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
                   RPT_INFO,
                   "%ld strip(s) successfully had %d keyframes removed",
                   modified_strips.size(),
-                  keyframes_removed_total);
+                  keyframes_removed);
     }
     else {
       BKE_reportf(
