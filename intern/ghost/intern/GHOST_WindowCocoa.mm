@@ -1218,8 +1218,8 @@ static uint16_t uns16ReverseBits(uint16_t shrt)
   return shrt;
 }
 
-GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(uint8_t *bitmap,
-                                                             uint8_t *mask,
+GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                             const uint8_t *mask,
                                                              const int size[2],
                                                              const int hot_spot[2],
                                                              const bool canInvertColor)
