@@ -30,12 +30,14 @@ using blender::StringRefNull;
 
 static bool curvemap_can_zoom_out(CurveMapping *cumap)
 {
-  return BLI_rctf_size_x(&cumap->curr) < BLI_rctf_size_x(&cumap->clipr);
+  return (cumap->flag & CUMA_DO_CLIP) == 0 ||
+         (BLI_rctf_size_x(&cumap->curr) < BLI_rctf_size_x(&cumap->clipr));
 }
 
 static bool curvemap_can_zoom_in(CurveMapping *cumap)
 {
-  return BLI_rctf_size_x(&cumap->curr) > CURVE_ZOOM_MAX * BLI_rctf_size_x(&cumap->clipr);
+  return (cumap->flag & CUMA_DO_CLIP) == 0 ||
+         (BLI_rctf_size_x(&cumap->curr) > CURVE_ZOOM_MAX * BLI_rctf_size_x(&cumap->clipr));
 }
 
 static void curvemap_zoom(CurveMapping &cumap, const float scale)
