@@ -992,24 +992,25 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   if (confirm) {
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
-    if (modified_strips.size() > 0) {
-      if (use_legacy_report) {
-        BKE_reportf(
-            op->reports, RPT_INFO, "Successfully removed %ld keyframes", modified_fcurves.size());
-        return OPERATOR_FINISHED;
-      }
-      BKE_reportf(op->reports,
-                  RPT_INFO,
-                  "%ld strip(s) successfully had %ld keyframes removed",
-                  modified_strips.size(),
-                  modified_fcurves.size());
-    }
-    else {
+    if (!(modified_strips.size() > 0)) {
       BKE_reportf(op->reports,
                   RPT_ERROR,
                   "No keyframes removed from %ld strip(s)",
                   selected_strips_rna_paths.size());
+      return OPERATOR_CANCELLED;
     }
+
+    if (use_legacy_report) {
+      BKE_reportf(
+          op->reports, RPT_INFO, "Successfully removed %ld keyframes", modified_fcurves.size());
+      return OPERATOR_FINISHED;
+    }
+
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "%ld strip(s) successfully had %ld keyframes removed",
+                modified_strips.size(),
+                modified_fcurves.size());
   }
 
   return OPERATOR_FINISHED;
