@@ -1654,13 +1654,17 @@ static void view3d_draw_view(const bContext *C, ARegion *region)
     Main *main = CTX_data_main(C);
     blender::Map<uint64_t, Image *> index_to_image;
     LISTBASE_FOREACH (Image *, image, &main->images) {
-      if (image->type == IMA_TYPE_IMAGE && image->runtime->gpu_info_index != UINT64_MAX) {
+      if (ELEM(image->type, IMA_TYPE_IMAGE, IMA_TYPE_UV_TEST) &&
+          image->runtime->gpu_info_index != UINT64_MAX)
+      {
         index_to_image.add_new(image->runtime->gpu_info_index, image);
       }
     }
     uint64_t next = 0;
     LISTBASE_FOREACH (Image *, image, &main->images) {
-      if (image->type == IMA_TYPE_IMAGE && image->runtime->gpu_info_index == UINT64_MAX) {
+      if (ELEM(image->type, IMA_TYPE_IMAGE, IMA_TYPE_UV_TEST) &&
+          image->runtime->gpu_info_index == UINT64_MAX)
+      {
         for (uint64_t index = next;; index++) {
           if (!index_to_image.contains(index)) {
             index_to_image.add_new(index, image);

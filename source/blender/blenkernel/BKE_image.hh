@@ -50,22 +50,30 @@ struct ImageGPUTextures {
 
 namespace blender::bke {
 struct ImageMipmapCache {
+  static constexpr int64_t mipmap_level_max_clamping_byte_size = 4096;
   ImageMipmapCache();
   ~ImageMipmapCache();
 
-  void update_mipmap_cache(const ImBuf &imbuf);
+  void update_mipmap_cache(const ImBuf &imbuf, bool use_high_bitdepth, bool use_greyscale);
 
-  ImageGPUTextures gpu_mipmap_texture_get_try();
+  ImageGPUTextures gpu_mipmap_texture_get_try(int mipmap_level);
   ImageGPUTextures gpu_mipmap_texture_get(int mipmap_level);
 
-  /** Check if the current mipmap texture 'covers' the provided mipmap_level. */
-  bool contains_mipmap(int mipmap_level) const;
   bool is_empty() const
   {
     return bytes_all_mips_ == 0;
   }
 
+  int64_t size() const
+  {
+    return resolution_per_mipmap_.size();
+  }
+
  private:
+  /** Data format how the mipmaps are stored inside data_ */
+  // enum eGPUDataFormat data_format_;
+  /** Texture format of the mipmap textures. */
+  // enum eGPUTextureFormat texture_format_;
   Array<uint8_t> data_;
   int64_t bytes_all_mips_;
   Vector<int64_t> offsets_per_mipmap_;
@@ -73,12 +81,33 @@ struct ImageMipmapCache {
   Vector<uint2> resolution_per_mipmap_;
   GPUTexture *last_texture_ = nullptr;
   int last_texture_mipmap_level_;
+  int mipmap_level_clamp_min_;
+  int mipmap_level_clamp_max_;
 
   void clear();
 
   void init_resolution_size_offset_for_each_mipmap_level(uint2 mipmap0_resolution,
                                                          int64_t bytes_per_pixel);
+  void init_mipmap_level_clamping();
   void update_mipmap(int mipmap_level, const ImBuf &imbuf);
+
+  MutableSpan<uint8_t> mipmap_data_mutable(int mipmap_level)
+  {
+    return data_.as_mutable_span()
+        .drop_back(mipmap_level != size() - 1 ?
+                       bytes_all_mips_ - offsets_per_mipmap_[mipmap_level + 1] :
+                       0)
+        .drop_front(offsets_per_mipmap_[mipmap_level]);
+  }
+
+  Span<uint8_t> mipmap_data(int mipmap_level) const
+  {
+    return data_.as_span()
+        .drop_back(mipmap_level != size() - 1 ?
+                       bytes_all_mips_ - offsets_per_mipmap_[mipmap_level + 1] :
+                       0)
+        .drop_front(offsets_per_mipmap_[mipmap_level]);
+  }
 };
 
 struct ImageRuntime {

@@ -362,7 +362,8 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser)
  */
 static bool image_supports_texture_streaming(Image &image)
 {
-  return image.type == IMA_TYPE_IMAGE && image.source == IMA_SRC_FILE;
+  return (image.type == IMA_TYPE_IMAGE && image.source == IMA_SRC_FILE) ||
+         (image.type == IMA_TYPE_UV_TEST);
 }
 
 static ImageGPUTextures image_get_gpu_texture(Image *ima,
@@ -428,7 +429,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   const bool use_texture_streaming = image_supports_texture_streaming(*ima) &&
                                      mipmap_level.has_value();
   if (use_texture_streaming) {
-    result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try();
+    result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try(mipmap_level.value());
     /* Check if the current cached mipmap texture contains the requested mipmap level. */
     if (*result.texture && result.loaded_mipmap_level == mipmap_level.value()) {
       return result;
@@ -459,6 +460,8 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     }
     return result;
   }
+  // TODO: when using texture streaming we can check if we need to load the imbuf, or read from
+  // cache.
 
   /* check if we have a valid image buffer */
   void *lock;
@@ -472,6 +475,9 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     return result;
   }
 
+  const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
+  const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf);
+  const bool use_greyscale = false;
   if (textarget == TEXTARGET_2D_ARRAY) {
     /* For materials, array and tile mapping in case there are UDIM tiles. */
     *result.texture = gpu_texture_create_tile_array(ima, ibuf);
@@ -480,15 +486,12 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   else if (use_texture_streaming) {
     blender::bke::ImageMipmapCache &mipmap_cache = ima->runtime->mipmap_cache;
     if (mipmap_cache.is_empty()) {
-      mipmap_cache.update_mipmap_cache(*ibuf);
+      mipmap_cache.update_mipmap_cache(*ibuf, use_high_bitdepth, use_greyscale);
     }
     result = mipmap_cache.gpu_mipmap_texture_get(mipmap_level.value());
   }
   else {
     /* Single image texture. */
-    const bool use_high_bitdepth = (ima->flag & IMA_HIGH_BITDEPTH);
-    const bool store_premultiplied = BKE_image_has_gpu_texture_premultiplied_alpha(ima, ibuf);
-
     *result.texture = IMB_create_gpu_texture(
         ima->id.name + 2, ibuf, use_high_bitdepth, store_premultiplied);
 
@@ -506,7 +509,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     }
   }
 
-  if (!use_texture_streaming && *result.texture) {
+  if (*result.texture) {
     GPU_texture_original_size_set(*result.texture, ibuf->x, ibuf->y);
   }
 
