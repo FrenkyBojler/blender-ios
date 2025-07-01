@@ -402,7 +402,7 @@ static bool acf_generic_dataexpand_setting_valid(bAnimContext *ac,
       return true;
 
     case ACHANNEL_SETTING_ALWAYS_VISIBLE:
-      return true;
+      return false;
 
     /* other flags are never supported */
     default:
@@ -725,7 +725,7 @@ static bool acf_object_setting_valid(bAnimContext *ac,
       return true;
 
     case ACHANNEL_SETTING_ALWAYS_VISIBLE:
-      return ((ac) && (ac->spacetype == SPACE_GRAPH) && (ob->adt));
+      return ((ac) && ELEM(ac->spacetype, SPACE_ACTION, SPACE_GRAPH) && (ob->adt));
 
     default:
       return false;
@@ -888,7 +888,7 @@ static bool acf_group_setting_valid(bAnimContext *ac,
       return (ac->spacetype == SPACE_GRAPH);
 
     case ACHANNEL_SETTING_ALWAYS_VISIBLE:
-      return ELEM(ac->spacetype, SPACE_ACTION, SPACE_GRAPH);
+      return false;
 
     default: /* always supported */
       return true;
@@ -5096,6 +5096,8 @@ void ANIM_channel_draw(
 
   /* step 4) draw special toggles  .................................
    * - in Graph Editor, check-boxes for visibility in curves area
+   * - in Graph and Dopesheet Editor, object pinning (always visible, regardless of object
+   * selection)
    * - in NLA Editor, glowing dots for solo/not solo...
    * - in Grease Pencil mode, color swatches for layer color
    */
