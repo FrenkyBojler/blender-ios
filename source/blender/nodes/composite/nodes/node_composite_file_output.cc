@@ -15,6 +15,8 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "BLT_translation.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
