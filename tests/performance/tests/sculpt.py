@@ -40,7 +40,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_sculpt_scene(context: any, mode: SculptMode):
+def prepare_sculpt_scene(context: any, mode: SculptMode, subdivision_level=3):
     """
     Prepare a clean state of the scene suitable for benchmarking
 
@@ -97,7 +97,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode):
     bpy.ops.object.mode_set(mode='SCULPT')
 
     if mode == SculptMode.MULTIRES:
-        bpy.ops.object.subdivision_set(level=3)
+        bpy.ops.object.subdivision_set(level=subdivision_level)
     elif mode == SculptMode.DYNTOPO:
         bpy.ops.sculpt.dynamic_topology_toggle()
 
@@ -219,6 +219,7 @@ def _run_bvh_test(args: dict):
 
     return sum(measurements) / len(measurements)
 
+
 def _run_subdivide_test(_args: dict):
     import bpy
     import time
@@ -235,7 +236,7 @@ def _run_subdivide_test(_args: dict):
 
     measurements = []
     while True:
-        prepare_sculpt_scene(context, SculptMode.MULTIRES)
+        prepare_sculpt_scene(context, SculptMode.MULTIRES, subdivision_level=2)
         context_override = context.copy()
         set_view3d_context_override(context_override)
         with context.temp_override(**context_override):
@@ -300,7 +301,7 @@ class SculptMultiresSubdivideTest(api.Test):
         self.filepath = filepath
 
     def name(self):
-        return "multires_3_to_4"
+        return "multires_subdivide_2_to_3"
 
     def category(self):
         return "sculpt"
