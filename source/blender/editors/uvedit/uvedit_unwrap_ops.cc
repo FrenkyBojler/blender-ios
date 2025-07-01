@@ -144,12 +144,15 @@ static void uv_map_operator_property_correct_aspect(wmOperatorType *ot)
 /** \name UDIM Access
  * \{ */
 
-void blender::geometry::UVPackIsland_Params::setUDIMOffsetFromSpaceImage(const SpaceImage *sima)
+void blender::geometry::UVPackIsland_Params::setUDIMOffsetFromSpaceImage(const SpaceImage *sima,
+                                                                         bool pinned)
 {
   if (!sima) {
     return; /* Nothing to do. */
   }
-
+  if (pinned) {
+    return;
+  }
   /* NOTE: Presently, when UDIM grid and tiled image are present together, only active tile for
    * the tiled image is considered. */
   const Image *image = sima->image;
@@ -1484,6 +1487,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       BLI_remlink(&island_list, island);
       const bool pinned = island_has_pins(scene, island, params);
       if (ignore_pinned && pinned) {
+        printf("Ignored: %d, Pinned: %d", ignore_pinned, pinned);
         MEM_freeN(island->faces);
         MEM_freeN(island);
         continue;
@@ -1566,7 +1570,7 @@ static void uvedit_pack_islands_multi(const Scene *scene,
   float base_offset[2] = {0.0f, 0.0f};
   copy_v2_v2(base_offset, params->udim_base_offset);
 
-  if (udim_source_closest) {
+  if (udim_source_closest && params->pin_method == ED_UVPACK_PIN_IGNORE) {
     const Image *image = udim_source_closest->image;
     const int *udim_grid = udim_source_closest->tile_grid_shape;
     /* Check if selection lies on a valid UDIM grid tile. */
@@ -1587,7 +1591,6 @@ static void uvedit_pack_islands_multi(const Scene *scene,
       float nearest_grid_tile_co[2] = {0.0f, 0.0f};
       nearest_grid_tile_dist = uv_nearest_grid_tile_distance(
           udim_grid, selection_center, nearest_grid_tile_co);
-
       base_offset[0] = (nearest_image_tile_dist < nearest_grid_tile_dist) ?
                            nearest_image_tile_co[0] :
                            nearest_grid_tile_co[0];
@@ -1785,7 +1788,8 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
       RNA_enum_get(op->ptr, "shape_method"));
 
   if (udim_source == PACK_UDIM_SRC_ACTIVE) {
-    pack_island_params.setUDIMOffsetFromSpaceImage(sima);
+    pack_island_params.setUDIMOffsetFromSpaceImage(
+        sima, pack_island_params.pin_method != ED_UVPACK_PIN_NONE);
   }
 
   if (pid->use_job) {
