@@ -360,6 +360,8 @@ void bmo_dissolve_faces_exec(BMesh *bm, BMOperator *op)
  *
  * If edge_oflag is provided, each edge along the chain is tagged, and walking stops when an
  * edge that is already tagged is found.  This avoids repeatedly re-walking the chain.
+ *
+ * Returns `nullptr` if already tagged edges are found, or if the chain loops.
  */
 static BMVert *bmo_find_end_of_chain(BMesh *bm, BMEdge *e, BMVert *v, const short edge_oflag = 0)
 {
@@ -372,9 +374,9 @@ static BMVert *bmo_find_end_of_chain(BMesh *bm, BMEdge *e, BMVert *v, const shor
     v = BM_edge_other_vert(e, v);
 
     /* If we walk to an edge that has already been processed, there's no need to keep working.
-     * if oflag is 0, this test never breaks. */
+     * if oflag is 0, this test never returns true, so iteration will truly go to the end. */
     if (BMO_edge_flag_test(bm, e, edge_oflag)) {
-      break;
+      return nullptr;
     }
 
     /* Optionally mark along the chain.
@@ -385,7 +387,7 @@ static BMVert *bmo_find_end_of_chain(BMesh *bm, BMEdge *e, BMVert *v, const shor
      * Avoid an eternal loop even in the case of degenerate geometry. */
     BLI_assert(v != v_init);
     if (UNLIKELY(v == v_init)) {
-      break;
+      return nullptr;
     }
   }
   return v;
@@ -561,6 +563,11 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
          * the test needs to happen there, at the end, where it meets other geometry, not here. */
         if (BM_vert_is_edge_pair(v_edge)) {
           v_edge = bmo_find_end_of_chain(bm, e, v_edge, EDGE_CHAIN);
+        }
+
+        /* If the end of the chain was searched for and not located, take no action. */
+        if (v_edge == nullptr) {
+          continue;
         }
 
         /* If the vert touches a tri or quad that has no selected edges touching this vert, then
