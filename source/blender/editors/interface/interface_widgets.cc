@@ -44,6 +44,8 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
+#include "UI_abstract_view.hh"
+
 #ifdef WITH_INPUT_IME
 #  include "WM_types.hh"
 #endif
