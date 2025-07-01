@@ -843,38 +843,41 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     }
   }
   /* just those in active action... */
-  if ((scene->adt) && (scene->adt->action)) {
-    AnimData *adt = scene->adt;
-    bAction *dna_action = adt->action;
-    FCurve *fcu, *fcn;
+  if (!((scene->adt) && (scene->adt->action))) {
+    BKE_reportf(op->reports, RPT_ERROR, "Scene has no animation data or active action");
+    return OPERATOR_CANCELLED;
+  }
 
-    Action &action = dna_action->wrap();
-    if (action.is_action_layered()) {
-      blender::Vector<FCurve *> fcurves_to_delete;
-      foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
-        /* check if fcurve belongs to a selected strip */
-        for (const std::string &strip_path : selected_rna_paths) {
-          if (fcurve.rna_path &&
-              std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
-          {
-            fcurves_to_delete.append(&fcurve);
-            break;
-          }
+  AnimData *adt = scene->adt;
+  bAction *dna_action = adt->action;
+  FCurve *fcu, *fcn;
+
+  Action &action = dna_action->wrap();
+  if (action.is_action_layered()) {
+    blender::Vector<FCurve *> fcurves_to_delete;
+    foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+      /* check if fcurve belongs to a selected strip */
+      for (const std::string &strip_path : selected_rna_paths) {
+        if (fcurve.rna_path &&
+            std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0)
+        {
+          fcurves_to_delete.append(&fcurve);
+          break;
         }
-      });
-      for (FCurve *fcurve : fcurves_to_delete) {
-        action_fcurve_remove(action, *fcurve);
-        changed = true;
       }
+    });
+    for (FCurve *fcurve : fcurves_to_delete) {
+      action_fcurve_remove(action, *fcurve);
+      changed = true;
     }
-    else {
-      for (fcu = static_cast<FCurve *>(dna_action->curves.first); fcu; fcu = fcn) {
-        fcn = fcu->next;
-        /* delete F-Curve completely */
-        blender::animrig::animdata_fcurve_delete(adt, fcu);
-        DEG_id_tag_update(&scene->id, ID_RECALC_TRANSFORM);
-        changed = true;
-      }
+  }
+  else {
+    for (fcu = static_cast<FCurve *>(dna_action->curves.first); fcu; fcu = fcn) {
+      fcn = fcu->next;
+      /* delete F-Curve completely */
+      blender::animrig::animdata_fcurve_delete(adt, fcu);
+      DEG_id_tag_update(&scene->id, ID_RECALC_TRANSFORM);
+      changed = true;
     }
   }
 
