@@ -71,8 +71,6 @@
 
 #include "anim_intern.hh"
 
-using std::string;
-
 static KeyingSet *keyingset_get_from_op_with_error(wmOperator *op,
                                                    PropertyRNA *prop,
                                                    Scene *scene);
@@ -931,7 +929,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   blender::VectorSet<std::string> modified_strips;
   blender::Vector<FCurve *> modified_fcurves;
   foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
-    string changed_strip;
+    std::string changed_strip;
     for (const std::string &strip_path : selected_strips_rna_paths) {
       if (fcurve_belongs_to_strip(fcurve, strip_path)) {
         changed_strip = strip_path;
