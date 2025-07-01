@@ -68,7 +68,6 @@ class TestCurves(unittest.TestCase):
         self.assertTrue(self.curves.attributes["a" * 100].name == "a" * 100)
 
 
-
 if __name__ == '__main__':
     import sys
     sys.argv = [__file__] + (sys.argv[sys.argv.index("--") + 1:] if "--" in sys.argv else [])
