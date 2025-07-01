@@ -20,6 +20,146 @@
 
 #include "ED_mesh.hh"
 
+std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob) {
+  if (!ob || !ob->data) {
+    return std::nullopt;
+  }
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  BMEditMesh *em = BKE_editmesh_from_object(ob);
+
+  if (!em || !em->bm || mesh->symmetry == 0) {
+    return std::nullopt;
+  }
+  return EditMeshSymmetryHelper(ob);
+}
+
+EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
+    : em(BKE_editmesh_from_object(ob)), mesh(static_cast<Mesh *>(ob->data)) {
+  BMesh *bmesh = em->bm;
+  bool use_topology_mirror = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+
+  BMIter v_iter, e_iter, f_iter;
+  BMVert *current_vert;
+  BMEdge *current_edge;
+  BMFace *current_face;
+
+  for (int axis = 0; axis < 3; ++axis) {
+    if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
+      EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology_mirror);
+
+      BM_ITER_MESH (current_vert, &v_iter, bmesh, BM_VERTS_OF_MESH) {
+        BMVert *mirror_v = EDBM_verts_mirror_get(em, current_vert);
+        if (mirror_v && mirror_v != current_vert) {
+          vert_to_mirrors_map.lookup_or_add(current_vert, {}).append(mirror_v);
+        }
+      }
+
+      BM_ITER_MESH (current_edge, &e_iter, bmesh, BM_EDGES_OF_MESH) {
+        BMEdge *mirror_e = EDBM_verts_mirror_get_edge(em, current_edge);
+        if (mirror_e && mirror_e != current_edge) {
+          edge_to_mirrors_map.lookup_or_add(current_edge, {}).append(mirror_e);
+        }
+      }
+
+      BM_ITER_MESH (current_face, &f_iter, bmesh, BM_FACES_OF_MESH) {
+        BMFace *mirror_f = EDBM_verts_mirror_get_face(em, current_face);
+        if (mirror_f && mirror_f != current_face) {
+          face_to_mirrors_map.lookup_or_add(current_face, {}).append(mirror_f);
+        }
+      }
+
+      EDBM_verts_mirror_cache_end(em);
+    }
+  }
+}
+
+bool EditMeshSymmetryHelper::is_any_mirror_edge_selected(BMEdge *edge, char hflag) const {
+  if (!edge_to_mirrors_map.contains(edge)) {
+    return false;
+  }
+  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
+    if (BM_elem_flag_test(mirror_edge, hflag) &&
+        !BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const {
+  if (!edge_to_mirrors_map.contains(edge)) {
+    return;
+  }
+  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
+    if (!BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
+      if (value) {
+        BM_elem_flag_enable(mirror_edge, hflag);
+      }
+      else {
+        BM_elem_flag_disable(mirror_edge, hflag);
+      }
+    }
+  }
+}
+
+bool EditMeshSymmetryHelper::is_any_mirror_vert_selected(BMVert *vert, char hflag) const {
+  if (!vert_to_mirrors_map.contains(vert)) {
+    return false;
+  }
+  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
+    if (BM_elem_flag_test(mirror_vert, hflag) &&
+        !BM_elem_flag_test(mirror_vert, BM_ELEM_HIDDEN)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const {
+  if (!vert_to_mirrors_map.contains(vert)) {
+    return;
+  }
+  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
+    if (!BM_elem_flag_test(mirror_vert, BM_ELEM_HIDDEN)) {
+      if (value) {
+        BM_elem_flag_enable(mirror_vert, hflag);
+      }
+      else {
+        BM_elem_flag_disable(mirror_vert, hflag);
+      }
+    }
+  }
+}
+
+bool EditMeshSymmetryHelper::is_any_mirror_face_selected(BMFace *face, char hflag) const {
+  if (!face_to_mirrors_map.contains(face)) {
+    return false;
+  }
+  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
+    if (BM_elem_flag_test(mirror_face, hflag) &&
+        !BM_elem_flag_test(mirror_face, BM_ELEM_HIDDEN)) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const {
+  if (!face_to_mirrors_map.contains(face)) {
+    return;
+  }
+  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
+    if (!BM_elem_flag_test(mirror_face, BM_ELEM_HIDDEN)) {
+      if (value) {
+        BM_elem_flag_enable(mirror_face, hflag);
+      }
+      else {
+        BM_elem_flag_disable(mirror_face, hflag);
+      }
+    }
+  }
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Mesh Spatial Mirror API
  * \{ */
@@ -351,3 +491,4 @@ void ED_mesh_mirrtopo_free(MirrTopoStore_t *mesh_topo_store)
 }
 
 /** \} */
+
