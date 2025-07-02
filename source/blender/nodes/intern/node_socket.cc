@@ -1123,22 +1123,13 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
           *value.curve_mapping);
       static SocketValueVariant zero{0.0f};
       Vector<const void *> default_input_values = {&zero};
-
-      std::shared_ptr<nodes::ClosureSignature> signature =
-          std::make_shared<nodes::ClosureSignature>();
-      const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
-          SOCK_FLOAT);
-      signature->inputs.append(
-          {nodes::SocketInterfaceKey("Value"), float_socket_type, nodes::StructureType::Dynamic});
-      signature->outputs.append(
-          {nodes::SocketInterfaceKey("Value"), float_socket_type, nodes::StructureType::Dynamic});
-
-      return nodes::Closure::FromMultiFunction(std::move(signature),
-                                               fn,
-                                               std::move(scope),
-                                               std::move(default_input_values),
-                                               std::nullopt,
-                                               {});
+      return nodes::Closure::FromMultiFunction(
+          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_CURVE),
+          fn,
+          std::move(scope),
+          std::move(default_input_values),
+          std::nullopt,
+          {});
     }
     case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
       if (!value.color_ramp) {
@@ -1149,22 +1140,13 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
           *value.color_ramp);
       static SocketValueVariant zero{0.0f};
       Vector<const void *> default_input_values = {&zero};
-
-      std::shared_ptr<nodes::ClosureSignature> signature =
-          std::make_shared<nodes::ClosureSignature>();
-      const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
-          SOCK_FLOAT);
-      const bke::bNodeSocketType *color_socket_type = bke::node_socket_type_find_static(SOCK_RGBA);
-      signature->inputs.append(
-          {nodes::SocketInterfaceKey("Value"), float_socket_type, nodes::StructureType::Dynamic});
-      signature->outputs.append(
-          {nodes::SocketInterfaceKey("Value"), color_socket_type, nodes::StructureType::Dynamic});
-      return nodes::Closure::FromMultiFunction(std::move(signature),
-                                               fn,
-                                               std::move(scope),
-                                               std::move(default_input_values),
-                                               std::nullopt,
-                                               {});
+      return nodes::Closure::FromMultiFunction(
+          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP),
+          fn,
+          std::move(scope),
+          std::move(default_input_values),
+          std::nullopt,
+          {});
     }
   }
   return {};

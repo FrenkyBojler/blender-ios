@@ -30,6 +30,7 @@ class ClosureSignature {
 
   static ClosureSignature FromClosureOutputNode(const bNode &node);
   static ClosureSignature FromEvaluateClosureNode(const bNode &node);
+  static std::shared_ptr<ClosureSignature> FromBuiltin(const ClosureSocketValueType type);
 };
 
 }  // namespace blender::nodes

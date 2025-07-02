@@ -132,6 +132,42 @@ ClosureSignature ClosureSignature::FromEvaluateClosureNode(const bNode &node)
   return signature;
 }
 
+std::shared_ptr<ClosureSignature> ClosureSignature::FromBuiltin(const ClosureSocketValueType type)
+{
+  switch (type) {
+    case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
+      return {};
+    }
+    case CLOSURE_SOCKET_VALUE_TYPE_CURVE: {
+      static std::shared_ptr<nodes::ClosureSignature> signature = []() {
+        std::shared_ptr<nodes::ClosureSignature> signature =
+            std::make_shared<nodes::ClosureSignature>();
+        const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
+            SOCK_FLOAT);
+        signature->inputs.append({nodes::SocketInterfaceKey("Value"), float_socket_type});
+        signature->outputs.append({nodes::SocketInterfaceKey("Value"), float_socket_type});
+        return signature;
+      }();
+      return signature;
+    }
+    case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
+      static std::shared_ptr<nodes::ClosureSignature> signature = []() {
+        std::shared_ptr<nodes::ClosureSignature> signature =
+            std::make_shared<nodes::ClosureSignature>();
+        const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
+            SOCK_FLOAT);
+        const bke::bNodeSocketType *color_socket_type = bke::node_socket_type_find_static(
+            SOCK_RGBA);
+        signature->inputs.append({nodes::SocketInterfaceKey("Value"), float_socket_type});
+        signature->outputs.append({nodes::SocketInterfaceKey("Value"), color_socket_type});
+        return signature;
+      }();
+      return signature;
+    }
+  }
+  return {};
+}
+
 class ClosureLazyFunctionForMultiFunction : public lf::LazyFunction {
  private:
   const ClosureSignature &closure_signature_;
