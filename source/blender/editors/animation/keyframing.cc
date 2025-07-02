@@ -903,12 +903,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
-      ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
-      blender::seq::relations_invalidate_cache(scene, strip);
-    }
-  }
+  invalidate_strip_caches(selection, scene);
   /* send updates */
   WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, nullptr);
 
