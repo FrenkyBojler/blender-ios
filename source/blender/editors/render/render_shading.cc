@@ -183,6 +183,9 @@ static bool object_materials_supported_poll(bContext *C)
 
 static bool material_slot_populated_poll(bContext *C){
   const Object *ob_active = CTX_data_active_object(C);
+  if(ob_active == nullptr){
+    return false;
+  }
   if (ob_active->actcol <= 0) {
     return false;
   }
