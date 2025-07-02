@@ -5098,7 +5098,9 @@ PyDoc_STRVAR(
     /* Wrap. */
     pyrna_struct_get_id_data_doc,
     "The :class:`bpy.types.ID` object this datablock is from or None, (not available for "
-    "all data types)");
+    "all data types)\n"
+    "\n"
+    ":type: :class:`bpy.types.ID`, (readonly)\n");
 static PyObject *pyrna_struct_get_id_data(BPy_DummyPointerRNA *self, void * /*closure*/)
 {
   /* Used for struct and pointer since both have a ptr. */
