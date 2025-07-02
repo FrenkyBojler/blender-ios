@@ -3901,7 +3901,9 @@ PyDoc_STRVAR(
     "   :type path: str\n"
     "   :arg coerce: optional argument, when True, the property will be converted\n"
     "      into its Python representation.\n"
-    "   :type coerce: bool\n");
+    "   :type coerce: bool\n"
+    "   :return: Property value or property object.\n"
+    "   :rtype: Any | :class:`bpy.types.bpy_prop`\n");
 static PyObject *pyrna_struct_path_resolve(BPy_StructRNA *self, PyObject *args)
 {
   const char *path;
@@ -5268,6 +5270,8 @@ PyDoc_STRVAR(
     "   :arg default: Optional argument for the value to return if\n"
     "      *key* is not found.\n"
     "   :type default: Any\n"
+    "   :return: Custom property value or default.\n"
+    "   :rtype: Any | None\n"
     "\n" BPY_DOC_ID_PROP_TYPE_NOTE);
 static PyObject *pyrna_struct_get(BPy_StructRNA *self, PyObject *args)
 {
@@ -5313,6 +5317,8 @@ PyDoc_STRVAR(
     "   :arg default: Optional argument for the value to return if\n"
     "      *key* is not found.\n"
     "   :type default: Any\n"
+    "   :return: Custom property value or default.\n"
+    "   :rtype: Any | None\n"
     "\n" BPY_DOC_ID_PROP_TYPE_NOTE);
 static PyObject *pyrna_struct_pop(BPy_StructRNA *self, PyObject *args)
 {
