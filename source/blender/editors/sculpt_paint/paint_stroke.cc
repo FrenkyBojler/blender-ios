@@ -31,6 +31,7 @@
 #include "BKE_curve.hh"
 #include "BKE_image.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -317,7 +318,7 @@ bool paint_brush_update(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
-  UnifiedPaintSettings &ups = *stroke->ups;
+  bke::StrokeRuntime &stroke_runtime = *paint->runtime.stroke_runtime;
   bool location_sampled = false;
   bool location_success = false;
   /* Use to perform all operations except applying the stroke,
@@ -333,30 +334,30 @@ bool paint_brush_update(bContext *C,
    *      changing events. We should avoid this after events system re-design */
   if (!stroke->brush_init) {
     copy_v2_v2(stroke->initial_mouse, mouse);
-    copy_v2_v2(ups.last_rake, mouse);
-    copy_v2_v2(ups.tex_mouse, mouse);
-    copy_v2_v2(ups.mask_tex_mouse, mouse);
+    copy_v2_v2(stroke_runtime.last_rake, mouse);
+    copy_v2_v2(stroke_runtime.tex_mouse, mouse);
+    copy_v2_v2(stroke_runtime.mask_tex_mouse, mouse);
     stroke->cached_size_pressure = pressure;
 
     stroke->brush_init = true;
   }
 
   if (paint_supports_dynamic_size(brush, mode)) {
-    copy_v2_v2(ups.tex_mouse, mouse);
-    copy_v2_v2(ups.mask_tex_mouse, mouse);
+    copy_v2_v2(stroke_runtime.tex_mouse, mouse);
+    copy_v2_v2(stroke_runtime.mask_tex_mouse, mouse);
     stroke->cached_size_pressure = pressure;
   }
 
   /* Truly temporary data that isn't stored in properties */
 
-  ups.stroke_active = true;
-  ups.size_pressure_value = stroke->cached_size_pressure;
+  stroke_runtime.stroke_active = true;
+  stroke_runtime.size_pressure_value = stroke->cached_size_pressure;
 
-  ups.pixel_radius = BKE_brush_size_get(paint, &brush);
-  ups.initial_pixel_radius = BKE_brush_size_get(paint, &brush);
+  stroke_runtime.pixel_radius = BKE_brush_size_get(paint, &brush);
+  stroke_runtime.initial_pixel_radius = BKE_brush_size_get(paint, &brush);
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, mode)) {
-    ups.pixel_radius *= stroke->cached_size_pressure;
+    stroke_runtime.pixel_radius *= stroke->cached_size_pressure;
   }
 
   if (paint_supports_dynamic_tex_coords(brush, mode)) {
@@ -370,10 +371,10 @@ bool paint_brush_update(bContext *C,
     }
 
     if (brush.mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-      BKE_brush_randomize_texture_coords(&ups, false);
+      BKE_brush_randomize_texture_coords(paint, false);
     }
     else {
-      copy_v2_v2(ups.tex_mouse, mouse);
+      copy_v2_v2(stroke_runtime.tex_mouse, mouse);
     }
 
     /* take care of mask texture, if any */
@@ -388,10 +389,10 @@ bool paint_brush_update(bContext *C,
       }
 
       if (brush.mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-        BKE_brush_randomize_texture_coords(&ups, true);
+        BKE_brush_randomize_texture_coords(paint, true);
       }
       else {
-        copy_v2_v2(ups.mask_tex_mouse, mouse);
+        copy_v2_v2(stroke_runtime.mask_tex_mouse, mouse);
       }
     }
   }
@@ -403,9 +404,9 @@ bool paint_brush_update(bContext *C,
     const float dx = mouse[0] - stroke->initial_mouse[0];
     const float dy = mouse[1] - stroke->initial_mouse[1];
 
-    ups.anchored_size = ups.pixel_radius = sqrtf(dx * dx + dy * dy);
+    stroke_runtime.anchored_size = stroke_runtime.pixel_radius = sqrtf(dx * dx + dy * dy);
 
-    ups.brush_rotation = ups.brush_rotation_sec = atan2f(dy, dx) + float(0.5f * M_PI);
+    stroke_runtime.brush_rotation = stroke_runtime.brush_rotation_sec = atan2f(dy, dx) + float(0.5f * M_PI);
 
     if (brush.flag & BRUSH_EDGE_TO_EDGE) {
       halfway[0] = dx * 0.5f + stroke->initial_mouse[0];
@@ -427,26 +428,26 @@ bool paint_brush_update(bContext *C,
       }
     }
     if (hit) {
-      copy_v2_v2(ups.anchored_initial_mouse, halfway);
-      copy_v2_v2(ups.tex_mouse, halfway);
-      copy_v2_v2(ups.mask_tex_mouse, halfway);
+      copy_v2_v2(stroke_runtime.anchored_initial_mouse, halfway);
+      copy_v2_v2(stroke_runtime.tex_mouse, halfway);
+      copy_v2_v2(stroke_runtime.mask_tex_mouse, halfway);
       copy_v2_v2(mouse, halfway);
-      ups.anchored_size /= 2.0f;
-      ups.pixel_radius /= 2.0f;
-      stroke->stroke_distance = ups.pixel_radius;
+      stroke_runtime.anchored_size /= 2.0f;
+      stroke_runtime.pixel_radius /= 2.0f;
+      stroke->stroke_distance = stroke_runtime.pixel_radius;
     }
     else {
-      copy_v2_v2(ups.anchored_initial_mouse, stroke->initial_mouse);
+      copy_v2_v2(stroke_runtime.anchored_initial_mouse, stroke->initial_mouse);
       copy_v2_v2(mouse, stroke->initial_mouse);
-      stroke->stroke_distance = ups.pixel_radius;
+      stroke->stroke_distance = stroke_runtime.pixel_radius;
     }
-    ups.pixel_radius /= stroke->zoom_2d;
-    ups.draw_anchored = true;
+    stroke_runtime.pixel_radius /= stroke->zoom_2d;
+    stroke_runtime.draw_anchored = true;
   }
   else {
     /* curve strokes do their own rake calculation */
     if (!(brush.flag & BRUSH_CURVE)) {
-      if (!paint_calculate_rake_rotation(ups, brush, mouse_init, mode, stroke->rake_started)) {
+      if (!paint_calculate_rake_rotation(*paint, brush, mouse_init, mode, stroke->rake_started)) {
         /* Not enough motion to define an angle. */
         if (!stroke->rake_started) {
           is_dry_run = true;
@@ -465,15 +466,14 @@ bool paint_brush_update(bContext *C,
 
   if (do_random) {
     if (brush.mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
-      ups.brush_rotation += -brush.mtex.random_angle / 2.0f +
+      stroke_runtime.brush_rotation += -brush.mtex.random_angle / 2.0f +
                             brush.mtex.random_angle * stroke->rng->get_float();
     }
   }
 
   if (do_random_mask) {
     if (brush.mask_mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
-      ups.brush_rotation_sec += -brush.mask_mtex.random_angle / 2.0f +
-                                brush.mask_mtex.random_angle * stroke->rng->get_float();
+      stroke_runtime.brush_rotation_sec += -brush.mask_mtex.random_angle / 2.0f + brush.mask_mtex.random_angle * stroke->rng->get_float();
     }
   }
 
@@ -1336,7 +1336,6 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
   }
 
   Paint *paint = BKE_paint_get_active_from_context(C);
-  UnifiedPaintSettings &ups = paint->unified_paint_settings;
   const float spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
   const PaintCurve *pc = br.paint_curve;
 
@@ -1386,7 +1385,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
     for (int j = 0; j < PAINT_CURVE_NUM_SEGMENTS; j++) {
       if (do_rake) {
         const float rotation = atan2f(tangents[2 * j + 1], tangents[2 * j]) + float(0.5f * M_PI);
-        paint_update_brush_rake_rotation(ups, br, rotation);
+        paint_update_brush_rake_rotation(*paint, br, rotation);
       }
 
       if (!stroke->stroke_started) {
@@ -1621,7 +1620,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
       {
         copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
       }
-      paint_calculate_rake_rotation(*stroke->ups, *br, mouse, mode, true);
+      paint_calculate_rake_rotation(*stroke->paint, *br, mouse, mode, true);
     }
   }
   else if (first_modal ||

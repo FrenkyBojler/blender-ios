@@ -39,6 +39,7 @@
 #include "BKE_main.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_preview_image.hh"
 #include "BKE_texture.h"
 
@@ -1353,17 +1354,18 @@ void BKE_brush_jitter_pos(const Paint &paint,
   jitterpos[1] = pos[1] + 2 * rand_pos[1] * diameter * spread;
 }
 
-void BKE_brush_randomize_texture_coords(UnifiedPaintSettings *ups, bool mask)
+void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
 {
+  blender::bke::StrokeRuntime& stroke_runtime = *paint->runtime.stroke_runtime;
   /* we multiply with brush radius as an optimization for the brush
    * texture sampling functions */
   if (mask) {
-    ups->mask_tex_mouse[0] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
-    ups->mask_tex_mouse[1] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+    stroke_runtime.mask_tex_mouse[0] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
+    stroke_runtime.mask_tex_mouse[1] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
   }
   else {
-    ups->tex_mouse[0] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
-    ups->tex_mouse[1] = BLI_rng_get_float(brush_rng) * ups->pixel_radius;
+    stroke_runtime.tex_mouse[0] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
+    stroke_runtime.tex_mouse[1] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
   }
 }
 

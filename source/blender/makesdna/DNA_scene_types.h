@@ -45,14 +45,17 @@ struct bNodeTree;
 namespace blender {
 namespace bke {
 class SceneRuntime;
+struct StrokeRuntime;
 }
 namespace ocio {
 class ColorSpace;
 }
 }  // namespace blender
+using StrokeRuntimeHandle = blender::bke::StrokeRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
 #else   // __cplusplus
+typedef struct StrokeRuntimeHandle StrokeRuntimeHandle;
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
 #endif  // __cplusplus
@@ -1132,6 +1135,7 @@ typedef struct UnifiedPaintSettings {
 
 #define PAINT_MAX_INPUT_SAMPLES 64
 
+
 typedef struct Paint_Runtime {
   /** Avoid having to compare with scene pointer everywhere. */
   unsigned int initialized;
@@ -1139,6 +1143,7 @@ typedef struct Paint_Runtime {
   char _pad[2];
   /** The last brush that was active. Used to support toggling. */
   struct AssetWeakReference *previous_active_brush_reference;
+  StrokeRuntimeHandle *stroke_runtime;
 } Paint_Runtime;
 
 typedef struct NamedBrushAssetReference {
