@@ -393,9 +393,9 @@ static BMVert *bmo_find_end_of_chain(BMesh *bm, BMEdge *e, BMVert *v, const shor
   return v;
 }
 
-/* Determines if an unselected tri or quad would be altered if this vert was dissolved.
- * When this is discovered, this vert will not be dissolved. */
-static bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
+/* Determines if a vert touches an unselected face that would be altered if the vert was
+ * dissolved. This is sometimes desirable (T-junction) and sometimes not (other cases). */
+static bool bmo_vert_touches_unselected_face(BMesh *bm, BMVert *v)
 {
   /* If the vert was already tested and marked, don't test again.*/
   if (BMO_vert_flag_test(bm, v, VERT_MARK)) {
@@ -409,10 +409,8 @@ static bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
     BMLoop *l_b = BM_loop_other_edge_loop(l_a, v);
 
     /* `l_a` and `l_b` are now the two edges of the face that share this vert.
-     * if both are untagged, and if the face is either a tri or a quad, return true. */
-    if (!BMO_edge_flag_test(bm, l_a->e, EDGE_TAG) && !BMO_edge_flag_test(bm, l_b->e, EDGE_TAG) &&
-        l_a->f->len <= 4)
-    {
+     * if both are untagged, return true. */
+    if (!BMO_edge_flag_test(bm, l_a->e, EDGE_TAG) && !BMO_edge_flag_test(bm, l_b->e, EDGE_TAG)) {
       return true;
     }
   }
@@ -420,6 +418,7 @@ static bool bmo_vert_touches_unselected_tri_or_quad(BMesh *bm, BMVert *v)
   return false;
 }
 
+/* Counts how many edges touching a vert are tagged with the specified oflag. */
 static int bmo_vert_tagged_edges_count_at_most(BMesh *bm,
                                                BMVert *v,
                                                const short edge_oflag,
@@ -552,7 +551,9 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
          * Prevent dissolving either corner, if doing so would collapse the corner, converting the
          * quad to a tri or wire. This happens when two tris join, and the vert has two untagged
          * edges, and the _only_ other tagged edge is this edge that's about to be dissolved.
-         * When that case is found, skip it, do not tag it.*/
+         * When that case is found, skip it, do not tag it.
+         * The edge count test ensures that if we're dissolving a chain, the crossing loop cuts
+         * will still be dissolved, even if they happen to make an "untriangulate" case. */
         if (f_pair[0]->len == 3 && f_pair[1]->len == 3 &&
             bmo_vert_tagged_edges_count_at_most(bm, v_edge, EDGE_TAG, 2) == 1)
         {
@@ -560,20 +561,32 @@ void bmo_dissolve_edges_exec(BMesh *bm, BMOperator *op)
         }
 
         /* If a chain, follow the chain until the end is found. The whole chain will dissolve, so
-         * the test needs to happen there, at the end, where it meets other geometry, not here. */
+         * the test needs to happen there, at the end of the chain, where it meets other geometry,
+         * not here, at the end of a selected edge that only touches other parts of the chain. */
         if (BM_vert_is_edge_pair(v_edge)) {
           v_edge = bmo_find_end_of_chain(bm, e, v_edge, EDGE_CHAIN);
         }
 
-        /* If the end of the chain was searched for and not located, take no action. */
+        /* If the end of the chain was searched for and was not located, take no action. */
         if (v_edge == nullptr) {
           continue;
         }
 
-        /* If the vert touches a tri or quad that has no selected edges touching this vert, then
-         * dissolving the vert would alter unselected geometry.  Avoid doing this.  Do not mark
-         * this vert for dissolve. */
-        if (bmo_vert_touches_unselected_tri_or_quad(bm, v_edge)) {
+        /* When the user selected multiple edges that meet at one vert, and there are existing
+         * faces at that vert that are *not* selected, then remove that vert from consideration for
+         * dissolve.
+         *
+         * This logic implements the following:
+         * - When several dissolved edges cross a loop cut, the loop cut vert should be dissolved.
+         *   (`bmo_vert_touches_unselected_face()` will be false)
+         * - When dissolve edges *end* at a T on a loop cut, the loop cut vert should be dissolved.
+         *   (`bmo_vert_tagged_edges_count_at_most()` will be 1)
+         * - When multiple dissolve edges touch the corner of a quad or tri, but leave in a
+         *   different direction, regard that contact is 'incidental' and the face should stay.
+         *   (both tests will be true) */
+        if (bmo_vert_touches_unselected_face(bm, v_edge) &&
+            bmo_vert_tagged_edges_count_at_most(bm, v_edge, EDGE_TAG, 2) != 1)
+        {
           continue;
         }
 
