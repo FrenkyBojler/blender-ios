@@ -1701,6 +1701,8 @@ wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *str
 
       const float pressure = RNA_float_get(&itemptr, "pressure");
       float2 dummy_mouse;
+      RNA_float_get_array(&itemptr, "mouse", dummy_mouse);
+
       float3 dummy_location;
       bool dummy_is_set;
 
