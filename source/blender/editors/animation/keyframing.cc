@@ -818,6 +818,19 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
+static void get_selected_strips_rna_paths(
+    blender::Vector<PointerRNA> &selection,
+    blender::Vector<std::string> &r_selected_strips_rna_paths)
+{
+  /* Make this as a function because the same code will be used in keyframe_clear_vse operator */
+  for (PointerRNA &id_ptr : selection) {
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
+      r_selected_strips_rna_paths.append(*rna_path);
+    }
+  }
+}
+
 static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &strip_path)
 {
   return fcurve.rna_path &&
@@ -832,23 +845,15 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
 
   blender::Vector<PointerRNA> selection;
+  blender::Vector<std::string> selected_strips_rna_paths;
   get_selection(C, &selection);
+  get_selected_strips_rna_paths(selection, selected_strips_rna_paths);
 
-  if (selection.is_empty()) {
+  if (selected_strips_rna_paths.is_empty()) {
     BKE_reportf(op->reports, RPT_WARNING, "No strips selected");
     return OPERATOR_CANCELLED;
   }
 
-  blender::Vector<std::string> selected_rna_paths;
-
-  for (PointerRNA &id_ptr : selection) {
-    /* get strips rna_path used later to compare if a fcurve belongs to a selected strip*/
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
-      std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
-      selected_rna_paths.append(*rna_path);
-    }
-  }
-  /* just those in active action... */
   if (!((scene->adt) && (scene->adt->action))) {
     BKE_reportf(op->reports, RPT_ERROR, "Scene has no animation data or active action");
     return OPERATOR_CANCELLED;
@@ -863,7 +868,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     blender::Vector<FCurve *> fcurves_to_delete;
     foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
       /* check if fcurve belongs to a selected strip */
-      for (const std::string &strip_path : selected_rna_paths) {
+      for (const std::string &strip_path : selected_strips_rna_paths) {
         if (fcurve_belongs_to_strip(fcurve, strip_path))
         {
           fcurves_to_delete.append(&fcurve);
@@ -983,19 +988,6 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
   }
 
   return true;
-}
-
-static void get_selected_strips_rna_paths(
-    blender::Vector<PointerRNA> &selection,
-    blender::Vector<std::string> &r_selected_strips_rna_paths)
-{
-  /* Make this as a function because the same code will be used in keyframe_clear_vse operator */
-  for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
-      std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
-      r_selected_strips_rna_paths.append(*rna_path);
-    }
-  }
 }
 
 static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
