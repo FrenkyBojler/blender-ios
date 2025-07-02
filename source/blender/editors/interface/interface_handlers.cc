@@ -1179,8 +1179,11 @@ static void ui_apply_but_funcs_after(bContext *C)
   }
 }
 
+static int ui_drag_toggle_but_pushed_state(uiBut *but);
+
 static void ui_apply_but_BUT(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
+  data->origvalue = ui_drag_toggle_but_pushed_state(but);
   ui_apply_but_func(C, but);
 
   data->retval = but->retval;
@@ -1218,7 +1221,7 @@ static void ui_apply_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data)
   else {
     value_toggle = (value == 0.0);
   }
-
+  data->origvalue = value;
   ui_but_value_set(but, double(value_toggle));
   if (ELEM(but->type, UI_BTYPE_ICON_TOGGLE, UI_BTYPE_ICON_TOGGLE_N)) {
     ui_but_update_edited(but);
@@ -1674,7 +1677,7 @@ static int ui_drag_toggle_but_pushed_state(uiBut *but)
 
 struct uiDragToggleHandle {
   /* init */
-  int pushed_state;
+  int src_state;
   float but_cent_start[2];
 
   bool is_xy_lock_init;
@@ -1685,7 +1688,7 @@ struct uiDragToggleHandle {
 };
 
 static bool ui_drag_toggle_set_xy_xy(
-    bContext *C, ARegion *region, const int pushed_state, const int xy_src[2], const int xy_dst[2])
+    bContext *C, ARegion *region, const int src_state, const int xy_src[2], const int xy_dst[2])
 {
   /* popups such as layers won't re-evaluate on redraw */
   const bool do_check = (region->regiontype == RGN_TYPE_TEMPORARY);
@@ -1713,7 +1716,7 @@ static bool ui_drag_toggle_set_xy_xy(
       }
       /* is it pressed? */
       const int pushed_state_but = ui_drag_toggle_but_pushed_state(but.get());
-      if (pushed_state_but == pushed_state) {
+      if (pushed_state_but != src_state) {
         continue;
       }
 
@@ -1785,7 +1788,7 @@ static void ui_drag_toggle_set(bContext *C, uiDragToggleHandle *drag_info, const
   xy[1] = (drag_info->xy_lock[1] == false) ? xy_input[1] : drag_info->xy_last[1];
 
   /* touch all buttons between last mouse coord and this one */
-  do_draw = ui_drag_toggle_set_xy_xy(C, region, drag_info->pushed_state, drag_info->xy_last, xy);
+  do_draw = ui_drag_toggle_set_xy_xy(C, region, drag_info->src_state, drag_info->xy_last, xy);
 
   if (do_draw) {
     ED_region_tag_redraw(region);
@@ -2129,7 +2132,7 @@ static bool ui_but_drag_init(bContext *C,
        * typically 'button_activate_exit()' handles this */
       ui_apply_but_autokey(C, but);
 
-      drag_info->pushed_state = ui_drag_toggle_but_pushed_state(but);
+      drag_info->src_state = but->active->origvalue;
       drag_info->but_cent_start[0] = BLI_rctf_cent_x(&but->rect);
       drag_info->but_cent_start[1] = BLI_rctf_cent_y(&but->rect);
       copy_v2_v2_int(drag_info->xy_init, event->xy);
