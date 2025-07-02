@@ -818,6 +818,33 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
+static void get_selected_strips_rna_paths(
+    blender::Vector<PointerRNA> &selection,
+    blender::Vector<std::string> &r_selected_strips_rna_paths)
+{
+  for (PointerRNA &id_ptr : selection) {
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
+      r_selected_strips_rna_paths.append(*rna_path);
+    }
+  }
+}
+
+static void invalidate_strip_caches(blender::Vector<PointerRNA> selection, Scene *scene)
+{
+  for (PointerRNA &id_ptr : selection) {
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
+      blender::seq::relations_invalidate_cache(scene, strip);
+    }
+  }
+}
+
+static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &strip_path)
+{
+  return fcurve.rna_path &&
+         std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
+}
 static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
 {
   /* don't touch protected F-Curves */
@@ -865,19 +892,6 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
   return true;
 }
 
-static void get_selected_strips_rna_paths(
-    blender::Vector<PointerRNA> &selection,
-    blender::Vector<std::string> &r_selected_strips_rna_paths)
-{
-  /* Make this as a function because the same code will be used in keyframe_clear_vse operator */
-  for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
-      std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
-      r_selected_strips_rna_paths.append(*rna_path);
-    }
-  }
-}
-
 static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
 {
   ReportList *reports = nullptr;
@@ -891,12 +905,6 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
     return false;
   }
   return true;
-}
-
-static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &strip_path)
-{
-  return fcurve.rna_path &&
-         std::strncmp(fcurve.rna_path, strip_path.c_str(), strip_path.length()) == 0;
 }
 
 static bool delete_scene_action_keyframes_legacy(AnimData *adt,
@@ -988,12 +996,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
   }
 
-  for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
-      ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
-      blender::seq::relations_invalidate_cache(scene, strip);
-    }
-  }
+  invalidate_strip_caches(selection, scene);
 
   if (confirm) {
     /* if called by invoke (from the UI), make a note that we've removed keyframes */
