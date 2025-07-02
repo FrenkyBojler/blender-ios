@@ -830,6 +830,16 @@ static void get_selected_strips_rna_paths(
   }
 }
 
+static void invalidate_strip_caches(blender::Vector<PointerRNA> selection, Scene *scene)
+{
+  for (PointerRNA &id_ptr : selection) {
+    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
+      ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
+      blender::seq::relations_invalidate_cache(scene, strip);
+    }
+  }
+}
+
 static bool fcurve_belongs_to_strip(const FCurve &fcurve, const std::string &strip_path)
 {
   return fcurve.rna_path &&
@@ -868,8 +878,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
       /* check if fcurve belongs to a selected strip */
       for (const std::string &strip_path : selected_strips_rna_paths) {
-        if (fcurve_belongs_to_strip(fcurve, strip_path))
-        {
+        if (fcurve_belongs_to_strip(fcurve, strip_path)) {
           fcurves_to_delete.append(&fcurve);
           break;
         }
