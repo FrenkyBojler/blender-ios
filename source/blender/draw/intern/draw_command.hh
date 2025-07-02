@@ -547,7 +547,7 @@ class DrawCommandBuf {
                    uint instance_len,
                    uint vertex_len,
                    uint vertex_first,
-                   ResourceIndexRange handle_range,
+                   ResourceIndexRange index_range,
                    uint custom_id,
                    GPUPrimType expanded_prim_type,
                    uint16_t expanded_prim_len)
@@ -559,7 +559,7 @@ class DrawCommandBuf {
     BLI_assert_msg(custom_id == 0, "Custom ID is not supported in PassSimple");
     UNUSED_VARS_NDEBUG(custom_id);
 
-    for (auto res_index : handle_range.index_range()) {
+    for (auto res_index : index_range.index_range()) {
       int64_t index = commands.append_and_get_index({});
       headers.append({Type::Draw, uint(index)});
       commands[index].draw = {batch,
@@ -668,7 +668,7 @@ class DrawMultiBuf {
                    uint instance_len,
                    uint vertex_len,
                    uint vertex_first,
-                   ResourceIndexRange handle_range,
+                   ResourceIndexRange index_range,
                    uint custom_id,
                    GPUPrimType expanded_prim_type,
                    uint16_t expanded_prim_len)
@@ -692,9 +692,9 @@ class DrawMultiBuf {
 
     uint &group_id = group_ids_.lookup_or_add(DrawGroupKey(cmd.uuid, batch), uint(-1));
 
-    bool inverted = handle_range.has_inverted_handedness();
+    bool inverted = index_range.has_inverted_handedness();
 
-    for (auto res_index : handle_range.index_range()) {
+    for (auto res_index : index_range.index_range()) {
       DrawPrototype &draw = prototype_buf_.get_or_resize(prototype_count_++);
       draw.res_index = uint32_t(res_index);
       draw.custom_id = custom_id;
