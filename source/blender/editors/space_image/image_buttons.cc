@@ -1065,10 +1065,8 @@ void uiTemplateImageSettings(uiLayout *layout,
   /* Override color management */
   if (color_management) {
 
-    if (uiLayout *panel = col->panel(C,
-                                     "settings_color_management" + layout->parent_->label_,
-                                     true,
-                                     IFACE_("Color Management")))
+    if (uiLayout *panel = col->panel(
+            C, "settings_color_management", true, IFACE_("Color Management")))
     {
       panel->separator();
       panel->row(true).prop(imfptr, "color_management", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
