@@ -154,7 +154,8 @@ typedef enum IMB_Ffmpeg_Codec_ID {
 
 typedef enum eFFMpegVideoHdr {
   FFM_VIDEO_HDR_NONE = 0,
-  FFM_VIDEO_HDR_REC2020_HLG = 1,
+  FFM_VIDEO_HDR_REC2100_HLG = 1,
+  FFM_VIDEO_HDR_REC2100_PQ = 2,
 } eFFMpegVideoHdr;
 
 typedef struct FFMpegCodecData {

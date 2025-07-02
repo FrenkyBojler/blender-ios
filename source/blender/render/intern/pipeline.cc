@@ -32,7 +32,6 @@
 #include "BLI_rect.h"
 #include "BLI_set.hh"
 #include "BLI_string.h"
-#include "BLI_task.hh"
 #include "BLI_threads.h"
 #include "BLI_time.h"
 #include "BLI_timecode.h"
@@ -2201,53 +2200,6 @@ void RE_RenderFreestyleExternal(Render *re)
 /** \name Read/Write Render Result (Images & Movies)
  * \{ */
 
-static float do_hlg(float v)
-{
-  if (v <= 0.0f)
-    return 0.0f;
-  if (v <= 1.0f)
-    return 0.5f * sqrtf(v);
-  const float ca = 0.17883277f;
-  const float cb = 0.28466892f;
-  const float cc = 0.55991073f;
-  return ca * logf(v - cb) + cc;
-}
-
-static void do_linear_rec2020_to_hlg(ImBuf *ibuf)
-{
-  using namespace blender;
-  BLI_assert_msg(ibuf != nullptr && ibuf->float_buffer.data != nullptr,
-                 "video: image for HLG transform should have float pixels");
-  BLI_assert_msg(ibuf->channels == 4, "video: image for HLG transform should have 4 channels");
-  const size_t pixel_count = IMB_get_pixel_count(ibuf);
-  threading::parallel_for(IndexRange(pixel_count), 8192, [&](const IndexRange &range) {
-    float *rgba = ibuf->float_buffer.data;
-    for (int64_t index : range) {
-      rgba[index * 4 + 0] = do_hlg(rgba[index * 4 + 0]);
-      rgba[index * 4 + 1] = do_hlg(rgba[index * 4 + 1]);
-      rgba[index * 4 + 2] = do_hlg(rgba[index * 4 + 2]);
-    }
-  });
-}
-
-/* @TODO: maybe the image HDR transform should be done through OCIO? */
-static void do_movie_hdr_transform(ImBuf *ibuf, eFFMpegVideoHdr hdr_mode)
-{
-  if (ibuf == nullptr || hdr_mode == FFM_VIDEO_HDR_NONE) {
-    return;
-  }
-  BLI_assert_msg(ibuf->float_buffer.data != nullptr,
-                 "video: image to add to HDR video should have float pixels");
-
-  switch (hdr_mode) {
-    case FFM_VIDEO_HDR_REC2020_HLG:
-      do_linear_rec2020_to_hlg(ibuf);
-      break;
-    default:
-      BLI_assert_unreachable();
-  }
-}
-
 bool RE_WriteRenderViewsMovie(ReportList *reports,
                               RenderResult *rr,
                               Scene *scene,
@@ -2267,8 +2219,6 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
 
   const bool is_mono = !RE_ResultIsMultiView(rr);
   const float dither = scene->r.dither_intensity;
-  const eFFMpegVideoHdr hdr_mode = eFFMpegVideoHdr(scene->r.ffcodecdata.video_hdr);
-  const bool is_hdr = hdr_mode != FFM_VIDEO_HDR_NONE;
 
   if (is_mono || (image_format.views_format == R_IMF_VIEWS_INDIVIDUAL)) {
     int view_id;
@@ -2276,8 +2226,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       const char *suffix = BKE_scene_multiview_view_id_suffix_get(&scene->r, view_id);
       ImBuf *ibuf = RE_render_result_rect_to_ibuf(rr, &rd->im_format, dither, view_id);
 
-      IMB_colormanagement_imbuf_for_write(ibuf, true, false, &image_format, is_hdr);
-      do_movie_hdr_transform(ibuf, hdr_mode);
+      IMB_colormanagement_imbuf_for_write(ibuf, true, false, &image_format);
 
       BLI_assert(movie_writers[view_id] != nullptr);
       if (!MOV_write_append(movie_writers[view_id],
@@ -2310,7 +2259,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
       int view_id = BLI_findstringindex(&rr->views, names[i], offsetof(RenderView, name));
       ibuf_arr[i] = RE_render_result_rect_to_ibuf(rr, &rd->im_format, dither, view_id);
 
-      IMB_colormanagement_imbuf_for_write(ibuf_arr[i], true, false, &image_format, is_hdr);
+      IMB_colormanagement_imbuf_for_write(ibuf_arr[i], true, false, &image_format);
     }
 
     ibuf_arr[2] = IMB_stereo3d_ImBuf(&image_format, ibuf_arr[0], ibuf_arr[1]);

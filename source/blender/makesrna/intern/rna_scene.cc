@@ -6483,8 +6483,13 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
 
   static const EnumPropertyItem ffmpeg_hdr_items[] = {
       {FFM_VIDEO_HDR_NONE, "NONE", 0, "None", "No High Dynamic Range"},
-      {FFM_VIDEO_HDR_REC2020_HLG,
-       "HLG",
+      {FFM_VIDEO_HDR_REC2100_PQ,
+       "REQ2100_PQ",
+       0,
+       "Rec.2100 PQ",
+       "Rec.2100 color space with Perceptual Quantizer HDR encoding"},
+      {FFM_VIDEO_HDR_REC2100_HLG,
+       "REQ2020_HLG",
        0,
        "Rec.2020 HLG",
        "Rec.2020 color space with Hybrid-Log Gamma HDR encoding"},
