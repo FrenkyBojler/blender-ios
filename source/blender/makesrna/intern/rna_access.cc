@@ -987,6 +987,24 @@ uint RNA_struct_count_properties(StructRNA *srna)
   return counter;
 }
 
+std::optional<AncestorPointerRNA> RNA_struct_search_closest_ancestor_by_type(PointerRNA *ptr,
+                                                                             const StructRNA *srna)
+{
+  if (RNA_struct_is_a(ptr->type, srna)) {
+    return {{ptr->type, ptr->data}};
+  }
+  else {
+    for (int i = ptr->ancestors.size() - 1; i >= 0; i--) {
+      const AncestorPointerRNA &ancestor = ptr->ancestors[i];
+      if (RNA_struct_is_a(ancestor.type, srna)) {
+        return ancestor;
+      }
+    }
+  }
+
+  return std::nullopt;
+}
+
 const ListBase *RNA_struct_type_properties(StructRNA *srna)
 {
   return &srna->cont.properties;
@@ -4005,12 +4023,13 @@ std::optional<std::string> RNA_property_string_path_filter(const bContext *C,
                                                            PointerRNA *ptr,
                                                            PropertyRNA *prop)
 {
-  BLI_assert(prop->type == PROP_STRING);
-  StringPropertyRNA *sprop = (StringPropertyRNA *)prop;
+  BLI_assert(RNA_property_type(prop) == PROP_STRING);
+  PropertyRNA *rna_prop = rna_ensure_property(prop);
+  StringPropertyRNA *sprop = (StringPropertyRNA *)rna_prop;
   if (!sprop->path_filter) {
     return std::nullopt;
   }
-  return sprop->path_filter(C, ptr, prop);
+  return sprop->path_filter(C, ptr, rna_prop);
 }
 
 int RNA_property_enum_get(PointerRNA *ptr, PropertyRNA *prop)
