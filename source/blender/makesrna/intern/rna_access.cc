@@ -2522,33 +2522,38 @@ void RNA_property_update_main(Main *bmain, Scene *scene, PointerRNA *ptr, Proper
 
 /* Property Data */
 
+static bool property_boolean_get(PointerRNA *ptr, PropertyRNAOrID &prop_rna_or_id)
+{
+  if (prop_rna_or_id.idprop) {
+    return IDP_Bool(prop_rna_or_id.idprop);
+  }
+  BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop_rna_or_id.rnaprop);
+  if (bprop->get) {
+    return bprop->get(ptr);
+  }
+  if (bprop->get_ex) {
+    return bprop->get_ex(ptr, &bprop->property);
+  }
+  return bprop->defaultvalue;
+}
+
 bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
 {
-  BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
-  bool value;
-
   BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
   BLI_assert(RNA_property_array_check(prop) == false);
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
-
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+   * further complications.
+   * `bprop->property` should be used when access to an actual RNA property is required.
+   */
   IDProperty *idprop = prop_rna_or_id.idprop;
-  if (idprop) {
-    value = IDP_Bool(idprop);
-  }
-  else if (bprop->get) {
-    value = bprop->get(ptr);
-  }
-  else if (bprop->get_ex) {
-    value = bprop->get_ex(ptr, prop);
-  }
-  else {
-    value = bprop->defaultvalue;
-  }
+  BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop_rna_or_id.rnaprop);
 
+  bool value = property_boolean_get(ptr, prop_rna_or_id);
   if (bprop->get_transform) {
-    value = bprop->get_transform(ptr, prop, value, prop_rna_or_id.is_set);
+    value = bprop->get_transform(ptr, &bprop->property, value, prop_rna_or_id.is_set);
   }
 
   BLI_assert(ELEM(value, false, true));
@@ -2565,8 +2570,6 @@ bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
 
 void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
 {
-  BoolPropertyRNA *bprop = (BoolPropertyRNA *)prop;
-
   BLI_assert(RNA_property_type(prop) == PROP_BOOLEAN);
   BLI_assert(RNA_property_array_check(prop) == false);
   BLI_assert(ELEM(value, false, true));
@@ -2576,13 +2579,19 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
 
   PropertyRNAOrID prop_rna_or_id;
   rna_property_rna_or_id_get(prop, ptr, &prop_rna_or_id);
+  /* NOTE: `prop` is kept unchanged, to allow e.g. call to `RNA_property_boolean_get` without
+   * further complications.
+   * `bprop->property` should be used when access to an actual RNA property is required.
+   */
+  IDProperty *idprop = prop_rna_or_id.idprop;
+  BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop_rna_or_id.rnaprop);
 
   if (bprop->set_transform) {
-    const bool curr_value = RNA_property_boolean_get(ptr, prop);
-    value = bprop->set_transform(ptr, prop, value, curr_value, prop_rna_or_id.is_set);
+    /* Get raw, untransformed (aka 'storage') value. */
+    const bool curr_value = property_boolean_get(ptr, prop_rna_or_id);
+    value = bprop->set_transform(ptr, &bprop->property, value, curr_value, prop_rna_or_id.is_set);
   }
 
-  IDProperty *idprop = prop_rna_or_id.idprop;
   if (idprop) {
     IDP_Bool(idprop) = value;
     rna_idproperty_touch(idprop);
@@ -2591,20 +2600,20 @@ void RNA_property_boolean_set(PointerRNA *ptr, PropertyRNA *prop, bool value)
     bprop->set(ptr, value);
   }
   else if (bprop->set_ex) {
-    bprop->set_ex(ptr, prop, value);
+    bprop->set_ex(ptr, &bprop->property, value);
   }
-  else if (prop->flag & PROP_EDITABLE) {
+  else if (bprop->property.flag & PROP_EDITABLE) {
     if (IDProperty *group = RNA_struct_system_idprops(ptr, true)) {
 #ifdef USE_INT_IDPROPS_FOR_BOOLEAN_RNA_PROP
-      IDP_AddToGroup(
-          group,
-          blender::bke::idprop::create(prop->identifier, int(value), IDP_FLAG_STATIC_TYPE)
-              .release());
+      IDP_AddToGroup(group,
+                     blender::bke::idprop::create(
+                         bprop->property.identifier, int(value), IDP_FLAG_STATIC_TYPE)
+                         .release());
 #else
-      IDP_AddToGroup(
-          group,
-          blender::bke::idprop::create_bool(prop->identifier, value, IDP_FLAG_STATIC_TYPE)
-              .release());
+      IDP_AddToGroup(group,
+                     blender::bke::idprop::create_bool(
+                         bprop->property.identifier, value, IDP_FLAG_STATIC_TYPE)
+                         .release());
 #endif
     }
   }

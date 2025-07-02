@@ -2627,7 +2627,7 @@ static int bpy_prop_arg_parse_tag_defines(PyObject *o, void *p)
   "   :arg set_transform: Function to be called when this value is 'written',\n" \
   "      if some additional processing must be performed on the given value before storing it.\n" \
   "      This function must take four arguments (self, the given value to store,\n" \
-  "      the currently stored value,\n" \
+  "      the currently stored value ('raw' value, without any `get_transform` applied to it),\n" \
   "      and a boolean indicating if the property is currently set),\n" \
   "      and return the final, transformed value of the property.\n" \
   "   :type get: Callable[[:class:`bpy.types.bpy_struct`, " ty ", " ty ", bool], " ty "]\n"

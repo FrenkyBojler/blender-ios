@@ -103,6 +103,9 @@ using PropCollectionAssignIntFunc = bool (*)(PointerRNA *ptr,
                                              const PointerRNA *assign_ptr);
 
 /* Extended versions with #PropertyRNA argument. */
+/* NOTE: All extended get/set callbacks will always get a 'real' PropertyRNA `prop` pointer, never
+ * an 'IDProperty as PropertyRNA' one (i.e. when called, the given `prop` is the RNA result of a
+ * call to `rna_property_rna_or_id_get` or one of its wrappers). */
 
 using PropBooleanGetFuncEx = bool (*)(PointerRNA *ptr, PropertyRNA *prop);
 using PropBooleanSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, bool value);
@@ -126,7 +129,12 @@ using PropStringSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, const c
 using PropEnumGetFuncEx = int (*)(PointerRNA *ptr, PropertyRNA *prop);
 using PropEnumSetFuncEx = void (*)(PointerRNA *ptr, PropertyRNA *prop, int value);
 
-/* Transform step (applied after getting, or before setting the value). */
+/* Transform step (applied after getting, or before setting the value). Currently only used by
+ * `bpy`, more details in the documentation of #BPyPropStore. */
+/* NOTE: All transform get/set callbacks will always get a 'real' PropertyRNA `prop` pointer, never
+ * an 'IDProperty as PropertyRNA' one (i.e. when called, the given `prop` is the RNA result of a
+ * call to `rna_property_rna_or_id_get` or one of its wrappers). */
+
 using PropBooleanGetTransformFunc = BooleanPropertyGetTransformFunc;
 using PropBooleanSetTransformFunc = BooleanPropertySetTransformFunc;
 
