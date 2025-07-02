@@ -348,8 +348,16 @@ static ArmatureUserdata get_armature_deform_data(
   data.dverts = dverts;
   data.bmesh.cd_dvert_offset = cd_dvert_offset ? *cd_dvert_offset : -1;
 
+/* TODO using the existing matrices directly is better, but fails tests because the legacy code was
+ * doing a double-inverse of the object matrix, leading to small differences on the order of 10^-5.
+ * Test data needs to be updated if the transforms change. */
+#if 0
   data.target_to_armature = ob_arm.world_to_object() * ob_target.object_to_world();
   data.armature_to_target = ob_target.world_to_object() * ob_arm.object_to_world();
+#else
+  data.armature_to_target = ob_target.world_to_object() * ob_arm.object_to_world();
+  data.target_to_armature = math::invert(data.armature_to_target);
+#endif
 
   return data;
 }
