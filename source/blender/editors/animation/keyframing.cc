@@ -865,8 +865,9 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
   return true;
 }
 
-static void get_selected_strips_rna_paths(blender::Vector<PointerRNA> &selection,
-                                          blender::Vector<std::string> &r_selected_strips_rna_paths)
+static void get_selected_strips_rna_paths(
+    blender::Vector<PointerRNA> &selection,
+    blender::Vector<std::string> &r_selected_strips_rna_paths)
 {
   /* Make this as a function because the same code will be used in keyframe_clear_vse operator */
   for (PointerRNA &id_ptr : selection) {
@@ -950,7 +951,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
       std::string changed_strip;
       for (const std::string &strip_path : selected_strips_rna_paths) {
-        printf("strip_path %s\n", strip_path.c_str());
         if (fcurve_belongs_to_strip(fcurve, strip_path)) {
           changed_strip = strip_path;
           break;
