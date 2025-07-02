@@ -195,6 +195,7 @@ template<bool full_deform> struct BoneDeformDualQuaternionMixer {
   }
 };
 
+/* Add interpolated deformation along a b-bone segment of the pose channel. */
 template<typename MixerT>
 static void b_bone_deform(const bPoseChannel &pchan,
                           const float3 &co,
@@ -210,6 +211,7 @@ static void b_bone_deform(const bPoseChannel &pchan,
   mixer.accumulate_bbone(pchan, co, weight * blend, index + 1);
 }
 
+/* Add bone deformation based on envelope distance. */
 template<typename MixerT>
 static float dist_bone_deform(const bPoseChannel &pchan, const float3 &co, MixerT &mixer)
 {
@@ -239,6 +241,7 @@ static float dist_bone_deform(const bPoseChannel &pchan, const float3 &co, Mixer
   return weight;
 }
 
+/* Add bone deformation based on vertex group weight. */
 template<typename MixerT>
 static float pchan_bone_deform(const bPoseChannel &pchan,
                                const float weight,
@@ -291,7 +294,6 @@ struct ArmatureUserdata {
   float4x4 target_to_armature;
   float4x4 armature_to_target;
 
-  /** Specific data types. */
   const Mesh *me_target;
   std::optional<Span<MDeformVert>> dverts;
   struct {
@@ -348,7 +350,7 @@ static ArmatureUserdata get_armature_deform_data(
   data.dverts = dverts;
   data.bmesh.cd_dvert_offset = cd_dvert_offset ? *cd_dvert_offset : -1;
 
-/* TODO using the existing matrices directly is better, but fails tests because the legacy code was
+/* TODO using the existing matrices directly is better, but fails tests because old code was
  * doing a double-inverse of the object matrix, leading to small differences on the order of 10^-5.
  * Test data needs to be updated if the transforms change. */
 #if 0
@@ -368,38 +370,34 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
                                           const MDeformVert *dvert,
                                           MixerT &mixer)
 {
-  float contrib = 0.0f;
-  float armature_weight = 1.0f; /* default to 1 if no overall def group */
-  float prevco_weight = 0.0f;   /* weight for optional cached vertexcos */
-
   const bool full_deform = data.vert_deform_mats.has_value();
 
+  /* Overall influence, can change by masking with a vertex group. */
+  float armature_weight = 1.0f;
+  float prevco_weight = 0.0f; /* weight for optional cached vertexcos */
   if (data.armature_def_nr != -1 && dvert) {
-    armature_weight = BKE_defvert_find_weight(dvert, data.armature_def_nr);
-
-    if (data.invert_vgroup) {
-      armature_weight = 1.0f - armature_weight;
-    }
-
-    /* hackish: the blending factor can be used for blending with vert_coords_prev too */
+    const float mask_weight = BKE_defvert_find_weight(dvert, data.armature_def_nr);
+    /* On multi-modifier the mask is used to blend with previous coordinates. */
     if (data.vert_coords_prev) {
-      /* This weight specifies the contribution from the coordinates at the start of this
-       * modifier evaluation, while armature_weight is normally the opposite of that. */
-      prevco_weight = 1.0f - armature_weight;
-      armature_weight = 1.0f;
+      prevco_weight = data.invert_vgroup ? mask_weight : 1.0f - mask_weight;
+      if (prevco_weight == 1.0f) {
+        return;
+      }
     }
-  }
-  /* check if there's any  point in calculating for this vert */
-  if ((data.vert_coords_prev && prevco_weight == 1.0f) || armature_weight == 0.0f) {
-    return;
+    else {
+      armature_weight = data.invert_vgroup ? 1.0f - mask_weight : mask_weight;
+      if (armature_weight == 0.0f) {
+        return;
+      }
+    }
   }
 
   /* get the coord we work on */
   float3 co = data.vert_coords_prev ? (*data.vert_coords_prev)[i] : data.vert_coords[i];
-
   /* Apply the object's matrix */
   co = math::transform_point(data.target_to_armature, co);
 
+  float contrib = 0.0f;
   bool deformed = false;
   if (data.use_dverts && dvert) { /* use weight groups ? */
     const Span<bPoseChannel *> pose_channels = data.pchan_from_defbase;
