@@ -15,6 +15,7 @@
 #include "draw_view.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_customdata.hh"
 #include "BKE_material.hh"
 #include "BKE_object.hh"
@@ -148,7 +149,8 @@ static bool bmesh_attribute_exists(const BMesh &bm,
                                    const StringRef name)
 {
   const CustomData *cdata = get_cdata(bm, meta_data.domain);
-  return cdata && CustomData_get_offset_named(cdata, meta_data.data_type, name) != -1;
+  return cdata && CustomData_get_offset_named(
+                      cdata, *bke::attr_type_to_custom_data_type(meta_data.data_type), name) != -1;
 }
 
 Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature features)
@@ -190,7 +192,7 @@ Vector<SculptBatch> sculpt_batches_get(const Object *ob, SculptBatchFeature feat
   if (features & SCULPT_BATCH_UV) {
     const CustomData *corner_data = ss.bm ? &ss.bm->ldata : &mesh->corner_data;
     if (const char *name = CustomData_get_active_layer_name(corner_data, CD_PROP_FLOAT2)) {
-      attrs.append(pbvh::GenericRequest{name, CD_PROP_FLOAT2});
+      attrs.append(pbvh::GenericRequest(name));
     }
   }
 
@@ -203,7 +205,7 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   BLI_assert(ob->type == OB_MESH);
   const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
-  DRW_Attributes draw_attrs;
+  VectorSet<std::string> draw_attrs;
   DRW_MeshCDMask cd_needed;
   DRW_mesh_get_attributes(*ob, mesh, materials, &draw_attrs, &cd_needed);
 
@@ -212,9 +214,8 @@ Vector<SculptBatch> sculpt_batches_per_material_get(const Object *ob,
   attrs.append(pbvh::CustomRequest::Position);
   attrs.append(pbvh::CustomRequest::Normal);
 
-  for (int i = 0; i < draw_attrs.num_requests; i++) {
-    const DRW_AttributeRequest &req = draw_attrs.requests[i];
-    attrs.append(pbvh::GenericRequest(req.attribute_name));
+  for (const StringRef name : draw_attrs) {
+    attrs.append(pbvh::GenericRequest(name));
   }
 
   /* UV maps are not in attribute requests. */

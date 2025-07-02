@@ -157,7 +157,7 @@ Vector<mf::Variable *> MultiFunctionProcedureOperation::get_input_variables(
   for (int i = 0; i < node->input_sockets().size(); i++) {
     const DInputSocket input{node.context(), node->input_sockets()[i]};
 
-    if (!input->is_available()) {
+    if (!is_socket_available(input.bsocket())) {
       continue;
     }
 
@@ -236,8 +236,26 @@ mf::Variable *MultiFunctionProcedureOperation::get_constant_input_variable(DInpu
       break;
     }
     case SOCK_VECTOR: {
-      const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
+      switch (input->default_value_typed<bNodeSocketValueVector>()->dimensions) {
+        case 2: {
+          const float2 value = float2(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float2>>(value);
+          break;
+        }
+        case 3: {
+          const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float3>>(value);
+          break;
+        }
+        case 4: {
+          const float4 value = float4(input->default_value_typed<bNodeSocketValueVector>()->value);
+          constant_function = &procedure_.construct_function<mf::CustomMF_Constant<float4>>(value);
+          break;
+        }
+        default:
+          BLI_assert_unreachable();
+          break;
+      }
       break;
     }
     case SOCK_RGBA: {
@@ -360,7 +378,7 @@ void MultiFunctionProcedureOperation::assign_output_variables(DNode node,
   for (int i = 0; i < node->output_sockets().size(); i++) {
     const DOutputSocket output{node.context(), node->output_sockets()[i]};
 
-    if (!output->is_available()) {
+    if (!is_socket_available(output.bsocket())) {
       continue;
     }
 

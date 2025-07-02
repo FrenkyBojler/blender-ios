@@ -114,7 +114,8 @@ static void attr_create_generic(Scene *scene,
       return;
     }
 
-    if (b_attr.domain == blender::bke::AttrDomain::Corner && iter.data_type == CD_PROP_BYTE_COLOR)
+    if (b_attr.domain == blender::bke::AttrDomain::Corner &&
+        iter.data_type == blender::bke::AttrType::ColorByte)
     {
       Attribute *attr = attributes.add(name, TypeRGBA, ATTR_ELEMENT_CORNER_BYTE);
       if (is_render_color) {
@@ -221,7 +222,9 @@ static set<ustring> get_blender_uv_names(const ::Mesh &b_mesh)
 {
   set<ustring> uv_names;
   b_mesh.attributes().foreach_attribute([&](const blender::bke::AttributeIter &iter) {
-    if (iter.domain == blender::bke::AttrDomain::Corner && iter.data_type == CD_PROP_FLOAT2) {
+    if (iter.domain == blender::bke::AttrDomain::Corner &&
+        iter.data_type == blender::bke::AttrType::Float2)
+    {
       if (!blender::bke::attribute_name_is_anonymous(iter.name)) {
         uv_names.emplace(std::string_view(iter.name));
       }
@@ -453,7 +456,7 @@ static void attr_create_pointiness(Mesh *mesh,
     visited_edges.insert(v0, v1);
     const float3 co0 = make_float3(positions[v0][0], positions[v0][1], positions[v0][2]);
     const float3 co1 = make_float3(positions[v1][0], positions[v1][1], positions[v1][2]);
-    const float3 edge = normalize(co1 - co0);
+    const float3 edge = safe_normalize(co1 - co0);
     edge_accum[v0] += edge;
     edge_accum[v1] += -edge;
     ++counter[v0];

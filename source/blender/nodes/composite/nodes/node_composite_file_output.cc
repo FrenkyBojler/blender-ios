@@ -21,6 +21,8 @@
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
@@ -37,6 +39,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -234,7 +237,7 @@ static void init_output_file(const bContext *C, PointerRNA *ptr)
   BKE_image_format_update_color_space_for_type(&nimf->format);
 
   /* add one socket by default */
-  ntreeCompositOutputFileAddSocket(ntree, node, "Image", format);
+  ntreeCompositOutputFileAddSocket(ntree, node, DATA_("Image"), format);
 }
 
 static void free_output_file(bNode *node)
@@ -303,7 +306,7 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
   }
 }
 
-static void node_composit_buts_file_output(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
+static void node_composit_buts_file_output(uiLayout *layout, bContext *C, PointerRNA *ptr)
 {
   layout->prop(ptr, "base_path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
@@ -321,17 +324,18 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   {
     uiLayout *column = &layout->column(true);
-    uiLayoutSetPropSep(column, true);
-    uiLayoutSetPropDecorate(column, false);
+    column->use_property_split_set(true);
+    column->use_property_decorate_set(false);
     column->prop(ptr, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   }
   const bool save_as_render = RNA_boolean_get(ptr, "save_as_render");
-  uiTemplateImageSettings(layout, &imfptr, save_as_render);
+
+  uiTemplateImageSettings(layout, C, &imfptr, save_as_render);
 
   if (!save_as_render) {
     uiLayout *col = &layout->column(true);
-    uiLayoutSetPropSep(col, true);
-    uiLayoutSetPropDecorate(col, false);
+    col->use_property_split_set(true);
+    col->use_property_decorate_set(false);
 
     PointerRNA linear_settings_ptr = RNA_pointer_get(&imfptr, "linear_colorspace_settings");
     col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
@@ -400,10 +404,9 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
   active_input_ptr.owner_id = ptr->owner_id;
 
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  uiItemFullO_ptr(col, ot, "", ICON_TRIA_UP, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  op_ptr = col->op(ot, "", ICON_TRIA_UP, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 1);
-  uiItemFullO_ptr(
-      col, ot, "", ICON_TRIA_DOWN, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 2);
 
   if (active_input_ptr.data) {
@@ -423,8 +426,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       if (!use_node_format) {
         {
           uiLayout *column = &layout->column(true);
-          uiLayoutSetPropSep(column, true);
-          uiLayoutSetPropDecorate(column, false);
+          column->use_property_split_set(true);
+          column->use_property_decorate_set(false);
           column->prop(&active_input_ptr,
                        "save_as_render",
                        UI_ITEM_R_SPLIT_EMPTY_NAME,
@@ -435,12 +438,12 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
         const bool use_color_management = RNA_boolean_get(&active_input_ptr, "save_as_render");
 
         col = &layout->column(false);
-        uiTemplateImageSettings(col, &imfptr, use_color_management);
+        uiTemplateImageSettings(col, C, &imfptr, use_color_management);
 
         if (!use_color_management) {
           uiLayout *col = &layout->column(true);
-          uiLayoutSetPropSep(col, true);
-          uiLayoutSetPropDecorate(col, false);
+          col->use_property_split_set(true);
+          col->use_property_decorate_set(false);
 
           PointerRNA linear_settings_ptr = RNA_pointer_get(&imfptr, "linear_colorspace_settings");
           col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
@@ -462,7 +465,7 @@ class FileOutputOperation : public NodeOperation {
   FileOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
   {
     for (const bNodeSocket *input : node->input_sockets()) {
-      if (!input->is_available()) {
+      if (!is_socket_available(input)) {
         continue;
       }
 
@@ -493,7 +496,7 @@ class FileOutputOperation : public NodeOperation {
   void execute_single_layer()
   {
     for (const bNodeSocket *input : this->node()->input_sockets()) {
-      if (!input->is_available()) {
+      if (!is_socket_available(input)) {
         continue;
       }
 
@@ -607,7 +610,7 @@ class FileOutputOperation : public NodeOperation {
     file_output.add_view(pass_view);
 
     for (const bNodeSocket *input : this->node()->input_sockets()) {
-      if (!input->is_available()) {
+      if (!is_socket_available(input)) {
         continue;
       }
 
@@ -844,12 +847,14 @@ class FileOutputOperation : public NodeOperation {
    */
   bool get_single_layer_image_base_path(const char *base_name, char *r_base_path)
   {
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(
-        BKE_main_blendfile_path_from_global(), &context().get_render_data());
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
+    BKE_add_template_variables_for_render_path(template_variables, context().get_scene());
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
 
     /* Do template expansion on the node's base path. */
     char node_base_path[FILE_MAX] = "";
-    BLI_strncpy(node_base_path, get_base_path(), FILE_MAX);
+    STRNCPY(node_base_path, get_base_path());
     {
       blender::Vector<path_templates::Error> errors = BKE_path_apply_template(
           node_base_path, FILE_MAX, template_variables);
@@ -862,7 +867,7 @@ class FileOutputOperation : public NodeOperation {
     if (base_name[0]) {
       /* Do template expansion on the socket's sub path ("base name"). */
       char sub_path[FILE_MAX] = "";
-      BLI_strncpy(sub_path, base_name, FILE_MAX);
+      STRNCPY(sub_path, base_name);
       {
         blender::Vector<path_templates::Error> errors = BKE_path_apply_template(
             sub_path, FILE_MAX, template_variables);
@@ -924,11 +929,15 @@ class FileOutputOperation : public NodeOperation {
                                       const bool apply_template,
                                       char *r_image_path)
   {
+    const Scene *scene = &context().get_scene();
     const RenderData &render_data = context().get_render_data();
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &this->bnode().owner_tree().id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+    BKE_add_template_variables_for_node(template_variables, this->bnode());
+
     const char *suffix = BKE_scene_multiview_view_suffix_get(&render_data, view);
     const char *relbase = BKE_main_blendfile_path_from_global();
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(
-        relbase, &render_data);
     blender::Vector<path_templates::Error> errors = BKE_image_path_from_imtype(
         r_image_path,
         base_path,

@@ -283,12 +283,10 @@ class GHOST_WindowCocoa : public GHOST_Window {
    * Sets the cursor shape on the window using
    * native window system calls.
    */
-  GHOST_TSuccess setWindowCustomCursorShape(uint8_t *bitmap,
-                                            uint8_t *mask,
-                                            int sizex,
-                                            int sizey,
-                                            int hotX,
-                                            int hotY,
+  GHOST_TSuccess setWindowCustomCursorShape(const uint8_t *bitmap,
+                                            const uint8_t *mask,
+                                            const int size[2],
+                                            const int hot_spot[2],
                                             bool canInvertColor) override;
 
   /** The window containing the view */
@@ -321,7 +319,10 @@ class GHOST_EventIME : public GHOST_Event {
    * \param type: The type of key event.
    * \param key: The key code of the key.
    */
-  GHOST_EventIME(uint64_t msec, GHOST_TEventType type, GHOST_IWindow *window, void *customdata)
+  GHOST_EventIME(uint64_t msec,
+                 GHOST_TEventType type,
+                 GHOST_IWindow *window,
+                 const void *customdata)
       : GHOST_Event(msec, type, window)
   {
     this->m_data = customdata;

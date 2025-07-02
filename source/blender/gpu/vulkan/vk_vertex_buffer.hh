@@ -11,6 +11,7 @@
 #include "GPU_vertex_buffer.hh"
 
 #include "vk_buffer.hh"
+#include "vk_common.hh"
 #include "vk_data_conversion.hh"
 
 namespace blender::gpu {
@@ -20,7 +21,6 @@ class VKVertexBuffer : public VertBuf {
   /** When a vertex buffer is used as a UNIFORM_TEXEL_BUFFER the buffer requires a buffer view. */
   VkBufferView vk_buffer_view_ = VK_NULL_HANDLE;
 
-  VertexFormatConverter vertex_format_converter;
   bool data_uploaded_ = false;
 
  public:
@@ -39,16 +39,24 @@ class VKVertexBuffer : public VertBuf {
     return buffer_.vk_handle();
   }
 
+  inline VkDeviceAddress device_address_get() const
+  {
+    return buffer_.device_address_get();
+  }
+
   VkBufferView vk_buffer_view_get() const
   {
     BLI_assert(vk_buffer_view_ != VK_NULL_HANDLE);
     return vk_buffer_view_;
   }
 
-  void device_format_ensure();
-  const GPUVertFormat &device_format_get() const;
   void ensure_updated();
   void ensure_buffer_view();
+
+  inline VkFormat to_vk_format()
+  {
+    return blender::gpu::to_vk_format(to_texture_format(&format));
+  }
 
  protected:
   void acquire_data() override;
@@ -65,11 +73,6 @@ class VKVertexBuffer : public VertBuf {
   /* VKTexture requires access to `buffer_` to convert a vertex buffer to a texture. */
   friend class VKTexture;
 };
-
-inline const GPUVertFormat &VKVertexBuffer::device_format_get() const
-{
-  return vertex_format_converter.device_format_get();
-}
 
 BLI_INLINE VKVertexBuffer *unwrap(VertBuf *vertex_buffer)
 {
