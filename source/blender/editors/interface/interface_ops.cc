@@ -63,6 +63,7 @@
 #include "WM_types.hh"
 
 #include "ED_object.hh"
+#include "ED_outliner.hh"
 #include "ED_paint.hh"
 #include "ED_undo.hh"
 
@@ -1267,6 +1268,19 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     *r_lb = lb;
     *r_path = path;
+  }
+  else if (CTX_wm_space_outliner(C)) {
+    const ID *id = ptr->owner_id;
+    if (!(id && (GS(id->name) == ID_OB))) {
+      return false;
+    }
+
+    ListBase selected_objects = {nullptr};
+    ED_outliner_selected_objects_get(C, &selected_objects);
+    LISTBASE_FOREACH (LinkData *, link, &selected_objects) {
+      Object *ob = static_cast<Object *>(link->data);
+      r_lb->append(RNA_id_pointer_create(&ob->id));
+    }
   }
   else if (ptr->owner_id) {
     ID *id = ptr->owner_id;
@@ -2777,6 +2791,30 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+
+static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator * /*op*/)
+{
+  const wmWindow &win = *CTX_wm_window(C);
+  const ARegion &region = *CTX_wm_region(C);
+
+  if (AbstractViewItem *active_item = UI_region_views_find_item_at(region, win.eventstate->xy)) {
+    active_item->activate(*C);
+    return OPERATOR_FINISHED;
+  }
+  return OPERATOR_CANCELLED;
+}
+
+static void UI_OT_view_item_select(wmOperatorType *ot)
+{
+  ot->name = "Select View Item";
+  ot->idname = "UI_OT_view_item_select";
+  ot->description = "Activate selected view item";
+
+  ot->exec = ui_view_item_select_exec;
+  ot->poll = ui_view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2880,6 +2918,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_drop);
   WM_operatortype_append(UI_OT_view_scroll);
   WM_operatortype_append(UI_OT_view_item_rename);
+  WM_operatortype_append(UI_OT_view_item_select);
 
   WM_operatortype_append(UI_OT_override_type_set_button);
   WM_operatortype_append(UI_OT_override_remove_button);
