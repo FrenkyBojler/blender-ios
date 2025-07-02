@@ -1182,7 +1182,7 @@ void CurvesGeometry::resize(const int points_num, const int curves_num)
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
                                            this->curve_num == 0 ? 0 : (this->curve_num + 1),
-                                             curves_num == 0 ? 0 : (curves_num + 1));
+                                           curves_num == 0 ? 0 : (curves_num + 1));
     if (curves_num > 0) {
       /* Set common values for convenience. */
       this->curve_offsets[0] = 0;
