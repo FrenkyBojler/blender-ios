@@ -148,20 +148,6 @@ bool WM_xr_session_exists(const wmXrData *xr)
   return xr->runtime && xr->runtime->context && xr->runtime->session_state.is_started;
 }
 
-ARegion *WM_xr_get_xr_region(wmXrData *xr_data)
-{
-  if (!xr_data)
-    return NULL;
-  return xr_data->xr_region;
-}
-
-void WM_xr_set_xr_region(wmXrData *xr_data, ARegion *region)
-{
-  if (!xr_data)
-    return;
-  xr_data->xr_region = region;
-}
-
 void WM_xr_session_base_pose_reset(wmXrData *xr)
 {
   xr->runtime->session_state.force_reset_to_base_pose = true;
@@ -1120,8 +1106,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
                                           GHOST_XrContextHandle xr_context,
                                           wmXrActionSet *action_set,
                                           wmXrSessionState *session_state,
-                                          wmWindow *win,
-                                          wmWindowManager *wm)
+                                          wmWindow *win)
 {
   const char *action_set_name = action_set->name;
 
@@ -1190,7 +1175,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
                                                                   subaction_idx,
                                                                   subaction_idx_other,
                                                                   bimanual);
-          wm_event_add_xrevent(wm, win, actiondata, val);
+          wm_event_add_xrevent(win, actiondata, val);
         }
       }
     }
@@ -1261,7 +1246,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
       v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
       v3d->object_type_exclude_select = settings->object_type_exclude_select;
 
-      wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win, wm);
+      wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win);
     }
   }
 }
