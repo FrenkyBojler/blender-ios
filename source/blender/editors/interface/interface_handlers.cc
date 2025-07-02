@@ -1081,7 +1081,7 @@ static void ui_apply_but_funcs_after(bContext *C)
   /* Copy to avoid recursive calls. */
   ListBase funcs = UIAfterFuncs;
   BLI_listbase_clear(&UIAfterFuncs);
-
+  bool op_handled = false;
   LISTBASE_FOREACH_MUTABLE (uiAfterFunc *, afterf, &funcs) {
     uiAfterFunc after = *afterf; /* Copy to avoid memory leak on exit(). */
     BLI_remlink(&funcs, afterf);
@@ -1102,7 +1102,8 @@ static void ui_apply_but_funcs_after(bContext *C)
       MEM_delete(after.opptr);
     }
 
-    if (after.optype) {
+    if (after.optype && !op_handled) {
+      op_handled = true;
       WM_operator_name_call_ptr_with_depends_on_cursor(C,
                                                        after.optype,
                                                        after.opcontext,
@@ -4395,13 +4396,19 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
   }
 
   switch (but->type) {
+    case UI_BTYPE_BUT:
+      if (but->menu_create_func) {
+        menufunc = but->menu_create_func;
+        arg = but->poin;
+      }
+      break;
     case UI_BTYPE_BLOCK:
     case UI_BTYPE_PULLDOWN:
       if (but->menu_create_func) {
         menufunc = but->menu_create_func;
         arg = but->poin;
       }
-      else {
+      else if (but->type != UI_BTYPE_BUT) {
         func = but->block_create_func;
         arg = but->poin ? but->poin : but->func_argN;
       }
@@ -4689,6 +4696,15 @@ static int ui_do_but_BUT(bContext *C, uiBut *but, uiHandleButtonData *data, cons
   else if (data->state == BUTTON_STATE_WAIT_RELEASE) {
     if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
       if (!(but->flag & UI_SELECT)) {
+        data->cancel = true;
+      }
+      button_activate_state(C, but, BUTTON_STATE_EXIT);
+      return WM_UI_HANDLER_BREAK;
+    }
+  }
+  else if (data->state == BUTTON_STATE_MENU_OPEN) {
+    if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+      if (!(but->flag & UI_HOVER)) {
         data->cancel = true;
       }
       button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -8664,7 +8680,8 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
         /* Menu button types may draw as popovers, check for this case
          * ignoring other kinds of menus (mainly enums). (see #66538). */
         ((but->type == UI_BTYPE_MENU) &&
-         (UI_but_paneltype_get(but) || ui_but_menu_draw_as_popover(but))))
+         (UI_but_paneltype_get(but) || ui_but_menu_draw_as_popover(but))) ||
+        but->menu_create_func)
     {
       if (data->used_mouse && !data->autoopentimer) {
         int time;
@@ -9611,6 +9628,35 @@ static bool ui_button_value_default(uiBut *but, double *r_value)
     }
   }
   return false;
+}
+
+static void recursive_deselect_last_level(bContext *C,
+                                          const wmEvent *event,
+                                          uiBut *but,
+                                          uiBut *mouse_over)
+{
+  if (!but->active) {
+    return;
+  }
+  if (!but->active->menu) {
+    if (but == mouse_over || !ELEM(but->active->state, BUTTON_STATE_INIT, BUTTON_STATE_HIGHLIGHT))
+    {
+      return;
+    }
+    but->active->cancel = true;
+    button_activate_state(C, but, BUTTON_STATE_EXIT);
+    WM_event_add_mousemove(CTX_wm_window(C));
+    return;
+  }
+
+  ARegion *sub = but->active->menu->region;
+  LISTBASE_FOREACH (uiBlock *, sub_block, &sub->runtime->uiblocks) {
+    uiBut *sub_mouse_over = ui_but_find_mouse_over(sub, event);
+    for (const std::unique_ptr<uiBut> &bt : sub_block->buttons) {
+      uiBut *rbt = bt.get();
+      recursive_deselect_last_level(C, event, rbt, sub_mouse_over);
+    }
+  }
 }
 
 static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
@@ -10569,7 +10615,7 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
     if (menu->ctx_region) {
       CTX_wm_region_set(C, menu->ctx_region);
     }
-
+    recursive_deselect_last_level(C, event, but, ui_but_find_mouse_over(region, event));
     retval = ui_handle_button_event(C, event, but);
 
     if (menu->ctx_area) {
@@ -10580,6 +10626,7 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
     }
   }
   else {
+    // recursive_deselect_last_level(C, event, but, ui_but_find_mouse_over(region, event));
     retval = ui_handle_button_over(C, event, region);
   }
 
@@ -11907,9 +11954,11 @@ static int ui_region_handler(bContext *C, const wmEvent *event, void * /*userdat
 
   if (retval == WM_UI_HANDLER_CONTINUE) {
     if (but) {
+      recursive_deselect_last_level(C, event, but, ui_but_find_mouse_over(region, event));
       retval = ui_handle_button_event(C, event, but);
     }
     else {
+      // recursive_deselect_last_level(C, event, but, ui_but_find_mouse_over(region, event));
       retval = ui_handle_button_over(C, event, region);
     }
   }
@@ -11969,6 +12018,9 @@ static int ui_handle_region_semi_modal_buttons(bContext *C, const wmEvent *event
 
   foreach_semi_modal_but_as_active(C, region, [&](uiBut *semi_modal_but) {
     if (retval == WM_UI_HANDLER_CONTINUE) {
+      recursive_deselect_last_level(
+          C, event, semi_modal_but, ui_but_find_mouse_over(region, event));
+
       retval = ui_handle_button_event(C, event, semi_modal_but);
     }
   });
@@ -12093,11 +12145,15 @@ static int ui_handler_region_menu(bContext *C, const wmEvent *event, void * /*us
           retval = WM_UI_HANDLER_BREAK;
         }
         else {
+          recursive_deselect_last_level(C, event, but, ui_but_find_mouse_over(region, event));
+
           retval = ui_handle_button_event(C, event, but);
         }
       }
     }
     else {
+      recursive_deselect_last_level(C, event, but, ui_but_find_mouse_over(region, event));
+
       /* handle events for the activated button */
       retval = ui_handle_button_event(C, event, but);
     }

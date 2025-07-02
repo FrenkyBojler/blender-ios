@@ -426,6 +426,39 @@ static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
   return layout->op_menu_hold(ot, text, icon, layout->operator_context(), flag, menu);
 }
 
+static PointerRNA rna_uiLayoutOperatorMenu(uiLayout *layout,
+                                           const char *opname,
+                                           const char *name,
+                                           const char *text_ctxt,
+                                           bool translate,
+                                           int icon,
+                                           bool emboss,
+                                           bool depress,
+                                           int icon_value,
+                                           const char *menu)
+{
+  wmOperatorType *ot = WM_operatortype_find(opname, false); /* print error next */
+  if (!ot || !ot->srna) {
+    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname);
+    return PointerRNA_NULL;
+  }
+
+  /* Get translated name (label). */
+  std::optional<StringRefNull> text = rna_translate_ui_text(
+      name, text_ctxt, ot->srna, nullptr, translate);
+  if (icon_value && !icon) {
+    icon = icon_value;
+  }
+  eUI_Item_Flag flag = UI_ITEM_NONE;
+  if (emboss == false) {
+    flag |= UI_ITEM_R_NO_BG;
+  }
+  if (depress) {
+    flag |= UI_ITEM_O_DEPRESS;
+  }
+
+  return layout->op_menu(ot, text, icon, layout->operator_context(), flag, menu);
+}
 static void rna_uiItemsEnumO(uiLayout *layout,
                              const char *opname,
                              const char *propname,
@@ -1496,16 +1529,19 @@ void RNA_api_ui_layout(StructRNA *srna)
               "when set to -1 all array members are used",
               -2,
               INT_MAX);
+  blender::StringRefNull operator_funcs[] = {"operator", "operator_menu", "operator_menu_hold"};
+  blender::StringRefNull operator_rna_funcs[] = {
+      "rna_uiItemO", "rna_uiLayoutOperatorMenu", "rna_uiItemOMenuHold"};
 
-  for (int is_menu_hold = 0; is_menu_hold < 2; is_menu_hold++) {
-    func = (is_menu_hold) ? RNA_def_function(srna, "operator_menu_hold", "rna_uiItemOMenuHold") :
-                            RNA_def_function(srna, "operator", "rna_uiItemO");
+  for (int i = 0; i < ARRAY_SIZE(operator_funcs); i++) {
+    bool has_menu = i != 0;
+    func = RNA_def_function(srna, operator_funcs[i].c_str(), operator_rna_funcs[i].c_str());
     api_ui_item_op_common(func);
     RNA_def_boolean(func, "emboss", true, "", "Draw the button itself, not just the icon/text");
     RNA_def_boolean(func, "depress", false, "", "Draw pressed in");
     parm = RNA_def_property(func, "icon_value", PROP_INT, PROP_UNSIGNED);
     RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
-    if (is_menu_hold) {
+    if (has_menu) {
       parm = RNA_def_string(func, "menu", nullptr, 0, "", "Identifier of the menu");
       RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
     }

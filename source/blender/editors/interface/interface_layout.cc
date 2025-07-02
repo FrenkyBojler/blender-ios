@@ -1366,6 +1366,30 @@ PointerRNA uiLayout::op(wmOperatorType *ot,
   return ptr;
 }
 
+static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
+{
+  but->flag |= UI_BUT_ICON_SUBMENU;
+  block->content_hints |= UI_BLOCK_CONTAINS_SUBMENU_BUT;
+}
+
+PointerRNA uiLayout::op_menu(wmOperatorType *ot,
+                             std::optional<StringRef> name,
+                             int icon,
+                             const wmOperatorCallContext context,
+                             const eUI_Item_Flag flag,
+                             StringRefNull menu_id)
+{
+  PointerRNA ptr;
+  uiBut *but = uiItemFullO_ptr_ex(this, ot, name, icon, context, flag, &ptr);
+
+  but->menu_create_func = ui_item_menutype_func;
+  MenuType *mt = WM_menutype_find(menu_id, false);
+  but->poin = (char *)mt;
+  but->drawflag |= UI_BUT_ICON_LEFT;
+  ui_but_submenu_enable(but->block, but);
+  return ptr;
+}
+
 PointerRNA uiLayout::op_menu_hold(wmOperatorType *ot,
                                   std::optional<StringRef> name,
                                   int icon,

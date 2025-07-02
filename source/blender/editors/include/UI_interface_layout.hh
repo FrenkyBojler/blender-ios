@@ -441,6 +441,13 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                 int icon,
                 wmOperatorCallContext context,
                 eUI_Item_Flag flag);
+
+    PointerRNA op_menu(wmOperatorType *ot,
+                     std::optional<blender::StringRef> name,
+                     int icon,
+                     const wmOperatorCallContext context,
+                     const eUI_Item_Flag flag,
+                     blender::StringRefNull menu_id);
   /**
    * Adds a operator item, places a button in the layout to call the operator, if the button is
    * held down, a menu will be displayed instead.

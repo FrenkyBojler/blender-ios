@@ -696,7 +696,8 @@ static MenuSearch_Data *menu_items_from_ui_create(bContext *C,
           }
         }
         else if (menu_items_from_ui_create_item_from_button(
-                     data, scope, mt, but.get(), wm_context, current_menu.self_as_parent))
+                     data, scope, mt, but.get(), wm_context, current_menu.self_as_parent) &&
+                 !but->menu_create_func)
         {
           /* pass */
         }
