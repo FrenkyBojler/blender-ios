@@ -1269,24 +1269,42 @@ typedef struct NodeImageMultiFileSocket {
 } NodeImageMultiFileSocket;
 
 typedef struct NodeCompositorFileOutputItem {
+  /* The unique name of the item, which is used also used as the item identifier. It is used as the
+   * file name when saving individual files and used as the layer name when saving multi-layer
+   * images. */
   char *name;
-  int identifier;
+  /* The type of socket for the item, which is limited to the types listed in the
+   * FileOutputItemsAccessor::supports_socket_type. */
   int16_t socket_type;
-
+  /* The number of dimensions in the vector socket if the socket type is vector, otherwise, it is
+   * unused, */
+  char vector_socket_dimensions;
+  /* If true and the node is saving individual files, the format an save_as_render members of this
+   * struct will be used, otherwise, the members of the NodeCompositorFileOutput struct will be
+   * used for all items. */
   char override_node_format;
+  /* Apply the render part of the display transform when saving non-linear images. Unused if
+   * override_node_format is false or the node is saving multi-layer images. */
   char save_as_render;
+  char _pad[3];
+  /* The image format to use when saving individual images and override_node_format is true. */
   ImageFormatData format;
 } NodeCompositorFileOutputItem;
 
 typedef struct NodeCompositorFileOutput {
   char base_path[/*FILE_MAX*/ 1024];
+  /* The image format to use when saving the images. */
   ImageFormatData format;
+  /* The file output images. They can represent individual images or layers depending on whether
+   * multi-layer images are being saved. */
   NodeCompositorFileOutputItem *items;
+  /* The number of file output items. */
   int items_count;
-  int next_identifier;
-  int active_index;
+  /* The currently active file output item. */
+  int active_item_index;
+  /* Apply the render part of the display transform when saving non-linear images. */
   char save_as_render;
-  char _pad[3];
+  char _pad[7];
 } NodeCompositorFileOutput;
 
 typedef struct NodeChroma {

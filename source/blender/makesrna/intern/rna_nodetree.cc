@@ -6501,7 +6501,7 @@ static void rna_def_cmp_file_output_item(BlenderRNA *brna)
   StructRNA *srna = RNA_def_struct(brna, "NodeCompositorFileOutputItem", nullptr);
   RNA_def_struct_ui_text(srna, "File Output Item", "");
 
-  rna_def_node_item_array_socket_item_common(srna, "FileOutputItemsAccessor", true);
+  rna_def_node_item_array_socket_item_common(srna, "FileOutputItemsAccessor", true, true);
 
   PropertyRNA *prop = RNA_def_property(srna, "override_node_format", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "override_node_format", 1);
@@ -6547,8 +6547,8 @@ static void def_cmp_file_output(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Items", "");
   RNA_def_property_srna(prop, "NodeCompositorFileOutputItems");
 
-  prop = RNA_def_property(srna, "active_index", PROP_INT, PROP_UNSIGNED);
-  RNA_def_property_int_sdna(prop, nullptr, "active_index");
+  prop = RNA_def_property(srna, "active_item_index", PROP_INT, PROP_UNSIGNED);
+  RNA_def_property_int_sdna(prop, nullptr, "active_item_index");
   RNA_def_property_ui_text(prop, "Active Item Index", "Index of the active item");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_flag(prop, PROP_NO_DEG_UPDATE);

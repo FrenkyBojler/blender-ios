@@ -86,10 +86,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   for (const int i : IndexRange(storage.items_count)) {
     const NodeCompositorFileOutputItem &item = storage.items[i];
     const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-    const StringRef name = item.name;
     const std::string identifier = FileOutputItemsAccessor::socket_identifier_for_item(item);
-    b.add_input(socket_type, name, identifier)
-        .structure_type(StructureType::Dynamic)
+    BaseSocketDeclarationBuilder *declaration = nullptr;
+    if (socket_type == SOCK_VECTOR) {
+      declaration = &b.add_input<decl::Vector>(item.name, identifier)
+                         .dimensions(item.vector_socket_dimensions);
+    }
+    else {
+      declaration = &b.add_input(socket_type, item.name, identifier);
+    }
+    declaration->structure_type(StructureType::Dynamic)
         .compositor_realization_mode(realization_mode)
         .socket_name_ptr(&node_tree->id, FileOutputItemsAccessor::item_srna, &item, "name");
   }
@@ -156,44 +162,59 @@ static void node_layout(uiLayout *layout, bContext * /*context*/, PointerRNA *po
   layout->prop(pointer, "base_path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
-static void item_layout(uiLayout *layout, bContext *context, PointerRNA *pointer)
+static void format_layout(uiLayout *layout,
+                          bContext *context,
+                          PointerRNA *format_pointer,
+                          PointerRNA *pointer)
 {
-  PointerRNA format_pointer = RNA_pointer_get(pointer, "format");
+  uiLayout *column = &layout->column(true);
+  column->use_property_split_set(true);
+  column->use_property_decorate_set(false);
+  column->prop(pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  const bool save_as_render = RNA_boolean_get(pointer, "save_as_render");
+  uiTemplateImageSettings(layout, format_pointer, save_as_render);
+
+  if (!save_as_render) {
+    uiLayout *column = &layout->column(true);
+    column->use_property_split_set(true);
+    column->use_property_decorate_set(false);
+
+    PointerRNA linear_settings_ptr = RNA_pointer_get(format_pointer, "linear_colorspace_settings");
+    column->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+  }
+
+  Scene *scene = CTX_data_scene(context);
+  const bool is_multiview = scene->r.scemode & R_MULTIVIEW;
+  if (is_multiview) {
+    uiTemplateImageFormatViews(layout, format_pointer, nullptr);
+  }
+}
+
+static void item_layout(uiLayout *layout,
+                        bContext *context,
+                        PointerRNA *pointer,
+                        const bool is_multi_layer)
+{
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+  layout->prop(pointer, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (RNA_enum_get(pointer, "socket_type") == SOCK_VECTOR) {
+    layout->prop(pointer, "vector_socket_dimensions", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  }
+
+  if (is_multi_layer) {
+    return;
+  }
 
   layout->prop(
       pointer, "override_node_format", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  if (!RNA_boolean_get(pointer, "override_node_format")) {
+    return;
+  }
 
-  const bool override_node_format = RNA_boolean_get(pointer, "override_node_format");
-
-  if (override_node_format) {
-    {
-      uiLayout *column = &layout->column(true);
-      column->use_property_split_set(true);
-      column->use_property_decorate_set(false);
-      column->prop(pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-    }
-
-    const bool use_color_management = RNA_boolean_get(pointer, "save_as_render");
-
-    uiLayout *column = &layout->column(false);
-    uiTemplateImageSettings(column, &format_pointer, use_color_management);
-
-    if (!use_color_management) {
-      uiLayout *column = &layout->column(true);
-      column->use_property_split_set(true);
-      column->use_property_decorate_set(false);
-
-      PointerRNA linear_settings_ptr = RNA_pointer_get(&format_pointer,
-                                                       "linear_colorspace_settings");
-      column->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
-    }
-
-    Scene *scene = CTX_data_scene(context);
-    const bool is_multiview = scene->r.scemode & R_MULTIVIEW;
-    if (is_multiview) {
-      column = &layout->column(false);
-      uiTemplateImageFormatViews(column, &format_pointer, nullptr);
-    }
+  if (uiLayout *panel = layout->panel(context, "item_format", false, IFACE_("Item Format"))) {
+    PointerRNA format_pointer = RNA_pointer_get(pointer, "format");
+    format_layout(panel, context, &format_pointer, pointer);
   }
 }
 
@@ -201,52 +222,23 @@ static void node_layout_ex(uiLayout *layout, bContext *context, PointerRNA *poin
 {
   node_layout(layout, context, pointer);
 
-  {
-    uiLayout *column = &layout->column(true);
-    column->use_property_split_set(true);
-    column->use_property_decorate_set(false);
-    column->prop(pointer, "save_as_render", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  }
-  const bool save_as_render = RNA_boolean_get(pointer, "save_as_render");
   PointerRNA format_pointer = RNA_pointer_get(pointer, "format");
-  uiTemplateImageSettings(layout, &format_pointer, save_as_render);
-
-  if (!save_as_render) {
-    uiLayout *col = &layout->column(true);
-    col->use_property_split_set(true);
-    col->use_property_decorate_set(false);
-
-    PointerRNA linear_settings_ptr = RNA_pointer_get(&format_pointer,
-                                                     "linear_colorspace_settings");
-    col->prop(&linear_settings_ptr, "name", UI_ITEM_NONE, IFACE_("Color Space"), ICON_NONE);
+  const bool is_multi_layer = RNA_enum_get(&format_pointer, "file_format") ==
+                              R_IMF_IMTYPE_MULTILAYER;
+  if (uiLayout *panel = layout->panel(context, "node_format", false, IFACE_("Node Format"))) {
+    format_layout(panel, context, &format_pointer, pointer);
   }
-
-  /* disable stereo output for multilayer, too much work for something that no one will use */
-  /* if someone asks for that we can implement it */
-  Scene *scene = CTX_data_scene(context);
-  const bool is_multiview = scene->r.scemode & R_MULTIVIEW;
-  if (is_multiview) {
-    uiTemplateImageFormatViews(layout, &format_pointer, nullptr);
-  }
-
-  bNodeTree &tree = *reinterpret_cast<bNodeTree *>(pointer->owner_id);
-  bNode &node = *pointer->data_as<bNode>();
 
   if (uiLayout *panel = layout->panel(
           context, "file_output_items", false, IFACE_("File Output Items")))
   {
+    bNodeTree &tree = *reinterpret_cast<bNodeTree *>(pointer->owner_id);
+    bNode &node = *pointer->data_as<bNode>();
     socket_items::ui::draw_items_list_with_operators<FileOutputItemsAccessor>(
         context, panel, tree, node);
     socket_items::ui::draw_active_item_props<FileOutputItemsAccessor>(
-        tree, node, [&](PointerRNA *item_ptr) {
-          panel->use_property_split_set(true);
-          panel->use_property_decorate_set(false);
-          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          const bool is_multilayer = RNA_enum_get(&format_pointer, "file_format") ==
-                                     R_IMF_IMTYPE_MULTILAYER;
-          if (!is_multilayer) {
-            item_layout(panel, context, item_ptr);
-          }
+        tree, node, [&](PointerRNA *item_pointer) {
+          item_layout(panel, context, item_pointer, is_multi_layer);
         });
   }
 }

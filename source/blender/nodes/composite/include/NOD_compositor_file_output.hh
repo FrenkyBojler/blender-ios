@@ -29,6 +29,7 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_name_validation = true;
+  static constexpr bool has_vector_dimensions = true;
   static constexpr char unique_name_separator = '_';
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_file_output_item_add";
@@ -40,14 +41,14 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
   };
   struct rna_names {
     static constexpr StringRefNull items = "file_output_items";
-    static constexpr StringRefNull active_index = "active_index";
+    static constexpr StringRefNull active_index = "active_item_index";
   };
 
   static socket_items::SocketItemsRef<NodeCompositorFileOutputItem> get_items_from_node(
       bNode &node)
   {
     auto *storage = static_cast<NodeCompositorFileOutput *>(node.storage);
-    return {&storage->items, &storage->items_count, &storage->active_index};
+    return {&storage->items, &storage->items_count, &storage->active_item_index};
   }
 
   static void copy_item(const NodeCompositorFileOutputItem &source,
@@ -85,11 +86,11 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
   static void init_with_socket_type_and_name(bNode &node,
                                              NodeCompositorFileOutputItem &item,
                                              const eNodeSocketDatatype socket_type,
-                                             const char *name)
+                                             const char *name,
+                                             std::optional<int> dimensions = std::nullopt)
   {
-    auto *storage = static_cast<NodeCompositorFileOutput *>(node.storage);
     item.socket_type = socket_type;
-    item.identifier = storage->next_identifier++;
+    item.vector_socket_dimensions = dimensions.value_or(3);
     socket_items::set_item_name_and_make_unique<FileOutputItemsAccessor>(node, item, name);
 
     item.save_as_render = true;
@@ -101,7 +102,7 @@ struct FileOutputItemsAccessor : public socket_items::SocketItemsAccessorDefault
 
   static std::string socket_identifier_for_item(const NodeCompositorFileOutputItem &item)
   {
-    return "Item_" + std::to_string(item.identifier);
+    return item.name;
   }
 };
 
