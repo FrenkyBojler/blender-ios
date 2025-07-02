@@ -392,16 +392,18 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
     }
   }
 
-  /* get the coord we work on */
+  /* Input coordinates to start from. */
   float3 co = data.vert_coords_prev ? (*data.vert_coords_prev)[i] : data.vert_coords[i];
-  /* Apply the object's matrix */
+  /* Transform to armature space. */
   co = math::transform_point(data.target_to_armature, co);
 
   float contrib = 0.0f;
   bool deformed = false;
-  if (data.use_dverts && dvert) { /* use weight groups ? */
+  /* Apply vertex group deformation if enabled. */
+  if (data.use_dverts && dvert) {
     const Span<bPoseChannel *> pose_channels = data.pchan_from_defbase;
-    for (const auto &dw : Span<MDeformWeight>(dvert->dw, dvert->totweight)) {
+    const Span<MDeformWeight> dweights(dvert->dw, dvert->totweight);
+    for (const auto &dw : dweights) {
       const bPoseChannel *pchan = pose_channels.index_range().contains(dw.def_nr) ?
                                       pose_channels[dw.def_nr] :
                                       nullptr;
@@ -411,6 +413,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
 
       float weight = dw.weight;
 
+      /* Bone option to mix with envelope weight. */
       const Bone *bone = pchan->bone;
       if (bone && bone->flag & BONE_MULT_VG_ENV) {
         weight *= distfactor_to_bone(co,
@@ -425,7 +428,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
       deformed = true;
     }
   }
-  /* Use envelope if no bone deformed the vertex yet. */
+  /* Use envelope if enabled and no bone deformed the vertex yet. */
   if (!deformed && data.use_envelope) {
     for (const bPoseChannel *pchan : data.pose_channels) {
       if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
@@ -434,8 +437,9 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
     }
   }
 
-  /* actually should be EPSILON? weight values and contrib can be like 10e-39 small */
-  if (contrib > 0.0001f) {
+  /* TODO Actually should be EPSILON? Weight values and contrib can be like 10e-39 small. */
+  constexpr float contrib_threshold = 0.0001f;
+  if (contrib > contrib_threshold) {
     float3 delta_co;
     float3x3 local_deform_mat;
     mixer.finalize(co, contrib, armature_weight, delta_co, local_deform_mat);
@@ -449,10 +453,10 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
     }
   }
 
-  /* always, check above code */
+  /* Transform back to target object space. */
   co = math::transform_point(data.armature_to_target, co);
 
-  /* interpolate with previous modifier position using weight group */
+  /* Multi-modifier: Interpolate with previous modifier position using the vertex group mask. */
   if (data.vert_coords_prev) {
     copy_v3_v3(data.vert_coords[i], math::interpolate(co, data.vert_coords[i], prevco_weight));
   }
