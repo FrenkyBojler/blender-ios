@@ -1,2 +1,3 @@
 Referenced by issue #141325, Convert Attribute operator not working
 Referenced by commit bf57be965c4c580ecea75b2e3b25de1b127c5360, Fix #141325: Convert attribute operator broken for meshes
+Referenced by issue #141355, `Set Attribute` operator not working properly
