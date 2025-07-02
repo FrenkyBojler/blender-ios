@@ -401,22 +401,19 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
   co = math::transform_point(data.target_to_armature, co);
 
   bool deformed = false;
-  if (data.use_dverts && dvert && dvert->totweight) { /* use weight groups ? */
-    const MDeformWeight *dw = dvert->dw;
-    uint j;
-    for (j = dvert->totweight; j != 0; j--, dw++) {
-      const uint index = dw->def_nr;
-      if (!data.pchan_from_defbase.index_range().contains(index)) {
-        continue;
-      }
-      const bPoseChannel *pchan = data.pchan_from_defbase[index];
+  if (data.use_dverts && dvert) { /* use weight groups ? */
+    const Span<bPoseChannel *> pose_channels = data.pchan_from_defbase;
+    for (const auto &dw : Span<MDeformWeight>(dvert->dw, dvert->totweight)) {
+      const bPoseChannel *pchan = pose_channels.index_range().contains(dw.def_nr) ?
+                                      pose_channels[dw.def_nr] :
+                                      nullptr;
       if (pchan == nullptr) {
         continue;
       }
 
-      float weight = dw->weight;
-      const Bone *bone = pchan->bone;
+      float weight = dw.weight;
 
+      const Bone *bone = pchan->bone;
       if (bone && bone->flag & BONE_MULT_VG_ENV) {
         weight *= distfactor_to_bone(co,
                                      float3(bone->arm_head),
