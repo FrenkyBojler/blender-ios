@@ -1171,8 +1171,6 @@ void CurvesGeometry::ensure_can_interpolate_to_evaluated() const
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
   BLI_assert(curves_num >= 0 && points_num >= 0);
-  /* Each curve must have at least one point. */
-  BLI_assert((curves_num == 0) == (points_num == 0));
   if (points_num != this->point_num) {
     CustomData_realloc(&this->point_data, this->points_num(), points_num);
     this->point_num = points_num;
