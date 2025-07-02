@@ -11,6 +11,7 @@
 #include "BLI_resource_scope.hh"
 
 #include "FN_lazy_function.hh"
+#include "FN_multi_function.hh"
 
 namespace blender::nodes {
 
@@ -79,6 +80,13 @@ class Closure : public ImplicitSharingMixin {
         default_input_values_(std::move(default_input_values))
   {
   }
+
+  static ClosurePtr FromMultiFunction(std::shared_ptr<ClosureSignature> signature,
+                                      const mf::MultiFunction &multi_function,
+                                      std::unique_ptr<ResourceScope> scope,
+                                      Vector<const void *> default_input_values,
+                                      std::optional<ClosureSourceLocation> source_location,
+                                      std::shared_ptr<ClosureEvalLog> eval_log);
 
   const ClosureSignature &signature() const
   {

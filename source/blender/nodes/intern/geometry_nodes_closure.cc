@@ -3,8 +3,10 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_node_runtime.hh"
+#include "BKE_node_socket_value.hh"
 
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_lazy_function.hh"
 
 namespace blender::nodes {
 
@@ -128,6 +130,121 @@ ClosureSignature ClosureSignature::FromEvaluateClosureNode(const bNode &node)
     }
   }
   return signature;
+}
+
+class ClosureLazyFunctionForMultiFunction : public lf::LazyFunction {
+ private:
+  const ClosureSignature &closure_signature_;
+  const mf::MultiFunction &multi_function_;
+  ClosureFunctionIndices indices_;
+
+ public:
+  ClosureLazyFunctionForMultiFunction(const ClosureSignature &closure_signature,
+                                      const mf::MultiFunction &multi_function)
+      : closure_signature_(closure_signature), multi_function_(multi_function)
+  {
+    debug_name_ = "Closure Multi Function";
+    /* Add main inputs and outputs. */
+    for (const int param_i : multi_function.param_indices()) {
+      const mf::ParamType param_type = multi_function.param_type(param_i);
+      const StringRefNull param_name = multi_function.param_name(param_i);
+      switch (param_type.category()) {
+        case mf::ParamCategory::SingleInput: {
+          inputs_.append_as(
+              param_name.c_str(), CPPType::get<bke::SocketValueVariant>(), lf::ValueUsage::Used);
+          break;
+        }
+        case mf::ParamCategory::SingleOutput: {
+          outputs_.append_as(param_name.c_str(), CPPType::get<bke::SocketValueVariant>());
+          break;
+        }
+        default: {
+          /* Not supported yet. */
+          BLI_assert_unreachable();
+          break;
+        }
+      }
+    }
+    indices_.inputs.main = inputs_.index_range();
+    indices_.outputs.main = outputs_.index_range();
+
+    /* Add output usage inputs.*/
+    for (const int param_i : multi_function.param_indices()) {
+      const mf::ParamType param_type = multi_function.param_type(param_i);
+      if (param_type.category() != mf::ParamCategory::SingleOutput) {
+        continue;
+      }
+      inputs_.append_as("Usage", CPPType::get<bool>(), lf::ValueUsage::Unused);
+    }
+    indices_.inputs.output_usages = inputs_.index_range().drop_front(indices_.inputs.main.size());
+
+    /* Add input usage outputs.*/
+    for (const int param_i : multi_function.param_indices()) {
+      const mf::ParamType param_type = multi_function.param_type(param_i);
+      if (param_type.category() != mf::ParamCategory::SingleInput) {
+        continue;
+      }
+      outputs_.append_as("Usage", CPPType::get<bool>());
+    }
+    indices_.outputs.input_usages = outputs_.index_range().drop_front(
+        indices_.outputs.main.size());
+  }
+
+  ClosureFunctionIndices indices() const
+  {
+    return indices_;
+  }
+
+  void execute_impl(lf::Params &params, const lf::Context & /*context*/) const override
+  {
+    Vector<bke::SocketValueVariant *> input_values;
+    Vector<bke::SocketValueVariant *> output_values;
+
+    for (const int i : indices_.outputs.input_usages) {
+      params.set_output(i, true);
+    }
+
+    for (const int i : indices_.inputs.main) {
+      input_values.append(&params.get_input<bke::SocketValueVariant>(i));
+    }
+    for (const int i : indices_.outputs.main) {
+      output_values.append(new (params.get_output_data_ptr(i)) bke::SocketValueVariant());
+    }
+
+    /* TODO: Pass ownership. */
+    std::string error_message;
+    if (!execute_multi_function_on_value_variant(
+            multi_function_, {}, input_values, output_values, nullptr, error_message))
+    {
+      for (const int i : indices_.outputs.main.index_range()) {
+        std::destroy_at(output_values[i]);
+        construct_socket_default_value(*closure_signature_.outputs[i].type, output_values[i]);
+      }
+    }
+
+    for (const int i : indices_.outputs.main) {
+      params.output_set(i);
+    }
+  }
+};
+
+ClosurePtr Closure::FromMultiFunction(std::shared_ptr<ClosureSignature> signature,
+                                      const mf::MultiFunction &multi_function,
+                                      std::unique_ptr<ResourceScope> scope,
+                                      Vector<const void *> default_input_values,
+                                      std::optional<ClosureSourceLocation> source_location,
+                                      std::shared_ptr<ClosureEvalLog> eval_log)
+{
+  const auto &lazy_function = scope->construct<ClosureLazyFunctionForMultiFunction>(
+      *signature, multi_function);
+  return ClosurePtr(MEM_new<Closure>(__func__,
+                                     std::move(signature),
+                                     std::move(scope),
+                                     lazy_function,
+                                     lazy_function.indices(),
+                                     default_input_values,
+                                     std::move(source_location),
+                                     std::move(eval_log)));
 }
 
 }  // namespace blender::nodes

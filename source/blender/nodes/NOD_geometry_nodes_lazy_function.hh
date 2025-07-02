@@ -34,6 +34,7 @@
 #include "BLI_multi_value_map.hh"
 
 #include "BKE_bake_items.hh"
+#include "BKE_node_socket_value.hh"
 #include "BKE_node_tree_zones.hh"
 
 struct Object;
@@ -655,5 +656,17 @@ const LazyFunction *build_implicit_conversion_lazy_function(const bke::bNodeSock
 void report_from_multi_function(const mf::Context &context,
                                 NodeWarningType type,
                                 std::string message);
+
+/**
+ * Executes a multi-function. If all inputs are single values, the results will also be single
+ * values. If any input is a field, the outputs will also be fields.
+ */
+[[nodiscard]] bool execute_multi_function_on_value_variant(
+    const MultiFunction &fn,
+    const std::shared_ptr<MultiFunction> &owned_fn,
+    const Span<bke::SocketValueVariant *> input_values,
+    const Span<bke::SocketValueVariant *> output_values,
+    GeoNodesUserData *user_data,
+    std::string &r_error_message);
 
 }  // namespace blender::nodes

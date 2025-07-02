@@ -1045,8 +1045,67 @@ static bke::bNodeSocketType *make_socket_type_bundle()
   return socktype;
 }
 
-static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClosure & /*value*/)
+class ClosureMultiFunctionForFloatCurve : public mf::MultiFunction {
+ private:
+  const CurveMapping &curve_mapping_;
+
+ public:
+  ClosureMultiFunctionForFloatCurve(const CurveMapping &curve_mapping)
+      : curve_mapping_(curve_mapping)
+  {
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Float Curve Closure", signature};
+      builder.single_input<float>("x");
+      builder.single_output<float>("y");
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const VArray<float> &xs = params.readonly_single_input<float>(0, "x");
+    MutableSpan<float> ys = params.uninitialized_single_output<float>(1, "y");
+
+    mask.foreach_index(
+        [&](const int64_t i) { ys[i] = BKE_curvemapping_evaluateF(&curve_mapping_, 0, xs[i]); });
+  }
+};
+
+static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClosure &value)
 {
+  switch (ClosureSocketValueType(value.type)) {
+    case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
+      return {};
+    }
+    case CLOSURE_SOCKET_VALUE_TYPE_CURVE:
+      if (!value.curve_mapping) {
+        return {};
+      }
+      BKE_curvemapping_init(value.curve_mapping);
+      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
+      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForFloatCurve>(
+          *value.curve_mapping);
+      static SocketValueVariant zero{0.0f};
+      Vector<const void *> default_input_values = {&zero};
+
+      std::shared_ptr<nodes::ClosureSignature> signature =
+          std::make_shared<nodes::ClosureSignature>();
+      const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
+          SOCK_FLOAT);
+      signature->inputs.append(
+          {nodes::SocketInterfaceKey("x"), float_socket_type, nodes::StructureType::Dynamic});
+      signature->outputs.append(
+          {nodes::SocketInterfaceKey("y"), float_socket_type, nodes::StructureType::Dynamic});
+
+      return nodes::Closure::FromMultiFunction(std::move(signature),
+                                               fn,
+                                               std::move(scope),
+                                               std::move(default_input_values),
+                                               std::nullopt,
+                                               {});
+  }
   return {};
 }
 
