@@ -822,7 +822,6 @@ static void get_selected_strips_rna_paths(
     blender::Vector<PointerRNA> &selection,
     blender::Vector<std::string> &r_selected_strips_rna_paths)
 {
-  /* Make this as a function because the same code will be used in keyframe_clear_vse operator */
   for (PointerRNA &id_ptr : selection) {
     if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
       std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
