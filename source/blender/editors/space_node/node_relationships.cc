@@ -158,8 +158,9 @@ static void pick_input_link_by_link_intersect(const bContext &C,
   }
 }
 
-static bool socket_is_available(bNodeTree * /*ntree*/, bNodeSocket *sock, const bool allow_used)
+static bool socket_is_available(bNodeTree *ntree, bNodeSocket *sock, const bool allow_used)
 {
+  ntree->ensure_topology_cache();
   if (!sock->is_visible()) {
     return false;
   }
