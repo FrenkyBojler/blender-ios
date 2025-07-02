@@ -464,6 +464,7 @@ void VKBackend::detect_workarounds(VKDevice &device)
   {
     extensions.descriptor_buffer = false;
   }
+  extensions.descriptor_buffer = false;
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
