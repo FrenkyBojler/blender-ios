@@ -4,3 +4,4 @@ Referenced by commit de22f326566c0fd58c25b80838d032f3e8aedfff, Fix #140700: Blen
 Referenced by issue #140962, Vertex Slide with Proportional Editing crashes Blender
 Referenced by pull request #140976, Fix #140962: Vertex Slide with Proportional Editing crashes Blender
 Referenced by commit dff44f14135ccef13694794f8e1fd5479da8eaae, Fix #140962: Vertex Slide with Proportional Editing crashes Blender
+Referenced by issue #141341, Assert using proportional editing in object mode
