@@ -1690,6 +1690,7 @@ wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *str
     }
   }
 
+  const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   PropertyRNA *prop = RNA_struct_find_property(op->ptr, "override_location");
   const bool override_location = prop && RNA_property_boolean_get(op->ptr, prop) &&
                                  stroke->get_location;
@@ -1701,6 +1702,12 @@ wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *str
 
         float3 location;
         if (stroke->get_location(C, location, mval, false)) {
+          const float pressure = RNA_float_get(&itemptr, "pressure");
+          float2 dummy_mval;
+          float3 dummy_location;
+          bool dummy_is_set;
+
+          paint_brush_update(C, *stroke->brush, mode, stroke, mval, dummy_mval, pressure, dummy_location, &dummy_is_set);
           RNA_float_set_array(&itemptr, "location", location);
           stroke->update_step(C, op, stroke, &itemptr);
         }
