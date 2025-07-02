@@ -25,12 +25,10 @@ static OneAPIErrorCallback s_error_cb = nullptr;
 static void *s_error_user_ptr = nullptr;
 
 #  ifdef WITH_EMBREE_GPU
-static constexpr RTCFeatureFlags CYCLES_ONEAPI_EMBREE_BASIC_FEATURES = (const RTCFeatureFlags)(
-    RTC_FEATURE_FLAG_TRIANGLE | RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS);
-
 static RTCFeatureFlags oneapi_embree_features_from_kernel_features(const uint kernel_features)
 {
-  unsigned int feature_flags = CYCLES_ONEAPI_EMBREE_BASIC_FEATURES;
+  unsigned int feature_flags = RTC_FEATURE_FLAG_TRIANGLE |
+                               RTC_FEATURE_FLAG_FILTER_FUNCTION_IN_ARGUMENTS;
 
   if (kernel_features & KERNEL_FEATURE_HAIR_THICK) {
     feature_flags |= RTC_FEATURE_FLAG_ROUND_CATMULL_ROM_CURVE;
