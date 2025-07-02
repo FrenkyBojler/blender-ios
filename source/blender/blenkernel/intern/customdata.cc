@@ -2598,6 +2598,10 @@ void CustomData_realloc(CustomData *data,
                         const eCDAllocType alloctype)
 {
   BLI_assert(new_size >= 0);
+  if (new_size == 0) {
+    CustomData_free(data);
+    return;
+  }
   for (int i = 0; i < data->totlayer; i++) {
     CustomDataLayer *layer = &data->layers[i];
     const LayerTypeInfo *typeInfo = layerType_getInfo(eCustomDataType(layer->type));
