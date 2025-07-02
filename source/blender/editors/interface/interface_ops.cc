@@ -1144,7 +1144,19 @@ bool UI_context_copy_to_selected_list(bContext *C,
     *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Bone)) {
-    ui_context_selected_bones_via_pose(C, r_lb);
+    switch (GS(ptr->owner_id->name)) {
+      case ID_OB:
+        ui_context_selected_bones_via_pose(C, r_lb);
+        break;
+      case ID_AR: {
+        blender::Vector<PointerRNA> lb = CTX_data_collection_get(C, "selected_pose_bones");
+        CTX_data_collection_remap_property(lb, "bone");
+        *r_lb = lb;
+        break;
+      }
+      default:
+        return false;
+    }
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_BoneColor)) {
     /* Get the things that own the bone color (bones, pose bones, or edit bones). */
