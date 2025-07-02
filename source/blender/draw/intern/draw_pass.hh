@@ -256,7 +256,7 @@ class PassBase {
             uint instance_len = -1,
             uint vertex_len = -1,
             uint vertex_first = -1,
-            ResourceIndexRange res_index = {0},
+            ResourceIndexRange res_index = {},
             uint custom_id = 0);
 
   /**
@@ -273,7 +273,7 @@ class PassBase {
                        uint instance_len,
                        uint vertex_len,
                        uint vertex_first = -1,
-                       ResourceIndexRange res_index = {0},
+                       ResourceIndexRange res_index = {},
                        uint custom_id = 0);
 
   /**
@@ -293,9 +293,9 @@ class PassBase {
                    GPUPrimType primitive_type,
                    uint primitive_len,
                    uint instance_len,
-                   uint vertex_len = -1,
-                   uint vertex_first = -1,
-                   ResourceIndexRange res_index = {0},
+                   uint vertex_len,
+                   uint vertex_first,
+                   ResourceIndexRange res_index = {},
                    uint custom_id = 0);
 
   /**
@@ -306,7 +306,7 @@ class PassBase {
                    GPUPrimType primitive_type,
                    uint primitive_len,
                    uint instance_len,
-                   ResourceIndexRange res_index = {0},
+                   ResourceIndexRange res_index = {},
                    uint custom_id = 0);
 
   /**
