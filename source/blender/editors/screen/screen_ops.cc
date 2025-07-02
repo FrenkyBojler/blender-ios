@@ -6391,8 +6391,7 @@ struct RegionAlphaInfo {
   int hidden;
 };
 
-/* Do not animate if reduced motion is enabled. */
-#define TIMEOUT ((U.uiflag & USER_REDUCE_MOTION) ? 0.0f : 0.1f)
+#define TIMEOUT 0.1f
 #define TIMESTEP (1.0f / 60.0f)
 
 float ED_region_blend_alpha(ARegion *region)
