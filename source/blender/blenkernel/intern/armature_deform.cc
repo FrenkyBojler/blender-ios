@@ -400,9 +400,9 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
   /* Apply the object's matrix */
   co = math::transform_point(data.target_to_armature, co);
 
+  bool deformed = false;
   if (data.use_dverts && dvert && dvert->totweight) { /* use weight groups ? */
     const MDeformWeight *dw = dvert->dw;
-    int deformed = 0;
     uint j;
     for (j = dvert->totweight; j != 0; j--, dw++) {
       const uint index = dw->def_nr;
@@ -417,8 +417,6 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
       float weight = dw->weight;
       const Bone *bone = pchan->bone;
 
-      deformed = 1;
-
       if (bone && bone->flag & BONE_MULT_VG_ENV) {
         weight *= distfactor_to_bone(co,
                                      float3(bone->arm_head),
@@ -429,17 +427,11 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
       }
 
       contrib += pchan_bone_deform(*pchan, weight, co, mixer);
-    }
-    /* If there are vertex-groups but not groups with bones (like for soft-body groups). */
-    if (deformed == 0 && data.use_envelope) {
-      for (const bPoseChannel *pchan : data.pose_channels) {
-        if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
-          contrib += dist_bone_deform(*pchan, co, mixer);
-        }
-      }
+      deformed = true;
     }
   }
-  else if (data.use_envelope) {
+  /* Use envelope if no bone deformed the vertex yet. */
+  if (!deformed && data.use_envelope) {
     for (const bPoseChannel *pchan : data.pose_channels) {
       if (!(pchan->bone->flag & BONE_NO_DEFORM)) {
         contrib += dist_bone_deform(*pchan, co, mixer);
