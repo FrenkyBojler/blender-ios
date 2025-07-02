@@ -723,9 +723,15 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
     case SOCK_MENU:
       BLO_write_struct(writer, bNodeSocketValueMenu, sock->default_value);
       break;
-    case SOCK_CLOSURE:
+    case SOCK_CLOSURE: {
       BLO_write_struct(writer, bNodeSocketValueClosure, sock->default_value);
+      const bNodeSocketValueClosure *closure_value = static_cast<const bNodeSocketValueClosure *>(
+          sock->default_value);
+      if (closure_value->curve_mapping) {
+        BKE_curvemapping_blend_write(writer, closure_value->curve_mapping);
+      }
       break;
+    }
     case SOCK_MATRIX:
       /* Matrix sockets currently have no default value. */
       break;
