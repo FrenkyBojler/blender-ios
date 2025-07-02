@@ -1078,6 +1078,33 @@ class ClosureMultiFunctionForFloatCurve : public mf::MultiFunction {
   }
 };
 
+class ClosureMultiFunctionForColorRamp : public mf::MultiFunction {
+ private:
+  const ColorBand &color_ramp_;
+
+ public:
+  ClosureMultiFunctionForColorRamp(const ColorBand &color_ramp) : color_ramp_(color_ramp)
+  {
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Color Ramp Closure", signature};
+      builder.single_input<float>("x");
+      builder.single_output<ColorGeometry4f>("y");
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const VArray<float> &xs = params.readonly_single_input<float>(0, "x");
+    MutableSpan<ColorGeometry4f> ys = params.uninitialized_single_output<ColorGeometry4f>(1, "y");
+
+    mask.foreach_index(
+        [&](const int64_t i) { BKE_colorband_evaluate(&color_ramp_, xs[i], ys[i]); });
+  }
+};
+
 static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClosure &value)
 {
   switch (ClosureSocketValueType(value.type)) {
@@ -1112,8 +1139,30 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
                                                {});
     }
     case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
-      /* TODO */
-      return {};
+      if (!value.color_ramp) {
+        return {};
+      }
+      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
+      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForColorRamp>(
+          *value.color_ramp);
+      static SocketValueVariant zero{0.0f};
+      Vector<const void *> default_input_values = {&zero};
+
+      std::shared_ptr<nodes::ClosureSignature> signature =
+          std::make_shared<nodes::ClosureSignature>();
+      const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
+          SOCK_FLOAT);
+      const bke::bNodeSocketType *color_socket_type = bke::node_socket_type_find_static(SOCK_RGBA);
+      signature->inputs.append(
+          {nodes::SocketInterfaceKey("x"), float_socket_type, nodes::StructureType::Dynamic});
+      signature->outputs.append(
+          {nodes::SocketInterfaceKey("y"), color_socket_type, nodes::StructureType::Dynamic});
+      return nodes::Closure::FromMultiFunction(std::move(signature),
+                                               fn,
+                                               std::move(scope),
+                                               std::move(default_input_values),
+                                               std::nullopt,
+                                               {});
     }
   }
   return {};
