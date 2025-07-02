@@ -8,7 +8,7 @@
 
 #pragma once
 
-/** Settings for off-screen rendering. */
+/** Settings for off-screen rendering. (ushort) */
 typedef enum eV3DOffscreenDrawFlag {
   V3D_OFSDRAW_NONE = (0),
   V3D_OFSDRAW_SHOW_ANNOTATION = (1 << 0),
@@ -19,6 +19,7 @@ typedef enum eV3DOffscreenDrawFlag {
   V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS = (1 << 5),
   V3D_OFSDRAW_SHOW_OBJECT_EXTRAS = (1 << 6),
   V3D_OFSDRAW_XR_SHOW_PASSTHROUGH = (1 << 7),
+  V3D_OFSDRAW_XR_SHOW_ONION_SKIN = (1 << 8),
 } eV3DOffscreenDrawFlag;
 
 /** #View3DShading.light */

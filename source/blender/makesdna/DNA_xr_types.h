@@ -24,11 +24,14 @@ typedef struct XrSessionSettings {
   float base_pose_location[3];
   float base_pose_angle;
 
-  /** View3D draw flags (V3D_OFSDRAW_NONE, V3D_OFSDRAW_SHOW_ANNOTATION, ...). */
-  char draw_flags;
+  /**
+   * View3D draw flags (V3D_OFSDRAW_NONE, V3D_OFSDRAW_SHOW_ANNOTATION, ...).
+   * 2 char, we have more xr flags now
+   */
+  ushort draw_flags;
   /** Draw style for controller visualization. */
   char controller_draw_style;
-  char _pad2[2];
+  char _pad2;
 
   /** Clipping distance. */
   float clip_start, clip_end;

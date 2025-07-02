@@ -1641,6 +1641,13 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
         scene->eevee.shadow_step_count = default_scene_eevee.shadow_step_count;
       }
     }
+
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      wm->xr.session_settings.base_scale = 1.0f;
+      wm->xr.session_settings.draw_flags |= (V3D_OFSDRAW_SHOW_SELECTION |
+                                             V3D_OFSDRAW_XR_SHOW_CONTROLLERS |
+                                             V3D_OFSDRAW_XR_SHOW_CUSTOM_OVERLAYS);
+    }
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 28)) {

@@ -1936,6 +1936,10 @@ void ED_view3d_draw_offscreen_simple(Depsgraph *depsgraph,
     if (draw_flags & V3D_OFSDRAW_XR_SHOW_PASSTHROUGH) {
       v3d.flag2 |= V3D_XR_SHOW_PASSTHROUGH;
     }
+    if (draw_flags & V3D_OFSDRAW_XR_SHOW_ONION_SKIN) {
+      v3d.flag2 |= V3D_XR_SHOW_GPENCIL_ONION_SKIN;
+      v3d.gp_flag |= V3D_GP_SHOW_ONION_SKIN;
+    }
     /* Disable other overlays (set all available _HIDE_ flags). */
     v3d.overlay.flag |= V3D_OVERLAY_HIDE_CURSOR | V3D_OVERLAY_HIDE_TEXT |
                         V3D_OVERLAY_HIDE_MOTION_PATHS | V3D_OVERLAY_HIDE_OBJECT_ORIGINS;
@@ -2223,6 +2227,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf_simple(Depsgraph *depsgraph,
     v3d.gridflag |= V3D_SHOW_FLOOR | V3D_SHOW_X | V3D_SHOW_Y;
   }
 
+  if (draw_flags & V3D_OFSDRAW_XR_SHOW_ONION_SKIN) {
+    v3d.gp_flag |= V3D_GP_SHOW_ONION_SKIN;
+  }
   v3d.shading.background_type = V3D_SHADING_BACKGROUND_WORLD;
 
   rv3d.persp = RV3D_CAMOB;

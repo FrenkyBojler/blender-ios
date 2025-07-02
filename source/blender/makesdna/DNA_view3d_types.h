@@ -540,6 +540,7 @@ enum {
   V3D_SHOW_CAMERA_GUIDES = (1 << 18),
   V3D_SHOW_CAMERA_PASSEPARTOUT = (1 << 19),
   V3D_XR_SHOW_PASSTHROUGH = 1 << 20,
+  V3D_XR_SHOW_GPENCIL_ONION_SKIN = 1 << 21,
 };
 
 /** #View3D::gp_flag (short) */
