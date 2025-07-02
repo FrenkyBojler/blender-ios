@@ -194,19 +194,13 @@ static void SCULPT_OT_optimize(wmOperatorType *ot)
 
 static wmOperatorStatus sculpt_undo_memory_info_exec(bContext *C, wmOperator *op)
 {
-  auto [total_memory, undo_steps_count] = undo::get_total_sculpt_undo_memory(C);
+  size_t total_memory = undo::get_total_sculpt_undo_memory(C);
   float total_memory_mb = total_memory / (1024.0f * 1024.0f);
 
   Scene *scene = CTX_data_scene(C);
   IDProperty *idprop = scene->id.properties;
 
   IDP_AddToGroup(idprop, bke::idprop::create("sculpt_undo_memory_mb", total_memory_mb).release());
-  IDP_AddToGroup(idprop, bke::idprop::create("sculpt_undo_steps", undo_steps_count).release());
-  BKE_reportf(op->reports,
-              RPT_INFO,
-              "Sculpt Undo Memory: %.2f MB across %d steps",
-              total_memory_mb,
-              undo_steps_count);
 
   return OPERATOR_FINISHED;
 }

@@ -73,12 +73,15 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
     row += f"{entries[0].test: <40} "
 
     for entry in entries:
-        # Show time or status.
+        # Show time or memory usage or status.
         status = entry.status
         output = entry.output
         result = ''
         if status in {'done', 'outdated'} and output:
-            result = '%.4fs' % output['time']
+            if 'undo_memory' in entry.test:
+                result = '%.4fMB' % output['memory_mb']
+            else:
+                result = '%.4fs' % output['time']
 
             if status == 'outdated':
                 result += " (outdated)"

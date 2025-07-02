@@ -421,7 +421,6 @@ class DATA_PT_customdata(MeshButtonsPanel, Panel):
 
         col.operator("mesh.customdata_mask_clear", icon='X')
         col.operator("mesh.customdata_skin_clear", icon='X')
-        col.operator("sculpt.undo_memory_info", icon='X', text="Undo Memory Info")
 
         if me.has_custom_normals:
             col.operator("mesh.customdata_custom_splitnormals_clear", icon='X')

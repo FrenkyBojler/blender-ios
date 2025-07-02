@@ -2173,11 +2173,11 @@ void push_multires_mesh_end(bContext *C, const char *str)
   push_end(*object);
 }
 
-std::pair<size_t, int> get_total_sculpt_undo_memory(bContext *C)
+size_t get_total_sculpt_undo_memory(bContext *C)
 {
   UndoStack *ustack = ED_undo_stack_get();
   if (!ustack) {
-    return {0, 0};
+    return 0;
   }
 
   Scene *scene = CTX_data_scene(C);
@@ -2186,7 +2186,7 @@ std::pair<size_t, int> get_total_sculpt_undo_memory(bContext *C)
   Object *current_object = BKE_view_layer_active_object_get(view_layer);
 
   if (!current_object) {
-    return {0, 0};
+    return 0;
   }
 
   std::string current_object_name = current_object->id.name;
@@ -2206,7 +2206,7 @@ std::pair<size_t, int> get_total_sculpt_undo_memory(bContext *C)
     }
   }
 
-  return {total_memory, undo_steps_count};
+  return total_memory;
 }
 
 }  // namespace blender::ed::sculpt_paint::undo
