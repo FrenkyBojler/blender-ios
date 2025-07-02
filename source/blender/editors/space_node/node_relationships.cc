@@ -221,12 +221,12 @@ static bNodeSocket *best_socket_output(bNodeTree *ntree,
   ntree->ensure_topology_cache();
   if (STREQ(sock_target->idname, "NodeSocketVirtual")) {
     LISTBASE_FOREACH (bNodeSocket *, output, &node->outputs) {
-      if (!output->is_visible()) {
+      if (!output->is_icon_visible()) {
         continue;
       }
 
       /* Find out if the socket is already linked to the target node. */
-      blender::Span<bNodeSocket *> directly_linked_sockets = output->directly_linked_sockets();
+      const Span<bNodeSocket *> directly_linked_sockets = output->directly_linked_sockets();
       bool is_output_linked_to_target_node = false;
       for (bNodeSocket *socket : directly_linked_sockets) {
         if (&socket->owner_node() == &sock_target->owner_node()) {
