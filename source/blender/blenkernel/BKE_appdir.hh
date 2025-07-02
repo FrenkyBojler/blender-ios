@@ -155,7 +155,7 @@ void BKE_tempdir_session_purge();
  * - Abbreviations are allowed - this may not resolve to an actual path.
  * - Path functions such as #BLI_path_basename must still work.
  *
- * The `/homr/userdir/test.blend` may be replaced by `~/test.blend` on UNIX for example.
+ * The `/home/userdir/test.blend` may be replaced by `~/test.blend` on UNIX for example.
  *
  * \return the length of `filepath_display` in bytes.
  */
