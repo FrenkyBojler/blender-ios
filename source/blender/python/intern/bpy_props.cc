@@ -2823,10 +2823,10 @@ static PyObject *BPy_BoolProperty(PyObject *self, PyObject *args, PyObject *kw)
   if (bpy_prop_callback_check(set_fn, "set", 2) == -1) {
     return nullptr;
   }
-  if (bpy_prop_callback_check(get_fn, "get_transform", 3) == -1) {
+  if (bpy_prop_callback_check(get_transform_fn, "get_transform", 3) == -1) {
     return nullptr;
   }
-  if (bpy_prop_callback_check(set_fn, "set_transform", 4) == -1) {
+  if (bpy_prop_callback_check(set_transform_fn, "set_transform", 4) == -1) {
     return nullptr;
   }
 
