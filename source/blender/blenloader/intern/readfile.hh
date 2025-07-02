@@ -10,7 +10,6 @@
 #pragma once
 
 #include <cstdio> /* IWYU pragma: keep. Include header using off_t before poisoning it below. */
-#include <memory>
 #include <optional>
 
 #ifdef WIN32
@@ -19,7 +18,6 @@
 
 #include "BLI_filereader.h"
 #include "BLI_map.hh"
-#include "BLI_vector_set.hh"
 
 #include "DNA_sdna_types.h"
 #include "DNA_space_types.h"
