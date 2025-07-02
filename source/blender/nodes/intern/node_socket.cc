@@ -19,6 +19,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
+#include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
@@ -716,6 +717,7 @@ void node_socket_init_default_value_data(eNodeSocketDatatype datatype, int subty
           "node socket value closure");
       dval->type = CLOSURE_SOCKET_VALUE_TYPE_NONE;
       dval->curve_mapping = nullptr;
+      dval->color_ramp = nullptr;
 
       *data = dval;
       break;
@@ -825,6 +827,9 @@ void node_socket_copy_default_value_data(eNodeSocketDatatype datatype, void *to,
       const auto *fromval = static_cast<const bNodeSocketValueClosure *>(from);
       *toval = *fromval;
       toval->curve_mapping = BKE_curvemapping_copy(fromval->curve_mapping);
+      if (fromval->color_ramp) {
+        toval->color_ramp = BKE_colorband_copy(*fromval->color_ramp);
+      }
       break;
     }
 
@@ -1079,7 +1084,7 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
     case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
       return {};
     }
-    case CLOSURE_SOCKET_VALUE_TYPE_CURVE:
+    case CLOSURE_SOCKET_VALUE_TYPE_CURVE: {
       if (!value.curve_mapping) {
         return {};
       }
@@ -1105,6 +1110,11 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
                                                std::move(default_input_values),
                                                std::nullopt,
                                                {});
+    }
+    case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
+      /* TODO */
+      return {};
+    }
   }
   return {};
 }

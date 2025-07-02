@@ -51,6 +51,7 @@
 #include "BKE_animsys.h"
 #include "BKE_asset.hh"
 #include "BKE_bpath.hh"
+#include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -730,6 +731,7 @@ static void write_node_socket_default_value(BlendWriter *writer, const bNodeSock
       if (closure_value->curve_mapping) {
         BKE_curvemapping_blend_write(writer, closure_value->curve_mapping);
       }
+      BLO_write_struct(writer, ColorBand, &closure_value->color_ramp);
       break;
     }
     case SOCK_MATRIX:
@@ -1165,6 +1167,7 @@ static void direct_link_node_socket_default_value(BlendDataReader *reader, bNode
         if (default_value_closure.curve_mapping) {
           BKE_curvemapping_blend_read(reader, default_value_closure.curve_mapping);
         }
+        BLO_read_struct(reader, ColorBand, &default_value_closure.color_ramp);
         break;
       }
       case SOCK_MATRIX:
@@ -2951,6 +2954,9 @@ static void node_socket_free(bNodeSocket *sock, const bool do_id_user)
     if (sock->type == SOCK_CLOSURE) {
       auto &default_value_closure = *sock->default_value_typed<bNodeSocketValueClosure>();
       BKE_curvemapping_free(default_value_closure.curve_mapping);
+      if (default_value_closure.color_ramp) {
+        MEM_freeN(default_value_closure.color_ramp);
+      }
     }
     MEM_freeN(sock->default_value);
   }
@@ -3239,6 +3245,9 @@ static void node_socket_copy(bNodeSocket *sock_dst, const bNodeSocket *sock_src,
       auto &default_value_closure = *sock_dst->default_value_typed<bNodeSocketValueClosure>();
       default_value_closure.curve_mapping = BKE_curvemapping_copy(
           default_value_closure.curve_mapping);
+      if (default_value_closure.color_ramp) {
+        default_value_closure.color_ramp = BKE_colorband_copy(*default_value_closure.color_ramp);
+      }
     }
   }
 

@@ -4,6 +4,7 @@
 
 #include <queue>
 
+#include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
@@ -193,6 +194,7 @@ template<> void socket_data_init_impl(bNodeSocketValueClosure &data)
 {
   data.type = CLOSURE_SOCKET_VALUE_TYPE_NONE;
   data.curve_mapping = nullptr;
+  data.color_ramp = nullptr;
 }
 
 static void *make_socket_data(const StringRef socket_type)
@@ -252,6 +254,12 @@ template<>
 void socket_data_copy_impl(bNodeSocketValueClosure &dst, const bNodeSocketValueClosure &src)
 {
   dst.curve_mapping = BKE_curvemapping_copy(src.curve_mapping);
+  if (src.color_ramp) {
+    dst.color_ramp = BKE_colorband_copy(*src.color_ramp);
+  }
+  else {
+    dst.color_ramp = nullptr;
+  }
 }
 
 static void socket_data_copy(bNodeTreeInterfaceSocket &dst,
@@ -354,6 +362,12 @@ inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueMenu &da
 inline void socket_data_write_impl(BlendWriter *writer, bNodeSocketValueClosure &data)
 {
   BLO_write_struct(writer, bNodeSocketValueClosure, &data);
+  if (data.curve_mapping) {
+    BKE_curvemapping_blend_write(writer, data.curve_mapping);
+  }
+  if (data.color_ramp) {
+    BLO_write_struct(writer, ColorBand, data.color_ramp);
+  }
 }
 
 static void socket_data_write(BlendWriter *writer, bNodeTreeInterfaceSocket &socket)
@@ -392,6 +406,7 @@ template<> void socket_data_read_data_impl(BlendDataReader *reader, bNodeSocketV
   if ((*data)->curve_mapping) {
     BKE_curvemapping_blend_read(reader, (*data)->curve_mapping);
   }
+  BLO_read_struct(reader, ColorBand, &(*data)->color_ramp);
 }
 
 static void socket_data_read_data(BlendDataReader *reader, bNodeTreeInterfaceSocket &socket)

@@ -20,6 +20,7 @@
 #include "DNA_node_types.h"
 
 #include "BKE_anim_data.hh"
+#include "BKE_colorband.hh"
 #include "BKE_colortools.hh"
 #include "BKE_image.hh"
 #include "BKE_lib_id.hh"
@@ -834,6 +835,9 @@ class NodeTreeMainUpdater {
   {
     if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_CURVE && !socket_data.curve_mapping) {
       socket_data.curve_mapping = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
+    }
+    if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP && !socket_data.color_ramp) {
+      socket_data.color_ramp = BKE_colorband_add(true);
     }
   }
 

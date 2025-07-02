@@ -304,6 +304,11 @@ ColorBand *BKE_colorband_add(bool rangetype)
   return coba;
 }
 
+ColorBand *BKE_colorband_copy(const ColorBand &src)
+{
+  return MEM_dupallocN<ColorBand>(__func__, src);
+}
+
 /* ------------------------------------------------------------------------- */
 
 static float colorband_hue_interp(
