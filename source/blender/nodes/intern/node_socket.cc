@@ -1061,8 +1061,8 @@ class ClosureMultiFunctionForFloatCurve : public mf::MultiFunction {
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Float Curve Closure", signature};
-      builder.single_input<float>("x");
-      builder.single_output<float>("y");
+      builder.single_input<float>("Input");
+      builder.single_output<float>("Output");
       return signature;
     }();
     this->set_signature(&signature);
@@ -1070,11 +1070,12 @@ class ClosureMultiFunctionForFloatCurve : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<float> &xs = params.readonly_single_input<float>(0, "x");
-    MutableSpan<float> ys = params.uninitialized_single_output<float>(1, "y");
+    const VArray<float> &inputs = params.readonly_single_input<float>(0, "Input");
+    MutableSpan<float> outputs = params.uninitialized_single_output<float>(1, "Output");
 
-    mask.foreach_index(
-        [&](const int64_t i) { ys[i] = BKE_curvemapping_evaluateF(&curve_mapping_, 0, xs[i]); });
+    mask.foreach_index([&](const int64_t i) {
+      outputs[i] = BKE_curvemapping_evaluateF(&curve_mapping_, 0, inputs[i]);
+    });
   }
 };
 
@@ -1088,8 +1089,8 @@ class ClosureMultiFunctionForColorRamp : public mf::MultiFunction {
     static const mf::Signature signature = []() {
       mf::Signature signature;
       mf::SignatureBuilder builder{"Color Ramp Closure", signature};
-      builder.single_input<float>("x");
-      builder.single_output<ColorGeometry4f>("y");
+      builder.single_input<float>("Input");
+      builder.single_output<ColorGeometry4f>("Output");
       return signature;
     }();
     this->set_signature(&signature);
@@ -1097,11 +1098,12 @@ class ClosureMultiFunctionForColorRamp : public mf::MultiFunction {
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
-    const VArray<float> &xs = params.readonly_single_input<float>(0, "x");
-    MutableSpan<ColorGeometry4f> ys = params.uninitialized_single_output<ColorGeometry4f>(1, "y");
+    const VArray<float> &inputs = params.readonly_single_input<float>(0, "Input");
+    MutableSpan<ColorGeometry4f> outputs = params.uninitialized_single_output<ColorGeometry4f>(
+        1, "Output");
 
     mask.foreach_index(
-        [&](const int64_t i) { BKE_colorband_evaluate(&color_ramp_, xs[i], ys[i]); });
+        [&](const int64_t i) { BKE_colorband_evaluate(&color_ramp_, inputs[i], outputs[i]); });
   }
 };
 
@@ -1127,9 +1129,9 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       const bke::bNodeSocketType *float_socket_type = bke::node_socket_type_find_static(
           SOCK_FLOAT);
       signature->inputs.append(
-          {nodes::SocketInterfaceKey("x"), float_socket_type, nodes::StructureType::Dynamic});
+          {nodes::SocketInterfaceKey("Value"), float_socket_type, nodes::StructureType::Dynamic});
       signature->outputs.append(
-          {nodes::SocketInterfaceKey("y"), float_socket_type, nodes::StructureType::Dynamic});
+          {nodes::SocketInterfaceKey("Value"), float_socket_type, nodes::StructureType::Dynamic});
 
       return nodes::Closure::FromMultiFunction(std::move(signature),
                                                fn,
@@ -1154,9 +1156,9 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
           SOCK_FLOAT);
       const bke::bNodeSocketType *color_socket_type = bke::node_socket_type_find_static(SOCK_RGBA);
       signature->inputs.append(
-          {nodes::SocketInterfaceKey("x"), float_socket_type, nodes::StructureType::Dynamic});
+          {nodes::SocketInterfaceKey("Value"), float_socket_type, nodes::StructureType::Dynamic});
       signature->outputs.append(
-          {nodes::SocketInterfaceKey("y"), color_socket_type, nodes::StructureType::Dynamic});
+          {nodes::SocketInterfaceKey("Value"), color_socket_type, nodes::StructureType::Dynamic});
       return nodes::Closure::FromMultiFunction(std::move(signature),
                                                fn,
                                                std::move(scope),
