@@ -32,7 +32,6 @@
 
 #include "ED_node.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
@@ -904,6 +903,10 @@ static void shape_preset_trias_from_rect_menu(uiWidgetTrias *tria, const rcti *r
 {
   const float width = BLI_rcti_size_x(rect);
   const float height = BLI_rcti_size_y(rect);
+  if ((width / height) < 0.5f) {
+    /* Too narrow to fit. */
+    return;
+  }
   float centx, centy, size;
 
   tria->type = ROUNDBOX_TRIA_MENU;
@@ -1339,6 +1342,11 @@ static void widget_draw_icon(
     state.but_flag = but->flag;
     state.but_drawflag = but->drawflag;
     alpha *= widget_alpha_factor(&state);
+  }
+
+  /* Dim the icon as its space is reduced to zero. */
+  if (height > (rect->xmax - rect->xmin)) {
+    alpha *= std::max(float(rect->xmax - rect->xmin) / height, 0.0f);
   }
 
   GPU_blend(GPU_BLEND_ALPHA);
@@ -2553,6 +2561,7 @@ static void ui_widget_color_disabled(uiWidgetType *wt, const uiWidgetStateInfo *
   const float factor = widget_alpha_factor(state);
 
   wcol_theme_s.outline[3] *= factor;
+  wcol_theme_s.outline_sel[3] *= factor;
   wcol_theme_s.inner[3] *= factor;
   wcol_theme_s.inner_sel[3] *= factor;
   wcol_theme_s.item[3] *= factor;
@@ -2566,7 +2575,8 @@ static void widget_active_color(uiWidgetColors *wcol)
 {
   const bool dark = (srgb_to_grayscale_byte(wcol->text) > srgb_to_grayscale_byte(wcol->inner));
   color_mul_hsl_v3(wcol->inner, 1.0f, 1.15f, dark ? 1.2f : 1.1f);
-  color_mul_hsl_v3(wcol->outline, 1.0f, 1.15f, 1.15f);
+  color_blend_v4_v4v4(wcol->outline, wcol->outline, wcol->outline_sel, 0.5f);
+  color_mul_hsl_v3(wcol->outline_sel, 1.0f, 1.15f, 1.15f);
   color_mul_hsl_v3(wcol->text, 1.0f, 1.15f, dark ? 1.25f : 0.8f);
 }
 
@@ -2621,6 +2631,7 @@ static void widget_state(uiWidgetType *wt,
 
   if (state->but_flag & UI_SELECT) {
     copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+    copy_v4_v4_uchar(wt->wcol.outline, wt->wcol.outline_sel);
     if (color_blend != nullptr) {
       color_blend_v3_v3(wt->wcol.inner, color_blend, wcol_state->blend);
     }
@@ -2632,6 +2643,7 @@ static void widget_state(uiWidgetType *wt,
   else {
     if (state->but_flag & UI_BUT_ACTIVE_DEFAULT) {
       copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+      copy_v4_v4_uchar(wt->wcol.outline, wt->wcol.outline_sel);
       copy_v4_v4_uchar(wt->wcol.text, wt->wcol.text_sel);
     }
     if (color_blend != nullptr) {
@@ -2662,6 +2674,7 @@ static void widget_state(uiWidgetType *wt,
   if (state->but_flag & UI_BUT_DRAG_MULTI) {
     /* the button isn't SELECT but we're editing this so draw with sel color */
     copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+    copy_v4_v4_uchar(wt->wcol.outline, wt->wcol.outline_sel);
     std::swap(wt->wcol.shadetop, wt->wcol.shadedown);
     color_blend_v3_v3(wt->wcol.text, wt->wcol.text_sel, 0.85f);
   }
@@ -2794,6 +2807,7 @@ static void widget_state_pie_menu_item(uiWidgetType *wt,
 
   if ((state->but_flag & UI_BUT_DISABLED) && (state->but_flag & UI_HOVER)) {
     color_blend_v3_v3(wt->wcol.text, wt->wcol.text_sel, 0.5f);
+    color_blend_v3_v3(wt->wcol.outline, wt->wcol.outline_sel, 0.5f);
     /* draw the backdrop at low alpha, helps navigating with keys
      * when disabled items are active */
     copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.item);
@@ -2803,6 +2817,7 @@ static void widget_state_pie_menu_item(uiWidgetType *wt,
     /* regular active */
     if (state->but_flag & (UI_SELECT | UI_HOVER)) {
       copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
+      copy_v3_v3_uchar(wt->wcol.outline, wt->wcol.outline_sel);
     }
     else if (state->but_flag & (UI_BUT_DISABLED | UI_BUT_INACTIVE)) {
       /* regular disabled */
@@ -2811,9 +2826,11 @@ static void widget_state_pie_menu_item(uiWidgetType *wt,
 
     if (state->but_flag & UI_SELECT) {
       copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+      copy_v4_v4_uchar(wt->wcol.outline, wt->wcol.outline_sel);
     }
     else if (state->but_flag & UI_HOVER) {
       copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.item);
+      color_blend_v3_v3(wt->wcol.outline, wt->wcol.outline_sel, 0.5f);
     }
   }
 }
@@ -2847,6 +2864,7 @@ static void widget_state_menu_item(uiWidgetType *wt,
   else if (state->but_flag & (UI_BUT_ACTIVE_DEFAULT | UI_SELECT_DRAW)) {
     /* Currently-selected item. */
     copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+    copy_v4_v4_uchar(wt->wcol.outline, wt->wcol.outline_sel);
     copy_v4_v4_uchar(wt->wcol.text, wt->wcol.text_sel);
   }
   else if ((state->but_flag & (UI_SELECT | UI_BUT_ICON_PREVIEW)) ==
@@ -2854,11 +2872,13 @@ static void widget_state_menu_item(uiWidgetType *wt,
   {
     /* Currently-selected list or menu item that is large icon preview. */
     copy_v4_v4_uchar(wt->wcol.inner, wt->wcol.inner_sel);
+    copy_v4_v4_uchar(wt->wcol.outline, wt->wcol.outline_sel);
     copy_v4_v4_uchar(wt->wcol.text, wt->wcol.text_sel);
   }
   else if (state->but_flag & UI_HOVER) {
     /* Regular hover. */
     color_blend_v3_v3(wt->wcol.inner, wt->wcol.text, 0.2f);
+    color_blend_v3_v3(wt->wcol.outline, wt->wcol.outline_sel, 0.5f);
     copy_v3_v3_uchar(wt->wcol.text, wt->wcol.text_sel);
     wt->wcol.inner[3] = 255;
     wt->wcol.text[3] = 255;
@@ -3903,11 +3923,11 @@ static void widget_progress_indicator(uiBut *but,
 {
   uiButProgress *but_progress = static_cast<uiButProgress *>(but);
   switch (but_progress->progress_type) {
-    case UI_BUT_PROGRESS_TYPE_BAR: {
+    case blender::ui::ButProgressType::Bar: {
       widget_progress_type_bar(but_progress, wcol, rect, roundboxalign, zoom);
       break;
     }
-    case UI_BUT_PROGRESS_TYPE_RING: {
+    case blender::ui::ButProgressType::Ring: {
       widget_progress_type_ring(but_progress, wcol, rect);
       break;
     }
@@ -4286,9 +4306,6 @@ static void widget_menu_itembut(uiWidgetColors *wcol,
   rect->xmin += padding;
   rect->xmax -= padding;
 
-  /* No outline. */
-  wtb.draw_outline = false;
-
   const float rad = widget_radius_from_zoom(zoom, wcol);
 
   round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
@@ -4366,8 +4383,6 @@ static void widget_list_itembut(uiBut *but,
   uiWidgetBase wtb;
   widget_init(&wtb);
 
-  /* no outline */
-  wtb.draw_outline = false;
   const float rad = widget_radius_from_zoom(zoom, wcol);
   round_box_edges(&wtb, UI_CNR_ALL, &draw_rect, rad);
 

@@ -821,7 +821,7 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
       if (ELEM(node->type_legacy,
                SH_NODE_CURVE_VEC,
                SH_NODE_CURVE_RGB,
-               CMP_NODE_CURVE_VEC,
+               CMP_NODE_CURVE_VEC_DEPRECATED,
                CMP_NODE_CURVE_RGB,
                CMP_NODE_TIME,
                CMP_NODE_HUECORRECT,
@@ -2160,7 +2160,7 @@ static void update_noise_and_wave_distortion(bNodeTree *ntree)
         mulNode->custom1 = NODE_MATH_MULTIPLY;
         mulNode->locx_legacy = node->locx_legacy;
         mulNode->locy_legacy = node->locy_legacy - 240.0f;
-        mulNode->flag |= NODE_HIDDEN;
+        mulNode->flag |= NODE_COLLAPSED;
         bNodeSocket *mulSockA = static_cast<bNodeSocket *>(BLI_findlink(&mulNode->inputs, 0));
         bNodeSocket *mulSockB = static_cast<bNodeSocket *>(BLI_findlink(&mulNode->inputs, 1));
         *version_cycles_node_socket_float_value(mulSockB) = 0.5f;

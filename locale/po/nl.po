@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'b4eeddd11342')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-03 09:10+0000\n"
+"POT-Creation-Date: 2025-06-30 09:22+0000\n"
 "PO-Revision-Date: 2025-04-14 08:33+0000\n"
 "Last-Translator: Brecht Van Lommel <brechtvanlommel@gmail.com>\n"
 "Language-Team: Dutch <https://translate.blender.org/projects/blender-ui/ui/nl/>\n"
@@ -2698,12 +2698,12 @@ msgid "Mask"
 msgstr "Mask"
 
 
-msgid "Text"
-msgstr "Tekst"
-
-
 msgid "Show/Hide"
 msgstr "Toon/Verberg"
+
+
+msgid "Text"
+msgstr "Tekst"
 
 
 msgid "Names"
@@ -2786,6 +2786,11 @@ msgstr "Sleutel"
 msgctxt "Operator"
 msgid "Smooth"
 msgstr "Glad"
+
+
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "Spiegel"
 
 
 msgid "Import"
@@ -5363,11 +5368,6 @@ msgstr "Voeg Nieuwe Palet Toe"
 
 msgid "Duplicate Settings"
 msgstr "Dupliceer Instellingen"
-
-
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "Spiegel"
 
 
 msgctxt "Operator"
@@ -9264,12 +9264,4 @@ msgstr "Poses Bibliotheek"
 
 msgid "Import-Export"
 msgstr "Importeren-Exporteren"
-
-
-msgid "Complete"
-msgstr "Compleet"
-
-
-msgid "In Progress"
-msgstr "Bezig"
 

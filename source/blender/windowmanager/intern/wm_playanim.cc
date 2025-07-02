@@ -47,6 +47,7 @@
 #include "MOV_read.hh"
 #include "MOV_util.hh"
 
+#include "BKE_blender.hh"
 #include "BKE_image.hh"
 
 #include "BIF_glutil.hh"
@@ -64,8 +65,6 @@
 
 #include "BLF_api.hh"
 #include "GHOST_C-api.h"
-
-#include "DEG_depsgraph.hh"
 
 #include "wm_window_private.hh"
 
@@ -2042,6 +2041,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 #endif /* USE_FRAME_CACHE_LIMIT */
 
           STRNCPY(ibuf->filepath, ps.picture->filepath);
+          ibuf->fileframe = ps.picture->frame;
         }
 
         while (pupdate_time()) {
@@ -2165,10 +2165,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   g_audaspace.source = nullptr;
 #endif
 
-  /* We still miss freeing a lot!
-   * But many areas could skip initialization too for anim play. */
-
-  DEG_free_node_types();
+  /* Free subsystems the animation player is responsible for starting.
+   * The rest is handled by #BKE_blender_atexit, see early-exit logic in `creator.cc`. */
 
   BLF_exit();
 
@@ -2188,15 +2186,14 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
   GHOST_DisposeWindow(ps.ghost_data.system, ps.ghost_data.window);
 
-  /* Early exit, IMB and BKE should be exited only in end. */
+  GHOST_DisposeSystem(ps.ghost_data.system);
+
   if (ps.argv_next) {
     args_next->argc = ps.argc_next;
     args_next->argv = ps.argv_next;
-    /* No exit code, keep running. */
+    /* Returning none, run this function again with the *next* arguments. */
     return std::nullopt;
   }
-
-  GHOST_DisposeSystem(ps.ghost_data.system);
 
   return EXIT_SUCCESS;
 }
@@ -2249,15 +2246,8 @@ int WM_main_playanim(int argc, const char **argv)
   AUD_exitOnce();
 #endif
 
-  /* NOTE(@ideasman42): Not useful unless all subsystems are properly shutdown. */
-  if (false) {
-    const int totblock = MEM_get_memory_blocks_in_use();
-    if (totblock != 0) {
-      /* Prints many `bAKey`, `bArgument` messages which are tricky to fix. */
-      printf("Error Totblock: %d\n", totblock);
-      MEM_printmemlist();
-    }
-  }
+  /* Cleanup sub-systems started before this function was called. */
+  BKE_blender_atexit();
 
   return exit_code.value();
 }
