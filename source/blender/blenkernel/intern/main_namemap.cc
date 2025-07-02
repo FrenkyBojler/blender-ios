@@ -357,6 +357,8 @@ void BKE_main_namemap_clear(Main &bmain)
   };
 
   if (bmain.split_mains) {
+    BLI_assert_msg(bmain.split_mains->contains(&bmain),
+                   "Main should always be part of its own `split_mains`");
     for (Main *bmain_iter : *bmain.split_mains) {
       bmain_namemap_clear(bmain_iter);
     }

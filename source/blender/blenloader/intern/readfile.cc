@@ -2729,7 +2729,7 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
   Main *new_main = fd->bmain;
   Library *curlib = libmain->curlib;
 
-  /* NOTE: This may change the order of items in `old_main->split_mains`. So calling cade cannot
+  /* NOTE: This may change the order of items in `old_main->split_mains`. So calling code cannot
    * directly iterate over it. */
   old_main->split_mains->remove_contained(libmain);
   BLI_remlink_safe(&old_main->libraries, curlib);
