@@ -4384,7 +4384,8 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
     const std::array<bke::GeometrySet, 2> geometry_sets = {
         bke::GeometrySet::from_curves(other_curves), bke::GeometrySet::from_curves(strokes)};
 
-    Curves *joined_curves = geometry::join_geometries(geometry_sets, {}).get_curves_for_write();
+    bke::GeometrySet joined_geometries = geometry::join_geometries(geometry_sets, {});
+    Curves *joined_curves = joined_geometries.get_curves_for_write();
     if (joined_curves) {
       info.drawing.strokes_for_write() = std::move(joined_curves->geometry.wrap());
     }
