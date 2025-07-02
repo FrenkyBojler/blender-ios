@@ -1696,18 +1696,27 @@ wmOperatorStatus paint_stroke_exec(bContext *C, wmOperator *op, PaintStroke *str
                                  stroke->get_location;
   if (stroke->stroke_started) {
     RNA_BEGIN (op->ptr, itemptr, "stroke") {
-      if (override_location) {
-        float2 mval;
-        RNA_float_get_array(&itemptr, "mouse_event", mval);
+      float2 mval;
+      RNA_float_get_array(&itemptr, "mouse_event", mval);
 
+      const float pressure = RNA_float_get(&itemptr, "pressure");
+      float2 dummy_mouse;
+      float3 dummy_location;
+      bool dummy_is_set;
+
+      paint_brush_update(C,
+                         *stroke->brush,
+                         mode,
+                         stroke,
+                         mval,
+                         dummy_mouse,
+                         pressure,
+                         dummy_location,
+                         &dummy_is_set);
+
+      if (override_location) {
         float3 location;
         if (stroke->get_location(C, location, mval, false)) {
-          const float pressure = RNA_float_get(&itemptr, "pressure");
-          float2 dummy_mval;
-          float3 dummy_location;
-          bool dummy_is_set;
-
-          paint_brush_update(C, *stroke->brush, mode, stroke, mval, dummy_mval, pressure, dummy_location, &dummy_is_set);
           RNA_float_set_array(&itemptr, "location", location);
           stroke->update_step(C, op, stroke, &itemptr);
         }
