@@ -335,7 +335,7 @@ void ui_but_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
   if (!but_anim) {
     return;
   }
-  /** While click drag the active button may not be `but_decorate`, instead is the but where the
+  /* While click drag the active button may not be `but_decorate`, instead is the but where the
    * drag started, temporarily override `but_anim` as active. */
   but_anim->flag |= UI_BUT_ACTIVE_OVERRIDE;
   wm->op_undo_depth++;
