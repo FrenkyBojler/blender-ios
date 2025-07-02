@@ -2029,6 +2029,7 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
 
   var = PyObject_GetAttrString(manta_main_module, varName.c_str());
   if (!var) {
+    PyErr_Clear();
     PyGILState_Release(gilstate);
     return nullptr;
   }
@@ -2037,12 +2038,16 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
 
   Py_DECREF(var);
   if (!func) {
+    PyErr_Clear();
     PyGILState_Release(gilstate);
     return nullptr;
   }
 
   if (!isAttribute) {
     returnedValue = PyObject_CallObject(func, nullptr);
+    if (returnedValue == nullptr && PyErr_Occurred()) {
+      PyErr_Print();
+    }
     Py_DECREF(func);
   }
 
