@@ -4492,9 +4492,11 @@ static const EnumPropertyItem node_scatter_phase_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-static void rna_def_node_item_array_socket_item_common(StructRNA *srna,
-                                                       const char *accessor,
-                                                       const bool add_socket_type)
+static void rna_def_node_item_array_socket_item_common(
+    StructRNA *srna,
+    const char *accessor,
+    const bool add_socket_type,
+    const bool add_vector_socket_dimensions = false)
 {
   static blender::LinearAllocator<> allocator;
   PropertyRNA *prop;
@@ -4527,6 +4529,15 @@ static void rna_def_node_item_array_socket_item_common(StructRNA *srna,
     RNA_def_property_ui_text(prop, "Socket Type", "");
     RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
     RNA_def_property_update(prop, NC_NODE | NA_EDITED, item_update_func_ptr);
+
+    if (add_vector_socket_dimensions) {
+      prop = RNA_def_property(srna, "vector_socket_dimensions", PROP_INT, PROP_NONE);
+      RNA_def_property_int_sdna(prop, nullptr, "vector_socket_dimensions");
+      RNA_def_property_range(prop, 2, 4);
+      RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+      RNA_def_property_ui_text(prop, "Dimensions", "Dimensions of the vector socket");
+      RNA_def_property_update(prop, NC_NODE | NA_EDITED, item_update_func_ptr);
+    }
   }
 
   prop = RNA_def_property(srna, "color", PROP_FLOAT, PROP_COLOR_GAMMA);
