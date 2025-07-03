@@ -2045,7 +2045,8 @@ static PyObject *callPythonFunction(string varName, string functionName, bool is
 
   if (!isAttribute) {
     returnedValue = PyObject_CallObject(func, nullptr);
-    if (returnedValue == nullptr && PyErr_Occurred()) {
+    if (returnedValue == nullptr) {
+      /* Print any unexpected errors. This also clears them, so no need to call PyErr_Clear. */
       PyErr_Print();
     }
     Py_DECREF(func);
