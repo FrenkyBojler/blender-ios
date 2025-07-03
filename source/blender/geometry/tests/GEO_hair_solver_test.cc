@@ -188,7 +188,7 @@ static SolverTestData simple_solver_data(const Span<ConstraintType> constraint_t
     for (const AttributeInfo &info : attribute_info) {
       attributes.add(info.first,
                      bke::AttrDomain::Point,
-                     bke::cpp_type_to_custom_data_type(info.second.type()),
+                     bke::cpp_type_to_attribute_type(info.second.type()),
                      bke::AttributeInitVArray(GVArray::ForSpan(info.second)));
     }
 
