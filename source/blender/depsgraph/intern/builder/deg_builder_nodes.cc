@@ -391,7 +391,7 @@ void DepsgraphNodeBuilder::begin_build()
       }
       else {
         /* This ID has not been expanded yet. Don't reuse it like already expanded IDs. */
-        MEM_freeN(id_node->id_cow);
+        MEM_SAFE_FREE(id_node->id_cow);
       }
     }
     id_info.previously_visible_components_mask = id_node->visible_components_mask;
