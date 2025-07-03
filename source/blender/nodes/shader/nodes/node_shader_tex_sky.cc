@@ -53,7 +53,7 @@ static void node_shader_buts_tex_sky(uiLayout *layout, bContext *C, PointerRNA *
 
   col = &layout->column(true);
   col->prop(ptr, "air_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  col->prop(ptr, "dust_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  col->prop(ptr, "aerosol_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
   col->prop(ptr, "ozone_density", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
@@ -69,7 +69,7 @@ static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
   tex->sun_rotation = 0.0f;
   tex->altitude = 0.0f;
   tex->air_density = 1.0f;
-  tex->dust_density = 1.0f;
+  tex->aerosol_density = 1.0f;
   tex->ozone_density = 1.0f;
   tex->sky_model = SHD_SKY_MULTIPLE_SCATTERING;
   node->storage = tex;
@@ -99,13 +99,13 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                                                tex->sun_elevation,
                                                tex->altitude,
                                                tex->air_density,
-                                               tex->dust_density,
+                                               tex->aerosol_density,
                                                tex->ozone_density);
     });
   }
   else {
     SKY_multiple_scattering_precompute_transmittance(
-        tex->air_density, tex->dust_density, tex->ozone_density);
+        tex->air_density, tex->aerosol_density, tex->ozone_density);
     threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
       SKY_multiple_scattering_precompute_texture(pixels.data(),
                                                  4,
@@ -115,7 +115,7 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
                                                  tex->sun_elevation,
                                                  tex->altitude,
                                                  tex->air_density,
-                                                 tex->dust_density,
+                                                 tex->aerosol_density,
                                                  tex->ozone_density);
     });
   }

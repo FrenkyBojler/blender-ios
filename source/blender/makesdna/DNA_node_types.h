@@ -1425,7 +1425,7 @@ typedef struct NodeTexSky {
   float sun_rotation;
   float altitude;
   float air_density;
-  float dust_density;
+  float aerosol_density;
   float ozone_density;
   char sun_disc;
   char _pad[11];

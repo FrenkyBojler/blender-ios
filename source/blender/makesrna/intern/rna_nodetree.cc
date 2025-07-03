@@ -5110,21 +5110,16 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(prop,
                            "Air",
                            "Density of air molecules.\n"
-                           "\u2022 0 - No air.\n"
-                           "\u2022 1 - Clear day atmosphere.\n"
-                           "\u2022 2 - Highly polluted day");
+                           "0 means no air, 1 means urban city air");
   RNA_def_property_range(prop, 0.0f, 10.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
-  prop = RNA_def_property(srna, "dust_density", PROP_FLOAT, PROP_FACTOR);
+  prop = RNA_def_property(srna, "aerosol_density", PROP_FLOAT, PROP_FACTOR);
   RNA_def_property_ui_text(prop,
-                           "Dust",
-                           "Density of dust molecules and water droplets.\n"
-                           "\u2022 0 - No dust.\n"
-                           "\u2022 1 - Clear day atmosphere.\n"
-                           "\u2022 5 - City like atmosphere.\n"
-                           "\u2022 10 - Hazy day");
+                           "Aerosols",
+                           "Density of dust, pollution and water droplets.\n"
+                           "0 means no aerosols, 1 means urban city aerosols");
   RNA_def_property_range(prop, 0.0f, 10.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
@@ -5133,9 +5128,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(prop,
                            "Ozone",
                            "Density of ozone layer.\n"
-                           "\u2022 0 - No ozone.\n"
-                           "\u2022 1 - Clear day atmosphere.\n"
-                           "\u2022 2 - City like atmosphere");
+                           "0 means no ozone, 1 means urban city ozone");
   RNA_def_property_range(prop, 0.0f, 10.0f);
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");

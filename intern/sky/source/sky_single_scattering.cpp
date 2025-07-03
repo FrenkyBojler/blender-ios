@@ -207,7 +207,7 @@ static void single_scattering(float3 ray_dir,
                               float3 sun_dir,
                               float3 ray_origin,
                               float air_density,
-                              float dust_density,
+                              float aerosol_density,
                               float ozone_density,
                               float *r_spectrum)
 {
@@ -234,7 +234,7 @@ static void single_scattering(float3 ray_dir,
   /* phase function for scattering and the density scale factor */
   float mu = dot(ray_dir, sun_dir);
   float3 phase_function = make_float3(phase_rayleigh(mu), phase_mie(mu), 0.0f);
-  float3 density_scale = make_float3(air_density, dust_density, ozone_density);
+  float3 density_scale = make_float3(air_density, aerosol_density, ozone_density);
 
   /* the density and in-scattering of each segment is evaluated at its middle */
   float3 P = ray_origin + 0.5f * segment;
@@ -295,7 +295,7 @@ void SKY_single_scattering_precompute_texture(float *pixels,
                                               float sun_elevation,
                                               float altitude,
                                               float air_density,
-                                              float dust_density,
+                                              float aerosol_density,
                                               float ozone_density)
 {
   /* Calculate texture pixels */
@@ -317,7 +317,7 @@ void SKY_single_scattering_precompute_texture(float *pixels,
         float longitude = longitude_step * x - M_PI_F;
         float3 dir = geographical_to_direction(latitude, longitude);
         single_scattering(
-            dir, sun_dir, cam_pos, air_density, dust_density, ozone_density, spectrum);
+            dir, sun_dir, cam_pos, air_density, aerosol_density, ozone_density, spectrum);
         xyz = spec_to_xyz(spectrum);
       }
       else {
@@ -342,7 +342,7 @@ void SKY_single_scattering_precompute_texture(float *pixels,
 static void sun_radiation(float3 cam_dir,
                           float altitude,
                           float air_density,
-                          float dust_density,
+                          float aerosol_density,
                           float solid_angle,
                           float *r_spectrum)
 {
@@ -353,7 +353,7 @@ static void sun_radiation(float3 cam_dir,
   for (int i = 0; i < num_wavelengths; i++) {
     /* combine spectra and the optical depth into transmittance */
     float transmittance = rayleigh_coeff[i] * optical_depth.x * air_density +
-                          1.11f * mie_coeff * optical_depth.y * dust_density;
+                          1.11f * mie_coeff * optical_depth.y * aerosol_density;
     r_spectrum[i] = irradiance[i] * expf(-transmittance) / solid_angle;
   }
 }
@@ -362,7 +362,7 @@ void SKY_single_scattering_precompute_sun(float sun_elevation,
                                           float angular_diameter,
                                           float altitude,
                                           float air_density,
-                                          float dust_density,
+                                          float aerosol_density,
                                           float *r_pixel_bottom,
                                           float *r_pixel_top)
 {
@@ -379,10 +379,10 @@ void SKY_single_scattering_precompute_sun(float sun_elevation,
   elevation_bottom = (bottom > 0.0f) ? bottom : 0.0f;
   elevation_top = (top > 0.0f) ? top : 0.0f;
   sun_dir = geographical_to_direction(elevation_bottom, 0.0f);
-  sun_radiation(sun_dir, altitude, air_density, dust_density, solid_angle, spectrum);
+  sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle, spectrum);
   pix_bottom = spec_to_xyz(spectrum);
   sun_dir = geographical_to_direction(elevation_top, 0.0f);
-  sun_radiation(sun_dir, altitude, air_density, dust_density, solid_angle, spectrum);
+  sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle, spectrum);
   pix_top = spec_to_xyz(spectrum);
 
   /* store pixels */

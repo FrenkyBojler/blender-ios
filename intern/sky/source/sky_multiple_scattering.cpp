@@ -6,6 +6,50 @@
  * \ingroup intern_sky_modal
  */
 
+/*
+ * Copyright (c) 2023 Fernando García Liñán
+ *
+ * Permission is hereby granted, free of charge, to any person obtaining a
+ * copy of this software and associated documentation files (the "Software"),
+ * to deal in the Software without restriction, including without limitation
+ * the rights to use, copy, modify, merge, publish, distribute, sublicense,
+ * and/or sell copies of the Software, and to permit persons to whom the
+ * Software is furnished to do so, subject to the following conditions:
+ *
+ * The above copyright notice and this permission notice shall be included in
+ * all copies or substantial portions of the Software.
+ *
+ * THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS
+ * OR IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+ * FITNESS FOR A PARTICULAR PURPOSE AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+ * AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES OR OTHER
+ * LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT OR OTHERWISE, ARISING
+ * FROM, OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER
+ * DEALINGS IN THE SOFTWARE.
+ */
+
+/*
+ * You can have a look at all the configurable parameters in the Common tab.
+ *
+ * This shader is the final result of my Master's Thesis.
+ * The main contributions are:
+ *
+ * 1. A spectral rendering technique that only requires 4 wavelength samples to
+ *    get accurate results.
+ * 2. A multiple scattering approximation.
+ *
+ * Both of these approximations rely on an analytical fit, so they only work for
+ * Earth's atmosphere. We make up for it by using a very flexible atmosphere
+ * model that is able to represent a wide variety of atmospheric conditions.
+ *
+ * A brief description of this spectral rendering technique can be found in the
+ * following article:
+ * https://fgarlin.com/posts/2024-12-06-spectral_sky/
+ *
+ * The path tracer that has been used as a ground truth can be found at:
+ * https://github.com/fgarlin/skytracer
+ */
+
 #include "sky_math.h"
 #include "sky_model.h"
 
@@ -43,7 +87,8 @@ static const float4 molecular_scattering_coefficient_base = make_float4(
     6.605e-3f, 1.067e-2f, 1.842e-2f, 3.156e-2f);
 static const float4 ozone_absorption_cross_section = make_float4(
     3.472e-25f, 3.914e-25f, 1.349e-25f, 11.03e-27f);
-static const float ozone_mean_monthly_dobson = 347.0f;
+/* Average ozone dobson of monthly mean values */
+static const float ozone_mean_dobson = 334.5f;
 static const float4 aerosol_absorption_cross_section = make_float4(
     2.8722e-24f, 4.6168e-24f, 7.9706e-24f, 1.3578e-23f);
 static const float4 aerosol_scattering_cross_section = make_float4(
@@ -51,6 +96,7 @@ static const float4 aerosol_scattering_cross_section = make_float4(
 static const float aerosol_base_density = 1.3681e20f;
 static const float aerosol_background_density = 2e6f;
 static const float aerosol_height_scale = 0.73f;
+/* Spectral to XYZ space conversion matrix */
 static const float spectral_xyz[][4] = {
     {53.386917738564668023, 43.904844466369358263, 1.6137278251608962005, 20.762668673810577145},
     {22.981337506691024754, 71.347795700053393866, 18.422960591455485011, 2.3614213523314368527},
@@ -174,7 +220,7 @@ static float4 get_molecular_absorption_coefficient(float h)
   h += 1e-4;  // avoid division by 0
   float t = logf(h) - 3.22261f;
   float density = 3.78547397e20f * (1.0f / h) * expf(-t * t * 5.55555555f);
-  return ozone_absorption_cross_section * ozone_mean_monthly_dobson * density;
+  return ozone_absorption_cross_section * ozone_mean_dobson * density;
 }
 
 static float get_aerosol_density(float h)
@@ -323,10 +369,10 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 float sun_elevation,
                                                 float altitude,
                                                 float air_density,
-                                                float dust_density,
+                                                float aerosol_density,
                                                 float ozone_density)
 {
-  float3 density_multipliers = make_float3(air_density, dust_density, ozone_density);
+  float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
   int half_width = width / 2;
   float sun_zenith_cos_angle = cosf(M_PI_2_F - sun_elevation);
   float3 sun_dir = make_float3(
@@ -353,11 +399,11 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
 }
 
 void SKY_multiple_scattering_precompute_transmittance(float air_density,
-                                                      float dust_density,
+                                                      float aerosol_density,
                                                       float ozone_density)
 {
   /* Calculate and store transmittance LUT */
-  float3 density_multipliers = make_float3(air_density, dust_density, ozone_density);
+  float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
   for (int x = 0; x < transmittance_res_x; x++) {
     for (int y = 0; y < transmittance_res_y; y++) {
       float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
@@ -372,7 +418,7 @@ void SKY_multiple_scattering_precompute_transmittance(float air_density,
 }
 
 static float4 sun_radiation(
-    float3 cam_dir, float altitude, float air_density, float dust_density, float solid_angle)
+    float3 cam_dir, float altitude, float air_density, float aerosol_density, float solid_angle)
 {
   return make_float4(10.0f, 10.0f, 10.0f, 10.0f);
 }
@@ -381,7 +427,7 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float angular_diameter,
                                             float altitude,
                                             float air_density,
-                                            float dust_density,
+                                            float aerosol_density,
                                             float *r_pixel_bottom,
                                             float *r_pixel_top)
 {
@@ -399,13 +445,13 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
   float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_bottom);
   float3 sun_dir = make_float3(
       -sqrtf(1.0f - sun_zenith_cos_angle * sun_zenith_cos_angle), 0.0f, sun_zenith_cos_angle);
-  float4 spectrum = sun_radiation(sun_dir, altitude, air_density, dust_density, solid_angle);
+  float4 spectrum = sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle);
   float3 pix_bottom = spectral_to_xyz(spectrum);
 
   sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_top);
   sun_dir = make_float3(
       -sqrtf(1.0f - sun_zenith_cos_angle * sun_zenith_cos_angle), 0.0f, sun_zenith_cos_angle);
-  spectrum = sun_radiation(sun_dir, altitude, air_density, dust_density, solid_angle);
+  spectrum = sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle);
   float3 pix_top = spectral_to_xyz(spectrum);
 
   /* store pixels */

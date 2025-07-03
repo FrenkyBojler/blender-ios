@@ -645,7 +645,7 @@ static void sky_texture_precompute(SunSky *sunsky,
                                    const float sun_rotation,
                                    const float altitude,
                                    const float air_density,
-                                   const float dust_density)
+                                   const float aerosol_density)
 {
   /* Sample 2 Sun pixels */
   float pixel_bottom[3];
@@ -653,11 +653,11 @@ static void sky_texture_precompute(SunSky *sunsky,
 
   if (sky_model == 0) {
     SKY_single_scattering_precompute_sun(
-        sun_elevation, sun_size, altitude, air_density, dust_density, pixel_bottom, pixel_top);
+        sun_elevation, sun_size, altitude, air_density, aerosol_density, pixel_bottom, pixel_top);
   }
   else {
     SKY_multiple_scattering_precompute_sun(
-        sun_elevation, sun_size, altitude, air_density, dust_density, pixel_bottom, pixel_top);
+        sun_elevation, sun_size, altitude, air_density, aerosol_density, pixel_bottom, pixel_top);
   }
 
   /* Send data to svm_sky */
@@ -687,7 +687,7 @@ float SkyTextureNode::get_sun_average_radiance()
                                          angular_diameter,
                                          clamped_altitude,
                                          air_density,
-                                         dust_density,
+                                         aerosol_density,
                                          pix_bottom,
                                          pix_top);
   }
@@ -697,7 +697,7 @@ float SkyTextureNode::get_sun_average_radiance()
                                            angular_diameter,
                                            clamped_altitude,
                                            air_density,
-                                           dust_density,
+                                           aerosol_density,
                                            pix_bottom,
                                            pix_top);
   }
@@ -766,7 +766,7 @@ NODE_DEFINE(SkyTextureNode)
   SOCKET_FLOAT(sun_rotation, "Sun Rotation", 0.0f);
   SOCKET_FLOAT(altitude, "Altitude", 1.0f);
   SOCKET_FLOAT(air_density, "Air", 1.0f);
-  SOCKET_FLOAT(dust_density, "Dust", 1.0f);
+  SOCKET_FLOAT(aerosol_density, "Aerosol", 1.0f);
   SOCKET_FLOAT(ozone_density, "Ozone", 1.0f);
 
   SOCKET_IN_POINT(vector, "Vector", zero_float3(), SocketType::LINK_TEXTURE_GENERATED);
@@ -836,7 +836,7 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                          sun_rotation,
                          clamped_altitude,
                          air_density,
-                         dust_density);
+                         aerosol_density);
   /* precomputed texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
@@ -846,7 +846,7 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   /* precompute sky texture */
   if (handle.empty()) {
     unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
-        sky_model, sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
+        sky_model, sun_elevation, clamped_altitude, air_density, aerosol_density, ozone_density);
     handle = image_manager->add_image(std::move(loader), impar);
   }
 
@@ -897,7 +897,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
                          sun_rotation,
                          clamped_altitude,
                          air_density,
-                         dust_density);
+                         aerosol_density);
   /* precomputed texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
@@ -907,7 +907,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   /* precompute sky texture */
   {
     unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
-        sky_model, sun_elevation, clamped_altitude, air_density, dust_density, ozone_density);
+        sky_model, sun_elevation, clamped_altitude, air_density, aerosol_density, ozone_density);
     handle = image_manager->add_image(std::move(loader), impar);
   }
 

@@ -14,13 +14,13 @@ SkyLoader::SkyLoader(const int sky_model,
                      const float sun_elevation,
                      const float altitude,
                      const float air_density,
-                     const float dust_density,
+                     const float aerosol_density,
                      const float ozone_density)
     : sky_model(sky_model),
       sun_elevation(sun_elevation),
       altitude(altitude),
       air_density(air_density),
-      dust_density(dust_density),
+      aerosol_density(aerosol_density),
       ozone_density(ozone_density)
 {
 }
@@ -62,12 +62,12 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
                                                             sun_elevation,
                                                             altitude,
                                                             air_density,
-                                                            dust_density,
+                                                            aerosol_density,
                                                             ozone_density);
                  });
   }
   if (sky_model == 1) {
-    SKY_multiple_scattering_precompute_transmittance(air_density, dust_density, ozone_density);
+    SKY_multiple_scattering_precompute_transmittance(air_density, aerosol_density, ozone_density);
     parallel_for(blocked_range<size_t>(0, height, rows_per_task),
                  [&](const blocked_range<size_t> &r) {
                    SKY_multiple_scattering_precompute_texture(pixel_data,
@@ -78,7 +78,7 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
                                                               sun_elevation,
                                                               altitude,
                                                               air_density,
-                                                              dust_density,
+                                                              aerosol_density,
                                                               ozone_density);
                  });
   }
