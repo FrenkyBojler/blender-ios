@@ -1136,10 +1136,10 @@ inline void PassBase<T>::material_set(Manager &manager,
 
       ImageGPUTextures gputex;
       if (deferred_texture_loading) {
-        gputex = BKE_image_get_gpu_material_texture_try(tex->ima, iuser, use_tile_mapping);
+        gputex = BKE_image_acquire_gpu_material_texture_try(tex->ima, iuser, use_tile_mapping);
       }
       else {
-        gputex = BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
+        gputex = BKE_image_acquire_gpu_material_texture(tex->ima, iuser, use_tile_mapping);
       }
 
       if (*gputex.texture == nullptr) {

@@ -617,6 +617,21 @@ ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
                                                         ImageUser *iuser,
                                                         const bool use_tile_mapping);
 
+/* Variant of the above functions that increment the reference counter of the textures in a
+ * threadsafe manner. Expect caller to call BKE_image_release_gpu_texture after usage. */
+/* TODO(fclem): This should ultimately replace the usage of the `BKE_image_get_gpu_*` style of
+ * function. */
+GPUTexture *BKE_image_acquire_gpu_texture(Image *image, ImageUser *iuser);
+GPUTexture *BKE_image_acquire_gpu_viewer_texture(Image *image, ImageUser *iuser);
+ImageGPUTextures BKE_image_acquire_gpu_material_texture(Image *image,
+                                                        ImageUser *iuser,
+                                                        const bool use_tile_mapping);
+ImageGPUTextures BKE_image_acquire_gpu_material_texture_try(Image *image,
+                                                            ImageUser *iuser,
+                                                            const bool use_tile_mapping);
+
+void BKE_image_release_gpu_texture(GPUTexture *tex);
+
 /**
  * Is the alpha of the `GPUTexture` for a given image/ibuf premultiplied.
  */

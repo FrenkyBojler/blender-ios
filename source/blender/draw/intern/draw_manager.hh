@@ -283,12 +283,11 @@ class Manager {
   DataDebugOutput data_debug();
 
   /**
-   * Will acquire the texture using ref counting and release it after drawing. To be used for
-   * texture coming from blender Image.
+   * Will decrement the refcount of the texture after drawing. To be used for
+   * texture coming from blender Image. Increment is done by `BKE_image_acquire_gpu_*`.
    */
   void acquire_texture(GPUTexture *texture)
   {
-    GPU_texture_ref(texture);
     acquired_textures.append(texture);
   }
 

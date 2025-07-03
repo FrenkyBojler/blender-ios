@@ -29,7 +29,7 @@ Manager::~Manager()
 {
   for (GPUTexture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
-    GPU_texture_free(texture);
+    BKE_image_release_gpu_texture(texture);
   }
 }
 
@@ -51,7 +51,7 @@ void Manager::begin_sync(Object *object_active)
    * they should be released after each draw loop. But for now, mimics old DRW behavior. */
   for (GPUTexture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
-    GPU_texture_free(texture);
+    BKE_image_release_gpu_texture(texture);
   }
 
   acquired_textures.clear();

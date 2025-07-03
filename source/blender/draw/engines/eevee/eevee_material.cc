@@ -222,7 +222,7 @@ void MaterialModule::end_sync()
 
     const bool use_tile_mapping = tex->tiled_mapping_name[0];
     ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
-    ImageGPUTextures gputex = BKE_image_get_gpu_material_texture(
+    ImageGPUTextures gputex = BKE_image_acquire_gpu_material_texture(
         tex->ima, iuser, use_tile_mapping);
 
     /* Acquire the textures since they were not existing inside `PassBase::material_set()`. */
