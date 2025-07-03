@@ -21,7 +21,7 @@ float precise_angle(vector a, vector b)
   return 2.0 * atan2(length(a - b), length(a + b));
 }
 
-color sky_radiance_single_scattering(vector dir, float sky_data[10], string filename)
+color sky_radiance(vector dir, float sky_data[10], string filename)
 {
   /* definitions */
   float sun_elevation = sky_data[6];
@@ -119,5 +119,5 @@ shader node_sky_texture(
   if (use_mapping)
     p = transform(mapping, p);
 
-  Color = sky_radiance_single_scattering(p, sky_data, filename);
+  Color = sky_radiance(p, sky_data, filename);
 }
