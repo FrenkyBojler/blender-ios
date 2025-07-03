@@ -1069,7 +1069,7 @@ void uiTemplateImageSettings(uiLayout *layout,
             C, "settings_color_management", true, IFACE_("Color Management")))
     {
       panel->separator();
-      panel->row(true).prop(imfptr, "color_management", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+      panel->row(true).prop(imfptr, "color_management", UI_ITEM_R_EXPAND, " ", ICON_NONE);
 
       uiLayout *color_settings = &panel->column(true);
       if (BKE_imtype_requires_linear_float(imf->imtype)) {
