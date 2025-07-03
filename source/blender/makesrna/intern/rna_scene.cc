@@ -6489,10 +6489,10 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
        "Rec.2100 PQ",
        "Rec.2100 color space with Perceptual Quantizer HDR encoding"},
       {FFM_VIDEO_HDR_REC2100_HLG,
-       "REQ2020_HLG",
+       "REQ2100_HLG",
        0,
-       "Rec.2020 HLG",
-       "Rec.2020 color space with Hybrid-Log Gamma HDR encoding"},
+       "Rec.2100 HLG",
+       "Rec.2100 color space with Hybrid-Log Gamma HDR encoding"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
