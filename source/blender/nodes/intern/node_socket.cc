@@ -1179,15 +1179,11 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
         return {};
       }
       BKE_curvemapping_init(value.curve_mapping);
-      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
-      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForFloatCurve>(
-          *value.curve_mapping);
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_FLOAT)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
           nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE),
-          fn,
-          std::move(scope),
+          std::make_shared<ClosureMultiFunctionForFloatCurve>(*value.curve_mapping),
           std::move(default_input_values),
           std::nullopt,
           {});
@@ -1197,15 +1193,11 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
         return {};
       }
       BKE_curvemapping_init(value.curve_mapping);
-      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
-      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForVectorCurve>(
-          *value.curve_mapping);
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_VECTOR)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
           nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE),
-          fn,
-          std::move(scope),
+          std::make_shared<ClosureMultiFunctionForVectorCurve>(*value.curve_mapping),
           std::move(default_input_values),
           std::nullopt,
           {});
@@ -1215,15 +1207,11 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
         return {};
       }
       BKE_curvemapping_init(value.curve_mapping);
-      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
-      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForColorCurve>(
-          *value.curve_mapping);
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_RGBA)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
           nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE),
-          fn,
-          std::move(scope),
+          std::make_shared<ClosureMultiFunctionForColorCurve>(*value.curve_mapping),
           std::move(default_input_values),
           std::nullopt,
           {});
@@ -1232,15 +1220,11 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       if (!value.color_ramp) {
         return {};
       }
-      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
-      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForColorRamp>(
-          *value.color_ramp);
       Vector<const void *> default_input_values = {
           bke::node_socket_type_find_static(SOCK_FLOAT)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
           nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP),
-          fn,
-          std::move(scope),
+          std::make_shared<ClosureMultiFunctionForColorRamp>(*value.color_ramp),
           std::move(default_input_values),
           std::nullopt,
           {});

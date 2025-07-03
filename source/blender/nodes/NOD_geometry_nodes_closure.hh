@@ -82,8 +82,7 @@ class Closure : public ImplicitSharingMixin {
   }
 
   static ClosurePtr FromMultiFunction(std::shared_ptr<ClosureSignature> signature,
-                                      const mf::MultiFunction &multi_function,
-                                      std::unique_ptr<ResourceScope> scope,
+                                      std::shared_ptr<mf::MultiFunction> multi_function,
                                       Vector<const void *> default_input_values,
                                       std::optional<ClosureSourceLocation> source_location,
                                       std::shared_ptr<ClosureEvalLog> eval_log);
