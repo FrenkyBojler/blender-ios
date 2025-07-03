@@ -15,6 +15,10 @@ regular Blender build process, and only needs to be run when any of the YAML
 files change.
 """
 
+__all__ = (
+    "main",
+)
+
 import argparse
 from pathlib import Path
 import sys
