@@ -3790,7 +3790,7 @@ static PyObject *pyrna_struct_is_property_hidden(BPy_StructRNA *self, PyObject *
 PyDoc_STRVAR(
     /* Wrap. */
     pyrna_struct_is_property_readonly_doc,
-    ".. method:: is_property_readonly(property. /)\n"
+    ".. method:: is_property_readonly(property, /)\n"
     "\n"
     "   Check if a property is readonly.\n"
     "\n"
