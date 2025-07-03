@@ -217,7 +217,6 @@ typedef struct UserDef_Experimental {
   char use_extensions_debug;
   char use_recompute_usercount_on_save_debug;
   char write_legacy_blend_file_format;
-  char use_attribute_storage_write;
   char SANITIZE_AFTER_HERE;
   /* The following options are automatically sanitized (set to 0)
    * when the release cycle is not alpha. */
@@ -228,6 +227,7 @@ typedef struct UserDef_Experimental {
   char use_shader_node_previews;
   char use_bundle_and_closure_nodes;
   char use_socket_structure_type;
+  char use_vulkan_hdr;
   char _pad[4];
 } UserDef_Experimental;
 
@@ -1016,11 +1016,11 @@ typedef enum eNdof_Flag {
   NDOF_SHOULD_ROTATE = (1 << 5),
 
   // NDOF_UNUSED_6 = (1 << 6), /* Dirty. */
-
-  /* actually... users probably don't care about what the mode
-   * is called, just that it feels right */
-  /* zoom is up/down if this flag is set (otherwise forward/backward) */
-  NDOF_PAN_YZ_SWAP_AXIS = (1 << 7),
+  /**
+   * When set translation results in zoom being up/down otherwise forward/backward
+   * This also swaps Y/Z for rotation.
+   */
+  NDOF_SWAP_YZ_AXIS = (1 << 7),
   // NDOF_UNUSED_8 = (1 << 8), /* Dirty. */
   NDOF_ROTX_INVERT_AXIS = (1 << 9),
   NDOF_ROTY_INVERT_AXIS = (1 << 10),

@@ -26,6 +26,7 @@
 
 #include "ANIM_armature_iter.hh"
 #include "ANIM_bone_collections.hh"
+#include "WM_api.hh"
 
 #include "intern/bone_collections_internal.hh"
 
@@ -700,6 +701,7 @@ void ANIM_armature_bonecoll_remove_from_index(bArmature *armature, int index)
      * solo'ing should still be active on the armature. */
     ANIM_armature_refresh_solo_active(armature);
   }
+  WM_main_add_notifier(NC_OBJECT | ND_BONE_COLLECTION, nullptr);
 }
 
 void ANIM_armature_bonecoll_remove(bArmature *armature, BoneCollection *bcoll)
@@ -996,8 +998,9 @@ void ANIM_armature_bonecoll_reconstruct(bArmature *armature)
 static bool any_bone_collection_visible(const bArmature *armature,
                                         const ListBase /*BoneCollectionRef*/ *collection_refs)
 {
-  /* Special case: when a bone is not in any collection, it is visible. */
-  if (BLI_listbase_is_empty(collection_refs)) {
+  /* Special case: Hide bone when solo is active and it doesn't belong to any collection, see:
+   * #137090. */
+  if (BLI_listbase_is_empty(collection_refs) && !(armature->flag & ARM_BCOLL_SOLO_ACTIVE)) {
     return true;
   }
 

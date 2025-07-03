@@ -23,6 +23,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -658,7 +659,7 @@ static void spreadsheet_footer_region_draw(const bContext *C, ARegion *region)
                                      1,
                                      0,
                                      style);
-  uiItemSpacer(layout);
+  layout->separator_spacer();
   layout->alignment_set(blender::ui::LayoutAlign::Right);
   layout->label(stats_str, ICON_NONE);
   UI_block_layout_resolve(block, nullptr, nullptr);

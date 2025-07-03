@@ -250,10 +250,9 @@ class _draw_tool_settings_context_mode:
         if brush is None:
             return False
 
-        tool_settings = context.tool_settings
         capabilities = brush.sculpt_capabilities
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
 
         if capabilities.has_color:
             row = layout.row(align=True)
@@ -393,10 +392,9 @@ class _draw_tool_settings_context_mode:
 
         BrushAssetShelf.draw_popup_selector(layout, context, brush)
 
-        tool_settings = context.tool_settings
         capabilities = brush.sculpt_capabilities
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
 
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
@@ -487,7 +485,7 @@ class _draw_tool_settings_context_mode:
 
         if brush.gpencil_vertex_brush_type not in {'BLUR', 'AVERAGE', 'SMEAR'}:
             layout.separator(factor=0.4)
-            ups = context.tool_settings.unified_paint_settings
+            ups = paint.unified_paint_settings
             prop_owner = ups if ups.use_unified_color else brush
             layout.prop_with_popover(prop_owner, "color", text="", panel="TOPBAR_PT_grease_pencil_vertex_color")
 
@@ -1382,6 +1380,7 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
 
 class VIEW3D_MT_mirror(Menu):
     bl_label = "Mirror"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout
@@ -3124,7 +3123,7 @@ class VIEW3D_MT_object_context_menu(Menu):
         if view and view.local_view:
             layout.operator("view3d.localview_remove_from")
         else:
-            layout.operator("object.move_to_collection")
+            layout.menu("OBJECT_MT_move_to_collection")
 
         layout.separator()
 
@@ -3260,8 +3259,8 @@ class VIEW3D_MT_object_collection(Menu):
     def draw(self, _context):
         layout = self.layout
 
-        layout.operator("object.move_to_collection")
-        layout.operator("object.link_to_collection")
+        layout.menu("OBJECT_MT_move_to_collection")
+        layout.menu("OBJECT_MT_link_to_collection")
 
         layout.separator()
 
@@ -3603,7 +3602,10 @@ class VIEW3D_MT_paint_weight(Menu):
 
         layout.separator()
 
-        layout.operator("object.vertex_group_mirror", text="Mirror")
+        # Using default context for 'flipping along axis', to differentiate from 'symmetrizing' (i.e.
+        # 'mirrored copy').
+        # See https://projects.blender.org/blender/blender/issues/43295#issuecomment-1400465
+        layout.operator("object.vertex_group_mirror", text="Mirror", text_ctxt=i18n_contexts.default)
         layout.operator("object.vertex_group_invert", text="Invert")
         layout.operator("object.vertex_group_clean", text="Clean")
 
@@ -8380,7 +8382,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
-            col.menu("VIEW3D_MT_mirror", text="Mirror")
+            col.menu("VIEW3D_MT_mirror", text="Mirror", text_ctxt=i18n_contexts.operator_default)
 
             col.separator()
 
@@ -8491,10 +8493,11 @@ class VIEW3D_PT_greasepencil_sculpt_context_menu(Panel):
 
     def draw(self, context):
         tool_settings = context.tool_settings
-        brush = tool_settings.gpencil_sculpt_paint.brush
+        paint = tool_settings.gpencil_sculpt_paint
+        brush = paint.brush
         layout = self.layout
 
-        ups = tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         size_owner = ups if ups.use_unified_size else brush
         strength_owner = ups if ups.use_unified_strength else brush
         layout.prop(size_owner, "size", text="")
@@ -8528,8 +8531,8 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'REPLACE'}:
             split = layout.split(factor=0.1)
-            split.prop(tool_settings.unified_paint_settings, "color", text="")
-            split.template_color_picker(tool_settings.unified_paint_settings, "color", value_slider=True)
+            split.prop(settings.unified_paint_settings, "color", text="")
+            split.template_color_picker(settings.unified_paint_settings, "color", value_slider=True)
 
             col = layout.column()
             col.separator()
@@ -8537,7 +8540,7 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
             col.separator()
 
         row = col.row(align=True)
-        row.prop(tool_settings.unified_paint_settings, "size", text="Radius")
+        row.prop(settings.unified_paint_settings, "size", text="Radius")
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
         if brush.gpencil_vertex_brush_type in {'DRAW', 'BLUR', 'SMEAR'}:
@@ -8802,7 +8805,8 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
     def draw(self, context):
         layout = self.layout
 
-        brush = context.tool_settings.sculpt.brush
+        paint = context.tool_settings.sculpt
+        brush = paint.brush
         capabilities = brush.sculpt_capabilities
 
         if capabilities.has_color:
@@ -8811,7 +8815,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
             UnifiedPaintPanel.prop_unified_color_picker(split, context, brush, "color", value_slider=True)
             layout.prop(brush, "blend", text="")
 
-        ups = context.tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
@@ -8895,7 +8899,7 @@ class TOPBAR_PT_grease_pencil_vertex_color(Panel):
             paint = context.scene.tool_settings.gpencil_vertex_paint
         use_unified_paint = (ob.mode != 'PAINT_GREASE_PENCIL')
 
-        ups = context.tool_settings.unified_paint_settings
+        ups = paint.unified_paint_settings
         brush = paint.brush
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 

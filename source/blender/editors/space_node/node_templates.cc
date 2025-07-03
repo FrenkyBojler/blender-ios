@@ -38,7 +38,7 @@
 #include "NOD_socket.hh"
 
 #include "../interface/interface_intern.hh" /* XXX bad level */
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "ED_node.hh" /* own include */
 #include "node_intern.hh"
@@ -744,8 +744,8 @@ static void ui_node_draw_recursive(uiLayout &layout,
                                                   "";
   PanelLayout panel_layout = layout.panel(&C, panel_id.c_str(), panel_decl.default_collapsed);
   if (panel_toggle_decl) {
-    uiLayoutSetPropSep(panel_layout.header, false);
-    uiLayoutSetPropDecorate(panel_layout.header, false);
+    panel_layout.header->use_property_split_set(false);
+    panel_layout.header->use_property_decorate_set(false);
     PointerRNA toggle_ptr = RNA_pointer_create_discrete(
         &ntree.id, &RNA_NodeSocket, &node.socket_by_decl(*panel_toggle_decl));
     panel_layout.header->prop(&toggle_ptr,
@@ -810,7 +810,7 @@ static void ui_node_draw_node(
   else {
     if (node.typeinfo->draw_buttons) {
       if (node.type_legacy != NODE_GROUP) {
-        uiLayoutSetPropSep(&layout, true);
+        layout.use_property_split_set(true);
         node.typeinfo->draw_buttons(&layout, &C, &nodeptr);
       }
     }
@@ -854,7 +854,7 @@ static void ui_node_draw_input(uiLayout &layout,
 
   uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(row);
   /* Decorations are added manually here. */
-  uiLayoutSetPropDecorate(row, false);
+  row->use_property_decorate_set(false);
   /* Empty decorator item for alignment. */
   bool add_dummy_decorator = false;
 
@@ -918,8 +918,7 @@ static void ui_node_draw_input(uiLayout &layout,
         case SOCK_RGBA:
           sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           if (split_wrapper.decorate_column) {
-            uiItemDecoratorR(
-                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+            split_wrapper.decorate_column->decorator(&inputptr, "default_value", RNA_NO_INDEX);
           }
           break;
         case SOCK_STRING: {
@@ -934,8 +933,7 @@ static void ui_node_draw_input(uiLayout &layout,
             sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           }
           if (split_wrapper.decorate_column) {
-            uiItemDecoratorR(
-                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+            split_wrapper.decorate_column->decorator(&inputptr, "default_value", RNA_NO_INDEX);
           }
           break;
         }
@@ -952,7 +950,7 @@ static void ui_node_draw_input(uiLayout &layout,
   }
 
   if (add_dummy_decorator && split_wrapper.decorate_column) {
-    uiItemDecoratorR(split_wrapper.decorate_column, nullptr, std::nullopt, 0);
+    split_wrapper.decorate_column->decorator(nullptr, std::nullopt, 0);
   }
 
   node_socket_add_tooltip(ntree, input, *row);
