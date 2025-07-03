@@ -306,10 +306,7 @@ static ImBuf *do_hlg_transform(const ImBuf *input_ibuf)
     return ibuf;
   }
 
-  /* Convert from the current floating point buffer colorspace to Rec.2100-HLG, 1000 nit.
-   * Note that it uses Rec. 2100 HLG reference OETF which is slightly different from ARIB STD-B67
-   * so the results might be slightly different compared to FFmpeg command line or other software.
-   */
+  /* Convert from the current floating point buffer colorspace to Rec.2100-HLG, 1000 nit. */
   IMB_colormanagement_transform_float(ibuf->float_buffer.data,
                                       ibuf->x,
                                       ibuf->y,
