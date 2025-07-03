@@ -2792,7 +2792,9 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
-static wmOperatorStatus ui_view_item_select_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
+static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
 {
   const wmWindow &win = *CTX_wm_window(C);
   const ARegion &region = *CTX_wm_region(C);

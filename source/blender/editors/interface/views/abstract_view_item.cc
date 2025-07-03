@@ -62,7 +62,7 @@ bool AbstractViewItem::set_state_active()
   }
 
   /* Deactivate other items in the view. */
-  get_view().foreach_view_item([&](auto &item) { item.deactivate(); });
+  this->get_view().foreach_view_item([](auto &item) { item.deactivate(); });
 
   is_active_ = true;
   return true;
