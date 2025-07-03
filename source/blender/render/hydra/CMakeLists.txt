@@ -82,7 +82,6 @@ set(SRC
   camera.cc
   engine.cc
   final_engine.cc
-  camera_delegate.hh
   light_tasks_delegate.cc
   preview_engine.cc
   python.cc
@@ -92,7 +91,6 @@ set(SRC
   camera.hh
   engine.hh
   final_engine.hh
-  camera_delegate.cc
   light_tasks_delegate.hh
   preview_engine.hh
   render_task_delegate.hh

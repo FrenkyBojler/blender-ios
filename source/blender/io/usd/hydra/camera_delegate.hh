@@ -5,25 +5,24 @@
 #pragma once
 
 #include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
+#include "DNA_camera_types.h"
 
 struct Scene;
 
-namespace blender::render::hydra {
+namespace blender::io::hydra {
 
 class CameraDelegate : public pxr::HdxFreeCameraSceneDelegate {
  public:
   CameraDelegate(pxr::HdRenderIndex *render_index, pxr::SdfPath const &delegate_id);
   ~CameraDelegate() override = default;
 
-  void set_camera_params(const Scene *scene);
+  void sync(const Scene *scene);
+  void update(const ID *camera);
 
   pxr::VtValue GetCameraParamValue(pxr::SdfPath const &id, pxr::TfToken const &key) override;
 
  private:
-  void set_camera_param_value(const pxr::TfToken &key, pxr::VtValue val);
-
- private:
-  std::unordered_map<pxr::TfToken, pxr::VtValue, pxr::TfToken::HashFunctor> custom_attributes_;
+  const Camera *camera_{nullptr};
 };
 
-}  // namespace blender::render::hydra
+}  // namespace blender::io::hydra

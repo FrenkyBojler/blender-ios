@@ -14,11 +14,11 @@
 #include <pxr/usd/usd/stage.h>
 #include <pxr/usdImaging/usdImaging/delegate.h>
 
+#include "hydra/camera_delegate.hh"
 #include "hydra/hydra_scene_delegate.hh"
 #include "hydra/settings.hh"
 #include "hydra/usd_scene_delegate.hh"
 
-#include "camera_delegate.hh"
 #include "light_tasks_delegate.hh"
 #include "render_task_delegate.hh"
 
@@ -44,11 +44,11 @@ class Engine {
   pxr::HdPluginRenderDelegateUniqueHandle render_delegate_;
   std::unique_ptr<pxr::HdRenderIndex> render_index_;
 
+  std::unique_ptr<io::hydra::CameraDelegate> free_camera_delegate_;
   std::unique_ptr<io::hydra::HydraSceneDelegate> hydra_scene_delegate_;
   std::unique_ptr<io::hydra::USDSceneDelegate> usd_scene_delegate_;
 
   std::unique_ptr<RenderTaskDelegate> render_task_delegate_;
-  std::unique_ptr<CameraDelegate> free_camera_delegate_;
   std::unique_ptr<LightTasksDelegate> light_tasks_delegate_;
   std::unique_ptr<pxr::HdEngine> engine_;
 
