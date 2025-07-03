@@ -326,23 +326,18 @@ void ZeroResource(void *address_in_arg_buffer, int index = 0)
 template<class T> void WriteResource(void *address_in_arg_buffer, T resource, int index = 0)
 {
   ZeroResource(address_in_arg_buffer, index);
-  if (@available(macos 13.0, *)) {
-    static_assert(sizeof(MTLResourceID) == sizeof(uint64_t), "Bad size assumption");
-    MTLResourceID *pptr = (MTLResourceID *)address_in_arg_buffer;
-    if (resource) {
-      pptr[index] = resource.gpuResourceID;
-    }
+  uint64_t *pptr = (uint64_t *)address_in_arg_buffer;
+  if (resource) {
+    pptr[index] = gpuResourceID(resource);
   }
 }
 
 template<> void WriteResource(void *address_in_arg_buffer, id<MTLBuffer> buffer, int index)
 {
   ZeroResource(address_in_arg_buffer, index);
-  if (@available(macos 13.0, *)) {
-    uint64_t *pptr = (uint64_t *)address_in_arg_buffer;
-    if (buffer) {
-      pptr[index] = buffer.gpuAddress;
-    }
+  uint64_t *pptr = (uint64_t *)address_in_arg_buffer;
+  if (buffer) {
+    pptr[index] = gpuAddress(buffer);
   }
 }
 
@@ -358,37 +353,35 @@ id<MTLBuffer> PatchResource(void *address_in_arg_buffer, int index = 0)
 
 void MetalDeviceQueue::init_execution()
 {
-  /* Populate textures, BLAS array, and synchronize memory copies before executing task. */
-  if (@available(macOS 13.0, *)) {
-    /* Populate blas_array. */
-    MTLResourceID *blas_array = (MTLResourceID *)metal_device_->blas_buffer.contents;
-    for (uint64_t slot = 0; slot < metal_device_->blas_array.size(); ++slot) {
-      WriteResource(blas_array, metal_device_->blas_array[slot], slot);
-    }
+  /* Populate blas_array. */
+  uint64_t *blas_array = (uint64_t *)metal_device_->blas_buffer.contents;
+  for (uint64_t slot = 0; slot < metal_device_->blas_array.size(); ++slot) {
+    WriteResource(blas_array, metal_device_->blas_array[slot], slot);
+  }
 
-    device_vector<TextureInfo> &texture_info = metal_device_->texture_info;
-    id<MTLBuffer> &texture_bindings = metal_device_->texture_bindings;
-    std::vector<id<MTLResource>> &texture_slot_map = metal_device_->texture_slot_map;
+  device_vector<TextureInfo> &texture_info = metal_device_->texture_info;
+  id<MTLBuffer> &texture_bindings = metal_device_->texture_bindings;
+  std::vector<id<MTLResource>> &texture_slot_map = metal_device_->texture_slot_map;
 
-    /* Ensure texture_info is allocated before populating. */
-    texture_info.copy_to_device();
+  /* Ensure texture_info is allocated before populating. */
+  texture_info.copy_to_device();
 
-    /* Populate texture bindings. */
-    MTLResourceID *bindings = (MTLResourceID *)texture_bindings.contents;
-    memset(bindings, 0, texture_bindings.length);
-    for (int slot = 0; slot < texture_info.size(); ++slot) {
-      if (texture_slot_map[slot]) {
-        if (metal_device_->is_texture(texture_info[slot])) {
-          WriteResource(bindings, id<MTLTexture>(texture_slot_map[slot]), slot);
-        }
-        else {
-          /* The GPU address of a 1D buffer texture is written into the slot data field. */
-          WriteResource(&texture_info[slot].data, id<MTLBuffer>(texture_slot_map[slot]), slot);
-        }
+  /* Populate texture bindings. */
+  uint64_t *bindings = (uint64_t *)texture_bindings.contents;
+  memset(bindings, 0, texture_bindings.length);
+  for (int slot = 0; slot < texture_info.size(); ++slot) {
+    if (texture_slot_map[slot]) {
+      if (metal_device_->is_texture(texture_info[slot])) {
+        WriteResource(bindings, id<MTLTexture>(texture_slot_map[slot]), slot);
+      }
+      else {
+        /* The GPU address of a 1D buffer texture is written into the slot data field. */
+        WriteResource(&texture_info[slot].data, id<MTLBuffer>(texture_slot_map[slot]), slot);
       }
     }
   }
 
+  /* Synchronize memory copies. */
   synchronize();
 }
 
