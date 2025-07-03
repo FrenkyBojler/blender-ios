@@ -70,9 +70,9 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
             return import_svg.load(self, context, filepath=self.filepath)
 
 
-class IMPORT_FH_svg_as_curves(bpy.types.FileHandler):
-    bl_idname = "IMPORT_FH_svg_as_curves"
-    bl_label = "Import SVG as Curves"
+class IO_FH_svg_as_curves(bpy.types.FileHandler):
+    bl_idname = "IO_FH_svg_as_curves"
+    bl_label = "SVG as Curves"
     bl_import_operator = "import_curve.svg"
     bl_file_extensions = ".svg"
 
@@ -88,7 +88,7 @@ def menu_func_import(self, context):
 
 classes = [
     ImportSVG,
-    IMPORT_FH_svg_as_curves,
+    IO_FH_svg_as_curves,
 ]
 
 
