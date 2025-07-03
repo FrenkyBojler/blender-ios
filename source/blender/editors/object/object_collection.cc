@@ -574,19 +574,11 @@ static wmOperatorStatus collection_exporter_move_exec(bContext *C, wmOperator *o
 {
   using namespace blender;
   Collection *collection = CTX_data_collection(C);
-  int from, to;
-  int dir = RNA_enum_get(op->ptr, "direction");
+  const int dir = RNA_enum_get(op->ptr, "direction");
+  const int from = collection->active_exporter_index;
 
-  from = collection->active_exporter_index;
-
-  /* down */
-  if (dir == 1) {
-    to = from + 1;
-  }
-  /* up */
-  else {
-    to = from - 1;
-  }
+  /* Move Up/down to index. */
+  const int to = from + dir;
 
   if (!BKE_collection_exporter_move(collection, from, to)) {
     return OPERATOR_CANCELLED;

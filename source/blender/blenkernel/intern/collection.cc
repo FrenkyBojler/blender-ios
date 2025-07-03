@@ -1489,10 +1489,7 @@ bool BKE_collection_exporter_move(Collection *collection, const int from, const 
     return false;
   }
 
-  if (!BLI_listbase_move_index(&collection->exporters, from, to)) {
-    return false;
-  }
-  return true;
+  return BLI_listbase_move_index(&collection->exporters, from, to);
 }
 
 static void collection_exporter_copy(Collection *collection, CollectionExport *data)
