@@ -655,10 +655,10 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   BMesh *bm = em->bm;
   BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   float width, height, density;
-  if(custom_density){
+  if (custom_density) {
     density = RNA_float_get(op->ptr, "density");
   }
-  else{
+  else {
     float uv_area, object_area;
     BMFace *f;
     BMIter iter;
@@ -668,15 +668,14 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
         object_area += BM_face_calc_area(f);
       }
     }
-    density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) /
-                              object_area) /
-                         scene->unit.scale_length;
+    density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) / object_area) /
+              scene->unit.scale_length;
   }
-  if(custom_resolution){
+  if (custom_resolution) {
     width = RNA_float_get(op->ptr, "width");
     height = RNA_float_get(op->ptr, "height");
   }
-  else{
+  else {
     width = region->v2d.tot.xmax;
     height = region->v2d.tot.ymax;
   }
@@ -715,8 +714,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
       }
       cent[0] = (max[0] - min[0]) / 2.0;
       cent[1] = (max[1] - min[1]) / 2.0;
-      float island_density = sqrt((width * height * uv_area) /
-                                  object_area) /
+      float island_density = sqrt((width * height * uv_area) / object_area) /
                              scene->unit.scale_length;
 
       float scale = density / island_density;
@@ -742,7 +740,8 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   }
   return OPERATOR_FINISHED;
 }
-static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op){
+static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op)
+{
   uiLayout *layout = op->layout;
 
   layout->use_property_split_set(true);
@@ -755,22 +754,21 @@ static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op){
   col = &layout->column(true);
   col->prop(&ptr, "use_custom_density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   col->separator();
-  if(RNA_boolean_get(op->ptr, "use_custom_density")){
+  if (RNA_boolean_get(op->ptr, "use_custom_density")) {
     col->prop(&ptr, "density", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-  else{
+  else {
     col->prop(&ptr, "use_selected_faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->separator();
     col->prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   col->separator();
   col->prop(&ptr, "use_custom_resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  if(RNA_boolean_get(op->ptr, "use_custom_resolution")){
+  if (RNA_boolean_get(op->ptr, "use_custom_resolution")) {
     col->prop(&ptr, "width", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     col->separator();
     col->prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
-
 }
 static void UV_OT_apply_texel_density(wmOperatorType *ot)
 {
@@ -806,31 +804,19 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
                 0.0f,
                 FLT_MAX);
 
-
-  RNA_def_boolean(
-      ot->srna, "use_selected_faces", false, "Selected Faces", "Only use selected faces on the active object");
+  RNA_def_boolean(ot->srna,
+                  "use_selected_faces",
+                  false,
+                  "Selected Faces",
+                  "Only use selected faces on the active object");
 
   RNA_def_enum(ot->srna, "lock", lock_items, UV_LOCK_NONE, "Lock Axis", "Lock axis scaling");
- RNA_def_boolean(
+  RNA_def_boolean(
       ot->srna, "use_custom_resolution", false, "Custom Resolution", "Custom Texture Resolution");
-  RNA_def_float(ot->srna,
-                "width",
-                1024.0f,
-                0.0f,
-                FLT_MAX,
-                "Pixel Width",
-                "Pixel Width",
-                0.0f,
-                FLT_MAX);
-  RNA_def_float(ot->srna,
-                "height",
-                1024.0f,
-                0.0f,
-                FLT_MAX,
-                "Pixel Height",
-                "Pixel Height",
-                0.0f,
-                FLT_MAX);
+  RNA_def_float(
+      ot->srna, "width", 1024.0f, 0.0f, FLT_MAX, "Pixel Width", "Pixel Width", 0.0f, FLT_MAX);
+  RNA_def_float(
+      ot->srna, "height", 1024.0f, 0.0f, FLT_MAX, "Pixel Height", "Pixel Height", 0.0f, FLT_MAX);
 }
 
 /** \} */
