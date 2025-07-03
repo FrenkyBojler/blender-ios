@@ -40,7 +40,7 @@ def set_view3d_context_override(context_override):
                 context_override["region"] = region
 
 
-def prepare_sculpt_scene(context: any, mode: SculptMode):
+def prepare_sculpt_scene(context: any, mode: SculptMode, subdivision_level=3):
     """
     Prepare a clean state of the scene suitable for benchmarking
 
@@ -97,7 +97,7 @@ def prepare_sculpt_scene(context: any, mode: SculptMode):
     bpy.ops.object.mode_set(mode='SCULPT')
 
     if mode == SculptMode.MULTIRES:
-        bpy.ops.object.subdivision_set(level=3)
+        bpy.ops.object.subdivision_set(level=subdivision_level)
     elif mode == SculptMode.DYNTOPO:
         bpy.ops.sculpt.dynamic_topology_toggle()
 
@@ -245,6 +245,38 @@ def _run_undo_memory_test(args: dict):
             return 0
 
 
+def _run_subdivide_test(_args: dict):
+    import bpy
+    import time
+    context = bpy.context
+
+    timeout = 10
+    total_time_start = time.time()
+
+    # Create an undo stack explicitly. This isn't created by default in background mode.
+    bpy.ops.ed.undo_push()
+
+    min_measurements = 5
+    max_measurements = 100
+
+    measurements = []
+    while True:
+        prepare_sculpt_scene(context, SculptMode.MULTIRES, subdivision_level=2)
+        context_override = context.copy()
+        set_view3d_context_override(context_override)
+        with context.temp_override(**context_override):
+            start = time.time()
+            bpy.ops.object.multires_subdivide(modifier="Multires")
+            measurements.append(time.time() - start)
+
+        if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
+            break
+        if len(measurements) >= max_measurements:
+            break
+
+    return sum(measurements) / len(measurements)
+
+
 class SculptBrushTest(api.Test):
     def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
         self.filepath = filepath
@@ -314,6 +346,63 @@ class SculptUndoMemoryTest(api.Test):
         }
 
 
+class SculptMultiresSubdivideTest(api.Test):
+    def __init__(self, filepath: pathlib.Path):
+        self.filepath = filepath
+
+    def name(self):
+        return "multires_subdivide_2_to_3"
+
+    def category(self):
+        return "sculpt"
+
+    def run(self, env, _device_id):
+        result, _ = env.run_in_blender(_run_subdivide_test, {}, [self.filepath])
+
+        return {'time1': result}
+
+
+class SculptUndoMemoryTest(api.Test):
+    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
+        self.filepath = filepath
+        self.mode = mode
+        self.brush_type = brush_type
+
+    def name(self):
+        return "{}_undo_memory_{}".format(self.mode.name.lower(), self.brush_type.name.lower())
+
+    def category(self):
+        return "sculpt"
+
+    def run(self, env, _device_id):
+        args = {
+            'mode': self.mode,
+            'brush_type': self.brush_type,
+        }
+
+        result, _ = env.run_in_blender(_run_undo_memory_test, args, [self.filepath])
+
+        return {
+            'memory_mb': result
+        }
+
+
+class SculptMultiresSubdivideTest(api.Test):
+    def __init__(self, filepath: pathlib.Path):
+        self.filepath = filepath
+
+    def name(self):
+        return "multires_subdivide_2_to_3"
+
+    def category(self):
+        return "sculpt"
+
+    def run(self, env, _device_id):
+        result, _ = env.run_in_blender(_run_subdivide_test, {}, [self.filepath])
+
+        return {'time': result}
+
+
 def generate(env):
     filepaths = env.find_blend_files('sculpt/*')
     # For now, we only expect there to ever be a single file to use as the basis for generating other brush tests
@@ -324,4 +413,5 @@ def generate(env):
                     for mode in SculptMode
                     for brush_type in BrushType]
 
-    return brush_tests + bvh_tests + memory_tests
+    subdivision_tests = [SculptMultiresSubdivideTest(filepaths[0])]
+    return brush_tests + bvh_tests + memory_tests + subdivision_tests
