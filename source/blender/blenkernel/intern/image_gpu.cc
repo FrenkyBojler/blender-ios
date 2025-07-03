@@ -533,7 +533,7 @@ static ImageGPUTextures image_acquire_gpu_texture(Image *ima,
   if (gputex.texture && *gputex.texture) {
     GPU_texture_ref(*gputex.texture);
   }
-  if (gputex.tile_mapping && gputex.tile_mapping) {
+  if (gputex.tile_mapping && *gputex.tile_mapping) {
     GPU_texture_ref(*gputex.tile_mapping);
   }
 
