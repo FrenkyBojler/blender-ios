@@ -8440,7 +8440,8 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
         brush = settings.brush
         gp_settings = brush.gpencil_settings
         ups = tool_settings.unified_paint_settings
-        brush_prop_owner = ups if ups.use_unified_size else brush
+        size_prop_owner = ups if ups.use_unified_size else brush
+        strength_prop_owner = ups if ups.use_unified_strength else brush
 
         is_pin_vertex = gp_settings.brush_draw_mode == 'VERTEXCOLOR'
         is_vertex = settings.color_mode == 'VERTEXCOLOR' or brush.gpencil_tool == 'TINT' or is_pin_vertex
@@ -8456,21 +8457,23 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
             col.separator()
 
         if brush.gpencil_tool not in {'FILL', 'CUTTER', 'ERASE'}:
-            if (brush.use_locked_size == 'VIEW'):
+            if brush.use_locked_size == 'VIEW':
                 row = layout.row(align=True)
-                row.prop(brush_prop_owner, "size", slider=True)
+                row.prop(size_prop_owner, "size", slider=True)
                 row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
                 row.prop(ups, "use_unified_size", text="", icon='BRUSHES_ALL')
             else:
-                layout.prop(brush, "unprojected_radius", text="Size", slider=True)
+                row = layout.row(align=True)
+                row.prop(brush, "unprojected_radius", text="Size", slider=True)
+                row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         if brush.gpencil_tool == 'ERASE':
             row = layout.row(align=True)
-            row.prop(brush_prop_owner, "size", slider=True)
+            row.prop(size_prop_owner, "size", slider=True)
             row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
             row.prop(ups, "use_unified_size", text="", icon='BRUSHES_ALL')
         if brush.gpencil_tool not in {'ERASE', 'FILL', 'CUTTER'}:
             row = layout.row(align=True)
-            row.prop(brush_prop_owner, "strength", slider=True)
+            row.prop(strength_prop_owner, "strength", slider=True)
             row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
             row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
@@ -8506,8 +8509,14 @@ class VIEW3D_PT_greasepencil_sculpt_context_menu(Panel):
         ups = tool_settings.unified_paint_settings
         size_owner = ups if ups.use_unified_size else brush
         strength_owner = ups if ups.use_unified_strength else brush
-        layout.prop(size_owner, "size", text="")
-        layout.prop(strength_owner, "strength", text="")
+        row = layout.row(align=True)
+        row.prop(size_owner, "size", text="")
+        row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_size", text="", icon='BRUSHES_ALL')
+        row = layout.row(align=True)
+        row.prop(strength_owner, "strength", text="")
+        row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         layer = context.object.data.layers.active
 
@@ -8550,9 +8559,12 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
         if brush.gpencil_vertex_tool in {'DRAW', 'BLUR', 'SMEAR'}:
+            ups = tool_settings.unified_paint_settings
+            strength_owner = ups if ups.use_unified_strength else brush
             row = layout.row(align=True)
-            row.prop(brush, "strength", slider=True)
+            row.prop(strength_owner, "strength", text="")
             row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+            row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         layer = context.object.data.layers.active
 
