@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="UTF-8" standalone="no"?>
 <svg
    version="1.1"
-   viewBox="-10 0 1100.0001 1600"
+   viewBox="-10 0 1300 1600"
    id="svg1"
-   sodipodi:docname="cursor_5.svg"
-   width="1100"
+   sodipodi:docname="five.tf_Inter-Bold.svg"
+   width="1300"
    height="1600"
    inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
    xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
@@ -22,23 +22,23 @@
      inkscape:pageopacity="0.0"
      inkscape:pagecheckerboard="0"
      inkscape:deskcolor="#d1d1d1"
-     inkscape:zoom="0.25000001"
-     inkscape:cx="1074"
-     inkscape:cy="1362"
+     inkscape:zoom="0.19848633"
+     inkscape:cx="1234.3419"
+     inkscape:cy="1569.3776"
      inkscape:window-width="1920"
      inkscape:window-height="1009"
-     inkscape:window-x="1912"
+     inkscape:window-x="3832"
      inkscape:window-y="-8"
      inkscape:window-maximized="1"
      inkscape:current-layer="svg1" />
   <g
-     transform="matrix(1.0850601,0,0,-1.0271498,-175.99555,1554.9986)"
-     id="g2-97"
-     style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:47.36158352;stroke-dasharray:none;stroke-opacity:1">
+     transform="matrix(1.0258389,0,0,-1.0258389,-32.483781,1553.7096)"
+     id="g1"
+     style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:48.8946;stroke-dasharray:none;stroke-opacity:1">
     <path
        fill="currentColor"
-       d="M 646,-20 Q 515,-20 411,31.5 307,83 245,172.5 183,262 178,376 H 362 Q 371,276 452.5,211.5 534,147 646,147 q 90,0 160.5,42 70.5,42 110.5,116 40,74 40,168 0,96 -42,172 Q 873,721 800.5,764.5 728,808 634,808 565,808 494,786 423,764 379,730 l -178,22 88,738 h 784 V 1323 H 449 L 398,888 h 8 q 46,38 116,62.5 70,24.5 147,24.5 137,0 244,-64.5 Q 1020,846 1081.5,733 1143,620 1143,476 1143,333 1078.5,221 1014,109 902,44.5 790,-20 646,-20 Z"
-       id="path1-9"
-       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:47.36158352;stroke-dasharray:none;stroke-opacity:1" />
+       d="M 648,-20 Q 495,-20 375.5,36.5 256,93 186.5,192 117,291 113,418 h 298 q 4,-87 73,-141.5 69,-54.5 164,-54.5 112,0 184,74 72,74 72,192 0,119 -73.5,194.5 Q 757,758 643,758 576,758 514.5,731 453,704 419,660 l -274,48 71,782 h 902 V 1238 H 469 L 431,861 h 8 q 40,54 118.5,89 78.5,35 174.5,35 135,0 240.5,-63 Q 1078,859 1139,748.5 1200,638 1200,495 1200,345 1130.5,229 1061,113 936.5,46.5 812,-20 648,-20 Z"
+       id="path1"
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:48.8946;stroke-dasharray:none;stroke-opacity:1" />
   </g>
 </svg>

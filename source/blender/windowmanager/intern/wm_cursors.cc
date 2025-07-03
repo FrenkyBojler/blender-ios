@@ -594,9 +594,9 @@ static void wm_cursor_time_small(wmWindow *win, int nr)
 
 static void wm_cursor_time_rgba(wmWindow *win, int number)
 {
-  const float size = std::min(cursor_size(), 128.0f);
+  const float size = std::min(cursor_size() * 0.75f, 128.0f);
   const int digit_height = ceill(size);
-  const int digit_width = ceill(size * 0.75f);
+  const int digit_width = ceill(size * 0.82f);
 
   int number_test = number;
   int digits = 0;
