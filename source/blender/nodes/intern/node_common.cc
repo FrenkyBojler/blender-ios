@@ -374,7 +374,9 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
       case SOCK_CLOSURE: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueClosure>(io_socket);
         decl = &b.add_socket<decl::Closure>(name, identifier, in_out)
-                    .closure_type(ClosureSocketValueType(value.type));
+                    .closure_type(ClosureSocketValueType(value.type))
+                    .default_curve_mapping(value.curve_mapping)
+                    .default_color_ramp(value.color_ramp);
         break;
       }
       case SOCK_CUSTOM: {

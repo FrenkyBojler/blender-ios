@@ -2,11 +2,13 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_colorband.hh"
 #include "BLI_string.h"
 
 #include "NOD_socket_declarations.hh"
 #include "NOD_socket_declarations_geometry.hh"
 
+#include "BKE_colortools.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_node_runtime.hh"
 
@@ -670,6 +672,12 @@ bNodeSocket &Closure::build(bNodeTree &ntree, bNode &node) const
   this->set_common_flags(socket);
   bNodeSocketValueClosure &value = *(bNodeSocketValueClosure *)socket.default_value;
   value.type = this->closure_type;
+  if (this->default_curve_mapping) {
+    value.curve_mapping = BKE_curvemapping_copy(this->default_curve_mapping.get());
+  }
+  if (this->default_color_ramp) {
+    value.color_ramp = BKE_colorband_copy(*this->default_color_ramp);
+  }
   return socket;
 }
 
@@ -706,6 +714,35 @@ bNodeSocket &Closure::update_or_build(bNodeTree &ntree, bNode &node, bNodeSocket
   auto &value = *static_cast<bNodeSocketValueClosure *>(socket.default_value);
   value.type = this->closure_type;
   return socket;
+}
+
+void Closure::CurveMappingDeleter::operator()(CurveMapping *curve_mapping) const
+{
+  BKE_curvemapping_free(curve_mapping);
+}
+
+void Closure::ColorRampDeleter::operator()(ColorBand *color_ramp) const
+{
+  MEM_freeN(color_ramp);
+}
+
+ClosureBuilder &ClosureBuilder::default_curve_mapping(const CurveMapping *curve_mapping)
+{
+  decl_->default_curve_mapping = std::unique_ptr<CurveMapping, Closure::CurveMappingDeleter>(
+      BKE_curvemapping_copy(curve_mapping));
+  return *this;
+}
+
+ClosureBuilder &ClosureBuilder::default_color_ramp(const ColorBand *color_ramp)
+{
+  if (color_ramp) {
+    decl_->default_color_ramp = std::unique_ptr<ColorBand, Closure::ColorRampDeleter>(
+        BKE_colorband_copy(*color_ramp));
+  }
+  else {
+    decl_->default_color_ramp.reset();
+  }
+  return *this;
 }
 
 /** \} */

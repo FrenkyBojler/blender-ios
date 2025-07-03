@@ -272,6 +272,16 @@ class Closure : public SocketDeclaration {
 
   ClosureSocketValueType closure_type = CLOSURE_SOCKET_VALUE_TYPE_NONE;
 
+  struct CurveMappingDeleter {
+    void operator()(CurveMapping *curve_mapping) const;
+  };
+  struct ColorRampDeleter {
+    void operator()(ColorBand *color_ramp) const;
+  };
+
+  std::unique_ptr<CurveMapping, CurveMappingDeleter> default_curve_mapping;
+  std::unique_ptr<ColorBand, ColorRampDeleter> default_color_ramp;
+
   friend ClosureBuilder;
 
   using Builder = ClosureBuilder;
@@ -285,6 +295,8 @@ class Closure : public SocketDeclaration {
 class ClosureBuilder : public SocketDeclarationBuilder<Closure> {
  public:
   ClosureBuilder &closure_type(ClosureSocketValueType type);
+  ClosureBuilder &default_curve_mapping(const CurveMapping *curve_mapping);
+  ClosureBuilder &default_color_ramp(const ColorBand *color_ramp);
 };
 
 class IDSocketDeclaration : public SocketDeclaration {
