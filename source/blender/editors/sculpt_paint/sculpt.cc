@@ -59,6 +59,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
@@ -2158,16 +2159,16 @@ static float brush_flip(const Brush &brush, const blender::ed::sculpt_paint::Str
 static float brush_strength(const Sculpt &sd,
                             const blender::ed::sculpt_paint::StrokeCache &cache,
                             const float feather,
-                            const UnifiedPaintSettings &ups,
                             const PaintModeSettings & /*paint_mode_settings*/)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
+  const blender::bke::StrokeRuntime &stroke_runtime = *sd.paint.runtime.stroke_runtime;
 
   /* Primary strength input; square it to make lower values more sensitive. */
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
   const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
-  float overlap = ups.overlap_factor;
+  float overlap = stroke_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
    * normalized diameter. */
 
@@ -2989,10 +2990,9 @@ namespace blender::ed::sculpt_paint {
 
 static void dynamic_topology_update(const Depsgraph &depsgraph,
                                     const Scene & /*scene*/,
-                                    const Sculpt &sd,
+                                    Sculpt &sd,
                                     Object &ob,
                                     const Brush &brush,
-                                    UnifiedPaintSettings & /*ups*/,
                                     PaintModeSettings & /*paint_mode_settings*/)
 {
   SculptSession &ss = *ob.sculpt;
@@ -3178,10 +3178,9 @@ static void push_undo_nodes(const Depsgraph &depsgraph,
 
 static void do_brush_action(const Depsgraph &depsgraph,
                             const Scene & /*scene*/,
-                            const Sculpt &sd,
+                            Sculpt &sd,
                             Object &ob,
                             const Brush &brush,
-                            UnifiedPaintSettings &ups,
                             PaintModeSettings &paint_mode_settings)
 {
   SculptSession &ss = *ob.sculpt;
@@ -3421,10 +3420,11 @@ static void do_brush_action(const Depsgraph &depsgraph,
   /* Update average stroke position. */
   const float3 world_location = math::project_point(ob.object_to_world(), ss.cache->location);
 
-  add_v3_v3(ups.average_stroke_accum, world_location);
-  ups.average_stroke_counter++;
+  bke::StrokeRuntime &stroke_runtime = *sd.paint.runtime.stroke_runtime;
+  add_v3_v3(stroke_runtime.average_stroke_accum, world_location);
+  stroke_runtime.average_stroke_counter++;
   /* Update last stroke position. */
-  ups.last_stroke_valid = true;
+  stroke_runtime.last_stroke_valid = true;
 }
 
 }  // namespace blender::ed::sculpt_paint
@@ -3491,18 +3491,16 @@ namespace blender::ed::sculpt_paint {
 
 using BrushActionFunc = void (*)(const Depsgraph &depsgraph,
                                  const Scene &scene,
-                                 const Sculpt &sd,
+                                 Sculpt &sd,
                                  Object &ob,
                                  const Brush &brush,
-                                 UnifiedPaintSettings &ups,
                                  PaintModeSettings &paint_mode_settings);
 
 static void do_tiled(const Depsgraph &depsgraph,
                      const Scene &scene,
-                     const Sculpt &sd,
+                     Sculpt &sd,
                      Object &ob,
                      const Brush &brush,
-                     UnifiedPaintSettings &ups,
                      PaintModeSettings &paint_mode_settings,
                      const BrushActionFunc action)
 {
@@ -3538,7 +3536,7 @@ static void do_tiled(const Depsgraph &depsgraph,
 
   /* First do the "un-tiled" position to initialize the stroke for this location. */
   cache->tile_pass = 0;
-  action(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings);
+  action(depsgraph, scene, sd, ob, brush, paint_mode_settings);
 
   /* Now do it for all the tiles. */
   copy_v3_v3_int(cur, start);
@@ -3558,7 +3556,7 @@ static void do_tiled(const Depsgraph &depsgraph,
           cache->initial_location_symm[dim] = cur[dim] * step[dim] +
                                               original_initial_location[dim];
         }
-        action(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings);
+        action(depsgraph, scene, sd, ob, brush, paint_mode_settings);
       }
     }
   }
@@ -3566,10 +3564,9 @@ static void do_tiled(const Depsgraph &depsgraph,
 
 static void do_radial_symmetry(const Depsgraph &depsgraph,
                                const Scene &scene,
-                               const Sculpt &sd,
+                               Sculpt &sd,
                                Object &ob,
                                const Brush &brush,
-                               UnifiedPaintSettings &ups,
                                PaintModeSettings &paint_mode_settings,
                                const BrushActionFunc action,
                                const ePaintSymmetryFlags symm,
@@ -3583,7 +3580,7 @@ static void do_radial_symmetry(const Depsgraph &depsgraph,
     const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];
     ss.cache->radial_symmetry_pass = i;
     SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
-    do_tiled(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action);
+    do_tiled(depsgraph, scene, sd, ob, brush, paint_mode_settings, action);
   }
 }
 
@@ -3604,10 +3601,9 @@ static void sculpt_fix_noise_tear(const Sculpt &sd, Object &ob)
 
 static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
                                          const Scene &scene,
-                                         const Sculpt &sd,
+                                         Sculpt &sd,
                                          Object &ob,
                                          const BrushActionFunc action,
-                                         UnifiedPaintSettings &ups,
                                          PaintModeSettings &paint_mode_settings)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -3618,7 +3614,7 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
 
   float feather = calc_symmetry_feather(sd, mesh, *ss.cache);
 
-  cache.bstrength = brush_strength(sd, cache, feather, ups, paint_mode_settings);
+  cache.bstrength = brush_strength(sd, cache, feather, paint_mode_settings);
   cache.symmetry = symm;
 
   /* `symm` is a bit combination of XYZ -
@@ -3632,14 +3628,14 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
     cache.radial_symmetry_pass = 0;
 
     SCULPT_cache_calc_brushdata_symm(cache, symm, 0, 0);
-    do_tiled(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action);
+    do_tiled(depsgraph, scene, sd, ob, brush, paint_mode_settings, action);
 
     do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action, symm, 'X', feather);
+        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'X', feather);
     do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action, symm, 'Y', feather);
+        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'Y', feather);
     do_radial_symmetry(
-        depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action, symm, 'Z', feather);
+        depsgraph, scene, sd, ob, brush, paint_mode_settings, action, symm, 'Z', feather);
   }
 }
 
@@ -5501,7 +5497,6 @@ static void stroke_update_step(bContext *C,
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
-  UnifiedPaintSettings &ups = sd.paint.unified_paint_settings;
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -5515,11 +5510,11 @@ static void stroke_update_step(bContext *C,
 
   if (dyntopo::stroke_is_dyntopo(ob, brush)) {
     do_symmetrical_brush_actions(
-        depsgraph, scene, sd, ob, dynamic_topology_update, ups, tool_settings.paint_mode);
+        depsgraph, scene, sd, ob, dynamic_topology_update, tool_settings.paint_mode);
   }
 
   do_symmetrical_brush_actions(
-      depsgraph, scene, sd, ob, do_brush_action, ups, tool_settings.paint_mode);
+      depsgraph, scene, sd, ob, do_brush_action, tool_settings.paint_mode);
 
   /* Hack to fix noise texture tearing mesh. */
   sculpt_fix_noise_tear(sd, ob);

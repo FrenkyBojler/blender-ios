@@ -47,6 +47,7 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -568,10 +569,10 @@ void get_brush_alpha_data(const SculptSession &ss,
 
 void last_stroke_update(const float location[3], Paint &paint)
 {
-  UnifiedPaintSettings &ups = paint.unified_paint_settings;
-  ups.average_stroke_counter++;
-  add_v3_v3(ups.average_stroke_accum, location);
-  ups.last_stroke_valid = true;
+  bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
+  stroke_runtime.average_stroke_counter++;
+  add_v3_v3(stroke_runtime.average_stroke_accum, location);
+  stroke_runtime.last_stroke_valid = true;
 }
 
 /* -------------------------------------------------------------------- */

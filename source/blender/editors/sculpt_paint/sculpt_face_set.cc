@@ -44,6 +44,7 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_subdiv_ccg.hh"
 
 #include "DEG_depsgraph.hh"
@@ -1066,17 +1067,17 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
    * navigation. */
   if (ELEM(mode, VisibilityMode::Toggle, VisibilityMode::ShowActive)) {
     Paint *paint = BKE_paint_get_active_from_context(C);
-    UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+    bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
     if (std::holds_alternative<std::monostate>(ss.active_vert())) {
-      ups->last_stroke_valid = false;
+      stroke_runtime->last_stroke_valid = false;
     }
     else {
       float location[3];
       copy_v3_v3(location, ss.active_vert_position(depsgraph, object));
       mul_m4_v3(object.object_to_world().ptr(), location);
-      copy_v3_v3(ups->average_stroke_accum, location);
-      ups->average_stroke_counter = 1;
-      ups->last_stroke_valid = true;
+      copy_v3_v3(stroke_runtime->average_stroke_accum, location);
+      stroke_runtime->average_stroke_counter = 1;
+      stroke_runtime->last_stroke_valid = true;
     }
   }
 

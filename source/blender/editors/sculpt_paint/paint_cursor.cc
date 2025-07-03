@@ -37,6 +37,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_screen.hh"
 
 #include "NOD_texture.h"
@@ -567,7 +568,7 @@ static int project_brush_radius_grease_pencil(ViewContext *vc,
 
 /* Draw an overlay that shows what effect the brush's texture will
  * have on brush strength. */
-static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
+static bool paint_draw_tex_overlay(Paint *paint,
                                    Brush *brush,
                                    ViewContext *vc,
                                    int x,
@@ -603,6 +604,7 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
     return false;
   }
 
+  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
   if (load_tex(brush, vc, zoom, col, primary)) {
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
@@ -611,32 +613,31 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
       GPU_matrix_push();
 
       float center[2] = {
-          ups->draw_anchored ? ups->anchored_initial_mouse[0] : x,
-          ups->draw_anchored ? ups->anchored_initial_mouse[1] : y,
+          stroke_runtime->draw_anchored ? stroke_runtime->anchored_initial_mouse[0] : x,
+          stroke_runtime->draw_anchored ? stroke_runtime->anchored_initial_mouse[1] : y,
       };
 
       /* Brush rotation. */
       GPU_matrix_translate_2fv(center);
-      GPU_matrix_rotate_2d(RAD2DEGF(primary ? ups->brush_rotation : ups->brush_rotation_sec));
+      GPU_matrix_rotate_2d(RAD2DEGF(primary ? stroke_runtime->brush_rotation : stroke_runtime->brush_rotation_sec));
       GPU_matrix_translate_2f(-center[0], -center[1]);
 
       /* Scale based on tablet pressure. */
-      if (primary && ups->stroke_active && BKE_brush_use_size_pressure(brush)) {
-        const float scale = ups->size_pressure_value;
+      if (primary && stroke_runtime->stroke_active && BKE_brush_use_size_pressure(brush)) {
+        const float scale = stroke_runtime->size_pressure_value;
         GPU_matrix_translate_2fv(center);
         GPU_matrix_scale_2f(scale, scale);
         GPU_matrix_translate_2f(-center[0], -center[1]);
       }
 
-      if (ups->draw_anchored) {
-        quad.xmin = center[0] - ups->anchored_size;
-        quad.ymin = center[1] - ups->anchored_size;
-        quad.xmax = center[0] + ups->anchored_size;
-        quad.ymax = center[1] + ups->anchored_size;
+      if (stroke_runtime->draw_anchored) {
+        quad.xmin = center[0] - stroke_runtime->anchored_size;
+        quad.ymin = center[1] - stroke_runtime->anchored_size;
+        quad.xmax = center[0] + stroke_runtime->anchored_size;
+        quad.ymax = center[1] + stroke_runtime->anchored_size;
       }
       else {
-        const Paint &paint = *BKE_paint_get_active_from_paintmode(vc->scene, mode);
-        const int radius = BKE_brush_size_get(&paint, brush) * zoom;
+        const int radius = BKE_brush_size_get(paint, brush) * zoom;
         quad.xmin = center[0] - radius;
         quad.ymin = center[1] - radius;
         quad.xmax = center[0] + radius;
@@ -726,7 +727,7 @@ static bool paint_draw_tex_overlay(UnifiedPaintSettings *ups,
 /* Draw an overlay that shows what effect the brush's texture will
  * have on brush strength. */
 static bool paint_draw_cursor_overlay(
-    UnifiedPaintSettings *ups, Brush *brush, ViewContext *vc, int x, int y, float zoom)
+    Paint *paint, Brush *brush, ViewContext *vc, int x, int y, float zoom)
 {
   rctf quad;
   /* Check for overlay mode. */
@@ -742,15 +743,15 @@ static bool paint_draw_cursor_overlay(
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
 
-    if (ups->draw_anchored) {
-      copy_v2_v2(center, ups->anchored_initial_mouse);
-      quad.xmin = ups->anchored_initial_mouse[0] - ups->anchored_size;
-      quad.ymin = ups->anchored_initial_mouse[1] - ups->anchored_size;
-      quad.xmax = ups->anchored_initial_mouse[0] + ups->anchored_size;
-      quad.ymax = ups->anchored_initial_mouse[1] + ups->anchored_size;
+    bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+    if (stroke_runtime->draw_anchored) {
+      copy_v2_v2(center, stroke_runtime->anchored_initial_mouse);
+      quad.xmin = stroke_runtime->anchored_initial_mouse[0] - stroke_runtime->anchored_size;
+      quad.ymin = stroke_runtime->anchored_initial_mouse[1] - stroke_runtime->anchored_size;
+      quad.xmax = stroke_runtime->anchored_initial_mouse[0] + stroke_runtime->anchored_size;
+      quad.ymax = stroke_runtime->anchored_initial_mouse[1] + stroke_runtime->anchored_size;
     }
     else {
-      const Paint *paint = BKE_paint_get_active_from_context(vc->C);
       const int radius = BKE_brush_size_get(paint, brush) * zoom;
       center[0] = x;
       center[1] = y;
@@ -762,11 +763,11 @@ static bool paint_draw_cursor_overlay(
     }
 
     /* Scale based on tablet pressure. */
-    if (ups->stroke_active && BKE_brush_use_size_pressure(brush)) {
+    if (stroke_runtime->stroke_active && BKE_brush_use_size_pressure(brush)) {
       do_pop = true;
       GPU_matrix_push();
       GPU_matrix_translate_2fv(center);
-      GPU_matrix_scale_1f(ups->size_pressure_value);
+      GPU_matrix_scale_1f(stroke_runtime->size_pressure_value);
       GPU_matrix_translate_2f(-center[0], -center[1]);
     }
 
@@ -812,7 +813,7 @@ static bool paint_draw_cursor_overlay(
   return true;
 }
 
-static bool paint_draw_alpha_overlay(UnifiedPaintSettings *ups,
+static bool paint_draw_alpha_overlay(Paint *paint,
                                      Brush *brush,
                                      ViewContext *vc,
                                      int x,
@@ -839,22 +840,22 @@ static bool paint_draw_alpha_overlay(UnifiedPaintSettings *ups,
   /* Colored overlay should be drawn separately. */
   if (col) {
     if (!(flags & PAINT_OVERLAY_OVERRIDE_PRIMARY)) {
-      alpha_overlay_active = paint_draw_tex_overlay(ups, brush, vc, x, y, zoom, mode, true, true);
+      alpha_overlay_active = paint_draw_tex_overlay(paint, brush, vc, x, y, zoom, mode, true, true);
     }
     if (!(flags & PAINT_OVERLAY_OVERRIDE_SECONDARY)) {
       alpha_overlay_active = paint_draw_tex_overlay(
-          ups, brush, vc, x, y, zoom, mode, false, false);
+          paint, brush, vc, x, y, zoom, mode, false, false);
     }
     if (!(flags & PAINT_OVERLAY_OVERRIDE_CURSOR)) {
-      alpha_overlay_active = paint_draw_cursor_overlay(ups, brush, vc, x, y, zoom);
+      alpha_overlay_active = paint_draw_cursor_overlay(paint, brush, vc, x, y, zoom);
     }
   }
   else {
     if (!(flags & PAINT_OVERLAY_OVERRIDE_PRIMARY) && (mode != PaintMode::Weight)) {
-      alpha_overlay_active = paint_draw_tex_overlay(ups, brush, vc, x, y, zoom, mode, false, true);
+      alpha_overlay_active = paint_draw_tex_overlay(paint, brush, vc, x, y, zoom, mode, false, true);
     }
     if (!(flags & PAINT_OVERLAY_OVERRIDE_CURSOR)) {
-      alpha_overlay_active = paint_draw_cursor_overlay(ups, brush, vc, x, y, zoom);
+      alpha_overlay_active = paint_draw_cursor_overlay(paint, brush, vc, x, y, zoom);
     }
   }
 
@@ -2133,7 +2134,7 @@ static void paint_cursor_update_rake_rotation(PaintCursorContext &pcontext)
 
 static void paint_cursor_check_and_draw_alpha_overlays(PaintCursorContext &pcontext)
 {
-  pcontext.alpha_overlay_drawn = paint_draw_alpha_overlay(pcontext.ups,
+  pcontext.alpha_overlay_drawn = paint_draw_alpha_overlay(pcontext.paint,
                                                           pcontext.brush,
                                                           &pcontext.vc,
                                                           pcontext.mval.x,

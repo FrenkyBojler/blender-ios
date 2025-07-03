@@ -1804,7 +1804,6 @@ void BKE_paint_init(
 
   BKE_paint_ensure_from_paintmode(sce, mode);
   Paint *paint = BKE_paint_get_active_from_paintmode(sce, mode);
-  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   if (ensure_brushes) {
     BKE_paint_brushes_ensure(bmain, paint);
@@ -1812,9 +1811,6 @@ void BKE_paint_init(
 
   copy_v3_v3_uchar(paint->paint_cursor_col, col);
   paint->paint_cursor_col[3] = 128;
-  ups->last_stroke_valid = false;
-  zero_v3(ups->average_stroke_accum);
-  ups->average_stroke_counter = 0;
   if (!paint->cavity_curve) {
     BKE_paint_cavity_curve_preset(paint, CURVE_PRESET_LINE);
   }
@@ -1888,10 +1884,10 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
 
 void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])
 {
-  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-  if (ups->last_stroke_valid && ups->average_stroke_counter > 0) {
-    float fac = 1.0f / ups->average_stroke_counter;
-    mul_v3_v3fl(stroke, ups->average_stroke_accum, fac);
+  const blender::bke::StrokeRuntime& stroke_runtime = *paint->runtime.stroke_runtime;
+  if (stroke_runtime.last_stroke_valid && stroke_runtime.average_stroke_counter > 0) {
+    float fac = 1.0f / stroke_runtime.average_stroke_counter;
+    mul_v3_v3fl(stroke, stroke_runtime.average_stroke_accum, fac);
   }
   else {
     copy_v3_v3(stroke, ob->object_to_world().location());

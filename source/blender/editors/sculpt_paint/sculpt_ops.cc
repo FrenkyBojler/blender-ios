@@ -32,6 +32,7 @@
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_paint_bvh.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
@@ -361,7 +362,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
 
 void ensure_valid_pivot(const Object &ob, Paint &paint)
 {
-  UnifiedPaintSettings &ups = paint.unified_paint_settings;
+  bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
   /* Account for the case where no objects are evaluated. */
@@ -370,16 +371,16 @@ void ensure_valid_pivot(const Object &ob, Paint &paint)
   }
 
   /* No valid pivot? Use bounding box center. */
-  if (ups.average_stroke_counter == 0 || !ups.last_stroke_valid) {
+  if (stroke_runtime.average_stroke_counter == 0 || !stroke_runtime.last_stroke_valid) {
     const Bounds<float3> bounds = bke::pbvh::bounds_get(*pbvh);
     const float3 center = math::midpoint(bounds.min, bounds.max);
     const float3 location = math::transform_point(ob.object_to_world(), center);
 
-    copy_v3_v3(ups.average_stroke_accum, location);
-    ups.average_stroke_counter = 1;
+    copy_v3_v3(stroke_runtime.average_stroke_accum, location);
+    stroke_runtime.average_stroke_counter = 1;
 
     /* Update last stroke position. */
-    ups.last_stroke_valid = true;
+    stroke_runtime.last_stroke_valid = true;
   }
 }
 

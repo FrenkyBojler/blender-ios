@@ -905,6 +905,7 @@ PaintStroke *paint_stroke_new(bContext *C,
   Paint *paint = BKE_paint_get_active_from_context(C);
   stroke->paint = paint;
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
   Brush *br = stroke->brush = BKE_paint_brush(paint);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -929,15 +930,15 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   /* Check here if color sampling the main brush should do color conversion. This is done here
    * to avoid locking up to get the image buffer during sampling. */
-  ups->do_linear_conversion = false;
-  ups->colorspace = nullptr;
+  stroke_runtime->do_linear_conversion = false;
+  stroke_runtime->colorspace = nullptr;
 
   if (br->mtex.tex && br->mtex.tex->type == TEX_IMAGE && br->mtex.tex->ima) {
     ImBuf *tex_ibuf = BKE_image_pool_acquire_ibuf(
         br->mtex.tex->ima, &br->mtex.tex->iuser, nullptr);
     if (tex_ibuf && tex_ibuf->float_buffer.data == nullptr) {
-      ups->do_linear_conversion = true;
-      ups->colorspace = tex_ibuf->byte_buffer.colorspace;
+      stroke_runtime->do_linear_conversion = true;
+      stroke_runtime->colorspace = tex_ibuf->byte_buffer.colorspace;
     }
     BKE_image_pool_release_ibuf(br->mtex.tex->ima, tex_ibuf, nullptr);
   }
@@ -948,8 +949,8 @@ PaintStroke *paint_stroke_new(bContext *C,
     }
   }
   /* initialize here */
-  ups->overlap_factor = 1.0;
-  ups->stroke_active = true;
+  stroke_runtime->overlap_factor = 1.0;
+  stroke_runtime->stroke_active = true;
 
   if (rv3d) {
     rv3d->rflag |= RV3D_PAINTING;
@@ -958,9 +959,9 @@ PaintStroke *paint_stroke_new(bContext *C,
   /* Preserve location from last stroke while applying and resetting
    * ups->average_stroke_counter to 1.
    */
-  if (ups->average_stroke_counter) {
-    mul_v3_fl(ups->average_stroke_accum, 1.0f / float(ups->average_stroke_counter));
-    ups->average_stroke_counter = 1;
+  if (stroke_runtime->average_stroke_counter) {
+    mul_v3_fl(stroke_runtime->average_stroke_accum, 1.0f / float(stroke_runtime->average_stroke_counter));
+    stroke_runtime->average_stroke_counter = 1;
   }
 
   /* initialize here to avoid initialization conflict with threaded strokes */
@@ -971,7 +972,7 @@ PaintStroke *paint_stroke_new(bContext *C,
 
   BKE_paint_set_overlay_override(eOverlayFlags(br->overlay_flags));
 
-  ups->start_pixel_radius = BKE_brush_size_get(stroke->paint, br);
+  stroke_runtime->start_pixel_radius = BKE_brush_size_get(stroke->paint, br);
 
   return stroke;
 }
@@ -1455,6 +1456,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
+  bke::StrokeRuntime &stroke_runtime = *paint->runtime.stroke_runtime;
   PaintStroke *stroke = *stroke_p;
   const Brush *br = stroke->brush = BKE_paint_brush(paint);
   bool first_dab = false;
@@ -1618,7 +1620,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
       if ((br->mtex.brush_angle_mode & MTEX_ANGLE_RAKE) ||
           (br->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE))
       {
-        copy_v2_v2(stroke->ups->last_rake, stroke->last_mouse_position);
+        copy_v2_v2(stroke_runtime.last_rake, stroke->last_mouse_position);
       }
       paint_calculate_rake_rotation(*stroke->paint, *br, mouse, mode, true);
     }

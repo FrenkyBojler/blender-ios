@@ -1066,12 +1066,12 @@ typedef struct UnifiedPaintSettings {
   /* Rake rotation. */
 
   /** Record movement of mouse so that rake can start at an intuitive angle. */
-  float last_rake[2];
-  float last_rake_angle;
+  float last_rake[2] DNA_DEPRECATED;
+  float last_rake_angle DNA_DEPRECATED;
 
-  int last_stroke_valid;
-  float average_stroke_accum[3];
-  int average_stroke_counter;
+  int last_stroke_valid DNA_DEPRECATED;
+  float average_stroke_accum[3] DNA_DEPRECATED;
+  int average_stroke_counter DNA_DEPRECATED;
 
   /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
    * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the

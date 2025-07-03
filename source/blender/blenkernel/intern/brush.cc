@@ -874,7 +874,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
                               const int thread,
                               ImagePool *pool)
 {
-  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  const blender::bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
   float intensity = 1.0;
   bool hasrgb = false;
 
@@ -926,30 +926,30 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
       /* keep coordinates relative to mouse */
 
-      rotation -= ups->brush_rotation;
+      rotation -= stroke_runtime->brush_rotation;
 
-      x = point_2d[0] - ups->tex_mouse[0];
-      y = point_2d[1] - ups->tex_mouse[1];
+      x = point_2d[0] - stroke_runtime->tex_mouse[0];
+      y = point_2d[1] - stroke_runtime->tex_mouse[1];
 
       /* use pressure adjusted size for fixed mode */
-      invradius = 1.0f / ups->pixel_radius;
+      invradius = 1.0f / stroke_runtime->pixel_radius;
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
       /* leave the coordinates relative to the screen */
 
       /* use unadjusted size for tiled mode */
-      invradius = 1.0f / ups->start_pixel_radius;
+      invradius = 1.0f / stroke_runtime->start_pixel_radius;
 
       x = point_2d[0];
       y = point_2d[1];
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-      rotation -= ups->brush_rotation;
+      rotation -= stroke_runtime->brush_rotation;
       /* these contain a random coordinate */
-      x = point_2d[0] - ups->tex_mouse[0];
-      y = point_2d[1] - ups->tex_mouse[1];
+      x = point_2d[0] - stroke_runtime->tex_mouse[0];
+      y = point_2d[1] - stroke_runtime->tex_mouse[1];
 
-      invradius = 1.0f / ups->pixel_radius;
+      invradius = 1.0f / stroke_runtime->pixel_radius;
     }
 
     x *= invradius;
@@ -982,8 +982,8 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     rgba[3] = 1.0f;
   }
   /* For consistency, sampling always returns color in linear space */
-  else if (ups->do_linear_conversion) {
-    IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, ups->colorspace);
+  else if (stroke_runtime->do_linear_conversion) {
+    IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, stroke_runtime->colorspace);
   }
 
   return intensity;

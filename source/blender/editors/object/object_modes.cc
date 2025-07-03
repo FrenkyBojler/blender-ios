@@ -22,6 +22,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 
 #include "BLI_math_vector.h"
@@ -402,10 +403,10 @@ static void object_transfer_mode_reposition_view_pivot(ARegion *region,
   if (!ED_view3d_autodist_simple(region, mval, global_loc, 0, nullptr)) {
     return;
   }
-  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-  copy_v3_v3(ups->average_stroke_accum, global_loc);
-  ups->average_stroke_counter = 1;
-  ups->last_stroke_valid = true;
+  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  copy_v3_v3(stroke_runtime->average_stroke_accum, global_loc);
+  stroke_runtime->average_stroke_counter = 1;
+  stroke_runtime->last_stroke_valid = true;
 }
 
 constexpr float mode_transfer_flash_length = 0.55f;

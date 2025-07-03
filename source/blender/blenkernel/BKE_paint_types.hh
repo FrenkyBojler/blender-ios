@@ -21,9 +21,9 @@ struct StrokeRuntime : NonCopyable, NonMovable{
   blender::float2 last_rake;
   float last_rake_angle;
 
-  int last_stroke_valid;
-  blender::float3 average_stroke_accum;
-  int average_stroke_counter;
+  int last_stroke_valid = false;
+  blender::float3 average_stroke_accum = float3(0.0f, 0.0f, 0.0f);
+  int average_stroke_counter = 0;
 
   /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
    * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
@@ -41,13 +41,12 @@ struct StrokeRuntime : NonCopyable, NonMovable{
    * Calculated when brush spacing changes to dampen strength of stroke
    * if space attenuation is used.
    */
-  float overlap_factor;
+  float overlap_factor = 0.0f;
   char draw_inverted;
   /** Check is there an ongoing stroke right now. */
-  char stroke_active;
+  bool stroke_active = false;
 
   char draw_anchored;
-  char do_linear_conversion;
 
   /**
    * Store last location of stroke or whether the mesh was hit.
@@ -76,6 +75,7 @@ struct StrokeRuntime : NonCopyable, NonMovable{
   blender::float2 mask_tex_mouse;
 
   /** ColorSpace cache to avoid locking up during sampling. */
-  const blender::ocio::ColorSpace *colorspace;
+  bool do_linear_conversion = false;
+  const blender::ocio::ColorSpace *colorspace = nullptr;
 };
 }

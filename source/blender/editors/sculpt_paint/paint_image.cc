@@ -47,6 +47,7 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
@@ -867,9 +868,10 @@ static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int fram
   return float3(0.0f);
 }
 
+/* TODO: Move this out of paint image... */
 void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
 {
-  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  blender::bke::StrokeRuntime &stroke_runtime = *paint->runtime.stroke_runtime;
 
   blender::float3 location;
   switch (ob->type) {
@@ -884,15 +886,15 @@ void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
       break;
     default:
       BLI_assert_unreachable();
-      ups->last_stroke_valid = false;
+      stroke_runtime.last_stroke_valid = false;
       return;
   }
 
   mul_m4_v3(ob->object_to_world().ptr(), location);
 
-  ups->last_stroke_valid = true;
-  ups->average_stroke_counter = 1;
-  copy_v3_v3(ups->average_stroke_accum, location);
+  stroke_runtime.last_stroke_valid = true;
+  stroke_runtime.average_stroke_counter = 1;
+  copy_v3_v3(stroke_runtime.average_stroke_accum, location);
 }
 
 void ED_object_texture_paint_mode_enter_ex(Main &bmain,
