@@ -174,7 +174,6 @@ static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
       std::min(size_t(ceil(image->width * scale)), size_t(size)),
       std::min(size_t(ceil(image->height * scale)), size_t(size)),
   };
-  scale = float(dest_size[0]) / image->width;
 
   blender::Array<uint8_t> bitmap_rgba(dest_size[0] * dest_size[1] * 4);
 
@@ -593,6 +592,88 @@ static void wm_cursor_time_small(wmWindow *win, int nr)
                              false);
 }
 
+static void wm_cursor_time_rgba(wmWindow *win, int number)
+{
+  const float size = std::min(cursor_size(), 128.0f);
+  const int digit_height = ceill(size);
+  const int digit_width = ceill(size * 0.75f);
+
+  int number_test = number;
+  int digits = 0;
+  do {
+    number_test /= 10;
+    digits++;
+  } while (number_test != 0);
+
+  const int full_width = digit_width * digits;
+  blender::Array<uint8_t> bitmap_rgba(full_width * digit_height * sizeof(int), 0);
+
+  for (int idx = digits - 1; idx >= 0; idx--) {
+    char digit = number % 10;
+
+    const char *source;
+    if (digit == 0) {
+      source = datatoc_cursor_0_svg;
+    }
+    else if (digit == 1) {
+      source = datatoc_cursor_1_svg;
+    }
+    else if (digit == 2) {
+      source = datatoc_cursor_2_svg;
+    }
+    else if (digit == 3) {
+      source = datatoc_cursor_3_svg;
+    }
+    else if (digit == 4) {
+      source = datatoc_cursor_4_svg;
+    }
+    else if (digit == 5) {
+      source = datatoc_cursor_5_svg;
+    }
+    else if (digit == 6) {
+      source = datatoc_cursor_6_svg;
+    }
+    else if (digit == 7) {
+      source = datatoc_cursor_7_svg;
+    }
+    else if (digit == 8) {
+      source = datatoc_cursor_8_svg;
+    }
+    else {
+      source = datatoc_cursor_9_svg;
+    }
+
+    int bitmap_size[2];
+    blender::Array<uint8_t> digit_bmp = cursor_bitmap_from_svg(source, size, bitmap_size);
+    if (UNLIKELY(digit_bmp.is_empty())) {
+      return;
+    }
+
+    uint8_t *srect = digit_bmp.data();
+    uint8_t *drect = bitmap_rgba.data() + (idx * digit_width * 4);
+    for (int i = 0; i < bitmap_size[1]; i++) {
+      memcpy(drect, srect, bitmap_size[0] * sizeof(int));
+      srect += bitmap_size[0] * sizeof(int);
+      drect += full_width * sizeof(int);
+    }
+
+    number /= 10;
+  }
+
+  const int hot_spot[2] = {
+      int(0.5f * (full_width - 1)),
+      int(0.5f * (digit_height - 1)),
+  };
+  const int icon_size[2] = {full_width, digit_height};
+  GHOST_TSuccess success = GHOST_SetCustomCursorShape(
+      static_cast<GHOST_WindowHandle>(win->ghostwin),
+      bitmap_rgba.data(),
+      nullptr,
+      icon_size,
+      hot_spot,
+      true);
+}
+
 void WM_cursor_time(wmWindow *win, int nr)
 {
   if (win->lastcursor == 0) {
@@ -600,7 +681,10 @@ void WM_cursor_time(wmWindow *win, int nr)
   }
 
   /* Use `U.ui_scale` instead of `UI_SCALE_FAC` here to ignore HiDPI/Retina scaling. */
-  if (U.ui_scale < 1.45f || !wm_cursor_time_large(win, nr)) {
+  if (WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS) {
+    wm_cursor_time_rgba(win, nr);
+  }
+  else if (U.ui_scale < 1.45f || !wm_cursor_time_large(win, nr)) {
     wm_cursor_time_small(win, nr);
   }
 

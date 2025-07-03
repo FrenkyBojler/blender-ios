@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   version="1.1"
+   viewBox="-10 0 1100.0001 1600"
+   id="svg1"
+   sodipodi:docname="cursor_8.svg"
+   width="1100"
+   height="1600"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <defs
+     id="defs1" />
+  <sodipodi:namedview
+     id="namedview1"
+     pagecolor="#ffffff"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.25000001"
+     inkscape:cx="1082"
+     inkscape:cy="1598"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg1" />
+  <g
+     transform="matrix(1.0259161,0,0,-1.013152,-140.67477,1554.8197)"
+     id="g2-62"
+     style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:49.04297178;stroke-dasharray:none;stroke-opacity:1">
+    <path
+       fill="currentColor"
+       d="M 663,-20 Q 512,-20 396.5,33.5 281,87 216.5,181 152,275 152,396 q 0,94 38,174.5 38,80.5 104,134.5 66,54 149,69 v 8 q -109,28 -173,121 -64,93 -64,211 0,114 59,203.5 59,89.5 162,141 103,51.5 236,51.5 131,0 234,-51.5 103,-51.5 162.5,-141 Q 1119,1228 1119,1114 1119,996 1054.5,903 990,810 884,782 v -8 q 81,-15 147,-69 66,-54 105,-134.5 39,-80.5 39,-174.5 0,-121 -65.5,-215 Q 1044,87 928.5,33.5 813,-20 663,-20 Z m 0,165 q 148,0 235,71.5 87,71.5 87,189.5 0,83 -42,146.5 Q 901,616 828,652.5 755,689 663,689 522,689 430.5,609.5 339,530 339,406 339,288 425.5,216.5 512,145 663,145 Z m 0,703 q 118,0 195,69.5 77,69.5 77,182.5 0,112 -75,179 -75,67 -197,67 -124,0 -198.5,-67 Q 390,1212 390,1100 390,987 466,917.5 542,848 663,848 Z"
+       id="path1-4"
+       style="fill:#ffffff;fill-opacity:1;stroke:#000000;stroke-width:49.04297178;stroke-dasharray:none;stroke-opacity:1" />
+  </g>
+</svg>
