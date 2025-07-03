@@ -130,6 +130,11 @@ struct ImageMipmapCache {
   int mipmap_level_clamp_min_;
   int mipmap_level_clamp_max_;
 
+  /* eGPUTextureFormat but casted as int to reduce CMakeLists.txt changes. */
+  int gpu_texture_format_;
+  /* eGPUDataFormat but caster as int to redice CMakeLists.txt changes. */
+  int gpu_data_format_;
+
   void clear();
 
   void init_resolution_size_offset_for_each_mipmap_level(uint2 mipmap0_resolution,

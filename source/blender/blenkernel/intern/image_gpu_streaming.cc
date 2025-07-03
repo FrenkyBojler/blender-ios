@@ -101,10 +101,31 @@ void ImageMipmapCache::update_mipmap_cache(const ImBuf &imbuf,
 
   eGPUTextureFormat texture_format = IMB_gpu_get_texture_format(
       &imbuf, use_high_bitdef, use_greyscale);
-  BLI_assert(ELEM(texture_format, GPU_SRGB8_A8, GPU_RGBA8UI));
+  gpu_texture_format_ = texture_format;
+  eGPUDataFormat data_format = imbuf.float_buffer.data ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
+  gpu_data_format_ = data_format;
+
+  int bytes_per_pixel = 4;
+  if (texture_format == GPU_SRGB8_A8) {
+    bytes_per_pixel = 4;
+  }
+  else if (texture_format == GPU_R16F) {
+    // For now as we don't support OPENXR_HALF
+    bytes_per_pixel = 4;
+  }
+  else if (texture_format == GPU_R32F) {
+    bytes_per_pixel = 4;
+  }
+  else if (texture_format == GPU_RGBA16F) {
+    // For now as we don't support OPENXR_HALF
+    bytes_per_pixel = 32;
+  }
+  else if (texture_format == GPU_RGBA32F) {
+    bytes_per_pixel = 32;
+  }
 
   // TODO calculate correct bytes per pixel get texture format from imbuf.
-  init_resolution_size_offset_for_each_mipmap_level(uint2(imbuf.x, imbuf.y), 4);
+  init_resolution_size_offset_for_each_mipmap_level(uint2(imbuf.x, imbuf.y), bytes_per_pixel);
   init_mipmap_level_clamping();
 
   data_.reinitialize(bytes_all_mips_);
@@ -114,8 +135,17 @@ void ImageMipmapCache::update_mipmap_cache(const ImBuf &imbuf,
   for (int mipmap_level : IndexRange(size())) {
     uint2 mipmap_resolution = resolution_per_mipmap_[mipmap_level];
     IMB_scale(mipmap_ibuf, UNPACK2(mipmap_resolution), IMBScaleFilter::Bilinear);
-    mipmap_data_mutable(mipmap_level)
-        .copy_from(Span<uint8_t>(mipmap_ibuf->byte_buffer.data, bytes_per_mipmap_[mipmap_level]));
+    if (mipmap_ibuf->float_buffer.data) {
+      mipmap_data_mutable(mipmap_level)
+          .copy_from(Span<uint8_t>(static_cast<const uint8_t *>(
+                                       static_cast<const void *>(mipmap_ibuf->float_buffer.data)),
+                                   bytes_per_mipmap_[mipmap_level]));
+    }
+    else {
+      mipmap_data_mutable(mipmap_level)
+          .copy_from(
+              Span<uint8_t>(mipmap_ibuf->byte_buffer.data, bytes_per_mipmap_[mipmap_level]));
+    }
   }
   IMB_freeImBuf(mipmap_ibuf);
 }
@@ -154,7 +184,7 @@ ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(ImageMipmapMask mipmap
       __func__,
       UNPACK2(resolution_per_mipmap_[clamped_mipmap_level.level]),
       offsets_per_mipmap_.size() - clamped_mipmap_level.level,
-      GPU_SRGB8_A8,
+      (eGPUTextureFormat)gpu_texture_format_,
       GPU_TEXTURE_USAGE_GENERAL,
       nullptr);
   last_texture_mipmap_level_ = clamped_mipmap_level;
@@ -165,7 +195,7 @@ ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(ImageMipmapMask mipmap
   for (int mipmap = clamped_mipmap_level.level; mipmap < size(); mipmap++) {
     GPU_texture_update_mipmap(last_texture_,
                               mipmap - clamped_mipmap_level.level,
-                              GPU_DATA_UBYTE,
+                              (eGPUDataFormat)gpu_data_format_,
                               mipmap_data(mipmap).data());
   }
 
