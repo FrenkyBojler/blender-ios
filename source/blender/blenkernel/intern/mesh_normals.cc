@@ -1245,6 +1245,7 @@ void normals_calc_corners(const Span<float3> vert_positions,
   }
 
   int64_t grain_size = 256;
+  /* Decrease parallelism in case where lock is used to avoid contention. */
   if (!custom_normals.is_empty() || r_fan_spaces) {
     grain_size = std::max(int64_t(16384), vert_positions.size() / 2);
   }
