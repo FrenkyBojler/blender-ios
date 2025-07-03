@@ -1,2 +1,3 @@
 Referenced by issue #141390, Blender always crashes when using HIP RT on my Radeon 7900 XTX Fedora Linux rig
 Referenced by issue #141391, GPU denoising crashes Cycles renders on HIP devices under Linux
+Referenced by issue #141406, Node Tools: Grease Pencil unchecked once Wait for Click is disabled
