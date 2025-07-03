@@ -78,14 +78,29 @@ void node_tex_image_linear(
 #endif
 }
 
-void node_tex_image_cubic(float3 co, sampler2D ima, out float4 color, out float alpha)
+void node_tex_image_cubic(
+    float3 co, sampler2D ima, float ima_info_float, out float4 color, out float alpha)
 {
   color = safe_color(texture_bicubic(ima, co.xy));
   alpha = color.a;
+
+#ifdef GPU_FRAGMENT_SHADER
+  int ima_info = floatBitsToInt(ima_info_float);
+  if (ima_info != -1) {
+    float2 dx = gpu_dfdx(co.xy) * texture_lod_bias_get();
+    float2 dy = gpu_dfdy(co.xy) * texture_lod_bias_get();
+    texture_streaming_write_feedback(ima_info, dx, dy);
+  }
+#endif
 }
 
-void tex_box_sample_linear(
-    float3 texco, float3 N, sampler2D ima, out float4 color1, out float4 color2, out float4 color3)
+void tex_box_sample_linear(float3 texco,
+                           float3 N,
+                           sampler2D ima,
+                           float image_info_float,
+                           out float4 color1,
+                           out float4 color2,
+                           out float4 color3)
 {
   /* X projection */
   float2 uv = texco.yz;
@@ -107,8 +122,13 @@ void tex_box_sample_linear(
   color3 = texture(ima, uv);
 }
 
-void tex_box_sample_cubic(
-    float3 texco, float3 N, sampler2D ima, out float4 color1, out float4 color2, out float4 color3)
+void tex_box_sample_cubic(float3 texco,
+                          float3 N,
+                          sampler2D ima,
+                          float ima_info_float,
+                          out float4 color1,
+                          out float4 color2,
+                          out float4 color3)
 {
   float alpha;
   /* X projection */
@@ -116,19 +136,19 @@ void tex_box_sample_cubic(
   if (N.x < 0.0f) {
     uv.x = 1.0f - uv.x;
   }
-  node_tex_image_cubic(uv.xyy, ima, color1, alpha);
+  node_tex_image_cubic(uv.xyy, ima, ima_info_float, color1, alpha);
   /* Y projection */
   uv = texco.xz;
   if (N.y > 0.0f) {
     uv.x = 1.0f - uv.x;
   }
-  node_tex_image_cubic(uv.xyy, ima, color2, alpha);
+  node_tex_image_cubic(uv.xyy, ima, ima_info_float, color2, alpha);
   /* Z projection */
   uv = texco.yx;
   if (N.z > 0.0f) {
     uv.x = 1.0f - uv.x;
   }
-  node_tex_image_cubic(uv.xyy, ima, color3, alpha);
+  node_tex_image_cubic(uv.xyy, ima, ima_info_float, color3, alpha);
 }
 
 void tex_box_blend(float3 N,
