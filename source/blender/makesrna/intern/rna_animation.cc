@@ -228,7 +228,8 @@ static void rna_AnimData_action_set(PointerRNA *ptr, PointerRNA value, ReportLis
 static void rna_AnimData_tmpact_set(PointerRNA *ptr, PointerRNA value, ReportList *reports)
 {
   ID *ownerId = ptr->owner_id;
-  BKE_animdata_set_tmpact(reports, ownerId, static_cast<bAction *>(value.data));
+  AnimData *adt = (AnimData *)ptr->data;
+  BKE_animdata_set_tmpact(reports, ownerId, static_cast<bAction *>(value.data), adt->slot_handle);
 }
 
 static void rna_AnimData_tweakmode_set(PointerRNA *ptr, const bool value)
