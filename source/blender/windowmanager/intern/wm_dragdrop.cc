@@ -21,7 +21,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_path_utils.hh"
@@ -369,14 +368,11 @@ void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext 
   if (!sfile) {
     return;
   }
-  blender::LinearAllocator<> allocator;
+  const blender::Vector<std::string> selected_paths = ED_fileselect_selected_files_full_paths(
+      sfile);
   blender::Vector<const char *> paths;
-  const blender::Vector<PointerRNA> files = CTX_data_collection_get(C, "selected_files");
-  for (const PointerRNA &file_ptr : files) {
-    const FileDirEntry *file = static_cast<const FileDirEntry *>(file_ptr.data);
-    char filepath[FILE_MAX_LIBEXTRA];
-    ED_filelist_file_get_full_path(sfile->files, file, filepath);
-    paths.append(allocator.copy_string(filepath).c_str());
+  for (const std::string &path : selected_paths) {
+    paths.append(path.c_str());
   }
   if (paths.is_empty()) {
     return;

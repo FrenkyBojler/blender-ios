@@ -1160,13 +1160,6 @@ void filelist_file_get_full_path(const FileList *filelist,
   BLI_path_join(r_filepath, FILE_MAX_LIBEXTRA, root, file->relpath);
 }
 
-void ED_filelist_file_get_full_path(const FileList *filelist,
-                                    const FileDirEntry *file,
-                                    char r_filepath[FILE_MAX_LIBEXTRA])
-{
-  filelist_file_get_full_path(filelist, file, r_filepath);
-}
-
 bool filelist_file_is_preview_pending(const FileList *filelist, const FileDirEntry *file)
 {
   /* Actual preview loading is only started after the filelist is loaded, so the file isn't flagged
