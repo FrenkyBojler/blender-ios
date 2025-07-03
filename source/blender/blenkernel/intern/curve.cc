@@ -3060,6 +3060,7 @@ static void calchandleNurb_intern(BezTriple *bezt,
   float pt[3];
   float dvec_a[3], dvec_b[3];
   float len, len_a, len_b;
+  const float eps = 1e-5;
 
   /* assume normal handle until we check */
   bezt->auto_handle_type = HD_AUTOTYPE_NORMAL;
@@ -3243,7 +3244,7 @@ static void calchandleNurb_intern(BezTriple *bezt,
 
   if (bezt->f1 & handle_sel_flag) {                      /* order of calculation */
     if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) { /* aligned */
-      if (len_a > 0) {
+      if (len_a > eps) {
         len = 1.0f / len_ratio;
         p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
         p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
@@ -3251,7 +3252,7 @@ static void calchandleNurb_intern(BezTriple *bezt,
       }
     }
     if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
-      if (len_b > 0) {
+      if (len_b > eps) {
         len = len_ratio;
         p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
         p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
@@ -3261,7 +3262,7 @@ static void calchandleNurb_intern(BezTriple *bezt,
   }
   else {
     if (ELEM(bezt->h1, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) {
-      if (len_b > 0) {
+      if (len_b > eps) {
         len = len_ratio;
         p2_h1[0] = p2[0] + len * (p2[0] - p2_h2[0]);
         p2_h1[1] = p2[1] + len * (p2[1] - p2_h2[1]);
@@ -3269,7 +3270,7 @@ static void calchandleNurb_intern(BezTriple *bezt,
       }
     }
     if (ELEM(bezt->h2, HD_ALIGN, HD_ALIGN_DOUBLESIDE)) { /* aligned */
-      if (len_a > 0) {
+      if (len_a > eps) {
         len = 1.0f / len_ratio;
         p2_h2[0] = p2[0] + len * (p2[0] - p2_h1[0]);
         p2_h2[1] = p2[1] + len * (p2[1] - p2_h1[1]);
