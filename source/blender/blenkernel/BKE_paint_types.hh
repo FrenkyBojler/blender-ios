@@ -17,7 +17,7 @@ class ColorSpace;
 }
 
 namespace blender::bke {
-struct StrokeRuntime : NonCopyable, NonMovable{
+struct PaintRuntime : NonCopyable, NonMovable{
   blender::float2 last_rake = float2(0.0f, 0.0f);
   float last_rake_angle = 0.0f;
 

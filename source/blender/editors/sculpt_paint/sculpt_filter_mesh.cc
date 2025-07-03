@@ -163,7 +163,7 @@ void cache_init(bContext *C,
   }
 
   const UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
-  bke::StrokeRuntime *stroke_runtime = sd.paint.runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = sd.paint.runtime.paint_runtime;
 
   float3 co;
 

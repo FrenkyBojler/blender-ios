@@ -5730,7 +5730,7 @@ static bool project_paint_op(void *state, const float lastpos[2], const float po
       const int3 &tri = ps->corner_tris_eval[tri_index];
       const int vert_tri[3] = {PS_CORNER_TRI_AS_VERT_INDEX_3(ps, tri)};
       float world[3];
-      blender::bke::StrokeRuntime *stroke_runtime = ps->paint->runtime.stroke_runtime;
+      blender::bke::PaintRuntime *stroke_runtime = ps->paint->runtime.paint_runtime;
 
       interp_v3_v3v3v3(world,
                        ps->vert_positions_eval[vert_tri[0]],

@@ -438,7 +438,7 @@ void update_cache_invariants(
     bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2])
 {
   StrokeCache *cache;
-  bke::StrokeRuntime &stroke_runtime = *vp.paint.runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *vp.paint.runtime.paint_runtime;
   ViewContext *vc = paint_stroke_view_context((PaintStroke *)op->customdata);
   Object &ob = *CTX_data_active_object(C);
   float mat[3][3];
@@ -569,7 +569,7 @@ void get_brush_alpha_data(const SculptSession &ss,
 
 void last_stroke_update(const float location[3], Paint &paint)
 {
-  bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
   stroke_runtime.average_stroke_counter++;
   add_v3_v3(stroke_runtime.average_stroke_accum, location);
   stroke_runtime.last_stroke_valid = true;

@@ -318,7 +318,7 @@ bool paint_brush_update(bContext *C,
 {
   Scene *scene = CTX_data_scene(C);
   Paint *paint = BKE_paint_get_active_from_paintmode(scene, mode);
-  bke::StrokeRuntime &stroke_runtime = *paint->runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *paint->runtime.paint_runtime;
   bool location_sampled = false;
   bool location_success = false;
   /* Use to perform all operations except applying the stroke,
@@ -555,7 +555,7 @@ static void paint_brush_stroke_add_step(
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
-  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = stroke->paint->runtime.paint_runtime;
 
 /* the following code is adapted from texture paint. It may not be needed but leaving here
  * just in case for reference (code in texpaint removed as part of refactoring).
@@ -813,7 +813,7 @@ static int paint_space_stroke(bContext *C,
                               const float final_pressure)
 {
   const ARegion *region = CTX_wm_region(C);
-  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = stroke->paint->runtime.paint_runtime;
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
@@ -905,7 +905,7 @@ PaintStroke *paint_stroke_new(bContext *C,
   Paint *paint = BKE_paint_get_active_from_context(C);
   stroke->paint = paint;
   UnifiedPaintSettings *ups = &paint->unified_paint_settings;
-  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
   Brush *br = stroke->brush = BKE_paint_brush(paint);
   RegionView3D *rv3d = CTX_wm_region_view3d(C);
 
@@ -989,7 +989,7 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
     return;
   }
 
-  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = stroke->paint->runtime.paint_runtime;
   stroke_runtime->draw_anchored = false;
   stroke_runtime->stroke_active = false;
 
@@ -1006,7 +1006,7 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
 
 static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
-  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = stroke->paint->runtime.paint_runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
   if (!(stroke->brush->mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
@@ -1231,7 +1231,7 @@ static void paint_line_strokes_spacing(bContext *C,
                                        const float2 new_pos)
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
-  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = stroke->paint->runtime.paint_runtime;
   const Brush &brush = *BKE_paint_brush(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const ARegion *region = CTX_wm_region(C);
@@ -1321,7 +1321,7 @@ static void paint_stroke_line_end(bContext *C,
                                   const float2 mouse)
 {
   Brush *br = stroke->brush;
-  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = stroke->paint->runtime.paint_runtime;
   if (stroke->stroke_started && (br->flag & BRUSH_LINE)) {
     stroke_runtime->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
 
@@ -1338,7 +1338,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
   }
 
   Paint *paint = BKE_paint_get_active_from_context(C);
-  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = stroke->paint->runtime.paint_runtime;
   const float spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
   const PaintCurve *pc = br.paint_curve;
 
@@ -1458,7 +1458,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
 {
   Paint *paint = BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  bke::StrokeRuntime &stroke_runtime = *paint->runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *paint->runtime.paint_runtime;
   PaintStroke *stroke = *stroke_p;
   const Brush *br = stroke->brush = BKE_paint_brush(paint);
   bool first_dab = false;

@@ -362,7 +362,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
 
 void ensure_valid_pivot(const Object &ob, Paint &paint)
 {
-  bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
   /* Account for the case where no objects are evaluated. */

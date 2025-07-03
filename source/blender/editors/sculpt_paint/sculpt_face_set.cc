@@ -1067,7 +1067,7 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
    * navigation. */
   if (ELEM(mode, VisibilityMode::Toggle, VisibilityMode::ShowActive)) {
     Paint *paint = BKE_paint_get_active_from_context(C);
-    bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+    bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
     if (std::holds_alternative<std::monostate>(ss.active_vert())) {
       stroke_runtime->last_stroke_valid = false;
     }

@@ -604,7 +604,7 @@ static bool paint_draw_tex_overlay(Paint *paint,
     return false;
   }
 
-  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
   if (load_tex(brush, vc, zoom, col, primary)) {
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
@@ -743,7 +743,7 @@ static bool paint_draw_cursor_overlay(
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
 
-    bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+    bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
     if (stroke_runtime->draw_anchored) {
       copy_v2_v2(center, stroke_runtime->anchored_initial_mouse);
       quad.xmin = stroke_runtime->anchored_initial_mouse[0] - stroke_runtime->anchored_size;
@@ -1048,7 +1048,7 @@ static void paint_cursor_update_unprojected_radius(Paint &paint,
                                                    const ViewContext &vc,
                                                    const float location[3])
 {
-  const bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
+  const bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
   /* Update the brush's cached 3D radius. */
   if (!BKE_brush_use_locked_size(&paint, &brush)) {
     float projected_radius;
@@ -1377,7 +1377,7 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.zoomx = max_ff(zoomx, zoomy);
   pcontext.final_radius = (BKE_brush_size_get(pcontext.paint, pcontext.brush) * zoomx);
 
-  const bke::StrokeRuntime &stroke_runtime = *pcontext.paint->runtime.stroke_runtime;
+  const bke::PaintRuntime &stroke_runtime = *pcontext.paint->runtime.paint_runtime;
   /* There is currently no way to check if the direction is inverted before starting the stroke,
    * so this does not reflect the state of the brush in the UI. */
   if (((!stroke_runtime.draw_inverted) ^ ((pcontext.brush->flag & BRUSH_DIR_IN) == 0)) &&
@@ -1440,7 +1440,7 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   bContext *C = pcontext.C;
   SculptSession &ss = *pcontext.ss;
   Brush &brush = *pcontext.brush;
-  bke::StrokeRuntime &stroke_runtime = *pcontext.paint->runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *pcontext.paint->runtime.paint_runtime;
   ViewContext &vc = pcontext.vc;
   CursorGeometryInfo gi;
 
@@ -1509,7 +1509,7 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
 static void paint_draw_2D_view_brush_cursor_default(PaintCursorContext &pcontext)
 {
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha);
-  const bke::StrokeRuntime *stroke_runtime = pcontext.paint->runtime.stroke_runtime;
+  const bke::PaintRuntime *stroke_runtime = pcontext.paint->runtime.paint_runtime;
 
   /* Draw brush outline. */
   if (stroke_runtime->stroke_active && BKE_brush_use_size_pressure(pcontext.brush)) {
@@ -2128,7 +2128,7 @@ static void paint_cursor_update_rake_rotation(PaintCursorContext &pcontext)
   /* Don't calculate rake angles while a stroke is active because the rake variables are global
    * and we may get interference with the stroke itself.
    * For line strokes, such interference is visible. */
-  const bke::StrokeRuntime *stroke_runtime = pcontext.paint->runtime.stroke_runtime;
+  const bke::PaintRuntime *stroke_runtime = pcontext.paint->runtime.paint_runtime;
   if (!stroke_runtime->stroke_active) {
     paint_calculate_rake_rotation(
         *pcontext.paint, *pcontext.brush, pcontext.translation, pcontext.mode, true);
@@ -2148,7 +2148,7 @@ static void paint_cursor_check_and_draw_alpha_overlays(PaintCursorContext &pcont
 
 static void paint_cursor_update_anchored_location(PaintCursorContext &pcontext)
 {
-  bke::StrokeRuntime *stroke_runtime = pcontext.paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = pcontext.paint->runtime.paint_runtime;
   if (stroke_runtime->draw_anchored) {
     pcontext.final_radius = stroke_runtime->anchored_size;
     pcontext.translation = {stroke_runtime->anchored_initial_mouse[0] + pcontext.region->winrct.xmin,

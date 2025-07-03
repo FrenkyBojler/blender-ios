@@ -337,7 +337,7 @@ static void paint_stroke_update_step(bContext *C,
 {
   PaintOperation *pop = static_cast<PaintOperation *>(paint_stroke_mode_data(stroke));
   Paint *paint = BKE_paint_get_active_from_context(C);
-  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
   Brush *brush = BKE_paint_brush(paint);
 
   float alphafac = (brush->flag & BRUSH_ACCUMULATE) ? stroke_runtime->overlap_factor : 1.0f;

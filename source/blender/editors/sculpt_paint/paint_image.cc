@@ -871,7 +871,7 @@ static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int fram
 /* TODO: Move this out of paint image... */
 void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
 {
-  blender::bke::StrokeRuntime &stroke_runtime = *paint->runtime.stroke_runtime;
+  blender::bke::PaintRuntime &stroke_runtime = *paint->runtime.paint_runtime;
 
   blender::float3 location;
   switch (ob->type) {

@@ -348,7 +348,7 @@ Vector<float4x4> get_symmetry_brush_transforms(const eCurvesSymmetryType symmetr
 
 void remember_stroke_position(CurvesSculpt &curves_sculpt, const float3 &brush_position_wo)
 {
-  bke::StrokeRuntime &stroke_runtime = *curves_sculpt.paint.runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *curves_sculpt.paint.runtime.paint_runtime;
   copy_v3_v3(stroke_runtime.average_stroke_accum, brush_position_wo);
   stroke_runtime.average_stroke_counter = 1;
   stroke_runtime.last_stroke_valid = true;

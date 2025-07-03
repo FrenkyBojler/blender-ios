@@ -403,7 +403,7 @@ static void object_transfer_mode_reposition_view_pivot(ARegion *region,
   if (!ED_view3d_autodist_simple(region, mval, global_loc, 0, nullptr)) {
     return;
   }
-  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
   copy_v3_v3(stroke_runtime->average_stroke_accum, global_loc);
   stroke_runtime->average_stroke_counter = 1;
   stroke_runtime->last_stroke_valid = true;

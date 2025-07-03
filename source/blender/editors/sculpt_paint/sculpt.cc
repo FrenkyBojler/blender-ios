@@ -2162,7 +2162,7 @@ static float brush_strength(const Sculpt &sd,
                             const PaintModeSettings & /*paint_mode_settings*/)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const blender::bke::StrokeRuntime &stroke_runtime = *sd.paint.runtime.stroke_runtime;
+  const blender::bke::PaintRuntime &stroke_runtime = *sd.paint.runtime.paint_runtime;
 
   /* Primary strength input; square it to make lower values more sensitive. */
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
@@ -3420,7 +3420,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
   /* Update average stroke position. */
   const float3 world_location = math::project_point(ob.object_to_world(), ss.cache->location);
 
-  bke::StrokeRuntime &stroke_runtime = *sd.paint.runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *sd.paint.runtime.paint_runtime;
   add_v3_v3(stroke_runtime.average_stroke_accum, world_location);
   stroke_runtime.average_stroke_counter++;
   /* Update last stroke position. */
@@ -3907,7 +3907,7 @@ static void sculpt_update_cache_invariants(
     bContext *C, Sculpt &sd, SculptSession &ss, const wmOperator &op, const float mval[2])
 {
   StrokeCache *cache = MEM_new<StrokeCache>(__func__);
-  bke::StrokeRuntime *stroke_runtime = sd.paint.runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = sd.paint.runtime.paint_runtime;
   ToolSettings *tool_settings = CTX_data_tool_settings(C);
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
   ViewContext *vc = paint_stroke_view_context(static_cast<PaintStroke *>(op.customdata));
@@ -4111,7 +4111,7 @@ static void brush_delta_update(const Depsgraph &depsgraph,
                                const Object &ob,
                                const Brush &brush)
 {
-  bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   StrokeCache *cache = ss.cache;
@@ -4303,7 +4303,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Paint &paint = *BKE_paint_get_active_from_context(C);
-  bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
+  bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   Brush &brush = *BKE_paint_brush(&sd.paint);
@@ -5562,7 +5562,7 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
     brush_exit_tex(sd);
     return;
   }
-  bke::StrokeRuntime *stroke_runtime = sd.paint.runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = sd.paint.runtime.paint_runtime;
   Brush *brush = BKE_paint_brush(&sd.paint);
   BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
   stroke_runtime->draw_inverted = false;

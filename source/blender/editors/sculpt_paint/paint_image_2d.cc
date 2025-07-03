@@ -717,7 +717,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
                                            float distance,
                                            float size)
 {
-  const blender::bke::StrokeRuntime *stroke_runtime = painter->paint->runtime.stroke_runtime;
+  const blender::bke::PaintRuntime *stroke_runtime = painter->paint->runtime.paint_runtime;
   Brush *brush = painter->brush;
   BrushPainterCache *cache = &tile->cache;
   /* Adding 4 pixels of padding for brush anti-aliasing. */

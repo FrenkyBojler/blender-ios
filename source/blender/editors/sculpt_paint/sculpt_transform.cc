@@ -956,7 +956,7 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
 
   /* Update the viewport navigation rotation origin. */
   Paint *paint = BKE_paint_get_active_from_context(C);
-  bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
   copy_v3_v3(stroke_runtime->average_stroke_accum, ss.pivot_pos);
   stroke_runtime->average_stroke_counter = 1;
   stroke_runtime->last_stroke_valid = true;

@@ -874,7 +874,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
                               const int thread,
                               ImagePool *pool)
 {
-  const blender::bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  const blender::bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
   float intensity = 1.0;
   bool hasrgb = false;
 
@@ -992,7 +992,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
 float BKE_brush_sample_masktex(
     const Paint *paint, Brush *br, const float point[2], const int thread, ImagePool *pool)
 {
-  const blender::bke::StrokeRuntime *stroke_runtime = paint->runtime.stroke_runtime;
+  const blender::bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
   MTex *mtex = &br->mask_mtex;
   float rgba[4], intensity;
 
@@ -1356,7 +1356,7 @@ void BKE_brush_jitter_pos(const Paint &paint,
 
 void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
 {
-  blender::bke::StrokeRuntime& stroke_runtime = *paint->runtime.stroke_runtime;
+  blender::bke::PaintRuntime& stroke_runtime = *paint->runtime.paint_runtime;
   /* we multiply with brush radius as an optimization for the brush
    * texture sampling functions */
   if (mask) {

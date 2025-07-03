@@ -45,18 +45,18 @@ struct bNodeTree;
 namespace blender {
 namespace bke {
 class SceneRuntime;
-struct StrokeRuntime;
+struct PaintRuntime;
 }
 namespace ocio {
 class ColorSpace;
 }
 }  // namespace blender
-using StrokeRuntimeHandle = blender::bke::StrokeRuntime;
+using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
 #else   // __cplusplus
 typedef struct StrokeRuntimeHandle StrokeRuntimeHandle;
-typedef struct SceneRuntimeHandle SceneRuntimeHandle;
+typedef struct PaintRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
 #endif  // __cplusplus
 
@@ -1076,7 +1076,7 @@ typedef struct Paint_Runtime {
   char _pad[2];
   /** The last brush that was active. Used to support toggling. */
   struct AssetWeakReference *previous_active_brush_reference;
-  StrokeRuntimeHandle *stroke_runtime;
+  PaintRuntimeHandle *paint_runtime;
 } Paint_Runtime;
 
 typedef struct NamedBrushAssetReference {
