@@ -18,8 +18,8 @@ class ColorSpace;
 
 namespace blender::bke {
 struct StrokeRuntime : NonCopyable, NonMovable{
-  blender::float2 last_rake;
-  float last_rake_angle;
+  blender::float2 last_rake = float2(0.0f, 0.0f);
+  float last_rake_angle = 0.0f;
 
   int last_stroke_valid = false;
   blender::float3 average_stroke_accum = float3(0.0f, 0.0f, 0.0f);
@@ -28,13 +28,14 @@ struct StrokeRuntime : NonCopyable, NonMovable{
   /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
    * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
    * mouse curve, Bezier curve, etc.) */
-  float brush_rotation;
-  float brush_rotation_sec;
+  float brush_rotation = 0.0f;
+  float brush_rotation_sec = 0.0f;
 
   /*******************************************************************************
    * all data below are used to communicate with cursor drawing and tex sampling *
    *******************************************************************************/
-  int anchored_size;
+  bool draw_anchored = false;
+  int anchored_size = 0;
 
   /**
    * Normalization factor due to accumulated value of curve along spacing.
@@ -42,18 +43,17 @@ struct StrokeRuntime : NonCopyable, NonMovable{
    * if space attenuation is used.
    */
   float overlap_factor = 0.0f;
-  char draw_inverted;
+  bool draw_inverted = false;
   /** Check is there an ongoing stroke right now. */
   bool stroke_active = false;
 
-  char draw_anchored;
 
   /**
    * Store last location of stroke or whether the mesh was hit.
    * Valid only while stroke is active.
    */
-  blender::float3 last_location;
-  int last_hit;
+  blender::float3 last_location = float3(0.0f, 0.0f, 0.0f);
+  bool last_hit = false;
 
   blender::float2 anchored_initial_mouse;
 

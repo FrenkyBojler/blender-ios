@@ -555,7 +555,7 @@ static void paint_brush_stroke_add_step(
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
-  UnifiedPaintSettings *ups = stroke->ups;
+  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
 
 /* the following code is adapted from texture paint. It may not be needed but leaving here
  * just in case for reference (code in texpaint removed as part of refactoring).
@@ -609,12 +609,12 @@ static void paint_brush_stroke_add_step(
 
   float3 location;
   bool is_location_is_set;
-  ups->last_hit = paint_brush_update(
+  stroke_runtime->last_hit = paint_brush_update(
       C, brush, mode, stroke, mval, mouse_out, pressure, location, &is_location_is_set);
   if (is_location_is_set) {
-    copy_v3_v3(ups->last_location, location);
+    copy_v3_v3(stroke_runtime->last_location, location);
   }
-  if (!ups->last_hit) {
+  if (!stroke_runtime->last_hit) {
     return;
   }
 
@@ -632,7 +632,7 @@ static void paint_brush_stroke_add_step(
   if (add_step) {
     PointerRNA itemptr;
     RNA_collection_add(op->ptr, "stroke", &itemptr);
-    RNA_float_set(&itemptr, "size", ups->pixel_radius);
+    RNA_float_set(&itemptr, "size", stroke_runtime->pixel_radius);
     RNA_float_set_array(&itemptr, "location", location);
     /* Mouse coordinates modified by the stroke type options. */
     RNA_float_set_array(&itemptr, "mouse", mouse_out);
@@ -813,7 +813,7 @@ static int paint_space_stroke(bContext *C,
                               const float final_pressure)
 {
   const ARegion *region = CTX_wm_region(C);
-  UnifiedPaintSettings *ups = stroke->ups;
+  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
   const Paint &paint = *BKE_paint_get_active_from_context(C);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const Brush &brush = *BKE_paint_brush_for_read(&paint);
@@ -869,7 +869,7 @@ static int paint_space_stroke(bContext *C,
       }
       pressure = stroke->last_pressure + (spacing / length) * pressure_delta;
 
-      ups->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush,
+      stroke_runtime->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush,
                                                            spacing / no_pressure_spacing);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
@@ -989,9 +989,9 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
     return;
   }
 
-  UnifiedPaintSettings *ups = stroke->ups;
-  ups->draw_anchored = false;
-  ups->stroke_active = false;
+  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
+  stroke_runtime->draw_anchored = false;
+  stroke_runtime->stroke_active = false;
 
   if (stroke->timer) {
     WM_event_timer_remove(CTX_wm_manager(C), CTX_wm_window(C), stroke->timer);
@@ -1006,15 +1006,15 @@ void paint_stroke_free(bContext *C, wmOperator * /*op*/, PaintStroke *stroke)
 
 static void stroke_done(bContext *C, wmOperator *op, PaintStroke *stroke)
 {
-  UnifiedPaintSettings *ups = stroke->ups;
+  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
 
   /* reset rotation here to avoid doing so in cursor display */
   if (!(stroke->brush->mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
-    ups->brush_rotation = 0.0f;
+    stroke_runtime->brush_rotation = 0.0f;
   }
 
   if (!(stroke->brush->mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE)) {
-    ups->brush_rotation_sec = 0.0f;
+    stroke_runtime->brush_rotation_sec = 0.0f;
   }
 
   if (stroke->stroke_started) {
@@ -1230,8 +1230,8 @@ static void paint_line_strokes_spacing(bContext *C,
                                        const float2 old_pos,
                                        const float2 new_pos)
 {
-  UnifiedPaintSettings *ups = stroke->ups;
   Paint *paint = BKE_paint_get_active_from_context(C);
+  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
   const Brush &brush = *BKE_paint_brush(paint);
   const PaintMode mode = BKE_paintmode_get_active_from_context(C);
   const ARegion *region = CTX_wm_region(C);
@@ -1299,7 +1299,7 @@ static void paint_line_strokes_spacing(bContext *C,
         mouse = stroke->last_mouse_position + mouse_delta * spacing_final;
       }
 
-      ups->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush, 1.0);
+      stroke_runtime->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush, 1.0);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
       paint_brush_stroke_add_step(C, op, stroke, mouse, 1.0);
@@ -1321,8 +1321,9 @@ static void paint_stroke_line_end(bContext *C,
                                   const float2 mouse)
 {
   Brush *br = stroke->brush;
+  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
   if (stroke->stroke_started && (br->flag & BRUSH_LINE)) {
-    stroke->ups->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
+    stroke_runtime->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
 
     paint_brush_stroke_add_step(C, op, stroke, stroke->last_mouse_position, 1.0);
     paint_space_stroke(C, op, stroke, mouse, 1.0);
@@ -1337,6 +1338,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
   }
 
   Paint *paint = BKE_paint_get_active_from_context(C);
+  bke::StrokeRuntime *stroke_runtime = stroke->paint->runtime.stroke_runtime;
   const float spacing = paint_space_stroke_spacing(C, stroke, 1.0f, 1.0f);
   const PaintCurve *pc = br.paint_curve;
 
@@ -1349,7 +1351,7 @@ static bool paint_stroke_curve_end(bContext *C, wmOperator *op, PaintStroke *str
 #endif
 
   const PaintCurvePoint *pcp = pc->points;
-  stroke->ups->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
+  stroke_runtime->overlap_factor = paint_stroke_integrate_overlap(br, 1.0);
 
   float length_residue = 0.0f;
   for (int i = 0; i < pc->tot_points - 1; i++, pcp++) {
@@ -1652,7 +1654,7 @@ wmOperatorStatus paint_stroke_modal(bContext *C,
   /* we want the stroke to have the first daub at the start location
    * instead of waiting till we have moved the space distance */
   if (first_dab && paint_space_stroke_enabled(*br, mode) && !(br->flag & BRUSH_SMOOTH_STROKE)) {
-    stroke->ups->overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
+    stroke_runtime.overlap_factor = paint_stroke_integrate_overlap(*br, 1.0);
     paint_brush_stroke_add_step(C, op, stroke, sample_average.mouse, sample_average.pressure);
     redraw = true;
   }

@@ -1043,18 +1043,18 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
 
 /* Special actions taken when paint cursor goes over mesh */
 /* TODO: sculpt only for now. */
-static void paint_cursor_update_unprojected_radius(const UnifiedPaintSettings &ups,
+static void paint_cursor_update_unprojected_radius(Paint &paint,
                                                    Brush &brush,
                                                    const ViewContext &vc,
                                                    const float location[3])
 {
-  Paint &paint = *BKE_paint_get_active_from_context(vc.C);
+  const bke::StrokeRuntime &stroke_runtime = *paint.runtime.stroke_runtime;
   /* Update the brush's cached 3D radius. */
   if (!BKE_brush_use_locked_size(&paint, &brush)) {
     float projected_radius;
     /* Get 2D brush radius. */
-    if (ups.draw_anchored) {
-      projected_radius = ups.anchored_size;
+    if (stroke_runtime.draw_anchored) {
+      projected_radius = stroke_runtime.anchored_size;
     }
     else {
       if (brush.flag & BRUSH_ANCHORED) {
@@ -1069,8 +1069,8 @@ static void paint_cursor_update_unprojected_radius(const UnifiedPaintSettings &u
     float unprojected_radius = paint_calc_object_space_radius(vc, location, projected_radius);
 
     /* Scale 3D brush radius by pressure. */
-    if (ups.stroke_active && BKE_brush_use_size_pressure(&brush)) {
-      unprojected_radius *= ups.size_pressure_value;
+    if (stroke_runtime.stroke_active && BKE_brush_use_size_pressure(&brush)) {
+      unprojected_radius *= stroke_runtime.size_pressure_value;
     }
 
     /* Set cached value in either Brush or UnifiedPaintSettings. */
@@ -1377,9 +1377,10 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.zoomx = max_ff(zoomx, zoomy);
   pcontext.final_radius = (BKE_brush_size_get(pcontext.paint, pcontext.brush) * zoomx);
 
+  const bke::StrokeRuntime &stroke_runtime = *pcontext.paint->runtime.stroke_runtime;
   /* There is currently no way to check if the direction is inverted before starting the stroke,
    * so this does not reflect the state of the brush in the UI. */
-  if (((pcontext.ups->draw_inverted == 0) ^ ((pcontext.brush->flag & BRUSH_DIR_IN) == 0)) &&
+  if (((!stroke_runtime.draw_inverted) ^ ((pcontext.brush->flag & BRUSH_DIR_IN) == 0)) &&
       bke::brush::supports_secondary_cursor_color(*pcontext.brush))
   {
     pcontext.outline_col = float3(pcontext.brush->sub_col);
@@ -1404,7 +1405,7 @@ static bool paint_cursor_context_init(bContext *C,
     pcontext.outline_col = float3(0.8f);
   }
 
-  pcontext.is_stroke_active = pcontext.ups->stroke_active;
+  pcontext.is_stroke_active = stroke_runtime.stroke_active;
 
   return true;
 }
@@ -1439,7 +1440,7 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   bContext *C = pcontext.C;
   SculptSession &ss = *pcontext.ss;
   Brush &brush = *pcontext.brush;
-  UnifiedPaintSettings &ups = *pcontext.ups;
+  bke::StrokeRuntime &stroke_runtime = *pcontext.paint->runtime.stroke_runtime;
   ViewContext &vc = pcontext.vc;
   CursorGeometryInfo gi;
 
@@ -1456,15 +1457,15 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
    * work correctly */
   vert_random_access_ensure(*vc.obact);
   pcontext.prev_active_vert_index = ss.active_vert_index();
-  if (!ups.stroke_active) {
+  if (!stroke_runtime.stroke_active) {
     pcontext.is_cursor_over_mesh = cursor_geometry_info_update(
         C, &gi, mval_fl, (pcontext.brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE));
     pcontext.location = gi.location;
     pcontext.normal = gi.normal;
   }
   else {
-    pcontext.is_cursor_over_mesh = ups.last_hit;
-    pcontext.location = ups.last_location;
+    pcontext.is_cursor_over_mesh = stroke_runtime.last_hit;
+    pcontext.location = stroke_runtime.last_location;
   }
 
   paint_cursor_update_pixel_radius(pcontext);
@@ -1474,7 +1475,7 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   }
 
   if (pcontext.is_cursor_over_mesh) {
-    paint_cursor_update_unprojected_radius(ups, brush, vc, pcontext.scene_space_location);
+    paint_cursor_update_unprojected_radius(*pcontext.paint, brush, vc, pcontext.scene_space_location);
   }
 
   pcontext.sd = CTX_data_tool_settings(pcontext.C)->sculpt;
@@ -1508,9 +1509,10 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
 static void paint_draw_2D_view_brush_cursor_default(PaintCursorContext &pcontext)
 {
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha);
+  const bke::StrokeRuntime *stroke_runtime = pcontext.paint->runtime.stroke_runtime;
 
   /* Draw brush outline. */
-  if (pcontext.ups->stroke_active && BKE_brush_use_size_pressure(pcontext.brush)) {
+  if (stroke_runtime->stroke_active && BKE_brush_use_size_pressure(pcontext.brush)) {
     imm_draw_circle_wire_2d(pcontext.pos,
                             pcontext.translation[0],
                             pcontext.translation[1],
@@ -2126,7 +2128,8 @@ static void paint_cursor_update_rake_rotation(PaintCursorContext &pcontext)
   /* Don't calculate rake angles while a stroke is active because the rake variables are global
    * and we may get interference with the stroke itself.
    * For line strokes, such interference is visible. */
-  if (!pcontext.ups->stroke_active) {
+  const bke::StrokeRuntime *stroke_runtime = pcontext.paint->runtime.stroke_runtime;
+  if (!stroke_runtime->stroke_active) {
     paint_calculate_rake_rotation(
         *pcontext.paint, *pcontext.brush, pcontext.translation, pcontext.mode, true);
   }
@@ -2145,11 +2148,11 @@ static void paint_cursor_check_and_draw_alpha_overlays(PaintCursorContext &pcont
 
 static void paint_cursor_update_anchored_location(PaintCursorContext &pcontext)
 {
-  UnifiedPaintSettings *ups = pcontext.ups;
-  if (ups->draw_anchored) {
-    pcontext.final_radius = ups->anchored_size;
-    pcontext.translation = {ups->anchored_initial_mouse[0] + pcontext.region->winrct.xmin,
-                            ups->anchored_initial_mouse[1] + pcontext.region->winrct.ymin};
+  bke::StrokeRuntime *stroke_runtime = pcontext.paint->runtime.stroke_runtime;
+  if (stroke_runtime->draw_anchored) {
+    pcontext.final_radius = stroke_runtime->anchored_size;
+    pcontext.translation = {stroke_runtime->anchored_initial_mouse[0] + pcontext.region->winrct.xmin,
+                            stroke_runtime->anchored_initial_mouse[1] + pcontext.region->winrct.ymin};
   }
 }
 

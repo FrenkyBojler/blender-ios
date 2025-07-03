@@ -2056,11 +2056,6 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
 
   paint->paint_cursor = nullptr;
 
-  /* Reset last_location and last_hit, so they are not remembered across sessions. In some files
-   * these are also NaN, which could lead to crashes in painting. */
-  zero_v3(ups->last_location);
-  ups->last_hit = 0;
-
   paint_runtime_init(scene->toolsettings, paint);
 }
 

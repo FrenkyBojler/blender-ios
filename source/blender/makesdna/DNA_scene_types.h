@@ -1076,33 +1076,33 @@ typedef struct UnifiedPaintSettings {
   /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
    * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
    * mouse curve, Bezier curve, etc.) */
-  float brush_rotation;
-  float brush_rotation_sec;
+  float brush_rotation DNA_DEPRECATED;
+  float brush_rotation_sec DNA_DEPRECATED;
 
   /*******************************************************************************
    * all data below are used to communicate with cursor drawing and tex sampling *
    *******************************************************************************/
-  int anchored_size;
+  int anchored_size DNA_DEPRECATED;
 
   /**
    * Normalization factor due to accumulated value of curve along spacing.
    * Calculated when brush spacing changes to dampen strength of stroke
    * if space attenuation is used.
    */
-  float overlap_factor;
-  char draw_inverted;
+  float overlap_factor DNA_DEPRECATED;
+  char draw_inverted DNA_DEPRECATED;
   /** Check is there an ongoing stroke right now. */
-  char stroke_active;
+  char stroke_active DNA_DEPRECATED;
 
-  char draw_anchored;
-  char do_linear_conversion;
+  char draw_anchored DNA_DEPRECATED;
+  char do_linear_conversion DNA_DEPRECATED;
 
   /**
    * Store last location of stroke or whether the mesh was hit.
    * Valid only while stroke is active.
    */
-  float last_location[3];
-  int last_hit;
+  float last_location[3] DNA_DEPRECATED;
+  int last_hit DNA_DEPRECATED;
 
   float anchored_initial_mouse[2];
 
