@@ -519,9 +519,12 @@ static void gizmo_draw_select_3d_loop(const bContext *C,
                                       const int visible_gizmos_len,
                                       bool *r_use_select_bias)
 {
-
-  /* TODO(@ideasman42): this depends on depth buffer being written to,
-   * currently broken for the 3D view. */
+  /**
+   * Set default depth state.
+   * NOTE: Use #GPU_DEPTH_ALWAYS instead of #GPU_DEPTH_NONE due to issues with Intel GPU Drivers.
+   */
+  GPU_depth_test(GPU_DEPTH_ALWAYS);
+  GPU_depth_mask(true);
   bool is_depth_prev = false;
   bool is_depth_skip_prev = false;
 
@@ -567,7 +570,9 @@ static void gizmo_draw_select_3d_loop(const bContext *C,
     gz->type->draw_select(C, gz, select_id << 8);
   }
 
-  if (is_depth_prev) {
+  /* Reset depth state.*/
+
+  /* if (is_depth_prev) */ {
     GPU_depth_test(GPU_DEPTH_NONE);
   }
   if (is_depth_skip_prev) {
