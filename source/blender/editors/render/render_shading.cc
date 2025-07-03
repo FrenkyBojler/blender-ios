@@ -181,9 +181,10 @@ static bool object_materials_supported_poll(bContext *C)
   return object_materials_supported_poll_ex(C, ob);
 }
 
-static bool material_slot_populated_poll(bContext *C){
+static bool material_slot_populated_poll(bContext *C)
+{
   const Object *ob_active = CTX_data_active_object(C);
-  if(ob_active == nullptr){
+  if (ob_active == nullptr) {
     return false;
   }
   if (ob_active->actcol <= 0) {
@@ -255,7 +256,7 @@ static bool material_slot_remove_poll(bContext *C)
     CTX_wm_operator_poll_msg_set(C, "Unable to remove material slot in edit mode");
     return false;
   }
-  if(!material_slot_populated_poll(C)){
+  if (!material_slot_populated_poll(C)) {
     return false;
   }
 
