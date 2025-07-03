@@ -92,7 +92,8 @@ static const EnumPropertyItem rna_enum_language_default_items[] = {
      "DEFAULT",
      0,
      "Automatic (Automatic)",
-     "Automatically choose system's defined language if available, or fall-back to English"},
+     "Automatically choose the system-defined language if available, or fall-back to English "
+     "(US)"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 #endif
@@ -6514,7 +6515,7 @@ static void rna_def_userdef_input(BlenderRNA *brna)
        0,
        "Forward/Backward",
        "Zoom by pulling the 3D Mouse cap upwards or pushing the cap downwards"},
-      {NDOF_PAN_YZ_SWAP_AXIS,
+      {NDOF_SWAP_YZ_AXIS,
        "NDOF_ZOOM_UP",
        0,
        "Up/Down",

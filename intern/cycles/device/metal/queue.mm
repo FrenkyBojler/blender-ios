@@ -297,9 +297,19 @@ int MetalDeviceQueue::num_concurrent_busy_states(const size_t state_size) const
   return num_concurrent_states(state_size) / 4;
 }
 
-int MetalDeviceQueue::num_sort_partition_elements() const
+int MetalDeviceQueue::num_sort_partitions(int max_num_paths, uint max_scene_shaders) const
 {
-  return MetalInfo::optimal_sort_partition_elements();
+  int sort_partition_elements = MetalInfo::optimal_sort_partition_elements();
+  /* Sort partitioning becomes less effective when more shaders are in the wavefront. In lieu of
+   * a more sophisticated heuristic we simply disable sort partitioning if the shader count is
+   * high.
+   */
+  if (max_scene_shaders < 300 && sort_partition_elements > 0) {
+    return max(max_num_paths / sort_partition_elements, 1);
+  }
+  else {
+    return 1;
+  }
 }
 
 bool MetalDeviceQueue::supports_local_atomic_sort() const
@@ -499,8 +509,10 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
         if (id<MTLAccelerationStructure> accel_struct = metal_device_->accel_struct) {
           /* Mark all Accelerations resources as used */
           [mtlComputeCommandEncoder useResource:accel_struct usage:MTLResourceUsageRead];
-          [mtlComputeCommandEncoder useResource:metal_device_->blas_buffer
-                                          usage:MTLResourceUsageRead];
+          if (metal_device_->blas_buffer) {
+            [mtlComputeCommandEncoder useResource:metal_device_->blas_buffer
+                                            usage:MTLResourceUsageRead];
+          }
           [mtlComputeCommandEncoder useResources:metal_device_->unique_blas_array.data()
                                            count:metal_device_->unique_blas_array.size()
                                            usage:MTLResourceUsageRead];

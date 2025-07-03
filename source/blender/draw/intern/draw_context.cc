@@ -293,7 +293,12 @@ bool DRW_object_is_renderable(const Object *ob)
 
   if (ob->type == OB_MESH) {
     DRWContext &draw_ctx = drw_get();
-    if ((ob == draw_ctx.object_edit) || ob->mode == OB_MODE_EDIT) {
+    /* The evaluated object might be a mesh even though the original object has a different type.
+     * Also make sure the original object is a mesh (see #140762). */
+    if (draw_ctx.object_edit && draw_ctx.object_edit->type != OB_MESH) {
+      /* Noop. */
+    }
+    else if ((ob == draw_ctx.object_edit) || ob->mode == OB_MODE_EDIT) {
       View3D *v3d = draw_ctx.v3d;
       if (v3d && ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) && RETOPOLOGY_ENABLED(v3d)) {
         return false;
@@ -2084,17 +2089,10 @@ void DRW_module_init()
 
 void DRW_module_exit()
 {
-  if (DRW_gpu_context_try_enable() == false) {
-    /* Nothing has been setup. Nothing to clear. */
-    return;
-  }
-
   GPU_TEXTURE_FREE_SAFE(g_select_buffer.texture_depth);
   GPU_FRAMEBUFFER_FREE_SAFE(g_select_buffer.framebuffer_depth_only);
 
   DRW_shaders_free();
-
-  DRW_gpu_context_disable();
 }
 
 /** \} */

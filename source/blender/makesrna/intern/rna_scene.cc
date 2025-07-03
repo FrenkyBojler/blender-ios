@@ -1412,7 +1412,9 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_mode_itemf(bContext
     Scene *scene = (Scene *)ptr->owner_id;
     RenderData *rd = &scene->r;
 
-    if (MOV_codec_supports_alpha(rd->ffcodecdata.codec, rd->ffcodecdata.ffmpeg_prores_profile)) {
+    if (MOV_codec_supports_alpha(rd->ffcodecdata.codec_id_get(),
+                                 rd->ffcodecdata.ffmpeg_prores_profile))
+    {
       chan_flag |= IMA_CHAN_FLAG_RGBA;
     }
   }
@@ -1481,11 +1483,11 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContex
     if (depth_ok & R_IMF_CHAN_DEPTH_16) {
       if (is_float) {
         tmp = *item_16bit;
-        tmp.name = "Float (Half)";
+        tmp.name = N_("Float (Half)");
         if (ELEM(imf->imtype, R_IMF_IMTYPE_OPENEXR, R_IMF_IMTYPE_MULTILAYER)) {
-          tmp.description =
+          tmp.description = N_(
               "16-bit color channels. Data passes like Depth will still be saved using full "
-              "32-bit precision.";
+              "32-bit precision.");
         }
         RNA_enum_item_add(&item, &totitem, &tmp);
       }
@@ -1497,7 +1499,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_color_depth_itemf(bContex
     if (depth_ok & R_IMF_CHAN_DEPTH_32) {
       if (is_float) {
         tmp = *item_32bit;
-        tmp.name = "Float (Full)";
+        tmp.name = N_("Float (Full)");
         RNA_enum_item_add(&item, &totitem, &tmp);
       }
       else {
@@ -2972,7 +2974,7 @@ static std::optional<std::string> rna_FFmpegSettings_path(const PointerRNA * /*p
 static void rna_FFmpegSettings_codec_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
   FFMpegCodecData *codec_data = (FFMpegCodecData *)ptr->data;
-  if (!MOV_codec_supports_crf(codec_data->codec)) {
+  if (!MOV_codec_supports_crf(codec_data->codec_id_get())) {
     /* Constant Rate Factor (CRF) setting is only available for some codecs. Change encoder quality
      * mode to CBR for others. */
     codec_data->constant_rate_factor = FFM_CRF_NONE;

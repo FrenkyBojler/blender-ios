@@ -18,6 +18,7 @@
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation_legacy.hh"
 #include "BLI_memory_counter.hh"
+#include "BLI_resource_scope.hh"
 #include "BLI_task.hh"
 
 #include "BLO_read_write.hh"
@@ -1169,6 +1170,7 @@ void CurvesGeometry::ensure_can_interpolate_to_evaluated() const
 
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
+  BLI_assert(curves_num >= 0 && points_num >= 0);
   if (points_num != this->point_num) {
     CustomData_realloc(&this->point_data, this->points_num(), points_num);
     this->point_num = points_num;
@@ -1178,10 +1180,12 @@ void CurvesGeometry::resize(const int points_num, const int curves_num)
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
                                            this->curve_num == 0 ? 0 : (this->curve_num + 1),
-                                           curves_num + 1);
-    /* Set common values for convenience. */
-    this->curve_offsets[0] = 0;
-    this->curve_offsets[curves_num] = this->point_num;
+                                           curves_num == 0 ? 0 : (curves_num + 1));
+    if (curves_num > 0) {
+      /* Set common values for convenience. */
+      this->curve_offsets[0] = 0;
+      this->curve_offsets[curves_num] = this->point_num;
+    }
     this->curve_num = curves_num;
   }
   this->tag_topology_changed();
@@ -1898,6 +1902,14 @@ void CurvesGeometry::blend_read(BlendDataReader &reader)
 
   /* Recalculate curve type count cache that isn't saved in files. */
   this->update_curve_types();
+}
+
+CurvesGeometry::BlendWriteData::BlendWriteData(ResourceScope &scope)
+    : scope(scope),
+      point_layers(scope.construct<Vector<CustomDataLayer, 16>>()),
+      curve_layers(scope.construct<Vector<CustomDataLayer, 16>>()),
+      attribute_data(scope)
+{
 }
 
 void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_data)
