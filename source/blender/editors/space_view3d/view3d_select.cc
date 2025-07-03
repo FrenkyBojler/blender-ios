@@ -38,10 +38,6 @@
 
 #include "BLT_translation.hh"
 
-#ifdef __BIG_ENDIAN__
-#  include "BLI_endian_switch.h"
-#endif
-
 #include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_attribute.hh"
@@ -98,6 +94,7 @@
 #include "DRW_engine.hh"
 #include "DRW_select_buffer.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "view3d_intern.hh" /* own include */
@@ -1015,7 +1012,7 @@ static void do_lasso_select_armature__doSelectBone(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   const bArmature *arm = static_cast<const bArmature *>(data->vc->obedit->data);
-  if (!ANIM_bone_is_visible_editbone(arm, ebone)) {
+  if (!blender::animrig::bone_is_visible_editbone(arm, ebone)) {
     return;
   }
 
@@ -1062,7 +1059,7 @@ static void do_lasso_select_armature__doSelectBone_clip_content(void *user_data,
 {
   LassoSelectUserData *data = static_cast<LassoSelectUserData *>(user_data);
   bArmature *arm = static_cast<bArmature *>(data->vc->obedit->data);
-  if (!ANIM_bone_is_visible_editbone(arm, ebone)) {
+  if (!blender::animrig::bone_is_visible_editbone(arm, ebone)) {
     return;
   }
 
@@ -1665,7 +1662,7 @@ void VIEW3D_OT_select_menu(wmOperatorType *ot)
   ot->description = "Menu object selection";
   ot->idname = "VIEW3D_OT_select_menu";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = object_select_menu_exec;
   ot->get_name = object_select_menu_get_name;
@@ -1879,7 +1876,7 @@ void VIEW3D_OT_bone_select_menu(wmOperatorType *ot)
   ot->description = "Menu bone selection";
   ot->idname = "VIEW3D_OT_bone_select_menu";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_menu_invoke;
   ot->exec = bone_select_menu_exec;
 
@@ -2237,13 +2234,10 @@ static int gpu_select_buffer_depth_id_cmp(const void *sel_a_p, const void *sel_b
   }
 
   /* Depths match, sort by id. */
+  /* NOTE: this is endianness-sensitive.
+   * GPUSelectResult values are always expected to be little-endian. */
   uint sel_a = a->id;
   uint sel_b = b->id;
-
-#ifdef __BIG_ENDIAN__
-  BLI_endian_switch_uint32(&sel_a);
-  BLI_endian_switch_uint32(&sel_b);
-#endif
 
   if (sel_a < sel_b) {
     return -1;
@@ -2706,7 +2700,7 @@ static bool ed_object_select_pick(bContext *C,
 
   /* Split `changed` into data-types so their associated updates can be properly performed.
    * This is also needed as multiple changes may happen at once.
-   * Selecting a pose-bone or track can also select the object for e.g. */
+   * Selecting a pose-bone or track can also select the object for example */
   bool changed_object = false;
   bool changed_pose = false;
   bool changed_track = false;
@@ -3146,8 +3140,8 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
           continue;
         }
 
-        bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(pointcloud,
-                                                                                     CD_PROP_BOOL);
+        bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(
+            pointcloud, bke::AttrType::Bool);
         pointcloud::fill_selection_false(selection.span, IndexMask(pointcloud.totpoint));
         selection.finish();
 
@@ -3164,8 +3158,8 @@ static bool pointcloud_select_pick(bContext &C, const int2 mval, const SelectPic
     return deselected;
   }
 
-  bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(*closest.pointcloud,
-                                                                               CD_PROP_BOOL);
+  bke::GSpanAttributeWriter selection = pointcloud::ensure_selection_attribute(
+      *closest.pointcloud, bke::AttrType::Bool);
   curves::apply_selection_operation_at_index(selection.span, closest.elem.index, params.sel_op);
   selection.finish();
 
@@ -3289,7 +3283,7 @@ static bool ed_curves_select_pick(bContext &C, const int mval[2], const SelectPi
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
         closest.curves_id->geometry.wrap(),
         bke::AttrDomain::Point,
-        CD_PROP_BOOL,
+        bke::AttrType::Bool,
         closest.selection_attribute_name);
     ed::curves::apply_selection_operation_at_index(
         selection.span, closest.elem.index, params.sel_op);
@@ -3519,7 +3513,7 @@ static wmOperatorStatus view3d_select_exec(bContext *C, wmOperator *op)
 
   if (obedit && enumerate) {
     /* Enumerate makes no sense in edit-mode unless also explicitly picking objects or bones.
-     * Pass the event through so the event may be handled by loop-select for e.g. see: #100204.
+     * Pass the event through so the event may be handled by loop-select for example. See: #100204.
      */
     if (obedit->type != OB_ARMATURE) {
       return OPERATOR_PASS_THROUGH | OPERATOR_CANCELLED;
@@ -3615,7 +3609,7 @@ void VIEW3D_OT_select(wmOperatorType *ot)
   ot->description = "Select and activate item(s)";
   ot->idname = "VIEW3D_OT_select";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = view3d_select_invoke;
   ot->exec = view3d_select_exec;
   ot->poll = ED_operator_view3d_active;
@@ -4224,13 +4218,10 @@ static bool do_armature_box_select(const ViewContext *vc, const rcti *rect, cons
  */
 static int gpu_bone_select_buffer_cmp(const void *sel_a_p, const void *sel_b_p)
 {
+  /* NOTE: this is endianness-sensitive.
+   * GPUSelectResult values are always expected to be little-endian. */
   uint sel_a = ((GPUSelectResult *)sel_a_p)->id;
   uint sel_b = ((GPUSelectResult *)sel_b_p)->id;
-
-#ifdef __BIG_ENDIAN__
-  BLI_endian_switch_uint32(&sel_a);
-  BLI_endian_switch_uint32(&sel_b);
-#endif
 
   if (sel_a < sel_b) {
     return -1;
@@ -4598,7 +4589,7 @@ void VIEW3D_OT_select_box(wmOperatorType *ot)
   ot->description = "Select items using box selection";
   ot->idname = "VIEW3D_OT_select_box";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_gesture_box_invoke;
   ot->exec = view3d_box_select_exec;
   ot->modal = WM_gesture_box_modal;
@@ -5129,7 +5120,9 @@ static void do_circle_select_armature__doSelectBone(void *user_data,
 {
   CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
   const bArmature *arm = static_cast<const bArmature *>(data->vc->obedit->data);
-  if (!(data->select ? EBONE_SELECTABLE(arm, ebone) : ANIM_bone_is_visible_editbone(arm, ebone))) {
+  if (!(data->select ? EBONE_SELECTABLE(arm, ebone) :
+                       blender::animrig::bone_is_visible_editbone(arm, ebone)))
+  {
     return;
   }
 
@@ -5185,7 +5178,9 @@ static void do_circle_select_armature__doSelectBone_clip_content(void *user_data
   CircleSelectUserData *data = static_cast<CircleSelectUserData *>(user_data);
   bArmature *arm = static_cast<bArmature *>(data->vc->obedit->data);
 
-  if (!(data->select ? EBONE_SELECTABLE(arm, ebone) : ANIM_bone_is_visible_editbone(arm, ebone))) {
+  if (!(data->select ? EBONE_SELECTABLE(arm, ebone) :
+                       blender::animrig::bone_is_visible_editbone(arm, ebone)))
+  {
     return;
   }
 

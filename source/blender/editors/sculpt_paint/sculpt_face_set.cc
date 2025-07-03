@@ -1065,7 +1065,8 @@ static wmOperatorStatus change_visibility_exec(bContext *C, wmOperator *op)
   /* For modes that use the cursor active vertex, update the rotation origin for viewport
    * navigation. */
   if (ELEM(mode, VisibilityMode::Toggle, VisibilityMode::ShowActive)) {
-    UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
+    Paint *paint = BKE_paint_get_active_from_context(C);
+    UnifiedPaintSettings *ups = &paint->unified_paint_settings;
     if (std::holds_alternative<std::monostate>(ss.active_vert())) {
       ups->last_stroke_valid = false;
     }
@@ -1103,7 +1104,7 @@ static wmOperatorStatus change_visibility_invoke(bContext *C, wmOperator *op, co
    * cursor updates. */
   CursorGeometryInfo cgi;
   const float mval_fl[2] = {float(event->mval[0]), float(event->mval[1])};
-  SCULPT_vertex_random_access_ensure(ob);
+  vert_random_access_ensure(ob);
   cursor_geometry_info_update(C, &cgi, mval_fl, false);
 
   return change_visibility_exec(C, op);

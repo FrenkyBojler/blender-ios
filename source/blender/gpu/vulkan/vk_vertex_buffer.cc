@@ -48,11 +48,9 @@ void VKVertexBuffer::ensure_buffer_view()
   }
 
   VkBufferViewCreateInfo buffer_view_info = {};
-  eGPUTextureFormat texture_format = to_texture_format(&format);
-
   buffer_view_info.sType = VK_STRUCTURE_TYPE_BUFFER_VIEW_CREATE_INFO;
   buffer_view_info.buffer = buffer_.vk_handle();
-  buffer_view_info.format = to_vk_format(texture_format);
+  buffer_view_info.format = to_vk_format();
   buffer_view_info.range = buffer_.size_in_bytes();
 
   const VKDevice &device = VKBackend::get().device;
@@ -67,22 +65,18 @@ void VKVertexBuffer::wrap_handle(uint64_t /*handle*/)
 
 void VKVertexBuffer::update_sub(uint start_offset, uint data_size_in_bytes, const void *data)
 {
-  device_format_ensure();
-  if (buffer_.is_mapped() && !vertex_format_converter.needs_conversion()) {
+  if (!buffer_.is_allocated()) {
+    /* Allocating huge buffers can fail, in that case we skip copying data. */
+    return;
+  }
+  if (buffer_.is_mapped()) {
     buffer_.update_sub_immediately(start_offset, data_size_in_bytes, data);
   }
   else {
     VKContext &context = *VKContext::get();
     VKStagingBuffer staging_buffer(
         buffer_, VKStagingBuffer::Direction::HostToDevice, start_offset, data_size_in_bytes);
-    if (vertex_format_converter.needs_conversion()) {
-      vertex_format_converter.convert(staging_buffer.host_buffer_get().mapped_memory_get(),
-                                      data_,
-                                      data_size_in_bytes / vertex_len);
-    }
-    else {
-      memcpy(staging_buffer.host_buffer_get().mapped_memory_get(), data, data_size_in_bytes);
-    }
+    memcpy(staging_buffer.host_buffer_get().mapped_memory_get(), data, data_size_in_bytes);
     staging_buffer.copy_to_device(context);
   }
 }
@@ -95,9 +89,12 @@ void VKVertexBuffer::read(void *data) const
     return;
   }
 
-  VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::DeviceToHost);
-  staging_buffer.copy_from_device(context);
-  staging_buffer.host_buffer_get().read(context, data);
+  /* Allocating huge buffers can fail, in that case we skip copying data. */
+  if (buffer_.is_allocated()) {
+    VKStagingBuffer staging_buffer(buffer_, VKStagingBuffer::Direction::DeviceToHost);
+    staging_buffer.copy_from_device(context);
+    staging_buffer.host_buffer_get().read(context, data);
+  }
 }
 
 void VKVertexBuffer::acquire_data()
@@ -133,17 +130,7 @@ void VKVertexBuffer::release_data()
 
 void VKVertexBuffer::upload_data_direct(const VKBuffer &host_buffer)
 {
-  device_format_ensure();
-  if (vertex_format_converter.needs_conversion()) {
-    if (G.debug & G_DEBUG_GPU) {
-      std::cout << "PERFORMANCE: Vertex buffer requires conversion.\n";
-    }
-    vertex_format_converter.convert(host_buffer.mapped_memory_get(), data_, vertex_len);
-    host_buffer.flush();
-  }
-  else {
-    host_buffer.update_immediately(data_);
-  }
+  host_buffer.update_immediately(data_);
 }
 
 void VKVertexBuffer::upload_data_via_staging_buffer(VKContext &context)
@@ -157,13 +144,17 @@ void VKVertexBuffer::upload_data()
 {
   if (!buffer_.is_allocated()) {
     allocate();
+    /* If allocation fails, don't upload.*/
+    if (!buffer_.is_allocated()) {
+      return;
+    }
   }
+
   if (!ELEM(usage_, GPU_USAGE_STATIC, GPU_USAGE_STREAM, GPU_USAGE_DYNAMIC)) {
     return;
   }
 
   if (flag & GPU_VERTBUF_DATA_DIRTY) {
-    device_format_ensure();
     if (buffer_.is_mapped() && !data_uploaded_) {
       upload_data_direct(buffer_);
     }
@@ -178,13 +169,6 @@ void VKVertexBuffer::upload_data()
 
     flag &= ~GPU_VERTBUF_DATA_DIRTY;
     flag |= GPU_VERTBUF_DATA_UPLOADED;
-  }
-}
-
-void VKVertexBuffer::device_format_ensure()
-{
-  if (!vertex_format_converter.is_initialized()) {
-    vertex_format_converter.init(&format);
   }
 }
 

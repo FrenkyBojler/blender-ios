@@ -75,6 +75,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -3233,7 +3234,7 @@ void OUTLINER_OT_action_set(wmOperatorType *ot)
   ot->idname = "OUTLINER_OT_action_set";
   ot->description = "Change the active action used";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = WM_enum_search_invoke;
   ot->exec = outliner_action_set_exec;
   ot->poll = outliner_operation_tree_element_poll;
@@ -3620,7 +3621,7 @@ static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
   uiLayout *layout = UI_popup_menu_layout(pup);
 
   /* Set this so the default execution context is the same as sub-menus. */
-  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_REGION_WIN);
+  layout->operator_context_set(WM_OP_INVOKE_REGION_WIN);
 
   if (WM_operator_poll(C, ot)) {
     uiItemsEnumO(layout, ot->idname, RNA_property_identifier(ot->prop));
@@ -3628,7 +3629,7 @@ static wmOperatorStatus outliner_operator_menu(bContext *C, const char *opname)
     layout->separator();
   }
 
-  uiItemMContents(layout, "OUTLINER_MT_context_menu");
+  layout->menu_contents("OUTLINER_MT_context_menu");
 
   UI_popup_menu_end(C, pup);
 

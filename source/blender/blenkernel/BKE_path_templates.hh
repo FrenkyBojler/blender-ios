@@ -4,8 +4,63 @@
 
 /** \file
  *
- * \brief Functions and classes for applying templates with variable expressions
- * to filepaths.
+ * \brief Functions and classes for evaluating template expressions in
+ * filepaths.
+ *
+ * To add support for path templates to a path property:
+ *
+ * 1. Enable `PROP_PATH_SUPPORTS_TEMPLATES` in its RNA property flags.
+ * 2. Optionally set its RNA path template type (`PropertyPathTemplateType`) via
+ *    `RNA_def_property_path_template_type()`, if you want it to have access to
+ *    any purpose-specific variables (see further below).
+ * 3. Wherever the evaluated path is needed, generate an appropriate
+ *    `VariableMap` for it via the `BKE_add_template_variables_*()` functions,
+ *    and use that to evaluate the path via `BKE_path_apply_template()`.
+ *
+ * An example of what step 3 might look like:
+ *
+ * ```
+ * VariableMap template_variables;
+ * BKE_add_template_variables_general(template_variables, owner_id);
+ * BKE_add_template_variables_for_render_path(template_variables, scene);
+ * BKE_add_template_variables_for_node(template_variables, owner_node);
+ *
+ * BKE_path_apply_template(filepath, FILE_MAX, template_variables);
+ * ```
+ *
+ * This calls three functions to build the `VariableMap`, one for each "kind" of
+ * variable (see below).
+ *
+ * Currently the path template system has three kinds of variables that can be
+ * used in expressions:
+ *
+ * - General variables, which are made available to all paths that support path
+ *   templates. For example, the name of the current blend file.
+ * - Purpose-specific variables, which are determined by the path property's
+ *   `PropertyPathTemplateType` flag. For example, render output paths will be
+ *   marked as `PROP_VARIABLES_RENDER_OUTPUT`, and will therefore get access to
+ *   variables like `fps`, which are rendering-specific.
+ * - Type-specific variables, which are variables made available to all
+ *   path-template paths owned by a particular type of struct. For example,
+ *   paths owned by a `bNode` will have access to the `node_name` variable,
+ *   which provides the name of the owning node.
+ *
+ * At the moment there is no strict code structure that enforces this, just the
+ * following conventions:
+ *
+ * - All general variables are added by `BKE_add_template_variables_general()`.
+ * - Purpose-specific variables are organized into multiple functions: one
+ *   function per variant in `PropertyPathTemplateType`, with all variables for
+ *   a variant going into the same function. Example:
+ *   `BKE_add_template_variables_for_render_path()`
+ * - Type-specific variables are organized into multiple functions: one per
+ *   struct type, with all variables for a struct type going into the same
+ *   function. Example: `BKE_add_template_variables_for_node()`
+ *
+ * When adding new `PropertyPathTemplateType` variants or adding support for new
+ * owning struct types, make sure that you also call their variable-adding
+ * functions from `BKE_build_template_variables_for_prop()`, which is used for
+ * highlighting template path errors in the UI for users.
  */
 #pragma once
 
@@ -20,7 +75,12 @@
 
 #include "BKE_report.hh"
 
+#include "DNA_node_types.h"
 #include "DNA_scene_types.h"
+
+struct bContext;
+struct PointerRNA;
+struct PropertyRNA;
 
 namespace blender::bke::path_templates {
 
@@ -110,6 +170,47 @@ class VariableMap {
    * #std::nullopt otherwise.
    */
   std::optional<double> get_float(blender::StringRef name) const;
+
+  /* ------------------------------------------------------------------
+   * Convenience methods, to aid in consistency across different uses. */
+
+  /**
+   * Add the filename (sans file extension) from the given path as a variable.
+   *
+   * For example, if the full path is "/home/bob/project_joe/scene_3.blend",
+   * then "scene_3" is the value of the added variable.
+   *
+   * If the path doesn't contain a filename, then `fallback` is used for the
+   * variable value.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_filename(blender::StringRef var_name,
+                    blender::StringRefNull full_path,
+                    blender::StringRef fallback);
+
+  /**
+   * Add the path up-to-but-not-including the filename as a variable.
+   *
+   * For example, if the full path is "/home/bob/project_joe/scene_3.blend",
+   * then "/home/bob/project_joe/" is the value of the added variable.
+   *
+   * If the path lacks either a filename or a path leading up to that filename,
+   * then `fallback` is used for the variable value.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_path_up_to_file(blender::StringRef var_name,
+                           blender::StringRefNull full_path,
+                           blender::StringRef fallback);
 };
 
 enum class ErrorType {
@@ -129,46 +230,95 @@ bool operator==(const Error &left, const Error &right);
 }  // namespace blender::bke::path_templates
 
 /**
- * Build a template variable map based on available information.
+ * Build a template variable map for the passed RNA property.
  *
- * All parameters are allowed to be null, in which case the variables derived
- * from those parameters will simply not be included.
+ * \param C: the context to use for building some variables. This is needed in
+ * some cases when the property and its owner do not provide the data needed for
+ * a variable. This parameter can be null, but the variables it's needed for
+ * will then be absent in the returned variable map.
  *
- * This is typically used to create the variables passed to
+ * \return On success, returns the template variables for the property. If no
+ * property is provided or if the property doesn't support path templates,
+ * returns #std::nullopt.
+ */
+std::optional<blender::bke::path_templates::VariableMap> BKE_build_template_variables_for_prop(
+    const bContext *C, PointerRNA *ptr, PropertyRNA *prop);
+
+/**
+ * Add the general variables that should be available for all path templates.
+ *
+ * This is typically used when building a variable map to pass to
  * `BKE_path_apply_template()`.
  *
- * \param blend_file_path: full path to the blend file, including the file name.
- * Typically you should fetch this with `ID_BLEND_PATH()`, but there are
- * exceptions. The key thing is that this should be the path to the *relevant*
- * blend file for the context that the variables are going to be used in. For
- * example, if the context is a linked ID then this path should (very likely) be
- * the path to that ID's library blend file, not the currently opened one.
+ * \param path_owner_id: the ID that owns the path property that will be
+ * evaluated with the produced variable map. Passing a nullptr is allowed, but
+ * doing so has semantic meaning: it means that there *is no* owning ID. Only
+ * pass nullptr when that is actually true, not just out of convenience, because
+ * it alters the produced variables.
  *
- * \param render_data: used for output resolution and fps. Note for the future:
+ * \see BKE_path_apply_template()
+ */
+void BKE_add_template_variables_general(blender::bke::path_templates::VariableMap &variables,
+                                        const ID *path_owner_id);
+
+/**
+ * Add the variables that should be available for render output paths.
+ *
+ * Corresponds to `PropertyPathTemplateType::PROP_VARIABLES_RENDER_OUTPUT`.
+ *
+ * This is typically used when building a variable map to pass to
+ * `BKE_path_apply_template()`.
+ *
+ * \param scene: scene to use to get the variable values. Note for the future:
  * when we add a "current frame number" variable it should *not* come from this
  * parameter, but be passed separately. This is because the callers of this
  * function sometimes have the current frame defined separately from the
  * available RenderData (see e.g. `do_makepicstring()`).
  *
  * \see BKE_path_apply_template()
- *
- * \see BLI_path_abs()
  */
-blender::bke::path_templates::VariableMap BKE_build_template_variables(
-    const char *blend_file_path, const RenderData *render_data);
+void BKE_add_template_variables_for_render_path(
+    blender::bke::path_templates::VariableMap &variables, const Scene &scene);
 
 /**
- * Validate the template syntax in the given path.
+ * Add the variables that should be available for paths owned by a node.
  *
- * This does *not* validate whether any variables referenced in the path exist
- * or not, nor whether the format specification in a variable expression is
- * appropriate for its type. This only validates that the template syntax itself
- * is valid.
+ * This is typically used when building a variable map to pass to
+ * `BKE_path_apply_template()`.
  *
- * \return An empty vector if valid, or a vector of the parse errors if invalid.
+ * \param owning_node: the node that owns the path property that will be
+ * evaluated with the produced variable map.
+ *
+ * \see BKE_path_apply_template()
  */
-blender::Vector<blender::bke::path_templates::Error> BKE_validate_template_syntax(
-    blender::StringRef path);
+void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableMap &variables,
+                                         const bNode &owning_node);
+
+/**
+ * Check if a path contains any templating syntax at all.
+ *
+ * This is primarily intended to be used as a pre-check in performance-sensitive
+ * code to skip path template processing when it's not needed.
+ *
+ * \return False if the path contains no templating syntax (no template
+ * processing is needed). True if the path does contain templating syntax
+ * (template processing *is* needed).
+ */
+bool BKE_path_contains_template_syntax(blender::StringRef path);
+
+/**
+ * Validate the templating in the given path.
+ *
+ * This produces identical errors as `BKE_path_apply_template()`, but
+ * without modifying the path on success.
+ *
+ * \return An empty vector if the templating in the path is valid, or a vector
+ * of the errors if invalid.
+ *
+ * \see BKE_path_apply_template()
+ */
+blender::Vector<blender::bke::path_templates::Error> BKE_path_validate_template(
+    blender::StringRef path, const blender::bke::path_templates::VariableMap &template_variables);
 
 /**
  * Perform variable substitution and escaping on the given path.
@@ -227,3 +377,16 @@ void BKE_report_path_template_errors(ReportList *reports,
                                      eReportType report_type,
                                      blender::StringRef path,
                                      blender::Span<blender::bke::path_templates::Error> errors);
+
+/**
+ * Format the given floating point value with the provided format specifier. The format specifier
+ * is e.g. the "##.###" in "{name:##.###}".
+ *
+ * \return #std::nullopt if the format specifier is invalid.
+ */
+std::optional<std::string> BKE_path_template_format_float(blender::StringRef format_specifier,
+                                                          double value);
+
+/** Same as #BKE_path_template_format_float but for formatting an integer value.  */
+std::optional<std::string> BKE_path_template_format_int(blender::StringRef format_specifier,
+                                                        int64_t value);
