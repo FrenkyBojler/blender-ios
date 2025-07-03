@@ -43,8 +43,6 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
 void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float angular_diameter,
                                             float altitude,
-                                            float air_density,
-                                            float aerosol_density,
                                             float *r_pixel_bottom,
                                             float *r_pixel_top);
 

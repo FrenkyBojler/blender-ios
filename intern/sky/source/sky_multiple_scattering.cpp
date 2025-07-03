@@ -32,8 +32,6 @@
 #include "sky_math.h"
 #include "sky_model.h"
 
-#include <cstdio>
-
 /* Earth's atmosphere parameters. */
 /* Ground reflectance */
 static const float4 ground_albedo = make_float4(0.3f, 0.3f, 0.3f, 0.3f);
@@ -58,7 +56,7 @@ static const int transmittance_res_y = 64;
 float transmittance_lut[transmittance_res_x][transmittance_res_y][4] = {};
 static const float2 transmittance_res = make_float2((float)transmittance_res_x,
                                                     (float)transmittance_res_y);
-static const float2 sky_res = make_float2(512.0f, 256.0f);  // same as the precomputed sky
+static const float2 sky_res = make_float2(512.0f, 256.0f);  // Same as the precomputed sky
 
 /* Spectral data sampled at 630, 560, 490, 430 nm. */
 static const float4 sun_spectral_irradiance = make_float4(1.679f, 1.828f, 1.986f, 1.307f);
@@ -112,7 +110,7 @@ static float mix(float x, float y, float a)
   return x * (1.0f - a) + y * a;
 }
 
-static float4 interpolation(float2 uv)
+static float4 lut_value(float2 uv)
 {
   /* bilinear interpolation */
   float posx = float(transmittance_res_x - 1) * uv.x;
@@ -142,7 +140,7 @@ static float4 transmittance_from_lut(float cos_theta, float normalized_altitude)
   float u = clamp(cos_theta * 0.5f + 0.5f, 0.0f, 1.0f);
   float v = clamp(normalized_altitude, 0.0f, 1.0f);
   float2 uv = make_float2(u, v);
-  return interpolation(uv);
+  return lut_value(uv);
 }
 
 static float ray_sphere_intersection(float3 ro, float3 rd, float radius)
@@ -368,7 +366,7 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
       pixel_row[pos_x] = sky.x;
       pixel_row[pos_x + 1] = sky.y;
       pixel_row[pos_x + 2] = sky.z;
-      /* Mirror sky */
+      /* Mirror pixels */
       int mirror_x = (width - x - 1) * stride;
       pixel_row[mirror_x] = sky.x;
       pixel_row[mirror_x + 1] = sky.y;
@@ -381,7 +379,7 @@ void SKY_multiple_scattering_precompute_transmittance(float air_density,
                                                       float aerosol_density,
                                                       float ozone_density)
 {
-  /* Calculate and store transmittance LUT */
+  /* Calculate and store transmittance LUT. */
   float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
   for (int x = 0; x < transmittance_res_x; x++) {
     for (int y = 0; y < transmittance_res_y; y++) {
@@ -396,44 +394,43 @@ void SKY_multiple_scattering_precompute_transmittance(float air_density,
   }
 }
 
-static float4 sun_radiation(
-    float3 cam_dir, float altitude, float air_density, float aerosol_density, float solid_angle)
+static float4 sun_radiation(float sun_zenith_cos_angle, float altitude, float solid_angle)
 {
-  return make_float4(10.0f, 10.0f, 10.0f, 10.0f);
+  float normalized_altitude = altitude / 1000.0f / atmosphere_thickness;
+  float4 transmittance_to_sun = transmittance_from_lut(sun_zenith_cos_angle, normalized_altitude);
+  float4 sun_radiance = sun_spectral_irradiance * transmittance_to_sun / solid_angle;
+  return sun_radiance;
 }
 
 void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float angular_diameter,
                                             float altitude,
-                                            float air_density,
-                                            float aerosol_density,
                                             float *r_pixel_bottom,
                                             float *r_pixel_top)
 {
-  /* definitions */
   float half_angular = angular_diameter / 2.0f;
   float solid_angle = M_2PI_F * (1.0f - cosf(half_angular));
   float bottom = sun_elevation - half_angular;
   float top = sun_elevation + half_angular;
   float elevation_bottom, elevation_top;
 
-  /* compute 2 pixels for sun disc */
+  /* Compute 2 pixels for Sun disc */
   elevation_bottom = (bottom > 0.0f) ? bottom : 0.0f;
   elevation_top = (top > 0.0f) ? top : 0.0f;
 
   float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_bottom);
   float3 sun_dir = make_float3(
       -sqrtf(1.0f - sun_zenith_cos_angle * sun_zenith_cos_angle), 0.0f, sun_zenith_cos_angle);
-  float4 spectrum = sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle);
+  float4 spectrum = sun_radiation(sun_zenith_cos_angle, altitude, solid_angle);
   float3 pix_bottom = spectral_to_xyz(spectrum);
 
   sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_top);
   sun_dir = make_float3(
       -sqrtf(1.0f - sun_zenith_cos_angle * sun_zenith_cos_angle), 0.0f, sun_zenith_cos_angle);
-  spectrum = sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle);
+  spectrum = sun_radiation(sun_zenith_cos_angle, altitude, solid_angle);
   float3 pix_top = spectral_to_xyz(spectrum);
 
-  /* store pixels */
+  /* Store pixels */
   r_pixel_bottom[0] = pix_bottom.x;
   r_pixel_bottom[1] = pix_bottom.y;
   r_pixel_bottom[2] = pix_bottom.z;

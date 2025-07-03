@@ -645,7 +645,8 @@ static void sky_texture_precompute(SunSky *sunsky,
                                    const float sun_rotation,
                                    const float altitude,
                                    const float air_density,
-                                   const float aerosol_density)
+                                   const float aerosol_density,
+                                   const float ozone_density)
 {
   /* Sample 2 Sun pixels */
   float pixel_bottom[3];
@@ -656,8 +657,9 @@ static void sky_texture_precompute(SunSky *sunsky,
         sun_elevation, sun_size, altitude, air_density, aerosol_density, pixel_bottom, pixel_top);
   }
   else {
+    SKY_multiple_scattering_precompute_transmittance(air_density, aerosol_density, ozone_density);
     SKY_multiple_scattering_precompute_sun(
-        sun_elevation, sun_size, altitude, air_density, aerosol_density, pixel_bottom, pixel_top);
+        sun_elevation, sun_size, altitude, pixel_bottom, pixel_top);
   }
 
   /* Send data to svm_sky */
@@ -693,13 +695,8 @@ float SkyTextureNode::get_sun_average_radiance()
   }
   else {
     clamped_altitude = clamp(altitude, 1.0f, 99999.0f);
-    SKY_multiple_scattering_precompute_sun(sun_elevation,
-                                           angular_diameter,
-                                           clamped_altitude,
-                                           air_density,
-                                           aerosol_density,
-                                           pix_bottom,
-                                           pix_top);
+    SKY_multiple_scattering_precompute_sun(
+        sun_elevation, angular_diameter, clamped_altitude, pix_bottom, pix_top);
   }
 
   /* Approximate the direction's elevation as the sun's elevation. */
@@ -836,7 +833,8 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                          sun_rotation,
                          clamped_altitude,
                          air_density,
-                         aerosol_density);
+                         aerosol_density,
+                         ozone_density);
   /* precomputed texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
@@ -897,7 +895,8 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
                          sun_rotation,
                          clamped_altitude,
                          air_density,
-                         aerosol_density);
+                         aerosol_density,
+                         ozone_density);
   /* precomputed texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
