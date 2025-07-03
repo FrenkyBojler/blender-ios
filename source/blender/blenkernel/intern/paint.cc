@@ -1703,10 +1703,10 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
 {
   Paint *paint = nullptr;
   if (*r_paint) {
-    if (!(*r_paint)->runtime->initialized) {
-      /* Currently only image painting is initialized this way, others have to be allocated. */
-      BLI_assert(ELEM(*r_paint, (Paint *)&ts->imapaint));
-
+    if (!(*r_paint)->runtime) {
+      (*r_paint)->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+    }
+    if (!(*r_paint)->runtime->initialized && *r_paint == (Paint *)&ts->imapaint) {
       paint_runtime_init(ts, *r_paint);
     }
     else {
@@ -1842,7 +1842,7 @@ void BKE_paint_free(Paint *paint)
   BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_hue);
   BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_saturation);
   BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_value);
-  MEM_delete(paint->runtime);
+  MEM_SAFE_DELETE(paint->runtime);
 }
 
 void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
@@ -2064,6 +2064,8 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
    * these are also NaN, which could lead to crashes in painting. */
   zero_v3(ups->last_location);
   ups->last_hit = 0;
+
+  paint->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
 
   paint_runtime_init(scene->toolsettings, paint);
 }
