@@ -103,7 +103,7 @@ def main() -> None:
 
     for yaml_relpath in YAML_PATHS:
         yaml_path = root_path / yaml_relpath
-        py_path = yaml_path.with_suffix('.py')
+        py_path = yaml_path.with_suffix(".py")
 
         print(f"  {yaml_path.relative_to(root_path)} -> {py_path.name}")
 
