@@ -62,6 +62,14 @@ else:
 
 
 def argparse_create() -> argparse.ArgumentParser:
+
+    def str_as_isodate(value: str) -> datetime.datetime:
+        try:
+            value_as_date = datetime.datetime.fromisoformat(value)
+        except Exception as ex:
+            raise argparse.ArgumentTypeError("Must be a valid ISO date (YYYY-MM-DD), failed: {!s}".format(ex))
+        return value_as_date
+
     parser = argparse.ArgumentParser(
         description="Generate Weekly Report",
         epilog="This script is typically used to help write weekly reports",
@@ -90,7 +98,7 @@ def argparse_create() -> argparse.ArgumentParser:
     parser.add_argument(
         "--date",
         dest="date",
-        type=str,
+        type=str_as_isodate,
         default="",
         help="Show only for this day (YYYY-MM-DD), and not for an entire week."
     )
@@ -451,7 +459,7 @@ def main() -> None:
 
     if args.date:
         num_days = 1  # Show only one day.
-        start_date = datetime.datetime.fromisoformat(args.date)
+        start_date = args.date
         start_date_str = start_date.strftime('%B ') + str(start_date.day)
 
         print(f"## {start_date_str}\n")
