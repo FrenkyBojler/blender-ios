@@ -94,7 +94,6 @@ struct CurvesBatchCache {
 
   /* Whether the cache is invalid. */
   bool is_dirty;
-
 };
 
 static bool batch_cache_is_dirty(const Curves &curves)
