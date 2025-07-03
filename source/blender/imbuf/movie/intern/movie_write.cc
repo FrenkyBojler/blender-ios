@@ -26,7 +26,6 @@
 #  include "BLI_math_color.h"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
-#  include "BLI_task.hh"
 #  include "BLI_threads.h"
 #  include "BLI_utildefines.h"
 
@@ -44,10 +43,6 @@
 
 #  include "ffmpeg_swscale.hh"
 #  include "movie_util.hh"
-
-extern "C" {
-#  include <libavutil/mastering_display_metadata.h>
-}
 
 static constexpr int64_t ffmpeg_autosplit_size = 2'000'000'000;
 
@@ -217,8 +212,7 @@ static bool write_video_frame(MovieWriter *context, AVFrame *frame, ReportList *
  * but without temporary allocation, and result containing only single float buffer.
  *
  * No color space conversion is performed. The result float buffer might be in a non-linear space
- * denoted by the float_buffer.colorspace.
- */
+ * denoted by the float_buffer.colorspace. */
 static ImBuf *alloc_imbuf_for_hdr_transform(const ImBuf *input_ibuf)
 {
   if (!input_ibuf) {
@@ -277,11 +271,14 @@ static ImBuf *do_pq_transform(const ImBuf *input_ibuf)
     return nullptr;
   }
 
+  /* Get `Rec.2100-PQ Display` or its alias from the OpenColorIO configuration. */
   const char *rec2100_pq_colorspace = IMB_colormanagement_get_rec2100_pq_display_colorspace();
   if (!rec2100_pq_colorspace) {
+    /* TODO(sergey): Error reporting if the colorspace is not found. */
     return ibuf;
   }
 
+  /* Convert from the current floating point buffer colorspace to Rec.2100-PQ. */
   IMB_colormanagement_transform_float(ibuf->float_buffer.data,
                                       ibuf->x,
                                       ibuf->y,
@@ -293,37 +290,6 @@ static ImBuf *do_pq_transform(const ImBuf *input_ibuf)
   return ibuf;
 }
 
-static float do_hlg(float v)
-{
-  if (v <= 0.0f) {
-    return 0.0f;
-  }
-  if (v <= 1.0f) {
-    return 0.5f * sqrtf(v);
-  }
-  const float ca = 0.17883277f;
-  const float cb = 0.28466892f;
-  const float cc = 0.55991073f;
-  return ca * logf(v - cb) + cc;
-}
-
-static void do_linear_rec2020_to_hlg(ImBuf *ibuf)
-{
-  using namespace blender;
-  BLI_assert_msg(ibuf != nullptr && ibuf->float_buffer.data != nullptr,
-                 "video: image for HLG transform should have float pixels");
-  BLI_assert_msg(ibuf->channels == 4, "video: image for HLG transform should have 4 channels");
-  const size_t pixel_count = IMB_get_pixel_count(ibuf);
-  threading::parallel_for(IndexRange(pixel_count), 8192, [&](const IndexRange &range) {
-    float *rgba = ibuf->float_buffer.data;
-    for (int64_t index : range) {
-      rgba[index * 4 + 0] = do_hlg(rgba[index * 4 + 0]);
-      rgba[index * 4 + 1] = do_hlg(rgba[index * 4 + 1]);
-      rgba[index * 4 + 2] = do_hlg(rgba[index * 4 + 2]);
-    }
-  });
-}
-
 static ImBuf *do_hlg_transform(const ImBuf *input_ibuf)
 {
   ImBuf *ibuf = alloc_imbuf_for_hdr_transform(input_ibuf);
@@ -332,33 +298,25 @@ static ImBuf *do_hlg_transform(const ImBuf *input_ibuf)
     return nullptr;
   }
 
-  if (false) {
-    /* Original code from Aras. */
-
-    /* Ensure the input is in the scene linear color space. */
-    colormanage_imbuf_make_linear(ibuf, IMB_colormanagement_get_float_colorspace(input_ibuf));
-    do_linear_rec2020_to_hlg(ibuf);
+  /* Get `Rec.2100-HLG Display` or its alias from the OpenColorIO configuration.
+   * The color space is supposed to be Rec.2100-HLG, 1000 nit. */
+  const char *rec2100_hlg_colorspace = IMB_colormanagement_get_rec2100_hlg_display_colorspace();
+  if (!rec2100_hlg_colorspace) {
+    /* TODO(sergey): Error reporting if the colorspace is not found. */
+    return ibuf;
   }
-  else {
-    /* Combination of the ideas from:
-     * - https://devtalk.blender.org/t/ffmpeg-hdr-video-output-support-help-needed/41025
-     * - https://projects.blender.org/blender/blender/pulls/140354#issuecomment-1602328
-     * - An implementation of do_pq_transform() above.
-     */
 
-    const char *rec2100_hlg_colorspace = IMB_colormanagement_get_rec2100_hlg_display_colorspace();
-    if (!rec2100_hlg_colorspace) {
-      return ibuf;
-    }
-
-    IMB_colormanagement_transform_float(ibuf->float_buffer.data,
-                                        ibuf->x,
-                                        ibuf->y,
-                                        ibuf->channels,
-                                        IMB_colormanagement_get_float_colorspace(input_ibuf),
-                                        rec2100_hlg_colorspace,
-                                        IMB_alpha_affects_rgb(ibuf));
-  }
+  /* Convert from the current floating point buffer colorspace to Rec.2100-HLG, 1000 nit.
+   * Note that it uses Rec. 2100 HLG reference OETF which is slightly different from ARIB STD-B67
+   * so the results might be slightly different compared to FFmpeg command line or other software.
+   */
+  IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+                                      ibuf->x,
+                                      ibuf->y,
+                                      ibuf->channels,
+                                      IMB_colormanagement_get_float_colorspace(input_ibuf),
+                                      rec2100_hlg_colorspace,
+                                      IMB_alpha_affects_rgb(ibuf));
 
   return ibuf;
 }
@@ -844,64 +802,6 @@ static void set_quality_rate_options(const MovieWriter *context,
   }
 }
 
-static void add_hdr_pq_metadata(AVStream *stream)
-{
-  /* Ensure the hvc1 tag is set. */
-  /* TODO(sergey): The tag might be set for all h265 codecs for compatibility, so it might be
-   * redundant to happen here. */
-  stream->codecpar->codec_tag = MKTAG('h', 'v', 'c', '1');
-}
-
-static void add_hdr_hlg_metadata(AVStream *stream)
-{
-  constexpr int hdr_peak_level = 1000;
-
-  /* Ensure the hvc1 tag is set. */
-  /* TODO(sergey): The tag might be set for all h265 codecs for compatibility, so it might be
-   * redundant to happen here. */
-  stream->codecpar->codec_tag = MKTAG('h', 'v', 'c', '1');
-
-  size_t light_meta_size;
-  AVContentLightMetadata *light_meta = av_content_light_metadata_alloc(&light_meta_size);
-  light_meta->MaxCLL = hdr_peak_level;
-  light_meta->MaxFALL = hdr_peak_level;
-#  if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(60, 31, 102)
-  av_stream_add_side_data(
-      stream, AV_PKT_DATA_CONTENT_LIGHT_LEVEL, (uint8_t *)light_meta, light_meta_size);
-#  else
-  av_packet_side_data_add(&stream->codecpar->coded_side_data,
-                          &stream->codecpar->nb_coded_side_data,
-                          AV_PKT_DATA_CONTENT_LIGHT_LEVEL,
-                          light_meta,
-                          light_meta_size,
-                          0);
-#  endif
-  AVMasteringDisplayMetadata *mastering = av_mastering_display_metadata_alloc();
-  mastering->display_primaries[0][0] = av_make_q(17, 25);
-  mastering->display_primaries[0][1] = av_make_q(8, 25);
-  mastering->display_primaries[1][0] = av_make_q(53, 200);
-  mastering->display_primaries[1][1] = av_make_q(69, 100);
-  mastering->display_primaries[2][0] = av_make_q(3, 20);
-  mastering->display_primaries[2][1] = av_make_q(3, 50);
-  mastering->white_point[0] = av_make_q(3127, 10000);
-  mastering->white_point[1] = av_make_q(329, 1000);
-  mastering->min_luminance = av_make_q(0, 1);
-  mastering->max_luminance = av_make_q(hdr_peak_level, 1);
-  mastering->has_primaries = 1;
-  mastering->has_luminance = 1;
-#  if LIBAVCODEC_VERSION_INT < AV_VERSION_INT(60, 31, 102)
-  av_stream_add_side_data(
-      stream, AV_PKT_DATA_MASTERING_DISPLAY_METADATA, (uint8_t *)mastering, sizeof(*mastering));
-#  else
-  av_packet_side_data_add(&stream->codecpar->coded_side_data,
-                          &stream->codecpar->nb_coded_side_data,
-                          AV_PKT_DATA_MASTERING_DISPLAY_METADATA,
-                          mastering,
-                          sizeof(*mastering),
-                          0);
-#  endif
-}
-
 static AVStream *alloc_video_stream(MovieWriter *context,
                                     const RenderData *rd,
                                     AVCodecID codec_id,
@@ -1282,16 +1182,6 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   avcodec_parameters_from_context(st->codecpar, c);
-
-  /* Add meta-data to the video file about the HDR content.
-   * Without this the video might not be recognized as HDR, or it might be played back incorrectly
-   * by different video players. */
-  if (is_hdr_pq) {
-    add_hdr_pq_metadata(st);
-  }
-  if (is_hdr_hlg) {
-    add_hdr_hlg_metadata(st);
-  }
 
   context->video_time = 0.0f;
 
