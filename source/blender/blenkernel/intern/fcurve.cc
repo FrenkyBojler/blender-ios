@@ -1206,7 +1206,7 @@ void BKE_fcurve_handles_recalc_ex(FCurve *fcu, eBezTriple_Flag handle_sel_flag)
         next = cycle_offset_triple(cycle, &tmp, &fcu->bezt[1], first, last);
       }
 
-      /* Clamp timing of handles to be on either side of beztriple. The threshodl with
+      /* Clamp timing of handles to be on either side of beztriple. The threshold with
        * increment/decrement ulp ensures that the handle length doesn't reach 0 at which point
        * there would be no way to ensure that handles stay aligned. This adds an issue where if a
        * handle is scaled to 0, the other side is set to be horizontal.
