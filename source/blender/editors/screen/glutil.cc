@@ -23,18 +23,15 @@
 #include "GPU_immediate.hh"
 #include "GPU_texture.hh"
 
-#ifdef __APPLE__
-#  include "GPU_state.hh"
-#endif
-
 /* ******************************************** */
 
 static void immDrawPixelsTexSetupAttributes(IMMDrawPixelsTexState *state)
 {
   GPUVertFormat *vert_format = immVertexFormat();
-  state->pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  state->pos = GPU_vertformat_attr_add(
+      vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   state->texco = GPU_vertformat_attr_add(
-      vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 }
 
 IMMDrawPixelsTexState immDrawPixelsTexSetup(int builtin)
@@ -46,7 +43,6 @@ IMMDrawPixelsTexState immDrawPixelsTexSetup(int builtin)
 
   /* Shader will be unbind by immUnbindProgram in a `immDrawPixelsTex` function. */
   immBindBuiltinProgram(eGPUBuiltinShader(builtin));
-  immUniform1i("image", 0);
   state.do_shader_unbind = true;
 
   return state;

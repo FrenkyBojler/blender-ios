@@ -14,6 +14,7 @@
 #include "AS_asset_library.hh"
 
 #include "BLI_function_ref.hh"
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BKE_context.hh"
@@ -31,6 +32,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_tree_view.hh"
 #include "UI_view2d.hh"
@@ -205,7 +207,8 @@ static void activate_shelf(RegionAssetShelf &shelf_regiondata, AssetShelf &shelf
 static AssetShelf *update_active_shelf(const bContext &C,
                                        const eSpace_Type space_type,
                                        RegionAssetShelf &shelf_regiondata,
-                                       FunctionRef<void(AssetShelf &new_shelf)> on_create)
+                                       FunctionRef<void(AssetShelf &new_shelf)> on_create,
+                                       FunctionRef<void(AssetShelf &shelf)> on_reactivate)
 {
   /* NOTE: Don't access #AssetShelf.type directly, use #type_ensure(). */
 
@@ -229,6 +232,9 @@ static AssetShelf *update_active_shelf(const bContext &C,
     if (type_poll_for_non_popup(C, ensure_shelf_has_type(*shelf), space_type)) {
       /* Found a valid previously activated shelf, reactivate it. */
       activate_shelf(shelf_regiondata, *shelf);
+      if (on_reactivate) {
+        on_reactivate(*shelf);
+      }
       return shelf;
     }
   }
@@ -360,7 +366,7 @@ void region_init(wmWindowManager *wm, ARegion *region)
 
   wmKeyMap *keymap = WM_keymap_ensure(
       wm->defaultconf, "View2D Buttons List", SPACE_EMPTY, RGN_TYPE_WINDOW);
-  WM_event_add_keymap_handler(&region->handlers, keymap);
+  WM_event_add_keymap_handler(&region->runtime->handlers, keymap);
 
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
   region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
@@ -508,7 +514,7 @@ void region_layout(const bContext *C, ARegion *region)
     return;
   }
 
-  uiBlock *block = UI_block_begin(C, region, __func__, UI_EMBOSS);
+  uiBlock *block = UI_block_begin(C, region, __func__, blender::ui::EmbossType::Emboss);
 
   const uiStyle *style = UI_style_get_dpi();
   const int padding_y = main_region_padding_y();
@@ -523,8 +529,7 @@ void region_layout(const bContext *C, ARegion *region)
                                      0,
                                      style);
 
-  build_asset_view(
-      *layout, active_shelf->settings.asset_library_reference, *active_shelf, *C, *region);
+  build_asset_view(*layout, active_shelf->settings.asset_library_reference, *active_shelf, *C);
 
   int layout_height;
   UI_block_layout_resolve(block, nullptr, &layout_height);
@@ -533,6 +538,14 @@ void region_layout(const bContext *C, ARegion *region)
   UI_view2d_curRect_validate(&region->v2d);
 
   region_resize_to_preferred(CTX_wm_area(C), region);
+
+  /* View2D matrix might have changed due to dynamic sized regions.
+   * Without this, tooltips jump around, see #129347. Reason is that #UI_but_tooltip_refresh() is
+   * called as part of #UI_block_end(), so the block's window matrix needs to be up-to-date. */
+  {
+    UI_view2d_view_ortho(&region->v2d);
+    UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
+  }
 
   UI_block_end(C, block);
 }
@@ -545,9 +558,9 @@ void region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_ortho(&region->v2d);
 
   /* View2D matrix might have changed due to dynamic sized regions. */
-  UI_blocklist_update_window_matrix(C, &region->uiblocks);
+  UI_blocklist_update_window_matrix(C, &region->runtime->uiblocks);
 
-  UI_blocklist_draw(C, &region->uiblocks);
+  UI_blocklist_draw(C, &region->runtime->uiblocks);
 
   /* Restore view matrix. */
   UI_view2d_view_restore(C);
@@ -563,21 +576,38 @@ void region_on_poll_success(const bContext *C, ARegion *region)
     return;
   }
 
+  const int old_region_flag = region->flag;
+
   ScrArea *area = CTX_wm_area(C);
   update_active_shelf(
       *C,
       eSpace_Type(area->spacetype),
       *shelf_regiondata,
-      /*on_create=*/[&](AssetShelf &new_shelf) {
-        /* Update region visibility (`'DEFAULT_VISIBLE'` option). */
-        const int old_flag = region->flag;
+      /*on_create=*/
+      [&](AssetShelf &new_shelf) {
+        /* Set region visibility for first time shelf is created (`'DEFAULT_VISIBLE'` option). */
         SET_FLAG_FROM_TEST(region->flag,
                            (new_shelf.type->flag & ASSET_SHELF_TYPE_FLAG_DEFAULT_VISIBLE) == 0,
                            RGN_FLAG_HIDDEN);
-        if (old_flag != region->flag) {
-          ED_region_visibility_change_update(const_cast<bContext *>(C), area, region);
-        }
+      },
+      /*on_reactivate=*/
+      [&](AssetShelf &shelf) {
+        /* Restore region visibility from previous asset shelf instantiation when reactivating. */
+        SET_FLAG_FROM_TEST(
+            region->flag, shelf.instance_flag & ASSETSHELF_REGION_IS_HIDDEN, RGN_FLAG_HIDDEN);
       });
+
+  if (old_region_flag != region->flag) {
+    ED_region_visibility_change_update(const_cast<bContext *>(C), area, region);
+  }
+
+  if (shelf_regiondata->active_shelf) {
+    /* Remember current visibility state of the region in the shelf, so we can restore it on
+     * reactivation. */
+    SET_FLAG_FROM_TEST(shelf_regiondata->active_shelf->instance_flag,
+                       region->flag & (RGN_FLAG_HIDDEN | RGN_FLAG_HIDDEN_BY_USER),
+                       ASSETSHELF_REGION_IS_HIDDEN);
+  }
 }
 
 void header_region_listen(const wmRegionListenerParams *params)
@@ -659,7 +689,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
   static const char *context_dir[] = {
       "asset_shelf",
       "asset_library_reference",
-      "active_file", /* XXX yuk... */
+      "asset",
       nullptr,
   };
 
@@ -693,8 +723,7 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
     return CTX_RESULT_OK;
   }
 
-  /* XXX hack. Get the asset from the active item, but needs to be the file... */
-  if (CTX_data_equals(member, "active_file")) {
+  if (CTX_data_equals(member, "asset")) {
     const ARegion *region = CTX_wm_region(C);
     const uiBut *but = UI_region_views_find_active_item_but(region);
     if (!but) {
@@ -706,13 +735,13 @@ int context(const bContext *C, const char *member, bContextDataResult *result)
       return CTX_RESULT_NO_DATA;
     }
 
-    const PointerRNA *file_ptr = CTX_store_ptr_lookup(
-        but_context, "active_file", &RNA_FileSelectEntry);
-    if (!file_ptr) {
+    const PointerRNA *asset_ptr = CTX_store_ptr_lookup(
+        but_context, "asset", &RNA_AssetRepresentation);
+    if (!asset_ptr) {
       return CTX_RESULT_NO_DATA;
     }
 
-    CTX_data_pointer_set_ptr(result, file_ptr);
+    CTX_data_pointer_set_ptr(result, asset_ptr);
     return CTX_RESULT_OK;
   }
 
@@ -765,7 +794,7 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
 
 static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
 {
-  uiBlock *block = uiLayoutGetBlock(&layout);
+  uiBlock *block = layout.block();
   AssetShelfSettings &shelf_settings = shelf.settings;
 
   /* "All" tab. */
@@ -780,7 +809,7 @@ static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
     });
   }
 
-  uiItemS(&layout);
+  layout.separator();
 
   /* Regular catalog tabs. */
   settings_foreach_enabled_catalog_path(shelf, [&](const asset_system::AssetCatalogPath &path) {
@@ -807,34 +836,34 @@ static void add_catalog_tabs(AssetShelf &shelf, uiLayout &layout)
 static void asset_shelf_header_draw(const bContext *C, Header *header)
 {
   uiLayout *layout = header->layout;
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   const AssetLibraryReference *library_ref = CTX_wm_asset_library_ref(C);
 
   list::storage_fetch(library_ref, C);
 
-  UI_block_emboss_set(block, UI_EMBOSS_NONE);
-  uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
-  UI_block_emboss_set(block, UI_EMBOSS);
+  UI_block_emboss_set(block, blender::ui::EmbossType::None);
+  layout->popover(C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
+  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
-  uiItemS(layout);
+  layout->separator();
 
   PointerRNA shelf_ptr = active_shelf_ptr_from_context(C);
   if (AssetShelf *shelf = static_cast<AssetShelf *>(shelf_ptr.data)) {
     add_catalog_tabs(*shelf, *layout);
   }
 
-  uiItemSpacer(layout);
+  layout->separator_spacer();
 
-  uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
-  uiLayout *sub = uiLayoutRow(layout, false);
+  layout->popover(C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
+  uiLayout *sub = &layout->row(false);
   /* Same as file/asset browser header. */
-  uiLayoutSetUnitsX(sub, 8);
-  uiItemR(sub, &shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
+  sub->ui_units_x_set(8);
+  sub->prop(&shelf_ptr, "search_filter", UI_ITEM_NONE, "", ICON_VIEWZOOM);
 }
 
 static void header_regiontype_register(ARegionType *region_type, const int space_type)
 {
-  HeaderType *ht = MEM_cnew<HeaderType>(__func__);
+  HeaderType *ht = MEM_callocN<HeaderType>(__func__);
   STRNCPY(ht->idname, "ASSETSHELF_HT_settings");
   ht->space_type = space_type;
   ht->region_type = RGN_TYPE_ASSET_SHELF_HEADER;
@@ -889,6 +918,25 @@ void type_unlink(const Main &bmain, const AssetShelfType &shelf_type)
   }
 
   type_popup_unlink(shelf_type);
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name External helpers
+ * \{ */
+
+void show_catalog_in_visible_shelves(const bContext &C, const StringRefNull catalog_path)
+{
+  wmWindowManager *wm = CTX_wm_manager(&C);
+  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
+    const bScreen *screen = WM_window_get_active_screen(win);
+    LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+      if (AssetShelf *shelf = asset::shelf::active_shelf_from_area(area)) {
+        settings_set_catalog_path_enabled(*shelf, catalog_path.c_str());
+      }
+    }
+  }
 }
 
 /** \} */

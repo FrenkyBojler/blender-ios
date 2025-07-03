@@ -6,7 +6,6 @@
  * \ingroup edobj
  */
 
-#include <cmath>
 #include <cstdlib>
 
 #include "DNA_object_types.h"
@@ -92,14 +91,13 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_empty_add);
   WM_operatortype_append(OBJECT_OT_lightprobe_add);
   WM_operatortype_append(OBJECT_OT_empty_image_add);
-  WM_operatortype_append(OBJECT_OT_gpencil_add);
   WM_operatortype_append(OBJECT_OT_grease_pencil_add);
   WM_operatortype_append(OBJECT_OT_light_add);
   WM_operatortype_append(OBJECT_OT_camera_add);
   WM_operatortype_append(OBJECT_OT_speaker_add);
   WM_operatortype_append(OBJECT_OT_curves_random_add);
   WM_operatortype_append(OBJECT_OT_curves_empty_hair_add);
-  WM_operatortype_append(OBJECT_OT_pointcloud_add);
+  WM_operatortype_append(OBJECT_OT_pointcloud_random_add);
   WM_operatortype_append(OBJECT_OT_volume_add);
   WM_operatortype_append(OBJECT_OT_volume_import);
   WM_operatortype_append(OBJECT_OT_add);
@@ -114,7 +112,9 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_duplicate);
   WM_operatortype_append(OBJECT_OT_join);
   WM_operatortype_append(OBJECT_OT_join_shapes);
+  WM_operatortype_append(OBJECT_OT_update_shapes);
   WM_operatortype_append(OBJECT_OT_convert);
+  WM_operatortype_append(OBJECT_OT_visual_geometry_to_objects);
 
   WM_operatortype_append(OBJECT_OT_modifier_add);
   WM_operatortype_append(OBJECT_OT_modifier_remove);
@@ -220,8 +220,11 @@ void operatortypes_object()
 
   WM_operatortype_append(OBJECT_OT_move_to_collection);
   WM_operatortype_append(OBJECT_OT_link_to_collection);
+  move_to_colletion_menu_register();
+  link_to_colletion_menu_register();
 
   WM_operatortype_append(OBJECT_OT_shape_key_add);
+  WM_operatortype_append(OBJECT_OT_shape_key_copy);
   WM_operatortype_append(OBJECT_OT_shape_key_remove);
   WM_operatortype_append(OBJECT_OT_shape_key_clear);
   WM_operatortype_append(OBJECT_OT_shape_key_retime);
@@ -250,6 +253,8 @@ void operatortypes_object()
   WM_operatortype_append(bake_simulation::OBJECT_OT_simulation_nodes_cache_delete);
   WM_operatortype_append(bake_simulation::OBJECT_OT_geometry_node_bake_single);
   WM_operatortype_append(bake_simulation::OBJECT_OT_geometry_node_bake_delete_single);
+  WM_operatortype_append(bake_simulation::OBJECT_OT_geometry_node_bake_pack_single);
+  WM_operatortype_append(bake_simulation::OBJECT_OT_geometry_node_bake_unpack_single);
   WM_operatortype_append(OBJECT_OT_drop_named_material);
   WM_operatortype_append(OBJECT_OT_drop_geometry_nodes);
   WM_operatortype_append(OBJECT_OT_unlink_data);
@@ -281,6 +286,9 @@ void operatortypes_object()
   WM_operatortype_append(OBJECT_OT_light_linking_blockers_link);
 
   WM_operatortype_append(OBJECT_OT_light_linking_unlink_from_collection);
+
+  /* Custom cameras. */
+  WM_operatortype_append(OBJECT_OT_camera_custom_update);
 
   object_modifier_add_asset_register();
   collection_exporter_register();

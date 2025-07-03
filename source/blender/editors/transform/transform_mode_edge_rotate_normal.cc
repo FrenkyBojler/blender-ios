@@ -18,13 +18,16 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (Normal Rotation)
  * \{ */
@@ -66,7 +69,8 @@ static void applyNormalRotation(TransInfo *t)
   char str[UI_MAX_DRAW_STR];
 
   float axis_final[3];
-  copy_v3_v3(axis_final, t->spacemtx[t->orient_axis]);
+  /* Use the negative axis to match the default Z axis of the view matrix. */
+  negate_v3_v3(axis_final, t->spacemtx[t->orient_axis]);
 
   if ((t->con.mode & CON_APPLY) && t->con.applyRot) {
     t->con.applyRot(t, nullptr, nullptr, axis_final, nullptr);
@@ -120,7 +124,7 @@ static void initNormalRotation(TransInfo *t, wmOperator * /*op*/)
   t->num.idx_max = 0;
   initSnapAngleIncrements(t);
 
-  copy_v3_fl(t->num.val_inc, t->snap[1]);
+  copy_v3_fl(t->num.val_inc, t->increment[0] * t->increment_precision);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_use_radians = (t->scene->unit.system_rotation == USER_UNIT_ROT_RADIANS);
   t->num.unit_type[0] = B_UNIT_ROTATION;
@@ -149,3 +153,5 @@ TransModeInfo TransMode_rotatenormal = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

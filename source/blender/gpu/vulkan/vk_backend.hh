@@ -16,6 +16,7 @@
 
 #include "vk_common.hh"
 #include "vk_device.hh"
+#include "vk_shader_compiler.hh"
 
 namespace blender::gpu {
 
@@ -52,6 +53,7 @@ class VKBackend : public GPUBackend {
    */
   static bool is_supported();
 
+  void init_resources() override;
   void delete_resources() override;
 
   void samplers_update() override;
@@ -61,7 +63,6 @@ class VKBackend : public GPUBackend {
   Context *context_alloc(void *ghost_window, void *ghost_context) override;
 
   Batch *batch_alloc() override;
-  DrawList *drawlist_alloc(int list_length) override;
   Fence *fence_alloc() override;
   FrameBuffer *framebuffer_alloc(const char *name) override;
   IndexBuf *indexbuf_alloc() override;
@@ -73,13 +74,16 @@ class VKBackend : public GPUBackend {
   StorageBuf *storagebuf_alloc(size_t size, GPUUsageType usage, const char *name) override;
   VertBuf *vertbuf_alloc() override;
 
-  void shader_cache_dir_clear_old() override {}
+  void shader_cache_dir_clear_old() override
+  {
+    VKShaderCompiler::cache_dir_clear_old();
+  }
 
   /* Render Frame Coordination --
    * Used for performing per-frame actions globally */
   void render_begin() override;
   void render_end() override;
-  void render_step() override;
+  void render_step(bool /*force_resource_release*/) override;
 
   bool debug_capture_begin(const char *title);
   void debug_capture_end();

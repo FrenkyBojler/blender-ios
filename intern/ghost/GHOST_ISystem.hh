@@ -4,14 +4,14 @@
 
 /** \file
  * \ingroup GHOST
- * %Main interface file for C++ Api with declaration of GHOST_ISystem interface
+ * %Main interface file for C++ API with declaration of GHOST_ISystem interface
  * class.
  * Contains the DOXYGEN documentation main page.
  */
 
 #pragma once
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "GHOST_IContext.hh"
 #include "GHOST_ITimerTask.hh"
@@ -161,7 +161,7 @@ class GHOST_ISystem {
    * Destructor.
    * Protected default constructor to force use of static dispose member.
    */
-  virtual ~GHOST_ISystem() {}
+  virtual ~GHOST_ISystem() = default;
 
  public:
   /***************************************************************************************
@@ -180,10 +180,12 @@ class GHOST_ISystem {
 
   /**
    * Installs a timer.
-   * Note that, on most operating systems, messages need to be processed in order
+   *
+   * \note On most operating systems, messages need to be processed in order
    * for the timer callbacks to be invoked.
-   * \param delay: The time to wait for the first call to the timerProc (in milliseconds).
-   * \param interval: The interval between calls to the timerProc (in milliseconds).
+   *
+   * \param delay: The time to wait for the first call to the #timerProc (in milliseconds).
+   * \param interval: The interval between calls to the #timerProc.
    * \param timerProc: The callback invoked when the interval expires.
    * \param userData: Placeholder for user data.
    * \return A timer task (0 if timer task installation failed).
@@ -279,40 +281,8 @@ class GHOST_ISystem {
   virtual bool validWindow(GHOST_IWindow *window) = 0;
 
   /**
-   * Begins full screen mode.
-   * \param setting: The new setting of the display.
-   * \param window: Window displayed in full screen.
-   *                  This window is invalid after full screen has been ended.
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess beginFullScreen(const GHOST_DisplaySetting &setting,
-                                         GHOST_IWindow **window,
-                                         const bool stereoVisual) = 0;
-
-  /**
-   * Updates the resolution while in full-screen mode.
-   * \param setting: The new setting of the display.
-   * \param window: Window displayed in full screen.
-   *
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess updateFullScreen(const GHOST_DisplaySetting &setting,
-                                          GHOST_IWindow **window) = 0;
-
-  /**
-   * Ends full screen mode.
-   * \return Indication of success.
-   */
-  virtual GHOST_TSuccess endFullScreen() = 0;
-
-  /**
-   * Returns current full screen mode status.
-   * \return The current status.
-   */
-  virtual bool getFullScreen() = 0;
-
-  /**
    * Native pixel size support (MacBook 'retina').
+   * \return The pixel size in float.
    */
   virtual bool useNativePixel() = 0;
 
@@ -357,6 +327,7 @@ class GHOST_ISystem {
 
   /**
    * Retrieves events from the queue and send them to the event consumers.
+   * The event stack will be empty afterwards.
    */
   virtual void dispatchEvents() = 0;
 
@@ -404,6 +375,11 @@ class GHOST_ISystem {
    * \return Indication of success.
    */
   virtual GHOST_TSuccess getCursorPosition(int32_t &x, int32_t &y) const = 0;
+
+  /**
+   * \return the size of the cursor in logical pixels (before Hi-DPI scaling is applied).
+   */
+  virtual uint32_t getCursorPreferredLogicalSize() const = 0;
 
   /**
    * Updates the location of the cursor (location in screen coordinates).
@@ -455,7 +431,7 @@ class GHOST_ISystem {
 
 #ifdef WITH_INPUT_NDOF
   /**
-   * Sets 3D mouse deadzone
+   * Sets 3D mouse dead-zone.
    * \param deadzone: Dead-zone of the 3D mouse (both for rotation and pan) relative to full range
    */
   virtual void setNDOFDeadZone(float deadzone) = 0;
@@ -473,20 +449,25 @@ class GHOST_ISystem {
    ***************************************************************************************/
 
   /**
-   * Returns the selection buffer
-   * \return "unsigned char" from X11 XA_CUT_BUFFER0 buffer
+   * Return the clipboard buffer or null.
+   *
+   * \param selection: Use the "primary" selection.
+   * Check the #GHOST_kCapabilityPrimaryClipboard for backends that support this.
+   * \return Returns the clipboard data as a null terminated string or null when unavailable.
    */
   virtual char *getClipboard(bool selection) const = 0;
 
   /**
    * Put data to the Clipboard
+   * \param buffer: The buffer to copy to the clipboard.
+   * \param selection: The clipboard to copy too only used on X11.
    */
   virtual void putClipboard(const char *buffer, bool selection) const = 0;
 
   /**
    * Returns GHOST_kSuccess if the clipboard contains an image.
    */
-  virtual GHOST_TSuccess hasClipboardImage(void) const = 0;
+  virtual GHOST_TSuccess hasClipboardImage() const = 0;
 
   /**
    * Get image data from the Clipboard
@@ -560,7 +541,5 @@ class GHOST_ISystem {
   /** Function to call that sets the back-trace. */
   static GHOST_TBacktraceFn m_backtrace_fn;
 
-#ifdef WITH_CXX_GUARDEDALLOC
   MEM_CXX_CLASS_ALLOC_FUNCS("GHOST:GHOST_ISystem")
-#endif
 };

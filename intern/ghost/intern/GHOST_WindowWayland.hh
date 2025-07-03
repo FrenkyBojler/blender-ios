@@ -78,7 +78,8 @@ class GHOST_WindowWayland : public GHOST_Window {
                       const bool is_dialog,
                       const bool stereoVisual,
                       const bool exclusive,
-                      const bool is_debug);
+                      const bool is_debug,
+                      const GHOST_GPUDevice &preferred_device);
 
   ~GHOST_WindowWayland() override;
 
@@ -94,12 +95,10 @@ class GHOST_WindowWayland : public GHOST_Window {
 
   GHOST_TSuccess setWindowCursorShape(GHOST_TStandardCursor shape) override;
 
-  GHOST_TSuccess setWindowCustomCursorShape(uint8_t *bitmap,
-                                            uint8_t *mask,
-                                            int sizex,
-                                            int sizey,
-                                            int hotX,
-                                            int hotY,
+  GHOST_TSuccess setWindowCustomCursorShape(const uint8_t *bitmap,
+                                            const uint8_t *mask,
+                                            const int size[2],
+                                            const int hot_spot[2],
                                             bool canInvertColor) override;
   bool getCursorGrabUseSoftwareDisplay() override;
 
@@ -134,10 +133,6 @@ class GHOST_WindowWayland : public GHOST_Window {
   GHOST_TSuccess invalidate() override;
 
   GHOST_TSuccess setOrder(GHOST_TWindowOrder order) override;
-
-  GHOST_TSuccess beginFullScreen() const override;
-
-  GHOST_TSuccess endFullScreen() const override;
 
   bool isDialog() const override;
 
@@ -199,13 +194,14 @@ class GHOST_WindowWayland : public GHOST_Window {
   void outputs_changed_update_scale_tag();
 
 #ifdef USE_EVENT_BACKGROUND_THREAD
-  const void pending_actions_handle();
+  void pending_actions_handle();
 #endif
 
  private:
   GHOST_SystemWayland *system_;
   struct GWL_Window *window_;
   bool is_debug_context_;
+  GHOST_GPUDevice preferred_device_;
 
   /**
    * \param type: The type of rendering context create.

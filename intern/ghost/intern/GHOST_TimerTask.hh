@@ -31,8 +31,7 @@ class GHOST_TimerTask : public GHOST_ITimerTask {
         m_interval(interval),
         m_next(start),
         m_timerProc(timerProc),
-        m_userData(userData),
-        m_auxData(0)
+        m_userData(userData)
   {
   }
 
@@ -40,7 +39,7 @@ class GHOST_TimerTask : public GHOST_ITimerTask {
    * Returns the timer start time.
    * \return The timer start time.
    */
-  inline uint64_t getStart() const
+  uint64_t getStart() const
   {
     return m_start;
   }
@@ -58,7 +57,7 @@ class GHOST_TimerTask : public GHOST_ITimerTask {
    * Returns the timer interval.
    * \return The timer interval.
    */
-  inline uint64_t getInterval() const
+  uint64_t getInterval() const
   {
     return m_interval;
   }
@@ -76,7 +75,7 @@ class GHOST_TimerTask : public GHOST_ITimerTask {
    * Returns the time the timerProc will be called.
    * \return The time the timerProc will be called.
    */
-  inline uint64_t getNext() const
+  uint64_t getNext() const
   {
     return m_next;
   }
@@ -90,38 +89,26 @@ class GHOST_TimerTask : public GHOST_ITimerTask {
     m_next = next;
   }
 
-  /**
-   * Returns the timer callback.
-   * \return the timer callback.
-   */
-  inline GHOST_TimerProcPtr getTimerProc() const
+  /** \copydoc #GHOST_ITimerTask::getTimerProc */
+  GHOST_TimerProcPtr getTimerProc() const override
   {
     return m_timerProc;
   }
 
-  /**
-   * Changes the timer callback.
-   * \param timerProc: The timer callback.
-   */
-  inline void setTimerProc(const GHOST_TimerProcPtr timerProc)
+  /** \copydoc #GHOST_ITimerTask::setTimerProc */
+  void setTimerProc(const GHOST_TimerProcPtr timerProc) override
   {
     m_timerProc = timerProc;
   }
 
-  /**
-   * Returns the timer user data.
-   * \return The timer user data.
-   */
-  inline GHOST_TUserDataPtr getUserData() const
+  /** \copydoc #GHOST_ITimerTask::getUserData */
+  GHOST_TUserDataPtr getUserData() const override
   {
     return m_userData;
   }
 
-  /**
-   * Changes the time user data.
-   * \param userData: The timer user data.
-   */
-  void setUserData(const GHOST_TUserDataPtr userData)
+  /** \copydoc #GHOST_ITimerTask::setUserData */
+  void setUserData(const GHOST_TUserDataPtr userData) override
   {
     m_userData = userData;
   }
@@ -130,7 +117,7 @@ class GHOST_TimerTask : public GHOST_ITimerTask {
    * Returns the auxiliary storage room.
    * \return The auxiliary storage room.
    */
-  inline uint32_t getAuxData() const
+  uint32_t getAuxData() const
   {
     return m_auxData;
   }
@@ -161,5 +148,5 @@ class GHOST_TimerTask : public GHOST_ITimerTask {
   GHOST_TUserDataPtr m_userData;
 
   /** Auxiliary storage room. */
-  uint32_t m_auxData;
+  uint32_t m_auxData = 0;
 };

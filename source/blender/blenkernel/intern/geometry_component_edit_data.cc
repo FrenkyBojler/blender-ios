@@ -103,7 +103,7 @@ static void remember_deformed_grease_pencil_if_necessary(const GreasePencil *gre
       *edit_component.grease_pencil_edit_hints_->drawing_hints;
   for (const int layer_index : layers.index_range()) {
     const greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(
-        *grease_pencil->layer(layer_index));
+        grease_pencil->layer(layer_index));
     const greasepencil::Layer &orig_layer = *orig_layers[layer_index];
     const greasepencil::Drawing *orig_drawing = orig_grease_pencil.get_drawing_at(
         orig_layer, grease_pencil->runtime->eval_frame);
@@ -114,6 +114,9 @@ static void remember_deformed_grease_pencil_if_necessary(const GreasePencil *gre
     drawing_hints.drawing_orig = orig_drawing;
     const CurvesGeometry &curves = drawing->strokes();
     if (curves.points_num() != orig_drawing->strokes().points_num()) {
+      continue;
+    }
+    if (curves.is_empty()) {
       continue;
     }
     drawing_hints.positions_data = save_shared_attribute(curves.attributes().lookup("position"));

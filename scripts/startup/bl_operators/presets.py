@@ -53,7 +53,7 @@ def _call_preset_cb(fn, context, filepath, *, deprecated="4.2"):
 
     try:
         fn(*args)
-    except BaseException as ex:
+    except Exception as ex:
         print("Internal error running", fn, str(ex))
 
 
@@ -166,9 +166,16 @@ class AddPresetBase:
 
                     def rna_recursive_attr_expand(value, rna_path_step, level):
                         if isinstance(value, bpy.types.PropertyGroup):
+                            # Avoid properties being handled multiple times.
+                            # This happens when a class defines a property which is also defined by it's parent class.
+                            # The parents property is shadowed, so it only makes sense to write each property once.
+                            # Happens with `OperatorFileListElement` which has two `name` properties.
+                            properties_skip = {"rna_type"}
                             for sub_value_attr in value.bl_rna.properties.keys():
-                                if sub_value_attr == "rna_type":
+                                if sub_value_attr in properties_skip:
                                     continue
+                                properties_skip.add(sub_value_attr)
+
                                 sub_value = getattr(value, sub_value_attr)
                                 rna_recursive_attr_expand(
                                     sub_value,
@@ -185,25 +192,26 @@ class AddPresetBase:
                             # to simple lists to repr()
                             try:
                                 value = value[:]
-                            except BaseException:
+                            except Exception:
                                 pass
 
                             file_preset.write("{:s} = {!r}\n".format(rna_path_step, value))
 
-                    file_preset = open(filepath, "w", encoding="utf-8")
-                    file_preset.write("import bpy\n")
+                    with open(filepath, "w", encoding="utf-8") as file_preset:
+                        file_preset.write("import bpy\n")
 
-                    if hasattr(self, "preset_defines"):
-                        for rna_path in self.preset_defines:
-                            exec(rna_path)
-                            file_preset.write("{:s}\n".format(rna_path))
-                        file_preset.write("\n")
+                        namespace_globals = {"bpy": bpy}
+                        namespace_locals = {}
 
-                    for rna_path in self.preset_values:
-                        value = eval(rna_path)
-                        rna_recursive_attr_expand(value, rna_path, 1)
+                        if hasattr(self, "preset_defines"):
+                            for rna_path in self.preset_defines:
+                                exec(rna_path, namespace_globals, namespace_locals)
+                                file_preset.write("{:s}\n".format(rna_path))
+                            file_preset.write("\n")
 
-                    file_preset.close()
+                        for rna_path in self.preset_values:
+                            value = eval(rna_path, namespace_globals, namespace_locals)
+                            rna_recursive_attr_expand(value, rna_path, 1)
 
             preset_menu_class.bl_label = bpy.path.display_name(filename)
 
@@ -230,7 +238,7 @@ class AddPresetBase:
                     self.remove(context, filepath)
                 else:
                     os.remove(filepath)
-            except BaseException as ex:
+            except Exception as ex:
                 self.report({'ERROR'}, rpt_("Unable to remove preset: {!r}").format(ex))
                 import traceback
                 traceback.print_exc()
@@ -288,7 +296,7 @@ class ExecutePreset(Operator):
         if ext == ".py":
             try:
                 bpy.utils.execfile(filepath)
-            except BaseException as ex:
+            except Exception as ex:
                 self.report({'ERROR'}, "Failed to execute the preset: " + repr(ex))
 
         elif ext == ".xml":
@@ -557,7 +565,7 @@ class AddPresetEEVEERaytracing(AddPresetBase, Operator):
     """Add or remove an EEVEE ray-tracing preset"""
     bl_idname = "render.eevee_raytracing_preset_add"
     bl_label = "Add Raytracing Preset"
-    preset_menu = "RENDER_PT_eevee_next_raytracing_presets"
+    preset_menu = "RENDER_PT_eevee_raytracing_presets"
 
     preset_defines = [
         "eevee = bpy.context.scene.eevee",
@@ -691,7 +699,7 @@ class SavePresetInterfaceTheme(AddPresetBase, Operator):
         preset_menu_class = getattr(bpy.types, self.preset_menu)
         try:
             rna_xml.xml_file_write(context, filepath, preset_menu_class.preset_xml_map)
-        except BaseException as ex:
+        except Exception as ex:
             self.report({'ERROR'}, "Unable to overwrite preset: {:s}".format(str(ex)))
             import traceback
             traceback.print_exc()
@@ -755,7 +763,8 @@ class RemovePresetKeyconfig(AddPresetBase, Operator):
             return {'CANCELLED'}
 
         return context.window_manager.invoke_confirm(
-            self, event, title="Remove Keymap Configuration", confirm_text="Delete")
+            self, event, title="Remove Keymap Configuration", confirm_text="Delete",
+        )
 
 
 class AddPresetOperator(AddPresetBase, Operator):
@@ -855,13 +864,29 @@ class WM_OT_operator_presets_cleanup(Operator):
         if not (os.path.isfile(filepath) and os.path.splitext(filepath)[1].lower() == ".py"):
             return
         with open(filepath, "r", encoding="utf-8") as fh:
-            lines = fh.read().splitlines(True)
-        if not lines:
+            lines_prev = fh.read().splitlines(True)
+        if not lines_prev:
             return
         regex_exclude = re.compile("(" + "|".join([re.escape("op." + prop) for prop in properties_exclude]) + ")\\b")
-        lines = [line for line in lines if not regex_exclude.match(line)]
+        lines_next = []
+
+        i = 0
+        while i < len(lines_prev):
+            m = regex_exclude.match(lines_prev[i])
+            if m is None:
+                lines_next.append(lines_prev[i])
+                i += 1
+            else:
+                is_collection = lines_prev[i][m.end():].startswith(".clear()")
+                i += 1
+
+                # Skip non operator lines.
+                if is_collection:
+                    while i < len(lines_prev) and (not lines_prev[i].startswith("op.")):
+                        i += 1
+
         with open(filepath, "w", encoding="utf-8") as fh:
-            fh.write("".join(lines))
+            fh.write("".join(lines_next))
 
     def _cleanup_operators_presets(self, operators, properties_exclude):
         import os
@@ -889,11 +914,6 @@ class WM_OT_operator_presets_cleanup(Operator):
             operators = [
                 "WM_OT_alembic_export",
                 "WM_OT_alembic_import",
-                "WM_OT_collada_export",
-                "WM_OT_collada_import",
-                "WM_OT_gpencil_export_svg",
-                "WM_OT_gpencil_export_pdf",
-                "WM_OT_gpencil_import_svg",
                 "WM_OT_obj_export",
                 "WM_OT_obj_import",
                 "WM_OT_ply_export",
@@ -902,6 +922,8 @@ class WM_OT_operator_presets_cleanup(Operator):
                 "WM_OT_stl_import",
                 "WM_OT_usd_export",
                 "WM_OT_usd_import",
+                "EXPORT_SCENE_OT_fbx",
+                "IMPORT_SCENE_OT_fbx",
             ]
             properties_exclude = [
                 "filepath",
@@ -949,7 +971,7 @@ class AddPresetGpencilBrush(AddPresetBase, Operator):
 
 
 class AddPresetGpencilMaterial(AddPresetBase, Operator):
-    """Add or remove grease pencil material preset"""
+    """Add or remove Grease Pencil material preset"""
     bl_idname = "scene.gpencil_material_preset_add"
     bl_label = "Add Grease Pencil Material Preset"
     preset_menu = "MATERIAL_PT_gpencil_material_presets"

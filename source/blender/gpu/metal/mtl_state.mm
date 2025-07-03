@@ -407,7 +407,7 @@ void MTLStateManager::set_provoking_vert(const eGPUProvokingVertex /*vert*/)
   /* NOTE(Metal): Provoking vertex is not a feature in the Metal API.
    * Shaders are handled on a case-by-case basis using a modified vertex shader.
    * For example, wireframe rendering and edit-mesh shaders utilize an SSBO-based
-   * vertex fetching mechanism which considers the inverse convention for flat
+   * vertex pulling mechanism which considers the inverse convention for flat
    * shading, to ensure consistent results with OpenGL. */
 }
 
@@ -523,6 +523,13 @@ void MTLStateManager::set_blend(const eGPUBlend value)
       dst_rgb = MTLBlendFactorSource1Color;
       src_alpha = MTLBlendFactorOne;
       dst_alpha = MTLBlendFactorSource1Alpha;
+      break;
+    }
+    case GPU_BLEND_OVERLAY_MASK_FROM_ALPHA: {
+      src_rgb = MTLBlendFactorZero;
+      dst_rgb = MTLBlendFactorOneMinusSourceAlpha;
+      src_alpha = MTLBlendFactorZero;
+      dst_alpha = MTLBlendFactorOneMinusSourceAlpha;
       break;
     }
   }
