@@ -1079,6 +1079,67 @@ class ClosureMultiFunctionForFloatCurve : public mf::MultiFunction {
   }
 };
 
+class ClosureMultiFunctionForVectorCurve : public mf::MultiFunction {
+ private:
+  const CurveMapping &curve_mapping_;
+
+ public:
+  ClosureMultiFunctionForVectorCurve(const CurveMapping &curve_mapping)
+      : curve_mapping_(curve_mapping)
+  {
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Vector Curve Closure", signature};
+      builder.single_input<float3>("Input");
+      builder.single_output<float3>("Output");
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const VArray<float3> &inputs = params.readonly_single_input<float3>(0, "Input");
+    MutableSpan<float3> outputs = params.uninitialized_single_output<float3>(1, "Output");
+
+    mask.foreach_index([&](const int64_t i) {
+      BKE_curvemapping_evaluate3F(&curve_mapping_, outputs[i], inputs[i]);
+    });
+  }
+};
+
+class ClosureMultiFunctionForColorCurve : public mf::MultiFunction {
+ private:
+  const CurveMapping &curve_mapping_;
+
+ public:
+  ClosureMultiFunctionForColorCurve(const CurveMapping &curve_mapping)
+      : curve_mapping_(curve_mapping)
+  {
+    static const mf::Signature signature = []() {
+      mf::Signature signature;
+      mf::SignatureBuilder builder{"Color Curve Closure", signature};
+      builder.single_input<ColorGeometry4f>("Input");
+      builder.single_output<ColorGeometry4f>("Output");
+      return signature;
+    }();
+    this->set_signature(&signature);
+  }
+
+  void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
+  {
+    const VArray<ColorGeometry4f> &inputs = params.readonly_single_input<ColorGeometry4f>(0,
+                                                                                          "Input");
+    MutableSpan<ColorGeometry4f> outputs = params.uninitialized_single_output<ColorGeometry4f>(
+        1, "Output");
+
+    mask.foreach_index([&](const int64_t i) {
+      BKE_curvemapping_evaluateRGBF(&curve_mapping_, outputs[i], inputs[i]);
+      outputs[i].a = inputs[i].a;
+    });
+  }
+};
+
 class ClosureMultiFunctionForColorRamp : public mf::MultiFunction {
  private:
   const ColorBand &color_ramp_;
@@ -1121,10 +1182,46 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
       const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForFloatCurve>(
           *value.curve_mapping);
-      static SocketValueVariant zero{0.0f};
-      Vector<const void *> default_input_values = {&zero};
+      Vector<const void *> default_input_values = {
+          bke::node_socket_type_find_static(SOCK_FLOAT)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
           nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE),
+          fn,
+          std::move(scope),
+          std::move(default_input_values),
+          std::nullopt,
+          {});
+    }
+    case CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE: {
+      if (!value.curve_mapping) {
+        return {};
+      }
+      BKE_curvemapping_init(value.curve_mapping);
+      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
+      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForVectorCurve>(
+          *value.curve_mapping);
+      Vector<const void *> default_input_values = {
+          bke::node_socket_type_find_static(SOCK_VECTOR)->geometry_nodes_default_cpp_value};
+      return nodes::Closure::FromMultiFunction(
+          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE),
+          fn,
+          std::move(scope),
+          std::move(default_input_values),
+          std::nullopt,
+          {});
+    }
+    case CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE: {
+      if (!value.curve_mapping) {
+        return {};
+      }
+      BKE_curvemapping_init(value.curve_mapping);
+      std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
+      const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForColorCurve>(
+          *value.curve_mapping);
+      Vector<const void *> default_input_values = {
+          bke::node_socket_type_find_static(SOCK_RGBA)->geometry_nodes_default_cpp_value};
+      return nodes::Closure::FromMultiFunction(
+          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE),
           fn,
           std::move(scope),
           std::move(default_input_values),
@@ -1138,8 +1235,8 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       std::unique_ptr<ResourceScope> scope = std::make_unique<ResourceScope>();
       const mf::MultiFunction &fn = scope->construct<ClosureMultiFunctionForColorRamp>(
           *value.color_ramp);
-      static SocketValueVariant zero{0.0f};
-      Vector<const void *> default_input_values = {&zero};
+      Vector<const void *> default_input_values = {
+          bke::node_socket_type_find_static(SOCK_FLOAT)->geometry_nodes_default_cpp_value};
       return nodes::Closure::FromMultiFunction(
           nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP),
           fn,

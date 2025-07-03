@@ -833,11 +833,30 @@ class NodeTreeMainUpdater {
 
   void ensure_closure_socket_value(bNodeSocketValueClosure &socket_data)
   {
-    if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE && !socket_data.curve_mapping) {
-      socket_data.curve_mapping = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
-    }
-    if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP && !socket_data.color_ramp) {
-      socket_data.color_ramp = BKE_colorband_add(true);
+    switch (ClosureSocketValueType(socket_data.type)) {
+      case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
+        break;
+      }
+      case CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE:
+      case CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE:
+      case CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE: {
+        if (!socket_data.curve_mapping) {
+          socket_data.curve_mapping = BKE_curvemapping_add(4, 0.0f, 0.0f, 1.0f, 1.0f);
+        }
+        if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE) {
+          socket_data.curve_mapping->cur = 0;
+        }
+        else if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE) {
+          socket_data.curve_mapping->cur = std::min(socket_data.curve_mapping->cur, 2);
+        }
+        break;
+      }
+      case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
+        if (!socket_data.color_ramp) {
+          socket_data.color_ramp = BKE_colorband_add(true);
+        }
+        break;
+      }
     }
   }
 

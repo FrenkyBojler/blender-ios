@@ -41,7 +41,9 @@ const EnumPropertyItem rna_enum_node_socket_type_items[] = {
 
 static const EnumPropertyItem rna_socket_closure_type_items[] = {
     {CLOSURE_SOCKET_VALUE_TYPE_NONE, "NONE", 0, "None", ""},
-    {CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE, "CURVE", 0, "Curve", ""},
+    {CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE, "FLOAT_CURVE", 0, "Float Curve", ""},
+    {CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE, "VECTOR_CURVE", 0, "Vector Curve", ""},
+    {CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE, "COLOR_CURVE", 0, "Color Curve", ""},
     {CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP, "COLOR_RAMP", 0, "Color Ramp", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };

@@ -1380,6 +1380,26 @@ static void std_node_socket_draw(
           }
           break;
         }
+        case CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE: {
+          if (default_value->curve_mapping) {
+            uiLayout &col = layout->column(false);
+            uiTemplateCurveMapping(&col, ptr, "curve_mapping", 'v', false, false, false, false);
+          }
+          else {
+            draw_node_socket_without_value(layout, sock, text);
+          }
+          break;
+        }
+        case CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE: {
+          if (default_value->curve_mapping) {
+            uiLayout &col = layout->column(false);
+            uiTemplateCurveMapping(&col, ptr, "curve_mapping", 'c', false, false, false, false);
+          }
+          else {
+            draw_node_socket_without_value(layout, sock, text);
+          }
+          break;
+        }
         case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
           if (default_value->color_ramp) {
             uiLayout &col = layout->column(false);

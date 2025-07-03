@@ -150,6 +150,30 @@ std::shared_ptr<ClosureSignature> ClosureSignature::FromBuiltin(const ClosureSoc
       }();
       return signature;
     }
+    case CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE: {
+      static std::shared_ptr<nodes::ClosureSignature> signature = []() {
+        std::shared_ptr<nodes::ClosureSignature> signature =
+            std::make_shared<nodes::ClosureSignature>();
+        const bke::bNodeSocketType *vector_socket_type = bke::node_socket_type_find_static(
+            SOCK_VECTOR);
+        signature->inputs.append({nodes::SocketInterfaceKey("Value"), vector_socket_type});
+        signature->outputs.append({nodes::SocketInterfaceKey("Value"), vector_socket_type});
+        return signature;
+      }();
+      return signature;
+    }
+    case CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE: {
+      static std::shared_ptr<nodes::ClosureSignature> signature = []() {
+        std::shared_ptr<nodes::ClosureSignature> signature =
+            std::make_shared<nodes::ClosureSignature>();
+        const bke::bNodeSocketType *color_socket_type = bke::node_socket_type_find_static(
+            SOCK_RGBA);
+        signature->inputs.append({nodes::SocketInterfaceKey("Value"), color_socket_type});
+        signature->outputs.append({nodes::SocketInterfaceKey("Value"), color_socket_type});
+        return signature;
+      }();
+      return signature;
+    }
     case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
       static std::shared_ptr<nodes::ClosureSignature> signature = []() {
         std::shared_ptr<nodes::ClosureSignature> signature =
