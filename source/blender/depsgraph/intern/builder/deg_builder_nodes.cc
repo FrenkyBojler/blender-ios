@@ -385,13 +385,14 @@ void DepsgraphNodeBuilder::begin_build()
      * check whether an evaluated copy is needed based on a scalar value which does not lead to
      * access of possibly deleted memory. */
     IDInfo id_info{};
-    if (deg_eval_copy_is_needed(id_node->id_type) && deg_eval_copy_is_expanded(id_node->id_cow) &&
-        id_node->id_orig != id_node->id_cow)
-    {
-      id_info.id_cow = id_node->id_cow;
-    }
-    else {
-      id_info.id_cow = nullptr;
+    if (deg_eval_copy_is_needed(id_node->id_type) && id_node->id_orig != id_node->id_cow) {
+      if (deg_eval_copy_is_expanded(id_node->id_cow)) {
+        id_info.id_cow = id_node->id_cow;
+      }
+      else {
+        /* This ID has not been expanded yet. Don't reuse it like already expanded IDs. */
+        MEM_freeN(id_node->id_cow);
+      }
     }
     id_info.previously_visible_components_mask = id_node->visible_components_mask;
     id_info.previous_eval_flags = id_node->eval_flags;
