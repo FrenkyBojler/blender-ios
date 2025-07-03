@@ -13,7 +13,6 @@
 
 #include <cfloat>
 #include <chrono>
-#include <cmath>
 #include <cstdarg>
 #include <cstddef>
 #include <cstdlib>
@@ -23,9 +22,9 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_cloth_types.h"
+#include "DNA_colorband_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
-#include "DNA_gpencil_modifier_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_object_fluidsim_types.h"
 #include "DNA_object_force_types.h"
@@ -38,7 +37,6 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_rand.hh"
-#include "BLI_session_uid.h"
 #include "BLI_string.h"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
@@ -57,6 +55,7 @@
 #include "BKE_key.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_lib_query.hh"
+#include "BKE_library.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_topology_state.hh"
 #include "BKE_mesh_wrapper.hh"
@@ -555,7 +554,7 @@ CDMaskLink *BKE_modifier_calc_data_masks(const Scene *scene,
   for (; md; md = md->next) {
     const ModifierTypeInfo *mti = BKE_modifier_get_info(ModifierType(md->type));
 
-    curr = MEM_cnew<CDMaskLink>(__func__);
+    curr = MEM_callocN<CDMaskLink>(__func__);
 
     if (BKE_modifier_is_enabled(scene, md, required_mode)) {
       if (mti->type == ModifierTypeType::OnlyDeform) {
@@ -1000,13 +999,13 @@ Mesh *BKE_modifier_get_evaluated_mesh_from_evaluated_object(Object *ob_eval)
 
 ModifierData *BKE_modifier_get_original(const Object *object, ModifierData *md)
 {
-  const Object *object_orig = DEG_get_original_object((Object *)object);
+  const Object *object_orig = DEG_get_original((Object *)object);
   return BKE_modifiers_findby_persistent_uid(object_orig, md->persistent_uid);
 }
 
 ModifierData *BKE_modifier_get_evaluated(Depsgraph *depsgraph, Object *object, ModifierData *md)
 {
-  Object *object_eval = DEG_get_evaluated_object(depsgraph, object);
+  Object *object_eval = DEG_get_evaluated(depsgraph, object);
   if (object_eval == object) {
     return md;
   }
@@ -1018,13 +1017,13 @@ void BKE_modifiers_persistent_uid_init(const Object &object, ModifierData &md)
   uint64_t hash = blender::get_default_hash(blender::StringRef(md.name));
   if (ID_IS_LINKED(&object)) {
     hash = blender::get_default_hash(hash,
-                                     blender::StringRef(object.id.lib->runtime.filepath_abs));
+                                     blender::StringRef(object.id.lib->runtime->filepath_abs));
   }
   if (ID_IS_OVERRIDE_LIBRARY_REAL(&object)) {
     BLI_assert(ID_IS_LINKED(object.id.override_library->reference));
     hash = blender::get_default_hash(
         hash,
-        blender::StringRef(object.id.override_library->reference->lib->runtime.filepath_abs));
+        blender::StringRef(object.id.override_library->reference->lib->runtime->filepath_abs));
   }
   blender::RandomNumberGenerator rng{uint32_t(hash)};
   while (true) {

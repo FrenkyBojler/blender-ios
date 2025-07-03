@@ -6,8 +6,11 @@
  * \ingroup edtransform
  */
 
+#include <algorithm>
+
 #include "DNA_brush_types.h"
 
+#include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -48,7 +51,7 @@
 #include "transform_orientations.hh"
 #include "transform_snap.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 /* ************************** GENERICS **************************** */
 
@@ -104,7 +107,7 @@ static int t_around_get(TransInfo *t)
     }
     case SPACE_SEQ: {
       if (t->region->regiontype == RGN_TYPE_PREVIEW) {
-        return SEQ_tool_settings_pivot_point_get(t->scene);
+        return seq::tool_settings_pivot_point_get(t->scene);
       }
       break;
     }
@@ -218,7 +221,7 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   /* Grease Pencil editing context. */
   if (t->obedit_type == OB_GREASE_PENCIL && object_mode == OB_MODE_EDIT &&
-      (area->spacetype == SPACE_VIEW3D))
+      ((area == nullptr) || (area->spacetype == SPACE_VIEW3D)))
   {
     t->options |= CTX_GPENCIL_STROKES;
   }
@@ -696,6 +699,16 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     t->vod = ED_view3d_navigation_init(C, kmi_passthrough);
   }
 
+  if (t->mode == TFM_TRANSLATION) {
+    if ((prop = RNA_struct_find_property(op->ptr, "translate_origin")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      if (RNA_property_boolean_get(op->ptr, prop)) {
+        t->flag |= T_ORIGIN;
+      }
+    }
+  }
+
   setTransformViewMatrices(t);
   calculateCenter2D(t);
   calculateCenterLocal(t, t->center_global);
@@ -777,6 +790,7 @@ void postTrans(bContext *C, TransInfo *t)
       MEM_SAFE_FREE(tc->data_mirror);
       MEM_SAFE_FREE(tc->data_ext);
       MEM_SAFE_FREE(tc->data_2d);
+      MEM_SAFE_FREE(tc->sorted_index_map);
     }
   }
 
@@ -823,8 +837,8 @@ void applyTransObjects(TransInfo *t)
     if (td->ext->rot) {
       copy_v3_v3(td->ext->irot, td->ext->rot);
     }
-    if (td->ext->size) {
-      copy_v3_v3(td->ext->isize, td->ext->size);
+    if (td->ext->scale) {
+      copy_v3_v3(td->ext->iscale, td->ext->scale);
     }
   }
   recalc_data(t);
@@ -859,8 +873,8 @@ static void restoreElement(TransData *td)
       copy_v3_v3(td->ext->rotAxis, td->ext->irotAxis);
     }
     /* XXX, `drotAngle` & `drotAxis` not used yet. */
-    if (td->ext->size) {
-      copy_v3_v3(td->ext->size, td->ext->isize);
+    if (td->ext->scale) {
+      copy_v3_v3(td->ext->scale, td->ext->iscale);
     }
     if (td->ext->quat) {
       copy_qt_qt(td->ext->quat, td->ext->iquat);
@@ -954,7 +968,8 @@ void calculateCenterCursor2D(TransInfo *t, float r_center[2])
   }
   if (t->spacetype == SPACE_SEQ) {
     SpaceSeq *sseq = (SpaceSeq *)t->area->spacedata.first;
-    SEQ_image_preview_unit_to_px(t->scene, sseq->cursor, cursor_local_buf);
+    const float2 cursor_pixel = seq::image_preview_unit_to_px(t->scene, sseq->cursor);
+    copy_v2_v2(cursor_local_buf, cursor_pixel);
     cursor = cursor_local_buf;
   }
   else if (t->spacetype == SPACE_CLIP) {
@@ -1087,7 +1102,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
     return false;
   }
   if (tc->obedit) {
-    if (blender::ed::object::calc_active_center_for_editmode(tc->obedit, select_only, r_center)) {
+    if (object::calc_active_center_for_editmode(tc->obedit, select_only, r_center)) {
       mul_m4_v3(tc->obedit->object_to_world().ptr(), r_center);
       return true;
     }
@@ -1095,7 +1110,7 @@ bool calculateCenterActive(TransInfo *t, bool select_only, float r_center[3])
   else if (t->options & CTX_POSE_BONE) {
     BKE_view_layer_synced_ensure(t->scene, t->view_layer);
     Object *ob = BKE_view_layer_active_object_get(t->view_layer);
-    if (blender::ed::object::calc_active_center_for_posemode(ob, select_only, r_center)) {
+    if (object::calc_active_center_for_posemode(ob, select_only, r_center)) {
       mul_m4_v3(ob->object_to_world().ptr(), r_center);
       return true;
     }
@@ -1180,8 +1195,8 @@ static void calculateZfac(TransInfo *t)
   }
   else if (t->region) {
     View2D *v2d = &t->region->v2d;
-    /* Get zoom fac the same way as in
-     * `ui_view2d_curRect_validate_resize` - better keep in sync! */
+    /* Get zoom factor the same way as in
+     * #ui_view2d_curRect_validate_resize - better keep in sync! */
     const float zoomx = float(BLI_rcti_size_x(&v2d->mask) + 1) / BLI_rctf_size_x(&v2d->cur);
     t->zfac = 1.0f / zoomx;
   }
@@ -1296,9 +1311,7 @@ void calculatePropRatio(TransInfo *t)
            * Certain corner cases with connectivity and individual centers
            * can give values of rdist larger than propsize.
            */
-          if (dist < 0.0f) {
-            dist = 0.0f;
-          }
+          dist = std::max(dist, 0.0f);
 
           switch (t->prop_mode) {
             case PROP_SHARP:
@@ -1501,3 +1514,5 @@ Object *transform_object_deform_pose_armature_get(const TransInfo *t, Object *ob
   }
   return nullptr;
 }
+
+}  // namespace blender::ed::transform

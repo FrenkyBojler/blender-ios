@@ -54,6 +54,7 @@
 #  define BLI_STATIC_ASSERT(cond, msg)
 #  define BLI_STATIC_ASSERT_ALIGN(type_, align_)
 #  define BLI_STATIC_ASSERT_SIZE(type_, size_)
+#  define ATTR_FALLTHROUGH
 #  define ENUM_OPERATORS(a, b)
 #  define UNUSED_VARS(a)
 /* Incompatible keywords. */
@@ -75,6 +76,7 @@
 #  pragma once
 
 #  include "BLI_assert.h"
+#  include "BLI_sys_types.h"
 
 #  include "BLI_math_matrix_types.hh"
 #  include "BLI_math_vector_types.hh"

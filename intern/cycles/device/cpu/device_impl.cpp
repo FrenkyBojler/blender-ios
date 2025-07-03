@@ -17,11 +17,7 @@
 #endif
 
 #ifdef WITH_EMBREE
-#  if EMBREE_MAJOR_VERSION >= 4
-#    include <embree4/rtcore.h>
-#  else
-#    include <embree3/rtcore.h>
-#  endif
+#  include <embree4/rtcore.h>
 #endif
 
 #include "device/cpu/kernel.h"
@@ -106,12 +102,13 @@ void CPUDevice::mem_alloc(device_memory &mem)
                 << string_human_readable_size(mem.memory_size()) << ")";
     }
 
-    if (mem.type == MEM_DEVICE_ONLY || !mem.host_pointer) {
+    if (mem.type == MEM_DEVICE_ONLY) {
       size_t alignment = MIN_ALIGNMENT_CPU_DATA_TYPES;
       void *data = util_aligned_malloc(mem.memory_size(), alignment);
       mem.device_pointer = (device_ptr)data;
     }
     else {
+      assert(!(mem.host_pointer == nullptr && mem.memory_size() > 0));
       mem.device_pointer = (device_ptr)mem.host_pointer;
     }
 
@@ -137,6 +134,11 @@ void CPUDevice::mem_copy_to(device_memory &mem)
 
     /* copy is no-op */
   }
+}
+
+void CPUDevice::mem_move_to_host(device_memory & /*mem*/)
+{
+  /* no-op */
 }
 
 void CPUDevice::mem_copy_from(
@@ -165,8 +167,8 @@ void CPUDevice::mem_free(device_memory &mem)
     tex_free((device_texture &)mem);
   }
   else if (mem.device_pointer) {
-    if (mem.type == MEM_DEVICE_ONLY || !mem.host_pointer) {
-      util_aligned_free((void *)mem.device_pointer);
+    if (mem.type == MEM_DEVICE_ONLY) {
+      util_aligned_free((void *)mem.device_pointer, mem.memory_size());
     }
     mem.device_pointer = 0;
     stats.mem_free(mem.device_size);
@@ -185,9 +187,11 @@ void CPUDevice::const_copy_to(const char *name, void *host, const size_t size)
   if (strcmp(name, "data") == 0) {
     assert(size <= sizeof(KernelData));
 
-    // Update scene handle (since it is different for each device on multi devices)
+    /* Update scene handle (since it is different for each device on multi devices).
+     * This must be a raw pointer copy since at some points during scene update this
+     * pointer may be invalid. */
     KernelData *const data = (KernelData *)host;
-    data->device_bvh = embree_scene;
+    data->device_bvh = embree_traversable;
   }
 #endif
   kernel_const_copy(&kernel_globals, name, host, size);
@@ -264,7 +268,11 @@ void CPUDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
     }
 
     if (bvh->params.top_level) {
-      embree_scene = bvh_embree->scene;
+#  if RTC_VERSION >= 40400
+      embree_traversable = rtcGetSceneTraversable(bvh_embree->scene);
+#  else
+      embree_traversable = bvh_embree->scene;
+#  endif
     }
   }
   else
@@ -276,7 +284,7 @@ void CPUDevice::build_bvh(BVH *bvh, Progress &progress, bool refit)
 
 void *CPUDevice::get_guiding_device() const
 {
-#ifdef WITH_PATH_GUIDING
+#if defined(WITH_PATH_GUIDING)
   if (!guiding_device) {
     if (guiding_device_type() == 8) {
       guiding_device = make_unique<openpgl::cpp::Device>(PGL_DEVICE_TYPE_CPU_8);

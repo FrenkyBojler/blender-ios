@@ -12,12 +12,13 @@
 #include "FN_multi_function_builder.hh"
 
 #include "BKE_attribute_filter.hh"
-#include "BKE_attribute_math.hh"
 #include "BKE_geometry_fields.hh"
 #include "BKE_geometry_nodes_reference_set.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_node_socket_value.hh"
 #include "BKE_volume_grid_fwd.hh"
+#include "NOD_geometry_nodes_bundle_fwd.hh"
+#include "NOD_geometry_nodes_closure_fwd.hh"
 
 #include "DNA_node_types.h"
 
@@ -58,7 +59,6 @@ using fn::FieldInput;
 using fn::FieldOperation;
 using fn::GField;
 using geo_eval_log::NamedAttributeUsage;
-using geo_eval_log::NodeWarningType;
 
 class NodeAttributeFilter : public AttributeFilter {
  private:
@@ -97,20 +97,20 @@ class GeoNodeExecParams {
   }
 
   template<typename T>
-  static inline constexpr bool is_field_base_type_v = is_same_any_v<T,
-                                                                    float,
-                                                                    int,
-                                                                    bool,
-                                                                    ColorGeometry4f,
-                                                                    float3,
-                                                                    std::string,
-                                                                    math::Quaternion,
-                                                                    float4x4>;
+  static constexpr bool is_field_base_type_v = is_same_any_v<T,
+                                                             float,
+                                                             int,
+                                                             bool,
+                                                             ColorGeometry4f,
+                                                             float3,
+                                                             std::string,
+                                                             math::Quaternion,
+                                                             float4x4>;
 
   template<typename T>
-  static inline constexpr bool stored_as_SocketValueVariant_v =
+  static constexpr bool stored_as_SocketValueVariant_v =
       is_field_base_type_v<T> || fn::is_field_v<T> || bke::is_VolumeGrid_v<T> ||
-      is_same_any_v<T, GField, bke::GVolumeGrid>;
+      is_same_any_v<T, GField, bke::GVolumeGrid, nodes::BundlePtr, nodes::ClosurePtr>;
 
   /**
    * Get the input value for the input socket with the given identifier.
@@ -170,14 +170,23 @@ class GeoNodeExecParams {
   }
 
   /**
+   * Low level access to the parameters. Usually, it's better to use #get_input, #extract_input and
+   * #set_output instead because they are easier to use and more safe. Sometimes it can be
+   * beneficial to have more direct access to the raw values though and avoid the indirection.
+   */
+  lf::Params &low_level_lazy_function_params()
+  {
+    return params_;
+  }
+
+  /**
    * Store the output value for the given socket identifier.
    */
   template<typename T> void set_output(StringRef identifier, T &&value)
   {
     using StoredT = std::decay_t<T>;
     if constexpr (stored_as_SocketValueVariant_v<StoredT>) {
-      SocketValueVariant value_variant(std::forward<T>(value));
-      this->set_output(identifier, std::move(value_variant));
+      this->set_output(identifier, SocketValueVariant::From(std::forward<T>(value)));
     }
     else {
 #ifndef NDEBUG
@@ -250,14 +259,14 @@ class GeoNodeExecParams {
 
   Main *bmain() const;
 
-  GeoNodesLFUserData *user_data() const
+  GeoNodesUserData *user_data() const
   {
-    return static_cast<GeoNodesLFUserData *>(lf_context_.user_data);
+    return static_cast<GeoNodesUserData *>(lf_context_.user_data);
   }
 
-  GeoNodesLFLocalUserData *local_user_data() const
+  GeoNodesLocalUserData *local_user_data() const
   {
-    return static_cast<GeoNodesLFLocalUserData *>(lf_context_.local_user_data);
+    return static_cast<GeoNodesLocalUserData *>(lf_context_.local_user_data);
   }
 
   /**
@@ -306,6 +315,12 @@ class GeoNodeExecParams {
     const GeometryNodesReferenceSet &set = params_.get_input<GeometryNodesReferenceSet>(lf_index);
     return NodeAttributeFilter(set);
   }
+
+  /**
+   * If the path is relative, attempt to make it absolute. If the current node tree is linked,
+   * the path is relative to the linked file. Otherwise, the path is relative to the current file.
+   */
+  std::optional<std::string> ensure_absolute_path(StringRefNull path) const;
 
  private:
   /* Utilities for detecting common errors at when using this class. */

@@ -2,9 +2,12 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-/**
- * Based on Chromium's build_config.h, governed by a BSD-style license,
- * with tweaks and extensions needed for the Blender project. */
+/** \file
+ * \ingroup bli
+ *
+ * Based on Chromium's `build_config.h`, governed by a BSD-style license,
+ * with tweaks and extensions needed for the Blender project.
+ */
 
 /**
  * Compile-time detection of compiler and hardware platform configuration.
@@ -267,7 +270,7 @@
  *   http://msdn.microsoft.com/en-us/library/b0084kay.aspx
  *   http://www.agner.org/optimize/calling_conventions.pdf
  *
- *   or with gcc, run: "echo | gcc -E -dM -"
+ *   or with GCC, run: `echo | gcc -E -dM -`
  * \{ */
 
 #if defined(_M_X64) || defined(__x86_64__)
@@ -354,6 +357,11 @@
 #  else
 #    define ARCH_CPU_BIG_ENDIAN 1
 #  endif
+#elif defined(__loongarch_lp64)
+#  define ARCH_CPU_LOONG_FAMILY 1
+#  define ARCH_CPU_LOONG64 1
+#  define ARCH_CPU_64_BITS 1
+#  define ARCH_CPU_LITTLE_ENDIAN 1
 #else
 #  error Please add support for your architecture in BLI_build_config.h
 #endif
@@ -395,6 +403,9 @@
 #endif
 #if !defined(ARCH_CPU_RISCV_FAMILY)
 #  define ARCH_CPU_RISCV_FAMILY 0
+#endif
+#if !defined(ARCH_CPU_LOONG_FAMILY)
+#  define ARCH_CPU_LOONG_FAMILY 0
 #endif
 
 #if !defined(ARCH_CPU_ARM64)
@@ -438,6 +449,9 @@
 #endif
 #if !defined(ARCH_CPU_RISCV128)
 #  define ARCH_CPU_RISCV128 0
+#endif
+#if !defined(ARCH_CPU_LOONG64)
+#  define ARCH_CPU_LOONG64 0
 #endif
 
 /** \} */

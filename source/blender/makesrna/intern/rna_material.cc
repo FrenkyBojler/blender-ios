@@ -11,7 +11,6 @@
 
 #include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
-#include "DNA_texture_types.h"
 
 #include "BLI_math_rotation.h"
 
@@ -60,6 +59,7 @@ const EnumPropertyItem rna_enum_ramp_blend_items[] = {
 #  include "MEM_guardedalloc.h"
 
 #  include "DNA_gpencil_legacy_types.h"
+#  include "DNA_meshdata_types.h"
 #  include "DNA_node_types.h"
 #  include "DNA_object_types.h"
 #  include "DNA_screen_types.h"
@@ -144,7 +144,7 @@ static void rna_Material_texpaint_begin(CollectionPropertyIterator *iter, Pointe
 {
   Material *ma = (Material *)ptr->data;
   rna_iterator_array_begin(
-      iter, (void *)ma->texpaintslot, sizeof(TexPaintSlot), ma->tot_slots, 0, nullptr);
+      iter, ptr, (void *)ma->texpaintslot, sizeof(TexPaintSlot), ma->tot_slots, 0, nullptr);
 }
 
 static void rna_Material_active_paint_texture_index_update(bContext *C, PointerRNA *ptr)
@@ -156,7 +156,7 @@ static void rna_Material_active_paint_texture_index_update(bContext *C, PointerR
     bNode *node = BKE_texpaint_slot_material_find_node(ma, ma->paint_active_slot);
 
     if (node) {
-      blender::bke::node_set_active(ma->nodetree, node);
+      blender::bke::node_set_active(*ma->nodetree, *node);
     }
   }
 
@@ -442,7 +442,7 @@ static void rna_def_material_display(StructRNA *srna)
   RNA_def_property_ui_text(prop, "Diffuse Color", "Diffuse color of the material");
   /* See #82514 for details, for now re-define defaults here. Keep in sync with
    * #DNA_material_defaults.h */
-  static float diffuse_color_default[4] = {0.8f, 0.8f, 0.8f, 1.0f};
+  static const float diffuse_color_default[4] = {0.8f, 0.8f, 0.8f, 1.0f};
   RNA_def_property_float_array_default(prop, diffuse_color_default);
   RNA_def_property_update(prop, 0, "rna_Material_draw_update");
 
@@ -495,7 +495,7 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   PropertyRNA *prop;
 
   /* mode type styles */
-  static EnumPropertyItem gpcolordata_mode_types_items[] = {
+  static const EnumPropertyItem gpcolordata_mode_types_items[] = {
       {GP_MATERIAL_MODE_LINE, "LINE", 0, "Line", "Draw strokes using a continuous line"},
       {GP_MATERIAL_MODE_DOT, "DOTS", 0, "Dots", "Draw strokes using separated dots"},
       {GP_MATERIAL_MODE_SQUARE, "BOX", 0, "Squares", "Draw strokes using separated squares"},
@@ -503,14 +503,14 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
   };
 
   /* stroke styles */
-  static EnumPropertyItem stroke_style_items[] = {
+  static const EnumPropertyItem stroke_style_items[] = {
       {GP_MATERIAL_STROKE_STYLE_SOLID, "SOLID", 0, "Solid", "Draw strokes with solid color"},
       {GP_MATERIAL_STROKE_STYLE_TEXTURE, "TEXTURE", 0, "Texture", "Draw strokes using texture"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
   /* fill styles */
-  static EnumPropertyItem fill_style_items[] = {
+  static const EnumPropertyItem fill_style_items[] = {
       {GP_MATERIAL_FILL_STYLE_SOLID, "SOLID", 0, "Solid", "Fill area with solid color"},
       {GP_MATERIAL_FILL_STYLE_GRADIENT,
        "GRADIENT",
@@ -521,13 +521,13 @@ static void rna_def_material_greasepencil(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem fill_gradient_items[] = {
+  static const EnumPropertyItem fill_gradient_items[] = {
       {GP_MATERIAL_GRADIENT_LINEAR, "LINEAR", 0, "Linear", "Fill area with gradient color"},
       {GP_MATERIAL_GRADIENT_RADIAL, "RADIAL", 0, "Radial", "Fill area with radial gradient"},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem alignment_draw_items[] = {
+  static const EnumPropertyItem alignment_draw_items[] = {
       {GP_MATERIAL_FOLLOW_PATH,
        "PATH",
        0,
@@ -827,7 +827,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_eevee_volume_isect_method_items[] = {
+  static const EnumPropertyItem prop_eevee_volume_isect_method_items[] = {
       {MA_VOLUME_ISECT_FAST,
        "FAST",
        0,
@@ -844,7 +844,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_eevee_thickness_method_items[] = {
+  static const EnumPropertyItem prop_eevee_thickness_method_items[] = {
       {MA_THICKNESS_SPHERE,
        "SPHERE",
        0,
@@ -860,7 +860,7 @@ void RNA_def_material(BlenderRNA *brna)
   };
 
 #  if 1 /* Delete this section once we remove old eevee. */
-  static EnumPropertyItem prop_eevee_blend_items[] = {
+  static const EnumPropertyItem prop_eevee_blend_items[] = {
       {MA_BM_SOLID, "OPAQUE", 0, "Opaque", "Render surface without transparency"},
       {MA_BM_CLIP,
        "CLIP",
@@ -881,7 +881,7 @@ void RNA_def_material(BlenderRNA *brna)
   };
 #  endif
 
-  static EnumPropertyItem prop_eevee_surface_render_method_items[] = {
+  static const EnumPropertyItem prop_eevee_surface_render_method_items[] = {
       {MA_SURFACE_METHOD_DEFERRED,
        "DITHERED",
        0,
@@ -897,7 +897,7 @@ void RNA_def_material(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
-  static EnumPropertyItem prop_displacement_method_items[] = {
+  static const EnumPropertyItem prop_displacement_method_items[] = {
       {MA_DISPLACEMENT_BUMP,
        "BUMP",
        0,

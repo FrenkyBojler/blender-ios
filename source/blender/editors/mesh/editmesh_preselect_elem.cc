@@ -9,6 +9,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 
 #include "GPU_immediate.hh"
 #include "GPU_matrix.hh"
@@ -129,7 +130,8 @@ void EDBM_preselect_elem_draw(EditMesh_PreSelElem *psel, const float matrix[4][4
   GPU_matrix_push();
   GPU_matrix_mul(matrix);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 

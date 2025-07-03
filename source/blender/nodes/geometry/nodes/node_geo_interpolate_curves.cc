@@ -14,6 +14,8 @@
 
 #include "BKE_curves.hh"
 
+#include "FN_multi_function_builder.hh"
+
 #include "GEO_randomize.hh"
 
 namespace blender::nodes::node_geo_interpolate_curves_cc {
@@ -466,8 +468,8 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    const eCustomDataType type = iter.data_type;
-    if (type == CD_PROP_STRING) {
+    const bke::AttrType type = iter.data_type;
+    if (type == bke::AttrType::String) {
       return;
     }
     if (iter.is_builtin && !ELEM(iter.name, "radius", "tilt", "resolution", "cyclic")) {
@@ -601,7 +603,7 @@ static void interpolate_curve_attributes(bke::CurvesGeometry &child_curves,
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
 
@@ -879,7 +881,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

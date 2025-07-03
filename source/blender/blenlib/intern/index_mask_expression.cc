@@ -2,6 +2,10 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+/** \file
+ * \ingroup bli
+ */
+
 /**
  * Expression evaluation has multiple phases:
  * 1. A coarse evaluation that tries to find segments which can be trivially evaluated. For
@@ -17,9 +21,9 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_index_mask_expression.hh"
 #include "BLI_stack.hh"
-#include "BLI_strict_flags.h"
 #include "BLI_task.hh"
-#include "BLI_timeit.hh"
+
+#include "BLI_strict_flags.h" /* IWYU pragma: keep */
 
 namespace blender::index_mask {
 

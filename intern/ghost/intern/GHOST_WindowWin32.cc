@@ -6,12 +6,14 @@
  * \ingroup GHOST
  */
 
-#include "GHOST_WindowWin32.hh"
+#include <algorithm>
+
 #include "GHOST_ContextD3D.hh"
 #include "GHOST_ContextNone.hh"
 #include "GHOST_DropTargetWin32.hh"
 #include "GHOST_SystemWin32.hh"
 #include "GHOST_WindowManager.hh"
+#include "GHOST_WindowWin32.hh"
 #include "utf_winfunc.hh"
 #include "utfconv.hh"
 
@@ -58,7 +60,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
                                      GHOST_TWindowState state,
                                      GHOST_TDrawingContextType type,
                                      bool wantStereoVisual,
-                                     bool alphaBackground,
                                      GHOST_WindowWin32 *parentwindow,
                                      bool is_debug,
                                      bool dialog,
@@ -76,7 +77,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       m_hasGrabMouse(false),
       m_nPressedButtons(0),
       m_customCursor(0),
-      m_wantAlphaBackground(alphaBackground),
       m_Bar(nullptr),
       m_wintab(nullptr),
       m_lastPointerTabletData(GHOST_TABLET_DATA_NONE),
@@ -207,25 +207,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
   ThemeRefresh();
 
   ::ShowWindow(m_hWnd, nCmdShow);
-
-#ifdef WIN32_COMPOSITING
-  if (alphaBackground && parentwindowhwnd == 0) {
-
-    HRESULT hr = S_OK;
-
-    /* Create and populate the Blur Behind structure. */
-    DWM_BLURBEHIND bb = {0};
-
-    /* Enable Blur Behind and apply to the entire client area. */
-    bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
-    bb.fEnable = true;
-    bb.hRgnBlur = CreateRectRgn(0, 0, -1, -1);
-
-    /* Apply Blur Behind. */
-    hr = DwmEnableBlurBehindWindow(m_hWnd, &bb);
-    DeleteObject(bb.hRgnBlur);
-  }
-#endif
 
   /* Initialize WINTAB. */
   if (system->getTabletAPI() != GHOST_kTabletWinPointer) {
@@ -401,6 +382,23 @@ std::string GHOST_WindowWin32::getTitle() const
   conv_utf_16_to_8(wtitle.c_str(), &title[0], title.capacity());
 
   return title;
+}
+
+GHOST_TSuccess GHOST_WindowWin32::applyWindowDecorationStyle()
+{
+  /* DWMWINDOWATTRIBUTE::DWMWA_CAPTION_COLOR */
+  constexpr DWORD caption_color_attr = 35;
+
+  if (m_windowDecorationStyleFlags & GHOST_kDecorationColoredTitleBar) {
+    const float *color = m_windowDecorationStyleSettings.colored_titlebar_bg_color;
+    const COLORREF colorref = RGB(
+        char(color[0] * 255.0f), char(color[1] * 255.0f), char(color[2] * 255.0f));
+    if (!SUCCEEDED(DwmSetWindowAttribute(m_hWnd, caption_color_attr, &colorref, sizeof(colorref))))
+    {
+      return GHOST_kFailure;
+    }
+  }
+  return GHOST_kSuccess;
 }
 
 void GHOST_WindowWin32::getWindowBounds(GHOST_Rect &bounds) const
@@ -637,7 +635,7 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextWGL(
             m_wantStereoVisual,
-            m_wantAlphaBackground,
+            false,
             m_hWnd,
             m_hDC,
             WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
@@ -1005,11 +1003,19 @@ GHOST_TSuccess GHOST_WindowWin32::getPointerInfo(
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_X) {
-      outPointerInfo[i].tabletData.Xtilt = fmin(fabs(pointerPenInfo[i].tiltX / 90.0f), 1.0f);
+      /* Input value is a range of -90 to +90, with a positive value
+       * indicating a tilt to the right. Convert to what Blender
+       * expects: -1.0f (left) to +1.0f (right). */
+      outPointerInfo[i].tabletData.Xtilt = std::clamp(
+          pointerPenInfo[i].tiltX / 90.0f, -1.0f, 1.0f);
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_Y) {
-      outPointerInfo[i].tabletData.Ytilt = fmin(fabs(pointerPenInfo[i].tiltY / 90.0f), 1.0f);
+      /* Input value is a range of -90 to +90, with a positive value
+       * indicating a tilt toward the user. Convert to what Blender
+       * expects: -1.0f (away from user) to +1.0f (toward user). */
+      outPointerInfo[i].tabletData.Ytilt = std::clamp(
+          pointerPenInfo[i].tiltY / 90.0f, -1.0f, 1.0f);
     }
   }
 
@@ -1152,46 +1158,106 @@ static uint16_t uns16ReverseBits(uint16_t shrt)
 }
 #endif
 
-GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
-                                                             uint8_t *mask,
-                                                             int sizeX,
-                                                             int sizeY,
-                                                             int hotX,
-                                                             int hotY,
+GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                             const uint8_t *mask,
+                                                             const int size[2],
+                                                             const int hot_spot[2],
                                                              bool /*canInvertColor*/)
 {
-  uint32_t andData[32];
-  uint32_t xorData[32];
-  uint32_t fullBitRow, fullMaskRow;
-  int x, y, cols;
+  if (mask) {
+    /* Old 1bpp XBitMap bitmap and mask. */
+    uint32_t andData[32];
+    uint32_t xorData[32];
+    uint32_t fullBitRow, fullMaskRow;
+    int x, y, cols;
 
-  cols = sizeX / 8; /* Number of whole bytes per row (width of bitmap/mask). */
-  if (sizeX % 8) {
-    cols++;
-  }
-
-  if (m_customCursor) {
-    DestroyCursor(m_customCursor);
-    m_customCursor = nullptr;
-  }
-
-  memset(&andData, 0xFF, sizeof(andData));
-  memset(&xorData, 0, sizeof(xorData));
-
-  for (y = 0; y < sizeY; y++) {
-    fullBitRow = 0;
-    fullMaskRow = 0;
-    for (x = cols - 1; x >= 0; x--) {
-      fullBitRow <<= 8;
-      fullMaskRow <<= 8;
-      fullBitRow |= uns8ReverseBits(bitmap[cols * y + x]);
-      fullMaskRow |= uns8ReverseBits(mask[cols * y + x]);
+    cols = size[0] / 8; /* Number of whole bytes per row (width of bitmap/mask). */
+    if (size[0] % 8) {
+      cols++;
     }
-    xorData[y] = fullBitRow & fullMaskRow;
-    andData[y] = ~fullMaskRow;
+
+    if (m_customCursor) {
+      DestroyCursor(m_customCursor);
+      m_customCursor = nullptr;
+    }
+
+    memset(&andData, 0xFF, sizeof(andData));
+    memset(&xorData, 0, sizeof(xorData));
+
+    for (y = 0; y < size[1]; y++) {
+      fullBitRow = 0;
+      fullMaskRow = 0;
+      for (x = cols - 1; x >= 0; x--) {
+        fullBitRow <<= 8;
+        fullMaskRow <<= 8;
+        fullBitRow |= uns8ReverseBits(bitmap[cols * y + x]);
+        fullMaskRow |= uns8ReverseBits(mask[cols * y + x]);
+      }
+      xorData[y] = fullBitRow & fullMaskRow;
+      andData[y] = ~fullMaskRow;
+    }
+
+    m_customCursor = ::CreateCursor(
+        ::GetModuleHandle(0), hot_spot[0], hot_spot[1], 32, 32, andData, xorData);
+
+    if (!m_customCursor) {
+      return GHOST_kFailure;
+    }
+
+    if (::GetForegroundWindow() == m_hWnd) {
+      loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
+    }
+
+    return GHOST_kSuccess;
   }
 
-  m_customCursor = ::CreateCursor(::GetModuleHandle(0), hotX, hotY, 32, 32, andData, xorData);
+  /* New format: RGBA bitmap, size up to 128x128. */
+
+  BITMAPV5HEADER header;
+  memset(&header, 0, sizeof(BITMAPV5HEADER));
+  header.bV5Size = sizeof(BITMAPV5HEADER);
+  header.bV5Width = (LONG)size[0];
+  header.bV5Height = (LONG)size[1];
+  header.bV5Planes = 1;
+  header.bV5BitCount = 32;
+  header.bV5Compression = BI_BITFIELDS;
+  header.bV5RedMask = 0x00FF0000;
+  header.bV5GreenMask = 0x0000FF00;
+  header.bV5BlueMask = 0x000000FF;
+  header.bV5AlphaMask = 0xFF000000;
+
+  HDC hdc = GetDC(m_hWnd);
+  void *bits = NULL;
+  HBITMAP bmp = CreateDIBSection(
+      hdc, (BITMAPINFO *)&header, DIB_RGB_COLORS, (void **)&bits, NULL, (DWORD)0);
+  ReleaseDC(NULL, hdc);
+
+  uint32_t *ptr = (uint32_t *)bits;
+  char w = size[0];
+  char h = size[1];
+  for (int y = h - 1; y >= 0; y--) {
+    for (int x = 0; x < w; x++) {
+      int i = (y * w * 4) + (x * 4);
+      uint32_t r = bitmap[i];
+      uint32_t g = bitmap[i + 1];
+      uint32_t b = bitmap[i + 2];
+      uint32_t a = bitmap[i + 3];
+      *ptr++ = (a << 24) | (r << 16) | (g << 8) | b;
+    }
+  }
+
+  HBITMAP empty_mask = CreateBitmap(size[0], size[1], 1, 1, NULL);
+  ICONINFO icon_info;
+  icon_info.fIcon = FALSE;
+  icon_info.xHotspot = (DWORD)hot_spot[0];
+  icon_info.yHotspot = (DWORD)hot_spot[1];
+  icon_info.hbmMask = empty_mask;
+  icon_info.hbmColor = bmp;
+
+  m_customCursor = CreateIconIndirect(&icon_info);
+  DeleteObject(bmp);
+  DeleteObject(empty_mask);
+
   if (!m_customCursor) {
     return GHOST_kFailure;
   }

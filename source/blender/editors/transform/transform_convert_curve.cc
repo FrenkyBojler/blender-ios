@@ -11,7 +11,6 @@
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
-#include "BLI_math_geom.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
@@ -25,6 +24,8 @@
 /* Own include. */
 #include "transform_convert.hh"
 #include "transform_orientations.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Curve/Surfaces Transform Creation
@@ -88,9 +89,7 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
     int count_pt = 0, countsel_pt = 0;
 
     /* Avoid editing locked shapes. */
-    if (t->mode != TFM_DUMMY &&
-        blender::ed::object::shape_key_report_if_locked(tc->obedit, t->reports))
-    {
+    if (t->mode != TFM_DUMMY && object::shape_key_report_if_locked(tc->obedit, t->reports)) {
       continue;
     }
 
@@ -153,8 +152,7 @@ static void createTransCurveVerts(bContext * /*C*/, TransInfo *t)
       tc->data_len = countsel;
       data_len_pt = countsel_pt;
     }
-    tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransObData(Curve EditMode)"));
+    tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransObData(Curve EditMode)");
 
     t->data_len_all += tc->data_len;
     data_len_all_pt += data_len_pt;
@@ -445,3 +443,5 @@ TransConvertTypeInfo TransConvertType_Curve = {
     /*recalc_data*/ recalcData_curve,
     /*special_aftertrans_update*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

@@ -8,19 +8,17 @@
 #include "BLI_index_range.hh"
 #include "BLI_span.hh"
 #include "BLI_task.hh"
-#include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_geometry_fields.hh"
-#include "BKE_grease_pencil.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -33,11 +31,18 @@ namespace blender::nodes::node_geo_blur_attribute_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_default_layout();
   const bNode *node = b.node_or_null();
 
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value").supports_field().hide_value().is_default_link_socket();
+    b.add_output(data_type, "Value")
+        .field_source_reference_all()
+        .dependent_field()
+        .align_with_previous();
   }
   b.add_input<decl::Int>("Iterations")
       .default_value(1)
@@ -50,16 +55,11 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .supports_field()
       .description("Relative mix weight of neighboring elements");
-
-  if (node != nullptr) {
-    const eCustomDataType data_type = eCustomDataType(node->custom1);
-    b.add_output(data_type, "Value").field_source_reference_all().dependent_field();
-  }
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -506,7 +506,7 @@ static void node_register()
   ntype.draw_buttons = node_layout;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

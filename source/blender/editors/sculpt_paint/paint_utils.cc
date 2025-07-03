@@ -194,7 +194,7 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
   PropertyRNA *prop;
 
   prop = RNA_def_collection_runtime(ot->srna, "stroke", &RNA_OperatorStrokeElement, "Stroke", "");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 
   prop = RNA_def_enum(ot->srna,
                       "mode",
@@ -203,13 +203,13 @@ void paint_stroke_operator_properties(wmOperatorType *ot)
                       "Stroke Mode",
                       "Action taken when a paint stroke is made");
   RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_OPERATOR_DEFAULT);
-  RNA_def_property_flag(prop, PropertyFlag(PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   /* TODO: Pen flip logic should likely be combined into the stroke mode logic instead of being
    * an entirely separate concept. */
   prop = RNA_def_boolean(
       ot->srna, "pen_flip", false, "Pen Flip", "Whether a tablet's eraser mode is being used");
-  RNA_def_property_flag(prop, PropertyFlag(PROP_HIDDEN | PROP_SKIP_SAVE));
+  RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
 /* 3D Paint */
@@ -221,44 +221,40 @@ static blender::float2 imapaint_pick_uv(const Mesh *mesh_eval,
                                         const int tri_index,
                                         const blender::float3 &bary_coord)
 {
+  using namespace blender;
   const ePaintCanvasSource mode = ePaintCanvasSource(scene->toolsettings->imapaint.mode);
 
-  const blender::Span<blender::int3> tris = mesh_eval->corner_tris();
-  const blender::Span<int> tri_faces = mesh_eval->corner_tri_faces();
+  const Span<int3> tris = mesh_eval->corner_tris();
+  const Span<int> tri_faces = mesh_eval->corner_tri_faces();
 
-  const int *material_indices = (const int *)CustomData_get_layer_named(
-      &mesh_eval->face_data, CD_PROP_INT32, "material_index");
+  const bke::AttributeAccessor attributes = mesh_eval->attributes();
+  const VArray<int> material_indices = *attributes.lookup_or_default<int>(
+      "material_index", bke::AttrDomain::Face, 0);
 
   /* face means poly here, not triangle, indeed */
   const int face_i = tri_faces[tri_index];
 
-  const float(*mloopuv)[2];
+  VArraySpan<float2> uv_map;
 
   if (mode == PAINT_CANVAS_SOURCE_MATERIAL) {
     const Material *ma;
     const TexPaintSlot *slot;
 
-    ma = BKE_object_material_get(ob_eval,
-                                 material_indices == nullptr ? 1 : material_indices[face_i] + 1);
+    ma = BKE_object_material_get(ob_eval, material_indices[face_i] + 1);
     slot = &ma->texpaintslot[ma->paint_active_slot];
-
-    if (!(slot && slot->uvname &&
-          (mloopuv = static_cast<const float(*)[2]>(CustomData_get_layer_named(
-               &mesh_eval->corner_data, CD_PROP_FLOAT2, slot->uvname)))))
-    {
-      mloopuv = static_cast<const float(*)[2]>(
-          CustomData_get_layer(&mesh_eval->corner_data, CD_PROP_FLOAT2));
+    if (slot && slot->uvname) {
+      uv_map = *attributes.lookup<float2>(slot->uvname, bke::AttrDomain::Face);
     }
   }
-  else {
-    mloopuv = static_cast<const float(*)[2]>(
-        CustomData_get_layer(&mesh_eval->corner_data, CD_PROP_FLOAT2));
+
+  if (uv_map.is_empty()) {
+    const char *active_name = CustomData_get_active_layer_name(&mesh_eval->corner_data,
+                                                               CD_PROP_FLOAT2);
+    uv_map = *attributes.lookup<float2>(active_name, bke::AttrDomain::Face);
   }
 
-  return blender::bke::mesh_surface_sample::sample_corner_attribute_with_bary_coords(
-      bary_coord,
-      tris[tri_index],
-      blender::Span(reinterpret_cast<const blender::float2 *>(mloopuv), mesh_eval->corners_num));
+  return bke::mesh_surface_sample::sample_corner_attribute_with_bary_coords(
+      bary_coord, tris[tri_index], uv_map);
 }
 
 /* returns 0 if not found, otherwise 1 */
@@ -338,14 +334,15 @@ void paint_sample_color(
     ViewLayer *view_layer = CTX_data_view_layer(C);
     BKE_view_layer_synced_ensure(scene, view_layer);
     Object *ob = BKE_view_layer_active_object_get(view_layer);
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     ImagePaintSettings *imapaint = &scene->toolsettings->imapaint;
     bool use_material = (imapaint->mode == IMAGEPAINT_MODE_MATERIAL);
 
     if (ob) {
       const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
-      const int *material_indices = (const int *)CustomData_get_layer_named(
-          &mesh_eval->face_data, CD_PROP_INT32, "material_index");
+      const bke::AttributeAccessor attributes = mesh_eval->attributes();
+      const VArray material_indices = *attributes.lookup_or_default<int>(
+          "material_index", bke::AttrDomain::Face, 0);
 
       if (CustomData_has_layer(&mesh_eval->corner_data, CD_PROP_FLOAT2)) {
         ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -354,14 +351,19 @@ void paint_sample_color(
         int tri_index;
         float3 bary_coord;
         int faceindex;
-        if (imapaint_pick_face(&vc, mval, &tri_index, &faceindex, &bary_coord, *mesh_eval)) {
+        const VArray<bool> hide_poly = *mesh_eval->attributes().lookup_or_default<bool>(
+            ".hide_poly", bke::AttrDomain::Face, false);
+        const bool is_hit = imapaint_pick_face(
+                                &vc, mval, &tri_index, &faceindex, &bary_coord, *mesh_eval) &&
+                            !hide_poly[faceindex];
+
+        if (is_hit) {
           Image *image = nullptr;
           int interp = SHD_INTERP_LINEAR;
 
           if (use_material) {
             /* Image and texture interpolation from material. */
-            Material *ma = BKE_object_material_get(
-                ob_eval, material_indices ? material_indices[faceindex] + 1 : 1);
+            Material *ma = BKE_object_material_get(ob_eval, material_indices[faceindex] + 1);
 
             /* Force refresh since paint slots are not updated when changing interpolation. */
             BKE_texpaint_slot_refresh_cache(scene, ma, ob);
@@ -408,7 +410,7 @@ void paint_sample_color(
                 }
                 else {
                   linearrgb_to_srgb_v3_v3(rgba_f, rgba_f);
-                  BKE_brush_color_set(scene, paint, br, rgba_f);
+                  BKE_brush_color_set(paint, br, rgba_f);
                 }
               }
               else {
@@ -421,7 +423,7 @@ void paint_sample_color(
                 else {
                   float rgba_f[3];
                   rgb_uchar_to_float(rgba_f, rgba);
-                  BKE_brush_color_set(scene, paint, br, rgba_f);
+                  BKE_brush_color_set(paint, br, rgba_f);
                 }
               }
               BKE_image_release_ibuf(image, ibuf, nullptr);
@@ -448,7 +450,7 @@ void paint_sample_color(
         copy_v3_v3(color->rgb, rgba_f);
       }
       else {
-        BKE_brush_color_set(scene, paint, br, rgba_f);
+        BKE_brush_color_set(paint, br, rgba_f);
       }
       return;
     }
@@ -465,12 +467,12 @@ void paint_sample_color(
       copy_v3_v3(color->rgb, rgb_fl);
     }
     else {
-      BKE_brush_color_set(scene, paint, br, rgb_fl);
+      BKE_brush_color_set(paint, br, rgb_fl);
     }
   }
 }
 
-static int brush_curve_preset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus brush_curve_preset_exec(bContext *C, wmOperator *op)
 {
   Brush *br = BKE_paint_brush(BKE_paint_get_active_from_context(C));
 
@@ -522,7 +524,7 @@ static bool brush_sculpt_curves_falloff_preset_poll(bContext *C)
   return br && br->curves_sculpt_settings && br->curves_sculpt_settings->curve_parameter_falloff;
 }
 
-static int brush_sculpt_curves_falloff_preset_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus brush_sculpt_curves_falloff_preset_exec(bContext *C, wmOperator *op)
 {
   Brush *brush = BKE_paint_brush(BKE_paint_get_active_from_context(C));
   CurveMapping *mapping = brush->curves_sculpt_settings->curve_parameter_falloff;
@@ -549,7 +551,7 @@ void BRUSH_OT_sculpt_curves_falloff_preset(wmOperatorType *ot)
 }
 
 /* face-select ops */
-static int paint_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus paint_select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
   paintface_select_linked(C, CTX_data_active_object(C), nullptr, true);
   ED_region_tag_redraw(CTX_wm_region(C));
@@ -568,10 +570,12 @@ void PAINT_OT_face_select_linked(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int paint_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paint_select_linked_pick_invoke(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent *event)
 {
   const bool select = !RNA_boolean_get(op->ptr, "deselect");
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
   paintface_select_linked(C, CTX_data_active_object(C), event->mval, select);
   ED_region_tag_redraw(CTX_wm_region(C));
   return OPERATOR_FINISHED;
@@ -591,7 +595,7 @@ void PAINT_OT_face_select_linked_pick(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "deselect", false, "Deselect", "Deselect rather than select items");
 }
 
-static int face_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus face_select_all_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   if (paintface_deselect_all_visible(C, ob, RNA_enum_get(op->ptr, "action"), true)) {
@@ -615,7 +619,7 @@ void PAINT_OT_face_select_all(wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
-static int paint_select_more_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paint_select_more_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   Mesh *mesh = BKE_mesh_from_object(ob);
@@ -646,7 +650,7 @@ void PAINT_OT_face_select_more(wmOperatorType *ot)
       ot->srna, "face_step", true, "Face Step", "Also select faces that only touch on a corner");
 }
 
-static int paint_select_less_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paint_select_less_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   Mesh *mesh = BKE_mesh_from_object(ob);
@@ -677,14 +681,16 @@ void PAINT_OT_face_select_less(wmOperatorType *ot)
       ot->srna, "face_step", true, "Face Step", "Also deselect faces that only touch on a corner");
 }
 
-static int paintface_select_loop_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintface_select_loop_invoke(bContext *C,
+                                                     wmOperator *op,
+                                                     const wmEvent *event)
 {
   const bool select = RNA_boolean_get(op->ptr, "select");
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   if (!extend) {
     paintface_deselect_all_visible(C, CTX_data_active_object(C), SEL_DESELECT, false);
   }
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
   paintface_select_loop(C, CTX_data_active_object(C), event->mval, select);
   ED_region_tag_redraw(CTX_wm_region(C));
   return OPERATOR_FINISHED;
@@ -705,7 +711,7 @@ void PAINT_OT_face_select_loop(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
 }
 
-static int vert_select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vert_select_all_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   paintvert_deselect_all_visible(ob, RNA_enum_get(op->ptr, "action"), true);
@@ -728,7 +734,7 @@ void PAINT_OT_vert_select_all(wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
-static int vert_select_ungrouped_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vert_select_ungrouped_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
@@ -751,7 +757,7 @@ void PAINT_OT_vert_select_ungrouped(wmOperatorType *ot)
   ot->idname = "PAINT_OT_vert_select_ungrouped";
   ot->description = "Select vertices without a group";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = vert_select_ungrouped_exec;
   ot->poll = vert_paint_poll;
 
@@ -761,7 +767,7 @@ void PAINT_OT_vert_select_ungrouped(wmOperatorType *ot)
   RNA_def_boolean(ot->srna, "extend", false, "Extend", "Extend the selection");
 }
 
-static int paintvert_select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus paintvert_select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
   paintvert_select_linked(C, CTX_data_active_object(C));
   ED_region_tag_redraw(CTX_wm_region(C));
@@ -780,10 +786,12 @@ void PAINT_OT_vert_select_linked(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int paintvert_select_linked_pick_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus paintvert_select_linked_pick_invoke(bContext *C,
+                                                            wmOperator *op,
+                                                            const wmEvent *event)
 {
   const bool select = RNA_boolean_get(op->ptr, "select");
-  view3d_operator_needs_opengl(C);
+  view3d_operator_needs_gpu(C);
 
   paintvert_select_linked_pick(C, CTX_data_active_object(C), event->mval, select);
   ED_region_tag_redraw(CTX_wm_region(C));
@@ -808,7 +816,7 @@ void PAINT_OT_vert_select_linked_pick(wmOperatorType *ot)
                   "Whether to select or deselect linked vertices under the cursor");
 }
 
-static int paintvert_select_more_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintvert_select_more_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   Mesh *mesh = BKE_mesh_from_object(ob);
@@ -841,7 +849,7 @@ void PAINT_OT_vert_select_more(wmOperatorType *ot)
       ot->srna, "face_step", true, "Face Step", "Also select faces that only touch on a corner");
 }
 
-static int paintvert_select_less_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus paintvert_select_less_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
   Mesh *mesh = BKE_mesh_from_object(ob);
@@ -874,7 +882,7 @@ void PAINT_OT_vert_select_less(wmOperatorType *ot)
       ot->srna, "face_step", true, "Face Step", "Also deselect faces that only touch on a corner");
 }
 
-static int face_select_hide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus face_select_hide_exec(bContext *C, wmOperator *op)
 {
   const bool unselected = RNA_boolean_get(op->ptr, "unselected");
   Object *ob = CTX_data_active_object(C);
@@ -898,7 +906,7 @@ void PAINT_OT_face_select_hide(wmOperatorType *ot)
       ot->srna, "unselected", false, "Unselected", "Hide unselected rather than selected objects");
 }
 
-static int vert_select_hide_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus vert_select_hide_exec(bContext *C, wmOperator *op)
 {
   const bool unselected = RNA_boolean_get(op->ptr, "unselected");
   Object *ob = CTX_data_active_object(C);
@@ -925,7 +933,7 @@ void PAINT_OT_vert_select_hide(wmOperatorType *ot)
                   "Hide unselected rather than selected vertices");
 }
 
-static int face_vert_reveal_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus face_vert_reveal_exec(bContext *C, wmOperator *op)
 {
   const bool select = RNA_boolean_get(op->ptr, "select");
   Object *ob = CTX_data_active_object(C);

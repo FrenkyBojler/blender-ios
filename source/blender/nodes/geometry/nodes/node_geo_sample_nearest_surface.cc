@@ -9,7 +9,7 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -36,7 +36,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       .field_on_all()
       .description(
           "Splits the faces of the input mesh into groups which can be sampled individually");
-  b.add_input<decl::Vector>("Sample Position").implicit_field(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Sample Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Int>("Sample Group ID").hide_value().supports_field();
 
   if (node != nullptr) {
@@ -51,7 +51,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -129,7 +129,7 @@ class SampleNearestSurfaceFunction : public mf::MultiFunction {
             [&](const int group_i) { return group_masks[group_i].size(); }, mesh.faces_num));
   }
 
-  ~SampleNearestSurfaceFunction() = default;
+  ~SampleNearestSurfaceFunction() override = default;
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
   {
@@ -242,11 +242,11 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

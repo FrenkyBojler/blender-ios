@@ -17,7 +17,6 @@
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
-#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_tempfile.h"
 #include "BLI_utildefines.h"
@@ -30,11 +29,10 @@
 
 #include "GHOST_Path-api.hh"
 
-#include "MEM_guardedalloc.h"
-
 #include "CLG_log.h"
 
 #ifdef WIN32
+#  include "BLI_string_utf8.h"
 #  include "utf_winfunc.hh"
 #  include "utfconv.hh"
 #  include <io.h>
@@ -170,11 +168,12 @@ bool BKE_appdir_folder_documents(char *dir)
 {
   dir[0] = '\0';
 
-  const char *documents_path = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDocuments);
+  const std::optional<std::string> documents_path = GHOST_getUserSpecialDir(
+      GHOST_kUserSpecialDirDocuments);
 
   /* Usual case: Ghost gave us the documents path. We're done here. */
-  if (documents_path && BLI_is_dir(documents_path)) {
-    BLI_strncpy(dir, documents_path, FILE_MAXDIR);
+  if (documents_path && BLI_is_dir(documents_path->c_str())) {
+    BLI_strncpy(dir, documents_path->c_str(), FILE_MAXDIR);
     return true;
   }
 
@@ -200,21 +199,27 @@ bool BKE_appdir_folder_caches(char *path, const size_t path_maxncpy)
 {
   path[0] = '\0';
 
-  const char *caches_root_path = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirCaches);
-  if (caches_root_path == nullptr || !BLI_is_dir(caches_root_path)) {
+  std::optional<std::string> caches_root_path = GHOST_getUserSpecialDir(
+      GHOST_kUserSpecialDirCaches);
+  if (!caches_root_path || !BLI_is_dir(caches_root_path->c_str())) {
     caches_root_path = BKE_tempdir_base();
   }
-  if (caches_root_path == nullptr || !BLI_is_dir(caches_root_path)) {
+  if (!caches_root_path || !BLI_is_dir(caches_root_path->c_str())) {
     return false;
   }
 
 #ifdef WIN32
-  BLI_path_join(
-      path, path_maxncpy, caches_root_path, "Blender Foundation", "Blender", "Cache", SEP_STR);
+  BLI_path_join(path,
+                path_maxncpy,
+                caches_root_path->c_str(),
+                "Blender Foundation",
+                "Blender",
+                "Cache",
+                SEP_STR);
 #elif defined(__APPLE__)
-  BLI_path_join(path, path_maxncpy, caches_root_path, "Blender", SEP_STR);
+  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "Blender", SEP_STR);
 #else /* __linux__ */
-  BLI_path_join(path, path_maxncpy, caches_root_path, "blender", SEP_STR);
+  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "blender", SEP_STR);
 #endif
 
   return true;
@@ -456,7 +461,7 @@ static blender::Vector<std::string> get_path_environment_multiple(const char *su
   const char *char_end = BLI_strchr_or_end(char_begin, separator);
   while (char_begin[0]) {
     const size_t base_path_len = char_end - char_begin;
-    if (base_path_len > 0 && base_path_len <= PATH_MAX) {
+    if (base_path_len > 0 && base_path_len < PATH_MAX) {
       char base_path[PATH_MAX];
       memcpy(base_path, char_begin, base_path_len);
       base_path[base_path_len] = '\0';
@@ -870,8 +875,7 @@ static void where_am_i(char *program_filepath,
 
 #  ifdef _WIN32
   {
-    wchar_t *fullname_16 = static_cast<wchar_t *>(
-        MEM_mallocN(program_filepath_maxncpy * sizeof(wchar_t), "ProgramPath"));
+    wchar_t *fullname_16 = MEM_malloc_arrayN<wchar_t>(program_filepath_maxncpy, "ProgramPath");
     if (GetModuleFileNameW(0, fullname_16, program_filepath_maxncpy)) {
       conv_utf_16_to_8(fullname_16, program_filepath, program_filepath_maxncpy);
       if (!BLI_exists(program_filepath)) {

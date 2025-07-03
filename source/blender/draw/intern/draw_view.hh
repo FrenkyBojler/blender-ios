@@ -9,7 +9,7 @@
  *
  * View description and states.
  *
- * A `draw::View` object is required for drawing geometry using the DRW api and its internal
+ * A `draw::View` object is required for drawing geometry using the DRW API and its internal
  * culling system.
  *
  * One `View` object can actually contain multiple view matrices if the template parameter
@@ -17,6 +17,7 @@
  * setting `drw_view_id` accordingly.
  */
 
+#include "DNA_view3d_types.h"
 #include "DRW_gpu_wrapper.hh"
 #include "GPU_matrix.hh"
 

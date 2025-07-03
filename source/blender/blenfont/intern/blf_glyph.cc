@@ -8,6 +8,7 @@
  * Glyph rendering, texturing and caching. Wraps Freetype and OpenGL functions.
  */
 
+#include <algorithm>
 #include <cmath>
 #include <cstdio>
 #include <cstdlib>
@@ -26,9 +27,8 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
+#include "BLI_math_geom.h"
 #include "BLI_rect.h"
-#include "BLI_string.h"
-#include "BLI_threads.h"
 
 #include "BLF_api.hh"
 
@@ -48,7 +48,7 @@
 #  include "svg_icons.h"
 #endif /* WITH_HEADLESS */
 
-#include "BLI_strict_flags.h" /* Keep last. */
+#include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
 
 /**
  * Convert glyph coverage amounts to lightness values. Uses a LUT that perceptually improves
@@ -123,9 +123,7 @@ static GlyphCacheBLF *blf_glyph_cache_new(FontBLF *font)
     /* Font does not have a face or does not contain "0" so use CSS fallback of 1/2 of em. */
     gc->fixed_width = int((font->ft_size->metrics.height / 2) >> 6);
   }
-  if (gc->fixed_width < 1) {
-    gc->fixed_width = 1;
-  }
+  gc->fixed_width = std::max(gc->fixed_width, 1);
 
   font->cache.append(std::move(gc));
 
@@ -269,7 +267,7 @@ static GlyphBLF *blf_glyph_cache_add_glyph(
     }
 
     const int buffer_size = g->dims[0] * g->dims[1] * g->num_channels;
-    g->bitmap = static_cast<uchar *>(MEM_mallocN(size_t(buffer_size), "glyph bitmap"));
+    g->bitmap = MEM_malloc_arrayN<uchar>(size_t(buffer_size), "glyph bitmap");
 
     if (ELEM(glyph->bitmap.pixel_mode,
              FT_PIXEL_MODE_GRAY,
@@ -418,7 +416,7 @@ static GlyphBLF *blf_glyph_cache_add_svg(
   g->num_channels = color ? 4 : 1;
 
   const int buffer_size = g->dims[0] * g->dims[1] * g->num_channels;
-  g->bitmap = static_cast<uchar *>(MEM_mallocN(size_t(buffer_size), "glyph bitmap"));
+  g->bitmap = MEM_malloc_arrayN<uchar>(size_t(buffer_size), "glyph bitmap");
 
   if (color) {
     memcpy(g->bitmap, render_bmp.data(), size_t(buffer_size));
@@ -429,7 +427,7 @@ static GlyphBLF *blf_glyph_cache_add_svg(
       for (int64_t x = 0; x < int64_t(g->dims[0]); x++) {
         int64_t offs_in = (y * int64_t(dest_w) * 4) + (x * 4);
         int64_t offs_out = (y * int64_t(g->dims[0]) + x);
-        g->bitmap[offs_out] = uchar(float(srgb_to_grayscale_byte(&render_bmp[int64_t(offs_in)])) *
+        g->bitmap[offs_out] = uchar(float(srgb_to_grayscale_byte(&render_bmp[offs_in])) *
                                     (float(render_bmp[int64_t(offs_in + 3)]) / 255.0f));
       }
     }
@@ -789,8 +787,8 @@ static FT_UInt blf_glyph_index_from_charcode(FontBLF **font, const uint charcode
     return glyph_index;
   }
 
-  /* Only fonts managed by the cache can fallback. */
-  if (!((*font)->flags & BLF_CACHED)) {
+  /* Fonts managed by the cache can fallback. Unless specifically forbidden. */
+  if (!((*font)->flags & BLF_CACHED) || ((*font)->flags & BLF_NO_FALLBACK)) {
     return 0;
   }
 
@@ -1353,6 +1351,16 @@ static FT_GlyphSlot blf_glyph_render(FontBLF *settings_font,
 
 GlyphBLF *blf_glyph_ensure(FontBLF *font, GlyphCacheBLF *gc, const uint charcode, uint8_t subpixel)
 {
+  if (charcode < 32) {
+    if (ELEM(charcode, 0x10, 0x13)) {
+      /* Do not render line feed or carriage return. #134972. */
+      return nullptr;
+    }
+    /* Other C0 controls (U+0000 - U+001F) can show as space. #135421. */
+    /* TODO: Return all but TAB as ".notdef" character when we have our own. */
+    return blf_glyph_cache_find_glyph(gc, ' ', 0);
+  }
+
   GlyphBLF *g = blf_glyph_cache_find_glyph(gc, charcode, subpixel);
   if (g) {
     return g;
@@ -1670,8 +1678,7 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
   int contour_prev;
 
   /* Start converting the FT data */
-  int *onpoints = static_cast<int *>(
-      MEM_callocN(size_t(ftoutline.n_contours) * sizeof(int), "onpoints"));
+  int *onpoints = MEM_calloc_arrayN<int>(size_t(ftoutline.n_contours), "onpoints");
 
   /* Get number of on-curve points for bezier-triples (including conic virtual on-points). */
   for (j = 0, contour_prev = -1; j < ftoutline.n_contours; j++) {
@@ -1705,9 +1712,8 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
     contour_prev = ftoutline.contours[j];
 
     /* add new curve */
-    nu = (Nurb *)MEM_callocN(sizeof(Nurb), "objfnt_nurb");
-    bezt = static_cast<BezTriple *>(
-        MEM_callocN(size_t(onpoints[j]) * sizeof(BezTriple), "objfnt_bezt"));
+    nu = MEM_callocN<Nurb>("objfnt_nurb");
+    bezt = MEM_calloc_arrayN<BezTriple>(size_t(onpoints[j]), "objfnt_bezt");
     BLI_addtail(nurbsbase, nu);
 
     nu->type = CU_BEZIER;
@@ -1836,10 +1842,18 @@ static void blf_glyph_to_curves(const FT_Outline &ftoutline,
   MEM_freeN(onpoints);
 }
 
-static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font,
-                                                 const uint charcode,
-                                                 bool use_fallback)
+static FT_GlyphSlot blf_glyphslot_ensure_outline(FontBLF *font, uint charcode, bool use_fallback)
 {
+  if (charcode < 32) {
+    if (ELEM(charcode, 0x10, 0x13)) {
+      /* Do not render line feed or carriage return. #134972. */
+      return nullptr;
+    }
+    /* Other C0 controls (U+0000 - U+001F) can show as space. #135421. */
+    /* TODO: Return all but TAB as ".notdef" character when we have our own. */
+    charcode = ' ';
+  }
+
   /* Glyph might not come from the initial font. */
   FontBLF *font_with_glyph = font;
   FT_UInt glyph_index = use_fallback ? blf_glyph_index_from_charcode(&font_with_glyph, charcode) :

@@ -53,7 +53,7 @@ class EraseOperation : public GreasePencilStrokeOperation {
 
  public:
   EraseOperation(bool temp_use_eraser = false) : temp_eraser_(temp_use_eraser) {}
-  ~EraseOperation() override {}
+  ~EraseOperation() override = default;
 
   void on_stroke_begin(const bContext &C, const InputSample &start_sample) override;
   void on_stroke_extended(const bContext &C, const InputSample &extension_sample) override;
@@ -637,7 +637,7 @@ struct EraseOperationExecutor {
                       (sample_after.opacity - sample.opacity);
 
       const int64_t radius = math::round(
-          math::interpolate(float(sample.radius), float(sample_after.radius), t));
+          math::interpolate(sample.radius, float(sample_after.radius), t));
 
       sample.radius = radius;
       sample.squared_radius = radius * radius;
@@ -810,18 +810,22 @@ struct EraseOperationExecutor {
     /* Set opacity. */
     bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
-    bke::SpanAttributeWriter<float> dst_opacity =
-        dst_attributes.lookup_or_add_for_write_span<float>(opacity_attr, bke::AttrDomain::Point);
-    threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points_range) {
-      for (const int dst_point_index : dst_points_range) {
-        const ed::greasepencil::PointTransferData &dst_point = dst_points[dst_point_index];
-        dst_opacity.span[dst_point_index] = dst_point.opacity;
-      }
-    });
-    dst_opacity.finish();
+    if (bke::SpanAttributeWriter<float> dst_opacity =
+            dst_attributes.lookup_or_add_for_write_span<float>(opacity_attr,
+                                                               bke::AttrDomain::Point))
+    {
+      threading::parallel_for(dst.points_range(), 4096, [&](const IndexRange dst_points_range) {
+        for (const int dst_point_index : dst_points_range) {
+          const ed::greasepencil::PointTransferData &dst_point = dst_points[dst_point_index];
+          dst_opacity.span[dst_point_index] = dst_point.opacity;
+        }
+      });
+      dst_opacity.finish();
+    }
 
     SpanAttributeWriter<bool> dst_inserted = dst_attributes.lookup_or_add_for_write_span<bool>(
         "_eraser_inserted", bke::AttrDomain::Point);
+    BLI_assert(dst_inserted);
     const OffsetIndices<int> &dst_points_by_curve = dst.points_by_curve();
     threading::parallel_for(dst.curves_range(), 4096, [&](const IndexRange dst_curves_range) {
       for (const int dst_curve : dst_curves_range) {
@@ -914,7 +918,7 @@ struct EraseOperationExecutor {
     Depsgraph *depsgraph = CTX_data_depsgraph_pointer(&C);
     ARegion *region = CTX_wm_region(&C);
     Object *obact = CTX_data_active_object(&C);
-    Object *ob_eval = DEG_get_evaluated_object(depsgraph, obact);
+    Object *ob_eval = DEG_get_evaluated(depsgraph, obact);
 
     Paint *paint = &scene->toolsettings->gp_paint->paint;
     Brush *brush = BKE_paint_brush(paint);
@@ -1019,10 +1023,9 @@ struct EraseOperationExecutor {
       /* Erase on all editable drawings. */
       const Vector<ed::greasepencil::MutableDrawingInfo> drawings =
           ed::greasepencil::retrieve_editable_drawings(*scene, grease_pencil);
-      threading::parallel_for_each(
-          drawings, [&](const ed::greasepencil::MutableDrawingInfo &info) {
-            execute_eraser_on_drawing(info.layer_index, info.frame_number, info.drawing);
-          });
+      for (const ed::greasepencil::MutableDrawingInfo &info : drawings) {
+        execute_eraser_on_drawing(info.layer_index, info.frame_number, info.drawing);
+      }
     }
 
     if (changed) {

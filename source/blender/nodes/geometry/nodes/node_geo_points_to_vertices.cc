@@ -52,7 +52,7 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
   if (selection.size() == points->totpoint) {
     /* Create a mesh without positions so the attribute can be shared. */
     mesh = BKE_mesh_new_nomain(0, 0, 0, 0);
-    CustomData_free_layer_named(&mesh->vert_data, "position", mesh->verts_num);
+    CustomData_free_layer_named(&mesh->vert_data, "position");
     mesh->verts_num = selection.size();
   }
   else {
@@ -64,7 +64,7 @@ static void geometry_set_points_to_vertices(GeometrySet &geometry_set,
 
   for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
     const StringRef id = entry.key;
-    const eCustomDataType data_type = entry.value.data_type;
+    const bke::AttrType data_type = entry.value.data_type;
     const GAttributeReader src = src_attributes.lookup(id);
     if (selection.size() == points->totpoint && src.sharing_info && src.varray.is_span()) {
       const bke::AttributeInitShared init(src.varray.get_internal_span().data(),
@@ -110,7 +110,7 @@ static void node_register()
   ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

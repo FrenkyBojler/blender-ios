@@ -4,7 +4,7 @@
 
 #include "node_shader_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_bsdf_metallic_cc {
@@ -59,8 +59,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_shader_buts_metallic(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiItemR(layout, ptr, "fresnel_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "distribution", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "fresnel_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 static void node_shader_init_metallic(bNodeTree * /*ntree*/, bNode *node)
@@ -98,13 +98,13 @@ static void node_shader_update_metallic(bNodeTree *ntree, bNode *node)
   const bool is_physical = (node->custom2 == SHD_PHYSICAL_CONDUCTOR);
 
   bke::node_set_socket_availability(
-      ntree, bke::node_find_socket(node, SOCK_IN, "Base Color"), !is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "Base Color"), !is_physical);
   bke::node_set_socket_availability(
-      ntree, bke::node_find_socket(node, SOCK_IN, "Edge Tint"), !is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "Edge Tint"), !is_physical);
   bke::node_set_socket_availability(
-      ntree, bke::node_find_socket(node, SOCK_IN, "IOR"), is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "IOR"), is_physical);
   bke::node_set_socket_availability(
-      ntree, bke::node_find_socket(node, SOCK_IN, "Extinction"), is_physical);
+      *ntree, *bke::node_find_socket(*node, SOCK_IN, "Extinction"), is_physical);
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -162,11 +162,11 @@ void register_node_type_sh_bsdf_metallic()
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
   ntype.draw_buttons = file_ns::node_shader_buts_metallic;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::Large);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Large);
   ntype.initfunc = file_ns::node_shader_init_metallic;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_metallic;
   ntype.updatefunc = file_ns::node_shader_update_metallic;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }

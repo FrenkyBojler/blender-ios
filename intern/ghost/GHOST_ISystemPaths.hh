@@ -8,6 +8,9 @@
 
 #pragma once
 
+#include <optional>
+#include <string>
+
 #include "GHOST_Types.h"
 
 class GHOST_ISystemPaths {
@@ -41,7 +44,7 @@ class GHOST_ISystemPaths {
    * Destructor.
    * Protected default constructor to force use of static dispose member.
    */
-  virtual ~GHOST_ISystemPaths() {}
+  virtual ~GHOST_ISystemPaths() = default;
 
  public:
   /**
@@ -60,9 +63,9 @@ class GHOST_ISystemPaths {
 
   /**
    * Determine a special ("well known") and easy to reach user directory.
-   * \return Unsigned char string pointing to user directory (eg `~/Documents/`).
+   * \return If successfull, a string containing the user directory path (eg `~/Documents/`).
    */
-  virtual const char *getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const = 0;
+  virtual std::optional<std::string> getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const = 0;
 
   /**
    * Determine the directory of the current binary

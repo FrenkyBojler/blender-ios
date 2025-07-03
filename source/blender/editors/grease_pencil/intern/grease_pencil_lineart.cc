@@ -154,16 +154,15 @@ static bool lineart_mod_is_disabled(Scene *scene, GreasePencilLineartModifierDat
 static bool bake_strokes(Object *ob,
                          Depsgraph *dg,
                          LineartCache **lc,
-                         GreasePencilLineartModifierData *md,
+                         GreasePencilLineartModifierData *lmd,
                          int frame,
                          bool is_first)
 {
   /* Modifier data sanity check. */
-  if (lineart_mod_is_disabled(DEG_get_evaluated_scene(dg), md)) {
+  if (lineart_mod_is_disabled(DEG_get_evaluated_scene(dg), lmd)) {
     return false;
   }
 
-  GreasePencilLineartModifierData *lmd = reinterpret_cast<GreasePencilLineartModifierData *>(md);
   GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ob->data);
 
   blender::bke::greasepencil::TreeNode *node = grease_pencil->find_node_by_name(lmd->target_layer);
@@ -183,15 +182,20 @@ static bool bake_strokes(Object *ob,
     return false;
   }
 
-  LineartCache *local_lc = *lc;
+  LineartCache *local_lc = nullptr;
+  const bool should_compute_again = is_first || !(lmd->flags & MOD_LINEART_USE_CACHE);
   if (!(*lc)) {
     MOD_lineart_compute_feature_lines_v3(dg, *lmd, lc, !(ob->dtx & OB_DRAW_IN_FRONT));
     MOD_lineart_destroy_render_data_v3(lmd);
   }
   else {
-    if (is_first || !(lmd->flags & MOD_LINEART_USE_CACHE)) {
+    if (should_compute_again) {
       MOD_lineart_compute_feature_lines_v3(dg, *lmd, &local_lc, !(ob->dtx & OB_DRAW_IN_FRONT));
       MOD_lineart_destroy_render_data_v3(lmd);
+    }
+    else {
+      /* Use the cached result, `*lc` is already valid. */
+      local_lc = *lc;
     }
     MOD_lineart_chain_clear_picked_flag(local_lc);
     lmd->cache = local_lc;
@@ -221,11 +225,8 @@ static bool bake_strokes(Object *ob,
       lmd->flags,
       lmd->calculation_flags);
 
-  if (!(lmd->flags & MOD_LINEART_USE_CACHE)) {
-    /* Clear local cache. */
-    if (!is_first) {
-      MOD_lineart_clear_cache(&local_lc);
-    }
+  if (should_compute_again) {
+    MOD_lineart_clear_cache(&local_lc);
   }
 
   return true;
@@ -346,17 +347,18 @@ static void lineart_bake_job_free(void *customdata)
   MEM_delete(bj);
 }
 
-static int lineart_bake_common(bContext *C,
-                               wmOperator *op,
-                               bool bake_all_targets,
-                               bool do_background)
+static wmOperatorStatus lineart_bake_common(bContext *C,
+                                            wmOperator *op,
+                                            bool bake_all_targets,
+                                            bool do_background)
 {
   LineartBakeJob *bj = MEM_new<LineartBakeJob>(__func__);
 
   if (!bake_all_targets) {
     Object *ob = CTX_data_active_object(C);
     if (!ob || ob->type != OB_GREASE_PENCIL) {
-      WM_report(RPT_ERROR, "No active object, or active object isn't a Grease Pencil object");
+      WM_global_report(RPT_ERROR,
+                       "No active object, or active object isn't a Grease Pencil object");
       return OPERATOR_CANCELLED;
     }
     bj->objects.append(ob);
@@ -412,19 +414,21 @@ static int lineart_bake_common(bContext *C,
   return OPERATOR_FINISHED;
 }
 
-static int lineart_bake_strokes_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus lineart_bake_strokes_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   bool bake_all = RNA_boolean_get(op->ptr, "bake_all");
   return lineart_bake_common(C, op, bake_all, true);
 }
-static int lineart_bake_strokes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lineart_bake_strokes_exec(bContext *C, wmOperator *op)
 {
   bool bake_all = RNA_boolean_get(op->ptr, "bake_all");
   return lineart_bake_common(C, op, bake_all, false);
 }
-static int lineart_bake_strokes_common_modal(bContext *C,
-                                             wmOperator *op,
-                                             const wmEvent * /*event*/)
+static wmOperatorStatus lineart_bake_strokes_common_modal(bContext *C,
+                                                          wmOperator *op,
+                                                          const wmEvent * /*event*/)
 {
   Scene *scene = static_cast<Scene *>(op->customdata);
 
@@ -463,7 +467,7 @@ static void lineart_gpencil_clear_strokes_exec_common(Object *ob)
   DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
 }
 
-static int lineart_gpencil_clear_strokes_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus lineart_gpencil_clear_strokes_exec(bContext *C, wmOperator *op)
 {
   bool clear_all = RNA_boolean_get(op->ptr, "clear_all");
 

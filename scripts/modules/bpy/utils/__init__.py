@@ -914,7 +914,7 @@ def extension_path_user(package, *, path="", create=False):
 
     .. note::
 
-       This allows each extension to have it's own user directory to store files.
+       This allows each extension to have its own user directory to store files.
 
        The location of the extension it self is not a suitable place to store files
        because it is cleared each upgrade and the users may not have write permissions
@@ -1022,9 +1022,9 @@ def register_tool(tool_cls, *, after=None, separator=False, group=False):
     Register a tool in the toolbar.
 
     :arg tool_cls: A tool subclass.
-    :type tool_cls: :class:`bpy.types.WorkSpaceTool`
+    :type tool_cls: type[:class:`bpy.types.WorkSpaceTool`]
     :arg after: Optional identifiers this tool will be added after.
-    :type after: Sequence[str] | None
+    :type after: Sequence[str] | set[str] | None
     :arg separator: When true, add a separator before this tool.
     :type separator: bool
     :arg group: When true, add a new nested group of tools.
