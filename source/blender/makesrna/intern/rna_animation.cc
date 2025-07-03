@@ -229,11 +229,7 @@ static void rna_AnimData_tmpact_set(PointerRNA *ptr, PointerRNA value, ReportLis
 {
   ID *owner_id = ptr->owner_id;
   AnimData *adt = (AnimData *)ptr->data;
-
-  if (adt == nullptr) {
-    BKE_report(reports, RPT_WARNING, "No AnimData to set tmpact on");
-    return;
-  }
+  BLI_assert(adt != nullptr);
 
   bAction *action = static_cast<bAction *>(value.data);
   if (!blender::animrig::assign_tmpaction(action, {*owner_id, *adt})) {
@@ -1708,8 +1704,9 @@ static void rna_def_animdata(BlenderRNA *brna)
                            "Storage to temporarily hold the main action while in tweak mode");
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA_ACTCHANGE, "rna_AnimData_dependency_update");
 
-  /* Temporary action slot for tweak mode. */
-  prop = RNA_def_property(srna, "action_slot_tweak_storage", PROP_INT, PROP_NONE);
+  /* Temporary action slot for tweak mode. Just like `action_slot_handle` this is needed for
+   * library overrides to work.*/
+  prop = RNA_def_property(srna, "action_slot_handle_tweak_storage", PROP_INT, PROP_NONE);
   RNA_def_property_int_sdna(prop, nullptr, "tmp_slot_handle");
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
