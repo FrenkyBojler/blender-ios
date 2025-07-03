@@ -2813,17 +2813,16 @@ static wmOperatorStatus ui_view_item_select_invoke(bContext *C, wmOperator *op, 
   }
 
   if (range_select) {
-    bool can_select = false;
-    bool state_changed = false;
+    bool is_inside_range = false;
     view.foreach_view_item([&](AbstractViewItem &item) {
       if ((item.is_active()) ^ (&item == clicked_item)) {
-        can_select = !can_select;
-        state_changed = true;
-      }
-      if (can_select || state_changed) {
+        is_inside_range = !is_inside_range;
+        /* Select end items from the range. */
         item.select();
-        state_changed = false;
-        return;
+      }
+      if (is_inside_range) {
+        /* Select items within the range. */
+        item.select();
       }
     });
     return OPERATOR_FINISHED;
