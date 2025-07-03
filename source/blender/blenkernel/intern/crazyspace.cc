@@ -641,14 +641,6 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
   BLI_assert(ob_orig.type == OB_GREASE_PENCIL);
   const GreasePencil &grease_pencil_orig = *static_cast<const GreasePencil *>(ob_orig.data);
 
-  const Span<const bke::greasepencil::Layer *> layers_orig = grease_pencil_orig.layers();
-  // const bke::greasepencil::Layer &layer_orig = grease_pencil_orig.layer(layer_index);
-  // const bke::greasepencil::Drawing *drawing_orig = grease_pencil_orig.get_drawing_at(layer_orig,
-  //                                                                                    frame);
-  // if (drawing_orig == nullptr) {
-  //   return {};
-  // }
-
   GeometryDeformation deformation;
   /* Use the undeformed positions by default. */
   deformation.positions = drawing_orig.strokes().positions();
@@ -660,8 +652,6 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
   if (geometry_eval == nullptr) {
     return deformation;
   }
-
-  bool has_deformed_positions = false;
 
   /* If there are edit hints, use the positions of those. */
   if (geometry_eval->has<GeometryComponentEditData>()) {
@@ -676,7 +666,6 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
       {
         if (drawing_hints->positions()) {
           deformation.positions = *drawing_hints->positions();
-          has_deformed_positions = true;
         }
         if (drawing_hints->deform_mats.has_value()) {
           deformation.deform_mats = *drawing_hints->deform_mats;
@@ -684,29 +673,6 @@ GeometryDeformation get_evaluated_grease_pencil_drawing_deformation(
       }
     }
   }
-  if (has_deformed_positions) {
-    return deformation;
-  }
-
-  /* Otherwise use the positions of the evaluated drawing if the number of points match. */
-  // if (const GreasePencilComponent *grease_pencil_component_eval =
-  //         geometry_eval->get_component<GreasePencilComponent>())
-  // {
-  //   if (const GreasePencil *grease_pencil_eval = grease_pencil_component_eval->get()) {
-  //     Span<const bke::greasepencil::Layer *> layers_eval = grease_pencil_eval->layers();
-  //     if (layers_eval.size() == layers_orig.size()) {
-  //       const bke::greasepencil::Layer &layer_eval = *layers_eval[layer_index];
-  //       if (const bke::greasepencil::Drawing *drawing_eval = grease_pencil_eval->get_drawing_at(
-  //               layer_eval, frame))
-  //       {
-  //         if (drawing_eval->strokes().points_num() == drawing_orig->strokes().points_num()) {
-  //           deformation.positions = drawing_eval->strokes().positions();
-  //           has_deformed_positions = true;
-  //         }
-  //       }
-  //     }
-  //   }
-  // }
 
   return deformation;
 }
