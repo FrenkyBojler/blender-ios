@@ -1144,10 +1144,7 @@ static void write_uilist(BlendWriter *writer, uiList *ui_list)
 static void write_panel_list(BlendWriter *writer, ListBase *lb)
 {
   LISTBASE_FOREACH (Panel *, panel, lb) {
-    Panel tmp_panel = *panel;
-    tmp_panel.runtime_flag = 0;
-    BLO_write_struct_at_address(writer, Panel, panel, &tmp_panel);
-
+    BLO_write_struct(writer, Panel, panel);
     BLO_write_struct_list(writer, LayoutPanelState, &panel->layout_panel_states);
     LISTBASE_FOREACH (LayoutPanelState *, state, &panel->layout_panel_states) {
       BLO_write_string(writer, state->idname);

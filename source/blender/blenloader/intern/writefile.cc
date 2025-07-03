@@ -94,7 +94,6 @@
 #include "DNA_userdef_types.h"
 
 #include "BLI_endian_defines.h"
-#include "BLI_endian_switch.h"
 #include "BLI_fileops.hh"
 #include "BLI_implicit_sharing.hh"
 #include "BLI_math_base.h"
@@ -802,7 +801,6 @@ static void writestruct_at_address_nr(WriteData *wd,
     return;
   }
 
-  /* Initialize #BHead. */
   const int64_t len_in_bytes = nr * DNA_struct_size(wd->sdna, struct_nr);
   if (!SYSTEM_SUPPORTS_WRITING_FILE_VERSION_1 ||
       USER_EXPERIMENTAL_TEST(&U, write_legacy_blend_file_format))
@@ -829,11 +827,6 @@ static void writestruct_at_address_nr(WriteData *wd,
     }
   }
 
-  if (wd->debug_dst) {
-    blender::dna::pointers::debug_print_struct(
-        *wd->sdna, *wd->sdna->structs[struct_nr], buffer, 0, *wd->debug_dst);
-  }
-
   BHead bh;
   bh.code = filecode;
   bh.old = address_id;
@@ -846,7 +839,7 @@ static void writestruct_at_address_nr(WriteData *wd,
   }
 
   if (wd->debug_dst) {
-    blender::dna::print_structs_at_address(*wd->sdna, struct_nr, data, adr, nr, *wd->debug_dst);
+    blender::dna::print_structs_at_address(*wd->sdna, struct_nr, buffer, adr, nr, *wd->debug_dst);
   }
 
   write_bhead(wd, bh);

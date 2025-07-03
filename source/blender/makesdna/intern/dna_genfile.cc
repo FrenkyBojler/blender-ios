@@ -13,7 +13,6 @@
  */
 
 #include <algorithm>
-#include <cctype>
 #include <climits>
 #include <cstdio>
 #include <cstdlib>
@@ -29,8 +28,6 @@
 #include "BLI_math_matrix_types.hh"
 #include "BLI_memarena.h"
 #include "BLI_set.hh"
-#include "BLI_string.h"
-#include "BLI_string_ref.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_genfile.h"
@@ -2012,128 +2009,6 @@ void PointersInDNA::gather_pointer_members_recursive(const SDNA_Struct &sdna_str
       }
     }
     offset += get_member_size_in_bytes(&sdna_, &member);
-  }
-}
-
-void debug_print_struct(const SDNA &sdna,
-                        const SDNA_Struct &sdna_struct,
-                        const void *data,
-                        const int indent,
-                        std::ostream &stream)
-{
-  std::string indentation = blender::StringRef("                              ").substr(0, indent);
-
-  const char *struct_name = sdna.types[sdna_struct.type_index];
-  if (indent == 0) {
-    stream << indentation << "<" << struct_name << ">\n";
-  }
-  for (const int member_i : IndexRange(sdna_struct.members_num)) {
-    const SDNA_StructMember &member = sdna_struct.members[member_i];
-    const char *member_type_name = sdna.types[member.type_index];
-    const char *member_name = sdna.members[member.member_index];
-    const eStructMemberCategory member_category = get_struct_member_category(&sdna, &member);
-    const int array_elem_num = sdna.members_array_num[member.member_index];
-
-    stream << indentation << "  " << member_type_name << " " << member_name << ":";
-
-    switch (member_category) {
-      case STRUCT_MEMBER_CATEGORY_STRUCT: {
-        stream << "\n";
-        const int substruct_i = DNA_struct_find_index_without_alias(&sdna, member_type_name);
-        const SDNA_Struct &sub_sdna_struct = *sdna.structs[substruct_i];
-        int substruct_size = sdna.types_size[member.type_index];
-        for (int elem_i = 0; elem_i < array_elem_num; elem_i++) {
-          debug_print_struct(sdna,
-                             sub_sdna_struct,
-                             POINTER_OFFSET(data, elem_i * substruct_size),
-                             indent + 2,
-                             stream);
-          break;
-        }
-        break;
-      }
-      case STRUCT_MEMBER_CATEGORY_PRIMITIVE: {
-        stream << " ";
-        const int type_size = sdna.types_size[member.type_index];
-        for ([[maybe_unused]] const int elem_i : IndexRange(array_elem_num)) {
-          const void *current_data = POINTER_OFFSET(data, elem_i * type_size);
-          switch (member.type_index) {
-            case SDNA_TYPE_CHAR: {
-              const char value = *(char *)current_data;
-              if (std::isprint(value)) {
-                stream << value;
-              }
-              else {
-                stream << int(value);
-              }
-              break;
-            }
-            case SDNA_TYPE_UCHAR: {
-              const uchar value = *(char *)current_data;
-              if (std::isprint(value)) {
-                stream << value;
-              }
-              else {
-                stream << int(value);
-              }
-              break;
-            }
-            case SDNA_TYPE_INT8: {
-              stream << *(int8_t *)current_data;
-              break;
-            }
-            case SDNA_TYPE_SHORT: {
-              stream << *(short *)current_data;
-              break;
-            }
-            case SDNA_TYPE_USHORT: {
-              stream << *(ushort *)current_data;
-              break;
-            }
-            case SDNA_TYPE_INT: {
-              stream << *(int *)current_data;
-              break;
-            }
-            case SDNA_TYPE_FLOAT: {
-              stream << *(float *)current_data;
-              break;
-            }
-            case SDNA_TYPE_INT64: {
-              stream << *(int64_t *)current_data;
-              break;
-            }
-            /* Somehow the types are a bit messed up after VOID, not sure what's going on. */
-            case SDNA_TYPE_VOID:
-            case SDNA_TYPE_UINT64: {
-              stream << *(uint64_t *)current_data;
-              break;
-            }
-            case SDNA_TYPE_DOUBLE: {
-              stream << *(double *)current_data;
-              break;
-            }
-            default: {
-              BLI_assert_unreachable();
-              break;
-            }
-          }
-          stream << " ";
-        }
-        stream << "\n";
-        break;
-      }
-      case STRUCT_MEMBER_CATEGORY_POINTER: {
-        for ([[maybe_unused]] const int elem_i : IndexRange(array_elem_num)) {
-          const void *current_data = POINTER_OFFSET(data, sdna.pointer_size * elem_i);
-          stream << " " << *(void **)current_data << " ";
-        }
-        stream << "\n";
-
-        break;
-      }
-    }
-    const int member_size = get_member_size_in_bytes(&sdna, &member);
-    data = POINTER_OFFSET(data, member_size);
   }
 }
 

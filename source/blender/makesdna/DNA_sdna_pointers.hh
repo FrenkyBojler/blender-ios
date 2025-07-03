@@ -28,7 +28,7 @@ class PointersInDNA {
   Vector<StructInfo> structs_;
 
  public:
-  PointersInDNA(const SDNA &sdna);
+  explicit PointersInDNA(const SDNA &sdna);
 
   const StructInfo &get_for_struct(const int struct_nr) const
   {
@@ -40,11 +40,5 @@ class PointersInDNA {
                                         int initial_offset,
                                         StructInfo &r_struct_info) const;
 };
-
-void debug_print_struct(const SDNA &sdna,
-                        const SDNA_Struct &sdna_struct,
-                        const void *data,
-                        int indent,
-                        std::ostream &stream);
 
 }  // namespace blender::dna::pointers
