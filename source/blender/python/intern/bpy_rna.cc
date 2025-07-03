@@ -5273,7 +5273,7 @@ PyDoc_STRVAR(
     "      *key* is not found.\n"
     "   :type default: Any\n"
     "   :return: Custom property value or default.\n"
-    "   :rtype: Any | None\n"
+    "   :rtype: Any\n"
     "\n" BPY_DOC_ID_PROP_TYPE_NOTE);
 static PyObject *pyrna_struct_get(BPy_StructRNA *self, PyObject *args)
 {
@@ -5320,7 +5320,7 @@ PyDoc_STRVAR(
     "      *key* is not found.\n"
     "   :type default: Any\n"
     "   :return: Custom property value or default.\n"
-    "   :rtype: Any | None\n"
+    "   :rtype: Any\n"
     "\n" BPY_DOC_ID_PROP_TYPE_NOTE);
 static PyObject *pyrna_struct_pop(BPy_StructRNA *self, PyObject *args)
 {
