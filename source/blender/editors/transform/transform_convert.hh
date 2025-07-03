@@ -95,9 +95,13 @@ struct TransDataVertSlideVert {
 struct CurvesTransformData {
   IndexMaskMemory memory;
   Vector<IndexMask> selection_by_layer;
-  /* TODO: add support for grease pencil layers. */
-  IndexMask aligned_with_left;
-  IndexMask aligned_with_right;
+
+  /**
+   * Masks of aligned points per curve.
+   * curves objects will only use the first element.
+   */
+  Vector<IndexMask> aligned_with_left;
+  Vector<IndexMask> aligned_with_right;
 
   /**
    * The offsets of every grease pencil layer into `positions` array.
@@ -208,6 +212,14 @@ CurvesTransformData *create_curves_transform_custom_data(TransCustomData &custom
 void copy_positions_from_curves_transform_custom_data(const TransCustomData &custom_data,
                                                       const int layer,
                                                       MutableSpan<float3> positions_dst);
+
+void create_aligned_handles_masks(const bke::CurvesGeometry &curves,
+                                  const Span<IndexMask> points_to_transform_per_attr,
+                                  const int curve_index,
+                                  TransCustomData &custom_data);
+void calculate_aligned_handles(const TransCustomData &custom_data,
+                               bke::CurvesGeometry &curves,
+                               const int curve_index);
 
 }  // namespace curves
 
