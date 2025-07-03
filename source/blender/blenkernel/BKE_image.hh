@@ -49,6 +49,52 @@ struct ImageGPUTextures {
 };
 
 namespace blender::bke {
+struct ImageMipmapLevel {
+  int level;
+  explicit ImageMipmapLevel(int level) : level(level) {}
+
+  constexpr bool operator==(const ImageMipmapLevel &other) const
+  {
+    return level == other.level;
+  }
+  constexpr bool operator!=(const ImageMipmapLevel &other) const
+  {
+    return level != other.level;
+  }
+};
+
+/**
+ * Bitmask for storing multiple mipmap usages. Each bit represent a certain mipmap level.
+ *
+ * Each bit represent a pixel sample desity.
+ *
+ * Bit 00 = 65536
+ * Bit 01 = 32786
+ * Bit 02 = 16184
+ * Bit 03 = 8192
+ * Bit 04 = 4096
+ * Bit 05 = 2048
+ * Bit 06 = 1024
+ * Bit 07 = 512
+ * Bit 08 = 256
+ * Bit 09 = 128
+ * Bit 10 = 64
+ * Bit 11 = 32
+ * Bit 12 = 16
+ * Bit 13 = 8
+ * Bit 14 = 4
+ * Bit 15 = 2
+ * Bit 16 = 1
+ */
+struct ImageMipmapMask {
+  uint32_t mask;
+
+  constexpr ImageMipmapMask() : mask(0u) {}
+  constexpr explicit ImageMipmapMask(uint32_t mask) : mask(mask) {}
+
+  ImageMipmapLevel lowest_mipmap_level(int num_level) const;
+};
+
 struct ImageMipmapCache {
   static constexpr int64_t mipmap_level_max_clamping_byte_size = 4096;
   ImageMipmapCache();
@@ -56,8 +102,8 @@ struct ImageMipmapCache {
 
   void update_mipmap_cache(const ImBuf &imbuf, bool use_high_bitdepth, bool use_greyscale);
 
-  ImageGPUTextures gpu_mipmap_texture_get_try(int mipmap_level);
-  ImageGPUTextures gpu_mipmap_texture_get(int mipmap_level);
+  ImageGPUTextures gpu_mipmap_texture_get_try(ImageMipmapMask mipmap_mask);
+  ImageGPUTextures gpu_mipmap_texture_get(ImageMipmapMask mipmap_mask);
 
   bool is_empty() const
   {
@@ -80,7 +126,7 @@ struct ImageMipmapCache {
   Vector<int64_t> bytes_per_mipmap_;
   Vector<uint2> resolution_per_mipmap_;
   GPUTexture *last_texture_ = nullptr;
-  int last_texture_mipmap_level_;
+  ImageMipmapLevel last_texture_mipmap_level_;
   int mipmap_level_clamp_min_;
   int mipmap_level_clamp_max_;
 
@@ -690,14 +736,14 @@ ImageGPUTextures BKE_image_get_gpu_material_texture(
     Image *image,
     ImageUser *iuser,
     const bool use_tile_mapping,
-    std::optional<int> mipmap_level = std::nullopt);
+    std::optional<blender::bke::ImageMipmapMask> mipmap_mask = std::nullopt);
 
 /* Same as BKE_image_get_gpu_material_texture but will not load the texture if it isn't already. */
 ImageGPUTextures BKE_image_get_gpu_material_texture_try(
     Image *image,
     ImageUser *iuser,
     const bool use_tile_mapping,
-    std::optional<int> mipmap_level = std::nullopt);
+    std::optional<blender::bke::ImageMipmapMask> mipmap_mask = std::nullopt);
 
 /**
  * Is the alpha of the `GPUTexture` for a given image/ibuf premultiplied.

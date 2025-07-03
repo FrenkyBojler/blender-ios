@@ -1142,9 +1142,9 @@ inline void PassBase<T>::material_set(Manager &manager,
       ImageGPUTextures gputex;
       if (deferred_texture_loading) {
         /* No need to use the actual mipmap level, try will provide the last loaded. */
-        constexpr int mipmap_level = 0;
+        constexpr blender::bke::ImageMipmapMask mipmap_mask(0);
         gputex = BKE_image_get_gpu_material_texture_try(
-            tex->ima, iuser, use_tile_mapping, mipmap_level);
+            tex->ima, iuser, use_tile_mapping, mipmap_mask);
       }
       else {
         gputex = BKE_image_get_gpu_material_texture(tex->ima, iuser, use_tile_mapping);

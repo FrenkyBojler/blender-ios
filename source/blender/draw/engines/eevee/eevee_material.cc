@@ -208,10 +208,10 @@ void MaterialModule::queue_texture_loading(GPUMaterial *material)
       const bool use_tile_mapping = tex->tiled_mapping_name[0];
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
       ::Image &image = *tex->ima;
-      int requested_mipmap_level = decode_streaming_mask_to_lod(
+      blender::bke::ImageMipmapMask requested_mipmap_mask(
           texture_lod_buf_.current()[image.runtime->gpu_info_index]);
       ImageGPUTextures gputex = BKE_image_get_gpu_material_texture_try(
-          &image, iuser, use_tile_mapping, requested_mipmap_level);
+          &image, iuser, use_tile_mapping, requested_mipmap_mask);
       if (*gputex.texture == nullptr || gputex.recreate_mipmap_texture) {
         texture_loading_queue_.append(tex);
       }
@@ -253,11 +253,11 @@ void MaterialModule::end_sync()
     GPU_debug_group_begin(image.id.name);
 
     const bool use_tile_mapping = tex->tiled_mapping_name[0];
-    const int requested_mipmap_level = decode_streaming_mask_to_lod(
+    const blender::bke::ImageMipmapMask requested_mipmap_mask(
         texture_lod_buf_.current()[image.runtime->gpu_info_index]);
     ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
     ImageGPUTextures gputex = BKE_image_get_gpu_material_texture(
-        tex->ima, iuser, use_tile_mapping, requested_mipmap_level);
+        tex->ima, iuser, use_tile_mapping, requested_mipmap_mask);
 
     /* Acquire the textures since they were not existing inside `PassBase::material_set()`. */
     inst_.manager->acquire_texture(*gputex.texture);

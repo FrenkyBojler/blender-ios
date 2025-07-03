@@ -366,12 +366,13 @@ static bool image_supports_texture_streaming(Image &image)
          (image.type == IMA_TYPE_UV_TEST);
 }
 
-static ImageGPUTextures image_get_gpu_texture(Image *ima,
-                                              ImageUser *iuser,
-                                              const bool use_viewers,
-                                              const bool use_tile_mapping,
-                                              std::optional<int> mipmap_level,
-                                              bool try_only)
+static ImageGPUTextures image_get_gpu_texture(
+    Image *ima,
+    ImageUser *iuser,
+    const bool use_viewers,
+    const bool use_tile_mapping,
+    std::optional<blender::bke::ImageMipmapMask> mipmap_mask,
+    bool try_only)
 {
   ImageGPUTextures result = {nullptr, nullptr, false};
 
@@ -427,9 +428,9 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   }
 
   const bool use_texture_streaming = image_supports_texture_streaming(*ima) &&
-                                     mipmap_level.has_value();
+                                     mipmap_mask.has_value();
   if (use_texture_streaming) {
-    result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try(mipmap_level.value());
+    result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try(mipmap_mask.value());
     /* Check if the current cached mipmap texture contains the requested mipmap level. */
     if (*result.texture && !result.recreate_mipmap_texture) {
       return result;
@@ -488,7 +489,7 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
     if (mipmap_cache.is_empty()) {
       mipmap_cache.update_mipmap_cache(*ibuf, use_high_bitdepth, use_greyscale);
     }
-    result = mipmap_cache.gpu_mipmap_texture_get(mipmap_level.value());
+    result = mipmap_cache.gpu_mipmap_texture_get(mipmap_mask.value());
   }
   else {
     /* Single image texture. */
@@ -528,20 +529,22 @@ GPUTexture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser)
   return *image_get_gpu_texture(image, iuser, true, false, std::nullopt, false).texture;
 }
 
-ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
-                                                    ImageUser *iuser,
-                                                    const bool use_tile_mapping,
-                                                    std::optional<int> mipmap_level)
+ImageGPUTextures BKE_image_get_gpu_material_texture(
+    Image *image,
+    ImageUser *iuser,
+    const bool use_tile_mapping,
+    std::optional<blender::bke::ImageMipmapMask> mipmap_mask)
 {
-  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, mipmap_level, false);
+  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, mipmap_mask, false);
 }
 
-ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
-                                                        ImageUser *iuser,
-                                                        const bool use_tile_mapping,
-                                                        std::optional<int> mipmap_level)
+ImageGPUTextures BKE_image_get_gpu_material_texture_try(
+    Image *image,
+    ImageUser *iuser,
+    const bool use_tile_mapping,
+    std::optional<blender::bke::ImageMipmapMask> mipmap_mask)
 {
-  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, mipmap_level, true);
+  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, mipmap_mask, true);
 }
 
 /** \} */
