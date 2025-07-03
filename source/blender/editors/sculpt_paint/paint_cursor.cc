@@ -1516,7 +1516,7 @@ static void paint_draw_2D_view_brush_cursor_default(PaintCursorContext &pcontext
     imm_draw_circle_wire_2d(pcontext.pos,
                             pcontext.translation[0],
                             pcontext.translation[1],
-                            pcontext.final_radius * pcontext.ups->size_pressure_value,
+                            pcontext.final_radius * stroke_runtime->size_pressure_value,
                             40);
     /* Outer at half alpha. */
     immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.5f);

@@ -61,18 +61,18 @@ struct StrokeRuntime : NonCopyable, NonMovable{
    * Radius of brush, pre-multiplied with pressure.
    * In case of anchored brushes contains the anchored radius.
    */
-  float pixel_radius;
-  float initial_pixel_radius;
-  float start_pixel_radius;
+  float pixel_radius = 0.0f;
+  float initial_pixel_radius = 0.0f;
+  float start_pixel_radius = 0.0f;
 
   /** Drawing pressure. */
-  float size_pressure_value;
+  float size_pressure_value = 0.0f;
 
   /** Position of mouse, used to sample the texture. */
-  blender::float2 tex_mouse;
+  blender::float2 tex_mouse = float2(0.0f, 0.0f);
 
   /** Position of mouse, used to sample the mask texture. */
-  blender::float2 mask_tex_mouse;
+  blender::float2 mask_tex_mouse = float2(0.0f, 0.0f);
 
   /** ColorSpace cache to avoid locking up during sampling. */
   bool do_linear_conversion = false;
