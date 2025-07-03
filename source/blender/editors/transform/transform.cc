@@ -1952,7 +1952,16 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
         continue;
       }
 
-      BLI_assert(tc->sorted_index_map);
+      /* `tc->sorted_index_map` is only used in cases where `tc->data` has a mixture of selected
+       * and unselected items (AFAIK just for proportial editing). Without `tc->sorted_index_map`,
+       * all items in `tc->data` are expected to be selected. */
+      if (!tc->sorted_index_map) {
+        BLI_assert_msg(tc->data[0].flag & TD_SELECTED,
+                       "Without sorted_index_map, all items are expected to be selected");
+        has_selected_any = true;
+        break;
+      }
+
       const int first_selected_index = tc->sorted_index_map[0];
       TransData *td = &tc->data[first_selected_index];
       if (td->flag & TD_SELECTED) {
