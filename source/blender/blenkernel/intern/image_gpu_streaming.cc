@@ -64,6 +64,17 @@ void ImageMipmapCache::init_resolution_size_offset_for_each_mipmap_level(uint2 m
   bytes_all_mips_ += bytes_per_pixel;
   resolution_per_mipmap_.append(mipmap_resolution);
   bytes_per_mipmap_.append(bytes_per_pixel);
+
+  for (int mipmap_level : IndexRange(size())) {
+    CLOG_INFO(&LOG,
+              2,
+              "mipmap=%d, resolution=%dx%d, offset=%d, size_in_bytes=%d, bytes_per_pixel=%d",
+              mipmap_level,
+              UNPACK2(resolution_per_mipmap_[mipmap_level]),
+              offsets_per_mipmap_[mipmap_level],
+              bytes_per_mipmap_[mipmap_level],
+              bytes_per_pixel);
+  }
 }
 
 void ImageMipmapCache::init_mipmap_level_clamping()
@@ -135,17 +146,18 @@ void ImageMipmapCache::update_mipmap_cache(const ImBuf &imbuf,
   for (int mipmap_level : IndexRange(size())) {
     uint2 mipmap_resolution = resolution_per_mipmap_[mipmap_level];
     IMB_scale(mipmap_ibuf, UNPACK2(mipmap_resolution), IMBScaleFilter::Bilinear);
+
+    uint8_t *source_buf = nullptr;
     if (mipmap_ibuf->float_buffer.data) {
-      mipmap_data_mutable(mipmap_level)
-          .copy_from(Span<uint8_t>(static_cast<const uint8_t *>(
-                                       static_cast<const void *>(mipmap_ibuf->float_buffer.data)),
-                                   bytes_per_mipmap_[mipmap_level]));
+      source_buf = (uint8_t *)(mipmap_ibuf->float_buffer.data);
     }
     else {
-      mipmap_data_mutable(mipmap_level)
-          .copy_from(
-              Span<uint8_t>(mipmap_ibuf->byte_buffer.data, bytes_per_mipmap_[mipmap_level]));
+      source_buf = mipmap_ibuf->byte_buffer.data;
     }
+    MutableSpan<uint8_t> mipmap_dst = mipmap_data_mutable(mipmap_level);
+    int64_t mipmap_size = bytes_per_mipmap_[mipmap_level];
+    Span<uint8_t> source(source_buf, mipmap_size);
+    mipmap_dst.copy_from(source);
   }
   IMB_freeImBuf(mipmap_ibuf);
 }
