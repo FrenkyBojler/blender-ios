@@ -933,16 +933,6 @@ if(WITH_BLENDER)
     )
 
     set(SVG_CURSORS_FILENAMES_NOEXT
-      cursor_0
-      cursor_1
-      cursor_2
-      cursor_3
-      cursor_4
-      cursor_5
-      cursor_6
-      cursor_7
-      cursor_8
-      cursor_9
       cursor_blade
       cursor_both_handles
       cursor_crossc
