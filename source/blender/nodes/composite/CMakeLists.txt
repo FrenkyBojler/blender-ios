@@ -59,10 +59,12 @@ set(SRC
   nodes/node_composite_flip.cc
   nodes/node_composite_gamma.cc
   nodes/node_composite_glare.cc
+  nodes/node_composite_group_input.cc
   nodes/node_composite_hue_sat_val.cc
   nodes/node_composite_huecorrect.cc
   nodes/node_composite_id_mask.cc
   nodes/node_composite_image.cc
+  nodes/node_composite_image_coordinates.cc
   nodes/node_composite_image_info.cc
   nodes/node_composite_inpaint.cc
   nodes/node_composite_invert.cc

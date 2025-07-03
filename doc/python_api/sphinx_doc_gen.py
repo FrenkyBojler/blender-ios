@@ -420,6 +420,7 @@ INFO_DOCS_OTHER = (
     "info_advanced_blender_as_bpy.rst",
     # Included by: `info_gotcha.rst`.
     "info_gotchas_crashes.rst",
+    "info_gotchas_threading.rst",
     "info_gotchas_internal_data_and_python_objects.rst",
     "info_gotchas_operators.rst",
     "info_gotchas_meshes.rst",
@@ -783,11 +784,11 @@ def pyfunc2sphinx(ident, fw, module_name, type_name, identifier, py_func, is_cla
     """
 
     if type(py_func) == MethodType:
-        # Including methods means every operators "poll" function for e.g.
+        # Including methods means every operators "poll" function example
         # would be listed in documentation which isn't useful.
         #
-        # However excluding all of them is also incorrect as it means class methods defined
-        # in `bpy_types.py` for e.g. are excluded, making some utility functions entirely hidden.
+        # However, excluding all of them is also incorrect as it means class methods defined
+        # in `bpy_types.py` for example are excluded, making some utility functions entirely hidden.
         if (bl_rna := getattr(py_func.__self__, "bl_rna", None)) is not None:
             if bl_rna.functions.get(identifier) is not None:
                 return
@@ -1226,10 +1227,10 @@ context_type_map = {
     "particle_settings": [("ParticleSettings", False)],
     "particle_system": [("ParticleSystem", False)],
     "particle_system_editable": [("ParticleSystem", False)],
-    "property": [("AnyType", False), ("str", False), ("int", False)],
     "pointcloud": [("PointCloud", False)],
     "pose_bone": [("PoseBone", False)],
     "pose_object": [("Object", False)],
+    "property": [("AnyType", False), ("str", False), ("int", False)],
     "scene": [("Scene", False)],
     "sculpt_object": [("Object", False)],
     "selectable_objects": [("Object", True)],
@@ -1274,6 +1275,13 @@ context_type_map = {
     "volume": [("Volume", False)],
     "world": [("World", False)],
 }
+
+if bpy.app.build_options.experimental_features:
+    for key, value in {
+        # No experimental members in context currently.
+    }.items():
+        assert key not in context_type_map, "Duplicate, the member must be removed from one of the dictionaries"
+        context_type_map[key] = value
 
 
 def pycontext2sphinx(basepath):
@@ -1323,6 +1331,7 @@ def pycontext2sphinx(basepath):
             type_descr = prop.get_type_description(
                 class_fmt=":class:`bpy.types.{:s}`",
                 mathutils_fmt=":class:`mathutils.{:s}`",
+                literal_fmt="``{:s}``",
                 collection_id=_BPY_PROP_COLLECTION_ID,
                 enum_descr_override=enum_descr_override,
             )
@@ -1493,6 +1502,7 @@ def pyrna2sphinx(basepath):
 
         kwargs["class_fmt"] = ":class:`{:s}`"
         kwargs["mathutils_fmt"] = ":class:`mathutils.{:s}`"
+        kwargs["literal_fmt"] = "``{:s}``"
 
         kwargs["collection_id"] = _BPY_PROP_COLLECTION_ID
 
@@ -1613,6 +1623,7 @@ def pyrna2sphinx(basepath):
             type_descr = prop.get_type_description(
                 class_fmt=":class:`{:s}`",
                 mathutils_fmt=":class:`mathutils.{:s}`",
+                literal_fmt="``{:s}``",
                 collection_id=_BPY_PROP_COLLECTION_ID,
                 enum_descr_override=enum_descr_override,
             )
@@ -1695,6 +1706,7 @@ def pyrna2sphinx(basepath):
                     type_descr = prop.get_type_description(
                         as_ret=True, class_fmt=":class:`{:s}`",
                         mathutils_fmt=":class:`mathutils.{:s}`",
+                        literal_fmt="``{:s}``",
                         collection_id=_BPY_PROP_COLLECTION_ID,
                         enum_descr_override=enum_descr_override,
                     )

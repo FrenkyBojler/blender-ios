@@ -380,6 +380,8 @@ class Report:
         desc = f" tex:'{tex.image.name}' ({rel_path}) a:{tex.use_alpha}"
         if str(tex.colorspace_is_data) == "True":  # unset value is "Ellipsis"
             desc += f" data"
+        if str(tex.colorspace_name) != "Ellipsis":
+            desc += f" {tex.colorspace_name}"
         if tex.texcoords != 'UV':
             desc += f" uv:{tex.texcoords}"
         if tex.extension != 'REPEAT':
@@ -563,7 +565,15 @@ class Report:
             desc.write(f"==== Lights: {len(bpy.data.lights)}\n")
             for light in bpy.data.lights:
                 desc.write(
-                    f"- Light '{light.name}' {light.type} col:({light.color[0]:.3f}, {light.color[1]:.3f}, {light.color[2]:.3f}) energy:{light.energy:.3f}\n")
+                    f"- Light '{light.name}' {light.type} col:({light.color[0]:.3f}, {light.color[1]:.3f}, {light.color[2]:.3f}) energy:{light.energy:.3f}")
+                if light.exposure != 0:
+                    desc.write(f" exposure:{fmtf(light.exposure)}")
+                if light.use_temperature:
+                    desc.write(
+                        f" temp:{fmtf(light.temperature)}")
+                if not light.normalize:
+                    desc.write(f" normalize_off")
+                desc.write(f"\n")
                 if isinstance(light, bpy.types.SpotLight):
                     desc.write(f"  - spot {light.spot_size:.3f} blend {light.spot_blend:.3f}\n")
                 Report._write_animdata_desc(light.animation_data, desc)

@@ -216,6 +216,7 @@ void FbxImportContext::import_lights()
     lamp->g = flight->color.y;
     lamp->b = flight->color.z;
     lamp->energy = flight->intensity;
+    lamp->exposure = ufbx_find_real(&flight->props, "Exposure", 0.0);
     if (flight->cast_shadows) {
       lamp->mode |= LA_SHADOW;
     }
@@ -323,7 +324,7 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
 {
   FILE *file = BLI_fopen(params.filepath, "rb");
   if (!file) {
-    CLOG_ERROR(&LOG, "Failed to open FBX file '%s'\n", params.filepath);
+    CLOG_ERROR(&LOG, "Failed to open FBX file '%s'", params.filepath);
     BKE_reportf(params.reports, RPT_ERROR, "FBX Import: Cannot open file '%s'", params.filepath);
     return;
   }
@@ -341,6 +342,8 @@ void importer_main(Main *bmain, Scene *scene, ViewLayer *view_layer, const FBXIm
    * (e.g. instancing etc.), do not insert helper nodes to account for that. Helper nodes currently
    * cause armatures/skins to not import correctly, when inserted in the middle of bone chain. */
   opts.geometry_transform_handling = UFBX_GEOMETRY_TRANSFORM_HANDLING_MODIFY_GEOMETRY_NO_FALLBACK;
+
+  opts.pivot_handling = UFBX_PIVOT_HANDLING_ADJUST_TO_ROTATION_PIVOT;
 
   opts.space_conversion = UFBX_SPACE_CONVERSION_ADJUST_TRANSFORMS;
   opts.target_axes.right = UFBX_COORDINATE_AXIS_POSITIVE_X;

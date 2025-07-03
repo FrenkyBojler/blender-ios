@@ -180,14 +180,13 @@ void DRW_system_gpu_render_context_disable(void *re_system_gpu_context);
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context);
 void DRW_blender_gpu_render_context_disable(void *re_gpu_context);
 
-void DRW_deferred_shader_remove(GPUMaterial *mat);
-void DRW_deferred_shader_optimize_remove(GPUMaterial *mat);
-
 DRWData *DRW_viewport_data_create();
 void DRW_viewport_data_free(DRWData *drw_data);
 
 bool DRW_gpu_context_release();
 void DRW_gpu_context_activate(bool drw_state);
+
+namespace blender::draw {
 
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
@@ -195,3 +194,5 @@ void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   blender::StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer);
+
+}

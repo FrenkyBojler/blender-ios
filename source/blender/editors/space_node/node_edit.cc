@@ -651,7 +651,7 @@ void ED_node_composit_default(const bContext *C, Scene *sce)
   }
 
   sce->nodetree = blender::bke::node_tree_add_tree_embedded(
-      nullptr, &sce->id, "Compositing Nodetree", ntreeType_Composite->idname);
+      nullptr, &sce->id, "Compositing Node Tree", ntreeType_Composite->idname);
 
   bNode *composite = blender::bke::node_add_static_node(C, *sce->nodetree, CMP_NODE_COMPOSITE);
   composite->location[0] = 200.0f;
@@ -1338,7 +1338,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
     }
     if (in_out & SOCK_IN) {
       for (bNodeSocket *sock : node->input_sockets()) {
-        if (!node->is_socket_icon_drawn(*sock)) {
+        if (!sock->is_icon_visible()) {
           continue;
         }
         const float2 location = sock->runtime->location;
@@ -1356,7 +1356,7 @@ bNodeSocket *node_find_indicated_socket(SpaceNode &snode,
     }
     if (in_out & SOCK_OUT) {
       for (bNodeSocket *sock : node->output_sockets()) {
-        if (!node->is_socket_icon_drawn(*sock)) {
+        if (!sock->is_icon_visible()) {
           continue;
         }
         const float2 location = sock->runtime->location;
@@ -2091,6 +2091,7 @@ static wmOperatorStatus node_delete_exec(bContext *C, wmOperator * /*op*/)
     }
   }
 
+  ED_node_set_active_viewer_key(snode);
   BKE_main_ensure_invariants(*bmain, snode->edittree->id);
 
   return OPERATOR_FINISHED;
@@ -2187,7 +2188,13 @@ static wmOperatorStatus node_output_file_add_socket_exec(bContext *C, wmOperator
   }
 
   RNA_string_get(op->ptr, "file_path", file_path);
-  ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
+
+  if (strlen(file_path) != 0) {
+    ntreeCompositOutputFileAddSocket(ntree, node, file_path, &scene->r.im_format);
+  }
+  else {
+    ntreeCompositOutputFileAddSocket(ntree, node, DATA_("Image"), &scene->r.im_format);
+  }
 
   BKE_main_ensure_invariants(*CTX_data_main(C), snode->edittree->id);
 
@@ -2209,7 +2216,7 @@ void NODE_OT_output_file_add_socket(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   RNA_def_string(
-      ot->srna, "file_path", "Image", MAX_NAME, "File Path", "Subpath of the output file");
+      ot->srna, "file_path", nullptr, MAX_NAME, "File Path", "Subpath of the output file");
 }
 
 /** \} */

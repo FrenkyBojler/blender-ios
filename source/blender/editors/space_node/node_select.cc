@@ -643,6 +643,15 @@ static bool node_mouse_select(bContext *C,
     if (node == nullptr) {
       /* Disable existing active viewer. */
       WorkSpace *workspace = CTX_wm_workspace(C);
+      if (const std::optional<viewer_path::ViewerPathForGeometryNodesViewer> parsed_path =
+              viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path))
+      {
+        /* The object needs to be reevaluated, because the viewer path is changed which means that
+         * the object may generate different viewer geometry as a side effect. */
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+        DEG_id_tag_update_for_side_effect_request(
+            depsgraph, &parsed_path->object->id, ID_RECALC_GEOMETRY);
+      }
       BKE_viewer_path_clear(&workspace->viewer_path);
       WM_event_add_notifier(C, NC_VIEWER_PATH, nullptr);
     }
@@ -799,6 +808,7 @@ static wmOperatorStatus node_box_select_exec(bContext *C, wmOperator *op)
   tree_draw_order_update(node_tree);
 
   WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -900,6 +910,7 @@ static wmOperatorStatus node_circleselect_exec(bContext *C, wmOperator *op)
   }
 
   WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+  WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -1004,6 +1015,7 @@ static bool do_lasso_select_node(bContext *C, const Span<int2> mcoords, eSelectO
 
   if (changed) {
     WM_event_add_notifier(C, NC_NODE | NA_SELECTED, nullptr);
+    WM_event_add_notifier(C, NC_NODE | ND_NODE_GIZMO, nullptr);
   }
 
   return changed;
@@ -1367,7 +1379,7 @@ static uiBlock *node_find_menu(bContext *C, ARegion *region, void *arg_optype)
   UI_block_flag_enable(block, UI_BLOCK_LOOP | UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_SEARCH_MENU);
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
 
-  const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn);
+  const int box_width = UI_searchbox_size_x_guess(C, node_find_update_fn, nullptr);
 
   but = uiDefSearchBut(
       block, search, 0, ICON_VIEWZOOM, sizeof(search), 0, 0, box_width, UI_UNIT_Y, "");

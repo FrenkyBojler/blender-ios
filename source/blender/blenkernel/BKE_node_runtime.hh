@@ -36,6 +36,7 @@ struct FieldInferencingInterface;
 struct GeometryNodesEvalDependencies;
 class NodeDeclaration;
 struct GeometryNodesLazyFunctionGraphInfo;
+struct StructureTypeInterface;
 namespace anonymous_attribute_lifetime {
 }
 namespace aal = anonymous_attribute_lifetime;
@@ -175,6 +176,7 @@ class bNodeTreeRuntime : NonCopyable, NonMovable {
   /** Information about usage of anonymous attributes within the group. */
   std::unique_ptr<node_tree_reference_lifetimes::ReferenceLifetimesInfo> reference_lifetimes_info;
   std::unique_ptr<nodes::gizmos::TreeGizmoPropagation> gizmo_propagation;
+  std::unique_ptr<nodes::StructureTypeInterface> structure_type_interface;
 
   /**
    * A bool for each input socket (indexed by `index_in_all_inputs()`) that indicates whether this
@@ -457,6 +459,10 @@ inline bool topology_cache_is_available(const bNodeSocket &socket)
 
 namespace node_field_inferencing {
 bool update_field_inferencing(const bNodeTree &tree);
+}
+
+namespace node_structure_type_inferencing {
+bool update_structure_type_interface(bNodeTree &tree);
 }
 
 }  // namespace blender::bke
@@ -900,11 +906,6 @@ inline bool bNode::is_dangling_reroute() const
   return this->runtime->is_dangling_reroute;
 }
 
-inline bool bNode::is_socket_icon_drawn(const bNodeSocket &socket) const
-{
-  return socket.is_visible() && (this->flag & NODE_HIDDEN || !socket.is_panel_collapsed());
-}
-
 inline blender::Span<bNode *> bNode::direct_children_in_frame() const
 {
   BLI_assert(blender::bke::node_tree_runtime::topology_cache_is_available(*this));
@@ -985,6 +986,15 @@ inline bool bNodeSocket::is_user_hidden() const
   return (this->flag & SOCK_HIDDEN) != 0;
 }
 
+inline bool bNodeSocket::is_inactive() const
+{
+  /* Gray out inputs that do not affect the output of the node currently.
+   * Don't gray out any inputs if the node has no outputs (in which case no input can affect the
+   * output). Otherwise, viewer node inputs would be inactive. */
+  return this->is_input() && !this->affects_node_output() &&
+         !this->owner_node().output_sockets().is_empty();
+}
+
 inline bool bNodeSocket::is_available() const
 {
   return (this->flag & SOCK_UNAVAIL) == 0;
@@ -999,6 +1009,12 @@ inline bool bNodeSocket::is_visible() const
 {
   return !this->is_user_hidden() && this->is_available() &&
          (this->is_output() || this->inferred_input_socket_visibility());
+}
+
+inline bool bNodeSocket::is_icon_visible() const
+{
+  return this->is_visible() &&
+         (this->owner_node().flag & NODE_HIDDEN || !this->is_panel_collapsed());
 }
 
 inline bNode &bNodeSocket::owner_node()

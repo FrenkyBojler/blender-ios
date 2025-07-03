@@ -1727,6 +1727,8 @@ static void icon_draw_size(float x,
                                                  btheme->tui.icon_border_intensity :
                                                  0.3f) :
                                             0.0f;
+    outline_intensity *= alpha;
+
     float color[4];
     if (icon_id == ICON_NOT_FOUND) {
       UI_GetThemeColor4fv(TH_ERROR, color);
@@ -2089,11 +2091,12 @@ int UI_icon_from_idcode(const int idcode)
       return ICON_WORKSPACE;
     case ID_GP:
       return ICON_OUTLINER_DATA_GREASEPENCIL;
+    case ID_KE:
+      return ICON_SHAPEKEY_DATA;
 
     /* No icons for these ID-types. */
     case ID_LI:
     case ID_IP:
-    case ID_KE:
     case ID_SCR:
     case ID_WM:
       break;

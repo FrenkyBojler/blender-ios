@@ -147,6 +147,7 @@ template<> void socket_data_init_impl(bNodeSocketValueVector &data)
 {
   static float default_value[] = {0.0f, 0.0f, 0.0f};
   data.subtype = PROP_NONE;
+  data.dimensions = 3;
   copy_v3_v3(data.value, default_value);
   data.min = -FLT_MAX;
   data.max = FLT_MAX;
@@ -577,6 +578,12 @@ void item_write_struct(BlendWriter *writer, bNodeTreeInterfaceItem &item)
 {
   switch (NodeTreeInterfaceItemType(item.item_type)) {
     case NODE_INTERFACE_SOCKET: {
+      /* Forward compatible writing of older single value only flag. To be removed in 5.0. */
+      bNodeTreeInterfaceSocket &socket = get_item_as<bNodeTreeInterfaceSocket>(item);
+      SET_FLAG_FROM_TEST(socket.flag,
+                         socket.structure_type == NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
+                         NODE_INTERFACE_SOCKET_SINGLE_VALUE_ONLY_LEGACY);
+
       BLO_write_struct(writer, bNodeTreeInterfaceSocket, &item);
       break;
     }
@@ -875,6 +882,12 @@ int bNodeTreeInterfacePanel::find_valid_insert_position_for_item(
       const auto &sb = reinterpret_cast<const bNodeTreeInterfaceSocket &>(b);
       const bool is_output_a = sa.flag & NODE_INTERFACE_SOCKET_OUTPUT;
       const bool is_output_b = sb.flag & NODE_INTERFACE_SOCKET_OUTPUT;
+      if ((sa.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE) ||
+          (sb.flag & NODE_INTERFACE_SOCKET_PANEL_TOGGLE))
+      {
+        /* Panel toggle inputs are allowed to be above outputs. */
+        return false;
+      }
       if (is_output_a && !is_output_b) {
         return true;
       }
@@ -1146,11 +1159,20 @@ bNodeTreeInterfaceSocket *add_interface_socket_from_node(bNodeTree &ntree,
     SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_IN, NODE_INTERFACE_SOCKET_INPUT);
     SET_FLAG_FROM_TEST(flag, from_sock.in_out & SOCK_OUT, NODE_INTERFACE_SOCKET_OUTPUT);
 
-    iosock = ntree.tree_interface.add_socket(
-        name, from_sock.description, socket_type, flag, nullptr);
+    const nodes::SocketDeclaration *decl = from_sock.runtime->declaration;
+    StringRef description = from_sock.description;
+    if (decl) {
+      if (!decl->description.empty()) {
+        description = decl->description;
+      }
+    }
 
-    if (const nodes::SocketDeclaration *decl = from_sock.runtime->declaration) {
-      iosock->default_input = decl->default_input_type;
+    iosock = ntree.tree_interface.add_socket(name, description, socket_type, flag, nullptr);
+
+    if (iosock) {
+      if (decl) {
+        iosock->default_input = decl->default_input_type;
+      }
     }
   }
   if (iosock == nullptr) {

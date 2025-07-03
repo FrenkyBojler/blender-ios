@@ -526,7 +526,11 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
     new_opacities[point] = ed::greasepencil::randomize_opacity(
         *ptd.settings, ptd.stroke_random_opacity_factor, lengths[point], opacity, pressure);
     if (ptd.vertex_color) {
+      std::optional<BrushColorJitterSettings> jitter_settings =
+          BKE_brush_color_jitter_get_settings(
+              ptd.vc.scene, &ptd.vc.scene->toolsettings->gp_paint->paint, ptd.brush);
       new_vertex_colors[point] = ed::greasepencil::randomize_color(*ptd.settings,
+                                                                   jitter_settings,
                                                                    ptd.stroke_random_hue_factor,
                                                                    ptd.stroke_random_sat_factor,
                                                                    ptd.stroke_random_val_factor,
@@ -667,7 +671,7 @@ static void grease_pencil_primitive_status_indicators(bContext *C,
   status.item(IFACE_("Align"), ICON_EVENT_SHIFT);
   status.opmodal("", op->type, int(ModalKeyMode::IncreaseSubdivision));
   status.opmodal("", op->type, int(ModalKeyMode::DecreaseSubdivision));
-  status.item(fmt::format("{} ({})", IFACE_("subdivisions"), ptd.subdivision), ICON_NONE);
+  status.item(fmt::format("{} ({})", IFACE_("Subdivisions"), ptd.subdivision), ICON_NONE);
 
   if (ptd.segments == 1) {
     status.item(IFACE_("Center"), ICON_EVENT_ALT);

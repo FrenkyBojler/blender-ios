@@ -281,7 +281,9 @@ StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *st
   const float2 offset{x * 0.5f, y * 0.5f};
 
   Array<float2> quad = image_transform_final_quad_get(scene, strip);
-  const float scale = rendersize_to_scale_factor(context->preview_render_size);
+  const float scale = context->preview_render_size == SEQ_RENDER_SIZE_SCENE ?
+                          float(scene->r.size) / 100.0f :
+                          rendersize_to_scale_factor(context->preview_render_size);
   return StripScreenQuad{float2(quad[0] * scale + offset),
                          float2(quad[1] * scale + offset),
                          float2(quad[2] * scale + offset),
@@ -736,7 +738,7 @@ static ImBuf *seq_render_effect_strip_impl(const RenderData *context,
   Scene *scene = context->scene;
   float fac;
   int i;
-  EffectHandle sh = effect_handle_get(strip);
+  EffectHandle sh = strip_effect_handle_get(strip);
   const FCurve *fcu = nullptr;
   ImBuf *ibuf[2];
   Strip *input[2];
@@ -1240,7 +1242,7 @@ static ImBuf *seq_render_movieclip_strip(const RenderData *context,
   /* Try to get a proxy image. */
   ibuf = seq_get_movieclip_ibuf(strip, user);
 
-  /* If clip doesn't use proxies, it will fallback to full size render of original file. */
+  /* If clip doesn't use proxies, it will fall back to full size render of original file. */
   if (ibuf != nullptr && psize != IMB_PROXY_NONE && BKE_movieclip_proxy_enabled(strip->clip)) {
     *r_is_proxy_image = true;
   }
@@ -1477,10 +1479,11 @@ static ImBuf *seq_render_scene_strip(const RenderData *context,
     depsgraph = BKE_scene_ensure_depsgraph(context->bmain, scene, view_layer);
     BKE_scene_graph_update_for_newframe(depsgraph);
     Object *camera_eval = DEG_get_evaluated(depsgraph, camera);
+    Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
     ibuf = view3d_fn(
         /* set for OpenGL render (nullptr when scrubbing) */
         depsgraph,
-        scene,
+        scene_eval,
         &context->scene->display.shading,
         eDrawType(context->scene->r.seq_prev_type),
         camera_eval,
@@ -1620,16 +1623,20 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
 
   if (seqbase && !BLI_listbase_is_empty(seqbase)) {
 
+    frame_index += offset;
+
     if (strip->flag & SEQ_SCENE_STRIPS && strip->scene) {
-      BKE_animsys_evaluate_all_animation(context->bmain, context->depsgraph, frame_index + offset);
+      BKE_animsys_evaluate_all_animation(context->bmain, context->depsgraph, frame_index);
     }
 
+    intra_frame_cache_set_cur_frame(
+        context->scene, frame_index, context->view_id, context->rectx, context->recty);
     ibuf = seq_render_strip_stack(context,
                                   state,
                                   channels,
                                   seqbase,
                                   /* scene strips don't have their start taken into account */
-                                  frame_index + offset,
+                                  frame_index,
                                   0);
   }
 
@@ -2013,7 +2020,8 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     channels = ed->displayed_channels;
   }
 
-  intra_frame_cache_set_cur_frame(scene, timeline_frame, context->view_id);
+  intra_frame_cache_set_cur_frame(
+      scene, timeline_frame, context->view_id, context->rectx, context->recty);
 
   Scene *orig_scene = prefetch_get_original_scene(context);
   ImBuf *out = nullptr;

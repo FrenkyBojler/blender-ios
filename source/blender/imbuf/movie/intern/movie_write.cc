@@ -24,6 +24,7 @@
 #  include "BLI_endian_defines.h"
 #  include "BLI_fileops.h"
 #  include "BLI_math_base.h"
+#  include "BLI_math_color.h"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_threads.h"
@@ -232,7 +233,9 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
   if (use_float) {
     /* Float image: need to split up the image into a planar format,
      * because `libswscale` does not support RGBA->YUV conversions from
-     * packed float formats. */
+     * packed float formats.
+     * Un-premultiply the image if the output format supports alpha, to
+     * match the format of the byte image. */
     BLI_assert_msg(rgb_frame->linesize[1] == linesize_dst &&
                        rgb_frame->linesize[2] == linesize_dst &&
                        rgb_frame->linesize[3] == linesize_dst,
@@ -244,12 +247,26 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
       float *dst_r = reinterpret_cast<float *>(rgb_frame->data[2] + dst_offset);
       float *dst_a = reinterpret_cast<float *>(rgb_frame->data[3] + dst_offset);
       const float *src = pixels_fl + image->x * y * 4;
-      for (int x = 0; x < image->x; x++) {
-        *dst_r++ = src[0];
-        *dst_g++ = src[1];
-        *dst_b++ = src[2];
-        *dst_a++ = src[3];
-        src += 4;
+
+      if (MOV_codec_supports_alpha(context->ffmpeg_codec, context->ffmpeg_profile)) {
+        for (int x = 0; x < image->x; x++) {
+          float tmp[4];
+          premul_to_straight_v4_v4(tmp, src);
+          *dst_r++ = tmp[0];
+          *dst_g++ = tmp[1];
+          *dst_b++ = tmp[2];
+          *dst_a++ = tmp[3];
+          src += 4;
+        }
+      }
+      else {
+        for (int x = 0; x < image->x; x++) {
+          *dst_r++ = src[0];
+          *dst_g++ = src[1];
+          *dst_b++ = src[2];
+          *dst_a++ = src[3];
+          src += 4;
+        }
       }
     }
   }
@@ -292,7 +309,7 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
   return context->current_frame;
 }
 
-static AVRational calc_time_base(uint den, double num, int codec_id)
+static AVRational calc_time_base(uint den, double num, AVCodecID codec_id)
 {
   /* Convert the input 'num' to an integer. Simply shift the decimal places until we get an integer
    * (within a floating point error range).
@@ -348,7 +365,7 @@ static const AVCodec *get_av1_encoder(
        * where using a different encoder is desirable, such as in #103849. */
       codec = avcodec_find_encoder_by_name("librav1e");
       if (!codec) {
-        /* Fallback to `libaom-av1` if librav1e is not found. */
+        /* Fall back to `libaom-av1` if librav1e is not found. */
         codec = avcodec_find_encoder_by_name("libaom-av1");
       }
       break;
@@ -756,8 +773,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   /* Be sure to use the correct pixel format(e.g. RGB, YUV) */
 
-  if (codec->pix_fmts) {
-    c->pix_fmt = codec->pix_fmts[0];
+  const enum AVPixelFormat *pix_fmts = ffmpeg_get_pix_fmts(c, codec);
+  if (pix_fmts) {
+    c->pix_fmt = pix_fmts[0];
   }
   else {
     /* makes HuffYUV happy ... */
@@ -967,31 +985,18 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     AVPixelFormat src_format = is_10_bpp || is_12_bpp || is_16_bpp ? AV_PIX_FMT_GBRAPF32LE :
                                                                      AV_PIX_FMT_RGBA;
     context->img_convert_frame = alloc_frame(src_format, c->width, c->height);
-    context->img_convert_ctx = ffmpeg_sws_get_context(
-        c->width, c->height, src_format, c->width, c->height, c->pix_fmt, SWS_BICUBIC);
-
     /* Setup BT.709 coefficients for RGB->YUV conversion, if needed. */
-    if (set_bt709) {
-      int *inv_table = nullptr, *table = nullptr;
-      int src_range = 0, dst_range = 0, brightness = 0, contrast = 0, saturation = 0;
-      sws_getColorspaceDetails(context->img_convert_ctx,
-                               &inv_table,
-                               &src_range,
-                               &table,
-                               &dst_range,
-                               &brightness,
-                               &contrast,
-                               &saturation);
-      const int *new_table = sws_getCoefficients(AVCOL_SPC_BT709);
-      sws_setColorspaceDetails(context->img_convert_ctx,
-                               inv_table,
-                               src_range,
-                               new_table,
-                               dst_range,
-                               brightness,
-                               contrast,
-                               saturation);
-    }
+    context->img_convert_ctx = ffmpeg_sws_get_context(c->width,
+                                                      c->height,
+                                                      src_format,
+                                                      false,
+                                                      -1,
+                                                      c->width,
+                                                      c->height,
+                                                      c->pix_fmt,
+                                                      false,
+                                                      set_bt709 ? AVCOL_SPC_BT709 : -1,
+                                                      SWS_BICUBIC);
   }
 
   avcodec_parameters_from_context(st->codecpar, c);
@@ -1025,8 +1030,8 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   int ret = 0;
 
   context->ffmpeg_type = rd->ffcodecdata.type;
-  context->ffmpeg_codec = AVCodecID(rd->ffcodecdata.codec);
-  context->ffmpeg_audio_codec = AVCodecID(rd->ffcodecdata.audio_codec);
+  context->ffmpeg_codec = mov_av_codec_id_get(rd->ffcodecdata.codec_id_get());
+  context->ffmpeg_audio_codec = mov_av_codec_id_get(rd->ffcodecdata.audio_codec_id_get());
   context->ffmpeg_video_bitrate = rd->ffcodecdata.video_bitrate;
   context->ffmpeg_audio_bitrate = rd->ffcodecdata.audio_bitrate;
   context->ffmpeg_gop_size = rd->ffcodecdata.gop_size;
@@ -1311,7 +1316,7 @@ static bool ffmpeg_filepath_get(MovieWriter *context,
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
 
   const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
-      filepath, FILE_MAX, BKE_build_template_variables(BKE_main_blendfile_path_from_global(), rd));
+      filepath, FILE_MAX, BKE_build_template_variables_for_render_path(rd));
   if (!errors.is_empty()) {
     BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
     return false;

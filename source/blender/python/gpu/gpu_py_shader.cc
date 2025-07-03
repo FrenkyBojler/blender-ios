@@ -13,12 +13,13 @@
 
 #include "BLI_utildefines.h"
 
+#include "GPU_context.hh"
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 #include "../mathutils/mathutils.hh"
@@ -58,7 +59,13 @@
   "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
   "``POLYLINE_UNIFORM_COLOR``\n" \
   "   :Attributes: vec3 pos\n" \
-  "   :Uniforms: vec2 viewportSize, float lineWidth\n"
+  "   :Uniforms: vec2 viewportSize, float lineWidth\n" \
+  "``POINT_FLAT_COLOR``\n" \
+  "   :Attributes: vec3 pos, vec4 color\n" \
+  "   :Uniforms: float size\n" \
+  "``POLYLINE_UNIFORM_COLOR``\n" \
+  "   :Attributes: vec3 pos\n" \
+  "   :Uniforms: vec4 color, float size\n"
 
 static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_FLAT_COLOR, "FLAT_COLOR"},
@@ -69,6 +76,8 @@ static const PyC_StringEnumItems pygpu_shader_builtin_items[] = {
     {GPU_SHADER_3D_POLYLINE_FLAT_COLOR, "POLYLINE_FLAT_COLOR"},
     {GPU_SHADER_3D_POLYLINE_SMOOTH_COLOR, "POLYLINE_SMOOTH_COLOR"},
     {GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR, "POLYLINE_UNIFORM_COLOR"},
+    {GPU_SHADER_3D_POINT_FLAT_COLOR, "POINT_FLAT_COLOR"},
+    {GPU_SHADER_3D_POINT_UNIFORM_COLOR, "POINT_UNIFORM_COLOR"},
     {0, nullptr},
 };
 
@@ -108,6 +117,20 @@ static std::optional<blender::StringRefNull> c_str_to_stringref_opt(const char *
 static PyObject *pygpu_shader__tp_new(PyTypeObject * /*type*/, PyObject *args, PyObject *kwds)
 {
   BPYGPU_IS_INIT_OR_ERROR_OBJ;
+
+  if (GPU_backend_get_type() == GPU_BACKEND_VULKAN) {
+    PyErr_SetString(PyExc_Exception,
+                    "Direct shader creation is not supported on Vulkan. "
+                    "Use gpu.shader.create_from_info(shader_info) instead.");
+    return nullptr;
+  }
+
+  if (GPU_backend_get_type() == GPU_BACKEND_METAL) {
+    PyErr_SetString(PyExc_Exception,
+                    "Direct shader creation is not supported on Metal. "
+                    "Use gpu.shader.create_from_info(shader_info) instead.");
+    return nullptr;
+  }
 
   PyErr_WarnEx(PyExc_DeprecationWarning,
                "Direct shader creation is deprecated. "
@@ -906,6 +929,9 @@ PyDoc_STRVAR(
     ".. class:: GPUShader(vertexcode, fragcode, geocode=None, libcode=None, defines=None, "
     "name='pyGPUShader')\n"
     "\n"
+    "   Constructor is deprecated and will be removed in Blender 5.0, "
+    "use :func:`gpu.shader.create_from_info` instead.\n"
+    "\n"
     "   GPUShader combines multiple GLSL shaders into a program used for drawing.\n"
     "   It must contain at least a vertex and fragment shaders.\n"
     "\n"
@@ -1073,7 +1099,7 @@ PyDoc_STRVAR(
     "   Create shader from a GPUShaderCreateInfo.\n"
     "\n"
     "   :arg shader_info: GPUShaderCreateInfo\n"
-    "   :type shader_info: :class:`bpy.types.GPUShaderCreateInfo`\n"
+    "   :type shader_info: :class:`gpu.types.GPUShaderCreateInfo`\n"
     "   :return: Shader object corresponding to the given name.\n"
     "   :rtype: :class:`gpu.types.GPUShader`\n");
 static PyObject *pygpu_shader_create_from_info(BPyGPUShader * /*self*/, BPyGPUShaderCreateInfo *o)

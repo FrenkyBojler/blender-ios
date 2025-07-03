@@ -2941,7 +2941,22 @@ static wmOperatorStatus animchannels_delete_exec(bContext *C, wmOperator * /*op*
         /* try to free F-Curve */
         BLI_assert_msg((fcu->driver != nullptr) == (ac.datatype == ANIMCONT_DRIVERS),
                        "Expecting only driver F-Curves in the drivers editor");
-        blender::animrig::animdata_fcurve_delete(adt, fcu);
+        if (ale->fcurve_owner_id && GS(ale->fcurve_owner_id->name) == ID_AC) {
+          /* F-Curves can be owned by Actions assigned to NLA strips, which
+           * `animrig::animdata_fcurve_delete()` (below) cannot handle. */
+          BLI_assert_msg(!fcu->driver, "Drivers are not expected to be owned by Actions");
+          blender::animrig::Action &action =
+              reinterpret_cast<bAction *>(ale->fcurve_owner_id)->wrap();
+          BLI_assert(!action.is_action_legacy());
+          action_fcurve_remove(action, *fcu);
+        }
+        else if (fcu->driver || adt->action) {
+          /* This function only works for drivers & directly-assigned Actions: */
+          blender::animrig::animdata_fcurve_delete(adt, fcu);
+        }
+        else {
+          BLI_assert_unreachable();
+        }
         tag_update_animation_element(ale);
         break;
       }
@@ -4612,7 +4627,7 @@ static int click_select_channel_grease_pencil_layer(bContext *C,
   if (layer->is_selected() && (selectmode != SELECT_EXTEND_RANGE)) {
     grease_pencil->set_active_layer(layer);
     WM_msg_publish_rna_prop(
-        CTX_wm_message_bus(C), &grease_pencil->id, &grease_pencil, GreasePencilv3Layers, active);
+        CTX_wm_message_bus(C), &grease_pencil->id, grease_pencil, GreasePencilv3Layers, active);
     DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
   }
 

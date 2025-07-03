@@ -808,6 +808,7 @@ static void calc_forces_mesh(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -918,6 +919,7 @@ static void calc_forces_grids(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -1026,6 +1028,7 @@ static void calc_forces_bmesh(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -2428,7 +2431,9 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
 
-  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");

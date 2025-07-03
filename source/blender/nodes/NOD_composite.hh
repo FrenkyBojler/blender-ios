@@ -10,9 +10,13 @@
 
 #include "BKE_node.hh"
 
+#include "NOD_derived_node_tree.hh"
+
 namespace blender::compositor {
 class RenderContext;
 class Profiler;
+class Context;
+class NodeOperation;
 }  // namespace blender::compositor
 namespace blender::bke {
 struct bNodeTreeType;
@@ -77,9 +81,6 @@ void ntreeCompositOutputFileUniqueLayer(ListBase *list,
                                         const char defname[],
                                         char delim);
 
-void ntreeCompositColorBalanceSyncFromLGG(bNodeTree *ntree, bNode *node);
-void ntreeCompositColorBalanceSyncFromCDL(bNodeTree *ntree, bNode *node);
-
 void ntreeCompositCryptomatteSyncFromAdd(bNode *node);
 void ntreeCompositCryptomatteSyncFromRemove(bNode *node);
 bNodeSocket *ntreeCompositCryptomatteAddSocket(bNodeTree *ntree, bNode *node);
@@ -92,3 +93,10 @@ void ntreeCompositCryptomatteLayerPrefix(const bNode *node, char *r_prefix, size
  */
 void ntreeCompositCryptomatteUpdateLayerNames(bNode *node);
 CryptomatteSession *ntreeCompositCryptomatteSession(bNode *node);
+
+namespace blender::nodes {
+
+compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
+                                                                DNode node);
+
+}
