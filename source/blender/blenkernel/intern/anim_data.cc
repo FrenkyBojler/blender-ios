@@ -119,63 +119,6 @@ AnimData *BKE_animdata_ensure_id(ID *id)
   return nullptr;
 }
 
-static bool animdata_store_temp_action(ReportList *reports,
-                                       ID &id,
-                                       AnimData &adt,
-                                       bAction *act,
-                                       const animrig::slot_handle_t slot_handle)
-{
-  /* Action must have same type as owner. */
-  if (!BKE_animdata_action_ensure_idroot(&id, act)) {
-    /* Cannot set to this type. */
-    BKE_reportf(
-        reports,
-        RPT_ERROR,
-        "Could not set action '%s' onto ID '%s', as it does not have suitably rooted paths "
-        "for this purpose",
-        act->id.name + 2,
-        id.name);
-    return false;
-  }
-
-  if (adt.tmpact == act) {
-    /* Don't bother reducing and increasing the user count when there is nothing changing. */
-    return true;
-  }
-
-  /* Unassign current action. */
-  if (adt.tmpact) {
-    id_us_min((ID *)adt.tmpact);
-    adt.tmpact = nullptr;
-    adt.tmp_slot_handle = animrig::Slot::unassigned;
-  }
-
-  if (act == nullptr) {
-    return true;
-  }
-
-  adt.tmpact = act;
-  adt.tmp_slot_handle = slot_handle;
-  id_us_plus((ID *)adt.tmpact);
-
-  return true;
-}
-
-/* Tmpact Setter --------------------------------------- */
-
-bool BKE_animdata_set_tmpact(ReportList *reports, ID *id, bAction *act, const int slot_handle)
-{
-  AnimData *adt = BKE_animdata_from_id(id);
-
-  if (adt == nullptr) {
-    BKE_report(reports, RPT_WARNING, "No AnimData to set tmpact on");
-    return false;
-  }
-
-  /* Cannot use animrig::assign_action because this is for NLA tweak mode. */
-  return animdata_store_temp_action(reports, *id, *adt, act, slot_handle);
-}
-
 /* Action Setter --------------------------------------- */
 
 bool BKE_animdata_set_action(ReportList *reports, ID *id, bAction *act)
