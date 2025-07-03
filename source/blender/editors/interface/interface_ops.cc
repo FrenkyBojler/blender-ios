@@ -2807,6 +2807,11 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
   const bool extend = RNA_boolean_get(op->ptr, "extend") && is_multiselect;
   const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
 
+  if (!extend) {
+    /* Keep previous selection for extend selection, see: !138979. */
+    view.foreach_view_item([](AbstractViewItem &item) { item.deselect(); });
+  }
+
   if (range_select) {
     bool can_select = false;
     bool state_changed = false;
@@ -2826,9 +2831,6 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
     return OPERATOR_FINISHED;
   }
 
-  if (extend) {
-    view.keep_previous_selection();
-  }
   active_item->activate(*C);
 
   return OPERATOR_FINISHED;

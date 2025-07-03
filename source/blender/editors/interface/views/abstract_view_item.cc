@@ -62,13 +62,7 @@ bool AbstractViewItem::set_state_active()
   }
 
   /* Deactivate other items in the view. */
-  get_view().foreach_view_item([&](auto &item) {
-    if (!get_view().keep_selection_) {
-      /* Keep previous selection for extend selection, see: !138979. */
-      item.is_selected_ = false;
-    }
-    item.deactivate();
-  });
+  get_view().foreach_view_item([&](auto &item) { item.deactivate(); });
 
   is_active_ = true;
   is_selected_ = get_view().is_multiselect_supported_;
@@ -97,6 +91,13 @@ void AbstractViewItem::deselect()
   is_selected_ = false;
 }
 
+std::optional<bool> AbstractViewItem::should_be_selected() const
+{
+  return std::nullopt;
+}
+
+void AbstractViewItem::set_selected() {}
+
 /** \} */
 
 /* ---------------------------------------------------------------------- */
@@ -114,6 +115,9 @@ void AbstractViewItem::change_state_delayed()
     else {
       is_active_ = false;
     }
+  }
+  if (should_be_selected().has_value()) {
+    set_selected();
   }
 }
 

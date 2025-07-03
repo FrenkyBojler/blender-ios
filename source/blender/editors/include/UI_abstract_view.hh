@@ -77,7 +77,6 @@ class AbstractView {
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
   bool is_multiselect_supported_ = false;
-  bool keep_selection_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -156,7 +155,6 @@ class AbstractView {
   void clear_search_highlight();
   void allow_multiselect_items();
   bool is_multiselect_supported() const;
-  void keep_previous_selection();
 
  protected:
   AbstractView() = default;
@@ -238,6 +236,8 @@ class AbstractViewItem {
    */
   virtual std::optional<bool> should_be_active() const;
 
+  virtual std::optional<bool> should_be_selected() const;
+  virtual void set_selected();
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.
@@ -307,8 +307,8 @@ class AbstractViewItem {
    */
   void activate(bContext &C);
   void deactivate();
-  void select();
-  void deselect();
+  virtual void select();
+  virtual void deselect();
   /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we
    * can't be sure about the item state.

@@ -197,6 +197,28 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     ED_undo_push(&C, "Set Active Shape Key");
   }
 
+  std::optional<bool> should_be_selected() const override
+  {
+    return true;
+  }
+
+  void set_selected() override
+  {
+    is_selected_ = shape_key_.kb->flag & KEYBLOCK_SEL;
+  }
+
+  void select() override
+  {
+    is_selected_ = true;
+    shape_key_.kb->flag |= KEYBLOCK_SEL;
+  }
+
+  void deselect() override
+  {
+    is_selected_ = false;
+    shape_key_.kb->flag &= ~KEYBLOCK_SEL;
+  }
+
   bool supports_renaming() const override
   {
     return true;
