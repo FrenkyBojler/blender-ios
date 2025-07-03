@@ -1485,6 +1485,37 @@ static void std_node_socket_interface_draw(ID *id,
     }
     case SOCK_CLOSURE: {
       col->prop(&ptr, "closure_type", DEFAULT_FLAGS, IFACE_("Closure Type"), ICON_NONE);
+      const bNodeSocketValueClosure &socket_data = *static_cast<bNodeSocketValueClosure *>(
+          interface_socket->socket_data);
+      switch (ClosureSocketValueType(socket_data.type)) {
+        case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
+          break;
+        }
+        case CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE: {
+          if (socket_data.curve_mapping) {
+            uiLayout &col = layout->column(false);
+            uiTemplateCurveMapping(&col, &ptr, "curve_mapping", 0, false, false, false, false);
+          }
+          break;
+        }
+        case CLOSURE_SOCKET_VALUE_TYPE_VECTOR_CURVE: {
+          if (socket_data.curve_mapping) {
+            uiLayout &col = layout->column(false);
+            uiTemplateCurveMapping(&col, &ptr, "curve_mapping", 'v', false, false, false, false);
+          }
+          break;
+        }
+        case CLOSURE_SOCKET_VALUE_TYPE_COLOR_CURVE: {
+          uiLayout &col = layout->column(false);
+          uiTemplateCurveMapping(&col, &ptr, "curve_mapping", 'c', false, false, false, false);
+          break;
+        }
+        case CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP: {
+          uiLayout &col = layout->column(false);
+          uiTemplateColorRamp(&col, &ptr, "color_ramp", false);
+          break;
+        }
+      }
       break;
     }
     case SOCK_SHADER:
