@@ -318,48 +318,7 @@ class SculptRebuildBVHTest(api.Test):
 
         result, _ = env.run_in_blender(_run_bvh_test, args, [self.filepath])
 
-        return {'time1': result}
-
-
-class SculptUndoMemoryTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
-        self.filepath = filepath
-        self.mode = mode
-        self.brush_type = brush_type
-
-    def name(self):
-        return "{}_undo_memory_{}".format(self.mode.name.lower(), self.brush_type.name.lower())
-
-    def category(self):
-        return "sculpt"
-
-    def run(self, env, _device_id):
-        args = {
-            'mode': self.mode,
-            'brush_type': self.brush_type,
-        }
-
-        result, _ = env.run_in_blender(_run_undo_memory_test, args, [self.filepath])
-
-        return {
-            'memory_mb': result
-        }
-
-
-class SculptMultiresSubdivideTest(api.Test):
-    def __init__(self, filepath: pathlib.Path):
-        self.filepath = filepath
-
-    def name(self):
-        return "multires_subdivide_2_to_3"
-
-    def category(self):
-        return "sculpt"
-
-    def run(self, env, _device_id):
-        result, _ = env.run_in_blender(_run_subdivide_test, {}, [self.filepath])
-
-        return {'time1': result}
+        return {'time': result}
 
 
 class SculptUndoMemoryTest(api.Test):
@@ -401,6 +360,31 @@ class SculptMultiresSubdivideTest(api.Test):
         result, _ = env.run_in_blender(_run_subdivide_test, {}, [self.filepath])
 
         return {'time': result}
+
+
+class SculptUndoMemoryTest(api.Test):
+    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
+        self.filepath = filepath
+        self.mode = mode
+        self.brush_type = brush_type
+
+    def name(self):
+        return "{}_undo_memory_{}".format(self.mode.name.lower(), self.brush_type.name.lower())
+
+    def category(self):
+        return "sculpt"
+
+    def run(self, env, _device_id):
+        args = {
+            'mode': self.mode,
+            'brush_type': self.brush_type,
+        }
+
+        result, _ = env.run_in_blender(_run_undo_memory_test, args, [self.filepath])
+
+        return {
+            'memory_mb': result
+        }
 
 
 def generate(env):
