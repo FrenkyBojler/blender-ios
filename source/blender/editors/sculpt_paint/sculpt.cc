@@ -3222,15 +3222,16 @@ static void do_brush_action(const Depsgraph &depsgraph,
     push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
 
-  /* TODO: Ultimately, we should ensure that normals are always updated prior to using it during
-   * a deformation that requires updated normal information.
+  /* There are issues with the underlying normals cache / mesh data that can cause the data to
+   * become out of date.
    *
-   * Currently (through 4.5), this process happens as part of the draw loop, meaning that Cycles
-   * and other non-EEVEE / Workbench engines may not have up-to-date data. Those updates should be
-   * removed so we can have stronger guarantees about data validity */
-  const Mesh *mesh = static_cast<Mesh *>(ob.data);
+   * For EEVEE and Workbench, this is partially mitigated by the fact that the Paint BVH is used
+   * to signal this update when drawing.
+   *
+   * TODO: See #141417
+   */
   const bool external_engine = ss.rv3d && ss.rv3d->view_render != nullptr;
-  if (external_engine && mesh->runtime->vert_normals_true_cache.is_dirty()) {
+  if (external_engine) {
     bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
     bke::pbvh::update_normals(depsgraph, ob, pbvh);
   }
