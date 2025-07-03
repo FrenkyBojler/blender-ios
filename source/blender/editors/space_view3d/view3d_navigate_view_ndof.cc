@@ -187,8 +187,11 @@ static void view3d_ndof_pan_zoom(const wmNDOFMotionData &ndof,
   if (has_translate) {
 
     if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
-      /* For Fly mode translations use arbitraly defined, constant
-      speed values for each axis */
+      /* For Fly mode translations we use arbitraly defined, constant
+      speed values for each axis. Normally, these values are defined
+      by the 3Dconnexion navigation library. To recreate original navigation
+      experience, the translation speed values were picked experimentally here.
+      This is intended to apply only for the Fly mode (3D viewport). */
       const float fly_speed[3] = {6.5f, 3.3f, 8.0f};
       pan_vec[0] *= fly_speed[0] * ndof.dt;
       pan_vec[1] *= fly_speed[1] * ndof.dt;
