@@ -2792,17 +2792,17 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
   ot->flag = OPTYPE_INTERNAL;
 }
 
-static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus ui_view_item_select_invoke(bContext *C, wmOperator *op, const wmEvent */*event*/)
 {
   const wmWindow &win = *CTX_wm_window(C);
   const ARegion &region = *CTX_wm_region(C);
 
-  AbstractViewItem *active_item = UI_region_views_find_item_at(region, win.eventstate->xy);
-  if (active_item == nullptr) {
+  AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, win.eventstate->xy);
+  if (clicked_item == nullptr) {
     return OPERATOR_CANCELLED;
   }
 
-  AbstractView &view = active_item->get_view();
+  AbstractView &view = clicked_item->get_view();
   const bool is_multiselect = view.is_multiselect_supported();
   const bool extend = RNA_boolean_get(op->ptr, "extend") && is_multiselect;
   const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
@@ -2816,7 +2816,7 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
     bool can_select = false;
     bool state_changed = false;
     view.foreach_view_item([&](AbstractViewItem &item) {
-      if ((item.is_active()) ^ (&item == active_item)) {
+      if ((item.is_active()) ^ (&item == clicked_item)) {
         can_select = !can_select;
         state_changed = true;
       }
@@ -2825,13 +2825,11 @@ static wmOperatorStatus ui_view_item_select_exec(bContext *C, wmOperator *op)
         state_changed = false;
         return;
       }
-      /* Deselect items outside of the range. */
-      item.deselect();
     });
     return OPERATOR_FINISHED;
   }
 
-  active_item->activate(*C);
+  clicked_item->activate(*C);
 
   return OPERATOR_FINISHED;
 }
@@ -2842,7 +2840,7 @@ static void UI_OT_view_item_select(wmOperatorType *ot)
   ot->idname = "UI_OT_view_item_select";
   ot->description = "Activate selected view item";
 
-  ot->exec = ui_view_item_select_exec;
+  ot->invoke = ui_view_item_select_invoke;
   ot->poll = ui_view_focused_poll;
 
   ot->flag = OPTYPE_INTERNAL;

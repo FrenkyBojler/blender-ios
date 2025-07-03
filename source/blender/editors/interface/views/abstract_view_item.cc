@@ -65,13 +65,13 @@ bool AbstractViewItem::set_state_active()
   get_view().foreach_view_item([&](auto &item) { item.deactivate(); });
 
   is_active_ = true;
-  is_selected_ = get_view().is_multiselect_supported_;
   return true;
 }
 
 void AbstractViewItem::activate(bContext &C)
 {
   if (set_state_active()) {
+    select();
     on_activate(C);
   }
 }
@@ -83,7 +83,7 @@ void AbstractViewItem::deactivate()
 
 void AbstractViewItem::select()
 {
-  is_selected_ = true;
+  /* Do nothing. */
 }
 
 void AbstractViewItem::deselect()
