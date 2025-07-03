@@ -291,11 +291,6 @@ static void hud_region_listener(const wmRegionListenerParams *params)
   }
 }
 
-static void hud_region_cursor(wmWindow* /*win*/, ScrArea* /*area*/, ARegion* /*region*/)
-{
-  /* pass */
-}
-
 ARegionType *ED_area_type_hud(int space_type)
 {
   ARegionType *art = MEM_callocN<ARegionType>(__func__);
@@ -306,7 +301,6 @@ ARegionType *ED_area_type_hud(int space_type)
   art->draw = hud_region_draw;
   art->init = hud_region_init;
   art->free = hud_region_free;
-  art->cursor = hud_region_cursor;
 
   /* We need to indicate a preferred size to avoid false `RGN_FLAG_TOO_SMALL`
    * the first time the region is created. */
