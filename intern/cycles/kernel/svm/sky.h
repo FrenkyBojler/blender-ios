@@ -59,7 +59,6 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
       if (sun_disc && sun_dir_angle < half_angular &&
           !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
       {
-        /* sun interpolation */
         if (sun_elevation - half_angular > 0.0f) {
           if (sun_elevation + half_angular > 0.0f) {
             float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
@@ -72,30 +71,28 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
             xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
           }
         }
-        /* limb darkening, coefficient is 0.6f */
+        /* Limb darkening, coefficient is 0.6 */
         const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
                                                                              half_angular))));
         xyz *= limb_darkening;
       }
-      /* sky */
       else {
-        /* sky interpolation */
+        /* Sky */
         const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
-        /* more pixels toward horizon compensation */
+        /* More pixels toward horizon compensation */
         const float y = safe_sqrtf(dir_elevation / M_PI_2_F) / 2.0f + 0.5f;
         xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
       }
     }
-    /* ground */
     else {
+      /* Ground */
       if (dir.z < -0.4f) {
         xyz = make_float3(0.0f, 0.0f, 0.0f);
       }
       else {
-        /* black ground fade */
+        /* Black ground fade */
         float fade = 1.0f + dir.z * 2.5f;
         fade = fade * fade * fade;
-        /* interpolation */
         const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
         xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f)) * fade;
       }
@@ -122,7 +119,7 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
           xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
         }
       }
-      /* limb darkening (coefficient is 0.6). */
+      /* Limb darkening (coefficient is 0.6) */
       const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
                                                                            half_angular))));
       xyz *= limb_darkening;
@@ -130,10 +127,9 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
     else {
       /* Sky */
       const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
-      /* Undo the non-linear transformation from the sky LUT. */
+      /* Undo the non-linear transformation from the sky LUT */
       const float dir_elevation_abs = (dir_elevation < 0.0f) ? -dir_elevation : dir_elevation;
-      const float y = sqrtf(dir_elevation_abs / (M_PI_F * 0.5f)) * sign(dir_elevation) * 0.5f +
-                      0.5f;
+      const float y = sqrtf(dir_elevation_abs / M_PI_2_F) * sign(dir_elevation) * 0.5f + 0.5f;
       xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
     }
   }

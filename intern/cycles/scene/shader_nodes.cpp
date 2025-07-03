@@ -911,7 +911,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
     handle = image_manager->add_image(std::move(loader), impar);
   }
 
-  compiler.parameter(this, "sky_type");
+  compiler.parameter("sky_type", sky_model);
   compiler.parameter("theta", sunsky.theta);
   compiler.parameter("phi", sunsky.phi);
   compiler.parameter_array("sky_data", sunsky.sky_data, 10);
