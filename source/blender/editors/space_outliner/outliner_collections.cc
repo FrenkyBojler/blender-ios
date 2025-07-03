@@ -690,7 +690,7 @@ static wmOperatorStatus collection_duplicate_exec(bContext *C, wmOperator *op)
   if (failed_count != 0) {
     BKE_reportf(op->reports,
                 RPT_WARNING,
-                "Unable to duplicate %d of the selected collections."
+                "Unable to duplicate %d of the selected collections. "
                 "Could not find a valid parent collection for the new duplicate, "
                 "they won't be linked to any view layer",
                 failed_count);
