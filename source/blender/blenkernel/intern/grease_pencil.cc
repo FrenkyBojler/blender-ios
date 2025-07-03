@@ -3818,40 +3818,51 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
 {
   // copy group structure
   std::string unique_name = unique_layer_group_name(*this, duplicate_group.name());
+
   bke::greasepencil::LayerGroup *new_group = MEM_new<bke::greasepencil::LayerGroup>(
       __func__, duplicate_group);
-
   root_group().add_node(new_group->as_node());
   new_group->set_name(unique_name);
 
-  Span<const bke::greasepencil::Layer *> layers_to_copy = duplicate_group.layers();
-  Span<const bke::greasepencil::Layer *> new_created_layers = new_group->layers();
+  Span<const bke::greasepencil::TreeNode *> nodes_to_copy = duplicate_group.nodes();
+  Span<bke::greasepencil::TreeNode *> new_nodes = new_group->nodes_for_write();
 
-  const int num_layers = layers().size();
-  const int num_new_layers = layers_to_copy.size();
-  CustomData_realloc(&layers_data, num_layers, num_layers + num_new_layers);
+  const int64_t num_layers = layers().size();
+  const int64_t num_new_layers = nodes_to_copy.size();
 
-  int dst_index = num_layers;
-  for (int idx : layers_to_copy.index_range()) {
-    const bke::greasepencil::Layer *src_layer = layers_to_copy[idx];
-    bke::greasepencil::Layer *dst_layer = const_cast<bke::greasepencil::Layer *>(
-        new_created_layers[idx]);
+  this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, num_layers + num_new_layers);
+  bke::MutableAttributeAccessor attributes = this->attributes_for_write();
 
-    /* Ensure the new layer has a unique name. */
-    dst_layer->set_name(unique_layer_name(dst_layer->name()));
+  for (int i : nodes_to_copy.index_range()) {
+    if (new_nodes[i]->is_group()) {
+      const bke::greasepencil::LayerGroup &src_group = nodes_to_copy[i]->as_group();
+      bke::greasepencil::LayerGroup &dst_group = new_nodes[i]->as_group();
 
-    update_drawing_users_for_layer(*dst_layer);
-
-    /* Copy Custom data associated with layer */
-    std::optional<int> src_index = get_layer_index(*src_layer);
-    BLI_assert(src_index.has_value());
-
-    for (const int layer_index : IndexRange(layers_data.totlayer)) {
-      CustomData_copy_data_layer(
-          &layers_data, &layers_data, layer_index, layer_index, *src_index, dst_index, 1);
+      const std::string group_unique_name = unique_layer_group_name(*this, src_group.name());
+      dst_group.set_name(group_unique_name);
+      continue;
     }
 
-    ++dst_index;
+    const bke::greasepencil::Layer &src_layer = nodes_to_copy[i]->as_layer();
+    bke::greasepencil::Layer &dst_layer = new_nodes[i]->as_layer();
+
+    /* Ensure the new layer has a unique name. */
+    const std::string layer_unique_name = unique_layer_name(src_layer.name());
+    dst_layer.set_name(layer_unique_name);
+
+    std::optional<int> src_index = get_layer_index(src_layer);
+    int dst_index = num_layers + i;
+
+    BLI_assert(src_index.has_value());
+
+    /* Copy Attributes associated with layer */
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      bke::GSpanAttributeWriter attr = attributes.lookup_for_write_span(iter.name);
+      GMutableSpan span = attr.span;
+      span.type().copy_assign(span[*src_index], span[dst_index]);
+    });
+
+    this->update_drawing_users_for_layer(dst_layer);
   }
 
   return *new_group;

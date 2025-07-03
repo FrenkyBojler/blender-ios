@@ -663,7 +663,7 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
         CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencil, layer_groups);
 
     grease_pencil.move_node_after(new_group.as_node(), active_group.as_node());
-    grease_pencil.set_active_group(&new_group);
+    grease_pencil.set_active_node(&new_group.as_node());
 
     src_layers = active_group.layers();
     dst_layers = new_group.layers();
