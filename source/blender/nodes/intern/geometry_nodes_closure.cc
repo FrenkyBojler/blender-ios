@@ -138,7 +138,7 @@ std::shared_ptr<ClosureSignature> ClosureSignature::FromBuiltin(const ClosureSoc
     case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
       return {};
     }
-    case CLOSURE_SOCKET_VALUE_TYPE_CURVE: {
+    case CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE: {
       static std::shared_ptr<nodes::ClosureSignature> signature = []() {
         std::shared_ptr<nodes::ClosureSignature> signature =
             std::make_shared<nodes::ClosureSignature>();

@@ -833,7 +833,7 @@ class NodeTreeMainUpdater {
 
   void ensure_closure_socket_value(bNodeSocketValueClosure &socket_data)
   {
-    if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_CURVE && !socket_data.curve_mapping) {
+    if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE && !socket_data.curve_mapping) {
       socket_data.curve_mapping = BKE_curvemapping_add(1, 0.0f, 0.0f, 1.0f, 1.0f);
     }
     if (socket_data.type == CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP && !socket_data.color_ramp) {

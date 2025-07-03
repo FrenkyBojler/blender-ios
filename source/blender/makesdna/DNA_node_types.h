@@ -1052,7 +1052,7 @@ typedef struct bNodeSocketValueMenu {
 
 typedef enum ClosureSocketValueType {
   CLOSURE_SOCKET_VALUE_TYPE_NONE = 0,
-  CLOSURE_SOCKET_VALUE_TYPE_CURVE = 1,
+  CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE = 1,
   CLOSURE_SOCKET_VALUE_TYPE_COLOR_RAMP = 2,
 } ClosureSocketValueType;
 

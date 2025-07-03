@@ -1113,7 +1113,7 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
     case CLOSURE_SOCKET_VALUE_TYPE_NONE: {
       return {};
     }
-    case CLOSURE_SOCKET_VALUE_TYPE_CURVE: {
+    case CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE: {
       if (!value.curve_mapping) {
         return {};
       }
@@ -1124,7 +1124,7 @@ static nodes::ClosurePtr closure_socket_default_value(const bNodeSocketValueClos
       static SocketValueVariant zero{0.0f};
       Vector<const void *> default_input_values = {&zero};
       return nodes::Closure::FromMultiFunction(
-          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_CURVE),
+          nodes::ClosureSignature::FromBuiltin(CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE),
           fn,
           std::move(scope),
           std::move(default_input_values),

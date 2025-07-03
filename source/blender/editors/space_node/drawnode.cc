@@ -1370,7 +1370,7 @@ static void std_node_socket_draw(
           draw_node_socket_without_value(layout, sock, text);
           break;
         }
-        case CLOSURE_SOCKET_VALUE_TYPE_CURVE: {
+        case CLOSURE_SOCKET_VALUE_TYPE_FLOAT_CURVE: {
           if (default_value->curve_mapping) {
             uiLayout &col = layout->column(false);
             uiTemplateCurveMapping(&col, ptr, "curve_mapping", 0, false, false, false, false);
