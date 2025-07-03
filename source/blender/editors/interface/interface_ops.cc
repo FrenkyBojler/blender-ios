@@ -1043,7 +1043,13 @@ static void ui_context_selected_bones_via_pose(bContext *C, blender::Vector<Poin
   if (!lb.is_empty()) {
     for (PointerRNA &ptr : lb) {
       bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
-      ptr = RNA_pointer_create_discrete(ptr.owner_id, &RNA_Bone, pchan->bone);
+      /* Pose bones are owned by an Object, whereas `pchan->bone` is owned by the Armature. */
+      BLI_assert(GS(ptr.owner_id->name) == ID_OB);
+      Object *object = reinterpret_cast<Object *>(ptr.owner_id);
+      BLI_assert(GS(static_cast<ID *>(object->data)->name) == ID_AR);
+      bArmature *armature = static_cast<bArmature *>(object->data);
+
+      ptr = RNA_pointer_create_discrete(&armature->id, &RNA_Bone, pchan->bone);
     }
   }
 
@@ -1144,6 +1150,9 @@ bool UI_context_copy_to_selected_list(bContext *C,
     *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_Bone)) {
+    /* "selected_bones" or "selected_editable_bones" will only yield anything in Armature Edit
+     * mode. In other modes, it'll be empty, and the only way to get the selected bones is via
+     * "selected_pose_bones". */
     ui_context_selected_bones_via_pose(C, r_lb);
   }
   else if (RNA_struct_is_a(ptr->type, &RNA_BoneColor)) {
