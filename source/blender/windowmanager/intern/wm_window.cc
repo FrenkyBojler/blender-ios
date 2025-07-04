@@ -428,24 +428,53 @@ void wm_quit_with_optional_confirmation_prompt(bContext *C, wmWindow *win)
 
 /** \} */
 
+static rctf *stored_window_bounds(int space_type)
+{
+  if (space_type == SPACE_IMAGE) {
+    return &U.stored_bounds.image;
+  }
+  else if (space_type == SPACE_USERPREF) {
+    return &U.stored_bounds.userpref;
+  }
+  else if (space_type == SPACE_GRAPH) {
+    return &U.stored_bounds.graph;
+  }
+  else if (space_type == SPACE_INFO) {
+    return &U.stored_bounds.info;
+  }
+  else if (space_type == SPACE_OUTLINER) {
+    return &U.stored_bounds.outliner;
+  }
+  else if (space_type == SPACE_FILE) {
+    return &U.stored_bounds.file;
+  }
+
+  return nullptr;
+}
+
 /* -------------------------------------------------------------------- */
 /** \name Window Close
  * \{ */
 
 void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 {
-  if (win->runtime->stored_bounds && !WM_window_is_maximized(win)) {
-    /* Get DPI and scale from parent window, if there is one. */
-    WM_window_set_dpi(win->parent ? win->parent : win);
-    const float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
-    win->runtime->stored_bounds->xmin = (float)win->posx * f / UI_SCALE_FAC;
-    win->runtime->stored_bounds->xmax = win->runtime->stored_bounds->xmin +
-                                        (float)win->sizex * f / UI_SCALE_FAC;
-    win->runtime->stored_bounds->ymin = (float)win->posy * f / UI_SCALE_FAC;
-    win->runtime->stored_bounds->ymax = win->runtime->stored_bounds->ymin +
-                                        (float)win->sizey * f / UI_SCALE_FAC;
-    /* Tag user preferences as dirty. */
-    U.runtime.is_dirty = true;
+  bScreen *screen = WM_window_get_active_screen(win);
+
+  if (screen->temp && BLI_listbase_is_single(&screen->areabase) && !WM_window_is_maximized(win)) {
+    ScrArea *area = static_cast<ScrArea *>(screen->areabase.first);
+    rctf *stored_bounds = stored_window_bounds(area->spacetype);
+
+    if (stored_bounds) {
+      /* Get DPI and scale from parent window, if there is one. */
+      WM_window_set_dpi(win->parent ? win->parent : win);
+      const float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
+      stored_bounds->xmin = (float)win->posx * f / UI_SCALE_FAC;
+      stored_bounds->xmax = stored_bounds->xmin + (float)win->sizex * f / UI_SCALE_FAC;
+      stored_bounds->ymin = (float)win->posy * f / UI_SCALE_FAC;
+      stored_bounds->ymax = stored_bounds->ymin + (float)win->sizey * f / UI_SCALE_FAC;
+      /* Tag user preferences as dirty. */
+      U.runtime.is_dirty = true;
+    }
   }
 
   wmWindow *win_other;
@@ -471,7 +500,6 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
     }
   }
 
-  bScreen *screen = WM_window_get_active_screen(win);
   WorkSpace *workspace = WM_window_get_active_workspace(win);
   WorkSpaceLayout *layout = BKE_workspace_active_layout_get(win->workspace_hook);
 
@@ -1106,8 +1134,7 @@ wmWindow *WM_window_open(bContext *C,
                          bool temp,
                          eWindowAlignment alignment,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
-                         void *area_setup_user_data,
-                         rctf *userdef_stored_bounds)
+                         void *area_setup_user_data)
 {
   Main *bmain = CTX_data_main(C);
   wmWindowManager *wm = CTX_wm_manager(C);
@@ -1174,7 +1201,6 @@ wmWindow *WM_window_open(bContext *C,
     win->sizex = BLI_rcti_size_x(&rect);
     win->sizey = BLI_rcti_size_y(&rect);
     *win->stereo3d_format = *win_prev->stereo3d_format;
-    win->runtime->stored_bounds = userdef_stored_bounds;
   }
 
   bScreen *screen = WM_window_get_active_screen(win);
@@ -1261,24 +1287,22 @@ wmWindow *WM_window_open(bContext *C,
   return nullptr;
 }
 
-wmWindow *WM_window_open_temp(struct bContext *C,
-                              const char *title,
-                              int space_type,
-                              bool dialog,
-                              int def_size_x,
-                              int def_size_y,
-                              rctf *userdef_stored_bounds)
+wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
   eWindowAlignment align;
 
   WM_window_set_dpi(CTX_wm_window(C));
 
-  if (userdef_stored_bounds && userdef_stored_bounds->xmax != 0.0f) {
-    rect.xmin = (int)(userdef_stored_bounds->xmin * UI_SCALE_FAC);
-    rect.ymin = (int)(userdef_stored_bounds->ymin * UI_SCALE_FAC);
-    rect.xmax = (int)(userdef_stored_bounds->xmax * UI_SCALE_FAC);
-    rect.ymax = (int)(userdef_stored_bounds->ymax * UI_SCALE_FAC);
+  rctf *stored_bounds = stored_window_bounds(space_type);
+  const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 30.0f) &&
+                             (BLI_rctf_size_y(stored_bounds) > 20.0f));
+
+  if (bounds_valid) {
+    rect.xmin = (int)(stored_bounds->xmin * UI_SCALE_FAC);
+    rect.ymin = (int)(stored_bounds->ymin * UI_SCALE_FAC);
+    rect.xmax = (int)(stored_bounds->xmax * UI_SCALE_FAC);
+    rect.ymax = (int)(stored_bounds->ymax * UI_SCALE_FAC);
     align = WIN_ALIGN_ABSOLUTE;
   }
   else {
@@ -1287,22 +1311,13 @@ wmWindow *WM_window_open_temp(struct bContext *C,
     const wmEvent *event = win_cur->eventstate;
     rect.xmin = event->xy[0];
     rect.ymin = event->xy[1];
-    rect.xmax = event->xy[0] + (def_size_x * UI_SCALE_FAC);
-    rect.ymax = event->xy[1] + (def_size_y * UI_SCALE_FAC);
+    rect.xmax = event->xy[0] + (800 * UI_SCALE_FAC);
+    rect.ymax = event->xy[1] + (600 * UI_SCALE_FAC);
     align = WIN_ALIGN_LOCATION_CENTER;
   }
 
-  wmWindow *win = WM_window_open(C,
-                                 title,
-                                 &rect,
-                                 space_type,
-                                 false,
-                                 dialog,
-                                 true,
-                                 align,
-                                 nullptr,
-                                 nullptr,
-                                 userdef_stored_bounds);
+  wmWindow *win = WM_window_open(
+      C, title, &rect, space_type, false, dialog, true, align, nullptr, nullptr);
 
   return win;
 }

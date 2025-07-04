@@ -139,25 +139,8 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
   }
 
   if (U.render_display_type == USER_RENDER_DISPLAY_WINDOW) {
-    int sizex, sizey;
-    BKE_render_resolution(&scene->r, false, &sizex, &sizey);
-
-    sizex += 30 * UI_SCALE_FAC;
-    sizey += 60 * UI_SCALE_FAC;
-
-    /* arbitrary... miniature image window views don't make much sense */
-    sizex = std::max(sizex, 320);
-    sizey = std::max(sizey, 256);
-
     /* changes context! */
-    if (WM_window_open_temp(C,
-                            IFACE_("Blender Render"),
-                            SPACE_IMAGE,
-                            false,
-                            sizex,
-                            sizey,
-                            &U.stored_bounds.render) == nullptr)
-    {
+    if (WM_window_open_temp(C, IFACE_("Blender Render"), SPACE_IMAGE, false) == nullptr) {
       BKE_report(reports, RPT_ERROR, "Failed to open window!");
       return nullptr;
     }

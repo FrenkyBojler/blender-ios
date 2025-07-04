@@ -48,9 +48,6 @@ struct WindowRuntime {
   /** All events #wmEvent (ghost level events were handled). */
   ListBase event_queue = {nullptr, nullptr};
 
-  /* Optional pointer to a UserDef rectf used to store size and position. */
-  rctf *stored_bounds = nullptr;
-
 #ifdef WITH_INPUT_IME
   /**
    * Input Method Editor data - complex character input (especially for Asian character input)

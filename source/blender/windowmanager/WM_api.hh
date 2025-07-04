@@ -375,16 +375,9 @@ wmWindow *WM_window_open(bContext *C,
                          bool temp,
                          eWindowAlignment alignment,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
-                         void *area_setup_user_data,
-                         rctf *userdef_stored_bounds = nullptr) ATTR_NONNULL(1, 3);
+                         void *area_setup_user_data) ATTR_NONNULL(1, 3);
 
-wmWindow *WM_window_open_temp(struct bContext *C,
-                              const char *title,
-                              int space_type,
-                              bool dialog,
-                              int def_size_x,
-                              int def_size_y,
-                              rctf *userdef_stored_bounds = nullptr);
+wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_type, bool dialog);
 
 void WM_window_set_dpi(const wmWindow *win);
 

@@ -222,6 +222,16 @@ const UserDef U_default = {
             .filter_id = FILTER_ID_ALL,
         },
 
+    .stored_bounds =
+        {
+            .file = {0.0f, 1080.0f, 0.0f, 600.0f},
+            .userpref = {0.0f, 600.0f, 0.0f, 520.0f},
+            .image = {0.0f, 1280.0f, 0.0f, 720.0f},
+            .graph = {0.0f, 900.0f, 0.0f, 580.0f},
+            .info = {0.0f, 900.0f, 0.0f, 580.0f},
+            .outliner = {0.0f, 450.0f, 0.0f, 450.0f},
+        },
+
     .sequencer_proxy_setup = USER_SEQ_PROXY_SETUP_AUTOMATIC,
 
     .collection_instance_empty_size = 1.0f,

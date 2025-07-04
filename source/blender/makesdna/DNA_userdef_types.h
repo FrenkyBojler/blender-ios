@@ -18,7 +18,6 @@
 
 struct ColorBand;
 struct IDProperty;
-struct rctf;
 
 typedef struct bAddon {
   struct bAddon *next, *prev;
@@ -201,11 +200,11 @@ typedef struct UserDef_FileSpaceData {
 
 typedef struct UserDef_TempWinBounds {
   rctf file;
-  rctf preferences;
-  rctf render;
-  rctf drivers;
+  rctf userpref;
+  rctf image;
+  rctf graph;
   rctf info;
-  rctf orphans;
+  rctf outliner;
 } UserDef_TempWinBounds;
 
 /**

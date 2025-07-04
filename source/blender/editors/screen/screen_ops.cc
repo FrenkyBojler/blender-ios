@@ -6096,9 +6096,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   }
 
   /* changes context! */
-  if (WM_window_open_temp(
-          C, nullptr, SPACE_USERPREF, false, 600, 520, &U.stored_bounds.preferences) != nullptr)
-  {
+  if (WM_window_open_temp(C, nullptr, SPACE_USERPREF, false) != nullptr) {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
     ScrArea *area = CTX_wm_area(C);
@@ -6164,9 +6162,6 @@ static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
   /* Use eventstate, not event from _invoke, so this can be called through exec(). */
   const wmEvent *event = win_cur->eventstate;
 
-  int sizex = 900 * UI_SCALE_FAC;
-  int sizey = 580 * UI_SCALE_FAC;
-
   /* Get active property to show driver for
    * - Need to grab it first, or else this info disappears
    *   after we've created the window
@@ -6177,14 +6172,7 @@ static wmOperatorStatus drivers_editor_show_exec(bContext *C, wmOperator *op)
   uiBut *but = UI_context_active_but_prop_get(C, &ptr, &prop, &index);
 
   /* changes context! */
-  if (WM_window_open_temp(C,
-                          IFACE_("Blender Drivers Editor"),
-                          SPACE_GRAPH,
-                          false,
-                          sizex,
-                          sizey,
-                          &U.stored_bounds.drivers) != nullptr)
-  {
+  if (WM_window_open_temp(C, IFACE_("Blender Drivers Editor"), SPACE_GRAPH, false) != nullptr) {
     ED_drivers_editor_init(C, CTX_wm_area(C));
 
     /* activate driver F-Curve for the property under the cursor */
@@ -6240,20 +6228,8 @@ static void SCREEN_OT_drivers_editor_show(wmOperatorType *ot)
 
 static wmOperatorStatus info_log_show_exec(bContext *C, wmOperator *op)
 {
-  wmWindow *win_cur = CTX_wm_window(C);
-  /* Use eventstate, not event from _invoke, so this can be called through exec(). */
-  const wmEvent *event = win_cur->eventstate;
-  const int shift_y = 480;
-  const int mx = event->xy[0];
-  const int my = event->xy[1] + shift_y;
-  int sizex = 900 * UI_SCALE_FAC;
-  int sizey = 580 * UI_SCALE_FAC;
-
   /* changes context! */
-  if (WM_window_open_temp(
-          C, IFACE_("Blender Info Log"), SPACE_INFO, false, sizex, sizey, &U.stored_bounds.info) !=
-      nullptr)
-  {
+  if (WM_window_open_temp(C, IFACE_("Blender Info Log"), SPACE_INFO, false) != nullptr) {
     return OPERATOR_FINISHED;
   }
   BKE_report(op->reports, RPT_ERROR, "Failed to open window!");
