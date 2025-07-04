@@ -369,8 +369,9 @@ static ArmatureUserdata get_armature_deform_data(
   return data;
 }
 
+/* Accumulate bone deformations using the mixer implementation. */
 template<typename MixerT>
-static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
+static void armature_vert_task_with_mixer(const ArmatureUserdata &data,
                                           const int i,
                                           const MDeformVert *dvert,
                                           MixerT &mixer)
@@ -471,6 +472,7 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
   }
 }
 
+/* Accumulate bone deformations for a vertex. */
 static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
                                           const int i,
                                           const MDeformVert *dvert)
@@ -479,21 +481,21 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
   if (data.use_quaternion) {
     if (full_deform) {
       bke::BoneDeformDualQuaternionMixer<true> mixer;
-      armature_vert_task_with_dvert(data, i, dvert, mixer);
+      armature_vert_task_with_mixer(data, i, dvert, mixer);
     }
     else {
       bke::BoneDeformDualQuaternionMixer<false> mixer;
-      armature_vert_task_with_dvert(data, i, dvert, mixer);
+      armature_vert_task_with_mixer(data, i, dvert, mixer);
     }
   }
   else {
     if (full_deform) {
       bke::BoneDeformLinearMixer<true> mixer;
-      armature_vert_task_with_dvert(data, i, dvert, mixer);
+      armature_vert_task_with_mixer(data, i, dvert, mixer);
     }
     else {
       bke::BoneDeformLinearMixer<false> mixer;
-      armature_vert_task_with_dvert(data, i, dvert, mixer);
+      armature_vert_task_with_mixer(data, i, dvert, mixer);
     }
   }
 }
