@@ -950,7 +950,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
         ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
         --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
         --outdir "${TEST_OUT_DIR}/compositor_opengl"
-        --gpu-backend OPENGL
+        --gpu-backend opengl
       )
     endforeach()
     add_blender_test(
@@ -959,7 +959,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
       --
       --testdir "${TEST_SRC_DIR}/compositor/file_output/"
       --outdir "${TEST_OUT_DIR}/compositor_opengl/file_output"
-      --gpu-backend OPENGL
+      --gpu-backend opengl
     )
   endif()
   if(WITH_METAL_BACKEND)
@@ -969,7 +969,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
         ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
         --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
         --outdir "${TEST_OUT_DIR}/compositor_metal"
-        --gpu-backend METAL
+        --gpu-backend metal
       )
     endforeach()
     add_blender_test(
@@ -978,7 +978,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
       --
       --testdir "${TEST_SRC_DIR}/compositor/file_output/"
       --outdir "${TEST_OUT_DIR}/compositor_metal/file_output"
-      --gpu-backend METAL
+      --gpu-backend metal
     )
   endif()
   if(WITH_VULKAN_BACKEND)
@@ -988,7 +988,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
         ${CMAKE_CURRENT_LIST_DIR}/compositor_render_tests.py
         --testdir "${TEST_SRC_DIR}/compositor/${comp_test}"
         --outdir "${TEST_OUT_DIR}/compositor_vulkan"
-        --gpu-backend VULKAN
+        --gpu-backend vulkan
       )
     endforeach()
     add_blender_test(
@@ -997,7 +997,7 @@ if(WITH_GPU_COMPOSITOR_TESTS AND TEST_SRC_DIR_EXISTS)
       --
       --testdir "${TEST_SRC_DIR}/compositor/file_output/"
       --outdir "${TEST_OUT_DIR}/compositor_vulkan/file_output"
-      --gpu-backend VULKAN
+      --gpu-backend vulkan
     )
   endif()
 endif()

@@ -31,7 +31,7 @@ def get_arguments(filepath, output_filepath, backend):
     execution_device = "CPU"
     if backend != "CPU":
         execution_device = "GPU"
-        arguments.extend(["--gpu-backend", backend.lower()])
+        arguments.extend(["--gpu-backend", backend])
 
     arguments.extend([
         filepath,
@@ -62,7 +62,7 @@ def main():
 
     from modules import render_report
     backend = args.gpu_backend if args.gpu_backend else "CPU"
-    report_title = f"Compositor {backend}"
+    report_title = f"Compositor {backend.upper()}"
     report = render_report.Report(report_title, args.outdir, args.oiiotool)
     report.set_pixelated(True)
     report.set_reference_dir("compositor_renders")
