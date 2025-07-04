@@ -113,7 +113,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
 
       /* Alter selection as in legacy curves bezt_select_to_transform_triple_flag(). */
       if (!bezier_points.is_empty()) {
-        blender::IndexMaskMemory memory;
+        IndexMaskMemory memory;
         /* Selected handles, but not the control point. */
         const IndexMask selected_left = IndexMask::from_difference(
             selection_per_attribute[1], selection_per_attribute[0], memory);
