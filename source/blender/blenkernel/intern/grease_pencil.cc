@@ -173,7 +173,7 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
   }
 }
 
-static void grease_pencil_initialize_drawing_user_counts_for_read(GreasePencil &grease_pencil)
+static void grease_pencil_initialize_drawing_user_counts_after_read(GreasePencil &grease_pencil)
 {
   using namespace blender;
   using namespace blender::bke::greasepencil;
@@ -316,7 +316,7 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
   /* Read layer tree. */
   read_layer_tree(*grease_pencil, reader);
   /* Initialize drawing user counts */
-  grease_pencil_initialize_drawing_user_counts_for_read(*grease_pencil);
+  grease_pencil_initialize_drawing_user_counts_after_read(*grease_pencil);
 
   CustomData_blend_read(
       reader, &grease_pencil->layers_data_legacy, grease_pencil->layers().size());
@@ -3182,7 +3182,7 @@ void GreasePencil::remove_drawings_with_no_users()
       return false;
     }
     GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-    return drawing->wrap().has_users();
+    return drawing->wrap().has_users() || drawing->runtime->fake_user;
   };
 
   /* Index map to remap drawing indices in frame data.
@@ -4316,6 +4316,7 @@ void GreasePencil::validate_drawing_user_counts()
     const GreasePencilDrawingBase *drawing_base = this->drawing(drawing_i);
     if (drawing_base->type != GP_DRAWING_REFERENCE) {
       const Drawing &drawing = reinterpret_cast<const GreasePencilDrawing *>(drawing_base)->wrap();
+      /* Ignore `fake_user` flag. */
       BLI_assert(drawing.user_count() == actual_user_counts[drawing_i]);
     }
   }
