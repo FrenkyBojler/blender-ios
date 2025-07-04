@@ -559,13 +559,13 @@ class UVAABBIsland {
 };
 
 static float2 uvedit_uv_island_arrange(Scene *scene,
-                                      Object *obedit,
-                                      BMesh *bm,
-                                      eUVAlignIslandAxis axis,
-                                      eUVAlignIsland align,
-                                      eUVAlignIslandOrder order,
-                                      float offset,
-                                      float2 position)
+                                       Object *obedit,
+                                       BMesh *bm,
+                                       eUVAlignIslandAxis axis,
+                                       eUVAlignIsland align,
+                                       eUVAlignIslandOrder order,
+                                       float offset,
+                                       float2 position)
 {
   const BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
   if (offsets.uv == -1) {
@@ -604,7 +604,6 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       aabbs.begin(),
       aabbs.end(),
       [&](const std::unique_ptr<UVAABBIsland> &a, const std::unique_ptr<UVAABBIsland> &b) {
-       
         if (order == NONE) {
           if (axis == X) {
             return a->min[0] < b->min[0];
@@ -638,11 +637,10 @@ static float2 uvedit_uv_island_arrange(Scene *scene,
       position[1] = bound_min[1];
     }
     else if (align == CENTER) {
-      position[1] = bound_min[1]+ ((bound_max[1] - bound_min[1]) / 2.0);
+      position[1] = bound_min[1] + ((bound_max[1] - bound_min[1]) / 2.0);
     }
     else {
       position[1] = bound_max[1];
-
     }
     position[0] = bound_min[0];
   }
@@ -700,7 +698,7 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
 
   float2 position = {0, (float)sima->tile_grid_shape[1]};
   eUVAlignIslandAxis axis = eUVAlignIslandAxis(RNA_enum_get(op->ptr, "axis"));
-  eUVAlignIsland  align = eUVAlignIsland(RNA_enum_get(op->ptr, "align"));
+  eUVAlignIsland align = eUVAlignIsland(RNA_enum_get(op->ptr, "align"));
 
   eUVAlignIslandOrder order = eUVAlignIslandOrder(RNA_enum_get(op->ptr, "order"));
   float offset = RNA_float_get(op->ptr, "offset");
@@ -729,29 +727,6 @@ static wmOperatorStatus uv_align_island_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void uv_align_island_draw(bContext * /*C*/, wmOperator *op)
-{
-  uiLayout *layout = op->layout;
-
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-
-  /* Main draw call */
-  PointerRNA ptr = RNA_pointer_create_discrete(nullptr, op->type->srna, op->properties);
-
-  uiLayout *col;
-
-  col = &layout->column(true);
-  col->prop(&ptr, "axis", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->separator();
-
-  col->prop(&ptr, "align", UI_ITEM_NONE, std::nullopt, ICON_NONE);
- 
-  col->separator();
-  col->prop(&ptr, "order", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-  col->separator();
-  col->prop(&ptr, "offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-}
 static void UV_OT_align_island(wmOperatorType *ot)
 {
 
@@ -779,11 +754,7 @@ static void UV_OT_align_island(wmOperatorType *ot)
        0,
        "Smallest to Largest",
        "Sort Islands from Smallest to Largest"},
-      {NONE,
-       "NONE",
-       0,
-       "Do not arrange",
-       "Do not Sort Islands"},
+      {NONE, "NONE", 0, "Do not arrange", "Do not Sort Islands"},
       {0, nullptr, 0, nullptr, nullptr},
   };
   /* identifiers */
@@ -796,23 +767,14 @@ static void UV_OT_align_island(wmOperatorType *ot)
   ot->exec = uv_align_island_exec;
   ot->poll = ED_operator_uvedit;
 
-  ot->ui = uv_align_island_draw;
-
   /* properties */
   RNA_def_enum(ot->srna, "axis", axis_items, Y, "Axis", "Axis to arrange UV islands on");
   RNA_def_enum(ot->srna, "align", align_items, MIN, "Align", "Location to align islands on");
   RNA_def_enum(
       ot->srna, "order", sort_items, LARGE_TO_SMALL, "Size order", "Location to align islands on");
 
-  RNA_def_float(ot->srna,
-                "offset",
-                0.05,
-                0,
-                FLT_MAX,
-                "Offset",
-                "Distance between islands",
-                0,
-                FLT_MAX);
+  RNA_def_float(
+      ot->srna, "offset", 0.05, 0, FLT_MAX, "Offset", "Distance between islands", 0, FLT_MAX);
 }
 
 static void uv_weld_align(bContext *C, eUVWeldAlign tool)
