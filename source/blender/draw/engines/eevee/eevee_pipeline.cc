@@ -167,6 +167,7 @@ void WorldVolumePipeline::sync(GPUMaterial *gpumat)
   world_ps_.bind_resources(inst_.uniform_data);
   world_ps_.bind_resources(inst_.volume.properties);
   world_ps_.bind_resources(inst_.sampling);
+  world_ps_.bind_resources(inst_.materials);
 
   world_ps_.material_set(*inst_.manager, gpumat);
   /* Bind correct dummy texture for attributes defaults. */
@@ -304,6 +305,7 @@ void ForwardPipeline::sync()
       prepass_ps_.bind_resources(inst_.uniform_data);
       prepass_ps_.bind_resources(inst_.velocity);
       prepass_ps_.bind_resources(inst_.sampling);
+      prepass_ps_.bind_resources(inst_.materials);
     }
 
     prepass_double_sided_static_ps_ = &prepass_ps_.sub("DoubleSided.Static");
