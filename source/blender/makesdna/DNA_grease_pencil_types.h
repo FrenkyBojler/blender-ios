@@ -745,5 +745,6 @@ typedef struct GreasePencil {
 
   /* For debugging purposes. */
   void print_layer_tree();
+  void validate_drawing_user_counts();
 #endif
 } GreasePencil;

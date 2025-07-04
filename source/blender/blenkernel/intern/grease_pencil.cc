@@ -313,6 +313,9 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, bDeformGroup, &grease_pencil->vertex_group_names);
 
   grease_pencil->runtime = MEM_new<blender::bke::GreasePencilRuntime>(__func__);
+#ifndef NDEBUG
+  grease_pencil->validate_drawing_user_counts();
+#endif
 }
 
 IDTypeInfo IDType_ID_GP = {
@@ -3132,6 +3135,10 @@ void GreasePencil::remove_drawings_with_no_users()
   using namespace blender;
   using namespace blender::bke::greasepencil;
 
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
+
   /* Compress the drawings array by finding unused drawings.
    * In every step two indices are found:
    *   - The next unused drawing from the start
@@ -4254,6 +4261,29 @@ void GreasePencil::print_layer_tree()
 {
   using namespace blender::bke::greasepencil;
   this->root_group().print_nodes("Layer Tree:");
+}
+
+void GreasePencil::validate_drawing_user_counts()
+{
+#ifndef NDEBUG
+  using namespace blender::bke::greasepencil;
+
+  blender::Array<int> actual_user_counts(this->drawings().size(), 0);
+  for (const Layer *layer : this->layers()) {
+    for (const auto &[frame, value] : layer->frames().items()) {
+      BLI_assert(this->drawings().index_range().contains(value.drawing_index));
+      actual_user_counts[value.drawing_index]++;
+    }
+  }
+
+  for (const int drawing_i : this->drawings().index_range()) {
+    const GreasePencilDrawingBase *drawing_base = this->drawing(drawing_i);
+    if (drawing_base->type != GP_DRAWING_REFERENCE) {
+      const Drawing &drawing = reinterpret_cast<const GreasePencilDrawing *>(drawing_base)->wrap();
+      BLI_assert(drawing.user_count() == actual_user_counts[drawing_i]);
+    }
+  }
+#endif
 }
 
 blender::bke::AttributeAccessor GreasePencil::attributes() const
