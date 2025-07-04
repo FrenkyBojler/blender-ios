@@ -77,7 +77,9 @@ void BLI_time_sleep_precise_us(int us)
       Sleep(duration_ms);
     }
     else {
-      printf("BLI_time_sleep_precise_us: CreateWaitableTimerExW failed: %d\n", GetLastError());
+      fprintf(stderr,
+              "BLI_time_sleep_precise_us: CreateWaitableTimerExW failed: %d\n",
+              GetLastError());
     }
     return;
   }
@@ -86,13 +88,13 @@ void BLI_time_sleep_precise_us(int us)
   LARGE_INTEGER wait_time;
   wait_time.QuadPart = -us * 10;
   if (!SetWaitableTimer(timerHandle, &wait_time, 0, nullptr, nullptr, 0)) {
-    printf("BLI_time_sleep_precise_us: SetWaitableTimer failed: %d\n", GetLastError());
+    fprintf(stderr, "BLI_time_sleep_precise_us: SetWaitableTimer failed: %d\n", GetLastError());
     CloseHandle(timerHandle);
     return;
   }
 
   if (WaitForSingleObject(timerHandle, INFINITE) != WAIT_OBJECT_0) {
-    printf("BLI_time_sleep_precise_us: WaitForSingleObject failed: %d\n", GetLastError());
+    fprintf(stderr, "BLI_time_sleep_precise_us: WaitForSingleObject failed: %d\n", GetLastError());
     CloseHandle(timerHandle);
     return;
   }
