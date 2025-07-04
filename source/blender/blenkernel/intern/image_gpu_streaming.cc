@@ -1,6 +1,7 @@
 #include "BKE_image.hh"
 
 #include "BLI_math_bits.h"
+#include "BLI_time.h"
 
 #include "GPU_texture.hh"
 
@@ -24,7 +25,10 @@ ImageMipmapLevel ImageMipmapMask::lowest_mipmap_level(int num_levels) const
   return ImageMipmapLevel(std::clamp(highest_level - offset, 0, num_levels));
 }
 
-ImageMipmapCache::ImageMipmapCache() : last_texture_mipmap_level_(0) {}
+ImageMipmapCache::ImageMipmapCache()
+    : last_texture_mipmap_level_(0), mipmap_level_last_used_timestamp_(0.0)
+{
+}
 ImageMipmapCache::~ImageMipmapCache()
 {
   clear();
@@ -109,8 +113,8 @@ void ImageMipmapCache::update_mipmap_cache(const ImBuf &imbuf,
                                            bool use_greyscale,
                                            blender::StringRefNull name)
 {
-  name_ = name;
   clear();
+  name_ = name;
   CLOG_INFO(&LOG, 2, "update mipmap cache name=%s", name_.c_str());
 
   eGPUTextureFormat texture_format = IMB_gpu_get_texture_format(
@@ -165,27 +169,43 @@ void ImageMipmapCache::update_mipmap_cache(const ImBuf &imbuf,
   IMB_freeImBuf(mipmap_ibuf);
 }
 
-ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get_try(ImageMipmapMask mipmap_mask)
+void ImageMipmapCache::reset_mipmap_timestamp(ImageMipmapLevel mipmap_level, double timestamp)
 {
-  ImageMipmapLevel clamped_mipmap_level(std::clamp(mipmap_mask.lowest_mipmap_level(size()).level,
-                                                   mipmap_level_clamp_min_,
-                                                   mipmap_level_clamp_max_));
-  CLOG_INFO(&LOG,
-            4,
-            "querying image=%s, texture_ready=%c mipmap_level=%d, clamped_mipmap_level=%d",
-            name_.c_str(),
-            last_texture_ == nullptr ? 'n' : 'y',
-            last_texture_mipmap_level_.level,
-            clamped_mipmap_level);
-  return {&last_texture_, nullptr, last_texture_mipmap_level_ != clamped_mipmap_level};
+  if (mipmap_level == last_texture_mipmap_level_) {
+    mipmap_level_last_used_timestamp_ = timestamp;
+  }
 }
 
-ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(ImageMipmapMask mipmap_mask)
+bool ImageMipmapCache::recreate_mipmap(ImageMipmapLevel mipmap_level, double timestamp)
 {
-  ImageMipmapLevel clamped_mipmap_level(std::clamp(mipmap_mask.lowest_mipmap_level(size()).level,
-                                                   mipmap_level_clamp_min_,
-                                                   mipmap_level_clamp_max_));
-  if (last_texture_ != nullptr && clamped_mipmap_level == last_texture_mipmap_level_) {
+  const bool texture_availale = last_texture_ != nullptr;
+  const bool texture_contains_mipmap = last_texture_mipmap_level_.contains(mipmap_level);
+  const bool mipmap_level_elapsed = (timestamp - mipmap_level_last_used_timestamp_) >
+                                    unused_mipmap_level0_elapse_time;
+
+  return (!texture_availale || !texture_contains_mipmap || mipmap_level_elapsed);
+}
+
+ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get_try(ImageMipmapMask mipmap_mask,
+                                                              double timestamp)
+{
+  ImageMipmapLevel mipmap_level(std::clamp(mipmap_mask.lowest_mipmap_level(size()).level,
+                                           mipmap_level_clamp_min_,
+                                           mipmap_level_clamp_max_));
+  reset_mipmap_timestamp(mipmap_level, timestamp);
+  const bool recreate = recreate_mipmap(mipmap_level, timestamp);
+  return {&last_texture_, nullptr, recreate};
+}
+
+ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(ImageMipmapMask mipmap_mask,
+                                                          double timestamp)
+{
+  ImageMipmapLevel mipmap_level(std::clamp(mipmap_mask.lowest_mipmap_level(size()).level,
+                                           mipmap_level_clamp_min_,
+                                           mipmap_level_clamp_max_));
+  reset_mipmap_timestamp(mipmap_level, timestamp);
+  const bool recreate = recreate_mipmap(mipmap_level, timestamp);
+  if (!recreate) {
     return {&last_texture_, nullptr, false};
   }
 
@@ -195,27 +215,32 @@ ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(ImageMipmapMask mipmap
             name_.c_str(),
             mipmap_mask,
             last_texture_mipmap_level_.level,
-            clamped_mipmap_level.level);
-  GPU_TEXTURE_FREE_SAFE(last_texture_);
-  last_texture_ = GPU_texture_create_2d(
-      name_.c_str(),
-      UNPACK2(resolution_per_mipmap_[clamped_mipmap_level.level]),
-      offsets_per_mipmap_.size() - clamped_mipmap_level.level,
-      (eGPUTextureFormat)gpu_texture_format_,
-      GPU_TEXTURE_USAGE_GENERAL,
-      nullptr);
-  last_texture_mipmap_level_ = clamped_mipmap_level;
+            mipmap_level.level);
+  GPUTexture *old_texture = last_texture_;
+  ImageMipmapLevel old_mipmap_level = last_texture_mipmap_level_;
+  last_texture_ = nullptr;
+  last_texture_ = GPU_texture_create_2d(name_.c_str(),
+                                        UNPACK2(resolution_per_mipmap_[mipmap_level.level]),
+                                        offsets_per_mipmap_.size() - mipmap_level.level,
+                                        (eGPUTextureFormat)gpu_texture_format_,
+                                        GPU_TEXTURE_USAGE_GENERAL,
+                                        nullptr);
+  GPU_texture_original_size_set(last_texture_, UNPACK2(resolution_per_mipmap_[0]));
+  last_texture_mipmap_level_ = mipmap_level;
+  mipmap_level_last_used_timestamp_ = timestamp;
 
   /* Upload missing mipmap levels */
   // TODO: in stead of copying all mipmaps, only copy the mipmap levels that are not available
   // in the last texture. The other could be copied from the current last texture.
-  for (int mipmap = clamped_mipmap_level.level; mipmap < size(); mipmap++) {
+  // TODO: stream in missing mipmap levels in a background thread.
+  for (int mipmap = mipmap_level.level; mipmap < size(); mipmap++) {
     GPU_texture_update_mipmap(last_texture_,
-                              mipmap - clamped_mipmap_level.level,
+                              mipmap - mipmap_level.level,
                               (eGPUDataFormat)gpu_data_format_,
                               mipmap_data(mipmap).data());
   }
 
+  GPU_TEXTURE_FREE_SAFE(old_texture);
   return {&last_texture_, nullptr, false};
 }
 }  // namespace blender::bke

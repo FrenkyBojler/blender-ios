@@ -50,9 +50,21 @@ struct ImageGPUTextures {
 };
 
 namespace blender::bke {
+
+/**
+ * Mipmap level
+ *
+ * Mipmap level 0 is highest resolution.
+ */
 struct ImageMipmapLevel {
   int level;
   explicit ImageMipmapLevel(int level) : level(level) {}
+
+  /** Check if the given mipmap level is part of this. */
+  bool contains(ImageMipmapLevel other) const
+  {
+    return level <= other.level;
+  }
 
   constexpr bool operator==(const ImageMipmapLevel &other) const
   {
@@ -98,6 +110,7 @@ struct ImageMipmapMask {
 
 struct ImageMipmapCache {
   static constexpr int64_t mipmap_level_max_clamping_byte_size = 4096;
+  static constexpr double unused_mipmap_level0_elapse_time = 0.5;
   ImageMipmapCache();
   ~ImageMipmapCache();
 
@@ -106,12 +119,17 @@ struct ImageMipmapCache {
                            bool use_greyscale,
                            blender::StringRefNull name);
 
-  ImageGPUTextures gpu_mipmap_texture_get_try(ImageMipmapMask mipmap_mask);
-  ImageGPUTextures gpu_mipmap_texture_get(ImageMipmapMask mipmap_mask);
+  ImageGPUTextures gpu_mipmap_texture_get_try(ImageMipmapMask mipmap_mask, double timestamp);
+  ImageGPUTextures gpu_mipmap_texture_get(ImageMipmapMask mipmap_mask, double timestamp);
 
   bool is_empty() const
   {
     return bytes_all_mips_ == 0;
+  }
+
+  bool is_valid() const
+  {
+    return bytes_all_mips_ != 0;
   }
 
   int64_t size() const
@@ -128,6 +146,12 @@ struct ImageMipmapCache {
   Vector<uint2> resolution_per_mipmap_;
   GPUTexture *last_texture_ = nullptr;
   ImageMipmapLevel last_texture_mipmap_level_;
+  /**
+   * The last time the last_texture_ was requested with using its highest mipmap level.
+   *
+   * BLI_time_
+   */
+  double mipmap_level_last_used_timestamp_;
   int mipmap_level_clamp_min_;
   int mipmap_level_clamp_max_;
 
@@ -142,6 +166,19 @@ struct ImageMipmapCache {
                                                          int64_t bytes_per_pixel);
   void init_mipmap_level_clamping();
   void update_mipmap(int mipmap_level, const ImBuf &imbuf);
+
+  /**
+   * Reset timestamp when requesting the exact mipmap level. In that case the highest on GPU
+   * loaded mipmap level is still the desired texture.
+   */
+  void reset_mipmap_timestamp(ImageMipmapLevel mipmap_level, double timestamp);
+  /**
+   * Check the validity of the timestamp when not used for 0.5 seconds we should recreate the
+   * mipmap level as there is another one that would be more efficient.
+   *
+   * returns true when the current mipmap texture needs to be recreated.
+   */
+  bool recreate_mipmap(ImageMipmapLevel mipmap_level, double timestamp);
 
   MutableSpan<uint8_t> mipmap_data_mutable(int mipmap_level)
   {

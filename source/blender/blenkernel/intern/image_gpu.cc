@@ -415,6 +415,7 @@ static ImageGPUTextures image_get_gpu_texture(
 
   /* Tag as in active use for garbage collector. */
   BKE_image_tag_time(ima);
+  double timestamp = BLI_time_now_seconds();
 
   /* Test if we need to get a tiled array texture. */
   eGPUTextureTarget textarget = (use_tile_mapping && ima->source == IMA_SRC_TILED) ?
@@ -430,7 +431,8 @@ static ImageGPUTextures image_get_gpu_texture(
   const bool use_texture_streaming = image_supports_texture_streaming(*ima) &&
                                      mipmap_mask.has_value();
   if (use_texture_streaming) {
-    result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try(mipmap_mask.value());
+    // TODO: check for changes (iuser?). If changed we should not use the cache anymore.
+    result = ima->runtime->mipmap_cache.gpu_mipmap_texture_get_try(mipmap_mask.value(), timestamp);
     /* Check if the current cached mipmap texture contains the requested mipmap level. */
     if (*result.texture && !result.recreate_mipmap_texture) {
       return result;
@@ -461,8 +463,15 @@ static ImageGPUTextures image_get_gpu_texture(
     }
     return result;
   }
-  // TODO: when using texture streaming we can check if we need to load the imbuf, or read from
-  // cache.
+
+  /* GPU streaming has a cache. Recreate the requested mipmap texture if this cache is still valid.
+   * This reduces potential loading of Images from disk, when the cache has an optimized way of
+   * loading mipmaps. */
+  blender::bke::ImageMipmapCache &mipmap_cache = ima->runtime->mipmap_cache;
+  if (use_texture_streaming && mipmap_cache.is_valid()) {
+    result = mipmap_cache.gpu_mipmap_texture_get(mipmap_mask.value(), timestamp);
+    return result;
+  }
 
   /* check if we have a valid image buffer */
   void *lock;
@@ -485,11 +494,8 @@ static ImageGPUTextures image_get_gpu_texture(
     *result.tile_mapping = gpu_texture_create_tile_mapping(ima, iuser ? iuser->multiview_eye : 0);
   }
   else if (use_texture_streaming) {
-    blender::bke::ImageMipmapCache &mipmap_cache = ima->runtime->mipmap_cache;
-    if (mipmap_cache.is_empty()) {
-      mipmap_cache.update_mipmap_cache(*ibuf, use_high_bitdepth, use_greyscale, ima->id.name + 2);
-    }
-    result = mipmap_cache.gpu_mipmap_texture_get(mipmap_mask.value());
+    mipmap_cache.update_mipmap_cache(*ibuf, use_high_bitdepth, use_greyscale, ima->id.name + 2);
+    result = mipmap_cache.gpu_mipmap_texture_get(mipmap_mask.value(), timestamp);
   }
   else {
     /* Single image texture. */
