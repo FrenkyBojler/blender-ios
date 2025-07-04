@@ -75,6 +75,12 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem,
   return bh;
 }
 
+const blender::int2 BLO_blendhandle_get_version(BlendHandle *bh)
+{
+  FileData *fd = reinterpret_cast<FileData *>(bh);
+  return blender::int2(fd->fileversion / 100, fd->fileversion % 100);
+}
+
 /* Return `false` if the block should be skipped because it is either an invalid block, or it does
  * not meet to required conditions. */
 static bool blendhandle_load_id_data_and_validate(FileData *fd,

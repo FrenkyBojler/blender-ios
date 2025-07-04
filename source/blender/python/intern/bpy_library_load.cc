@@ -17,6 +17,7 @@
 #include <cstddef>
 
 #include "BLI_linklist.h"
+#include "BLI_math_vector_types.hh"
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
@@ -475,6 +476,17 @@ static PyObject *bpy_lib_enter(BPy_Library *self)
   self_from = PyObject_New(BPy_Library, &bpy_lib_Type);
   STRNCPY(self_from->relpath, self->relpath);
   STRNCPY(self_from->abspath, self->abspath);
+
+  /* Library blendfile version. */
+  PyObject *version;
+  PyObject *identifier = PyUnicode_FromString("version");
+  blender::int2 blendfile_version = BLO_blendhandle_get_version(self->blo_handle);
+  PyDict_SetItem(from_dict, identifier, version = PyTuple_New(2));
+  PyDict_SetItem(self->dict, identifier, version);
+  PyTuple_SET_ITEMS(
+      version, PyLong_FromLong(blendfile_version[0]), PyLong_FromLong(blendfile_version[1]));
+  Py_DECREF(identifier);
+  Py_DECREF(version);
 
   self_from->blo_handle = nullptr;
   self_from->flag = 0;
