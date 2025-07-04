@@ -126,13 +126,13 @@ static const char *rec2100_hlg_display_colorspace_name()
       {"Rec.2100-HLG", "Rec.2100-HLG - Display", "rec2100_hlg", "rec2100_hlg_display"});
 }
 
-static void probe_and_initialize_colorspace_if_needed(MovieReader *anim,
-                                                      char r_colorspace_name[IM_MAX_SPACE])
+static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_MAX_SPACE])
 {
-  if (!r_colorspace_name || r_colorspace_name[0] != '\0') {
-    /* Color space is already initialized or is not requested. */
-    return;
-  }
+  /* Use default role as fallback (i.e. it is an unknown combination of colorspace and primaries)
+   */
+  BLI_strncpy(r_colorspace_name,
+              IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DEFAULT_BYTE),
+              IM_MAX_SPACE);
 
   if (anim->state == MovieReader::State::Uninitialized) {
     if (!anim_getnew(anim)) {
@@ -176,23 +176,26 @@ MovieReader *MOV_open_file(const char *filepath,
 
   anim = MEM_new<MovieReader>("anim struct");
   if (anim != nullptr) {
-    const char *default_colorspace = IMB_colormanagement_role_colorspace_name_get(
-        COLOR_ROLE_DEFAULT_BYTE);
 
     STRNCPY(anim->filepath, filepath);
     anim->ib_flags = ib_flags;
     anim->streamindex = streamindex;
 
-    /* Try to initialize colorspace from the FFmpeg stream by interpreting color information from
-     * it. If that fails (i.e. it is an unknown combination of colorspace and primaries) then
-     * initialize the colorspace to the default role. */
-    probe_and_initialize_colorspace_if_needed(anim, colorspace);
-    if (colorspace && colorspace[0] == '\0') {
-      BLI_strncpy(colorspace, default_colorspace, IM_MAX_SPACE);
+    if (colorspace && colorspace[0] != '\0') {
+      /* Use colorspace from argument, if provided. */
+      STRNCPY(anim->colorspace, colorspace);
     }
-
-    /* Inherit colorspace from argument if provided. */
-    STRNCPY(anim->colorspace, colorspace ? colorspace : default_colorspace);
+    else {
+      /* Try to initialize colorspace from the FFmpeg stream by interpreting color information from
+       * it. */
+      char file_colorspace[IM_MAX_SPACE];
+      probe_video_colorspace(anim, file_colorspace);
+      STRNCPY(anim->colorspace, file_colorspace);
+      if (colorspace) {
+        /* Copy the used colorspace into output argument. */
+        BLI_strncpy(colorspace, file_colorspace, IM_MAX_SPACE);
+      }
+    }
   }
   return anim;
 }
