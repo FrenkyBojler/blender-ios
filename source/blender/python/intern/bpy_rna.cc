@@ -8128,7 +8128,6 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
 
     if (bpy_types == nullptr) {
       PyErr_Print();
-      PyErr_Clear();
       CLOG_ERROR(BPY_LOG_RNA, "failed to find 'bpy_types' module");
       return nullptr;
     }
@@ -8277,7 +8276,6 @@ static PyObject *pyrna_srna_Subtype(StructRNA *srna)
       /* This should not happen. */
       CLOG_ERROR(BPY_LOG_RNA, "failed to register '%s'", idname);
       PyErr_Print();
-      PyErr_Clear();
     }
   }
 
@@ -9035,7 +9033,6 @@ static int deferred_register_prop(StructRNA *srna, PyObject *key, PyObject *item
   else {
     /* _must_ print before decrefing args_fake. */
     PyErr_Print();
-    PyErr_Clear();
 
     Py_DECREF(args_fake); /* Free's py_srna_cobject too. */
 
@@ -9659,7 +9656,6 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
     }
     else {
       PyErr_Print();
-      PyErr_Clear();
       PyErr_Format(PyExc_TypeError,
                    "could not find function %.200s in %.200s to execute callback",
                    RNA_function_identifier(func),
@@ -9770,7 +9766,6 @@ static int bpy_class_call(bContext *C, PointerRNA *ptr, FunctionRNA *func, Param
 
     /* Also print in the console for Python. */
     PyErr_Print();
-    PyErr_Clear();
   }
 
   bpy_context_clear(C, &gilstate);
@@ -9924,7 +9919,6 @@ void pyrna_alloc_types()
     if (item == nullptr) {
       if (PyErr_Occurred()) {
         PyErr_Print();
-        PyErr_Clear();
       }
     }
     else {
