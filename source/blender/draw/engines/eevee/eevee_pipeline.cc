@@ -55,6 +55,7 @@ void BackgroundPipeline::sync(GPUMaterial *gpumat,
   world_ps_.bind_resources(inst_.sampling);
   world_ps_.bind_resources(inst_.sphere_probes);
   world_ps_.bind_resources(inst_.volume_probes);
+  world_ps_.bind_resources(inst_.materials);
   world_ps_.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   /* To allow opaque pass rendering over it. */
   world_ps_.barrier(GPU_BARRIER_SHADER_IMAGE_ACCESS);
@@ -128,6 +129,7 @@ void WorldPipeline::sync(GPUMaterial *gpumat)
   pass.bind_resources(inst_.sampling);
   pass.bind_resources(inst_.sphere_probes);
   pass.bind_resources(inst_.volume_probes);
+  pass.bind_resources(inst_.materials);
   pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
 }
 
@@ -360,6 +362,7 @@ void ForwardPipeline::sync()
     sub.bind_resources(inst_.hiz_buffer.front);
     sub.bind_resources(inst_.volume_probes);
     sub.bind_resources(inst_.sphere_probes);
+    sub.bind_resources(inst_.materials);
   }
 }
 

@@ -189,17 +189,6 @@ void MaterialModule::begin_sync()
   texture_lod_buf_.current().read();
 }
 
-static int decode_streaming_mask_to_lod(uint32_t feedback)
-{
-  /* Feedback won't be available the first frames or when the texture is fully clipped. */
-  if (feedback == 0) {
-    return 16;
-  }
-  int found_bit = 31u - bitscan_reverse_uint(feedback);
-  int tbit = 10;  // 1 << 10 = 1024 our texture size;
-  return std::clamp(tbit - found_bit, 0, 16);
-}
-
 void MaterialModule::queue_texture_loading(GPUMaterial *material)
 {
   ListBase textures = GPU_material_textures(material);

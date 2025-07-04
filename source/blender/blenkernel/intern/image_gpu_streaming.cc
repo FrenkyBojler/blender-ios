@@ -92,9 +92,9 @@ void ImageMipmapCache::init_mipmap_level_clamping()
     }
   }
   if (bytes > mipmap_level_max_clamping_byte_size) {
-    mipmap_level--;
+    mipmap_level++;
   }
-  mipmap_level_clamp_max_ = size() - 1 - mipmap_level;
+  mipmap_level_clamp_max_ = mipmap_level;
 
   CLOG_INFO(&LOG,
             3,
@@ -129,10 +129,10 @@ void ImageMipmapCache::update_mipmap_cache(const ImBuf &imbuf,
   }
   else if (texture_format == GPU_RGBA16F) {
     // For now as we don't support OPENXR_HALF
-    bytes_per_pixel = 32;
+    bytes_per_pixel = 16;
   }
   else if (texture_format == GPU_RGBA32F) {
-    bytes_per_pixel = 32;
+    bytes_per_pixel = 16;
   }
 
   // TODO calculate correct bytes per pixel get texture format from imbuf.

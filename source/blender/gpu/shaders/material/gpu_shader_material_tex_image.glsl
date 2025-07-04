@@ -69,13 +69,14 @@ void node_tex_image_linear(
 
   alpha = color.a;
 
-#ifdef GPU_FRAGMENT_SHADER
   int ima_info = floatBitsToInt(ima_info_float);
   if (ima_info != -1) {
-
+#ifdef GPU_FRAGMENT_SHADER
     texture_streaming_write_feedback(ima_info, dx, dy);
-  }
+#else
+    texture_streaming_write_feedback(ima_info);
 #endif
+  }
 }
 
 void node_tex_image_cubic(
@@ -84,14 +85,16 @@ void node_tex_image_cubic(
   color = safe_color(texture_bicubic(ima, co.xy));
   alpha = color.a;
 
-#ifdef GPU_FRAGMENT_SHADER
   int ima_info = floatBitsToInt(ima_info_float);
   if (ima_info != -1) {
+#ifdef GPU_FRAGMENT_SHADER
     float2 dx = gpu_dfdx(co.xy) * texture_lod_bias_get();
     float2 dy = gpu_dfdy(co.xy) * texture_lod_bias_get();
     texture_streaming_write_feedback(ima_info, dx, dy);
-  }
+#else
+    texture_streaming_write_feedback(ima_info);
 #endif
+  }
 }
 
 void tex_box_sample_linear(float3 texco,
