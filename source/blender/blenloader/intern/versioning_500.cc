@@ -1000,9 +1000,9 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
   }
 }
 
-/* The Dot output of the Normal node was removed, so replace it with a dot product vector math
- * node, noting that the Dot output was actually negative the dot product of the normalized
- * node vector with the input. */
+/* The Start Frame, Cyclic, and Offset options were removed from the Image node and a frame input
+ * was added. So we reproduce the hold behavior by subtracting the start frame minus 1, modulo with
+ * the number of frames if cyclic, and add the offset. */
 static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
 {
   /* Already versioned. */
