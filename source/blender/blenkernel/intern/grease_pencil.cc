@@ -173,6 +173,21 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
   }
 }
 
+static void grease_pencil_initialize_drawing_user_counts_for_read(GreasePencil &grease_pencil)
+{
+  using namespace blender;
+  using namespace blender::bke::greasepencil;
+  const Array<int> user_counts = grease_pencil.drawing_user_counts();
+  BLI_assert(user_counts.size() == grease_pencil.drawings().size());
+  for (const int drawing_i : grease_pencil.drawings().index_range()) {
+    GreasePencilDrawingBase *drawing_base = grease_pencil.drawing(drawing_i);
+    if (drawing_base->type != GP_DRAWING_REFERENCE) {
+      Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
+      drawing.runtime->user_count.store(user_counts[drawing_i]);
+    }
+  }
+}
+
 static void grease_pencil_copy_data(Main * /*bmain*/,
                                     std::optional<Library *> /*owner_library*/,
                                     ID *id_dst,
@@ -300,6 +315,8 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
   read_drawing_array(*grease_pencil, reader);
   /* Read layer tree. */
   read_layer_tree(*grease_pencil, reader);
+  /* Initialize drawing user counts */
+  grease_pencil_initialize_drawing_user_counts_for_read(*grease_pencil);
 
   CustomData_blend_read(
       reader, &grease_pencil->layers_data_legacy, grease_pencil->layers().size());
@@ -313,9 +330,6 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
   BLO_read_struct_list(reader, bDeformGroup, &grease_pencil->vertex_group_names);
 
   grease_pencil->runtime = MEM_new<blender::bke::GreasePencilRuntime>(__func__);
-#ifndef NDEBUG
-  grease_pencil->validate_drawing_user_counts();
-#endif
 }
 
 IDTypeInfo IDType_ID_GP = {
@@ -3029,6 +3043,9 @@ bool GreasePencil::insert_duplicate_frame(blender::bke::greasepencil::Layer &lay
       layer.remove_frame(dst_frame_number);
       return false;
   }
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
   return true;
 }
 
@@ -3065,6 +3082,11 @@ bool GreasePencil::remove_frames(blender::bke::greasepencil::Layer &layer,
     this->remove_drawings_with_no_users();
     return true;
   }
+#ifndef NDEBUG
+  else {
+    this->validate_drawing_user_counts();
+  }
+#endif
   return false;
 }
 
@@ -3243,12 +3265,16 @@ void GreasePencil::remove_drawings_with_no_users()
       }
     }
   }
+
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
 }
 
 void GreasePencil::update_drawing_users_for_layer(const blender::bke::greasepencil::Layer &layer)
 {
   using namespace blender;
-  for (auto [key, value] : layer.frames().items()) {
+  for (const auto &[key, value] : layer.frames().items()) {
     BLI_assert(this->drawings().index_range().contains(value.drawing_index));
     GreasePencilDrawingBase *drawing_base = this->drawing(value.drawing_index);
     if (drawing_base->type != GP_DRAWING) {
@@ -3260,6 +3286,10 @@ void GreasePencil::update_drawing_users_for_layer(const blender::bke::greasepenc
       drawing.add_user();
     }
   }
+
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
 }
 
 void GreasePencil::move_frames(blender::bke::greasepencil::Layer &layer,
@@ -4263,19 +4293,25 @@ void GreasePencil::print_layer_tree()
   this->root_group().print_nodes("Layer Tree:");
 }
 
+blender::Array<int> GreasePencil::drawing_user_counts() const
+{
+  using namespace blender;
+  using namespace blender::bke::greasepencil;
+  Array<int> user_counts(this->drawings().size(), 0);
+  for (const Layer *layer : this->layers()) {
+    for (const auto &[frame, value] : layer->frames().items()) {
+      BLI_assert(this->drawings().index_range().contains(value.drawing_index));
+      user_counts[value.drawing_index]++;
+    }
+  }
+  return user_counts;
+}
+
 void GreasePencil::validate_drawing_user_counts()
 {
 #ifndef NDEBUG
   using namespace blender::bke::greasepencil;
-
-  blender::Array<int> actual_user_counts(this->drawings().size(), 0);
-  for (const Layer *layer : this->layers()) {
-    for (const auto &[frame, value] : layer->frames().items()) {
-      BLI_assert(this->drawings().index_range().contains(value.drawing_index));
-      actual_user_counts[value.drawing_index]++;
-    }
-  }
-
+  blender::Array<int> actual_user_counts = this->drawing_user_counts();
   for (const int drawing_i : this->drawings().index_range()) {
     const GreasePencilDrawingBase *drawing_base = this->drawing(drawing_i);
     if (drawing_base->type != GP_DRAWING_REFERENCE) {
