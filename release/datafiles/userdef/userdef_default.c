@@ -224,7 +224,7 @@ const UserDef U_default = {
 
     .stored_bounds =
         {
-            .file = {0.0f, 1080.0f, 0.0f, 600.0f},
+            .file = {0.0f, 1060.0f, 0.0f, 600.0f},
             .userpref = {0.0f, 600.0f, 0.0f, 520.0f},
             .image = {0.0f, 1280.0f, 0.0f, 720.0f},
             .graph = {0.0f, 900.0f, 0.0f, 580.0f},

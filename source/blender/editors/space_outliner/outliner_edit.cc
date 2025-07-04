@@ -2496,7 +2496,7 @@ static wmOperatorStatus outliner_orphans_manage_invoke(bContext *C,
                                                        wmOperator * /*op*/,
                                                        const wmEvent * /*event*/)
 {
-  if (WM_window_open_temp(C, IFACE_("Manage Unused Data"), SPACE_OUTLINER, false) != nullptr) {
+  if (WM_window_open_temp(C, IFACE_("Manage Unused Data"), SPACE_OUTLINER, false)) {
     SpaceOutliner *soutline = CTX_wm_space_outliner(C);
     soutline->outlinevis = SO_ID_ORPHANS;
     return OPERATOR_FINISHED;

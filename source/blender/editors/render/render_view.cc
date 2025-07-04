@@ -140,7 +140,7 @@ ScrArea *render_view_open(bContext *C, int mx, int my, ReportList *reports)
 
   if (U.render_display_type == USER_RENDER_DISPLAY_WINDOW) {
     /* changes context! */
-    if (WM_window_open_temp(C, IFACE_("Blender Render"), SPACE_IMAGE, false) == nullptr) {
+    if (!WM_window_open_temp(C, IFACE_("Blender Render"), SPACE_IMAGE, false)) {
       BKE_report(reports, RPT_ERROR, "Failed to open window!");
       return nullptr;
     }
