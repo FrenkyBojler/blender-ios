@@ -726,38 +726,24 @@ void BKE_armature_deform_coords_with_mesh(
     dverts = blender::Span<MDeformVert>(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
   }
 
-  if (me_target) {
-    std::optional<Span<MDeformVert>> dverts_opt;
-    if (!me_target->deform_verts().is_empty()) {
-      dverts_opt = dverts;
-    }
-    bke::armature_deform_coords(ob_arm,
-                                ob_target,
-                                defbase,
-                                vert_coords,
-                                vert_deform_mats,
-                                deformflag,
-                                vert_coords_prev,
-                                defgrp_name,
-                                dverts_opt,
-                                me_target);
+  std::optional<Span<MDeformVert>> dverts_opt;
+  if (me_target && !me_target->deform_verts().is_empty()) {
+    dverts_opt = dverts;
   }
-  else {
-    std::optional<Span<MDeformVert>> dverts_opt;
-    if (dverts.size() == vert_coords.size()) {
-      dverts_opt = dverts;
-    }
-    bke::armature_deform_coords(ob_arm,
-                                ob_target,
-                                defbase,
-                                vert_coords,
-                                vert_deform_mats,
-                                deformflag,
-                                vert_coords_prev,
-                                defgrp_name,
-                                dverts_opt,
-                                nullptr);
+  else if (dverts.size() == vert_coords.size()) {
+    dverts_opt = dverts;
   }
+
+  bke::armature_deform_coords(ob_arm,
+                              ob_target,
+                              defbase,
+                              vert_coords,
+                              vert_deform_mats,
+                              deformflag,
+                              vert_coords_prev,
+                              defgrp_name,
+                              dverts_opt,
+                              me_target);
 }
 
 void BKE_armature_deform_coords_with_editmesh(
