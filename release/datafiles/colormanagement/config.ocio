@@ -505,7 +505,7 @@ colorspaces:
       family: Display
       equalitygroup: ""
       bitdepth: 32f
-      description: BT.2100 PQ Display
+      description: Rec.2100-PQ 10000 nits peak display with reference white at 100 nits
       isdata: false
       categories: [file-io]
       encoding: hdr-video
@@ -521,7 +521,7 @@ colorspaces:
     family: Display
     equalitygroup: ""
     bitdepth: 32f
-    description: BT.2100 HLG Display
+    description: Rec.2100-HLG 1000 nits peak display with reference white at 100 nits
     isdata: false
     categories: [file-io]
     encoding: hdr-video
