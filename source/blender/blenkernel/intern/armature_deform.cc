@@ -493,7 +493,6 @@ struct ArmatureUserdata {
   bool use_quaternion = false;
   std::optional<Span<MDeformVert>> dverts;
   const Mesh *me_target = nullptr;
-  int cd_dvert_offset = -1;
 
   ArmatureDeformParams deform_params;
 };
@@ -529,11 +528,18 @@ static void armature_vert_task(void *__restrict userdata,
   armature_vert_task_with_dvert(deform_params, i, dvert, data.use_quaternion);
 }
 
+struct ArmatureEditMeshUserdata {
+  bool use_quaternion = false;
+  int cd_dvert_offset = -1;
+
+  ArmatureDeformParams deform_params;
+};
+
 static void armature_vert_task_editmesh(void *__restrict userdata,
                                         MempoolIterData *iter,
                                         const TaskParallelTLS *__restrict /*tls*/)
 {
-  const ArmatureUserdata &data = *static_cast<const ArmatureUserdata *>(userdata);
+  const ArmatureEditMeshUserdata &data = *static_cast<const ArmatureEditMeshUserdata *>(userdata);
   BMVert *v = (BMVert *)iter;
   const MDeformVert *dvert = static_cast<const MDeformVert *>(
       BM_ELEM_CD_GET_VOID_P(v, data.cd_dvert_offset));
@@ -545,65 +551,86 @@ static void armature_vert_task_editmesh_no_dvert(void *__restrict userdata,
                                                  MempoolIterData *iter,
                                                  const TaskParallelTLS *__restrict /*tls*/)
 {
-  const ArmatureUserdata &data = *static_cast<const ArmatureUserdata *>(userdata);
+  const ArmatureEditMeshUserdata &data = *static_cast<const ArmatureEditMeshUserdata *>(userdata);
   BMVert *v = (BMVert *)iter;
   armature_vert_task_with_dvert(
       data.deform_params, BM_elem_index_get(v), nullptr, data.use_quaternion);
 }
 
-static void armature_deform_coords_impl(
-    const Object &ob_arm,
-    const Object &ob_target,
-    const ListBase *defbase,
-    const MutableSpan<float3> vert_coords,
-    const std::optional<MutableSpan<float3x3>> vert_deform_mats,
-    const int deformflag,
-    const std::optional<Span<float3>> vert_coords_prev,
-    blender::StringRefNull defgrp_name,
-    const bool use_dverts,
-    const std::optional<Span<MDeformVert>> dverts,
-    const Mesh *me_target,
-    const BMEditMesh *em_target,
-    const std::optional<int> cd_dvert_offset)
+static void armature_deform_coords(const Object &ob_arm,
+                                   const Object &ob_target,
+                                   const ListBase *defbase,
+                                   const MutableSpan<float3> vert_coords,
+                                   const std::optional<MutableSpan<float3x3>> vert_deform_mats,
+                                   const int deformflag,
+                                   const std::optional<Span<float3>> vert_coords_prev,
+                                   blender::StringRefNull defgrp_name,
+                                   const std::optional<Span<MDeformVert>> dverts,
+                                   const Mesh *me_target)
 {
+  ArmatureDeformParams deform_params = get_armature_deform_params(ob_arm,
+                                                                  ob_target,
+                                                                  defbase,
+                                                                  vert_coords,
+                                                                  vert_coords_prev,
+                                                                  vert_deform_mats,
+                                                                  deformflag,
+                                                                  defgrp_name,
+                                                                  dverts.has_value());
+
   ArmatureUserdata data{};
   data.use_quaternion = bool(deformflag & ARM_DEF_QUATERNION);
   data.dverts = dverts;
   data.me_target = me_target;
-  data.cd_dvert_offset = cd_dvert_offset ? *cd_dvert_offset : -1;
+  data.deform_params = std::move(deform_params);
 
-  data.deform_params = get_armature_deform_params(ob_arm,
-                                                  ob_target,
-                                                  defbase,
-                                                  vert_coords,
-                                                  vert_coords_prev,
-                                                  vert_deform_mats,
-                                                  deformflag,
-                                                  defgrp_name,
-                                                  use_dverts);
+  TaskParallelSettings settings;
+  BLI_parallel_range_settings_defaults(&settings);
+  settings.min_iter_per_thread = 32;
+  BLI_task_parallel_range(0, vert_coords.size(), &data, armature_vert_task, &settings);
+}
 
-  if (em_target != nullptr) {
-    /* While this could cause an extra loop over mesh data, in most cases this will
-     * have already been properly set. */
-    BM_mesh_elem_index_ensure(em_target->bm, BM_VERT);
+static void armature_deform_editmesh(const Object &ob_arm,
+                                     const Object &ob_target,
+                                     const ListBase *defbase,
+                                     const MutableSpan<float3> vert_coords,
+                                     const std::optional<MutableSpan<float3x3>> vert_deform_mats,
+                                     const int deformflag,
+                                     const std::optional<Span<float3>> vert_coords_prev,
+                                     blender::StringRefNull defgrp_name,
+                                     const BMEditMesh &em_target,
+                                     const int cd_dvert_offset)
+{
+  const bool use_dverts = (cd_dvert_offset >= 0);
 
-    TaskParallelSettings settings;
-    BLI_parallel_mempool_settings_defaults(&settings);
+  ArmatureDeformParams deform_params = get_armature_deform_params(ob_arm,
+                                                                  ob_target,
+                                                                  defbase,
+                                                                  vert_coords,
+                                                                  vert_coords_prev,
+                                                                  vert_deform_mats,
+                                                                  deformflag,
+                                                                  defgrp_name,
+                                                                  use_dverts);
 
-    if (dverts) {
-      BLI_task_parallel_mempool(
-          em_target->bm->vpool, &data, armature_vert_task_editmesh, &settings);
-    }
-    else {
-      BLI_task_parallel_mempool(
-          em_target->bm->vpool, &data, armature_vert_task_editmesh_no_dvert, &settings);
-    }
+  ArmatureEditMeshUserdata data{};
+  data.use_quaternion = bool(deformflag & ARM_DEF_QUATERNION);
+  data.cd_dvert_offset = cd_dvert_offset;
+  data.deform_params = std::move(deform_params);
+
+  /* While this could cause an extra loop over mesh data, in most cases this will
+   * have already been properly set. */
+  BM_mesh_elem_index_ensure(em_target.bm, BM_VERT);
+
+  TaskParallelSettings settings;
+  BLI_parallel_mempool_settings_defaults(&settings);
+
+  if (use_dverts) {
+    BLI_task_parallel_mempool(em_target.bm->vpool, &data, armature_vert_task_editmesh, &settings);
   }
   else {
-    TaskParallelSettings settings;
-    BLI_parallel_range_settings_defaults(&settings);
-    settings.min_iter_per_thread = 32;
-    BLI_task_parallel_range(0, vert_coords.size(), &data, armature_vert_task, &settings);
+    BLI_task_parallel_mempool(
+        em_target.bm->vpool, &data, armature_vert_task_editmesh_no_dvert, &settings);
   }
 }
 
@@ -646,19 +673,16 @@ void BKE_armature_deform_coords_with_curves(
    * used for Grease Pencil layers as well. */
   BLI_assert(dverts.size() == vert_coords.size());
 
-  bke::armature_deform_coords_impl(ob_arm,
-                                   ob_target,
-                                   defbase,
-                                   vert_coords,
-                                   vert_deform_mats,
-                                   deformflag,
-                                   vert_coords_prev,
-                                   defgrp_name,
-                                   true,
-                                   dverts,
-                                   nullptr,
-                                   nullptr,
-                                   std::nullopt);
+  bke::armature_deform_coords(ob_arm,
+                              ob_target,
+                              defbase,
+                              vert_coords,
+                              vert_deform_mats,
+                              deformflag,
+                              vert_coords_prev,
+                              defgrp_name,
+                              dverts,
+                              nullptr);
 }
 
 void BKE_armature_deform_coords_with_mesh(
@@ -707,38 +731,32 @@ void BKE_armature_deform_coords_with_mesh(
     if (!me_target->deform_verts().is_empty()) {
       dverts_opt = dverts;
     }
-    bke::armature_deform_coords_impl(ob_arm,
-                                     ob_target,
-                                     defbase,
-                                     vert_coords,
-                                     vert_deform_mats,
-                                     deformflag,
-                                     vert_coords_prev,
-                                     defgrp_name,
-                                     dverts_opt.has_value(),
-                                     dverts_opt,
-                                     me_target,
-                                     nullptr,
-                                     std::nullopt);
+    bke::armature_deform_coords(ob_arm,
+                                ob_target,
+                                defbase,
+                                vert_coords,
+                                vert_deform_mats,
+                                deformflag,
+                                vert_coords_prev,
+                                defgrp_name,
+                                dverts_opt,
+                                me_target);
   }
   else {
     std::optional<Span<MDeformVert>> dverts_opt;
     if (dverts.size() == vert_coords.size()) {
       dverts_opt = dverts;
     }
-    bke::armature_deform_coords_impl(ob_arm,
-                                     ob_target,
-                                     defbase,
-                                     vert_coords,
-                                     vert_deform_mats,
-                                     deformflag,
-                                     vert_coords_prev,
-                                     defgrp_name,
-                                     dverts_opt.has_value(),
-                                     dverts_opt,
-                                     nullptr,
-                                     nullptr,
-                                     std::nullopt);
+    bke::armature_deform_coords(ob_arm,
+                                ob_target,
+                                defbase,
+                                vert_coords,
+                                vert_deform_mats,
+                                deformflag,
+                                vert_coords_prev,
+                                defgrp_name,
+                                dverts_opt,
+                                nullptr);
   }
 }
 
@@ -760,19 +778,16 @@ void BKE_armature_deform_coords_with_editmesh(
 
   const ListBase *defbase = BKE_id_defgroup_list_get(static_cast<const ID *>(ob_target.data));
   const int cd_dvert_offset = CustomData_get_offset(&em_target.bm->vdata, CD_MDEFORMVERT);
-  bke::armature_deform_coords_impl(ob_arm,
-                                   ob_target,
-                                   defbase,
-                                   vert_coords,
-                                   vert_deform_mats,
-                                   deformflag,
-                                   vert_coords_prev,
-                                   defgrp_name,
-                                   cd_dvert_offset >= 0,
-                                   std::nullopt,
-                                   nullptr,
-                                   &em_target,
-                                   cd_dvert_offset);
+  bke::armature_deform_editmesh(ob_arm,
+                                ob_target,
+                                defbase,
+                                vert_coords,
+                                vert_deform_mats,
+                                deformflag,
+                                vert_coords_prev,
+                                defgrp_name,
+                                em_target,
+                                cd_dvert_offset);
 }
 
 /** \} */
