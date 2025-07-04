@@ -193,7 +193,7 @@ void animrecord_check_state(TransInfo *t, ID *id);
 namespace curves {
 
 /**
- * Used for both curves and grease pencil objects.
+ * Used for both curves and Grease Pencil objects.
  */
 void curve_populate_trans_data_structs(const TransInfo &t,
                                        TransDataContainer &tc,
@@ -214,12 +214,12 @@ void copy_positions_from_curves_transform_custom_data(const TransCustomData &cus
                                                       MutableSpan<float3> positions_dst);
 
 void create_aligned_handles_masks(const bke::CurvesGeometry &curves,
-                                  const Span<IndexMask> points_to_transform_per_attr,
-                                  const int curve_index,
+                                  Span<IndexMask> points_to_transform_per_attr,
+                                  int curve_index,
                                   TransCustomData &custom_data);
 void calculate_aligned_handles(const TransCustomData &custom_data,
                                bke::CurvesGeometry &curves,
-                               const int curve_index);
+                               int curve_index);
 
 }  // namespace curves
 
