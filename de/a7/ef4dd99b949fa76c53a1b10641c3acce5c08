@@ -1,3 +1,4 @@
 Referenced by pull request #141379, Fix #141378: Anim Channel Pinning on object data lost adding object anim
 Referenced by pull request #141396, Fix #141384: Anim Channel Pinning: object data pin only for cameras
 Referenced by commit 5787b745803d0df1a952bbe64b4707aab9b93d55, Fix #141378: Anim Channel Pinning on object data lost adding object anim
+Referenced by commit ab9f03555c1a79bfdf4ecc17b2f2ce3cbd84994b, Fix #141384: Anim Channel Pinning: object data pin only for cameras
