@@ -281,7 +281,6 @@ struct ArmatureUserdata {
   std::optional<MutableSpan<float3x3>> vert_deform_mats;
   std::optional<Span<float3>> vert_coords_prev;
 
-  ConstListBaseWrapper<bPoseChannel> pose_channels = {{nullptr, nullptr}};
   bool use_envelope;
   bool use_quaternion;
   bool invert_vgroup;
@@ -289,7 +288,12 @@ struct ArmatureUserdata {
 
   int armature_def_nr;
 
-  Array<bPoseChannel *> pchan_from_defbase;
+  /* List of all pose channels on the target object. */
+  ConstListBaseWrapper<bPoseChannel> pose_channels = {{nullptr, nullptr}};
+  /* Maps vertex group index (def_nr) to pose channels, if vertex groups are used.
+   * Vertex groups used for deform can be different from the target object vertex groups list,
+   * the def_nr needs to be mapped to the correct pose channel first. */
+  Array<bPoseChannel *> pose_channel_by_vertex_group;
 
   float4x4 target_to_armature;
   float4x4 armature_to_target;
@@ -321,15 +325,15 @@ static ArmatureUserdata get_armature_deform_data(
   data.vert_coords = vert_coords;
   data.vert_deform_mats = vert_deform_mats;
   data.vert_coords_prev = vert_coords_prev;
-  data.pose_channels = {ob_arm.pose->chanbase};
   data.use_envelope = bool(deformflag & ARM_DEF_ENVELOPE);
   data.use_quaternion = bool(deformflag & ARM_DEF_QUATERNION);
   data.invert_vgroup = bool(deformflag & ARM_DEF_INVERT_VGROUP);
 
+  data.pose_channels = {ob_arm.pose->chanbase};
   data.use_dverts = dverts_supported && use_dverts && (deformflag & ARM_DEF_VGROUP);
   if (data.use_dverts) {
     const int defbase_len = BLI_listbase_count(defbase);
-    data.pchan_from_defbase.reinitialize(defbase_len);
+    data.pose_channel_by_vertex_group.reinitialize(defbase_len);
     /* TODO(sergey): Some considerations here:
      *
      * - Check whether keeping this consistent across frames gives speedup.
@@ -338,8 +342,9 @@ static ArmatureUserdata get_armature_deform_data(
     LISTBASE_FOREACH_INDEX (bDeformGroup *, dg, defbase, i) {
       bPoseChannel *pchan = BKE_pose_channel_find_name(ob_arm.pose, dg->name);
       /* Exclude non-deforming bones. */
-      data.pchan_from_defbase[i] = (pchan && !(pchan->bone->flag & BONE_NO_DEFORM)) ? pchan :
-                                                                                      nullptr;
+      data.pose_channel_by_vertex_group[i] = (pchan && !(pchan->bone->flag & BONE_NO_DEFORM)) ?
+                                                 pchan :
+                                                 nullptr;
     }
   }
 
@@ -401,11 +406,12 @@ static void armature_vert_task_with_dvert(const ArmatureUserdata &data,
   bool deformed = false;
   /* Apply vertex group deformation if enabled. */
   if (data.use_dverts && dvert) {
-    const Span<bPoseChannel *> pose_channels = data.pchan_from_defbase;
+    /* Range of valid def_nr in MDeformWeight. */
+    const IndexRange def_nr_range = data.pose_channel_by_vertex_group.index_range();
     const Span<MDeformWeight> dweights(dvert->dw, dvert->totweight);
     for (const auto &dw : dweights) {
-      const bPoseChannel *pchan = pose_channels.index_range().contains(dw.def_nr) ?
-                                      pose_channels[dw.def_nr] :
+      const bPoseChannel *pchan = def_nr_range.contains(dw.def_nr) ?
+                                      data.pose_channel_by_vertex_group[dw.def_nr] :
                                       nullptr;
       if (pchan == nullptr) {
         continue;
