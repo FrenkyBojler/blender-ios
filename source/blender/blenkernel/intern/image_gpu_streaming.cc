@@ -98,17 +98,20 @@ void ImageMipmapCache::init_mipmap_level_clamping()
 
   CLOG_INFO(&LOG,
             3,
-            "initialized mipmap level clamping to min=%d,max=%d",
+            "init clamping image=%s,min=%d,max=%d",
+            name_.c_str(),
             mipmap_level_clamp_min_,
             mipmap_level_clamp_max_);
 }
 
 void ImageMipmapCache::update_mipmap_cache(const ImBuf &imbuf,
                                            bool use_high_bitdef,
-                                           bool use_greyscale)
+                                           bool use_greyscale,
+                                           blender::StringRefNull name)
 {
+  name_ = name;
   clear();
-  CLOG_INFO(&LOG, 2, "update mipmap cache");
+  CLOG_INFO(&LOG, 2, "update mipmap cache name=%s", name_.c_str());
 
   eGPUTextureFormat texture_format = IMB_gpu_get_texture_format(
       &imbuf, use_high_bitdef, use_greyscale);
@@ -169,7 +172,8 @@ ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get_try(ImageMipmapMask mi
                                                    mipmap_level_clamp_max_));
   CLOG_INFO(&LOG,
             4,
-            "querying texture_ready=%c mipmap_level=%d, clamped_mipmap_level=%d",
+            "querying image=%s, texture_ready=%c mipmap_level=%d, clamped_mipmap_level=%d",
+            name_.c_str(),
             last_texture_ == nullptr ? 'n' : 'y',
             last_texture_mipmap_level_.level,
             clamped_mipmap_level);
@@ -178,22 +182,23 @@ ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get_try(ImageMipmapMask mi
 
 ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(ImageMipmapMask mipmap_mask)
 {
-  CLOG_INFO(&LOG, 3, "requesting mipmap mask %d", mipmap_mask.mask);
   ImageMipmapLevel clamped_mipmap_level(std::clamp(mipmap_mask.lowest_mipmap_level(size()).level,
                                                    mipmap_level_clamp_min_,
                                                    mipmap_level_clamp_max_));
   if (last_texture_ != nullptr && clamped_mipmap_level == last_texture_mipmap_level_) {
-    CLOG_INFO(&LOG,
-              3,
-              "requested clamped mipmap level %d is same as last used. Using cached GPU texture",
-              clamped_mipmap_level.level);
     return {&last_texture_, nullptr, false};
   }
 
-  CLOG_INFO(&LOG, 2, "recreate new mipmap level texture %d", clamped_mipmap_level.level);
+  CLOG_INFO(&LOG,
+            2,
+            "recreate texture image=%s,mask=%d,old_mipmap=%d,new_mipmap=%d",
+            name_.c_str(),
+            mipmap_mask,
+            last_texture_mipmap_level_.level,
+            clamped_mipmap_level.level);
   GPU_TEXTURE_FREE_SAFE(last_texture_);
   last_texture_ = GPU_texture_create_2d(
-      __func__,
+      name_.c_str(),
       UNPACK2(resolution_per_mipmap_[clamped_mipmap_level.level]),
       offsets_per_mipmap_.size() - clamped_mipmap_level.level,
       (eGPUTextureFormat)gpu_texture_format_,

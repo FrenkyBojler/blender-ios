@@ -487,7 +487,7 @@ static ImageGPUTextures image_get_gpu_texture(
   else if (use_texture_streaming) {
     blender::bke::ImageMipmapCache &mipmap_cache = ima->runtime->mipmap_cache;
     if (mipmap_cache.is_empty()) {
-      mipmap_cache.update_mipmap_cache(*ibuf, use_high_bitdepth, use_greyscale);
+      mipmap_cache.update_mipmap_cache(*ibuf, use_high_bitdepth, use_greyscale, ima->id.name + 2);
     }
     result = mipmap_cache.gpu_mipmap_texture_get(mipmap_mask.value());
   }

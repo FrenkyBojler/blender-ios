@@ -11,6 +11,7 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_mutex.hh"
+#include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
 #include <cstdint>
@@ -100,7 +101,10 @@ struct ImageMipmapCache {
   ImageMipmapCache();
   ~ImageMipmapCache();
 
-  void update_mipmap_cache(const ImBuf &imbuf, bool use_high_bitdepth, bool use_greyscale);
+  void update_mipmap_cache(const ImBuf &imbuf,
+                           bool use_high_bitdepth,
+                           bool use_greyscale,
+                           blender::StringRefNull name);
 
   ImageGPUTextures gpu_mipmap_texture_get_try(ImageMipmapMask mipmap_mask);
   ImageGPUTextures gpu_mipmap_texture_get(ImageMipmapMask mipmap_mask);
@@ -116,10 +120,7 @@ struct ImageMipmapCache {
   }
 
  private:
-  /** Data format how the mipmaps are stored inside data_ */
-  // enum eGPUDataFormat data_format_;
-  /** Texture format of the mipmap textures. */
-  // enum eGPUTextureFormat texture_format_;
+  std::string name_;
   Array<uint8_t> data_;
   int64_t bytes_all_mips_;
   Vector<int64_t> offsets_per_mipmap_;
