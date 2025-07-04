@@ -82,6 +82,9 @@ struct GPUViewport {
   /* TODO(@fclem): the UV-image display use the viewport but do not set any view transform for the
    * moment. The end goal would be to let the GPUViewport do the color management. */
   bool do_color_management;
+  /* Used for rendering HDR content without clamping even if display doesn't necessarily support
+   * HDR. This is used for viewport render preview (see #77909). */
+  bool force_hdr_output;
   GPUViewportBatch batch;
 };
 
@@ -167,12 +170,12 @@ static void gpu_viewport_textures_create(GPUViewport *viewport)
     viewport->depth_tx = GPU_texture_create_2d("dtxl_depth",
                                                UNPACK2(size),
                                                1,
-                                               GPU_DEPTH24_STENCIL8,
+                                               GPU_DEPTH32F_STENCIL8,
                                                usage | GPU_TEXTURE_USAGE_HOST_READ |
                                                    GPU_TEXTURE_USAGE_FORMAT_VIEW,
                                                nullptr);
     const int depth_clear = 0;
-    GPU_texture_clear(viewport->depth_tx, GPU_DATA_UINT_24_8, &depth_clear);
+    GPU_texture_clear(viewport->depth_tx, GPU_DATA_UINT_24_8_DEPRECATED, &depth_clear);
   }
 
   if (!viewport->depth_tx || !viewport->color_render_tx[0] || !viewport->color_overlay_tx[0]) {
@@ -272,6 +275,11 @@ void GPU_viewport_colorspace_set(GPUViewport *viewport,
   BKE_color_managed_display_settings_copy(&viewport->display_settings, display_settings);
   viewport->dither = dither;
   viewport->do_color_management = true;
+}
+
+void GPU_viewport_force_hdr(GPUViewport *viewport)
+{
+  viewport->force_hdr_output = true;
 }
 
 void GPU_viewport_stereo_composite(GPUViewport *viewport, Stereo3dFormat *stereo_format)
@@ -437,6 +445,10 @@ static void gpu_viewport_draw_colormanaged(GPUViewport *viewport,
   bool use_ocio = false;
   bool use_hdr = GPU_hdr_support() &&
                  ((viewport->view_settings.flag & COLORMANAGE_VIEW_USE_HDR) != 0);
+
+  if (viewport->force_hdr_output) {
+    use_hdr = true;
+  }
 
   if (viewport->do_color_management && display_colorspace) {
     /* During the binding process the last used VertexFormat is tested and can assert as it is not

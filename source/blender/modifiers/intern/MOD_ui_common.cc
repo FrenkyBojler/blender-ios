@@ -25,6 +25,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -114,7 +115,7 @@ PointerRNA *modifier_panel_get_property_pointers(Panel *panel, PointerRNA *r_ob_
     *r_ob_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Object, ptr->owner_id);
   }
 
-  uiBlock *block = uiLayoutGetBlock(panel->layout);
+  uiBlock *block = panel->layout->block();
   UI_block_lock_set(block, !ID_IS_EDITABLE((Object *)ptr->owner_id), ERROR_LIBDATA_MESSAGE);
 
   UI_panel_context_pointer_set(panel, "modifier", ptr);
@@ -132,11 +133,11 @@ void modifier_vgroup_ui(uiLayout *layout,
   bool has_vertex_group = RNA_string_length(ptr, vgroup_prop.c_str()) != 0;
 
   uiLayout *row = &layout->row(true);
-  uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
+  row->prop_search(ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
   if (invert_vgroup_prop) {
     uiLayout *sub = &row->row(true);
     sub->active_set(has_vertex_group);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
     sub->prop(ptr, *invert_vgroup_prop, UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
 }
@@ -215,7 +216,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
 
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
-  uiLayoutSetContextPointer(layout, "modifier", &ptr);
+  layout->context_ptr_set("modifier", &ptr);
   layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
 
   layout->ui_units_x_set(4.0f);
@@ -324,7 +325,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   sub = &layout->row(true);
   sub->emboss_set(blender::ui::EmbossType::None);
   if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
-    uiLayoutSetRedAlert(sub, true);
+    sub->red_alert_set(true);
   }
   PointerRNA op_ptr = sub->op("OBJECT_OT_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
   RNA_string_set(&op_ptr, "modifier", md->name);
@@ -354,7 +355,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     if (md->type == eModifierType_Smooth) {
       /* Add button (appearing to be OFF) and add tip why this can't be changed. */
       sub = &row->row(true);
-      uiBlock *block = uiLayoutGetBlock(sub);
+      uiBlock *block = sub->block();
       static int apply_on_spline_always_off_hack = 0;
       uiBut *but = uiDefIconButBitI(block,
                                     UI_BTYPE_TOGGLE,
@@ -378,7 +379,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     {
       /* Add button (appearing to be ON) and add tip why this can't be changed. */
       sub = &row->row(true);
-      uiBlock *block = uiLayoutGetBlock(sub);
+      uiBlock *block = sub->block();
       static int apply_on_spline_always_on_hack = eModifierMode_ApplyOnSpline;
       uiBut *but = uiDefIconButBitI(block,
                                     UI_BTYPE_TOGGLE,
@@ -448,7 +449,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
     name_row->prop(ptr, "name", UI_ITEM_NONE, "", ICON_NONE);
   }
   else {
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+    row->alignment_set(blender::ui::LayoutAlign::Right);
   }
 
   /* Extra padding for delete button. */

@@ -34,8 +34,8 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
@@ -401,7 +401,7 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
           BLI_assert(label_align == UI_BUT_LABEL_ALIGN_SPLIT_COLUMN);
           col = &layout->column(true);
           /* Let uiLayout::prop() create the split layout. */
-          uiLayoutSetPropSep(col, true);
+          col->use_property_split_set(true);
         }
 
         break;
@@ -418,14 +418,14 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
                                     ELEM(type, PROP_STRING, PROP_INT, PROP_FLOAT));
 
     if (use_activate_init) {
-      uiLayoutSetActivateInit(col, true);
+      col->activate_init_set(true);
     }
 
     col->prop(ptr, prop, -1, 0, compact ? UI_ITEM_R_COMPACT : UI_ITEM_NONE, name, ICON_NONE);
     return_info &= ~UI_PROP_BUTS_NONE_ADDED;
 
     if (use_activate_init) {
-      uiLayoutSetActivateInit(col, false);
+      col->activate_init_set(false);
     }
   }
   RNA_STRUCT_END;
