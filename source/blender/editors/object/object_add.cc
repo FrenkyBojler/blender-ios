@@ -4970,9 +4970,10 @@ static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
   return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
 }
 
-static bool object_update_shapes_poll(bContext *C){
+static bool object_update_shapes_poll(bContext *C)
+{
   Object *ob = CTX_data_active_object(C);
-  if(!active_shape_key_editable_poll(C)){
+  if (!active_shape_key_editable_poll(C)) {
     return false;
   }
 
