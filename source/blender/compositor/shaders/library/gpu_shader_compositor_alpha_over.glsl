@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_math_base_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
 /* If straight_alpha is true, then the foreground is in straight alpha form and would need to be
@@ -52,7 +53,9 @@ void node_composite_alpha_over_disjoint(
 /* Computes the Porter and Duff Over compositing operation but the foreground completely covers the
  * background if it is more opaque but not necessary completely opaque. See for reference:
  *
- *   https://benmcewan.com/blog/disjoint-over-and-conjoint-over-explained */
+ *   https://benmcewan.com/blog/disjoint-over-and-conjoint-over-explained
+ *
+ * However, the equation is wrong and should actually be A+B(1-a/b), A if a>b. */
 void node_composite_alpha_over_conjoint(
     float factor, float4 background, float4 foreground, float straight_alpha, out float4 result)
 {
@@ -67,8 +70,8 @@ void node_composite_alpha_over_conjoint(
     return;
   }
 
-  const float4 straight_background = safe_divide(background, background_alpha);
-  const float4 mix_result = foreground_color + straight_background * (1.0f - foreground_alpha);
+  const float alpha_ratio = safe_divide(foreground_alpha, background_alpha);
+  const float4 mix_result = foreground_color + background * (1.0f - alpha_ratio);
 
   result = mix(background, mix_result, factor);
 }

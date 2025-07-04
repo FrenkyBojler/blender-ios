@@ -176,8 +176,8 @@ static float4 alpha_over_conjoint(const float factor,
     return math::interpolate(background, mix_result, factor);
   }
 
-  const float4 straight_background = math::safe_divide(background, background_alpha);
-  const float4 mix_result = foreground_color + straight_background * (1.0f - foreground_alpha);
+  const float alpha_ratio = math::safe_divide(foreground_alpha, background_alpha);
+  const float4 mix_result = foreground_color + background * (1.0f - alpha_ratio);
 
   return math::interpolate(background, mix_result, factor);
 }
