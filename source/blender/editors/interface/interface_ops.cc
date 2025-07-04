@@ -2811,7 +2811,7 @@ static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
 
   if (!extend) {
     /* Keep previous selection for extend selection, see: !138979. */
-    view.foreach_view_item([](AbstractViewItem &item) { item.deselect(); });
+    view.foreach_view_item([](AbstractViewItem &item) { item.set_selected(false); });
   }
 
   if (range_select) {
@@ -2820,11 +2820,11 @@ static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
       if ((item.is_active()) ^ (&item == clicked_item)) {
         is_inside_range = !is_inside_range;
         /* Select end items from the range. */
-        item.select();
+        item.set_selected(true);
       }
       if (is_inside_range) {
         /* Select items within the range. */
-        item.select();
+        item.set_selected(true);
       }
     });
     return OPERATOR_FINISHED;

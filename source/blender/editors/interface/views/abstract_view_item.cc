@@ -71,8 +71,8 @@ bool AbstractViewItem::set_state_active()
 void AbstractViewItem::activate(bContext &C)
 {
   if (set_state_active()) {
-    select();
     on_activate(C);
+    set_selected(true);
   }
 }
 
@@ -81,22 +81,15 @@ void AbstractViewItem::deactivate()
   is_active_ = false;
 }
 
-void AbstractViewItem::select()
-{
-  /* Do nothing. */
-}
-
-void AbstractViewItem::deselect()
-{
-  is_selected_ = false;
-}
-
 std::optional<bool> AbstractViewItem::should_be_selected() const
 {
   return std::nullopt;
 }
 
-void AbstractViewItem::set_selected() {}
+void AbstractViewItem::set_selected(const bool select)
+{
+  is_selected_ = select;
+}
 
 /** \} */
 
@@ -116,8 +109,8 @@ void AbstractViewItem::change_state_delayed()
       is_active_ = false;
     }
   }
-  if (should_be_selected().has_value()) {
-    set_selected();
+  if (std::optional<bool> is_selected = should_be_selected()) {
+    set_selected(is_selected.value_or(false));
   }
 }
 

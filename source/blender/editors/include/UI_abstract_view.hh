@@ -237,7 +237,7 @@ class AbstractViewItem {
   virtual std::optional<bool> should_be_active() const;
 
   virtual std::optional<bool> should_be_selected() const;
-  virtual void set_selected();
+  virtual void set_selected(const bool select);
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.
@@ -307,8 +307,6 @@ class AbstractViewItem {
    */
   void activate(bContext &C);
   void deactivate();
-  virtual void select();
-  virtual void deselect();
   /**
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise we
    * can't be sure about the item state.

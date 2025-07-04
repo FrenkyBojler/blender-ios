@@ -199,24 +199,13 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
 
   std::optional<bool> should_be_selected() const override
   {
-    return true;
+    return shape_key_.kb->flag & KEYBLOCK_SEL;
   }
 
-  void set_selected() override
+  void set_selected(const bool select) override
   {
-    is_selected_ = shape_key_.kb->flag & KEYBLOCK_SEL;
-  }
-
-  void select() override
-  {
-    is_selected_ = true;
-    shape_key_.kb->flag |= KEYBLOCK_SEL;
-  }
-
-  void deselect() override
-  {
-    is_selected_ = false;
-    shape_key_.kb->flag &= ~KEYBLOCK_SEL;
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(shape_key_.kb->flag, select, KEYBLOCK_SEL);
   }
 
   bool supports_renaming() const override
