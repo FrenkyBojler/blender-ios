@@ -1862,12 +1862,8 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
 
   t->state = TRANS_STARTING;
 
-  if ((prop = RNA_struct_find_property(op->ptr, "cursor_transform")) &&
-      RNA_property_is_set(op->ptr, prop))
-  {
-    if (RNA_property_boolean_get(op->ptr, prop)) {
-      options |= CTX_CURSOR;
-    }
+  if (STREQ(op->idname, "TRANSFORM_OT_transform_cursor")) {
+    options |= CTX_CURSOR;
   }
 
   if ((prop = RNA_struct_find_property(op->ptr, "texture_space")) &&

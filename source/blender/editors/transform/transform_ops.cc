@@ -74,6 +74,7 @@ static const char OP_VERT_CREASE[] = "TRANSFORM_OT_vert_crease";
 static const char OP_EDGE_BWEIGHT[] = "TRANSFORM_OT_edge_bevelweight";
 static const char OP_SEQ_SLIDE[] = "TRANSFORM_OT_seq_slide";
 static const char OP_NORMAL_ROTATION[] = "TRANSFORM_OT_rotate_normal";
+static const char OP_TRANSFORM_CURSOR[] = "TRANSFORM_OT_transform_cursor";
 
 static void TRANSFORM_OT_translate(wmOperatorType *ot);
 static void TRANSFORM_OT_rotate(wmOperatorType *ot);
@@ -95,6 +96,7 @@ static void TRANSFORM_OT_vert_crease(wmOperatorType *ot);
 static void TRANSFORM_OT_edge_bevelweight(wmOperatorType *ot);
 static void TRANSFORM_OT_seq_slide(wmOperatorType *ot);
 static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot);
+static void TRANSFORM_OT_transform_cursor(wmOperatorType *ot);
 
 static TransformModeItem transform_modes[] = {
     {OP_TRANSLATION, TFM_TRANSLATION, TRANSFORM_OT_translate},
@@ -117,6 +119,7 @@ static TransformModeItem transform_modes[] = {
     {OP_EDGE_BWEIGHT, TFM_BWEIGHT, TRANSFORM_OT_edge_bevelweight},
     {OP_SEQ_SLIDE, TFM_SEQ_SLIDE, TRANSFORM_OT_seq_slide},
     {OP_NORMAL_ROTATION, TFM_NORMAL_ROTATION, TRANSFORM_OT_rotate_normal},
+    {OP_TRANSFORM_CURSOR, TFM_TRANSLATION, TRANSFORM_OT_transform_cursor},
     {nullptr, 0},
 };
 
@@ -495,7 +498,7 @@ static wmOperatorStatus transform_modal(bContext *C, wmOperator *op, const wmEve
     exit_code &= ~OPERATOR_PASS_THROUGH; /* Preventively remove pass-through. */
   }
   else {
-    if (mode_prev != t->mode) {
+    if (mode_prev != t->mode && !(t->options & CTX_CURSOR)) {
       /* WARNING: this is not normal to switch operator types
        * normally it would not be supported but transform happens
        * to share callbacks between different operators. */
@@ -785,11 +788,6 @@ void properties_register(wmOperatorType *ot, int flags)
     RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   }
 
-  if (flags & P_CURSOR_EDIT) {
-    prop = RNA_def_boolean(ot->srna, "cursor_transform", false, "Transform Cursor", "");
-    RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
-  }
-
   if ((flags & P_OPTIONS) && !(flags & P_NO_TEXSPACE)) {
     prop = RNA_def_boolean(
         ot->srna, "texture_space", false, "Edit Texture Space", "Edit object data texture space");
@@ -879,8 +877,8 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
 
   properties_register(ot,
                       P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP |
-                          P_OPTIONS | P_GPENCIL_EDIT | P_CURSOR_EDIT | P_VIEW2D_EDGE_PAN |
-                          P_POST_TRANSFORM | P_TRANSLATE_ORIGIN);
+                          P_OPTIONS | P_GPENCIL_EDIT | P_VIEW2D_EDGE_PAN | P_POST_TRANSFORM |
+                          P_TRANSLATE_ORIGIN);
 }
 
 static void TRANSFORM_OT_resize(wmOperatorType *ot)
@@ -1425,6 +1423,22 @@ static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
       ot->srna, "value", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);
 
   properties_register(ot, P_ORIENT_AXIS | P_ORIENT_MATRIX | P_CONSTRAINT | P_MIRROR);
+}
+
+static void TRANSFORM_OT_transform_cursor(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Transform Cursor";
+  ot->description = "Move or Rotate Cursor";
+  ot->idname = OP_TRANSFORM_CURSOR;
+  ot->flag = OPTYPE_BLOCKING;
+
+  /* API callbacks. */
+  ot->invoke = transform_invoke;
+  ot->exec = transform_exec;
+  ot->modal = transform_modal;
+  ot->cancel = transform_cancel;
+  ot->poll = ED_operator_screenactive;
 }
 
 static void TRANSFORM_OT_transform(wmOperatorType *ot)

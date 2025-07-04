@@ -121,11 +121,10 @@ int BIF_countTransformOrientation(const bContext *C);
 #define P_NO_TEXSPACE (1 << 13)
 #define P_CENTER (1 << 14)
 #define P_GPENCIL_EDIT (1 << 15)
-#define P_CURSOR_EDIT (1 << 16)
-#define P_VIEW2D_EDGE_PAN (1 << 17)
+#define P_VIEW2D_EDGE_PAN (1 << 16)
 /* For properties performed when confirming the transformation. */
-#define P_POST_TRANSFORM (1 << 18)
-#define P_TRANSLATE_ORIGIN (1 << 19)
+#define P_POST_TRANSFORM (1 << 17)
+#define P_TRANSLATE_ORIGIN (1 << 18)
 
 void properties_register(wmOperatorType *ot, int flags);
 

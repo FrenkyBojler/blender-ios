@@ -628,8 +628,8 @@ def _template_items_tool_select(
         # For right mouse, set the cursor.
         return [
             (cursor_operator, {"type": 'LEFTMOUSE', "value": 'PRESS'}, None) if cursor_operator is not None else (),
-            ("transform.translate", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", {"type": 'LEFTMOUSE', "value": 'CLICK_DRAG'},
+             {"properties": [("release_confirm", True)]}),
         ]
 
 
@@ -1126,8 +1126,8 @@ def km_mask_editing(params):
     if params.cursor_tweak_event:
         items.extend([
             ("uv.cursor_set", params.cursor_set_event, None),
-            ("transform.translate", params.cursor_tweak_event,
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", params.cursor_tweak_event,
+             {"properties": [("release_confirm", True)]}),
         ])
     else:
         items.extend([
@@ -1458,8 +1458,8 @@ def km_uv_editor(params):
     if params.cursor_tweak_event:
         items.extend([
             ("uv.cursor_set", params.cursor_set_event, None),
-            ("transform.translate", params.cursor_tweak_event,
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", params.cursor_tweak_event,
+             {"properties": [("release_confirm", True)]}),
         ])
     else:
         items.extend([
@@ -1519,8 +1519,8 @@ def km_view3d(params):
     if params.cursor_tweak_event:
         items.extend([
             ("view3d.cursor3d", params.cursor_set_event, None),
-            ("transform.translate", params.cursor_tweak_event,
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", params.cursor_tweak_event,
+             {"properties": [("release_confirm", True)]}),
         ])
     else:
         items.extend([
@@ -3262,8 +3262,8 @@ def km_sequencer_preview(params):
     if params.cursor_tweak_event:
         items.extend([
             ("sequencer.cursor_set", params.cursor_set_event, None),
-            ("transform.translate", params.cursor_tweak_event,
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", params.cursor_tweak_event,
+             {"properties": [("release_confirm", True)]}),
         ])
     else:
         items.extend([
@@ -6780,8 +6780,8 @@ def km_image_editor_tool_uv_cursor(params):
         {"items": [
             ("uv.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
             # Don't use `tool_maybe_tweak_event` since it conflicts with `PRESS` that places the cursor.
-            ("transform.translate", params.tool_tweak_event,
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", params.tool_tweak_event,
+             {"properties": [("release_confirm", True)]}),
         ]},
     )
 
@@ -7027,8 +7027,8 @@ def km_3d_view_tool_cursor(params):
         {"items": [
             ("view3d.cursor3d", {"type": params.tool_mouse, "value": 'PRESS'}, None),
             # Don't use `tool_maybe_tweak_event` since it conflicts with `PRESS` that places the cursor.
-            ("transform.translate", params.tool_tweak_event,
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", params.tool_tweak_event,
+             {"properties": [("release_confirm", True)]}),
         ]},
     )
 
@@ -8251,8 +8251,8 @@ def km_sequencer_preview_tool_generic_cursor(params):
         {"items": [
             ("sequencer.cursor_set", {"type": params.tool_mouse, "value": 'PRESS'}, None),
             # Don't use `tool_maybe_tweak_event` since it conflicts with `PRESS` that places the cursor.
-            ("transform.translate", params.tool_tweak_event,
-             {"properties": [("release_confirm", True), ("cursor_transform", True)]}),
+            ("transform.transform_cursor", params.tool_tweak_event,
+             {"properties": [("release_confirm", True)]}),
         ]},
     )
 
