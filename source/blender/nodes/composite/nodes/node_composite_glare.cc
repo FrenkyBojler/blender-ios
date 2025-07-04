@@ -2264,7 +2264,8 @@ class GlareOperation : public NodeOperation {
     highlights.bind_as_texture(shader, "input_tx");
 
     Result output_image = context().create_result(ResultType::Color);
-    const Domain domain = compute_domain();
+    const Domain domain = math::divide_ceil(this->compute_domain().size,
+                                            int2(this->get_quality_factor()));
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
@@ -2282,7 +2283,8 @@ class GlareOperation : public NodeOperation {
 
     // Result &input = get_input("Image");
 
-    const Domain domain = compute_domain();
+    const Domain domain = math::divide_ceil(this->compute_domain().size,
+                                            int2(this->get_quality_factor()));
     Result output = context().create_result(ResultType::Color);
     output.allocate_texture(domain);
 
