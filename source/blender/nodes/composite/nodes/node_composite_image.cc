@@ -430,7 +430,7 @@ static void cmp_node_image_update(bNodeTree *ntree, bNode *node)
       frame_input = bke::node_add_static_socket(
           *ntree, *node, SOCK_IN, SOCK_INT, PROP_NONE, "Frame", "Frame");
     }
-    frame_input->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+    frame_input->display_shape = SOCK_DISPLAY_SHAPE_LINE;
     frame_input->flag |= SOCK_HIDE_VALUE;
 
     Image *image = reinterpret_cast<Image *>(node->id);

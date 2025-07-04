@@ -1000,6 +1000,114 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
   }
 }
 
+/* The Dot output of the Normal node was removed, so replace it with a dot product vector math
+ * node, noting that the Dot output was actually negative the dot product of the normalized
+ * node vector with the input. */
+static void do_version_image_node_frame(bNodeTree *node_tree, bNode *node)
+{
+  /* Already versioned. */
+  if (blender::bke::node_find_socket(*node, SOCK_IN, "Frame")) {
+    return;
+  }
+
+  bNodeSocket *frame_input = blender::bke::node_add_static_socket(
+      *node_tree, *node, SOCK_IN, SOCK_INT, PROP_NONE, "Frame", "Frame");
+  frame_input->display_shape = SOCK_DISPLAY_SHAPE_LINE;
+  frame_input->flag |= SOCK_HIDE_VALUE;
+
+  /* Not animated. */
+  Image *image = reinterpret_cast<Image *>(node->id);
+  if (!image || !ELEM(image->source, IMA_SRC_SEQUENCE, IMA_SRC_MOVIE)) {
+    return;
+  }
+
+  /* The frame is used as is, no need to version anything. */
+  ImageUser &image_user = *static_cast<ImageUser *>(node->storage);
+  if (image_user.sfra == 1 && !image_user.cycl && image_user.offset == 0) {
+    return;
+  }
+
+  /* Get the frame number. */
+  bNode *frame_node = blender::bke::node_add_node(nullptr, *node_tree, "CompositorNodeSceneTime");
+  frame_node->flag |= NODE_COLLAPSED;
+  frame_node->parent = node->parent;
+  frame_node->location[0] = node->location[0] - node->width - 20.0f;
+  frame_node->location[1] = node->location[1];
+
+  bNodeSocket *frame_output = blender::bke::node_find_socket(*frame_node, SOCK_OUT, "Frame");
+
+  bNode *last_node = frame_node;
+  bNodeSocket *last_output = frame_output;
+
+  /* Subtract the start frame if not 1. */
+  if (image_user.sfra != 1) {
+    bNode *start_frame_node = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+    start_frame_node->custom1 = NODE_MATH_SUBTRACT;
+    start_frame_node->flag |= NODE_COLLAPSED;
+    start_frame_node->parent = node->parent;
+    start_frame_node->location[0] = frame_node->location[0];
+    start_frame_node->location[1] = frame_node->location[1] - 40.0f;
+
+    bNodeSocket *start_frame_a_input = blender::bke::node_find_socket(
+        *start_frame_node, SOCK_IN, "Value");
+    bNodeSocket *start_frame_b_input = blender::bke::node_find_socket(
+        *start_frame_node, SOCK_IN, "Value_001");
+    bNodeSocket *start_frame_output = blender::bke::node_find_socket(
+        *start_frame_node, SOCK_OUT, "Value");
+
+    static_cast<bNodeSocketValueFloat *>(start_frame_b_input->default_value)->value =
+        image_user.sfra - 1;
+
+    version_node_add_link(
+        *node_tree, *frame_node, *frame_output, *start_frame_node, *start_frame_a_input);
+    last_node = start_frame_node;
+    last_output = start_frame_output;
+  }
+
+  /* Modulo with the length of the animation if Cyclic is enabled. */
+  if (image_user.cycl) {
+    bNode *modulo_node = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+    modulo_node->custom1 = NODE_MATH_MODULO;
+    modulo_node->flag |= NODE_COLLAPSED;
+    modulo_node->parent = node->parent;
+    modulo_node->location[0] = last_node->location[0];
+    modulo_node->location[1] = last_node->location[1] - 40.0f;
+
+    bNodeSocket *modulo_a_input = blender::bke::node_find_socket(*modulo_node, SOCK_IN, "Value");
+    bNodeSocket *modulo_b_input = blender::bke::node_find_socket(
+        *modulo_node, SOCK_IN, "Value_001");
+    bNodeSocket *modulo_output = blender::bke::node_find_socket(*modulo_node, SOCK_OUT, "Value");
+
+    static_cast<bNodeSocketValueFloat *>(modulo_b_input->default_value)->value = image_user.frames;
+
+    version_node_add_link(*node_tree, *last_node, *last_output, *modulo_node, *modulo_a_input);
+    last_node = modulo_node;
+    last_output = modulo_output;
+  }
+
+  /* Add the offset if not zero. */
+  if (image_user.offset != 0) {
+    bNode *offset_node = blender::bke::node_add_node(nullptr, *node_tree, "ShaderNodeMath");
+    offset_node->custom1 = NODE_MATH_ADD;
+    offset_node->flag |= NODE_COLLAPSED;
+    offset_node->parent = node->parent;
+    offset_node->location[0] = last_node->location[0];
+    offset_node->location[1] = last_node->location[1] - 40.0f;
+
+    bNodeSocket *offset_a_input = blender::bke::node_find_socket(*offset_node, SOCK_IN, "Value");
+    bNodeSocket *offset_b_input = blender::bke::node_find_socket(
+        *offset_node, SOCK_IN, "Value_001");
+    bNodeSocket *offset_output = blender::bke::node_find_socket(*offset_node, SOCK_OUT, "Value");
+
+    static_cast<bNodeSocketValueFloat *>(offset_b_input->default_value)->value = image_user.offset;
+
+    version_node_add_link(*node_tree, *last_node, *last_output, *offset_node, *offset_a_input);
+    last_node = offset_node;
+    last_output = offset_output;
+  }
+  version_node_add_link(*node_tree, *last_node, *last_output, *node, *frame_input);
+}
+
 void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -1014,6 +1122,19 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
         do_version_convert_to_generic_nodes_after_linking(bmain, ntree, id);
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 34)) {
+    FOREACH_NODETREE_BEGIN (bmain, node_tree, id) {
+      if (node_tree->type == NTREE_COMPOSIT) {
+        LISTBASE_FOREACH_MUTABLE (bNode *, node, &node_tree->nodes) {
+          if (node->type_legacy == CMP_NODE_IMAGE) {
+            do_version_image_node_frame(node_tree, node);
+          }
+        }
       }
     }
     FOREACH_NODETREE_END;
