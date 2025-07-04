@@ -10,6 +10,8 @@
 #include <cstdio>
 #include <cstdlib>
 #include <cstring>
+#include <filesystem>
+#include <iostream>
 
 // #define VERBOSE
 
@@ -62,6 +64,15 @@ int main(int argc, char **argv)
 #ifdef VERBOSE
   printf("Making C file <%s>\n", argv[2]);
 #endif
+
+  std::filesystem::path parent_dir = std::filesystem::path(argv[2]).parent_path();
+  std::error_code ec;
+  if (!std::filesystem::create_directories(parent_dir, ec)) {
+    if (ec) {
+      std::cerr << "Unable to create " << parent_dir << " : " << ec.message() << std::endl;
+      exit(1);
+    }
+  }
 
   argv_len = int(strlen(argv[1]));
   for (i = 0; i < argv_len; i++) {
