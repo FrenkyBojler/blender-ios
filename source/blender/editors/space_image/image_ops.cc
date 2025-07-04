@@ -79,6 +79,7 @@
 #include "ED_uvedit.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -794,7 +795,7 @@ static wmOperatorStatus image_view_ndof_invoke(bContext *C,
   const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
 
-  blender::float3 pan_vec = -ndof.time_delta * WM_event_ndof_translation_get(ndof);
+  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
 
   mul_v2_fl(pan_vec, pan_speed / sima->zoom);
 
@@ -2044,8 +2045,8 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Operator settings. */
   uiDefAutoButsRNA(layout,
@@ -2698,8 +2699,8 @@ static void image_new_draw(bContext * /*C*/, wmOperator *op)
 
   /* copy of WM_operator_props_dialog_popup() layout */
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
   col->prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4235,8 +4236,8 @@ static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
 
 static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   uiLayout *col = &layout->column(false);
   col->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4382,8 +4383,8 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
   uiLayout *col;
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
   col->prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);

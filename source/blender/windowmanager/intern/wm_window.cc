@@ -29,6 +29,7 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
@@ -79,6 +80,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 
 #include "BLF_api.hh"
 #include "GPU_context.hh"
@@ -471,11 +473,15 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
   if (screen) {
     ED_screen_exit(C, win, screen);
   }
+  const bool is_single_editor = !WM_window_is_main_top_level(win) &&
+                                (screen && BLI_listbase_is_single(&screen->areabase));
 
   wm_window_free(C, wm, win);
 
-  /* If temp screen, delete it after window free (it stops jobs that can access it). */
-  if (screen && screen->temp) {
+  /* If temp screen, delete it after window free (it stops jobs that can access it).
+   * Also delete windows with single editor. If required, they are easy to restore, see: !132978.
+   */
+  if ((screen && screen->temp) || is_single_editor) {
     Main *bmain = CTX_data_main(C);
 
     BLI_assert(BKE_workspace_layout_screen_get(layout) == screen);
@@ -512,11 +518,26 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
     return;
   }
 
-  const char *filepath = BKE_main_blendfile_path_from_global();
-  const char *filename = BLI_path_basename(filepath);
+  /* This path may contain invalid UTF8 byte sequences on UNIX systems,
+   * use `filepath` for display which is sanitized as needed. */
+  const char *filepath_as_bytes = BKE_main_blendfile_path_from_global();
 
+  char _filepath_utf8_buf[FILE_MAX];
+  /* Allow non-UTF8 characters on systems that support it.
+   *
+   * On Wayland, invalid UTF8 characters will disconnect
+   * from the server - exiting immediately. */
+  const char *filepath = (OS_MAC || OS_WINDOWS) ?
+                             filepath_as_bytes :
+                             BLI_str_utf8_invalid_substitute_as_needed(filepath_as_bytes,
+                                                                       strlen(filepath_as_bytes),
+                                                                       '?',
+                                                                       _filepath_utf8_buf,
+                                                                       sizeof(_filepath_utf8_buf));
+
+  const char *filename = BLI_path_basename(filepath);
   const bool has_filepath = filepath[0] != '\0';
-  const bool native_filepath_display = GHOST_SetPath(handle, filepath) == GHOST_kSuccess;
+  const bool native_filepath_display = GHOST_SetPath(handle, filepath_as_bytes) == GHOST_kSuccess;
   const bool include_filepath = has_filepath && (filepath != filename) && !native_filepath_display;
 
   /* File saved state. */
@@ -528,7 +549,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
     win_title.append(filename, filename_no_ext_len);
   }
   else if (has_filepath) {
-    win_title.append(BLI_path_basename(filename));
+    win_title.append(filename);
   }
   /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs. */
   else {
@@ -544,7 +565,34 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
   }
 
   if (include_filepath) {
-    win_title.append(fmt::format(" [{}]", filepath));
+    bool add_filepath = true;
+    if ((OS_MAC || OS_WINDOWS) == 0) {
+      /* Notes:
+       * - Relies on the `filepath_as_bytes` & `filepath` being aligned and the same length.
+       *   If that changes (if we implement surrogate escape for example)
+       *   then the substitution would need to be performed before validating UTF8.
+       * - This file-path is already normalized
+       *   so there is no need to use a comparison that normalizes both.
+       *
+       * See !141059 for more general support for "My Documents", "Downloads" etc,
+       * this also caches the result, which doesn't seem necessary at the moment. */
+      if (const char *home_dir = BLI_dir_home()) {
+        size_t home_dir_len = strlen(home_dir);
+        /* Strip trailing slash (if it exists). */
+        while (home_dir_len && home_dir[home_dir_len - 1] == SEP) {
+          home_dir_len--;
+        }
+        if ((home_dir_len > 0) && BLI_path_ncmp(home_dir, filepath_as_bytes, home_dir_len) == 0) {
+          if (filepath_as_bytes[home_dir_len] == SEP) {
+            win_title.append(fmt::format(" [~{}]", filepath + home_dir_len));
+            add_filepath = false;
+          }
+        }
+      }
+    }
+    if (add_filepath) {
+      win_title.append(fmt::format(" [{}]", filepath));
+    }
   }
 
   win_title.append(fmt::format(" - Blender {}", BKE_blender_version_string()));
@@ -659,11 +707,9 @@ static void wm_window_decoration_style_set_from_theme(const wmWindow *win, const
     UI_SetTheme(0, RGN_TYPE_WINDOW);
   }
 
-  float titlebar_bg_color[3], titlebar_fg_color[3];
+  float titlebar_bg_color[3];
   UI_GetThemeColor3fv(TH_BACK, titlebar_bg_color);
-  UI_GetThemeColor3fv(TH_BUTBACK_TEXT, titlebar_fg_color);
   copy_v3_v3(decoration_settings.colored_titlebar_bg_color, titlebar_bg_color);
-  copy_v3_v3(decoration_settings.colored_titlebar_fg_color, titlebar_fg_color);
 
   GHOST_SetWindowDecorationStyleSettings(static_cast<GHOST_WindowHandle>(win->ghostwin),
                                          decoration_settings);
@@ -2187,6 +2233,9 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityKeyboardHyperKey) {
     flag |= WM_CAPABILITY_KEYBOARD_HYPER_KEY;
   }
+  if (ghost_flag & GHOST_kCapabilityRGBACursors) {
+    flag |= WM_CAPABILITY_RGBA_CURSORS;
+  }
 
   return flag;
 }
@@ -2737,6 +2786,11 @@ void WM_cursor_warp(wmWindow *win, int x, int y)
 
   win->eventstate->xy[0] = oldx;
   win->eventstate->xy[1] = oldy;
+}
+
+uint WM_cursor_preferred_logical_size()
+{
+  return GHOST_GetCursorPreferredLogicalSize(g_system);
 }
 
 /** \} */
