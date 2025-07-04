@@ -3351,7 +3351,7 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   const bool backward = RNA_boolean_get(op->ptr, "backward");
 
-  int delta = scene->r.time_jump_delta;
+  float delta = scene->r.time_jump_delta;
 
   if (scene->r.time_jump_unit == SCE_TIME_JUMP_SECOND) {
     delta *= scene->r.frs_sec;

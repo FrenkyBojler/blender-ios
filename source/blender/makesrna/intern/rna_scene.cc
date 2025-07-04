@@ -8711,10 +8711,10 @@ void RNA_def_scene(BlenderRNA *brna)
       prop, "Time Jump Unit", "Which unit to use for time jumps in the timeline");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);
 
-  prop = RNA_def_property(srna, "time_jump_delta", PROP_INT, PROP_TIME);
+  prop = RNA_def_property(srna, "time_jump_delta", PROP_FLOAT, PROP_TIME);
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
-  RNA_def_property_int_sdna(prop, nullptr, "r.time_jump_delta");
-  RNA_def_property_range(prop, 1, INT_MAX);
+  RNA_def_property_float_sdna(prop, nullptr, "r.time_jump_delta");
+  RNA_def_property_range(prop, 0.1f, FLT_MAX);
   RNA_def_property_ui_text(
       prop, "Time Jump Delta", "Number of frames or seconds to jump forward or backward");
   RNA_def_property_update(prop, NC_SCENE | ND_FRAME_RANGE, nullptr);

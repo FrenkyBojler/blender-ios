@@ -923,7 +923,7 @@ typedef struct RenderData {
   int compositor_denoise_final_quality;   /* eCompositorDenoiseQaulity */
 
   /** Frames to jump manually. */
-  int time_jump_delta;
+  float time_jump_delta;
   int time_jump_unit;
   char _pad10[4];
 } RenderData;
@@ -978,7 +978,6 @@ enum {
   SCE_TIME_JUMP_FRAME = 0,
   SCE_TIME_JUMP_SECOND = 1,
 };
-
 
 /** \} */
 
