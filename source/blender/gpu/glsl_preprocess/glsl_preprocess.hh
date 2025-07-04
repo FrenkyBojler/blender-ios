@@ -57,6 +57,7 @@ enum Builtin : uint64_t {
   drw_debug = hash("drw_debug_"),
   printf = hash("printf"),
   assert = hash("assert"),
+  runtime_generated = hash("runtime_generated"),
 };
 
 enum Qualifier : uint64_t {
@@ -207,11 +208,14 @@ class Preprocessor {
       }
       if (language == BLENDER_GLSL) {
         include_parse(str, report_error);
+        pragma_runtime_generated_parsing(str);
         pragma_once_linting(str, filename, report_error);
       }
       str = preprocessor_directive_mutation(str);
       str = swizzle_function_mutation(str);
       if (language == BLENDER_GLSL) {
+        str = stage_function_mutation(str);
+        str = resource_guard_mutation(str, report_error);
         str = loop_unroll(str, report_error);
         str = assert_processing(str, filename);
         static_strings_parsing(str);
@@ -238,6 +242,11 @@ class Preprocessor {
       str = template_definition_mutation(str, report_error);
       str = template_call_mutation(str);
     }
+#ifdef __APPLE__ /* Limiting to Apple hardware since GLSL compilers might have issues. */
+    if (language == GLSL) {
+      str = matrix_constructor_mutation(str);
+    }
+#endif
     str = argument_decorator_macro_injection(str);
     str = array_constructor_macro_injection(str);
     r_metadata = metadata;
@@ -456,6 +465,13 @@ class Preprocessor {
       }
       metadata.dependencies.emplace_back(dependency_name);
     });
+  }
+
+  void pragma_runtime_generated_parsing(const std::string &str)
+  {
+    if (str.find("\n#pragma runtime_generated") != std::string::npos) {
+      metadata.builtins.emplace_back(metadata::Builtin::runtime_generated);
+    }
   }
 
   void pragma_once_linting(const std::string &str,
@@ -778,7 +794,7 @@ class Preprocessor {
         const string ns_keyword = "namespace ";
         size_t pos = out_str.rfind(ns_keyword, out_str.size() - parent_scope.size());
         if (pos == string::npos) {
-          report_error(match, "Couldn't find `namespace` keyword at begining of scope.");
+          report_error(match, "Couldn't find `namespace` keyword at beginning of scope.");
           break;
         }
         size_t start = pos + ns_keyword.size();
@@ -835,7 +851,7 @@ class Preprocessor {
   std::string preprocessor_directive_mutation(const std::string &str)
   {
     /* Remove unsupported directives.` */
-    std::regex regex(R"(#\s*(?:include|pragma once)[^\n]*)");
+    std::regex regex(R"(#\s*(?:include|pragma once|pragma runtime_generated)[^\n]*)");
     return std::regex_replace(str, regex, "");
   }
 
@@ -1021,6 +1037,123 @@ class Preprocessor {
     return str;
   }
 
+  std::string stage_function_mutation(const std::string &str)
+  {
+    using namespace std;
+
+    if (str.find("_function]]") == string::npos) {
+      return str;
+    }
+
+    vector<pair<string, string>> mutations;
+
+    int64_t line = 1;
+    regex regex_attr(R"(\[\[gpu::(vertex|fragment|compute)_function\]\])");
+    regex_global_search(str, regex_attr, [&](const smatch &match) {
+      string prefix = match.prefix().str();
+      string suffix = match.suffix().str();
+      string attribute = match[0].str();
+      string shader_stage = match[1].str();
+
+      line += line_count(prefix);
+      string signature = suffix.substr(0, suffix.find('{'));
+      string body = '{' +
+                    get_content_between_balanced_pair(suffix.substr(signature.size()), '{', '}') +
+                    "}\n";
+
+      string function = signature + body;
+
+      string check = "defined(";
+      if (shader_stage == "vertex") {
+        check += "GPU_VERTEX_SHADER";
+      }
+      else if (shader_stage == "fragment") {
+        check += "GPU_FRAGMENT_SHADER";
+      }
+      else if (shader_stage == "compute") {
+        check += "GPU_COMPUTE_SHADER";
+      }
+      check += ")";
+
+      string mutated = guarded_scope_mutation(
+          string(attribute.size(), ' ') + function, line, check);
+      mutations.emplace_back(attribute + function, mutated);
+    });
+
+    string out = str;
+    for (auto mutation : mutations) {
+      replace_all(out, mutation.first, mutation.second);
+    }
+    return out;
+  }
+
+  std::string resource_guard_mutation(const std::string &str, report_callback report_error)
+  {
+    using namespace std;
+
+    if (str.find("_get(") == string::npos) {
+      return str;
+    }
+
+    vector<pair<string, string>> mutations;
+
+    string prefix_total;
+    regex regex_resource_access(R"(\b(\w+)_get\((\w+)\, \w+\))");
+    regex_global_search(str, regex_resource_access, [&](const smatch &match) {
+      string prefix = prefix_total + match.prefix().str();
+      string suffix = match.suffix().str();
+      string resource_access = match[0].str();
+      string resource_type = match[1].str();
+      string create_info_name = match[2].str();
+
+      prefix_total += match.prefix().str() + resource_access;
+
+      if (resource_type != "specialization_constant" && resource_type != "push_constant" &&
+          resource_type != "interface" && resource_type != "buffer" &&
+          resource_type != "attribute" && resource_type != "sampler" && resource_type != "image")
+      {
+        return;
+      }
+
+      string scope_start = get_content_between_balanced_pair(prefix + '}', '{', '}', true);
+      string scope_end = get_content_between_balanced_pair('{' + suffix, '{', '}');
+      string scope = scope_start.substr(1) + resource_access +
+                     scope_end.substr(0, scope_end.rfind('\n') + 1);
+
+      if (scope.find(" return ") != string::npos) {
+        report_error(match,
+                     "Return statement with values are not supported inside the same scope as "
+                     "resource access function.");
+        return;
+      }
+
+      size_t line_start = 1 + line_count(prefix) - line_count(scope_start) + 1;
+
+      string check = "defined(CREATE_INFO_" + create_info_name + ")";
+      string mutated = guarded_scope_mutation(scope, line_start, check);
+
+      mutations.emplace_back(scope, mutated);
+    });
+
+    string out = str;
+    for (auto mutation : mutations) {
+      replace_all(out, mutation.first, mutation.second);
+    }
+    return out;
+  }
+
+  std::string guarded_scope_mutation(std::string content, int64_t line_start, std::string check)
+  {
+    int64_t line_end = line_start + line_count(content);
+    std::string guarded_cope;
+    guarded_cope += "#if " + check + "\n";
+    guarded_cope += "#line " + std::to_string(line_start) + "\n";
+    guarded_cope += content;
+    guarded_cope += "#endif\n";
+    guarded_cope += "#line " + std::to_string(line_end) + "\n";
+    return guarded_cope;
+  }
+
   std::string enum_macro_injection(std::string str)
   {
     /**
@@ -1164,6 +1297,22 @@ class Preprocessor {
       replace_all(str, mutation.first, mutation.second);
     }
     return str;
+  }
+
+  /* Used to make GLSL matrix constructor compatible with MSL in pyGPU shaders.
+   * This syntax is not supported in blender's own shaders. */
+  std::string matrix_constructor_mutation(const std::string &str)
+  {
+    if (str.find("mat") == std::string::npos) {
+      return str;
+    }
+    /* Example: `mat2(x)` > `mat2x2(x)` */
+    std::regex regex_parenthesis(R"(\bmat([234])\()");
+    std::string out = std::regex_replace(str, regex_parenthesis, "mat$1x$1(");
+    /* Only process square matrices since this is the only types we overload the constructors. */
+    /* Example: `mat2x2(x)` > `__mat2x2(x)` */
+    std::regex regex(R"(\bmat(2x2|3x3|4x4)\()");
+    return std::regex_replace(out, regex, "__mat$1(");
   }
 
   /* To be run before `argument_decorator_macro_injection()`. */

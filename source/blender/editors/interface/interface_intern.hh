@@ -20,6 +20,7 @@
 #include "DNA_listBase.h"
 #include "RNA_types.hh"
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 struct AnimationEvalContext;
@@ -414,7 +415,7 @@ struct uiButProgress : public uiBut {
   /** Progress in  0..1 range */
   float progress_factor = 0.0f;
   /** The display style (bar, pie... etc). */
-  eButProgressType progress_type = UI_BUT_PROGRESS_TYPE_BAR;
+  blender::ui::ButProgressType progress_type = blender::ui::ButProgressType::Bar;
 };
 
 /** Derived struct for #UI_BTYPE_SEPR_LINE. */
@@ -786,7 +787,7 @@ void ui_hsvcube_pos_from_vals(
 
 /**
  * \param float_precision: For number buttons the precision
- * to use or -1 to fallback to the button default.
+ * to use or -1 to fall back to the button default.
  * \param use_exp_float: Use exponent representation of floats
  * when out of reasonable range (outside of 1e3/1e-3).
  */
@@ -1508,7 +1509,6 @@ bool ui_but_contains_point_px(const uiBut *but, const ARegion *region, const int
 
 uiBut *ui_list_find_mouse_over(const ARegion *region,
                                const wmEvent *event) ATTR_WARN_UNUSED_RESULT;
-uiBut *ui_list_find_from_row(const ARegion *region, const uiBut *row_but) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_list_row_find_mouse_over(const ARegion *region, const int xy[2])
     ATTR_NONNULL(1, 2) ATTR_WARN_UNUSED_RESULT;
 uiBut *ui_list_row_find_index(const ARegion *region,
@@ -1613,10 +1613,6 @@ void UI_OT_eyedropper_grease_pencil_color(wmOperatorType *ot);
 
 /* `templates/interface_template_asset_shelf_popover.cc` */
 std::optional<blender::StringRefNull> UI_asset_shelf_idname_from_button_context(const uiBut *but);
-
-/* `templates/interface_template_asset_view.cc` */
-
-uiListType *UI_UL_asset_view();
 
 /**
  * For use with #ui_rna_collection_search_update_fn.

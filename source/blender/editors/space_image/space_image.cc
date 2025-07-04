@@ -283,10 +283,10 @@ static void image_refresh(const bContext *C, ScrArea *area)
 
   /* Check if we have to set the image from the edit-mesh. */
   if (ima && (ima->source == IMA_SRC_VIEWER && sima->mode == SI_MODE_MASK)) {
-    if (scene->nodetree) {
+    if (scene->compositing_node_group) {
       Mask *mask = ED_space_image_get_mask(sima);
       if (mask) {
-        ED_node_composite_job(C, scene->nodetree, scene);
+        ED_node_composite_job(C, scene->compositing_node_group, scene);
       }
     }
   }
@@ -411,7 +411,9 @@ static void image_listener(const wmSpaceTypeListenerParams *params)
             }
           }
           else if (ob) {
-            if (sima->lock && !(sima->flag & SI_NO_DRAW_UV_GUIDE)) {
+            if (sima->lock && !(sima->flag & SI_NO_DRAW_UV_GUIDE) &&
+                ELEM(sima->mode, SI_MODE_PAINT, SI_MODE_UV))
+            {
               ED_area_tag_refresh(area);
               ED_area_tag_redraw(area);
             }
@@ -641,14 +643,14 @@ static void image_main_region_draw(const bContext *C, ARegion *region)
   const bool show_compositor_viewer = show_viewer && image->type == IMA_TYPE_COMPOSITE;
 
   /* Text info and render region are only relevant for the compositor. */
-  const bool show_text_info = (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+  const bool show_text_info = show_compositor_viewer &&
+                              (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
                                sima->overlay.flag & SI_OVERLAY_DRAW_TEXT_INFO &&
-                               (sima->mode == SI_MODE_MASK || sima->mode == SI_MODE_VIEW)) &&
-                              show_compositor_viewer;
-  const bool show_render_region = (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
+                               ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW));
+  const bool show_render_region = show_compositor_viewer &&
+                                  (sima->overlay.flag & SI_OVERLAY_SHOW_OVERLAYS &&
                                    sima->overlay.flag & SI_OVERLAY_DRAW_RENDER_REGION &&
-                                   (sima->mode == SI_MODE_MASK || sima->mode == SI_MODE_VIEW)) &&
-                                  show_compositor_viewer;
+                                   ELEM(sima->mode, SI_MODE_MASK, SI_MODE_VIEW));
 
   /* XXX not supported yet, disabling for now */
   scene->r.scemode &= ~R_COMP_CROP;
@@ -807,7 +809,9 @@ static void image_main_region_listener(const wmRegionListenerParams *params)
       if (wmn->data == ND_SHADING_LINKS) {
         SpaceImage *sima = static_cast<SpaceImage *>(area->spacedata.first);
 
-        if (sima->iuser.scene && (sima->iuser.scene->toolsettings->uv_flag & UV_SHOW_SAME_IMAGE)) {
+        if (sima->iuser.scene &&
+            (sima->iuser.scene->toolsettings->uv_flag & UV_FLAG_SHOW_SAME_IMAGE))
+        {
           ED_region_tag_redraw(region);
         }
       }
@@ -1245,6 +1249,7 @@ void ED_spacetype_image()
   art->listener = image_buttons_region_listener;
   art->message_subscribe = ED_area_do_mgs_subscribe_for_tool_ui;
   art->init = image_buttons_region_init;
+  art->snap_size = ED_region_generic_panel_region_snap_size;
   art->layout = image_buttons_region_layout;
   art->draw = image_buttons_region_draw;
   BLI_addhead(&st->regiontypes, art);

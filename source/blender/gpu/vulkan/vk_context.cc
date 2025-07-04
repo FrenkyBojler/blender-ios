@@ -6,7 +6,11 @@
  * \ingroup gpu
  */
 
+#include "DNA_userdef_types.h"
+
 #include "GPU_debug.hh"
+
+#include "gpu_capabilities_private.hh"
 
 #include "vk_backend.hh"
 #include "vk_context.hh"
@@ -44,6 +48,8 @@ VKContext::~VKContext()
   }
   free_resources();
   VKBackend::get().device.context_unregister(*this);
+
+  this->process_frame_timings();
 
   imm = nullptr;
 }
@@ -92,6 +98,11 @@ void VKContext::sync_backbuffer(bool cycle_resource_pool)
 
       swap_chain_format_ = swap_chain_data.surface_format;
       vk_extent_ = swap_chain_data.extent;
+      GCaps.hdr_viewport_support = U.experimental.use_vulkan_hdr &&
+                                   (swap_chain_format_.format == VK_FORMAT_R16G16B16A16_SFLOAT) &&
+                                   ELEM(swap_chain_format_.colorSpace,
+                                        VK_COLOR_SPACE_EXTENDED_SRGB_NONLINEAR_EXT,
+                                        VK_COLOR_SPACE_SRGB_NONLINEAR_KHR);
     }
   }
 }
@@ -108,8 +119,13 @@ void VKContext::activate()
   if (!render_graph_.has_value()) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    /* Recreate the debug group stack for the new graph.
+     * Note: there is no associated `debug_group_end` as the graph groups
+     * are implicitly closed on submission. */
     for (const StringRef &group : debug_stack) {
-      debug_group_begin(std::string(group).c_str(), 0);
+      std::string str_group = group;
+      render_graph_.value().get().debug_group_begin(str_group.c_str(),
+                                                    debug::get_debug_group_color(str_group));
     }
   }
 
@@ -138,6 +154,7 @@ void VKContext::end_frame()
 {
   VKDevice &device = VKBackend::get().device;
   device.orphaned_data.destroy_discarded_resources(device);
+  this->process_frame_timings();
 }
 
 void VKContext::flush()
@@ -157,9 +174,11 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
       framebuffer.rendering_end(*this);
     }
   }
-  descriptor_set_get().upload_descriptor_sets();
-  descriptor_pools_get().discard(*this);
   VKDevice &device = VKBackend::get().device;
+  descriptor_set_get().upload_descriptor_sets();
+  if (!device.extensions_get().descriptor_buffer) {
+    descriptor_pools_get().discard(*this);
+  }
   TimelineValue timeline = device.render_graph_submit(
       &render_graph_.value().get(),
       discard_pool,
@@ -173,8 +192,13 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   if (bool(flags & RenderGraphFlushFlags::RENEW_RENDER_GRAPH)) {
     render_graph_ = std::reference_wrapper<render_graph::VKRenderGraph>(
         *device.render_graph_new());
+    /* Recreate the debug group stack for the new graph.
+     * Note: there is no associated `debug_group_end` as the graph groups
+     * are implicitly closed on submission. */
     for (const StringRef &group : debug_stack) {
-      debug_group_begin(std::string(group).c_str(), 0);
+      std::string str_group = group;
+      render_graph_.value().get().debug_group_begin(str_group.c_str(),
+                                                    debug::get_debug_group_color(str_group));
     }
   }
   return timeline;
@@ -276,6 +300,13 @@ void VKContext::update_pipeline_data(GPUPrimType primitive,
 {
   VKShader &vk_shader = unwrap(*shader);
   VKFrameBuffer &framebuffer = *active_framebuffer_get();
+
+  /* Override size of point shader when GPU_point size < 0 */
+  const float point_size = state_manager_get().mutable_state.point_size;
+  if (primitive == GPU_PRIM_POINTS && point_size < 0.0) {
+    GPU_shader_uniform_1f(wrap(shader), "size", -point_size);
+  }
+
   update_pipeline_data(vk_shader,
                        vk_shader.ensure_and_get_graphics_pipeline(
                            primitive, vao, state_manager_get(), framebuffer, constants_state_),
@@ -308,10 +339,11 @@ void VKContext::update_pipeline_data(VKShader &vk_shader,
 
   /* Update descriptor set. */
   r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+  r_pipeline_data.descriptor_buffer_device_address = 0;
+  r_pipeline_data.descriptor_buffer_offset = 0;
   if (vk_shader.has_descriptor_set()) {
     VKDescriptorSetTracker &descriptor_set = descriptor_set_get();
-    descriptor_set.update_descriptor_set(*this, access_info_);
-    r_pipeline_data.vk_descriptor_set = descriptor_set.vk_descriptor_set;
+    descriptor_set.update_descriptor_set(*this, access_info_, r_pipeline_data);
   }
 }
 
@@ -343,10 +375,16 @@ void VKContext::swap_buffers_post_callback()
 
 void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_chain_data)
 {
-  GPU_debug_group_begin("BackBuffer.Blit");
 
   VKFrameBuffer &framebuffer = *unwrap(active_fb);
   VKTexture *color_attachment = unwrap(unwrap(framebuffer.color_tex(0)));
+
+  VKDevice &device = VKBackend::get().device;
+  device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
+
+  render_graph::VKRenderGraph &render_graph = this->render_graph();
+  framebuffer.rendering_end(*this);
+  GPU_debug_group_begin("BackBuffer.Blit");
 
   render_graph::VKBlitImageNode::CreateInfo blit_image = {};
   blit_image.src_image = color_attachment->vk_image_handle();
@@ -368,25 +406,17 @@ void VKContext::swap_buffers_pre_handler(const GHOST_VulkanSwapChainData &swap_c
   region.dstSubresource.baseArrayLayer = 0;
   region.dstSubresource.layerCount = 1;
 
-  /* Swap chain commands are CPU synchronized at this moment, allowing to temporary add the swap
-   * chain image as device resources. When we move towards GPU swap chain synchronization we need
-   * to keep track of the swap chain image between frames. */
-  VKDevice &device = VKBackend::get().device;
-  device.resources.add_image(swap_chain_data.image, 1, "SwapchainImage");
-
-  framebuffer.rendering_end(*this);
-  flush_render_graph(RenderGraphFlushFlags::RENEW_RENDER_GRAPH);
-
-  render_graph::VKRenderGraph &render_graph = this->render_graph();
   render_graph.add_node(blit_image);
-  GPU_debug_group_end();
+
   render_graph::VKSynchronizationNode::CreateInfo synchronization = {};
   synchronization.vk_image = swap_chain_data.image;
   synchronization.vk_image_layout = VK_IMAGE_LAYOUT_PRESENT_SRC_KHR;
   synchronization.vk_image_aspect = VK_IMAGE_ASPECT_COLOR_BIT;
   render_graph.add_node(synchronization);
+  GPU_debug_group_end();
+
   flush_render_graph(RenderGraphFlushFlags::SUBMIT | RenderGraphFlushFlags::RENEW_RENDER_GRAPH,
-                     VK_PIPELINE_STAGE_COMPUTE_SHADER_BIT | VK_PIPELINE_STAGE_TRANSFER_BIT,
+                     VK_PIPELINE_STAGE_TRANSFER_BIT,
                      swap_chain_data.acquire_semaphore,
                      swap_chain_data.present_semaphore,
                      swap_chain_data.submission_fence);
