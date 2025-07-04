@@ -977,7 +977,8 @@ void uiTemplateImage(uiLayout *layout,
 void uiTemplateImageSettings(uiLayout *layout,
                              bContext *C,
                              PointerRNA *imfptr,
-                             bool color_management)
+                             bool color_management,
+                             const char *panel_idname)
 {
   ImageFormatData *imf = static_cast<ImageFormatData *>(imfptr->data);
   ID *id = imfptr->owner_id;
@@ -1065,8 +1066,10 @@ void uiTemplateImageSettings(uiLayout *layout,
   /* Override color management */
   if (color_management) {
 
-    if (uiLayout *panel = col->panel(
-            C, "settings_color_management", true, IFACE_("Color Management")))
+    if (uiLayout *panel = col->panel(C,
+                                     panel_idname ? panel_idname : "settings_color_management",
+                                     true,
+                                     IFACE_("Color Management")))
     {
       panel->separator();
       panel->row(true).prop(imfptr, "color_management", UI_ITEM_R_EXPAND, " ", ICON_NONE);

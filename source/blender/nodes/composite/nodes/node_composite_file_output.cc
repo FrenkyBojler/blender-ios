@@ -438,7 +438,8 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
         const bool use_color_management = RNA_boolean_get(&active_input_ptr, "save_as_render");
 
         col = &layout->column(false);
-        uiTemplateImageSettings(col, C, &imfptr, use_color_management);
+        uiTemplateImageSettings(
+            col, C, &imfptr, use_color_management, "node_settings_color_management");
 
         if (!use_color_management) {
           uiLayout *col = &layout->column(true);
