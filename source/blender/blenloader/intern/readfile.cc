@@ -541,58 +541,6 @@ static void read_file_bhead_idname_map_create(FileData *fd)
   }
 }
 
-static Main *blo_find_main(FileData *fd, const char *filepath, const char *relabase)
-{
-  Main *m;
-  Library *lib;
-  char filepath_abs[FILE_MAX];
-
-  STRNCPY(filepath_abs, filepath);
-  BLI_path_abs(filepath_abs, relabase);
-  BLI_path_normalize(filepath_abs);
-
-  //  printf("blo_find_main: relabase  %s\n", relabase);
-  //  printf("blo_find_main: original in  %s\n", filepath);
-  //  printf("blo_find_main: converted to %s\n", filepath_abs);
-
-  for (Main *m : *fd->bmain->split_mains) {
-    const char *libname = (m->curlib) ? m->curlib->runtime->filepath_abs : m->filepath;
-
-    if (BLI_path_cmp(filepath_abs, libname) == 0) {
-      if (G.debug & G_DEBUG) {
-        CLOG_INFO(&LOG, 3, "Found library %s", libname);
-      }
-      return m;
-    }
-  }
-
-  m = BKE_main_new();
-  fd->bmain->split_mains->add_new(m);
-  m->split_mains = fd->bmain->split_mains;
-
-  /* Add library data-block itself to 'main' Main, since libraries are **never** linked data.
-   * Fixes bug where you could end with all ID_LI data-blocks having the same name... */
-  lib = BKE_id_new<Library>(fd->bmain, BLI_path_basename(filepath));
-
-  /* Important, consistency with main ID reading code from read_libblock(). */
-  lib->id.us = ID_FAKE_USERS(lib);
-
-  /* Matches direct_link_library(). */
-  id_us_ensure_real(&lib->id);
-
-  STRNCPY(lib->filepath, filepath);
-  STRNCPY(lib->runtime->filepath_abs, filepath_abs);
-
-  m->curlib = lib;
-
-  read_file_version(fd, m);
-
-  if (G.debug & G_DEBUG) {
-    CLOG_INFO(&LOG, 3, "Added new lib %s", filepath);
-  }
-  return m;
-}
-
 void blo_readfile_invalidate(FileData *fd, Main *bmain, const char *message)
 {
   /* Tag given `bmain`, and 'root 'local' main one (in case given one is a library one) as invalid.
@@ -3908,8 +3856,13 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
         }
         break;
       case ID_LI: {
-        Main *first_bmain = fd->bmain;
-        bhead = read_libblock(fd, first_bmain, bhead, ID_TAG_LOCAL, {}, false, nullptr);
+        if (fd->skip_flags & BLO_READ_SKIP_DATA) {
+          bhead = blo_bhead_next(fd, bhead);
+        }
+        else {
+          Main *first_bmain = fd->bmain;
+          bhead = read_libblock(fd, first_bmain, bhead, ID_TAG_LOCAL, {}, false, nullptr);
+        }
         break;
       }
         /* in 2.50+ files, the file identifier for screens is patched, forward compatibility */
@@ -4321,27 +4274,41 @@ static BHead *find_bhead_from_idname(FileData *fd, const char *idname)
   return find_bhead_from_code_name(fd, id_code_old, idname + 2);
 }
 
-static ID *library_id_is_yet_read(FileData *fd, Main *mainvar, BHead *bhead)
+static ID *library_id_is_yet_read_deep_hash(FileData *fd, BHead *bhead)
 {
   if (const IDHash *deep_hash = blo_bhead_id_deep_hash(fd, bhead)) {
     if (ID *existing_id = fd->id_by_deep_hash->lookup_default(*deep_hash, nullptr)) {
       return existing_id;
     }
   }
+  return nullptr;
+}
 
+static ID *library_id_is_yet_read_main(Main *mainvar, const char *idname)
+{
   if (mainvar->id_map == nullptr) {
     mainvar->id_map = BKE_main_idmap_create(mainvar, false, nullptr, MAIN_IDMAP_TYPE_NAME);
   }
   BLI_assert(BKE_main_idmap_main_get(mainvar->id_map) == mainvar);
 
+  ID *existing_id = BKE_main_idmap_lookup_name(
+      mainvar->id_map, GS(idname), idname + 2, mainvar->curlib);
+  BLI_assert(existing_id ==
+             BLI_findstring(which_libbase(mainvar, GS(idname)), idname, offsetof(ID, name)));
+  return existing_id;
+}
+
+static ID *library_id_is_yet_read(FileData *fd, Main *mainvar, BHead *bhead)
+{
+  if (ID *existing_id = library_id_is_yet_read_deep_hash(fd, bhead)) {
+    return existing_id;
+  }
+
   const char *idname = blo_bhead_id_name(fd, bhead);
   if (!idname) {
     return nullptr;
   }
-
-  ID *id = BKE_main_idmap_lookup_name(mainvar->id_map, GS(idname), idname + 2, mainvar->curlib);
-  BLI_assert(id == BLI_findstring(which_libbase(mainvar, GS(idname)), idname, offsetof(ID, name)));
-  return id;
+  return library_id_is_yet_read_main(mainvar, idname);
 }
 
 static void read_libraries_report_invalid_id_names(FileData *fd,
@@ -4381,14 +4348,134 @@ struct BlendExpander {
   BLOExpandDoitCallback callback;
 };
 
+/* Find the existing Main matching the given blendfile library filepath, or create a new one (with
+ * the matching Library ID) if needed.
+ *
+ * NOTE: The process is a bit more complex for embedded linked IDs and their archive libraries, as
+ * in this case, this function also needs to find or create a new suitable archive library, i.e.
+ * one which does not contain yet the given ID (from its name & type). */
+static Main *blo_find_main_for_library_and_idname(FileData *fd,
+                                                  const char *lib_filepath,
+                                                  const char *relabase,
+                                                  const BHead *id_bhead,
+                                                  const char *id_name,
+                                                  const bool is_embedded_id)
+{
+  Library *reference_lib = nullptr;
+  char filepath_abs[FILE_MAX];
+
+  STRNCPY(filepath_abs, lib_filepath);
+  BLI_path_abs(filepath_abs, relabase);
+  BLI_path_normalize(filepath_abs);
+
+  for (Main *main_it : *fd->bmain->split_mains) {
+    const char *libname = (main_it->curlib) ? main_it->curlib->runtime->filepath_abs :
+                                              main_it->filepath;
+
+    if (BLI_path_cmp(filepath_abs, libname) == 0) {
+      if (G.debug & G_DEBUG) {
+        CLOG_INFO(&LOG, 3, "Found library %s", libname);
+      }
+      /* The first library matching a given filepath should never be an archive one. */
+      BLI_assert(!main_it->curlib || (main_it->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
+      if (!is_embedded_id) {
+        return main_it;
+      }
+      /* For embedded IDs, the Main of the main owner library is not a valid one. Another loop is
+       * needed into all the Mains matching the archive libraries of this main library. */
+      BLI_assert(main_it->curlib);
+      reference_lib = main_it->curlib;
+      break;
+    }
+  }
+
+  if (is_embedded_id && reference_lib) {
+    /* Try to find an 'available' existing archive Main library, i.e. one that does not yet contain
+     * an ID of the same type and name. */
+    for (Main *main_it : *fd->bmain->split_mains) {
+      if (!main_it->curlib || (main_it->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0 ||
+          main_it->curlib->archive_parent_library != reference_lib)
+      {
+        continue;
+      }
+      if (ID *embedded_id = library_id_is_yet_read_main(main_it, id_name)) {
+        /* Archive Main library already contains a 'same' ID - but it should have a different
+         * deep_hash. Otherwise, a previous call to `library_id_is_yet_read()` should have returned
+         * this ID, and this code should not be reached. */
+        BLI_assert(embedded_id->deep_hash != *blo_bhead_id_deep_hash(fd, id_bhead));
+        UNUSED_VARS_NDEBUG(id_bhead);
+        continue;
+      }
+      return main_it;
+    }
+  }
+
+  Main *bmain = BKE_main_new();
+  fd->bmain->split_mains->add_new(bmain);
+  bmain->split_mains = fd->bmain->split_mains;
+
+  /* Add library data-block itself to 'main' Main, since libraries are **never** linked data.
+   * Fixes bug where you could end with all ID_LI data-blocks having the same name... */
+  Library *lib = BKE_id_new<Library>(
+      fd->bmain, reference_lib ? BKE_id_name(reference_lib->id) : BLI_path_basename(lib_filepath));
+
+  /* Important, consistency with main ID reading code from read_libblock(). */
+  lib->id.us = ID_FAKE_USERS(lib);
+
+  /* Matches direct_link_library(). */
+  id_us_ensure_real(&lib->id);
+
+  STRNCPY(lib->filepath, lib_filepath);
+  STRNCPY(lib->runtime->filepath_abs, filepath_abs);
+
+  if (is_embedded_id) {
+    /* FIXME: This logic is very similar to the code in BKE_library dealing with archived libraries
+     * (e.g. #add_archive_library). Might be good to try to factorize it. */
+    lib->archive_parent_library = reference_lib;
+    lib->flag |= LIBRARY_FLAG_IS_ARCHIVE;
+
+    lib->runtime->parent = reference_lib->runtime->parent;
+    /* Only copy a subset of the reference library tags. E.g. an archive library should never be
+     * considered as writable, so never copy #LIBRARY_ASSET_FILE_WRITABLE. This may need further
+     * tweaking still. */
+    lib->runtime->tag = reference_lib->runtime->tag &
+                        (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
+                         LIBRARY_IS_ASSET_EDIT_FILE);
+
+    reference_lib->runtime->archived_libraries.append(lib);
+  }
+
+  bmain->curlib = lib;
+
+  read_file_version(fd, bmain);
+
+  if (G.debug & G_DEBUG) {
+    CLOG_INFO(&LOG, 3, "Added new lib %s", lib_filepath);
+  }
+  return bmain;
+}
+
+/* Actually load an ID from a library. There are three possible cases here:
+ *   - `existing_id` is non-null: calling code already found a suitable existing ID, this function
+ *     essentially then only updates the mappings for `bhead->old` address to point to the given
+ *     ID. This is the only case where `libmain` may be `nullptr`.
+ *   - The given bhead has an already loaded matching ID (found by a call to
+ *     `library_id_is_yet_read`), then once that ID is found behavior is a in the previous case.
+ *   - No matching existing ID is found, then a new one is actually read from the given FileData.
+ */
 static void read_id_in_lib(FileData *fd,
                            Main *libmain,
                            Library *parent_lib,
                            BHead *bhead,
+                           ID *existing_id,
                            ID_Readfile_Data::Tags id_read_tags)
 {
-  ID *id = library_id_is_yet_read(fd, libmain, bhead);
+  ID *id = existing_id;
 
+  if (id == nullptr) {
+    BLI_assert(libmain);
+    id = library_id_is_yet_read(fd, libmain, bhead);
+  }
   if (id == nullptr) {
     /* ID has not been read yet, add placeholder to the main of the
      * library it belongs to, so that it will be read later. */
@@ -4456,42 +4543,90 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
   if (!blo_bhead_is_id_valid_type(bhead)) {
     return;
   }
-  if (!blo_bhead_id_name(fd, bhead)) {
+  const char *id_name = blo_bhead_id_name(fd, bhead);
+  if (!id_name) {
     /* Do not allow linking ID which names are invalid (likely coming from a future version of
      * Blender allowing longer names). */
     return;
   }
+  const bool is_embedded_id = (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_EMBEDDED) != 0;
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Placeholder link to data-block in another library. */
     BHead *bheadlib = find_previous_lib(fd, bhead);
     if (bheadlib == nullptr) {
+      BLO_reportf_wrap(fd->reports,
+                       RPT_ERROR,
+                       RPT_("LIB: .blend file %s seems corrupted, no owner 'Library' data found "
+                            "for the linked data-block %s"),
+                       mainvar->curlib->runtime->filepath_abs,
+                       id_name ? id_name : "<InvalidIDName>");
       return;
     }
 
     Library *lib = reinterpret_cast<Library *>(
         read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
-    Main *libmain = blo_find_main(fd, lib->filepath, fd->relabase);
+    Main *libmain = blo_find_main_for_library_and_idname(
+        fd, lib->filepath, fd->relabase, nullptr, nullptr, false);
     MEM_freeN(lib);
 
     if (libmain->curlib == nullptr) {
-      const char *idname = blo_bhead_id_name(fd, bhead);
-
       BLO_reportf_wrap(fd->reports,
                        RPT_WARNING,
                        RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
-                       idname ? idname : "<InvalidIDName>",
+                       id_name ? id_name : "<InvalidIDName>",
                        mainvar->curlib->runtime->filepath_abs);
       return;
     }
 
-    read_id_in_lib(fd, libmain, mainvar->curlib, bhead, {});
+    read_id_in_lib(fd, libmain, mainvar->curlib, bhead, nullptr, {});
+  }
+  else if (is_embedded_id) {
+    /* Embedded Data-block from another library. */
+
+    /* That exact same embedded ID may have already been read before. */
+    if (ID *existing_id = library_id_is_yet_read_deep_hash(fd, bhead)) {
+      /* Ensure that the current BHead's `old` pointer will also be remapped to the found existing
+       * ID. */
+      read_id_in_lib(fd, nullptr, nullptr, bhead, existing_id, {});
+      return;
+    }
+
+    BHead *bheadlib = find_previous_lib(fd, bhead);
+    if (bheadlib == nullptr) {
+      BLO_reportf_wrap(fd->reports,
+                       RPT_ERROR,
+                       RPT_("LIB: .blend file %s seems corrupted, no owner 'Library' data found "
+                            "for the linked data-block %s"),
+                       mainvar->curlib->runtime->filepath_abs,
+                       id_name ? id_name : "<InvalidIDName>");
+      return;
+    }
+
+    Library *lib = reinterpret_cast<Library *>(
+        read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
+    Main *libmain = blo_find_main_for_library_and_idname(
+        fd, lib->filepath, fd->relabase, bhead, id_name, is_embedded_id);
+    MEM_freeN(lib);
+
+    if (libmain->curlib == nullptr) {
+      BLO_reportf_wrap(fd->reports,
+                       RPT_WARNING,
+                       RPT_("LIB: Data refers to main .blend file: '%s' from %s"),
+                       id_name ? id_name : "<InvalidIDName>",
+                       mainvar->curlib->runtime->filepath_abs);
+      return;
+    }
+
+    ID_Readfile_Data::Tags id_read_tags{};
+    id_read_tags.needs_expanding = true;
+    read_id_in_lib(fd, mainvar, nullptr, bhead, nullptr, id_read_tags);
   }
   else {
     /* Data-block in same library. */
     ID_Readfile_Data::Tags id_read_tags{};
     id_read_tags.needs_expanding = true;
-    read_id_in_lib(fd, mainvar, nullptr, bhead, id_read_tags);
+    read_id_in_lib(fd, mainvar, nullptr, bhead, nullptr, id_read_tags);
   }
 }
 
@@ -4656,8 +4791,10 @@ static Main *library_link_begin(Main *mainvar,
   /* make mains */
   blo_split_main(mainvar);
 
-  /* which one do we need? */
-  mainl = blo_find_main(fd, filepath, BKE_main_blendfile_path(mainvar));
+  /* Find or create a Main matching the current library filepath. */
+  /* Note: Direclty linking embedded IDs is not supported currently. */
+  mainl = blo_find_main_for_library_and_idname(
+      fd, filepath, BKE_main_blendfile_path(mainvar), nullptr, nullptr, false);
   if (mainl->curlib) {
     mainl->curlib->runtime->filedata = fd;
   }
