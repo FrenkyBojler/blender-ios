@@ -13,6 +13,7 @@
 #include "BLI_index_range.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
+#include "BLI_math_geom.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
@@ -21,6 +22,7 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "BLI_vector.hh"
+
 #include "BLT_translation.hh"
 
 #include "DNA_anim_types.h"
@@ -4287,7 +4289,7 @@ static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
 /** \name Outline Operator
  * \{ */
 
-enum class OutlineMode : int8_t {
+enum class Projection_Mode : int8_t {
   View = 0,
   Front = 1,
   Side = 2,
@@ -4296,13 +4298,13 @@ enum class OutlineMode : int8_t {
   Camera = 5,
 };
 
-static const EnumPropertyItem prop_outline_modes[] = {
-    {int(OutlineMode::View), "VIEW", 0, "View", ""},
-    {int(OutlineMode::Front), "FRONT", 0, "Front", ""},
-    {int(OutlineMode::Side), "SIDE", 0, "Side", ""},
-    {int(OutlineMode::Top), "TOP", 0, "Top", ""},
-    {int(OutlineMode::Cursor), "CURSOR", 0, "Cursor", ""},
-    {int(OutlineMode::Camera), "CAMERA", 0, "Camera", ""},
+static const EnumPropertyItem prop_projection_modes[] = {
+    {int(Projection_Mode::View), "VIEW", 0, "View", ""},
+    {int(Projection_Mode::Front), "FRONT", 0, "Front", ""},
+    {int(Projection_Mode::Side), "SIDE", 0, "Side", ""},
+    {int(Projection_Mode::Top), "TOP", 0, "Top", ""},
+    {int(Projection_Mode::Cursor), "CURSOR", 0, "Cursor", ""},
+    {int(Projection_Mode::Camera), "CAMERA", 0, "Camera", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4320,35 +4322,35 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
   const float outline_offset = radius * offset_factor;
   const int mat_nr = -1;
 
-  const OutlineMode mode = OutlineMode(RNA_enum_get(op->ptr, "type"));
+  const Projection_Mode mode = Projection_Mode(RNA_enum_get(op->ptr, "type"));
 
   float4x4 viewinv = float4x4::identity();
   switch (mode) {
-    case OutlineMode::View: {
+    case Projection_Mode::View: {
       RegionView3D *rv3d = CTX_wm_region_view3d(C);
       viewinv = float4x4(rv3d->viewmat);
       break;
     }
-    case OutlineMode::Front:
+    case Projection_Mode::Front:
       viewinv = float4x4({1.0f, 0.0f, 0.0f, 0.0f},
                          {0.0f, 0.0f, 1.0f, 0.0f},
                          {0.0f, 1.0f, 0.0f, 0.0f},
                          {0.0f, 0.0f, 0.0f, 1.0f});
       break;
-    case OutlineMode::Side:
+    case Projection_Mode::Side:
       viewinv = float4x4({0.0f, 0.0f, 1.0f, 0.0f},
                          {0.0f, 1.0f, 0.0f, 0.0f},
                          {1.0f, 0.0f, 0.0f, 0.0f},
                          {0.0f, 0.0f, 0.0f, 1.0f});
       break;
-    case OutlineMode::Top:
+    case Projection_Mode::Top:
       viewinv = float4x4::identity();
       break;
-    case OutlineMode::Cursor: {
+    case Projection_Mode::Cursor: {
       viewinv = scene->cursor.matrix<float4x4>();
       break;
     }
-    case OutlineMode::Camera:
+    case Projection_Mode::Camera:
       viewinv = scene->camera->world_to_object();
       break;
     default:
@@ -4416,7 +4418,7 @@ static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
 
   /* Properties */
   ot->prop = RNA_def_enum(
-      ot->srna, "type", prop_outline_modes, int(OutlineMode::View), "Projection Mode", "");
+      ot->srna, "type", prop_projection_modes, int(Projection_Mode::View), "Projection Mode", "");
   RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, 10.0f, "Radius", "", 0.0f, 10.0f);
   RNA_def_float_factor(
       ot->srna, "offset_factor", -1.0f, -1.0f, 1.0f, "Offset Factor", "", -1.0f, 1.0f);
@@ -4635,6 +4637,216 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Offset Operator
+ * \{ */
+
+static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
+                                         const IndexMask &curve_selection,
+                                         const float offset_distance,
+                                         const float3 plane_norm)
+{
+  const OffsetIndices src_points_by_curve = src_curves.offsets();
+  const Span<float3> src_positions = src_curves.positions();
+  const VArray<bool> src_cyclic = src_curves.cyclic();
+
+  IndexMaskMemory memory;
+  const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
+                                                                 memory);
+
+  bke::CurvesGeometry dst_curves = bke::curves::copy_only_curve_domain(src_curves);
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names, &src_curves.vertex_group_names);
+
+  MutableSpan<int> dst_curve_sizes = dst_curves.offsets_for_write();
+  offset_indices::copy_group_sizes(src_points_by_curve, unselected_curves, dst_curve_sizes);
+
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+    const IndexRange src_points = src_points_by_curve[curve_i];
+    dst_curve_sizes[curve_i] = src_points.size();
+  });
+
+  const OffsetIndices dst_points_by_curve = offset_indices::accumulate_counts_to_offsets(
+      dst_curve_sizes);
+  dst_curves.resize(dst_curves.offsets().last(), dst_curves.curves_num());
+
+  Array<int> old_by_new_map(dst_curves.points_num());
+  unselected_curves.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+    const IndexRange src_points = src_points_by_curve[curve_i];
+    const IndexRange dst_points = dst_points_by_curve[curve_i];
+    array_utils::fill_index_range<int>(old_by_new_map.as_mutable_span().slice(dst_points),
+                                       src_points.start());
+  });
+
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+    const IndexRange src_points = src_points_by_curve[curve_i];
+    const IndexRange dst_points = dst_points_by_curve[curve_i];
+    array_utils::fill_index_range<int>(old_by_new_map.as_mutable_span().slice(dst_points),
+                                       src_points.start());
+  });
+
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+  const bke::AttributeAccessor src_attributes = src_curves.attributes();
+
+  bke::copy_attributes(
+      src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
+  array_utils::copy(src_cyclic, dst_curves.cyclic_for_write());
+
+  MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
+
+  array_utils::copy_group_to_group(
+      src_points_by_curve, dst_points_by_curve, unselected_curves, src_positions, dst_positions);
+
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+    const IndexRange src_points = src_points_by_curve[curve_i];
+    const IndexRange dst_points = dst_points_by_curve[curve_i];
+    const bool cyclic = src_cyclic[curve_i];
+
+    MutableSpan<float3> positions = dst_positions.slice(dst_points);
+    Span<float3> src_pos = src_positions.slice(src_points);
+
+    float3 curve_norm;
+    cross_poly_v3(curve_norm, (const float(*)[3])src_pos.data(), src_pos.size());
+    const bool ccw = math::dot(curve_norm, plane_norm) < 0.0f;
+
+    for (const int i : dst_points.index_range()) {
+      const float3 A = src_pos[(i - 1 + src_pos.size()) % src_pos.size()];
+      const float3 B = src_pos[i];
+      const float3 C = src_pos[(i + 1) % src_pos.size()];
+
+      const float3 BA = math::normalize(math::cross(B - A, plane_norm)) * (ccw ? -1.0f : 1.0f);
+      const float3 CB = math::normalize(math::cross(C - B, plane_norm)) * (ccw ? -1.0f : 1.0f);
+
+      if (!cyclic && (i == 0 || i == src_pos.size() - 1)) {
+        if (i == 0) {
+          positions[i] = B + CB * offset_distance;
+        }
+        if (i == src_pos.size() - 1) {
+          positions[i] = B + BA * offset_distance;
+        }
+      }
+      else {
+        const float d = math::dot(BA, CB);
+        positions[i] = B + math::safe_divide(BA + CB, 1 + d) * offset_distance;
+      }
+    }
+  });
+
+  bke::gather_attributes(src_curves.attributes(),
+                         bke::AttrDomain::Point,
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_with_skip_ref({}, {"position"}),
+                         old_by_new_map,
+                         dst_curves.attributes_for_write());
+
+  dst_curves.update_curve_types();
+
+  return dst_curves;
+}
+
+static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
+{
+  using bke::greasepencil::Layer;
+
+  const Scene *scene = CTX_data_scene(C);
+  Object *object = CTX_data_active_object(C);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  const float offset_distance = RNA_float_get(op->ptr, "offset_distance");
+  const Projection_Mode mode = Projection_Mode(RNA_enum_get(op->ptr, "type"));
+
+  float4x4 viewinv = float4x4::identity();
+  switch (mode) {
+    case Projection_Mode::View: {
+      RegionView3D *rv3d = CTX_wm_region_view3d(C);
+      viewinv = float4x4(rv3d->viewmat);
+      break;
+    }
+    case Projection_Mode::Front:
+      viewinv = float4x4({1.0f, 0.0f, 0.0f, 0.0f},
+                         {0.0f, 0.0f, 1.0f, 0.0f},
+                         {0.0f, 1.0f, 0.0f, 0.0f},
+                         {0.0f, 0.0f, 0.0f, 1.0f});
+      break;
+    case Projection_Mode::Side:
+      viewinv = float4x4({0.0f, 0.0f, 1.0f, 0.0f},
+                         {0.0f, 1.0f, 0.0f, 0.0f},
+                         {1.0f, 0.0f, 0.0f, 0.0f},
+                         {0.0f, 0.0f, 0.0f, 1.0f});
+      break;
+    case Projection_Mode::Top:
+      viewinv = float4x4::identity();
+      break;
+    case Projection_Mode::Cursor: {
+      viewinv = scene->cursor.matrix<float4x4>();
+      break;
+    }
+    case Projection_Mode::Camera:
+      viewinv = scene->camera->world_to_object();
+      break;
+    default:
+      BLI_assert_unreachable();
+      break;
+  }
+
+  bool changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask editable_strokes = ed::greasepencil::retrieve_editable_and_selected_strokes(
+        *object, info.drawing, info.layer_index, memory);
+    if (editable_strokes.is_empty()) {
+      return;
+    }
+
+    const Layer &layer = grease_pencil.layer(info.layer_index);
+    const float4x4 viewmat = viewinv * layer.to_world_space(*object);
+
+    const float3 plane_norm = viewmat.z_axis();
+
+    info.drawing.strokes_for_write() = offset_curves(
+        info.drawing.strokes(), editable_strokes, offset_distance, plane_norm);
+
+    info.drawing.tag_topology_changed();
+    changed = true;
+  });
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+
+  return OPERATOR_FINISHED;
+}
+
+static void GREASE_PENCIL_OT_offset(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Outline";
+  ot->idname = "GREASE_PENCIL_OT_offset";
+  ot->description = "Offset selected curves by a distance";
+
+  /* Callbacks. */
+  ot->exec = grease_pencil_offset_exec;
+  ot->poll = editable_grease_pencil_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  /* Properties */
+  ot->prop = RNA_def_enum(
+      ot->srna, "type", prop_projection_modes, int(Projection_Mode::View), "Projection Mode", "");
+  RNA_def_float_distance(ot->srna,
+                         "offset_distance",
+                         0.01f,
+                         -FLT_MAX,
+                         FLT_MAX,
+                         "Offset Distance",
+                         "",
+                         -FLT_MAX,
+                         FLT_MAX);
+}
+
+/** \} */
+
 }  // namespace blender::ed::greasepencil
 
 void ED_operatortypes_grease_pencil_edit()
@@ -4678,6 +4890,7 @@ void ED_operatortypes_grease_pencil_edit()
   WM_operatortype_append(GREASE_PENCIL_OT_remove_fill_guides);
   WM_operatortype_append(GREASE_PENCIL_OT_outline);
   WM_operatortype_append(GREASE_PENCIL_OT_convert_curve_type);
+  WM_operatortype_append(GREASE_PENCIL_OT_offset);
 }
 
 /* -------------------------------------------------------------------- */
