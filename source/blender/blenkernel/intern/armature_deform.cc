@@ -528,35 +528,6 @@ static void armature_vert_task(void *__restrict userdata,
   armature_vert_task_with_dvert(deform_params, i, dvert, data.use_quaternion);
 }
 
-struct ArmatureEditMeshUserdata {
-  bool use_quaternion = false;
-  int cd_dvert_offset = -1;
-
-  ArmatureDeformParams deform_params;
-};
-
-static void armature_vert_task_editmesh(void *__restrict userdata,
-                                        MempoolIterData *iter,
-                                        const TaskParallelTLS *__restrict /*tls*/)
-{
-  const ArmatureEditMeshUserdata &data = *static_cast<const ArmatureEditMeshUserdata *>(userdata);
-  BMVert *v = (BMVert *)iter;
-  const MDeformVert *dvert = static_cast<const MDeformVert *>(
-      BM_ELEM_CD_GET_VOID_P(v, data.cd_dvert_offset));
-  armature_vert_task_with_dvert(
-      data.deform_params, BM_elem_index_get(v), dvert, data.use_quaternion);
-}
-
-static void armature_vert_task_editmesh_no_dvert(void *__restrict userdata,
-                                                 MempoolIterData *iter,
-                                                 const TaskParallelTLS *__restrict /*tls*/)
-{
-  const ArmatureEditMeshUserdata &data = *static_cast<const ArmatureEditMeshUserdata *>(userdata);
-  BMVert *v = (BMVert *)iter;
-  armature_vert_task_with_dvert(
-      data.deform_params, BM_elem_index_get(v), nullptr, data.use_quaternion);
-}
-
 static void armature_deform_coords(const Object &ob_arm,
                                    const Object &ob_target,
                                    const ListBase *defbase,
@@ -588,6 +559,27 @@ static void armature_deform_coords(const Object &ob_arm,
   BLI_parallel_range_settings_defaults(&settings);
   settings.min_iter_per_thread = 32;
   BLI_task_parallel_range(0, vert_coords.size(), &data, armature_vert_task, &settings);
+}
+
+struct ArmatureEditMeshUserdata {
+  bool use_quaternion = false;
+  int cd_dvert_offset = -1;
+
+  ArmatureDeformParams deform_params;
+};
+
+template<bool use_dvert>
+static void armature_vert_task_editmesh(void *__restrict userdata,
+                                        MempoolIterData *iter,
+                                        const TaskParallelTLS *__restrict /*tls*/)
+{
+  const ArmatureEditMeshUserdata &data = *static_cast<const ArmatureEditMeshUserdata *>(userdata);
+  BMVert *v = (BMVert *)iter;
+  const MDeformVert *dvert = use_dvert ? static_cast<const MDeformVert *>(
+                                             BM_ELEM_CD_GET_VOID_P(v, data.cd_dvert_offset)) :
+                                         nullptr;
+  armature_vert_task_with_dvert(
+      data.deform_params, BM_elem_index_get(v), dvert, data.use_quaternion);
 }
 
 static void armature_deform_editmesh(const Object &ob_arm,
@@ -626,11 +618,12 @@ static void armature_deform_editmesh(const Object &ob_arm,
   BLI_parallel_mempool_settings_defaults(&settings);
 
   if (use_dverts) {
-    BLI_task_parallel_mempool(em_target.bm->vpool, &data, armature_vert_task_editmesh, &settings);
+    BLI_task_parallel_mempool(
+        em_target.bm->vpool, &data, armature_vert_task_editmesh<true>, &settings);
   }
   else {
     BLI_task_parallel_mempool(
-        em_target.bm->vpool, &data, armature_vert_task_editmesh_no_dvert, &settings);
+        em_target.bm->vpool, &data, armature_vert_task_editmesh<false>, &settings);
   }
 }
 
