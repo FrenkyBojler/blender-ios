@@ -716,7 +716,6 @@ HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
 {
   /* Convert GHOST cursor to Windows OEM cursor. */
   HANDLE cursor = nullptr;
-  HMODULE module = ::GetModuleHandle(0);
   uint32_t flags = LR_SHARED | LR_DEFAULTSIZE;
   int cx = 0, cy = 0;
 
