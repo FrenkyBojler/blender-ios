@@ -107,15 +107,9 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
                                                                   CURVE_TYPE_BEZIER,
                                                                   editable_strokes,
                                                                   curves_transform_data->memory);
-      Vector<index_mask::IndexMask::Initializer> bezier_point_ranges(
-          bezier_curves[layer_offset].size());
       OffsetIndices<int> points_by_curve = curves.points_by_curve();
-      bezier_curves[layer_offset].foreach_index(
-          GrainSize(512), [&](const int curve_i, const int bezier_curve_i) {
-            bezier_point_ranges[bezier_curve_i] = points_by_curve[curve_i];
-          });
-      const IndexMask bezier_points = IndexMask::from_initializers(bezier_point_ranges,
-                                                                   curves_transform_data->memory);
+      const IndexMask bezier_points = IndexMask::from_ranges(
+          points_by_curve, bezier_curves[layer_offset], curves_transform_data->memory);
 
       /* Alter selection as in legacy curves bezt_select_to_transform_triple_flag(). */
       if (bezier_points.size() > 0) {
