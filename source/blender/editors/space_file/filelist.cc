@@ -163,15 +163,12 @@ struct FileListIntern {
 
 #define FILELIST_ENTRYCACHESIZE_DEFAULT 1024 /* Keep it a power of two! */
 struct FileListEntryCache {
-  FileListEntryCache();
-  ~FileListEntryCache();
-
   size_t size = 0; /* The size of the cache... */
 
   int flags = 0;
 
   /* This one gathers all entries from both block and misc caches. Used for easy bulk-freeing. */
-  ListBase cached_entries = {nullptr, nullptr};
+  ListBase cached_entries = {};
 
   /* Block cache: all entries between start and end index.
    * used for part of the list on display. */
@@ -197,6 +194,9 @@ struct FileListEntryCache {
    * previews either in `previews_pool` or `previews_done`. #filelist_cache_previews_update() makes
    * previews in `preview_done` ready for display, so the counter is decremented there. */
   int previews_todo_count = 0;
+
+  FileListEntryCache();
+  ~FileListEntryCache();
 };
 
 /** #FileListCache.flags */
@@ -1765,7 +1765,6 @@ FileListEntryCache::~FileListEntryCache()
   LISTBASE_FOREACH_MUTABLE (FileDirEntry *, entry, &this->cached_entries) {
     filelist_entry_free(entry);
   }
-  BLI_listbase_clear(&this->cached_entries);
 }
 
 static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
