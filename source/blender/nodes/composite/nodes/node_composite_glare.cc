@@ -161,7 +161,7 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
   glare_panel.add_input<decl::Bool>("Diagonal", "Diagonal Star")
       .default_value(true)
       .description("Align the star diagonally");
-  glare_panel.add_input<decl::Vector>("Source")
+  glare_panel.add_input<decl::Vector>("Sun Position")
       .subtype(PROP_FACTOR)
       .dimensions(2)
       .default_value({0.5f, 0.5f})
@@ -170,14 +170,6 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
-  glare_panel.add_input<decl::Float>("Length")
-      .subtype(PROP_FACTOR)
-      .min(0.0f)
-      .max(1.0f)
-      .default_value(0.2f)
-      .description(
-          "The length of rays relative to the size of the image. 0 means no rays and 1 means the "
-          "rays cover the full extent of the image");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -194,7 +186,9 @@ static void node_update(bNodeTree *ntree, bNode *node)
 
   bNodeSocket *size_input = bke::node_find_socket(*node, SOCK_IN, "Size");
   blender::bke::node_set_socket_availability(
-      *ntree, *size_input, ELEM(glare_type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM));
+      *ntree,
+      *size_input,
+      ELEM(glare_type, CMP_NODE_GLARE_FOG_GLOW, CMP_NODE_GLARE_BLOOM, CMP_NODE_GLARE_SUN_BEAMS));
 
   bNodeSocket *iterations_input = bke::node_find_socket(*node, SOCK_IN, "Iterations");
   blender::bke::node_set_socket_availability(
@@ -224,11 +218,7 @@ static void node_update(bNodeTree *ntree, bNode *node)
   blender::bke::node_set_socket_availability(
       *ntree, *diagonal_star_input, glare_type == CMP_NODE_GLARE_SIMPLE_STAR);
 
-  bNodeSocket *length_input = bke::node_find_socket(*node, SOCK_IN, "Length");
-  blender::bke::node_set_socket_availability(
-      *ntree, *length_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
-
-  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Source");
+  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Sun Position");
   blender::bke::node_set_socket_availability(
       *ntree, *source_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
@@ -2235,10 +2225,10 @@ class GlareOperation : public NodeOperation {
     const Result &input_image = highlights;
 
     const int2 input_size = input_image.domain().size;
-    const int max_steps = int(this->get_length() * math::length(input_size));
+    const int max_steps = int(this->get_size() * math::length(input_size));
     if (max_steps == 0) {
-      Result output_image = context().create_result(ResultType::Color);
-      output_image.allocate_texture(input_size);
+      Result &output_image = this->get_result("Image");
+      output_image.share_data(input_image);
       return output_image;
     }
 
@@ -2546,13 +2536,9 @@ class GlareOperation : public NodeOperation {
 
   float2 get_source()
   {
-    return this->get_input("Source").get_single_value_default(float2(0.5f));
+    return this->get_input("Sun Position").get_single_value_default(float2(0.5f));
   }
 
-  float get_length()
-  {
-    return math::clamp(this->get_input("Length").get_single_value_default(0.2f), 0.0f, 1.0f);
-  }
   /* As a performance optimization, the operation can compute the glare on a fraction of the input
    * image size, so the input is downsampled then upsampled at the end, and this method returns the
    * size after downsampling. */
