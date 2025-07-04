@@ -3342,7 +3342,7 @@ static void SCREEN_OT_frame_jump(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Frame Jump Delta Operator
+/** \name Time Jump Operator
  * \{ */
 
 /* function to be called outside UI context, or for redo */
@@ -3351,11 +3351,17 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   const bool backward = RNA_boolean_get(op->ptr, "backward");
 
+  int delta = scene->r.time_jump_delta;
+
+  if (scene->r.time_jump_unit == SCE_TIME_JUMP_SECOND) {
+    delta *= scene->r.frs_sec;
+  }
+
   if (backward) {
-    scene->r.cfra -= scene->r.frame_delta;
+    scene->r.cfra -= delta;
   }
   else {
-    scene->r.cfra += scene->r.frame_delta;
+    scene->r.cfra += delta;
   }
 
   ED_areas_do_frame_follow(C, true);
@@ -3367,11 +3373,11 @@ static wmOperatorStatus frame_jump_delta_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static void SCREEN_OT_frame_jump_delta(wmOperatorType *ot)
+static void SCREEN_OT_time_jump(wmOperatorType *ot)
 {
-  ot->name = "Jump Frames by Delta";
-  ot->description = "Jump forward/backward by a given number of frames";
-  ot->idname = "SCREEN_OT_frame_jump_delta";
+  ot->name = "Jump Time by Delta";
+  ot->description = "Jump forward/backward by a given number of frames or seconds";
+  ot->idname = "SCREEN_OT_time_jump";
 
   ot->exec = frame_jump_delta_exec;
 
@@ -3380,8 +3386,7 @@ static void SCREEN_OT_frame_jump_delta(wmOperatorType *ot)
   ot->undo_group = "Frame Change";
 
   /* rna */
-  RNA_def_boolean(
-      ot->srna, "backward", false, "Backwards", "Jump backwards in time");
+  RNA_def_boolean(ot->srna, "backward", false, "Backwards", "Jump backwards in time");
 }
 
 /** \} */
@@ -6838,7 +6843,7 @@ void ED_operatortypes_screen()
   /* Frame changes. */
   WM_operatortype_append(SCREEN_OT_frame_offset);
   WM_operatortype_append(SCREEN_OT_frame_jump);
-  WM_operatortype_append(SCREEN_OT_frame_jump_delta);
+  WM_operatortype_append(SCREEN_OT_time_jump);
   WM_operatortype_append(SCREEN_OT_keyframe_jump);
   WM_operatortype_append(SCREEN_OT_marker_jump);
 
