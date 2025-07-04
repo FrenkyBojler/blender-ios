@@ -19,36 +19,38 @@ namespace blender::draw {
 
 /* Initialize the vertex format to be used for UVs. Return true if any UV layer is
  * found, false otherwise. */
-static bool mesh_extract_uv_format_init(GPUVertFormat *format,
-                                        const MeshBatchCache &cache,
-                                        const CustomData *cd_ldata,
-                                        const MeshExtractType extract_type,
-                                        uint32_t &r_uv_layers)
+static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
+                                                        const MeshBatchCache &cache,
+                                                        const CustomData *cd_ldata,
+                                                        const MeshExtractType extract_type)
 {
   GPU_vertformat_deinterleave(format);
 
-  uint32_t uv_layers = cache.cd_used.uv;
+  VectorSet<StringRef> uv_layers;
+  for (const StringRef name : cache.cd_used.uv) {
+    uv_layers.add(name);
+  }
   /* HACK to fix #68857 */
   if (extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
     int layer = CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2);
     if (layer != -1 && !CustomData_layer_is_anonymous(cd_ldata, CD_PROP_FLOAT2, layer)) {
-      uv_layers |= (1 << layer);
+      uv_layers.add(cd_ldata->layers[layer].name);
     }
   }
 
-  r_uv_layers = 0;
+  VectorSet<StringRef> r_uv_layers;
 
   for (int i = 0; i < MAX_MTFACE; i++) {
-    if (uv_layers & (1 << i)) {
+    const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
+    if (uv_layers.contains_as(layer_name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
 
       /* not all UV layers are guaranteed to exist, since the list of available UV
        * layers is generated for the evaluated mesh, which is needed to show modifier
        * results in editmode, but the actual mesh might be the base mesh.
        */
       if (layer_name) {
-        r_uv_layers |= (1 << i);
+        r_uv_layers.add(layer_name);
         GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
         /* UV layer name. */
         SNPRINTF(attr_name, "a%s", attr_safe_name);
@@ -73,10 +75,9 @@ static bool mesh_extract_uv_format_init(GPUVertFormat *format,
 
   if (format->attr_len == 0) {
     GPU_vertformat_attr_add(format, "dummy", blender::gpu::VertAttrType::SFLOAT_32);
-    return false;
   }
 
-  return true;
+  return r_uv_layers;
 }
 
 gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache)
@@ -86,8 +87,9 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
   const CustomData *cd_ldata = (mr.extract_type == MeshExtractType::BMesh) ? &mr.bm->ldata :
                                                                              &mr.mesh->corner_data;
   int v_len = mr.corners_num;
-  uint32_t uv_layers = cache.cd_used.uv;
-  if (!mesh_extract_uv_format_init(&format, cache, cd_ldata, mr.extract_type, uv_layers)) {
+  const VectorSet<StringRef> uv_layers = mesh_extract_uv_format_init(
+      &format, cache, cd_ldata, mr.extract_type);
+  if (uv_layers.is_empty()) {
     /* VBO will not be used, only allocate minimum of memory. */
     v_len = 1;
   }
@@ -95,20 +97,13 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_with_format(format));
   GPU_vertbuf_data_alloc(*vbo, v_len);
 
-  Vector<int> uv_indices;
-  for (const int i : IndexRange(MAX_MTFACE)) {
-    if (uv_layers & (1 << i)) {
-      uv_indices.append(i);
-    }
-  }
-
   MutableSpan<float2> uv_data = vbo->data<float2>();
   threading::memory_bandwidth_bound_task(uv_data.size_in_bytes() * 2, [&]() {
     if (mr.extract_type == MeshExtractType::BMesh) {
       const BMesh &bm = *mr.bm;
-      for (const int i : uv_indices.index_range()) {
+      for (const int i : uv_layers.index_range()) {
         MutableSpan<float2> data = uv_data.slice(i * bm.totloop, bm.totloop);
-        const int offset = CustomData_get_n_offset(cd_ldata, CD_PROP_FLOAT2, uv_indices[i]);
+        const int offset = CustomData_get_offset_named(cd_ldata, CD_PROP_FLOAT2, uv_layers[i]);
         threading::parallel_for(IndexRange(bm.totface), 2048, [&](const IndexRange range) {
           for (const int face_index : range) {
             const BMFace &face = *BM_face_at_index(&const_cast<BMesh &>(bm), face_index);
@@ -124,15 +119,26 @@ gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &
     }
     else {
       const bke::AttributeAccessor attributes = mr.mesh->attributes();
-      for (const int i : uv_indices.index_range()) {
-        const StringRef name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, uv_indices[i]);
+      for (const int i : uv_layers.index_range()) {
         const VArray uv_map = *attributes.lookup_or_default<float2>(
-            name, bke::AttrDomain::Corner, float2(0));
+            uv_layers[i], bke::AttrDomain::Corner, float2(0));
         array_utils::copy(uv_map, uv_data.slice(i * mr.corners_num, mr.corners_num));
       }
     }
   });
   return vbo;
+}
+
+static VectorSet<StringRef> all_uv_map_attributes(const Mesh &mesh)
+{
+  const bke::AttributeAccessor attributes = mesh.attributes();
+  VectorSet<StringRef> result;
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain == bke::AttrDomain::Corner && iter.data_type == bke::AttrType::Float2) {
+      result.add(iter.name);
+    }
+  });
+  return result;
 }
 
 gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
@@ -141,25 +147,29 @@ gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
   const Mesh *coarse_mesh = subdiv_cache.mesh;
   GPUVertFormat format = {0};
 
+  const VectorSet<StringRef> uv_layers = mesh_extract_uv_format_init(
+      &format, cache, &coarse_mesh->corner_data, MeshExtractType::Mesh);
+
   uint v_len = subdiv_cache.num_subdiv_loops;
-  uint uv_layers;
-  if (!mesh_extract_uv_format_init(
-          &format, cache, &coarse_mesh->corner_data, MeshExtractType::Mesh, uv_layers))
-  {
+  if (uv_layers.is_empty()) {
     /* TODO(kevindietrich): handle this more gracefully. */
     v_len = 1;
   }
 
+  // TODO: MAP FROM UV LAYER NAME TO INDEX IN ALL UV LAYERS
+
+  const VectorSet<StringRef> all_uv_maps = all_uv_map_attributes(*coarse_mesh);
+
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format, v_len));
 
-  if (uv_layers == 0) {
+  if (uv_layers.is_empty()) {
     return vbo;
   }
 
   /* Index of the UV layer in the compact buffer. Used UV layers are stored in a single buffer. */
   int pack_layer_index = 0;
-  for (int i = 0; i < MAX_MTFACE; i++) {
-    if (uv_layers & (1 << i)) {
+  for (const int i : all_uv_maps.index_range()) {
+    if (uv_layers.contains_as(all_uv_maps[i])) {
       const int offset = int(subdiv_cache.num_subdiv_loops) * pack_layer_index++;
       draw_subdiv_extract_uvs(subdiv_cache, vbo.get(), i, offset);
     }
