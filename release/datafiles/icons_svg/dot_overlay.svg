@@ -1,0 +1,57 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?>
+<svg
+   height="1600"
+   viewBox="0 0 1600 1600"
+   width="1600"
+   version="1.1"
+   id="svg2"
+   sodipodi:docname="dot_overlay.svg"
+   inkscape:version="1.3.2 (091e20e, 2023-11-25, custom)"
+   xmlns:inkscape="http://www.inkscape.org/namespaces/inkscape"
+   xmlns:sodipodi="http://sodipodi.sourceforge.net/DTD/sodipodi-0.dtd"
+   xmlns="http://www.w3.org/2000/svg"
+   xmlns:svg="http://www.w3.org/2000/svg">
+  <path
+     style="color:#000000;fill:#000000;fill-opacity:0.5;-inkscape-stroke:none"
+     d="m 1131.4725,0.12807924 c -257.46606,0 -467.79101,210.32690076 -467.79101,467.79297076 0,124.03735 49.30407,243.07164 137.01172,330.77929 87.70765,87.70766 206.74199,137.01176 330.77929,137.01176 124.0374,0 243.0717,-49.3041 330.7793,-137.01176 87.7077,-87.70765 137.0137,-206.74194 137.0137,-330.77929 0,-124.03735 -49.306,-243.07165 -137.0137,-330.7793 C 1374.5442,49.4341 1255.5099,0.12807924 1131.4725,0.12807924 Z m 0,150.00000076 c 84.3126,0 165.0969,33.4621 224.7149,93.08008 59.6179,59.61797 93.0781,140.40034 93.0781,224.71289 0,84.31254 -33.4602,165.09492 -93.0781,224.71289 -59.618,59.61797 -140.4023,93.07812 -224.7149,93.07812 -84.3125,0 -165.09491,-33.46015 -224.71288,-93.07812 -59.61797,-59.61797 -93.07813,-140.40035 -93.07813,-224.71289 0,-176.40013 141.39089,-317.79297 317.79101,-317.79297 z"
+     id="path4"
+     sodipodi:nodetypes="ssssssssssssssss" />
+  <defs
+     id="defs2" />
+  <sodipodi:namedview
+     pagecolor="#6d6d6d"
+     showgrid="true"
+     id="namedview1"
+     bordercolor="#000000"
+     borderopacity="0.25"
+     inkscape:showpageshadow="2"
+     inkscape:pageopacity="0.0"
+     inkscape:pagecheckerboard="0"
+     inkscape:deskcolor="#d1d1d1"
+     inkscape:zoom="0.71859727"
+     inkscape:cx="1072.2278"
+     inkscape:cy="330.50501"
+     inkscape:window-width="1920"
+     inkscape:window-height="1009"
+     inkscape:window-x="1912"
+     inkscape:window-y="-8"
+     inkscape:window-maximized="1"
+     inkscape:current-layer="svg2"
+     showguides="true">
+    <inkscape:grid
+       id="grid5"
+       units="px"
+       spacingx="133.33333"
+       spacingy="133.33333"
+       color="#4772b3"
+       opacity="0.2"
+       visible="true"
+       originx="0"
+       originy="0"
+       empspacing="5" />
+  </sodipodi:namedview>
+  <path
+     d="m 1131.7177,149.8747 c 84.3126,0 165.0969,33.4621 224.7149,93.08008 59.6179,59.61797 93.0781,140.40034 93.0781,224.71289 0,84.31254 -33.4602,165.09492 -93.0781,224.71289 -59.618,59.61797 -140.4023,93.07812 -224.7149,93.07812 -84.3126,0 -165.09495,-33.46015 -224.71292,-93.07812 -59.61797,-59.61797 -93.07813,-140.40035 -93.07813,-224.71289 0,-176.40013 141.39089,-317.79297 317.79105,-317.79297 z"
+     style="color:#000000;fill:#5ffe7d;fill-opacity:1;-inkscape-stroke:none"
+     id="path1" />
+</svg>

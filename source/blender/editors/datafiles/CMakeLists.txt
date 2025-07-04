@@ -234,6 +234,7 @@ if(WITH_BLENDER)
       cancel
       cancel_large
       center_only
+      changed_overlay
       char_notdef
       char_replacement
       checkbox_dehlt
@@ -311,6 +312,7 @@ if(WITH_BLENDER)
       disk_drive_large
       documents
       dot
+      dot_overlay
       downarrow_hlt
       driver
       driver_distance

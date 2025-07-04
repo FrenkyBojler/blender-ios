@@ -873,6 +873,8 @@ DEF_ICON_COLOR(REMOVE_OVERLAY)
 DEF_ICON_COLOR(STAR_OVERLAY)
 DEF_ICON_COLOR(RIBBON_OVERLAY)
 DEF_ICON_COLOR(HEART_OVERLAY)
+DEF_ICON_COLOR(DOT_OVERLAY)
+DEF_ICON_COLOR(CHANGED_OVERLAY)
 
 /* The items above are initiated sequentially while the ones that
  * follow are initiated individually. Therefore this item marks
