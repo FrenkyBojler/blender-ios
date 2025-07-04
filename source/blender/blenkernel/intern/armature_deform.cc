@@ -308,7 +308,7 @@ static ArmatureDeformParams get_armature_deform_params(
     std::optional<MutableSpan<float3x3>> vert_deform_mats,
     const int deformflag,
     blender::StringRefNull defgrp_name,
-    const bool use_dverts)
+    const bool try_use_dverts)
 {
   const bool dverts_supported = BKE_object_supports_vertex_groups(&ob_target);
 
@@ -320,7 +320,7 @@ static ArmatureDeformParams get_armature_deform_params(
   deform_params.invert_vgroup = bool(deformflag & ARM_DEF_INVERT_VGROUP);
 
   deform_params.pose_channels = {ob_arm.pose->chanbase};
-  deform_params.use_dverts = dverts_supported && use_dverts && (deformflag & ARM_DEF_VGROUP);
+  deform_params.use_dverts = try_use_dverts && dverts_supported && (deformflag & ARM_DEF_VGROUP);
   if (deform_params.use_dverts) {
     const int defbase_len = BLI_listbase_count(defbase);
     deform_params.pose_channel_by_vertex_group.reinitialize(defbase_len);
@@ -565,8 +565,6 @@ static void armature_deform_editmesh(const Object &ob_arm,
                                      const BMEditMesh &em_target,
                                      const int cd_dvert_offset)
 {
-  const bool use_dverts = (cd_dvert_offset >= 0);
-
   ArmatureDeformParams deform_params = get_armature_deform_params(ob_arm,
                                                                   ob_target,
                                                                   defbase,
@@ -575,7 +573,7 @@ static void armature_deform_editmesh(const Object &ob_arm,
                                                                   vert_deform_mats,
                                                                   deformflag,
                                                                   defgrp_name,
-                                                                  use_dverts);
+                                                                  cd_dvert_offset >= 0);
 
   ArmatureEditMeshUserdata data{};
   data.use_quaternion = bool(deformflag & ARM_DEF_QUATERNION);
@@ -589,7 +587,7 @@ static void armature_deform_editmesh(const Object &ob_arm,
   TaskParallelSettings settings;
   BLI_parallel_mempool_settings_defaults(&settings);
 
-  if (use_dverts) {
+  if (deform_params.use_dverts) {
     BLI_task_parallel_mempool(
         em_target.bm->vpool, &data, armature_vert_task_editmesh<true>, &settings);
   }
