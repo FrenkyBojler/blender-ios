@@ -23,6 +23,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_task.h"
+#include "BLI_task.hh"
 
 #include "DNA_armature_types.h"
 #include "DNA_lattice_types.h"
@@ -489,45 +490,6 @@ static void armature_vert_task_with_dvert(const ArmatureDeformParams &deform_par
   }
 }
 
-struct ArmatureUserdata {
-  bool use_quaternion = false;
-  std::optional<Span<MDeformVert>> dverts;
-  const Mesh *me_target = nullptr;
-
-  ArmatureDeformParams deform_params;
-};
-
-static void armature_vert_task(void *__restrict userdata,
-                               const int i,
-                               const TaskParallelTLS *__restrict /*tls*/)
-{
-  const ArmatureUserdata &data = *static_cast<const ArmatureUserdata *>(userdata);
-  const ArmatureDeformParams &deform_params = data.deform_params;
-  const MDeformVert *dvert;
-  if (deform_params.use_dverts || deform_params.armature_def_nr != -1) {
-    if (data.me_target) {
-      BLI_assert(i < data.me_target->verts_num);
-      if (data.dverts.has_value()) {
-        dvert = &(*data.dverts)[i];
-      }
-      else {
-        dvert = nullptr;
-      }
-    }
-    else if (data.dverts && i < data.dverts->size()) {
-      dvert = &(*data.dverts)[i];
-    }
-    else {
-      dvert = nullptr;
-    }
-  }
-  else {
-    dvert = nullptr;
-  }
-
-  armature_vert_task_with_dvert(deform_params, i, dvert, data.use_quaternion);
-}
-
 static void armature_deform_coords(const Object &ob_arm,
                                    const Object &ob_target,
                                    const ListBase *defbase,
@@ -549,16 +511,26 @@ static void armature_deform_coords(const Object &ob_arm,
                                                                   defgrp_name,
                                                                   dverts.has_value());
 
-  ArmatureUserdata data{};
-  data.use_quaternion = bool(deformflag & ARM_DEF_QUATERNION);
-  data.dverts = dverts;
-  data.me_target = me_target;
-  data.deform_params = std::move(deform_params);
+  const bool use_quaternion = bool(deformflag & ARM_DEF_QUATERNION);
+  constexpr int grain_size = 32;
+  threading::parallel_for(vert_coords.index_range(), grain_size, [&](const IndexRange range) {
+    for (const int i : range) {
+      const MDeformVert *dvert = nullptr;
+      if (deform_params.use_dverts || deform_params.armature_def_nr >= 0) {
+        if (me_target) {
+          BLI_assert(i < me_target->verts_num);
+          if (dverts) {
+            dvert = &(*dverts)[i];
+          }
+        }
+        else if (dverts && i < dverts->size()) {
+          dvert = &(*dverts)[i];
+        }
+      }
 
-  TaskParallelSettings settings;
-  BLI_parallel_range_settings_defaults(&settings);
-  settings.min_iter_per_thread = 32;
-  BLI_task_parallel_range(0, vert_coords.size(), &data, armature_vert_task, &settings);
+      armature_vert_task_with_dvert(deform_params, i, dvert, use_quaternion);
+    }
+  });
 }
 
 struct ArmatureEditMeshUserdata {
