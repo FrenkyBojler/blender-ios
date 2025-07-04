@@ -25,7 +25,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 /* we may want to make this optional, disable for now. */
@@ -126,8 +126,8 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
 
     PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-    uiLayoutSetPropSep(layout, use_prop_split);
-    uiLayoutSetPropDecorate(layout, false);
+    layout->use_property_split_set(use_prop_split);
+    layout->use_property_decorate_set(false);
 
     /* main draw call */
     return_info = uiDefAutoButsRNA(
@@ -351,7 +351,7 @@ static void draw_export_controls(
   if (valid) {
     uiLayout *row = &layout->row(false);
     row->emboss_set(blender::ui::EmbossType::None);
-    uiItemPopoverPanel(row, C, "WM_PT_operator_presets", "", ICON_PRESET);
+    row->popover(C, "WM_PT_operator_presets", "", ICON_PRESET);
     PointerRNA op_ptr = row->op("COLLECTION_OT_exporter_export", "", ICON_EXPORT);
     RNA_int_set(&op_ptr, "index", index);
   }
@@ -365,8 +365,8 @@ static void draw_export_properties(bContext *C,
 {
   uiLayout *col = &layout->column(false);
 
-  uiLayoutSetPropSep(col, true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_split_set(true);
+  col->use_property_decorate_set(false);
 
   /* Note this property is used as an alternative to the `filepath` property of `op->ptr`.
    * This property is a wrapper to access that property, see the `CollectionExport::filepath`
@@ -444,6 +444,12 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   col->menu("COLLECTION_MT_exporter_add", "", ICON_ADD);
   PointerRNA op_ptr = col->op("COLLECTION_OT_exporter_remove", "", ICON_REMOVE);
   RNA_int_set(&op_ptr, "index", index);
+
+  col->separator();
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_UP);
+  RNA_enum_set(&op_ptr, "direction", -1);
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_DOWN);
+  RNA_enum_set(&op_ptr, "direction", 1);
 
   col = &layout->column(true);
   col->op("COLLECTION_OT_export_all", std::nullopt, ICON_EXPORT);

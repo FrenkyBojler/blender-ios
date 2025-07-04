@@ -22,7 +22,7 @@
 #include "bpy_rna_gizmo.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -187,7 +187,6 @@ static void py_rna_gizmo_handler_get_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_XDECREF(ret);
 
@@ -237,7 +236,6 @@ static void py_rna_gizmo_handler_set_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_DECREF(args);
 
@@ -293,7 +291,6 @@ static void py_rna_gizmo_handler_range_get_cb(const wmGizmo * /*gz*/,
 
 fail:
   PyErr_Print();
-  PyErr_Clear();
 
   Py_XDECREF(ret);
 

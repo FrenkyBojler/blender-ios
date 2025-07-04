@@ -309,26 +309,20 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   mesh->totface_legacy = 0;
   mesh->fdata_legacy = CustomData{};
 
-  if (U.experimental.use_attribute_storage_write) {
-    /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
-     * reserved for future runtime use (names stored on #Mesh). */
-    if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-      mesh->active_uv_map_attribute = const_cast<char *>(
-          scope.allocator().copy_string(name).c_str());
-    }
-    else {
-      mesh->active_uv_map_attribute = nullptr;
-    }
-    if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-      mesh->default_uv_map_attribute = const_cast<char *>(
-          scope.allocator().copy_string(name).c_str());
-    }
-    else {
-      mesh->default_uv_map_attribute = nullptr;
-    }
+  /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
+   * reserved for future runtime use (names stored on #Mesh). */
+  if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+    mesh->active_uv_map_attribute = const_cast<char *>(
+        scope.allocator().copy_string(name).c_str());
   }
   else {
     mesh->active_uv_map_attribute = nullptr;
+  }
+  if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
+    mesh->default_uv_map_attribute = const_cast<char *>(
+        scope.allocator().copy_string(name).c_str());
+  }
+  else {
     mesh->default_uv_map_attribute = nullptr;
   }
 
@@ -348,12 +342,7 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
     mesh->face_offset_indices = nullptr;
   }
   else {
-    attribute_storage_blend_write_prepare(mesh->attribute_storage.wrap(),
-                                          {{AttrDomain::Point, &vert_layers},
-                                           {AttrDomain::Edge, &edge_layers},
-                                           {AttrDomain::Face, &face_layers},
-                                           {AttrDomain::Corner, &loop_layers}},
-                                          attribute_data);
+    attribute_storage_blend_write_prepare(mesh->attribute_storage.wrap(), attribute_data);
     CustomData_blend_write_prepare(
         mesh->vert_data, AttrDomain::Point, mesh->verts_num, vert_layers, attribute_data);
     CustomData_blend_write_prepare(
@@ -551,12 +540,12 @@ namespace blender::bke {
 void mesh_ensure_default_color_attribute_on_add(Mesh &mesh,
                                                 const StringRef id,
                                                 AttrDomain domain,
-                                                eCustomDataType data_type)
+                                                bke::AttrType data_type)
 {
   if (bke::attribute_name_is_anonymous(id)) {
     return;
   }
-  if (!(CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) ||
+  if (!(CD_TYPE_AS_MASK(*attr_type_to_custom_data_type(data_type)) & CD_MASK_COLOR_ALL) ||
       !(ATTR_DOMAIN_AS_MASK(domain) & ATTR_DOMAIN_MASK_COLOR))
   {
     return;
@@ -573,10 +562,10 @@ void mesh_ensure_required_data_layers(Mesh &mesh)
   AttributeInitConstruct attribute_init;
 
   /* Try to create attributes if they do not exist. */
-  attributes.add("position", AttrDomain::Point, CD_PROP_FLOAT3, attribute_init);
-  attributes.add(".edge_verts", AttrDomain::Edge, CD_PROP_INT32_2D, attribute_init);
-  attributes.add(".corner_vert", AttrDomain::Corner, CD_PROP_INT32, attribute_init);
-  attributes.add(".corner_edge", AttrDomain::Corner, CD_PROP_INT32, attribute_init);
+  attributes.add("position", AttrDomain::Point, bke::AttrType::Float3, attribute_init);
+  attributes.add(".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, attribute_init);
+  attributes.add(".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
+  attributes.add(".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, attribute_init);
 }
 
 static bool meta_data_matches(const std::optional<bke::AttributeMetaData> meta_data,
@@ -589,7 +578,7 @@ static bool meta_data_matches(const std::optional<bke::AttributeMetaData> meta_d
   if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & domains)) {
     return false;
   }
-  if (!(CD_TYPE_AS_MASK(meta_data->data_type) & types)) {
+  if (!(CD_TYPE_AS_MASK(*attr_type_to_custom_data_type(meta_data->data_type)) & types)) {
     return false;
   }
   return true;
@@ -1537,7 +1526,7 @@ void mesh_transform(Mesh &mesh, const float4x4 &transform, bool do_shape_keys)
   if (const std::optional<AttributeMetaData> meta_data = attributes.lookup_meta_data(
           "custom_normal"))
   {
-    if (meta_data->data_type == CD_PROP_FLOAT3) {
+    if (meta_data->data_type == bke::AttrType::Float3) {
       bke::SpanAttributeWriter normals = attributes.lookup_for_write_span<float3>("custom_normal");
       transform_normals(normals.span, transform);
       normals.finish();

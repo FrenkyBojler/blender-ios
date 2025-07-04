@@ -43,7 +43,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
@@ -643,6 +642,15 @@ static bool node_mouse_select(bContext *C,
     if (node == nullptr) {
       /* Disable existing active viewer. */
       WorkSpace *workspace = CTX_wm_workspace(C);
+      if (const std::optional<viewer_path::ViewerPathForGeometryNodesViewer> parsed_path =
+              viewer_path::parse_geometry_nodes_viewer(workspace->viewer_path))
+      {
+        /* The object needs to be reevaluated, because the viewer path is changed which means that
+         * the object may generate different viewer geometry as a side effect. */
+        Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
+        DEG_id_tag_update_for_side_effect_request(
+            depsgraph, &parsed_path->object->id, ID_RECALC_GEOMETRY);
+      }
       BKE_viewer_path_clear(&workspace->viewer_path);
       WM_event_add_notifier(C, NC_VIEWER_PATH, nullptr);
     }

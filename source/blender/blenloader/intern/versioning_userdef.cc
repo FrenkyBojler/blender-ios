@@ -327,6 +327,20 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
   }
 
+  if (!USER_VERSION_ATLEAST(500, 24)) {
+    FROM_DEFAULT_V4_UCHAR(tui.panel_title);
+    FROM_DEFAULT_V4_UCHAR(tui.panel_text);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 25)) {
+    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_properties.button);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 29)) {
+    FROM_DEFAULT_V4_UCHAR(space_node.console_output);
+  }
+
   if (!USER_VERSION_ATLEAST(500, 23)) {
     FROM_DEFAULT_V4_UCHAR(common.anim.preview_range);
   }

@@ -48,7 +48,7 @@
 #include "bpy_utils_units.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 /* external util modules */
@@ -714,7 +714,6 @@ static PyObject *bpy_import_test(const char *modname)
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   return mod;

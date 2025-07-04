@@ -12,7 +12,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "IMB_colormanagement.hh"
@@ -30,7 +30,8 @@ static void cmp_node_levels_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .structure_type(StructureType::Dynamic);
+
   b.add_output<decl::Float>("Mean");
   b.add_output<decl::Float>("Standard Deviation");
 }
