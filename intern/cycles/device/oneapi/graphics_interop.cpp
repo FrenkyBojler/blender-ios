@@ -84,18 +84,16 @@ void OneapiDeviceGraphicsInterop::set_buffer(GraphicsInteropBuffer &interop_buff
 
   buffer_size_ = interop_buffer.get_size();
 
-  /* TODO: We could consider mapping the handle consistently here.
-   * The CUDA backend says: "Vulkan buffer is always mapped." */
+  /* Like the CUDA/HIP backend, we map the buffer persistently. */
+  sycl_memory_ptr_ = sycl::ext::oneapi::experimental::map_external_linear_memory(
+      sycl_external_memory_, 0, buffer_size_, *sycl_queue);
 }
 
 device_ptr OneapiDeviceGraphicsInterop::map()
 {
-  sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
-  sycl_memory_ptr_ = sycl::ext::oneapi::experimental::map_external_linear_memory(
-      sycl_external_memory_, 0, buffer_size_, *sycl_queue);
-
   if (sycl_memory_ptr_ && need_zero_) {
     /* We do not wait on the returned event here, as CUDA also uses "cuMemsetD8Async". */
+    sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
     sycl_queue->memset(sycl_memory_ptr_, 0, buffer_size_);
     need_zero_ = false;
   }
@@ -103,18 +101,13 @@ device_ptr OneapiDeviceGraphicsInterop::map()
   return reinterpret_cast<device_ptr>(sycl_memory_ptr_);
 }
 
-void OneapiDeviceGraphicsInterop::unmap()
-{
-  if (sycl_external_memory_.raw_handle) {
-    sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
-    sycl::ext::oneapi::experimental::unmap_external_linear_memory(sycl_memory_ptr_, *sycl_queue);
-  }
-}
+void OneapiDeviceGraphicsInterop::unmap() {}
 
 void OneapiDeviceGraphicsInterop::free()
 {
   if (sycl_external_memory_.raw_handle) {
     sycl::queue *sycl_queue = reinterpret_cast<sycl::queue *>(device_->sycl_queue());
+    sycl::ext::oneapi::experimental::unmap_external_linear_memory(sycl_memory_ptr_, *sycl_queue);
     sycl::ext::oneapi::experimental::release_external_memory(sycl_external_memory_, *sycl_queue);
     sycl_external_memory_ = {};
   }
