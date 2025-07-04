@@ -72,7 +72,7 @@ void ImageMipmapCache::init_resolution_size_offset_for_each_mipmap_level(uint2 m
   for (int mipmap_level : IndexRange(size())) {
     CLOG_INFO(&LOG,
               2,
-              "mipmap=%d, resolution=%dx%d, offset=%d, size_in_bytes=%d, bytes_per_pixel=%d",
+              "mipmap=%d, resolution=%dx%d, offset=%lu, size_in_bytes=%lu, bytes_per_pixel=%lu",
               mipmap_level,
               UNPACK2(resolution_per_mipmap_[mipmap_level]),
               offsets_per_mipmap_[mipmap_level],
