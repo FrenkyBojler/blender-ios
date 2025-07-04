@@ -26,6 +26,7 @@
 #include "ED_screen.hh"
 
 #include "mesh_intern.hh"
+#include "ED_mesh.hh"
 
 namespace blender::ed::mesh {
 
@@ -40,25 +41,33 @@ static int set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
     Mesh &mesh = *static_cast<Mesh *>(object->data);
     BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(object);
+
     bool changed = false;
     BMIter iter;
     BMEdge *e;
     BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
-      if (!BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+      if (BM_elem_flag_test(e, BM_ELEM_HIDDEN)) {
         continue;
       }
-      const bool prev_sharp = !BM_elem_flag_test(e, BM_ELEM_SMOOTH);
-      if (extend && prev_sharp) {
-        continue;
+
+      if (BM_elem_flag_test(e, BM_ELEM_SELECT) ||
+          (symmetry_helper && symmetry_helper->is_any_mirror_edge_selected(e, BM_ELEM_SELECT)))
+      {
+        const bool prev_sharp = !BM_elem_flag_test(e, BM_ELEM_SMOOTH);
+        if (extend && prev_sharp) {
+          continue;
+        }
+        BMLoop *l1, *l2;
+        if (!BM_edge_loop_pair(e, &l1, &l2)) {
+          continue;
+        }
+        const float angle_cos = math::dot(float3(l1->f->no), float3(l2->f->no));
+        const bool sharp = angle_cos <= angle_limit_cos;
+        BM_elem_flag_set(e, BM_ELEM_SMOOTH, !sharp);
+        changed = changed || sharp != prev_sharp;
       }
-      BMLoop *l1, *l2;
-      if (!BM_edge_loop_pair(e, &l1, &l2)) {
-        continue;
-      }
-      const float angle_cos = math::dot(float3(l1->f->no), float3(l2->f->no));
-      const bool sharp = angle_cos <= angle_limit_cos;
-      BM_elem_flag_set(e, BM_ELEM_SMOOTH, !sharp);
-      changed = changed || sharp != prev_sharp;
     }
 
     if (changed) {

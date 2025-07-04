@@ -251,9 +251,29 @@ static bool edbm_inset_calc(wmOperator *op)
   for (uint ob_index = 0; ob_index < opdata->ob_store_len; ob_index++) {
     Object *obedit = opdata->ob_store[ob_index].ob;
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
 
     if (opdata->is_modal) {
       EDBM_redo_state_restore(&opdata->ob_store[ob_index].mesh_backup, em, false);
+    }
+
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit);
+
+    char hflag = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag);
+
+      BMIter f_iter;
+      BMFace *f;
+      BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(f, hflag);
+          symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+        }
+      }
     }
 
     if (use_individual) {
@@ -262,7 +282,7 @@ static bool edbm_inset_calc(wmOperator *op)
                    op,
                    "inset_individual faces=%hf use_even_offset=%b use_relative_offset=%b "
                    "use_interpolate=%b thickness=%f depth=%f",
-                   BM_ELEM_SELECT,
+                   hflag,
                    use_even_offset,
                    use_relative_offset,
                    use_interpolate,
@@ -276,7 +296,7 @@ static bool edbm_inset_calc(wmOperator *op)
           op,
           "inset_region faces=%hf use_boundary=%b use_even_offset=%b use_relative_offset=%b "
           "use_interpolate=%b thickness=%f depth=%f use_outset=%b use_edge_rail=%b",
-          BM_ELEM_SELECT,
+          hflag,
           use_boundary,
           use_even_offset,
           use_relative_offset,
@@ -288,20 +308,27 @@ static bool edbm_inset_calc(wmOperator *op)
 
       if (use_outset) {
         BMO_slot_buffer_from_enabled_hflag(
-            em->bm, &bmop, bmop.slots_in, "faces_exclude", BM_FACE, BM_ELEM_HIDDEN);
+            bm, &bmop, bmop.slots_in, "faces_exclude", BM_FACE, BM_ELEM_HIDDEN);
       }
     }
-    BMO_op_exec(em->bm, &bmop);
+
+    BMO_op_exec(bm, &bmop);
+
+    if (hflag != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag);
+    }
 
     if (use_select_inset) {
       /* deselect original faces/verts */
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(
-          em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+          bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
     }
     else {
-      EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-      BMO_slot_buffer_hflag_enable(em->bm, bmop.slots_in, "faces", BM_FACE, BM_ELEM_SELECT, true);
+      if (hflag != BM_ELEM_SELECT) {
+        EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+        BMO_slot_buffer_hflag_enable(bm, bmop.slots_in, "faces", BM_FACE, BM_ELEM_SELECT, true);
+      }
     }
 
     if (!EDBM_op_finish(em, &bmop, op, true)) {

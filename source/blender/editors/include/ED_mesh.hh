@@ -11,8 +11,9 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
-
-#include "DNA_windowmanager_enums.h"
+#include "BLI_map.hh"
+#include "BLI_vector.hh"
+#include "BLI_function_ref.hh" 
 
 struct ARegion;
 struct BMBVHTree;
@@ -46,6 +47,33 @@ struct UvElement;
 struct UvElementMap;
 
 /* `editmesh_utils.cc` */
+class EditMeshSymmetryHelper {
+public:
+  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob);
+
+  bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
+  bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
+  bool is_any_mirror_face_selected(BMFace *face, char hflag) const;
+
+  void set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const;
+  void set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const;
+  void set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const;
+
+  void apply_on_mirror_verts(BMVert *vert, blender::FunctionRef<void(BMVert *)> op) const;
+  void apply_on_mirror_edges(BMEdge *edge, blender::FunctionRef<void(BMEdge *)> op) const;
+  void apply_on_mirror_faces(BMFace *face, blender::FunctionRef<void(BMFace *)> op) const;
+
+private:
+  EditMeshSymmetryHelper(Object *ob);
+
+  BMEditMesh *em;
+  Mesh *mesh;
+  bool use_topology_mirror;
+
+  blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;
+  blender::Map<BMEdge *, blender::Vector<BMEdge *>> edge_to_mirrors_map;
+  blender::Map<BMFace *, blender::Vector<BMFace *>> face_to_mirrors_map;
+};
 
 /**
  * \param em: Edit-mesh used for generating mirror data.
@@ -267,13 +295,13 @@ bool EDBM_unified_findnearest_from_raycast(ViewContext *vc,
                                            BMEdge **r_eed,
                                            BMFace **r_efa);
 
-bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &params);
+bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params *params);
 
 /**
  * When switching select mode, makes sure selection is consistent for editing
  * also for paranoia checks to make sure edge or face mode works.
  */
-void EDBM_selectmode_set(BMEditMesh *em, short selectmode);
+void EDBM_selectmode_set(BMEditMesh *em);
 /**
  * Expand & Contract the Selection
  * (used when changing modes and Ctrl key held)
@@ -291,6 +319,7 @@ void EDBM_selectmode_set(BMEditMesh *em, short selectmode);
 void EDBM_selectmode_convert(BMEditMesh *em, short selectmode_old, short selectmode_new);
 
 /**
+ * User access this.
  * Select-mode setting utility.
  * This operates on tool-settings and all objects passed in.
  */
@@ -303,7 +332,7 @@ bool EDBM_selectmode_set_multi_ex(Scene *scene,
  */
 bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
 /**
- * User facing function, handles notification.
+ * User facing function, does notification.
  *
  * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
  */
@@ -397,7 +426,7 @@ void paintface_flush_flags(bContext *C, Object *ob, bool flush_selection, bool f
  */
 bool paintface_mouse_select(bContext *C,
                             const int mval[2],
-                            const SelectPick_Params &params,
+                            const SelectPick_Params *params,
                             Object *ob);
 bool paintface_deselect_all_visible(bContext *C, Object *ob, int action, bool flush_flags);
 void paintface_select_linked(bContext *C, Object *ob, const int mval[2], bool select);
@@ -527,10 +556,8 @@ void EDBM_redo_state_free(BMBackup *backup) ATTR_NONNULL(1);
 
 /* `meshtools.cc` */
 
-wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
-wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
-                                                  bool ensure_keys_exist,
-                                                  ReportList *reports);
+int ED_mesh_join_objects_exec(bContext *C, wmOperator *op);
+int ED_mesh_shapes_join_objects_exec(bContext *C, wmOperator *op);
 
 /* Mirror lookup API. */
 
@@ -603,3 +630,4 @@ void EDBM_mesh_elem_index_ensure_multi(blender::Span<Object *> objects, char hty
 #define ED_MESH_PICK_DEFAULT_FACE_DIST 1
 
 #define USE_LOOPSLIDE_HACK
+
