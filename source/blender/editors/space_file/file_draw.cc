@@ -127,7 +127,7 @@ struct FileTooltipData {
 
 static FileTooltipData *file_tooltip_data_create(const SpaceFile *sfile, const FileDirEntry *file)
 {
-  FileTooltipData *data = (FileTooltipData *)MEM_mallocN(sizeof(FileTooltipData), __func__);
+  FileTooltipData *data = MEM_mallocN<FileTooltipData>(__func__);
   data->sfile = sfile;
   data->file = file;
   return data;
@@ -501,6 +501,24 @@ static void file_draw_string(int sx,
 }
 
 /**
+ * Draw the string over at max \a line_count lines, clipping in the middle so it fits.
+ */
+static void file_draw_string_mulitline_clipped(const rcti *rect,
+                                               const char *string,
+                                               eFontStyle_Align align,
+                                               const uchar col[4])
+{
+  if (string[0] == '\0' || BLI_rcti_size_x(rect) < 1) {
+    return;
+  }
+
+  const uiStyle *style = UI_style_get();
+  uiFontStyle fs = style->widget;
+
+  UI_fontstyle_draw_multiline_clipped(&fs, rect, string, col, align);
+}
+
+/**
  * \param r_sx, r_sy: The lower right corner of the last line drawn, plus the height of the last
  *                    line. This is the cursor position on completion to allow drawing more text
  *                    behind that.
@@ -626,8 +644,8 @@ static void file_add_preview_drag_but(const SpaceFile *sfile,
   const ImBuf *drag_image = preview_image ? preview_image :
                                             /* Larger directory or document icon. */
                                             filelist_geticon_special_file_image_ex(file);
-  const auto [scaled_width, scaled_height, scale] = preview_image_scaled_dimensions_get(
-      drag_image->x, drag_image->y, *layout);
+  const float scale = (PREVIEW_DRAG_DRAW_SIZE * UI_SCALE_FAC) /
+                      std::max(drag_image->x, drag_image->y);
   file_but_enable_drag(but, sfile, file, path, drag_image, file_type_icon, scale);
   file_but_tooltip_func_set(sfile, file, but);
 }
@@ -693,7 +711,7 @@ static void file_draw_preview(const FileDirEntry *file,
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
     float bgcolor[4];
@@ -814,6 +832,7 @@ static void file_draw_loading_icon(const rcti *tile_draw_rect,
 
 static void file_draw_indicator_icons(const FileList *files,
                                       const FileDirEntry *file,
+                                      const FileLayout *layout,
                                       const rcti *tile_draw_rect,
                                       const float preview_icon_aspect,
                                       const int file_type_icon,
@@ -827,7 +846,7 @@ static void file_draw_indicator_icons(const FileList *files,
    * cover the preview. */
   if (preview_icon_aspect < 2.0f) {
     const float icon_x = float(tile_draw_rect->xmin) + (3.0f * UI_SCALE_FAC);
-    const float icon_y = float(tile_draw_rect->ymin) + (17.0f * UI_SCALE_FAC);
+    const float icon_y = float(tile_draw_rect->ymax) - layout->prv_border_y - layout->prv_h;
     const uchar light[4] = {255, 255, 255, 255};
     if (is_offline) {
       /* Icon at bottom to indicate the file is offline. */
@@ -945,7 +964,8 @@ static void draw_background(FileLayout *layout, View2D *v2d)
   int i;
   int sy;
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   float col_alternating[4];
   UI_GetThemeColor4fv(TH_ROW_ALTERNATE, col_alternating);
@@ -982,7 +1002,7 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
   }
 
   if (vertex_len > 0) {
-    int v1[2], v2[2];
+    float v1[2], v2[2];
     float col_hi[3], col_lo[3];
 
     UI_GetThemeColorShade3fv(TH_BACK, 30, col_hi);
@@ -992,8 +1012,9 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
     v2[1] = v2d->cur.ymin;
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_I32, 2, GPU_FETCH_INT_TO_FLOAT);
-    uint color = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint color = GPU_vertformat_attr_add(
+        format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
     immBegin(GPU_PRIM_LINES, vertex_len);
@@ -1004,15 +1025,15 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 
       v1[0] = v2[0] = sx;
       immAttrSkip(color);
-      immVertex2iv(pos, v1);
+      immVertex2fv(pos, v1);
       immAttr3fv(color, col_lo);
-      immVertex2iv(pos, v2);
+      immVertex2fv(pos, v2);
 
       v1[0] = v2[0] = sx + 1;
       immAttrSkip(color);
-      immVertex2iv(pos, v1);
+      immVertex2fv(pos, v1);
       immAttr3fv(color, col_hi);
-      immVertex2iv(pos, v2);
+      immVertex2fv(pos, v2);
     }
 
     immEnd();
@@ -1022,7 +1043,8 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 
 static void draw_columnheader_background(const FileLayout *layout, const View2D *v2d)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShade(TH_BACK, 11);
@@ -1074,7 +1096,7 @@ static void draw_columnheader_columns(const FileSelectParams *params,
     /* Separator line */
     if (column_type != COLUMN_NAME) {
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformThemeColorShade(TH_BACK, -10);
@@ -1090,7 +1112,8 @@ static void draw_columnheader_columns(const FileSelectParams *params,
 
   /* Vertical separator lines line */
   {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformThemeColorShade(TH_BACK, -10);
     immBegin(GPU_PRIM_LINES, 4);
@@ -1221,7 +1244,7 @@ static rcti text_draw_rect_get(const View2D *v2d,
   rcti rect = tile_rect;
   if (display_type == FILE_IMGDISPLAY) {
     rect.ymin += round_fl_to_int(layout->prv_border_y * 0.5f);
-    rect.ymax = rect.ymin + layout->textheight;
+    rect.ymax = rect.ymin + layout->text_line_height * layout->text_lines_count;
   }
   else {
     rect.xmin += icon_ofs_x + 1;
@@ -1361,8 +1384,13 @@ void file_draw_list(const bContext *C, ARegion *region)
         has_special_file_image = true;
       }
 
-      file_draw_indicator_icons(
-          files, file, &tile_draw_rect, thumb_icon_aspect, file_type_icon, has_special_file_image);
+      file_draw_indicator_icons(files,
+                                file,
+                                layout,
+                                &tile_draw_rect,
+                                thumb_icon_aspect,
+                                file_type_icon,
+                                has_special_file_image);
 
       if (do_drag) {
         file_add_preview_drag_but(
@@ -1447,7 +1475,7 @@ void file_draw_list(const bContext *C, ARegion *region)
     if (file_selflag & FILE_SEL_EDITING) {
       const int but_height =
           (params->display == FILE_IMGDISPLAY) ?
-              layout->textheight * 1.4f :
+              layout->text_line_height * 1.4f :
               /* Just a little smaller than the tile height, clamped to #UI_UNIT_Y as maximum. */
               std::min(short(BLI_rcti_size_y(&text_rect) - 1.0f * UI_SCALE_FAC), UI_UNIT_Y);
       uiBut *but = uiDefBut(block,
@@ -1455,7 +1483,8 @@ void file_draw_list(const bContext *C, ARegion *region)
                             1,
                             "",
                             text_rect.xmin,
-                            text_rect.ymin,
+                            /* First line only, when name is displayed in multiple lines. */
+                            text_rect.ymax - but_height,
                             BLI_rcti_size_x(&text_rect),
                             but_height,
                             params->renamefile,
@@ -1463,7 +1492,7 @@ void file_draw_list(const bContext *C, ARegion *region)
                             float(sizeof(params->renamefile)),
                             "");
       UI_but_func_rename_set(but, renamebutton_cb, file);
-      UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* allow non utf8 names */
+      UI_but_flag_enable(but, UI_BUT_NO_UTF8); /* Allow non UTF8 names. */
       UI_but_flag_disable(but, UI_BUT_UNDO);
       if (false == UI_but_active_only(C, region, block, but)) {
         /* Note that this is the only place where we can also handle a cancelled renaming. */
@@ -1484,13 +1513,18 @@ void file_draw_list(const bContext *C, ARegion *region)
 
     /* file_selflag might have been modified by branch above. */
     if ((file_selflag & FILE_SEL_EDITING) == 0) {
-      file_draw_string(text_rect.xmin,
-                       text_rect.ymax,
-                       file->name,
-                       BLI_rcti_size_x(&text_rect),
-                       BLI_rcti_size_y(&text_rect),
-                       align,
-                       text_col);
+      if (layout->text_lines_count == 1) {
+        file_draw_string(text_rect.xmin,
+                         text_rect.ymax,
+                         file->name,
+                         BLI_rcti_size_x(&text_rect),
+                         BLI_rcti_size_y(&text_rect),
+                         align,
+                         text_col);
+      }
+      else {
+        file_draw_string_mulitline_clipped(&text_rect, file->name, align, text_col);
+      }
     }
 
     if (params->display != FILE_IMGDISPLAY) {
@@ -1558,7 +1592,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
   const View2D *v2d = &region->v2d;
   const int pad = sfile->layout->tile_border_x;
   const int width = BLI_rctf_size_x(&v2d->tot) - (2 * pad);
-  const int line_height = sfile->layout->textheight;
+  const int line_height = sfile->layout->text_line_height;
   int sx = v2d->tot.xmin + pad;
   /* For some reason no padding needed. */
   int sy = v2d->tot.ymax;
@@ -1616,7 +1650,7 @@ static void file_draw_invalid_library_hint(const bContext * /*C*/,
   const View2D *v2d = &region->v2d;
   const int pad = sfile->layout->tile_border_x;
   const int width = BLI_rctf_size_x(&v2d->tot) - (2 * pad);
-  const int line_height = sfile->layout->textheight;
+  const int line_height = sfile->layout->text_line_height;
   int sx = v2d->tot.xmin + pad;
   /* For some reason no padding needed. */
   int sy = v2d->tot.ymax;

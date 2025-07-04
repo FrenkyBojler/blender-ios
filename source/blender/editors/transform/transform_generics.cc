@@ -699,6 +699,16 @@ void initTransInfo(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
     t->vod = ED_view3d_navigation_init(C, kmi_passthrough);
   }
 
+  if (t->mode == TFM_TRANSLATION) {
+    if ((prop = RNA_struct_find_property(op->ptr, "translate_origin")) &&
+        RNA_property_is_set(op->ptr, prop))
+    {
+      if (RNA_property_boolean_get(op->ptr, prop)) {
+        t->flag |= T_ORIGIN;
+      }
+    }
+  }
+
   setTransformViewMatrices(t);
   calculateCenter2D(t);
   calculateCenterLocal(t, t->center_global);
@@ -780,6 +790,7 @@ void postTrans(bContext *C, TransInfo *t)
       MEM_SAFE_FREE(tc->data_mirror);
       MEM_SAFE_FREE(tc->data_ext);
       MEM_SAFE_FREE(tc->data_2d);
+      MEM_SAFE_FREE(tc->sorted_index_map);
     }
   }
 

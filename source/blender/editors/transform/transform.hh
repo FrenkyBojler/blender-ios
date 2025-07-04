@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_function_ref.hh"
 #include "BLI_math_vector_types.hh"
 
 #include "ED_numinput.hh"
@@ -184,8 +185,11 @@ enum eTFlag {
 
   /** Special flag for when the transform code is called after keys have been duplicated. */
   T_DUPLICATED_KEYFRAMES = 1 << 26,
+
+  /** Transform origin. */
+  T_ORIGIN = 1 << 27,
 };
-ENUM_OPERATORS(eTFlag, T_DUPLICATED_KEYFRAMES);
+ENUM_OPERATORS(eTFlag, T_ORIGIN);
 
 /** #TransInfo.modifiers */
 enum eTModifier {
@@ -197,6 +201,7 @@ enum eTModifier {
   MOD_NODE_ATTACH = 1 << 5,
   MOD_SNAP_FORCED = 1 << 6,
   MOD_EDIT_SNAP_SOURCE = 1 << 7,
+  MOD_NODE_FRAME = 1 << 8,
 };
 ENUM_OPERATORS(eTModifier, MOD_EDIT_SNAP_SOURCE)
 
@@ -325,6 +330,8 @@ enum {
   TFM_MODAL_EDIT_SNAP_SOURCE_OFF = 35,
 
   TFM_MODAL_PASSTHROUGH_NAVIGATE = 36,
+
+  TFM_MODAL_NODE_FRAME = 37,
 };
 
 /** \} */
@@ -711,6 +718,75 @@ struct TransDataContainer {
   };
 
   TransCustomDataContainer custom;
+
+  /**
+   * Array of indices for the `data`, `data_ext`, and `data_2d` arrays.
+   *
+   * When using this index map to traverse the arrays, they will be sorted primarily by selection
+   * state (selected before unselected). Depending on the sort function used (see below),
+   * unselected items are then sorted by their "distance" for proportional editing.
+   *
+   * NOTE: this is set to `nullptr` by default; use one of the sorting functions below to
+   * initialize the array.
+   *
+   * \see #sort_trans_data_selected_first Sorts only by selection state.
+   * \see #sort_trans_data_dist Sorts by selection state and distance.
+   */
+  int *sorted_index_map;
+
+  /**
+   * Call the given function for each index in the data. This index can then be
+   * used to access the `data`, `data_ext`, and `data_2d` arrays.
+   *
+   * If there is a `sorted_index_map` (see above), this will be used. Otherwise
+   * it is assumed that the arrays can be iterated in their natural array order.
+   *
+   * \param fn: function that's called for each index. The function should
+   * return whether to keep looping (true) or break out of the loop (false).
+   *
+   * \return whether the end of the loop was reached.
+   */
+  bool foreach_index(FunctionRef<bool(int)> fn) const
+  {
+    if (this->sorted_index_map) {
+      for (const int i : Span(this->sorted_index_map, this->data_len)) {
+        if (!fn(i)) {
+          return false;
+        }
+      }
+    }
+    else {
+      for (const int i : IndexRange(this->data_len)) {
+        if (!fn(i)) {
+          return false;
+        }
+      }
+    }
+    return true;
+  }
+
+  /**
+   * Call \a fn only for indices of selected items.
+   * Apart from that, this is the same as `index_map()` above.
+   *
+   * \param fn: function that's called for each index. Contrary to the `index_map()` function, it
+   * is assumed that all selected items should be visited, and so for simplicity there is no `bool`
+   * to return.
+   */
+  void foreach_index_selected(FunctionRef<void(int)> fn) const
+  {
+    this->foreach_index([&](const int i) {
+      const bool is_selected = (this->data[i].flag & TD_SELECTED);
+      if (!is_selected) {
+        /* Selected items are sorted first. Either this is trivially true
+         * (proportional editing off, so the only transformed data is the
+         * selected data) or it's handled by `sorted_index_map`. */
+        return false;
+      }
+      fn(i);
+      return true;
+    });
+  }
 };
 
 struct TransInfo {
@@ -769,13 +845,14 @@ struct TransInfo {
   float center2d[2];
   /** Maximum index on the input vector. */
   short idx_max;
-  /** Snapping Gears. */
-  float snap[2];
+  /** Increment value for incremental snapping. */
+  float3 increment;
+  float increment_precision;
   /** Spatial snapping gears(even when rotating, scaling... etc). */
   float snap_spatial[3];
   /**
    * Precision factor that is multiplied to snap_spatial when precision
-   * modifier is enabled for snap to grid or incremental snap.
+   * modifier is enabled for snap to grid.
    */
   float snap_spatial_precision;
   /** Mouse side of the current frame, 'L', 'R' or 'B'. */
@@ -803,8 +880,8 @@ struct TransInfo {
   /** Orientation matrix of the current space. */
   float spacemtx[3][3];
   float spacemtx_inv[3][3];
-  /** Name of the current space, MAX_NAME. */
-  char spacename[64];
+  /** Name of the current space. */
+  char spacename[/*MAX_NAME*/ 64];
 
   /*************** NEW STUFF *********************/
   /** Event type used to launch transform. */

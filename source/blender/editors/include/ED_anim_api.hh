@@ -693,7 +693,7 @@ struct bAnimChannelType {
   /**
    * Called after a setting was changed via ANIM_channel_setting_set().
    *
-   * \param ale is marked as 'const', as it could have been duplicated and taken out of context.
+   * \param ale: is marked as `const`, as it could have been duplicated and taken out of context.
    * This means that any hypothetical changes to `ale->update`, for example, will not be seen by
    * any `ANIM_animdata_update()` call. So better to keep this `const` and avoid any manipulation.
    * Also, because of the duplications, the ale's `prev` and `next` pointers will be dangling.
@@ -862,7 +862,7 @@ void ANIM_draw_cfra(const bContext *C, View2D *v2d, short flag);
 /**
  * Draw preview range 'curtains' for highlighting where the animation data is.
  */
-void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width);
+void ANIM_draw_previewrange(const Scene *scene, View2D *v2d, int end_frame_width);
 
 /** \} */
 
@@ -874,8 +874,6 @@ void ANIM_draw_previewrange(const bContext *C, View2D *v2d, int end_frame_width)
 
 /**
  * Draw frame range guides (for scene frame range) in background.
- *
- * TODO: Should we still show these when preview range is enabled?
  */
 void ANIM_draw_framerange(Scene *scene, View2D *v2d);
 

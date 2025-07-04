@@ -27,7 +27,7 @@ class MetalDeviceQueue : public DeviceQueue {
 
   int num_concurrent_states(const size_t /*state_size*/) const override;
   int num_concurrent_busy_states(const size_t /*state_size*/) const override;
-  int num_sort_partition_elements() const override;
+  int num_sort_partitions(int max_num_paths, uint max_scene_shaders) const override;
   bool supports_local_atomic_sort() const override;
 
   void init_execution() override;
@@ -43,6 +43,8 @@ class MetalDeviceQueue : public DeviceQueue {
   void copy_from_device(device_memory &mem) override;
 
   void *native_queue() override;
+
+  unique_ptr<DeviceGraphicsInterop> graphics_interop_create() override;
 
  protected:
   void setup_capture();

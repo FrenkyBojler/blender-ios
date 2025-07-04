@@ -12,6 +12,8 @@
 
 #  include "scene/scene.h"
 
+#  include "session/display_driver.h"
+
 #  include "util/debug.h"
 #  include "util/md5.h"
 #  include "util/path.h"
@@ -103,7 +105,8 @@ MetalDevice::MetalDevice(const DeviceInfo &info, Stats &stats, Profiler &profile
     /* Use "Ray tracing with per component motion interpolation" if available.
      * Requires Apple9 support (https://developer.apple.com/metal/Metal-Feature-Set-Tables.pdf). */
     if (use_metalrt && [mtlDevice supportsFamily:MTLGPUFamilyApple9]) {
-      if (@available(macos 15.0, *)) {
+      /* Concave motion paths weren't correctly bounded prior to macOS 15.6 (#136253). */
+      if (@available(macos 15.6, *)) {
         use_pcmi = DebugFlags().metal.use_metalrt_pcmi;
       }
     }
@@ -1360,10 +1363,11 @@ unique_ptr<DeviceQueue> MetalDevice::gpu_queue_create()
   return make_unique<MetalDeviceQueue>(this);
 }
 
-bool MetalDevice::should_use_graphics_interop()
+bool MetalDevice::should_use_graphics_interop(const GraphicsInteropDevice &interop_device,
+                                              const bool /*log*/)
 {
-  /* METAL_WIP - provide fast interop */
-  return false;
+  /* Always supported with unified memory. */
+  return interop_device.type == GraphicsInteropDevice::METAL;
 }
 
 void *MetalDevice::get_native_buffer(device_ptr ptr)

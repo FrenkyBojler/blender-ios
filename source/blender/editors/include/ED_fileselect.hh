@@ -8,6 +8,10 @@
 
 #pragma once
 
+#include <string>
+
+#include "BLI_vector.hh"
+
 #include "DNA_uuid_types.h"
 
 struct ARegion;
@@ -84,7 +88,8 @@ struct FileLayout {
   int height;
   int flag;
   int dirty;
-  int textheight;
+  int text_line_height;
+  int text_lines_count;
   /**
    * The columns for each item (name, modification date/time, size).
    * Not to be confused with the `flow_columns` above.
@@ -201,6 +206,8 @@ ScrArea *ED_fileselect_handler_area_find_any_with_op(const wmWindow *win);
  * the blend file path (or untitled if file is not saved yet) with the given extension.
  */
 void ED_fileselect_ensure_default_filepath(bContext *C, wmOperator *op, const char *extension);
+
+blender::Vector<std::string> ED_fileselect_selected_files_full_paths(const SpaceFile *sfile);
 
 /* TODO: Maybe we should move this to BLI?
  * On the other hand, it's using defines from space-file area, so not sure... */

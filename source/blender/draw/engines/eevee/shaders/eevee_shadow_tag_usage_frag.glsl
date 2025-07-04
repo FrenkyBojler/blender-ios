@@ -83,6 +83,12 @@ void step_bounding_sphere(float3 vs_near_plane,
   sphere_radius = sqrt(sphere_radius);
 }
 
+/* Warning: Only works for valid, finite, positive floats. */
+float nextafter(float value)
+{
+  return uintBitsToFloat(floatBitsToUint(value) + 1);
+}
+
 void main()
 {
   float2 screen_uv = gl_FragCoord.xy / float2(fb_resolution);
@@ -98,7 +104,7 @@ void main()
   float3 ls_view_direction = normalize(drw_point_world_to_object(interp.P) - ls_near_plane);
 
   /* TODO (Miguel Pozo): We could try to ray-cast against the non-inflated bounds first,
-   * and fallback to the inflated ones if there is no hit.
+   * and fall back to the inflated ones if there is no hit.
    * The inflated bounds can cause unnecessary extra steps. */
   float ls_near_box_t = ray_aabb(
       ls_near_plane, ls_view_direction, interp_flat.ls_aabb_min, interp_flat.ls_aabb_max);
@@ -118,7 +124,9 @@ void main()
 
   /* Ray march from the front to the back of the bbox, and tag shadow usage along the way. */
   float step_size;
-  for (float t = near_box_t; t <= far_box_t; t += step_size) {
+  /* In extreme cases, step_size can be smaller than the next representable float delta, so we use
+   * nextafter to prevent infinite loops. (See #137566) */
+  for (float t = near_box_t; t <= far_box_t; t = max(t + step_size, nextafter(t))) {
     /* Ensure we don't get past far_box_t. */
     t = min(t, far_box_t);
     step_size = pixel_size_at(t);

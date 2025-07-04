@@ -22,15 +22,18 @@ some missing commits), but it's significantly better than nothing.
 - Make sure the list `LIST_OF_OFFICIAL_BLENDER_VERSIONS` is up to date.
 - Open a terminal in your Blender source code folder and make sure the
   branches you're interested in are up to date.
-- Launch `main.py` with relevant launch arguments. The required arguments are:
+- Launch `bug_fixes_per_major_release.py` with relevant launch arguments. The required arguments are:
   - --current-version (-cv)
   - --previous-version (-pv)
   - --current-release-tag (-ct)
   - --previous-release-tag (-pt)
   - --backport-tasks (-bpt) (Optional, but recommended)
-- Here is an example if you wish to collect the list for Blender 4.5 during
+- Here is an example if you wish to collect the list for Blender 5.0 during
 the Alpha stage of development.
-  - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct main -pt blender-v4.4-release -bpt 109399 124452 135860`
+  - `python bug_fixes_per_major_release.py -cv 5.0 -pv 4.5 -ct main -pt blender-v4.5-release -bpt 124452 135860`
+- Here is an example if you wish to collect the list for Blender 4.5 during
+the Beta stage of development.
+  - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct blender-v4.5-release -pt blender-v4.4-release -bpt 109399 124452 135860`
 - Wait for the script to finish (This can take upwards of 20 minutes).
 - Follow the guide printed to terminal.
 
@@ -40,12 +43,8 @@ Specifically the fixed issue listed in the commit message may be
 incorrect.
 
 In situations like this it can be easier to simply override the issue that
-the commit claims to fix. This can be done by launching the script with:
-`bug_fixes_per_major_release.py -o`
-
-The script will then ask for the commit hash, then the
-issue number that commit actually fixes then will use that override
-(and all other overrides you've setup) when you run the script again.
+the commit claims to fix. This can be done by adding a entry to the overrides
+issue: https://projects.blender.org/blender/blender/issues/137983
 
 ---
 
@@ -166,6 +165,7 @@ import subprocess
 import argparse
 import urllib.error
 import urllib.request
+import urllib.robotparser
 
 from time import time, sleep
 from typing import Any
@@ -174,6 +174,8 @@ from pathlib import Path
 
 # -----------------------------------------------------------------------------
 # Constants used throughout the script
+
+BLENDER_API_URL = "https://projects.blender.org/api/v1"
 
 UNKNOWN = "UNKNOWN"
 
@@ -192,7 +194,6 @@ NEWER_VERION = "NEWER"
 SAME_VERION = "SAME"
 
 dir_of_script = Path(__file__).parent.resolve()
-PATH_TO_OVERRIDES = dir_of_script.joinpath('overrides.json')
 PATH_TO_CACHED_COMMITS = dir_of_script.joinpath('cached_commits.json')
 del dir_of_script
 
@@ -223,9 +224,11 @@ LIST_OF_OFFICIAL_BLENDER_VERSIONS = (
     # 2.9x.
     '2.90', '2.91', '2.92', '2.93',
     # 3.x.
-    '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6', '4.0',
+    '3.0', '3.1', '3.2', '3.3', '3.4', '3.5', '3.6',
     # 4.x.
-    '4.1', '4.2', '4.3', '4.4', '4.5'
+    '4.0', '4.1', '4.2', '4.3', '4.4', '4.5',
+    # 5.x.
+    '5.0',
 )
 
 # Catch duplicates
@@ -235,17 +238,30 @@ assert len(set(LIST_OF_OFFICIAL_BLENDER_VERSIONS)) == len(LIST_OF_OFFICIAL_BLEND
 # -----------------------------------------------------------------------------
 # Private Utilities
 
-# Conform to Blenders crawl delay request:
-# https://projects.blender.org/robots.txt
-crawl_delay = 2
+CRAWL_DELAY = 2
 last_checked_time = None
+
+
+def set_crawl_delay() -> None:
+    global CRAWL_DELAY
+    # Conform to Blenders crawl delay request:
+    # https://projects.blender.org/robots.txt
+    try:
+        projects = urllib.robotparser.RobotFileParser(url="https://projects.blender.org/robots.txt")
+        projects.read()
+        projects_crawl_delay = projects.crawl_delay("*")
+        if projects_crawl_delay is not None:
+            assert isinstance(projects_crawl_delay, int)
+            CRAWL_DELAY = projects_crawl_delay
+    except:
+        pass
 
 
 def url_json_get(url: str) -> Any:
     global last_checked_time
 
     if last_checked_time is not None:
-        sleep(max(crawl_delay - (time() - last_checked_time), 0))
+        sleep(max(CRAWL_DELAY - (time() - last_checked_time), 0))
     last_checked_time = time()
 
     try:
@@ -270,11 +286,9 @@ class CommitInfo:
     __slots__ = (
         "hash",
         "commit_title",
-
         "backport_list",
         "classification",
         "fixed_reports",
-        "commit_message",
         "has_been_overwritten",
         "is_revert",
         "module",
@@ -295,8 +309,6 @@ class CommitInfo:
     def set_defaults(self) -> None:
         self.is_revert = 'revert' in self.commit_title.lower()
 
-        self.commit_message = subprocess.run(
-            ['git', 'show', '-s', '--format=%B', self.hash], capture_output=True).stdout.decode('utf-8')
         self.fixed_reports = self.check_full_commit_message_for_fixed_reports()
 
         # Setup some "useful" empty defaults.
@@ -310,10 +322,13 @@ class CommitInfo:
         self.has_been_overwritten = False
 
     def check_full_commit_message_for_fixed_reports(self) -> list[str]:
+        command = ['git', 'show', '-s', '--format=%B', self.hash]
+        command_output = subprocess.run(command, capture_output=True).stdout.decode('utf-8')
+
         # Find every instance of `SPACE#NUMBER`. These are the report that the commit claims to fix.
         # We are looking for the `SPACE` part because otherwise commits that fix issues in other repositories,
         # E.g. Fix `blender/blender-manual#NUMBER`, will be picked out for processing.
-        match = re.findall(r'\s#+(\d+)', self.commit_message)
+        match = re.findall(r'\s#+(\d+)', command_output)
         if match:
             return match
         return []
@@ -377,8 +392,10 @@ class CommitInfo:
             return
 
         for report_number in self.fixed_reports:
-            report_information = url_json_get(
-                f"https://projects.blender.org/api/v1/repos/blender/blender/issues/{report_number}")
+            report_information = url_json_get(f"{BLENDER_API_URL}/repos/blender/blender/issues/{report_number}")
+            if report_information is None:
+                print(f"ERROR: Could not gather information from report number: {report_number}\n")
+                continue
 
             report_title = report_information['title']
             module = self.get_module(report_information['labels'])
@@ -398,6 +415,12 @@ class CommitInfo:
                     break
 
     def generate_release_note_ready_string(self) -> str:
+        def sort_version_numbers(input_version_num: str) -> str:
+            # Pad to three digits to be future proof.
+            pad = 3
+            major, minor, patch = input_version_num.split(".")
+            return major.zfill(pad) + minor.zfill(pad) + patch.zfill(pad)
+
         # Breakup report_title based on words, and remove `:` if it's at the end of the first word.
         # This is because the website the release notes are being posted to applies some undesirable
         # formatting to ` * Word:`.
@@ -413,8 +436,17 @@ class CommitInfo:
         formatted_string = (
             f" * {title} [[{self.hash[:11]}](https://projects.blender.org/blender/blender/commit/{self.hash})]"
         )
+
+        self.backport_list.sort(key=sort_version_numbers)
+
         if len(self.backport_list) > 0:
-            formatted_string += f" - Backported to {' & '.join(self.backport_list)}"
+            formatted_string += f" - Backported to "
+            if len(self.backport_list) > 2:
+                # In case of three or more backports, create a list that looks like:
+                # "Backported to 3.6, 4.2, and 4.3"
+                formatted_string += f"{', '.join(self.backport_list[:-1])}, and {self.backport_list[-1]}"
+            else:
+                formatted_string += " and ".join(self.backport_list)
         formatted_string += "\n"
 
         return formatted_string
@@ -422,7 +454,6 @@ class CommitInfo:
     def prepare_for_cache(self) -> tuple[str, dict[str, Any]]:
         return self.hash, {
             'is_revert': self.is_revert,
-            'commit_message': self.commit_message,
             'fixed_reports': self.fixed_reports,
             'backport_list': self.backport_list,
             'module': self.module,
@@ -432,7 +463,6 @@ class CommitInfo:
 
     def read_from_cache(self, cache_data: dict[str, Any]) -> None:
         self.is_revert = cache_data['is_revert']
-        self.commit_message = cache_data['commit_message']
         self.fixed_reports = cache_data['fixed_reports']
         self.backport_list = cache_data['backport_list']
         self.module = cache_data['module']
@@ -441,10 +471,17 @@ class CommitInfo:
 
         self.needs_update = False
 
-    def read_from_override(self, override_data: list[str]) -> None:
+    def read_from_override(self, override_data: str) -> None:
         self.set_defaults()
-        self.fixed_reports = override_data
+        if "ignore" in override_data.lower():
+            self.classification = IGNORED
+            self.needs_update = False
+        else:
+            self.fixed_reports = [override_data]
+            self.needs_update = True
 
+        # Revert commits that have been overwritten should be processed like normal commits.
+        self.is_revert = False
         self.has_been_overwritten = True
 
 # ---
@@ -617,8 +654,7 @@ def classify_based_on_report(
 def get_backported_commits(issue_number: str) -> dict[str, list[str]]:
     # Adapted from https://projects.blender.org/blender/blender/src/branch/main/release/lts/lts_issue.py
 
-    base_url = "https://projects.blender.org/api/v1/repos"
-    issues_url = base_url + "/blender/blender/issues/"
+    issues_url = f"{BLENDER_API_URL}/repos/blender/blender/issues/"
 
     response = url_json_get(issues_url + issue_number)
     description = response["body"]
@@ -708,55 +744,6 @@ def classify_commits(
     print("\n\n\n")
 
 
-def sort_reverts(list_of_commits: list[CommitInfo]) -> None:
-    number_of_revert_commits = 0
-    for commit in list_of_commits:
-        if commit.classification == REVERT:
-            number_of_revert_commits += 1
-
-    if number_of_revert_commits == 0:
-        # Early out since there are no revert commits to sort
-        return
-
-    while True:
-        sort = input(f"Would you like to sort ({number_of_revert_commits}) reverts? (Y/N) ")
-
-        if sort.lower() == "n":
-            return
-        if sort.lower() == "y":
-            break
-
-    for revert_commit in list_of_commits:
-        if revert_commit.classification == REVERT:
-            # Add some space between each commit message.
-            print("\n" * 10)
-
-            print({revert_commit.commit_message})
-            reverted_commit_list = input(
-                f"Which commit hash(s) did this commit fix? Provide a comma separated list for multiple commits. Leave blank if you do not know: ")
-
-            reverted_commit_hashs: list[str] = []
-            for hash in reverted_commit_list.split(","):
-                # Split the comma separated list and remove any extra white spaces from it.
-                hash = hash.strip()
-                if len(hash) != 0:
-                    reverted_commit_hashs.append(hash)
-
-            if len(reverted_commit_hashs) == 0:
-                # A commit hash wasn't provided.
-                continue
-
-            # This is just to shift the commit into a list we don't share in the release notes.
-            # An alternative classification is `IGNORED` but then the information won't be saved to the cache.
-            revert_commit.classification = FIXED_NEW_ISSUE
-
-            for hash in reverted_commit_hashs:
-                for commit in list_of_commits:
-                    if commit.hash.startswith(hash):
-                        # This is just to shift the commit out of the list of `FIXED_OLD_ISSUE`.
-                        commit.classification = FIXED_NEW_ISSUE
-
-
 # ---
 
 def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, list[CommitInfo]]]:
@@ -819,12 +806,14 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
 
     print_list_of_commits("Commits that fixed old issues:", dict_of_sorted_commits[FIXED_OLD_ISSUE])
 
-    print_list_of_commits("Revert commits:", dict_of_sorted_commits[REVERT])
+    print_list_of_commits(
+        "Revert commits. Add overrides to https://projects.blender.org/blender/blender/issues/137983:",
+        dict_of_sorted_commits[REVERT])
 
     print_list_of_commits("Commits that need manual sorting:", dict_of_sorted_commits[NEEDS_MANUAL_SORTING])
 
     print_list_of_commits(
-        "Commits that need a override (launch this script with -o) as they claim to fix a PR:",
+        "Commits that need a override in https://projects.blender.org/blender/blender/issues/137983 as they claim to fix a PR:",
         dict_of_sorted_commits[FIXED_PR])
 
     print_list_of_commits("Ignored commits:", dict_of_sorted_commits[IGNORED])
@@ -834,7 +823,7 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
 
     print(r"""What to do with this output:
     - Go through every commit in the "Commits that need manual sorting" section and:
-      - Find the corrisponding issue that was fixed (it will be in the commit message)
+      - Find the corresponding issue that was fixed (it will be in the commit message)
       - Update the "Broken" and/or "Working" fields of the report with relevant information so this script can sort it.
         - Add a module label if it's missing one.
       - Rerun this script.
@@ -843,9 +832,8 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
     `<!-- skip_for_bug_fix_release_notes -->` to the report body and the script will ignore it on subsequent runs.
     - This should be done by the triaging module through out the release cycle, so the list should be quite small.
 
-    - Go through the "Revert commits" section and if needed,
-      find the commit they reverted and remove them from the list of "Commits that fixed old issues"
-      (This can be done manually or with the overrides feature).
+    - Go through the "Revert commits" section and add entries to https://projects.blender.org/blender/blender/issues/137983
+      for the reverted commits.
     - Double check if there are any obvious commits in the
       "Commits that fixed old issues" section that shouldn't be there and remove them
       (E.g. A fix for a feature that has been in development over a few releases,
@@ -876,7 +864,8 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
     # on commits that are already sorted (and they're not interested in).
     data_to_cache = {}
     for commit in list_of_commits:
-        if (commit.classification not in (NEEDS_MANUAL_SORTING, IGNORED)) and not (commit.has_been_overwritten):
+        if (commit.classification not in (NEEDS_MANUAL_SORTING, IGNORED)) and not (
+                commit.has_been_overwritten) and (commit.module != UNKNOWN):
             commit_hash, data = commit.prepare_for_cache()
             data_to_cache[commit_hash] = data
 
@@ -887,36 +876,57 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
 # -----------------------------------------------------------------------------
 # Override Utilities
 
-def overrides_load() -> dict[str, list[str]]:
-    override_data = {}
-    if PATH_TO_OVERRIDES.exists():
-        with open(str(PATH_TO_OVERRIDES), 'r', encoding='utf-8') as file:
-            override_data = json.load(file)
+
+def overrides_read(silence: bool) -> dict[str, str]:
+    override_data: dict[str, str] = {}
+    override_report = url_json_get(f"{BLENDER_API_URL}/repos/blender/blender/issues/137983")
+    description = override_report["body"].splitlines()
+
+    for line in description:
+        if "|" not in line:
+            continue
+        if line.startswith("| Commit"):
+            continue
+        if line.startswith("| -"):
+            continue
+
+        split_line = line.split("|")
+        info: list[str] = []
+        for entry in split_line:
+            # Remove empty strings and strip "#" off the issue number
+            entry = entry.strip().strip("#")
+            if len(entry) != 0:
+                info.append(entry)
+
+        try:
+            hash = info[0]
+            fixed_issue = info[1]
+            if len(hash) < 10:
+                print("\n" * 3)
+                print(f"ERROR: Hash is too short in this override data: {info}")
+                if not silence:
+                    input("Press enter to acknowledge: ")
+                continue
+            override_data[hash] = fixed_issue
+        except IndexError:
+            print("\n" * 3)
+            print(f"INDEX ERROR: Failed to process overrides with this data: {info}")
+            if not silence:
+                input("Press enter to acknowledge: ")
 
     return override_data
 
 
-def overrides_store(override_data: dict[str, list[str]]) -> None:
-    with open(str(PATH_TO_OVERRIDES), 'w', encoding='utf-8') as file:
-        json.dump(override_data, file, indent=4)
+def overrides_apply(list_of_commits: list[CommitInfo], silence: bool) -> None:
+    override_data = overrides_read(silence)
+    if len(override_data) == 0:
+        return
 
-
-def overrides_apply(list_of_commits: list[CommitInfo]) -> None:
-    override_data = overrides_load()
-    if len(override_data) > 0:
+    for commit_hash in override_data:
         for commit in list_of_commits:
-            if commit.hash in override_data:
-                commit.read_from_override(override_data[commit.hash])
-
-
-def create_override() -> None:
-    commit_hash = input("Please input the full hash of the commit you want to override: ")
-    issue_number = input("Please input the issue number you want to override it with: ")
-
-    override_data = overrides_load()
-    override_data[commit_hash] = [issue_number]
-
-    overrides_store(override_data)
+            if commit.hash.startswith(commit_hash):
+                commit.read_from_override(override_data[commit_hash])
+                break
 
 
 # -----------------------------------------------------------------------------
@@ -927,14 +937,6 @@ def argparse_create() -> argparse.ArgumentParser:
         description=__doc__,
         # Don't re-format multi-line text.
         formatter_class=argparse.RawTextHelpFormatter,
-    )
-    parser.add_argument(
-        "-o",
-        "--override",
-        action="store_true",
-        help=(
-            "Create a override for a commit."
-        ),
     )
     parser.add_argument(
         "-st",
@@ -1046,12 +1048,10 @@ def validate_arguments(args: argparse.Namespace) -> bool:
 def main() -> int:
     args = argparse_create().parse_args()
 
-    if args.override:
-        create_override()
-        return 0
-
     if not validate_arguments(args):
         return 0
+
+    set_crawl_delay()
 
     list_of_commits = get_fix_commits(
         current_release_tag=args.current_release_tag,
@@ -1062,7 +1062,7 @@ def main() -> int:
     if args.cache:
         cached_commits_load(list_of_commits)
 
-    overrides_apply(list_of_commits)
+    overrides_apply(list_of_commits, args.silence)
 
     classify_commits(
         args.backport_tasks,
@@ -1070,8 +1070,6 @@ def main() -> int:
         current_version=args.current_version,
         previous_version=args.previous_version,
     )
-
-    sort_reverts(list_of_commits)
 
     if args.cache:
         cached_commits_store(list_of_commits)

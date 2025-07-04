@@ -304,14 +304,13 @@ static void populate_curve_props_for_nurbs(const bke::CurvesGeometry &curves,
 
     const int knots_num = bke::curves::nurbs::knots_num(tot_points, order, is_cyclic);
     Array<float> temp_knots(knots_num);
-
-    if (mode == NURBS_KNOT_MODE_CUSTOM) {
-      bke::curves::nurbs::copy_custom_knots(
-          order, is_cyclic, custom_knots.slice(custom_knots_by_curve[i_curve]), temp_knots);
-    }
-    else {
-      bke::curves::nurbs::calculate_knots(tot_points, mode, order, is_cyclic, temp_knots);
-    }
+    bke::curves::nurbs::load_curve_knots(mode,
+                                         tot_points,
+                                         order,
+                                         is_cyclic,
+                                         custom_knots_by_curve[i_curve],
+                                         custom_knots,
+                                         temp_knots);
 
     /* Knots should be the concatenation of all batched curves.
      * https://graphics.pixar.com/usd/dev/api/class_usd_geom_nurbs_curves.html#details */
@@ -430,7 +429,7 @@ void USDCurvesWriter::write_generic_data(const bke::CurvesGeometry &curves,
                 "Attribute '%s' (Blender domain %d, type %d) cannot be converted to USD",
                 attr.name.c_str(),
                 int8_t(attr.domain),
-                attr.data_type);
+                int(attr.data_type));
     return;
   }
 
@@ -502,7 +501,7 @@ void USDCurvesWriter::write_custom_data(const bke::CurvesGeometry &curves,
     }
 
     /* Spline UV data */
-    if (iter.domain == bke::AttrDomain::Curve && iter.data_type == CD_PROP_FLOAT2) {
+    if (iter.domain == bke::AttrDomain::Curve && iter.data_type == bke::AttrType::Float2) {
       if (usd_export_context_.export_params.export_uvmaps) {
         this->write_uv_data(iter, usd_curves);
       }

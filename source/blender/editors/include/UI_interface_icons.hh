@@ -61,6 +61,8 @@ struct IconDecoration {
 
 #define PREVIEW_DEFAULT_HEIGHT 128
 
+#define PREVIEW_DRAG_DRAW_SIZE 96.0f
+
 enum eAlertIcon {
   ALERT_ICON_NONE = -1,
   ALERT_ICON_WARNING = 0,

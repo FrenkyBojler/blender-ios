@@ -8,6 +8,8 @@
 
 #include <sstream>
 
+#include "CLG_log.h"
+
 #include "vk_backend.hh"
 #include "vk_context.hh"
 #include "vk_device.hh"
@@ -24,7 +26,35 @@
 
 extern "C" char datatoc_glsl_shader_defines_glsl[];
 
+static CLG_LogRef LOG = {"gpu.vulkan"};
+
 namespace blender::gpu {
+
+void VKExtensions::log() const
+{
+  CLOG_INFO(&LOG,
+            2,
+            "Device features\n"
+            " - [%c] shader output viewport index\n"
+            " - [%c] shader output layer\n"
+            " - [%c] fragment shader barycentric\n"
+            "Device extensions\n"
+            " - [%c] descriptor buffer\n"
+            " - [%c] dynamic rendering\n"
+            " - [%c] dynamic rendering local read\n"
+            " - [%c] dynamic rendering unused attachments\n"
+            " - [%c] external memory\n"
+            " - [%c] shader stencil export",
+            shader_output_viewport_index ? 'X' : ' ',
+            shader_output_layer ? 'X' : ' ',
+            fragment_shader_barycentric ? 'X' : ' ',
+            descriptor_buffer ? 'X' : ' ',
+            dynamic_rendering ? 'X' : ' ',
+            dynamic_rendering_local_read ? 'X' : ' ',
+            dynamic_rendering_unused_attachments ? 'X' : ' ',
+            external_memory ? 'X' : ' ',
+            GPU_stencil_export_support() ? 'X' : ' ');
+}
 
 void VKDevice::reinit()
 {
@@ -37,7 +67,6 @@ void VKDevice::deinit()
   if (!is_initialized()) {
     return;
   }
-  lifetime = Lifetime::DEINITIALIZING;
 
   deinit_submission_pool();
 
@@ -55,6 +84,7 @@ void VKDevice::deinit()
   pipelines.write_to_disk();
   pipelines.free_data();
   descriptor_set_layouts_.deinit();
+  orphaned_data_render.deinit(*this);
   orphaned_data.deinit(*this);
   vmaDestroyPool(mem_allocator_, vma_pools.external_memory);
   vmaDestroyAllocator(mem_allocator_);
@@ -73,13 +103,11 @@ void VKDevice::deinit()
   vk_queue_family_ = 0;
   vk_queue_ = VK_NULL_HANDLE;
   vk_physical_device_properties_ = {};
-  glsl_patch_.clear();
-  lifetime = Lifetime::DESTROYED;
-}
-
-bool VKDevice::is_initialized() const
-{
-  return lifetime == Lifetime::RUNNING;
+  glsl_vert_patch_.clear();
+  glsl_frag_patch_.clear();
+  glsl_geom_patch_.clear();
+  glsl_comp_patch_.clear();
+  is_initialized_ = false;
 }
 
 void VKDevice::init(void *ghost_context)
@@ -94,10 +122,10 @@ void VKDevice::init(void *ghost_context)
   vk_queue_ = handles.queue;
   queue_mutex_ = static_cast<std::mutex *>(handles.queue_mutex);
 
+  init_physical_device_extensions();
   init_physical_device_properties();
   init_physical_device_memory_properties();
   init_physical_device_features();
-  init_physical_device_extensions();
   VKBackend::platform_init(*this);
   VKBackend::capabilities_init(*this);
   init_functions();
@@ -110,15 +138,15 @@ void VKDevice::init(void *ghost_context)
   init_dummy_buffer();
 
   debug::object_label(vk_handle(), "LogicalDevice");
-  debug::object_label(queue_get(), "GenericQueue");
+  debug::object_label(vk_queue_, "GenericQueue");
   init_glsl_patch();
 
   resources.use_dynamic_rendering = extensions_.dynamic_rendering;
   resources.use_dynamic_rendering_local_read = extensions_.dynamic_rendering_local_read;
-  orphaned_data.timeline_ = timeline_value_ + 1;
+  orphaned_data.timeline_ = 0;
 
   init_submission_pool();
-  lifetime = Lifetime::RUNNING;
+  is_initialized_ = true;
 }
 
 void VKDevice::init_functions()
@@ -135,13 +163,23 @@ void VKDevice::init_functions()
   functions.vkCreateDebugUtilsMessenger = LOAD_FUNCTION(vkCreateDebugUtilsMessengerEXT);
   functions.vkDestroyDebugUtilsMessenger = LOAD_FUNCTION(vkDestroyDebugUtilsMessengerEXT);
 
-  /* VK_KHR_external_memory_fd */
-  functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
-
+  if (extensions_.external_memory) {
 #ifdef _WIN32
-  /* VK_KHR_external_memory_win32 */
-  functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
+    /* VK_KHR_external_memory_win32 */
+    functions.vkGetMemoryWin32Handle = LOAD_FUNCTION(vkGetMemoryWin32HandleKHR);
+#elif not defined(__APPLE__)
+    /* VK_KHR_external_memory_fd */
+    functions.vkGetMemoryFd = LOAD_FUNCTION(vkGetMemoryFdKHR);
 #endif
+  }
+
+  /* VK_EXT_descriptor_buffer */
+  functions.vkGetDescriptorSetLayoutSize = LOAD_FUNCTION(vkGetDescriptorSetLayoutSizeEXT);
+  functions.vkGetDescriptorSetLayoutBindingOffset = LOAD_FUNCTION(
+      vkGetDescriptorSetLayoutBindingOffsetEXT);
+  functions.vkGetDescriptor = LOAD_FUNCTION(vkGetDescriptorEXT);
+  functions.vkCmdBindDescriptorBuffers = LOAD_FUNCTION(vkCmdBindDescriptorBuffersEXT);
+  functions.vkCmdSetDescriptorBufferOffsets = LOAD_FUNCTION(vkCmdSetDescriptorBufferOffsetsEXT);
 
 #undef LOAD_FUNCTION
 }
@@ -162,6 +200,15 @@ void VKDevice::init_physical_device_properties()
   vk_physical_device_id_properties_.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ID_PROPERTIES;
   vk_physical_device_properties.pNext = &vk_physical_device_driver_properties_;
   vk_physical_device_driver_properties_.pNext = &vk_physical_device_id_properties_;
+
+  if (supports_extension(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
+    vk_physical_device_descriptor_buffer_properties_ = {
+        VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_PROPERTIES_EXT};
+    vk_physical_device_descriptor_buffer_properties_.pNext =
+        vk_physical_device_driver_properties_.pNext;
+    vk_physical_device_driver_properties_.pNext =
+        &vk_physical_device_descriptor_buffer_properties_;
+  }
 
   vkGetPhysicalDeviceProperties2(vk_physical_device_, &vk_physical_device_properties);
   vk_physical_device_properties_ = vk_physical_device_properties.properties;
@@ -217,8 +264,14 @@ void VKDevice::init_memory_allocator()
   info.physicalDevice = vk_physical_device_;
   info.device = vk_device_;
   info.instance = vk_instance_;
+  if (extensions_.descriptor_buffer) {
+    info.flags |= VMA_ALLOCATOR_CREATE_BUFFER_DEVICE_ADDRESS_BIT;
+  }
   vmaCreateAllocator(&info, &mem_allocator_);
 
+  if (!extensions_.external_memory) {
+    return;
+  }
   /* External memory pool */
   /* Initialize a dummy image create info to find the memory type index that will be used for
    * allocating. */
@@ -250,6 +303,7 @@ void VKDevice::init_memory_allocator()
                                          nullptr,
                                          VK_IMAGE_LAYOUT_UNDEFINED};
   VmaAllocationCreateInfo allocation_create_info = {};
+  allocation_create_info.flags = VMA_ALLOCATION_CREATE_DEDICATED_MEMORY_BIT;
   allocation_create_info.usage = VMA_MEMORY_USAGE_AUTO;
   uint32_t memory_type_index;
   vmaFindMemoryTypeIndexForImageInfo(
@@ -286,6 +340,7 @@ void VKDevice::init_glsl_patch()
     ss << "#define GPU_ARB_shader_draw_parameters\n";
     ss << "#define gpu_BaseInstance (gl_BaseInstanceARB)\n";
   }
+  ss << "#define GPU_ARB_clip_control\n";
 
   ss << "#define gl_VertexID gl_VertexIndex\n";
   ss << "#define gpu_InstanceIndex (gl_InstanceIndex)\n";
@@ -303,14 +358,35 @@ void VKDevice::init_glsl_patch()
   }
 
   /* GLSL Backend Lib. */
-  ss << datatoc_glsl_shader_defines_glsl;
-  glsl_patch_ = ss.str();
+
+  glsl_vert_patch_ = ss.str() + "#define GPU_VERTEX_SHADER\n" + datatoc_glsl_shader_defines_glsl;
+  glsl_geom_patch_ = ss.str() + "#define GPU_GEOMETRY_SHADER\n" + datatoc_glsl_shader_defines_glsl;
+  glsl_frag_patch_ = ss.str() + "#define GPU_FRAGMENT_SHADER\n" + datatoc_glsl_shader_defines_glsl;
+  glsl_comp_patch_ = ss.str() + "#define GPU_COMPUTE_SHADER\n" + datatoc_glsl_shader_defines_glsl;
 }
 
-const char *VKDevice::glsl_patch_get() const
+const char *VKDevice::glsl_vertex_patch_get() const
 {
-  BLI_assert(!glsl_patch_.empty());
-  return glsl_patch_.c_str();
+  BLI_assert(!glsl_vert_patch_.empty());
+  return glsl_vert_patch_.c_str();
+}
+
+const char *VKDevice::glsl_geometry_patch_get() const
+{
+  BLI_assert(!glsl_geom_patch_.empty());
+  return glsl_geom_patch_.c_str();
+}
+
+const char *VKDevice::glsl_fragment_patch_get() const
+{
+  BLI_assert(!glsl_frag_patch_.empty());
+  return glsl_frag_patch_.c_str();
+}
+
+const char *VKDevice::glsl_compute_patch_get() const
+{
+  BLI_assert(!glsl_comp_patch_.empty());
+  return glsl_comp_patch_.c_str();
 }
 
 /* -------------------------------------------------------------------- */
@@ -463,7 +539,19 @@ void VKDevice::context_register(VKContext &context)
 
 void VKDevice::context_unregister(VKContext &context)
 {
-  orphaned_data.move_data(context.discard_pool, timeline_value_ + 1);
+  if (context.render_graph_.has_value()) {
+    render_graph::VKRenderGraph &render_graph = context.render_graph();
+    context.render_graph_.reset();
+    BLI_assert_msg(render_graph.is_empty(),
+                   "Unregistering a context that still has an unsubmitted render graph.");
+    render_graph.reset();
+    BLI_thread_queue_push(unused_render_graphs_, &render_graph);
+  }
+  {
+    std::scoped_lock lock(orphaned_data.mutex_get());
+    orphaned_data.move_data(context.discard_pool, timeline_value_ + 1);
+  }
+
   contexts_.remove(contexts_.first_index_of(std::reference_wrapper(context)));
 }
 Span<std::reference_wrapper<VKContext>> VKDevice::contexts_get() const
@@ -562,12 +650,19 @@ void VKDevice::debug_print()
   }
   os << "Discard pool\n";
   debug_print(os, orphaned_data);
+  os << "Discard pool (render)\n";
+  debug_print(os, orphaned_data_render);
   os << "\n";
 
   for (const std::reference_wrapper<VKContext> &context : contexts_) {
     os << " VKContext \n";
     debug_print(os, context.get().discard_pool);
   }
+
+  int total_mem_kb;
+  int free_mem_kb;
+  memory_statistics_get(&total_mem_kb, &free_mem_kb);
+  os << "\nMemory: total=" << total_mem_kb << ", free=" << free_mem_kb << "\n";
 }
 
 /** \} */

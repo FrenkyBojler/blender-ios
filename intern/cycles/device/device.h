@@ -26,6 +26,7 @@ CCL_NAMESPACE_BEGIN
 
 class BVH;
 class DeviceQueue;
+class GraphicsInteropDevice;
 class Progress;
 class CPUKernels;
 class Scene;
@@ -93,6 +94,10 @@ class DeviceInfo {
   bool has_gpu_queue = false;           /* Device supports GPU queue. */
   bool use_hardware_raytracing = false; /* Use hardware instructions to accelerate ray tracing. */
   bool use_metalrt_by_default = false;  /* Use MetalRT by default. */
+  /* Indicate that device execution has been optimized by Blender or vendor developers.
+   * For LTS versions, this helps communicate that newer versions may have better performance. */
+  bool has_execution_optimization = true;
+
   KernelOptimizationLevel kernel_optimization_level =
       KERNEL_OPTIMIZATION_LEVEL_FULL;         /* Optimization level applied to path tracing
                                                * kernels (Metal only). */
@@ -244,13 +249,14 @@ class Device {
   /* Graphics resources interoperability.
    *
    * The interoperability comes here by the meaning that the device is capable of computing result
-   * directly into an OpenGL (or other graphics library) buffer. */
+   * directly into a OpenGL, Vulkan or Metal buffer. */
 
   /* Check display is to be updated using graphics interoperability.
    * The interoperability can not be used is it is not supported by the device. But the device
    * might also force disable the interoperability if it detects that it will be slower than
    * copying pixels from the render buffer. */
-  virtual bool should_use_graphics_interop()
+  virtual bool should_use_graphics_interop(const GraphicsInteropDevice & /*interop_device*/,
+                                           const bool /*log*/ = false)
   {
     return false;
   }

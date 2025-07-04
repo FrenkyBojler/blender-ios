@@ -294,16 +294,26 @@ static void gwl_window_cursor_custom_store(GWL_WindowCursorCustomShape &ccs,
                                            bool can_invert_color)
 {
   gwl_window_cursor_custom_clear(ccs);
-  /* The width is divided by 8, rounding up. */
-  const size_t bitmap_size = sizeof(uint8_t) * ((size[0] + 7) / 8) * size[1];
 
-  if (bitmap) {
-    ccs.bitmap = static_cast<uint8_t *>(malloc(bitmap_size));
-    memcpy(ccs.bitmap, bitmap, bitmap_size);
-  }
   if (mask) {
+    /* Monochrome bitmap (with mask). */
+    /* The width is divided by 8, rounding up. */
+    const size_t bitmap_size = sizeof(uint8_t) * ((size[0] + 7) / 8) * size[1];
+
+    if (bitmap) {
+      ccs.bitmap = static_cast<uint8_t *>(malloc(bitmap_size));
+      memcpy(ccs.bitmap, bitmap, bitmap_size);
+    }
     ccs.mask = static_cast<uint8_t *>(malloc(bitmap_size));
     memcpy(ccs.mask, mask, bitmap_size);
+  }
+  else {
+    /* RGBA bitmap (mask is alpha). */
+    const size_t bitmap_size = sizeof(uint32_t) * size[0] * size[1];
+    if (bitmap) {
+      ccs.bitmap = static_cast<uint8_t *>(malloc(bitmap_size));
+      memcpy(ccs.bitmap, bitmap, bitmap_size);
+    }
   }
 
   ccs.size[0] = size[0];
@@ -318,13 +328,8 @@ static void gwl_window_cursor_custom_store(GWL_WindowCursorCustomShape &ccs,
 static GHOST_TSuccess gwl_window_cursor_custom_load(const GWL_WindowCursorCustomShape &ccs,
                                                     GHOST_SystemWayland *system)
 {
-  return system->cursor_shape_custom_set(ccs.bitmap,
-                                         ccs.mask,
-                                         ccs.size[0],
-                                         ccs.size[1],
-                                         ccs.hot_spot[0],
-                                         ccs.hot_spot[1],
-                                         ccs.can_invert_color);
+  return system->cursor_shape_custom_set(
+      ccs.bitmap, ccs.mask, ccs.size, ccs.hot_spot, ccs.can_invert_color);
 }
 
 static GHOST_TSuccess gwl_window_cursor_shape_refresh(GHOST_TStandardCursor shape,
@@ -368,7 +373,7 @@ enum eGWL_PendingWindowActions {
   PENDING_OUTPUT_SCALE_UPDATE,
 
   /**
-   * Workaround for a bug/glitch in WLROOTS based compositors (RIVER for e.g.).
+   * Workaround for a bug/glitch in WLROOTS based compositors (RIVER for example).
    * Deferring the scale update one even-loop cycle resolves a bug
    * where the output enter/exit events cause the surface buffer being an invalid size.
    *
@@ -2265,8 +2270,11 @@ bool GHOST_WindowWayland::getCursorGrabUseSoftwareDisplay()
   return system_->cursor_grab_use_software_display_get(m_cursorGrab);
 }
 
-GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(
-    uint8_t *bitmap, uint8_t *mask, int sizex, int sizey, int hotX, int hotY, bool canInvertColor)
+GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                               const uint8_t *mask,
+                                                               const int size[2],
+                                                               const int hot_spot[2],
+                                                               const bool canInvertColor)
 {
 #ifdef USE_EVENT_BACKGROUND_THREAD
   std::lock_guard lock_server_guard{*system_->server_mutex};
@@ -2274,8 +2282,6 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(
 
   const bool is_active = this == static_cast<const GHOST_WindowWayland *>(
                                      system_->getWindowManager()->getActiveWindow());
-  const int32_t size[2] = {sizex, sizey};
-  const int32_t hot_spot[2] = {hotX, hotY};
 
   gwl_window_cursor_custom_store(
       window_->cursor_custom_shape, bitmap, mask, size, hot_spot, canInvertColor);
@@ -2434,7 +2440,7 @@ GHOST_TSuccess GHOST_WindowWayland::invalidate()
 
 GHOST_TSuccess GHOST_WindowWayland::setOrder(GHOST_TWindowOrder order)
 {
-  /* NOTE(@ideasman42): only activation is supported (on X11 & Cocoa for e.g.)
+  /* NOTE(@ideasman42): only activation is supported (on X11 & Cocoa for example)
    * both activation and raising is performed. Since WAYLAND only supports activation,
    * do that as the compositor will likely raise the window as well.
    * Although it's not ideal that raising does something but lowering a window is ignored. */
@@ -2750,7 +2756,7 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
      * opening on the same monitor so a window keeps it's previous size on a users system.
      *
      * To support anything more sophisticated, windows would need to be created with a scale
-     * argument (representing the scale used when the window was stored, for e.g.). */
+     * argument (representing the scale used when the window was stored, for example). */
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
     if (use_libdecor) {
@@ -2791,6 +2797,17 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
     /* Leave `window_->frame_pending` as-is, so changes are detected and updates are applied. */
     do_frame_resize = false;
     do_frame_update = true;
+
+    /* If the buffer scale changes, the window size (and underlying buffer-size)
+     * must always be a multiple of the buffer size. Resizing ensures this is the case.
+     * See replies to #135764 for details.
+     *
+     * NOTE: We could skip resize if the current window size is a multiple of the buffer scale,
+     * avoids this as it will result in unpredictable behavior based on single pixel differences
+     * in window size. */
+    if (window_->frame_pending.buffer_scale != window_->frame.buffer_scale) {
+      do_frame_resize = true;
+    }
   }
   else {
     /* Test if the scale changed. */

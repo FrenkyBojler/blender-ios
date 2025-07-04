@@ -5,6 +5,7 @@
 #include "BKE_context.hh"
 
 #include "DNA_camera_types.h"
+#include "DNA_material_types.h"
 #include "DRW_render.hh"
 #include "GPU_shader.hh"
 #include "draw_manager.hh"
@@ -78,8 +79,6 @@ class ShaderCache {
     return volume_[smoke][interpolation][coba][slice].get();
   }
 
-  StaticShader extract_stencil = {"workbench_extract_stencil"};
-
   /* Transparency */
   StaticShader transparent_resolve = {"workbench_transparent_resolve"};
   StaticShader merge_depth = {"workbench_merge_depth"};
@@ -112,15 +111,35 @@ struct Material {
   /* Packed data into a int. Decoded in the shader. */
   uint packed_data = 0;
 
-  Material();
-  Material(float3 color);
+  Material() = default;
+  Material(float3 color) : base_color(color), packed_data(Material::pack_data(0.0f, 0.4f, 1.0f)) {}
+
   Material(::Object &ob, bool random = false);
-  Material(::Material &mat);
+  Material(::Material &mat)
+      : base_color(&mat.r), packed_data(Material::pack_data(mat.metallic, mat.roughness, mat.a))
+  {
+  }
 
   static uint32_t pack_data(float metallic, float roughness, float alpha);
 
   bool is_transparent();
 };
+
+inline bool Material::is_transparent()
+{
+  uint32_t full_alpha_ref = 0x00ff0000;
+  return (packed_data & full_alpha_ref) != full_alpha_ref;
+}
+
+inline uint32_t Material::pack_data(float metallic, float roughness, float alpha)
+{
+  /* Remap to Disney roughness. */
+  roughness = sqrtf(roughness);
+  uint32_t packed_roughness = unit_float_to_uchar_clamp(roughness);
+  uint32_t packed_metallic = unit_float_to_uchar_clamp(metallic);
+  uint32_t packed_alpha = unit_float_to_uchar_clamp(alpha);
+  return (packed_alpha << 16u) | (packed_roughness << 8u) | packed_metallic;
+}
 
 ImageGPUTextures get_material_texture(GPUSamplerState &sampler_state);
 
@@ -214,46 +233,6 @@ class CavityEffect {
   void load_samples_buf(int ssao_samples);
 };
 
-/* Used as a temporary workaround for the lack of texture views support on Windows ARM. */
-class StencilViewWorkaround {
- private:
-  Texture stencil_copy_tx_ = "stencil_copy_tx";
-
- public:
-  /** WARNING: Should only be called at render time.
-   * When the workaround path is active,
-   * the returned texture won't stay in sync with the stencil_src,
-   * and will only be valid until the next time this function is called.
-   * Note that the output is a binary mask,
-   * any stencil value that is not 0x00 will be rendered as 0xFF. */
-  GPUTexture *extract(Manager &manager, Texture &stencil_src)
-  {
-    if (GPU_texture_view_support()) {
-      return stencil_src.stencil_view();
-    }
-
-    int2 extent = int2(stencil_src.width(), stencil_src.height());
-    stencil_copy_tx_.ensure_2d(
-        GPU_R8UI, extent, GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_SHADER_READ);
-
-    PassSimple ps("Stencil View Workaround");
-    ps.init();
-    ps.clear_color(float4(0));
-    ps.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_STENCIL_NEQUAL);
-    ps.state_stencil(0x00, 0x00, 0xFF);
-    ps.shader_set(ShaderCache::get().extract_stencil.get());
-    ps.draw_procedural(GPU_PRIM_TRIS, 1, 3);
-
-    Framebuffer fb;
-    fb.ensure(GPU_ATTACHMENT_TEXTURE(stencil_src), GPU_ATTACHMENT_TEXTURE(stencil_copy_tx_));
-    fb.bind();
-
-    manager.submit(ps);
-
-    return stencil_copy_tx_;
-  }
-};
-
 struct SceneResources {
   static const int jitter_tx_size = 64;
 
@@ -277,8 +256,6 @@ struct SceneResources {
   Texture jitter_tx = "wb_jitter_tx";
 
   CavityEffect cavity = {};
-
-  StencilViewWorkaround stencil_view;
 
   Texture missing_tx = "missing_tx";
   MaterialTexture missing_texture;
@@ -307,7 +284,13 @@ class MeshPass : public PassMain {
 
   PassMain::Sub *passes_[geometry_type_len][shader_type_len] = {{nullptr}};
 
+  ePipelineType pipeline_;
+  eLightingType lighting_;
+  bool clip_;
+
   bool is_empty_ = false;
+
+  PassMain::Sub &get_subpass(eGeometryType geometry_type, eShaderType shader_type);
 
  public:
   MeshPass(const char *name);
@@ -438,7 +421,7 @@ class ShadowPass {
   void sync();
   void object_sync(SceneState &scene_state,
                    ObjectRef &ob_ref,
-                   ResourceHandle handle,
+                   ResourceHandleRange handle,
                    const bool has_transp_mat);
   void draw(Manager &manager,
             View &view,
