@@ -4145,9 +4145,6 @@ void BKE_animsys_evaluate_all_animation(Main *main, Depsgraph *depsgraph, float 
 
   /* worlds */
   EVAL_ANIM_NODETREE_IDS(main->worlds.first, World, ADT_RECALC_ANIM);
-
-  /* scenes */
-  EVAL_ANIM_NODETREE_IDS(main->scenes.first, Scene, ADT_RECALC_ANIM);
 }
 
 /* ***************************************** */
@@ -4236,6 +4233,13 @@ void BKE_animsys_eval_driver(Depsgraph *depsgraph, ID *id, int driver_index, FCu
   }
   else {
     fcu = static_cast<FCurve *>(BLI_findlink(&adt->drivers, driver_index));
+  }
+
+  if (!fcu) {
+    /* Trying to evaluate a driver that does no longer exist. Potentially missing a call to
+     * DEG_relations_tag_update. */
+    BLI_assert_unreachable();
+    return;
   }
 
   DEG_debug_print_eval_subdata_index(

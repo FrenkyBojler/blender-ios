@@ -933,6 +933,8 @@ void node_modify_socket_type(bNodeTree &ntree,
  */
 void node_unlink_node(bNodeTree &ntree, bNode &node);
 
+void node_unlink_attached(bNodeTree *ntree, const bNode *parent);
+
 /**
  * Rebuild the `node_by_id` runtime vector set. Call after removing a node if not handled
  * separately. This is important instead of just using `nodes_by_id.remove()` since it maintains
@@ -1224,4 +1226,4 @@ inline bool bNodeType::is_type(const StringRef query_idname) const
 constexpr int NODE_DEFAULT_MAX_WIDTH = 700;
 constexpr int GROUP_NODE_DEFAULT_WIDTH = 140;
 constexpr int GROUP_NODE_MAX_WIDTH = NODE_DEFAULT_MAX_WIDTH;
-constexpr int GROUP_NODE_MIN_WIDTH = 40;
+constexpr int GROUP_NODE_MIN_WIDTH = 60;

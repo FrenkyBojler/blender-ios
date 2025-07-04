@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'e91e8eef41aa')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'b4eeddd11342')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-03 09:10+0000\n"
+"POT-Creation-Date: 2025-06-30 09:22+0000\n"
 "PO-Revision-Date: 2025-04-14 08:31+0000\n"
 "Last-Translator: Lee YeonJoo <yzoo2@naver.com>\n"
 "Language-Team: Korean <https://translate.blender.org/projects/blender-ui/ui/ko/>\n"
@@ -23829,6 +23829,14 @@ msgid "Material slot name"
 msgstr "매테리얼 슬롯 이름"
 
 
+msgid "Clean Up"
+msgstr "정리"
+
+
+msgid "Show/Hide"
+msgstr "표시/숨기기"
+
+
 msgid "Special Characters"
 msgstr "특수 문자"
 
@@ -23845,20 +23853,12 @@ msgid "Metaball"
 msgstr "메타볼"
 
 
-msgid "Show/Hide"
-msgstr "표시/숨기기"
-
-
 msgid "Names"
 msgstr "이름"
 
 
 msgid "Bone Roll"
 msgstr "본 롤"
-
-
-msgid "Clean Up"
-msgstr "정리"
 
 
 msgid "Pivot Point"
@@ -24121,6 +24121,11 @@ msgstr "UV"
 
 msgid "Align"
 msgstr "정렬"
+
+
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "미러"
 
 
 msgid "UV Select Mode"
@@ -39688,10 +39693,6 @@ msgid "Make previously hidden curves visible again in Graph Editor view"
 msgstr "그래프 에디터 뷰에서 이전에 숨겨진 커브를 볼 수 있도록 만들기"
 
 
-msgid "Are handles tested individually against the selection criteria"
-msgstr "선택 기준에 따라 핸들이 개별적으로 테스트되는지 여부"
-
-
 msgctxt "Operator"
 msgid "Smooth Keys"
 msgstr "스무스 키"
@@ -41802,10 +41803,6 @@ msgstr "디졸브 에지"
 
 msgid "Dissolve edges, merging faces"
 msgstr "에지를 디졸브, 페이스를 병합"
-
-
-msgid "Dissolve remaining vertices"
-msgstr "남아있는 버텍스를 디졸브"
 
 
 msgctxt "Operator"
@@ -47822,11 +47819,6 @@ msgstr "파티클 시스템에 실행된 모든 에디션을 실행 취소"
 
 msgid "Hide selected particles"
 msgstr "선택된 파티클을 숨기기"
-
-
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "미러"
 
 
 msgid "Duplicate and mirror the selected particles along the local X axis"
@@ -57679,12 +57671,8 @@ msgid "Helicopter Mode"
 msgstr "헬리콥터 모드"
 
 
-msgid "Lock Horizon"
-msgstr "지평선을 잠금"
-
-
-msgid "Keep horizon level while flying with 3D Mouse"
-msgstr "3D 마우스와 함께 비행할 때 수평 레벨을 유지"
+msgid "NDOF View Navigate"
+msgstr "NDOF 뷰 탐색"
 
 
 msgid "Orbit Sensitivity"
@@ -57693,14 +57681,6 @@ msgstr "오비트 감도"
 
 msgid "Overall sensitivity of the 3D Mouse for orbiting"
 msgstr "오비팅에 대한 3D 마우스의 전반적인 감도"
-
-
-msgid "Y/Z Swap Axis"
-msgstr "Y/Z 교환 축"
-
-
-msgid "Pan using up/down on the device (otherwise forward/backward)"
-msgstr "장치에서 위/아래를 사용하여 이동 (그렇지 않으면 앞으로/뒤로)"
 
 
 msgid "Invert X Axis"
@@ -57733,50 +57713,6 @@ msgstr "패닝에 대한 3D 마우스의 전반적인 감도"
 
 msgid "Display the center and axis during rotation"
 msgstr "회전하는 동안 중심과 축을 표시"
-
-
-msgid "NDOF View Navigate"
-msgstr "NDOF 뷰 탐색"
-
-
-msgid "Navigation style in the viewport"
-msgstr "뷰포트에서 네비게이션 스타일"
-
-
-msgid "Use full 6 degrees of freedom by default"
-msgstr "기본으로 자유의 전체 6 디그리를 사용"
-
-
-msgid "Orbit about the view center by default"
-msgstr "기본으로 뷰의 중심에 대한 오빗"
-
-
-msgid "NDOF View Rotation"
-msgstr "NDOF 뷰 회전"
-
-
-msgid "Rotation style in the viewport"
-msgstr "뷰포트에서 회전 스타일"
-
-
-msgid "Turntable"
-msgstr "턴테이블"
-
-
-msgid "Use turntable style rotation in the viewport"
-msgstr "뷰포트에서 턴테이블 스타일 회전을 사용"
-
-
-msgid "Use trackball style rotation in the viewport"
-msgstr "뷰포트에서 트랙볼 스타일 회전을 사용"
-
-
-msgid "Invert Zoom"
-msgstr "줌을 반전"
-
-
-msgid "Zoom using opposite direction"
-msgstr "반대편 방향을 사용하여 줌"
 
 
 msgid "Softness"
@@ -57889,6 +57825,10 @@ msgstr "오비트 메서드"
 
 msgid "Orbit method in the viewport"
 msgstr "뷰포트의 오비트 매서드"
+
+
+msgid "Turntable"
+msgstr "턴테이블"
 
 
 msgid "Turntable keeps the Z-axis upright while orbiting"
@@ -58401,10 +58341,6 @@ msgstr "번역에 사용된 언어"
 
 msgid "Automatic (Automatic)"
 msgstr "자동 (Automatic)"
-
-
-msgid "Automatically choose system's defined language if available, or fall-back to English"
-msgstr "가능한 경우 시스템 정의된 언어를 자동으로 선택하거나 영어로 폴백"
 
 
 msgid "HDRI Preview Size"
@@ -72224,10 +72160,6 @@ msgid "Zoom Method"
 msgstr "줌 메서드"
 
 
-msgid "Pan Sensitivity"
-msgstr "팬 감도"
-
-
 msgid "Use Light"
 msgstr "라이트를 사용"
 
@@ -72243,6 +72175,14 @@ msgstr "플레이어"
 
 msgid "Invert Wheel Zoom Direction"
 msgstr "휠 줌 방향을 반전"
+
+
+msgid "Lock Horizon"
+msgstr "지평선을 잠금"
+
+
+msgid "Pan Sensitivity"
+msgstr "팬 감도"
 
 
 msgid "Error (see console)"
@@ -77349,10 +77289,6 @@ msgid "No active collection"
 msgstr "활성 컬렉션이 없음"
 
 
-msgid "Can't duplicate the master collection"
-msgstr "마스터 컬렉션을 복제 할 수 없습니다"
-
-
 msgid "Could not find a valid parent collection for the new duplicate, it won't be linked to any view layer"
 msgstr "새 복제본에 대한 유효한 상위 컬렉션을 찾을 수 없으며, 어떤 뷰 레이어에도 연결되지 않습니다"
 
@@ -79698,156 +79634,4 @@ msgstr "사용자에 의해 설치된 모든 애드온"
 
 msgid "Import-Export"
 msgstr "가져오기-내보내기"
-
-
-msgid "Japanese (日本語)"
-msgstr "일본어 (日本語)"
-
-
-msgid "Italian (Italiano)"
-msgstr "이탈리아어 (Italiano)"
-
-
-msgid "German (Deutsch)"
-msgstr "독일어 (Deutsch)"
-
-
-msgid "Finnish (Suomi)"
-msgstr "핀란드어 (Suomi)"
-
-
-msgid "Swedish (Svenska)"
-msgstr "슬로바키아어 (Svenska)"
-
-
-msgid "French (Français)"
-msgstr "프랑스어 (Français)"
-
-
-msgid "Spanish (Español)"
-msgstr "스페인어 (Español)"
-
-
-msgid "Catalan (Català)"
-msgstr "카탈로니아어 (Català)"
-
-
-msgid "Portuguese (Português)"
-msgstr "포르투갈어 (Português)"
-
-
-msgid "Simplified Chinese (简体中文)"
-msgstr "중국어 간체 (简体中文)"
-
-
-msgid "Traditional Chinese (繁體中文)"
-msgstr "중국어 번체 (繁體中文)"
-
-
-msgid "Russian (Русский)"
-msgstr "러시아어 (Русский)"
-
-
-msgid "Croatian (Hrvatski)"
-msgstr "크로아티아어 (Hrvatski)"
-
-
-msgid "Serbian (Српски)"
-msgstr "세르비아어 (Српски)"
-
-
-msgid "Polish (Polski)"
-msgstr "폴란드어 (Polski)"
-
-
-msgid "Romanian (Român)"
-msgstr "루마니아어 (Român)"
-
-
-msgid "Arabic (ﺔﻴﺑﺮﻌﻟﺍ)"
-msgstr "아랍어 (ﺔﻴﺑﺮﻌﻟﺍ)"
-
-
-msgid "Bulgarian (Български)"
-msgstr "불가리아어 (Български)"
-
-
-msgid "Greek (Ελληνικά)"
-msgstr "그리스어 (Ελληνικά)"
-
-
-msgid "Nepali (नेपाली)"
-msgstr "네팔어 (नेपाली)"
-
-
-msgid "Indonesian (Bahasa indonesia)"
-msgstr "인도네시아어 (Bahasa indonesia)"
-
-
-msgid "Serbian Latin (Srpski latinica)"
-msgstr "라틴 세르비아어 (Srpski latinica)"
-
-
-msgid "Kyrgyz (Кыргыз тили)"
-msgstr "키르기스어 (Кыргыз тили)"
-
-
-msgid "Turkish (Türkçe)"
-msgstr "터키어 (Türkçe)"
-
-
-msgid "Hungarian (Magyar)"
-msgstr "헝가리어 (Magyar)"
-
-
-msgid "Brazilian Portuguese (Português do Brasil)"
-msgstr "브라질 포르투갈어 (Português do Brasil)"
-
-
-msgid "Hebrew (תירִבְעִ)"
-msgstr "히브리어 (תירִבְעִ)"
-
-
-msgid "Esperanto (Esperanto)"
-msgstr "에스페란토어 (Esperanto)"
-
-
-msgid "Amharic (አማርኛ)"
-msgstr "암하라어 (አማርኛ)"
-
-
-msgid "Uzbek (Oʻzbek)"
-msgstr "우즈베크어 (Oʻzbek)"
-
-
-msgid "Uzbek Cyrillic (Ўзбек)"
-msgstr "우즈베크어 키릴문자 (Ўзбек)"
-
-
-msgid "Basque (Euskara)"
-msgstr "바스크어 (Euskara)"
-
-
-msgid "Hausa (Hausa)"
-msgstr "하우사(하우사어)"
-
-
-msgid "Abkhaz (Аԥсуа бызшәа)"
-msgstr "아브하즈어 (Аԥсуа бызшәа)"
-
-
-msgid "Thai (ภาษาไทย)"
-msgstr "태국어 (ภาษาไทย)"
-
-
-msgid "Slovak (Slovenčina)"
-msgstr "슬로바키아어 (Slovenčina)"
-
-
-msgid "Complete"
-msgstr "완료"
-
-
-msgid "In Progress"
-msgstr "진행 중"
 

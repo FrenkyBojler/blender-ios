@@ -38,12 +38,7 @@ struct EditBone {
   EditBone *next, *prev;
   /** User-Defined Properties on this Bone */
   IDProperty *prop;
-  /**
-   * System-Defined Properties storage.
-   *
-   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
-   * management consistency.
-   */
+  /** System-Defined Properties storage. */
   IDProperty *system_properties;
   /**
    * Edit-bones have a one-way link  (i.e. children refer
@@ -224,10 +219,14 @@ void BKE_armature_bone_hash_free(bArmature *arm);
 bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag);
 
 /**
- * Using `vec` with dist to bone `b1 - b2`.
+ * Bone influence factor from envelope distance.
  */
-float distfactor_to_bone(
-    const float vec[3], const float b1[3], const float b2[3], float rad1, float rad2, float rdist);
+float distfactor_to_bone(const blender::float3 &position,
+                         const blender::float3 &head,
+                         const blender::float3 &tail,
+                         float radius_head,
+                         float radius_tail,
+                         float falloff_distance);
 
 /**
  * Updates vectors and matrices on rest-position level, only needed
