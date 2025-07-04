@@ -1069,8 +1069,10 @@ static void wm_drag_draw_icon(bContext * /*C*/, wmWindow * /*win*/, wmDrag *drag
     x = xy[0] - int(8.0f * scale);
     y = xy[1] - int(scale);
     const uchar text_col[] = {255, 255, 255, 255};
-    IconTextOverlay text_overlay;
-    UI_icon_text_overlay_init_from_count(&text_overlay, path_count);
+    IconDecoration text_overlay;
+    char buffer[8];
+    BLI_str_format_integer_unit(buffer, path_count);
+    text_overlay.text.emplace().text = buffer;
     UI_icon_draw_ex(
         x, y, ICON_DOCUMENTS, 1.0f / scale, 1.0f, 0.0f, text_col, false, &text_overlay);
   }

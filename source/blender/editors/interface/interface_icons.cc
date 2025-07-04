@@ -1802,40 +1802,7 @@ static void icon_draw_size(float x,
                         text_color,
                         &params);
     }
-
-    if (decoration && decoration->progress.has_value()) {
-      rctf rect = {x, x + w, y, y + h};
-      BLI_rctf_pad(&rect, decoration->progress->padding, decoration->progress->padding);
-      const float ring_width = 1.0f -
-                               ((decoration->progress->ring_width * U.pixelsize) / float(h));
-      const float outer_rad = (rect.ymax - rect.ymin) / 2.0f;
-      const float inner_rad = outer_rad * ring_width;
-      const float x = rect.xmin + outer_rad;
-      const float y = rect.ymin + outer_rad;
-      const float start = 0.0f;
-      const float end = decoration->progress->progress * 360.0f;
-
-      GPUVertFormat *format = immVertexFormat();
-      const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-      immUniformColor3fvAlpha(decoration->progress->ring_color, 1.0f / UI_PIXEL_AA_JITTER * 2);
-
-      GPU_blend(GPU_BLEND_ALPHA);
-
-      for (int i = 0; i < UI_PIXEL_AA_JITTER; i++) {
-        imm_draw_disk_partial_fill_2d(pos,
-                                      x + ui_pixel_jitter[i][0],
-                                      y + ui_pixel_jitter[i][1],
-                                      inner_rad,
-                                      outer_rad,
-                                      48,
-                                      start,
-                                      end);
-      }
-      immUnbindProgram();
-    }
   }
-
   else if (di->type == ICON_TYPE_BUFFER) {
     /* it is a builtin icon */
     IconImage *iimg = di->data.buffer.image;

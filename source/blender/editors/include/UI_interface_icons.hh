@@ -36,17 +36,9 @@ struct IconDecorationIcon {
   float offset_y = 0.35f;
 };
 
-struct IconDecorationProgress {
-  float progress;   /* 0-1. From 12 O'clock. */
-  float padding;    /* Pixels. */
-  float ring_width; /* 1 = regular line width. */
-  float ring_color[4] = {0};
-};
-
 struct IconDecoration {
   std::optional<IconDecorationText> text;
   std::optional<IconDecorationIcon> icon;
-  std::optional<IconDecorationProgress> progress;
 };
 
 #define UI_NO_ICON_OVERLAY_TEXT NULL
