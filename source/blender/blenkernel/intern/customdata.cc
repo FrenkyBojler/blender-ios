@@ -2604,15 +2604,19 @@ void CustomData_realloc(CustomData *data,
     const int64_t old_size_in_bytes = int64_t(old_size) * typeInfo->size;
     const int64_t new_size_in_bytes = int64_t(new_size) * typeInfo->size;
 
-    void *new_layer_data = MEM_mallocN_aligned(new_size_in_bytes, typeInfo->alignment, __func__);
-    /* Copy data to new array. */
-    if (old_size_in_bytes) {
-      if (typeInfo->copy) {
-        typeInfo->copy(layer->data, new_layer_data, std::min(old_size, new_size));
-      }
-      else {
-        BLI_assert(layer->data != nullptr);
-        memcpy(new_layer_data, layer->data, std::min(old_size_in_bytes, new_size_in_bytes));
+    void *new_layer_data = (new_size > 0) ? MEM_mallocN_aligned(
+                                                new_size_in_bytes, typeInfo->alignment, __func__) :
+                                            nullptr;
+    if (old_size_in_bytes > 0) {
+      if (new_layer_data != nullptr) {
+        /* Copy data to new array. */
+        if (typeInfo->copy) {
+          typeInfo->copy(layer->data, new_layer_data, std::min(old_size, new_size));
+        }
+        else {
+          BLI_assert(layer->data != nullptr);
+          memcpy(new_layer_data, layer->data, std::min(old_size_in_bytes, new_size_in_bytes));
+        }
       }
       BLI_assert(layer->sharing_info != nullptr);
       layer->sharing_info->remove_user_and_delete_if_last();
@@ -5131,34 +5135,31 @@ void CustomData_blend_write_prepare(CustomData &data,
     if (attribute_name_is_anonymous(name)) {
       continue;
     }
-    if (U.experimental.use_attribute_storage_write) {
-      /* When this experimental option is turned on, we always write the data in the new
-       * #AttributeStorage format, even though it's not yet used at runtime. This is meant for
-       * testing the forward compatibility capabilities meant to be shipped in version 4.5, in
-       * other words, the ability to read #AttributeStorage and convert it to #CustomData. This
-       * block should be removed when the new format is used at runtime. */
-      const eCustomDataType data_type = eCustomDataType(layer.type);
-      if (const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type)) {
-        ::Attribute attribute_dna{};
-        attribute_dna.name = layer.name;
-        attribute_dna.data_type = int16_t(*type);
-        attribute_dna.domain = int8_t(domain);
-        attribute_dna.storage_type = int8_t(AttrStorageType::Array);
 
-        /* Do not increase the user count; #::AttributeArray does not act as an owner of the
-         * attribute data, since it's only used temporarily for writing files. Changing the user
-         * count would be okay too, but it's unnecessary because none of this data should be
-         * modified while it's being written anyway. */
-        auto &array_dna = write_data.scope.construct<::AttributeArray>();
-        array_dna.data = layer.data;
-        array_dna.sharing_info = layer.sharing_info;
-        array_dna.size = domain_size;
-        attribute_dna.data = &array_dna;
+    /* We always write the data in the new #AttributeStorage format, even though it's not yet used
+     * at runtime. This block should be removed when the new format is used at runtime. */
+    const eCustomDataType data_type = eCustomDataType(layer.type);
+    if (const std::optional<AttrType> type = custom_data_type_to_attr_type(data_type)) {
+      ::Attribute attribute_dna{};
+      attribute_dna.name = layer.name;
+      attribute_dna.data_type = int16_t(*type);
+      attribute_dna.domain = int8_t(domain);
+      attribute_dna.storage_type = int8_t(AttrStorageType::Array);
 
-        write_data.attributes.append(attribute_dna);
-        continue;
-      }
+      /* Do not increase the user count; #::AttributeArray does not act as an owner of the
+       * attribute data, since it's only used temporarily for writing files. Changing the user
+       * count would be okay too, but it's unnecessary because none of this data should be
+       * modified while it's being written anyway. */
+      auto &array_dna = write_data.scope.construct<::AttributeArray>();
+      array_dna.data = layer.data;
+      array_dna.sharing_info = layer.sharing_info;
+      array_dna.size = domain_size;
+      attribute_dna.data = &array_dna;
+
+      write_data.attributes.append(attribute_dna);
+      continue;
     }
+
     layers_to_write.append(layer);
   }
   data.totlayer = layers_to_write.size();

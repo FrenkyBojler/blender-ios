@@ -18,7 +18,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -39,11 +39,20 @@ static void cmp_node_scale_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_realization_mode(CompositorInputRealizationMode::None);
-  b.add_input<decl::Float>("X").default_value(1.0f).min(0.0001f).max(CMP_SCALE_MAX);
-  b.add_input<decl::Float>("Y").default_value(1.0f).min(0.0001f).max(CMP_SCALE_MAX);
+      .compositor_realization_mode(CompositorInputRealizationMode::None)
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("X")
+      .default_value(1.0f)
+      .min(0.0001f)
+      .max(CMP_SCALE_MAX)
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Float>("Y")
+      .default_value(1.0f)
+      .min(0.0001f)
+      .max(CMP_SCALE_MAX)
+      .structure_type(StructureType::Dynamic);
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_scale(bNodeTree * /*ntree*/, bNode *node)
@@ -120,7 +129,7 @@ class ScaleOperation : public NodeOperation {
 
   void execute_variable_size_gpu()
   {
-    GPUShader *shader = this->context().get_shader(this->get_realization_shader_name());
+    GPUShader *shader = this->context().get_shader(this->get_shader_name());
     GPU_shader_bind(shader);
 
     Result &input = get_input("Image");
@@ -190,7 +199,7 @@ class ScaleOperation : public NodeOperation {
     });
   }
 
-  const char *get_realization_shader_name() const
+  const char *get_shader_name() const
   {
     if (this->get_interpolation() == Interpolation::Bicubic) {
       return "compositor_scale_variable_bicubic";

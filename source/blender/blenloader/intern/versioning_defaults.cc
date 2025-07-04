@@ -216,6 +216,8 @@ static void blo_update_defaults_screen(bScreen *screen,
       v3d->overlay.normals_constant_screen_size = 7.0f;
       /* Always enable Grease Pencil vertex color overlay by default. */
       v3d->overlay.gpencil_vertex_paint_opacity = 1.0f;
+      /* Always use theme color for wireframe by default. */
+      v3d->shading.wire_color_type = V3D_SHADING_SINGLE_COLOR;
 
       /* Level out the 3D Viewport camera rotation, see: #113751. */
       constexpr float viewports_to_level[][4] = {
@@ -345,6 +347,38 @@ void BLO_update_defaults_workspace(WorkSpace *workspace, const char *app_templat
   }
 }
 
+static void blo_update_defaults_paint(Paint *paint)
+{
+  if (!paint) {
+    return;
+  }
+
+  /* Ensure input_samples has a correct default value of 1. */
+  if (paint->unified_paint_settings.input_samples == 0) {
+    paint->unified_paint_settings.input_samples = 1;
+  }
+
+  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  paint->unified_paint_settings.size = default_ups.size;
+  paint->unified_paint_settings.input_samples = default_ups.input_samples;
+  paint->unified_paint_settings.unprojected_radius = default_ups.unprojected_radius;
+  paint->unified_paint_settings.alpha = default_ups.alpha;
+  paint->unified_paint_settings.weight = default_ups.weight;
+  paint->unified_paint_settings.flag = default_ups.flag;
+  copy_v3_v3(paint->unified_paint_settings.rgb, default_ups.rgb);
+  copy_v3_v3(paint->unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+
+  if (paint->unified_paint_settings.curve_rand_hue == nullptr) {
+    paint->unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (paint->unified_paint_settings.curve_rand_saturation == nullptr) {
+    paint->unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (paint->unified_paint_settings.curve_rand_value == nullptr) {
+    paint->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+}
+
 static void blo_update_defaults_scene(Main *bmain, Scene *scene)
 {
   ToolSettings *ts = scene->toolsettings;
@@ -468,6 +502,15 @@ static void blo_update_defaults_scene(Main *bmain, Scene *scene)
   if (ts->unified_paint_settings.curve_rand_value == nullptr) {
     ts->unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
   }
+
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->vpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->wpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_paint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_vertexpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->gp_sculptpaint));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(ts->curves_sculpt));
+  blo_update_defaults_paint(reinterpret_cast<Paint *>(&ts->imapaint));
 }
 
 void BLO_update_defaults_startup_blend(Main *bmain, const char *app_template)

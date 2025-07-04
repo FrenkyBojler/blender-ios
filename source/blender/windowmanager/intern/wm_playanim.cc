@@ -677,6 +677,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
 
   GPUContext *restore_context = GPU_context_active_get();
   GPU_context_active_set(ghost_data.gpu_context);
+  GPU_context_begin_frame(ghost_data.gpu_context);
 
   GPU_clear_color(0.1f, 0.1f, 0.1f, 0.0f);
 
@@ -784,6 +785,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     GPU_flush();
   }
 
+  GPU_context_end_frame(ghost_data.gpu_context);
   GHOST_SwapWindowBuffers(ghost_data.window);
   GPU_context_active_set(restore_context);
   GPU_render_end();
@@ -2041,6 +2043,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 #endif /* USE_FRAME_CACHE_LIMIT */
 
           STRNCPY(ibuf->filepath, ps.picture->filepath);
+          ibuf->fileframe = ps.picture->frame;
         }
 
         while (pupdate_time()) {
