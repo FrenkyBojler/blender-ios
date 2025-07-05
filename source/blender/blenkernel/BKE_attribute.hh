@@ -935,8 +935,8 @@ AttrDomain attribute_domain_highest_priority(Span<AttrDomain> domains);
  * In order to place attributes from different sources in the same layout, they types have to be
  * interpolated.
  */
-Map<StringRef, AttrType> interpolated_attribute_types(
-    Span<AttributeAccessor> attribute_accessors, const AttributeFilter &attribute_filter);
+Map<StringRef, AttrType> interpolated_attribute_types(Span<AttributeAccessor> attribute_accessors,
+                                                      const AttributeFilter &attribute_filter);
 
 void gather_attributes(AttributeAccessor src_attributes,
                        AttrDomain src_domain,
