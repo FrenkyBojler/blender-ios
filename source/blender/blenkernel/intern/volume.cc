@@ -1077,6 +1077,34 @@ std::optional<blender::Bounds<float3>> BKE_volume_grid_bounds(openvdb::GridBase:
     return std::nullopt;
   }
 
+  const VolumeGridType grid_type = blender::bke::volume_grid::get_type(*grid);
+  BKE_volume_grid_type_to_static_type(grid_type, [&](auto type_tag) {
+    using GridT = typename decltype(type_tag)::type;
+    using TreeT = typename GridT::TreeType;
+    using RootT = typename TreeT::RootNodeType;
+    using InnerT = typename RootT::ChildNodeType;
+    using LeafT = typename InnerT::LeafNodeType;
+
+    const openvdb::Coord real_diagonal = coordbbox.dim();
+    const openvdb::Coord largest_voxel_block(LeafT::DIM);
+
+    constexpr float voxels_block_impact_threshold = 0.5f;
+    if ((largest_voxel_block.x() / real_diagonal.x() >= voxels_block_impact_threshold)
+        || (largest_voxel_block.x() / real_diagonal.x() >= voxels_block_impact_threshold)
+        || (largest_voxel_block.x() / real_diagonal.x() >= voxels_block_impact_threshold)) {
+      return;
+    }
+
+    /* Bounding box evaluation does check if node is already inside of the box to skip redundant work.
+       We know in advance which nodes are boundary and need to be processed since we know #coordbbox value. */
+    coordbbox.expand(-LeafT::DIM);
+
+    const GridT &typed_grid = static_cast<const GridT &>(*grid);
+    const RootT &root = typed_grid.tree().root();
+    /* Have to use root version of #evalActiveBoundingBox to be able to provide partially compute bounding box to add. */
+    root.evalActiveBoundingBox(coordbbox, true);
+  });
+
   openvdb::BBoxd bbox = grid->transform().indexToWorld(coordbbox);
 
   return blender::Bounds<float3>{float3(bbox.min().asPointer()), float3(bbox.max().asPointer())};
