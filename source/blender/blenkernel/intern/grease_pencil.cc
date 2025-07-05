@@ -3828,10 +3828,15 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
   Span<bke::greasepencil::TreeNode *> new_nodes = new_group->nodes_for_write();
 
   const int64_t num_layers = layers().size();
-  const int64_t num_new_layers = nodes_to_copy.size();
+  const int64_t num_new_layers = std::count_if(
+      nodes_to_copy.begin(), nodes_to_copy.end(), [](const bke::greasepencil::TreeNode *node) {
+        return node->is_layer();
+      });
 
   this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, num_layers + num_new_layers);
   bke::MutableAttributeAccessor attributes = this->attributes_for_write();
+
+  int dst_layer_index = num_layers;
 
   for (int i : nodes_to_copy.index_range()) {
     if (new_nodes[i]->is_group()) {
@@ -3851,18 +3856,19 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
     dst_layer.set_name(layer_unique_name);
 
     std::optional<int> src_index = get_layer_index(src_layer);
-    int dst_index = num_layers + i;
 
     BLI_assert(src_index.has_value());
 
-    /* Copy Attributes associated with layer */
+    /* Copy Attributes associated with layer. */
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
       bke::GSpanAttributeWriter attr = attributes.lookup_for_write_span(iter.name);
       GMutableSpan span = attr.span;
-      span.type().copy_assign(span[*src_index], span[dst_index]);
+      span.type().copy_assign(span[*src_index], span[dst_layer_index]);
     });
 
     this->update_drawing_users_for_layer(dst_layer);
+
+    ++dst_layer_index;  // Increments only for layers.
   }
 
   return *new_group;
