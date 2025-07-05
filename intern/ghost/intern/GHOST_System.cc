@@ -8,7 +8,6 @@
 
 #include "GHOST_System.hh"
 
-#include "GHOST_DisplayManager.hh"
 #include "GHOST_EventManager.hh"
 #include "GHOST_TimerManager.hh"
 #include "GHOST_TimerTask.hh"
@@ -22,7 +21,6 @@ GHOST_System::GHOST_System()
     : m_nativePixel(false),
       m_windowFocus(true),
       m_autoFocus(true),
-      m_displayManager(nullptr),
       m_timerManager(nullptr),
       m_windowManager(nullptr),
       m_eventManager(nullptr),
@@ -216,6 +214,11 @@ GHOST_TSuccess GHOST_System::setCursorPositionClientRelative(GHOST_IWindow *wind
   return setCursorPosition(screen_x, screen_y);
 }
 
+uint32_t GHOST_System::getCursorPreferredLogicalSize() const
+{
+  return uint32_t(24);
+}
+
 GHOST_TSuccess GHOST_System::getModifierKeyState(GHOST_TModifierKey mask, bool &isDown) const
 {
   GHOST_ModifierKeys keys;
@@ -290,9 +293,6 @@ GHOST_TSuccess GHOST_System::init()
 
 GHOST_TSuccess GHOST_System::exit()
 {
-  delete m_displayManager;
-  m_displayManager = nullptr;
-
   delete m_windowManager;
   m_windowManager = nullptr;
 

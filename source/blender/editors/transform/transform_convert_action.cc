@@ -750,6 +750,7 @@ static void createTransActionData(bContext *C, TransInfo *t)
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
       case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE:
       case ANIMTYPE_SHAPEKEY:
       case ANIMTYPE_GREASE_PENCIL_DATABLOCK:
       case ANIMTYPE_GREASE_PENCIL_LAYER_GROUP:
@@ -783,10 +784,8 @@ static void createTransActionData(bContext *C, TransInfo *t)
   /* Allocate memory for data. */
   tc->data_len = count;
 
-  tc->data = static_cast<TransData *>(
-      MEM_callocN(tc->data_len * sizeof(TransData), "TransData(Action Editor)"));
-  tc->data_2d = static_cast<TransData2D *>(
-      MEM_callocN(tc->data_len * sizeof(TransData2D), "transdata2d"));
+  tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransData(Action Editor)");
+  tc->data_2d = MEM_calloc_arrayN<TransData2D>(tc->data_len, "transdata2d");
   td = tc->data;
   td2d = tc->data_2d;
 

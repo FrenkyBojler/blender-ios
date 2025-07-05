@@ -153,6 +153,11 @@ typedef struct wmXrData {
 
 /** Window-manager is saved, tag WMAN. */
 typedef struct wmWindowManager {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_WM;
+#endif
+
   ID id;
 
   /** Separate active from drawable. */
@@ -160,7 +165,7 @@ typedef struct wmWindowManager {
   /**
    * \note `CTX_wm_window(C)` is usually preferred.
    * Avoid relying on this where possible as this may become NULL during when handling
-   * events that close or replace windows (opening a file for e.g.).
+   * events that close or replace windows (e.g. opening a file).
    * While this happens rarely in practice, it can cause difficult to reproduce bugs.
    */
   struct wmWindow *winactive;
@@ -281,7 +286,7 @@ typedef struct wmWindow {
   /** Temporary when switching. */
   struct Scene *new_scene;
   /** Active view layer displayed in this window. */
-  char view_layer_name[64];
+  char view_layer_name[/*MAX_NAME*/ 64];
   /** The workspace may temporarily override the window's scene with scene pinning. This is the
    * "overridden" or "default" scene to restore when entering a workspace with no scene pinned. */
   struct Scene *unpinned_scene;
@@ -321,8 +326,6 @@ typedef struct wmWindow {
   short modalcursor;
   /** Cursor grab mode #GHOST_TGrabCursorMode (run-time only) */
   short grabcursor;
-  /** Internal: tag this for extra mouse-move event,
-   * makes cursors/buttons active on UI switching. */
 
   /** Internal, lock pie creation from this event until released. */
   short pie_event_type_lock;
@@ -332,7 +335,6 @@ typedef struct wmWindow {
    */
   short pie_event_type_last;
 
-  char addmousemove;
   char tag_cursor_refresh;
 
   /* Track the state of the event queue,
@@ -348,8 +350,11 @@ typedef struct wmWindow {
    */
   char event_queue_check_drag_handled;
 
-  /** The last event type (that passed #WM_event_consecutive_gesture_test check). */
-  char event_queue_consecutive_gesture_type;
+  /**
+   * The last event type (that passed #WM_event_consecutive_gesture_test check).
+   * A #wmEventType is assigned to this value.
+   */
+  short event_queue_consecutive_gesture_type;
   /** The cursor location when `event_queue_consecutive_gesture_type` was set. */
   int event_queue_consecutive_gesture_xy[2];
   /** See #WM_event_consecutive_data_get and related API. Freed when consecutive events end. */
@@ -381,11 +386,10 @@ typedef struct wmWindow {
   struct wmEvent *event_last_handled;
 
   /**
-   * Input Method Editor data - complex character input (especially for Asian character input)
-   * Only used when `WITH_INPUT_IME` is defined, runtime-only data.
+   * Internal: tag this for extra mouse-move event,
+   * makes cursors/buttons active on UI switching.
    */
-  const struct wmIMEData *ime_data;
-  char ime_data_is_composing;
+  char addmousemove;
   char _pad1[7];
 
   /** Window+screen handlers, handled last. */
@@ -409,10 +413,11 @@ typedef struct wmWindow {
    * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
    * Used to detect double-click events.
    */
+  void *_pad2;
   uint64_t eventstate_prev_press_time_ms;
 
-  void *_pad2;
   WindowRuntimeHandle *runtime;
+  void *_pad3;
 } wmWindow;
 
 #ifdef ime_data
@@ -428,7 +433,7 @@ typedef struct wmOperatorTypeMacro {
   struct wmOperatorTypeMacro *next, *prev;
 
   /* operator id */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[/*OP_MAX_TYPENAME*/ 64];
   /* rna pointer to access properties, like keymap */
   /** Operator properties, assigned to ptr->data and can be written to a file. */
   struct IDProperty *properties;
@@ -633,7 +638,7 @@ typedef struct wmOperator {
 
   /* saved */
   /** Used to retrieve type pointer. */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[/*OP_MAX_TYPENAME*/ 64];
   /** Saved, user-settable properties. */
   IDProperty *properties;
 

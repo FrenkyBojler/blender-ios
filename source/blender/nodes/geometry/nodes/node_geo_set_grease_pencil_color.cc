@@ -5,7 +5,8 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
 
@@ -39,7 +40,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
@@ -78,10 +79,9 @@ static void node_geo_exec(GeoNodeExecParams params)
          * to initialize the attribute manually.
          * TODO: Avoid doing this if the selection is false. */
         if (!curves.attributes().contains(opacity_attr_name)) {
-          curves.attributes_for_write().add(
+          curves.attributes_for_write().add<float>(
               opacity_attr_name,
               domain,
-              CD_PROP_FLOAT,
               bke::AttributeInitVArray(VArray<float>::ForSingle(1.0f, domain_size)));
         }
         bke::try_capture_fields_on_geometry(curves.attributes_for_write(),

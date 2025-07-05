@@ -18,8 +18,7 @@
 #include "DNA_mesh_types.h"
 #include "DNA_meta_types.h"
 #include "DNA_scene_types.h"
-#include "DNA_space_types.h"
-#include "DNA_userdef_types.h"
+#include "DNA_space_enums.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLF_api.hh"
@@ -41,7 +40,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_key.hh"
 #include "BKE_layer.hh"
@@ -72,8 +70,8 @@ struct SceneStats {
   uint64_t totobj, totobjsel;
   uint64_t totlamp, totlampsel;
   uint64_t tottri, tottrisel;
-  uint64_t totgplayer, totgpframe, totgpstroke, totgppoint;
-  uint64_t totcuvepoints;
+  uint64_t totgplayer, totgpframe, totgpstroke;
+  uint64_t totpoints;
 };
 
 struct SceneStatsFmt {
@@ -89,9 +87,8 @@ struct SceneStatsFmt {
   char tottri[BLI_STR_FORMAT_UINT64_GROUPED_SIZE], tottrisel[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
   char totgplayer[BLI_STR_FORMAT_UINT64_GROUPED_SIZE],
       totgpframe[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
-  char totgpstroke[BLI_STR_FORMAT_UINT64_GROUPED_SIZE],
-      totgppoint[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
-  char totcuvepoints[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
+  char totgpstroke[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
+  char totpoints[BLI_STR_FORMAT_UINT64_GROUPED_SIZE];
 };
 
 static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *stats)
@@ -102,22 +99,36 @@ static bool stats_mesheval(const Mesh *mesh_eval, bool is_selected, SceneStats *
 
   int totvert, totedge, totface, totloop;
 
-  const SubsurfRuntimeData *subsurf_runtime_data = mesh_eval->runtime->subsurf_runtime_data;
-
+  /* Get multires stats. */
   if (const std::unique_ptr<SubdivCCG> &subdiv_ccg = mesh_eval->runtime->subdiv_ccg) {
     BKE_subdiv_ccg_topology_counters(*subdiv_ccg, totvert, totedge, totface, totloop);
   }
-  else if (subsurf_runtime_data && subsurf_runtime_data->resolution != 0) {
-    totvert = subsurf_runtime_data->stats_totvert;
-    totedge = subsurf_runtime_data->stats_totedge;
-    totface = subsurf_runtime_data->stats_faces_num;
-    totloop = subsurf_runtime_data->stats_totloop;
-  }
   else {
-    totvert = mesh_eval->verts_num;
-    totedge = mesh_eval->edges_num;
-    totface = mesh_eval->faces_num;
-    totloop = mesh_eval->corners_num;
+    /* Get CPU subdivided mesh if it exists. */
+    const SubsurfRuntimeData *subsurf_runtime_data = nullptr;
+    if (mesh_eval->runtime->mesh_eval) {
+      mesh_eval = mesh_eval->runtime->mesh_eval;
+    }
+    else {
+      subsurf_runtime_data = mesh_eval->runtime->subsurf_runtime_data;
+    }
+
+    /* Get GPU subdivision stats if they exist. If there is no 3D viewport or the mesh is
+     * hidden it will not be subdivided, fall back to unsubdivided in that case. */
+    if (subsurf_runtime_data && subsurf_runtime_data->has_gpu_subdiv &&
+        subsurf_runtime_data->stats_totvert)
+    {
+      totvert = subsurf_runtime_data->stats_totvert;
+      totedge = subsurf_runtime_data->stats_totedge;
+      totface = subsurf_runtime_data->stats_faces_num;
+      totloop = subsurf_runtime_data->stats_totloop;
+    }
+    else {
+      totvert = mesh_eval->verts_num;
+      totedge = mesh_eval->edges_num;
+      totface = mesh_eval->faces_num;
+      totloop = mesh_eval->corners_num;
+    }
   }
 
   stats->totvert += totvert;
@@ -184,7 +195,7 @@ static void stats_object(Object *ob,
             drawing_base);
         const blender::bke::CurvesGeometry &curves = drawing->wrap().strokes();
 
-        stats->totgppoint += curves.points_num();
+        stats->totpoints += curves.points_num();
         stats->totgpstroke += curves.curves_num();
       }
 
@@ -199,7 +210,7 @@ static void stats_object(Object *ob,
       using namespace blender;
       const Curves &curves_id = *static_cast<Curves *>(ob->data);
       const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-      stats->totcuvepoints += curves.points_num();
+      stats->totpoints += curves.points_num();
       break;
     }
     case OB_POINTCLOUD:
@@ -332,7 +343,7 @@ static void stats_object_edit(Object *obedit, SceneStats *stats)
     const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
         ".selection", bke::AttrDomain::Point, true);
     stats->totvertsel += array_utils::count_booleans(selection);
-    stats->totcuvepoints += curves.points_num();
+    stats->totpoints += curves.points_num();
   }
 }
 
@@ -505,7 +516,7 @@ static bool format_stats(
       return false;
     }
     Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
-    *stats_p = (SceneStats *)MEM_mallocN(sizeof(SceneStats), __func__);
+    *stats_p = MEM_mallocN<SceneStats>(__func__);
     stats_update(depsgraph, scene, view_layer, v3d_local, *stats_p);
   }
 
@@ -540,9 +551,8 @@ static bool format_stats(
   SCENE_STATS_FMT_INT(totgplayer);
   SCENE_STATS_FMT_INT(totgpframe);
   SCENE_STATS_FMT_INT(totgpstroke);
-  SCENE_STATS_FMT_INT(totgppoint);
 
-  SCENE_STATS_FMT_INT(totcuvepoints);
+  SCENE_STATS_FMT_INT(totpoints);
 
 #undef SCENE_STATS_FMT_INT
   return true;
@@ -579,7 +589,7 @@ static void get_stats_string(char *info,
                               stats_fmt->totgplayer,
                               stats_fmt->totgpframe,
                               stats_fmt->totgpstroke,
-                              stats_fmt->totgppoint);
+                              stats_fmt->totpoints);
     return;
   }
 
@@ -616,7 +626,7 @@ static void get_stats_string(char *info,
                                 len - *ofs,
                                 IFACE_("Points:%s/%s"),
                                 stats_fmt->totvertsel,
-                                stats_fmt->totcuvepoints);
+                                stats_fmt->totpoints);
     }
     else {
       *ofs += BLI_snprintf_rlen(info + *ofs,
@@ -632,7 +642,7 @@ static void get_stats_string(char *info,
   }
   else if (ob && (ob->type == OB_CURVES)) {
     const char *count = (object_mode == OB_MODE_SCULPT_CURVES) ? stats_fmt->totvertsculpt :
-                                                                 stats_fmt->totcuvepoints;
+                                                                 stats_fmt->totpoints;
     *ofs += BLI_snprintf_rlen(info + *ofs, len - *ofs, IFACE_("Points:%s"), count);
   }
   else if (ob && (object_mode & OB_MODE_SCULPT)) {
@@ -868,7 +878,7 @@ void ED_info_draw_stats(
     stats_row(col1, labels[LAYERS], col2, stats_fmt.totgplayer, nullptr, y, height);
     stats_row(col1, labels[FRAMES], col2, stats_fmt.totgpframe, nullptr, y, height);
     stats_row(col1, labels[STROKES], col2, stats_fmt.totgpstroke, nullptr, y, height);
-    stats_row(col1, labels[POINTS], col2, stats_fmt.totgppoint, nullptr, y, height);
+    stats_row(col1, labels[POINTS], col2, stats_fmt.totpoints, nullptr, y, height);
   }
   else if (ob && ob->mode == OB_MODE_EDIT) {
     if (ob->type == OB_MESH) {
@@ -882,8 +892,7 @@ void ED_info_draw_stats(
       stats_row(col1, labels[BONES], col2, stats_fmt.totbonesel, stats_fmt.totbone, y, height);
     }
     else if (ob->type == OB_CURVES) {
-      stats_row(
-          col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totcuvepoints, y, height);
+      stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totpoints, y, height);
     }
     else if (ob->type != OB_FONT) {
       stats_row(col1, labels[VERTS], col2, stats_fmt.totvertsel, stats_fmt.totvert, y, height);

@@ -78,7 +78,8 @@ bool transdata_check_local_islands(TransInfo *t, short around)
   if (t->options & (CTX_CURSOR | CTX_TEXTURE_SPACE)) {
     return false;
   }
-  return ((around == V3D_AROUND_LOCAL_ORIGINS) && ELEM(t->obedit_type, OB_MESH));
+  return ((around == V3D_AROUND_LOCAL_ORIGINS) &&
+          ELEM(t->obedit_type, OB_MESH, OB_GREASE_PENCIL, OB_CURVES));
 }
 
 /** \} */
@@ -626,7 +627,8 @@ static bool transform_modal_item_poll(const wmOperator *op, int value)
     }
     case TFM_MODAL_INSERTOFS_TOGGLE_DIR:
     case TFM_MODAL_NODE_ATTACH_ON:
-    case TFM_MODAL_NODE_ATTACH_OFF: {
+    case TFM_MODAL_NODE_ATTACH_OFF:
+    case TFM_MODAL_NODE_FRAME: {
       if (t->spacetype != SPACE_NODE) {
         return false;
       }
@@ -753,13 +755,13 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
        0,
        "Decrease Proportional Influence",
        ""},
+      {TFM_MODAL_PROPSIZE, "PROPORTIONAL_SIZE", 0, "Adjust Proportional Influence", ""},
       {TFM_MODAL_AUTOIK_LEN_INC, "AUTOIK_CHAIN_LEN_UP", 0, "Increase Max AutoIK Chain Length", ""},
       {TFM_MODAL_AUTOIK_LEN_DEC,
        "AUTOIK_CHAIN_LEN_DOWN",
        0,
        "Decrease Max AutoIK Chain Length",
        ""},
-      {TFM_MODAL_PROPSIZE, "PROPORTIONAL_SIZE", 0, "Adjust Proportional Influence", ""},
       {TFM_MODAL_INSERTOFS_TOGGLE_DIR,
        "INSERTOFS_TOGGLE_DIR",
        0,
@@ -770,13 +772,14 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf)
       {TFM_MODAL_TRANSLATE, "TRANSLATE", 0, "Move", ""},
       {TFM_MODAL_VERT_EDGE_SLIDE, "VERT_EDGE_SLIDE", 0, "Vert/Edge Slide", ""},
       {TFM_MODAL_ROTATE, "ROTATE", 0, "Rotate", ""},
-      {TFM_MODAL_TRACKBALL, "TRACKBALL", 0, "TrackBall", ""},
+      {TFM_MODAL_TRACKBALL, "TRACKBALL", 0, "Trackball", ""},
       {TFM_MODAL_RESIZE, "RESIZE", 0, "Resize", ""},
       {TFM_MODAL_ROTATE_NORMALS, "ROTATE_NORMALS", 0, "Rotate Normals", ""},
       {TFM_MODAL_AUTOCONSTRAINT, "AUTOCONSTRAIN", 0, "Automatic Constraint", ""},
       {TFM_MODAL_AUTOCONSTRAINTPLANE, "AUTOCONSTRAINPLANE", 0, "Automatic Constraint Plane", ""},
       {TFM_MODAL_PRECISION, "PRECISION", 0, "Precision Mode", ""},
       {TFM_MODAL_PASSTHROUGH_NAVIGATE, "PASSTHROUGH_NAVIGATE", 0, "Navigate", ""},
+      {TFM_MODAL_NODE_FRAME, "NODE_FRAME", 0, "Attach/Detach Frame", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1087,7 +1090,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
           if (t->state == TRANS_CANCEL) {
             resetTransModal(t);
             t->state = TRANS_STARTING;
-            transform_mode_init(t, nullptr, TFM_VERT_SLIDE);
+            transform_mode_init(t, op, TFM_VERT_SLIDE);
           }
           /* Vert Slide can fail on unconnected vertices (rare but possible). */
           if (t->state == TRANS_CANCEL) {
@@ -1099,7 +1102,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         }
 
         /* Need to reinitialize after mode change. */
-        initSnapping(t, nullptr);
+        transform_snap_reset_from_mode(t, op);
         applyMouseInput(t, &t->mouse, t->mval, t->values);
         t->redraw |= TREDRAW_HARD;
         break;
@@ -1221,6 +1224,10 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
         break;
       case TFM_MODAL_NODE_ATTACH_OFF:
         t->modifiers &= ~MOD_NODE_ATTACH;
+        t->redraw |= TREDRAW_HARD;
+        break;
+      case TFM_MODAL_NODE_FRAME:
+        t->modifiers |= MOD_NODE_FRAME;
         t->redraw |= TREDRAW_HARD;
         break;
 
@@ -1411,7 +1418,7 @@ wmOperatorStatus transformEvent(TransInfo *t, wmOperator *op, const wmEvent *eve
 
 bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], float cent2d[2])
 {
-  TransInfo *t = static_cast<TransInfo *>(MEM_callocN(sizeof(TransInfo), "TransInfo data"));
+  TransInfo *t = MEM_callocN<TransInfo>("TransInfo data");
   bool success;
 
   t->context = C;
@@ -1463,19 +1470,17 @@ bool calculateTransformCenter(bContext *C, int centerMode, float cent3d[3], floa
 static bool transinfo_show_overlay(TransInfo *t, ARegion *region)
 {
   /* Don't show overlays when not the active view and when overlay is disabled: #57139 */
-  bool ok = false;
   if (region == t->region) {
-    ok = true;
+    return true;
   }
-  else {
-    if (t->spacetype == SPACE_VIEW3D) {
-      View3D *v3d = static_cast<View3D *>(t->view);
-      if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
-        ok = true;
-      }
+
+  if (t->spacetype == SPACE_VIEW3D) {
+    View3D *v3d = static_cast<View3D *>(t->view);
+    if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
+      return true;
     }
   }
-  return ok;
+  return false;
 }
 
 static void drawTransformView(const bContext * /*C*/, ARegion *region, void *arg)
@@ -1595,24 +1600,24 @@ static void drawTransformPixel(const bContext * /*C*/, ARegion *region, void *ar
     return;
   }
 
-  if (region == t->region) {
-    Scene *scene = t->scene;
-    ViewLayer *view_layer = t->view_layer;
-    BKE_view_layer_synced_ensure(scene, view_layer);
-    Object *ob = BKE_view_layer_active_object_get(view_layer);
+  if (region != t->region) {
+    return;
+  }
 
-    /* Draw auto-key-framing hint in the corner
-     * - only draw if enabled (advanced users may be distracted/annoyed),
-     *   for objects that will be auto-keyframed (no point otherwise),
-     *   AND only for the active region (as showing all is too overwhelming)
-     */
-    if ((U.keying_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
-      if (region == t->region) {
-        if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
-          if (ob && animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
-            drawAutoKeyWarning(t, region);
-          }
-        }
+  /* Draw auto-key-framing hint in the corner
+   * - only draw if enabled (advanced users may be distracted/annoyed),
+   *   for objects that will be auto-keyframed (no point otherwise),
+   *   AND only for the active region (as showing all is too overwhelming)
+   */
+  if ((U.keying_flag & AUTOKEY_FLAG_NOWARNING) == 0) {
+    if (t->options & (CTX_OBJECT | CTX_POSE_BONE)) {
+      Scene *scene = t->scene;
+      ViewLayer *view_layer = t->view_layer;
+      BKE_view_layer_synced_ensure(scene, view_layer);
+      Object *ob = BKE_view_layer_active_object_get(view_layer);
+
+      if (ob && animrig::autokeyframe_cfra_can_key(scene, &ob->id)) {
+        drawAutoKeyWarning(t, region);
       }
     }
   }
@@ -1773,6 +1778,7 @@ void saveTransform(bContext *C, TransInfo *t, wmOperator *op)
         int orient_axis = constraintModeToIndex(t);
         if (orient_axis != -1) {
           RNA_property_enum_set(op->ptr, prop, orient_axis);
+          t->con.mode &= ~CON_APPLY;
         }
       }
       else {
@@ -1941,7 +1947,14 @@ bool initTransform(bContext *C, TransInfo *t, wmOperator *op, const wmEvent *eve
   if (t->flag & T_PROP_EDIT) {
     bool has_selected_any = false;
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-      if (tc->data->flag & TD_SELECTED) {
+      if (tc->data_len == 0) {
+        continue;
+      }
+
+      BLI_assert(tc->sorted_index_map);
+      const int first_selected_index = tc->sorted_index_map[0];
+      TransData *td = &tc->data[first_selected_index];
+      if (td->flag & TD_SELECTED) {
         has_selected_any = true;
         break;
       }
@@ -2199,6 +2212,17 @@ bool transform_apply_matrix(TransInfo *t, float mat[4][4])
 void transform_final_value_get(const TransInfo *t, float *value, const int value_num)
 {
   memcpy(value, t->values_final, sizeof(float) * value_num);
+}
+
+void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3])
+{
+  if (t->persp != RV3D_ORTHO) {
+    sub_v3_v3v3(r_vec, t->viewinv[3], focus);
+  }
+  else {
+    copy_v3_v3(r_vec, t->viewinv[2]);
+  }
+  normalize_v3(r_vec);
 }
 
 }  // namespace blender::ed::transform

@@ -21,7 +21,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_cryptomatte_out)
 #include "draw_view_lib.glsl"
 #include "eevee_ambient_occlusion_lib.glsl"
 #include "eevee_gbuffer_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_surf_lib.glsl"
 
@@ -83,6 +83,7 @@ void main()
 
   ObjectInfos object_infos = drw_infos[drw_resource_id()];
   bool use_light_linking = receiver_light_set_get(object_infos) != 0;
+  bool use_terminator_offset = object_infos.shadow_terminator_normal_offset > 0.0;
 
   /* ----- Render Passes output ----- */
 
@@ -109,7 +110,7 @@ void main()
 #endif
   gbuf_data.surface_N = g_data.N;
   gbuf_data.thickness = thickness;
-  gbuf_data.use_light_linking = use_light_linking;
+  gbuf_data.use_object_id = use_sss || use_light_linking || use_terminator_offset;
 
   GBufferWriter gbuf = gbuffer_pack(gbuf_data, g_data.Ng);
 
@@ -120,8 +121,9 @@ void main()
   out_gbuf_normal = gbuf.N[0];
 
   /* Output remaining closures using image store. */
-  for (int layer = GBUF_CLOSURE_FB_LAYER_COUNT; layer < GBUFFER_DATA_MAX && layer < gbuf.data_len;
-       layer++)
+  [[gpu::unroll(6)]] for (int layer = GBUF_CLOSURE_FB_LAYER_COUNT;
+                          layer < GBUFFER_DATA_MAX && layer < gbuf.data_len;
+                          layer++)
   {
     /* NOTE: The image view start at layer GBUF_CLOSURE_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_CLOSURE_FB_LAYER_COUNT`. */
@@ -129,9 +131,9 @@ void main()
                    int3(out_texel, layer - GBUF_CLOSURE_FB_LAYER_COUNT),
                    gbuf.data[layer]);
   }
-  for (int layer = GBUF_NORMAL_FB_LAYER_COUNT;
-       layer < GBUFFER_NORMAL_MAX && layer < gbuf.normal_len;
-       layer++)
+  [[gpu::unroll(4)]] for (int layer = GBUF_NORMAL_FB_LAYER_COUNT;
+                          layer < GBUFFER_NORMAL_MAX && layer < gbuf.normal_len;
+                          layer++)
   {
     /* NOTE: The image view start at layer GBUF_NORMAL_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_NORMAL_FB_LAYER_COUNT`. */
@@ -139,7 +141,7 @@ void main()
                    int3(out_texel, layer - GBUF_NORMAL_FB_LAYER_COUNT),
                    gbuf.N[layer].xyyy);
   }
-  if (use_sss || use_light_linking) {
+  if (gbuf_data.use_object_id) {
     constexpr int layer = GBUF_HEADER_FB_LAYER_COUNT;
     /* NOTE: The image view start at layer GBUF_HEADER_FB_LAYER_COUNT so all destination layer is
      * `layer - GBUF_HEADER_FB_LAYER_COUNT`. */

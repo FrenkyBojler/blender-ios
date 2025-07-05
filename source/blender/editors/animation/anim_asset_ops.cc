@@ -37,7 +37,7 @@
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
-#include "ANIM_bone_collections.hh"
+#include "ANIM_armature.hh"
 #include "ANIM_keyframing.hh"
 #include "ANIM_pose.hh"
 #include "ANIM_rna.hh"
@@ -124,7 +124,7 @@ static blender::animrig::Action &extract_pose(Main &bmain,
     const bArmature *armature = static_cast<bArmature *>(pose_object->data);
     LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object->pose->chanbase) {
       if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-          !ANIM_bone_is_visible(armature, pose_bone->bone))
+          !blender::animrig::bone_is_visible(armature, pose_bone->bone))
       {
         continue;
       }
@@ -496,7 +496,7 @@ static Vector<PathValue> generate_path_values(Object &pose_object)
   const bArmature *armature = static_cast<bArmature *>(pose_object.data);
   LISTBASE_FOREACH (bPoseChannel *, pose_bone, &pose_object.pose->chanbase) {
     if (!(pose_bone->bone->flag & BONE_SELECTED) ||
-        !ANIM_bone_is_visible(armature, pose_bone->bone))
+        !blender::animrig::bone_is_visible(armature, pose_bone->bone))
     {
       continue;
     }
@@ -638,6 +638,9 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
 {
   bAction *action = get_action_of_selected_asset(C);
   BLI_assert_msg(action, "Poll should have checked action exists");
+  /* Get asset now. Asset browser might get tagged for refreshing through operations below, and not
+   * allow querying items from context until refreshed, see #140781. */
+  const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
 
   Main *bmain = CTX_data_main(C);
   Object *pose_object = CTX_data_active_object(C);
@@ -655,7 +658,7 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
 
-  asset::refresh_asset_library_from_asset(C, *CTX_wm_asset(C));
+  asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;

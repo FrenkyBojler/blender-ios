@@ -183,10 +183,9 @@ void drw_debug_matrix(const float4x4 &m4, const uint lifetime)
 void drw_debug_matrix_as_bbox(const float4x4 &mat, const float4 color, const uint lifetime)
 {
   BoundBox bb;
-  const float min[3] = {-1.0f, -1.0f, -1.0f}, max[3] = {1.0f, 1.0f, 1.0f};
-  BKE_boundbox_init_from_minmax(&bb, min, max);
+  std::array<float3, 8> corners = bounds::corners(Bounds<float3>(float3(-1), float3(1)));
   for (auto i : IndexRange(8)) {
-    mul_project_m4_v3(mat.ptr(), bb.vec[i]);
+    mul_project_m4_v3(mat.ptr(), corners[i]);
   }
   drw_debug_bbox(bb, color, lifetime);
 }
@@ -241,7 +240,7 @@ void DebugDraw::display_lines(View &view)
   GPU_shader_uniform_2f(shader, "size_viewport", viewport_size[2], viewport_size[3]);
 
   if (gpu_draw_buf_used) {
-    gpu::DebugScope debug_scope("GPU");
+    GPU_debug_group_begin("GPU");
     /* Reset buffer. */
     gpu_draw_buf_.next()->command.vertex_len = 0;
     gpu_draw_buf_.next()->push_update();
@@ -251,10 +250,11 @@ void DebugDraw::display_lines(View &view)
     GPU_batch_draw_indirect(batch, *gpu_draw_buf_.current(), 0);
     GPU_storagebuf_unbind(*gpu_draw_buf_.current());
     GPU_storagebuf_unbind(*gpu_draw_buf_.next());
+    GPU_debug_group_end();
   }
 
   {
-    gpu::DebugScope debug_scope("CPU");
+    GPU_debug_group_begin("CPU");
     /* We might have race condition here (a writer thread might still be outputting vertices).
      * But that is ok. At worse, we will be missing some vertex data and show 1 corrupted line. */
     cpu_draw_buf_.current()->command.vertex_len = vertex_len_.load();
@@ -272,6 +272,7 @@ void DebugDraw::display_lines(View &view)
     /* Read result of lifetime management. */
     cpu_draw_buf_.next()->read();
     vertex_len_.store(min_ii(DRW_DEBUG_DRAW_VERT_MAX, cpu_draw_buf_.next()->command.vertex_len));
+    GPU_debug_group_end();
   }
 
   gpu_draw_buf_.swap();

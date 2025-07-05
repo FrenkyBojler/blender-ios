@@ -20,7 +20,7 @@ bke::GeometrySet join_geometries(Span<bke::GeometrySet> geometries,
                                      &component_types_to_join = std::nullopt);
 
 void join_attributes(Span<bke::AttributeAccessor> attribute_accessors,
-                     const Map<StringRef, eCustomDataType> &attribute_types,
+                     const Map<StringRef, bke::AttrType> &attribute_types,
                      bke::AttrDomain src_domain,
                      bke::AttrDomain dst_domain,
                      bke::MutableAttributeAccessor dst_attributes);

@@ -233,19 +233,25 @@ struct ReuseOldBMainData {
   Main *new_bmain;
   Main *old_bmain;
 
-  /** Data generated and used by calling WM code to handle keeping WM and UI IDs as best as
+  /**
+   * Data generated and used by calling WM code to handle keeping WM and UI IDs as best as
    * possible across file reading.
    *
-   * \note May be null in undo (memfile) case. */
+   * \note May be null in undo (memfile) case.
+   */
   BlendFileReadWMSetupData *wm_setup_data;
 
-  /** Storage for all remapping rules (old_id -> new_id) required by the preservation of old IDs
-   * into the new Main. */
+  /**
+   * Storage for all remapping rules (old_id -> new_id) required by the preservation of old IDs
+   * into the new Main.
+   */
   id::IDRemapper *remapper;
   bool is_libraries_remapped;
 
-  /** Used to find matching IDs by name/lib in new main, to remap ID usages of data ported over
-   * from old main. */
+  /**
+   * Used to find matching IDs by name/lib in new main, to remap ID usages of data ported over
+   * from old main.
+   */
   IDNameLib_Map *id_map;
 };
 
@@ -1434,7 +1440,7 @@ void BKE_blendfile_read_make_empty(bContext *C)
  *
  *   The preferences are merged by using some from the app-template and other settings from the
  *   regular preferences (add-ons from the app-template for example are used),
- *   undo-memory uses the regular preferences (for e.g.).
+ *   undo-memory uses the regular preferences (for example).
  *
  * - Writing preferences is performed for both the app-template & regular preferences.
  *
@@ -1580,7 +1586,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
 bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
 {
-  Main *mainb = MEM_callocN<Main>("empty main");
+  Main *mainb = MEM_new<Main>(__func__);
   bool ok = false;
 
   BlendFileWriteParams params{};
@@ -1590,7 +1596,7 @@ bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
     ok = true;
   }
 
-  MEM_freeN(mainb);
+  MEM_delete(mainb);
 
   return ok;
 }
@@ -1745,7 +1751,6 @@ namespace blender::bke::blendfile {
 PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
     : reference_root_filepath_(reference_root_filepath)
 {
-  BKE_main_init(this->bmain);
   if (!reference_root_filepath_.empty()) {
     STRNCPY(this->bmain.filepath, reference_root_filepath_.c_str());
   }
@@ -1759,9 +1764,6 @@ PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
 PartialWriteContext::~PartialWriteContext()
 {
   BKE_main_idmap_destroy(matching_uid_map_);
-
-  BLI_assert(this->bmain.next == nullptr);
-  BKE_main_destroy(this->bmain);
 };
 
 void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)

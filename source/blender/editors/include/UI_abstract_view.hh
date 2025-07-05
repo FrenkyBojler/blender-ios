@@ -31,6 +31,7 @@
 #include "BLI_string_ref.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_types.hh"
 
@@ -75,6 +76,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
+  bool is_multiselect_supported_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -102,6 +104,12 @@ class AbstractView {
   virtual void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const = 0;
 
   virtual bool supports_scrolling() const;
+
+  /**
+   * \return True when everything in this view is visible, i.e. no scrolling is needed.
+   */
+  virtual bool is_fully_visible() const;
+
   virtual void scroll(ViewScrollDirection direction);
 
   /**
@@ -145,6 +153,8 @@ class AbstractView {
   void set_popup_keep_open();
 
   void clear_search_highlight();
+  void allow_multiselect_items();
+  bool is_multiselect_supported() const;
 
  protected:
   AbstractView() = default;
@@ -192,6 +202,7 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
   bool is_highlighted_search_ = false;
@@ -225,6 +236,8 @@ class AbstractViewItem {
    */
   virtual std::optional<bool> should_be_active() const;
 
+  virtual std::optional<bool> should_be_selected() const;
+  virtual void set_selected(const bool select);
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.
@@ -299,6 +312,7 @@ class AbstractViewItem {
    * can't be sure about the item state.
    */
   bool is_active() const;
+  bool is_selected() const;
   /**
    * Should this item be highlighted as matching search result? Only one item should be highlighted
    * this way at a time. Pressing enter will activate it.

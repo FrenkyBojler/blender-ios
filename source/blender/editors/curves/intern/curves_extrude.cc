@@ -58,7 +58,7 @@ static void calc_curves_extrusion(const IndexMask &selection,
         is_first_selected[curve] = first_range.first() == curve_points.start() &&
                                    first_range.size() == 1 &&
                                    /* If single point curve is extruded we want the newly created
-                                      point to get selected. */
+                                    * point to get selected. */
                                    curve_points.size() != 1;
         current_endpoint_index += !is_first_selected[curve];
         copy_intervals[curves_intervals_offsets[curve]] = curve_points.start();
@@ -265,7 +265,7 @@ static bke::CurvesGeometry extrude_curves(const bke::CurvesGeometry &curves,
     dst_selections[selection_i] = ensure_selection_attribute(
         new_curves,
         bke::AttrDomain::Point,
-        src_selection_array.type().is<bool>() ? CD_PROP_BOOL : CD_PROP_FLOAT,
+        src_selection_array.type().is<bool>() ? bke::AttrType::Bool : bke::AttrType::Float,
         selection_name);
   }
 

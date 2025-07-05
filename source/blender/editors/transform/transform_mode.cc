@@ -45,7 +45,7 @@ eTfmMode transform_mode_really_used(bContext *C, eTfmMode mode)
       return TFM_RESIZE;
     }
     bArmature *arm = static_cast<bArmature *>(ob->data);
-    if (arm->drawtype == ARM_ENVELOPE) {
+    if (arm->drawtype == ARM_DRAW_TYPE_ENVELOPE) {
       return TFM_BONE_ENVELOPE_DIST;
     }
   }
@@ -1246,6 +1246,23 @@ void transform_mode_default_modal_orientation_set(TransInfo *t, int type)
     /* Update Orientation. */
     transform_orientations_current_set(t, O_DEFAULT);
   }
+}
+
+void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis)
+{
+  if ((t->con.mode & CON_APPLY) && t->con.applyRot) {
+    t->con.applyRot(t, nullptr, nullptr, r_axis);
+  }
+  else {
+    r_axis = t->spacemtx[t->orient_axis];
+  }
+}
+
+bool transform_mode_is_axis_pointing_to_screen(const TransInfo *t, const float3 &axis)
+{
+  float view_vector[3];
+  view_vector_calc(t, t->center_global, view_vector);
+  return dot_v3v3(axis, view_vector) > 0.0f;
 }
 
 /** \} */

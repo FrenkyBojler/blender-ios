@@ -157,7 +157,7 @@ void NODE_OT_view_all(wmOperatorType *ot)
   ot->idname = "NODE_OT_view_all";
   ot->description = "Resize view so you can see all nodes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_view_all_exec;
   ot->poll = space_node_active_view_poll;
 
@@ -190,7 +190,7 @@ void NODE_OT_view_selected(wmOperatorType *ot)
   ot->idname = "NODE_OT_view_selected";
   ot->description = "Resize view so you can see selected nodes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = node_view_selected_exec;
   ot->poll = space_node_active_view_poll;
 
@@ -306,7 +306,8 @@ static wmOperatorStatus snode_bg_viewmove_invoke(bContext *C, wmOperator *op, co
 
 static void snode_bg_viewmove_cancel(bContext * /*C*/, wmOperator *op)
 {
-  MEM_freeN(op->customdata);
+  NodeViewMove *nvm = (NodeViewMove *)op->customdata;
+  MEM_freeN(nvm);
   op->customdata = nullptr;
 }
 
@@ -317,7 +318,7 @@ void NODE_OT_backimage_move(wmOperatorType *ot)
   ot->description = "Move node backdrop";
   ot->idname = "NODE_OT_backimage_move";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = snode_bg_viewmove_invoke;
   ot->modal = snode_bg_viewmove_modal;
   ot->poll = space_node_composite_active_view_poll;
@@ -355,7 +356,7 @@ void NODE_OT_backimage_zoom(wmOperatorType *ot)
   ot->idname = "NODE_OT_backimage_zoom";
   ot->description = "Zoom in/out the background image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = backimage_zoom_exec;
   ot->poll = space_node_composite_active_view_poll;
 
@@ -420,7 +421,7 @@ void NODE_OT_backimage_fit(wmOperatorType *ot)
   ot->idname = "NODE_OT_backimage_fit";
   ot->description = "Fit the background image to the view";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = backimage_fit_exec;
   ot->poll = space_node_composite_active_view_poll;
 
@@ -710,7 +711,7 @@ void NODE_OT_backimage_sample(wmOperatorType *ot)
   ot->idname = "NODE_OT_backimage_sample";
   ot->description = "Use mouse to sample background image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = sample_invoke;
   ot->modal = sample_modal;
   ot->cancel = sample_cancel;

@@ -29,6 +29,7 @@
 
 #include "GHOST_C-api.h"
 
+#include "BLI_fileops.h"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_path_utils.hh"
@@ -79,6 +80,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 
 #include "BLF_api.hh"
 #include "GPU_context.hh"
@@ -260,7 +262,7 @@ void wm_window_free(bContext *C, wmWindowManager *wm, wmWindow *win)
     }
   }
 
-  /* Timer removing, need to call this api function. */
+  /* Timer removing, need to call this API function. */
   LISTBASE_FOREACH_MUTABLE (wmTimer *, wt, &wm->timers) {
     if (wt->flags & WM_TIMER_TAGGED_FOR_REMOVAL) {
       continue;
@@ -471,11 +473,15 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
   if (screen) {
     ED_screen_exit(C, win, screen);
   }
+  const bool is_single_editor = !WM_window_is_main_top_level(win) &&
+                                (screen && BLI_listbase_is_single(&screen->areabase));
 
   wm_window_free(C, wm, win);
 
-  /* If temp screen, delete it after window free (it stops jobs that can access it). */
-  if (screen && screen->temp) {
+  /* If temp screen, delete it after window free (it stops jobs that can access it).
+   * Also delete windows with single editor. If required, they are easy to restore, see: !132978.
+   */
+  if ((screen && screen->temp) || is_single_editor) {
     Main *bmain = CTX_data_main(C);
 
     BLI_assert(BKE_workspace_layout_screen_get(layout) == screen);
@@ -512,11 +518,26 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
     return;
   }
 
-  const char *filepath = BKE_main_blendfile_path_from_global();
-  const char *filename = BLI_path_basename(filepath);
+  /* This path may contain invalid UTF8 byte sequences on UNIX systems,
+   * use `filepath` for display which is sanitized as needed. */
+  const char *filepath_as_bytes = BKE_main_blendfile_path_from_global();
 
+  char _filepath_utf8_buf[FILE_MAX];
+  /* Allow non-UTF8 characters on systems that support it.
+   *
+   * On Wayland, invalid UTF8 characters will disconnect
+   * from the server - exiting immediately. */
+  const char *filepath = (OS_MAC || OS_WINDOWS) ?
+                             filepath_as_bytes :
+                             BLI_str_utf8_invalid_substitute_as_needed(filepath_as_bytes,
+                                                                       strlen(filepath_as_bytes),
+                                                                       '?',
+                                                                       _filepath_utf8_buf,
+                                                                       sizeof(_filepath_utf8_buf));
+
+  const char *filename = BLI_path_basename(filepath);
   const bool has_filepath = filepath[0] != '\0';
-  const bool native_filepath_display = GHOST_SetPath(handle, filepath) == GHOST_kSuccess;
+  const bool native_filepath_display = GHOST_SetPath(handle, filepath_as_bytes) == GHOST_kSuccess;
   const bool include_filepath = has_filepath && (filepath != filename) && !native_filepath_display;
 
   /* File saved state. */
@@ -528,9 +549,9 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
     win_title.append(filename, filename_no_ext_len);
   }
   else if (has_filepath) {
-    win_title.append(BLI_path_basename(filename));
+    win_title.append(filename);
   }
-  /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs.*/
+  /* New / Unsaved file default title. Shows "Untitled" on macOS following the Apple HIGs. */
   else {
 #ifdef __APPLE__
     win_title.append(IFACE_("Untitled"));
@@ -544,7 +565,34 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
   }
 
   if (include_filepath) {
-    win_title.append(fmt::format(" [{}]", filepath));
+    bool add_filepath = true;
+    if ((OS_MAC || OS_WINDOWS) == 0) {
+      /* Notes:
+       * - Relies on the `filepath_as_bytes` & `filepath` being aligned and the same length.
+       *   If that changes (if we implement surrogate escape for example)
+       *   then the substitution would need to be performed before validating UTF8.
+       * - This file-path is already normalized
+       *   so there is no need to use a comparison that normalizes both.
+       *
+       * See !141059 for more general support for "My Documents", "Downloads" etc,
+       * this also caches the result, which doesn't seem necessary at the moment. */
+      if (const char *home_dir = BLI_dir_home()) {
+        size_t home_dir_len = strlen(home_dir);
+        /* Strip trailing slash (if it exists). */
+        while (home_dir_len && home_dir[home_dir_len - 1] == SEP) {
+          home_dir_len--;
+        }
+        if ((home_dir_len > 0) && BLI_path_ncmp(home_dir, filepath_as_bytes, home_dir_len) == 0) {
+          if (filepath_as_bytes[home_dir_len] == SEP) {
+            win_title.append(fmt::format(" [~{}]", filepath + home_dir_len));
+            add_filepath = false;
+          }
+        }
+      }
+    }
+    if (add_filepath) {
+      win_title.append(fmt::format(" [{}]", filepath));
+    }
   }
 
   win_title.append(fmt::format(" - Blender {}", BKE_blender_version_string()));
@@ -659,11 +707,9 @@ static void wm_window_decoration_style_set_from_theme(const wmWindow *win, const
     UI_SetTheme(0, RGN_TYPE_WINDOW);
   }
 
-  float titlebar_bg_color[3], titlebar_fg_color[3];
+  float titlebar_bg_color[3];
   UI_GetThemeColor3fv(TH_BACK, titlebar_bg_color);
-  UI_GetThemeColor3fv(TH_BUTBACK_TEXT, titlebar_fg_color);
   copy_v3_v3(decoration_settings.colored_titlebar_bg_color, titlebar_bg_color);
-  copy_v3_v3(decoration_settings.colored_titlebar_fg_color, titlebar_fg_color);
 
   GHOST_SetWindowDecorationStyleSettings(static_cast<GHOST_WindowHandle>(win->ghostwin),
                                          decoration_settings);
@@ -1059,8 +1105,11 @@ wmWindow *WM_window_open(bContext *C,
   ViewLayer *view_layer = CTX_data_view_layer(C);
   int x = rect_unscaled->xmin;
   int y = rect_unscaled->ymin;
-  int sizex = BLI_rcti_size_x(rect_unscaled);
-  int sizey = BLI_rcti_size_y(rect_unscaled);
+  /* Duplicated windows are created at Area size, so duplicated
+   * minimized areas can init at 2 pixels high before being
+   * resized at the end of window creation. Therefore minimums. */
+  int sizex = std::max(BLI_rcti_size_x(rect_unscaled), 200);
+  int sizey = std::max(BLI_rcti_size_y(rect_unscaled), 150);
   rcti rect;
 
   const float native_pixel_size = GHOST_GetNativePixelSize(
@@ -2083,107 +2132,6 @@ GHOST_TDrawingContextType wm_ghost_drawing_context_type(const eGPUBackendType gp
   return GHOST_kDrawingContextTypeNone;
 }
 
-static uiBlock *block_create_opengl_usage_warning(bContext *C, ARegion *region, void * /*arg1*/)
-{
-  uiBlock *block = UI_block_begin(
-      C, region, "autorun_warning_popup", blender::ui::EmbossType::Emboss);
-  UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
-  UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
-
-  const char *title = RPT_("Python script uses OpenGL for drawing");
-  const char *message1 = RPT_("This may lead to unexpected behavior");
-  const char *message2 = RPT_(
-      "One of the add-ons or scripts is using OpenGL and will not work correct on Metal");
-  const char *message3 = RPT_(
-      "Please contact the developer of the add-on to migrate to use 'gpu' module");
-  const char *message4 = RPT_("See system tab in preferences to switch to OpenGL backend");
-
-  /* Measure strings to find the longest. */
-  const uiStyle *style = UI_style_get_dpi();
-  UI_fontstyle_set(&style->widget);
-  int text_width = int(BLF_width(style->widget.uifont_id, title, BLF_DRAW_STR_DUMMY_MAX));
-  text_width = std::max(text_width,
-                        int(BLF_width(style->widget.uifont_id, message1, BLF_DRAW_STR_DUMMY_MAX)));
-  text_width = std::max(text_width,
-                        int(BLF_width(style->widget.uifont_id, message2, BLF_DRAW_STR_DUMMY_MAX)));
-  text_width = std::max(text_width,
-                        int(BLF_width(style->widget.uifont_id, message3, BLF_DRAW_STR_DUMMY_MAX)));
-  text_width = std::max(text_width,
-                        int(BLF_width(style->widget.uifont_id, message4, BLF_DRAW_STR_DUMMY_MAX)));
-
-  const int dialog_width = std::max(int(400.0f * UI_SCALE_FAC),
-                                    text_width + int(style->columnspace * 2.5));
-
-  const short icon_size = 40 * UI_SCALE_FAC;
-  uiLayout *layout = uiItemsAlertBox(
-      block, style, dialog_width + icon_size, ALERT_ICON_ERROR, icon_size);
-
-  uiLayout *col = uiLayoutColumn(layout, false);
-  uiLayoutSetScaleY(col, 0.9f);
-
-  /* Title and explanation text. */
-  uiItemL_ex(col, title, ICON_NONE, true, false);
-  uiItemS_ex(col, 0.8f, LayoutSeparatorType::Space);
-
-  uiLayout *messages = uiLayoutColumn(col, false);
-  uiLayoutSetScaleY(messages, 0.8f);
-
-  uiItemL(messages, message1, ICON_NONE);
-  uiItemL(messages, message2, ICON_NONE);
-  uiItemL(messages, message3, ICON_NONE);
-  if (G.opengl_deprecation_usage_filename) {
-    char location[1024];
-    SNPRINTF(
-        location, "%s:%d", G.opengl_deprecation_usage_filename, G.opengl_deprecation_usage_lineno);
-    uiItemL(messages, location, ICON_NONE);
-  }
-  uiItemL(messages, message4, ICON_NONE);
-
-  uiItemS_ex(col, 0.5f, LayoutSeparatorType::Space);
-
-  UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
-
-  return block;
-}
-
-void wm_test_opengl_deprecation_warning(bContext *C)
-{
-  static bool message_shown = false;
-
-  /* Exit when no failure detected. */
-  if (!G.opengl_deprecation_usage_detected) {
-    return;
-  }
-
-  /* Have we already shown a message during this Blender session. `bgl` calls are done in a draw
-   * handler that will run many times. */
-  if (message_shown) {
-    return;
-  }
-
-  wmWindowManager *wm = CTX_wm_manager(C);
-  wmWindow *win = static_cast<wmWindow *>((wm->winactive) ? wm->winactive : wm->windows.first);
-
-  BKE_report(&wm->runtime->reports,
-             RPT_ERROR,
-             "One of the add-ons or scripts is using OpenGL and will not work correct on Metal. "
-             "Please contact the developer of the add-on to migrate to use 'gpu' module");
-
-  if (win) {
-    /* We want this warning on the Main window, not a child window even if active. See #118765. */
-    if (win->parent) {
-      win = win->parent;
-    }
-
-    wmWindow *prevwin = CTX_wm_window(C);
-    CTX_wm_window_set(C, win);
-    UI_popup_block_invoke(C, block_create_opengl_usage_warning, nullptr, nullptr);
-    CTX_wm_window_set(C, prevwin);
-  }
-
-  message_shown = true;
-}
-
 static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, void * /*arg1*/)
 {
   uiBlock *block = UI_block_begin(
@@ -2194,16 +2142,15 @@ static uiBlock *block_create_gpu_backend_fallback(bContext *C, ARegion *region, 
   uiLayout *layout = uiItemsAlertBox(block, 44, ALERT_ICON_ERROR);
 
   /* Title and explanation text. */
-  uiLayout *col = uiLayoutColumn(layout, false);
-  uiLayoutSetScaleY(col, 0.8f);
+  uiLayout *col = &layout->column(false);
+  col->scale_y_set(0.8f);
   uiItemL_ex(
       col, RPT_("Failed to load using Vulkan, using OpenGL instead."), ICON_NONE, true, false);
-  uiItemS_ex(col, 1.3f, LayoutSeparatorType::Space);
+  col->separator(1.3f, LayoutSeparatorType::Space);
 
-  uiItemL(col, RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
-  uiItemL(col,
-          RPT_("The graphics backend can be changed in the System section of the Preferences."),
-          ICON_NONE);
+  col->label(RPT_("Updating GPU drivers may solve this issue."), ICON_NONE);
+  col->label(RPT_("The graphics backend can be changed in the System section of the Preferences."),
+             ICON_NONE);
 
   UI_block_bounds_set_centered(block, 14 * UI_SCALE_FAC);
 
@@ -2285,6 +2232,9 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   }
   if (ghost_flag & GHOST_kCapabilityKeyboardHyperKey) {
     flag |= WM_CAPABILITY_KEYBOARD_HYPER_KEY;
+  }
+  if (ghost_flag & GHOST_kCapabilityRGBACursors) {
+    flag |= WM_CAPABILITY_RGBA_CURSORS;
   }
 
   return flag;
@@ -2838,6 +2788,11 @@ void WM_cursor_warp(wmWindow *win, int x, int y)
   win->eventstate->xy[1] = oldy;
 }
 
+uint WM_cursor_preferred_logical_size()
+{
+  return GHOST_GetCursorPreferredLogicalSize(g_system);
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -3151,11 +3106,12 @@ void wm_window_IME_end(wmWindow *win)
    * Even if no IME events were generated (which assigned `ime_data`).
    * TODO: check if #GHOST_EndIME can run on WIN32 & APPLE without causing problems. */
 #  if defined(WIN32) || defined(__APPLE__)
-  BLI_assert(win->ime_data);
+  BLI_assert(win->runtime->ime_data);
 #  endif
   GHOST_EndIME(static_cast<GHOST_WindowHandle>(win->ghostwin));
-  win->ime_data = nullptr;
-  win->ime_data_is_composing = false;
+  MEM_delete(win->runtime->ime_data);
+  win->runtime->ime_data = nullptr;
+  win->runtime->ime_data_is_composing = false;
 }
 #endif /* WITH_INPUT_IME */
 

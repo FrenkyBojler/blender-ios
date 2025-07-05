@@ -210,18 +210,13 @@ class FILEBROWSER_UL_dir(UIList):
         direntry = item
         # space = context.space_data
 
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            row = layout.row(align=True)
-            row.enabled = direntry.is_valid
-            # Non-editable entries would show grayed-out, which is bad in this specific case, so switch to mere label.
-            if direntry.is_property_readonly("name"):
-                row.label(text=direntry.name, icon_value=icon)
-            else:
-                row.prop(direntry, "name", text="", emboss=False, icon_value=icon)
-
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.prop(direntry, "path", text="")
+        row = layout.row(align=True)
+        row.enabled = direntry.is_valid
+        # Non-editable entries would show grayed-out, which is bad in this specific case, so switch to mere label.
+        if direntry.is_property_readonly("name"):
+            row.label(text=direntry.name, icon_value=icon)
+        else:
+            row.prop(direntry, "name", text="", emboss=False, icon_value=icon)
 
 
 class FILEBROWSER_PT_bookmarks_volumes(Panel):
@@ -734,7 +729,7 @@ class ASSETBROWSER_PT_import_settings(asset_utils.AssetBrowserPanel, Panel):
 
         col = layout.column(heading="Instance Collections")
         col.prop(params, "instance_collections_on_link", text="When Linking")
-        col.prop(params, "instance_collections_on_append", text="When Appendind")
+        col.prop(params, "instance_collections_on_append", text="When Appending")
 
 
 class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
@@ -823,6 +818,7 @@ class ASSETBROWSER_MT_metadata_preview_menu(Menu):
         layout.operator("ed.lib_id_generate_preview_from_object", text="Render Active Object")
         layout.separator()
         layout.operator("ed.lib_id_remove_preview")
+        layout.operator("asset.screenshot_preview")
 
 
 class ASSETBROWSER_PT_metadata_tags(asset_utils.AssetMetaDataPanel, Panel):

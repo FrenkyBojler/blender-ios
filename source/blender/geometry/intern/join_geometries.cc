@@ -18,7 +18,7 @@ using bke::GeometryComponent;
 using bke::GeometrySet;
 
 void join_attributes(const Span<bke::AttributeAccessor> attribute_accessors,
-                     const Map<StringRef, eCustomDataType> &attribute_types,
+                     const Map<StringRef, bke::AttrType> &attribute_types,
                      const bke::AttrDomain src_domain,
                      const bke::AttrDomain dst_domain,
                      bke::MutableAttributeAccessor dst_attributes)
@@ -30,9 +30,9 @@ void join_attributes(const Span<bke::AttributeAccessor> attribute_accessors,
   const OffsetIndices<int> src_offsets = offset_indices::accumulate_counts_to_offsets(
       src_offsets_data);
 
-  for (const MapItem<StringRef, eCustomDataType> item : attribute_types.items()) {
+  for (const MapItem<StringRef, bke::AttrType> item : attribute_types.items()) {
     const StringRef attribute_id = item.key;
-    const eCustomDataType data_type = item.value;
+    const bke::AttrType data_type = item.value;
 
     bke::GSpanAttributeWriter dst_attribute = dst_attributes.lookup_or_add_for_write_only_span(
         attribute_id, dst_domain, data_type);
