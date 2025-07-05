@@ -44,25 +44,23 @@ void vk_pipeline_data_build_commands(VKCommandBufferInterface &command_buffer,
     command_buffer.bind_pipeline(vk_pipeline_bind_point, r_bound_pipeline.vk_pipeline);
   }
 
+  VKDevice &device = VKBackend::get().device;
+
+  Vector<VkDescriptorSet> sets_to_bind;
+  if (device.extensions_get().descriptor_indexing) {
+    sets_to_bind.append(device.bindless_table.descriptor_set);
+  }
   if (assign_if_different(r_bound_pipeline.vk_descriptor_set, pipeline_data.vk_descriptor_set) &&
       r_bound_pipeline.vk_descriptor_set != VK_NULL_HANDLE)
   {
-    command_buffer.bind_descriptor_sets(vk_pipeline_bind_point,
-                                        pipeline_data.vk_pipeline_layout,
-                                        0,
-                                        1,
-                                        &r_bound_pipeline.vk_descriptor_set,
-                                        0,
-                                        nullptr);
+    sets_to_bind.append(r_bound_pipeline.vk_descriptor_set);
   }
-
-  VKDevice &device = VKBackend::get().device;
-  if (device.extensions_get().descriptor_indexing) {
+  if (sets_to_bind.size() > 0) {
     command_buffer.bind_descriptor_sets(vk_pipeline_bind_point,
                                         pipeline_data.vk_pipeline_layout,
                                         0,
-                                        1,
-                                        &device.bindless_table.descriptor_set,
+                                        sets_to_bind.size(),
+                                        sets_to_bind.data(),
                                         0,
                                         nullptr);
   }

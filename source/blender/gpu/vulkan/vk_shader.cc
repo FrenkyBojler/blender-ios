@@ -782,11 +782,11 @@ bool VKShader::finalize_pipeline_layout(VKDevice &device,
                                         const VKShaderInterface &shader_interface)
 {
   Vector<VkDescriptorSetLayout> layouts;
+  if (device.extensions_get().descriptor_indexing) {
+    layouts.append(device.bindless_table.descriptor_set_layout);
+  }
   if (vk_descriptor_set_layout_ != VK_NULL_HANDLE) {
     layouts.append(vk_descriptor_set_layout_);
-    if (device.extensions_get().descriptor_indexing) {
-      layouts.append(device.bindless_table.descriptor_set_layout);
-    }
   }
   VkPipelineLayoutCreateInfo pipeline_info = {};
   VkPushConstantRange push_constant_range = {};
@@ -838,15 +838,8 @@ bool VKShader::finalize_descriptor_set_layouts(VKDevice &vk_device,
   bool created;
   bool needed;
 
-  if (vk_device.extensions_get().descriptor_indexing) {
-    vk_descriptor_set_layout_ = vk_device.bindless_table.descriptor_set_layout;
-    needed = true;
-    created = false;
-  }
-  else {
-    vk_descriptor_set_layout_ = vk_device.descriptor_set_layouts_get().get_or_create(
-        shader_interface.descriptor_set_layout_info_get(), created, needed);
-  }
+  vk_descriptor_set_layout_ = vk_device.descriptor_set_layouts_get().get_or_create(
+      shader_interface.descriptor_set_layout_info_get(), created, needed);
   if (created) {
     debug::object_label(vk_descriptor_set_layout_, name_get());
   }
@@ -1207,8 +1200,15 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
           typePrefix = ' ';
           break;
       }
+
+      uint32_t input_attachments_set_index = 0;
+      if (extensions.descriptor_indexing) {
+        input_attachments_set_index = 1;
+      }
+
       ss << "layout(input_attachment_index = " << (input.index)
-         << ", binding = " << (subpass_input_binding_index++) << ") uniform " << typePrefix
+         << ", binding = " << (subpass_input_binding_index++)
+         << ", set = " << input_attachments_set_index << ") uniform " << typePrefix
          << "subpassInput " << input_attachment_name << "; \n";
 
       std::stringstream ss_pre;
@@ -1281,8 +1281,12 @@ std::string VKShader::fragment_interface_declare(const shader::ShaderCreateInfo 
       /* Declare global for input. */
       ss << to_string(input.type) << " " << input.name << ";\n";
       /* Declare subpass input. */
-      ss << "layout(input_attachment_index=" << input.index << ", set=0, binding=" << location
-         << ") uniform ";
+      uint32_t input_attachments_set_index = 0;
+      if (extensions.descriptor_indexing) {
+        input_attachments_set_index = 1;
+      }
+      ss << "layout(input_attachment_index=" << input.index
+         << ", set = " << input_attachments_set_index << ", binding=" << location << ") uniform ";
       switch (to_component_type(input.type)) {
         case Type::int_t:
           ss << "isubpassInput";

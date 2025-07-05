@@ -459,22 +459,30 @@ void VKShaderInterface::init_descriptor_set_layout_info(
     descriptor_set_layout_info_.vk_shader_stage_flags = VK_SHADER_STAGE_ALL_GRAPHICS;
   }
 
-  // If we are using descriptor indexing, the shader descriptor layout will just
-  // contain the uniform push constant fallback buffer.
+  // We need to add input attachments to the descriptor set if we either can't
+  // use dynamic rendering, or if we have dynamic rendering with local read
+  // enabled.
+  bool needs_input_attachments = !extensions.dynamic_rendering ||
+                                 extensions.dynamic_rendering_local_read;
+
+  // If we support descriptor indexing, we only push the input attachment bindings
+  // (if needed) into the descriptor layout. These cannot be added to the global descriptor
+  // set because input attachments don't support VK_DESCRIPTOR_BINDING_UPDATE_AFTER_BIND_BIT.
+  // All other resources are handled in the global descriptor set and don't need to
+  // be added to the shader-specific layout.
   if (supports_descriptor_indexing) {
-    descriptor_set_layout_info_.bindings.append(VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER);
+    if (needs_input_attachments) {
+      descriptor_set_layout_info_.bindings.append_n_times(VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
+                                                          info.subpass_inputs_.size());
+    }
+
     return;
   }
 
-  for (int index : IndexRange(info.subpass_inputs_.size())) {
-    UNUSED_VARS(index);
-    // TODO: clean up remove negation.
-    descriptor_set_layout_info_.bindings.append_n_times(
-        !extensions.dynamic_rendering            ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT :
-        !extensions.dynamic_rendering_local_read ? VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER :
-                                                   VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT,
-        info.subpass_inputs_.size());
-  }
+  descriptor_set_layout_info_.bindings.append_n_times(
+      needs_input_attachments ? VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT :
+                                VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER,
+      info.subpass_inputs_.size());
   for (const shader::ShaderCreateInfo::Resource &res : all_resources) {
     descriptor_set_layout_info_.bindings.append(to_vk_descriptor_type(res));
   }

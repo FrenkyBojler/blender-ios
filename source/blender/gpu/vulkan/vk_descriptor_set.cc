@@ -40,7 +40,6 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
   state_manager.is_dirty = false;
 
   VKDevice &device = VKBackend::get().device;
-  VkDescriptorSetLayout vk_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
   VKDescriptorSetUpdator *updator = &descriptor_sets;
   if (device.extensions_get().descriptor_buffer) {
     updator = &descriptor_buffers;
@@ -50,6 +49,8 @@ void VKDescriptorSetTracker::update_descriptor_set(VKContext &context,
       updator = &descriptor_sets_bindless;
     }
   }
+
+  VkDescriptorSetLayout vk_descriptor_set_layout = shader.vk_descriptor_set_layout_get();
   updator->allocate_new_descriptor_set(
       device, context, shader, vk_descriptor_set_layout, r_pipeline_data);
   updator->bind_shader_resources(state_manager, device, shader, access_info);
@@ -555,12 +556,15 @@ void VKDescriptorSetPoolUpdator::upload_descriptor_sets()
 
 void VKBindlessDescriptorPoolUpdator::allocate_new_descriptor_set(
     VKDevice &device,
-    VKContext & /* context */,
+    VKContext &context,
     VKShader &shader,
-    VkDescriptorSetLayout /* vk_descriptor_set_layout */,
+    VkDescriptorSetLayout vk_shader_descriptor_set_layout,
     render_graph::VKPipelineData &r_pipeline_data)
 {
-  r_pipeline_data.vk_descriptor_set = VK_NULL_HANDLE;
+  if (vk_shader_descriptor_set_layout != VK_NULL_HANDLE) {
+    VKDescriptorSetPoolUpdator::allocate_new_descriptor_set(
+        device, context, shader, vk_shader_descriptor_set_layout, r_pipeline_data);
+  }
   bindings_table.resize(shader.interface_get().bindings_table_size_get());
 }
 
@@ -670,9 +674,19 @@ void VKBindlessDescriptorPoolUpdator::bind_image(VKDevice &device,
       break;
     }
     case VK_DESCRIPTOR_TYPE_INPUT_ATTACHMENT: {
-      std::cout << "TODO: Skipping input attachment -- not yet implemented.\n";
-      BLI_assert_unreachable();
-      return;
+      // Note carefully that if we are binding an input attachment, we add this to the
+      // shader specific descriptor set rather than the global descriptor set.
+      vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
+                                        nullptr,
+                                        vk_descriptor_set,
+                                        location,
+                                        0,
+                                        1,
+                                        vk_descriptor_type,
+                                        nullptr,
+                                        nullptr,
+                                        nullptr});
+      break;
     }
 
     default:
