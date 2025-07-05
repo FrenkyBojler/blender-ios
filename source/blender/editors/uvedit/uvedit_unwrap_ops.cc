@@ -1797,7 +1797,7 @@ static wmOperatorStatus pack_islands_exec(bContext *C, wmOperator *op)
     }
 
     wmJob *wm_job = WM_jobs_get(
-        pid->wm, CTX_wm_window(C), scene, "Packing UVs", WM_JOB_PROGRESS, WM_JOB_TYPE_UV_PACK);
+        pid->wm, CTX_wm_window(C), scene, "Packing UVs...", WM_JOB_PROGRESS, WM_JOB_TYPE_UV_PACK);
     WM_jobs_customdata_set(wm_job, pid, pack_islands_freejob);
     WM_jobs_timer(wm_job, 0.1, 0, 0);
     WM_set_locked_interface(pid->wm, true);
