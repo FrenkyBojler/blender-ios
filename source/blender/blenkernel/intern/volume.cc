@@ -1086,22 +1086,25 @@ std::optional<blender::Bounds<float3>> BKE_volume_grid_bounds(openvdb::GridBase:
     using LeafT = typename InnerT::LeafNodeType;
 
     const openvdb::Coord real_diagonal = coordbbox.dim();
-    const openvdb::Coord largest_voxel_block(LeafT::DIM);
+    const float3 largest_voxel_block(LeafT::DIM * 2);
 
-    constexpr float voxels_block_impact_threshold = 0.5f;
-    if ((largest_voxel_block.x() / real_diagonal.x() >= voxels_block_impact_threshold)
-        || (largest_voxel_block.x() / real_diagonal.x() >= voxels_block_impact_threshold)
-        || (largest_voxel_block.x() / real_diagonal.x() >= voxels_block_impact_threshold)) {
+    constexpr float voxels_block_impact_threshold = 0.125f;
+    if ((largest_voxel_block.x / real_diagonal.x() < voxels_block_impact_threshold) ||
+        (largest_voxel_block.y / real_diagonal.y() < voxels_block_impact_threshold) ||
+        (largest_voxel_block.z / real_diagonal.z() < voxels_block_impact_threshold))
+    {
       return;
     }
 
-    /* Bounding box evaluation does check if node is already inside of the box to skip redundant work.
-       We know in advance which nodes are boundary and need to be processed since we know #coordbbox value. */
+    /* Bounding box evaluation does check if node is already inside of the box to skip redundant
+       work. We know in advance which nodes are boundary and need to be processed since we know
+       #coordbbox value. */
     coordbbox.expand(-LeafT::DIM);
 
     const GridT &typed_grid = static_cast<const GridT &>(*grid);
     const RootT &root = typed_grid.tree().root();
-    /* Have to use root version of #evalActiveBoundingBox to be able to provide partially compute bounding box to add. */
+    /* Have to use root version of #evalActiveBoundingBox to be able to provide partially compute
+     * bounding box to add. */
     root.evalActiveBoundingBox(coordbbox, true);
   });
 
