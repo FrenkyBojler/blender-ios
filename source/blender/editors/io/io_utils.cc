@@ -128,7 +128,7 @@ void paths_to_operator_properties(PointerRNA *ptr, const Span<std::string> paths
 
     PointerRNA itemptr{};
     RNA_collection_add(ptr, "files", &itemptr);
-    RNA_string_set(&itemptr, "name", file);
+    RNA_string_set(&itemptr, "name", file + 2);
   }
 }
 

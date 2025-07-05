@@ -78,7 +78,7 @@ static void file_handler_import_operator_write_ptr(
 
       PointerRNA item_ptr{};
       RNA_property_collection_add(&props, files_prop, &item_ptr);
-      RNA_string_set(&item_ptr, "name", file);
+      RNA_string_set(&item_ptr, "name", file + 2);
     }
   }
   const bool has_any_filepath_prop = filepath_prop || directory_prop || files_prop;
