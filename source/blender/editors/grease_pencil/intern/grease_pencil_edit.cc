@@ -4647,8 +4647,11 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
                                          const float3 plane_norm)
 {
   const OffsetIndices src_points_by_curve = src_curves.offsets();
-  const Span<float3> src_positions = src_curves.positions();
   const VArray<bool> src_cyclic = src_curves.cyclic();
+  const Span<float3> src_positions = src_curves.positions();
+  const Span<float3> src_handles_left = src_curves.handle_positions_left();
+  const Span<float3> src_handles_right = src_curves.handle_positions_right();
+  const VArray<int8_t> src_curve_types = src_curves.curve_types();
 
   IndexMaskMemory memory;
   const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
@@ -4660,8 +4663,16 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   MutableSpan<int> dst_curve_sizes = dst_curves.offsets_for_write();
   offset_indices::copy_group_sizes(src_points_by_curve, unselected_curves, dst_curve_sizes);
 
-  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+  Array<bool> ccw_curves(curve_selection.size());
+
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange src_points = src_points_by_curve[curve_i];
+    Span<float3> src_pos = src_positions.slice(src_points);
+
+    float3 curve_norm;
+    cross_poly_v3(curve_norm, (const float(*)[3])src_pos.data(), src_pos.size());
+    ccw_curves[pos] = math::dot(curve_norm, plane_norm) < 0.0f;
+
     dst_curve_sizes[curve_i] = src_points.size();
   });
 
@@ -4692,11 +4703,23 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   array_utils::copy(src_cyclic, dst_curves.cyclic_for_write());
 
   MutableSpan<float3> dst_positions = dst_curves.positions_for_write();
+  MutableSpan<float3> dst_handles_left = dst_curves.handle_positions_left_for_write();
+  MutableSpan<float3> dst_handles_right = dst_curves.handle_positions_right_for_write();
 
   array_utils::copy_group_to_group(
       src_points_by_curve, dst_points_by_curve, unselected_curves, src_positions, dst_positions);
+  array_utils::copy_group_to_group(src_points_by_curve,
+                                   dst_points_by_curve,
+                                   unselected_curves,
+                                   src_handles_left,
+                                   dst_handles_left);
+  array_utils::copy_group_to_group(src_points_by_curve,
+                                   dst_points_by_curve,
+                                   unselected_curves,
+                                   src_handles_right,
+                                   dst_handles_right);
 
-  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
     const IndexRange src_points = src_points_by_curve[curve_i];
     const IndexRange dst_points = dst_points_by_curve[curve_i];
     const bool cyclic = src_cyclic[curve_i];
@@ -4704,9 +4727,9 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
     MutableSpan<float3> positions = dst_positions.slice(dst_points);
     Span<float3> src_pos = src_positions.slice(src_points);
 
-    float3 curve_norm;
-    cross_poly_v3(curve_norm, (const float(*)[3])src_pos.data(), src_pos.size());
-    const bool ccw = math::dot(curve_norm, plane_norm) < 0.0f;
+    const bool ccw = ccw_curves[pos];
+
+    const int8_t curve_type = src_curve_types[curve_i];
 
     for (const int i : dst_points.index_range()) {
       const float3 A = src_pos[(i - 1 + src_pos.size()) % src_pos.size()];
@@ -4716,27 +4739,48 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
       const float3 BA = math::normalize(math::cross(B - A, plane_norm)) * (ccw ? -1.0f : 1.0f);
       const float3 CB = math::normalize(math::cross(C - B, plane_norm)) * (ccw ? -1.0f : 1.0f);
 
+      float3 offset = float3(0.0);
+
       if (!cyclic && (i == 0 || i == src_pos.size() - 1)) {
         if (i == 0) {
-          positions[i] = B + CB * offset_distance;
+          offset = CB * offset_distance;
         }
         if (i == src_pos.size() - 1) {
-          positions[i] = B + BA * offset_distance;
+          offset = BA * offset_distance;
         }
       }
       else {
-        const float d = math::dot(BA, CB);
-        positions[i] = B + math::safe_divide(BA + CB, 1 + d) * offset_distance;
+        if (curve_type == CURVE_TYPE_BEZIER) {
+          /* TODO: Use a better approximation. */
+          offset = math::normalize(BA + CB) * offset_distance;
+        }
+        else {
+          const float d = math::dot(BA, CB);
+          offset = math::safe_divide(BA + CB, 1 + d) * offset_distance;
+        }
+      }
+
+      positions[i] = B + offset;
+
+      if (!src_handles_left.is_empty()) {
+        /* TODO: Use a better approximation. */
+        dst_handles_left[dst_points[i]] = (src_handles_left[src_points[i]] - B) *
+                                              (1 + offset_distance) +
+                                          B + offset;
+        dst_handles_right[dst_points[i]] = (src_handles_right[src_points[i]] - B) *
+                                               (1 + offset_distance) +
+                                           B + offset;
       }
     }
   });
 
-  bke::gather_attributes(src_curves.attributes(),
-                         bke::AttrDomain::Point,
-                         bke::AttrDomain::Point,
-                         bke::attribute_filter_with_skip_ref({}, {"position"}),
-                         old_by_new_map,
-                         dst_curves.attributes_for_write());
+  bke::gather_attributes(
+      src_curves.attributes(),
+      bke::AttrDomain::Point,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_with_skip_ref({}, {"position", "handle_left", "handle_right"}),
+      old_by_new_map,
+      dst_curves.attributes_for_write());
 
   dst_curves.update_curve_types();
 
