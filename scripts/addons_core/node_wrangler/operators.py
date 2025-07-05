@@ -11,7 +11,6 @@ from bpy.props import (
     BoolProperty,
     IntProperty,
     StringProperty,
-    FloatVectorProperty,
     CollectionProperty,
 )
 from bpy.app.translations import (
@@ -54,8 +53,6 @@ class NWLazyMix(Operator, NWBase):
         nodes, links = get_nodes_links(context)
         cont = True
 
-        start_pos = [event.mouse_region_x, event.mouse_region_y]
-
         node1 = None
         if not context.scene.NWBusyDrawing:
             node1 = node_at_pos(nodes, context, event)
@@ -72,7 +69,6 @@ class NWLazyMix(Operator, NWBase):
             self.mouse_path.append((event.mouse_region_x, event.mouse_region_y))
 
         elif event.type == 'RIGHTMOUSE' and event.value == 'RELEASE':
-            end_pos = [event.mouse_region_x, event.mouse_region_y]
             bpy.types.SpaceNodeEditor.draw_handler_remove(self._handle, 'WINDOW')
 
             node2 = None
@@ -136,8 +132,6 @@ class NWLazyConnect(Operator, NWBase):
         nodes, links = get_nodes_links(context)
         cont = True
 
-        start_pos = [event.mouse_region_x, event.mouse_region_y]
-
         node1 = None
         if not context.scene.NWBusyDrawing:
             node1 = node_at_pos(nodes, context, event)
@@ -154,7 +148,6 @@ class NWLazyConnect(Operator, NWBase):
             self.mouse_path.append((event.mouse_region_x, event.mouse_region_y))
 
         elif event.type == 'RIGHTMOUSE' and event.value == 'RELEASE':
-            end_pos = [event.mouse_region_x, event.mouse_region_y]
             bpy.types.SpaceNodeEditor.draw_handler_remove(self._handle, 'WINDOW')
 
             node2 = None
@@ -768,11 +761,8 @@ class NWMergeNodes(Operator, NWBase):
             # Change the node type for math nodes in a geometry node tree.
             if tree_type == 'GEOMETRY':
                 if nodes_list is selected_math or nodes_list is selected_vector or nodes_list is selected_mix:
-                    node_type = 'ShaderNode'
                     if mode == 'MIX':
                         mode = 'ADD'
-                else:
-                    node_type = 'GeometryNode'
             if merge_position == 'CENTER':
                 # average yloc of last two nodes (lowest two)
                 loc_y = ((nodes_list[len(nodes_list) - 1][2]) + (nodes_list[len(nodes_list) - 2][2])) / 2
