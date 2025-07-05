@@ -244,8 +244,7 @@ static blender::gpu::Batch *wm_xr_controller_model_batch_create(GHOST_XrContextH
   if (model_data.count_indices > 0 && ((model_data.count_indices % 3) == 0)) {
     GPUIndexBufBuilder ibo_builder;
     const uint prim_len = model_data.count_indices / 3;
-    GPU_indexbuf_allocate_uninitialized(
-        &ibo_builder, GPU_PRIM_TRIS, prim_len, model_data.count_vertices);
+    GPU_indexbuf_allocate_uninitialized(&ibo_builder, GPU_PRIM_TRIS, prim_len, model_data.count_vertices);
     for (uint i = 0; i < prim_len; ++i) {
       const uint32_t *idx = &model_data.indices[i * 3];
       GPU_indexbuf_add_tri_verts(&ibo_builder, idx[0], idx[1], idx[2]);

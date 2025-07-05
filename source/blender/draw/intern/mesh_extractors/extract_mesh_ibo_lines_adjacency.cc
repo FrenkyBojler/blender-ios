@@ -204,8 +204,7 @@ gpu::IndexBufPtr extract_lines_adjacency_subdiv(const DRWSubdivCache &subdiv_cac
   bool is_manifold = true;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(
-      &builder, GPU_PRIM_LINES_ADJ, tess_edge_len, subdiv_cache.num_subdiv_loops);
+  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES_ADJ, tess_edge_len, subdiv_cache.num_subdiv_loops);
 
   for (const int subdiv_quad_index : IndexRange(subdiv_cache.num_subdiv_quads)) {
     const uint loop_index = subdiv_quad_index * 4;
