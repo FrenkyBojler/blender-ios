@@ -129,12 +129,10 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
    can not copy just instances itself (copy of GeometrySet is kind of editing due to implicit
    sharing). For this reason copy of instances created manually, without handlers and nested
    GeometrySet handlers.*/
+
   bke::Instances dummy_attributes_owner;
   dummy_attributes_owner.resize(target.instances_num());
-  CustomData_init_from(&target.custom_data_attributes(),
-                       &dummy_attributes_owner.custom_data_attributes(),
-                       CD_MASK_ALL,
-                       target.instances_num());
+  dummy_attributes_owner.attribute_storage() = std::move(target.attribute_storage());
 
   constexpr int target_item = 1;
   constexpr int extra_offset = 1;
@@ -145,10 +143,7 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
   }
   const OffsetIndices offsets = offset_indices::accumulate_counts_to_offsets(offsets_data);
 
-  /* Drop all attributes in order to do not copy then while resize or next writing (if they in
-   * read-only state). */
-  CustomData_free(&target.custom_data_attributes());
-  CustomData_reset(&target.custom_data_attributes());
+  /* This should only change domain size but not allocate or even fill anything. */
   target.resize(offsets.total_size());
 
   Array<bke::AttributeAccessor> all_attributes(target_item + other_instances.size());
