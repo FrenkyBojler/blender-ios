@@ -365,6 +365,11 @@ GHOST_WindowCocoa::GHOST_WindowCocoa(GHOST_SystemCocoa *systemCocoa,
                                                 styleMask:styleMask
                                                   backing:NSBackingStoreBuffered
                                                     defer:NO];
+    /* By default, AppKit repositions the window in the context of the current "mainMonitor"
+     * (the monitor which has focus), bypass this by forcing the window back into its correct
+     * position. Since we use global screen coordinate indexed on the first, primary screen.
+     */
+    [m_window setFrameOrigin:NSMakePoint(left, bottom)];
 
     /* Forbid to resize the window below the blender defined minimum one. */
     const NSSize minSize = {320, 240};
@@ -600,13 +605,24 @@ void GHOST_WindowCocoa::getWindowBounds(GHOST_Rect &bounds) const
   GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getWindowBounds(): window invalid");
 
   @autoreleasepool {
-    const NSRect screenSize = m_window.screen.visibleFrame;
-    const NSRect rect = m_window.frame;
+    /* All coordinates are based off the primary screen. */
+    const NSRect screenFrame = [getPrimaryScreen() visibleFrame];
+    const NSRect windowFrame = m_window.frame;
 
-    bounds.m_b = screenSize.size.height - (rect.origin.y - screenSize.origin.y);
-    bounds.m_l = rect.origin.x - screenSize.origin.x;
-    bounds.m_r = rect.origin.x - screenSize.origin.x + rect.size.width;
-    bounds.m_t = screenSize.size.height - (rect.origin.y + rect.size.height - screenSize.origin.y);
+    /* Flip the Y axis, from bottom left coordinate to top left, which is the expected coordinate
+     * return format for GHOST, even though the Window Manager later reflips it to bottom-left
+     * this is the expected coordinate system for all GHOST backends
+     */
+
+    const int32_t screenMaxY = screenFrame.origin.y + screenFrame.size.height;
+
+    /* Flip the coordinates vertically from a bottom-left origin to a top-left origin,
+     * as expected by GHOST. */
+    bounds.m_b = screenMaxY - windowFrame.origin.y;
+    bounds.m_t = screenMaxY - windowFrame.origin.y - windowFrame.size.height;
+
+    bounds.m_l = windowFrame.origin.x;
+    bounds.m_r = windowFrame.origin.x + windowFrame.size.width;
   }
 }
 
@@ -615,19 +631,25 @@ void GHOST_WindowCocoa::getClientBounds(GHOST_Rect &bounds) const
   GHOST_ASSERT(getValid(), "GHOST_WindowCocoa::getClientBounds(): window invalid");
 
   @autoreleasepool {
-    const NSRect screenSize = m_window.screen.visibleFrame;
+    /* All coordinates are based off the primary screen. */
+    const NSRect screenFrame = [getPrimaryScreen() visibleFrame];
+    /* Screen Content Rectangle (excluding Menu Bar and Dock). */
+    const NSRect screenContentRect = [NSWindow contentRectForFrameRect:screenFrame
+                                                             styleMask:[m_window styleMask]];
 
-    /* Max window contents as screen size (excluding title bar...). */
-    const NSRect contentRect = [BlenderWindow contentRectForFrameRect:screenSize
-                                                            styleMask:[m_window styleMask]];
+    const NSRect windowFrame = m_window.frame;
+    /* Window Content Rectangle (excluding Titlebar and borders) */
+    const NSRect windowContentRect = [m_window contentRectForFrameRect:windowFrame];
 
-    const NSRect rect = [m_window contentRectForFrameRect:[m_window frame]];
+    const int32_t screenMaxY = screenContentRect.origin.y + screenContentRect.size.height;
 
-    bounds.m_b = contentRect.size.height - (rect.origin.y - contentRect.origin.y);
-    bounds.m_l = rect.origin.x - contentRect.origin.x;
-    bounds.m_r = rect.origin.x - contentRect.origin.x + rect.size.width;
-    bounds.m_t = contentRect.size.height -
-                 (rect.origin.y + rect.size.height - contentRect.origin.y);
+    /* Flip the coordinates vertically from a bottom-left origin to a top-left origin,
+     * as expected by GHOST. */
+    bounds.m_b = screenMaxY - windowContentRect.origin.y;
+    bounds.m_t = screenMaxY - windowContentRect.origin.y - windowContentRect.size.height;
+
+    bounds.m_l = windowContentRect.origin.x;
+    bounds.m_r = windowContentRect.origin.x + windowContentRect.size.width;
   }
 }
 
@@ -763,9 +785,15 @@ void GHOST_WindowCocoa::clientToScreenIntern(int32_t inX,
   outY = screenCoord.origin.y;
 }
 
-NSScreen *GHOST_WindowCocoa::getScreen()
+NSScreen *GHOST_WindowCocoa::getScreen() const
 {
   return m_window.screen;
+}
+
+NSScreen *GHOST_WindowCocoa::getPrimaryScreen()
+{
+  /* The first element of the screens array is guaranted to be the primary screen by AppKit. */
+  return [[NSScreen screens] firstObject];
 }
 
 /* called for event, when window leaves monitor to another */
@@ -1218,8 +1246,11 @@ static uint16_t uns16ReverseBits(uint16_t shrt)
   return shrt;
 }
 
-GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(
-    uint8_t *bitmap, uint8_t *mask, int sizex, int sizey, int hotX, int hotY, bool canInvertColor)
+GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                             const uint8_t *mask,
+                                                             const int size[2],
+                                                             const int hot_spot[2],
+                                                             const bool canInvertColor)
 {
   @autoreleasepool {
     if (m_customCursor) {
@@ -1229,14 +1260,14 @@ GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(
 
     NSBitmapImageRep *cursorImageRep = [[NSBitmapImageRep alloc]
         initWithBitmapDataPlanes:nil
-                      pixelsWide:sizex
-                      pixelsHigh:sizey
+                      pixelsWide:size[0]
+                      pixelsHigh:size[1]
                    bitsPerSample:1
                  samplesPerPixel:2
                         hasAlpha:YES
                         isPlanar:YES
                   colorSpaceName:NSDeviceWhiteColorSpace
-                     bytesPerRow:(sizex / 8 + (sizex % 8 > 0 ? 1 : 0))
+                     bytesPerRow:(size[0] / 8 + (size[0] % 8 > 0 ? 1 : 0))
                     bitsPerPixel:1];
 
     uint16_t *cursorBitmap = (uint16_t *)cursorImageRep.bitmapData;
@@ -1258,11 +1289,11 @@ GHOST_TSuccess GHOST_WindowCocoa::setWindowCustomCursorShape(
       }
     }
 
-    const NSSize imSize = {(CGFloat)sizex, (CGFloat)sizey};
+    const NSSize imSize = {(CGFloat)size[0], (CGFloat)size[1]};
     NSImage *cursorImage = [[NSImage alloc] initWithSize:imSize];
     [cursorImage addRepresentation:cursorImageRep];
 
-    const NSPoint hotSpotPoint = {(CGFloat)(hotX), (CGFloat)(hotY)};
+    const NSPoint hotSpotPoint = {(CGFloat)(hot_spot[0]), (CGFloat)(hot_spot[1])};
 
     /* Foreground and background color parameter is not handled for now (10.6). */
     m_customCursor = [[NSCursor alloc] initWithImage:cursorImage hotSpot:hotSpotPoint];
