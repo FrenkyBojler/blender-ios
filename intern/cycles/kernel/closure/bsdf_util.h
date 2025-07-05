@@ -134,7 +134,10 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
 
   const Spectrum t3 = (sqr(eta2) - sqr(k2)) * cosi;
   const Spectrum t4 = 2.0f * eta2 * k2 * cosi;
-  *r_R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) / (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
+  const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
+                       (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
+  const int3 mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
+  *r_R_p = select(mask, one_spectrum(), R_p);
 
   if (r_phi_s) {
     *r_phi_s = atan2(2.0f * eta1 * cosi * v, sqr(u) + sqr(v) - sqr(eta1 * cosi));
