@@ -36,8 +36,6 @@
 #include "movie_proxy_indexer.hh"
 #include "movie_read.hh"
 
-#include "OCIO_colorspace.hh"
-
 #ifdef WITH_FFMPEG
 #  include "ffmpeg_swscale.hh"
 #  include "movie_util.hh"
@@ -103,29 +101,6 @@ IDProperty *MOV_load_metadata(MovieReader *anim)
   return anim->metadata;
 }
 
-static const char *get_first_resolved_colorspace_name(const blender::Span<const char *> names)
-{
-  for (const char *name : names) {
-    const ColorSpace *colorspace = IMB_colormanagement_space_get_named(name);
-    if (colorspace) {
-      return colorspace->name().c_str();
-    }
-  }
-  return nullptr;
-}
-
-static const char *rec2100_pq_display_colorspace_name()
-{
-  return get_first_resolved_colorspace_name(
-      {"Rec.2100-PQ", "Rec.2100-PQ - Display", "rec2100_pq", "rec2100_pq_display"});
-}
-
-static const char *rec2100_hlg_display_colorspace_name()
-{
-  return get_first_resolved_colorspace_name(
-      {"Rec.2100-HLG", "Rec.2100-HLG - Display", "rec2100_hlg", "rec2100_hlg_display"});
-}
-
 static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_MAX_SPACE])
 {
   /* Use default role as fallback (i.e. it is an unknown combination of colorspace and primaries)
@@ -147,7 +122,7 @@ static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_
   if (color_trc == AVCOL_TRC_ARIB_STD_B67 && color_primaries == AVCOL_PRI_BT2020 &&
       colorspace == AVCOL_SPC_BT2020_NCL)
   {
-    const char *hlg_name = rec2100_hlg_display_colorspace_name();
+    const char *hlg_name = IMB_colormanagement_get_rec2100_hlg_display_colorspace();
     if (hlg_name) {
       BLI_strncpy(r_colorspace_name, hlg_name, IM_MAX_SPACE);
     }
@@ -157,7 +132,7 @@ static void probe_video_colorspace(MovieReader *anim, char r_colorspace_name[IM_
   if (color_trc == AVCOL_TRC_SMPTEST2084 && color_primaries == AVCOL_PRI_BT2020 &&
       colorspace == AVCOL_SPC_BT2020_NCL)
   {
-    const char *pq_name = rec2100_pq_display_colorspace_name();
+    const char *pq_name = IMB_colormanagement_get_rec2100_pq_display_colorspace();
     if (pq_name) {
       BLI_strncpy(r_colorspace_name, pq_name, IM_MAX_SPACE);
     }
