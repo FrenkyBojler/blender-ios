@@ -759,20 +759,21 @@ class NWMergeNodes(Operator, NWBase):
             nodes_list.sort(key=lambda k: k[2], reverse=True)
 
             # Change the node type for math nodes in a geometry node tree.
-            if tree_type == 'GEOMETRY':
-                if nodes_list is selected_math or nodes_list is selected_vector or nodes_list is selected_mix:
-                    if mode == 'MIX':
-                        mode = 'ADD'
+            if (
+                    tree_type == 'GEOMETRY'
+                    and nodes_list in (selected_math, selected_vector, selected_mix)
+                    and mode == 'MIX'):
+                mode = 'ADD'
             if merge_position == 'CENTER':
                 # average yloc of last two nodes (lowest two)
-                loc_y = ((nodes_list[len(nodes_list) - 1][2]) + (nodes_list[len(nodes_list) - 2][2])) / 2
-                if nodes_list[len(nodes_list) - 1][-1]:  # if last node is hidden, mix should be shifted up a bit
+                loc_y = ((nodes_list[-1][2]) + (nodes_list[-2][2])) / 2
+                if nodes_list[-1][-1]:  # if last node is hidden, mix should be shifted up a bit
                     if do_hide:
                         loc_y += 40
                     else:
                         loc_y += 80
             else:
-                loc_y = nodes_list[len(nodes_list) - 1][2]
+                loc_y = nodes_list[-1][2]
             offset_y = 100
             if not do_hide:
                 offset_y = 200
