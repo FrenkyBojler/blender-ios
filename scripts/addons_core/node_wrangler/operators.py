@@ -794,13 +794,8 @@ class NWMergeNodes(Operator, NWBase):
             was_multi = False
             for i in range(the_range):
                 if nodes_list == selected_mix:
-                    mix_name = 'Mix'
-                    if tree_type == 'COMPOSITING':
-                        mix_name = 'MixRGB'
-                    add_type = node_type + mix_name
-                    add = nodes.new(add_type)
-                    if tree_type != 'COMPOSITING':
-                        add.data_type = 'RGBA'
+                    add = nodes.new('ShaderNodeMix')
+                    add.data_type = 'RGBA'
                     add.blend_type = mode
                     if mode != 'MIX':
                         add.inputs[0].default_value = 1.0
@@ -810,12 +805,8 @@ class NWMergeNodes(Operator, NWBase):
                         loc_y = loc_y - 50
                     first = 6
                     second = 7
-                    if tree_type == 'COMPOSITING':
-                        first = 1
-                        second = 2
                 elif nodes_list == selected_math:
-                    add_type = node_type + 'Math'
-                    add = nodes.new(add_type)
+                    add = nodes.new('ShaderNodeMath')
                     add.operation = mode
                     add.hide = do_hide
                     if do_hide:
@@ -824,16 +815,14 @@ class NWMergeNodes(Operator, NWBase):
                     second = 1
                 elif nodes_list == selected_shader:
                     if mode == 'MIX':
-                        add_type = node_type + 'MixShader'
-                        add = nodes.new(add_type)
+                        add = nodes.new('ShaderNodeMixShader')
                         add.hide = do_hide_shader
                         if do_hide_shader:
                             loc_y = loc_y - 50
                         first = 1
                         second = 2
                     elif mode == 'ADD':
-                        add_type = node_type + 'AddShader'
-                        add = nodes.new(add_type)
+                        add = nodes.new('ShaderNodeAddShader')
                         add.hide = do_hide_shader
                         if do_hide_shader:
                             loc_y = loc_y - 50
@@ -841,11 +830,11 @@ class NWMergeNodes(Operator, NWBase):
                         second = 1
                 elif nodes_list == selected_geometry:
                     if mode in ('JOIN', 'MIX'):
-                        add_type = node_type + 'JoinGeometry'
+                        add_type = 'GeometryNodeJoinGeometry'
                         add = self.merge_with_multi_input(
                             nodes_list, merge_position, do_hide, loc_x, links, nodes, add_type, [0])
                     else:
-                        add_type = node_type + 'MeshBoolean'
+                        add_type = 'GeometryNodeMeshBoolean'
                         indices = [0, 1] if mode == 'DIFFERENCE' else [1]
                         add = self.merge_with_multi_input(
                             nodes_list, merge_position, do_hide, loc_x, links, nodes, add_type, indices)
@@ -853,8 +842,7 @@ class NWMergeNodes(Operator, NWBase):
                     was_multi = True
                     break
                 elif nodes_list == selected_vector:
-                    add_type = node_type + 'VectorMath'
-                    add = nodes.new(add_type)
+                    add = nodes.new('ShaderNodeVectorMath')
                     add.operation = mode
                     add.hide = do_hide
                     if do_hide:
