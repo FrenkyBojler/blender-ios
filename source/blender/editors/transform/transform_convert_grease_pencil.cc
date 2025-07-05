@@ -9,16 +9,16 @@
 #include "ANIM_keyframing.hh"
 
 #include "BKE_context.hh"
+#include "BKE_curves_utils.hh"
 
 #include "DEG_depsgraph_query.hh"
-
-#include "BKE_curves_utils.hh"
 
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
+#include "transform_snap.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name Grease Pencil Transform Creation
@@ -181,11 +181,16 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
     if (tc.data_len == 0) {
       continue;
     }
-    Object *object_eval = DEG_get_evaluated_object(depsgraph, tc.obedit);
+    Object *object_eval = DEG_get_evaluated(depsgraph, tc.obedit);
     GreasePencil &grease_pencil = *static_cast<GreasePencil *>(tc.obedit->data);
     Span<const bke::greasepencil::Layer *> layers = grease_pencil.layers();
 
     const Vector<ed::greasepencil::MutableDrawingInfo> drawings = all_drawings[i];
+
+    CurvesTransformData &transform_data = *static_cast<CurvesTransformData *>(tc.custom.type.data);
+    transform_data.aligned_with_left.reinitialize(drawings.size());
+    transform_data.aligned_with_right.reinitialize(drawings.size());
+
     for (const int drawing : drawings.index_range()) {
       ed::greasepencil::MutableDrawingInfo info = drawings[drawing];
       const bke::greasepencil::Layer &layer = *layers[info.layer_index];
@@ -225,6 +230,9 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
                                                 use_connected_only,
                                                 bezier_curves[layer_offset],
                                                 &drawing_falloff);
+      curves::create_aligned_handles_masks(
+          curves, points_to_transform_per_attribute[layer_offset], drawing, tc.custom.type);
+
       layer_offset++;
     }
   }
@@ -232,6 +240,10 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
 
 static void recalcData_grease_pencil(TransInfo *t)
 {
+  if (t->state != TRANS_CANCEL) {
+    transform_snap_project_individual_apply(t);
+  }
+
   bContext *C = t->context;
   Scene *scene = CTX_data_scene(C);
 
@@ -263,6 +275,7 @@ static void recalcData_grease_pencil(TransInfo *t)
         curves.tag_positions_changed();
         curves.calculate_bezier_auto_handles();
         info.drawing.tag_positions_changed();
+        curves::calculate_aligned_handles(tc.custom.type, curves, i);
       }
     }
 

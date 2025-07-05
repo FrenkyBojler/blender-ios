@@ -249,7 +249,7 @@ void ViewOpsData::init_navigation(bContext *C,
      * Logically it doesn't make sense to use the selection as a pivot when the first-person
      * navigation pivots from the view-point. This also interferes with zoom-speed,
      * causing zoom-speed scale based on the distance to the selection center, see: #115253. */
-    if ((U.ndof_flag & NDOF_MODE_ORBIT) == 0) {
+    if (U.ndof_navigation_mode == NDOF_NAVIGATION_MODE_FLY) {
       viewops_flag &= ~VIEWOPS_FLAG_ORBIT_SELECT;
     }
   }
@@ -754,7 +754,7 @@ static void view3d_orbit_apply_dyn_ofs_ortho_correction(float ofs[3],
    * (`ofs` + `dist` along the view Z-axis) unlike orthographic views which center around `ofs`.
    * Nevertheless there will be cases when having `ofs` and a large `dist` pointing nowhere doesn't
    * give ideal behavior (zooming may jump in larger than expected steps and panning the view may
-   * move too much in relation to nearby objects - for e.g.). So it's worth investigating but
+   * move too much in relation to nearby objects - for example). So it's worth investigating but
    * should be done with extra care as changing `ofs` in perspective view also requires changing
    * the `dist` which could cause unexpected results if the calculated `dist` happens to be small.
    * So disable this workaround in perspective view unless there are clear benefits to enabling. */
@@ -807,8 +807,8 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
   bool is_set = false;
 
   const Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
   Scene *scene_eval = DEG_get_evaluated_scene(depsgraph);
+  Paint *paint = BKE_paint_get_active_from_context(C);
   ViewLayer *view_layer_eval = DEG_get_evaluated_view_layer(depsgraph);
   View3D *v3d = CTX_wm_view3d(C);
   BKE_view_layer_synced_ensure(scene_eval, view_layer_eval);
@@ -819,11 +819,17 @@ bool view3d_orbit_calc_center(bContext *C, float r_dyn_ofs[3])
       /* with weight-paint + pose-mode, fall through to using calculateTransformCenter */
       ((ob_act->mode & OB_MODE_WEIGHT_PAINT) && BKE_object_pose_armature_get(ob_act)) == 0)
   {
-    BKE_paint_stroke_get_average(scene, ob_act_eval, lastofs);
+    BKE_paint_stroke_get_average(paint, ob_act_eval, lastofs);
     is_set = true;
   }
-  else if (ob_act && (ob_act->mode & OB_MODE_SCULPT_CURVES)) {
-    BKE_paint_stroke_get_average(scene, ob_act_eval, lastofs);
+  else if (ob_act && ELEM(ob_act->mode,
+                          OB_MODE_SCULPT_CURVES,
+                          OB_MODE_PAINT_GREASE_PENCIL,
+                          OB_MODE_SCULPT_GREASE_PENCIL,
+                          OB_MODE_VERTEX_GREASE_PENCIL,
+                          OB_MODE_WEIGHT_GREASE_PENCIL))
+  {
+    BKE_paint_stroke_get_average(paint, ob_act_eval, lastofs);
     is_set = true;
   }
   else if (ob_act && (ob_act->mode & OB_MODE_EDIT) && (ob_act->type == OB_FONT)) {
@@ -975,8 +981,7 @@ void axis_set_view(bContext *C,
     dist = rv3d->dist;
 
     /* so we animate _from_ the camera location */
-    Object *camera_eval = DEG_get_evaluated_object(CTX_data_ensure_evaluated_depsgraph(C),
-                                                   v3d->camera);
+    Object *camera_eval = DEG_get_evaluated(CTX_data_ensure_evaluated_depsgraph(C), v3d->camera);
     ED_view3d_from_object(camera_eval, rv3d->ofs, nullptr, &rv3d->dist, nullptr);
 
     V3D_SmoothParams sview = {nullptr};
@@ -1029,7 +1034,7 @@ void viewmove_apply(ViewOpsData *vod, int x, int y)
   else {
     float dvec[3];
 
-    ED_view3d_win_to_delta(vod->region, event_ofs, vod->init.zfac, dvec);
+    ED_view3d_win_to_delta(vod->region, event_ofs, vod->init.zfac, dvec, true);
 
     sub_v3_v3(vod->rv3d->ofs, dvec);
 

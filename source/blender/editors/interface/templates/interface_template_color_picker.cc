@@ -17,7 +17,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 using blender::StringRefNull;
@@ -33,7 +33,7 @@ void uiTemplateColorPicker(uiLayout *layout,
                            bool cubic)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   ColorPicker *cpicker = ui_block_colorpicker_create(block);
 
   if (!prop) {
@@ -44,8 +44,8 @@ void uiTemplateColorPicker(uiLayout *layout,
   float softmin, softmax, step, precision;
   RNA_property_float_ui_range(ptr, prop, &softmin, &softmax, &step, &precision);
 
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayout *row = uiLayoutRow(col, true);
+  uiLayout *col = &layout->column(true);
+  uiLayout *row = &col->row(true);
 
   uiBut *but = nullptr;
   uiButHSVCube *hsv_but;
@@ -117,7 +117,7 @@ void uiTemplateColorPicker(uiLayout *layout,
   if (value_slider) {
     switch (U.color_picker_type) {
       case USER_CP_CIRCLE_HSL:
-        uiItemS(row);
+        row->separator();
         hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
                                                  UI_BTYPE_HSVCUBE,
                                                  0,
@@ -135,7 +135,7 @@ void uiTemplateColorPicker(uiLayout *layout,
         hsv_but->gradient_type = UI_GRAD_L_ALT;
         break;
       case USER_CP_SQUARE_SV:
-        uiItemS(col);
+        col->separator();
         hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
                                                  UI_BTYPE_HSVCUBE,
                                                  0,
@@ -153,7 +153,7 @@ void uiTemplateColorPicker(uiLayout *layout,
         hsv_but->gradient_type = eButGradientType(UI_GRAD_SV + 3);
         break;
       case USER_CP_SQUARE_HS:
-        uiItemS(col);
+        col->separator();
         hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
                                                  UI_BTYPE_HSVCUBE,
                                                  0,
@@ -171,7 +171,7 @@ void uiTemplateColorPicker(uiLayout *layout,
         hsv_but->gradient_type = eButGradientType(UI_GRAD_HS + 3);
         break;
       case USER_CP_SQUARE_HV:
-        uiItemS(col);
+        col->separator();
         hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
                                                  UI_BTYPE_HSVCUBE,
                                                  0,
@@ -192,7 +192,7 @@ void uiTemplateColorPicker(uiLayout *layout,
         /* user default */
       case USER_CP_CIRCLE_HSV:
       default:
-        uiItemS(row);
+        row->separator();
         hsv_but = (uiButHSVCube *)uiDefButR_prop(block,
                                                  UI_BTYPE_HSVCUBE,
                                                  0,
@@ -219,14 +219,14 @@ static void ui_template_palette_menu(bContext * /*C*/, uiLayout *layout, void * 
 {
   uiLayout *row;
 
-  uiItemL(layout, IFACE_("Sort By:"), ICON_NONE);
-  row = uiLayoutRow(layout, false);
+  layout->label(IFACE_("Sort By:"), ICON_NONE);
+  row = &layout->row(false);
   uiItemEnumO_value(row, IFACE_("Hue"), ICON_NONE, "PALETTE_OT_sort", "type", 1);
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemEnumO_value(row, IFACE_("Saturation"), ICON_NONE, "PALETTE_OT_sort", "type", 2);
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemEnumO_value(row, IFACE_("Value"), ICON_NONE, "PALETTE_OT_sort", "type", 3);
-  row = uiLayoutRow(layout, false);
+  row = &layout->row(false);
   uiItemEnumO_value(row, IFACE_("Luminance"), ICON_NONE, "PALETTE_OT_sort", "type", 4);
 }
 
@@ -238,7 +238,7 @@ void uiTemplatePalette(uiLayout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   uiBut *but = nullptr;
 
-  const int cols_per_row = std::max(uiLayoutGetWidth(layout) / UI_UNIT_X, 1);
+  const int cols_per_row = std::max(layout->width() / UI_UNIT_X, 1);
 
   if (!prop) {
     RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
@@ -250,12 +250,12 @@ void uiTemplatePalette(uiLayout *layout,
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   Palette *palette = static_cast<Palette *>(cptr.data);
 
-  uiLayout *col = uiLayoutColumn(layout, true);
-  uiLayoutRow(col, true);
+  uiLayout *col = &layout->column(true);
+  col->row(true);
   uiDefIconButO(block,
                 UI_BTYPE_BUT,
                 "PALETTE_OT_color_add",
@@ -308,13 +308,13 @@ void uiTemplatePalette(uiLayout *layout,
         block, ui_template_palette_menu, nullptr, ICON_SORTSIZE, 0, 0, UI_UNIT_X, UI_UNIT_Y, "");
   }
 
-  col = uiLayoutColumn(layout, true);
-  uiLayoutRow(col, true);
+  col = &layout->column(true);
+  col->row(true);
 
   int row_cols = 0, col_id = 0;
   LISTBASE_FOREACH (PaletteColor *, color, &palette->colors) {
     if (row_cols >= cols_per_row) {
-      uiLayoutRow(col, true);
+      col->row(true);
       row_cols = 0;
     }
 
@@ -352,7 +352,7 @@ void uiTemplateCryptoPicker(uiLayout *layout,
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   uiBut *but = uiDefIconButO(block,
                              UI_BTYPE_BUT,

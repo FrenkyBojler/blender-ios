@@ -26,6 +26,7 @@
 #  include "BLT_translation.hh"
 
 #  include "UI_interface.hh"
+#  include "UI_interface_layout.hh"
 
 #  include "IO_fbx.hh"
 #  include "io_fbx_ops.hh"
@@ -88,41 +89,40 @@ static bool wm_fbx_import_check(bContext * /*C*/, wmOperator * /*op*/)
 
 static void ui_fbx_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_general", false, IFACE_("General"))) {
-    uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiLayoutSetEnabled(col, RNA_boolean_get(ptr, "use_custom_props"));
-    uiItemR(col, ptr, "use_custom_props_enum_as_string", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (uiLayout *panel = layout->panel(C, "FBX_import_general", false, IFACE_("General"))) {
+    uiLayout *col = &panel->column(false);
+    col->prop(ptr, "global_scale", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "use_custom_props", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    uiLayout &subcol = col->column(false);
+    subcol.active_set(RNA_boolean_get(ptr, "use_custom_props"));
+    subcol.prop(ptr, "use_custom_props_enum_as_string", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_geometry", false, IFACE_("Geometry")))
-  {
-    uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "import_subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "import_colors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    uiItemR(col, ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (uiLayout *panel = layout->panel(C, "FBX_import_geometry", false, IFACE_("Geometry"))) {
+    uiLayout *col = &panel->column(false);
+    col->prop(ptr, "use_custom_normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "import_subdivision", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "import_colors", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    col->prop(ptr, "validate_meshes", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
   {
-    PanelLayout panel = uiLayoutPanel(C, layout, "FBX_import_anim", true);
-    uiLayoutSetPropSep(panel.header, false);
-    uiItemR(panel.header, ptr, "use_anim", UI_ITEM_NONE, "", ICON_NONE);
-    uiItemL(panel.header, IFACE_("Animation"), ICON_NONE);
+    PanelLayout panel = layout->panel(C, "FBX_import_anim", true);
+    panel.header->use_property_split_set(false);
+    panel.header->prop(ptr, "use_anim", UI_ITEM_NONE, "", ICON_NONE);
+    panel.header->label(IFACE_("Animation"), ICON_NONE);
     if (panel.body) {
-      uiLayout *col = uiLayoutColumn(panel.body, false);
-      uiItemR(col, ptr, "anim_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+      uiLayout *col = &panel.body->column(false);
+      col->prop(ptr, "anim_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     }
   }
 
-  if (uiLayout *panel = uiLayoutPanel(C, layout, "FBX_import_armature", false, IFACE_("Armature")))
-  {
-    uiLayout *col = uiLayoutColumn(panel, false);
-    uiItemR(col, ptr, "ignore_leaf_bones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  if (uiLayout *panel = layout->panel(C, "FBX_import_armature", false, IFACE_("Armature"))) {
+    uiLayout *col = &panel->column(false);
+    col->prop(ptr, "ignore_leaf_bones", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 }
 
@@ -135,7 +135,7 @@ void WM_OT_fbx_import(wmOperatorType *ot)
 {
   PropertyRNA *prop;
 
-  ot->name = "Import FBX (experimental)";
+  ot->name = "Import FBX";
   ot->description = "Import FBX file into current scene";
   ot->idname = "WM_OT_fbx_import";
 
@@ -218,8 +218,9 @@ namespace blender::ed::io {
 void fbx_file_handler_add()
 {
   auto fh = std::make_unique<blender::bke::FileHandlerType>();
-  STRNCPY(fh->idname, "IO_FH_fbx_experimental");
+  STRNCPY(fh->idname, "IO_FH_fbx");
   STRNCPY(fh->import_operator, "WM_OT_fbx_import");
+  STRNCPY(fh->export_operator, "export_scene.fbx"); /* Use Python add-on for export. */
   STRNCPY(fh->label, "FBX");
   STRNCPY(fh->file_extensions_str, ".fbx");
   fh->poll_drop = poll_file_object_drop;

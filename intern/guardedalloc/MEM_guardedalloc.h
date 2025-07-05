@@ -9,19 +9,25 @@
  *
  * \page MEMPage Guarded memory(de)allocation
  *
- * \section aboutmem c-style & C++-style guarded memory allocation
+ * \section aboutmem C++-style & C-style guarded memory allocation
  *
- * \subsection memabout About the MEM module
+ * \subsection memabout About the MEM allocator module
  *
- * MEM provides guarded malloc/calloc calls. All memory is enclosed by
- * pads, to detect out-of-bound writes. All blocks are placed in a
- * linked list, so they remain reachable at all times. There is no
- * back-up in case the linked-list related data is lost.
+ * MEM provides guarded memory management. All allocated memory is enclosed by pads, to detect
+ * out-of-bound writes. All blocks are placed in a linked list, so they remain reachable at all
+ * times. There is no back-up in case the linked-list related data is lost.
  *
- * It also provides C++ template versions of [cm]alloc and related API,
- * which prodives improved type safety, ensures that the allocated types
- * are trivial, and reduces the casting verbosity by directly returning
- * a pointer of the expected type.
+ * It provides C++ template versions of the `new`/`delete` operators (#MEM_new and #MEM_delete),
+ * which are the preferred way to create and delete data in new C++ code.
+ *
+ * It also provides C++ template versions of [cm]alloc and related API, which provides improved
+ * type safety, ensures that the allocated types are trivial, and reduces the casting verbosity by
+ * directly returning a pointer of the expected type. These are the preferred API when C++ code
+ * needs to allocate or free data in a C-compatible way (e.g. because it needs to interact with
+ * other 'legacy' code using C-based memory management).
+ *
+ * Finally, the original C-compatible, type-agnostic allocation API (#MEM_mallocN, #MEM_freeN,
+ * etc.) is kept for a few specific use-cases. Its usage should be avoided as much as possible.
  *
  * \subsection memdependencies Dependencies
  * - `stdlib`
@@ -52,7 +58,7 @@ extern "C" {
  * void pointers and explicit size values).
  *
  * This API should usually not be used anymore in C++ code, unless some form of raw memory
- * mamangement is necessary (e.g. for allocation of various ID types based on their
+ * management is necessary (e.g. for allocation of various ID types based on their
  * #IDTypeInfo::struct_size data).
  *
  * \{ */
@@ -170,7 +176,7 @@ extern void *(*MEM_calloc_arrayN_aligned)(
     ATTR_NONNULL(4);
 
 #ifdef __cplusplus
-/* Implicitely uses the templated, type-safe version of #MEM_freeN<T>, unless `v` is `void *`. */
+/** Implicitly uses the templated, type-safe version of #MEM_freeN<T>, unless `v` is `void *`. */
 #  define MEM_SAFE_FREE(v) \
     do { \
       if (v) { \
@@ -264,12 +270,6 @@ extern void (*MEM_name_ptr_set)(void *vmemh, const char *str) ATTR_NONNULL();
 void MEM_init_memleak_detection(void);
 
 /**
- * Use this if we want to call #exit during argument parsing for example,
- * without having to free all data.
- */
-void MEM_use_memleak_detection(bool enabled);
-
-/**
  * When this has been called and memory leaks have been detected, the process will have an exit
  * code that indicates failure. This can be used for when checking for memory leaks with automated
  * tests.
@@ -330,7 +330,7 @@ void MEM_use_guarded_allocator(void);
  * Defines some `new`/`delete`-like helpers, which allocate/free memory using `MEM_guardedalloc`,
  * and construct/destruct the objects.
  *
- * When possible, it is prefferred to use these, even on trivial types, as it makes potential
+ * When possible, it is preferred to use these, even on trivial types, as it makes potential
  * future changes to these types less disruptive, and is overall closer to standard C++ data
  * creation and destruction.
  *

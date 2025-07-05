@@ -87,14 +87,14 @@ class Wireframe : Overlay {
               sub.specialize_constant(shader, "use_custom_depth_bias", do_smooth_lines);
             }
             sub.shader_set(shader);
-            sub.bind_texture("depthTex", depth_tex);
-            sub.push_constant("wireOpacity", state.overlay.wireframe_opacity);
-            sub.push_constant("isTransform", is_transform);
-            sub.push_constant("colorType", state.v3d->shading.wire_color_type);
-            sub.push_constant("useColoring", use_coloring);
-            sub.push_constant("wireStepParam", wire_threshold);
+            sub.bind_texture("depth_tx", depth_tex);
+            sub.push_constant("wire_opacity", state.overlay.wireframe_opacity);
+            sub.push_constant("is_transform", is_transform);
+            sub.push_constant("color_type", state.v3d->shading.wire_color_type);
+            sub.push_constant("use_coloring", use_coloring);
+            sub.push_constant("wire_step_param", wire_threshold);
             sub.push_constant("ndc_offset_factor", &state.ndc_offset_factor);
-            sub.push_constant("isHair", false);
+            sub.push_constant("is_hair", false);
             return &sub;
           };
 
@@ -177,7 +177,7 @@ class Wireframe : Overlay {
 
         if (show_surface_wire) {
           if (BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d)) {
-            ResourceHandle handle = manager.unique_handle(ob_ref);
+            ResourceHandleRange handle = manager.unique_handle(ob_ref);
 
             for (SculptBatch &batch : sculpt_batches_get(ob_ref.object, SCULPT_BATCH_WIREFRAME)) {
               coloring.mesh_all_edges_ps_->draw(batch.batch, handle);
@@ -260,7 +260,7 @@ class Wireframe : Overlay {
 
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
     int2 render_size = int2(depth_tx.size());
-    tmp_depth_tx_.acquire(render_size, GPU_DEPTH24_STENCIL8, usage);
+    tmp_depth_tx_.acquire(render_size, GPU_DEPTH32F_STENCIL8, usage);
 
     /* WORKAROUND: Nasty framebuffer copy.
      * We should find a way to have nice wireframe without this. */

@@ -99,16 +99,10 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
       realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
   GPU_texture_filter_mode(input, use_bilinear);
 
-  /* If the input repeats, set a repeating extend mode for out-of-bound texture access. Otherwise,
-   * make out-of-bound texture access return zero by setting a clamp to border extend mode. */
   GPU_texture_extend_mode_x(input,
-                            realization_options.repeat_x ?
-                                GPU_SAMPLER_EXTEND_MODE_REPEAT :
-                                GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+                            map_extension_mode_to_extend_mode(realization_options.extension_x));
   GPU_texture_extend_mode_y(input,
-                            realization_options.repeat_y ?
-                                GPU_SAMPLER_EXTEND_MODE_REPEAT :
-                                GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+                            map_extension_mode_to_extend_mode(realization_options.extension_y));
 
   input.bind_as_texture(shader, "input_tx");
 
@@ -134,11 +128,12 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Float3:
       case ResultType::Float4:
         return "compositor_realize_on_domain_bicubic_float4";
+      case ResultType::Float2:
+        return "compositor_realize_on_domain_bicubic_float2";
       case ResultType::Int:
       case ResultType::Int2:
-      case ResultType::Float2:
       case ResultType::Bool:
-        /* Realization does not support internal image types. */
+        /* Not supported. */
         break;
     }
   }
@@ -150,11 +145,12 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Float3:
       case ResultType::Float4:
         return "compositor_realize_on_domain_float4";
+      case ResultType::Float2:
+        return "compositor_realize_on_domain_float2";
       case ResultType::Int:
       case ResultType::Int2:
-      case ResultType::Float2:
       case ResultType::Bool:
-        /* Realization does not support internal image types. */
+        /* Not supported. */
         break;
     }
   }
@@ -186,21 +182,10 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
     const int2 input_size = input.domain().size;
     float2 normalized_coordinates = coordinates / float2(input_size);
 
-    float4 sample;
-    switch (realization_options.interpolation) {
-      case Interpolation::Nearest:
-        sample = input.sample_nearest_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-      case Interpolation::Bilinear:
-        sample = input.sample_bilinear_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-      case Interpolation::Bicubic:
-        sample = input.sample_cubic_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-    }
+    float4 sample = input.sample(normalized_coordinates,
+                                 realization_options.interpolation,
+                                 realization_options.extension_x,
+                                 realization_options.extension_y);
     output.store_pixel_generic_type(texel, sample);
   });
 }
@@ -214,13 +199,8 @@ Domain RealizeOnDomainOperation::compute_domain()
  * realization shouldn't be needed. */
 static constexpr float transformation_tolerance = 10e-6f;
 
-/* Given a potentially transformed domain, compute a domain such that its rotation and scale become
- * identity and the size of the domain is increased/reduced to adapt to the new transformation. For
- * instance, if the domain is rotated, the returned domain will have zero rotation but expanded
- * size to account for the bounding box of the domain after rotation. The size of the returned
- * domain is bound and clipped by the maximum possible size to avoid allocations that surpass
- * hardware limits. */
-static Domain compute_realized_transformation_domain(Context &context, const Domain &domain)
+Domain RealizeOnDomainOperation::compute_realized_transformation_domain(Context &context,
+                                                                        const Domain &domain)
 {
   const int2 size = domain.size;
 
@@ -307,8 +287,8 @@ SimpleOperation *RealizeOnDomainOperation::construct_if_needed(
                                     InputRealizationMode::OperationDomain;
   const Domain target_domain = use_operation_domain ? operation_domain : input_result.domain();
 
-  const Domain realized_target_domain = compute_realized_transformation_domain(context,
-                                                                               target_domain);
+  const Domain realized_target_domain =
+      RealizeOnDomainOperation::compute_realized_transformation_domain(context, target_domain);
 
   /* The input have an almost identical domain to the realized target domain, so no need to realize
    * it and the operation is not needed. */

@@ -497,7 +497,7 @@ void ShaderManager::device_update_pre(Device *device,
     shader->id = id++;
   }
 
-  /* Those shaders should always be compiled as they are used as fallback if a shader cannot be
+  /* Those shaders should always be compiled as they are used as a fallback if a shader cannot be
    * found, e.g. bad shader index for the triangle shaders on a Mesh. */
   assert(scene->default_surface->reference_count() != 0);
   assert(scene->default_light->reference_count() != 0);
@@ -787,7 +787,7 @@ uint ShaderManager::get_kernel_features(Scene *scene)
   }
 
   if (use_osl()) {
-    kernel_features |= KERNEL_FEATURE_OSL;
+    kernel_features |= KERNEL_FEATURE_OSL_SHADING;
   }
 
   return kernel_features;

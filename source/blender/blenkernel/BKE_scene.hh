@@ -9,13 +9,13 @@
 
 #include "BLI_sys_types.h"
 
+#include "BKE_duplilist.hh"
+
 struct Base;
 struct Collection;
 struct Depsgraph;
-struct DupliObject;
 struct GHash;
 struct Main;
-struct ListBase;
 struct Object;
 struct RenderData;
 struct Scene;
@@ -73,8 +73,9 @@ Object *BKE_scene_object_find_by_name(const Scene *scene, const char *name);
  * Define struct here, so no need to bother with alloc/free it.
  */
 struct SceneBaseIter {
-  ListBase *duplilist;
+  DupliList duplilist;
   DupliObject *dupob;
+  int dupob_index;
   float omat[4][4];
   Object *dupli_refob;
   int phase;
@@ -126,9 +127,7 @@ bool BKE_scene_can_be_removed(const Main *bmain, const Scene *scene);
 bool BKE_scene_has_view_layer(const Scene *scene, const ViewLayer *layer);
 Scene *BKE_scene_find_from_collection(const Main *bmain, const Collection *collection);
 
-#ifdef DURIAN_CAMERA_SWITCH
-Object *BKE_scene_camera_switch_find(Scene *scene); /* DURIAN_CAMERA_SWITCH */
-#endif
+Object *BKE_scene_camera_switch_find(Scene *scene);
 bool BKE_scene_camera_switch_update(Scene *scene);
 
 const char *BKE_scene_find_marker_name(const Scene *scene, int frame);

@@ -9,6 +9,7 @@
 #pragma once
 
 #include <stdint.h>
+#include <string>
 
 #ifdef WITH_VULKAN_BACKEND
 #  ifdef __APPLE__
@@ -127,6 +128,11 @@ typedef enum {
    * Support for the "Hyper" modifier key.
    */
   GHOST_kCapabilityKeyboardHyperKey = (1 << 9),
+  /**
+   * Support for creation of RGBA mouse cursors. This flag is likely
+   * to be temporary as our intention is to implement on all platforms.
+   */
+  GHOST_kCapabilityRGBACursors = (1 << 10),
 
 } GHOST_TCapabilityFlag;
 
@@ -139,7 +145,8 @@ typedef enum {
    GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
    GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
-   GHOST_kCapabilityWindowDecorationStyles | GHOST_kCapabilityKeyboardHyperKey)
+   GHOST_kCapabilityWindowDecorationStyles | GHOST_kCapabilityKeyboardHyperKey | \
+   GHOST_kCapabilityRGBACursors)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -260,7 +267,7 @@ typedef enum {
   /** Mouse button up event. */
   GHOST_kEventButtonUp,
   /**
-   * Mouse wheel event.
+   * Vertical/Horizontal mouse wheel event.
    *
    * \note #GHOST_GetEventData returns #GHOST_TEventWheelData.
    */
@@ -577,9 +584,16 @@ typedef struct {
   GHOST_TabletData tablet;
 } GHOST_TEventButtonData;
 
+typedef enum {
+  GHOST_kEventWheelAxisVertical = 0,
+  GHOST_kEventWheelAxisHorizontal = 1,
+} GHOST_TEventWheelAxis;
+
 typedef struct {
+  /** Which mouse wheel is used. */
+  GHOST_TEventWheelAxis axis;
   /** Displacement of a mouse wheel. */
-  int32_t z;
+  int32_t value;
 } GHOST_TEventWheelData;
 
 typedef enum {
@@ -609,7 +623,7 @@ typedef struct {
 typedef enum {
   GHOST_kDragnDropTypeUnknown = 0,
   GHOST_kDragnDropTypeFilenames, /* Array of strings representing file names (full path). */
-  GHOST_kDragnDropTypeString,    /* Unformatted text UTF-8 string. */
+  GHOST_kDragnDropTypeString,    /* Unformatted text UTF8 string. */
   GHOST_kDragnDropTypeBitmap     /* Bitmap image data. */
 } GHOST_TDragnDropTypes;
 
@@ -631,10 +645,8 @@ typedef struct {
  * All members must remain aligned and the struct size match!
  */
 typedef struct {
-  /** size_t */
-  GHOST_TUserDataPtr result_len, composite_len;
-  /** char * utf8 encoding */
-  GHOST_TUserDataPtr result, composite;
+  /** UTF8 encoded strings. */
+  std::string result, composite;
   /** Cursor position in the IME composition. */
   int cursor_position;
   /** Represents the position of the beginning of the selection */
@@ -719,17 +731,6 @@ typedef enum {
 } GHOST_TWindowDecorationStyleFlags;
 
 typedef struct {
-  /** Number of pixels on a line. */
-  uint32_t xPixels;
-  /** Number of lines. */
-  uint32_t yPixels;
-  /** Number of bits per pixel. */
-  uint32_t bpp;
-  /** Refresh rate (in Hertz). */
-  uint32_t frequency;
-} GHOST_DisplaySetting;
-
-typedef struct {
   /** Index of the GPU device in the list provided by the platform. */
   int index;
   /** (PCI) Vendor ID of the GPU. */
@@ -746,7 +747,6 @@ typedef struct {
 
 typedef struct {
   float colored_titlebar_bg_color[3];
-  float colored_titlebar_fg_color[3];
 } GHOST_WindowDecorationStyleSettings;
 
 #ifdef WITH_VULKAN_BACKEND
@@ -814,6 +814,18 @@ typedef struct {
     } cpu;
     struct {
       /**
+       * Vulkan handle of the image. When this is the same as last time the imported memory can be
+       * reused.
+       */
+      VkImage vk_image_blender;
+
+      /**
+       * Did the memory address change and do we need to reimport the memory or can we still reuse
+       * the previous imported memory.
+       */
+      bool new_handle;
+
+      /**
        * Handle of the exported GPU memory. Depending on the data_transfer_mode the actual handle
        * type can be different (void-pointer/int/..).
        */
@@ -838,12 +850,23 @@ typedef struct {
 
 } GHOST_VulkanOpenXRData;
 
+/**
+ * Return argument passed to #GHOST_IContext:::getVulkanHandles.
+ *
+ * The members of this struct are assigned values.
+ */
 typedef struct {
+  /** The instance handle. */
   VkInstance instance;
+  /** The physics device handle. */
   VkPhysicalDevice physical_device;
+  /** The device handle. */
   VkDevice device;
+  /** The graphic queue family id. */
   uint32_t graphic_queue_family;
+  /** The queue handle. */
   VkQueue queue;
+  /** The #std::mutex mutex. */
   void *queue_mutex;
 } GHOST_VulkanHandles;
 

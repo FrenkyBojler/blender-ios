@@ -26,7 +26,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_idprop.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_screen.hh"
 
@@ -35,8 +34,10 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "ANIM_action.hh"
+
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
@@ -46,6 +47,7 @@
 
 #include "interface_intern.hh"
 
+using blender::StringRef;
 using blender::StringRefNull;
 
 /*************************** RNA Utilities ******************************/
@@ -54,7 +56,7 @@ uiBut *uiDefAutoButR(uiBlock *block,
                      PointerRNA *ptr,
                      PropertyRNA *prop,
                      int index,
-                     const std::optional<StringRefNull> name,
+                     const std::optional<StringRef> name,
                      int icon,
                      int x,
                      int y,
@@ -391,17 +393,17 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
         name = RNA_property_ui_name(prop);
 
         if (label_align == UI_BUT_LABEL_ALIGN_COLUMN) {
-          col = uiLayoutColumn(layout, true);
+          col = &layout->column(true);
 
           if (!is_boolean) {
-            uiItemL(col, *name, ICON_NONE);
+            col->label(*name, ICON_NONE);
           }
         }
         else {
           BLI_assert(label_align == UI_BUT_LABEL_ALIGN_SPLIT_COLUMN);
-          col = uiLayoutColumn(layout, true);
-          /* Let uiItemFullR() create the split layout. */
-          uiLayoutSetPropSep(col, true);
+          col = &layout->column(true);
+          /* Let uiLayout::prop() create the split layout. */
+          col->use_property_split_set(true);
         }
 
         break;
@@ -418,15 +420,14 @@ eAutoPropButsReturn uiDefAutoButsRNA(uiLayout *layout,
                                     ELEM(type, PROP_STRING, PROP_INT, PROP_FLOAT));
 
     if (use_activate_init) {
-      uiLayoutSetActivateInit(col, true);
+      col->activate_init_set(true);
     }
 
-    uiItemFullR(
-        col, ptr, prop, -1, 0, compact ? UI_ITEM_R_COMPACT : UI_ITEM_NONE, name, ICON_NONE);
+    col->prop(ptr, prop, -1, 0, compact ? UI_ITEM_R_COMPACT : UI_ITEM_NONE, name, ICON_NONE);
     return_info &= ~UI_PROP_BUTS_NONE_ADDED;
 
     if (use_activate_init) {
-      uiLayoutSetActivateInit(col, false);
+      col->activate_init_set(false);
     }
   }
   RNA_STRUCT_END;
@@ -537,6 +538,13 @@ void ui_rna_collection_search_update_fn(
       else if (itemptr.type == &RNA_ActionSlot) {
         PropertyRNA *prop = RNA_struct_find_property(&itemptr, "name_display");
         name = RNA_property_string_get_alloc(&itemptr, prop, name_buf, sizeof(name_buf), nullptr);
+        /* Also show an icon for the data-block type that each slot is intended for. */
+        animrig::Slot &slot = reinterpret_cast<ActionSlot *>(itemptr.data)->wrap();
+        iconid = UI_icon_from_idcode(slot.idtype);
+        /* So indentation is kept when no icon is present. */
+        if (iconid == ICON_NONE) {
+          iconid = ICON_BLANK1;
+        }
       }
       else {
         name = RNA_struct_name_get_alloc(&itemptr, name_buf, sizeof(name_buf), nullptr);
@@ -1029,118 +1037,6 @@ void UI_butstore_update(uiBlock *block)
       }
     }
   }
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Key Event from UI
- * \{ */
-
-/**
- * Follow the logic from #wm_keymap_item_find_in_keymap.
- */
-static bool ui_key_event_property_match(const StringRefNull opname,
-                                        IDProperty *properties,
-                                        const bool is_strict,
-                                        wmOperatorType *ui_optype,
-                                        PointerRNA *ui_opptr)
-{
-  if (ui_optype->idname != opname) {
-    return false;
-  }
-
-  bool match = false;
-  if (properties) {
-    if (ui_opptr &&
-        IDP_EqualsProperties_ex(properties, static_cast<IDProperty *>(ui_opptr->data), is_strict))
-    {
-      match = true;
-    }
-  }
-  else {
-    match = true;
-  }
-  return match;
-}
-
-std::optional<std::string> UI_key_event_operator_string(const bContext *C,
-                                                        const StringRefNull opname,
-                                                        IDProperty *properties,
-                                                        const bool is_strict)
-{
-  /* NOTE: currently only actions on UI Lists are supported (for the asset manager).
-   * Other kinds of events can be supported as needed. */
-
-  ARegion *region = CTX_wm_region(C);
-  if (region == nullptr) {
-    return std::nullopt;
-  }
-
-  /* Early exit regions which don't have UI-Lists. */
-  if ((region->runtime->type->keymapflag & ED_KEYMAP_UI) == 0) {
-    return std::nullopt;
-  }
-
-  uiBut *but = UI_region_active_but_get(region);
-  if (but == nullptr) {
-    return std::nullopt;
-  }
-
-  if (but->type != UI_BTYPE_PREVIEW_TILE) {
-    return std::nullopt;
-  }
-
-  short event_val = KM_NOTHING;
-  short event_type = KM_NOTHING;
-
-  uiBut *listbox = nullptr;
-  for (int i = but->block->buttons.size() - 1; i >= 0; i--) {
-    uiBut *but_iter = but->block->buttons[i].get();
-    if ((but_iter->type == UI_BTYPE_LISTBOX) && ui_but_contains_rect(but_iter, &but->rect)) {
-      listbox = but_iter;
-      break;
-    }
-  }
-
-  if (listbox && listbox->custom_data) {
-    uiList *list = static_cast<uiList *>(listbox->custom_data);
-    uiListDyn *dyn_data = list->dyn_data;
-    if ((dyn_data->custom_activate_optype != nullptr) &&
-        ui_key_event_property_match(opname,
-                                    properties,
-                                    is_strict,
-                                    dyn_data->custom_activate_optype,
-                                    dyn_data->custom_activate_opptr))
-    {
-      event_val = KM_CLICK;
-      event_type = LEFTMOUSE;
-    }
-    else if ((dyn_data->custom_activate_optype != nullptr) &&
-             ui_key_event_property_match(opname,
-                                         properties,
-                                         is_strict,
-                                         dyn_data->custom_drag_optype,
-                                         dyn_data->custom_drag_opptr))
-    {
-      event_val = KM_CLICK_DRAG;
-      event_type = LEFTMOUSE;
-    }
-  }
-
-  if ((event_val != KM_NOTHING) && (event_type != KM_NOTHING)) {
-    return WM_keymap_item_raw_to_string(KM_NOTHING,
-                                        KM_NOTHING,
-                                        KM_NOTHING,
-                                        KM_NOTHING,
-                                        KM_NOTHING,
-                                        0,
-                                        event_val,
-                                        event_type,
-                                        false);
-  }
-
-  return std::nullopt;
 }
 
 /** \} */

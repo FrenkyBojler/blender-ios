@@ -33,6 +33,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_screen.hh"
@@ -383,8 +384,9 @@ static void transformops_exit(bContext *C, wmOperator *op)
   transformops_loopsel_hack(C, op);
 #endif
 
-  saveTransform(C, static_cast<TransInfo *>(op->customdata), op);
-  MEM_freeN(op->customdata);
+  TransInfo *t = static_cast<TransInfo *>(op->customdata);
+  saveTransform(C, t, op);
+  MEM_freeN(t);
   op->customdata = nullptr;
   G.moving = 0;
 }
@@ -404,7 +406,7 @@ static int transformops_data(bContext *C, wmOperator *op, const wmEvent *event)
 {
   int retval = 1;
   if (op->customdata == nullptr) {
-    TransInfo *t = static_cast<TransInfo *>(MEM_callocN(sizeof(TransInfo), "TransInfo data2"));
+    TransInfo *t = MEM_callocN<TransInfo>("TransInfo data2");
 
     t->undo_name = op->type->name;
 
@@ -843,6 +845,15 @@ void properties_register(wmOperatorType *ot, int flags)
                            "Forces the use of Auto Merge and Split");
     RNA_def_property_flag(prop, PROP_HIDDEN);
   }
+
+  if (flags & P_TRANSLATE_ORIGIN) {
+    prop = RNA_def_boolean(ot->srna,
+                           "translate_origin",
+                           false,
+                           "Translate Origin",
+                           "Translate origin instead of selection");
+    RNA_def_property_flag(prop, PROP_HIDDEN);
+  }
 }
 
 static void TRANSFORM_OT_translate(wmOperatorType *ot)
@@ -869,7 +880,7 @@ static void TRANSFORM_OT_translate(wmOperatorType *ot)
   properties_register(ot,
                       P_ORIENT_MATRIX | P_CONSTRAINT | P_PROPORTIONAL | P_MIRROR | P_ALIGN_SNAP |
                           P_OPTIONS | P_GPENCIL_EDIT | P_CURSOR_EDIT | P_VIEW2D_EDGE_PAN |
-                          P_POST_TRANSFORM);
+                          P_POST_TRANSFORM | P_TRANSLATE_ORIGIN);
 }
 
 static void TRANSFORM_OT_resize(wmOperatorType *ot)
@@ -1383,14 +1394,14 @@ static void TRANSFORM_OT_seq_slide(wmOperatorType *ot)
 
   WM_operatortype_props_advanced_begin(ot);
 
-  properties_register(ot, P_SNAP | P_VIEW2D_EDGE_PAN);
+  properties_register(ot, P_OPTIONS | P_SNAP | P_VIEW2D_EDGE_PAN);
 }
 
 static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Rotate Normals";
-  ot->description = "Rotate split normal of selected items";
+  ot->description = "Rotate custom normal of selected items";
   ot->idname = OP_NORMAL_ROTATION;
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
@@ -1400,6 +1411,7 @@ static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_editmesh;
+  ot->poll_property = transform_poll_property;
 
   RNA_def_float_rotation(
       ot->srna, "value", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);

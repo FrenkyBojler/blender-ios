@@ -27,7 +27,7 @@ void join_instances_into(const bke::AttributeFilter &attribute_filter,
                          bke::Instances &target);
 
 void join_attributes(Span<bke::AttributeAccessor> attribute_accessors,
-                     const Map<StringRef, eCustomDataType> &attribute_types,
+                     const Map<StringRef, bke::AttrType> &attribute_types,
                      bke::AttrDomain src_domain,
                      bke::AttrDomain dst_domain,
                      bke::MutableAttributeAccessor dst_attributes);

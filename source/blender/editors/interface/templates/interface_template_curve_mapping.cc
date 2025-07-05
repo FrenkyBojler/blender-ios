@@ -21,7 +21,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
 
@@ -341,22 +341,22 @@ static void curvemap_buttons_layout(uiLayout *layout,
   const float dx = UI_UNIT_X;
   eButGradientType bg = UI_GRAD_NONE;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   if (tone) {
-    uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
-    uiItemR(uiLayoutRow(split, false), ptr, "tone", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    uiLayout *split = &layout->split(0.0f, false);
+    split->row(false).prop(ptr, "tone", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   }
 
   /* curve chooser */
-  uiLayout *row = uiLayoutRow(layout, false);
+  uiLayout *row = &layout->row(false);
 
   if (labeltype == 'v') {
     /* vector */
-    uiLayout *sub = uiLayoutRow(row, true);
-    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+    uiLayout *sub = &row->row(true);
+    sub->alignment_set(blender::ui::LayoutAlign::Left);
 
     if (cumap->cm[0].curve) {
       bt = uiDefButI(block, UI_BTYPE_ROW, 0, "X", 0, 0, dx, dx, &cumap->cur, 0.0, 0.0, "");
@@ -373,8 +373,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
   }
   else if (labeltype == 'c' && cumap->tone != CURVE_TONE_FILMLIKE) {
     /* color */
-    uiLayout *sub = uiLayoutRow(row, true);
-    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+    uiLayout *sub = &row->row(true);
+    sub->alignment_set(blender::ui::LayoutAlign::Left);
 
     if (cumap->cm[3].curve) {
       bt = uiDefButI(block,
@@ -439,8 +439,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
   }
   else if (labeltype == 'h') {
     /* HSV */
-    uiLayout *sub = uiLayoutRow(row, true);
-    uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+    uiLayout *sub = &row->row(true);
+    sub->alignment_set(blender::ui::LayoutAlign::Left);
 
     if (cumap->cm[0].curve) {
       bt = uiDefButI(block,
@@ -489,7 +489,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
     }
   }
   else {
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+    row->alignment_set(blender::ui::LayoutAlign::Right);
   }
 
   if (labeltype == 'h') {
@@ -498,8 +498,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   /* operation buttons */
   /* (Right aligned) */
-  uiLayout *sub = uiLayoutRow(row, true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_RIGHT);
+  uiLayout *sub = &row->row(true);
+  sub->alignment_set(blender::ui::LayoutAlign::Right);
 
   if (!(cumap->flag & CUMA_USE_WRAPPING)) {
     /* Zoom in */
@@ -568,8 +568,8 @@ static void curvemap_buttons_layout(uiLayout *layout,
                      but_func_argN_copy<RNAUpdateCb>);
 
   /* Curve itself. */
-  const int size = max_ii(uiLayoutGetWidth(layout), UI_UNIT_X);
-  row = uiLayoutRow(layout, false);
+  const int size = max_ii(layout->width(), UI_UNIT_X);
+  row = &layout->row(false);
   uiButCurveMapping *curve_but = (uiButCurveMapping *)uiDefBut(
       block, UI_BTYPE_CURVE, 0, "", 0, 0, size, 8.0f * UI_UNIT_X, cumap, 0.0f, 1.0f, "");
   curve_but->gradient_type = bg;
@@ -600,7 +600,7 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
     UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
-    uiLayoutRow(layout, true);
+    layout->row(true);
 
     /* Curve handle buttons. */
     bt = uiDefIconBut(block,
@@ -725,21 +725,11 @@ static void curvemap_buttons_layout(uiLayout *layout,
 
   /* black/white levels */
   if (levels) {
-    uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
-    uiItemR(uiLayoutColumn(split, false),
-            ptr,
-            "black_level",
-            UI_ITEM_R_EXPAND,
-            std::nullopt,
-            ICON_NONE);
-    uiItemR(uiLayoutColumn(split, false),
-            ptr,
-            "white_level",
-            UI_ITEM_R_EXPAND,
-            std::nullopt,
-            ICON_NONE);
+    uiLayout *split = &layout->split(0.0f, false);
+    split->column(false).prop(ptr, "black_level", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
+    split->column(false).prop(ptr, "white_level", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-    uiLayoutRow(layout, false);
+    layout->row(false);
     bt = uiDefBut(block,
                   UI_BTYPE_BUT,
                   0,
@@ -780,7 +770,7 @@ void uiTemplateCurveMapping(uiLayout *layout,
                             bool tone)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   if (!prop) {
     RNA_warning(

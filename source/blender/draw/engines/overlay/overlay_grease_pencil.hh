@@ -122,19 +122,19 @@ class GreasePencil : Overlay {
       if (show_points_) {
         auto &sub = pass.sub("Points");
         sub.shader_set(res.shaders->curve_edit_points.get());
-        sub.bind_texture("weightTex", &res.weight_ramp_tx);
-        sub.push_constant("useWeight", show_weight_);
-        sub.push_constant("useGreasePencil", true);
-        sub.push_constant("doStrokeEndpoints", show_direction);
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
+        sub.push_constant("use_weight", show_weight_);
+        sub.push_constant("use_grease_pencil", true);
+        sub.push_constant("do_stroke_endpoints", show_direction);
         edit_points_ = &sub;
       }
 
       if (show_lines_) {
         auto &sub = pass.sub("Lines");
         sub.shader_set(res.shaders->curve_edit_line.get());
-        sub.bind_texture("weightTex", &res.weight_ramp_tx);
-        sub.push_constant("useWeight", show_weight_);
-        sub.push_constant("useGreasePencil", true);
+        sub.bind_texture("weight_tx", &res.weight_ramp_tx);
+        sub.push_constant("use_weight", show_weight_);
+        sub.push_constant("use_grease_pencil", true);
         edit_lines_ = &sub;
       }
     }
@@ -236,10 +236,10 @@ class GreasePencil : Overlay {
 
       const float4x4 grid_mat = grid_matrix_get(*ob_ref.object, state.scene) * transform_mat;
 
-      grid_ps_.push_constant("xAxis", grid_mat.x_axis());
-      grid_ps_.push_constant("yAxis", grid_mat.y_axis());
+      grid_ps_.push_constant("axis_x", grid_mat.x_axis());
+      grid_ps_.push_constant("axis_y", grid_mat.y_axis());
       grid_ps_.push_constant("origin", grid_mat.location());
-      grid_ps_.push_constant("halfLineCount", line_count / 2);
+      grid_ps_.push_constant("half_line_count", line_count / 2);
       grid_ps_.draw_procedural(GPU_PRIM_LINES, 1, line_count * 2);
     }
   }
@@ -283,7 +283,7 @@ class GreasePencil : Overlay {
                                  PassMain::Sub &pass,
                                  const Scene *scene,
                                  Object *ob,
-                                 ResourceHandle res_handle,
+                                 ResourceHandleRange res_handle,
                                  select::ID select_id = select::SelectMap::select_invalid_id())
   {
     using namespace blender;
@@ -293,7 +293,7 @@ class GreasePencil : Overlay {
     const bool is_stroke_order_3d = (grease_pencil.flag & GREASE_PENCIL_STROKE_ORDER_3D) != 0;
 
     if (is_stroke_order_3d) {
-      pass.push_constant("gpDepthPlane", float4(0.0f));
+      pass.push_constant("gp_depth_plane", float4(0.0f));
     }
     else {
       int64_t index = res.depth_planes.append_and_get_index({});
@@ -303,7 +303,7 @@ class GreasePencil : Overlay {
       plane.bounds = BKE_object_boundbox_get(ob).value_or(blender::Bounds(float3(0)));
       plane.handle = res_handle;
 
-      pass.push_constant("gpDepthPlane", &plane.plane);
+      pass.push_constant("gp_depth_plane", &plane.plane);
     }
 
     int t_offset = 0;
@@ -313,7 +313,7 @@ class GreasePencil : Overlay {
       gpu::VertBuf *position_tx = draw::DRW_cache_grease_pencil_position_buffer_get(scene, ob);
       gpu::VertBuf *color_tx = draw::DRW_cache_grease_pencil_color_buffer_get(scene, ob);
 
-      pass.push_constant("gpStrokeOrder3d", is_stroke_order_3d);
+      pass.push_constant("gp_stroke_order3d", is_stroke_order_3d);
       pass.bind_texture("gp_pos_tx", position_tx);
       pass.bind_texture("gp_col_tx", color_tx);
 
@@ -503,15 +503,16 @@ class GreasePencil : Overlay {
         }
         const int point_i = points_by_curve[stroke_i].first();
         const float3 fpt = math::transform_point(object.object_to_world(), positions[point_i]);
-        Material *ma = BKE_object_material_get_eval(&object, materials[stroke_i] + 1);
-        DRW_text_cache_add(state.dt,
-                           fpt,
-                           ma->id.name + 2,
-                           strlen(ma->id.name + 2),
-                           10,
-                           0,
-                           DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR,
-                           color);
+        if (Material *ma = BKE_object_material_get_eval(&object, materials[stroke_i] + 1)) {
+          DRW_text_cache_add(state.dt,
+                             fpt,
+                             ma->id.name + 2,
+                             strlen(ma->id.name + 2),
+                             10,
+                             0,
+                             DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR,
+                             color);
+        }
       }
     }
   }

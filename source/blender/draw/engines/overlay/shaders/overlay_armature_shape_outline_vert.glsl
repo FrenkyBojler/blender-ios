@@ -48,7 +48,7 @@ VertOut vertex_main(VertIn v_in)
   v_out.ws_P = transform_point(model_mat, v_in.ls_P);
   v_out.vs_P = drw_point_world_to_view(v_out.ws_P);
   v_out.hs_P = drw_point_view_to_homogenous(v_out.vs_P);
-  v_out.ss_P = drw_perspective_divide(v_out.hs_P).xy * sizeViewport;
+  v_out.ss_P = drw_perspective_divide(v_out.hs_P).xy * uniform_buf.size_viewport;
   v_out.inverted = int(dot(cross(model_mat[0].xyz, model_mat[1].xyz), model_mat[2].xyz) < 0.0f);
   v_out.color_size = bone_color;
 
@@ -73,15 +73,16 @@ void emit_vertex(const uint strip_index,
     return;
   }
 
-  finalColor = color;
+  final_color = color;
 
   gl_Position = hs_P;
   /* Offset away from the center to avoid overlap with solid shape. */
-  gl_Position.xy += offset * sizeViewportInv * gl_Position.w;
+  gl_Position.xy += offset * uniform_buf.size_viewport_inv * gl_Position.w;
   /* Improve AA bleeding inside bone silhouette. */
   gl_Position.z -= (is_persp) ? 1e-4f : 1e-6f;
 
-  edgeStart = edgePos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) * sizeViewport;
+  edge_start = edge_pos = ((gl_Position.xy / gl_Position.w) * 0.5f + 0.5f) *
+                          uniform_buf.size_viewport;
 
   view_clipping_distances(ws_P);
 }
@@ -166,22 +167,22 @@ void main()
   /* Line Adjacency primitive. */
   constexpr uint input_primitive_vertex_count = 4u;
   /* Line list primitive. */
-  constexpr uint ouput_primitive_vertex_count = 2u;
-  constexpr uint ouput_primitive_count = 1u;
-  constexpr uint ouput_invocation_count = 1u;
-  constexpr uint output_vertex_count_per_invocation = ouput_primitive_count *
-                                                      ouput_primitive_vertex_count;
+  constexpr uint output_primitive_vertex_count = 2u;
+  constexpr uint output_primitive_count = 1u;
+  constexpr uint output_invocation_count = 1u;
+  constexpr uint output_vertex_count_per_invocation = output_primitive_count *
+                                                      output_primitive_vertex_count;
   constexpr uint output_vertex_count_per_input_primitive = output_vertex_count_per_invocation *
-                                                           ouput_invocation_count;
+                                                           output_invocation_count;
 
   uint in_primitive_id = uint(gl_VertexID) / output_vertex_count_per_input_primitive;
   uint in_primitive_first_vertex = in_primitive_id * input_primitive_vertex_count;
 
-  uint out_vertex_id = uint(gl_VertexID) % ouput_primitive_vertex_count;
-  uint out_primitive_id = (uint(gl_VertexID) / ouput_primitive_vertex_count) %
-                          ouput_primitive_count;
+  uint out_vertex_id = uint(gl_VertexID) % output_primitive_vertex_count;
+  uint out_primitive_id = (uint(gl_VertexID) / output_primitive_vertex_count) %
+                          output_primitive_count;
   uint out_invocation_id = (uint(gl_VertexID) / output_vertex_count_per_invocation) %
-                           ouput_invocation_count;
+                           output_invocation_count;
 
   float4x4 inst_matrix = data_buf[gl_InstanceID];
 

@@ -5,6 +5,7 @@
 #include <utility>
 
 #include "BKE_anonymous_attribute_id.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
@@ -34,6 +35,85 @@
 #endif
 
 namespace blender::bke {
+
+const CPPType &attribute_type_to_cpp_type(const AttrType type)
+{
+  switch (type) {
+    case AttrType::Bool:
+      return CPPType::get<bool>();
+    case AttrType::Int8:
+      return CPPType::get<int8_t>();
+    case AttrType::Int16_2D:
+      return CPPType::get<short2>();
+    case AttrType::Int32:
+      return CPPType::get<int>();
+    case AttrType::Int32_2D:
+      return CPPType::get<int2>();
+    case AttrType::Float:
+      return CPPType::get<float>();
+    case AttrType::Float2:
+      return CPPType::get<float2>();
+    case AttrType::Float3:
+      return CPPType::get<float3>();
+    case AttrType::Float4x4:
+      return CPPType::get<float4x4>();
+    case AttrType::ColorByte:
+      return CPPType::get<ColorGeometry4b>();
+    case AttrType::ColorFloat:
+      return CPPType::get<ColorGeometry4f>();
+    case AttrType::Quaternion:
+      return CPPType::get<math::Quaternion>();
+    case AttrType::String:
+      return CPPType::get<MStringProperty>();
+  }
+  BLI_assert_unreachable();
+  return CPPType::get<bool>();
+}
+
+AttrType cpp_type_to_attribute_type(const CPPType &type)
+{
+  if (type.is<float>()) {
+    return AttrType::Float;
+  }
+  if (type.is<float2>()) {
+    return AttrType::Float2;
+  }
+  if (type.is<float3>()) {
+    return AttrType::Float3;
+  }
+  if (type.is<int>()) {
+    return AttrType::Int32;
+  }
+  if (type.is<int2>()) {
+    return AttrType::Int32_2D;
+  }
+  if (type.is<ColorGeometry4f>()) {
+    return AttrType::ColorFloat;
+  }
+  if (type.is<bool>()) {
+    return AttrType::Bool;
+  }
+  if (type.is<int8_t>()) {
+    return AttrType::Int8;
+  }
+  if (type.is<ColorGeometry4b>()) {
+    return AttrType::ColorByte;
+  }
+  if (type.is<math::Quaternion>()) {
+    return AttrType::Quaternion;
+  }
+  if (type.is<float4x4>()) {
+    return AttrType::Float4x4;
+  }
+  if (type.is<short2>()) {
+    return AttrType::Int16_2D;
+  }
+  if (type.is<MStringProperty>()) {
+    return AttrType::String;
+  }
+  BLI_assert_unreachable();
+  return AttrType::Bool;
+}
 
 const blender::CPPType *custom_data_type_to_cpp_type(const eCustomDataType type)
 {
@@ -110,7 +190,8 @@ eCustomDataType cpp_type_to_custom_data_type(const blender::CPPType &type)
   if (type.is<MStringProperty>()) {
     return CD_PROP_STRING;
   }
-  return static_cast<eCustomDataType>(-1);
+  BLI_assert_unreachable();
+  return CD_PROP_FLOAT;
 }
 
 const char *no_procedural_access_message = N_(
@@ -151,35 +232,35 @@ bool allow_procedural_attribute_access(StringRef attribute_name)
   return true;
 }
 
-static int attribute_data_type_complexity(const eCustomDataType data_type)
+static int attribute_data_type_complexity(const AttrType data_type)
 {
   switch (data_type) {
-    case CD_PROP_BOOL:
+    case AttrType::Bool:
       return 0;
-    case CD_PROP_INT8:
+    case AttrType::Int8:
       return 1;
-    case CD_PROP_INT32:
+    case AttrType::Int32:
       return 2;
-    case CD_PROP_FLOAT:
+    case AttrType::Float:
       return 3;
-    case CD_PROP_INT16_2D:
+    case AttrType::Int16_2D:
       return 4;
-    case CD_PROP_INT32_2D:
+    case AttrType::Int32_2D:
       return 5;
-    case CD_PROP_FLOAT2:
+    case AttrType::Float2:
       return 6;
-    case CD_PROP_FLOAT3:
+    case AttrType::Float3:
       return 7;
-    case CD_PROP_BYTE_COLOR:
+    case AttrType::ColorByte:
       return 8;
-    case CD_PROP_QUATERNION:
+    case AttrType::Quaternion:
       return 9;
-    case CD_PROP_COLOR:
+    case AttrType::ColorFloat:
       return 10;
-    case CD_PROP_FLOAT4X4:
+    case AttrType::Float4x4:
       return 11;
 #if 0 /* These attribute types are not supported yet. */
-    case CD_PROP_STRING:
+    case AttrType::String:
       return 12;
 #endif
     default:
@@ -189,12 +270,12 @@ static int attribute_data_type_complexity(const eCustomDataType data_type)
   }
 }
 
-eCustomDataType attribute_data_type_highest_complexity(Span<eCustomDataType> data_types)
+AttrType attribute_data_type_highest_complexity(Span<AttrType> data_types)
 {
   int highest_complexity = INT_MIN;
-  eCustomDataType most_complex_type = CD_PROP_COLOR;
+  AttrType most_complex_type = AttrType::ColorFloat;
 
-  for (const eCustomDataType data_type : data_types) {
+  for (const AttrType data_type : data_types) {
     const int complexity = attribute_data_type_complexity(data_type);
     if (complexity > highest_complexity) {
       highest_complexity = complexity;
@@ -563,15 +644,16 @@ bool CustomDataAttributeProvider::foreach_attribute(
     return true;
   }
   for (const CustomDataLayer &layer : Span(custom_data->layers, custom_data->totlayer)) {
-    const eCustomDataType data_type = eCustomDataType(layer.type);
-    if (this->type_is_supported(data_type)) {
+    const eCustomDataType cd_type = eCustomDataType(layer.type);
+    if (this->type_is_supported(cd_type)) {
       const auto get_fn = [&]() {
-        const CPPType *type = custom_data_type_to_cpp_type(data_type);
+        const CPPType *type = custom_data_type_to_cpp_type(cd_type);
         BLI_assert(type);
         GSpan data{*type, layer.data, custom_data_access_.get_element_num(owner)};
         return GAttributeReader{GVArray::ForSpan(data), domain_, layer.sharing_info};
       };
 
+      const AttrType data_type = *custom_data_type_to_attr_type(cd_type);
       AttributeIter iter{layer.name, domain_, data_type, get_fn};
       fn(iter);
       if (iter.is_stopped()) {
@@ -609,11 +691,10 @@ std::optional<AttributeAccessor> AttributeAccessor::from_id(const ID &id)
   return {};
 }
 
-static GAttributeReader adapt_domain_and_type_if_necessary(
-    GAttributeReader attribute,
-    const std::optional<AttrDomain> domain,
-    const std::optional<eCustomDataType> data_type,
-    const AttributeAccessor &accessor)
+static GAttributeReader adapt_domain_and_type_if_necessary(GAttributeReader attribute,
+                                                           const std::optional<AttrDomain> domain,
+                                                           const std::optional<AttrType> data_type,
+                                                           const AttributeAccessor &accessor)
 {
   if (!attribute) {
     return {};
@@ -629,7 +710,7 @@ static GAttributeReader adapt_domain_and_type_if_necessary(
     }
   }
   if (data_type.has_value()) {
-    const CPPType &type = *custom_data_type_to_cpp_type(*data_type);
+    const CPPType &type = attribute_type_to_cpp_type(*data_type);
     if (attribute.varray.type() != type) {
       attribute.varray = try_adapt_data_type(std::move(attribute.varray), type);
       attribute.sharing_info = nullptr;
@@ -643,27 +724,27 @@ static GAttributeReader adapt_domain_and_type_if_necessary(
 
 GAttributeReader AttributeAccessor::lookup(const StringRef attribute_id,
                                            const std::optional<AttrDomain> domain,
-                                           const std::optional<eCustomDataType> data_type) const
+                                           const std::optional<AttrType> data_type) const
 {
   return adapt_domain_and_type_if_necessary(this->lookup(attribute_id), domain, data_type, *this);
 }
 
 GAttributeReader AttributeIter::get(std::optional<AttrDomain> domain,
-                                    std::optional<eCustomDataType> data_type) const
+                                    std::optional<AttrType> data_type) const
 {
   return adapt_domain_and_type_if_necessary(this->get(), domain, data_type, *accessor);
 }
 
 GAttributeReader AttributeAccessor::lookup_or_default(const StringRef attribute_id,
                                                       const AttrDomain domain,
-                                                      const eCustomDataType data_type,
+                                                      const AttrType data_type,
                                                       const void *default_value) const
 {
   GAttributeReader attribute = this->lookup(attribute_id, domain, data_type);
   if (attribute) {
     return attribute;
   }
-  const CPPType &type = *custom_data_type_to_cpp_type(data_type);
+  const CPPType &type = attribute_type_to_cpp_type(data_type);
   const int64_t domain_size = this->domain_size(domain);
   if (default_value == nullptr) {
     return {GVArray::ForSingleRef(type, domain_size, type.default_value()), domain, nullptr};
@@ -767,7 +848,7 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_for_write_span(const Strin
 GAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write(
     const StringRef attribute_id,
     const AttrDomain domain,
-    const eCustomDataType data_type,
+    const AttrType data_type,
     const AttributeInit &initializer)
 {
   std::optional<AttributeMetaData> meta_data = this->lookup_meta_data(attribute_id);
@@ -786,7 +867,7 @@ GAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write(
 GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_span(
     const StringRef attribute_id,
     const AttrDomain domain,
-    const eCustomDataType data_type,
+    const AttrType data_type,
     const AttributeInit &initializer)
 {
   GAttributeWriter attribute = this->lookup_or_add_for_write(
@@ -798,7 +879,7 @@ GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_span(
 }
 
 GSpanAttributeWriter MutableAttributeAccessor::lookup_or_add_for_write_only_span(
-    const StringRef attribute_id, const AttrDomain domain, const eCustomDataType data_type)
+    const StringRef attribute_id, const AttrDomain domain, const AttrType data_type)
 {
   GAttributeWriter attribute = this->lookup_or_add_for_write(
       attribute_id, domain, data_type, AttributeInitConstruct());
@@ -821,7 +902,7 @@ bool MutableAttributeAccessor::rename(const StringRef old_attribute_id,
   if (!old_attribute) {
     return false;
   }
-  const eCustomDataType type = cpp_type_to_custom_data_type(old_attribute.varray.type());
+  const AttrType type = cpp_type_to_attribute_type(old_attribute.varray.type());
   if (old_attribute.sharing_info != nullptr && old_attribute.varray.is_span()) {
     if (!this->add(new_attribute_id,
                    old_attribute.domain,
@@ -865,7 +946,7 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
     if (!(ATTR_DOMAIN_AS_MASK(iter.domain) & domain_mask)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -881,23 +962,23 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
 
 /** \} */
 
-Map<StringRef, eCustomDataType> interpolated_attribute_types(
+Map<StringRef, AttrType> interpolated_attribute_types(
     const Span<AttributeAccessor> attribute_accessors, const AttributeFilter &attribute_filter)
 {
-  Map<StringRef, eCustomDataType> info;
+  Map<StringRef, AttrType> info;
 
   for (const AttributeAccessor &attributes : attribute_accessors) {
     attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
       if (attribute_filter.allow_skip(iter.name)) {
         return;
       }
-      if (iter.data_type == CD_PROP_STRING) {
+      if (iter.data_type == AttrType::String) {
         return;
       }
       info.add_or_modify(
           iter.name,
-          [&](eCustomDataType *data_type) { *data_type = iter.data_type; },
-          [&](eCustomDataType *data_type) {
+          [&](AttrType *data_type) { *data_type = iter.data_type; },
+          [&](AttrType *data_type) {
             *data_type = attribute_data_type_highest_complexity({*data_type, iter.data_type});
           });
     });
@@ -918,7 +999,7 @@ void gather_attributes(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -957,7 +1038,7 @@ void gather_attributes(const AttributeAccessor src_attributes,
       if (iter.domain != src_domain) {
         return;
       }
-      if (iter.data_type == CD_PROP_STRING) {
+      if (iter.data_type == AttrType::String) {
         return;
       }
       if (attribute_filter.allow_skip(iter.name)) {
@@ -996,7 +1077,7 @@ void gather_attributes_group_to_group(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -1025,7 +1106,7 @@ void gather_attributes_to_groups(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -1073,7 +1154,7 @@ void copy_attributes_group_to_group(const AttributeAccessor src_attributes,
     if (iter.domain != src_domain) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == AttrType::String) {
       return;
     }
     if (attribute_filter.allow_skip(iter.name)) {
@@ -1102,7 +1183,7 @@ void fill_attribute_range_default(MutableAttributeAccessor attributes,
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == AttrType::String) {
       return;
     }
     GSpanAttributeWriter attribute = attributes.lookup_for_write_span(iter.name);

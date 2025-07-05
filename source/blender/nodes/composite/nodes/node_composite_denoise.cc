@@ -14,7 +14,7 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_state.hh"
@@ -42,20 +42,23 @@ static void cmp_node_denoise_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .compositor_domain_priority(0)
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Normal")
       .default_value({0.0f, 0.0f, 0.0f})
       .min(-1.0f)
       .max(1.0f)
       .hide_value()
-      .compositor_domain_priority(2);
+      .compositor_domain_priority(2)
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Color>("Albedo")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .hide_value()
-      .compositor_domain_priority(1);
-  b.add_input<decl::Bool>("HDR").default_value(true).compositor_expects_single_value();
+      .compositor_domain_priority(1)
+      .structure_type(StructureType::Dynamic);
+  b.add_input<decl::Bool>("HDR").default_value(true);
 
-  b.add_output<decl::Color>("Image");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_denonise(bNodeTree * /*ntree*/, bNode *node)
@@ -86,17 +89,17 @@ static bool is_oidn_supported()
 static void node_composit_buts_denoise(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
 #ifndef WITH_OPENIMAGEDENOISE
-  uiItemL(layout, RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
+  layout->label(RPT_("Disabled. Built without OpenImageDenoise"), ICON_ERROR);
 #else
   if (!is_oidn_supported()) {
-    uiItemL(layout, RPT_("Disabled. Platform not supported"), ICON_ERROR);
+    layout->label(RPT_("Disabled. Platform not supported"), ICON_ERROR);
   }
 #endif
 
-  uiItemL(layout, IFACE_("Prefilter:"), ICON_NONE);
-  uiItemR(layout, ptr, "prefilter", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemL(layout, IFACE_("Quality:"), ICON_NONE);
-  uiItemR(layout, ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->label(IFACE_("Prefilter:"), ICON_NONE);
+  layout->prop(ptr, "prefilter", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->label(IFACE_("Quality:"), ICON_NONE);
+  layout->prop(ptr, "quality", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -348,7 +351,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_denoise_cc
 
-void register_node_type_cmp_denoise()
+static void register_node_type_cmp_denoise()
 {
   namespace file_ns = blender::nodes::node_composite_denoise_cc;
 
@@ -368,3 +371,4 @@ void register_node_type_cmp_denoise()
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_denoise)
