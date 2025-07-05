@@ -2975,19 +2975,42 @@ get_execution_time_range(const TreeDrawContext &tree_draw_ctx, const SpaceNode &
   std::optional<std::chrono::nanoseconds> min_time;
   std::optional<std::chrono::nanoseconds> max_time;
 
-  for (const bNode *node : ntree.all_nodes()) {
-    if (node->is_type("CompositorNodeViewer") || node->is_type("NodeGroupOutput")) {
-      continue; // Skip group output and viewer nodes
+  auto update_min_max = [&](std::chrono::nanoseconds exec_time) {
+    if (!min_time.has_value() || exec_time < *min_time) {
+      min_time = exec_time;
     }
+    if (!max_time.has_value() || exec_time > *max_time) {
+      max_time = exec_time;
+    }
+  };
 
-    if (std::optional<std::chrono::nanoseconds> exec_time = node_get_execution_time(tree_draw_ctx, snode, *node)) {
-      if (!min_time.has_value() || *exec_time < *min_time) {
-        min_time = exec_time;
+  switch (ntree.type) {
+    case NTREE_GEOMETRY: {
+      geo_log::GeoTreeLog *tree_log = [&]() -> geo_log::GeoTreeLog * {
+        const bNodeTreeZones *zones = ntree.zones();
+        if (!zones) {
+          return nullptr;
+        }
+        return tree_draw_ctx.tree_logs.get_main_tree_log(nullptr);
+      }();
+
+      if (tree_log != nullptr) {
+        for (const auto &item : tree_log->nodes.items()) {
+          update_min_max(item.value.execution_time);
+        }
       }
-      if (!max_time.has_value() || *exec_time > *max_time) {
-        max_time = exec_time;
-      }
+      break;
     }
+    case NTREE_COMPOSIT: {
+      if (tree_draw_ctx.compositor_per_node_execution_time) {
+        for (const auto &item : tree_draw_ctx.compositor_per_node_execution_time->items()) {
+          update_min_max(item.value);
+        }
+      }
+      break;
+    }
+    default:
+      break;
   }
 
   if (!min_time || !max_time) {
