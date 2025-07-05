@@ -2265,7 +2265,6 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
                                            size_t *r_width,
                                            size_t *r_height)
 {
-  ImBuf *ibuf = nullptr;
   IStream *stream = nullptr;
   Imf::RgbaInputFile *file = nullptr;
 
@@ -2288,8 +2287,6 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     file = new RgbaInputFile(*stream, 1);
 
     if (!file->isComplete()) {
-      delete file;
-      delete stream;
       return nullptr;
     }
 
@@ -2321,7 +2318,7 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
     int dest_w = std::max(int(source_w * scale_factor), 1);
     int dest_h = std::max(int(source_h * scale_factor), 1);
 
-    ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
+    ImBuf *ibuf = IMB_allocImBuf(dest_w, dest_h, 32, IB_float_data);
 
     /* A single row of source pixels. */
     Imf::Array<Imf::Rgba> pixels(source_w);
@@ -2357,20 +2354,12 @@ ImBuf *imb_load_filepath_thumbnail_openexr(const char *filepath,
 
   catch (const std::exception &exc) {
     std::cerr << exc.what() << std::endl;
-    if (ibuf) {
-      IMB_freeImBuf(ibuf);
-    }
-
     delete file;
     delete stream;
     return nullptr;
   }
   catch (...) { /* Catch-all for edge cases or compiler bugs. */
     std::cerr << "OpenEXR-Thumbnail: UNKNOWN ERROR" << std::endl;
-    if (ibuf) {
-      IMB_freeImBuf(ibuf);
-    }
-
     delete file;
     delete stream;
     return nullptr;

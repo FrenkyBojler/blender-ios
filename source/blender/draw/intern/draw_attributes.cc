@@ -10,8 +10,14 @@
 
 namespace blender::draw {
 
-void drw_attributes_merge(VectorSet<std::string> *dst, const VectorSet<std::string> *src)
+void drw_attributes_merge(VectorSet<std::string> *dst,
+                          const VectorSet<std::string> *src,
+                          Mutex &render_mutex)
 {
+  if (src->is_empty()) {
+    return;
+  }
+  std::lock_guard lock{render_mutex};
   dst->add_multiple(src->as_span());
 }
 

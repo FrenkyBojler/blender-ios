@@ -1042,11 +1042,6 @@ def km_user_interface(_params):
         ("ui.view_scroll", {"type": 'WHEELUPMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'WHEELDOWNMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
-         {"properties": [("extend", True)]}),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
-         {"properties": [("range_select", True)]}),
     ])
 
     return keymap
@@ -1333,8 +1328,8 @@ def km_outliner(params):
         ("outliner.collection_new", {"type": 'C', "value": 'PRESS'}, None),
         ("outliner.delete", {"type": 'X', "value": 'PRESS'}, None),
         ("outliner.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-        op_menu("OBJECT_MT_move_to_collection", {"type": 'M', "value": 'PRESS'}),
-        op_menu("OBJECT_MT_link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}),
+        ("object.move_to_collection", {"type": 'M', "value": 'PRESS'}, None),
+        ("object.link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}, None),
         ("outliner.collection_exclude_set", {"type": 'E', "value": 'PRESS'}, None),
         ("outliner.collection_exclude_clear", {"type": 'E', "value": 'PRESS', "alt": True}, None),
         ("outliner.hide", {"type": 'H', "value": 'PRESS'}, None),
@@ -1855,8 +1850,8 @@ def km_graph_editor_generic(params):
          {"properties": [("only_active", False)]}),
         ("anim.channels_select_filter", {"type": 'F', "value": 'PRESS', "ctrl": True}, None),
         *_template_items_hide_reveal_actions("graph.hide", "graph.reveal"),
-        ("screen.space_type_set_or_cycle", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
-         {"properties": [("space_type", 'DOPESHEET_EDITOR')]}),
+        ("wm.context_set_enum", {"type": 'TAB', "value": 'PRESS', "ctrl": True},
+         {"properties": [("data_path", "area.type"), ("value", 'DOPESHEET_EDITOR')]}),
     ])
 
     return keymap
@@ -4424,8 +4419,8 @@ def km_object_mode(params):
          {"type": 'G', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("collection.objects_remove_active", {"type": 'G', "value": 'PRESS', "shift": True, "alt": True}, None),
         *_template_items_object_subdivision_set(),
-        op_menu("OBJECT_MT_move_to_collection", {"type": 'M', "value": 'PRESS'}),
-        op_menu("OBJECT_MT_link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}),
+        ("object.move_to_collection", {"type": 'M', "value": 'PRESS'}, None),
+        ("object.link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True}, None),
         *_template_items_hide_reveal_actions("object.hide_view_set", "object.hide_view_clear"),
         ("object.hide_collection", {"type": 'H', "value": 'PRESS', "ctrl": True}, None),
         *_template_items_context_menu("VIEW3D_MT_object_context_menu", params.context_menu_event),

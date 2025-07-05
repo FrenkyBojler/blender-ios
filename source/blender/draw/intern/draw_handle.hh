@@ -45,23 +45,22 @@ struct DupliCacheManager;
 
 namespace blender::draw {
 
-/**
- * Index for getting a specific resource from the Draw Manager resource arrays.
- * (e.g. object matrices)
- * Last bit contains handedness.
- *
- * NOTE: From the draw_pass and draw_command perspective, the 0 index is still valid and points to
- * default initialized Manager resources. Valid ResourceHandles start at index 1.
- */
-struct ResourceIndex {
+struct ResourceHandle {
+  /* Index for getting a specific resource in the resource arrays (e.g. object matrices).
+   * Last bit contains handedness. */
   uint32_t raw;
 
-  ResourceIndex() = default;
-  ResourceIndex(uint raw_) : raw(raw_){};
-  ResourceIndex(uint index, bool inverted_handedness)
+  ResourceHandle() = default;
+  ResourceHandle(uint raw_) : raw(raw_){};
+  ResourceHandle(uint index, bool inverted_handedness)
   {
     raw = index;
     SET_FLAG_FROM_TEST(raw, inverted_handedness, 0x80000000u);
+  }
+
+  bool is_valid() const
+  {
+    return raw != 0;
   }
 
   bool has_inverted_handedness() const
@@ -76,130 +75,56 @@ struct ResourceIndex {
 };
 
 /**
- * Refers to a range of contiguous indices in the Draw Manager resource arrays.
+ * Refers to a range of contiguous handles in the resource arrays.
  * Typically used to render instances of an object, but can represent a single instance too.
- * The associated objects must share handedness and state so they can be rendered together.
- */
-struct ResourceIndexRange {
-  /* First handle in the range. */
-  ResourceIndex first = 0;
-  /* Number of handles in the range. */
-  uint32_t count = 1;
-
-  ResourceIndexRange() = default;
-  ResourceIndexRange(ResourceIndex index) : first(index), count(1) {}
-  ResourceIndexRange(ResourceIndex index, uint len) : first(index), count(len) {}
-
-  bool has_inverted_handedness() const
-  {
-    return first.has_inverted_handedness();
-  }
-
-  IndexRange index_range() const
-  {
-    BLI_assert(count > 0);
-    BLI_assert(first.raw != 0 || count == 1);
-    return {first.raw, count};
-  }
-};
-
-/**
- * Safety wrapper around ResourceIndex, meant to be used by engine code.
- * Valid handles can only be created by the Draw Manager.
- *
- * NOTE: This class is deprecated.
- * Some Draw Manager functions can't work with ranged synchronization and returns ResourceHandles
- * for clarity, but engine code should always use ResourceHandleRange.
- */
-class ResourceHandle {
-  friend class Manager;
-  friend class ResourceHandleRange;
-
-  ResourceIndex index_ = {};
-
-  ResourceHandle(uint raw) : index_(raw) {}
-  ResourceHandle(uint index, bool inverted_handedness) : index_(index, inverted_handedness) {}
-
- public:
-  ResourceHandle() = default;
-
-  bool is_valid() const
-  {
-    return index_.raw != 0;
-  }
-
-  bool has_inverted_handedness() const
-  {
-    return index_.has_inverted_handedness();
-  }
-
-  uint resource_index() const
-  {
-    return index_.resource_index();
-  }
-
-  operator ResourceIndex() const
-  {
-    BLI_assert(is_valid());
-    return index_;
-  }
-};
-
-/**
- * Safety wrapper around ResourceIndexRange, meant to be used by engine code.
- * Valid handles can only be created by the Draw Manager.
+ * The associated objects will all share handedness and state and can be rendered together.
  */
 class ResourceHandleRange {
-  friend class Manager;
-
-  ResourceIndexRange index_ = {};
-
-  ResourceHandleRange(ResourceHandle handle, uint len) : index_(handle.index_, len) {}
+ private:
+  /* First handle in the range. */
+  ResourceHandle first_ = {0};
+  /* Number of handle in the range. */
+  uint32_t count_ = 0;
 
  public:
   ResourceHandleRange() = default;
-  ResourceHandleRange(ResourceHandle handle) : index_(handle.index_) {}
+  ResourceHandleRange(ResourceHandle handle) : first_(handle), count_(1) {}
+  ResourceHandleRange(ResourceHandle handle, uint len) : first_(handle), count_(len) {}
 
   bool is_valid() const
   {
-    return index_.first.raw != 0;
+    return first_.is_valid();
   }
 
   bool has_inverted_handedness() const
   {
-    return index_.has_inverted_handedness();
+    return first_.has_inverted_handedness();
   }
 
   IndexRange index_range() const
   {
-    return index_.index_range();
+    return {first_.raw, count_};
   }
 
-  operator ResourceIndexRange() const
-  {
-    BLI_assert(is_valid());
-    return index_;
-  }
-
-  /* These functions are to keep existing engine code to work.
+  /* These functions are to keep existing code to work.
    * Should be used only for objects and code paths that don't support ranged synchronization. */
 
   operator ResourceHandle() const
   {
-    BLI_assert(index_.count == 1);
-    return ResourceHandle(index_.first.raw);
+    BLI_assert(count_ <= 1);
+    return first_;
   }
 
   uint32_t raw() const
   {
-    BLI_assert(index_.count == 1);
-    return index_.first.raw;
+    BLI_assert(count_ <= 1);
+    return first_.raw;
   }
 
   uint resource_index() const
   {
-    BLI_assert(index_.count == 1);
-    return index_.first.resource_index();
+    BLI_assert(count_ <= 1);
+    return first_.resource_index();
   }
 };
 

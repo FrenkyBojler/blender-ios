@@ -98,7 +98,7 @@ class Prepass {
   {
     Object *ob = ob_ref.object;
 
-    ResourceHandleRange handle = {};
+    ResourceHandleRange handle = {0};
 
     LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
       if (!DRW_object_is_visible_psys_in_active_context(ob, psys)) {

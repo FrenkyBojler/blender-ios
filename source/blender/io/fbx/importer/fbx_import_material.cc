@@ -302,8 +302,9 @@ static void add_image_texture(Main *bmain,
   BLI_assert(image != nullptr);
 
   /* Set "non-color" color space for all "data" textures. */
-  if (!STR_ELEM(
-          socket_name, "Base Color", "Specular Tint", "Sheen Tint", "Coat Tint", "Emission Color"))
+  if (!STREQ(socket_name, "Base Color") && !STREQ(socket_name, "Specular Tint") &&
+      !STREQ(socket_name, "Sheen Tint") && !STREQ(socket_name, "Coat Tint") &&
+      !STREQ(socket_name, "Emission Color"))
   {
     STRNCPY(image->colorspace_settings.name,
             IMB_colormanagement_role_colorspace_name_get(COLOR_ROLE_DATA));

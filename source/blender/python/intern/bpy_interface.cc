@@ -188,27 +188,9 @@ void BPY_context_dict_clear_members_array(void **dict_p,
    * while supported it's good to avoid for low level functions like this that run often. */
   for (uint i = 0; i < context_members_len; i++) {
     PyObject *key = PyUnicode_FromString(context_members[i]);
-    PyObject *item;
-
-#if PY_VERSION_HEX >= 0x030d0000
-    switch (PyDict_Pop(dict, key, &item)) {
-      case 1: {
-        Py_DECREF(item);
-        break;
-      }
-      case -1: {
-        /* Not expected, but allow for an error. */
-        BLI_assert(false);
-        PyErr_Clear();
-        break;
-      }
-    }
-#else /* Remove when Python 3.12 support is dropped. */
-    item = _PyDict_Pop(dict, key, Py_None);
-    Py_DECREF(item);
-#endif
-
+    PyObject *item = _PyDict_Pop(dict, key, Py_None);
     Py_DECREF(key);
+    Py_DECREF(item);
   }
 
   if (use_gil) {
@@ -544,6 +526,7 @@ void BPY_python_start(bContext *C, int argc, const char **argv)
       }
       else {
         PyErr_Print();
+        PyErr_Clear();
       }
       // Py_DECREF(mod); /* Ideally would decref, but in this case we never want to free. */
     }
@@ -778,6 +761,7 @@ bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult 
     PyObject *seq_fast = PySequence_Fast(item, "bpy_context_get sequence conversion");
     if (seq_fast == nullptr) {
       PyErr_Print();
+      PyErr_Clear();
     }
     else {
       const int len = PySequence_Fast_GET_SIZE(seq_fast);

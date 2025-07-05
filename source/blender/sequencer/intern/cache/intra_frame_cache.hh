@@ -35,7 +35,6 @@ void intra_frame_cache_destroy(Scene *scene);
 void intra_frame_cache_invalidate(Scene *scene, const Strip *strip);
 void intra_frame_cache_invalidate(Scene *scene);
 
-void intra_frame_cache_set_cur_frame(
-    Scene *scene, float frame, int view_id, int width, int height);
+void intra_frame_cache_set_cur_frame(Scene *scene, float frame, int view_id);
 
 }  // namespace blender::seq

@@ -152,8 +152,7 @@ static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
                                               .complement(IndexRange(pointcloud->totpoint),
                                                           memory);
     const bool was_anything_selected = has_anything_selected(*pointcloud);
-    bke::GSpanAttributeWriter selection = ensure_selection_attribute(*pointcloud,
-                                                                     bke::AttrType::Bool);
+    bke::GSpanAttributeWriter selection = ensure_selection_attribute(*pointcloud, CD_PROP_BOOL);
     if (!was_anything_selected) {
       pointcloud::fill_selection_true(selection.span);
     }

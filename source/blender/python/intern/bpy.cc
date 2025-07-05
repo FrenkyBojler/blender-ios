@@ -714,6 +714,7 @@ static PyObject *bpy_import_test(const char *modname)
   }
   else {
     PyErr_Print();
+    PyErr_Clear();
   }
 
   return mod;

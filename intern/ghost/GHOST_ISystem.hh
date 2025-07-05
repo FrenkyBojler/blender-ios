@@ -180,12 +180,10 @@ class GHOST_ISystem {
 
   /**
    * Installs a timer.
-   *
-   * \note On most operating systems, messages need to be processed in order
+   * Note that, on most operating systems, messages need to be processed in order
    * for the timer callbacks to be invoked.
-   *
-   * \param delay: The time to wait for the first call to the #timerProc (in milliseconds).
-   * \param interval: The interval between calls to the #timerProc.
+   * \param delay: The time to wait for the first call to the timerProc (in milliseconds).
+   * \param interval: The interval between calls to the timerProc (in milliseconds).
    * \param timerProc: The callback invoked when the interval expires.
    * \param userData: Placeholder for user data.
    * \return A timer task (0 if timer task installation failed).
@@ -282,7 +280,6 @@ class GHOST_ISystem {
 
   /**
    * Native pixel size support (MacBook 'retina').
-   * \return The pixel size in float.
    */
   virtual bool useNativePixel() = 0;
 
@@ -327,7 +324,6 @@ class GHOST_ISystem {
 
   /**
    * Retrieves events from the queue and send them to the event consumers.
-   * The event stack will be empty afterwards.
    */
   virtual void dispatchEvents() = 0;
 
@@ -431,7 +427,7 @@ class GHOST_ISystem {
 
 #ifdef WITH_INPUT_NDOF
   /**
-   * Sets 3D mouse dead-zone.
+   * Sets 3D mouse deadzone
    * \param deadzone: Dead-zone of the 3D mouse (both for rotation and pan) relative to full range
    */
   virtual void setNDOFDeadZone(float deadzone) = 0;
@@ -449,18 +445,13 @@ class GHOST_ISystem {
    ***************************************************************************************/
 
   /**
-   * Return the clipboard buffer or null.
-   *
-   * \param selection: Use the "primary" selection.
-   * Check the #GHOST_kCapabilityPrimaryClipboard for backends that support this.
-   * \return Returns the clipboard data as a null terminated string or null when unavailable.
+   * Returns the selection buffer
+   * \return "unsigned char" from X11 XA_CUT_BUFFER0 buffer
    */
   virtual char *getClipboard(bool selection) const = 0;
 
   /**
    * Put data to the Clipboard
-   * \param buffer: The buffer to copy to the clipboard.
-   * \param selection: The clipboard to copy too only used on X11.
    */
   virtual void putClipboard(const char *buffer, bool selection) const = 0;
 

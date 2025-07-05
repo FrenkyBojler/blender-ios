@@ -1794,7 +1794,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
                         const blender::Span<blender::float3> vert_normals,
                         const int *corner_verts,
                         const blender::int3 *corner_tris,
-                        blender::Span<blender::float2> mloopuv,
+                        const float (*mloopuv)[2],
                         float *influence_map,
                         float *velocity_map,
                         int index,
@@ -1915,7 +1915,7 @@ static void sample_mesh(FluidFlowSettings *ffs,
           tex_co[2] = ((z - flow_center[2]) / base_res[2] - ffs->texture_offset) /
                       ffs->texture_size;
         }
-        else if (!mloopuv.is_empty()) {
+        else if (mloopuv) {
           const float *uv[3];
           uv[0] = mloopuv[corner_tris[tri_i][0]];
           uv[1] = mloopuv[corner_tris[tri_i][1]];
@@ -1992,7 +1992,7 @@ struct EmitFromDMData {
   blender::Span<blender::float3> vert_normals;
   blender::Span<int> corner_verts;
   blender::Span<blender::int3> corner_tris;
-  blender::Span<blender::float2> mloopuv;
+  const float (*mloopuv)[2];
   const MDeformVert *dvert;
   int defgrp_index;
 
@@ -2077,9 +2077,8 @@ static void emit_from_mesh(
     const blender::Span<blender::int3> corner_tris = mesh->corner_tris();
     const int numverts = mesh->verts_num;
     const MDeformVert *dvert = mesh->deform_verts().data();
-    const blender::bke::AttributeAccessor attributes = mesh->attributes();
-    const blender::VArraySpan uv_map = *attributes.lookup<blender::float2>(
-        ffs->uvlayer_name, blender::bke::AttrDomain::Corner);
+    const float(*mloopuv)[2] = static_cast<const float(*)[2]>(
+        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, ffs->uvlayer_name));
 
     if (ffs->flags & FLUID_FLOW_INITVELOCITY) {
       vert_vel = MEM_calloc_arrayN<float>(3 * size_t(numverts), "manta_flow_velocity");
@@ -2146,7 +2145,7 @@ static void emit_from_mesh(
       data.vert_normals = mesh->vert_normals();
       data.corner_verts = corner_verts;
       data.corner_tris = corner_tris;
-      data.mloopuv = uv_map;
+      data.mloopuv = mloopuv;
       data.dvert = dvert;
       data.defgrp_index = defgrp_index;
       data.tree = &tree_data;

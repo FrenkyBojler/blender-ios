@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *BPY_app_oiio_struct();
+PyObject *BPY_app_oiio_struct();

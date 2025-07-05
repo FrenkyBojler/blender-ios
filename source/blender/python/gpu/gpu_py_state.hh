@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *bpygpu_state_init();
+PyObject *bpygpu_state_init();

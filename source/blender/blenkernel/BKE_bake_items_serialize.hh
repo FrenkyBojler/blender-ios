@@ -236,7 +236,7 @@ class MemoryBlobWriter : public BlobWriter {
  */
 class MemoryBlobReader : public BlobReader {
  private:
-  Map<std::string, Span<std::byte>> blob_by_name_;
+  Map<StringRef, Span<std::byte>> blob_by_name_;
 
  public:
   void add(StringRef name, Span<std::byte> blob);

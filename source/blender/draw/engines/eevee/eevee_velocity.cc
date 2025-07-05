@@ -76,7 +76,7 @@ static void step_object_sync_render(Instance &inst, ObjectRef &ob_ref)
   }
 
   /* NOTE: Dummy resource handle since this won't be used for drawing. */
-  ResourceHandleRange resource_handle = {};
+  ResourceHandleRange resource_handle(0);
   ObjectHandle &ob_handle = inst.sync.sync_object(ob_ref);
 
   if (partsys_is_visible) {

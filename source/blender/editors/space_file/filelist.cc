@@ -163,45 +163,40 @@ struct FileListIntern {
 
 #define FILELIST_ENTRYCACHESIZE_DEFAULT 1024 /* Keep it a power of two! */
 struct FileListEntryCache {
-  size_t size = 0; /* The size of the cache... */
+  size_t size; /* The size of the cache... */
 
-  int flags = 0;
+  int flags;
 
   /* This one gathers all entries from both block and misc caches. Used for easy bulk-freeing. */
-  ListBase cached_entries = {};
+  ListBase cached_entries;
 
   /* Block cache: all entries between start and end index.
    * used for part of the list on display. */
-  FileDirEntry **block_entries = nullptr;
-  int block_start_index = 0;
-  int block_end_index = 0;
-  int block_center_index = 0;
-  int block_cursor = 0;
+  FileDirEntry **block_entries;
+  int block_start_index, block_end_index, block_center_index, block_cursor;
 
   /* Misc cache: random indices, FIFO behavior.
    * NOTE: Not 100% sure we actually need that, time will say. */
-  int misc_cursor = 0;
-  int *misc_entries_indices = nullptr;
-  GHash *misc_entries = nullptr;
+  int misc_cursor;
+  int *misc_entries_indices;
+  GHash *misc_entries;
 
   /* Allows to quickly get a cached entry from its UID. */
-  GHash *uids = nullptr;
+  GHash *uids;
 
   /* Previews handling. */
-  TaskPool *previews_pool = nullptr;
-  ThreadQueue *previews_done = nullptr;
+  TaskPool *previews_pool;
+  ThreadQueue *previews_done;
   /** Counter for previews that are not fully loaded and ready to display yet. So includes all
    * previews either in `previews_pool` or `previews_done`. #filelist_cache_previews_update() makes
    * previews in `preview_done` ready for display, so the counter is decremented there. */
-  int previews_todo_count = 0;
-
-  FileListEntryCache();
-  ~FileListEntryCache();
+  int previews_todo_count;
 };
 
 /** #FileListCache.flags */
 enum {
-  FLC_PREVIEWS_ACTIVE = 1 << 0,
+  FLC_IS_INIT = 1 << 0,
+  FLC_PREVIEWS_ACTIVE = 1 << 1,
 };
 
 struct FileListEntryPreview {
@@ -259,7 +254,7 @@ struct FileList {
 
   FileListIntern filelist_intern;
 
-  FileListEntryCache *filelist_cache;
+  FileListEntryCache filelist_cache;
 
   /**
    * We need to keep those info outside of actual file-list items,
@@ -1007,7 +1002,7 @@ void filelist_filter(FileList *filelist)
   filelist->filelist.entries_filtered_num = num_filtered;
   //  printf("Filetered: %d over %d entries\n", num_filtered, filelist->filelist.entries_num);
 
-  filelist_cache_clear(filelist->filelist_cache, filelist->filelist_cache->size);
+  filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
   filelist->flags &= ~FL_NEED_FILTERING;
 
   MEM_freeN(filtered_tmp);
@@ -1678,7 +1673,7 @@ static bool filelist_file_preview_load_poll(const FileDirEntry *entry)
  */
 static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry, const int index)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
 
   BLI_assert(cache->flags & FLC_PREVIEWS_ACTIVE);
 
@@ -1738,37 +1733,56 @@ static bool filelist_cache_previews_push(FileList *filelist, FileDirEntry *entry
   return true;
 }
 
-FileListEntryCache::FileListEntryCache() : size(FILELIST_ENTRYCACHESIZE_DEFAULT)
+static void filelist_cache_init(FileListEntryCache *cache, size_t cache_size)
 {
-  block_entries = static_cast<FileDirEntry **>(
-      MEM_mallocN(sizeof(*this->block_entries) * this->size, __func__));
+  BLI_listbase_clear(&cache->cached_entries);
 
-  this->misc_entries = BLI_ghash_ptr_new_ex(__func__, this->size);
-  this->misc_entries_indices = MEM_malloc_arrayN<int>(this->size, __func__);
-  copy_vn_i(this->misc_entries_indices, this->size, -1);
+  cache->block_cursor = cache->block_start_index = cache->block_center_index =
+      cache->block_end_index = 0;
+  cache->block_entries = static_cast<FileDirEntry **>(
+      MEM_mallocN(sizeof(*cache->block_entries) * cache_size, __func__));
 
-  this->uids = BLI_ghash_new_ex(
-      BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__, this->size * 2);
+  cache->misc_entries = BLI_ghash_ptr_new_ex(__func__, cache_size);
+  cache->misc_entries_indices = MEM_malloc_arrayN<int>(cache_size, __func__);
+  copy_vn_i(cache->misc_entries_indices, cache_size, -1);
+  cache->misc_cursor = 0;
+
+  cache->uids = BLI_ghash_new_ex(
+      BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__, cache_size * 2);
+
+  cache->size = cache_size;
+  cache->flags = FLC_IS_INIT;
+
+  cache->previews_todo_count = 0;
 }
 
-FileListEntryCache::~FileListEntryCache()
+static void filelist_cache_free(FileListEntryCache *cache)
 {
-  filelist_cache_previews_free(this);
+  if (!(cache->flags & FLC_IS_INIT)) {
+    return;
+  }
 
-  MEM_freeN(this->block_entries);
+  filelist_cache_previews_free(cache);
 
-  BLI_ghash_free(this->misc_entries, nullptr, nullptr);
-  MEM_freeN(this->misc_entries_indices);
+  MEM_freeN(cache->block_entries);
 
-  BLI_ghash_free(this->uids, nullptr, nullptr);
+  BLI_ghash_free(cache->misc_entries, nullptr, nullptr);
+  MEM_freeN(cache->misc_entries_indices);
 
-  LISTBASE_FOREACH_MUTABLE (FileDirEntry *, entry, &this->cached_entries) {
+  BLI_ghash_free(cache->uids, nullptr, nullptr);
+
+  LISTBASE_FOREACH_MUTABLE (FileDirEntry *, entry, &cache->cached_entries) {
     filelist_entry_free(entry);
   }
+  BLI_listbase_clear(&cache->cached_entries);
 }
 
 static void filelist_cache_clear(FileListEntryCache *cache, size_t new_size)
 {
+  if (!(cache->flags & FLC_IS_INIT)) {
+    return;
+  }
+
   filelist_cache_previews_clear(cache);
 
   cache->block_cursor = cache->block_start_index = cache->block_center_index =
@@ -1799,7 +1813,7 @@ FileList *filelist_new(short type)
 {
   FileList *p = MEM_callocN<FileList>(__func__);
 
-  p->filelist_cache = MEM_new<FileListEntryCache>("FileListEntryCache");
+  filelist_cache_init(&p->filelist_cache, FILELIST_ENTRYCACHESIZE_DEFAULT);
 
   p->selection_state = BLI_ghash_new(BLI_ghashutil_inthash_p, BLI_ghashutil_intcmp, __func__);
   p->filelist.entries_num = FILEDIR_NBR_ENTRIES_UNSET;
@@ -1881,7 +1895,7 @@ void filelist_clear_ex(FileList *filelist,
   filelist_tag_needs_filtering(filelist);
 
   if (do_cache) {
-    filelist_cache_clear(filelist->filelist_cache, filelist->filelist_cache->size);
+    filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
   }
 
   filelist_intern_free(filelist);
@@ -1917,7 +1931,7 @@ static void filelist_clear_main_files(FileList *filelist,
   filelist_tag_needs_filtering(filelist);
 
   if (do_cache) {
-    filelist_cache_clear(filelist->filelist_cache, filelist->filelist_cache->size);
+    filelist_cache_clear(&filelist->filelist_cache, filelist->filelist_cache.size);
   }
 
   filelist->filelist.entries_num -= removed_files;
@@ -1961,7 +1975,7 @@ void filelist_free(FileList *filelist)
 
   /* No need to clear cache & selection_state, we free them anyway. */
   filelist_clear_ex(filelist, true, false, false);
-  MEM_delete(filelist->filelist_cache);
+  filelist_cache_free(&filelist->filelist_cache);
 
   if (filelist->selection_state) {
     BLI_ghash_free(filelist->selection_state, nullptr, nullptr);
@@ -2131,7 +2145,7 @@ int filelist_files_ensure(FileList *filelist)
 static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int index)
 {
   FileListInternEntry *entry = filelist->filelist_intern.filtered[index];
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
   FileDirEntry *ret;
 
   ret = MEM_callocN<FileDirEntry>(__func__);
@@ -2174,7 +2188,7 @@ static FileDirEntry *filelist_file_create_entry(FileList *filelist, const int in
 
 static void filelist_file_release_entry(FileList *filelist, FileDirEntry *entry)
 {
-  BLI_remlink(&filelist->filelist_cache->cached_entries, entry);
+  BLI_remlink(&filelist->filelist_cache.cached_entries, entry);
   filelist_entry_free(entry);
 }
 
@@ -2194,7 +2208,7 @@ static FileDirEntry *filelist_cache_file_lookup(FileListEntryCache *cache, const
 FileDirEntry *filelist_file_ex(FileList *filelist, const int index, const bool use_request)
 {
   FileDirEntry *ret = nullptr, *old;
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
   int old_index;
 
   if ((index < 0) || (index >= filelist->filelist.entries_filtered_num)) {
@@ -2339,8 +2353,8 @@ void filelist_file_cache_slidingwindow_set(FileList *filelist, size_t window_siz
     size *= 2;
   }
 
-  if (size != filelist->filelist_cache->size) {
-    filelist_cache_clear(filelist->filelist_cache, size);
+  if (size != filelist->filelist_cache.size) {
+    filelist_cache_clear(&filelist->filelist_cache, size);
   }
 }
 
@@ -2350,7 +2364,7 @@ static bool filelist_file_cache_block_create(FileList *filelist,
                                              const int size,
                                              int cursor)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
 
   int i, idx;
 
@@ -2371,7 +2385,7 @@ static bool filelist_file_cache_block_create(FileList *filelist,
 
 static void filelist_file_cache_block_release(FileList *filelist, const int size, int cursor)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
 
   int i;
 
@@ -2392,7 +2406,7 @@ static void filelist_file_cache_block_release(FileList *filelist, const int size
 
 bool filelist_file_cache_block(FileList *filelist, const int index)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
   const size_t cache_size = cache->size;
 
   const int entries_num = filelist->filelist.entries_filtered_num;
@@ -2608,7 +2622,7 @@ bool filelist_file_cache_block(FileList *filelist, const int index)
 
 void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
 
   if (use_previews == ((cache->flags & FLC_PREVIEWS_ACTIVE) != 0)) {
     return;
@@ -2633,7 +2647,7 @@ void filelist_cache_previews_set(FileList *filelist, const bool use_previews)
 
 bool filelist_cache_previews_update(FileList *filelist)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
   TaskPool *pool = cache->previews_pool;
   bool changed = false;
 
@@ -2691,14 +2705,14 @@ bool filelist_cache_previews_update(FileList *filelist)
 
 bool filelist_cache_previews_running(FileList *filelist)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
 
   return (cache->previews_pool != nullptr);
 }
 
 bool filelist_cache_previews_done(FileList *filelist)
 {
-  FileListEntryCache *cache = filelist->filelist_cache;
+  FileListEntryCache *cache = &filelist->filelist_cache;
   if ((cache->flags & FLC_PREVIEWS_ACTIVE) == 0) {
     /* There are no previews. */
     return false;
@@ -4121,7 +4135,7 @@ static void filelist_readjob_startjob(void *flrjv, wmJobWorkerStatus *worker_sta
     }
 
     flrj->tmp_filelist->libfiledata = nullptr;
-    flrj->tmp_filelist->filelist_cache = nullptr;
+    memset(&flrj->tmp_filelist->filelist_cache, 0, sizeof(flrj->tmp_filelist->filelist_cache));
     flrj->tmp_filelist->selection_state = nullptr;
     flrj->tmp_filelist->asset_library_ref = nullptr;
     flrj->tmp_filelist->filter_data.asset_catalog_filter = nullptr;

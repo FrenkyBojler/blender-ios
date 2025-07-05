@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *BPY_utils_previews_module();
+PyObject *BPY_utils_previews_module();

@@ -5,15 +5,7 @@
 /** \file
  * \ingroup wm
  *
- * Tool-system used to define tools in Blender's toolbar.
- * See: `./scripts/startup/bl_ui/space_toolsystem_common.py`, `ToolDef` for a detailed
- * description of tool definitions.
- *
- * \note Tools are stored per workspace.
- * Notice many functions take #Main & #WorkSpace and *not* window/screen/scene data.
- * This is intentional as changing tools must account for all scenes using that workspace.
- * Functions that refreshes on tool change are responsible for updating all windows using
- * this workspace.
+ * Experimental tool-system>
  */
 
 #include <cstring>
@@ -480,23 +472,6 @@ static void toolsystem_brush_sync_for_texture_paint(Main *bmain,
     }
   }
 }
-static void toolsystem_brush_clear_paint_reference(Main *bmain,
-                                                   WorkSpace *workspace,
-                                                   bToolRef *tref)
-{
-  const PaintMode paint_mode = BKE_paintmode_get_from_tool(tref);
-
-  wmWindowManager *wm = static_cast<wmWindowManager *>(bmain->wm.first);
-  LISTBASE_FOREACH (wmWindow *, win, &wm->windows) {
-    if (workspace != WM_window_get_active_workspace(win)) {
-      continue;
-    }
-    Scene *scene = WM_window_get_active_scene(win);
-    if (Paint *paint = BKE_paint_get_active_from_paintmode(scene, paint_mode)) {
-      BKE_paint_previous_asset_reference_clear(paint);
-    }
-  }
-}
 
 /** \} */
 
@@ -524,9 +499,6 @@ static void toolsystem_ref_link(Main *bmain, WorkSpace *workspace, bToolRef *tre
   if (tref_rt->flag & TOOLREF_FLAG_USE_BRUSHES) {
     toolsystem_brush_activate_from_toolref(bmain, workspace, tref);
     toolsystem_brush_sync_for_texture_paint(bmain, workspace, tref);
-  }
-  else {
-    toolsystem_brush_clear_paint_reference(bmain, workspace, tref);
   }
 }
 

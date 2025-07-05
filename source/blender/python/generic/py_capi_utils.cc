@@ -834,6 +834,7 @@ void PyC_Err_PrintWithFunc(PyObject *py_func)
   /* since we return to C code we can't leave the error */
   PyCodeObject *f_code = (PyCodeObject *)PyFunction_GET_CODE(py_func);
   PyErr_Print();
+  PyErr_Clear();
 
   /* use py style error */
   fprintf(stderr,
@@ -1226,6 +1227,7 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
       if (ret == nullptr) {
         printf("%s error, line:%d\n", __func__, __LINE__);
         PyErr_Print();
+        PyErr_Clear();
 
         PyList_SET_ITEM(values, i, Py_NewRef(Py_None)); /* hold user */
 
@@ -1301,6 +1303,7 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
             printf("%s error on arg '%d', line:%d\n", __func__, i, __LINE__);
             PyC_ObSpit("failed converting:", item_new);
             PyErr_Print();
+            PyErr_Clear();
           }
 
           Py_DECREF(item_new);
@@ -1314,6 +1317,7 @@ void PyC_RunQuicky(const char *filepath, int n, ...)
     else {
       printf("%s error line:%d\n", __func__, __LINE__);
       PyErr_Print();
+      PyErr_Clear();
     }
 
     Py_DECREF(calcsize);
@@ -1483,11 +1487,11 @@ PyObject *PyC_FlagSet_FromBitfield(PyC_FlagSet *items, int flag)
 /** \name Run String (Evaluate to Primitive Types)
  * \{ */
 
-[[nodiscard]] static PyObject *pyc_run_string_as_py_object(const char *imports[],
-                                                           const char *imports_star[],
-                                                           const char *expr,
-                                                           const char *filename)
-    ATTR_NONNULL(3, 4);
+static PyObject *pyc_run_string_as_py_object(const char *imports[],
+                                             const char *imports_star[],
+                                             const char *expr,
+                                             const char *filename)
+    ATTR_NONNULL(3, 4) ATTR_WARN_UNUSED_RESULT;
 static PyObject *pyc_run_string_as_py_object(const char *imports[],
                                              const char *imports_star[],
                                              const char *expr,
@@ -1507,6 +1511,7 @@ static PyObject *pyc_run_string_as_py_object(const char *imports[],
       }
       else { /* Highly unlikely but possibly. */
         PyErr_Print();
+        PyErr_Clear();
       }
     }
   }

@@ -134,6 +134,7 @@ static int bpy_cli_command_exec(bContext *C,
 
   if (has_error) {
     PyErr_Print();
+    PyErr_Clear();
   }
 
   bpy_context_clear(C, &gilstate);

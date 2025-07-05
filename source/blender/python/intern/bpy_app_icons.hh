@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *BPY_app_icons_module();
+PyObject *BPY_app_icons_module();

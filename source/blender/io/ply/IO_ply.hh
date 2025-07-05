@@ -49,7 +49,7 @@ struct PLYExportParams {
   ePLYVertexColorMode vertex_colors = ePLYVertexColorMode::sRGB;
   bool export_attributes = true;
   bool export_triangulated_mesh = false;
-  char collection[MAX_ID_NAME - 2] = "";
+  char collection[MAX_IDPROP_NAME] = "";
 
   ReportList *reports = nullptr;
 };

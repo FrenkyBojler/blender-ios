@@ -918,7 +918,8 @@ static void ui_node_draw_input(uiLayout &layout,
         case SOCK_RGBA:
           sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           if (split_wrapper.decorate_column) {
-            split_wrapper.decorate_column->decorator(&inputptr, "default_value", RNA_NO_INDEX);
+            uiItemDecoratorR(
+                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
           }
           break;
         case SOCK_STRING: {
@@ -933,7 +934,8 @@ static void ui_node_draw_input(uiLayout &layout,
             sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           }
           if (split_wrapper.decorate_column) {
-            split_wrapper.decorate_column->decorator(&inputptr, "default_value", RNA_NO_INDEX);
+            uiItemDecoratorR(
+                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
           }
           break;
         }
@@ -950,7 +952,7 @@ static void ui_node_draw_input(uiLayout &layout,
   }
 
   if (add_dummy_decorator && split_wrapper.decorate_column) {
-    split_wrapper.decorate_column->decorator(nullptr, std::nullopt, 0);
+    uiItemDecoratorR(split_wrapper.decorate_column, nullptr, std::nullopt, 0);
   }
 
   node_socket_add_tooltip(ntree, input, *row);

@@ -10,7 +10,6 @@
 
 #include "BKE_context.hh"
 #include "BKE_layer.hh"
-#include "BKE_lib_id.hh"
 
 #include "DNA_object_force_types.h"
 #include "DNA_object_types.h"
@@ -48,11 +47,9 @@ static bool WIDGETGROUP_forcefield_poll(const bContext *C, wmGizmoGroupType * /*
   BKE_view_layer_synced_ensure(scene, view_layer);
   Base *base = BKE_view_layer_active_base_get(view_layer);
   if (base && BASE_SELECTABLE(v3d, base)) {
-    const Object *ob = base->object;
+    Object *ob = base->object;
     if (ob->pd && ob->pd->forcefield) {
-      if (BKE_id_is_editable(CTX_data_main(C), &ob->id)) {
-        return true;
-      }
+      return true;
     }
   }
   return false;

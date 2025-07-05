@@ -206,12 +206,10 @@ static bool python_script_exec(
         }
       }
     }
-    if (reports) {
-      PyErr_Clear();
-    }
-    else {
+    if (!reports) {
       PyErr_Print();
     }
+    PyErr_Clear();
   }
   else {
     Py_DECREF(py_result);
@@ -282,6 +280,7 @@ static bool bpy_run_string_impl(bContext *C,
       BPy_errors_to_report(wm_reports);
     }
     PyErr_Print();
+    PyErr_Clear();
   }
   else {
     Py_DECREF(retval);
@@ -319,6 +318,7 @@ static void run_string_handle_error(BPy_RunErrInfo *err_info)
 
   if (err_info == nullptr) {
     PyErr_Print();
+    PyErr_Clear();
     return;
   }
 

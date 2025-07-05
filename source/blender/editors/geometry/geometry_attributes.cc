@@ -51,25 +51,25 @@
 
 namespace blender::ed::geometry {
 
-StringRefNull rna_property_name_for_type(const bke::AttrType type)
+StringRefNull rna_property_name_for_type(const eCustomDataType type)
 {
   switch (type) {
-    case bke::AttrType::Float:
+    case CD_PROP_FLOAT:
       return "value_float";
-    case bke::AttrType::Float2:
+    case CD_PROP_FLOAT2:
       return "value_float_vector_2d";
-    case bke::AttrType::Float3:
+    case CD_PROP_FLOAT3:
       return "value_float_vector_3d";
-    case bke::AttrType::ColorByte:
-    case bke::AttrType::ColorFloat:
+    case CD_PROP_COLOR:
+    case CD_PROP_BYTE_COLOR:
       return "value_color";
-    case bke::AttrType::Bool:
+    case CD_PROP_BOOL:
       return "value_bool";
-    case bke::AttrType::Int8:
-    case bke::AttrType::Int32:
+    case CD_PROP_INT8:
+    case CD_PROP_INT32:
       return "value_int";
-    case bke::AttrType::Int16_2D:
-    case bke::AttrType::Int32_2D:
+    case CD_PROP_INT16_2D:
+    case CD_PROP_INT32_2D:
       return "value_int_vector_2d";
     default:
       BLI_assert_unreachable();
@@ -77,7 +77,7 @@ StringRefNull rna_property_name_for_type(const bke::AttrType type)
   }
 }
 
-PropertyRNA *rna_property_for_type(PointerRNA &ptr, const bke::AttrType type)
+PropertyRNA *rna_property_for_type(PointerRNA &ptr, const eCustomDataType type)
 {
   return RNA_struct_find_property(&ptr, rna_property_name_for_type(type).c_str());
 }
@@ -116,87 +116,87 @@ void register_rna_properties_for_attribute_types(StructRNA &srna)
 }
 
 GPointer rna_property_for_attribute_type_retrieve_value(PointerRNA &ptr,
-                                                        const bke::AttrType type,
+                                                        const eCustomDataType type,
                                                         void *buffer)
 {
   const StringRefNull prop_name = rna_property_name_for_type(type);
   switch (type) {
-    case bke::AttrType::Float:
+    case CD_PROP_FLOAT:
       *static_cast<float *>(buffer) = RNA_float_get(&ptr, prop_name.c_str());
       break;
-    case bke::AttrType::Float2:
+    case CD_PROP_FLOAT2:
       RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
       break;
-    case bke::AttrType::Float3:
+    case CD_PROP_FLOAT3:
       RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
       break;
-    case bke::AttrType::ColorFloat:
+    case CD_PROP_COLOR:
       RNA_float_get_array(&ptr, prop_name.c_str(), static_cast<float *>(buffer));
       break;
-    case bke::AttrType::ColorByte: {
+    case CD_PROP_BYTE_COLOR: {
       ColorGeometry4f value;
       RNA_float_get_array(&ptr, prop_name.c_str(), value);
       *static_cast<ColorGeometry4b *>(buffer) = value.encode();
       break;
     }
-    case bke::AttrType::Bool:
+    case CD_PROP_BOOL:
       *static_cast<bool *>(buffer) = RNA_boolean_get(&ptr, prop_name.c_str());
       break;
-    case bke::AttrType::Int8:
+    case CD_PROP_INT8:
       *static_cast<int8_t *>(buffer) = RNA_int_get(&ptr, prop_name.c_str());
       break;
-    case bke::AttrType::Int32:
+    case CD_PROP_INT32:
       *static_cast<int32_t *>(buffer) = RNA_int_get(&ptr, prop_name.c_str());
       break;
-    case bke::AttrType::Int16_2D: {
+    case CD_PROP_INT16_2D: {
       int2 value;
       RNA_int_get_array(&ptr, prop_name.c_str(), value);
       *static_cast<short2 *>(buffer) = short2(value);
       break;
     }
-    case bke::AttrType::Int32_2D:
+    case CD_PROP_INT32_2D:
       RNA_int_get_array(&ptr, prop_name.c_str(), static_cast<int *>(buffer));
       break;
     default:
       BLI_assert_unreachable();
       return {};
   }
-  return GPointer(bke::attribute_type_to_cpp_type(type), buffer);
+  return GPointer(bke::custom_data_type_to_cpp_type(type), buffer);
 }
 
 void rna_property_for_attribute_type_set_value(PointerRNA &ptr,
                                                PropertyRNA &prop,
                                                const GPointer value)
 {
-  switch (bke::cpp_type_to_attribute_type(*value.type())) {
-    case bke::AttrType::Float:
+  switch (bke::cpp_type_to_custom_data_type(*value.type())) {
+    case CD_PROP_FLOAT:
       RNA_property_float_set(&ptr, &prop, *value.get<float>());
       break;
-    case bke::AttrType::Float2:
+    case CD_PROP_FLOAT2:
       RNA_property_float_set_array(&ptr, &prop, *value.get<float2>());
       break;
-    case bke::AttrType::Float3:
+    case CD_PROP_FLOAT3:
       RNA_property_float_set_array(&ptr, &prop, *value.get<float3>());
       break;
-    case bke::AttrType::ColorByte:
+    case CD_PROP_BYTE_COLOR:
       RNA_property_float_set_array(&ptr, &prop, value.get<ColorGeometry4b>()->decode());
       break;
-    case bke::AttrType::ColorFloat:
+    case CD_PROP_COLOR:
       RNA_property_float_set_array(&ptr, &prop, *value.get<ColorGeometry4f>());
       break;
-    case bke::AttrType::Bool:
+    case CD_PROP_BOOL:
       RNA_property_boolean_set(&ptr, &prop, *value.get<bool>());
       break;
-    case bke::AttrType::Int8:
+    case CD_PROP_INT8:
       RNA_property_int_set(&ptr, &prop, *value.get<int8_t>());
       break;
-    case bke::AttrType::Int32:
+    case CD_PROP_INT32:
       RNA_property_int_set(&ptr, &prop, *value.get<int32_t>());
       break;
-    case bke::AttrType::Int16_2D:
+    case CD_PROP_INT16_2D:
       RNA_property_int_set_array(&ptr, &prop, int2(*value.get<short2>()));
       break;
-    case bke::AttrType::Int32_2D:
+    case CD_PROP_INT32_2D:
       RNA_property_int_set_array(&ptr, &prop, *value.get<int2>());
       break;
     default:
@@ -213,18 +213,14 @@ bool attribute_set_poll(bContext &C, const ID &object_data)
     return false;
   }
 
-  if (owner.type() != AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::PointCloud) {
     bke::AttributeAccessor attributes = *owner.get_accessor();
     std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(*name);
     if (!meta_data) {
       CTX_wm_operator_poll_msg_set(&C, "No active attribute");
       return false;
     }
-    if (ELEM(meta_data->data_type,
-             bke::AttrType::String,
-             bke::AttrType::Float4x4,
-             bke::AttrType::Quaternion))
-    {
+    if (ELEM(meta_data->data_type, CD_PROP_STRING, CD_PROP_FLOAT4X4, CD_PROP_QUATERNION)) {
       CTX_wm_operator_poll_msg_set(&C, "The active attribute has an unsupported type");
       return false;
     }
@@ -302,7 +298,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
   bke::AttrDomain domain = bke::AttrDomain(RNA_enum_get(op->ptr, "domain"));
   AttributeOwner owner = AttributeOwner::from_id(id);
 
-  if (owner.type() != AttributeOwnerType::Mesh) {
+  if (owner.type() == AttributeOwnerType::PointCloud) {
     bke::MutableAttributeAccessor accessor = *owner.get_accessor();
     if (!accessor.domain_supported(bke::AttrDomain(domain))) {
       BKE_report(op->reports, RPT_ERROR, "Attribute domain not supported by this geometry type");
@@ -526,11 +522,11 @@ bool convert_attribute(AttributeOwner &owner,
                        bke::MutableAttributeAccessor attributes,
                        const StringRef name,
                        const bke::AttrDomain dst_domain,
-                       const bke::AttrType dst_type,
+                       const eCustomDataType dst_type,
                        ReportList *reports)
 {
   BLI_assert(attributes.contains(name));
-  if (ELEM(dst_type, bke::AttrType::String)) {
+  if (ELEM(dst_type, CD_PROP_STRING)) {
     if (reports) {
       BKE_report(reports, RPT_ERROR, "Cannot convert to the selected type");
     }
@@ -579,8 +575,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
                                attributes,
                                name,
                                bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-                               *bke::custom_data_type_to_attr_type(
-                                   eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
+                               eCustomDataType(RNA_enum_get(op->ptr, "data_type")),
                                op->reports))
         {
           return OPERATOR_CANCELLED;
@@ -621,8 +616,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
                            curves.attributes_for_write(),
                            name,
                            bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-                           *bke::custom_data_type_to_attr_type(
-                               eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
+                           eCustomDataType(RNA_enum_get(op->ptr, "data_type")),
                            op->reports))
     {
       return OPERATOR_CANCELLED;
@@ -636,8 +630,7 @@ static wmOperatorStatus geometry_attribute_convert_exec(bContext *C, wmOperator 
                            pointcloud.attributes_for_write(),
                            name,
                            bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-                           *bke::custom_data_type_to_attr_type(
-                               eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
+                           eCustomDataType(RNA_enum_get(op->ptr, "data_type")),
                            op->reports))
     {
       return OPERATOR_CANCELLED;
@@ -877,7 +870,7 @@ static wmOperatorStatus geometry_attribute_convert_invoke(bContext *C,
   }
   prop = RNA_struct_find_property(op->ptr, "data_type");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, *bke::attr_type_to_custom_data_type(meta_data.data_type));
+    RNA_property_enum_set(op->ptr, prop, meta_data.data_type);
   }
 
   return WM_operator_props_dialog_popup(
@@ -981,13 +974,12 @@ static wmOperatorStatus geometry_color_attribute_convert_exec(bContext *C, wmOpe
   Object *ob = object::context_object(C);
   Mesh *mesh = static_cast<Mesh *>(ob->data);
   AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
-  convert_attribute(
-      owner,
-      mesh->attributes_for_write(),
-      mesh->active_color_attribute,
-      bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
-      *bke::custom_data_type_to_attr_type(eCustomDataType(RNA_enum_get(op->ptr, "data_type"))),
-      op->reports);
+  convert_attribute(owner,
+                    mesh->attributes_for_write(),
+                    mesh->active_color_attribute,
+                    bke::AttrDomain(RNA_enum_get(op->ptr, "domain")),
+                    eCustomDataType(RNA_enum_get(op->ptr, "data_type")),
+                    op->reports);
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, &mesh->id);
   return OPERATOR_FINISHED;
@@ -1008,7 +1000,7 @@ static wmOperatorStatus geometry_color_attribute_convert_invoke(bContext *C,
   }
   prop = RNA_struct_find_property(op->ptr, "data_type");
   if (!RNA_property_is_set(op->ptr, prop)) {
-    RNA_property_enum_set(op->ptr, prop, *bke::attr_type_to_custom_data_type(meta_data.data_type));
+    RNA_property_enum_set(op->ptr, prop, meta_data.data_type);
   }
 
   return WM_operator_props_dialog_popup(

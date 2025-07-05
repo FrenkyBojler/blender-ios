@@ -30,7 +30,6 @@ void AbstractViewItem::update_from_old(const AbstractViewItem &old)
   is_active_ = old.is_active_;
   is_renaming_ = old.is_renaming_;
   is_highlighted_search_ = old.is_highlighted_search_;
-  is_selected_ = old.is_selected_;
 }
 
 /** \} */
@@ -72,23 +71,12 @@ void AbstractViewItem::activate(bContext &C)
 {
   if (set_state_active()) {
     on_activate(C);
-    set_selected(true);
   }
 }
 
 void AbstractViewItem::deactivate()
 {
   is_active_ = false;
-}
-
-std::optional<bool> AbstractViewItem::should_be_selected() const
-{
-  return std::nullopt;
-}
-
-void AbstractViewItem::set_selected(const bool select)
-{
-  is_selected_ = select;
 }
 
 /** \} */
@@ -108,9 +96,6 @@ void AbstractViewItem::change_state_delayed()
     else {
       is_active_ = false;
     }
-  }
-  if (std::optional<bool> is_selected = should_be_selected()) {
-    set_selected(is_selected.value_or(false));
   }
 }
 
@@ -333,13 +318,6 @@ bool AbstractViewItem::is_active() const
   BLI_assert_msg(this->get_view().is_reconstructed(),
                  "State can't be queried until reconstruction is completed");
   return is_active_;
-}
-
-bool AbstractViewItem::is_selected() const
-{
-  BLI_assert_msg(this->get_view().is_reconstructed(),
-                 "State can't be queried until reconstruction is completed");
-  return is_selected_;
 }
 
 bool AbstractViewItem::is_search_highlight() const

@@ -168,12 +168,11 @@ bool BKE_appdir_folder_documents(char *dir)
 {
   dir[0] = '\0';
 
-  const std::optional<std::string> documents_path = GHOST_getUserSpecialDir(
-      GHOST_kUserSpecialDirDocuments);
+  const char *documents_path = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirDocuments);
 
   /* Usual case: Ghost gave us the documents path. We're done here. */
-  if (documents_path && BLI_is_dir(documents_path->c_str())) {
-    BLI_strncpy(dir, documents_path->c_str(), FILE_MAXDIR);
+  if (documents_path && BLI_is_dir(documents_path)) {
+    BLI_strncpy(dir, documents_path, FILE_MAXDIR);
     return true;
   }
 
@@ -199,27 +198,21 @@ bool BKE_appdir_folder_caches(char *path, const size_t path_maxncpy)
 {
   path[0] = '\0';
 
-  std::optional<std::string> caches_root_path = GHOST_getUserSpecialDir(
-      GHOST_kUserSpecialDirCaches);
-  if (!caches_root_path || !BLI_is_dir(caches_root_path->c_str())) {
+  const char *caches_root_path = GHOST_getUserSpecialDir(GHOST_kUserSpecialDirCaches);
+  if (caches_root_path == nullptr || !BLI_is_dir(caches_root_path)) {
     caches_root_path = BKE_tempdir_base();
   }
-  if (!caches_root_path || !BLI_is_dir(caches_root_path->c_str())) {
+  if (caches_root_path == nullptr || !BLI_is_dir(caches_root_path)) {
     return false;
   }
 
 #ifdef WIN32
-  BLI_path_join(path,
-                path_maxncpy,
-                caches_root_path->c_str(),
-                "Blender Foundation",
-                "Blender",
-                "Cache",
-                SEP_STR);
+  BLI_path_join(
+      path, path_maxncpy, caches_root_path, "Blender Foundation", "Blender", "Cache", SEP_STR);
 #elif defined(__APPLE__)
-  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "Blender", SEP_STR);
+  BLI_path_join(path, path_maxncpy, caches_root_path, "Blender", SEP_STR);
 #else /* __linux__ */
-  BLI_path_join(path, path_maxncpy, caches_root_path->c_str(), "blender", SEP_STR);
+  BLI_path_join(path, path_maxncpy, caches_root_path, "blender", SEP_STR);
 #endif
 
   return true;

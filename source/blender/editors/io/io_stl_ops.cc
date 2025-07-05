@@ -170,7 +170,7 @@ void WM_OT_stl_export(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna,
                         "collection",
                         nullptr,
-                        MAX_ID_NAME - 2,
+                        MAX_IDPROP_NAME,
                         "Source Collection",
                         "Export only objects from this collection (and its children)");
   RNA_def_property_flag(prop, PROP_HIDDEN);

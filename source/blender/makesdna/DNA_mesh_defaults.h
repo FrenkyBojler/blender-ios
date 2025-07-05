@@ -23,8 +23,7 @@
     .face_sets_color_seed = 0, \
     .face_sets_color_default = 1, \
     .flag = ME_REMESH_REPROJECT_VOLUME | ME_REMESH_REPROJECT_ATTRIBUTES, \
-    .editflag = ME_EDIT_MIRROR_VERTEX_GROUPS, \
-    .radial_symmetry = {1, 1, 1} \
+    .editflag = ME_EDIT_MIRROR_VERTEX_GROUPS \
   }
 
 /** \} */

@@ -10,7 +10,6 @@ from bpy.types import (
 )
 from bpy.app.translations import (
     contexts as i18n_contexts,
-    pgettext_iface as iface_,
     pgettext_rpt as rpt_,
 )
 from bl_ui.properties_grease_pencil_common import (
@@ -673,7 +672,7 @@ class SEQUENCER_MT_change(Menu):
             del bpy_data_scenes_len
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        if strip and strip.type in {
+        if strip.type in {
             'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
             'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
             'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
@@ -811,7 +810,7 @@ class SEQUENCER_MT_add_scene(Menu):
                     continue
 
                 layout.operator_context = 'INVOKE_REGION_WIN'
-                layout.operator("sequencer.scene_strip_add", text=sc_item.name, translate=False).scene = sc_item.name
+                layout.operator("sequencer.scene_strip_add", text=sc_item.name).scene = sc_item.name
 
         del bpy_data_scenes_len
 
@@ -2509,7 +2508,7 @@ class SEQUENCER_PT_adjust_transform(SequencerButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(strip.transform, "origin")
 
-        col = layout.column(heading="Mirror", align=True, heading_ctxt=i18n_contexts.id_image)
+        col = layout.column(heading="Mirror", align=True)
         col.prop(strip, "use_flip_x", text="X", toggle=True)
         col.prop(strip, "use_flip_y", text="Y", toggle=True)
 
@@ -2655,19 +2654,19 @@ class SEQUENCER_PT_cache_view_settings(SequencerButtonsPanel, Panel):
             split.alignment = 'RIGHT'
             split.label(text="Current Cache Size")
             split.alignment = 'LEFT'
-            split.label(text=iface_("{:d} MB").format(cache_raw_size + cache_final_size), translate=False)
+            split.label(text="{:d} MB".format(cache_raw_size + cache_final_size), translate=False)
 
             split = col.split(factor=0.4, align=True)
             split.alignment = 'RIGHT'
             split.label(text="Raw")
             split.alignment = 'LEFT'
-            split.label(text=iface_("{:d} MB").format(cache_raw_size), translate=False)
+            split.label(text="{:d} MB".format(cache_raw_size), translate=False)
 
             split = col.split(factor=0.4, align=True)
             split.alignment = 'RIGHT'
             split.label(text="Final")
             split.alignment = 'LEFT'
-            split.label(text=iface_("{:d} MB").format(cache_final_size), translate=False)
+            split.label(text="{:d} MB".format(cache_final_size), translate=False)
 
 
 class SEQUENCER_PT_proxy_settings(SequencerButtonsPanel, Panel):

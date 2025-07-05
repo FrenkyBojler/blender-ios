@@ -335,9 +335,9 @@ void ui_but_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
   if (!but_anim) {
     return;
   }
-  /* While click drag the active button may not be `but_decorate`, instead is the but where the
-   * drag started, temporarily override `but_anim` as active. */
-  but_anim->flag |= UI_BUT_ACTIVE_OVERRIDE;
+
+  /* FIXME(@ideasman42): swapping active pointer is weak. */
+  std::swap(but_anim->active, but_decorate->active);
   wm->op_undo_depth++;
 
   if (but_anim->flag & UI_BUT_DRIVEN) {
@@ -361,6 +361,6 @@ void ui_but_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
     WM_operator_properties_free(&props_ptr);
   }
 
-  but_anim->flag &= ~UI_BUT_ACTIVE_OVERRIDE;
+  std::swap(but_anim->active, but_decorate->active);
   wm->op_undo_depth--;
 }

@@ -30,6 +30,8 @@ class PythonInterpreter : public Interpreter {
   PythonInterpreter()
   {
     _language = "Python";
+    _context = 0;
+    memset(&_freestyle_bmain, 0, sizeof(Main));
   }
 
   void setContext(bContext *C)
@@ -91,8 +93,8 @@ class PythonInterpreter : public Interpreter {
   }
 
  private:
-  bContext *_context = nullptr;
-  Main _freestyle_bmain = {};
+  bContext *_context;
+  Main _freestyle_bmain;
 };
 
 } /* namespace Freestyle */

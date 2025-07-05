@@ -26,8 +26,6 @@
 
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
-#include "BLI_utility_mixins.hh"
-#include "BLI_vector_set.hh"
 
 #include "BKE_lib_query.hh" /* For LibraryForeachIDCallbackFlag. */
 
@@ -140,13 +138,8 @@ enum {
   MAINIDRELATIONS_INCLUDE_UI = 1 << 0,
 };
 
-struct Main : blender::NonCopyable, blender::NonMovable {
-  /**
-   * Runtime vector storing all split Mains (one Main for each library data), during readfile or
-   * linking process.
-   * Shared accross all of the split mains when defined.
-   */
-  std::shared_ptr<blender::VectorSet<Main *>> split_mains = {};
+struct Main {
+  Main *next, *prev;
   /**
    * The file-path of this blend file, an empty string indicates an unsaved file.
    *
@@ -159,59 +152,55 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    * to read data temporarily (preferences & startup) for example
    * where the `filepath` is not persistent or used as a basis for other paths.
    */
-  char filepath[/*FILE_MAX*/ 1024] = "";
-  /* See BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION. */
-  short versionfile = 0;
-  short subversionfile = 0;
-  /* See BLENDER_FILE_MIN_VERSION, BLENDER_FILE_MIN_SUBVERSION. */
-  short minversionfile = 0;
-  short minsubversionfile = 0;
+  char filepath[/*FILE_MAX*/ 1024];
+  short versionfile, subversionfile; /* see BLENDER_FILE_VERSION, BLENDER_FILE_SUBVERSION */
+  short minversionfile, minsubversionfile;
   /**
    * The currently opened .blend file was written from a newer version of Blender, and has forward
    * compatibility issues (data loss).
    *
    * \note In practice currently this is only based on the version numbers, in the future it
    * could try to use more refined detection on load. */
-  bool has_forward_compatibility_issues = false;
+  bool has_forward_compatibility_issues;
 
   /**
    * This file was written by the asset system with the #G_FILE_ASSET_EDIT_FILE flag (now cleared).
    * It must not be overwritten, except by the asset system itself. Otherwise the file could end up
    * with user created data that would be lost when the asset system regenerates the file.
    */
-  bool is_asset_edit_file = false;
+  bool is_asset_edit_file;
 
   /** Commit timestamp from `buildinfo`. */
-  uint64_t build_commit_timestamp = 0;
+  uint64_t build_commit_timestamp;
   /** Commit Hash from `buildinfo`. */
-  char build_hash[16] = {};
+  char build_hash[16];
   /** Indicate the #Main.filepath (file) is the recovered one. */
-  bool recovered = false;
+  bool recovered;
   /** All current ID's exist in the last memfile undo step. */
-  bool is_memfile_undo_written = false;
+  bool is_memfile_undo_written;
   /**
    * An ID needs its data to be flushed back.
    * use "needs_flush_to_id" in edit data to flag data which needs updating.
    */
-  bool is_memfile_undo_flush_needed = false;
+  bool is_memfile_undo_flush_needed;
   /**
    * Indicates that next memfile undo step should not allow reusing old bmain when re-read, but
    * instead do a complete full re-read/update from stored memfile.
    */
-  bool use_memfile_full_barrier = false;
+  bool use_memfile_full_barrier;
 
   /**
    * When linking, disallow creation of new data-blocks.
    * Make sure we don't do this by accident, see #76738.
    */
-  bool is_locked_for_linking = false;
+  bool is_locked_for_linking;
 
   /**
    * When set, indicates that an unrecoverable error/data corruption was detected.
    * Should only be set by readfile code, and used by upper-level code (typically #setup_app_data)
    * to cancel a file reading operation.
    */
-  bool is_read_invalid = false;
+  bool is_read_invalid;
 
   /**
    * True if this main is the 'GMAIN' of current Blender.
@@ -219,7 +208,7 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    * \note There should always be only one global main, all others generated temporarily for
    * various data management process must have this property set to false..
    */
-  bool is_global_main = false;
+  bool is_global_main;
 
   /**
    * True if the Action Slot-to-ID mapping is dirty.
@@ -233,13 +222,13 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    *
    * \see `blender::animrig::Slot::users_invalidate(Main &bmain)`
    */
-  bool is_action_slot_to_id_map_dirty = false;
+  bool is_action_slot_to_id_map_dirty;
 
   /**
    * The blend-file thumbnail. If set, it will show as image preview of the blend-file in the
    * system's file-browser.
    */
-  BlendThumbnail *blen_thumb = nullptr;
+  BlendThumbnail *blen_thumb;
 
   /**
    * The library matching the current Main.
@@ -249,82 +238,78 @@ struct Main : blender::NonCopyable, blender::NonMovable {
    * Mainly set and used during the blend-file read/write process when 'split' Mains are used to
    * isolate and process all linked IDs from a single library.
    */
-  Library *curlib = nullptr;
+  Library *curlib;
 
   /* List bases for all ID types, containing all IDs for the current #Main. */
 
-  ListBase scenes = {};
-  ListBase libraries = {};
-  ListBase objects = {};
-  ListBase meshes = {};
-  ListBase curves = {};
-  ListBase metaballs = {};
-  ListBase materials = {};
-  ListBase textures = {};
-  ListBase images = {};
-  ListBase lattices = {};
-  ListBase lights = {};
-  ListBase cameras = {};
+  ListBase scenes;
+  ListBase libraries;
+  ListBase objects;
+  ListBase meshes;
+  ListBase curves;
+  ListBase metaballs;
+  ListBase materials;
+  ListBase textures;
+  ListBase images;
+  ListBase lattices;
+  ListBase lights;
+  ListBase cameras;
   /** Deprecated (only for versioning). */
-  ListBase ipo = {};
-  ListBase shapekeys = {};
-  ListBase worlds = {};
-  ListBase screens = {};
-  ListBase fonts = {};
-  ListBase texts = {};
-  ListBase speakers = {};
-  ListBase lightprobes = {};
-  ListBase sounds = {};
-  ListBase collections = {};
-  ListBase armatures = {};
-  ListBase actions = {};
-  ListBase nodetrees = {};
-  ListBase brushes = {};
-  ListBase particles = {};
-  ListBase palettes = {};
-  ListBase paintcurves = {};
+  ListBase ipo;
+  ListBase shapekeys;
+  ListBase worlds;
+  ListBase screens;
+  ListBase fonts;
+  ListBase texts;
+  ListBase speakers;
+  ListBase lightprobes;
+  ListBase sounds;
+  ListBase collections;
+  ListBase armatures;
+  ListBase actions;
+  ListBase nodetrees;
+  ListBase brushes;
+  ListBase particles;
+  ListBase palettes;
+  ListBase paintcurves;
   /** Singleton (exception). */
-  ListBase wm = {};
+  ListBase wm;
   /** Legacy Grease Pencil. */
-  ListBase gpencils = {};
-  ListBase grease_pencils = {};
-  ListBase movieclips = {};
-  ListBase masks = {};
-  ListBase linestyles = {};
-  ListBase cachefiles = {};
-  ListBase workspaces = {};
+  ListBase gpencils;
+  ListBase grease_pencils;
+  ListBase movieclips;
+  ListBase masks;
+  ListBase linestyles;
+  ListBase cachefiles;
+  ListBase workspaces;
   /**
    * \note The name `hair_curves` is chosen to be different than `curves`,
    * but they are generic curve data-blocks, not just for hair.
    */
-  ListBase hair_curves = {};
-  ListBase pointclouds = {};
-  ListBase volumes = {};
+  ListBase hair_curves;
+  ListBase pointclouds;
+  ListBase volumes;
 
   /**
    * Must be generated, used and freed by same code - never assume this is valid data unless you
    * know when, who and how it was created.
    * Used by code doing a lot of remapping etc. at once to speed things up.
    */
-  MainIDRelations *relations = nullptr;
+  MainIDRelations *relations;
 
   /** IDMap of IDs. Currently used when reading (expanding) libraries. */
-  IDNameLib_Map *id_map = nullptr;
+  IDNameLib_Map *id_map;
 
   /** Used for efficient calculations of unique names. */
-  UniqueName_Map *name_map = nullptr;
+  UniqueName_Map *name_map;
 
   /**
    * Used for efficient calculations of unique names. Covers all names in current Main, including
    * linked data ones.
    */
-  UniqueName_Map *name_map_global = nullptr;
+  UniqueName_Map *name_map_global;
 
-  MainLock *lock = nullptr;
-
-  /* Constructors and destructors. */
-  Main();
-  ~Main();
+  MainLock *lock;
 };
 
 /**
@@ -335,15 +320,31 @@ struct Main : blender::NonCopyable, blender::NonMovable {
  */
 Main *BKE_main_new();
 /**
+ * Initialize a Main data-base.
+ *
+ * \note Always generate a non-global Main, use #BKE_blender_globals_main_replace to put a newly
+ * created one in `G_MAIN`.
+ */
+void BKE_main_init(Main &bmain);
+/**
  * Make given \a bmain empty again, and free all runtime mappings.
  *
- * This is similar to deleting and re-creating the Main, however the internal #Main::lock is kept
- * unchanged, and the #Main::is_global_main flag is not reset to `true` either.
+ * This is similar to a call to #BKE_main_destroy followed by #BKE_main_init, however the internal
+ * #Main::lock is kept unchanged, and the #Main::is_global_main flag is not reset to `true` either.
  *
  * \note Unlike #BKE_main_free, only process the given \a bmain, without handling any potential
  * other linked Main.
  */
 void BKE_main_clear(Main &bmain);
+/**
+ * Clear and free all data in given \a bmain, but does not free \a bmain itself.
+ *
+ * \note In most cases, #BKE_main_free should be used instead of this function.
+ *
+ * \note Unlike #BKE_main_free, only process the given \a bmain, without handling any potential
+ * other linked Main.
+ */
+void BKE_main_destroy(Main &bmain);
 /**
  * Completely destroy the given \a bmain, and all its linked 'libraries' ones if any (all other
  * bmains, following the #Main.next chained list).

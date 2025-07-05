@@ -184,18 +184,10 @@ class GHOST_WindowCocoa : public GHOST_Window {
   void screenToClientIntern(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const;
 
   /**
-   * Return the screen the window is displayed in.
-   * \return The current screen NSScreen object
+   * Gets the screen the window is displayed in
+   * \return The NSScreen object
    */
-  NSScreen *getScreen() const;
-
-  /**
-   * Return the primary screen, the screen defined as "Main Display" in macOS Settings, source of
-   * all screen coordinates.
-   * \note This function is placed in WindowCocoa since SystemCocoa cannot include Obj-C types.
-   * \return The primary screen NSScreen object
-   */
-  static NSScreen *getPrimaryScreen();
+  NSScreen *getScreen();
 
   /**
    * Sets the state of the window (normal, minimized, maximized).
@@ -291,10 +283,12 @@ class GHOST_WindowCocoa : public GHOST_Window {
    * Sets the cursor shape on the window using
    * native window system calls.
    */
-  GHOST_TSuccess setWindowCustomCursorShape(const uint8_t *bitmap,
-                                            const uint8_t *mask,
-                                            const int size[2],
-                                            const int hot_spot[2],
+  GHOST_TSuccess setWindowCustomCursorShape(uint8_t *bitmap,
+                                            uint8_t *mask,
+                                            int sizex,
+                                            int sizey,
+                                            int hotX,
+                                            int hotY,
                                             bool canInvertColor) override;
 
   /** The window containing the view */

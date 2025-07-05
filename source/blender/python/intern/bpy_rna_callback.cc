@@ -60,6 +60,7 @@ static void cb_region_draw(const bContext *C, ARegion * /*region*/, void *custom
   }
   else {
     PyErr_Print();
+    PyErr_Clear();
   }
 
   bpy_context_clear((bContext *)C, &gilstate);
@@ -108,6 +109,7 @@ static void cb_wm_cursor_draw(bContext *C,
   }
   else {
     PyErr_Print();
+    PyErr_Clear();
   }
 
   bpy_context_clear(C, &gilstate);

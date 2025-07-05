@@ -27,5 +27,5 @@ struct BPyGPUFrameBuffer {
 #endif
 };
 
-[[nodiscard]] PyObject *BPyGPUFrameBuffer_CreatePyObject(GPUFrameBuffer *fb, bool shared_reference)
+PyObject *BPyGPUFrameBuffer_CreatePyObject(GPUFrameBuffer *fb, bool shared_reference)
     ATTR_NONNULL(1);

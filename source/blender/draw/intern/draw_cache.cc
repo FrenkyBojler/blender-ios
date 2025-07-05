@@ -23,7 +23,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_mesh_wrapper.hh"
 #include "BKE_object.hh"
@@ -586,7 +585,7 @@ void DRW_batch_cache_free_old(Object *ob, int ctime)
 
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
-                                  const bke::AttrType data_type,
+                                  const int data_type,
                                   const StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer)
@@ -604,7 +603,7 @@ void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
 
   /* Active render layer name. */
   if (is_active_render) {
-    GPU_vertformat_alias_add(format, data_type == bke::AttrType::Float2 ? "a" : base_name);
+    GPU_vertformat_alias_add(format, data_type == CD_PROP_FLOAT2 ? "a" : base_name);
   }
 
   /* Active display layer name. */

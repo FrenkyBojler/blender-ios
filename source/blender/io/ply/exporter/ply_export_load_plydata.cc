@@ -194,7 +194,7 @@ static void load_custom_attributes(const Mesh *mesh,
       return;
     }
     switch (iter.data_type) {
-      case bke::AttrType::Float: {
+      case CD_PROP_FLOAT: {
         float *attr = find_or_add_attribute(iter.name, size, vertex_offset, r_attributes);
         auto typed = attribute.typed<float>();
         for (const int64_t i : ply_to_vertex.index_range()) {
@@ -202,7 +202,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Int8: {
+      case CD_PROP_INT8: {
         float *attr = find_or_add_attribute(iter.name, size, vertex_offset, r_attributes);
         auto typed = attribute.typed<int8_t>();
         for (const int64_t i : ply_to_vertex.index_range()) {
@@ -210,7 +210,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Int32: {
+      case CD_PROP_INT32: {
         float *attr = find_or_add_attribute(iter.name, size, vertex_offset, r_attributes);
         auto typed = attribute.typed<int32_t>();
         for (const int64_t i : ply_to_vertex.index_range()) {
@@ -218,7 +218,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Int16_2D: {
+      case CD_PROP_INT16_2D: {
         float *attr_x = find_or_add_attribute(iter.name + "_x", size, vertex_offset, r_attributes);
         float *attr_y = find_or_add_attribute(iter.name + "_y", size, vertex_offset, r_attributes);
         auto typed = attribute.typed<short2>();
@@ -229,7 +229,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Int32_2D: {
+      case CD_PROP_INT32_2D: {
         float *attr_x = find_or_add_attribute(iter.name + "_x", size, vertex_offset, r_attributes);
         float *attr_y = find_or_add_attribute(iter.name + "_y", size, vertex_offset, r_attributes);
         auto typed = attribute.typed<int2>();
@@ -240,7 +240,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Float2: {
+      case CD_PROP_FLOAT2: {
         float *attr_x = find_or_add_attribute(iter.name + "_x", size, vertex_offset, r_attributes);
         float *attr_y = find_or_add_attribute(iter.name + "_y", size, vertex_offset, r_attributes);
         auto typed = attribute.typed<float2>();
@@ -251,7 +251,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Float3: {
+      case CD_PROP_FLOAT3: {
         float *attr_x = find_or_add_attribute(iter.name + "_x", size, vertex_offset, r_attributes);
         float *attr_y = find_or_add_attribute(iter.name + "_y", size, vertex_offset, r_attributes);
         float *attr_z = find_or_add_attribute(iter.name + "_z", size, vertex_offset, r_attributes);
@@ -264,7 +264,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::ColorByte: {
+      case CD_PROP_BYTE_COLOR: {
         float *attr_r = find_or_add_attribute(iter.name + "_r", size, vertex_offset, r_attributes);
         float *attr_g = find_or_add_attribute(iter.name + "_g", size, vertex_offset, r_attributes);
         float *attr_b = find_or_add_attribute(iter.name + "_b", size, vertex_offset, r_attributes);
@@ -279,7 +279,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::ColorFloat: {
+      case CD_PROP_COLOR: {
         float *attr_r = find_or_add_attribute(iter.name + "_r", size, vertex_offset, r_attributes);
         float *attr_g = find_or_add_attribute(iter.name + "_g", size, vertex_offset, r_attributes);
         float *attr_b = find_or_add_attribute(iter.name + "_b", size, vertex_offset, r_attributes);
@@ -294,7 +294,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Bool: {
+      case CD_PROP_BOOL: {
         float *attr = find_or_add_attribute(iter.name, size, vertex_offset, r_attributes);
         auto typed = attribute.typed<bool>();
         for (const int64_t i : ply_to_vertex.index_range()) {
@@ -302,7 +302,7 @@ static void load_custom_attributes(const Mesh *mesh,
         }
         break;
       }
-      case bke::AttrType::Quaternion: {
+      case CD_PROP_QUATERNION: {
         float *attr_x = find_or_add_attribute(iter.name + "_x", size, vertex_offset, r_attributes);
         float *attr_y = find_or_add_attribute(iter.name + "_y", size, vertex_offset, r_attributes);
         float *attr_z = find_or_add_attribute(iter.name + "_z", size, vertex_offset, r_attributes);

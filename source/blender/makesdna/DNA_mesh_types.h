@@ -241,8 +241,7 @@ typedef struct Mesh {
   /* Deprecated size of #fdata. */
   int totface_legacy;
 
-  char _pad1;
-  int8_t radial_symmetry[3];
+  char _pad1[4];
 
   /**
    * Data that isn't saved in files, including caches of derived data, temporary data to improve

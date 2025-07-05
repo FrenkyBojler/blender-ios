@@ -7,6 +7,7 @@
 #include "BLI_string.h"
 
 #include "BKE_curves.hh"
+#include "BKE_customdata.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
@@ -128,7 +129,7 @@ struct GreasePencilHelper : public ::GreasePencil {
     this->root_group_ptr = MEM_new<greasepencil::LayerGroup>(__func__);
     this->active_node = nullptr;
 
-    new (&this->attribute_storage.wrap()) blender::bke::AttributeStorage();
+    CustomData_reset(&this->layers_data);
 
     this->drawing_array = nullptr;
     this->drawing_array_num = 0;
@@ -138,7 +139,7 @@ struct GreasePencilHelper : public ::GreasePencil {
 
   ~GreasePencilHelper()
   {
-    this->attribute_storage.wrap().~AttributeStorage();
+    CustomData_free(&this->layers_data);
     MEM_delete(&this->root_group());
     MEM_delete(this->runtime);
     this->runtime = nullptr;

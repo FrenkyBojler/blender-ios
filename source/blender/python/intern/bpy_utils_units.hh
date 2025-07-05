@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *BPY_utils_units();
+PyObject *BPY_utils_units();

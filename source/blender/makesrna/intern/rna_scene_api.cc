@@ -97,8 +97,7 @@ static void rna_Scene_uvedit_aspect(Scene * /*scene*/, Object *ob, float aspect[
   aspect[0] = aspect[1] = 1.0f;
 }
 
-static void rna_SceneRender_get_frame_path(ID *id,
-                                           RenderData *rd,
+static void rna_SceneRender_get_frame_path(RenderData *rd,
                                            Main *bmain,
                                            ReportList *reports,
                                            int frame,
@@ -106,7 +105,7 @@ static void rna_SceneRender_get_frame_path(ID *id,
                                            const char *view,
                                            char *filepath)
 {
-  Scene *scene = reinterpret_cast<Scene *>(id);
+
   const char *suffix = BKE_scene_multiview_view_suffix_get(rd, view);
 
   /* avoid nullptr pointer */
@@ -115,14 +114,12 @@ static void rna_SceneRender_get_frame_path(ID *id,
   }
 
   if (BKE_imtype_is_movie(rd->im_format.imtype)) {
-    MOV_filepath_from_settings(filepath, scene, rd, preview != 0, suffix, reports);
+    MOV_filepath_from_settings(filepath, rd, preview != 0, suffix, reports);
   }
   else {
-    blender::bke::path_templates::VariableMap template_variables;
-    BKE_add_template_variables_general(template_variables, &scene->id);
-    BKE_add_template_variables_for_render_path(template_variables, *scene);
-
     const char *relbase = BKE_main_blendfile_path(bmain);
+    const blender::bke::path_templates::VariableMap template_variables =
+        BKE_build_template_variables_for_render_path(rd);
 
     const blender::Vector<blender::bke::path_templates::Error> errors =
         BKE_image_path_from_imformat(filepath,
@@ -443,7 +440,7 @@ void RNA_api_scene_render(StructRNA *srna)
   PropertyRNA *parm;
 
   func = RNA_def_function(srna, "frame_path", "rna_SceneRender_get_frame_path");
-  RNA_def_function_flag(func, FUNC_USE_SELF_ID | FUNC_USE_MAIN | FUNC_USE_REPORTS);
+  RNA_def_function_flag(func, FUNC_USE_MAIN | FUNC_USE_REPORTS);
   RNA_def_function_ui_description(
       func, "Return the absolute path to the filename to be written for a given frame");
   RNA_def_int(func,

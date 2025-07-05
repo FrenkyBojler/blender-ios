@@ -295,14 +295,17 @@ GHOST_TSuccess GHOST_HasCursorShape(GHOST_WindowHandle windowhandle,
 }
 
 GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle,
-                                          const uint8_t *bitmap,
-                                          const uint8_t *mask,
-                                          const int size[2],
-                                          const int hot_spot[2],
+                                          uint8_t *bitmap,
+                                          uint8_t *mask,
+                                          int sizex,
+                                          int sizey,
+                                          int hotX,
+                                          int hotY,
                                           bool canInvertColor)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
-  return window->setCustomCursorShape(bitmap, mask, size, hot_spot, canInvertColor);
+
+  return window->setCustomCursorShape(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor);
 }
 
 GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,

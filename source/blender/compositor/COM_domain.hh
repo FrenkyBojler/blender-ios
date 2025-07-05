@@ -6,11 +6,8 @@
 
 #include <cstdint>
 
-#include "BLI_math_interp.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
-
-#include "GPU_texture.hh"
 
 namespace blender::compositor {
 
@@ -21,16 +18,6 @@ enum class Interpolation : uint8_t {
   Bilinear,
   Bicubic,
   Anisotropic,
-};
-
-/* Possible extension modes when computing samples in the domain's exterior. */
-enum class ExtensionMode : uint8_t {
-  /* Areas outside of the image are filled with zero. */
-  Zero,
-  /* Areas outside of the image are filled with the closest boundary pixel in the image. */
-  Extend,
-  /* Areas outside of the image are filled with repetitions of the image. */
-  Repeat,
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -45,10 +32,14 @@ struct RealizationOptions {
    * result at arbitrary locations, the interpolation identifies the method used for computing the
    * value at those arbitrary locations. */
   Interpolation interpolation = Interpolation::Bilinear;
-  /* The extend mode for the x-axis. Defaults to Zero padding. */
-  ExtensionMode extension_x = ExtensionMode::Zero;
-  /* The extend mode for the y-axis. Defaults to Zero padding. */
-  ExtensionMode extension_y = ExtensionMode::Zero;
+  /* If true, the result will be repeated infinitely along the horizontal axis when realizing the
+   * result. If false, regions outside of bounds of the result along the horizontal axis will be
+   * filled with zeros. */
+  bool repeat_x = false;
+  /* If true, the result will be repeated infinitely along the vertical axis when realizing the
+   * result. If false, regions outside of bounds of the result along the vertical axis will be
+   * filled with zeros. */
+  bool repeat_y = false;
 };
 
 /* ------------------------------------------------------------------------------------------------
@@ -174,8 +165,5 @@ class Domain {
 /* Identical to the is_equal static method with zero epsilon. */
 bool operator==(const Domain &a, const Domain &b);
 bool operator!=(const Domain &a, const Domain &b);
-
-math::InterpWrapMode map_extension_mode_to_wrap_mode(const ExtensionMode &mode);
-GPUSamplerExtendMode map_extension_mode_to_extend_mode(const ExtensionMode &mode);
 
 }  // namespace blender::compositor

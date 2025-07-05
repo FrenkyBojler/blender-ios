@@ -219,14 +219,10 @@ void BKE_armature_bone_hash_free(bArmature *arm);
 bool BKE_armature_bone_flag_test_recursive(const Bone *bone, int flag);
 
 /**
- * Bone influence factor from envelope distance.
+ * Using `vec` with dist to bone `b1 - b2`.
  */
-float distfactor_to_bone(const blender::float3 &position,
-                         const blender::float3 &head,
-                         const blender::float3 &tail,
-                         float radius_head,
-                         float radius_tail,
-                         float falloff_distance);
+float distfactor_to_bone(
+    const float vec[3], const float b1[3], const float b2[3], float rad1, float rad2, float rdist);
 
 /**
  * Updates vectors and matrices on rest-position level, only needed

@@ -18,4 +18,4 @@ struct BPy_OperatorBase {
   PyObject_HEAD /* Required Python macro. */
 };
 
-[[nodiscard]] PyObject *BPY_operator_module();
+PyObject *BPY_operator_module();

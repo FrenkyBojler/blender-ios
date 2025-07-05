@@ -31,7 +31,8 @@ void blend_mode_output(int blending_mode,
       break;
     case MODE_MULTIPLY:
       /* Reminder: Blending func is multiply blend `(dst.rgba * src.rgba)`. */
-      frag_revealage = frag_color = (1.0f - color.a * opacity) + color * opacity;
+      color.a *= opacity;
+      frag_revealage = frag_color = (1.0f - color.a) + color.a * color;
       break;
     case MODE_DIVIDE:
       /* Reminder: Blending func is multiply blend `(dst.rgba * src.rgba)`. */

@@ -18,7 +18,6 @@
 #include "DNA_object_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_attribute_math.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh.hh"
@@ -309,19 +308,19 @@ static const GPUVertFormat &face_set_format()
 
 static GPUVertFormat attribute_format(const OrigMeshData &orig_mesh_data,
                                       const StringRef name,
-                                      const bke::AttrType data_type)
+                                      const eCustomDataType data_type)
 {
   GPUVertFormat format = init_format_for_attribute(data_type, "data");
 
   bool is_render, is_active;
   const char *prefix = "a";
 
-  if (CD_TYPE_AS_MASK(*bke::attr_type_to_custom_data_type(data_type))) {
+  if (CD_TYPE_AS_MASK(data_type) & CD_MASK_COLOR_ALL) {
     prefix = "c";
     is_active = orig_mesh_data.active_color == name;
     is_render = orig_mesh_data.default_color == name;
   }
-  if (data_type == bke::AttrType::Float2) {
+  if (data_type == CD_PROP_FLOAT2) {
     prefix = "u";
     is_active = orig_mesh_data.active_uv_map == name;
     is_render = orig_mesh_data.default_uv_map == name;
@@ -706,7 +705,7 @@ BLI_NOINLINE static void update_generic_attribute_mesh(const Object &object,
   if (!attr || attr.domain == bke::AttrDomain::Edge) {
     return;
   }
-  const bke::AttrType data_type = bke::cpp_type_to_attribute_type(attr.varray.type());
+  const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(attr.varray.type());
   ensure_vbos_allocated_mesh(
       object, attribute_format(orig_mesh_data, name, data_type), node_mask, vbos);
   node_mask.foreach_index(GrainSize(1), [&](const int i) {
@@ -1057,7 +1056,7 @@ BLI_NOINLINE static void update_face_sets_bmesh(const Object &object,
 struct BMeshAttributeLookup {
   const int offset = -1;
   bke::AttrDomain domain;
-  bke::AttrType type;
+  eCustomDataType type;
   operator bool() const
   {
     return offset != -1;
@@ -1068,30 +1067,22 @@ static BMeshAttributeLookup lookup_bmesh_attribute(const BMesh &bm, const String
 {
   for (const CustomDataLayer &layer : Span(bm.vdata.layers, bm.vdata.totlayer)) {
     if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Point,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+      return {layer.offset, bke::AttrDomain::Point, eCustomDataType(layer.type)};
     }
   }
   for (const CustomDataLayer &layer : Span(bm.edata.layers, bm.edata.totlayer)) {
     if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Edge,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+      return {layer.offset, bke::AttrDomain::Edge, eCustomDataType(layer.type)};
     }
   }
   for (const CustomDataLayer &layer : Span(bm.pdata.layers, bm.pdata.totlayer)) {
     if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Face,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+      return {layer.offset, bke::AttrDomain::Face, eCustomDataType(layer.type)};
     }
   }
   for (const CustomDataLayer &layer : Span(bm.ldata.layers, bm.ldata.totlayer)) {
     if (layer.name == name) {
-      return {layer.offset,
-              bke::AttrDomain::Corner,
-              *bke::custom_data_type_to_attr_type(eCustomDataType(layer.type))};
+      return {layer.offset, bke::AttrDomain::Corner, eCustomDataType(layer.type)};
     }
   }
   return {};
@@ -1748,12 +1739,11 @@ Span<gpu::VertBufPtr> DrawCacheImpl::ensure_attribute_data(const Object &object,
         }
       }
       else {
-        ensure_vbos_allocated_grids(
-            object,
-            attribute_format(orig_mesh_data, "Dummy", bke::AttrType::Float3),
-            use_flat_layout_,
-            mask,
-            vbos);
+        ensure_vbos_allocated_grids(object,
+                                    attribute_format(orig_mesh_data, "Dummy", CD_PROP_FLOAT3),
+                                    use_flat_layout_,
+                                    mask,
+                                    vbos);
         mask.foreach_index(GrainSize(1),
                            [&](const int i) { vbos[i]->data<float3>().fill(float3(0.0f)); });
       }

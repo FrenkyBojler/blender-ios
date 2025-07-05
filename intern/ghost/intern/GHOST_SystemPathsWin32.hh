@@ -8,9 +8,6 @@
 
 #pragma once
 
-#include <optional>
-#include <string>
-
 #ifndef WIN32
 #  error WIN32 only!
 #endif  // WIN32
@@ -52,9 +49,9 @@ class GHOST_SystemPathsWin32 : public GHOST_SystemPaths {
 
   /**
    * Determine a special ("well known") and easy to reach user directory.
-   * \return If successfull, a string containing the user directory path (eg `~/Documents/`).
+   * \return Unsigned char string pointing to user directory (eg `~/Documents/`).
    */
-  std::optional<std::string> getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const override;
+  const char *getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const override;
 
   /**
    * Determine the directory of the current binary.

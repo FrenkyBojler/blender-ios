@@ -420,7 +420,6 @@ def km_user_interface(params):
         ("anim.driver_button_remove", {"type": 'D', "value": 'PRESS', "alt": True}, None),
         ("anim.keyingset_button_add", {"type": 'K', "value": 'PRESS'}, None),
         ("anim.keyingset_button_remove", {"type": 'K', "value": 'PRESS', "alt": True}, None),
-        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
     ])
 
     return keymap
@@ -549,8 +548,8 @@ def km_outliner(params):
         ("outliner.drivers_delete_selected", {"type": 'D', "value": 'PRESS', "ctrl": True, "alt": True}, None),
         ("outliner.delete", {"type": 'BACK_SPACE', "value": 'PRESS'}, None),
         ("outliner.delete", {"type": 'DEL', "value": 'PRESS'}, None),
-        op_menu("OBJECT_MT_move_to_collection", {"type": 'G', "value": 'PRESS', "ctrl": True}),
-        op_menu("OBJECT_MT_link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True, "ctrl": True}),
+        ("object.move_to_collection", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
+        ("object.link_to_collection", {"type": 'M', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("outliner.collection_exclude_set", {"type": 'E', "value": 'PRESS'}, None),
         ("outliner.collection_exclude_clear", {"type": 'E', "value": 'PRESS', "alt": True}, None),
         ("outliner.hide", {"type": 'H', "value": 'PRESS', "ctrl": True}, None),
@@ -2545,8 +2544,8 @@ def km_object_mode(params):
         ("anim.keyframe_delete_v3d", {"type": 'S', "value": 'PRESS', "alt": True}, None),
         ("anim.keying_set_active_set", {"type": 'S', "value": 'PRESS', "shift": True, "ctrl": True, "alt": True}, None),
         *_template_items_context_menu("VIEW3D_MT_object_context_menu", {"type": 'RIGHTMOUSE', "value": 'PRESS'}),
-        op_menu("OBJECT_MT_move_to_collection", {"type": 'G', "value": 'PRESS', "ctrl": True}),
-        op_menu("OBJECT_MT_link_to_collection", {"type": 'G', "value": 'PRESS', "shift": True, "ctrl": True}),
+        ("object.move_to_collection", {"type": 'G', "value": 'PRESS', "ctrl": True}, None),
+        ("object.link_to_collection", {"type": 'G', "value": 'PRESS', "shift": True, "ctrl": True}, None),
         ("object.hide_view_clear", {"type": 'H', "value": 'PRESS', "alt": True}, None),
         ("object.hide_view_set", {"type": 'H', "value": 'PRESS', "ctrl": True},
          {"properties": [("unselected", False)]}),

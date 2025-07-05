@@ -41,7 +41,7 @@ using BPy_ThreadStatePtr = void *;
 /**
  * Analogue of #PyEval_SaveThread()
  */
-[[nodiscard]] BPy_ThreadStatePtr BPY_thread_save();
+BPy_ThreadStatePtr BPY_thread_save();
 /**
  * Analogue of #PyEval_RestoreThread()
  */
@@ -90,10 +90,10 @@ void BPY_driver_reset();
  * This evaluates Python driver expressions, `driver_orig->expression`
  * is a Python expression that should evaluate to a float number, which is returned.
  */
-[[nodiscard]] float BPY_driver_exec(PathResolvedRNA *anim_rna,
-                                    ChannelDriver *driver,
-                                    ChannelDriver *driver_orig,
-                                    const AnimationEvalContext *anim_eval_context);
+float BPY_driver_exec(PathResolvedRNA *anim_rna,
+                      ChannelDriver *driver,
+                      ChannelDriver *driver_orig,
+                      const AnimationEvalContext *anim_eval_context);
 
 /**
  * Acquire the global-interpreter-lock (GIL) and wrap `Py_DECREF`.
@@ -102,9 +102,11 @@ void BPY_driver_reset();
 void BPY_DECREF(void *pyob_ptr);
 
 void BPY_DECREF_RNA_INVALIDATE(void *pyob_ptr);
-[[nodiscard]] bool BPY_context_member_get(bContext *C,
-                                          const char *member,
-                                          bContextDataResult *result);
+/**
+ * \return true when `member` was found.
+ * Note that this can include a "None" value.
+ */
+bool BPY_context_member_get(bContext *C, const char *member, bContextDataResult *result);
 void BPY_context_set(bContext *C);
 /**
  * Use for updating while a python script runs - in case of file load.
@@ -135,7 +137,7 @@ void BPY_free_srna_pytype(StructRNA *srna);
 /**
  * Avoids duplicating keyword list.
  */
-[[nodiscard]] bool BPY_string_is_keyword(const char *str);
+bool BPY_string_is_keyword(const char *str);
 
 /* `bpy_rna_callback.cc` */
 
@@ -144,6 +146,6 @@ void BPY_callback_wm_free(wmWindowManager *wm);
 
 /* I18n for addons */
 #ifdef WITH_INTERNATIONAL
-[[nodiscard]] std::optional<blender::StringRefNull> BPY_app_translations_py_pgettext(
-    blender::StringRef msgctxt, blender::StringRef msgid);
+std::optional<blender::StringRefNull> BPY_app_translations_py_pgettext(blender::StringRef msgctxt,
+                                                                       blender::StringRef msgid);
 #endif

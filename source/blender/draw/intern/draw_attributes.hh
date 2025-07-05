@@ -14,6 +14,7 @@
 
 #include "DNA_customdata_types.h"
 
+#include "BLI_mutex.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
@@ -42,7 +43,9 @@ struct DRW_MeshCDMask {
  * See `mesh_cd_layers_type_*` functions. */
 static_assert(sizeof(DRW_MeshCDMask) <= sizeof(uint32_t), "DRW_MeshCDMask exceeds 32 bits");
 
-void drw_attributes_merge(VectorSet<std::string> *dst, const VectorSet<std::string> *src);
+void drw_attributes_merge(VectorSet<std::string> *dst,
+                          const VectorSet<std::string> *src,
+                          Mutex &render_mutex);
 
 /* Return true if all requests in b are in a. */
 bool drw_attributes_overlap(const VectorSet<std::string> *a, const VectorSet<std::string> *b);

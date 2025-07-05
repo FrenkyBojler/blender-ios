@@ -463,11 +463,14 @@ typedef struct GreasePencil {
   /* Root group of the layer tree. */
   GreasePencilLayerTreeGroup *root_group_ptr;
 
-  /** Used only for backward compatibility with old files. */
-  CustomData layers_data_legacy;
+  /**
+   * All attributes stored on the grease pencil layers (#AttrDomain::Layer).
+   */
+  CustomData layers_data;
 
   /**
-   * Layer domain attributes.
+   * Layer domain attributes. Currently unused at runtime, but used for forward
+   * compatibility when reading files (see #122398).
    */
   struct AttributeStorage attribute_storage;
 

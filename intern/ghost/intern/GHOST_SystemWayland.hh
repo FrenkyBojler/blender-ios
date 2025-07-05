@@ -235,8 +235,10 @@ class GHOST_SystemWayland : public GHOST_System {
 
   GHOST_TSuccess cursor_shape_custom_set(const uint8_t *bitmap,
                                          const uint8_t *mask,
-                                         const int size[2],
-                                         const int hot_spot[2],
+                                         int sizex,
+                                         int sizey,
+                                         int hotX,
+                                         int hotY,
                                          bool canInvertColor);
 
   GHOST_TSuccess cursor_bitmap_get(GHOST_CursorBitmapRef *bitmap);

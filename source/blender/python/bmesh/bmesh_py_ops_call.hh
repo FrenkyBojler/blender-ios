@@ -18,4 +18,4 @@ struct BPy_BMeshOpFunc {
 /**
  * This is the `__call__` for `bmesh.ops.xxx()`.
  */
-[[nodiscard]] PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw);
+PyObject *BPy_BMO_call(BPy_BMeshOpFunc *self, PyObject *args, PyObject *kw);

@@ -63,14 +63,8 @@ void RE_engines_exit()
 {
   RenderEngineType *type, *next;
 
-  if (DRW_gpu_context_try_enable()) {
-    /* Clean resources if the DRW context exists.
-     * We need a context bound even when dealing with non context dependent GPU resources,
-     * since GL functions may be null otherwise (See #141233). */
-    DRW_engines_free();
-    DRW_module_exit();
-    DRW_gpu_context_disable();
-  }
+  DRW_engines_free();
+  DRW_module_exit();
 
   for (type = static_cast<RenderEngineType *>(R_engines.first); type; type = next) {
     next = type->next;

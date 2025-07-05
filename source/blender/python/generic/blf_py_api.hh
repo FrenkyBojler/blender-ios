@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *BPyInit_blf();
+PyObject *BPyInit_blf();

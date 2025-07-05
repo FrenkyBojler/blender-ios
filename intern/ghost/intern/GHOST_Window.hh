@@ -69,39 +69,57 @@ class GHOST_Window : public GHOST_IWindow {
    */
   ~GHOST_Window() override;
 
-  /** \copydoc #GHOST_IWindow::getValid */
+  /**
+   * Returns indication as to whether the window is valid.
+   * \return The validity of the window.
+   */
   bool getValid() const override
   {
     return m_context != nullptr;
   }
 
-  /** \copydoc #GHOST_IWindow::getOSWindow */
+  /**
+   * Returns the associated OS object/handle
+   * \return The associated OS object/handle
+   */
   void *getOSWindow() const override;
 
-  /** \copydoc #GHOST_IWindow::setPath */
   GHOST_TSuccess setPath(const char * /*filepath*/) override
   {
     return GHOST_kFailure;
   }
 
-  /** \copydoc #GHOST_IWindow::getWindowDecorationStyleFlags */
+  /**
+   * Return the current window decoration style flags.
+   */
   virtual GHOST_TWindowDecorationStyleFlags getWindowDecorationStyleFlags() override;
 
-  /** \copydoc #GHOST_IWindow::setWindowDecorationStyleFlags */
+  /**
+   * Set the window decoration style flags.
+   * \param styleFlags: Window decoration style flags.
+   */
   virtual void setWindowDecorationStyleFlags(
       GHOST_TWindowDecorationStyleFlags styleFlags) override;
 
-  /** \copydoc #GHOST_IWindow::setWindowDecorationStyleSettings */
+  /**
+   * Set the window decoration style settings.
+   * \param decorationSettings: Window decoration style settings.
+   */
   virtual void setWindowDecorationStyleSettings(
       GHOST_WindowDecorationStyleSettings decorationSettings) override;
 
-  /** \copydoc #GHOST_IWindow::applyWindowDecorationStyle */
+  /**
+   * Apply the window decoration style using the current flags and settings.
+   */
   virtual GHOST_TSuccess applyWindowDecorationStyle() override
   {
     return GHOST_kSuccess;
   }
 
-  /** \copydoc #GHOST_IWindow::getCursorShape */
+  /**
+   * Returns the current cursor shape.
+   * \return The current cursor shape.
+   */
   inline GHOST_TStandardCursor getCursorShape() const override;
 
   bool isDialog() const override
@@ -109,19 +127,35 @@ class GHOST_Window : public GHOST_IWindow {
     return false;
   }
 
-  /** \copydoc #GHOST_IWindow::setCursorShape */
+  /**
+   * Set the shape of the cursor.
+   * \param cursorShape: The new cursor shape type id.
+   * \return Indication of success.
+   */
   GHOST_TSuccess setCursorShape(GHOST_TStandardCursor cursorShape) override;
 
-  /** \copydoc #GHOST_IWindow::setCustomCursorShape */
-  GHOST_TSuccess setCustomCursorShape(const uint8_t *bitmap,
-                                      const uint8_t *mask,
-                                      const int size[2],
-                                      const int hot_spot[2],
+  /**
+   * Set the shape of the cursor to a custom cursor.
+   * \param bitmap: The bitmap data for the cursor.
+   * \param mask: The mask data for the cursor.
+   * \param hotX: The X coordinate of the cursor hot-spot.
+   * \param hotY: The Y coordinate of the cursor hot-spot.
+   * \return Indication of success.
+   */
+  GHOST_TSuccess setCustomCursorShape(uint8_t *bitmap,
+                                      uint8_t *mask,
+                                      int sizex,
+                                      int sizey,
+                                      int hotX,
+                                      int hotY,
                                       bool canInvertColor) override;
 
   GHOST_TSuccess getCursorBitmap(GHOST_CursorBitmapRef *bitmap) override;
 
-  /** \copydoc #GHOST_IWindow::getCursorVisibility */
+  /**
+   * Returns the visibility state of the cursor.
+   * \return The visibility state of the cursor.
+   */
   inline bool getCursorVisibility() const override;
   inline GHOST_TGrabCursorMode getCursorGrabMode() const;
   inline bool getCursorGrabModeIsWarp() const;
@@ -130,72 +164,123 @@ class GHOST_Window : public GHOST_IWindow {
   inline void getCursorGrabAccum(int32_t &x, int32_t &y) const;
   inline void setCursorGrabAccum(int32_t x, int32_t y);
 
-  /** \copydoc #GHOST_IWindow::setCursorVisibility */
+  /**
+   * Shows or hides the cursor.
+   * \param visible: The new visibility state of the cursor.
+   * \return Indication of success.
+   */
   GHOST_TSuccess setCursorVisibility(bool visible) override;
 
-  /** \copydoc #GHOST_IWindow::setCursorGrab */
+  /**
+   * Sets the cursor grab.
+   * \param mode: The new grab state of the cursor.
+   * \return Indication of success.
+   */
   GHOST_TSuccess setCursorGrab(GHOST_TGrabCursorMode mode,
                                GHOST_TAxisFlag wrap_axis,
                                GHOST_Rect *bounds,
                                int32_t mouse_ungrab_xy[2]) override;
 
-  /** \copydoc #GHOST_IWindow::getCursorGrabBounds */
+  /**
+   * Gets the cursor grab region, if unset the window is used.
+   * reset when grab is disabled.
+   */
   GHOST_TSuccess getCursorGrabBounds(GHOST_Rect &bounds) const override;
 
   void getCursorGrabState(GHOST_TGrabCursorMode &mode,
                           GHOST_TAxisFlag &wrap_axis,
                           GHOST_Rect &bounds,
                           bool &use_software_cursor) override;
-  /** \copydoc #GHOST_IWindow::getCursorGrabUseSoftwareDisplay */
+  /**
+   * Return true when a software cursor should be used.
+   */
   bool getCursorGrabUseSoftwareDisplay() override;
 
-  /** \copydoc #GHOST_IWindow::setProgressBar */
+  /**
+   * Sets the progress bar value displayed in the window/application icon
+   * \param progress: The progress percentage (0.0 to 1.0).
+   */
   GHOST_TSuccess setProgressBar(float /*progress*/) override
   {
     return GHOST_kFailure;
   }
 
-  /** \copydoc #GHOST_IWindow::endProgressBar */
+  /**
+   * Hides the progress bar in the icon
+   */
   GHOST_TSuccess endProgressBar() override
   {
     return GHOST_kFailure;
   }
 
-  /** \copydoc #GHOST_IWindow::setSwapInterval */
+  /**
+   * Sets the swap interval for #swapBuffers.
+   * \param interval: The swap interval to use.
+   * \return A boolean success indicator.
+   */
   GHOST_TSuccess setSwapInterval(int interval) override;
-  /** \copydoc #GHOST_IWindow::getSwapInterval */
+
+  /**
+   * Gets the current swap interval for #swapBuffers.
+   * \return An integer.
+   */
   GHOST_TSuccess getSwapInterval(int &intervalOut) override;
 
-  /** \copydoc #GHOST_IWindow::setAcceptDragOperation */
+  /**
+   * Tells if the ongoing drag & drop object can be accepted upon mouse drop.
+   */
   void setAcceptDragOperation(bool canAccept) override;
 
-  /** \copydoc #GHOST_IWindow::canAcceptDragOperation */
+  /**
+   * Returns acceptance of the dropped object
+   * Usually called by the "object dropped" event handling function
+   */
   bool canAcceptDragOperation() const override;
 
-  /** \copydoc #GHOST_IWindow::setModifiedState */
+  /**
+   * Sets the window "modified" status, indicating unsaved changes
+   * \param isUnsavedChanges: Unsaved changes or not.
+   * \return Indication of success.
+   */
   GHOST_TSuccess setModifiedState(bool isUnsavedChanges) override;
 
-  /** \copydoc #GHOST_IWindow::getModifiedState */
+  /**
+   * Gets the window "modified" status, indicating unsaved changes
+   * \return True if there are unsaved changes
+   */
   bool getModifiedState() override;
 
-  /** \copydoc #GHOST_IWindow::getDrawingContextType */
+  /**
+   * Returns the type of drawing context used in this window.
+   * \return The current type of drawing context.
+   */
   inline GHOST_TDrawingContextType getDrawingContextType() override;
 
   /**
-   * \copydoc #GHOST_IWindow::setDrawingContextType
-   *
-   * \note Child classes do not need to overload this method,
+   * Tries to install a rendering context in this window.
+   * Child classes do not need to overload this method,
    * They should overload #newDrawingContext instead.
+   * \param type: The type of rendering context installed.
+   * \return Indication as to whether installation has succeeded.
    */
   GHOST_TSuccess setDrawingContextType(GHOST_TDrawingContextType type) override;
 
-  /** \copydoc #GHOST_IWindow::getDrawingContext */
+  /**
+   * Returns the drawing context used in this window.
+   * \return The current drawing context.
+   */
   GHOST_IContext *getDrawingContext() override;
 
-  /** \copydoc #GHOST_IWindow::swapBuffers */
+  /**
+   * Swaps front and back buffers of a window.
+   * \return A boolean success indicator.
+   */
   GHOST_TSuccess swapBuffers() override;
 
-  /** \copydoc #GHOST_IWindow::activateDrawingContext */
+  /**
+   * Activates the drawing context of this window.
+   * \return A boolean success indicator.
+   */
   GHOST_TSuccess activateDrawingContext() override;
 
   /**
@@ -211,28 +296,35 @@ class GHOST_Window : public GHOST_IWindow {
    */
   GHOST_Context *getContext();
 
-  /** \copydoc #GHOST_IWindow::getDefaultFramebuffer */
+  /**
+   * Gets the OpenGL frame-buffer associated with the window's contents.
+   * \return The ID of an OpenGL frame-buffer object.
+   */
   unsigned int getDefaultFramebuffer() override;
 
 #ifdef WITH_VULKAN_BACKEND
-  /** \copydoc #GHOST_GetVulkanSwapChainFormat */
   virtual GHOST_TSuccess getVulkanSwapChainFormat(
       GHOST_VulkanSwapChainData *r_swap_chain_data) override;
 #endif
 
-  /** \copydoc #GHOST_IWindow::getUserData */
+  /**
+   * Returns the window user data.
+   * \return The window user data.
+   */
   GHOST_TUserDataPtr getUserData() const override
   {
     return m_userData;
   }
 
-  /** \copydoc #GHOST_IWindow::setUserData */
+  /**
+   * Changes the window user data.
+   * \param userData: The window user data.
+   */
   void setUserData(const GHOST_TUserDataPtr userData) override
   {
     m_userData = userData;
   }
 
-  /** \copydoc #GHOST_IWindow::getNativePixelSize */
   float getNativePixelSize() override
   {
     if (m_nativePixelSize > 0.0f) {
@@ -241,7 +333,10 @@ class GHOST_Window : public GHOST_IWindow {
     return 1.0f;
   }
 
-  /** \copydoc #GHOST_IWindow::getDPIHint */
+  /**
+   * Returns the recommended DPI for this window.
+   * \return The recommended DPI for this window.
+   */
   uint16_t getDPIHint() override
   {
     return 96;
@@ -283,14 +378,22 @@ class GHOST_Window : public GHOST_IWindow {
     return GHOST_kSuccess;
   }
 
-  /** \copydoc #GHOST_IWindow::setWindowCursorShape */
+  /**
+   * Sets the cursor shape on the window using
+   * native window system calls.
+   */
   virtual GHOST_TSuccess setWindowCursorShape(GHOST_TStandardCursor shape) = 0;
 
-  /** \copydoc #GHOST_IWindow::setWindowCustomCursorShape */
-  virtual GHOST_TSuccess setWindowCustomCursorShape(const uint8_t *bitmap,
-                                                    const uint8_t *mask,
-                                                    const int size[2],
-                                                    const int hot_size[2],
+  /**
+   * Sets the cursor shape on the window using
+   * native window system calls.
+   */
+  virtual GHOST_TSuccess setWindowCustomCursorShape(uint8_t *bitmap,
+                                                    uint8_t *mask,
+                                                    int szx,
+                                                    int szy,
+                                                    int hotX,
+                                                    int hotY,
                                                     bool canInvertColor) = 0;
 
   GHOST_TSuccess releaseNativeHandles();

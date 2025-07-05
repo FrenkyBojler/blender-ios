@@ -1494,9 +1494,9 @@ struct DynamicPaintSetInitColorData {
   const DynamicPaintSurface *surface;
 
   blender::Span<int> corner_verts;
-  blender::Span<blender::float2> mloopuv;
+  const float (*mloopuv)[2];
   blender::Span<int3> corner_tris;
-  blender::Span<blender::ColorGeometry4b> mloopcol;
+  const MLoopCol *mloopcol;
   ImagePool *pool;
 };
 
@@ -1511,7 +1511,7 @@ static void dynamic_paint_set_init_color_tex_to_vcol_cb(void *__restrict userdat
 
   const blender::Span<int> corner_verts = data->corner_verts;
   const blender::Span<int3> corner_tris = data->corner_tris;
-  const blender::Span<blender::float2> mloopuv = data->mloopuv;
+  const float(*mloopuv)[2] = data->mloopuv;
   ImagePool *pool = data->pool;
   Tex *tex = data->surface->init_texture;
 
@@ -1544,7 +1544,7 @@ static void dynamic_paint_set_init_color_tex_to_imseq_cb(void *__restrict userda
   PaintPoint *pPoint = (PaintPoint *)sData->type_data;
 
   const blender::Span<int3> corner_tris = data->corner_tris;
-  const blender::Span<blender::float2> mloopuv = data->mloopuv;
+  const float(*mloopuv)[2] = data->mloopuv;
   Tex *tex = data->surface->init_texture;
   ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
   const int samples = (data->surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
@@ -1581,7 +1581,7 @@ static void dynamic_paint_set_init_color_vcol_to_imseq_cb(
   PaintPoint *pPoint = (PaintPoint *)sData->type_data;
 
   const blender::Span<int3> corner_tris = data->corner_tris;
-  const blender::Span<blender::ColorGeometry4b> mloopcol = data->mloopcol;
+  const MLoopCol *mloopcol = data->mloopcol;
   ImgSeqFormatData *f_data = (ImgSeqFormatData *)sData->format_data;
   const int samples = (data->surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
 
@@ -1602,11 +1602,9 @@ static void dynamic_paint_set_init_color_vcol_to_imseq_cb(
 
 static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSurface *surface)
 {
-  using namespace blender;
   PaintSurfaceData *sData = surface->data;
   PaintPoint *pPoint = (PaintPoint *)sData->type_data;
   Mesh *mesh = dynamicPaint_canvas_mesh_get(surface->canvas);
-  const bke::AttributeAccessor attributes = mesh->attributes();
 
   if (surface->type != MOD_DPAINT_SURFACE_T_PAINT) {
     return;
@@ -1639,9 +1637,10 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     /* get uv map */
     CustomData_validate_layer_name(
         &mesh->corner_data, CD_PROP_FLOAT2, surface->init_layername, uvname);
-    const VArraySpan mloopuv = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
+    const float(*mloopuv)[2] = static_cast<const float(*)[2]>(
+        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, uvname));
 
-    if (mloopuv.is_empty()) {
+    if (!mloopuv) {
       return;
     }
 
@@ -1683,9 +1682,9 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     /* For vertex surface, just copy colors from #MLoopCol. */
     if (surface->format == MOD_DPAINT_SURFACE_F_VERTEX) {
       const blender::Span<int> corner_verts = mesh->corner_verts();
-      const VArraySpan col = *attributes.lookup<ColorGeometry4b>(surface->init_layername,
-                                                                 bke::AttrDomain::Corner);
-      if (col.is_empty()) {
+      const MLoopCol *col = static_cast<const MLoopCol *>(CustomData_get_layer_named(
+          &mesh->corner_data, CD_PROP_BYTE_COLOR, surface->init_layername));
+      if (!col) {
         return;
       }
 
@@ -1695,9 +1694,9 @@ static void dynamicPaint_setInitialColor(const Scene * /*scene*/, DynamicPaintSu
     }
     else if (surface->format == MOD_DPAINT_SURFACE_F_IMAGESEQ) {
       const blender::Span<int3> corner_tris = mesh->corner_tris();
-      const VArraySpan col = *attributes.lookup<ColorGeometry4b>(surface->init_layername,
-                                                                 bke::AttrDomain::Corner);
-      if (col.is_empty()) {
+      const MLoopCol *col = static_cast<const MLoopCol *>(CustomData_get_layer_named(
+          &mesh->corner_data, CD_PROP_BYTE_COLOR, surface->init_layername));
+      if (!col) {
         return;
       }
 
@@ -2205,7 +2204,7 @@ struct DynamicPaintCreateUVSurfaceData {
   Vec3f *tempWeights;
 
   blender::Span<int3> corner_tris;
-  blender::Span<blender::float2> mloopuv;
+  const float (*mloopuv)[2];
   blender::Span<int> corner_verts;
 
   const Bounds2D *faceBB;
@@ -2224,7 +2223,7 @@ static void dynamic_paint_create_uv_surface_direct_cb(void *__restrict userdata,
   Vec3f *tempWeights = data->tempWeights;
 
   const blender::Span<int3> corner_tris = data->corner_tris;
-  const blender::Span<blender::float2> mloopuv = data->mloopuv;
+  const float(*mloopuv)[2] = data->mloopuv;
   const blender::Span<int> corner_verts = data->corner_verts;
 
   const Bounds2D *faceBB = data->faceBB;
@@ -2321,7 +2320,7 @@ static void dynamic_paint_create_uv_surface_neighbor_cb(void *__restrict userdat
   Vec3f *tempWeights = data->tempWeights;
 
   const blender::Span<int3> corner_tris = data->corner_tris;
-  const blender::Span<blender::float2> mloopuv = data->mloopuv;
+  const float(*mloopuv)[2] = data->mloopuv;
   const blender::Span<int> corner_verts = data->corner_verts;
 
   uint32_t *active_points = data->active_points;
@@ -2408,7 +2407,7 @@ static void dynamic_paint_create_uv_surface_neighbor_cb(void *__restrict userdat
 #undef JITTER_SAMPLES
 
 static float dist_squared_to_corner_tris_uv_edges(const blender::Span<int3> corner_tris,
-                                                  const blender::Span<blender::float2> mloopuv,
+                                                  const float (*mloopuv)[2],
                                                   int tri_index,
                                                   const float point[2])
 {
@@ -2530,7 +2529,7 @@ static void dynamic_paint_find_island_border(const DynamicPaintCreateUVSurfaceDa
 {
   const blender::Span<int> corner_verts = data->corner_verts;
   const blender::Span<int3> corner_tris = data->corner_tris;
-  const blender::Span<blender::float2> mloopuv = data->mloopuv;
+  const float(*mloopuv)[2] = data->mloopuv;
 
   const int3 loop_idx = corner_tris[tri_index];
 
@@ -2813,7 +2812,6 @@ int dynamicPaint_createUVSurface(Scene *scene,
                                  float *progress,
                                  bool *do_update)
 {
-  using namespace blender;
   /* Anti-alias jitter point relative coords. */
   const int aa_samples = (surface->flags & MOD_DPAINT_ANTIALIAS) ? 5 : 1;
   char uvname[MAX_CUSTOMDATA_LAYER_NAME];
@@ -2826,7 +2824,7 @@ int dynamicPaint_createUVSurface(Scene *scene,
 
   PaintUVPoint *tempPoints = nullptr;
   Vec3f *tempWeights = nullptr;
-  VArraySpan<float2> mloopuv;
+  const float(*mloopuv)[2] = nullptr;
 
   Bounds2D *faceBB = nullptr;
   int *final_index;
@@ -2848,12 +2846,12 @@ int dynamicPaint_createUVSurface(Scene *scene,
   if (CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
     CustomData_validate_layer_name(
         &mesh->corner_data, CD_PROP_FLOAT2, surface->uvlayer_name, uvname);
-    const bke::AttributeAccessor attributes = mesh->attributes();
-    mloopuv = *attributes.lookup<float2>(uvname, bke::AttrDomain::Corner);
+    mloopuv = static_cast<const float(*)[2]>(
+        CustomData_get_layer_named(&mesh->corner_data, CD_PROP_FLOAT2, uvname));
   }
 
   /* Check for validity */
-  if (mloopuv.is_empty()) {
+  if (!mloopuv) {
     return setError(canvas, N_("No UV data on canvas"));
   }
   if (surface->image_resolution < 16 || surface->image_resolution > 8192) {

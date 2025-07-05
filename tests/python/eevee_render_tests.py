@@ -58,9 +58,7 @@ BLOCKLIST_METAL = [
     # Blocked due to difference in mipmap interpolation (to be fixed).
     "environment_mirror_ball.blend",
     # Blocked due to difference in mipmap interpolation / anisotropic filtering (to be fixed).
-    "image.blend",
-    # Blocked due to differences in transparency.
-    "aov_transparency.blend",
+    "image.blend"
 ]
 
 BLOCKLIST_VULKAN = [

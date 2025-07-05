@@ -13,6 +13,8 @@
 #include "BLI_generic_pointer.hh"
 #include "BLI_string_ref.hh"
 
+#include "DNA_customdata_types.h"
+
 #include "BKE_screen.hh"
 
 struct ReportList;
@@ -21,7 +23,6 @@ struct PropertyRNA;
 class AttributeOwner;
 namespace blender::bke {
 enum class AttrDomain : int8_t;
-enum class AttrType : int16_t;
 class MutableAttributeAccessor;
 }  // namespace blender::bke
 namespace blender::nodes::geo_eval_log {
@@ -37,11 +38,11 @@ namespace blender::ed::geometry {
  * retrieve/set their values.
  * \{ */
 
-StringRefNull rna_property_name_for_type(bke::AttrType type);
-PropertyRNA *rna_property_for_type(PointerRNA &ptr, const bke::AttrType type);
+StringRefNull rna_property_name_for_type(eCustomDataType type);
+PropertyRNA *rna_property_for_type(PointerRNA &ptr, const eCustomDataType type);
 void register_rna_properties_for_attribute_types(StructRNA &srna);
 GPointer rna_property_for_attribute_type_retrieve_value(PointerRNA &ptr,
-                                                        const bke::AttrType type,
+                                                        const eCustomDataType type,
                                                         void *buffer);
 void rna_property_for_attribute_type_set_value(PointerRNA &ptr, PropertyRNA &prop, GPointer value);
 bool attribute_set_poll(bContext &C, const ID &object_data);
@@ -60,7 +61,7 @@ bool convert_attribute(AttributeOwner &owner,
                        bke::MutableAttributeAccessor attributes,
                        StringRef name,
                        bke::AttrDomain dst_domain,
-                       bke::AttrType dst_type,
+                       eCustomDataType dst_type,
                        ReportList *reports);
 
 struct GeoOperatorLog {

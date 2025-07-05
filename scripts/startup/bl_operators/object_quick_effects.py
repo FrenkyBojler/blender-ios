@@ -90,8 +90,6 @@ class QuickFur(ObjectModeOperator, Operator):
 
     def execute(self, context):
         import os
-        from collections import namedtuple
-
         mesh_objects = [obj for obj in context.selected_objects if obj.type == 'MESH']
         if not mesh_objects:
             self.report({'ERROR'}, "Select at least one mesh object")
@@ -104,42 +102,31 @@ class QuickFur(ObjectModeOperator, Operator):
         elif self.density == 'HIGH':
             count = 100000
 
-        asset_library_filepath = os.path.join(
+        node_groups_to_append = {"Generate Hair Curves", "Set Hair Curve Profile", "Interpolate Hair Curves"}
+        if self.use_noise:
+            node_groups_to_append.add("Hair Curves Noise")
+        if self.use_frizz:
+            node_groups_to_append.add("Frizz Hair Curves")
+        assets_directory = os.path.join(
             bpy.utils.system_resource('DATAFILES'),
             "assets",
             "geometry_nodes",
             "procedural_hair_node_assets.blend",
+            "NodeTree",
         )
-
-        # Create a named tuple that stores attributes for the node-group names.
-        attr_name_pairs = [
-            ("generate", "Generate Hair Curves"),
-            ("interpolate", "Interpolate Hair Curves"),
-            ("radius", "Set Hair Curve Profile"),
-
-        ]
-        if self.use_noise:
-            attr_name_pairs.append(("noise", "Hair Curves Noise"))
-        if self.use_frizz:
-            attr_name_pairs.append(("frizz", "Frizz Hair Curves"))
-
-        NodeGroupData = namedtuple("NodeGroupData", tuple(v for v, _ in attr_name_pairs))
-
-        with bpy.data.libraries.load(
-                asset_library_filepath,
-                link=False,
+        for name in node_groups_to_append:
+            bpy.ops.wm.append(
+                directory=assets_directory,
+                filename=name,
+                use_recursive=True,
                 clear_asset_data=True,
-                reuse_local_id=True,
-                recursive=True,
-        ) as (data_src, data_dst):
-            # The values are assumed to exist, no inspection of the source is needed.
-            del data_src
-            data_dst.node_groups.extend([name for _, name in attr_name_pairs])
-
-        # For convenient name lookups.
-        node_groups_name_map = {id.name: id for id in data_dst.node_groups}
-        node_groups = NodeGroupData(*(node_groups_name_map[name] for _, name in attr_name_pairs))
-        del node_groups_name_map
+                do_reuse_local_id=True,
+            )
+        generate_group = bpy.data.node_groups["Generate Hair Curves"]
+        interpolate_group = bpy.data.node_groups["Interpolate Hair Curves"]
+        radius_group = bpy.data.node_groups["Set Hair Curve Profile"]
+        noise_group = bpy.data.node_groups["Hair Curves Noise"] if self.use_noise else None
+        frizz_group = bpy.data.node_groups["Frizz Hair Curves"] if self.use_frizz else None
 
         material = bpy.data.materials.new(data_("Fur Material"))
 
@@ -169,7 +156,7 @@ class QuickFur(ObjectModeOperator, Operator):
                 density = count / area
 
             generate_modifier = curves_object.modifiers.new(name=data_("Generate"), type='NODES')
-            generate_modifier.node_group = node_groups.generate
+            generate_modifier.node_group = generate_group
             generate_modifier["Input_2"] = mesh_object
             generate_modifier["Input_18_attribute_name"] = curves.surface_uv_map
             generate_modifier["Input_12"] = True
@@ -178,11 +165,11 @@ class QuickFur(ObjectModeOperator, Operator):
             generate_modifier["Input_15"] = density * 0.01
 
             radius_modifier = curves_object.modifiers.new(name=data_("Set Hair Curve Profile"), type='NODES')
-            radius_modifier.node_group = node_groups.radius
+            radius_modifier.node_group = radius_group
             radius_modifier["Input_3"] = self.radius
 
             interpolate_modifier = curves_object.modifiers.new(name=data_("Interpolate Hair Curves"), type='NODES')
-            interpolate_modifier.node_group = node_groups.interpolate
+            interpolate_modifier.node_group = interpolate_group
             interpolate_modifier["Input_2"] = mesh_object
             interpolate_modifier["Input_18_attribute_name"] = curves.surface_uv_map
             interpolate_modifier["Input_12"] = True
@@ -190,13 +177,13 @@ class QuickFur(ObjectModeOperator, Operator):
             interpolate_modifier["Input_17"] = self.view_percentage
             interpolate_modifier["Input_24"] = True
 
-            if self.use_noise:
+            if noise_group:
                 noise_modifier = curves_object.modifiers.new(name=data_("Hair Curves Noise"), type='NODES')
-                noise_modifier.node_group = node_groups.noise
+                noise_modifier.node_group = noise_group
 
-            if self.use_frizz:
+            if frizz_group:
                 frizz_modifier = curves_object.modifiers.new(name=data_("Frizz Hair Curves"), type='NODES')
-                frizz_modifier.node_group = node_groups.frizz
+                frizz_modifier.node_group = frizz_group
 
             if self.apply_hair_guides:
                 with context.temp_override(object=curves_object):

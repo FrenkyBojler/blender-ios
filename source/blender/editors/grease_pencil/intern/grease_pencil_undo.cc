@@ -196,7 +196,7 @@ class StepObject {
   int layers_num_ = 0;
   bke::greasepencil::LayerGroup root_group_;
   std::string active_node_name_;
-  bke::AttributeStorage layer_attributes_;
+  CustomData layers_data_ = {};
 
   void encode_drawings(const GreasePencil &grease_pencil, StepEncodeStatus &encode_status)
   {
@@ -252,7 +252,9 @@ class StepObject {
   void encode_layers(const GreasePencil &grease_pencil, StepEncodeStatus & /*encode_status*/)
   {
     layers_num_ = int(grease_pencil.layers().size());
-    layer_attributes_ = grease_pencil.attribute_storage.wrap();
+
+    CustomData_init_from(
+        &grease_pencil.layers_data, &layers_data_, eCustomDataMask(CD_MASK_ALL), layers_num_);
 
     if (grease_pencil.active_node != nullptr) {
       active_node_name_ = grease_pencil.get_active_node()->name();
@@ -279,11 +281,16 @@ class StepObject {
       }
     }
 
-    grease_pencil.attribute_storage.wrap() = layer_attributes_;
+    CustomData_free(&grease_pencil.layers_data);
+    CustomData_init_from(
+        &layers_data_, &grease_pencil.layers_data, eCustomDataMask(CD_MASK_ALL), layers_num_);
   }
 
  public:
-  ~StepObject() = default;
+  ~StepObject()
+  {
+    CustomData_free(&layers_data_);
+  }
 
   void encode(Object *ob, StepEncodeStatus &encode_status)
   {

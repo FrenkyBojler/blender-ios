@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *BPyInit_geometry_set_type();
+PyObject *BPyInit_geometry_set_type();

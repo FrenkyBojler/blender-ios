@@ -42,7 +42,6 @@
 #include "DNA_screen_types.h"
 
 #include "BKE_attribute.hh"
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_ccg.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
@@ -1672,13 +1671,13 @@ static void save_active_attribute(Object &object, SculptAttrRef *attr)
     return;
   }
   if (!(ATTR_DOMAIN_AS_MASK(meta_data->domain) & ATTR_DOMAIN_MASK_COLOR) ||
-      !(ELEM(meta_data->data_type, bke::AttrType::ColorFloat, bke::AttrType::ColorByte)))
+      !(CD_TYPE_AS_MASK(meta_data->data_type) & CD_MASK_COLOR_ALL))
   {
     return;
   }
   attr->domain = meta_data->domain;
   STRNCPY(attr->name, name);
-  attr->type = *bke::attr_type_to_custom_data_type(meta_data->data_type);
+  attr->type = meta_data->data_type;
 }
 
 /**
@@ -1881,7 +1880,7 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
                                           mesh->attributes_for_write(),
                                           attr->name,
                                           attr->domain,
-                                          *bke::custom_data_type_to_attr_type(attr->type),
+                                          eCustomDataType(attr->type),
                                           nullptr))
       {
         layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
@@ -1891,10 +1890,8 @@ static void set_active_layer(bContext *C, const SculptAttrRef *attr)
 
   if (!layer) {
     /* Memfile undo killed the layer; re-create it. */
-    mesh->attributes_for_write().add(attr->name,
-                                     attr->domain,
-                                     *bke::custom_data_type_to_attr_type(attr->type),
-                                     bke::AttributeInitDefaultValue());
+    mesh->attributes_for_write().add(
+        attr->name, attr->domain, attr->type, bke::AttributeInitDefaultValue());
     layer = BKE_attribute_find(owner, attr->name, attr->type, attr->domain);
     DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   }

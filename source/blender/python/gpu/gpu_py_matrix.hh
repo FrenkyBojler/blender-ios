@@ -10,4 +10,4 @@
 
 #include <Python.h>
 
-[[nodiscard]] PyObject *bpygpu_matrix_init();
+PyObject *bpygpu_matrix_init();

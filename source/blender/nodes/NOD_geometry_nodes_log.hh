@@ -130,7 +130,7 @@ struct GeometryAttributeInfo {
   std::string name;
   /** Can be empty when #name does not actually exist on a geometry yet. */
   std::optional<bke::AttrDomain> domain;
-  std::optional<bke::AttrType> data_type;
+  std::optional<eCustomDataType> data_type;
 };
 
 /**

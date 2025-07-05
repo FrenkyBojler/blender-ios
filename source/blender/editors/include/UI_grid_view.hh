@@ -61,6 +61,7 @@ class AbstractGridViewItem : public AbstractViewItem {
   virtual std::unique_ptr<GridViewItemDropTarget> create_drop_target();
 
  private:
+  static void grid_tile_click_fn(bContext *, void *but_arg1, void *);
   void add_grid_tile_button(uiBlock &block);
 };
 

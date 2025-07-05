@@ -62,14 +62,6 @@ else:
 
 
 def argparse_create() -> argparse.ArgumentParser:
-
-    def str_as_isodate(value: str) -> datetime.datetime:
-        try:
-            value_as_date = datetime.datetime.fromisoformat(value)
-        except Exception as ex:
-            raise argparse.ArgumentTypeError("Must be a valid ISO date (YYYY-MM-DD), failed: {!s}".format(ex))
-        return value_as_date
-
     parser = argparse.ArgumentParser(
         description="Generate Weekly Report",
         epilog="This script is typically used to help write weekly reports",
@@ -96,14 +88,6 @@ def argparse_create() -> argparse.ArgumentParser:
     )
 
     parser.add_argument(
-        "--date",
-        dest="date",
-        type=str_as_isodate,
-        default=None,
-        help="Show only for this day (YYYY-MM-DD), and not for an entire week."
-    )
-
-    parser.add_argument(
         "--hash-length",
         dest="hash_length",
         type=int,
@@ -124,7 +108,6 @@ def argparse_create() -> argparse.ArgumentParser:
 def report_personal_weekly_get(
         username: str,
         start: datetime.datetime,
-        num_days: int,
         *,
         hash_length: int,
         verbose: bool = True,
@@ -179,7 +162,7 @@ def report_personal_weekly_get(
 
     user_data: dict[str, Any] = gitea_user_get(username)
 
-    for i in range(num_days):
+    for i in range(7):
         date_curr = start + datetime.timedelta(days=i)
         date_curr_str = date_curr.strftime("%Y-%m-%d")
         print_progress(f"Requesting activity of {date_curr_str}")
@@ -457,39 +440,28 @@ def main() -> None:
         if not username:
             return
 
-    if args.date:
-        num_days = 1  # Show only one day.
-        start_date = args.date
-        start_date_str = start_date.strftime('%B ') + str(start_date.day)
+    # end_date = datetime.datetime(2020, 3, 14)
+    end_date = datetime.datetime.now() - datetime.timedelta(weeks=(args.weeks_ago - 1))
+    weekday = end_date.weekday()
 
-        print(f"## {start_date_str}\n")
+    # Assuming I am lazy and making this at last moment or even later in worst case
+    if weekday < 2:
+        time_delta = 7 + weekday
+        start_date = end_date - datetime.timedelta(days=time_delta, hours=end_date.hour)
+        end_date -= datetime.timedelta(days=weekday, hours=end_date.hour)
     else:
-        num_days = 7  # Show an entire week.
-        # end_date = datetime.datetime(2020, 3, 14)
-        end_date = datetime.datetime.now() - datetime.timedelta(weeks=(args.weeks_ago - 1))
-        weekday = end_date.weekday()
+        time_delta = weekday
+        start_date = end_date - datetime.timedelta(days=time_delta, hours=end_date.hour)
 
-        # Assuming I am lazy and making this at last moment or even later in worst case
-        if weekday < 2:
-            time_delta = 7 + weekday
-            start_date = end_date - datetime.timedelta(days=time_delta, hours=end_date.hour)
-            end_date -= datetime.timedelta(days=weekday, hours=end_date.hour)
-        else:
-            time_delta = weekday
-            start_date = end_date - datetime.timedelta(days=time_delta, hours=end_date.hour)
+    sunday = start_date + datetime.timedelta(days=6)
+    # week = start_date.isocalendar()[1]
+    start_date_str = start_date.strftime('%B ') + str(start_date.day)
+    end_date_str = str(sunday.day) if start_date.month == sunday.month else sunday.strftime('%B ') + str(sunday.day)
 
-        sunday = start_date + datetime.timedelta(days=6)
-
-        # week = start_date.isocalendar()[1]
-        start_date_str = start_date.strftime('%B ') + str(start_date.day)
-        end_date_str = str(sunday.day) if start_date.month == sunday.month else sunday.strftime('%B ') + str(sunday.day)
-
-        print(f"## {start_date_str} - {end_date_str}\n")
-
+    print(f"## {start_date_str} - {end_date_str}\n")
     report_personal_weekly_get(
         username,
         start_date,
-        num_days,
         hash_length=args.hash_length,
         verbose=args.verbose,
     )

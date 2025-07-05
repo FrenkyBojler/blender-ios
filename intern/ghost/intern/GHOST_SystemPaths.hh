@@ -25,12 +25,28 @@ class GHOST_SystemPaths : public GHOST_ISystemPaths {
   ~GHOST_SystemPaths() override = default;
 
  public:
-  /** \copydoc #GHOST_SystemPaths::getSystemDir */
+  /**
+   * Determine the base directory in which shared resources are located. It will first try to use
+   * "unpack and run" path, then look for properly installed path, including versioning.
+   * \return Unsigned char string pointing to system directory (eg `/usr/share/blender/`).
+   */
   const char *getSystemDir(int version, const char *versionstr) const override = 0;
-  /** \copydoc #GHOST_SystemPaths::getUserDir */
+
+  /**
+   * Determine the base directory in which user configuration is stored, including versioning.
+   * If needed, it will create the base directory.
+   * \return Unsigned char string pointing to user directory (eg `~/.blender/`).
+   */
   const char *getUserDir(int version, const char *versionstr) const override = 0;
-  /** \copydoc #GHOST_SystemPaths::getBinaryDir */
+
+  /**
+   * Determine the directory of the current binary.
+   * \return Unsigned char string pointing to the binary directory.
+   */
   const char *getBinaryDir() const override = 0;
-  /** \copydoc #GHOST_SystemPaths::addToSystemRecentFiles */
+
+  /**
+   * Add the file to the operating system most recently used files
+   */
   void addToSystemRecentFiles(const char *filepath) const override = 0;
 };

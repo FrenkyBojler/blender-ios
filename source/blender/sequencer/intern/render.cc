@@ -281,9 +281,7 @@ StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *st
   const float2 offset{x * 0.5f, y * 0.5f};
 
   Array<float2> quad = image_transform_final_quad_get(scene, strip);
-  const float scale = context->preview_render_size == SEQ_RENDER_SIZE_SCENE ?
-                          float(scene->r.size) / 100.0f :
-                          rendersize_to_scale_factor(context->preview_render_size);
+  const float scale = rendersize_to_scale_factor(context->preview_render_size);
   return StripScreenQuad{float2(quad[0] * scale + offset),
                          float2(quad[1] * scale + offset),
                          float2(quad[2] * scale + offset),
@@ -1632,8 +1630,7 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
       BKE_animsys_evaluate_all_animation(context->bmain, context->depsgraph, frame_index);
     }
 
-    intra_frame_cache_set_cur_frame(
-        context->scene, frame_index, context->view_id, context->rectx, context->recty);
+    intra_frame_cache_set_cur_frame(context->scene, frame_index, context->view_id);
     ibuf = seq_render_strip_stack(context,
                                   state,
                                   channels,
@@ -1995,8 +1992,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     channels = ed->displayed_channels;
   }
 
-  intra_frame_cache_set_cur_frame(
-      scene, timeline_frame, context->view_id, context->rectx, context->recty);
+  intra_frame_cache_set_cur_frame(scene, timeline_frame, context->view_id);
 
   Scene *orig_scene = prefetch_get_original_scene(context);
   ImBuf *out = nullptr;

@@ -6,7 +6,6 @@
  * \ingroup GHOST
  */
 
-#include <optional>
 #include <sstream>
 
 #include "GHOST_SystemPathsUnix.hh"
@@ -101,10 +100,10 @@ const char *GHOST_SystemPathsUnix::getUserDir(int version, const char *versionst
   return user_path.c_str();
 }
 
-std::optional<std::string> GHOST_SystemPathsUnix::getUserSpecialDir(
-    GHOST_TUserSpecialDirTypes type) const
+const char *GHOST_SystemPathsUnix::getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const
 {
   const char *type_str;
+  static string path;
 
   switch (type) {
     case GHOST_kUserSpecialDirDesktop:
@@ -134,15 +133,16 @@ std::optional<std::string> GHOST_SystemPathsUnix::getUserSpecialDir(
       /* If `XDG_CACHE_HOME` is not set, then `$HOME/.cache is used`. */
       const char *home_dir = home_dir_get();
       if (home_dir == nullptr) {
-        return std::nullopt;
+        return nullptr;
       }
-      return string(home_dir) + "/.cache";
+      path = string(home_dir) + "/.cache";
+      return path.c_str();
     }
     default:
       GHOST_ASSERT(
           false,
           "GHOST_SystemPathsUnix::getUserSpecialDir(): Invalid enum value for type parameter");
-      return std::nullopt;
+      return nullptr;
   }
 
   /* Pipe `stderr` to `/dev/null` to avoid error prints. We will fail gracefully still. */
@@ -150,7 +150,7 @@ std::optional<std::string> GHOST_SystemPathsUnix::getUserSpecialDir(
 
   FILE *fstream = popen(command.c_str(), "r");
   if (fstream == nullptr) {
-    return std::nullopt;
+    return nullptr;
   }
   std::stringstream path_stream;
   while (!feof(fstream)) {
@@ -163,11 +163,11 @@ std::optional<std::string> GHOST_SystemPathsUnix::getUserSpecialDir(
   }
   if (pclose(fstream) == -1) {
     perror("GHOST_SystemPathsUnix::getUserSpecialDir failed at pclose()");
-    return std::nullopt;
+    return nullptr;
   }
 
-  std::string path = path_stream.str();
-  return path[0] ? std::optional(path) : std::nullopt;
+  path = path_stream.str();
+  return path[0] ? path.c_str() : nullptr;
 }
 
 const char *GHOST_SystemPathsUnix::getBinaryDir() const

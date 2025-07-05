@@ -232,7 +232,9 @@ enum eTConstraint {
   CON_AXIS1 = 1 << 2,
   CON_AXIS2 = 1 << 3,
   CON_SELECT = 1 << 4,
-  CON_USER = 1 << 5,
+  /** Does not reorient vector to face viewport when on. */
+  CON_NOFLIP = 1 << 5,
+  CON_USER = 1 << 6,
 };
 ENUM_OPERATORS(eTConstraint, CON_USER)
 
@@ -588,7 +590,8 @@ struct TransCon {
   void (*applyRot)(const TransInfo *t,
                    const TransDataContainer *tc,
                    const TransData *td,
-                   float r_axis[3]);
+                   float r_axis[3],
+                   float *r_angle);
 };
 
 struct MouseInput {
@@ -1006,7 +1009,6 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf);
  */
 bool transform_apply_matrix(TransInfo *t, float mat[4][4]);
 void transform_final_value_get(const TransInfo *t, float *value, int value_num);
-void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3]);
 
 /** \} */
 

@@ -22,7 +22,7 @@ import os
 import sys
 sys.path.append(os.path.join(os.path.dirname(__file__), "..", "..", "scripts", "modules"))
 
-import _blendfile_header
+import blendfile_header
 import gzip
 import logging
 import struct
@@ -57,7 +57,7 @@ class BlendFile:
         "filepath_orig",
         # BlendFileHeader
         "header",
-        # _blendfile_header.BlockHeaderStruct
+        # blendfile_header.BlockHeaderStruct
         "block_header_struct",
         # BlendFileBlock
         "blocks",
@@ -245,7 +245,7 @@ class BlendFile:
         return structs, sdna_index_from_id
 
 
-class BlendFileBlock(_blendfile_header.BlockHeader):
+class BlendFileBlock(blendfile_header.BlockHeader):
     """
     Instance of a struct.
     """
@@ -703,7 +703,7 @@ class BlendFileBlockRaw:
 # Read Magic
 
 
-class BlendFileHeader(_blendfile_header.BlendFileHeader):
+class BlendFileHeader(blendfile_header.BlendFileHeader):
     endian_index: int
     endian_str: bytes
 

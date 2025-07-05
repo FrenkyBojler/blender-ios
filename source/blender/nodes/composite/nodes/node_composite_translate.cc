@@ -12,8 +12,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
-#include "COM_domain.hh"
 #include "COM_node_operation.hh"
+#include "COM_utilities.hh"
 
 #include "node_composite_util.hh"
 
@@ -43,11 +43,8 @@ static void node_composit_init_translate(bNodeTree * /*ntree*/, bNode *node)
 
 static void node_composit_buts_translate(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayout &column = layout->column(true);
-  column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiLayout &row = column.row(true);
-  row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "wrap_axis", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -68,8 +65,8 @@ class TranslateOperation : public NodeOperation {
     output.share_data(input);
     output.transform(math::from_location<float3x3>(translation));
     output.get_realization_options().interpolation = this->get_interpolation();
-    output.get_realization_options().extension_x = this->get_extension_mode_x();
-    output.get_realization_options().extension_y = this->get_extension_mode_y();
+    output.get_realization_options().repeat_x = this->get_repeat_x();
+    output.get_realization_options().repeat_y = this->get_repeat_y();
   }
 
   Interpolation get_interpolation()
@@ -87,34 +84,18 @@ class TranslateOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  ExtensionMode get_extension_mode_x()
+  bool get_repeat_x()
   {
-    switch (node_storage(bnode()).extension_x) {
-      case CMP_NODE_EXTENSION_MODE_ZERO:
-        return ExtensionMode::Zero;
-      case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
-      case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
-    }
-
-    BLI_assert_unreachable();
-    return ExtensionMode::Zero;
+    return ELEM(node_storage(bnode()).wrap_axis,
+                CMP_NODE_TRANSLATE_REPEAT_AXIS_X,
+                CMP_NODE_TRANSLATE_REPEAT_AXIS_XY);
   }
 
-  ExtensionMode get_extension_mode_y()
+  bool get_repeat_y()
   {
-    switch (node_storage(bnode()).extension_y) {
-      case CMP_NODE_EXTENSION_MODE_ZERO:
-        return ExtensionMode::Zero;
-      case CMP_NODE_EXTENSION_MODE_REPEAT:
-        return ExtensionMode::Repeat;
-      case CMP_NODE_EXTENSION_MODE_EXTEND:
-        return ExtensionMode::Extend;
-    }
-
-    BLI_assert_unreachable();
-    return ExtensionMode::Zero;
+    return ELEM(node_storage(bnode()).wrap_axis,
+                CMP_NODE_TRANSLATE_REPEAT_AXIS_Y,
+                CMP_NODE_TRANSLATE_REPEAT_AXIS_XY);
   }
 };
 

@@ -62,7 +62,7 @@ Attribute::ArrayData Attribute::ArrayData::ForValue(const GPointer &value,
 {
   Attribute::ArrayData data{};
   const CPPType &type = *value.type();
-  const void *value_ptr = value.get();
+  const void *value_ptr = type.default_value();
 
   /* Prefer `calloc` to zeroing after allocation since it is faster. */
   if (BLI_memory_is_zero(value_ptr, type.size)) {
@@ -422,7 +422,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       BLO_read_struct(&reader, AttributeArray, &dna_attr.data);
       auto &data = *static_cast<::AttributeArray *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, data.size, &data.data, &data.sharing_info);
-      if (data.size != 0 && !data.data) {
+      if (!data.data) {
         return std::nullopt;
       }
       return Attribute::ArrayData{data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};

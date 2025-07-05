@@ -11,7 +11,6 @@
 #include "BLI_vector.hh"
 #include "BLI_vector_set.hh"
 
-#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_geometry_set.hh"
 
 namespace blender::bke {
@@ -273,8 +272,7 @@ inline std::optional<AttributeDomainAndType> builtin_domain_and_type(const void 
   if (const BuiltinAttributeProvider *provider =
           providers.builtin_attribute_providers().lookup_default_as(name, nullptr))
   {
-    const AttrType data_type = *custom_data_type_to_attr_type(provider->data_type());
-    return AttributeDomainAndType{provider->domain(), data_type};
+    return AttributeDomainAndType{provider->domain(), provider->data_type()};
   }
   return std::nullopt;
 }
@@ -317,10 +315,7 @@ inline void foreach_attribute(const void *owner,
   {
     if (provider->exists(owner)) {
       const auto get_fn = [&]() { return provider->try_get_for_read(owner); };
-      AttributeIter iter{provider->name(),
-                         provider->domain(),
-                         *custom_data_type_to_attr_type(provider->data_type()),
-                         get_fn};
+      AttributeIter iter{provider->name(), provider->domain(), provider->data_type(), get_fn};
       iter.is_builtin = true;
       iter.accessor = &accessor;
       fn(iter);
@@ -390,24 +385,23 @@ inline bool remove(void *owner, const StringRef name)
 template<const GeometryAttributeProviders &providers>
 inline bool add(void *owner,
                 const StringRef name,
-                const AttrDomain domain,
-                const AttrType data_type,
+                AttrDomain domain,
+                eCustomDataType data_type,
                 const AttributeInit &initializer)
 {
-  const eCustomDataType custom_data_type = *attr_type_to_custom_data_type(data_type);
   if (const BuiltinAttributeProvider *provider =
           providers.builtin_attribute_providers().lookup_default_as(name, nullptr))
   {
     if (provider->domain() != domain) {
       return false;
     }
-    if (provider->data_type() != custom_data_type) {
+    if (provider->data_type() != data_type) {
       return false;
     }
     return provider->try_create(owner, initializer);
   }
   for (const DynamicAttributesProvider *provider : providers.dynamic_attribute_providers()) {
-    if (provider->try_create(owner, name, domain, custom_data_type, initializer)) {
+    if (provider->try_create(owner, name, domain, data_type, initializer)) {
       return true;
     }
   }

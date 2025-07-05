@@ -285,10 +285,12 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* caches */
-  GPU_matrix_push_projection();
-  UI_view2d_view_orthoSpecial(region, v2d, true);
-  timeline_draw_cache(saction, obact, scene);
-  GPU_matrix_pop_projection();
+  if (saction->mode == SACTCONT_TIMELINE) {
+    GPU_matrix_push_projection();
+    UI_view2d_view_orthoSpecial(region, v2d, true);
+    timeline_draw_cache(saction, obact, scene);
+    GPU_matrix_pop_projection();
+  }
 
   /* scrubbing region */
   ED_time_scrub_draw_current_frame(

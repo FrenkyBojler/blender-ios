@@ -1486,15 +1486,6 @@ static void VertsToTransData(TransInfo *t,
 static void createTransEditVerts(bContext * /*C*/, TransInfo *t)
 {
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-    if (t->mode == TFM_NORMAL_ROTATION) {
-      /* Avoid freeing the container by creating a dummy TransData. The Rotate Normal mode uses a
-       * custom array and ignores any elements created for the mesh in transData and similar
-       * structures. */
-      tc->data_len = 1;
-      tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransData Dummy");
-      continue;
-    }
-
     TransDataExtension *tx = nullptr;
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
     Mesh *mesh = static_cast<Mesh *>(tc->obedit->data);
@@ -2175,7 +2166,6 @@ Array<TransDataVertSlideVert> transform_mesh_vert_slide_data_create(
   Array<TransDataVertSlideVert> r_sv(td_selected_len);
 
   r_loc_dst_buffer.reserve(r_sv.size() * 4);
-  int r_sv_index = 0;
   tc->foreach_index_selected([&](const int i) {
     TransData *td = &tc->data[i];
     const int size_prev = r_loc_dst_buffer.size();
@@ -2196,15 +2186,13 @@ Array<TransDataVertSlideVert> transform_mesh_vert_slide_data_create(
       }
     }
 
-    TransDataVertSlideVert &sv = r_sv[r_sv_index];
+    TransDataVertSlideVert &sv = r_sv[i];
     sv.td = &tc->data[i];
     /* The buffer address may change as the vector is resized. Avoid setting #Span. */
     // sv.targets = r_loc_dst_buffer.as_span().drop_front(size_prev);
 
     /* Store the buffer size temporarily in `target_curr`. */
     sv.co_link_curr = r_loc_dst_buffer.size() - size_prev;
-
-    r_sv_index++;
   });
 
   int start = 0;

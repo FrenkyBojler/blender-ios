@@ -26,28 +26,30 @@ struct VectorObject {
 
 /* Prototypes. */
 
-[[nodiscard]] PyObject *Vector_CreatePyObject(const float *vec,
-                                              int vec_num,
-                                              PyTypeObject *base_type);
+PyObject *Vector_CreatePyObject(const float *vec,
+                                int vec_num,
+                                PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT;
 /**
  * Create a vector that wraps existing memory.
  *
  * \param vec: Use this vector in-place.
  */
-[[nodiscard]] PyObject *Vector_CreatePyObject_wrap(float *vec,
-                                                   int vec_num,
-                                                   PyTypeObject *base_type) ATTR_NONNULL(1);
+PyObject *Vector_CreatePyObject_wrap(float *vec,
+                                     int vec_num,
+                                     PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1);
 /**
  * Create a vector where the value is defined by registered callbacks,
  * see: #Mathutils_RegisterCallback
  */
-[[nodiscard]] PyObject *Vector_CreatePyObject_cb(PyObject *cb_user,
-                                                 int vec_num,
-                                                 unsigned char cb_type,
-                                                 unsigned char cb_subtype);
+PyObject *Vector_CreatePyObject_cb(PyObject *cb_user,
+                                   int vec_num,
+                                   unsigned char cb_type,
+                                   unsigned char cb_subtype) ATTR_WARN_UNUSED_RESULT;
 /**
  * \param vec: Initialized vector value to use in-place, allocated with #PyMem_Malloc
  */
-[[nodiscard]] PyObject *Vector_CreatePyObject_alloc(float *vec,
-                                                    int vec_num,
-                                                    PyTypeObject *base_type) ATTR_NONNULL(1);
+PyObject *Vector_CreatePyObject_alloc(float *vec,
+                                      int vec_num,
+                                      PyTypeObject *base_type) ATTR_WARN_UNUSED_RESULT
+    ATTR_NONNULL(1);
