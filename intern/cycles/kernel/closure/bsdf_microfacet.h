@@ -62,6 +62,8 @@ struct FresnelF82Tint {
 
   /* Perpendicular reflectivity. */
   Spectrum f0;
+  /* Reflectivity at 82 degrees. */
+  Spectrum f82;
   /* Precomputed (1-cos)^6 factor for edge tint. */
   Spectrum b;
 };
@@ -260,6 +262,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
                                            fresnel->thin_film.ior,
                                            fresnel->n,
                                            fresnel->k,
+                                           -one_spectrum(),
                                            cos_theta_i,
                                            fresnel->thin_film.thickness,
                                            r_cos_theta_t);
@@ -275,7 +278,35 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
      * Essentially, this is the usual Schlick Fresnel with an additional cosI*(1-cosI)^6
      * term which modulates the reflectivity around acos(1/7) degrees (ca. 82°). */
     ccl_private FresnelF82Tint *fresnel = (ccl_private FresnelF82Tint *)bsdf->fresnel;
-    *r_reflectance = fresnel_f82(cos_theta_i, fresnel->f0, fresnel->b);
+    const float mu = saturatef(1.0f - cos_theta_i);
+    const float mu5 = sqr(sqr(mu)) * mu;
+    const Spectrum F_schlick = mix(fresnel->f0, one_spectrum(), mu5);
+    const Spectrum reflectance = saturate(F_schlick - fresnel->b * cos_theta_i * mu5 * mu);
+
+    if (fresnel->thin_film.thickness > 0.1f) {
+      /* Estimate n and k by reinterpreting F0 and F82 as r and g from "Artist Friendly Metallic
+       * Fresnel" by Ole Gulbrandsen. */
+      const Spectrum r = min(fresnel->f0, make_float3(0.999f));
+      const Spectrum g = fresnel->f82;
+
+      const Spectrum sqrt_r = sqrt(r);
+      const Spectrum n = mix((1.0f + sqrt_r) / (1.0f - sqrt_r), (1.0f - r) / (1.0f + r), g);
+      const Spectrum k = safe_sqrt((r * sqr(n + 1) - sqr(n - 1)) / (1.0f - r));
+
+      *r_reflectance = fresnel_iridescence(kg,
+                                           1.0f,
+                                           fresnel->thin_film.ior,
+                                           n,
+                                           k,
+                                           reflectance,
+                                           cos_theta_i,
+                                           fresnel->thin_film.thickness,
+                                           r_cos_theta_t);
+    }
+    else {
+      *r_reflectance = reflectance;
+    }
+
     *r_transmittance = zero_spectrum();
   }
   else if (bsdf->fresnel_type == MicrofacetFresnel::GENERALIZED_SCHLICK) {
@@ -291,6 +322,7 @@ ccl_device_forceinline void microfacet_fresnel(KernelGlobals kg,
                               1.0f,
                               fresnel->thin_film.ior,
                               make_spectrum(bsdf->ior),
+                              -one_spectrum(),
                               -one_spectrum(),
                               cos_theta_i,
                               fresnel->thin_film.thickness,
@@ -895,14 +927,13 @@ ccl_device void bsdf_microfacet_setup_fresnel_f82_tint(KernelGlobals kg,
                                                        ccl_private MicrofacetBsdf *bsdf,
                                                        const ccl_private ShaderData *sd,
                                                        ccl_private FresnelF82Tint *fresnel,
-                                                       const Spectrum f82_tint,
                                                        const bool preserve_energy)
 {
-  if (isequal(f82_tint, one_spectrum())) {
+  if (isequal(fresnel->f82, one_spectrum())) {
     fresnel->b = zero_spectrum();
   }
   else {
-    fresnel->b = fresnel_f82tint_B(fresnel->f0, f82_tint);
+    fresnel->b = fresnel_f82tint_B(fresnel->f0, fresnel->f82);
   }
 
   bsdf->fresnel_type = MicrofacetFresnel::F82_TINT;

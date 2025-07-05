@@ -333,7 +333,7 @@ ccl_device
             bsdf->alpha_y = alpha_y;
 
             fresnel->f0 = rgb_to_spectrum(clamped_base_color);
-            const Spectrum f82 = min(specular_tint, one_spectrum());
+            fresnel->f82 = min(specular_tint, one_spectrum());
 
             fresnel->thin_film.thickness = thinfilm_thickness;
             fresnel->thin_film.ior = thinfilm_ior;
@@ -341,7 +341,7 @@ ccl_device
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
             const bool is_multiggx = (distribution == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID);
-            bsdf_microfacet_setup_fresnel_f82_tint(kg, bsdf, sd, fresnel, f82, is_multiggx);
+            bsdf_microfacet_setup_fresnel_f82_tint(kg, bsdf, sd, fresnel, is_multiggx);
           }
         }
         /* Attenuate other components */
@@ -616,8 +616,8 @@ ccl_device
           const float3 tint = saturate(stack_load_float3(stack, edge_tint_k_offset));
 
           fresnel->f0 = rgb_to_spectrum(color);
-          const Spectrum f82 = rgb_to_spectrum(tint);
-          bsdf_microfacet_setup_fresnel_f82_tint(kg, bsdf, sd, fresnel, f82, is_multiggx);
+          fresnel->f82 = rgb_to_spectrum(tint);
+          bsdf_microfacet_setup_fresnel_f82_tint(kg, bsdf, sd, fresnel, is_multiggx);
         }
       }
       break;

@@ -112,9 +112,9 @@ ccl_device_inline float fresnel_dielectric_Fss(const float eta)
   return (eta - 1.0f) / (4.08567f + 1.00071f * eta);
 }
 
-/* Calculates Fresnel reflectance at a dielectric-conductor interface for perpendicular (r_R_s) and
- * parallel (r_R_p) polarized light using the exact Fresnel equations. If requested by the caller,
- * also sets r_phi_s and r_phi_p to the phase shift due to reflection.
+/* Evaluates the Fresnel equations at a dielectric-conductor interface. If requested by the caller,
+ * sets r_R_s and r_R_p to the reflectances for perpendicular and parallel polarized light, and
+ * sets r_phi_s and r_phi_p to the phase shifts due to reflection.
  * Based on equations from section 14.4.1 of Principles of Optics 7th ed. by Born and Wolf. */
 ccl_device void fresnel_conductor_polarized(const float cosi,
                                             const float eta1,
@@ -130,20 +130,20 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
   const Spectrum u = safe_sqrt(0.5f * (t2 + t1));
   const Spectrum v = safe_sqrt(0.5f * (t2 - t1));
 
-  *r_R_s = (sqr(eta1 * cosi - u) + sqr(v)) / (sqr(eta1 * cosi + u) + sqr(v));
+  if (r_R_s && r_R_p) {
+    *r_R_s = (sqr(eta1 * cosi - u) + sqr(v)) / (sqr(eta1 * cosi + u) + sqr(v));
 
-  const Spectrum t3 = (sqr(eta2) - sqr(k2)) * cosi;
-  const Spectrum t4 = 2.0f * eta2 * k2 * cosi;
-  const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
-                       (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
-  const int3 mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
-  *r_R_p = select(mask, one_spectrum(), R_p);
-
-  if (r_phi_s) {
-    *r_phi_s = atan2(2.0f * eta1 * cosi * v, sqr(u) + sqr(v) - sqr(eta1 * cosi));
+    const Spectrum t3 = (sqr(eta2) - sqr(k2)) * cosi;
+    const Spectrum t4 = 2.0f * eta2 * k2 * cosi;
+    const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
+                         (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
+    const int3 mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
+    *r_R_p = select(mask, one_spectrum(), R_p);
   }
 
-  if (r_phi_p) {
+  if (r_phi_s && r_phi_p) {
+    *r_phi_s = atan2(2.0f * eta1 * cosi * v, sqr(u) + sqr(v) - sqr(eta1 * cosi));
+
     const Spectrum y = 2.0f * eta1 * cosi * (2.0f * eta2 * k2 * u - (sqr(eta2) - sqr(k2)) * v);
     const Spectrum x = sqr((sqr(eta2) + sqr(k2)) * cosi) - sqr(eta1) * (sqr(u) + sqr(v));
     *r_phi_p = atan2(y, x);
@@ -439,6 +439,7 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
                                         float eta2,
                                         Spectrum eta3,
                                         Spectrum k3,
+                                        Spectrum R23,
                                         float cos_theta_1,
                                         const float thickness,
                                         ccl_private float *r_cos_theta_3)
@@ -468,7 +469,18 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   if (reduce_min(k3) >= 0.0f) {
     /* Material is a conductor. */
     Spectrum phi23_s, phi23_p;
-    fresnel_conductor_polarized(-cos_theta_2, eta2, eta3, k3, &R23_s, &R23_p, &phi23_s, &phi23_p);
+
+    if (reduce_min(R23) >= 0.0f) {
+      /* If reflectances were provided by the caller, only calculate phase shifts. */
+      fresnel_conductor_polarized(
+          -cos_theta_2, eta2, eta3, k3, nullptr, nullptr, &phi23_s, &phi23_p);
+      R23_s = R23;
+      R23_p = R23;
+    }
+    else {
+      fresnel_conductor_polarized(
+          -cos_theta_2, eta2, eta3, k3, &R23_s, &R23_p, &phi23_s, &phi23_p);
+    }
 
     phi_s = phi23_s + (M_PI_F - phi12.x);
     phi_p = phi23_p + (M_PI_F - phi12.y);
