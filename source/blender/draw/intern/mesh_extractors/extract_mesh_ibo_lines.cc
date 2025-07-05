@@ -90,7 +90,7 @@ static void extract_lines_mesh(const MeshRenderData &mr,
 
   if (lines_loose && !lines) {
     GPUIndexBufBuilder builder;
-    GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, visible_loose_edges.size(), max_index);
+    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, visible_loose_edges.size(), max_index);
     MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
     fill_loose_lines_ibo(mr, visible_loose_edges, data);
     *lines_loose = gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, max_index, false));
@@ -102,7 +102,7 @@ static void extract_lines_mesh(const MeshRenderData &mr,
   const IndexMask visible_non_loose_edges = calc_mesh_edge_visibility(mr, non_loose_edges, memory);
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder,
+  GPU_indexbuf_init(&builder,
                     GPU_PRIM_LINES,
                     visible_non_loose_edges.size() + visible_loose_edges.size(),
                     max_index);
@@ -188,7 +188,7 @@ static void extract_lines_bm(const MeshRenderData &mr,
 
   if (lines_loose && !lines) {
     GPUIndexBufBuilder builder;
-    GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, visible_loose_edges.size(), max_index);
+    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, visible_loose_edges.size(), max_index);
     MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
     fill_loose_lines_ibo(mr, visible_loose_edges, data);
     *lines_loose = gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, max_index, false));
@@ -204,7 +204,7 @@ static void extract_lines_bm(const MeshRenderData &mr,
       });
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder,
+  GPU_indexbuf_init(&builder,
                     GPU_PRIM_LINES,
                     visible_non_loose_edges.size() + visible_loose_edges.size(),
                     max_index);

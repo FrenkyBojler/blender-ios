@@ -26,7 +26,7 @@ static_assert(sizeof(ColorVertex) == 12);
 static blender::gpu::IndexBuf *create_quads_index_buffer(int quads_count)
 {
   GPUIndexBufBuilder elb;
-  GPU_indexbuf_allocate_uninitialized(&elb, GPU_PRIM_TRIS, quads_count * 2, quads_count * 4);
+  GPU_indexbuf_init(&elb, GPU_PRIM_TRIS, quads_count * 2, quads_count * 4);
   for (int i = 0; i < quads_count; i++) {
     const uint i0 = i * 4 + 0;
     const uint i1 = i * 4 + 1;

@@ -364,7 +364,7 @@ static gpu::IndexBuf *lattice_batch_cache_get_edges(LatticeRenderData *rdata,
     const int edge_len = lattice_render_data_edges_len_get(rdata);
 
     GPUIndexBufBuilder builder;
-    GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, edge_len, vert_len);
+    GPU_indexbuf_init(&builder, GPU_PRIM_LINES, edge_len, vert_len);
     MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
     int line_index = 0;
 

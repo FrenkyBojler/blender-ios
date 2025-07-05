@@ -345,7 +345,7 @@ static void grease_pencil_weight_batch_ensure(Object &object,
   int lines_ibo_index = 0;
 
   GPUIndexBufBuilder points_builder;
-  GPU_indexbuf_allocate_uninitialized(&points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
+  GPU_indexbuf_init(&points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
   MutableSpan<uint> points_data = GPU_indexbuf_get_data(&points_builder);
   int points_ibo_index = 0;
 
@@ -989,7 +989,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   int lines_ibo_index = 0;
 
   GPUIndexBufBuilder points_builder;
-  GPU_indexbuf_allocate_uninitialized(&points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
+  GPU_indexbuf_init(&points_builder, GPU_PRIM_POINTS, visible_points_num, total_points_num);
   MutableSpan<uint> points_data = GPU_indexbuf_get_data(&points_builder);
   int points_ibo_index = 0;
 
@@ -1170,7 +1170,7 @@ static void grease_pencil_geom_batch_ensure(Object &object,
   MutableSpan<GreasePencilColorVert> cols = cache->vbo_col->data<GreasePencilColorVert>();
   /* Create IBO. */
   GPUIndexBufBuilder ibo;
-  GPU_indexbuf_allocate_uninitialized(&ibo, GPU_PRIM_TRIS, total_triangles_num, INT_MAX);
+  GPU_indexbuf_init(&ibo, GPU_PRIM_TRIS, total_triangles_num, INT_MAX);
   MutableSpan<uint3> triangle_ibo_data = GPU_indexbuf_get_data(&ibo).cast<uint3>();
   int triangle_ibo_index = 0;
 

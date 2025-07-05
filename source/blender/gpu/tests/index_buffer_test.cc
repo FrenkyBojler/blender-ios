@@ -17,7 +17,7 @@ static void test_index_buffer_subbuilders()
   const uint vertex_len = num_subbuilders * verts_per_subbuilders;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_POINTS, vertex_len, vertex_len);
+  GPU_indexbuf_init(&builder, GPU_PRIM_POINTS, vertex_len, vertex_len);
 
   GPUIndexBufBuilder subbuilders[num_subbuilders];
   for (int subbuilder_index = 0; subbuilder_index < num_subbuilders; subbuilder_index++) {

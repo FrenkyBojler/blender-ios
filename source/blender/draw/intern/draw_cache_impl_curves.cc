@@ -421,7 +421,7 @@ static void create_lines_ibo_no_cyclic(const OffsetIndices<int> points_by_curve,
   const int curves_num = points_by_curve.size();
   const int indices_num = points_num + curves_num;
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINE_STRIP, indices_num, points_num);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINE_STRIP, indices_num, points_num);
   MutableSpan<uint> ibo_data = GPU_indexbuf_get_data(&builder);
   threading::parallel_for(IndexRange(curves_num), 1024, [&](const IndexRange range) {
     for (const int curve : range) {
@@ -444,7 +444,7 @@ static void create_lines_ibo_with_cyclic(const OffsetIndices<int> points_by_curv
   const int curves_num = points_by_curve.size();
   const int indices_num = points_num + curves_num * 2;
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINE_STRIP, indices_num, points_num);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINE_STRIP, indices_num, points_num);
   MutableSpan<uint> ibo_data = GPU_indexbuf_get_data(&builder);
   threading::parallel_for(IndexRange(curves_num), 1024, [&](const IndexRange range) {
     for (const int curve : range) {
@@ -520,7 +520,7 @@ static void calc_edit_handles_ibo(const OffsetIndices<int> points_by_curve,
   lines_num += bezier_offsets.total_size() * 2;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(
+  GPU_indexbuf_init(
       &builder, GPU_PRIM_LINES, lines_num, handles_and_points_num(points_num, bezier_offsets));
   MutableSpan<uint2> lines = GPU_indexbuf_get_data(&builder).cast<uint2>();
 

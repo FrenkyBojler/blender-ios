@@ -173,7 +173,7 @@ gpu::IndexBufPtr extract_lines_adjacency(const MeshRenderData &mr, bool &r_is_ma
   bool is_manifold = true;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES_ADJ, tess_edge_len, mr.corners_num);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES_ADJ, tess_edge_len, mr.corners_num);
 
   if (mr.extract_type == MeshExtractType::Mesh) {
     calc_adjacency_mesh(mr, vert_to_corner, edge_hash, builder, is_manifold);
@@ -204,7 +204,7 @@ gpu::IndexBufPtr extract_lines_adjacency_subdiv(const DRWSubdivCache &subdiv_cac
   bool is_manifold = true;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES_ADJ, tess_edge_len, subdiv_cache.num_subdiv_loops);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES_ADJ, tess_edge_len, subdiv_cache.num_subdiv_loops);
 
   for (const int subdiv_quad_index : IndexRange(subdiv_cache.num_subdiv_quads)) {
     const uint loop_index = subdiv_quad_index * 4;

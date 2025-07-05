@@ -449,7 +449,7 @@ blender::gpu::Batch *ui_batch_roundbox_widget_get()
     GPU_vertbuf_data_alloc(*vbo, 12);
 
     GPUIndexBufBuilder ibuf;
-    GPU_indexbuf_allocate_uninitialized(&ibuf, GPU_PRIM_TRIS, 6, 12);
+    GPU_indexbuf_init(&ibuf, GPU_PRIM_TRIS, 6, 12);
     /* Widget */
     GPU_indexbuf_add_tri_verts(&ibuf, 0, 1, 2);
     GPU_indexbuf_add_tri_verts(&ibuf, 2, 1, 3);

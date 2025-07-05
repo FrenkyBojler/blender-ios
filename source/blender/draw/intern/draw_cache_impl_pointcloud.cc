@@ -237,7 +237,7 @@ static void pointcloud_extract_indices(const PointCloud &pointcloud, PointCloudB
   uint32_t primitive_len = pointcloud.totpoint * tri_count_per_point;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_TRIS, primitive_len, vertid_max);
+  GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, primitive_len, vertid_max);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
   /* TODO(fclem): Could be build on GPU or not be built at all. */
@@ -424,7 +424,7 @@ static void index_mask_to_ibo(const IndexMask &mask, gpu::IndexBuf &ibo)
 {
   const int max_index = mask.min_array_size();
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_POINTS, mask.size(), max_index);
+  GPU_indexbuf_init(&builder, GPU_PRIM_POINTS, mask.size(), max_index);
   MutableSpan<uint> data = GPU_indexbuf_get_data(&builder);
   mask.to_indices<int>(data.cast<int>());
   GPU_indexbuf_build_in_place_ex(&builder, 0, max_index, false, &ibo);

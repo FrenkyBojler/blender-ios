@@ -346,7 +346,7 @@ ShapeCache::ShapeCache()
   }
   {
     GPUIndexBufBuilder elb;
-    GPU_indexbuf_allocate_uninitialized(&elb, GPU_PRIM_LINES_ADJ, 12, 24);
+    GPU_indexbuf_init(&elb, GPU_PRIM_LINES_ADJ, 12, 24);
 
     for (auto line : bone_octahedral_wire_lines_adjacency) {
       GPU_indexbuf_add_line_adj_verts(&elb, line[0], line[1], line[2], line[3]);
@@ -433,7 +433,7 @@ ShapeCache::ShapeCache()
   }
   {
     GPUIndexBufBuilder elb;
-    GPU_indexbuf_allocate_uninitialized(&elb, GPU_PRIM_LINES_ADJ, 12, 36);
+    GPU_indexbuf_init(&elb, GPU_PRIM_LINES_ADJ, 12, 36);
 
     for (auto line : bone_box_wire_lines_adjacency) {
       GPU_indexbuf_add_line_adj_verts(&elb, line[0], line[1], line[2], line[3]);

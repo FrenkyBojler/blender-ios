@@ -74,7 +74,7 @@ gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr)
   const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_TRIS, mr.corner_tris_num, mr.corners_num);
+  GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, mr.corner_tris_num, mr.corners_num);
   if (mr.extract_type == MeshExtractType::BMesh) {
     extract_edituv_tris_bm(mr, sync_selection, builder);
   }
@@ -133,7 +133,7 @@ gpu::IndexBufPtr extract_edituv_tris_subdiv(const MeshRenderData &mr,
   const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(
+  GPU_indexbuf_init(
       &builder, GPU_PRIM_TRIS, subdiv_cache.num_subdiv_triangles, subdiv_cache.num_subdiv_loops);
   if (mr.extract_type == MeshExtractType::BMesh) {
     extract_edituv_tris_subdiv_bm(mr, subdiv_cache, sync_selection, builder);
@@ -157,7 +157,7 @@ static gpu::IndexBufPtr extract_edituv_lines_bm(const MeshRenderData &mr,
   GPUIndexBufBuilder builder;
   /* The entire data array might not be used. It might be beneficial to count the number of visible
    * edges first, especially if that allows parallelizing filling the data array. */
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, mr.corners_num, mr.corners_num);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, mr.corners_num, mr.corners_num);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   int line_index = 0;
 
@@ -187,7 +187,7 @@ static gpu::IndexBufPtr extract_edituv_lines_mesh(const MeshRenderData &mr,
                                         Span<int>();
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, mr.corners_num, mr.corners_num);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, mr.corners_num, mr.corners_num);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   int line_index = 0;
 
@@ -259,7 +259,7 @@ static gpu::IndexBufPtr extract_edituv_lines_subdiv_bm(const MeshRenderData &mr,
                                          subdiv_cache.num_subdiv_loops);
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(
+  GPU_indexbuf_init(
       &builder, GPU_PRIM_LINES, subdiv_cache.num_subdiv_loops, subdiv_cache.num_subdiv_loops);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   int line_index = 0;
@@ -289,7 +289,7 @@ static gpu::IndexBufPtr extract_edituv_lines_subdiv_mesh(const MeshRenderData &m
                                                          const bool sync_selection)
 {
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(
+  GPU_indexbuf_init(
       &builder, GPU_PRIM_LINES, subdiv_cache.num_subdiv_loops, subdiv_cache.num_subdiv_loops);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   int line_index = 0;
@@ -402,7 +402,7 @@ gpu::IndexBufPtr extract_edituv_points(const MeshRenderData &mr)
   const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_POINTS, mr.corners_num, mr.corners_num);
+  GPU_indexbuf_init(&builder, GPU_PRIM_POINTS, mr.corners_num, mr.corners_num);
   if (mr.extract_type == MeshExtractType::BMesh) {
     extract_edituv_points_bm(mr, sync_selection, builder);
   }
@@ -472,7 +472,7 @@ gpu::IndexBufPtr extract_edituv_points_subdiv(const MeshRenderData &mr,
   const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(
+  GPU_indexbuf_init(
       &builder, GPU_PRIM_POINTS, subdiv_cache.num_subdiv_loops, subdiv_cache.num_subdiv_loops);
   if (mr.extract_type == MeshExtractType::BMesh) {
     extract_edituv_points_subdiv_bm(mr, subdiv_cache, sync_selection, builder);
@@ -500,7 +500,7 @@ static gpu::IndexBufPtr extract_edituv_face_dots_bm(const MeshRenderData &mr,
       });
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_POINTS, visible.size(), bm.totface);
+  GPU_indexbuf_init(&builder, GPU_PRIM_POINTS, visible.size(), bm.totface);
   visible.to_indices(GPU_indexbuf_get_data(&builder).cast<int>());
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, bm.totface, false));
 }
@@ -533,7 +533,7 @@ static gpu::IndexBufPtr extract_edituv_face_dots_mesh(const MeshRenderData &mr,
   }
 
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_POINTS, visible.size(), faces.size());
+  GPU_indexbuf_init(&builder, GPU_PRIM_POINTS, visible.size(), faces.size());
   visible.to_indices(GPU_indexbuf_get_data(&builder).cast<int>());
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, faces.size(), false));
 }

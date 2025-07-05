@@ -36,7 +36,7 @@ static gpu::IndexBufPtr index_mask_to_ibo(const IndexMask &mask)
 {
   const int max_index = mask.min_array_size();
   GPUIndexBufBuilder builder;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_POINTS, mask.size(), max_index);
+  GPU_indexbuf_init(&builder, GPU_PRIM_POINTS, mask.size(), max_index);
   MutableSpan<uint> data = GPU_indexbuf_get_data(&builder);
   mask.to_indices<int>(data.cast<int>());
   return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, max_index, false));

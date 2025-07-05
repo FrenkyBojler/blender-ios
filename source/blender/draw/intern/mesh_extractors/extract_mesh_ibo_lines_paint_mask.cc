@@ -30,7 +30,7 @@ gpu::IndexBufPtr extract_lines_paint_mask(const MeshRenderData &mr)
 
   GPUIndexBufBuilder builder;
   const int max_index = mr.corners_num;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, mr.edges_num, max_index);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, mr.edges_num, max_index);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
 
   BLI_bitmap *select_map = BLI_BITMAP_NEW(mr.edges_num, __func__);
@@ -87,7 +87,7 @@ gpu::IndexBufPtr extract_lines_paint_mask_subdiv(const MeshRenderData &mr,
 
   GPUIndexBufBuilder builder;
   const int max_index = subdiv_cache.num_subdiv_loops;
-  GPU_indexbuf_allocate_uninitialized(&builder, GPU_PRIM_LINES, subdiv_cache.num_subdiv_edges, max_index);
+  GPU_indexbuf_init(&builder, GPU_PRIM_LINES, subdiv_cache.num_subdiv_edges, max_index);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
 
   BLI_bitmap *select_map = BLI_BITMAP_NEW(mr.edges_num, __func__);
