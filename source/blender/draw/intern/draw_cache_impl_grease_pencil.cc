@@ -340,7 +340,7 @@ static void grease_pencil_weight_batch_ensure(Object &object,
   }
 
   GPUIndexBufBuilder lines_builder;
-  GPU_indexbuf_allocate_uninitialized_ex(&lines_builder, GPU_PRIM_LINE_STRIP, total_line_ids_num, total_points_num);
+  GPU_indexbuf_init_ex(&lines_builder, GPU_PRIM_LINE_STRIP, total_line_ids_num, total_points_num);
   MutableSpan<uint> lines_data = GPU_indexbuf_get_data(&lines_builder);
   int lines_ibo_index = 0;
 
@@ -983,7 +983,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   }
 
   GPUIndexBufBuilder lines_builder;
-  GPU_indexbuf_allocate_uninitialized_ex(
+  GPU_indexbuf_init_ex(
       &lines_builder, GPU_PRIM_LINE_STRIP, total_line_ids_num, total_line_points_num);
   MutableSpan<uint> lines_data = GPU_indexbuf_get_data(&lines_builder);
   int lines_ibo_index = 0;
@@ -1407,7 +1407,7 @@ static void grease_pencil_wire_batch_ensure(Object &object,
   const OffsetIndices<int> range_per_curve(index_start_per_curve, offset_indices::NoSortCheck{});
 
   GPUIndexBufBuilder elb;
-  GPU_indexbuf_allocate_uninitialized_ex(&elb, GPU_PRIM_LINE_STRIP, index_len, max_index);
+  GPU_indexbuf_init_ex(&elb, GPU_PRIM_LINE_STRIP, index_len, max_index);
 
   blender::MutableSpan<uint32_t> indices = GPU_indexbuf_get_data(&elb);
 

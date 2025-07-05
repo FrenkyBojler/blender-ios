@@ -513,7 +513,7 @@ static void curve_create_curves_lines(CurveRenderData *rdata, gpu::IndexBuf *ibo
   const int index_len = edge_len + curve_len * 2;
 
   GPUIndexBufBuilder elb;
-  GPU_indexbuf_allocate_uninitialized_ex(&elb, GPU_PRIM_LINE_STRIP, index_len, vert_len);
+  GPU_indexbuf_init_ex(&elb, GPU_PRIM_LINE_STRIP, index_len, vert_len);
 
   const bke::CurvesGeometry &curves = rdata->curve_eval->geometry.wrap();
   const OffsetIndices points_by_curve = curves.evaluated_points_by_curve();
