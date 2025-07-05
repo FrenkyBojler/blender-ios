@@ -107,7 +107,7 @@ static void createTransGreasePencilVerts(bContext *C, TransInfo *t)
                                                                   CURVE_TYPE_BEZIER,
                                                                   editable_strokes,
                                                                   curves_transform_data->memory);
-      OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
       const IndexMask bezier_points = IndexMask::from_ranges(
           points_by_curve, bezier_curves[layer_offset], curves_transform_data->memory);
 
