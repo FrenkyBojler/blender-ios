@@ -122,10 +122,40 @@ typedef enum eFFMpegProresProfile {
   FFM_PRORES_PROFILE_4444_XQ = 5,   /* FF_PROFILE_PRORES_XQ */
 } eFFMpegProresProfile;
 
+/* Note: These used to match `AVCodecID` enum values. Kept old values to keep file compatibility.
+ * Use `MOV_av_codec_id_get()` to get `AVCodecID` value. */
+typedef enum IMB_Ffmpeg_Codec_ID {
+  FFMPEG_CODEC_ID_NONE = 0,
+  FFMPEG_CODEC_ID_MPEG1VIDEO = 1,
+  FFMPEG_CODEC_ID_MPEG2VIDEO = 2,
+  FFMPEG_CODEC_ID_MPEG4 = 12,
+  FFMPEG_CODEC_ID_FLV1 = 21,
+  FFMPEG_CODEC_ID_DVVIDEO = 24,
+  FFMPEG_CODEC_ID_HUFFYUV = 25,
+  FFMPEG_CODEC_ID_H264 = 27,
+  FFMPEG_CODEC_ID_THEORA = 30,
+  FFMPEG_CODEC_ID_FFV1 = 33,
+  FFMPEG_CODEC_ID_QTRLE = 55,
+  FFMPEG_CODEC_ID_PNG = 61,
+  FFMPEG_CODEC_ID_DNXHD = 99,
+  FFMPEG_CODEC_ID_VP9 = 167,
+  FFMPEG_CODEC_ID_H265 = 173,
+  FFMPEG_CODEC_ID_AV1 = 226,
+  FFMPEG_CODEC_ID_PRORES = 147,
+  FFMPEG_CODEC_ID_PCM_S16LE = 65536,
+  FFMPEG_CODEC_ID_MP2 = 86016,
+  FFMPEG_CODEC_ID_MP3 = 86017,
+  FFMPEG_CODEC_ID_AAC = 86018,
+  FFMPEG_CODEC_ID_AC3 = 86019,
+  FFMPEG_CODEC_ID_VORBIS = 86021,
+  FFMPEG_CODEC_ID_FLAC = 86028,
+  FFMPEG_CODEC_ID_OPUS = 86076,
+} IMB_Ffmpeg_Codec_ID;
+
 typedef struct FFMpegCodecData {
   int type;
-  int codec;
-  int audio_codec;
+  int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
+  int audio_codec; /* Use `audio_codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
   int video_bitrate;
   int audio_bitrate;
   int audio_mixrate;
@@ -146,6 +176,26 @@ typedef struct FFMpegCodecData {
   int mux_packet_size;
   int mux_rate;
   char _pad0[4];
+
+#ifdef __cplusplus
+  IMB_Ffmpeg_Codec_ID codec_id_get() const
+  {
+    return IMB_Ffmpeg_Codec_ID(codec);
+  }
+  IMB_Ffmpeg_Codec_ID audio_codec_id_get() const
+  {
+    return IMB_Ffmpeg_Codec_ID(audio_codec);
+  }
+  void codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    codec = codec_id;
+  }
+  void audio_codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    audio_codec = codec_id;
+  }
+
+#endif
 } FFMpegCodecData;
 
 /** \} */
@@ -965,6 +1015,118 @@ typedef struct TimeMarker {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Unified Paint Settings
+ * \{ */
+
+/**
+ * These settings can override the equivalent fields in the active
+ * Brush for any paint mode; the flag field controls whether these
+ * values are used
+ */
+typedef struct UnifiedPaintSettings {
+  /** Unified radius of brush in pixels. */
+  int size;
+
+  /** Unified radius of brush in Blender units. */
+  float unprojected_radius;
+
+  /** Unified strength of brush. */
+  float alpha;
+
+  /** Unified brush weight, [0, 1]. */
+  float weight;
+
+  /** Unified brush color. */
+  float rgb[3];
+  /** Unified brush secondary color. */
+  float secondary_rgb[3];
+
+  /** Unified color jitter settings */
+  int color_jitter_flag;
+  float hsv_jitter[3];
+
+  /** Color jitter pressure curves. */
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
+
+  /** Unified brush stroke input samples. */
+  int input_samples;
+
+  /** User preferences for sculpt and paint. */
+  int flag;
+  char _pad[4];
+
+  /* TODO: Many of the following values should not be on this struct, as it causes them to be
+   * persisted. PaintRuntime may be a better choice for some of these. */
+
+  /* Rake rotation. */
+
+  /** Record movement of mouse so that rake can start at an intuitive angle. */
+  float last_rake[2];
+  float last_rake_angle;
+
+  int last_stroke_valid;
+  float average_stroke_accum[3];
+  int average_stroke_counter;
+
+  /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
+   * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
+   * mouse curve, Bezier curve, etc.) */
+  float brush_rotation;
+  float brush_rotation_sec;
+
+  /*******************************************************************************
+   * all data below are used to communicate with cursor drawing and tex sampling *
+   *******************************************************************************/
+  int anchored_size;
+
+  /**
+   * Normalization factor due to accumulated value of curve along spacing.
+   * Calculated when brush spacing changes to dampen strength of stroke
+   * if space attenuation is used.
+   */
+  float overlap_factor;
+  char draw_inverted;
+  /** Check is there an ongoing stroke right now. */
+  char stroke_active;
+
+  char draw_anchored;
+  char do_linear_conversion;
+
+  /**
+   * Store last location of stroke or whether the mesh was hit.
+   * Valid only while stroke is active.
+   */
+  float last_location[3];
+  int last_hit;
+
+  float anchored_initial_mouse[2];
+
+  /**
+   * Radius of brush, pre-multiplied with pressure.
+   * In case of anchored brushes contains the anchored radius.
+   */
+  float pixel_radius;
+  float initial_pixel_radius;
+  float start_pixel_radius;
+
+  /** Drawing pressure. */
+  float size_pressure_value;
+
+  /** Position of mouse, used to sample the texture. */
+  float tex_mouse[2];
+
+  /** Position of mouse, used to sample the mask texture. */
+  float mask_tex_mouse[2];
+
+  /** ColorSpace cache to avoid locking up during sampling. */
+  const ColorSpaceHandle *colorspace;
+} UnifiedPaintSettings;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Paint Mode/Tool Data
  * \{ */
 
@@ -985,6 +1147,8 @@ typedef struct NamedBrushAssetReference {
   const char *name;
   struct AssetWeakReference *brush_asset_reference;
 } NamedBrushAssetReference;
+
+/** \} */
 
 /**
  * For the tool system: Storage to remember the last active brush for specific tools.
@@ -1054,6 +1218,7 @@ typedef struct Paint {
 
   float tile_offset[3];
   char _pad2[4];
+  struct UnifiedPaintSettings unified_paint_settings;
 
   struct Paint_Runtime runtime;
 } Paint;
@@ -1175,7 +1340,7 @@ typedef struct Sculpt {
 
   // /* Control tablet input. */
   // char tablet_size, tablet_strength; XXX not used?
-  int radial_symm[3];
+  int radial_symm_legacy[3];
 
   /** Maximum edge length for dynamic topology sculpting (in pixels). */
   float detail_size;
@@ -1263,7 +1428,7 @@ typedef struct VPaint {
   char flag;
   char _pad[3];
   /** For mirrored painting. */
-  int radial_symm[3];
+  int radial_symm[3] DNA_DEPRECATED;
 } VPaint;
 
 /** #VPaint::flag */
@@ -1396,115 +1561,6 @@ typedef enum eGP_Interpolate_Type {
   GP_IPO_QUINT = 11,
   GP_IPO_SINE = 12,
 } eGP_Interpolate_Type;
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Unified Paint Settings
- * \{ */
-
-/**
- * These settings can override the equivalent fields in the active
- * Brush for any paint mode; the flag field controls whether these
- * values are used
- */
-typedef struct UnifiedPaintSettings {
-  /** Unified radius of brush in pixels. */
-  int size;
-
-  /** Unified radius of brush in Blender units. */
-  float unprojected_radius;
-
-  /** Unified strength of brush. */
-  float alpha;
-
-  /** Unified brush weight, [0, 1]. */
-  float weight;
-
-  /** Unified brush color. */
-  float rgb[3];
-  /** Unified brush secondary color. */
-  float secondary_rgb[3];
-
-  /** Unified color jitter settings */
-  int color_jitter_flag;
-  float hsv_jitter[3];
-
-  /** Color jitter pressure curves. */
-  struct CurveMapping *curve_rand_hue;
-  struct CurveMapping *curve_rand_saturation;
-  struct CurveMapping *curve_rand_value;
-
-  /** Unified brush stroke input samples. */
-  int input_samples;
-
-  /** User preferences for sculpt and paint. */
-  int flag;
-  char _pad[4];
-
-  /* Rake rotation. */
-
-  /** Record movement of mouse so that rake can start at an intuitive angle. */
-  float last_rake[2];
-  float last_rake_angle;
-
-  int last_stroke_valid;
-  float average_stroke_accum[3];
-  int average_stroke_counter;
-
-  /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
-   * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
-   * mouse curve, Bezier curve, etc.) */
-  float brush_rotation;
-  float brush_rotation_sec;
-
-  /*******************************************************************************
-   * all data below are used to communicate with cursor drawing and tex sampling *
-   *******************************************************************************/
-  int anchored_size;
-
-  /**
-   * Normalization factor due to accumulated value of curve along spacing.
-   * Calculated when brush spacing changes to dampen strength of stroke
-   * if space attenuation is used.
-   */
-  float overlap_factor;
-  char draw_inverted;
-  /** Check is there an ongoing stroke right now. */
-  char stroke_active;
-
-  char draw_anchored;
-  char do_linear_conversion;
-
-  /**
-   * Store last location of stroke or whether the mesh was hit.
-   * Valid only while stroke is active.
-   */
-  float last_location[3];
-  int last_hit;
-
-  float anchored_initial_mouse[2];
-
-  /**
-   * Radius of brush, pre-multiplied with pressure.
-   * In case of anchored brushes contains the anchored radius.
-   */
-  float pixel_radius;
-  float initial_pixel_radius;
-  float start_pixel_radius;
-
-  /** Drawing pressure. */
-  float size_pressure_value;
-
-  /** Position of mouse, used to sample the texture. */
-  float tex_mouse[2];
-
-  /** Position of mouse, used to sample the mask texture. */
-  float mask_tex_mouse[2];
-
-  /** ColorSpace cache to avoid locking up during sampling. */
-  const ColorSpaceHandle *colorspace;
-} UnifiedPaintSettings;
 
 typedef struct CurvePaintSettings {
   char curve_type;
@@ -1805,8 +1861,11 @@ typedef struct ToolSettings {
   float sculpt_paint_unified_unprojected_radius DNA_DEPRECATED;
   float sculpt_paint_unified_alpha DNA_DEPRECATED;
 
-  /** Unified Paint Settings. */
-  struct UnifiedPaintSettings unified_paint_settings;
+  /**
+   * Unified Paint Settings.
+   * \warning Deprecated, see the per-paint mode values on the `Paint` struct.
+   */
+  struct UnifiedPaintSettings unified_paint_settings DNA_DEPRECATED;
 
   struct CurvePaintSettings curve_paint_settings;
 

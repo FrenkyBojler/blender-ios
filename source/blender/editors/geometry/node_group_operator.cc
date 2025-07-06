@@ -59,7 +59,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_asset.hh"
@@ -880,8 +880,8 @@ static std::string run_node_group_get_description(bContext *C,
 static void run_node_group_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
 
@@ -1520,7 +1520,7 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
   }
   uiLayout *col = &layout.column(false);
   col->context_string_set("asset_catalog_path", item->catalog_path().str());
-  uiItemMContents(col, "GEO_MT_node_operator_catalog_assets");
+  col->menu_contents("GEO_MT_node_operator_catalog_assets");
 }
 
 void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext &C)

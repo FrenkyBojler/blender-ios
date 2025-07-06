@@ -33,6 +33,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_screen.hh"
@@ -1400,7 +1401,7 @@ static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
 {
   /* Identifiers. */
   ot->name = "Rotate Normals";
-  ot->description = "Rotate split normal of selected items";
+  ot->description = "Rotate custom normal of selected items";
   ot->idname = OP_NORMAL_ROTATION;
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
@@ -1410,6 +1411,7 @@ static void TRANSFORM_OT_rotate_normal(wmOperatorType *ot)
   ot->modal = transform_modal;
   ot->cancel = transform_cancel;
   ot->poll = ED_operator_editmesh;
+  ot->poll_property = transform_poll_property;
 
   RNA_def_float_rotation(
       ot->srna, "value", 0, nullptr, -FLT_MAX, FLT_MAX, "Angle", "", -M_PI * 2, M_PI * 2);

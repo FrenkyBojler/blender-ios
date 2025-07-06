@@ -85,7 +85,9 @@ enum class AreaDockTarget {
 #define AREA_JOIN_FADEOUT 0.15f  /* seconds */
 #define AREA_SPLIT_FADEOUT 0.15f /* seconds */
 
-#define AREA_MOVE_LINE_FADEIN 0.18f   /* seconds */
+#define AREA_ACTIVE_FADEIN 0.15f /* seconds */
+
+#define AREA_MOVE_LINE_FADEIN 1.15f   /* seconds */
 #define REGION_MOVE_LINE_FADEIN 0.15f /* seconds */
 
 /* `area.cc` */

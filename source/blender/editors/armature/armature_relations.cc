@@ -51,6 +51,7 @@
 #include "ED_screen.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ANIM_armature.hh"
@@ -331,6 +332,30 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
   if (ok == false) {
     BKE_report(op->reports, RPT_WARNING, "Active object is not a selected armature");
     return OPERATOR_CANCELLED;
+  }
+
+  /* Check that there are no shared Armatures, as the code below assumes that
+   * each to-be-joined Armature is unique. */
+  {
+    blender::Set<const bArmature *> seen_armatures;
+    CTX_DATA_BEGIN (C, const Object *, ob_iter, selected_editable_objects) {
+      if (ob_iter->type != OB_ARMATURE) {
+        continue;
+      }
+
+      const bArmature *armature = static_cast<bArmature *>(ob_iter->data);
+      if (seen_armatures.add(armature)) {
+        /* Armature pointer was added to the set, which means it wasn't seen before. */
+        continue;
+      }
+
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Cannot join objects that share armature data: %s",
+                  armature->id.name + 2);
+      return OPERATOR_CANCELLED;
+    }
+    CTX_DATA_END;
   }
 
   /* Inverse transform for all selected armatures in this object,
