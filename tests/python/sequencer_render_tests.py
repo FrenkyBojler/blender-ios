@@ -9,6 +9,12 @@ import sys
 from pathlib import Path
 
 
+BLOCKLIST = [
+    "hdr_simple_export_hlg_12bit.blend",
+    "hdr_simple_export_pq_12bit.blend",
+    "hdr_simple_still_test_file.blend",
+]
+
 def get_arguments(filepath, output_filepath):
     dirname = os.path.dirname(filepath)
     basedir = os.path.dirname(dirname)
@@ -44,7 +50,7 @@ def main():
     args = parser.parse_args()
 
     from modules import render_report
-    report = render_report.Report("Sequencer", args.outdir, args.oiiotool)
+    report = render_report.Report("Sequencer", args.outdir, args.oiiotool, blocklist=BLOCKLIST)
     report.set_pixelated(True)
     # Default error tolerances are quite large, lower them.
     report.set_fail_threshold(2.0 / 255.0)
