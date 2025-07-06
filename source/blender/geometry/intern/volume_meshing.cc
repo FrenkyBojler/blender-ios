@@ -19,6 +19,7 @@
 
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
+
 #include "GEO_volume_meshing.hh"
 
 #ifdef WITH_OPENVDB

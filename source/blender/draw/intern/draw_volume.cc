@@ -20,9 +20,10 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_volume.hh"
-#include "GEO_volume_meshing.hh"
 
 #include "GPU_material.hh"
+
+#include "GEO_volume_meshing.hh"
 
 #include "draw_cache.hh"
 #include "draw_common_c.hh"
