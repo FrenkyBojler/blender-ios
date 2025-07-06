@@ -192,14 +192,13 @@ class GreasePencil : Overlay {
         edit_points_->draw(geom, manager.unique_handle(ob_ref));
       }
     }
-    // if (show_lines_) {
-    //   gpu::Batch *geom = show_weight_ ? DRW_cache_grease_pencil_weight_lines_get(state.scene,
-    //   ob) :
-    //                                     DRW_cache_grease_pencil_edit_lines_get(state.scene, ob);
-    //   if (geom) {
-    //     edit_lines_->draw(geom, manager.unique_handle(ob_ref));
-    //   }
-    // }
+    if (show_lines_) {
+      gpu::Batch *geom = show_weight_ ? DRW_cache_grease_pencil_weight_lines_get(state.scene, ob) :
+                                        DRW_cache_grease_pencil_edit_lines_get(state.scene, ob);
+      if (geom) {
+        edit_lines_->draw(geom, manager.unique_handle(ob_ref));
+      }
+    }
     {
       gpu::Batch *geom = DRW_cache_grease_pencil_edit_handles_get(state.scene, ob);
       if (geom) {
