@@ -224,12 +224,12 @@ const UserDef U_default = {
 
     .stored_bounds =
         {
-            .file = {0.0f, 1060.0f, 0.0f, 600.0f},
-            .userpref = {0.0f, 600.0f, 0.0f, 520.0f},
-            .image = {0.0f, 1280.0f, 0.0f, 720.0f},
-            .graph = {0.0f, 900.0f, 0.0f, 580.0f},
-            .info = {0.0f, 900.0f, 0.0f, 580.0f},
-            .outliner = {0.0f, 450.0f, 0.0f, 450.0f},
+            .file = {50.0f, 1110.0f, 100.0f, 700.0f},
+            .userpref = {100.0f, 700.0f, 200.0f, 720.0f},
+            .image = {50.0f, 1360.0f, 50.0f, 830.0f},
+            .graph = {50.0f, 950.0f, 200.0f, 780.0f},
+            .info = {100.0f, 1000.0f, 200.0f, 780.0f},
+            .outliner = {100.0f, 550.0f, 300.0f, 750.0f},
         },
 
     .sequencer_proxy_setup = USER_SEQ_PROXY_SETUP_AUTOMATIC,

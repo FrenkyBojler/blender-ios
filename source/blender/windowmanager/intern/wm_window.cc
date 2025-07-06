@@ -1299,8 +1299,8 @@ wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_t
   WM_window_set_dpi(CTX_wm_window(C));
 
   rctf *stored_bounds = stored_window_bounds(space_type);
-  const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 30.0f) &&
-                             (BLI_rctf_size_y(stored_bounds) > 20.0f));
+  const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
+                             (BLI_rctf_size_y(stored_bounds) > 100.0f));
 
   if (bounds_valid) {
     rect.xmin = (int)(stored_bounds->xmin * UI_SCALE_FAC);
