@@ -625,17 +625,11 @@ static void index_buf_add_nurbs_lines(Object &object,
   *r_drawing_line_index = line_index;
 }
 
-static void index_buf_add_bezier_lines(Object &object,
-                                       const bke::greasepencil::Drawing &drawing,
-                                       int layer_index,
-                                       IndexMaskMemory &memory,
-                                       const eHandleDisplay handle_display,
-                                       MutableSpan<uint> lines_data,
-                                       int *r_drawing_line_index,
-                                       int *r_drawing_line_start_offset)
+static void index_buf_add_bezier_handle_lines(const IndexMask bezier_points,
+                                              MutableSpan<uint2> handle_lines,
+                                              int *r_drawing_line_index,
+                                              int *r_drawing_line_start_offset)
 {
-  const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-      object, drawing, layer_index, handle_display, memory);
   if (bezier_points.is_empty()) {
     return;
   }
@@ -643,13 +637,12 @@ static void index_buf_add_bezier_lines(Object &object,
   const int offset = *r_drawing_line_start_offset;
   int line_index = *r_drawing_line_index;
 
-  /* Add all bezier points. */
+  /* Add all bezier handle lines. */
   for (const int point : bezier_points.index_range()) {
-    lines_data[line_index++] = point + bezier_points.size() * 0 + offset;
-    lines_data[line_index++] = point + bezier_points.size() * 1 + offset;
-    lines_data[line_index++] = point + bezier_points.size() * 2 + offset;
-
-    lines_data[line_index++] = gpu::RESTART_INDEX;
+    handle_lines[line_index++] = uint2(point + bezier_points.size() * 0 + offset,
+                                       point + bezier_points.size() * 1 + offset);
+    handle_lines[line_index++] = uint2(point + bezier_points.size() * 1 + offset,
+                                       point + bezier_points.size() * 2 + offset);
   }
 
   *r_drawing_line_index = line_index;
@@ -1079,9 +1072,6 @@ static void grease_pencil_edit_batch_ensure(Object &object,
     if (!layer->is_locked()) {
       const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
           object, info.drawing, info.layer_index, handle_display, memory);
-      if (bezier_points.is_empty()) {
-        return;
-      }
 
       index_buf_add_nurbs_lines(object,
                                 info.drawing,
@@ -1090,24 +1080,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                 lines_data,
                                 &lines_ibo_index,
                                 &drawing_line_start_offset);
-
-      const int offset = drawing_line_start_offset;
-      /* Add all bezier points. */
-      for (const int point : bezier_points.index_range()) {
-        handle_lines[handle_lines_id++] = uint2(point + bezier_points.size() * 0 + offset,
-                                                point + bezier_points.size() * 1 + offset);
-        handle_lines[handle_lines_id++] = uint2(point + bezier_points.size() * 1 + offset,
-                                                point + bezier_points.size() * 2 + offset);
-      }
-
-      index_buf_add_bezier_lines(object,
-                                 info.drawing,
-                                 info.layer_index,
-                                 memory,
-                                 handle_display,
-                                 lines_data,
-                                 &lines_ibo_index,
-                                 &drawing_line_start_offset);
+      index_buf_add_bezier_handle_lines(
+          bezier_points, handle_lines, &handle_lines_id, &drawing_line_start_offset);
       index_buf_add_points(object,
                            info.drawing,
                            info.layer_index,
