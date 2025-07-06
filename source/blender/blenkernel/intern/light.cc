@@ -205,9 +205,83 @@ void BKE_light_eval(Depsgraph *depsgraph, Light *la)
   DEG_debug_print_eval(depsgraph, __func__, la->id.name, la);
 }
 
+float BKE_light_energy_unit_conversion(const Light &light)
+{
+  float efficacity = 683.0f;
+  float coneAngle = light.spotsize; // en radians
+
+  switch (light.energy_unit) {
+
+    /* Sun are in W/m²
+    Point, Spot, Area are in W (radiant flux or radiant power)
+    */
+    case LA_WATT:{
+      /* 1W = 1j (joule) / s (radiant flux)
+      This is the default unit for Point, Spot and Area */
+      return 1.0f;
+    }
+
+    case LA_IRRADIANCE:{
+      /* Irradiance (W/m²) = Power / Surface
+      For a sun, we consider the illuminated surface (e.g. disk)
+      Here, energy is already in W/m² (direct value) 
+      This is the default unit for a Sun */
+      return 1.0f;
+    }
+
+    case LA_LUMEN:{
+      /* 1lm = 1W * Efficacity (luminous flux) 
+      for an isotrope source: 1lm = 1/683 W 
+      Approximate conversion factor depends on the source type and spectral distribution*/
+      return 1.0f / efficacity;
+    }
+
+    case LA_ILLUMINANCE:{
+      /* 1lx (lux) = 1 lm/m² (illuminance) 
+      So Lux = Irradiance (W/m²) × 683 (Efficacity) 
+      We want to define the strenght in Lux so we have to invert it*/
+      return 1.0f / efficacity;
+    }
+
+    case LA_CANDELA:{
+      /* Conversion depend of the light type */
+      switch (light.type) {
+        case LA_LOCAL:{
+          // 1 W = 683 lm, in 4pi steradians
+          // cd = W / (683 * 4pi)
+          return 1.0f / (efficacity * 4.0f * float(M_PI));
+        }
+
+        case LA_AREA:{
+          // For an Area, steradian = 2pi
+          return 1.0f / (efficacity * 2.0f * float(M_PI));
+        }
+
+        case LA_SPOT: {
+          // For a Spot, steradian = 2pi * (1 - cos(angle/2))
+          float sr = 2.0f * float(M_PI) * (1.0f - cosf(coneAngle / 2.0f));
+          if (sr > 0.0f) {
+            return 1.0f / (efficacity * sr);
+          }
+          else {
+            return 1.0f;
+          }
+        }
+        case LA_SUN:{
+        default:
+          return 1.0f;
+        }
+      }
+    }
+    default:
+      /* Default case: no conversion needed */
+      return 1.0f;
+  }
+}
+
 float BKE_light_power(const Light &light)
 {
-  return light.energy * exp2f(light.exposure);
+  return light.energy * exp2f(light.exposure) * BKE_light_energy_unit_conversion(light);
 }
 
 blender::float3 BKE_light_color(const Light &light)

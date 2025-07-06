@@ -21,6 +21,35 @@
 
 #include "IMB_colormanagement.hh"
 
+const EnumPropertyItem rna_enum_light_energy_units_items[] = {
+    {LA_WATT, "WATT", 0, "W", "Radiant power in watts(W)"},
+    {LA_IRRADIANCE, "IRRADIANCE", 0, "W/m²", "Radiant flux per unit area (irradiance) in watts per square meter(W/m²)"},
+    {LA_LUMEN, "LUMEN", 0, "lm", "Luminous flux in lumens(lm)"},
+    {LA_ILLUMINANCE, "LUX", 0, "lx", "Illuminance in lux (lumens/m²)"},
+    {LA_CANDELA, "CANDELA", 0, "cd", "Luminous intensity in candelas(cd)"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+static const EnumPropertyItem *rna_Light_energy_unit_itemf(bContext *C, PointerRNA *ptr, PropertyRNA * /*prop*/, bool *r_free)
+{
+  Light *la = (Light *)ptr->data;
+  EnumPropertyItem *item = nullptr;
+  int totitem = 0;
+
+  if (la->type == LA_SUN) {
+    RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 1); // WATT_PER_SQUARE_METER
+    RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 3); // LUX
+  }
+  else {
+    RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 0); // WATT
+    RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 2); // LUMEN
+    RNA_enum_items_add_value(&item, &totitem, rna_enum_light_energy_units_items, 4); // CANDELA
+  }
+  RNA_enum_item_end(&item, &totitem);
+  *r_free = true;
+  return item;
+};
+
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"
@@ -258,6 +287,12 @@ static void rna_def_light(BlenderRNA *brna)
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_ui_text(prop, "Use Nodes", "Use shader nodes to render the light");
   RNA_def_property_update(prop, 0, "rna_Light_use_nodes_update");
+
+  prop = RNA_def_property(srna, "energy_unit", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_light_energy_units_items);
+  RNA_def_property_enum_funcs(prop, nullptr, nullptr, "rna_Light_energy_unit_itemf");
+  RNA_def_property_ui_text(prop, "Energy Unit", "Unit used for the light's energy value");
+  RNA_def_property_update(prop, 0, "rna_Light_draw_update");
 
   /* common */
   rna_def_animdata_common(srna);

@@ -31,7 +31,7 @@ typedef struct Light {
   struct AnimData *adt;
 
   /* Type and flags. */
-  short type, flag;
+  short type, flag, energy_unit, _pad3;
   int mode;
 
   /* Color, temperature and energy. */
@@ -39,6 +39,7 @@ typedef struct Light {
   float temperature;
   float energy;
   float exposure;
+  float energy_conversion_factor;
 
   /* Point light. */
   float radius;
@@ -166,4 +167,13 @@ enum {
   // LA_AREA_BOX = 3,  /* Deprecated. */
   LA_AREA_DISK = 4,
   LA_AREA_ELLIPSE = 5,
+};
+
+/** #Light::energy_units */
+enum {
+  LA_WATT = 0,
+  LA_IRRADIANCE = 1,
+  LA_LUMEN = 2,
+  LA_ILLUMINANCE = 3,
+  LA_CANDELA = 4,
 };

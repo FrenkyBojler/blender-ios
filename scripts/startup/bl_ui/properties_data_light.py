@@ -113,7 +113,10 @@ class DATA_PT_EEVEE_light(DataButtonsPanel, Panel):
         layout.separator()
 
         col = layout.column()
-        col.prop(light, "energy")
+        row = col.row(align=True)
+        split = row.split(factor=0.8, align=True)
+        split.prop(light, "energy")
+        split.prop(light, "energy_unit", text="")
         col.prop(light, "exposure")
         col.prop(light, "normalize")
 
