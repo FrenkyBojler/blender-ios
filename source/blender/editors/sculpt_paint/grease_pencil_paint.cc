@@ -138,7 +138,7 @@ static void morph_points_to_curve(Span<float2> src, Span<float2> target, Mutable
   dst.last() = src.last();
 }
 
-/* Creates a temporary brush with the fill guide settings. */
+/** Creates a temporary brush with the fill guide settings. */
 static Brush *create_fill_guide_brush()
 {
   Brush *fill_guides_brush = BKE_id_new_nomain<Brush>("Draw Fill Guides");
@@ -185,37 +185,39 @@ class PaintOperation : public GreasePencilStrokeOperation {
   int frame_number_;
   Vector<ed::greasepencil::MutableDrawingInfo> multi_frame_drawings_;
 
-  /* Screen space coordinates from input samples. */
+  /** Screen space coordinates from input samples. */
   Vector<float2> screen_space_coords_orig_;
 
-  /* Temporary vector of curve fitted screen space coordinates per input sample from the active
-   * smoothing window. The length of this depends on `active_smooth_start_index_`. */
+  /**
+   * Temporary vector of curve fitted screen space coordinates per input sample from the active
+   * smoothing window. The length of this depends on `active_smooth_start_index_`.
+   */
   Vector<Vector<float2>> screen_space_curve_fitted_coords_;
-  /* Temporary vector of screen space offsets. */
+  /** Temporary vector of screen space offsets. */
   Vector<float2> screen_space_jitter_offsets_;
-  /* Projection planes for every point in "Stroke" placement mode. */
+  /** Projection planes for every point in "Stroke" placement mode. */
   Vector<std::optional<float>> stroke_placement_depths_;
 
-  /* Screen space coordinates after smoothing. */
+  /** Screen space coordinates after smoothing. */
   Vector<float2> screen_space_smoothed_coords_;
-  /* Screen space coordinates after smoothing and jittering. */
+  /** Screen space coordinates after smoothing and jittering. */
   Vector<float2> screen_space_final_coords_;
 
-  /* The start index of the smoothing window. */
+  /** The start index of the smoothing window. */
   int active_smooth_start_index_ = 0;
   blender::float4x2 texture_space_ = float4x2::identity();
 
-  /* Helper class to project screen space coordinates to 3d. */
+  /** Helper class to project screen space coordinates to 3d. */
   ed::greasepencil::DrawingPlacement placement_;
-  /* Last valid stroke intersection, for use in Stroke projection mode. */
+  /** Last valid stroke intersection, for use in Stroke projection mode. */
   std::optional<float> last_stroke_placement_depth_;
-  /* Point index of the last valid stroke placement. */
+  /** Point index of the last valid stroke placement. */
   std::optional<int> last_stroke_placement_point_;
 
-  /* Direction the pen is moving in smoothed over time. */
+  /** Direction the pen is moving in smoothed over time. */
   float2 smoothed_pen_direction_ = float2(0.0f);
 
-  /* Accumulated distance along the stroke. */
+  /** Accumulated distance along the stroke. */
   float accum_distance_ = 0.0f;
 
   RandomNumberGenerator rng_;
@@ -228,12 +230,12 @@ class PaintOperation : public GreasePencilStrokeOperation {
   float stroke_random_sat_factor_;
   float stroke_random_val_factor_;
 
-  /* The current time at which the paint operation begins. */
+  /** The current time at which the paint operation begins. */
   double start_time_;
-  /* Current delta time from #start_time_, updated after each extension sample. */
+  /** Current delta time from #start_time_, updated after each extension sample. */
   double delta_time_;
 
-  /* Set to true when the painr operation is used to draw fill guides. */
+  /** Set to true when the paint operation is used to draw fill guides. */
   bool do_fill_guides_;
 
   friend struct PaintOperationExecutor;
@@ -249,7 +251,7 @@ class PaintOperation : public GreasePencilStrokeOperation {
   PaintOperation(const bool do_fill_guides = false) : do_fill_guides_(do_fill_guides) {}
 
   bool update_stroke_depth_placement(const bContext &C, const InputSample &sample);
-  /* Returns the range of actually reprojected points. */
+  /** Returns the range of actually reprojected points. */
   IndexRange interpolate_stroke_depth(const bContext &C,
                                       std::optional<int> start_point,
                                       float from_depth,
@@ -269,9 +271,12 @@ struct PaintOperationExecutor {
   Brush *brush_;
 
   BrushGpencilSettings *settings_;
+  std::optional<BrushColorJitterSettings> jitter_settings_;
+
   ColorGeometry4f vertex_color_ = ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
   ColorGeometry4f fill_color_ = ColorGeometry4f(0.0f, 0.0f, 0.0f, 0.0f);
   float softness_;
+  float aspect_ratio_;
 
   bool use_vertex_color_;
   bool use_settings_random_;
@@ -297,6 +302,8 @@ struct PaintOperationExecutor {
       }
     }
     softness_ = 1.0f - settings_->hardness;
+    aspect_ratio_ = settings_->aspect_ratio[0] / math::max(settings_->aspect_ratio[1], 1e-8f);
+    jitter_settings_ = BKE_brush_color_jitter_get_settings(paint, brush_);
   }
 
   void process_start_sample(PaintOperation &self,
@@ -343,8 +350,10 @@ struct PaintOperationExecutor {
 
     const float start_rotation = ed::greasepencil::randomize_rotation(
         *settings_, self.rng_, self.stroke_random_rotation_factor_, start_sample.pressure);
+    Scene *scene = CTX_data_scene(&C);
     if (use_vertex_color_) {
       vertex_color_ = ed::greasepencil::randomize_color(*settings_,
+                                                        jitter_settings_,
                                                         self.stroke_random_hue_factor_,
                                                         self.stroke_random_sat_factor_,
                                                         self.stroke_random_val_factor_,
@@ -353,7 +362,6 @@ struct PaintOperationExecutor {
                                                         start_sample.pressure);
     }
 
-    Scene *scene = CTX_data_scene(&C);
     const bool on_back = (scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
 
     self.screen_space_coords_orig_.append(start_coords);
@@ -417,6 +425,13 @@ struct PaintOperationExecutor {
       u_scale.span[active_curve] = 1.0f;
       curve_attributes_to_skip.add("u_scale");
       u_scale.finish();
+    }
+    if (bke::SpanAttributeWriter<float> aspect_ratio =
+            attributes.lookup_or_add_for_write_span<float>("aspect_ratio", bke::AttrDomain::Curve))
+    {
+      aspect_ratio.span[active_curve] = aspect_ratio_;
+      curve_attributes_to_skip.add("aspect_ratio");
+      aspect_ratio.finish();
     }
 
     if (settings_->uv_random > 0.0f || attributes.contains("rotation")) {
@@ -839,6 +854,7 @@ struct PaintOperationExecutor {
       if (use_settings_random_ || attributes.contains("vertex_color")) {
         for (const int i : IndexRange(new_points_num)) {
           new_vertex_colors[i] = ed::greasepencil::randomize_color(*settings_,
+                                                                   jitter_settings_,
                                                                    self.stroke_random_hue_factor_,
                                                                    self.stroke_random_sat_factor_,
                                                                    self.stroke_random_val_factor_,
@@ -1495,7 +1511,7 @@ static void deselect_stroke(const bContext &C,
       scene->toolsettings);
 
   bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-      curves, selection_domain, CD_PROP_BOOL);
+      curves, selection_domain, bke::AttrType::Bool);
 
   if (selection_domain == bke::AttrDomain::Curve) {
     ed::curves::fill_selection_false(selection.span.slice(IndexRange::from_single(active_curve)));

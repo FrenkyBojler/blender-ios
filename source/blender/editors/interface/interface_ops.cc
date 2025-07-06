@@ -55,6 +55,7 @@
 
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "interface_intern.hh"
 
@@ -62,6 +63,7 @@
 #include "WM_types.hh"
 
 #include "ED_object.hh"
+#include "ED_outliner.hh"
 #include "ED_paint.hh"
 #include "ED_undo.hh"
 
@@ -1267,6 +1269,19 @@ bool UI_context_copy_to_selected_list(bContext *C,
     *r_lb = lb;
     *r_path = path;
   }
+  else if (CTX_wm_space_outliner(C)) {
+    const ID *id = ptr->owner_id;
+    if (!(id && (GS(id->name) == ID_OB))) {
+      return false;
+    }
+
+    ListBase selected_objects = {nullptr};
+    ED_outliner_selected_objects_get(C, &selected_objects);
+    LISTBASE_FOREACH (LinkData *, link, &selected_objects) {
+      Object *ob = static_cast<Object *>(link->data);
+      r_lb->append(RNA_id_pointer_create(&ob->id));
+    }
+  }
   else if (ptr->owner_id) {
     ID *id = ptr->owner_id;
 
@@ -2151,12 +2166,33 @@ static wmOperatorStatus editsource_exec(bContext *C, wmOperator *op)
     /* redraw and get active button python info */
     ui_region_redraw_immediately(C, region);
 
+    /* It's possible the key button referenced in `ui_editsource_info` has been freed.
+     * This typically happens with popovers but could happen in other situations, see: #140439. */
+    blender::Set<const uiBut *> valid_buttons_in_region;
+    LISTBASE_FOREACH (uiBlock *, block_base, &region->runtime->uiblocks) {
+      uiBlock *block_pair[2] = {block_base, block_base->oldblock};
+      for (uiBlock *block : blender::Span(block_pair, block_pair[1] ? 2 : 1)) {
+        for (int i = 0; i < block->buttons.size(); i++) {
+          const uiBut *but = block->buttons[i].get();
+          valid_buttons_in_region.add(but);
+        }
+      }
+    }
+
     for (BLI_ghashIterator_init(&ghi, ui_editsource_info->hash);
          BLI_ghashIterator_done(&ghi) == false;
          BLI_ghashIterator_step(&ghi))
     {
       uiBut *but_key = static_cast<uiBut *>(BLI_ghashIterator_getKey(&ghi));
-      if (but_key && ui_editsource_uibut_match(&ui_editsource_info->but_orig, but_key)) {
+      if (but_key == nullptr) {
+        continue;
+      }
+
+      if (!valid_buttons_in_region.contains(but_key)) {
+        continue;
+      }
+
+      if (ui_editsource_uibut_match(&ui_editsource_info->but_orig, but_key)) {
         but_store = static_cast<uiEditSourceButStore *>(BLI_ghashIterator_getValue(&ghi));
         break;
       }
@@ -2755,6 +2791,70 @@ static void UI_OT_view_item_rename(wmOperatorType *ot)
 
   ot->flag = OPTYPE_INTERNAL;
 }
+
+static wmOperatorStatus ui_view_item_select_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
+{
+  const wmWindow &win = *CTX_wm_window(C);
+  const ARegion &region = *CTX_wm_region(C);
+
+  AbstractViewItem *clicked_item = UI_region_views_find_item_at(region, win.eventstate->xy);
+  if (clicked_item == nullptr) {
+    return OPERATOR_CANCELLED;
+  }
+
+  AbstractView &view = clicked_item->get_view();
+  const bool is_multiselect = view.is_multiselect_supported();
+  const bool extend = RNA_boolean_get(op->ptr, "extend") && is_multiselect;
+  const bool range_select = RNA_boolean_get(op->ptr, "range_select") && is_multiselect;
+
+  if (!extend) {
+    /* Keep previous selection for extend selection, see: !138979. */
+    view.foreach_view_item([](AbstractViewItem &item) { item.set_selected(false); });
+  }
+
+  if (range_select) {
+    bool is_inside_range = false;
+    view.foreach_view_item([&](AbstractViewItem &item) {
+      if ((item.is_active()) ^ (&item == clicked_item)) {
+        is_inside_range = !is_inside_range;
+        /* Select end items from the range. */
+        item.set_selected(true);
+      }
+      if (is_inside_range) {
+        /* Select items within the range. */
+        item.set_selected(true);
+      }
+    });
+    return OPERATOR_FINISHED;
+  }
+
+  clicked_item->activate(*C);
+
+  return OPERATOR_FINISHED;
+}
+
+static void UI_OT_view_item_select(wmOperatorType *ot)
+{
+  ot->name = "Select View Item";
+  ot->idname = "UI_OT_view_item_select";
+  ot->description = "Activate selected view item";
+
+  ot->invoke = ui_view_item_select_invoke;
+  ot->poll = ui_view_focused_poll;
+
+  ot->flag = OPTYPE_INTERNAL;
+
+  PropertyRNA *prop = RNA_def_boolean(ot->srna, "extend", false, "extend", "Extend Selection");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+  prop = RNA_def_boolean(ot->srna,
+                         "range_select",
+                         false,
+                         "Range Select",
+                         "Select all between clicked and active items");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+}
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -2858,6 +2958,7 @@ void ED_operatortypes_ui()
   WM_operatortype_append(UI_OT_view_drop);
   WM_operatortype_append(UI_OT_view_scroll);
   WM_operatortype_append(UI_OT_view_item_rename);
+  WM_operatortype_append(UI_OT_view_item_select);
 
   WM_operatortype_append(UI_OT_override_type_set_button);
   WM_operatortype_append(UI_OT_override_remove_button);

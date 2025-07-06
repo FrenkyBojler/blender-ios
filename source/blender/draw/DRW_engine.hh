@@ -31,6 +31,10 @@ struct ViewLayer;
 struct bContext;
 struct rcti;
 
+namespace blender::bke {
+enum class AttrType : int16_t;
+}
+
 void DRW_engines_register();
 void DRW_engines_free();
 
@@ -186,9 +190,13 @@ void DRW_viewport_data_free(DRWData *drw_data);
 bool DRW_gpu_context_release();
 void DRW_gpu_context_activate(bool drw_state);
 
+namespace blender::draw {
+
 void DRW_cdlayer_attr_aliases_add(GPUVertFormat *format,
                                   const char *base_name,
-                                  int data_type,
+                                  bke::AttrType data_type,
                                   blender::StringRef layer_name,
                                   bool is_active_render,
                                   bool is_active_layer);
+
+}

@@ -5,7 +5,8 @@
 #include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
 
@@ -136,7 +137,7 @@ static void node_label(const bNodeTree * /*tree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_match_string_items, node->custom1, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = N_("Unknown");
   }
   BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }

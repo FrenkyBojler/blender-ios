@@ -632,7 +632,7 @@ typedef enum eFileSel_File_Types {
   /** represents folders for filtering */
   FILE_TYPE_FOLDER = (1 << 11),
   FILE_TYPE_BTX = (1 << 12),
-  FILE_TYPE_COLLADA = (1 << 13),
+  FILE_TYPE_UNUSED_13 = (1 << 13), /* Was FILE_TYPE_COLLADA */
   /** from filter_glob operator property */
   FILE_TYPE_OPERATOR = (1 << 14),
   FILE_TYPE_BUNDLE = (1 << 15),
@@ -850,6 +850,13 @@ typedef enum eSpaceNode_Flag {
   SNODE_PIN = (1 << 12),
   SNODE_FLAG_UNUSED_12 = (1 << 13),
 } eSpaceNode_Flag;
+
+/** #SpaceNode.gizmo_flag */
+enum {
+  /** All gizmos. */
+  SNODE_GIZMO_HIDE = (1 << 0),
+  SNODE_GIZMO_HIDE_ACTIVE_NODE = (1 << 1),
+};
 
 /** #SpaceNode.texfrom */
 typedef enum eSpaceNode_TexFrom {
