@@ -21,7 +21,8 @@ namespace blender::ui {
 void context_path_add_generic(Vector<ContextPathItem> &path,
                               StructRNA &rna_type,
                               void *ptr,
-                              const BIFIconID icon_override)
+                              const BIFIconID icon_override,
+                              std::function<void(bContext &)> handle_func)
 {
   /* Add the null check here to make calling functions less verbose. */
   if (!ptr) {
@@ -38,10 +39,10 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
 
   if (&rna_type == &RNA_NodeTree) {
     ID *id = (ID *)ptr;
-    path.append({name, icon, ID_REAL_USERS(id)});
+    path.append({name, icon, ID_REAL_USERS(id), handle_func});
   }
   else {
-    path.append({name, icon, 1});
+    path.append({name, icon, 1, handle_func});
   }
   if (name != name_buf) {
     MEM_freeN(name);
@@ -64,17 +65,28 @@ void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path)
     if (i > 0) {
       sub_row->label("", ICON_RIGHTARROW_THIN);
     }
-    int parent_index = context_path.size() - i - 1;
-    if (context_path[i].icon == ICON_NODETREE && parent_index > 0) {
-      PointerRNA op_ptr = sub_row->op(
-          "NODE_OT_tree_path_parent", context_path[i].name, context_path[i].icon);
-      RNA_int_set(&op_ptr, "parent_index", parent_index);
+    uiBut *but;
+    if (context_path[i].handle_func) {
+      but = uiDefIconTextBut(sub_row->block(),
+                             UI_BTYPE_BUT,
+                             0,
+                             context_path[i].icon,
+                             context_path[i].name.c_str(),
+                             0,
+                             0,
+                             sub_row->width(),
+                             UI_UNIT_Y,
+                             nullptr,
+                             0,
+                             0,
+                             "");
+      UI_but_drawflag_enable(but, (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT));
+      UI_but_func_set(but, context_path[i].handle_func);
     }
     else {
-      uiBut *but = uiItemL_ex(
-          sub_row, context_path[i].name.c_str(), context_path[i].icon, false, false);
-      UI_but_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
+      but = uiItemL_ex(sub_row, context_path[i].name.c_str(), context_path[i].icon, false, false);
     }
+    UI_but_icon_indicator_number_set(but, context_path[i].icon_indicator_number);
   }
 }
 
