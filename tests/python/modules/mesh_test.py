@@ -61,6 +61,23 @@ class ModifierSpec:
                " with parameters: " + str(self.modifier_parameters)
 
 
+class MultiModifierSpec:
+    """
+    Holds a list of Deform modifiers that must be applied together to yield the expected result.
+    """
+
+    def __init__(self, modifiers):
+        """
+        Constructs a multi-modifier spec.
+
+        :arg modifiers - list of modifier specs
+        """
+        self.modifiers = modifiers
+
+    def __str__(self):
+        return "Multi-Modifier: [" + ', '.join(str(modspec) for modspec in self.modifiers) + "]"
+
+
 class ParticleSystemSpec:
     """
     Holds a Particle System modifier and its parameters.
@@ -206,6 +223,8 @@ class MeshTest(ABC):
                 self.expected_object = objects[self.exp_object_name]
             else:
                 self.create_expected_object()
+                self.activate_test_object()
+                bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
         else:
             self.expected_object = objects[self.exp_object_name]
 
@@ -221,7 +240,6 @@ class MeshTest(ABC):
         self.expected_object.name = self.exp_object_name
         x, y, z = self.test_object.location
         self.expected_object.location = (x, y + 10, z)
-        bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
 
     def create_evaluated_object(self):
         """
@@ -238,6 +256,14 @@ class MeshTest(ABC):
         bpy.ops.object.duplicate()
         self.evaluated_object = bpy.context.active_object
         self.evaluated_object.name = "evaluated_object"
+
+    # Test files are less confusing when the test object is active initially instead of
+    # the expected object. That's because the test object has the modifier/node tree that
+    # is being tested.
+    def activate_test_object(self):
+        bpy.ops.object.select_all(action="DESELECT")
+        self.test_object.select_set(True)
+        bpy.context.view_layer.objects.active = self.test_object
 
     @staticmethod
     def _print_result(result):
@@ -378,6 +404,8 @@ class MeshTest(ABC):
         self.evaluated_object.name = expected_object_name
         self.do_selection(self.evaluated_object.data, "VERT", evaluated_selection, False)
 
+        self.activate_test_object()
+
         # Save file.
         bpy.ops.wm.save_as_mainfile(filepath=bpy.data.filepath)
         self.test_updated_counter += 1
@@ -479,6 +507,13 @@ class SpecMeshTest(MeshTest):
                 if self.apply_modifier:
                     self._apply_modifier(
                         evaluated_test_object, operation.modifier_name)
+
+            elif isinstance(operation, MultiModifierSpec):
+                for modspec in operation.modifiers:
+                    self._add_modifier(evaluated_test_object, modspec)
+                if self.apply_modifier:
+                    self._apply_all_modifiers(
+                        evaluated_test_object)
 
             elif isinstance(operation, OperatorSpecEditMode):
                 self._apply_operator_edit_mode(
@@ -584,6 +619,12 @@ class SpecMeshTest(MeshTest):
             bpy.ops.object.convert(target='MESH')
         elif test_object.type == 'MESH':
             bpy.ops.object.modifier_apply(modifier=modifier_name)
+        else:
+            raise Exception("This object type is not yet supported!")
+
+    def _apply_all_modifiers(self, test_object):
+        if test_object.type in ['CURVE', 'MESH']:
+            bpy.ops.object.convert(target='MESH')
         else:
             raise Exception("This object type is not yet supported!")
 
@@ -740,7 +781,7 @@ class BlendFileTest(MeshTest):
     """
 
     def __init__(self, test_object_name, exp_object_name, threshold=None):
-        super().__init__(test_object_name, exp_object_name, threshold)
+        super().__init__(test_object_name, exp_object_name, threshold=threshold)
         if bpy.data.objects[test_object_name].get("allow_index_change"):
             self.allow_index_change = True
 
@@ -803,7 +844,7 @@ class RunTest:
     >>> modifiers_test.run_all_tests()
     """
 
-    def __init__(self, tests, apply_modifiers=False, do_compare=False):
+    def __init__(self, tests, do_compare=False):
         """
         Construct a test suite.
 
@@ -814,10 +855,11 @@ class RunTest:
              2) expected_object_name: bpy.Types.Object - expected object
              3) modifiers or operators: list - list of mesh_test.ModifierSpec objects or
              mesh_test.OperatorSpecEditMode objects
+        :arg do_compare: bool - Whether the result mesh will be compared with the provided golden mesh. When set to False
+        the modifier is not applied so the result can be examined inside Blender.
         """
         self.tests = tests
         self._ensure_unique_test_name_or_raise_error()
-        self.apply_modifiers = apply_modifiers
         self.do_compare = do_compare
         self.verbose = os.environ.get("BLENDER_VERBOSE") is not None
         self._failed_tests_list = []
@@ -884,7 +926,9 @@ class RunTest:
             raise Exception('No test called {} found!'.format(test_name))
 
         test = case
-        test.apply_modifier = self.apply_modifiers
+        if not self.do_compare:
+            test.apply_modifier = False
+
         test.do_compare = self.do_compare
 
         success = test.run_test()

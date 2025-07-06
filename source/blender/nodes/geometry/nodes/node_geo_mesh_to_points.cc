@@ -13,7 +13,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "FN_multi_function_builder.hh"
@@ -28,7 +28,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
-  b.add_input<decl::Vector>("Position").implicit_field_on_all(implicit_field_inputs::position);
+  b.add_input<decl::Vector>("Position").implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Float>("Radius")
       .default_value(0.05f)
       .min(0.0f)
@@ -39,12 +39,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryMeshToPoints *data = MEM_cnew<NodeGeometryMeshToPoints>(__func__);
+  NodeGeometryMeshToPoints *data = MEM_callocN<NodeGeometryMeshToPoints>(__func__);
   data->mode = GEO_NODE_MESH_TO_POINTS_VERTICES;
   node->storage = data;
 }
@@ -88,9 +88,7 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   PointCloud *pointcloud;
   if (share_position) {
     /* Create an empty point cloud so the positions can be shared. */
-    pointcloud = BKE_pointcloud_new_nomain(0);
-    CustomData_free_layer_named(&pointcloud->pdata, "position", pointcloud->totpoint);
-    pointcloud->totpoint = mesh->verts_num;
+    pointcloud = bke::pointcloud_new_no_attributes(mesh->verts_num);
     const bke::AttributeReader src = src_attributes.lookup<float3>("position");
     const bke::AttributeInitShared init(src.varray.get_internal_span().data(), *src.sharing_info);
     pointcloud->attributes_for_write().add<float3>("position", AttrDomain::Point, init);
@@ -101,8 +99,8 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
   }
 
   MutableAttributeAccessor dst_attributes = pointcloud->attributes_for_write();
-  GSpanAttributeWriter radius = dst_attributes.lookup_or_add_for_write_only_span(
-      "radius", AttrDomain::Point, CD_PROP_FLOAT);
+  SpanAttributeWriter radius = dst_attributes.lookup_or_add_for_write_only_span<float>(
+      "radius", AttrDomain::Point);
   array_utils::gather(evaluator.get_evaluated(1), selection, radius.span);
   radius.finish();
 
@@ -117,7 +115,7 @@ static void geometry_set_mesh_to_points(GeometrySet &geometry_set,
 
   for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
     const StringRef attribute_id = entry.key;
-    const eCustomDataType data_type = entry.value.data_type;
+    const bke::AttrType data_type = entry.value.data_type;
     const bke::GAttributeReader src = src_attributes.lookup(attribute_id, domain, data_type);
     if (!src) {
       /* Domain interpolation can fail if the source domain is empty. */
@@ -252,8 +250,8 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.draw_buttons = node_layout;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryMeshToPoints", node_free_standard_storage, node_copy_standard_storage);
-  blender::bke::node_register_type(&ntype);
+      ntype, "NodeGeometryMeshToPoints", node_free_standard_storage, node_copy_standard_storage);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

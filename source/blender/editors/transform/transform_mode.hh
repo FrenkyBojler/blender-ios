@@ -22,6 +22,8 @@ struct bContext;
 struct wmOperator;
 struct wmEvent;
 
+namespace blender::ed::transform {
+
 struct TransModeInfo {
   int flags; /* #eTFlag. */
 
@@ -68,10 +70,11 @@ bool transdata_check_local_center(const TransInfo *t, short around);
  * Informs if the mode can be switched during modal.
  */
 bool transform_mode_is_changeable(int mode);
+bool transform_mode_affect_only_locations(const TransInfo *t);
 void protectedTransBits(short protectflag, float vec[3]);
-void protectedSizeBits(short protectflag, float size[3]);
+void protectedScaleBits(short protectflag, float scale[3]);
 void constraintTransLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
-void constraintSizeLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
+void constraintScaleLim(const TransInfo *t, const TransDataContainer *tc, TransData *td);
 /**
  * Used by Transform Rotation and Transform Normal Rotation.
  */
@@ -102,6 +105,9 @@ void transform_mode_init(TransInfo *t, wmOperator *op, int mode);
  * When in modal and not set, initializes a default orientation for the mode.
  */
 void transform_mode_default_modal_orientation_set(TransInfo *t, int type);
+
+void transform_mode_rotation_axis_get(const TransInfo *t, float3 &r_axis);
+bool transform_mode_is_axis_pointing_to_screen(const TransInfo *t, const float3 &axis);
 
 /* `transform_mode_align.cc` */
 
@@ -224,3 +230,5 @@ extern TransModeInfo TransMode_translate;
 
 extern TransModeInfo TransMode_vertslide;
 void transform_mode_vert_slide_reproject_input(TransInfo *t);
+
+}  // namespace blender::ed::transform

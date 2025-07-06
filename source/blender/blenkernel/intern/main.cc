@@ -45,23 +45,50 @@ using namespace blender::bke;
 
 static CLG_LogRef LOG = {"bke.main"};
 
-Main *BKE_main_new()
+Main::Main()
 {
-  Main *bmain = static_cast<Main *>(MEM_callocN(sizeof(Main), "new main"));
-  BKE_main_init(*bmain);
-  return bmain;
-}
-
-void BKE_main_init(Main &bmain)
-{
-  bmain.lock = static_cast<MainLock *>(MEM_mallocN(sizeof(SpinLock), "main lock"));
-  BLI_spin_init(reinterpret_cast<SpinLock *>(bmain.lock));
-  bmain.is_global_main = false;
+  SpinLock *main_lock = MEM_mallocN<SpinLock>("main lock");
+  BLI_spin_init(main_lock);
+  /* Use C-style cast to workaround an issue casting away volatile for builds without TBB. */
+  this->lock = (MainLock *)main_lock;
 
   /* Just rebuilding the Action Slot to ID* map once is likely cheaper than,
    * for every ID, when it's loaded from disk, check whether it's animated or
    * not, and then figure out which Main it went into, and then set the flag. */
-  bmain.is_action_slot_to_id_map_dirty = true;
+  this->is_action_slot_to_id_map_dirty = true;
+}
+
+Main::~Main()
+{
+  /* In case this is called on a 'split-by-libraries' list of mains.
+   *
+   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
+  if (this->split_mains) {
+    for (Main *main_it : *this->split_mains) {
+      if (main_it == this) {
+        continue;
+      }
+      main_it->split_mains.reset();
+      MEM_delete(main_it);
+    }
+  }
+
+  /* Include this check here as the path may be manipulated after creation. */
+  BLI_assert_msg(!(this->filepath[0] == '/' && this->filepath[1] == '/'),
+                 "'.blend' relative \"//\" must not be used in Main!");
+
+  BKE_main_clear(*this);
+
+  BLI_spin_end(reinterpret_cast<SpinLock *>(this->lock));
+  /* The void cast is needed when building without TBB. */
+  MEM_freeN((void *)reinterpret_cast<SpinLock *>(this->lock));
+  this->lock = nullptr;
+}
+
+Main *BKE_main_new()
+{
+  Main *bmain = MEM_new<Main>(__func__);
+  return bmain;
 }
 
 void BKE_main_clear(Main &bmain)
@@ -157,38 +184,13 @@ void BKE_main_clear(Main &bmain)
   }
 
   /* NOTE: `name_map` in libraries are freed together with the library IDs above. */
-  if (bmain.name_map) {
-    BKE_main_namemap_destroy(&bmain.name_map);
-  }
-  if (bmain.name_map_global) {
-    BKE_main_namemap_destroy(&bmain.name_map_global);
-  }
-}
-
-void BKE_main_destroy(Main &bmain)
-{
-  BKE_main_clear(bmain);
-
-  BLI_spin_end(reinterpret_cast<SpinLock *>(bmain.lock));
-  MEM_freeN(bmain.lock);
-  bmain.lock = nullptr;
+  BKE_main_namemap_destroy(&bmain.name_map);
+  BKE_main_namemap_destroy(&bmain.name_map_global);
 }
 
 void BKE_main_free(Main *bmain)
 {
-  /* In case this is called on a 'split-by-libraries' list of mains.
-   *
-   * Should not happen in typical usages, but can occur e.g. if a file reading is aborted. */
-  if (bmain->next) {
-    BKE_main_free(bmain->next);
-  }
-
-  /* Include this check here as the path may be manipulated after creation. */
-  BLI_assert_msg(!(bmain->filepath[0] == '/' && bmain->filepath[1] == '/'),
-                 "'.blend' relative \"//\" must not be used in Main!");
-
-  BKE_main_destroy(*bmain);
-  MEM_freeN(bmain);
+  MEM_delete(bmain);
 }
 
 static bool are_ids_from_different_mains_matching(Main *bmain_1, ID *id_1, Main *bmain_2, ID *id_2)
@@ -448,9 +450,9 @@ void BKE_main_merge(Main *bmain_dst, Main **r_bmain_src, MainMergeReport &report
 
   /* Remapping above may have made some IDs local. So namemap needs to be cleared, and moved IDs
    * need to be re-sorted. */
-  BKE_main_namemap_clear(bmain_dst);
+  BKE_main_namemap_clear(*bmain_dst);
 
-  BLI_assert(BKE_main_namemap_validate(bmain_dst));
+  BLI_assert(BKE_main_namemap_validate(*bmain_dst));
 
   BKE_main_free(bmain_src);
   *r_bmain_src = nullptr;
@@ -503,7 +505,7 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
       if (!BLI_ghash_ensure_p(
               bmain_relations->relations_from_pointers, self_id, (void ***)&entry_p))
       {
-        *entry_p = static_cast<MainIDRelationsEntry *>(MEM_callocN(sizeof(**entry_p), __func__));
+        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
         (*entry_p)->session_uid = self_id->session_uid;
       }
       else {
@@ -524,7 +526,7 @@ static int main_relations_create_idlink_cb(LibraryIDLinkCallbackData *cb_data)
       if (!BLI_ghash_ensure_p(
               bmain_relations->relations_from_pointers, *id_pointer, (void ***)&entry_p))
       {
-        *entry_p = static_cast<MainIDRelationsEntry *>(MEM_callocN(sizeof(**entry_p), __func__));
+        *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
         (*entry_p)->session_uid = (*id_pointer)->session_uid;
       }
       else {
@@ -549,8 +551,7 @@ void BKE_main_relations_create(Main *bmain, const short flag)
     BKE_main_relations_free(bmain);
   }
 
-  bmain->relations = static_cast<MainIDRelations *>(
-      MEM_mallocN(sizeof(*bmain->relations), __func__));
+  bmain->relations = MEM_mallocN<MainIDRelations>(__func__);
   bmain->relations->relations_from_pointers = BLI_ghash_new(
       BLI_ghashutil_ptrhash, BLI_ghashutil_ptrcmp, __func__);
   bmain->relations->entry_items_pool = BLI_mempool_create(
@@ -568,7 +569,7 @@ void BKE_main_relations_create(Main *bmain, const short flag)
     /* Ensure all IDs do have an entry, even if they are not connected to any other. */
     MainIDRelationsEntry **entry_p;
     if (!BLI_ghash_ensure_p(bmain->relations->relations_from_pointers, id, (void ***)&entry_p)) {
-      *entry_p = static_cast<MainIDRelationsEntry *>(MEM_callocN(sizeof(**entry_p), __func__));
+      *entry_p = MEM_callocN<MainIDRelationsEntry>(__func__);
       (*entry_p)->session_uid = id->session_uid;
     }
     else {
@@ -712,14 +713,10 @@ void BKE_main_library_weak_reference_add_item(
   BLI_assert(new_id->library_weak_reference == nullptr);
   BLI_assert(BKE_idtype_idcode_append_is_reusable(GS(new_id->name)));
 
-  new_id->library_weak_reference = static_cast<LibraryWeakReference *>(
-      MEM_mallocN(sizeof(*(new_id->library_weak_reference)), __func__));
-
   const LibWeakRefKey key{library_filepath, library_id_name};
   library_weak_reference_mapping->map.add_new(key, new_id);
 
-  STRNCPY(new_id->library_weak_reference->library_filepath, library_filepath);
-  STRNCPY(new_id->library_weak_reference->library_id_name, library_id_name);
+  BKE_main_library_weak_reference_add(new_id, library_filepath, library_id_name);
 }
 
 void BKE_main_library_weak_reference_update_item(
@@ -761,6 +758,49 @@ void BKE_main_library_weak_reference_remove_item(
   MEM_SAFE_FREE(old_id->library_weak_reference);
 }
 
+ID *BKE_main_library_weak_reference_find(Main *bmain,
+                                         const char *library_filepath,
+                                         const char *library_id_name)
+{
+  /* Make filepath absolute so we can compare filepaths that may be either relative or absolute. */
+  char library_filepath_abs[FILE_MAX];
+  STRNCPY(library_filepath_abs, library_filepath);
+  BLI_path_abs(library_filepath_abs, BKE_main_blendfile_path(bmain));
+
+  ListBase *id_list = which_libbase(bmain, GS(library_id_name));
+  LISTBASE_FOREACH (ID *, existing_id, id_list) {
+    if (!(existing_id->library_weak_reference &&
+          STREQ(existing_id->library_weak_reference->library_id_name, library_id_name)))
+    {
+      continue;
+    }
+
+    char existing_filepath_abs[FILE_MAX];
+    STRNCPY(existing_filepath_abs, existing_id->library_weak_reference->library_filepath);
+    BLI_path_abs(existing_filepath_abs, BKE_main_blendfile_path(bmain));
+
+    if (!STREQ(existing_filepath_abs, library_filepath_abs)) {
+      continue;
+    }
+
+    return existing_id;
+  }
+
+  return nullptr;
+}
+
+void BKE_main_library_weak_reference_add(ID *local_id,
+                                         const char *library_filepath,
+                                         const char *library_id_name)
+{
+  if (local_id->library_weak_reference == nullptr) {
+    local_id->library_weak_reference = MEM_callocN<LibraryWeakReference>(__func__);
+  }
+
+  STRNCPY(local_id->library_weak_reference->library_filepath, library_filepath);
+  STRNCPY(local_id->library_weak_reference->library_id_name, library_id_name);
+}
+
 BlendThumbnail *BKE_main_thumbnail_from_buffer(Main *bmain, const uint8_t *rect, const int size[2])
 {
   BlendThumbnail *data = nullptr;
@@ -795,7 +835,7 @@ BlendThumbnail *BKE_main_thumbnail_from_imbuf(Main *bmain, ImBuf *img)
     const size_t data_size = BLEN_THUMB_MEMSIZE(img->x, img->y);
     data = static_cast<BlendThumbnail *>(MEM_mallocN(data_size, __func__));
 
-    IMB_rect_from_float(img); /* Just in case... */
+    IMB_byte_from_float(img); /* Just in case... */
     data->width = img->x;
     data->height = img->y;
     memcpy(data->rect, img->byte_buffer.data, data_size - sizeof(*data));

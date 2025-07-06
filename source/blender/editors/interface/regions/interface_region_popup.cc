@@ -28,8 +28,6 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
-
 #include "ED_screen.hh"
 
 #include "interface_intern.hh"
@@ -394,7 +392,7 @@ static void ui_popup_block_position(wmWindow *window,
   }
 
   /* Keep a list of these, needed for pull-down menus. */
-  uiSafetyRct *saferct = MEM_cnew<uiSafetyRct>(__func__);
+  uiSafetyRct *saferct = MEM_callocN<uiSafetyRct>(__func__);
   saferct->parent = butrct;
   saferct->safety = block->safety;
   BLI_freelistN(&block->saferct);
@@ -722,7 +720,7 @@ uiBlock *ui_popup_block_refresh(bContext *C,
   }
   else {
     /* Keep a list of these, needed for pull-down menus. */
-    uiSafetyRct *saferct = MEM_cnew<uiSafetyRct>(__func__);
+    uiSafetyRct *saferct = MEM_callocN<uiSafetyRct>(__func__);
     saferct->safety = block->safety;
     BLI_addhead(&block->saferct, saferct);
   }

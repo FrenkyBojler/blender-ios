@@ -59,11 +59,9 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "draw_manager_c.hh"
-#include "draw_texture_pool.hh"
-
 #include "BKE_global.hh"
 
+#include "BLI_math_base.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
 #include "BLI_utildefines.h"
@@ -293,7 +291,7 @@ class UniformArrayBuffer : public detail::UniformCommon<T, len, false> {
   }
   ~UniformArrayBuffer()
   {
-    MEM_freeN(this->data_);
+    MEM_freeN(static_cast<void *>(this->data_));
   }
 };
 
@@ -340,7 +338,9 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
   }
   ~StorageArrayBuffer()
   {
-    MEM_freeN(this->data_);
+    /* NOTE: T is not always trivial (e.g. can be #blender::eevee::VelocityIndex), so cannot use
+     * `MEM_freeN` directly on it, without casting it to `void *`. */
+    MEM_freeN(static_cast<void *>(this->data_));
   }
 
   /* Resize to \a new_size elements. */
@@ -351,7 +351,7 @@ class StorageArrayBuffer : public detail::StorageCommon<T, len, device_only> {
       /* Manual realloc since MEM_reallocN_aligned does not exists. */
       T *new_data_ = (T *)MEM_mallocN_aligned(new_size * sizeof(T), 16, this->name_);
       memcpy(new_data_, this->data_, min_uu(this->len_, new_size) * sizeof(T));
-      MEM_freeN(this->data_);
+      MEM_freeN(static_cast<void *>(this->data_));
       this->data_ = new_data_;
       GPU_storagebuf_free(this->ssbo_);
 
@@ -929,6 +929,11 @@ class Texture : NonCopyable {
    */
   void debug_clear()
   {
+    if (GPU_texture_dimensions(this->tx_) == 1) {
+      /* Clearing of 1D texture is currently unsupported. */
+      return;
+    }
+
     if (GPU_texture_has_float_format(this->tx_) || GPU_texture_has_normalized_format(this->tx_)) {
       this->clear(float4(NAN_FLT));
     }
@@ -962,16 +967,7 @@ class Texture : NonCopyable {
   void free()
   {
     GPU_TEXTURE_FREE_SAFE(tx_);
-    for (GPUTexture *&view : mip_views_) {
-      GPU_TEXTURE_FREE_SAFE(view);
-    }
-    for (GPUTexture *&view : layer_views_) {
-      GPU_TEXTURE_FREE_SAFE(view);
-    }
-    GPU_TEXTURE_FREE_SAFE(stencil_view_);
-    GPU_TEXTURE_FREE_SAFE(layer_range_view_);
-    mip_views_.clear();
-    layer_views_.clear();
+    free_texture_views();
   }
 
   /**
@@ -985,6 +981,21 @@ class Texture : NonCopyable {
     std::swap(a.layer_range_view_, b.layer_range_view_);
     std::swap(a.mip_views_, b.mip_views_);
     std::swap(a.layer_views_, b.layer_views_);
+  }
+
+ protected:
+  void free_texture_views()
+  {
+    for (GPUTexture *&view : mip_views_) {
+      GPU_TEXTURE_FREE_SAFE(view);
+    }
+    for (GPUTexture *&view : layer_views_) {
+      GPU_TEXTURE_FREE_SAFE(view);
+    }
+    GPU_TEXTURE_FREE_SAFE(stencil_view_);
+    GPU_TEXTURE_FREE_SAFE(layer_range_view_);
+    mip_views_.clear();
+    layer_views_.clear();
   }
 
  private:
@@ -1133,7 +1144,9 @@ class TextureRef : public Texture {
 
   void wrap(GPUTexture *tex)
   {
-    this->tx_ = tex;
+    if (assign_if_different(this->tx_, tex)) {
+      free_texture_views();
+    }
   }
 
   /** Remove methods that are forbidden with this type of textures. */

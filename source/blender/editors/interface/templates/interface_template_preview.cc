@@ -28,6 +28,7 @@
 #include "WM_api.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #define B_MATPRV 1
 
@@ -98,7 +99,7 @@ void uiTemplatePreview(uiLayout *layout,
       BLI_findstring(&region->ui_previews, preview_id, offsetof(uiPreview, preview_id)));
 
   if (!ui_preview) {
-    ui_preview = MEM_cnew<uiPreview>(__func__);
+    ui_preview = MEM_callocN<uiPreview>(__func__);
     STRNCPY(ui_preview->preview_id, preview_id);
     ui_preview->height = short(UI_UNIT_Y * 7.6f);
     ui_preview->id_session_uid = pid->session_uid;
@@ -118,10 +119,9 @@ void uiTemplatePreview(uiLayout *layout,
   }
 
   /* layout */
-  uiBlock *block = uiLayoutGetBlock(layout);
-  uiLayout *row = uiLayoutRow(layout, false);
-  uiLayout *col = uiLayoutColumn(row, false);
-  uiLayoutSetKeepAspect(col, true);
+  uiBlock *block = layout->block();
+  uiLayout *row = &layout->row(false);
+  uiLayout *col = &row->column(false);
 
   /* add preview */
   uiDefBut(
@@ -158,15 +158,15 @@ void uiTemplatePreview(uiLayout *layout,
       /* Create RNA Pointer */
       PointerRNA material_ptr = RNA_id_pointer_create(&ma->id);
 
-      col = uiLayoutColumn(row, true);
-      uiLayoutSetScaleX(col, 1.5);
-      uiItemR(col, &material_ptr, "preview_render_type", UI_ITEM_R_EXPAND, "", ICON_NONE);
+      col = &row->column(true);
+      col->scale_x_set(1.5);
+      col->prop(&material_ptr, "preview_render_type", UI_ITEM_R_EXPAND, "", ICON_NONE);
 
       /* EEVEE preview file has baked lighting so use_preview_world has no effect,
        * just hide the option until this feature is supported. */
       if (!BKE_scene_uses_blender_eevee(CTX_data_scene(C))) {
-        uiItemS(col);
-        uiItemR(col, &material_ptr, "use_preview_world", UI_ITEM_NONE, "", ICON_WORLD);
+        col->separator();
+        col->prop(&material_ptr, "use_preview_world", UI_ITEM_NONE, "", ICON_WORLD);
       }
     }
 
@@ -174,7 +174,7 @@ void uiTemplatePreview(uiLayout *layout,
       /* Create RNA Pointer */
       PointerRNA texture_ptr = RNA_id_pointer_create(id);
 
-      uiLayoutRow(layout, true);
+      layout->row(true);
       uiDefButS(block,
                 UI_BTYPE_ROW,
                 B_MATPRV,
@@ -258,8 +258,8 @@ void uiTemplatePreview(uiLayout *layout,
 
       /* Alpha button for texture preview */
       if (*pr_texture != TEX_PR_OTHER) {
-        row = uiLayoutRow(layout, false);
-        uiItemR(row, &texture_ptr, "use_preview_alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+        row = &layout->row(false);
+        row->prop(&texture_ptr, "use_preview_alpha", UI_ITEM_NONE, std::nullopt, ICON_NONE);
       }
     }
   }

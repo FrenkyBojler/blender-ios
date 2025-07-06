@@ -10,8 +10,9 @@
 #include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
+#include "DNA_ID.h"
 #include "DNA_asset_types.h"
-#include "DNA_space_types.h"
+#include "DNA_space_enums.h"
 #include "DNA_userdef_types.h"
 
 #include "AS_asset_library.hh"
@@ -66,7 +67,7 @@ static ID *asset_link_id(Main &global_main,
 
   BKE_blendfile_link_append_context_free(lapp_context);
 
-  /* Verify that the name matches. It must for referencing the same asset again to work.  */
+  /* Verify that the name matches. It must for referencing the same asset again to work. */
   BLI_assert(local_asset == nullptr || STREQ(local_asset->name + 2, asset_name));
 
   /* Tag library as being editable. */
@@ -124,6 +125,11 @@ static std::string asset_blendfile_path_for_save(const bUserAssetLibrary &user_l
               std::min(sizeof(base_name_filesafe), size_t(base_name.size() + 1)));
   BLI_path_make_safe_filename(base_name_filesafe);
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * This already does not respect the FILE_MAXFILE max length of filenames for the final filepath
+   * it seems?
+   */
   {
     const std::string filepath = root_path + SEP + base_name_filesafe + BLENDER_ASSET_FILE_SUFFIX;
     if (!BLI_is_file(filepath.c_str())) {
@@ -266,7 +272,7 @@ std::optional<std::string> asset_edit_id_save_as(Main &global_main,
 
 bool asset_edit_id_save(Main &global_main, const ID &id, ReportList &reports)
 {
-  if (!asset_edit_id_is_editable(id)) {
+  if (!asset_edit_id_is_writable(id)) {
     return false;
   }
 
@@ -297,7 +303,7 @@ ID *asset_edit_id_revert(Main &global_main, ID &id, ReportList &reports)
 
 bool asset_edit_id_delete(Main &global_main, ID &id, ReportList &reports)
 {
-  if (asset_edit_id_is_editable(id)) {
+  if (asset_edit_id_is_writable(id)) {
     if (BLI_delete(id.lib->runtime->filepath_abs, false, false) != 0) {
       BKE_report(&reports, RPT_ERROR, "Failed to delete asset library file");
       return false;
@@ -385,6 +391,33 @@ bool asset_edit_id_is_editable(const ID &id)
 bool asset_edit_id_is_writable(const ID &id)
 {
   return asset_edit_id_is_editable(id) && (id.lib->runtime->tag & LIBRARY_ASSET_FILE_WRITABLE);
+}
+
+ID *asset_edit_id_find_local(Main &global_main, ID &id)
+{
+  if (!asset_edit_id_is_editable(id)) {
+    return &id;
+  }
+
+  return BKE_main_library_weak_reference_find(&global_main, id.lib->filepath, id.name);
+}
+
+ID *asset_edit_id_ensure_local(Main &global_main, ID &id)
+{
+  ID *local_id = asset_edit_id_find_local(global_main, id);
+  if (local_id) {
+    return local_id;
+  }
+
+  /* Make local and create weak library reference for reuse. */
+  BKE_lib_id_make_local(&global_main,
+                        &id,
+                        LIB_ID_MAKELOCAL_FORCE_COPY | LIB_ID_MAKELOCAL_INDIRECT |
+                            LIB_ID_MAKELOCAL_ASSET_DATA_CLEAR);
+  BLI_assert(id.newid != nullptr);
+  BKE_main_library_weak_reference_add(id.newid, id.lib->filepath, id.name);
+
+  return id.newid;
 }
 
 }  // namespace blender::bke

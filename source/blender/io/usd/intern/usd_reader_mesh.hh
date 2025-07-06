@@ -52,7 +52,7 @@ class USDMeshReader : public USDGeomReader {
     return bool(mesh_prim_);
   }
 
-  void create_object(Main *bmain, double motionSampleTime) override;
+  void create_object(Main *bmain) override;
   void read_object_data(Main *bmain, double motionSampleTime) override;
 
   void read_geometry(bke::GeometrySet &geometry_set,
@@ -81,7 +81,7 @@ class USDMeshReader : public USDGeomReader {
                                            MutableSpan<int> material_indices,
                                            blender::Map<pxr::SdfPath, int> *r_mat_map);
 
-  void read_mpolys(Mesh *mesh) const;
+  bool read_faces(Mesh *mesh) const;
   void read_subdiv();
   void read_vertex_creases(Mesh *mesh, double motionSampleTime);
   void read_edge_creases(Mesh *mesh, double motionSampleTime);

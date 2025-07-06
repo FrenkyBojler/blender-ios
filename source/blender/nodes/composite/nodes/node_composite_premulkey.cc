@@ -12,7 +12,7 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -25,6 +25,7 @@ namespace blender::nodes::node_composite_premulkey_cc {
 
 static void cmp_node_premulkey_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
@@ -33,7 +34,7 @@ static void cmp_node_premulkey_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_buts_premulkey(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mapping", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  layout->prop(ptr, "mapping", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -88,7 +89,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_premulkey_cc
 
-void register_node_type_cmp_premulkey()
+static void register_node_type_cmp_premulkey()
 {
   namespace file_ns = blender::nodes::node_composite_premulkey_cc;
 
@@ -104,5 +105,6 @@ void register_node_type_cmp_premulkey()
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_premulkey)

@@ -39,7 +39,7 @@
 /* Own include. */
 #include "transform_constraints.hh"
 
-using namespace blender;
+namespace blender::ed::transform {
 
 static void drawObjectConstraint(TransInfo *t);
 
@@ -66,17 +66,6 @@ static void projection_matrix_calc(const TransInfo *t, float r_pmtx[3][3])
   float mat[3][3];
   mul_m3_m3m3(mat, r_pmtx, t->spacemtx_inv);
   mul_m3_m3m3(r_pmtx, t->spacemtx, mat);
-}
-
-static void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3])
-{
-  if (t->persp != RV3D_ORTHO) {
-    sub_v3_v3v3(r_vec, t->viewinv[3], focus);
-  }
-  else {
-    copy_v3_v3(r_vec, t->viewinv[2]);
-  }
-  normalize_v3(r_vec);
 }
 
 /* ************************** CONSTRAINTS ************************* */
@@ -561,8 +550,7 @@ static void applyObjectConstraintSize(const TransInfo *t,
 
 static void constraints_rotation_impl(const TransInfo *t,
                                       const float axismtx[3][3],
-                                      float r_axis[3],
-                                      float *r_angle)
+                                      float r_axis[3])
 {
   BLI_assert(t->con.mode & CON_APPLY);
   int mode = t->con.mode & (CON_AXIS0 | CON_AXIS1 | CON_AXIS2);
@@ -581,16 +569,6 @@ static void constraints_rotation_impl(const TransInfo *t,
       copy_v3_v3(r_axis, axismtx[2]);
       break;
   }
-  /* Don't flip axis if asked to or if num input. */
-  if (r_angle &&
-      !((mode & CON_NOFLIP) || hasNumInput(&t->num) || (t->flag & T_INPUT_IS_VALUES_FINAL)))
-  {
-    float view_vector[3];
-    view_vector_calc(t, t->center_global, view_vector);
-    if (dot_v3v3(r_axis, view_vector) > 0.0f) {
-      *r_angle = -(*r_angle);
-    }
-  }
 }
 
 /**
@@ -600,20 +578,14 @@ static void constraints_rotation_impl(const TransInfo *t,
  *
  * In the case of single axis constraints, the rotation axis is directly the one constrained to.
  * For planar constraints (2 axis), the rotation axis is the normal of the plane.
- *
- * The following only applies when #CON_NOFLIP is not set.
- * The vector is then modified to always point away from the screen (in global space)
- * This insures that the rotation is always logically following the mouse.
- * (ie: not doing counterclockwise rotations when the mouse moves clockwise).
  */
 static void applyAxisConstraintRot(const TransInfo *t,
                                    const TransDataContainer * /*tc*/,
                                    const TransData *td,
-                                   float r_axis[3],
-                                   float *r_angle)
+                                   float r_axis[3])
 {
   if (!td && t->con.mode & CON_APPLY) {
-    constraints_rotation_impl(t, t->spacemtx, r_axis, r_angle);
+    constraints_rotation_impl(t, t->spacemtx, r_axis);
   }
 }
 
@@ -624,17 +596,11 @@ static void applyAxisConstraintRot(const TransInfo *t,
  *
  * In the case of single axis constraints, the rotation axis is directly the one constrained to.
  * For planar constraints (2 axis), the rotation axis is the normal of the plane.
- *
- * The following only applies when #CON_NOFLIP is not set.
- * The vector is then modified to always point away from the screen (in global space)
- * This insures that the rotation is always logically following the mouse.
- * (ie: not doing counterclockwise rotations when the mouse moves clockwise).
  */
 static void applyObjectConstraintRot(const TransInfo *t,
                                      const TransDataContainer *tc,
                                      const TransData *td,
-                                     float r_axis[3],
-                                     float *r_angle)
+                                     float r_axis[3])
 {
   if (t->con.mode & CON_APPLY) {
     float tmp_axismtx[3][3];
@@ -655,7 +621,7 @@ static void applyObjectConstraintRot(const TransInfo *t,
       axismtx = transform_object_axismtx_get(t, tc, td);
     }
 
-    constraints_rotation_impl(t, axismtx, r_axis, r_angle);
+    constraints_rotation_impl(t, axismtx, r_axis);
   }
 }
 
@@ -784,7 +750,8 @@ static void drawLine(
   }
   UI_make_axis_color(col, axis, col2);
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   float viewport[4];
   GPU_viewport_size_get_f(viewport);
@@ -840,7 +807,7 @@ void drawConstraint(TransInfo *t)
       }
 
       const uint shdr_pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -912,7 +879,8 @@ void drawPropCircle(TransInfo *t)
       GPU_depth_test(GPU_DEPTH_NONE);
     }
 
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
@@ -946,7 +914,8 @@ void drawPropRange(TransInfo *t)
     return;
   }
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
 
@@ -1106,7 +1075,7 @@ static void setNearestAxis2d(TransInfo *t)
   t->con.mode &= ~(CON_AXIS0 | CON_AXIS1 | CON_AXIS2);
 
   /* No correction needed... just use whichever one is lower. */
-  blender::float2 dvec = t->mval - t->mouse.imval;
+  float2 dvec = t->mval - t->mouse.imval;
   if (abs(dvec.x) < abs(dvec.y)) {
     t->con.mode |= CON_AXIS1;
     STRNCPY(t->con.text, IFACE_(" along Y axis"));
@@ -1287,3 +1256,5 @@ int getConstraintSpaceDimension(const TransInfo *t)
 }
 
 /** \} */
+
+}  // namespace blender::ed::transform

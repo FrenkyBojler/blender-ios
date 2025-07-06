@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.4.0 Beta (b'aad0bd21487d')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'b4eeddd11342')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-02-10 15:22+0000\n"
-"PO-Revision-Date: 2024-04-29 13:44+0000\n"
+"POT-Creation-Date: 2025-06-30 09:22+0000\n"
+"PO-Revision-Date: 2025-04-14 08:15+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
 "Language: el\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.0.1"
+"X-Generator: Weblate 5.10.1"
 
 
 msgid "Name"
@@ -131,6 +131,10 @@ msgid "Random"
 msgstr "Random"
 
 
+msgid "Wire"
+msgstr "Πλέγμα"
+
+
 msgid "Parent"
 msgstr "Γονέας"
 
@@ -229,10 +233,6 @@ msgstr "Κάμερα"
 
 msgid "Bone"
 msgstr "Οστό"
-
-
-msgid "Script"
-msgstr "Script"
 
 
 msgid "Front"
@@ -359,10 +359,6 @@ msgid "Library"
 msgstr "Βιβλιοθήκη"
 
 
-msgid "Wire"
-msgstr "Πλέγμα"
-
-
 msgid "Dynamic"
 msgstr "Δυναμικό"
 
@@ -421,6 +417,10 @@ msgstr "Ακμές"
 
 msgid "Vertices"
 msgstr "Κορυφές"
+
+
+msgid "Script"
+msgstr "Script"
 
 
 msgid "Edit"
@@ -565,6 +565,11 @@ msgstr "Συγχώνευση"
 
 msgid "Key"
 msgstr "Κλειδί"
+
+
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
 
 
 msgid "Import"
@@ -844,11 +849,6 @@ msgstr "Χρωματισμός Βάρους"
 
 
 msgctxt "Operator"
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
-
-
-msgctxt "Operator"
 msgid "Reveal"
 msgstr "Reveal"
 
@@ -1032,8 +1032,4 @@ msgstr "Πεδία"
 
 msgid "Life"
 msgstr "Ζωή"
-
-
-msgid "Layer:"
-msgstr "Στρώμα"
 

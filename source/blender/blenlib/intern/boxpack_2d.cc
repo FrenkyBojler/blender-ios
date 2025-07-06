@@ -13,16 +13,13 @@
 
 #include "BLI_boxpack_2d.h" /* own include */
 #include "BLI_listbase.h"
+#include "BLI_math_base.h"
 #include "BLI_utildefines.h"
 
 #include "BLI_sort.h" /* qsort_r */
 #define qsort_r BLI_qsort_r
 
 #include "BLI_strict_flags.h" /* IWYU pragma: keep. Keep last. */
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic error "-Wpadded"
-#endif
 
 /* de-duplicate as we pack */
 #define USE_MERGE
@@ -38,10 +35,13 @@ struct BoxVert {
   float x;
   float y;
 
-  int free : 8; /* vert status */
-  uint used : 1;
-  uint _pad : 23;
+  int free; /* vert status */
+  bool used;
   uint index;
+
+#ifdef USE_PACK_BIAS
+  float bias;
+#endif
 
   BoxPack *trb; /* top right box */
   BoxPack *blb; /* bottom left box */
@@ -51,16 +51,7 @@ struct BoxVert {
   /* Store last intersecting boxes here
    * speedup intersection testing */
   BoxPack *isect_cache[4];
-
-#ifdef USE_PACK_BIAS
-  float bias;
-  int _pad2;
-#endif
 };
-
-#ifdef __GNUC__
-#  pragma GCC diagnostic ignored "-Wpadded"
-#endif
 
 /* free vert flags */
 #define EPSILON 0.0000001f
@@ -176,12 +167,6 @@ static bool box_isect(const BoxPack *box_a, const BoxPack *box_b)
 
 /** \} */
 
-/* compiler should inline */
-static float max_ff(const float a, const float b)
-{
-  return b > a ? b : a;
-}
-
 #ifdef USE_PACK_BIAS
 /* set when used is enabled */
 static void vert_bias_update(BoxVert *v)
@@ -295,9 +280,8 @@ void BLI_box_pack_2d(
   }
 
   /* Add verts to the boxes, these are only used internally. */
-  vert = static_cast<BoxVert *>(MEM_mallocN(sizeof(BoxVert[4]) * size_t(len), "BoxPack Verts"));
-  vertex_pack_indices = static_cast<uint *>(
-      MEM_mallocN(sizeof(int[3]) * size_t(len), "BoxPack Indices"));
+  vert = MEM_malloc_arrayN<BoxVert>(4 * size_t(len), "BoxPack Verts");
+  vertex_pack_indices = MEM_malloc_arrayN<uint>(3 * size_t(len), "BoxPack Indices");
 
   vs_ctx.vertarray = vert;
 
@@ -459,7 +443,7 @@ void BLI_box_pack_2d(
             tot_y = max_ff(box_ymax_get(box), tot_y);
 
             /* Place the box */
-            vert->free &= (signed char)~quad_flag(j);
+            vert->free &= ~quad_flag(j);
 
             switch (j) {
               case TR:
@@ -665,7 +649,7 @@ void BLI_box_pack_2d(
 void BLI_box_pack_2d_fixedarea(ListBase *boxes, int width, int height, ListBase *packed)
 {
   ListBase spaces = {nullptr};
-  FixedSizeBoxPack *full_rect = MEM_cnew<FixedSizeBoxPack>(__func__);
+  FixedSizeBoxPack *full_rect = MEM_callocN<FixedSizeBoxPack>(__func__);
   full_rect->w = width;
   full_rect->h = height;
 
@@ -727,7 +711,7 @@ void BLI_box_pack_2d_fixedarea(ListBase *boxes, int width, int height, ListBase 
 
         /* Perform split. This space becomes the larger space,
          * while the new smaller space is inserted _before_ it. */
-        FixedSizeBoxPack *new_space = MEM_cnew<FixedSizeBoxPack>(__func__);
+        FixedSizeBoxPack *new_space = MEM_callocN<FixedSizeBoxPack>(__func__);
         if (area_hsplit_large > area_vsplit_large) {
           new_space->x = space->x + box->w;
           new_space->y = space->y;

@@ -98,7 +98,10 @@ PointerRNA *WM_gizmo_operator_set(wmGizmo *gz,
                                   int part_index,
                                   wmOperatorType *ot,
                                   IDProperty *properties);
-int WM_gizmo_operator_invoke(bContext *C, wmGizmo *gz, wmGizmoOpElem *gzop, const wmEvent *event);
+wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
+                                          wmGizmo *gz,
+                                          wmGizmoOpElem *gzop,
+                                          const wmEvent *event);
 
 /* Callbacks. */
 
@@ -190,7 +193,7 @@ void WM_gizmotype_append_ptr(void (*gtfunc)(wmGizmoType *, void *), void *userda
 bool WM_gizmotype_remove(bContext *C, Main *bmain, blender::StringRef idname);
 void WM_gizmotype_remove_ptr(bContext *C, Main *bmain, wmGizmoType *gzt);
 /**
- * Free but don't remove from #GHash.
+ * Free but don't remove from the global list.
  */
 void WM_gizmotype_free_ptr(wmGizmoType *gzt);
 
@@ -326,7 +329,7 @@ wmKeyMap *WM_gizmo_keymap_generic_maybe_drag(wmWindowManager *wm);
 
 void WM_gizmogroup_ensure_init(const bContext *C, wmGizmoGroup *gzgroup);
 
-/* Sort utilities for use with 'BLI_listbase_sort'. */
+/* Sort utilities for use with `BLI_listbase_sort`. */
 
 int WM_gizmo_cmp_temp_fl(const void *gz_a_ptr, const void *gz_b_ptr);
 int WM_gizmo_cmp_temp_fl_reverse(const void *gz_a_ptr, const void *gz_b_ptr);

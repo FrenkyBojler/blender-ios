@@ -63,6 +63,7 @@ void BLI_rctf_transform_pt_v(const rctf *dst,
 void BLI_rctf_transform_calc_m4_pivot_min_ex(
     const rctf *dst, const rctf *src, float matrix[4][4], uint x, uint y);
 void BLI_rctf_transform_calc_m4_pivot_min(const rctf *dst, const rctf *src, float matrix[4][4]);
+void BLI_rctf_transform_calc_m3_pivot_min(const rctf *dst, const rctf *src, float matrix[3][3]);
 
 void BLI_rctf_translate(struct rctf *rect, float x, float y);
 void BLI_rcti_translate(struct rcti *rect, int x, int y);
@@ -145,6 +146,14 @@ void BLI_rcti_rctf_copy(struct rcti *dst, const struct rctf *src);
 void BLI_rctf_rcti_copy(struct rctf *dst, const struct rcti *src);
 void BLI_rcti_rctf_copy_floor(struct rcti *dst, const struct rctf *src);
 void BLI_rcti_rctf_copy_round(struct rcti *dst, const struct rctf *src);
+
+/**
+ * Clamps the given segment to be within the rectangle.
+ *
+ * \return False when no part of the segment is within the rectangle, in which case the s1 and s2
+ * values should be ignored.
+ */
+bool BLI_rctf_clamp_segment(const struct rctf *rect, float s1[2], float s2[2]);
 
 /**
  * Expand the rectangle to fit a rotated \a src.

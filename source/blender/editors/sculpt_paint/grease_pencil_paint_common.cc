@@ -85,30 +85,29 @@ void init_brush(Brush &brush)
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_value);
 }
 
-float brush_radius(const Scene &scene, const Brush &brush, const float pressure = 1.0f)
+float brush_radius(const Paint &paint, const Brush &brush, const float pressure = 1.0f)
 {
-  float radius = BKE_brush_size_get(&scene, &brush);
+  float radius = BKE_brush_size_get(&paint, &brush);
   if (BKE_brush_use_size_pressure(&brush)) {
     radius *= BKE_curvemapping_evaluateF(brush.gpencil_settings->curve_sensitivity, 0, pressure);
   }
   return radius;
 }
 
-float brush_point_influence(const Scene &scene,
+float brush_point_influence(const Paint &paint,
                             const Brush &brush,
                             const float2 &co,
                             const InputSample &sample,
                             const float multi_frame_falloff)
 {
-  const float radius = brush_radius(scene, brush, sample.pressure);
+  const float radius = brush_radius(paint, brush, sample.pressure);
   /* Basic strength factor from brush settings. */
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? sample.pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&paint, &brush) * brush_pressure *
                                multi_frame_falloff;
 
   /* Distance falloff. */
-  const int2 mval_i = int2(math::round(sample.mouse_position));
-  const float distance = math::distance(mval_i, int2(co));
+  const float distance = math::distance(sample.mouse_position, co);
   /* Apply Brush curve. */
   const float brush_falloff = BKE_brush_curve_strength(&brush, distance, radius);
 
@@ -134,16 +133,16 @@ float closest_distance_to_surface_2d(const float2 pt, const Span<float2> verts)
   return isect ? 0.0f : distance;
 }
 
-float brush_fill_influence(const Scene &scene,
+float brush_fill_influence(const Paint &paint,
                            const Brush &brush,
                            const Span<float2> fill_positions,
                            const InputSample &sample,
                            const float multi_frame_falloff)
 {
-  const float radius = brush_radius(scene, brush, sample.pressure);
+  const float radius = brush_radius(paint, brush, sample.pressure);
   /* Basic strength factor from brush settings. */
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? sample.pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&paint, &brush) * brush_pressure *
                                multi_frame_falloff;
 
   /* Distance falloff. */
@@ -154,7 +153,7 @@ float brush_fill_influence(const Scene &scene,
   return influence_base * brush_falloff;
 }
 
-IndexMask brush_point_influence_mask(const Scene &scene,
+IndexMask brush_point_influence_mask(const Paint &paint,
                                      const Brush &brush,
                                      const float2 &mouse_position,
                                      const float pressure,
@@ -168,10 +167,10 @@ IndexMask brush_point_influence_mask(const Scene &scene,
     return {};
   }
 
-  const float radius = brush_radius(scene, brush, pressure);
+  const float radius = brush_radius(paint, brush, pressure);
   const float radius_squared = radius * radius;
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&paint, &brush) * brush_pressure *
                                multi_frame_falloff;
   const int2 mval_i = int2(math::round(mouse_position));
 
@@ -289,7 +288,7 @@ GreasePencilStrokeParams GreasePencilStrokeParams::from_context(
     const float multi_frame_falloff,
     bke::greasepencil::Drawing &drawing)
 {
-  Object &ob_eval = *DEG_get_evaluated_object(&depsgraph, &object);
+  Object &ob_eval = *DEG_get_evaluated(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   const bke::greasepencil::Layer &layer = grease_pencil.layer(layer_index);
@@ -460,7 +459,7 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing_with_automask(
   ARegion &region = *CTX_wm_region(&C);
   RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
   Object &object = *CTX_data_active_object(&C);
-  Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object);
+  Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
 
   std::atomic<bool> changed = false;
@@ -519,6 +518,49 @@ void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
         info.multi_frame_falloff,
         info.drawing);
     if (fn(params)) {
+      changed = true;
+    }
+  }
+
+  if (changed) {
+    DEG_id_tag_update(&grease_pencil.id, ID_RECALC_GEOMETRY);
+    WM_event_add_notifier(&C, NC_GEOM | ND_DATA, &grease_pencil);
+  }
+}
+
+void GreasePencilStrokeOperationCommon::foreach_editable_drawing(
+    const bContext &C,
+    FunctionRef<bool(const GreasePencilStrokeParams &params,
+                     const DeltaProjectionFunc &projection_fn)> fn) const
+{
+  using namespace blender::bke::greasepencil;
+
+  const Scene &scene = *CTX_data_scene(&C);
+  Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(&C);
+  ARegion &region = *CTX_wm_region(&C);
+  RegionView3D &rv3d = *CTX_wm_region_view3d(&C);
+  Object &object = *CTX_data_active_object(&C);
+  Object &object_eval = *DEG_get_evaluated(&depsgraph, &object);
+  GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object.data);
+
+  bool changed = false;
+  const Vector<MutableDrawingInfo> drawings = get_drawings_for_stroke_operation(C);
+  for (const int64_t i : drawings.index_range()) {
+    const MutableDrawingInfo &info = drawings[i];
+    const Layer &layer = grease_pencil.layer(info.layer_index);
+    GreasePencilStrokeParams params = GreasePencilStrokeParams::from_context(
+        scene,
+        depsgraph,
+        region,
+        rv3d,
+        object,
+        info.layer_index,
+        info.frame_number,
+        info.multi_frame_falloff,
+        info.drawing);
+
+    const DeltaProjectionFunc projection_fn = get_screen_projection_fn(params, object_eval, layer);
+    if (fn(params, projection_fn)) {
       changed = true;
     }
   }
@@ -684,8 +726,8 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
       }
 
       if (use_auto_mask_material) {
-        const VArraySpan<int> material_indices = *attributes.lookup<int>("material_index",
-                                                                         bke::AttrDomain::Curve);
+        const VArraySpan<int> material_indices = *attributes.lookup_or_default<int>(
+            "material_index", bke::AttrDomain::Curve, 0);
         strokes_under_brush.foreach_index(
             [&](const int curve_i) { masked_material_indices.add(material_indices[curve_i]); });
       }
@@ -709,7 +751,8 @@ void GreasePencilStrokeOperationCommon::init_auto_masking(const bContext &C,
 
     if (use_auto_mask_material) {
       const bke::CurvesGeometry &curves = drawing_info.drawing.strokes();
-      const VArraySpan<int> material_indices = *curves.attributes().lookup<int>("material_index");
+      const VArraySpan<int> material_indices = *curves.attributes().lookup_or_default<int>(
+          "material_index", bke::AttrDomain::Curve, 0);
       IndexMaskMemory memory;
       const IndexMask masked_curves = IndexMask::from_predicate(
           curves.curves_range(), GrainSize(1024), memory, [&](const int curve_i) {

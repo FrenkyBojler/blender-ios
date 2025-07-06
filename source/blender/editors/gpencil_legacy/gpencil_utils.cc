@@ -51,35 +51,6 @@
 /* ******************************************************** */
 /* Context Wrangling... */
 
-bGPdata **ED_gpencil_data_get_pointers_direct(ScrArea *area, Object *ob, PointerRNA *r_ptr)
-{
-  /* if there's an active area, check if the particular editor may
-   * have defined any special Grease Pencil context for editing...
-   */
-  if (area) {
-    switch (area->spacetype) {
-      case SPACE_PROPERTIES: /* properties */
-      case SPACE_INFO:       /* header info */
-      case SPACE_TOPBAR:     /* Top-bar */
-      case SPACE_VIEW3D:     /* 3D-View */
-      {
-        if (ob && (ob->type == OB_GPENCIL_LEGACY)) {
-          /* GP Object. */
-          if (r_ptr) {
-            *r_ptr = RNA_id_pointer_create(&ob->id);
-          }
-          return (bGPdata **)&ob->data;
-        }
-        return nullptr;
-      }
-      default: /* Unsupported space. */
-        return nullptr;
-    }
-  }
-
-  return nullptr;
-}
-
 bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
                                                  ScrArea *area,
                                                  Scene *scene,
@@ -176,14 +147,6 @@ bGPdata **ED_annotation_data_get_pointers_direct(ID *screen_id,
   }
 
   return nullptr;
-}
-
-bGPdata **ED_gpencil_data_get_pointers(const bContext *C, PointerRNA *r_ptr)
-{
-  ScrArea *area = CTX_wm_area(C);
-  Object *ob = CTX_data_active_object(C);
-
-  return ED_gpencil_data_get_pointers_direct(area, ob, r_ptr);
 }
 
 bGPdata **ED_annotation_data_get_pointers(const bContext *C, PointerRNA *r_ptr)
@@ -297,85 +260,6 @@ void gpencil_point_to_xy(
   }
 }
 
-void ED_gpencil_drawing_reference_get(const Scene *scene,
-                                      const Object *ob,
-                                      char align_flag,
-                                      float r_vec[3])
-{
-  const float *fp = scene->cursor.location;
-
-  /* if using a gpencil object at cursor mode, can use the location of the object */
-  if (align_flag & GP_PROJECT_VIEWSPACE) {
-    if (ob && (ob->type == OB_GPENCIL_LEGACY)) {
-      /* fallback (no strokes) - use cursor or object location */
-      if (align_flag & GP_PROJECT_CURSOR) {
-        /* use 3D-cursor */
-        copy_v3_v3(r_vec, fp);
-      }
-      else {
-        /* use object location */
-        copy_v3_v3(r_vec, ob->object_to_world().location());
-        /* Apply layer offset. */
-        bGPdata *gpd = static_cast<bGPdata *>(ob->data);
-        bGPDlayer *gpl = BKE_gpencil_layer_active_get(gpd);
-        if (gpl != nullptr) {
-          add_v3_v3(r_vec, gpl->layer_mat[3]);
-        }
-      }
-    }
-  }
-  else {
-    /* use 3D-cursor */
-    copy_v3_v3(r_vec, fp);
-  }
-}
-
-/**
- * Helper to convert 2d to 3d for simple drawing buffer.
- */
-static void gpencil_stroke_convertcoords(ARegion *region,
-                                         const tGPspoint *point2D,
-                                         const float origin[3],
-                                         float out[3])
-{
-  float mval_prj[2];
-  float rvec[3];
-
-  copy_v3_v3(rvec, origin);
-
-  const float zfac = ED_view3d_calc_zfac(static_cast<const RegionView3D *>(region->regiondata),
-                                         rvec);
-
-  if (ED_view3d_project_float_global(region, rvec, mval_prj, V3D_PROJ_TEST_NOP) == V3D_PROJ_RET_OK)
-  {
-    float dvec[3];
-    float xy_delta[2];
-    sub_v2_v2v2(xy_delta, mval_prj, point2D->m_xy);
-    ED_view3d_win_to_delta(region, xy_delta, zfac, dvec);
-    sub_v3_v3v3(out, rvec, dvec);
-  }
-  else {
-    zero_v3(out);
-  }
-}
-
-void ED_gpencil_tpoint_to_point(ARegion *region,
-                                float origin[3],
-                                const tGPspoint *tpt,
-                                bGPDspoint *pt)
-{
-  float p3d[3];
-  /* conversion to 3d format */
-  gpencil_stroke_convertcoords(region, tpt, origin, p3d);
-  copy_v3_v3(&pt->x, p3d);
-  zero_v4(pt->vert_color);
-
-  pt->pressure = tpt->pressure;
-  pt->strength = tpt->strength;
-  pt->uv_fac = tpt->uv_fac;
-  pt->uv_rot = tpt->uv_rot;
-}
-
 tGPspoint *ED_gpencil_sbuffer_ensure(tGPspoint *buffer_array,
                                      int *buffer_size,
                                      int *buffer_used,
@@ -388,8 +272,7 @@ tGPspoint *ED_gpencil_sbuffer_ensure(tGPspoint *buffer_array,
    * This is done in order to keep cache small and improve speed. */
   if (*buffer_used + 1 > *buffer_size) {
     if ((*buffer_size == 0) || (buffer_array == nullptr)) {
-      p = static_cast<tGPspoint *>(
-          MEM_callocN(sizeof(tGPspoint) * GP_STROKE_BUFFER_CHUNK, "GPencil Sbuffer"));
+      p = MEM_calloc_arrayN<tGPspoint>(GP_STROKE_BUFFER_CHUNK, "GPencil Sbuffer");
       *buffer_size = GP_STROKE_BUFFER_CHUNK;
     }
     else {

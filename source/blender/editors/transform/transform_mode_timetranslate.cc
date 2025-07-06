@@ -15,7 +15,7 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_types.hh"
 #include "UI_view2d.hh"
 
 #include "BLT_translation.hh"
@@ -25,6 +25,8 @@
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Animation Translation)
@@ -137,9 +139,10 @@ static void initTimeTranslate(TransInfo *t, wmOperator * /*op*/)
   t->num.idx_max = t->idx_max;
 
   /* Initialize snap like for everything else. */
-  t->snap[0] = t->snap[1] = 1.0f;
+  t->increment[0] = 1.0f;
+  t->increment_precision = 1.0f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   /* No time unit supporting frames currently. */
   t->num.unit_type[0] = B_UNIT_NONE;
@@ -157,3 +160,5 @@ TransModeInfo TransMode_timetranslate = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

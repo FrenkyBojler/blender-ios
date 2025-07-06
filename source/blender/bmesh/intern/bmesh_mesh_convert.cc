@@ -269,7 +269,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
 
   BLI_SCOPED_DEFER([&]() {
     for (const std::string &name : temporary_layers_to_delete) {
-      CustomData_free_layer_named(&mesh_ldata, name, mesh->corners_num);
+      CustomData_free_layer_named(&mesh_ldata, name);
     }
 
     MEM_SAFE_FREE(mesh_vdata.layers);
@@ -319,7 +319,7 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
   /* -------------------------------------------------------------------- */
   /* Shape Key */
   int tot_shape_keys = 0;
-  if (mesh->key != nullptr && DEG_is_original_id(&mesh->id)) {
+  if (mesh->key != nullptr && DEG_is_original(mesh)) {
     /* Evaluated meshes can be topologically inconsistent with their shape keys.
      * Shape keys are also already integrated into the state of the evaluated
      * mesh, so considering them here would kind of apply them twice. */
@@ -616,7 +616,7 @@ static BMVert **bm_to_mesh_vertex_map(BMesh *bm, const int old_verts_num)
   /* Caller needs to ensure this. */
   BLI_assert(old_verts_num > 0);
 
-  vertMap = static_cast<BMVert **>(MEM_callocN(sizeof(*vertMap) * old_verts_num, "vertMap"));
+  vertMap = MEM_calloc_arrayN<BMVert *>(old_verts_num, "vertMap");
   if (cd_shape_keyindex_offset != -1) {
     BM_ITER_MESH_INDEX (eve, &iter, bm, BM_VERTS_OF_MESH, i) {
       const int keyi = BM_ELEM_CD_GET_INT(eve, cd_shape_keyindex_offset);
@@ -666,7 +666,7 @@ static BMVert **bm_to_mesh_vertex_map(BMesh *bm, const int old_verts_num)
  *
  * Shape key synchronizing could work under the assumption that the key-block is
  * fixed-in-place when entering edit-mode allowing them to be used as a reference when exiting.
- * It often does work but isn't reliable since for e.g. rendering may flush changes
+ * It often does work but isn't reliable since for example rendering may flush changes
  * from the edit-mesh to the key-block (there are a handful of other situations where
  * changes may be flushed, see #ED_editors_flush_edits and related functions).
  * When using undo, it's not known if the data in key-block is from the past or future,
@@ -714,7 +714,7 @@ static BMVert **bm_to_mesh_vertex_map(BMesh *bm, const int old_verts_num)
  *   - Use the value from the original shape key
  *     WARNING: this is technically incorrect! (see note on "Key Block Usage").
  *   - Use the current vertex location,
- *     Also not correct but it's better then having it zeroed for e.g.
+ *     Also not correct but it's better then having it zeroed for example.
  *
  * - Missing key-index layer.
  *   In this case the basis key won't apply its deltas to other keys and if a shape-key layer is
@@ -1259,7 +1259,7 @@ static void bm_to_mesh_verts(const BMesh &bm,
                              MutableSpan<bool> select_vert,
                              MutableSpan<bool> hide_vert)
 {
-  CustomData_free_layer_named(&mesh.vert_data, "position", mesh.verts_num);
+  CustomData_free_layer_named(&mesh.vert_data, "position");
   CustomData_add_layer_named(
       &mesh.vert_data, CD_PROP_FLOAT3, CD_CONSTRUCT, mesh.verts_num, "position");
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(bm.vdata, mesh.vert_data);
@@ -1302,7 +1302,7 @@ static void bm_to_mesh_edges(const BMesh &bm,
                              MutableSpan<bool> sharp_edge,
                              MutableSpan<bool> uv_seams)
 {
-  CustomData_free_layer_named(&mesh.edge_data, ".edge_verts", mesh.edges_num);
+  CustomData_free_layer_named(&mesh.edge_data, ".edge_verts");
   CustomData_add_layer_named(
       &mesh.edge_data, CD_PROP_INT32_2D, CD_CONSTRUCT, mesh.edges_num, ".edge_verts");
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(bm.edata, mesh.edge_data);
@@ -1389,8 +1389,8 @@ static void bm_to_mesh_faces(const BMesh &bm,
 
 static void bm_to_mesh_loops(const BMesh &bm, const Span<const BMLoop *> bm_loops, Mesh &mesh)
 {
-  CustomData_free_layer_named(&mesh.corner_data, ".corner_vert", mesh.corners_num);
-  CustomData_free_layer_named(&mesh.corner_data, ".corner_edge", mesh.corners_num);
+  CustomData_free_layer_named(&mesh.corner_data, ".corner_vert");
+  CustomData_free_layer_named(&mesh.corner_data, ".corner_edge");
   CustomData_add_layer_named(
       &mesh.corner_data, CD_PROP_INT32, CD_CONSTRUCT, mesh.corners_num, ".corner_vert");
   CustomData_add_layer_named(
@@ -1575,8 +1575,7 @@ void BM_mesh_bm_to_me(Main *bmain, BMesh *bm, Mesh *mesh, const BMeshToMeshParam
 
         MEM_SAFE_FREE(mesh->mselect);
         if (mesh->totselect != 0) {
-          mesh->mselect = static_cast<MSelect *>(
-              MEM_mallocN(sizeof(MSelect) * mesh->totselect, "Mesh selection history"));
+          mesh->mselect = MEM_malloc_arrayN<MSelect>(mesh->totselect, "Mesh selection history");
         }
         int i;
         LISTBASE_FOREACH_INDEX (BMEditSelection *, selected, &bm->selected, i) {

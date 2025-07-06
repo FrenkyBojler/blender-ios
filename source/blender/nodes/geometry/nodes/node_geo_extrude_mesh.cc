@@ -22,7 +22,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "FN_multi_function_builder.hh"
@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
   b.add_input<decl::Vector>("Offset")
       .subtype(PROP_TRANSLATION)
-      .implicit_field_on_all(implicit_field_inputs::normal)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_NORMAL_FIELD)
       .hide_value();
   b.add_input<decl::Float>("Offset Scale").default_value(1.0f).field_on_all();
   auto &individual =
@@ -60,14 +60,14 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
-  NodeGeometryExtrudeMesh *data = MEM_cnew<NodeGeometryExtrudeMesh>(__func__);
+  NodeGeometryExtrudeMesh *data = MEM_callocN<NodeGeometryExtrudeMesh>(__func__);
   data->mode = GEO_NODE_EXTRUDE_MESH_FACES;
   node->storage = data;
 }
@@ -106,28 +106,28 @@ static void remove_non_propagated_attributes(MutableAttributeAccessor attributes
 
 static void remove_unsupported_vert_data(Mesh &mesh)
 {
-  CustomData_free_layers(&mesh.vert_data, CD_ORCO, mesh.verts_num);
-  CustomData_free_layers(&mesh.vert_data, CD_SHAPEKEY, mesh.verts_num);
-  CustomData_free_layers(&mesh.vert_data, CD_CLOTH_ORCO, mesh.verts_num);
-  CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN, mesh.verts_num);
+  CustomData_free_layers(&mesh.vert_data, CD_ORCO);
+  CustomData_free_layers(&mesh.vert_data, CD_SHAPEKEY);
+  CustomData_free_layers(&mesh.vert_data, CD_CLOTH_ORCO);
+  CustomData_free_layers(&mesh.vert_data, CD_MVERT_SKIN);
 }
 
 static void remove_unsupported_edge_data(Mesh &mesh)
 {
-  CustomData_free_layers(&mesh.edge_data, CD_FREESTYLE_EDGE, mesh.edges_num);
+  CustomData_free_layers(&mesh.edge_data, CD_FREESTYLE_EDGE);
 }
 
 static void remove_unsupported_face_data(Mesh &mesh)
 {
-  CustomData_free_layers(&mesh.face_data, CD_FREESTYLE_FACE, mesh.faces_num);
+  CustomData_free_layers(&mesh.face_data, CD_FREESTYLE_FACE);
 }
 
 static void remove_unsupported_corner_data(Mesh &mesh)
 {
-  CustomData_free_layers(&mesh.corner_data, CD_MDISPS, mesh.corners_num);
-  CustomData_free_layers(&mesh.corner_data, CD_TANGENT, mesh.corners_num);
-  CustomData_free_layers(&mesh.corner_data, CD_MLOOPTANGENT, mesh.corners_num);
-  CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK, mesh.corners_num);
+  CustomData_free_layers(&mesh.corner_data, CD_MDISPS);
+  CustomData_free_layers(&mesh.corner_data, CD_TANGENT);
+  CustomData_free_layers(&mesh.corner_data, CD_MLOOPTANGENT);
+  CustomData_free_layers(&mesh.corner_data, CD_GRID_PAINT_MASK);
 }
 
 static void expand_mesh(Mesh &mesh,
@@ -145,7 +145,7 @@ static void expand_mesh(Mesh &mesh,
   if (edge_expand != 0) {
     if (mesh.edges_num == 0) {
       mesh.attributes_for_write().add(
-          ".edge_verts", AttrDomain::Edge, CD_PROP_INT32_2D, bke::AttributeInitConstruct());
+          ".edge_verts", AttrDomain::Edge, bke::AttrType::Int32_2D, bke::AttributeInitConstruct());
     }
     const int old_edges_num = mesh.edges_num;
     mesh.edges_num += edge_expand;
@@ -166,9 +166,9 @@ static void expand_mesh(Mesh &mesh,
   if (loop_expand != 0) {
     if (mesh.corners_num == 0) {
       mesh.attributes_for_write().add(
-          ".corner_vert", AttrDomain::Corner, CD_PROP_INT32, bke::AttributeInitConstruct());
+          ".corner_vert", AttrDomain::Corner, bke::AttrType::Int32, bke::AttributeInitConstruct());
       mesh.attributes_for_write().add(
-          ".corner_edge", AttrDomain::Corner, CD_PROP_INT32, bke::AttributeInitConstruct());
+          ".corner_edge", AttrDomain::Corner, bke::AttrType::Int32, bke::AttributeInitConstruct());
     }
     const int old_loops_num = mesh.corners_num;
     mesh.corners_num += loop_expand;
@@ -272,7 +272,7 @@ static IDsByDomain attribute_ids_by_domain(const AttributeAccessor attributes,
 {
   IDsByDomain ids_by_domain;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (skip.contains(iter.name)) {
@@ -289,7 +289,7 @@ static bool is_empty_domain(const AttributeAccessor attributes,
 {
   bool is_empty = true;
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     if (iter.domain != domain) {
@@ -1555,9 +1555,9 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.geometry_node_execute = node_geo_exec;
   blender::bke::node_type_storage(
-      &ntype, "NodeGeometryExtrudeMesh", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeGeometryExtrudeMesh", node_free_standard_storage, node_copy_standard_storage);
   ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

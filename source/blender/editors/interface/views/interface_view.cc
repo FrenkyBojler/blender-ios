@@ -31,8 +31,6 @@
 
 #include "interface_intern.hh"
 
-#include "UI_interface.hh"
-
 #include "UI_abstract_view.hh"
 #include "UI_grid_view.hh"
 #include "UI_tree_view.hh"
@@ -160,7 +158,7 @@ static uiViewStateLink *ensure_view_state(ARegion &region, const ViewLink &link)
     }
   }
 
-  uiViewStateLink *new_state = MEM_cnew<uiViewStateLink>(__func__);
+  uiViewStateLink *new_state = MEM_callocN<uiViewStateLink>(__func__);
   link.idname.copy(new_state->idname, sizeof(new_state->idname));
   BLI_addhead(&region.view_states, new_state);
   return new_state;
@@ -281,6 +279,24 @@ std::unique_ptr<DropTargetInterface> region_views_find_drop_target_at(const AReg
   if (AbstractView *view = UI_region_view_find_at(region, xy, style->buttonspacex)) {
     if (std::unique_ptr<DropTargetInterface> target = view->create_drop_target()) {
       return target;
+    }
+  }
+
+  if (AbstractView *view = UI_region_view_find_at(region, xy, 0)) {
+    /* If we are above a tree, but not hovering any specific element, dropping something should
+     * insert it after the last item. */
+    if (AbstractTreeView *tree_view = dynamic_cast<AbstractTreeView *>(view)) {
+      /* Find the last item which we want to drop below. */
+      AbstractTreeViewItem *last_item = nullptr;
+      tree_view->foreach_root_item([&](AbstractTreeViewItem &item) {
+        if (!item.is_interactive()) {
+          return;
+        }
+        last_item = &item;
+      });
+      if (last_item) {
+        return last_item->create_item_drop_target();
+      }
     }
   }
 

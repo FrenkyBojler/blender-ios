@@ -13,6 +13,7 @@
 #include "BKE_object.hh"
 
 #include "BLI_enumerable_thread_specific.hh"
+#include "BLI_index_mask.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_task.hh"
 
@@ -118,9 +119,8 @@ bool apply_mask_as_selection(bke::CurvesGeometry &curves,
     return false;
   }
 
-  const eCustomDataType create_type = CD_PROP_BOOL;
   bke::GSpanAttributeWriter writer = ed::curves::ensure_selection_attribute(
-      curves, selection_domain, create_type, attribute_name);
+      curves, selection_domain, bke::AttrType::Bool, attribute_name);
 
   selection_mask.foreach_index(grain_size, [&](const int64_t element_i) {
     ed::curves::apply_selection_operation_at_index(writer.span, element_i, sel_op);
@@ -161,9 +161,8 @@ bool apply_mask_as_segment_selection(bke::CurvesGeometry &curves,
       curves, changed_curve_mask, screen_space_positions, tree_data, tree_data_range);
 
   const OffsetIndices<int> segments_by_curve = OffsetIndices<int>(segment_data.segment_offsets);
-  const eCustomDataType create_type = CD_PROP_BOOL;
   bke::GSpanAttributeWriter attribute_writer = ed::curves::ensure_selection_attribute(
-      curves, bke::AttrDomain::Point, create_type, attribute_name);
+      curves, bke::AttrDomain::Point, bke::AttrType::Bool, attribute_name);
 
   /* Find all segments that have changed points and fill them. */
   Array<bool> changed_points(curves.points_num());
@@ -216,7 +215,7 @@ bool selection_update(const ViewContext *vc,
   using namespace blender;
 
   Object *object = (vc->obedit ? vc->obedit : vc->obact);
-  const Object *ob_eval = DEG_get_evaluated_object(vc->depsgraph, object);
+  const Object *ob_eval = DEG_get_evaluated(vc->depsgraph, object);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   /* Get selection domain from tool settings. */
@@ -273,6 +272,7 @@ bool selection_update(const ViewContext *vc,
             const IndexMask not_in_mask = changed_element_mask.complement(
                 selection.span.index_range(), memory);
             ed::curves::fill_selection_false(selection.span, not_in_mask);
+            changed = true;
             selection.finish();
           }
         }
@@ -313,7 +313,7 @@ bool selection_update(const ViewContext *vc,
 
 /** \} */
 
-static int select_all_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
   Scene *scene = CTX_data_scene(C);
@@ -362,7 +362,7 @@ static void GREASE_PENCIL_OT_select_all(wmOperatorType *ot)
   WM_operator_properties_select_all(ot);
 }
 
-static int select_more_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_more_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
@@ -398,7 +398,7 @@ static void GREASE_PENCIL_OT_select_more(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int select_less_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_less_exec(bContext *C, wmOperator * /*op*/)
 {
   Object *object = CTX_data_active_object(C);
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
@@ -434,7 +434,7 @@ static void GREASE_PENCIL_OT_select_less(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int select_linked_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
@@ -471,7 +471,7 @@ static void GREASE_PENCIL_OT_select_linked(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-static int select_random_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_random_exec(bContext *C, wmOperator *op)
 {
   using namespace blender;
   const float ratio = RNA_float_get(op->ptr, "ratio");
@@ -501,12 +501,11 @@ static int select_random_exec(bContext *C, wmOperator *op)
         if (selectable_elements.is_empty()) {
           return {};
         }
-        return ed::curves::random_mask(info.drawing.strokes(),
-                                       selectable_elements,
-                                       selection_domain,
-                                       blender::get_default_hash<int>(seed, info.layer_index),
-                                       ratio,
-                                       memory);
+        return random_mask(selectable_elements,
+                           info.drawing.strokes().points_num(),
+                           blender::get_default_hash<int>(seed, info.layer_index),
+                           ratio,
+                           memory);
       });
 
   /* Use #ID_RECALC_GEOMETRY instead of #ID_RECALC_SELECT because it is handled as a generic
@@ -531,7 +530,7 @@ static void GREASE_PENCIL_OT_select_random(wmOperatorType *ot)
   WM_operator_properties_select_random(ot);
 }
 
-static int select_alternate_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_alternate_exec(bContext *C, wmOperator *op)
 {
   const bool deselect_ends = RNA_boolean_get(op->ptr, "deselect_ends");
   Scene *scene = CTX_data_scene(C);
@@ -646,7 +645,7 @@ static void select_similar_by_value(Scene *scene,
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
-        curves, selection_domain, CD_PROP_BOOL);
+        curves, selection_domain, bke::AttrType::Bool);
     MutableSpan<bool> selection = selection_writer.span.typed<bool>();
     const VArraySpan<T> values = *curves.attributes().lookup_or_default<T>(
         attribute_id, selection_domain, default_value);
@@ -706,7 +705,7 @@ static void select_similar_by_layer(Scene *scene,
   });
 }
 
-static int select_similar_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_similar_exec(bContext *C, wmOperator *op)
 {
   const SelectSimilarMode mode = SelectSimilarMode(RNA_enum_get(op->ptr, "mode"));
   const float threshold = RNA_float_get(op->ptr, "threshold");
@@ -715,8 +714,6 @@ static int select_similar_exec(bContext *C, wmOperator *op)
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
   bke::AttrDomain selection_domain = ED_grease_pencil_selection_domain_get(scene->toolsettings,
                                                                            object);
-
-  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
 
   switch (mode) {
     case SelectSimilarMode::LAYER:
@@ -780,7 +777,7 @@ static void GREASE_PENCIL_OT_select_similar(wmOperatorType *ot)
 
   ot->invoke = WM_menu_invoke;
   ot->exec = select_similar_exec;
-  ot->poll = editable_grease_pencil_point_selection_poll;
+  ot->poll = editable_grease_pencil_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
@@ -790,7 +787,7 @@ static void GREASE_PENCIL_OT_select_similar(wmOperatorType *ot)
   RNA_def_float(ot->srna, "threshold", 0.1f, 0.0f, FLT_MAX, "Threshold", "", 0.0f, 10.0f);
 }
 
-static int select_ends_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_ends_exec(bContext *C, wmOperator *op)
 {
   const int amount_start = RNA_int_get(op->ptr, "amount_start");
   const int amount_end = RNA_int_get(op->ptr, "amount_end");
@@ -890,13 +887,13 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
     const GVArray src = *attributes.lookup(".selection", domain);
     if (src) {
       const CPPType &type = src.type();
-      void *dst = MEM_malloc_arrayN(attributes.domain_size(domain), type.size(), __func__);
+      void *dst = MEM_malloc_arrayN(attributes.domain_size(domain), type.size, __func__);
       src.materialize(dst);
 
       attributes.remove(".selection");
       if (!attributes.add(".selection",
                           domain,
-                          bke::cpp_type_to_custom_data_type(type),
+                          bke::cpp_type_to_attribute_type(type),
                           bke::AttributeInitMoveArray(dst)))
       {
         MEM_freeN(dst);
@@ -911,7 +908,7 @@ bool ensure_selection_domain(ToolSettings *ts, Object *object)
   return changed;
 }
 
-static int select_set_mode_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus select_set_mode_exec(bContext *C, wmOperator *op)
 {
   using namespace blender::bke::greasepencil;
 
@@ -967,7 +964,7 @@ static void GREASE_PENCIL_OT_set_selection_mode(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
 
-static int grease_pencil_material_select_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus grease_pencil_material_select_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   Object *object = CTX_data_active_object(C);
@@ -992,7 +989,7 @@ static int grease_pencil_material_select_exec(bContext *C, wmOperator *op)
       return;
     }
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-        curves, domain, CD_PROP_BOOL);
+        curves, domain, bke::AttrType::Bool);
 
     switch (domain) {
       case bke::AttrDomain::Curve: {

@@ -12,7 +12,7 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_material.hh"
@@ -27,6 +27,7 @@ NODE_STORAGE_FUNCS(NodeSetAlpha)
 
 static void cmp_node_setalpha_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .compositor_domain_priority(0);
@@ -40,14 +41,14 @@ static void cmp_node_setalpha_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_setalpha(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeSetAlpha *settings = MEM_cnew<NodeSetAlpha>(__func__);
+  NodeSetAlpha *settings = MEM_callocN<NodeSetAlpha>(__func__);
   node->storage = settings;
   settings->mode = CMP_NODE_SETALPHA_MODE_APPLY;
 }
 
 static void node_composit_buts_set_alpha(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "mode", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -97,7 +98,7 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
 
 }  // namespace blender::nodes::node_composite_setalpha_cc
 
-void register_node_type_cmp_setalpha()
+static void register_node_type_cmp_setalpha()
 {
   namespace file_ns = blender::nodes::node_composite_setalpha_cc;
 
@@ -112,9 +113,10 @@ void register_node_type_cmp_setalpha()
   ntype.draw_buttons = file_ns::node_composit_buts_set_alpha;
   ntype.initfunc = file_ns::node_composit_init_setalpha;
   blender::bke::node_type_storage(
-      &ntype, "NodeSetAlpha", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeSetAlpha", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_gpu_material;
   ntype.build_multi_function = file_ns::node_build_multi_function;
 
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_setalpha)
