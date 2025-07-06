@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2025 Blender Authors
+/* SPDX-FileCopyrightText: 2023 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,8 +15,6 @@
 #include "BKE_volume_grid_fwd.hh"
 
 struct Volume;
-
-namespace blender::geometry::volume_meshing {
 
 /* Dense Voxels */
 
@@ -56,5 +54,3 @@ void BKE_volume_grid_selection_surface(const Volume *volume,
 /* Render */
 
 float BKE_volume_density_scale(const Volume *volume, const float matrix[4][4]);
-
-}   // namespace  blender::geometry::volume_meshing

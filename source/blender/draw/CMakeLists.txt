@@ -301,6 +301,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::functions
   PRIVATE bf::gpu
+  PRIVATE bf::geometry
   PRIVATE bf::imbuf
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc

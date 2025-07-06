@@ -23,7 +23,7 @@
 #include "BKE_global.hh"
 #include "BKE_volume.hh"
 #include "BKE_volume_grid_fwd.hh"
-#include "BKE_volume_render.hh"
+#include "GEO_volume_meshing.hh"
 
 #include "GPU_attribute_convert.hh"
 #include "GPU_batch.hh"

@@ -20,7 +20,7 @@
 #include "BKE_mesh.hh"
 #include "BKE_modifier.hh"
 #include "BKE_volume.hh"
-#include "BKE_volume_render.hh"
+#include "GEO_volume_meshing.hh"
 
 #include "GPU_material.hh"
 

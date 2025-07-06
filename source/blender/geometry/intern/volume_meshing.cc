@@ -19,7 +19,7 @@
 
 #include "BKE_volume_grid.hh"
 #include "BKE_volume_openvdb.hh"
-#include "BKE_volume_render.hh"
+#include "GEO_volume_meshing.hh"
 
 #ifdef WITH_OPENVDB
 #  include <openvdb/openvdb.h>
@@ -29,8 +29,6 @@
 /* Dense Voxels */
 
 #ifdef WITH_OPENVDB
-
-namespace blender::geometry::volume_meshing {
 
 template<typename GridType, typename VoxelType>
 static void extract_dense_voxels(const openvdb::GridBase &grid,
@@ -474,6 +472,4 @@ float BKE_volume_density_scale(const Volume *volume, const float matrix[4][4])
   }
 
   return 1.0f;
-}
-
 }
