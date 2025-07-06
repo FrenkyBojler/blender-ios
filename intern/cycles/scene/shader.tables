@@ -1282,6 +1282,8 @@ static const float table_ggx_gen_schlick_s[4096] = {
   0.000000f, 0.559516f, 0.644881f, 0.698590f, 0.736655f, 0.762997f, 0.778331f, 0.782183f, 0.773776f, 0.752689f, 0.719302f, 0.675070f, 0.622442f, 0.564517f, 0.504549f, 0.445448f
 };
 
+/* Precomputed color matching functions for the Thin Film Fresnel logic.
+ * Computed by intern/cycles/doc/precompute/thin_film_table.py. */
 static const float table_thin_film_cmf[512][6] = {
   { 2.0432441e+00f,  2.0415664e+00f,  2.0443382e+00f,  0.0000000e+00f,  0.0000000e+00f,  0.0000000e+00f },
   { 1.9983457e+00f,  1.9961237e+00f,  1.9758113e+00f, -4.2244055e-01f, -4.2709941e-01f, -5.2414345e-01f },
