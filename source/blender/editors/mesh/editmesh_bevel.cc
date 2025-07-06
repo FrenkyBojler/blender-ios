@@ -376,7 +376,9 @@ static bool edbm_bevel_calc(wmOperator *op)
         BMO_slot_buffer_hflag_enable(
             em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
 
-        BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
+        if (em->bm->selectmode & SCE_SELECT_VERTEX == 0) {
+          BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
+        }
       }
     }
 
