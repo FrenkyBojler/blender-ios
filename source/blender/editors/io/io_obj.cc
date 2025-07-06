@@ -140,7 +140,7 @@ static void ui_obj_export_settings(const bContext *C, uiLayout *layout, PointerR
   const bool export_materials = RNA_boolean_get(ptr, "export_materials");
 
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   /* Object General options. */
   if (uiLayout *panel = layout->panel(C, "OBJ_export_general", false, IFACE_("General"))) {
@@ -408,7 +408,7 @@ void WM_OT_obj_export(wmOperatorType *ot)
   prop = RNA_def_string(ot->srna, "filter_glob", "*.obj;*.mtl", 0, "Extension Filter", "");
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
-  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_IDPROP_NAME, "Collection", nullptr);
+  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 }
 
@@ -459,7 +459,7 @@ static wmOperatorStatus wm_obj_import_exec(bContext *C, wmOperator *op)
 static void ui_obj_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "OBJ_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);

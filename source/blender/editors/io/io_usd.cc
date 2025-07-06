@@ -446,7 +446,7 @@ static void wm_usd_export_draw(bContext *C, wmOperator *op)
   PointerRNA *ptr = op->ptr;
 
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "USD_export_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -647,7 +647,7 @@ void WM_OT_usd_export(wmOperatorType *ot)
                   "Only export visible objects. Invisible parents of exported objects are "
                   "exported as empty transforms");
 
-  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_IDPROP_NAME, "Collection", nullptr);
+  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
   RNA_def_boolean(
@@ -1090,7 +1090,7 @@ static void wm_usd_import_draw(bContext *C, wmOperator *op)
   PointerRNA *ptr = op->ptr;
 
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "USD_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);

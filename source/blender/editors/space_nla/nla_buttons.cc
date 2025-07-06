@@ -131,7 +131,8 @@ bool nla_panel_context(const bContext *C,
       case ANIMTYPE_PALETTE:
       case ANIMTYPE_DSHAIR:
       case ANIMTYPE_DSPOINTCLOUD:
-      case ANIMTYPE_DSVOLUME: {
+      case ANIMTYPE_DSVOLUME:
+      case ANIMTYPE_DSLIGHTPROBE: {
         /* for these channels, we only do AnimData */
         if (ale->adt && adt_ptr) {
           ID *id;
@@ -309,7 +310,7 @@ static void nla_panel_animdata(const bContext *C, Panel *panel)
   block = layout->block();
   UI_block_func_handle_set(block, do_nla_region_buttons, nullptr);
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   /* AnimData Source Properties ----------------------------------- */
 
@@ -416,7 +417,7 @@ static void nla_panel_properties(const bContext *C, Panel *panel)
   /* strip type */
 
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_decorate_set(false);
 
   /* strip extents */
   column = &layout->column(true);
@@ -480,7 +481,7 @@ static void nla_panel_actclip(const bContext *C, Panel *panel)
   block = layout->block();
   UI_block_func_handle_set(block, do_nla_region_buttons, nullptr);
   layout->use_property_split_set(true);
-  uiLayoutSetPropDecorate(layout, true);
+  layout->use_property_decorate_set(true);
 
   /* Strip Properties ------------------------------------- */
   /* action pointer */
