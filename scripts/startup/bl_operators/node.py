@@ -320,10 +320,10 @@ class NODE_OT_tree_path_parent(Operator):
     bl_label = "Parent Node Tree"
     bl_options = {'REGISTER', 'UNDO'}
 
-    parent_index: IntProperty(
+    parent_tree_index: IntProperty(
         name="Parent Index",
         description="Parent index in context path",
-        default=1,
+        default=0,
     )
 
     @classmethod
@@ -335,7 +335,8 @@ class NODE_OT_tree_path_parent(Operator):
     def execute(self, context):
         space = context.space_data
 
-        for _ in range(self.parent_index):
+        parent_number_to_pop = len(space.path) - 1 - self.parent_tree_index
+        for _ in range(parent_number_to_pop):
             space.path.pop()
 
         return {'FINISHED'}
