@@ -629,12 +629,13 @@ static void index_buf_add_bezier_lines(Object &object,
                                        const bke::greasepencil::Drawing &drawing,
                                        int layer_index,
                                        IndexMaskMemory &memory,
+                                       const eHandleDisplay handle_display,
                                        MutableSpan<uint> lines_data,
                                        int *r_drawing_line_index,
                                        int *r_drawing_line_start_offset)
 {
   const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-      object, drawing, layer_index, memory);
+      object, drawing, layer_index, handle_display, memory);
   if (bezier_points.is_empty()) {
     return;
   }
@@ -695,12 +696,13 @@ static void index_buf_add_bezier_line_points(Object &object,
                                              const bke::greasepencil::Drawing &drawing,
                                              int layer_index,
                                              IndexMaskMemory &memory,
+                                             const eHandleDisplay handle_display,
                                              MutableSpan<uint> points_data,
                                              int *r_drawing_point_index,
                                              int *r_drawing_start_offset)
 {
   const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-      object, drawing, layer_index, memory);
+      object, drawing, layer_index, handle_display, memory);
   if (bezier_points.is_empty()) {
     return;
   }
@@ -740,6 +742,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
 
   /* Should be discarded together. */
   BLI_assert(grease_pencil_batch_cache_is_edit_discarded(cache));
+
+  const eHandleDisplay handle_display = CURVE_HANDLE_ALL;
 
   /* Get the visible drawings. */
   const Vector<ed::greasepencil::DrawingInfo> drawings =
@@ -797,7 +801,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
   for (const ed::greasepencil::DrawingInfo &info : drawings) {
     IndexMaskMemory memory;
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        object, info.drawing, info.layer_index, memory);
+        object, info.drawing, info.layer_index, handle_display, memory);
 
     total_bezier_point_num += bezier_points.size();
   }
@@ -943,7 +947,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                   &total_line_ids_num);
 
     const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-        object, info.drawing, info.layer_index, memory);
+        object, info.drawing, info.layer_index, handle_display, memory);
     if (bezier_points.is_empty()) {
       continue;
     }
@@ -1074,7 +1078,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
 
     if (!layer->is_locked()) {
       const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-          object, info.drawing, info.layer_index, memory);
+          object, info.drawing, info.layer_index, handle_display, memory);
       if (bezier_points.is_empty()) {
         return;
       }
@@ -1100,6 +1104,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                  info.drawing,
                                  info.layer_index,
                                  memory,
+                                 handle_display,
                                  lines_data,
                                  &lines_ibo_index,
                                  &drawing_line_start_offset);
@@ -1114,6 +1119,7 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                                        info.drawing,
                                        info.layer_index,
                                        memory,
+                                       handle_display,
                                        points_data,
                                        &points_ibo_index,
                                        &drawing_start_offset);
