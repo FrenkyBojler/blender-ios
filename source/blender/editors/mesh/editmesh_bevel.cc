@@ -373,6 +373,10 @@ static bool edbm_bevel_calc(wmOperator *op)
       if (affect == BEVEL_AFFECT_VERTICES) {
         BMO_slot_buffer_hflag_enable(
             em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+
+        BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
       }
     }
 
