@@ -15,6 +15,7 @@ BLOCKLIST = [
     "hdr_simple_still_test_file.blend",
 ]
 
+
 def get_arguments(filepath, output_filepath):
     dirname = os.path.dirname(filepath)
     basedir = os.path.dirname(dirname)
