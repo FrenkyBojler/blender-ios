@@ -87,8 +87,10 @@ enum class AreaDockTarget {
 
 #define AREA_ACTIVE_FADEIN 0.15f /* seconds */
 
-#define AREA_MOVE_LINE_FADEIN 1.15f   /* seconds */
-#define REGION_MOVE_LINE_FADEIN 0.15f /* seconds */
+#define AREA_MOVE_LINE_FADEIN 0.1f    /* seconds */
+#define AREA_MOVE_LINE_FADEOUT 0.1f   /* seconds */
+#define REGION_MOVE_LINE_FADEIN 0.1f  /* seconds */
+#define REGION_MOVE_LINE_FADEOUT 0.1f /* seconds */
 
 /* `area.cc` */
 

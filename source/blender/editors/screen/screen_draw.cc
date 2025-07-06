@@ -266,25 +266,16 @@ void screen_draw_move_highlight(const wmWindow *win,
     };
   }
 
-  /* Pull in ends not at window edges. */
   rcti window_rect;
   WM_window_screen_rect_calc(win, &window_rect);
   const float offset = U.border_width * UI_SCALE_FAC;
   if (dir_axis == SCREEN_AXIS_H) {
-    if (rect.xmin > (window_rect.xmin + 2)) {
-      rect.xmin += offset;
-    }
-    if (rect.xmax < (window_rect.xmax - 2)) {
-      rect.xmax -= offset;
-    }
+    rect.xmin += offset;
+    rect.xmax -= offset;
   }
   else {
-    if (rect.ymin > (window_rect.ymin + 2)) {
-      rect.ymin += offset;
-    }
-    if (rect.ymax < (window_rect.ymax - 2)) {
-      rect.ymax -= offset;
-    }
+    rect.ymin += offset;
+    rect.ymax -= offset;
   }
 
   const float width = std::min(2.0f * U.border_width * UI_SCALE_FAC, 5.0f * UI_SCALE_FAC) *
