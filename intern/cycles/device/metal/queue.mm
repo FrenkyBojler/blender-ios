@@ -317,35 +317,35 @@ bool MetalDeviceQueue::supports_local_atomic_sort() const
   return metal_device_->use_local_atomic_sort();
 }
 
-void ZeroResource(void *address_in_arg_buffer, int index = 0)
+static void zero_resource(void *address_in_arg_buffer, int index = 0)
 {
   uint64_t *pptr = (uint64_t *)address_in_arg_buffer;
   pptr[index] = 0;
 }
 
-template<class T> void WriteResource(void *address_in_arg_buffer, T resource, int index = 0)
+template<class T> void write_resource(void *address_in_arg_buffer, T resource, int index = 0)
 {
-  ZeroResource(address_in_arg_buffer, index);
+  zero_resource(address_in_arg_buffer, index);
   uint64_t *pptr = (uint64_t *)address_in_arg_buffer;
   if (resource) {
-    pptr[index] = gpuResourceID(resource);
+    pptr[index] = metal_gpuResourceID(resource);
   }
 }
 
-template<> void WriteResource(void *address_in_arg_buffer, id<MTLBuffer> buffer, int index)
+template<> void write_resource(void *address_in_arg_buffer, id<MTLBuffer> buffer, int index)
 {
-  ZeroResource(address_in_arg_buffer, index);
+  zero_resource(address_in_arg_buffer, index);
   uint64_t *pptr = (uint64_t *)address_in_arg_buffer;
   if (buffer) {
-    pptr[index] = gpuAddress(buffer);
+    pptr[index] = metal_gpuAddress(buffer);
   }
 }
 
-id<MTLBuffer> PatchResource(void *address_in_arg_buffer, int index = 0)
+static id<MTLBuffer> patch_resource(void *address_in_arg_buffer, int index = 0)
 {
   uint64_t *pptr = (uint64_t *)address_in_arg_buffer;
   if (MetalDevice::MetalMem *mmem = (MetalDevice::MetalMem *)pptr[index]) {
-    WriteResource<id<MTLBuffer>>(address_in_arg_buffer, mmem->mtlBuffer, index);
+    write_resource<id<MTLBuffer>>(address_in_arg_buffer, mmem->mtlBuffer, index);
     return mmem->mtlBuffer;
   }
   return nil;
@@ -356,7 +356,7 @@ void MetalDeviceQueue::init_execution()
   /* Populate blas_array. */
   uint64_t *blas_array = (uint64_t *)metal_device_->blas_buffer.contents;
   for (uint64_t slot = 0; slot < metal_device_->blas_array.size(); ++slot) {
-    WriteResource(blas_array, metal_device_->blas_array[slot], slot);
+    write_resource(blas_array, metal_device_->blas_array[slot], slot);
   }
 
   device_vector<TextureInfo> &texture_info = metal_device_->texture_info;
@@ -372,11 +372,11 @@ void MetalDeviceQueue::init_execution()
   for (int slot = 0; slot < texture_info.size(); ++slot) {
     if (texture_slot_map[slot]) {
       if (metal_device_->is_texture(texture_info[slot])) {
-        WriteResource(bindings, id<MTLTexture>(texture_slot_map[slot]), slot);
+        write_resource(bindings, id<MTLTexture>(texture_slot_map[slot]), slot);
       }
       else {
         /* The GPU address of a 1D buffer texture is written into the slot data field. */
-        WriteResource(&texture_info[slot].data, id<MTLBuffer>(texture_slot_map[slot]), slot);
+        write_resource(&texture_info[slot].data, id<MTLBuffer>(texture_slot_map[slot]), slot);
       }
     }
   }
@@ -428,7 +428,7 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       dynamic_bytes_written = round_up(dynamic_bytes_written, size_in_bytes);
       memcpy(dynamic_args + dynamic_bytes_written, args.values[i], size_in_bytes);
       if (args.types[i] == DeviceKernelArguments::POINTER) {
-        if (id<MTLBuffer> buffer = PatchResource(dynamic_args + dynamic_bytes_written)) {
+        if (id<MTLBuffer> buffer = patch_resource(dynamic_args + dynamic_bytes_written)) {
           [mtlComputeCommandEncoder useResource:buffer
                                           usage:MTLResourceUsageRead | MTLResourceUsageWrite];
         }
@@ -443,15 +443,15 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
 
     /* Encode ancillaries */
     int ancillary_index = 0;
-    WriteResource(ancillary_args, metal_device_->texture_bindings, ancillary_index++);
+    write_resource(ancillary_args, metal_device_->texture_bindings, ancillary_index++);
 
     if (metal_device_->use_metalrt) {
-      WriteResource(ancillary_args, metal_device_->accel_struct, ancillary_index++);
-      WriteResource(ancillary_args, metal_device_->blas_buffer, ancillary_index++);
+      write_resource(ancillary_args, metal_device_->accel_struct, ancillary_index++);
+      write_resource(ancillary_args, metal_device_->blas_buffer, ancillary_index++);
 
       /* Write the intersection function table. */
       for (int table_idx = 0; table_idx < METALRT_TABLE_NUM; table_idx++) {
-        WriteResource(
+        write_resource(
             ancillary_args, active_pipeline.intersection_func_table[table_idx], ancillary_index++);
       }
       assert(ancillary_index == ANCILLARY_SLOT_COUNT);

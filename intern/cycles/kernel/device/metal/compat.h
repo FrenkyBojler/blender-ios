@@ -366,6 +366,9 @@ struct MetalRTBlasWrapper {
 };
 #endif
 
+/* Additional Metal-specific resources which aren't encoded in KernelData.
+ * IMPORTANT: If this layout changes, ANCILLARY_SLOT_COUNT and the host-side encoding must change
+ * to match. */
 struct MetalAncillaries {
   device TextureParamsMetal *textures;
 

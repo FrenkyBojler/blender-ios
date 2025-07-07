@@ -19,7 +19,7 @@
 CCL_NAMESPACE_BEGIN
 
 /* Comment this out to test workaround for getting gpuAddress and gpuResourceID on macOS < 13.0. */
-#  define TIER2_BINDLESS
+#  define CYCLES_USE_TIER2D_BINDLESS
 
 string MetalInfo::get_device_name(id<MTLDevice> device)
 {
@@ -133,7 +133,7 @@ struct GPUAddressHelper {
       return;
     }
 
-#  ifdef TIER2_BINDLESS
+#  ifdef CYCLES_USE_TIER2D_BINDLESS
     if (@available(macos 13.0, *)) {
       /* No setup required - there's an API now! */
       return;
@@ -154,7 +154,7 @@ struct GPUAddressHelper {
 
   uint64_t gpuAddress(id<MTLBuffer> buffer)
   {
-#  ifdef TIER2_BINDLESS
+#  ifdef CYCLES_USE_TIER2D_BINDLESS
     if (@available(macos 13.0, *)) {
       return buffer.gpuAddress;
     }
@@ -165,7 +165,7 @@ struct GPUAddressHelper {
 
   uint64_t gpuResourceID(id<MTLTexture> texture)
   {
-#  ifdef TIER2_BINDLESS
+#  ifdef CYCLES_USE_TIER2D_BINDLESS
     if (@available(macos 13.0, *)) {
       MTLResourceID resourceID = texture.gpuResourceID;
       return (uint64_t &)resourceID;
@@ -177,7 +177,7 @@ struct GPUAddressHelper {
 
   uint64_t gpuResourceID(id<MTLAccelerationStructure> accel_struct)
   {
-#  ifdef TIER2_BINDLESS
+#  ifdef CYCLES_USE_TIER2D_BINDLESS
     if (@available(macos 13.0, *)) {
       MTLResourceID resourceID = accel_struct.gpuResourceID;
       return (uint64_t &)resourceID;
@@ -189,7 +189,7 @@ struct GPUAddressHelper {
 
   uint64_t gpuResourceID(id<MTLIntersectionFunctionTable> ift)
   {
-#  ifdef TIER2_BINDLESS
+#  ifdef CYCLES_USE_TIER2D_BINDLESS
     if (@available(macos 13.0, *)) {
       MTLResourceID resourceID = ift.gpuResourceID;
       return (uint64_t &)resourceID;
@@ -202,27 +202,27 @@ struct GPUAddressHelper {
 
 GPUAddressHelper g_gpu_address_helper;
 
-void gpu_address_helper_init(id<MTLDevice> device)
+void metal_gpu_address_helper_init(id<MTLDevice> device)
 {
   g_gpu_address_helper.init(device);
 }
 
-uint64_t gpuAddress(id<MTLBuffer> buffer)
+uint64_t metal_gpuAddress(id<MTLBuffer> buffer)
 {
   return g_gpu_address_helper.gpuAddress(buffer);
 }
 
-uint64_t gpuResourceID(id<MTLTexture> texture)
+uint64_t metal_gpuResourceID(id<MTLTexture> texture)
 {
   return g_gpu_address_helper.gpuResourceID(texture);
 }
 
-uint64_t gpuResourceID(id<MTLAccelerationStructure> accel_struct)
+uint64_t metal_gpuResourceID(id<MTLAccelerationStructure> accel_struct)
 {
   return g_gpu_address_helper.gpuResourceID(accel_struct);
 }
 
-uint64_t gpuResourceID(id<MTLIntersectionFunctionTable> ift)
+uint64_t metal_gpuResourceID(id<MTLIntersectionFunctionTable> ift)
 {
   return g_gpu_address_helper.gpuResourceID(ift);
 }
