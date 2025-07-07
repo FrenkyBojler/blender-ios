@@ -204,7 +204,8 @@ class VKPushConstants : VKResourceTracker<VKUniformBuffer> {
     return &fallback_uniform_descriptor_slot_.value();
   }
 
-  void set_fallback_uniform_descriptor_slot(DescriptorSlot slot) {
+  void set_fallback_uniform_descriptor_slot(DescriptorSlot slot)
+  {
     fallback_uniform_descriptor_slot_ = slot;
   }
 

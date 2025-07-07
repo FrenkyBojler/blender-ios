@@ -47,6 +47,11 @@ class VKUniformBuffer : public UniformBuf, NonCopyable {
     return buffer_.device_address_get();
   }
 
+  VKBufferGlobalDescriptorBindings &global_descriptor_bindings_get()
+  {
+    return buffer_.global_descriptor_bindings_get();
+  }
+
   size_t size_in_bytes() const
   {
     return size_in_bytes_;

@@ -13,6 +13,7 @@
 #include "vk_buffer.hh"
 #include "vk_common.hh"
 #include "vk_data_conversion.hh"
+#include <optional>
 
 namespace blender::gpu {
 
@@ -20,6 +21,8 @@ class VKVertexBuffer : public VertBuf {
   VKBuffer buffer_;
   /** When a vertex buffer is used as a UNIFORM_TEXEL_BUFFER the buffer requires a buffer view. */
   VkBufferView vk_buffer_view_ = VK_NULL_HANDLE;
+
+  std::optional<DescriptorSlot> global_texel_binding_ = std::nullopt;
 
   bool data_uploaded_ = false;
 
@@ -44,10 +47,25 @@ class VKVertexBuffer : public VertBuf {
     return buffer_.device_address_get();
   }
 
+  VKBufferGlobalDescriptorBindings &global_descriptor_bindings_get()
+  {
+    return buffer_.global_descriptor_bindings_get();
+  }
+
   VkBufferView vk_buffer_view_get() const
   {
     BLI_assert(vk_buffer_view_ != VK_NULL_HANDLE);
     return vk_buffer_view_;
+  }
+
+  std::optional<DescriptorSlot> global_texel_binding_get()
+  {
+    return global_texel_binding_;
+  }
+
+  void global_texel_binding_set(DescriptorSlot slot)
+  {
+    global_texel_binding_ = slot;
   }
 
   void ensure_updated();

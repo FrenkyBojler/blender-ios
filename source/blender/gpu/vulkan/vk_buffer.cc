@@ -8,15 +8,64 @@
 
 #include "vk_buffer.hh"
 #include "vk_backend.hh"
+#include "vk_bindless_table.hh"
 #include "vk_context.hh"
+#include <cstddef>
+#include <optional>
 #include <vulkan/vulkan_core.h>
 
 namespace blender::gpu {
+
+void VKBufferGlobalDescriptorBindings::add_global_storage_buffer_binding(
+    VkDescriptorBufferInfo &info, DescriptorSlot slot)
+{
+  global_storage_buffer_bindings.append({info, slot});
+}
+
+void VKBufferGlobalDescriptorBindings::add_global_uniform_buffer_binding(
+    VkDescriptorBufferInfo &info, DescriptorSlot slot)
+{
+  global_uniform_buffer_bindings.append({info, slot});
+}
+
+std::optional<DescriptorSlot> VKBufferGlobalDescriptorBindings::get_global_storage_buffer_binding(
+    VkDescriptorBufferInfo &info) const
+{
+  for (const auto &pair : global_storage_buffer_bindings) {
+    if (pair.first.offset == info.offset && pair.first.range == info.range) {
+      return pair.second;
+    }
+  }
+
+  return std::nullopt;
+}
+
+std::optional<DescriptorSlot> VKBufferGlobalDescriptorBindings::get_global_uniform_buffer_binding(
+    VkDescriptorBufferInfo &info) const
+{
+  for (const auto &pair : global_uniform_buffer_bindings) {
+    if (pair.first.offset == info.offset && pair.first.range == info.range) {
+      return pair.second;
+    }
+  }
+
+  return std::nullopt;
+}
 
 VKBuffer::~VKBuffer()
 {
   if (is_allocated()) {
     free();
+  }
+
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  for (auto pair : global_descriptor_bindings.global_storage_buffer_bindings) {
+    discard_pool.discard_global_descriptor_binding(
+        {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, pair.second});
+  }
+  for (auto pair : global_descriptor_bindings.global_uniform_buffer_bindings) {
+    discard_pool.discard_global_descriptor_binding(
+        {VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, pair.second});
   }
 }
 
@@ -221,7 +270,8 @@ bool VKBuffer::free()
     unmap();
   }
 
-  VKDiscardPool::discard_pool_get().discard_buffer(vk_buffer_, allocation_);
+  VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+  discard_pool.discard_buffer(vk_buffer_, allocation_);
 
   allocation_ = VK_NULL_HANDLE;
   vk_buffer_ = VK_NULL_HANDLE;
@@ -237,8 +287,12 @@ void VKBuffer::free_immediately(VKDevice &device)
     unmap();
   }
   device.resources.remove_buffer(vk_buffer_);
-  device.bindless_table.removeStorageBuffer(vk_buffer_);
-  device.bindless_table.removeUniform(vk_buffer_);
+  for (auto pair : global_descriptor_bindings.global_storage_buffer_bindings) {
+    device.bindless_table.free_binding({VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, pair.second});
+  }
+  for (auto pair : global_descriptor_bindings.global_uniform_buffer_bindings) {
+    device.bindless_table.free_binding({VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, pair.second});
+  }
   vmaDestroyBuffer(device.mem_allocator_get(), vk_buffer_, allocation_);
   allocation_ = VK_NULL_HANDLE;
   vk_buffer_ = VK_NULL_HANDLE;

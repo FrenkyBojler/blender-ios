@@ -204,7 +204,8 @@ ScreenTraceHitData raytrace_planar(RayTraceData rt_data,
 
     float4 ss_ray = ssray.origin + ssray.direction * time;
 
-    depth_sample = reverse_z::read(texture(_planar_depth_tx, float3(ss_ray.xy, planar.layer_id)).r);
+    depth_sample = reverse_z::read(
+        texture(_planar_depth_tx, float3(ss_ray.xy, planar.layer_id)).r);
 
     delta = depth_sample - ss_ray.z;
     /* Check if the ray is below the surface. */

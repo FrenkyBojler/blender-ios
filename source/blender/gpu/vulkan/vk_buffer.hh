@@ -13,10 +13,24 @@
 #include "BLI_utility_mixins.hh"
 #include "vk_bindless_table.hh"
 #include "vk_common.hh"
+#include <vulkan/vulkan_core.h>
 
 namespace blender::gpu {
 class VKContext;
 class VKDevice;
+
+struct VKBufferGlobalDescriptorBindings {
+  Vector<std::pair<VkDescriptorBufferInfo, DescriptorSlot>> global_storage_buffer_bindings;
+  Vector<std::pair<VkDescriptorBufferInfo, DescriptorSlot>> global_uniform_buffer_bindings;
+
+ public:
+  void add_global_storage_buffer_binding(VkDescriptorBufferInfo &info, DescriptorSlot slot);
+  void add_global_uniform_buffer_binding(VkDescriptorBufferInfo &info, DescriptorSlot slot);
+  std::optional<DescriptorSlot> get_global_storage_buffer_binding(
+      VkDescriptorBufferInfo &info) const;
+  std::optional<DescriptorSlot> get_global_uniform_buffer_binding(
+      VkDescriptorBufferInfo &info) const;
+};
 
 /**
  * Class for handing vulkan buffers (allocation/updating/binding).
@@ -35,6 +49,8 @@ class VKBuffer : public NonCopyable {
   void *mapped_memory_ = nullptr;
 
   VkDeviceAddress vk_device_address = 0;
+
+  VKBufferGlobalDescriptorBindings global_descriptor_bindings;
 
  public:
   VKBuffer() = default;
@@ -114,6 +130,11 @@ class VKBuffer : public NonCopyable {
   VkDeviceAddress device_address_get() const
   {
     return vk_device_address;
+  }
+
+  VKBufferGlobalDescriptorBindings &global_descriptor_bindings_get()
+  {
+    return global_descriptor_bindings;
   }
 
   /**

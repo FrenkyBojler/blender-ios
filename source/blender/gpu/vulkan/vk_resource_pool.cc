@@ -8,6 +8,7 @@
 
 #include "vk_resource_pool.hh"
 #include "vk_backend.hh"
+#include "vk_bindless_table.hh"
 #include "vk_context.hh"
 
 namespace blender::gpu {
@@ -44,6 +45,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   src_pool.framebuffers_.update_timeline(timeline);
   src_pool.render_passes_.update_timeline(timeline);
   src_pool.descriptor_pools_.update_timeline(timeline);
+  src_pool.global_descriptor_bindings_.update_timeline(timeline);
   buffer_views_.extend(std::move(src_pool.buffer_views_));
   buffers_.extend(std::move(src_pool.buffers_));
   image_views_.extend(std::move(src_pool.image_views_));
@@ -54,6 +56,7 @@ void VKDiscardPool::move_data(VKDiscardPool &src_pool, TimelineValue timeline)
   framebuffers_.extend(std::move(src_pool.framebuffers_));
   render_passes_.extend(std::move(src_pool.render_passes_));
   descriptor_pools_.extend(std::move(src_pool.descriptor_pools_));
+  global_descriptor_bindings_.extend(std::move(src_pool.global_descriptor_bindings_));
 }
 
 void VKDiscardPool::discard_image(VkImage vk_image, VmaAllocation vma_allocation)
@@ -114,13 +117,19 @@ void VKDiscardPool::discard_descriptor_pool(VkDescriptorPool vk_descriptor_pool)
   descriptor_pools_.append_timeline(timeline_, vk_descriptor_pool);
 }
 
+void VKDiscardPool::discard_global_descriptor_binding(VKGlobalDescriptorBinding descriptor_binding)
+{
+  std::scoped_lock mutex(mutex_);
+  global_descriptor_bindings_.append_timeline(timeline_, descriptor_binding);
+}
+
 void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
 {
   std::scoped_lock mutex(mutex_);
   TimelineValue current_timeline = force ? UINT64_MAX : device.submission_finished_timeline_get();
 
   image_views_.remove_old(current_timeline, [&](VkImageView vk_image_view) {
-    device.bindless_table.removeAllWithImageView(vk_image_view);
+    // device.bindless_table.removeAllWithImageView(vk_image_view);
     vkDestroyImageView(device.vk_handle(), vk_image_view, nullptr);
   });
 
@@ -129,14 +138,11 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
     vmaDestroyImage(device.mem_allocator_get(), image_allocation.first, image_allocation.second);
   });
   buffer_views_.remove_old(current_timeline, [&](VkBufferView vk_buffer_view) {
-    device.bindless_table.removeTexelBuffer(vk_buffer_view);
     vkDestroyBufferView(device.vk_handle(), vk_buffer_view, nullptr);
   });
 
   buffers_.remove_old(current_timeline, [&](std::pair<VkBuffer, VmaAllocation> buffer_allocation) {
     device.resources.remove_buffer(buffer_allocation.first);
-    device.bindless_table.removeStorageBuffer(buffer_allocation.first);
-    device.bindless_table.removeUniform(buffer_allocation.first);
     vmaDestroyBuffer(
         device.mem_allocator_get(), buffer_allocation.first, buffer_allocation.second);
   });
@@ -166,6 +172,11 @@ void VKDiscardPool::destroy_discarded_resources(VKDevice &device, bool force)
     vkResetDescriptorPool(device.vk_handle(), vk_descriptor_pool, 0);
     vkDestroyDescriptorPool(device.vk_handle(), vk_descriptor_pool, nullptr);
   });
+
+  global_descriptor_bindings_.remove_old(current_timeline,
+                                         [&](VKGlobalDescriptorBinding descriptor_binding) {
+                                           device.bindless_table.free_binding(descriptor_binding);
+                                         });
 }
 
 VKDiscardPool &VKDiscardPool::discard_pool_get()

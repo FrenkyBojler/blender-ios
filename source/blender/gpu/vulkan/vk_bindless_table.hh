@@ -43,6 +43,11 @@ namespace blender::gpu {
 
 using DescriptorSlot = uint32_t;
 
+struct VKGlobalDescriptorBinding {
+  VkDescriptorType descriptor_type;
+  DescriptorSlot descriptor_slot;
+};
+
 /**
  * Table mapping resources to descriptors in a bindless descriptor set.
  */
@@ -54,10 +59,8 @@ class VKBindlessTable : NonCopyable {
   VkDescriptorPool descriptor_pool_ = VK_NULL_HANDLE;
 
   Vector<DescriptorSlot> storage_buffer_free_slots_;
-  Map<VkBuffer, DescriptorSlot> bound_storage_buffers_;
 
   Vector<DescriptorSlot> uniform_buffer_free_slots_;
-  Map<VkBuffer, DescriptorSlot> bound_uniform_buffers_;
 
   Vector<DescriptorSlot> combined_image_sampler_free_slots_;
   Map<VkDescriptorImageInfo, DescriptorSlot> bound_combined_image_samplers_;
@@ -91,37 +94,20 @@ class VKBindlessTable : NonCopyable {
   void init();
   void free();
 
-  void debug_print() const;
-
   VkDescriptorSetLayout descriptor_set_layout = VK_NULL_HANDLE;
   VkDescriptorSet descriptor_set = VK_NULL_HANDLE;
 
-  DescriptorSlot addStorageBuffer(VkBuffer buffer_handle, VkDeviceSize buffer_size);
-  DescriptorSlot getSlotForBuffer(VkBuffer buffer_handle);
-  bool isStorageBufferBound(VkBuffer buffer_handle);
-  void removeStorageBuffer(VkBuffer buffer);
+  DescriptorSlot provision_storage_buffer();
 
-  DescriptorSlot addUniform(VkBuffer buffer_handle, VkDeviceSize buffer_size);
-  DescriptorSlot getSlotForUniform(VkBuffer buffer_handle);
-  bool isUniformBufferBound(VkBuffer buffer_handle);
-  void removeUniform(VkBuffer buffer);
+  DescriptorSlot provision_uniform_buffer();
 
-  DescriptorSlot addImage(VkDescriptorImageInfo info);
-  DescriptorSlot getSlotForImage(VkDescriptorImageInfo info);
-  bool isImageBound(VkDescriptorImageInfo info);
-  void removeAllWithImageView(VkImageView image_view);
-  void removeImage(VkDescriptorImageInfo info);
+  DescriptorSlot provision_combined_image_sampler();
 
-  DescriptorSlot addStorageImage(VkDescriptorImageInfo info);
-  DescriptorSlot getSlotForStorageImage(VkDescriptorImageInfo info);
-  bool isStorageImageBound(VkDescriptorImageInfo info);
-  void removeStorageImagesWithImageView(VkImageView image_view);
-  void removeStorageImage(VkDescriptorImageInfo info);
+  DescriptorSlot provision_storage_image();
 
-  DescriptorSlot addTexelBuffer(VkBufferView buffer_view);
-  DescriptorSlot getSlotForTexelBuffer(VkBufferView buffer_view);
-  bool isTexelBufferBound(VkBufferView buffer_view);
-  void removeTexelBuffer(VkBufferView buffer_view);
+  DescriptorSlot provision_texel_buffer();
+
+  void free_binding(VKGlobalDescriptorBinding descriptor_binding);
 };
 
 }  // namespace blender::gpu

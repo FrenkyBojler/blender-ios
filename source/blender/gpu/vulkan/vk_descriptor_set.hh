@@ -20,6 +20,7 @@
 #include "vk_common.hh"
 #include "vk_descriptor_set_layouts.hh"
 #include "vk_resource_tracker.hh"
+#include "vk_texture.hh"
 #include "vk_uniform_buffer.hh"
 #include <vulkan/vulkan_core.h>
 
@@ -130,13 +131,15 @@ class VKDescriptorSetUpdator {
                            VkDeviceAddress vk_device_address,
                            VkDeviceSize buffer_offset,
                            VkDeviceSize size_in_bytes,
-                           VKDescriptorSet::Location location) = 0;
+                           VKDescriptorSet::Location location,
+                           VKBufferGlobalDescriptorBindings *global_bindings) = 0;
   virtual void bind_image(VKDevice &device,
                           VkDescriptorType vk_descriptor_type,
                           VkSampler vk_sampler,
                           VkImageView vk_image_view,
                           VkImageLayout vk_image_layout,
-                          VKDescriptorSet::Location location) = 0;
+                          VKDescriptorSet::Location location,
+                          VKTextureGlobalDescriptorBindings *global_bindings) = 0;
   virtual void bind_push_constants(VKDevice &device,
                                    VKShader &shader,
                                    render_graph::VKResourceAccessInfo &access_info);
@@ -163,13 +166,15 @@ class VKDescriptorSetPoolUpdator : public VKDescriptorSetUpdator {
                    VkDeviceAddress vk_device_address,
                    VkDeviceSize buffer_offset,
                    VkDeviceSize size_in_bytes,
-                   VKDescriptorSet::Location location) override;
+                   VKDescriptorSet::Location location,
+                   VKBufferGlobalDescriptorBindings *global_bindings) override;
   void bind_image(VKDevice &device,
                   VkDescriptorType vk_descriptor_type,
                   VkSampler vk_sampler,
                   VkImageView vk_image_view,
                   VkImageLayout vk_image_layout,
-                  VKDescriptorSet::Location location) override;
+                  VKDescriptorSet::Location location,
+                  VKTextureGlobalDescriptorBindings *global_bindings) override;
 
   Vector<VkBufferView> vk_buffer_views_;
   Vector<VkDescriptorBufferInfo> vk_descriptor_buffer_infos_;
@@ -195,13 +200,15 @@ class VKBindlessDescriptorPoolUpdator : public VKDescriptorSetPoolUpdator {
                    VkDeviceAddress vk_device_address,
                    VkDeviceSize buffer_offset,
                    VkDeviceSize size_in_bytes,
-                   VKDescriptorSet::Location location) override;
+                   VKDescriptorSet::Location location,
+                   VKBufferGlobalDescriptorBindings *global_bindings) override;
   void bind_image(VKDevice &device,
                   VkDescriptorType vk_descriptor_type,
                   VkSampler vk_sampler,
                   VkImageView vk_image_view,
                   VkImageLayout vk_image_layout,
-                  VKDescriptorSet::Location location) override;
+                  VKDescriptorSet::Location location,
+                  VKTextureGlobalDescriptorBindings *global_bindings) override;
   virtual void bind_push_constants(VKDevice &device,
                                    VKShader &shader,
                                    render_graph::VKResourceAccessInfo &access_info) override;
@@ -244,13 +251,15 @@ class VKDescriptorBufferUpdator : public VKDescriptorSetUpdator {
                    VkDeviceAddress vk_device_address,
                    VkDeviceSize buffer_offset,
                    VkDeviceSize size_in_bytes,
-                   VKDescriptorSet::Location location) override;
+                   VKDescriptorSet::Location location,
+                   VKBufferGlobalDescriptorBindings *global_bindings) override;
   void bind_image(VKDevice &device,
                   VkDescriptorType vk_descriptor_type,
                   VkSampler vk_sampler,
                   VkImageView vk_image_view,
                   VkImageLayout vk_image_layout,
-                  VKDescriptorSet::Location location) override;
+                  VKDescriptorSet::Location location,
+                  VKTextureGlobalDescriptorBindings *global_bindings) override;
 
  private:
   inline uint8_t *get_descriptor_binding_ptr(uint32_t binding) const

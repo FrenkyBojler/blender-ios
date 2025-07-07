@@ -40,6 +40,11 @@ class VKIndexBuffer : public IndexBuf {
     return to_vk_index_type(index_type_);
   }
 
+  VKBufferGlobalDescriptorBindings &global_descriptor_bindings_get()
+  {
+    return buffer_.global_descriptor_bindings_get();
+  }
+
   void ensure_updated();
 
  private:

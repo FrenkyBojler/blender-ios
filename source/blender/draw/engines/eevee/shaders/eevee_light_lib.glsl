@@ -195,8 +195,12 @@ float light_sphere_disk_radius(float sphere_radius, float distance_to_sphere)
          inversesqrt(max(1e-8f, 1.0f - square(sphere_radius / distance_to_sphere)));
 }
 
-float light_ltc(
-    sampler2DArray _utility_tx, LightData light, float3 N, float3 V, LightVector lv, float4 ltc_mat)
+float light_ltc(sampler2DArray _utility_tx,
+                LightData light,
+                float3 N,
+                float3 V,
+                LightVector lv,
+                float4 ltc_mat)
 {
   if (is_sphere_light(light.type) && lv.dist < light_local_data_get(light).shape_radius) {
     /* Inside the sphere light, integrate over the hemisphere. */

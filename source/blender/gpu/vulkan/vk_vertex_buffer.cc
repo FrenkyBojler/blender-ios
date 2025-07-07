@@ -14,6 +14,7 @@
 #include "vk_staging_buffer.hh"
 #include "vk_state_manager.hh"
 #include "vk_vertex_buffer.hh"
+#include <vulkan/vulkan_core.h>
 
 #include "CLG_log.h"
 
@@ -135,6 +136,12 @@ void VKVertexBuffer::release_data()
 {
   if (vk_buffer_view_ != VK_NULL_HANDLE) {
     VKDiscardPool::discard_pool_get().discard_buffer_view(vk_buffer_view_);
+
+    if (global_texel_binding_.has_value()) {
+      VKDiscardPool::discard_pool_get().discard_global_descriptor_binding(
+          {VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER, global_texel_binding_.value()});
+    }
+
     vk_buffer_view_ = VK_NULL_HANDLE;
   }
 

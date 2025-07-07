@@ -30,6 +30,46 @@
 
 namespace blender::gpu {
 
+void VKTextureGlobalDescriptorBindings::add_storage_image_binding(VkDescriptorImageInfo &info,
+                                                                  DescriptorSlot slot)
+{
+  storage_image_bindings.append({info, slot});
+}
+
+void VKTextureGlobalDescriptorBindings::add_combined_image_sampler_binding(
+    VkDescriptorImageInfo &info, DescriptorSlot slot)
+{
+  combined_image_sampler_bindings.append({info, slot});
+}
+
+std::optional<DescriptorSlot> VKTextureGlobalDescriptorBindings::get_storage_image_binding(
+    VkDescriptorImageInfo &info) const
+{
+  for (const auto &pair : storage_image_bindings) {
+    if (pair.first.imageLayout == info.imageLayout && pair.first.imageView == info.imageView &&
+        pair.first.sampler == info.sampler)
+    {
+      return pair.second;
+    }
+  }
+
+  return std::nullopt;
+}
+
+std::optional<DescriptorSlot> VKTextureGlobalDescriptorBindings::
+    get_combined_image_sampler_binding(VkDescriptorImageInfo &info) const
+{
+  for (const auto &pair : combined_image_sampler_bindings) {
+    if (pair.first.imageLayout == info.imageLayout && pair.first.imageView == info.imageView &&
+        pair.first.sampler == info.sampler)
+    {
+      return pair.second;
+    }
+  }
+
+  return std::nullopt;
+}
+
 static VkImageAspectFlags to_vk_image_aspect_single_bit(const VkImageAspectFlags format,
                                                         bool stencil)
 {
@@ -45,7 +85,16 @@ static VkImageAspectFlags to_vk_image_aspect_single_bit(const VkImageAspectFlags
 VKTexture::~VKTexture()
 {
   if (vk_image_ != VK_NULL_HANDLE && allocation_ != VK_NULL_HANDLE) {
-    VKDiscardPool::discard_pool_get().discard_image(vk_image_, allocation_);
+    VKDiscardPool &discard_pool = VKDiscardPool::discard_pool_get();
+    discard_pool.discard_image(vk_image_, allocation_);
+    for (const auto &elem : global_descriptor_bindings_.storage_image_bindings) {
+      discard_pool.discard_global_descriptor_binding(
+          {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, elem.second});
+    }
+    for (const auto &elem : global_descriptor_bindings_.combined_image_sampler_bindings) {
+      discard_pool.discard_global_descriptor_binding(
+          {VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER, elem.second});
+    }
     vk_image_ = VK_NULL_HANDLE;
     allocation_ = VK_NULL_HANDLE;
   }

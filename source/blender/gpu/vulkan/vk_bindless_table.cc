@@ -7,6 +7,7 @@
  */
 
 #include "vk_bindless_table.hh"
+#include "BLI_assert.h"
 #include "BLI_utildefines.h"
 #include "vk_backend.hh"
 #include "vk_buffer.hh"
@@ -104,271 +105,68 @@ void VKBindlessTable::free()
   vkDestroyDescriptorSetLayout(device.vk_handle(), descriptor_set_layout, nullptr);
 }
 
-void VKBindlessTable::debug_print() const
-{
-  std::cout << "Global Bindless Table: \n";
-  std::cout << "\tStorage Buffers: \n";
-  for (auto elem : bound_storage_buffers_.items()) {
-    std::cout << "\t\tStorage Buffer: " << elem.key << ", Slot: " << elem.value << "\n";
-  }
-  std::cout << "\tStorage Images: \n";
-  for (auto elem : bound_storage_images_.items()) {
-    std::cout << "\t\tImage View: " << elem.key.imageView << ", Slot: " << elem.value << "\n";
-  }
-  std::cout << "\tCombined Image Samplers: \n";
-  for (auto elem : bound_combined_image_samplers_.items()) {
-    std::cout << "\t\tImage View: " << elem.key.imageView << ", Slot: " << elem.value << "\n";
-  }
-  std::cout << "\tUniform Buffers: \n";
-  for (auto elem : bound_uniform_buffers_.items()) {
-    std::cout << "\t\tUniform Buffer: " << elem.key << ", Slot: " << elem.value << "\n";
-  }
-  std::cout << "\tUniform Texel Buffers: \n";
-  for (auto elem : bound_uniform_texel_buffers_.items()) {
-    std::cout << "\t\tBuffer View: " << elem.key << ", Slot: " << elem.value << "\n";
-  }
-}
-
-DescriptorSlot VKBindlessTable::addStorageBuffer(VkBuffer buffer_handle, VkDeviceSize buffer_size)
+DescriptorSlot VKBindlessTable::provision_storage_buffer()
 {
   std::scoped_lock lock(mutex_);
-
-  if (bound_storage_buffers_.contains(buffer_handle)) {
-    return bound_storage_buffers_.lookup(buffer_handle);
-  }
-
-  BLI_assert(descriptor_set != VK_NULL_HANDLE);
 
   DescriptorSlot slot = storage_buffer_free_slots_.pop_last();
-
-  bound_storage_buffers_.add(buffer_handle, slot);
-
   return slot;
 }
 
-bool VKBindlessTable::isStorageBufferBound(VkBuffer buffer_handle)
-{
-  return bound_storage_buffers_.contains(buffer_handle);
-}
-
-DescriptorSlot VKBindlessTable::getSlotForBuffer(VkBuffer buffer_handle)
+DescriptorSlot VKBindlessTable::provision_uniform_buffer()
 {
   std::scoped_lock lock(mutex_);
-  BLI_assert(bound_storage_buffers_.contains(buffer_handle));
-
-  return bound_storage_buffers_.lookup(buffer_handle);
-}
-
-void VKBindlessTable::removeStorageBuffer(VkBuffer buffer)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (bound_storage_buffers_.contains(buffer)) {
-    DescriptorSlot slot = bound_storage_buffers_.pop(buffer);
-    storage_buffer_free_slots_.append(slot);
-  }
-}
-
-DescriptorSlot VKBindlessTable::addUniform(VkBuffer buffer_handle, VkDeviceSize buffer_size)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (bound_uniform_buffers_.contains(buffer_handle)) {
-    return bound_uniform_buffers_.lookup(buffer_handle);
-  }
-
-  BLI_assert(descriptor_set != VK_NULL_HANDLE);
 
   DescriptorSlot slot = uniform_buffer_free_slots_.pop_last();
-
-  bound_uniform_buffers_.add(buffer_handle, slot);
-
   return slot;
 }
 
-DescriptorSlot VKBindlessTable::getSlotForUniform(VkBuffer buffer_handle)
+DescriptorSlot VKBindlessTable::provision_combined_image_sampler()
 {
   std::scoped_lock lock(mutex_);
-  BLI_assert(bound_uniform_buffers_.contains(buffer_handle));
-
-  return bound_uniform_buffers_.lookup(buffer_handle);
-}
-
-bool VKBindlessTable::isUniformBufferBound(VkBuffer buffer_handle)
-{
-  return bound_uniform_buffers_.contains(buffer_handle);
-}
-
-void VKBindlessTable::removeUniform(VkBuffer buffer)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (bound_uniform_buffers_.contains(buffer)) {
-    DescriptorSlot slot = bound_uniform_buffers_.pop(buffer);
-    uniform_buffer_free_slots_.append(slot);
-  }
-}
-
-DescriptorSlot VKBindlessTable::addImage(VkDescriptorImageInfo info)
-{
-  std::scoped_lock lock(mutex_);
-
-  BLI_assert(descriptor_set != VK_NULL_HANDLE);
-
-  if (bound_combined_image_samplers_.contains(info)) {
-    return bound_combined_image_samplers_.lookup(info);
-  }
 
   DescriptorSlot slot = combined_image_sampler_free_slots_.pop_last();
-
-  bound_combined_image_samplers_.add(info, slot);
-  image_view_to_combined_image_sampler_keys_.lookup_or_add_default(info.imageView).append(info);
-
   return slot;
 }
 
-DescriptorSlot VKBindlessTable::getSlotForImage(VkDescriptorImageInfo info)
+DescriptorSlot VKBindlessTable::provision_storage_image()
 {
   std::scoped_lock lock(mutex_);
-  BLI_assert(bound_combined_image_samplers_.contains(info));
-
-  return bound_combined_image_samplers_.lookup(info);
-}
-
-bool VKBindlessTable::isImageBound(VkDescriptorImageInfo info)
-{
-  return bound_combined_image_samplers_.contains(info);
-}
-
-void VKBindlessTable::removeAllWithImageView(VkImageView image_view)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (image_view_to_combined_image_sampler_keys_.contains(image_view)) {
-    for (VkDescriptorImageInfo &info :
-         image_view_to_combined_image_sampler_keys_.lookup(image_view))
-    {
-      DescriptorSlot slot = bound_combined_image_samplers_.pop(info);
-      combined_image_sampler_free_slots_.append(slot);
-    }
-
-    image_view_to_combined_image_sampler_keys_.remove(image_view);
-  }
-
-  if (image_view_to_storage_image_keys_.contains(image_view)) {
-    for (VkDescriptorImageInfo &info : image_view_to_storage_image_keys_.lookup(image_view)) {
-      DescriptorSlot slot = bound_storage_images_.pop(info);
-      storage_image_free_slots_.append(slot);
-    }
-
-    image_view_to_storage_image_keys_.remove(image_view);
-  }
-}
-
-void VKBindlessTable::removeImage(VkDescriptorImageInfo info)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (bound_combined_image_samplers_.contains(info)) {
-    DescriptorSlot slot = bound_combined_image_samplers_.pop(info);
-    combined_image_sampler_free_slots_.append(slot);
-  }
-}
-
-DescriptorSlot VKBindlessTable::addStorageImage(VkDescriptorImageInfo info)
-{
-  std::scoped_lock lock(mutex_);
-
-  BLI_assert(descriptor_set != VK_NULL_HANDLE);
-
-  if (bound_storage_images_.contains(info)) {
-    return bound_storage_images_.lookup(info);
-  }
 
   DescriptorSlot slot = storage_image_free_slots_.pop_last();
-
-  bound_storage_images_.add(info, slot);
-  image_view_to_storage_image_keys_.lookup_or_add_default(info.imageView).append(info);
-
   return slot;
 }
 
-DescriptorSlot VKBindlessTable::getSlotForStorageImage(VkDescriptorImageInfo info)
+DescriptorSlot VKBindlessTable::provision_texel_buffer()
 {
   std::scoped_lock lock(mutex_);
-  BLI_assert(bound_storage_images_.contains(info));
-
-  return bound_storage_images_.lookup(info);
-}
-
-bool VKBindlessTable::isStorageImageBound(VkDescriptorImageInfo info)
-{
-  return bound_storage_images_.contains(info);
-}
-
-void VKBindlessTable::removeStorageImagesWithImageView(VkImageView image_view)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (!image_view_to_storage_image_keys_.contains(image_view)) {
-    return;
-  }
-
-  for (VkDescriptorImageInfo info : image_view_to_storage_image_keys_.lookup(image_view)) {
-    DescriptorSlot slot = bound_storage_images_.pop(info);
-    storage_image_free_slots_.append(slot);
-  }
-
-  image_view_to_storage_image_keys_.remove(image_view);
-}
-
-void VKBindlessTable::removeStorageImage(VkDescriptorImageInfo info)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (bound_storage_images_.contains(info)) {
-    DescriptorSlot slot = bound_storage_images_.pop(info);
-    storage_image_free_slots_.append(slot);
-  }
-}
-
-DescriptorSlot VKBindlessTable::addTexelBuffer(VkBufferView buffer_view)
-{
-  std::scoped_lock lock(mutex_);
-
-  if (bound_uniform_texel_buffers_.contains(buffer_view)) {
-    return bound_uniform_texel_buffers_.lookup(buffer_view);
-  }
-
-  BLI_assert(descriptor_set != VK_NULL_HANDLE);
 
   DescriptorSlot slot = uniform_texel_buffer_free_slots_.pop_last();
-
-  bound_uniform_texel_buffers_.add(buffer_view, slot);
-
   return slot;
 }
 
-DescriptorSlot VKBindlessTable::getSlotForTexelBuffer(VkBufferView buffer_view)
-{
-  std::scoped_lock lock(mutex_);
-  BLI_assert(bound_uniform_texel_buffers_.contains(buffer_view));
-
-  return bound_uniform_texel_buffers_.lookup(buffer_view);
-}
-
-bool VKBindlessTable::isTexelBufferBound(VkBufferView view)
-{
-  return bound_uniform_texel_buffers_.contains(view);
-}
-
-void VKBindlessTable::removeTexelBuffer(VkBufferView buffer_view)
+void VKBindlessTable::free_binding(VKGlobalDescriptorBinding descriptor_binding)
 {
   std::scoped_lock lock(mutex_);
 
-  if (bound_uniform_texel_buffers_.contains(buffer_view)) {
-    DescriptorSlot slot = bound_uniform_texel_buffers_.pop(buffer_view);
-    uniform_texel_buffer_free_slots_.append(slot);
+  switch (descriptor_binding.descriptor_type) {
+    case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER:
+      uniform_buffer_free_slots_.append(descriptor_binding.descriptor_slot);
+      break;
+    case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER:
+      storage_buffer_free_slots_.append(descriptor_binding.descriptor_slot);
+      break;
+    case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER:
+      combined_image_sampler_free_slots_.append(descriptor_binding.descriptor_slot);
+      break;
+    case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE:
+      storage_image_free_slots_.append(descriptor_binding.descriptor_slot);
+      break;
+    case VK_DESCRIPTOR_TYPE_UNIFORM_TEXEL_BUFFER:
+      uniform_texel_buffer_free_slots_.append(descriptor_binding.descriptor_slot);
+      break;
+    default:
+      BLI_assert_unreachable();
   }
 }
 

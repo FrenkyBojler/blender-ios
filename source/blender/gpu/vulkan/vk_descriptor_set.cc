@@ -10,6 +10,7 @@
 #include "BLI_assert.h"
 #include "gpu_shader_interface.hh"
 #include "vk_bindless_table.hh"
+#include "vk_buffer.hh"
 #include "vk_device.hh"
 #include "vk_index_buffer.hh"
 #include "vk_shader.hh"
@@ -89,7 +90,8 @@ void VKDescriptorSetUpdator::bind_image_resource(VKDevice &device,
       VK_NULL_HANDLE,
       texture.image_view_get(resource_binding.arrayed, VKImageViewFlags::NO_SWIZZLING).vk_handle(),
       VK_IMAGE_LAYOUT_GENERAL,
-      resource_binding.location);
+      resource_binding.location,
+      &texture.global_descriptor_bindings_get());
   /* Update access info. */
   uint32_t layer_base = 0;
   uint32_t layer_count = VK_REMAINING_ARRAY_LAYERS;
@@ -138,7 +140,8 @@ void VKDescriptorSetUpdator::bind_texture_resource(VKDevice &device,
                    texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::DEFAULT)
                        .vk_handle(),
                    VK_IMAGE_LAYOUT_GENERAL,
-                   resource_binding.location);
+                   resource_binding.location,
+                   &texture->global_descriptor_bindings_get());
         access_info.images.append({texture->vk_image_handle(),
                                    resource_binding.access_mask,
                                    to_vk_image_aspect_flag_bits(texture->device_format_get()),
@@ -171,7 +174,8 @@ void VKDescriptorSetUpdator::bind_input_attachment_resource(
                texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::NO_SWIZZLING)
                    .vk_handle(),
                VK_IMAGE_LAYOUT_RENDERING_LOCAL_READ_KHR,
-               resource_binding.location);
+               resource_binding.location,
+               &texture->global_descriptor_bindings_get());
     VkImage vk_image = texture->vk_image_handle();
     if (vk_image != VK_NULL_HANDLE) {
       access_info.images.append({texture->vk_image_handle(),
@@ -195,7 +199,8 @@ void VKDescriptorSetUpdator::bind_input_attachment_resource(
           sampler.vk_handle(),
           texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::DEFAULT).vk_handle(),
           VK_IMAGE_LAYOUT_GENERAL,
-          resource_binding.location);
+          resource_binding.location,
+          &texture->global_descriptor_bindings_get());
       VkImage vk_image = texture->vk_image_handle();
       if (vk_image != VK_NULL_HANDLE) {
         access_info.images.append({vk_image,
@@ -213,7 +218,8 @@ void VKDescriptorSetUpdator::bind_input_attachment_resource(
                  texture->image_view_get(resource_binding.arrayed, VKImageViewFlags::NO_SWIZZLING)
                      .vk_handle(),
                  VK_IMAGE_LAYOUT_GENERAL,
-                 resource_binding.location);
+                 resource_binding.location,
+                 &texture->global_descriptor_bindings_get());
       VkImage vk_image = texture->vk_image_handle();
       if (vk_image != VK_NULL_HANDLE) {
         access_info.images.append({vk_image,
@@ -237,6 +243,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
   VkBuffer vk_buffer = VK_NULL_HANDLE;
   VkDeviceSize vk_device_size = 0;
   VkDeviceAddress vk_device_address = 0;
+  VKBufferGlobalDescriptorBindings *global_bindings = nullptr;
   switch (elem.resource_type) {
     case BindSpaceStorageBuffers::Type::IndexBuffer: {
       VKIndexBuffer *index_buffer = static_cast<VKIndexBuffer *>(elem.resource);
@@ -244,6 +251,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       vk_buffer = index_buffer->vk_handle();
       vk_device_size = index_buffer->size_get();
       vk_device_address = index_buffer->device_address_get();
+      global_bindings = &index_buffer->global_descriptor_bindings_get();
       break;
     }
     case BindSpaceStorageBuffers::Type::VertexBuffer: {
@@ -252,6 +260,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       vk_buffer = vertex_buffer.vk_handle();
       vk_device_size = vertex_buffer.size_used_get();
       vk_device_address = vertex_buffer.device_address_get();
+      global_bindings = &vertex_buffer.global_descriptor_bindings_get();
       break;
     }
     case BindSpaceStorageBuffers::Type::UniformBuffer: {
@@ -260,6 +269,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       vk_buffer = uniform_buffer->vk_handle();
       vk_device_size = uniform_buffer->size_in_bytes();
       vk_device_address = uniform_buffer->device_address_get();
+      global_bindings = &uniform_buffer->global_descriptor_bindings_get();
       break;
     }
     case BindSpaceStorageBuffers::Type::StorageBuffer: {
@@ -268,6 +278,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       vk_buffer = storage_buffer->vk_handle();
       vk_device_size = storage_buffer->size_in_bytes();
       vk_device_address = storage_buffer->device_address_get();
+      global_bindings = &storage_buffer->global_descriptor_bindings_get();
       break;
     }
     case BindSpaceStorageBuffers::Type::Buffer: {
@@ -275,6 +286,7 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
       vk_buffer = buffer->vk_handle();
       vk_device_size = buffer->size_in_bytes();
       vk_device_address = buffer->device_address_get();
+      global_bindings = &buffer->global_descriptor_bindings_get();
       break;
     }
     case BindSpaceStorageBuffers::Type::Unused: {
@@ -289,7 +301,8 @@ void VKDescriptorSetUpdator::bind_storage_buffer_resource(
               vk_device_address,
               elem.offset,
               vk_device_size - elem.offset,
-              resource_binding.location);
+              resource_binding.location,
+              global_bindings);
   if (vk_buffer != VK_NULL_HANDLE) {
     access_info.buffers.append({vk_buffer, resource_binding.access_mask});
   }
@@ -309,7 +322,8 @@ void VKDescriptorSetUpdator::bind_uniform_buffer_resource(
               uniform_buffer.device_address_get(),
               0,
               uniform_buffer.size_in_bytes(),
-              resource_binding.location);
+              resource_binding.location,
+              &uniform_buffer.global_descriptor_bindings_get());
   access_info.buffers.append({uniform_buffer.vk_handle(), resource_binding.access_mask});
 }
 
@@ -324,14 +338,15 @@ void VKDescriptorSetUpdator::bind_push_constants(VKDevice &device,
     return;
   }
   push_constants.update_uniform_buffer();
-  const VKUniformBuffer &uniform_buffer = *push_constants.uniform_buffer_get().get();
+  VKUniformBuffer &uniform_buffer = *push_constants.uniform_buffer_get();
   bind_buffer(device,
               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
               uniform_buffer.vk_handle(),
               uniform_buffer.device_address_get(),
               0,
               uniform_buffer.size_in_bytes(),
-              push_constants.layout_get().descriptor_set_location_get());
+              push_constants.layout_get().descriptor_set_location_get(),
+              &uniform_buffer.global_descriptor_bindings_get());
   access_info.buffers.append({uniform_buffer.vk_handle(), VK_ACCESS_UNIFORM_READ_BIT});
 }
 
@@ -395,13 +410,15 @@ void VKDescriptorSetPoolUpdator::allocate_new_descriptor_set(
   r_pipeline_data.vk_descriptor_set = vk_descriptor_set;
 }
 
-void VKDescriptorSetPoolUpdator::bind_buffer(VKDevice & /*device*/,
-                                             VkDescriptorType vk_descriptor_type,
-                                             VkBuffer vk_buffer,
-                                             VkDeviceAddress /*vk_device_address*/,
-                                             VkDeviceSize buffer_offset,
-                                             VkDeviceSize size_in_bytes,
-                                             VKDescriptorSet::Location location)
+void VKDescriptorSetPoolUpdator::bind_buffer(
+    VKDevice & /*device*/,
+    VkDescriptorType vk_descriptor_type,
+    VkBuffer vk_buffer,
+    VkDeviceAddress /*vk_device_address*/,
+    VkDeviceSize buffer_offset,
+    VkDeviceSize size_in_bytes,
+    VKDescriptorSet::Location location,
+    VKBufferGlobalDescriptorBindings * /*global_bindings*/)
 {
   vk_descriptor_buffer_infos_.append({vk_buffer, buffer_offset, size_in_bytes});
   vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -434,12 +451,14 @@ void VKDescriptorSetPoolUpdator::bind_texel_buffer(VKDevice & /*device*/,
                                     nullptr});
 }
 
-void VKDescriptorSetPoolUpdator::bind_image(VKDevice & /*device*/,
-                                            VkDescriptorType vk_descriptor_type,
-                                            VkSampler vk_sampler,
-                                            VkImageView vk_image_view,
-                                            VkImageLayout vk_image_layout,
-                                            VKDescriptorSet::Location location)
+void VKDescriptorSetPoolUpdator::bind_image(
+    VKDevice & /*device*/,
+    VkDescriptorType vk_descriptor_type,
+    VkSampler vk_sampler,
+    VkImageView vk_image_view,
+    VkImageLayout vk_image_layout,
+    VKDescriptorSet::Location location,
+    VKTextureGlobalDescriptorBindings * /*global_bindings*/)
 {
   vk_descriptor_image_infos_.append({vk_sampler, vk_image_view, vk_image_layout});
   vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
@@ -568,22 +587,29 @@ void VKBindlessDescriptorPoolUpdator::allocate_new_descriptor_set(
   bindings_table.resize(shader.interface_get().bindings_table_size_get());
 }
 
-void VKBindlessDescriptorPoolUpdator::bind_buffer(VKDevice &device,
-                                                  VkDescriptorType vk_descriptor_type,
-                                                  VkBuffer vk_buffer,
-                                                  VkDeviceAddress /*vk_device_address*/,
-                                                  VkDeviceSize buffer_offset,
-                                                  VkDeviceSize size_in_bytes,
-                                                  VKDescriptorSet::Location location)
+void VKBindlessDescriptorPoolUpdator::bind_buffer(
+    VKDevice &device,
+    VkDescriptorType vk_descriptor_type,
+    VkBuffer vk_buffer,
+    VkDeviceAddress /*vk_device_address*/,
+    VkDeviceSize buffer_offset,
+    VkDeviceSize size_in_bytes,
+    VKDescriptorSet::Location location,
+    VKBufferGlobalDescriptorBindings *global_bindings)
 {
+  VkDescriptorBufferInfo info = {vk_buffer, buffer_offset, size_in_bytes};
   switch (vk_descriptor_type) {
     case VK_DESCRIPTOR_TYPE_STORAGE_BUFFER: {
-      if (device.bindless_table.isStorageBufferBound(vk_buffer)) {
-        bindings_table[location] = device.bindless_table.getSlotForBuffer(vk_buffer);
+      std::optional<DescriptorSlot> maybe_descriptor_slot =
+          global_bindings->get_global_storage_buffer_binding(info);
+
+      if (maybe_descriptor_slot.has_value()) {
+        bindings_table[location] = maybe_descriptor_slot.value();
         return;
       }
 
-      bindings_table[location] = device.bindless_table.addStorageBuffer(vk_buffer, size_in_bytes);
+      bindings_table[location] = device.bindless_table.provision_storage_buffer();
+      global_bindings->add_global_storage_buffer_binding(info, bindings_table[location]);
       vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                         nullptr,
                                         device.bindless_table.descriptor_set,
@@ -597,12 +623,16 @@ void VKBindlessDescriptorPoolUpdator::bind_buffer(VKDevice &device,
       break;
     }
     case VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER: {
-      if (device.bindless_table.isUniformBufferBound(vk_buffer)) {
-        bindings_table[location] = device.bindless_table.getSlotForUniform(vk_buffer);
+      std::optional<DescriptorSlot> maybe_descriptor_slot =
+          global_bindings->get_global_uniform_buffer_binding(info);
+
+      if (maybe_descriptor_slot.has_value()) {
+        bindings_table[location] = maybe_descriptor_slot.value();
         return;
       }
 
-      bindings_table[location] = device.bindless_table.addUniform(vk_buffer, size_in_bytes);
+      bindings_table[location] = device.bindless_table.provision_uniform_buffer();
+      global_bindings->add_global_uniform_buffer_binding(info, bindings_table[location]);
       vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                         nullptr,
                                         device.bindless_table.descriptor_set,
@@ -621,26 +651,32 @@ void VKBindlessDescriptorPoolUpdator::bind_buffer(VKDevice &device,
       return;
   }
 
-  vk_descriptor_buffer_infos_.append({vk_buffer, buffer_offset, size_in_bytes});
+  vk_descriptor_buffer_infos_.append(info);
 }
 
-void VKBindlessDescriptorPoolUpdator::bind_image(VKDevice &device,
-                                                 VkDescriptorType vk_descriptor_type,
-                                                 VkSampler vk_sampler,
-                                                 VkImageView vk_image_view,
-                                                 VkImageLayout vk_image_layout,
-                                                 VKDescriptorSet::Location location)
+void VKBindlessDescriptorPoolUpdator::bind_image(
+    VKDevice &device,
+    VkDescriptorType vk_descriptor_type,
+    VkSampler vk_sampler,
+    VkImageView vk_image_view,
+    VkImageLayout vk_image_layout,
+    VKDescriptorSet::Location location,
+    VKTextureGlobalDescriptorBindings *global_bindings)
 {
   VkDescriptorImageInfo info = {vk_sampler, vk_image_view, vk_image_layout};
 
   switch (vk_descriptor_type) {
     case VK_DESCRIPTOR_TYPE_COMBINED_IMAGE_SAMPLER: {
-      if (device.bindless_table.isImageBound(info)) {
-        bindings_table[location] = device.bindless_table.getSlotForImage(info);
+      std::optional<DescriptorSlot> maybe_slot =
+          global_bindings->get_combined_image_sampler_binding(info);
+
+      if (maybe_slot.has_value()) {
+        bindings_table[location] = maybe_slot.value();
         return;
       }
 
-      bindings_table[location] = device.bindless_table.addImage(info);
+      bindings_table[location] = device.bindless_table.provision_combined_image_sampler();
+      global_bindings->add_combined_image_sampler_binding(info, bindings_table[location]);
       vk_write_descriptor_sets_.append(
           {VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
            nullptr,
@@ -655,12 +691,14 @@ void VKBindlessDescriptorPoolUpdator::bind_image(VKDevice &device,
       break;
     }
     case VK_DESCRIPTOR_TYPE_STORAGE_IMAGE: {
-      if (device.bindless_table.isStorageImageBound(info)) {
-        bindings_table[location] = device.bindless_table.getSlotForStorageImage(info);
+      std::optional<DescriptorSlot> maybe_slot = global_bindings->get_storage_image_binding(info);
+      if (maybe_slot.has_value()) {
+        bindings_table[location] = maybe_slot.value();
         return;
       }
 
-      bindings_table[location] = device.bindless_table.addStorageImage(info);
+      bindings_table[location] = device.bindless_table.provision_storage_image();
+      global_bindings->add_storage_image_binding(info, bindings_table[location]);
       vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                         nullptr,
                                         device.bindless_table.descriptor_set,
@@ -704,12 +742,14 @@ void VKBindlessDescriptorPoolUpdator::bind_texel_buffer(VKDevice &device,
   vertex_buffer.ensure_buffer_view();
   VkBufferView view = vertex_buffer.vk_buffer_view_get();
 
-  if (device.bindless_table.isTexelBufferBound(view)) {
-    bindings_table[location] = device.bindless_table.getSlotForTexelBuffer(view);
+  std::optional<DescriptorSlot> maybe_slot = vertex_buffer.global_texel_binding_get();
+  if (maybe_slot.has_value()) {
+    bindings_table[location] = maybe_slot.value();
     return;
   }
 
-  bindings_table[location] = device.bindless_table.addTexelBuffer(view);
+  bindings_table[location] = device.bindless_table.provision_texel_buffer();
+  vertex_buffer.global_texel_binding_set(bindings_table[location]);
   vk_write_descriptor_sets_.append({VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET,
                                     nullptr,
                                     device.bindless_table.descriptor_set,
@@ -744,7 +784,7 @@ void VKBindlessDescriptorPoolUpdator::bind_push_constants(
   }
 
   push_constants.update_uniform_buffer();
-  const VKUniformBuffer &uniform_buffer = *push_constants.uniform_buffer_get();
+  VKUniformBuffer &uniform_buffer = *push_constants.uniform_buffer_get();
 
   bind_buffer(device,
               VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER,
@@ -752,10 +792,15 @@ void VKBindlessDescriptorPoolUpdator::bind_push_constants(
               uniform_buffer.device_address_get(),
               0,
               uniform_buffer.size_in_bytes(),
-              push_constants.layout_get().descriptor_set_location_get());
-  DescriptorSlot slot = device.bindless_table.getSlotForUniform(uniform_buffer.vk_handle());
-  push_constants.set_fallback_uniform_descriptor_slot(slot);
+              push_constants.layout_get().descriptor_set_location_get(),
+              &uniform_buffer.global_descriptor_bindings_get());
 
+  VkDescriptorBufferInfo info = {uniform_buffer.vk_handle(), 0, uniform_buffer.size_in_bytes()};
+  VKBufferGlobalDescriptorBindings &bindings = uniform_buffer.global_descriptor_bindings_get();
+  std::optional<DescriptorSlot> maybe_slot = bindings.get_global_uniform_buffer_binding(info);
+  BLI_assert(maybe_slot.has_value());
+
+  push_constants.set_fallback_uniform_descriptor_slot(maybe_slot.value());
   access_info.buffers.append({uniform_buffer.vk_handle(), VK_ACCESS_UNIFORM_READ_BIT});
 }
 
@@ -814,7 +859,8 @@ void VKDescriptorBufferUpdator::bind_buffer(VKDevice &device,
                                             VkDeviceAddress vk_device_address,
                                             VkDeviceSize buffer_offset,
                                             VkDeviceSize size_in_bytes,
-                                            VKDescriptorSet::Location location)
+                                            VKDescriptorSet::Location location,
+                                            VKBufferGlobalDescriptorBindings * /*global_bindings*/)
 {
   BLI_assert(vk_device_address != 0);
   const VkPhysicalDeviceDescriptorBufferPropertiesEXT &vk_descriptor_buffer_properties =
@@ -879,7 +925,8 @@ void VKDescriptorBufferUpdator::bind_image(VKDevice &device,
                                            VkSampler vk_sampler,
                                            VkImageView vk_image_view,
                                            VkImageLayout vk_image_layout,
-                                           VKDescriptorSet::Location location)
+                                           VKDescriptorSet::Location location,
+                                           VKTextureGlobalDescriptorBindings * /*global_bindings*/)
 {
   const VkPhysicalDeviceDescriptorBufferPropertiesEXT &vk_descriptor_buffer_properties =
       device.physical_device_descriptor_buffer_properties_get();

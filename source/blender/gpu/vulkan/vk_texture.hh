@@ -10,7 +10,7 @@
 
 #include "gpu_texture_private.hh"
 
-#include "vk_context.hh"
+#include "vk_bindless_table.hh"
 #include "vk_image_view.hh"
 #include "vk_memory.hh"
 
@@ -27,6 +27,18 @@ enum class VKImageViewFlags {
   NO_SWIZZLING = 1 << 0,
 };
 ENUM_OPERATORS(VKImageViewFlags, VKImageViewFlags::NO_SWIZZLING)
+
+struct VKTextureGlobalDescriptorBindings {
+  Vector<std::pair<VkDescriptorImageInfo, DescriptorSlot>> storage_image_bindings;
+  Vector<std::pair<VkDescriptorImageInfo, DescriptorSlot>> combined_image_sampler_bindings;
+
+ public:
+  void add_storage_image_binding(VkDescriptorImageInfo &info, DescriptorSlot slot);
+  void add_combined_image_sampler_binding(VkDescriptorImageInfo &info, DescriptorSlot slot);
+  std::optional<DescriptorSlot> get_storage_image_binding(VkDescriptorImageInfo &info) const;
+  std::optional<DescriptorSlot> get_combined_image_sampler_binding(
+      VkDescriptorImageInfo &info) const;
+};
 
 class VKTexture : public Texture {
   friend class VKDescriptorSetUpdator;
@@ -71,6 +83,8 @@ class VKTexture : public Texture {
                                       false,
                                       false,
                                       VKImageViewArrayed::DONT_CARE};
+
+  VKTextureGlobalDescriptorBindings global_descriptor_bindings_;
 
  public:
   VKTexture(const char *name) : Texture(name) {}
@@ -128,6 +142,11 @@ class VKTexture : public Texture {
   eGPUTextureFormat device_format_get() const
   {
     return device_format_;
+  }
+
+  VKTextureGlobalDescriptorBindings &global_descriptor_bindings_get()
+  {
+    return global_descriptor_bindings_;
   }
 
   /**
