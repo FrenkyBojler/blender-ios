@@ -149,6 +149,7 @@ template<typename T> inline T sqrt(const T &a)
  * If the input is zero the output is NaN. */
 template<typename T> inline T rcp(const T &a)
 {
+  static_assert(std::is_floating_point_v<T>, "T must be floating point type.");
   return T(1) / a;
 }
 
@@ -156,6 +157,7 @@ template<typename T> inline T rcp(const T &a)
  * If the input is zero the output is zero. */
 template<typename T> inline T safe_rcp(const T &a)
 {
+  static_assert(std::is_floating_point_v<T>, "T must be floating point type.");
   return a ? T(1) / a : T(0);
 }
 
