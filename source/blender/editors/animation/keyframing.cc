@@ -607,14 +607,14 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
   int num_channels;
   const bool confirm = op->flag & OP_IS_INVOKE;
 
-  /* try to delete keyframes for the channels specified by KeyingSet */
+  /* Try to delete keyframes for the channels specified by KeyingSet. */
   num_channels = blender::animrig::apply_keyingset(
       C, nullptr, ks, blender::animrig::ModifyKeyMode::DELETE_KEY, cfra);
   if (G.debug & G_DEBUG) {
     printf("KeyingSet '%s' - Successfully removed %d Keyframes\n", ks->name, num_channels);
   }
 
-  /* report failure or do updates? */
+  /* Report failure or do updates? */
   if (num_channels < 0) {
     BKE_report(op->reports, RPT_ERROR, "No suitable context info for active keying set");
     return OPERATOR_CANCELLED;
@@ -623,13 +623,13 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
   if (num_channels > 0) {
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
 
-    /* VSE notifier */
+    /* VSE notifiers. */
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
   }
 
   if (confirm) {
-    /* if called by invoke (from the UI), make a note that we've removed keyframes */
+    /* if called by invoke (from the UI), make a note that we've removed keyframes. */
     if (num_channels > 0) {
       BKE_reportf(op->reports,
                   RPT_INFO,
@@ -895,7 +895,7 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
 static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
 {
   ReportList *reports = nullptr;
-  /* don't touch protected F-Curves */
+  /* Don't touch protected F-Curves. */
   if (BKE_fcurve_is_protected(fcu)) {
     BKE_reportf(reports,
                 RPT_WARNING,
@@ -999,7 +999,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   invalidate_strip_caches(selection, scene);
 
   if (confirm) {
-    /* if called by invoke (from the UI), make a note that we've removed keyframes */
+    /* If called by invoke (from the UI), make a note that we've removed keyframes. */
     if (!(modified_strips.size() > 0)) {
       BKE_reportf(op->reports,
                   RPT_ERROR,
