@@ -75,9 +75,13 @@ class VideoOutputReport(render_report.Report):
         python_expr = (
 f"""
 import bpy
-ed=bpy.context.scene.sequence_editor_create()
+scene = bpy.context.scene
+scene.render.resolution_x = 1920
+scene.render.resolution_y = 1080
+scene.render.resolution_percentage = 25
+ed = scene.sequence_editor_create()
 strip = ed.strips.new_movie(name='input', filepath='{video_file}', channel=1, frame_start=1)
-strip.colorspace_settings.name='Non-Color'
+strip.colorspace_settings.name = 'Non-Color'
 """)
 
         command = (
