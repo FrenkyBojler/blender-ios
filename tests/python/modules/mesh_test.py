@@ -433,14 +433,14 @@ class MeshTest(ABC):
         elif evaluated_object.type == 'MESH':
             unit_test_compare_args = {"mesh": evaluated_test_data}
             report_name = "Mesh"
-            validate_func = lambda: evaluated_test_data.validate(verbose=True)
+            def validate_func(): return evaluated_test_data.validate(verbose=True)
         elif evaluated_object.type == 'LATTICE':
             unit_test_compare_args = {"lattice": evaluated_test_data}
             report_name = "Lattice"
             validate_func = None
         else:
             raise Exception("This object type is not yet supported!")
-        
+
         if threshold:
             result_data = expected_data.unit_test_compare(
                 threshold=threshold, **unit_test_compare_args)
