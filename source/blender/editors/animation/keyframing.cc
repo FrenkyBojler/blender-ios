@@ -12,8 +12,8 @@
 
 #include "MEM_guardedalloc.h"
 
-#include "BLI_string.h"
 #include "BLI_listbase.h"
+#include "BLI_string.h"
 
 #include "BLT_translation.hh"
 
@@ -68,8 +68,8 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
-#include "RNA_prototypes.hh"
 #include "RNA_path.hh"
+#include "RNA_prototypes.hh"
 
 #include "anim_intern.hh"
 
@@ -819,16 +819,17 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
-static void get_selected_strips_rna_paths(
-    blender::Vector<PointerRNA> &selection,
-    blender::Vector<std::string> &r_selected_strips_rna_paths)
+static blender::Vector<std::string> get_selected_strips_rna_paths(
+    blender::Vector<PointerRNA> &selection)
 {
+  blender::Vector<std::string> selected_strips_rna_paths;
   for (PointerRNA &id_ptr : selection) {
     if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
       std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
-      r_selected_strips_rna_paths.append(*rna_path);
+      selected_strips_rna_paths.append(*rna_path);
     }
   }
+  return selected_strips_rna_paths;
 }
 
 static void invalidate_strip_caches(blender::Vector<PointerRNA> selection, Scene *scene)
@@ -933,7 +934,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   blender::Vector<PointerRNA> selection;
   blender::Vector<std::string> selected_strips_rna_paths;
   get_selection(C, &selection);
-  get_selected_strips_rna_paths(selection, selected_strips_rna_paths);
+  selected_strips_rna_paths = get_selected_strips_rna_paths(selection);
 
   if (selected_strips_rna_paths.is_empty()) {
     BKE_reportf(op->reports, RPT_WARNING, "No strips selected");
