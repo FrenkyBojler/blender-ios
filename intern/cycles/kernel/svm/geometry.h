@@ -63,9 +63,12 @@ ccl_device_noinline void svm_node_geometry_bump_dx(KernelGlobals kg,
   float3 data;
 
   switch (type) {
-    case NODE_GEOM_P:
-      data = svm_node_bump_P_dx(sd, bump_filter_width);
+    case NODE_GEOM_P: {
+      const float3 dPdx = differential_from_compact(sd->Ng, sd->dP).dx * bump_filter_width;
+      /* Offset Position by the projection of dPdx onto the plane orthogonal to Normal. */
+      data = sd->P + dPdx - dot(dPdx, sd->N) * sd->N;
       break;
+    }
     case NODE_GEOM_uv: {
       const float u_x = sd->u + sd->du.dx * bump_filter_width;
       const float v_x = sd->v + sd->dv.dx * bump_filter_width;
@@ -94,9 +97,12 @@ ccl_device_noinline void svm_node_geometry_bump_dy(KernelGlobals kg,
   float3 data;
 
   switch (type) {
-    case NODE_GEOM_P:
-      data = svm_node_bump_P_dy(sd, bump_filter_width);
+    case NODE_GEOM_P: {
+      float3 dPdy = differential_from_compact(sd->Ng, sd->dP).dy * bump_filter_width;
+      /* Offset Position by the projection of dPdy onto the plane orthogonal to Normal. */
+      data = sd->P + dPdy - (dot(dPdy, sd->N) * sd->N);
       break;
+    }
     case NODE_GEOM_uv: {
       const float u_y = sd->u + sd->du.dy * bump_filter_width;
       const float v_y = sd->v + sd->dv.dy * bump_filter_width;

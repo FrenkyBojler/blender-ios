@@ -25,11 +25,17 @@ shader node_geometry(string bump_offset = "center",
   Backfacing = backfacing();
 
   if (bump_offset == "dx") {
-    Position += Dx(Position) * bump_filter_width;
+    vector dPdx = Dx(Position) * bump_filter_width;
+
+    /* Offset Position by the projection of dPdx onto the plane orthogonal to Normal. */
+    Position += dPdx - (dot(dPdx, Normal) * Normal);
     Parametric += Dx(Parametric) * bump_filter_width;
   }
   else if (bump_offset == "dy") {
-    Position += Dy(Position) * bump_filter_width;
+    vector dPdy = Dy(Position) * bump_filter_width;
+
+    /* Offset Position by the projection of dPdy onto the plane orthogonal to Normal. */
+    Position += dPdy - (dot(dPdy, Normal) * Normal);
     Parametric += Dy(Parametric) * bump_filter_width;
   }
 
