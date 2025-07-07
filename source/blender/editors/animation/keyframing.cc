@@ -909,21 +909,21 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
   return true;
 }
 
-static bool delete_scene_action_keyframes_legacy(AnimData *adt,
+static blender::Vector<FCurve *> delete_scene_action_keyframes_legacy(AnimData *adt,
                                                  bAction *act,
                                                  Scene *scene,
                                                  float cfra_unmap,
                                                  wmOperator *op,
-                                                 blender::Vector<FCurve *> &r_modified_fcurves)
+                                                 blender::Vector<FCurve *> *modified_fcurves)
 {
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
     if (!can_delete_scene_key(fcu, scene, op)) {
       continue;
     }
     blender::animrig::delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
-    r_modified_fcurves.append(fcu);
+    modified_fcurves->append(fcu);
   }
-  return true;
+  return *modified_fcurves;
 }
 
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
@@ -983,8 +983,9 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     }
   }
   else {
-    use_legacy_report = delete_scene_action_keyframes_legacy(
-        adt, act, scene, cfra_unmap, op, modified_fcurves);
+    modified_fcurves = delete_scene_action_keyframes_legacy(
+        adt, act, scene, cfra_unmap, op, &modified_fcurves);
+    use_legacy_report = true;
   }
 
   if (scene->adt->action) {
