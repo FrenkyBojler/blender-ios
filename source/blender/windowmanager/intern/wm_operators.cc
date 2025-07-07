@@ -97,6 +97,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -834,7 +835,7 @@ void WM_operator_properties_reset(wmOperator *op)
 
       if ((RNA_property_flag(prop) & (PROP_SKIP_SAVE | PROP_SKIP_PRESET)) == 0) {
         const char *identifier = RNA_property_identifier(prop);
-        RNA_struct_idprops_unset(op->ptr, identifier);
+        RNA_struct_system_idprops_unset(op->ptr, identifier);
       }
     }
     RNA_PROP_END;
@@ -1431,20 +1432,27 @@ static uiBlock *wm_block_create_redo(bContext *C, ARegion *region, void *arg_op)
 
   UI_block_func_handle_set(block, wm_block_redo_cb, arg_op);
   UI_popup_dummy_panel_set(region, block);
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, width, UI_UNIT_Y, 0, style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               width,
+                                               UI_UNIT_Y,
+                                               0,
+                                               style);
 
   if (op == WM_operator_last_redo(C)) {
     if (!WM_operator_check_ui_enabled(C, op->type->name)) {
-      layout->enabled_set(false);
+      layout.enabled_set(false);
     }
   }
 
-  uiItemL_ex(layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE, true, false);
-  layout->separator(0.2f, LayoutSeparatorType::Line);
-  layout->separator(0.5f);
+  uiItemL_ex(&layout, WM_operatortype_name(op->type, op->ptr), ICON_NONE, true, false);
+  layout.separator(0.2f, LayoutSeparatorType::Line);
+  layout.separator(0.5f);
 
-  uiLayout *col = &layout->column(false);
+  uiLayout *col = &layout.column(false);
   uiTemplateOperatorPropertyButs(C, col, op, UI_BUT_LABEL_ALIGN_NONE, 0);
 
   UI_block_bounds_set_popup(block, 7 * UI_SCALE_FAC, nullptr);
@@ -1561,8 +1569,15 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
         block, style, dialog_width + icon_size, eAlertIcon(data->icon), icon_size);
   }
   else {
-    layout = UI_block_layout(
-        block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, dialog_width, 0, 0, style);
+    layout = &blender::ui::block_layout(block,
+                                        blender::ui::LayoutDirection::Vertical,
+                                        blender::ui::LayoutType::Panel,
+                                        0,
+                                        0,
+                                        dialog_width,
+                                        0,
+                                        0,
+                                        style);
   }
 
   /* Title. */
@@ -1658,7 +1673,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
   if (data->position == WM_POPUP_POSITION_MOUSE) {
     const float button_center_x = windows_layout ? -0.4f : -0.90f;
     const float button_center_y = small ? 2.0f : 3.1f;
-    const int bounds_offset[2] = {int(button_center_x * uiLayoutGetWidth(layout)),
+    const int bounds_offset[2] = {int(button_center_x * layout->width()),
                                   int(button_center_y * UI_UNIT_X)};
     UI_block_bounds_set_popup(block, padding, bounds_offset);
   }
@@ -1682,11 +1697,18 @@ static uiBlock *wm_operator_ui_create(bContext *C, ARegion *region, void *user_d
 
   UI_popup_dummy_panel_set(region, block);
 
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, data->width, 0, 0, style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               data->width,
+                                               0,
+                                               0,
+                                               style);
 
   /* Since UI is defined the auto-layout args are not used. */
-  uiTemplateOperatorPropertyButs(C, layout, op, UI_BUT_LABEL_ALIGN_COLUMN, 0);
+  uiTemplateOperatorPropertyButs(C, &layout, op, UI_BUT_LABEL_ALIGN_COLUMN, 0);
 
   UI_block_func_set(block, nullptr, nullptr, nullptr);
 

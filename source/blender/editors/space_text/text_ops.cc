@@ -45,7 +45,9 @@
 #include "ED_curve.hh"
 #include "ED_screen.hh"
 #include "ED_text.hh"
+
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RE_engine.h"
@@ -4115,6 +4117,7 @@ void TEXT_OT_jump_to_file_at_point(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_int(ot->srna, "line", 0, 0, INT_MAX, "Line", "Line to jump to", 1, 10000);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXT);
   prop = RNA_def_int(ot->srna, "column", 0, 0, INT_MAX, "Column", "Column to jump to", 1, 10000);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }

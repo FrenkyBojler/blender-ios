@@ -25,6 +25,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -132,11 +133,11 @@ void modifier_vgroup_ui(uiLayout *layout,
   bool has_vertex_group = RNA_string_length(ptr, vgroup_prop.c_str()) != 0;
 
   uiLayout *row = &layout->row(true);
-  uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
+  row->prop_search(ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
   if (invert_vgroup_prop) {
     uiLayout *sub = &row->row(true);
     sub->active_set(has_vertex_group);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
     sub->prop(ptr, *invert_vgroup_prop, UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
 }
@@ -324,7 +325,7 @@ static void modifier_panel_header(const bContext *C, Panel *panel)
   sub = &layout->row(true);
   sub->emboss_set(blender::ui::EmbossType::None);
   if (mti->is_disabled && mti->is_disabled(scene, md, false)) {
-    uiLayoutSetRedAlert(sub, true);
+    sub->red_alert_set(true);
   }
   PointerRNA op_ptr = sub->op("OBJECT_OT_modifier_set_active", "", RNA_struct_ui_icon(ptr->type));
   RNA_string_set(&op_ptr, "modifier", md->name);

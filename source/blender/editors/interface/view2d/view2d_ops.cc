@@ -1526,10 +1526,9 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
   /* tune these until it feels right */
   const float zoom_sensitivity = 0.5f;
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
-  const bool has_translate = !is_zero_v2(ndof.tvec) && view_pan_poll(C);
-  const bool has_zoom = (ndof.tvec[2] != 0.0f) && view_zoom_poll(C);
-
-  blender::float3 pan_vec = WM_event_ndof_translation_get(ndof);
+  blender::float3 pan_vec = WM_event_ndof_translation_get_for_navigation(ndof);
+  const bool has_translate = !is_zero_v2(pan_vec) && view_pan_poll(C);
+  const bool has_zoom = (pan_vec[2] != 0.0f) && view_zoom_poll(C);
 
   if (has_translate) {
     mul_v2_fl(pan_vec, ndof.time_delta * pan_speed);
@@ -1537,13 +1536,13 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
     view_pan_init(C, op);
 
     v2dViewPanData *vpd = static_cast<v2dViewPanData *>(op->customdata);
-    view_pan_apply_ex(C, vpd, -pan_vec[0], -pan_vec[1]);
+    view_pan_apply_ex(C, vpd, pan_vec[0], pan_vec[1]);
 
     view_pan_exit(op);
   }
 
   if (has_zoom) {
-    float zoom_factor = zoom_sensitivity * ndof.time_delta * pan_vec[2];
+    float zoom_factor = zoom_sensitivity * ndof.time_delta * -pan_vec[2];
 
     bool do_zoom_xy[2];
     view_zoom_axis_lock_defaults(C, do_zoom_xy);

@@ -54,6 +54,7 @@
 #include "ED_sequencer.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #ifdef WITH_AUDASPACE
@@ -81,6 +82,7 @@ struct SequencerAddData {
 /* Avoid passing multiple args and be more verbose. */
 #define SEQPROP_STARTFRAME (1 << 0)
 #define SEQPROP_ENDFRAME (1 << 1)
+/* Skip pre-setting filepath to active strip media directory */
 #define SEQPROP_NOPATHS (1 << 2)
 #define SEQPROP_NOCHAN (1 << 3)
 #define SEQPROP_FIT_METHOD (1 << 4)
@@ -480,11 +482,10 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     }
   }
 
+  const ARegion *region = CTX_wm_region(C);
   /* Override strip position by current mouse position. */
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && region != nullptr) {
     const wmWindow *win = CTX_wm_window(C);
-    const ARegion *region = CTX_wm_region(C);
-
     const float2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
                               win->eventstate->xy[1] - region->winrct.ymin);
     float2 mouse_view;
@@ -794,7 +795,6 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(ot->srna, "type", strip_new_scene_items, SCE_COPY_NEW, "Type", "");
   RNA_def_enum_funcs(ot->prop, strip_new_sequencer_enum_itemf);
-  RNA_def_property_flag(ot->prop, PROP_ENUM_NO_TRANSLATE);
 }
 
 static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)
@@ -1183,7 +1183,7 @@ static wmOperatorStatus sequencer_add_movie_strip_exec(bContext *C, wmOperator *
     return OPERATOR_CANCELLED;
   }
 
-  sequencer_generic_invoke_xy__internal(C, op, 0, STRIP_TYPE_MOVIE, nullptr);
+  sequencer_generic_invoke_xy__internal(C, op, SEQPROP_NOPATHS, STRIP_TYPE_MOVIE, nullptr);
 
   const char *error_msg;
   if (!have_free_channels(C, op, 2, &error_msg)) {

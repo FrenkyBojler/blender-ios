@@ -113,16 +113,16 @@ namespace blender::ed::sculpt_paint {
 
 /* TODO: This should be moved to either BKE_paint.hh or BKE_brush.hh */
 float object_space_radius_get(const ViewContext &vc,
-                              const Scene &scene,
+                              const Paint &paint,
                               const Brush &brush,
                               const float3 &location,
                               const float scale_factor)
 {
-  if (!BKE_brush_use_locked_size(&scene, &brush)) {
+  if (!BKE_brush_use_locked_size(&paint, &brush)) {
     return paint_calc_object_space_radius(
-        vc, location, BKE_brush_size_get(&scene, &brush) * scale_factor);
+        vc, location, BKE_brush_size_get(&paint, &brush) * scale_factor);
   }
-  return BKE_brush_unprojected_radius_get(&scene, &brush) * scale_factor;
+  return BKE_brush_unprojected_radius_get(&paint, &brush) * scale_factor;
 }
 
 bool report_if_shape_key_is_locked(const Object &ob, ReportList *reports)
@@ -1212,15 +1212,15 @@ static float calc_overlap(const blender::ed::sculpt_paint::StrokeCache &cache,
   return 0.0f;
 }
 
-static float calc_radial_symmetry_feather(const Sculpt &sd,
+static float calc_radial_symmetry_feather(const Mesh &mesh,
                                           const blender::ed::sculpt_paint::StrokeCache &cache,
                                           const ePaintSymmetryFlags symm,
                                           const char axis)
 {
   float overlap = 0.0f;
 
-  for (int i = 1; i < sd.radial_symm[axis - 'X']; i++) {
-    const float angle = 2.0f * M_PI * i / sd.radial_symm[axis - 'X'];
+  for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
+    const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];
     overlap += calc_overlap(cache, symm, axis, angle);
   }
 
@@ -1228,6 +1228,7 @@ static float calc_radial_symmetry_feather(const Sculpt &sd,
 }
 
 static float calc_symmetry_feather(const Sculpt &sd,
+                                   const Mesh &mesh,
                                    const blender::ed::sculpt_paint::StrokeCache &cache)
 {
   if (!(sd.paint.symmetry_flags & PAINT_SYMMETRY_FEATHER)) {
@@ -1244,9 +1245,9 @@ static float calc_symmetry_feather(const Sculpt &sd,
 
     overlap += calc_overlap(cache, ePaintSymmetryFlags(i), 0, 0);
 
-    overlap += calc_radial_symmetry_feather(sd, cache, ePaintSymmetryFlags(i), 'X');
-    overlap += calc_radial_symmetry_feather(sd, cache, ePaintSymmetryFlags(i), 'Y');
-    overlap += calc_radial_symmetry_feather(sd, cache, ePaintSymmetryFlags(i), 'Z');
+    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'X');
+    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Y');
+    overlap += calc_radial_symmetry_feather(mesh, cache, ePaintSymmetryFlags(i), 'Z');
   }
   return 1.0f / overlap;
 }
@@ -2160,11 +2161,10 @@ static float brush_strength(const Sculpt &sd,
                             const UnifiedPaintSettings &ups,
                             const PaintModeSettings & /*paint_mode_settings*/)
 {
-  const Scene *scene = cache.vc->scene;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
 
   /* Primary strength input; square it to make lower values more sensitive. */
-  const float root_alpha = BKE_brush_alpha_get(scene, &brush);
+  const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
   const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
   float overlap = ups.overlap_factor;
@@ -2308,7 +2308,6 @@ void sculpt_apply_texture(const SculptSession &ss,
                           float r_rgba[4])
 {
   const blender::ed::sculpt_paint::StrokeCache &cache = *ss.cache;
-  const Scene *scene = cache.vc->scene;
   const MTex *mtex = BKE_brush_mask_texture_get(&brush, OB_MODE_SCULPT);
 
   if (!mtex->tex) {
@@ -2322,7 +2321,7 @@ void sculpt_apply_texture(const SculptSession &ss,
 
   if (mtex->brush_map_mode == MTEX_MAP_MODE_3D) {
     /* Get strength by feeding the vertex location directly into a texture. */
-    *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point, r_rgba, 0, ss.tex_pool);
+    *r_value = BKE_brush_sample_tex_3d(cache.paint, &brush, mtex, point, r_rgba, 0, ss.tex_pool);
   }
   else {
     /* If the active area is being applied for symmetry, flip it
@@ -2361,7 +2360,8 @@ void sculpt_apply_texture(const SculptSession &ss,
       const blender::float2 point_2d = ED_view3d_project_float_v2_m4(
           cache.vc->region, symm_point, cache.projection_mat);
       const float point_3d[3] = {point_2d[0], point_2d[1], 0.0f};
-      *r_value = BKE_brush_sample_tex_3d(scene, &brush, mtex, point_3d, r_rgba, 0, ss.tex_pool);
+      *r_value = BKE_brush_sample_tex_3d(
+          cache.paint, &brush, mtex, point_3d, r_rgba, 0, ss.tex_pool);
     }
   }
 }
@@ -3177,7 +3177,7 @@ static void push_undo_nodes(const Depsgraph &depsgraph,
 }
 
 static void do_brush_action(const Depsgraph &depsgraph,
-                            const Scene &scene,
+                            const Scene & /*scene*/,
                             const Sculpt &sd,
                             Object &ob,
                             const Brush &brush,
@@ -3222,6 +3222,19 @@ static void do_brush_action(const Depsgraph &depsgraph,
     push_undo_nodes(depsgraph, ob, brush, node_mask);
   }
 
+  /* There are issues with the underlying normals cache / mesh data that can cause the data to
+   * become out of date.
+   *
+   * For EEVEE and Workbench, this is partially mitigated by the fact that the Paint BVH is used
+   * to signal this update when drawing.
+   *
+   * TODO: See #141417
+   */
+  const bool external_engine = ss.rv3d && ss.rv3d->view_render != nullptr;
+  if (external_engine) {
+    bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+    bke::pbvh::update_normals(depsgraph, ob, pbvh);
+  }
   if (sculpt_brush_needs_normal(ss, brush)) {
     update_sculpt_normal(depsgraph, sd, ob, cursor_sample_result);
   }
@@ -3278,10 +3291,10 @@ static void do_brush_action(const Depsgraph &depsgraph,
       }
       break;
     case SCULPT_BRUSH_TYPE_CREASE:
-      brushes::do_crease_brush(depsgraph, scene, sd, ob, node_mask);
+      brushes::do_crease_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_BLOB:
-      brushes::do_blob_brush(depsgraph, scene, sd, ob, node_mask);
+      brushes::do_blob_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_PINCH:
       brushes::do_pinch_brush(depsgraph, sd, ob, node_mask);
@@ -3373,8 +3386,7 @@ static void do_brush_action(const Depsgraph &depsgraph,
       brushes::do_displacement_smear_brush(depsgraph, sd, ob, node_mask);
       break;
     case SCULPT_BRUSH_TYPE_PAINT:
-      color::do_paint_brush(
-          scene, depsgraph, paint_mode_settings, sd, ob, node_mask, texnode_mask);
+      color::do_paint_brush(depsgraph, paint_mode_settings, sd, ob, node_mask, texnode_mask);
       break;
     case SCULPT_BRUSH_TYPE_SMEAR:
       color::do_smear_brush(depsgraph, sd, ob, node_mask);
@@ -3578,9 +3590,10 @@ static void do_radial_symmetry(const Depsgraph &depsgraph,
                                const float /*feather*/)
 {
   SculptSession &ss = *ob.sculpt;
+  const Mesh &mesh = *static_cast<Mesh *>(ob.data);
 
-  for (int i = 1; i < sd.radial_symm[axis - 'X']; i++) {
-    const float angle = 2.0f * M_PI * i / sd.radial_symm[axis - 'X'];
+  for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
+    const float angle = 2.0f * M_PI * i / mesh.radial_symmetry[axis - 'X'];
     ss.cache->radial_symmetry_pass = i;
     SCULPT_cache_calc_brushdata_symm(*ss.cache, symm, axis, angle);
     do_tiled(depsgraph, scene, sd, ob, brush, ups, paint_mode_settings, action);
@@ -3611,11 +3624,12 @@ static void do_symmetrical_brush_actions(const Depsgraph &depsgraph,
                                          PaintModeSettings &paint_mode_settings)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
+  const Mesh &mesh = *static_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   const char symm = SCULPT_mesh_symmetry_xyz_get(ob);
 
-  float feather = calc_symmetry_feather(sd, *ss.cache);
+  float feather = calc_symmetry_feather(sd, mesh, *ss.cache);
 
   cache.bstrength = brush_strength(sd, cache, feather, ups, paint_mode_settings);
   cache.symmetry = symm;
@@ -3839,7 +3853,6 @@ static void sculpt_init_mirror_clipping(const Object &ob, const SculptSession &s
 static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache)
 {
   Main *bmain = CTX_data_main(C);
-  Scene *scene = CTX_data_scene(C);
   Brush *cur_brush = BKE_paint_brush(paint);
 
   if (cur_brush->sculpt_brush_type == SCULPT_BRUSH_TYPE_MASK) {
@@ -3869,16 +3882,16 @@ static void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache 
     return;
   }
 
-  int cur_brush_size = BKE_brush_size_get(scene, cur_brush);
+  int cur_brush_size = BKE_brush_size_get(paint, cur_brush);
 
   cache->saved_active_brush = cur_brush;
 
-  cache->saved_smooth_size = BKE_brush_size_get(scene, smooth_brush);
-  BKE_brush_size_set(scene, smooth_brush, cur_brush_size);
+  cache->saved_smooth_size = BKE_brush_size_get(paint, smooth_brush);
+  BKE_brush_size_set(paint, smooth_brush, cur_brush_size);
   BKE_curvemapping_init(smooth_brush->curve);
 }
 
-static void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache *cache)
+static void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache)
 {
   Brush &brush = *BKE_paint_brush(paint);
 
@@ -3900,8 +3913,7 @@ static void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache
   /* If saved_active_brush is not set, brush was not switched/affected in
    * smooth_brush_toggle_on(). */
   if (cache->saved_active_brush) {
-    Scene *scene = CTX_data_scene(C);
-    BKE_brush_size_set(scene, &brush, cache->saved_smooth_size);
+    BKE_brush_size_set(paint, &brush, cache->saved_smooth_size);
     BKE_paint_brush_set(paint, cache->saved_active_brush);
     cache->saved_active_brush = nullptr;
   }
@@ -3912,8 +3924,8 @@ static void sculpt_update_cache_invariants(
     bContext *C, Sculpt &sd, SculptSession &ss, const wmOperator &op, const float mval[2])
 {
   StrokeCache *cache = MEM_new<StrokeCache>(__func__);
+  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
   ToolSettings *tool_settings = CTX_data_tool_settings(C);
-  UnifiedPaintSettings *ups = &tool_settings->unified_paint_settings;
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
   ViewContext *vc = paint_stroke_view_context(static_cast<PaintStroke *>(op.customdata));
   Object &ob = *CTX_data_active_object(C);
@@ -3984,6 +3996,7 @@ static void sculpt_update_cache_invariants(
   /* Truly temporary data that isn't stored in properties. */
   cache->vc = vc;
   cache->brush = brush;
+  cache->paint = &sd.paint;
 
   /* Cache projection matrix. */
   cache->projection_mat = ED_view3d_ob_project_mat_get(cache->vc->rv3d, &ob);
@@ -4039,7 +4052,7 @@ static void sculpt_update_cache_invariants(
     cache->accum = true;
   }
 
-  if (BKE_brush_color_jitter_get_settings(CTX_data_scene(C), &sd.paint, brush)) {
+  if (BKE_brush_color_jitter_get_settings(&sd.paint, brush)) {
     cache->initial_hsv_jitter = seed_hsv_jitter();
   }
   cache->first_time = true;
@@ -4304,9 +4317,9 @@ static void cache_paint_invariants_update(StrokeCache &cache, const Brush &brush
 /* Initialize the stroke cache variants from operator properties. */
 static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, PointerRNA *ptr)
 {
-  Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
-  UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
+  Paint &paint = *BKE_paint_get_active_from_context(C);
+  UnifiedPaintSettings &ups = paint.unified_paint_settings;
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   Brush &brush = *BKE_paint_brush(&sd.paint);
@@ -4335,10 +4348,10 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
 
   /* Truly temporary data that isn't stored in properties. */
   if (SCULPT_stroke_is_first_brush_step_of_symmetry_pass(*ss.cache)) {
-    cache.initial_radius = object_space_radius_get(*cache.vc, scene, brush, cache.location);
+    cache.initial_radius = object_space_radius_get(*cache.vc, paint, brush, cache.location);
 
-    if (!BKE_brush_use_locked_size(&scene, &brush)) {
-      BKE_brush_unprojected_radius_set(&scene, &brush, cache.initial_radius);
+    if (!BKE_brush_use_locked_size(&paint, &brush)) {
+      BKE_brush_unprojected_radius_set(&paint, &brush, cache.initial_radius);
     }
   }
 
@@ -4652,8 +4665,8 @@ bool cursor_geometry_info_update(bContext *C,
                                  const bool use_sampled_normal)
 {
   Depsgraph *depsgraph = CTX_data_depsgraph_pointer(C);
-  Scene *scene = CTX_data_scene(C);
-  const Brush &brush = *BKE_paint_brush_for_read(BKE_paint_get_active_from_context(C));
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  const Brush &brush = *BKE_paint_brush_for_read(paint);
   bool original = false;
 
   ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);
@@ -4759,7 +4772,7 @@ bool cursor_geometry_info_update(bContext *C,
   ss.rv3d = vc.rv3d;
   ss.v3d = vc.v3d;
 
-  ss.cursor_radius = object_space_radius_get(vc, *scene, brush, out->location);
+  ss.cursor_radius = object_space_radius_get(vc, *paint, brush, out->location);
 
   IndexMaskMemory memory;
   const IndexMask node_mask = pbvh_gather_cursor_update(ob, original, memory);
@@ -4806,8 +4819,8 @@ static bool stroke_get_location_bvh_ex(bContext *C,
   SculptSession &ss = *ob.sculpt;
   StrokeCache *cache = ss.cache;
   const bool original = force_original || ((cache) ? !cache->accum : false);
-
-  const Brush &brush = *BKE_paint_brush(BKE_paint_get_active_from_context(C));
+  Paint *paint = BKE_paint_get_active_from_context(C);
+  const Brush &brush = *BKE_paint_brush(paint);
 
   SCULPT_stroke_modifiers_check(C, ob, brush);
 
@@ -4896,7 +4909,7 @@ static bool stroke_get_location_bvh_ex(bContext *C,
 
   float closest_radius_sq = std::numeric_limits<float>::max();
   if (limit_closest_radius) {
-    closest_radius_sq = object_space_radius_get(vc, *CTX_data_scene(C), brush, out);
+    closest_radius_sq = object_space_radius_get(vc, *paint, brush, out);
     closest_radius_sq *= closest_radius_sq;
   }
 
@@ -5105,7 +5118,7 @@ void flush_update_step(const bContext *C, const UpdateType update_type)
 
   ED_region_tag_redraw(&region);
 
-  const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
+  bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   if (update_type == UpdateType::Position && !ss.shapekey_active) {
     if (pbvh.type() == bke::pbvh::Type::Mesh) {
       tag_mesh_positions_changed(ob, use_pbvh_draw);
@@ -5187,7 +5200,7 @@ void flush_update_done(const bContext *C, Object &ob, const UpdateType update_ty
 static void replace_attribute(const bke::AttributeAccessor src_attributes,
                               const StringRef name,
                               const bke::AttrDomain domain,
-                              const eCustomDataType data_type,
+                              const bke::AttrType data_type,
                               bke::MutableAttributeAccessor dst_attributes)
 {
   dst_attributes.remove(name);
@@ -5353,7 +5366,7 @@ void store_mesh_from_eval(const wmOperator &op,
       replace_attribute(new_mesh->attributes(),
                         ".sculpt_mask",
                         bke::AttrDomain::Point,
-                        CD_PROP_FLOAT,
+                        bke::AttrType::Float,
                         mesh.attributes_for_write());
       pbvh.tag_masks_changed(leaf_nodes);
       BKE_mesh_copy_parameters(&mesh, new_mesh);
@@ -5366,7 +5379,7 @@ void store_mesh_from_eval(const wmOperator &op,
       replace_attribute(new_mesh->attributes(),
                         ".sculpt_face_set",
                         bke::AttrDomain::Face,
-                        CD_PROP_INT32,
+                        bke::AttrType::Int32,
                         mesh.attributes_for_write());
       pbvh.tag_face_sets_changed(leaf_nodes);
       BKE_mesh_copy_parameters(&mesh, new_mesh);
@@ -5498,10 +5511,10 @@ static void stroke_update_step(bContext *C,
                                PaintStroke *stroke,
                                PointerRNA *itemptr)
 {
-  UnifiedPaintSettings &ups = CTX_data_tool_settings(C)->unified_paint_settings;
   const Scene &scene = *CTX_data_scene(C);
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  UnifiedPaintSettings &ups = sd.paint.unified_paint_settings;
   Object &ob = *CTX_data_active_object(C);
   SculptSession &ss = *ob.sculpt;
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
@@ -5566,7 +5579,7 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
     brush_exit_tex(sd);
     return;
   }
-  UnifiedPaintSettings *ups = &CTX_data_tool_settings(C)->unified_paint_settings;
+  UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
   Brush *brush = BKE_paint_brush(&sd.paint);
   BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
   ups->draw_inverted = false;
@@ -5575,7 +5588,7 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
 
   /* Alt-Smooth. */
   if (ss.cache->alt_smooth) {
-    smooth_brush_toggle_off(C, &sd.paint, ss.cache);
+    smooth_brush_toggle_off(&sd.paint, ss.cache);
     /* Refresh the brush pointer in case we switched brush in the toggle function. */
     brush = BKE_paint_brush(&sd.paint);
   }

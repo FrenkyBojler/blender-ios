@@ -23,7 +23,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 #define B_STOPRENDER 1
@@ -229,7 +229,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     char text[8];
     SNPRINTF(text, "%d%%", int(progress * 100));
 
-    const char *name = active ? WM_jobs_name(wm, owner) : "Canceling...";
+    const char *name = active ? RPT_(WM_jobs_name(wm, owner)) : RPT_("Canceling...");
 
     /* job icon as a button */
     if (op_name) {
