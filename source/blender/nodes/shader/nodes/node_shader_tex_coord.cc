@@ -52,8 +52,8 @@ static int node_shader_gpu_tex_coord(GPUMaterial *mat,
   int i;
   LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, i) {
     if (!strcmp(sock->name, "Object")) {
-      /* TODO: Figure out what to use as the matrix. Dummy matrix is probably not the right one to
-       * use here as the original patch used `GPU_builtin(GPU_INVERSE_OBJECT_MATRIX)` */
+      /* TODO: Replace dummy_matrix with the correct matrix. GPU_builtin(GPU_INVERSE_OBJECT_MATRIX)
+       * was used in the patch, so that should be my first point of investigation. */
       GPUNodeLink *matrix = (ob != nullptr) ? GPU_uniform(&ob->world_to_object()[0][0]) :
                                               GPU_uniform(&dummy_matrix[0][0]);
       node_shader_gpu_bump_tex_coord_transformed_normal(mat, node, matrix, &out[i].link);

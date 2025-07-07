@@ -24,12 +24,10 @@ void differentiate_texco_normal(float3 n, float3 v, out float3 df)
   df = v + differentials - dot(differentials, n) * n;
 }
 
-void differentiate_texco_transformed_normal(float4 m, float3 n, float3 v, out float3 df)
+void differentiate_texco_transformed_normal(float4x4 m, float3 n, float3 v, out float3 df)
 {
-  /* TODO: Maybe the issue with the object texture coordinates is actually over here rather than
-   * with the matrix? */
   float3 differentials = dF_impl(v);
-  n = normalize(float3(m) * n);
+  n = normalize(transform_direction(m, n));
 
   /* Offset sampled position by the projection of the differential
    * onto the plane orthogonal to Normal. */
