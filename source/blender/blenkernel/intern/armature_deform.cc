@@ -689,7 +689,6 @@ void BKE_armature_deform_coords_with_mesh(
     if (lt->dvert != nullptr) {
       dverts = blender::Span<MDeformVert>(lt->dvert, lt->pntsu * lt->pntsv * lt->pntsw);
     }
-    }
   }
 
   std::optional<Span<MDeformVert>> dverts_opt;
