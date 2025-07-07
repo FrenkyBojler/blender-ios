@@ -294,33 +294,11 @@ class SculptBrushTest(api.Test):
             'spatial_reorder': False,
         }
 
-        result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
+        time_result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
 
-        return {'time': result}
+        memory_result, _ = env.run_in_blender(undo_memory_information, args, [self.filepath])
 
-
-class SculptBrushAfterSpatialReorderingTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
-        self.filepath = filepath
-        self.mode = mode
-        self.brush_type = brush_type
-
-    def name(self):
-        return "{}_{}_{}".format(self.mode.name.lower(), self.brush_type.name.lower(), "after_reordering")
-
-    def category(self):
-        return "sculpt"
-
-    def run(self, env, _device_id):
-        args = {
-            'mode': self.mode,
-            'brush_type': self.brush_type,
-            'spatial_reorder': True,
-        }
-
-        result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
-
-        return {'time': result}
+        return {'time': time_result, 'memory': memory_result}
 
 
 class SculptBrushAfterSpatialReorderingTest(api.Test):
