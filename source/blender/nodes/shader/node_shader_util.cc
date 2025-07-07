@@ -373,6 +373,16 @@ void node_shader_gpu_bump_tex_coord_normal(GPUMaterial *mat, bNode * /*node*/, G
   GPU_link(mat, "differentiate_texco_normal", n, *link, link);
 }
 
+void node_shader_gpu_bump_tex_coord_transformed_normal(GPUMaterial *mat,
+                                                       bNode * /*node*/,
+                                                       GPUNodeLink *matrix,
+                                                       GPUNodeLink **link)
+{
+  GPUNodeLink *n;
+  GPU_link(mat, "world_normals_get", &n);
+  GPU_link(mat, "differentiate_texco_transformed_normal", matrix, n, *link, link);
+}
+
 void node_shader_gpu_default_tex_coord(GPUMaterial *mat, bNode *node, GPUNodeLink **link)
 {
   if (!*link) {

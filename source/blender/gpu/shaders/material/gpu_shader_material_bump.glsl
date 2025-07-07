@@ -21,6 +21,15 @@ void differentiate_texco_normal(float3 n, float3 v, out float3 df)
   df = v + differentials - dot(differentials, n) * n;
 }
 
+void differentiate_texco_transformed_normal(mat4 m, float3 n, float3 v, out float3 df)
+{
+  /* TODO: Can't seem to use mat4. Figure out how to fix this. */
+  float3 differentials = dF_impl(v);
+  n = normalize(mat3(m) * n);
+
+  df = v = differentials - dot(differentials, n) * n;
+}
+
 void node_bump(float strength,
                float dist,
                float filter_width,
