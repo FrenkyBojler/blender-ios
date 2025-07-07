@@ -1922,8 +1922,19 @@ void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_d
                                  this->points_num(),
                                  write_data.point_layers,
                                  write_data.attribute_data);
-  this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
-  this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  CustomData_blend_write_prepare(this->curve_data,
+                                 AttrDomain::Curve,
+                                 this->curves_num(),
+                                 write_data.curve_layers,
+                                 write_data.attribute_data);
+  if (write_data.attribute_data.attributes.is_empty()) {
+    this->attribute_storage.dna_attributes = nullptr;
+    this->attribute_storage.dna_attributes_num = 0;
+  }
+  else {
+    this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
+    this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  }
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,
