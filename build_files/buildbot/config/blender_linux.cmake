@@ -17,6 +17,17 @@ set(WITH_CYCLES_TEST_OSL     ON CACHE BOOL "" FORCE)
 set(HIPRT_COMPILER_PARALLEL_JOBS        6 CACHE STRING "" FORCE)
 set(SYCL_OFFLINE_COMPILER_PARALLEL_JOBS 6 CACHE STRING "" FORCE)
 
+if(WITH_COMPILER_ASAN)
+  message(STATUS "Building a sanitizer build")
+
+  set(WITH_STRSIZE_DEBUG ON CACHE BOOL "" FORCE)
+  
+  # Current builders do not have enough RAM/Cores ratio to survive a full-core ASAN build.
+  # Trusting automatic tests for max jobs setup for the time being.
+  set(WITH_NINJA_POOL_JOBS ON CACHE BOOL "" FORCE)
+endif()
+
+
 set(WITH_LINUX_OFFICIAL_RELEASE_TESTS   ON CACHE BOOL "" FORCE)
 
 # Validate that some python scripts in out `build_files` and `docs` directories
