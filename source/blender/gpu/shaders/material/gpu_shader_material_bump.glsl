@@ -27,7 +27,13 @@ void differentiate_texco_normal(float3 n, float3 v, out float3 df)
 void differentiate_texco_transformed_normal(float4x4 m, float3 n, float3 v, out float3 df)
 {
   float3 differentials = dF_impl(v);
-  n = normalize(transform_direction(m, n));
+  bool valid_mat = (m[3][3] != 0.0f);
+  if (valid_mat) {
+    n = normalize(transform_direction(m, n));
+  }
+  else {
+    point_transform_world_to_object(n, n);;
+  }
 
   /* Offset sampled position by the projection of the differential
    * onto the plane orthogonal to Normal. */
