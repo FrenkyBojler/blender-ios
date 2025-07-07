@@ -239,6 +239,7 @@ void ShadowPipeline::sync()
       pass.bind_ssbo(SHADOW_RENDER_MAP_BUF_SLOT, &inst_.shadows.render_map_buf_);
       pass.bind_ssbo(SHADOW_PAGE_INFO_SLOT, &inst_.shadows.pages_infos_data_);
     }
+    pass.bind_resources(inst_.materials);
     pass.bind_resources(inst_.uniform_data);
     pass.bind_resources(inst_.sampling);
     surface_double_sided_ps_ = &pass.sub("Shadow.Surface.Double-Sided");
@@ -543,6 +544,7 @@ void DeferredLayer::begin_sync()
     bool alpha_hash_subpixel_scale = !inst_.is_viewport() || !inst_.velocity.camera_has_motion();
     inst_.pipelines.data.alpha_hash_scale = alpha_hash_subpixel_scale ? 0.1f : 1.0f;
 
+    prepass_ps_.bind_resources(inst_.materials);
     prepass_ps_.bind_resources(inst_.uniform_data);
     prepass_ps_.bind_resources(inst_.velocity);
     prepass_ps_.bind_resources(inst_.sampling);
@@ -1266,6 +1268,7 @@ void DeferredProbePipeline::begin_sync()
     pass.bind_resources(inst_.uniform_data);
     pass.bind_resources(inst_.velocity);
     pass.bind_resources(inst_.sampling);
+    pass.bind_resources(inst_.materials);
   }
 
   DRWState state_depth_only = DRW_STATE_WRITE_DEPTH | DRW_STATE_CLIP_CONTROL_UNIT_RANGE |

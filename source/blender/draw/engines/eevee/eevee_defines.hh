@@ -273,8 +273,9 @@
 #define VELOCITY_INDIRECTION_BUF_SLOT 4
 
 /* Texture streaming read-back */
-// TODO: find a better slot. this is right after the debug slots.
-#define MATERIAL_TEXTURE_LOD_SLOT 16
+// TODO: find a better slot, or should we consider using 2 slots. Current slot management is
+// optimized for OpenGL.
+#define MATERIAL_TEXTURE_LOD_SLOT 14
 
 /* Treat closure as singular if the roughness is below this threshold. */
 #define BSDF_ROUGHNESS_THRESHOLD 2e-2
