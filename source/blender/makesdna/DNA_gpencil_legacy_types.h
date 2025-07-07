@@ -198,8 +198,8 @@ typedef enum bGPDcurve_Flag {
 /* GP Strokes */
 
 /* Runtime temp data for bGPDstroke */
-typedef struct bGPDpaint_runtime {
-  DNA_DEFINE_CXX_METHODS(bGPDpaint_runtime)
+typedef struct bGPDstroke_Runtime {
+  DNA_DEFINE_CXX_METHODS(bGPDstroke_Runtime)
 
   /** temporary layer name only used during copy/paste to put the stroke in the original layer */
   char tmp_layerinfo[128];
@@ -220,7 +220,7 @@ typedef struct bGPDpaint_runtime {
   /** Original stroke (used to dereference evaluated data) */
   struct bGPDstroke *gps_orig;
   void *_pad2;
-} bGPDpaint_runtime;
+} bGPDstroke_Runtime;
 
 /**
  * Grease-Pencil Annotations - 'Stroke'
@@ -285,7 +285,7 @@ typedef struct bGPDstroke {
   /** Curve used to edit the stroke using Bezier handlers. */
   struct bGPDcurve *editcurve;
 
-  bGPDpaint_runtime runtime;
+  bGPDstroke_Runtime runtime;
   void *_pad5;
 } bGPDstroke;
 
