@@ -18,6 +18,9 @@ void differentiate_texco(float4 v, out float3 df)
 void differentiate_texco_normal(float3 n, float3 v, out float3 df)
 {
   float3 differentials = dF_impl(v);
+
+  /* Offset sampled osition by the projection of the differential
+   * onto the plane orthogonal to Normal. */
   df = v + differentials - dot(differentials, n) * n;
 }
 
@@ -27,6 +30,8 @@ void differentiate_texco_transformed_normal(mat4 m, float3 n, float3 v, out floa
   float3 differentials = dF_impl(v);
   n = normalize(mat3(m) * n);
 
+  /* Offset sampled osition by the projection of the differential
+   * onto the plane orthogonal to Normal. */
   df = v = differentials - dot(differentials, n) * n;
 }
 
