@@ -4663,15 +4663,59 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   MutableSpan<int> dst_curve_sizes = dst_curves.offsets_for_write();
   offset_indices::copy_group_sizes(src_points_by_curve, unselected_curves, dst_curve_sizes);
 
-  Array<bool> ccw_curves(curve_selection.size());
+  Vector<float3> offset_pos;
+  Vector<float3> offset_handles_left;
+  Vector<float3> offset_handles_right;
 
-  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
     const IndexRange src_points = src_points_by_curve[curve_i];
     Span<float3> src_pos = src_positions.slice(src_points);
+    const int8_t curve_type = src_curve_types[curve_i];
+    const bool cyclic = src_cyclic[curve_i];
 
     float3 curve_norm;
     cross_poly_v3(curve_norm, (const float(*)[3])src_pos.data(), src_pos.size());
-    ccw_curves[pos] = math::dot(curve_norm, plane_norm) < 0.0f;
+    const bool ccw = math::dot(curve_norm, plane_norm) < 0.0f;
+
+    for (const int i : src_pos.index_range()) {
+      const float3 A = src_pos[(i - 1 + src_pos.size()) % src_pos.size()];
+      const float3 B = src_pos[i];
+      const float3 C = src_pos[(i + 1) % src_pos.size()];
+
+      const float3 BA = math::normalize(math::cross(B - A, plane_norm)) * (ccw ? -1.0f : 1.0f);
+      const float3 CB = math::normalize(math::cross(C - B, plane_norm)) * (ccw ? -1.0f : 1.0f);
+
+      float3 offset = float3(0.0);
+
+      if (!cyclic && (i == 0 || i == src_pos.size() - 1)) {
+        if (i == 0) {
+          offset = CB * offset_distance;
+        }
+        if (i == src_pos.size() - 1) {
+          offset = BA * offset_distance;
+        }
+      }
+      else {
+        if (curve_type == CURVE_TYPE_BEZIER) {
+          /* TODO: Use a better approximation. */
+          offset = math::normalize(BA + CB) * offset_distance;
+        }
+        else {
+          const float d = math::dot(BA, CB);
+          offset = math::safe_divide(BA + CB, 1 + d) * offset_distance;
+        }
+      }
+
+      offset_pos.append(B + offset);
+
+      if (!src_handles_left.is_empty()) {
+        /* TODO: Use a better approximation. */
+        offset_handles_left.append((src_handles_left[src_points[i]] - B) * (1 + offset_distance) +
+                                   B + offset);
+        offset_handles_right.append(
+            (src_handles_right[src_points[i]] - B) * (1 + offset_distance) + B + offset);
+      }
+    }
 
     dst_curve_sizes[curve_i] = src_points.size();
   });
@@ -4719,59 +4763,18 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
                                    src_handles_right,
                                    dst_handles_right);
 
-  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i, const int64_t pos) {
-    const IndexRange src_points = src_points_by_curve[curve_i];
+  int index = 0;
+  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
     const IndexRange dst_points = dst_points_by_curve[curve_i];
-    const bool cyclic = src_cyclic[curve_i];
-
-    MutableSpan<float3> positions = dst_positions.slice(dst_points);
-    Span<float3> src_pos = src_positions.slice(src_points);
-
-    const bool ccw = ccw_curves[pos];
-
-    const int8_t curve_type = src_curve_types[curve_i];
-
-    for (const int i : dst_points.index_range()) {
-      const float3 A = src_pos[(i - 1 + src_pos.size()) % src_pos.size()];
-      const float3 B = src_pos[i];
-      const float3 C = src_pos[(i + 1) % src_pos.size()];
-
-      const float3 BA = math::normalize(math::cross(B - A, plane_norm)) * (ccw ? -1.0f : 1.0f);
-      const float3 CB = math::normalize(math::cross(C - B, plane_norm)) * (ccw ? -1.0f : 1.0f);
-
-      float3 offset = float3(0.0);
-
-      if (!cyclic && (i == 0 || i == src_pos.size() - 1)) {
-        if (i == 0) {
-          offset = CB * offset_distance;
-        }
-        if (i == src_pos.size() - 1) {
-          offset = BA * offset_distance;
-        }
-      }
-      else {
-        if (curve_type == CURVE_TYPE_BEZIER) {
-          /* TODO: Use a better approximation. */
-          offset = math::normalize(BA + CB) * offset_distance;
-        }
-        else {
-          const float d = math::dot(BA, CB);
-          offset = math::safe_divide(BA + CB, 1 + d) * offset_distance;
-        }
-      }
-
-      positions[i] = B + offset;
-
-      if (!src_handles_left.is_empty()) {
-        /* TODO: Use a better approximation. */
-        dst_handles_left[dst_points[i]] = (src_handles_left[src_points[i]] - B) *
-                                              (1 + offset_distance) +
-                                          B + offset;
-        dst_handles_right[dst_points[i]] = (src_handles_right[src_points[i]] - B) *
-                                               (1 + offset_distance) +
-                                           B + offset;
-      }
+    const IndexRange off_points = dst_points.index_range().shift(index);
+    dst_positions.slice(dst_points).copy_from(offset_pos.as_span().slice(off_points));
+    if (!dst_handles_left.is_empty()) {
+      dst_handles_left.slice(dst_points)
+          .copy_from(offset_handles_left.as_span().slice(off_points));
+      dst_handles_right.slice(dst_points)
+          .copy_from(offset_handles_right.as_span().slice(off_points));
     }
+    index += dst_points.size();
   });
 
   bke::gather_attributes(
