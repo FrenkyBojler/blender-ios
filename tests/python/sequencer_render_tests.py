@@ -28,8 +28,9 @@ def get_arguments(filepath, output_filepath):
         "--debug-exit-on-error",
         filepath,
         "-o", output_filepath,
+        "-F", "PNG",
         "-f", "1",
-        "-F", "PNG"]
+    ]
 
     return args
 
