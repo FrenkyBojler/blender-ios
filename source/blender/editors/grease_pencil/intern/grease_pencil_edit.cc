@@ -4666,6 +4666,7 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   Vector<float3> offset_pos;
   Vector<float3> offset_handles_left;
   Vector<float3> offset_handles_right;
+  Vector<int> offset_old_by_new_map;
 
   curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
     const IndexRange src_points = src_points_by_curve[curve_i];
@@ -4707,6 +4708,7 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
       }
 
       offset_pos.append(B + offset);
+      offset_old_by_new_map.append(src_points[i]);
 
       if (!src_handles_left.is_empty()) {
         /* TODO: Use a better approximation. */
@@ -4726,13 +4728,6 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
 
   Array<int> old_by_new_map(dst_curves.points_num());
   unselected_curves.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
-    const IndexRange src_points = src_points_by_curve[curve_i];
-    const IndexRange dst_points = dst_points_by_curve[curve_i];
-    array_utils::fill_index_range<int>(old_by_new_map.as_mutable_span().slice(dst_points),
-                                       src_points.start());
-  });
-
-  curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
     const IndexRange src_points = src_points_by_curve[curve_i];
     const IndexRange dst_points = dst_points_by_curve[curve_i];
     array_utils::fill_index_range<int>(old_by_new_map.as_mutable_span().slice(dst_points),
@@ -4769,6 +4764,9 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
     const IndexRange dst_points = dst_points_by_curve[curve_i];
     const IndexRange off_points = dst_points.index_range().shift(index);
+    MutableSpan<int> map_range = old_by_new_map.as_mutable_span().slice(dst_points);
+    map_range.copy_from(offset_old_by_new_map.as_span().slice(off_points));
+
     dst_positions.slice(dst_points).copy_from(offset_pos.as_span().slice(off_points));
     if (!offset_handles_left.is_empty()) {
       dst_handles_left.slice(dst_points)
