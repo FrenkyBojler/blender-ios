@@ -110,6 +110,12 @@ union TransformMedian {
   TransformMedian_Curves curves;
 };
 
+struct CurvesData {
+  char cyclic;
+  int order;
+  int resolution;
+};
+
 /* temporary struct for storing transform properties */
 
 struct TransformProperties {
@@ -118,6 +124,9 @@ struct TransformProperties {
   float ob_scale_orig[3];
   float ob_dims[3];
   blender::Vector<float> vertex_weights;
+
+  CurvesData modified, current;
+
   /* Floats only (treated as an array). */
   TransformMedian ve_median, median;
   bool tag_for_update;
@@ -302,15 +311,16 @@ static TransformProperties *v3d_transform_props_ensure(View3D *v3d)
   return static_cast<TransformProperties *>(v3d->runtime.properties_storage);
 }
 
-struct CurvesSelectionStatus {
+struct CurvesPointSelectionStatus {
   TransformMedian_Curves median = {};
   int total = 0;
   int total_curve_points = 0;
   int total_nurbs_weights = 0;
 
-  static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
+  static CurvesPointSelectionStatus sum(const CurvesPointSelectionStatus &a,
+                                        const CurvesPointSelectionStatus &b)
   {
-    CurvesSelectionStatus result;
+    CurvesPointSelectionStatus result;
     add_v3_v3v3(result.median.location, a.median.location, b.median.location);
     result.median.nurbs_weight = a.median.nurbs_weight + b.median.nurbs_weight;
     result.median.radius = a.median.radius + b.median.radius;
@@ -322,14 +332,14 @@ struct CurvesSelectionStatus {
   }
 };
 
-static CurvesSelectionStatus init_curves_selection_status(
+static CurvesPointSelectionStatus init_curves_point_selection_status(
     const blender::bke::CurvesGeometry &curves)
 {
   using namespace blender;
   using namespace ed::curves;
 
   if (curves.is_empty()) {
-    return CurvesSelectionStatus();
+    return CurvesPointSelectionStatus();
   }
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
@@ -341,12 +351,12 @@ static CurvesSelectionStatus init_curves_selection_status(
   IndexMaskMemory memory;
   const IndexMask selection = retrieve_selected_points(curves, ".selection", memory);
 
-  CurvesSelectionStatus status = threading::parallel_reduce(
+  CurvesPointSelectionStatus status = threading::parallel_reduce(
       curves.curves_range(),
       512,
-      CurvesSelectionStatus(),
-      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-        CurvesSelectionStatus value = acc;
+      CurvesPointSelectionStatus(),
+      [&](const IndexRange range, const CurvesPointSelectionStatus &acc) {
+        CurvesPointSelectionStatus value = acc;
 
         for (const int curve : range) {
           const IndexRange points = points_by_curve[curve];
@@ -370,7 +380,7 @@ static CurvesSelectionStatus init_curves_selection_status(
         }
         return value;
       },
-      CurvesSelectionStatus::sum);
+      CurvesPointSelectionStatus::sum);
 
   if (!curves.has_curve_with_type(CURVE_TYPE_BEZIER)) {
     return status;
@@ -394,10 +404,10 @@ static CurvesSelectionStatus init_curves_selection_status(
   return status;
 }
 
-static bool apply_to_curves_selection(const int tot,
-                                      const TransformMedian_Curves &median,
-                                      const TransformMedian_Curves &ve_median,
-                                      blender::bke::CurvesGeometry &curves)
+static bool apply_to_curves_point_selection(const int tot,
+                                            const TransformMedian_Curves &median,
+                                            const TransformMedian_Curves &ve_median,
+                                            blender::bke::CurvesGeometry &curves)
 {
   using namespace blender;
   using namespace ed::curves;
@@ -478,6 +488,144 @@ static bool apply_to_curves_selection(const int tot,
   if (changed) {
     curves.calculate_bezier_auto_handles();
   }
+
+  return changed;
+}
+
+struct CurvesSelectionStatus {
+  int total = 0;
+  int total_nurbs = 0;
+  int total_bezier = 0;
+
+  int cyclic = 0;
+  int order_sum = 0;
+  int order_max = 0;
+  int resolution_sum = 0;
+  int resolution_max = 0;
+
+  static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
+  {
+    CurvesSelectionStatus result;
+    result.total = a.total + b.total;
+    result.total_nurbs = a.total_nurbs + b.total_nurbs;
+    result.total_bezier = a.total_bezier + b.total_bezier;
+    result.cyclic = a.cyclic + b.cyclic;
+    result.order_sum = a.order_sum + b.order_sum;
+    result.order_max = std::max(a.order_max, b.order_max);
+    result.resolution_sum = a.resolution_sum + b.resolution_sum;
+    result.resolution_max = std::max(a.resolution_max, b.resolution_max);
+    return result;
+  }
+};
+
+static CurvesSelectionStatus init_curves_selection_status(
+    const blender::bke::CurvesGeometry &curves)
+{
+  using namespace blender;
+  using namespace ed::curves;
+
+  if (curves.is_empty()) {
+    return CurvesSelectionStatus();
+  }
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const VArray<int8_t> curve_types = curves.curve_types();
+  const VArray<bool> cyclic = curves.cyclic();
+  const VArray<int8_t> orders = curves.nurbs_orders();
+  const VArray<int> resolution = curves.resolution();
+
+  IndexMaskMemory memory;
+  const IndexMask selection = retrieve_all_selected_points(curves, memory);
+
+  return threading::parallel_reduce(
+      curves.curves_range(),
+      512,
+      CurvesSelectionStatus(),
+      [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+        CurvesSelectionStatus value = acc;
+
+        for (const int curve : range) {
+          const IndexRange points = points_by_curve[curve];
+          const IndexMask curve_selection = selection.slice_content(points);
+          if (curve_selection.is_empty()) {
+            continue;
+          }
+          const CurveType curve_type = CurveType(curve_types[curve]);
+          const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+          const bool is_bezier = curve_type == CURVE_TYPE_BEZIER;
+
+          value.total++;
+          value.total_nurbs += is_nurbs;
+          value.total_bezier += is_bezier;
+
+          value.cyclic += cyclic[curve];
+
+          const int order = is_nurbs ? orders[curve] : 0;
+          value.order_sum += order;
+          value.order_max = std::max(value.order_max, order);
+
+          const int res = resolution[curve];
+          value.resolution_sum += res;
+          value.resolution_max = std::max(value.resolution_max, res);
+        }
+        return value;
+      },
+      CurvesSelectionStatus::sum);
+}
+
+static bool apply_to_curves_selection(const CurvesData &current,
+                                      const CurvesData &modified,
+                                      blender::bke::CurvesGeometry &curves)
+{
+  using namespace blender;
+  using namespace ed::curves;
+  if (curves.is_empty()) {
+    return false;
+  }
+
+  bool changed = false;
+
+  const bool cyclic_changed = modified.cyclic != current.cyclic;
+  const bool order_changed = modified.order != current.order;
+  const bool resolution_changed = modified.resolution != current.resolution;
+
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const VArray<int8_t> curve_types = curves.curve_types();
+  const MutableSpan<bool> cyclic = cyclic_changed ? curves.cyclic_for_write() :
+                                                    MutableSpan<bool>();
+  const MutableSpan<int8_t> orders = order_changed ? curves.nurbs_orders_for_write() :
+                                                     MutableSpan<int8_t>();
+  const MutableSpan<int> resolution = resolution_changed ? curves.resolution_for_write() :
+                                                           MutableSpan<int>();
+
+  IndexMaskMemory memory;
+  const IndexMask selection = retrieve_selected_points(curves, ".selection", memory);
+
+  threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
+    for (const int curve : range) {
+      const IndexRange points = points_by_curve[curve];
+      const CurveType curve_type = CurveType(curve_types[curve]);
+      const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
+      const IndexMask curve_selection = selection.slice_content(points);
+
+      if (curve_selection.is_empty()) {
+        continue;
+      }
+
+      changed = true;
+
+      if (cyclic_changed) {
+        cyclic[curve] = modified.cyclic;
+      }
+
+      if (resolution_changed) {
+        resolution[curve] = modified.resolution;
+      }
+
+      if (is_nurbs && order_changed) {
+        orders[curve] = std::min<int8_t>(modified.order, points.size());
+      }
+    }
+  });
 
   return changed;
 }
@@ -662,34 +810,33 @@ static void v3d_editvertex_buts(
     }
   }
   else if (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES)) {
-    CurvesSelectionStatus status;
+    CurvesPointSelectionStatus status;
 
     if (ob->type == OB_GREASE_PENCIL) {
-      using namespace blender::ed::greasepencil;
+      using namespace ed::greasepencil;
       using namespace ed::curves;
       Scene &scene = *CTX_data_scene(C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
-      blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
-                                                                                grease_pencil);
+      Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
       status = threading::parallel_reduce(
           drawings.index_range(),
           1L,
-          CurvesSelectionStatus(),
-          [&](const IndexRange range, const CurvesSelectionStatus &acc) {
-            CurvesSelectionStatus value = acc;
+          CurvesPointSelectionStatus(),
+          [&](const IndexRange range, const CurvesPointSelectionStatus &acc) {
+            CurvesPointSelectionStatus value = acc;
             for (const int drawing : range) {
-              value = CurvesSelectionStatus::sum(
-                  value, init_curves_selection_status(drawings[drawing].drawing.strokes()));
+              value = CurvesPointSelectionStatus::sum(
+                  value, init_curves_point_selection_status(drawings[drawing].drawing.strokes()));
             }
             return value;
           },
-          CurvesSelectionStatus::sum);
+          CurvesPointSelectionStatus::sum);
     }
     else {
       using namespace ed::curves;
       const Curves &curves_id = *static_cast<Curves *>(ob->data);
-      status = init_curves_selection_status(curves_id.geometry.wrap());
+      status = init_curves_point_selection_status(curves_id.geometry.wrap());
     }
 
     TransformMedian_Curves &median = median_basis.curves;
@@ -1454,16 +1601,17 @@ static void v3d_editvertex_buts(
              (apply_vcos || median_basis.curves.nurbs_weight || median_basis.curves.radius ||
               median_basis.curves.tilt))
     {
-      using namespace blender::ed::greasepencil;
+      using namespace ed::greasepencil;
       using namespace ed::curves;
       Scene &scene = *CTX_data_scene(C);
       GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
-      blender::Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene,
-                                                                                grease_pencil);
+      Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
 
       threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-        if (apply_to_curves_selection(tot, median_basis.curves, ve_median_basis.curves, curves)) {
+        if (apply_to_curves_point_selection(
+                tot, median_basis.curves, ve_median_basis.curves, curves))
+        {
           info.drawing.tag_positions_changed();
         }
       });
@@ -1474,7 +1622,9 @@ static void v3d_editvertex_buts(
       using namespace ed::curves;
       Curves &curves_id = *static_cast<Curves *>(ob->data);
       bke::CurvesGeometry &curves = curves_id.geometry.wrap();
-      if (apply_to_curves_selection(tot, median_basis.curves, ve_median_basis.curves, curves)) {
+      if (apply_to_curves_point_selection(
+              tot, median_basis.curves, ve_median_basis.curves, curves))
+      {
         curves.tag_positions_changed();
       }
     }
@@ -2042,6 +2192,151 @@ static void view3d_panel_transform(const bContext *C, Panel *panel)
   }
 }
 
+static bool view3d_panel_curves_data_poll(const bContext *C, PanelType * /*pt*/)
+{
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  return (ob && (ELEM(ob->type, OB_GREASE_PENCIL, OB_CURVES) && BKE_object_is_in_editmode(ob)));
+}
+
+static void do_view3d_curves_data_buttons(bContext *C, void * /*index*/, int /*event*/)
+{
+  using namespace blender;
+
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+
+  View3D *v3d = CTX_wm_view3d(C);
+  const TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    using namespace ed::greasepencil;
+    using namespace ed::curves;
+    Scene &scene = *CTX_data_scene(C);
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+
+    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+      if (apply_to_curves_selection(tfp.current, tfp.modified, curves)) {
+        info.drawing.tag_topology_changed();
+      }
+    });
+  }
+  else {
+    Curves &curves_id = *static_cast<Curves *>(ob->data);
+    blender::bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+    if (apply_to_curves_selection(tfp.current, tfp.modified, curves)) {
+      curves.tag_topology_changed();
+    }
+  }
+
+  DEG_id_tag_update(static_cast<ID *>(ob->data), ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
+}
+
+static void view3d_panel_curves_data(const bContext *C, Panel *panel)
+{
+  using namespace blender;
+  using namespace ed::curves;
+
+  const Scene *scene = CTX_data_scene(C);
+  ViewLayer *view_layer = CTX_data_view_layer(C);
+  BKE_view_layer_synced_ensure(scene, view_layer);
+  Object *ob = BKE_view_layer_active_object_get(view_layer);
+  Object *obedit = OBEDIT_FROM_OBACT(ob);
+  uiBlock *block = panel->layout->block();
+
+  CurvesSelectionStatus status;
+
+  if (ob->type == OB_GREASE_PENCIL) {
+    using namespace ed::greasepencil;
+    Scene &scene = *CTX_data_scene(C);
+    GreasePencil &grease_pencil = *static_cast<GreasePencil *>(ob->data);
+    Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
+
+    status = threading::parallel_reduce(
+        drawings.index_range(),
+        1L,
+        CurvesSelectionStatus(),
+        [&](const IndexRange range, const CurvesSelectionStatus &acc) {
+          CurvesSelectionStatus value = acc;
+          for (const int drawing : range) {
+            value = CurvesSelectionStatus::sum(
+                value, init_curves_selection_status(drawings[drawing].drawing.strokes()));
+          }
+          return value;
+        },
+        CurvesSelectionStatus::sum);
+  }
+  else {
+    const Curves &curves_id = *static_cast<Curves *>(ob->data);
+    status = init_curves_selection_status(curves_id.geometry.wrap());
+  }
+
+  if (status.total == 0) {
+    uiDefBut(
+        block, UI_BTYPE_LABEL, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
+    return;
+  }
+
+  View3D *v3d = CTX_wm_view3d(C);
+  TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
+  CurvesData &modified = tfp.modified;
+  CurvesData &current = tfp.current;
+
+  UI_block_func_handle_set(block, do_view3d_curves_data_buttons, nullptr);
+
+  const bool is_cyclic_active = status.cyclic == 0 || status.cyclic == status.total;
+  const bool is_order_active = status.order_max * status.total_nurbs == status.order_sum;
+  const bool is_resolution_active = status.resolution_max * status.total == status.resolution_sum;
+
+  current.cyclic = status.cyclic > 0;
+  current.order = status.order_sum / status.total_nurbs;
+  current.resolution = status.resolution_sum / status.total;
+
+  modified = current;
+
+  const int butw = 10 * UI_UNIT_X;
+  const int buth = 20 * UI_SCALE_FAC;
+
+  uiLayout &bcol = panel->layout->column(true);
+
+  auto add_labeled_field =
+      [&](const StringRef label, const bool active, FunctionRef<void()> add_field) {
+        uiLayout &row = bcol.row(true);
+        uiLayout &split = row.split(0.4, true);
+        uiLayout &col = split.column(true);
+        col.alignment_set(ui::LayoutAlign::Right);
+        col.label(label, ICON_NONE);
+        uiLayout &field_col = split.column(false);
+        field_col.active_set(active);
+        add_field();
+      };
+
+  add_labeled_field("Cyclic", is_cyclic_active, [&]() {
+    uiDefButC(block, UI_BTYPE_CHECKBOX, 0, "", 0, 0, butw, buth, &modified.cyclic, 0, 1, "");
+  });
+  if (status.total_nurbs == status.total) {
+    add_labeled_field("Order", is_order_active, [&]() {
+      uiBut *but = uiDefButI(
+          block, UI_BTYPE_NUM, 0, "", 0, 0, butw, buth, &modified.order, 2, 6, "");
+      UI_but_number_step_size_set(but, 1);
+      UI_but_number_precision_set(but, -1);
+    });
+  }
+  add_labeled_field("Resolution", is_resolution_active, [&]() {
+    uiBut *but = uiDefButI(
+        block, UI_BTYPE_NUM, 0, "", 0, 0, butw, buth, &modified.resolution, 1, 64, "");
+    UI_but_number_step_size_set(but, 1);
+    UI_but_number_precision_set(but, -1);
+  });
+}
+
 void view3d_buttons_register(ARegionType *art)
 {
   PanelType *pt;
@@ -2062,6 +2357,15 @@ void view3d_buttons_register(ARegionType *art)
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_vgroup;
   pt->poll = view3d_panel_vgroup_poll;
+  BLI_addtail(&art->paneltypes, pt);
+
+  pt = MEM_callocN<PanelType>("spacetype view3d panel curves");
+  STRNCPY(pt->idname, "VIEW3D_PT_curves");
+  STRNCPY(pt->label, N_("Spline Data")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY(pt->category, "Item");
+  STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
+  pt->draw = view3d_panel_curves_data;
+  pt->poll = view3d_panel_curves_data_poll;
   BLI_addtail(&art->paneltypes, pt);
 }
 
