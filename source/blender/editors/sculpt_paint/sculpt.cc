@@ -25,6 +25,7 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_matrix.hh"
 #include "BLI_math_rotation.h"
+#include "BLI_math_rotation.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
 #include "BLI_span.hh"
@@ -3496,7 +3497,26 @@ void SCULPT_cache_calc_brushdata_symm(blender::ed::sculpt_paint::StrokeCache &ca
                     cache.rake_rotation->y,
                     cache.rake_rotation->z);
     flip_qt_qt(new_quat, existing, symm);
-    cache.rake_rotation_symm = math::Quaternion(new_quat);
+    if (axis) {
+      float3 rotation_axis = float3(0.0f);
+      switch (axis) {
+        case 'X':
+          rotation_axis = float3(1.0, 0.0, 0.0);
+          break;
+        case 'Y':
+          rotation_axis = float3(0.0, 1.0, 0.0);
+          break;
+        case 'Z':
+          rotation_axis = float3(0.0, 0.0, 1.0);
+          break;
+        default:
+          BLI_assert(0);
+      }
+      cache.rake_rotation_symm = math::rotate(math::Quaternion(new_quat), math::AxisAngle(rotation_axis, angle));
+    }
+    else {
+      cache.rake_rotation_symm = math::Quaternion(new_quat);
+    }
   }
 }
 
