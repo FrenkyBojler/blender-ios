@@ -483,35 +483,11 @@ static ImageGPUTextures image_get_gpu_texture(Image *ima,
   return result;
 }
 
-GPUTexture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser)
-{
-  return *image_get_gpu_texture(image, iuser, false, false, false).texture;
-}
-
-GPUTexture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser)
-{
-  return *image_get_gpu_texture(image, iuser, true, false, false).texture;
-}
-
-ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
-                                                    ImageUser *iuser,
-                                                    const bool use_tile_mapping)
-{
-  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, false);
-}
-
-ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
-                                                        ImageUser *iuser,
-                                                        const bool use_tile_mapping)
-{
-  return image_get_gpu_texture(image, iuser, false, use_tile_mapping, true);
-}
-
 /**
  * Global lock needed to make gpu texture request threadsafe.
- * There is the possibility of one thread deleting textures right after they have been created and
- * right before another thread have time to acquire it. Moreover, there can be race condition when
- * 2 threads try to create the same `GPUTexture` on the same `Image`.
+ * Otherwise, there is the possibility of one thread deleting textures right after they have been
+ * created and right before another thread have time to acquire it. Moreover, there could be race
+ * condition when 2 threads try to create the same `GPUTexture` on the same `Image`.
  * TODO(fclem): Find a better way to handle this lifetime/ownership issue. */
 static blender::Mutex g_gpu_texture_lock;
 
@@ -542,6 +518,9 @@ static ImageGPUTextures image_acquire_gpu_texture(Image *ima,
 
 void BKE_image_release_gpu_texture(GPUTexture *tex)
 {
+  if (!tex) {
+    return;
+  }
   std::lock_guard lock(g_gpu_texture_lock);
   GPU_texture_free(tex);
 }
@@ -554,6 +533,11 @@ GPUTexture *BKE_image_acquire_gpu_texture(Image *image, ImageUser *iuser)
 GPUTexture *BKE_image_acquire_gpu_viewer_texture(Image *image, ImageUser *iuser)
 {
   return *image_acquire_gpu_texture(image, iuser, true, false, false).texture;
+}
+
+GPUTexture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser)
+{
+  return *image_get_gpu_texture(image, iuser, false, false, false).texture;
 }
 
 ImageGPUTextures BKE_image_acquire_gpu_material_texture(Image *image,

@@ -33,6 +33,16 @@ Manager::~Manager()
   }
 }
 
+void Manager::acquire_material_textures(ImageGPUTextures &textures)
+{
+  if (textures.texture && *textures.texture) {
+    acquired_textures.append(*textures.texture);
+  }
+  if (textures.tile_mapping && *textures.tile_mapping) {
+    acquired_textures.append(*textures.tile_mapping);
+  }
+}
+
 void Manager::begin_sync(Object *object_active)
 {
   /* Add 2 to always have a non-null number even in case of overflow. */

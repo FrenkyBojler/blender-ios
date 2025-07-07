@@ -42,12 +42,15 @@ static MaterialPool *gpencil_material_pool_add(Instance *inst)
   return matpool;
 }
 
-static GPUTexture *gpencil_image_texture_get(::Image *image, bool *r_alpha_premult)
+static GPUTexture *gpencil_image_texture_get(Manager &manager,
+                                             ::Image *image,
+                                             bool *r_alpha_premult)
 {
   ImageUser iuser = {nullptr};
   GPUTexture *gpu_tex = nullptr;
 
-  gpu_tex = BKE_image_get_gpu_texture(image, &iuser);
+  gpu_tex = BKE_image_acquire_gpu_texture(image, &iuser);
+  manager.acquire_texture(gpu_tex);
   *r_alpha_premult = (gpu_tex) ? (image->alpha_mode == IMA_ALPHA_PREMUL) : false;
 
   return gpu_tex;
@@ -160,10 +163,8 @@ static MaterialGPencilStyle *gpencil_viewport_material_overrides(
   return gp_style;
 }
 
-MaterialPool *gpencil_material_pool_create(Instance *inst,
-                                           Object *ob,
-                                           int *ofs,
-                                           const bool is_vertex_mode)
+MaterialPool *gpencil_material_pool_create(
+    Instance *inst, Manager &manager, Object *ob, int *ofs, const bool is_vertex_mode)
 {
   MaterialPool *matpool = inst->last_material_pool;
 
@@ -243,7 +244,7 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
     /* Stroke Style */
     if ((gp_style->stroke_style == GP_MATERIAL_STROKE_STYLE_TEXTURE) && (gp_style->sima)) {
       bool premul;
-      pool->tex_stroke[mat_id] = gpencil_image_texture_get(gp_style->sima, &premul);
+      pool->tex_stroke[mat_id] = gpencil_image_texture_get(manager, gp_style->sima, &premul);
       mat_data->flag |= pool->tex_stroke[mat_id] ? GP_STROKE_TEXTURE_USE : GP_FLAG_NONE;
       mat_data->flag |= premul ? GP_STROKE_TEXTURE_PREMUL : GP_FLAG_NONE;
       copy_v4_v4(mat_data->stroke_color, gp_style->stroke_rgba);
@@ -261,7 +262,7 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
     if ((gp_style->fill_style == GP_MATERIAL_FILL_STYLE_TEXTURE) && (gp_style->ima)) {
       bool use_clip = (gp_style->flag & GP_MATERIAL_TEX_CLAMP) != 0;
       bool premul;
-      pool->tex_fill[mat_id] = gpencil_image_texture_get(gp_style->ima, &premul);
+      pool->tex_fill[mat_id] = gpencil_image_texture_get(manager, gp_style->ima, &premul);
       mat_data->flag |= pool->tex_fill[mat_id] ? GP_FILL_TEXTURE_USE : GP_FLAG_NONE;
       mat_data->flag |= premul ? GP_FILL_TEXTURE_PREMUL : GP_FLAG_NONE;
       mat_data->flag |= use_clip ? GP_FILL_TEXTURE_CLIP : GP_FLAG_NONE;

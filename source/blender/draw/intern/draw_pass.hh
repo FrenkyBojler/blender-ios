@@ -1152,10 +1152,9 @@ inline void PassBase<T>::material_set(Manager &manager,
       }
       else {
         /* Texture is loaded. Acquire. */
-        manager.acquire_texture(*gputex.texture);
+        manager.acquire_material_textures(gputex);
         bind_texture(tex->sampler_name, *gputex.texture, tex->sampler_state);
         if (gputex.tile_mapping) {
-          manager.acquire_texture(*gputex.tile_mapping);
           bind_texture(tex->tiled_mapping_name, *gputex.tile_mapping, tex->sampler_state);
         }
       }

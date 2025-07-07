@@ -14,8 +14,6 @@
 
 #include "gpu_framebuffer_private.hh"
 
-#include <atomic>
-
 namespace blender::gpu {
 
 enum eGPUTextureFormatFlag {
@@ -87,7 +85,7 @@ class Texture {
   /** Internal Sampler state. */
   GPUSamplerState sampler_state = GPUSamplerState::default_sampler();
   /** Reference counter. */
-  std::atomic<int> refcount = 1;
+  int refcount = 1;
   /** Width & Height (of source data), optional. */
   int src_w = 0, src_h = 0;
 #ifndef GPU_NO_USE_PY_REFERENCES

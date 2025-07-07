@@ -62,7 +62,7 @@ uint32_t Material::pack_data(float metallic, float roughness, float alpha)
   return (packed_alpha << 16u) | (packed_roughness << 8u) | packed_metallic;
 }
 
-MaterialTexture::MaterialTexture(Object *ob, int material_index)
+MaterialTexture::MaterialTexture(Manager &manager, Object *ob, int material_index)
 {
   const ::bNode *node = nullptr;
 
@@ -109,15 +109,17 @@ MaterialTexture::MaterialTexture(Object *ob, int material_index)
       BLI_assert_msg(0, "Node type not supported by workbench");
   }
 
-  gpu = BKE_image_get_gpu_material_texture(image, user, true);
+  gpu = BKE_image_acquire_gpu_material_texture(image, user, true);
+  manager.acquire_material_textures(gpu);
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;
 }
 
-MaterialTexture::MaterialTexture(::Image *image, ImageUser *user /* = nullptr */)
+MaterialTexture::MaterialTexture(Manager &manager, ::Image *image, ImageUser *user /* = nullptr */)
 {
-  gpu = BKE_image_get_gpu_material_texture(image, user, true);
+  gpu = BKE_image_acquire_gpu_material_texture(image, user, true);
+  manager.acquire_material_textures(gpu);
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;

@@ -669,13 +669,13 @@ void GPU_texture_swizzle_set(GPUTexture *texture, const char swizzle[4])
 void GPU_texture_free(GPUTexture *texture)
 {
   Texture *tex = unwrap(texture);
-  int refcount = tex->refcount.fetch_add(-1) - 1;
+  tex->refcount--;
 
-  if (refcount < 0) {
+  if (tex->refcount < 0) {
     fprintf(stderr, "GPUTexture: negative refcount\n");
   }
 
-  if (refcount == 0) {
+  if (tex->refcount == 0) {
     delete tex;
   }
 }

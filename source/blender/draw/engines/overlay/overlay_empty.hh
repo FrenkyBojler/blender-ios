@@ -287,7 +287,8 @@ class Empties : Overlay {
       if (ima != nullptr) {
         ImageUser iuser = *ob->iuser;
         Images::stereo_setup(state.scene, state.v3d, ima, &iuser);
-        tex = BKE_image_get_gpu_texture(ima, &iuser);
+        tex = BKE_image_acquire_gpu_texture(ima, &iuser);
+        manager.acquire_texture(tex);
         if (tex) {
           size = int2(GPU_texture_original_width(tex), GPU_texture_original_height(tex));
         }

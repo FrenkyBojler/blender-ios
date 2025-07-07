@@ -956,7 +956,7 @@ class MeshUVs : Overlay {
 
       const ImagePaintSettings &image_paint_settings = tool_setting->imapaint;
       ::Image *stencil_image = image_paint_settings.clone;
-      GPUTexture *tex = BKE_image_get_gpu_texture(stencil_image, nullptr);
+      GPUTexture *tex = BKE_image_acquire_gpu_texture(stencil_image, nullptr);
       DRW_manager_get()->acquire_texture(tex);
 
       TextureRef stencil_texture;

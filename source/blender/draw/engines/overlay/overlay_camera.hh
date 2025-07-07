@@ -589,7 +589,7 @@ class Cameras : Overlay {
 
       /* retrieve the image we want to show, continue to next when no image could be found */
       GPUTexture *tex = image_camera_background_texture_get(
-          bgpic, state, res, aspect, use_alpha_premult, use_view_transform);
+          manager, bgpic, state, res, aspect, use_alpha_premult, use_view_transform);
 
       if (tex) {
         image_camera_background_matrix_get(&cam, bgpic, state, aspect, mat);
@@ -680,7 +680,8 @@ class Cameras : Overlay {
     rmat = translate * rotate * scale;
   }
 
-  GPUTexture *image_camera_background_texture_get(const CameraBGImage *bgpic,
+  GPUTexture *image_camera_background_texture_get(Manager &manager,
+                                                  const CameraBGImage *bgpic,
                                                   const State &state,
                                                   Resources &res,
                                                   float &r_aspect,
@@ -714,7 +715,8 @@ class Cameras : Overlay {
         Images::stereo_setup(state.scene, state.v3d, image, iuser);
 
         iuser->scene = (Scene *)state.scene;
-        tex = BKE_image_get_gpu_viewer_texture(image, iuser);
+        tex = BKE_image_acquire_gpu_viewer_texture(image, iuser);
+        manager.acquire_texture(tex);
         iuser->scene = nullptr;
 
         if (tex == nullptr) {

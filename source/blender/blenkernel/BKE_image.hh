@@ -567,7 +567,7 @@ GPUTexture *BKE_image_create_gpu_texture_from_ibuf(Image *image, ImBuf *ibuf);
 /**
  * Ensure that the cached GPU texture inside the image matches the pass, layer, and view of the
  * given image user, if not, invalidate the cache such that the next call to the GPU texture
- * retrieval functions such as BKE_image_get_gpu_texture updates the cache with an image that
+ * retrieval functions such as BKE_image_acquire_gpu_texture updates the cache with an image that
  * matches the give image user.
  *
  * This is provided as a separate function and not implemented as part of the GPU texture retrieval
@@ -581,7 +581,7 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser);
 /**
  * Get the #GPUTexture for a given `Image`.
  *
- *
+ * Expects the caller to call BKE_image_release_gpu_texture after usage.
  *
  * The requested GPU texture will be cached for subsequent calls, but only a single layer, pass,
  * and view can be cached at a time, so the cache should be invalidated in operators and RNA
@@ -592,15 +592,18 @@ void BKE_image_ensure_gpu_texture(Image *image, ImageUser *iuser);
  * calling BKE_image_ensure_gpu_texture. This is a workaround until image can support a more
  * complete caching system.
  */
+GPUTexture *BKE_image_acquire_gpu_texture(Image *image, ImageUser *iuser);
+
+/*
+ * Like BKE_acquire_get_gpu_texture, but can also get render or compositing result.
+ */
+GPUTexture *BKE_image_acquire_gpu_viewer_texture(Image *image, ImageUser *iuser);
+
+/* Unsafe variant of BKE_image_acquire_gpu_texture that doesn't increase the texture ref count. */
 GPUTexture *BKE_image_get_gpu_texture(Image *image, ImageUser *iuser);
 
 /*
- * Like BKE_image_get_gpu_texture, but can also get render or compositing result.
- */
-GPUTexture *BKE_image_get_gpu_viewer_texture(Image *image, ImageUser *iuser);
-
-/*
- * Like BKE_image_get_gpu_texture, but can also return array and tile mapping texture for UDIM
+ * Like BKE_image_acquire_gpu_texture, but can also return array and tile mapping texture for UDIM
  * tiles as used in material shaders.
  */
 struct ImageGPUTextures {
@@ -608,24 +611,11 @@ struct ImageGPUTextures {
   GPUTexture **tile_mapping;
 };
 
-ImageGPUTextures BKE_image_get_gpu_material_texture(Image *image,
-                                                    ImageUser *iuser,
-                                                    const bool use_tile_mapping);
-
-/* Same as BKE_image_get_gpu_material_texture but will not load the texture if it isn't already. */
-ImageGPUTextures BKE_image_get_gpu_material_texture_try(Image *image,
-                                                        ImageUser *iuser,
-                                                        const bool use_tile_mapping);
-
-/* Variant of the above functions that increment the reference counter of the textures in a
- * threadsafe manner. Expect caller to call BKE_image_release_gpu_texture after usage. */
-/* TODO(fclem): This should ultimately replace the usage of the `BKE_image_get_gpu_*` style of
- * function. */
-GPUTexture *BKE_image_acquire_gpu_texture(Image *image, ImageUser *iuser);
-GPUTexture *BKE_image_acquire_gpu_viewer_texture(Image *image, ImageUser *iuser);
+/* Expects caller to call BKE_image_release_gpu_texture after usage. */
 ImageGPUTextures BKE_image_acquire_gpu_material_texture(Image *image,
                                                         ImageUser *iuser,
                                                         const bool use_tile_mapping);
+/* Same as BKE_image_get_gpu_material_texture but will not load the texture if it isn't already. */
 ImageGPUTextures BKE_image_acquire_gpu_material_texture_try(Image *image,
                                                             ImageUser *iuser,
                                                             const bool use_tile_mapping);

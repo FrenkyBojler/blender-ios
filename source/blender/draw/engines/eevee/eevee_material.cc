@@ -9,6 +9,7 @@
 #include "BLI_time.h"
 #include "DNA_material_types.h"
 
+#include "BKE_image.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_material.hh"
 #include "BKE_node.hh"
@@ -180,10 +181,13 @@ void MaterialModule::queue_texture_loading(GPUMaterial *material)
     if (tex->ima) {
       const bool use_tile_mapping = tex->tiled_mapping_name[0];
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
-      ImageGPUTextures gputex = BKE_image_get_gpu_material_texture_try(
+      ImageGPUTextures gputex = BKE_image_acquire_gpu_material_texture_try(
           tex->ima, iuser, use_tile_mapping);
       if (*gputex.texture == nullptr) {
         texture_loading_queue_.append(tex);
+      }
+      else {
+        inst_.manager->acquire_material_textures(gputex);
       }
     }
   }
@@ -226,10 +230,7 @@ void MaterialModule::end_sync()
         tex->ima, iuser, use_tile_mapping);
 
     /* Acquire the textures since they were not existing inside `PassBase::material_set()`. */
-    inst_.manager->acquire_texture(*gputex.texture);
-    if (gputex.tile_mapping) {
-      inst_.manager->acquire_texture(*gputex.tile_mapping);
-    }
+    inst_.manager->acquire_material_textures(gputex);
 
     GPU_debug_group_end();
   }

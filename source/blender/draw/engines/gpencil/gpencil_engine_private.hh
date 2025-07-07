@@ -328,7 +328,7 @@ struct Instance final : public DrawEngine {
   static float2 antialiasing_sample_get(int sample_index, int sample_count);
 
  private:
-  tObject *object_sync_do(Object *ob, ResourceHandle res_handle);
+  tObject *object_sync_do(Manager &manager, Object *ob, ResourceHandle res_handle);
 
   /* Check if the passed in layer is used by any other layer as a mask (in the viewlayer). */
   bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,
@@ -419,10 +419,8 @@ tLayer *grease_pencil_layer_cache_add(Instance *inst,
  * We merge the material pools together if object does not contain a huge amount of materials.
  * Also return an offset to the first material of the object in the UBO.
  */
-MaterialPool *gpencil_material_pool_create(Instance *inst,
-                                           Object *ob,
-                                           int *ofs,
-                                           bool is_vertex_mode);
+MaterialPool *gpencil_material_pool_create(
+    Instance *inst, Manager &manager, Object *ob, int *ofs, bool is_vertex_mode);
 void gpencil_material_resources_get(MaterialPool *first_pool,
                                     int mat_id,
                                     struct GPUTexture **r_tex_stroke,

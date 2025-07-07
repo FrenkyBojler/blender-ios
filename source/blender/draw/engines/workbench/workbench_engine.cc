@@ -157,7 +157,8 @@ class Instance : public DrawEngine {
       return;
     }
 
-    const ObjectState object_state = ObjectState(this->draw_ctx, scene_state_, resources_, ob);
+    const ObjectState object_state = ObjectState(
+        this->draw_ctx, scene_state_, resources_, manager, ob);
 
     bool is_object_data_visible = (DRW_object_visibility_in_active_context(ob) &
                                    OB_VISIBLE_SELF) &&
@@ -187,12 +188,12 @@ class Instance : public DrawEngine {
         const float3 center = math::midpoint(bounds.min, bounds.max);
         const float3 half_extent = bounds.max - center;
         ResourceHandle handle = manager.resource_handle(ob_ref, nullptr, &center, &half_extent);
-        this->sculpt_sync(ob_ref, handle, object_state);
+        this->sculpt_sync(manager, ob_ref, handle, object_state);
         emitter_handle = handle;
       }
       else if (ob->type == OB_MESH) {
         ResourceHandle handle = manager.resource_handle(ob_ref);
-        this->mesh_sync(ob_ref, handle, object_state);
+        this->mesh_sync(manager, ob_ref, handle, object_state);
         emitter_handle = handle;
       }
       else if (ob->type == OB_POINTCLOUD) {
@@ -275,7 +276,10 @@ class Instance : public DrawEngine {
     });
   }
 
-  void mesh_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void mesh_sync(Manager &manager,
+                 ObjectRef &ob_ref,
+                 ResourceHandle handle,
+                 const ObjectState &object_state)
   {
     bool has_transparent_material = false;
 
@@ -303,7 +307,7 @@ class Instance : public DrawEngine {
 
           MaterialTexture texture;
           if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-            texture = MaterialTexture(ob_ref.object, material_slot);
+            texture = MaterialTexture(manager, ob_ref.object, material_slot);
           }
 
           this->draw_mesh(
@@ -341,7 +345,10 @@ class Instance : public DrawEngine {
     }
   }
 
-  void sculpt_sync(ObjectRef &ob_ref, ResourceHandle handle, const ObjectState &object_state)
+  void sculpt_sync(Manager &manager,
+                   ObjectRef &ob_ref,
+                   ResourceHandle handle,
+                   const ObjectState &object_state)
   {
     SculptBatchFeature features = SCULPT_BATCH_DEFAULT;
     if (object_state.color_type == V3D_SHADING_VERTEX_COLOR) {
@@ -360,7 +367,7 @@ class Instance : public DrawEngine {
 
         MaterialTexture texture;
         if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-          texture = MaterialTexture(ob_ref.object, batch.material_slot);
+          texture = MaterialTexture(manager, ob_ref.object, batch.material_slot);
         }
 
         this->draw_mesh(
@@ -408,7 +415,7 @@ class Instance : public DrawEngine {
     Material mat = this->get_material(ob_ref, object_state.color_type, psys->part->omat - 1);
     MaterialTexture texture;
     if (object_state.color_type == V3D_SHADING_TEXTURE_COLOR) {
-      texture = MaterialTexture(ob_ref.object, psys->part->omat - 1);
+      texture = MaterialTexture(manager, ob_ref.object, psys->part->omat - 1);
     }
     resources_.material_buf.append(mat);
     int material_index = resources_.material_buf.size() - 1;

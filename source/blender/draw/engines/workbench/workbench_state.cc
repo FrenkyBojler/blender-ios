@@ -280,6 +280,7 @@ static const CustomData *get_vert_custom_data(const Mesh *mesh)
 ObjectState::ObjectState(const DRWContext *draw_ctx,
                          const SceneState &scene_state,
                          const SceneResources &resources,
+                         Manager &manager,
                          Object *ob)
 {
   const bool is_active = (ob == draw_ctx->obact);
@@ -343,7 +344,7 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
       const ImagePaintSettings *imapaint = &scene_state.scene->toolsettings->imapaint;
       if (imapaint->mode == IMAGEPAINT_MODE_IMAGE) {
         if (imapaint->canvas) {
-          image_paint_override = MaterialTexture(imapaint->canvas);
+          image_paint_override = MaterialTexture(manager, imapaint->canvas);
           image_paint_override.sampler_state.extend_x = GPU_SAMPLER_EXTEND_MODE_REPEAT;
           image_paint_override.sampler_state.extend_yz = GPU_SAMPLER_EXTEND_MODE_REPEAT;
           const bool use_linear_filter = imapaint->interp == IMAGEPAINT_INTERP_LINEAR;

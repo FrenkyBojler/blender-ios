@@ -25,6 +25,8 @@
 
 #include <atomic>
 
+struct ImageGPUTextures;
+
 namespace blender::draw {
 
 /* Forward declarations. */
@@ -288,8 +290,12 @@ class Manager {
    */
   void acquire_texture(GPUTexture *texture)
   {
-    acquired_textures.append(texture);
+    if (texture) {
+      acquired_textures.append(texture);
+    }
   }
+
+  void acquire_material_textures(ImageGPUTextures &textures);
 
   /**
    * Return the number of resource handles allocated.

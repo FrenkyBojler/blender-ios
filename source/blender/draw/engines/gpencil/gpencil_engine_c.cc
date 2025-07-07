@@ -341,7 +341,7 @@ bool Instance::use_layer_in_render(const GreasePencil &grease_pencil,
   return true;
 }
 
-tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
+tObject *Instance::object_sync_do(Manager &manager, Object *ob, ResourceHandle res_handle)
 {
   using namespace ed::greasepencil;
   using namespace bke::greasepencil;
@@ -359,7 +359,8 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
   tObject *tgp_ob = gpencil_object_cache_add(this, ob, use_stroke_order_3d, bounds);
 
   int mat_ofs = 0;
-  MaterialPool *matpool = gpencil_material_pool_create(this, ob, &mat_ofs, is_vertex_mode);
+  MaterialPool *matpool = gpencil_material_pool_create(
+      this, manager, ob, &mat_ofs, is_vertex_mode);
 
   GPUTexture *tex_fill = this->dummy_tx;
   GPUTexture *tex_stroke = this->dummy_tx;
@@ -587,7 +588,7 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   if (ob->data && (ob->type == OB_GREASE_PENCIL) && (ob->dt >= OB_SOLID)) {
     ResourceHandle res_handle = manager.unique_handle(ob_ref);
 
-    tObject *tgp_ob = object_sync_do(ob, res_handle);
+    tObject *tgp_ob = object_sync_do(manager, ob, res_handle);
     vfx_sync(ob, tgp_ob);
   }
 
