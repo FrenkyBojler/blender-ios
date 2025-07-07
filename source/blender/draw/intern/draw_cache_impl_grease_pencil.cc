@@ -685,17 +685,11 @@ static uint32_t bezier_data_value(int8_t handle_type, bool is_active)
          (is_active ? EDIT_CURVES_ACTIVE_HANDLE : 0);
 }
 
-static void index_buf_add_bezier_line_points(Object &object,
-                                             const bke::greasepencil::Drawing &drawing,
-                                             int layer_index,
-                                             IndexMaskMemory &memory,
-                                             const eHandleDisplay handle_display,
+static void index_buf_add_bezier_line_points(const IndexMask bezier_points,
                                              MutableSpan<uint> points_data,
                                              int *r_drawing_point_index,
                                              int *r_drawing_start_offset)
 {
-  const IndexMask bezier_points = ed::greasepencil::retrieve_visible_bezier_handle_points(
-      object, drawing, layer_index, handle_display, memory);
   if (bezier_points.is_empty()) {
     return;
   }
@@ -722,7 +716,8 @@ static void index_buf_add_bezier_line_points(Object &object,
 
 static void grease_pencil_edit_batch_ensure(Object &object,
                                             const GreasePencil &grease_pencil,
-                                            const Scene &scene)
+                                            const Scene &scene,
+                                            const int handle_display)
 {
   using namespace blender::bke::greasepencil;
   BLI_assert(grease_pencil.runtime != nullptr);
@@ -735,8 +730,6 @@ static void grease_pencil_edit_batch_ensure(Object &object,
 
   /* Should be discarded together. */
   BLI_assert(grease_pencil_batch_cache_is_edit_discarded(cache));
-
-  const eHandleDisplay handle_display = CURVE_HANDLE_ALL;
 
   /* Get the visible drawings. */
   const Vector<ed::greasepencil::DrawingInfo> drawings =
@@ -1089,14 +1082,8 @@ static void grease_pencil_edit_batch_ensure(Object &object,
                            points_data,
                            &points_ibo_index,
                            &drawing_start_offset);
-      index_buf_add_bezier_line_points(object,
-                                       info.drawing,
-                                       info.layer_index,
-                                       memory,
-                                       handle_display,
-                                       points_data,
-                                       &points_ibo_index,
-                                       &drawing_start_offset);
+      index_buf_add_bezier_line_points(
+          bezier_points, points_data, &points_ibo_index, &drawing_start_offset);
     }
   }
 
@@ -1558,31 +1545,37 @@ gpu::Batch *DRW_cache_grease_pencil_get(const Scene *scene, Object *ob)
   return cache->geom_batch;
 }
 
-gpu::Batch *DRW_cache_grease_pencil_edit_points_get(const Scene *scene, Object *ob)
+gpu::Batch *DRW_cache_grease_pencil_edit_points_get(const Scene *scene,
+                                                    Object *ob,
+                                                    const int handle_display)
 {
   GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
-  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
+  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene, handle_display);
 
   /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_points;
 }
 
-gpu::Batch *DRW_cache_grease_pencil_edit_lines_get(const Scene *scene, Object *ob)
+gpu::Batch *DRW_cache_grease_pencil_edit_lines_get(const Scene *scene,
+                                                   Object *ob,
+                                                   const int handle_display)
 {
   GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
-  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
+  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene, handle_display);
 
   /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_lines;
 }
 
-gpu::Batch *DRW_cache_grease_pencil_edit_handles_get(const Scene *scene, Object *ob)
+gpu::Batch *DRW_cache_grease_pencil_edit_handles_get(const Scene *scene,
+                                                     Object *ob,
+                                                     const int handle_display)
 {
   GreasePencil &grease_pencil = DRW_object_get_data_for_drawing<GreasePencil>(*ob);
   GreasePencilBatchCache *cache = grease_pencil_batch_cache_get(grease_pencil);
-  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene);
+  grease_pencil_edit_batch_ensure(*ob, grease_pencil, *scene, handle_display);
 
   /* Can be `nullptr` when there's no grease pencil drawing visible. */
   return cache->edit_handles;
