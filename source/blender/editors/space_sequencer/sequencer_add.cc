@@ -360,6 +360,11 @@ static void sequencer_generic_invoke_xy__internal(
 
 static void move_strips(bContext *C)
 {
+  const ARegion *region = CTX_wm_region(C);
+  if (region == nullptr) {
+    return;
+  }
+
   wmOperatorType *ot = WM_operatortype_find("TRANSFORM_OT_seq_slide", true);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
@@ -383,7 +388,8 @@ static void restore_move_strips_state(wmOperator *op)
 
 static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, wmOperator *op)
 {
-  Main *bmain = CTX_data_main(C);
+  const Main *bmain = CTX_data_main(C);
+  const ARegion *region = CTX_wm_region(C);
 
   PropertyRNA *prop;
   const bool relative = (prop = RNA_struct_find_property(op->ptr, "relative_path")) &&
@@ -482,7 +488,6 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     }
   }
 
-  const ARegion *region = CTX_wm_region(C);
   /* Override strip position by current mouse position. */
   if (RNA_boolean_get(op->ptr, "move_strips") && region != nullptr) {
     const wmWindow *win = CTX_wm_window(C);
