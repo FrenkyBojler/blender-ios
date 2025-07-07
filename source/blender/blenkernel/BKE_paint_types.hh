@@ -61,7 +61,7 @@ struct PaintRuntime : NonCopyable, NonMovable {
   blender::float3 last_location = float3(0.0f, 0.0f, 0.0f);
   bool last_hit = false;
 
-  blender::float2 anchored_initial_mouse;
+  blender::float2 anchored_initial_mouse = float2(0.0f, 0.0f);
 
   /**
    * Radius of brush, pre-multiplied with pressure.
