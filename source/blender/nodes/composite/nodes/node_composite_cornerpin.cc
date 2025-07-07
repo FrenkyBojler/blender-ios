@@ -18,6 +18,7 @@
 #include "BKE_node.hh"
 #include "BKE_tracking.h"
 
+#include "MEM_guardedalloc.h"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -67,7 +68,7 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeCornerpinData *data = static_cast<NodeCornerpinData *>(node->storage);
+  NodeCornerpinData *data = MEM_callocN<NodeCornerpinData>(__func__);
   data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
   data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
   data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
