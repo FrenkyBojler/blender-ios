@@ -690,10 +690,8 @@ void BKE_armature_deform_coords_with_mesh(
   }
 
   std::optional<Span<MDeformVert>> dverts_opt;
-  if (me_target && !me_target->deform_verts().is_empty()) {
-    dverts_opt = dverts;
-  }
-  else if (dverts.size() == vert_coords.size()) {
+  if ((me_target && !me_target->deform_verts().is_empty()) || dverts.size() == vert_coords.size())
+  {
     dverts_opt = dverts;
   }
 
