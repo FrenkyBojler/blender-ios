@@ -5082,10 +5082,7 @@ static void force_activate_view_item_but(bContext *C,
   }
   ED_region_tag_redraw_no_rebuild(region);
   ED_region_tag_refresh_ui(region);
-
-  if (!but->active) {
-    UI_but_execute(C, region, but);
-  }
+  UI_but_execute(C, region, but);
 
   if (close_popup && !UI_view_item_popup_keep_open(*but->view_item)) {
     UI_popup_menu_close_from_but(but);
