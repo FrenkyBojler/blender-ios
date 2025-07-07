@@ -747,7 +747,7 @@ typedef struct GreasePencil {
    * Compute the user counts of the drawings by iterating through the keyframes of all the layers
    * and counting the number of references to each drawing.
    */
-  blender::Array<int> drawing_user_counts() const;
+  blender::Array<int> count_frame_users_for_drawings() const;
 
   /* For debugging purposes. */
   void print_layer_tree();

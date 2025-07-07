@@ -177,7 +177,7 @@ static void grease_pencil_initialize_drawing_user_counts_after_read(GreasePencil
 {
   using namespace blender;
   using namespace blender::bke::greasepencil;
-  const Array<int> user_counts = grease_pencil.drawing_user_counts();
+  const Array<int> user_counts = grease_pencil.count_frame_users_for_drawings();
   BLI_assert(user_counts.size() == grease_pencil.drawings().size());
   for (const int drawing_i : grease_pencil.drawings().index_range()) {
     GreasePencilDrawingBase *drawing_base = grease_pencil.drawing(drawing_i);
@@ -4293,7 +4293,7 @@ void GreasePencil::print_layer_tree()
   this->root_group().print_nodes("Layer Tree:");
 }
 
-blender::Array<int> GreasePencil::drawing_user_counts() const
+blender::Array<int> GreasePencil::count_frame_users_for_drawings() const
 {
   using namespace blender;
   using namespace blender::bke::greasepencil;
@@ -4311,7 +4311,7 @@ void GreasePencil::validate_drawing_user_counts()
 {
 #ifndef NDEBUG
   using namespace blender::bke::greasepencil;
-  blender::Array<int> actual_user_counts = this->drawing_user_counts();
+  blender::Array<int> actual_user_counts = this->count_frame_users_for_drawings();
   for (const int drawing_i : this->drawings().index_range()) {
     const GreasePencilDrawingBase *drawing_base = this->drawing(drawing_i);
     if (drawing_base->type != GP_DRAWING_REFERENCE) {
