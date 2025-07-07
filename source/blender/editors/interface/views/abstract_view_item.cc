@@ -105,7 +105,7 @@ void AbstractViewItem::change_state_delayed()
        * shouldn't call #on_activate(). */
       set_state_active();
     }
-    else {
+    else if (is_active_) {
       is_active_ = false;
       is_selected_ = false;
     }
