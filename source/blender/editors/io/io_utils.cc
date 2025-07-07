@@ -128,6 +128,7 @@ void paths_to_operator_properties(PointerRNA *ptr, const Span<std::string> paths
 
     PointerRNA itemptr{};
     RNA_collection_add(ptr, "files", &itemptr);
+    BLI_assert_msg(BLI_path_is_rel(file), "Expected path to be relative (start with '//')");
     RNA_string_set(&itemptr, "name", file + 2);
   }
 }

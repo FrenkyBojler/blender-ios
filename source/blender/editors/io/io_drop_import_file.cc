@@ -78,6 +78,7 @@ static void file_handler_import_operator_write_ptr(
 
       PointerRNA item_ptr{};
       RNA_property_collection_add(&props, files_prop, &item_ptr);
+      BLI_assert_msg(BLI_path_is_rel(file), "Expected path to be relative (start with '//')");
       RNA_string_set(&item_ptr, "name", file + 2);
     }
   }
