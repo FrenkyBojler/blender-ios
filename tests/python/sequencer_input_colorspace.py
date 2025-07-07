@@ -15,6 +15,7 @@ from pathlib import Path
 
 TEST_DIR: Path
 
+
 class MovieInputTest(unittest.TestCase):
     def get_movie_colorspace(self, filepath: Path):
         scene = bpy.context.scene
@@ -23,6 +24,7 @@ class MovieInputTest(unittest.TestCase):
         colorspace = strip.colorspace_settings.name
         ed.strips.remove(strip)
         return colorspace
+
 
 class FFmpegHDRColorspace(MovieInputTest):
     def test_pq(self):
@@ -34,6 +36,7 @@ class FFmpegHDRColorspace(MovieInputTest):
         prefix = TEST_DIR / Path("ffmpeg") / "media"
 
         self.assertEqual(self.get_movie_colorspace(prefix / "hdr_simple_export_hlg_12bit.mov"), "Rec.2100-HLG")
+
 
 def main():
     global TEST_DIR
