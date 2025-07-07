@@ -10,6 +10,7 @@
 
 #include <fmt/format.h>
 
+#include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
@@ -992,7 +993,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
 
-  if (modified_strips.size()) {
+  if (!modified_strips.is_empty()) {
     /* Key-frames on strips has been moved, so make sure related editors are informed. */
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
@@ -1002,9 +1003,9 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   if (confirm) {
     /* If called by invoke (from the UI), make a note that we've removed keyframes. */
-    if (!(modified_strips.size() > 0)) {
+    if (modified_strips.is_empty()) {
       BKE_reportf(op->reports,
-                  RPT_ERROR,
+                  RPT_WARNING,
                   "No keyframes removed from %ld strip(s)",
                   selected_strips_rna_paths.size());
       return OPERATOR_CANCELLED;
