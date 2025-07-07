@@ -1,0 +1,1 @@
+Referenced by issue #141521, ASAN `heap-use-after-free` when duplicating an area from a second main window into new a window by shift-draggging
