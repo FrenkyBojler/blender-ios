@@ -1036,21 +1036,31 @@ static void override_idtemplate_menu()
 
 #define NOT_RNA_NULL(assignment) ((assignment).data != nullptr)
 
+/**
+ * Construct a PointerRNA that points to pchan->bone.
+ *
+ * Pose bones are owned by an Object, whereas `pchan->bone` is owned by the Armature, so this
+ * doesn't just remap the pointer's `data` field, but also its `owner_id`.
+ */
+static PointerRNA rnapointer_pchan_to_bone(const PointerRNA &pchan_ptr)
+{
+  bPoseChannel *pchan = static_cast<bPoseChannel *>(pchan_ptr.data);
+
+  BLI_assert(GS(pchan_ptr.owner_id->name) == ID_OB);
+  Object *object = reinterpret_cast<Object *>(pchan_ptr.owner_id);
+
+  BLI_assert(GS(static_cast<ID *>(object->data)->name) == ID_AR);
+  bArmature *armature = static_cast<bArmature *>(object->data);
+
+  return RNA_pointer_create_discrete(&armature->id, &RNA_Bone, pchan->bone);
+}
+
 static void ui_context_selected_bones_via_pose(bContext *C, blender::Vector<PointerRNA> *r_lb)
 {
   blender::Vector<PointerRNA> lb = CTX_data_collection_get(C, "selected_pose_bones");
 
-  if (!lb.is_empty()) {
-    for (PointerRNA &ptr : lb) {
-      bPoseChannel *pchan = static_cast<bPoseChannel *>(ptr.data);
-      /* Pose bones are owned by an Object, whereas `pchan->bone` is owned by the Armature. */
-      BLI_assert(GS(ptr.owner_id->name) == ID_OB);
-      Object *object = reinterpret_cast<Object *>(ptr.owner_id);
-      BLI_assert(GS(static_cast<ID *>(object->data)->name) == ID_AR);
-      bArmature *armature = static_cast<bArmature *>(object->data);
-
-      ptr = RNA_pointer_create_discrete(&armature->id, &RNA_Bone, pchan->bone);
-    }
+  for (PointerRNA &ptr : lb) {
+    ptr = rnapointer_pchan_to_bone(ptr);
   }
 
   *r_lb = std::move(lb);
@@ -1113,9 +1123,8 @@ bool UI_context_copy_to_selected_list(bContext *C,
         *r_lb = CTX_data_collection_get(C, "selected_pose_bones");
       }
       else {
-        bPoseChannel *pchan = static_cast<bPoseChannel *>(owner_ptr.data);
-        owner_ptr = RNA_pointer_create_discrete(owner_ptr.owner_id, &RNA_Bone, pchan->bone);
-        idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
+        PointerRNA bone_ptr = rnapointer_pchan_to_bone(owner_ptr);
+        idpath = RNA_path_from_struct_to_idproperty(&bone_ptr,
                                                     static_cast<const IDProperty *>(ptr->data));
         if (idpath) {
           ui_context_selected_bones_via_pose(C, r_lb);
