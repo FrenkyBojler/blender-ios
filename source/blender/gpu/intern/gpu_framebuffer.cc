@@ -498,7 +498,13 @@ void GPU_framebuffer_clear_color(GPUFrameBuffer *fb, const float clear_col[4])
       blender::float4{clear_col[0], clear_col[1], clear_col[2], clear_col[3]});
   GPU_shader_uniform_1b(shader, "srgbTarget", false);
   GPU_batch_set_shader(batch, shader);
+
+  auto originalState = Context::get()->state_manager->state;
+
+  GPU_state_set(GPU_WRITE_COLOR, GPU_BLEND_NONE, GPU_CULL_BACK, GPU_DEPTH_NONE, GPU_STENCIL_NONE, GPU_STENCIL_OP_NONE, GPU_VERTEX_LAST);
   GPU_batch_draw(batch);
+  
+  Context::get()->state_manager->state = originalState;
 }
 
 void GPU_framebuffer_clear_depth(GPUFrameBuffer *fb, float clear_depth)
