@@ -19,18 +19,19 @@ void differentiate_texco_normal(float3 n, float3 v, out float3 df)
 {
   float3 differentials = dF_impl(v);
 
-  /* Offset sampled osition by the projection of the differential
+  /* Offset sampled position by the projection of the differential
    * onto the plane orthogonal to Normal. */
   df = v + differentials - dot(differentials, n) * n;
 }
 
-void differentiate_texco_transformed_normal(mat4 m, float3 n, float3 v, out float3 df)
+void differentiate_texco_transformed_normal(float4 m, float3 n, float3 v, out float3 df)
 {
-  /* TODO: Can't seem to use mat4. Figure out how to fix this. */
+  /* TODO: Maybe the issue with the object texture coordinates is actually over here rather than
+   * with the matrix? */
   float3 differentials = dF_impl(v);
-  n = normalize(mat3(m) * n);
+  n = normalize(float3(m) * n);
 
-  /* Offset sampled osition by the projection of the differential
+  /* Offset sampled position by the projection of the differential
    * onto the plane orthogonal to Normal. */
   df = v = differentials - dot(differentials, n) * n;
 }
