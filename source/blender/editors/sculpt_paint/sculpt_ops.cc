@@ -362,7 +362,7 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
 
 void ensure_valid_pivot(const Object &ob, Paint &paint)
 {
-  bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
   /* Account for the case where no objects are evaluated. */
@@ -371,16 +371,16 @@ void ensure_valid_pivot(const Object &ob, Paint &paint)
   }
 
   /* No valid pivot? Use bounding box center. */
-  if (stroke_runtime.average_stroke_counter == 0 || !stroke_runtime.last_stroke_valid) {
+  if (paint_runtime.average_stroke_counter == 0 || !paint_runtime.last_stroke_valid) {
     const Bounds<float3> bounds = bke::pbvh::bounds_get(*pbvh);
     const float3 center = math::midpoint(bounds.min, bounds.max);
     const float3 location = math::transform_point(ob.object_to_world(), center);
 
-    copy_v3_v3(stroke_runtime.average_stroke_accum, location);
-    stroke_runtime.average_stroke_counter = 1;
+    copy_v3_v3(paint_runtime.average_stroke_accum, location);
+    paint_runtime.average_stroke_counter = 1;
 
     /* Update last stroke position. */
-    stroke_runtime.last_stroke_valid = true;
+    paint_runtime.last_stroke_valid = true;
   }
 }
 

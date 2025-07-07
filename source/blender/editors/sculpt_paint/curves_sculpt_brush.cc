@@ -348,10 +348,10 @@ Vector<float4x4> get_symmetry_brush_transforms(const eCurvesSymmetryType symmetr
 
 void remember_stroke_position(CurvesSculpt &curves_sculpt, const float3 &brush_position_wo)
 {
-  bke::PaintRuntime &stroke_runtime = *curves_sculpt.paint.runtime.paint_runtime;
-  copy_v3_v3(stroke_runtime.average_stroke_accum, brush_position_wo);
-  stroke_runtime.average_stroke_counter = 1;
-  stroke_runtime.last_stroke_valid = true;
+  bke::PaintRuntime &paint_runtime = *curves_sculpt.paint.runtime;
+  copy_v3_v3(paint_runtime.average_stroke_accum, brush_position_wo);
+  paint_runtime.average_stroke_counter = 1;
+  paint_runtime.last_stroke_valid = true;
 }
 
 float transform_brush_radius(const float4x4 &transform,

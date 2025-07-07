@@ -492,7 +492,6 @@ set(SRC
   BKE_outliner_treehash.hh
   BKE_packedFile.hh
   BKE_paint.hh
-  BKE_paint_types.hh
   BKE_paint_bvh.hh
   BKE_paint_bvh_pixels.hh
   BKE_paint_types.hh

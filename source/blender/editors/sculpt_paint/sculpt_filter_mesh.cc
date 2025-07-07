@@ -163,7 +163,7 @@ void cache_init(bContext *C,
   }
 
   const UnifiedPaintSettings *ups = &sd.paint.unified_paint_settings;
-  bke::PaintRuntime *stroke_runtime = sd.paint.runtime.paint_runtime;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
 
   float3 co;
 
@@ -200,9 +200,9 @@ void cache_init(bContext *C,
 
     mul_m4_v3(ob.object_to_world().ptr(), co);
 
-    add_v3_v3(stroke_runtime->average_stroke_accum, co);
-    stroke_runtime->average_stroke_counter++;
-    stroke_runtime->last_stroke_valid = true;
+    add_v3_v3(paint_runtime->average_stroke_accum, co);
+    paint_runtime->average_stroke_counter++;
+    paint_runtime->last_stroke_valid = true;
   }
   else {
     /* Use last normal. */

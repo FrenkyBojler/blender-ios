@@ -956,10 +956,10 @@ static wmOperatorStatus set_pivot_position_exec(bContext *C, wmOperator *op)
 
   /* Update the viewport navigation rotation origin. */
   Paint *paint = BKE_paint_get_active_from_context(C);
-  bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
-  copy_v3_v3(stroke_runtime->average_stroke_accum, ss.pivot_pos);
-  stroke_runtime->average_stroke_counter = 1;
-  stroke_runtime->last_stroke_valid = true;
+  bke::PaintRuntime *paint_runtime = paint->runtime;
+  copy_v3_v3(paint_runtime->average_stroke_accum, ss.pivot_pos);
+  paint_runtime->average_stroke_counter = 1;
+  paint_runtime->last_stroke_valid = true;
 
   ED_region_tag_redraw(region);
   WM_event_add_notifier(C, NC_GEOM | ND_SELECT, ob.data);

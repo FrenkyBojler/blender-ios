@@ -604,7 +604,7 @@ static bool paint_draw_tex_overlay(Paint *paint,
     return false;
   }
 
-  bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
+  bke::PaintRuntime *paint_runtime = paint->runtime;
   if (load_tex(brush, vc, zoom, col, primary)) {
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
@@ -613,28 +613,28 @@ static bool paint_draw_tex_overlay(Paint *paint,
       GPU_matrix_push();
 
       float center[2] = {
-          stroke_runtime->draw_anchored ? stroke_runtime->anchored_initial_mouse[0] : x,
-          stroke_runtime->draw_anchored ? stroke_runtime->anchored_initial_mouse[1] : y,
+          paint_runtime->draw_anchored ? paint_runtime->anchored_initial_mouse[0] : x,
+          paint_runtime->draw_anchored ? paint_runtime->anchored_initial_mouse[1] : y,
       };
 
       /* Brush rotation. */
       GPU_matrix_translate_2fv(center);
-      GPU_matrix_rotate_2d(RAD2DEGF(primary ? stroke_runtime->brush_rotation : stroke_runtime->brush_rotation_sec));
+      GPU_matrix_rotate_2d(RAD2DEGF(primary ? paint_runtime->brush_rotation : paint_runtime->brush_rotation_sec));
       GPU_matrix_translate_2f(-center[0], -center[1]);
 
       /* Scale based on tablet pressure. */
-      if (primary && stroke_runtime->stroke_active && BKE_brush_use_size_pressure(brush)) {
-        const float scale = stroke_runtime->size_pressure_value;
+      if (primary && paint_runtime->stroke_active && BKE_brush_use_size_pressure(brush)) {
+        const float scale = paint_runtime->size_pressure_value;
         GPU_matrix_translate_2fv(center);
         GPU_matrix_scale_2f(scale, scale);
         GPU_matrix_translate_2f(-center[0], -center[1]);
       }
 
-      if (stroke_runtime->draw_anchored) {
-        quad.xmin = center[0] - stroke_runtime->anchored_size;
-        quad.ymin = center[1] - stroke_runtime->anchored_size;
-        quad.xmax = center[0] + stroke_runtime->anchored_size;
-        quad.ymax = center[1] + stroke_runtime->anchored_size;
+      if (paint_runtime->draw_anchored) {
+        quad.xmin = center[0] - paint_runtime->anchored_size;
+        quad.ymin = center[1] - paint_runtime->anchored_size;
+        quad.xmax = center[0] + paint_runtime->anchored_size;
+        quad.ymax = center[1] + paint_runtime->anchored_size;
       }
       else {
         const int radius = BKE_brush_size_get(paint, brush) * zoom;
@@ -743,13 +743,13 @@ static bool paint_draw_cursor_overlay(
     GPU_color_mask(true, true, true, true);
     GPU_depth_test(GPU_DEPTH_NONE);
 
-    bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
-    if (stroke_runtime->draw_anchored) {
-      copy_v2_v2(center, stroke_runtime->anchored_initial_mouse);
-      quad.xmin = stroke_runtime->anchored_initial_mouse[0] - stroke_runtime->anchored_size;
-      quad.ymin = stroke_runtime->anchored_initial_mouse[1] - stroke_runtime->anchored_size;
-      quad.xmax = stroke_runtime->anchored_initial_mouse[0] + stroke_runtime->anchored_size;
-      quad.ymax = stroke_runtime->anchored_initial_mouse[1] + stroke_runtime->anchored_size;
+    bke::PaintRuntime *paint_runtime = paint->runtime;
+    if (paint_runtime->draw_anchored) {
+      copy_v2_v2(center, paint_runtime->anchored_initial_mouse);
+      quad.xmin = paint_runtime->anchored_initial_mouse[0] - paint_runtime->anchored_size;
+      quad.ymin = paint_runtime->anchored_initial_mouse[1] - paint_runtime->anchored_size;
+      quad.xmax = paint_runtime->anchored_initial_mouse[0] + paint_runtime->anchored_size;
+      quad.ymax = paint_runtime->anchored_initial_mouse[1] + paint_runtime->anchored_size;
     }
     else {
       const int radius = BKE_brush_size_get(paint, brush) * zoom;
@@ -763,11 +763,11 @@ static bool paint_draw_cursor_overlay(
     }
 
     /* Scale based on tablet pressure. */
-    if (stroke_runtime->stroke_active && BKE_brush_use_size_pressure(brush)) {
+    if (paint_runtime->stroke_active && BKE_brush_use_size_pressure(brush)) {
       do_pop = true;
       GPU_matrix_push();
       GPU_matrix_translate_2fv(center);
-      GPU_matrix_scale_1f(stroke_runtime->size_pressure_value);
+      GPU_matrix_scale_1f(paint_runtime->size_pressure_value);
       GPU_matrix_translate_2f(-center[0], -center[1]);
     }
 
@@ -1048,13 +1048,13 @@ static void paint_cursor_update_unprojected_radius(Paint &paint,
                                                    const ViewContext &vc,
                                                    const float location[3])
 {
-  const bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
+  const bke::PaintRuntime &paint_runtime = *paint.runtime;
   /* Update the brush's cached 3D radius. */
   if (!BKE_brush_use_locked_size(&paint, &brush)) {
     float projected_radius;
     /* Get 2D brush radius. */
-    if (stroke_runtime.draw_anchored) {
-      projected_radius = stroke_runtime.anchored_size;
+    if (paint_runtime.draw_anchored) {
+      projected_radius = paint_runtime.anchored_size;
     }
     else {
       if (brush.flag & BRUSH_ANCHORED) {
@@ -1069,8 +1069,8 @@ static void paint_cursor_update_unprojected_radius(Paint &paint,
     float unprojected_radius = paint_calc_object_space_radius(vc, location, projected_radius);
 
     /* Scale 3D brush radius by pressure. */
-    if (stroke_runtime.stroke_active && BKE_brush_use_size_pressure(&brush)) {
-      unprojected_radius *= stroke_runtime.size_pressure_value;
+    if (paint_runtime.stroke_active && BKE_brush_use_size_pressure(&brush)) {
+      unprojected_radius *= paint_runtime.size_pressure_value;
     }
 
     /* Set cached value in either Brush or UnifiedPaintSettings. */
@@ -1377,10 +1377,10 @@ static bool paint_cursor_context_init(bContext *C,
   pcontext.zoomx = max_ff(zoomx, zoomy);
   pcontext.final_radius = (BKE_brush_size_get(pcontext.paint, pcontext.brush) * zoomx);
 
-  const bke::PaintRuntime &stroke_runtime = *pcontext.paint->runtime.paint_runtime;
+  const bke::PaintRuntime &paint_runtime = *pcontext.paint->runtime;
   /* There is currently no way to check if the direction is inverted before starting the stroke,
    * so this does not reflect the state of the brush in the UI. */
-  if (((!stroke_runtime.draw_inverted) ^ ((pcontext.brush->flag & BRUSH_DIR_IN) == 0)) &&
+  if (((!paint_runtime.draw_inverted) ^ ((pcontext.brush->flag & BRUSH_DIR_IN) == 0)) &&
       bke::brush::supports_secondary_cursor_color(*pcontext.brush))
   {
     pcontext.outline_col = float3(pcontext.brush->sub_col);
@@ -1405,7 +1405,7 @@ static bool paint_cursor_context_init(bContext *C,
     pcontext.outline_col = float3(0.8f);
   }
 
-  pcontext.is_stroke_active = stroke_runtime.stroke_active;
+  pcontext.is_stroke_active = paint_runtime.stroke_active;
 
   return true;
 }
@@ -1440,7 +1440,7 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   bContext *C = pcontext.C;
   SculptSession &ss = *pcontext.ss;
   Brush &brush = *pcontext.brush;
-  bke::PaintRuntime &stroke_runtime = *pcontext.paint->runtime.paint_runtime;
+  bke::PaintRuntime &paint_runtime = *pcontext.paint->runtime;
   ViewContext &vc = pcontext.vc;
   CursorGeometryInfo gi;
 
@@ -1457,15 +1457,15 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
    * work correctly */
   vert_random_access_ensure(*vc.obact);
   pcontext.prev_active_vert_index = ss.active_vert_index();
-  if (!stroke_runtime.stroke_active) {
+  if (!paint_runtime.stroke_active) {
     pcontext.is_cursor_over_mesh = cursor_geometry_info_update(
         C, &gi, mval_fl, (pcontext.brush->falloff_shape == PAINT_FALLOFF_SHAPE_SPHERE));
     pcontext.location = gi.location;
     pcontext.normal = gi.normal;
   }
   else {
-    pcontext.is_cursor_over_mesh = stroke_runtime.last_hit;
-    pcontext.location = stroke_runtime.last_location;
+    pcontext.is_cursor_over_mesh = paint_runtime.last_hit;
+    pcontext.location = paint_runtime.last_location;
   }
 
   paint_cursor_update_pixel_radius(pcontext);
@@ -1509,14 +1509,14 @@ static void paint_update_mouse_cursor(PaintCursorContext &pcontext)
 static void paint_draw_2D_view_brush_cursor_default(PaintCursorContext &pcontext)
 {
   immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha);
-  const bke::PaintRuntime *stroke_runtime = pcontext.paint->runtime.paint_runtime;
+  const bke::PaintRuntime *paint_runtime = pcontext.paint->runtime;
 
   /* Draw brush outline. */
-  if (stroke_runtime->stroke_active && BKE_brush_use_size_pressure(pcontext.brush)) {
+  if (paint_runtime->stroke_active && BKE_brush_use_size_pressure(pcontext.brush)) {
     imm_draw_circle_wire_2d(pcontext.pos,
                             pcontext.translation[0],
                             pcontext.translation[1],
-                            pcontext.final_radius * stroke_runtime->size_pressure_value,
+                            pcontext.final_radius * paint_runtime->size_pressure_value,
                             40);
     /* Outer at half alpha. */
     immUniformColor3fvAlpha(pcontext.outline_col, pcontext.outline_alpha * 0.5f);
@@ -2128,8 +2128,8 @@ static void paint_cursor_update_rake_rotation(PaintCursorContext &pcontext)
   /* Don't calculate rake angles while a stroke is active because the rake variables are global
    * and we may get interference with the stroke itself.
    * For line strokes, such interference is visible. */
-  const bke::PaintRuntime *stroke_runtime = pcontext.paint->runtime.paint_runtime;
-  if (!stroke_runtime->stroke_active) {
+  const bke::PaintRuntime *paint_runtime = pcontext.paint->runtime;
+  if (!paint_runtime->stroke_active) {
     paint_calculate_rake_rotation(
         *pcontext.paint, *pcontext.brush, pcontext.translation, pcontext.mode, true);
   }
@@ -2148,11 +2148,11 @@ static void paint_cursor_check_and_draw_alpha_overlays(PaintCursorContext &pcont
 
 static void paint_cursor_update_anchored_location(PaintCursorContext &pcontext)
 {
-  bke::PaintRuntime *stroke_runtime = pcontext.paint->runtime.paint_runtime;
-  if (stroke_runtime->draw_anchored) {
-    pcontext.final_radius = stroke_runtime->anchored_size;
-    pcontext.translation = {stroke_runtime->anchored_initial_mouse[0] + pcontext.region->winrct.xmin,
-                            stroke_runtime->anchored_initial_mouse[1] + pcontext.region->winrct.ymin};
+  bke::PaintRuntime *paint_runtime = pcontext.paint->runtime;
+  if (paint_runtime->draw_anchored) {
+    pcontext.final_radius = paint_runtime->anchored_size;
+    pcontext.translation = {paint_runtime->anchored_initial_mouse[0] + pcontext.region->winrct.xmin,
+                            paint_runtime->anchored_initial_mouse[1] + pcontext.region->winrct.ymin};
   }
 }
 

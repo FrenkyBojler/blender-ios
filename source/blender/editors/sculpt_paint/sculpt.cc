@@ -2162,13 +2162,13 @@ static float brush_strength(const Sculpt &sd,
                             const PaintModeSettings & /*paint_mode_settings*/)
 {
   const Brush &brush = *BKE_paint_brush_for_read(&sd.paint);
-  const blender::bke::PaintRuntime &stroke_runtime = *sd.paint.runtime.paint_runtime;
+  const blender::bke::PaintRuntime &paint_runtime = *sd.paint.runtime;
 
   /* Primary strength input; square it to make lower values more sensitive. */
   const float root_alpha = BKE_brush_alpha_get(&sd.paint, &brush);
   const float alpha = root_alpha * root_alpha;
   const float pressure = BKE_brush_use_alpha_pressure(&brush) ? cache.pressure : 1.0f;
-  float overlap = stroke_runtime.overlap_factor;
+  float overlap = paint_runtime.overlap_factor;
   /* Spacing is integer percentage of radius, divide by 50 to get
    * normalized diameter. */
 
@@ -3433,11 +3433,11 @@ static void do_brush_action(const Depsgraph &depsgraph,
   /* Update average stroke position. */
   const float3 world_location = math::project_point(ob.object_to_world(), ss.cache->location);
 
-  bke::PaintRuntime &stroke_runtime = *sd.paint.runtime.paint_runtime;
-  add_v3_v3(stroke_runtime.average_stroke_accum, world_location);
-  stroke_runtime.average_stroke_counter++;
+  bke::PaintRuntime &paint_runtime = *sd.paint.runtime;
+  add_v3_v3(paint_runtime.average_stroke_accum, world_location);
+  paint_runtime.average_stroke_counter++;
   /* Update last stroke position. */
-  stroke_runtime.last_stroke_valid = true;
+  paint_runtime.last_stroke_valid = true;
 }
 
 }  // namespace blender::ed::sculpt_paint
@@ -3920,7 +3920,7 @@ static void sculpt_update_cache_invariants(
     bContext *C, Sculpt &sd, SculptSession &ss, const wmOperator &op, const float mval[2])
 {
   StrokeCache *cache = MEM_new<StrokeCache>(__func__);
-  bke::PaintRuntime *stroke_runtime = sd.paint.runtime.paint_runtime;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
   ToolSettings *tool_settings = CTX_data_tool_settings(C);
   const Brush *brush = BKE_paint_brush_for_read(&sd.paint);
   ViewContext *vc = paint_stroke_view_context(static_cast<PaintStroke *>(op.customdata));
@@ -3970,10 +3970,10 @@ static void sculpt_update_cache_invariants(
   /* Not very nice, but with current events system implementation
    * we can't handle brush appearance inversion hotkey separately (sergey). */
   if (cache->invert) {
-    stroke_runtime->draw_inverted = true;
+    paint_runtime->draw_inverted = true;
   }
   else {
-    stroke_runtime->draw_inverted = false;
+    paint_runtime->draw_inverted = false;
   }
 
   /* Alt-Smooth. */
@@ -3985,7 +3985,7 @@ static void sculpt_update_cache_invariants(
 
   cache->mouse = cache->initial_mouse;
   cache->mouse_event = cache->initial_mouse;
-  copy_v2_v2(stroke_runtime->tex_mouse, cache->initial_mouse);
+  copy_v2_v2(paint_runtime->tex_mouse, cache->initial_mouse);
 
   cache->initial_direction_flipped = brush_flip(*brush, *cache) < 0.0f;
 
@@ -4124,7 +4124,7 @@ static void brush_delta_update(const Depsgraph &depsgraph,
                                const Object &ob,
                                const Brush &brush)
 {
-  bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
   SculptSession &ss = *ob.sculpt;
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(ob);
   StrokeCache *cache = ss.cache;
@@ -4220,9 +4220,9 @@ static void brush_delta_update(const Depsgraph &depsgraph,
     /* Location stays the same for finding vertices in brush radius. */
     copy_v3_v3(cache->location, cache->orig_grab_location);
 
-    stroke_runtime.draw_anchored = true;
-    copy_v2_v2(stroke_runtime.anchored_initial_mouse, cache->initial_mouse);
-    stroke_runtime.anchored_size = stroke_runtime.pixel_radius;
+    paint_runtime.draw_anchored = true;
+    copy_v2_v2(paint_runtime.anchored_initial_mouse, cache->initial_mouse);
+    paint_runtime.anchored_size = paint_runtime.pixel_radius;
   }
 
   /* Handle 'rake' */
@@ -4316,7 +4316,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
 {
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
   Paint &paint = *BKE_paint_get_active_from_context(C);
-  bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
+  bke::PaintRuntime &paint_runtime = *paint.runtime;
   SculptSession &ss = *ob.sculpt;
   StrokeCache &cache = *ss.cache;
   Brush &brush = *BKE_paint_brush(&sd.paint);
@@ -4373,11 +4373,11 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))
   {
     cache.radius = brush_dynamic_size_get(brush, cache, cache.initial_radius);
-    cache.dyntopo_pixel_radius = brush_dynamic_size_get(brush, cache, stroke_runtime.initial_pixel_radius);
+    cache.dyntopo_pixel_radius = brush_dynamic_size_get(brush, cache, paint_runtime.initial_pixel_radius);
   }
   else {
     cache.radius = cache.initial_radius;
-    cache.dyntopo_pixel_radius = stroke_runtime.initial_pixel_radius;
+    cache.dyntopo_pixel_radius = paint_runtime.initial_pixel_radius;
   }
 
   cache_paint_invariants_update(cache, brush);
@@ -4390,7 +4390,7 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
       RNA_float_get_array(ptr, "location", cache.location);
     }
 
-    cache.radius = paint_calc_object_space_radius(*cache.vc, cache.location, stroke_runtime.pixel_radius);
+    cache.radius = paint_calc_object_space_radius(*cache.vc, cache.location, paint_runtime.pixel_radius);
     cache.radius_squared = cache.radius * cache.radius;
   }
 
@@ -4399,12 +4399,12 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   if (brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_ROTATE) {
     cache.vertex_rotation = -BLI_dial_angle(cache.dial, cache.mouse) * cache.bstrength;
 
-    stroke_runtime.draw_anchored = true;
-    copy_v2_v2(stroke_runtime.anchored_initial_mouse, cache.initial_mouse);
-    stroke_runtime.anchored_size = stroke_runtime.pixel_radius;
+    paint_runtime.draw_anchored = true;
+    copy_v2_v2(paint_runtime.anchored_initial_mouse, cache.initial_mouse);
+    paint_runtime.anchored_size = paint_runtime.pixel_radius;
   }
 
-  cache.special_rotation = stroke_runtime.brush_rotation;
+  cache.special_rotation = paint_runtime.brush_rotation;
 
   cache.iteration_count++;
 }
@@ -5575,10 +5575,10 @@ static void stroke_done(const bContext *C, PaintStroke * /*stroke*/)
     brush_exit_tex(sd);
     return;
   }
-  bke::PaintRuntime *stroke_runtime = sd.paint.runtime.paint_runtime;
+  bke::PaintRuntime *paint_runtime = sd.paint.runtime;
   Brush *brush = BKE_paint_brush(&sd.paint);
   BLI_assert(brush == ss.cache->brush); /* const, so we shouldn't change. */
-  stroke_runtime->draw_inverted = false;
+  paint_runtime->draw_inverted = false;
 
   SCULPT_stroke_modifiers_check(C, ob, *brush);
 

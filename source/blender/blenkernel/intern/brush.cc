@@ -874,7 +874,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
                               const int thread,
                               ImagePool *pool)
 {
-  const blender::bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
+  const blender::bke::PaintRuntime *paint_runtime = paint->runtime;
   float intensity = 1.0;
   bool hasrgb = false;
 
@@ -926,30 +926,30 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
       /* keep coordinates relative to mouse */
 
-      rotation -= stroke_runtime->brush_rotation;
+      rotation -= paint_runtime->brush_rotation;
 
-      x = point_2d[0] - stroke_runtime->tex_mouse[0];
-      y = point_2d[1] - stroke_runtime->tex_mouse[1];
+      x = point_2d[0] - paint_runtime->tex_mouse[0];
+      y = point_2d[1] - paint_runtime->tex_mouse[1];
 
       /* use pressure adjusted size for fixed mode */
-      invradius = 1.0f / stroke_runtime->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
       /* leave the coordinates relative to the screen */
 
       /* use unadjusted size for tiled mode */
-      invradius = 1.0f / stroke_runtime->start_pixel_radius;
+      invradius = 1.0f / paint_runtime->start_pixel_radius;
 
       x = point_2d[0];
       y = point_2d[1];
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-      rotation -= stroke_runtime->brush_rotation;
+      rotation -= paint_runtime->brush_rotation;
       /* these contain a random coordinate */
-      x = point_2d[0] - stroke_runtime->tex_mouse[0];
-      y = point_2d[1] - stroke_runtime->tex_mouse[1];
+      x = point_2d[0] - paint_runtime->tex_mouse[0];
+      y = point_2d[1] - paint_runtime->tex_mouse[1];
 
-      invradius = 1.0f / stroke_runtime->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
 
     x *= invradius;
@@ -982,8 +982,8 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
     rgba[3] = 1.0f;
   }
   /* For consistency, sampling always returns color in linear space */
-  else if (stroke_runtime->do_linear_conversion) {
-    IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, stroke_runtime->colorspace);
+  else if (paint_runtime->do_linear_conversion) {
+    IMB_colormanagement_colorspace_to_scene_linear_v3(rgba, paint_runtime->colorspace);
   }
 
   return intensity;
@@ -992,7 +992,7 @@ float BKE_brush_sample_tex_3d(const Paint *paint,
 float BKE_brush_sample_masktex(
     const Paint *paint, Brush *br, const float point[2], const int thread, ImagePool *pool)
 {
-  const blender::bke::PaintRuntime *stroke_runtime = paint->runtime.paint_runtime;
+  const blender::bke::PaintRuntime *paint_runtime = paint->runtime;
   MTex *mtex = &br->mask_mtex;
   float rgba[4], intensity;
 
@@ -1039,30 +1039,30 @@ float BKE_brush_sample_masktex(
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
       /* keep coordinates relative to mouse */
 
-      rotation -= stroke_runtime->brush_rotation_sec;
+      rotation -= paint_runtime->brush_rotation_sec;
 
-      x = point_2d[0] - stroke_runtime->mask_tex_mouse[0];
-      y = point_2d[1] - stroke_runtime->mask_tex_mouse[1];
+      x = point_2d[0] - paint_runtime->mask_tex_mouse[0];
+      y = point_2d[1] - paint_runtime->mask_tex_mouse[1];
 
       /* use pressure adjusted size for fixed mode */
-      invradius = 1.0f / stroke_runtime->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_TILED) {
       /* leave the coordinates relative to the screen */
 
       /* use unadjusted size for tiled mode */
-      invradius = 1.0f / stroke_runtime->start_pixel_radius;
+      invradius = 1.0f / paint_runtime->start_pixel_radius;
 
       x = point_2d[0];
       y = point_2d[1];
     }
     else if (mtex->brush_map_mode == MTEX_MAP_MODE_RANDOM) {
-      rotation -= stroke_runtime->brush_rotation_sec;
+      rotation -= paint_runtime->brush_rotation_sec;
       /* these contain a random coordinate */
-      x = point_2d[0] - stroke_runtime->mask_tex_mouse[0];
-      y = point_2d[1] - stroke_runtime->mask_tex_mouse[1];
+      x = point_2d[0] - paint_runtime->mask_tex_mouse[0];
+      y = point_2d[1] - paint_runtime->mask_tex_mouse[1];
 
-      invradius = 1.0f / stroke_runtime->pixel_radius;
+      invradius = 1.0f / paint_runtime->pixel_radius;
     }
 
     x *= invradius;
@@ -1090,10 +1090,10 @@ float BKE_brush_sample_masktex(
 
   switch (br->mask_pressure) {
     case BRUSH_MASK_PRESSURE_CUTOFF:
-      intensity = ((1.0f - intensity) < stroke_runtime->size_pressure_value) ? 1.0f : 0.0f;
+      intensity = ((1.0f - intensity) < paint_runtime->size_pressure_value) ? 1.0f : 0.0f;
       break;
     case BRUSH_MASK_PRESSURE_RAMP:
-      intensity = stroke_runtime->size_pressure_value + intensity * (1.0f - stroke_runtime->size_pressure_value);
+      intensity = paint_runtime->size_pressure_value + intensity * (1.0f - paint_runtime->size_pressure_value);
       break;
     default:
       break;
@@ -1356,16 +1356,16 @@ void BKE_brush_jitter_pos(const Paint &paint,
 
 void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
 {
-  blender::bke::PaintRuntime& stroke_runtime = *paint->runtime.paint_runtime;
+  blender::bke::PaintRuntime& paint_runtime = *paint->runtime;
   /* we multiply with brush radius as an optimization for the brush
    * texture sampling functions */
   if (mask) {
-    stroke_runtime.mask_tex_mouse[0] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
-    stroke_runtime.mask_tex_mouse[1] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
+    paint_runtime.mask_tex_mouse[0] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
+    paint_runtime.mask_tex_mouse[1] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
   }
   else {
-    stroke_runtime.tex_mouse[0] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
-    stroke_runtime.tex_mouse[1] = BLI_rng_get_float(brush_rng) * stroke_runtime.pixel_radius;
+    paint_runtime.tex_mouse[0] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
+    paint_runtime.tex_mouse[1] = BLI_rng_get_float(brush_rng) * paint_runtime.pixel_radius;
   }
 }
 

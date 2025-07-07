@@ -1867,8 +1867,8 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
         __func__, *brush_ref->brush_asset_reference);
   }
 
-  if (src->runtime.paint_runtime) {
-    dst->runtime.paint_runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+  if (src->runtime) {
+    dst->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
   }
 
   dst->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
@@ -1887,10 +1887,10 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
 
 void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])
 {
-  const blender::bke::PaintRuntime& stroke_runtime = *paint->runtime.paint_runtime;
-  if (stroke_runtime.last_stroke_valid && stroke_runtime.average_stroke_counter > 0) {
-    float fac = 1.0f / stroke_runtime.average_stroke_counter;
-    mul_v3_v3fl(stroke, stroke_runtime.average_stroke_accum, fac);
+  const blender::bke::PaintRuntime& paint_runtime = *paint->runtime;
+  if (paint_runtime.last_stroke_valid && paint_runtime.average_stroke_counter > 0) {
+    float fac = 1.0f / paint_runtime.average_stroke_counter;
+    mul_v3_v3fl(stroke, paint_runtime.average_stroke_accum, fac);
   }
   else {
     copy_v3_v3(stroke, ob->object_to_world().location());
@@ -2108,14 +2108,14 @@ void paint_update_brush_rake_rotation(Paint &paint,
                                       const Brush &brush,
                                       float rotation)
 {
-  blender::bke::PaintRuntime &stroke_runtime = *paint.runtime.paint_runtime;
-  stroke_runtime.brush_rotation = rotation;
+  blender::bke::PaintRuntime &paint_runtime = *paint.runtime;
+  paint_runtime.brush_rotation = rotation;
 
   if (brush.mask_mtex.brush_angle_mode & MTEX_ANGLE_RAKE) {
-    stroke_runtime.brush_rotation_sec = rotation;
+    paint_runtime.brush_rotation_sec = rotation;
   }
   else {
-    stroke_runtime.brush_rotation_sec = 0.0f;
+    paint_runtime.brush_rotation_sec = 0.0f;
   }
 }
 
@@ -2136,7 +2136,7 @@ bool paint_calculate_rake_rotation(Paint &paint,
                                    const PaintMode paint_mode,
                                    bool stroke_has_started)
 {
-  blender::bke::PaintRuntime& stroke_runtime = *paint.runtime.paint_runtime;
+  blender::bke::PaintRuntime& paint_runtime = *paint.runtime;
 
   bool ok = false;
   if (paint_rake_rotation_active(brush, paint_mode)) {
@@ -2149,15 +2149,15 @@ bool paint_calculate_rake_rotation(Paint &paint,
     }
 
     float dpos[2];
-    sub_v2_v2v2(dpos, mouse_pos, stroke_runtime.last_rake);
+    sub_v2_v2v2(dpos, mouse_pos, paint_runtime.last_rake);
 
     /* Limit how often we update the angle to prevent jitter. */
     if (len_squared_v2(dpos) >= r * r) {
       rotation = atan2f(dpos[1], dpos[0]) + float(0.5f * M_PI);
 
-      copy_v2_v2(stroke_runtime.last_rake, mouse_pos);
+      copy_v2_v2(paint_runtime.last_rake, mouse_pos);
 
-      stroke_runtime.last_rake_angle = rotation;
+      paint_runtime.last_rake_angle = rotation;
 
       paint_update_brush_rake_rotation(paint, brush, rotation);
       ok = true;
@@ -2165,12 +2165,12 @@ bool paint_calculate_rake_rotation(Paint &paint,
     /* Make sure we reset here to the last rotation to avoid accumulating
      * values in case a random rotation is also added. */
     else {
-      paint_update_brush_rake_rotation(paint, brush, stroke_runtime.last_rake_angle);
+      paint_update_brush_rake_rotation(paint, brush, paint_runtime.last_rake_angle);
       ok = false;
     }
   }
   else {
-    stroke_runtime.brush_rotation = stroke_runtime.brush_rotation_sec = 0.0f;
+    paint_runtime.brush_rotation = paint_runtime.brush_rotation_sec = 0.0f;
     ok = true;
   }
   return ok;

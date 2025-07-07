@@ -717,7 +717,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
                                            float distance,
                                            float size)
 {
-  const blender::bke::PaintRuntime *stroke_runtime = painter->paint->runtime.paint_runtime;
+  const blender::bke::PaintRuntime *paint_runtime = painter->paint->runtime;
   Brush *brush = painter->brush;
   BrushPainterCache *cache = &tile->cache;
   /* Adding 4 pixels of padding for brush anti-aliasing. */
@@ -739,7 +739,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
   /* determine how can update based on textures used */
   if (cache->is_texbrush) {
     if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
-      tex_rotation += stroke_runtime->brush_rotation;
+      tex_rotation += paint_runtime->brush_rotation;
     }
     else if (brush->mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       do_random = true;
@@ -757,7 +757,7 @@ static void brush_painter_2d_refresh_cache(ImagePaintState *s,
     bool do_partial_update_mask = false;
     /* invalidate case for all mapping modes */
     if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_VIEW) {
-      mask_rotation += stroke_runtime->brush_rotation_sec;
+      mask_rotation += paint_runtime->brush_rotation_sec;
     }
     else if (brush->mask_mtex.brush_map_mode == MTEX_MAP_MODE_RANDOM) {
       renew_maxmask = true;
