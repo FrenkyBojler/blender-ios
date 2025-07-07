@@ -2786,10 +2786,10 @@ static eHandlerActionFlag wm_handler_fileselect_do(bContext *C,
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   eHandlerActionFlag action = WM_HANDLER_CONTINUE;
-  ScrArea *area = nullptr;
 
   switch (val) {
     case EVT_FILESELECT_FULL_OPEN: {
+      ScrArea *area = nullptr;
       if (U.filebrowser_display_type == USER_TEMP_SPACE_DISPLAY_FULLSCREEN) {
         area = ED_screen_temp_space_open(C,
                                          IFACE_("Blender File View"),

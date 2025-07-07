@@ -1294,15 +1294,14 @@ wmWindow *WM_window_open(bContext *C,
 wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
-  eWindowAlignment align;
-
   WM_window_set_dpi(CTX_wm_window(C));
-
+  eWindowAlignment align;
   rctf *stored_bounds = stored_window_bounds(space_type);
   const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
                              (BLI_rctf_size_y(stored_bounds) > 100.0f));
+  const bool mm_placement = WM_capabilities_flag() & WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
 
-  if (bounds_valid) {
+  if (bounds_valid && mm_placement) {
     rect.xmin = (int)(stored_bounds->xmin * UI_SCALE_FAC);
     rect.ymin = (int)(stored_bounds->ymin * UI_SCALE_FAC);
     rect.xmax = (int)(stored_bounds->xmax * UI_SCALE_FAC);
@@ -1311,12 +1310,15 @@ wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_t
   }
   else {
     wmWindow *win_cur = CTX_wm_window(C);
+    const int width = int((bounds_valid ? BLI_rctf_size_x(stored_bounds) : 800.0f) * UI_SCALE_FAC);
+    const int height = int((bounds_valid ? BLI_rctf_size_y(stored_bounds) : 600.0f) *
+                           UI_SCALE_FAC);
     /* Use eventstate, not event from _invoke, so this can be called through exec(). */
     const wmEvent *event = win_cur->eventstate;
     rect.xmin = event->xy[0];
     rect.ymin = event->xy[1];
-    rect.xmax = event->xy[0] + (800 * UI_SCALE_FAC);
-    rect.ymax = event->xy[1] + (600 * UI_SCALE_FAC);
+    rect.xmax = event->xy[0] + width;
+    rect.ymax = event->xy[1] + height;
     align = WIN_ALIGN_LOCATION_CENTER;
   }
 
@@ -2312,6 +2314,9 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   }
   if (ghost_flag & GHOST_kCapabilityRGBACursors) {
     flag |= WM_CAPABILITY_RGBA_CURSORS;
+  }
+  if (ghost_flag & GHOST_kCapabilityMultiMonitorPlacement) {
+    flag |= WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
   }
 
   return flag;

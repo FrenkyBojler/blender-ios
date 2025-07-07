@@ -797,6 +797,8 @@ GHOST_TCapabilityFlag GHOST_SystemSDL::getCapabilities() const
           GHOST_kCapabilityRGBACursors |
           /* No support for window decoration styles. */
           GHOST_kCapabilityWindowDecorationStyles |
+          /* No support for precisely placing windows on multiple monitors. */
+          GHOST_kCapabilityMultiMonitorPlacement |
           /* No support for a Hyper modifier key. */
           GHOST_kCapabilityKeyboardHyperKey));
 }

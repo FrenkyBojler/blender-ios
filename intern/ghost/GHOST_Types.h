@@ -133,6 +133,10 @@ typedef enum {
    * to be temporary as our intention is to implement on all platforms.
    */
   GHOST_kCapabilityRGBACursors = (1 << 10),
+  /**
+   * Support accurately placing windows on multiple monitors.
+   */
+  GHOST_kCapabilityMultiMonitorPlacement = (1 << 11),
 
 } GHOST_TCapabilityFlag;
 
@@ -146,7 +150,7 @@ typedef enum {
    GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
    GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
    GHOST_kCapabilityWindowDecorationStyles | GHOST_kCapabilityKeyboardHyperKey | \
-   GHOST_kCapabilityRGBACursors)
+   GHOST_kCapabilityRGBACursors | GHOST_kCapabilityMultiMonitorPlacement)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
