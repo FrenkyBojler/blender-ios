@@ -4653,6 +4653,9 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   const Span<float3> src_handles_right = src_curves.handle_positions_right();
   const VArray<int8_t> src_curve_types = src_curves.curve_types();
 
+  /* TODO: Not hard code. */
+  const float miter_limit = -0.7;
+
   IndexMaskMemory memory;
   const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
                                                                  memory);
@@ -4674,6 +4677,8 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
     const int8_t curve_type = src_curve_types[curve_i];
     const bool cyclic = src_cyclic[curve_i];
 
+    const int offset_pos_size = offset_pos.size();
+
     float3 curve_norm;
     cross_poly_v3(curve_norm, (const float(*)[3])src_pos.data(), src_pos.size());
     const bool ccw = math::dot(curve_norm, plane_norm) < 0.0f;
@@ -4683,27 +4688,58 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
       const float3 B = src_pos[i];
       const float3 C = src_pos[(i + 1) % src_pos.size()];
 
-      const float3 BA = math::normalize(math::cross(B - A, plane_norm)) * (ccw ? -1.0f : 1.0f);
-      const float3 CB = math::normalize(math::cross(C - B, plane_norm)) * (ccw ? -1.0f : 1.0f);
+      const float3 BA = math::normalize(B - A);
+      const float3 CB = math::normalize(C - B);
+
+      const float3 BA_tan = math::normalize(math::cross(BA, plane_norm)) * (ccw ? -1.0f : 1.0f);
+      const float3 CB_tan = math::normalize(math::cross(CB, plane_norm)) * (ccw ? -1.0f : 1.0f);
+
+      const float cos_theta = math::dot(BA_tan, CB_tan);
 
       float3 offset = float3(0.0);
 
       if (!cyclic && (i == 0 || i == src_pos.size() - 1)) {
         if (i == 0) {
-          offset = CB * offset_distance;
+          offset = CB_tan * offset_distance;
         }
         if (i == src_pos.size() - 1) {
-          offset = BA * offset_distance;
+          offset = BA_tan * offset_distance;
         }
       }
       else {
+        if (cos_theta < miter_limit) {
+          const float sin_theta = sqrt(1 - cos_theta * cos_theta);
+          const float S = (sqrt(2 * (cos_theta + 1)) - cos_theta - 1) / sin_theta;
+
+          const float3 norm_dir = math::normalize(BA + CB);
+          const float3 tan_dir = math::normalize(BA_tan + CB_tan);
+
+          offset_pos.append(B + (tan_dir - norm_dir * S) * offset_distance);
+          offset_pos.append(B + (tan_dir + norm_dir * S) * offset_distance);
+          offset_old_by_new_map.append(src_points[i]);
+          offset_old_by_new_map.append(src_points[i]);
+
+          if (!src_handles_left.is_empty()) {
+            /* TODO: Use a better approximation. */
+            offset_handles_left.append(
+                (src_handles_left[src_points[i]] - B) * (1 + offset_distance) + B + offset);
+
+            offset_handles_right.append(float3(0.0f, 0.0f, 0.0f));
+            offset_handles_left.append(float3(0.0f, 0.0f, 0.0f));
+
+            offset_handles_right.append(
+                (src_handles_right[src_points[i]] - B) * (1 + offset_distance) + B + offset);
+          }
+
+          continue;
+        }
+
         if (curve_type == CURVE_TYPE_BEZIER) {
           /* TODO: Use a better approximation. */
-          offset = math::normalize(BA + CB) * offset_distance;
+          offset = math::normalize(BA_tan + CB_tan) * offset_distance;
         }
         else {
-          const float d = math::dot(BA, CB);
-          offset = math::safe_divide(BA + CB, 1 + d) * offset_distance;
+          offset = math::safe_divide(BA_tan + CB_tan, 1 + cos_theta) * offset_distance;
         }
       }
 
@@ -4719,7 +4755,7 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
       }
     }
 
-    dst_curve_sizes[curve_i] = src_points.size();
+    dst_curve_sizes[curve_i] = offset_pos.size() - offset_pos_size;
   });
 
   const OffsetIndices dst_points_by_curve = offset_indices::accumulate_counts_to_offsets(
