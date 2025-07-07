@@ -38,9 +38,8 @@ static int node_shader_gpu_geometry(GPUMaterial *mat,
 
   int i;
   LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, i) {
-    if (strcmp(sock->name, "Position")) {
-      /* TODO: Do something else. */
-      node_shader_gpu_bump_tex_coord(mat, node, &out[i].link);
+    if (!strcmp(sock->name, "Position")) {
+      node_shader_gpu_bump_tex_coord_normal(mat, node, &out[i].link);
     }
     else {
       node_shader_gpu_bump_tex_coord(mat, node, &out[i].link);

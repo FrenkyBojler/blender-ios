@@ -15,6 +15,12 @@ void differentiate_texco(float4 v, out float3 df)
   df = v.xyz + dF_impl(v.xyz);
 }
 
+void differentiate_texco_normal(float3 n, float3 v, out float3 df)
+{
+  float3 differentials = dF_impl(v);
+  df = v + differentials - dot(differentials, n) * n;
+}
+
 void node_bump(float strength,
                float dist,
                float filter_width,
