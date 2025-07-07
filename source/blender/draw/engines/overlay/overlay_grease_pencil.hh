@@ -110,6 +110,7 @@ class GreasePencil : Overlay {
 
     edit_points_ = nullptr;
     edit_lines_ = nullptr;
+    edit_handles_ = nullptr;
 
     {
       auto &pass = edit_grease_pencil_ps_;
