@@ -73,7 +73,7 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
     row += f"{entries[0].test: <40} "
 
     for entry in entries:
-        # Show time or memory usage or status.
+        # Show time or status.
         status = entry.status
         output = entry.output
         result = ''
