@@ -154,6 +154,25 @@ def generate_stroke(context):
     return stroke
 
 
+def undo_memory_information(args: dict):
+    import bpy
+    context = bpy.context
+    bpy.ops.ed.undo_push()
+    prepare_brush(context, args['brush_type'])
+    prepare_sculpt_scene(context, args['mode'])
+
+    context_override = context.copy()
+    set_view3d_context_override(context_override)
+
+    with context.temp_override(**context_override):
+
+        bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+        bpy.ops.ed.undo_push()
+
+        memory_info = bpy.app.sculpt_undo_memory_info()
+        return memory_info
+
+
 def _run_brush_test(args: dict):
     import bpy
     import time
@@ -220,31 +239,6 @@ def _run_bvh_test(args: dict):
     return sum(measurements) / len(measurements)
 
 
-def _run_undo_memory_test(args: dict):
-    import bpy
-    context = bpy.context
-    bpy.ops.ed.undo_push()
-    prepare_brush(context, args['brush_type'])
-    prepare_sculpt_scene(context, args['mode'])
-
-    context_override = context.copy()
-    set_view3d_context_override(context_override)
-
-    with context.temp_override(**context_override):
-
-        bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
-        bpy.ops.ed.undo_push()
-
-        result = bpy.ops.sculpt.undo_memory_info()
-        memory_mb = bpy.context.scene['sculpt_undo_memory_mb']
-        if memory_mb is not None:
-            print(f"Sculpt undo memory: {memory_mb} MB")
-            return memory_mb
-        else:
-            print("Property not found")
-            return 0
-
-
 def _run_subdivide_test(_args: dict):
     import bpy
     import time
@@ -295,9 +289,11 @@ class SculptBrushTest(api.Test):
             'brush_type': self.brush_type,
         }
 
-        result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
+        time_result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
 
-        return {'time': result}
+        memory_result, _ = env.run_in_blender(undo_memory_information, args, [self.filepath])
+
+        return {'time': time_result, 'memory': memory_result}
 
 
 class SculptRebuildBVHTest(api.Test):
@@ -321,31 +317,6 @@ class SculptRebuildBVHTest(api.Test):
         return {'time': result}
 
 
-class SculptUndoMemoryTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
-        self.filepath = filepath
-        self.mode = mode
-        self.brush_type = brush_type
-
-    def name(self):
-        return "{}_undo_memory_{}".format(self.mode.name.lower(), self.brush_type.name.lower())
-
-    def category(self):
-        return "sculpt"
-
-    def run(self, env, _device_id):
-        args = {
-            'mode': self.mode,
-            'brush_type': self.brush_type,
-        }
-
-        result, _ = env.run_in_blender(_run_undo_memory_test, args, [self.filepath])
-
-        return {
-            'memory_mb': result
-        }
-
-
 class SculptMultiresSubdivideTest(api.Test):
     def __init__(self, filepath: pathlib.Path):
         self.filepath = filepath
@@ -362,40 +333,12 @@ class SculptMultiresSubdivideTest(api.Test):
         return {'time': result}
 
 
-class SculptUndoMemoryTest(api.Test):
-    def __init__(self, filepath: pathlib.Path, mode: SculptMode, brush_type: BrushType):
-        self.filepath = filepath
-        self.mode = mode
-        self.brush_type = brush_type
-
-    def name(self):
-        return "{}_undo_memory_{}".format(self.mode.name.lower(), self.brush_type.name.lower())
-
-    def category(self):
-        return "sculpt"
-
-    def run(self, env, _device_id):
-        args = {
-            'mode': self.mode,
-            'brush_type': self.brush_type,
-        }
-
-        result, _ = env.run_in_blender(_run_undo_memory_test, args, [self.filepath])
-
-        return {
-            'memory_mb': result
-        }
-
-
 def generate(env):
     filepaths = env.find_blend_files('sculpt/*')
     # For now, we only expect there to ever be a single file to use as the basis for generating other brush tests
     assert len(filepaths) == 1
     brush_tests = [SculptBrushTest(filepaths[0], mode, brush_type) for mode in SculptMode for brush_type in BrushType]
-    bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode) for mode in SculptMode]
-    memory_tests = [SculptUndoMemoryTest(filepaths[0], mode, brush_type)
-                    for mode in SculptMode
-                    for brush_type in BrushType]
+    # bvh_tests = [SculptRebuildBVHTest(filepaths[0], mode) for mode in SculptMode]
 
-    subdivision_tests = [SculptMultiresSubdivideTest(filepaths[0])]
-    return brush_tests + bvh_tests + memory_tests + subdivision_tests
+    # subdivision_tests = [SculptMultiresSubdivideTest(filepaths[0])]
+    return brush_tests

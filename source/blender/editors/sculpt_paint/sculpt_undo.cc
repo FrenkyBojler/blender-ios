@@ -2199,13 +2199,11 @@ size_t get_total_sculpt_undo_memory(bContext *C)
 
   for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
 
-    if (us->type == BKE_UNDOSYS_TYPE_SCULPT) {
-      SculptUndoStep *sculpt_us = reinterpret_cast<SculptUndoStep *>(us);
+    SculptUndoStep *sculpt_us = reinterpret_cast<SculptUndoStep *>(us);
 
-      if (sculpt_us->data.object_name == current_object_name) {
-        total_memory += sculpt_us->data.undo_size;
-        undo_steps_count++;
-      }
+    if (sculpt_us->data.object_name == current_object_name) {
+      total_memory += sculpt_us->data.undo_size;
+      undo_steps_count++;
     }
   }
 

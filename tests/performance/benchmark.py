@@ -78,10 +78,7 @@ def print_row(config: api.TestConfig, entries: list, end='\n') -> None:
         output = entry.output
         result = ''
         if status in {'done', 'outdated'} and output:
-            if 'undo_memory' in entry.test:
-                result = '%.4fMB' % output['memory_mb']
-            else:
-                result = '%.4fs' % output['time']
+            result = '%.4fs' % output['time']
 
             if status == 'outdated':
                 result += " (outdated)"

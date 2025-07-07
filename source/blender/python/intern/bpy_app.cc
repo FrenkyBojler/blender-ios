@@ -22,6 +22,8 @@
 #include "bpy_app_opensubdiv.hh"
 #include "bpy_app_openvdb.hh"
 #include "bpy_app_sdl.hh"
+#include "bpy_capi_utils.hh"
+
 #include "bpy_app_usd.hh"
 
 #include "bpy_app_translations.hh"
@@ -44,6 +46,7 @@
 
 #include "UI_interface_icons.hh"
 
+#include "ED_sculpt.hh"
 #include "MEM_guardedalloc.h"
 
 #include "RNA_enum_types.hh" /* For `rna_enum_wm_job_type_items`. */
@@ -641,6 +644,28 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
 #    pragma GCC diagnostic ignored "-Wcast-function-type"
 #  endif
 #endif
+PyDoc_STRVAR(
+    /* Wrap. */
+    bpy_app_sculpt_undo_memory_info_doc,
+    ".. staticmethod:: sculpt_undo_memory_info()\n"
+    "\n"
+    "   Get sculpt undo memory usage information.\n"
+    "\n"
+    "   :return: 'total_memory'.\n"
+    "   :rtype: float\n");
+
+static PyObject *bpy_app_sculpt_undo_memory_info(PyObject * /*self*/, PyObject * /*args*/)
+{
+  bContext *C = BPY_context_get();
+  if (!C) {
+    PyErr_SetString(PyExc_RuntimeError, "No active context available");
+    return nullptr;
+  }
+
+  size_t total_memory = blender::ed::sculpt_paint::undo::get_total_sculpt_undo_memory(C);
+
+  return PyFloat_FromDouble(total_memory);
+}
 
 static PyMethodDef bpy_app_methods[] = {
     {"is_job_running",
@@ -651,6 +676,10 @@ static PyMethodDef bpy_app_methods[] = {
      (PyCFunction)bpy_app_help_text,
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      bpy_app_help_text_doc},
+    {"sculpt_undo_memory_info",
+     (PyCFunction)bpy_app_sculpt_undo_memory_info,
+     METH_NOARGS | METH_STATIC,
+     bpy_app_sculpt_undo_memory_info_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 
