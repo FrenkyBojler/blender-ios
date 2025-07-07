@@ -895,12 +895,11 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
   return true;
 }
 
-static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
+static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
 {
-  ReportList *reports = nullptr;
   /* Don't touch protected F-Curves. */
   if (BKE_fcurve_is_protected(fcu)) {
-    BKE_reportf(reports,
+    BKE_reportf(op->reports,
                 RPT_WARNING,
                 "Not deleting keyframe for locked F-Curve '%s', scene '%s'",
                 fcu->rna_path,
@@ -914,10 +913,11 @@ static bool delete_scene_action_keyframes_legacy(AnimData *adt,
                                                  bAction *act,
                                                  Scene *scene,
                                                  float cfra_unmap,
+                                                 wmOperator *op,
                                                  blender::Vector<FCurve *> &r_modified_fcurves)
 {
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
-    if (!can_delete_scene_key(fcu, scene)) {
+    if (!can_delete_scene_key(fcu, scene, op)) {
       continue;
     }
     blender::animrig::delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
@@ -967,7 +967,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
           break;
         }
       }
-      if (!can_delete_scene_key(&fcurve, scene) || changed_strip.empty()) {
+      if (!can_delete_scene_key(&fcurve, scene, op) || changed_strip.empty()) {
         return;
       }
       if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
@@ -984,7 +984,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   }
   else {
     use_legacy_report = delete_scene_action_keyframes_legacy(
-        adt, act, scene, cfra_unmap, modified_fcurves);
+        adt, act, scene, cfra_unmap, op, modified_fcurves);
   }
 
   if (scene->adt->action) {
