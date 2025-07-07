@@ -79,7 +79,14 @@ class VKTexture : public Texture {
 
   void generate_mipmap() override;
   void copy_to(Texture *tex) override;
-  void copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect);
+  void copy_mipmaps_to(Texture *dst,
+                       int src_mipmap_start,
+                       int dst_mipmap_start,
+                       int mipmap_len) override;
+  void copy_mipmap_to(VKTexture &dst_texture,
+               int src_mipmap,
+               int dst_mipmap,
+               VkImageAspectFlags vk_image_aspect);
   void clear(eGPUDataFormat format, const void *data) override;
   void clear_depth_stencil(const eGPUFrameBufferBits buffer,
                            float clear_depth,

@@ -443,7 +443,7 @@ static void blit_aspect(VKContext &context,
       src_texture.width_get() == dst_texture.width_get() &&
       src_texture.height_get() == dst_texture.height_get())
   {
-    src_texture.copy_to(dst_texture, image_aspect);
+    src_texture.copy_mipmap_to(dst_texture, 0, 0, image_aspect);
     return;
   }
 

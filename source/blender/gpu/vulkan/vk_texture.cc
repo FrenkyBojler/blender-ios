@@ -81,18 +81,41 @@ void VKTexture::generate_mipmap()
   context.render_graph().add_node(update_mipmaps);
 }
 
-void VKTexture::copy_to(VKTexture &dst_texture, VkImageAspectFlags vk_image_aspect)
+void VKTexture::copy_mipmaps_to(Texture *dst,
+                                int src_mipmap_start,
+                                int dst_mipmap_start,
+                                int mipmap_len)
 {
+  VKTexture &dst_texture = *unwrap(dst);
+  for (int mipmap_offset : IndexRange(mipmap_len)) {
+    copy_mipmap_to(dst_texture,
+                   src_mipmap_start + mipmap_offset,
+                   dst_mipmap_start + mipmap_offset,
+                   VK_IMAGE_ASPECT_COLOR_BIT);
+  }
+}
+
+void VKTexture::copy_mipmap_to(VKTexture &dst_texture,
+                               int src_mipmap,
+                               int dst_mipmap,
+                               VkImageAspectFlags vk_image_aspect)
+{
+  VkExtent3D src_extent = vk_extent_3d(src_mipmap);
+#ifndef NDEBUG
+  VkExtent3D dst_extent = dst_texture.vk_extent_3d(dst_mipmap);
+  BLI_assert(src_extent.width == dst_extent.width && src_extent.height == dst_extent.height &&
+             src_extent.depth == dst_extent.depth);
+#endif
   render_graph::VKCopyImageNode::CreateInfo copy_image = {};
   copy_image.node_data.src_image = vk_image_handle();
   copy_image.node_data.dst_image = dst_texture.vk_image_handle();
   copy_image.node_data.region.srcSubresource.aspectMask = vk_image_aspect;
-  copy_image.node_data.region.srcSubresource.mipLevel = 0;
+  copy_image.node_data.region.srcSubresource.mipLevel = src_mipmap;
   copy_image.node_data.region.srcSubresource.layerCount = vk_layer_count(1);
   copy_image.node_data.region.dstSubresource.aspectMask = vk_image_aspect;
-  copy_image.node_data.region.dstSubresource.mipLevel = 0;
+  copy_image.node_data.region.dstSubresource.mipLevel = dst_mipmap;
   copy_image.node_data.region.dstSubresource.layerCount = vk_layer_count(1);
-  copy_image.node_data.region.extent = vk_extent_3d(0);
+  copy_image.node_data.region.extent = src_extent;
   copy_image.vk_image_aspect = to_vk_image_aspect_flag_bits(device_format_get());
 
   VKContext &context = *VKContext::get();
@@ -109,7 +132,7 @@ void VKTexture::copy_to(Texture *tex)
   BLI_assert(!is_texture_view());
   UNUSED_VARS_NDEBUG(src);
 
-  copy_to(*dst, to_vk_image_aspect_flag_bits(device_format_));
+  copy_mipmap_to(*dst, 0, 0, to_vk_image_aspect_flag_bits(device_format_));
 }
 
 void VKTexture::clear(eGPUDataFormat format, const void *data)

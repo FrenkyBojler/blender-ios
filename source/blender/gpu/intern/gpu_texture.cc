@@ -603,6 +603,14 @@ void GPU_texture_copy(GPUTexture *dst_, GPUTexture *src_)
   src->copy_to(dst);
 }
 
+void GPU_texture_copy_mipmaps(
+    GPUTexture *dst_, GPUTexture *src_, int dst_mipmap_start, int src_mipmap_start, int mipmap_len)
+{
+  Texture *src = unwrap(src_);
+  Texture *dst = unwrap(dst_);
+  src->copy_mipmaps_to(dst, src_mipmap_start, dst_mipmap_start, mipmap_len);
+}
+
 void GPU_texture_compare_mode(GPUTexture *texture, bool use_compare)
 {
   Texture *tex = unwrap(texture);

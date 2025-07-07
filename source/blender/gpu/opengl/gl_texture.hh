@@ -73,6 +73,10 @@ class GLTexture : public Texture {
    */
   void generate_mipmap() override;
   void copy_to(Texture *dst) override;
+  void copy_mipmaps_to(Texture *dst,
+                       int src_mipmap_start,
+                       int dst_mipmap_start,
+                       int mipmap_len) override;
   void clear(eGPUDataFormat format, const void *data) override;
   void swizzle_set(const char swizzle_mask[4]) override;
   void mip_range_set(int min, int max) override;
@@ -123,6 +127,7 @@ class GLTexture : public Texture {
   void update_sub_direct_state_access(
       int mip, int offset[3], int extent[3], GLenum gl_format, GLenum gl_type, const void *data);
   FrameBuffer *framebuffer_get();
+  void copy_mipmap_to(GLTexture &dst, int src_mipmap, int dst_mipmap);
 
   MEM_CXX_CLASS_ALLOC_FUNCS("GLTexture")
 };

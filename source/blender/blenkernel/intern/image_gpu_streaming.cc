@@ -218,29 +218,43 @@ ImageGPUTextures ImageMipmapCache::gpu_mipmap_texture_get(ImageMipmapMask mipmap
             mipmap_level.level);
   GPUTexture *old_texture = last_texture_;
   ImageMipmapLevel old_mipmap_level = last_texture_mipmap_level_;
-  last_texture_ = nullptr;
-  last_texture_ = GPU_texture_create_2d(name_.c_str(),
-                                        UNPACK2(resolution_per_mipmap_[mipmap_level.level]),
-                                        offsets_per_mipmap_.size() - mipmap_level.level,
-                                        (eGPUTextureFormat)gpu_texture_format_,
-                                        GPU_TEXTURE_USAGE_GENERAL,
-                                        nullptr);
-  GPU_texture_original_size_set(last_texture_, UNPACK2(resolution_per_mipmap_[0]));
-  last_texture_mipmap_level_ = mipmap_level;
-  mipmap_level_last_used_timestamp_ = timestamp;
+  GPUTexture *new_texture = GPU_texture_create_2d(
+      name_.c_str(),
+      UNPACK2(resolution_per_mipmap_[mipmap_level.level]),
+      offsets_per_mipmap_.size() - mipmap_level.level,
+      (eGPUTextureFormat)gpu_texture_format_,
+      GPU_TEXTURE_USAGE_GENERAL,
+      nullptr);
+  GPU_texture_original_size_set(new_texture, UNPACK2(resolution_per_mipmap_[0]));
 
-  /* Upload missing mipmap levels */
-  // TODO: in stead of copying all mipmaps, only copy the mipmap levels that are not available
-  // in the last texture. The other could be copied from the current last texture.
+  /* Copy mipmap levels that are shared between the old and new texture. */
+  int new_mipmap_len = size() - mipmap_level.level;
+  int old_mipmap_len = old_texture ? size() - old_mipmap_level.level : 0;
+  int mipmap_levels_to_copy = std::min(new_mipmap_len, old_mipmap_len);
+  int mipmap_levels_to_upload = new_mipmap_len - mipmap_levels_to_copy;
+  if (mipmap_levels_to_copy != 0) {
+    GPU_texture_copy_mipmaps(new_texture,
+                             old_texture,
+                             mipmap_levels_to_upload,
+                             old_mipmap_len - mipmap_levels_to_copy,
+                             mipmap_levels_to_copy);
+  }
+
+  /* Upload missing mipmap levels, those are the lower levels (higher resolution). */
   // TODO: stream in missing mipmap levels in a background thread.
-  for (int mipmap = mipmap_level.level; mipmap < size(); mipmap++) {
-    GPU_texture_update_mipmap(last_texture_,
+  // TODO: Load missing mipmaps in from disk.
+  for (int mipmap : IndexRange(mipmap_level.level, mipmap_levels_to_upload)) {
+    GPU_texture_update_mipmap(new_texture,
                               mipmap - mipmap_level.level,
                               (eGPUDataFormat)gpu_data_format_,
                               mipmap_data(mipmap).data());
   }
 
-  GPU_TEXTURE_FREE_SAFE(old_texture);
+  GPU_TEXTURE_FREE_SAFE(last_texture_);
+  old_texture = nullptr;
+  last_texture_ = new_texture;
+  last_texture_mipmap_level_ = mipmap_level;
+  mipmap_level_last_used_timestamp_ = timestamp;
   return {&last_texture_, nullptr, false};
 }
 }  // namespace blender::bke

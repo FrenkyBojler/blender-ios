@@ -344,17 +344,42 @@ void GLTexture::copy_to(Texture *dst_)
   GLTexture *src = this;
 
   BLI_assert((dst->w_ == src->w_) && (dst->h_ == src->h_) && (dst->d_ == src->d_));
-  BLI_assert(dst->format_ == src->format_);
-  BLI_assert(dst->type_ == src->type_);
 
-  int mip = 0;
-  /* NOTE: mip_size_get() won't override any dimension that is equal to 0. */
+  copy_mipmap_to(*dst, 0, 0);
+
+  src->has_pixels_ = true;
+}
+
+void GLTexture::copy_mipmap_to(GLTexture &dst, int src_mipmap, int dst_mipmap)
+{
+  BLI_assert(dst.format_ == this->format_);
+  BLI_assert(dst.type_ == this->type_);
   int extent[3] = {1, 1, 1};
-  this->mip_size_get(mip, extent);
-  glCopyImageSubData(
-      src->tex_id_, target_, mip, 0, 0, 0, dst->tex_id_, target_, mip, 0, 0, 0, UNPACK3(extent));
+  this->mip_size_get(src_mipmap, extent);
+  glCopyImageSubData(this->tex_id_,
+                     target_,
+                     src_mipmap,
+                     0,
+                     0,
+                     0,
+                     dst.tex_id_,
+                     target_,
+                     dst_mipmap,
+                     0,
+                     0,
+                     0,
+                     UNPACK3(extent));
+}
 
-  has_pixels_ = true;
+void GLTexture::copy_mipmaps_to(Texture *dst_,
+                                int src_mipmap_start,
+                                int dst_mipmap_start,
+                                int mipmap_len)
+{
+  GLTexture *dst = static_cast<GLTexture *>(dst_);
+  for (int mipmap_offset : IndexRange(mipmap_len)) {
+    copy_mipmap_to(*dst, src_mipmap_start + mipmap_offset, dst_mipmap_start + mipmap_offset);
+  }
 }
 
 void *GLTexture::read(int mip, eGPUDataFormat type)

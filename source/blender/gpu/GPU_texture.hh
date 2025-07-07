@@ -1023,6 +1023,16 @@ void GPU_texture_clear(GPUTexture *texture, eGPUDataFormat data_format, const vo
 void GPU_texture_copy(GPUTexture *dst, GPUTexture *src);
 
 /**
+ * Copy mipmaps from \a src texture to a similar \a dst texture.
+ *
+ * \a mipmap_len number of mipmaps will be copied from source texture starting from mipmap level \a
+ * src_mipmap_start. They will be stored in destination starting at \a dst_mipmap_start. All
+ * mipmaps levels must be of the same resolution.
+ */
+void GPU_texture_copy_mipmaps(
+    GPUTexture *dst, GPUTexture *src, int dst_mipmap_start, int src_mipmap_start, int mipmap_len);
+
+/**
  * Update the mip-map levels using the mip 0 data.
  * \note this doesn't work on depth or compressed textures.
  */

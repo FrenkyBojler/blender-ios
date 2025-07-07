@@ -144,6 +144,10 @@ class Texture {
 
   virtual void generate_mipmap() = 0;
   virtual void copy_to(Texture *tex) = 0;
+  virtual void copy_mipmaps_to(Texture *tex,
+                               int src_mipmap_start,
+                               int dst_mipmap_start,
+                               int mipmap_len) = 0;
   virtual void clear(eGPUDataFormat format, const void *data) = 0;
   virtual void swizzle_set(const char swizzle_mask[4]) = 0;
   virtual void mip_range_set(int min, int max) = 0;
