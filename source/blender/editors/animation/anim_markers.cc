@@ -586,7 +586,7 @@ void ED_markers_draw(const bContext *C, int flag)
 
   const float fade = BLI_rctf_size_y(&markers_region_rect) + UI_ANIM_MINY;
   const float dist = std::min(region->winy - fade, fade);
-  float alpha = std::min(dist / fade, 1.0f);
+  const float alpha = std::min(dist / fade, 1.0f);
   draw_markers_background(&markers_region_rect, alpha);
 
   /* no time correction for framelen! space is drawn with old values */
