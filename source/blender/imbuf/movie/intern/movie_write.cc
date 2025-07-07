@@ -925,12 +925,18 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     c->pix_fmt = AV_PIX_FMT_YUV422P;
   }
 
-  const bool is_hdr_pq = rd->ffcodecdata.video_hdr == FFM_VIDEO_HDR_REC2100_PQ;
-  const bool is_hdr_hlg = rd->ffcodecdata.video_hdr == FFM_VIDEO_HDR_REC2100_HLG;
-
   const bool is_10_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_10;
   const bool is_12_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_12;
   const bool is_16_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_16;
+
+  eFFMpegVideoHdr hdr = eFFMpegVideoHdr(rd->ffcodecdata.video_hdr);
+  /* Never use HDR for non-10/12 bpp or grayscale outputs. */
+  if ((!is_10_bpp && !is_12_bpp) || rd->im_format.planes == R_IMF_PLANES_BW) {
+    hdr = FFM_VIDEO_HDR_NONE;
+  }
+  const bool is_hdr_pq = hdr == FFM_VIDEO_HDR_REC2100_PQ;
+  const bool is_hdr_hlg = hdr == FFM_VIDEO_HDR_REC2100_HLG;
+
   if (is_10_bpp) {
     c->pix_fmt = AV_PIX_FMT_YUV420P10LE;
   }
