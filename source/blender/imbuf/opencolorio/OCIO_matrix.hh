@@ -9,8 +9,8 @@
 namespace blender::ocio {
 
 /* Standard XYZ (D65) to linear Rec.709 transform. */
-/* D65 xy coordinates rounded to four decimal places, (0.3127, 0.3290). */
-/* See PR #141027 for why we're using the four-digit constants instead of higher precision constants. */
+/* Use four-digit constants instead of higher precisions to match sRGB and Rec.2020 standards.
+ * See PR #141027 for details. */
 static const float3x3 XYZ_TO_REC709{{3.2409699f, -0.9692436f, 0.0556301f},
                                     {-1.5373832f, 1.8759675f, -0.2039770f},
                                     {-0.4986108f, 0.0415551f, 1.0569715f}};
