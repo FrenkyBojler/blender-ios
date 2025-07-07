@@ -6,14 +6,16 @@
  * \ingroup cmpnodes
  */
 
-#include "BKE_node.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_math_vector_types.hh"
 
+#include "DNA_node_types.h"
+
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
 
+#include "BKE_node.hh"
 #include "BKE_tracking.h"
 
 #include "UI_interface_layout.hh"
@@ -26,6 +28,8 @@
 #include "node_composite_util.hh"
 
 namespace blender::nodes::node_composite_cornerpin_cc {
+
+NODE_STORAGE_FUNCS(NodeCornerpinData)
 
 static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 {
@@ -63,12 +67,20 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
 {
-  node->custom1 = CMP_NODE_INTERPOLATION_ANISOTROPIC;
+  NodeCornerpinData *data = static_cast<NodeCornerpinData *>(node->storage);
+  data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
+  data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
+  data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
+  node->storage = data;
 }
 
 static void node_composit_buts_cornerpin(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  layout->prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiLayout &column = layout->column(true);
+  column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiLayout &row = column.row(true);
+  row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -134,13 +146,16 @@ class CornerPinOperation : public NodeOperation {
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
      * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
      * interpolation. */
-    const CMPNodeInterpolation interpolation = this->get_interpolation();
-    const bool use_bilinear = ELEM(
-        interpolation, CMP_NODE_INTERPOLATION_BICUBIC, CMP_NODE_INTERPOLATION_BILINEAR);
-    const bool use_anisotropic = interpolation == CMP_NODE_INTERPOLATION_ANISOTROPIC;
+    const Interpolation interpolation = this->get_interpolation();
+    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
+    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
+
+    const bool use_bilinear = ELEM(interpolation, Interpolation::Bicubic, Interpolation::Bilinear);
+    const bool use_anisotropic = interpolation == Interpolation::Anisotropic;
     GPU_texture_filter_mode(input_image, use_bilinear);
     GPU_texture_anisotropic_filter(input_image, use_anisotropic);
-    GPU_texture_extend_mode(input_image, GPU_SAMPLER_EXTEND_MODE_EXTEND);
+    GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
+    GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
 
     plane_mask.bind_as_texture(shader, "mask_tx");
@@ -165,6 +180,9 @@ class CornerPinOperation : public NodeOperation {
     const Domain domain = compute_domain();
     Result &output = get_result("Image");
     output.allocate_texture(domain);
+    const Interpolation interpolation = this->get_interpolation();
+    const ExtensionMode extension_mode_x = this->get_extension_mode_x();
+    const ExtensionMode extension_mode_y = this->get_extension_mode_y();
 
     const int2 size = domain.size;
     parallel_for(size, [&](const int2 texel) {
@@ -178,27 +196,21 @@ class CornerPinOperation : public NodeOperation {
       }
 
       float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
-
       float4 sampled_color;
-      switch (this->get_interpolation()) {
-        case CMP_NODE_INTERPOLATION_BICUBIC:
-          sampled_color = input.sample_cubic_extended(projected_coordinates);
-          break;
-        case CMP_NODE_INTERPOLATION_BILINEAR:
-          sampled_color = input.sample_bilinear_extended(projected_coordinates);
-          break;
-        case CMP_NODE_INTERPOLATION_NEAREST:
-          sampled_color = input.sample_nearest_extended(projected_coordinates);
-          break;
-        case CMP_NODE_INTERPOLATION_ANISOTROPIC:
-          /* The derivatives of the projected coordinates with respect to x and y are the first and
-           * second columns respectively, divided by the z projection factor as can be shown by
-           * differentiating the above matrix multiplication with respect to x and y. Divide by the
-           * output size since sample_ewa assumes derivatives with respect to texel coordinates. */
-          float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
-          float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
-          sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
-          break;
+
+      /* The generic sample interface does not support EWA yet. */
+      if (interpolation != Interpolation::Anisotropic) {
+        sampled_color = input.sample(
+            projected_coordinates, interpolation, extension_mode_x, extension_mode_y);
+      }
+      else {
+        /* The derivatives of the projected coordinates with respect to x and y are the first and
+         * second columns respectively, divided by the z projection factor as can be shown by
+         * differentiating the above matrix multiplication with respect to x and y. Divide by the
+         * output size since sample_ewa assumes derivatives with respect to texel coordinates. */
+        float2 x_gradient = (homography_matrix[0].xy() / transformed_coordinates.z) / size.x;
+        float2 y_gradient = (homography_matrix[1].xy() / transformed_coordinates.z) / size.y;
+        sampled_color = input.sample_ewa_extended(projected_coordinates, x_gradient, y_gradient);
       }
 
       /* Premultiply the mask value as an alpha. */
@@ -290,25 +302,67 @@ class CornerPinOperation : public NodeOperation {
     return homography_matrix;
   }
 
+  Interpolation get_interpolation() const
+  {
+    switch (node_storage(bnode()).interpolation) {
+      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+        return Interpolation::Anisotropic;
+      case CMP_NODE_INTERPOLATION_NEAREST:
+        return Interpolation::Nearest;
+      case CMP_NODE_INTERPOLATION_BILINEAR:
+        return Interpolation::Bilinear;
+      case CMP_NODE_INTERPOLATION_BICUBIC:
+        return Interpolation::Bicubic;
+    }
+
+    BLI_assert_unreachable();
+    return Interpolation::Nearest;
+  }
+
+  ExtensionMode get_extension_mode_x()
+  {
+    switch (node_storage(bnode()).extension_x) {
+      case CMP_NODE_EXTENSION_MODE_ZERO:
+        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Zero;
+  }
+
+  ExtensionMode get_extension_mode_y()
+  {
+    switch (node_storage(bnode()).extension_y) {
+      case CMP_NODE_EXTENSION_MODE_ZERO:
+        return ExtensionMode::Zero;
+      case CMP_NODE_EXTENSION_MODE_REPEAT:
+        return ExtensionMode::Repeat;
+      case CMP_NODE_EXTENSION_MODE_EXTEND:
+        return ExtensionMode::Extend;
+    }
+
+    BLI_assert_unreachable();
+    return ExtensionMode::Zero;
+  }
+
   const char *get_shader_name() const
   {
     switch (this->get_interpolation()) {
-      case CMP_NODE_INTERPOLATION_NEAREST:
-      case CMP_NODE_INTERPOLATION_BILINEAR:
+      case Interpolation::Nearest:
+      case Interpolation::Bilinear:
         return "compositor_plane_deform";
-      case CMP_NODE_INTERPOLATION_BICUBIC:
+      case Interpolation::Bicubic:
         return "compositor_plane_deform_bicubic";
-      case CMP_NODE_INTERPOLATION_ANISOTROPIC:
+      case Interpolation::Anisotropic:
         return "compositor_plane_deform_anisotropic";
     }
 
     BLI_assert_unreachable();
     return "compositor_plane_deform_anisotropic";
-  }
-
-  CMPNodeInterpolation get_interpolation() const
-  {
-    return static_cast<CMPNodeInterpolation>(bnode().custom1);
   }
 };
 
@@ -334,7 +388,8 @@ static void register_node_type_cmp_cornerpin()
   ntype.initfunc = file_ns::node_composit_init_cornerpin;
   ntype.draw_buttons = file_ns::node_composit_buts_cornerpin;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
-
+  blender::bke::node_type_storage(
+      ntype, "NodeCornerpinData", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_cornerpin)
