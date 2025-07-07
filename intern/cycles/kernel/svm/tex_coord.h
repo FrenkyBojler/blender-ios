@@ -157,7 +157,8 @@ ccl_device_noinline int svm_node_tex_coord_bump_dx(KernelGlobals kg,
   switch ((NodeTexCoord)type) {
     case NODE_TEXCO_OBJECT:
     case NODE_TEXCO_OBJECT_WITH_TRANSFORM: {
-      data = svm_node_bump_P_dx(sd, bump_filter_width);
+      const float3 dPdx = differential_from_compact(sd->Ng, sd->dP).dx * bump_filter_width;
+      data = sd->P + dPdx - dot(dPdx, sd->N) * sd->N;
       if (type == NODE_TEXCO_OBJECT) {
         if (sd->object != OBJECT_NONE) {
           object_inverse_position_transform(kg, sd, &data);
@@ -253,7 +254,8 @@ ccl_device_noinline int svm_node_tex_coord_bump_dy(KernelGlobals kg,
   switch ((NodeTexCoord)type) {
     case NODE_TEXCO_OBJECT:
     case NODE_TEXCO_OBJECT_WITH_TRANSFORM: {
-      data = svm_node_bump_P_dy(sd, bump_filter_width);
+      const float3 dPdy = differential_from_compact(sd->Ng, sd->dP).dy * bump_filter_width;
+      data = sd->P + dPdy - dot(dPdy, sd->N) * sd->N;
       if (type == NODE_TEXCO_OBJECT) {
         if (sd->object != OBJECT_NONE) {
           object_inverse_position_transform(kg, sd, &data);

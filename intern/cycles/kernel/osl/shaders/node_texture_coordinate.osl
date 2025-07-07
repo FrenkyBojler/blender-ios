@@ -78,7 +78,19 @@ shader node_texture_coordinate(
       Generated += Dx(Generated) * bump_filter_width;
       UV += Dx(UV) * bump_filter_width;
     }
-    Object += Dx(Object) * bump_filter_width;
+
+    normal n;
+    if (use_transform) {
+      n = transform(object_itfm, Normal);
+    }
+    else {
+      n = Normal;
+    }
+    vector dOdx = Dx(Object) * bump_filter_width;
+
+    /* Offset Object by the projection of dOdx onto the plane orthogonal to n */
+    Object += dOdx - dot(dOdx, n) * n;
+
     Camera += Dx(Camera) * bump_filter_width;
     Window += Dx(Window) * bump_filter_width;
     if (getattribute("geom:bump_map_normal", Normal)) {
@@ -90,7 +102,19 @@ shader node_texture_coordinate(
       Generated += Dy(Generated) * bump_filter_width;
       UV += Dy(UV) * bump_filter_width;
     }
-    Object += Dy(Object) * bump_filter_width;
+
+    normal n;
+    if (use_transform) {
+      n = transform(object_itfm, Normal);
+    }
+    else {
+      n = Normal;
+    }
+    vector dOdy = Dy(Object) * bump_filter_width;
+
+    /* Offset Object by the projection of dOdx onto the plane orthogonal to n */
+    Object += dOdy - dot(dOdy, n) * n;
+
     Camera += Dy(Camera) * bump_filter_width;
     Window += Dy(Window) * bump_filter_width;
     if (getattribute("geom:bump_map_normal", Normal)) {
