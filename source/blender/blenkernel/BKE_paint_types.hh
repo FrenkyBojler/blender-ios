@@ -4,20 +4,27 @@
 
 #pragma once
 
+#include "BLI_math_vector_types.hh"
+#include "BLI_utildefines.h"
+#include "BLI_utility_mixins.hh"
+
 /** \file
  * \ingroup bke
  */
-
-#include "BLI_math_vector_types.hh"
 
 namespace blender {
 namespace ocio {
 class ColorSpace;
 }
 }
+struct AssetWeakReference;
 
 namespace blender::bke {
-struct PaintRuntime : NonCopyable, NonMovable{
+struct PaintRuntime : NonCopyable, NonMovable {
+  bool initialized = false;
+  uint16_t ob_mode = 0;
+  AssetWeakReference *previous_active_brush_reference = nullptr;
+
   blender::float2 last_rake = float2(0.0f, 0.0f);
   float last_rake_angle = 0.0f;
 
@@ -77,5 +84,8 @@ struct PaintRuntime : NonCopyable, NonMovable{
   /** ColorSpace cache to avoid locking up during sampling. */
   bool do_linear_conversion = false;
   const blender::ocio::ColorSpace *colorspace = nullptr;
+
+  PaintRuntime();
+  ~PaintRuntime();
 };
-}
+};  // namespace blender::bke

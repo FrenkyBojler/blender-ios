@@ -44,9 +44,9 @@ struct bNodeTree;
 #ifdef __cplusplus
 namespace blender {
 namespace bke {
-class SceneRuntime;
 struct PaintRuntime;
-}
+class SceneRuntime;
+}  // namespace bke
 namespace ocio {
 class ColorSpace;
 }
@@ -55,8 +55,8 @@ using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
 #else   // __cplusplus
-typedef struct StrokeRuntimeHandle StrokeRuntimeHandle;
-typedef struct PaintRuntimeHandle SceneRuntimeHandle;
+typedef struct PaintRuntimeHandle PaintRuntimeHandle;
+typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
 #endif  // __cplusplus
 
@@ -1068,17 +1068,6 @@ typedef struct UnifiedPaintSettings {
 
 #define PAINT_MAX_INPUT_SAMPLES 64
 
-
-typedef struct Paint_Runtime {
-  /** Avoid having to compare with scene pointer everywhere. */
-  unsigned int initialized;
-  unsigned short ob_mode;
-  char _pad[2];
-  /** The last brush that was active. Used to support toggling. */
-  struct AssetWeakReference *previous_active_brush_reference;
-  PaintRuntimeHandle *paint_runtime;
-} Paint_Runtime;
-
 typedef struct NamedBrushAssetReference {
   struct NamedBrushAssetReference *next, *prev;
 
@@ -1158,7 +1147,7 @@ typedef struct Paint {
   char _pad2[4];
   struct UnifiedPaintSettings unified_paint_settings;
 
-  struct Paint_Runtime runtime;
+  PaintRuntimeHandle *runtime;
 } Paint;
 
 /** \} */
@@ -1278,7 +1267,7 @@ typedef struct Sculpt {
 
   // /* Control tablet input. */
   // char tablet_size, tablet_strength; XXX not used?
-  int radial_symm[3] DNA_DEPRECATED;
+  int radial_symm_legacy[3];
 
   /** Maximum edge length for dynamic topology sculpting (in pixels). */
   float detail_size;
