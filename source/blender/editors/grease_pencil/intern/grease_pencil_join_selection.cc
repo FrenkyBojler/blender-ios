@@ -34,9 +34,8 @@ namespace {
  * All the points belonging to a `PointsRange` are contiguous
  */
 struct PointsRange {
-  bke::CurvesGeometry *owning_curves;
-  IndexRange range;
   bke::greasepencil::Drawing *from_drawing;
+  IndexRange range;
 };
 
 enum class ActionOnNextRange { Nothing, ReverseExisting, ReverseAddition, ReverseBoth };
@@ -76,7 +75,7 @@ Vector<PointsRange> retrieve_selection_ranges(Object &object,
     const Array<int> points_map = info.drawing.strokes().point_to_curve_map();
     for (const IndexRange initial_range : initial_ranges) {
       if (points_map[initial_range.first()] == points_map[initial_range.last()]) {
-        selected_ranges.append({&info.drawing.strokes_for_write(), initial_range, &info.drawing});
+        selected_ranges.append({&info.drawing, initial_range});
         continue;
       }
 
@@ -85,7 +84,7 @@ Vector<PointsRange> retrieve_selection_ranges(Object &object,
       for (const int64_t index : initial_range.drop_front(1)) {
         const int current_curve = points_map[index];
         if (previous_curve != current_curve) {
-          selected_ranges.append({&info.drawing.strokes_for_write(), range, &info.drawing});
+          selected_ranges.append({&info.drawing, range});
           range = {index, 1};
           previous_curve = current_curve;
         }
@@ -94,7 +93,7 @@ Vector<PointsRange> retrieve_selection_ranges(Object &object,
         }
       }
 
-      selected_ranges.append({&info.drawing.strokes_for_write(), range, &info.drawing});
+      selected_ranges.append({&info.drawing, range});
     }
   }
 
@@ -221,7 +220,7 @@ int64_t compute_closest_range_to(PointsRange &range,
                                  ActionOnNextRange &r_action)
 {
   auto get_range_begin_end = [](const PointsRange &points_range) -> std::pair<float3, float3> {
-    const Span<float3> current_range_positions = points_range.owning_curves->positions();
+    const Span<float3> current_range_positions = points_range.from_drawing->strokes().positions();
     const float3 range_begin = current_range_positions[points_range.range.first()];
     const float3 range_end = current_range_positions[points_range.range.last()];
 
@@ -289,7 +288,7 @@ void copy_range_to_dst(const PointsRange &points_range,
   OffsetIndices<int> src_offsets{src_raw_offsets};
   OffsetIndices<int> dst_offsets{dst_raw_offsets};
 
-  copy_attributes_group_to_group(points_range.owning_curves->attributes(),
+  copy_attributes_group_to_group(points_range.from_drawing->strokes().attributes(),
                                  bke::AttrDomain::Point,
                                  {},
                                  {},
@@ -316,7 +315,7 @@ PointsRange copy_point_attributes(MutableSpan<PointsRange> selected_ranges,
    */
 
   const PointsRange &first_range = selected_ranges.first();
-  PointsRange working_range = {&dst_curves, {0, first_range.range.size()}, &dst_drawing};
+  PointsRange working_range = {&dst_drawing, {0, first_range.range.size()}};
 
   int next_point_index = 0;
   copy_range_to_dst(first_range, next_point_index, dst_curves);
@@ -360,7 +359,7 @@ void copy_curve_attributes(Span<PointsRange> ranges_selected,
     return it != ranges_selected.end() ? *it : ranges_selected.first();
   }();
 
-  const bke::CurvesGeometry &src_curves = *src_range.owning_curves;
+  const bke::CurvesGeometry &src_curves = src_range.from_drawing->strokes();
   const Array<int> points_map = src_curves.point_to_curve_map();
   const int first_selected_curve = points_map[src_range.range.first()];
 
@@ -385,7 +384,7 @@ void copy_curve_attributes(Span<PointsRange> ranges_selected,
 void clear_selection_attribute(Span<PointsRange> ranges_selected)
 {
   for (const PointsRange &range : ranges_selected) {
-    bke::CurvesGeometry &curves = *range.owning_curves;
+    bke::CurvesGeometry &curves = range.from_drawing->strokes_for_write();
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
     if (bke::GSpanAttributeWriter selection = attributes.lookup_for_write_span(".selection")) {
       ed::curves::fill_selection_false(selection.span);
@@ -401,7 +400,7 @@ void remove_selected_points(Span<PointsRange> ranges_selected)
     BLI_assert(points_range.from_drawing != nullptr);
 
     bke::CurvesGeometry &dst_curves = points_range.from_drawing->strokes_for_write();
-    dst_curves.remove_points(IndexMask(points_range.range), {});
+    dst_curves.remove_points(points_range.range, {});
   }
 }
 
