@@ -368,10 +368,10 @@ class ShapeTransfer(Operator):
 
         def ob_add_shape(ob, name):
             me = ob.data
-            key = ob.shape_key_add(from_mix=False)
+            key = ob.shape_key_add(from_mix=False, value=0.0)
             if len(me.shape_keys.key_blocks) == 1:
                 key.name = "Basis"
-                key = ob.shape_key_add(from_mix=False)  # we need a rest
+                key = ob.shape_key_add(from_mix=False, value=0.0)  # we need a rest
             key.name = name
             ob.active_shape_key_index = len(me.shape_keys.key_blocks) - 1
             ob.show_only_shape_key = True

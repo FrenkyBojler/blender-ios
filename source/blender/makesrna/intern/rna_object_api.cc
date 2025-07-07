@@ -451,13 +451,21 @@ static void rna_Object_to_curve_clear(Object *object)
   BKE_object_to_curve_clear(object);
 }
 
-static PointerRNA rna_Object_shape_key_add(
-    Object *ob, bContext *C, ReportList *reports, const char *name, bool from_mix)
+static PointerRNA rna_Object_shape_key_add(Object *ob,
+                                           bContext *C,
+                                           ReportList *reports,
+                                           const char *name,
+                                           const bool from_mix,
+                                           const float value)
 {
   Main *bmain = CTX_data_main(C);
   KeyBlock *kb = nullptr;
 
   if ((kb = BKE_object_shapekey_insert(bmain, ob, name, from_mix))) {
+    /* Set the initial blend value. */
+    kb->curval = value;
+    CLAMP(kb->curval, kb->slidermin, kb->slidermax);
+
     PointerRNA keyptr = RNA_pointer_create_discrete(
         (ID *)BKE_key_from_object(ob), &RNA_ShapeKey, kb);
     WM_event_add_notifier(C, NC_OBJECT | ND_DRAW, ob);
@@ -1091,10 +1099,19 @@ void RNA_api_object(StructRNA *srna)
 
   /* Shape key */
   func = RNA_def_function(srna, "shape_key_add", "rna_Object_shape_key_add");
-  RNA_def_function_ui_description(func, "Add shape key to this object (with the value of 1.0)");
+  RNA_def_function_ui_description(func, "Add shape key to this object");
   RNA_def_function_flag(func, FUNC_USE_CONTEXT | FUNC_USE_REPORTS);
   RNA_def_string(func, "name", "Key", 0, "", "Unique name for the new key-block"); /* optional */
   RNA_def_boolean(func, "from_mix", true, "", "Create new shape from existing mix of shapes");
+  RNA_def_float(func,
+                "value",
+                1.0,     /* Default. */
+                0.0,     /* Hard min. */
+                FLT_MAX, /* Hard max. */
+                "Value",
+                "The initial blend value of the new shape key",
+                0.0, /* Soft min. */
+                1.0 /* Soft max. */);
   parm = RNA_def_pointer(func, "key", "ShapeKey", "", "New shape key-block");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_RNAPTR);
   RNA_def_function_return(func, parm);

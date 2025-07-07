@@ -678,12 +678,12 @@ class Rig(SimpleChainRig):
             point.co = point.handle_left = point.handle_right = self.get_bone(name).head
 
     def make_spline_keys(self, spline_obj, all_controls):
-        spline_obj.shape_key_add(name='Basis', from_mix=False)
+        spline_obj.shape_key_add(name='Basis', from_mix=False, value=0.0)
 
         controls = all_controls[1:-1] if self.use_tip else all_controls[1:]
 
         for i, (name, subtype, index) in enumerate(controls):
-            key = spline_obj.shape_key_add(name=name, from_mix=False)
+            key = spline_obj.shape_key_add(name=name, from_mix=False, value=0.0)
             key.value = 0.0
             key.data[i + 1].radius = 0.0
 
