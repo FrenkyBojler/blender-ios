@@ -4752,23 +4752,25 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
 
   array_utils::copy_group_to_group(
       src_points_by_curve, dst_points_by_curve, unselected_curves, src_positions, dst_positions);
-  array_utils::copy_group_to_group(src_points_by_curve,
-                                   dst_points_by_curve,
-                                   unselected_curves,
-                                   src_handles_left,
-                                   dst_handles_left);
-  array_utils::copy_group_to_group(src_points_by_curve,
-                                   dst_points_by_curve,
-                                   unselected_curves,
-                                   src_handles_right,
-                                   dst_handles_right);
+  if (!src_handles_left.is_empty()) {
+    array_utils::copy_group_to_group(src_points_by_curve,
+                                     dst_points_by_curve,
+                                     unselected_curves,
+                                     src_handles_left,
+                                     dst_handles_left);
+    array_utils::copy_group_to_group(src_points_by_curve,
+                                     dst_points_by_curve,
+                                     unselected_curves,
+                                     src_handles_right,
+                                     dst_handles_right);
+  }
 
   int index = 0;
   curve_selection.foreach_index(GrainSize(1024), [&](const int64_t curve_i) {
     const IndexRange dst_points = dst_points_by_curve[curve_i];
     const IndexRange off_points = dst_points.index_range().shift(index);
     dst_positions.slice(dst_points).copy_from(offset_pos.as_span().slice(off_points));
-    if (!dst_handles_left.is_empty()) {
+    if (!offset_handles_left.is_empty()) {
       dst_handles_left.slice(dst_points)
           .copy_from(offset_handles_left.as_span().slice(off_points));
       dst_handles_right.slice(dst_points)
