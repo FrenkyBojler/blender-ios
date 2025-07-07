@@ -1275,6 +1275,13 @@ if(TEST_SRC_DIR_EXISTS)
       --outdir "${TEST_OUT_DIR}/sequence_editing"
     )
   endforeach()
+
+  add_blender_test(
+    sequencer_input_colorspace
+    --python ${CMAKE_CURRENT_LIST_DIR}/sequencer_input_colorspace.py
+    --
+    --testdir "${TEST_SRC_DIR}/sequence_editing"
+  )
 endif()
 
 # ------------------------------------------------------------------------------

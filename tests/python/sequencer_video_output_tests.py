@@ -10,6 +10,7 @@ import subprocess
 from pathlib import Path
 from modules import render_report
 
+
 def get_movie_file_suffix(filepath):
     """
     Get suffix used for the video output.
@@ -17,6 +18,7 @@ def get_movie_file_suffix(filepath):
     """
 
     return Path(filepath).stem.split("_")[-1]
+
 
 def get_arguments(filepath, output_filepath):
     suffix = get_movie_file_suffix(filepath)
@@ -73,7 +75,7 @@ class VideoOutputReport(render_report.Report):
         out_filepath = test.tmp_out_img.replace("0001", "####")
 
         python_expr = (
-f"""
+            f"""
 import bpy
 scene = bpy.context.scene
 scene.render.resolution_x = 1920
