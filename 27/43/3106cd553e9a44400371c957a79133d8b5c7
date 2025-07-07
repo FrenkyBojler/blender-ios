@@ -1,2 +1,3 @@
 Referenced by issue #141556, Multires 'Apply Base' breaks the mesh
 Referenced by pull request #141566, Fix #141556: Multires Apply Base deforms mesh greatly
+Referenced by commit 333e2068b6ed63faead56ea62a299763d738fc45, Fix #141556: Multires Apply Base deforms mesh greatly
