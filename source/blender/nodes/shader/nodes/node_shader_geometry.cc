@@ -38,7 +38,13 @@ static int node_shader_gpu_geometry(GPUMaterial *mat,
 
   int i;
   LISTBASE_FOREACH_INDEX (bNodeSocket *, sock, &node->outputs, i) {
-    node_shader_gpu_bump_tex_coord(mat, node, &out[i].link);
+    if (strcmp(sock->name, "Position")) {
+      /* TODO: Do something else. */
+      node_shader_gpu_bump_tex_coord(mat, node, &out[i].link);
+    }
+    else {
+      node_shader_gpu_bump_tex_coord(mat, node, &out[i].link);
+    }
     /* Normalize some vectors after dFdx/dFdy offsets.
      * This is the case for interpolated, non linear functions.
      * The resulting vector can still be a bit wrong but not as much.
