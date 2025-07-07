@@ -1867,10 +1867,6 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
         __func__, *brush_ref->brush_asset_reference);
   }
 
-  if (src->runtime) {
-    dst->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
-  }
-
   dst->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
       src->unified_paint_settings.curve_rand_hue);
   dst->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(
