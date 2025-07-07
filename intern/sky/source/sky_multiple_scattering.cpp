@@ -107,12 +107,12 @@ static float sign(float x)
 
 static float mix(float x, float y, float a)
 {
-  return x * (1.0f - a) + y * a;
+  return x + a * (y - x);
 }
 
 static float4 lut_value(float2 uv)
 {
-  /* bilinear interpolation */
+  /* Bilinear interpolation */
   float posx = float(transmittance_res_x - 1) * uv.x;
   float posy = float(transmittance_res_y - 1) * (1.0f - uv.y);
   int x1 = floorf(posx);
@@ -410,14 +410,10 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
 {
   float half_angular = angular_diameter / 2.0f;
   float solid_angle = M_2PI_F * (1.0f - cosf(half_angular));
-  float bottom = sun_elevation - half_angular;
-  float top = sun_elevation + half_angular;
-  float elevation_bottom, elevation_top;
+  float elevation_bottom = sun_elevation - half_angular;
+  float elevation_top = sun_elevation + half_angular;
 
   /* Compute 2 pixels for Sun disc */
-  elevation_bottom = (bottom > 0.0f) ? bottom : 0.0f;
-  elevation_top = (top > 0.0f) ? top : 0.0f;
-
   float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_bottom);
   float3 sun_dir = make_float3(
       -sqrtf(1.0f - sun_zenith_cos_angle * sun_zenith_cos_angle), 0.0f, sun_zenith_cos_angle);

@@ -29,16 +29,15 @@ ccl_device float sign(float x)
   }
 }
 
-ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
-                                                 const int sky_model,
-                                                 const float3 dir,
-                                                 const uint32_t path_flag,
-                                                 const float3 pixel_bottom,
-                                                 const float3 pixel_top,
-                                                 const ccl_private float *sky_data,
-                                                 const uint texture_id)
+ccl_device float3 sky_radiance(KernelGlobals kg,
+                               const int sky_model,
+                               const float3 dir,
+                               const uint32_t path_flag,
+                               const float3 pixel_bottom,
+                               const float3 pixel_top,
+                               const ccl_private float *sky_data,
+                               const uint texture_id)
 {
-  /* definitions */
   const float sun_elevation = sky_data[0];
   const float sun_rotation = sky_data[1];
   const float angular_diameter = sky_data[2];
@@ -59,18 +58,19 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
       if (sun_disc && sun_dir_angle < half_angular &&
           !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
       {
+        float y;
         if (sun_elevation - half_angular > 0.0f) {
           if (sun_elevation + half_angular > 0.0f) {
-            float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-            xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+            y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
           }
         }
         else {
           if (sun_elevation + half_angular > 0.0f) {
-            float y = dir_elevation / (sun_elevation + half_angular);
-            xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+            y = dir_elevation / (sun_elevation + half_angular);
           }
         }
+        xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+
         /* Limb darkening, coefficient is 0.6 */
         const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
                                                                              half_angular))));
@@ -106,20 +106,20 @@ ccl_device float3 sky_radiance_single_scattering(KernelGlobals kg,
     if (sun_disc && sun_dir_angle < half_angular &&
         !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
     {
-      /* Sun */
+      float y;
       if (sun_elevation - half_angular > 0.0f) {
         if (sun_elevation + half_angular > 0.0f) {
-          float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-          xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+          y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
         }
       }
       else {
         if (sun_elevation + half_angular > 0.0f) {
-          float y = dir_elevation / (sun_elevation + half_angular);
-          xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+          y = dir_elevation / (sun_elevation + half_angular);
         }
       }
-      /* Limb darkening (coefficient is 0.6) */
+      xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+
+      /* Limb darkening, coefficient is 0.6 */
       const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
                                                                            half_angular))));
       xyz *= limb_darkening;
@@ -147,29 +147,24 @@ ccl_device_noinline int svm_node_tex_sky(KernelGlobals kg,
   const uint dir_offset = node.y;
   const uint out_offset = node.z;
   const int sky_model = node.w;
-
   const float3 dir = stack_load_float3(stack, dir_offset);
-
-  /* Define variables */
   float4 data = read_node_float(kg, &offset);
   const float3 pixel_bottom = make_float3(data.x, data.y, data.z);
   float3 pixel_top;
   pixel_top.x = data.w;
-
   float sky_data[4];
   data = read_node_float(kg, &offset);
   pixel_top.y = data.x;
   pixel_top.z = data.y;
   sky_data[0] = data.z;
   sky_data[1] = data.w;
-
   data = read_node_float(kg, &offset);
   sky_data[2] = data.x;
   sky_data[3] = data.y;
   const uint texture_id = __float_as_uint(data.z);
 
   /* Compute Sky */
-  float3 f = sky_radiance_single_scattering(
+  float3 f = sky_radiance(
       kg, sky_model, dir, path_flag, pixel_bottom, pixel_top, sky_data, texture_id);
 
   stack_store_float3(stack, out_offset, f);

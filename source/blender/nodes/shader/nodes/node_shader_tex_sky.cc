@@ -67,7 +67,7 @@ static void node_shader_init_tex_sky(bNodeTree * /*ntree*/, bNode *node)
   tex->sun_intensity = 1.0f;
   tex->sun_elevation = DEG2RADF(15.0f);
   tex->sun_rotation = 0.0f;
-  tex->altitude = 0.0f;
+  tex->altitude = 100.0f;
   tex->air_density = 1.0f;
   tex->aerosol_density = 1.0f;
   tex->ozone_density = 1.0f;

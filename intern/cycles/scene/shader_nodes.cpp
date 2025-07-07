@@ -680,10 +680,9 @@ float SkyTextureNode::get_sun_average_radiance()
   const float angular_diameter = get_sun_size();
   float pix_bottom[3];
   float pix_top[3];
-
-  int sky_model = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? 0 : 1;
   float clamped_altitude;
-  if (sky_model == 0) {
+
+  if (sky_type == NODE_SKY_SINGLE_SCATTERING) {
     clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
     SKY_single_scattering_precompute_sun(sun_elevation,
                                          angular_diameter,
@@ -753,15 +752,15 @@ NODE_DEFINE(SkyTextureNode)
 
   static NodeEnum type_enum;
   type_enum.insert("single_scattering", NODE_SKY_SINGLE_SCATTERING);
-  type_enum.insert("single_scattering", NODE_SKY_MULTIPLE_SCATTERING);
-  SOCKET_ENUM(sky_type, "Type", type_enum, NODE_SKY_SINGLE_SCATTERING);
+  type_enum.insert("multiple_scattering", NODE_SKY_MULTIPLE_SCATTERING);
+  SOCKET_ENUM(sky_type, "Type", type_enum, NODE_SKY_MULTIPLE_SCATTERING);
 
   SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
   SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
   SOCKET_FLOAT(sun_intensity, "Sun Intensity", 1.0f);
   SOCKET_FLOAT(sun_elevation, "Sun Elevation", 15.0f * M_PI_F / 180.0f);
   SOCKET_FLOAT(sun_rotation, "Sun Rotation", 0.0f);
-  SOCKET_FLOAT(altitude, "Altitude", 1.0f);
+  SOCKET_FLOAT(altitude, "Altitude", 100.0f);
   SOCKET_FLOAT(air_density, "Air", 1.0f);
   SOCKET_FLOAT(aerosol_density, "Aerosol", 1.0f);
   SOCKET_FLOAT(ozone_density, "Ozone", 1.0f);
@@ -813,14 +812,12 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   SunSky sunsky;
   int sky_model = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? 0 : 1;
 
-  /* Clamp altitude to reasonable values. */
   float clamped_altitude;
+  /* Clamp altitude to avoid numerical issues */
   if (sky_model == 0) {
-    /* Below 1m causes numerical issues and above 60km is space. */
     clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
   }
   else {
-    /* Below 1m causes numerical issues and above 100km is space. */
     clamped_altitude = clamp(altitude, 1.0f, 99999.0f);
   }
 
@@ -835,13 +832,13 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                          air_density,
                          aerosol_density,
                          ozone_density);
-  /* precomputed texture image parameters */
+  /* Sky texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
   impar.interpolation = INTERPOLATION_LINEAR;
   impar.extension = EXTENSION_EXTEND;
 
-  /* precompute sky texture */
+  /* Precompute sky texture */
   if (handle.empty()) {
     unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
         sky_model, sun_elevation, clamped_altitude, air_density, aerosol_density, ozone_density);
@@ -875,14 +872,11 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   int sky_model = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? 0 : 1;
 
   float clamped_altitude;
+  /* Clamp altitude to avoid numerical issues */
   if (sky_model == 0) {
-    /* Clamp altitude to reasonable values.
-     * Below 1m causes numerical issues and above 60km is space. */
     clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
   }
   else {
-    /* Clamp altitude to reasonable values.
-     * Below 1m causes numerical issues and above 100km is space. */
     clamped_altitude = clamp(altitude, 1.0f, 99999.0f);
   }
 
@@ -897,13 +891,13 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
                          air_density,
                          aerosol_density,
                          ozone_density);
-  /* precomputed texture image parameters */
+  /* Sky texture image parameters */
   ImageManager *image_manager = compiler.scene->image_manager.get();
   ImageParams impar;
   impar.interpolation = INTERPOLATION_LINEAR;
   impar.extension = EXTENSION_EXTEND;
 
-  /* precompute sky texture */
+  /* Precompute sky texture */
   {
     unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
         sky_model, sun_elevation, clamped_altitude, air_density, aerosol_density, ozone_density);

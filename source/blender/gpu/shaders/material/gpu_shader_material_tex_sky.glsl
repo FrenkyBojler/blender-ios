@@ -83,7 +83,7 @@ void node_tex_sky(float3 co,
     else {
       dir_elevation_abs = dir_elevation;
     }
-    float y = sqrt(dir_elevation_abs / (M_PI * 0.5)) * signx(dir_elevation) * 0.5 + 0.5;
+    float y = sqrt(dir_elevation_abs / M_PI_2) * signx(dir_elevation) * 0.5 + 0.5;
     
     /* look up color in the precomputed map and convert to RGB */
     xyz = texture(ima, float3(x, y, layer)).rgb;

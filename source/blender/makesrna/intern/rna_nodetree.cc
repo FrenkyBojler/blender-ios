@@ -5123,7 +5123,7 @@ static void def_sh_tex_sky(BlenderRNA *brna, StructRNA *srna)
   RNA_def_property_ui_text(prop, "Altitude", "Height from sea level");
   RNA_def_property_range(prop, 0.0f, 100000.0f);
   RNA_def_property_ui_range(prop, 0.0f, 100000.0f, 10, 1);
-  RNA_def_property_float_default(prop, 0.0f);
+  RNA_def_property_float_default(prop, 100.0f);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 
   prop = RNA_def_property(srna, "air_density", PROP_FLOAT, PROP_NONE);
