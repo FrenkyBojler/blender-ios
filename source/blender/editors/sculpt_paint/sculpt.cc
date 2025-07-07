@@ -4373,7 +4373,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))
   {
     cache.radius = brush_dynamic_size_get(brush, cache, cache.initial_radius);
-    cache.dyntopo_pixel_radius = brush_dynamic_size_get(brush, cache, paint_runtime.initial_pixel_radius);
+    cache.dyntopo_pixel_radius = brush_dynamic_size_get(
+        brush, cache, paint_runtime.initial_pixel_radius);
   }
   else {
     cache.radius = cache.initial_radius;
@@ -4390,7 +4391,8 @@ static void sculpt_update_cache_variants(bContext *C, Sculpt &sd, Object &ob, Po
       RNA_float_get_array(ptr, "location", cache.location);
     }
 
-    cache.radius = paint_calc_object_space_radius(*cache.vc, cache.location, paint_runtime.pixel_radius);
+    cache.radius = paint_calc_object_space_radius(
+        *cache.vc, cache.location, paint_runtime.pixel_radius);
     cache.radius_squared = cache.radius * cache.radius;
   }
 

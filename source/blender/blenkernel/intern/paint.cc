@@ -1887,7 +1887,7 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
 
 void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])
 {
-  const blender::bke::PaintRuntime& paint_runtime = *paint->runtime;
+  const blender::bke::PaintRuntime &paint_runtime = *paint->runtime;
   if (paint_runtime.last_stroke_valid && paint_runtime.average_stroke_counter > 0) {
     float fac = 1.0f / paint_runtime.average_stroke_counter;
     mul_v3_v3fl(stroke, paint_runtime.average_stroke_accum, fac);
@@ -2104,9 +2104,7 @@ static float paint_rake_rotation_spacing(const Paint & /*ups*/, const Brush &bru
   return brush.sculpt_brush_type == SCULPT_BRUSH_TYPE_CLAY_STRIPS ? 1.0f : 20.0f;
 }
 
-void paint_update_brush_rake_rotation(Paint &paint,
-                                      const Brush &brush,
-                                      float rotation)
+void paint_update_brush_rake_rotation(Paint &paint, const Brush &brush, float rotation)
 {
   blender::bke::PaintRuntime &paint_runtime = *paint.runtime;
   paint_runtime.brush_rotation = rotation;
@@ -2136,7 +2134,7 @@ bool paint_calculate_rake_rotation(Paint &paint,
                                    const PaintMode paint_mode,
                                    bool stroke_has_started)
 {
-  blender::bke::PaintRuntime& paint_runtime = *paint.runtime;
+  blender::bke::PaintRuntime &paint_runtime = *paint.runtime;
 
   bool ok = false;
   if (paint_rake_rotation_active(brush, paint_mode)) {

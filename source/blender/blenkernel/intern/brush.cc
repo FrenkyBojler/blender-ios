@@ -1093,7 +1093,8 @@ float BKE_brush_sample_masktex(
       intensity = ((1.0f - intensity) < paint_runtime->size_pressure_value) ? 1.0f : 0.0f;
       break;
     case BRUSH_MASK_PRESSURE_RAMP:
-      intensity = paint_runtime->size_pressure_value + intensity * (1.0f - paint_runtime->size_pressure_value);
+      intensity = paint_runtime->size_pressure_value +
+                  intensity * (1.0f - paint_runtime->size_pressure_value);
       break;
     default:
       break;
@@ -1356,7 +1357,7 @@ void BKE_brush_jitter_pos(const Paint &paint,
 
 void BKE_brush_randomize_texture_coords(Paint *paint, bool mask)
 {
-  blender::bke::PaintRuntime& paint_runtime = *paint->runtime;
+  blender::bke::PaintRuntime &paint_runtime = *paint->runtime;
   /* we multiply with brush radius as an optimization for the brush
    * texture sampling functions */
   if (mask) {

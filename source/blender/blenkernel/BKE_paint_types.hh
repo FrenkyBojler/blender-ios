@@ -16,7 +16,7 @@ namespace blender {
 namespace ocio {
 class ColorSpace;
 }
-}
+}  // namespace blender
 struct AssetWeakReference;
 
 namespace blender::bke {
@@ -53,7 +53,6 @@ struct PaintRuntime : NonCopyable, NonMovable {
   bool draw_inverted = false;
   /** Check is there an ongoing stroke right now. */
   bool stroke_active = false;
-
 
   /**
    * Store last location of stroke or whether the mesh was hit.

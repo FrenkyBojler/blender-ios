@@ -406,7 +406,8 @@ bool paint_brush_update(bContext *C,
 
     paint_runtime.anchored_size = paint_runtime.pixel_radius = sqrtf(dx * dx + dy * dy);
 
-    paint_runtime.brush_rotation = paint_runtime.brush_rotation_sec = atan2f(dy, dx) + float(0.5f * M_PI);
+    paint_runtime.brush_rotation = paint_runtime.brush_rotation_sec = atan2f(dy, dx) +
+                                                                      float(0.5f * M_PI);
 
     if (brush.flag & BRUSH_EDGE_TO_EDGE) {
       halfway[0] = dx * 0.5f + stroke->initial_mouse[0];
@@ -467,13 +468,14 @@ bool paint_brush_update(bContext *C,
   if (do_random) {
     if (brush.mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
       paint_runtime.brush_rotation += -brush.mtex.random_angle / 2.0f +
-                            brush.mtex.random_angle * stroke->rng->get_float();
+                                      brush.mtex.random_angle * stroke->rng->get_float();
     }
   }
 
   if (do_random_mask) {
     if (brush.mask_mtex.brush_angle_mode & MTEX_ANGLE_RANDOM) {
-      paint_runtime.brush_rotation_sec += -brush.mask_mtex.random_angle / 2.0f + brush.mask_mtex.random_angle * stroke->rng->get_float();
+      paint_runtime.brush_rotation_sec += -brush.mask_mtex.random_angle / 2.0f +
+                                          brush.mask_mtex.random_angle * stroke->rng->get_float();
     }
   }
 
@@ -869,8 +871,8 @@ static int paint_space_stroke(bContext *C,
       }
       pressure = stroke->last_pressure + (spacing / length) * pressure_delta;
 
-      paint_runtime->overlap_factor = paint_stroke_integrate_overlap(*stroke->brush,
-                                                           spacing / no_pressure_spacing);
+      paint_runtime->overlap_factor = paint_stroke_integrate_overlap(
+          *stroke->brush, spacing / no_pressure_spacing);
 
       stroke->stroke_distance += spacing / stroke->zoom_2d;
       paint_brush_stroke_add_step(C, op, stroke, mouse, pressure);
@@ -960,7 +962,8 @@ PaintStroke *paint_stroke_new(bContext *C,
    * ups->average_stroke_counter to 1.
    */
   if (paint_runtime->average_stroke_counter) {
-    mul_v3_fl(paint_runtime->average_stroke_accum, 1.0f / float(paint_runtime->average_stroke_counter));
+    mul_v3_fl(paint_runtime->average_stroke_accum,
+              1.0f / float(paint_runtime->average_stroke_counter));
     paint_runtime->average_stroke_counter = 1;
   }
 

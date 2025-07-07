@@ -619,7 +619,8 @@ static bool paint_draw_tex_overlay(Paint *paint,
 
       /* Brush rotation. */
       GPU_matrix_translate_2fv(center);
-      GPU_matrix_rotate_2d(RAD2DEGF(primary ? paint_runtime->brush_rotation : paint_runtime->brush_rotation_sec));
+      GPU_matrix_rotate_2d(
+          RAD2DEGF(primary ? paint_runtime->brush_rotation : paint_runtime->brush_rotation_sec));
       GPU_matrix_translate_2f(-center[0], -center[1]);
 
       /* Scale based on tablet pressure. */
@@ -813,13 +814,8 @@ static bool paint_draw_cursor_overlay(
   return true;
 }
 
-static bool paint_draw_alpha_overlay(Paint *paint,
-                                     Brush *brush,
-                                     ViewContext *vc,
-                                     int x,
-                                     int y,
-                                     float zoom,
-                                     PaintMode mode)
+static bool paint_draw_alpha_overlay(
+    Paint *paint, Brush *brush, ViewContext *vc, int x, int y, float zoom, PaintMode mode)
 {
   /* Color means that primary brush texture is colored and
    * secondary is used for alpha/mask control. */
@@ -840,7 +836,8 @@ static bool paint_draw_alpha_overlay(Paint *paint,
   /* Colored overlay should be drawn separately. */
   if (col) {
     if (!(flags & PAINT_OVERLAY_OVERRIDE_PRIMARY)) {
-      alpha_overlay_active = paint_draw_tex_overlay(paint, brush, vc, x, y, zoom, mode, true, true);
+      alpha_overlay_active = paint_draw_tex_overlay(
+          paint, brush, vc, x, y, zoom, mode, true, true);
     }
     if (!(flags & PAINT_OVERLAY_OVERRIDE_SECONDARY)) {
       alpha_overlay_active = paint_draw_tex_overlay(
@@ -852,7 +849,8 @@ static bool paint_draw_alpha_overlay(Paint *paint,
   }
   else {
     if (!(flags & PAINT_OVERLAY_OVERRIDE_PRIMARY) && (mode != PaintMode::Weight)) {
-      alpha_overlay_active = paint_draw_tex_overlay(paint, brush, vc, x, y, zoom, mode, false, true);
+      alpha_overlay_active = paint_draw_tex_overlay(
+          paint, brush, vc, x, y, zoom, mode, false, true);
     }
     if (!(flags & PAINT_OVERLAY_OVERRIDE_CURSOR)) {
       alpha_overlay_active = paint_draw_cursor_overlay(paint, brush, vc, x, y, zoom);
@@ -1475,7 +1473,8 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   }
 
   if (pcontext.is_cursor_over_mesh) {
-    paint_cursor_update_unprojected_radius(*pcontext.paint, brush, vc, pcontext.scene_space_location);
+    paint_cursor_update_unprojected_radius(
+        *pcontext.paint, brush, vc, pcontext.scene_space_location);
   }
 
   pcontext.sd = CTX_data_tool_settings(pcontext.C)->sculpt;
@@ -2151,8 +2150,9 @@ static void paint_cursor_update_anchored_location(PaintCursorContext &pcontext)
   bke::PaintRuntime *paint_runtime = pcontext.paint->runtime;
   if (paint_runtime->draw_anchored) {
     pcontext.final_radius = paint_runtime->anchored_size;
-    pcontext.translation = {paint_runtime->anchored_initial_mouse[0] + pcontext.region->winrct.xmin,
-                            paint_runtime->anchored_initial_mouse[1] + pcontext.region->winrct.ymin};
+    pcontext.translation = {
+        paint_runtime->anchored_initial_mouse[0] + pcontext.region->winrct.xmin,
+        paint_runtime->anchored_initial_mouse[1] + pcontext.region->winrct.ymin};
   }
 }
 

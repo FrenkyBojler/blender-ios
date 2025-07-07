@@ -324,9 +324,7 @@ bool paint_calculate_rake_rotation(Paint &paint,
                                    const float mouse_pos[2],
                                    PaintMode paint_mode,
                                    bool stroke_has_started);
-void paint_update_brush_rake_rotation(Paint &paint,
-                                      const Brush &brush,
-                                      float rotation);
+void paint_update_brush_rake_rotation(Paint &paint, const Brush &brush, float rotation);
 
 void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3]);
 
