@@ -33,7 +33,7 @@ void differentiate_texco_transformed_normal(float4 m, float3 n, float3 v, out fl
 
   /* Offset sampled position by the projection of the differential
    * onto the plane orthogonal to Normal. */
-  df = v = differentials - dot(differentials, n) * n;
+  df = v + differentials - dot(differentials, n) * n;
 }
 
 void node_bump(float strength,
