@@ -16,6 +16,6 @@ namespace blender::bke {
 PaintRuntime::PaintRuntime() = default;
 PaintRuntime::~PaintRuntime()
 {
-  MEM_SAFE_DELETE(this->previous_active_brush_reference);
+  MEM_delete(this->previous_active_brush_reference);
 }
 }  // namespace blender::bke
