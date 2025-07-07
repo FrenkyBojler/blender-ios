@@ -39,11 +39,16 @@ namespace blender::ed::transform {
  * \param flip: If true, a mirror on all axis will be performed additionally (point
  * reflection).
  */
-static void ElementMirror(TransInfo *t, TransDataContainer *tc, TransData *td, int axis, bool flip)
+static void ElementMirror(TransInfo *t,
+                          TransDataContainer *tc,
+                          TransData *td,
+                          TransDataExtension *td_ext,
+                          int axis,
+                          bool flip)
 {
-  if ((t->flag & T_V3D_ALIGN) == 0 && td->ext) {
+  if ((t->flag & T_V3D_ALIGN) == 0 && td_ext) {
     /* Size checked needed since the 3D cursor only uses rotation fields. */
-    if (td->ext->scale) {
+    if (td_ext->scale) {
       float fscale[] = {1.0, 1.0, 1.0};
 
       if (axis >= 0) {
@@ -55,7 +60,7 @@ static void ElementMirror(TransInfo *t, TransDataContainer *tc, TransData *td, i
 
       protectedScaleBits(td->protectflag, fscale);
 
-      mul_v3_v3v3(td->ext->scale, td->ext->iscale, fscale);
+      mul_v3_v3v3(td_ext->scale, td_ext->iscale, fscale);
 
       constraintScaleLim(t, tc, td);
     }
@@ -74,18 +79,18 @@ static void ElementMirror(TransInfo *t, TransDataContainer *tc, TransData *td, i
       mul_m3_m3m3(rmat, rmat, imat);
       mul_m3_m3m3(rmat, t->spacemtx, rmat);
 
-      ElementRotation_ex(t, tc, td, rmat, td->center);
+      ElementRotation_ex(t, tc, td, td_ext, rmat, td->center);
 
-      if (td->ext->rotAngle) {
-        *td->ext->rotAngle = -td->ext->irotAngle;
+      if (td_ext->rotAngle) {
+        *td_ext->rotAngle = -td_ext->irotAngle;
       }
     }
     else {
       unit_m3(rmat);
-      ElementRotation_ex(t, tc, td, rmat, td->center);
+      ElementRotation_ex(t, tc, td, td_ext, rmat, td->center);
 
-      if (td->ext->rotAngle) {
-        *td->ext->rotAngle = td->ext->irotAngle;
+      if (td_ext->rotAngle) {
+        *td_ext->rotAngle = td_ext->irotAngle;
       }
     }
   }
@@ -191,12 +196,16 @@ static void applyMirror(TransInfo *t)
 
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       TransData *td = tc->data;
+      TransDataExtension *td_ext = tc->data_ext;
       for (i = 0; i < tc->data_len; i++, td++) {
         if (td->flag & TD_SKIP) {
           continue;
         }
 
-        ElementMirror(t, tc, td, special_axis, bitmap_len >= 2);
+        ElementMirror(t, tc, td, td_ext, special_axis, bitmap_len >= 2);
+        if (td_ext) {
+          td_ext++;
+        }
       }
     }
 
@@ -211,12 +220,16 @@ static void applyMirror(TransInfo *t)
     }
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       TransData *td = tc->data;
+      TransDataExtension *td_ext = tc->data_ext;
       for (i = 0; i < tc->data_len; i++, td++) {
         if (td->flag & TD_SKIP) {
           continue;
         }
 
-        ElementMirror(t, tc, td, -1, false);
+        ElementMirror(t, tc, td, td_ext, -1, false);
+        if (td_ext) {
+          td_ext++;
+        }
       }
     }
 

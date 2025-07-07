@@ -88,17 +88,20 @@ void headerRotation(TransInfo *t, char *str, int str_size, float final);
 void ElementRotation_ex(const TransInfo *t,
                         const TransDataContainer *tc,
                         TransData *td,
+                        TransDataExtension *td_ext,
                         const float mat[3][3],
                         const float *center);
 void ElementRotation(const TransInfo *t,
                      const TransDataContainer *tc,
                      TransData *td,
+                     TransDataExtension *td_ext,
                      const float mat[3][3],
                      short around);
 void headerResize(TransInfo *t, const float vec[3], char *str, int str_size);
 void ElementResize(const TransInfo *t,
                    const TransDataContainer *tc,
                    TransData *td,
+                   TransDataExtension *td_ext,
                    const float mat[3][3]);
 void transform_mode_init(TransInfo *t, wmOperator *op, int mode);
 /**
