@@ -19,6 +19,7 @@ blender -b --factory-startup --python tests/python/bl_object_modifier_multires.p
 
 args = None
 
+
 class ApplyBase(unittest.TestCase):
     def setUp(self):
         bpy.ops.wm.open_mainfile(filepath=str(args.testdir / "apply_base_monkey.blend"), load_ui=False)
@@ -37,7 +38,6 @@ class ApplyBase(unittest.TestCase):
         self.assertEqual(result, 'Same')
 
 
-
 def main():
     global args
     import argparse
@@ -52,6 +52,7 @@ def main():
     args, remaining = parser.parse_known_args(argv)
 
     unittest.main(argv=remaining)
+
 
 if __name__ == '__main__':
     main()
