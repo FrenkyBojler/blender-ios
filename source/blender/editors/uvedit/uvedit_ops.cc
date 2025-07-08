@@ -654,7 +654,16 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
   BMEditMesh *em = BKE_editmesh_from_object(active_object);
   BMesh *bm = em->bm;
   BMUVOffsets offsets = BM_uv_map_offsets_get(bm);
-  float width, height, density;
+  int width, height;
+  float density;
+  if (custom_resolution) {
+    width = RNA_int_get(op->ptr, "width");
+    height = RNA_int_get(op->ptr, "height");
+  }
+  else {
+    width = region->v2d.tot.xmax;
+    height = region->v2d.tot.ymax;
+  }
   if (custom_density) {
     density = RNA_float_get(op->ptr, "density");
   }
@@ -671,14 +680,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     density = sqrt((region->v2d.tot.xmax * region->v2d.tot.ymax * uv_area) / object_area) /
               scene->unit.scale_length;
   }
-  if (custom_resolution) {
-    width = RNA_float_get(op->ptr, "width");
-    height = RNA_float_get(op->ptr, "height");
-  }
-  else {
-    width = region->v2d.tot.xmax;
-    height = region->v2d.tot.ymax;
-  }
+
   float cent[1], min[2], max[2];
   for (Object *obedit : objects) {
     if (!custom_density && obedit == active_object) {
@@ -772,6 +774,7 @@ static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op)
 }
 static void UV_OT_apply_texel_density(wmOperatorType *ot)
 {
+  PropertyRNA *prop;
   static const EnumPropertyItem lock_items[] = {
       {UV_LOCK_Y, "LOCK_Y", 0, "Y Axis", "Lock scaling on the Y axis"},
       {UV_LOCK_X, "LOCK_X", 0, "X Axis", "Lock scaling on the X axis"},
@@ -813,10 +816,10 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
   RNA_def_enum(ot->srna, "lock", lock_items, UV_LOCK_NONE, "Lock Axis", "Lock axis scaling");
   RNA_def_boolean(
       ot->srna, "use_custom_resolution", false, "Custom Resolution", "Custom Texture Resolution");
-  RNA_def_float(
-      ot->srna, "width", 1024.0f, 0.0f, FLT_MAX, "Pixel Width", "Pixel Width", 0.0f, FLT_MAX);
-  RNA_def_float(
-      ot->srna, "height", 1024.0f, 0.0f, FLT_MAX, "Pixel Height", "Pixel Height", 0.0f, FLT_MAX);
+  prop = RNA_def_int(ot->srna, "width", 1024, 1, INT_MAX, "Width", "Image width", 1, 16384);
+  RNA_def_property_subtype(prop, PROP_PIXEL);
+  prop = RNA_def_int(ot->srna, "height", 1024, 1, INT_MAX, "Height", "Image height", 1, 16384);
+  RNA_def_property_subtype(prop, PROP_PIXEL);
 }
 
 /** \} */
