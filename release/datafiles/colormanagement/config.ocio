@@ -67,8 +67,7 @@ displays:
     - !<View> {name: Standard, colorspace: Rec.709(Power 2.2)}
     - !<View> {name: Khronos PBR Neutral, colorspace: Khronos PBR Neutral Rec.709(Power 2.2)}
     - !<View> {name: AgX, colorspace: AgX Base Rec.709(Power 2.2)}
-    # Original 3D lut for Filmic sRGB/Display P3 are actually using pure Gamma 2.2 EOTF, so no need to modify
-    - !<View> {name: Filmic, colorspace: Filmic sRGB}
+    - !<View> {name: Filmic, colorspace: Filmic Rec.709(Power 2.2)}
     - !<View> {name: Filmic Log, colorspace: Filmic Log}
     - !<View> {name: False Color, colorspace: AgX False Color Rec.709}
     - !<View> {name: Raw, colorspace: Non-Color}
@@ -297,6 +296,19 @@ colorspaces:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear Rec.709, direction: inverse}
 
   - !<ColorSpace>
+    name: Filmic Rec.709(Power 2.2)
+    family: Filmic
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Filmic view transform for sRGB display space with EOTF that is pure power with exponent of 2.2
+    isdata: false
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Filmic Log}
+        - !<FileTransform> {src: filmic_to_0-70_1-03.spi1d, interpolation: linear}
+
+  - !<ColorSpace>
     name: Filmic sRGB
     family: Filmic
     equalitygroup:
@@ -306,8 +318,8 @@ colorspaces:
     isdata: false
     from_scene_reference: !<GroupTransform>
       children:
-        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Filmic Log}
-        - !<FileTransform> {src: filmic_to_0-70_1-03.spi1d, interpolation: linear}
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Filmic Rec.709(Power 2.2)}
+        - !<ColorSpaceTransform> {src: Rec.709(Power 2.2), dst: sRGB}
 
   - !<ColorSpace>
     name: Luminance Compensation Rec.2020
