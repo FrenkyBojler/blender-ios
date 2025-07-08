@@ -2,3 +2,4 @@ Referenced by commit 08e0b35b314, Fix C-style formatting characters shown in ope
 Referenced by commit fbf47b9a126, Refactor: Use std::string for keymap string return values
 Referenced by issue #117785, Refactor: Use std::string for keymap string return values
 Referenced by issue #117720, Crash when selecting these two armatures
+Referenced by pull request #141394, Fix #141323: Copy to Selected doesn't properly update on some Bone props
