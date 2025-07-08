@@ -2176,34 +2176,19 @@ void push_multires_mesh_end(bContext *C, const char *str)
   push_end(*object);
 }
 
-size_t get_total_sculpt_undo_memory(bContext *C)
+/** \} */
+size_t get_total_undo_memory(bContext *C)
 {
   UndoStack *ustack = ED_undo_stack_get();
   if (!ustack) {
     return 0;
   }
 
-  Scene *scene = CTX_data_scene(C);
-  ViewLayer *view_layer = CTX_data_view_layer(C);
-  BKE_view_layer_synced_ensure(scene, view_layer);
-  Object *current_object = BKE_view_layer_active_object_get(view_layer);
-
-  if (!current_object) {
-    return 0;
-  }
-
-  std::string current_object_name = current_object->id.name;
-
-  int undo_steps_count = 0;
   size_t total_memory = 0;
 
   for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
-
-    SculptUndoStep *sculpt_us = reinterpret_cast<SculptUndoStep *>(us);
-
-    if (sculpt_us->data.object_name == current_object_name) {
-      total_memory += sculpt_us->data.undo_size;
-      undo_steps_count++;
+    if (us->data_size > 0) {
+      total_memory += us->data_size;
     }
   }
 

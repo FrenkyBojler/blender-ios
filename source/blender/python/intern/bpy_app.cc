@@ -646,15 +646,15 @@ static PyObject *bpy_app_help_text(PyObject * /*self*/, PyObject *args, PyObject
 #endif
 PyDoc_STRVAR(
     /* Wrap. */
-    bpy_app_sculpt_undo_memory_info_doc,
-    ".. staticmethod:: sculpt_undo_memory_info()\n"
+    bpy_app_undo_memory_info_doc,
+    ".. staticmethod:: undo_memory_info()\n"
     "\n"
-    "   Get sculpt undo memory usage information.\n"
+    "   Get undo memory usage information.\n"
     "\n"
     "   :return: 'total_memory'.\n"
     "   :rtype: float\n");
 
-static PyObject *bpy_app_sculpt_undo_memory_info(PyObject * /*self*/, PyObject * /*args*/)
+static PyObject *bpy_app_undo_memory_info(PyObject * /*self*/, PyObject * /*args*/)
 {
   bContext *C = BPY_context_get();
   if (!C) {
@@ -662,7 +662,7 @@ static PyObject *bpy_app_sculpt_undo_memory_info(PyObject * /*self*/, PyObject *
     return nullptr;
   }
 
-  size_t total_memory = blender::ed::sculpt_paint::undo::get_total_sculpt_undo_memory(C);
+  size_t total_memory = blender::ed::sculpt_paint::undo::get_total_undo_memory(C);
 
   return PyFloat_FromDouble(total_memory);
 }
@@ -676,10 +676,10 @@ static PyMethodDef bpy_app_methods[] = {
      (PyCFunction)bpy_app_help_text,
      METH_VARARGS | METH_KEYWORDS | METH_STATIC,
      bpy_app_help_text_doc},
-    {"sculpt_undo_memory_info",
-     (PyCFunction)bpy_app_sculpt_undo_memory_info,
+    {"undo_memory_info",
+     (PyCFunction)bpy_app_undo_memory_info,
      METH_NOARGS | METH_STATIC,
-     bpy_app_sculpt_undo_memory_info_doc},
+     bpy_app_undo_memory_info_doc},
     {nullptr, nullptr, 0, nullptr},
 };
 

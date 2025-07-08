@@ -154,25 +154,6 @@ def generate_stroke(context):
     return stroke
 
 
-def undo_memory_information(args: dict):
-    import bpy
-    context = bpy.context
-    bpy.ops.ed.undo_push()
-    prepare_brush(context, args['brush_type'])
-    prepare_sculpt_scene(context, args['mode'])
-
-    context_override = context.copy()
-    set_view3d_context_override(context_override)
-
-    with context.temp_override(**context_override):
-
-        bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
-        bpy.ops.ed.undo_push()
-
-        memory_info = bpy.app.sculpt_undo_memory_info()
-        return memory_info
-
-
 def _run_brush_test(args: dict):
     import bpy
     import time
@@ -188,7 +169,7 @@ def _run_brush_test(args: dict):
 
     min_measurements = 5
     max_measurements = 100
-
+    itr = 0
     measurements = []
     while True:
         prepare_sculpt_scene(context, args['mode'])
@@ -199,14 +180,17 @@ def _run_brush_test(args: dict):
                 bpy.ops.mesh.reorder_vertices_spatial()
             start = time.time()
             bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
+            if itr == 0:
+                bpy.ops.ed.undo_push()
+                memory_info = bpy.app.undo_memory_info()
             measurements.append(time.time() - start)
-
+        itr += 1
         if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
             break
         if len(measurements) >= max_measurements:
             break
 
-    return sum(measurements) / len(measurements)
+    return {'time': sum(measurements) / len(measurements), 'memory': memory_info}
 
 
 def _run_bvh_test(args: dict):
@@ -294,11 +278,9 @@ class SculptBrushTest(api.Test):
             'spatial_reorder': False,
         }
 
-        time_result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
+        result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
 
-        memory_result, _ = env.run_in_blender(undo_memory_information, args, [self.filepath])
-
-        return {'time': time_result, 'memory': memory_result}
+        return result
 
 
 class SculptBrushAfterSpatialReorderingTest(api.Test):
@@ -320,11 +302,9 @@ class SculptBrushAfterSpatialReorderingTest(api.Test):
             'spatial_reorder': True,
         }
 
-        time_result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
+        result, _ = env.run_in_blender(_run_brush_test, args, [self.filepath])
 
-        memory_result, _ = env.run_in_blender(undo_memory_information, args, [self.filepath])
-
-        return {'time': time_result, 'memory': memory_result}
+        return result
 
 
 class SculptRebuildBVHTest(api.Test):
