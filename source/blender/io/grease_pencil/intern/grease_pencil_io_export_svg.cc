@@ -129,6 +129,12 @@ class SVGExporter : public GreasePencilExporter {
                             const float4x4 &transform,
                             Span<float3> positions,
                             bool cyclic);
+  pugi::xml_node write_beizer_path(pugi::xml_node node,
+                                   const float4x4 &transform,
+                                   Span<float3> positions,
+                                   Span<float3> positions_left,
+                                   Span<float3> positions_right,
+                                   bool cyclic);
 
   bool write_to_file(StringRefNull filepath);
 };
@@ -272,11 +278,9 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       layer_node.append_attribute("id").set_value(layer_node_id.c_str());
 
       const bke::CurvesGeometry &curves = drawing->strokes();
-      /* TODO: Instead of converting all the other curve types to poly curves, export them directly
+      /* TODO: Instead of converting to poly curves, export them directly
        * as curve paths to the SVG. */
-      if (curves.has_curve_with_type(
-              {CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_BEZIER, CURVE_TYPE_NURBS}))
-      {
+      if (curves.has_curve_with_type({CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
         IndexMaskMemory memory;
         const IndexMask non_poly_selection = curves.indices_for_curve_type(CURVE_TYPE_POLY, memory)
                                                  .complement(curves.curves_range(), memory);
@@ -305,6 +309,8 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
   const float4x4 layer_to_world = layer.to_world_space(object);
 
   auto write_stroke = [&](const Span<float3> positions,
+                          const Span<float3> positions_left,
+                          const Span<float3> positions_right,
                           const bool cyclic,
                           const ColorGeometry4f &color,
                           const float opacity,
@@ -316,10 +322,16 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
       write_fill_color_attribute(element_node, color, opacity);
     }
     else {
-      /* Fill is always exported as polygon because the stroke of the fill is done
-       * in a different SVG command. */
-      pugi::xml_node element_node = write_polyline(
-          layer_node, layer_to_world, positions, cyclic, width);
+      pugi::xml_node element_node;
+      if (positions_left.is_empty()) {
+        /* Fill is always exported as polygon because the stroke of the fill is done
+         * in a different SVG command. */
+        element_node = write_polyline(layer_node, layer_to_world, positions, cyclic, width);
+      }
+      else {
+        element_node = write_beizer_path(
+            layer_node, layer_to_world, positions, positions_left, positions_right, cyclic);
+      }
 
       if (width) {
         write_stroke_color_attribute(element_node, color, opacity, round_cap);
@@ -496,6 +508,79 @@ pugi::xml_node SVGExporter::write_path(pugi::xml_node node,
   }
   /* Close patch (cyclic). */
   if (cyclic) {
+    txt.append("z");
+  }
+
+  element_node.append_attribute("d").set_value(txt.c_str());
+
+  return element_node;
+}
+
+pugi::xml_node SVGExporter::write_beizer_path(pugi::xml_node node,
+                                              const float4x4 &transform,
+                                              const Span<float3> positions,
+                                              const Span<float3> positions_left,
+                                              const Span<float3> positions_right,
+                                              const bool cyclic)
+{
+  pugi::xml_node element_node = node.append_child("path");
+
+  std::string txt = "M";
+  for (const int i : positions.index_range()) {
+    if (i > 0) {
+      txt.append(", ");
+    }
+    const float2 screen_co = this->project_to_screen(transform, positions[i]);
+    /* SVG has inverted Y axis. */
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co.y));
+    }
+    if (i != positions.size() - 1 || cyclic) {
+      txt.append(" C ");
+      const float2 screen_co_right = this->project_to_screen(transform, positions_right[i]);
+      /* SVG has inverted Y axis. */
+      if (camera_persmat_) {
+        txt.append(std::to_string(screen_co_right.x) + "," +
+                   std::to_string(camera_rect_.size().y - screen_co_right.y));
+      }
+      else {
+        txt.append(std::to_string(screen_co_right.x) + "," +
+                   std::to_string(screen_rect_.size().y - screen_co_right.y));
+      }
+
+      txt.append(", ");
+      const float2 screen_co_left = this->project_to_screen(
+          transform, positions_left[(i + 1) % positions_left.size()]);
+      /* SVG has inverted Y axis. */
+      if (camera_persmat_) {
+        txt.append(std::to_string(screen_co_left.x) + "," +
+                   std::to_string(camera_rect_.size().y - screen_co_left.y));
+      }
+      else {
+        txt.append(std::to_string(screen_co_left.x) + "," +
+                   std::to_string(screen_rect_.size().y - screen_co_left.y));
+      }
+    }
+  }
+  /* Close patch (cyclic). */
+  if (cyclic) {
+    txt.append(", ");
+
+    const float2 screen_co = this->project_to_screen(transform, positions.first());
+    /* SVG has inverted Y axis. */
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co.y));
+    }
     txt.append("z");
   }
 

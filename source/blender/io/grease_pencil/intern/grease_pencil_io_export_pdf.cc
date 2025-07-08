@@ -139,6 +139,8 @@ void PDFExporter::export_grease_pencil_layer(const Object &object,
   const float4x4 layer_to_world = layer.to_world_space(object);
 
   auto write_stroke = [&](const Span<float3> positions,
+                          const Span<float3> /*positions_left*/,
+                          const Span<float3> /*positions_right*/,
                           const bool cyclic,
                           const ColorGeometry4f &color,
                           const float opacity,
