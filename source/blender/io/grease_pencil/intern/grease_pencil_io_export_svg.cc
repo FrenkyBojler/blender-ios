@@ -573,9 +573,23 @@ pugi::xml_node SVGExporter::write_beizer_path(pugi::xml_node node,
     }
   }
 
+  {
+    txt.append(", ");
+    const float2 screen_co = this->project_to_screen(transform, positions.last());
+    /* SVG has inverted Y axis. */
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co.y));
+    }
+  }
+
   /* Close patch (cyclic). */
   if (cyclic) {
-    txt.append(", C ");
+    txt.append(" C ");
     const float2 screen_co_right = this->project_to_screen(transform, positions_right.last());
     /* SVG has inverted Y axis. */
     if (camera_persmat_) {
