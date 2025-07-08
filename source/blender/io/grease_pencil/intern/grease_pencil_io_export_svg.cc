@@ -528,9 +528,6 @@ pugi::xml_node SVGExporter::write_beizer_path(pugi::xml_node node,
 
   std::string txt = "M";
   for (const int i : positions.index_range().drop_back(1)) {
-    if (i > 0) {
-      txt.append(", ");
-    }
     const float2 screen_co = this->project_to_screen(transform, positions[i]);
     /* SVG has inverted Y axis. */
     if (camera_persmat_) {
@@ -565,11 +562,15 @@ pugi::xml_node SVGExporter::write_beizer_path(pugi::xml_node node,
       txt.append(std::to_string(screen_co_left.x) + "," +
                  std::to_string(screen_rect_.size().y - screen_co_left.y));
     }
+
+    if (i != positions.size() - 2) {
+      txt.append(", ");
+    }
   }
 
   /* Close patch (cyclic). */
   if (cyclic) {
-    txt.append(" C ");
+    txt.append(", C ");
     const float2 screen_co_right = this->project_to_screen(transform, positions_right.last());
     /* SVG has inverted Y axis. */
     if (camera_persmat_) {
