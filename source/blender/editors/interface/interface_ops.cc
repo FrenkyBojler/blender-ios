@@ -1134,13 +1134,14 @@ bool UI_context_copy_to_selected_list(bContext *C,
 
     if (!idpath) {
       /* Check the active EditBone if in edit mode. */
-      idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
-                                                  static_cast<const IDProperty *>(ptr->data));
       if (NOT_RNA_NULL(
-              owner_ptr = CTX_data_pointer_get_type_silent(C, "active_bone", &RNA_EditBone)) &&
-          idpath)
+              owner_ptr = CTX_data_pointer_get_type_silent(C, "active_bone", &RNA_EditBone)))
       {
-        *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+        idpath = RNA_path_from_struct_to_idproperty(&owner_ptr,
+                                                    static_cast<const IDProperty *>(ptr->data));
+        if (idpath) {
+          *r_lb = CTX_data_collection_get(C, "selected_editable_bones");
+        }
       }
 
       /* Add other simple cases here (Node, NodeSocket, Sequence, ViewLayer etc). */
