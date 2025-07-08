@@ -213,13 +213,16 @@ void copy_positions_from_curves_transform_custom_data(const TransCustomData &cus
                                                       int layer,
                                                       MutableSpan<float3> positions_dst);
 
-void update_vector_handle_types(const IndexMask &selected_handles,
-                                MutableSpan<int8_t> handle_types);
-void update_auto_handle_types(const IndexMask &selected_handles_left,
-                              const IndexMask &selected_handles_right,
-                              const IndexMask &bezier_points,
-                              MutableSpan<int8_t> handle_types_left,
-                              MutableSpan<int8_t> handle_types_right);
+void create_aligned_handles_masks(const bke::CurvesGeometry &curves,
+                                  Span<IndexMask> points_to_transform_per_attr,
+                                  int curve_index,
+                                  TransCustomData &custom_data);
+void calculate_aligned_handles(const TransCustomData &custom_data,
+                               bke::CurvesGeometry &curves,
+                               int curve_index);
+bool update_handle_types_for_transform(bke::CurvesGeometry &curves,
+                                       const std::array<IndexMask, 3> &selection_per_attribute,
+                                       const IndexMask &bezier_points);
 
 }  // namespace curves
 
