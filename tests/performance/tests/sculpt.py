@@ -184,7 +184,6 @@ def _run_brush_test(args: dict):
             if itr == 0:
                 bpy.ops.ed.undo_push()
                 memory_info = bpy.app.undo_memory_info()
-                print(f"Memory info: {memory_info}")
             measurements.append(time.time() - start)
         itr += 1
         if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
