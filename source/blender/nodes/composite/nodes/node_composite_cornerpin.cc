@@ -200,7 +200,6 @@ class CornerPinOperation : public NodeOperation {
       float2 projected_coordinates = transformed_coordinates.xy() / transformed_coordinates.z;
       float4 sampled_color;
 
-      /* The generic sample interface does not support EWA yet. */
       if (interpolation != Interpolation::Anisotropic) {
         sampled_color = input.sample(
             projected_coordinates, interpolation, extension_mode_x, extension_mode_y);
