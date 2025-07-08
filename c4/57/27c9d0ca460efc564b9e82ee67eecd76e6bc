@@ -1,1 +1,1 @@
-Referenced by issue #141381, Persistent data seems not to work in 4.5.
+Referenced by issue #141381, Persistent data still updates scene BVH unnecessarily
