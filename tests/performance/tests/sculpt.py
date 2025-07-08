@@ -178,11 +178,13 @@ def _run_brush_test(args: dict):
         with context.temp_override(**context_override):
             if args.get('spatial_reorder', False):
                 bpy.ops.mesh.reorder_vertices_spatial()
+                bpy.ops.ed.undo_push()
             start = time.time()
             bpy.ops.sculpt.brush_stroke(stroke=generate_stroke(context_override), override_location=True)
             if itr == 0:
                 bpy.ops.ed.undo_push()
                 memory_info = bpy.app.undo_memory_info()
+                print(f"Memory info: {memory_info}")
             measurements.append(time.time() - start)
         itr += 1
         if len(measurements) >= min_measurements and (time.time() - total_time_start) > timeout:
