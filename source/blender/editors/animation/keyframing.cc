@@ -10,7 +10,6 @@
 
 #include <fmt/format.h>
 
-#include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
 #include "BLI_listbase.h"
