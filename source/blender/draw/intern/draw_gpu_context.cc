@@ -110,7 +110,6 @@ class ContextShared {
 
   void enable()
   {
-    DRW_lock_start();
     /* IMPORTANT: We don't support immediate mode in render mode!
      * This shall remain in effect until immediate mode supports
      * multiple threads. */
@@ -140,7 +139,6 @@ class ContextShared {
     GPU_render_end();
 
     BLI_ticket_mutex_unlock(mutex_);
-    DRW_lock_end();
   }
 };
 
@@ -254,14 +252,12 @@ void DRW_system_gpu_render_context_enable(void *re_system_gpu_context)
   /* If thread is main you should use DRW_gpu_context_enable(). */
   BLI_assert(!BLI_thread_is_main());
 
-  DRW_lock_start();
   WM_system_gpu_context_activate(re_system_gpu_context);
 }
 
 void DRW_system_gpu_render_context_disable(void *re_system_gpu_context)
 {
   WM_system_gpu_context_release(re_system_gpu_context);
-  DRW_lock_end();
 }
 
 void DRW_blender_gpu_render_context_enable(void *re_gpu_context)
@@ -365,7 +361,6 @@ void DRW_xr_drawing_begin()
 {
   /* XXX: See comment on #DRW_system_gpu_context_get(). */
 
-  DRW_lock_start();
   BLI_ticket_mutex_lock(viewport_context->mutex_);
 }
 
@@ -374,7 +369,6 @@ void DRW_xr_drawing_end()
   /* XXX: See comment on #DRW_system_gpu_context_get(). */
 
   BLI_ticket_mutex_unlock(viewport_context->mutex_);
-  DRW_lock_end();
 }
 
 #endif
