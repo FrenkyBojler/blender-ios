@@ -28,16 +28,31 @@
  * between render engine instances, we cannot allow pass submissions in a concurrent manner.
  * \{ */
 
+static TicketMutex *draw_mutex = nullptr;
 static TicketMutex *submission_mutex = nullptr;
 
-void DRW_submission_mutex_init()
+void DRW_mutexes_init()
 {
+  draw_mutex = BLI_ticket_mutex_alloc();
   submission_mutex = BLI_ticket_mutex_alloc();
 }
 
-void DRW_submission_mutex_exit()
+void DRW_mutexes_exit()
 {
+  BLI_ticket_mutex_free(draw_mutex);
   BLI_ticket_mutex_free(submission_mutex);
+}
+
+void DRW_lock_start()
+{
+  bool locked = BLI_ticket_mutex_lock_check_recursive(draw_mutex);
+  BLI_assert(locked);
+  UNUSED_VARS_NDEBUG(locked);
+}
+
+void DRW_lock_end()
+{
+  BLI_ticket_mutex_unlock(draw_mutex);
 }
 
 void DRW_submission_start()
@@ -145,7 +160,7 @@ void DRW_gpu_context_create()
 {
   BLI_assert(viewport_context == nullptr); /* Ensure it's called once */
 
-  DRW_submission_mutex_init();
+  DRW_mutexes_init();
 
   viewport_context = MEM_new<ContextShared>(__func__);
   preview_context = MEM_new<ContextShared>(__func__);
@@ -164,7 +179,7 @@ void DRW_gpu_context_destroy()
   if (viewport_context == nullptr) {
     return;
   }
-  DRW_submission_mutex_exit();
+  DRW_mutexes_exit();
 
   MEM_SAFE_DELETE(viewport_context);
   MEM_SAFE_DELETE(preview_context);
