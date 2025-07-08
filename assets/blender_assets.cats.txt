@@ -41,3 +41,6 @@ c676fe02-8d25-49a1-b672-11aee0918221:Hair/Read:Hair-Read
 9dedc75a-afe5-472a-9e3f-a555a8df3dff:Hair/Utility:Hair-Utility
 63a83f9c-5a95-476a-9bd5-fcb72414ea0b:Hair/Write:Hair-Write
 9e98eca8-e987-44d3-88a1-6633d0a8ad82:Normals:Normals
+5040e6a0-c755-4c52-85e1-1fa09e34d1c4:Compositor:Compositor
+f51399bc-e0fa-4cf8-afd2-3b9f79410e04:Compositor/Camera:Compositor-Camera
+6766377b-9187-41a0-98fe-7360c1949763:Compositor/Filters:Compositor-Filters
