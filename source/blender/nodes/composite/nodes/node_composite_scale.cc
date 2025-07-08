@@ -218,7 +218,7 @@ class ScaleOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_x()
   {
-    switch (node_storage(bnode()).extension_x) {
+    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
       case CMP_NODE_EXTENSION_MODE_ZERO:
         return ExtensionMode::Zero;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
@@ -233,7 +233,7 @@ class ScaleOperation : public NodeOperation {
 
   ExtensionMode get_extension_mode_y()
   {
-    switch (node_storage(bnode()).extension_y) {
+    switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
       case CMP_NODE_EXTENSION_MODE_ZERO:
         return ExtensionMode::Zero;
       case CMP_NODE_EXTENSION_MODE_REPEAT:
