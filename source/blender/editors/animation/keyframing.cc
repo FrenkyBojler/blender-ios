@@ -630,7 +630,7 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
   }
 
   if (confirm) {
-    /* if called by invoke (from the UI), make a note that we've removed keyframes. */
+    /* If called by invoke (from the UI), make a note that we've removed keyframes. */
     if (num_channels > 0) {
       BKE_reportf(op->reports,
                   RPT_INFO,
