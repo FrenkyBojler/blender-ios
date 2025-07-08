@@ -1833,8 +1833,6 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
         image_creator_params, WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB);
     wp_image_description_creator_params_v1_set_primaries_named(image_creator_params,
                                                                WP_COLOR_MANAGER_V1_PRIMARIES_SRGB);
-    // wp_image_description_creator_params_v1_set_luminances(image_creator_params, 2000, 1000,
-    // 400);
 
     wp_image_description_v1 *image_description = wp_image_description_creator_params_v1_create(
         image_creator_params);
