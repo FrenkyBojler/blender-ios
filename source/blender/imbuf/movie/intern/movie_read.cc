@@ -1248,11 +1248,9 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
       MEM_mallocN_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));
   if (anim->is_float) {
     IMB_assign_float_buffer(cur_frame_final, (float *)buffer_data, IB_TAKE_OWNERSHIP);
-    cur_frame_final->float_buffer.colorspace = colormanage_colorspace_get_named(anim->colorspace);
   }
   else {
     IMB_assign_byte_buffer(cur_frame_final, buffer_data, IB_TAKE_OWNERSHIP);
-    cur_frame_final->byte_buffer.colorspace = colormanage_colorspace_get_named(anim->colorspace);
   }
 
   AVFrame *final_frame = ffmpeg_frame_by_pts_get(anim, pts_to_search);
@@ -1266,6 +1264,22 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
    * this case skip post-processing and return current image buffer. */
   if (final_frame != nullptr) {
     ffmpeg_postprocess(anim, final_frame, cur_frame_final);
+  }
+
+  if (anim->is_float) {
+    /* Float buffers are expected to be in the scene linear color space.
+     * Linearize the buffer if it is in a different space.
+     *
+     * It might not be the most optimal thing to do from the playback performance in the sequencer
+     * perspective, but it ensures that other areas in Blender do not run into obscure color space
+     * mismatches. */
+    colormanage_imbuf_make_linear(cur_frame_final, anim->colorspace);
+  }
+  else {
+    /* Colorspace conversion is lossy for byte buffers, so only assign the colorspace.
+     * It is up to artists to ensure operations on byte buffers do not involve mixing different
+     * colorspaces. */
+    cur_frame_final->byte_buffer.colorspace = colormanage_colorspace_get_named(anim->colorspace);
   }
 
   anim->cur_position = position;
