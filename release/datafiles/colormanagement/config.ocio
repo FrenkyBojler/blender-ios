@@ -8,7 +8,7 @@
 # Mansencal, and Timothy Lottes.
 #
 # Based on original AgX by Troy Sobotka: https://github.com/sobotka/AgX https://github.com/sobotka/SB2383-Configuration-Generation
-# Further Developed by Zijun Eary Zhou法纤净, Mark Faderbauer, and Sakari Kapanen
+# Further Developed by Shengyu Qu, Zijun Eary Zhou法纤净, Mark Faderbauer, and Sakari Kapanen
 # Repository for this version: https://github.com/EaryChow/AgX
 #
 # See ocio-license.txt for details.
@@ -63,6 +63,15 @@ displays:
     - !<View> {name: Filmic Log, colorspace: Filmic Log}
     - !<View> {name: False Color, colorspace: AgX False Color Rec.709}
     - !<View> {name: Raw, colorspace: Non-Color}
+  Rec.709(Power 2.2):
+    - !<View> {name: Standard, colorspace: Rec.709(Power 2.2)}
+    - !<View> {name: Khronos PBR Neutral, colorspace: Khronos PBR Neutral Rec.709(Power 2.2)}
+    - !<View> {name: AgX, colorspace: AgX Base Rec.709(Power 2.2)}
+    # Original 3D lut for Filmic sRGB/Display P3 are actually using pure Gamma 2.2 EOTF, so no need to modify
+    - !<View> {name: Filmic, colorspace: Filmic sRGB}
+    - !<View> {name: Filmic Log, colorspace: Filmic Log}
+    - !<View> {name: False Color, colorspace: AgX False Color Rec.709}
+    - !<View> {name: Raw, colorspace: Non-Color}
   Display P3:
     - !<View> {name: Standard, colorspace: Display P3}
     - !<View> {name: AgX, colorspace: AgX Base Display P3}
@@ -78,9 +87,9 @@ displays:
     - !<View> {name: AgX, colorspace: AgX Base Rec.2020}
     - !<View> {name: False Color, colorspace: AgX False Color Rec.2020}
     - !<View> {name: Raw, colorspace: Non-Color}
-active_displays: [sRGB, Display P3, Rec.1886, Rec.2020]
+active_displays: [sRGB, Rec.709(Power 2.2), Display P3, Rec.1886, Rec.2020]
 active_views: [Standard, Khronos PBR Neutral, AgX, Filmic, Filmic Log, False Color, Raw]
-inactive_colorspaces: [Luminance Compensation Rec.2020, AgX False Color Rec.709, AgX False Color P3, AgX False Color Rec.2020]
+inactive_colorspaces: [Luminance Compensation Rec.2020, AgX Base Linear Rec.709, AgX False Color Rec.709, AgX False Color P3, AgX False Color Rec.2020, Khronos PBR Neutral Linear Rec.709]
 
 colorspaces:
   - !<ColorSpace>
@@ -190,7 +199,7 @@ colorspaces:
 
   - !<ColorSpace>
     name: sRGB
-    aliases: [sRGB 2.2, sRGB I-D65, srgb_display, srgb_rec709_scene, sRGB - Display, g22_rec709, Utility - Gamma 2.2 - Rec.709 - Texture, Utility - sRGB - Texture, sRGB - Texture, srgb_tx, srgb_texture, Input - Generic - sRGB - Texture, "sRGB Display: 2.2 Gamma - Rec.709"]
+    aliases: [sRGB I-D65, srgb_display, srgb_rec709_scene, sRGB - Display, Utility - sRGB - Texture, sRGB - Texture, srgb_tx, srgb_texture, Input - Generic - sRGB - Texture]
     family: Display
     equalitygroup:
     bitdepth: 32f
@@ -201,6 +210,20 @@ colorspaces:
       children:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear Rec.709}
         - !<ExponentWithLinearTransform> {gamma: 2.4, offset: 0.055, direction: inverse}
+
+  - !<ColorSpace>
+    name: Rec.709(Power 2.2)
+    aliases: [sRGB 2.2, g22_rec709, Utility - Gamma 2.2 - Rec.709 - Texture, "sRGB Display: 2.2 Gamma - Rec.709"]
+    family: Display
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      sRGB IEC 61966-2-1 color space that EOTF is pure power with exponent of 2.2, this is the default calibration target for sRGB monitors, but you should use sRGB transfer function if the system manages color space conversion, for example macOS, Linux Wayland(that compositor has color management support and Blender's HDR support is not enabled) and Windows(with ACM/HDR enabled)
+    isdata: false
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear Rec.709}
+        - !<ExponentTransform> {value: 2.2, direction: inverse}
 
   - !<ColorSpace>
     name: Display P3
@@ -344,6 +367,25 @@ colorspaces:
         - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear Rec.2020, direction: inverse}
 
   - !<ColorSpace>
+    name: AgX Base Linear Rec.709
+    family: AgX
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      AgX Base Image Encoding for Linear Rec.709 Display
+    isdata: false
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear FilmLight E-Gamut}
+        - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117]}
+        - !<FileTransform> {src: AgX_Base_sRGB.cube, interpolation: tetrahedral}
+        - !<ExponentTransform> {value: 2.4}
+    to_scene_reference: !<GroupTransform>
+      children:
+       - !<ColorSpaceTransform> {src: Linear Rec.709, dst: Rec.2020}
+       - !<ColorSpaceTransform> {src: AgX Base Rec.2020, dst: Linear CIE-XYZ E}
+
+  - !<ColorSpace>
     name: AgX Base sRGB
     family: AgX
     equalitygroup:
@@ -353,15 +395,29 @@ colorspaces:
     isdata: false
     from_scene_reference: !<GroupTransform>
       children:
-        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear FilmLight E-Gamut}
-        - !<AllocationTransform> {allocation: lg2, vars: [-12.47393, 12.5260688117]}
-        - !<FileTransform> {src: AgX_Base_sRGB.cube, interpolation: tetrahedral}
-        - !<ExponentTransform> {value: 2.4}
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: AgX Base Linear Rec.709}
         - !<ColorSpaceTransform> {src: Linear Rec.709, dst: sRGB}
     to_scene_reference: !<GroupTransform>
       children:
-       - !<ColorSpaceTransform> {src: sRGB, dst: Rec.2020}
-       - !<ColorSpaceTransform> {src: AgX Base Rec.2020, dst: Linear CIE-XYZ E}
+       - !<ColorSpaceTransform> {src: sRGB, dst: Linear Rec.709}
+       - !<ColorSpaceTransform> {src: AgX Base Linear Rec.709, dst: Linear CIE-XYZ E}
+
+  - !<ColorSpace>
+    name: AgX Base Rec.709(Power 2.2)
+    family: AgX
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      AgX Base Image Encoding for sRGB Display that EOTF is pure power with exponent of 2.2
+    isdata: false
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: AgX Base Linear Rec.709}
+        - !<ColorSpaceTransform> {src: Linear Rec.709, dst: Rec.709(Power 2.2)}
+    to_scene_reference: !<GroupTransform>
+      children:
+       - !<ColorSpaceTransform> {src: Rec.709(Power 2.2), dst: Linear Rec.709}
+       - !<ColorSpaceTransform> {src: AgX Base Linear Rec.709, dst: Linear CIE-XYZ E}
 
   - !<ColorSpace>
     name: AgX Base Display P3
@@ -447,6 +503,20 @@ colorspaces:
         - !<ColorSpaceTransform> {src: Rec.1886, dst: Rec.2020}
 
   - !<ColorSpace>
+    name: Khronos PBR Neutral Linear Rec.709
+    family: Khronos PBR Neutral
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Khronos PBR Neutral Image Encoding for Linear Rec.709 Display
+    isdata: false
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear Rec.709}
+        - !<AllocationTransform> {allocation: lg2, vars: [-9, 10]}
+        - !<FileTransform> {src: pbrNeutral.cube, interpolation: tetrahedral}
+
+  - !<ColorSpace>
     name: Khronos PBR Neutral sRGB
     family: Khronos PBR Neutral
     equalitygroup:
@@ -456,10 +526,21 @@ colorspaces:
     isdata: false
     from_scene_reference: !<GroupTransform>
       children:
-        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Linear Rec.709}
-        - !<AllocationTransform> {allocation: lg2, vars: [-9, 10]}
-        - !<FileTransform> {src: pbrNeutral.cube, interpolation: tetrahedral}
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Khronos PBR Neutral Linear Rec.709}
         - !<ColorSpaceTransform> {src: Linear Rec.709, dst: sRGB}
+
+  - !<ColorSpace>
+    name: Khronos PBR Neutral Rec.709(Power 2.2)
+    family: Khronos PBR Neutral
+    equalitygroup:
+    bitdepth: 32f
+    description: |
+      Khronos PBR Neutral Image Encoding for sRGB Display that EOTF is pure power with exponent of 2.2
+    isdata: false
+    from_scene_reference: !<GroupTransform>
+      children:
+        - !<ColorSpaceTransform> {src: Linear CIE-XYZ E, dst: Khronos PBR Neutral Linear Rec.709}
+        - !<ColorSpaceTransform> {src: Linear Rec.709, dst: Rec.709(Power 2.2)}
 
   - !<ColorSpace>
     name: Rec.2100-PQ
