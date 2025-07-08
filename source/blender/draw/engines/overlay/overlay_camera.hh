@@ -587,9 +587,11 @@ class Cameras : Overlay {
       bool use_view_transform = false;
       float4x4 mat;
 
+      DRW_image_lock_start();
       /* retrieve the image we want to show, continue to next when no image could be found */
       GPUTexture *tex = image_camera_background_texture_get(
           bgpic, state, res, aspect, use_alpha_premult, use_view_transform);
+      DRW_image_lock_end();
 
       if (tex) {
         image_camera_background_matrix_get(&cam, bgpic, state, aspect, mat);

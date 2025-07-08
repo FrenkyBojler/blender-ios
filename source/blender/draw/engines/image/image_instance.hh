@@ -64,7 +64,9 @@ class Instance : public DrawEngine {
     const DRWContext *ctx_state = DRW_context_get();
     main_ = CTX_data_main(ctx_state->evil_C);
     region = ctx_state->region;
+    DRW_image_lock_start();
     space_ = space_accessor_from_space(ctx_state->space_data);
+    DRW_image_lock_end();
     manager = DRW_manager_get();
   }
 
@@ -78,8 +80,9 @@ class Instance : public DrawEngine {
     float4x4 winmat = float4x4::identity();
     state.view.sync(viewmat, winmat);
     state.flags.do_tile_drawing = false;
-
+    DRW_image_lock_start();
     image_sync();
+    DRW_image_lock_end();
   }
 
   void image_sync()

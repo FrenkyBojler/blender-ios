@@ -949,6 +949,7 @@ class MeshUVs : Overlay {
     }
 
     if (show_stencil_) {
+      DRW_image_lock_start();
       auto &pass = brush_stencil_ps_;
       pass.init();
       pass.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_DEPTH_ALWAYS |
@@ -972,6 +973,7 @@ class MeshUVs : Overlay {
         pass.push_constant("brush_scale", float2(stencil_texture.size().xy()) / size_image);
         pass.draw(res.shapes.quad_solid.get());
       }
+      DRW_image_lock_end();
     }
 
     if (show_mask_) {

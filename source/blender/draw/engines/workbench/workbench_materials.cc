@@ -14,6 +14,8 @@
 #include "ED_uvedit.hh"
 /* get_image */
 
+#include "DRW_engine.hh"
+
 namespace blender::workbench {
 
 Material::Material() = default;
@@ -109,7 +111,9 @@ MaterialTexture::MaterialTexture(Object *ob, int material_index)
       BLI_assert_msg(0, "Node type not supported by workbench");
   }
 
+  DRW_image_lock_start();
   gpu = BKE_image_get_gpu_material_texture(image, user, true);
+  DRW_image_lock_end();
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;
@@ -117,7 +121,9 @@ MaterialTexture::MaterialTexture(Object *ob, int material_index)
 
 MaterialTexture::MaterialTexture(::Image *image, ImageUser *user /* = nullptr */)
 {
+  DRW_image_lock_start();
   gpu = BKE_image_get_gpu_material_texture(image, user, true);
+  DRW_image_lock_end();
   premultiplied = image->alpha_mode == IMA_ALPHA_PREMUL;
   alpha_cutoff = !ELEM(image->alpha_mode, IMA_ALPHA_IGNORE, IMA_ALPHA_CHANNEL_PACKED);
   name = image->id.name;

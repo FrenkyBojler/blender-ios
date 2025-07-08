@@ -28,31 +28,19 @@
  * between render engine instances, we cannot allow pass submissions in a concurrent manner.
  * \{ */
 
-static TicketMutex *draw_mutex = nullptr;
 static TicketMutex *submission_mutex = nullptr;
+static TicketMutex *image_mutex = nullptr;
 
 void DRW_mutexes_init()
 {
-  draw_mutex = BLI_ticket_mutex_alloc();
   submission_mutex = BLI_ticket_mutex_alloc();
+  image_mutex = BLI_ticket_mutex_alloc();
 }
 
 void DRW_mutexes_exit()
 {
-  BLI_ticket_mutex_free(draw_mutex);
   BLI_ticket_mutex_free(submission_mutex);
-}
-
-void DRW_lock_start()
-{
-  bool locked = BLI_ticket_mutex_lock_check_recursive(draw_mutex);
-  BLI_assert(locked);
-  UNUSED_VARS_NDEBUG(locked);
-}
-
-void DRW_lock_end()
-{
-  BLI_ticket_mutex_unlock(draw_mutex);
+  BLI_ticket_mutex_free(image_mutex);
 }
 
 void DRW_submission_start()
@@ -61,12 +49,26 @@ void DRW_submission_start()
   BLI_assert(locked);
   UNUSED_VARS_NDEBUG(locked);
   GPU_render_begin();
+  DRW_image_lock_start();
 }
 
 void DRW_submission_end()
 {
+  DRW_image_lock_end();
   GPU_render_end();
   BLI_ticket_mutex_unlock(submission_mutex);
+}
+
+void DRW_image_lock_start()
+{
+  bool locked = BLI_ticket_mutex_lock_check_recursive(image_mutex);
+  BLI_assert(locked);
+  UNUSED_VARS_NDEBUG(locked);
+}
+
+void DRW_image_lock_end()
+{
+  BLI_ticket_mutex_unlock(image_mutex);
 }
 
 /** \} */

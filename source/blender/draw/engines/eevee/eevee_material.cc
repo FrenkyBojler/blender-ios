@@ -14,6 +14,8 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 
+#include "DRW_engine.hh"
+
 #include "NOD_shader.h"
 
 #include "eevee_instance.hh"
@@ -175,6 +177,7 @@ void MaterialModule::begin_sync()
 
 void MaterialModule::queue_texture_loading(GPUMaterial *material)
 {
+  DRW_image_lock_start();
   ListBase textures = GPU_material_textures(material);
   for (GPUMaterialTexture *tex : ListBaseWrapper<GPUMaterialTexture>(textures)) {
     if (tex->ima) {
@@ -187,6 +190,7 @@ void MaterialModule::queue_texture_loading(GPUMaterial *material)
       }
     }
   }
+  DRW_image_lock_end();
 }
 
 void MaterialModule::end_sync()
@@ -201,6 +205,7 @@ void MaterialModule::end_sync()
   }
 
   GPU_debug_group_begin("Texture Loading");
+  DRW_image_lock_start();
 
   /* Load files from disk in a multithreaded manner. Allow better parallelism. */
   threading::parallel_for(texture_loading_queue_.index_range(), 1, [&](const IndexRange range) {
@@ -237,6 +242,8 @@ void MaterialModule::end_sync()
 
     GPU_debug_group_end();
   }
+
+  DRW_image_lock_end();
   GPU_debug_group_end();
   texture_loading_queue_.clear();
 }

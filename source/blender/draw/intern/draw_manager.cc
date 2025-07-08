@@ -27,10 +27,12 @@ std::atomic<uint32_t> Manager::global_sync_counter_ = 1;
 
 Manager::~Manager()
 {
+  DRW_image_lock_start();
   for (GPUTexture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
     GPU_texture_free(texture);
   }
+  DRW_image_lock_end();
 }
 
 void Manager::begin_sync(Object *object_active)
@@ -47,12 +49,14 @@ void Manager::begin_sync(Object *object_active)
   infos_buf.current().trim_to_next_power_of_2(resource_len_);
   attributes_buf.trim_to_next_power_of_2(attribute_len_);
 
+  DRW_image_lock_start();
   /* TODO: This means the reference is kept until further redraw or manager tear-down. Instead,
    * they should be released after each draw loop. But for now, mimics old DRW behavior. */
   for (GPUTexture *texture : acquired_textures) {
     /* Decrease refcount and free if 0. */
     GPU_texture_free(texture);
   }
+  DRW_image_lock_end();
 
   acquired_textures.clear();
   layer_attributes.clear();

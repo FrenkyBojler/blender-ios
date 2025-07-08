@@ -285,12 +285,14 @@ class Empties : Overlay {
        * see: #59347 */
       int2 size = int2(0);
       if (ima != nullptr) {
+        DRW_image_lock_start();
         ImageUser iuser = *ob->iuser;
         Images::stereo_setup(state.scene, state.v3d, ima, &iuser);
         tex = BKE_image_get_gpu_texture(ima, &iuser);
         if (tex) {
           size = int2(GPU_texture_original_width(tex), GPU_texture_original_height(tex));
         }
+        DRW_image_lock_end();
       }
       CLAMP_MIN(size.x, 1);
       CLAMP_MIN(size.y, 1);

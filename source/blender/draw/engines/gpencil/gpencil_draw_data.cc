@@ -47,8 +47,10 @@ static GPUTexture *gpencil_image_texture_get(::Image *image, bool *r_alpha_premu
   ImageUser iuser = {nullptr};
   GPUTexture *gpu_tex = nullptr;
 
+  DRW_image_lock_start();
   gpu_tex = BKE_image_get_gpu_texture(image, &iuser);
   *r_alpha_premult = (gpu_tex) ? (image->alpha_mode == IMA_ALPHA_PREMUL) : false;
+  DRW_image_lock_end();
 
   return gpu_tex;
 }

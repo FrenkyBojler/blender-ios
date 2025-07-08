@@ -131,16 +131,19 @@ void DRW_render_context_disable(Render *render);
 void DRW_mutexes_init();
 void DRW_mutexes_exit();
 
-/* Mutex to lock the drw manager and avoid concurrent context usage.
- * Equivalent to the old DST lock.
- * Brought back to 4.5 due to unforeseen issues causing data races and race conditions with Images
- * and GPUTextures. (See #141253) */
-void DRW_lock_start();
-void DRW_lock_end();
-
 /* Critical section for GPUShader usage. Can be removed when we have threadsafe GPUShader class. */
 void DRW_submission_start();
 void DRW_submission_end();
+
+/**
+ * Images and GPUTextures are shared across dependency graphs and may be accesed concurrently from
+ * multiple threads.
+ * Any BKE_image call or GPU_texture call with an Image texture should be done while holding  this
+ * lock.
+ * NOTE: The DRW_submission lock also holds the image lock.
+ */
+void DRW_image_lock_start();
+void DRW_image_lock_end();
 
 void DRW_gpu_context_create();
 void DRW_gpu_context_destroy();

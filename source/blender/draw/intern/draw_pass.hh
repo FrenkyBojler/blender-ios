@@ -52,6 +52,7 @@
 #include "GPU_material.hh"
 #include "GPU_pass.hh"
 
+#include "DRW_engine.hh"
 #include "DRW_gpu_wrapper.hh"
 
 #include "draw_command.hh"
@@ -1126,6 +1127,7 @@ inline void PassBase<T>::material_set(Manager &manager,
   GPUPass *gpupass = GPU_material_get_pass(material);
   shader_set(GPU_pass_shader_get(gpupass));
 
+  DRW_image_lock_start();
   /* Bind all textures needed by the material. */
   ListBase textures = GPU_material_textures(material);
   for (GPUMaterialTexture *tex : ListBaseWrapper<GPUMaterialTexture>(textures)) {
@@ -1169,6 +1171,7 @@ inline void PassBase<T>::material_set(Manager &manager,
       bind_texture(tex->sampler_name, *tex->sky, tex->sampler_state);
     }
   }
+  DRW_image_lock_end();
 
   GPUUniformBuf *ubo = GPU_material_uniform_buffer_get(material);
   if (ubo != nullptr) {
