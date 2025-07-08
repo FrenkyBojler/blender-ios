@@ -1,2 +1,3 @@
 Referenced by issue #141619, Geometry Nodes: Lasso Select tool doesn't allow deselecting or moving nodes
 Referenced by issue #141628, Blender 4,5 Beta Crash
+Referenced by issue #141639, Intersect (Boolean) operator has no option for manifold boolean solver
