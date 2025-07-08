@@ -1583,11 +1583,11 @@ typedef struct NodeScaleData {
   short interpolation;
 } NodeScaleData;
 
-typedef struct NodeCornerpinData {
+typedef struct NodeCornerPinData {
   short interpolation;
   char extension_x;
   char extension_y;
-} NodeCornerpinData;
+} NodeCornerPinData;
 
 typedef struct NodeDisplaceData {
   short interpolation;

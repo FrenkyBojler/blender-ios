@@ -1294,8 +1294,8 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (node->storage != nullptr) {
           continue;
         }
-        NodeCornerpinData *data = MEM_callocN<NodeCornerpinData>(__func__);
-        data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
+        NodeCornerPinData *data = MEM_callocN<NodeCornerPinData>(__func__);
+        data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
         data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
         node->storage = data;

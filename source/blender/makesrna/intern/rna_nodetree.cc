@@ -7355,7 +7355,7 @@ static void def_cmp_ellipsemask(BlenderRNA * /*brna*/, StructRNA *srna)
 static void def_cmp_cornerpin(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
-  RNA_def_struct_sdna_from(srna, "NodeCornerpinData", "storage");
+  RNA_def_struct_sdna_from(srna, "NodeCornerPinData", "storage");
 
   prop = RNA_def_property(srna, "interpolation", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "interpolation");

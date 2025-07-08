@@ -32,7 +32,7 @@
 
 namespace blender::nodes::node_composite_cornerpin_cc {
 
-NODE_STORAGE_FUNCS(NodeCornerpinData)
+NODE_STORAGE_FUNCS(NodeCornerPinData)
 
 static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 {
@@ -70,7 +70,7 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 
 static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
 {
-  NodeCornerpinData *data = MEM_callocN<NodeCornerpinData>(__func__);
+  NodeCornerPinData *data = MEM_callocN<NodeCornerPinData>(__func__);
   data->interpolation = CMP_NODE_INTERPOLATION_ANISOTROPIC;
   data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
   data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
@@ -391,7 +391,7 @@ static void register_node_type_cmp_cornerpin()
   ntype.draw_buttons = file_ns::node_composit_buts_cornerpin;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
   blender::bke::node_type_storage(
-      ntype, "NodeCornerpinData", node_free_standard_storage, node_copy_standard_storage);
+      ntype, "NodeCornerPinData", node_free_standard_storage, node_copy_standard_storage);
   blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(register_node_type_cmp_cornerpin)
