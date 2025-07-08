@@ -872,7 +872,6 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
 
   AnimData *adt = scene->adt;
   bAction *dna_action = adt->action;
-  FCurve *fcu, *fcn;
 
   Action &action = dna_action->wrap();
   if (action.is_action_layered()) {
