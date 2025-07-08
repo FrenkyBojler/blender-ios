@@ -1319,7 +1319,7 @@ static void init_weight_gradient_tool(const bContext &C,
       /* Convert stroke points to screen space positions. */
       bke::crazyspace::GeometryDeformation deformation =
           bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-              ob_eval, *tool.object, drawing_info.layer_index, drawing_info.frame_number);
+              ob_eval, *tool.object, drawing_info.drawing);
 
       cache.point_positions.reinitialize(deformation.positions.size());
       cache.point_original_weights.reinitialize(deformation.positions.size());
