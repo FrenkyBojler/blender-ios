@@ -4972,11 +4972,11 @@ static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
 
 static bool object_update_shapes_poll(bContext *C)
 {
-  Object *ob = CTX_data_active_object(C);
   if (!active_shape_key_editable_poll(C)) {
     return false;
   }
 
+  Object *ob = CTX_data_active_object(C);
   const Key *key = BKE_key_from_object(ob);
   if (!key || BLI_listbase_is_empty(&key->block)) {
     return false;
