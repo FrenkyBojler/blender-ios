@@ -1382,6 +1382,7 @@ class VIEW3D_MT_transform_armature(VIEW3D_MT_transform_base, Menu):
 
 class VIEW3D_MT_mirror(Menu):
     bl_label = "Mirror"
+    bl_translation_context = i18n_contexts.operator_default
 
     def draw(self, _context):
         layout = self.layout
@@ -3595,7 +3596,10 @@ class VIEW3D_MT_paint_weight(Menu):
 
         layout.separator()
 
-        layout.operator("object.vertex_group_mirror", text="Mirror")
+        # Using default context for 'flipping along axis', to differentiate from 'symmetrizing' (i.e.
+        # 'mirrored copy').
+        # See https://projects.blender.org/blender/blender/issues/43295#issuecomment-1400465
+        layout.operator("object.vertex_group_mirror", text="Mirror", text_ctxt=i18n_contexts.default)
         layout.operator("object.vertex_group_invert", text="Invert")
         layout.operator("object.vertex_group_clean", text="Clean")
 
@@ -8372,7 +8376,7 @@ class VIEW3D_MT_greasepencil_edit_context_menu(Menu):
 
             col.separator()
 
-            col.menu("VIEW3D_MT_mirror", text="Mirror")
+            col.menu("VIEW3D_MT_mirror", text="Mirror", text_ctxt=i18n_contexts.operator_default)
 
             col.separator()
 
@@ -8450,12 +8454,22 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
             col.separator()
 
         if brush.gpencil_tool not in {'FILL', 'CUTTER', 'ERASE'}:
-            radius = "size" if (brush.use_locked_size == 'VIEW') else "unprojected_radius"
-            layout.prop(brush, radius, text="Radius", slider=True)
+            if brush.use_locked_size == 'VIEW':
+                row = layout.row(align=True)
+                row.prop(brush, "size", slider=True)
+                row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
+            else:
+                row = layout.row(align=True)
+                row.prop(brush, "unprojected_radius", text="Size", slider=True)
+                row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         if brush.gpencil_tool == 'ERASE':
-            layout.prop(brush, "size", slider=True)
+            row = layout.row(align=True)
+            row.prop(brush, "size", slider=True)
+            row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         if brush.gpencil_tool not in {'ERASE', 'FILL', 'CUTTER'}:
-            layout.prop(gp_settings, "pen_strength")
+            row = layout.row(align=True)
+            row.prop(brush, "strength", slider=True)
+            row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
 
         layer = context.object.data.layers.active
 
@@ -8489,8 +8503,14 @@ class VIEW3D_PT_greasepencil_sculpt_context_menu(Panel):
         ups = tool_settings.unified_paint_settings
         size_owner = ups if ups.use_unified_size else brush
         strength_owner = ups if ups.use_unified_strength else brush
-        layout.prop(size_owner, "size", text="")
-        layout.prop(strength_owner, "strength", text="")
+        row = layout.row(align=True)
+        row.prop(size_owner, "size", text="")
+        row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_size", text="", icon='BRUSHES_ALL')
+        row = layout.row(align=True)
+        row.prop(strength_owner, "strength", text="")
+        row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+        row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         layer = context.object.data.layers.active
 
@@ -8533,9 +8553,12 @@ class VIEW3D_PT_greasepencil_vertex_paint_context_menu(Panel):
         row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
 
         if brush.gpencil_vertex_tool in {'DRAW', 'BLUR', 'SMEAR'}:
+            ups = tool_settings.unified_paint_settings
+            strength_owner = ups if ups.use_unified_strength else brush
             row = layout.row(align=True)
-            row.prop(brush, "strength", slider=True)
+            row.prop(strength_owner, "strength", text="")
             row.prop(brush, "use_pressure_strength", text="", icon='STYLUS_PRESSURE')
+            row.prop(ups, "use_unified_strength", text="", icon='BRUSHES_ALL')
 
         layer = context.object.data.layers.active
 
