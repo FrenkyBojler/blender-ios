@@ -97,6 +97,12 @@ struct GWL_Output {
     wl_output *output = nullptr;
   } wl;
 
+  struct {
+    struct wp_color_management_output_v1 *color_management_output = nullptr;
+    struct wp_image_description_v1 *image_description = nullptr;
+    struct wp_image_description_info_v1 *image_description_info = nullptr;
+  } wp;
+
   /** XDG native types. */
   struct {
     struct zxdg_output_v1 *output = nullptr;
@@ -141,6 +147,10 @@ struct GWL_Output {
    */
   int scale_fractional = (1 * FRACTIONAL_DENOMINATOR);
   bool has_scale_fractional = false;
+
+  uint32_t max_luminance = 400;
+  uint32_t reference_luminance = 400;
+  bool has_hdr_support = false;
 
   std::string make;
   std::string model;
@@ -264,6 +274,7 @@ class GHOST_SystemWayland : public GHOST_System {
   struct zwp_pointer_gestures_v1 *wp_pointer_gestures_get();
   struct wp_fractional_scale_manager_v1 *wp_fractional_scale_manager_get();
   struct wp_viewporter *wp_viewporter_get();
+  struct wp_color_manager_v1 *wp_color_manager_get();
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
   libdecor *libdecor_context_get();
