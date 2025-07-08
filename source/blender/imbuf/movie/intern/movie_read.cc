@@ -1297,9 +1297,6 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
       MEM_mallocN_aligned(pixel_size * anim->x * anim->y, align, "ffmpeg ibuf"));
   if (anim->is_float) {
     IMB_assign_float_buffer(cur_frame_final, (float *)buffer_data, IB_TAKE_OWNERSHIP);
-    // TODO: Float buffer in Blender is expected to be in Scene Linear.
-    // Areas like Sequencer might be fine if the buffer is not linearized, but other operations
-    // might fail (i.e. compositor).
     cur_frame_final->float_buffer.colorspace = colormanage_colorspace_get_named(anim->colorspace);
   }
   else {
