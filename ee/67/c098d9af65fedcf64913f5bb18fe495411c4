@@ -1,2 +1,3 @@
 Referenced by issue #141623, 'Subdivision Set' operator fails if previously used with 'Relative' setting
 Referenced by pull request #141634, Fix #141623: Subdivision Set operator occasionally fails when adding modifier
+Referenced by commit 90ad7359435cc556cfa58c75c0c3f7497f69f5b0, Fix #141623: Subdivision Set operator occasionally fails when adding modifier
