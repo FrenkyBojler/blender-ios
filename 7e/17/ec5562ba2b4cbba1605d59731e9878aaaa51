@@ -1,0 +1,1 @@
+Referenced by issue #141626, Repeated Rigify Re-generation triggers `blenkernel\intern\lib_id.cc:375 id_us_min: ID user decrement error`
