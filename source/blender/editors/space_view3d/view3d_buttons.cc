@@ -2248,7 +2248,6 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *ob = BKE_view_layer_active_object_get(view_layer);
-  Object *obedit = OBEDIT_FROM_OBACT(ob);
   uiBlock *block = panel->layout->block();
 
   CurvesSelectionStatus status;
