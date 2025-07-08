@@ -217,11 +217,10 @@ static void applyResize(TransInfo *t)
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
-        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
-        ElementResize(t, tc, td, td_ext, mat);
+        ElementResize(t, tc, i, mat);
       }
     });
   }
@@ -235,10 +234,8 @@ static void applyResize(TransInfo *t)
     }
 
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
-      TransData *td = tc->data;
-      for (i = 0; i < tc->data_len; i++, td++) {
-        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
-        ElementResize(t, tc, td, td_ext, mat);
+      for (i = 0; i < tc->data_len; i++) {
+        ElementResize(t, tc, i, mat);
       }
 
       /* Not ideal, see #clipUVData code-comment. */

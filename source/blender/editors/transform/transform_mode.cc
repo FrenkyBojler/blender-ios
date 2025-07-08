@@ -449,103 +449,110 @@ static void constraintRotLim(const TransInfo * /*t*/, TransData *td, TransDataEx
   }
 }
 
-void constraintScaleLim(const TransInfo *t, const TransDataContainer *tc, TransData *td)
+void constraintScaleLim(const TransInfo *t, const TransDataContainer *tc, int td_index)
 {
-  if (tc->data_ext && td->con) {
-    const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_SIZELIMIT);
-    bConstraintOb cob = {nullptr};
-    bConstraint *con;
-    float scale_sign[3], scale_abs[3];
-    int i;
-
-    /* Make a temporary bConstraintOb for using these limit constraints
-     * - they only care that cob->matrix is correctly set ;-)
-     * - current space should be local
-     */
-    if ((td->flag & TD_SINGLE_SCALE) && !(t->con.mode & CON_APPLY)) {
-      /* Scale val and reset the "scale". */
-      return; /* TODO: fix this case. */
-    }
-
-    /* Reset val if SINGLESIZE but using a constraint. */
-    if (td->flag & TD_SINGLE_SCALE) {
-      return;
-    }
-
-    TransDataExtension *td_ext = &tc->data_ext[td - tc->data];
-
-    /* Separate out sign to apply back later. */
-    for (i = 0; i < 3; i++) {
-      scale_sign[i] = signf(td_ext->scale[i]);
-      scale_abs[i] = fabsf(td_ext->scale[i]);
-    }
-
-    size_to_mat4(cob.matrix, scale_abs);
-
-    /* Evaluate valid constraints. */
-    for (con = td->con; con; con = con->next) {
-      /* Only consider constraint if enabled. */
-      if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) {
-        continue;
-      }
-      if (con->enforce == 0.0f) {
-        continue;
-      }
-
-      /* We're only interested in Limit-Scale constraints. */
-      if (con->type == CONSTRAINT_TYPE_SIZELIMIT) {
-        bSizeLimitConstraint *data = static_cast<bSizeLimitConstraint *>(con->data);
-
-        /* Only use it if it's tagged for this purpose. */
-        if ((data->flag2 & LIMIT_TRANSFORM) == 0) {
-          continue;
-        }
-
-        /* Do space conversions. */
-        if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
-          /* Just multiply by `td->mtx` (this should be ok). */
-          mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
-        }
-        else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
-          /* Bone space without considering object transformations. */
-          mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
-          mul_m4_m3m4(cob.matrix, tc->imat3, cob.matrix);
-        }
-        else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
-          /* Skip... incompatible `spacetype`. */
-          continue;
-        }
-
-        /* Do constraint. */
-        cti->evaluate_constraint(con, &cob, nullptr);
-
-        /* Convert spaces again. */
-        if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
-          /* Just multiply by `td->smtx` (this should be ok). */
-          mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
-        }
-        else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
-          mul_m4_m3m4(cob.matrix, tc->mat3, cob.matrix);
-          mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
-        }
-      }
-    }
-
-    /* Copy results from `cob->matrix`. */
-    if ((td->flag & TD_SINGLE_SCALE) && !(t->con.mode & CON_APPLY)) {
-      /* Scale val and reset the "scale". */
-      return; /* TODO: fix this case. */
-    }
-
-    /* Reset val if SINGLESIZE but using a constraint. */
-    if (td->flag & TD_SINGLE_SCALE) {
-      return;
-    }
-
-    /* Extract scale from matrix and apply back sign. */
-    mat4_to_size(td_ext->scale, cob.matrix);
-    mul_v3_v3(td_ext->scale, scale_sign);
+  if (!tc->data_ext) {
+    return;
   }
+
+  TransData *td = &tc->data[td_index];
+  if (!td->con) {
+    return;
+  }
+
+  /* Make a temporary bConstraintOb for using these limit constraints
+   * - they only care that cob->matrix is correctly set ;-)
+   * - current space should be local
+   */
+  if ((td->flag & TD_SINGLE_SCALE) && !(t->con.mode & CON_APPLY)) {
+    /* Scale val and reset the "scale". */
+    return; /* TODO: fix this case. */
+  }
+
+  /* Reset val if SINGLESIZE but using a constraint. */
+  if (td->flag & TD_SINGLE_SCALE) {
+    return;
+  }
+
+  const bConstraintTypeInfo *cti = BKE_constraint_typeinfo_from_type(CONSTRAINT_TYPE_SIZELIMIT);
+  bConstraintOb cob = {nullptr};
+  bConstraint *con;
+  float scale_sign[3], scale_abs[3];
+  int i;
+
+  TransDataExtension *td_ext = &tc->data_ext[td_index];
+
+  /* Separate out sign to apply back later. */
+  for (i = 0; i < 3; i++) {
+    scale_sign[i] = signf(td_ext->scale[i]);
+    scale_abs[i] = fabsf(td_ext->scale[i]);
+  }
+
+  size_to_mat4(cob.matrix, scale_abs);
+
+  /* Evaluate valid constraints. */
+  for (con = td->con; con; con = con->next) {
+    /* Only consider constraint if enabled. */
+    if (con->flag & (CONSTRAINT_DISABLE | CONSTRAINT_OFF)) {
+      continue;
+    }
+    if (con->enforce == 0.0f) {
+      continue;
+    }
+
+    /* We're only interested in Limit-Scale constraints. */
+    if (con->type == CONSTRAINT_TYPE_SIZELIMIT) {
+      bSizeLimitConstraint *data = static_cast<bSizeLimitConstraint *>(con->data);
+
+      /* Only use it if it's tagged for this purpose. */
+      if ((data->flag2 & LIMIT_TRANSFORM) == 0) {
+        continue;
+      }
+
+      /* Do space conversions. */
+      if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
+        /* Just multiply by `td->mtx` (this should be ok). */
+        mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
+      }
+      else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
+        /* Bone space without considering object transformations. */
+        mul_m4_m3m4(cob.matrix, td->mtx, cob.matrix);
+        mul_m4_m3m4(cob.matrix, tc->imat3, cob.matrix);
+      }
+      else if (con->ownspace != CONSTRAINT_SPACE_LOCAL) {
+        /* Skip... incompatible `spacetype`. */
+        continue;
+      }
+
+      /* Do constraint. */
+      cti->evaluate_constraint(con, &cob, nullptr);
+
+      /* Convert spaces again. */
+      if (con->ownspace == CONSTRAINT_SPACE_WORLD) {
+        /* Just multiply by `td->smtx` (this should be ok). */
+        mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
+      }
+      else if (con->ownspace == CONSTRAINT_SPACE_POSE) {
+        mul_m4_m3m4(cob.matrix, tc->mat3, cob.matrix);
+        mul_m4_m3m4(cob.matrix, td->smtx, cob.matrix);
+      }
+    }
+  }
+
+  /* Copy results from `cob->matrix`. */
+  if ((td->flag & TD_SINGLE_SCALE) && !(t->con.mode & CON_APPLY)) {
+    /* Scale val and reset the "scale". */
+    return; /* TODO: fix this case. */
+  }
+
+  /* Reset val if SINGLESIZE but using a constraint. */
+  if (td->flag & TD_SINGLE_SCALE) {
+    return;
+  }
+
+  /* Extract scale from matrix and apply back sign. */
+  mat4_to_size(td_ext->scale, cob.matrix);
+  mul_v3_v3(td_ext->scale, scale_sign);
 }
 
 /** \} */
@@ -956,10 +963,11 @@ static void TransMat3ToSize(const float mat[3][3], const float smat[3][3], float
 
 void ElementResize(const TransInfo *t,
                    const TransDataContainer *tc,
-                   TransData *td,
-                   TransDataExtension *td_ext,
+                   int td_index,
                    const float mat[3][3])
 {
+  TransData *td = &tc->data[td_index];
+
   float tmat[3][3], smat[3][3], center[3];
   float vec[3];
 
@@ -991,51 +999,55 @@ void ElementResize(const TransInfo *t,
     copy_v3_v3(center, tc->center_local);
   }
 
-  /* Size checked needed since the 3D cursor only uses rotation fields. */
-  if (td_ext && td_ext->scale) {
-    float fscale[3];
+  if (tc->data_ext) {
+    TransDataExtension *td_ext = &tc->data_ext[td_index];
 
-    if (ELEM(t->data_type,
-             &TransConvertType_Sculpt,
-             &TransConvertType_Object,
-             &TransConvertType_ObjectTexSpace,
-             &TransConvertType_Pose))
-    {
-      float ob_scale_mat[3][3];
-      /* Reorient the size mat to fit the oriented object. */
-      mul_m3_m3m3(ob_scale_mat, tmat, td->axismtx);
-      // print_m3("ob_scale_mat", ob_scale_mat);
-      TransMat3ToSize(ob_scale_mat, td->axismtx, fscale);
-      // print_v3("fscale", fscale);
-    }
-    else {
-      mat3_to_size(fscale, tmat);
-    }
+    /* Size checked needed since the 3D cursor only uses rotation fields. */
+    if (td_ext->scale) {
+      float fscale[3];
 
-    protectedScaleBits(td->protectflag, fscale);
-
-    if ((t->flag & T_V3D_ALIGN) == 0) { /* Align mode doesn't resize objects itself. */
-      if ((td->flag & TD_SINGLE_SCALE) && !(t->con.mode & CON_APPLY)) {
-        /* Scale val and reset scale. */
-        *td->val = td->ival * (1 + (fscale[0] - 1) * td->factor);
-
-        td_ext->scale[0] = td_ext->iscale[0];
-        td_ext->scale[1] = td_ext->iscale[1];
-        td_ext->scale[2] = td_ext->iscale[2];
+      if (ELEM(t->data_type,
+               &TransConvertType_Sculpt,
+               &TransConvertType_Object,
+               &TransConvertType_ObjectTexSpace,
+               &TransConvertType_Pose))
+      {
+        float ob_scale_mat[3][3];
+        /* Reorient the size mat to fit the oriented object. */
+        mul_m3_m3m3(ob_scale_mat, tmat, td->axismtx);
+        // print_m3("ob_scale_mat", ob_scale_mat);
+        TransMat3ToSize(ob_scale_mat, td->axismtx, fscale);
+        // print_v3("fscale", fscale);
       }
       else {
-        /* Reset val if #TD_SINGLE_SCALE but using a constraint. */
-        if (td->flag & TD_SINGLE_SCALE) {
-          *td->val = td->ival;
-        }
-
-        td_ext->scale[0] = td_ext->iscale[0] * (1 + (fscale[0] - 1) * td->factor);
-        td_ext->scale[1] = td_ext->iscale[1] * (1 + (fscale[1] - 1) * td->factor);
-        td_ext->scale[2] = td_ext->iscale[2] * (1 + (fscale[2] - 1) * td->factor);
+        mat3_to_size(fscale, tmat);
       }
-    }
 
-    constraintScaleLim(t, tc, td);
+      protectedScaleBits(td->protectflag, fscale);
+
+      if ((t->flag & T_V3D_ALIGN) == 0) { /* Align mode doesn't resize objects itself. */
+        if ((td->flag & TD_SINGLE_SCALE) && !(t->con.mode & CON_APPLY)) {
+          /* Scale val and reset scale. */
+          *td->val = td->ival * (1 + (fscale[0] - 1) * td->factor);
+
+          td_ext->scale[0] = td_ext->iscale[0];
+          td_ext->scale[1] = td_ext->iscale[1];
+          td_ext->scale[2] = td_ext->iscale[2];
+        }
+        else {
+          /* Reset val if #TD_SINGLE_SCALE but using a constraint. */
+          if (td->flag & TD_SINGLE_SCALE) {
+            *td->val = td->ival;
+          }
+
+          td_ext->scale[0] = td_ext->iscale[0] * (1 + (fscale[0] - 1) * td->factor);
+          td_ext->scale[1] = td_ext->iscale[1] * (1 + (fscale[1] - 1) * td->factor);
+          td_ext->scale[2] = td_ext->iscale[2] * (1 + (fscale[2] - 1) * td->factor);
+        }
+      }
+
+      constraintScaleLim(t, tc, td_index);
+    }
   }
 
   /* For individual element center, Editmode need to use iloc. */

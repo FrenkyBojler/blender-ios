@@ -39,14 +39,13 @@ namespace blender::ed::transform {
  * \param flip: If true, a mirror on all axis will be performed additionally (point
  * reflection).
  */
-static void ElementMirror(TransInfo *t,
-                          TransDataContainer *tc,
-                          TransData *td,
-                          TransDataExtension *td_ext,
-                          int axis,
-                          bool flip)
+static void ElementMirror(TransInfo *t, TransDataContainer *tc, int td_index, int axis, bool flip)
 {
-  if ((t->flag & T_V3D_ALIGN) == 0 && td_ext) {
+  TransData *td = &tc->data[td_index];
+
+  if ((t->flag & T_V3D_ALIGN) == 0 && tc->data_ext) {
+    TransDataExtension *td_ext = &tc->data_ext[td_index];
+
     /* Size checked needed since the 3D cursor only uses rotation fields. */
     if (td_ext->scale) {
       float fscale[] = {1.0, 1.0, 1.0};
@@ -62,7 +61,7 @@ static void ElementMirror(TransInfo *t,
 
       mul_v3_v3v3(td_ext->scale, td_ext->iscale, fscale);
 
-      constraintScaleLim(t, tc, td);
+      constraintScaleLim(t, tc, td_index);
     }
 
     float rmat[3][3];
@@ -196,16 +195,12 @@ static void applyMirror(TransInfo *t)
 
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       TransData *td = tc->data;
-      TransDataExtension *td_ext = tc->data_ext;
       for (i = 0; i < tc->data_len; i++, td++) {
         if (td->flag & TD_SKIP) {
           continue;
         }
 
-        ElementMirror(t, tc, td, td_ext, special_axis, bitmap_len >= 2);
-        if (td_ext) {
-          td_ext++;
-        }
+        ElementMirror(t, tc, i, special_axis, bitmap_len >= 2);
       }
     }
 
@@ -220,16 +215,12 @@ static void applyMirror(TransInfo *t)
     }
     FOREACH_TRANS_DATA_CONTAINER (t, tc) {
       TransData *td = tc->data;
-      TransDataExtension *td_ext = tc->data_ext;
       for (i = 0; i < tc->data_len; i++, td++) {
         if (td->flag & TD_SKIP) {
           continue;
         }
 
-        ElementMirror(t, tc, td, td_ext, -1, false);
-        if (td_ext) {
-          td_ext++;
-        }
+        ElementMirror(t, tc, i, -1, false);
       }
     }
 
