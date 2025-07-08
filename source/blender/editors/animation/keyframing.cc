@@ -879,7 +879,6 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
   if (action.is_action_layered()) {
     blender::Vector<FCurve *> fcurves_to_delete;
     foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
-      /* check if fcurve belongs to a selected strip */
       for (const std::string &strip_path : selected_strips_rna_paths) {
         if (fcurve_belongs_to_strip(fcurve, strip_path)) {
           fcurves_to_delete.append(&fcurve);
@@ -895,7 +894,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
   else {
     for (fcu = static_cast<FCurve *>(dna_action->curves.first); fcu; fcu = fcn) {
       fcn = fcu->next;
-      /* delete F-Curve completely */
+      /* Delete F-Curve completely. */
       blender::animrig::animdata_fcurve_delete(adt, fcu);
       DEG_id_tag_update(&scene->id, ID_RECALC_TRANSFORM);
       changed = true;
