@@ -92,8 +92,11 @@ static void node_composit_buts_scale(uiLayout *layout, bContext * /*C*/, Pointer
                 ICON_NONE);
   }
 
-  column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiLayout &row = column.row(true);
+  uiLayout &column_interpolation_extension_modes = layout->column(true);
+
+  column_interpolation_extension_modes.prop(
+      ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiLayout &row = column_interpolation_extension_modes.row(true);
   row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
