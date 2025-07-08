@@ -905,10 +905,10 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  if (scene->adt->action) {
+    DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
+  }
   invalidate_strip_caches(selection, scene);
-  /* send updates */
-  WM_event_add_notifier(C, NC_OBJECT | ND_KEYS, nullptr);
-
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
   WM_event_add_notifier(C, NC_ANIMATION, nullptr);
 
