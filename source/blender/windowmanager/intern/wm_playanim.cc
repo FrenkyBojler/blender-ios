@@ -66,8 +66,6 @@
 #include "BLF_api.hh"
 #include "GHOST_C-api.h"
 
-#include "DEG_depsgraph.hh"
-
 #include "wm_window_private.hh"
 
 #include "WM_api.hh" /* Only for #WM_main_playanim. */
@@ -679,6 +677,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
 
   GPUContext *restore_context = GPU_context_active_get();
   GPU_context_active_set(ghost_data.gpu_context);
+  GPU_context_begin_frame(ghost_data.gpu_context);
 
   GPU_clear_color(0.1f, 0.1f, 0.1f, 0.0f);
 
@@ -786,6 +785,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     GPU_flush();
   }
 
+  GPU_context_end_frame(ghost_data.gpu_context);
   GHOST_SwapWindowBuffers(ghost_data.window);
   GPU_context_active_set(restore_context);
   GPU_render_end();
@@ -2043,6 +2043,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 #endif /* USE_FRAME_CACHE_LIMIT */
 
           STRNCPY(ibuf->filepath, ps.picture->filepath);
+          ibuf->fileframe = ps.picture->frame;
         }
 
         while (pupdate_time()) {
@@ -2166,10 +2167,8 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
   g_audaspace.source = nullptr;
 #endif
 
-  /* We still miss freeing a lot!
-   * But many areas could skip initialization too for anim play. */
-
-  DEG_free_node_types();
+  /* Free subsystems the animation player is responsible for starting.
+   * The rest is handled by #BKE_blender_atexit, see early-exit logic in `creator.cc`. */
 
   BLF_exit();
 
@@ -2189,15 +2188,14 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 
   GHOST_DisposeWindow(ps.ghost_data.system, ps.ghost_data.window);
 
-  /* Early exit, IMB and BKE should be exited only in end. */
+  GHOST_DisposeSystem(ps.ghost_data.system);
+
   if (ps.argv_next) {
     args_next->argc = ps.argc_next;
     args_next->argv = ps.argv_next;
-    /* No exit code, keep running. */
+    /* Returning none, run this function again with the *next* arguments. */
     return std::nullopt;
   }
-
-  GHOST_DisposeSystem(ps.ghost_data.system);
 
   return EXIT_SUCCESS;
 }

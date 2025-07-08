@@ -16,7 +16,7 @@
 
 #include "DNA_material_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_shader_util.hh"
@@ -139,12 +139,12 @@ static void sh_node_mix_label(const bNodeTree * /*ntree*/,
     const char *name;
     bool enum_label = RNA_enum_name(rna_enum_ramp_blend_items, storage.blend_type, &name);
     if (!enum_label) {
-      name = "Unknown";
+      name = N_("Unknown");
     }
     BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
     return;
   }
-  BLI_strncpy_utf8(label, "Mix", label_maxncpy);
+  BLI_strncpy_utf8(label, IFACE_("Mix"), label_maxncpy);
 }
 
 static int sh_node_mix_ui_class(const bNode *node)

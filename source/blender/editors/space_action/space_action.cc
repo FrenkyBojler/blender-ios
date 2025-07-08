@@ -78,6 +78,14 @@ static SpaceLink *action_create(const ScrArea *area, const Scene *scene)
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
+  /* footer */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&saction->regionbase, region);
+  region->regiontype = RGN_TYPE_FOOTER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+  region->flag = RGN_FLAG_HIDDEN;
+
   /* channel list region */
   region = BKE_area_region_new();
   BLI_addtail(&saction->regionbase, region);
@@ -211,7 +219,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   UI_view2d_view_ortho(v2d);
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
+  UI_ThemeClearColor(TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
@@ -246,7 +254,7 @@ static void action_main_region_draw(const bContext *C, ARegion *region)
   marker_flag = ((ac.markers && (ac.markers != &ac.scene->markers)) ? DRAW_MARKERS_LOCAL : 0) |
                 DRAW_MARKERS_MARGIN;
 
-  if (saction->flag & SACTION_SHOW_MARKERS) {
+  if (saction->flag & SACTION_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
     ED_markers_draw(C, marker_flag);
   }
 
@@ -277,12 +285,10 @@ static void action_main_region_draw_overlay(const bContext *C, ARegion *region)
   View2D *v2d = &region->v2d;
 
   /* caches */
-  if (saction->mode == SACTCONT_TIMELINE) {
-    GPU_matrix_push_projection();
-    UI_view2d_view_orthoSpecial(region, v2d, true);
-    timeline_draw_cache(saction, obact, scene);
-    GPU_matrix_pop_projection();
-  }
+  GPU_matrix_push_projection();
+  UI_view2d_view_orthoSpecial(region, v2d, true);
+  timeline_draw_cache(saction, obact, scene);
+  GPU_matrix_pop_projection();
 
   /* scrubbing region */
   ED_time_scrub_draw_current_frame(
@@ -758,6 +764,28 @@ static void action_header_region_listener(const wmRegionListenerParams *params)
   }
 }
 
+static void action_footer_region_listener(const wmRegionListenerParams *params)
+{
+  ARegion *region = params->region;
+  const wmNotifier *wmn = params->notifier;
+
+  /* context changes */
+  switch (wmn->category) {
+    case NC_SCREEN:
+      if (wmn->data == ND_ANIMPLAY) {
+        ED_region_tag_redraw(region);
+      }
+      break;
+    case NC_SCENE:
+      switch (wmn->data) {
+        case ND_FRAME:
+          ED_region_tag_redraw(region);
+          break;
+      }
+      break;
+  }
+}
+
 /* add handlers, stuff you only do once or on area/region changes */
 static void action_buttons_area_init(wmWindowManager *wm, ARegion *region)
 {
@@ -975,6 +1003,17 @@ void ED_spacetype_action()
   art->init = action_header_region_init;
   art->draw = action_header_region_draw;
   art->listener = action_header_region_listener;
+
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: footer */
+  art = MEM_callocN<ARegionType>("spacetype action region");
+  art->regionid = RGN_TYPE_FOOTER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
+  art->init = action_header_region_init;
+  art->draw = action_header_region_draw;
+  art->listener = action_footer_region_listener;
 
   BLI_addhead(&st->regiontypes, art);
 

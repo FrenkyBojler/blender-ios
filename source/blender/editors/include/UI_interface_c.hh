@@ -21,7 +21,6 @@
 #include "DNA_userdef_types.h"
 
 #include "UI_interface_icons.hh"
-#include "UI_interface_layout.hh"
 #include "UI_interface_types.hh"
 
 #include "WM_types.hh"
@@ -312,6 +311,9 @@ enum {
 #define UI_TOOLBAR_WIDTH UI_TOOLBAR_MARGIN + UI_TOOLBAR_COLUMN
 
 #define UI_PANEL_CATEGORY_MARGIN_WIDTH (U.widget_unit * 1.0f)
+
+/* Minimum width for a panel showing only category tabs. */
+#define UI_PANEL_CATEGORY_MIN_WIDTH 26.0f
 
 /* Both these margins should be ignored if the panel doesn't show a background (check
  * #UI_panel_should_show_background()). */
@@ -787,15 +789,6 @@ void UI_popover_once_clear(uiPopover *pup);
 struct uiPieMenu;
 
 wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
-wmOperatorStatus UI_pie_menu_invoke_from_operator_enum(bContext *C,
-                                                       blender::StringRefNull title,
-                                                       blender::StringRefNull opname,
-                                                       blender::StringRefNull propname,
-                                                       const wmEvent *event);
-wmOperatorStatus UI_pie_menu_invoke_from_rna_enum(bContext *C,
-                                                  const char *title,
-                                                  const char *path,
-                                                  const wmEvent *event);
 
 uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent *event)
     ATTR_NONNULL();
@@ -952,10 +945,10 @@ void UI_block_lock_clear(uiBlock *block);
 enum class uiButtonSectionsAlign : int8_t { None = 1, Top, Bottom };
 /**
  * Draw a background with rounded corners behind each visual group of buttons. The visual groups
- * are separated by spacer buttons (#uiItemSpacer()). Button groups that are closer than
- * #UI_BUTTON_SECTION_MERGE_DISTANCE will be merged into one visual section. If the group is closer
- * than that to a region edge, it will also be extended to that, and the rounded corners will be
- * removed on that edge.
+ * are separated by spacer buttons (#uiLayout::separator_spacer()). Button groups that are closer
+ * than #UI_BUTTON_SECTION_MERGE_DISTANCE will be merged into one visual section. If the group is
+ * closer than that to a region edge, it will also be extended to that, and the rounded corners
+ * will be removed on that edge.
  *
  * \note This currently only works well for horizontal, header like regions.
  */

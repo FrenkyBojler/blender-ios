@@ -1,10 +1,10 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Beta (b'798f85a7108f')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'ca38e3be9467')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-11 11:13+0000\n"
-"PO-Revision-Date: 2025-06-10 01:57+0000\n"
+"POT-Creation-Date: 2025-07-07 10:02+0000\n"
+"PO-Revision-Date: 2025-06-30 16:59+0000\n"
 "Last-Translator: தமிழ்நேரம் <anishprabu.t@gmail.com>\n"
 "Language-Team: Tamil <https://translate.blender.org/projects/blender-ui/ui/ta/>\n"
 "Language: ta\n"
@@ -12,7 +12,7 @@ msgstr ""
 "Content-Type: text/plain; charset=UTF-8\n"
 "Content-Transfer-Encoding: 8bit\n"
 "Plural-Forms: nplurals=2; plural=n != 1;\n"
-"X-Generator: Weblate 5.11"
+"X-Generator: Weblate 5.12.1"
 
 
 msgid "Shader AOV"
@@ -5534,6 +5534,10 @@ msgstr "செயலில் அடுக்கு"
 
 msgid "Only edit the active layer of the object"
 msgstr "பொருளின் செயலில் உள்ள அடுக்கை மட்டுமே திருத்தவும்"
+
+
+msgid "Auto-Remove Fill Guides"
+msgstr "தானாக அகற்றப்பட்ட வழிகாட்டிகளை நிரப்பு"
 
 
 msgid "Strokes Collision"
@@ -34596,30 +34600,6 @@ msgid "Clean Up"
 msgstr "தூய்மை செய்"
 
 
-msgid "Special Characters"
-msgstr "சிறப்பு எழுத்துக்கள்"
-
-
-msgid "Kerning"
-msgstr "கெர்னிங்"
-
-
-msgid "Text"
-msgstr "உரை"
-
-
-msgid "Metaball"
-msgstr "வளர்சிதை மாற்ற"
-
-
-msgid "Names"
-msgstr "பெயர்கள்"
-
-
-msgid "Bone Roll"
-msgstr "எலும்பு ரோல்"
-
-
 msgid "Pivot Point"
 msgstr "பிவோட் புள்ளி"
 
@@ -34648,176 +34628,200 @@ msgid "Vertex Group Locks"
 msgstr "வெர்டெக்ச் குழு பூட்டுகள்"
 
 
-msgid "Set Face Strength"
-msgstr "முக வலிமையை அமைக்கவும்"
-
-
-msgid "Select by Face Strength"
-msgstr "முக வலிமையால் தேர்ந்தெடுக்கவும்"
-
-
-msgid "Hooks"
-msgstr "கொக்கிகள்"
-
-
-msgid "Link/Transfer Data"
-msgstr "இணைப்பு/பரிமாற்ற தரவு"
-
-
-msgid "Convert"
-msgstr "மாற்றவும்"
-
-
-msgid "Relations"
-msgstr "உறவுகள்"
-
-
-msgid "Add Image"
-msgstr "படத்தைச் சேர்க்கவும்"
-
-
-msgid "Merge"
-msgstr "ஒன்றிணைக்கவும்"
-
-
-msgid "Light Probe"
-msgstr "ஒளி ஆய்வு"
-
-
-msgid "Face Data"
-msgstr "முகத்தை முகம்"
-
-
-msgid "Light"
-msgstr "ஒளி"
-
-
-msgid "Make Single User"
-msgstr "ஒற்றை பயனரை உருவாக்குங்கள்"
-
-
-msgid "Asset"
-msgstr "சொத்து"
-
-
-msgid "Mesh Select Mode"
-msgstr "கண்ணி தேர்ந்தெடுக்கப்பட்ட பயன்முறையைத் தேர்ந்தெடுக்கவும்"
-
-
-msgid "Quick Effects"
-msgstr "விரைவான விளைவுகள்"
-
-
-msgid "Disable Bone Options"
-msgstr "எலும்பு விருப்பங்களை முடக்கு"
-
-
-msgid "Enable Bone Options"
-msgstr "எலும்பு விருப்பங்களை இயக்கவும்"
-
-
-msgid "Track"
-msgstr "டிராக்"
-
-
-msgid "Toggle Bone Options"
-msgstr "எலும்பு விருப்பங்களை மாற்றவும்"
-
-
-msgid "Apply"
-msgstr "இடு"
-
-
-msgid "Assign Material"
-msgstr "மூலப்பொருள் ஒதுக்க"
-
-
-msgid "Rigid Body"
-msgstr "கடினமான உடல்"
-
-
-msgid "Propagate"
-msgstr "பிரச்சாரம்"
-
-
-msgid "Local View"
-msgstr "உள்ளக பார்வை"
-
-
-msgid "Select More/Less"
-msgstr "மேலும்/குறைவாக தேர்ந்தெடுக்கவும்"
-
-
-msgid "Bone Collections"
-msgstr "எலும்பு வசூல்"
-
-
-msgid "In-Betweens"
-msgstr "இன்-பெட்வீன்ச்"
-
-
-msgid "Clear Transform"
-msgstr "தெளிவான உருமாற்றம்"
-
-
-msgid "Select Loops"
-msgstr "சுழல்களைத் தேர்ந்தெடுக்கவும்"
-
-
-msgid "Select Linked"
-msgstr "இணைக்கப்பட்டதைத் தேர்ந்தெடுக்கவும்"
-
-
-msgid "Select All by Trait"
-msgstr "அனைத்தையும் பண்பின் மூலம் தேர்ந்தெடுக்கவும்"
-
-
-msgid "Select Similar"
-msgstr "ஒத்ததைத் தேர்ந்தெடுக்கவும்"
-
-
-msgid "View Regions"
-msgstr "மண்டலங்களைக் காண்க"
-
-
-msgid "Align View to Active"
-msgstr "செயலில் பார்வையை சீரமைக்கவும்"
-
-
-msgid "Align View"
-msgstr "பார்வையை சீரமைக்கவும்"
-
-
-msgid "Navigation"
-msgstr "வழிசெலுத்தல்"
-
-
-msgid "Viewpoint"
-msgstr "பார்வை"
+msgid "Mirror"
+msgstr "கண்ணாடி"
 
 
 msgid "UV Mapping"
 msgstr "புறஊதா மேப்பிங்"
 
 
-msgid "Mirror"
-msgstr "கண்ணாடி"
+msgid "Local View"
+msgstr "உள்ளக பார்வை"
 
 
-msgid "Random Mask"
-msgstr "சீரற்ற முகமூடி"
+msgid "Viewpoint"
+msgstr "பார்வை"
 
 
-msgid "Face Sets Init"
-msgstr "முகம் தொடங்குகிறது"
+msgid "Navigation"
+msgstr "வழிசெலுத்தல்"
+
+
+msgid "Align View"
+msgstr "பார்வையை சீரமைக்கவும்"
+
+
+msgid "Align View to Active"
+msgstr "செயலில் பார்வையை சீரமைக்கவும்"
+
+
+msgid "View Regions"
+msgstr "மண்டலங்களைக் காண்க"
+
+
+msgid "Select More/Less"
+msgstr "மேலும்/குறைவாக தேர்ந்தெடுக்கவும்"
+
+
+msgid "Select Similar"
+msgstr "ஒத்ததைத் தேர்ந்தெடுக்கவும்"
+
+
+msgid "Select All by Trait"
+msgstr "அனைத்தையும் பண்பின் மூலம் தேர்ந்தெடுக்கவும்"
+
+
+msgid "Select Linked"
+msgstr "இணைக்கப்பட்டதைத் தேர்ந்தெடுக்கவும்"
+
+
+msgid "Select Loops"
+msgstr "சுழல்களைத் தேர்ந்தெடுக்கவும்"
+
+
+msgid "Assign Material"
+msgstr "மூலப்பொருள் ஒதுக்க"
+
+
+msgid "Metaball"
+msgstr "வளர்சிதை மாற்ற"
+
+
+msgid "Light"
+msgstr "ஒளி"
+
+
+msgid "Light Probe"
+msgstr "ஒளி ஆய்வு"
+
+
+msgid "Add Image"
+msgstr "படத்தைச் சேர்க்கவும்"
+
+
+msgid "Relations"
+msgstr "உறவுகள்"
+
+
+msgid "Rigid Body"
+msgstr "கடினமான உடல்"
+
+
+msgid "Apply"
+msgstr "இடு"
+
+
+msgid "Track"
+msgstr "டிராக்"
+
+
+msgid "Quick Effects"
+msgstr "விரைவான விளைவுகள்"
+
+
+msgid "Asset"
+msgstr "சொத்து"
+
+
+msgid "Make Single User"
+msgstr "ஒற்றை பயனரை உருவாக்குங்கள்"
+
+
+msgid "Convert"
+msgstr "மாற்றவும்"
+
+
+msgid "Link/Transfer Data"
+msgstr "இணைப்பு/பரிமாற்ற தரவு"
+
+
+msgid "Hooks"
+msgstr "கொக்கிகள்"
+
+
+msgid "Trim/Add"
+msgstr "டிரிம்/சேர்"
 
 
 msgid "Sculpt Set Pivot"
 msgstr "சிற்பம் செட் பிவோட்"
 
 
-msgid "Trim/Add"
-msgstr "டிரிம்/சேர்"
+msgid "Face Sets Init"
+msgstr "முகம் தொடங்குகிறது"
+
+
+msgid "Random Mask"
+msgstr "சீரற்ற முகமூடி"
+
+
+msgid "Clear Transform"
+msgstr "தெளிவான உருமாற்றம்"
+
+
+msgid "In-Betweens"
+msgstr "இன்-பெட்வீன்ச்"
+
+
+msgid "Propagate"
+msgstr "பிரச்சாரம்"
+
+
+msgid "Bone Collections"
+msgstr "எலும்பு வசூல்"
+
+
+msgid "Names"
+msgstr "பெயர்கள்"
+
+
+msgid "Toggle Bone Options"
+msgstr "எலும்பு விருப்பங்களை மாற்றவும்"
+
+
+msgid "Enable Bone Options"
+msgstr "எலும்பு விருப்பங்களை இயக்கவும்"
+
+
+msgid "Disable Bone Options"
+msgstr "எலும்பு விருப்பங்களை முடக்கு"
+
+
+msgid "Mesh Select Mode"
+msgstr "கண்ணி தேர்ந்தெடுக்கப்பட்ட பயன்முறையைத் தேர்ந்தெடுக்கவும்"
+
+
+msgid "Face Data"
+msgstr "முகத்தை முகம்"
+
+
+msgid "Select by Face Strength"
+msgstr "முக வலிமையால் தேர்ந்தெடுக்கவும்"
+
+
+msgid "Set Face Strength"
+msgstr "முக வலிமையை அமைக்கவும்"
+
+
+msgid "Merge"
+msgstr "ஒன்றிணைக்கவும்"
+
+
+msgid "Special Characters"
+msgstr "சிறப்பு எழுத்துக்கள்"
+
+
+msgid "Kerning"
+msgstr "கெர்னிங்"
+
+
+msgid "Text"
+msgstr "உரை"
+
+
+msgid "Bone Roll"
+msgstr "எலும்பு ரோல்"
 
 
 msgid "Keyframe Insert Pie"
@@ -35002,6 +35006,11 @@ msgstr "புறஊதா"
 
 msgid "Align"
 msgstr "சீரமைத்தல்"
+
+
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "கண்ணாடி"
 
 
 msgid "UV Select Mode"
@@ -53689,6 +53698,7 @@ msgid "Minimum value"
 msgstr "குறைந்தபட்ச மதிப்பு"
 
 
+msgctxt "Unit"
 msgid "Subtype"
 msgstr "துணை வகை"
 
@@ -62709,10 +62719,6 @@ msgid "Other geometry types, like curve, metaball, etc. (converted to meshes)"
 msgstr "வளைவு, வளர்சிதை மாற்றங்கள் போன்ற பிற வடிவியல் வகைகள் (மெச்களாக மாற்றப்படுகின்றன)"
 
 
-msgid "Path Mode"
-msgstr "பாதை முறை"
-
-
 msgid "Method used to reference paths"
 msgstr "பாதைகளைக் குறிப்பிடப் பயன்படுத்தப்படும் முறை"
 
@@ -62725,20 +62731,12 @@ msgid "Always write absolute paths"
 msgstr "எப்போதும் முழுமையான பாதைகளை எழுதுங்கள்"
 
 
-msgid "Always write relative paths (where possible)"
-msgstr "எப்போதும் உறவினர் பாதைகளை எழுதுங்கள் (சாத்தியமான இடங்களில்)"
-
-
-msgid "Match"
-msgstr "பொருத்துக"
+msgid "Write relative paths where possible"
+msgstr "முடிந்தவரை உறவினர் பாதைகளை எழுதுங்கள்"
 
 
 msgid "Match absolute/relative setting with input path"
 msgstr "உள்ளீட்டு பாதையுடன் முழுமையான/உறவினர் அமைப்பை பொருத்துங்கள்"
-
-
-msgid "Strip Path"
-msgstr "துண்டு பாதை"
 
 
 msgid "Filename only"
@@ -65747,10 +65745,6 @@ msgstr "வலதுபுறத்திலிருந்து"
 
 msgid "The factor to scale keys with"
 msgstr "விசைகளை அளவிடுவதற்கான காரணி"
-
-
-msgid "Are handles tested individually against the selection criteria"
-msgstr "தேர்வு அளவுகோல்களுக்கு எதிராக தனித்தனியாக சோதனை செய்யப்படுகிறது"
 
 
 msgid "Select Curves"
@@ -79442,11 +79436,6 @@ msgid "Hide selected particles"
 msgstr "தேர்ந்தெடுக்கப்பட்ட துகள்களை மறைக்கவும்"
 
 
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "கண்ணாடி"
-
-
 msgid "Duplicate and mirror the selected particles along the local X axis"
 msgstr "உள்ளக ஃச் அச்சில் தேர்ந்தெடுக்கப்பட்ட துகள்களை நகலெடுத்து பிரதிபலிக்கவும்"
 
@@ -89450,10 +89439,6 @@ msgid "Negative Z axis"
 msgstr "எதிர்மறை சட் அச்சு"
 
 
-msgid "Write relative paths where possible"
-msgstr "முடிந்தவரை உறவினர் பாதைகளை எழுதுங்கள்"
-
-
 msgid "Write filename only"
 msgstr "கோப்பு பெயரை மட்டும் எழுதுங்கள்"
 
@@ -89847,11 +89832,6 @@ msgstr "மென்மையான அதிகபட்சம்"
 
 msgid "Soft Min"
 msgstr "மென்மையான மணித்துளி"
-
-
-msgctxt "Unit"
-msgid "Subtype"
-msgstr "துணை வகை"
 
 
 msgid "Soft Limits"
@@ -97248,10 +97228,6 @@ msgstr "மொழிபெயர்ப்புக்கு பயன்பட�
 
 msgid "Automatic (Automatic)"
 msgstr "தானியங்கி (தானியங்கி)"
-
-
-msgid "Automatically choose system's defined language if available, or fall-back to English"
-msgstr "கிடைத்தால் கணினியின் வரையறுக்கப்பட்ட மொழியை தானாகத் தேர்வுசெய்க, அல்லது ஆங்கிலத்திற்கு வீழ்ச்சி"
 
 
 msgid "HDRI Preview Size"
@@ -121615,6 +121591,14 @@ msgid "Mix Vector"
 msgstr "கலவை திசையன்"
 
 
+msgid "For Each Element"
+msgstr "ஒவ்வொரு உறுப்புக்கும்"
+
+
+msgid "Determinant"
+msgstr "அணிக்கோவை"
+
+
 msgid "Calculation Range"
 msgstr "கணக்கீடு வரம்பு"
 
@@ -123686,6 +123670,10 @@ msgstr "அளவுத்திருத்தம்"
 msgctxt "Operator"
 msgid "Prefetch"
 msgstr "ப்ரீஃபெட்ச்"
+
+
+msgid "Match"
+msgstr "பொருத்துக"
 
 
 msgctxt "Operator"
@@ -126489,10 +126477,6 @@ msgstr "இந்த கட்டமைப்பில் சுழற்சி�
 
 msgid "A restart of Blender is required"
 msgstr "பிளெண்டரின் மறுதொடக்கம் தேவை"
-
-
-msgid "Vulkan backend limitations:"
-msgstr "வல்கன் பின்தளத்தில் வரம்புகள்:"
 
 
 msgid "Open blend files with this Blender version"
@@ -131674,6 +131658,10 @@ msgid "Control point belongs to another spline"
 msgstr "கட்டுப்பாட்டு புள்ளி மற்றொரு ச்ப்லைனுக்கு சொந்தமானது"
 
 
+msgid "Insert"
+msgstr "செருகவும்"
+
+
 msgid "Unicode codepoint hex value"
 msgstr "யூனிகோட் குறியீட்டு முறை ஃச் மதிப்பு"
 
@@ -132302,10 +132290,6 @@ msgstr "எச்கே"
 
 msgid "Pause"
 msgstr "இடைநிறுத்தம்"
-
-
-msgid "Insert"
-msgstr "செருகவும்"
 
 
 msgctxt "UI_Events_KeyMaps"
@@ -133296,6 +133280,10 @@ msgid "PBR Extensions"
 msgstr "பிபிஆர் நீட்டிப்புகள்"
 
 
+msgid "Path Mode"
+msgstr "பாதை முறை"
+
+
 msgid "File exported successfully"
 msgstr "கோப்பு வெற்றிகரமாக ஏற்றுமதி செய்யப்பட்டது"
 
@@ -133789,18 +133777,6 @@ msgid "Delete selected objects?"
 msgstr "தேர்ந்தெடுக்கப்பட்ட பொருள்களை நீக்கவா?"
 
 
-msgid "None of the objects are compatible of conversion to"
-msgstr "எந்தவொரு பொருளும் மாற்றத்துடன் பொருந்தாது"
-
-
-msgid "The selection included"
-msgstr "தேர்வு சேர்க்கப்பட்டுள்ளது"
-
-
-msgid "object(s) types which don't support conversion to"
-msgstr "மாற்றத்தை ஆதரிக்காத பொருள் (கள்) வகைகள்"
-
-
 msgid "SoundTrack"
 msgstr "ஒலிப்பதிவு"
 
@@ -133980,14 +133956,6 @@ msgstr "பொருள் '%s' மதிப்பீடு செய்யப�
 
 msgid "Object '%s' has no evaluated Grease Pencil or Curves data"
 msgstr "பொருள் '%s' மதிப்பீடு செய்யப்பட்ட கிரீச் பென்சில் அல்லது வளைவுகள் தரவு இல்லை"
-
-
-msgid "%s \"%s\""
-msgstr "%s \"%s\""
-
-
-msgid "%s %d %s \"%s\""
-msgstr "%s %d %s \" %s\""
 
 
 msgid "Cannot edit object '%s' as it is used by override collections"
@@ -134918,10 +134886,6 @@ msgstr ""
 " ஒற்றை பயனரை உருவாக்கி பின்னர் மாற்றங்களைப் பயன்படுத்தவா?"
 
 
-msgid "have non-invertable transformation matrix, not applying transform."
-msgstr "மாற்ற முடியாத உருமாற்ற மேட்ரிக்சைக் கொண்டிருங்கள், உருமாற்றத்தைப் பயன்படுத்தவில்லை."
-
-
 msgid "Objects have no data to transform"
 msgstr "மாற்றுவதற்கு பொருள்களுக்கு தரவு இல்லை"
 
@@ -134952,10 +134916,6 @@ msgstr "உரை பொருள்கள் அவற்றின் அளவ
 
 msgid "Area Lights can only have scale applied: \"%s\""
 msgstr "பரப்பு விளக்குகள் மட்டுமே பயன்படுத்த முடியும்: \"%s\""
-
-
-msgid "%s \"%s\" %s"
-msgstr "%s \" %s\" %s"
 
 
 msgid "Lock all vertex groups of the active object"
@@ -137408,6 +137368,10 @@ msgid "Menu Undefined"
 msgstr "பட்டியல் வரையறுக்கப்படவில்லை"
 
 
+msgid "Subtype"
+msgstr "துணை வகை"
+
+
 msgid "Could not determine type of group node"
 msgstr "குழு முனையின் வகையை தீர்மானிக்க முடியவில்லை"
 
@@ -137806,10 +137770,6 @@ msgstr "இணைக்கப்பட்ட/மேலெழுதும் க�
 
 msgid "No active collection"
 msgstr "செயலில் சேகரிப்பு இல்லை"
-
-
-msgid "Could not find a valid parent collection for the new duplicate, it won't be linked to any view layer"
-msgstr "புதிய நகலுக்கான சரியான பெற்றோர் சேகரிப்பைக் கண்டுபிடிக்க முடியவில்லை, இது எந்த பார்வை அடுக்குடனும் இணைக்கப்படாது"
 
 
 msgid "Cannot add a collection to a linked/override collection/scene"
@@ -138562,10 +138522,6 @@ msgstr "(வடிவியல்)"
 
 msgid "No Data-Block"
 msgstr "தரவு-தடுப்பு இல்லை"
-
-
-msgid "For Each Element"
-msgstr "ஒவ்வொரு உறுப்புக்கும்"
 
 
 msgid "No Active Context"
@@ -144008,10 +143964,6 @@ msgid "The string to find in the input string"
 msgstr "உள்ளீட்டு சரத்தில் கண்டுபிடிக்க சரம்"
 
 
-msgid "Determinant"
-msgstr "அணிக்கோவை"
-
-
 msgid "The string to replace each match with"
 msgstr "ஒவ்வொரு போட்டியையும் மாற்றுவதற்கான சரம்"
 
@@ -146682,11 +146634,6 @@ msgid "IOR Level"
 msgstr "ior நிலை"
 
 
-msgctxt "NodeTree"
-msgid "Tint"
-msgstr "நிறம்"
-
-
 msgid "Subsurface"
 msgstr "மேற்பரப்பு"
 
@@ -146697,6 +146644,11 @@ msgstr "சீன்"
 
 msgid "Thin Film"
 msgstr "மென்படலம்"
+
+
+msgctxt "NodeTree"
+msgid "Tint"
+msgstr "நிறம்"
 
 
 msgid "Strength of the bump mapping effect, interpolating between no bump mapping and full bump mapping"

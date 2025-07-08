@@ -32,7 +32,6 @@
 
 #include "ED_node.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
@@ -44,6 +43,8 @@
 #include "GPU_immediate_util.hh"
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
+
+#include "UI_abstract_view.hh"
 
 #ifdef WITH_INPUT_IME
 #  include "WM_types.hh"
@@ -904,6 +905,10 @@ static void shape_preset_trias_from_rect_menu(uiWidgetTrias *tria, const rcti *r
 {
   const float width = BLI_rcti_size_x(rect);
   const float height = BLI_rcti_size_y(rect);
+  if ((width / height) < 0.5f) {
+    /* Too narrow to fit. */
+    return;
+  }
   float centx, centy, size;
 
   tria->type = ROUNDBOX_TRIA_MENU;
@@ -1341,6 +1346,11 @@ static void widget_draw_icon(
     alpha *= widget_alpha_factor(&state);
   }
 
+  /* Dim the icon as its space is reduced to zero. */
+  if (height > (rect->xmax - rect->xmin)) {
+    alpha *= std::max(float(rect->xmax - rect->xmin) / height, 0.0f);
+  }
+
   GPU_blend(GPU_BLEND_ALPHA);
 
   if (icon && icon != ICON_BLANK1) {
@@ -1605,7 +1615,9 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
    * probably reduce this to one pixel if we consolidate text output with length measuring. But
    * our text string lengths include the last character's right-side bearing anyway, so a string
    * can be longer by that amount and still fit visibly in the required space. */
-  BLI_assert((strwidth <= (okwidth + 2)) || (okwidth <= 0.0f));
+  BLI_assert((strwidth <= (okwidth + 2)) || (okwidth <= 0.0f) ||
+             /* TODO: proper handling of non UTF8 strings. */
+             (BLI_str_utf8_invalid_byte(str, max_len) != -1));
   UNUSED_VARS_NDEBUG(okwidth);
 
   return strwidth;
@@ -3915,11 +3927,11 @@ static void widget_progress_indicator(uiBut *but,
 {
   uiButProgress *but_progress = static_cast<uiButProgress *>(but);
   switch (but_progress->progress_type) {
-    case UI_BUT_PROGRESS_TYPE_BAR: {
+    case blender::ui::ButProgressType::Bar: {
       widget_progress_type_bar(but_progress, wcol, rect, roundboxalign, zoom);
       break;
     }
-    case UI_BUT_PROGRESS_TYPE_RING: {
+    case blender::ui::ButProgressType::Ring: {
       widget_progress_type_ring(but_progress, wcol, rect);
       break;
     }
@@ -4361,9 +4373,17 @@ static void widget_list_itembut(uiBut *but,
                                 const float zoom)
 {
   rcti draw_rect = *rect;
+  bool is_selected = state->but_flag & UI_SELECT;
 
   if (but->type == UI_BTYPE_VIEW_ITEM) {
     uiButViewItem *item_but = static_cast<uiButViewItem *>(but);
+    blender::ui::AbstractViewItem &view_item = *item_but->view_item;
+
+    if (!view_item.is_active() && view_item.is_selected()) {
+      copy_v4_v4_uchar(wcol->inner, wcol->inner_sel);
+      color_blend_v3_v3(wcol->inner, wcol->outline, 0.5);
+      is_selected = true;
+    }
     if (item_but->draw_width > 0) {
       BLI_rcti_resize_x(&draw_rect, zoom * item_but->draw_width);
     }
@@ -4380,7 +4400,7 @@ static void widget_list_itembut(uiBut *but,
 
   if (state->but_flag & UI_HOVER) {
     color_blend_v3_v3(wcol->inner, wcol->text, 0.2);
-    wcol->inner[3] = (state->but_flag & UI_SELECT) ? 255 : 20;
+    wcol->inner[3] = is_selected ? 255 : 20;
   }
 
   widgetbase_draw(&wtb, wcol);

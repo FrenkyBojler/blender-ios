@@ -44,6 +44,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "BLO_read_write.hh"
@@ -887,6 +888,11 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
           break;
         case ND_KEYFRAME:
           if (ELEM(wmn->action, NA_EDITED, NA_ADDED, NA_REMOVED)) {
+            ED_area_tag_redraw(area);
+          }
+          break;
+        case ND_ANIMCHAN:
+          if (wmn->action == NA_SELECTED) {
             ED_area_tag_redraw(area);
           }
           break;
