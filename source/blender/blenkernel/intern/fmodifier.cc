@@ -997,6 +997,45 @@ static FModifierTypeInfo FMI_STEPPED = {
     /*evaluate_modifier*/ nullptr,
 };
 
+/* Noise F-Curve Modifier  --------------------------- */
+
+static void fcm_smooth_new_data(void *mdata)
+{
+  FMod_Smooth *data = (FMod_Smooth *)mdata;
+
+  /* defaults */
+  data->factor = 0.0f;
+  data->sigma = 0.33f;
+  data->filter_width = 6;
+}
+
+static void fcm_smooth_evaluate(const FCurve * /*fcu*/,
+                                const FModifier *fcm,
+                                float *cvalue,
+                                float evaltime,
+                                void * /*storage*/)
+{
+  FMod_Smooth *data = (FMod_Smooth *)fcm->data;
+  *cvalue = 42.f;
+  return;
+}
+
+static FModifierTypeInfo FMI_SMOOTH = {
+    /*type*/ FMODIFIER_TYPE_SMOOTH,
+    /*size*/ sizeof(FMod_Smooth),
+    /*acttype*/ FMI_TYPE_REPLACE_VALUES,
+    /*requires_flag*/ 0,
+    /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Smooth"),
+    /*struct_name*/ "FMod_Smooth",
+    /*storage_size*/ 0,
+    /*free_data*/ nullptr,
+    /*copy_data*/ nullptr,
+    /*new_data*/ fcm_smooth_new_data,
+    /*verify_data*/ nullptr /*fcm_noise_verify*/,
+    /*evaluate_modifier_time*/ nullptr,
+    /*evaluate_modifier*/ fcm_smooth_evaluate,
+};
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -1023,6 +1062,7 @@ static void fmods_init_typeinfo()
   fmodifiersTypeInfo[FMODIFIER_TYPE_PYTHON] = nullptr;
   fmodifiersTypeInfo[FMODIFIER_TYPE_LIMITS] = &FMI_LIMITS;
   fmodifiersTypeInfo[FMODIFIER_TYPE_STEPPED] = &FMI_STEPPED;
+  fmodifiersTypeInfo[FMODIFIER_TYPE_SMOOTH] = &FMI_SMOOTH;
 
 #ifndef NDEBUG
   /* Check that the array indices are correct. */

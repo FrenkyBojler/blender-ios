@@ -57,6 +57,11 @@ const EnumPropertyItem rna_enum_fmodifier_type_items[] = {
      0,
      "Stepped Interpolation",
      "Snap values to nearest grid step, e.g. for a stop-motion look"},
+    {FMODIFIER_TYPE_SMOOTH,
+     "SMOOTH",
+     0,
+     "Gaussian Smoothing",
+     "Smooth curve using Gaussian smoothing"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -226,6 +231,8 @@ static StructRNA *rna_FModifierType_refine(PointerRNA *ptr)
       return RNA_FModifierLimits;
     case FMODIFIER_TYPE_STEPPED:
       return RNA_FModifierStepped;
+    case FMODIFIER_TYPE_SMOOTH:
+      return RNA_FModifierSmooth;
     default:
       return RNA_UnknownType;
   }
@@ -1086,6 +1093,66 @@ static void rna_FModifierStepped_frame_end_set(PointerRNA *ptr, float value)
   fcm->efra = value;
 }
 
+static void rna_FModifierSmooth_factor_range(
+    PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
+{
+  *min = 0.0f;
+  *max = 100.0f;
+}
+
+static void rna_FModifierSmooth_sigma_range(
+    PointerRNA *ptr, float *min, float *max, float * /*softmin*/, float * /*softmax*/)
+{
+  *min = 0.001f;
+  *max = 100.0;
+}
+
+static void rna_FModifierSmooth_filter_width_range(
+    PointerRNA *ptr, int *min, int *max, int * /*softmin*/, int * /*softmax*/)
+{
+  *min = 1;
+  *max = 32;
+}
+
+static void rna_FModifierSmooth_factor_set(PointerRNA *ptr, float value)
+{
+  FModifier *fcm = (FModifier *)ptr->data;
+  FMod_Smooth *data = static_cast<FMod_Smooth *>(fcm->data);
+
+  float prop_clamp_min = -FLT_MAX, prop_clamp_max = FLT_MAX, prop_soft_min, prop_soft_max;
+  rna_FModifierSmooth_factor_range(
+      ptr, &prop_clamp_min, &prop_clamp_max, &prop_soft_min, &prop_soft_max);
+  value = std::clamp(value, prop_clamp_min, prop_clamp_max);
+
+  data->factor = value;
+}
+
+static void rna_FModifierSmooth_sigma_set(PointerRNA *ptr, float value)
+{
+  FModifier *fcm = (FModifier *)ptr->data;
+  FMod_Smooth *data = static_cast<FMod_Smooth *>(fcm->data);
+
+  float prop_clamp_min = -FLT_MAX, prop_clamp_max = FLT_MAX, prop_soft_min, prop_soft_max;
+  rna_FModifierSmooth_sigma_range(
+      ptr, &prop_clamp_min, &prop_clamp_max, &prop_soft_min, &prop_soft_max);
+  value = std::clamp(value, prop_clamp_min, prop_clamp_max);
+
+  data->sigma = value;
+}
+
+static void rna_FModifierSmooth_filter_width_set(PointerRNA *ptr, int value)
+{
+  FModifier *fcm = (FModifier *)ptr->data;
+  FMod_Smooth *data = static_cast<FMod_Smooth *>(fcm->data);
+
+  int prop_clamp_min = -INT_MAX, prop_clamp_max = INT_MAX, prop_soft_min, prop_soft_max;
+  rna_FModifierSmooth_filter_width_range(
+      ptr, &prop_clamp_min, &prop_clamp_max, &prop_soft_min, &prop_soft_max);
+  value = std::clamp(value, prop_clamp_min, prop_clamp_max);
+
+  data->filter_width = value;
+}
+
 static BezTriple *rna_FKeyframe_points_insert(
     ID *id, FCurve *fcu, Main *bmain, float frame, float value, int flag, int keyframe_type)
 {
@@ -1808,6 +1875,43 @@ static void rna_def_fmodifier_stepped(BlenderRNA *brna)
 
 /* --------- */
 
+static void rna_def_fmodifier_smooth(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "FModifierSmooth", "FModifier");
+  RNA_def_struct_ui_text(
+      srna, "Smooth F-Modifier", "Smooth curve using Gaussian smoothing");
+  RNA_def_struct_sdna_from(srna, "FMod_Smooth", "data");
+  
+  prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "factor");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_float_funcs(
+      prop, nullptr, "rna_FModifierSmooth_factor_set", "rna_FModifierSmooth_factor_range");
+  RNA_def_property_ui_text(prop, "Factor", "Strength of the smoothing");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
+  prop = RNA_def_property(srna, "sigma", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "sigma");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_float_funcs(
+      prop, nullptr, "rna_FModifierSmooth_sigma_set", "rna_FModifierSmooth_sigma_range");
+  RNA_def_property_ui_text(prop, "Sigma", "Shape of the Gaussian distribution");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+
+  prop = RNA_def_property(srna, "filter_width", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "filter_width");
+  RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_ui_text(prop, "Filter Width", "How far to each side the operator will average the key values");
+  RNA_def_property_int_funcs(
+      prop, nullptr, "rna_FModifierSmooth_filter_width_set", "rna_FModifierSmooth_filter_width_range");
+  RNA_def_property_update(prop, NC_ANIMATION | ND_KEYFRAME | NA_EDITED, "rna_FModifier_update");
+}
+
+/* --------- */
+
 static void rna_def_fmodifier(BlenderRNA *brna)
 {
   StructRNA *srna;
@@ -2071,6 +2175,7 @@ static void rna_def_drivervar(BlenderRNA *brna)
 {
   StructRNA *srna;
   PropertyRNA *prop;
+
 
   static const EnumPropertyItem prop_type_items[] = {
       {DVAR_TYPE_SINGLE_PROP,
@@ -2781,6 +2886,7 @@ void RNA_def_fcurve(BlenderRNA *brna)
   rna_def_fmodifier_limits(brna);
   rna_def_fmodifier_noise(brna);
   rna_def_fmodifier_stepped(brna);
+  rna_def_fmodifier_smooth(brna);
 }
 
 }  // namespace blender

@@ -184,6 +184,18 @@ struct FMod_Stepped {
   int flag = 0;
 };
 
+/* stepped modifier data */
+typedef struct FMod_Smooth {
+  /** How much to blend to the default value. */
+  float factor;
+
+  /** The shape of the gaussian distribution, lower values make it sharper. */
+  float sigma;
+
+  /** How far to each side the modifier will average the key values */
+  int filter_width;
+} FMod_Smooth;
+
 /* Drivers -------------------------------------- */
 
 /**
