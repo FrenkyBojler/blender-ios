@@ -429,6 +429,8 @@ void VKBackend::detect_workarounds(VKDevice &device)
   extensions.dynamic_rendering_unused_attachments = device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   extensions.logic_ops = device.physical_device_features_get().logicOp;
+  extensions.descriptor_buffer = device.supports_extension(
+      VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
 #ifdef _WIN32
   extensions.external_memory = device.supports_extension(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
@@ -443,9 +445,18 @@ void VKBackend::detect_workarounds(VKDevice &device)
    *
    * See #140125
    */
-  if (device.vk_physical_device_driver_properties_.driverID != VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
-    extensions.descriptor_buffer = device.supports_extension(
-        VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+  if (device.vk_physical_device_driver_properties_.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
+    extensions.descriptor_buffer = false;
+  }
+
+  /* Running render tests fails consistenly in some scenes.
+   *
+   * See #141476
+   */
+  if (device.vk_physical_device_driver_properties_.driverID ==
+      VK_DRIVER_ID_INTEL_PROPRIETARY_WINDOWS)
+  {
+    extensions.descriptor_buffer = false;
   }
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */
