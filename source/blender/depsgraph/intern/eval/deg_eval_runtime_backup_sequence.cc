@@ -95,7 +95,7 @@ void StripBackup::restore_to_strip(Strip *strip)
 
 bool StripBackup::isEmpty() const
 {
-  return (scene_sound == nullptr) && BLI_listbase_is_empty(&anims);
+  return (scene_sound == nullptr) && BLI_listbase_is_empty(&anims) && modifiers.is_empty();
 }
 
 }  // namespace blender::deg
