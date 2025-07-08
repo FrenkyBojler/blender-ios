@@ -391,6 +391,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
   const Span<float3> positions = curves.positions();
   const Span<float3> positions_left = curves.handle_positions_left();
   const Span<float3> positions_right = curves.handle_positions_right();
+  const VArray<int8_t> types = curves.curve_types();
   const VArraySpan<float> radii = drawing.radii();
   const VArraySpan<float> opacities = drawing.opacities();
   const VArraySpan<ColorGeometry4f> vertex_colors = drawing.vertex_colors();
@@ -404,6 +405,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
 
   for (const int i_curve : curves.curves_range()) {
     const IndexRange points = points_by_curve[i_curve];
+    const int8_t type = types[i_curve];
     if (points.size() < 2) {
       continue;
     }
@@ -436,6 +438,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
                 positions_left.slice_safe(points),
                 positions_right.slice_safe(points),
                 is_cyclic,
+                type,
                 fill_color,
                 layer.opacity,
                 std::nullopt,
@@ -465,6 +468,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
                   {},
                   {},
                   is_cyclic,
+                  type,
                   stroke_color,
                   stroke_opacity,
                   uniform_width,
@@ -505,6 +509,7 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
                     outline_positions_left.slice_safe(outline_points),
                     outline_positions_right.slice_safe(outline_points),
                     true,
+                    type,
                     stroke_color,
                     stroke_opacity,
                     std::nullopt,

@@ -312,6 +312,7 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
                           const Span<float3> positions_left,
                           const Span<float3> positions_right,
                           const bool cyclic,
+                          const int8_t type,
                           const ColorGeometry4f &color,
                           const float opacity,
                           const std::optional<float> width,
@@ -323,14 +324,14 @@ void SVGExporter::export_grease_pencil_layer(pugi::xml_node layer_node,
     }
     else {
       pugi::xml_node element_node;
-      if (positions_left.is_empty()) {
+      if (type == CURVE_TYPE_BEZIER) {
+        element_node = write_beizer_path(
+            layer_node, layer_to_world, positions, positions_left, positions_right, cyclic);
+      }
+      else {
         /* Fill is always exported as polygon because the stroke of the fill is done
          * in a different SVG command. */
         element_node = write_polyline(layer_node, layer_to_world, positions, cyclic, width);
-      }
-      else {
-        element_node = write_beizer_path(
-            layer_node, layer_to_world, positions, positions_left, positions_right, cyclic);
       }
 
       if (width) {

@@ -82,6 +82,7 @@ class GreasePencilExporter {
                                          const Span<float3> positions_left,
                                          const Span<float3> positions_right,
                                          bool cyclic,
+                                         int8_t type,
                                          const ColorGeometry4f &color,
                                          float opacity,
                                          std::optional<float> width,
