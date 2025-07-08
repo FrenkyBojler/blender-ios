@@ -336,6 +336,8 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       return false;
     }
 
+    debug_enqueue_begin(kernel, work_size);
+
     VLOG_DEVICE_STATS << "Metal queue launch " << device_kernel_as_string(kernel) << ", work_size "
                       << work_size;
 
@@ -509,8 +511,10 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
         if (id<MTLAccelerationStructure> accel_struct = metal_device_->accel_struct) {
           /* Mark all Accelerations resources as used */
           [mtlComputeCommandEncoder useResource:accel_struct usage:MTLResourceUsageRead];
-          [mtlComputeCommandEncoder useResource:metal_device_->blas_buffer
-                                          usage:MTLResourceUsageRead];
+          if (metal_device_->blas_buffer) {
+            [mtlComputeCommandEncoder useResource:metal_device_->blas_buffer
+                                            usage:MTLResourceUsageRead];
+          }
           [mtlComputeCommandEncoder useResources:metal_device_->unique_blas_array.data()
                                            count:metal_device_->unique_blas_array.size()
                                            usage:MTLResourceUsageRead];
@@ -617,6 +621,8 @@ bool MetalDeviceQueue::enqueue(DeviceKernel kernel,
       }
     }
 
+    debug_enqueue_end();
+
     return !(metal_device_->have_error());
   }
 }
@@ -677,6 +683,8 @@ bool MetalDeviceQueue::synchronize()
       mtlCommandBuffer_ = nil;
       flush_timing_stats();
     }
+
+    debug_synchronize();
 
     return !(metal_device_->have_error());
   }

@@ -61,7 +61,6 @@ static void UVsToTransData(const float aspect[2],
   memset(r_td->axismtx, 0, sizeof(r_td->axismtx));
   r_td->axismtx[2][2] = 1.0f;
 
-  r_td->ext = nullptr;
   r_td->val = nullptr;
 
   if (selected) {
@@ -502,18 +501,13 @@ struct UVGroups {
 
     /* Now, count and set the index for the corners being transformed. */
     this->sd_len = 0;
-    BLI_assert(tc->sorted_index_map);
-    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+    tc->foreach_index_selected([&](const int i) {
       TransData *td = &tc->data[i];
-      if (!(td->flag & TD_SELECTED)) {
-        /* The selected ones are sorted at the beginning. */
-        break;
-      }
       this->sd_len++;
 
       BMLoop *l = static_cast<BMLoop *>(td->extra);
       BM_elem_index_set(l, i);
-    }
+    });
     bm->elem_index_dirty |= BM_LOOP;
 
     /* Create the groups. */
@@ -840,17 +834,12 @@ Array<TransDataEdgeSlideVert> transform_mesh_uv_edge_slide_data_create(const Tra
 
     /* First we just need to "clean up" the neighboring loops.
      * This way we can identify where a group of sliding edges starts and where it ends. */
-    BLI_assert(tc->sorted_index_map);
-    for (const int i : Span(tc->sorted_index_map, tc->data_len)) {
+    tc->foreach_index_selected([&](const int i) {
       TransData *td = &tc->data[i];
-      if (!(td->flag & TD_SELECTED)) {
-        /* The selected ones are sorted at the beginning. */
-        break;
-      }
       BMLoop *l = static_cast<BMLoop *>(td->extra);
       BM_elem_index_set(l->prev, -1);
       BM_elem_index_set(l->next, -1);
-    }
+    });
 
     /* Now set the group indexes. */
     for (const int group_index : uv_groups->groups().index_range()) {

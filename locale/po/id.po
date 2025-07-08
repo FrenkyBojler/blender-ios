@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Beta (b'6ccdb8c06e27')\n"
+"Project-Id-Version: Blender 4.5.0 Beta (b'ca38e3be9467')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-16 10:45+0000\n"
+"POT-Creation-Date: 2025-07-07 10:02+0000\n"
 "PO-Revision-Date: 2025-05-01 10:56+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -15355,12 +15355,56 @@ msgid "Mask"
 msgstr "Masker"
 
 
-msgid "Text"
-msgstr "Teks"
+msgid "Snap"
+msgstr "Jepret"
+
+
+msgid "Mirror"
+msgstr "Cermin"
+
+
+msgid "Navigation"
+msgstr "Navigasi"
+
+
+msgid "Select Linked"
+msgstr "Seleksi yang Terhubung"
+
+
+msgid "Assign Material"
+msgstr "Tugaskan Bahan"
 
 
 msgid "Metaball"
 msgstr "Metabola"
+
+
+msgid "Light"
+msgstr "Cahaya"
+
+
+msgid "Light Probe"
+msgstr "Probe Cahaya"
+
+
+msgid "Add Image"
+msgstr "Tambah Gambar"
+
+
+msgid "Apply"
+msgstr "Tetapkan"
+
+
+msgid "Track"
+msgstr "Lacak"
+
+
+msgid "Asset"
+msgstr "Aset"
+
+
+msgid "Hooks"
+msgstr "Kait"
 
 
 msgid "Names"
@@ -15371,52 +15415,8 @@ msgid "Merge"
 msgstr "Menggabungkan"
 
 
-msgid "Snap"
-msgstr "Jepret"
-
-
-msgid "Hooks"
-msgstr "Kait"
-
-
-msgid "Add Image"
-msgstr "Tambah Gambar"
-
-
-msgid "Light Probe"
-msgstr "Probe Cahaya"
-
-
-msgid "Light"
-msgstr "Cahaya"
-
-
-msgid "Asset"
-msgstr "Aset"
-
-
-msgid "Track"
-msgstr "Lacak"
-
-
-msgid "Apply"
-msgstr "Tetapkan"
-
-
-msgid "Assign Material"
-msgstr "Tugaskan Bahan"
-
-
-msgid "Select Linked"
-msgstr "Seleksi yang Terhubung"
-
-
-msgid "Navigation"
-msgstr "Navigasi"
-
-
-msgid "Mirror"
-msgstr "Cermin"
+msgid "Text"
+msgstr "Teks"
 
 
 msgctxt "MovieClip"
@@ -15466,6 +15466,11 @@ msgstr "Pindah ke Layer"
 
 msgid "UV"
 msgstr "UV"
+
+
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "Cermin"
 
 
 msgid "Shape Key Specials"
@@ -19006,10 +19011,6 @@ msgid "String Node Socket"
 msgstr "String Node Socket"
 
 
-msgid "Subtype"
-msgstr "Subtipe"
-
-
 msgid "Active Node"
 msgstr "Tambah Baru"
 
@@ -20341,10 +20342,6 @@ msgstr "PERHATIAN: tidak terdukung di contoh-contoh dupli/kelompok"
 
 msgid "Other"
 msgstr "Lain"
-
-
-msgid "Path Mode"
-msgstr "Mode Jalur"
 
 
 msgid "-X Axis"
@@ -23011,11 +23008,6 @@ msgstr "Penyunting Grafik"
 
 msgid "Hide selected particles"
 msgstr "Warna Standar"
-
-
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "Cermin"
 
 
 msgctxt "Operator"
@@ -31018,6 +31010,10 @@ msgid "Unable to export PDF"
 msgstr "Tidak dapat mengekspor PDF"
 
 
+msgid "Path Mode"
+msgstr "Mode Jalur"
+
+
 msgid "Rigging"
 msgstr "Menali"
 
@@ -31586,6 +31582,10 @@ msgstr "Bingkai: %d"
 
 msgid "Matte Objects:"
 msgstr "Objek Matte:"
+
+
+msgid "Subtype"
+msgstr "Subtipe"
 
 
 msgid "• Mesh: {} vertices, {} edges, {} faces"
