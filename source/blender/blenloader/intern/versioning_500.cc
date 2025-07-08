@@ -1295,7 +1295,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           continue;
         }
         NodeTransformData *data = MEM_callocN<NodeTransformData>(__func__);
-        data->interpolation = CMP_NODE_INTERPOLATION_NEAREST;
+        data->interpolation = node->custom1;
         data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
         data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
         node->storage = data;
