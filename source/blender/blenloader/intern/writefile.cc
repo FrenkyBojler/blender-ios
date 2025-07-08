@@ -876,9 +876,10 @@ static void write_raw_data_in_debug_file(WriteData *wd, const size_t len, const 
 /**
  * \warning Do not use for structs.
  */
-static void writedata(WriteData *wd, const int filecode, const size_t len, const void *adr)
+static void writedata(
+    WriteData *wd, const int filecode, const void *data, const size_t len, const void *adr)
 {
-  if (adr == nullptr || len == 0) {
+  if (data == nullptr || len == 0) {
     return;
   }
 
@@ -907,7 +908,12 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
   }
 
   write_bhead(wd, bh);
-  mywrite(wd, adr, len);
+  mywrite(wd, data, len);
+}
+
+static void writedata(WriteData *wd, const int filecode, const size_t len, const void *adr)
+{
+  writedata(wd, filecode, adr, len, adr);
 }
 
 /**
@@ -2056,7 +2062,13 @@ void BLO_write_double_array(BlendWriter *writer, const int64_t num, const double
 
 void BLO_write_pointer_array(BlendWriter *writer, const int64_t num, const void *data_ptr)
 {
-  BLO_write_raw(writer, sizeof(void *) * size_t(num), data_ptr);
+  blender::Array<const void *, 32> data(num);
+  memcpy(data.data(), data_ptr, sizeof(void *) * size_t(num));
+  for (const int64_t i : data.index_range()) {
+    data[i] = get_address_id(*writer->wd, data[i]);
+  }
+
+  writedata(writer->wd, BLO_CODE_DATA, data.data(), data.as_span().size_in_bytes(), data_ptr);
 }
 
 void BLO_write_float3_array(BlendWriter *writer, const int64_t num, const float *data_ptr)
