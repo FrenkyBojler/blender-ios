@@ -302,7 +302,10 @@ void GPU_select_buffer_stride_realign(const rcti *src, const rcti *dst, uint *r_
   const int skip = src_x - dst_x;
 
   while (true) {
-    for (int i = dst_x; i--;) {
+    /* When `src->ymin` is negative `last_px_written` may be below the `dst_x`.
+     * Use the minimum to prevent reading before buffer bounds, see: #141589. */
+    for (int i = std::min(dst_x, last_px_written + 1); i--;) {
+      BLI_assert(last_px_id >= 0 && last_px_written >= 0);
       r_buf[last_px_id--] = r_buf[last_px_written--];
     }
     if (last_px_written < 0) {
