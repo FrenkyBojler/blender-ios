@@ -518,6 +518,12 @@ typedef struct ColorMixVars {
 /** \name Strip Modifiers
  * \{ */
 
+typedef struct StripModifierDataRuntime {
+  float *last_buf;      /* Reference for optimizing updates. */
+  void *last_sound_in;  /* Reference for optimizing updates. */
+  void *last_sound_out; /* Reference for optimizing updates. */
+} StripModifierDataRuntime;
+
 typedef struct StripModifierData {
   struct StripModifierData *next, *prev;
   int type, flag;
@@ -529,6 +535,8 @@ typedef struct StripModifierData {
 
   struct Strip *mask_strip;
   struct Mask *mask_id;
+
+  StripModifierDataRuntime runtime;
 } StripModifierData;
 
 typedef struct ColorBalanceModifierData {
@@ -600,8 +608,6 @@ typedef struct SoundEqualizerModifierData {
   StripModifierData modifier;
   /* EQCurveMappingData */
   ListBase graphics;
-  float *buf_backup;
-  void *sound_backup;
 } SoundEqualizerModifierData;
 /** \} */
 
