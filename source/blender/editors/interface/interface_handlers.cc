@@ -5075,11 +5075,9 @@ static void force_activate_view_item_but(bContext *C,
                                          const bool close_popup = true)
 {
 
-  if (region && region->regiontype == RGN_TYPE_TEMPORARY) {
-    /* For popups. Other abstract view instances correctly calls the select operator, see:
-     * #141235. */
-    but->view_item->activate(*C);
-  }
+  /* For popups. Other abstract view instances correctly calls the select operator, see:
+   * #141235. */
+  but->view_item->activate(*C);
   ED_region_tag_redraw_no_rebuild(region);
   ED_region_tag_refresh_ui(region);
 
@@ -5097,7 +5095,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
-    if (event->type == LEFTMOUSE) {
+    if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
       switch (event->val) {
         case KM_PRESS:
           /* Extra icons have priority, don't mess with them. */
@@ -10133,7 +10131,7 @@ static int ui_handle_view_item_event(bContext *C,
       }
       break;
     case LEFTMOUSE:
-      if (event->val == KM_PRESS) {
+      if ((event->val == KM_PRESS) && (event->modifier == 0)) {
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
         uiButViewItem *view_but = static_cast<uiButViewItem *>(
