@@ -99,8 +99,9 @@ IDProperty *MOV_load_metadata(MovieReader *anim)
 }
 
 MovieReader *MOV_open_file(const char *filepath,
-                           int ib_flags,
-                           int streamindex,
+                           const int ib_flags,
+                           const int streamindex,
+                           const bool keep_original_colorspace,
                            char colorspace[IM_MAX_SPACE])
 {
   MovieReader *anim;
@@ -122,6 +123,7 @@ MovieReader *MOV_open_file(const char *filepath,
     STRNCPY(anim->filepath, filepath);
     anim->ib_flags = ib_flags;
     anim->streamindex = streamindex;
+    anim->keep_original_colorspace = keep_original_colorspace;
   }
   return anim;
 }
@@ -1267,13 +1269,21 @@ static ImBuf *ffmpeg_fetchibuf(MovieReader *anim, int position, IMB_Timecode_Typ
   }
 
   if (anim->is_float) {
-    /* Float buffers are expected to be in the scene linear color space.
-     * Linearize the buffer if it is in a different space.
-     *
-     * It might not be the most optimal thing to do from the playback performance in the sequencer
-     * perspective, but it ensures that other areas in Blender do not run into obscure color space
-     * mismatches. */
-    colormanage_imbuf_make_linear(cur_frame_final, anim->colorspace);
+    if (anim->keep_original_colorspace) {
+      /* Movie has been explicitly requested to keep original colorspace, regardless of the nature
+       * of the buffer. */
+      cur_frame_final->float_buffer.colorspace = colormanage_colorspace_get_named(
+          anim->colorspace);
+    }
+    else {
+      /* Float buffers are expected to be in the scene linear color space.
+       * Linearize the buffer if it is in a different space.
+       *
+       * It might not be the most optimal thing to do from the playback performance in the
+       * sequencer perspective, but it ensures that other areas in Blender do not run into obscure
+       * color space mismatches. */
+      colormanage_imbuf_make_linear(cur_frame_final, anim->colorspace);
+    }
   }
   else {
     /* Colorspace conversion is lossy for byte buffers, so only assign the colorspace.
