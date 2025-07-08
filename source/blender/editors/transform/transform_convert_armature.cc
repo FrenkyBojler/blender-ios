@@ -660,7 +660,6 @@ static void createTransPose(bContext * /*C*/, TransInfo *t)
     Object *ob = tc->poseobj;
     TransData *td;
     TransDataExtension *tdx;
-    int i;
 
     PoseInitData_Mirror *pid = static_cast<PoseInitData_Mirror *>(tc->custom.type.data);
     int pid_index = 0;

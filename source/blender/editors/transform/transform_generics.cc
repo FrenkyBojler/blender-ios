@@ -853,7 +853,6 @@ void restoreTransObjects(TransInfo *t)
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
 
     TransData *td;
-    TransDataExtension *td_ext;
     TransData2D *td2d;
     TransDataMirror *tdm;
 
@@ -865,25 +864,29 @@ void restoreTransObjects(TransInfo *t)
       transdata_restore_basic((TransDataBasic *)tdm);
     }
 
-    for (td_ext = (td->flag & TD_NO_EXT) ? nullptr : tc->data_ext;
-         td_ext && td_ext < tc->data_ext + tc->data_len;
-         td_ext++)
-    {
-      if (td_ext->rot) {
-        copy_v3_v3(td_ext->rot, td_ext->irot);
-      }
-      if (td_ext->rotAngle) {
-        *td_ext->rotAngle = td_ext->irotAngle;
-      }
-      if (td_ext->rotAxis) {
-        copy_v3_v3(td_ext->rotAxis, td_ext->irotAxis);
-      }
-      /* XXX, `drotAngle` & `drotAxis` not used yet. */
-      if (td_ext->scale) {
-        copy_v3_v3(td_ext->scale, td_ext->iscale);
-      }
-      if (td_ext->quat) {
-        copy_qt_qt(td_ext->quat, td_ext->iquat);
+    if (tc->data_ext) {
+      for (int i = 0; i < tc->data_len; i++) {
+        if (tc->data[i].flag & TD_NO_EXT) {
+          continue;
+        }
+
+        TransDataExtension *td_ext = &tc->data_ext[i];
+        if (td_ext->rot) {
+          copy_v3_v3(td_ext->rot, td_ext->irot);
+        }
+        if (td_ext->rotAngle) {
+          *td_ext->rotAngle = td_ext->irotAngle;
+        }
+        if (td_ext->rotAxis) {
+          copy_v3_v3(td_ext->rotAxis, td_ext->irotAxis);
+        }
+        /* XXX, `drotAngle` & `drotAxis` not used yet. */
+        if (td_ext->scale) {
+          copy_v3_v3(td_ext->scale, td_ext->iscale);
+        }
+        if (td_ext->quat) {
+          copy_qt_qt(td_ext->quat, td_ext->iquat);
+        }
       }
     }
 
