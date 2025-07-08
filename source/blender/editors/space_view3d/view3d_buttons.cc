@@ -594,6 +594,8 @@ static bool apply_to_curves_selection(const CurvesData &current,
                                                     MutableSpan<bool>();
   const MutableSpan<int8_t> orders = order_changed ? curves.nurbs_orders_for_write() :
                                                      MutableSpan<int8_t>();
+  const MutableSpan<int8_t> knots_modes = order_changed ? curves.nurbs_knots_modes_for_write() :
+                                                          MutableSpan<int8_t>();
   const MutableSpan<int> resolution = resolution_changed ? curves.resolution_for_write() :
                                                            MutableSpan<int>();
 
@@ -622,7 +624,10 @@ static bool apply_to_curves_selection(const CurvesData &current,
       }
 
       if (is_nurbs && order_changed) {
-        orders[curve] = std::min<int8_t>(modified.order, points.size());
+        orders[curve] = modified.order;
+        if (knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
+          knots_modes[curve] = NURBS_KNOT_MODE_NORMAL;
+        }
       }
     }
   });
