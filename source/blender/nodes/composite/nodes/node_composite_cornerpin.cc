@@ -11,7 +11,10 @@
 #include "BLI_math_vector_types.hh"
 
 #include "COM_domain.hh"
+
 #include "DNA_node_types.h"
+
+#include "RNA_access.hh"
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -81,9 +84,11 @@ static void node_composit_buts_cornerpin(uiLayout *layout, bContext * /*C*/, Poi
 {
   uiLayout &column = layout->column(true);
   column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiLayout &row = column.row(true);
-  row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  if (RNA_enum_get(ptr, "interpolation") != CMP_NODE_INTERPOLATION_ANISOTROPIC) {
+    uiLayout &row = column.row(true);
+    row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+    row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  }
 }
 
 using namespace blender::compositor;
