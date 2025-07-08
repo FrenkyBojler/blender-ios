@@ -17,6 +17,7 @@
 #include "DEG_depsgraph_query.hh"
 
 #include "GEO_resample_curves.hh"
+#include "GEO_set_curve_type.hh"
 
 #include "grease_pencil_io_intern.hh"
 
@@ -278,18 +279,22 @@ void SVGExporter::export_grease_pencil_objects(pugi::xml_node node, const int fr
       layer_node.append_attribute("id").set_value(layer_node_id.c_str());
 
       const bke::CurvesGeometry &curves = drawing->strokes();
-      /* TODO: Instead of converting to poly curves, export them directly
-       * as curve paths to the SVG. */
+      /* Convert NURBS and Catmull Rom to bezier then export. */
       if (curves.has_curve_with_type({CURVE_TYPE_CATMULL_ROM, CURVE_TYPE_NURBS})) {
         IndexMaskMemory memory;
         const IndexMask non_poly_selection = curves.indices_for_curve_type(CURVE_TYPE_POLY, memory)
                                                  .complement(curves.curves_range(), memory);
 
-        Drawing export_drawing;
-        export_drawing.strokes_for_write() = geometry::resample_to_evaluated(curves,
-                                                                             non_poly_selection);
-        export_drawing.tag_topology_changed();
+        geometry::ConvertCurvesOptions options;
+        options.convert_bezier_handles_to_poly_points = false;
+        options.convert_bezier_handles_to_catmull_rom_points = false;
+        options.keep_bezier_shape_as_nurbs = true;
+        options.keep_catmull_rom_shape_as_nurbs = true;
 
+        Drawing export_drawing;
+        export_drawing.strokes_for_write() = geometry::convert_curves(
+            curves, non_poly_selection, CURVE_TYPE_BEZIER, {}, options);
+        export_drawing.tag_topology_changed();
         export_grease_pencil_layer(layer_node, *ob_eval, *layer, export_drawing);
       }
       else {
