@@ -433,8 +433,8 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
       const ColorGeometry4f fill_color = math::interpolate(
           material_fill_color, fill_colors[i_curve], fill_colors[i_curve].a);
       stroke_fn(positions.slice(points),
-                positions_left.slice(points),
-                positions_right.slice(points),
+                positions_left.slice_safe(points),
+                positions_right.slice_safe(points),
                 is_cyclic,
                 fill_color,
                 layer.opacity,
@@ -495,13 +495,15 @@ void GreasePencilExporter::foreach_stroke_in_layer(const Object &object,
 
         const OffsetIndices outline_points_by_curve = outline.points_by_curve();
         const Span<float3> outline_positions = outline.positions();
+        const Span<float3> outline_positions_left = curves.handle_positions_left();
+        const Span<float3> outline_positions_right = curves.handle_positions_right();
 
         for (const int i_outline_curve : outline.curves_range()) {
           const IndexRange outline_points = outline_points_by_curve[i_outline_curve];
           /* Use stroke color to fill the outline. */
           stroke_fn(outline_positions.slice(outline_points),
-                    {},
-                    {},
+                    outline_positions_left.slice_safe(outline_points),
+                    outline_positions_right.slice_safe(outline_points),
                     true,
                     stroke_color,
                     stroke_opacity,
