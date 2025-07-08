@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_input(type, "List").structure_type(StructureType::List);
   }
 
-  b.add_input<decl::Int>("Index").min(0).implicit_field(NODE_DEFAULT_INPUT_INDEX_FIELD);
+  b.add_input<decl::Int>("Index").min(0);
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
