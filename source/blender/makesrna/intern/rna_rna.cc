@@ -78,7 +78,8 @@ const EnumPropertyItem rna_enum_property_type_items[] = {
   {PROP_TEMPERATURE, "TEMPERATURE", 0, "Temperature", ""}, \
   {PROP_WAVELENGTH, "WAVELENGTH", 0, "Wavelength", ""}, \
   {PROP_COLOR_TEMPERATURE, "COLOR_TEMPERATURE", 0, "Color Temperature", ""}, \
-  {PROP_FREQUENCY, "FREQUENCY", 0, "Frequency", ""}
+  {PROP_FREQUENCY, "FREQUENCY", 0, "Frequency", ""}, \
+  {PROP_PIXEL_DENSITY, "PIXEL_DENSITY", 0, "Pixel Density"}
 
 #define RNA_ENUM_PROPERTY_SUBTYPE_NUMBER_ARRAY_ITEMS \
   {PROP_COLOR, "COLOR", 0, "Linear Color", "Color in the linear space"}, \
