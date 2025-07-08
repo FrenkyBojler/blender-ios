@@ -501,10 +501,17 @@ void GPU_framebuffer_clear_color(GPUFrameBuffer *fb, const float clear_col[4])
 
   auto originalState = Context::get()->state_manager->state;
 
-  GPU_state_set(GPU_WRITE_COLOR, GPU_BLEND_NONE, GPU_CULL_BACK, GPU_DEPTH_NONE, GPU_STENCIL_NONE, GPU_STENCIL_OP_NONE, GPU_VERTEX_LAST);
+  GPU_state_set(GPU_WRITE_COLOR,
+                GPU_BLEND_NONE,
+                GPU_CULL_BACK,
+                GPU_DEPTH_NONE,
+                GPU_STENCIL_NONE,
+                GPU_STENCIL_OP_NONE,
+                GPU_VERTEX_LAST);
   GPU_batch_draw(batch);
-  
+
   Context::get()->state_manager->state = originalState;
+  GPU_VERTBUF_DISCARD_SAFE(vbo);
 }
 
 void GPU_framebuffer_clear_depth(GPUFrameBuffer *fb, float clear_depth)
