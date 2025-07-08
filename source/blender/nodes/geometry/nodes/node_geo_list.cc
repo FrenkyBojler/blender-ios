@@ -11,6 +11,8 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "list_function_eval.hh"
+
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_list_cc {
@@ -67,28 +69,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
-class ListFieldContext : public FieldContext {
- public:
-  ListFieldContext() = default;
-
-  GVArray get_varray_for_input(const FieldInput &field_input,
-                               const IndexMask &mask,
-                               ResourceScope & /*scope*/) const override
-  {
-    const bke::IDAttributeFieldInput *id_field_input =
-        dynamic_cast<const bke::IDAttributeFieldInput *>(&field_input);
-
-    const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(
-        &field_input);
-
-    if (id_field_input == nullptr && index_field_input == nullptr) {
-      return {};
-    }
-
-    return fn::IndexFieldInput::get_index_varray(mask);
-  }
-};
-
 static void node_geo_exec(GeoNodeExecParams params)
 {
   const int count = params.extract_input<int>("Count");
@@ -99,17 +79,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   GField field = params.extract_input<GField>("Value");
-  const CPPType &cpp_type = field.cpp_type();
-
-  nodes::ArrayData array_data = nodes::ArrayData::ForConstructed(cpp_type, count);
-  GMutableSpan span(cpp_type, array_data.data, count);
-
-  ListFieldContext context{};
-  fn::FieldEvaluator evaluator{context, count};
-  evaluator.add_with_destination(std::move(field), span);
-  evaluator.evaluate();
-
-  params.set_output("List", nodes::List::create(cpp_type, std::move(array_data), count));
+  params.set_output("List", evaluate_field_to_list(std::move(field), count));
 }
 
 static void node_rna(StructRNA *srna)

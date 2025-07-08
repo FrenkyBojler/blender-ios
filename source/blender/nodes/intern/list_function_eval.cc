@@ -10,6 +10,42 @@
 
 namespace blender::nodes {
 
+class ListFieldContext : public FieldContext {
+ public:
+  ListFieldContext() = default;
+
+  GVArray get_varray_for_input(const FieldInput &field_input,
+                               const IndexMask &mask,
+                               ResourceScope & /*scope*/) const override
+  {
+    const bke::IDAttributeFieldInput *id_field_input =
+        dynamic_cast<const bke::IDAttributeFieldInput *>(&field_input);
+
+    const fn::IndexFieldInput *index_field_input = dynamic_cast<const fn::IndexFieldInput *>(
+        &field_input);
+
+    if (id_field_input == nullptr && index_field_input == nullptr) {
+      return {};
+    }
+
+    return fn::IndexFieldInput::get_index_varray(mask);
+  }
+};
+
+ListPtr evaluate_field_to_list(GField field, const int64_t count)
+{
+  const CPPType &cpp_type = field.cpp_type();
+  ArrayData array_data = ArrayData::ForConstructed(cpp_type, count);
+  GMutableSpan span(cpp_type, array_data.data, count);
+
+  ListFieldContext context{};
+  fn::FieldEvaluator evaluator{context, count};
+  evaluator.add_with_destination(std::move(field), span);
+  evaluator.evaluate();
+
+  return List::create(cpp_type, std::move(array_data), count);
+}
+
 static ListPtr create_repeated_list(ListPtr list, const int64_t dst_size)
 {
   if (list->size() >= dst_size) {
@@ -42,6 +78,20 @@ static ListPtr create_repeated_list(ListPtr list, const int64_t dst_size)
   return {};
 }
 
+static void add_list_to_params(mf::ParamsBuilder &params,
+                               const mf::ParamType &param_type,
+                               const List &list)
+{
+  const CPPType &cpp_type = param_type.data_type().single_type();
+  BLI_assert(cpp_type == list.cpp_type());
+  if (const auto *array_data = std::get_if<nodes::ArrayData>(&list.data())) {
+    params.add_readonly_single_input(GSpan(cpp_type, array_data->data, list.size()));
+  }
+  else if (const auto *single_data = std::get_if<nodes::SingleData>(&list.data())) {
+    params.add_readonly_single_input(GPointer(cpp_type, single_data->value));
+  }
+}
+
 void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
                                                    const Span<SocketValueVariant *> input_values,
                                                    const Span<SocketValueVariant *> output_values,
@@ -61,7 +111,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
   mf::ContextBuilder context;
   context.user_data(user_data);
 
-  Array<ListPtr, 8> repeated_lists(input_values.size());
+  Array<ListPtr, 8> input_lists(input_values.size());
   for (const int i : input_values.index_range()) {
     const mf::ParamType param_type = fn.param_type(params.next_param_index());
     const CPPType &cpp_type = param_type.data_type().single_type();
@@ -76,15 +126,13 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
         params.add_readonly_single_input(GPointer(cpp_type, cpp_type.default_value()));
         continue;
       }
-      repeated_lists[i] = create_repeated_list(std::move(list_ptr), max_size);
-      const List &list = *repeated_lists[i];
-      BLI_assert(cpp_type == list.cpp_type());
-      if (const auto *array_data = std::get_if<nodes::ArrayData>(&list.data())) {
-        params.add_readonly_single_input(GSpan(cpp_type, array_data->data, list.size()));
-      }
-      else if (const auto *single_data = std::get_if<nodes::SingleData>(&list.data())) {
-        params.add_readonly_single_input(GPointer(cpp_type, single_data->value));
-      }
+      input_lists[i] = create_repeated_list(std::move(list_ptr), max_size);
+      add_list_to_params(params, param_type, *input_lists[i]);
+    }
+    else if (input_variant.is_context_dependent_field()) {
+      fn::GField field = input_variant.extract<fn::GField>();
+      input_lists[i] = evaluate_field_to_list(std::move(field), max_size);
+      add_list_to_params(params, param_type, *input_lists[i]);
     }
   }
   for (const int i : output_values.index_range()) {

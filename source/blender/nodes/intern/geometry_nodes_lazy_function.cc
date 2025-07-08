@@ -567,12 +567,12 @@ static void execute_multi_function_on_value_variant__field(
     return execute_multi_function_on_value_variant__volume_grid(
         fn, input_values, output_values, r_error_message);
   }
-  if (any_input_is_field) {
-    execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
-    return true;
-  }
   if (any_input_is_list) {
     execute_multi_function_on_value_variant__list(fn, input_values, output_values, user_data);
+    return true;
+  }
+  if (any_input_is_field) {
+    execute_multi_function_on_value_variant__field(fn, owned_fn, input_values, output_values);
     return true;
   }
   execute_multi_function_on_value_variant__single(fn, input_values, output_values, user_data);
