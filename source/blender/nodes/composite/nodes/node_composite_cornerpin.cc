@@ -19,6 +19,7 @@
 #include "BKE_tracking.h"
 
 #include "MEM_guardedalloc.h"
+
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
@@ -305,7 +306,7 @@ class CornerPinOperation : public NodeOperation {
 
   Interpolation get_interpolation() const
   {
-    switch (node_storage(bnode()).interpolation) {
+    switch (static_cast<CMPNodeInterpolation>(node_storage(bnode()).interpolation)) {
       case CMP_NODE_INTERPOLATION_ANISOTROPIC:
         return Interpolation::Anisotropic;
       case CMP_NODE_INTERPOLATION_NEAREST:
