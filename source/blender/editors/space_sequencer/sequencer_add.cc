@@ -482,11 +482,10 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     }
   }
 
+  const ARegion *region = CTX_wm_region(C);
   /* Override strip position by current mouse position. */
-  if (RNA_boolean_get(op->ptr, "move_strips")) {
+  if (RNA_boolean_get(op->ptr, "move_strips") && region != nullptr) {
     const wmWindow *win = CTX_wm_window(C);
-    const ARegion *region = CTX_wm_region(C);
-
     const float2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
                               win->eventstate->xy[1] - region->winrct.ymin);
     float2 mouse_view;
@@ -796,7 +795,6 @@ void SEQUENCER_OT_scene_strip_add_new(wmOperatorType *ot)
 
   ot->prop = RNA_def_enum(ot->srna, "type", strip_new_scene_items, SCE_COPY_NEW, "Type", "");
   RNA_def_enum_funcs(ot->prop, strip_new_sequencer_enum_itemf);
-  RNA_def_property_flag(ot->prop, PROP_ENUM_NO_TRANSLATE);
 }
 
 static wmOperatorStatus sequencer_add_movieclip_strip_exec(bContext *C, wmOperator *op)

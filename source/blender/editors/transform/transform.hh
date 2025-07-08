@@ -232,9 +232,7 @@ enum eTConstraint {
   CON_AXIS1 = 1 << 2,
   CON_AXIS2 = 1 << 3,
   CON_SELECT = 1 << 4,
-  /** Does not reorient vector to face viewport when on. */
-  CON_NOFLIP = 1 << 5,
-  CON_USER = 1 << 6,
+  CON_USER = 1 << 5,
 };
 ENUM_OPERATORS(eTConstraint, CON_USER)
 
@@ -590,8 +588,7 @@ struct TransCon {
   void (*applyRot)(const TransInfo *t,
                    const TransDataContainer *tc,
                    const TransData *td,
-                   float r_axis[3],
-                   float *r_angle);
+                   float r_axis[3]);
 };
 
 struct MouseInput {
@@ -726,6 +723,10 @@ struct TransDataContainer {
    * state (selected before unselected). Depending on the sort function used (see below),
    * unselected items are then sorted by their "distance" for proportional editing.
    *
+   * At the moment of writing, this map is only used in cases where `tc->data` has a mixture of
+   * selected and unselected items (as far as I, Sybren, know, just for proportial editing).
+   * Without `tc->sorted_index_map`, all items in `tc->data` are expected to be selected.
+   *
    * NOTE: this is set to `nullptr` by default; use one of the sorting functions below to
    * initialize the array.
    *
@@ -845,13 +846,14 @@ struct TransInfo {
   float center2d[2];
   /** Maximum index on the input vector. */
   short idx_max;
-  /** Snapping Gears. */
-  float snap[2];
+  /** Increment value for incremental snapping. */
+  float3 increment;
+  float increment_precision;
   /** Spatial snapping gears(even when rotating, scaling... etc). */
   float snap_spatial[3];
   /**
    * Precision factor that is multiplied to snap_spatial when precision
-   * modifier is enabled for snap to grid or incremental snap.
+   * modifier is enabled for snap to grid.
    */
   float snap_spatial_precision;
   /** Mouse side of the current frame, 'L', 'R' or 'B'. */
@@ -1008,6 +1010,7 @@ wmKeyMap *transform_modal_keymap(wmKeyConfig *keyconf);
  */
 bool transform_apply_matrix(TransInfo *t, float mat[4][4]);
 void transform_final_value_get(const TransInfo *t, float *value, int value_num);
+void view_vector_calc(const TransInfo *t, const float focus[3], float r_vec[3]);
 
 /** \} */
 

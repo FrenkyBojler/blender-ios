@@ -166,7 +166,19 @@ const char *WM_ghost_backend();
 enum eWM_CapabilitiesFlag {
   /** Ability to warp the cursor (set its location). */
   WM_CAPABILITY_CURSOR_WARP = (1 << 0),
-  /** Ability to access window positions & move them. */
+  /**
+   * Window position access, support for the following.
+   * - Getting window positions.
+   * - Setting window positions.
+   * - Setting positions for new windows.
+   *
+   * Currently there is no need to distinguish between these different cases
+   * so a single flag is used.
+   *
+   * When omitted, it isn't possible to know where windows are located in relation to each other.
+   * Operations such as applying events from one window to another or detecting the non-active
+   * window under the cursor are not supported.
+   */
   WM_CAPABILITY_WINDOW_POSITION = (1 << 1),
   /**
    * The windowing system supports a separate primary clipboard
@@ -189,6 +201,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_WINDOW_DECORATION_STYLES = (1 << 8),
   /** Support for the "Hyper" modifier key. */
   WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
+  /** Support for RGBA Cursors. */
+  WM_CAPABILITY_RGBA_CURSORS = (1 << 10),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -2030,6 +2044,10 @@ float WM_event_ndof_rotation_get_axis_angle_for_navigation(const wmNDOFMotionDat
 blender::float3 WM_event_ndof_translation_get(const wmNDOFMotionData &ndof);
 blender::float3 WM_event_ndof_rotation_get(const wmNDOFMotionData &ndof);
 float WM_event_ndof_rotation_get_axis_angle(const wmNDOFMotionData &ndof, float axis[3]);
+
+bool WM_event_ndof_translation_has_pan(const wmNDOFMotionData &ndof);
+bool WM_event_ndof_translation_has_zoom(const wmNDOFMotionData &ndof);
+
 #endif /* WITH_INPUT_NDOF */
 
 #ifdef WITH_XR_OPENXR

@@ -165,7 +165,8 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
-
+  /** Spatially organize the mesh after remesh.*/
+  blender::bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
@@ -449,8 +450,6 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
   cd->active_object = active_object;
   cd->init_mval[0] = event->mval[0];
   cd->init_mval[1] = event->mval[1];
-  cd->init_voxel_size = mesh->remesh_voxel_size;
-  cd->voxel_size = mesh->remesh_voxel_size;
   cd->slow_mode = false;
   op->customdata = cd;
 
@@ -516,6 +515,9 @@ static wmOperatorStatus voxel_size_edit_invoke(bContext *C, wmOperator *op, cons
                               len_v3v3(cd->preview_plane[3], cd->preview_plane[0])) *
                        0.5f;
   cd->voxel_size_min = cd->voxel_size_max / VOXEL_SIZE_EDIT_MAX_GRIDS_LINES;
+  cd->init_voxel_size = clamp_f(
+      mesh->remesh_voxel_size, max_ff(cd->voxel_size_min, 0.0001f), cd->voxel_size_max);
+  cd->voxel_size = cd->init_voxel_size;
 
   /* Matrix calculation to position the text in 3D space. */
   float text_pos[3];
@@ -913,7 +915,8 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
-
+  /** Spatially organize the mesh after remesh.*/
+  blender::bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
 
   worker_status->do_update = true;
