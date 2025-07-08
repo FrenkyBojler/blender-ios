@@ -1821,9 +1821,8 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
 
   wl_surface_add_listener(window_->wl.surface, &wl_surface_listener, window_);
 
-  /* color management */
-  {
-    wp_color_manager_v1 *color_manager = system->wp_color_manager_get();
+  /* Color management */
+  if (wp_color_manager_v1 *color_manager = system->wp_color_manager_get()) {
     window_->wp.color_management_surface = wp_color_manager_v1_get_surface(color_manager,
                                                                            window_->wl.surface);
 
