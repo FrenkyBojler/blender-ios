@@ -443,6 +443,7 @@ struct GWL_Window {
      * and ignore updated scale based on #wl_surface_listener::enter & exit events.
      */
     wp_fractional_scale_v1 *fractional_scale_handle = nullptr;
+    wp_color_management_surface_v1 *color_management_surface = nullptr;
   } wp;
 
   /** XDG native types. */
@@ -1700,7 +1701,6 @@ static void surface_handle_enter(void *data, wl_surface * /*wl_surface*/, wl_out
   GHOST_WindowWayland *win = static_cast<GHOST_WindowWayland *>(data);
   if (win->outputs_enter(reg_output)) {
     win->outputs_changed_update_scale_tag();
-    win->outputs_changed_update_hdr();
   }
 }
 
@@ -1820,6 +1820,31 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
   ghost_wl_surface_tag(window_->wl.surface);
 
   wl_surface_add_listener(window_->wl.surface, &wl_surface_listener, window_);
+
+  /* color management */
+  {
+    wp_color_manager_v1 *color_manager = system->wp_color_manager_get();
+    window_->wp.color_management_surface = wp_color_manager_v1_get_surface(color_manager,
+                                                                           window_->wl.surface);
+
+    wp_image_description_creator_params_v1 *image_creator_params =
+        wp_color_manager_v1_create_parametric_creator(color_manager);
+    wp_image_description_creator_params_v1_set_tf_named(
+        image_creator_params, WP_COLOR_MANAGER_V1_TRANSFER_FUNCTION_SRGB);
+    wp_image_description_creator_params_v1_set_primaries_named(image_creator_params,
+                                                               WP_COLOR_MANAGER_V1_PRIMARIES_SRGB);
+    // wp_image_description_creator_params_v1_set_luminances(image_creator_params, 2000, 1000,
+    // 400);
+
+    wp_image_description_v1 *image_description = wp_image_description_creator_params_v1_create(
+        image_creator_params);
+
+    wp_color_management_surface_v1_set_image_description(
+        window_->wp.color_management_surface,
+        image_description,
+        WP_COLOR_MANAGER_V1_RENDER_INTENT_PERCEPTUAL);
+    wp_image_description_v1_destroy(image_description);
+  }
 
   wp_fractional_scale_manager_v1 *fractional_scale_manager =
       system->wp_fractional_scale_manager_get();
@@ -2161,6 +2186,11 @@ GHOST_WindowWayland::~GHOST_WindowWayland()
   if (window_->wp.viewport) {
     wp_viewport_destroy(window_->wp.viewport);
     window_->wp.viewport = nullptr;
+  }
+
+  if (window_->wp.color_management_surface) {
+    wp_color_management_surface_v1_destroy(window_->wp.color_management_surface);
+    window_->wp.color_management_surface = nullptr;
   }
 
 #ifdef WITH_GHOST_WAYLAND_LIBDECOR
@@ -2852,69 +2882,6 @@ bool GHOST_WindowWayland::outputs_changed_update_scale()
   }
 
   return changed;
-}
-
-static void image_description_info_luminances(
-    void *data,
-    struct wp_image_description_info_v1 * /*wp_image_description_info_v1*/,
-    uint32_t /*min_lum*/,
-    uint32_t max_lum,
-    uint32_t reference_lum)
-{
-  GWL_Output *output = static_cast<GWL_Output *>(data);
-  output->max_luminance = max_lum;
-  output->reference_luminance = reference_lum;
-}
-static void image_description_info_done(
-    void *data, struct wp_image_description_info_v1 * /*wp_image_description_info_v1*/)
-{
-  GWL_Output *output = static_cast<GWL_Output *>(data);
-  output->has_hdr_support = output->max_luminance > output->reference_luminance;
-  // TODO: trigger window to go over all its output and check if all support hdr. if that is the
-  // case HDR support for the window could be enabled.
-}
-static const wp_image_description_info_v1_listener wp_image_description_info_listener = {
-    /* done */
-    image_description_info_done,
-    /* icc_file */
-    nullptr,
-    /* primaries */
-    nullptr,
-    /* primaries_named */
-    nullptr,
-    /* tf_power */
-    nullptr,
-    /* tf_named */
-    nullptr,
-    /* luminances */
-    image_description_info_luminances,
-    /* target_primaries */
-    nullptr,
-    /* target_luminance */
-    nullptr,
-    /* target_max_cll */
-    nullptr,
-    /* target_max_fall */
-    nullptr,
-};
-
-void GHOST_WindowWayland::outputs_changed_update_hdr()
-{
-  for (GWL_Output *output : window_->outputs) {
-    wp_color_manager_v1 *color_manager = output->system->wp_color_manager_get();
-    if (output->wp.color_management_output == nullptr) {
-      output->wp.color_management_output = wp_color_manager_v1_get_output(color_manager,
-                                                                          output->wl.output);
-      output->wp.image_description = wp_color_management_output_v1_get_image_description(
-          output->wp.color_management_output);
-      output->wp.image_description_info = wp_image_description_v1_get_information(
-          output->wp.image_description);
-
-      output->has_hdr_support = false;
-      wp_image_description_info_v1_add_listener(
-          output->wp.image_description_info, &wp_image_description_info_listener, output);
-    }
-  }
 }
 
 bool GHOST_WindowWayland::outputs_enter(GWL_Output *output)

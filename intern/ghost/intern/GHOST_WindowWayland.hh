@@ -193,8 +193,6 @@ class GHOST_WindowWayland : public GHOST_Window {
   bool outputs_changed_update_scale();
   void outputs_changed_update_scale_tag();
 
-  void outputs_changed_update_hdr();
-
 #ifdef USE_EVENT_BACKGROUND_THREAD
   void pending_actions_handle();
 #endif
