@@ -600,6 +600,8 @@ typedef struct SoundEqualizerModifierData {
   StripModifierData modifier;
   /* EQCurveMappingData */
   ListBase graphics;
+  float *buf_backup;
+  void *sound_backup;
 } SoundEqualizerModifierData;
 /** \} */
 

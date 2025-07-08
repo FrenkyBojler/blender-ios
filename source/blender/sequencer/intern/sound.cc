@@ -311,13 +311,19 @@ void *sound_equalizermodifier_recreator(Strip *strip, StripModifierData *smd, vo
     }
   }
 
+  if (semd->buf_backup != nullptr) {
+    return semd->sound_backup;
+    MEM_freeN(buf);
+  }
+
   AUD_Sound *equ = AUD_Sound_equalize(sound,
                                       buf,
                                       SOUND_EQUALIZER_SIZE_DEFINITION,
                                       SOUND_EQUALIZER_DEFAULT_MAX_FREQ,
                                       SOUND_EQUALIZER_SIZE_CONVERSION);
 
-  MEM_freeN(buf);
+  semd->buf_backup = buf;
+  semd->sound_backup = equ;
 
   return equ;
 #else

@@ -30,6 +30,8 @@ class StripBackup {
 
   void *scene_sound;
   ListBase anims;
+  float *buf;
+  void *sound_handle;
 };
 
 }  // namespace blender::deg
