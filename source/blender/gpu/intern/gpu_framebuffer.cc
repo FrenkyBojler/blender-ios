@@ -496,7 +496,6 @@ void GPU_framebuffer_clear_color(GPUFrameBuffer *fb, const float clear_col[4])
       4,
       1,
       blender::float4{clear_col[0], clear_col[1], clear_col[2], clear_col[3]});
-  GPU_shader_uniform_1b(shader, "srgbTarget", false);
   GPU_batch_set_shader(batch, shader);
 
   auto originalState = Context::get()->state_manager->state;
