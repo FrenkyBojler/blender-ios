@@ -1,1 +1,2 @@
 Referenced by issue #141614, Crash canceling the rotation of custom normals (if not all vertices are selected)
+Referenced by commit b8458b85a52e8b3cd2b054ebf58c762fadd770a4, Fix #141614: Crash canceling 'Rotate Normal' operation
