@@ -352,7 +352,8 @@ const DTreeContext &DerivedNodeTree::active_context() const
 
   const DTreeContext *found_context = find_active_context_recursive(&root_context());
   if (found_context == nullptr) {
-    /* Default to root context if no active context is found.*/
+    /* There should always be a valid active context. */
+    BLI_assert_unreachable();
     return root_context();
   }
 
