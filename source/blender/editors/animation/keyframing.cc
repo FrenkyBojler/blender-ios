@@ -10,11 +10,10 @@
 
 #include <fmt/format.h>
 
-#include "BLI_listbase.h"
-#include "DNA_sequence_types.h"
-#include "ED_sequencer.hh"
+#include "DNA_windowmanager_types.h"
 #include "MEM_guardedalloc.h"
 
+#include "BLI_listbase.h"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -23,6 +22,7 @@
 #include "DNA_anim_types.h"
 #include "DNA_armature_types.h"
 #include "DNA_scene_types.h"
+#include "DNA_sequence_types.h"
 
 #include "BKE_action.hh"
 #include "BKE_anim_data.hh"
@@ -44,6 +44,7 @@
 #include "ED_keyframing.hh"
 #include "ED_object.hh"
 #include "ED_screen.hh"
+#include "ED_sequencer.hh"
 
 #include "ANIM_action.hh"
 #include "ANIM_action_iterators.hh"
@@ -56,8 +57,8 @@
 #include "ANIM_keyingsets.hh"
 #include "ANIM_rna.hh"
 
-#include "RNA_path.hh"
 #include "SEQ_relations.hh"
+
 #include "UI_interface.hh"
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
@@ -68,6 +69,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 #include "RNA_enum_types.hh"
+#include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
 #include "anim_intern.hh"
@@ -607,14 +609,14 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
   int num_channels;
   const bool confirm = op->flag & OP_IS_INVOKE;
 
-  /* try to delete keyframes for the channels specified by KeyingSet */
+  /* Try to delete keyframes for the channels specified by KeyingSet. */
   num_channels = blender::animrig::apply_keyingset(
       C, nullptr, ks, blender::animrig::ModifyKeyMode::DELETE_KEY, cfra);
   if (G.debug & G_DEBUG) {
     printf("KeyingSet '%s' - Successfully removed %d Keyframes\n", ks->name, num_channels);
   }
 
-  /* report failure or do updates? */
+  /* Report failure or do updates? */
   if (num_channels < 0) {
     BKE_report(op->reports, RPT_ERROR, "No suitable context info for active keying set");
     return OPERATOR_CANCELLED;
@@ -623,13 +625,13 @@ static wmOperatorStatus delete_key_using_keying_set(bContext *C, wmOperator *op,
   if (num_channels > 0) {
     WM_event_add_notifier(C, NC_ANIMATION | ND_KEYFRAME | NA_REMOVED, nullptr);
 
-    /* VSE notifier */
+    /* VSE notifiers. */
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
   }
 
   if (confirm) {
-    /* if called by invoke (from the UI), make a note that we've removed keyframes */
+    /* if called by invoke (from the UI), make a note that we've removed keyframes. */
     if (num_channels > 0) {
       BKE_reportf(op->reports,
                   RPT_INFO,
@@ -818,16 +820,17 @@ void ANIM_OT_keyframe_clear_v3d(wmOperatorType *ot)
   WM_operator_properties_confirm_or_exec(ot);
 }
 
-static void get_selected_strips_rna_paths(
-    blender::Vector<PointerRNA> &selection,
-    blender::Vector<std::string> &r_selected_strips_rna_paths)
+static blender::Vector<std::string> get_selected_strips_rna_paths(
+    blender::Vector<PointerRNA> &selection)
 {
+  blender::Vector<std::string> selected_strips_rna_paths;
   for (PointerRNA &id_ptr : selection) {
     if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
       std::optional<std::string> rna_path = RNA_path_from_ID_to_struct(&id_ptr);
-      r_selected_strips_rna_paths.append(*rna_path);
+      selected_strips_rna_paths.append(*rna_path);
     }
   }
+  return selected_strips_rna_paths;
 }
 
 static void invalidate_strip_caches(blender::Vector<PointerRNA> selection, Scene *scene)
@@ -856,7 +859,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
   blender::Vector<PointerRNA> selection;
   blender::Vector<std::string> selected_strips_rna_paths;
   get_selection(C, &selection);
-  get_selected_strips_rna_paths(selection, selected_strips_rna_paths);
+  selected_strips_rna_paths = get_selected_strips_rna_paths(selection);
 
   if (selected_strips_rna_paths.is_empty()) {
     BKE_reportf(op->reports, RPT_WARNING, "No strips selected");
@@ -993,12 +996,11 @@ static bool can_delete_key(FCurve *fcu, Object *ob, ReportList *reports)
   return true;
 }
 
-static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
+static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
 {
-  ReportList *reports = nullptr;
-  /* don't touch protected F-Curves */
+  /* Don't touch protected F-Curves. */
   if (BKE_fcurve_is_protected(fcu)) {
-    BKE_reportf(reports,
+    BKE_reportf(op->reports,
                 RPT_WARNING,
                 "Not deleting keyframe for locked F-Curve '%s', scene '%s'",
                 fcu->rna_path,
@@ -1008,20 +1010,21 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene)
   return true;
 }
 
-static bool delete_scene_action_keyframes_legacy(AnimData *adt,
+static blender::Vector<FCurve *> delete_scene_action_keyframes_legacy(AnimData *adt,
                                                  bAction *act,
                                                  Scene *scene,
                                                  float cfra_unmap,
-                                                 blender::Vector<FCurve *> &r_modified_fcurves)
+                                                 wmOperator *op,
+                                                 blender::Vector<FCurve *> *modified_fcurves)
 {
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
-    if (!can_delete_scene_key(fcu, scene)) {
+    if (!can_delete_scene_key(fcu, scene, op)) {
       continue;
     }
     blender::animrig::delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
-    r_modified_fcurves.append(fcu);
+    modified_fcurves->append(fcu);
   }
-  return true;
+  return *modified_fcurves;
 }
 
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
@@ -1033,7 +1036,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   blender::Vector<PointerRNA> selection;
   blender::Vector<std::string> selected_strips_rna_paths;
   get_selection(C, &selection);
-  get_selected_strips_rna_paths(selection, selected_strips_rna_paths);
+  selected_strips_rna_paths = get_selected_strips_rna_paths(selection);
 
   if (selected_strips_rna_paths.is_empty()) {
     BKE_reportf(op->reports, RPT_WARNING, "No strips selected");
@@ -1065,7 +1068,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
           break;
         }
       }
-      if (!can_delete_scene_key(&fcurve, scene) || changed_strip.empty()) {
+      if (!can_delete_scene_key(&fcurve, scene, op) || changed_strip.empty()) {
         return;
       }
       if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
@@ -1081,8 +1084,9 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     }
   }
   else {
-    use_legacy_report = delete_scene_action_keyframes_legacy(
-        adt, act, scene, cfra_unmap, modified_fcurves);
+    modified_fcurves = delete_scene_action_keyframes_legacy(
+        adt, act, scene, cfra_unmap, op, &modified_fcurves);
+    use_legacy_report = true;
   }
 
   if (scene->adt->action) {
@@ -1091,24 +1095,19 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
     DEG_id_tag_update(&scene->adt->action->id, ID_RECALC_ANIMATION_NO_FLUSH);
   }
 
-  if (modified_strips.size()) {
+  if (!modified_strips.is_empty()) {
     /* Key-frames on strips has been moved, so make sure related editors are informed. */
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
     WM_event_add_notifier(C, NC_ANIMATION, nullptr);
   }
 
-  for (PointerRNA &id_ptr : selection) {
-    if (RNA_struct_is_a(id_ptr.type, &RNA_Strip)) {
-      ::Strip *strip = static_cast<::Strip *>(id_ptr.data);
-      blender::seq::relations_invalidate_cache(scene, strip);
-    }
-  }
+  invalidate_strip_caches(selection, scene);
 
   if (confirm) {
-    /* if called by invoke (from the UI), make a note that we've removed keyframes */
-    if (!(modified_strips.size() > 0)) {
+    /* If called by invoke (from the UI), make a note that we've removed keyframes. */
+    if (modified_strips.is_empty()) {
       BKE_reportf(op->reports,
-                  RPT_ERROR,
+                  RPT_WARNING,
                   "No keyframes removed from %ld strip(s)",
                   selected_strips_rna_paths.size());
       return OPERATOR_CANCELLED;
