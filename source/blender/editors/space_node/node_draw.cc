@@ -2179,16 +2179,16 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
     if (socket.runtime->declaration) {
       switch (socket.runtime->declaration->structure_type) {
         case nodes::StructureType::Single:
-          inspection_strings.append("(Single Value)");
+          inspection_strings.append(TIP_("(Single Value)"));
           break;
         case nodes::StructureType::Dynamic:
-          inspection_strings.append("(Dynamic Structure Type)");
+          inspection_strings.append(TIP_("(Dynamic Structure Type)"));
           break;
         case nodes::StructureType::Field:
-          inspection_strings.append("(Field)");
+          inspection_strings.append(TIP_("(Field)"));
           break;
         case nodes::StructureType::Grid:
-          inspection_strings.append("(Volume Grid)");
+          inspection_strings.append(TIP_("(Volume Grid)"));
           break;
       }
     }
@@ -2212,7 +2212,11 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
       output << TIP_("Connect a link to create a new socket");
     }
     else {
-      output << bke::node_socket_label(socket);
+      const StringRefNull socket_label = bke::node_socket_label(socket);
+      const char *socket_translation_context = node_socket_get_translation_context(socket);
+      const char *translated_socket_label = CTX_TIP_(socket_translation_context,
+                                                     socket_label.c_str());
+      output << translated_socket_label;
     }
 
     if (ntree.type == NTREE_GEOMETRY && !is_extend) {
@@ -5483,6 +5487,27 @@ void node_draw_space(const bContext &C, ARegion &region)
   }
 
   /* Scrollers. */
+
+  /* Hide the right scrollbar while a right-aligned region
+   * is open. Otherwise we can have two scroll bars. #141225 */
+  ScrArea *area = CTX_wm_area(&C);
+  bool sidebar = false;
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (region->alignment == RGN_ALIGN_RIGHT && region->overlap &&
+        !(region->flag & RGN_FLAG_HIDDEN))
+    {
+      sidebar = true;
+      break;
+    }
+  }
+
+  if (sidebar) {
+    v2d.scroll &= ~V2D_SCROLL_RIGHT;
+  }
+  else {
+    v2d.scroll |= V2D_SCROLL_RIGHT;
+  }
+
   UI_view2d_scrollers_draw(&v2d, nullptr);
 }
 
