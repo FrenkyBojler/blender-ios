@@ -249,7 +249,7 @@ class CollectionViewItem : public BasicTreeViewItem {
     add_label(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_state_button(*sub);
   }

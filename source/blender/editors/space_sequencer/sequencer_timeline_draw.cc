@@ -815,7 +815,7 @@ static void draw_seq_text_get_source(const Strip *strip, char *r_source, size_t 
     }
     case STRIP_TYPE_TEXT: {
       const TextVars *textdata = static_cast<TextVars *>(strip->effectdata);
-      BLI_strncpy(r_source, textdata->text, source_maxncpy);
+      BLI_strncpy(r_source, textdata->text_ptr, source_maxncpy);
       break;
     }
     case STRIP_TYPE_SCENE: {
@@ -1871,7 +1871,9 @@ void draw_timeline_seq(const bContext *C, ARegion *region)
   draw_timeline_grid(&ctx);
   draw_timeline_sfra_efra(&ctx);
   draw_seq_strips(&ctx, strips_batch);
-  draw_timeline_markers(&ctx);
+  if (region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
+    draw_timeline_markers(&ctx);
+  }
   UI_view2d_view_ortho(ctx.v2d);
   ANIM_draw_previewrange(ctx.scene, ctx.v2d, 1);
   draw_timeline_gizmos(&ctx);
