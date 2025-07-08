@@ -32,7 +32,7 @@ namespace blender::ed::transform {
 static void createTransSculpt(bContext *C, TransInfo *t)
 {
   TransData *td;
-  TransDataExtension*td_ext;
+  TransDataExtension *td_ext;
 
   Scene *scene = t->scene;
   if (!BKE_id_is_editable(CTX_data_main(C), &scene->id)) {
