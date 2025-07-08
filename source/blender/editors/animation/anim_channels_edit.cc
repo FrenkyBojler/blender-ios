@@ -2487,226 +2487,108 @@ static bool animchannels_grouping_poll(bContext *C)
 /** \name Grease Pencil Layer Group Creation
  * \{ */
 
-
-/**
- * Get Grease Pencil datablock from selected channel in animation context.
- * Used to locate the correct Grease Pencil data when performing operations on channels.
- */
-GreasePencil *from_selected_channel(bAnimContext *ac)
+static int animchannels_group_gp_layers(GreasePencil *grease_pencil, const char *name)
 {
-  ListBase anim_data = {nullptr, nullptr};
-  GreasePencil *grease_pencil = nullptr;
+  using namespace blender::bke::greasepencil;
+  int grouped_layers = 0;
 
-  /* Filter to get all visible selected channels. */
-  const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-                      ANIMFILTER_LIST_CHANNELS | ANIMFILTER_SEL);
-  ANIM_animdata_filter(
-      ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
-
-  /* Find the first selected Grease Pencil channel. */
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    if (ale->type == ANIMTYPE_GREASE_PENCIL_LAYER) {
-      grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
-      break;
-    }
-    else if (ale->type == ANIMTYPE_GPLAYER) {
-      grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
-      break;
-    }
-    else if (ale->type == ANIMTYPE_GREASE_PENCIL_LAYER_GROUP) {
-      grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
-      break;
+  /* Collect selected layers for this datablock. */
+  blender::Vector<Layer *> selected_layers;
+  for (Layer *layer : grease_pencil->layers_for_write()) {
+    if (layer->is_selected()) {
+      selected_layers.append(layer);
     }
   }
 
-  ANIM_animdata_freelist(&anim_data);
+  /* Skip this datablock if no layers are selected. */
+  if (selected_layers.is_empty()) {
+    return 0;
+  }
 
-  return grease_pencil;
+  /* Check if the first selected layer already has a parent group. */
+  LayerGroup &first_parent = selected_layers[0]->parent_group();
+  LayerGroup *new_group_ptr = nullptr;
+
+  if (&first_parent != grease_pencil->root_group_ptr) {
+    /* If the first selected layer is already in a group, create a new group
+     * and move it into the same parent as the first selected layer. */
+    new_group_ptr = &grease_pencil->add_layer_group(name);
+    grease_pencil->move_node_into(new_group_ptr->as_node(), first_parent);
+    grouped_layers++;
+  }
+  else {
+    /* If the first selected layer is not in a group, create a new group. */
+    new_group_ptr = &grease_pencil->add_layer_group(name);
+    grouped_layers++;
+  }
+
+  /* Move selected layers into the new group. */
+  for (Layer *layer : selected_layers) {
+    grease_pencil->move_node_into(layer->as_node(), *new_group_ptr);
+  }
+
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+  return grouped_layers;
 }
 
-static wmOperatorStatus anim_gp_layer_group(bContext *C, wmOperator *op)
+static bool animchannels_ungroup_gp_layers(GreasePencil *grease_pencil)
 {
   using namespace blender::bke::greasepencil;
 
-  bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
-    BKE_report(op->reports, RPT_ERROR, "Could not get animation context");
-    return OPERATOR_CANCELLED;
+  /* Collect selected layers for this datablock. */
+  blender::Vector<Layer *> selected_layers;
+  for (Layer *layer : grease_pencil->layers_for_write()) {
+    if (layer->is_selected()) {
+      selected_layers.append(layer);
+    }
   }
 
-  const char *name = RNA_string_get_alloc(op->ptr, "name", nullptr, 0, nullptr);
-
-  /* Get all visible selected channels. */
-  ListBase anim_data = {nullptr, nullptr};
-  const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-                      ANIMFILTER_LIST_CHANNELS | ANIMFILTER_SEL);
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-
-  /* Process each Grease Pencil datablock that has selected layers. */
-  blender::Set<GreasePencil *> processed_datablocks;
-  bool has_grouped_layers = false;
-
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    if (!ELEM(ale->type, ANIMTYPE_GREASE_PENCIL_LAYER, ANIMTYPE_GPLAYER, ANIMTYPE_GREASE_PENCIL_LAYER_GROUP)) {
-      continue;
-    }
-
-    GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
-    
-    /* Skip if we've already processed this datablock. */
-    if (processed_datablocks.contains(grease_pencil)) {
-      continue;
-    }
-    processed_datablocks.add(grease_pencil);
-
-    /* Collect selected layers for this datablock. */
-    blender::Vector<Layer *> selected_layers;
-    for (Layer *layer : grease_pencil->layers_for_write()) {
-      if (layer->is_selected()) {
-        selected_layers.append(layer);
-      }
-    }
-
-    /* Skip this datablock if no layers are selected. */
-    if (selected_layers.is_empty()) {
-      continue;
-    }
-
-    /* Check if the first selected layer already has a parent group. */
-    LayerGroup &first_parent = selected_layers[0]->parent_group();
-    LayerGroup *new_group_ptr = nullptr;
-
-    if (&first_parent != grease_pencil->root_group_ptr) {
-      new_group_ptr = &grease_pencil->add_layer_group(name);
-      grease_pencil->move_node_into(new_group_ptr->as_node(), first_parent);
-    }
-    else {
-      new_group_ptr = &grease_pencil->add_layer_group(name);
-    }
-
-    /* Move selected layers into the new group. */
-    for (Layer *layer : selected_layers) {
-      grease_pencil->move_node_into(layer->as_node(), *new_group_ptr);
-    }
-    grease_pencil->set_active_node(&new_group_ptr->as_node());
-
-    /* Tag for update and send notification. */
-    DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, grease_pencil);
-    
-    has_grouped_layers = true;
+  /* Skip this datablock if no layers are selected. */
+  if (selected_layers.is_empty()) {
+    return false;
   }
 
-  ANIM_animdata_freelist(&anim_data);
-  MEM_SAFE_FREE(name);
-
-  if (!has_grouped_layers) {
-    BKE_report(op->reports, RPT_ERROR, "No selected layers to group");
-    return OPERATOR_CANCELLED;
-  }
-
-  return OPERATOR_FINISHED;
-}
-
-/* -------------------------------------------------------------------- */
-/** \name Grease Pencil Layer Ungroup
- * \{ */
-
-static wmOperatorStatus anim_gp_layer_ungroup(bContext *C, wmOperator *op)
-{
-  using namespace blender::bke::greasepencil;
-
-  bAnimContext ac;
-  if (ANIM_animdata_get_context(C, &ac) == 0) {
-    BKE_report(op->reports, RPT_ERROR, "Could not get animation context");
-    return OPERATOR_CANCELLED;
-  }
-
-  /* Get all visible selected channels. */
-  ListBase anim_data = {nullptr, nullptr};
-  const int filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE |
-                      ANIMFILTER_LIST_CHANNELS | ANIMFILTER_SEL);
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-
-  /* Process each Grease Pencil datablock that has selected layers. */
-  blender::Set<GreasePencil *> processed_datablocks;
   bool has_ungrouped_layers = false;
 
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-    if (!ELEM(ale->type, ANIMTYPE_GREASE_PENCIL_LAYER, ANIMTYPE_GPLAYER, ANIMTYPE_GREASE_PENCIL_LAYER_GROUP)) {
-      continue;
+  /* Move selected layers out of their parent groups. */
+  blender::Vector<LayerGroup *> modified_groups;
+  for (Layer *layer : selected_layers) {
+    LayerGroup &parent = layer->parent_group();
+    if (&parent == grease_pencil->root_group_ptr) {
+      continue; /* Skip layers not in a group. */
     }
+    grease_pencil->move_node_before(layer->as_node(), parent.as_node());
 
-    GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
-    
-    /* Skip if we've already processed this datablock. */
-    if (processed_datablocks.contains(grease_pencil)) {
-      continue;
+    /* Track modified groups for cleanup. */
+    if (!modified_groups.contains(&parent)) {
+      modified_groups.append(&parent);
     }
-    processed_datablocks.add(grease_pencil);
-
-    /* Collect selected layers for this datablock. */
-    blender::Vector<Layer *> selected_layers;
-    for (Layer *layer : grease_pencil->layers_for_write()) {
-      if (layer->is_selected()) {
-        selected_layers.append(layer);
-      }
-    }
-
-    /* Skip this datablock if no layers are selected. */
-    if (selected_layers.is_empty()) {
-      continue;
-    }
-
-    /* Move selected layers out of their parent groups. */
-    blender::Vector<LayerGroup *> modified_groups;
-    for (Layer *layer : selected_layers) {
-      LayerGroup &parent = layer->parent_group();
-      if (&parent == grease_pencil->root_group_ptr) {
-        continue; /* Skip layers not in a group. */
-      }
-      grease_pencil->move_node_before(layer->as_node(), parent.as_node());
-
-      /* Track modified groups for cleanup. */
-      if (!modified_groups.contains(&parent)) {
-        modified_groups.append(&parent);
-      }
-      has_ungrouped_layers = true;
-    }
-
-    /* Remove any groups that are now empty as a result of ungrouping. */
-    for (LayerGroup *group : modified_groups) {
-      if (group->is_empty()) {
-        grease_pencil->remove_group(*group, /* keep_children = */ true);
-      }
-    }
-
-    /* Tag for update and send notification. */
-    DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, grease_pencil);
+    has_ungrouped_layers = true;
   }
 
-  ANIM_animdata_freelist(&anim_data);
-
-  if (!has_ungrouped_layers) {
-    BKE_report(op->reports, RPT_ERROR, "No selected layers in groups to ungroup");
-    return OPERATOR_CANCELLED;
+  /* Remove any groups that are now empty as a result of ungrouping. */
+  for (LayerGroup *group : modified_groups) {
+    if (group->is_empty()) {
+      grease_pencil->remove_group(*group, /* keep_children = */ true);
+    }
   }
 
-  return OPERATOR_FINISHED;
+  /* Tag for update. */
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+  return has_ungrouped_layers;
 }
 
-static void animchannels_group_channels(bAnimContext *ac,
-                                        bAnimListElem *adt_ref,
-                                        const char name[])
+static int animchannels_group_fcurve_channels(bAnimContext *ac,
+                                               bAnimListElem *adt_ref,
+                                               const char name[])
 {
   AnimData *adt = adt_ref->adt;
   bAction *act = adt->action;
 
+  int grouped_fcurves_count = 0;
+
   if (act == nullptr) {
-    return;
+    return 0;
   }
 
   /* Get list of selected F-Curves to re-group. */
@@ -2716,7 +2598,7 @@ static void animchannels_group_channels(bAnimContext *ac,
   ANIM_animdata_filter(ac, &anim_data, filter, adt_ref, ANIMCONT_CHANNEL);
 
   if (anim_data.first == nullptr) {
-    return;
+    return 0;
   }
 
   /* Legacy actions. */
@@ -2741,12 +2623,12 @@ static void animchannels_group_channels(bAnimContext *ac,
 
       /* add F-Curve to group */
       action_groups_add_channel(act, agrp, fcu);
+      grouped_fcurves_count++;
     }
 
     /* cleanup */
     ANIM_animdata_freelist(&anim_data);
-
-    return;
+    return grouped_fcurves_count;
   }
 
   /* Layered action.
@@ -2776,14 +2658,16 @@ static void animchannels_group_channels(bAnimContext *ac,
     }
 
     channelbag->fcurve_assign_to_channel_group(*fcu, *group);
+    grouped_fcurves_count++;
   }
 
   /* Cleanup. */
   ANIM_animdata_freelist(&anim_data);
+  return grouped_fcurves_count;
 }
 
 /* -------------------------------------------------------------------- */
-/** \name Group Channels Operator (mixed selection = two groups, same name)
+/** \name Group Channels Operator
  * \{ */
 
 static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
@@ -2799,50 +2683,68 @@ static wmOperatorStatus animchannels_group_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED; /* a blank label would create an invisible group */
   }
 
-  /* keep the full selection alive - freeing too early would revive the
-   *      use-after-free crash documented in the last report. */
   ListBase sel = {nullptr, nullptr};
   const int flt = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
                   ANIMFILTER_NODUPLIS | ANIMFILTER_SEL;
   ANIM_animdata_filter(&ac, &sel, eAnimFilter_Flags(flt), ac.data, eAnimCont_Types(ac.datatype));
 
-  bool gp_selected = false;
-  bool fcurve_selected = false;
+  int grouped_gp_layers_count = 0;
+  int grouped_fcurves_count = 0;
+  blender::Set<GreasePencil *> processed_gp_datablocks;
+
+  /* Process both GP and F-Curve channels in a single loop. */
   LISTBASE_FOREACH (bAnimListElem *, ale, &sel) {
     if (ELEM(ale->type,
              ANIMTYPE_GREASE_PENCIL_LAYER,
              ANIMTYPE_GPLAYER,
              ANIMTYPE_GREASE_PENCIL_LAYER_GROUP))
     {
-      gp_selected = true;
+      GreasePencil *current_grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
+
+      /* Skip if we've already processed this Grease Pencil data. */
+      if (processed_gp_datablocks.contains(current_grease_pencil)) {
+        continue;
+      }
+      processed_gp_datablocks.add(current_grease_pencil);
+      grouped_gp_layers_count += animchannels_group_gp_layers(current_grease_pencil, name);
     }
     else if (ale->adt && ale->adt->action) {
-      fcurve_selected = true;
-    }
-  }
-  /* run both branches so the user gets *two* groups named identically;
-   *      this preserves the single-dialog workflow while respecting each
-   *      data-model's constraints.
-   */
-  if (gp_selected) {
-    anim_gp_layer_group(C, op);
-  }
-
-  if (fcurve_selected) {
-    LISTBASE_FOREACH (bAnimListElem *, ale, &sel) {
-      if (ale->adt && ale->adt->action &&
-          !ELEM(ale->type,
-                ANIMTYPE_GREASE_PENCIL_LAYER,
-                ANIMTYPE_GPLAYER,
-                ANIMTYPE_GREASE_PENCIL_LAYER_GROUP))
-      {
-        animchannels_group_channels(&ac, ale, name);
-      }
+      grouped_fcurves_count += animchannels_group_fcurve_channels(&ac, ale, name);
     }
   }
 
-  ANIM_animdata_freelist(&sel);
+  /* Create appropriate report message based on what was grouped. */
+  if (grouped_gp_layers_count > 0 && grouped_fcurves_count > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Grouped %d %s and %d %s",
+                grouped_gp_layers_count,
+                (grouped_gp_layers_count == 1) ? "Grease Pencil layer" : "Grease Pencil layers",
+                grouped_fcurves_count,
+                (grouped_fcurves_count == 1) ? "F-Curve" : "F-Curves");
+  }
+  else if (grouped_gp_layers_count > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Grouped %d %s",
+                grouped_gp_layers_count,
+                (grouped_gp_layers_count == 1) ? "Grease Pencil layer" : "Grease Pencil layers");
+  }
+  else if (grouped_fcurves_count > 0) {
+    BKE_reportf(op->reports,
+                RPT_INFO,
+                "Grouped %d %s",
+                grouped_fcurves_count,
+                (grouped_fcurves_count == 1) ? "F-Curve" : "F-Curves");
+  }
+
+  /* Send appropriate notifications. */
+  if (grouped_gp_layers_count > 0) {
+    WM_event_add_notifier(C, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
+  }
+
   WM_event_add_notifier(C, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+  ANIM_animdata_freelist(&sel);
   return OPERATOR_FINISHED;
 }
 
@@ -2882,8 +2784,10 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
 {
   /* No animation context means nothing can be ungrouped and avoids an empty undo step. */
   bAnimContext ac;
+
   ListBase anim_data = {nullptr, nullptr};
-  int filter;
+
+  /* get editor data */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
   }
@@ -2891,73 +2795,73 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
   /* The full selection must remain valid until both GP and F-Curve passes complete,
    * otherwise GP tree edits would leave dangling nodes or invalid iterators. */
   ListBase sel = {nullptr, nullptr};
-  const int flt = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
-                  ANIMFILTER_NODUPLIS | ANIMFILTER_SEL;
-  ANIM_animdata_filter(&ac, &sel, eAnimFilter_Flags(flt), ac.data, eAnimCont_Types(ac.datatype));
+  const int filter = ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_LIST_CHANNELS |
+                     ANIMFILTER_NODUPLIS | ANIMFILTER_SEL;
+  ANIM_animdata_filter(
+      &ac, &sel, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
 
-  /* F-Curve nodes are cached before running the GP operator because that operator
-   * may deselect or reorder list elements, which would otherwise corrupt iteration. */
-  blender::Vector<bAnimListElem *> fcurve_nodes;
-  bool gp_needed = false;
+  /* Was ungrouping successful? */
+  int ungrouped_count = 0;
+
+  /* Collect unique grease pencil objects to process. */
+  blender::Set<GreasePencil *> processed_gp;
   LISTBASE_FOREACH (bAnimListElem *, ale, &sel) {
     if (ELEM(ale->type,
              ANIMTYPE_GREASE_PENCIL_LAYER,
              ANIMTYPE_GPLAYER,
              ANIMTYPE_GREASE_PENCIL_LAYER_GROUP))
     {
-      gp_needed = true;
-    }
-    else if (ale->adt && ale->adt->action) {
-      fcurve_nodes.append(ale);
-    }
-  }
-
-  /* Grease-Pencil ungroup runs first; its hierarchy edits can't affect F-Curve data. */
-  if (gp_needed) {
-    anim_gp_layer_ungroup(C, op);
-  }
-
-  /* Clear the list for reuse */
-  ANIM_animdata_freelist(&anim_data);
-
-  /* just selected F-Curves... */
-  filter = (ANIMFILTER_DATA_VISIBLE | ANIMFILTER_LIST_VISIBLE | ANIMFILTER_SEL |
-            ANIMFILTER_NODUPLIS | ANIMFILTER_FCURVESONLY);
-  ANIM_animdata_filter(
-      &ac, &anim_data, eAnimFilter_Flags(filter), ac.data, eAnimCont_Types(ac.datatype));
-
-  LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
-
-    FCurve *fcu = static_cast<FCurve *>(ale->data);
-
-    /* Already ungrouped, so skip. */
-    if (fcu->grp == nullptr) {
-      continue;
-    }
-
-    /* find action for this F-Curve... */
-    if (!ale->adt || !ale->adt->action) {
-      continue;
-    }
-    bAction *act = ale->adt->action;
-
-    /* Legacy actions. */
-    if (blender::animrig::legacy::action_treat_as_legacy(*act)) {
-      bActionGroup *agrp = fcu->grp;
-
-      /* remove F-Curve from group and add at tail (ungrouped) */
-      action_groups_remove_channel(act, fcu);
-      BLI_addtail(&act->curves, fcu);
-
-      /* delete group if it is now empty */
-      if (BLI_listbase_is_empty(&agrp->channels)) {
-        BLI_freelinkN(&act->groups, agrp);
+      GreasePencil *grease_pencil = reinterpret_cast<GreasePencil *>(ale->id);
+      if (grease_pencil == nullptr) {
+        continue; /* Skip if no Grease Pencil data. */
       }
-      continue;
+      if (processed_gp.add(grease_pencil)) {
+        animchannels_ungroup_gp_layers(grease_pencil);
+        ungrouped_count++;
+      }
     }
+    else if (ale->adt && ale->adt->action && ale->type == ANIMTYPE_FCURVE) {
+      FCurve *fcu = static_cast<FCurve *>(ale->data);
 
-    /* Layered action. */
-    fcu->grp->channelbag->wrap().fcurve_ungroup(*fcu);
+      /* Already ungrouped, so skip. */
+      if (fcu->grp == nullptr) {
+        continue;
+      }
+
+      /* find action for this F-Curve... */
+      if (!ale->adt || !ale->adt->action) {
+        continue;
+      }
+      bAction *act = ale->adt->action;
+
+      /* Legacy actions. */
+      if (blender::animrig::legacy::action_treat_as_legacy(*act)) {
+        bActionGroup *agrp = fcu->grp;
+
+        /* remove F-Curve from group and add at tail (ungrouped) */
+        action_groups_remove_channel(act, fcu);
+        BLI_addtail(&act->curves, fcu);
+        /* delete group if it is now empty */
+        if (BLI_listbase_is_empty(&agrp->channels)) {
+          BLI_freelinkN(&act->groups, agrp);
+        }
+        ungrouped_count++;
+        continue;
+      }
+
+      /* Layered action. */
+      if (fcu->grp->channelbag->wrap().fcurve_ungroup(*fcu)) {
+        ungrouped_count++;
+      }
+    }
+  }
+
+  const int total_selected = BLI_listbase_count(&sel);
+  
+  if (ungrouped_count == total_selected) {
+    BKE_reportf(op->reports, RPT_INFO, "Ungrouped all %d selected channels", total_selected);
+  } else if (ungrouped_count > 0){
+    BKE_reportf(op->reports, RPT_INFO, "Ungrouped %d channels",ungrouped_count);
   }
 
   /* cleanup */
