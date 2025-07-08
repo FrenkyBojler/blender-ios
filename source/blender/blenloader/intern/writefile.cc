@@ -411,8 +411,8 @@ bool ZstdWriteWrap::write(const void *buf, const size_t buf_len)
 struct WriteData {
   const SDNA *sdna;
   std::unique_ptr<blender::dna::pointers::PointersInDNA> pointers;
-  blender::Map<const void *, const void *> pointer_map;
-  blender::Map<int, int> pointer_num_by_group;
+  blender::Map<const void *, uint64_t> pointer_map;
+  int64_t pointer_num = 1;
   std::ostream *debug_dst = nullptr;
 
   struct {
@@ -770,18 +770,13 @@ static void write_bhead(WriteData *wd, const BHead &bhead)
   mywrite(wd, &bh, sizeof(bh));
 }
 
-static const void *get_address_id(WriteData &wd, const void *address, const int group)
+static const void *get_address_id(WriteData &wd, const void *address)
 {
   if (address == nullptr) {
     return nullptr;
   }
-  return wd.pointer_map.lookup_or_add_cb(address, [&]() {
-    int &id_in_group = wd.pointer_num_by_group.lookup_or_add_default(group);
-    /* Increment first to avoid nullptr as valid id. */
-    id_in_group++;
-    uintptr_t address_id = (uintptr_t(group) << 32) | uintptr_t(id_in_group);
-    return (const void *)address_id;
-  });
+  return (const void *)wd.pointer_map.lookup_or_add_cb(address,
+                                                       [&]() { return ++wd.pointer_num; });
 }
 
 static void writestruct_at_address_nr(WriteData *wd,
@@ -815,14 +810,14 @@ static void writestruct_at_address_nr(WriteData *wd,
   void *buffer = buffer_owner.buffer();
   memcpy(buffer, data, len_in_bytes);
 
-  const void *address_id = get_address_id(*wd, adr, struct_nr);
+  const void *address_id = get_address_id(*wd, adr);
 
   const blender::dna::pointers::StructInfo &struct_info = wd->pointers->get_for_struct(struct_nr);
   for (const int i : blender::IndexRange(nr)) {
     for (const blender::dna::pointers::PointerInfo &pointer_info : struct_info.pointers) {
       const int offset = i * struct_info.size + pointer_info.offset;
       const void **p_ptr = (const void **)POINTER_OFFSET(buffer, offset);
-      const void *address_id = get_address_id(*wd, *p_ptr, struct_nr);
+      const void *address_id = get_address_id(*wd, *p_ptr);
       *p_ptr = address_id;
     }
   }
@@ -901,7 +896,7 @@ static void writedata(WriteData *wd, const int filecode, const size_t len, const
 
   BHead bh;
   bh.code = filecode;
-  bh.old = get_address_id(*wd, adr, 0);
+  bh.old = get_address_id(*wd, adr);
   bh.nr = 1;
   BLI_STATIC_ASSERT(SDNA_RAW_DATA_STRUCT_INDEX == 0, "'raw data' SDNA struct index should be 0")
   bh.SDNAnr = SDNA_RAW_DATA_STRUCT_INDEX;
