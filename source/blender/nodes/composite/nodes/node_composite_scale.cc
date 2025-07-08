@@ -82,10 +82,6 @@ static void node_composite_update_scale(bNodeTree *ntree, bNode *node)
 static void node_composit_buts_scale(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   uiLayout &column = layout->column(true);
-  column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  uiLayout &row = column.row(true);
-  row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
-  row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
   column.prop(ptr, "space", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 
   if (RNA_enum_get(ptr, "space") == CMP_NODE_SCALE_RENDER_SIZE) {
@@ -95,6 +91,11 @@ static void node_composit_buts_scale(uiLayout *layout, bContext * /*C*/, Pointer
                 std::nullopt,
                 ICON_NONE);
   }
+
+  column.prop(ptr, "interpolation", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  uiLayout &row = column.row(true);
+  row.prop(ptr, "extension_x", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+  row.prop(ptr, "extension_y", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -247,7 +248,7 @@ class ScaleOperation : public NodeOperation {
 
   Interpolation get_interpolation() const
   {
-    switch (node_storage(bnode()).interpolation) {
+    switch (static_cast<CMPNodeInterpolation>(node_storage(bnode()).interpolation)) {
       case CMP_NODE_INTERPOLATION_NEAREST:
         return Interpolation::Nearest;
       case CMP_NODE_INTERPOLATION_BILINEAR:

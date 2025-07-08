@@ -1291,7 +1291,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (node->type_legacy != CMP_NODE_SCALE) {
           continue;
         }
-        if (node->storage != nullptr) {
+        if (node->storage == nullptr) {
           continue;
         }
         NodeScaleData *data = static_cast<NodeScaleData *>(node->storage);
