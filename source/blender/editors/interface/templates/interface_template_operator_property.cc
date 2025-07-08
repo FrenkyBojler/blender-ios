@@ -351,7 +351,7 @@ static void draw_export_controls(
   if (valid) {
     uiLayout *row = &layout->row(false);
     row->emboss_set(blender::ui::EmbossType::None);
-    uiItemPopoverPanel(row, C, "WM_PT_operator_presets", "", ICON_PRESET);
+    row->popover(C, "WM_PT_operator_presets", "", ICON_PRESET);
     PointerRNA op_ptr = row->op("COLLECTION_OT_exporter_export", "", ICON_EXPORT);
     RNA_int_set(&op_ptr, "index", index);
   }
@@ -444,6 +444,12 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   col->menu("COLLECTION_MT_exporter_add", "", ICON_ADD);
   PointerRNA op_ptr = col->op("COLLECTION_OT_exporter_remove", "", ICON_REMOVE);
   RNA_int_set(&op_ptr, "index", index);
+
+  col->separator();
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_UP);
+  RNA_enum_set(&op_ptr, "direction", -1);
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_DOWN);
+  RNA_enum_set(&op_ptr, "direction", 1);
 
   col = &layout->column(true);
   col->op("COLLECTION_OT_export_all", std::nullopt, ICON_EXPORT);
