@@ -761,8 +761,6 @@ static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op)
   }
   else {
     col->prop(&ptr, "use_selected_faces", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-    col->separator();
-    col->prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   col->separator();
   col->prop(&ptr, "use_custom_resolution", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -771,6 +769,8 @@ static void uv_apply_texel_density_draw(bContext * /*C*/, wmOperator *op)
     col->separator();
     col->prop(&ptr, "height", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
+  col->separator();
+  col->prop(&ptr, "lock", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 static void UV_OT_apply_texel_density(wmOperatorType *ot)
 {
@@ -798,15 +798,15 @@ static void UV_OT_apply_texel_density(wmOperatorType *ot)
       ot->srna, "use_custom_density", false, "Custom Density", "Set a custom texel density");
 
   prop = RNA_def_float(ot->srna,
-                "density",
-                1024.0f,
-                0.0f,
-                FLT_MAX,
-                "Texel Density",
-                "Custom texel density applied to the selected islands",
-                0.0f,
-                FLT_MAX);
-  RNA_def_property_subtype(prop,PROP_PIXEL_DENSITY);
+                       "density",
+                       1024.0f,
+                       0.0f,
+                       FLT_MAX,
+                       "Texel Density",
+                       "Custom texel density applied to the selected islands",
+                       0.0f,
+                       FLT_MAX);
+  RNA_def_property_subtype(prop, PROP_PIXEL_DENSITY);
 
   RNA_def_boolean(ot->srna,
                   "use_selected_faces",
