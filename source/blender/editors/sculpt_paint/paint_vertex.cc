@@ -47,6 +47,7 @@
 #include "BKE_object.hh"
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
+#include "BKE_paint_types.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -200,7 +201,7 @@ bool brush_use_accumulate_ex(const Brush &brush, const eObjectMode ob_mode)
 bool brush_use_accumulate(const VPaint &vp)
 {
   const Brush *brush = BKE_paint_brush_for_read(&vp.paint);
-  return brush_use_accumulate_ex(*brush, eObjectMode(vp.paint.runtime.ob_mode));
+  return brush_use_accumulate_ex(*brush, eObjectMode(vp.paint.runtime->ob_mode));
 }
 
 void init_stroke(Depsgraph &depsgraph, Object &ob)
@@ -922,13 +923,13 @@ void PAINT_OT_vertex_paint_toggle(wmOperatorType *ot)
  */
 
 template<typename Func>
-static void to_static_color_type(const eCustomDataType type, const Func &func)
+static void to_static_color_type(const bke::AttrType type, const Func &func)
 {
   switch (type) {
-    case CD_PROP_COLOR:
+    case bke::AttrType::ColorFloat:
       func(ColorGeometry4f());
       break;
-    case CD_PROP_BYTE_COLOR:
+    case bke::AttrType::ColorByte:
       func(ColorGeometry4b());
       break;
     default:
@@ -940,7 +941,7 @@ static void to_static_color_type(const eCustomDataType type, const Func &func)
 struct VPaintData : public PaintModeData {
   ViewContext vc;
   AttrDomain domain;
-  eCustomDataType type;
+  bke::AttrType type;
 
   NormalAnglePrecalc normal_angle_precalc;
 
@@ -982,7 +983,7 @@ static std::unique_ptr<VPaintData> vpaint_init_vpaint(bContext *C,
                                                       Object &ob,
                                                       Mesh &mesh,
                                                       const AttrDomain domain,
-                                                      const eCustomDataType type,
+                                                      const bke::AttrType type,
                                                       const Brush &brush)
 {
   std::unique_ptr<VPaintData> vpd = std::make_unique<VPaintData>();

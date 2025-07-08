@@ -1068,7 +1068,7 @@ typedef enum GeometryNodeAssetTraitFlag {
   /* Only used by Grease Pencil for now. */
   GEO_NODE_ASSET_PAINT = (1 << 10),
 } GeometryNodeAssetTraitFlag;
-ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_WAIT_FOR_CURSOR);
+ENUM_OPERATORS(GeometryNodeAssetTraitFlag, GEO_NODE_ASSET_PAINT);
 
 /* Data structs, for `node->storage`. */
 
@@ -1571,6 +1571,12 @@ typedef struct NodeTrackPosData {
   char track_name[64];
 } NodeTrackPosData;
 
+typedef struct NodeTransformData {
+  short interpolation;
+  char extension_x;
+  char extension_y;
+} NodeTransformData;
+
 typedef struct NodeTranslateData {
   char wrap_axis DNA_DEPRECATED;
   char relative DNA_DEPRECATED;
@@ -1581,6 +1587,8 @@ typedef struct NodeTranslateData {
 
 typedef struct NodeScaleData {
   short interpolation;
+  char extension_x;
+  char extension_y;
 } NodeScaleData;
 
 typedef struct NodeDisplaceData {
