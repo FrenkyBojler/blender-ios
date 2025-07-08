@@ -125,16 +125,24 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
                                             ccl_private Spectrum *r_phi_s,
                                             ccl_private Spectrum *r_phi_p)
 {
-  const Spectrum t1 = sqr(eta2) - sqr(k2) - sqr(eta1) * (1.0f - sqr(cosi));
-  const Spectrum t2 = sqrt(sqr(t1) + sqr(2.0f * eta2 * k2));
+  const float eta1_sq = sqr(eta1);
+  const Spectrum eta2_sq = sqr(eta2);
+  const Spectrum k2_sq = sqr(k2);
+  const Spectrum two_eta2_k2 = 2.0f * eta2 * k2;
+
+  const Spectrum t1 = eta2_sq - k2_sq - eta1_sq * (1.0f - sqr(cosi));
+  const Spectrum t2 = sqrt(sqr(t1) + sqr(two_eta2_k2));
   const Spectrum u = safe_sqrt(0.5f * (t2 + t1));
   const Spectrum v = safe_sqrt(0.5f * (t2 - t1));
 
-  if (r_R_s && r_R_p) {
-    *r_R_s = (sqr(eta1 * cosi - u) + sqr(v)) / (sqr(eta1 * cosi + u) + sqr(v));
+  const Spectrum u_sq = sqr(u);
+  const Spectrum v_sq = sqr(v);
 
-    const Spectrum t3 = (sqr(eta2) - sqr(k2)) * cosi;
-    const Spectrum t4 = 2.0f * eta2 * k2 * cosi;
+  if (r_R_s && r_R_p) {
+    *r_R_s = (sqr(eta1 * cosi - u) + v_sq) / (sqr(eta1 * cosi + u) + v_sq);
+
+    const Spectrum t3 = (eta2_sq - k2_sq) * cosi;
+    const Spectrum t4 = two_eta2_k2 * cosi;
     const Spectrum R_p = (sqr(t3 - eta1 * u) + sqr(t4 - eta1 * v)) /
                          (sqr(t3 + eta1 * u) + sqr(t4 + eta1 * v));
     const int3 mask = isequal_mask(eta2, zero_spectrum()) & isequal_mask(k2, zero_spectrum());
@@ -142,10 +150,10 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
   }
 
   if (r_phi_s && r_phi_p) {
-    *r_phi_s = atan2(2.0f * eta1 * cosi * v, sqr(u) + sqr(v) - sqr(eta1 * cosi));
+    *r_phi_s = atan2(2.0f * eta1 * cosi * v, u_sq + v_sq - sqr(eta1 * cosi));
 
-    const Spectrum y = 2.0f * eta1 * cosi * (2.0f * eta2 * k2 * u - (sqr(eta2) - sqr(k2)) * v);
-    const Spectrum x = sqr((sqr(eta2) + sqr(k2)) * cosi) - sqr(eta1) * (sqr(u) + sqr(v));
+    const Spectrum y = 2.0f * eta1 * cosi * (two_eta2_k2 * u - (eta2_sq - k2_sq) * v);
+    const Spectrum x = sqr((eta2_sq + k2_sq) * cosi) - eta1_sq * (u_sq + v_sq);
     *r_phi_p = atan2(y, x);
   }
 }
