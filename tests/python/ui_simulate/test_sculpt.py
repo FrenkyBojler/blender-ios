@@ -59,6 +59,7 @@ def _cursor_position_from_spacetype(window, space_type):
         raise Exception("Space Type {!r} not found".format(space_type))
     return _cursor_position_from_area(area)
 
+
 def asset_shelf_brush_selection():
     e, t = _test_vars(window := _test_window())
 
