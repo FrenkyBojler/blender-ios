@@ -891,8 +891,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     }
   }
   else {
-    for (fcu = static_cast<FCurve *>(dna_action->curves.first); fcu; fcu = fcn) {
-      fcn = fcu->next;
+    LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &action.curves) {
       /* Delete F-Curve completely. */
       blender::animrig::animdata_fcurve_delete(adt, fcu);
       DEG_id_tag_update(&scene->id, ID_RECALC_TRANSFORM);
@@ -1008,12 +1007,13 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
   return true;
 }
 
-static blender::Vector<FCurve *> delete_scene_action_keyframes_legacy(AnimData *adt,
-                                                 bAction *act,
-                                                 Scene *scene,
-                                                 float cfra_unmap,
-                                                 wmOperator *op,
-                                                 blender::Vector<FCurve *> *modified_fcurves)
+static blender::Vector<FCurve *> delete_scene_action_keyframes_legacy(
+    AnimData *adt,
+    bAction *act,
+    Scene *scene,
+    float cfra_unmap,
+    wmOperator *op,
+    blender::Vector<FCurve *> *modified_fcurves)
 {
   LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
     if (!can_delete_scene_key(fcu, scene, op)) {
