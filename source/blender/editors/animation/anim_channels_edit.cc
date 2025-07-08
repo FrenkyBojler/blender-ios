@@ -2579,8 +2579,8 @@ static bool animchannels_ungroup_gp_layers(GreasePencil *grease_pencil)
 }
 
 static int animchannels_group_fcurve_channels(bAnimContext *ac,
-                                               bAnimListElem *adt_ref,
-                                               const char name[])
+                                              bAnimListElem *adt_ref,
+                                              const char name[])
 {
   AnimData *adt = adt_ref->adt;
   bAction *act = adt->action;
@@ -2857,11 +2857,12 @@ static wmOperatorStatus animchannels_ungroup_exec(bContext *C, wmOperator *op)
   }
 
   const int total_selected = BLI_listbase_count(&sel);
-  
+
   if (ungrouped_count == total_selected) {
     BKE_reportf(op->reports, RPT_INFO, "Ungrouped all %d selected channels", total_selected);
-  } else if (ungrouped_count > 0){
-    BKE_reportf(op->reports, RPT_INFO, "Ungrouped %d channels",ungrouped_count);
+  }
+  else if (ungrouped_count > 0) {
+    BKE_reportf(op->reports, RPT_INFO, "Ungrouped %d channels", ungrouped_count);
   }
 
   /* cleanup */
