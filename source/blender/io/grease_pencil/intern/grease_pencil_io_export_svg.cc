@@ -526,7 +526,7 @@ pugi::xml_node SVGExporter::write_beizer_path(pugi::xml_node node,
   pugi::xml_node element_node = node.append_child("path");
 
   std::string txt = "M";
-  for (const int i : positions.index_range()) {
+  for (const int i : positions.index_range().drop_back(1)) {
     if (i > 0) {
       txt.append(", ");
     }
@@ -540,35 +540,58 @@ pugi::xml_node SVGExporter::write_beizer_path(pugi::xml_node node,
       txt.append(std::to_string(screen_co.x) + "," +
                  std::to_string(screen_rect_.size().y - screen_co.y));
     }
-    if (i != positions.size() - 1 || cyclic) {
-      txt.append(" C ");
-      const float2 screen_co_right = this->project_to_screen(transform, positions_right[i]);
-      /* SVG has inverted Y axis. */
-      if (camera_persmat_) {
-        txt.append(std::to_string(screen_co_right.x) + "," +
-                   std::to_string(camera_rect_.size().y - screen_co_right.y));
-      }
-      else {
-        txt.append(std::to_string(screen_co_right.x) + "," +
-                   std::to_string(screen_rect_.size().y - screen_co_right.y));
-      }
+    txt.append(" C ");
+    const float2 screen_co_right = this->project_to_screen(transform, positions_right[i]);
+    /* SVG has inverted Y axis. */
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co_right.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co_right.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co_right.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co_right.y));
+    }
 
-      txt.append(", ");
-      const float2 screen_co_left = this->project_to_screen(
-          transform, positions_left[(i + 1) % positions_left.size()]);
-      /* SVG has inverted Y axis. */
-      if (camera_persmat_) {
-        txt.append(std::to_string(screen_co_left.x) + "," +
-                   std::to_string(camera_rect_.size().y - screen_co_left.y));
-      }
-      else {
-        txt.append(std::to_string(screen_co_left.x) + "," +
-                   std::to_string(screen_rect_.size().y - screen_co_left.y));
-      }
+    txt.append(", ");
+    const float2 screen_co_left = this->project_to_screen(
+        transform, positions_left[(i + 1) % positions_left.size()]);
+    /* SVG has inverted Y axis. */
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co_left.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co_left.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co_left.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co_left.y));
     }
   }
+
   /* Close patch (cyclic). */
   if (cyclic) {
+    txt.append(" C ");
+    const float2 screen_co_right = this->project_to_screen(transform, positions_right.last());
+    /* SVG has inverted Y axis. */
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co_right.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co_right.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co_right.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co_right.y));
+    }
+
+    txt.append(", ");
+    const float2 screen_co_left = this->project_to_screen(transform, positions_left.first());
+    /* SVG has inverted Y axis. */
+    if (camera_persmat_) {
+      txt.append(std::to_string(screen_co_left.x) + "," +
+                 std::to_string(camera_rect_.size().y - screen_co_left.y));
+    }
+    else {
+      txt.append(std::to_string(screen_co_left.x) + "," +
+                 std::to_string(screen_rect_.size().y - screen_co_left.y));
+    }
+
     txt.append(", ");
 
     const float2 screen_co = this->project_to_screen(transform, positions.first());
