@@ -573,10 +573,9 @@ static void panel_draw(const bContext *C, Panel *panel)
     sub = &col->column(true);
     PointerRNA op_ptr = layout->op(
         "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
-
-    RNA_enum_set(&op_ptr, "type", /* #blender::ed::object::DashSegmentMoveDirection::Up. */ -1);
+    RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
     op_ptr = layout->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
-    RNA_enum_set(&op_ptr, "type", /* #blender::ed::object::DashSegmentMoveDirection::Down. */ 1);
+    RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
 
     if (tmd->segments().index_range().contains(tmd->segment_active_index)) {
       PointerRNA segment_ptr = RNA_pointer_create_discrete(
