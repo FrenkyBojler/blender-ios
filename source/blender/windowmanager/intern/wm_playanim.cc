@@ -90,7 +90,7 @@ static struct {
 #  define PLAY_FRAME_CACHE_MAX 30
 #endif
 
-static CLG_LogRef LOG = {"wm.playanim"};
+static CLG_LogRef LOG = {"image"};
 
 /** Used in user viable messages. */
 static const char *message_prefix = "Animation Player";
@@ -677,6 +677,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
 
   GPUContext *restore_context = GPU_context_active_get();
   GPU_context_active_set(ghost_data.gpu_context);
+  GPU_context_begin_frame(ghost_data.gpu_context);
 
   GPU_clear_color(0.1f, 0.1f, 0.1f, 0.0f);
 
@@ -784,6 +785,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     GPU_flush();
   }
 
+  GPU_context_end_frame(ghost_data.gpu_context);
   GHOST_SwapWindowBuffers(ghost_data.window);
   GPU_context_active_set(restore_context);
   GPU_render_end();
