@@ -697,7 +697,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     offsets = BM_uv_map_offsets_get(bm);
 
     UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
-    if(element_map==nullptr){
+    if (element_map == nullptr) {
       continue;
     }
     Set<BMFace *> ed_faces;
