@@ -35,88 +35,46 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   float half_angular = angular_diameter * 0.5;
   float alpha = 1.0;
   color xyz;
-  float y;
-  /* Convert dir to spherical coordinates. */
   vector direction = sky_spherical_coordinates(dir);
   float dir_elevation = M_PI_2 - direction[0];
 
-  if (sky_type == 0) {
-    /* Single Scattering model */
-    if (dir[2] >= 0.0) {
-      /* Render above the horizon */
-      /* If the ray is inside the sun disc, render it, otherwise render the sky.
-      * Alternatively, ignore the sun if we're evaluating the background texture. */
-      if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
-        /* Sun */
-        if (sun_elevation - half_angular > 0.0) {
-          if ((sun_elevation + half_angular) > 0.0) {
-            y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
-            xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity;
-          }
-        }
-        else {
-          if (sun_elevation + half_angular > 0.0) {
-            y = dir_elevation / (sun_elevation + half_angular);
-            xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity;
-          }
-        }
-        /* Limb darkening, coefficient is 0.6 */
-        float angle_fraction = sun_dir_angle / half_angular;
-        float limb_darkening = (1.0 - 0.6 * (1.0 - sqrt(1.0 - angle_fraction * angle_fraction)));
-        xyz *= limb_darkening;
-      }
-      else {
-        /* Sky */
-        float x = (direction[1] + M_PI + sun_rotation) / M_2PI;
-        if (x > 1.0) {
-          x = x - 1.0;
-        }
-        /* More pixels toward horizon compensation */
-        float y = (1.0 - sqrt(dir_elevation / M_PI_2)) / 2.0;
-        xyz = (color)texture(filename, x, y, "wrap", "clamp", "interp", "linear", "alpha", alpha);
+  /* If the ray is inside the sun disc, render it, otherwise render the sky.
+  * Alternatively, ignore the sun if we're evaluating the background texture. */
+  if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
+    /* Sun */
+    float y;
+    if (sun_elevation - half_angular > 0.0) {
+      if ((sun_elevation + half_angular) > 0.0) {
+        y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
       }
     }
     else {
-      /* Ground */
+      if (sun_elevation + half_angular > 0.0) {
+        y = dir_elevation / (sun_elevation + half_angular);
+      }
+    }
+    /* Limb darkening, coefficient is 0.6 */
+    xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity;
+    float angle_fraction = sun_dir_angle / half_angular;
+    float limb_darkening = (1.0 - 0.6 * (1.0 - sqrt(1.0 - angle_fraction * angle_fraction)));
+    xyz *= limb_darkening;
+  }
+  else {
+    if (sky_type == 0 && dir[2] < 0.0) {
+      /* Black ground if Single Scattering model, otherwise get Sky LUT */
       if (dir[2] < -0.4) {
         xyz = color(0, 0, 0);
       }
       else {
-        /* Black ground fade */
+        /* Ground fade */
         float fade = pow(1.0 + dir[2] * 2.5, 3.0);
         float x = (direction[1] + M_PI + sun_rotation) / M_2PI;
         if (x > 1.0) {
           x = x - 1.0;
         }
         float y = 0.492;
-        xyz = (color)texture(
-                  filename, x, y, "wrap", "periodic", "interp", "linear", "alpha", alpha) *
-              fade;
+        xyz = (color)texture(filename, x, y, "wrap", "periodic", "interp", "linear", "alpha", alpha) * fade;
       }
-    }
-  }
-  else {
-    /* Multiple Scattering model */
-    /* If the ray is inside the sun disc, render it, otherwise render the sky.
-    * Alternatively, ignore the sun if we're evaluating the background texture. */
-    if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
-      /* Sun */
-      if (sun_elevation - half_angular > 0.0) {
-        if ((sun_elevation + half_angular) > 0.0) {
-          y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
-          xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity;
-        }
-      }
-      else {
-        if (sun_elevation + half_angular > 0.0) {
-          y = dir_elevation / (sun_elevation + half_angular);
-          xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity;
-        }
-      }
-      /* Limb darkening, coefficient is 0.6 */
-      float angle_fraction = sun_dir_angle / half_angular;
-      float limb_darkening = (1.0 - 0.6 * (1.0 - sqrt(1.0 - angle_fraction * angle_fraction)));
-      xyz *= limb_darkening;
     }
     else {
       /* Sky */
@@ -125,15 +83,8 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
         x = x - 1.0;
       }
       /* Undo the non-linear transformation from the sky LUT */
-      float dir_elevation_abs;
+      float dir_elevation_abs = (dir_elevation < 0.0) ? -dir_elevation : dir_elevation;
       float dir_elevation_sign;
-      /* Absolute */
-      if (dir_elevation < 0.0) {
-        dir_elevation_abs = -dir_elevation;
-      }
-      else {
-        dir_elevation_abs = dir_elevation;
-      }
       /* Sign */
       if (dir_elevation < 0.0) {
         dir_elevation_sign = -1.0;
@@ -144,7 +95,7 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
       else {
         dir_elevation_sign = 0.0;
       }
-      float y = 1.0 - (sqrt(dir_elevation_abs / M_PI_2) * dir_elevation_sign * 0.5 + 0.5);
+      float y = 1.0 - (sqrt(dir_elevation_abs / M_PI_2) * dir_elevation_sign / 2 + 0.5);
       xyz = (color)texture(filename, x, y, "wrap", "clamp", "interp", "linear", "alpha", alpha);
     }
   }

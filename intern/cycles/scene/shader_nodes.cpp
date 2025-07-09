@@ -698,7 +698,7 @@ float SkyTextureNode::get_sun_average_radiance()
         sun_elevation, angular_diameter, clamped_altitude, pix_bottom, pix_top);
   }
 
-  /* Approximate the direction's elevation as the sun's elevation. */
+  /* Approximate the direction's elevation as the Sun's elevation. */
   const float dir_elevation = sun_elevation;
   const float half_angular = angular_diameter / 2.0f;
   const float3 pixel_bottom = make_float3(pix_bottom[0], pix_bottom[1], pix_bottom[2]);
@@ -747,14 +747,11 @@ float SkyTextureNode::get_sun_average_radiance()
 NODE_DEFINE(SkyTextureNode)
 {
   NodeType *type = NodeType::add("sky_texture", create, NodeType::SHADER);
-
   TEXTURE_MAPPING_DEFINE(SkyTextureNode);
-
   static NodeEnum type_enum;
   type_enum.insert("single_scattering", NODE_SKY_SINGLE_SCATTERING);
   type_enum.insert("multiple_scattering", NODE_SKY_MULTIPLE_SCATTERING);
   SOCKET_ENUM(sky_type, "Type", type_enum, NODE_SKY_MULTIPLE_SCATTERING);
-
   SOCKET_BOOLEAN(sun_disc, "Sun Disc", true);
   SOCKET_FLOAT(sun_size, "Sun Size", 0.009512f);
   SOCKET_FLOAT(sun_intensity, "Sun Intensity", 1.0f);
@@ -764,9 +761,7 @@ NODE_DEFINE(SkyTextureNode)
   SOCKET_FLOAT(air_density, "Air", 1.0f);
   SOCKET_FLOAT(aerosol_density, "Aerosol", 1.0f);
   SOCKET_FLOAT(ozone_density, "Ozone", 1.0f);
-
   SOCKET_IN_POINT(vector, "Vector", zero_float3(), SocketType::LINK_TEXTURE_GENERATED);
-
   SOCKET_OUT_COLOR(color, "Color");
 
   return type;
@@ -811,7 +806,6 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   ShaderOutput *color_out = output("Color");
   SunSky sunsky;
   int sky_model = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? 0 : 1;
-
   float clamped_altitude;
   /* Clamp altitude to avoid numerical issues */
   if (sky_model == 0) {

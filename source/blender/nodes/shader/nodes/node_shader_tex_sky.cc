@@ -129,7 +129,6 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
   XYZ_to_RGB xyz_to_rgb;
   get_XYZ_to_RGB_for_gpu(&xyz_to_rgb);
 
-  /* To fix pole issue we clamp the v coordinate. */
   GPUSamplerState sampler = {GPU_SAMPLER_FILTERING_LINEAR,
                              GPU_SAMPLER_EXTEND_MODE_REPEAT,
                              GPU_SAMPLER_EXTEND_MODE_EXTEND};
@@ -193,7 +192,7 @@ void register_node_type_sh_tex_sky()
   ntype.nclass = NODE_CLASS_TEXTURE;
   ntype.declare = file_ns::node_declare;
   ntype.draw_buttons = file_ns::node_shader_buts_tex_sky;
-  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Default);
   ntype.initfunc = file_ns::node_shader_init_tex_sky;
   blender::bke::node_type_storage(
       ntype, "NodeTexSky", node_free_standard_storage, node_copy_standard_storage);

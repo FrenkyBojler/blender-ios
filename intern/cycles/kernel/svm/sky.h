@@ -50,79 +50,41 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
   const float dir_elevation = M_PI_2_F - direction.x;
   float3 xyz;
 
-  if (sky_model == 0) {
-    /* Single Scattering model */
-    if (dir.z >= 0.0f) {
-      /* If the ray is inside the sun disc, render it, otherwise render the sky.
-       * Alternatively, ignore the sun if we're evaluating the background texture. */
-      if (sun_disc && sun_dir_angle < half_angular &&
-          !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
-      {
-        float y;
-        if (sun_elevation - half_angular > 0.0f) {
-          if (sun_elevation + half_angular > 0.0f) {
-            y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-          }
-        }
-        else {
-          if (sun_elevation + half_angular > 0.0f) {
-            y = dir_elevation / (sun_elevation + half_angular);
-          }
-        }
-        xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
-
-        /* Limb darkening, coefficient is 0.6 */
-        const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
-                                                                             half_angular))));
-        xyz *= limb_darkening;
-      }
-      else {
-        /* Sky */
-        const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
-        /* More pixels toward horizon compensation */
-        const float y = safe_sqrtf(dir_elevation / M_PI_2_F) / 2.0f + 0.5f;
-        xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
+  /* If the ray is inside the sun disc, render it, otherwise render the sky.
+   * Alternatively, ignore the sun if we're evaluating the background texture. */
+  if (sun_disc && sun_dir_angle < half_angular &&
+      !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
+  {
+    float y;
+    if (sun_elevation - half_angular > 0.0f) {
+      if (sun_elevation + half_angular > 0.0f) {
+        y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
       }
     }
     else {
-      /* Ground */
+      if (sun_elevation + half_angular > 0.0f) {
+        y = dir_elevation / (sun_elevation + half_angular);
+      }
+    }
+    /* Limb darkening, coefficient is 0.6 */
+    xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+    const float limb_darkening = (1.0f -
+                                  0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle / half_angular))));
+    xyz *= limb_darkening;
+  }
+  else {
+    if (sky_model == 0 && dir.z < 0.0f) {
+      /* Black ground if Single Scattering model, otherwise get Sky LUT */
       if (dir.z < -0.4f) {
         xyz = make_float3(0.0f, 0.0f, 0.0f);
       }
       else {
-        /* Black ground fade */
+        /* Ground fade */
         float fade = 1.0f + dir.z * 2.5f;
         fade = fade * fade * fade;
         const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
         xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f)) * fade;
       }
-    }
-  }
-
-  else {
-    /* Multiple Scattering model */
-    /* If the ray is inside the sun disc, render it, otherwise render the sky.
-     * Alternatively, ignore the sun if we're evaluating the background texture. */
-    if (sun_disc && sun_dir_angle < half_angular &&
-        !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
-    {
-      float y;
-      if (sun_elevation - half_angular > 0.0f) {
-        if (sun_elevation + half_angular > 0.0f) {
-          y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-        }
-      }
-      else {
-        if (sun_elevation + half_angular > 0.0f) {
-          y = dir_elevation / (sun_elevation + half_angular);
-        }
-      }
-      xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
-
-      /* Limb darkening, coefficient is 0.6 */
-      const float limb_darkening = (1.0f - 0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle /
-                                                                           half_angular))));
-      xyz *= limb_darkening;
     }
     else {
       /* Sky */
