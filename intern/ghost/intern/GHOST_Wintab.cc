@@ -10,7 +10,7 @@
 
 #include "GHOST_Wintab.hh"
 
-GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
+GHOST_Wintab *GHOST_Wintab::loadWintabUnsafe(HWND hwnd)
 {
   /* Load Wintab library if available. */
   auto handle = unique_hmodule(::LoadLibrary("Wintab32.dll"), &::FreeLibrary);
@@ -139,6 +139,43 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
                           tablet,
                           system,
                           size_t(queueSize));
+}
+
+static int access_violation_exception_filter(unsigned int code)
+{
+  if (code == EXCEPTION_ACCESS_VIOLATION) {
+    return EXCEPTION_EXECUTE_HANDLER;
+  }
+  return EXCEPTION_CONTINUE_SEARCH;
+}
+
+GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
+{
+  /* The only way to get the current handler is by seting a new one. */
+  LPTOP_LEVEL_EXCEPTION_FILTER current_filter = SetUnhandledExceptionFilter(nullptr);
+  SetUnhandledExceptionFilter(current_filter);
+
+  /* __except and __finally cannot be used together, as such a second nested __try block is needed.
+   */
+  __try
+  {
+    __try
+    {
+      return GHOST_Wintab::loadWintabUnsafe(hwnd);
+    }
+    __except (access_violation_exception_filter(GetExceptionCode()))
+    {
+    }
+  }
+  __finally
+  {
+    /* Restore our handler in case the Wintab driver replaced it. Huion's driver is known to do
+     * this.
+     */
+    SetUnhandledExceptionFilter(current_filter);
+  }
+
+  return nullptr;
 }
 
 void GHOST_Wintab::modifyContext(LOGCONTEXT &lc)
