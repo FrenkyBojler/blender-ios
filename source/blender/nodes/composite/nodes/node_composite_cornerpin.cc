@@ -99,6 +99,10 @@ class CornerPinOperation : public NodeOperation {
 
   void execute() override
   {
+    /* Only compute the antiasliased mask if we have a zero extension mode. */
+    const bool is_extension_mode_zero = this->get_extension_mode_x() == ExtensionMode::Zero ||
+                                        this->get_extension_mode_y() == ExtensionMode::Zero;
+
     const float3x3 homography_matrix = compute_homography_matrix();
 
     const Result &input_image = this->get_input("Image");
@@ -108,31 +112,36 @@ class CornerPinOperation : public NodeOperation {
       if (output_image.should_compute()) {
         output_image.share_data(input_image);
       }
-      if (output_mask.should_compute()) {
+      if (output_mask.should_compute() && is_extension_mode_zero) {
         output_mask.allocate_single_value();
         output_mask.set_single_value(1.0f);
       }
       return;
     }
 
-    Result plane_mask = compute_plane_mask(homography_matrix);
-    Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
-    smaa(context(), plane_mask, anti_aliased_plane_mask);
-    plane_mask.release();
+    if (is_extension_mode_zero) {
+      Result plane_mask = compute_plane_mask(homography_matrix);
+      Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
+      smaa(context(), plane_mask, anti_aliased_plane_mask);
+      plane_mask.release();
 
-    if (output_image.should_compute()) {
-      compute_plane(homography_matrix, anti_aliased_plane_mask);
-    }
+      if (output_image.should_compute()) {
+        compute_plane(homography_matrix, &anti_aliased_plane_mask);
+      }
 
-    if (output_mask.should_compute()) {
-      output_mask.steal_data(anti_aliased_plane_mask);
+      if (output_mask.should_compute()) {
+        output_mask.steal_data(anti_aliased_plane_mask);
+      }
+      else {
+        anti_aliased_plane_mask.release();
+      }
     }
     else {
-      anti_aliased_plane_mask.release();
+      compute_plane(homography_matrix, nullptr);
     }
   }
 
-  void compute_plane(const float3x3 &homography_matrix, Result &plane_mask)
+  void compute_plane(const float3x3 &homography_matrix, Result *plane_mask)
   {
     if (this->context().use_gpu()) {
       this->compute_plane_gpu(homography_matrix, plane_mask);
@@ -142,7 +151,7 @@ class CornerPinOperation : public NodeOperation {
     }
   }
 
-  void compute_plane_gpu(const float3x3 &homography_matrix, Result &plane_mask)
+  void compute_plane_gpu(const float3x3 &homography_matrix, Result *plane_mask)
   {
     GPUShader *shader = this->context().get_shader(this->get_shader_name());
     GPU_shader_bind(shader);
@@ -152,8 +161,8 @@ class CornerPinOperation : public NodeOperation {
     Result &input_image = get_input("Image");
     GPU_texture_mipmap_mode(input_image, true, true);
     /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
-     * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
-     * interpolation. */
+     * cases, as the logic used by the bicubic realization shader expects textures to use
+     * bilinear interpolation. */
     const Interpolation interpolation = this->get_interpolation();
     const ExtensionMode extension_mode_x = this->get_extension_mode_x();
     const ExtensionMode extension_mode_y = this->get_extension_mode_y();
@@ -165,8 +174,7 @@ class CornerPinOperation : public NodeOperation {
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
-
-    plane_mask.bind_as_texture(shader, "mask_tx");
+    plane_mask->bind_as_texture(shader, "mask_tx");
 
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
@@ -176,12 +184,12 @@ class CornerPinOperation : public NodeOperation {
     compute_dispatch_threads_at_least(shader, domain.size);
 
     input_image.unbind_as_texture();
-    plane_mask.unbind_as_texture();
+    plane_mask->unbind_as_texture();
     output_image.unbind_as_image();
     GPU_shader_unbind();
   }
 
-  void compute_plane_cpu(const float3x3 &homography_matrix, Result &plane_mask)
+  void compute_plane_cpu(const float3x3 &homography_matrix, Result *plane_mask)
   {
     Result &input = get_input("Image");
 
@@ -221,7 +229,8 @@ class CornerPinOperation : public NodeOperation {
       }
 
       /* Premultiply the mask value as an alpha. */
-      float4 plane_color = sampled_color * plane_mask.load_pixel<float>(texel);
+      float4 plane_color = plane_mask ? sampled_color * plane_mask->load_pixel<float>(texel) :
+                                        sampled_color;
 
       output.store_pixel(texel, plane_color);
     });

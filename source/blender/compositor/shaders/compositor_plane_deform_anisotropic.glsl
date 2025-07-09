@@ -29,7 +29,11 @@ void main()
   float4 sampled_color = textureGrad(input_tx, projected_coordinates, x_gradient, y_gradient);
 
   /* Premultiply the mask value as an alpha. */
+  #if defined(PREMULTIPLY_MASK)
   float4 plane_color = sampled_color * texture_load(mask_tx, texel).x;
+  #else
+  float4 plane_color = sampled_color;
+  #endif
 
   imageStore(output_img, texel, plane_color);
 }
