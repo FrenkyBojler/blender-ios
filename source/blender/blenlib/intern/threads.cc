@@ -672,6 +672,8 @@ uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPr
 
 void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
 {
+  pthread_mutex_lock(&queue->mutex);
+
   auto cancel = [&](std::deque<ThreadQueueWork> &sub_queue) {
     sub_queue.erase(
         std::remove_if(sub_queue.begin(),
@@ -683,6 +685,8 @@ void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
   cancel(queue->queue_low_priority);
   cancel(queue->queue_normal_priority);
   cancel(queue->queue_high_priority);
+
+  pthread_mutex_unlock(&queue->mutex);
 }
 
 void *BLI_thread_queue_pop(ThreadQueue *queue)
