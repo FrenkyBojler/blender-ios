@@ -645,6 +645,8 @@ void BLI_thread_queue_free(ThreadQueue *queue)
 
 uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority)
 {
+  BLI_assert(work);
+
   pthread_mutex_lock(&queue->mutex);
 
   ThreadQueueWork work_reference;
@@ -684,19 +686,26 @@ void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
 {
   pthread_mutex_lock(&queue->mutex);
 
+  bool found = false;
+  auto check = [&](const ThreadQueueWork &work) {
+    if (work.id == work_id) {
+      found = true;
+      return true;
+    }
+    return false;
+  };
+
   auto cancel = [&](std::deque<ThreadQueueWork> &sub_queue) {
-    sub_queue.erase(
-        std::remove_if(sub_queue.begin(),
-                       sub_queue.end(),
-                       [&](const ThreadQueueWork &work) { return work.id == work_id; }),
-        sub_queue.end());
+    sub_queue.erase(std::remove_if(sub_queue.begin(), sub_queue.end(), check), sub_queue.end());
   };
 
   cancel(queue->queue_low_priority);
   cancel(queue->queue_normal_priority);
   cancel(queue->queue_high_priority);
 
-  check_finalization(queue);
+  if (found) {
+    check_finalization(queue);
+  }
 
   pthread_mutex_unlock(&queue->mutex);
 }
@@ -727,7 +736,9 @@ void *BLI_thread_queue_pop(ThreadQueue *queue)
     break;
   }
 
-  check_finalization(queue);
+  if (work_reference.work) {
+    check_finalization(queue);
+  }
 
   pthread_mutex_unlock(&queue->mutex);
 
@@ -805,7 +816,9 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
     break;
   }
 
-  check_finalization(queue);
+  if (work_reference.work) {
+    check_finalization(queue);
+  }
 
   pthread_mutex_unlock(&queue->mutex);
 
