@@ -611,15 +611,15 @@ struct ThreadQueueWork {
 };
 
 struct ThreadQueue {
-  uint64_t current_id;
+  uint64_t current_id = 0;
   std::deque<ThreadQueueWork> queue_low_priority;
   std::deque<ThreadQueueWork> queue_normal_priority;
   std::deque<ThreadQueueWork> queue_high_priority;
   pthread_mutex_t mutex;
   pthread_cond_t push_cond;
   pthread_cond_t finish_cond;
-  volatile int nowait;
-  volatile int canceled;
+  volatile int nowait = 0;
+  volatile int canceled = 0;
 };
 
 ThreadQueue *BLI_thread_queue_init()
