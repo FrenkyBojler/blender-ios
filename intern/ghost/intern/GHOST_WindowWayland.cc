@@ -135,7 +135,7 @@ struct GWL_LibDecor_Window {
     /** When set, ACK configure is expected. */
     bool ack_configure = false;
     /** The new size to use. */
-    int size[2] = {0, 0};
+    int logical_size[2] = {0, 0};
     libdecor_configuration *configuration = nullptr;
 
 #  ifdef USE_LIBDECOR_CONFIG_COPY_WORKAROUND
@@ -1019,10 +1019,10 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 
       decor.pending.ack_configure = false;
 
-      libdecor_state *state = libdecor_state_new(UNPACK2(decor.pending.size));
+      libdecor_state *state = libdecor_state_new(UNPACK2(decor.pending.logical_size));
 
 #  ifdef USE_LIBDECOR_CONFIG_COPY_QUEUE
-      GHOST_ASSERT(decor.pending.size[0] != 0 && decor.pending.size[1] != 0, "Invalid size");
+      GHOST_ASSERT(decor.pending.logical_size[0] != 0 && decor.pending.logical_size[1] != 0, "Invalid size");
       for (libdecor_configuration *configuration : decor.pending.configuration_queue) {
         libdecor_frame_commit(decor.frame, state, configuration);
         ghost_wl_libdecor_configuration_free(configuration);
@@ -1034,8 +1034,8 @@ static void gwl_window_frame_update_from_pending_no_lock(GWL_Window *win)
 
       libdecor_state_free(state);
 
-      decor.pending.size[0] = 0;
-      decor.pending.size[1] = 0;
+      decor.pending.logical_size[0] = 0;
+      decor.pending.logical_size[1] = 0;
 
       if (decor.initial_configure_seen == false) {
         decor.initial_configure_seen = true;
@@ -1459,7 +1459,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
   GWL_WindowFrame &frame_pending = static_cast<GWL_Window *>(data)->frame_pending;
 
   /* Set the size. */
-  int size_next[2] = {0, 0};
+  int logical_size_next[2] = {0, 0};
 
   /* Perform a "final" commit. */
   bool surface_needs_commit_finally = false;
@@ -1479,21 +1479,21 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
                                          win->frame.buffer_scale;
     const int scale_as_fractional = scale * FRACTIONAL_DENOMINATOR;
     if (libdecor_configuration_get_content_size(
-            configuration, frame, &size_next[0], &size_next[1]))
+            configuration, frame, &logical_size_next[0], &logical_size_next[1]))
     {
       if (fractional_scale) {
-        frame_pending.size[0] = gwl_window_fractional_to_viewport_round(win->frame, size_next[0]);
-        frame_pending.size[1] = gwl_window_fractional_to_viewport_round(win->frame, size_next[1]);
+        frame_pending.size[0] = gwl_window_fractional_to_viewport_round(win->frame, logical_size_next[0]);
+        frame_pending.size[1] = gwl_window_fractional_to_viewport_round(win->frame, logical_size_next[1]);
       }
       else if (fractional_scale && (fractional_scale != (scale * FRACTIONAL_DENOMINATOR))) {
         /* The windows `preferred_scale` is not yet available,
          * set the size as if fractional scale is available. */
-        frame_pending.size[0] = ((size_next[0] * scale) * fractional_scale) / scale_as_fractional;
-        frame_pending.size[1] = ((size_next[1] * scale) * fractional_scale) / scale_as_fractional;
+        frame_pending.size[0] = ((logical_size_next[0] * scale) * fractional_scale) / scale_as_fractional;
+        frame_pending.size[1] = ((logical_size_next[1] * scale) * fractional_scale) / scale_as_fractional;
       }
       else {
-        frame_pending.size[0] = size_next[0] * scale;
-        frame_pending.size[1] = size_next[1] * scale;
+        frame_pending.size[0] = logical_size_next[0] * scale;
+        frame_pending.size[1] = logical_size_next[1] * scale;
       }
 
       /* Account for buffer rounding requirement, once fractional scaling is enabled
@@ -1505,8 +1505,8 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
        * Read them because it's possible multiple configure calls run before they can be handled.
        */
       const GWL_LibDecor_Window &decor = *win->libdecor;
-      size_next[0] = decor.pending.size[0];
-      size_next[1] = decor.pending.size[1];
+      logical_size_next[0] = decor.pending.logical_size[0];
+      logical_size_next[1] = decor.pending.logical_size[1];
     }
   }
 
@@ -1532,8 +1532,8 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
     }
 #  endif /* USE_LIBDECOR_CONFIG_COPY_WORKAROUND */
 
-    decor.pending.size[0] = size_next[0];
-    decor.pending.size[1] = size_next[1];
+    decor.pending.logical_size[0] = logical_size_next[0];
+    decor.pending.logical_size[1] = logical_size_next[1];
     decor.pending.configuration = configuration;
     decor.pending.ack_configure = true;
 
@@ -1551,7 +1551,7 @@ static void libdecor_frame_handle_configure(libdecor_frame *frame,
 #  endif
 
 #  ifdef USE_LIBDECOR_CONFIG_COPY_QUEUE
-    if (!(size_next[0] && size_next[1])) {
+    if (!(logical_size_next[0] && logical_size_next[1])) {
       /* Always copy. */
       if (decor.pending.configuration_needs_free == false) {
         decor.pending.configuration = ghost_wl_libdecor_configuration_copy(
