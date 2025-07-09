@@ -99,10 +99,6 @@ class CornerPinOperation : public NodeOperation {
 
   void execute() override
   {
-    /* Only compute the antiasliased mask if we have a zero extension mode. */
-    const bool is_extension_mode_zero = this->get_extension_mode_x() == ExtensionMode::Zero ||
-                                        this->get_extension_mode_y() == ExtensionMode::Zero;
-
     const float3x3 homography_matrix = compute_homography_matrix();
 
     const Result &input_image = this->get_input("Image");
@@ -112,32 +108,29 @@ class CornerPinOperation : public NodeOperation {
       if (output_image.should_compute()) {
         output_image.share_data(input_image);
       }
-      if (output_mask.should_compute() && is_extension_mode_zero) {
+      if (output_mask.should_compute()) {
         output_mask.allocate_single_value();
         output_mask.set_single_value(1.0f);
       }
       return;
     }
 
-    if (is_extension_mode_zero) {
-      Result plane_mask = compute_plane_mask(homography_matrix);
-      Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
-      smaa(context(), plane_mask, anti_aliased_plane_mask);
-      plane_mask.release();
+    Result plane_mask = compute_plane_mask(homography_matrix);
+    Result anti_aliased_plane_mask = context().create_result(ResultType::Float);
+    smaa(context(), plane_mask, anti_aliased_plane_mask);
+    plane_mask.release();
 
-      if (output_image.should_compute()) {
-        compute_plane(homography_matrix, &anti_aliased_plane_mask);
-      }
+    if (output_image.should_compute()) {
+      /* Only use the mask if we have a zero extension mode on either x- or y-axis. */
+      compute_plane(homography_matrix,
+                    this->is_extension_mode_zero() ? &anti_aliased_plane_mask : nullptr);
+    }
 
-      if (output_mask.should_compute()) {
-        output_mask.steal_data(anti_aliased_plane_mask);
-      }
-      else {
-        anti_aliased_plane_mask.release();
-      }
+    if (output_mask.should_compute()) {
+      output_mask.steal_data(anti_aliased_plane_mask);
     }
     else {
-      compute_plane(homography_matrix, nullptr);
+      anti_aliased_plane_mask.release();
     }
   }
 
@@ -153,7 +146,7 @@ class CornerPinOperation : public NodeOperation {
 
   void compute_plane_gpu(const float3x3 &homography_matrix, Result *plane_mask)
   {
-    GPUShader *shader = this->context().get_shader(this->get_shader_name());
+    GPUShader *shader = this->context().get_shader(this->get_shader_name().c_str());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
@@ -174,7 +167,9 @@ class CornerPinOperation : public NodeOperation {
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
     input_image.bind_as_texture(shader, "input_tx");
-    plane_mask->bind_as_texture(shader, "mask_tx");
+    if (plane_mask) {
+      plane_mask->bind_as_texture(shader, "mask_tx");
+    }
 
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
@@ -184,7 +179,10 @@ class CornerPinOperation : public NodeOperation {
     compute_dispatch_threads_at_least(shader, domain.size);
 
     input_image.unbind_as_texture();
-    plane_mask->unbind_as_texture();
+    if (plane_mask) {
+      plane_mask->unbind_as_texture();
+    }
+
     output_image.unbind_as_image();
     GPU_shader_unbind();
   }
@@ -335,7 +333,7 @@ class CornerPinOperation : public NodeOperation {
     return Interpolation::Nearest;
   }
 
-  ExtensionMode get_extension_mode_x()
+  ExtensionMode get_extension_mode_x() const
   {
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_x)) {
       case CMP_NODE_EXTENSION_MODE_ZERO:
@@ -350,7 +348,7 @@ class CornerPinOperation : public NodeOperation {
     return ExtensionMode::Zero;
   }
 
-  ExtensionMode get_extension_mode_y()
+  ExtensionMode get_extension_mode_y() const
   {
     switch (static_cast<CMPExtensionMode>(node_storage(bnode()).extension_y)) {
       case CMP_NODE_EXTENSION_MODE_ZERO:
@@ -365,20 +363,31 @@ class CornerPinOperation : public NodeOperation {
     return ExtensionMode::Zero;
   }
 
-  const char *get_shader_name() const
+  bool is_extension_mode_zero() const
   {
+    return this->get_extension_mode_x() == ExtensionMode::Zero ||
+           this->get_extension_mode_y() == ExtensionMode::Zero;
+  }
+
+  std::string get_shader_name() const
+  {
+    std::string shader_name{};
     switch (this->get_interpolation()) {
       case Interpolation::Nearest:
       case Interpolation::Bilinear:
-        return "compositor_plane_deform";
+        shader_name = "compositor_plane_deform";
       case Interpolation::Bicubic:
-        return "compositor_plane_deform_bicubic";
+        shader_name = "compositor_plane_deform_bicubic";
       case Interpolation::Anisotropic:
-        return "compositor_plane_deform_anisotropic";
+        shader_name = "compositor_plane_deform_anisotropic";
     }
 
-    BLI_assert_unreachable();
-    return "compositor_plane_deform_anisotropic";
+    /* Return the masked shader if any of x- or y-axis is a zero extension mode. */
+    if (this->is_extension_mode_zero()) {
+      shader_name.append("_masked");
+    }
+
+    return shader_name;
   }
 };
 
