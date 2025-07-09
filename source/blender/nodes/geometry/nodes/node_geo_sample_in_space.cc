@@ -109,6 +109,138 @@ static void cloud_radii_to_min_distance(const Span<float> src_radii,
   });
 }
 
+static void transpose(const Span<float3> src, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == src.size(); }));
+  
+  threading::parallel_for(src.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[0][i] = src[i].x;
+      dst[1][i] = src[i].y;
+      dst[2][i] = src[i].z;
+    }
+  });
+}
+
+static void transpose(const Span<Span<float>> src, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == dst.size(); }));
+
+  threading::parallel_for(dst.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[i].x = src[2][i];
+      dst[i].y = src[1][i];
+      dst[i].z = src[0][i];
+    }
+  });
+}
+
+static void transpose_gather(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == indices.size(); }));
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[0][i] = src[indices[i]].x;
+      dst[1][i] = src[indices[i]].y;
+      dst[2][i] = src[indices[i]].z;
+    }
+  });
+}
+
+static void transpose_gather(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(dst.size() == indices.size());
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[i].x = src[2][indices[i]];
+      dst[i].y = src[1][indices[i]];
+      dst[i].z = src[0][indices[i]];
+    }
+  });
+}
+
+static void transpose_gather(const Span<float3> src, const IndexMask mask, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(std::all_of(dst.begin(), dst.end(), [&](const MutableSpan<float> span) { return span.size() == mask.size(); }));
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[0][pos] = src[i].x;
+    dst[1][pos] = src[i].y;
+    dst[2][pos] = src[i].z;
+  });
+}
+
+static void transpose_gather(const Span<Span<float>> src, const IndexMask mask, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(dst.size() == mask.size());
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[pos].x = src[0][i];
+    dst[pos].y = src[1][i];
+    dst[pos].z = src[2][i];
+  });
+}
+
+static void transpose_scatter(const Span<float3> src, const Span<int> indices, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(src.size() == indices.size());
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[0][indices[i]] = src[i].x;
+      dst[1][indices[i]] = src[i].y;
+      dst[2][indices[i]] = src[i].z;
+    }
+  });
+}
+
+static void transpose_scatter(const Span<Span<float>> src, const Span<int> indices, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == indices.size(); }));
+
+  threading::parallel_for(indices.index_range(), 4096, [&](const IndexRange range) {
+    for (const int i : range) {
+      dst[indices[i]].x = src[0][i];
+      dst[indices[i]].y = src[1][i];
+      dst[indices[i]].z = src[2][i];
+    }
+  });
+}
+
+static void transpose_scatter(const Span<float3> src, const IndexMask mask, Span<MutableSpan<float>> dst)
+{
+  BLI_assert(dst.size() == decltype(src)::value_type::type_length);
+  BLI_assert(src.size() == mask.size());
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[0][i] = src[pos].x;
+    dst[1][i] = src[pos].y;
+    dst[2][i] = src[pos].z;
+  });
+}
+
+static void transpose_scatter(const Span<Span<float>> src, const IndexMask mask, MutableSpan<float3> dst)
+{
+  BLI_assert(src.size() == decltype(dst)::value_type::type_length);
+  BLI_assert(std::all_of(src.begin(), src.end(), [&](const Span<float> span) { return span.size() == mask.size(); }));
+
+  mask.foreach_index_optimized<int>(GrainSize(4096), [&](const int i, const int pos) {
+    dst[i].x = src[0][pos];
+    dst[i].y = src[1][pos];
+    dst[i].z = src[2][pos];
+  });
+}
+
 class GradientSumFunction : public mf::MultiFunction {
  private:
   mf::Signature signature_;
@@ -137,7 +269,7 @@ class GradientSumFunction : public mf::MultiFunction {
                       Field<float3> position_field,
                       GField value_field)
       : power_value_(power_value), offset_value_(offset_value)
-  {/*
+  {
     const CPPType &data_type = value_field.cpp_type();
     mf::SignatureBuilder builder("Space Value", signature_);
     builder.single_input<float3>("Position");
@@ -169,71 +301,30 @@ class GradientSumFunction : public mf::MultiFunction {
 
     Array<int> indices(domain_size);
     akdbh::from_positions(positions, base_offsets, total_depth_, indices);
-
-    Array<float3> bucket_positions;
-    bucket_positions.reinitialize(domain_size);
-    array_utils::gather(
-        Span<float3>(positions), indices.as_span(), bucket_positions.as_mutable_span());
-    {
-      bucket_positions_[0].reinitialize(domain_size);
-      bucket_positions_[1].reinitialize(domain_size);
-      bucket_positions_[2].reinitialize(domain_size);
-      threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
-        for (const int i : range) {
-          bucket_positions_[0][i] = bucket_positions[i].x;
-          bucket_positions_[1][i] = bucket_positions[i].y;
-          bucket_positions_[2][i] = bucket_positions[i].z;
-        }
-      });
-    }
+    transpose_gather(Span(positions), indices.as_span(), {bucket_positions_[0].as_mutable_span(),
+                                                          bucket_positions_[1].as_mutable_span(),
+                                                          bucket_positions_[2].as_mutable_span()});
 
     BLI_assert(data_type.is<float>() || data_type.is<float3>());
-    const int data_axes_count = data_type.is<float3>() ? 3 : 1;
 
-    GArray<> bucket_values(data_type, domain_size);
-    bke::attribute_math::gather(src_values, indices.as_span(), bucket_values.as_mutable_span());
+    const int data_axes_count = data_type.is<float3>() ? 3 : 1;
     bucket_values_.reinitialize(data_axes_count);
-    {
-      for (const int axis_i : IndexRange(data_axes_count)) {
-        bucket_values_[axis_i].reinitialize(domain_size);
-      }
-      threading::parallel_for(IndexRange(domain_size), 4096, [&](const IndexRange range) {
-        if (data_type.is<float3>()) {
-          for (const int i : range) {
-            bucket_values_[0][i] = bucket_values.as_span().typed<float3>()[i].x;
-            bucket_values_[1][i] = bucket_values.as_span().typed<float3>()[i].y;
-            bucket_values_[2][i] = bucket_values.as_span().typed<float3>()[i].z;
-          }
-        }
-        else {
-          for (const int i : range) {
-            bucket_values_[0][i] = bucket_values.as_span().typed<float>()[i];
-          }
-        }
-      });
+    for (const int axis_i : IndexRange(data_axes_count)) {
+      bucket_values_[axis_i].reinitialize(domain_size);
     }
 
-    GArray<> joints_values(data_type, total_joints);
-    akdbh::mean_sums(base_offsets, total_depth_, bucket_values_, joints_values);
+    if (data_type.is<float>()) {
+      array_utils::gather<float>(src_values.as_span().typed<float>(), indices.as_span(), bucket_values_.first().as_mutable_span());
+    } else {
+      transpose_gather(src_values.as_span().typed<float3>(), indices.as_span(), {bucket_values_[0].as_mutable_span(),
+                                                                                 bucket_values_[1].as_mutable_span(),
+                                                                                 bucket_values_[2].as_mutable_span()});
+    }
+
     joints_values_.reinitialize(data_axes_count);
-    {
-      for (const int axis_i : IndexRange(data_axes_count)) {
-        joints_values_[axis_i].reinitialize(total_joints);
-      }
-      threading::parallel_for(IndexRange(total_joints), 4096, [&](const IndexRange range) {
-        if (data_type.is<float3>()) {
-          for (const int i : range) {
-            joints_values_[0][i] = joints_values.as_span().typed<float3>()[i].x;
-            joints_values_[1][i] = joints_values.as_span().typed<float3>()[i].y;
-            joints_values_[2][i] = joints_values.as_span().typed<float3>()[i].z;
-          }
-        }
-        else {
-          for (const int i : range) {
-            joints_values_[0][i] = joints_values.as_span().typed<float>()[i];
-          }
-        }
-      });
+    for (const int axis_i : IndexRange(data_axes_count)) {
+      joints_values_[axis_i].reinitialize(domain_size);
+      akdbh::mean_sums(base_offsets, total_depth_, bucket_values_[axis_i].as_span(), joints_values_[axis_i].as_mutable_span());
     }
 
     joints_positions_.reinitialize(total_joints);
@@ -247,38 +338,56 @@ class GradientSumFunction : public mf::MultiFunction {
     cloud_radii_to_min_distance(joints_min_distance_.as_span(),
                                 power_value_,
                                 precision,
-                                joints_min_distance_.as_mutable_span());*/
+                                joints_min_distance_.as_mutable_span());
   }
 
   void call(const IndexMask &mask, mf::Params params, mf::Context /*context*/) const override
-  {/*
+  {
     const VArraySpan<float3> positions = params.readonly_single_input<float3>(0, "Position");
     GMutableSpan results = params.uninitialized_single_output(1, "Value");
 
-    Array<float3> task_positions(mask.size());
-    array_utils::gather(positions, mask, task_positions.as_mutable_span());
-    GArray<> task_results(results.type(), mask.size());
+    const CPPType &data_type = results.type();
+    BLI_assert(data_type.is<float>() || data_type.is<float3>());
+    const int data_axes_count = data_type.is<float3>() ? 3 : 1;
+    
 
-    results.type().value_initialize_n(task_results.data(), task_results.size());
+    std::array<Array<float, 0>, 3> position_components;
+
+    transpose_gather(positions.as_span(), mask, {position_components[0].as_mutable_span(),
+                                    position_components[1].as_mutable_span(),
+                                    position_components[2].as_mutable_span()});
+
+    BLI_assert(joints_values_.size() == data_axes_count);
+    Array<Array<float, 0>, 3> masked_results(data_axes_count);
+
+    for (const int axis_i : IndexRange(data_axes_count)) {
+      masked_results[axis_i].reinitialize();
+      masked_results[axis_i].as_mutable_span().fill(0.0f);
+    }
 
     using namespace blender::geometry;
-    // fmm::akdbh_accumulate_in(OffsetIndices<int>(offset_indices_),
-    //                          total_depth_,
-    //                          joints_min_distance_,
-    //                          joints_positions_,
-    //                          joints_values_,
-    //                          bucket_positions_,
-    //                          bucket_values_,
-    //                          power_value_,
-    //                          offset_value_,
-    //                          task_positions,
-    //                          task_results,
-    //                          std::nullopt);
+    fmm::akdbh_accumulate_in(OffsetIndices<int>(offset_indices_),
+                             total_depth_,
+                             joints_min_distance_,
+                             joints_positions_,
+                             joints_values_,
+                             bucket_positions_,
+                             bucket_values_,
+                             power_value_,
+                             offset_value_,
+                             task_positions,
+                             masked_results,
+                             std::nullopt);
 
-    geometry::akdbh::to_static_type(results.type(), [&](auto dummy) {
-      using T = decltype(dummy);
-      array_utils::scatter<T>(task_results.as_span().typed<T>(), mask, results.typed<T>());
-    });*/
+    if (data_type.is<float>()) {
+      array_utils::scatter<float>(masked_results.first().as_span(), mask, results.typed<float>());
+    } else {
+      transpose_scatter({masked_results[0].as_span(),
+                         masked_results[1].as_span(),
+                         masked_results[2].as_span()},
+                         mask,
+                         results.typed<float3>());
+    }
   }
 
   ExecutionHints get_execution_hints() const override
