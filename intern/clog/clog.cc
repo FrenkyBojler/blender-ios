@@ -29,6 +29,7 @@
 #endif
 
 #if defined(_MSC_VER)
+#  define NOMINMAX
 #  include <Windows.h>
 
 #  include <VersionHelpers.h> /* This needs to be included after Windows.h. */
