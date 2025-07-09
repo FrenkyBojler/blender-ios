@@ -496,14 +496,6 @@ const EnumPropertyItem prop_make_parent_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-blender::StringRef make_parent_enum_name(int value)
-{
-  const char *name;
-  [[maybe_unused]] bool found = RNA_enum_name(prop_make_parent_types, value, &name);
-  BLI_assert(found);
-  return IFACE_(name);
-}
-
 static bool parent_set_with_depsgraph(ReportList *reports,
                                       const bContext *C,
                                       Scene *scene,
@@ -1010,36 +1002,36 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
   if (parent->type == OB_ARMATURE) {
 
     if (can_support.armature_deform) {
-      op_ptr = layout->op(ot, make_parent_enum_name(PAR_ARMATURE), ICON_NONE);
+      op_ptr = layout->op(ot, IFACE_("Armature Deform"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE);
     }
     if (can_support.empty_groups) {
-      op_ptr = layout->op(ot, make_parent_enum_name(PAR_ARMATURE_NAME), ICON_NONE);
+      op_ptr = layout->op(ot, IFACE_("   With Empty Groups"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_NAME);
     }
     if (can_support.envelope_weights) {
-      op_ptr = layout->op(ot, make_parent_enum_name(PAR_ARMATURE_ENVELOPE), ICON_NONE);
+      op_ptr = layout->op(ot, IFACE_("   With Envelope Weights"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_ENVELOPE);
     }
     if (can_support.automatic_weights) {
-      op_ptr = layout->op(ot, make_parent_enum_name(PAR_ARMATURE_AUTO), ICON_NONE);
+      op_ptr = layout->op(ot, IFACE_("   With Automatic Weights"), ICON_NONE);
       RNA_enum_set(&op_ptr, "type", PAR_ARMATURE_AUTO);
     }
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_BONE), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Bone"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_BONE);
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_BONE_RELATIVE), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Bone Relative"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_BONE_RELATIVE);
   }
   else if (parent->type == OB_CURVES_LEGACY) {
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_CURVE), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Curve Deform"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_CURVE);
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_FOLLOW), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Follow Path"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_FOLLOW);
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_PATH_CONST), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Path Constraint"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_PATH_CONST);
   }
   else if (parent->type == OB_LATTICE) {
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_LATTICE), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Lattice Deform"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_LATTICE);
   }
   else if (parent->type == OB_MESH) {
@@ -1050,9 +1042,9 @@ static wmOperatorStatus parent_set_invoke_menu(bContext *C, wmOperatorType *ot)
 
   /* vertex parenting */
   if (OB_TYPE_SUPPORT_PARVERT(parent->type)) {
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_VERTEX), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Vertex"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_VERTEX);
-    op_ptr = layout->op(ot, make_parent_enum_name(PAR_VERTEX_TRI), ICON_NONE);
+    op_ptr = layout->op(ot, IFACE_("Vertex (Triangle)"), ICON_NONE);
     RNA_enum_set(&op_ptr, "type", PAR_VERTEX_TRI);
   }
 
