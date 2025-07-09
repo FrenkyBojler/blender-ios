@@ -696,6 +696,8 @@ void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
   cancel(queue->queue_normal_priority);
   cancel(queue->queue_high_priority);
 
+  check_finalization(queue);
+
   pthread_mutex_unlock(&queue->mutex);
 }
 
