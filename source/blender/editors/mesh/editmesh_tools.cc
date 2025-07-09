@@ -3607,7 +3607,7 @@ static wmOperatorStatus edbm_remove_doubles_exec(bContext *C, wmOperator *op)
 
   BKE_reportf(op->reports,
               RPT_INFO,
-              count_multi == 1 ? "Removed %d vertex" : "Removed %d vertices",
+              count_multi == 1 ? RPT_("Removed %d vertex") : RPT_("Removed %d vertices"),
               count_multi);
 
   return OPERATOR_FINISHED;
@@ -3934,8 +3934,7 @@ static void edbm_blend_from_shape_ui(bContext *C, wmOperator *op)
   layout->use_property_split_set(true);
   layout->use_property_decorate_set(false);
 
-  uiItemPointerR(
-      layout, op->ptr, "shape", &ptr_key, "key_blocks", std::nullopt, ICON_SHAPEKEY_DATA);
+  layout->prop_search(op->ptr, "shape", &ptr_key, "key_blocks", std::nullopt, ICON_SHAPEKEY_DATA);
   layout->prop(op->ptr, "blend", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "add", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
@@ -5825,7 +5824,7 @@ static void edbm_dissolve_prop__use_boundary_tear(wmOperatorType *ot)
                   "Tear Boundary",
                   "Split off face corners instead of merging faces");
 }
-static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot)
+static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot, int flag)
 {
   PropertyRNA *prop = RNA_def_float_rotation(
       ot->srna,
@@ -5839,7 +5838,10 @@ static void edbm_dissolve_prop__use_angle_threshold(wmOperatorType *ot)
       "this threshold.",
       0.0f,
       DEG2RADF(180.0f));
-  RNA_def_property_float_default(prop, DEG2RADF(20.0f));
+  RNA_def_property_float_default(prop, DEG2RADF(180.0f));
+  if (flag) {
+    RNA_def_property_flag(prop, PropertyFlag(flag));
+  }
 }
 
 static wmOperatorStatus edbm_dissolve_verts_exec(bContext *C, wmOperator *op)
@@ -5965,7 +5967,7 @@ void MESH_OT_dissolve_edges(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   edbm_dissolve_prop__use_verts(ot, true, 0);
-  edbm_dissolve_prop__use_angle_threshold(ot);
+  edbm_dissolve_prop__use_angle_threshold(ot, 0);
   edbm_dissolve_prop__use_face_split(ot);
 }
 
@@ -6102,7 +6104,7 @@ void MESH_OT_dissolve_mode(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   edbm_dissolve_prop__use_verts(ot, false, PROP_SKIP_SAVE);
-  edbm_dissolve_prop__use_angle_threshold(ot);
+  edbm_dissolve_prop__use_angle_threshold(ot, PROP_SKIP_SAVE);
   edbm_dissolve_prop__use_face_split(ot);
   edbm_dissolve_prop__use_boundary_tear(ot);
 }

@@ -259,7 +259,7 @@ class GHOST_DeviceVK {
     }
 
     /* Check if the given extension name will be enabled. */
-    auto extension_requested = [=](const char *extension_name) {
+    auto extension_enabled = [=](const char *extension_name) {
       for (const char *device_extension_name : device_extensions) {
         if (strcmp(device_extension_name, extension_name) == 0) {
           return true;
@@ -327,7 +327,7 @@ class GHOST_DeviceVK {
     VkPhysicalDeviceDynamicRenderingFeatures dynamic_rendering = {};
     dynamic_rendering.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_FEATURES;
     dynamic_rendering.dynamicRendering = VK_TRUE;
-    if (has_extensions({VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&dynamic_rendering);
     }
 
@@ -336,7 +336,7 @@ class GHOST_DeviceVK {
     dynamic_rendering_unused_attachments.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_FEATURES_EXT;
     dynamic_rendering_unused_attachments.dynamicRenderingUnusedAttachments = VK_TRUE;
-    if (has_extensions({VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME})) {
+    if (extension_enabled(VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&dynamic_rendering_unused_attachments);
     }
 
@@ -344,14 +344,14 @@ class GHOST_DeviceVK {
     dynamic_rendering_local_read.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DYNAMIC_RENDERING_LOCAL_READ_FEATURES_KHR;
     dynamic_rendering_local_read.dynamicRenderingLocalRead = VK_TRUE;
-    if (has_extensions({VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_DYNAMIC_RENDERING_LOCAL_READ_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&dynamic_rendering_local_read);
     }
 
     /* VK_EXT_robustness2 */
     VkPhysicalDeviceRobustness2FeaturesEXT robustness_2_features = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_ROBUSTNESS_2_FEATURES_EXT};
-    if (has_extensions({VK_EXT_ROBUSTNESS_2_EXTENSION_NAME})) {
+    if (extension_enabled(VK_EXT_ROBUSTNESS_2_EXTENSION_NAME)) {
       robustness_2_features.nullDescriptor = features_robustness2.nullDescriptor;
       feature_struct_ptr.push_back(&robustness_2_features);
     }
@@ -360,27 +360,27 @@ class GHOST_DeviceVK {
     VkPhysicalDeviceMaintenance4FeaturesKHR maintenance_4 = {};
     maintenance_4.sType = VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_MAINTENANCE_4_FEATURES_KHR;
     maintenance_4.maintenance4 = VK_TRUE;
-    if (has_extensions({VK_KHR_MAINTENANCE_4_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_MAINTENANCE_4_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&maintenance_4);
     }
 
     /* Swap-chain maintenance 1 is optional. */
     VkPhysicalDeviceSwapchainMaintenance1FeaturesEXT swapchain_maintenance_1 = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_SWAPCHAIN_MAINTENANCE_1_FEATURES_EXT, nullptr, VK_TRUE};
-    if (extension_requested(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
+    if (extension_enabled(VK_EXT_SWAPCHAIN_MAINTENANCE_1_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&swapchain_maintenance_1);
       use_vk_ext_swapchain_maintenance_1 = true;
     }
 
     /* Descriptor buffers */
-    VkPhysicalDeviceDescriptorBufferPropertiesEXT descriptor_buffer = {
+    VkPhysicalDeviceDescriptorBufferFeaturesEXT descriptor_buffer = {
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_DESCRIPTOR_BUFFER_FEATURES_EXT,
         nullptr,
         VK_TRUE,
         VK_FALSE,
         VK_FALSE,
         VK_FALSE};
-    if (extension_requested(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
+    if (extension_enabled(VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&descriptor_buffer);
     }
 
@@ -389,7 +389,7 @@ class GHOST_DeviceVK {
     fragment_shader_barycentric.sType =
         VK_STRUCTURE_TYPE_PHYSICAL_DEVICE_FRAGMENT_SHADER_BARYCENTRIC_FEATURES_KHR;
     fragment_shader_barycentric.fragmentShaderBarycentric = VK_TRUE;
-    if (has_extensions({VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME})) {
+    if (extension_enabled(VK_KHR_FRAGMENT_SHADER_BARYCENTRIC_EXTENSION_NAME)) {
       feature_struct_ptr.push_back(&fragment_shader_barycentric);
     }
 
@@ -633,7 +633,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   VkFence *next_frame_fence = &m_frame_data[next_render_frame].submission_fence;
   vkWaitForFences(device, 1, next_frame_fence, true, UINT64_MAX);
   submission_frame_data.discard_pile.destroy(device);
-
+  bool use_hdr_swapchain = false;
 #ifdef WITH_GHOST_WAYLAND
   /* Wayland doesn't provide a WSI with windowing capabilities, therefore cannot detect whether the
    * swap-chain needs to be recreated. But as a side effect we can recreate the swap chain before
@@ -644,10 +644,11 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
           std::max(m_render_extent.width, m_render_extent_min.width)) ||
          (m_wayland_window_info->size[1] !=
           std::max(m_render_extent.height, m_render_extent_min.height)));
+    use_hdr_swapchain = m_wayland_window_info->is_color_managed;
 
     if (recreate_swapchain) {
       /* Swap-chain is out of date. Recreate swap-chain. */
-      recreateSwapchain();
+      recreateSwapchain(use_hdr_swapchain);
     }
   }
 #endif
@@ -664,7 +665,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
                                            VK_NULL_HANDLE,
                                            &image_index);
     if (acquire_result == VK_ERROR_OUT_OF_DATE_KHR || acquire_result == VK_SUBOPTIMAL_KHR) {
-      recreateSwapchain();
+      recreateSwapchain(use_hdr_swapchain);
     }
   }
   CLOG_INFO(&LOG, 3, "render_frame=%lu, image_index=%u", m_render_frame, image_index);
@@ -699,7 +700,7 @@ GHOST_TSuccess GHOST_ContextVK::swapBuffers()
   }
   m_render_frame = next_render_frame;
   if (present_result == VK_ERROR_OUT_OF_DATE_KHR || present_result == VK_SUBOPTIMAL_KHR) {
-    recreateSwapchain();
+    recreateSwapchain(use_hdr_swapchain);
     if (swap_buffers_post_callback_) {
       swap_buffers_post_callback_();
     }
@@ -845,6 +846,7 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
  */
 static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
                                 const VkSurfaceKHR surface,
+                                bool use_hdr_swapchain,
                                 VkSurfaceFormatKHR &r_surfaceFormat)
 {
   uint32_t format_count;
@@ -860,6 +862,9 @@ static bool selectSurfaceFormat(const VkPhysicalDevice physical_device,
   };
 
   for (pair<VkColorSpaceKHR, VkFormat> &pair : selection_order) {
+    if (pair.second == VK_FORMAT_R16G16B16A16_SFLOAT && !use_hdr_swapchain) {
+      continue;
+    }
     for (const VkSurfaceFormatKHR &format : formats) {
       if (format.colorSpace == pair.first && format.format == pair.second) {
         r_surfaceFormat = format;
@@ -904,14 +909,14 @@ GHOST_TSuccess GHOST_ContextVK::initializeFrameData()
   return GHOST_kSuccess;
 }
 
-GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
+GHOST_TSuccess GHOST_ContextVK::recreateSwapchain(bool use_hdr_swapchain)
 {
   assert(vulkan_device.has_value() && vulkan_device->device != VK_NULL_HANDLE);
 
   VkPhysicalDevice physical_device = vulkan_device->physical_device;
 
   m_surface_format = {};
-  if (!selectSurfaceFormat(physical_device, m_surface, m_surface_format)) {
+  if (!selectSurfaceFormat(physical_device, m_surface, use_hdr_swapchain, m_surface_format)) {
     return GHOST_kFailure;
   }
 
@@ -1073,13 +1078,10 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   GHOST_FrameDiscard &discard_pile = m_frame_data[m_render_frame].discard_pile;
   for (GHOST_SwapchainImage &swapchain_image : m_swapchain_images) {
     swapchain_image.vk_image = VK_NULL_HANDLE;
-    if (!vulkan_device->use_vk_ext_swapchain_maintenance_1 &&
-        swapchain_image.present_semaphore != VK_NULL_HANDLE)
-    {
+    if (swapchain_image.present_semaphore != VK_NULL_HANDLE) {
       discard_pile.semaphores.push_back(swapchain_image.present_semaphore);
       swapchain_image.present_semaphore = VK_NULL_HANDLE;
     }
-    swapchain_image.vk_image = VK_NULL_HANDLE;
   }
   m_swapchain_images.resize(actual_image_count);
   std::vector<VkImage> swapchain_images(actual_image_count);
@@ -1104,11 +1106,9 @@ GHOST_TSuccess GHOST_ContextVK::recreateSwapchain()
   /* Construct new semaphores. It can be that image_count is larger than previously. We only need
    * to fill in where the handle is `VK_NULL_HANDLE`. */
   /* Previous handles from the frame data cannot be used and should be discarded. */
-  if (!vulkan_device->use_vk_ext_swapchain_maintenance_1) {
-    for (GHOST_Frame &frame : m_frame_data) {
-      discard_pile.semaphores.push_back(frame.acquire_semaphore);
-      frame.acquire_semaphore = VK_NULL_HANDLE;
-    }
+  for (GHOST_Frame &frame : m_frame_data) {
+    discard_pile.semaphores.push_back(frame.acquire_semaphore);
+    frame.acquire_semaphore = VK_NULL_HANDLE;
   }
   if (old_swapchain) {
     discard_pile.swapchains.push_back(old_swapchain);
@@ -1168,6 +1168,7 @@ const char *GHOST_ContextVK::getPlatformSpecificSurfaceExtension() const
 
 GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 {
+  bool use_hdr_swapchain = false;
 #ifdef _WIN32
   const bool use_window_surface = (m_hwnd != nullptr);
 #elif defined(__APPLE__)
@@ -1183,6 +1184,9 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
 #  ifdef WITH_GHOST_WAYLAND
     case GHOST_kVulkanPlatformWayland:
       use_window_surface = (m_wayland_display != nullptr) && (m_wayland_surface != nullptr);
+      if (m_wayland_window_info) {
+        use_hdr_swapchain = m_wayland_window_info->is_color_managed;
+      }
       break;
 #  endif
     case GHOST_kVulkanPlatformHeadless:
@@ -1332,7 +1336,7 @@ GHOST_TSuccess GHOST_ContextVK::initializeDrawingContext()
   if (use_window_surface) {
     vkGetDeviceQueue(
         vulkan_device->device, vulkan_device->generic_queue_family, 0, &m_present_queue);
-    recreateSwapchain();
+    recreateSwapchain(use_hdr_swapchain);
   }
 
   active_context_ = this;
