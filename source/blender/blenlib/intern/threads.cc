@@ -670,6 +670,16 @@ uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPr
   return work_reference.id;
 }
 
+/** WARNING: Assumes the queue is already locked. */
+static void check_finalization(ThreadQueue *queue)
+{
+  if (queue->queue_low_priority.empty() && queue->queue_normal_priority.empty() &&
+      queue->queue_high_priority.empty())
+  {
+    pthread_cond_signal(&queue->finish_cond);
+  }
+}
+
 void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
 {
   pthread_mutex_lock(&queue->mutex);
@@ -711,12 +721,11 @@ void *BLI_thread_queue_pop(ThreadQueue *queue)
     work_reference = sub_queue->front();
     sub_queue->pop_front();
 
-    if (sub_queue->empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
     /* Don't pop more than one work. */
     break;
   }
+
+  check_finalization(queue);
 
   pthread_mutex_unlock(&queue->mutex);
 
@@ -790,12 +799,11 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
     work_reference = sub_queue->front();
     sub_queue->pop_front();
 
-    if (sub_queue->empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
     /* Don't pop more than one work. */
     break;
   }
+
+  check_finalization(queue);
 
   pthread_mutex_unlock(&queue->mutex);
 
