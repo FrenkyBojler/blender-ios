@@ -668,7 +668,8 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     density = RNA_float_get(op->ptr, "density");
   }
   else {
-    float uv_area, object_area;
+    float uv_area = 0.0f;
+    float object_area = 0.0f;
     BMFace *f;
     BMIter iter;
     BM_ITER_MESH (f, &iter, bm, BM_FACES_OF_MESH) {
@@ -681,7 +682,7 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
               scene->unit.scale_length;
   }
 
-  float cent[1], min[2], max[2];
+  float cent[2], min[2], max[2];
   for (Object *obedit : objects) {
     if (!custom_density && obedit == active_object) {
       continue; /* Skip active object */
@@ -696,8 +697,10 @@ static wmOperatorStatus uv_apply_texel_density_exec(bContext *C, wmOperator *op)
     offsets = BM_uv_map_offsets_get(bm);
 
     UvElementMap *element_map = BM_uv_element_map_create(bm, scene, true, false, true, true);
+    if(element_map==nullptr){
+      continue;
+    }
     Set<BMFace *> ed_faces;
-
     for (int i = 0; i < element_map->total_islands; i++) {
       UvElement *element = element_map->storage + element_map->island_indices[i];
       Set<BMFace *> visited_faces;
