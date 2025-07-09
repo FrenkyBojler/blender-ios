@@ -606,12 +606,12 @@ void BLI_condition_end(ThreadCondition *cond)
 /* ************************************************ */
 
 struct ThreadQueueWork {
-  static inline uint64_t current_id = 0;
   void *work;
   uint64_t id;
 };
 
 struct ThreadQueue {
+  uint64_t current_id;
   std::deque<ThreadQueueWork> queue_low_priority;
   std::deque<ThreadQueueWork> queue_normal_priority;
   std::deque<ThreadQueueWork> queue_high_priority;
@@ -649,7 +649,7 @@ uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPr
 
   ThreadQueueWork work_reference;
   work_reference.work = work;
-  work_reference.id = ++ThreadQueueWork::current_id;
+  work_reference.id = ++queue->current_id;
 
   switch (priority) {
     case BLI_THREAD_QUEUE_WORK_PRIORITY_LOW:
