@@ -1004,19 +1004,59 @@ static void fcm_smooth_new_data(void *mdata)
   FMod_Smooth *data = (FMod_Smooth *)mdata;
 
   /* defaults */
-  data->factor = 0.0f;
-  data->sigma = 0.33f;
+  data->factor = 100.0f;
+  data->sigma = 1.0f;
   data->filter_width = 6;
 }
 
-static void fcm_smooth_evaluate(const FCurve * /*fcu*/,
+static void fcm_smooth_evaluate(const FCurve *fcu,
                                 const FModifier *fcm,
                                 float *cvalue,
                                 float evaltime,
                                 void * /*storage*/)
 {
   FMod_Smooth *data = (FMod_Smooth *)fcm->data;
-  *cvalue = 42.f;
+
+  const float factor = data->factor / 100;
+  const float sigma = data->sigma;
+  const int kernel_size = data->filter_width;
+
+  /* if sigma is negligible, don't change */
+  if (sigma < 0.1f) {
+    return;
+  }
+
+  /* hold variables for weight, so we can compensate for the influence of the modifier */
+  float total_weighted_value = 0.0f;
+  float total_weight = 0.0f;
+
+  /* define sampling window around the frame using the kernel size */
+  const int start_frame = floorf(evaltime - kernel_size / 2.0f);
+  const int end_frame = ceilf(evaltime + kernel_size / 2.0f);
+
+  const float two_sigma_sq = 2.0f * sigma * sigma;
+
+  /* sampling loop */
+  for (int i = start_frame; i <= end_frame; ++i) {
+    const float sample_time = (float)i;
+    const float sample_distance = sample_time - evaltime;
+
+    const float weight = expf(-(sample_distance * sample_distance) / two_sigma_sq);
+
+    const float value_at_time = evaluate_fcurve_unmodified(fcu, sample_time);
+
+    total_weighted_value += value_at_time * weight;
+    total_weight += weight;
+  }
+
+  if (total_weight > FLT_EPSILON) {
+    const float smoothed = (total_weighted_value / total_weight);
+    const float orig = evaluate_fcurve_unmodified(fcu, evaltime);
+
+    /* blend by factor */
+    *cvalue = orig * (1.0f - factor) + (smoothed * factor);
+  }
+
   return;
 }
 
@@ -1024,7 +1064,7 @@ static FModifierTypeInfo FMI_SMOOTH = {
     /*type*/ FMODIFIER_TYPE_SMOOTH,
     /*size*/ sizeof(FMod_Smooth),
     /*acttype*/ FMI_TYPE_REPLACE_VALUES,
-    /*requires_flag*/ 0,
+    /*requires_flag*/ FMI_REQUIRES_ORIGINAL_DATA,
     /*name*/ CTX_N_(BLT_I18NCONTEXT_ID_ACTION, "Smooth"),
     /*struct_name*/ "FMod_Smooth",
     /*storage_size*/ 0,
