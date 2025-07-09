@@ -540,6 +540,10 @@ struct GWL_TabletTool {
   GWL_CursorShape shape;
 
   GWL_Seat *seat = nullptr;
+
+  /** The serial, set on `proximity_in`, cleared on `proximity_out`. */
+  uint32_t serial = 0;
+
   /** Used to delay clearing tablet focused wl_surface until the frame is handled. */
   bool proximity = false;
 
@@ -703,7 +707,11 @@ struct GWL_SeatStatePointer {
 
   int theme_scale = 1;
 
-  /** The serial of the last used pointer or tablet. */
+  /**
+   * The serial of the last used pointer or tablet.
+   *
+   * \note For tablet cursors, use: #GWL_TabletTool::serial instead.
+   */
   uint32_t serial = 0;
 
   GHOST_Buttons buttons = GHOST_Buttons();
@@ -2678,13 +2686,33 @@ static char *read_file_as_buffer(const int fd, const bool nil_terminate, size_t 
 
 static void cursor_buffer_set_surface_impl(const wl_cursor_image *wl_image,
                                            wl_buffer *buffer,
-                                           wl_surface *wl_surface)
+                                           wl_surface *wl_surface,
+                                           const int scale)
 {
   const int32_t image_size_x = int32_t(wl_image->width);
   const int32_t image_size_y = int32_t(wl_image->height);
+  GHOST_ASSERT((image_size_x % scale) == 0 && (image_size_y % scale) == 0,
+               "The size must be a multiple of the scale!");
+  (void)image_size_x;
+  (void)image_size_y;
 
+  wl_surface_set_buffer_scale(wl_surface, scale);
   wl_surface_attach(wl_surface, buffer, 0, 0);
-  wl_surface_damage(wl_surface, 0, 0, image_size_x, image_size_y);
+  if (wl_surface_get_version(wl_surface) >= WL_SURFACE_DAMAGE_BUFFER_SINCE_VERSION) {
+    wl_surface_damage_buffer(wl_surface,
+                             0,
+                             0,
+                             std::numeric_limits<int32_t>::max(),
+                             std::numeric_limits<int32_t>::max());
+  }
+  else {
+    /* Effectively deprecated according to documentation. */
+    wl_surface_damage(wl_surface,
+                      0,
+                      0,
+                      std::numeric_limits<int32_t>::max(),
+                      std::numeric_limits<int32_t>::max());
+  }
   wl_surface_commit(wl_surface);
 }
 
@@ -2692,6 +2720,18 @@ static std::optional<wp_cursor_shape_device_v1_shape> gwl_seat_cursor_find_wl_sh
     const GHOST_TStandardCursor shape)
 {
   /* Cases that return `std::nullopt` mean the cursor is not available. */
+
+  /* Unused WAYLAND cursors:
+   *
+   * #WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_PROGRESS.
+   * #WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_CELL.
+   * #WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NO_DROP.
+   * #WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NESW_RESIZE.
+   * #WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NWSE_RESIZE.
+   * #WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DND_ASK.
+   * #WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_ALL_RESIZE.
+   */
+
   switch (shape) {
     case GHOST_kStandardCursorDefault:
       return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_DEFAULT;
@@ -2758,21 +2798,21 @@ static std::optional<wp_cursor_shape_device_v1_shape> gwl_seat_cursor_find_wl_sh
     case GHOST_kStandardCursorLeftRight:
       return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_EW_RESIZE;
     case GHOST_kStandardCursorTopSide:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_N_RESIZE;
     case GHOST_kStandardCursorBottomSide:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_S_RESIZE;
     case GHOST_kStandardCursorLeftSide:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_W_RESIZE;
     case GHOST_kStandardCursorRightSide:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_E_RESIZE;
     case GHOST_kStandardCursorTopLeftCorner:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NW_RESIZE;
     case GHOST_kStandardCursorTopRightCorner:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_NE_RESIZE;
     case GHOST_kStandardCursorBottomRightCorner:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_SE_RESIZE;
     case GHOST_kStandardCursorBottomLeftCorner:
-      return std::nullopt;
+      return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_SW_RESIZE;
     case GHOST_kStandardCursorCopy:
       return WP_CURSOR_SHAPE_DEVICE_V1_SHAPE_COPY;
     case GHOST_kStandardCursorLeftHandle:
@@ -2807,26 +2847,30 @@ static void gwl_seat_cursor_buffer_show(GWL_Seat *seat)
           seat->cursor.shape.device, seat->pointer.serial, seat->cursor.shape.enum_id);
     }
     else {
-      const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x);
-      const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y);
+      /* TODO: support scale for custom cursors. */
+      const int scale = 1;
+      const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x) / scale;
+      const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y) / scale;
       wl_pointer_set_cursor(
           seat->wl.pointer, seat->pointer.serial, cursor->wl.surface_cursor, hotspot_x, hotspot_y);
     }
   }
 
   if (!seat->wp.tablet_tools.empty()) {
-    const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x);
-    const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y);
+    /* TODO: support scale for custom cursors. */
+    const int scale = 1;
+    const int32_t hotspot_x = int32_t(cursor->wl.image.hotspot_x) / scale;
+    const int32_t hotspot_y = int32_t(cursor->wl.image.hotspot_y) / scale;
     for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
       GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
           zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
       if (tablet_tool->shape.device) {
         wp_cursor_shape_device_v1_set_shape(
-            tablet_tool->shape.device, seat->tablet.serial, tablet_tool->shape.enum_id);
+            tablet_tool->shape.device, tablet_tool->serial, tablet_tool->shape.enum_id);
       }
       else {
         zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
-                                      seat->tablet.serial,
+                                      tablet_tool->serial,
                                       tablet_tool->wl.surface_cursor,
                                       hotspot_x,
                                       hotspot_y);
@@ -2848,7 +2892,9 @@ static void gwl_seat_cursor_buffer_hide(GWL_Seat *seat)
 {
   wl_pointer_set_cursor(seat->wl.pointer, seat->pointer.serial, nullptr, 0, 0);
   for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
-    zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2, seat->tablet.serial, nullptr, 0, 0);
+    GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
+        zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
+    zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2, tablet_tool->serial, nullptr, 0, 0);
   }
 }
 
@@ -2859,12 +2905,15 @@ static void gwl_seat_cursor_buffer_set(const GWL_Seat *seat,
   const GWL_Cursor *cursor = &seat->cursor;
   const bool visible = (cursor->visible && cursor->is_hardware);
 
+  /* TODO: support scale for custom cursors. */
+  const int scale = 1;
+
   /* This is a requirement of WAYLAND, when this isn't the case,
    * it causes Blender's window to close intermittently. */
   if (seat->wl.pointer) {
-    const int32_t hotspot_x = int32_t(wl_image->hotspot_x);
-    const int32_t hotspot_y = int32_t(wl_image->hotspot_y);
-    cursor_buffer_set_surface_impl(wl_image, buffer, cursor->wl.surface_cursor);
+    const int32_t hotspot_x = int32_t(wl_image->hotspot_x) / scale;
+    const int32_t hotspot_y = int32_t(wl_image->hotspot_y) / scale;
+    cursor_buffer_set_surface_impl(wl_image, buffer, cursor->wl.surface_cursor, scale);
     wl_pointer_set_cursor(seat->wl.pointer,
                           seat->pointer.serial,
                           visible ? cursor->wl.surface_cursor : nullptr,
@@ -2874,14 +2923,14 @@ static void gwl_seat_cursor_buffer_set(const GWL_Seat *seat,
 
   /* Set the cursor for all tablet tools as well. */
   if (!seat->wp.tablet_tools.empty()) {
-    const int32_t hotspot_x = int32_t(wl_image->hotspot_x);
-    const int32_t hotspot_y = int32_t(wl_image->hotspot_y);
+    const int32_t hotspot_x = int32_t(wl_image->hotspot_x) / scale;
+    const int32_t hotspot_y = int32_t(wl_image->hotspot_y) / scale;
     for (zwp_tablet_tool_v2 *zwp_tablet_tool_v2 : seat->wp.tablet_tools) {
       GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(
           zwp_tablet_tool_v2_get_user_data(zwp_tablet_tool_v2));
-      cursor_buffer_set_surface_impl(wl_image, buffer, tablet_tool->wl.surface_cursor);
+      cursor_buffer_set_surface_impl(wl_image, buffer, tablet_tool->wl.surface_cursor, scale);
       zwp_tablet_tool_v2_set_cursor(zwp_tablet_tool_v2,
-                                    seat->tablet.serial,
+                                    tablet_tool->serial,
                                     visible ? tablet_tool->wl.surface_cursor : nullptr,
                                     hotspot_x,
                                     hotspot_y);
@@ -4589,6 +4638,7 @@ static void tablet_tool_handle_proximity_in(void *data,
 
   GWL_TabletTool *tablet_tool = static_cast<GWL_TabletTool *>(data);
   tablet_tool->proximity = true;
+  tablet_tool->serial = serial;
 
   GWL_Seat *seat = tablet_tool->seat;
   seat->cursor_source_serial = serial;
@@ -4618,6 +4668,7 @@ static void tablet_tool_handle_proximity_out(void *data,
   /* Defer clearing the wl_surface until the frame is handled.
    * Without this, the frame can not access the wl_surface. */
   tablet_tool->proximity = false;
+  tablet_tool->serial = 0;
 }
 
 static void tablet_tool_handle_down(void *data,
@@ -8545,7 +8596,7 @@ GHOST_TSuccess GHOST_SystemWayland::cursor_shape_set(const GHOST_TStandardCursor
         return GHOST_kFailure;
       }
     }
-    wp_cursor_shape_device_v1_set_shape(tablet_tool->shape.device, seat->tablet.serial, *wl_shape);
+    wp_cursor_shape_device_v1_set_shape(tablet_tool->shape.device, tablet_tool->serial, *wl_shape);
     /* Set this to make sure we remember which shape we set when unhiding cursors. */
     tablet_tool->shape.enum_id = *wl_shape;
   }
@@ -8764,6 +8815,7 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
 
   return GHOST_TCapabilityFlag(
       GHOST_CAPABILITY_FLAG_ALL &
+      /* NOTE: order the following flags as they they're declared in the source. */
       ~(
           /* WAYLAND doesn't support accessing the window position. */
           GHOST_kCapabilityWindowPosition |
@@ -8784,14 +8836,15 @@ GHOST_TCapabilityFlag GHOST_SystemWayland::getCapabilities() const
           GHOST_kCapabilityGPUReadFrontBuffer |
           /* This WAYLAND back-end has not yet implemented desktop color sample. */
           GHOST_kCapabilityDesktopSample |
+          /* This flag will eventually be removed when support
+           * for the old track-pad protocol is dropped. */
+          ((has_wl_trackpad_physical_direction == 1) ?
+               0 :
+               GHOST_kCapabilityTrackpadPhysicalDirection) |
           /* This WAYLAND back-end doesn't have support for window decoration styles.
            * In all likelihood, this back-end will eventually need to support client-side
            * decorations, see #113795. */
-          GHOST_kCapabilityWindowDecorationStyles |
-          /* This flag will eventually be removed. */
-          ((has_wl_trackpad_physical_direction == 1) ?
-               0 :
-               GHOST_kCapabilityTrackpadPhysicalDirection)));
+          GHOST_kCapabilityWindowDecorationStyles));
 }
 
 bool GHOST_SystemWayland::cursor_grab_use_software_display_get(const GHOST_TGrabCursorMode mode)

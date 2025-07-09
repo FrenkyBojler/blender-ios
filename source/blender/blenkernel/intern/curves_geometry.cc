@@ -1174,6 +1174,7 @@ void CurvesGeometry::ensure_can_interpolate_to_evaluated() const
 
 void CurvesGeometry::resize(const int points_num, const int curves_num)
 {
+  BLI_assert(curves_num >= 0 && points_num >= 0);
   if (points_num != this->point_num) {
     this->attribute_storage.wrap().resize(AttrDomain::Point, points_num);
     CustomData_realloc(&this->point_data, this->points_num(), points_num);
@@ -1184,10 +1185,12 @@ void CurvesGeometry::resize(const int points_num, const int curves_num)
     implicit_sharing::resize_trivial_array(&this->curve_offsets,
                                            &this->runtime->curve_offsets_sharing_info,
                                            this->curve_num == 0 ? 0 : (this->curve_num + 1),
-                                           curves_num + 1);
-    /* Set common values for convenience. */
-    this->curve_offsets[0] = 0;
-    this->curve_offsets[curves_num] = this->point_num;
+                                           curves_num == 0 ? 0 : (curves_num + 1));
+    if (curves_num > 0) {
+      /* Set common values for convenience. */
+      this->curve_offsets[0] = 0;
+      this->curve_offsets[curves_num] = this->point_num;
+    }
     this->curve_num = curves_num;
   }
   this->tag_topology_changed();
@@ -1919,8 +1922,14 @@ void CurvesGeometry::blend_write_prepare(CurvesGeometry::BlendWriteData &write_d
                                  this->points_num(),
                                  write_data.point_layers,
                                  write_data.attribute_data);
-  this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
-  this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  if (write_data.attribute_data.attributes.is_empty()) {
+    this->attribute_storage.dna_attributes = nullptr;
+    this->attribute_storage.dna_attributes_num = 0;
+  }
+  else {
+    this->attribute_storage.dna_attributes = write_data.attribute_data.attributes.data();
+    this->attribute_storage.dna_attributes_num = write_data.attribute_data.attributes.size();
+  }
 }
 
 void CurvesGeometry::blend_write(BlendWriter &writer,

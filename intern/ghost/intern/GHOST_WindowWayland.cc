@@ -314,6 +314,7 @@ static void gwl_window_cursor_custom_store(GWL_WindowCursorCustomShape &ccs,
       ccs.bitmap = static_cast<uint8_t *>(malloc(bitmap_size));
       memcpy(ccs.bitmap, bitmap, bitmap_size);
     }
+    ccs.mask = nullptr;
   }
 
   ccs.size[0] = size[0];
@@ -2025,6 +2026,7 @@ GHOST_WindowWayland::GHOST_WindowWayland(GHOST_SystemWayland *system,
     window_->backend.vulkan_window_info = new GHOST_ContextVK_WindowInfo;
     window_->backend.vulkan_window_info->size[0] = window_->frame.size[0];
     window_->backend.vulkan_window_info->size[1] = window_->frame.size[1];
+    window_->backend.vulkan_window_info->is_color_managed = true;
   }
 #endif
 
