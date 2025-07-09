@@ -519,20 +519,19 @@ void region_layout(const bContext *C, ARegion *region)
   const uiStyle *style = UI_style_get_dpi();
   const int padding_y = main_region_padding_y();
   const int padding_x = main_region_padding_x();
-  uiLayout *layout = UI_block_layout(block,
-                                     UI_LAYOUT_VERTICAL,
-                                     UI_LAYOUT_PANEL,
-                                     padding_x,
-                                     -padding_y,
-                                     region->winx - 2 * padding_x,
-                                     0,
-                                     0,
-                                     style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               padding_x,
+                                               -padding_y,
+                                               region->winx - 2 * padding_x,
+                                               0,
+                                               0,
+                                               style);
 
-  build_asset_view(*layout, active_shelf->settings.asset_library_reference, *active_shelf, *C);
+  build_asset_view(layout, active_shelf->settings.asset_library_reference, *active_shelf, *C);
 
-  int layout_height;
-  UI_block_layout_resolve(block, nullptr, &layout_height);
+  int layout_height = blender::ui::block_layout_resolve(block).y;
   BLI_assert(layout_height <= 0);
   UI_view2d_totRect_set(&region->v2d, region->winx - 1, layout_height - padding_y);
   UI_view2d_curRect_validate(&region->v2d);
@@ -842,7 +841,7 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
   list::storage_fetch(library_ref, C);
 
   UI_block_emboss_set(block, blender::ui::EmbossType::None);
-  uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
+  layout->popover(C, "ASSETSHELF_PT_catalog_selector", "", ICON_COLLAPSEMENU);
   UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
   layout->separator();
@@ -852,9 +851,9 @@ static void asset_shelf_header_draw(const bContext *C, Header *header)
     add_catalog_tabs(*shelf, *layout);
   }
 
-  uiItemSpacer(layout);
+  layout->separator_spacer();
 
-  uiItemPopoverPanel(layout, C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
+  layout->popover(C, "ASSETSHELF_PT_display", "", ICON_IMGDISPLAY);
   uiLayout *sub = &layout->row(false);
   /* Same as file/asset browser header. */
   sub->ui_units_x_set(8);
