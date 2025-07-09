@@ -1,1 +1,2 @@
 Referenced by issue #141688, Vulkan backend crash on startup
+Referenced by commit e573d9dd24dee82f7f34f0e240b61c603abe2107, Revert "Wayland: Set surface color management"
