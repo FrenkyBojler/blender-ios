@@ -28,7 +28,7 @@ void VKIndexBuffer::ensure_updated()
   if (!buffer_.is_allocated()) {
     allocate();
     if (!buffer_.is_allocated()) {
-      CLOG_ERROR(&LOG, "Unable to allocate index buffer. Most likely an out of memory issue.");
+      CLOG_STR_ERROR(&LOG, "Unable to allocate index buffer. Most likely an out of memory issue.");
       return;
     }
   }
@@ -51,7 +51,7 @@ void VKIndexBuffer::ensure_updated()
     }
     else {
       buffer_.clear(context, 0u);
-      CLOG_ERROR(
+      CLOG_STR_ERROR(
           &LOG,
           "Unable to upload data to index buffer via a staging buffer as the staging buffer "
           "could not be allocated. Index buffer will be filled with on zeros to reduce "
@@ -90,9 +90,10 @@ void VKIndexBuffer::read(uint32_t *data) const
     staging_buffer.host_buffer_get().read(context, data);
   }
   else {
-    CLOG_ERROR(&LOG,
-               "Unable to read data from index buffer via a staging buffer as the staging buffer "
-               "could not be allocated. ");
+    CLOG_STR_ERROR(
+        &LOG,
+        "Unable to read data from index buffer via a staging buffer as the staging buffer "
+        "could not be allocated. ");
   }
 }
 

@@ -102,7 +102,7 @@ void VKVertexBuffer::read(void *data) const
       staging_buffer.host_buffer_get().read(context, data);
     }
     else {
-      CLOG_ERROR(
+      CLOG_STR_ERROR(
           &LOG,
           "Unable to read data from vertex buffer via a staging buffer as the staging buffer "
           "could not be allocated. ");
@@ -155,10 +155,11 @@ void VKVertexBuffer::upload_data_via_staging_buffer(VKContext &context)
     staging_buffer.copy_to_device(context);
   }
   else {
-    CLOG_ERROR(&LOG,
-               "Unable to upload data to vertex buffer via a staging buffer as the staging buffer "
-               "could not be allocated. Vertex buffer will be filled with on zeros to reduce "
-               "drawing artifacts due to read from uninitialized memory.");
+    CLOG_STR_ERROR(
+        &LOG,
+        "Unable to upload data to vertex buffer via a staging buffer as the staging buffer "
+        "could not be allocated. Vertex buffer will be filled with on zeros to reduce "
+        "drawing artifacts due to read from uninitialized memory.");
     buffer_.clear(context, 0u);
   }
 }
@@ -169,7 +170,8 @@ void VKVertexBuffer::upload_data()
     allocate();
     /* If allocation fails, don't upload.*/
     if (!buffer_.is_allocated()) {
-      CLOG_ERROR(&LOG, "Unable to allocate vertex buffer. Most likely an out of memory issue.");
+      CLOG_STR_ERROR(&LOG,
+                     "Unable to allocate vertex buffer. Most likely an out of memory issue.");
       return;
     }
   }
