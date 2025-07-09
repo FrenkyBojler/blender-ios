@@ -306,7 +306,7 @@ static void update_output_file(bNodeTree *ntree, bNode *node)
   }
 }
 
-static void node_composit_buts_file_output(uiLayout *layout, bContext *C, PointerRNA *ptr)
+static void node_composit_buts_file_output(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->prop(ptr, "base_path", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
 }
