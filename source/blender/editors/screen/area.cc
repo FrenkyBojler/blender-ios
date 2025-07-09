@@ -474,7 +474,8 @@ void ED_area_do_mgs_subscribe_for_tool_ui(const wmRegionMessageSubscribeParams *
  */
 static bool area_is_pseudo_minimized(const ScrArea *area)
 {
-  return (area->winx < 3) || (area->winy < 3);
+  const int min_x = int(ceil(std::max(float(U.border_width), 5.0f) * UI_SCALE_FAC));
+  return (area->winx <= min_x) || (area->winy < 3);
 }
 
 void ED_region_do_layout(bContext *C, ARegion *region)

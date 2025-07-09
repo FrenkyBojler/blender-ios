@@ -98,6 +98,31 @@ static blender::gpu::Batch *batch_screen_edges_get(int *corner_len)
  */
 static void drawscredge_area(const ScrArea &area, float edge_thickness)
 {
+  if (BLI_rcti_size_x(&area.totrct) <= (5 * UI_SCALE_FAC)) {
+    const float border_width = float(U.border_width) * UI_SCALE_FAC;
+    /* Draw over the widened gap. */
+    rctf bounds;
+    BLI_rctf_rcti_copy(&bounds, &area.totrct);
+    BLI_rctf_pad(&bounds, border_width, border_width);
+    float line_color[4];
+    UI_GetThemeColor4fv(TH_EDITOR_BORDER, line_color);
+    UI_draw_roundbox_4fv_ex(&bounds, line_color, nullptr, 1.0f, nullptr, U.pixelsize, 0.0f);
+
+    /* Draw three dots in the laziest way possible. */
+    const float mid[2] = {
+        float(area.totrct.xmin + area.totrct.xmax) / 2.0f,
+        float(area.totrct.ymin + area.totrct.ymax) / 2.0f,
+    };
+    float radius = 1.5f * UI_SCALE_FAC;
+    BLI_rctf_init_pt_radius(&bounds, mid, radius);
+    float color[4] = {1.0f, 1.0f, 1.0f, 0.7f};
+    UI_draw_roundbox_4fv_ex(&bounds, color, nullptr, 1.0f, nullptr, U.pixelsize, radius);
+    BLI_rctf_translate(&bounds, 0.0f, 10.0f * UI_SCALE_FAC);
+    UI_draw_roundbox_4fv_ex(&bounds, color, nullptr, 1.0f, nullptr, U.pixelsize, radius);
+    BLI_rctf_translate(&bounds, 0.0f, -20.0f * UI_SCALE_FAC);
+    UI_draw_roundbox_4fv_ex(&bounds, color, nullptr, 1.0f, nullptr, U.pixelsize, radius);
+    return;
+  }
   rctf rect;
   BLI_rctf_rcti_copy(&rect, &area.totrct);
   BLI_rctf_pad(&rect, edge_thickness, edge_thickness);
@@ -170,7 +195,11 @@ static void screen_draw_editor_outlines(bScreen *screen, wmWindow *win)
 
   rctf bounds;
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
+  const int min_x = int(ceil(std::max(float(U.border_width), 5.0f) * UI_SCALE_FAC));
   LISTBASE_FOREACH (ScrArea *, area, &screen->areabase) {
+    if (BLI_rcti_size_x(&area->totrct) <= min_x) {
+      continue;
+    }
     BLI_rctf_rcti_copy(&bounds, &area->totrct);
     float *color = (area == active_area)      ? col_active :
                    (area == last_active_area) ? col_active_last :
