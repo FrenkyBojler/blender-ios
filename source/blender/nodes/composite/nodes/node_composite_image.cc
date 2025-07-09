@@ -841,7 +841,7 @@ static void register_node_type_cmp_rlayers()
   static blender::bke::bNodeType ntype;
 
   cmp_node_type_base(&ntype, "CompositorNodeRLayers", CMP_NODE_R_LAYERS);
-  ntype.ui_name = "Render Layers";
+  ntype.ui_name = "Render Passes";
   ntype.ui_description = "Input render passes from a scene render";
   ntype.enum_name_legacy = "R_LAYERS";
   ntype.nclass = NODE_CLASS_INPUT;
