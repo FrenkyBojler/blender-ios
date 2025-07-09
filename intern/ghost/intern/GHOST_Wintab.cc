@@ -141,9 +141,14 @@ GHOST_Wintab *GHOST_Wintab::loadWintabUnsafe(HWND hwnd)
                           size_t(queueSize));
 }
 
-static int access_violation_exception_filter(unsigned int code)
+static int access_violation_exception_filter(unsigned int code, LPEXCEPTION_POINTERS pointers)
 {
   if (code == EXCEPTION_ACCESS_VIOLATION) {
+    fprintf(stderr,
+            "Error loading Wintab library: Access Violation at 0x%p: 0x%p, 0x%p\n",
+            pointers->ExceptionRecord->ExceptionAddress,
+            (void *)pointers->ExceptionRecord->ExceptionInformation[0],
+            (void *)pointers->ExceptionRecord->ExceptionInformation[1]);
     return EXCEPTION_EXECUTE_HANDLER;
   }
   return EXCEPTION_CONTINUE_SEARCH;
@@ -163,7 +168,7 @@ GHOST_Wintab *GHOST_Wintab::loadWintab(HWND hwnd)
     {
       return GHOST_Wintab::loadWintabUnsafe(hwnd);
     }
-    __except (access_violation_exception_filter(GetExceptionCode()))
+    __except (access_violation_exception_filter(GetExceptionCode(), GetExceptionInformation()))
     {
     }
   }
