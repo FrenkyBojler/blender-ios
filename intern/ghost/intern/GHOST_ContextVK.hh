@@ -62,6 +62,7 @@ enum GHOST_TVulkanPlatformType {
 
 struct GHOST_ContextVK_WindowInfo {
   int size[2];
+  bool is_color_managed;
 };
 
 struct GHOST_FrameDiscard {
