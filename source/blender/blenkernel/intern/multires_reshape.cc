@@ -283,26 +283,35 @@ void multiresModifier_subdivide_to_level_v2(Object *object,
     return;
   }
 
+  /* After this call this point, we have the current SubdivCCG data stored as tangent displacements */
+  /* TODO: Have this write to `multires_runtime` in tangent space of the base mesh. */
+  /* TODO: Potentially write the object space positions too. */
   multires_flush_sculpt_updates(object);
 
   if (!multires_reshape_context_create_from_modifier(&reshape_context, object, mmd, top_level)) {
     return;
   }
 
-  multires_reshape_store_original_grids(&reshape_context);
   multires_reshape_ensure_grids(coarse_mesh, reshape_context.top.level);
-  multires_reshape_assign_final_elements_from_orig_mdisps(&reshape_context);
 
-  /* Free original grids which makes it so smoothing with details thinks all the details were
-   * added against base mesh's limit surface. This is similar behavior to as if we've done all
-   * displacement in sculpt mode at the old top level and then propagated to the new top level. */
-  multires_reshape_free_original_grids(&reshape_context);
+  /* The refine CCG should be the "current" / flushed displacements */
+  /* TODO: Implement a "multires_reshape_assign_base_coords_from_runtime"
+  //multires_reshape_assign_final_coords_from_mdisps(&reshape_context);
 
-  multires_reshape_smooth_object_grids_with_details(&reshape_context);
-
+  /* Smooth the reshape CCG and use that to get the new tangent displacments */
+  /* TODO: Have this read from the runtime data */
+  multires_reshape_smooth_object_grids(&reshape_context, mode);
   multires_reshape_object_grids_to_tangent_displacement(&reshape_context);
+
+  /* At this point, the "canonical" MDisp data should be updated so that later when the subdiv CCG
+   * is created it can use that to create the new object space positions /
+  /* All levels of `multires_runtime` should be zeroed out */
+  /* TODO: Is there a simpler way of storing the current object space data such that we don't have
+   * to do this many round trip conversions? */
+
   multires_reshape_context_free(&reshape_context);
 
+  /* The final CCG level should be 1 + the current level */
   multires_set_tot_level(object, mmd, top_level);
 }
 
