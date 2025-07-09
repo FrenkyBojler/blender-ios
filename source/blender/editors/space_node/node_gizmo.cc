@@ -1081,10 +1081,11 @@ static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgr
     bNode *node = bke::node_get_active(*snode->edittree);
 
     split_group->update_data.context = (bContext *)C;
+    bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Position");
     split_group->update_data.ptr = RNA_pointer_create_discrete(
-        reinterpret_cast<ID *>(snode->edittree), &RNA_CompositorNodeSplit, node);
+        reinterpret_cast<ID *>(snode->edittree), &RNA_NodeSocket, source_input);
     split_group->update_data.prop = RNA_struct_find_property(&split_group->update_data.ptr,
-                                                             "axis");
+                                                             "enabled");
 
     wmGizmoPropertyFnParams params{};
     params.value_get_fn = gizmo_node_split_prop_matrix_get;
