@@ -91,6 +91,9 @@ void StripBackup::restore_to_strip(Strip *strip)
 
   int modifier_index = 0;
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    if (modifier_index >= modifiers.size()) {
+      break; /* Likely new modifier was added. */
+    }
     StripModifierDataBackup mod = modifiers.lookup(modifier_index);
     mod.restore_to_modifier(smd);
     modifier_index++;
