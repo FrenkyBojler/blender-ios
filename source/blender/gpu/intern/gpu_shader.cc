@@ -998,10 +998,9 @@ static ThreadQueueWorkPriority to_work_priority(CompilationPriority priority)
       return BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL;
     case CompilationPriority::High:
       return BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH;
-    default:
-      BLI_assert_unreachable();
-      return BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL;
   }
+  BLI_assert_unreachable();
+  return BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL;
 }
 
 ShaderCompiler::ShaderCompiler(uint32_t threads_count,
