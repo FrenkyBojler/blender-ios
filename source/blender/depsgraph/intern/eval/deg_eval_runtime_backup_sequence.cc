@@ -9,9 +9,9 @@
 #include "intern/eval/deg_eval_runtime_backup_sequence.h"
 
 #include "DNA_sequence_types.h"
-#include "DNA_sound_types.h"
 
 #include "BLI_listbase.h"
+#include "BLI_session_uid.h"
 
 namespace blender::deg {
 
@@ -71,10 +71,13 @@ void StripBackup::init_from_strip(Strip *strip)
 {
   scene_sound = strip->scene_sound;
   anims = strip->anims;
+
+  int modifier_index = 0;
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     StripModifierDataBackup mod;
     mod.init_from_modifier(smd);
-    modifiers.add(smd, mod);
+    modifiers.add(modifier_index, mod);
+    modifier_index++;
   }
 
   strip->scene_sound = nullptr;
@@ -85,9 +88,12 @@ void StripBackup::restore_to_strip(Strip *strip)
 {
   strip->scene_sound = scene_sound;
   strip->anims = anims;
+
+  int modifier_index = 0;
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-    StripModifierDataBackup mod = modifiers.lookup(smd);
+    StripModifierDataBackup mod = modifiers.lookup(modifier_index);
     mod.restore_to_modifier(smd);
+    modifier_index++;
   }
 
   reset();
