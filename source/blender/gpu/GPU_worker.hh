@@ -18,7 +18,7 @@
 namespace blender::gpu {
 
 using WorkCB = void (*)(void *);
-using work_id = int;
+using work_id = uint64_t;
 
 /* Abstracts the creation and management of secondary threads with GPU contexts.
  * Must be created from the main thread.
@@ -41,7 +41,7 @@ class GPUWorker {
   GPUWorker(uint32_t threads_count, ContextType context_type, WorkCB callback);
   ~GPUWorker();
 
-  work_id push_work(void *work, eThreadQueueWorkPriority priority);
+  work_id push_work(void *work, ThreadQueueWorkPriority priority);
   void cancel_work(work_id id);
   bool is_empty();
 

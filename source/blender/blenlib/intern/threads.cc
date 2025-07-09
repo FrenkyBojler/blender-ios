@@ -606,20 +606,20 @@ void BLI_condition_end(ThreadCondition *cond)
 /* ************************************************ */
 
 struct ThreadQueueWork {
-  static inline int current_id = 0;
   void *work;
-  int id;
+  uint64_t id;
 };
 
 struct ThreadQueue {
+  uint64_t current_id = 0;
   std::deque<ThreadQueueWork> queue_low_priority;
   std::deque<ThreadQueueWork> queue_normal_priority;
   std::deque<ThreadQueueWork> queue_high_priority;
   pthread_mutex_t mutex;
   pthread_cond_t push_cond;
   pthread_cond_t finish_cond;
-  volatile int nowait;
-  volatile int canceled;
+  volatile int nowait = 0;
+  volatile int canceled = 0;
 };
 
 ThreadQueue *BLI_thread_queue_init()
@@ -643,13 +643,15 @@ void BLI_thread_queue_free(ThreadQueue *queue)
   MEM_delete(queue);
 }
 
-int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriority priority)
+uint64_t BLI_thread_queue_push(ThreadQueue *queue, void *work, ThreadQueueWorkPriority priority)
 {
+  BLI_assert(work);
+
   pthread_mutex_lock(&queue->mutex);
 
   ThreadQueueWork work_reference;
   work_reference.work = work;
-  work_reference.id = ++ThreadQueueWork::current_id;
+  work_reference.id = ++queue->current_id;
 
   switch (priority) {
     case BLI_THREAD_QUEUE_WORK_PRIORITY_LOW:
@@ -661,8 +663,6 @@ int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriori
     case BLI_THREAD_QUEUE_WORK_PRIORITY_HIGH:
       queue->queue_high_priority.push_back(work_reference);
       break;
-    default:
-      BLI_assert_unreachable();
   }
 
   /* signal threads waiting to pop */
@@ -672,18 +672,42 @@ int BLI_thread_queue_push(ThreadQueue *queue, void *work, eThreadQueueWorkPriori
   return work_reference.id;
 }
 
-void BLI_thread_queue_cancel_work(ThreadQueue *queue, int work_id)
+/** WARNING: Assumes the queue is already locked. */
+static void check_finalization(ThreadQueue *queue)
 {
-  auto cancel = [work_id](std::deque<ThreadQueueWork> &queue) {
-    queue.erase(std::remove_if(queue.begin(),
-                               queue.end(),
-                               [&](const ThreadQueueWork &work) { return work.id == work_id; }),
-                queue.end());
+  if (queue->queue_low_priority.empty() && queue->queue_normal_priority.empty() &&
+      queue->queue_high_priority.empty())
+  {
+    pthread_cond_signal(&queue->finish_cond);
+  }
+}
+
+void BLI_thread_queue_cancel_work(ThreadQueue *queue, uint64_t work_id)
+{
+  pthread_mutex_lock(&queue->mutex);
+
+  bool found = false;
+  auto check = [&](const ThreadQueueWork &work) {
+    if (work.id == work_id) {
+      found = true;
+      return true;
+    }
+    return false;
+  };
+
+  auto cancel = [&](std::deque<ThreadQueueWork> &sub_queue) {
+    sub_queue.erase(std::remove_if(sub_queue.begin(), sub_queue.end(), check), sub_queue.end());
   };
 
   cancel(queue->queue_low_priority);
   cancel(queue->queue_normal_priority);
   cancel(queue->queue_high_priority);
+
+  if (found) {
+    check_finalization(queue);
+  }
+
+  pthread_mutex_unlock(&queue->mutex);
 }
 
 void *BLI_thread_queue_pop(ThreadQueue *queue)
@@ -699,29 +723,21 @@ void *BLI_thread_queue_pop(ThreadQueue *queue)
   }
 
   /* if we have something, pop it */
-  if (!queue->queue_high_priority.empty()) {
-    work_reference = queue->queue_high_priority.front();
-    queue->queue_high_priority.pop_front();
-
-    if (queue->queue_high_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
+  for (std::deque<ThreadQueueWork> *sub_queue :
+       {&queue->queue_high_priority, &queue->queue_normal_priority, &queue->queue_low_priority})
+  {
+    if (sub_queue->empty()) {
+      continue;
     }
+    work_reference = sub_queue->front();
+    sub_queue->pop_front();
+
+    /* Don't pop more than one work. */
+    break;
   }
-  else if (!queue->queue_normal_priority.empty()) {
-    work_reference = queue->queue_normal_priority.front();
-    queue->queue_normal_priority.pop_front();
 
-    if (queue->queue_normal_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
-  }
-  else if (!queue->queue_low_priority.empty()) {
-    work_reference = queue->queue_low_priority.front();
-    queue->queue_low_priority.pop_front();
-
-    if (queue->queue_low_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
+  if (work_reference.work) {
+    check_finalization(queue);
   }
 
   pthread_mutex_unlock(&queue->mutex);
@@ -787,29 +803,21 @@ void *BLI_thread_queue_pop_timeout(ThreadQueue *queue, int ms)
   }
 
   /* if we have something, pop it */
-  if (!queue->queue_high_priority.empty()) {
-    work_reference = queue->queue_high_priority.front();
-    queue->queue_high_priority.pop_front();
-
-    if (queue->queue_high_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
+  for (std::deque<ThreadQueueWork> *sub_queue :
+       {&queue->queue_high_priority, &queue->queue_normal_priority, &queue->queue_low_priority})
+  {
+    if (sub_queue->empty()) {
+      continue;
     }
+    work_reference = sub_queue->front();
+    sub_queue->pop_front();
+
+    /* Don't pop more than one work. */
+    break;
   }
-  else if (!queue->queue_normal_priority.empty()) {
-    work_reference = queue->queue_normal_priority.front();
-    queue->queue_normal_priority.pop_front();
 
-    if (queue->queue_normal_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
-  }
-  else if (!queue->queue_low_priority.empty()) {
-    work_reference = queue->queue_low_priority.front();
-    queue->queue_low_priority.pop_front();
-
-    if (queue->queue_low_priority.empty()) {
-      pthread_cond_broadcast(&queue->finish_cond);
-    }
+  if (work_reference.work) {
+    check_finalization(queue);
   }
 
   pthread_mutex_unlock(&queue->mutex);

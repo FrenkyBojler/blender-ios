@@ -32,7 +32,7 @@ GPUWorker::~GPUWorker()
   BLI_thread_queue_free(work_queue_);
 }
 
-work_id GPUWorker::push_work(void *work, eThreadQueueWorkPriority priority)
+work_id GPUWorker::push_work(void *work, ThreadQueueWorkPriority priority)
 {
   return BLI_thread_queue_push(work_queue_, work, priority);
 }

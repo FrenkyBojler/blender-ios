@@ -989,7 +989,7 @@ Shader *ShaderCompiler::compile(const shader::ShaderCreateInfo &info, bool is_ba
   return shader;
 }
 
-static eThreadQueueWorkPriority to_work_priority(CompilationPriority priority)
+static ThreadQueueWorkPriority to_work_priority(CompilationPriority priority)
 {
   switch (priority) {
     case CompilationPriority::Low:
