@@ -137,7 +137,7 @@ static int cursor_size()
   const bool scale_cursor_with_ui_scale = false;
 
   if (scale_cursor_with_ui_scale) {
-    return int(21.0f * UI_SCALE_FAC);
+    return std::lround(21.0f * UI_SCALE_FAC);
   }
 
 #if (OS_MAC)
@@ -145,7 +145,7 @@ static int cursor_size()
   return 21;
 #endif
 
-  return int(WM_cursor_preferred_logical_size() * (UI_SCALE_FAC / U.ui_scale));
+  return std::lround(WM_cursor_preferred_logical_size() * (UI_SCALE_FAC / U.ui_scale));
 }
 
 static blender::Array<uint8_t> cursor_bitmap_from_svg(const char *svg,
@@ -225,7 +225,7 @@ static bool window_set_custom_cursor(wmWindow *win, const BCursor &cursor)
   const bool use_only_1bpp_cursors = false;
 
   const bool use_rgba = !use_only_1bpp_cursors &&
-                        (WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS);
+                        (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA);
 
   const int max_size = use_rgba ? 128 : 32;
   const int size = std::min(cursor_size(), max_size);
