@@ -826,7 +826,7 @@ std::string BLI_str_utf8_to_upper(const char *str, size_t len)
   while (str[i]) {
     char32_t wc = BLI_str_utf8_as_unicode_step_safe(str, len, &i);
     wc = BLI_str_utf32_char_to_upper(wc);
-    int utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
+    size_t utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
     result.append(utf8_buf, utf8_buf_len);
   }
 
@@ -844,7 +844,7 @@ std::string BLI_str_utf8_to_lower(const char *str, size_t len)
   while (str[i]) {
     char32_t wc = BLI_str_utf8_as_unicode_step_safe(str, len, &i);
     wc = BLI_str_utf32_char_to_lower(wc);
-    int utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
+    size_t utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
     result.append(utf8_buf, utf8_buf_len);
   }
 
@@ -852,14 +852,14 @@ std::string BLI_str_utf8_to_lower(const char *str, size_t len)
   return result;
 }
 
-struct EUOrderRules {
-  int charcode;
+struct OrderWeights {
+  int codepoint;
   int weight;
   char alternate;
   char lettercase;
 };
 
-static const EUOrderRules EORTable[] = {
+static const OrderWeights OrderWeightsTable[] = {
     /* European ordering rules  (EOR / EN 13710 NISO TR03-1999)
      * https://www.open-std.org/cen/tc304/EOR/eorhome.html
      * Three levels of weights for sort/collation. Primary considers "A" and "ã"
@@ -1496,6 +1496,37 @@ static const EUOrderRules EORTable[] = {
     {0x04F8, 482, 0, 1},  /* Cyrillic capital letter yeru with diaeresis */
     {0x04F9, 482, 0, 0},  /* Cyrillic small letter yeru with diaeresis */
 };
+
+/* NOT TESTED */
+static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool lettercase)
+{
+  int weight = 0;
+
+  size_t left = 0;
+  size_t right = sizeof(OrderWeightsTable) / sizeof(OrderWeightsTable[0]);
+  while (left < right) {
+    size_t mid = left + (right - left) / 2;
+    if (OrderWeightsTable[mid].codepoint == int(codepoint)) {
+      weight = OrderWeightsTable[mid].weight;
+      if (alternates) {
+        weight += OrderWeightsTable[mid].alternate;
+      }
+      if (lettercase) {
+        weight += OrderWeightsTable[mid].lettercase;
+      }
+      break;
+    }
+    if (OrderWeightsTable[mid].codepoint < int(codepoint)) {
+      left = mid + 1;
+    }
+    else {
+      right = mid;
+    }
+  }
+
+  return weight;
+}
+
 
 /* -------------------------------------------------------------------- */
 /** \name UTF32 Text Boundary Analysis
