@@ -208,6 +208,18 @@ bool VKBackend::is_supported()
   BLI_setenv("VK_LOADER_LAYERS_DISABLE", "~implicit~");
   BLI_setenv("VK_LOADER_LAYERS_ALLOW", allowed_layers.str().c_str());
 
+  /* Initializing multiple vulkan instances can trigger undefined behavior due to a bug inside the
+   * vulkan loader. Qualcomm driver can crash as it could partly be unloaded. NVIDIA could load
+   * incorrect driver functions.
+   *
+   * Skipping VKBackend::is_supported will ensure that only one vulkan instance is created. */
+  if (BLI_getenv("BLENDER_VULKAN_FORCE") != nullptr) {
+    CLOG_WARN(&LOG,
+              "'BLENDER_VULKAN_FORCE' environment variable is defined, skipping checking for "
+              "vulkan compatibility.");
+    return true;
+  }
+
   /* Initialize an vulkan 1.2 instance. */
   VkApplicationInfo vk_application_info = {VK_STRUCTURE_TYPE_APPLICATION_INFO};
   vk_application_info.pApplicationName = "Blender";
