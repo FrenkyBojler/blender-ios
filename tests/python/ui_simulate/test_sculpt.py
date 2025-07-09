@@ -5,7 +5,6 @@
 """
 This file does not run anything, it's methods are accessed for tests by: ``run.py``.
 """
-import datetime
 
 
 def _test_window(windows_exclude=None):
