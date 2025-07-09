@@ -2111,10 +2111,9 @@ static wmOperatorStatus wm_search_menu_invoke(bContext *C, wmOperator *op, const
 
   if (search_type == SEARCH_TYPE_SINGLE_MENU) {
     data.single_menu_idname = RNA_string_get(op->ptr, "menu_idname");
-    {
-      std::string buffer = RNA_string_get(op->ptr, "initial_query");
-      STRNCPY(g_search_text, buffer.c_str());
-    }
+
+    std::string buffer = RNA_string_get(op->ptr, "initial_query");
+    STRNCPY(g_search_text, buffer.c_str());
   }
   else {
     g_search_text[0] = '\0';
