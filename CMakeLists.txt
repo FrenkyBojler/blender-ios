@@ -1088,27 +1088,28 @@ if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
 -fsanitize=nonnull-attribute \
 -fsanitize=returns-nonnull-attribute \
 -fsanitize=signed-integer-overflow \
--fsanitize=undefined \
 -fsanitize=vla-bound \
 -fno-sanitize=alignment \
 ")
 
     if(MSVC)
       # clang-cl doesn't support all sanitizers, but leak and object-size give errors/warnings.
-      set(_asan_defaults "${_asan_defaults}")
+      string(APPEND _asan_defaults " -fsanitize=undefined")
     elseif(APPLE)
       # AppleClang doesn't support all sanitizers, but leak gives error.
       # Build type is not known for multi-config generator, so don't add object-size sanitizer.
       if(CMAKE_BUILD_TYPE MATCHES "Debug" OR GENERATOR_IS_MULTI_CONFIG)
         # Silence the warning that object-size is not effective in -O0.
-        set(_asan_defaults "${_asan_defaults}")
+        string(APPEND _asan_defaults " -fsanitize=undefined")
       else()
-        string(APPEND _asan_defaults " -fsanitize=object-size")
+        string(APPEND _asan_defaults " -fsanitize=object-size -fsanitize=undefined")
       endif()
     elseif(CMAKE_COMPILER_IS_GNUCC)
+      # Do not used 'undefined' sanitizer on GCC, current version used in buildbot (11.2.1) seems
+      # to generate a massive amount of fake positive.
       string(APPEND _asan_defaults " -fsanitize=leak -fsanitize=object-size")
     else()
-      string(APPEND _asan_defaults " -fsanitize=leak")
+      string(APPEND _asan_defaults " -fsanitize=leak -fsanitize=undefined")
     endif()
 
     set(COMPILER_ASAN_CFLAGS "${_asan_defaults}" CACHE STRING "C flags for address sanitizer")
