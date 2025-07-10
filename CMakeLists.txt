@@ -625,7 +625,6 @@ option(WITH_CYCLES "Enable Cycles Render Engine" ON)
 option(WITH_CYCLES_OSL "Build Cycles with OpenShadingLanguage support" ON)
 option(WITH_CYCLES_PATH_GUIDING "Build Cycles with path guiding support" ON)
 option(WITH_CYCLES_EMBREE "Build Cycles with Embree support" ON)
-option(WITH_CYCLES_LOGGING "Build Cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG "Build Cycles with options useful for debugging (e.g., MIS)" OFF)
 
 option(WITH_CYCLES_STANDALONE "Build Cycles standalone application" OFF)
@@ -655,7 +654,6 @@ Run additional Cycles test with OSL enabled"
   OFF
 )
 mark_as_advanced(WITH_CYCLES_KERNEL_ASAN)
-mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG_NAN)
 mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 mark_as_advanced(WITH_CYCLES_PRECOMPUTE)
@@ -1711,7 +1709,7 @@ set_and_warn_incompatible(WITH_PYTHON_MODULE WITH_GTESTS OFF)
 # -----------------------------------------------------------------------------
 # Configure `GLog/GFlags`
 
-if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
+if(WITH_LIBMV OR WITH_GTESTS)
   if(WITH_SYSTEM_GFLAGS)
     find_package(Gflags)
     if(NOT GFLAGS_FOUND)
@@ -1809,16 +1807,23 @@ Define the maximum number of concurrent heavy compilation jobs, for ninja build 
     set(_compile_heavy_jobs)
     set(_compile_heavy_jobs_max)
 
-    # Heuristics: Assume 3Gb of RAM is needed per regular compile job.
+    # Heuristics: Assume 4Gb of RAM is needed per regular compile job.
     # Typical RAM peak usage of these is actually way less than 1GB usually,
     # but this also accounts for the part of the physical RAM being used by other unrelated
     # processes on the system, and the part being used by the 'heavy' compile and linking jobs.
+    #
+    # FIXME:
+    # There are a few files in 'normal' compile job pool now that require a significant amount of RAM
+    # (e.g. `blenkernel/intern/volume.cc` can require almost 5GB of RAM in debug + ASAN builds). Until
+    # we can add individual files to the heavy compile pool job (not possible currently with CMake),
+    # this is the best that can be done. Alternative solution would be to put several whole targets
+    # (like `bf_blenkernel`) into the heavy pool, but that is likely even worse of a workaround.
     #
     # If there are 'enough' cores available, cap the maximum number of regular jobs to
     # `number of cores - 1`, otherwise allow using all cores if there is enough RAM available.
     # This allows to ensure that the heavy jobs won't get starved by too many normal jobs,
     # since the former usually take a long time to process.
-    math(EXPR _compile_jobs "${_TOT_MEM} / 3000")
+    math(EXPR _compile_jobs "${_TOT_MEM} / 4000")
     if(${_NUM_CORES} GREATER 3)
       math(EXPR _compile_jobs_max "${_NUM_CORES} - 1")
     else()
@@ -2679,12 +2684,6 @@ elseif(WITH_CYCLES_STANDALONE OR WITH_CYCLES_HYDRA_RENDER_DELEGATE)
   add_subdirectory(intern/sky)
 
   add_subdirectory(intern/cycles)
-  if(WITH_CYCLES_LOGGING)
-    if(NOT WITH_SYSTEM_GFLAGS)
-      add_subdirectory(extern/gflags)
-    endif()
-    add_subdirectory(extern/glog)
-  endif()
   if(WITH_CUDA_DYNLOAD)
     add_subdirectory(extern/cuew)
   endif()
