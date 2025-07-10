@@ -4,6 +4,7 @@
 
 #include "camera_delegate.hh"
 
+#include "DNA_ID.h"
 #include "DNA_camera_types.h"
 #include "DNA_scene_types.h"
 
@@ -37,7 +38,7 @@ void CameraDelegate::sync(const Scene *scene)
     return;
   }
 
-  auto *camera = static_cast<const Camera *>(scene->camera->data);
+  const Camera *camera = static_cast<const Camera *>(scene->camera->data);
   if (camera_ == camera) {
     return;
   }
@@ -55,8 +56,8 @@ void CameraDelegate::update(const ID *camera)
 
 pxr::VtValue CameraDelegate::GetCameraParamValue(pxr::SdfPath const &id, pxr::TfToken const &key)
 {
-  if (camera_) {
-    auto *prop = IDP_GetPropertyFromGroup(camera_->id.properties, key.GetText());
+  if (camera_ && camera_->id.properties) {
+    const IDProperty *prop = IDP_GetPropertyFromGroup(camera_->id.properties, key.GetText());
     if (prop) {
       return vt_value(prop);
     }
