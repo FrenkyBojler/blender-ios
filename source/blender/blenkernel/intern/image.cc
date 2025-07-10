@@ -117,7 +117,7 @@
 
 using blender::Array;
 
-static CLG_LogRef LOG = {"bke.image"};
+static CLG_LogRef LOG = {"image"};
 
 static void image_init(Image *ima, short source, short type);
 static void image_free_packedfiles(Image *ima);
@@ -1556,11 +1556,6 @@ static uintptr_t image_mem_size(Image *image)
       }
 
       size += IMB_get_size_in_memory(ibuf);
-
-      for (int level = 0; level < IMB_MIPMAP_LEVELS; level++) {
-        ImBuf *ibufm = ibuf->mipmap[level];
-        size += IMB_get_size_in_memory(ibufm);
-      }
     }
     IMB_moviecacheIter_free(iter);
   }
@@ -1874,7 +1869,7 @@ static void stampdata(
     }
 
     if (use_dynamic && stats && (scene->r.stamp & R_STAMP_MEMORY)) {
-      SNPRINTF(stamp_data->memory, do_prefix ? "Peak Memory %.2fM" : "%.2fM", stats->mem_peak);
+      SNPRINTF(stamp_data->memory, do_prefix ? "Peak Memory ddM" : "%dM", stats->mem_peak);
     }
     else {
       stamp_data->memory[0] = '\0';
@@ -2714,7 +2709,7 @@ MovieReader *openanim(const char *filepath,
     else {
       reason = "not an anim";
     }
-    CLOG_INFO(&LOG, 1, "unable to load anim, %s: %s", reason, filepath);
+    CLOG_INFO(&LOG, "unable to load anim, %s: %s", reason, filepath);
 
     MOV_close(anim);
     return nullptr;
@@ -2991,13 +2986,6 @@ static void image_walk_id_all_users(
             callback(sima->image, nullptr, &sima->iuser, customdata);
           }
         }
-      }
-      break;
-    }
-    case ID_SCE: {
-      Scene *scene = (Scene *)id;
-      if (scene->nodetree && scene->use_nodes && !skip_nested_nodes) {
-        image_walk_ntree_all_users(scene->nodetree, &scene->id, customdata, callback);
       }
       break;
     }
@@ -3366,7 +3354,7 @@ void BKE_image_signal(Main *bmain, Image *ima, ImageUser *iuser, int signal)
 
 /**
  * \return render-pass for a given pass index and active view.
- * fallback to available if there are missing passes for active view.
+ * fall back to available if there are missing passes for active view.
  */
 static RenderPass *image_render_pass_get(RenderLayer *rl,
                                          const int pass,
@@ -3397,7 +3385,7 @@ static RenderPass *image_render_pass_get(RenderLayer *rl,
     }
   }
 
-  /* fallback to the first pass in the layer */
+  /* fall back to the first pass in the layer */
   if (rpass_ret == nullptr) {
     rp_index = 0;
     rpass_ret = static_cast<RenderPass *>(rl->passes.first);

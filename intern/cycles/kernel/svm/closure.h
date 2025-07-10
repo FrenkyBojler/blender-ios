@@ -595,7 +595,7 @@ ccl_device
       const Spectrum weight = closure_weight * mix_weight;
       const float3 position = stack_load_float3(stack, data_node.y);
       const float3 direction = stack_load_float3(stack, data_node.z);
-      bsdf_ray_portal_setup(sd, weight, path_flag, position, direction);
+      bsdf_ray_portal_setup(sd, weight, position, direction);
       break;
     }
     case CLOSURE_BSDF_MICROFACET_GGX_ID:
@@ -715,6 +715,10 @@ ccl_device
       const bool reflective_caustics = true;
       const bool refractive_caustics = true;
 #endif
+
+      const float thinfilm_thickness = fmaxf(stack_load_float(stack, data_node.z), 1e-5f);
+      const float thinfilm_ior = fmaxf(stack_load_float(stack, data_node.w), 1e-5f);
+
       ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
           sd, sizeof(MicrofacetBsdf), make_spectrum(mix_weight));
       ccl_private FresnelGeneralizedSchlick *fresnel =
@@ -737,9 +741,8 @@ ccl_device
         fresnel->reflection_tint = reflective_caustics ? rgb_to_spectrum(color) : zero_spectrum();
         fresnel->transmission_tint = refractive_caustics ? rgb_to_spectrum(color) :
                                                            zero_spectrum();
-        fresnel->thin_film.thickness = 0.0f;
-        fresnel->thin_film.ior = 0.0f;
-
+        fresnel->thin_film.thickness = thinfilm_thickness;
+        fresnel->thin_film.ior = (sd->flag & SD_BACKFACING) ? thinfilm_ior / ior : thinfilm_ior;
         /* setup bsdf */
         if (type == CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID) {
           sd->flag |= bsdf_microfacet_beckmann_glass_setup(bsdf);
@@ -1272,7 +1275,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
     /* Density and color attribute lookup if available. */
     const AttributeDescriptor attr_density = find_attribute(kg, sd, attr_node.x);
     if (attr_density.offset != ATTR_STD_NOT_FOUND) {
-      primitive_density = primitive_volume_attribute<float>(kg, sd, attr_density);
+      primitive_density = primitive_volume_attribute<float>(kg, sd, attr_density, true);
       density = fmaxf(density * primitive_density, 0.0f);
     }
   }
@@ -1283,7 +1286,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
 
     const AttributeDescriptor attr_color = find_attribute(kg, sd, attr_node.y);
     if (attr_color.offset != ATTR_STD_NOT_FOUND) {
-      color *= rgb_to_spectrum(primitive_volume_attribute<float3>(kg, sd, attr_color));
+      color *= rgb_to_spectrum(primitive_volume_attribute<float3>(kg, sd, attr_color, true));
     }
 
     /* Add closure for volume scattering. */
@@ -1338,7 +1341,7 @@ ccl_device_noinline int svm_node_principled_volume(KernelGlobals kg,
     /* Add flame temperature from attribute if available. */
     const AttributeDescriptor attr_temperature = find_attribute(kg, sd, attr_node.z);
     if (attr_temperature.offset != ATTR_STD_NOT_FOUND) {
-      const float temperature = primitive_volume_attribute<float>(kg, sd, attr_temperature);
+      const float temperature = primitive_volume_attribute<float>(kg, sd, attr_temperature, true);
       T *= fmaxf(temperature, 0.0f);
     }
 
@@ -1432,8 +1435,7 @@ ccl_device_noinline void svm_node_closure_holdout(ccl_private ShaderData *sd,
 
 /* Closure Nodes */
 
-ccl_device void svm_node_closure_set_weight(ccl_private ShaderData *sd,
-                                            ccl_private Spectrum *closure_weight,
+ccl_device void svm_node_closure_set_weight(ccl_private Spectrum *closure_weight,
                                             const uint r,
                                             uint g,
                                             const uint b)
@@ -1442,17 +1444,14 @@ ccl_device void svm_node_closure_set_weight(ccl_private ShaderData *sd,
       make_float3(__uint_as_float(r), __uint_as_float(g), __uint_as_float(b)));
 }
 
-ccl_device void svm_node_closure_weight(ccl_private ShaderData *sd,
-                                        ccl_private float *stack,
+ccl_device void svm_node_closure_weight(ccl_private float *stack,
                                         ccl_private Spectrum *closure_weight,
                                         const uint weight_offset)
 {
   *closure_weight = rgb_to_spectrum(stack_load_float3(stack, weight_offset));
 }
 
-ccl_device_noinline void svm_node_emission_weight(KernelGlobals kg,
-                                                  ccl_private ShaderData *sd,
-                                                  ccl_private float *stack,
+ccl_device_noinline void svm_node_emission_weight(ccl_private float *stack,
                                                   ccl_private Spectrum *closure_weight,
                                                   const uint4 node)
 {
@@ -1463,9 +1462,7 @@ ccl_device_noinline void svm_node_emission_weight(KernelGlobals kg,
   *closure_weight = rgb_to_spectrum(stack_load_float3(stack, color_offset)) * strength;
 }
 
-ccl_device_noinline void svm_node_mix_closure(ccl_private ShaderData *sd,
-                                              ccl_private float *stack,
-                                              const uint4 node)
+ccl_device_noinline void svm_node_mix_closure(ccl_private float *stack, const uint4 node)
 {
   /* fetch weight from blend input, previous mix closures,
    * and write to stack to be used by closure nodes later */
@@ -1493,8 +1490,7 @@ ccl_device_noinline void svm_node_mix_closure(ccl_private ShaderData *sd,
 
 /* (Bump) normal */
 
-ccl_device void svm_node_set_normal(KernelGlobals kg,
-                                    ccl_private ShaderData *sd,
+ccl_device void svm_node_set_normal(ccl_private ShaderData *sd,
                                     ccl_private float *stack,
                                     const uint in_direction,
                                     const uint out_normal)

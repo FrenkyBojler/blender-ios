@@ -48,6 +48,7 @@ if(MSVC)
         external_python
         external_numpy
         external_python_site_packages
+        external_python_site_packages_binary
         external_zstandard
         external_cython
       OUTPUT
@@ -94,13 +95,14 @@ if(MSVC)
     add_custom_target(Package_Python
       ALL
       DEPENDS
-        external_python 
-        external_numpy 
-        external_python_site_packages 
+        external_python
+        external_numpy
+        external_python_site_packages
+        external_python_site_packages_binary
         external_zstandard
         external_cython
       OUTPUT
-      ${PYTARGET}/bin/python${PYTHON_POSTFIX}.exe
+        ${PYTARGET}/bin/python${PYTHON_POSTFIX}.exe
     )
   endif()
 endif()

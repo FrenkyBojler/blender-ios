@@ -17,7 +17,7 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 using blender::StringRefNull;
@@ -33,7 +33,7 @@ void uiTemplateColorPicker(uiLayout *layout,
                            bool cubic)
 {
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   ColorPicker *cpicker = ui_block_colorpicker_create(block);
 
   if (!prop) {
@@ -221,13 +221,17 @@ static void ui_template_palette_menu(bContext * /*C*/, uiLayout *layout, void * 
 
   layout->label(IFACE_("Sort By:"), ICON_NONE);
   row = &layout->row(false);
-  uiItemEnumO_value(row, IFACE_("Hue"), ICON_NONE, "PALETTE_OT_sort", "type", 1);
+  PointerRNA op_ptr = row->op("PALETTE_OT_sort", IFACE_("Hue"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", 1);
   row = &layout->row(false);
-  uiItemEnumO_value(row, IFACE_("Saturation"), ICON_NONE, "PALETTE_OT_sort", "type", 2);
+  op_ptr = row->op("PALETTE_OT_sort", IFACE_("Saturation"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", 2);
   row = &layout->row(false);
-  uiItemEnumO_value(row, IFACE_("Value"), ICON_NONE, "PALETTE_OT_sort", "type", 3);
+  op_ptr = row->op("PALETTE_OT_sort", IFACE_("Value"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", 3);
   row = &layout->row(false);
-  uiItemEnumO_value(row, IFACE_("Luminance"), ICON_NONE, "PALETTE_OT_sort", "type", 4);
+  op_ptr = row->op("PALETTE_OT_sort", IFACE_("Luminance"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", 4);
 }
 
 void uiTemplatePalette(uiLayout *layout,
@@ -238,7 +242,7 @@ void uiTemplatePalette(uiLayout *layout,
   PropertyRNA *prop = RNA_struct_find_property(ptr, propname.c_str());
   uiBut *but = nullptr;
 
-  const int cols_per_row = std::max(uiLayoutGetWidth(layout) / UI_UNIT_X, 1);
+  const int cols_per_row = std::max(layout->width() / UI_UNIT_X, 1);
 
   if (!prop) {
     RNA_warning("property not found: %s.%s", RNA_struct_identifier(ptr->type), propname.c_str());
@@ -250,7 +254,7 @@ void uiTemplatePalette(uiLayout *layout,
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   Palette *palette = static_cast<Palette *>(cptr.data);
 
@@ -352,7 +356,7 @@ void uiTemplateCryptoPicker(uiLayout *layout,
     return;
   }
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   uiBut *but = uiDefIconButO(block,
                              UI_BTYPE_BUT,

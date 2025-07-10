@@ -22,6 +22,7 @@
 
 #include "DNA_armature_types.h"
 #include "DNA_cloth_types.h"
+#include "DNA_colorband_types.h"
 #include "DNA_dynamicpaint_types.h"
 #include "DNA_fluid_types.h"
 #include "DNA_mesh_types.h"
@@ -76,7 +77,7 @@
 
 #include "CLG_log.h"
 
-static CLG_LogRef LOG = {"bke.modifier"};
+static CLG_LogRef LOG = {"object.modifier"};
 static ModifierTypeInfo *modifier_types[NUM_MODIFIER_TYPES] = {nullptr};
 static VirtualModifierData virtualModifierCommonData;
 

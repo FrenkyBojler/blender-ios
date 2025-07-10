@@ -25,7 +25,7 @@ CCL_NAMESPACE_BEGIN
     { \
       string str = string_printf(__VA_ARGS__); \
       progress.set_substatus(str); \
-      metal_printf("%s\n", str.c_str()); \
+      metal_printf("%s", str.c_str()); \
     }
 
 // #  define BVH_THROTTLE_DIAGNOSTICS
@@ -1046,10 +1046,6 @@ bool BVHMetal::build_TLAS(Progress &progress,
       else {
         num_motion_transforms++;
       }
-    }
-
-    if (num_instances == 0) {
-      return false;
     }
 
     const bool use_instance_motion = motion_blur && num_motion_instances;

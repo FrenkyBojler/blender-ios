@@ -8,7 +8,7 @@
 
 #include "FN_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geo_menu_switch.hh"
@@ -95,7 +95,7 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     output.propagate_all();
   }
 
-  b.add_input<decl::Extend>("", "__extend__");
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -319,7 +319,7 @@ class LazyFunctionForMenuSwitchNode : public LazyFunction {
     GField output_field{FieldOperation::Create(std::move(multi_function), std::move(item_fields))};
 
     void *output_ptr = params.get_output_data_ptr(0);
-    new (output_ptr) SocketValueVariant(std::move(output_field));
+    SocketValueVariant::ConstructIn(output_ptr, std::move(output_field));
     params.output_set(0);
   }
 };
@@ -374,8 +374,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<MenuSwitchItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "description", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
@@ -450,6 +450,7 @@ static void register_node()
   ntype.draw_buttons_ex = node_layout_ex;
   ntype.register_operators = node_operators;
   ntype.insert_link = node_insert_link;
+  ntype.ignore_inferred_input_socket_visibility = true;
   ntype.blend_write_storage_content = node_blend_write;
   ntype.blend_data_read_storage_content = node_blend_read;
   ntype.internally_linked_input = node_internally_linked_input;

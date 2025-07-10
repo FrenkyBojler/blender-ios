@@ -111,7 +111,8 @@ static void gizmo_primitive_draw_geom(PrimitiveGizmo3D *gz_prim,
                                       const bool draw_inner,
                                       const bool select)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   const bool use_polyline_shader = gz_prim->gizmo.line_width > 1.0f;
 
   if (draw_inner || !use_polyline_shader) {
@@ -254,7 +255,7 @@ static void GIZMO_GT_primitive_3d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_primitive_3d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_primitive_draw;
   gzt->draw_select = gizmo_primitive_draw_select;
   gzt->setup = gizmo_primitive_setup;

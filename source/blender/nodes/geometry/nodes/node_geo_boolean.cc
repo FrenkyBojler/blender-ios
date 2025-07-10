@@ -10,7 +10,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_join_geometries.hh"
@@ -175,6 +175,11 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       }
     }
+  }
+
+  if (solver == geometry::boolean::Solver::Manifold) {
+    /* Manifold remaps materials using realize_instances. */
+    material_remaps.resize(0);
   }
 
   AttributeOutputs attribute_outputs;

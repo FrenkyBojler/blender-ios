@@ -1326,7 +1326,6 @@ static void bone_draw_custom_shape(const Armatures::DrawContext *ctx,
   const float *col_hint = get_bone_hint_color(ctx, boneflag);
   const float(*disp_mat)[4] = bone.disp_mat();
 
-  /* TODO(fclem): Code after this scope should be removed when we remove the legacy code. */
   auto sel_id = ctx->res->select_id(*ctx->ob_ref, select_id | BONESEL_BONE);
 
   /* Custom bone shapes are only supported in pose mode for now. */
@@ -2043,7 +2042,7 @@ void Armatures::draw_armature_pose(Armatures::DrawContext *ctx)
     }
 
     eBone_Flag boneflag = eBone_Flag(bone->flag);
-    if (bone->parent && (bone->parent->flag & BONE_HIDDEN_P)) {
+    if (bone->parent && !blender::animrig::bone_is_visible(&arm, bone->parent)) {
       /* Avoid drawing connection line to hidden parent. */
       boneflag &= ~BONE_CONNECTED;
     }

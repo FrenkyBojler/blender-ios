@@ -10,7 +10,7 @@
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "COM_node_operation.hh"
@@ -29,16 +29,47 @@ static void cmp_node_filter_declare(NodeDeclarationBuilder &b)
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_FACTOR)
-      .compositor_domain_priority(1);
+      .compositor_domain_priority(1)
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
+      .compositor_domain_priority(0)
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_buts_filter(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
   layout->prop(ptr, "filter_type", UI_ITEM_R_SPLIT_EMPTY_NAME, "", ICON_NONE);
+}
+
+class SocketSearchOp {
+ public:
+  CMPNodeFilterMethod filter_type = CMP_NODE_FILTER_SOFT;
+  void operator()(LinkSearchOpParams &params)
+  {
+    bNode &node = params.add_node("CompositorNodeFilter");
+    node.custom1 = filter_type;
+    params.update_and_connect_available_socket(node, "Image");
+  }
+};
+
+static void gather_link_searches(GatherLinkSearchOpParams &params)
+{
+  const eNodeSocketDatatype from_socket_type = eNodeSocketDatatype(params.other_socket().type);
+  if (!params.node_tree().typeinfo->validate_link(from_socket_type, SOCK_RGBA)) {
+    return;
+  }
+
+  params.add_item(IFACE_("Soften"), SocketSearchOp{CMP_NODE_FILTER_SOFT});
+  params.add_item(IFACE_("Box Sharpen"), SocketSearchOp{CMP_NODE_FILTER_SHARP_BOX});
+  params.add_item(IFACE_("Laplace"), SocketSearchOp{CMP_NODE_FILTER_LAPLACE});
+  params.add_item(IFACE_("Sobel"), SocketSearchOp{CMP_NODE_FILTER_SOBEL});
+  params.add_item(IFACE_("Prewitt"), SocketSearchOp{CMP_NODE_FILTER_PREWITT});
+  params.add_item(IFACE_("Kirsch"), SocketSearchOp{CMP_NODE_FILTER_KIRSCH});
+  params.add_item(IFACE_("Shadow"), SocketSearchOp{CMP_NODE_FILTER_SHADOW});
+  params.add_item(IFACE_("Diamond Sharpen"), SocketSearchOp{CMP_NODE_FILTER_SHARP_DIAMOND});
 }
 
 using namespace blender::compositor;
@@ -257,6 +288,7 @@ static void register_node_type_cmp_filter()
   ntype.labelfunc = node_filter_label;
   ntype.flag |= NODE_PREVIEW;
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  ntype.gather_link_search_ops = file_ns::gather_link_searches;
 
   blender::bke::node_register_type(ntype);
 }

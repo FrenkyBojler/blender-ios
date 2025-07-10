@@ -30,7 +30,7 @@ bool ConstantFolder::all_inputs_constant() const
 
 void ConstantFolder::make_constant(const float value) const
 {
-  VLOG_DEBUG << "Folding " << node->name << "::" << output->name() << " to constant (" << value
+  LOG(DEBUG) << "Folding " << node->name << "::" << output->name() << " to constant (" << value
              << ").";
 
   for (ShaderInput *sock : output->links) {
@@ -43,7 +43,7 @@ void ConstantFolder::make_constant(const float value) const
 
 void ConstantFolder::make_constant(const float3 value) const
 {
-  VLOG_DEBUG << "Folding " << node->name << "::" << output->name() << " to constant " << value
+  LOG(DEBUG) << "Folding " << node->name << "::" << output->name() << " to constant " << value
              << ".";
 
   for (ShaderInput *sock : output->links) {
@@ -56,7 +56,7 @@ void ConstantFolder::make_constant(const float3 value) const
 
 void ConstantFolder::make_constant(const int value) const
 {
-  VLOG_DEBUG << "Folding " << node->name << "::" << output->name() << " to constant (" << value
+  LOG(DEBUG) << "Folding " << node->name << "::" << output->name() << " to constant (" << value
              << ").";
 
   for (ShaderInput *sock : output->links) {
@@ -113,7 +113,7 @@ void ConstantFolder::bypass(ShaderOutput *new_output) const
 {
   assert(new_output);
 
-  VLOG_DEBUG << "Folding " << node->name << "::" << output->name() << " to socket "
+  LOG(DEBUG) << "Folding " << node->name << "::" << output->name() << " to socket "
              << new_output->parent->name << "::" << new_output->name() << ".";
 
   /* Remove all outgoing links from socket and connect them to new_output instead.
@@ -132,7 +132,7 @@ void ConstantFolder::discard() const
 {
   assert(output->type() == SocketType::CLOSURE);
 
-  VLOG_DEBUG << "Discarding closure " << node->name << ".";
+  LOG(DEBUG) << "Discarding closure " << node->name << ".";
 
   graph->disconnect(output);
 }
@@ -330,7 +330,10 @@ void ConstantFolder::fold_mix_color(NodeMix type, bool clamp_factor, bool clamp)
       /* remove useless mix colors nodes */
       if (color1_in->link && color2_in->link) {
         if (color1_in->link == color2_in->link) {
-          try_bypass_or_make_constant(color1_in, clamp);
+          if (!try_bypass_or_make_constant(color1_in, clamp)) {
+            /* If can't bypass, set `fac` to 0 to only use `color1_in`. */
+            fac_in->set(0.0f);
+          }
           break;
         }
       }

@@ -536,7 +536,7 @@ void ARMATURE_OT_select_linked(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_select_linked";
   ot->description = "Select all bones linked by parent/child connections to the current selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_select_linked_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -600,7 +600,7 @@ void ARMATURE_OT_select_linked_pick(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_select_linked_pick";
   ot->description = "(De)select bones linked by parent/child connections under the mouse cursor";
 
-  /* api callbacks */
+  /* API callbacks. */
   /* leave 'exec' unset */
   ot->invoke = armature_select_linked_pick_invoke;
   ot->poll = armature_select_linked_pick_poll;
@@ -657,10 +657,16 @@ static EditBone *get_nearest_editbonepoint(
   result_bias.base = nullptr;
   result_bias.ebone = nullptr;
 
-  /* find the bone after the current active bone, so as to bump up its chances in selection.
-   * this way overlapping bones will cycle selection state as with objects. */
+  /* Find the bone after the current (selected) active bone, so as to bump up its chances in
+   * selection. this way overlapping bones will cycle selection state as with objects. */
   Object *obedit_orig = vc->obedit;
   EditBone *ebone_active_orig = static_cast<bArmature *>(obedit_orig->data)->act_edbone;
+  if (ebone_active_orig &&
+      (ebone_active_orig->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) == 0)
+  {
+    ebone_active_orig = nullptr;
+  }
+
   if (ebone_active_orig == nullptr) {
     use_cycle = false;
   }
@@ -740,13 +746,10 @@ cache_end:
         union {
           uint32_t as_u32;
           struct {
-#ifdef __BIG_ENDIAN__
-            uint16_t ob;
-            uint16_t bone;
-#else
+            /* NOTE: this is endianness-sensitive.
+             * In Big Endian the order of these two variable would have to be inverted. */
             uint16_t bone;
             uint16_t ob;
-#endif
           };
         } offset, test, best;
       } cycle_order;
@@ -816,6 +819,7 @@ cache_end:
           if (bias > bias_max) {
             bias_max = bias;
 
+            min_depth = hit_result.depth;
             result_bias.select_id = select_id;
             result_bias.base = base;
             result_bias.ebone = ebone;
@@ -1391,7 +1395,7 @@ void ARMATURE_OT_select_all(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_select_all";
   ot->description = "Toggle selection status of all bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_de_select_all_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1520,7 +1524,7 @@ void ARMATURE_OT_select_more(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_select_more";
   ot->description = "Select those bones connected to the initial selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_de_select_more_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -1557,7 +1561,7 @@ void ARMATURE_OT_select_less(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_select_less";
   ot->description = "Deselect those bones at the boundary of each selection region";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_de_select_less_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -2121,7 +2125,7 @@ void ARMATURE_OT_select_hierarchy(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_select_hierarchy";
   ot->description = "Select immediate parent/children of selected bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_select_hierarchy_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -2208,7 +2212,7 @@ void ARMATURE_OT_select_mirror(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_select_mirror";
   ot->description = "Mirror the bone selection";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = armature_select_mirror_exec;
   ot->poll = ED_operator_editarmature;
 
@@ -2273,7 +2277,7 @@ static wmOperatorStatus armature_shortest_path_pick_invoke(bContext *C,
   ebone_src = arm->act_edbone;
   ebone_dst = ED_armature_pick_ebone(C, event->mval, false, &base_dst);
 
-  /* fallback to object selection */
+  /* fall back to object selection */
   if (ELEM(nullptr, ebone_src, ebone_dst) || (ebone_src == ebone_dst)) {
     return OPERATOR_PASS_THROUGH;
   }
@@ -2346,7 +2350,7 @@ void ARMATURE_OT_shortest_path_pick(wmOperatorType *ot)
   ot->idname = "ARMATURE_OT_shortest_path_pick";
   ot->description = "Select shortest path between two bones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = armature_shortest_path_pick_invoke;
   ot->poll = ED_operator_editarmature;
 

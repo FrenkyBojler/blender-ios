@@ -25,7 +25,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 /* we may want to make this optional, disable for now. */
@@ -66,7 +66,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     const eButLabelAlign label_align,
     int layout_flags)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   eAutoPropButsReturn return_info = eAutoPropButsReturn(0);
 
   if (!op->properties) {
@@ -100,11 +100,10 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     row->menu("WM_MT_operator_presets", std::nullopt, ICON_NONE);
 
     wmOperatorType *ot = WM_operatortype_find("WM_OT_operator_preset_add", false);
-    uiItemFullO_ptr(row, ot, "", ICON_ADD, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+    op_ptr = op_ptr = row->op(ot, "", ICON_ADD, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     RNA_string_set(&op_ptr, "operator", op->type->idname);
 
-    uiItemFullO_ptr(
-        row, ot, "", ICON_REMOVE, nullptr, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE, &op_ptr);
+    op_ptr = row->op(ot, "", ICON_REMOVE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
     RNA_string_set(&op_ptr, "operator", op->type->idname);
     RNA_boolean_set(&op_ptr, "remove_active", true);
   }
@@ -127,8 +126,8 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
 
     PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-    uiLayoutSetPropSep(layout, use_prop_split);
-    uiLayoutSetPropDecorate(layout, false);
+    layout->use_property_split_set(use_prop_split);
+    layout->use_property_decorate_set(false);
 
     /* main draw call */
     return_info = uiDefAutoButsRNA(
@@ -156,7 +155,7 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     uiLayout *col; /* needed to avoid alignment errors with previous buttons */
 
     col = &layout->column(false);
-    block = uiLayoutGetBlock(col);
+    block = col->block();
     but = uiDefIconTextBut(block,
                            UI_BTYPE_BUT,
                            0,
@@ -290,7 +289,7 @@ void uiTemplateOperatorPropertyButs(
 void uiTemplateOperatorRedoProperties(uiLayout *layout, const bContext *C)
 {
   wmOperator *op = WM_operator_last_redo(C);
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   if (op == nullptr) {
     return;
@@ -299,14 +298,11 @@ void uiTemplateOperatorRedoProperties(uiLayout *layout, const bContext *C)
   /* Disable for now, doesn't fit well in popover. */
 #if 0
   /* Repeat button with operator name as text. */
-  uiItemFullO(layout,
-              "SCREEN_OT_repeat_last",
-              WM_operatortype_name(op->type, op->ptr),
-              ICON_NONE,
-              nullptr,
-              WM_OP_INVOKE_DEFAULT,
-              0,
-              nullptr);
+  layout->op("SCREEN_OT_repeat_last",
+             WM_operatortype_name(op->type, op->ptr),
+             ICON_NONE,
+             WM_OP_INVOKE_DEFAULT,
+             0);
 #endif
 
   if (WM_operator_repeat_check(C, op)) {
@@ -354,9 +350,10 @@ static void draw_export_controls(
   layout->label(label, ICON_NONE);
   if (valid) {
     uiLayout *row = &layout->row(false);
-    uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
-    uiItemPopoverPanel(row, C, "WM_PT_operator_presets", "", ICON_PRESET);
-    uiItemIntO(row, "", ICON_EXPORT, "COLLECTION_OT_exporter_export", "index", index);
+    row->emboss_set(blender::ui::EmbossType::None);
+    row->popover(C, "WM_PT_operator_presets", "", ICON_PRESET);
+    PointerRNA op_ptr = row->op("COLLECTION_OT_exporter_export", "", ICON_EXPORT);
+    RNA_int_set(&op_ptr, "index", index);
   }
 }
 
@@ -368,8 +365,8 @@ static void draw_export_properties(bContext *C,
 {
   uiLayout *col = &layout->column(false);
 
-  uiLayoutSetPropSep(col, true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_split_set(true);
+  col->use_property_decorate_set(false);
 
   /* Note this property is used as an alternative to the `filepath` property of `op->ptr`.
    * This property is a wrapper to access that property, see the `CollectionExport::filepath`
@@ -406,7 +403,7 @@ static void draw_exporter_item(uiList * /*ui_list*/,
                                int /*flt_flag*/)
 {
   uiLayout *row = &layout->row(false);
-  uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
+  row->emboss_set(blender::ui::EmbossType::None);
   row->prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -445,11 +442,18 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
 
   uiLayout *col = &row->column(true);
   col->menu("COLLECTION_MT_exporter_add", "", ICON_ADD);
-  uiItemIntO(col, "", ICON_REMOVE, "COLLECTION_OT_exporter_remove", "index", index);
+  PointerRNA op_ptr = col->op("COLLECTION_OT_exporter_remove", "", ICON_REMOVE);
+  RNA_int_set(&op_ptr, "index", index);
+
+  col->separator();
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_UP);
+  RNA_enum_set(&op_ptr, "direction", -1);
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_DOWN);
+  RNA_enum_set(&op_ptr, "direction", 1);
 
   col = &layout->column(true);
   col->op("COLLECTION_OT_export_all", std::nullopt, ICON_EXPORT);
-  uiLayoutSetEnabled(col, !BLI_listbase_is_empty(exporters));
+  col->enabled_set(!BLI_listbase_is_empty(exporters));
 
   /* Draw the active exporter. */
   CollectionExport *data = (CollectionExport *)BLI_findlink(exporters, index);
@@ -480,7 +484,7 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   PointerRNA properties = RNA_pointer_create_discrete(
       &collection->id, ot->srna, data->export_properties);
   wmOperator *op = minimal_operator_create(ot, &properties);
-  UI_block_set_active_operator(uiLayoutGetBlock(panel.header), op, true);
+  UI_block_set_active_operator(panel.header->block(), op, true);
 
   /* Draw panel header and contents. */
   std::string label(fh->label);

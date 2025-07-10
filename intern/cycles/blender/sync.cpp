@@ -163,16 +163,17 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
       const bool is_light = !can_have_geometry && object_is_light(b_ob);
 
       if (b_ob.is_instancer() && b_update.is_updated_shading()) {
-        /* Needed for e.g. object color updates on instancer. */
+        /* Needed for object color updates on instancer, among other things. */
         object_map.set_recalc(b_ob);
       }
 
       if (can_have_geometry || is_light) {
         const bool updated_geometry = b_update.is_updated_geometry();
+        const bool updated_transform = b_update.is_updated_transform();
 
         /* Geometry (mesh, hair, volume). */
         if (can_have_geometry) {
-          if (b_update.is_updated_transform() || b_update.is_updated_shading()) {
+          if (updated_transform || b_update.is_updated_shading()) {
             object_map.set_recalc(b_ob);
           }
 
@@ -180,7 +181,9 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
                                                b_ob, preview, use_adaptive_subdivision) !=
                                            Mesh::SUBDIVISION_NONE;
 
-          if (updated_geometry || use_adaptive_subdiv) {
+          /* Need to recompute geometry if the geometry changed, or the transform changed
+           * and using adaptive subdivision. */
+          if (updated_geometry || (updated_transform && use_adaptive_subdiv)) {
             BL::ID const key = BKE_object_is_modified(b_ob) ?
                                    b_ob :
                                    object_get_data(b_ob, use_adaptive_subdiv);
@@ -304,7 +307,7 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
    * false = don't delete unused shaders, not supported. */
   shader_map.post_sync(false);
 
-  VLOG_INFO << "Total time spent synchronizing data: " << timer.get_time();
+  LOG(INFO) << "Total time spent synchronizing data: " << timer.get_time();
 
   has_updates_ = false;
 }
@@ -455,7 +458,7 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
   }
 
   if (scrambling_distance != 1.0f) {
-    VLOG_INFO << "Using scrambling distance: " << scrambling_distance;
+    LOG(INFO) << "Using scrambling distance: " << scrambling_distance;
   }
   integrator->set_scrambling_distance(scrambling_distance);
 

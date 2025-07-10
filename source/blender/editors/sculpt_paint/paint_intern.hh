@@ -17,6 +17,8 @@
 #include "DNA_vec_types.h"
 #include "DNA_windowmanager_enums.h"
 
+#include <optional>
+
 enum class PaintMode : int8_t;
 
 struct ARegion;
@@ -163,8 +165,7 @@ class PaintModeData {
 void paint_stroke_set_mode_data(PaintStroke *stroke, std::unique_ptr<PaintModeData> mode_data);
 
 bool paint_stroke_started(PaintStroke *stroke);
-void paint_stroke_jitter_pos(Scene &scene,
-                             const PaintStroke &stroke,
+void paint_stroke_jitter_pos(const PaintStroke &stroke,
                              const PaintMode mode,
                              const Brush &brush,
                              const float pressure,
@@ -302,6 +303,7 @@ struct ImagePaintPartialRedraw {
 };
 
 bool image_texture_paint_poll(bContext *C);
+bool image_paint_poll_ignore_tool(bContext *C);
 void imapaint_image_update(
     SpaceImage *sima, Image *image, ImBuf *ibuf, ImageUser *iuser, short texpaint);
 ImagePaintPartialRedraw *get_imapaintpartial();
@@ -342,19 +344,18 @@ void paint_proj_stroke(const bContext *C,
 void paint_proj_redraw(const bContext *C, void *ps_handle_p, bool final);
 void paint_proj_stroke_done(void *ps_handle_p);
 
-void paint_brush_color_get(Scene *scene,
-                           const Paint *paint,
+void paint_brush_color_get(const Paint *paint,
                            Brush *br,
+                           std::optional<blender::float3> &initial_hsv_jitter,
                            bool color_correction,
                            bool invert,
                            float distance,
                            float pressure,
                            const ColorManagedDisplay *display,
                            float r_color[3]);
-bool paint_use_opacity_masking(Brush *brush);
+bool paint_use_opacity_masking(const Paint *paint, const Brush *brush);
 void paint_brush_init_tex(Brush *brush);
 void paint_brush_exit_tex(Brush *brush);
-bool image_paint_poll(bContext *C);
 
 void PAINT_OT_grab_clone(wmOperatorType *ot);
 void PAINT_OT_sample_color(wmOperatorType *ot);
@@ -426,16 +427,6 @@ bool paint_convert_bb_to_rect(rcti *rect,
                               const RegionView3D &rv3d,
                               const Object &ob);
 
-/**
- * Get four planes in object-space that describe the projection of
- * screen_rect from screen into object-space (essentially converting a
- * 2D screens-space bounding box into four 3D planes).
- */
-void paint_calc_redraw_planes(float planes[4][4],
-                              const ARegion &region,
-                              const Object &ob,
-                              const rcti &screen_rect);
-
 float paint_calc_object_space_radius(const ViewContext &vc,
                                      const blender::float3 &center,
                                      float pixel_radius);
@@ -450,12 +441,6 @@ bool paint_get_tex_pixel(const MTex *mtex,
                          int thread,
                          float *r_intensity,
                          float r_rgba[4]);
-
-/**
- * Used for both 3D view and image window.
- */
-void paint_sample_color(
-    bContext *C, ARegion *region, int x, int y, bool texpaint_proj, bool palette);
 
 void paint_stroke_operator_properties(wmOperatorType *ot);
 
@@ -561,7 +546,7 @@ BlurKernel *paint_new_blur_kernel(Brush *br, bool proj);
 void paint_delete_blur_kernel(BlurKernel *);
 
 /** Initialize viewport pivot from evaluated bounding box center of `ob`. */
-void paint_init_pivot(Object *ob, Scene *scene);
+void paint_init_pivot(Object *ob, Scene *scene, Paint *paint);
 
 /* paint curve defines */
 #define PAINT_CURVE_NUM_SEGMENTS 40
@@ -590,8 +575,8 @@ bool use_normal(const VPaint &vp);
 bool brush_use_accumulate_ex(const Brush &brush, eObjectMode ob_mode);
 bool brush_use_accumulate(const VPaint &vp);
 
-void get_brush_alpha_data(const Scene &scene,
-                          const SculptSession &ss,
+void get_brush_alpha_data(const SculptSession &ss,
+                          const Paint &paint,
                           const Brush &brush,
                           float *r_brush_size_pressure,
                           float *r_brush_alpha_value,
@@ -600,8 +585,12 @@ void get_brush_alpha_data(const Scene &scene,
 void init_stroke(Depsgraph &depsgraph, Object &ob);
 void init_session_data(const ToolSettings &ts, Object &ob);
 /** Toggle operator for turning vertex paint mode on or off (copied from `sculpt.cc`) */
-void init_session(
-    Main &bmain, Depsgraph &depsgraph, Scene &scene, Object &ob, eObjectMode object_mode);
+void init_session(Main &bmain,
+                  Depsgraph &depsgraph,
+                  Scene &scene,
+                  Paint &paint,
+                  Object &ob,
+                  eObjectMode object_mode);
 
 IndexMask pbvh_gather_generic(const Depsgraph &depsgraph,
                               const Object &ob,
@@ -614,7 +603,7 @@ void mode_enter_generic(
 void mode_exit_generic(Object &ob, eObjectMode mode_flag);
 bool mode_toggle_poll_test(bContext *C);
 
-void smooth_brush_toggle_off(const bContext *C, Paint *paint, StrokeCache *cache);
+void smooth_brush_toggle_off(Paint *paint, StrokeCache *cache);
 void smooth_brush_toggle_on(const bContext *C, Paint *paint, StrokeCache *cache);
 
 /** Initialize the stroke cache variants from operator properties. */
@@ -622,5 +611,5 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
 /** Initialize the stroke cache invariants from operator properties. */
 void update_cache_invariants(
     bContext *C, VPaint &vp, SculptSession &ss, wmOperator *op, const float mval[2]);
-void last_stroke_update(Scene &scene, const float location[3]);
+void last_stroke_update(const float location[3], Paint &paint);
 }  // namespace blender::ed::sculpt_paint::vwpaint

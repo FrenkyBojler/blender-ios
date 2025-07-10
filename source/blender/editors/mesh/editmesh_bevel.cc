@@ -33,6 +33,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_mesh.hh"
@@ -369,6 +370,16 @@ static bool edbm_bevel_calc(wmOperator *op)
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
       BMO_slot_buffer_hflag_enable(
           em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+      if (affect == BEVEL_AFFECT_VERTICES) {
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "verts.out", BM_VERT, BM_ELEM_SELECT, true);
+        BMO_slot_buffer_hflag_enable(
+            em->bm, bmop.slots_out, "edges.out", BM_EDGE, BM_ELEM_SELECT, true);
+
+        if ((em->bm->selectmode & SCE_SELECT_VERTEX) == 0) {
+          BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
+        }
+      }
     }
 
     /* no need to de-select existing geometry */
@@ -895,8 +906,8 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   int offset_type = RNA_enum_get(op->ptr, "offset_type");
   bool affect_type = RNA_enum_get(op->ptr, "affect");
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   row = &layout->row(false);
   row->prop(op->ptr, "affect", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
@@ -929,14 +940,14 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   col->prop(op->ptr, "loop_slide", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   col = &layout->column(true, IFACE_("Mark"));
-  uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
+  col->active_set(affect_type == BEVEL_AFFECT_EDGES);
   col->prop(op->ptr, "mark_seam", UI_ITEM_NONE, IFACE_("Seams"), ICON_NONE);
   col->prop(op->ptr, "mark_sharp", UI_ITEM_NONE, IFACE_("Sharp"), ICON_NONE);
 
   layout->separator();
 
   col = &layout->column(false);
-  uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
+  col->active_set(affect_type == BEVEL_AFFECT_EDGES);
   col->prop(op->ptr, "miter_outer", UI_ITEM_NONE, IFACE_("Miter Outer"), ICON_NONE);
   col->prop(op->ptr, "miter_inner", UI_ITEM_NONE, IFACE_("Inner"), ICON_NONE);
   if (RNA_enum_get(op->ptr, "miter_inner") == BEVEL_MITER_ARC) {
@@ -946,7 +957,7 @@ static void edbm_bevel_ui(bContext *C, wmOperator *op)
   layout->separator();
 
   col = &layout->column(false);
-  uiLayoutSetActive(col, affect_type == BEVEL_AFFECT_EDGES);
+  col->active_set(affect_type == BEVEL_AFFECT_EDGES);
   col->prop(op->ptr, "vmesh_method", UI_ITEM_NONE, IFACE_("Intersection Type"), ICON_NONE);
 
   layout->prop(op->ptr, "face_strength_mode", UI_ITEM_NONE, IFACE_("Face Strength"), ICON_NONE);
@@ -1045,7 +1056,7 @@ void MESH_OT_bevel(wmOperatorType *ot)
   ot->description = "Cut into selected items at an angle to create bevel or chamfer";
   ot->idname = "MESH_OT_bevel";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = edbm_bevel_exec;
   ot->invoke = edbm_bevel_invoke;
   ot->modal = edbm_bevel_modal;

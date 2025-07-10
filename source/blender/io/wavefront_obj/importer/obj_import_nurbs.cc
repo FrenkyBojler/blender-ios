@@ -6,6 +6,7 @@
  * \ingroup obj
  */
 
+#include "BKE_curves.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
@@ -94,34 +95,6 @@ static int cyclic_repeated_points(const int8_t order, const int end_multiplicity
   return std::max<int>(order - end_multiplicity, 1);
 }
 
-/**
- * Compute the number of occurences of each unique knot value (so knot multiplicity), forming a
- * sequence for which: sum(multiplicity) == knots.size().
- *
- * Example:
- * Knots: [0, 0, 0, 0.1, 0.3, 0.4, 0.4, 0.4]
- * Result: [3, 1, 1, 3]
- */
-static Vector<int> calculate_multiplicity_sequence(const Span<float> knots)
-{
-  Vector<int> multiplicity;
-  multiplicity.reserve(knots.size());
-
-  int m = 1;
-  for (const int64_t i : knots.index_range().drop_front(1)) {
-    /* Only consider multiplicity for exact matching values. */
-    if (knots[i - 1] == knots[i]) {
-      m++;
-    }
-    else {
-      multiplicity.append(m);
-      m = 1;
-    }
-  }
-  multiplicity.append(m);
-  return multiplicity;
-}
-
 void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import_params)
 {
   const NurbsElement &nurbs_geometry = curve_geometry_.nurbs_element_;
@@ -139,13 +112,10 @@ void CurveFromGeometry::create_nurbs(Curve *curve, const OBJImportParams &import
   nurb->orderu = nurb->orderv = degree + 1;
   nurb->resolu = nurb->resolv = curve->resolu;
 
-  const Vector<int> multiplicity = calculate_multiplicity_sequence(nurbs_geometry.parm);
-  nurb->flagu = this->detect_knot_mode(import_params,
-                                       degree,
-                                       nurbs_geometry.curv_indices,
-                                       nurbs_geometry.parm,
-                                       multiplicity,
-                                       nurbs_geometry.range);
+  const Vector<int> multiplicity = bke::curves::nurbs::calculate_multiplicity_sequence(
+      nurbs_geometry.parm);
+  nurb->flagu = this->detect_knot_mode(
+      import_params, degree, nurbs_geometry.curv_indices, nurbs_geometry.parm, multiplicity);
 
   if ((nurb->flagu & (CU_NURB_CUSTOM | CU_NURB_CYCLIC | CU_NURB_ENDPOINT)) == CU_NURB_CUSTOM) {
     /* TODO: If mode is CU_NURB_CUSTOM, but not CU_NURB_CYCLIC and CU_NURB_ENDPOINT, then make
@@ -200,8 +170,9 @@ static bool detect_knot_mode_cyclic(const int8_t degree,
     return false;
   }
 
-  /* Multiplicity m is continous to the `degree - m` derivative and as such multiplcitiy == order
-   * is discontinous. By allowing it, clamped or Bezier curves can still be considered cyclic but
+  /* Multiplicity m is continuous to the `degree - m` derivative and as such
+   * `multiplicity == order` is discontinuous.
+   * By allowing it, clamped or Bezier curves can still be considered cyclic but
    * ensure [here] that illogical `multiplicities > order` is not considered cyclic.
    */
   if (multiplicity.first() > order || multiplicity.last() > order) {
@@ -285,8 +256,7 @@ short CurveFromGeometry::detect_knot_mode(const OBJImportParams &import_params,
                                           const int8_t degree,
                                           const Span<int> indices,
                                           const Span<float> knots,
-                                          const Span<int> multiplicity,
-                                          const float2 parameter_range)
+                                          const Span<int> multiplicity)
 {
   short knot_mode = 0;
 

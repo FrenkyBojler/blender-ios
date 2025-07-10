@@ -100,7 +100,7 @@ static void move_geom_draw(const wmGizmo *gz,
 
   GPUVertFormat *format = immVertexFormat();
   /* NOTE(Metal): Prefer using 3D coordinates with 3D shader, even if rendering 2D gizmo's. */
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   immBindBuiltinProgram(filled ? GPU_SHADER_3D_UNIFORM_COLOR :
                                  GPU_SHADER_3D_POLYLINE_UNIFORM_COLOR);
@@ -437,7 +437,7 @@ static void GIZMO_GT_move_3d(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "GIZMO_GT_move_3d";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_move_draw;
   gzt->draw_select = gizmo_move_draw_select;
   gzt->test_select = gizmo_move_test_select;

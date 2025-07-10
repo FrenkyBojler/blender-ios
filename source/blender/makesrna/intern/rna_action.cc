@@ -1986,6 +1986,13 @@ static void rna_def_dopesheet(BlenderRNA *brna)
   RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_VOLUME, 0);
   RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
 
+  prop = RNA_def_property(srna, "show_lightprobes", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_negative_sdna(prop, nullptr, "filterflag2", ADS_FILTER_NOLIGHTPROBE);
+  RNA_def_property_ui_text(
+      prop, "Display Light Probe", "Include visualization of lightprobe related animation data");
+  RNA_def_property_ui_icon(prop, ICON_OUTLINER_OB_LIGHTPROBE, 0);
+  RNA_def_property_update(prop, NC_ANIMATION | ND_ANIMCHAN | NA_EDITED, nullptr);
+
   prop = RNA_def_property(srna, "show_gpencil", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(prop, nullptr, "filterflag", ADS_FILTER_NOGPENCIL);
   RNA_def_property_ui_text(
@@ -2925,17 +2932,18 @@ static void rna_def_action(BlenderRNA *brna)
       prop,
       "Is Legacy Action",
       "Return whether this is a legacy Action. Legacy Actions have no layers or slots. An "
-      "empty Action considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 "
+      "empty Action is considered as both a 'legacy' and a 'layered' Action. Since Blender 4.4 "
       "actions are automatically updated to layered actions, and thus this will only return True "
       "when the action is empty");
   RNA_def_property_boolean_funcs(prop, "rna_Action_is_action_legacy_get", nullptr);
 
   prop = RNA_def_property(srna, "is_action_layered", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop,
-                           "Is Layered Action",
-                           "Return whether this is a layered Action. An empty Action considered "
-                           "as both a 'layered' and a 'layered' Action.");
+  RNA_def_property_ui_text(
+      prop,
+      "Is Layered Action",
+      "Return whether this is a layered Action. An empty Action is considered "
+      "as both a 'legacy' and a 'layered' Action.");
   RNA_def_property_boolean_funcs(prop, "rna_Action_is_action_layered_get", nullptr);
 
   /* Collection properties. */

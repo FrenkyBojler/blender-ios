@@ -45,7 +45,6 @@
 
 #include "ED_sculpt.hh"
 
-#include "brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_face_set.hh"
@@ -62,12 +61,9 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
-#include "UI_interface.hh"
-
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 
 namespace blender::ed::sculpt_paint::cloth {
@@ -611,8 +607,7 @@ void ensure_nodes_constraints(const Sculpt &sd,
             return cloth_sim.node_state[node_index] == SCULPT_CLOTH_NODE_UNINITIALIZED;
           });
       BMesh &bm = *ss.bm;
-      BM_mesh_elem_index_ensure(&bm, BM_VERT);
-      BM_mesh_elem_table_ensure(&bm, BM_VERT);
+      vert_random_access_ensure(object);
       uninitialized_nodes.foreach_index([&](const int i) {
         const Set<BMVert *, 0> &bm_verts = BKE_pbvh_bmesh_node_unique_verts(&nodes[i]);
         const Span<int> verts = calc_visible_vert_indices_bmesh(bm_verts, vert_indices);
@@ -809,6 +804,7 @@ static void calc_forces_mesh(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -919,6 +915,7 @@ static void calc_forces_grids(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -1027,6 +1024,7 @@ static void calc_forces_bmesh(const Depsgraph &depsgraph,
     calc_brush_distances(
         ss, current_positions, eBrushFalloffShape(brush.falloff_shape), distances);
   }
+  filter_distances_with_radius(cache.radius, distances, factors);
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
 
@@ -1153,7 +1151,7 @@ static void cloth_brush_solve_collision(const Object &object,
                                         SimulationData &cloth_sim,
                                         const int i)
 {
-  const int raycast_flag = BVH_RAYCAST_DEFAULT & ~(BVH_RAYCAST_WATERTIGHT);
+  const int raycast_flag = BVH_RAYCAST_DEFAULT & ~BVH_RAYCAST_WATERTIGHT;
 
   const float4x4 &object_to_world = object.object_to_world();
   const float4x4 &world_to_object = object.world_to_object();
@@ -2299,7 +2297,7 @@ static wmOperatorStatus sculpt_cloth_filter_modal(bContext *C,
   const float len = event->prev_press_xy[0] - event->xy[0];
   filter_strength = filter_strength * -len * 0.001f * UI_SCALE_FAC;
 
-  SCULPT_vertex_random_access_ensure(object);
+  vert_random_access_ensure(object);
 
   BKE_sculpt_update_object_for_edit(depsgraph, &object, false);
 
@@ -2397,7 +2395,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
 
   const View3D *v3d = CTX_wm_view3d(C);
@@ -2429,7 +2427,9 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
                      RNA_float_get(op->ptr, "area_normal_radius"),
                      RNA_float_get(op->ptr, "strength"));
 
-  auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  if (auto_mask::is_enabled(sd, ob, nullptr)) {
+    auto_mask::filter_cache_ensure(*depsgraph, sd, ob);
+  }
 
   const float cloth_mass = RNA_float_get(op->ptr, "cloth_mass");
   const float cloth_damping = RNA_float_get(op->ptr, "cloth_damping");
