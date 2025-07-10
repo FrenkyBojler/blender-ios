@@ -52,7 +52,7 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   float dir_elevation = M_PI_2 - direction[0];
 
   /* If the ray is inside the sun disc, render it, otherwise render the sky.
-  * Alternatively, ignore the sun if we're evaluating the background texture. */
+   * Alternatively, ignore the sun if we're evaluating the background texture. */
   if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
     /* Sun */
     float y;
@@ -86,7 +86,9 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
           x = x - 1.0;
         }
         float y = 0.492;
-        xyz = (color)texture(filename, x, y, "wrap", "periodic", "interp", "linear", "alpha", alpha) * fade;
+        xyz = (color)texture(
+                  filename, x, y, "wrap", "periodic", "interp", "linear", "alpha", alpha) *
+              fade;
       }
     }
     else {
@@ -101,20 +103,19 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
       xyz = (color)texture(filename, x, y, "wrap", "clamp", "interp", "linear", "alpha", alpha);
     }
   }
-  
+
   return xyz_to_rgb(xyz[0], xyz[1], xyz[2]);
 }
 
-shader node_sky_texture(
-    int use_mapping = 0,
-    matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-    vector Vector = P,
-    int sky_type = 1,
-    float theta = 0.0,
-    float phi = 0.0,
-    string filename = "",
-    float sky_data[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-    output color Color = color(0.0, 0.0, 0.0))
+shader node_sky_texture(int use_mapping = 0,
+                        matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+                        vector Vector = P,
+                        int sky_type = 1,
+                        float theta = 0.0,
+                        float phi = 0.0,
+                        string filename = "",
+                        float sky_data[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+                        output color Color = color(0.0, 0.0, 0.0))
 {
   vector p = Vector;
 
