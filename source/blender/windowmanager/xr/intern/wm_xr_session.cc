@@ -48,7 +48,7 @@
 #include "wm_xr_intern.hh"
 
 static wmSurface *g_xr_surface = nullptr;
-static CLG_LogRef LOG = {"wm.xr"};
+static CLG_LogRef LOG = {"xr"};
 
 /* -------------------------------------------------------------------- */
 
@@ -222,7 +222,7 @@ wmWindow *wm_xr_session_root_window_or_fallback_get(const wmWindowManager *wm,
     /* Root window is still valid, use it. */
     return runtime_data->session_root_win;
   }
-  /* Otherwise, fallback. */
+  /* Otherwise, fall back. */
   return static_cast<wmWindow *>(wm->windows.first);
 }
 

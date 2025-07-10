@@ -20,7 +20,7 @@
 #include "GPU_state.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
 #include "gpu_py.hh"
 #include "gpu_py_element.hh"
@@ -259,16 +259,16 @@ static const char *pygpu_shader_check_compatibility(blender::gpu::Batch *batch)
       }
       const blender::StringRefNull name = GPU_vertformat_attr_name_get(&format, a, 0);
       if (pos_attr_id == -1 && name == "pos") {
-        if (!ELEM(a->comp_type, GPU_COMP_F32)) {
+        if (!ELEM(a->type.comp_type(), GPU_COMP_F32)) {
           return "For POLYLINE shaders, the 'pos' attribute needs to be 'F32'";
         }
-        if (!ELEM(a->fetch_mode, GPU_FETCH_FLOAT)) {
+        if (!ELEM(a->type.fetch_mode(), GPU_FETCH_FLOAT)) {
           return "For POLYLINE shaders, the 'pos' attribute must use the 'FLOAT' fetch type";
         }
         pos_attr_id = a_idx;
       }
       else if (col_attr_id == -1 && name == "color") {
-        if (!ELEM(a->comp_type, GPU_COMP_F32, GPU_COMP_U8)) {
+        if (!ELEM(a->type.comp_type(), GPU_COMP_F32, GPU_COMP_U8)) {
           return "For POLYLINE shaders, the 'color' attribute needs to be 'F32' or 'U8'";
         }
         col_attr_id = a_idx;

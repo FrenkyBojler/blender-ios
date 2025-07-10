@@ -63,6 +63,7 @@
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
 #include "BKE_paint_bvh.hh"
+#include "BKE_paint_types.hh"
 #include "BKE_scene.hh"
 #include "BKE_subdiv_ccg.hh"
 #include "BKE_subsurf.hh"
@@ -135,6 +136,7 @@ static void palette_undo_preserve(BlendLibReader * /*reader*/, ID *id_new, ID *i
    *       fairly delicate. */
   BKE_lib_id_swap(nullptr, id_new, id_old, false, 0);
   std::swap(id_new->properties, id_old->properties);
+  std::swap(id_new->system_properties, id_old->system_properties);
 }
 
 IDTypeInfo IDType_ID_PAL = {
@@ -588,14 +590,14 @@ PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref)
   return PaintMode::Invalid;
 }
 
-bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint)
+bool BKE_paint_use_unified_color(const Paint *paint)
 {
   /* Grease pencil draw mode never uses unified paint. */
-  if (paint->runtime.ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
+  if (paint->runtime->ob_mode == OB_MODE_PAINT_GREASE_PENCIL) {
     return false;
   }
 
-  return tool_settings->unified_paint_settings.flag & UNIFIED_PAINT_COLOR;
+  return paint->unified_paint_settings.flag & UNIFIED_PAINT_COLOR;
 }
 
 /**
@@ -622,7 +624,7 @@ static bool paint_brush_update_from_asset_reference(Main *bmain, Paint *paint)
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend was manually changed. */
-  if (brush == nullptr || (paint->runtime.ob_mode & brush->ob_mode) == 0) {
+  if (brush == nullptr || (paint->runtime->ob_mode & brush->ob_mode) == 0) {
     MEM_delete(paint->brush_asset_reference);
     paint->brush_asset_reference = nullptr;
     return false;
@@ -647,7 +649,7 @@ bool BKE_paint_brush_poll(const Paint *paint, const Brush *brush)
   if (paint == nullptr) {
     return false;
   }
-  return !brush || (paint->runtime.ob_mode & brush->ob_mode) != 0;
+  return !brush || (paint->runtime->ob_mode & brush->ob_mode) != 0;
 }
 
 static AssetWeakReference *asset_reference_create_from_brush(Brush *brush)
@@ -789,9 +791,9 @@ static void paint_brush_set_essentials_reference(Paint *paint, const char *name)
   /* Set brush asset reference to a named brush in the essentials asset library. */
   MEM_delete(paint->brush_asset_reference);
 
-  BLI_assert(paint->runtime.initialized);
+  BLI_assert(paint->runtime->initialized);
   paint->brush_asset_reference = paint_brush_asset_reference_ptr_from_essentials(
-      name, eObjectMode(paint->runtime.ob_mode));
+      name, eObjectMode(paint->runtime->ob_mode));
   paint->brush = nullptr;
 }
 
@@ -800,9 +802,9 @@ static void paint_eraser_brush_set_essentials_reference(Paint *paint, const char
   /* Set brush asset reference to a named brush in the essentials asset library. */
   MEM_delete(paint->eraser_brush_asset_reference);
 
-  BLI_assert(paint->runtime.initialized);
+  BLI_assert(paint->runtime->initialized);
   paint->eraser_brush_asset_reference = paint_brush_asset_reference_ptr_from_essentials(
-      name, eObjectMode(paint->runtime.ob_mode));
+      name, eObjectMode(paint->runtime->ob_mode));
   paint->eraser_brush = nullptr;
 }
 
@@ -1030,7 +1032,7 @@ static void paint_brush_set_default_reference(Paint *paint,
                                               const bool do_regular = true,
                                               const bool do_eraser = true)
 {
-  if (!paint->runtime.initialized) {
+  if (!paint->runtime->initialized) {
     /* Can happen when loading old file where toolsettings are created in versioning, without
      * calling #paint_runtime_init(). Will be done later when necessary. */
     return;
@@ -1040,7 +1042,7 @@ static void paint_brush_set_default_reference(Paint *paint,
   blender::StringRefNull eraser_name;
 
   paint_brush_default_essentials_name_get(
-      eObjectMode(paint->runtime.ob_mode), std::nullopt, &name, &eraser_name);
+      eObjectMode(paint->runtime->ob_mode), std::nullopt, &name, &eraser_name);
 
   if (do_regular && !name.is_empty()) {
     paint_brush_set_essentials_reference(paint, name.c_str());
@@ -1094,15 +1096,15 @@ bool BKE_paint_brush_set_essentials(Main *bmain, Paint *paint, const char *name)
 void BKE_paint_previous_asset_reference_set(Paint *paint,
                                             AssetWeakReference &&asset_weak_reference)
 {
-  if (!paint->runtime.previous_active_brush_reference) {
-    paint->runtime.previous_active_brush_reference = MEM_new<AssetWeakReference>(__func__);
+  if (!paint->runtime->previous_active_brush_reference) {
+    paint->runtime->previous_active_brush_reference = MEM_new<AssetWeakReference>(__func__);
   }
-  *paint->runtime.previous_active_brush_reference = asset_weak_reference;
+  *paint->runtime->previous_active_brush_reference = asset_weak_reference;
 }
 
 void BKE_paint_previous_asset_reference_clear(Paint *paint)
 {
-  MEM_SAFE_DELETE(paint->runtime.previous_active_brush_reference);
+  MEM_SAFE_DELETE(paint->runtime->previous_active_brush_reference);
 }
 
 void BKE_paint_brushes_validate(Main *bmain, Paint *paint)
@@ -1110,13 +1112,13 @@ void BKE_paint_brushes_validate(Main *bmain, Paint *paint)
   /* Clear brush with invalid mode. Unclear if this can still happen,
    * but kept from old paint tool-slots code. */
   Brush *brush = BKE_paint_brush(paint);
-  if (brush && (paint->runtime.ob_mode & brush->ob_mode) == 0) {
+  if (brush && (paint->runtime->ob_mode & brush->ob_mode) == 0) {
     BKE_paint_brush_set(paint, nullptr);
     BKE_paint_brush_set_default(bmain, paint);
   }
 
   Brush *eraser_brush = BKE_paint_eraser_brush(paint);
-  if (eraser_brush && (paint->runtime.ob_mode & eraser_brush->ob_mode) == 0) {
+  if (eraser_brush && (paint->runtime->ob_mode & eraser_brush->ob_mode) == 0) {
     BKE_paint_eraser_brush_set(paint, nullptr);
     BKE_paint_eraser_brush_set_default(bmain, paint);
   }
@@ -1142,7 +1144,7 @@ static bool paint_eraser_brush_set_from_asset_reference(Main *bmain, Paint *pain
 
   /* Ensure we have a brush with appropriate mode to assign.
    * Could happen if contents of asset blend was manually changed. */
-  if (brush == nullptr || (paint->runtime.ob_mode & brush->ob_mode) == 0) {
+  if (brush == nullptr || (paint->runtime->ob_mode & brush->ob_mode) == 0) {
     MEM_delete(paint->eraser_brush_asset_reference);
     paint->eraser_brush_asset_reference = nullptr;
     return false;
@@ -1167,7 +1169,7 @@ bool BKE_paint_eraser_brush_set(Paint *paint, Brush *brush)
   if (paint == nullptr || paint->eraser_brush == brush) {
     return false;
   }
-  if (brush && (paint->runtime.ob_mode & brush->ob_mode) == 0) {
+  if (brush && (paint->runtime->ob_mode & brush->ob_mode) == 0) {
     return false;
   }
 
@@ -1213,39 +1215,42 @@ bool BKE_paint_eraser_brush_set_essentials(Main *bmain, Paint *paint, const char
 
 static void paint_runtime_init(const ToolSettings *ts, Paint *paint)
 {
+  if (!paint->runtime) {
+    paint->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+  }
+
   if (paint == &ts->imapaint.paint) {
-    paint->runtime.ob_mode = OB_MODE_TEXTURE_PAINT;
+    paint->runtime->ob_mode = OB_MODE_TEXTURE_PAINT;
   }
   else if (ts->sculpt && paint == &ts->sculpt->paint) {
-    paint->runtime.ob_mode = OB_MODE_SCULPT;
+    paint->runtime->ob_mode = OB_MODE_SCULPT;
   }
   else if (ts->vpaint && paint == &ts->vpaint->paint) {
-    paint->runtime.ob_mode = OB_MODE_VERTEX_PAINT;
+    paint->runtime->ob_mode = OB_MODE_VERTEX_PAINT;
   }
   else if (ts->wpaint && paint == &ts->wpaint->paint) {
-    paint->runtime.ob_mode = OB_MODE_WEIGHT_PAINT;
+    paint->runtime->ob_mode = OB_MODE_WEIGHT_PAINT;
   }
   else if (ts->gp_paint && paint == &ts->gp_paint->paint) {
-    paint->runtime.ob_mode = OB_MODE_PAINT_GREASE_PENCIL;
+    paint->runtime->ob_mode = OB_MODE_PAINT_GREASE_PENCIL;
   }
   else if (ts->gp_vertexpaint && paint == &ts->gp_vertexpaint->paint) {
-    paint->runtime.ob_mode = OB_MODE_VERTEX_GREASE_PENCIL;
+    paint->runtime->ob_mode = OB_MODE_VERTEX_GREASE_PENCIL;
   }
   else if (ts->gp_sculptpaint && paint == &ts->gp_sculptpaint->paint) {
-    paint->runtime.ob_mode = OB_MODE_SCULPT_GREASE_PENCIL;
+    paint->runtime->ob_mode = OB_MODE_SCULPT_GREASE_PENCIL;
   }
   else if (ts->gp_weightpaint && paint == &ts->gp_weightpaint->paint) {
-    paint->runtime.ob_mode = OB_MODE_WEIGHT_GREASE_PENCIL;
+    paint->runtime->ob_mode = OB_MODE_WEIGHT_GREASE_PENCIL;
   }
   else if (ts->curves_sculpt && paint == &ts->curves_sculpt->paint) {
-    paint->runtime.ob_mode = OB_MODE_SCULPT_CURVES;
+    paint->runtime->ob_mode = OB_MODE_SCULPT_CURVES;
   }
   else {
     BLI_assert_unreachable();
   }
 
-  paint->runtime.initialized = true;
-  paint->runtime.previous_active_brush_reference = nullptr;
+  paint->runtime->initialized = true;
 }
 
 uint BKE_paint_get_brush_type_offset_from_paintmode(const PaintMode mode)
@@ -1671,14 +1676,36 @@ eObjectMode BKE_paint_object_mode_from_paintmode(const PaintMode mode)
   }
 }
 
+static void paint_init_data(Paint &paint)
+{
+  const UnifiedPaintSettings &default_ups = *DNA_struct_default_get(UnifiedPaintSettings);
+  paint.unified_paint_settings.size = default_ups.size;
+  paint.unified_paint_settings.input_samples = default_ups.input_samples;
+  paint.unified_paint_settings.unprojected_radius = default_ups.unprojected_radius;
+  paint.unified_paint_settings.alpha = default_ups.alpha;
+  paint.unified_paint_settings.weight = default_ups.weight;
+  paint.unified_paint_settings.flag = default_ups.flag;
+  if (!paint.unified_paint_settings.curve_rand_hue) {
+    paint.unified_paint_settings.curve_rand_hue = BKE_paint_default_curve();
+  }
+  if (!paint.unified_paint_settings.curve_rand_saturation) {
+    paint.unified_paint_settings.curve_rand_saturation = BKE_paint_default_curve();
+  }
+  if (!paint.unified_paint_settings.curve_rand_value) {
+    paint.unified_paint_settings.curve_rand_value = BKE_paint_default_curve();
+  }
+  copy_v3_v3(paint.unified_paint_settings.rgb, default_ups.rgb);
+  copy_v3_v3(paint.unified_paint_settings.secondary_rgb, default_ups.secondary_rgb);
+}
+
 bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
 {
   Paint *paint = nullptr;
   if (*r_paint) {
-    if (!(*r_paint)->runtime.initialized) {
-      /* Currently only image painting is initialized this way, others have to be allocated. */
-      BLI_assert(ELEM(*r_paint, (Paint *)&ts->imapaint));
-
+    if (!(*r_paint)->runtime) {
+      (*r_paint)->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+    }
+    if (!(*r_paint)->runtime->initialized && *r_paint == (Paint *)&ts->imapaint) {
       paint_runtime_init(ts, *r_paint);
     }
     else {
@@ -1698,7 +1725,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
       paint_runtime_init(ts, *r_paint);
       /* Swap so debug doesn't hide errors when release fails. */
       std::swap(**r_paint, paint_test);
-      BLI_assert(paint_test.runtime.ob_mode == (*r_paint)->runtime.ob_mode);
+      BLI_assert(paint_test.runtime->ob_mode == (*r_paint)->runtime->ob_mode);
 #endif
     }
     return true;
@@ -1707,6 +1734,7 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
   if (((VPaint **)r_paint == &ts->vpaint) || ((VPaint **)r_paint == &ts->wpaint)) {
     VPaint *data = MEM_callocN<VPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((Sculpt **)r_paint == &ts->sculpt) {
     Sculpt *data = MEM_callocN<Sculpt>(__func__);
@@ -1714,29 +1742,36 @@ bool BKE_paint_ensure(ToolSettings *ts, Paint **r_paint)
     *data = *DNA_struct_default_get(Sculpt);
 
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpPaint **)r_paint == &ts->gp_paint) {
     GpPaint *data = MEM_callocN<GpPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpVertexPaint **)r_paint == &ts->gp_vertexpaint) {
     GpVertexPaint *data = MEM_callocN<GpVertexPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpSculptPaint **)r_paint == &ts->gp_sculptpaint) {
     GpSculptPaint *data = MEM_callocN<GpSculptPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((GpWeightPaint **)r_paint == &ts->gp_weightpaint) {
     GpWeightPaint *data = MEM_callocN<GpWeightPaint>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if ((CurvesSculpt **)r_paint == &ts->curves_sculpt) {
     CurvesSculpt *data = MEM_callocN<CurvesSculpt>(__func__);
     paint = &data->paint;
+    paint_init_data(*paint);
   }
   else if (*r_paint == &ts->imapaint.paint) {
     paint = &ts->imapaint.paint;
+    paint_init_data(*paint);
   }
 
   paint->flags |= PAINT_SHOW_BRUSH;
@@ -1768,10 +1803,10 @@ void BKE_paint_brushes_ensure(Main *bmain, Paint *paint)
 void BKE_paint_init(
     Main *bmain, Scene *sce, PaintMode mode, const uchar col[3], const bool ensure_brushes)
 {
-  UnifiedPaintSettings *ups = &sce->toolsettings->unified_paint_settings;
 
   BKE_paint_ensure_from_paintmode(sce, mode);
   Paint *paint = BKE_paint_get_active_from_paintmode(sce, mode);
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   if (ensure_brushes) {
     BKE_paint_brushes_ensure(bmain, paint);
@@ -1802,7 +1837,11 @@ void BKE_paint_free(Paint *paint)
     MEM_delete(brush_ref->brush_asset_reference);
     MEM_delete(brush_ref);
   }
-  MEM_delete(paint->runtime.previous_active_brush_reference);
+
+  BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_hue);
+  BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_saturation);
+  BKE_curvemapping_free(paint->unified_paint_settings.curve_rand_value);
+  MEM_SAFE_DELETE(paint->runtime);
 }
 
 void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
@@ -1832,14 +1871,23 @@ void BKE_paint_copy(const Paint *src, Paint *dst, const int flag)
         __func__, *brush_ref->brush_asset_reference);
   }
 
+  dst->unified_paint_settings.curve_rand_hue = BKE_curvemapping_copy(
+      src->unified_paint_settings.curve_rand_hue);
+  dst->unified_paint_settings.curve_rand_saturation = BKE_curvemapping_copy(
+      src->unified_paint_settings.curve_rand_saturation);
+  dst->unified_paint_settings.curve_rand_value = BKE_curvemapping_copy(
+      src->unified_paint_settings.curve_rand_value);
+
   if ((flag & LIB_ID_CREATE_NO_USER_REFCOUNT) == 0) {
     id_us_plus((ID *)dst->palette);
   }
+
+  dst->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
 }
 
-void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3])
+void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3])
 {
-  const UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   if (ups->last_stroke_valid && ups->average_stroke_counter > 0) {
     float fac = 1.0f / ups->average_stroke_counter;
     mul_v3_v3fl(stroke, ups->average_stroke_accum, fac);
@@ -1935,6 +1983,18 @@ void BKE_paint_blend_write(BlendWriter *writer, Paint *paint)
       }
     }
   }
+
+  if (paint->unified_paint_settings.curve_rand_hue) {
+    BKE_curvemapping_blend_write(writer, paint->unified_paint_settings.curve_rand_hue);
+  }
+
+  if (paint->unified_paint_settings.curve_rand_saturation) {
+    BKE_curvemapping_blend_write(writer, paint->unified_paint_settings.curve_rand_saturation);
+  }
+
+  if (paint->unified_paint_settings.curve_rand_value) {
+    BKE_curvemapping_blend_write(writer, paint->unified_paint_settings.curve_rand_value);
+  }
 }
 
 void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Paint *paint)
@@ -1978,8 +2038,34 @@ void BKE_paint_blend_read_data(BlendDataReader *reader, const Scene *scene, Pain
       }
     }
   }
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
+  BLO_read_struct(reader, CurveMapping, &ups->curve_rand_hue);
+  if (ups->curve_rand_hue) {
+    BKE_curvemapping_blend_read(reader, ups->curve_rand_hue);
+    BKE_curvemapping_init(ups->curve_rand_hue);
+  }
+
+  BLO_read_struct(reader, CurveMapping, &ups->curve_rand_saturation);
+  if (ups->curve_rand_saturation) {
+    BKE_curvemapping_blend_read(reader, ups->curve_rand_saturation);
+    BKE_curvemapping_init(ups->curve_rand_saturation);
+  }
+
+  BLO_read_struct(reader, CurveMapping, &ups->curve_rand_value);
+  if (ups->curve_rand_value) {
+    BKE_curvemapping_blend_read(reader, ups->curve_rand_value);
+    BKE_curvemapping_init(ups->curve_rand_value);
+  }
 
   paint->paint_cursor = nullptr;
+
+  /* Reset last_location and last_hit, so they are not remembered across sessions. In some files
+   * these are also NaN, which could lead to crashes in painting. */
+  zero_v3(ups->last_location);
+  ups->last_hit = 0;
+
+  paint->runtime = MEM_new<blender::bke::PaintRuntime>(__func__);
+
   paint_runtime_init(scene->toolsettings, paint);
 }
 
@@ -2115,15 +2201,12 @@ void BKE_sculptsession_free_vwpaint_data(SculptSession *ss)
 /**
  * Write out the sculpt dynamic-topology #BMesh to the #Mesh.
  */
-static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
+static void sculptsession_bm_to_me_update_data_only(Object *ob)
 {
   SculptSession &ss = *ob->sculpt;
 
   if (ss.bm) {
     if (ob->data) {
-      if (reorder) {
-        BM_log_mesh_elems_reorder(ss.bm, ss.bm_log);
-      }
       BMeshToMeshParams params{};
       params.calc_object_remap = false;
       BM_mesh_bm_to_me(nullptr, ss.bm, static_cast<Mesh *>(ob->data), &params);
@@ -2131,10 +2214,10 @@ static void sculptsession_bm_to_me_update_data_only(Object *ob, bool reorder)
   }
 }
 
-void BKE_sculptsession_bm_to_me(Object *ob, bool reorder)
+void BKE_sculptsession_bm_to_me(Object *ob)
 {
   if (ob && ob->sculpt) {
-    sculptsession_bm_to_me_update_data_only(ob, reorder);
+    sculptsession_bm_to_me_update_data_only(ob);
 
     /* Ensure the objects evaluated mesh doesn't hold onto arrays
      * now realloc'd in the mesh #34473. */
@@ -2178,7 +2261,7 @@ void BKE_sculptsession_bm_to_me_for_render(Object *object)
        */
       BKE_object_free_derived_caches(object);
 
-      sculptsession_bm_to_me_update_data_only(object, false);
+      sculptsession_bm_to_me_update_data_only(object);
 
       /* In contrast with sculptsession_bm_to_me no need in
        * DAG tag update here - derived mesh was freed and
@@ -2194,7 +2277,7 @@ void BKE_sculptsession_free(Object *ob)
     SculptSession *ss = ob->sculpt;
 
     if (ss->bm) {
-      BKE_sculptsession_bm_to_me(ob, true);
+      BKE_sculptsession_bm_to_me(ob);
       BM_mesh_free(ss->bm);
     }
 
@@ -2642,7 +2725,7 @@ void BKE_sculpt_color_layer_create_if_needed(Object *object)
   AttributeOwner owner = AttributeOwner::from_id(&orig_me->id);
   const std::string unique_name = BKE_attribute_calc_unique_name(owner, "Color");
   if (!orig_me->attributes_for_write().add(
-          unique_name, AttrDomain::Point, CD_PROP_COLOR, AttributeInitDefaultValue()))
+          unique_name, AttrDomain::Point, AttrType::ColorFloat, AttributeInitDefaultValue()))
   {
     return;
   }
@@ -2729,6 +2812,17 @@ void BKE_sculpt_mask_layers_ensure(Depsgraph *depsgraph,
   }
 }
 
+void BKE_sculpt_cavity_curves_ensure(Sculpt *sd)
+{
+  if (!sd->automasking_cavity_curve) {
+    sd->automasking_cavity_curve = BKE_sculpt_default_cavity_curve();
+  }
+
+  if (!sd->automasking_cavity_curve_op) {
+    sd->automasking_cavity_curve_op = BKE_sculpt_default_cavity_curve();
+  }
+}
+
 void BKE_sculpt_toolsettings_data_ensure(Main *bmain, Scene *scene)
 {
   BKE_paint_ensure(scene->toolsettings, (Paint **)&scene->toolsettings->sculpt);
@@ -2772,7 +2866,7 @@ void BKE_sculpt_toolsettings_data_ensure(Main *bmain, Scene *scene)
   }
 
   if (!sd->automasking_cavity_curve || !sd->automasking_cavity_curve_op) {
-    BKE_sculpt_check_cavity_curves(sd);
+    BKE_sculpt_cavity_curves_ensure(sd);
   }
 }
 

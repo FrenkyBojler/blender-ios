@@ -831,15 +831,11 @@ void BlenderDisplayDriver::draw(const Params &params)
   const int texcoord_attribute = GPU_vertformat_attr_add(
       format,
       ccl::BlenderDisplayShader::tex_coord_attribute_name,
-      GPU_COMP_F32,
-      2,
-      GPU_FETCH_FLOAT);
+      blender::gpu::VertAttrType::SFLOAT_32_32);
   const int position_attribute = GPU_vertformat_attr_add(
       format,
       ccl::BlenderDisplayShader::position_attribute_name,
-      GPU_COMP_F32,
-      2,
-      GPU_FETCH_FLOAT);
+      blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* NOTE: Shader is bound again through IMM to register this shader with the IMM module
    * and perform required setup for IMM rendering. This is required as the IMM module
@@ -870,8 +866,8 @@ void BlenderDisplayDriver::draw(const Params &params)
 
   gpu_context_unlock();
 
-  VLOG_DEVICE_STATS << "Display driver number of textures: " << DisplayGPUTexture::num_used;
-  VLOG_DEVICE_STATS << "Display driver number of PBOs: " << DisplayGPUPixelBuffer::num_used;
+  LOG(STATS) << "Display driver number of textures: " << DisplayGPUTexture::num_used;
+  LOG(STATS) << "Display driver number of PBOs: " << DisplayGPUPixelBuffer::num_used;
 }
 
 void BlenderDisplayDriver::gpu_context_create()
@@ -883,7 +879,7 @@ void BlenderDisplayDriver::gpu_context_create()
 
   /* Create global GPU resources for display driver. */
   if (!gpu_resources_create()) {
-    LOG(ERROR) << "Error creating GPU resources for Cycles Display Driver.";
+    LOG(ERROR) << "Error creating GPU resources for Display Driver.";
     return;
   }
 }

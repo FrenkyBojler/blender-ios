@@ -214,7 +214,7 @@ void gpu::MTLTexture::bake_mip_swizzle_view()
                                levels:NSMakeRange(mip_texture_base_level_, range_len)
                                slices:NSMakeRange(mip_texture_base_layer_, num_slices)
                               swizzle:mtl_swizzle_mask_];
-    MTL_LOG_INFO(
+    MTL_LOG_DEBUG(
         "Updating texture view - MIP TEXTURE BASE LEVEL: %d, MAX LEVEL: %d (Range len: %d)",
         mip_texture_base_level_,
         min_ii(mip_texture_max_level_, (int)texture_.mipmapLevelCount),
@@ -251,7 +251,7 @@ id<MTLTexture> gpu::MTLTexture::get_metal_handle()
 
     /* Source vertex buffer has been re-generated, require re-initialization. */
     if (buf != vert_buffer_mtl_) {
-      MTL_LOG_INFO(
+      MTL_LOG_DEBUG(
           "MTLTexture '%p' using MTL_TEXTURE_MODE_VBO requires re-generation due to updated "
           "Vertex-Buffer.",
           this);
@@ -626,7 +626,7 @@ void gpu::MTLTexture::update_sub(
     }
 
     /* Safety Checks. */
-    if (type == GPU_DATA_UINT_24_8 || type == GPU_DATA_10_11_11_REV ||
+    if (type == GPU_DATA_UINT_24_8_DEPRECATED || type == GPU_DATA_10_11_11_REV ||
         type == GPU_DATA_2_10_10_10_REV || is_compressed)
     {
       BLI_assert(can_use_direct_blit &&
@@ -1255,9 +1255,8 @@ void gpu::MTLTexture::generate_mipmap()
   }
 
   /* Verify if we can perform mipmap generation. */
-  if (format_ == GPU_DEPTH_COMPONENT32F || format_ == GPU_DEPTH_COMPONENT24 ||
-      format_ == GPU_DEPTH_COMPONENT16 || format_ == GPU_DEPTH32F_STENCIL8 ||
-      format_ == GPU_DEPTH24_STENCIL8)
+  if (format_ == GPU_DEPTH_COMPONENT32F || format_ == GPU_DEPTH_COMPONENT16 ||
+      format_ == GPU_DEPTH32F_STENCIL8)
   {
     MTL_LOG_WARNING("Cannot generate mipmaps for textures using DEPTH formats");
     return;
@@ -1620,7 +1619,7 @@ void gpu::MTLTexture::read_internal(int mip,
     image_components = 1;
     BLI_assert(num_output_components == 1);
     BLI_assert(image_components == 1);
-    BLI_assert(data_format == GPU_DATA_FLOAT || data_format == GPU_DATA_UINT_24_8);
+    BLI_assert(data_format == GPU_DATA_FLOAT || data_format == GPU_DATA_UINT_24_8_DEPRECATED);
     BLI_assert(validate_data_format(format_, data_format));
   }
 
@@ -1677,7 +1676,7 @@ void gpu::MTLTexture::read_internal(int mip,
       case GPU_DATA_FLOAT:
         depth_format_mode = 1;
         break;
-      case GPU_DATA_UINT_24_8:
+      case GPU_DATA_UINT_24_8_DEPRECATED:
         depth_format_mode = 2;
         break;
       case GPU_DATA_UINT:
@@ -1978,7 +1977,7 @@ void gpu::MTLTexture::read_internal(int mip,
 
             texture_array_relative_offset += bytes_per_image;
           }
-          MTL_LOG_INFO("Copying texture data to buffer GPU_TEXTURE_CUBE_ARRAY");
+          MTL_LOG_DEBUG("Copying texture data to buffer GPU_TEXTURE_CUBE_ARRAY");
           copy_successful = true;
         }
         else {
@@ -2010,7 +2009,7 @@ void gpu::MTLTexture::read_internal(int mip,
 
       /* Copy data from Shared Memory into ptr. */
       memcpy(r_data, destination_buffer_host_ptr, total_bytes);
-      MTL_LOG_INFO("gpu::MTLTexture::read_internal success! %lu bytes read", total_bytes);
+      MTL_LOG_DEBUG("gpu::MTLTexture::read_internal success! %lu bytes read", total_bytes);
     }
     else {
       MTL_LOG_WARNING(
@@ -2185,7 +2184,7 @@ bool gpu::MTLTexture::init_internal(GPUTexture *src,
   /* Stencil view support. */
   texture_view_stencil_ = false;
   if (use_stencil) {
-    BLI_assert(ELEM(format_, GPU_DEPTH24_STENCIL8, GPU_DEPTH32F_STENCIL8));
+    BLI_assert(ELEM(format_, GPU_DEPTH32F_STENCIL8));
     texture_view_stencil_ = true;
   }
 
@@ -2497,7 +2496,7 @@ void gpu::MTLTexture::ensure_baked()
 
 void gpu::MTLTexture::reset()
 {
-  MTL_LOG_INFO("Texture %s reset. Size %d, %d, %d", this->get_name(), w_, h_, d_);
+  MTL_LOG_DEBUG("Texture %s reset. Size %d, %d, %d", this->get_name(), w_, h_, d_);
   /* Delete associated METAL resources. */
   if (texture_ != nil) {
     [texture_ release];

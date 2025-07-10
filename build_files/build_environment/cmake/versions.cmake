@@ -232,14 +232,6 @@ set(SDL_HOMEPAGE https://www.libsdl.org)
 set(SDL_LICENSE SPDX:Zlib)
 set(SDL_COPYRIGHT "Copyright (C) 1997-2020 Sam Lantinga <slouken@libsdl.org>")
 
-set(OPENCOLLADA_VERSION dfc341ab0b3b23ee307ab8660c0213e64da1eac6)
-set(OPENCOLLADA_URI https://github.com/aras-p/OpenCOLLADA/archive/${OPENCOLLADA_VERSION}.tar.gz)
-set(OPENCOLLADA_HASH 2120c8c02aab840e81cb87e625a608f7)
-set(OPENCOLLADA_HASH_TYPE MD5)
-set(OPENCOLLADA_FILE opencollada-${OPENCOLLADA_VERSION}.tar.gz)
-set(OPENCOLLADA_LICENSE SPDX:MIT)
-set(OPENCOLLADA_COPYRIGHT "Copyright (c) 2008-2009 NetAllied Systems GmbH")
-
 set(OPENCOLORIO_VERSION 2.4.1)
 set(OPENCOLORIO_URI https://github.com/AcademySoftwareFoundation/OpenColorIO/archive/v${OPENCOLORIO_VERSION}.tar.gz)
 set(OPENCOLORIO_HASH a11368ef8f001837f29b7dd18dbd2290)
@@ -405,6 +397,55 @@ set(OPENVDB_LICENSE SPDX:MPL-2.0)
 set(OPENVDB_COPYRIGHT "Copyright Contributors to the OpenVDB Project")
 
 # ------------------------------------------------------------------------------
+# Python Binary Modules
+# as these are binary packages, and they will differ from platform to platform we will have to 
+# specify a hash per platform, this is cumberome but there's really no way around that. Hopefully 
+# these packages will not update too often. 
+
+set(PYDANTIC_VERSION 2.11.7)
+set(PYDANTIC_HASH_ANY sha256:dde5df002701f6de26248661f6835bbe296a47bf73990135c7d07ce741b9623b)
+
+set(ANNOTATED_TYPES_VERSION 0.7.0)
+set(ANNOTATED_TYPES_HASH_ANY sha256:1f02e8b43a8fbbc3f3e0d4f0f4bfc8131bcb4eebe8849b8e5c773f3a1c582a53)
+
+set(PYDANTIC_CORE_VERSION 2.33.2)
+set(PYDANTIC_CORE_HASH_WIN_X64 sha256:1e063337ef9e9820c77acc768546325ebe04ee38b08703244c1309cccc4f1bab)
+set(PYDANTIC_CORE_HASH_WIN_ARM sha256:6b99022f1d19bc32a4c2a0d544fc9a76e3be90f0b3f4af413f87d38749300e65)
+set(PYDANTIC_CORE_HASH_MAC_ARM sha256:e799c050df38a639db758c617ec771fd8fb7a5f8eaaa4b27b101f266b216a246)
+set(PYDANTIC_CORE_HASH_LNX_X64 sha256:881b21b5549499972441da4758d662aeea93f1923f953e9cbaff14b8b9565aef)
+
+set(TYPING_EXTENSIONS_VERSION 4.14.0)
+set(TYPING_EXTENSIONS_HASH_ANY sha256:a1514509136dd0b477638fc68d6a91497af5076466ad0fa6c338e44e359944af)
+
+set(TYPING_INSPECTION_VERSION 0.4.1)
+set(TYPING_INSPECTION_HASH_ANY sha256:389055682238f53b04f7badcb49b989835495a96700ced5dab2d8feae4b26f51)
+
+if(WIN32)
+  if(BLENDER_PLATFORM_ARM)
+    set(PYTHON_BINARY_PLATFORM WIN_ARM)
+  else()
+    set(PYTHON_BINARY_PLATFORM WIN_X64)
+  endif()
+elseif(APPLE)
+  set(PYTHON_BINARY_PLATFORM MAC_ARM)
+elseif(UNIX)
+  set(PYTHON_BINARY_PLATFORM LNX_X64)
+endif()
+
+#
+# This variable is used by configure_file inside python_site_packages_binary, arguably this could
+# likely belong more in that file than it does in versions.cmake, however, having it here keeps
+# all version related data in a single place. 
+#
+set(PYTHON_BINARY_REQUIREMENTS_CONTENT 
+"pydantic==${PYDANTIC_VERSION} --hash=${PYDANTIC_HASH_ANY}
+annotated-types==${ANNOTATED_TYPES_VERSION} --hash=${ANNOTATED_TYPES_HASH_ANY}
+pydantic-core==${PYDANTIC_CORE_VERSION} --hash=${PYDANTIC_CORE_HASH_${PYTHON_BINARY_PLATFORM}}
+typing-extensions==${TYPING_EXTENSIONS_VERSION} --hash=${TYPING_EXTENSIONS_HASH_ANY}
+typing-inspection==${TYPING_INSPECTION_VERSION} --hash=${TYPING_INSPECTION_HASH_ANY}
+")
+
+# ------------------------------------------------------------------------------
 # Python Modules
 
 # Needed by: `requests` module (so the version doesn't change on rebuild).
@@ -427,17 +468,18 @@ set(CYTHON_HASH_TYPE MD5)
 set(CYTHON_FILE cython-${CYTHON_VERSION}.tar.gz)
 set(CYTHON_HOMEPAGE https://cython.org/)
 set(CYTHON_LICENSE SPDX:Apache-2.0)
+set(CYTHON_COPYRIGHT "Copyright Contributors to the Cython Project")
 # Needed by: Python scripts that read `.blend` files, as files may use Z-standard compression. (Once we move to Python 3.14, this could be replaced with inbuilt Zstandard support, see https://peps.python.org/pep-0784/)
 set(ZSTANDARD_VERSION 0.23.0)
-set(ZSTANDARD_URI
 # NOTE: the release is not yet on GITHUB.
 # https://github.com/indygreg/python-zstandard/releases/download/${ZSTANDARD_VERSION}/zstandard-${ZSTANDARD_VERSION}.tar.gz)
-https://files.pythonhosted.org/packages/ed/f6/2ac0287b442160a89d726b17a9184a4c615bb5237db763791a7fd16d9df1/zstandard-0.23.0.tar.gz)
+set(ZSTANDARD_URI https://files.pythonhosted.org/packages/ed/f6/2ac0287b442160a89d726b17a9184a4c615bb5237db763791a7fd16d9df1/zstandard-0.23.0.tar.gz)
 set(ZSTANDARD_HASH b2d8c62d08e7255f68f7a740bae85b3c9b8e5466baa9cbf7f57f1cde0ac6bc09)
 set(ZSTANDARD_HASH_TYPE SHA256)
 set(ZSTANDARD_FILE zstandard-${ZSTANDARD_VERSION}.tar.gz)
 set(ZSTANDARD_HOMEPAGE https://github.com/indygreg/python-zstandard/)
 set(ZSTANDARD_LICENSE SPDX:BSD-3-Clause)
+set(ZSTANDARD_COPYRIGHT "Copyright (c) 2016, Gregory Szorc. All rights reserved.")
 # Auto-format Python source (developer tool, not used by Blender at run-time).
 set(AUTOPEP8_VERSION 2.3.1)
 # Needed by: `autopep8` (so the version doesn't change on rebuild).
@@ -1178,7 +1220,7 @@ set(IGC_LLVM_HOMEPAGE https://github.com/llvm/llvm-project/)
 set(IGC_LLVM_LICENSE SPDX:Apache-2.0 WITH LLVM-exception)
 set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana-Champaign. All rights reserved.")
 
-# WARNING WARNING WARNING
+# ******* WARNING *******
 #
 # IGC_OPENCL_CLANG contains patches for some of its dependencies.
 #
@@ -1186,7 +1228,7 @@ set(IGC_LLVM_COPYRIGHT "Copyright (c) 2003-2019 University of Illinois at Urbana
 # IGC_OPENCL_CLANG's patches folder and update igc.cmake to account for
 # any added or removed patches.
 #
-# WARNING WARNING WARNING
+# ******* WARNING *******
 
 set(IGC_OPENCL_CLANG_VERSION v14.0.1)
 set(IGC_OPENCL_CLANG_URI https://github.com/intel/opencl-clang/archive/${IGC_OPENCL_CLANG_VERSION}.tar.gz)
@@ -1393,6 +1435,7 @@ set(VULKAN_MEMORY_ALLOCATOR_HASH_TYPE MD5)
 set(VULKAN_MEMORY_ALLOCATOR_FILE Vulkan-Memory-Allocator-${VULKAN_MEMORY_ALLOCATOR_VERSION}.tar.gz)
 set(VULKAN_MEMORY_ALLOCATOR_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/VulkanMemoryAllocator)
 set(VULKAN_MEMORY_ALLOCATOR_LICENSE SPDX:MIT)
+set(VULKAN_MEMORY_ALLOCATOR_COPYRIGHT "Copyright (c) 2017-2025 Advanced Micro Devices, Inc. All rights reserved.")
 
 set(SPIRV_HEADERS_VERSION ${VULKAN_VERSION})
 set(SPIRV_HEADERS_URI https://github.com/KhronosGroup/SPIRV-Headers/archive/refs/tags/vulkan-sdk-${SPIRV_HEADERS_VERSION}.0.tar.gz)
@@ -1413,6 +1456,7 @@ set(SPIRV_REFLECT_HASH_TYPE MD5)
 set(SPIRV_REFLECT_FILE SPIRV-Reflect-${SPIRV_REFLECT_VERSION}.tar.gz)
 set(SPIRV_REFLECT_HOMEPAGE https://github.com/KhronosGroup/SPIRV-Reflect)
 set(SPIRV_REFLECT_LICENSE SPDX:Apache-2.0)
+set(SPIRV_REFLECT_COPYRIGHT "Copyright 2017-2018 Google Inc.")
 
 set(PYBIND11_VERSION 2.10.1)
 set(PYBIND11_URI https://github.com/pybind/pybind11/archive/refs/tags/v${PYBIND11_VERSION}.tar.gz)

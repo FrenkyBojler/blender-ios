@@ -120,6 +120,7 @@
 #include "SEQ_sequencer.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -154,7 +155,7 @@ static void wm_history_file_write();
 
 static void wm_test_autorun_revert_action_exec(bContext *C);
 
-static CLG_LogRef LOG = {"wm.files"};
+static CLG_LogRef LOG = {"blend"};
 
 /**
  * Fast-path for down-scaling byte buffers.
@@ -535,7 +536,7 @@ static void wm_init_userdef(Main *bmain)
 
   BKE_sound_init(bmain);
 
-  /* Update the temporary directory from the preferences or fallback to the system default. */
+  /* Update the temporary directory from the preferences or fall back to the system default. */
   BKE_tempdir_init(U.tempdir);
 
   /* Update input device preference. */
@@ -959,19 +960,16 @@ static void file_read_reports_finalize(BlendFileReadReport *bf_reports)
                                   nullptr);
 
   CLOG_INFO(
-      &LOG, 0, "Blender file read in %.0fm%.2fs", duration_whole_minutes, duration_whole_seconds);
+      &LOG, "Blender file read in %.0fm%.2fs", duration_whole_minutes, duration_whole_seconds);
   CLOG_INFO(&LOG,
-            0,
             " * Loading libraries: %.0fm%.2fs",
             duration_libraries_minutes,
             duration_libraries_seconds);
   CLOG_INFO(&LOG,
-            0,
             " * Applying overrides: %.0fm%.2fs",
             duration_lib_override_minutes,
             duration_lib_override_seconds);
   CLOG_INFO(&LOG,
-            0,
             " * Resyncing overrides: %.0fm%.2fs (%d root overrides), including recursive "
             "resyncs: %.0fm%.2fs)",
             duration_lib_override_resync_minutes,
@@ -1372,7 +1370,7 @@ void wm_homefile_read_ex(bContext *C,
     else if (!use_factory_settings && BLI_exists(filepath_userdef)) {
       UserDef *userdef = BKE_blendfile_userdef_read(filepath_userdef, nullptr);
       if (userdef != nullptr) {
-        CLOG_INFO(&LOG, 0, "read prefs: \"%s\"", filepath_userdef);
+        CLOG_INFO(&LOG, "Read prefs: \"%s\"", filepath_userdef);
 
         BKE_blender_userdef_data_set_and_free(userdef);
         userdef = nullptr;
@@ -1429,7 +1427,7 @@ void wm_homefile_read_ex(bContext *C,
       BlendFileData *bfd = BKE_blendfile_read(filepath_startup, &params, &bf_reports);
 
       if (bfd != nullptr) {
-        CLOG_INFO(&LOG, 0, "read startup: \"%s\"", filepath_startup);
+        CLOG_INFO(&LOG, "Read startup: \"%s\"", filepath_startup);
 
         /* Frees the current main and replaces it with the new one read from file. */
         BKE_blendfile_read_setup_readfile(C,
@@ -1507,7 +1505,7 @@ void wm_homefile_read_ex(bContext *C,
       if (BLI_exists(temp_path)) {
         userdef_template = BKE_blendfile_userdef_read(temp_path, nullptr);
         if (userdef_template) {
-          CLOG_INFO(&LOG, 0, "read prefs from app-template: \"%s\"", temp_path);
+          CLOG_INFO(&LOG, "Read prefs from app-template: \"%s\"", temp_path);
         }
       }
       if (userdef_template == nullptr) {
@@ -2740,7 +2738,7 @@ static wmOperatorStatus wm_userpref_read_exec(bContext *C, wmOperator *op)
 
   BKE_callback_exec_null(bmain, BKE_CB_EVT_EXTENSION_REPOS_UPDATE_POST);
 
-  /* Needed to recalculate UI scaling values (eg, #UserDef.inv_dpi_fac). */
+  /* Needed to recalculate UI scaling values (eg, #UserDef.inv_scale_factor). */
   wm_window_clear_drawable(static_cast<wmWindowManager *>(bmain->wm.first));
 
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
@@ -3339,8 +3337,8 @@ static void wm_open_mainfile_ui(bContext * /*C*/, wmOperator *op)
   uiLayout *col = &layout->column(false);
   if (file_info->is_untrusted) {
     autoexec_text = IFACE_("Trusted Source [Untrusted Path]");
-    uiLayoutSetActive(col, false);
-    uiLayoutSetEnabled(col, false);
+    col->active_set(false);
+    col->enabled_set(false);
   }
   else {
     autoexec_text = IFACE_("Trusted Source");
@@ -4018,8 +4016,8 @@ static wmOperatorStatus wm_clear_recent_files_exec(bContext * /*C*/, wmOperator 
 static void wm_clear_recent_files_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->separator();
   layout->prop(op->ptr, "remove", UI_ITEM_R_TOGGLE, std::nullopt, ICON_NONE);
@@ -4145,7 +4143,7 @@ static uiBlock *block_create_autorun_warning(bContext *C, ARegion *region, void 
   /* Buttons. */
   uiBut *but;
   uiLayout *split = &layout->split(0.0f, true);
-  uiLayoutSetScaleY(split, 1.2f);
+  split->scale_y_set(1.2f);
 
   /* Empty space. */
   col = &split->column(false);
@@ -4314,7 +4312,7 @@ static void file_overwrite_detailed_info_show(uiLayout *parent_layout, Main *bma
   uiLayout *layout = &parent_layout->column(true);
   /* Trick to make both lines of text below close enough to look like they are part of a same
    * block. */
-  uiLayoutSetScaleY(layout, 0.70f);
+  layout->scale_y_set(0.70f);
 
   if (bmain->has_forward_compatibility_issues) {
     char writer_ver_str[16];
@@ -4501,7 +4499,7 @@ static uiBlock *block_create_save_file_overwrite_dialog(bContext *C, ARegion *re
   /* Buttons. */
 
   uiLayout *split = &layout->split(0.3f, true);
-  uiLayoutSetScaleY(split, 1.2f);
+  split->scale_y_set(1.2f);
 
   split->column(false);
   /* Asset files don't actually allow overriding. */
@@ -4722,7 +4720,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
 
   LISTBASE_FOREACH (Report *, report, &reports.list) {
     uiLayout *row = &layout->column(false);
-    uiLayoutSetScaleY(row, 0.6f);
+    row->scale_y_set(0.6f);
     row->separator();
 
     /* Error messages created in ED_image_save_all_modified_info() can be long,
@@ -4814,7 +4812,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
     /* Windows standard layout. */
 
     uiLayout *split = &layout->split(0.0f, true);
-    uiLayoutSetScaleY(split, 1.2f);
+    split->scale_y_set(1.2f);
 
     split->column(false);
     wm_block_file_close_save_button(block, post_action, needs_overwrite_confirm);
@@ -4829,7 +4827,7 @@ static uiBlock *block_create__close_file_dialog(bContext *C, ARegion *region, vo
     /* Non-Windows layout (macOS and Linux). */
 
     uiLayout *split = &layout->split(0.3f, true);
-    uiLayoutSetScaleY(split, 1.2f);
+    split->scale_y_set(1.2f);
 
     split->column(false);
     wm_block_file_close_discard_button(block, post_action);

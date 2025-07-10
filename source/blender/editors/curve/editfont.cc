@@ -62,6 +62,7 @@
 #include "ED_view3d.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "curve_intern.hh"
 
@@ -409,13 +410,13 @@ static void text_update_edited(bContext *C, Object *obedit, const eEditFontMode 
 
   BLI_assert(ef->len >= 0);
 
-  /* run update first since it can move the cursor */
+  /* Run update first since it can move the cursor. */
   if (mode == FO_EDIT) {
-    /* re-tesselllate */
+    /* Re-tessellate. */
     DEG_id_tag_update(static_cast<ID *>(obedit->data), 0);
   }
   else {
-    /* depsgraph runs above, but since we're not tagging for update, call direct */
+    /* Depsgraph runs above, but since we're not tagging for update, call directly. */
     /* We need evaluated data here. */
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
     BKE_vfont_to_curve(DEG_get_evaluated(depsgraph, obedit), mode);
@@ -423,10 +424,7 @@ static void text_update_edited(bContext *C, Object *obedit, const eEditFontMode 
 
   cu->curinfo = ef->textbufinfo[ef->pos ? ef->pos - 1 : 0];
 
-  if (obedit->totcol > 0) {
-    obedit->actcol = cu->curinfo.mat_nr + 1;
-    obedit->actcol = std::max(obedit->actcol, 1);
-  }
+  blender::ed::object::material_active_index_set(obedit, cu->curinfo.mat_nr);
 
   DEG_id_tag_update(static_cast<ID *>(obedit->data), ID_RECALC_SELECT);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, obedit->data);
@@ -466,7 +464,7 @@ static void font_select_update_primary_clipboard(Object *obedit)
     return;
   }
 
-  if ((WM_capabilities_flag() & WM_CAPABILITY_PRIMARY_CLIPBOARD) == 0) {
+  if ((WM_capabilities_flag() & WM_CAPABILITY_CLIPBOARD_PRIMARY) == 0) {
     return;
   }
   char *buf = font_select_to_buffer(obedit);
@@ -512,7 +510,14 @@ static bool font_paste_wchar(Object *obedit,
               ef->textbufinfo + ef->pos,
               (ef->len - ef->pos + 1) * sizeof(CharInfo));
       if (str_info) {
-        std::copy_n(str_info, str_len, ef->textbufinfo + ef->pos);
+        const short mat_nr_max = std::max(0, obedit->totcol - 1);
+        const CharInfo *info_src = str_info;
+        CharInfo *info_dst = ef->textbufinfo + ef->pos;
+
+        for (int i = 0; i < str_len; i++, info_src++, info_dst++) {
+          *info_dst = *info_src;
+          CLAMP_MAX(info_dst->mat_nr, mat_nr_max);
+        }
       }
       else {
         std::fill_n(ef->textbufinfo + ef->pos, str_len, CharInfo{});
@@ -700,11 +705,18 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   const uiStyle *style = UI_style_get_dpi();
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 200 * UI_SCALE_FAC, UI_UNIT_Y, 0, style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               200 * UI_SCALE_FAC,
+                                               UI_UNIT_Y,
+                                               0,
+                                               style);
 
-  uiItemL_ex(layout, IFACE_("Insert Unicode Character"), ICON_NONE, true, false);
-  layout->label(RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
+  uiItemL_ex(&layout, IFACE_("Insert Unicode Character"), ICON_NONE, true, false);
+  layout.label(RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
 
   uiBut *text_but = uiDefBut(block,
                              UI_BTYPE_TEXT,
@@ -722,7 +734,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   /* Hitting Enter in the text input is treated the same as clicking the Confirm button. */
   UI_but_func_set(text_but, text_insert_unicode_confirm, block, edit_string);
 
-  layout->separator();
+  layout.separator();
 
   /* Buttons. */
 
@@ -734,22 +746,55 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
 
   uiBut *confirm = nullptr;
   uiBut *cancel = nullptr;
-  uiLayout *split = &layout->split(0.0f, true);
+  uiLayout *split = &layout.split(0.0f, true);
   split->column(false);
 
   if (windows_layout) {
-    confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+    confirm = uiDefIconTextBut(block,
+                               UI_BTYPE_BUT,
+                               0,
+                               0,
+                               IFACE_("Insert"),
+                               0,
+                               0,
+                               0,
+                               UI_UNIT_Y,
+                               nullptr,
+                               0,
+                               0,
+                               std::nullopt);
     split->column(false);
   }
 
-  cancel = uiDefIconTextBut(
-      block, UI_BTYPE_BUT, 0, 0, "Cancel", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+  cancel = uiDefIconTextBut(block,
+                            UI_BTYPE_BUT,
+                            0,
+                            0,
+                            IFACE_("Cancel"),
+                            0,
+                            0,
+                            0,
+                            UI_UNIT_Y,
+                            nullptr,
+                            0,
+                            0,
+                            std::nullopt);
 
   if (!windows_layout) {
     split->column(false);
-    confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+    confirm = uiDefIconTextBut(block,
+                               UI_BTYPE_BUT,
+                               0,
+                               0,
+                               IFACE_("Insert"),
+                               0,
+                               0,
+                               0,
+                               UI_UNIT_Y,
+                               nullptr,
+                               0,
+                               0,
+                               std::nullopt);
   }
 
   UI_block_func_set(block, nullptr, nullptr, nullptr);
@@ -760,7 +805,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   UI_but_flag_enable(confirm, UI_BUT_ACTIVE_DEFAULT);
 
   int bounds_offset[2];
-  bounds_offset[0] = uiLayoutGetWidth(layout) * -0.2f;
+  bounds_offset[0] = layout.width() * -0.2f;
   bounds_offset[1] = UI_UNIT_Y * 2.5;
   UI_block_bounds_set_popup(block, 7 * UI_SCALE_FAC, bounds_offset);
 
@@ -2044,10 +2089,7 @@ static void font_cursor_set_apply(bContext *C, const wmEvent *event)
 
   cu->curinfo = ef->textbufinfo[ef->pos ? ef->pos - 1 : 0];
 
-  if (ob->totcol > 0) {
-    ob->actcol = cu->curinfo.mat_nr + 1;
-    ob->actcol = std::max(ob->actcol, 1);
-  }
+  blender::ed::object::material_active_index_set(ob, cu->curinfo.mat_nr);
 
   if (!ef->selboxes && (ef->selstart == 0)) {
     if (ef->pos == 0) {
