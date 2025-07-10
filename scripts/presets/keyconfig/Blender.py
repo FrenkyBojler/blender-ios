@@ -138,20 +138,6 @@ class Prefs(bpy.types.KeyConfigPreferences):
         update=update_fn,
     )
 
-    time_navigation_key: EnumProperty(
-        name="Navigate Time Forward",
-        description=(
-            "Go to the next keyframe using this arrow, and to the next sequencer strip using this page key.\n"
-            "The other direction will go to the previous event"
-        ),
-        items=(
-            ('DOWN', "Down", "Go to the next keyframe using down arrow, and to the next sequencer strip using page down"),
-            ('UP', "Up", "Go to the next keyframe using up arrow, and to the next sequencer strip using up page key"),
-        ),
-        default='DOWN',
-        update=update_fn,
-    )
-
     gizmo_action: EnumProperty(
         name="Activate Gizmo",
         translation_context=i18n_contexts.editor_view3d,
@@ -293,7 +279,6 @@ class Prefs(bpy.types.KeyConfigPreferences):
             col.row().prop(self, "rmb_action", text="Right Mouse Select Action", expand=True)
 
         col.row().prop(self, "tool_key_mode", expand=True)
-        col.row().prop(self, "time_navigation_key", expand=True)
 
         # Check-box sub-layout.
         col = layout.column()
@@ -365,7 +350,6 @@ def load():
             use_v3d_mmb_pan=(kc_prefs.v3d_mmb_action == 'PAN'),
             v3d_alt_mmb_drag_action=kc_prefs.v3d_alt_mmb_drag_action,
             use_select_all_toggle=kc_prefs.use_select_all_toggle,
-            time_navigation_key=kc_prefs.time_navigation_key,
             use_v3d_tab_menu=kc_prefs.use_v3d_tab_menu,
             use_v3d_shade_ex_pie=kc_prefs.use_v3d_shade_ex_pie,
             use_gizmo_drag=(is_select_left and kc_prefs.gizmo_action == 'DRAG'),

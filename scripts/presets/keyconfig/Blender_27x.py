@@ -89,7 +89,6 @@ def load():
             ),
             spacebar_action='SEARCH',
             use_select_all_toggle=True,
-            time_navigation_key='DOWN',
             use_gizmo_drag=False,
             legacy=True,
         ),

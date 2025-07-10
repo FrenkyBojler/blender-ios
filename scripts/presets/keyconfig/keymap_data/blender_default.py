@@ -48,9 +48,6 @@ class Params:
         "spacebar_action",
         # Key toggles selection with 'A'.
         "use_select_all_toggle",
-        # Go to previous/next event (keyframe, sequencer strip) using up/down arrows and page up/page down
-        # respectively.
-        "time_navigation_key",
         # Activate gizmo on drag (which support it).
         "use_gizmo_drag",
         # Use the fallback tool instead of tweak for RMB select.
@@ -114,7 +111,6 @@ class Params:
             # User preferences.
             spacebar_action='TOOL',
             use_key_activate_tools=False,
-            time_navigation_key='DOWN',
             use_region_toggle_pie=False,
             use_select_all_toggle=False,
             use_gizmo_drag=True,
@@ -192,7 +188,6 @@ class Params:
 
         self.use_gizmo_drag = use_gizmo_drag
         self.use_select_all_toggle = use_select_all_toggle
-        self.time_navigation_key = time_navigation_key
         self.use_v3d_tab_menu = use_v3d_tab_menu
         self.use_v3d_shade_ex_pie = use_v3d_shade_ex_pie
         self.use_v3d_mmb_pan = use_v3d_mmb_pan
@@ -3068,13 +3063,13 @@ def km_sequencer(params):
         ("sequencer.view_selected", {"type": 'NUMPAD_PERIOD', "value": 'PRESS'}, None),
         ("sequencer.view_frame", {"type": 'NUMPAD_0', "value": 'PRESS'}, None),
         ("sequencer.strip_jump", {"type": 'PAGE_UP', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", params.time_navigation_key != 'DOWN'), ("center", False)]}),
+         {"properties": [("next", False), ("center", False)]}),
         ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", params.time_navigation_key == 'DOWN'), ("center", False)]}),
+         {"properties": [("next", True), ("center", False)]}),
         ("sequencer.strip_jump", {"type": 'PAGE_UP', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("next", params.time_navigation_key != 'DOWN'), ("center", True)]}),
+         {"properties": [("next", False), ("center", True)]}),
         ("sequencer.strip_jump", {"type": 'PAGE_DOWN', "value": 'PRESS', "alt": True, "repeat": True},
-         {"properties": [("next", params.time_navigation_key == 'DOWN'), ("center", True)]}),
+         {"properties": [("next", True), ("center", True)]}),
         ("sequencer.swap", {"type": 'LEFT_ARROW', "value": 'PRESS', "alt": True, "repeat": True},
          {"properties": [("side", 'LEFT')]}),
         ("sequencer.swap", {"type": 'RIGHT_ARROW', "value": 'PRESS', "alt": True, "repeat": True},
@@ -3648,9 +3643,9 @@ def km_frames(params):
         ("screen.frame_jump", {"type": 'LEFT_ARROW', "value": 'PRESS', "shift": True, "repeat": True},
          {"properties": [("end", False)]}),
         ("screen.keyframe_jump", {"type": 'UP_ARROW', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", params.time_navigation_key != 'DOWN')]}),
+         {"properties": [("next", False)]}),
         ("screen.keyframe_jump", {"type": 'DOWN_ARROW', "value": 'PRESS', "repeat": True},
-         {"properties": [("next", params.time_navigation_key == 'DOWN')]}),
+         {"properties": [("next", True)]}),
         ("screen.keyframe_jump", {"type": 'MEDIA_LAST', "value": 'PRESS'},
          {"properties": [("next", True)]}),
         ("screen.keyframe_jump", {"type": 'MEDIA_FIRST', "value": 'PRESS'},
