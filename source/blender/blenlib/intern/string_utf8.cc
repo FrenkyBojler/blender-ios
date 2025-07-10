@@ -1521,7 +1521,7 @@ static const OrderWeights OrderWeightsTable[] = {
 /* NOT TESTED */
 static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool lettercase)
 {
-  int weight = 0;
+  int weight = codepoint;
 
   size_t left = 0;
   size_t right = sizeof(OrderWeightsTable) / sizeof(OrderWeightsTable[0]);
