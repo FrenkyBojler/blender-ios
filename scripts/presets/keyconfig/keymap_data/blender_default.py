@@ -8239,6 +8239,22 @@ def km_sequencer_preview_tool_generic_select_box(params, *, fallback):
         ]},
     )
 
+def km_sequencer_preview_tool_generic_select_circle(params, *, fallback):
+    return (
+        _fallback_id("Preview Tool: Select Circle", fallback),
+        {"space_type": 'SEQUENCE_EDITOR', "region_type": 'WINDOW'},
+        {"items": [
+            *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
+                "sequencer.select_circle",
+                # Why circle select should be used on tweak?
+                # So that RMB or Shift-RMB is still able to set an element as active.
+                type=params.select_mouse if (fallback and params.use_fallback_tool_select_mouse) else params.tool_mouse,
+                value='CLICK_DRAG' if (fallback and params.use_fallback_tool_select_mouse) else 'PRESS',
+                properties=[("wait_for_input", False)])),
+            # Instance weight/vertex selection actions here, see code-comment for details.
+            *([] if (params.select_mouse == 'RIGHTMOUSE') else _template_view3d_paint_mask_select_loop(params)),
+        ]},
+    )
 
 def km_sequencer_preview_tool_generic_cursor(params):
     return (
@@ -8592,6 +8608,8 @@ def generate_keymaps(params=None):
         *(km_sequencer_preview_tool_generic_select(params, fallback=fallback)
           for fallback in (False, True)),
         *(km_sequencer_preview_tool_generic_select_box(params, fallback=fallback)
+          for fallback in (False, True)),
+        *(km_sequencer_preview_tool_generic_select_circle(params, fallback=fallback)
           for fallback in (False, True)),
         km_3d_view_tool_paint_grease_pencil_trim(params),
         km_3d_view_tool_edit_grease_pencil_texture_gradient(params),
