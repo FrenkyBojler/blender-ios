@@ -254,7 +254,16 @@ static void wm_software_cursor_draw_bitmap(const int event_xy[2],
 
   GPU_matrix_push();
 
-  const int scale = std::max(1, round_fl_to_int(UI_SCALE_FAC));
+  /* The DPI as a scale without the UI scale preference. */
+  const float system_scale = UI_SCALE_FAC / U.ui_scale;
+  /* With RGBA cursors, the cursor will have been generated at the correct size,
+   * there is no need to perform additional scaling.
+   *
+   * NOTE: *technically* if a window spans two output of different scales,
+   * we should scale to the output. This use case is currently not accounted for. */
+  const int scale = (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA) ?
+                        1 :
+                        std::max(1, round_fl_to_int(system_scale));
 
   unit_m4(gl_matrix);
 
@@ -307,7 +316,13 @@ static void wm_software_cursor_draw_crosshair(const int event_xy[2])
   /* Draw a primitive cross-hair cursor.
    * NOTE: the `win->cursor` could be used for drawing although it's complicated as some cursors
    * are set by the operating-system, where the pixel information isn't easily available. */
-  const float unit = max_ff(UI_SCALE_FAC, 1.0f);
+
+  /* The DPI as a scale without the UI scale preference. */
+  const float system_scale = UI_SCALE_FAC / U.ui_scale;
+  /* The cursor scaled by the "default" size. */
+  const float cursor_scale = float(WM_cursor_preferred_logical_size()) /
+                             float(WM_CURSOR_DEFAULT_LOGICAL_SIZE);
+  const float unit = max_ff(system_scale * cursor_scale, 1.0f);
   uint pos = GPU_vertformat_attr_add(
       immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
