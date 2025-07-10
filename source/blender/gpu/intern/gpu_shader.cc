@@ -1182,6 +1182,8 @@ void ShaderCompiler::do_work(ParallelWork &work)
 
 void ShaderCompiler::wait_for_all()
 {
+  /** NOTE: We can't rely on BLI_thread_queue_wait_finish, since that only waits until the queue is
+   * empty, but the works might still being processed. */
   std::unique_lock lock(mutex_);
   compilation_finished_notification_.wait(lock, [&]() {
     if (!compilation_worker_->is_empty()) {
