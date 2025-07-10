@@ -4644,7 +4644,7 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
                                          const IndexMask &curve_selection,
                                          const float offset_distance,
-                                         const float3 plane_norm)
+                                         const Span<float3> normals)
 {
   const OffsetIndices src_points_by_curve = src_curves.offsets();
   const VArray<bool> src_cyclic = src_curves.cyclic();
@@ -4678,10 +4678,7 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
     const bool cyclic = src_cyclic[curve_i];
 
     const int offset_pos_size = offset_pos.size();
-
-    float3 curve_norm;
-    cross_poly_v3(curve_norm, (const float(*)[3])src_pos.data(), src_pos.size());
-    const bool ccw = math::dot(curve_norm, plane_norm) < 0.0f;
+    const float3 plane_norm = normals[curve_i];
 
     for (const int i : src_pos.index_range()) {
       const float3 A = src_pos[(i - 1 + src_pos.size()) % src_pos.size()];
@@ -4691,8 +4688,8 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
       const float3 BA = math::normalize(B - A);
       const float3 CB = math::normalize(C - B);
 
-      const float3 BA_tan = math::normalize(math::cross(BA, plane_norm)) * (ccw ? -1.0f : 1.0f);
-      const float3 CB_tan = math::normalize(math::cross(CB, plane_norm)) * (ccw ? -1.0f : 1.0f);
+      const float3 BA_tan = math::normalize(math::cross(BA, plane_norm));
+      const float3 CB_tan = math::normalize(math::cross(CB, plane_norm));
 
       const float cos_theta = math::dot(BA_tan, CB_tan);
 
@@ -4835,41 +4832,6 @@ static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const float offset_distance = RNA_float_get(op->ptr, "offset_distance");
-  const Projection_Mode mode = Projection_Mode(RNA_enum_get(op->ptr, "type"));
-
-  float4x4 viewinv = float4x4::identity();
-  switch (mode) {
-    case Projection_Mode::View: {
-      RegionView3D *rv3d = CTX_wm_region_view3d(C);
-      viewinv = float4x4(rv3d->viewmat);
-      break;
-    }
-    case Projection_Mode::Front:
-      viewinv = float4x4({1.0f, 0.0f, 0.0f, 0.0f},
-                         {0.0f, 0.0f, 1.0f, 0.0f},
-                         {0.0f, 1.0f, 0.0f, 0.0f},
-                         {0.0f, 0.0f, 0.0f, 1.0f});
-      break;
-    case Projection_Mode::Side:
-      viewinv = float4x4({0.0f, 0.0f, 1.0f, 0.0f},
-                         {0.0f, 1.0f, 0.0f, 0.0f},
-                         {1.0f, 0.0f, 0.0f, 0.0f},
-                         {0.0f, 0.0f, 0.0f, 1.0f});
-      break;
-    case Projection_Mode::Top:
-      viewinv = float4x4::identity();
-      break;
-    case Projection_Mode::Cursor: {
-      viewinv = scene->cursor.matrix<float4x4>();
-      break;
-    }
-    case Projection_Mode::Camera:
-      viewinv = scene->camera->world_to_object();
-      break;
-    default:
-      BLI_assert_unreachable();
-      break;
-  }
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4881,13 +4843,10 @@ static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
       return;
     }
 
-    const Layer &layer = grease_pencil.layer(info.layer_index);
-    const float4x4 viewmat = viewinv * layer.to_world_space(*object);
-
-    const float3 plane_norm = viewmat.z_axis();
+    const Span<float3> normals = info.drawing.curve_plane_normals();
 
     info.drawing.strokes_for_write() = offset_curves(
-        info.drawing.strokes(), editable_strokes, offset_distance, plane_norm);
+        info.drawing.strokes(), editable_strokes, offset_distance, normals);
 
     info.drawing.tag_topology_changed();
     changed = true;
@@ -4915,8 +4874,6 @@ static void GREASE_PENCIL_OT_offset(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties */
-  ot->prop = RNA_def_enum(
-      ot->srna, "type", prop_projection_modes, int(Projection_Mode::View), "Projection Mode", "");
   RNA_def_float_distance(ot->srna,
                          "offset_distance",
                          0.01f,
