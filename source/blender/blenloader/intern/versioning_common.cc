@@ -133,10 +133,13 @@ ID *do_versions_rename_id(Main *bmain,
 static void change_node_socket_name(ListBase *sockets, const char *old_name, const char *new_name)
 {
   LISTBASE_FOREACH (bNodeSocket *, socket, sockets) {
+    printf("Socket type: %i\n", socket->type);
     if (STREQ(socket->name, old_name)) {
+      printf("\tSocket name %s\n", socket->name);
       STRNCPY(socket->name, new_name);
     }
     if (STREQ(socket->identifier, old_name)) {
+      printf("\tSocket identifier %s\n", socket->identifier);
       STRNCPY(socket->identifier, new_name);
     }
   }
@@ -175,6 +178,7 @@ void version_node_socket_name(bNodeTree *ntree,
                               const char *new_name)
 {
   for (bNode *node : ntree->all_nodes()) {
+    printf("node: %s\n", node->name);
     if (node->type_legacy == node_type) {
       change_node_socket_name(&node->inputs, old_name, new_name);
       change_node_socket_name(&node->outputs, old_name, new_name);

@@ -1328,7 +1328,14 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 36)) {
     FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
       if (ntree->type == NTREE_COMPOSIT) {
-        version_node_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z", "Depth");
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image", "A");
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image_001", "B");
+
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z", "Depth A");
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z_001", "Depth B");
+
+        version_node_output_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image", "Result");
+        version_node_output_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z", "Depth");
       }
     }
     FOREACH_NODETREE_END;
