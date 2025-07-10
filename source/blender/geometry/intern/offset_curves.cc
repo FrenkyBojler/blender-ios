@@ -97,25 +97,19 @@ bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
           if (!src_handles_left.is_empty()) {
             /* TODO: Use a better approximation. */
             offset_handles_left.append(
-                (src_handles_left[src_points[i]] - B) * (1 + offset_distance) + B + offset);
+                (A - B) * (1.0f + math::safe_divide(offset_distance, 1.0f + cos_theta)) + pos_1);
 
             offset_handles_right.append(pos_1 + (pos_2 - pos_1) / 3.0f);
             offset_handles_left.append(pos_2 + (pos_1 - pos_2) / 3.0f);
 
             offset_handles_right.append(
-                (src_handles_right[src_points[i]] - B) * (1 + offset_distance) + B + offset);
+                (C - B) * (1.0f + math::safe_divide(offset_distance, 1.0f + cos_theta)) + pos_2);
           }
 
           continue;
         }
 
-        if (curve_type == CURVE_TYPE_BEZIER) {
-          /* TODO: Use a better approximation. */
-          offset = math::normalize(BA_tan + CB_tan) * offset_distance;
-        }
-        else {
-          offset = math::safe_divide(BA_tan + CB_tan, 1 + cos_theta) * offset_distance;
-        }
+        offset = math::safe_divide(BA_tan + CB_tan, 1.0f + cos_theta) * offset_distance;
       }
 
       offset_pos.append(B + offset);
@@ -123,10 +117,10 @@ bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
 
       if (!src_handles_left.is_empty()) {
         /* TODO: Use a better approximation. */
-        offset_handles_left.append((src_handles_left[src_points[i]] - B) * (1 + offset_distance) +
-                                   B + offset);
+        offset_handles_left.append(
+            (A - B) * (1.0f + math::safe_divide(offset_distance, 1.0f + cos_theta)) + B + offset);
         offset_handles_right.append(
-            (src_handles_right[src_points[i]] - B) * (1 + offset_distance) + B + offset);
+            (C - B) * (1.0f + math::safe_divide(offset_distance, 1.0f + cos_theta)) + B + offset);
       }
     }
 
