@@ -2368,11 +2368,6 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
 {
   const int radius = RNA_int_get(op->ptr, "radius");
   const int mval[2] = {RNA_int_get(op->ptr, "x"), RNA_int_get(op->ptr, "y")};
-  /* Allow each selection type to allocate their own data that's used between executions. */
-  wmGesture *gesture = static_cast<wmGesture *>(op->customdata); /* nullptr when non-modal. */
-  wmGenericUserData wm_userdata_buf = {nullptr, nullptr, false};
-  wmGenericUserData *wm_userdata = gesture ? &gesture->user_data : &wm_userdata_buf;
-
 
   Scene *scene = CTX_data_scene(C);
   View2D *v2d = UI_view2d_fromcontext(C);
@@ -2383,10 +2378,6 @@ static wmOperatorStatus vse_circle_select_exec(bContext *C, wmOperator *op)
   }
 
   const eSelectOp sel_op = eSelectOp(RNA_enum_get(op->ptr, "mode"));
-  bool changed = false;
-  if (SEL_OP_USE_PRE_DESELECT(sel_op)) {
-    changed |= deselect_all_strips(scene);
-  }
 
   ARegion *region = CTX_wm_region(C);
   if (region->regiontype == RGN_TYPE_PREVIEW) {
