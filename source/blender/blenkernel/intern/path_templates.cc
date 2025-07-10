@@ -246,8 +246,8 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 void BKE_add_template_variables_general(VariableMap &variables, const ID *path_owner_id)
 {
   /* Project variables. */
-  if (BKE_blender_project().is_initialized()) {
-    const blender::bke::BlenderProject &project = BKE_blender_project();
+  if (BKE_blender_project().has_value()) {
+    const blender::bke::BlenderProject &project = *BKE_blender_project();
 
     variables.add_string("project_name", project.get_name());
     variables.add_string("project_root", project.get_root_path());

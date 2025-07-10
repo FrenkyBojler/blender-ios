@@ -10,32 +10,28 @@
 
 #include "BLI_string_ref.hh"
 
-static blender::bke::BlenderProject global_blender_project_;
+static std::optional<blender::bke::BlenderProject> global_blender_project_;
 
 namespace blender::bke {
 
-bool BlenderProject::is_initialized()
+bool BlenderProject::set_name(StringRef name)
 {
-  return !this->get_name().is_empty() && !this->get_root_path().is_empty();
-}
-
-void BlenderProject::init(StringRef name, StringRef root_path)
-{
-  BLI_assert(!name.is_empty());
-  BLI_assert(!root_path.is_empty());
-
-  /* TODO: root path validation. */
-
-  this->clear();
+  if (name.is_empty()) {
+    return false;
+  }
 
   this->name_ = name;
-  this->root_path_ = root_path;
+  return true;
 }
 
-void BlenderProject::clear()
+bool BlenderProject::set_root_path(StringRef root_path)
 {
-  this->name_.clear();
-  this->root_path_.clear();
+  if (root_path.is_empty()) {
+    return false;
+  }
+
+  this->root_path_ = root_path;
+  return true;
 }
 
 StringRefNull BlenderProject::get_name() const
@@ -50,7 +46,27 @@ StringRefNull BlenderProject::get_root_path() const
 
 }  // namespace blender::bke
 
-blender::bke::BlenderProject &BKE_blender_project()
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)
+{
+  if (name.is_empty() || root_path.is_empty()) {
+    return false;
+  }
+
+  BKE_blender_project_clear();
+  global_blender_project_ = blender::bke::BlenderProject();
+
+  global_blender_project_->set_name(name);
+  global_blender_project_->set_root_path(root_path);
+
+  return true;
+}
+
+void BKE_blender_project_clear()
+{
+  global_blender_project_ = std::nullopt;
+}
+
+std::optional<blender::bke::BlenderProject> &BKE_blender_project()
 {
   return global_blender_project_;
 }

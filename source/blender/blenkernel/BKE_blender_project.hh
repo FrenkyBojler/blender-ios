@@ -15,16 +15,13 @@
 namespace blender::bke {
 
 class BlenderProject {
-  /* The name and root path should either both be empty (indicating no active
-   * project) or both be set (indicating an active project). */
+  /* The name and root path should never be empty. */
   std::string name_;
   std::string root_path_;
 
  public:
-  bool is_initialized();
-
-  void init(StringRef name, StringRef root_path);
-  void clear();
+  bool set_name(StringRef name);
+  bool set_root_path(StringRef root_path);
 
   StringRefNull get_name() const;
   StringRefNull get_root_path() const;
@@ -33,6 +30,16 @@ class BlenderProject {
 }  // namespace blender::bke
 
 /**
- * Fetches the current Blender Project.
+ * Initialize a new Blender Project.
  */
-blender::bke::BlenderProject &BKE_blender_project();
+bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path);
+
+/**
+ * Clear the current Blender Project.
+ */
+void BKE_blender_project_clear();
+
+/**
+ * Fetch the current Blender Project, if one exists.
+ */
+std::optional<blender::bke::BlenderProject> &BKE_blender_project();

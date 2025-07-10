@@ -302,7 +302,7 @@ int main(int argc,
 )
 {
   /* TEMPORARY FOR TESTING BLENDER PROJECTS. */
-  BKE_blender_project().init("Foo", "/home/me/cool_blender_project/");
+  BKE_blender_project_init("Foo", "/home/me/cool_blender_project/");
 
   bContext *C;
 #ifndef WITH_PYTHON_MODULE
