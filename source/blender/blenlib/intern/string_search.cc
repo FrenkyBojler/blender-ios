@@ -115,9 +115,12 @@ int get_fuzzy_match_errors(StringRef query, StringRef full)
     return -1;
   }
 
-  const uint32_t query_first_unicode = BLI_str_utf8_as_unicode_safe(query.data());
-  const uint32_t query_second_unicode = BLI_str_utf8_as_unicode_safe(
+  uint32_t query_first_unicode = BLI_str_utf8_as_unicode_safe(query.data());
+  query_first_unicode = BLI_str_utf32_normalize(query_first_unicode);
+
+  uint32_t query_second_unicode = BLI_str_utf8_as_unicode_safe(
       query.data() + BLI_str_utf8_size_safe(query.data()));
+  query_second_unicode = BLI_str_utf32_normalize(query_second_unicode);
 
   const char *full_begin = full.begin();
   const char *full_end = full.end();
@@ -134,7 +137,8 @@ int get_fuzzy_match_errors(StringRef query, StringRef full)
 
   while (true) {
     StringRef window{window_begin, window_end};
-    const uint32_t window_begin_unicode = BLI_str_utf8_as_unicode_safe(window_begin);
+    uint32_t window_begin_unicode = BLI_str_utf8_as_unicode_safe(window_begin);
+    window_begin_unicode = BLI_str_utf32_normalize(window_begin_unicode);
     int distance = 0;
     /* Expect that the first or second character of the query is correct. This helps to avoid
      * computing the more expensive distance function. */

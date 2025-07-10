@@ -1549,11 +1549,11 @@ static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool letter
 }
 
 /* NOT TESTED */
-static char32_t bli_str_utf32_normalize(char32_t codepoint)
+char32_t BLI_str_utf32_normalize(char32_t codepoint)
 {
   char32_t normalized = bli_str_utf32_weight(codepoint, false, false);
   if (normalized == 0) {
-    /* If the codepoint is not in the table, return it unchanged. */
+    /* Weight can be 0 (meaning ignored). In this return original codepoint. */
     return codepoint;
   }
   return normalized;
@@ -1561,9 +1561,9 @@ static char32_t bli_str_utf32_normalize(char32_t codepoint)
 
 /* NOT TESTED */
 static int bli_str_utf32_compare(char32_t codepoint_a,
-                          char32_t codepoint_b,
-                          bool alternates,
-                          bool lettercase)
+                                 char32_t codepoint_b,
+                                 bool alternates,
+                                 bool lettercase)
 {
   const int weight_a = bli_str_utf32_weight(codepoint_a, alternates, lettercase);
   const int weight_b = bli_str_utf32_weight(codepoint_b, alternates, lettercase);

@@ -13,6 +13,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
+char32_t BLI_str_utf32_normalize(char32_t codepoint);
+
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
     ATTR_NONNULL(1, 2);
 size_t BLI_strncpy_utf8_rlen(char *__restrict dst,
