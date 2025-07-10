@@ -5,8 +5,9 @@
 #pragma once
 
 #include <pxr/imaging/hdx/freeCameraSceneDelegate.h>
-#include "DNA_camera_types.h"
 
+struct Camera;
+struct ID;
 struct Scene;
 
 namespace blender::io::hydra {
