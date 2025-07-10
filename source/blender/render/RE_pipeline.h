@@ -151,10 +151,12 @@ struct RenderResult {
 struct RenderStats {
   int cfra;
   bool localview;
-  double starttime, lastframetime;
+  double starttime;
 
-  /* Our best guess on how many seconds rendering a frame takes. */
-  double framedurationsecs;
+  /* Render time of last frame. */
+  double last_frame_duration;
+  /* Estimate for how long a frame takes, for remaining time. */
+  double estimated_frame_duration;
 
   const char *infostr, *statstr;
   char scene_name[MAX_ID_NAME - 2];

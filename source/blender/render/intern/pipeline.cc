@@ -8,6 +8,7 @@
 
 #include <fmt/format.h>
 
+#include <algorithm>
 #include <cerrno>
 #include <cstddef>
 #include <cstdlib>
@@ -36,8 +37,6 @@
 #include "BLI_time.h"
 #include "BLI_timecode.h"
 #include "BLI_vector.hh"
-
-#include "BLT_translation.hh"
 
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h" /* <------ should this be here?, needed for sequencer update */
@@ -1602,19 +1601,19 @@ static void do_render_sequencer(Render *re)
 
 /* ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~ */
 
-static void register_frame_duration(RenderStats *rs, double framesecs, bool finished)
+static void register_frame_duration(RenderStats *rs, bool cancelled)
 {
-  rs->lastframetime = framesecs;
+  const double frame_duration = BLI_time_now_seconds() - rs->starttime;
+  rs->last_frame_duration = frame_duration;
 
-  if (framesecs > rs->framedurationsecs) {
-    /* framesecs is longer than what we knew was possible, go for this value whether
+  if (cancelled) {
+    /* frame_duration is longer than what we knew was possible, go for this value whether
      * or not the frame finished. */
-    rs->framedurationsecs = framesecs;
+    rs->estimated_frame_duration = std::max(frame_duration, rs->estimated_frame_duration);
   }
-
-  if (finished) {
-    /* framesecs is how long a frame actually took from start to finish */
-    rs->framedurationsecs = framesecs;
+  else {
+    /* frame_duration is how long a frame actually took from start to finish. */
+    rs->estimated_frame_duration = frame_duration;
   }
 }
 
@@ -1650,7 +1649,7 @@ static void do_render_full_pipeline(Render *re)
     do_render_compositor(re);
   }
 
-  register_frame_duration(&re->i, BLI_time_now_seconds() - re->i.starttime, !G.is_break);
+  register_frame_duration(&re->i, G.is_break);
 
   re->stats_draw(&re->i);
 
@@ -2353,15 +2352,15 @@ static bool do_write_image_or_movie(
     RE_ReleaseResultImageViews(re, &rres);
   }
 
-  render_time = re->i.lastframetime;
-  register_frame_duration(&re->i, BLI_time_now_seconds() - re->i.starttime, !G.is_break);
+  render_time = re->i.last_frame_duration;
+  register_frame_duration(&re->i, G.is_break);
 
-  BLI_timecode_string_from_time_simple(filepath, sizeof(filepath), re->i.lastframetime);
+  BLI_timecode_string_from_time_simple(filepath, sizeof(filepath), re->i.last_frame_duration);
   std::string message = fmt::format("Time: {}", filepath);
 
   if (do_write_file && ok) {
     BLI_timecode_string_from_time_simple(
-        filepath, sizeof(filepath), re->i.lastframetime - render_time);
+        filepath, sizeof(filepath), re->i.last_frame_duration - render_time);
     message = fmt::format("{} (Saving: {})", message, filepath);
   }
 

@@ -440,12 +440,12 @@ static void make_renderinfo_string(const RenderStats *rs,
   /* Previous and elapsed time. */
   const char *info_time = info_buffers.time_last;
   BLI_timecode_string_from_time_simple(
-      info_buffers.time_last, sizeof(info_buffers.time_last), rs->lastframetime);
+      info_buffers.time_last, sizeof(info_buffers.time_last), rs->last_frame_duration);
 
   ret_array[i++] = info_sep;
   const double elapsed_s = BLI_time_now_seconds() - rs->starttime;
   if (rs->infostr && rs->infostr[0]) {
-    if (rs->lastframetime != 0.0) {
+    if (rs->last_frame_duration != 0.0) {
       ret_array[i++] = "Last:";
       ret_array[i++] = info_buffers.time_last;
       ret_array[i++] = info_space;
@@ -460,9 +460,9 @@ static void make_renderinfo_string(const RenderStats *rs,
   ret_array[i++] = info_time;
   ret_array[i++] = info_space;
 
-  if (elapsed_s < rs->framedurationsecs) {
+  if (elapsed_s < rs->estimated_frame_duration) {
     /* Assume this render will take as many seconds as the last one. */
-    const double remaining_s = rs->framedurationsecs - elapsed_s;
+    const double remaining_s = rs->estimated_frame_duration - elapsed_s;
     BLI_timecode_string_from_time_simple(
         info_buffers.time_remaining, sizeof(info_buffers.time_remaining), remaining_s);
 

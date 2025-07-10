@@ -1860,7 +1860,7 @@ static void stampdata(
     RenderStats *stats = re ? RE_GetStats(re) : nullptr;
 
     if (use_dynamic && stats && (scene->r.stamp & R_STAMP_RENDERTIME)) {
-      BLI_timecode_string_from_time_simple(text, sizeof(text), stats->lastframetime);
+      BLI_timecode_string_from_time_simple(text, sizeof(text), stats->last_frame_duration);
 
       SNPRINTF(stamp_data->rendertime, do_prefix ? "RenderTime %s" : "%s", text);
     }
