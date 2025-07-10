@@ -3819,6 +3819,8 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
   // copy group structure
   std::string unique_name = unique_layer_group_name(*this, duplicate_group.name());
 
+  const int64_t num_layers = layers().size();
+
   bke::greasepencil::LayerGroup *new_group = MEM_new<bke::greasepencil::LayerGroup>(
       __func__, duplicate_group);
   root_group().add_node(new_group->as_node());
@@ -3827,7 +3829,6 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
   Span<const bke::greasepencil::TreeNode *> nodes_to_copy = duplicate_group.nodes();
   Span<bke::greasepencil::TreeNode *> new_nodes = new_group->nodes_for_write();
 
-  const int64_t num_layers = layers().size();
   const int64_t num_new_layers = std::count_if(
       nodes_to_copy.begin(), nodes_to_copy.end(), [](const bke::greasepencil::TreeNode *node) {
         return node->is_layer();
