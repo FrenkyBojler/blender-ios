@@ -1445,7 +1445,7 @@ std::vector<sycl::device> available_sycl_devices()
               if (driver_build_version < lowest_supported_driver_version) {
                 filter_out = true;
 
-                VLOG_WARNING << "Driver version for device \""
+                LOG(WARNING) << "Driver version for device \""
                              << device.get_info<sycl::info::device::name>()
                              << "\" is too old. Expected \"" << lowest_supported_driver_version
                              << "\" or newer, but got \"" << driver_build_version << "\".";
@@ -1460,7 +1460,7 @@ std::vector<sycl::device> available_sycl_devices()
     }
   }
   catch (sycl::exception &e) {
-    VLOG_WARNING << "An error has been encountered while enumerating SYCL devices: " << e.what();
+    LOG(WARNING) << "An error has been encountered while enumerating SYCL devices: " << e.what();
   }
   return available_devices;
 }
