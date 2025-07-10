@@ -167,7 +167,6 @@ class ShaderCompiler {
     Vector<std::unique_ptr<ParallelWork>> works;
 
     std::atomic<int> pending_compilations = 0;
-    std::atomic<bool> is_cancelled = false;
 
     bool is_specialization_batch()
     {
