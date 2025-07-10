@@ -1527,6 +1527,40 @@ static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool letter
   return weight;
 }
 
+/* NOT TESTED */
+static int bli_str_utf32_compare(char32_t codepoint_a,
+                          char32_t codepoint_b,
+                          bool alternates,
+                          bool lettercase)
+{
+  const int weight_a = bli_str_utf32_weight(codepoint_a, alternates, lettercase);
+  const int weight_b = bli_str_utf32_weight(codepoint_b, alternates, lettercase);
+  if (weight_a < weight_b) {
+    return -1;
+  }
+  else if (weight_a > weight_b) {
+    return 1;
+  }
+  return 0;
+}
+
+/* NOT TESTED */
+static int bli_str_utf32_collate_cmp(char32_t codepoint_a, char32_t codepoint_b)
+{
+  return bli_str_utf32_compare(codepoint_a, codepoint_b, true, true);
+}
+
+/* NOT TESTED */
+static int bli_str_utf32_search_ncase_cmp(char32_t codepoint_a, char32_t codepoint_b)
+{
+  return bli_str_utf32_compare(codepoint_a, codepoint_b, false, false);
+}
+
+/* NOT TESTED */
+static int bli_str_utf32_search_case_cmp(char32_t codepoint_a, char32_t codepoint_b)
+{
+  return bli_str_utf32_compare(codepoint_a, codepoint_b, false, true);
+}
 
 /* -------------------------------------------------------------------- */
 /** \name UTF32 Text Boundary Analysis
