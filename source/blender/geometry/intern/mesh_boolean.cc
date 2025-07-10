@@ -81,13 +81,13 @@ static float4x4 clean_transform(const float4x4 &mat)
 static float3 clean_float3(const float3 &co)
 {
   float3 cleaned = co;
-  if (UNLIKELY(!finite(co[0]))) {
+  if (UNLIKELY(!isfinite(co[0]))) {
     cleaned[0] = 0.0f;
   }
-  if (UNLIKELY(!finite(co[1]))) {
+  if (UNLIKELY(!isfinite(co[1]))) {
     cleaned[1] = 0.0f;
   }
-  if (UNLIKELY(!finite(co[2]))) {
+  if (UNLIKELY(!isfinite(co[2]))) {
     cleaned[2] = 0.0f;
   }
   return cleaned;
