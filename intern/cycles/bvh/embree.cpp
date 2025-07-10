@@ -465,20 +465,28 @@ void pack_motion_verts(const size_t num_curves,
   for (size_t j = 0; j < num_curves; ++j) {
     const Hair::Curve c = hair->get_curve(j);
     int fk = c.first_key;
-    int k = curve_shape != CURVE_THICK_LINEAR ? 1 : 0;
-    for (; k < c.num_keys + 1; ++k, ++fk) {
-      rtc_verts[k].x = verts[fk].x;
-      rtc_verts[k].y = verts[fk].y;
-      rtc_verts[k].z = verts[fk].z;
-      rtc_verts[k].w = curve_radius[fk];
+
+    if (curve_shape == CURVE_THICK_LINEAR) {
+      for (int k = 0; k < c.num_keys; ++k, ++fk) {
+        rtc_verts[k].x = verts[fk].x;
+        rtc_verts[k].y = verts[fk].y;
+        rtc_verts[k].z = verts[fk].z;
+        rtc_verts[k].w = curve_radius[fk];
+      }
+      rtc_verts += c.num_keys;
     }
-    if (curve_shape != CURVE_THICK_LINEAR) {
+    else {
+      for (int k = 1; k < c.num_keys + 1; ++k, ++fk) {
+        rtc_verts[k].x = verts[fk].x;
+        rtc_verts[k].y = verts[fk].y;
+        rtc_verts[k].z = verts[fk].z;
+        rtc_verts[k].w = curve_radius[fk];
+      }
       /* Duplicate Embree's Catmull-Rom spline CVs at the start and end of each curve. */
       rtc_verts[0] = rtc_verts[1];
-      rtc_verts[k] = rtc_verts[k - 1];
-      rtc_verts += 2;
+      rtc_verts[c.num_keys + 1] = rtc_verts[c.num_keys];
+      rtc_verts += c.num_keys + 2;
     }
-    rtc_verts += c.num_keys;
   }
 }
 
