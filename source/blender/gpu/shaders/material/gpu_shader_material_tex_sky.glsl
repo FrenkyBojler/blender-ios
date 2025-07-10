@@ -49,7 +49,7 @@ void node_tex_sky(float3 co,
       float fade = 1.0 + co.z * 2.5;
       fade = fade * fade * fade;
       float y = 0.508;
-      
+
       /* look up color in the precomputed map and convert to RGB */
       xyz = fade * texture(ima, float3(x, y, layer)).rgb;
       color = float4(dot(xyz_to_r, xyz), dot(xyz_to_g, xyz), dot(xyz_to_b, xyz), 1);
@@ -60,18 +60,8 @@ void node_tex_sky(float3 co,
     constexpr float tau = 6.28318530717958647692;
     float x = (spherical.y + M_PI + sun_rotation) / tau;
     /* Undo the non-linear transformation from the sky LUT. */
-    float dir_elevation_sign;
     float dir_elevation_abs = (dir_elevation < 0.0) ? -dir_elevation : dir_elevation;
-    if (dir_elevation < 0.0) {
-      dir_elevation_sign = -1.0;
-    }
-    else if (dir_elevation > 0.0) {
-      dir_elevation_sign = 1.0;
-    }
-    else {
-      dir_elevation_sign = 0.0;
-    }
-    float y = sqrt(dir_elevation_abs / M_PI_2) * dir_elevation_sign / 2.0 + 0.5;
+    float y = sqrt(dir_elevation_abs / M_PI_2) * signx(dir_elevation) * 0.5 + 0.5;
 
     /* look up color in the precomputed map and convert to RGB */
     xyz = texture(ima, float3(x, y, layer)).rgb;

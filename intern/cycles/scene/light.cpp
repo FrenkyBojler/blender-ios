@@ -1020,7 +1020,7 @@ void LightManager::device_update_background(Device *device,
       SkyTextureNode *sky = (SkyTextureNode *)node;
       if (sky->get_sun_disc()) {
         /* Ensure that the input coordinates aren't transformed before they reach the node.
-         * If that is the case, the logic used for sampling the sun's location does not work
+         * If that is the case, the logic used for sampling the Sun's location does not work
          * and we have to fall back to map-based sampling. */
         const ShaderInput *vec_in = sky->input("Vector");
         if (vec_in && vec_in->link && vec_in->link->parent) {
@@ -1034,7 +1034,7 @@ void LightManager::device_update_background(Device *device,
           }
         }
 
-        /* Determine sun direction from lat/long and texture mapping. */
+        /* Determine Sun direction from lat/long and texture mapping. */
         const float latitude = sky->get_sun_elevation();
         const float longitude = sky->get_sun_rotation() + M_PI_2_F;
         float3 sun_direction = make_float3(
@@ -1042,11 +1042,11 @@ void LightManager::device_update_background(Device *device,
         const Transform sky_transform = transform_inverse(sky->tex_mapping.compute_transform());
         sun_direction = transform_direction(&sky_transform, sun_direction);
 
-        /* Pack sun direction and size. */
+        /* Pack Sun direction and size. */
         const float half_angle = sky->get_sun_size() * 0.5f;
         kbackground->sun = make_float4(sun_direction, half_angle);
 
-        /* empirical value */
+        /* Empirical value */
         kbackground->sun_weight = 4.0f;
         sun_average_radiance = sky->get_sun_average_radiance();
         environment_res.x = max(environment_res.x, 512);
@@ -1056,7 +1056,7 @@ void LightManager::device_update_background(Device *device,
     }
   }
 
-  /* If there's more than one sun, fall back to map sampling instead. */
+  /* If there's more than one Sun, fall back to map sampling instead. */
   kbackground->use_sun_guiding = (num_suns == 1);
   if (!kbackground->use_sun_guiding) {
     kbackground->sun_weight = 0.0f;

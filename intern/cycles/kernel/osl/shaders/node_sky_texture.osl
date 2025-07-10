@@ -20,6 +20,19 @@ float precise_angle(vector a, vector b)
   return 2.0 * atan2(length(a - b), length(a + b));
 }
 
+float signx(float x)
+{
+  if (x < 0.0) {
+    return -1.0;
+  }
+  else if (x > 0.0) {
+    return 1.0;
+  }
+  else {
+    return 0.0;
+  }
+}
+
 color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type)
 {
   /* Get 2 pixels data */
@@ -84,18 +97,7 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
       }
       /* Undo the non-linear transformation from the sky LUT */
       float dir_elevation_abs = (dir_elevation < 0.0) ? -dir_elevation : dir_elevation;
-      float dir_elevation_sign;
-      /* Sign */
-      if (dir_elevation < 0.0) {
-        dir_elevation_sign = -1.0;
-      }
-      else if (dir_elevation > 0.0) {
-        dir_elevation_sign = 1.0;
-      }
-      else {
-        dir_elevation_sign = 0.0;
-      }
-      float y = 1.0 - (sqrt(dir_elevation_abs / M_PI_2) * dir_elevation_sign / 2 + 0.5);
+      float y = 1.0 - (sqrt(dir_elevation_abs / M_PI_2) * signx(dir_elevation) * 0.5 + 0.5);
       xyz = (color)texture(filename, x, y, "wrap", "clamp", "interp", "linear", "alpha", alpha);
     }
   }

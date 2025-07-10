@@ -338,6 +338,25 @@ static float3 sky_lut(float3 sun_dir,
   return xyz;
 }
 
+void SKY_multiple_scattering_precompute_transmittance(float air_density,
+                                                      float aerosol_density,
+                                                      float ozone_density)
+{
+  /* Calculate and store transmittance LUT. */
+  float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
+  for (int x = 0; x < transmittance_res_x; x++) {
+    for (int y = 0; y < transmittance_res_y; y++) {
+      float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
+      float4 lut = transmittance_lut_calc(coordinates, density_multipliers);
+      int reverse_y = transmittance_res_y - y - 1;
+      transmittance_lut[x][reverse_y][0] = lut.x;
+      transmittance_lut[x][reverse_y][1] = lut.y;
+      transmittance_lut[x][reverse_y][2] = lut.z;
+      transmittance_lut[x][reverse_y][3] = lut.w;
+    }
+  }
+}
+
 void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 int stride,
                                                 int start_y,
@@ -371,25 +390,6 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
       pixel_row[mirror_x] = sky.x;
       pixel_row[mirror_x + 1] = sky.y;
       pixel_row[mirror_x + 2] = sky.z;
-    }
-  }
-}
-
-void SKY_multiple_scattering_precompute_transmittance(float air_density,
-                                                      float aerosol_density,
-                                                      float ozone_density)
-{
-  /* Calculate and store transmittance LUT. */
-  float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
-  for (int x = 0; x < transmittance_res_x; x++) {
-    for (int y = 0; y < transmittance_res_y; y++) {
-      float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
-      float4 lut = transmittance_lut_calc(coordinates, density_multipliers);
-      int reverse_y = transmittance_res_y - y - 1;
-      transmittance_lut[x][reverse_y][0] = lut.x;
-      transmittance_lut[x][reverse_y][1] = lut.y;
-      transmittance_lut[x][reverse_y][2] = lut.z;
-      transmittance_lut[x][reverse_y][3] = lut.w;
     }
   }
 }
