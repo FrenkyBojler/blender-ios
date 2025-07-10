@@ -4642,9 +4642,10 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
  * \{ */
 
 static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
+                                         const Span<float3> normals,
                                          const IndexMask &curve_selection,
                                          const float offset_distance,
-                                         const Span<float3> normals)
+                                         const float miter_angle)
 {
   const OffsetIndices src_points_by_curve = src_curves.offsets();
   const VArray<bool> src_cyclic = src_curves.cyclic();
@@ -4653,8 +4654,7 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
   const Span<float3> src_handles_right = src_curves.handle_positions_right();
   const VArray<int8_t> src_curve_types = src_curves.curve_types();
 
-  /* TODO: Not hard code. */
-  const float miter_limit = -0.7;
+  const float miter_limit = cos(miter_angle);
 
   IndexMaskMemory memory;
   const IndexMask unselected_curves = curve_selection.complement(src_curves.curves_range(),
@@ -4834,6 +4834,7 @@ static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
   GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
 
   const float offset_distance = RNA_float_get(op->ptr, "offset_distance");
+  const float miter_angle = RNA_float_get(op->ptr, "miter_angle");
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4848,7 +4849,7 @@ static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
     const Span<float3> normals = info.drawing.curve_plane_normals();
 
     info.drawing.strokes_for_write() = offset_curves(
-        info.drawing.strokes(), editable_strokes, offset_distance, normals);
+        info.drawing.strokes(), normals, editable_strokes, offset_distance, miter_angle);
 
     info.drawing.tag_topology_changed();
     changed = true;
@@ -4885,6 +4886,9 @@ static void GREASE_PENCIL_OT_offset(wmOperatorType *ot)
                          "",
                          -FLT_MAX,
                          FLT_MAX);
+  ot->prop = RNA_def_float_distance(
+      ot->srna, "miter_angle", DEG2RADF(135.0f), 0, M_PI, "Miter Cut Angle", "", 0.0, M_PI);
+  RNA_def_property_subtype(ot->prop, PROP_ANGLE);
 }
 
 /** \} */
