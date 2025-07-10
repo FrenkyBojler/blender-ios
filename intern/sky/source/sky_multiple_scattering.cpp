@@ -8,7 +8,6 @@
 
 /*
  * This code is a converted version of the ShaderToy written by Fernando García Liñán.
- * You can have a look at all the configurable parameters in the Common tab.
  *
  * This shader is the final result of my Master's Thesis.
  * The main contributions are:
@@ -48,7 +47,7 @@ static const float atmosphere_thickness = 100.0f;
 static const float atmosphere_radius = earth_radius + atmosphere_thickness;
 /* Ray marching steps. Higher steps means increased accuracy but worse performance. */
 static const int transmittance_steps = 32;
-static const int in_scattering_steps = 32;
+static const int in_scattering_steps = 64;
 
 /* LUTs */
 static const int transmittance_res_x = 256;
