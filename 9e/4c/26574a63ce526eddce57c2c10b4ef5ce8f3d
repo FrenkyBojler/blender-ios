@@ -2,4 +2,4 @@ Referenced by issue #140336, 4.5 VSE - scene strips with sequence input not play
 Referenced by issue #140427, 4.5 VSE - scene strips with sequencer input crash Blender when prefetch frames option is on
 Referenced by issue #141651, VSE: The `Channel` setting does not work independently in multiple areas
 Referenced by pull request #141670, Fix #141651: VSE: The Channel setting does not work independently in multiple areas
-Referenced by issue #141652, Blender 4.5 Bug with Video editing and Fade option
+Referenced by issue #141652, Regression: VSE: Python traceback with Fade operator
