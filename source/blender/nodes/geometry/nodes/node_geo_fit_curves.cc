@@ -9,6 +9,7 @@
 #include "GEO_randomize.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "NOD_rna_define.hh"
 
@@ -25,6 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
 
   b.add_input<decl::Geometry>("Poly Curves", "Curves")
+  /* TODO: Should also support Grease Pencil. */
       .supported_type(GeometryComponent::Type::Curve);
   b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
 
@@ -81,7 +83,7 @@ static bke::CurvesGeometry fit_curves(const bke::CurvesGeometry &src_curves,
       BLI_assert_unreachable();
   }
 
-  bke::CurvesGeometry curves = geometry::fit_curves(
+  bke::CurvesGeometry curves = geometry::fit_poly_to_bezier_curves(
       src_curves,
       curve_evaluator.get_evaluated_selection_as_mask(),
       curve_evaluator.get_evaluated<float>(0),
