@@ -38,6 +38,7 @@ set(SRC
   intern/mesh_to_volume.cc
   intern/mesh_triangulate.cc
   intern/mix_geometries.cc
+  intern/offset_curves.cc
   intern/point_merge_by_distance.cc
   intern/points_to_volume.cc
   intern/randomize.cc
@@ -81,6 +82,7 @@ set(SRC
   GEO_mesh_to_volume.hh
   GEO_mesh_triangulate.hh
   GEO_mix_geometries.hh
+  GEO_offset_curves.hh
   GEO_point_merge_by_distance.hh
   GEO_points_to_volume.hh
   GEO_randomize.hh
