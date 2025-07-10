@@ -4711,8 +4711,10 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
           const float3 norm_dir = math::normalize(BA + CB);
           const float3 tan_dir = math::normalize(BA_tan + CB_tan);
 
-          offset_pos.append(B + (tan_dir - norm_dir * S) * offset_distance);
-          offset_pos.append(B + (tan_dir + norm_dir * S) * offset_distance);
+          const float3 pos_1 = B + (tan_dir - norm_dir * S) * offset_distance;
+          const float3 pos_2 = B + (tan_dir + norm_dir * S) * offset_distance;
+          offset_pos.append(pos_1);
+          offset_pos.append(pos_2);
           offset_old_by_new_map.append(src_points[i]);
           offset_old_by_new_map.append(src_points[i]);
 
@@ -4721,8 +4723,8 @@ static bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
             offset_handles_left.append(
                 (src_handles_left[src_points[i]] - B) * (1 + offset_distance) + B + offset);
 
-            offset_handles_right.append(float3(0.0f, 0.0f, 0.0f));
-            offset_handles_left.append(float3(0.0f, 0.0f, 0.0f));
+            offset_handles_right.append(pos_1 + (pos_2 - pos_1) / 3.0f);
+            offset_handles_left.append(pos_2 + (pos_1 - pos_2) / 3.0f);
 
             offset_handles_right.append(
                 (src_handles_right[src_points[i]] - B) * (1 + offset_distance) + B + offset);
