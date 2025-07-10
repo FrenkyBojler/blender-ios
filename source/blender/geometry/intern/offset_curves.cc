@@ -52,9 +52,14 @@ bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
     const float3 plane_norm = normals[curve_i];
 
     for (const int i : src_pos.index_range()) {
-      const float3 A = src_pos[(i - 1 + src_pos.size()) % src_pos.size()];
+      float3 A = src_pos[(i - 1 + src_pos.size()) % src_pos.size()];
       const float3 B = src_pos[i];
-      const float3 C = src_pos[(i + 1) % src_pos.size()];
+      float3 C = src_pos[(i + 1) % src_pos.size()];
+
+      if (curve_type == CURVE_TYPE_BEZIER) {
+        A = src_handles_left[src_points[i]];
+        C = src_handles_right[src_points[i]];
+      }
 
       const float3 BA = math::normalize(B - A);
       const float3 CB = math::normalize(C - B);
