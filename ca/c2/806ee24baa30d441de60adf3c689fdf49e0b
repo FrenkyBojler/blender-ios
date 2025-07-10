@@ -1,2 +1,3 @@
 Referenced by issue #141693, 4.5 Grease Pencil Randomize color/saturation/value jitter broken
 Referenced by pull request #141707, Fix #141693: Grease Pencil: Restore jitter behaviour
+Referenced by commit 69da277dcb13a996ff01a5e92703b3166f41fc72, Fix #141693: Grease Pencil: Restore jitter behaviour
