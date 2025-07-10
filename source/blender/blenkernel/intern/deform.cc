@@ -23,6 +23,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
+#include "BLI_span.hh"
 #include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_utildefines.h"
@@ -227,178 +228,187 @@ void BKE_defvert_remap(MDeformVert *dvert, const int *map, const int map_len)
   }
 }
 
-void BKE_defvert_normalize_subset(MDeformVert *dvert,
-                                  const bool *vgroup_subset,
-                                  const int vgroup_num)
+void BKE_defvert_normalize_subset(MDeformVert &dvert, blender::Span<bool> subset_flags)
 {
-  if (dvert->totweight == 0) {
-    /* nothing */
+  BKE_defvert_normalize_ex(dvert, subset_flags, {}, {});
+}
+
+void BKE_defvert_normalize(MDeformVert &dvert)
+{
+  BKE_defvert_normalize_ex(dvert, {}, {}, {});
+}
+
+void BKE_defvert_normalize_lock_map(MDeformVert &dvert,
+                                    blender::Span<bool> subset_flags,
+                                    blender::Span<bool> lock_flags)
+{
+  BKE_defvert_normalize_ex(dvert, subset_flags, lock_flags, {});
+}
+
+void BKE_defvert_normalize_ex(MDeformVert &dvert,
+                              blender::Span<bool> subset_flags,
+                              blender::Span<bool> lock_flags,
+                              blender::Span<bool> soft_lock_flags)
+{
+  const bool use_subset = !subset_flags.is_empty();
+  const bool use_locks = !lock_flags.is_empty();
+  const bool use_soft_locks = !soft_lock_flags.is_empty();
+
+  /* Note: confusingly, `totweight` isn't the total weight on the vertex, it's
+   * the number of vertex groups assigned to the vertex. It's a DNA field, so
+   * I'm leaving it named as-is for now despite it being confusing. */
+  if (dvert.totweight == 0) {
+    /* No vertex groups assigned: do nothing. */
+    return;
   }
-  else if (dvert->totweight == 1) {
-    MDeformWeight *dw = dvert->dw;
-    if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
+
+  if (dvert.totweight == 1) {
+    /* Only one vertex group is assigned to the vertex.
+     *
+     * TODO: this special case for single-group vertices should be completely
+     * unnecessary. The code further below works just as well for one assigned
+     * group as for twenty. However, the old version of this function was *not*
+     * consistent in its behavior between single-group and multi-group vertices:
+     * single-group vertices would set the group weight to 1.0 even if the
+     * initial weight was zero, whereas multi-group vertices with all weights
+     * set to zero would be left as-is.
+     *
+     * I (Nathan Vegdahl) decided to leave this special case here just in case
+     * any other code depends on this odd behavior. But we should revisit this
+     * at some point to check if that's actually the case, and simply remove
+     * this special case if nothing is depending on it. */
+
+    MDeformWeight *dw = dvert.dw;
+
+    if (use_subset && !subset_flags[dw->def_nr]) {
+      return;
+    }
+
+    const bool is_unlocked = lock_flags.is_empty() || !lock_flags[dw->def_nr];
+    if (is_unlocked) {
       dw->weight = 1.0f;
     }
+    return;
+  }
+
+  blender::MutableSpan<MDeformWeight> vertex_weights = blender::MutableSpan(dvert.dw,
+                                                                            dvert.totweight);
+
+  /* Collect weights. */
+  float total_locked_weight = 0.0f;
+  float total_soft_locked_weight = 0.0f;
+  float total_regular_weight = 0.0f; /* Neither locked nor soft locked. */
+  int soft_locked_group_count = 0;
+  for (MDeformWeight &dw : vertex_weights) {
+    if (use_subset && !subset_flags[dw.def_nr]) {
+      /* Not part of the subset being normalized. */
+      continue;
+    }
+
+    if (use_locks && lock_flags[dw.def_nr]) {
+      /* Locked. */
+      total_locked_weight += dw.weight;
+    }
+    else if (use_soft_locks && soft_lock_flags[dw.def_nr]) {
+      total_soft_locked_weight += dw.weight;
+      soft_locked_group_count++;
+    }
+    else {
+      total_regular_weight += dw.weight;
+    }
+  }
+
+  const float available_weight = max_ff(0.0f, 1.0f - total_locked_weight);
+
+  /* Special case: all non-hard-locked vertex groups have zero weight.
+   *
+   * Note: conceptually this if condition is checking for `== 0.0`, because
+   * negative weights shouldn't be possible. We're just being paranoid with
+   * the `<=`. */
+  if (total_regular_weight <= 0.0f && total_soft_locked_weight <= 0.0f) {
+    /* There isn't any "right" thing to do here.
+     *
+     * What we choose to do is: if there are any soft-locked groups on the
+     * vertex, distribute the needed weight equally among them. If there are no
+     * soft-locked groups on the vertex, we do nothing. The rationale behind
+     * this is that:
+     *
+     * 1. Zero-weight groups should typically be treated the same as unassigned
+     *    groups.
+     * 2. But soft-locked groups can be treated specially: since their intended
+     *    use case is indicating vertex groups that have just now had their
+     *    weights set, we know they were intentionally set. Therefore even when
+     *    zero-weight we can consider them assigned.
+     *
+     * There isn't any deep truth behind this approach, but after discussion
+     * with a few people I (Nathan Vegdahl) think in practice this is likely to
+     * be the least surprising behavior to users (out of several bad options).
+     * In particular, when the user modifies weights with auto-normalize
+     * enabled, they expect Blender to ensure normalized weights whenever
+     * possible (see issue #141024), and this approach achieves that.
+     *
+     * However, this approach is very much worth revisiting if it ends up
+     * causing other problems. */
+
+    if (soft_locked_group_count == 0) {
+      return;
+    }
+
+    const float weight = available_weight / soft_locked_group_count;
+    for (MDeformWeight &dw : vertex_weights) {
+      if (!subset_flags.is_empty() && !subset_flags[dw.def_nr]) {
+        /* Not part of the subset being normalized. */
+        continue;
+      }
+
+      if (!lock_flags.is_empty() && lock_flags[dw.def_nr]) {
+        /* Locked. */
+        continue;
+      }
+
+      if (use_soft_locks && soft_lock_flags[dw.def_nr]) {
+        dw.weight = weight;
+      }
+    }
+
+    return;
+  }
+
+  /* Compute scale factors for soft-locked and regular group weights. */
+  float soft_locked_scale;
+  float regular_scale;
+  const bool must_adjust_soft_locked = total_soft_locked_weight >= available_weight ||
+                                       total_regular_weight <= 0.0f;
+  if (must_adjust_soft_locked) {
+    soft_locked_scale = available_weight / total_soft_locked_weight;
+    regular_scale = 0.0f;
   }
   else {
-    MDeformWeight *dw = dvert->dw;
-    float tot_weight = 0.0f;
-    for (int i = dvert->totweight; i != 0; i--, dw++) {
-      if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-        tot_weight += dw->weight;
-      }
-    }
-
-    if (tot_weight > 0.0f) {
-      float scalar = 1.0f / tot_weight;
-      dw = dvert->dw;
-      for (int i = dvert->totweight; i != 0; i--, dw++) {
-        if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-          dw->weight *= scalar;
-
-          /* in case of division errors with very low weights */
-          CLAMP(dw->weight, 0.0f, 1.0f);
-        }
-      }
-    }
+    soft_locked_scale = 1.0f;
+    regular_scale = (available_weight - total_soft_locked_weight) / total_regular_weight;
   }
-}
 
-void BKE_defvert_normalize(MDeformVert *dvert)
-{
-  if (dvert->totweight == 0) {
-    /* nothing */
-  }
-  else if (dvert->totweight == 1) {
-    dvert->dw[0].weight = 1.0f;
-  }
-  else {
-    MDeformWeight *dw;
-    uint i;
-    float tot_weight = 0.0f;
-
-    for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-      tot_weight += dw->weight;
+  /* Normalize the weights via scaling by the appropriate factors. */
+  for (MDeformWeight &dw : vertex_weights) {
+    if (use_subset && !subset_flags[dw.def_nr]) {
+      /* Not part of the subset being normalized. */
+      continue;
     }
 
-    if (tot_weight > 0.0f) {
-      float scalar = 1.0f / tot_weight;
-      for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-        dw->weight *= scalar;
-
-        /* in case of division errors with very low weights */
-        CLAMP(dw->weight, 0.0f, 1.0f);
-      }
-    }
-  }
-}
-
-void BKE_defvert_normalize_lock_single(MDeformVert *dvert,
-                                       const bool *vgroup_subset,
-                                       const int vgroup_num,
-                                       const uint def_nr_lock)
-{
-  if (dvert->totweight == 0) {
-    /* nothing */
-  }
-  else if (dvert->totweight == 1) {
-    MDeformWeight *dw = dvert->dw;
-    if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-      if (def_nr_lock != dw->def_nr) {
-        dw->weight = 1.0f;
-      }
-    }
-  }
-  else {
-    MDeformWeight *dw_lock = nullptr;
-    MDeformWeight *dw;
-    uint i;
-    float tot_weight = 0.0f;
-    float lock_iweight = 1.0f;
-
-    for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-      if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-        if (dw->def_nr != def_nr_lock) {
-          tot_weight += dw->weight;
-        }
-        else {
-          dw_lock = dw;
-          lock_iweight = (1.0f - dw_lock->weight);
-          CLAMP(lock_iweight, 0.0f, 1.0f);
-        }
-      }
+    if (use_locks && lock_flags[dw.def_nr]) {
+      /* Locked. */
+      continue;
     }
 
-    if (tot_weight > 0.0f) {
-      /* paranoid, should be 1.0 but in case of float error clamp anyway */
-
-      float scalar = (1.0f / tot_weight) * lock_iweight;
-      for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-        if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-          if (dw != dw_lock) {
-            dw->weight *= scalar;
-
-            /* in case of division errors with very low weights */
-            CLAMP(dw->weight, 0.0f, 1.0f);
-          }
-        }
-      }
+    if (use_soft_locks && soft_lock_flags[dw.def_nr]) {
+      dw.weight *= soft_locked_scale;
     }
-  }
-}
-
-void BKE_defvert_normalize_lock_map(MDeformVert *dvert,
-                                    const bool *vgroup_subset,
-                                    const int vgroup_num,
-                                    const bool *lock_flags,
-                                    const int defbase_num)
-{
-  if (dvert->totweight == 0) {
-    /* nothing */
-  }
-  else if (dvert->totweight == 1) {
-    MDeformWeight *dw = dvert->dw;
-    if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-      if ((dw->def_nr < defbase_num) && (lock_flags[dw->def_nr] == false)) {
-        dw->weight = 1.0f;
-      }
-    }
-  }
-  else {
-    MDeformWeight *dw;
-    uint i;
-    float tot_weight = 0.0f;
-    float lock_iweight = 0.0f;
-
-    for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-      if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-        if ((dw->def_nr < defbase_num) && (lock_flags[dw->def_nr] == false)) {
-          tot_weight += dw->weight;
-        }
-        else {
-          /* invert after */
-          lock_iweight += dw->weight;
-        }
-      }
+    else {
+      dw.weight *= regular_scale;
     }
 
-    lock_iweight = max_ff(0.0f, 1.0f - lock_iweight);
-
-    if (tot_weight > 0.0f) {
-      /* paranoid, should be 1.0 but in case of float error clamp anyway */
-
-      float scalar = (1.0f / tot_weight) * lock_iweight;
-      for (i = dvert->totweight, dw = dvert->dw; i != 0; i--, dw++) {
-        if ((dw->def_nr < vgroup_num) && vgroup_subset[dw->def_nr]) {
-          if ((dw->def_nr < defbase_num) && (lock_flags[dw->def_nr] == false)) {
-            dw->weight *= scalar;
-
-            /* in case of division errors with very low weights */
-            CLAMP(dw->weight, 0.0f, 1.0f);
-          }
-        }
-      }
-    }
+    /* In case of division errors with very low weights. */
+    CLAMP(dw.weight, 0.0f, 1.0f);
   }
 }
 

@@ -412,6 +412,7 @@ struct TransDataMirror : public TransDataBasic {
   float *loc_src;
 };
 
+/** For objects, poses. 1 single allocation per #TransInfo! */
 struct TransDataExtension {
   /** Initial object drot. */
   float drot[3];
@@ -506,8 +507,6 @@ struct TransData : public TransDataBasic {
   float axismtx[3][3];
   /** For objects/bones, the first constraint in its constraint stack. */
   bConstraint *con;
-  /** For objects, poses. 1 single allocation per #TransInfo! */
-  TransDataExtension *ext;
   /** For curves, stores handle flags for modification/cancel. */
   TransDataCurveHandleFlags *hdata;
   /** If set, copy of Object or #bPoseChannel protection. */
@@ -992,6 +991,10 @@ wmOperatorStatus transformEnd(bContext *C, TransInfo *t);
 void setTransformViewMatrices(TransInfo *t);
 void setTransformViewAspect(TransInfo *t, float r_aspect[3]);
 void convertViewVec(TransInfo *t, float r_vec[3], double dx, double dy);
+/**
+ * If viewport projection fails, calculate a usable fallback.
+ */
+void projectFloatViewCenterFallback(TransInfo *t, float adr[2]);
 void projectIntViewEx(TransInfo *t, const float vec[3], int adr[2], eV3DProjTest flag);
 void projectIntView(TransInfo *t, const float vec[3], int adr[2]);
 void projectFloatViewEx(TransInfo *t, const float vec[3], float adr[2], eV3DProjTest flag);
@@ -1088,7 +1091,6 @@ void postTrans(bContext *C, TransInfo *t);
 void resetTransModal(TransInfo *t);
 void resetTransRestrictions(TransInfo *t);
 
-void applyTransObjects(TransInfo *t);
 void restoreTransObjects(TransInfo *t);
 
 void calculateCenter2D(TransInfo *t);
@@ -1119,7 +1121,10 @@ void calculatePropRatio(TransInfo *t);
  * (use for objects or pose-bones)
  * Similar to #ElementRotation.
  */
-void transform_data_ext_rotate(TransData *td, float mat[3][3], bool use_drot);
+void transform_data_ext_rotate(TransData *td,
+                               TransDataExtension *td_ext,
+                               float mat[3][3],
+                               bool use_drot);
 
 Object *transform_object_deform_pose_armature_get(const TransInfo *t, Object *ob);
 
