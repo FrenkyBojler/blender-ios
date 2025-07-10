@@ -3063,6 +3063,21 @@ class _defs_sequencer_select:
             draw_settings=draw_settings,
         )
 
+    @ToolDef.from_fn
+    def circle_preview():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("sequencer.select_circle")
+            row = layout.row()
+            row.use_property_split = False
+            row.prop(props, "mode", text="", expand=True, icon_only=True)
+        return dict(
+            idname="sequencer.select_circle",
+            label="Select Circle",
+            icon="ops.generic.select_circle",
+            widget=None,
+            keymap="Preview Tool: Select Circle",
+            draw_settings=draw_settings,
+        )
 
 class IMAGE_PT_tools_active(ToolSelectPanelHelper, Panel):
     bl_space_type = 'IMAGE_EDITOR'
@@ -3716,6 +3731,7 @@ class SEQUENCER_PT_tools_active(ToolSelectPanelHelper, Panel):
             (
                 _defs_sequencer_select.select_preview,
                 _defs_sequencer_select.box_preview,
+                _defs_sequencer_select.circle_preview,
             ),
             _defs_sequencer_generic.cursor,
             None,
