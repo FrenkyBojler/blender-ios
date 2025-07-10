@@ -26,7 +26,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
 
   b.add_input<decl::Geometry>("Poly Curves", "Curves")
-  /* TODO: Should also support Grease Pencil. */
+      /* TODO: Should also support Grease Pencil. */
       .supported_type(GeometryComponent::Type::Curve);
   b.add_output<decl::Geometry>("Curves").propagate_all().align_with_previous();
 
