@@ -182,6 +182,16 @@ __intersection__local_tri_mblur(
       payload, primitive_id, barycentrics, ray_tmax);
 }
 
+inline bool metalrt_curve_skip_end_cap(constant KernelParamsMetal &launch_params_metal,
+                                       const int type,
+                                       const uint prim,
+                                       const float u)
+{
+  return (u == 0.0f && PRIMITIVE_UNPACK_SEGMENT(type) == 0) ||
+         (u == 1.0f &&
+          PRIMITIVE_UNPACK_SEGMENT(type) == kernel_data_fetch(curves, prim).num_keys - 1);
+}
+
 template<uint intersection_type>
 bool metalrt_shadow_all_hit(
     constant KernelParamsMetal &launch_params_metal,
@@ -206,7 +216,7 @@ bool metalrt_shadow_all_hit(
     prim = segment.prim;
 
     /* Filter out curve end-caps. */
-    if (u == 0.0f || u == 1.0f) {
+    if (metalrt_curve_skip_end_cap(launch_params_metal, type, prim, u)) {
       /* continue search */
       return true;
     }
@@ -406,16 +416,16 @@ inline TReturnType metalrt_visibility_test(
 
 #  ifdef __HAIR__
   if constexpr (intersection_type == METALRT_HIT_CURVE) {
+    const KernelCurveSegment segment = kernel_data_fetch(curve_segments, prim);
+    int type = segment.type;
+    prim = segment.prim;
+
     /* Filter out curve end-caps. */
-    if (u == 0.0f || u == 1.0f) {
+    if (metalrt_curve_skip_end_cap(launch_params_metal, type, prim, u)) {
       result.accept = false;
       result.continue_search = true;
       return result;
     }
-
-    const KernelCurveSegment segment = kernel_data_fetch(curve_segments, prim);
-    int type = segment.type;
-    prim = segment.prim;
 
     if (type & PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
@@ -452,16 +462,16 @@ inline TReturnType metalrt_visibility_test_shadow(
 
 #  ifdef __HAIR__
   if constexpr (intersection_type == METALRT_HIT_CURVE) {
+    const KernelCurveSegment segment = kernel_data_fetch(curve_segments, prim);
+    int type = segment.type;
+    prim = segment.prim;
+
     /* Filter out curve end-caps. */
-    if (u == 0.0f || u == 1.0f) {
+    if (metalrt_curve_skip_end_cap(launch_params_metal, type, prim, u)) {
       result.accept = false;
       result.continue_search = true;
       return result;
     }
-
-    const KernelCurveSegment segment = kernel_data_fetch(curve_segments, prim);
-    int type = segment.type;
-    prim = segment.prim;
 
     if (type & PRIMITIVE_CURVE_RIBBON) {
       MetalKernelContext context(launch_params_metal);
