@@ -1,1 +1,2 @@
 Referenced by pull request #141747, Fix: Avoid tagging geometry with uninitialized attribute on add
+Referenced by commit 2b86b32fc3b699286b4312e36a2cc9e50531493a, Fix: Avoid tagging geometry with uninitialized attribute on add
