@@ -20,7 +20,7 @@
 
 #include "node_composite_util.hh"
 
-/* **************** Z COMBINE ******************** */
+/* **************** DEPTH COMBINE ******************** */
 
 namespace blender::nodes::node_composite_zcombine_cc {
 
