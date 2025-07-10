@@ -4290,7 +4290,7 @@ static void GREASE_PENCIL_OT_remove_fill_guides(wmOperatorType *ot)
 /** \name Outline Operator
  * \{ */
 
-enum class Projection_Mode : int8_t {
+enum class OutlineMode : int8_t {
   View = 0,
   Front = 1,
   Side = 2,
@@ -4299,13 +4299,13 @@ enum class Projection_Mode : int8_t {
   Camera = 5,
 };
 
-static const EnumPropertyItem prop_projection_modes[] = {
-    {int(Projection_Mode::View), "VIEW", 0, "View", ""},
-    {int(Projection_Mode::Front), "FRONT", 0, "Front", ""},
-    {int(Projection_Mode::Side), "SIDE", 0, "Side", ""},
-    {int(Projection_Mode::Top), "TOP", 0, "Top", ""},
-    {int(Projection_Mode::Cursor), "CURSOR", 0, "Cursor", ""},
-    {int(Projection_Mode::Camera), "CAMERA", 0, "Camera", ""},
+static const EnumPropertyItem prop_outline_modes[] = {
+    {int(OutlineMode::View), "VIEW", 0, "View", ""},
+    {int(OutlineMode::Front), "FRONT", 0, "Front", ""},
+    {int(OutlineMode::Side), "SIDE", 0, "Side", ""},
+    {int(OutlineMode::Top), "TOP", 0, "Top", ""},
+    {int(OutlineMode::Cursor), "CURSOR", 0, "Cursor", ""},
+    {int(OutlineMode::Camera), "CAMERA", 0, "Camera", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -4323,35 +4323,35 @@ static wmOperatorStatus grease_pencil_outline_exec(bContext *C, wmOperator *op)
   const float outline_offset = radius * offset_factor;
   const int mat_nr = -1;
 
-  const Projection_Mode mode = Projection_Mode(RNA_enum_get(op->ptr, "type"));
+  const OutlineMode mode = OutlineMode(RNA_enum_get(op->ptr, "type"));
 
   float4x4 viewinv = float4x4::identity();
   switch (mode) {
-    case Projection_Mode::View: {
+    case OutlineMode::View: {
       RegionView3D *rv3d = CTX_wm_region_view3d(C);
       viewinv = float4x4(rv3d->viewmat);
       break;
     }
-    case Projection_Mode::Front:
+    case OutlineMode::Front:
       viewinv = float4x4({1.0f, 0.0f, 0.0f, 0.0f},
                          {0.0f, 0.0f, 1.0f, 0.0f},
                          {0.0f, 1.0f, 0.0f, 0.0f},
                          {0.0f, 0.0f, 0.0f, 1.0f});
       break;
-    case Projection_Mode::Side:
+    case OutlineMode::Side:
       viewinv = float4x4({0.0f, 0.0f, 1.0f, 0.0f},
                          {0.0f, 1.0f, 0.0f, 0.0f},
                          {1.0f, 0.0f, 0.0f, 0.0f},
                          {0.0f, 0.0f, 0.0f, 1.0f});
       break;
-    case Projection_Mode::Top:
+    case OutlineMode::Top:
       viewinv = float4x4::identity();
       break;
-    case Projection_Mode::Cursor: {
+    case OutlineMode::Cursor: {
       viewinv = scene->cursor.matrix<float4x4>();
       break;
     }
-    case Projection_Mode::Camera:
+    case OutlineMode::Camera:
       viewinv = scene->camera->world_to_object();
       break;
     default:
@@ -4419,7 +4419,7 @@ static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
 
   /* Properties */
   ot->prop = RNA_def_enum(
-      ot->srna, "type", prop_projection_modes, int(Projection_Mode::View), "Projection Mode", "");
+      ot->srna, "type", prop_outline_modes, int(OutlineMode::View), "Projection Mode", "");
   RNA_def_float_distance(ot->srna, "radius", 0.01f, 0.0f, 10.0f, "Radius", "", 0.0f, 10.0f);
   RNA_def_float_factor(
       ot->srna, "offset_factor", -1.0f, -1.0f, 1.0f, "Offset Factor", "", -1.0f, 1.0f);
