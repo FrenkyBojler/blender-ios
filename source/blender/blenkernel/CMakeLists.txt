@@ -253,6 +253,7 @@ set(SRC
   intern/packedFile.cc
   intern/paint.cc
   intern/paint_canvas.cc
+  intern/paint_runtime.cc
   intern/particle.cc
   intern/particle_child.cc
   intern/particle_distribute.cc
@@ -493,6 +494,7 @@ set(SRC
   BKE_paint.hh
   BKE_paint_bvh.hh
   BKE_paint_bvh_pixels.hh
+  BKE_paint_types.hh
   BKE_particle.h
   BKE_path_templates.hh
   BKE_pointcache.h

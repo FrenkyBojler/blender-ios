@@ -1393,69 +1393,6 @@ PointerRNA uiLayout::op(const blender::StringRefNull opname,
   return this->op(ot, name, icon, context, flag);
 }
 
-static StringRef ui_menu_enumpropname(uiLayout *layout,
-                                      PointerRNA *ptr,
-                                      PropertyRNA *prop,
-                                      int retval)
-{
-  bool free;
-  const EnumPropertyItem *item;
-  RNA_property_enum_items(
-      static_cast<bContext *>(layout->block()->evil_C), ptr, prop, &item, nullptr, &free);
-
-  const char *name;
-  if (RNA_enum_name(item, retval, &name)) {
-    name = CTX_IFACE_(RNA_property_translation_context(prop), name);
-  }
-  else {
-    name = "";
-  }
-
-  if (free) {
-    MEM_freeN(item);
-  }
-
-  return name;
-}
-
-void uiItemEnumO_ptr(uiLayout *layout,
-                     wmOperatorType *ot,
-                     std::optional<StringRef> name,
-                     int icon,
-                     const StringRefNull propname,
-                     int value)
-{
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
-  if (prop == nullptr) {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
-  }
-  name = name.value_or(ui_menu_enumpropname(layout, &ptr, prop, value));
-
-  ptr = layout->op(ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE);
-  RNA_property_enum_set(&ptr, prop, value);
-}
-void uiItemEnumO(uiLayout *layout,
-                 const StringRefNull opname,
-                 const std::optional<StringRef> name,
-                 int icon,
-                 const StringRefNull propname,
-                 int value)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-
-  if (ot) {
-    uiItemEnumO_ptr(layout, ot, name, icon, propname, value);
-  }
-  else {
-    ui_item_disabled(layout, opname.c_str());
-    RNA_warning("unknown operator '%s'", opname.c_str());
-  }
-}
-
 BLI_INLINE bool ui_layout_is_radial(const uiLayout *layout)
 {
   return (layout->type_ == uiItemType::LayoutRadial) ||
@@ -1677,72 +1614,6 @@ void uiItemsFullEnumO(uiLayout *layout,
 void uiItemsEnumO(uiLayout *layout, const StringRefNull opname, const StringRefNull propname)
 {
   uiItemsFullEnumO(layout, opname, propname, nullptr, layout->root_->opcontext, UI_ITEM_NONE);
-}
-
-void uiItemEnumO_value(uiLayout *layout,
-                       const StringRefNull name,
-                       int icon,
-                       const StringRefNull opname,
-                       const StringRefNull propname,
-                       int value)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), return);
-
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-
-  /* enum lookup */
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
-  if (prop == nullptr) {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
-  }
-  ptr = layout->op(ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE);
-  RNA_property_enum_set(&ptr, prop, value);
-}
-
-void uiItemEnumO_string(uiLayout *layout,
-                        const StringRef name,
-                        int icon,
-                        const StringRefNull opname,
-                        const StringRefNull propname,
-                        const char *value_str)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), return);
-
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
-  if (prop == nullptr) {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
-  }
-
-  /* enum lookup */
-  /* no need for translations here */
-  const EnumPropertyItem *item;
-  bool free;
-  RNA_property_enum_items(
-      static_cast<bContext *>(layout->block()->evil_C), &ptr, prop, &item, nullptr, &free);
-
-  int value;
-  if (item == nullptr || RNA_enum_value_from_id(item, value_str, &value) == 0) {
-    if (free) {
-      MEM_freeN(item);
-    }
-    RNA_warning(
-        "%s.%s, enum %s not found", RNA_struct_identifier(ptr.type), propname.c_str(), value_str);
-    return;
-  }
-
-  if (free) {
-    MEM_freeN(item);
-  }
-  ptr = layout->op(ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE);
-  RNA_property_enum_set(&ptr, prop, value);
 }
 
 PointerRNA uiLayout::op(wmOperatorType *ot, const std::optional<StringRef> name, int icon)
@@ -5517,7 +5388,7 @@ static void ui_item_layout(uiItem *item)
   }
 }
 
-static void ui_layout_end(uiBlock *block, uiLayout *layout, int *r_x, int *r_y)
+static blender::int2 ui_layout_end(uiBlock *block, uiLayout *layout)
 {
   if (layout->root_->handlefunc) {
     UI_block_func_handle_set(block, layout->root_->handlefunc, layout->root_->argv);
@@ -5525,13 +5396,7 @@ static void ui_layout_end(uiBlock *block, uiLayout *layout, int *r_x, int *r_y)
 
   ui_item_estimate(layout);
   ui_item_layout(layout);
-
-  if (r_x) {
-    *r_x = layout->x_;
-  }
-  if (r_y) {
-    *r_y = layout->y_;
-  }
+  return {layout->x_, layout->y_};
 }
 
 static void ui_layout_free(uiLayout *layout)
@@ -5756,17 +5621,12 @@ void UI_block_layout_free(uiBlock *block)
     MEM_freeN(root);
   }
 }
+namespace blender::ui {
 
-void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y)
+int2 block_layout_resolve(uiBlock *block)
 {
   BLI_assert(block->active);
-
-  if (r_x) {
-    *r_x = 0;
-  }
-  if (r_y) {
-    *r_y = 0;
-  }
+  int2 block_size = {0, 0};
 
   block->curlayout = nullptr;
 
@@ -5774,13 +5634,15 @@ void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y)
     ui_layout_add_padding_button(root);
 
     /* nullptr in advance so we don't interfere when adding button */
-    ui_layout_end(block, root->layout, r_x, r_y);
+    block_size = ui_layout_end(block, root->layout);
     ui_layout_free(root->layout);
     MEM_freeN(root);
   }
 
   BLI_listbase_clear(&block->layouts);
+  return block_size;
 }
+}  // namespace blender::ui
 
 bool UI_block_layout_needs_resolving(const uiBlock *block)
 {
