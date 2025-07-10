@@ -8,6 +8,7 @@
 
 #pragma once
 
+#include "BLI_array.hh"
 #include "BLI_compiler_compat.h"
 #include "BLI_math_vector_types.hh"
 
@@ -182,7 +183,7 @@ struct Subdiv {
      *
      * In total this array has a size of `num base faces + 1`.
      */
-    int *face_ptex_offset;
+    blender::Array<int> face_ptex_offset;
   } cache_;
 };
 
@@ -263,7 +264,7 @@ void displacement_detach(Subdiv *subdiv);
 /* For each element in the array, this stores the total number of ptex faces up to that element,
  * with the total number of ptex faces being the last element in the array. The array is of length
  * `base face count + 1`. */
-int *face_ptex_offset_get(Subdiv *subdiv);
+Span<int> face_ptex_offset_get(Subdiv *subdiv);
 
 /* --------------------------------------------------------------------
  * PTex faces and grids.
