@@ -55,7 +55,7 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.collection"};
+static CLG_LogRef LOG = {"object.collection"};
 
 /**
  * Extra asserts that #Collection.gobject_hash is valid which are too slow even for debug mode.
@@ -424,7 +424,7 @@ static Collection *collection_add(Main *bmain,
                                   const char *name_custom)
 {
   /* Determine new collection name. */
-  char name[MAX_NAME];
+  char name[MAX_ID_NAME - 2];
 
   if (name_custom) {
     STRNCPY(name, name_custom);
@@ -818,7 +818,7 @@ void BKE_collection_new_name_get(Collection *collection_parent, char *rname)
     name = BLI_sprintfN("%.*s %d", max_len, collection_parent->id.name + 2, number);
   }
 
-  BLI_strncpy(rname, name, MAX_NAME);
+  BLI_strncpy(rname, name, MAX_ID_NAME - 2);
   MEM_freeN(name);
 }
 
