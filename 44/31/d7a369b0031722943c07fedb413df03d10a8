@@ -2,3 +2,4 @@ Referenced by issue #141619, Geometry Nodes: Lasso Select tool doesn't allow des
 Referenced by issue #141628, Blender 4,5 Beta Crash
 Referenced by issue #141639, Intersect (Boolean) operator has no option for manifold boolean solver
 Referenced by issue #141656, Alt + Left Click tooltip shows action that doesn't work
+Referenced by issue #141727, "Show Overlays" toggle does not update the viewport mesh visibility with retopology overlay enabled
