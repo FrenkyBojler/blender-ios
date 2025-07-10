@@ -7030,7 +7030,6 @@ static void def_cmp_glare(BlenderRNA * /*brna*/, StructRNA *srna)
       {CMP_NODE_GLARE_FOG_GLOW, "FOG_GLOW", 0, "Fog Glow", ""},
       {CMP_NODE_GLARE_SIMPLE_STAR, "SIMPLE_STAR", 0, "Simple Star", ""},
       {CMP_NODE_GLARE_SUN_BEAMS, "SUN_BEAMS", 0, "Sun Beams", ""},
-
       {0, nullptr, 0, nullptr, nullptr},
   };
 

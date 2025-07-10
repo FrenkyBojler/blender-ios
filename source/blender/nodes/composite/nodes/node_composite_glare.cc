@@ -2222,14 +2222,20 @@ class GlareOperation : public NodeOperation {
 
   Result execute_sun_beams(Result &highlights)
   {
-    const Result &input_image = highlights;
-
-    const int2 input_size = input_image.domain().size;
+    const int2 input_size = highlights.domain().size;
     const int max_steps = int(this->get_size() * math::length(input_size));
     if (max_steps == 0) {
-      Result &output_image = this->get_result("Image");
-      output_image.share_data(input_image);
-      return output_image;
+      Result sun_beams_result = context().create_result(ResultType::Color);
+      sun_beams_result.allocate_texture(highlights.domain());
+      if (this->context().use_gpu()) {
+        GPU_texture_copy(sun_beams_result, highlights);
+      }
+      else {
+        parallel_for(sun_beams_result.domain().size, [&](const int2 texel) {
+          sun_beams_result.store_pixel(texel, highlights.load_pixel<float4>(texel));
+        });
+      }
+      return sun_beams_result;
     }
 
     if (this->context().use_gpu()) {
@@ -2245,17 +2251,15 @@ class GlareOperation : public NodeOperation {
     GPUShader *shader = context().get_shader("compositor_sun_beams");
     GPU_shader_bind(shader);
 
-    GPU_shader_uniform_2fv(shader, "source", this->get_source());
+    GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
     GPU_shader_uniform_1i(shader, "max_steps", max_steps);
 
-    // Result &input_image = get_input("Image");
     GPU_texture_filter_mode(highlights, true);
     GPU_texture_extend_mode(highlights, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
     highlights.bind_as_texture(shader, "input_tx");
 
     Result output_image = context().create_result(ResultType::Color);
-    const Domain domain = math::divide_ceil(this->compute_domain().size,
-                                            int2(this->get_quality_factor()));
+    const Domain domain = highlights.domain();
     output_image.allocate_texture(domain);
     output_image.bind_as_image(shader, "output_img");
 
@@ -2269,16 +2273,12 @@ class GlareOperation : public NodeOperation {
 
   Result execute_sun_beams_cpu(Result &highlights, const int max_steps)
   {
-    const float2 source = this->get_source();
+    const float2 source = this->get_sun_position();
 
-    // Result &input = get_input("Image");
-
-    const Domain domain = math::divide_ceil(this->compute_domain().size,
-                                            int2(this->get_quality_factor()));
     Result output = context().create_result(ResultType::Color);
-    output.allocate_texture(domain);
+    output.allocate_texture(highlights.domain());
 
-    const int2 input_size = domain.size;
+    const int2 input_size = highlights.domain().size;
     parallel_for(input_size, [&](const int2 texel) {
       /* The number of steps is the distance in pixels from the source to the current texel. With
        * at least a single step and at most the user specified maximum ray length, which is
@@ -2534,7 +2534,7 @@ class GlareOperation : public NodeOperation {
         this->get_input("Color Modulation").get_single_value_default(0.25f), 0.0f, 1.0f);
   }
 
-  float2 get_source()
+  float2 get_sun_position()
   {
     return this->get_input("Sun Position").get_single_value_default(float2(0.5f));
   }
