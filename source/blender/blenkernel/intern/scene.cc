@@ -42,13 +42,13 @@
 
 #include "BKE_callbacks.hh"
 #include "BLI_blenlib.h"
+#include "BLI_build_config.h"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
-#include "BLI_build_config.h"
 
 #include "BLO_readfile.hh"
 
