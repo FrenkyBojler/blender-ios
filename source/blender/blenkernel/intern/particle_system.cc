@@ -41,6 +41,7 @@
 #include "BLI_task.h"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
+#include "BLI_vector.hh"
 
 #include "BKE_animsys.h"
 #include "BKE_boids.h"
@@ -1403,10 +1404,7 @@ static void integrate_particle(
 {
 #define ZERO_F43 \
   { \
-    {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, \
-    { \
-      0.0f, 0.0f, 0.0f \
-    } \
+    {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f}, {0.0f, 0.0f, 0.0f} \
   }
 
   ParticleKey states[5];
@@ -1888,7 +1886,7 @@ static void sph_force_cb(void *sphdata_v, ParticleKey *state, float *force, floa
           temp_spring.rest_length = (fluid->flag & SPH_CURRENT_REST_LENGTH) ? rij : rest_length;
           temp_spring.delete_flag = 0;
 
-          BLI_buffer_append(&sphdata->new_springs, ParticleSpring, temp_spring);
+          sphdata->new_springs.append(temp_spring);
         }
       }
       else { /* PART_SPRING_HOOKES - Hooke's spring force */
@@ -2111,8 +2109,6 @@ void psys_sph_init(ParticleSimulationData *sim, SPHData *sphdata)
   ParticleTarget *pt;
   int i;
 
-  BLI_buffer_field_init(&sphdata->new_springs, ParticleSpring);
-
   /* Add other coupled particle systems. */
   sphdata->psys[0] = sim->psys;
   for (i = 1, pt = static_cast<ParticleTarget *>(sim->psys->targets.first); i < 10;
@@ -2149,12 +2145,12 @@ void psys_sph_init(ParticleSimulationData *sim, SPHData *sphdata)
 
 static void psys_sph_flush_springs(SPHData *sphdata)
 {
-  for (int i = 0; i < sphdata->new_springs.count; i++) {
+  for (int i = 0; i < sphdata->new_springs.size(); i++) {
     /* sph_spring_add is not thread-safe. - z0r */
-    sph_spring_add(sphdata->psys[0], &BLI_buffer_at(&sphdata->new_springs, ParticleSpring, i));
+    sph_spring_add(sphdata->psys[0], &sphdata->new_springs[i]);
   }
 
-  BLI_buffer_field_free(&sphdata->new_springs);
+  sphdata->new_springs.clear_and_shrink();
 }
 
 void psys_sph_finalize(SPHData *sphdata)
@@ -2783,8 +2779,8 @@ void BKE_psys_collision_neartest_cb(void *userdata,
   ParticleCollision *col = (ParticleCollision *)userdata;
   ParticleCollisionElement pce;
   const blender::int3 vert_tri = &col->md->vert_tris[index];
-  float(*x)[3] = col->md->x;
-  float(*v)[3] = col->md->current_v;
+  float (*x)[3] = col->md->x;
+  float (*v)[3] = col->md->current_v;
   float t = hit->dist / col->original_ray_length;
   int collision = 0;
 
@@ -3507,7 +3503,7 @@ static void do_hair_dynamics(ParticleSimulationData *sim)
       sim->scene,
       sim->ob,
       psys->hair_in_mesh,
-      reinterpret_cast<float(*)[3]>(psys->hair_out_mesh->vert_positions_for_write().data()));
+      reinterpret_cast<float (*)[3]>(psys->hair_out_mesh->vert_positions_for_write().data()));
   psys->hair_out_mesh->tag_positions_changed();
 
   /* restore cloth effector weights */
@@ -3704,14 +3700,11 @@ static void dynamics_step_sphdata_reduce(const void *__restrict /*userdata*/,
   SPHData *sphdata_to = static_cast<SPHData *>(join_v);
   SPHData *sphdata_from = static_cast<SPHData *>(chunk_v);
 
-  if (sphdata_from->new_springs.count > 0) {
-    BLI_buffer_append_array(&sphdata_to->new_springs,
-                            ParticleSpring,
-                            &BLI_buffer_at(&sphdata_from->new_springs, ParticleSpring, 0),
-                            sphdata_from->new_springs.count);
+  if (!sphdata_from->new_springs.is_empty()) {
+    sphdata_to->new_springs.extend(sphdata_from->new_springs);
   }
 
-  BLI_buffer_field_free(&sphdata_from->new_springs);
+  sphdata_from->new_springs.clear_and_shrink();
 }
 
 static void dynamics_step_sph_ddr_task_cb_ex(void *__restrict userdata,

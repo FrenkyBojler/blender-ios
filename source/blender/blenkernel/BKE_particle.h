@@ -11,7 +11,6 @@
 
 #include <optional>
 
-#include "BLI_buffer.h"
 #include "BLI_compiler_attrs.h"
 #include "BLI_map.hh"
 #include "BLI_ordered_edge.hh"
@@ -97,7 +96,7 @@ typedef struct SPHData {
   float flow[3];
 
   /* Temporary thread-local buffer for springs created during this step. */
-  BLI_Buffer new_springs;
+  blender::Vector<ParticleSpring> new_springs;
 
   /* Integrator callbacks. This allows different SPH implementations. */
   void (*force_cb)(void *sphdata_v, ParticleKey *state, float *force, float *impulse);
