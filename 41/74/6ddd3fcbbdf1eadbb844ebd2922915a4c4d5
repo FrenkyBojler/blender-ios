@@ -1,0 +1,1 @@
+Referenced by issue #141742, GPU shader crash: member access within null pointer of type 'struct Shader'
