@@ -4249,6 +4249,7 @@ static void gesture_circle_modal_keymap(wmKeyConfig *keyconf)
   /* Assign map to operators. */
   WM_modalkeymap_assign(keymap, "VIEW3D_OT_select_circle");
   WM_modalkeymap_assign(keymap, "UV_OT_select_circle");
+  WM_modalkeymap_assign(keymap, "SEQUENCER_OT_select_circle");
   WM_modalkeymap_assign(keymap, "CLIP_OT_select_circle");
   WM_modalkeymap_assign(keymap, "MASK_OT_select_circle");
   WM_modalkeymap_assign(keymap, "NODE_OT_select_circle");
@@ -4327,7 +4328,6 @@ static void gesture_box_modal_keymap(wmKeyConfig *keyconf)
   WM_modalkeymap_assign(keymap, "SCREEN_OT_box_select");
 #endif
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_select_box");
-  WM_modalkeymap_assign(keymap, "SEQUENCER_OT_select_circle");
   WM_modalkeymap_assign(keymap, "SEQUENCER_OT_view_ghost_border");
   WM_modalkeymap_assign(keymap, "UV_OT_select_box");
   WM_modalkeymap_assign(keymap, "CLIP_OT_select_box");
