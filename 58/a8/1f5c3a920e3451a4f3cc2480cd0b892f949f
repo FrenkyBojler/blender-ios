@@ -1,1 +1,2 @@
 Referenced by issue #141742, GPU shader crash: member access within null pointer of type 'struct Shader'
+Referenced by commit 44faabdedd2e02d3eb6d1242c802b56abc10a860, Fix 141742: Crash on startup due to failed shader compilation
