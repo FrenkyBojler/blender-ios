@@ -8246,13 +8246,9 @@ def km_sequencer_preview_tool_generic_select_circle(params, *, fallback):
         {"items": [
             *([] if (fallback and not params.use_fallback_tool) else _template_items_tool_select_actions_simple(
                 "sequencer.select_circle",
-                # Why circle select should be used on tweak?
-                # So that RMB or Shift-RMB is still able to set an element as active.
-                type=params.select_mouse if (fallback and params.use_fallback_tool_select_mouse) else params.tool_mouse,
-                value='CLICK_DRAG' if (fallback and params.use_fallback_tool_select_mouse) else 'PRESS',
+                **(params.select_tweak_event if (fallback and params.use_fallback_tool_select_mouse) else
+                   {"type": params.tool_mouse, "value": 'PRESS'}),
                 properties=[("wait_for_input", False)])),
-            # Instance weight/vertex selection actions here, see code-comment for details.
-            *([] if (params.select_mouse == 'RIGHTMOUSE') else _template_view3d_paint_mask_select_loop(params)),
         ]},
     )
 
