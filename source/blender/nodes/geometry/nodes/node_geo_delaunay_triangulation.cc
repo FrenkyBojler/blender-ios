@@ -60,52 +60,25 @@ static void node_init(bNodeTree * /*tree*/, bNode *node)
 
 static CDT_output_type get_cdt_output_type(const TriangulationMode mode)
 {
-  CDT_output_type output_type;
   switch (mode) {
     case TriangulationMode::Full:
-      output_type = CDT_FULL;
-      break;
+      return CDT_FULL;
     case TriangulationMode::Inside:
-      output_type = CDT_INSIDE;
-      break;
+      return CDT_INSIDE;
     case TriangulationMode::InsideWidthHoles:
-      output_type = CDT_INSIDE_WITH_HOLES;
-      break;
-    default:
-      BLI_assert_unreachable();
+      return CDT_INSIDE_WITH_HOLES;
   }
-  return output_type;
+  return CDT_FULL;
 }
 
-// static meshintersect::CDT_result<double> do_single_cdt(meshintersect::CDT_input<double> &input,
-//                                                        const TriangulationMode mode)
-// {
-//   CDT_output_type output_type;
-//   switch (mode) {
-//     case TriangulationMode::Full:
-//       output_type = CDT_FULL;
-//       break;
-//     case TriangulationMode::Inside:
-//       output_type = CDT_INSIDE;
-//       break;
-//     case TriangulationMode::InsideWidthHoles:
-//       output_type = CDT_INSIDE_WITH_HOLES;
-//       break;
-//     default:
-//       BLI_assert_unreachable();
-//   }
-
-//   return delaunay_2d_calc(input, output_type);
-// }
-
-static Array<meshintersect::CDT_result<double>> do_cdts(
+static Array<meshintersect::CDT_result<double>> calculate_cdts(
     const Span<meshintersect::CDT_input<double>> inputs, const CDT_output_type output_type)
 {
   Array<meshintersect::CDT_result<double>> outputs(inputs.size());
   /* TODO: Use better grain size. */
   threading::parallel_for(inputs.index_range(), 8, [&](const IndexRange range) {
     for (const int i : range) {
-      outputs[i] = delaunay_2d_calc(inputs[i], output_type);
+      outputs[i] = meshintersect::delaunay_2d_calc(inputs[i], output_type);
     }
   });
 
@@ -351,6 +324,7 @@ static Vector<meshintersect::CDT_input<double>> construct_cdt_inputs(
     cdt_input.vert.reinitialize(total_verts);
     cdt_input.edge.reinitialize(total_edges);
     cdt_input.face.reinitialize(total_faces);
+    /* This will enable the computation of the mappings from dst to src vert indices. */
     cdt_input.need_ids = true;
 
     MutableSpan<double2> positions_2d = cdt_input.vert.as_mutable_span();
@@ -425,7 +399,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry_set.modify_geometry_sets([&](GeometrySet &geometry_set) {
     Vector<meshintersect::CDT_input<double>> inputs = construct_cdt_inputs(geometry_set,
                                                                            group_index);
-    Array<meshintersect::CDT_result<double>> results = do_cdts(inputs, output_type);
+    Array<meshintersect::CDT_result<double>> results = calculate_cdts(inputs, output_type);
     Mesh *mesh = geometry::cdts_to_mesh(results.as_span());
     geometry_set.replace_mesh(mesh);
     geometry_set.keep_only_during_modify({GeometryComponent::Type::Mesh});
