@@ -27,49 +27,25 @@
 #include "WM_types.hh"
 
 /* see WM_types.hh */
+using wmOperatorCallContext = blender::wm::OperatorCallContext;
+
+/* clang-format off */
 const EnumPropertyItem rna_enum_operator_context_items[] = {
-    {int(blender::wm::OperatorCallContext::InvokeDefault),
-     "INVOKE_DEFAULT",
-     0,
-     "Invoke Default",
-     ""},
-    {int(blender::wm::OperatorCallContext::InvokeRegionWin),
-     "INVOKE_REGION_WIN",
-     0,
-     "Invoke Region Window",
-     ""},
-    {int(blender::wm::OperatorCallContext::InvokeRegionChannels),
-     "INVOKE_REGION_CHANNELS",
-     0,
-     "Invoke Region Channels",
-     ""},
-    {int(blender::wm::OperatorCallContext::InvokeRegionPreview),
-     "INVOKE_REGION_PREVIEW",
-     0,
-     "Invoke Region Preview",
-     ""},
-    {int(blender::wm::OperatorCallContext::InvokeArea), "INVOKE_AREA", 0, "Invoke Area", ""},
-    {int(blender::wm::OperatorCallContext::InvokeScreen), "INVOKE_SCREEN", 0, "Invoke Screen", ""},
-    {int(blender::wm::OperatorCallContext::ExecDefault), "EXEC_DEFAULT", 0, "Exec Default", ""},
-    {int(blender::wm::OperatorCallContext::ExecRegionWin),
-     "EXEC_REGION_WIN",
-     0,
-     "Exec Region Window",
-     ""},
-    {int(blender::wm::OperatorCallContext::ExecRegionChannels),
-     "EXEC_REGION_CHANNELS",
-     0,
-     "Exec Region Channels",
-     ""},
-    {int(blender::wm::OperatorCallContext::ExecRegionPreview),
-     "EXEC_REGION_PREVIEW",
-     0,
-     "Exec Region Preview",
-     ""},
-    {int(blender::wm::OperatorCallContext::ExecArea), "EXEC_AREA", 0, "Exec Area", ""},
-    {int(blender::wm::OperatorCallContext::ExecScreen), "EXEC_SCREEN", 0, "Exec Screen", ""},
+    {int(wmOperatorCallContext::InvokeDefault), "INVOKE_DEFAULT", 0, "Invoke Default", ""},
+    {int(wmOperatorCallContext::InvokeRegionWin), "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
+    {int(wmOperatorCallContext::InvokeRegionChannels), "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
+    {int(wmOperatorCallContext::InvokeRegionPreview), "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
+    {int(wmOperatorCallContext::InvokeArea), "INVOKE_AREA", 0, "Invoke Area", ""},
+    {int(wmOperatorCallContext::InvokeScreen), "INVOKE_SCREEN", 0, "Invoke Screen", ""},
+    {int(wmOperatorCallContext::ExecDefault), "EXEC_DEFAULT", 0, "Exec Default", ""},
+    {int(wmOperatorCallContext::ExecRegionWin), "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
+    {int(wmOperatorCallContext::ExecRegionChannels), "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
+    {int(wmOperatorCallContext::ExecRegionPreview), "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
+    {int(wmOperatorCallContext::ExecArea), "EXEC_AREA", 0, "Exec Area", ""},
+    {int(wmOperatorCallContext::ExecScreen), "EXEC_SCREEN", 0, "Exec Screen", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
+/* clang-format on */
 
 const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
     {UILST_LAYOUT_DEFAULT, "DEFAULT", 0, "Default Layout", "Use the default, multi-rows layout"},
@@ -77,7 +53,6 @@ const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
     {UILST_LAYOUT_GRID, "GRID", 0, "Grid Layout", "Use the grid-based layout"},
     {0, nullptr, 0, nullptr, nullptr},
 };
-
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"

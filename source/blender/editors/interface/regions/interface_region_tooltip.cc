@@ -1302,13 +1302,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_gizmo(bContext *C, wm
         /* Shortcut */
         {
           IDProperty *prop = static_cast<IDProperty *>(gzop->ptr.data);
-          if (std::optional<std::string> shortcut_str = WM_key_event_operator_string(
-                  C,
-                  gzop->type->idname,
-                  blender::wm::OperatorCallContext::InvokeDefault,
-                  prop,
-                  true))
-          {
+          std::optional<std::string> shortcut_str = WM_key_event_operator_string(
+              C, gzop->type->idname, blender::wm::OperatorCallContext::InvokeDefault, prop, true);
+          if (shortcut_str) {
             UI_tooltip_text_field_add(
                 *data,
                 fmt::format(fmt::runtime(TIP_("Shortcut: {}")), *shortcut_str),

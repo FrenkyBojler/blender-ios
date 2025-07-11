@@ -1408,13 +1408,13 @@ static std::optional<std::string> ui_but_event_operator_string_from_panel(const 
   for (int i = 0; i < 2; i++) {
     /* FIXME(@ideasman42): We can't reasonably search all configurations - long term. */
     IDP_ReplaceInGroup(prop_panel, bke::idprop::create("keep_open", i).release());
-    if (std::optional<std::string> result = WM_key_event_operator_string(
-            C,
-            "WM_OT_call_panel",
-            blender::wm::OperatorCallContext::InvokeRegionWin,
-            prop_panel,
-            true))
-    {
+    std::optional<std::string> result = WM_key_event_operator_string(
+        C,
+        "WM_OT_call_panel",
+        blender::wm::OperatorCallContext::InvokeRegionWin,
+        prop_panel,
+        true);
+    if (result) {
       return result;
     }
   }
@@ -1606,13 +1606,9 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
       /* check each until one works... */
 
       for (int i = 0; (i < opnames_len) && (opnames[i]); i++) {
-        if (const std::optional<std::string> str = WM_key_event_operator_string(
-                C,
-                opnames[i],
-                blender::wm::OperatorCallContext::InvokeRegionWin,
-                prop_path,
-                false))
-        {
+        const std::optional<std::string> str = WM_key_event_operator_string(
+            C, opnames[i], blender::wm::OperatorCallContext::InvokeRegionWin, prop_path, false);
+        if (str) {
           return str;
         }
       }
