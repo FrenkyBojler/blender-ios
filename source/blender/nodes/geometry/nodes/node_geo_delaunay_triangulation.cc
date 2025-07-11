@@ -296,12 +296,12 @@ static Vector<meshintersect::CDT_input<double>> construct_cdt_inputs(
         continue;
       }
       point_counts.append(geometry_input.point_masks[group_index].size());
-      if (!geometry_input.edge_masks[group_index].is_empty()) {
+      if (!geometry_input.edge_masks.is_empty()) {
         edge_counts.append(geometry_input.edge_masks[group_index].size());
         geometries_with_edges.append(geometry_inputs_for_group.size());
         geometries_with_edges_or_faces.append(geometry_inputs_for_group.size());
       }
-      if (!geometry_input.face_masks[group_index].is_empty()) {
+      if (!geometry_input.face_masks.is_empty()) {
         face_counts.append(geometry_input.face_masks[group_index].size());
         geometries_with_faces.append(geometry_inputs_for_group.size());
         geometries_with_edges_or_faces.append(geometry_inputs_for_group.size());
