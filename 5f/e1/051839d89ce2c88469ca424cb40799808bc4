@@ -1,2 +1,3 @@
 Referenced by issue #137493, "Active Spline" panel missing for Surface objects
 Referenced by commit 4794cbe0bfda049777aeb75e0863989c8abbd294, Fix #137493: UI: Show "Active Spline" panel for surface types
+Referenced by issue #141669, Subdividing nurbs objects a odd number of times results in them disappearing
