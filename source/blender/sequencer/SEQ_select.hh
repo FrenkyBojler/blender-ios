@@ -10,7 +10,6 @@
 
 struct Scene;
 struct Strip;
-struct bContext;
 
 namespace blender::seq {
 
