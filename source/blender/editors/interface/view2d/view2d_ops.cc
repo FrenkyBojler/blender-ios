@@ -52,7 +52,7 @@ static bool view2d_poll(bContext *C)
 static float view2d_scroll_delta_y_snap_page_size(const View2D &v2d, const float delta_y)
 {
   const float page_size = view2d_page_size_y(v2d);
-  const int delta_pages = int((delta_y - page_size * 0.5f) / page_size);
+  const int delta_pages = int(delta_y / (page_size * 0.5f));
 
   /* Apply no change, don't update last coordinates. */
   if (abs(delta_pages) < 1) {
@@ -1531,7 +1531,7 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
   const bool has_zoom = (pan_vec[2] != 0.0f) && view_zoom_poll(C);
 
   if (has_translate) {
-    mul_v2_fl(pan_vec, ndof.dt * pan_speed);
+    mul_v2_fl(pan_vec, ndof.time_delta * pan_speed);
 
     view_pan_init(C, op);
 
@@ -1542,7 +1542,7 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
   }
 
   if (has_zoom) {
-    float zoom_factor = zoom_sensitivity * ndof.dt * -pan_vec[2];
+    float zoom_factor = zoom_sensitivity * ndof.time_delta * -pan_vec[2];
 
     bool do_zoom_xy[2];
     view_zoom_axis_lock_defaults(C, do_zoom_xy);

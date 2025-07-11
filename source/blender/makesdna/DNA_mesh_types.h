@@ -180,12 +180,12 @@ typedef struct Mesh {
 
   /**
    * The UV map currently selected in the list and edited by a user.
-   * Currently only used for file forward compatibility (see #AttributeStorage).
+   * Currently only used for file reading/writing (see #AttributeStorage).
    */
   char *active_uv_map_attribute;
   /**
    * The UV map used by default (i.e. for rendering) if no name is given explicitly.
-   * Currently only used for file forward compatibility (see #AttributeStorage).
+   * Currently only used for file reading/writing (see #AttributeStorage).
    */
   char *default_uv_map_attribute;
 
@@ -241,7 +241,8 @@ typedef struct Mesh {
   /* Deprecated size of #fdata. */
   int totface_legacy;
 
-  char _pad1[4];
+  char _pad1;
+  int8_t radial_symmetry[3];
 
   /**
    * Data that isn't saved in files, including caches of derived data, temporary data to improve
@@ -553,10 +554,10 @@ enum {
 };
 
 /** #SubsurfModifierData.subdivType */
-enum {
+typedef enum MeshSubdivType {
   ME_CC_SUBSURF = 0,
   ME_SIMPLE_SUBSURF = 1,
-};
+} MeshSubdivType;
 
 /** #Mesh.symmetry */
 typedef enum eMeshSymmetryType {

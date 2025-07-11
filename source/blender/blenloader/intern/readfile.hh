@@ -144,9 +144,9 @@ struct FileData {
 
   std::optional<blender::Map<blender::StringRefNull, BHead *>> bhead_idname_map;
 
-  ListBase *mainlist = nullptr;
+  Main *bmain = nullptr;
   /** Used for undo. */
-  ListBase *old_mainlist = nullptr;
+  Main *old_bmain = nullptr;
   /**
    * IDMap using UID's as keys of all the old IDs in the old bmain. Used during undo to find a
    * matching old data when reading a new ID. */
@@ -169,8 +169,8 @@ struct FileData {
 };
 
 /***/
-void blo_join_main(ListBase *mainlist);
-void blo_split_main(ListBase *mainlist, Main *main);
+void blo_join_main(Main *bmain);
+void blo_split_main(Main *bmain);
 
 BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath) ATTR_NONNULL(1, 2);
 
@@ -263,6 +263,7 @@ void blo_do_versions_420(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_430(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_440(FileData *fd, Library *lib, Main *bmain);
 void blo_do_versions_450(FileData *fd, Library *lib, Main *bmain);
+void blo_do_versions_500(FileData *fd, Library *lib, Main *bmain);
 
 void do_versions_after_linking_250(Main *bmain);
 void do_versions_after_linking_260(Main *bmain);
@@ -276,6 +277,7 @@ void do_versions_after_linking_420(FileData *fd, Main *bmain);
 void do_versions_after_linking_430(FileData *fd, Main *bmain);
 void do_versions_after_linking_440(FileData *fd, Main *bmain);
 void do_versions_after_linking_450(FileData *fd, Main *bmain);
+void do_versions_after_linking_500(FileData *fd, Main *bmain);
 
 void do_versions_after_setup(Main *new_bmain,
                              BlendfileLinkAppendContext *lapp_context,

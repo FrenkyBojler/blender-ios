@@ -94,7 +94,9 @@ static bool use_normals_simplify(const Scene &scene, const MeshRenderData &mr)
   if (!meta_data) {
     return false;
   }
-  if (meta_data->domain == bke::AttrDomain::Corner && meta_data->data_type == CD_PROP_INT16_2D) {
+  if (meta_data->domain == bke::AttrDomain::Corner &&
+      meta_data->data_type == bke::AttrType::Int16_2D)
+  {
     return true;
   }
   return false;
@@ -302,6 +304,9 @@ void mesh_buffer_cache_create_requested(TaskGraph & /*task_graph*/,
       case VBOType::VertexNormal:
         created_vbos[i] = extract_vert_normals(mr);
         break;
+      case VBOType::PaintOverlayFlag:
+        created_vbos[i] = extract_paint_overlay_flags(mr);
+        break;
     }
   });
 
@@ -431,11 +436,19 @@ void mesh_buffer_cache_create_requested_subdiv(MeshBatchCache &cache,
         face_dot_position_vbo,
         vbos_to_create.contains(VBOType::FaceDotNormal) ? &face_dot_normal_vbo : nullptr,
         face_dot_ibo);
-    buffers.vbos.add_new(VBOType::FaceDotPosition, std::move(face_dot_position_vbo));
+    if (vbos_to_create.contains(VBOType::FaceDotPosition)) {
+      buffers.vbos.add_new(VBOType::FaceDotPosition, std::move(face_dot_position_vbo));
+    }
     if (face_dot_normal_vbo) {
       buffers.vbos.add_new(VBOType::FaceDotNormal, std::move(face_dot_normal_vbo));
     }
-    buffers.ibos.add_new(IBOType::FaceDots, std::move(face_dot_ibo));
+    if (ibos_to_create.contains(IBOType::FaceDots)) {
+      buffers.ibos.add_new(IBOType::FaceDots, std::move(face_dot_ibo));
+    }
+  }
+  if (vbos_to_create.contains(VBOType::PaintOverlayFlag)) {
+    buffers.vbos.add_new(VBOType::PaintOverlayFlag,
+                         extract_paint_overlay_flags_subdiv(mr, subdiv_cache));
   }
   if (ibos_to_create.contains(IBOType::LinesPaintMask)) {
     buffers.ibos.add_new(IBOType::LinesPaintMask,

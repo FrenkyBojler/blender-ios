@@ -36,6 +36,7 @@
 #include "BKE_anim_data.hh"
 #include "BKE_animsys.h"
 #include "BKE_attribute.hh"
+#include "BKE_attribute_legacy_convert.hh"
 #include "BKE_context.hh"
 #include "BKE_curves_utils.hh"
 #include "BKE_customdata.hh"
@@ -75,6 +76,7 @@
 #include "GEO_subdivide_curves.hh"
 
 #include "UI_interface_c.hh"
+#include "UI_interface_layout.hh"
 
 #include "UI_resources.hh"
 #include <limits>
@@ -369,8 +371,8 @@ static void grease_pencil_simplify_ui(bContext *C, wmOperator *op)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->prop(&ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -2691,7 +2693,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
   /* Make sure everything on the clipboard is selected, in the correct selection domain. */
   threading::parallel_for_each(clipboard.layers, [&](Clipboard::ClipboardLayer &layer) {
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-        layer.curves, selection_domain, CD_PROP_BOOL);
+        layer.curves, selection_domain, bke::AttrType::Bool);
     selection.finish();
   });
 
@@ -2711,7 +2713,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
     const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
       bke::GSpanAttributeWriter selection_in_target = ed::curves::ensure_selection_attribute(
-          info.drawing.strokes_for_write(), selection_domain, CD_PROP_BOOL);
+          info.drawing.strokes_for_write(), selection_domain, bke::AttrType::Bool);
       ed::curves::fill_selection_false(selection_in_target.span);
       selection_in_target.finish();
     });
@@ -2771,7 +2773,7 @@ static wmOperatorStatus grease_pencil_paste_strokes_exec(bContext *C, wmOperator
     const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(scene, grease_pencil);
     threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
       bke::GSpanAttributeWriter selection_in_target = ed::curves::ensure_selection_attribute(
-          info.drawing.strokes_for_write(), selection_domain, CD_PROP_BOOL);
+          info.drawing.strokes_for_write(), selection_domain, bke::AttrType::Bool);
       ed::curves::fill_selection_false(selection_in_target.span);
       selection_in_target.finish();
     });
@@ -3054,7 +3056,7 @@ static bke::CurvesGeometry extrude_grease_pencil_curves(const bke::CurvesGeometr
        ed::curves::get_curves_selection_attribute_names(src))
   {
     bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-        dst, bke::AttrDomain::Point, CD_PROP_BOOL, selection_attribute_name);
+        dst, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
     selection.span.copy_from(dst_selected.as_span());
     selection.finish();
   }
@@ -3302,8 +3304,8 @@ static void grease_pencil_reproject_ui(bContext * /*C*/, wmOperator *op)
 
   const ReprojectMode type = ReprojectMode(RNA_enum_get(op->ptr, "type"));
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   row = &layout->row(true);
   row->prop(op->ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -4427,9 +4429,9 @@ static void GREASE_PENCIL_OT_outline(wmOperatorType *ot)
 /** \name Convert Curve Type Operator
  * \{ */
 
-static const bke::CurvesGeometry fit_poly_curves(bke::CurvesGeometry &curves,
-                                                 const IndexMask &selection,
-                                                 const float threshold)
+static bke::CurvesGeometry fit_poly_curves(bke::CurvesGeometry &curves,
+                                           const IndexMask &selection,
+                                           const float threshold)
 {
   const VArray<float> thresholds = VArray<float>::ForSingle(threshold, curves.curves_num());
   /* TODO: Detect or manually provide corners. */
@@ -4587,8 +4589,8 @@ static void grease_pencil_convert_curve_type_ui(bContext *C, wmOperator *op)
 
   PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->prop(&ptr, "type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -4797,6 +4799,43 @@ static void remap_vertex_groups(bke::greasepencil::Drawing &drawing,
    * Only the names of the groups change. */
 }
 
+static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &a,
+                                              const bke::AttributeAccessor &b,
+                                              const int dst_size)
+{
+  Map<std::string, bke::AttrType> new_types;
+  const auto add_or_upgrade_types = [&](const bke::AttributeAccessor &attributes) {
+    attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+      new_types.add_or_modify(
+          iter.name,
+          [&](bke::AttrType *value) { *value = iter.data_type; },
+          [&](bke::AttrType *value) {
+            *value = bke::attribute_data_type_highest_complexity({*value, iter.data_type});
+          });
+    });
+  };
+  add_or_upgrade_types(a);
+  add_or_upgrade_types(b);
+  const int64_t domain_size_a = a.domain_size(bke::AttrDomain::Layer);
+
+  bke::AttributeStorage new_storage;
+  for (const auto &[name, type] : new_types.items()) {
+    const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
+    auto new_data = bke::Attribute::ArrayData::ForUninitialized(cpp_type, dst_size);
+
+    const GVArray data_a = *a.lookup_or_default(name, bke::AttrDomain::Layer, type);
+    data_a.materialize_to_uninitialized(new_data.data);
+
+    const GVArray data_b = *b.lookup_or_default(name, bke::AttrDomain::Layer, type);
+    data_b.materialize_to_uninitialized(
+        POINTER_OFFSET(new_data.data, cpp_type.size * domain_size_a));
+
+    new_storage.add(name, bke::AttrDomain::Layer, type, std::move(new_data));
+  }
+
+  return new_storage;
+}
+
 static void join_object_with_active(Main &bmain,
                                     Object &ob_src,
                                     Object &ob_dst,
@@ -4848,17 +4887,9 @@ static void join_object_with_active(Main &bmain,
                            grease_pencil_src.root_group(),
                            layer_name_map);
 
-  /* Copy custom attributes for new layers. */
-  CustomData_merge_layout(&grease_pencil_src.layers_data,
-                          &grease_pencil_dst.layers_data,
-                          CD_MASK_ALL,
-                          CD_SET_DEFAULT,
-                          grease_pencil_dst.layers().size());
-  CustomData_copy_data(&grease_pencil_src.layers_data,
-                       &grease_pencil_dst.layers_data,
-                       0,
-                       orig_layers_num,
-                       grease_pencil_src.layers().size());
+  grease_pencil_dst.attribute_storage.wrap() = merge_attributes(grease_pencil_src.attributes(),
+                                                                grease_pencil_dst.attributes(),
+                                                                grease_pencil_dst.layers().size());
 
   /* Fix names, indices and transforms to keep relationships valid. */
   for (const int layer_index : grease_pencil_dst.layers().index_range()) {

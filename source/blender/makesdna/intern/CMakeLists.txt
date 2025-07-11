@@ -53,7 +53,6 @@ set(BLENLIB_SRC
   ../../blenlib/intern/BLI_linklist.cc
   ../../blenlib/intern/BLI_memarena.cc
   ../../blenlib/intern/BLI_mempool.cc
-  ../../blenlib/intern/endian_switch.cc
   ../../blenlib/intern/listbase.cc
   ../../blenlib/intern/string.cc
 
@@ -105,7 +104,7 @@ add_custom_command(
     ${CMAKE_CURRENT_BINARY_DIR}/dna_type_offsets.h
     ${CMAKE_CURRENT_BINARY_DIR}/dna_verify.cc
     ${CMAKE_CURRENT_BINARY_DIR}/dna_struct_ids.cc
-    COMMAND
+  COMMAND
     ${CMAKE_COMMAND} -E env ${PLATFORM_ENV_BUILD}
     "$<TARGET_FILE:makesdna>"
     ${CMAKE_CURRENT_BINARY_DIR}/dna.cc

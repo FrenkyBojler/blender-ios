@@ -397,7 +397,7 @@ class ExportFBX(bpy.types.Operator, ExportHelper):
                ('SMOOTH_GROUP', "Smoothing Groups", "Write face smoothing groups"),
                ),
         description="Export smoothing information "
-        "(prefer 'Normals Only' option if your target importer understand split normals)",
+        "(prefer 'Normals Only' option if your target importer understands custom normals)",
         default='OFF',
     )
     colors_type: EnumProperty(
@@ -690,20 +690,8 @@ def export_panel_animation(layout, operator):
         body.prop(operator, "bake_anim_simplify_factor")
 
 
-class IO_FH_fbx(bpy.types.FileHandler):
-    bl_idname = "IO_FH_fbx"
-    bl_label = "FBX"
-    bl_import_operator = "import_scene.fbx"
-    bl_export_operator = "export_scene.fbx"
-    bl_file_extensions = ".fbx"
-
-    @classmethod
-    def poll_drop(cls, context):
-        return poll_file_object_drop(context)
-
-
 def menu_func_import(self, context):
-    self.layout.operator(ImportFBX.bl_idname, text="FBX (.fbx)")
+    self.layout.operator(ImportFBX.bl_idname, text="FBX (.fbx) (Legacy)")
 
 
 def menu_func_export(self, context):
@@ -712,8 +700,7 @@ def menu_func_export(self, context):
 
 classes = (
     ImportFBX,
-    ExportFBX,
-    IO_FH_fbx,
+    ExportFBX
 )
 
 

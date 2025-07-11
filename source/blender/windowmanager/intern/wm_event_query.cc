@@ -133,7 +133,7 @@ void WM_event_print(const wmEvent *event)
 
 #ifdef WITH_INPUT_NDOF
     if (ISNDOF(event->type)) {
-      const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+      const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
       if (event->type == NDOF_MOTION) {
         const char *ndof_progress = unknown;
 
@@ -142,7 +142,7 @@ void WM_event_print(const wmEvent *event)
       ndof_progress = STRINGIFY(id); \
       break; \
     }
-        switch (ndof->progress) {
+        switch (ndof.progress) {
           CASE_NDOF_PROGRESS(NOT_STARTED);
           CASE_NDOF_PROGRESS(STARTING);
           CASE_NDOF_PROGRESS(IN_PROGRESS);
@@ -151,11 +151,16 @@ void WM_event_print(const wmEvent *event)
         }
 #  undef CASE_NDOF_PROGRESS
 
-        printf(", ndof: rot: (%.4f %.4f %.4f), tx: (%.4f %.4f %.4f), dt: %.4f, progress: %s",
-               UNPACK3(ndof->rvec),
-               UNPACK3(ndof->tvec),
-               ndof->dt,
-               ndof_progress);
+        printf(
+            ", ndof: "
+            "rot: (%.4f %.4f %.4f), "
+            "tx: (%.4f %.4f %.4f), "
+            "time_delta: %.4f, "
+            "progress: %s",
+            UNPACK3(ndof.rvec),
+            UNPACK3(ndof.tvec),
+            ndof.time_delta,
+            ndof_progress);
       }
       else {
         /* NDOF buttons printed already. */

@@ -45,7 +45,6 @@
 
 #include "ED_sculpt.hh"
 
-#include "brushes/brushes.hh"
 #include "mesh_brush_common.hh"
 #include "sculpt_automask.hh"
 #include "sculpt_face_set.hh"
@@ -62,12 +61,9 @@
 #include "GPU_matrix.hh"
 #include "GPU_state.hh"
 
-#include "UI_interface.hh"
-
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 
 namespace blender::ed::sculpt_paint::cloth {
@@ -2399,7 +2395,7 @@ static wmOperatorStatus sculpt_cloth_filter_invoke(bContext *C,
   const Scene &scene = *CTX_data_scene(C);
   Object &ob = *CTX_data_active_object(C);
   Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);
-  const Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
+  Sculpt &sd = *CTX_data_tool_settings(C)->sculpt;
   SculptSession &ss = *ob.sculpt;
 
   const View3D *v3d = CTX_wm_view3d(C);

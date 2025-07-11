@@ -256,7 +256,14 @@ static void wm_software_cursor_draw_bitmap(const int event_xy[2],
 
   /* The DPI as a scale without the UI scale preference. */
   const float system_scale = UI_SCALE_FAC / U.ui_scale;
-  const int scale = std::max(1, round_fl_to_int(system_scale));
+  /* With RGBA cursors, the cursor will have been generated at the correct size,
+   * there is no need to perform additional scaling.
+   *
+   * NOTE: *technically* if a window spans two output of different scales,
+   * we should scale to the output. This use case is currently not accounted for. */
+  const int scale = (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA) ?
+                        1 :
+                        std::max(1, round_fl_to_int(system_scale));
 
   unit_m4(gl_matrix);
 
@@ -269,9 +276,10 @@ static void wm_software_cursor_draw_bitmap(const int event_xy[2],
   GPU_matrix_mul(gl_matrix);
 
   GPUVertFormat *imm_format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(imm_format, "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      imm_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   uint texCoord = GPU_vertformat_attr_add(
-      imm_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      imm_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* Use 3D image for correct display of planar tracked images. */
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE);
@@ -315,7 +323,8 @@ static void wm_software_cursor_draw_crosshair(const int event_xy[2])
   const float cursor_scale = float(WM_cursor_preferred_logical_size()) /
                              float(WM_CURSOR_DEFAULT_LOGICAL_SIZE);
   const float unit = max_ff(system_scale * cursor_scale, 1.0f);
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
   immUniformColor4f(1, 1, 1, 1);
@@ -638,7 +647,8 @@ void WM_draw_cb_exit(wmWindow *win, void *handle)
 
 static void wm_draw_callbacks(wmWindow *win)
 {
-  LISTBASE_FOREACH (WindowDrawCB *, wdc, &win->drawcalls) {
+  /* Allow callbacks to remove themselves. */
+  LISTBASE_FOREACH_MUTABLE (WindowDrawCB *, wdc, &win->drawcalls) {
     wdc->draw(win, wdc->customdata);
   }
 }
@@ -1190,9 +1200,6 @@ static void wm_draw_window(bContext *C, wmWindow *win)
 
   bScreen *screen = WM_window_get_active_screen(win);
   bool stereo = WM_stereo3d_enabled(win, false);
-
-  /* Avoid any BGL call issued before this to alter the window drawing. */
-  GPU_bgl_end();
 
   /* Draw area regions into their own frame-buffer. This way we can redraw
    * the areas that need it, and blit the rest from existing frame-buffers. */
