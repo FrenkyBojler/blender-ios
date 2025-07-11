@@ -596,8 +596,10 @@ static void wm_cursor_time_small(wmWindow *win, int nr)
 
 static void wm_cursor_text(wmWindow *win, const std::string &text, int font_id)
 {
+  /* A bit smaller than full cursor size since this is wider. */
   float size = cursor_size() * 0.8f;
   BLF_size(font_id, size);
+
   float width;
   float height;
   BLF_width_and_height(font_id, text.c_str(), text.size(), &width, &height);
@@ -611,11 +613,13 @@ static void wm_cursor_text(wmWindow *win, const std::string &text, int font_id)
   width += padding * 2.0f;
   height += padding * 2.0f;
 
-  blender::Array<uint> bitmap(width * height, 0xA0000000);
+  const int bitmap_width = int(std::ceil(width));
+  const int bitmap_height = int(std::ceil(height));
+  blender::Array<uint> bitmap(bitmap_width * bitmap_height, 0xA0000000);
 
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   BLF_buffer_col(font_id, color);
-  BLF_buffer(font_id, nullptr, (uchar *)bitmap.data(), width, height, nullptr);
+  BLF_buffer(font_id, nullptr, (uchar *)bitmap.data(), bitmap_width, bitmap_height, nullptr);
   BLF_position(font_id, padding, padding, 0.0f);
   BLF_draw_buffer(font_id, text.c_str(), text.size());
 
@@ -623,8 +627,8 @@ static void wm_cursor_text(wmWindow *win, const std::string &text, int font_id)
   {
     size_t x_size, y_size;
     uint *top, *bottom, *line;
-    x_size = width;
-    y_size = height;
+    x_size = bitmap_width;
+    y_size = bitmap_height;
     const size_t stride = x_size * sizeof(int);
 
     top = (uint *)bitmap.data();
@@ -645,10 +649,10 @@ static void wm_cursor_text(wmWindow *win, const std::string &text, int font_id)
   }
 
   const int hot_spot[2] = {
-      int(0.5f * (width - 1)),
-      int(0.5f * (height - 1)),
+      int(0.5f * (bitmap_width - 1)),
+      int(0.5f * (bitmap_height - 1)),
   };
-  const int icon_size[2] = {width, height};
+  const int icon_size[2] = {bitmap_width, bitmap_height};
   GHOST_TSuccess success = GHOST_SetCustomCursorShape(
       static_cast<GHOST_WindowHandle>(win->ghostwin),
       (uchar *)bitmap.data(),
