@@ -586,8 +586,7 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
   }
 
   const bool cyclic_changed = modified.cyclic != current.cyclic;
-  const bool nurbs_knot_mode_changed = modified.nurbs_knot_mode != current.nurbs_knot_mode &&
-                                       modified.nurbs_knot_mode != NURBS_KNOT_MODE_CUSTOM;
+  const bool nurbs_knot_mode_changed = modified.nurbs_knot_mode != current.nurbs_knot_mode;
   const bool order_changed = modified.order != current.order;
   const bool resolution_changed = modified.resolution != current.resolution;
   if (!(cyclic_changed || nurbs_knot_mode_changed || order_changed || resolution_changed)) {
@@ -601,6 +600,25 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
   }
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
+
+  const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+  /* Ensure `src_knot_offsets` will not get deleted. */
+  const SharedCache<Vector<int>> custom_knot_offsets_cache =
+      curves.runtime->custom_knot_offsets_cache;
+  const Span<float> src_custom_knots = curves.nurbs_custom_knots();
+  const ImplicitSharingInfo *knots_sharing_info = curves.runtime->custom_knots_sharing_info;
+  if (knots_sharing_info != nullptr) {
+    knots_sharing_info->add_weak_user();
+  }
+
+  Array<int8_t> src_knot_modes(0);
+  if (nurbs_knot_mode_changed &&
+      (!src_custom_knots.is_empty() || modified.nurbs_knot_mode == NURBS_KNOT_MODE_CUSTOM))
+  {
+    src_knot_modes.reinitialize(curves.curves_num());
+    curves.nurbs_knots_modes().materialize(src_knot_modes);
+  }
+
   const VArray<int8_t> curve_types = curves.curve_types();
   const MutableSpan<bool> cyclic = cyclic_changed ? curves.cyclic_for_write() :
                                                     MutableSpan<bool>();
@@ -646,6 +664,37 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
     }
   });
 
+  if (nurbs_knot_mode_changed) {
+    curves.nurbs_custom_knots_update_size();
+    const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
+    if (!custom_knot_curves.is_empty()) {
+      const OffsetIndices<int> custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
+      const VArray<int8_t> orders = curves.nurbs_orders();
+      const VArray<bool> cyclic = curves.cyclic();
+      MutableSpan<float> custom_knots = curves.nurbs_custom_knots_for_write();
+
+      custom_knot_curves.foreach_index(GrainSize(512), [&](const int curve) {
+        const IndexRange dst_knots = custom_knots_by_curve[curve];
+        const IndexRange src_knots = src_custom_knots_by_curve[curve];
+        if (src_knots.is_empty()) {
+          const int points_num = points_by_curve[curve].size();
+          const int order = orders[curve];
+          const bool is_cyclic = cyclic[curve];
+          Array<float> knots_buffer(bke::curves::nurbs::knots_num(points_num, order, is_cyclic));
+          bke::curves::nurbs::calculate_knots(
+              points_num, KnotsMode(src_knot_modes[curve]), order, is_cyclic, knots_buffer);
+          custom_knots.slice(dst_knots).copy_from(
+              knots_buffer.as_span().take_front(dst_knots.size()));
+        }
+        else {
+          custom_knots.slice(dst_knots).copy_from(src_custom_knots.slice(src_knots));
+        }
+      });
+    }
+  }
+  if (knots_sharing_info != nullptr) {
+    knots_sharing_info->remove_weak_user_and_delete_if_last();
+  }
   return true;
 }
 
@@ -2327,12 +2376,12 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
   cyclic_prop.active_set(status.cyclic == 0 || status.cyclic == status.total);
 
   if (status.total_nurbs == status.total) {
-    uiLayout &knot_mode_prop = cyclic_prop.column(true);
+    uiLayout &knot_mode_prop = bcol.column(true);
     knot_mode_prop.prop(&data_ptr, "nurbs_knot_mode", UI_ITEM_NONE, "Knot Mode", ICON_NONE);
     knot_mode_prop.active_set(status.nurbs_knot_mode_max * status.total_nurbs ==
                               status.nurbs_knot_mode_sum);
 
-    uiLayout &resolution_prop = cyclic_prop.column(true);
+    uiLayout &resolution_prop = bcol.column(true);
     resolution_prop.prop(&data_ptr, "order", UI_ITEM_NONE, "Order", ICON_NONE);
     resolution_prop.active_set(status.order_max * status.total_nurbs == status.order_sum);
   }
