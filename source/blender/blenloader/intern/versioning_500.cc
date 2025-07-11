@@ -41,6 +41,8 @@
 #include "BKE_node_runtime.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
 
@@ -1278,6 +1280,21 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
           blender::bke::curves_convert_customdata_to_storage(drawing->geometry.wrap());
         }
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 34)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      Editing *ed = seq::editing_get(scene);
+
+      if (ed != nullptr) {
+        seq::for_each_callback(&scene->ed->seqbase, [](Strip *strip) -> bool {
+          LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+            seq::modifier_generate_uid(*strip, *smd);
+          }
+          return true;
+        });
       }
     }
   }

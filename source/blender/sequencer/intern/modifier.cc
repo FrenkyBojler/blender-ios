@@ -11,9 +11,11 @@
 #include <cstring>
 
 #include "BLI_array.hh"
+#include "BLI_hash.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
+#include "BLI_rand.hh"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
 #include "BLI_task.hh"
@@ -42,6 +44,33 @@
 namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
+
+static bool strip_had_modifier_uid(const Strip &strip, int uid)
+{
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip.modifiers) {
+    if (smd->persistent_uid == uid) {
+      return true;
+    }
+  }
+  return false;
+}
+
+void modifier_generate_uid(const Strip &strip, StripModifierData &smd)
+{
+  uint64_t hash = blender::get_default_hash(blender::StringRef(smd.name));
+  blender::RandomNumberGenerator rng{uint32_t(hash)};
+  while (true) {
+    const int new_uid = rng.get_int32();
+    if (new_uid <= 0) {
+      continue;
+    }
+    if (strip_had_modifier_uid(strip, new_uid)) {
+      continue;
+    }
+    smd.persistent_uid = new_uid;
+    break;
+  }
+}
 
 static float4 load_pixel_premul(const uchar *ptr)
 {
@@ -1203,6 +1232,7 @@ StripModifierData *modifier_new(Strip *strip, const char *name, int type)
   const StripModifierTypeInfo *smti = modifier_type_info_get(type);
 
   smd = static_cast<StripModifierData *>(MEM_callocN(smti->struct_size, "sequence modifier"));
+  modifier_generate_uid(*strip, *smd);
 
   smd->type = type;
   smd->flag |= SEQUENCE_MODIFIER_EXPANDED;

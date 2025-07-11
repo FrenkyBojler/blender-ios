@@ -536,6 +536,9 @@ typedef struct StripModifierData {
   struct Strip *mask_strip;
   struct Mask *mask_id;
 
+  int persistent_uid;
+  char _pad[4];
+
   StripModifierDataRuntime runtime;
 } StripModifierData;
 
