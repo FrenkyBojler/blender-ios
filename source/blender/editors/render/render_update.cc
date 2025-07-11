@@ -43,6 +43,7 @@
 #include "RE_engine.h"
 #include "RE_pipeline.h"
 
+#include "SEQ_animation.hh"
 #include "SEQ_prefetch.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
@@ -333,7 +334,7 @@ static void update_sequencer(const DEGEditorUpdateContext *update_ctx, Main *bma
   /* Invalidate VSE cache in `changed_scene`, because strip animation may have been updated. */
   if (GS(id->name) == ID_AC) {
     Editing *ed = blender::seq::editing_get(changed_scene);
-    if (ed != nullptr && changed_scene->adt != nullptr && changed_scene->adt->action != nullptr &&
+    if (ed != nullptr && blender::seq::animation_keyframes_exist(changed_scene) &&
         &changed_scene->adt->action->id == id)
     {
       blender::seq::prefetch_stop(changed_scene);
