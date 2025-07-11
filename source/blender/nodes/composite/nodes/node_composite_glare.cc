@@ -25,6 +25,7 @@
 #include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_noise.hh"
 #include "BLI_task.hh"
 
 #include "DNA_scene_types.h"
@@ -170,6 +171,17 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
+  PanelDeclarationBuilder &supress_glare_panel =
+      glare_panel.add_panel("Optimization").default_closed(true);
+  supress_glare_panel.add_input<decl::Bool>("Optimize", "Optimize Glare")
+      .default_value(false)
+      .panel_toggle()
+      .description("Utalizing Monte Carlo Simulation For Optimization");
+  supress_glare_panel.add_input<decl::Int>("Maximum", "Maximum Simulation Steps")
+      .default_value(1000)
+      .min(0)
+      .description(
+          "Number of steps used to approximate the integration using monte carlo simulation");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -2253,6 +2265,8 @@ class GlareOperation : public NodeOperation {
 
     GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
     GPU_shader_uniform_1i(shader, "max_steps", max_steps);
+    GPU_shader_uniform_1i(shader, "max_simulation_steps", get_maximum_simulation_steps());
+    GPU_shader_uniform_1b(shader, "optimization_flag", get_optimization_glare());
 
     GPU_texture_filter_mode(highlights, true);
     GPU_texture_extend_mode(highlights, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
@@ -2297,8 +2311,13 @@ class GlareOperation : public NodeOperation {
 
       float accumulated_weight = 0.0f;
       float4 accumulated_color = float4(0.0f);
-      for (int i = 0; i <= steps; i++) {
-        float2 position = coordinates + i * step_vector;
+
+      int number_of_steps = get_optimization_glare() == 0.0f ? steps :
+                                                               get_maximum_simulation_steps();
+      int position_variable = 0;
+      for (int i = 0; i <= number_of_steps; i++) {
+        position_variable = get_position_variable(i, get_optimization_glare(), steps);
+        float2 position = coordinates + position_variable * step_vector;
 
         /* We are already past the image boundaries, and any future steps are also past the image
          * boundaries, so break. */
@@ -2310,7 +2329,7 @@ class GlareOperation : public NodeOperation {
 
         /* Attenuate the contributions of pixels that are further away from the source using a
          * quadratic falloff. */
-        float weight = math::square(1.0f - i / float(steps));
+        float weight = math::square(1.0f - position_variable / float(steps));
 
         accumulated_weight += weight;
         accumulated_color += sample_color * weight;
@@ -2320,6 +2339,16 @@ class GlareOperation : public NodeOperation {
       output.store_pixel(texel, accumulated_color);
     });
     return output;
+  }
+
+  static int get_position_variable(const int seed,
+                                   const bool use_optimization,
+                                   const int number_of_steps)
+  {
+    if (use_optimization) {
+      return noise::hash_to_float(seed) * number_of_steps;
+    }
+    return seed;
   }
 
   /* ----------
@@ -2561,6 +2590,16 @@ class GlareOperation : public NodeOperation {
   int get_quality_factor()
   {
     return 1 << node_storage(bnode()).quality;
+  }
+
+  bool get_optimization_glare()
+  {
+    return this->get_input("Optimize Glare").get_single_value_default(false);
+  }
+
+  int get_maximum_simulation_steps()
+  {
+    return this->get_input("Maximum Simulation Steps").get_single_value_default(1000);
   }
 };
 
