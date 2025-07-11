@@ -858,9 +858,7 @@ void ED_node_set_active(
       }
 
       LISTBASE_FOREACH (World *, wo, &bmain->worlds) {
-        if (wo->nodetree && wo->use_nodes &&
-            blender::bke::node_tree_contains_tree(*wo->nodetree, *ntree))
-        {
+        if (wo->nodetree && blender::bke::node_tree_contains_tree(*wo->nodetree, *ntree)) {
           GPU_material_free(&wo->gpumaterial);
         }
       }

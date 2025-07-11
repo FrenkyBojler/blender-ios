@@ -533,7 +533,8 @@ static Scene *preview_prepare_scene(
         else if (sce->world && sp->pr_method != PR_ICON_RENDER) {
           /* Use a default world color. Using the current
            * scene world can be slow if it has big textures. */
-          sce->world->use_nodes = false;
+          // sce->world->use_nodes = false;
+          // todo(habib): create new world with an equivalent tree for this
           /* Use brighter world color for grease pencil. */
           if (sp->pr_main == G_pr_main_grease_pencil) {
             sce->world->horr = 1.0f;
