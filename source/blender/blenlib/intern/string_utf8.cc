@@ -1518,6 +1518,46 @@ static const OrderWeights OrderWeightsTable[] = {
     {0xFB02, 'f', 4, 0},  /* Small Ligature fl. */
 };
 
+struct Ligatures {
+  int codepoint;
+  int replace1;
+  int replace2;
+  int replace3;
+  char lettercase;
+};
+
+static const Ligatures LigaturesTable[] = {
+    {0x00BC, '1', '/', '4', 0}, /* Vulgar fraction one quarter. */
+    {0x00BD, '1', '/', '2', 0}, /* Vulgar fraction one half. */
+    {0x00BE, '3', '/', '4', 0}, /* Vulgar fraction three quarters. */
+    {0x00C6, 'a', 'e', 0, 1},   /* Latin capital letter AE */
+    {0x00DF, 's', 's', 0, 0},   /* Latin small letter sharp S. */
+    {0x00E6, 'a', 'e', 0, 0},   /* Latin small letter AE */
+    {0x0132, 'i', 'j', 0, 1},   /* Latin capital ligature FL. */
+    {0x0133, 'i', 'j', 0, 0},   /* Latin small ligature FL. */
+    {0x0152, 'o', 'e', 0, 1},   /* Latin capital ligature OE. */
+    {0x0153, 'o', 'e', 0, 0},   /* Latin small ligature OE. */
+    {0x01E2, 'a', 'e', 0, 1},   /* Latin capital letter AE with macron. */
+    {0x01E3, 'a', 'e', 0, 0},   /* Latin small letter AE with macron. */
+    {0x01FC, 'a', 'e', 0, 1},   /* Latin capital letter AE with acute. */
+    {0x01FD, 'a', 'e', 0, 0},   /* Latin small letter AE with acute. */
+    {0x04A4, 'н', 'г', 0, 1},   /* Cyrillic capital ligature EN GHE. */
+    {0x04A5, 'н', 'г', 0, 0},   /* Cyrillic small ligature EN GHE. */
+    {0x04B4, 'т', 'ц', 0, 1},   /* Cyrillic capital ligature TE TSE. */
+    {0x04B5, 'т', 'ц', 0, 0},   /* Cyrillic small ligature TE TSE. */
+    {0x04D4, 'а', 'е', 0, 1},   /* Cyrillic capital ligature A IE.  */
+    {0x04D5, 'а', 'е', 0, 0},   /* Cyrillic small ligature A IE.  */
+    {0x2105, 'c', 'o', 0, 0},   /* Care of. */
+    {0x2116, 'n', 'o', 0, 0},   /* Numero sign. */
+    {0x2122, 't', 'm', 0, 0},   /* Trade mark sign. */
+    {0x215B, '1', '/', '8', 0}, /* Vulgar fraction one eighth. */
+    {0x215C, '3', '/', '8', 0}, /* Vulgar fraction three eighths. */
+    {0x215D, '3', '/', '5', 0}, /* Vulgar fraction three fifths. */
+    {0x215E, '7', '/', '8', 0}, /* Vulgar fraction seven eighths. */
+    {0xFB01, 'f', 'i', 0, 0},   /* Latin small ligature FI. */
+    {0xFB02, 'f', 'l', 0, 0},   /* Latin small ligature FL. */
+};
+
 /* NOT TESTED */
 static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool lettercase)
 {
@@ -1548,7 +1588,8 @@ static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool letter
   return weight;
 }
 
-/* NOT TESTED */
+/* We probably can't do normalization by codepoint, but will have to do
+ * so by string. This is because we need to support ligatures. */
 char32_t BLI_str_utf32_normalize(char32_t codepoint)
 {
   char32_t normalized = bli_str_utf32_weight(codepoint, false, false);
