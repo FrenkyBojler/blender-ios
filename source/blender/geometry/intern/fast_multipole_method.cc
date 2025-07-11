@@ -1242,6 +1242,10 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     const bool leaf_joint = depth_i == total_depth - 1;
 
+    const IndexRange joint_buckets_range = akdbh::joint_buckets_range_at_depth(total_depth, depth_i, joint_i);
+    const IndexRange joint_backets = buckets_offsets[joint_buckets_range];
+    const bool totally_inside_of_joint = sampler_to_bucket_range.has_value() && joint_backets.contains(*sampler_to_bucket_range);
+
     const float3 joint_position = src_joints_centre[joint_index];
     const float joint_min_distance = src_joints_min_distance[joint_index];
 
@@ -1252,20 +1256,22 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const MutableSpan<float> batch_positions_z = batch_positions_data[2].take_front(
         prefix_to_visit);
 
-    batch_distances_buffer.reinitialize(prefix_to_visit);
+    if (!totally_inside_of_joint) {
+      batch_distances_buffer.reinitialize(prefix_to_visit);
 
-    fast_math::distance_to_n_squared(batch_positions_x,
-                                     batch_positions_y,
-                                     batch_positions_z,
-                                     joint_position,
-                                     batch_distances_buffer);
+      fast_math::distance_to_n_squared(batch_positions_x,
+                                       batch_positions_y,
+                                       batch_positions_z,
+                                       joint_position,
+                                       batch_distances_buffer);
 
-    if (has_offset) {
-      fast_math::sqrt_n_add_single(batch_distances_buffer.as_mutable_span(), offset_value);
+      if (has_offset) {
+        fast_math::sqrt_n_add_single(batch_distances_buffer.as_mutable_span(), offset_value);
+      }
     }
     const float min_distance_to_joint = has_offset ? joint_min_distance :
                                                      math::square(joint_min_distance);
-    const int total_to_pass_to_childs = fast_math::count_floats_less_than(batch_distances_buffer,
+    const int total_to_pass_to_childs = totally_inside_of_joint ? prefix_to_visit : fast_math::count_floats_less_than(batch_distances_buffer,
                                                                           min_distance_to_joint);
 
     const bool all_pass_to_childs = total_to_pass_to_childs == prefix_to_visit;
