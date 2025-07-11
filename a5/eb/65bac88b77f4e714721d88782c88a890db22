@@ -1,1 +1,2 @@
 Referenced by issue #141733, bmesh.ops documentation API does not show function name correctly
+Referenced by commit d2a48cc12fa7615aa8a3e5ef3c32f8e582a3b0d8, Fix #141733: bmesh.ops API docs not showing function names
