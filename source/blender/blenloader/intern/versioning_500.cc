@@ -1327,7 +1327,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 36 cvz bbbbbbbbbbbbbbbbb aqzzf)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 36)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = seq::editing_get(scene);
 

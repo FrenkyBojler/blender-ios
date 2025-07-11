@@ -49,7 +49,6 @@ class StripBackup {
 
   void *scene_sound;
   ListBase anims;
-  /* Key is an index of the modifier in the stack. */
   Map<int, StripModifierDataBackup> modifiers;
 };
 

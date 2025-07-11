@@ -45,7 +45,7 @@ namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
 
-static bool strip_had_modifier_uid(const Strip &strip, int uid)
+static bool strip_has_modifier_uid(const Strip &strip, int uid)
 {
   LISTBASE_FOREACH (StripModifierData *, smd, &strip.modifiers) {
     if (smd->persistent_uid == uid) {
@@ -64,7 +64,7 @@ void modifier_generate_uid(const Strip &strip, StripModifierData &smd)
     if (new_uid <= 0) {
       continue;
     }
-    if (strip_had_modifier_uid(strip, new_uid)) {
+    if (strip_has_modifier_uid(strip, new_uid)) {
       continue;
     }
     smd.persistent_uid = new_uid;
