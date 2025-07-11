@@ -594,9 +594,8 @@ static void wm_cursor_time_small(wmWindow *win, int nr)
                              false);
 }
 
-static void wm_cursor_text(wmWindow *win, std::string text)
+static void wm_cursor_text(wmWindow *win, const std::string &text, int font_id)
 {
-  int font_id = BLF_default();
   float size = cursor_size() * 0.8f;
   BLF_size(font_id, size);
   float width;
@@ -612,7 +611,7 @@ static void wm_cursor_text(wmWindow *win, std::string text)
   width += padding * 2.0f;
   height += padding * 2.0f;
 
-  blender::Array<uint> bitmap(width * height, 0x90000000);
+  blender::Array<uint> bitmap(width * height, 0xA0000000);
 
   float color[4] = {1.0f, 1.0f, 1.0f, 1.0f};
   BLF_buffer_col(font_id, color);
@@ -668,8 +667,8 @@ void WM_cursor_time(wmWindow *win, int nr)
   }
 
   /* Use `U.ui_scale` instead of `UI_SCALE_FAC` here to ignore HiDPI/Retina scaling. */
-  if (WM_capabilities_flag() & WM_CAPABILITY_RGBA_CURSORS) {
-    wm_cursor_text(win, std::to_string(nr));
+  if (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA) {
+    wm_cursor_text(win, std::to_string(nr), blf_mono_font);
   }
   else if (U.ui_scale < 1.45f || !wm_cursor_time_large(win, nr)) {
     wm_cursor_time_small(win, nr);
