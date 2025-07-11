@@ -1,1 +1,2 @@
 Referenced by issue #141742, GPU shader crash: member access within null pointer of type 'struct Shader'
+Referenced by issue #141776, Box projection does not work with UDIM tiles
