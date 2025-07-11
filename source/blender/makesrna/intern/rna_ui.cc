@@ -28,18 +28,46 @@
 
 /* see WM_types.hh */
 const EnumPropertyItem rna_enum_operator_context_items[] = {
-    {WM_OP_INVOKE_DEFAULT, "INVOKE_DEFAULT", 0, "Invoke Default", ""},
-    {WM_OP_INVOKE_REGION_WIN, "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
-    {WM_OP_INVOKE_REGION_CHANNELS, "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
-    {WM_OP_INVOKE_REGION_PREVIEW, "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
-    {WM_OP_INVOKE_AREA, "INVOKE_AREA", 0, "Invoke Area", ""},
-    {WM_OP_INVOKE_SCREEN, "INVOKE_SCREEN", 0, "Invoke Screen", ""},
-    {WM_OP_EXEC_DEFAULT, "EXEC_DEFAULT", 0, "Exec Default", ""},
-    {WM_OP_EXEC_REGION_WIN, "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
-    {WM_OP_EXEC_REGION_CHANNELS, "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
-    {WM_OP_EXEC_REGION_PREVIEW, "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
-    {WM_OP_EXEC_AREA, "EXEC_AREA", 0, "Exec Area", ""},
-    {WM_OP_EXEC_SCREEN, "EXEC_SCREEN", 0, "Exec Screen", ""},
+    {int(blender::wm::OperatorCallContext::InvokeDefault),
+     "INVOKE_DEFAULT",
+     0,
+     "Invoke Default",
+     ""},
+    {int(blender::wm::OperatorCallContext::InvokeRegionWin),
+     "INVOKE_REGION_WIN",
+     0,
+     "Invoke Region Window",
+     ""},
+    {int(blender::wm::OperatorCallContext::InvokeRegionChannels),
+     "INVOKE_REGION_CHANNELS",
+     0,
+     "Invoke Region Channels",
+     ""},
+    {int(blender::wm::OperatorCallContext::InvokeRegionPreview),
+     "INVOKE_REGION_PREVIEW",
+     0,
+     "Invoke Region Preview",
+     ""},
+    {int(blender::wm::OperatorCallContext::InvokeArea), "INVOKE_AREA", 0, "Invoke Area", ""},
+    {int(blender::wm::OperatorCallContext::InvokeScreen), "INVOKE_SCREEN", 0, "Invoke Screen", ""},
+    {int(blender::wm::OperatorCallContext::ExecDefault), "EXEC_DEFAULT", 0, "Exec Default", ""},
+    {int(blender::wm::OperatorCallContext::ExecRegionWin),
+     "EXEC_REGION_WIN",
+     0,
+     "Exec Region Window",
+     ""},
+    {int(blender::wm::OperatorCallContext::ExecRegionChannels),
+     "EXEC_REGION_CHANNELS",
+     0,
+     "Exec Region Channels",
+     ""},
+    {int(blender::wm::OperatorCallContext::ExecRegionPreview),
+     "EXEC_REGION_PREVIEW",
+     0,
+     "Exec Region Preview",
+     ""},
+    {int(blender::wm::OperatorCallContext::ExecArea), "EXEC_AREA", 0, "Exec Area", ""},
+    {int(blender::wm::OperatorCallContext::ExecScreen), "EXEC_SCREEN", 0, "Exec Screen", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -1404,12 +1432,13 @@ static void rna_UILayout_alert_set(PointerRNA *ptr, bool value)
 
 static void rna_UILayout_op_context_set(PointerRNA *ptr, int value)
 {
-  static_cast<uiLayout *>(ptr->data)->operator_context_set(wmOperatorCallContext(value));
+  static_cast<uiLayout *>(ptr->data)->operator_context_set(
+      blender::wm::OperatorCallContext(value));
 }
 
 static int rna_UILayout_op_context_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->operator_context();
+  return int(static_cast<uiLayout *>(ptr->data)->operator_context());
 }
 
 static bool rna_UILayout_enabled_get(PointerRNA *ptr)

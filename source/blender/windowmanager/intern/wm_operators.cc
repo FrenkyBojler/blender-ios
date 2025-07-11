@@ -1083,7 +1083,9 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op)
   return (op->flag & OP_IS_INVOKE) ? U.smooth_viewtx : 0;
 }
 
-wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opcontext)
+wmOperatorStatus WM_menu_invoke_ex(bContext *C,
+                                   wmOperator *op,
+                                   blender::wm::OperatorCallContext opcontext)
 {
   PropertyRNA *prop = op->type->prop;
 
@@ -1121,7 +1123,7 @@ wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallCo
 
 wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_REGION_WIN);
+  return WM_menu_invoke_ex(C, op, blender::wm::OperatorCallContext::InvokeRegionWin);
 }
 
 struct EnumSearchMenu {
@@ -1193,12 +1195,13 @@ wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEven
   return OPERATOR_INTERFACE;
 }
 
-wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
-                                                wmOperator *op,
-                                                const char *title,
-                                                const int icon,
-                                                const char *message,
-                                                const wmOperatorCallContext /*opcontext*/)
+wmOperatorStatus WM_operator_confirm_message_ex(
+    bContext *C,
+    wmOperator *op,
+    const char *title,
+    const int icon,
+    const char *message,
+    const blender::wm::OperatorCallContext /*opcontext*/)
 {
   int alert_icon = ALERT_ICON_QUESTION;
   switch (icon) {
@@ -4080,7 +4083,7 @@ static wmOperatorStatus doc_view_manual_ui_context_exec(bContext *C, wmOperator 
 
     retval = WM_operator_name_call_ptr(C,
                                        WM_operatortype_find("WM_OT_doc_view_manual", false),
-                                       WM_OP_EXEC_DEFAULT,
+                                       blender::wm::OperatorCallContext::ExecDefault,
                                        &ptr_props,
                                        nullptr);
 

@@ -448,7 +448,11 @@ static void nlaedit_select_leftright(bContext *C,
 
   /* if currently in tweak-mode, exit tweak-mode first */
   if (scene->flag & SCE_NLA_EDIT_ON) {
-    WM_operator_name_call(C, "NLA_OT_tweakmode_exit", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(C,
+                          "NLA_OT_tweakmode_exit",
+                          blender::wm::OperatorCallContext::ExecDefault,
+                          nullptr,
+                          nullptr);
   }
 
   /* if select mode is replace, deselect all keyframes (and tracks) first */
@@ -611,7 +615,11 @@ static wmOperatorStatus mouse_nla_strips(bContext *C,
    * now that we've found our target...
    */
   if (scene->flag & SCE_NLA_EDIT_ON) {
-    WM_operator_name_call(C, "NLA_OT_tweakmode_exit", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(C,
+                          "NLA_OT_tweakmode_exit",
+                          blender::wm::OperatorCallContext::ExecDefault,
+                          nullptr,
+                          nullptr);
   }
 
   if (select_mode != SELECT_REPLACE) {
