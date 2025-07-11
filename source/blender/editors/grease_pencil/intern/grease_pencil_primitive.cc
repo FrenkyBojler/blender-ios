@@ -141,6 +141,7 @@ struct PrimitiveToolOperation {
   bool on_back;
   float softness;
   float fill_opacity;
+  int curve_type;
   float4x2 texture_space;
   float4x4 local_transform;
 
@@ -418,25 +419,132 @@ static void primitive_calulate_curve_positions(PrimitiveToolOperation &ptd,
   }
 }
 
+static void primitive_calulate_bezier_curve_positions(const PrimitiveToolOperation &ptd,
+                                                      const Span<float2> control_points,
+                                                      MutableSpan<float2> positions,
+                                                      MutableSpan<float2> handles_left,
+                                                      MutableSpan<float2> handles_right)
+{
+  if (ptd.segments == 0) {
+    positions.fill(control_points.last());
+    return;
+  }
+
+  handles_left.fill(float2(0.0f, 0.0f));
+  handles_right.fill(float2(0.0f, 0.0f));
+
+  if (ptd.type != PrimitiveType::Circle && ptd.type != PrimitiveType::Box) {
+    handles_left.first() = math::interpolate(control_points[0], control_points[1], -1.0f / 3.0f);
+    handles_right.last() = math::interpolate(
+        control_points.last(), control_points.last(1), -1.0f / 3.0f);
+  }
+
+  switch (ptd.type) {
+    case PrimitiveType::Line:
+    case PrimitiveType::Polyline: {
+      for (const int i : positions.index_range().drop_front(1)) {
+        handles_left[i] = math::interpolate(control_points[i], control_points[i - 1], 1.0f / 3.0f);
+      }
+      for (const int i : positions.index_range().drop_back(1)) {
+        handles_right[i] = math::interpolate(
+            control_points[i], control_points[i + 1], 1.0f / 3.0f);
+      }
+
+      for (const int i : positions.index_range()) {
+        positions[i] = control_points[i];
+      }
+      return;
+    }
+    case PrimitiveType::Arc: {
+      const int num_shared_points = control_points_per_segment(ptd);
+      const int num_segments = ptd.segments;
+
+      for (const int segment_i : IndexRange(num_segments)) {
+        const float2 A = control_points[num_shared_points * segment_i + 0];
+        const float2 B = control_points[num_shared_points * segment_i + 1];
+        const float2 C = control_points[num_shared_points * segment_i + 2];
+
+        handles_right[segment_i] = math::interpolate(B, A, 1.0 / 3.0f);
+        handles_left[segment_i + 1] = math::interpolate(B, C, 1.0 / 3.0f);
+
+        positions[segment_i] = A;
+      }
+      positions.last() = control_points.last();
+      return;
+    }
+    case PrimitiveType::Curve: {
+      const int num_shared_points = control_points_per_segment(ptd);
+      const int num_segments = ptd.segments;
+
+      for (const int segment_i : IndexRange(num_segments)) {
+        const float2 A = control_points[num_shared_points * segment_i + 0];
+        const float2 B = control_points[num_shared_points * segment_i + 1];
+        const float2 C = control_points[num_shared_points * segment_i + 2];
+
+        handles_right[segment_i] = B;
+        handles_left[segment_i + 1] = C;
+
+        positions[segment_i] = A;
+      }
+      positions.last() = control_points.last();
+      return;
+    }
+    case PrimitiveType::Circle: {
+      const float handle_distance = 0.551915f;
+      const float2 center = control_points[control_point_center];
+      const float2 offset = control_points[control_point_first] - center;
+      const float2 directions[4] = {
+          float2(0.0f, 1.0f), float2(1.0f, 0.0f), float2(0.0f, -1.0f), float2(-1.0f, 0.0f)};
+      for (const int i : positions.index_range()) {
+        positions[i] = offset * directions[i] + center;
+        handles_right[i] = positions[i] + directions[(i + 1) % 4] * offset * handle_distance;
+        handles_left[i] = positions[i] - directions[(i + 1) % 4] * offset * handle_distance;
+      }
+      return;
+    }
+    case PrimitiveType::Box: {
+      const float2 center = control_points[control_point_center];
+      const float2 offset = control_points[control_point_first] - center;
+      const float2 corners[4] = {
+          float2(1.0f, 1.0f), float2(-1.0f, 1.0f), float2(-1.0f, -1.0f), float2(1.0f, -1.0f)};
+      for (const int i : positions.index_range()) {
+        const float2 corner = corners[i];
+        const float2 corner_next = corners[(i + 1) % 4];
+        const float2 corner_prev = corners[(i + 3) % 4];
+        positions[i] = corners[i] * offset + center;
+        handles_right[i] = math::interpolate(corner, corner_next, 1.0f / 3.0f) * offset + center;
+        handles_left[i] = math::interpolate(corner, corner_prev, 1.0f / 3.0f) * offset + center;
+      }
+      return;
+    }
+  }
+}
+
 static float2 primitive_local_to_screen(const PrimitiveToolOperation &ptd, const float3 &point)
 {
   return ED_view3d_project_float_v2_m4(
       ptd.vc.region, math::transform_point(ptd.local_transform, point), ptd.projection);
 }
 
-static void primitive_calulate_curve_positions_2d(PrimitiveToolOperation &ptd,
-                                                  MutableSpan<float2> new_positions)
-{
-  Array<float2> control_points_2d(ptd.control_points.size());
-  for (const int i : ptd.control_points.index_range()) {
-    control_points_2d[i] = primitive_local_to_screen(ptd, ptd.control_points[i]);
-  }
-
-  primitive_calulate_curve_positions(ptd, control_points_2d, new_positions);
-}
-
 static int grease_pencil_primitive_curve_points_number(PrimitiveToolOperation &ptd)
 {
+  if (ptd.curve_type == CURVE_TYPE_BEZIER) {
+    switch (ptd.type) {
+      case PrimitiveType::Polyline:
+      case PrimitiveType::Curve:
+      case PrimitiveType::Line:
+      case PrimitiveType::Arc: {
+        return ptd.segments + 1;
+        break;
+      }
+      case PrimitiveType::Circle:
+      case PrimitiveType::Box: {
+        return 4;
+        break;
+      }
+    }
+  }
+
   const int subdivision = ptd.subdivision;
 
   switch (ptd.type) {
@@ -471,10 +579,31 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 
   const IndexRange curve_points = curves.points_by_curve()[target_curve_index];
 
+  Array<float2> control_points_2d(ptd.control_points.size());
+  for (const int i : ptd.control_points.index_range()) {
+    control_points_2d[i] = primitive_local_to_screen(ptd, ptd.control_points[i]);
+  }
+
   MutableSpan<float3> positions_3d = curves.positions_for_write().slice(curve_points);
   Array<float2> positions_2d(new_points_num);
 
-  primitive_calulate_curve_positions_2d(ptd, positions_2d);
+  if (ptd.curve_type == CURVE_TYPE_BEZIER) {
+    MutableSpan<float3> handles_left_3d = curves.handle_positions_left_for_write().slice(
+        curve_points);
+    MutableSpan<float3> handles_right_3d = curves.handle_positions_right_for_write().slice(
+        curve_points);
+    Array<float2> handles_left_2d(new_points_num);
+    Array<float2> handles_right_2d(new_points_num);
+
+    primitive_calulate_bezier_curve_positions(
+        ptd, control_points_2d, positions_2d, handles_left_2d, handles_right_2d);
+
+    ptd.placement.project(handles_left_2d, handles_left_3d);
+    ptd.placement.project(handles_right_2d, handles_right_3d);
+  }
+  else {
+    primitive_calulate_curve_positions(ptd, control_points_2d, positions_2d);
+  }
   ptd.placement.project(positions_2d, positions_3d);
 
   Set<std::string> point_attributes_to_skip;
@@ -553,6 +682,9 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
   if (rotations) {
     point_attributes_to_skip.add("rotation");
     rotations.finish();
+  }
+  if (ptd.curve_type == CURVE_TYPE_BEZIER) {
+    point_attributes_to_skip.add_multiple({"handle_left", "handle_right"});
   }
 
   /* Initialize the rest of the attributes with default values. */
@@ -640,7 +772,7 @@ static void grease_pencil_primitive_init_curves(PrimitiveToolOperation &ptd)
   materials.finish();
   curve_attributes_to_skip.add_multiple({"material_index", "cyclic"});
 
-  curves.curve_types_for_write()[target_curve_index] = CURVE_TYPE_POLY;
+  curves.curve_types_for_write()[target_curve_index] = ptd.curve_type;
   curves.update_curve_types();
   curve_attributes_to_skip.add("curve_type");
 
@@ -774,6 +906,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   }
   ptd.settings = ptd.brush->gpencil_settings;
   ptd.on_back = (vc.scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
+  ptd.curve_type = CURVE_TYPE_BEZIER;
 
   BKE_curvemapping_init(ptd.settings->curve_sensitivity);
   BKE_curvemapping_init(ptd.settings->curve_strength);
