@@ -2147,7 +2147,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *active_strip = seq::select_active_get(scene);
+  Strip *active_strip = seq::select_get_active_from_context(C);
   ListBase *active_seqbase = seq::active_seqbase_get(ed);
 
   blender::VectorSet<Strip *> selected = seq::query_selected_strips(active_seqbase);
@@ -3601,7 +3601,8 @@ static wmOperatorStatus sequencer_scene_frame_range_update_exec(bContext *C, wmO
 static bool sequencer_scene_frame_range_update_poll(bContext *C)
 {
   Editing *ed = seq::editing_get(CTX_data_scene(C));
-  return (ed != nullptr && ed->act_strip != nullptr && ed->act_strip->type == STRIP_TYPE_SCENE);
+  Strip *strip = seq::select_get_active_from_context(C);
+  return (ed != nullptr && strip != nullptr && strip->type == STRIP_TYPE_SCENE);
 }
 
 void SEQUENCER_OT_scene_frame_range_update(wmOperatorType *ot)
