@@ -104,7 +104,7 @@ UvVertMap *BKE_mesh_uv_vert_map_create(const blender::OffsetIndices<int> faces,
       }
 
       if (use_winding) {
-        winding[a] = cross_poly_v2(reinterpret_cast<const float (*)[2]>(face_uvs.data()),
+        winding[a] = cross_poly_v2(reinterpret_cast<const float(*)[2]>(face_uvs.data()),
                                    uint(nverts)) < 0;
       }
     }
