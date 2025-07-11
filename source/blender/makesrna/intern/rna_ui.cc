@@ -2528,6 +2528,30 @@ static void rna_def_layout_panel_state(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Is Open", "");
 }
 
+static void rna_def_curves_data_panel_state(BlenderRNA *brna)
+{
+  StructRNA *srna;
+  PropertyRNA *prop;
+
+  srna = RNA_def_struct(brna, "CurvesDataPanelState", nullptr);
+
+  prop = RNA_def_property(srna, "cyclic", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Selected curves cyclic", "");
+
+  prop = RNA_def_property(srna, "nurbs_knot_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_curve_knot_mode_items);
+
+  prop = RNA_def_property(srna, "order", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 2, 6);
+  RNA_def_property_ui_range(prop, 2, 6, 1, -1);
+  RNA_def_property_ui_text(prop, "Order of selected curves", "");
+
+  prop = RNA_def_property(srna, "resolution", PROP_INT, PROP_NONE);
+  RNA_def_property_range(prop, 1, 64);
+  RNA_def_property_ui_range(prop, 1, 64, 1, -1);
+  RNA_def_property_ui_text(prop, "Resolution of selected curves", "");
+}
+
 void RNA_def_ui(BlenderRNA *brna)
 {
   rna_def_ui_layout(brna);
@@ -2538,6 +2562,7 @@ void RNA_def_ui(BlenderRNA *brna)
   rna_def_asset_shelf(brna);
   rna_def_file_handler(brna);
   rna_def_layout_panel_state(brna);
+  rna_def_curves_data_panel_state(brna);
 }
 
 #endif /* RNA_RUNTIME */

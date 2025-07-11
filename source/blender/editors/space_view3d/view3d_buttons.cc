@@ -110,12 +110,6 @@ union TransformMedian {
   TransformMedian_Curves curves;
 };
 
-struct CurvesData {
-  char cyclic;
-  int order;
-  int resolution;
-};
-
 /* temporary struct for storing transform properties */
 
 struct TransformProperties {
@@ -125,7 +119,7 @@ struct TransformProperties {
   float ob_dims[3];
   blender::Vector<float> vertex_weights;
 
-  CurvesData modified, current;
+  CurvesDataPanelState modified, current;
 
   /* Floats only (treated as an array). */
   TransformMedian ve_median, median;
@@ -498,6 +492,8 @@ struct CurvesSelectionStatus {
   int total_bezier = 0;
 
   int cyclic = 0;
+  int nurbs_knot_mode_sum = 0;
+  int nurbs_knot_mode_max = 0;
   int order_sum = 0;
   int order_max = 0;
   int resolution_sum = 0;
@@ -510,6 +506,8 @@ struct CurvesSelectionStatus {
     result.total_nurbs = a.total_nurbs + b.total_nurbs;
     result.total_bezier = a.total_bezier + b.total_bezier;
     result.cyclic = a.cyclic + b.cyclic;
+    result.nurbs_knot_mode_sum = a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum;
+    result.nurbs_knot_mode_max = std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max);
     result.order_sum = a.order_sum + b.order_sum;
     result.order_max = std::max(a.order_max, b.order_max);
     result.resolution_sum = a.resolution_sum + b.resolution_sum;
@@ -530,6 +528,7 @@ static CurvesSelectionStatus init_curves_selection_status(
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
   const VArray<bool> cyclic = curves.cyclic();
+  const VArray<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes();
   const VArray<int8_t> orders = curves.nurbs_orders();
   const VArray<int> resolution = curves.resolution();
 
@@ -563,6 +562,10 @@ static CurvesSelectionStatus init_curves_selection_status(
           value.order_sum += order;
           value.order_max = std::max(value.order_max, order);
 
+          const int nurbs_knot_mode = is_nurbs ? nurbs_knot_modes[curve] : 0;
+          value.nurbs_knot_mode_sum += nurbs_knot_mode;
+          value.nurbs_knot_mode_max = std::max(value.nurbs_knot_mode_max, nurbs_knot_mode);
+
           const int res = resolution[curve];
           value.resolution_sum += res;
           value.resolution_max = std::max(value.resolution_max, res);
@@ -572,8 +575,8 @@ static CurvesSelectionStatus init_curves_selection_status(
       CurvesSelectionStatus::sum);
 }
 
-static bool apply_to_curves_selection(const CurvesData &current,
-                                      const CurvesData &modified,
+static bool apply_to_curves_selection(const CurvesDataPanelState &current,
+                                      const CurvesDataPanelState &modified,
                                       blender::bke::CurvesGeometry &curves)
 {
   using namespace blender;
@@ -582,25 +585,34 @@ static bool apply_to_curves_selection(const CurvesData &current,
     return false;
   }
 
-  bool changed = false;
-
   const bool cyclic_changed = modified.cyclic != current.cyclic;
+  const bool nurbs_knot_mode_changed = modified.nurbs_knot_mode != current.nurbs_knot_mode &&
+                                       modified.nurbs_knot_mode != NURBS_KNOT_MODE_CUSTOM;
   const bool order_changed = modified.order != current.order;
   const bool resolution_changed = modified.resolution != current.resolution;
+  if (!(cyclic_changed || nurbs_knot_mode_changed || order_changed || resolution_changed)) {
+    return false;
+  }
+
+  IndexMaskMemory memory;
+  const IndexMask selection = retrieve_all_selected_points(curves, memory);
+  if (selection.is_empty()) {
+    return false;
+  }
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
   const MutableSpan<bool> cyclic = cyclic_changed ? curves.cyclic_for_write() :
                                                     MutableSpan<bool>();
+  const MutableSpan<int8_t> nurbs_knot_modes = nurbs_knot_mode_changed ?
+                                                   curves.nurbs_knots_modes_for_write() :
+                                                   MutableSpan<int8_t>();
   const MutableSpan<int8_t> orders = order_changed ? curves.nurbs_orders_for_write() :
                                                      MutableSpan<int8_t>();
   const MutableSpan<int8_t> knots_modes = order_changed ? curves.nurbs_knots_modes_for_write() :
                                                           MutableSpan<int8_t>();
   const MutableSpan<int> resolution = resolution_changed ? curves.resolution_for_write() :
                                                            MutableSpan<int>();
-
-  IndexMaskMemory memory;
-  const IndexMask selection = retrieve_selected_points(curves, ".selection", memory);
 
   threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
     for (const int curve : range) {
@@ -613,10 +625,12 @@ static bool apply_to_curves_selection(const CurvesData &current,
         continue;
       }
 
-      changed = true;
-
       if (cyclic_changed) {
         cyclic[curve] = modified.cyclic;
+      }
+
+      if (nurbs_knot_mode_changed) {
+        nurbs_knot_modes[curve] = modified.nurbs_knot_mode;
       }
 
       if (resolution_changed) {
@@ -632,7 +646,7 @@ static bool apply_to_curves_selection(const CurvesData &current,
     }
   });
 
-  return changed;
+  return true;
 }
 
 /* is used for both read and write... */
@@ -2290,55 +2304,42 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
 
   View3D *v3d = CTX_wm_view3d(C);
   TransformProperties &tfp = *v3d_transform_props_ensure(v3d);
-  CurvesData &modified = tfp.modified;
-  CurvesData &current = tfp.current;
+  CurvesDataPanelState &modified = tfp.modified;
+  CurvesDataPanelState &current = tfp.current;
 
   UI_block_func_handle_set(block, do_view3d_curves_data_buttons, nullptr);
 
-  const bool is_cyclic_active = status.cyclic == 0 || status.cyclic == status.total;
-  const bool is_order_active = status.order_max * status.total_nurbs == status.order_sum;
-  const bool is_resolution_active = status.resolution_max * status.total == status.resolution_sum;
-
   current.cyclic = status.cyclic > 0;
+  current.nurbs_knot_mode = status.nurbs_knot_mode_sum / status.total_nurbs;
   current.order = status.order_sum / status.total_nurbs;
   current.resolution = status.resolution_sum / status.total;
 
   modified = current;
 
-  const int butw = 10 * UI_UNIT_X;
-  const int buth = 20 * UI_SCALE_FAC;
+  panel->layout->use_property_split_set(true);
+  uiLayout &bcol = panel->layout->column(false);
 
-  uiLayout &bcol = panel->layout->column(true);
+  PointerRNA data_ptr = RNA_pointer_create_discrete(
+      nullptr, &RNA_CurvesDataPanelState, static_cast<void *>(&tfp.modified));
 
-  auto add_labeled_field =
-      [&](const StringRef label, const bool active, FunctionRef<void()> add_field) {
-        uiLayout &row = bcol.row(true);
-        uiLayout &split = row.split(0.4, true);
-        uiLayout &col = split.column(true);
-        col.alignment_set(ui::LayoutAlign::Right);
-        col.label(label, ICON_NONE);
-        uiLayout &field_col = split.column(false);
-        field_col.active_set(active);
-        add_field();
-      };
+  uiLayout &cyclic_prop = bcol.column(true, "Cyclic");
+  cyclic_prop.prop(&data_ptr, "cyclic", UI_ITEM_NONE, "", ICON_NONE);
+  cyclic_prop.active_set(status.cyclic == 0 || status.cyclic == status.total);
 
-  add_labeled_field("Cyclic", is_cyclic_active, [&]() {
-    uiDefButC(block, UI_BTYPE_CHECKBOX, 0, "", 0, 0, butw, buth, &modified.cyclic, 0, 1, "");
-  });
   if (status.total_nurbs == status.total) {
-    add_labeled_field("Order", is_order_active, [&]() {
-      uiBut *but = uiDefButI(
-          block, UI_BTYPE_NUM, 0, "", 0, 0, butw, buth, &modified.order, 2, 6, "");
-      UI_but_number_step_size_set(but, 1);
-      UI_but_number_precision_set(but, -1);
-    });
+    uiLayout &knot_mode_prop = cyclic_prop.column(true);
+    knot_mode_prop.prop(&data_ptr, "nurbs_knot_mode", UI_ITEM_NONE, "Knot Mode", ICON_NONE);
+    knot_mode_prop.active_set(status.nurbs_knot_mode_max * status.total_nurbs ==
+                              status.nurbs_knot_mode_sum);
+
+    uiLayout &resolution_prop = cyclic_prop.column(true);
+    resolution_prop.prop(&data_ptr, "order", UI_ITEM_NONE, "Order", ICON_NONE);
+    resolution_prop.active_set(status.order_max * status.total_nurbs == status.order_sum);
   }
-  add_labeled_field("Resolution", is_resolution_active, [&]() {
-    uiBut *but = uiDefButI(
-        block, UI_BTYPE_NUM, 0, "", 0, 0, butw, buth, &modified.resolution, 1, 64, "");
-    UI_but_number_step_size_set(but, 1);
-    UI_but_number_precision_set(but, -1);
-  });
+
+  uiLayout &resolution_prop = bcol.column(true);
+  resolution_prop.prop(&data_ptr, "resolution", UI_ITEM_NONE, "Resolution", ICON_NONE);
+  resolution_prop.active_set(status.resolution_max * status.total == status.resolution_sum);
 }
 
 void view3d_buttons_register(ARegionType *art)

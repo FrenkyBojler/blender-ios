@@ -151,6 +151,14 @@ typedef struct LayoutPanelState {
   uint32_t last_used;
 } LayoutPanelState;
 
+typedef struct CurvesDataPanelState {
+  int nurbs_knot_mode;
+  int order;
+  int resolution;
+  char cyclic;
+  char _pad[3];
+} CurvesDataPanelState;
+
 enum LayoutPanelStateFlag {
   /** If set, the panel is currently open. Otherwise it is collapsed. */
   LAYOUT_PANEL_STATE_FLAG_OPEN = (1 << 0),
