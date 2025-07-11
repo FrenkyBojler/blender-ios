@@ -43,6 +43,7 @@
 #include "SEQ_sequencer.hh"
 #include "SEQ_time.hh"
 #include "SEQ_transform.hh"
+#include "SEQ_utils.hh"
 
 /* For menu, popup, icons, etc. */
 
@@ -149,7 +150,57 @@ blender::VectorSet<Strip *> selected_strips_from_context(bContext *C)
   return seq::query_selected_strips(seqbase);
 }
 
-// TODO: move here !!
+Strip *active_strip_from_context(bContext *C)
+{
+  const Scene *scene = CTX_data_scene(C);
+  const Editing *ed = seq::editing_get(scene);
+
+  Strip *strip = seq::select_active_get(scene);
+
+  const wmWindow *win = CTX_wm_window(C);
+  const bScreen *screen = WM_window_get_active_screen(win);
+  const ARegion *region = screen->active_region;
+
+  /* If we're in the N-panel, the active strip is always in context
+   * (eg. not hidden inside a meta strip). */
+  if (region && region->regiontype == RGN_TYPE_UI) {
+    return strip;
+  }
+
+  /* In the case of the timeline. */
+  ListBase *seqbase = seq::get_seqbase_by_strip(scene, strip);
+  if (seqbase == seq::active_seqbase_get(ed)) {
+    return strip;
+  }
+
+  return nullptr;
+}
+
+bool active_strip_pair_from_context(bContext *C, Strip **r_strip_act, Strip **r_strip_other)
+{
+  const Scene *scene = CTX_data_scene(C);
+  Editing *ed = seq::editing_get(scene);
+
+  *r_strip_act = active_strip_from_context(C);
+
+  if (*r_strip_act == nullptr) {
+    return false;
+  }
+
+  *r_strip_other = nullptr;
+
+  LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
+    if (strip->flag & SELECT && (strip != (*r_strip_act))) {
+      if (*r_strip_other) {
+        return false;
+      }
+
+      *r_strip_other = strip;
+    }
+  }
+
+  return (*r_strip_other != nullptr);
+}
 
 static void select_surrounding_handles(Scene *scene, Strip *test) /* XXX BRING BACK */
 {
@@ -2604,7 +2655,7 @@ static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *o
 {
   Scene *scene = CTX_data_scene(C);
   ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
-  Strip *act_strip = seq::select_get_active_from_context(C);
+  Strip *act_strip = active_strip_from_context(C);
 
   const bool is_preview = sequencer_view_has_preview_poll(C);
   if (is_preview && !sequencer_view_preview_only_poll(C)) {

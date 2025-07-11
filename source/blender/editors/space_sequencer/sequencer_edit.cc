@@ -192,13 +192,13 @@ bool sequencer_strip_editable_poll(bContext *C)
   if (!ID_IS_EDITABLE(&scene->id)) {
     return false;
   }
-  Strip *strip = seq::select_get_active_from_context(C);
+  Strip *strip = active_strip_from_context(C);
   return strip != nullptr;
 }
 
 bool sequencer_strip_has_path_poll(bContext *C)
 {
-  Strip *strip = seq::select_get_active_from_context(C);
+  Strip *strip = active_strip_from_context(C);
   return (strip != nullptr) && STRIP_HAS_PATH(strip);
 }
 
@@ -266,7 +266,7 @@ static bool sequencer_effect_poll(bContext *C)
   Editing *ed = seq::editing_get(scene);
 
   if (ed) {
-    Strip *active_strip = seq::select_get_active_from_context(C);
+    Strip *active_strip = active_strip_from_context(C);
     if (active_strip && (active_strip->type & STRIP_TYPE_EFFECT)) {
       return true;
     }
@@ -1346,7 +1346,7 @@ static wmOperatorStatus sequencer_reassign_inputs_exec(bContext *C, wmOperator *
 {
   Scene *scene = CTX_data_scene(C);
 
-  Strip *active_strip = seq::select_get_active_from_context(C);
+  Strip *active_strip = active_strip_from_context(C);
 
   /* Make sure the active strip is part of the active meta.
    * This may not be the case if the operator is ran from the N-panel. */
@@ -1426,7 +1426,7 @@ void SEQUENCER_OT_reassign_inputs(wmOperatorType *ot)
 static wmOperatorStatus sequencer_swap_inputs_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Strip *active_strip = seq::select_get_active_from_context(C);
+  Strip *active_strip = active_strip_from_context(C);
 
   if (!(active_strip->type & STRIP_TYPE_EFFECT)) {
     BKE_report(op->reports, RPT_ERROR, "Active strip is not an effect strip");
@@ -2096,7 +2096,7 @@ static wmOperatorStatus sequencer_meta_toggle_exec(bContext *C, wmOperator * /*o
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *active_strip = seq::select_get_active_from_context(C);
+  Strip *active_strip = active_strip_from_context(C);
 
   seq::prefetch_stop(scene);
 
@@ -2147,7 +2147,7 @@ static wmOperatorStatus sequencer_meta_make_exec(bContext *C, wmOperator * /*op*
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *active_strip = seq::select_get_active_from_context(C);
+  Strip *active_strip = active_strip_from_context(C);
   ListBase *active_seqbase = seq::active_seqbase_get(ed);
 
   blender::VectorSet<Strip *> selected = seq::query_selected_strips(active_seqbase);
@@ -2231,7 +2231,7 @@ static wmOperatorStatus sequencer_meta_separate_exec(bContext *C, wmOperator * /
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *active_strip = seq::select_get_active_from_context(C);
+  Strip *active_strip = active_strip_from_context(C);
 
   if (active_strip == nullptr || active_strip->type != STRIP_TYPE_META) {
     return OPERATOR_CANCELLED;
@@ -2445,7 +2445,7 @@ static wmOperatorStatus sequencer_swap_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
   Editing *ed = seq::editing_get(scene);
-  Strip *active_strip = seq::select_get_active_from_context(C);
+  Strip *active_strip = active_strip_from_context(C);
   ListBase *seqbase = seq::active_seqbase_get(ed);
   Strip *strip;
   int side = RNA_enum_get(op->ptr, "side");
@@ -2533,7 +2533,7 @@ void SEQUENCER_OT_swap(wmOperatorType *ot)
 static wmOperatorStatus sequencer_rendersize_exec(bContext *C, wmOperator * /*op*/)
 {
   Scene *scene = CTX_data_scene(C);
-  Strip *active_strip = seq::select_get_active_from_context(C);
+  Strip *active_strip = active_strip_from_context(C);
   StripElem *se = nullptr;
 
   if (active_strip == nullptr || active_strip->data == nullptr) {
@@ -2652,7 +2652,7 @@ static wmOperatorStatus sequencer_swap_data_exec(bContext *C, wmOperator *op)
   Strip *strip_other;
   const char *error_msg;
 
-  if (seq::select_active_get_pair_from_context(C, &strip_act, &strip_other) == false) {
+  if (active_strip_pair_from_context(C, &strip_act, &strip_other) == false) {
     BKE_report(op->reports, RPT_ERROR, "Please select two strips");
     return OPERATOR_CANCELLED;
   }
@@ -2733,7 +2733,7 @@ const EnumPropertyItem sequencer_prop_effect_types[] = {
 static wmOperatorStatus sequencer_change_effect_type_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Strip *strip = seq::select_get_active_from_context(C);
+  Strip *strip = active_strip_from_context(C);
 
   const int old_type = strip->type;
   const int new_type = RNA_enum_get(op->ptr, "type");
@@ -2963,7 +2963,7 @@ void SEQUENCER_OT_change_path(wmOperatorType *ot)
 
 static bool sequencer_strip_change_scene_poll(bContext *C)
 {
-  Strip *strip = seq::select_get_active_from_context(C);
+  Strip *strip = active_strip_from_context(C);
   return ((strip != nullptr) && (strip->type == STRIP_TYPE_SCENE));
 }
 static wmOperatorStatus sequencer_change_scene_exec(bContext *C, wmOperator *op)
@@ -3601,7 +3601,7 @@ static wmOperatorStatus sequencer_scene_frame_range_update_exec(bContext *C, wmO
 static bool sequencer_scene_frame_range_update_poll(bContext *C)
 {
   Editing *ed = seq::editing_get(CTX_data_scene(C));
-  Strip *strip = seq::select_get_active_from_context(C);
+  Strip *strip = active_strip_from_context(C);
   return (ed != nullptr && strip != nullptr && strip->type == STRIP_TYPE_SCENE);
 }
 

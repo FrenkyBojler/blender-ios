@@ -75,6 +75,9 @@ bool sequencer_retiming_mode_is_active(const bContext *C);
  * \return collection of strips (`Strip`)
  */
 blender::VectorSet<Strip *> selected_strips_from_context(bContext *C);
+Strip *active_strip_from_context(bContext *C);
+bool active_strip_pair_from_context(bContext *C, Strip **r_strip_act, Strip **r_strip_other);
+
 StripSelection pick_strip_and_handle(const struct Scene *scene,
                                      const View2D *v2d,
                                      float mouse_co[2]);
