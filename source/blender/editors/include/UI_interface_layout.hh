@@ -483,7 +483,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   /**
    * Adds a #op_enum menu.
    * \returns Operator pointer to write extra properties to set when menu buttons are
-   * displayed, might be #PointerRNA_NULL if operator does not exists.
+   * displayed, might be #PointerRNA_NULL if operator does not exist.
    */
   PointerRNA op_menu_enum(const bContext *C,
                           wmOperatorType *ot,
@@ -493,7 +493,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   /**
    * Adds a #op_enum menu.
    * \returns Operator pointer to write extra properties to set when menu buttons are
-   * displayed, might be #PointerRNA_NULL if operator does not exists.
+   * displayed, might be #PointerRNA_NULL if operator does not exist.
    */
   PointerRNA op_menu_enum(const bContext *C,
                           blender::StringRefNull opname,
