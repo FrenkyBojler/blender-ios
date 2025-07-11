@@ -298,6 +298,8 @@ void SKY_single_scattering_precompute_texture(float *pixels,
                                               float aerosol_density,
                                               float ozone_density)
 {
+  /* Clamp altitude to avoid numerical issues */
+  altitude = clamp(altitude, 1.0f, 59999.0f);
   /* Calculate texture pixels */
   float spectrum[num_wavelengths];
   int half_width = width / 2;
@@ -366,7 +368,8 @@ void SKY_single_scattering_precompute_sun(float sun_elevation,
                                           float *r_pixel_bottom,
                                           float *r_pixel_top)
 {
-  /* definitions */
+  /* Clamp altitude to avoid numerical issues */
+  altitude = clamp(altitude, 1.0f, 59999.0f);
   float half_angular = angular_diameter / 2.0f;
   float solid_angle = M_2PI_F * (1.0f - cosf(half_angular));
   float spectrum[num_wavelengths];

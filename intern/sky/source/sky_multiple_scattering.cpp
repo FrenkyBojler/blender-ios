@@ -78,37 +78,6 @@ static const float spectral_xyz[][4] = {
     {22.981337506691024754, 71.347795700053393866, 18.422960591455485011, 2.3614213523314368527},
     {-0.0000003663162907346, 0.102506867965741307, 31.742921188390805758, 110.48009643252140334}};
 
-static float clamp(float x, float min, float max)
-{
-  if (x < min) {
-    return min;
-  }
-  else if (x > max) {
-    return max;
-  }
-  else {
-    return x;
-  }
-}
-
-static float sign(float x)
-{
-  if (x < 0.0f) {
-    return -1.0f;
-  }
-  else if (x == 0.0f) {
-    return 0.0f;
-  }
-  else {
-    return 1.0f;
-  }
-}
-
-static float mix(float x, float y, float a)
-{
-  return x + a * (y - x);
-}
-
 static float4 lut_value(float2 uv)
 {
   /* Bilinear interpolation */
@@ -367,6 +336,8 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 float aerosol_density,
                                                 float ozone_density)
 {
+  /* Clamp altitude to avoid numerical issues */
+  altitude = clamp(altitude, 1.0f, 99999.0f);
   float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
   int half_width = width / 2;
   float sun_zenith_cos_angle = cosf(M_PI_2_F - sun_elevation);
@@ -407,6 +378,8 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float *r_pixel_bottom,
                                             float *r_pixel_top)
 {
+  /* Clamp altitude to avoid numerical issues */
+  altitude = clamp(altitude, 1.0f, 99999.0f);
   float half_angular = angular_diameter / 2.0f;
   float solid_angle = M_2PI_F * (1.0f - cosf(half_angular));
   float elevation_bottom = sun_elevation - half_angular;

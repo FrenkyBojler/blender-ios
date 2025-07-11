@@ -29,8 +29,7 @@
 #  define M_4PI_F (12.566370614359172f) /* 4*pi */
 #endif
 
-// float2
-
+/* float2 */
 struct float2 {
   float x, y;
 
@@ -123,8 +122,7 @@ struct float2 {
   }
 };
 
-// float3
-
+/* float3 */
 struct float3 {
   float x, y, z;
 
@@ -213,8 +211,7 @@ struct float3 {
   }
 };
 
-// float4
-
+/* float4 */
 struct float4 {
   float x, y, z, w;
 
@@ -407,6 +404,37 @@ inline float len(float4 f)
 inline float reduce_add(float4 f)
 {
   return f.x + f.y + f.z + f.w;
+}
+
+inline float clamp(float x, float min, float max)
+{
+  if (x < min) {
+    return min;
+  }
+  else if (x > max) {
+    return max;
+  }
+  else {
+    return x;
+  }
+}
+
+inline float sign(float x)
+{
+  if (x < 0.0f) {
+    return -1.0f;
+  }
+  else if (x == 0.0f) {
+    return 0.0f;
+  }
+  else {
+    return 1.0f;
+  }
+}
+
+inline float mix(float x, float y, float a)
+{
+  return x + a * (y - x);
 }
 
 #endif /* __SKY_MATH_H__ */

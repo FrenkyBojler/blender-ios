@@ -680,22 +680,19 @@ float SkyTextureNode::get_sun_average_radiance()
   const float angular_diameter = get_sun_size();
   float pix_bottom[3];
   float pix_top[3];
-  float clamped_altitude;
 
   if (sky_type == NODE_SKY_SINGLE_SCATTERING) {
-    clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
     SKY_single_scattering_precompute_sun(sun_elevation,
                                          angular_diameter,
-                                         clamped_altitude,
+                                         altitude,
                                          air_density,
                                          aerosol_density,
                                          pix_bottom,
                                          pix_top);
   }
   else {
-    clamped_altitude = clamp(altitude, 1.0f, 99999.0f);
     SKY_multiple_scattering_precompute_sun(
-        sun_elevation, angular_diameter, clamped_altitude, pix_bottom, pix_top);
+        sun_elevation, angular_diameter, altitude, pix_bottom, pix_top);
   }
 
   /* Approximate the direction's elevation as the Sun's elevation. */
@@ -806,15 +803,6 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
   ShaderOutput *color_out = output("Color");
   SunSky sunsky;
   bool multiple_scattering = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? false : true;
-  float clamped_altitude;
-  /* Clamp altitude to avoid numerical issues */
-  if (multiple_scattering) {
-    clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
-  }
-  else {
-    clamped_altitude = clamp(altitude, 1.0f, 99999.0f);
-  }
-
   sky_texture_precompute(&sunsky,
                          multiple_scattering,
                          sun_disc,
@@ -822,7 +810,7 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                          sun_intensity,
                          sun_elevation,
                          sun_rotation,
-                         clamped_altitude,
+                         altitude,
                          air_density,
                          aerosol_density,
                          ozone_density);
@@ -834,12 +822,8 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
 
   /* Precompute sky texture */
   if (handle.empty()) {
-    unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(multiple_scattering,
-                                                          sun_elevation,
-                                                          clamped_altitude,
-                                                          air_density,
-                                                          aerosol_density,
-                                                          ozone_density);
+    unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
+        multiple_scattering, sun_elevation, altitude, air_density, aerosol_density, ozone_density);
     handle = image_manager->add_image(std::move(loader), impar);
   }
 
@@ -870,15 +854,6 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   int sky_model = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? 0 : 1;
   bool multiple_scattering = (sky_type == NODE_SKY_SINGLE_SCATTERING) ? false : true;
 
-  float clamped_altitude;
-  /* Clamp altitude to avoid numerical issues */
-  if (multiple_scattering) {
-    clamped_altitude = clamp(altitude, 1.0f, 99999.0f);
-  }
-  else {
-    clamped_altitude = clamp(altitude, 1.0f, 59999.0f);
-  }
-
   sky_texture_precompute(&sunsky,
                          multiple_scattering,
                          sun_disc,
@@ -886,7 +861,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
                          sun_intensity,
                          sun_elevation,
                          sun_rotation,
-                         clamped_altitude,
+                         altitude,
                          air_density,
                          aerosol_density,
                          ozone_density);
@@ -898,12 +873,8 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
 
   /* Precompute sky texture */
   {
-    unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(multiple_scattering,
-                                                          sun_elevation,
-                                                          clamped_altitude,
-                                                          air_density,
-                                                          aerosol_density,
-                                                          ozone_density);
+    unique_ptr<SkyLoader> loader = make_unique<SkyLoader>(
+        multiple_scattering, sun_elevation, altitude, air_density, aerosol_density, ozone_density);
     handle = image_manager->add_image(std::move(loader), impar);
   }
 
