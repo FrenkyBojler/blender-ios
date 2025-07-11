@@ -4147,7 +4147,7 @@ static void shrink_attribute_storage(blender::bke::AttributeStorage &storage,
         type.copy_construct_n(data.data, new_data.data, range_before.size());
         type.copy_construct_n(
             POINTER_OFFSET(data.data, type.size * range_after.start()),
-            POINTER_OFFSET(new_data.data, type.size * (range_before.start() - 1)),
+            POINTER_OFFSET(new_data.data, type.size * index_to_remove),
             range_after.size());
 
         attr.assign_data(std::move(new_data));
