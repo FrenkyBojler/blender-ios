@@ -216,6 +216,7 @@ static Scene *preview_prepare_scene(const Main *bmain,
       pr_main, scene_preview, scene_orig->world, ID_MA, PR_BUTS_RENDER);
 
   BLI_addtail(&pr_main->materials, mat_copy);
+  // todo(habib): create a world with an equivalent node tree
   scene_preview->world->use_nodes = false;
   scene_preview->world->horr = 0.05f;
   scene_preview->world->horg = 0.05f;

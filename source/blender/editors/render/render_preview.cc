@@ -601,6 +601,7 @@ static Scene *preview_prepare_scene(
 
       if (sce->world) {
         /* Only use lighting from the light. */
+        // todo(habib): create an equivalent node tree
         sce->world->use_nodes = false;
         sce->world->horr = 0.0f;
         sce->world->horg = 0.0f;
