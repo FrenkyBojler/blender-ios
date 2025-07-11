@@ -12,6 +12,7 @@
 
 #include "GPU_attribute_convert.hh"
 
+#include "BKE_attribute.hh"
 #include "BKE_editmesh_tangent.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_tangent.hh"
