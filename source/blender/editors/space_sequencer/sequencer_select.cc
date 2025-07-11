@@ -149,6 +149,8 @@ blender::VectorSet<Strip *> selected_strips_from_context(bContext *C)
   return seq::query_selected_strips(seqbase);
 }
 
+// TODO: move here !!
+
 static void select_surrounding_handles(Scene *scene, Strip *test) /* XXX BRING BACK */
 {
   Strip *neighbor;

@@ -70,11 +70,12 @@ void select_active_set(Scene *scene, Strip *strip)
   ed->act_strip = strip;
 }
 
-bool select_active_get_pair(Scene *scene, Strip **r_strip_act, Strip **r_strip_other)
+bool select_active_get_pair_from_context(bContext *C, Strip **r_strip_act, Strip **r_strip_other)
 {
+  const Scene *scene = CTX_data_scene(C);
   Editing *ed = editing_get(scene);
 
-  *r_strip_act = select_active_get(scene);
+  *r_strip_act = select_get_active_from_context(C);
 
   if (*r_strip_act == nullptr) {
     return false;

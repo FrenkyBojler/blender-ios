@@ -2652,7 +2652,7 @@ static wmOperatorStatus sequencer_swap_data_exec(bContext *C, wmOperator *op)
   Strip *strip_other;
   const char *error_msg;
 
-  if (seq::select_active_get_pair(scene, &strip_act, &strip_other) == false) {
+  if (seq::select_active_get_pair_from_context(C, &strip_act, &strip_other) == false) {
     BKE_report(op->reports, RPT_ERROR, "Please select two strips");
     return OPERATOR_CANCELLED;
   }
