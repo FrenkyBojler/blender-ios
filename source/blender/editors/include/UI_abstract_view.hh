@@ -238,6 +238,7 @@ class AbstractViewItem {
 
   virtual std::optional<bool> should_be_selected() const;
   virtual void set_selected(const bool select);
+  virtual void on_select(const bool select);
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.

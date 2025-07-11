@@ -202,10 +202,11 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     return shape_key_.kb->flag & KEYBLOCK_SEL;
   }
 
-  void set_selected(const bool select) override
+  void on_select(const bool select) override
   {
-    AbstractViewItem::set_selected(select);
+    set_selected(select);
     SET_FLAG_FROM_TEST(shape_key_.kb->flag, select, KEYBLOCK_SEL);
+    WM_main_add_notifier(NC_ANIMATION, nullptr);
   }
 
   bool supports_renaming() const override

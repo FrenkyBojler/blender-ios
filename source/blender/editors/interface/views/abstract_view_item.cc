@@ -76,7 +76,7 @@ void AbstractViewItem::activate(bContext &C)
 
   /* Make sure active item is selected. */
   if (is_active()) {
-    set_selected(true);
+    on_select(true);
   }
 }
 
@@ -93,6 +93,11 @@ std::optional<bool> AbstractViewItem::should_be_selected() const
 void AbstractViewItem::set_selected(const bool select)
 {
   is_selected_ = select;
+}
+
+void AbstractViewItem::on_select(const bool /*select*/)
+{
+  /* Do nothing by default. */
 }
 
 /** \} */
