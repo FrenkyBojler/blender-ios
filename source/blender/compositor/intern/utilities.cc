@@ -79,6 +79,8 @@ ResultType get_node_socket_result_type(const bNodeSocket *socket)
       }
     case SOCK_RGBA:
       return ResultType::Color;
+    case SOCK_MENU:
+      return ResultType::Menu;
     default:
       BLI_assert_unreachable();
       return ResultType::Float;

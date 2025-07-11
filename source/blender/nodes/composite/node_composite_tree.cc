@@ -137,14 +137,25 @@ static void composite_node_add_init(bNodeTree * /*bnodetree*/, bNode *bnode)
 static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * /*ntreetype*/,
                                                   blender::bke::bNodeSocketType *socket_type)
 {
-  return blender::bke::node_is_static_socket_type(*socket_type) &&
-         ELEM(socket_type->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA);
+  return blender::bke::node_is_static_socket_type(*socket_type) && ELEM(socket_type->type,
+                                                                        SOCK_FLOAT,
+                                                                        SOCK_INT,
+                                                                        SOCK_BOOLEAN,
+                                                                        SOCK_VECTOR,
+                                                                        SOCK_RGBA,
+                                                                        SOCK_MENU);
 }
 
-static bool composite_validate_link(eNodeSocketDatatype /*from*/, eNodeSocketDatatype /*to*/)
+static bool composite_validate_link(eNodeSocketDatatype type_a, eNodeSocketDatatype type_b)
 {
-  /* All supported types can be implicitly converted to other types. */
-  return true;
+  /* Basic math types can be implicitly converted to each other. */
+  if (ELEM(type_a, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
+      ELEM(type_b, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
+  {
+    return true;
+  }
+
+  return type_a == type_b;
 }
 
 blender::bke::bNodeTreeType *ntreeType_Composite;

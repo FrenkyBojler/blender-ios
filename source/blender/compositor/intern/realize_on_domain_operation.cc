@@ -133,6 +133,7 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Bool:
+      case ResultType::Menu:
         /* Not supported. */
         break;
     }
@@ -150,6 +151,7 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int:
       case ResultType::Int2:
       case ResultType::Bool:
+      case ResultType::Menu:
         /* Not supported. */
         break;
     }
