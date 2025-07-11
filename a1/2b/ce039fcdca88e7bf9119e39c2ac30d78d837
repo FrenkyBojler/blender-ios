@@ -4,3 +4,4 @@ Referenced by issue #139869, Blender runs but is permanently stuck at its "loadi
 Referenced by issue #139939, Driver Timeout when switching to Material Preview
 Referenced by pull request #141762, Fix #141760: FBX export inadvertently modifies color property on lights
 Referenced by issue #141760, Exporting to FBX increase the maximum value of light Tint.
+Referenced by commit 6df4c14e4bbac54d3bc946cc0632e0a1ed0b8928, Fix #141760: FBX export inadvertently modifies color property on lights
