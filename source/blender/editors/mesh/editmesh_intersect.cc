@@ -497,7 +497,7 @@ static void bm_face_split_by_edges(BMesh *bm,
   BLI_SMALLSTACK_DECLARE(vert_stack, BMVert *);
   BLI_SMALLSTACK_DECLARE(vert_stack_next, BMVert *);
 
-  BLI_assert(edge_net_temp_buf->count == 0);
+  BLI_assert(edge_net_temp_buf->is_empty());
 
   /* collect all edges */
   l_iter = l_first = BM_FACE_FIRST_LOOP(f);
