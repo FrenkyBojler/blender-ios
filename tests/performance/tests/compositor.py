@@ -12,6 +12,9 @@ def _run(args):
     device_type, _ = (args['device_type'].split("-") + [""])[:2]
     scene = bpy.context.scene
     scene.render.compositor_device = ('CPU' if device_type == 'CPU' else 'GPU')
+    # Render once to avoid caching effects
+    bpy.ops.render.render()
+
     start_time = time.time()
 
     bpy.ops.render.render()
