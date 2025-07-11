@@ -8,14 +8,8 @@
  * \ingroup bke
  */
 
-#include "BKE_context.hh"
 #include "DNA_scene_types.h"
 #include "DNA_sequence_types.h"
-
-#include "SEQ_utils.hh"
-#include "WM_api.hh"
-
-#include "BLI_listbase.h"
 
 #include "SEQ_select.hh"
 #include "SEQ_sequencer.hh"
