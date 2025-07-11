@@ -509,6 +509,40 @@ GHOST_TSuccess GHOST_SystemWin32::getPixelAtCursor(float r_color[3]) const
   return GHOST_kSuccess;
 }
 
+uint32_t GHOST_SystemWin32::getCursorPreferredLogicalSize() const
+{
+  int size = -1;
+
+  HKEY hKey;
+  if (RegOpenKeyEx(HKEY_CURRENT_USER, "Control Panel\\Cursors", 0, KEY_READ, &hKey) ==
+      ERROR_SUCCESS)
+  {
+    DWORD cursorSizeSetting;
+    DWORD setting_size = sizeof(cursorSizeSetting);
+    if (RegQueryValueEx(hKey,
+                        "CursorBaseSize",
+                        nullptr,
+                        nullptr,
+                        reinterpret_cast<BYTE *>(&cursorSizeSetting),
+                        &setting_size) == ERROR_SUCCESS &&
+        setting_size == sizeof(cursorSizeSetting))
+    {
+      size = cursorSizeSetting;
+    }
+    RegCloseKey(hKey);
+  }
+
+  if (size == -1) {
+    size = GetSystemMetrics(SM_CXCURSOR);
+  }
+
+  /* Default size is 32 even though the cursor is smaller than this. Scale
+   * so that 32 returns 21 to better match our size to OS-supplied cursors. */
+  size = int(roundf(float(size) * 0.65f));
+
+  return size;
+}
+
 GHOST_IWindow *GHOST_SystemWin32::getWindowUnderCursor(int32_t /*x*/, int32_t /*y*/)
 {
   /* Get cursor position from the OS. Do not use the supplied positions as those
@@ -576,9 +610,10 @@ GHOST_TCapabilityFlag GHOST_SystemWin32::getCapabilities() const
 {
   return GHOST_TCapabilityFlag(
       GHOST_CAPABILITY_FLAG_ALL &
+      /* NOTE: order the following flags as they they're declared in the source. */
       ~(
           /* WIN32 has no support for a primary selection clipboard. */
-          GHOST_kCapabilityPrimaryClipboard |
+          GHOST_kCapabilityClipboardPrimary |
           /* WIN32 doesn't define a Hyper modifier key,
            * it's possible another modifier could be optionally used in it's place. */
           GHOST_kCapabilityKeyboardHyperKey));
