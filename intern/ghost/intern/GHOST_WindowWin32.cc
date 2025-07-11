@@ -1123,7 +1123,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
     return GHOST_kSuccess;
   }
 
-  /* New format: RGBA bitmap, size up to 128x128. */
+  /* New format: RGBA bitmap, size up to 255x255. */
 
   BITMAPV5HEADER header;
   memset(&header, 0, sizeof(BITMAPV5HEADER));
