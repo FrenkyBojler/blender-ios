@@ -94,11 +94,13 @@ void BlenderSync::set_bake_target(BL::Object &b_object)
 
 /* Sync */
 
-void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d)
+void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph,
+                              BL::SpaceView3D &b_v3d,
+                              BL::RegionView3D &b_rv3d)
 {
   /* Sync recalc flags from blender to cycles. Actual update is done separate,
    * so we can do it later on if doing it immediate is not suitable. */
-  BL::Object b_dicing_camera_object = get_dicing_camera_object(b_v3d);
+  BL::Object b_dicing_camera_object = get_dicing_camera_object(b_v3d, b_rv3d);
   bool dicing_camera_updated = false;
 
   /* Iterate over all IDs in this depsgraph. */
@@ -275,7 +277,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
 void BlenderSync::sync_data(BL::RenderSettings &b_render,
                             BL::Depsgraph &b_depsgraph,
                             BL::SpaceView3D &b_v3d,
-                            BL::Object &b_override,
+                            BL::RegionView3D &b_rv3d,
                             const int width,
                             const int height,
                             void **python_thread_state,
@@ -311,7 +313,7 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
   {
     sync_objects(b_depsgraph, b_v3d);
   }
-  sync_motion(b_render, b_depsgraph, b_v3d, b_override, width, height, python_thread_state);
+  sync_motion(b_render, b_depsgraph, b_v3d, b_rv3d, width, height, python_thread_state);
 
   geometry_synced.clear();
 
