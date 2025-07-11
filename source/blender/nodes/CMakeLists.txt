@@ -25,12 +25,12 @@ function(add_node_discovery
       ${output_file}
     COMMAND
       ${PYTHON_EXECUTABLE}
-        ${DISCOVER_NODES_PATH}
-        ${CMAKE_CURRENT_SOURCE_DIR}
-        ${output_file}
-        ${output_function}
-        ${sources}
-        ${extra_args}
+      ${DISCOVER_NODES_PATH}
+      ${CMAKE_CURRENT_SOURCE_DIR}
+      ${output_file}
+      ${output_function}
+      ${sources}
+      ${extra_args}
     DEPENDS
       ${SRC}
       ${DISCOVER_NODES_PATH}
@@ -106,11 +106,13 @@ set(SRC
   NOD_geometry_exec.hh
   NOD_geometry_nodes_bundle.hh
   NOD_geometry_nodes_bundle_fwd.hh
+  NOD_geometry_nodes_bundle_signature.hh
   NOD_geometry_nodes_caller_ui.hh
   NOD_geometry_nodes_closure.hh
   NOD_geometry_nodes_closure_eval.hh
   NOD_geometry_nodes_closure_fwd.hh
   NOD_geometry_nodes_closure_location.hh
+  NOD_geometry_nodes_closure_signature.hh
   NOD_geometry_nodes_dependencies.hh
   NOD_geometry_nodes_execute.hh
   NOD_geometry_nodes_gizmos.hh
@@ -122,6 +124,7 @@ set(SRC
   NOD_inverse_eval_run.hh
   NOD_math_functions.hh
   NOD_multi_function.hh
+  NOD_nested_node_id.hh
   NOD_node_declaration.hh
   NOD_node_extra_info.hh
   NOD_node_in_compute_context.hh

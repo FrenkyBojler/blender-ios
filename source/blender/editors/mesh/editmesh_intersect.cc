@@ -27,7 +27,7 @@
 
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_mesh.hh"
@@ -246,8 +246,8 @@ static void edbm_intersect_ui(bContext * /*C*/, wmOperator *op)
 
   bool use_exact = RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   row = &layout->row(false);
   row->prop(op->ptr, "mode", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
   layout->separator();
@@ -289,7 +289,7 @@ void MESH_OT_intersect(wmOperatorType *ot)
 
   static const EnumPropertyItem isect_intersect_solver_items[] = {
       {ISECT_SOLVER_FAST,
-       "FAST",
+       "FLOAT",
        0,
        "Float",
        "Simple solver with good performance, without support for overlapping geometry"},
@@ -406,8 +406,8 @@ static void edbm_intersect_boolean_ui(bContext * /*C*/, wmOperator *op)
 
   bool use_exact = RNA_enum_get(op->ptr, "solver") == ISECT_SOLVER_EXACT;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   row = &layout->row(false);
   row->prop(op->ptr, "operation", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
@@ -434,7 +434,7 @@ void MESH_OT_intersect_boolean(wmOperatorType *ot)
   };
 
   static const EnumPropertyItem isect_boolean_solver_items[] = {
-      {ISECT_SOLVER_FAST, "FAST", 0, "Fast", "Faster solver, some limitations"},
+      {ISECT_SOLVER_FAST, "FLOAT", 0, "Float", "Faster solver, some limitations"},
       {ISECT_SOLVER_EXACT, "EXACT", 0, "Exact", "Exact solver, slower, handles more cases"},
       {0, nullptr, 0, nullptr, nullptr},
   };

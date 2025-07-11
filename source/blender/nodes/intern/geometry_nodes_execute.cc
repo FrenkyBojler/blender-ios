@@ -119,7 +119,7 @@ std::unique_ptr<IDProperty, bke::idprop::IDPropertyDeleter> id_property_create_f
   }
   const StringRefNull identifier = socket.identifier;
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-  const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
+  const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
   switch (type) {
     case SOCK_FLOAT: {
       const bNodeSocketValueFloat *value = static_cast<const bNodeSocketValueFloat *>(
@@ -362,7 +362,7 @@ static bool old_id_property_type_matches_socket_convert_to_new(
     const bool use_name_for_ids)
 {
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-  const eNodeSocketDatatype type = typeinfo ? eNodeSocketDatatype(typeinfo->type) : SOCK_CUSTOM;
+  const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
   switch (type) {
     case SOCK_FLOAT:
       if (!ELEM(old_property.type, IDP_FLOAT, IDP_INT, IDP_DOUBLE)) {
@@ -565,7 +565,7 @@ static void init_socket_cpp_value_from_property(const IDProperty &property,
     }
     case SOCK_STRING: {
       std::string value = IDP_String(&property);
-      new (r_value) bke::SocketValueVariant(std::move(value));
+      bke::SocketValueVariant::ConstructIn(r_value, std::move(value));
       break;
     }
     case SOCK_MENU: {
@@ -642,8 +642,7 @@ static void initialize_group_input(const bNodeTree &tree,
 {
   const bNodeTreeInterfaceSocket &io_input = *tree.interface_inputs()[input_index];
   const bke::bNodeSocketType *typeinfo = io_input.socket_typeinfo();
-  const eNodeSocketDatatype socket_data_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
-                                                          SOCK_CUSTOM;
+  const eNodeSocketDatatype socket_data_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
   const IDProperty *property = properties.lookup_key_default_as(io_input.identifier, nullptr);
   if (property == nullptr) {
     typeinfo->get_geometry_nodes_cpp_value(io_input.socket_data, r_value);
@@ -663,14 +662,14 @@ static void initialize_group_input(const bNodeTree &tree,
   if (attribute_name && bke::allow_procedural_attribute_access(*attribute_name)) {
     fn::GField attribute_field = bke::AttributeFieldInput::Create(*attribute_name,
                                                                   *typeinfo->base_cpp_type);
-    new (r_value) bke::SocketValueVariant(std::move(attribute_field));
+    bke::SocketValueVariant::ConstructIn(r_value, std::move(attribute_field));
   }
   else if (is_layer_selection_field(io_input)) {
     const IDProperty *property_layer_name = properties.lookup_key_as(io_input.identifier);
     StringRef layer_name = IDP_String(property_layer_name);
-    const fn::GField selection_field(
-        std::make_shared<bke::NamedLayerSelectionFieldInput>(layer_name), 0);
-    new (r_value) bke::SocketValueVariant(std::move(selection_field));
+    fn::GField selection_field(std::make_shared<bke::NamedLayerSelectionFieldInput>(layer_name),
+                               0);
+    bke::SocketValueVariant::ConstructIn(r_value, std::move(selection_field));
   }
   else {
     init_socket_cpp_value_from_property(*property, socket_data_type, r_value);
@@ -792,7 +791,7 @@ static void store_computed_output_attributes(
     bke::GeometryComponent &component = geometry.get_component_for_write(store.component_type);
     bke::MutableAttributeAccessor attributes = *component.attributes_for_write();
 
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(store.data.type());
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(store.data.type());
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         store.name);
 
@@ -808,7 +807,7 @@ static void store_computed_output_attributes(
      * attribute didn't exist before, or if it existed but was removed above. */
     if (attributes.add(store.name,
                        store.domain,
-                       bke::cpp_type_to_custom_data_type(store.data.type()),
+                       bke::cpp_type_to_attribute_type(store.data.type()),
                        bke::AttributeInitMoveArray(store.data.data())))
     {
       continue;
@@ -901,8 +900,7 @@ bke::GeometrySet execute_geometry_nodes_on_geometry(const bNodeTree &btree,
   for (const int i : btree.interface_inputs().index_range()) {
     const bNodeTreeInterfaceSocket &interface_socket = *btree.interface_inputs()[i];
     const bke::bNodeSocketType *typeinfo = interface_socket.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
-                                                       SOCK_CUSTOM;
+    const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
     if (socket_type == SOCK_GEOMETRY && i == 0) {
       param_inputs[function.inputs.main[0]] = &input_geometry;
       continue;
@@ -982,8 +980,7 @@ void update_input_properties_from_node_tree(const bNodeTree &tree,
     const bNodeTreeInterfaceSocket &socket = *tree_inputs[i];
     const StringRefNull socket_identifier = socket.identifier;
     const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
-                                                       SOCK_CUSTOM;
+    const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
     IDProperty *new_prop = id_property_create_from_socket(
                                socket, input_structure_types[i], use_name_for_ids)
                                .release();
@@ -1053,8 +1050,7 @@ void update_output_properties_from_node_tree(const bNodeTree &tree,
     const bNodeTreeInterfaceSocket &socket = *tree_outputs[i];
     const StringRefNull socket_identifier = socket.identifier;
     const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
-    const eNodeSocketDatatype socket_type = typeinfo ? eNodeSocketDatatype(typeinfo->type) :
-                                                       SOCK_CUSTOM;
+    const eNodeSocketDatatype socket_type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
     if (!socket_type_has_attribute_toggle(socket_type)) {
       continue;
     }
@@ -1104,7 +1100,7 @@ void get_geometry_nodes_input_base_values(const bNodeTree &btree,
     if (!stype) {
       continue;
     }
-    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(stype->type);
+    const eNodeSocketDatatype socket_type = stype->type;
     if (!stype->base_cpp_type || !stype->geometry_nodes_cpp_type) {
       continue;
     }

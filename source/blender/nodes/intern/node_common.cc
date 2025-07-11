@@ -83,8 +83,10 @@ void node_group_label(const bNodeTree * /*ntree*/,
                       char *label,
                       int label_maxncpy)
 {
-  BLI_strncpy(
-      label, (node->id) ? node->id->name + 2 : IFACE_("Missing Data-Block"), label_maxncpy);
+  BLI_strncpy(label,
+              (node->id) ? node->id->name + 2 :
+                           CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Missing Data-Block"),
+              label_maxncpy);
 }
 
 int node_group_ui_class(const bNode *node)
@@ -268,7 +270,7 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
 
   BaseSocketDeclarationBuilder *decl = nullptr;
   if (base_typeinfo) {
-    datatype = eNodeSocketDatatype(base_typeinfo->type);
+    datatype = base_typeinfo->type;
     switch (datatype) {
       case SOCK_FLOAT: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueFloat>(io_socket);

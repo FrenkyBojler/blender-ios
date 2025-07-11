@@ -682,7 +682,7 @@ void WM_gizmo_properties_reset(wmGizmo *gz)
 
       if ((RNA_property_flag(prop) & PROP_SKIP_SAVE) == 0) {
         const char *identifier = RNA_property_identifier(prop);
-        RNA_struct_idprops_unset(gz->ptr, identifier);
+        RNA_struct_system_idprops_unset(gz->ptr, identifier);
       }
     }
     RNA_PROP_END;
@@ -713,6 +713,15 @@ void WM_gizmo_properties_free(PointerRNA *ptr)
 /* -------------------------------------------------------------------- */
 /** \name General Utilities
  * \{ */
+
+bool WM_gizmo_group_is_modal(const wmGizmoGroup *gzgroup)
+{
+  wmGizmo *gz = WM_gizmomap_get_modal(gzgroup->parent_gzmap);
+  if (gz && gz->parent_gzgroup == gzgroup) {
+    return true;
+  }
+  return false;
+}
 
 bool WM_gizmo_context_check_drawstep(const bContext *C, eWM_GizmoFlagMapDrawStep step)
 {
