@@ -213,6 +213,7 @@ class BlenderSync {
   bool object_can_have_geometry(BL::Object &b_ob);
   bool object_is_light(BL::Object &b_ob);
   bool object_is_camera(BL::Object &b_ob);
+  BL::Object get_dicing_camera_object(BL::SpaceView3D &b_v3d);
 
   /* variables */
   BL::RenderEngine b_engine;
