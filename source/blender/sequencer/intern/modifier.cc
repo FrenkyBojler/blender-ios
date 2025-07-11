@@ -1378,6 +1378,7 @@ void modifier_list_copy(Strip *strip_new, Strip *strip)
     const StripModifierTypeInfo *smti = modifier_type_info_get(smd->type);
 
     smdn = static_cast<StripModifierData *>(MEM_dupallocN(smd));
+    modifier_generate_uid(*strip_new, *smdn);
 
     if (smti && smti->copy_data) {
       smti->copy_data(smdn, smd);
