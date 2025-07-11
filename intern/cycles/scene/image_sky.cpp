@@ -10,13 +10,13 @@
 
 CCL_NAMESPACE_BEGIN
 
-SkyLoader::SkyLoader(const int sky_model,
+SkyLoader::SkyLoader(const bool multiple_scattering,
                      const float sun_elevation,
                      const float altitude,
                      const float air_density,
                      const float aerosol_density,
                      const float ozone_density)
-    : sky_model(sky_model),
+    : multiple_scattering(multiple_scattering),
       sun_elevation(sun_elevation),
       altitude(altitude),
       air_density(air_density),
@@ -42,14 +42,27 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
                             const size_t /*pixels_size*/,
                             const bool /*associate_alpha*/)
 {
-  /* definitions */
+  /* Precompute Sky LUT */
   int width = metadata.width;
   int height = metadata.height;
   float *pixel_data = (float *)pixels;
-
-  /* precompute sky texture */
   const int rows_per_task = divide_up(1024, width);
-  if (sky_model == 0) {
+  if (multiple_scattering) {
+    parallel_for(blocked_range<size_t>(0, height, rows_per_task),
+                 [&](const blocked_range<size_t> &r) {
+                   SKY_multiple_scattering_precompute_texture(pixel_data,
+                                                              metadata.channels,
+                                                              r.begin(),
+                                                              r.end(),
+                                                              width,
+                                                              sun_elevation,
+                                                              altitude,
+                                                              air_density,
+                                                              aerosol_density,
+                                                              ozone_density);
+                 });
+  }
+  else {
     parallel_for(blocked_range<size_t>(0, height, rows_per_task),
                  [&](const blocked_range<size_t> &r) {
                    SKY_single_scattering_precompute_texture(pixel_data,
@@ -65,28 +78,13 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
                                                             ozone_density);
                  });
   }
-  if (sky_model == 1) {
-    parallel_for(blocked_range<size_t>(0, height, rows_per_task),
-                 [&](const blocked_range<size_t> &r) {
-                   SKY_multiple_scattering_precompute_texture(pixel_data,
-                                                              metadata.channels,
-                                                              r.begin(),
-                                                              r.end(),
-                                                              width,
-                                                              sun_elevation,
-                                                              altitude,
-                                                              air_density,
-                                                              aerosol_density,
-                                                              ozone_density);
-                 });
-  }
 
   return true;
 }
 
 string SkyLoader::name() const
 {
-  return "sky_single_scattering";
+  return "sky_multiple_scattering";
 }
 
 bool SkyLoader::equals(const ImageLoader & /*other*/) const

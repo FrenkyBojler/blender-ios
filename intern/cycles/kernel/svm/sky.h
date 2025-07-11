@@ -30,7 +30,7 @@ ccl_device float sign(float x)
 }
 
 ccl_device float3 sky_radiance(KernelGlobals kg,
-                               const int sky_model,
+                               const bool multiple_scattering,
                                const float3 dir,
                                const uint32_t path_flag,
                                const float3 pixel_bottom,
@@ -73,7 +73,7 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
     xyz *= limb_darkening;
   }
   else {
-    if (sky_model == 0 && dir.z < 0.0f) {
+    if (!multiple_scattering && dir.z < 0.0f) {
       /* Black ground if Single Scattering model, otherwise get Sky LUT */
       if (dir.z < -0.4f) {
         xyz = make_float3(0.0f, 0.0f, 0.0f);
@@ -108,7 +108,7 @@ ccl_device_noinline int svm_node_tex_sky(KernelGlobals kg,
   /* Load data */
   const uint dir_offset = node.y;
   const uint out_offset = node.z;
-  const int sky_model = node.w;
+  const bool multiple_scattering = node.w;
   const float3 dir = stack_load_float3(stack, dir_offset);
   float4 data = read_node_float(kg, &offset);
   const float3 pixel_bottom = make_float3(data.x, data.y, data.z);
@@ -127,7 +127,7 @@ ccl_device_noinline int svm_node_tex_sky(KernelGlobals kg,
 
   /* Compute Sky */
   float3 f = sky_radiance(
-      kg, sky_model, dir, path_flag, pixel_bottom, pixel_top, sky_data, texture_id);
+      kg, multiple_scattering, dir, path_flag, pixel_bottom, pixel_top, sky_data, texture_id);
 
   stack_store_float3(stack, out_offset, f);
   return offset;

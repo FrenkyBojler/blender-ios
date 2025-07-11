@@ -8,7 +8,7 @@ CCL_NAMESPACE_BEGIN
 
 class SkyLoader : public ImageLoader {
  private:
-  int sky_model;
+  bool multiple_scattering;
   float sun_elevation;
   float altitude;
   float air_density;
@@ -16,7 +16,7 @@ class SkyLoader : public ImageLoader {
   float ozone_density;
 
  public:
-  SkyLoader(const int sky_model,
+  SkyLoader(const bool multiple_scattering,
             const float sun_elevation,
             const float altitude,
             const float air_density,
