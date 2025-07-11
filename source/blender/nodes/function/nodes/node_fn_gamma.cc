@@ -42,11 +42,11 @@ using namespace blender::math;
 
 static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
 {
-  static auto fn = mf::build::SI2_SO<ColorGeometry4f, float, ColorGeometry4f>(
+  static auto fn = mf::build::SI2_SO<float4, float, float4>(
       "Gamma",
-      [](const ColorGeometry4f &color, float gamma) -> ColorGeometry4f {
+      [](const float4 &color, float gamma) -> float4 {
         float4 gamma_applied = float4(math::safe_pow(float3(color.x, color.y, color.z), gamma), color.w);
-        return ColorGeometry4f(gamma_applied.x, gamma_applied.y, gamma_applied.z, gamma_applied.w);
+        return gamma_applied;
       },
       mf::build::exec_presets::AllSpanOrSingle());
   builder.set_matching_fn(fn);
