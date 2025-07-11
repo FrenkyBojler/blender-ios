@@ -3362,9 +3362,9 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
                   wm_eventmatch(&event_test_click_drag, kmi))
               {
                 wmOperatorType *ot = WM_operatortype_find(kmi->idname, false);
-                if (WM_operator_poll_context(
-                        C, ot, blender::wm::OperatorCallContext::InvokeDefault))
-                {
+                const bool success = WM_operator_poll_context(
+                    C, ot, blender::wm::OperatorCallContext::InvokeDefault);
+                if (success) {
                   is_event_handle_all = true;
                   break;
                 }

@@ -4623,13 +4623,13 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
       execute_callback = false;
     }
     else {
-      if (WM_operator_name_call(C,
-                                "WM_OT_save_mainfile",
-                                blender::wm::OperatorCallContext::ExecDefault,
-                                nullptr,
-                                nullptr) &
-          OPERATOR_CANCELLED)
-      {
+      const wmOperatorStatus status = WM_operator_name_call(
+          C,
+          "WM_OT_save_mainfile",
+          blender::wm::OperatorCallContext::ExecDefault,
+          nullptr,
+          nullptr);
+      if (status & OPERATOR_CANCELLED) {
         execute_callback = false;
       }
     }

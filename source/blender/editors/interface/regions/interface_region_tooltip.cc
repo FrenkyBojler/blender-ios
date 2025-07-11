@@ -628,13 +628,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
 
     if (shortcut.empty()) {
       /* Check for direct access to the tool. */
-      if (std::optional<std::string> shortcut_toolbar = WM_key_event_operator_string(
-              C,
-              "WM_OT_toolbar",
-              blender::wm::OperatorCallContext::InvokeRegionWin,
-              nullptr,
-              true))
-      {
+      std::optional<std::string> shortcut_toolbar = WM_key_event_operator_string(
+          C, "WM_OT_toolbar", blender::wm::OperatorCallContext::InvokeRegionWin, nullptr, true);
+      if (shortcut_toolbar) {
         /* Generate keymap in order to inspect it.
          * NOTE: we could make a utility to avoid the keymap generation part of this. */
         const char *expr_imports[] = {

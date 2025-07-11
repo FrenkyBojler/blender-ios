@@ -53,6 +53,7 @@ const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
     {UILST_LAYOUT_GRID, "GRID", 0, "Grid Layout", "Use the grid-based layout"},
     {0, nullptr, 0, nullptr, nullptr},
 };
+
 #ifdef RNA_RUNTIME
 
 #  include "MEM_guardedalloc.h"
