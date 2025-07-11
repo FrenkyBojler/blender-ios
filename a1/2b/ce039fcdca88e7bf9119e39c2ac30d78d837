@@ -3,3 +3,4 @@ Referenced by commit 0e8d041cb342d4c95be330ba2134bc7ed9ae1064, Fix: Use Color Te
 Referenced by issue #139869, Blender runs but is permanently stuck at its "loading phase"
 Referenced by issue #139939, Driver Timeout when switching to Material Preview
 Referenced by pull request #141762, Fix #141760: FBX export inadvertently modifies color property on lights
+Referenced by issue #141760, Exporting to FBX increase the maximum value of light Tint.
