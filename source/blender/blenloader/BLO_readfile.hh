@@ -271,7 +271,7 @@ BlendHandle *BLO_blendhandle_from_memory(const void *mem,
                                          BlendFileReadReport *reports);
 
 /** Returns the major and minor version number of Blender used to create the file. */
-const blender::int2 BLO_blendhandle_get_version(BlendHandle *bh);
+blender::int3 BLO_blendhandle_get_version(const BlendHandle *bh);
 
 /**
  * Gets the names of all the data-blocks in a file of a certain type
