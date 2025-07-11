@@ -11,7 +11,6 @@
 #include "DNA_sequence_types.h"
 
 #include "BLI_listbase.h"
-#include "BLI_session_uid.h"
 
 namespace blender::deg {
 
@@ -73,6 +72,8 @@ void StripBackup::init_from_strip(Strip *strip)
   anims = strip->anims;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    BLI_assert(!modifiers.contains(smd->persistent_uid));
+
     StripModifierDataBackup mod;
     mod.init_from_modifier(smd);
     modifiers.add(smd->persistent_uid, mod);
