@@ -11,11 +11,10 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
+#include "RNA_types.hh"
+
 #include "UI_interface_icons.hh" /* `eAlertIcon` */
 #include "UI_interface_types.hh"
-
-#include "RNA_types.hh"
-// #include "WM_types.hh" /* `blender::wm::OperatorCallContext` */
 
 struct bContext;
 struct bContextStore;
