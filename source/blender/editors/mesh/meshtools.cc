@@ -733,7 +733,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
   };
 
   auto topology_count_matches = [](const Mesh &a, const Mesh &b) {
-    return a.verts_num == b.verts_num && a.edges_num == b.edges_num && a.faces_num == b.faces_num;
+    return a.verts_num == b.verts_num;
   };
 
   bool found_object = false;
