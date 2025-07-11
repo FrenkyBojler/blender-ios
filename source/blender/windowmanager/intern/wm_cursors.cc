@@ -603,15 +603,19 @@ static void wm_cursor_text(wmWindow *win, const std::string &text, int font_id)
   float width;
   float height;
   BLF_width_and_height(font_id, text.c_str(), text.size(), &width, &height);
-  if ((width * height) > (128.0f * 128.0f)) {
-    size = 128.0f / width * size;
-    BLF_size(font_id, size);
-    BLF_width_and_height(font_id, text.c_str(), text.size(), &width, &height);
-  }
-
-  const float padding = size * 0.15f;
+  float padding = size * 0.15f;
   width += padding * 2.0f;
   height += padding * 2.0f;
+
+  if (width > 255.0f || height > 255.0f) {
+    float longest = std::max(width, height);
+    size *= 253.0f / longest;
+    BLF_size(font_id, size);
+    BLF_width_and_height(font_id, text.c_str(), text.size(), &width, &height);
+    padding = size * 0.15f;
+    width += padding * 2.0f;
+    height += padding * 2.0f;
+  }
 
   const int bitmap_width = int(std::ceil(width));
   const int bitmap_height = int(std::ceil(height));
