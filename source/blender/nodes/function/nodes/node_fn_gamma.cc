@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "node_function_util.hh"
 
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
