@@ -347,13 +347,13 @@ static Vector<meshintersect::CDT_input<double>> construct_cdt_inputs(
     const int total_faces = dst_faces_by_geometry.total_size();
     BLI_assert(total_verts > 0);
 
-    meshintersect::CDT_input<double> &input = cdt_inputs[input_i];
-    input.vert.reinitialize(total_verts);
-    input.edge.reinitialize(total_edges);
-    input.face.reinitialize(total_faces);
-    input.need_ids = true;
+    meshintersect::CDT_input<double> &cdt_input = cdt_inputs[input_i];
+    cdt_input.vert.reinitialize(total_verts);
+    cdt_input.edge.reinitialize(total_edges);
+    cdt_input.face.reinitialize(total_faces);
+    cdt_input.need_ids = true;
 
-    MutableSpan<double2> positions_2d = input.vert.as_mutable_span();
+    MutableSpan<double2> positions_2d = cdt_input.vert.as_mutable_span();
     for (const int geometry_i : geometry_inputs_for_group.index_range()) {
       const CDTGeometryInput &geometry_input = *geometry_inputs_for_group[geometry_i];
       const int group_index = geometry_input.group_ids.index_of(group_id);
@@ -367,7 +367,7 @@ static Vector<meshintersect::CDT_input<double>> construct_cdt_inputs(
       });
     }
 
-    MutableSpan<std::pair<int, int>> input_edges = input.edge.as_mutable_span();
+    MutableSpan<std::pair<int, int>> input_edges = cdt_input.edge.as_mutable_span();
     for (const int geometry_i : geometries_with_edges) {
       const CDTGeometryInput &geometry_input = *geometry_inputs_for_group[geometry_i];
       const int group_index = geometry_input.group_ids.index_of(group_id);
@@ -387,7 +387,7 @@ static Vector<meshintersect::CDT_input<double>> construct_cdt_inputs(
       });
     }
 
-    MutableSpan<Vector<int>> input_faces = input.face.as_mutable_span();
+    MutableSpan<Vector<int>> input_faces = cdt_input.face.as_mutable_span();
     for (const int geometry_i : geometries_with_faces) {
       const CDTGeometryInput &geometry_input = *geometry_inputs_for_group[geometry_i];
       const int group_index = geometry_input.group_ids.index_of(group_id);
