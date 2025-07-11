@@ -18,6 +18,10 @@ set(INC
 set(INC_SYS
 )
 
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+endif()
+
 set(SRC
   brush_asset_ops.cc
   curves_sculpt_add.cc

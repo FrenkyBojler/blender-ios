@@ -9,6 +9,7 @@
  */
 
 #include "BKE_attribute.hh"
+#include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.h"
 #include "BKE_grease_pencil.hh"
@@ -27,6 +28,8 @@
 #include "ED_grease_pencil.hh"
 
 #include "GPU_batch.hh"
+
+#include "WM_api.hh"
 
 #include "draw_cache.hh"
 #include "draw_cache_impl.hh"
@@ -1248,6 +1251,13 @@ static void grease_pencil_geom_batch_ensure(Object &object,
        * use negative values as a special 'flag' to get rounded caps. */
       s_vert.radius = math::max(radii[point_i], 0.0f) *
                       ((end_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
+
+      const DRWContext *draw_ctx = DRW_context_get();
+      float _pixfactor = ED_grease_pencil_pixfactor_calculate((bContext *)(draw_ctx->evil_C));
+      _pixfactor /= bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+
+      s_vert.radius *= _pixfactor;
+
       s_vert.opacity = opacities[point_i] *
                        ((start_cap == GP_STROKE_CAP_TYPE_ROUND) ? 1.0f : -1.0f);
       s_vert.point_id = verts_range[idx];

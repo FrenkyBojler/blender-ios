@@ -111,6 +111,14 @@ bool ED_grease_pencil_segment_selection_enabled(const ToolSettings *tool_setting
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name GreasePencil XR
+ * \{ */
+
+float ED_grease_pencil_pixfactor_calculate(bContext *C);
+
+/** \} */
+
 namespace blender::ed::greasepencil {
 
 enum class ReprojectMode : int8_t { Front, Side, Top, View, Cursor, Surface, Keep };
@@ -718,7 +726,8 @@ void draw_lines(const float4x4 &transform,
  * Draw curves geometry.
  * \param mode: Mode of \a eMaterialGPencilStyle_Mode.
  */
-void draw_grease_pencil_strokes(const RegionView3D &rv3d,
+void draw_grease_pencil_strokes(bContext *C,
+                                const RegionView3D &rv3d,
                                 const int2 &win_size,
                                 const Object &object,
                                 const bke::greasepencil::Drawing &drawing,

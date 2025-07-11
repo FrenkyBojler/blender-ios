@@ -5,6 +5,8 @@
 set(INC
   ../include
   ../../makesrna
+  ../../draw
+  ../../draw/intern
   ../../../../extern/curve_fit_nd
   ../sculpt_paint
   ../../modifiers/intern/lineart
@@ -37,6 +39,7 @@ set(SRC
   intern/grease_pencil_utils.cc
   intern/grease_pencil_vertex_paint.cc
   intern/grease_pencil_weight_paint.cc
+  intern/grease_pencil_xr_utils.cc
 )
 
 set(LIB
@@ -57,6 +60,10 @@ set(LIB
   extern_curve_fit_nd
   extern_fmtlib
 )
+
+if(WITH_XR_OPENXR)
+  add_definitions(-DWITH_XR_OPENXR)
+endif()
 
 blender_add_lib(bf_editor_grease_pencil "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 add_dependencies(bf_editor_curves bf_rna)

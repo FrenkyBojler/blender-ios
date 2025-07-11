@@ -8,6 +8,7 @@
 #include "BLI_math_vector.hh"
 
 #include "BKE_attribute.hh"
+#include "BKE_context.hh"
 #include "BKE_camera.h"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
@@ -20,6 +21,8 @@
 #include "DNA_scene_types.h"
 #include "DNA_userdef_types.h"
 #include "DNA_view3d_types.h"
+
+#include "DRW_render.hh"
 
 #include "ED_grease_pencil.hh"
 #include "ED_view3d.hh"
@@ -38,6 +41,8 @@
 #include "GPU_texture.hh"
 #include "GPU_uniform_buffer.hh"
 #include "GPU_vertex_format.hh"
+
+#include "WM_api.hh"
 
 namespace blender::ed::greasepencil::image_render {
 
@@ -297,7 +302,9 @@ static GPUUniformBuf *create_shader_ubo(const RegionView3D &rv3d,
 
 constexpr const float min_stroke_thickness = 0.05f;
 
-static void draw_grease_pencil_stroke(const float4x4 &transform,
+
+static void draw_grease_pencil_stroke(bContext *C,
+                                      const float4x4 &transform,
                                       const RegionView3D &rv3d,
                                       const int2 &win_size,
                                       const Object &object,
@@ -336,8 +343,8 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
                                                    indices.size() + cyclic_add + 2);
 
   auto draw_point = [&](const int point_i) {
-    constexpr const float radius_to_pixel_factor =
-        1.0f / bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+    float radius_to_pixel_factor = ED_grease_pencil_pixfactor_calculate(C);
+    radius_to_pixel_factor /= bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
     const float thickness = radii[point_i] * radius_scale * radius_to_pixel_factor;
 
     immAttr4fv(attr_color, colors[point_i]);
@@ -399,7 +406,8 @@ static void draw_grease_pencil_stroke(const float4x4 &transform,
   GPU_uniformbuf_free(ubo);
 }
 
-static void draw_dots(const float4x4 &transform,
+static void draw_dots(bContext *C,
+                      const float4x4 &transform,
                       const IndexRange indices,
                       Span<float3> positions,
                       const VArray<float> &radii,
@@ -424,8 +432,8 @@ static void draw_dots(const float4x4 &transform,
   immBegin(GPU_PRIM_POINTS, indices.size());
 
   for (const int point_i : indices) {
-    constexpr const float radius_to_pixel_factor =
-        1.0f / bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
+    float radius_to_pixel_factor = ED_grease_pencil_pixfactor_calculate(C);
+    radius_to_pixel_factor /= bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
     const float thickness = radii[point_i] * radius_scale * radius_to_pixel_factor;
 
     immAttr4fv(attr_color, colors[point_i]);
@@ -553,7 +561,8 @@ void draw_lines(const float4x4 &transform,
   immUnbindProgram();
 }
 
-void draw_grease_pencil_strokes(const RegionView3D &rv3d,
+void draw_grease_pencil_strokes(bContext *C,
+                                const RegionView3D &rv3d,
                                 const int2 &win_size,
                                 const Object &object,
                                 const bke::greasepencil::Drawing &drawing,
@@ -607,7 +616,8 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
 
     switch (eMaterialGPencilStyle_Mode(stroke_mode)) {
       case GP_MATERIAL_MODE_LINE:
-        draw_grease_pencil_stroke(transform,
+        draw_grease_pencil_stroke(C,
+                                  transform,
                                   rv3d,
                                   win_size,
                                   object,
@@ -624,7 +634,7 @@ void draw_grease_pencil_strokes(const RegionView3D &rv3d,
       case GP_MATERIAL_MODE_DOT:
       case GP_MATERIAL_MODE_SQUARE:
         /* NOTE: Squares don't have their own shader, render as dots too. */
-        draw_dots(transform, points_by_curve[stroke_i], positions, radii, colors, radius_scale);
+        draw_dots(C, transform, points_by_curve[stroke_i], positions, radii, colors, radius_scale);
         break;
     }
   });

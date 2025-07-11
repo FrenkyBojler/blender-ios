@@ -7,6 +7,7 @@
  */
 
 #include "BKE_attribute.hh"
+#include "BKE_context.hh"
 #include "BKE_material.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_index_range.hh"
@@ -19,6 +20,8 @@
 #include "DNA_defaults.h"
 #include "DNA_modifier_types.h"
 #include "DNA_scene_types.h"
+
+#include "DRW_render.hh"
 
 #include "BKE_curves.hh"
 #include "BKE_geometry_set.hh"
@@ -192,7 +195,9 @@ static void modify_drawing(const GreasePencilOutlineModifierData &omd,
   const float object_scale = math::length(
       math::transform_direction(ctx.object->object_to_world(), float3(M_SQRT1_3)));
   /* Legacy thickness setting is diameter in pixels, divide by 2000 to get radius. */
-  const float radius = math::max(omd.thickness * object_scale, 1.0f) *
+  const DRWContext *draw_ctx = DRW_context_get();
+  float _pixfactor = ED_grease_pencil_pixfactor_calculate((bContext *)(draw_ctx->evil_C));
+  const float radius = math::max(omd.thickness * object_scale * _pixfactor, 1.0f) *
                        bke::greasepencil::LEGACY_RADIUS_CONVERSION_FACTOR;
   /* Offset the strokes by the radius so the outside aligns with the input stroke. */
   const float outline_offset = (omd.flag & MOD_GREASE_PENCIL_OUTLINE_KEEP_SHAPE) != 0 ? -radius :
