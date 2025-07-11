@@ -28,7 +28,6 @@
 #include "BKE_curve.hh"
 #include "BKE_editmesh.hh"
 #include "BKE_global.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_layer.hh"
 #include "BKE_library.hh"
@@ -799,7 +798,7 @@ static int gizmo_3d_foreach_selected(const bContext *C,
 
               const bke::crazyspace::GeometryDeformation deformation =
                   bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                      *depsgraph, *ob, info.layer_index, info.frame_number);
+                      *depsgraph, *ob, info.drawing);
 
               const float4x4 layer_transform =
                   mat_local * grease_pencil.layer(info.layer_index).to_object_space(*ob_iter);
