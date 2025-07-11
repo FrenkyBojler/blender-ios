@@ -1393,69 +1393,6 @@ PointerRNA uiLayout::op(const blender::StringRefNull opname,
   return this->op(ot, name, icon, context, flag);
 }
 
-static StringRef ui_menu_enumpropname(uiLayout *layout,
-                                      PointerRNA *ptr,
-                                      PropertyRNA *prop,
-                                      int retval)
-{
-  bool free;
-  const EnumPropertyItem *item;
-  RNA_property_enum_items(
-      static_cast<bContext *>(layout->block()->evil_C), ptr, prop, &item, nullptr, &free);
-
-  const char *name;
-  if (RNA_enum_name(item, retval, &name)) {
-    name = CTX_IFACE_(RNA_property_translation_context(prop), name);
-  }
-  else {
-    name = "";
-  }
-
-  if (free) {
-    MEM_freeN(item);
-  }
-
-  return name;
-}
-
-void uiItemEnumO_ptr(uiLayout *layout,
-                     wmOperatorType *ot,
-                     std::optional<StringRef> name,
-                     int icon,
-                     const StringRefNull propname,
-                     int value)
-{
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
-  if (prop == nullptr) {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
-  }
-  name = name.value_or(ui_menu_enumpropname(layout, &ptr, prop, value));
-
-  ptr = layout->op(ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE);
-  RNA_property_enum_set(&ptr, prop, value);
-}
-void uiItemEnumO(uiLayout *layout,
-                 const StringRefNull opname,
-                 const std::optional<StringRef> name,
-                 int icon,
-                 const StringRefNull propname,
-                 int value)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-
-  if (ot) {
-    uiItemEnumO_ptr(layout, ot, name, icon, propname, value);
-  }
-  else {
-    ui_item_disabled(layout, opname.c_str());
-    RNA_warning("unknown operator '%s'", opname.c_str());
-  }
-}
-
 BLI_INLINE bool ui_layout_is_radial(const uiLayout *layout)
 {
   return (layout->type_ == uiItemType::LayoutRadial) ||
@@ -1463,16 +1400,15 @@ BLI_INLINE bool ui_layout_is_radial(const uiLayout *layout)
           (layout->root_->type == blender::ui::LayoutType::PieMenu));
 }
 
-void uiItemsFullEnumO_items(uiLayout *layout,
-                            wmOperatorType *ot,
-                            const PointerRNA &ptr,
-                            PropertyRNA *prop,
-                            IDProperty *properties,
-                            wmOperatorCallContext context,
-                            eUI_Item_Flag flag,
-                            const EnumPropertyItem *item_array,
-                            int totitem,
-                            int active)
+void uiLayout::op_enum_items(wmOperatorType *ot,
+                             const PointerRNA &ptr,
+                             PropertyRNA *prop,
+                             IDProperty *properties,
+                             wmOperatorCallContext context,
+                             eUI_Item_Flag flag,
+                             const EnumPropertyItem *item_array,
+                             int totitem,
+                             int active)
 {
   const StringRefNull propname = RNA_property_identifier(prop);
   if (RNA_property_type(prop) != PROP_ENUM) {
@@ -1481,16 +1417,16 @@ void uiItemsFullEnumO_items(uiLayout *layout,
   }
 
   uiLayout *target, *split = nullptr;
-  uiBlock *block = layout->block();
-  const bool radial = ui_layout_is_radial(layout);
+  uiBlock *block = this->block();
+  const bool radial = ui_layout_is_radial(this);
 
   if (radial) {
-    target = &layout->menu_pie();
+    target = &this->menu_pie();
   }
-  else if ((layout->local_direction() == blender::ui::LayoutDirection::Horizontal) &&
+  else if ((this->local_direction() == blender::ui::LayoutDirection::Horizontal) &&
            (flag & UI_ITEM_R_ICON_ONLY))
   {
-    target = layout;
+    target = this;
     UI_block_layout_set_current(block, target);
 
     /* Add a blank button to the beginning of the row. */
@@ -1508,8 +1444,8 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                  std::nullopt);
   }
   else {
-    split = &layout->split(0.0f, false);
-    target = &split->column(layout->align_);
+    split = &this->split(0.0f, false);
+    target = &split->column(align_);
   }
 
   bool last_iter = false;
@@ -1560,7 +1496,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
     else {
       if (item->name) {
         if (item != item_array && !radial && split != nullptr) {
-          target = &split->column(layout->align_);
+          target = &split->column(align_);
         }
 
         uiBut *but;
@@ -1603,18 +1539,17 @@ void uiItemsFullEnumO_items(uiLayout *layout,
   }
 }
 
-void uiItemsFullEnumO(uiLayout *layout,
-                      const StringRefNull opname,
-                      const StringRefNull propname,
-                      IDProperty *properties,
-                      wmOperatorCallContext context,
-                      eUI_Item_Flag flag,
-                      const int active)
+void uiLayout::op_enum(const StringRefNull opname,
+                       const StringRefNull propname,
+                       IDProperty *properties,
+                       wmOperatorCallContext context,
+                       eUI_Item_Flag flag,
+                       const int active)
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
 
   if (!ot || !ot->srna) {
-    ui_item_disabled(layout, opname.c_str());
+    ui_item_disabled(this, opname.c_str());
     RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname.c_str());
     return;
   }
@@ -1628,13 +1563,13 @@ void uiItemsFullEnumO(uiLayout *layout,
   /* don't let bad properties slip through */
   BLI_assert((prop == nullptr) || (RNA_property_type(prop) == PROP_ENUM));
 
-  uiBlock *block = layout->block();
+  uiBlock *block = this->block();
   if (prop && RNA_property_type(prop) == PROP_ENUM) {
     const EnumPropertyItem *item_array = nullptr;
     int totitem;
     bool free;
 
-    if (ui_layout_is_radial(layout)) {
+    if (ui_layout_is_radial(this)) {
       /* XXX: While "_all()" guarantees spatial stability,
        * it's bad when an enum has > 8 items total,
        * but only a small subset will ever be shown at once
@@ -1651,14 +1586,13 @@ void uiItemsFullEnumO(uiLayout *layout,
     else {
       bContext *C = static_cast<bContext *>(block->evil_C);
       const bContextStore *previous_ctx = CTX_store_get(C);
-      CTX_store_set(C, layout->context_);
+      CTX_store_set(C, context_);
       RNA_property_enum_items_gettexted(C, &ptr, prop, &item_array, &totitem, &free);
       CTX_store_set(C, previous_ctx);
     }
 
     /* add items */
-    uiItemsFullEnumO_items(
-        layout, ot, ptr, prop, properties, context, flag, item_array, totitem, active);
+    this->op_enum_items(ot, ptr, prop, properties, context, flag, item_array, totitem, active);
 
     if (free) {
       MEM_freeN(item_array);
@@ -1674,75 +1608,9 @@ void uiItemsFullEnumO(uiLayout *layout,
   }
 }
 
-void uiItemsEnumO(uiLayout *layout, const StringRefNull opname, const StringRefNull propname)
+void uiLayout::op_enum(const StringRefNull opname, const StringRefNull propname)
 {
-  uiItemsFullEnumO(layout, opname, propname, nullptr, layout->root_->opcontext, UI_ITEM_NONE);
-}
-
-void uiItemEnumO_value(uiLayout *layout,
-                       const StringRefNull name,
-                       int icon,
-                       const StringRefNull opname,
-                       const StringRefNull propname,
-                       int value)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), return);
-
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-
-  /* enum lookup */
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
-  if (prop == nullptr) {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
-  }
-  ptr = layout->op(ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE);
-  RNA_property_enum_set(&ptr, prop, value);
-}
-
-void uiItemEnumO_string(uiLayout *layout,
-                        const StringRef name,
-                        int icon,
-                        const StringRefNull opname,
-                        const StringRefNull propname,
-                        const char *value_str)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), return);
-
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
-  if (prop == nullptr) {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
-  }
-
-  /* enum lookup */
-  /* no need for translations here */
-  const EnumPropertyItem *item;
-  bool free;
-  RNA_property_enum_items(
-      static_cast<bContext *>(layout->block()->evil_C), &ptr, prop, &item, nullptr, &free);
-
-  int value;
-  if (item == nullptr || RNA_enum_value_from_id(item, value_str, &value) == 0) {
-    if (free) {
-      MEM_freeN(item);
-    }
-    RNA_warning(
-        "%s.%s, enum %s not found", RNA_struct_identifier(ptr.type), propname.c_str(), value_str);
-    return;
-  }
-
-  if (free) {
-    MEM_freeN(item);
-  }
-  ptr = layout->op(ot, name, icon, layout->root_->opcontext, UI_ITEM_NONE);
-  RNA_property_enum_set(&ptr, prop, value);
+  this->op_enum(opname, propname, nullptr, root_->opcontext, UI_ITEM_NONE);
 }
 
 PointerRNA uiLayout::op(wmOperatorType *ot, const std::optional<StringRef> name, int icon)
@@ -3411,8 +3279,7 @@ static void menu_item_enum_opname_menu(bContext *C, uiLayout *layout, void *arg)
   const int active = menu_item_enum_opname_menu_active(C, but, lvl);
 
   layout->operator_context_set(lvl->opcontext);
-  uiItemsFullEnumO(
-      layout, lvl->opname, lvl->propname, op_props, lvl->opcontext, UI_ITEM_NONE, active);
+  layout->op_enum(lvl->opname, lvl->propname, op_props, lvl->opcontext, UI_ITEM_NONE, active);
 
   /* override default, needed since this was assumed pre 2.70 */
   UI_block_direction_set(layout->block(), UI_DIR_DOWN);
