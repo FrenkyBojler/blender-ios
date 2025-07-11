@@ -84,11 +84,9 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
   node_shader_gpu_default_tex_coord(mat, node, &in[0].link);
   node_shader_gpu_tex_mapping(mat, node, in, out);
   NodeTexSky *tex = (NodeTexSky *)node->storage;
-
   Array<float> pixels(4 * GPU_SKY_WIDTH * GPU_SKY_HEIGHT);
 
-  float sky_type = (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) ? 0.0f : 1.0f;
-  if (sky_type == 0.0f) {
+  if (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) {
     threading::parallel_for(IndexRange(GPU_SKY_HEIGHT), 2, [&](IndexRange range) {
       SKY_single_scattering_precompute_texture(pixels.data(),
                                                4,
@@ -129,10 +127,12 @@ static int node_shader_gpu_tex_sky(GPUMaterial *mat,
   XYZ_to_RGB xyz_to_rgb;
   get_XYZ_to_RGB_for_gpu(&xyz_to_rgb);
 
+  /* To fix pole issue we clamp the v coordinate. */
   GPUSamplerState sampler = {GPU_SAMPLER_FILTERING_LINEAR,
                              GPU_SAMPLER_EXTEND_MODE_REPEAT,
                              GPU_SAMPLER_EXTEND_MODE_EXTEND};
   float layer;
+  float sky_type = (tex->sky_model == SHD_SKY_SINGLE_SCATTERING) ? 0.0f : 1.0f;
   GPUNodeLink *sky_texture = GPU_image_sky(
       mat, GPU_SKY_WIDTH, GPU_SKY_HEIGHT, pixels.data(), &layer, sampler);
   return GPU_stack_link(mat,
