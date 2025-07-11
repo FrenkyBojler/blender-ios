@@ -5,3 +5,4 @@ Referenced by pull request #141670, Fix #141651: VSE: The Channel setting does n
 Referenced by issue #141652, Regression: VSE: Python traceback with Fade operator
 Referenced by commit 413d8e540631cb9a2725b326df3593e7022a5303, Fix #141651: VSE: The Channel setting does not work independently in multiple areas
 Referenced by issue #141768, VSE: Tabbing in/out of metastrips does not update strip cache
+Referenced by pull request #141778, Fix #141768: VSE: Tabbing in/out of metastrips does not update strip cache
