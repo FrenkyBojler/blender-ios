@@ -140,12 +140,12 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
   }
 
   BKE_mesh_calc_loop_tangent_single_ex(
-      reinterpret_cast<const float (*)[3]>(mesh->vert_positions().data()),
+      reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data()),
       mesh->verts_num,
       mesh->corner_verts().data(),
       r_looptangents,
-      reinterpret_cast<const float (*)[3]>(mesh->corner_normals().data()),
-      reinterpret_cast<const float (*)[2]>(uv_map.data()),
+      reinterpret_cast<const float(*)[3]>(mesh->corner_normals().data()),
+      reinterpret_cast<const float(*)[2]>(uv_map.data()),
       mesh->corners_num,
       mesh->faces(),
       reports);
@@ -387,7 +387,7 @@ Array<Array<float4>> calc_uv_tangents(const Span<float3> vert_positions,
       mesh2tangent.mloopuv = uv_maps[i];
 
       results[i].reinitialize(corner_verts.size());
-      mesh2tangent.tangent = reinterpret_cast<float (*)[4]>(results[i].data());
+      mesh2tangent.tangent = reinterpret_cast<float(*)[4]>(results[i].data());
 
       mikk::Mikktspace<SGLSLMeshToTangent> mikk(mesh2tangent);
       mikk.genTangSpace();
@@ -437,7 +437,7 @@ Array<float4> calc_orco_tangents(const Span<float3> vert_positions,
   mesh2tangent.face_normals = face_normals;
   mesh2tangent.orco = vert_orco;
 
-  mesh2tangent.tangent = reinterpret_cast<float (*)[4]>(results.data());
+  mesh2tangent.tangent = reinterpret_cast<float(*)[4]>(results.data());
 
   mikk::Mikktspace<SGLSLMeshToTangent> mikk(mesh2tangent);
   mikk.genTangSpace();

@@ -58,7 +58,7 @@ using MPassKnownData = void (*)(blender::Span<blender::float3> vert_positions,
                                 const int x,
                                 const int y);
 
-using MInitBakeData = void *(*)(MultiresBakeRender * bkr, ImBuf *ibuf);
+using MInitBakeData = void *(*)(MultiresBakeRender *bkr, ImBuf *ibuf);
 using MFreeBakeData = void (*)(void *bake_data);
 
 struct MultiresBakeResult {
