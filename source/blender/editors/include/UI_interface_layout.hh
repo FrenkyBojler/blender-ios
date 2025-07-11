@@ -446,7 +446,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                 wmOperatorCallContext context,
                 eUI_Item_Flag flag);
   /**
-   * Expands and sets each enum property value as a operator button.
+   * Expands and sets each enum property value as an operator button.
    * \param propname: Name of the operator's enum property.
    * \param properties: Extra operator properties values to set.
    * \param active: an optional item to highlight.
@@ -459,12 +459,12 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                const int active = -1);
 
   /**
-   * Expands and sets each enum property value as a operator button.
+   * Expands and sets each enum property value as an operator button.
    * \param propname: Name of the operator's enum property.
    */
   void op_enum(blender::StringRefNull opname, blender::StringRefNull propname);
   /**
-   * Expands and sets each enum property value as operator button.
+   * Expands and sets each enum property value as an operator button.
    * \param prop: Operator's enum property.
    * \param properties: Extra operator properties values to set.
    * \param item_array: Precalculated item array, could be a subset of the enum property values.
