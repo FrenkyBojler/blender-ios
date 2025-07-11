@@ -491,7 +491,7 @@ bool WM_keymap_poll(bContext *C, wmKeyMap *keymap)
          * default. */
         !STREQ(keymap->idname, "Asset Shelf"))
     {
-      CLOG_WARN(WM_LOG_KEYMAPS, "empty keymap '%s'", keymap->idname);
+      CLOG_WARN(WM_LOG_EVENTS, "empty keymap '%s'", keymap->idname);
     }
   }
 
@@ -518,28 +518,17 @@ static void keymap_event_set(wmKeyMapItem *kmi, const KeyMapItem_Params *params)
     kmi->shift = kmi->ctrl = kmi->alt = kmi->oskey = kmi->hyper = KM_ANY;
   }
   else {
-    /* Only one of the flags should be set. */
-    BLI_assert(((params->modifier & (KM_SHIFT | KM_SHIFT_ANY)) != (KM_SHIFT | KM_SHIFT_ANY)) &&
-               ((params->modifier & (KM_CTRL | KM_CTRL_ANY)) != (KM_CTRL | KM_CTRL_ANY)) &&
-               ((params->modifier & (KM_ALT | KM_ALT_ANY)) != (KM_ALT | KM_ALT_ANY)) &&
-               ((params->modifier & (KM_OSKEY | KM_OSKEY_ANY)) != (KM_OSKEY | KM_OSKEY_ANY)) &&
-               ((params->modifier & (KM_HYPER | KM_HYPER_ANY)) != (KM_HYPER | KM_HYPER_ANY)));
+    const int8_t mod = params->modifier & 0xff;
+    const int8_t mod_any = KMI_PARAMS_MOD_FROM_ANY(params->modifier);
 
-    kmi->shift = ((params->modifier & KM_SHIFT) ?
-                      KM_MOD_HELD :
-                      ((params->modifier & KM_SHIFT_ANY) ? KM_ANY : KM_NOTHING));
-    kmi->ctrl = ((params->modifier & KM_CTRL) ?
-                     KM_MOD_HELD :
-                     ((params->modifier & KM_CTRL_ANY) ? KM_ANY : KM_NOTHING));
-    kmi->alt = ((params->modifier & KM_ALT) ?
-                    KM_MOD_HELD :
-                    ((params->modifier & KM_ALT_ANY) ? KM_ANY : KM_NOTHING));
-    kmi->oskey = ((params->modifier & KM_OSKEY) ?
-                      KM_MOD_HELD :
-                      ((params->modifier & KM_OSKEY_ANY) ? KM_ANY : KM_NOTHING));
-    kmi->hyper = ((params->modifier & KM_HYPER) ?
-                      KM_MOD_HELD :
-                      ((params->modifier & KM_HYPER_ANY) ? KM_ANY : KM_NOTHING));
+    /* Only one of the flags should be set. */
+    BLI_assert((mod & mod_any) == 0);
+
+    kmi->shift = ((mod & KM_SHIFT) ? KM_MOD_HELD : ((mod_any & KM_SHIFT) ? KM_ANY : KM_NOTHING));
+    kmi->ctrl = ((mod & KM_CTRL) ? KM_MOD_HELD : ((mod_any & KM_CTRL) ? KM_ANY : KM_NOTHING));
+    kmi->alt = ((mod & KM_ALT) ? KM_MOD_HELD : ((mod_any & KM_ALT) ? KM_ANY : KM_NOTHING));
+    kmi->oskey = ((mod & KM_OSKEY) ? KM_MOD_HELD : ((mod_any & KM_OSKEY) ? KM_ANY : KM_NOTHING));
+    kmi->hyper = ((mod & KM_HYPER) ? KM_MOD_HELD : ((mod_any & KM_HYPER) ? KM_ANY : KM_NOTHING));
   }
 }
 
@@ -1043,7 +1032,7 @@ void WM_modalkeymap_assign(wmKeyMap *km, const char *opname)
     ot->modalkeymap = km;
   }
   else {
-    CLOG_ERROR(WM_LOG_KEYMAPS, "unknown operator '%s'", opname);
+    CLOG_ERROR(WM_LOG_OPERATORS, "unknown operator '%s' in modal keymap", opname);
   }
 }
 
@@ -1145,6 +1134,7 @@ const char *WM_key_event_string(const short type, const bool compact)
         return key_event_glyph_or_text(font_id, IFACE_("Alt"), single_glyph);
       }
       case EVT_OSKEY: {
+        /* Keep these labels in sync with: `scripts/modules/rna_keymap_ui.py`. */
         if (platform == MACOS) {
           return key_event_glyph_or_text(
               font_id, IFACE_("Cmd"), BLI_STR_UTF8_PLACE_OF_INTEREST_SIGN);
@@ -1655,13 +1645,6 @@ std::optional<std::string> WM_key_event_operator_string(const bContext *C,
     return WM_keymap_item_to_string(kmi, false);
   }
 
-  /* Check UI state (non key-map actions for UI regions). */
-  if (std::optional<std::string> result = UI_key_event_operator_string(
-          C, opname, properties, is_strict))
-  {
-    return result;
-  }
-
   return std::nullopt;
 }
 
@@ -1810,7 +1793,7 @@ void WM_keyconfig_update_operatortype()
 
 /* NOTE(@ideasman42): regarding suppressing updates.
  * If this becomes a common operation it would be better use something more general,
- * a key-map flag for e.g. to signify that the key-map is stored outside of a #wmKeyConfig
+ * a key-map flag for example to signify that the key-map is stored outside of a #wmKeyConfig
  * and should not receive updates on modification. At the moment this has the down-side of
  * needing to be supported in quite a few places for something which isn't used much.
  * Since the use case for this is limited, add functions to begin/end suppression.
@@ -1991,7 +1974,7 @@ void WM_keyconfig_update_ex(wmWindowManager *wm, bool keep_properties)
   /* NOTE(@ideasman42): open preferences will contain "stale" #wmKeyMapItem data.
    *
    * The common case this solves is using Blender with the key-map editor open,
-   * an action in the view-port for e.g. may manipulate the key-map causing it to be rebuilt.
+   * an action in the view-port for example may manipulate the key-map causing it to be rebuilt.
    * Later interaction with the key-map editor may then attempt to access freed data.
    *
    * Take care, this is _not_ fool proof because it's possible:

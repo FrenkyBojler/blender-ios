@@ -314,6 +314,9 @@ void WM_gizmomap_tag_refresh_drawstep(wmGizmoMap *gzmap, const eWM_GizmoFlagMapD
   BLI_assert(uint(drawstep) < WM_GIZMOMAP_DRAWSTEP_MAX);
   if (gzmap) {
     gzmap->update_flag[drawstep] |= (GIZMOMAP_IS_PREPARE_DRAW | GIZMOMAP_IS_REFRESH_CALLBACK);
+    /* This could be split out into a separate tagging function,
+     * in practice both when refreshing the highlight should also be updated. */
+    gzmap->tag_highlight_pending = true;
   }
 }
 
@@ -323,6 +326,8 @@ void WM_gizmomap_tag_refresh(wmGizmoMap *gzmap)
     for (int i = 0; i < WM_GIZMOMAP_DRAWSTEP_MAX; i++) {
       gzmap->update_flag[i] |= (GIZMOMAP_IS_PREPARE_DRAW | GIZMOMAP_IS_REFRESH_CALLBACK);
     }
+    /* See code-comment for #WM_gizmomap_tag_refresh_drawstep. */
+    gzmap->tag_highlight_pending = true;
   }
 }
 
@@ -514,9 +519,16 @@ static void gizmo_draw_select_3d_loop(const bContext *C,
                                       const int visible_gizmos_len,
                                       bool *r_use_select_bias)
 {
+  /* WORKAROUND(#132196): `GPU_DEPTH_NONE` leads to issues with Intel GPU drivers on Windows
+   * where camera gizmos cannot be shifted. `glGetQueryObjectuiv` for `GL_SAMPLES_PASSED`
+   * seems to return zero in all cases. This might be due to undefined behavior of OpenGL
+   * when the depth test is disabled and rendering to a depth render target-only framebuffer.
+   * Using `GPU_DEPTH_ALWAYS` fixes the issue. */
+  const bool use_intel_gpu_workaround = true;
 
-  /* TODO(@ideasman42): this depends on depth buffer being written to,
-   * currently broken for the 3D view. */
+  /* Set default depth state. */
+  GPU_depth_test(use_intel_gpu_workaround ? GPU_DEPTH_ALWAYS : GPU_DEPTH_NONE);
+  GPU_depth_mask(true);
   bool is_depth_prev = false;
   bool is_depth_skip_prev = false;
 
@@ -535,7 +547,7 @@ static void gizmo_draw_select_3d_loop(const bContext *C,
         GPU_depth_test(GPU_DEPTH_LESS_EQUAL);
       }
       else {
-        GPU_depth_test(GPU_DEPTH_NONE);
+        GPU_depth_test(use_intel_gpu_workaround ? GPU_DEPTH_ALWAYS : GPU_DEPTH_NONE);
       }
       is_depth_prev = is_depth;
     }
@@ -557,7 +569,9 @@ static void gizmo_draw_select_3d_loop(const bContext *C,
     gz->type->draw_select(C, gz, select_id << 8);
   }
 
-  if (is_depth_prev) {
+  /* Reset depth state.*/
+
+  if (is_depth_prev || use_intel_gpu_workaround) {
     GPU_depth_test(GPU_DEPTH_NONE);
   }
   if (is_depth_skip_prev) {
@@ -706,10 +720,22 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
                                   });
     GPU_framebuffer_bind(depth_read_fb);
 
+    /* NOTE(@ideasman42): Regarding the hit-radius:
+     *
+     * - These must remain constant for all event types
+     *   since changing the radius per event types means non-motion events
+     *   can cause the gizmo not to be highlighted.
+     * - A single large radius would result in gizmos that are further away from the cursor
+     *   with a nearer Z-depth being highlighted.
+     *   So only use the larger radius when the first (smaller) pass has no hits.
+     * - As this runs on cursor-motion, avoid doing too many tests (currently 2x).
+     */
     const int hotspot_radii[] = {
-        int(3 * U.pixelsize),
-        /* This runs on mouse move, careful doing too many tests! */
-        int(10 * U.pixelsize),
+        /* Use a small value so it's possible to accurately pick a gizmo
+         * when multiple are overlapping. */
+        int(3.0f * UI_SCALE_FAC),
+        /* Use a larger value as a fallback so wire gizmos aren't difficult to click on. */
+        int(10.0f * UI_SCALE_FAC),
     };
     for (int i = 0; i < ARRAY_SIZE(hotspot_radii); i++) {
       hit = gizmo_find_intersected_3d_intern(
@@ -732,6 +758,15 @@ static wmGizmo *gizmo_find_intersected_3d(bContext *C,
   }
 
   return result;
+}
+
+bool wm_gizmomap_highlight_pending(const wmGizmoMap *gzmap)
+{
+  return gzmap->tag_highlight_pending;
+}
+bool wm_gizmomap_highlight_handled(wmGizmoMap *gzmap)
+{
+  return gzmap->tag_highlight_pending = false;
 }
 
 wmGizmo *wm_gizmomap_highlight_find(wmGizmoMap *gzmap,

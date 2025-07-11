@@ -59,7 +59,6 @@ void sequencer_operatortypes()
 
   WM_operatortype_append(SEQUENCER_OT_rebuild_proxy);
   WM_operatortype_append(SEQUENCER_OT_enable_proxies);
-  WM_operatortype_append(SEQUENCER_OT_change_effect_input);
   WM_operatortype_append(SEQUENCER_OT_change_effect_type);
   WM_operatortype_append(SEQUENCER_OT_change_path);
   WM_operatortype_append(SEQUENCER_OT_change_scene);
@@ -151,6 +150,8 @@ void sequencer_keymap(wmKeyConfig *keyconf)
 
   /* Channels Region ----------------------------------------------------------- */
   WM_keymap_ensure(keyconf, "Sequencer Channels", SPACE_SEQ, RGN_TYPE_WINDOW);
+
+  slip_modal_keymap(keyconf);
 }
 
 void ED_operatormacros_sequencer()

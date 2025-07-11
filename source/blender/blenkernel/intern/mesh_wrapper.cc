@@ -43,7 +43,7 @@ Mesh *BKE_mesh_wrapper_from_editmesh(std::shared_ptr<BMEditMesh> em,
                                      const CustomData_MeshMasks *cd_mask_extra,
                                      const Mesh *me_settings)
 {
-  Mesh *mesh = static_cast<Mesh *>(BKE_id_new_nomain(ID_ME, nullptr));
+  Mesh *mesh = BKE_id_new_nomain<Mesh>(nullptr);
   BKE_mesh_copy_parameters_for_eval(mesh, me_settings);
   BKE_mesh_runtime_ensure_edit_data(mesh);
 
@@ -82,6 +82,7 @@ void BKE_mesh_wrapper_ensure_mdata(Mesh *mesh)
     return;
   }
 
+  /* Double checked lock. */
   std::lock_guard lock{mesh->runtime->eval_mutex};
   if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_MDATA) {
     return;
@@ -373,20 +374,32 @@ static Mesh *mesh_wrapper_ensure_subdivision(Mesh *mesh)
 
 Mesh *BKE_mesh_wrapper_ensure_subdivision(Mesh *mesh)
 {
-  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_SUBD) {
-    /* Subdiv evaluation might have been skipped, in which case the original mesh is ok. */
-    return (mesh->runtime->mesh_eval) ? mesh->runtime->mesh_eval : mesh;
-  }
   if (mesh->runtime->subsurf_runtime_data == nullptr) {
     return mesh;
   }
 
+  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_SUBD) {
+    /* Subdiv evaluation might have been skipped, in which case the original mesh is ok. */
+    return (mesh->runtime->mesh_eval) ? mesh->runtime->mesh_eval : mesh;
+  }
+
+  /* Double checked lock. */
   std::lock_guard lock{mesh->runtime->eval_mutex};
+  if (mesh->runtime->wrapper_type == ME_WRAPPER_TYPE_SUBD) {
+    return (mesh->runtime->mesh_eval) ? mesh->runtime->mesh_eval : mesh;
+  }
 
   /* Must isolate multithreaded tasks while holding a mutex lock. */
   Mesh *result;
   blender::threading::isolate_task([&]() { result = mesh_wrapper_ensure_subdivision(mesh); });
   return result;
+}
+
+const Mesh *BKE_mesh_wrapper_ensure_subdivision(const Mesh *mesh)
+{
+  /* This modifies the mesh, but it's lazy initialization protected by mutex lock
+   * so still read-only access in a sense. */
+  return BKE_mesh_wrapper_ensure_subdivision(const_cast<Mesh *>(mesh));
 }
 
 /** \} */

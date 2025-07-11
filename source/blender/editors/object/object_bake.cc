@@ -54,8 +54,7 @@ static Image *bake_object_image_get(Object *ob, int mat_nr)
 
 static Image **bake_object_image_get_array(Object *ob)
 {
-  Image **image_array = static_cast<Image **>(
-      MEM_mallocN(sizeof(Material *) * ob->totcol, __func__));
+  Image **image_array = MEM_malloc_arrayN<Image *>(ob->totcol, __func__);
   for (int i = 0; i < ob->totcol; i++) {
     image_array[i] = bake_object_image_get(ob, i);
   }
@@ -604,6 +603,9 @@ static wmOperatorStatus objects_bake_render_modal(bContext *C,
   switch (event->type) {
     case EVT_ESCKEY:
       return OPERATOR_RUNNING_MODAL;
+    default: {
+      break;
+    }
   }
   return OPERATOR_PASS_THROUGH;
 }
@@ -655,7 +657,7 @@ void OBJECT_OT_bake_image(wmOperatorType *ot)
   ot->description = "Bake image textures of selected objects";
   ot->idname = "OBJECT_OT_bake_image";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bake_image_exec;
   ot->invoke = objects_bake_render_invoke;
   ot->modal = objects_bake_render_modal;

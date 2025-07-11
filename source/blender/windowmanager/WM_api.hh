@@ -166,19 +166,31 @@ const char *WM_ghost_backend();
 enum eWM_CapabilitiesFlag {
   /** Ability to warp the cursor (set its location). */
   WM_CAPABILITY_CURSOR_WARP = (1 << 0),
-  /** Ability to access window positions & move them. */
+  /**
+   * Window position access, support for the following.
+   * - Getting window positions.
+   * - Setting window positions.
+   * - Setting positions for new windows.
+   *
+   * Currently there is no need to distinguish between these different cases
+   * so a single flag is used.
+   *
+   * When omitted, it isn't possible to know where windows are located in relation to each other.
+   * Operations such as applying events from one window to another or detecting the non-active
+   * window under the cursor are not supported.
+   */
   WM_CAPABILITY_WINDOW_POSITION = (1 << 1),
   /**
    * The windowing system supports a separate primary clipboard
    * (typically set when interactively selecting text).
    */
-  WM_CAPABILITY_PRIMARY_CLIPBOARD = (1 << 2),
+  WM_CAPABILITY_CLIPBOARD_PRIMARY = (1 << 2),
   /**
    * Reading from the back-buffer is supported.
    */
   WM_CAPABILITY_GPU_FRONT_BUFFER_READ = (1 << 3),
   /** Ability to copy/paste system clipboard images. */
-  WM_CAPABILITY_CLIPBOARD_IMAGES = (1 << 4),
+  WM_CAPABILITY_CLIPBOARD_IMAGE = (1 << 4),
   /** Ability to sample a color outside of Blender windows. */
   WM_CAPABILITY_DESKTOP_SAMPLE = (1 << 5),
   /** Support for IME input methods. */
@@ -187,6 +199,10 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_TRACKPAD_PHYSICAL_DIRECTION = (1 << 7),
   /** Support for window decoration styles. */
   WM_CAPABILITY_WINDOW_DECORATION_STYLES = (1 << 8),
+  /** Support for the "Hyper" modifier key. */
+  WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
+  /** Support for RGBA Cursors. */
+  WM_CAPABILITY_CURSOR_RGBA = (1 << 10),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -421,9 +437,20 @@ void WM_window_decoration_style_apply(const wmWindow *win, const bScreen *screen
 /* `wm_files.cc`. */
 
 void WM_file_autoexec_init(const char *filepath);
-bool WM_file_read(bContext *C, const char *filepath, ReportList *reports);
+/**
+ * \param use_scripts_autoexec_check: When true, script auto-execution checks excluded directories.
+ * Note that this is passed in as an argument because `filepath` may reference a path to recover.
+ * In this case the that used for exclusion is the recovery path which is only known once
+ * the file has been loaded.
+ */
+bool WM_file_read(bContext *C,
+                  const char *filepath,
+                  const bool use_scripts_autoexec_check,
+                  ReportList *reports);
 void WM_file_autosave_init(wmWindowManager *wm);
-bool WM_file_recover_last_session(bContext *C, ReportList *reports);
+bool WM_file_recover_last_session(bContext *C,
+                                  const bool use_scripts_autoexec_check,
+                                  ReportList *reports);
 void WM_file_tag_modified();
 
 /**
@@ -485,7 +512,7 @@ void WM_cursor_time(wmWindow *win, int nr);
 wmPaintCursor *WM_paint_cursor_activate(short space_type,
                                         short region_type,
                                         bool (*poll)(bContext *C),
-                                        void (*draw)(bContext *C, int, int, void *customdata),
+                                        wmPaintCursorDraw draw,
                                         void *customdata);
 
 bool WM_paint_cursor_end(wmPaintCursor *handle);
@@ -499,6 +526,17 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion *region);
  * before relying on this functionality.
  */
 void WM_cursor_warp(wmWindow *win, int x, int y);
+
+/**
+ * The default size of a cursor without any DPI scaling.
+ */
+#define WM_CURSOR_DEFAULT_LOGICAL_SIZE 24
+
+/**
+ * \return the preferred logical size for the cursor
+ * (before DPI/Hi-DPI scaling is applied).
+ */
+uint WM_cursor_preferred_logical_size();
 
 /* Handlers. */
 
@@ -748,7 +786,10 @@ void wm_event_init_from_window(wmWindow *win, wmEvent *event);
 /**
  * At maximum, every time_step seconds it triggers `event_type` events.
  */
-wmTimer *WM_event_timer_add(wmWindowManager *wm, wmWindow *win, int event_type, double time_step);
+wmTimer *WM_event_timer_add(wmWindowManager *wm,
+                            wmWindow *win,
+                            wmEventType event_type,
+                            double time_step);
 wmTimer *WM_event_timer_add_notifier(wmWindowManager *wm,
                                      wmWindow *win,
                                      unsigned int type,
@@ -1532,6 +1573,11 @@ wmDrag *WM_drag_data_create(
  */
 void WM_event_start_prepared_drag(bContext *C, wmDrag *drag);
 void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale);
+/**
+ * Overrides the `drag.poin` event to include all selected files in the space file where the event
+ * started.
+ */
+void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *, wmDrag *drag);
 void WM_event_drag_preview_icon(wmDrag *drag, int icon_id);
 void WM_drag_free(wmDrag *drag);
 void WM_drag_data_free(eWM_DragDataType dragtype, void *poin);
@@ -1826,7 +1872,7 @@ void WM_job_main_thread_lock_release(wmJob *wm_job);
 
 /**
  * Return text from the clipboard.
- * \param selection: Use the "primary" clipboard, see: #WM_CAPABILITY_PRIMARY_CLIPBOARD.
+ * \param selection: Use the "primary" clipboard, see: #WM_CAPABILITY_CLIPBOARD_PRIMARY.
  * \param ensure_utf8: Ensure the resulting string does not contain invalid UTF8 encoding.
  */
 char *WM_clipboard_text_get(bool selection, bool ensure_utf8, int *r_len);
@@ -1873,7 +1919,7 @@ void WM_draw_cb_exit(wmWindow *win, void *handle);
  * because drawing relies on the event system & depsgraph preparing data for display.
  * An explicit call to draw is error prone since it may attempt to show stale data.
  *
- * With some rare exceptions which require a redraw (screen-shot & sample screen color for e.g.)
+ * With some rare exceptions which require a redraw (e.g. screen-shot & sample screen color)
  * explicitly redrawing should be avoided, see: #92704, #93950, #97627 & #98462.
  */
 void WM_redraw_windows(bContext *C);
@@ -1888,7 +1934,7 @@ void WM_draw_region_free(ARegion *region);
 GPUViewport *WM_draw_region_get_viewport(ARegion *region);
 GPUViewport *WM_draw_region_get_bound_viewport(ARegion *region);
 
-void WM_main_playanim(int argc, const char **argv);
+int WM_main_playanim(int argc, const char **argv);
 
 /**
  * Debugging only, convenience function to write on crash.
@@ -1990,11 +2036,18 @@ int WM_userdef_event_map(int kmitype);
 int WM_userdef_event_type_from_keymap_type(int kmitype);
 
 #ifdef WITH_INPUT_NDOF
-void WM_event_ndof_pan_get(const wmNDOFMotionData *ndof, float r_pan[3], bool use_zoom);
-void WM_event_ndof_rotate_get(const wmNDOFMotionData *ndof, float r_rot[3]);
+blender::float3 WM_event_ndof_translation_get_for_navigation(const wmNDOFMotionData &ndof);
+blender::float3 WM_event_ndof_rotation_get_for_navigation(const wmNDOFMotionData &ndof);
+float WM_event_ndof_rotation_get_axis_angle_for_navigation(const wmNDOFMotionData &ndof,
+                                                           float axis[3]);
 
-float WM_event_ndof_to_axis_angle(const wmNDOFMotionData *ndof, float axis[3]);
-void WM_event_ndof_to_quat(const wmNDOFMotionData *ndof, float q[4]);
+blender::float3 WM_event_ndof_translation_get(const wmNDOFMotionData &ndof);
+blender::float3 WM_event_ndof_rotation_get(const wmNDOFMotionData &ndof);
+float WM_event_ndof_rotation_get_axis_angle(const wmNDOFMotionData &ndof, float axis[3]);
+
+bool WM_event_ndof_translation_has_pan(const wmNDOFMotionData &ndof);
+bool WM_event_ndof_translation_has_zoom(const wmNDOFMotionData &ndof);
+
 #endif /* WITH_INPUT_NDOF */
 
 #ifdef WITH_XR_OPENXR

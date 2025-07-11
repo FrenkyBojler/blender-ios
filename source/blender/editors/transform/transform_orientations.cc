@@ -44,10 +44,12 @@
 
 #include "ED_armature.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 
 #include "SEQ_select.hh"
 
+#include "SEQ_transform.hh"
 #include "transform.hh"
 #include "transform_orientations.hh"
 
@@ -77,19 +79,16 @@ static TransformOrientation *findOrientationName(ListBase *lb, const char *name)
       BLI_findstring(lb, name, offsetof(TransformOrientation, name)));
 }
 
-static bool uniqueOrientationNameCheck(void *arg, const char *name)
-{
-  return findOrientationName((ListBase *)arg, name) != nullptr;
-}
-
 static void uniqueOrientationName(ListBase *lb, char *name)
 {
-  BLI_uniquename_cb(uniqueOrientationNameCheck,
-                    lb,
-                    CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Space"),
-                    '.',
-                    name,
-                    sizeof(TransformOrientation::name));
+  BLI_uniquename_cb(
+      [&](const StringRefNull check_name) {
+        return findOrientationName(lb, check_name.c_str()) != nullptr;
+      },
+      CTX_DATA_(BLT_I18NCONTEXT_ID_SCENE, "Space"),
+      '.',
+      name,
+      sizeof(TransformOrientation::name));
 }
 
 static TransformOrientation *createViewSpace(bContext *C,
@@ -524,8 +523,7 @@ TransformOrientation *addMatrixSpace(bContext *C,
 
   /* If not, create a new one. */
   if (ts == nullptr) {
-    ts = static_cast<TransformOrientation *>(
-        MEM_callocN(sizeof(TransformOrientation), "UserTransSpace from matrix"));
+    ts = MEM_callocN<TransformOrientation>("UserTransSpace from matrix");
     BLI_addtail(transform_orientations, ts);
     STRNCPY(ts->name, name);
   }
@@ -768,7 +766,9 @@ short transform_orientation_matrix_get(bContext *C,
     Scene *scene = t->scene;
     Strip *strip = seq::select_active_get(scene);
     if (strip && strip->data->transform && orient_index == V3D_ORIENT_LOCAL) {
-      axis_angle_to_mat3_single(r_spacemtx, 'Z', strip->data->transform->rotation);
+      const float2 mirror = seq::image_transform_mirror_factor_get(strip);
+      axis_angle_to_mat3_single(
+          r_spacemtx, 'Z', strip->data->transform->rotation * mirror[0] * mirror[1]);
       return orient_index;
     }
   }
@@ -1371,7 +1371,7 @@ int getTransformOrientation_ex(const Scene *scene,
         zero_v3(fallback_plane);
 
         LISTBASE_FOREACH (EditBone *, ebone, arm->edbo) {
-          if (EBONE_VISIBLE(arm, ebone)) {
+          if (blender::animrig::bone_is_visible_editbone(arm, ebone)) {
             if (ebone->flag & BONE_SELECTED) {
               ED_armature_ebone_to_mat3(ebone, tmat);
               add_v3_v3(r_normal, tmat[2]);

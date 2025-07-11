@@ -98,12 +98,13 @@ void ShadingView::render()
 
   GBuffer &gbuf = inst_.gbuffer;
   gbuf.acquire(extent_,
+               inst_.pipelines.deferred.header_layer_count(),
                inst_.pipelines.deferred.closure_layer_count(),
                inst_.pipelines.deferred.normal_layer_count());
 
   gbuffer_fb_.ensure(GPU_ATTACHMENT_TEXTURE(rbufs.depth_tx),
                      GPU_ATTACHMENT_TEXTURE(rbufs.combined_tx),
-                     GPU_ATTACHMENT_TEXTURE(gbuf.header_tx),
+                     GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.header_tx.layer_view(0), 0),
                      GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.normal_tx.layer_view(0), 0),
                      GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(0), 0),
                      GPU_ATTACHMENT_TEXTURE_LAYER(gbuf.closure_tx.layer_view(1), 0));
@@ -117,7 +118,7 @@ void ShadingView::render()
   /* Alpha stores transmittance. So start at 1. */
   float4 clear_color = {0.0f, 0.0f, 0.0f, 1.0f};
   GPU_framebuffer_bind(combined_fb_);
-  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, 1.0f);
+  GPU_framebuffer_clear_color_depth(combined_fb_, clear_color, inst_.film.depth.clear_value);
   inst_.pipelines.background.clear(render_view_);
 
   /* TODO(fclem): Move it after the first prepass (and hiz update) once pipeline is stabilized. */
@@ -339,6 +340,7 @@ void CaptureView::render_probes()
                       GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.vector_tx));
 
     inst_.gbuffer.acquire(extent,
+                          inst_.pipelines.probe.header_layer_count(),
                           inst_.pipelines.probe.closure_layer_count(),
                           inst_.pipelines.probe.normal_layer_count());
 
@@ -358,13 +360,14 @@ void CaptureView::render_probes()
 
       gbuffer_fb_.ensure(GPU_ATTACHMENT_TEXTURE(inst_.render_buffers.depth_tx),
                          GPU_ATTACHMENT_TEXTURE_CUBEFACE(inst_.sphere_probes.cubemap_tx_, face),
-                         GPU_ATTACHMENT_TEXTURE(inst_.gbuffer.header_tx),
+                         GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.header_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.normal_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(0), 0),
                          GPU_ATTACHMENT_TEXTURE_LAYER(inst_.gbuffer.closure_tx.layer_view(1), 0));
 
       GPU_framebuffer_bind(combined_fb_);
-      GPU_framebuffer_clear_color_depth(combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), 1.0f);
+      GPU_framebuffer_clear_color_depth(
+          combined_fb_, float4(0.0f, 0.0f, 0.0f, 1.0f), inst_.film.depth.clear_value);
       inst_.pipelines.probe.render(view, prepass_fb, combined_fb_, gbuffer_fb_, extent);
     }
 

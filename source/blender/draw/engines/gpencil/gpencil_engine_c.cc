@@ -8,9 +8,9 @@
 #include "DRW_engine.hh"
 #include "DRW_render.hh"
 
+#include "BKE_compositor.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
-#include "BKE_gpencil_geom_legacy.h"
 #include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.hh"
@@ -65,7 +65,7 @@ void Instance::init()
   if (!dummy_depth.is_valid()) {
     const float pixels[1] = {1.0f};
     dummy_depth.ensure_2d(
-        GPU_DEPTH_COMPONENT24, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0]);
+        GPU_DEPTH_COMPONENT32F, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0]);
   }
 
   /* Resize and reset memory-blocks. */
@@ -98,6 +98,7 @@ void Instance::init()
   /* Small HACK: we don't want the global pool to be reused,
    * so we set the last light pool to nullptr. */
   this->last_light_pool = nullptr;
+  this->is_sorted = false;
 
   bool use_scene_lights = false;
   bool use_scene_world = false;
@@ -170,8 +171,13 @@ void Instance::begin_sync()
   this->use_layer_fb = false;
   this->use_object_fb = false;
   this->use_mask_fb = false;
-  /* Always use high precision for render. */
-  this->use_signed_fb = !this->is_viewport;
+  this->use_separate_pass =
+      draw_ctx->is_viewport_compositor_enabled() ?
+          bke::compositor::get_used_passes(*scene, view_layer).contains("GreasePencil") :
+          false;
+  /* Always use high precision for render and viewport compositor (viewport compositor only takes
+   * RGBA16F/32F formats). */
+  this->use_signed_fb = this->use_separate_pass || !this->is_viewport;
 
   if (draw_ctx->v3d) {
     const bool hide_overlay = ((draw_ctx->v3d->flag2 & V3D_HIDE_OVERLAYS) != 0);
@@ -181,6 +187,8 @@ void Instance::begin_sync()
                                  nullptr :
                              false;
     this->do_onion = show_onion && !hide_overlay && !playing;
+    this->do_onion_only_active_object = ((draw_ctx->v3d->gp_flag &
+                                          V3D_GP_ONION_SKIN_ACTIVE_OBJECT) != 0);
     this->playing = playing;
     /* Save simplify flags (can change while drawing, so it's better to save). */
     Scene *scene = draw_ctx->scene;
@@ -217,39 +225,23 @@ void Instance::begin_sync()
   {
     this->stroke_batch = nullptr;
     this->fill_batch = nullptr;
-    this->do_fast_drawing = false;
 
     this->obact = draw_ctx->obact;
   }
 
-  if (this->do_fast_drawing) {
-    this->snapshot_buffer_dirty = !this->snapshot_depth_tx.is_valid();
-    const float2 size = draw_ctx->viewport_size_get();
-
-    eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT;
-    this->snapshot_depth_tx.ensure_2d(GPU_DEPTH24_STENCIL8, int2(size), usage);
-    this->snapshot_color_tx.ensure_2d(GPU_R11F_G11F_B10F, int2(size), usage);
-    this->snapshot_reveal_tx.ensure_2d(GPU_R11F_G11F_B10F, int2(size), usage);
-
-    this->snapshot_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->snapshot_depth_tx),
-                             GPU_ATTACHMENT_TEXTURE(this->snapshot_color_tx),
-                             GPU_ATTACHMENT_TEXTURE(this->snapshot_reveal_tx));
-  }
-  else {
-    /* Free unneeded buffers. */
-    this->snapshot_depth_tx.free();
-    this->snapshot_color_tx.free();
-    this->snapshot_reveal_tx.free();
-  }
+  /* Free unneeded buffers. */
+  this->snapshot_depth_tx.free();
+  this->snapshot_color_tx.free();
+  this->snapshot_reveal_tx.free();
 
   {
     PassSimple &pass = this->merge_depth_ps;
     pass.init();
     pass.state_set(DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS);
     pass.shader_set(ShaderCache::get().depth_merge.get());
-    pass.bind_texture("depthBuf", &this->depth_tx);
-    pass.push_constant("strokeOrder3d", &this->is_stroke_order_3d);
-    pass.push_constant("gpModelMatrix", &this->object_bound_mat);
+    pass.bind_texture("depth_buf", &this->depth_tx);
+    pass.push_constant("stroke_order3d", &this->is_stroke_order_3d);
+    pass.push_constant("gp_model_matrix", &this->object_bound_mat);
     pass.draw_procedural(GPU_PRIM_TRIS, 1, 3);
   }
   {
@@ -338,7 +330,7 @@ bool Instance::use_layer_in_render(const GreasePencil &grease_pencil,
   return true;
 }
 
-tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
+tObject *Instance::object_sync_do(Object *ob, ResourceHandleRange res_handle)
 {
   using namespace ed::greasepencil;
   using namespace bke::greasepencil;
@@ -346,7 +338,8 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
   const bool is_vertex_mode = (ob->mode & OB_MODE_VERTEX_PAINT) != 0;
   const Bounds<float3> bounds = grease_pencil.bounds_min_max_eval().value_or(Bounds(float3(0)));
 
-  const bool do_onion = !this->is_render && this->do_onion;
+  const bool do_onion = !this->is_render && this->do_onion &&
+                        (this->do_onion_only_active_object ? this->obact == ob : true);
   const bool do_multi_frame = (((this->scene->toolsettings->gpencil_flags &
                                  GP_USE_MULTI_FRAME_EDITING) != 0) &&
                                (ob->mode != OB_MODE_OBJECT));
@@ -462,15 +455,17 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
 
     pass.bind_ubo("gp_lights", lights_ubo);
     pass.bind_ubo("gp_materials", ubo_mat);
-    pass.bind_texture("gpFillTexture", tex_fill);
-    pass.bind_texture("gpStrokeTexture", tex_stroke);
-    pass.push_constant("gpMaterialOffset", mat_ofs);
+    pass.bind_texture("gp_fill_tx", tex_fill);
+    pass.bind_texture("gp_stroke_tx", tex_stroke);
+    pass.push_constant("gp_material_offset", mat_ofs);
     /* Since we don't use the sbuffer in GPv3, this is always 0. */
-    pass.push_constant("gpStrokeIndexOffset", 0.0f);
-    pass.push_constant("viewportSize", float2(draw_ctx->viewport_size_get()));
+    pass.push_constant("gp_stroke_index_offset", 0.0f);
+    pass.push_constant("viewport_size", float2(draw_ctx->viewport_size_get()));
 
     const VArray<int> stroke_materials = *attributes.lookup_or_default<int>(
         "material_index", bke::AttrDomain::Curve, 0);
+    const VArray<bool> is_fill_guide = *attributes.lookup_or_default<bool>(
+        ".is_fill_guide", bke::AttrDomain::Curve, false);
 
     const bool only_lines = !ELEM(ob->mode,
                                   OB_MODE_PAINT_GREASE_PENCIL,
@@ -488,11 +483,14 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
       const int material_index = std::max(stroke_materials[stroke_i], 0);
       const MaterialGPencilStyle *gp_style = BKE_gpencil_material_settings(ob, material_index + 1);
 
+      const bool is_fill_guide_stroke = is_fill_guide[stroke_i];
+
       const bool hide_material = (gp_style->flag & GP_MATERIAL_HIDE) != 0;
-      const bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0);
+      const bool show_stroke = ((gp_style->flag & GP_MATERIAL_STROKE_SHOW) != 0) ||
+                               is_fill_guide_stroke;
       const bool show_fill = (points.size() >= 3) &&
                              ((gp_style->flag & GP_MATERIAL_FILL_SHOW) != 0) &&
-                             (!this->simplify_fill);
+                             (!this->simplify_fill) && !is_fill_guide_stroke;
       const bool hide_onion = is_onion && ((gp_style->flag & GP_MATERIAL_HIDE_ONIONSKIN) != 0 ||
                                            (!do_onion && !do_multi_frame));
       const bool skip_stroke = hide_material || (!show_stroke && !show_fill) ||
@@ -522,11 +520,11 @@ tObject *Instance::object_sync_do(Object *ob, ResourceHandle res_handle)
           ubo_mat = new_ubo_mat;
         }
         if (new_tex_fill) {
-          pass.bind_texture("gpFillTexture", new_tex_fill);
+          pass.bind_texture("gp_fill_tx", new_tex_fill);
           tex_fill = new_tex_fill;
         }
         if (new_tex_stroke) {
-          pass.bind_texture("gpStrokeTexture", new_tex_stroke);
+          pass.bind_texture("gp_stroke_tx", new_tex_stroke);
           tex_stroke = new_tex_stroke;
         }
       }
@@ -576,14 +574,10 @@ void Instance::object_sync(ObjectRef &ob_ref, Manager &manager)
   }
 
   if (ob->data && (ob->type == OB_GREASE_PENCIL) && (ob->dt >= OB_SOLID)) {
-    ResourceHandle res_handle = manager.unique_handle(ob_ref);
+    ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
     tObject *tgp_ob = object_sync_do(ob, res_handle);
-    gpencil_vfx_cache_populate(
-        this,
-        ob,
-        tgp_ob,
-        ELEM(ob->mode, OB_MODE_EDIT, OB_MODE_SCULPT_GREASE_PENCIL, OB_MODE_WEIGHT_GREASE_PENCIL));
+    vfx_sync(ob, tgp_ob);
   }
 
   if (ob->type == OB_LAMP && this->use_lights) {
@@ -617,19 +611,20 @@ void Instance::acquire_resources()
 
   const int2 size = int2(draw_ctx->viewport_size_get());
 
-  eGPUTextureFormat format = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
+  const eGPUTextureFormat format_color = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
+  const eGPUTextureFormat format_reveal = this->use_signed_fb ? GPU_RGBA16F : GPU_RGB10_A2;
 
-  this->depth_tx.acquire(size, GPU_DEPTH24_STENCIL8);
-  this->color_tx.acquire(size, format);
-  this->reveal_tx.acquire(size, format);
+  this->depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
+  this->color_tx.acquire(size, format_color);
+  this->reveal_tx.acquire(size, format_reveal);
 
   this->gpencil_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                           GPU_ATTACHMENT_TEXTURE(this->color_tx),
                           GPU_ATTACHMENT_TEXTURE(this->reveal_tx));
 
   if (this->use_layer_fb) {
-    this->color_layer_tx.acquire(size, format);
-    this->reveal_layer_tx.acquire(size, format);
+    this->color_layer_tx.acquire(size, format_color);
+    this->reveal_layer_tx.acquire(size, format_reveal);
 
     this->layer_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                           GPU_ATTACHMENT_TEXTURE(this->color_layer_tx),
@@ -637,8 +632,8 @@ void Instance::acquire_resources()
   }
 
   if (this->use_object_fb) {
-    this->color_object_tx.acquire(size, format);
-    this->reveal_object_tx.acquire(size, format);
+    this->color_object_tx.acquire(size, format_color);
+    this->reveal_object_tx.acquire(size, format_reveal);
 
     this->object_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->depth_tx),
                            GPU_ATTACHMENT_TEXTURE(this->color_object_tx),
@@ -647,9 +642,9 @@ void Instance::acquire_resources()
 
   if (this->use_mask_fb) {
     /* Use high quality format for render. */
-    eGPUTextureFormat mask_format = this->is_render ? GPU_R16 : GPU_R8;
+    const eGPUTextureFormat mask_format = this->is_render ? GPU_R16 : GPU_R8;
     /* We need an extra depth to not disturb the normal drawing. */
-    this->mask_depth_tx.acquire(size, GPU_DEPTH24_STENCIL8);
+    this->mask_depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
     /* The mask_color_tx is needed for frame-buffer completeness. */
     this->mask_color_tx.acquire(size, GPU_R8);
     this->mask_tx.acquire(size, mask_format);
@@ -657,6 +652,13 @@ void Instance::acquire_resources()
     this->mask_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->mask_depth_tx),
                          GPU_ATTACHMENT_TEXTURE(this->mask_color_tx),
                          GPU_ATTACHMENT_TEXTURE(this->mask_tx));
+  }
+
+  if (this->use_separate_pass) {
+    const int2 size = int2(draw_ctx->viewport_size_get());
+    draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
+    output_pass_texture.acquire(size, GPU_RGBA16F);
+    this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(output_pass_texture));
   }
 }
 
@@ -779,37 +781,6 @@ void Instance::draw_object(View &view, tObject *ob)
   GPU_debug_group_end();
 }
 
-void Instance::fast_draw_start()
-{
-  DefaultFramebufferList *dfbl = this->draw_ctx->viewport_framebuffer_list_get();
-
-  if (!this->snapshot_buffer_dirty) {
-    /* Copy back cached render. */
-    GPU_framebuffer_blit(this->snapshot_fb, 0, dfbl->default_fb, 0, GPU_DEPTH_BIT);
-    GPU_framebuffer_blit(this->snapshot_fb, 0, this->gpencil_fb, 0, GPU_COLOR_BIT);
-    GPU_framebuffer_blit(this->snapshot_fb, 1, this->gpencil_fb, 1, GPU_COLOR_BIT);
-    /* Bypass drawing. */
-    this->tobjects.first = this->tobjects.last = nullptr;
-  }
-}
-
-void Instance::fast_draw_end(View &view)
-{
-  DefaultFramebufferList *dfbl = this->draw_ctx->viewport_framebuffer_list_get();
-
-  if (this->snapshot_buffer_dirty) {
-    /* Save to snapshot buffer. */
-    GPU_framebuffer_blit(dfbl->default_fb, 0, this->snapshot_fb, 0, GPU_DEPTH_BIT);
-    GPU_framebuffer_blit(this->gpencil_fb, 0, this->snapshot_fb, 0, GPU_COLOR_BIT);
-    GPU_framebuffer_blit(this->gpencil_fb, 1, this->snapshot_fb, 1, GPU_COLOR_BIT);
-    this->snapshot_buffer_dirty = false;
-  }
-  /* Draw the sbuffer stroke(s). */
-  LISTBASE_FOREACH (tObject *, ob, &this->sbuffer_tobjects) {
-    draw_object(view, ob);
-  }
-}
-
 void Instance::draw(Manager &manager)
 {
   DefaultTextureList *dtxl = draw_ctx->viewport_texture_list_get();
@@ -852,10 +823,6 @@ void Instance::draw(Manager &manager)
 
   this->acquire_resources();
 
-  if (this->do_fast_drawing) {
-    fast_draw_start();
-  }
-
   if (this->tobjects.first) {
     GPU_framebuffer_bind(this->gpencil_fb);
     GPU_framebuffer_multi_clear(this->gpencil_fb, clear_cols);
@@ -865,10 +832,6 @@ void Instance::draw(Manager &manager)
 
   LISTBASE_FOREACH (tObject *, ob, &this->tobjects) {
     draw_object(view, ob);
-  }
-
-  if (this->do_fast_drawing) {
-    fast_draw_end(view);
   }
 
   if (this->scene_fb) {

@@ -54,7 +54,7 @@ static bool operator_rigidbody_editable_poll(Scene *scene)
   return true;
 }
 
-static bool ED_operator_rigidbody_active_poll(bContext *C)
+static bool operator_rigidbody_active_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   if (!operator_rigidbody_editable_poll(scene)) {
@@ -69,7 +69,7 @@ static bool ED_operator_rigidbody_active_poll(bContext *C)
   return false;
 }
 
-static bool ED_operator_rigidbody_add_poll(bContext *C)
+static bool operator_rigidbody_add_poll(bContext *C)
 {
   Scene *scene = CTX_data_scene(C);
   if (!operator_rigidbody_editable_poll(scene)) {
@@ -132,7 +132,7 @@ void RIGIDBODY_OT_object_add(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_object_add_exec;
-  ot->poll = ED_operator_rigidbody_add_poll;
+  ot->poll = operator_rigidbody_add_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -183,7 +183,7 @@ void RIGIDBODY_OT_object_remove(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_object_remove_exec;
-  ot->poll = ED_operator_rigidbody_active_poll;
+  ot->poll = operator_rigidbody_active_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -227,7 +227,7 @@ void RIGIDBODY_OT_objects_add(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_objects_add_exec;
-  ot->poll = ED_operator_rigidbody_add_poll;
+  ot->poll = operator_rigidbody_add_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -278,7 +278,7 @@ void RIGIDBODY_OT_objects_remove(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = rigidbody_objects_remove_exec;
-  ot->poll = ED_operator_rigidbody_active_poll;
+  ot->poll = operator_rigidbody_active_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -330,7 +330,7 @@ void RIGIDBODY_OT_shape_change(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = WM_menu_invoke;
   ot->exec = rigidbody_objects_shape_change_exec;
-  ot->poll = ED_operator_rigidbody_active_poll;
+  ot->poll = operator_rigidbody_active_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
@@ -480,7 +480,7 @@ static wmOperatorStatus rigidbody_objects_calc_mass_exec(bContext *C, wmOperator
       /* mass is calculated from the approximate volume of the object,
        * and the density of the material we're simulating
        */
-      Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+      Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
       BKE_rigidbody_calc_volume(ob_eval, &volume);
       mass = volume * density;
 
@@ -538,7 +538,7 @@ void RIGIDBODY_OT_mass_calculate(wmOperatorType *ot)
   /* callbacks */
   ot->invoke = WM_menu_invoke; /* XXX */
   ot->exec = rigidbody_objects_calc_mass_exec;
-  ot->poll = ED_operator_rigidbody_active_poll;
+  ot->poll = operator_rigidbody_active_poll;
   ot->poll_property = mass_calculate_poll_property;
 
   /* flags */

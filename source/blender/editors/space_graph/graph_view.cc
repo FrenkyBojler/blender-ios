@@ -127,8 +127,8 @@ void get_graph_keyframe_extents(bAnimContext *ac,
         *xmax += 0.0005f;
       }
       if ((ymin && ymax) && (fabsf(*ymax - *ymin) < 0.001f)) {
-        *ymin -= 0.0005f;
-        *ymax += 0.0005f;
+        *ymin -= 0.05f;
+        *ymax += 0.05f;
       }
     }
     else {
@@ -417,8 +417,7 @@ static void create_ghost_curves(bAnimContext *ac, int start, int end)
     /* Create samples, but store them in a new curve
      * - we cannot use fcurve_store_samples() as that will only overwrite the original curve.
      */
-    gcu->fpt = fpt = static_cast<FPoint *>(
-        MEM_callocN(sizeof(FPoint) * (end - start + 1), "Ghost FPoint Samples"));
+    gcu->fpt = fpt = MEM_calloc_arrayN<FPoint>((end - start + 1), "Ghost FPoint Samples");
     gcu->totvert = end - start + 1;
 
     /* Use the sampling callback at 1-frame intervals from start to end frames. */

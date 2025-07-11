@@ -22,6 +22,11 @@ from bpy.types import (
     Panel,
 )
 
+from bpy.app.translations import (
+    pgettext_n as n_,
+    contexts as i18n_contexts,
+)
+
 from bl_ui.space_userpref import (
     USERPREF_PT_addons,
     USERPREF_PT_extensions,
@@ -143,7 +148,7 @@ def pkg_manifest_zip_all_items(pkg_manifest_local, pkg_manifest_remote):
 
 # While this is not a strict definition (internally they're just add-ons from different places),
 # for the purposes of the UI it makes sense to differentiate add-ons this way because these add-on
-# characteristics are mutually exclusive (there is no such thing as a user-core-extension for e.g.).
+# characteristics are mutually exclusive (there is no such thing as a user-core-extension for example).
 
 # Add-On Types:
 
@@ -163,10 +168,10 @@ ADDON_TYPE_LEGACY_USER = 2
 ADDON_TYPE_LEGACY_OTHER = 3
 
 addon_type_name = (
-    "Extension",  # `ADDON_TYPE_EXTENSION`.
-    "Core",  # `ADDON_TYPE_LEGACY_CORE`.
-    "Legacy (User)",  # `ADDON_TYPE_LEGACY_USER`.
-    "Legacy (Other)",  # `ADDON_TYPE_LEGACY_OTHER`.
+    n_("Extension", i18n_contexts.editor_preferences),  # `ADDON_TYPE_EXTENSION`.
+    n_("Core", i18n_contexts.editor_preferences),  # `ADDON_TYPE_LEGACY_CORE`.
+    n_("Legacy (User)", i18n_contexts.editor_preferences),  # `ADDON_TYPE_LEGACY_USER`.
+    n_("Legacy (Other)", i18n_contexts.editor_preferences),  # `ADDON_TYPE_LEGACY_OTHER`.
 )
 
 addon_type_icon = (
@@ -276,7 +281,7 @@ def addon_draw_item_expanded(
 
     if USE_SHOW_ADDON_TYPE_AS_TEXT:
         col_a.label(text="Type")
-        col_b.label(text=addon_type_name[addon_type])
+        col_b.label(text=addon_type_name[addon_type], text_ctxt=i18n_contexts.editor_preferences)
     if item_maintainer:
         col_a.label(text="Maintainer")
         col_b.label(text=item_maintainer, translate=False)
@@ -1546,7 +1551,7 @@ def extensions_panel_draw_impl(
     # Exceptions to this rule:
     # - *version*: when outdated, it's useful to show both versions as the user may wish to upgrade.
     #   Otherwise it's typically not useful to attempt to make the user aware of other minor discrepancies.
-    #   (changes to the description or maintainer for e.g.).
+    #   (changes to the description or maintainer for example).
     #
     # - *website*: the host of the remote repository may wish to override the website with a landing page for
     #   each extension, this page can show information managed by the organization hosting repository,
@@ -1997,7 +2002,7 @@ def extensions_panel_draw(panel, context):
     # When an update is in progress disallow any destructive operations.
     # While a non-blocking update is nice, users should *never* be performing
     # destructive operations with an outdated repository. There are a couple of reasons for this.
-    # - Pressing "Install" on an extension may either fail (the version may be old for e.g.).
+    # - Pressing "Install" on an extension may either fail (the version may be old for example).
     # - Pressing any buttons immediately before the UI refreshes risks the user installing or operating
     #   on the wrong extension, one which they may not trust!
     # Prevent these kinds of accidents by disabling parts of the extension UI while synchronize is in progress.
@@ -2119,7 +2124,14 @@ def extensions_repo_active_draw(self, _context):
     if (repo := repo_active_or_none()) is not None:
         layout.context_pointer_set("extension_repo", repo)
 
-    layout.operator("extensions.repo_sync_all", text="", icon='FILE_REFRESH').use_active_only = True
+    if repo is not None and repo.use_remote_url:
+        layout.operator("extensions.repo_sync_all", text="", icon='FILE_REFRESH').use_active_only = True
+    else:
+        # NOTE: this could be exposed for remote repositories, as it's possible users manipulate
+        # extensions on the file-system, then want to see the result of those changes locally.
+        # At the moment this can only be done by refreshing all local repositories from the top-level menu.
+        # Since it's a fairly obscure use case, leave this as-is.
+        layout.operator("extensions.repo_refresh_all", text="", icon='FILE_REFRESH').use_active_only = True
 
     layout.separator()
 

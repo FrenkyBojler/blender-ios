@@ -9,12 +9,13 @@
 #pragma once
 
 #include <stdint.h>
+#include <string>
 
 #ifdef WITH_VULKAN_BACKEND
 #  ifdef __APPLE__
 #    include <MoltenVK/vk_mvk_moltenvk.h>
 #  else
-#    include <vulkan/vulkan.h>
+#    include <vulkan/vulkan_core.h>
 #  endif
 #endif
 
@@ -54,6 +55,10 @@ GHOST_DECLARE_HANDLE(GHOST_XrContextHandle);
 
 typedef void (*GHOST_TBacktraceFn)(void *file_handle);
 
+typedef void *GHOST_TUserDataPtr;
+
+typedef enum { GHOST_kFailure = 0, GHOST_kSuccess } GHOST_TSuccess;
+
 /**
  * A reference to cursor bitmap data.
  */
@@ -73,10 +78,6 @@ typedef enum GHOST_DialogOptions {
   GHOST_DialogWarning = (1 << 0),
   GHOST_DialogError = (1 << 1),
 } GHOST_DialogOptions;
-
-typedef void *GHOST_TUserDataPtr;
-
-typedef enum { GHOST_kFailure = 0, GHOST_kSuccess } GHOST_TSuccess;
 
 /**
  * Static flag (relating to the back-ends support for features).
@@ -98,7 +99,7 @@ typedef enum {
    * Set when a separate primary clipboard is supported.
    * This is a convention for X11/WAYLAND, select text & MMB to paste (without an explicit copy).
    */
-  GHOST_kCapabilityPrimaryClipboard = (1 << 2),
+  GHOST_kCapabilityClipboardPrimary = (1 << 2),
   /**
    * Support for reading the front-buffer.
    */
@@ -106,7 +107,7 @@ typedef enum {
   /**
    * Set when there is support for system clipboard copy/paste.
    */
-  GHOST_kCapabilityClipboardImages = (1 << 4),
+  GHOST_kCapabilityClipboardImage = (1 << 4),
   /**
    * Support for sampling a color outside of the Blender windows.
    */
@@ -123,6 +124,16 @@ typedef enum {
    * Support for window decoration styles.
    */
   GHOST_kCapabilityWindowDecorationStyles = (1 << 8),
+  /**
+   * Support for the "Hyper" modifier key.
+   */
+  GHOST_kCapabilityKeyboardHyperKey = (1 << 9),
+  /**
+   * Support for creation of RGBA mouse cursors. This flag is likely
+   * to be temporary as our intention is to implement on all platforms.
+   */
+  GHOST_kCapabilityCursorRGBA = (1 << 10),
+
 } GHOST_TCapabilityFlag;
 
 /**
@@ -131,10 +142,10 @@ typedef enum {
  */
 #define GHOST_CAPABILITY_FLAG_ALL \
   (GHOST_kCapabilityCursorWarp | GHOST_kCapabilityWindowPosition | \
-   GHOST_kCapabilityPrimaryClipboard | GHOST_kCapabilityGPUReadFrontBuffer | \
-   GHOST_kCapabilityClipboardImages | GHOST_kCapabilityDesktopSample | \
-   GHOST_kCapabilityInputIME | GHOST_kCapabilityTrackpadPhysicalDirection | \
-   GHOST_kCapabilityWindowDecorationStyles)
+   GHOST_kCapabilityClipboardPrimary | GHOST_kCapabilityGPUReadFrontBuffer | \
+   GHOST_kCapabilityClipboardImage | GHOST_kCapabilityDesktopSample | GHOST_kCapabilityInputIME | \
+   GHOST_kCapabilityTrackpadPhysicalDirection | GHOST_kCapabilityWindowDecorationStyles | \
+   GHOST_kCapabilityKeyboardHyperKey | GHOST_kCapabilityCursorRGBA)
 
 /* Xtilt and Ytilt represent how much the pen is tilted away from
  * vertically upright in either the X or Y direction, with X and Y the
@@ -160,8 +171,8 @@ typedef enum {
 typedef struct GHOST_TabletData {
   GHOST_TTabletMode Active; /* 0=None, 1=Stylus, 2=Eraser */
   float Pressure;           /* range 0.0 (not touching) to 1.0 (full pressure) */
-  float Xtilt; /* range 0.0 (upright) to 1.0 (tilted fully against the tablet surface) */
-  float Ytilt; /* as above */
+  float Xtilt;              /* range -1.0 (left) to +1.0 (right) */
+  float Ytilt;              /* range -1.0 (away from user) to +1.0 (toward user) */
 } GHOST_TabletData;
 
 static const GHOST_TabletData GHOST_TABLET_DATA_NONE = {
@@ -255,7 +266,7 @@ typedef enum {
   /** Mouse button up event. */
   GHOST_kEventButtonUp,
   /**
-   * Mouse wheel event.
+   * Vertical/Horizontal mouse wheel event.
    *
    * \note #GHOST_GetEventData returns #GHOST_TEventWheelData.
    */
@@ -330,9 +341,13 @@ typedef enum {
   GHOST_kStandardCursorHelp,
   GHOST_kStandardCursorWait,
   GHOST_kStandardCursorText,
+  /** Crosshair: default. */
   GHOST_kStandardCursorCrosshair,
+  /** Crosshair: with outline. */
   GHOST_kStandardCursorCrosshairA,
+  /** Crosshair: a single "dot" (not really a crosshair). */
   GHOST_kStandardCursorCrosshairB,
+  /** Crosshair: stippled/half-tone black/white. */
   GHOST_kStandardCursorCrosshairC,
   GHOST_kStandardCursorPencil,
   GHOST_kStandardCursorUpArrow,
@@ -366,6 +381,7 @@ typedef enum {
   GHOST_kStandardCursorHandOpen,
   GHOST_kStandardCursorHandClosed,
   GHOST_kStandardCursorHandPoint,
+  GHOST_kStandardCursorBlade,
   GHOST_kStandardCursorCustom,
 
 #define GHOST_kStandardCursorNumCursors (int(GHOST_kStandardCursorCustom) + 1)
@@ -571,9 +587,16 @@ typedef struct {
   GHOST_TabletData tablet;
 } GHOST_TEventButtonData;
 
+typedef enum {
+  GHOST_kEventWheelAxisVertical = 0,
+  GHOST_kEventWheelAxisHorizontal = 1,
+} GHOST_TEventWheelAxis;
+
 typedef struct {
+  /** Which mouse wheel is used. */
+  GHOST_TEventWheelAxis axis;
   /** Displacement of a mouse wheel. */
-  int32_t z;
+  int32_t value;
 } GHOST_TEventWheelData;
 
 typedef enum {
@@ -603,7 +626,7 @@ typedef struct {
 typedef enum {
   GHOST_kDragnDropTypeUnknown = 0,
   GHOST_kDragnDropTypeFilenames, /* Array of strings representing file names (full path). */
-  GHOST_kDragnDropTypeString,    /* Unformatted text UTF-8 string. */
+  GHOST_kDragnDropTypeString,    /* Unformatted text UTF8 string. */
   GHOST_kDragnDropTypeBitmap     /* Bitmap image data. */
 } GHOST_TDragnDropTypes;
 
@@ -625,10 +648,8 @@ typedef struct {
  * All members must remain aligned and the struct size match!
  */
 typedef struct {
-  /** size_t */
-  GHOST_TUserDataPtr result_len, composite_len;
-  /** char * utf8 encoding */
-  GHOST_TUserDataPtr result, composite;
+  /** UTF8 encoded strings. */
+  std::string result, composite;
   /** Cursor position in the IME composition. */
   int cursor_position;
   /** Represents the position of the beginning of the selection */
@@ -684,7 +705,7 @@ typedef struct {
   /** The key code. */
   GHOST_TKey key;
 
-  /** The unicode character. if the length is 6, not nullptr terminated if all 6 are set. */
+  /** The unicode character. if the length is 6, not null terminated if all 6 are set. */
   char utf8_buf[6];
 
   /**
@@ -713,17 +734,6 @@ typedef enum {
 } GHOST_TWindowDecorationStyleFlags;
 
 typedef struct {
-  /** Number of pixels on a line. */
-  uint32_t xPixels;
-  /** Number of lines. */
-  uint32_t yPixels;
-  /** Number of bits per pixel. */
-  uint32_t bpp;
-  /** Refresh rate (in Hertz). */
-  uint32_t frequency;
-} GHOST_DisplaySetting;
-
-typedef struct {
   /** Index of the GPU device in the list provided by the platform. */
   int index;
   /** (PCI) Vendor ID of the GPU. */
@@ -740,7 +750,6 @@ typedef struct {
 
 typedef struct {
   float colored_titlebar_bg_color[3];
-  float colored_titlebar_fg_color[3];
 } GHOST_WindowDecorationStyleSettings;
 
 #ifdef WITH_VULKAN_BACKEND
@@ -755,14 +764,112 @@ typedef struct {
   VkSemaphore acquire_semaphore;
   /** Semaphore to signal after the image has been updated. */
   VkSemaphore present_semaphore;
+  /** Fence to signal after the image has been updated. */
+  VkFence submission_fence;
 } GHOST_VulkanSwapChainData;
 
+typedef enum {
+  /**
+   * Use RAM to transfer the render result to the XR swapchain.
+   *
+   * Application renders a view, downloads the result to CPU RAM, GHOST_XrGraphicsBindingVulkan
+   * will upload it to a GPU buffer and copy the buffer to the XR swapchain.
+   */
+  GHOST_kVulkanXRModeCPU,
+
+  /**
+   * Use Linux FD to transfer the render result to the XR swapchain.
+   *
+   * Application renders a view, export the memory in an FD handle. GHOST_XrGraphicsBindingVulkan
+   * will import the memory and copy the image to the swapchain.
+   */
+  GHOST_kVulkanXRModeFD,
+
+  /**
+   * Use Win32 handle to transfer the render result to the XR swapchain.
+   *
+   * Application renders a view, export the memory in an win32 handle.
+   * GHOST_XrGraphicsBindingVulkan will import the memory and copy the image to the swapchain.
+   */
+  GHOST_kVulkanXRModeWin32,
+} GHOST_TVulkanXRModes;
+
 typedef struct {
+  /**
+   * Mode to use for data transfer between the application rendered result and the OpenXR
+   * swapchain. This is set by the GHOST and should be respected by the application.
+   */
+  GHOST_TVulkanXRModes data_transfer_mode;
+
+  /**
+   * Resolution of view render result.
+   */
+  VkExtent2D extent;
+
+  union {
+    struct {
+
+      /**
+       * Host accessible data containing the image data. Data is stored in the selected swapchain
+       * format. Only used when data_transfer_mode == GHOST_kVulkanXRModeCPU.
+       */
+      void *image_data;
+    } cpu;
+    struct {
+      /**
+       * Vulkan handle of the image. When this is the same as last time the imported memory can be
+       * reused.
+       */
+      VkImage vk_image_blender;
+
+      /**
+       * Did the memory address change and do we need to reimport the memory or can we still reuse
+       * the previous imported memory.
+       */
+      bool new_handle;
+
+      /**
+       * Handle of the exported GPU memory. Depending on the data_transfer_mode the actual handle
+       * type can be different (void-pointer/int/..).
+       */
+      uint64_t image_handle;
+
+      /**
+       * Data format of the image.
+       */
+      VkFormat image_format;
+
+      /**
+       * Allocation size of the exported memory.
+       */
+      VkDeviceSize memory_size;
+
+      /**
+       * Offset of the texture/buffer inside the allocated memory.
+       */
+      VkDeviceSize memory_offset;
+    } gpu;
+  };
+
+} GHOST_VulkanOpenXRData;
+
+/**
+ * Return argument passed to #GHOST_IContext:::getVulkanHandles.
+ *
+ * The members of this struct are assigned values.
+ */
+typedef struct {
+  /** The instance handle. */
   VkInstance instance;
+  /** The physics device handle. */
   VkPhysicalDevice physical_device;
+  /** The device handle. */
   VkDevice device;
+  /** The graphic queue family id. */
   uint32_t graphic_queue_family;
+  /** The queue handle. */
   VkQueue queue;
+  /** The #std::mutex mutex. */
   void *queue_mutex;
 } GHOST_VulkanHandles;
 
@@ -815,8 +922,10 @@ struct GHOST_XrError;
 typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
   GHOST_kXrGraphicsOpenGL,
+  GHOST_kXrGraphicsVulkan,
 #  ifdef WIN32
-  GHOST_kXrGraphicsD3D11,
+  GHOST_kXrGraphicsOpenGLD3D11,
+  GHOST_kXrGraphicsVulkanD3D11,
 #  endif
   /* For later */
   //  GHOST_kXrGraphicsVulkan,

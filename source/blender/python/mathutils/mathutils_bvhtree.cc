@@ -1029,7 +1029,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
                                 const bool use_cage,
                                 bool *r_free_mesh)
 {
-  Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+  Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
   /* we only need minimum mesh data for topology and vertex locations */
   const CustomData_MeshMasks data_masks = CD_MASK_BAREMESH;
   const bool use_render = DEG_get_mode(depsgraph) == DAG_EVAL_RENDER;
@@ -1246,9 +1246,14 @@ static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObje
 /** \name Module & Type definition
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef py_bvhtree_methods[] = {
@@ -1284,8 +1289,12 @@ static PyMethodDef py_bvhtree_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 PyTypeObject PyBVHTree_Type = {

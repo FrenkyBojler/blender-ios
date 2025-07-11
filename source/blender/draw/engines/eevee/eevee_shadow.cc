@@ -120,7 +120,6 @@ void ShadowTileMap::sync_cubeface(eLightType light_type_,
 
 void ShadowTileMap::debug_draw() const
 {
-#ifdef WITH_DRAW_DEBUG
   /** Used for debug drawing. */
   const float4 debug_color[6] = {
       {1.0f, 0.1f, 0.1f, 1.0f},
@@ -135,7 +134,6 @@ void ShadowTileMap::debug_draw() const
 
   float4x4 persinv = winmat * viewmat;
   drw_debug_matrix_as_bbox(math::invert(persinv), color);
-#endif
 }
 
 /** \} */
@@ -752,7 +750,7 @@ void ShadowModule::begin_sync()
 
 void ShadowModule::sync_object(const Object *ob,
                                const ObjectHandle &handle,
-                               const ResourceHandle &resource_handle,
+                               const ResourceHandleRange &resource_handle,
                                bool is_alpha_blend,
                                bool has_transparent_shadows)
 {
@@ -763,24 +761,24 @@ void ShadowModule::sync_object(const Object *ob,
 
   ShadowObject &shadow_ob = objects_.lookup_or_add_default(handle.object_key);
   shadow_ob.used = true;
-  const bool is_initialized = shadow_ob.resource_handle.raw != 0;
+  const bool is_initialized = shadow_ob.resource_handle.is_valid();
   const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
   if (is_shadow_caster && (handle.recalc || !is_initialized || has_jittered_transparency)) {
     if (handle.recalc && is_initialized) {
-      past_casters_updated_.append(shadow_ob.resource_handle.raw);
+      past_casters_updated_.append(shadow_ob.resource_handle.raw());
     }
 
     if (has_jittered_transparency) {
-      jittered_transparent_casters_.append(resource_handle.raw);
+      jittered_transparent_casters_.append(resource_handle.raw());
     }
     else {
-      curr_casters_updated_.append(resource_handle.raw);
+      curr_casters_updated_.append(resource_handle.raw());
     }
   }
   shadow_ob.resource_handle = resource_handle;
 
   if (is_shadow_caster) {
-    curr_casters_.append(resource_handle.raw);
+    curr_casters_.append(resource_handle.raw());
   }
 
   if (is_alpha_blend && !inst_.is_baking()) {
@@ -829,7 +827,7 @@ void ShadowModule::end_sync()
     /* Do not discard casters in baking mode. See WORKAROUND in `surfels_create`. */
     if (!shadow_ob.used && !inst_.is_baking()) {
       /* May not be a caster, but it does not matter, be conservative. */
-      past_casters_updated_.append(shadow_ob.resource_handle.raw);
+      past_casters_updated_.append(shadow_ob.resource_handle.raw());
       objects_.remove(it);
     }
     else {
@@ -1118,7 +1116,7 @@ void ShadowModule::debug_end_sync()
     return;
   }
 
-  ObjectKey object_key(DEG_get_original_object(object_active));
+  ObjectKey object_key(ObjectRef(DEG_get_original(object_active)));
 
   if (inst_.lights.light_map_.contains(object_key) == false) {
     return;
@@ -1130,7 +1128,7 @@ void ShadowModule::debug_end_sync()
     return;
   }
 
-  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | DRW_STATE_DEPTH_LESS_EQUAL |
+  DRWState state = DRW_STATE_WRITE_COLOR | DRW_STATE_WRITE_DEPTH | inst_.film.depth.test_state |
                    DRW_STATE_BLEND_CUSTOM;
 
   debug_draw_ps_.state_set(state);
@@ -1172,7 +1170,7 @@ bool ShadowModule::shadow_update_finished(int loop_count)
     return true;
   }
 
-  if (!inst_.is_image_render) {
+  if (!inst_.is_image_render && !inst_.is_light_bake) {
     /* For viewport, only run the shadow update once per redraw.
      * This avoids the stall from the read-back and freezes from long shadow update. */
     return true;

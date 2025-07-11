@@ -42,7 +42,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
@@ -82,7 +81,7 @@ Array<float> duplicate_mask(const Object &object)
         result.fill(0.0f);
       }
       else {
-        BM_mesh_elem_table_ensure(&bm, BM_VERT);
+        vert_random_access_ensure(const_cast<Object &>(object));
         for (const int i : result.index_range()) {
           result[i] = BM_ELEM_CD_GET_FLOAT(BM_vert_at_index(&bm, i), offset);
         }
@@ -178,7 +177,7 @@ void average_neighbor_mask_bmesh(const int mask_offset,
                                  const Set<BMVert *, 0> &verts,
                                  const MutableSpan<float> new_masks)
 {
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   int i = 0;
   for (BMVert *vert : verts) {
     new_masks[i] = average_masks(mask_offset, vert_neighbors_get_bmesh(*vert, neighbors));
