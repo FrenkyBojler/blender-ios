@@ -198,6 +198,7 @@ class VIEW3D_PT_vr_actionmaps(Panel):
 
         col = layout.column(align=True)
         col.prop(scene, "vr_actions_use_gamepad", text="Gamepad")
+        col.prop(scene, "vr_actions_use_grease_pencil", text="Grease Pencil")
 
         col = layout.column(align=True, heading="Extensions")
         col.prop(scene, "vr_actions_enable_reverb_g2", text="HP Reverb G2")

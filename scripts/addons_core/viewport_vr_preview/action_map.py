@@ -25,6 +25,9 @@ def vr_actionset_active_update(context):
     if scene.vr_actions_use_gamepad and session_state.actionmaps.find(
             session_state, defaults.VRDefaultActionmaps.GAMEPAD.value):
         session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.GAMEPAD.value)
+    elif scene.vr_actions_use_grease_pencil and session_state.actionmaps.find(
+            session_state, defaults.VRDefaultActionmaps.GREASEPENCIL.value):
+        session_state.active_action_set_set(context, defaults.VRDefaultActionmaps.GREASEPENCIL.value)
     else:
         # Use first action map.
         session_state.active_action_set_set(context, session_state.actionmaps[0].name)
@@ -33,6 +36,8 @@ def vr_actionset_active_update(context):
 def vr_actions_use_gamepad_update(self, context):
     vr_actionset_active_update(context)
 
+def vr_actions_use_grease_pencil_update(self, context):
+    vr_actionset_active_update(context)
 
 @persistent
 def vr_create_actions(context: bpy.context):
@@ -134,6 +139,11 @@ def register():
         default=False,
         update=vr_actions_use_gamepad_update,
     )
+    bpy.types.Scene.vr_actions_use_grease_pencil = bpy.props.BoolProperty(
+        description="Use input for GreasePencil using motion controllers",
+        default=False,
+        update=vr_actions_use_grease_pencil_update,
+    )
     bpy.types.Scene.vr_actions_enable_huawei = bpy.props.BoolProperty(
         description=(
             "Enable bindings for the Huawei controllers. "
@@ -169,6 +179,7 @@ def register():
 def unregister():
     del bpy.types.Scene.vr_actions_enable
     del bpy.types.Scene.vr_actions_use_gamepad
+    del bpy.types.Scene.vr_actions_use_grease_pencil
     del bpy.types.Scene.vr_actions_enable_huawei
     del bpy.types.Scene.vr_actions_enable_reverb_g2
     del bpy.types.Scene.vr_actions_enable_vive_cosmos

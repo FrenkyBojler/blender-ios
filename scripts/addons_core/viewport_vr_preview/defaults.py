@@ -19,6 +19,7 @@ import os.path
 class VRDefaultActionmaps(Enum):
     DEFAULT = "blender_default"
     GAMEPAD = "blender_default_gamepad"
+    GREASEPENCIL = "blender_grease_pencil"
 
 
 # Default actions.
@@ -43,6 +44,27 @@ class VRDefaultActions(Enum):
     HAPTIC_LEFTTRIGGER = "haptic_lefttrigger"
     HAPTIC_RIGHTTRIGGER = "haptic_righttrigger"
 
+class VRDefaultGreasePencilActions(Enum):
+    CONTROLLER_GRIP = "controller_grip"
+    CONTROLLER_AIM = "controller_aim"
+    NAV_GRAB = "nav_grab"
+    INPUT_B_CLICK = "input_b_click"
+    INPUT_A_CLICK = "input_a_click"
+    INPUT_X_CLICK = "input_x_click"
+    INPUT_Y_CLICK = "input_y_click"
+    RIGHT_HAND_TRIGGER = "right_hand_trigger"
+    LEFT_HAND_TRIGGER = "left_hand_trigger"
+    LEFT_JOYSTICK_UP = "left_joystick_up"
+    LEFT_JOYSTICK_DOWN = "left_joystick_down"
+    LEFT_JOYSTICK_LEFT = "left_joystick_left"
+    LEFT_JOYSTICK_RIGHT = "left_joystick_right"
+    LEFT_JOYSTICK_CLICK = "left_joystick_click"
+    RIGHT_JOYSTICK_UP = "right_joystick_up"
+    RIGHT_JOYSTICK_DOWN = "right_joystick_down"
+    RIGHT_JOYSTICK_LEFT = "right_joystick_left"
+    RIGHT_JOYSTICK_RIGHT = "right_joystick_right"
+    RIGHT_JOYSTICK_CLICK = "right_joystick_click"
+    MENU_BURGER_CLICK = "menu_burger_click"
 
 # Default action bindings.
 class VRDefaultActionbindings(Enum):
@@ -184,6 +206,12 @@ def vr_defaults_haptic_actionbinding_add(ami,
 
     return amb
 
+def vr_defaults_actionproperties_add(ami, name, prop_name, prop_value):
+    amp = ami.properties.new(name, True)
+    if amp:
+        amp.op_properties.append(prop_name, prop_value)
+
+    return amp
 
 def vr_defaults_create_default(session_state):
     am = vr_defaults_actionmap_add(session_state,
@@ -1469,6 +1497,436 @@ def vr_defaults_create_default_gamepad(session_state):
                                              VRDefaultActionprofiles.GAMEPAD.value,
                                              ["/output/haptic_right_trigger"])
 
+def vr_defaults_create_grease_pencil(session_state):
+    am = vr_defaults_actionmap_add(session_state,
+                                   VRDefaultActionmaps.GREASEPENCIL.value)
+    if not am:
+        return
+
+    ami = vr_defaults_pose_action_add(am,
+                                      VRDefaultGreasePencilActions.CONTROLLER_GRIP.value,
+                                      ["/user/hand/left",
+                                       "/user/hand/right"],
+                                      True,
+                                      False)
+    if ami:
+        vr_defaults_pose_actionbinding_add(ami,
+                                           VRDefaultActionbindings.OCULUS.value,
+                                           VRDefaultActionprofiles.OCULUS.value,
+                                           ["/input/grip/pose",
+                                            "/input/grip/pose"],
+                                           (0, 0, 0),
+                                           (0, 0, 0))
+
+    ami = vr_defaults_pose_action_add(am,
+                                      VRDefaultGreasePencilActions.CONTROLLER_AIM.value,
+                                      ["/user/hand/left",
+                                       "/user/hand/right"],
+                                      False,
+                                      True)
+    if ami:
+        vr_defaults_pose_actionbinding_add(ami,
+                                           VRDefaultActionbindings.OCULUS.value,
+                                           VRDefaultActionprofiles.OCULUS.value,
+                                           ["/input/aim/pose",
+                                            "/input/aim/pose"],
+                                           (0, 0, 0),
+                                           (0, 0, 0))
+    ami = vr_defaults_action_add(am,
+                                 VRDefaultGreasePencilActions.NAV_GRAB.value,
+                                 ["/user/hand/left",
+                                  "/user/hand/right"],
+                                 "wm.xr_navigation_grab",
+                                 'MODAL',
+                                 True,
+                                 "",
+                                 False,
+                                 0.0,
+                                 0.0,
+                                 0.0,
+                                 'PRESS')
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/squeeze/value",
+                                       "/input/squeeze/value"],
+                                      0.3,
+                                      'ANY',
+                                      'ANY')
+    
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.INPUT_B_CLICK.value,
+                              ["/user/hand/right"],
+                              "",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/b/click"],
+                                      0.3,
+                                      'ANY')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.INPUT_A_CLICK.value,
+                              ["/user/hand/right"],
+                              "wm.xr_alt",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/a/click"],
+                                      0.3,
+                                      'ANY')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.INPUT_X_CLICK.value,
+                              ["/user/hand/right"],
+                              "wm.xr_ctrl",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/x/click"],
+                                      0.3,
+                                      'ANY')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.INPUT_Y_CLICK.value,
+                              ["/user/hand/left"],
+                              "wm.xr_shift",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/y/click"],
+                                      0.3,
+                                      'ANY')       
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.RIGHT_HAND_TRIGGER.value,
+                              ["/user/hand/right"],
+                              "grease_pencil_xr.brush_stroke_xr",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/trigger/value"],
+                                      0.05,
+                                      'ANY')   
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.LEFT_HAND_TRIGGER.value,
+                              ["/user/hand/left"],
+                              "wm.xr_tab",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/trigger/value"],
+                                      0.05,
+                                      'ANY')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.LEFT_JOYSTICK_UP.value,
+                              ["/user/hand/left"],
+                              "gpencil.blank_frame_add",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/y"],
+                                      0.3,
+                                      'POSITIVE')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.LEFT_JOYSTICK_DOWN.value,
+                              ["/user/hand/left"],
+                              "gpencil.active_frame_delete",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/y"],
+                                      0.3,
+                                      'NEGATIVE')
+        
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.LEFT_JOYSTICK_LEFT.value,
+                              ["/user/hand/left"],
+                              "screen.frame_offset",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+
+    if ami:
+        vr_defaults_actionproperties_add(ami,
+                                           "delta",
+                                           -1)
+    
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/x"],
+                                      0.3,
+                                      'NEGATIVE')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.LEFT_JOYSTICK_RIGHT.value,
+                              ["/user/hand/left"],
+                              "screen.frame_offset",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+
+    if ami:
+        vr_defaults_actionproperties_add(ami,
+                                           "delta",
+                                           1)
+    
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/x"],
+                                      0.3,
+                                      'POSITIVE')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.LEFT_JOYSTICK_CLICK.value,
+                              ["/user/hand/left"],
+                              "wm.xr_gpencil_toggle_onion",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/click"],
+                                      0.3,
+                                      'POSITIVE')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.RIGHT_JOYSTICK_UP.value,
+                              ["/user/hand/right"],
+                              "grease_pencil_xr.brush_settings_xr",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+
+    if ami:
+        vr_defaults_actionproperties_add(ami,
+                                           "factor",
+                                           1)
+    
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/y"],
+                                      0.3,
+                                      'POSITIVE')
+    
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.RIGHT_JOYSTICK_DOWN.value,
+                              ["/user/hand/right"],
+                              "grease_pencil_xr.brush_settings_xr",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+
+    if ami:
+        vr_defaults_actionproperties_add(ami,
+                                           "factor",
+                                           -1)
+    
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/y"],
+                                      0.3,
+                                      'POSITIVE')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.RIGHT_JOYSTICK_LEFT.value,
+                              ["/user/hand/right"],
+                              "ed.undo",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/x"],
+                                      0.3,
+                                      'NEGATIVE')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.RIGHT_JOYSTICK_RIGHT.value,
+                              ["/user/hand/right"],
+                              "ed.redo",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/x"],
+                                      0.3,
+                                      'POSITIVE')
+        
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.RIGHT_JOYSTICK_CLICK.value,
+                              ["/user/hand/right"],
+                              "",
+                              'MODAL',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/thumbstick/click"],
+                                      0.3,
+                                      'ANY')
+
+    ami = vr_defaults_action_add(am,
+                              VRDefaultGreasePencilActions.MENU_BURGER_CLICK.value,
+                              ["/user/hand/left"],
+                              "",
+                              'PRESS',
+                              False,
+                              "",
+                              False,
+                              0.0,
+                              0.0,
+                              0.0,
+                              'PRESS')
+                                 
+    if ami:
+        vr_defaults_actionbinding_add(ami,
+                                      VRDefaultActionbindings.OCULUS.value,
+                                      VRDefaultActionprofiles.OCULUS.value,
+                                      ["/input/menu/click"],
+                                      0.3,
+                                      'ANY')
 
 def vr_get_default_config_path():
     filepath = os.path.join(os.path.dirname(os.path.abspath(__file__)), "configs")
@@ -1493,6 +1951,7 @@ def vr_ensure_default_actionmaps(session_state):
         # Create and save default action maps.
         vr_defaults_create_default(session_state)
         vr_defaults_create_default_gamepad(session_state)
+        vr_defaults_create_grease_pencil(session_state)
 
         action_map.vr_save_actionmaps(session_state, filepath, sort=False)
 
