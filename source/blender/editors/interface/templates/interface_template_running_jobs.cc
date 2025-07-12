@@ -23,7 +23,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 #define B_STOPRENDER 1
@@ -108,7 +108,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
   const char *op_name = nullptr;
   const char *op_description = nullptr;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_layout_set_current(block, layout);
 
   UI_block_func_handle_set(block, do_running_jobs, nullptr);
@@ -221,15 +221,15 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
     const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
     const bool active = !(G.is_break || WM_jobs_is_stopped(wm, owner));
 
-    uiLayout *row = uiLayoutRow(layout, false);
-    block = uiLayoutGetBlock(row);
+    uiLayout *row = &layout->row(false);
+    block = row->block();
 
     /* get percentage done and set it as the UI text */
     const float progress = WM_jobs_progress(wm, owner);
     char text[8];
     SNPRINTF(text, "%d%%", int(progress * 100));
 
-    const char *name = active ? WM_jobs_name(wm, owner) : "Canceling...";
+    const char *name = active ? RPT_(WM_jobs_name(wm, owner)) : RPT_("Canceling...");
 
     /* job icon as a button */
     if (op_name) {
@@ -262,9 +262,9 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
                      "");
 
     /* stick progress bar and cancel button together */
-    row = uiLayoutRow(layout, true);
-    uiLayoutSetActive(row, active);
-    block = uiLayoutGetBlock(row);
+    row = &layout->row(true);
+    row->active_set(active);
+    block = row->block();
 
     {
       ProgressTooltip_Store *tip_arg = static_cast<ProgressTooltip_Store *>(
