@@ -785,17 +785,17 @@ static void sequencer_tools_region_init(wmWindowManager *wm, ARegion *region)
 static void sequencer_tools_region_draw(const bContext *C, ARegion *region)
 {
   ScrArea *area = CTX_wm_area(C);
-  blender::wm::OperatorCallContext op_context = blender::wm::OperatorCallContext::InvokeRegionWin;
+  wm::OperatorCallContext op_context = wm::OperatorCallContext::InvokeRegionWin;
 
   LISTBASE_FOREACH (ARegion *, ar, &area->regionbase) {
     if (ar->regiontype == RGN_TYPE_PREVIEW && region->regiontype == RGN_TYPE_TOOLS) {
-      op_context = blender::wm::OperatorCallContext::InvokeRegionPreview;
+      op_context = wm::OperatorCallContext::InvokeRegionPreview;
       break;
     }
   }
 
   if (region->regiontype == RGN_TYPE_CHANNELS) {
-    op_context = blender::wm::OperatorCallContext::InvokeRegionChannels;
+    op_context = wm::OperatorCallContext::InvokeRegionChannels;
   }
 
   ED_region_panels_ex(C, region, op_context, nullptr);

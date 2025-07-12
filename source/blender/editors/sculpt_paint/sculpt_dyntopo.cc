@@ -237,8 +237,7 @@ static wmOperatorStatus dyntopo_warning_popup(bContext *C, wmOperatorType *ot, e
     layout->separator();
   }
 
-  layout->op(
-      ot, IFACE_("OK"), ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+  layout->op(ot, IFACE_("OK"), ICON_NONE, wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
 
   UI_popup_menu_end(C, pup);
 

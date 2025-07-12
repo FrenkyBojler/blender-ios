@@ -1704,11 +1704,8 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
       /* To keep keyframe positions. */
       sce->r.scemode |= R_NO_FRAME_UPDATE;
 
-      WM_operator_name_call(C,
-                            "RENDER_OT_render",
-                            blender::wm::OperatorCallContext::InvokeDefault,
-                            &op_ptr,
-                            nullptr);
+      WM_operator_name_call(
+          C, "RENDER_OT_render", wm::OperatorCallContext::InvokeDefault, &op_ptr, nullptr);
 
       WM_operator_properties_free(&op_ptr);
 

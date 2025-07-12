@@ -5427,7 +5427,7 @@ uiLayout &block_layout(uiBlock *block,
   root->style = style;
   root->block = block;
   root->padding = padding;
-  root->opcontext = blender::wm::OperatorCallContext::InvokeRegionWin;
+  root->opcontext = wm::OperatorCallContext::InvokeRegionWin;
 
   uiLayout *layout = MEM_new<uiLayout>(__func__);
   layout->type_ = (type == LayoutType::VerticalBar) ? uiItemType::LayoutColumn :

@@ -668,7 +668,7 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   PointerRNA op_ptr = row->op("RENDER_OT_render",
                               "",
                               ICON_RENDER_STILL,
-                              blender::wm::OperatorCallContext::InvokeDefault,
+                              wm::OperatorCallContext::InvokeDefault,
                               UI_ITEM_NONE);
   RNA_string_set(&op_ptr, "layer", layer_name);
   RNA_string_set(&op_ptr, "scene", scene_name);
