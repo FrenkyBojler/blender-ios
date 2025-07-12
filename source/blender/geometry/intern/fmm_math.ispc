@@ -69,15 +69,16 @@ export uniform FMMConstants fmm_constants()
   return ChunkSize;
 }
 
-export void chunked_squared_distances_table(const uniform float row_x[][programCount],
-                                            const uniform float row_y[][programCount],
-                                            const uniform float row_z[][programCount],
-                                            const uniform int row_count,
-                                            const uniform float col_x[],
-                                            const uniform float col_y[],
-                                            const uniform float col_z[],
-                                            const uniform int col_count,
-                                            float uniform distances[][programCount])
+
+export void chunked_squared_distances_row_major(const uniform float row_x[][programCount],
+                                                const uniform float row_y[][programCount],
+                                                const uniform float row_z[][programCount],
+                                                const uniform int row_count,
+                                                const uniform float col_x[],
+                                                const uniform float col_y[],
+                                                const uniform float col_z[],
+                                                const uniform int col_count,
+                                                float uniform distances[][programCount])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const varying float<3> row_xyz = {streaming_load(&row_x[row_index][0]),
@@ -93,29 +94,52 @@ export void chunked_squared_distances_table(const uniform float row_x[][programC
   }
 }
 
-export void squared_distances_table(const uniform float row_x[],
-                                    const uniform float row_y[],
-                                    const uniform float row_z[],
-                                    const uniform int row_count,
-                                    const uniform float col_x[],
-                                    const uniform float col_y[],
-                                    const uniform float col_z[],
-                                    const uniform int col_count,
-                                    float uniform distances[])
+export void chunked_squared_distances_col_major(const uniform float row_x[][programCount],
+                                                const uniform float row_y[][programCount],
+                                                const uniform float row_z[][programCount],
+                                                const uniform int row_count,
+                                                const uniform float col_x[],
+                                                const uniform float col_y[],
+                                                const uniform float col_z[],
+                                                const uniform int col_count,
+                                                float uniform distances[][programCount])
 {
-  assert(row_count < programCount);
+  for (uniform int col_index = 0; col_index < col_count; col_index++) {
+    const uniform float<3> col_xyz = {streaming_load_uniform(&col_x[col_index]),
+                                      streaming_load_uniform(&col_y[col_index]),
+                                      streaming_load_uniform(&col_z[col_index])};
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      varying float<3> row_xyz = {streaming_load(&row_x[row_index][0]),
+                                  streaming_load(&row_y[row_index][0]),
+                                  streaming_load(&row_z[row_index][0])};
+      const varying float<3> batch = square<3>(row_xyz - col_xyz);
+      distances[col_index * row_count + row_index][programIndex] = batch.x + batch.y + batch.z;
+    }
+  }
+}
+
+export void squared_distances_row_major(const uniform float row_x[],
+                                        const uniform float row_y[],
+                                        const uniform float row_z[],
+                                        const uniform int row_count,
+                                        const uniform float col_x[],
+                                        const uniform float col_y[],
+                                        const uniform float col_z[],
+                                        const uniform int col_count,
+                                        float uniform distances[])
+{
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
 
-    const uniform int batch_col_count = (col_count / programCount) * programCount;
-    for (uniform int col_index = 0; col_index < batch_col_count; col_index += programCount) {
-      const varying float<3> col_xyz = {streaming_load(&col_x[col_index]),
-                                        streaming_load(&col_y[col_index]),
-                                        streaming_load(&col_z[col_index])};
-      const varying float<3> batch = square<3>(row_xyz - col_xyz);
-      distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
-    }
-    for (uniform int col_index = batch_col_count; col_index < col_count; col_index++) {
+    // const uniform int batch_col_count = (col_count / programCount) * programCount;
+    // for (uniform int col_index = 0; col_index < batch_col_count; col_index += programCount) {
+    //   const varying float<3> col_xyz = {streaming_load(&col_x[col_index]),
+    //                                     streaming_load(&col_y[col_index]),
+    //                                     streaming_load(&col_z[col_index])};
+    //   const varying float<3> batch = square<3>(row_xyz - col_xyz);
+    //   distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
+    // }
+    for (uniform int col_index = 0; col_index < col_count; col_index++) {
       const uniform float<3> col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
       const uniform float<3> batch = square<3>(row_xyz - col_xyz);
       distances[row_index * col_count + col_index] = batch.x + batch.y + batch.z;
@@ -123,62 +147,126 @@ export void squared_distances_table(const uniform float row_x[],
   }
 }
 
-export void chunked_zero_if_index_in_range(const uniform int row_indices[][programCount],
-                                           const uniform int col_count,
-                                           const uniform int from_bucket_to_sampler_offset,
-                                           const uniform int row_count,
-                                           uniform float rows_and_cols[][programCount])
+export void squared_distances_col_major(const uniform float row_x[],
+                                        const uniform float row_y[],
+                                        const uniform float row_z[],
+                                        const uniform int row_count,
+                                        const uniform float col_x[],
+                                        const uniform float col_y[],
+                                        const uniform float col_z[],
+                                        const uniform int col_count,
+                                        float uniform distances[])
+{
+  for (uniform int col_index = 0; col_index < col_count; col_index++) {
+    const uniform float<3> col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
+
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
+      const uniform float<3> batch = square<3>(row_xyz - col_xyz);
+      distances[col_index * row_count + row_index] = batch.x + batch.y + batch.z;
+    }
+  }
+}
+
+export void chunked_zero_if_index_in_range_row_major(const uniform int row_count,
+                                                     const uniform int row_indices[][programCount],
+                                                     const uniform int col_count,
+                                                     const uniform int col_offset,
+                                                     uniform float rows_and_cols[][programCount])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const varying int bucket_indices = row_indices[row_index][programIndex];
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      const varying bool mask = bucket_indices != col_index + from_bucket_to_sampler_offset;
-      if (mask) {
-        rows_and_cols[row_index * col_count + col_index][programIndex] = rows_and_cols[row_index * col_count + col_index][programIndex];
-      } else {
-        rows_and_cols[row_index * col_count + col_index][programIndex] = 0.0f;
-      }
+      const varying bool mask = bucket_indices != col_index + col_offset;
+      uniform float * varying values = &rows_and_cols[row_index * col_count + col_index][programIndex];
+      *values = mask ? *values : 0.0f;
     }
   }
 }
 
-export void zero_if_index_in_range(const uniform int row_indices[],
-                                   const uniform int col_count,
-                                   const uniform int from_bucket_to_sampler_offset,
-                                   const uniform int row_count,
-                                   uniform float rows_and_cols[])
+export void chunked_zero_if_index_in_range_col_major(const uniform int row_count,
+                                                     const uniform int row_offset,
+                                                     const uniform int col_count,
+                                                     const uniform int col_indices[],
+                                                     uniform float cols_and_rows[][programCount])
+{
+  for (uniform int col_index = 0; col_index < col_count; col_index++) {
+    const uniform int bucket_indices = col_indices[col_index];
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      const varying bool mask = bucket_indices != (row_index * programCount + programIndex) + row_offset;
+      uniform float * varying values = &cols_and_rows[col_index * row_count + row_index][programIndex];
+      *values = mask ? *values : 0.0f;
+    }
+  }
+}
+
+export void zero_if_index_in_range_row_major(const uniform int row_count,
+                                             const uniform int row_indices[],
+                                             const uniform int col_count,
+                                             const uniform int col_offset,
+                                             uniform float rows_and_cols[])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const uniform int bucket_indices = row_indices[row_index];
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      const uniform bool mask = bucket_indices != col_index + from_bucket_to_sampler_offset;
-      if (mask) {
-        rows_and_cols[row_index * col_count + col_index] = rows_and_cols[row_index * col_count + col_index];
-      } else {
-        rows_and_cols[row_index * col_count + col_index] = 0.0f;
-      }
+      const uniform bool mask = bucket_indices != col_index + col_offset;
+      uniform float * uniform value = &rows_and_cols[row_index * col_count + col_index];
+      *value = mask ? *value : 0.0f;
     }
   }
 }
 
-export uniform int chunked_table_product_reduce(const uniform float rows_and_cols[][programCount],
-                                                const uniform int col_count,
-                                                const uniform float col_values[],
-                                                const uniform int row_count,
-                                                uniform float row_values[][programCount])
+export void zero_if_index_in_range_col_major(const uniform int row_count,
+                                             const uniform int row_offset,
+                                             const uniform int col_count,
+                                             const uniform int col_indices[],
+                                             uniform float cols_and_rows[])
+{
+  for (uniform int col_index = 0; col_index < col_count; col_index++) {
+    const uniform int bucket_indices = col_indices[col_index];
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      const uniform bool mask = bucket_indices != row_index + row_offset;
+      uniform float * uniform value = &cols_and_rows[col_index * row_count + row_index];
+      *value = mask ? *value : 0.0f;
+    }
+  }
+}
+
+export uniform int chunked_table_product_reduce_row_major(const uniform float rows_and_cols[][programCount],
+                                                          const uniform int row_count,
+                                                          uniform float row_values[][programCount],
+                                                          const uniform int col_count,
+                                                          const uniform float col_values[])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    varying float row_accum = 0.0f;
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      row_values[row_index][programIndex] += streaming_load(&rows_and_cols[row_index * col_count + col_index][0]) * col_values[col_index];
+      row_accum += streaming_load(&rows_and_cols[row_index * col_count + col_index][0]) * col_values[col_index];
     }
+    row_values[row_index][programIndex] += row_accum;
   }
 }
 
-export uniform int table_product_reduce(const uniform float rows_and_cols[],
-                                        const uniform int col_count,
-                                        const uniform float col_values[],
-                                        const uniform int row_count,
-                                        uniform float row_values[])
+export uniform int chunked_table_product_reduce_col_major(const uniform float cols_and_rows[][programCount],
+                                                          const uniform int row_count,
+                                                          const uniform float row_values[][programCount],
+                                                          const uniform int col_count,
+                                                          uniform float col_values[])
+{
+  for (uniform int col_index = 0; col_index < col_count; col_index++) {
+    varying float col_accum = 0.0f;
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      col_accum += streaming_load(&cols_and_rows[col_index * row_count + row_index][0]) * row_values[row_index][programIndex];
+    }
+    col_values[col_index] += reduce_add(col_accum);
+  }
+}
+
+export uniform int table_product_reduce_row_major(const uniform float rows_and_cols[],
+                                                  const uniform int row_count,
+                                                  uniform float row_values[],
+                                                  const uniform int col_count,
+                                                  const uniform float col_values[])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
@@ -186,6 +274,21 @@ export uniform int table_product_reduce(const uniform float rows_and_cols[],
     }
   }
 }
+
+export uniform int table_product_reduce_col_major(const uniform float cols_and_rows[],
+                                                  const uniform int row_count,
+                                                  const uniform float row_values[],
+                                                  const uniform int col_count,
+                                                  uniform float col_values[])
+{
+  for (uniform int col_index = 0; col_index < col_count; col_index++) {
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      col_values[col_index] += cols_and_rows[col_index * row_count + row_index] * row_values[row_index];
+    }
+  }
+}
+
+
 
 export void sqrt_n_add_single(float uniform values[], const uniform int count, const uniform float offset)
 {
