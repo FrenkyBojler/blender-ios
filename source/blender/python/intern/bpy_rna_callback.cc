@@ -303,11 +303,25 @@ PyObject *pyrna_callback_classmethod_add(PyObject * /*self*/, PyObject *args)
       return nullptr;
     }
 
-    handle = WM_paint_cursor_activate(params.space_type_enum.value,
-                                      params.region_type_enum.value,
-                                      nullptr,
-                                      cb_wm_cursor_draw,
-                                      (void *)args);
+    /* This is a very bad thing to do, I do it for now because in the seqencer preview returns
+     * params.region_type_enum.value returns WINDOW instead of RGN_TYPE_PREVIEW. So I use this
+     * approach of checking if the user is in SPACE_SEQ, it workes since the circle select tool
+     * should only work for the RGN_TYPE_PREVIEW of SPACE_SEQ.
+     * TODO: Ernst-Ellert get an idea of how to solve this properly. */
+    if (params.space_type_enum.value == SPACE_SEQ) {
+      handle = WM_paint_cursor_activate(params.space_type_enum.value,
+                                        RGN_TYPE_PREVIEW,
+                                        nullptr,
+                                        cb_wm_cursor_draw,
+                                        (void *)args);
+    }
+    else {
+      handle = WM_paint_cursor_activate(params.space_type_enum.value,
+                                        params.region_type_enum.value,
+                                        nullptr,
+                                        cb_wm_cursor_draw,
+                                        (void *)args);
+    }
   }
   else if (RNA_struct_is_a(srna, &RNA_Space)) {
     struct {
