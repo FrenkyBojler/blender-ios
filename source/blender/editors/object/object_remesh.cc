@@ -28,6 +28,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -39,6 +40,7 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_shrinkwrap.hh"
 #include "BKE_unit.hh"
@@ -165,9 +167,11 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
-  /** Spatially organize the mesh after remesh.*/
-  blender::bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  /** Force update remesh changes and then spatially organize the mesh after remesh.*/
+  BKE_scene_graph_update_tagged(CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C));
+  blender::bke::mesh_apply_spatial_organization(*mesh);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
@@ -916,7 +920,6 @@ static void quadriflow_start_job(void *customdata, wmJobWorkerStatus *worker_sta
     BKE_sculptsession_free_pbvh(*ob);
   }
   /** Spatially organize the mesh after remesh.*/
-  blender::bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
 
   worker_status->do_update = true;
@@ -928,6 +931,7 @@ static void quadriflow_end_job(void *customdata)
   QuadriFlowJob *qj = (QuadriFlowJob *)customdata;
 
   Object *ob = qj->owner;
+  Scene *scene = qj->scene;
 
   if (qj->is_nonblocking_job) {
     WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
@@ -935,10 +939,17 @@ static void quadriflow_end_job(void *customdata)
 
   ReportList *reports = qj->worker_status->reports;
   switch (qj->status) {
-    case QUADRIFLOW_STATUS_SUCCESS:
+    case QUADRIFLOW_STATUS_SUCCESS: {
+      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+      Main *bmain = G_MAIN;
+      ViewLayer *view_layer = BKE_view_layer_default_view(scene);
+      Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
+      BKE_scene_graph_update_tagged(depsgraph, bmain);
+      bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       BKE_reportf(reports, RPT_INFO, "QuadriFlow: Remeshing completed");
       break;
+    }
     case QUADRIFLOW_STATUS_FAIL:
       BKE_reportf(reports, RPT_ERROR, "QuadriFlow: Remeshing failed");
       break;
