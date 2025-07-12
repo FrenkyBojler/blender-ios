@@ -943,7 +943,7 @@ static void quadriflow_end_job(void *customdata)
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       Main *bmain = G_MAIN;
       ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-      Depsgraph *depsgraph = BKE_scene_ensure_depsgraph(bmain, scene, view_layer);
+      Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
       BKE_scene_graph_update_tagged(depsgraph, bmain);
       bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
