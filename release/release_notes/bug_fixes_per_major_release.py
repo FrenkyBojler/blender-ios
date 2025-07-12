@@ -1044,6 +1044,37 @@ def validate_arguments(args: argparse.Namespace) -> bool:
 # -----------------------------------------------------------------------------
 # Main Function
 
+def gather_and_sort_commits(current_release_tag: str,
+                            current_version: str,
+                            previous_release_tag: str,
+                            previous_version: str,
+                            backport_tasks: list[str],
+                            cache: bool = False,
+                            silence: bool = False,
+                            single_thread: bool = False) -> list[CommitInfo]:
+    set_crawl_delay()
+
+    list_of_commits = get_fix_commits(
+        current_release_tag=current_release_tag,
+        previous_release_tag=previous_release_tag,
+        single_thread=single_thread,
+    )
+
+    if cache:
+        cached_commits_load(list_of_commits)
+
+    overrides_apply(list_of_commits, silence)
+
+    classify_commits(
+        backport_tasks,
+        list_of_commits,
+        current_version=current_version,
+        previous_version=previous_version,
+    )
+
+    if cache:
+        cached_commits_store(list_of_commits)
+
 
 def main() -> int:
     args = argparse_create().parse_args()
@@ -1051,28 +1082,15 @@ def main() -> int:
     if not validate_arguments(args):
         return 0
 
-    set_crawl_delay()
-
-    list_of_commits = get_fix_commits(
-        current_release_tag=args.current_release_tag,
-        previous_release_tag=args.previous_release_tag,
-        single_thread=args.single_thread,
-    )
-
-    if args.cache:
-        cached_commits_load(list_of_commits)
-
-    overrides_apply(list_of_commits, args.silence)
-
-    classify_commits(
+    list_of_commits = gather_and_sort_commits(
+        args.current_release_tag,
+        args.current_version,
+        args.previous_release_tag,
+        args.previous_version,
         args.backport_tasks,
-        list_of_commits,
-        current_version=args.current_version,
-        previous_version=args.previous_version,
-    )
-
-    if args.cache:
-        cached_commits_store(list_of_commits)
+        args.cache,
+        args.silence,
+        args.single_thread)
 
     print_release_notes(list_of_commits)
     return 0
