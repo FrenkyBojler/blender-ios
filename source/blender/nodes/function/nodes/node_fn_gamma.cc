@@ -46,8 +46,9 @@ static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &
   static auto fn = mf::build::SI2_SO<ColorGeometry4f, float, ColorGeometry4f>(
       "Gamma",
       [](const ColorGeometry4f &color, float gamma) -> ColorGeometry4f {
-        float4 gamma_applied = float4(math::safe_pow(float3(color.x, color.y, color.z), gamma), color.w);
-        return ColorGeometry4f(gamma_applied.x, gamma_applied.y, gamma_applied.z, gamma_applied.w);
+        float3 rgb = float3(color.r, color.g, color.b);
+        float3 rgb_gamma = math::safe_pow(rgb, gamma);
+        return ColorGeometry4f(rgb_gamma.x, rgb_gamma.y, rgb_gamma.z, color.a);
       },
       mf::build::exec_presets::AllSpanOrSingle());
   builder.set_matching_fn(fn);
