@@ -14,6 +14,8 @@
 #include "BLI_sys_types.h"
 
 char32_t BLI_str_utf32_normalize(char32_t codepoint);
+std::string BLI_str_utf8_normalize(const char *str, size_t len);
+std::string BLI_str_utf8_normalize(const std::string str);
 
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
     ATTR_NONNULL(1, 2);
