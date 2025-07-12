@@ -430,9 +430,6 @@ static void primitive_calulate_bezier_curve_positions(const PrimitiveToolOperati
     return;
   }
 
-  handles_left.fill(float2(0.0f, 0.0f));
-  handles_right.fill(float2(0.0f, 0.0f));
-
   if (ptd.type != PrimitiveType::Circle && ptd.type != PrimitiveType::Box) {
     handles_left.first() = math::interpolate(control_points[0], control_points[1], -1.0f / 3.0f);
     handles_right.last() = math::interpolate(
