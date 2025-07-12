@@ -141,7 +141,7 @@ struct PrimitiveToolOperation {
   bool on_back;
   float softness;
   float fill_opacity;
-  int curve_type;
+  CurveType curve_type;
   float4x2 texture_space;
   float4x4 local_transform;
 
@@ -937,7 +937,7 @@ static wmOperatorStatus grease_pencil_primitive_invoke(bContext *C,
   }
   ptd.settings = ptd.brush->gpencil_settings;
   ptd.on_back = (vc.scene->toolsettings->gpencil_flags & GP_TOOL_FLAG_PAINT_ONBACK) != 0;
-  ptd.curve_type = CURVE_TYPE_BEZIER;
+  ptd.curve_type = CurveType(RNA_enum_get(op->ptr, "curve_type"));
 
   BKE_curvemapping_init(ptd.settings->curve_sensitivity);
   BKE_curvemapping_init(ptd.settings->curve_strength);
@@ -1715,6 +1715,12 @@ static void grease_pencil_primitive_common_props(wmOperatorType *ot,
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem grease_pencil_primitive_curve_type[] = {
+      {int(CurveType::CURVE_TYPE_POLY), "POLY", 0, "Poly", ""},
+      {int(CurveType::CURVE_TYPE_BEZIER), "BEZIER", 0, "Bezier", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   PropertyRNA *prop;
 
   prop = RNA_def_int(ot->srna,
@@ -1730,6 +1736,13 @@ static void grease_pencil_primitive_common_props(wmOperatorType *ot,
 
   RNA_def_enum(
       ot->srna, "type", grease_pencil_primitive_type, int(default_type), "Type", "Type of shape");
+
+  RNA_def_enum(ot->srna,
+               "curve_type",
+               grease_pencil_primitive_curve_type,
+               int(CurveType::CURVE_TYPE_POLY),
+               "Curve Type",
+               "Curve type of shape");
 }
 
 static void GREASE_PENCIL_OT_primitive_line(wmOperatorType *ot)
