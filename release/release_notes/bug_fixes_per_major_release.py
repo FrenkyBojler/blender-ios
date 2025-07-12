@@ -1075,6 +1075,8 @@ def gather_and_sort_commits(current_release_tag: str,
     if cache:
         cached_commits_store(list_of_commits)
 
+    return list_of_commits
+
 
 def main() -> int:
     args = argparse_create().parse_args()
