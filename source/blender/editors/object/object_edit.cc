@@ -439,8 +439,8 @@ void collection_hide_menu_draw(const bContext *C, uiLayout *layout)
   ViewLayer *view_layer = CTX_data_view_layer(C);
   LayerCollection *lc_scene = static_cast<LayerCollection *>(view_layer->layer_collections.first);
 
-  uiLayoutSetOperatorContext(layout, WM_OP_EXEC_REGION_WIN);
-
+  uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_REGION_WIN);
+  
   LISTBASE_FOREACH (LayerCollection *, lc, &lc_scene->layer_collections) {
     int index = BKE_layer_collection_findindex(view_layer, lc);
     uiLayout *row = uiLayoutRow(layout, false);
