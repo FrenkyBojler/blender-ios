@@ -1079,7 +1079,12 @@ def _activate_by_item(context, space_type, item, index, *, as_fallback=False):
     if item.draw_cursor is not None:
         def handle_fn(context, item, tool, xy):
             item.draw_cursor(context, tool, xy)
-        handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'WINDOW')
+        # Check if tool is sequencer.select_circle because select circle is a vse preview tool and the region_type has
+        # to be PREVIEW not WINDOW.
+        if item.idname == "sequencer.select_circle":
+            handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'PREVIEW')
+        else:
+            handle = WindowManager.draw_cursor_add(handle_fn, (context, item, tool), space_type, 'WINDOW')
         handle_map[space_type] = handle
 
 
