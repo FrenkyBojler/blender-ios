@@ -442,20 +442,25 @@ ccl_device void path_state_ensure_wavelength(KernelGlobals kg, IntegratorState s
     path_state_rng_load(state, &rng_state);
     rng_state.rng_offset = 0; /* Wavelength is a per-path property, not per-bounce. */
 
-    /* TODO: Better importance sampling? */
-    const float wavelength = mix(0.38f, 0.78f, path_state_rng_1D(kg, &rng_state, PRNG_WAVELENGTH));
+    /* Pick wavelength from inverse CDF table. */
+    const float rand_wl = path_state_rng_1D(kg, &rng_state, PRNG_WAVELENGTH);
+    const int index_wl = min((int)(rand_wl * 511), 510);
+    const float frac_wl = rand_wl * 511 - index_wl;
+    const float lo_wl = table_wavelength_cdf[index_wl], hi_wl = table_wavelength_cdf[index_wl + 1];
+    const float wavelength = mix(lo_wl, hi_wl, frac_wl);
+    const float inv_pdf = 511 * (hi_wl - lo_wl);
 
     /* Remember the wavelength for next bounces. */
     INTEGRATOR_STATE_WRITE(state, path, wavelength) = wavelength;
 
     const float3 xyz_E = wavelength_color_xyz(1000.0f * wavelength);
     /* Adapt color to account for white point. */
-    const float3 xyz_adapted = xyz_E * make_float3(kernel_data.film.white_xyz);
-    /* 3.743 factor is required to normalize intensity. */
-    const float3 rgb = 3.743f * xyz_to_rgb(kg, xyz_adapted);
+    const float3 rgb = xyz_to_rgb(kg, xyz_E * make_float3(kernel_data.film.white_xyz));
+    /* Account for PDF and normalization. */
+    const float3 factor = table_wavelength_cdf_normalization * rgb * inv_pdf;
 
     /* Update throughput since the path is now effectively monochromatic. */
-    INTEGRATOR_STATE_WRITE(state, path, throughput) *= rgb;
+    INTEGRATOR_STATE_WRITE(state, path, throughput) *= factor;
   }
 #endif
 }
