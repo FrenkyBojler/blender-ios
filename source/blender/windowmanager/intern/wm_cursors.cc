@@ -229,7 +229,10 @@ static bool window_set_custom_cursor(wmWindow *win, const BCursor &cursor)
   const bool use_rgba = !use_only_1bpp_cursors &&
                         (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA);
 
-  const int max_size = use_rgba ? 128 : 32;
+  /* Currently using the Win32 limit of 255 for RGBA cursors. Wayland probably
+   * has a limit of 256. MacOS is likely 256 or larger, but unconfirmed. 255 is
+   * probably large enough for now. */
+  const int max_size = use_rgba ? 255 : 32;
   const int size = std::min(cursor_size(), max_size);
 
   int bitmap_size[2];
