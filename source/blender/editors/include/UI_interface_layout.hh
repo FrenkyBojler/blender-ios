@@ -11,13 +11,12 @@
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
-#include "RNA_types.hh"
-
 #include "UI_interface_icons.hh" /* `eAlertIcon` */
 #include "UI_interface_types.hh"
 
 struct bContext;
 struct bContextStore;
+struct EnumPropertyItem;
 struct IDProperty;
 struct uiBlock;
 struct uiBut;
@@ -28,6 +27,8 @@ struct MenuType;
 struct PanelType;
 struct Panel;
 struct PointerRNA;
+struct PropertyRNA;
+struct StructRNA;
 struct wmOperatorType;
 
 /* Layout
