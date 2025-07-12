@@ -567,6 +567,32 @@ static int grease_pencil_primitive_curve_points_number(PrimitiveToolOperation &p
   return 0;
 }
 
+static int8_t grease_pencil_primitive_handle_type(PrimitiveToolOperation &ptd)
+{
+  if (ptd.curve_type == CURVE_TYPE_BEZIER) {
+    switch (ptd.type) {
+      case PrimitiveType::Polyline:
+      case PrimitiveType::Line:
+      case PrimitiveType::Box: {
+        return BEZIER_HANDLE_VECTOR;
+        break;
+      }
+      case PrimitiveType::Curve:
+      case PrimitiveType::Arc: {
+        return BEZIER_HANDLE_FREE;
+        break;
+      }
+      case PrimitiveType::Circle: {
+        return BEZIER_HANDLE_ALIGN;
+        break;
+      }
+    }
+  }
+
+  BLI_assert_unreachable();
+  return BEZIER_HANDLE_FREE;
+}
+
 static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 {
   const bool on_back = ptd.on_back;
@@ -600,6 +626,10 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
 
     ptd.placement.project(handles_left_2d, handles_left_3d);
     ptd.placement.project(handles_right_2d, handles_right_3d);
+
+    const int8_t handle_type = grease_pencil_primitive_handle_type(ptd);
+    curves.handle_types_left_for_write().slice(curve_points).fill(handle_type);
+    curves.handle_types_right_for_write().slice(curve_points).fill(handle_type);
   }
   else {
     primitive_calulate_curve_positions(ptd, control_points_2d, positions_2d);
@@ -684,7 +714,8 @@ static void grease_pencil_primitive_update_curves(PrimitiveToolOperation &ptd)
     rotations.finish();
   }
   if (ptd.curve_type == CURVE_TYPE_BEZIER) {
-    point_attributes_to_skip.add_multiple({"handle_left", "handle_right"});
+    point_attributes_to_skip.add_multiple(
+        {"handle_left", "handle_right", "handle_type_left", "handle_type_right"});
   }
 
   /* Initialize the rest of the attributes with default values. */
