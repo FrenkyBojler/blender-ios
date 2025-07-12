@@ -660,13 +660,12 @@ static void wm_cursor_text(wmWindow *win, const std::string &text, int font_id)
       int(0.5f * (bitmap_height - 1)),
   };
   const int icon_size[2] = {bitmap_width, bitmap_height};
-  GHOST_TSuccess success = GHOST_SetCustomCursorShape(
-      static_cast<GHOST_WindowHandle>(win->ghostwin),
-      (uchar *)bitmap.data(),
-      nullptr,
-      icon_size,
-      hot_spot,
-      true);
+  GHOST_SetCustomCursorShape(static_cast<GHOST_WindowHandle>(win->ghostwin),
+                             (uchar *)bitmap.data(),
+                             nullptr,
+                             icon_size,
+                             hot_spot,
+                             true);
 
   BLF_buffer(font_id, nullptr, nullptr, 0, 0, nullptr);
 }
