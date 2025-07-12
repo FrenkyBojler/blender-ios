@@ -22,6 +22,8 @@
 
 #include "BLT_translation.hh"
 
+#include "RNA_access.hh"
+
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
@@ -34,15 +36,31 @@ namespace blender::ed::transform {
 /** \name Transform (Shrink-Fatten)
  * \{ */
 
+enum eShrinkFattenMode {
+  EVEN_THICKNESS_OFF = 0,
+  EVEN_THICKNESS_ON = 1,
+};
+
+/**
+ * Custom data, stored in #TransInfo.custom.mode.data
+ */
+struct ShrinkFattenCustomData {
+  const wmKeyMapItem *kmi;
+  eShrinkFattenMode mode;
+  bool skip_first_even_thickness_handle;
+};
+
 static void transdata_elem_shrink_fatten(const TransInfo *t,
                                          const TransDataContainer * /*tc*/,
                                          TransData *td,
                                          TransDataExtension *td_ext,
                                          const float distance)
 {
+  ShrinkFattenCustomData *custom_data = static_cast<ShrinkFattenCustomData *>(t->custom.mode.data);
+
   /* Get the final offset. */
   float tdistance = distance * td->factor;
-  if (td_ext && (t->flag & T_ALT_TRANSFORM) != 0) {
+  if (td_ext && custom_data->mode == EVEN_THICKNESS_ON) {
     tdistance *= td_ext->iscale[0]; /* Shell factor. */
   }
 
@@ -51,16 +69,28 @@ static void transdata_elem_shrink_fatten(const TransInfo *t,
 
 static eRedrawFlag shrinkfatten_handleEvent(TransInfo *t, const wmEvent *event)
 {
-  if (t->redraw) {
-    /* Event already handled. */
-    return TREDRAW_NOTHING;
-  }
-
   BLI_assert(t->mode == TFM_SHRINKFATTEN);
-  const wmKeyMapItem *kmi = static_cast<const wmKeyMapItem *>(t->custom.mode.data);
-  if (kmi && event->type == kmi->type && event->val == kmi->val) {
+  ShrinkFattenCustomData *custom_data = static_cast<ShrinkFattenCustomData *>(t->custom.mode.data);
+  const wmKeyMapItem *kmi = custom_data->kmi;
+
+  if (ELEM(event->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
+    if (event->val == KM_PRESS) {
+      custom_data->mode = EVEN_THICKNESS_ON;
+      custom_data->skip_first_even_thickness_handle = false;
+      return TREDRAW_HARD;
+    }
+    else if (!custom_data->skip_first_even_thickness_handle) {
+      custom_data->mode = EVEN_THICKNESS_OFF;
+      return TREDRAW_HARD;
+    }
+    else {
+      custom_data->skip_first_even_thickness_handle = false;
+    }
+  }
+  else if (kmi && event->type == kmi->type && event->val == kmi->val) {
     /* Allows the "Even Thickness" effect to be enabled as a toggle. */
-    t->flag ^= T_ALT_TRANSFORM;
+    custom_data->mode = custom_data->mode == EVEN_THICKNESS_ON ? EVEN_THICKNESS_OFF :
+                                                                 EVEN_THICKNESS_ON;
     return TREDRAW_HARD;
   }
   return TREDRAW_NOTHING;
@@ -71,6 +101,7 @@ static void applyShrinkFatten(TransInfo *t)
   float distance;
   fmt::memory_buffer str;
   const UnitSettings &unit = t->scene->unit;
+  ShrinkFattenCustomData *custom_data = static_cast<ShrinkFattenCustomData *>(t->custom.mode.data);
 
   distance = t->values[0] + t->values_modal_offset[0];
 
@@ -105,14 +136,14 @@ static void applyShrinkFatten(TransInfo *t)
   }
   fmt::format_to(fmt::appender(str), ", (");
 
-  const wmKeyMapItem *kmi = static_cast<const wmKeyMapItem *>(t->custom.mode.data);
+  const wmKeyMapItem *kmi = custom_data->kmi;
   if (kmi) {
     str.append(WM_keymap_item_to_string(kmi, false).value_or(""));
   }
 
   fmt::format_to(fmt::appender(str),
                  fmt::runtime(IFACE_(" or Alt) Even Thickness {}")),
-                 WM_bool_as_string((t->flag & T_ALT_TRANSFORM) != 0));
+                 WM_bool_as_string(custom_data->mode == EVEN_THICKNESS_ON));
   /* Done with header string. */
 
   FOREACH_TRANS_DATA_CONTAINER (t, tc) {
@@ -133,7 +164,7 @@ static void applyShrinkFatten(TransInfo *t)
   ED_area_status_text(t->area, fmt::to_string(str).c_str());
 }
 
-static void initShrinkFatten(TransInfo *t, wmOperator * /*op*/)
+static void initShrinkFatten(TransInfo *t, wmOperator *op)
 {
   if ((t->flag & T_EDIT) == 0 || (t->obedit_type != OB_MESH)) {
     BKE_report(t->reports, RPT_ERROR, "'Shrink/Fatten' meshes is only supported in edit mode");
@@ -153,9 +184,22 @@ static void initShrinkFatten(TransInfo *t, wmOperator * /*op*/)
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_LENGTH;
 
+  ShrinkFattenCustomData *custom_data = static_cast<ShrinkFattenCustomData *>(
+      MEM_callocN(sizeof(*custom_data), __func__));
+  t->custom.mode.data = custom_data;
+  t->custom.mode.use_free = true;
+
   if (t->keymap) {
     /* Workaround to use the same key as the modal keymap. */
-    t->custom.mode.data = (void *)WM_modalkeymap_find_propvalue(t->keymap, TFM_MODAL_RESIZE);
+    custom_data->kmi = WM_modalkeymap_find_propvalue(t->keymap, TFM_MODAL_RESIZE);
+  }
+
+  if (op) {
+    PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_even_offset");
+    if (RNA_property_is_set(op->ptr, prop) && RNA_property_boolean_get(op->ptr, prop)) {
+      custom_data->mode = EVEN_THICKNESS_ON;
+      custom_data->skip_first_even_thickness_handle = true;
+    }
   }
 }
 
