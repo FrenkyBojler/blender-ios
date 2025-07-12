@@ -493,11 +493,12 @@ static bool load_data_init_from_operator(seq::LoadData *load_data, bContext *C, 
     const wmWindow *win = CTX_wm_window(C);
     const float2 mouse_region(win->eventstate->xy[0] - region->winrct.xmin,
                               win->eventstate->xy[1] - region->winrct.ymin);
+    const rctf *cur = &region->v2d.cur;
     float2 mouse_view;
     UI_view2d_region_to_view(
         &region->v2d, mouse_region.x, mouse_region.y, &mouse_view.x, &mouse_view.y);
-    load_data->start_frame = mouse_view.x;
-    load_data->channel = mouse_view.y;
+    load_data->start_frame = std::trunc(math::clamp(mouse_view.x, cur->xmin, cur->xmax - 1));
+    load_data->channel = std::trunc(math::clamp(mouse_view.y, cur->ymin, cur->ymax - 1));
     load_data->image.end_frame = load_data->start_frame + DEFAULT_IMG_STRIP_LENGTH;
     load_data->effect.end_frame = load_data->image.end_frame;
   }
