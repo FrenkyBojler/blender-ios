@@ -66,8 +66,6 @@ static BLI_NOINLINE void distance_to_n_squared(const Span<float> src_a_x,
       src_a_x.data(), src_a_y.data(), src_a_z.data(), src_b_xyz, src_a_z.size(), dst.data());
 }
 
-
-
 static BLI_NOINLINE void chunked_squared_distances_row_major(
     const Span<float[programCount]> row_x,
     const Span<float[programCount]> row_y,
@@ -178,9 +176,10 @@ static BLI_NOINLINE void squared_distances_col_major(const Span<float> row_x,
                                     distances.data());
 }
 
-static BLI_NOINLINE void chunked_zero_if_index_in_range_row_major(const Span<int[programCount]> row_indices,
-                                                                  const ShiftedRange col_range,
-                                                                  MutableSpan<float[programCount]> rows_and_cols)
+static BLI_NOINLINE void chunked_zero_if_index_in_range_row_major(
+    const Span<int[programCount]> row_indices,
+    const ShiftedRange col_range,
+    MutableSpan<float[programCount]> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -191,9 +190,10 @@ static BLI_NOINLINE void chunked_zero_if_index_in_range_row_major(const Span<int
                                                  rows_and_cols.data());
 }
 
-static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(const Span<int> row_indices,
-                                                                  const ShiftedRange col_range,
-                                                                  MutableSpan<float[programCount]> rows_and_cols)
+static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(
+    const Span<int> row_indices,
+    const ShiftedRange col_range,
+    MutableSpan<float[programCount]> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -230,9 +230,10 @@ static BLI_NOINLINE void zero_if_index_in_range_col_major(const Span<int> row_in
                                          rows_and_cols.data());
 }
 
-static BLI_NOINLINE void chunked_table_product_reduce_row_major(const Span<float[programCount]> rows_and_cols,
-                                                                const Span<float> col_values,
-                                                                MutableSpan<float[programCount]> row_values)
+static BLI_NOINLINE void chunked_table_product_reduce_row_major(
+    const Span<float[programCount]> rows_and_cols,
+    const Span<float> col_values,
+    MutableSpan<float[programCount]> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
 
@@ -243,9 +244,10 @@ static BLI_NOINLINE void chunked_table_product_reduce_row_major(const Span<float
                                                col_values.data());
 }
 
-static BLI_NOINLINE void chunked_table_product_reduce_col_major(const Span<float[programCount]> rows_and_cols,
-                                                                const Span<float[programCount]> col_values,
-                                                                MutableSpan<float> row_values)
+static BLI_NOINLINE void chunked_table_product_reduce_col_major(
+    const Span<float[programCount]> rows_and_cols,
+    const Span<float[programCount]> col_values,
+    MutableSpan<float> row_values)
 {
   BLI_assert(rows_and_cols.size() == col_values.size() * row_values.size());
 
@@ -281,9 +283,6 @@ static BLI_NOINLINE void table_product_reduce_col_major(const Span<float> rows_a
                                        row_values.size(),
                                        row_values.data());
 }
-
-
-
 
 template<typename T>
 static BLI_NOINLINE void scatter(const Span<T> src, const Span<int> indices, MutableSpan<T> dst)
@@ -1352,9 +1351,11 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
     const bool leaf_joint = depth_i == total_depth - 1;
 
-    const IndexRange joint_buckets_range = akdbh::joint_buckets_range_at_depth(total_depth, depth_i, joint_i);
+    const IndexRange joint_buckets_range = akdbh::joint_buckets_range_at_depth(
+        total_depth, depth_i, joint_i);
     const IndexRange joint_buckets = buckets_offsets[joint_buckets_range];
-    const bool totally_inside_of_joint = sampler_to_bucket_range.has_value() && joint_buckets.contains(*sampler_to_bucket_range);
+    const bool totally_inside_of_joint = sampler_to_bucket_range.has_value() &&
+                                         joint_buckets.contains(*sampler_to_bucket_range);
 
     const float3 joint_position = src_joints_centre[joint_index];
     const float joint_min_distance = src_joints_min_distance[joint_index];
@@ -1381,8 +1382,10 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     }
     const float min_distance_to_joint = has_offset ? joint_min_distance :
                                                      math::square(joint_min_distance);
-    const int total_to_pass_to_childs = totally_inside_of_joint ? prefix_to_visit : fast_math::count_floats_less_than(batch_distances_buffer,
-                                                                          min_distance_to_joint);
+    const int total_to_pass_to_childs = totally_inside_of_joint ?
+                                            prefix_to_visit :
+                                            fast_math::count_floats_less_than(
+                                                batch_distances_buffer, min_distance_to_joint);
 
     const bool all_pass_to_childs = total_to_pass_to_childs == prefix_to_visit;
     if (all_pass_to_childs && !leaf_joint) {
@@ -1490,10 +1493,13 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           .slice(aligned_bucket_size * axis_i, bucket_size)
           .copy_from(src_bucket_position[axis_i].slice(joint_bucket));
     }
-    
-    const Span<float> bucket_positions_x = bucket_position_data.as_mutable_span().slice(aligned_bucket_size * 0, bucket_size);
-    const Span<float> bucket_positions_y = bucket_position_data.as_mutable_span().slice(aligned_bucket_size * 1, bucket_size);
-    const Span<float> bucket_positions_z = bucket_position_data.as_mutable_span().slice(aligned_bucket_size * 2, bucket_size);
+
+    const Span<float> bucket_positions_x = bucket_position_data.as_mutable_span().slice(
+        aligned_bucket_size * 0, bucket_size);
+    const Span<float> bucket_positions_y = bucket_position_data.as_mutable_span().slice(
+        aligned_bucket_size * 1, bucket_size);
+    const Span<float> bucket_positions_z = bucket_position_data.as_mutable_span().slice(
+        aligned_bucket_size * 2, bucket_size);
 
     constexpr int chunk_size = fast_math::programCount;
     const int chunked_batch_size = round_for(total_to_pass_to_childs, chunk_size);
@@ -1521,17 +1527,17 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           bucket_size * (chunked_batch_x.size() * chunk_size + rest_batch_x.size()));
       const int total_chunked_table_size = bucket_size * chunked_batch_x.size() * chunk_size;
 
-  #ifndef NDEBUG
+#ifndef NDEBUG
       batch_distances_buffer.as_mutable_span().fill(-1.0f);
-  #endif
+#endif
 
       const MutableSpan<float[chunk_size]> chunked_distances = batch_distances_buffer
                                                                    .as_mutable_span()
                                                                    .take_front(
                                                                        total_chunked_table_size)
                                                                    .cast<float[chunk_size]>();
-      const MutableSpan<float> rest_distances = batch_distances_buffer.as_mutable_span().drop_front(
-          total_chunked_table_size);
+      const MutableSpan<float> rest_distances =
+          batch_distances_buffer.as_mutable_span().drop_front(total_chunked_table_size);
 
       BLI_assert(chunked_distances.size() == chunked_batch_x.size() * bucket_size);
       fast_math::chunked_squared_distances_row_major(chunked_batch_x,
@@ -1566,14 +1572,16 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
               batch_indices.take_front(chunked_batch_size).cast<int[chunk_size]>();
           const Span<int> rest_batch_indices = batch_indices.drop_front(chunked_batch_size);
 
-          const int from_bucket_to_sampler_offset = joint_bucket.start() - range_of_samplers.start();
+          const int from_bucket_to_sampler_offset = joint_bucket.start() -
+                                                    range_of_samplers.start();
           fast_math::chunked_zero_if_index_in_range_row_major(
               chunked_batch_indices,
               ShiftedRange{from_bucket_to_sampler_offset, bucket_size},
               chunked_distances);
-          fast_math::zero_if_index_in_range_row_major(rest_batch_indices,
-                                            ShiftedRange{from_bucket_to_sampler_offset, bucket_size},
-                                            rest_distances);
+          fast_math::zero_if_index_in_range_row_major(
+              rest_batch_indices,
+              ShiftedRange{from_bucket_to_sampler_offset, bucket_size},
+              rest_distances);
         }
       }
 
@@ -1587,7 +1595,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         const MutableSpan<float> rest_batch_values = batch_values.drop_front(chunked_batch_size);
         fast_math::chunked_table_product_reduce_row_major(
             chunked_distances, bucket_values, chunked_batch_values);
-        fast_math::table_product_reduce_row_major(rest_distances, bucket_values, rest_batch_values);
+        fast_math::table_product_reduce_row_major(
+            rest_distances, bucket_values, rest_batch_values);
       }
     }
     else if (true) {
@@ -1610,17 +1619,17 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           batch_size * (chunked_bucket_x.size() * chunk_size + rest_bucket_x.size()));
       const int total_chunked_table_size = batch_size * chunked_bucket_x.size() * chunk_size;
 
-  #ifndef NDEBUG
+#ifndef NDEBUG
       batch_distances_buffer.as_mutable_span().fill(-1.0f);
-  #endif
+#endif
 
       const MutableSpan<float[chunk_size]> chunked_distances = batch_distances_buffer
                                                                    .as_mutable_span()
                                                                    .take_front(
                                                                        total_chunked_table_size)
                                                                    .cast<float[chunk_size]>();
-      const MutableSpan<float> rest_distances = batch_distances_buffer.as_mutable_span().drop_front(
-          total_chunked_table_size);
+      const MutableSpan<float> rest_distances =
+          batch_distances_buffer.as_mutable_span().drop_front(total_chunked_table_size);
 
       BLI_assert(chunked_distances.size() == chunked_bucket_x.size() * batch_size);
       fast_math::chunked_squared_distances_col_major(chunked_bucket_x,
@@ -1651,23 +1660,33 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         const IndexRange range_of_samplers = *sampler_to_bucket_range;
         if (!range_of_samplers.intersect(joint_bucket).is_empty()) {
           const Span<int> batch_indices = batch_indices_data.take_front(batch_size);
-      
-          const int from_bucket_to_sampler_offset = joint_bucket.start() - range_of_samplers.start();
-      
-          fast_math::chunked_zero_if_index_in_range_col_major(batch_indices, ShiftedRange{from_bucket_to_sampler_offset, int(chunked_bucket_x.size())}, chunked_distances);
-          fast_math::zero_if_index_in_range_col_major(batch_indices, ShiftedRange{from_bucket_to_sampler_offset, int(rest_bucket_x.size())}, rest_distances);
+
+          const int from_bucket_to_sampler_offset = joint_bucket.start() -
+                                                    range_of_samplers.start();
+
+          fast_math::chunked_zero_if_index_in_range_col_major(
+              batch_indices,
+              ShiftedRange{from_bucket_to_sampler_offset, int(chunked_bucket_x.size())},
+              chunked_distances);
+          fast_math::zero_if_index_in_range_col_major(
+              batch_indices,
+              ShiftedRange{from_bucket_to_sampler_offset, int(rest_bucket_x.size())},
+              rest_distances);
         }
       }
 
       for (const int data_i : IndexRange(data_axes_num)) {
         const Span<float> bucket_values = src_bucket_value[data_i].slice(joint_bucket);
-        
-        const Span<float[chunk_size]> chunked_bucket_values = bucket_values.take_front(chunked_bucket_size).cast<float[chunk_size]>();
+
+        const Span<float[chunk_size]> chunked_bucket_values =
+            bucket_values.take_front(chunked_bucket_size).cast<float[chunk_size]>();
         const Span<float> rest_bucket_values = bucket_values.drop_front(chunked_bucket_size);
 
         const MutableSpan<float> batch_values = batch_values_data[data_i].take_front(batch_size);
-        fast_math::chunked_table_product_reduce_col_major(chunked_distances, chunked_bucket_values, batch_values);
-        fast_math::table_product_reduce_col_major(rest_distances, rest_bucket_values, batch_values);
+        fast_math::chunked_table_product_reduce_col_major(
+            chunked_distances, chunked_bucket_values, batch_values);
+        fast_math::table_product_reduce_col_major(
+            rest_distances, rest_bucket_values, batch_values);
       }
     }
   }
