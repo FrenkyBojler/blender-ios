@@ -2326,6 +2326,7 @@ NODE_DEFINE(GlassBsdfNode)
       distribution, "Distribution", distribution_enum, CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID);
   SOCKET_IN_FLOAT(roughness, "Roughness", 0.0f);
   SOCKET_IN_FLOAT(IOR, "IOR", 1.5f);
+  SOCKET_IN_FLOAT(dispersion, "Dispersion", 0.0f);
 
   SOCKET_IN_FLOAT(thin_film_thickness, "Thin Film Thickness", 0.0f);
   SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.3f);
@@ -2340,15 +2341,50 @@ GlassBsdfNode::GlassBsdfNode() : BsdfNode(get_node_type())
   closure = CLOSURE_BSDF_MICROFACET_GGX_GLASS_ID;
 }
 
+bool GlassBsdfNode::has_dispersion()
+{
+  return (input("Dispersion")->link != nullptr || dispersion > CLOSURE_WEIGHT_CUTOFF);
+}
+
 void GlassBsdfNode::compile(SVMCompiler &compiler)
 {
   closure = distribution;
-  BsdfNode::compile(compiler,
-                    input("Roughness"),
-                    input("IOR"),
-                    input("Color"),
-                    input("Thin Film Thickness"),
-                    input("Thin Film IOR"));
+
+  ShaderInput *color_in = input("Color");
+  ShaderInput *normal_in = input("Normal");
+  ShaderInput *roughness_in = input("Roughness");
+  ShaderInput *ior_in = input("IOR");
+  ShaderInput *thin_film_thickness_in = input("Thin Film Thickness");
+  ShaderInput *thin_film_ior_in = input("Thin Film IOR");
+  ShaderInput *dispersion_in = input("Dispersion");
+
+  if (color_in->link) {
+    compiler.add_node(NODE_CLOSURE_WEIGHT, compiler.stack_assign(color_in));
+  }
+  else {
+    compiler.add_node(NODE_CLOSURE_SET_WEIGHT, color);
+  }
+
+  const int normal_offset = compiler.stack_assign_if_linked(normal_in);
+  const int color_offset = compiler.stack_assign(color_in);
+  const int thin_film_thickness_offset = compiler.stack_assign(thin_film_thickness_in);
+  const int thin_film_ior_offset = compiler.stack_assign(thin_film_ior_in);
+  const int dispersion_offset = compiler.stack_assign(dispersion_in);
+
+  compiler.add_node(NODE_CLOSURE_BSDF,
+                    compiler.encode_uchar4(closure,
+                                           compiler.stack_assign_if_linked(roughness_in),
+                                           compiler.stack_assign_if_linked(ior_in),
+                                           compiler.closure_mix_weight_offset()),
+                    __float_as_int(get_float(roughness_in->socket_type)),
+                    __float_as_int(get_float(ior_in->socket_type)));
+
+  compiler.add_node(
+      normal_offset,
+      color_offset,
+      compiler.encode_uchar4(
+          thin_film_thickness_offset, thin_film_ior_offset, dispersion_offset, SVM_STACK_INVALID),
+      SVM_STACK_INVALID);
 }
 
 void GlassBsdfNode::compile(OSLCompiler &compiler)
@@ -2550,6 +2586,7 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_NORMAL(tangent, "Tangent", zero_float3(), SocketType::LINK_TANGENT);
 
   SOCKET_IN_FLOAT(transmission_weight, "Transmission Weight", 0.0f);
+  SOCKET_IN_FLOAT(dispersion, "Dispersion", 0.0f);
 
   SOCKET_IN_FLOAT(sheen_weight, "Sheen Weight", 0.0f);
   SOCKET_IN_FLOAT(sheen_roughness, "Sheen Roughness", 0.5f);
@@ -2619,6 +2656,10 @@ void PrincipledBsdfNode::simplify_settings(Scene * /* scene */)
     disconnect_unused_input("Thin Film Thickness");
     disconnect_unused_input("Thin Film IOR");
   }
+
+  if (!has_nonzero_weight("Transmission Weight")) {
+    disconnect_unused_input("Dispersion");
+  }
 }
 
 bool PrincipledBsdfNode::has_surface_transparent()
@@ -2656,6 +2697,11 @@ bool PrincipledBsdfNode::has_nonzero_weight(const char *name)
   return (get_float(weight_in->socket_type) >= CLOSURE_WEIGHT_CUTOFF);
 }
 
+bool PrincipledBsdfNode::has_dispersion()
+{
+  return has_nonzero_weight("Transmission Weight") && has_nonzero_weight("Dispersion");
+}
+
 void PrincipledBsdfNode::attributes(Shader *shader, AttributeRequestSet *attributes)
 {
   if (shader->has_surface_link()) {
@@ -2681,8 +2727,6 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler)
   const int alpha_offset = compiler.stack_assign_if_not_equal(input("Alpha"), 1.0f);
   const int normal_offset = compiler.stack_assign_if_linked(input("Normal"));
   const int coat_normal_offset = compiler.stack_assign_if_linked(input("Coat Normal"));
-  const int transmission_weight_offset = compiler.stack_assign_if_not_equal(
-      input("Transmission Weight"), 0.0f);
   const int diffuse_roughness_offset = compiler.stack_assign_if_not_equal(
       input("Diffuse Roughness"), 0.0f);
   const int specular_ior_level_offset = compiler.stack_assign_if_not_equal(
@@ -2754,6 +2798,14 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler)
     thin_film_ior_offset = compiler.stack_assign(input("Thin Film IOR"));
   }
 
+  /* Allocate transmission inputs, if enabled. */
+  int transmission_weight_offset = SVM_STACK_INVALID;
+  int dispersion_offset = SVM_STACK_INVALID;
+  if (has_nonzero_weight("Transmission Weight")) {
+    transmission_weight_offset = compiler.stack_assign(input("Transmission Weight"));
+    dispersion_offset = compiler.stack_assign(input("Dispersion"));
+  }
+
   compiler.add_node(
       NODE_CLOSURE_BSDF,
       compiler.encode_uchar4(
@@ -2786,7 +2838,7 @@ void PrincipledBsdfNode::compile(SVMCompiler &compiler)
           sheen_roughness_offset, sheen_tint_offset, anisotropic_rotation_offset, tangent_offset));
 
   const float3 base_color = get_float3(input("Base Color")->socket_type);
-  compiler.add_node(thin_film_ior_offset,
+  compiler.add_node(compiler.encode_uchar4(thin_film_ior_offset, dispersion_offset),
                     __float_as_int(base_color.x),
                     __float_as_int(base_color.y),
                     __float_as_int(base_color.z));

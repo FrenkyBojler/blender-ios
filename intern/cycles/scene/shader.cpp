@@ -806,6 +806,9 @@ uint ShaderManager::get_graph_kernel_features(ShaderGraph *graph)
     if (node->has_surface_transparent()) {
       kernel_features |= KERNEL_FEATURE_TRANSPARENT;
     }
+    if (node->has_dispersion()) {
+      kernel_features |= KERNEL_FEATURE_DISPERSION;
+    }
   }
 
   return kernel_features;

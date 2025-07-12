@@ -478,7 +478,9 @@ ccl_device void osl_closure_generalized_schlick_bsdf_setup(
   fresnel->exponent = closure->exponent;
   fresnel->thin_film.thickness = closure->thinfilm_thickness;
   fresnel->thin_film.ior = closure->thinfilm_ior;
-  bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd, fresnel, preserve_energy);
+  fresnel->dispersion = closure->dispersion;
+  sd->flag |= bsdf_microfacet_setup_fresnel_generalized_schlick(
+      kg, bsdf, sd, fresnel, preserve_energy);
 
   if (layer_albedo != nullptr) {
     if (has_reflection && !has_transmission) {

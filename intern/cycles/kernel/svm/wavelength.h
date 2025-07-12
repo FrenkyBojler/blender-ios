@@ -7,7 +7,6 @@
 
 #pragma once
 
-#include "kernel/svm/math_util.h"
 #include "kernel/svm/util.h"
 
 #include "kernel/util/colorspace.h"
@@ -23,7 +22,7 @@ ccl_device_noinline void svm_node_wavelength(KernelGlobals kg,
 {
   const float lambda_nm = stack_load_float(stack, wavelength);
 
-  float3 color = svm_math_wavelength_color_xyz(lambda_nm);
+  float3 color = wavelength_color_xyz(lambda_nm);
   color = xyz_to_rgb(kg, color);
   color *= 1.0f / 2.52f;  // Empirical scale from lg to make all comps <= 1
 

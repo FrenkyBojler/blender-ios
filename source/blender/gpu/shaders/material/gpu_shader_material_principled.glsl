@@ -46,6 +46,7 @@ void node_bsdf_principled(float4 base_color,
                           float anisotropic_rotation,
                           float3 T,
                           float transmission_weight,
+                          float dispersion,
                           float coat_weight,
                           float coat_roughness,
                           float coat_ior,
@@ -75,6 +76,8 @@ void node_bsdf_principled(float4 base_color,
   /* Not used by EEVEE */
   /* anisotropic = saturate(anisotropic); */
   transmission_weight = saturate(transmission_weight);
+  /* Not used by EEVEE */
+  /* dispersion = max(dispersion, 0.0f); */
   coat_weight = max(coat_weight, 0.0f);
   coat_roughness = saturate(coat_roughness);
   coat_ior = max(coat_ior, 1.0f);

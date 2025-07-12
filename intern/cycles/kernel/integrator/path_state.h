@@ -8,6 +8,8 @@
 
 #include "kernel/sample/pattern.h"
 
+#include "kernel/util/colorspace.h"
+
 CCL_NAMESPACE_BEGIN
 
 /* Initialize queues, so that this path is considered terminated.
@@ -63,6 +65,13 @@ ccl_device_inline void path_state_init_integrator(KernelGlobals kg,
   INTEGRATOR_STATE_WRITE(state, path, continuation_probability) = 1.0f;
   INTEGRATOR_STATE_WRITE(state, path, throughput) = throughput;
   INTEGRATOR_STATE_WRITE(state, path, optical_depth) = 0.0f;
+
+#ifdef __DISPERSION__
+  if ((kernel_data.kernel_features & KERNEL_FEATURE_DISPERSION)) {
+    INTEGRATOR_STATE_WRITE(state, path, wavelength) = 0.0f;
+  }
+#endif
+
 #if defined(__PATH_GUIDING__)
   if ((kernel_data.kernel_features & KERNEL_FEATURE_PATH_GUIDING)) {
     INTEGRATOR_STATE_WRITE(state, path, unguided_throughput) = 1.0f;
@@ -420,6 +429,35 @@ ccl_device_inline float path_state_rng_light_termination(KernelGlobals kg,
     return path_state_rng_1D(kg, state, PRNG_LIGHT_TERMINATE);
   }
   return 0.0f;
+}
+
+ccl_device void path_state_ensure_wavelength(KernelGlobals kg, IntegratorState state)
+{
+#ifdef __DISPERSION__
+  /* We try to delay limiting the path to a specific wavelength as long as possible,
+   * so pick it here if needed. */
+  if (INTEGRATOR_STATE(state, path, wavelength) == 0.0f) {
+    /* Randomly sample wavelength for the path. */
+    RNGState rng_state;
+    path_state_rng_load(state, &rng_state);
+    rng_state.rng_offset = 0; /* Wavelength is a per-path property, not per-bounce. */
+
+    /* TODO: Better importance sampling? */
+    const float wavelength = mix(0.38f, 0.78f, path_state_rng_1D(kg, &rng_state, PRNG_WAVELENGTH));
+
+    /* Remember the wavelength for next bounces. */
+    INTEGRATOR_STATE_WRITE(state, path, wavelength) = wavelength;
+
+    const float3 xyz_E = wavelength_color_xyz(1000.0f * wavelength);
+    /* Adapt color to account for white point. */
+    const float3 xyz_adapted = xyz_E * make_float3(kernel_data.film.white_xyz);
+    /* 3.743 factor is required to normalize intensity. */
+    const float3 rgb = 3.743f * xyz_to_rgb(kg, xyz_adapted);
+
+    /* Update throughput since the path is now effectively monochromatic. */
+    INTEGRATOR_STATE_WRITE(state, path, throughput) *= rgb;
+  }
+#endif
 }
 
 CCL_NAMESPACE_END

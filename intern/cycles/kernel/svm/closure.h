@@ -119,6 +119,8 @@ ccl_device
       uint anisotropic_rotation_offset;
       uint tangent_offset;
       uint thin_film_ior_offset;
+      uint dispersion_offset;
+      uint unused;
       ClosureType distribution;
 
       const uint4 data_node2 = read_node(kg, &offset);
@@ -156,7 +158,11 @@ ccl_device
                              &sheen_tint_offset,
                              &anisotropic_rotation_offset,
                              &tangent_offset);
-      thin_film_ior_offset = data_node3.x;
+      svm_unpack_node_uchar4(data_node3.x,
+                             &thin_film_ior_offset,
+                             &dispersion_offset,
+                             &unused,
+                             &unused);
 
       const float3 default_base_color = make_float3(__uint_as_float(data_node3.y),
                                                     __uint_as_float(data_node3.z),
@@ -391,11 +397,13 @@ ccl_device
             fresnel->thin_film.thickness = thinfilm_thickness;
             fresnel->thin_film.ior = (sd->flag & SD_BACKFACING) ? thinfilm_ior / ior :
                                                                   thinfilm_ior;
+            fresnel->dispersion = stack_load_float(stack, dispersion_offset);
 
             /* setup bsdf */
             sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
             const bool is_multiggx = (distribution == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID);
-            bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd, fresnel, is_multiggx);
+            sd->flag |= bsdf_microfacet_setup_fresnel_generalized_schlick(
+                kg, bsdf, sd, fresnel, is_multiggx);
           }
         }
         /* Attenuate other components */
@@ -436,11 +444,13 @@ ccl_device
           fresnel->transmission_tint = zero_spectrum();
           fresnel->thin_film.thickness = thinfilm_thickness;
           fresnel->thin_film.ior = thinfilm_ior;
+          fresnel->dispersion = 0.0f;
 
           /* setup bsdf */
           sd->flag |= bsdf_microfacet_ggx_setup(bsdf);
           const bool is_multiggx = (distribution == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID);
-          bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd, fresnel, is_multiggx);
+          sd->flag |= bsdf_microfacet_setup_fresnel_generalized_schlick(
+              kg, bsdf, sd, fresnel, is_multiggx);
 
           /* Attenuate lower layers */
           const Spectrum albedo = bsdf_albedo(
@@ -736,8 +746,14 @@ ccl_device
       const bool refractive_caustics = true;
 #endif
 
-      const float thinfilm_thickness = stack_load_float(stack, data_node.z);
-      const float thinfilm_ior = fmaxf(stack_load_float(stack, data_node.w), 1e-5f);
+      uint thinfilm_thickness_offset, thinfilm_ior_offset, dispersion_offset, unused;
+      svm_unpack_node_uchar4(data_node.z,
+                             &thinfilm_thickness_offset,
+                             &thinfilm_ior_offset,
+                             &dispersion_offset,
+                             &unused);
+      const float thinfilm_thickness = stack_load_float(stack, thinfilm_thickness_offset);
+      const float thinfilm_ior = fmaxf(stack_load_float(stack, thinfilm_ior_offset), 1e-5f);
 
       ccl_private MicrofacetBsdf *bsdf = (ccl_private MicrofacetBsdf *)bsdf_alloc(
           sd, sizeof(MicrofacetBsdf), make_spectrum(mix_weight));
@@ -763,6 +779,8 @@ ccl_device
                                                            zero_spectrum();
         fresnel->thin_film.thickness = thinfilm_thickness;
         fresnel->thin_film.ior = (sd->flag & SD_BACKFACING) ? thinfilm_ior / ior : thinfilm_ior;
+        fresnel->dispersion = stack_load_float(stack, dispersion_offset);
+
         /* setup bsdf */
         if (type == CLOSURE_BSDF_MICROFACET_BECKMANN_GLASS_ID) {
           sd->flag |= bsdf_microfacet_beckmann_glass_setup(bsdf);
@@ -771,7 +789,8 @@ ccl_device
           sd->flag |= bsdf_microfacet_ggx_glass_setup(bsdf);
         }
         const bool is_multiggx = (type == CLOSURE_BSDF_MICROFACET_MULTI_GGX_GLASS_ID);
-        bsdf_microfacet_setup_fresnel_generalized_schlick(kg, bsdf, sd, fresnel, is_multiggx);
+        sd->flag |= bsdf_microfacet_setup_fresnel_generalized_schlick(
+            kg, bsdf, sd, fresnel, is_multiggx);
       }
       break;
     }

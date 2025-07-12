@@ -29,6 +29,7 @@ shader node_principled_bsdf(string distribution = "multi_ggx",
                             color CoatTint = color(1.0, 1.0, 1.0),
                             float IOR = 1.45,
                             float TransmissionWeight = 0.0,
+                            float Dispersion = 0.0,
                             color EmissionColor = 1.0,
                             float EmissionStrength = 0.0,
                             float Alpha = 1.0,
@@ -147,7 +148,9 @@ shader node_principled_bsdf(string distribution = "multi_ggx",
                                                 "thinfilm_thickness",
                                                 ThinFilmThickness,
                                                 "thinfilm_ior",
-                                                thinfilm_ior),
+                                                thinfilm_ior,
+                                                "dispersion",
+                                                Dispersion),
     BSDF = mix(BSDF, TransmissionBSDF, transmission);
   }
 

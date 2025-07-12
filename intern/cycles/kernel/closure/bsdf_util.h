@@ -389,6 +389,41 @@ ccl_device_inline Spectrum closure_layering_weight(const Spectrum layer_albedo,
   return weight * saturatef(1.0f - reduce_max(safe_divide_color(layer_albedo, weight)));
 }
 
+/* Computes the IOR to be used, given a dispersion scale factor, the overall IOR and the path
+ * wavelength. */
+ccl_device_inline float dispersion_ior(const ccl_private ShaderData *sd,
+                                       const float ior,
+                                       const float dispersion_scale)
+{
+#ifdef __DISPERSION__
+  if ((dispersion_scale < CLOSURE_WEIGHT_CUTOFF) || (sd->wavelength == 0.0f)) {
+    return ior;
+  }
+
+  const bool backfacing = (ior < 1.0f);
+  const float eta = backfacing ? 1.0f / ior : ior;
+
+  /* Wavelengths of the Fraunhofer spectral lines. */
+  const float FRAUNHOFER_C = 0.6563f;
+  const float FRAUNHOFER_d = 0.5876f;
+  const float FRAUNHOFER_F = 0.4861f;
+
+  /* Compute the Cauchy formula parameters. */
+  const float inverse_abbe = dispersion_scale / 20.0f;
+  const float fac = 1.0f / (1.0f / sqr(FRAUNHOFER_F) - 1.0f / sqr(FRAUNHOFER_C));
+  const float B = (eta - 1.0f) * inverse_abbe * fac;
+  const float A = eta - B * (1.0f / sqr(FRAUNHOFER_d));
+
+  /* Compute the IOR including dispersion. */
+  const float eta_dispersion = A + B / sqr(sd->wavelength);
+  return backfacing ? 1.0f / eta_dispersion : eta_dispersion;
+#else
+  (void)sd;
+  (void)dispersion_scale;
+  return ior;
+#endif
+}
+
 /* ******** Thin-film iridescence implementation ********
  *
  * Based on "A Practical Extension to Microfacet Theory for the Modeling of Varying Iridescence"

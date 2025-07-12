@@ -506,6 +506,7 @@ class PrincipledBsdfNode : public BsdfBaseNode {
 
   bool has_surface_bssrdf() override;
   bool has_bssrdf_bump() override;
+  bool has_dispersion() override;
   void simplify_settings(Scene *scene) override;
 
   NODE_SOCKET_API(float3, base_color)
@@ -528,6 +529,7 @@ class PrincipledBsdfNode : public BsdfBaseNode {
   NODE_SOCKET_API(float, anisotropic_rotation)
   NODE_SOCKET_API(float3, tangent)
   NODE_SOCKET_API(float, transmission_weight)
+  NODE_SOCKET_API(float, dispersion)
   NODE_SOCKET_API(float, sheen_weight)
   NODE_SOCKET_API(float, sheen_roughness)
   NODE_SOCKET_API(float3, sheen_tint)
@@ -660,6 +662,8 @@ class GlassBsdfNode : public BsdfNode {
  public:
   SHADER_NODE_CLASS(GlassBsdfNode)
 
+  bool has_dispersion() override;
+
   ClosureType get_closure_type() override
   {
     return distribution;
@@ -669,6 +673,7 @@ class GlassBsdfNode : public BsdfNode {
   NODE_SOCKET_API(float, IOR)
   NODE_SOCKET_API(float, thin_film_thickness)
   NODE_SOCKET_API(float, thin_film_ior)
+  NODE_SOCKET_API(float, dispersion)
   NODE_SOCKET_API(ClosureType, distribution)
 };
 

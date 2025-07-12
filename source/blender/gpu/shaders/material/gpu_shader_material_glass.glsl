@@ -5,6 +5,7 @@
 void node_bsdf_glass(float4 color,
                      float roughness,
                      float ior,
+                     float dispersion,
                      float3 N,
                      float weight,
                      float thin_film_thickness,
@@ -15,6 +16,8 @@ void node_bsdf_glass(float4 color,
   color = max(color, float4(0.0f));
   roughness = saturate(roughness);
   ior = max(ior, 1e-5f);
+  /* Not used by EEVEE */
+  /* dispersion = max(dispersion, 0.0f); */
   N = safe_normalize(N);
 
   float3 V = coordinate_incoming(g_data.P);

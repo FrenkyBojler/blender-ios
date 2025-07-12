@@ -211,7 +211,10 @@ class ShaderNode : public Node {
   {
     return false;
   }
-
+  virtual bool has_dispersion()
+  {
+    return false;
+  }
   unique_ptr_vector<ShaderInput> inputs;
   unique_ptr_vector<ShaderOutput> outputs;
 

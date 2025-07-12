@@ -5,6 +5,7 @@
 #pragma once
 
 #include "kernel/globals.h"
+#include "kernel/tables.h"
 
 #include "util/types_spectrum.h"
 
@@ -49,6 +50,24 @@ ccl_device_inline float3 spectrum_to_rgb(Spectrum s)
 ccl_device float spectrum_to_gray(KernelGlobals kg, Spectrum c)
 {
   return linear_rgb_to_gray(kg, spectrum_to_rgb(c));
+}
+
+ccl_device float3 wavelength_color_xyz(const float lambda_nm)
+{
+  float ii = (lambda_nm - 380.0f) * (1.0f / 5.0f);  // scaled 0..80
+  const int i = float_to_int(ii);
+  float3 color;
+
+  if (i < 0 || i >= 80) {
+    color = make_float3(0.0f, 0.0f, 0.0f);
+  }
+  else {
+    ii -= i;
+    ccl_constant float *c = cie_color_match[i];
+    color = interp(make_float3(c[0], c[1], c[2]), make_float3(c[3], c[4], c[5]), ii);
+  }
+
+  return color;
 }
 
 CCL_NAMESPACE_END

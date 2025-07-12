@@ -627,6 +627,7 @@ ccl_device_forceinline float2 mnee_sample_bsdf_dh(ClosureType type,
  * the one calculation when sampling the microfacet normals from the
  * specular chain above: this allows us to simplify the bsdf weight */
 ccl_device_forceinline Spectrum mnee_eval_bsdf_contribution(KernelGlobals kg,
+                                                            const ccl_private ShaderData *sd,
                                                             ccl_private ShaderClosure *closure,
                                                             const float3 wi,
                                                             const float3 wo)
@@ -653,7 +654,7 @@ ccl_device_forceinline Spectrum mnee_eval_bsdf_contribution(KernelGlobals kg,
 
   Spectrum reflectance;
   Spectrum transmittance;
-  microfacet_fresnel(kg, bsdf, cosHI, nullptr, &reflectance, &transmittance);
+  microfacet_fresnel(kg, sd, bsdf, cosHI, nullptr, &reflectance, &transmittance);
 
   /*
    * bsdf_do = (1 - F) * D_do * G * |h.wi| / (n.wi * n.wo)
@@ -932,7 +933,7 @@ ccl_device_forceinline bool mnee_path_contribution(KernelGlobals kg,
     /* Evaluate product term inside eq.6 at solution interface. vi
      * divided by corresponding sampled pdf:
      * fr(vi)_do / pdf_dh(vi) x |do/dh| x |n.wo / n.h| */
-    const Spectrum bsdf_contribution = mnee_eval_bsdf_contribution(kg, v.bsdf, wi, wo);
+    const Spectrum bsdf_contribution = mnee_eval_bsdf_contribution(kg, sd, v.bsdf, wi, wo);
     bsdf_eval_mul(throughput, bsdf_contribution);
   }
 

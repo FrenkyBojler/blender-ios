@@ -135,6 +135,9 @@ CCL_NAMESPACE_BEGIN
 /* Light tree. */
 #define KERNEL_FEATURE_LIGHT_TREE (1U << 31U)
 
+/* Dispersion. */
+#define KERNEL_FEATURE_DISPERSION (1U << 31U)
+
 /* Shader node feature mask, to specialize shader evaluation for kernels. */
 
 #define KERNEL_FEATURE_NODE_MASK_SURFACE_LIGHT \
@@ -149,7 +152,7 @@ CCL_NAMESPACE_BEGIN
    KERNEL_FEATURE_NODE_PORTAL)
 #define KERNEL_FEATURE_NODE_MASK_SURFACE \
   (KERNEL_FEATURE_NODE_MASK_SURFACE_SHADOW | KERNEL_FEATURE_NODE_RAYTRACE | \
-   KERNEL_FEATURE_NODE_AOV | KERNEL_FEATURE_NODE_LIGHT_PATH)
+   KERNEL_FEATURE_NODE_AOV | KERNEL_FEATURE_NODE_LIGHT_PATH | KERNEL_FEATURE_DISPERSION)
 #define KERNEL_FEATURE_NODE_MASK_VOLUME \
   (KERNEL_FEATURE_NODE_EMISSION | KERNEL_FEATURE_NODE_VOLUME | \
    KERNEL_FEATURE_NODE_VORONOI_EXTRA | KERNEL_FEATURE_NODE_LIGHT_PATH | \
@@ -169,6 +172,7 @@ CCL_NAMESPACE_BEGIN
 #define __CAUSTICS_TRICKS__
 #define __CLAMP_SAMPLE__
 #define __DENOISING_FEATURES__
+#define __DISPERSION__
 #define __DPDU__
 #define __HAIR__
 #define __LIGHT_LINKING__
@@ -255,6 +259,9 @@ CCL_NAMESPACE_BEGIN
 #  if !(__KERNEL_FEATURES__ & KERNEL_FEATURE_SHADOW_LINKING)
 #    undef __SHADOW_LINKING__
 #  endif
+#  if !(__KERNEL_FEATURES__ & KERNEL_FEATURE_DISPERSION)
+#    undef __DISPERSION__
+#  endif
 #endif
 
 #ifdef WITH_CYCLES_DEBUG_NAN
@@ -274,6 +281,7 @@ enum PathTraceDimension {
   /* Init bounce */
   PRNG_FILTER = 0,
   PRNG_LENS_TIME = 1,
+  PRNG_WAVELENGTH = 2,
 
   /* Shade bounce */
   PRNG_TERMINATE = 0,
@@ -1041,10 +1049,12 @@ enum ShaderDataFlag {
   SD_BSDF_HAS_TRANSMISSION = (1 << 11),
   /* Shader has ray portal closure. */
   SD_RAY_PORTAL = (1 << 12),
+  /* BSDF has dispersion and requires the path to be single-wavelength. */
+  SD_BSDF_HAS_DISPERSION = (1 << 13),
 
   SD_CLOSURE_FLAGS = (SD_EMISSION | SD_BSDF | SD_BSDF_HAS_EVAL | SD_BSSRDF | SD_HOLDOUT |
                       SD_EXTINCTION | SD_SCATTER | SD_IS_VOLUME_SHADER_EVAL | SD_BSDF_NEEDS_LCG |
-                      SD_BSDF_HAS_TRANSMISSION | SD_RAY_PORTAL),
+                      SD_BSDF_HAS_TRANSMISSION | SD_RAY_PORTAL | SD_BSDF_HAS_DISPERSION),
 
   /* Shader flags. */
 
@@ -1199,6 +1209,11 @@ struct ccl_align(16) ShaderData
 
   /* LCG state for closures that require additional random numbers. */
   uint lcg_state;
+
+  /* Wavelength of the current path for dispersion math.
+   * TODO: This is just a copy of a PathState field, can we avoid this without making the
+   * code much uglier? */
+  float wavelength;
 
   /* Closure weights summed directly, so we can evaluate
    * emission and shadow transparency with MAX_CLOSURE 0. */

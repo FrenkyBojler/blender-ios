@@ -24,6 +24,16 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1.0f)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("IOR").default_value(1.5f).min(0.0f).max(1000.0f);
+  b.add_input<decl::Float>("Dispersion")
+      .default_value(0.0f)
+      .min(0.0f)
+      .max(1.0f)
+      .subtype(PROP_FACTOR)
+      .description(
+          "Specifies a spectrally varying IOR to model the behavior of real glass. "
+          "The value given here is 20 divided by the Abbe number of the material, "
+          "so 0.0 corresponds to an infinite Abbe number (no dispersion) while "
+          "1.0 corresponds to an Abbe number of 20 (very strong dispersion).");
   b.add_input<decl::Vector>("Normal").hide_value();
   b.add_input<decl::Float>("Weight").available(false);
 

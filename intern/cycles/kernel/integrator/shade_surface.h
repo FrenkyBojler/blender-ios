@@ -738,6 +738,14 @@ ccl_device int integrate_surface(KernelGlobals kg,
                                       INTEGRATOR_STATE(state, path, sample),
                                       0xb4bc3953);
       }
+
+      if ((kernel_data.kernel_features & KERNEL_FEATURE_DISPERSION) &&
+          (sd.flag & SD_BSDF_HAS_DISPERSION))
+      {
+        path_state_ensure_wavelength(kg, state);
+
+        sd.wavelength = INTEGRATOR_STATE(state, path, wavelength);
+      }
     }
 
 #ifdef __SUBSURFACE__
