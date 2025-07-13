@@ -66,9 +66,9 @@ UvVertMap *BKE_mesh_uv_vert_map_create(const blender::OffsetIndices<int> faces,
     return nullptr;
   }
 
-  vmap = (UvVertMap *)MEM_callocN(sizeof(*vmap), "UvVertMap");
-  buf = vmap->buf = (UvMapVert *)MEM_callocN(sizeof(*vmap->buf) * size_t(totuv), "UvMapVert");
-  vmap->vert = (UvMapVert **)MEM_callocN(sizeof(*vmap->vert) * totvert, "UvMapVert*");
+  vmap = MEM_callocN<UvVertMap>("UvVertMap");
+  buf = vmap->buf = MEM_calloc_arrayN<UvMapVert>(size_t(totuv), "UvMapVert");
+  vmap->vert = MEM_calloc_arrayN<UvMapVert *>(totvert, "UvMapVert*");
 
   if (!vmap->vert || !vmap->buf) {
     BKE_mesh_uv_vert_map_free(vmap);
@@ -77,8 +77,7 @@ UvVertMap *BKE_mesh_uv_vert_map_create(const blender::OffsetIndices<int> faces,
 
   bool *winding = nullptr;
   if (use_winding) {
-    winding = static_cast<bool *>(
-        MEM_calloc_arrayN(sizeof(*winding), size_t(faces.size()), "winding"));
+    winding = MEM_calloc_arrayN<bool>(size_t(faces.size()), "winding");
   }
 
   for (const int64_t a : faces.index_range()) {
@@ -197,7 +196,7 @@ void BKE_mesh_vert_corner_tri_map_create(MeshElemMap **r_map,
                                          const int /*corners_num*/)
 {
   MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(totvert), __func__);
-  int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(tris_num) * 3, __func__));
+  int *indices = MEM_malloc_arrayN<int>(size_t(tris_num) * 3, __func__);
   int *index_step;
   int i;
 
@@ -237,7 +236,7 @@ void BKE_mesh_origindex_map_create(MeshElemMap **r_map,
                                    const int totfinal)
 {
   MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(totsource), __func__);
-  int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(totfinal), __func__));
+  int *indices = MEM_malloc_arrayN<int>(size_t(totfinal), __func__);
   int *index_step;
   int i;
 
@@ -278,7 +277,7 @@ void BKE_mesh_origindex_map_create_corner_tri(MeshElemMap **r_map,
                                               const int corner_tris_num)
 {
   MeshElemMap *map = MEM_calloc_arrayN<MeshElemMap>(size_t(faces.size()), __func__);
-  int *indices = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(corner_tris_num), __func__));
+  int *indices = MEM_malloc_arrayN<int>(size_t(corner_tris_num), __func__);
   int *index_step;
 
   /* create offsets */
@@ -486,7 +485,7 @@ static void face_edge_loop_islands_calc_bitflags_exclude_at_boundary(
     const int face_group_id_overflowed,
     int &r_bit_face_group_mask)
 {
-  /* Find neighbour faces (either from a boundary edge, or a boundary vertex) that already have a
+  /* Find neighbor faces (either from a boundary edge, or a boundary vertex) that already have a
    * group assigned, and exclude these groups' bits from the available set of groups bits that can
    * be assigned to the currently processed group. */
   for (const int face_idx : faces_from_item) {
@@ -497,14 +496,15 @@ static void face_edge_loop_islands_calc_bitflags_exclude_at_boundary(
   }
 }
 
-/* ABOUT #use_boundary_vertices_for_bitflags:
+/**
+ * ABOUT #use_boundary_vertices_for_bitflags:
  *
  * Also exclude bits used in other groups sharing the same boundary vertex, i.e. if one edge
  * around the vertex of the current corner is a boundary edge.
  *
- * NOTE: The reason for this requirement is not very clear. Bitflags groups are only handled here
+ * NOTE: The reason for this requirement is not very clear. Bit-flags groups are only handled here
  * for I/O purposes, Blender itself does not have this feature. Main external apps heavily
- * relying on these bitflags groups for their smooth shading computation seem to generate invalid
+ * relying on these bit-flags groups for their smooth shading computation seem to generate invalid
  * results when two different groups share the same bits, and are connected by a vertex only
  * (i.e. have no edge in common). See #104434.
  *
@@ -571,8 +571,8 @@ static void face_edge_loop_islands_calc(const int totedge,
         faces, corner_verts, totvert, vert_to_face_src_offsets, vert_to_face_src_indices);
   }
 
-  face_groups = static_cast<int *>(MEM_callocN(sizeof(int) * size_t(faces.size()), __func__));
-  face_stack = static_cast<int *>(MEM_mallocN(sizeof(int) * size_t(faces.size()), __func__));
+  face_groups = MEM_calloc_arrayN<int>(size_t(faces.size()), __func__);
+  face_stack = MEM_malloc_arrayN<int>(size_t(faces.size()), __func__);
 
   while (true) {
     int face;
@@ -641,9 +641,9 @@ static void face_edge_loop_islands_calc(const int totedge,
                *     first face's corner, then when processing the other face's corner in the same
                *     group.
                *   - Isolated boundary edges (i.e. boundary edges only connected to faces of the
-               *     same group) cannot be represented by bitflags groups, at least not with
+               *     same group) cannot be represented by bit-flags groups, at least not with
                *     current algorithm (they cannot define more than one group).
-               *   - Inverions of winding (aka flipped faces) always generate boundary edges in
+               *   - Inversions of winding (aka flipped faces) always generate boundary edges in
                *     current use-case (smooth groups), i.e. two faces with opposed winding cannot
                *     belong to the same group. */
               const int vert = corner_verts[loop];
@@ -924,12 +924,9 @@ void BKE_mesh_loop_islands_add(MeshIslandStore *island_store,
 }
 
 static bool mesh_calc_islands_loop_face_uv(const int totedge,
-                                           const bool *uv_seams,
+                                           const blender::Span<bool> uv_seams,
                                            const blender::OffsetIndices<int> faces,
-                                           const int *corner_verts,
-                                           const int *corner_edges,
-                                           const int corners_num,
-                                           const float (*luvs)[2],
+                                           const blender::Span<int> corner_edges,
                                            MeshIslandStore *r_island_store)
 {
   using namespace blender;
@@ -952,21 +949,16 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   int grp_idx;
 
   BKE_mesh_loop_islands_clear(r_island_store);
-  BKE_mesh_loop_islands_init(
-      r_island_store, MISLAND_TYPE_LOOP, corners_num, MISLAND_TYPE_POLY, MISLAND_TYPE_EDGE);
+  BKE_mesh_loop_islands_init(r_island_store,
+                             MISLAND_TYPE_LOOP,
+                             int(corner_edges.size()),
+                             MISLAND_TYPE_POLY,
+                             MISLAND_TYPE_EDGE);
 
   Array<int> edge_to_face_offsets;
   Array<int> edge_to_face_indices;
   const GroupedSpan<int> edge_to_face_map = bke::mesh::build_edge_to_face_map(
-      faces, {corner_edges, corners_num}, totedge, edge_to_face_offsets, edge_to_face_indices);
-
-  Array<int> edge_to_corner_offsets;
-  Array<int> edge_to_corner_indices;
-  GroupedSpan<int> edge_to_corner_map;
-  if (luvs) {
-    edge_to_corner_map = bke::mesh::build_edge_to_corner_map(
-        {corner_edges, corners_num}, totedge, edge_to_corner_offsets, edge_to_corner_indices);
-  }
+      faces, corner_edges, totedge, edge_to_face_offsets, edge_to_face_indices);
 
   /* TODO: I'm not sure edge seam flag is enough to define UV islands?
    *       Maybe we should also consider UV-maps values
@@ -975,48 +967,18 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
    *       and each UVMap would then need its own mesh mapping, not sure we want that at all!
    */
   auto mesh_check_island_boundary_uv = [&](const int /*face_index*/,
-                                           const int corner,
+                                           const int /*corner*/,
                                            const int edge_index,
                                            const int /*edge_user_count*/,
                                            const Span<int> /*edge_face_map_elem*/) -> bool {
-    if (luvs) {
-      const Span<int> edge_to_corners = edge_to_corner_map[corner_edges[corner]];
-
-      BLI_assert(edge_to_corners.size() >= 2 && (edge_to_corners.size() % 2) == 0);
-
-      const int v1 = corner_verts[edge_to_corners[0]];
-      const int v2 = corner_verts[edge_to_corners[1]];
-      const float *uvco_v1 = luvs[edge_to_corners[0]];
-      const float *uvco_v2 = luvs[edge_to_corners[1]];
-      for (int i = 2; i < edge_to_corners.size(); i += 2) {
-        if (corner_verts[edge_to_corners[i]] == v1) {
-          if (!equals_v2v2(uvco_v1, luvs[edge_to_corners[i]]) ||
-              !equals_v2v2(uvco_v2, luvs[edge_to_corners[i + 1]]))
-          {
-            return true;
-          }
-        }
-        else {
-          BLI_assert(corner_verts[edge_to_corners[i]] == v2);
-          UNUSED_VARS_NDEBUG(v2);
-          if (!equals_v2v2(uvco_v2, luvs[edge_to_corners[i]]) ||
-              !equals_v2v2(uvco_v1, luvs[edge_to_corners[i + 1]]))
-          {
-            return true;
-          }
-        }
-      }
-      return false;
-    }
-
     /* Edge is UV boundary if tagged as seam. */
-    return uv_seams && uv_seams[edge_index];
+    return !uv_seams.is_empty() && uv_seams[edge_index];
   };
 
   face_edge_loop_islands_calc(totedge,
                               0,
                               faces,
-                              {corner_edges, corners_num},
+                              corner_edges,
                               {},
                               edge_to_face_map,
                               {},
@@ -1036,16 +998,12 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   }
 
   if (num_edge_boundaries) {
-    edge_boundary_count = static_cast<char *>(
-        MEM_mallocN(sizeof(*edge_boundary_count) * size_t(totedge), __func__));
-    edge_innercut_indices = static_cast<int *>(
-        MEM_mallocN(sizeof(*edge_innercut_indices) * size_t(num_edge_boundaries), __func__));
+    edge_boundary_count = MEM_malloc_arrayN<char>(size_t(totedge), __func__);
+    edge_innercut_indices = MEM_malloc_arrayN<int>(size_t(num_edge_boundaries), __func__);
   }
 
-  face_indices = static_cast<int *>(
-      MEM_mallocN(sizeof(*face_indices) * size_t(faces.size()), __func__));
-  loop_indices = static_cast<int *>(
-      MEM_mallocN(sizeof(*loop_indices) * size_t(corners_num), __func__));
+  face_indices = MEM_malloc_arrayN<int>(size_t(faces.size()), __func__);
+  loop_indices = MEM_malloc_arrayN<int>(size_t(corner_edges.size()), __func__);
 
   /* NOTE: here we ignore '0' invalid group - this should *never* happen in this case anyway? */
   for (grp_idx = 1; grp_idx <= num_face_groups; grp_idx++) {
@@ -1098,38 +1056,17 @@ static bool mesh_calc_islands_loop_face_uv(const int totedge,
   return true;
 }
 
-bool BKE_mesh_calc_islands_loop_face_edgeseam(const float (*vert_positions)[3],
-                                              const int totvert,
-                                              const blender::int2 *edges,
-                                              const int totedge,
-                                              const bool *uv_seams,
+bool BKE_mesh_calc_islands_loop_face_edgeseam(const blender::Span<blender::float3> vert_positions,
+                                              const blender::Span<blender::int2> edges,
+                                              const blender::Span<bool> uv_seams,
                                               const blender::OffsetIndices<int> faces,
-                                              const int *corner_verts,
-                                              const int *corner_edges,
-                                              const int corners_num,
+                                              const blender::Span<int> /*corner_verts*/,
+                                              const blender::Span<int> corner_edges,
                                               MeshIslandStore *r_island_store)
 {
-  UNUSED_VARS(vert_positions, totvert, edges);
+  UNUSED_VARS(vert_positions);
   return mesh_calc_islands_loop_face_uv(
-      totedge, uv_seams, faces, corner_verts, corner_edges, corners_num, nullptr, r_island_store);
-}
-
-bool BKE_mesh_calc_islands_loop_face_uvmap(float (*vert_positions)[3],
-                                           const int totvert,
-                                           blender::int2 *edges,
-                                           const int totedge,
-                                           const bool *uv_seams,
-                                           const blender::OffsetIndices<int> faces,
-                                           const int *corner_verts,
-                                           const int *corner_edges,
-                                           const int corners_num,
-                                           const float (*luvs)[2],
-                                           MeshIslandStore *r_island_store)
-{
-  UNUSED_VARS(vert_positions, totvert, edges);
-  BLI_assert(luvs != nullptr);
-  return mesh_calc_islands_loop_face_uv(
-      totedge, uv_seams, faces, corner_verts, corner_edges, corners_num, luvs, r_island_store);
+      int(edges.size()), uv_seams, faces, corner_edges, r_island_store);
 }
 
 /** \} */

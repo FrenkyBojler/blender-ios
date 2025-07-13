@@ -58,7 +58,6 @@ BlenderSync::BlenderSync(BL::RenderEngine &b_engine,
       world_recalc(false),
       scene(scene),
       preview(preview),
-      experimental(false),
       use_developer_ui(use_developer_ui),
       dicing_rate(1.0f),
       max_subdivisions(12),
@@ -100,7 +99,7 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
   /* Sync recalc flags from blender to cycles. Actual update is done separate,
    * so we can do it later on if doing it immediate is not suitable. */
 
-  if (experimental) {
+  if (use_adaptive_subdivision) {
     /* Mark all meshes as needing to be exported again if dicing changed. */
     PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
     bool dicing_prop_changed = false;
@@ -164,23 +163,30 @@ void BlenderSync::sync_recalc(BL::Depsgraph &b_depsgraph, BL::SpaceView3D &b_v3d
       const bool is_light = !can_have_geometry && object_is_light(b_ob);
 
       if (b_ob.is_instancer() && b_update.is_updated_shading()) {
-        /* Needed for e.g. object color updates on instancer. */
+        /* Needed for object color updates on instancer, among other things. */
         object_map.set_recalc(b_ob);
       }
 
       if (can_have_geometry || is_light) {
         const bool updated_geometry = b_update.is_updated_geometry();
+        const bool updated_transform = b_update.is_updated_transform();
 
         /* Geometry (mesh, hair, volume). */
         if (can_have_geometry) {
-          if (b_update.is_updated_transform() || b_update.is_updated_shading()) {
+          if (updated_transform || b_update.is_updated_shading()) {
             object_map.set_recalc(b_ob);
           }
 
-          if (updated_geometry ||
-              (object_subdivision_type(b_ob, preview, experimental) != Mesh::SUBDIVISION_NONE))
-          {
-            BL::ID const key = BKE_object_is_modified(b_ob) ? b_ob : b_ob.data();
+          const bool use_adaptive_subdiv = object_subdivision_type(
+                                               b_ob, preview, use_adaptive_subdivision) !=
+                                           Mesh::SUBDIVISION_NONE;
+
+          /* Need to recompute geometry if the geometry changed, or the transform changed
+           * and using adaptive subdivision. */
+          if (updated_geometry || (updated_transform && use_adaptive_subdiv)) {
+            BL::ID const key = BKE_object_is_modified(b_ob) ?
+                                   b_ob :
+                                   object_get_data(b_ob, use_adaptive_subdiv);
             geometry_map.set_recalc(key);
 
             /* Sync all contained geometry instances as well when the object changed.. */
@@ -301,7 +307,7 @@ void BlenderSync::sync_data(BL::RenderSettings &b_render,
    * false = don't delete unused shaders, not supported. */
   shader_map.post_sync(false);
 
-  VLOG_INFO << "Total time spent synchronizing data: " << timer.get_time();
+  LOG_INFO << "Total time spent synchronizing data: " << timer.get_time();
 
   has_updates_ = false;
 }
@@ -314,7 +320,9 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
 {
   PointerRNA cscene = RNA_pointer_get(&b_scene.ptr, "cycles");
 
-  experimental = (get_enum(cscene, "feature_set") != 0);
+  /* No adaptive subdivision for baking, mesh needs to match Blender exactly. */
+  use_adaptive_subdivision = (get_enum(cscene, "feature_set") != 0) && !b_bake_target;
+  use_experimental_procedural = (get_enum(cscene, "feature_set") != 0);
 
   Integrator *integrator = scene->integrator;
 
@@ -450,7 +458,7 @@ void BlenderSync::sync_integrator(BL::ViewLayer &b_view_layer,
   }
 
   if (scrambling_distance != 1.0f) {
-    VLOG_INFO << "Using scrambling distance: " << scrambling_distance;
+    LOG_INFO << "Using scrambling distance: " << scrambling_distance;
   }
   integrator->set_scrambling_distance(scrambling_distance);
 
@@ -783,7 +791,7 @@ void BlenderSync::sync_render_passes(BL::RenderLayer &b_rlay, BL::ViewLayer &b_v
 
     if (!get_known_pass_type(b_pass, pass_type, pass_mode)) {
       if (!expected_passes.count(b_pass.name())) {
-        LOG(ERROR) << "Unknown pass " << b_pass.name();
+        LOG_ERROR << "Unknown pass " << b_pass.name();
       }
       continue;
     }
@@ -1072,7 +1080,7 @@ DenoiseParams BlenderSync::get_denoise_params(BL::Scene &b_scene,
       break;
 
     default:
-      LOG(ERROR) << "Unhandled input passes enum " << input_passes;
+      LOG_ERROR << "Unhandled input passes enum " << input_passes;
       break;
   }
 

@@ -95,7 +95,7 @@ struct SGLSLEditMeshToTangent {
   mikk::float3 GetTexCoord(const uint face_num, const uint vert_index)
   {
     const BMLoop *l = GetLoop(face_num, vert_index);
-    if (cd_loop_uv_offset != -1) {
+    if (has_uv()) {
       const float *uv = (const float *)BM_ELEM_CD_GET_VOID_P(l, cd_loop_uv_offset);
       return mikk::float3(uv[0], uv[1], 1.0f);
     }
@@ -128,6 +128,11 @@ struct SGLSLEditMeshToTangent {
     const BMLoop *l = GetLoop(face_num, vert_index);
     float *p_res = tangent[BM_elem_index_get(l)];
     copy_v4_fl4(p_res, T.x, T.y, T.z, orientation ? 1.0f : -1.0f);
+  }
+
+  bool has_uv()
+  {
+    return cd_loop_uv_offset != -1;
   }
 
   Span<float3> face_normals;
@@ -220,7 +225,7 @@ void BKE_editmesh_loop_tangent_calc(BMEditMesh *em,
       /* Over allocate, since we don't know how many ngon or quads we have. */
 
       /* map fake face index to looptri */
-      face_as_quad_map = static_cast<int *>(MEM_mallocN(sizeof(int) * totface, __func__));
+      face_as_quad_map = MEM_malloc_arrayN<int>(size_t(totface), __func__);
       int i, j;
       for (i = 0, j = 0; j < totface; i++, j++) {
         face_as_quad_map[i] = j;
