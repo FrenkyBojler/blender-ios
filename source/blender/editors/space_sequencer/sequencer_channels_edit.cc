@@ -22,7 +22,9 @@
 
 namespace blender::ed::vse {
 
-static int sequencer_rename_channel_invoke(bContext *C, wmOperator * /*op*/, const wmEvent *event)
+static wmOperatorStatus sequencer_rename_channel_invoke(bContext *C,
+                                                        wmOperator * /*op*/,
+                                                        const wmEvent *event)
 {
   SeqChannelDrawContext context;
   SpaceSeq *sseq = CTX_wm_space_seq(C);
@@ -40,7 +42,7 @@ void SEQUENCER_OT_rename_channel(wmOperatorType *ot)
   ot->name = "Rename Channel";
   ot->idname = "SEQUENCER_OT_rename_channel";
 
-  /* Api callbacks. */
+  /* API callbacks. */
   ot->invoke = sequencer_rename_channel_invoke;
   ot->poll = sequencer_edit_with_channel_region_poll;
 
