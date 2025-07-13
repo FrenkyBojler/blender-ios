@@ -2012,6 +2012,52 @@ static void cut_caps(bke::CurvesGeometry &dst,
 static constexpr int SEGMENT_CONNECTION_NULL = -2;
 static constexpr int SEGMENT_CONNECTION_END = -3;
 
+static void create_connections_from_curves(const Span<IndexRange> segments_by_curve,
+                                           const Span<bool> segments_to_keep,
+                                           const VArray<bool> is_cyclic,
+                                           MutableSpan<int> segment_connections)
+{
+  for (const int curve_i : segments_by_curve.index_range()) {
+    const IndexRange segment_range = segments_by_curve[curve_i];
+
+    if (segment_range.size() == 1) {
+      if (segments_to_keep[segment_range.first()]) {
+        segment_connections[segment_range.first()] = SEGMENT_CONNECTION_END;
+      }
+      continue;
+    }
+
+    for (const int segment_i : segment_range.drop_back(1)) {
+      if (!segments_to_keep[segment_i]) {
+        continue;
+      }
+
+      if (segments_to_keep[segment_i + 1]) {
+        segment_connections[segment_i] = segment_i + 1;
+      }
+      else {
+        segment_connections[segment_i] = SEGMENT_CONNECTION_END;
+      }
+    }
+
+    if (!segments_to_keep[segment_range.last()]) {
+      continue;
+    }
+
+    if (!is_cyclic[curve_i]) {
+      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
+      continue;
+    }
+
+    if (segments_to_keep[segment_range.first()]) {
+      segment_connections[segment_range.last()] = segment_range.first();
+    }
+    else {
+      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
+    }
+  }
+}
+
 bke::CurvesGeometry trim_curve_segments_2(
     const bke::CurvesGeometry &src,
     const Span<float2> screen_space_positions,
@@ -2057,47 +2103,8 @@ bke::CurvesGeometry trim_curve_segments_2(
   }
 
   Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
-
-  for (const int curve_i : segments_by_curve.index_range()) {
-    const IndexRange segment_range = segments_by_curve[curve_i];
-
-    if (segment_range.size() == 1) {
-      const int segment_i = segment_range.first();
-      if (!segments_to_keep[segment_i]) {
-      }
-      segment_connections[segment_i] = SEGMENT_CONNECTION_END;
-      continue;
-    }
-
-    for (const int segment_i : segment_range.drop_back(1)) {
-      if (!segments_to_keep[segment_i]) {
-        continue;
-      }
-
-      if (segments_to_keep[segment_i + 1]) {
-        segment_connections[segment_i] = segment_i + 1;
-      }
-      else {
-        segment_connections[segment_i] = SEGMENT_CONNECTION_END;
-      }
-    }
-
-    if (!segments_to_keep[segment_range.last()]) {
-      continue;
-    }
-
-    if (!is_cyclic[curve_i]) {
-      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
-      continue;
-    }
-
-    if (segments_to_keep[segment_range.first()]) {
-      segment_connections[segment_range.last()] = segment_range.first();
-    }
-    else {
-      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
-    }
-  }
+  create_connections_from_curves(
+      segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
