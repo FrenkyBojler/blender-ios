@@ -12,9 +12,11 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
+#include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_rect.h"
+#include "BLI_sort.hh"
 #include "BLI_stack.hh"
 #include "BLI_task.hh"
 
@@ -1538,6 +1540,24 @@ class Segment_2 {
   }
 };
 
+static int intersect(const float2 &P1,
+                     const float2 &P2,
+                     const float2 &Q1,
+                     const float2 &Q2,
+                     float *r_alpha_P,
+                     float *r_alpha_Q)
+{
+  double r_lambda;
+  double r_mu;
+  const int val = isect_seg_seg_v2_lambda_mu_db(
+      double2(P1), double2(P2), double2(Q1), double2(Q2), &r_lambda, &r_mu);
+
+  *r_alpha_P = r_lambda;
+  *r_alpha_Q = r_mu;
+
+  return val;
+}
+
 static void calculate_offsets_from_segments(const Span<Segment_2> segments,
                                             const OffsetIndices<int> segment_offsets,
                                             const Span<bool> cyclic,
@@ -1666,22 +1686,240 @@ bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
   return dst_curves;
 }
 
-bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
-                                          const Span<float2> screen_space_positions,
-                                          const Span<rcti> screen_space_curve_bounds,
-                                          const IndexMask &curve_selection,
-                                          const Vector<Vector<int>> &selected_points_in_curves,
-                                          const bool keep_caps)
+struct IntersectionPoint {
+  int point_a = -1;
+  int point_b = -1;
+  float alpha_a = -1.0f;
+  float alpha_b = -1.0f;
+  int curve_a = -1;
+  int curve_b = -1;
+
+  constexpr IntersectionPoint() = default;
+
+  float parameter_for_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_a || curve == curve_b);
+    return curve == curve_a ? point_a + alpha_a : point_b + alpha_b;
+  }
+
+  int other_curve(const int curve) const
+  {
+    BLI_assert(curve == curve_a || curve == curve_b);
+    return curve == curve_a ? curve_b : curve_a;
+  }
+};
+
+static IntersectionPoint create_intersection(const int point_a,
+                                             const int point_b,
+                                             const float alpha_a,
+                                             const float alpha_b,
+                                             const int curve_a,
+                                             const int curve_b)
+{
+  IntersectionPoint inter_point;
+  inter_point.point_a = point_a;
+  inter_point.point_b = point_b;
+  inter_point.alpha_a = alpha_a;
+  inter_point.alpha_b = alpha_b;
+  inter_point.curve_a = curve_a;
+  inter_point.curve_b = curve_b;
+
+  return inter_point;
+}
+
+void find_intersections_between_curves(const Span<float2> points_i,
+                                       const Span<float2> points_j,
+                                       const int curve_i,
+                                       const int curve_j,
+                                       const bool cyclic_i,
+                                       const bool cyclic_j,
+                                       const int point_offset_i,
+                                       const int point_offset_j,
+                                       Array<Vector<int>> &r_inters_per_curves,
+                                       Vector<IntersectionPoint> &r_intersections)
+{
+  for (const int i : points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
+    for (const int j : points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
+      float alpha_a, alpha_b;
+      const int val = intersect(points_i[i],
+                                points_i[(i + 1) % points_i.size()],
+                                points_j[j],
+                                points_j[(j + 1) % points_j.size()],
+                                &alpha_a,
+                                &alpha_b);
+      if (val == ISECT_LINE_LINE_CROSS) {
+        r_inters_per_curves[curve_i].append(r_intersections.size());
+        r_inters_per_curves[curve_j].append(r_intersections.size());
+        r_intersections.append(create_intersection(
+            i + point_offset_i, j + point_offset_j, alpha_a, alpha_b, curve_i, curve_j));
+      }
+      else if (val == ISECT_LINE_LINE_EXACT) {
+        /* TODO(@casey-bianco-davis): Properly handle degeneracy. */
+        BLI_assert_unreachable();
+      }
+    }
+  }
+}
+
+void find_intersections_between_shapes(const Span<float2> screen_space_positions,
+                                       const OffsetIndices<int> points_by_curve,
+                                       const VArray<bool> &cyclic,
+                                       const bool self_intersection,
+                                       Array<Vector<int>> &r_inters_per_curves,
+                                       Vector<IntersectionPoint> &r_intersections)
+{
+  for (const int curve_i : points_by_curve.index_range()) {
+    const IndexRange points_i = points_by_curve[curve_i];
+    const bool cyclic_i = cyclic[curve_i];
+
+    for (const int curve_j : points_by_curve.index_range()) {
+      if (curve_i >= curve_j) {
+        continue;
+      }
+
+      const IndexRange points_j = points_by_curve[curve_j];
+      const bool cyclic_j = cyclic[curve_j];
+
+      find_intersections_between_curves(screen_space_positions.slice(points_i),
+                                        screen_space_positions.slice(points_j),
+                                        curve_i,
+                                        curve_j,
+                                        cyclic_i,
+                                        cyclic_j,
+                                        points_i.first(),
+                                        points_j.first(),
+                                        r_inters_per_curves,
+                                        r_intersections);
+    }
+  };
+}
+
+void add_segments(const int curve_k,
+                  const Span<Vector<int>> inters_per_curves,
+                  const OffsetIndices<int> points_by_curve,
+                  const Span<IntersectionPoint> &intersections,
+                  const VArray<bool> &cyclic,
+                  Vector<Segment_2> &all_segments,
+                  MutableSpan<IndexRange> all_segments_by_curve)
+{
+  const IndexRange points_k = points_by_curve[curve_k];
+  const Span<int> other_inter = inters_per_curves[curve_k];
+  const Span<int> self_inter = {};
+
+  const int start_size = all_segments.size();
+
+  if (other_inter.size() == 0 && self_inter.size() == 0) {
+    all_segments.append(Segment_2::from_curve(curve_k, points_k, cyclic[curve_k]));
+    all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
+
+    return;
+  }
+
+  Array<int> new_inters(other_inter.size() + self_inter.size());
+  new_inters.as_mutable_span().take_back(other_inter.size()).copy_from(other_inter);
+  new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
+
+  Array<int> inter_sorted_ids = Array<int>(new_inters.size());
+  array_utils::fill_index_range<int>(inter_sorted_ids);
+
+  parallel_sort(inter_sorted_ids.begin(), inter_sorted_ids.end(), [&](int i1, int i2) {
+    const IntersectionPoint &inter1 = intersections[new_inters[i1]];
+    const IntersectionPoint &inter2 = intersections[new_inters[i2]];
+    return inter1.parameter_for_curve(curve_k) < inter2.parameter_for_curve(curve_k);
+  });
+
+  if (cyclic[curve_k]) {
+    const int int_p_1 = new_inters[inter_sorted_ids.first()];
+    const int int_p_2 = new_inters[inter_sorted_ids.last()];
+
+    const IntersectionPoint &inter_first = intersections[int_p_1];
+    const IntersectionPoint &inter_last = intersections[int_p_2];
+
+    all_segments.append(Segment_2::from_intersections(curve_k,
+                                                      points_k,
+                                                      inter_last.parameter_for_curve(curve_k),
+                                                      inter_first.parameter_for_curve(curve_k),
+                                                      int_p_2,
+                                                      int_p_1));
+  }
+  else {
+    const int int_p_1 = new_inters[inter_sorted_ids.first()];
+    const IntersectionPoint &inter_first = intersections[int_p_1];
+
+    all_segments.append(Segment_2::from_intersections(curve_k,
+                                                      points_k,
+                                                      std::nullopt,
+                                                      inter_first.parameter_for_curve(curve_k),
+                                                      std::nullopt,
+                                                      int_p_1));
+  }
+
+  for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
+    const int int_p_1 = new_inters[inter_sorted_ids[inter_id]];
+    const int int_p_2 = new_inters[inter_sorted_ids[inter_id + 1]];
+
+    const IntersectionPoint &inter_first = intersections[int_p_1];
+    const IntersectionPoint &inter_last = intersections[int_p_2];
+
+    all_segments.append(Segment_2::from_intersections(curve_k,
+                                                      points_k,
+                                                      inter_first.parameter_for_curve(curve_k),
+                                                      inter_last.parameter_for_curve(curve_k),
+                                                      int_p_1,
+                                                      int_p_2));
+  }
+
+  if (!(cyclic[curve_k])) {
+    const int int_p_2 = new_inters[inter_sorted_ids.last()];
+    const IntersectionPoint &inter_last = intersections[int_p_2];
+
+    all_segments.append(Segment_2::from_intersections(curve_k,
+                                                      points_k,
+                                                      inter_last.parameter_for_curve(curve_k),
+                                                      std::nullopt,
+                                                      int_p_2,
+                                                      std::nullopt));
+  }
+
+  all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
+}
+
+bke::CurvesGeometry trim_curve_segments_2(
+    const bke::CurvesGeometry &src,
+    const Span<float2> screen_space_positions,
+    const Span<rcti> /*screen_space_curve_bounds*/,
+    const IndexMask & /*curve_selection*/,
+    const Vector<Vector<int>> & /*selected_points_in_curves*/,
+    const bool keep_caps)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
 
+  Vector<IntersectionPoint> intersections;
+  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
+
+  find_intersections_between_shapes(screen_space_positions,
+                                    src_points_by_curve,
+                                    is_cyclic,
+                                    false,
+                                    inters_per_curves,
+                                    intersections);
+
+  /* -------------------- */
+
   Vector<Segment_2> segments;
+  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
 
-  for (const int curve_i : src.curves_range()) {
-    const IndexRange src_points = src_points_by_curve[curve_i];
+  /* -------------------- */
 
-    segments.append(Segment_2::from_curve(curve_i, src_points, is_cyclic[curve_i]));
+  for (const int curve_i : src_points_by_curve.index_range()) {
+    add_segments(curve_i,
+                 inters_per_curves,
+                 src_points_by_curve,
+                 intersections,
+                 is_cyclic,
+                 segments,
+                 segments_by_curve);
   }
 
   if (segments.is_empty()) {
