@@ -91,12 +91,15 @@ int damerau_levenshtein_distance(StringRef a, StringRef b)
   return v1.last();
 }
 
-int get_fuzzy_match_errors(StringRef query, StringRef full)
+int get_fuzzy_match_errors(StringRef query_ref, StringRef full_ref)
 {
   /* If it is a perfect partial match, return immediately. */
-  if (full.find(query) != StringRef::not_found) {
+  if (full_ref.find(query_ref) != StringRef::not_found) {
     return 0;
   }
+
+  std::string query = BLI_str_utf8_normalize(query_ref);
+  std::string full = BLI_str_utf8_normalize(full_ref);
 
   const int query_size = count_utf8_code_points(query);
   const int full_size = count_utf8_code_points(full);
@@ -116,16 +119,14 @@ int get_fuzzy_match_errors(StringRef query, StringRef full)
   }
 
   uint32_t query_first_unicode = BLI_str_utf8_as_unicode_safe(query.data());
-  query_first_unicode = BLI_str_utf32_normalize(query_first_unicode);
 
   uint32_t query_second_unicode = BLI_str_utf8_as_unicode_safe(
       query.data() + BLI_str_utf8_size_safe(query.data()));
-  query_second_unicode = BLI_str_utf32_normalize(query_second_unicode);
 
-  const char *full_begin = full.begin();
-  const char *full_end = full.end();
+  const char *full_begin = &full[0];
+  const char *full_end = &full[full.size()];
 
-  const char *window_begin = full_begin;
+  const char *window_begin = full.c_str();
   const char *window_end = window_begin;
   const int window_size = std::min(query_size + max_errors, full_size);
   const int extra_chars = window_size - query_size;
@@ -138,7 +139,6 @@ int get_fuzzy_match_errors(StringRef query, StringRef full)
   while (true) {
     StringRef window{window_begin, window_end};
     uint32_t window_begin_unicode = BLI_str_utf8_as_unicode_safe(window_begin);
-    window_begin_unicode = BLI_str_utf32_normalize(window_begin_unicode);
     int distance = 0;
     /* Expect that the first or second character of the query is correct. This helps to avoid
      * computing the more expensive distance function. */
