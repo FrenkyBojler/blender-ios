@@ -1554,44 +1554,20 @@ static void calculate_offsets_from_segments(const Span<Segment_2> segments,
   offsets.last() = offset;
 }
 
-bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
-                                          const Span<float2> screen_space_positions,
-                                          const Span<rcti> screen_space_curve_bounds,
-                                          const IndexMask &curve_selection,
-                                          const Vector<Vector<int>> &selected_points_in_curves,
-                                          const bool keep_caps)
+bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
+                                                const Span<Segment_2> segments,
+                                                const OffsetIndices<int> segment_offsets)
 {
-  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
-  const VArray<bool> is_cyclic = src.cyclic();
 
-  Vector<Segment_2> segments;
-
-  for (const int curve_i : src.curves_range()) {
-    const IndexRange src_points = src_points_by_curve[curve_i];
-
-    segments.append(Segment_2::from_curve(curve_i, src_points, is_cyclic[curve_i]));
-  }
-
-  if (segments.is_empty()) {
-    return bke::CurvesGeometry();
-  }
-
-  Vector<int> segment_offsets;
-  for (const int segment_i : segments.index_range()) {
-    segment_offsets.append(segment_i);
-  }
-  segment_offsets.append(segments.size());
-
-  const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(segment_offsets);
   Array<bool> segment_reversed(segments.size());
   segment_reversed.fill(false);
 
-  Array<bool> cyclic(dst_segments_by_curve.size());
+  Array<bool> cyclic(segment_offsets.size());
   cyclic.fill(false);
 
-  Array<int> point_offsets(segment_offsets.size());
+  Array<int> point_offsets(segment_offsets.size() + 1);
   calculate_offsets_from_segments(
-      segments, OffsetIndices<int>(segment_offsets), cyclic, point_offsets.as_mutable_span());
+      segments, segment_offsets, cyclic, point_offsets.as_mutable_span());
 
   const bke::AttributeAccessor src_attributes = src.attributes();
 
@@ -1610,7 +1586,7 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
   Array<int> old_by_new_map(dst_points_by_curve.size());
 
   for (const int i : dst_points_by_curve.index_range()) {
-    const IndexRange segment_range = dst_segments_by_curve[i];
+    const IndexRange segment_range = segment_offsets[i];
     old_by_new_map[i] = segments[segment_range.first()].curve;
   }
 
@@ -1620,8 +1596,6 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                          bke::attribute_filter_from_skip_ref({"cyclic"}),
                          old_by_new_map,
                          dst_attributes);
-
-  // dst_curves.cyclic_for_write().fill(true);
 
   /* Copy/Interpolate point attributes. */
   for (auto &attribute : bke::retrieve_attributes_for_transfer(
@@ -1634,8 +1608,8 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
 
       int i = 0;
 
-      for (const int curve_i : dst_segments_by_curve.index_range()) {
-        const IndexRange segment_range = dst_segments_by_curve[curve_i];
+      for (const int curve_i : segment_offsets.index_range()) {
+        const IndexRange segment_range = segment_offsets[curve_i];
         for (const int seg_i : segment_range) {
           const Segment_2 &segment = segments[seg_i];
           const bool reversed = segment_reversed[seg_i];
@@ -1678,6 +1652,37 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
   }
 
   return dst_curves;
+}
+
+bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
+                                          const Span<float2> screen_space_positions,
+                                          const Span<rcti> screen_space_curve_bounds,
+                                          const IndexMask &curve_selection,
+                                          const Vector<Vector<int>> &selected_points_in_curves,
+                                          const bool keep_caps)
+{
+  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  const VArray<bool> is_cyclic = src.cyclic();
+
+  Vector<Segment_2> segments;
+
+  for (const int curve_i : src.curves_range()) {
+    const IndexRange src_points = src_points_by_curve[curve_i];
+
+    segments.append(Segment_2::from_curve(curve_i, src_points, is_cyclic[curve_i]));
+  }
+
+  if (segments.is_empty()) {
+    return bke::CurvesGeometry();
+  }
+
+  Vector<int> segment_offsets;
+  for (const int segment_i : segments.index_range()) {
+    segment_offsets.append(segment_i);
+  }
+  segment_offsets.append(segments.size());
+
+  return create_curves_from_segments(src, segments, OffsetIndices<int>(segment_offsets));
 }
 
 }  // namespace trim
