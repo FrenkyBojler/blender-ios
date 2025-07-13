@@ -1372,6 +1372,314 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   return dst;
 }
 
+class Segment_2 {
+ public:
+  /* Curve index. */
+  int curve = -1;
+
+  IndexRange src_points;
+
+  /* Point range of the segment: starting point and end point. Matches the point offsets
+   * in a CurvesGeometry. */
+  int points[2] = {-1, -1};
+
+  /* The normalized distance where the trim segment is intersected by another curve.
+   * For the outer ends of the trim segment the intersection distance is given between:
+   * - [start point] and [start point + 1]
+   * - [end point] and [end point + 1]
+   */
+  float alpha[2] = {0.0f, 0.0f};
+
+ public:
+  constexpr Segment_2() = default;
+
+  bool is_loop() const
+  {
+    return alpha[Side::End] == 1.0f;
+  }
+
+  bool has_intersection(const Side side) const
+  {
+    return alpha[side] != 0.0f && alpha[side] != 1.0f;
+  }
+
+  int2 edge(const Side side) const
+  {
+    return int2(points[side], this->wrap_index(points[side] + 1));
+  }
+
+  int start_point() const
+  {
+    if (!this->has_intersection(Side::Start)) {
+      return src_points.first();
+    }
+    return this->edge(Side::Start).y;
+  }
+
+  int end_point() const
+  {
+    return this->edge(Side::End).x;
+  }
+
+  int wrap_index(const int i) const
+  {
+    return math::mod_periodic(i - src_points.first(), src_points.size()) + src_points.first();
+  }
+
+  IndexRange point_range() const
+  {
+    if (this->is_loop()) {
+      return src_points;
+    }
+
+    if (!this->has_intersection(Side::Start) && this->has_intersection(Side::End)) {
+      return IndexRange::from_begin_end_inclusive(src_points.first(), points[Side::End]);
+    }
+
+    if (!this->has_intersection(Side::Start) && !this->has_intersection(Side::End)) {
+      return src_points;
+    }
+
+    /* If both intersection points are on the same edge, there's ether no points between or
+     * all of the points are. */
+    if (points[Side::Start] == points[Side::End]) {
+      if (alpha[Side::Start] > alpha[Side::End]) {
+        return src_points.shift(points[Side::Start] - src_points.first() + 1);
+      }
+      return IndexRange(0);
+    }
+
+    if (points[Side::Start] > points[Side::End]) {
+      return IndexRange::from_begin_end_inclusive(points[Side::Start] + 1,
+                                                  points[Side::End] + src_points.size());
+    }
+
+    return IndexRange::from_begin_end_inclusive(points[Side::Start] + 1, points[Side::End]);
+  }
+
+  int points_num() const
+  {
+    return this->point_range().size();
+  }
+
+  template<typename Fn> inline void foreach_point(Fn &&fn) const
+  {
+    const IndexRange point_range = this->point_range();
+
+    for (const int64_t pos : point_range.index_range()) {
+      const int i = this->wrap_index(point_range[pos]);
+
+      if constexpr (std::is_invocable_r_v<void, Fn, int64_t, int64_t>) {
+        fn(i, pos);
+      }
+      else {
+        fn(i);
+      }
+    }
+  }
+
+  constexpr static Segment_2 from_curve(const int curve_i,
+                                        const IndexRange points,
+                                        const bool cyclical)
+  {
+    Segment_2 segment;
+    segment.curve = curve_i;
+    segment.src_points = points;
+
+    segment.points[Side::Start] = points.first();
+    segment.points[Side::End] = points.last();
+
+    segment.alpha[Side::Start] = 0.0f;
+    segment.alpha[Side::End] = cyclical ? 1.0f : 0.0f;
+
+    return segment;
+  }
+
+  static Segment_2 from_intersections(const int curve_i,
+                                      const IndexRange points,
+                                      const std::optional<float> parameter_first,
+                                      const std::optional<float> parameter_last)
+  {
+    Segment_2 segment;
+    segment.curve = curve_i;
+    segment.src_points = points;
+
+    if (parameter_first) {
+      segment.points[Side::Start] = int(math::floor(*parameter_first));
+      segment.alpha[Side::Start] = math::fract(*parameter_first);
+    }
+    else {
+      segment.points[Side::Start] = points.first();
+      segment.alpha[Side::Start] = 0.0f;
+    }
+
+    if (parameter_last) {
+      segment.points[Side::End] = int(math::floor(*parameter_last));
+      segment.alpha[Side::End] = math::fract(*parameter_last);
+    }
+    else {
+      segment.points[Side::End] = points.last();
+      segment.alpha[Side::End] = 0.0f;
+    }
+
+    return segment;
+  }
+};
+
+static void calculate_offsets_from_segments(const Span<Segment_2> segments,
+                                            const OffsetIndices<int> segment_offsets,
+                                            const Span<bool> cyclic,
+                                            MutableSpan<int> offsets)
+{
+  int offset = 0;
+
+  for (const int curve_i : segment_offsets.index_range()) {
+    offsets[curve_i] = offset;
+
+    const IndexRange segment_range = segment_offsets[curve_i];
+    for (const int seg_i : segment_range) {
+      const Segment_2 &segment = segments[seg_i];
+
+      if (segment.has_intersection(Side::Start)) {
+        offset++;
+      }
+      offset += segment.points_num();
+      if (seg_i == segment_range.last() && segment.has_intersection(Side::End) && !cyclic[curve_i])
+      {
+        offset++;
+      }
+    }
+  }
+
+  offsets.last() = offset;
+}
+
+bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
+                                          const Span<float2> screen_space_positions,
+                                          const Span<rcti> screen_space_curve_bounds,
+                                          const IndexMask &curve_selection,
+                                          const Vector<Vector<int>> &selected_points_in_curves,
+                                          const bool keep_caps)
+{
+  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  const VArray<bool> is_cyclic = src.cyclic();
+
+  Vector<Segment_2> segments;
+
+  for (const int curve_i : src.curves_range()) {
+    const IndexRange src_points = src_points_by_curve[curve_i];
+
+    segments.append(Segment_2::from_curve(curve_i, src_points, is_cyclic[curve_i]));
+  }
+
+  if (segments.is_empty()) {
+    return bke::CurvesGeometry();
+  }
+
+  Vector<int> segment_offsets;
+  for (const int segment_i : segments.index_range()) {
+    segment_offsets.append(segment_i);
+  }
+  segment_offsets.append(segments.size());
+
+  const OffsetIndices<int> dst_segments_by_curve = OffsetIndices<int>(segment_offsets);
+  Array<bool> segment_reversed(segments.size());
+  segment_reversed.fill(false);
+
+  Array<bool> cyclic(dst_segments_by_curve.size());
+  cyclic.fill(false);
+
+  Array<int> point_offsets(segment_offsets.size());
+  calculate_offsets_from_segments(
+      segments, OffsetIndices<int>(segment_offsets), cyclic, point_offsets.as_mutable_span());
+
+  const bke::AttributeAccessor src_attributes = src.attributes();
+
+  const OffsetIndices<int> dst_points_by_curve = OffsetIndices<int>(point_offsets);
+
+  if (dst_points_by_curve.total_size() == 0) {
+    return bke::CurvesGeometry();
+  }
+
+  bke::CurvesGeometry dst_curves(dst_points_by_curve.total_size(), dst_points_by_curve.size());
+  bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
+
+  dst_curves.offsets_for_write().copy_from(dst_points_by_curve.data());
+  dst_curves.cyclic_for_write().copy_from(cyclic);
+
+  Array<int> old_by_new_map(dst_points_by_curve.size());
+
+  for (const int i : dst_points_by_curve.index_range()) {
+    const IndexRange segment_range = dst_segments_by_curve[i];
+    old_by_new_map[i] = segments[segment_range.first()].curve;
+  }
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Curve,
+                         bke::AttrDomain::Curve,
+                         bke::attribute_filter_from_skip_ref({"cyclic"}),
+                         old_by_new_map,
+                         dst_attributes);
+
+  // dst_curves.cyclic_for_write().fill(true);
+
+  /* Copy/Interpolate point attributes. */
+  for (auto &attribute : bke::retrieve_attributes_for_transfer(
+           src_attributes, dst_attributes, ATTR_DOMAIN_MASK_POINT, {}))
+  {
+    bke::attribute_math::convert_to_static_type(attribute.dst.span.type(), [&](auto dummy) {
+      using T = decltype(dummy);
+      auto src_attr = attribute.src.typed<T>();
+      auto dst_attr = attribute.dst.span.typed<T>();
+
+      int i = 0;
+
+      for (const int curve_i : dst_segments_by_curve.index_range()) {
+        const IndexRange segment_range = dst_segments_by_curve[curve_i];
+        for (const int seg_i : segment_range) {
+          const Segment_2 &segment = segments[seg_i];
+          const bool reversed = segment_reversed[seg_i];
+
+          if (reversed ? segment.has_intersection(Side::End) :
+                         segment.has_intersection(Side::Start))
+          {
+            const float start_alpha = reversed ? segment.alpha[Side::End] :
+                                                 segment.alpha[Side::Start];
+            const int2 start_edge = reversed ? segment.edge(Side::End) : segment.edge(Side::Start);
+            dst_attr[i++] = bke::attribute_math::mix2<T>(
+                start_alpha, src_attr[start_edge.x], src_attr[start_edge.y]);
+          }
+
+          segment.foreach_point(
+              [&](const int index, const int pos) { dst_attr[pos + i] = src_attr[index]; });
+
+          if (reversed) {
+            dst_attr.slice(IndexRange::from_begin_size(i, segment.points_num())).reverse();
+          }
+
+          i += segment.points_num();
+
+          if (seg_i == segment_range.last() &&
+              (reversed ? segment.has_intersection(Side::Start) :
+                          segment.has_intersection(Side::End)) &&
+              !cyclic[curve_i])
+          {
+            const float end_alpha = reversed ? segment.alpha[Side::Start] :
+                                               segment.alpha[Side::End];
+            const int2 end_edge = reversed ? segment.edge(Side::Start) : segment.edge(Side::End);
+            dst_attr[i++] = bke::attribute_math::mix2<T>(
+                end_alpha, src_attr[end_edge.x], src_attr[end_edge.y]);
+          }
+        }
+      }
+    });
+
+    attribute.dst.finish();
+  }
+
+  return dst_curves;
+}
+
 }  // namespace trim
 
 Curves2DBVHTree build_curves_2d_bvh_from_visible(const ViewContext &vc,

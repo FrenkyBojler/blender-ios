@@ -122,7 +122,7 @@ static bool execute_trim_on_drawing(const int layer_index,
   }
 
   /* Apply trim. */
-  bke::CurvesGeometry cut_strokes = ed::greasepencil::trim::trim_curve_segments(
+  bke::CurvesGeometry cut_strokes = ed::greasepencil::trim::trim_curve_segments_2(
       src,
       screen_space_positions,
       screen_space_bbox,
