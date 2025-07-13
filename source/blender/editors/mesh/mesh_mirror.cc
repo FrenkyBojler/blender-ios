@@ -20,6 +20,11 @@
 
 #include "ED_mesh.hh"
 
+
+/* -------------------------------------------------------------------- */
+/** \name Mesh Spatial Mirror API
+ * \{ */
+
 std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob) {
   if (!ob || !ob->data) {
     return std::nullopt;
@@ -36,7 +41,7 @@ std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(O
 EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
     : em(BKE_editmesh_from_object(ob)), mesh(static_cast<Mesh *>(ob->data)) {
   BMesh *bmesh = em->bm;
-  bool use_topology_mirror = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+  use_topology_mirror = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
 
   blender::Set<BMVert *> processed_verts;
   blender::Set<BMEdge *> processed_edges;
@@ -81,7 +86,7 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
           }
         }
       }
-      
+
       BMIter f_iter;
       BMFace *current_face;
       BM_ITER_MESH (current_face, &f_iter, bmesh, BM_FACES_OF_MESH) {
@@ -103,19 +108,50 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
       EDBM_verts_mirror_cache_end(em);
     }
   }
+
+
 }
 
-bool EditMeshSymmetryHelper::is_any_mirror_edge_selected(BMEdge *edge, char hflag) const {
+void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert,
+                                                   blender::FunctionRef<void(BMVert *)> op) const {
+  if (!vert_to_mirrors_map.contains(vert)) {
+    return;
+  }
+  for (BMVert *mirror_vert : vert_to_mirrors_map.lookup(vert)) {
+    op(mirror_vert);
+  }
+}
+
+void EditMeshSymmetryHelper::apply_on_mirror_edges(BMEdge *edge,
+                                                   blender::FunctionRef<void(BMEdge *)> op) const {
   if (!edge_to_mirrors_map.contains(edge)) {
-    return false;
+    return;
   }
   for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
-    if (BM_elem_flag_test(mirror_edge, hflag) &&
-        !BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
-      return true;
-    }
+    op(mirror_edge);
   }
-  return false;
+}
+
+void EditMeshSymmetryHelper::apply_on_mirror_faces(BMFace *face,
+                                                   blender::FunctionRef<void(BMFace *)> op) const {
+  if (!face_to_mirrors_map.contains(face)) {
+    return;
+  }
+  for (BMFace *mirror_face : face_to_mirrors_map.lookup(face)) {
+    op(mirror_face);
+  }
+}
+
+void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const {
+  apply_on_mirror_verts(vert, [hflag, value](BMVert *v_mir) {
+    if (!BM_elem_flag_test(v_mir, BM_ELEM_HIDDEN)) {
+      if (value) {
+        BM_elem_flag_enable(v_mir, hflag);
+      } else {
+        BM_elem_flag_disable(v_mir, hflag);
+      }
+    }
+  });
 }
 
 void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, char hflag, bool value) const {
@@ -125,6 +161,18 @@ void EditMeshSymmetryHelper::set_flag_on_mirror_edges(BMEdge *edge, char hflag, 
         BM_elem_flag_enable(e_mir, hflag);
       } else {
         BM_elem_flag_disable(e_mir, hflag);
+      }
+    }
+  });
+}
+
+void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const {
+  apply_on_mirror_faces(face, [hflag, value](BMFace *f_mir) {
+    if (!BM_elem_flag_test(f_mir, BM_ELEM_HIDDEN)) {
+      if (value) {
+        BM_elem_flag_enable(f_mir, hflag);
+      } else {
+        BM_elem_flag_disable(f_mir, hflag);
       }
     }
   });
@@ -143,16 +191,17 @@ bool EditMeshSymmetryHelper::is_any_mirror_vert_selected(BMVert *vert, char hfla
   return false;
 }
 
-void EditMeshSymmetryHelper::set_flag_on_mirror_verts(BMVert *vert, char hflag, bool value) const {
-  apply_on_mirror_verts(vert, [hflag, value](BMVert *v_mir) {
-    if (!BM_elem_flag_test(v_mir, BM_ELEM_HIDDEN)) {
-      if (value) {
-        BM_elem_flag_enable(v_mir, hflag);
-      } else {
-        BM_elem_flag_disable(v_mir, hflag);
-      }
+bool EditMeshSymmetryHelper::is_any_mirror_edge_selected(BMEdge *edge, char hflag) const {
+  if (!edge_to_mirrors_map.contains(edge)) {
+    return false;
+  }
+  for (BMEdge *mirror_edge : edge_to_mirrors_map.lookup(edge)) {
+    if (BM_elem_flag_test(mirror_edge, hflag) &&
+        !BM_elem_flag_test(mirror_edge, BM_ELEM_HIDDEN)) {
+      return true;
     }
-  });
+  }
+  return false;
 }
 
 bool EditMeshSymmetryHelper::is_any_mirror_face_selected(BMFace *face, char hflag) const {
@@ -167,22 +216,6 @@ bool EditMeshSymmetryHelper::is_any_mirror_face_selected(BMFace *face, char hfla
   }
   return false;
 }
-
-void EditMeshSymmetryHelper::set_flag_on_mirror_faces(BMFace *face, char hflag, bool value) const {
-  apply_on_mirror_faces(face, [hflag, value](BMFace *f_mir) {
-    if (!BM_elem_flag_test(f_mir, BM_ELEM_HIDDEN)) {
-      if (value) {
-        BM_elem_flag_enable(f_mir, hflag);
-      } else {
-        BM_elem_flag_disable(f_mir, hflag);
-      }
-    }
-  });
-}
-
-/* -------------------------------------------------------------------- */
-/** \name Mesh Spatial Mirror API
- * \{ */
 
 #define KD_THRESH 0.00002f
 
