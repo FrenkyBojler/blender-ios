@@ -42,8 +42,7 @@ const float FRAME_STEP = 0.005;
 static void build_fcurve(FCurve &fcurve)
 {
   fcurve.totvert = 3;
-  fcurve.bezt = static_cast<BezTriple *>(
-      MEM_callocN(sizeof(BezTriple) * fcurve.totvert, "BezTriples"));
+  fcurve.bezt = MEM_calloc_arrayN<BezTriple>(fcurve.totvert, "BezTriples");
   fcurve.bezt[0].vec[1][0] = 10.0f;
   fcurve.bezt[0].vec[1][1] = 1.0f;
   fcurve.bezt[1].vec[1][0] = 20.0f;
@@ -155,6 +154,40 @@ TEST(keylist, find_exact)
   ED_keylist_free(keylist);
 }
 
+TEST(keylist, find_closest)
+{
+  AnimKeylist *keylist = create_test_keylist();
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, -1);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 10);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 14.999);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+  {
+    /* When the distance between key columns is equal, the previous column is chosen */
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 15);
+    EXPECT_EQ(closest->cfra, 10.0);
+  }
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 15.001);
+    EXPECT_EQ(closest->cfra, 20.0);
+  }
+  {
+    const ActKeyColumn *closest = ED_keylist_find_closest(keylist, 30.001);
+    EXPECT_EQ(closest->cfra, 30.0);
+  }
+  ED_keylist_free(keylist);
+}
+
 class KeylistSummaryTest : public testing::Test {
  public:
   Main *bmain;
@@ -187,7 +220,7 @@ class KeylistSummaryTest : public testing::Test {
     bmain = BKE_main_new();
     G_MAIN = bmain; /* For BKE_animdata_free(). */
 
-    action = &static_cast<bAction *>(BKE_id_new(bmain, ID_AC, "ACÄnimåtië"))->wrap();
+    action = &BKE_id_new<bAction>(bmain, "ACÄnimåtië")->wrap();
     cube = BKE_object_add_only_object(bmain, OB_EMPTY, "Küüübus");
 
     armature_data = BKE_armature_add(bmain, "ARArmature");
@@ -299,9 +332,9 @@ TEST_F(KeylistSummaryTest, slot_summary_bone_selection)
   Channelbag &channelbag = action_channelbag_ensure(*action, armature->id);
 
   FCurve &bone1_loc_x = channelbag.fcurve_ensure(
-      bmain, {"pose.bones[\"Bone.001\"].location", 0, std::nullopt, "Bone.001"});
+      bmain, {"pose.bones[\"Bone.001\"].location", 0, {}, {}, "Bone.001"});
   FCurve &bone2_loc_x = channelbag.fcurve_ensure(
-      bmain, {"pose.bones[\"Bone.002\"].location", 0, std::nullopt, "Bone.002"});
+      bmain, {"pose.bones[\"Bone.002\"].location", 0, {}, {}, "Bone.002"});
 
   ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone1_loc_x, {1.0, 0.0}, {}, {}));
   ASSERT_EQ(SingleKeyingResult::SUCCESS, insert_vert_fcurve(&bone1_loc_x, {2.0, 1.0}, {}, {}));

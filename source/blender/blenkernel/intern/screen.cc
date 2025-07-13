@@ -56,6 +56,10 @@
 
 #include "WM_types.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG_BLEND_DOVERSION = {"blend.doversion"};
+
 using blender::Span;
 using blender::StringRef;
 using blender::Vector;
@@ -167,7 +171,7 @@ static void screen_blend_read_after_liblink(BlendLibReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_SCR = {
-    /*id_code*/ ID_SCR,
+    /*id_code*/ bScreen::id_type,
     /*id_filter*/ FILTER_ID_SCR,
     /* NOTE: Can actually link to any ID type through UI (e.g. Outliner Editor).
      * This is handled separately though. */
@@ -862,7 +866,7 @@ ARegion *BKE_area_find_region_active_win(const ScrArea *area)
     return region;
   }
 
-  /* fallback to any */
+  /* fall back to any */
   return BKE_area_find_region_type(area, RGN_TYPE_WINDOW);
 }
 
@@ -877,6 +881,16 @@ ARegion *BKE_area_find_region_xy(const ScrArea *area, const int regiontype, cons
       if (BLI_rcti_isect_pt_v(&region->winrct, xy)) {
         return region;
       }
+    }
+  }
+  return nullptr;
+}
+
+ARegion *BKE_screen_find_region_type(const bScreen *screen, const int region_type)
+{
+  LISTBASE_FOREACH (ARegion *, region, &screen->regionbase) {
+    if (region_type == region->regiontype) {
+      return region;
     }
   }
   return nullptr;
@@ -1311,13 +1325,13 @@ void BKE_screen_view3d_do_versions_250(View3D *v3d, ListBase *regions)
     if (region->regiontype == RGN_TYPE_WINDOW && region->regiondata == nullptr) {
       RegionView3D *rv3d;
 
-      rv3d = static_cast<RegionView3D *>(
-          region->regiondata = MEM_callocN(sizeof(RegionView3D), "region v3d patch"));
+      rv3d = MEM_callocN<RegionView3D>("region v3d patch");
       rv3d->persp = char(v3d->persp);
       rv3d->view = char(v3d->view);
       rv3d->dist = v3d->dist;
       copy_v3_v3(rv3d->ofs, v3d->ofs);
       copy_qt_qt(rv3d->viewquat, v3d->viewquat);
+      region->regiondata = rv3d;
     }
   }
 
@@ -1335,7 +1349,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   BLI_listbase_clear(&area->handlers);
   area->type = nullptr; /* spacetype callbacks */
 
-  memset(&area->runtime, 0x0, sizeof(area->runtime));
+  area->runtime = ScrArea_Runtime{};
 
   /* Should always be unset so that rna_Area_type_get works correctly. */
   area->butspacetype = SPACE_EMPTY;
@@ -1362,7 +1376,7 @@ static void direct_link_area(BlendDataReader *reader, ScrArea *area)
   /* accident can happen when read/save new file with older version */
   /* 2.50: we now always add spacedata for info */
   if (area->spacedata.first == nullptr) {
-    SpaceInfo *sinfo = static_cast<SpaceInfo *>(MEM_callocN(sizeof(SpaceInfo), "spaceinfo"));
+    SpaceInfo *sinfo = MEM_callocN<SpaceInfo>("spaceinfo");
     area->spacetype = sinfo->spacetype = SPACE_INFO;
     BLI_addtail(&area->spacedata, sinfo);
   }
@@ -1435,10 +1449,11 @@ static void regions_remove_invalid(SpaceType *space_type, ListBase *regionbase)
       continue;
     }
 
-    printf("Warning: region type %d missing in space type \"%s\" (id: %d) - removing region\n",
-           region->regiontype,
-           space_type->name,
-           space_type->spaceid);
+    CLOG_WARN(&LOG_BLEND_DOVERSION,
+              "Region type %d missing in space type \"%s\" (id: %d) - removing region",
+              region->regiontype,
+              space_type->name,
+              space_type->spaceid);
 
     BKE_area_region_free(space_type, region);
     BLI_freelinkN(regionbase, region);

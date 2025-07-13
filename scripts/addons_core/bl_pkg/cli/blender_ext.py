@@ -2320,7 +2320,7 @@ def python_versions_from_wheel(wheel_filename: str) -> set[tuple[int] | tuple[in
     abi_tag = wheel_filename_split[-2]
 
     # NOTE(@ideasman42): when the ABI is set, simply return the major version,
-    # This is needed because older version of CPython (3.6) for e.g. are compatible with newer versions of CPython,
+    # This is needed because older version of CPython (3.6) for example are compatible with newer versions of CPython,
     # but returning the old version causes it not to register as being compatible.
     # So return the ABI version to allow any version of CPython 3.x.
     #
@@ -2835,7 +2835,7 @@ def pkg_manifest_detect_duplicates(
             del python_versions_full
 
     # This can be expanded with additional values as needed.
-    # We could in principle have ABI flags (debug/release) for e.g.
+    # We could in principle have ABI flags (debug/release) for example
     PkgCfgKey = tuple[
         # Platform.
         str,
@@ -3043,7 +3043,7 @@ def repo_sync_from_remote(
             del read_total
             del retrieve_info
         except (Exception, KeyboardInterrupt) as ex:
-            msg = url_retrieve_exception_as_message(ex, prefix="sync", url=remote_url)
+            msg = url_retrieve_exception_as_message(ex, prefix="sync", url=remote_json_url)
             if demote_connection_errors_to_status and url_retrieve_exception_is_connectivity(ex):
                 msglog.status(msg)
             else:
@@ -3953,7 +3953,7 @@ class subcmd_client:
                 result.write(block)
 
         except (Exception, KeyboardInterrupt) as ex:
-            msg = url_retrieve_exception_as_message(ex, prefix="list", url=remote_url)
+            msg = url_retrieve_exception_as_message(ex, prefix="list", url=remote_json_url)
             if demote_connection_errors_to_status and url_retrieve_exception_is_connectivity(ex):
                 msglog.status(msg)
             else:
@@ -4420,7 +4420,7 @@ class subcmd_client:
                         # Unlike querying information which might reasonably be skipped.
                         msglog.fatal_error(
                             url_retrieve_exception_as_message(
-                                ex, prefix="install", url=remote_url))
+                                ex, prefix="install", url=filepath_remote_archive))
                         return False
 
                     if request_exit:
@@ -4870,7 +4870,7 @@ class subcmd_author:
             *,
             manifest: PkgManifest,
             # NOTE: This path is only for inclusion in the error message,
-            # the path may not exist on the file-system (it may refer to a path inside an archive for e.g.).
+            # the path may not exist on the file-system (it may refer to a path inside an archive for example).
             pkg_manifest_filepath: str,
             valid_tags_filepath: str,
     ) -> bool:
