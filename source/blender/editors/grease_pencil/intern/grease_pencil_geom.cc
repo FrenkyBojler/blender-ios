@@ -1956,7 +1956,7 @@ static void calculate_segment_directions(const Span<Segment_2> segments,
         segment_reversed[segment_i] = false;
       }
       else {
-        // BLI_assert(segment.intersection_index[Side::End] == inter_index_prev);
+        BLI_assert(segment.intersection_index[Side::End] == inter_index_prev);
         segment_reversed[segment_i] = true;
       }
     }
