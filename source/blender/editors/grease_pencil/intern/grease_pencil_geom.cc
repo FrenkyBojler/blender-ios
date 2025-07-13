@@ -1390,6 +1390,8 @@ class Segment_2 {
    */
   float alpha[2] = {0.0f, 0.0f};
 
+  int intersection_index[2] = {-1, -1};
+
  public:
   constexpr Segment_2() = default;
 
@@ -1497,29 +1499,39 @@ class Segment_2 {
 
   static Segment_2 from_intersections(const int curve_i,
                                       const IndexRange points,
-                                      const std::optional<float> parameter_first,
-                                      const std::optional<float> parameter_last)
+                                      const std::optional<float> parameter_start,
+                                      const std::optional<float> parameter_end,
+                                      const std::optional<int> inter_index_start,
+                                      const std::optional<int> inter_index_end)
   {
     Segment_2 segment;
     segment.curve = curve_i;
     segment.src_points = points;
 
-    if (parameter_first) {
-      segment.points[Side::Start] = int(math::floor(*parameter_first));
-      segment.alpha[Side::Start] = math::fract(*parameter_first);
+    if (parameter_start) {
+      segment.points[Side::Start] = int(math::floor(*parameter_start));
+      segment.alpha[Side::Start] = math::fract(*parameter_start);
     }
     else {
       segment.points[Side::Start] = points.first();
       segment.alpha[Side::Start] = 0.0f;
     }
 
-    if (parameter_last) {
-      segment.points[Side::End] = int(math::floor(*parameter_last));
-      segment.alpha[Side::End] = math::fract(*parameter_last);
+    if (inter_index_start) {
+      segment.intersection_index[Side::Start] = inter_index_start;
+    }
+
+    if (parameter_end) {
+      segment.points[Side::End] = int(math::floor(*parameter_end));
+      segment.alpha[Side::End] = math::fract(*parameter_end);
     }
     else {
       segment.points[Side::End] = points.last();
       segment.alpha[Side::End] = 0.0f;
+    }
+
+    if (inter_index_end) {
+      segment.intersection_index[Side::End] = inter_index_end;
     }
 
     return segment;
