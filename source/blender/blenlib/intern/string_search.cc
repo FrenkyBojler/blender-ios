@@ -98,8 +98,8 @@ int get_fuzzy_match_errors(StringRef query_ref, StringRef full_ref)
     return 0;
   }
 
-  std::string query = BLI_str_utf8_normalize(query_ref);
-  std::string full = BLI_str_utf8_normalize(full_ref);
+  std::string query = BLI_str_utf8_normalized(query_ref);
+  std::string full = BLI_str_utf8_normalized(full_ref);
 
   const int query_size = count_utf8_code_points(query);
   const int full_size = count_utf8_code_points(full);

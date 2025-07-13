@@ -5003,9 +5003,7 @@ void uiLayoutListItemAddPadding(uiLayout *layout)
 static bool block_search_panel_label_matches(const uiBlock *block, const char *search_string)
 {
   if ((block->panel != nullptr) && (block->panel->type != nullptr)) {
-    std::string normalized_label = BLI_str_utf8_normalize(block->panel->type->label);
-    char *normalized = normalized_label.data();
-    if (BLI_strcasestr(normalized, search_string)) {
+    if (BLI_str_utf8_contains(block->panel->type->label, search_string)) {
       return true;
     }
   }
@@ -5018,22 +5016,18 @@ static bool block_search_panel_label_matches(const uiBlock *block, const char *s
 static bool button_matches_search_filter(uiBut *but, const char *search_filter)
 {
   /* Do the shorter checks first for better performance in case there is a match. */
-  if (BLI_strcasestr(but->str.c_str(), search_filter)) {
+  if (BLI_str_utf8_contains(but->str.c_str(), search_filter)) {
     return true;
   }
 
   if (but->optype != nullptr) {
-    std::string normalized_name = BLI_str_utf8_normalize(but->optype->name);
-    char *normalized = normalized_name.data();
-    if (BLI_strcasestr(normalized, search_filter)) {
+    if (BLI_str_utf8_contains(but->optype->name, search_filter)) {
       return true;
     }
   }
 
   if (but->rnaprop != nullptr) {
-    std::string normalized_name = BLI_str_utf8_normalize(RNA_property_ui_name(but->rnaprop));
-    char *normalized = normalized_name.data();
-    if (BLI_strcasestr(normalized, search_filter)) {
+    if (BLI_str_utf8_contains(RNA_property_ui_name(but->rnaprop), search_filter)) {
       return true;
     }
 #ifdef PROPERTY_SEARCH_USE_TOOLTIPS
@@ -5062,10 +5056,7 @@ static bool button_matches_search_filter(uiBut *but, const char *search_filter)
         if (items_array[i].name == nullptr) {
           continue;
         }
-
-        std::string normalized_name = BLI_str_utf8_normalize(items_array[i].name);
-        char *normalized = normalized_name.data();
-        if (BLI_strcasestr(normalized, search_filter)) {
+        if (BLI_str_utf8_contains(items_array[i].name, search_filter)) {
           found = true;
           break;
         }
@@ -5127,9 +5118,6 @@ bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter)
     return false;
   }
 
-  std::string normalized_filter = BLI_str_utf8_normalize(search_filter);
-  char *normalized = normalized_filter.data();
-
   Panel *panel = block->panel;
 
   if (panel != nullptr) {
@@ -5140,11 +5128,11 @@ bool UI_block_apply_search_filter(uiBlock *block, const char *search_filter)
     }
   }
 
-  const bool panel_label_matches = block_search_panel_label_matches(block, normalized);
+  const bool panel_label_matches = block_search_panel_label_matches(block, search_filter);
 
   const bool has_result = (panel_label_matches) ?
                               true :
-                              block_search_filter_tag_buttons(block, normalized);
+                              block_search_filter_tag_buttons(block, search_filter);
 
   if (panel != nullptr) {
     if (has_result) {

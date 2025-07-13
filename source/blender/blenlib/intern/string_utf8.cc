@@ -1618,8 +1618,7 @@ char32_t BLI_str_utf32_normalize(char32_t codepoint)
   return bli_str_utf32_weight(codepoint, false, false);
 }
 
-/* NOT TESTED */
-std::string BLI_str_utf8_normalize(const char *str, size_t len)
+std::string BLI_str_utf8_normalized(const char *str, size_t len)
 {
   std::string result;
   result.reserve(len);
@@ -1654,10 +1653,30 @@ std::string BLI_str_utf8_normalize(const char *str, size_t len)
   return result;
 }
 
-/* NOT TESTED */
-std::string BLI_str_utf8_normalize(const std::string str)
+std::string BLI_str_utf8_normalized(const std::string str)
 {
-  return BLI_str_utf8_normalize(str.c_str(), str.size());
+  return BLI_str_utf8_normalized(str.c_str(), str.size());
+}
+
+// could replace many usages of BLI_strcasestr
+bool BLI_str_utf8_contains(const char *s, const char *find)
+{
+  const std::string full = BLI_str_utf8_normalized(s);
+  return full.find(BLI_str_utf8_normalized(find)) != std::string::npos;
+}
+
+// could replace usages of BLI_strncasestr
+bool BLI_str_utf8_contains(const char *s, const char *find, size_t len)
+{
+  std::string full = {s, len};
+  full = BLI_str_utf8_normalized(full);
+  return full.find(BLI_str_utf8_normalized(find)) != std::string::npos;
+}
+
+// could replace BLI_strcaseeq
+bool BLI_str_utf8_equals(const char *a, const char *b)
+{
+  return BLI_str_utf8_normalized(a) == BLI_str_utf8_normalized(b);
 }
 
 /* NOT TESTED */
