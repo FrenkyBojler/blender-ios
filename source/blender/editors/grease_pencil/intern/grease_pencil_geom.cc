@@ -2063,13 +2063,11 @@ static void follow_segment_connections(const Span<Segment_2> all_segments,
                                        Vector<Segment_2> &segments,
                                        Vector<int> &segment_offset_data)
 {
+  segment_offset_data.append(0);
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
-
   int start_segment = processed_segments.as_span().first_index_try(false);
-
-  segment_offset_data.append(0);
 
   while (start_segment != -1) {
     int current_i = start_segment;
@@ -2082,8 +2080,8 @@ static void follow_segment_connections(const Span<Segment_2> all_segments,
       continue;
     }
 
-    bool PolygonDone = false;
-    while (!PolygonDone) {
+    bool curve_done = false;
+    while (!curve_done) {
       if (processed_segments[current_i] == true) {
         BLI_assert_unreachable();
         break;
@@ -2108,12 +2106,12 @@ static void follow_segment_connections(const Span<Segment_2> all_segments,
       }
 
       if (next_segment == SEGMENT_CONNECTION_END) {
-        PolygonDone = true;
+        curve_done = true;
         break;
       }
 
       if (next_segment == start_segment) {
-        PolygonDone = true;
+        curve_done = true;
 
         /* Check if the last segment in this curve can be joined to the first one in this curve. */
         if ((!segments.index_range().is_empty()) &&
