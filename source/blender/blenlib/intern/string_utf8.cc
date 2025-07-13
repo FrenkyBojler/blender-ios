@@ -1582,6 +1582,10 @@ static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool letter
 {
   int weight = codepoint;
 
+  if (mk_wcwidth(codepoint) < 1) {
+    return 0; /* No weight for combining characters. */
+  }
+
   size_t left = 0;
   size_t right = sizeof(OrderWeightsTable) / sizeof(OrderWeightsTable[0]);
   while (left < right) {
@@ -1640,8 +1644,10 @@ std::string BLI_str_utf8_normalize(const char *str, size_t len)
     }
 
     wc = BLI_str_utf32_normalize(wc);
-    size_t utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
-    result.append(utf8_buf, utf8_buf_len);
+    if (wc) {
+      size_t utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
+      result.append(utf8_buf, utf8_buf_len);
+    }
   }
 
   result.shrink_to_fit();
