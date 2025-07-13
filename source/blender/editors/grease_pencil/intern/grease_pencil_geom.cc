@@ -1757,6 +1757,7 @@ static void find_intersections_between_curves(const Span<float2> points_i,
 }
 
 static void find_intersections_between_shapes(const Span<float2> screen_space_positions,
+                                              const Span<rcti> screen_space_curve_bounds,
                                               const OffsetIndices<int> points_by_curve,
                                               const VArray<bool> &cyclic,
                                               Array<Vector<int>> &r_inters_per_curves,
@@ -1768,6 +1769,12 @@ static void find_intersections_between_shapes(const Span<float2> screen_space_po
 
     for (const int curve_j : points_by_curve.index_range()) {
       if (curve_i >= curve_j) {
+        continue;
+      }
+
+      if (!BLI_rcti_isect(
+              &screen_space_curve_bounds[curve_i], &screen_space_curve_bounds[curve_j], nullptr))
+      {
         continue;
       }
 
@@ -2137,7 +2144,7 @@ static void follow_segment_connections(const Span<Segment_2> all_segments,
 bke::CurvesGeometry trim_curve_segments_2(
     const bke::CurvesGeometry &src,
     const Span<float2> screen_space_positions,
-    const Span<rcti> /*screen_space_curve_bounds*/,
+    const Span<rcti> screen_space_curve_bounds,
     const IndexMask & /*curve_selection*/,
     const Vector<Vector<int>> & /*selected_points_in_curves*/,
     const bool keep_caps)
@@ -2152,8 +2159,12 @@ bke::CurvesGeometry trim_curve_segments_2(
   /* -------------------- */
 
   Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
-  find_intersections_between_shapes(
-      screen_space_positions, src_points_by_curve, is_cyclic, inters_per_curves, intersections);
+  find_intersections_between_shapes(screen_space_positions,
+                                    screen_space_curve_bounds,
+                                    src_points_by_curve,
+                                    is_cyclic,
+                                    inters_per_curves,
+                                    intersections);
 
   for (const int curve_i : src_points_by_curve.index_range()) {
     add_segments(curve_i,
