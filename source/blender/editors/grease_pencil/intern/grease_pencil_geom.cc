@@ -2210,6 +2210,23 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
 
     const IndexRange point_range = segment.point_range();
 
+    if (point_range.is_empty()) {
+      const float start_alpha = segment.alpha[Side::Start];
+      const int2 start_edge = segment.edge(Side::Start);
+      const float end_alpha = segment.alpha[Side::End];
+      const int2 end_edge = segment.edge(Side::End);
+      const float2 pos_a = math::interpolate(
+          screen_space_positions[start_edge.x], screen_space_positions[start_edge.y], start_alpha);
+      const float2 pos_b = math::interpolate(
+          screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
+
+      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+        segments_to_keep[segment_i] = false;
+      }
+
+      continue;
+    }
+
     for (const int64_t i : point_range.drop_back(1)) {
       const int point_i = segment.wrap_index(i);
 
@@ -2222,7 +2239,31 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
       }
     }
 
-    /* TODO: Add starts and ends. */
+    if (segment.has_intersection(Side::Start)) {
+      const float start_alpha = segment.alpha[Side::Start];
+      const int2 start_edge = segment.edge(Side::Start);
+      const float2 pos_a = math::interpolate(
+          screen_space_positions[start_edge.x], screen_space_positions[start_edge.y], start_alpha);
+      const float2 pos_b = screen_space_positions[point_range.first()];
+
+      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+        segments_to_keep[segment_i] = false;
+        continue;
+      }
+    }
+
+    if (segment.has_intersection(Side::End)) {
+      const float end_alpha = segment.alpha[Side::End];
+      const int2 end_edge = segment.edge(Side::End);
+      const float2 pos_a = screen_space_positions[point_range.last()];
+      const float2 pos_b = math::interpolate(
+          screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
+
+      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+        segments_to_keep[segment_i] = false;
+        continue;
+      }
+    }
   }
 
   /* -------------------- */
