@@ -1,1 +1,2 @@
 Referenced by issue #141808, Crash when using a `FileHandler` with an operator without `ExportHelper`
+Referenced by pull request #141850, Fix #141808: Crash when a FileHandler uses an operator with no filepath
