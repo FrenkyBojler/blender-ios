@@ -2021,8 +2021,15 @@ bke::CurvesGeometry trim_curve_segments_2(
 
   Array<int> segment_connections(all_segments.size(), -1);
 
-  for (const int segment_i : segment_connections.index_range()) {
-    segment_connections[segment_i] = segment_i;
+  for (const int curve_i : segments_by_curve.index_range()) {
+    const IndexRange segment_range = segments_by_curve[curve_i];
+
+    for (const int segment_i : segment_range.drop_back(1)) {
+      segment_connections[segment_i] = segment_i + 1;
+    }
+    if (is_cyclic[curve_i]) {
+      segment_connections[segment_range.last()] = segment_range.first();
+    }
   }
 
   // for (const int segment_i : segment_connections.index_range().drop_back(1)) {
