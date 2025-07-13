@@ -1518,7 +1518,7 @@ class Segment_2 {
     }
 
     if (inter_index_start) {
-      segment.intersection_index[Side::Start] = inter_index_start;
+      segment.intersection_index[Side::Start] = *inter_index_start;
     }
 
     if (parameter_end) {
@@ -1531,7 +1531,7 @@ class Segment_2 {
     }
 
     if (inter_index_end) {
-      segment.intersection_index[Side::End] = inter_index_end;
+      segment.intersection_index[Side::End] = *inter_index_end;
     }
 
     return segment;
