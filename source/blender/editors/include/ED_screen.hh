@@ -509,7 +509,7 @@ void ED_update_for_newframe(Main *bmain, Depsgraph *depsgraph);
  * Toggle operator.
  */
 void ED_reset_audio_device(bContext *C);
-int ED_screen_animation_play(bContext *C, int sync, int mode);
+wmOperatorStatus ED_screen_animation_play(bContext *C, int sync, int mode);
 /**
  * Find window that owns the animation timer.
  */
@@ -685,6 +685,7 @@ void ED_region_generic_tools_region_message_subscribe(
  * Callback for #ARegionType.snap_size
  */
 int ED_region_generic_tools_region_snap_size(const ARegion *region, int size, int axis);
+int ED_region_generic_panel_region_snap_size(const ARegion *region, int size, int axis);
 
 /* `area_query.cc` */
 

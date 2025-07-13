@@ -16,7 +16,7 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_constraints.hh"
@@ -37,7 +37,7 @@ static void transdata_elem_skin_resize(const TransInfo *t,
                                        const float mat[3][3])
 {
   float tmat[3][3], smat[3][3];
-  float fsize[3];
+  float fscale[3];
 
   if (t->flag & T_EDIT) {
     mul_m3_m3m3(smat, mat, td->mtx);
@@ -51,9 +51,9 @@ static void transdata_elem_skin_resize(const TransInfo *t,
     t->con.applySize(t, nullptr, nullptr, tmat);
   }
 
-  mat3_to_size(fsize, tmat);
-  td->loc[0] = td->iloc[0] * (1 + (fsize[0] - 1) * td->factor);
-  td->loc[1] = td->iloc[1] * (1 + (fsize[1] - 1) * td->factor);
+  mat3_to_size(fscale, tmat);
+  td->loc[0] = td->iloc[0] * (1 + (fscale[0] - 1) * td->factor);
+  td->loc[1] = td->iloc[1] * (1 + (fscale[1] - 1) * td->factor);
 }
 
 static void applySkinResize(TransInfo *t)
@@ -119,10 +119,10 @@ static void initSkinResize(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 2;
   t->num.idx_max = 2;
-  t->snap[0] = 0.1f;
-  t->snap[1] = t->snap[0] * 0.1f;
+  t->increment = float3(0.1f);
+  t->increment_precision = 0.1f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_NONE;
   t->num.unit_type[1] = B_UNIT_NONE;

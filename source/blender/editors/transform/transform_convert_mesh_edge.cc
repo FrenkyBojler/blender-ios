@@ -69,8 +69,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
       tc->data_len = countsel;
     }
 
-    td = tc->data = static_cast<TransData *>(
-        MEM_callocN(tc->data_len * sizeof(TransData), "TransCrease"));
+    td = tc->data = MEM_calloc_arrayN<TransData>(tc->data_len, "TransCrease");
 
     copy_m3_m4(mtx, tc->obedit->object_to_world().ptr());
     pseudoinverse_m3_m3(smtx, mtx, PSEUDOINVERSE_EPSILON);
@@ -106,8 +105,6 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
         td->flag = BM_elem_flag_test(eed, BM_ELEM_SELECT) ? TD_SELECTED : 0;
         copy_m3_m3(td->smtx, smtx);
         copy_m3_m3(td->mtx, mtx);
-
-        td->ext = nullptr;
 
         fl_ptr = static_cast<float *>(BM_ELEM_CD_GET_VOID_P(eed, cd_edge_float_offset));
         td->val = fl_ptr;

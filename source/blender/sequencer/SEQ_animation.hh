@@ -16,15 +16,15 @@ struct ListBase;
 struct Scene;
 struct Strip;
 struct SeqAnimationBackup;
-
 namespace blender::seq {
 
-bool animation_keyframes_exist(Scene *scene);
+bool animation_keyframes_exist(const Scene *scene);
 bool animation_drivers_exist(Scene *scene);
 void free_animdata(Scene *scene, Strip *strip);
-void offset_animdata(Scene *scene, Strip *strip, int ofs);
+void offset_animdata(const Scene *scene, Strip *strip, float ofs);
+
 /**
- * Return whether the fcurve targets the given sequence.
+ * Return whether the fcurve targets the given strip.
  */
 bool fcurve_matches(const Strip &strip, const FCurve &fcurve);
 struct AnimationBackup {
@@ -46,7 +46,7 @@ void animation_backup_original(Scene *scene, AnimationBackup *backup);
  */
 void animation_restore_original(Scene *scene, AnimationBackup *backup);
 /**
- * Duplicate F-Curves and drivers used by `seq` from `backup` to `scene`.
+ * Duplicate F-Curves and drivers used by `strip` from `backup` to `scene`.
  */
 void animation_duplicate_backup_to_scene(Scene *scene, Strip *strip, AnimationBackup *backup);
 
