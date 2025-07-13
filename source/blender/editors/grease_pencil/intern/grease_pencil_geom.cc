@@ -2142,6 +2142,25 @@ static void follow_segment_connections(const Span<Segment_2> all_segments,
   }
 }
 
+static bool check_line_segment_lasso_intersection(const int2 pos_a,
+                                                  const int2 pos_b,
+                                                  const Span<int2> mcoords)
+{
+  rcti bbox_ab;
+  BLI_rcti_init_minmax(&bbox_ab);
+  BLI_rcti_do_minmax_v(&bbox_ab, pos_a);
+  BLI_rcti_do_minmax_v(&bbox_ab, pos_b);
+  BLI_rcti_pad(&bbox_ab, BBOX_PADDING, BBOX_PADDING);
+
+  /* Check the lasso bounding box first as an optimization. */
+  if (BLI_rcti_isect_segment(&bbox_ab, pos_a, pos_b) &&
+      BLI_lasso_is_edge_inside(mcoords, pos_a.x, pos_a.y, pos_b.x, pos_b.y, IS_CLIPPED))
+  {
+    return true;
+  }
+  return false;
+}
+
 bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                                           const Span<float2> screen_space_positions,
                                           const Span<rcti> screen_space_curve_bounds,
@@ -2197,17 +2216,7 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
       const float2 pos_a = screen_space_positions[point_i];
       const float2 pos_b = screen_space_positions[point_i + 1];
 
-      rcti bbox_ab;
-      BLI_rcti_init_minmax(&bbox_ab);
-      BLI_rcti_do_minmax_v(&bbox_ab, int2(pos_a));
-      BLI_rcti_do_minmax_v(&bbox_ab, int2(pos_b));
-      BLI_rcti_pad(&bbox_ab, BBOX_PADDING, BBOX_PADDING);
-
-      /* Check the lasso bounding box first as an optimization. */
-      if (BLI_rcti_isect_segment(&bbox_ab, int2(pos_a), int2(pos_b)) &&
-          BLI_lasso_is_edge_inside(
-              mcoords, int(pos_a.x), int(pos_a.y), int(pos_b.x), int(pos_b.y), IS_CLIPPED))
-      {
+      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
         segments_to_keep[segment_i] = false;
         continue;
       }
