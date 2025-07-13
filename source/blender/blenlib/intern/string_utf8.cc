@@ -1577,28 +1577,14 @@ static const OrderWeights OrderWeightsTable[] = {
     {0xFB02, 'f', 4, 0},  /* Small Ligature fl. */
 };
 
-/* NOT TESTED */
-static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool lettercase)
+static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
 {
-  int weight = codepoint;
-
-  if (mk_wcwidth(codepoint) < 1) {
-    return 0; /* No weight for combining characters. */
-  }
-
   size_t left = 0;
   size_t right = sizeof(OrderWeightsTable) / sizeof(OrderWeightsTable[0]);
   while (left < right) {
     size_t mid = left + (right - left) / 2;
     if (OrderWeightsTable[mid].codepoint == int(codepoint)) {
-      weight = OrderWeightsTable[mid].weight;
-      if (alternates) {
-        weight += OrderWeightsTable[mid].alternate;
-      }
-      if (lettercase) {
-        weight += OrderWeightsTable[mid].lettercase;
-      }
-      break;
+      return &OrderWeightsTable[mid];
     }
     if (OrderWeightsTable[mid].codepoint < int(codepoint)) {
       left = mid + 1;
@@ -1608,17 +1594,32 @@ static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool letter
     }
   }
 
+  return nullptr;
+}
+
+static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool lettercase)
+{
+  int weight = codepoint;
+
+  if (mk_wcwidth(codepoint) < 1) {
+    return 0; /* No weight for combining characters. */
+  }
+
+  const OrderWeights *order_weights = bli_str_utf32_orderweights(codepoint);
+  if (order_weights) {
+    weight = order_weights->weight;
+    if (alternates) {
+      weight += order_weights->alternate;
+    }
+    if (lettercase) {
+      weight += order_weights->lettercase;
+    }
+  }
+
   return weight;
 }
 
-/* We probably can't do normalization by codepoint, but will have to do
- * so by string. This is because we need to support ligatures. */
-char32_t BLI_str_utf32_normalize(char32_t codepoint)
-{
-  return bli_str_utf32_weight(codepoint, false, false);
-}
-
-std::string BLI_str_utf8_normalized(const char *str, size_t len)
+std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensitive)
 {
   std::string result;
   result.reserve(len);
@@ -1631,18 +1632,31 @@ std::string BLI_str_utf8_normalized(const char *str, size_t len)
     char32_t wc = BLI_str_utf8_as_unicode_step_safe(str, len, &i);
     ligature = bli_str_utf32_ligature(wc);
     if (ligature) {
-      utf8_buf_len = BLI_str_utf8_from_unicode(ligature->replace1, utf8_buf, sizeof(utf8_buf));
+      const bool ucase = case_sensitive && ligature->lettercase;
+      utf8_buf_len = BLI_str_utf8_from_unicode(
+          ucase ? BLI_str_utf32_char_to_upper(ligature->replace1) : ligature->replace1,
+          utf8_buf,
+          sizeof(utf8_buf));
       result.append(utf8_buf, utf8_buf_len);
-      utf8_buf_len = BLI_str_utf8_from_unicode(ligature->replace2, utf8_buf, sizeof(utf8_buf));
+      utf8_buf_len = BLI_str_utf8_from_unicode(
+          ucase ? BLI_str_utf32_char_to_upper(ligature->replace2) : ligature->replace2,
+          utf8_buf,
+          sizeof(utf8_buf));
       result.append(utf8_buf, utf8_buf_len);
       if (ligature->replace3) {
-        utf8_buf_len = BLI_str_utf8_from_unicode(ligature->replace2, utf8_buf, sizeof(utf8_buf));
+        utf8_buf_len = BLI_str_utf8_from_unicode(
+            ucase ? BLI_str_utf32_char_to_upper(ligature->replace3) : ligature->replace3,
+            utf8_buf,
+            sizeof(utf8_buf));
         result.append(utf8_buf, utf8_buf_len);
       }
       continue;
     }
 
-    wc = BLI_str_utf32_normalize(wc);
+    const OrderWeights *order_weights = bli_str_utf32_orderweights(wc);
+    const bool ucase = case_sensitive && ligature->lettercase;
+
+    wc = bli_str_utf32_weight(wc, false, false);
     if (wc) {
       size_t utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
       result.append(utf8_buf, utf8_buf_len);
@@ -1653,9 +1667,9 @@ std::string BLI_str_utf8_normalized(const char *str, size_t len)
   return result;
 }
 
-std::string BLI_str_utf8_normalized(const std::string str)
+std::string BLI_str_utf8_normalized(const std::string str, bool case_sensitive)
 {
-  return BLI_str_utf8_normalized(str.c_str(), str.size());
+  return BLI_str_utf8_normalized(str.c_str(), str.size(), case_sensitive);
 }
 
 // could replace many usages of BLI_strcasestr

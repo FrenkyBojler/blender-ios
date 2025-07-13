@@ -13,8 +13,8 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
-std::string BLI_str_utf8_normalized(const char *str, size_t len);
-std::string BLI_str_utf8_normalized(const std::string str);
+std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensitive = false);
+std::string BLI_str_utf8_normalized(const std::string str, bool case_sensitive = false);
 
 // could replace many usages of BLI_strcasestr and BLI_strncasestr
 bool BLI_str_utf8_contains(const char *s, const char *find);
