@@ -1979,7 +1979,26 @@ bke::CurvesGeometry trim_curve_segments_2(
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
 
   Array<bool> segment_reversed(segments.size());
-  segment_reversed.fill(false);
+  for (const int curve_i : segment_offsets.index_range()) {
+    const IndexRange segment_range = segment_offsets[curve_i];
+
+    segment_reversed[segment_range.first()] = false;
+    for (const int segment_i : segment_range.drop_front(1)) {
+      const bool reversed_prev = segment_reversed[segment_i - 1];
+      const Segment_2 &segment_prev = segments[segment_i - 1];
+      const Segment_2 &segment = segments[segment_i];
+      const Side direction_prev = reversed_prev ? Side::Start : Side::End;
+      const int inter_index_prev = segment_prev.intersection_index[direction_prev];
+
+      if (segment.intersection_index[Side::Start] == inter_index_prev) {
+        segment_reversed[segment_i] = false;
+      }
+      else {
+        BLI_assert(segment.intersection_index[Side::End] == inter_index_prev);
+        segment_reversed[segment_i] = true;
+      }
+    }
+  }
 
   Array<bool> cyclic(segment_offsets.size());
   cyclic.fill(false);
