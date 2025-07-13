@@ -20,6 +20,10 @@
 
 #include "ED_mesh.hh"
 
+/* -------------------------------------------------------------------- */
+/** \name Mesh Spatial Mirror API
+ * \{ */
+
 std::optional<EditMeshSymmetryHelper> EditMeshSymmetryHelper::create_if_needed(Object *ob) {
   if (!ob || !ob->data) {
     return std::nullopt;
@@ -103,8 +107,6 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob)
       EDBM_verts_mirror_cache_end(em);
     }
   }
-
-
 }
 
 void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert,
@@ -211,9 +213,6 @@ bool EditMeshSymmetryHelper::is_any_mirror_face_selected(BMFace *face, char hfla
   }
   return false;
 }
-/* -------------------------------------------------------------------- */
-/** \name Mesh Spatial Mirror API
- * \{ */
 
 #define KD_THRESH 0.00002f
 
