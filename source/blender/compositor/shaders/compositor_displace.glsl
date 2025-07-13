@@ -2,23 +2,30 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_bicubic_sampler_lib.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
+#include "gpu_shader_compositor_sampleRect.glsl"
+
+float2 dx(sampler2D image, int2 texel) {
+  return (texture_load(image, texel + int2(1,0)).xy - texture_load(image, texel - int2(1,0)).xy) / 2;
+}
+
+float2 dy(sampler2D image, int2 texel) {
+  return (texture_load(image, texel + int2(0,1)).xy - texture_load(image, texel - int2(0,1)).xy) / 2;
+}
 
 void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
   int2 input_size = texture_size(input_tx);
 
-  /* Add 0.5 to evaluate the input sampler at the center of the pixel and divide by the image size
-   * to get the coordinates into the sampler's expected [0, 1] range. */
-  float2 coordinates = (float2(texel) + float2(0.5f)) / float2(input_size);
-
-  /* Note that the input displacement is in pixel space, so divide by the input size to transform
-   * it into the normalized sampler space. */
   float2 scale = float2(texture_load(x_scale_tx, texel).x, texture_load(y_scale_tx, texel).x);
-  float2 displacement = texture_load(displacement_tx, texel).xy * scale / float2(input_size);
-  float2 displaced_coordinates = coordinates - displacement;
+  float2 uv = float2(texel) - texture_load(displacement_tx, texel).xy * scale;
 
-  imageStore(output_img, texel, SAMPLER_FUNCTION(input_tx, displaced_coordinates));
+  // derivative of scale is ignored, assumed to be close to zero
+  float2 wh = clamp(hypot2(
+                      float2(1,0) - dx(displacement_tx, texel) * scale,
+                      float2(0,1) - dy(displacement_tx, texel) * scale
+                    ), 1.0f, 63.0f);
+
+  imageStore(output_img, texel, sampleRect(uv, wh));
 }

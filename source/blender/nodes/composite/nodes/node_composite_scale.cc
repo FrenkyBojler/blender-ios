@@ -144,16 +144,10 @@ class ScaleOperation : public NodeOperation {
     GPU_shader_bind(shader);
 
     Result &input = get_input("Image");
-    /* The texture sampler should use bilinear interpolation for both the bilinear and bicubic
-     * cases, as the logic used by the bicubic realization shader expects textures to use bilinear
-     * interpolation. */
-    const Interpolation interpolation = this->get_interpolation();
     const ExtensionMode extension_mode_x = this->get_extension_mode_x();
     const ExtensionMode extension_mode_y = this->get_extension_mode_y();
 
-    /* For now the EWA sampling falls back to bicubic interpolation. */
-    const bool use_bilinear = ELEM(interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
-    GPU_texture_filter_mode(input, use_bilinear);
+    GPU_texture_filter_mode(input, false);
     GPU_texture_extend_mode_x(input, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input, map_extension_mode_to_extend_mode(extension_mode_y));
     input.bind_as_texture(shader, "input_tx");
@@ -209,10 +203,14 @@ class ScaleOperation : public NodeOperation {
 
   const char *get_shader_name() const
   {
-    if (this->get_interpolation() == Interpolation::Bicubic) {
-      return "compositor_scale_variable_bicubic";
+    switch (this->get_interpolation()) {
+    case Interpolation::Nearest:
+      return "compositor_scale_variable_nearest";
+    case Interpolation::Bicubic:
+      return "compositor_scale_variable_bspline";
+    default:
+      return "compositor_scale_variable_box";
     }
-    return "compositor_scale_variable";
   }
 
   Interpolation get_interpolation() const

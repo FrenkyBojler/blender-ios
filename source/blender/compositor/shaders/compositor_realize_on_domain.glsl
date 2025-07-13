@@ -2,24 +2,24 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "gpu_shader_bicubic_sampler_lib.glsl"
-#include "gpu_shader_compositor_texture_utilities.glsl"
+#include "gpu_shader_compositor_sampleRect.glsl"
 
 void main()
 {
   int2 texel = int2(gl_GlobalInvocationID.xy);
 
-  /* Add 0.5 to evaluate the input sampler at the center of the pixel. */
-  float2 coordinates = float2(texel) + float2(0.5f);
+  // Calculate derivatives of coordinates
+  float2 dPdx = inverse_transformation[0].xy;
+  float2 dPdy = inverse_transformation[1].xy;
+  // convert to rectangle (todo: this is constant)
+  float2 wh = clamp(hypot2(dPdx, dPdy), 1.0f, 63.0f);
 
   /* Transform the input image by transforming the domain coordinates with the inverse of input
    * image's transformation. The inverse transformation is an affine matrix and thus the
-   * coordinates should be in homogeneous coordinates. */
-  coordinates = (to_float3x3(inverse_transformation) * float3(coordinates, 1.0f)).xy;
+   * coordinates should be in homogeneous coordinates.
+   * Include adjustment because matrix is between pixel corners, not pixel centers.
+  */
+  float2 uv = (to_float3x3(inverse_transformation) * float3(float2(texel) + 0.5f, 1.0f)).xy - 0.5f;
 
-  /* Subtract the offset and divide by the input image size to get the relevant coordinates into
-   * the sampler's expected [0, 1] range. */
-  float2 normalized_coordinates = coordinates / float2(texture_size(input_tx));
-
-  imageStore(domain_img, texel, SAMPLER_FUNCTION(input_tx, normalized_coordinates));
+  imageStore(domain_img, texel, sampleRect(uv, wh));
 }

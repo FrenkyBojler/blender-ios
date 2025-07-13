@@ -116,9 +116,7 @@ class DisplaceOperation : public NodeOperation {
       GPU_texture_mipmap_mode(input_image, true, true);
     }
     else {
-      const bool use_bilinear = ELEM(
-          interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
-      GPU_texture_filter_mode(input_image, use_bilinear);
+      GPU_texture_filter_mode(input_image, false);
     }
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_y));
@@ -290,10 +288,11 @@ class DisplaceOperation : public NodeOperation {
       case Interpolation::Anisotropic:
         return "compositor_displace_anisotropic";
       case Interpolation::Bicubic:
-        return "compositor_displace_bicubic";
-      case Interpolation::Bilinear:
+        return "compositor_displace_bspline";
       case Interpolation::Nearest:
-        return "compositor_displace";
+        return "compositor_displace_nearest";
+      default:
+        return "compositor_displace_box";
     }
 
     return "compositor_displace";

@@ -164,9 +164,8 @@ class CornerPinOperation : public NodeOperation {
     const ExtensionMode extension_mode_x = this->get_extension_mode_x();
     const ExtensionMode extension_mode_y = this->get_extension_mode_y();
 
-    const bool use_bilinear = ELEM(interpolation, Interpolation::Bicubic, Interpolation::Bilinear);
     const bool use_anisotropic = interpolation == Interpolation::Anisotropic;
-    GPU_texture_filter_mode(input_image, use_bilinear);
+    GPU_texture_filter_mode(input_image, false); // sampleRect always uses nearest
     GPU_texture_anisotropic_filter(input_image, use_anisotropic);
     GPU_texture_extend_mode_x(input_image, map_extension_mode_to_extend_mode(extension_mode_x));
     GPU_texture_extend_mode_y(input_image, map_extension_mode_to_extend_mode(extension_mode_y));
@@ -399,10 +398,11 @@ class CornerPinOperation : public NodeOperation {
     if (this->should_compute_mask()) {
       switch (this->get_interpolation()) {
         case Interpolation::Nearest:
+          return "compositor_plane_deform_nearest_masked"; // this should not be needed
         case Interpolation::Bilinear:
-          return "compositor_plane_deform_masked";
+          return "compositor_plane_deform_box_masked";
         case Interpolation::Bicubic:
-          return "compositor_plane_deform_bicubic_masked";
+          return "compositor_plane_deform_bspline_masked";
         case Interpolation::Anisotropic:
           return "compositor_plane_deform_anisotropic_masked";
       }
@@ -410,8 +410,9 @@ class CornerPinOperation : public NodeOperation {
 
     switch (this->get_interpolation()) {
       case Interpolation::Nearest:
+        return "compositor_plane_deform_nearest";
       case Interpolation::Bilinear:
-        return "compositor_plane_deform";
+        return "compositor_plane_deform_box";
       case Interpolation::Bicubic:
         return "compositor_plane_deform_bicubic";
       /* Anisotropic does not implement extension modes. Return masked shader. */

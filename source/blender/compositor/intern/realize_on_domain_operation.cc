@@ -95,10 +95,8 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
    * interpolation. */
   Result &input = this->get_input();
   const RealizationOptions realization_options = input.get_realization_options();
-  const bool use_bilinear = ELEM(
-      realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
-  GPU_texture_filter_mode(input, use_bilinear);
-  GPU_texture_anisotropic_filter(input, false);
+  GPU_texture_filter_mode(input, false); // false=nearest, true=bilinear
+  //GPU_texture_anisotropic_filter(input, false);
 
   GPU_texture_extend_mode_x(input,
                             map_extension_mode_to_extend_mode(realization_options.extension_x));
@@ -121,51 +119,47 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
 
 const char *RealizeOnDomainOperation::get_realization_shader_name()
 {
-  if (this->get_input().get_realization_options().interpolation == Interpolation::Bicubic) {
-    switch (this->get_input().type()) {
-      case ResultType::Float:
-        return "compositor_realize_on_domain_bicubic_float";
-      case ResultType::Color:
-      case ResultType::Float3:
-      case ResultType::Float4:
-        return "compositor_realize_on_domain_bicubic_float4";
-      case ResultType::Float2:
-        return "compositor_realize_on_domain_bicubic_float2";
-      case ResultType::Int:
-      case ResultType::Int2:
-      case ResultType::Bool:
-      case ResultType::Menu:
-        /* Not supported. */
-      case ResultType::String:
-        /* Single only types do not support GPU code path. */
-        BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
-        BLI_assert_unreachable();
-        break;
-    }
+  switch (this->get_input().type()) {
+    case ResultType::Float:
+      switch (this->get_input().get_realization_options().interpolation) {
+        case Interpolation::Nearest:
+          return "compositor_realize_on_domain_nearest_float";
+        case Interpolation::Bicubic:
+          return "compositor_realize_on_domain_bspline_float";
+        default:
+          return "compositor_realize_on_domain_box_float";
+      }
+    case ResultType::Color:
+    case ResultType::Float3:
+    case ResultType::Float4:
+      switch (this->get_input().get_realization_options().interpolation) {
+        case Interpolation::Nearest:
+          return "compositor_realize_on_domain_nearest_float4";
+        case Interpolation::Bicubic:
+          return "compositor_realize_on_domain_bspline_float4";
+        default:
+          return "compositor_realize_on_domain_box_float4";
+      }
+    case ResultType::Float2:
+      switch (this->get_input().get_realization_options().interpolation) {
+        case Interpolation::Nearest:
+          return "compositor_realize_on_domain_nearest_float2";
+        case Interpolation::Bicubic:
+          return "compositor_realize_on_domain_bspline_float2";
+        default:
+          return "compositor_realize_on_domain_box_float2";
+      }
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Bool:
+    case ResultType::Menu:
+      /* Not supported. */
+    case ResultType::String:
+      /* Single only types do not support GPU code path. */
+      BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
+      BLI_assert_unreachable();
+      break;
   }
-  else {
-    switch (this->get_input().type()) {
-      case ResultType::Float:
-        return "compositor_realize_on_domain_float";
-      case ResultType::Color:
-      case ResultType::Float3:
-      case ResultType::Float4:
-        return "compositor_realize_on_domain_float4";
-      case ResultType::Float2:
-        return "compositor_realize_on_domain_float2";
-      case ResultType::Int:
-      case ResultType::Int2:
-      case ResultType::Bool:
-      case ResultType::Menu:
-        /* Not supported. */
-      case ResultType::String:
-        /* Single only types do not support GPU code path. */
-        BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
-        BLI_assert_unreachable();
-        break;
-    }
-  }
-
   BLI_assert_unreachable();
   return nullptr;
 }

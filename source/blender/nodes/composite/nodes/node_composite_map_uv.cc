@@ -111,9 +111,7 @@ class MapUVOperation : public NodeOperation {
       GPU_texture_mipmap_mode(input_image, true, true);
     }
     else {
-      const bool use_bilinear = ELEM(
-          interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
-      GPU_texture_filter_mode(input_image, use_bilinear);
+      GPU_texture_filter_mode(input_image, false);
     }
 
     GPU_texture_extend_mode_x(input_image,
@@ -145,10 +143,11 @@ class MapUVOperation : public NodeOperation {
       case Interpolation::Anisotropic:
         return "compositor_map_uv_anisotropic";
       case Interpolation::Bicubic:
-        return "compositor_map_uv_bicubic";
-      case Interpolation::Bilinear:
+        return "compositor_map_uv_bspline";
       case Interpolation::Nearest:
-        return "compositor_map_uv";
+        return "compositor_map_uv_nearest";
+      default:
+        return "compositor_map_uv_box";
     }
 
     return "compositor_map_uv";

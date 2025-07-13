@@ -4,7 +4,7 @@
 
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(compositor_scale_variable_shared)
+GPU_SHADER_CREATE_INFO(compositor_scale_variable)
 LOCAL_GROUP_SIZE(16, 16)
 SAMPLER(0, sampler2D, input_tx)
 SAMPLER(1, sampler2D, x_scale_tx)
@@ -13,14 +13,20 @@ IMAGE(0, SFLOAT_16_16_16_16, write, image2D, output_img)
 COMPUTE_SOURCE("compositor_scale_variable.glsl")
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(compositor_scale_variable)
-ADDITIONAL_INFO(compositor_scale_variable_shared)
-DEFINE_VALUE("SAMPLER_FUNCTION", "texture")
+GPU_SHADER_CREATE_INFO(compositor_scale_variable_nearest)
+ADDITIONAL_INFO(compositor_scale_variable)
+DEFINE_VALUE("SAMPLER_NEAREST", "1")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
 
-GPU_SHADER_CREATE_INFO(compositor_scale_variable_bicubic)
-ADDITIONAL_INFO(compositor_scale_variable_shared)
-DEFINE_VALUE("SAMPLER_FUNCTION", "texture_bicubic")
+GPU_SHADER_CREATE_INFO(compositor_scale_variable_box)
+ADDITIONAL_INFO(compositor_scale_variable)
+DEFINE_VALUE("SAMPLER_BOX", "1")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_scale_variable_bspline)
+ADDITIONAL_INFO(compositor_scale_variable)
+DEFINE_VALUE("SAMPLER_BSPLINE", "1")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
