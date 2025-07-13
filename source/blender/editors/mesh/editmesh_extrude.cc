@@ -664,7 +664,30 @@ static wmOperatorStatus edbm_extrude_edges_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_extrude_edges_indiv(em, op, BM_ELEM_SELECT, use_normal_flip);
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit);
+
+    char hflag = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag);
+
+      BMIter e_iter;
+      BMEdge *e;
+      BM_ITER_MESH (e, &e_iter, em->bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(e, hflag);
+          symmetry_helper->set_flag_on_mirror_edges(e, hflag, true);
+        }
+      }
+    }
+
+    edbm_extrude_edges_indiv(em, op, hflag, use_normal_flip);
+
+    if (hflag != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag);
+    }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
