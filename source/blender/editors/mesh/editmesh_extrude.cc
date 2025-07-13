@@ -582,7 +582,7 @@ static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
 {
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
-  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+  const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
       scene, view_layer, CTX_wm_view3d(C));
 
   for (Object *obedit : objects) {
@@ -591,7 +591,30 @@ static wmOperatorStatus edbm_extrude_verts_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_extrude_verts_indiv(em, op, BM_ELEM_SELECT);
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit);
+
+    char hflag = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag);
+
+      BMIter v_iter;
+      BMVert *v;
+      BM_ITER_MESH (v, &v_iter, em->bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(v, hflag);
+          symmetry_helper->set_flag_on_mirror_verts(v, hflag, true);
+        }
+      }
+    }
+
+    edbm_extrude_verts_indiv(em, op, hflag);
+
+    if (hflag != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag);
+    }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
