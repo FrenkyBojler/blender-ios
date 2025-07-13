@@ -1803,34 +1803,29 @@ void add_segments(const int curve_k,
                   MutableSpan<IndexRange> all_segments_by_curve)
 {
   const IndexRange points_k = points_by_curve[curve_k];
-  const Span<int> other_inter = inters_per_curves[curve_k];
-  const Span<int> self_inter = {};
+  const Span<int> inters = inters_per_curves[curve_k];
 
   const int start_size = all_segments.size();
 
-  if (other_inter.size() == 0 && self_inter.size() == 0) {
+  if (inters.size() == 0) {
     all_segments.append(Segment_2::from_curve(curve_k, points_k, cyclic[curve_k]));
     all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 
     return;
   }
 
-  Array<int> new_inters(other_inter.size() + self_inter.size());
-  new_inters.as_mutable_span().take_back(other_inter.size()).copy_from(other_inter);
-  new_inters.as_mutable_span().take_front(self_inter.size()).copy_from(self_inter);
-
-  Array<int> inter_sorted_ids = Array<int>(new_inters.size());
+  Array<int> inter_sorted_ids = Array<int>(inters.size());
   array_utils::fill_index_range<int>(inter_sorted_ids);
 
   parallel_sort(inter_sorted_ids.begin(), inter_sorted_ids.end(), [&](int i1, int i2) {
-    const IntersectionPoint &inter1 = intersections[new_inters[i1]];
-    const IntersectionPoint &inter2 = intersections[new_inters[i2]];
+    const IntersectionPoint &inter1 = intersections[inters[i1]];
+    const IntersectionPoint &inter2 = intersections[inters[i2]];
     return inter1.parameter_for_curve(curve_k) < inter2.parameter_for_curve(curve_k);
   });
 
   if (cyclic[curve_k]) {
-    const int int_p_1 = new_inters[inter_sorted_ids.first()];
-    const int int_p_2 = new_inters[inter_sorted_ids.last()];
+    const int int_p_1 = inters[inter_sorted_ids.first()];
+    const int int_p_2 = inters[inter_sorted_ids.last()];
 
     const IntersectionPoint &inter_first = intersections[int_p_1];
     const IntersectionPoint &inter_last = intersections[int_p_2];
@@ -1843,7 +1838,7 @@ void add_segments(const int curve_k,
                                                       int_p_1));
   }
   else {
-    const int int_p_1 = new_inters[inter_sorted_ids.first()];
+    const int int_p_1 = inters[inter_sorted_ids.first()];
     const IntersectionPoint &inter_first = intersections[int_p_1];
 
     all_segments.append(Segment_2::from_intersections(curve_k,
@@ -1855,8 +1850,8 @@ void add_segments(const int curve_k,
   }
 
   for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
-    const int int_p_1 = new_inters[inter_sorted_ids[inter_id]];
-    const int int_p_2 = new_inters[inter_sorted_ids[inter_id + 1]];
+    const int int_p_1 = inters[inter_sorted_ids[inter_id]];
+    const int int_p_2 = inters[inter_sorted_ids[inter_id + 1]];
 
     const IntersectionPoint &inter_first = intersections[int_p_1];
     const IntersectionPoint &inter_last = intersections[int_p_2];
@@ -1870,7 +1865,7 @@ void add_segments(const int curve_k,
   }
 
   if (!(cyclic[curve_k])) {
-    const int int_p_2 = new_inters[inter_sorted_ids.last()];
+    const int int_p_2 = inters[inter_sorted_ids.last()];
     const IntersectionPoint &inter_last = intersections[int_p_2];
 
     all_segments.append(Segment_2::from_intersections(curve_k,
