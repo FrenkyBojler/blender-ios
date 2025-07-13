@@ -37,12 +37,13 @@ namespace blender::ed::transform {
 static void transdata_elem_shrink_fatten(const TransInfo *t,
                                          const TransDataContainer * /*tc*/,
                                          TransData *td,
+                                         TransDataExtension *td_ext,
                                          const float distance)
 {
   /* Get the final offset. */
   float tdistance = distance * td->factor;
-  if (td->ext && (t->flag & T_ALT_TRANSFORM) != 0) {
-    tdistance *= td->ext->isize[0]; /* Shell factor. */
+  if (td_ext && (t->flag & T_ALT_TRANSFORM) != 0) {
+    tdistance *= td_ext->iscale[0]; /* Shell factor. */
   }
 
   madd_v3_v3v3fl(td->loc, td->iloc, td->axismtx[2], tdistance);
@@ -118,10 +119,11 @@ static void applyShrinkFatten(TransInfo *t)
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
+        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
-        transdata_elem_shrink_fatten(t, tc, td, distance);
+        transdata_elem_shrink_fatten(t, tc, td, td_ext, distance);
       }
     });
   }
@@ -144,10 +146,10 @@ static void initShrinkFatten(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 0;
   t->num.idx_max = 0;
-  t->snap[0] = 1.0f;
-  t->snap[1] = t->snap[0] * 0.1f;
+  t->increment[0] = 1.0f;
+  t->increment_precision = 0.1f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_LENGTH;
 

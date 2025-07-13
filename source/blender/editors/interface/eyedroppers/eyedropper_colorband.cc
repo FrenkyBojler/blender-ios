@@ -29,8 +29,6 @@
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -191,7 +189,9 @@ static void eyedropper_colorband_cancel(bContext *C, wmOperator *op)
 }
 
 /* main modal status check */
-static int eyedropper_colorband_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_colorband_modal(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent *event)
 {
   EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
   /* handle modal keymap */
@@ -228,7 +228,9 @@ static int eyedropper_colorband_modal(bContext *C, wmOperator *op, const wmEvent
   return OPERATOR_RUNNING_MODAL;
 }
 
-static int eyedropper_colorband_point_modal(bContext *C, wmOperator *op, const wmEvent *event)
+static wmOperatorStatus eyedropper_colorband_point_modal(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
 {
   EyedropperColorband *eye = static_cast<EyedropperColorband *>(op->customdata);
   /* handle modal keymap */
@@ -268,7 +270,9 @@ static int eyedropper_colorband_point_modal(bContext *C, wmOperator *op, const w
 }
 
 /* Modal Operator init */
-static int eyedropper_colorband_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
+static wmOperatorStatus eyedropper_colorband_invoke(bContext *C,
+                                                    wmOperator *op,
+                                                    const wmEvent * /*event*/)
 {
   /* init */
   if (eyedropper_colorband_init(C, op)) {
@@ -286,7 +290,7 @@ static int eyedropper_colorband_invoke(bContext *C, wmOperator *op, const wmEven
 }
 
 /* Repeat operator */
-static int eyedropper_colorband_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus eyedropper_colorband_exec(bContext *C, wmOperator *op)
 {
   /* init */
   if (eyedropper_colorband_init(C, op)) {
@@ -321,7 +325,7 @@ void UI_OT_eyedropper_colorramp(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_colorramp";
   ot->description = "Sample a color band";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_colorband_invoke;
   ot->modal = eyedropper_colorband_modal;
   ot->cancel = eyedropper_colorband_cancel;
@@ -341,7 +345,7 @@ void UI_OT_eyedropper_colorramp_point(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_colorramp_point";
   ot->description = "Point-sample a color band";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = eyedropper_colorband_invoke;
   ot->modal = eyedropper_colorband_point_modal;
   ot->cancel = eyedropper_colorband_cancel;
