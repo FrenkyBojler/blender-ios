@@ -4,3 +4,4 @@ Referenced by issue #141639, Intersect (Boolean) operator has no option for mani
 Referenced by issue #141656, Alt + Left Click tooltip shows action that doesn't work
 Referenced by issue #141727, "Show Overlays" toggle does not update the viewport mesh visibility with retopology overlay enabled
 Referenced by issue #141728, Camera Frustum Triangle Obscures View — Suggest Transparency Option
+Referenced by issue #141858, Sculpting: The point representing the vertex moves and updates in an unexpected way with subdivision enabled
