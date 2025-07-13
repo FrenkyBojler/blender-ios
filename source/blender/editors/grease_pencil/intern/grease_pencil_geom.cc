@@ -2146,17 +2146,14 @@ bke::CurvesGeometry trim_curve_segments_2(
   const VArray<bool> is_cyclic = src.cyclic();
 
   Vector<IntersectionPoint> intersections;
-  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
+  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
+  Vector<Segment_2> all_segments;
 
+  /* -------------------- */
+
+  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
   find_intersections_between_shapes(
       screen_space_positions, src_points_by_curve, is_cyclic, inters_per_curves, intersections);
-
-  /* -------------------- */
-
-  Vector<Segment_2> all_segments;
-  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
-
-  /* -------------------- */
 
   for (const int curve_i : src_points_by_curve.index_range()) {
     add_segments(curve_i,
@@ -2168,15 +2165,14 @@ bke::CurvesGeometry trim_curve_segments_2(
                  segments_by_curve);
   }
 
-  if (all_segments.is_empty()) {
-    return bke::CurvesGeometry();
-  }
+  /* -------------------- */
 
   Array<bool> segments_to_keep(all_segments.size(), false);
-
   for (const int segment_i : segments_to_keep.index_range()) {
     segments_to_keep[segment_i] = true;
   }
+
+  /* -------------------- */
 
   Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
   create_connections_from_curves(
@@ -2185,17 +2181,19 @@ bke::CurvesGeometry trim_curve_segments_2(
   Vector<Segment_2> segments;
   Vector<int> segment_offset_data;
   follow_segment_connections(all_segments, segment_connections, segments, segment_offset_data);
-
-  const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
-
   Array<bool> segment_reversed(segments.size());
-  calculate_segment_directions(segments, segment_offsets, segment_reversed.as_mutable_span());
-
+  const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
   Array<bool> cyclic(segment_offsets.size());
+
+  /* -------------------- */
+
+  calculate_segment_directions(segments, segment_offsets, segment_reversed.as_mutable_span());
   calculate_cyclical_curves(segments, segment_offsets, segment_reversed, cyclic.as_mutable_span());
 
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets);
+
+  /* -------------------- */
 
   if (!keep_caps) {
     cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
