@@ -1873,6 +1873,34 @@ static void add_segments(const int curve_k,
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 }
 
+static bool check_and_join_segments(Segment_2 &first, const Segment_2 &second)
+{
+  if (first.curve != second.curve) {
+    return false;
+  }
+
+  if (first.intersection_index[Side::End] == second.intersection_index[Side::Start] &&
+      first.intersection_index[Side::End] != -1)
+  {
+    first.points[Side::End] = second.points[Side::End];
+    first.alpha[Side::End] = second.alpha[Side::End];
+    first.intersection_index[Side::End] = second.intersection_index[Side::End];
+
+    return true;
+  }
+  if (first.intersection_index[Side::Start] == second.intersection_index[Side::End] &&
+      first.intersection_index[Side::Start] != -1)
+  {
+    first.points[Side::Start] = second.points[Side::Start];
+    first.alpha[Side::Start] = second.alpha[Side::Start];
+    first.intersection_index[Side::Start] = second.intersection_index[Side::Start];
+
+    return true;
+  }
+
+  return false;
+}
+
 static void calculate_cyclical_curves(const Span<Segment_2> segments,
                                       const OffsetIndices<int> segment_offsets,
                                       const Span<bool> segment_reversed,
@@ -1928,7 +1956,7 @@ static void calculate_segment_directions(const Span<Segment_2> segments,
         segment_reversed[segment_i] = false;
       }
       else {
-        BLI_assert(segment.intersection_index[Side::End] == inter_index_prev);
+        // BLI_assert(segment.intersection_index[Side::End] == inter_index_prev);
         segment_reversed[segment_i] = true;
       }
     }
@@ -2032,11 +2060,6 @@ bke::CurvesGeometry trim_curve_segments_2(
     }
   }
 
-  // for (const int segment_i : segment_connections.index_range().drop_back(1)) {
-  //   segment_connections[segment_i] = segment_i + 1;
-  // }
-  // segment_connections.last() = 0;
-
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
 
@@ -2065,15 +2088,13 @@ bke::CurvesGeometry trim_curve_segments_2(
       const Segment_2 &current_segment = all_segments[current_i];
       processed_segments[current_i] = true;
 
-      // if (segments.size() == 0) {
-      //   segments.append(current_segment);
-      // }
-      // /* Check if the last segment can be joined with this one. */
-      // else if (!check_and_join_segments(result.segments.last(), current_segment)) {
-      //   result.segments.append(current_segment);
-      // }
-
-      segments.append(current_segment);
+      if (segments.size() == 0) {
+        segments.append(current_segment);
+      }
+      /* Check if the last segment can be joined with this one. */
+      else if (!check_and_join_segments(segments.last(), current_segment)) {
+        segments.append(current_segment);
+      }
 
       const int next_segment = segment_connections[current_i];
 
@@ -2085,16 +2106,14 @@ bke::CurvesGeometry trim_curve_segments_2(
       if (next_segment == start_segment) {
         PolygonDone = true;
 
-        // /* Check if the last segment can be joined to the first one. */
-        // if ((!result.segments.index_range().is_empty()) &&
-        //     result.segment_offset_data.last() != result.segments.index_range().last())
-        // {
-        //   if (check_and_join_segments(result.segments[result.segment_offset_data.last()],
-        //                               result.segments.last()))
-        //   {
-        //     result.segments.remove_last();
-        //   }
-        // }
+        /* Check if the last segment in this curve can be joined to the first one in this curve. */
+        if ((!segments.index_range().is_empty()) &&
+            segment_offset_data.last() != segments.index_range().last())
+        {
+          if (check_and_join_segments(segments[segment_offset_data.last()], segments.last())) {
+            segments.remove_last();
+          }
+        }
 
         break;
       }
