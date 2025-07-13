@@ -42,7 +42,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
@@ -82,7 +81,7 @@ Array<float> duplicate_mask(const Object &object)
         result.fill(0.0f);
       }
       else {
-        BM_mesh_elem_table_ensure(&bm, BM_VERT);
+        vert_random_access_ensure(const_cast<Object &>(object));
         for (const int i : result.index_range()) {
           result[i] = BM_ELEM_CD_GET_FLOAT(BM_vert_at_index(&bm, i), offset);
         }
@@ -178,7 +177,7 @@ void average_neighbor_mask_bmesh(const int mask_offset,
                                  const Set<BMVert *, 0> &verts,
                                  const MutableSpan<float> new_masks)
 {
-  Vector<BMVert *, 64> neighbors;
+  BMeshNeighborVerts neighbors;
   int i = 0;
   for (BMVert *vert : verts) {
     new_masks[i] = average_masks(mask_offset, vert_neighbors_get_bmesh(*vert, neighbors));
@@ -649,7 +648,7 @@ static void invert_mask(Main &bmain, const Scene &scene, Depsgraph &depsgraph, O
   }
 }
 
-static int mask_flood_fill_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus mask_flood_fill_exec(bContext *C, wmOperator *op)
 {
   Main &bmain = *CTX_data_main(C);
   const Scene &scene = *CTX_data_scene(C);
@@ -883,7 +882,7 @@ static void gesture_operator_properties(wmOperatorType *ot)
       1.0f);
 }
 
-static int gesture_box_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_box_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_box(C, op);
   if (!gesture_data) {
@@ -894,7 +893,7 @@ static int gesture_box_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_lasso_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_lasso_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_lasso(C, op);
   if (!gesture_data) {
@@ -905,7 +904,7 @@ static int gesture_lasso_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_line_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_line_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_line(C, op);
   if (!gesture_data) {
@@ -916,7 +915,7 @@ static int gesture_line_exec(bContext *C, wmOperator *op)
   return OPERATOR_FINISHED;
 }
 
-static int gesture_polyline_exec(bContext *C, wmOperator *op)
+static wmOperatorStatus gesture_polyline_exec(bContext *C, wmOperator *op)
 {
   std::unique_ptr<gesture::GestureData> gesture_data = gesture::init_from_polyline(C, op);
   if (!gesture_data) {
