@@ -2,8 +2,18 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "gpu_shader_common_hash.glsl"
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
+
+int get_position(int seed, int number_of_steps)
+{
+#if defined(JITTER)
+  return int((seed + hash_uint3_to_float(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, seed)) / sqrt(number_of_steps) * number_of_steps);
+#else
+  return seed;
+#endif
+}
 
 void main()
 {
@@ -26,8 +36,16 @@ void main()
 
   float accumulated_weight = 0.0f;
   float4 accumulated_color = float4(0.0f);
-  for (int i = 0; i <= steps; i++) {
-    float2 position = coordinates + i * step_vector;
+
+  #if defined(JITTER)
+    int number_of_steps = int(sqrt(steps));
+  #else
+    int number_of_steps =  steps;
+  #endif
+  
+  for (int i = 0; i <= number_of_steps; i++) {
+    int position_index = get_position(i, steps);
+    float2 position = coordinates + position_index * step_vector;
 
     /* We are already past the image boundaries, and any future steps are also past the image
      * boundaries, so break. */
@@ -39,7 +57,7 @@ void main()
 
     /* Attenuate the contributions of pixels that are further away from the source using a
      * quadratic falloff. */
-    float weight = square(1.0f - i / float(steps));
+    float weight = square(1.0f - position_index / float(steps));
 
     accumulated_weight += weight;
     accumulated_color += sample_color * weight;

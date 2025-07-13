@@ -171,17 +171,10 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
-  PanelDeclarationBuilder &supress_glare_panel =
-      glare_panel.add_panel("Optimization").default_closed(true);
-  supress_glare_panel.add_input<decl::Bool>("Optimize", "Optimize Glare")
+  glare_panel.add_input<decl::Bool>("Jitter", "Sun beams jitter")
       .default_value(false)
       .panel_toggle()
       .description("Utalizing Monte Carlo Simulation For Optimization");
-  supress_glare_panel.add_input<decl::Int>("Maximum", "Maximum Simulation Steps")
-      .default_value(1000)
-      .min(0)
-      .description(
-          "Number of steps used to approximate the integration using monte carlo simulation");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -2260,13 +2253,11 @@ class GlareOperation : public NodeOperation {
 
   Result execute_sun_beams_gpu(Result &highlights, const int max_steps)
   {
-    GPUShader *shader = context().get_shader("compositor_sun_beams");
+    GPUShader *shader = context().get_shader(get_compositor_sun_beams_shader());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
     GPU_shader_uniform_1i(shader, "max_steps", max_steps);
-    GPU_shader_uniform_1i(shader, "max_simulation_steps", get_maximum_simulation_steps());
-    GPU_shader_uniform_1b(shader, "optimization_flag", get_optimization_glare());
 
     GPU_texture_filter_mode(highlights, true);
     GPU_texture_extend_mode(highlights, GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
@@ -2283,6 +2274,14 @@ class GlareOperation : public NodeOperation {
     output_image.unbind_as_image();
     highlights.unbind_as_texture();
     return output_image;
+  }
+
+  const char *get_compositor_sun_beams_shader()
+  {
+    if (get_use_jitter()) {
+      return "compositor_sun_beams_jitter";
+    }
+    return "compositor_sun_beams";
   }
 
   Result execute_sun_beams_cpu(Result &highlights, const int max_steps)
@@ -2312,12 +2311,10 @@ class GlareOperation : public NodeOperation {
       float accumulated_weight = 0.0f;
       float4 accumulated_color = float4(0.0f);
 
-      int number_of_steps = get_optimization_glare() == 0.0f ? steps :
-                                                               get_maximum_simulation_steps();
-      int position_variable = 0;
+      int number_of_steps = this->get_use_jitter() ? math::sqrt(steps) : steps;
       for (int i = 0; i <= number_of_steps; i++) {
-        position_variable = get_position_variable(i, get_optimization_glare(), steps);
-        float2 position = coordinates + position_variable * step_vector;
+        int position_index = this->get_position(texel, i, this->get_use_jitter(), steps);
+        float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, and any future steps are also past the image
          * boundaries, so break. */
@@ -2329,7 +2326,7 @@ class GlareOperation : public NodeOperation {
 
         /* Attenuate the contributions of pixels that are further away from the source using a
          * quadratic falloff. */
-        float weight = math::square(1.0f - position_variable / float(steps));
+        float weight = math::square(1.0f - position_index / float(steps));
 
         accumulated_weight += weight;
         accumulated_color += sample_color * weight;
@@ -2340,13 +2337,14 @@ class GlareOperation : public NodeOperation {
     });
     return output;
   }
-
-  static int get_position_variable(const int seed,
-                                   const bool use_optimization,
-                                   const int number_of_steps)
+  int get_position(const int2 texel,
+                   const int seed,
+                   const bool use_jitter,
+                   const int number_of_steps)
   {
-    if (use_optimization) {
-      return noise::hash_to_float(seed) * number_of_steps;
+    if (use_jitter) {
+      return (seed + noise::hash_to_float(texel.x, texel.y, seed)) / math::sqrt(number_of_steps) *
+             number_of_steps;
     }
     return seed;
   }
@@ -2592,14 +2590,9 @@ class GlareOperation : public NodeOperation {
     return 1 << node_storage(bnode()).quality;
   }
 
-  bool get_optimization_glare()
+  bool get_use_jitter()
   {
-    return this->get_input("Optimize Glare").get_single_value_default(false);
-  }
-
-  int get_maximum_simulation_steps()
-  {
-    return this->get_input("Maximum Simulation Steps").get_single_value_default(1000);
+    return this->get_input("Sun beams jitter").get_single_value_default(false);
   }
 };
 

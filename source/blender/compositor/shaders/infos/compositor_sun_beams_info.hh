@@ -4,12 +4,23 @@
 
 #include "gpu_shader_create_info.hh"
 
-GPU_SHADER_CREATE_INFO(compositor_sun_beams)
+GPU_SHADER_CREATE_INFO(compositor_sun_beams_shared)
 LOCAL_GROUP_SIZE(16, 16)
 PUSH_CONSTANT(float2, source)
 PUSH_CONSTANT(int, max_steps)
 SAMPLER(0, sampler2D, input_tx)
 IMAGE(0, GPU_RGBA16F, write, image2D, output_img)
 COMPUTE_SOURCE("compositor_sun_beams.glsl")
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_sun_beams)
+ADDITIONAL_INFO(compositor_sun_beams_shared)
+DO_STATIC_COMPILATION()
+GPU_SHADER_CREATE_END()
+
+GPU_SHADER_CREATE_INFO(compositor_sun_beams_jitter)
+ADDITIONAL_INFO(compositor_sun_beams_shared)
+DEFINE("JITTER")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
