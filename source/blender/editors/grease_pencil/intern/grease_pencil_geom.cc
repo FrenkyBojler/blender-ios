@@ -2058,61 +2058,16 @@ static void create_connections_from_curves(const Span<IndexRange> segments_by_cu
   }
 }
 
-bke::CurvesGeometry trim_curve_segments_2(
-    const bke::CurvesGeometry &src,
-    const Span<float2> screen_space_positions,
-    const Span<rcti> /*screen_space_curve_bounds*/,
-    const IndexMask & /*curve_selection*/,
-    const Vector<Vector<int>> & /*selected_points_in_curves*/,
-    const bool keep_caps)
+static void follow_segment_connections(const Span<Segment_2> all_segments,
+                                       const Span<int> segment_connections,
+                                       Vector<Segment_2> &segments,
+                                       Vector<int> &segment_offset_data)
 {
-  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
-  const VArray<bool> is_cyclic = src.cyclic();
-
-  Vector<IntersectionPoint> intersections;
-  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
-
-  find_intersections_between_shapes(
-      screen_space_positions, src_points_by_curve, is_cyclic, inters_per_curves, intersections);
-
-  /* -------------------- */
-
-  Vector<Segment_2> all_segments;
-  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
-
-  /* -------------------- */
-
-  for (const int curve_i : src_points_by_curve.index_range()) {
-    add_segments(curve_i,
-                 inters_per_curves,
-                 src_points_by_curve,
-                 intersections,
-                 is_cyclic,
-                 all_segments,
-                 segments_by_curve);
-  }
-
-  if (all_segments.is_empty()) {
-    return bke::CurvesGeometry();
-  }
-
-  Array<bool> segments_to_keep(all_segments.size(), false);
-
-  for (const int segment_i : segments_to_keep.index_range()) {
-    segments_to_keep[segment_i] = true;
-  }
-
-  Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
-  create_connections_from_curves(
-      segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
 
   int start_segment = processed_segments.as_span().first_index_try(false);
-
-  Vector<Segment_2> segments;
-  Vector<int> segment_offset_data;
 
   segment_offset_data.append(0);
 
@@ -2179,6 +2134,59 @@ bke::CurvesGeometry trim_curve_segments_2(
     /* Get the next unprocessed segment. */
     start_segment = processed_segments.as_span().first_index_try(false);
   }
+}
+
+bke::CurvesGeometry trim_curve_segments_2(
+    const bke::CurvesGeometry &src,
+    const Span<float2> screen_space_positions,
+    const Span<rcti> /*screen_space_curve_bounds*/,
+    const IndexMask & /*curve_selection*/,
+    const Vector<Vector<int>> & /*selected_points_in_curves*/,
+    const bool keep_caps)
+{
+  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  const VArray<bool> is_cyclic = src.cyclic();
+
+  Vector<IntersectionPoint> intersections;
+  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
+
+  find_intersections_between_shapes(
+      screen_space_positions, src_points_by_curve, is_cyclic, inters_per_curves, intersections);
+
+  /* -------------------- */
+
+  Vector<Segment_2> all_segments;
+  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
+
+  /* -------------------- */
+
+  for (const int curve_i : src_points_by_curve.index_range()) {
+    add_segments(curve_i,
+                 inters_per_curves,
+                 src_points_by_curve,
+                 intersections,
+                 is_cyclic,
+                 all_segments,
+                 segments_by_curve);
+  }
+
+  if (all_segments.is_empty()) {
+    return bke::CurvesGeometry();
+  }
+
+  Array<bool> segments_to_keep(all_segments.size(), false);
+
+  for (const int segment_i : segments_to_keep.index_range()) {
+    segments_to_keep[segment_i] = true;
+  }
+
+  Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
+  create_connections_from_curves(
+      segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
+
+  Vector<Segment_2> segments;
+  Vector<int> segment_offset_data;
+  follow_segment_connections(all_segments, segment_connections, segments, segment_offset_data);
 
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
 
