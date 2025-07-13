@@ -27,7 +27,7 @@ namespace ispc { /* namespace */
 #ifndef __ISPC_ENUM_FMMConstants__
 #define __ISPC_ENUM_FMMConstants__
 enum FMMConstants {
-    ChunkSize = 8 
+    ChunkSize = 16 
 };
 #endif
 
@@ -51,12 +51,12 @@ enum FMMConstants {
 #if defined(__cplusplus) && (! defined(__ISPC_NO_EXTERN_C) || !__ISPC_NO_EXTERN_C )
 extern "C" {
 #endif // __cplusplus
-    extern void chunked_squared_distances_col_major(const float row_x[][8], const float row_y[][8], const float row_z[][8], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][8]);
-    extern void chunked_squared_distances_row_major(const float row_x[][8], const float row_y[][8], const float row_z[][8], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][8]);
-    extern int32_t chunked_table_product_reduce_col_major(const float cols_and_rows[][8], const int32_t row_count, const float row_values[][8], const int32_t col_count, float * col_values);
-    extern int32_t chunked_table_product_reduce_row_major(const float rows_and_cols[][8], const int32_t row_count, float row_values[][8], const int32_t col_count, const float * col_values);
-    extern void chunked_zero_if_index_in_range_col_major(const int32_t row_count, const int32_t row_offset, const int32_t col_count, const int32_t * col_indices, float cols_and_rows[][8]);
-    extern void chunked_zero_if_index_in_range_row_major(const int32_t row_count, const int32_t row_indices[][8], const int32_t col_count, const int32_t col_offset, float rows_and_cols[][8]);
+    extern void chunked_squared_distances_col_major(const float row_x[][16], const float row_y[][16], const float row_z[][16], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][16]);
+    extern void chunked_squared_distances_row_major(const float row_x[][16], const float row_y[][16], const float row_z[][16], const int32_t row_count, const float * col_x, const float * col_y, const float * col_z, const int32_t col_count, float distances[][16]);
+    extern int32_t chunked_table_product_reduce_col_major(const float cols_and_rows[][16], const int32_t row_count, const float row_values[][16], const int32_t col_count, float * col_values);
+    extern int32_t chunked_table_product_reduce_row_major(const float rows_and_cols[][16], const int32_t row_count, float row_values[][16], const int32_t col_count, const float * col_values);
+    extern void chunked_zero_if_index_in_range_col_major(const int32_t row_count, const int32_t row_offset, const int32_t col_count, const int32_t * col_indices, float cols_and_rows[][16]);
+    extern void chunked_zero_if_index_in_range_row_major(const int32_t row_count, const int32_t row_indices[][16], const int32_t col_count, const int32_t col_offset, float rows_and_cols[][16]);
     extern int32_t count_floats_less_than(const float * values, float min_predicate_value, int32_t count);
     extern void distance_to_n_squared(const float * src_a_x, const float * src_a_y, const float * src_a_z, const float * src_b_xyz, const int32_t count, float * dst);
     extern enum FMMConstants fmm_constants();

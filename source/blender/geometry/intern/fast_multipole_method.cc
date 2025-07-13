@@ -1228,7 +1228,7 @@ template<typename T> static bool all_same_size(const Span<T> items)
   });
 }
 
-static constexpr int sse_min_alignment = 16;
+static constexpr int sse_min_alignment = 32;
 
 void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
                          const int total_depth,
@@ -1505,7 +1505,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const int chunked_bucket_size = round_for(bucket_size, chunk_size);
 
     const bool batch_major = chunked_bucket_size <= chunked_batch_size;
-    if (batch_major) {
+    if (true) {
       const Span<float[chunk_size]> chunked_batch_x =
           batch_positions_x.take_front(chunked_batch_size).cast<float[chunk_size]>();
       const Span<float[chunk_size]> chunked_batch_y =

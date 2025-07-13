@@ -1,4 +1,11 @@
 
+template<typename T>
+static void sse_alighed(uniform T values[])
+{
+  assume(((uniform uint64)((void * uniform)values) % 32) == 0);
+  assert(((uniform uint64)((void * uniform)values) % 32) == 0);  
+}
+
 static uniform float safe_rcp(uniform const float a)
 {
   return a ? rcp_fast(a) : 0.0f;
@@ -38,6 +45,8 @@ export void distance_to_n_squared(const uniform float src_a_x[],
                                   const uniform int count,
                                   float uniform dst[])
 {
+  sse_alighed(dst);
+
   const uniform float<3> b = {src_b_xyz[0], src_b_xyz[1], src_b_xyz[2]};
   const uniform int batch_count = (count / programCount) * programCount;
   for (uniform int index = 0; index < batch_count; index += programCount) {
@@ -80,6 +89,7 @@ export void chunked_squared_distances_row_major(const uniform float row_x[][prog
                                                 const uniform int col_count,
                                                 float uniform distances[][programCount])
 {
+  sse_alighed(distances);
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     const varying float<3> row_xyz = {streaming_load(&row_x[row_index][0]),
                                       streaming_load(&row_y[row_index][0]),
@@ -104,6 +114,7 @@ export void chunked_squared_distances_col_major(const uniform float row_x[][prog
                                                 const uniform int col_count,
                                                 float uniform distances[][programCount])
 {
+  sse_alighed(distances);
   for (uniform int col_index = 0; col_index < col_count; col_index++) {
     const uniform float<3> col_xyz = {streaming_load_uniform(&col_x[col_index]),
                                       streaming_load_uniform(&col_y[col_index]),
@@ -128,21 +139,33 @@ export void squared_distances_row_major(const uniform float row_x[],
                                         const uniform int col_count,
                                         float uniform distances[])
 {
-  for (uniform int row_index = 0; row_index < row_count; row_index++) {
-    const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
+  sse_alighed(distances);
+  const uniform int batch_col_count = (col_count / programCount) * programCount;
 
-    // const uniform int batch_col_count = (col_count / programCount) * programCount;
-    // for (uniform int col_index = 0; col_index < batch_col_count; col_index += programCount) {
-    //   const varying float<3> col_xyz = {streaming_load(&col_x[col_index]),
-    //                                     streaming_load(&col_y[col_index]),
-    //                                     streaming_load(&col_z[col_index])};
-    //   const varying float<3> batch = square<3>(row_xyz - col_xyz);
-    //   distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
-    // }
-    for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      const uniform float<3> col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
-      const uniform float<3> batch = square<3>(row_xyz - col_xyz);
-      distances[row_index * col_count + col_index] = batch.x + batch.y + batch.z;
+  if (batch_col_count > 0) {
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
+      for (uniform int col_index = 0; col_index < batch_col_count; col_index += programCount) {
+        const varying float<3> col_xyz = {streaming_load(&col_x[col_index]),
+                                          streaming_load(&col_y[col_index]),
+                                          streaming_load(&col_z[col_index])};
+        const varying float<3> batch = square<3>(row_xyz - col_xyz);
+        distances[row_index * col_count + col_index + programIndex] = batch.x + batch.y + batch.z;
+      }
+    }
+  }
+
+  if (batch_col_count < col_count) {
+    for (uniform int row_index = 0; row_index < row_count; row_index++) {
+      const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
+
+      for (uniform int col_index = batch_col_count; col_index < col_count; col_index++) {
+        const uniform float<3> col_xyz = {streaming_load_uniform(&col_x[col_index]),
+                                          streaming_load_uniform(&col_y[col_index]),
+                                          streaming_load_uniform(&col_z[col_index])};
+        const uniform float<3> batch = square<3>(row_xyz - col_xyz);
+        distances[row_index * col_count + col_index] = batch.x + batch.y + batch.z;
+      }
     }
   }
 }
@@ -157,11 +180,13 @@ export void squared_distances_col_major(const uniform float row_x[],
                                         const uniform int col_count,
                                         float uniform distances[])
 {
+  sse_alighed(distances);
   for (uniform int col_index = 0; col_index < col_count; col_index++) {
     const uniform float<3> col_xyz = {col_x[col_index], col_y[col_index], col_z[col_index]};
-
     for (uniform int row_index = 0; row_index < row_count; row_index++) {
-      const uniform float<3> row_xyz = {row_x[row_index], row_y[row_index], row_z[row_index]};
+      const uniform float<3> row_xyz = {streaming_load_uniform(&row_x[row_index]),
+                                        streaming_load_uniform(&row_y[row_index]),
+                                        streaming_load_uniform(&row_z[row_index])};
       const uniform float<3> batch = square<3>(row_xyz - col_xyz);
       distances[col_index * row_count + row_index] = batch.x + batch.y + batch.z;
     }
@@ -174,12 +199,12 @@ export void chunked_zero_if_index_in_range_row_major(const uniform int row_count
                                                      const uniform int col_offset,
                                                      uniform float rows_and_cols[][programCount])
 {
+  sse_alighed(rows_and_cols);
+  uniform float * uniform rows_and_cols_flat = &rows_and_cols[0][0];
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
-    const varying int bucket_indices = row_indices[row_index][programIndex];
-    for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      const varying bool mask = bucket_indices != col_index + col_offset;
-      uniform float * varying values = &rows_and_cols[row_index * col_count + col_index][programIndex];
-      *values = mask ? *values : 0.0f;
+    const varying int col_indices = row_indices[row_index][programIndex] - col_offset;
+    if (0 <= col_indices && col_indices < col_count) {
+      rows_and_cols[row_index * col_count + col_indices][programIndex] = 0.0f;
     }
   }
 }
@@ -190,6 +215,7 @@ export void chunked_zero_if_index_in_range_col_major(const uniform int row_count
                                                      const uniform int col_indices[],
                                                      uniform float cols_and_rows[][programCount])
 {
+  sse_alighed(cols_and_rows);
   for (uniform int col_index = 0; col_index < col_count; col_index++) {
     const uniform int bucket_indices = col_indices[col_index];
     for (uniform int row_index = 0; row_index < row_count; row_index++) {
@@ -207,11 +233,9 @@ export void zero_if_index_in_range_row_major(const uniform int row_count,
                                              uniform float rows_and_cols[])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
-    const uniform int bucket_indices = row_indices[row_index];
-    for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      const uniform bool mask = bucket_indices != col_index + col_offset;
-      uniform float * uniform value = &rows_and_cols[row_index * col_count + col_index];
-      *value = mask ? *value : 0.0f;
+    const uniform int col_indices = row_indices[row_index] - col_offset;
+    if (0 <= col_indices && col_indices < col_count) {
+      rows_and_cols[row_index * col_count + col_indices] = 0.0f;
     }
   }
 }
@@ -238,6 +262,7 @@ export uniform int chunked_table_product_reduce_row_major(const uniform float ro
                                                           const uniform int col_count,
                                                           const uniform float col_values[])
 {
+  sse_alighed(rows_and_cols);
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
     varying float row_accum = 0.0f;
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
@@ -253,6 +278,7 @@ export uniform int chunked_table_product_reduce_col_major(const uniform float co
                                                           const uniform int col_count,
                                                           uniform float col_values[])
 {
+  sse_alighed(cols_and_rows);
   for (uniform int col_index = 0; col_index < col_count; col_index++) {
     varying float col_accum = 0.0f;
     for (uniform int row_index = 0; row_index < row_count; row_index++) {
@@ -269,9 +295,11 @@ export uniform int table_product_reduce_row_major(const uniform float rows_and_c
                                                   const uniform float col_values[])
 {
   for (uniform int row_index = 0; row_index < row_count; row_index++) {
+    uniform float col_accum = 0.0f;
     for (uniform int col_index = 0; col_index < col_count; col_index++) {
-      row_values[row_index] += rows_and_cols[row_index * col_count + col_index] * col_values[col_index];
+      col_accum += rows_and_cols[row_index * col_count + col_index] * col_values[col_index];
     }
+    row_values[row_index] += col_accum;
   }
 }
 
@@ -290,21 +318,20 @@ export uniform int table_product_reduce_col_major(const uniform float cols_and_r
   }
 }
 
-
-
 export void sqrt_n_add_single(float uniform values[], const uniform int count, const uniform float offset)
 {
-    const uniform int batch_count = (count / programCount) * programCount;
-    for (uniform int index = 0; index < batch_count; index += programCount) {
-        values[index + programIndex] = sqrt(streaming_load(&values[index])) + offset;
-    }
+  sse_alighed(values);
+  const uniform int batch_count = (count / programCount) * programCount;
+  for (uniform int index = 0; index < batch_count; index += programCount) {
+    values[index + programIndex] = sqrt(streaming_load(&values[index])) + offset;
+  }
 
-    uniform float sufix[programCount];
-    memcpy(&sufix[0], &values[batch_count], sizeof(uniform float) * (count - batch_count));
-    
-    sufix[programIndex] = sqrt(sufix[programIndex]) + offset;
-    
-    memcpy(&values[batch_count], sufix, sizeof(uniform float) * (count - batch_count));
+  uniform float sufix[programCount];
+  memcpy(&sufix[0], &values[batch_count], sizeof(uniform float) * (count - batch_count));
+  
+  sufix[programIndex] = sqrt(sufix[programIndex]) + offset;
+  
+  memcpy(&values[batch_count], sufix, sizeof(uniform float) * (count - batch_count));
 }
 
 export void gather_ints(
@@ -322,28 +349,28 @@ export void gather_ints(
   }
   return;
 
-    const uniform int start_round_up = ((indices_start + programCount - 1) / programCount) * programCount;
-    const uniform int end_round_down = ((indices_start + indices_count) / programCount) * programCount;
-    uniform int iter = 0;
-    if (start_round_up >= end_round_down) {
-      for (uniform int index = indices_start; index < indices_start + indices_count; index++) {
-          dst[iter] = src[indices[index]];
-          iter++;
-      }
-      return;
+  const uniform int start_round_up = ((indices_start + programCount - 1) / programCount) * programCount;
+  const uniform int end_round_down = ((indices_start + indices_count) / programCount) * programCount;
+  uniform int iter = 0;
+  if (start_round_up >= end_round_down) {
+    for (uniform int index = indices_start; index < indices_start + indices_count; index++) {
+      dst[iter] = src[indices[index]];
+      iter++;
     }
-    for (uniform int index = indices_start; index < start_round_up; index++) {
-        dst[iter] = src[indices[index]];
-        iter++;
-    }
-    for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
-        dst[iter + programIndex] = src[streaming_load(&indices[index])];
-        iter += programCount;
-    }
-    for (uniform int index = end_round_down; index < indices_start + indices_count; index++) {
-        dst[iter] = src[indices[index]];
-        iter++;
-    }
+    return;
+  }
+  for (uniform int index = indices_start; index < start_round_up; index++) {
+    dst[iter] = src[indices[index]];
+    iter++;
+  }
+  for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
+    dst[iter + programIndex] = src[streaming_load(&indices[index])];
+    iter += programCount;
+  }
+  for (uniform int index = end_round_down; index < indices_start + indices_count; index++) {
+    dst[iter] = src[indices[index]];
+    iter++;
+  }
 }
 
 export void scatter_ints(
@@ -360,28 +387,28 @@ export void scatter_ints(
   }
   return;
   
-    const uniform int start_round_up = ((indices_start + programCount - 1) / programCount) * programCount;
-    const uniform int end_round_down = ((indices_start + indices_count) / programCount) * programCount;
-    uniform int iter = 0;
-    if (start_round_up >= end_round_down) {
-      for (uniform int index = indices_start; index < indices_start + indices_count; index++) {
-          dst[indices[index]] = src[iter];
-          iter++;
-      }
-      return;
+  const uniform int start_round_up = ((indices_start + programCount - 1) / programCount) * programCount;
+  const uniform int end_round_down = ((indices_start + indices_count) / programCount) * programCount;
+  uniform int iter = 0;
+  if (start_round_up >= end_round_down) {
+    for (uniform int index = indices_start; index < indices_start + indices_count; index++) {
+      dst[indices[index]] = src[iter];
+      iter++;
     }
-    for (uniform int index = indices_start; index < start_round_up; index++) {
-        dst[indices[index]] = src[iter];
-        iter++;
-    }
-    for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
-        dst[streaming_load(&indices[index])] = src[iter + programIndex];
-        iter += programCount;
-    }
-    for (uniform int index = end_round_down; index < indices_start + indices_count; index++) {
-        dst[indices[index]] = src[iter];
-        iter++;
-    }
+    return;
+  }
+  for (uniform int index = indices_start; index < start_round_up; index++) {
+    dst[indices[index]] = src[iter];
+    iter++;
+  }
+  for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
+    dst[streaming_load(&indices[index])] = src[iter + programIndex];
+    iter += programCount;
+  }
+  for (uniform int index = end_round_down; index < indices_start + indices_count; index++) {
+    dst[indices[index]] = src[iter];
+    iter++;
+  }
 }
 
 export void parition_as_gather(
@@ -390,13 +417,13 @@ export void parition_as_gather(
     uniform int buffer[],
     uniform int mapping_total)
 {
-    assert(mapping_total % 2 == 0);
-    const uniform int mapping_half = mapping_total / 2;
+  assert(mapping_total % 2 == 0);
+  const uniform int mapping_half = mapping_total / 2;
 
-    gather_ints(values, indices, buffer, 0, mapping_total);
+  gather_ints(values, indices, buffer, 0, mapping_total);
 
-    scatter_ints(buffer, indices, values, mapping_half, mapping_half);
-    scatter_ints(buffer + mapping_half, indices, values, 0, mapping_half);
+  scatter_ints(buffer, indices, values, mapping_half, mapping_half);
+  scatter_ints(buffer + mapping_half, indices, values, 0, mapping_half);
 }
 
 export void parition_as_gather_front(
@@ -407,11 +434,11 @@ export void parition_as_gather_front(
     const uniform int count,
     const uniform int total_front_size)
 {
-    assert(mapping_total % 2 == 0);
-    const uniform int mapping_half = mapping_total / 2;
+  assert(mapping_total % 2 == 0);
+  const uniform int mapping_half = mapping_total / 2;
 
-    gather_ints(values, indices, buffer, 0, mapping_half);
-    scatter_ints(buffer, indices, values, mapping_half, mapping_half);
+  gather_ints(values, indices, buffer, 0, mapping_half);
+  scatter_ints(buffer, indices, values, mapping_half, mapping_half);
 }
 
 export uniform int count_floats_less_than(
@@ -419,86 +446,88 @@ export uniform int count_floats_less_than(
     uniform float min_predicate_value,
     uniform int count)
 {
-    const uniform int batch_count = (count / programCount) * programCount;
+  sse_alighed(values);
 
-    varying int batch_total = 0;
-    for (uniform int index = 0; index < batch_count; index += programCount) {
-        batch_total += (int)(streaming_load(&values[index]) < min_predicate_value);
-    }
-    uniform int rest_total = 0;
-    for (uniform int index = batch_count; index < count; index++) {
-        rest_total += (int)(values[index] < min_predicate_value);
-    }
+  const uniform int batch_count = (count / programCount) * programCount;
 
-    return reduce_add(batch_total) + rest_total;
+  varying int batch_total = 0;
+  for (uniform int index = 0; index < batch_count; index += programCount) {
+      batch_total += (int)(streaming_load(&values[index]) < min_predicate_value);
+  }
+  uniform int rest_total = 0;
+  for (uniform int index = batch_count; index < count; index++) {
+      rest_total += (int)(values[index] < min_predicate_value);
+  }
+
+  return reduce_add(batch_total) + rest_total;
 }
 
 static uniform int n_float_less_then_or_equal_single(uniform int indices[],
-                                            uniform float predicates[],
-                                            const uniform float min_predicate_value,
-                                            const uniform int predicates_start,
-                                            const uniform int predicates_count)
-{
-    assert(predicates_count > 0);
-    const uniform int start_round_up = ((predicates_start + programCount - 1) / programCount) * programCount;
-    const uniform int end_round_down = ((predicates_start + predicates_count) / programCount) * programCount;
-    assert(predicates_count >= programCount || start_round_up >= end_round_down);
-    uniform int iter = 0;
-    if (start_round_up >= end_round_down) {
-      for (uniform int index = predicates_start; index < predicates_start + predicates_count; index++) {
-          indices[iter] = index;
-          iter += (int)(!(predicates[index] < min_predicate_value));
-      }
-      return iter;
-    }
-    for (uniform int index = predicates_start; index < start_round_up; index++) {
-        indices[iter] = index;
-        iter += (int)(!(predicates[index] < min_predicate_value));
-    }
-    for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
-        if (!(streaming_load(&predicates[index]) < min_predicate_value)) {
-             iter += packed_store_active2(&indices[iter], index + programIndex);
-        }
-    }
-    for (uniform int index = end_round_down; index < predicates_start + predicates_count; index++) {
-        indices[iter] = index;
-        iter += (int)(!(predicates[index] < min_predicate_value));
-    }
-    return iter;
-}
-
-static uniform int n_float_more_then_single(uniform int indices[],
                                                      uniform float predicates[],
                                                      const uniform float min_predicate_value,
                                                      const uniform int predicates_start,
                                                      const uniform int predicates_count)
 {
-    assert(predicates_count > 0);
-    const uniform int start_round_up = ((predicates_start + programCount - 1) / programCount) * programCount;
-    const uniform int end_round_down = ((predicates_start + predicates_count) / programCount) * programCount;
-    assert(predicates_count >= programCount || start_round_up >= end_round_down);
-    uniform int iter = 0;
-    if (start_round_up >= end_round_down) {
-      for (uniform int index = predicates_start; index < predicates_start + predicates_count; index++) {
-          indices[iter] = index;
-          iter += (int)((predicates[index] < min_predicate_value));
-      }
-      return iter;
-    }
-    for (uniform int index = predicates_start; index < start_round_up; index++) {
+  assert(predicates_count > 0);
+  const uniform int start_round_up = ((predicates_start + programCount - 1) / programCount) * programCount;
+  const uniform int end_round_down = ((predicates_start + predicates_count) / programCount) * programCount;
+  assert(predicates_count >= programCount || start_round_up >= end_round_down);
+  uniform int iter = 0;
+  if (start_round_up >= end_round_down) {
+    for (uniform int index = predicates_start; index < predicates_start + predicates_count; index++) {
         indices[iter] = index;
-        iter += (int)((predicates[index] < min_predicate_value));
+        iter += (int)(!(predicates[index] < min_predicate_value));
     }
-    for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
-        if ((streaming_load(&predicates[index]) < min_predicate_value)) {
-             iter += packed_store_active2(&indices[iter], index + programIndex);
-        }
-    }
-    for (uniform int index = end_round_down; index < predicates_start + predicates_count; index++) {
+    return iter;
+  }
+  for (uniform int index = predicates_start; index < start_round_up; index++) {
+      indices[iter] = index;
+      iter += (int)(!(predicates[index] < min_predicate_value));
+  }
+  for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
+      if (!(streaming_load(&predicates[index]) < min_predicate_value)) {
+           iter += packed_store_active2(&indices[iter], index + programIndex);
+      }
+  }
+  for (uniform int index = end_round_down; index < predicates_start + predicates_count; index++) {
+      indices[iter] = index;
+      iter += (int)(!(predicates[index] < min_predicate_value));
+  }
+  return iter;
+}
+
+static uniform int n_float_more_then_single(uniform int indices[],
+                                            uniform float predicates[],
+                                            const uniform float min_predicate_value,
+                                            const uniform int predicates_start,
+                                            const uniform int predicates_count)
+{
+  assert(predicates_count > 0);
+  const uniform int start_round_up = ((predicates_start + programCount - 1) / programCount) * programCount;
+  const uniform int end_round_down = ((predicates_start + predicates_count) / programCount) * programCount;
+  assert(predicates_count >= programCount || start_round_up >= end_round_down);
+  uniform int iter = 0;
+  if (start_round_up >= end_round_down) {
+    for (uniform int index = predicates_start; index < predicates_start + predicates_count; index++) {
         indices[iter] = index;
         iter += (int)((predicates[index] < min_predicate_value));
     }
     return iter;
+  }
+  for (uniform int index = predicates_start; index < start_round_up; index++) {
+      indices[iter] = index;
+      iter += (int)((predicates[index] < min_predicate_value));
+  }
+  for (uniform int index = start_round_up; index < end_round_down; index += programCount) {
+      if ((streaming_load(&predicates[index]) < min_predicate_value)) {
+           iter += packed_store_active2(&indices[iter], index + programIndex);
+      }
+  }
+  for (uniform int index = end_round_down; index < predicates_start + predicates_count; index++) {
+      indices[iter] = index;
+      iter += (int)((predicates[index] < min_predicate_value));
+  }
+  return iter;
 }
 
 export uniform int predicate_partition_indices_float_cmp(
@@ -508,41 +537,41 @@ export uniform int predicate_partition_indices_float_cmp(
     const uniform float min_predicate_value,
     const uniform int total_front_size)
 {
-    assert(total_front_size > 0);
-    assert(total_front_size < count);
-    
-    // uniform int tr1 = 0;
-    // for (uniform int index = 0; index < total_front_size; index++) {
-    //   if (!(predicates[index] < min_predicate_value)) {
-    //     indices[tr1] = index;
-    //     tr1++;
-    //   }
-    // }
-    // uniform int tr2 = 0;
-    // for (uniform int index = total_front_size; index < count; index++) {
-    //   if ((predicates[index] < min_predicate_value)) {
-    //     indices[tr1 + tr2] = index;
-    //     tr2++;
-    //   }
-    // }
-    // assert(tr1 == tr2);
-    // return tr1 + tr2;
-    
-    
-    
-    const uniform int front_to_move = n_float_less_then_or_equal_single(indices,
-                                                                        predicates,
-                                                                        min_predicate_value,
-                                                                        0,
-                                                                        total_front_size);
-    const uniform int back_to_move = n_float_more_then_single(indices + front_to_move,
-                                                              predicates,
-                                                              min_predicate_value,
-                                                              total_front_size,
-                                                              count - total_front_size);
-    // print("%, %: (%, %);\n", count, total_front_size, front_to_move, back_to_move); // 6, 4: (2, 8);
-    assert(front_to_move == back_to_move);
-    return front_to_move + back_to_move;
+  assert(total_front_size > 0);
+  assert(total_front_size < count);
+  
+  // uniform int tr1 = 0;
+  // for (uniform int index = 0; index < total_front_size; index++) {
+  //   if (!(predicates[index] < min_predicate_value)) {
+  //     indices[tr1] = index;
+  //     tr1++;
+  //   }
+  // }
+  // uniform int tr2 = 0;
+  // for (uniform int index = total_front_size; index < count; index++) {
+  //   if ((predicates[index] < min_predicate_value)) {
+  //     indices[tr1 + tr2] = index;
+  //     tr2++;
+  //   }
+  // }
+  // assert(tr1 == tr2);
+  // return tr1 + tr2;
+  
+  
+  
+  const uniform int front_to_move = n_float_less_then_or_equal_single(indices,
+                                                                      predicates,
+                                                                      min_predicate_value,
+                                                                      0,
+                                                                      total_front_size);
+  const uniform int back_to_move = n_float_more_then_single(indices + front_to_move,
+                                                            predicates,
+                                                            min_predicate_value,
+                                                            total_front_size,
+                                                            count - total_front_size);
+  // print("%, %: (%, %);\n", count, total_front_size, front_to_move, back_to_move); // 6, 4: (2, 8);
+  assert(front_to_move == back_to_move);
+  return front_to_move + back_to_move;
 }
 
 export uniform int mul_n_add_to(uniform float dst[],
@@ -550,15 +579,15 @@ export uniform int mul_n_add_to(uniform float dst[],
                                 const uniform float value,
                                 const uniform int count)
 {
-    uniform int buffer_index = 0;
-    const uniform int batch_count = (count / programCount) * programCount;
-    for (uniform int index = 0; index < batch_count; index += programCount) {
-        dst[index + programIndex] = dst[index + programIndex] + value * streaming_load(&src[index]);
-    }
-    for (uniform int index = batch_count; index < count; index++) {
-        dst[index] = dst[index] + value * src[index];
-    }
-    return buffer_index;
+  uniform int buffer_index = 0;
+  const uniform int batch_count = (count / programCount) * programCount;
+  for (uniform int index = 0; index < batch_count; index += programCount) {
+    dst[index + programIndex] = dst[index + programIndex] + value * streaming_load(&src[index]);
+  }
+  for (uniform int index = batch_count; index < count; index++) {
+    dst[index] = dst[index] + value * src[index];
+  }
+  return buffer_index;
 }
 
 export void split_float3_to_3_float(
@@ -568,25 +597,26 @@ export void split_float3_to_3_float(
     uniform float z_components[],
     uniform int count)
 {
-    uniform int buffer_index = 0;
-    const uniform int batch_count = (count / programCount) * programCount;
-    for (uniform int index = 0; index < batch_count; index += programCount) {
-        prefetch_nt(&xyz_values[index + 100]);
-        varying float<3> value;
-        aos_to_soa3(&xyz_values[index][0], &value.x, &value.y, &value.z);
-        streaming_store(&x_components[index], value.x);
-        streaming_store(&y_components[index], value.y);
-        streaming_store(&z_components[index], value.z);
-    }
-    for (uniform int index = batch_count; index < count; index++) {
-        x_components[index] = xyz_values[index][0];
-        y_components[index] = xyz_values[index][1];
-        z_components[index] = xyz_values[index][2];
-    }
+  uniform int buffer_index = 0;
+  const uniform int batch_count = (count / programCount) * programCount;
+  for (uniform int index = 0; index < batch_count; index += programCount) {
+    prefetch_nt(&xyz_values[index + 100]);
+    varying float<3> value;
+    aos_to_soa3(&xyz_values[index][0], &value.x, &value.y, &value.z);
+    streaming_store(&x_components[index], value.x);
+    streaming_store(&y_components[index], value.y);
+    streaming_store(&z_components[index], value.z);
+  }
+  for (uniform int index = batch_count; index < count; index++) {
+    x_components[index] = xyz_values[index][0];
+    y_components[index] = xyz_values[index][1];
+    z_components[index] = xyz_values[index][2];
+  }
 }
 
 export uniform float safe_0_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     values[i] = rsqrt_fast(values[i]);
   }
@@ -594,6 +624,7 @@ export uniform float safe_0_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_1_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     values[i] = safe_rcp(values[i]);
   }
@@ -601,6 +632,7 @@ export uniform float safe_1_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_1_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = r_value * sqrt(r_value);
@@ -609,6 +641,7 @@ export uniform float safe_1_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_2_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value);
@@ -617,6 +650,7 @@ export uniform float safe_2_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_2_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value) * sqrt(r_value);
@@ -625,6 +659,7 @@ export uniform float safe_2_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_3_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value) * r_value;
@@ -633,6 +668,7 @@ export uniform float safe_3_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_3_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value) * r_value * sqrt(r_value);
@@ -641,6 +677,7 @@ export uniform float safe_3_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_4_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value));
@@ -649,6 +686,7 @@ export uniform float safe_4_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_4_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value)) * sqrt(r_value);
@@ -657,6 +695,7 @@ export uniform float safe_4_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value)) * r_value;
@@ -665,6 +704,7 @@ export uniform float safe_5_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_5_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value)) * r_value * sqrt(r_value);
@@ -673,6 +713,7 @@ export uniform float safe_5_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_6_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -682,6 +723,7 @@ export uniform float safe_6_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_6_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -691,6 +733,7 @@ export uniform float safe_6_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_7_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -700,6 +743,7 @@ export uniform float safe_7_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_7_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -709,6 +753,7 @@ export uniform float safe_7_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_8_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value)));
@@ -717,6 +762,7 @@ export uniform float safe_8_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_8_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value))) * sqrt(r_value);
@@ -725,6 +771,7 @@ export uniform float safe_8_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_9_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value;
@@ -733,6 +780,7 @@ export uniform float safe_9_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_9_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value * sqrt(r_value);
@@ -741,6 +789,7 @@ export uniform float safe_9_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_10_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -750,6 +799,7 @@ export uniform float safe_10_rpow_n(uniform float values[], const uniform int co
 
 export uniform float safe_10_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -759,6 +809,7 @@ export uniform float safe_10_5_rpow_n(uniform float values[], const uniform int 
 
 export uniform float unsafe_0_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     values[i] = rsqrt_fast(values[i]);
   }
@@ -766,6 +817,7 @@ export uniform float unsafe_0_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_1_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     values[i] = rcp(values[i]);
   }
@@ -773,6 +825,7 @@ export uniform float unsafe_1_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_1_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = r_value * sqrt(r_value);
@@ -781,6 +834,7 @@ export uniform float unsafe_1_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_2_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value);
@@ -789,6 +843,7 @@ export uniform float unsafe_2_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_2_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value) * sqrt(r_value);
@@ -797,6 +852,7 @@ export uniform float unsafe_2_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_3_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value) * r_value;
@@ -805,6 +861,7 @@ export uniform float unsafe_3_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_3_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value) * r_value * sqrt(r_value);
@@ -813,6 +870,7 @@ export uniform float unsafe_3_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_4_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value));
@@ -821,6 +879,7 @@ export uniform float unsafe_4_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_4_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value)) * sqrt(r_value);
@@ -829,6 +888,7 @@ export uniform float unsafe_4_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value)) * r_value;
@@ -837,6 +897,7 @@ export uniform float unsafe_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_5_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value)) * r_value * sqrt(r_value);
@@ -845,6 +906,7 @@ export uniform float unsafe_5_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_6_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -854,6 +916,7 @@ export uniform float unsafe_6_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_6_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -863,6 +926,7 @@ export uniform float unsafe_6_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_7_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -872,6 +936,7 @@ export uniform float unsafe_7_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_7_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -881,6 +946,7 @@ export uniform float unsafe_7_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_8_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value)));
@@ -889,6 +955,7 @@ export uniform float unsafe_8_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_8_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value))) * sqrt(r_value);
@@ -897,6 +964,7 @@ export uniform float unsafe_8_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_9_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value;
@@ -905,6 +973,7 @@ export uniform float unsafe_9_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_9_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value * sqrt(r_value);
@@ -913,6 +982,7 @@ export uniform float unsafe_9_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_10_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -922,6 +992,7 @@ export uniform float unsafe_10_rpow_n(uniform float values[], const uniform int 
 
 export uniform float unsafe_10_5_rpow_n(uniform float values[], const uniform int count)
 {
+  sse_alighed(values);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
