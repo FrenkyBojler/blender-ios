@@ -59,7 +59,7 @@ ccl_device float2 fresnel_dielectric_polarized(float cos_theta_i,
   const float r_p = (cos_theta_t + eta * cos_theta_i) / (eta * cos_theta_i - cos_theta_t);
 
   if (r_phi) {
-    *r_phi = make_float2(r_s < 0.0f, r_p < 0.0f) * M_PI_F;
+    *r_phi = make_float2(r_s >= 0.0f, r_p < 0.0f) * M_PI_F;
   }
 
   /* Return squared amplitude to get the fraction of reflected energy. */
