@@ -2161,45 +2161,15 @@ static bool check_line_segment_lasso_intersection(const int2 pos_a,
   return false;
 }
 
-bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
-                                          const Span<float2> screen_space_positions,
-                                          const Span<rcti> screen_space_curve_bounds,
-                                          const Span<int2> mcoords,
-                                          const bool keep_caps)
+static void check_segments_in_lasso(const Span<float2> screen_space_positions,
+                                    const Span<rcti> screen_space_curve_bounds,
+                                    const Span<int2> mcoords,
+                                    const Span<Segment_2> all_segments,
+                                    MutableSpan<bool> segments_to_keep)
 {
-  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
-  const VArray<bool> is_cyclic = src.cyclic();
-
-  Vector<IntersectionPoint> intersections;
-  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
-  Vector<Segment_2> all_segments;
-
-  /* -------------------- */
-
-  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
-  find_intersections_between_shapes(screen_space_positions,
-                                    screen_space_curve_bounds,
-                                    src_points_by_curve,
-                                    is_cyclic,
-                                    inters_per_curves,
-                                    intersections);
-
-  for (const int curve_i : src_points_by_curve.index_range()) {
-    add_segments(curve_i,
-                 inters_per_curves,
-                 src_points_by_curve,
-                 intersections,
-                 is_cyclic,
-                 all_segments,
-                 segments_by_curve);
-  }
-
-  /* -------------------- */
-
   rcti bbox_lasso;
   BLI_lasso_boundbox(&bbox_lasso, mcoords);
 
-  Array<bool> segments_to_keep(all_segments.size(), true);
   for (const int segment_i : segments_to_keep.index_range()) {
     const Segment_2 &segment = all_segments[segment_i];
 
@@ -2265,6 +2235,49 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
       }
     }
   }
+}
+
+bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
+                                          const Span<float2> screen_space_positions,
+                                          const Span<rcti> screen_space_curve_bounds,
+                                          const Span<int2> mcoords,
+                                          const bool keep_caps)
+{
+  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  const VArray<bool> is_cyclic = src.cyclic();
+
+  Vector<IntersectionPoint> intersections;
+  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
+  Vector<Segment_2> all_segments;
+
+  /* -------------------- */
+
+  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
+  find_intersections_between_shapes(screen_space_positions,
+                                    screen_space_curve_bounds,
+                                    src_points_by_curve,
+                                    is_cyclic,
+                                    inters_per_curves,
+                                    intersections);
+
+  for (const int curve_i : src_points_by_curve.index_range()) {
+    add_segments(curve_i,
+                 inters_per_curves,
+                 src_points_by_curve,
+                 intersections,
+                 is_cyclic,
+                 all_segments,
+                 segments_by_curve);
+  }
+
+  /* -------------------- */
+
+  Array<bool> segments_to_keep(all_segments.size(), true);
+  check_segments_in_lasso(screen_space_positions,
+                          screen_space_curve_bounds,
+                          mcoords,
+                          all_segments,
+                          segments_to_keep.as_mutable_span());
 
   /* -------------------- */
 
