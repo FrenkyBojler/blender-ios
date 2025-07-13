@@ -282,9 +282,11 @@ export uniform int table_product_reduce_col_major(const uniform float cols_and_r
                                                   uniform float col_values[])
 {
   for (uniform int col_index = 0; col_index < col_count; col_index++) {
+    uniform float col_accum = 0.0f;
     for (uniform int row_index = 0; row_index < row_count; row_index++) {
-      col_values[col_index] += cols_and_rows[col_index * row_count + row_index] * row_values[row_index];
+      col_accum += cols_and_rows[col_index * row_count + row_index] * row_values[row_index];
     }
+    col_values[col_index] += col_accum;
   }
 }
 
@@ -585,8 +587,6 @@ export void split_float3_to_3_float(
 
 export uniform float safe_0_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     values[i] = rsqrt_fast(values[i]);
   }
@@ -594,8 +594,6 @@ export uniform float safe_0_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_1_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     values[i] = safe_rcp(values[i]);
   }
@@ -603,8 +601,6 @@ export uniform float safe_1_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_1_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = r_value * sqrt(r_value);
@@ -613,8 +609,6 @@ export uniform float safe_1_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_2_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value);
@@ -623,8 +617,6 @@ export uniform float safe_2_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_2_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value) * sqrt(r_value);
@@ -633,8 +625,6 @@ export uniform float safe_2_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_3_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value) * r_value;
@@ -643,8 +633,6 @@ export uniform float safe_3_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_3_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(r_value) * r_value * sqrt(r_value);
@@ -653,8 +641,6 @@ export uniform float safe_3_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_4_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value));
@@ -663,8 +649,6 @@ export uniform float safe_4_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_4_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value)) * sqrt(r_value);
@@ -673,8 +657,6 @@ export uniform float safe_4_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value)) * r_value;
@@ -683,8 +665,6 @@ export uniform float safe_5_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_5_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(r_value)) * r_value * sqrt(r_value);
@@ -693,8 +673,6 @@ export uniform float safe_5_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_6_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -704,8 +682,6 @@ export uniform float safe_6_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_6_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -715,8 +691,6 @@ export uniform float safe_6_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_7_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -726,8 +700,6 @@ export uniform float safe_7_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_7_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -737,8 +709,6 @@ export uniform float safe_7_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_8_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value)));
@@ -747,8 +717,6 @@ export uniform float safe_8_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_8_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value))) * sqrt(r_value);
@@ -757,8 +725,6 @@ export uniform float safe_8_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_9_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value;
@@ -767,8 +733,6 @@ export uniform float safe_9_rpow_n(uniform float values[], const uniform int cou
 
 export uniform float safe_9_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value * sqrt(r_value);
@@ -777,8 +741,6 @@ export uniform float safe_9_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float safe_10_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -788,8 +750,6 @@ export uniform float safe_10_rpow_n(uniform float values[], const uniform int co
 
 export uniform float safe_10_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = safe_rcp(values[i]);
     const float squared = square(r_value);
@@ -799,8 +759,6 @@ export uniform float safe_10_5_rpow_n(uniform float values[], const uniform int 
 
 export uniform float unsafe_0_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     values[i] = rsqrt_fast(values[i]);
   }
@@ -808,8 +766,6 @@ export uniform float unsafe_0_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_1_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     values[i] = rcp(values[i]);
   }
@@ -817,8 +773,6 @@ export uniform float unsafe_1_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_1_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = r_value * sqrt(r_value);
@@ -827,8 +781,6 @@ export uniform float unsafe_1_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_2_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value);
@@ -837,8 +789,6 @@ export uniform float unsafe_2_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_2_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value) * sqrt(r_value);
@@ -847,8 +797,6 @@ export uniform float unsafe_2_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_3_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value) * r_value;
@@ -857,8 +805,6 @@ export uniform float unsafe_3_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_3_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(r_value) * r_value * sqrt(r_value);
@@ -867,8 +813,6 @@ export uniform float unsafe_3_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_4_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value));
@@ -877,8 +821,6 @@ export uniform float unsafe_4_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_4_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value)) * sqrt(r_value);
@@ -887,8 +829,6 @@ export uniform float unsafe_4_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value)) * r_value;
@@ -897,8 +837,6 @@ export uniform float unsafe_5_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_5_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(r_value)) * r_value * sqrt(r_value);
@@ -907,8 +845,6 @@ export uniform float unsafe_5_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_6_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -918,8 +854,6 @@ export uniform float unsafe_6_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_6_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -929,8 +863,6 @@ export uniform float unsafe_6_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_7_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -940,8 +872,6 @@ export uniform float unsafe_7_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_7_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -951,8 +881,6 @@ export uniform float unsafe_7_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_8_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value)));
@@ -961,8 +889,6 @@ export uniform float unsafe_8_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_8_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value))) * sqrt(r_value);
@@ -971,8 +897,6 @@ export uniform float unsafe_8_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_9_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value;
@@ -981,8 +905,6 @@ export uniform float unsafe_9_rpow_n(uniform float values[], const uniform int c
 
 export uniform float unsafe_9_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     values[i] = square(square(square(r_value))) * r_value * sqrt(r_value);
@@ -991,8 +913,6 @@ export uniform float unsafe_9_5_rpow_n(uniform float values[], const uniform int
 
 export uniform float unsafe_10_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);
@@ -1002,8 +922,6 @@ export uniform float unsafe_10_rpow_n(uniform float values[], const uniform int 
 
 export uniform float unsafe_10_5_rpow_n(uniform float values[], const uniform int count)
 {
-  assume(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
-  assert(((uniform uint64)((void*)values) & (32 * TARGET_WIDTH)-1) == 0);
   foreach (i = 0 ... count) {
     const float r_value = rcp(values[i]);
     const float squared = square(r_value);

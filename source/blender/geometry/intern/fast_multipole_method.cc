@@ -190,10 +190,9 @@ static BLI_NOINLINE void chunked_zero_if_index_in_range_row_major(
                                                  rows_and_cols.data());
 }
 
-static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(
-    const Span<int> row_indices,
-    const ShiftedRange col_range,
-    MutableSpan<float[programCount]> rows_and_cols)
+static BLI_NOINLINE void chunked_zero_if_index_in_range_col_major(const Span<int> row_indices,
+                                                                  const ShiftedRange col_range,
+                                                                  MutableSpan<float[programCount]> rows_and_cols)
 {
   BLI_assert(col_range.size * row_indices.size() == rows_and_cols.size());
 
@@ -1505,8 +1504,8 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
     const int chunked_batch_size = round_for(total_to_pass_to_childs, chunk_size);
     const int chunked_bucket_size = round_for(bucket_size, chunk_size);
 
-    const bool batch_major = chunked_bucket_size < chunked_batch_size;
-    if (false) {
+    const bool batch_major = chunked_bucket_size <= chunked_batch_size;
+    if (batch_major) {
       const Span<float[chunk_size]> chunked_batch_x =
           batch_positions_x.take_front(chunked_batch_size).cast<float[chunk_size]>();
       const Span<float[chunk_size]> chunked_batch_y =
@@ -1571,7 +1570,7 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
           const Span<int[chunk_size]> chunked_batch_indices =
               batch_indices.take_front(chunked_batch_size).cast<int[chunk_size]>();
           const Span<int> rest_batch_indices = batch_indices.drop_front(chunked_batch_size);
-
+      
           const int from_bucket_to_sampler_offset = joint_bucket.start() -
                                                     range_of_samplers.start();
           fast_math::chunked_zero_if_index_in_range_row_major(
@@ -1617,12 +1616,12 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
 
       batch_distances_buffer.reinitialize(
           batch_size * (chunked_bucket_x.size() * chunk_size + rest_bucket_x.size()));
-      const int total_chunked_table_size = batch_size * chunked_bucket_x.size() * chunk_size;
 
 #ifndef NDEBUG
       batch_distances_buffer.as_mutable_span().fill(-1.0f);
 #endif
 
+      const int total_chunked_table_size = batch_size * chunked_bucket_size;
       const MutableSpan<float[chunk_size]> chunked_distances = batch_distances_buffer
                                                                    .as_mutable_span()
                                                                    .take_front(
@@ -1660,17 +1659,19 @@ void akdbh_accumulate_in(const OffsetIndices<int> buckets_offsets,
         const IndexRange range_of_samplers = *sampler_to_bucket_range;
         if (!range_of_samplers.intersect(joint_bucket).is_empty()) {
           const Span<int> batch_indices = batch_indices_data.take_front(batch_size);
-
+      
           const int from_bucket_to_sampler_offset = joint_bucket.start() -
                                                     range_of_samplers.start();
-
+      
+          const int rest_bucket_start = chunked_bucket_size;
+      
           fast_math::chunked_zero_if_index_in_range_col_major(
               batch_indices,
               ShiftedRange{from_bucket_to_sampler_offset, int(chunked_bucket_x.size())},
               chunked_distances);
           fast_math::zero_if_index_in_range_col_major(
               batch_indices,
-              ShiftedRange{from_bucket_to_sampler_offset, int(rest_bucket_x.size())},
+              ShiftedRange{from_bucket_to_sampler_offset + rest_bucket_start, int(rest_bucket_x.size())},
               rest_distances);
         }
       }

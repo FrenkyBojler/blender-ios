@@ -28,6 +28,8 @@
 
 namespace blender::nodes::node_geo_sample_in_space_cc {
 
+#if (0)
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
@@ -458,20 +460,22 @@ static void node_rna(StructRNA *srna)
                     int(AttrDomain::Point));
 }
 
+#endif
+
 static void node_register()
 {
-  static blender::bke::bNodeType ntype;
-
-  geo_node_type_base(&ntype, "GeometryNodeSampleInSpace");
-  ntype.nclass = NODE_CLASS_CONVERTER;
-  ntype.ui_name = "Sample in Space";
-  ntype.geometry_node_execute = node_geo_exec;
-  ntype.initfunc = node_init;
-  ntype.declare = node_declare;
-  ntype.draw_buttons = node_layout;
-  blender::bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
+  // static blender::bke::bNodeType ntype;
+  // 
+  // geo_node_type_base(&ntype, "GeometryNodeSampleInSpace");
+  // ntype.nclass = NODE_CLASS_CONVERTER;
+  // ntype.ui_name = "Sample in Space";
+  // ntype.geometry_node_execute = node_geo_exec;
+  // ntype.initfunc = node_init;
+  // ntype.declare = node_declare;
+  // ntype.draw_buttons = node_layout;
+  // blender::bke::node_register_type(ntype);
+  // 
+  // node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
