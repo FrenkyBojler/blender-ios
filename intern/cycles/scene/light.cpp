@@ -1121,7 +1121,7 @@ void LightManager::device_update_background(Device *device,
   const float map_average_radiance = cdf_total * M_PI_2_F;
   if (sun_average_radiance > 0.0f) {
     /* The weighting here is just a heuristic that was empirically determined.
-     * The sun's average radiance is much higher than the map's average radiance,
+     * The Sun's average radiance is much higher than the map's average radiance,
      * but we don't want to weight the background light too much because
      * visibility is not accounted for anyway. */
     background_light->set_average_radiance(0.8f * map_average_radiance +

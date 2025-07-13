@@ -378,15 +378,22 @@ void SKY_single_scattering_precompute_sun(float sun_elevation,
   float elevation_bottom, elevation_top;
   float3 pix_bottom, pix_top, sun_dir;
 
-  /* compute 2 pixels for sun disc */
+  /* Compute 2 pixels for Sun disc: one is the lowest point of the disc, one is the highest.
+   * Return black pixels if Sun is below horizon */
   elevation_bottom = (bottom > 0.0f) ? bottom : 0.0f;
   elevation_top = (top > 0.0f) ? top : 0.0f;
-  sun_dir = geographical_to_direction(elevation_bottom, 0.0f);
-  sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle, spectrum);
-  pix_bottom = spec_to_xyz(spectrum);
-  sun_dir = geographical_to_direction(elevation_top, 0.0f);
-  sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle, spectrum);
-  pix_top = spec_to_xyz(spectrum);
+  if (elevation_top > 0.0f) {
+    sun_dir = geographical_to_direction(elevation_bottom, 0.0f);
+    sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle, spectrum);
+    pix_bottom = spec_to_xyz(spectrum);
+    sun_dir = geographical_to_direction(elevation_top, 0.0f);
+    sun_radiation(sun_dir, altitude, air_density, aerosol_density, solid_angle, spectrum);
+    pix_top = spec_to_xyz(spectrum);
+  }
+  else {
+    pix_bottom = make_float3(0.0f, 0.0f, 0.0f);
+    pix_top = make_float3(0.0f, 0.0f, 0.0f);
+  }
 
   /* store pixels */
   r_pixel_bottom[0] = pix_bottom.x;

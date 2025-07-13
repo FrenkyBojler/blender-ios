@@ -47,6 +47,7 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   float sun_dir_angle = precise_angle(dir, sun_dir);
   float half_angular = angular_diameter * 0.5;
   float alpha = 1.0;
+  float y;
   color xyz;
   vector direction = sky_spherical_coordinates(dir);
   float dir_elevation = M_PI_2 - direction[0];
@@ -54,18 +55,7 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   /* If the ray is inside the sun disc, render it, otherwise render the sky.
    * Alternatively, ignore the sun if we're evaluating the background texture. */
   if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
-    /* Sun */
-    float y;
-    if (sun_elevation - half_angular > 0.0) {
-      if ((sun_elevation + half_angular) > 0.0) {
-        y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
-      }
-    }
-    else {
-      if (sun_elevation + half_angular > 0.0) {
-        y = dir_elevation / (sun_elevation + half_angular);
-      }
-    }
+    y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
     /* Limb darkening, coefficient is 0.6 */
     xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity;
     float angle_fraction = sun_dir_angle / half_angular;
@@ -73,30 +63,23 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
     xyz *= limb_darkening;
   }
   else {
+    float x = (direction[1] + M_PI + sun_rotation) / M_2PI;
+    if (x > 1.0) {
+      x = x - 1.0;
+    }
     if (sky_type == 0 && dir[2] < 0.0) {
-      /* Black ground if Single Scattering model, otherwise get Sky LUT */
+      /* If Single Scattering is used, fade ground to black */
       if (dir[2] < -0.4) {
         xyz = color(0, 0, 0);
       }
       else {
-        /* Ground fade */
         float fade = pow(1.0 + dir[2] * 2.5, 3.0);
-        float x = (direction[1] + M_PI + sun_rotation) / M_2PI;
-        if (x > 1.0) {
-          x = x - 1.0;
-        }
-        float y = 0.492;
         xyz = (color)texture(
-                  filename, x, y, "wrap", "periodic", "interp", "linear", "alpha", alpha) *
+                  filename, x, 0.492, "wrap", "periodic", "interp", "linear", "alpha", alpha) *
               fade;
       }
     }
     else {
-      /* Sky */
-      float x = (direction[1] + M_PI + sun_rotation) / M_2PI;
-      if (x > 1.0) {
-        x = x - 1.0;
-      }
       /* Undo the non-linear transformation from the sky LUT */
       float dir_elevation_abs = (dir_elevation < 0.0) ? -dir_elevation : dir_elevation;
       float y = 1.0 - (sqrt(dir_elevation_abs / M_PI_2) * signx(dir_elevation) * 0.5 + 0.5);

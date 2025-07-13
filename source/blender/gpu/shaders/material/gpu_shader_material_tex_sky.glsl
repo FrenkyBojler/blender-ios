@@ -44,9 +44,6 @@ void node_tex_sky(float3 co,
   }
   if (sky_type == 0.0 && co.z < 0.0) {
     /* Ground fade */
-    if (x > 1.0) {
-      x -= 1.0;
-    }
     fade = 1.0 + co.z * 2.5;
     fade = fade * fade * fade;
     y = 0.508;

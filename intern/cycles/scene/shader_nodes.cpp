@@ -700,7 +700,7 @@ float SkyTextureNode::get_sun_average_radiance()
   const float3 pixel_bottom = make_float3(pix_bottom[0], pix_bottom[1], pix_bottom[2]);
   const float3 pixel_top = make_float3(pix_top[0], pix_top[1], pix_top[2]);
 
-  /* Same code as in the sun evaluation shader. */
+  /* Same code as in the Sun evaluation shader. */
   float3 xyz = make_float3(0.0f, 0.0f, 0.0f);
   if (sun_elevation - half_angular > 0.0f) {
     if (sun_elevation + half_angular > 0.0f) {
@@ -715,7 +715,7 @@ float SkyTextureNode::get_sun_average_radiance()
     }
   }
 
-  /* We first approximate the sun's contribution by
+  /* We first approximate the Sun's contribution by
    * multiplying the evaluated point by the square of the angular diameter.
    * Then we scale the approximation using a piecewise function (determined empirically). */
   float sun_contribution = average(xyz) * sqr(angular_diameter);

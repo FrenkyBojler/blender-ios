@@ -49,23 +49,14 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
   const float half_angular = angular_diameter * 0.5f;
   const float dir_elevation = M_PI_2_F - direction.x;
   float3 xyz;
+  float y;
 
   /* If the ray is inside the sun disc, render it, otherwise render the sky.
    * Alternatively, ignore the sun if we're evaluating the background texture. */
   if (sun_disc && sun_dir_angle < half_angular &&
       !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
   {
-    float y;
-    if (sun_elevation - half_angular > 0.0f) {
-      if (sun_elevation + half_angular > 0.0f) {
-        y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-      }
-    }
-    else {
-      if (sun_elevation + half_angular > 0.0f) {
-        y = dir_elevation / (sun_elevation + half_angular);
-      }
-    }
+    y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
     /* Limb darkening, coefficient is 0.6 */
     xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
     const float limb_darkening = (1.0f -
@@ -73,25 +64,22 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
     xyz *= limb_darkening;
   }
   else {
+    const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
     if (!multiple_scattering && dir.z < 0.0f) {
-      /* Black ground if Single Scattering model, otherwise get Sky LUT */
+      /* If Single Scattering is used, fade ground to black */
       if (dir.z < -0.4f) {
         xyz = make_float3(0.0f, 0.0f, 0.0f);
       }
       else {
-        /* Ground fade */
         float fade = 1.0f + dir.z * 2.5f;
         fade = fade * fade * fade;
-        const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
         xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f)) * fade;
       }
     }
     else {
-      /* Sky */
-      const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
       /* Undo the non-linear transformation from the sky LUT */
       const float dir_elevation_abs = (dir_elevation < 0.0f) ? -dir_elevation : dir_elevation;
-      const float y = sqrtf(dir_elevation_abs / M_PI_2_F) * sign(dir_elevation) * 0.5f + 0.5f;
+      y = sqrtf(dir_elevation_abs / M_PI_2_F) * sign(dir_elevation) * 0.5f + 0.5f;
       xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
     }
   }

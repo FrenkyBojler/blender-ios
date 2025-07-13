@@ -46,7 +46,7 @@ static const float EARTH_RADIUS = 6371.0f;
 static const float ATMOSPHERE_THICKNESS = 100.0f;
 static const float ATMOSPHERE_RADIUS = EARTH_RADIUS + ATMOSPHERE_THICKNESS;
 /* Ray marching steps. Higher steps means increased accuracy but worse performance. */
-static const int TRANSMITTANCE_STEPS = 32;
+static const int TRANSMITTANCE_STEPS = 64;
 static const int IN_SCATTERING_STEPS = 64;
 
 /* LUTs */
@@ -370,25 +370,38 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float r_pixel_top[3])
 {
   /* Clamp altitude to avoid numerical issues */
-  altitude = clamp(altitude, 1.0f, 99999.0f);
+  altitude = clamp(altitude, 1.0f, 99999.0f) / 1000.0f;
   float half_angular = angular_diameter / 2.0f;
   float solid_angle = M_2PI_F * (1.0f - cosf(half_angular));
   float elevation_bottom = sun_elevation - half_angular;
   float elevation_top = sun_elevation + half_angular;
+  float normalized_altitude = altitude / ATMOSPHERE_THICKNESS;
+  float3 pix_bottom, pix_top;
 
-  /* Compute 2 pixels for Sun disc: one is the lowest point of the disc, one is the highest. */
-  float normalized_altitude = altitude / 1000.0f / ATMOSPHERE_THICKNESS;
-  float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_bottom);
-  float3 sun_dir = sun_direction(sun_zenith_cos_angle);
-  float4 transmittance_to_sun = transmittance_from_lut(sun_zenith_cos_angle, normalized_altitude);
-  float4 spectrum = SUN_SPECTRAL_IRRADIANCE * transmittance_to_sun / solid_angle;
-  float3 pix_bottom = spectral_to_xyz(spectrum);
+  float3 ray_dir = make_float3(cosf(elevation_top), 0.0f, sinf(elevation_top));
+  float3 ray_origin = make_float3(0.0f, 0.0f, EARTH_RADIUS + altitude);
+  float ground_dist = ray_sphere_intersection(ray_origin, ray_dir, EARTH_RADIUS);
 
-  sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_top);
-  sun_dir = sun_direction(sun_zenith_cos_angle);
-  transmittance_to_sun = transmittance_from_lut(sun_zenith_cos_angle, normalized_altitude);
-  spectrum = SUN_SPECTRAL_IRRADIANCE * transmittance_to_sun / solid_angle;
-  float3 pix_top = spectral_to_xyz(spectrum);
+  /* Compute 2 pixels for Sun disc: one is the lowest point of the disc, one is the highest.
+   * Return black pixels if Sun is below horizon */
+  if (ground_dist < 0.0f) {
+    float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_bottom);
+    float3 sun_dir = sun_direction(sun_zenith_cos_angle);
+    float4 transmittance_to_sun = transmittance_from_lut(sun_zenith_cos_angle,
+                                                         normalized_altitude);
+    float4 spectrum = SUN_SPECTRAL_IRRADIANCE * transmittance_to_sun / solid_angle;
+    pix_bottom = spectral_to_xyz(spectrum);
+
+    sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_top);
+    sun_dir = sun_direction(sun_zenith_cos_angle);
+    transmittance_to_sun = transmittance_from_lut(sun_zenith_cos_angle, normalized_altitude);
+    spectrum = SUN_SPECTRAL_IRRADIANCE * transmittance_to_sun / solid_angle;
+    pix_top = spectral_to_xyz(spectrum);
+  }
+  else {
+    pix_bottom = make_float3(0.0f, 0.0f, 0.0f);
+    pix_top = make_float3(0.0f, 0.0f, 0.0f);
+  }
 
   /* Store pixels */
   r_pixel_bottom[0] = pix_bottom.x;
