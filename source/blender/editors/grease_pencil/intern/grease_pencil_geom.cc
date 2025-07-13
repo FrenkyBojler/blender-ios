@@ -2000,7 +2000,7 @@ bke::CurvesGeometry trim_curve_segments_2(
 
   /* -------------------- */
 
-  Vector<Segment_2> segments;
+  Vector<Segment_2> all_segments;
   Array<IndexRange> segments_by_curve(src_points_by_curve.size());
 
   /* -------------------- */
@@ -2011,19 +2011,95 @@ bke::CurvesGeometry trim_curve_segments_2(
                  src_points_by_curve,
                  intersections,
                  is_cyclic,
-                 segments,
+                 all_segments,
                  segments_by_curve);
   }
 
-  if (segments.is_empty()) {
+  if (all_segments.is_empty()) {
     return bke::CurvesGeometry();
   }
 
-  Vector<int> segment_offset_data;
-  for (const int segment_i : segments.index_range()) {
-    segment_offset_data.append(segment_i);
+  Array<int> segment_connections(all_segments.size(), -1);
+
+  for (const int segment_i : segment_connections.index_range()) {
+    segment_connections[segment_i] = segment_i;
   }
-  segment_offset_data.append(segments.size());
+
+  // for (const int segment_i : segment_connections.index_range().drop_back(1)) {
+  //   segment_connections[segment_i] = segment_i + 1;
+  // }
+  // segment_connections.last() = 0;
+
+  /* Follow each segment until it loops or ends. */
+  Array<bool> processed_segments(all_segments.size(), false);
+
+  /* Remove all noncontributing segments. */
+  // for (const int segment_i : segments.index_range()) {
+  //   processed_segments[segment_i] = true;
+  // }
+
+  int start_segment = processed_segments.as_span().first_index_try(false);
+
+  Vector<Segment_2> segments;
+  Vector<int> segment_offset_data;
+
+  segment_offset_data.append(0);
+
+  while (start_segment != -1) {
+    int current_i = start_segment;
+
+    bool PolygonDone = false;
+    while (!PolygonDone) {
+      if (processed_segments[current_i] == true) {
+        BLI_assert_unreachable();
+        break;
+      }
+
+      const Segment_2 &current_segment = all_segments[current_i];
+      processed_segments[current_i] = true;
+
+      // if (segments.size() == 0) {
+      //   segments.append(current_segment);
+      // }
+      // /* Check if the last segment can be joined with this one. */
+      // else if (!check_and_join_segments(result.segments.last(), current_segment)) {
+      //   result.segments.append(current_segment);
+      // }
+
+      segments.append(current_segment);
+
+      const int next_segment = segment_connections[current_i];
+
+      if (next_segment == -1) {
+        PolygonDone = true;
+        break;
+      }
+
+      if (next_segment == start_segment) {
+        PolygonDone = true;
+
+        // /* Check if the last segment can be joined to the first one. */
+        // if ((!result.segments.index_range().is_empty()) &&
+        //     result.segment_offset_data.last() != result.segments.index_range().last())
+        // {
+        //   if (check_and_join_segments(result.segments[result.segment_offset_data.last()],
+        //                               result.segments.last()))
+        //   {
+        //     result.segments.remove_last();
+        //   }
+        // }
+
+        break;
+      }
+
+      current_i = next_segment;
+    }
+    segment_offset_data.append(segments.size());
+
+    /* Get the next unprocessed segment. */
+    start_segment = processed_segments.as_span().first_index_try(false);
+  }
+
   const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
 
   Array<bool> segment_reversed(segments.size());
