@@ -18,7 +18,7 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   PassSimple &pass = instance_.state.image_ps;
   GPUShader *shader = ShaderModule::module_get().color.get();
   const ShaderParameters &sh_params = instance_.state.sh_params;
-  DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+  DefaultTextureList *dtxl = DRW_context_get()->viewport_texture_list_get();
 
   pass.shader_set(shader);
   pass.push_constant("far_near_distances", sh_params.far_near);
@@ -28,7 +28,7 @@ void ScreenSpaceDrawingMode::add_shgroups() const
   pass.bind_texture("depth_tx", dtxl->depth);
 
   float4x4 image_mat = float4x4::identity();
-  ResourceHandle handle = instance_.manager->resource_handle(image_mat);
+  ResourceHandleRange handle = instance_.manager->resource_handle(image_mat);
   for (const TextureInfo &info : instance_.state.texture_infos) {
     PassSimple::Sub &sub = pass.sub("Texture");
     sub.push_constant("offset", info.offset());
@@ -44,7 +44,7 @@ void ScreenSpaceDrawingMode::add_depth_shgroups(::Image *image, ImageUser *image
   pass.shader_set(shader);
 
   float4x4 image_mat = float4x4::identity();
-  ResourceHandle handle = instance_.manager->resource_handle(image_mat);
+  ResourceHandleRange handle = instance_.manager->resource_handle(image_mat);
 
   ImageUser tile_user = {nullptr};
   if (image_user) {
@@ -328,7 +328,7 @@ void ScreenSpaceDrawingMode::do_full_update_texture_slot(const TextureInfo &text
 void ScreenSpaceDrawingMode::begin_sync() const
 {
   {
-    DefaultTextureList *dtxl = DRW_viewport_texture_list_get();
+    DefaultTextureList *dtxl = DRW_context_get()->viewport_texture_list_get();
     instance_.state.depth_fb.ensure(GPU_ATTACHMENT_TEXTURE(dtxl->depth));
     instance_.state.color_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(dtxl->color));
   }

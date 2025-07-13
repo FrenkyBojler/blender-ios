@@ -192,15 +192,12 @@ void BKE_mesh_loop_islands_add(MeshIslandStore *island_store,
                                int num_innercut_items,
                                int *innercut_item_indices);
 
-using MeshRemapIslandsCalc = bool (*)(const float (*vert_positions)[3],
-                                      int totvert,
-                                      const blender::int2 *edges,
-                                      int totedge,
-                                      const bool *uv_seams,
+using MeshRemapIslandsCalc = bool (*)(blender::Span<blender::float3> vert_positions,
+                                      blender::Span<blender::int2> edges,
+                                      blender::Span<bool> uv_seams,
                                       blender::OffsetIndices<int> faces,
-                                      const int *corner_verts,
-                                      const int *corner_edges,
-                                      int corners_num,
+                                      blender::Span<int> corner_verts,
+                                      blender::Span<int> corner_edges,
                                       MeshIslandStore *r_island_store);
 
 /* Above vert/UV mapping stuff does not do what we need here, but does things we do not need here.
@@ -209,42 +206,16 @@ using MeshRemapIslandsCalc = bool (*)(const float (*vert_positions)[3],
 /**
  * Calculate 'generic' UV islands, i.e. based only on actual geometry data (edge seams),
  * not some UV layers coordinates.
+ *
+ * \param uv_seams: Optional (possibly empty) span.
  */
-bool BKE_mesh_calc_islands_loop_face_edgeseam(const float (*vert_positions)[3],
-                                              int totvert,
-                                              const blender::int2 *edges,
-                                              int totedge,
-                                              const bool *uv_seams,
+bool BKE_mesh_calc_islands_loop_face_edgeseam(blender::Span<blender::float3> vert_positions,
+                                              blender::Span<blender::int2> edges,
+                                              blender::Span<bool> uv_seams,
                                               blender::OffsetIndices<int> faces,
-                                              const int *corner_verts,
-                                              const int *corner_edges,
-                                              int corners_num,
+                                              blender::Span<int> corner_verts,
+                                              blender::Span<int> corner_edges,
                                               MeshIslandStore *r_island_store);
-
-/**
- * Calculate UV islands.
- *
- * \note If no UV layer is passed, we only consider edges tagged as seams as UV boundaries.
- * This has the advantages of simplicity, and being valid/common to all UV maps.
- * However, it means actual UV islands without matching UV seams will not be handled correctly.
- * If a valid UV layer is passed as \a luvs parameter,
- * UV coordinates are also used to detect islands boundaries.
- *
- * \note All this could be optimized.
- * Not sure it would be worth the more complex code, though,
- * those loops are supposed to be really quick to do.
- */
-bool BKE_mesh_calc_islands_loop_face_uvmap(float (*vert_positions)[3],
-                                           int totvert,
-                                           blender::int2 *edges,
-                                           int totedge,
-                                           const bool *uv_seams,
-                                           blender::OffsetIndices<int> faces,
-                                           const int *corner_verts,
-                                           const int *corner_edges,
-                                           int corners_num,
-                                           const float (*luvs)[2],
-                                           MeshIslandStore *r_island_store);
 
 /**
  * Calculate smooth groups from sharp edges, using increasing numbers as identifier for each group.
@@ -253,7 +224,7 @@ bool BKE_mesh_calc_islands_loop_face_uvmap(float (*vert_positions)[3],
  * \param sharp_faces: Optional (possibly empty) span.
  * \param r_totgroup: The total number of groups, 1 or more.
  * \return Face aligned array of group index values, starting at 1 (0 being used as 'invalid'
- * flag). Note that it's the callers's responsibility to MEM_freeN the returned array.
+ * flag). Note that it's the callers responsibility to MEM_freeN the returned array.
  */
 int *BKE_mesh_calc_smoothgroups(int edges_num,
                                 blender::OffsetIndices<int> faces,
@@ -262,26 +233,26 @@ int *BKE_mesh_calc_smoothgroups(int edges_num,
                                 blender::Span<bool> sharp_faces,
                                 int *r_totgroup);
 /**
- * Same as #BKE_mesh_calc_smoothgroups, but use bitflags instead of increasing numbers for each
+ * Same as #BKE_mesh_calc_smoothgroups, but use bit-flags instead of increasing numbers for each
  * group.
  *
  * This means that the same value (bit) can be re-used for different groups, as long as they are
  * not neighbors. Values of each group are always powers of two.
  *
  * By default, only groups that share a same sharp edge are considered neighbors, and therefore
- * prevented to use the same bitflag value.
+ * prevented to use the same bit-flag value.
  *
  * If #use_boundary_vertices_for_bitflags is set to `true`, then groups are also considered
- * neighbors (and therefore cannot have the same bitflag value) if they share a single vertex, even
- * if they have no common edge. This behavior seems to be required by some DCCs to recompute
+ * neighbors (and therefore cannot have the same bit-flag value) if they share a single vertex,
+ * even if they have no common edge. This behavior seems to be required by some DCCs to recompute
  * correct normals, see e.g. #104434. It will however make it much more likely to run out of
  * available bits with certain types of topology (e.g. large fans of sharp faces).
  *
  * \param sharp_edges: Optional (possibly empty) span.
  * \param sharp_faces: Optional (possibly empty) span.
  * \param r_totgroup: The total number of groups, 1 or more.
- * \return Face aligned array of group bitflags values (i.e. always powers of 2), starting at 1 (0
- * being used as 'invalid' flag). Note that it's the callers's responsibility to MEM_freeN the
+ * \return Face aligned array of group bit-flags values (i.e. always powers of 2), starting at 1 (0
+ * being used as 'invalid' flag). Note that it's the callers responsibility to MEM_freeN the
  * returned array.
  */
 int *BKE_mesh_calc_smoothgroups_bitflags(int edges_num,

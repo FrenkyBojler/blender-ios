@@ -112,6 +112,7 @@ enum NodeLightFalloff {
 enum NodeTexCoord {
   NODE_TEXCO_NORMAL,
   NODE_TEXCO_OBJECT,
+  NODE_TEXCO_OBJECT_WITH_TRANSFORM,
   NODE_TEXCO_CAMERA,
   NODE_TEXCO_WINDOW,
   NODE_TEXCO_REFLECTION,
@@ -218,6 +219,8 @@ enum NodeVectorMathType {
   NODE_VECTOR_MATH_REFRACT,
   NODE_VECTOR_MATH_FACEFORWARD,
   NODE_VECTOR_MATH_MULTIPLY_ADD,
+  NODE_VECTOR_MATH_POWER,
+  NODE_VECTOR_MATH_SIGN,
 };
 
 enum NodeClampType {
@@ -305,7 +308,7 @@ enum NodeWaveProfile {
   NODE_WAVE_PROFILE_TRI,
 };
 
-enum NodeSkyType { NODE_SKY_PREETHAM, NODE_SKY_HOSEK, NODE_SKY_NISHITA };
+enum NodeSkyType { NODE_SKY_NISHITA };
 
 enum NodeGradientType {
   NODE_BLEND_LINEAR,
@@ -367,11 +370,6 @@ enum NodeBumpOffset {
   NODE_BUMP_OFFSET_CENTER,
   NODE_BUMP_OFFSET_DX,
   NODE_BUMP_OFFSET_DY,
-};
-
-enum NodeTexVoxelSpace {
-  NODE_TEX_VOXEL_SPACE_OBJECT = 0,
-  NODE_TEX_VOXEL_SPACE_WORLD = 1,
 };
 
 enum NodeAO {
@@ -518,8 +516,5 @@ enum ClosureType {
 #define CLOSURE_WEIGHT_CUTOFF 1e-5f
 /* Treat closure as singular if the squared roughness is below this threshold. */
 #define BSDF_ROUGHNESS_SQ_THRESH 2e-10f
-/* Offset of coordinates for evaluating bump node. Unit in pixel. */
-#define BUMP_DX 0.1f
-#define BUMP_DY BUMP_DX
 
 CCL_NAMESPACE_END

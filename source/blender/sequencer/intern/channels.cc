@@ -18,12 +18,14 @@
 
 #include "BLT_translation.hh"
 
+#include "sequencer.hh"
+
 #include "SEQ_channels.hh"
 #include "SEQ_sequencer.hh"
 
 namespace blender::seq {
 
-ListBase *channels_displayed_get(Editing *ed)
+ListBase *channels_displayed_get(const Editing *ed)
 {
   return ed->displayed_channels;
 }
@@ -86,20 +88,14 @@ bool channel_is_muted(const SeqTimelineChannel *channel)
   return (channel->flag & SEQ_CHANNEL_MUTE) != 0;
 }
 
-ListBase *get_channels_by_seq(ListBase *seqbase, ListBase *channels, const Strip *strip)
+ListBase *get_channels_by_strip(Editing *ed, const Strip *strip)
 {
-  ListBase *lb = nullptr;
-
-  LISTBASE_FOREACH (Strip *, istrip, seqbase) {
-    if (strip == istrip) {
-      return channels;
-    }
-    if ((lb = get_channels_by_seq(&istrip->seqbase, &istrip->channels, strip))) {
-      return lb;
-    }
+  Strip *strip_owner = lookup_meta_by_strip(ed, strip);
+  if (strip_owner != nullptr) {
+    return &strip_owner->channels;
   }
 
-  return nullptr;
+  return &ed->channels;
 }
 
 }  // namespace blender::seq
