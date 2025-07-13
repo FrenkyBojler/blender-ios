@@ -18,6 +18,7 @@
 #include "BLI_mempool.h"
 #include "BLI_rect.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 #include "BKE_layer.hh"
@@ -997,7 +998,14 @@ static bool outliner_filter_has_name(TreeElement *te, const char *name, int flag
     fn_flag |= FNM_CASEFOLD;
   }
 
-  return fnmatch(name, te->name, fn_flag) == 0;
+  if (strchr(name, '*') || strchr(name, '?')) {
+    return fnmatch(name, te->name, fn_flag) == 0;
+  }
+  else if (flags & SO_FIND_CASE_SENSITIVE) {
+    return BLI_str_utf8_contains(te->name, name);
+  }
+
+  return BLI_str_utf8_contains(te->name, name);
 }
 
 static bool outliner_element_is_collection_or_object(TreeElement *te)
@@ -1116,15 +1124,7 @@ static void outliner_filter_tree(SpaceOutliner *space_outliner,
     return;
   }
 
-  if (space_outliner->search_flags & SO_FIND_COMPLETE) {
-    search_string = space_outliner->search_string;
-  }
-  else {
-    /* Implicitly add heading/trailing wildcards if needed. */
-    BLI_strncpy_ensure_pad(search_buff, space_outliner->search_string, '*', sizeof(search_buff));
-    search_string = search_buff;
-  }
-
+  search_string = space_outliner->search_string;
   outliner_filter_subtree(
       space_outliner, scene, view_layer, &space_outliner->tree, search_string, exclude_filter);
 }
