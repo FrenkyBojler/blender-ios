@@ -855,7 +855,8 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
     ED_view3d_viewcontext_init_object(&vc, obedit);
 
     if (verts_len != 0) {
-      if (vc.em->bm->totvertsel == 0) {
+      if (vc.em->bm->totvertsel == 0 && vc.em->bm->totedgesel == 0 &&
+          vc.em->bm->totfacesel == 0) {
         continue;
       }
     }
@@ -872,6 +873,47 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
     /* call extrude? */
     if (verts_len != 0) {
       const char extrude_htype = edbm_extrude_htype_from_em_select(vc.em);
+      char hflag = BM_ELEM_SELECT;
+
+      std::optional<EditMeshSymmetryHelper> symmetry_helper =
+          EditMeshSymmetryHelper::create_if_needed(obedit);
+
+      if (symmetry_helper) {
+        hflag = BM_ELEM_TAG;
+        EDBM_flag_disable_all(vc.em, hflag);
+
+        if (extrude_htype & BM_FACE) {
+          BMIter f_iter;
+          BMFace *f;
+          BM_ITER_MESH (f, &f_iter, vc.em->bm, BM_FACES_OF_MESH) {
+            if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+              BM_elem_flag_enable(f, hflag);
+              symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+            }
+          }
+        }
+        else if (extrude_htype & BM_EDGE) {
+          BMIter e_iter;
+          BMEdge *e;
+          BM_ITER_MESH (e, &e_iter, vc.em->bm, BM_EDGES_OF_MESH) {
+            if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+              BM_elem_flag_enable(e, hflag);
+              symmetry_helper->set_flag_on_mirror_edges(e, hflag, true);
+            }
+          }
+        }
+        else if (extrude_htype & BM_VERT) {
+          BMIter v_iter;
+          BMVert *v;
+          BM_ITER_MESH (v, &v_iter, vc.em->bm, BM_VERTS_OF_MESH) {
+            if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+              BM_elem_flag_enable(v, hflag);
+              symmetry_helper->set_flag_on_mirror_verts(v, hflag, true);
+            }
+          }
+        }
+      }
+
       BMEdge *eed;
       float mat[3][3];
       float vec[3], ofs[3];
@@ -957,15 +999,26 @@ static wmOperatorStatus edbm_dupli_extrude_cursor_invoke(bContext *C,
 
       if (rot_src) {
         EDBM_op_callf(
-            vc.em, op, "rotate verts=%hv cent=%v matrix=%m3", BM_ELEM_SELECT, local_center, mat);
-
+            vc.em, op, "rotate verts=%hv cent=%v matrix=%m3", hflag, local_center, mat);
         /* Also project the source, for retopology workflow. */
         if (use_proj) {
           EDBM_project_snap_verts(C, depsgraph, vc.region, vc.obedit, vc.em);
         }
       }
 
-      edbm_extrude_ex(vc.obedit, vc.em, extrude_htype, BM_ELEM_SELECT, false, false, true, true);
+      edbm_extrude_ex(vc.obedit,
+                      vc.em,
+                      extrude_htype,
+                      hflag,
+                      false,
+                      false,
+                      symmetry_helper.has_value(),
+                      true);
+
+      if (hflag != BM_ELEM_SELECT) {
+        EDBM_flag_disable_all(vc.em, hflag);
+      }
+
       EDBM_op_callf(
           vc.em, op, "rotate verts=%hv cent=%v matrix=%m3", BM_ELEM_SELECT, local_center, mat);
       EDBM_op_callf(vc.em, op, "translate verts=%hv vec=%v", BM_ELEM_SELECT, ofs);
