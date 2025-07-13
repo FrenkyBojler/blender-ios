@@ -1588,15 +1588,10 @@ static void calculate_offsets_from_segments(const Span<Segment_2> segments,
 
 static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
                                                        const Span<Segment_2> segments,
+                                                       const Span<bool> segment_reversed,
+                                                       const Span<bool> cyclic,
                                                        const OffsetIndices<int> segment_offsets)
 {
-
-  Array<bool> segment_reversed(segments.size());
-  segment_reversed.fill(false);
-
-  Array<bool> cyclic(segment_offsets.size());
-  cyclic.fill(false);
-
   Array<int> point_offsets(segment_offsets.size() + 1);
   calculate_offsets_from_segments(
       segments, segment_offsets, cyclic, point_offsets.as_mutable_span());
@@ -1884,7 +1879,7 @@ bke::CurvesGeometry trim_curve_segments_2(
     const Span<rcti> /*screen_space_curve_bounds*/,
     const IndexMask & /*curve_selection*/,
     const Vector<Vector<int>> & /*selected_points_in_curves*/,
-    const bool /*keep_caps*/)
+    const bool keep_caps)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
@@ -1916,13 +1911,78 @@ bke::CurvesGeometry trim_curve_segments_2(
     return bke::CurvesGeometry();
   }
 
-  Vector<int> segment_offsets;
+  Vector<int> segment_offset_data;
   for (const int segment_i : segments.index_range()) {
-    segment_offsets.append(segment_i);
+    segment_offset_data.append(segment_i);
   }
-  segment_offsets.append(segments.size());
+  segment_offset_data.append(segments.size());
+  const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
 
-  return create_curves_from_segments(src, segments, OffsetIndices<int>(segment_offsets));
+  Array<bool> segment_reversed(segments.size());
+  segment_reversed.fill(false);
+
+  Array<bool> cyclic(segment_offsets.size());
+  cyclic.fill(false);
+
+  bke::CurvesGeometry dst = create_curves_from_segments(
+      src, segments, segment_reversed, cyclic, segment_offsets);
+
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  if (!keep_caps) {
+    bke::SpanAttributeWriter<int8_t> dst_start_caps =
+        dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
+    bke::SpanAttributeWriter<int8_t> dst_end_caps =
+        dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
+
+    for (const int curve_i : segment_offsets.index_range()) {
+      if (cyclic[curve_i]) {
+        continue;
+      }
+
+      const IndexRange segment_range = segment_offsets[curve_i];
+
+      const int segment_index_first = segment_range.first();
+      const bool reversed_first = segment_reversed[segment_index_first];
+      const Segment_2 &segment_first = segments[segment_index_first];
+      const Side direction_first = reversed_first ? Side::End : Side::Start;
+      const int inter_index_first = segment_first.intersection_index[direction_first];
+
+      const int segment_index_last = segment_range.last();
+      const bool reversed_last = segment_reversed[segment_index_last];
+      const Segment_2 &segment_last = segments[segment_index_last];
+      const Side direction_last = reversed_last ? Side::Start : Side::End;
+      const int inter_index_last = segment_last.intersection_index[direction_last];
+
+      bool cut_first = true;
+      bool cut_last = true;
+
+      if (inter_index_first == -1) {
+        cut_first = false;
+      }
+
+      if (inter_index_last == -1) {
+        cut_last = false;
+      }
+
+      if (inter_index_first == inter_index_last) {
+        cut_first = false;
+        cut_last = false;
+      }
+
+      if (cut_first) {
+        dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+      }
+      if (cut_last) {
+        dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+      }
+    }
+
+    dst_start_caps.finish();
+    dst_end_caps.finish();
+  }
+
+  return dst;
 }
 
 }  // namespace trim
