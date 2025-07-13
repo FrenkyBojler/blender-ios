@@ -1586,9 +1586,9 @@ static void calculate_offsets_from_segments(const Span<Segment_2> segments,
   offsets.last() = offset;
 }
 
-bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
-                                                const Span<Segment_2> segments,
-                                                const OffsetIndices<int> segment_offsets)
+static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
+                                                       const Span<Segment_2> segments,
+                                                       const OffsetIndices<int> segment_offsets)
 {
 
   Array<bool> segment_reversed(segments.size());
@@ -1727,16 +1727,16 @@ static IntersectionPoint create_intersection(const int point_a,
   return inter_point;
 }
 
-void find_intersections_between_curves(const Span<float2> points_i,
-                                       const Span<float2> points_j,
-                                       const int curve_i,
-                                       const int curve_j,
-                                       const bool cyclic_i,
-                                       const bool cyclic_j,
-                                       const int point_offset_i,
-                                       const int point_offset_j,
-                                       Array<Vector<int>> &r_inters_per_curves,
-                                       Vector<IntersectionPoint> &r_intersections)
+static void find_intersections_between_curves(const Span<float2> points_i,
+                                              const Span<float2> points_j,
+                                              const int curve_i,
+                                              const int curve_j,
+                                              const bool cyclic_i,
+                                              const bool cyclic_j,
+                                              const int point_offset_i,
+                                              const int point_offset_j,
+                                              Array<Vector<int>> &r_inters_per_curves,
+                                              Vector<IntersectionPoint> &r_intersections)
 {
   for (const int i : points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
     for (const int j : points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
@@ -1761,12 +1761,11 @@ void find_intersections_between_curves(const Span<float2> points_i,
   }
 }
 
-void find_intersections_between_shapes(const Span<float2> screen_space_positions,
-                                       const OffsetIndices<int> points_by_curve,
-                                       const VArray<bool> &cyclic,
-                                       const bool self_intersection,
-                                       Array<Vector<int>> &r_inters_per_curves,
-                                       Vector<IntersectionPoint> &r_intersections)
+static void find_intersections_between_shapes(const Span<float2> screen_space_positions,
+                                              const OffsetIndices<int> points_by_curve,
+                                              const VArray<bool> &cyclic,
+                                              Array<Vector<int>> &r_inters_per_curves,
+                                              Vector<IntersectionPoint> &r_intersections)
 {
   for (const int curve_i : points_by_curve.index_range()) {
     const IndexRange points_i = points_by_curve[curve_i];
@@ -1794,13 +1793,13 @@ void find_intersections_between_shapes(const Span<float2> screen_space_positions
   };
 }
 
-void add_segments(const int curve_k,
-                  const Span<Vector<int>> inters_per_curves,
-                  const OffsetIndices<int> points_by_curve,
-                  const Span<IntersectionPoint> &intersections,
-                  const VArray<bool> &cyclic,
-                  Vector<Segment_2> &all_segments,
-                  MutableSpan<IndexRange> all_segments_by_curve)
+static void add_segments(const int curve_k,
+                         const Span<Vector<int>> inters_per_curves,
+                         const OffsetIndices<int> points_by_curve,
+                         const Span<IntersectionPoint> &intersections,
+                         const VArray<bool> &cyclic,
+                         Vector<Segment_2> &all_segments,
+                         MutableSpan<IndexRange> all_segments_by_curve)
 {
   const IndexRange points_k = points_by_curve[curve_k];
   const Span<int> inters = inters_per_curves[curve_k];
@@ -1885,7 +1884,7 @@ bke::CurvesGeometry trim_curve_segments_2(
     const Span<rcti> /*screen_space_curve_bounds*/,
     const IndexMask & /*curve_selection*/,
     const Vector<Vector<int>> & /*selected_points_in_curves*/,
-    const bool keep_caps)
+    const bool /*keep_caps*/)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
@@ -1893,12 +1892,8 @@ bke::CurvesGeometry trim_curve_segments_2(
   Vector<IntersectionPoint> intersections;
   Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
 
-  find_intersections_between_shapes(screen_space_positions,
-                                    src_points_by_curve,
-                                    is_cyclic,
-                                    false,
-                                    inters_per_curves,
-                                    intersections);
+  find_intersections_between_shapes(
+      screen_space_positions, src_points_by_curve, is_cyclic, inters_per_curves, intersections);
 
   /* -------------------- */
 
