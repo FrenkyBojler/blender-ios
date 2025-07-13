@@ -694,26 +694,10 @@ float SkyTextureNode::get_sun_average_radiance()
         sun_elevation, angular_diameter, altitude, pix_bottom, pix_top);
   }
 
-  /* Approximate the direction's elevation as the Sun's elevation. */
-  const float dir_elevation = sun_elevation;
-  const float half_angular = angular_diameter / 2.0f;
+  /* Sample center of Sun. */
   const float3 pixel_bottom = make_float3(pix_bottom[0], pix_bottom[1], pix_bottom[2]);
   const float3 pixel_top = make_float3(pix_top[0], pix_top[1], pix_top[2]);
-
-  /* Same code as in the Sun evaluation shader. */
-  float3 xyz = make_float3(0.0f, 0.0f, 0.0f);
-  if (sun_elevation - half_angular > 0.0f) {
-    if (sun_elevation + half_angular > 0.0f) {
-      float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-      xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
-    }
-  }
-  else {
-    if (sun_elevation + half_angular > 0.0f) {
-      float y = dir_elevation / (sun_elevation + half_angular);
-      xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
-    }
-  }
+  float3 xyz = interp(pixel_bottom, pixel_top, 0.5f) * sun_intensity;
 
   /* We first approximate the Sun's contribution by
    * multiplying the evaluated point by the square of the angular diameter.

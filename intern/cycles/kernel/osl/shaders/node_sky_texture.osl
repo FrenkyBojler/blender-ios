@@ -56,8 +56,8 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
    * Alternatively, ignore the sun if we're evaluating the background texture. */
   if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
     y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
-    /* Limb darkening, coefficient is 0.6 */
     xyz = mix(pixel_bottom, pixel_top, y) * sun_intensity;
+    /* Limb darkening, coefficient is 0.6 */
     float angle_fraction = sun_dir_angle / half_angular;
     float limb_darkening = (1.0 - 0.6 * (1.0 - sqrt(1.0 - angle_fraction * angle_fraction)));
     xyz *= limb_darkening;

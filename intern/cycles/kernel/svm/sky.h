@@ -57,8 +57,8 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
       !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
   {
     y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-    /* Limb darkening, coefficient is 0.6 */
     xyz = interp(pixel_bottom, pixel_top, y) * sun_intensity;
+    /* Limb darkening, coefficient is 0.6 */
     const float limb_darkening = (1.0f -
                                   0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle / half_angular))));
     xyz *= limb_darkening;
@@ -71,8 +71,7 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
         xyz = make_float3(0.0f, 0.0f, 0.0f);
       }
       else {
-        float fade = 1.0f + dir.z * 2.5f;
-        fade = fade * fade * fade;
+        float fade = powf(1.0f + dir.z * 2.5f, 3.0f);
         xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f)) * fade;
       }
     }
