@@ -746,9 +746,8 @@ static MovieTrackingMarker *rna_trackingMarkers_insert_frame(MovieTrackingTrack 
                                                              int framenr,
                                                              const float co[2])
 {
-  MovieTrackingMarker marker, *new_marker;
+  MovieTrackingMarker marker = {}, *new_marker;
 
-  memset(&marker, 0, sizeof(marker));
   marker.framenr = framenr;
   copy_v2_v2(marker.pos, co);
 
@@ -792,9 +791,8 @@ static MovieTrackingPlaneMarker *rna_trackingPlaneMarkers_find_frame(
 static MovieTrackingPlaneMarker *rna_trackingPlaneMarkers_insert_frame(
     MovieTrackingPlaneTrack *plane_track, int framenr)
 {
-  MovieTrackingPlaneMarker plane_marker, *new_plane_marker;
+  MovieTrackingPlaneMarker plane_marker = {}, *new_plane_marker;
 
-  memset(&plane_marker, 0, sizeof(plane_marker));
   plane_marker.framenr = framenr;
 
   /* a bit arbitrary, but better than creating zero markers */
@@ -2213,8 +2211,9 @@ static void rna_def_trackingReconstruction(BlenderRNA *brna)
   prop = RNA_def_property(srna, "is_valid", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", TRACKING_RECONSTRUCTED);
-  RNA_def_property_ui_text(
-      prop, "Reconstructed", "Is tracking data contains valid reconstruction information");
+  RNA_def_property_ui_text(prop,
+                           "Reconstructed",
+                           "Whether the tracking data contains valid reconstruction information");
 
   /* average_error */
   prop = RNA_def_property(srna, "average_error", PROP_FLOAT, PROP_NONE);
