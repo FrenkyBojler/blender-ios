@@ -12,6 +12,7 @@ void main()
 {
   float4 pos_4d = float4(pos, 1.0f);
   gl_Position = ModelViewProjectionMatrix * pos_4d;
+  gl_PointSize = size;
   finalColor = color;
 
 #ifdef USE_WORLD_CLIP_PLANES
