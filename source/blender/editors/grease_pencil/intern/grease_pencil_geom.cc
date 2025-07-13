@@ -2009,6 +2009,9 @@ static void cut_caps(bke::CurvesGeometry &dst,
   dst_end_caps.finish();
 }
 
+static constexpr int SEGMENT_CONNECTION_NULL = -2;
+static constexpr int SEGMENT_CONNECTION_END = -3;
+
 bke::CurvesGeometry trim_curve_segments_2(
     const bke::CurvesGeometry &src,
     const Span<float2> screen_space_positions,
@@ -2047,26 +2050,57 @@ bke::CurvesGeometry trim_curve_segments_2(
     return bke::CurvesGeometry();
   }
 
-  Array<int> segment_connections(all_segments.size(), -1);
+  Array<bool> segments_to_keep(all_segments.size(), false);
+
+  for (const int segment_i : segments_to_keep.index_range()) {
+    segments_to_keep[segment_i] = true;
+  }
+
+  Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
 
   for (const int curve_i : segments_by_curve.index_range()) {
     const IndexRange segment_range = segments_by_curve[curve_i];
 
-    for (const int segment_i : segment_range.drop_back(1)) {
-      segment_connections[segment_i] = segment_i + 1;
+    if (segment_range.size() == 1) {
+      const int segment_i = segment_range.first();
+      if (!segments_to_keep[segment_i]) {
+      }
+      segment_connections[segment_i] = SEGMENT_CONNECTION_END;
+      continue;
     }
-    if (is_cyclic[curve_i]) {
+
+    for (const int segment_i : segment_range.drop_back(1)) {
+      if (!segments_to_keep[segment_i]) {
+        continue;
+      }
+
+      if (segments_to_keep[segment_i + 1]) {
+        segment_connections[segment_i] = segment_i + 1;
+      }
+      else {
+        segment_connections[segment_i] = SEGMENT_CONNECTION_END;
+      }
+    }
+
+    if (!segments_to_keep[segment_range.last()]) {
+      continue;
+    }
+
+    if (!is_cyclic[curve_i]) {
+      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
+      continue;
+    }
+
+    if (segments_to_keep[segment_range.first()]) {
       segment_connections[segment_range.last()] = segment_range.first();
+    }
+    else {
+      segment_connections[segment_range.last()] = SEGMENT_CONNECTION_END;
     }
   }
 
   /* Follow each segment until it loops or ends. */
   Array<bool> processed_segments(all_segments.size(), false);
-
-  /* Remove all noncontributing segments. */
-  // for (const int segment_i : segments.index_range()) {
-  //   processed_segments[segment_i] = true;
-  // }
 
   int start_segment = processed_segments.as_span().first_index_try(false);
 
@@ -2077,6 +2111,14 @@ bke::CurvesGeometry trim_curve_segments_2(
 
   while (start_segment != -1) {
     int current_i = start_segment;
+
+    if (segment_connections[current_i] == SEGMENT_CONNECTION_NULL) {
+      processed_segments[current_i] = true;
+
+      /* Get the next unprocessed segment. */
+      start_segment = processed_segments.as_span().first_index_try(false);
+      continue;
+    }
 
     bool PolygonDone = false;
     while (!PolygonDone) {
@@ -2098,7 +2140,12 @@ bke::CurvesGeometry trim_curve_segments_2(
 
       const int next_segment = segment_connections[current_i];
 
-      if (next_segment == -1) {
+      if (next_segment == SEGMENT_CONNECTION_NULL) {
+        BLI_assert_unreachable();
+        break;
+      }
+
+      if (next_segment == SEGMENT_CONNECTION_END) {
         PolygonDone = true;
         break;
       }
