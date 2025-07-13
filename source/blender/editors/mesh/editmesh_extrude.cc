@@ -32,6 +32,7 @@
 #include "ED_view3d.hh"
 
 #include "mesh_intern.hh" /* own include */
+#include "ED_mesh.hh"
 
 using blender::Vector;
 
@@ -361,6 +362,11 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
   enum { NONE = 0, ELEM_FLAG, VERT_ONLY, EDGE_ONLY } nr;
   bool changed = false;
 
+  std::optional<EditMeshSymmetryHelper> symmetry_helper =
+      EditMeshSymmetryHelper::create_if_needed(obedit);
+
+  char hflag = BM_ELEM_SELECT;
+
   if (em->selectmode & SCE_SELECT_VERTEX) {
     if (em->bm->totvertsel == 0) {
       nr = NONE;
@@ -395,6 +401,42 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
     }
   }
 
+  if (symmetry_helper && nr != NONE) {
+    hflag = BM_ELEM_TAG;
+    EDBM_flag_disable_all(em, hflag);
+
+    if (htype & BM_FACE) {
+      BMIter iter;
+      BMFace *f;
+      BM_ITER_MESH (f, &iter, em->bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(f, hflag);
+          symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+        }
+      }
+    }
+    else if (htype & BM_EDGE) {
+      BMIter iter;
+      BMEdge *e;
+      BM_ITER_MESH (e, &iter, em->bm, BM_EDGES_OF_MESH) {
+        if (BM_elem_flag_test(e, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(e, hflag);
+          symmetry_helper->set_flag_on_mirror_edges(e, hflag, true);
+        }
+      }
+    }
+    else if (htype & BM_VERT) {
+      BMIter iter;
+      BMVert *v;
+      BM_ITER_MESH (v, &iter, em->bm, BM_VERTS_OF_MESH) {
+        if (BM_elem_flag_test(v, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(v, hflag);
+          symmetry_helper->set_flag_on_mirror_verts(v, hflag, true);
+        }
+      }
+    }
+  }
+
   switch (nr) {
     case NONE:
       return false;
@@ -402,18 +444,22 @@ static bool edbm_extrude_mesh(Object *obedit, BMEditMesh *em, wmOperator *op)
       changed = edbm_extrude_ex(obedit,
                                 em,
                                 htype,
-                                BM_ELEM_SELECT,
+                                hflag,
                                 use_normal_flip,
                                 use_dissolve_ortho_edges,
-                                true,
+                                symmetry_helper.has_value(),
                                 true);
       break;
     case VERT_ONLY:
-      changed = edbm_extrude_verts_indiv(em, op, BM_ELEM_SELECT);
+      changed = edbm_extrude_verts_indiv(em, op, hflag);
       break;
     case EDGE_ONLY:
-      changed = edbm_extrude_edges_indiv(em, op, BM_ELEM_SELECT, use_normal_flip);
+      changed = edbm_extrude_edges_indiv(em, op, hflag, use_normal_flip);
       break;
+  }
+
+  if (hflag != BM_ELEM_SELECT) {
+    EDBM_flag_disable_all(em, hflag);
   }
 
   if (changed) {
