@@ -632,7 +632,6 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 /* Sky Texture */
 
 struct SunSky {
-  float theta, phi;
   float sky_data[10];
 };
 
@@ -879,8 +878,6 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   }
 
   compiler.parameter("sky_type", sky_model);
-  compiler.parameter("theta", sunsky.theta);
-  compiler.parameter("phi", sunsky.phi);
   compiler.parameter_array("sky_data", sunsky.sky_data, 10);
   compiler.parameter_texture("filename", handle);
   compiler.add(this, "node_sky_texture");

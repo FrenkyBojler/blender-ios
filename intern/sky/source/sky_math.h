@@ -437,4 +437,9 @@ inline float mix(float x, float y, float a)
   return x + a * (y - x);
 }
 
+inline float3 sun_direction(float sun_cos_theta)
+{
+  return make_float3(-sqrtf(1.0f - sun_cos_theta * sun_cos_theta), 0.0f, sun_cos_theta);
+}
+
 #endif /* __SKY_MATH_H__ */
