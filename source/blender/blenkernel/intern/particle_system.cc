@@ -2108,7 +2108,7 @@ static void sphclassical_calc_dens(ParticleData *pa, float /*dfra*/, SPHData *sp
 
 static void psys_sph_init(ParticleSimulationData *sim,
                           SPHData *sphdata,
-                          std::optional<blender::Map<blender::OrderedEdge, int>> &r_eh)
+                          blender::Map<blender::OrderedEdge, int> &r_eh)
 {
   ParticleTarget *pt;
   int i;
@@ -2128,7 +2128,7 @@ static void psys_sph_init(ParticleSimulationData *sim,
     sphdata->gravity = nullptr;
   }
   r_eh = sph_springhash_build(sim->psys);
-  sphdata->eh = &*r_eh;
+  sphdata->eh = &r_eh;
 
   /* These per-particle values should be overridden later, but just for
    * completeness we give them default values now. */
@@ -3971,7 +3971,7 @@ static void dynamics_step(ParticleSimulationData *sim, float cfra)
       break;
     }
     case PART_PHYS_FLUID: {
-      std::optional<blender::Map<blender::OrderedEdge, int>> eh;
+      blender::Map<blender::OrderedEdge, int> eh;
       SPHData sphdata;
       psys_sph_init(sim, &sphdata, eh);
 
