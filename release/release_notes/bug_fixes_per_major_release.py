@@ -746,7 +746,7 @@ def classify_commits(
 
 # ---
 
-def prepare_for_print(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, list[CommitInfo]]]:
+def organize_commits(list_of_commits: list[CommitInfo]) -> dict[str, dict[str, list[CommitInfo]]]:
     # This function takes in a list of commits, and sorts them based on their classification and module.
 
     dict_of_sorted_commits: dict[str, dict[str, list[CommitInfo]]] = {}
@@ -802,7 +802,7 @@ def print_list_of_commits(title: str, dict_of_commits: dict[str, list[CommitInfo
 # ---
 
 def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
-    dict_of_sorted_commits = prepare_for_print(list_of_commits)
+    dict_of_sorted_commits = organize_commits(list_of_commits)
 
     print_list_of_commits("Commits that fixed old issues:", dict_of_sorted_commits[FIXED_OLD_ISSUE])
 
