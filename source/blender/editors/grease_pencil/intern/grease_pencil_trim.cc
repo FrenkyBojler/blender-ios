@@ -78,57 +78,9 @@ static bool execute_trim_on_drawing(const int layer_index,
     }
   });
 
-  rcti bbox_lasso;
-  BLI_lasso_boundbox(&bbox_lasso, mcoords);
-
-  /* Collect curves and curve points inside the lasso area. */
-  Vector<int> selected_curves;
-  Vector<Vector<int>> selected_points_in_curves;
-
-  IndexMaskMemory memory;
-  const IndexMask editable_strokes = blender::ed::greasepencil::retrieve_editable_strokes(
-      obact, drawing, layer_index, memory);
-  editable_strokes.foreach_index([&](const int src_curve) {
-    /* To speed things up: do a bounding box check on the curve and the lasso area. */
-    if (!BLI_rcti_isect(&bbox_lasso, &screen_space_bbox[src_curve], nullptr)) {
-      return;
-    }
-
-    /* Look for curve points inside the lasso area. */
-    Vector<int> selected_points;
-    for (const int src_point : src_points_by_curve[src_curve]) {
-      /* Check if point is inside the lasso area. */
-      if (BLI_rcti_isect_pt_v(&bbox_lasso, int2(screen_space_positions[src_point])) &&
-          BLI_lasso_is_point_inside(mcoords,
-                                    int(screen_space_positions[src_point].x),
-                                    int(screen_space_positions[src_point].y),
-                                    IS_CLIPPED))
-      {
-        if (selected_points.is_empty()) {
-          selected_curves.append(src_curve);
-        }
-        selected_points.append(src_point);
-      }
-    }
-    if (!selected_points.is_empty()) {
-      selected_points_in_curves.append(std::move(selected_points));
-    }
-  });
-
-  const IndexMask curve_selection = IndexMask::from_indices(selected_curves.as_span(), memory);
-  /* Abort when the lasso area is empty. */
-  if (curve_selection.is_empty()) {
-    return false;
-  }
-
   /* Apply trim. */
   bke::CurvesGeometry cut_strokes = ed::greasepencil::trim::trim_curve_segments_2(
-      src,
-      screen_space_positions,
-      screen_space_bbox,
-      curve_selection,
-      selected_points_in_curves,
-      keep_caps);
+      src, screen_space_positions, screen_space_bbox, mcoords, keep_caps);
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(cut_strokes);

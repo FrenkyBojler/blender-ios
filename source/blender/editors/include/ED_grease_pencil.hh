@@ -897,8 +897,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
 bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                                           Span<float2> screen_space_positions,
                                           Span<rcti> screen_space_curve_bounds,
-                                          const IndexMask &curve_selection,
-                                          const Vector<Vector<int>> &selected_points_in_curves,
+                                          Span<int2> mcoords,
                                           bool keep_caps);
 };  // namespace trim
 

@@ -12,6 +12,7 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
+#include "BLI_lasso_2d.hh"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -2141,13 +2142,11 @@ static void follow_segment_connections(const Span<Segment_2> all_segments,
   }
 }
 
-bke::CurvesGeometry trim_curve_segments_2(
-    const bke::CurvesGeometry &src,
-    const Span<float2> screen_space_positions,
-    const Span<rcti> screen_space_curve_bounds,
-    const IndexMask & /*curve_selection*/,
-    const Vector<Vector<int>> & /*selected_points_in_curves*/,
-    const bool keep_caps)
+bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
+                                          const Span<float2> screen_space_positions,
+                                          const Span<rcti> screen_space_curve_bounds,
+                                          const Span<int2> mcoords,
+                                          const bool keep_caps)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
@@ -2178,9 +2177,43 @@ bke::CurvesGeometry trim_curve_segments_2(
 
   /* -------------------- */
 
-  Array<bool> segments_to_keep(all_segments.size(), false);
+  rcti bbox_lasso;
+  BLI_lasso_boundbox(&bbox_lasso, mcoords);
+
+  Array<bool> segments_to_keep(all_segments.size(), true);
   for (const int segment_i : segments_to_keep.index_range()) {
-    segments_to_keep[segment_i] = true;
+    const Segment_2 &segment = all_segments[segment_i];
+
+    /* To speed things up: do a bounding box check on the curve and the lasso area. */
+    if (!BLI_rcti_isect(&bbox_lasso, &screen_space_curve_bounds[segment.curve], nullptr)) {
+      continue;
+    }
+
+    const IndexRange point_range = segment.point_range();
+
+    for (const int64_t i : point_range.drop_back(1)) {
+      const int point_i = segment.wrap_index(i);
+
+      const float2 pos_a = screen_space_positions[point_i];
+      const float2 pos_b = screen_space_positions[point_i + 1];
+
+      rcti bbox_ab;
+      BLI_rcti_init_minmax(&bbox_ab);
+      BLI_rcti_do_minmax_v(&bbox_ab, int2(pos_a));
+      BLI_rcti_do_minmax_v(&bbox_ab, int2(pos_b));
+      BLI_rcti_pad(&bbox_ab, BBOX_PADDING, BBOX_PADDING);
+
+      /* Check the lasso bounding box first as an optimization. */
+      if (BLI_rcti_isect_segment(&bbox_ab, int2(pos_a), int2(pos_b)) &&
+          BLI_lasso_is_edge_inside(
+              mcoords, int(pos_a.x), int(pos_a.y), int(pos_b.x), int(pos_b.y), IS_CLIPPED))
+      {
+        segments_to_keep[segment_i] = false;
+        continue;
+      }
+    }
+
+    /* TODO: Add starts and ends. */
   }
 
   /* -------------------- */
