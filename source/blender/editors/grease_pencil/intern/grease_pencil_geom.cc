@@ -1873,6 +1873,66 @@ static void add_segments(const int curve_k,
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 }
 
+static void cut_caps(bke::CurvesGeometry &dst,
+                     const Span<Segment_2> segments,
+                     const Span<bool> segment_reversed,
+                     const Span<bool> cyclic,
+                     const OffsetIndices<int> segment_offsets)
+{
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  bke::SpanAttributeWriter<int8_t> dst_start_caps =
+      dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
+  bke::SpanAttributeWriter<int8_t> dst_end_caps =
+      dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
+
+  for (const int curve_i : segment_offsets.index_range()) {
+    if (cyclic[curve_i]) {
+      continue;
+    }
+
+    const IndexRange segment_range = segment_offsets[curve_i];
+
+    const int segment_index_first = segment_range.first();
+    const bool reversed_first = segment_reversed[segment_index_first];
+    const Segment_2 &segment_first = segments[segment_index_first];
+    const Side direction_first = reversed_first ? Side::End : Side::Start;
+    const int inter_index_first = segment_first.intersection_index[direction_first];
+
+    const int segment_index_last = segment_range.last();
+    const bool reversed_last = segment_reversed[segment_index_last];
+    const Segment_2 &segment_last = segments[segment_index_last];
+    const Side direction_last = reversed_last ? Side::Start : Side::End;
+    const int inter_index_last = segment_last.intersection_index[direction_last];
+
+    bool cut_first = true;
+    bool cut_last = true;
+
+    /* Check if there is no intersection and therefor the segment should not be cut. */
+    if (inter_index_first == -1) {
+      cut_first = false;
+    }
+    if (inter_index_last == -1) {
+      cut_last = false;
+    }
+
+    if (inter_index_first == inter_index_last) {
+      cut_first = false;
+      cut_last = false;
+    }
+
+    if (cut_first) {
+      dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+    }
+    if (cut_last) {
+      dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
+    }
+  }
+
+  dst_start_caps.finish();
+  dst_end_caps.finish();
+}
+
 bke::CurvesGeometry trim_curve_segments_2(
     const bke::CurvesGeometry &src,
     const Span<float2> screen_space_positions,
@@ -1927,59 +1987,8 @@ bke::CurvesGeometry trim_curve_segments_2(
   bke::CurvesGeometry dst = create_curves_from_segments(
       src, segments, segment_reversed, cyclic, segment_offsets);
 
-  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
-
   if (!keep_caps) {
-    bke::SpanAttributeWriter<int8_t> dst_start_caps =
-        dst_attributes.lookup_or_add_for_write_span<int8_t>("start_cap", bke::AttrDomain::Curve);
-    bke::SpanAttributeWriter<int8_t> dst_end_caps =
-        dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
-
-    for (const int curve_i : segment_offsets.index_range()) {
-      if (cyclic[curve_i]) {
-        continue;
-      }
-
-      const IndexRange segment_range = segment_offsets[curve_i];
-
-      const int segment_index_first = segment_range.first();
-      const bool reversed_first = segment_reversed[segment_index_first];
-      const Segment_2 &segment_first = segments[segment_index_first];
-      const Side direction_first = reversed_first ? Side::End : Side::Start;
-      const int inter_index_first = segment_first.intersection_index[direction_first];
-
-      const int segment_index_last = segment_range.last();
-      const bool reversed_last = segment_reversed[segment_index_last];
-      const Segment_2 &segment_last = segments[segment_index_last];
-      const Side direction_last = reversed_last ? Side::Start : Side::End;
-      const int inter_index_last = segment_last.intersection_index[direction_last];
-
-      bool cut_first = true;
-      bool cut_last = true;
-
-      if (inter_index_first == -1) {
-        cut_first = false;
-      }
-
-      if (inter_index_last == -1) {
-        cut_last = false;
-      }
-
-      if (inter_index_first == inter_index_last) {
-        cut_first = false;
-        cut_last = false;
-      }
-
-      if (cut_first) {
-        dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
-      }
-      if (cut_last) {
-        dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
-      }
-    }
-
-    dst_start_caps.finish();
-    dst_end_caps.finish();
+    cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
   }
 
   return dst;
