@@ -1949,6 +1949,7 @@ static void cut_caps(bke::CurvesGeometry &dst,
       dst_attributes.lookup_or_add_for_write_span<int8_t>("end_cap", bke::AttrDomain::Curve);
 
   for (const int curve_i : segment_offsets.index_range()) {
+    /* If the curve connects back to it's self, don't cut it. */
     if (cyclic[curve_i]) {
       continue;
     }
@@ -1967,26 +1968,11 @@ static void cut_caps(bke::CurvesGeometry &dst,
     const Side direction_last = reversed_last ? Side::Start : Side::End;
     const int inter_index_last = segment_last.intersection_index[direction_last];
 
-    bool cut_first = true;
-    bool cut_last = true;
-
-    /* Check if there is no intersection and therefor the segment should not be cut. */
-    if (inter_index_first == -1) {
-      cut_first = false;
-    }
-    if (inter_index_last == -1) {
-      cut_last = false;
-    }
-
-    if (inter_index_first == inter_index_last) {
-      cut_first = false;
-      cut_last = false;
-    }
-
-    if (cut_first) {
+    /* Check if there is intersection and therefor the segment should be cut. */
+    if (inter_index_first != -1) {
       dst_start_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
     }
-    if (cut_last) {
+    if (inter_index_last != -1) {
       dst_end_caps.span[curve_i] = GP_STROKE_CAP_TYPE_FLAT;
     }
   }
