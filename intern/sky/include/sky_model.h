@@ -30,8 +30,8 @@ void SKY_single_scattering_precompute_sun(float sun_elevation,
                                           float altitude,
                                           float air_density,
                                           float aerosol_density,
-                                          float *r_pixel_bottom,
-                                          float *r_pixel_top);
+                                          float r_pixel_bottom[3],
+                                          float r_pixel_top[3]);
 
 void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 int stride,
@@ -44,15 +44,15 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 float aerosol_density,
                                                 float ozone_density);
 
-void SKY_multiple_scattering_precompute_sun(float sun_elevation,
-                                            float angular_diameter,
-                                            float altitude,
-                                            float *r_pixel_bottom,
-                                            float *r_pixel_top);
-
 void SKY_multiple_scattering_precompute_transmittance(float air_density,
                                                       float aerosol_density,
                                                       float ozone_density);
+
+void SKY_multiple_scattering_precompute_sun(float sun_elevation,
+                                            float angular_diameter,
+                                            float altitude,
+                                            float r_pixel_bottom[3],
+                                            float r_pixel_top[3]);
 
 #ifdef __cplusplus
 }

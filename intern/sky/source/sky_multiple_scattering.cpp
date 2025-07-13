@@ -375,8 +375,8 @@ static float4 sun_radiation(float sun_zenith_cos_angle, float altitude, float so
 void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float angular_diameter,
                                             float altitude,
-                                            float *r_pixel_bottom,
-                                            float *r_pixel_top)
+                                            float r_pixel_bottom[3],
+                                            float r_pixel_top[3])
 {
   /* Clamp altitude to avoid numerical issues */
   altitude = clamp(altitude, 1.0f, 99999.0f);

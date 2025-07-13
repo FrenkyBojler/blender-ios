@@ -365,8 +365,8 @@ void SKY_single_scattering_precompute_sun(float sun_elevation,
                                           float altitude,
                                           float air_density,
                                           float aerosol_density,
-                                          float *r_pixel_bottom,
-                                          float *r_pixel_top)
+                                          float r_pixel_bottom[3],
+                                          float r_pixel_top[3])
 {
   /* Clamp altitude to avoid numerical issues */
   altitude = clamp(altitude, 1.0f, 59999.0f);
