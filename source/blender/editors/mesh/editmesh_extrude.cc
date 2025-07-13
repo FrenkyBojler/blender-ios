@@ -737,7 +737,30 @@ static wmOperatorStatus edbm_extrude_faces_exec(bContext *C, wmOperator *op)
       continue;
     }
 
-    edbm_extrude_discrete_faces(em, op, BM_ELEM_SELECT);
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit);
+
+    char hflag = BM_ELEM_SELECT;
+
+    if (symmetry_helper) {
+      hflag = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag);
+
+      BMIter f_iter;
+      BMFace *f;
+      BM_ITER_MESH (f, &f_iter, em->bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+          BM_elem_flag_enable(f, hflag);
+          symmetry_helper->set_flag_on_mirror_faces(f, hflag, true);
+        }
+      }
+    }
+
+    edbm_extrude_discrete_faces(em, op, hflag);
+
+    if (hflag != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag);
+    }
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
