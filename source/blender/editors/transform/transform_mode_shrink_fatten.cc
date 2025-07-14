@@ -178,7 +178,15 @@ static void initShrinkFatten(TransInfo *t, wmOperator *op)
   ShrinkFattenCustomData *custom_data = static_cast<ShrinkFattenCustomData *>(
       MEM_callocN(sizeof(*custom_data), __func__));
   t->custom.mode.data = custom_data;
-  t->custom.mode.use_free = true;
+  t->custom.mode.free_cb = [](TransInfo *t, TransDataContainer *, TransCustomData *custom_data) {
+    ShrinkFattenCustomData *data = static_cast<ShrinkFattenCustomData *>(custom_data->data);
+
+    /* WORKAROUND: Use #T_ALT_TRANSFORM to indicate the value of the "use_even_offset" property in
+     * `saveTransform`. */
+    SET_FLAG_FROM_TEST(t->flag, data->mode == EVEN_THICKNESS_ON, T_ALT_TRANSFORM);
+    MEM_freeN(data);
+    custom_data->data = nullptr;
+  };
 
   if (t->keymap) {
     /* Workaround to use the same key as the modal keymap. */
