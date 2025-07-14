@@ -891,6 +891,11 @@ static void buttons_area_listener(const wmSpaceTypeListenerParams *params)
             ED_area_tag_redraw(area);
           }
           break;
+        case ND_ANIMCHAN:
+          if (wmn->action == NA_SELECTED) {
+            ED_area_tag_redraw(area);
+          }
+          break;
       }
       break;
     case NC_GPENCIL:
@@ -1095,7 +1100,7 @@ void ED_spacetype_buttons()
   art->draw = ED_region_panels_draw;
   art->listener = buttons_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_FRAMES;
-  art->lock = true;
+  art->lock = REGION_DRAW_LOCK_ALL;
   buttons_context_register(art);
   BLI_addhead(&st->regiontypes, art);
 

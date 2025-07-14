@@ -466,7 +466,7 @@ void wm_window_close(bContext *C, wmWindowManager *wm, wmWindow *win)
 
     if (stored_bounds) {
       /* Get DPI and scale from parent window, if there is one. */
-      WM_window_set_dpi(win->parent ? win->parent : win);
+      WM_window_dpi_set_userdef(win->parent ? win->parent : win);
       const float f = GHOST_GetNativePixelSize(static_cast<GHOST_WindowHandle>(win->ghostwin));
       stored_bounds->xmin = (float)win->posx * f / UI_SCALE_FAC;
       stored_bounds->xmax = stored_bounds->xmin + (float)win->sizex * f / UI_SCALE_FAC;
@@ -647,7 +647,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
   GHOST_SetWindowModifiedState(handle, !wm->file_saved);
 }
 
-void WM_window_set_dpi(const wmWindow *win)
+void WM_window_dpi_set_userdef(const wmWindow *win)
 {
   float auto_dpi = GHOST_GetDPIHint(static_cast<GHOST_WindowHandle>(win->ghostwin));
 
@@ -691,6 +691,18 @@ void WM_window_set_dpi(const wmWindow *win)
   /* Widget unit is 20 pixels at 1X scale. This consists of 18 user-scaled units plus
    * left and right borders of line-width (pixel-size). */
   U.widget_unit = int(roundf(18.0f * U.scale_factor)) + (2 * pixelsize);
+}
+
+float WM_window_dpi_get_scale(const wmWindow *win)
+{
+  GHOST_WindowHandle win_handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
+  const uint16_t dpi_base = 96;
+  const uint16_t dpi_fixed = std::max<uint16_t>(dpi_base, GHOST_GetDPIHint(win_handle));
+  float dpi = float(dpi_fixed);
+  if (OS_MAC) {
+    dpi *= GHOST_GetNativePixelSize(win_handle);
+  }
+  return dpi / float(dpi_base);
 }
 
 /** \} */
@@ -977,7 +989,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     /* Needed here, because it's used before it reads #UserDef. */
-    WM_window_set_dpi(win);
+    WM_window_dpi_set_userdef(win);
 
     wm_window_swap_buffers(win);
 
@@ -1029,7 +1041,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
     /* Happens after file-read. */
     wm_window_ensure_eventstate(win);
 
-    WM_window_set_dpi(win);
+    WM_window_dpi_set_userdef(win);
 
     if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
       /* Only decoration style we have for now. */
@@ -1294,7 +1306,7 @@ wmWindow *WM_window_open(bContext *C,
 wmWindow *WM_window_open_temp(struct bContext *C, const char *title, int space_type, bool dialog)
 {
   rcti rect;
-  WM_window_set_dpi(CTX_wm_window(C));
+  WM_window_dpi_set_userdef(CTX_wm_window(C));
   eWindowAlignment align;
   rctf *stored_bounds = stored_window_bounds(space_type);
   const bool bounds_valid = (stored_bounds && (BLI_rctf_size_x(stored_bounds) > 150.0f) &&
@@ -1508,7 +1520,7 @@ void wm_window_make_drawable(wmWindowManager *wm, wmWindow *win)
 
   if (win->ghostwin) {
     /* This can change per window. */
-    WM_window_set_dpi(win);
+    WM_window_dpi_set_userdef(win);
   }
 }
 
@@ -1748,7 +1760,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
           static_cast<GHOST_WindowHandle>(win->ghostwin));
       win->windowstate = state;
 
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
 
       /* WIN32: gives undefined window size when minimized. */
       if (state != GHOST_kWindowStateMinimized) {
@@ -1813,7 +1825,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
     }
 
     case GHOST_kEventWindowDPIHintChanged: {
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
       /* Font's are stored at each DPI level, without this we can easy load 100's of fonts. */
       BLF_cache_clear();
 
@@ -1889,9 +1901,9 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
         const GHOST_TStringArray *stra = static_cast<const GHOST_TStringArray *>(ddd->data);
 
         if (stra->count) {
-          CLOG_INFO(WM_LOG_EVENTS, 1, "Drop %d files:", stra->count);
+          CLOG_INFO(WM_LOG_EVENTS, "Drop %d files:", stra->count);
           for (const char *path : blender::Span((char **)stra->strings, stra->count)) {
-            CLOG_INFO(WM_LOG_EVENTS, 1, "%s", path);
+            CLOG_INFO(WM_LOG_EVENTS, "%s", path);
           }
           /* Try to get icon type from extension of the first path. */
           int icon = ED_file_extension_icon((char *)stra->strings[0]);
@@ -1912,7 +1924,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
     case GHOST_kEventNativeResolutionChange: {
       /* Only update if the actual pixel size changes. */
       float prev_pixelsize = U.pixelsize;
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
 
       if (U.pixelsize != prev_pixelsize) {
         BKE_icon_changed(WM_window_get_active_screen(win)->id.icon_id);
@@ -2288,14 +2300,14 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityWindowPosition) {
     flag |= WM_CAPABILITY_WINDOW_POSITION;
   }
-  if (ghost_flag & GHOST_kCapabilityPrimaryClipboard) {
-    flag |= WM_CAPABILITY_PRIMARY_CLIPBOARD;
+  if (ghost_flag & GHOST_kCapabilityClipboardPrimary) {
+    flag |= WM_CAPABILITY_CLIPBOARD_PRIMARY;
   }
   if (ghost_flag & GHOST_kCapabilityGPUReadFrontBuffer) {
     flag |= WM_CAPABILITY_GPU_FRONT_BUFFER_READ;
   }
-  if (ghost_flag & GHOST_kCapabilityClipboardImages) {
-    flag |= WM_CAPABILITY_CLIPBOARD_IMAGES;
+  if (ghost_flag & GHOST_kCapabilityClipboardImage) {
+    flag |= WM_CAPABILITY_CLIPBOARD_IMAGE;
   }
   if (ghost_flag & GHOST_kCapabilityDesktopSample) {
     flag |= WM_CAPABILITY_DESKTOP_SAMPLE;
@@ -2312,8 +2324,8 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   if (ghost_flag & GHOST_kCapabilityKeyboardHyperKey) {
     flag |= WM_CAPABILITY_KEYBOARD_HYPER_KEY;
   }
-  if (ghost_flag & GHOST_kCapabilityRGBACursors) {
-    flag |= WM_CAPABILITY_RGBA_CURSORS;
+  if (ghost_flag & GHOST_kCapabilityCursorRGBA) {
+    flag |= WM_CAPABILITY_CURSOR_RGBA;
   }
   if (ghost_flag & GHOST_kCapabilityMultiMonitorPlacement) {
     flag |= WM_CAPABILITY_MULTIMONITOR_PLACEMENT;
@@ -2754,6 +2766,18 @@ wmWindow *WM_window_find_under_cursor(wmWindow *win,
                                       const int event_xy[2],
                                       int r_event_xy_other[2])
 {
+  if ((WM_capabilities_flag() & WM_CAPABILITY_WINDOW_POSITION) == 0) {
+    /* Window positions are unsupported, so this function can't work as intended.
+     * Perform the bare minimum, return the active window if the event is within it. */
+    rcti rect;
+    WM_window_rect_calc(win, &rect);
+    if (!BLI_rcti_isect_pt_v(&rect, event_xy)) {
+      return nullptr;
+    }
+    copy_v2_v2_int(r_event_xy_other, event_xy);
+    return win;
+  }
+
   int temp_xy[2];
   copy_v2_v2_int(temp_xy, event_xy);
   wm_cursor_position_to_ghost_screen_coords(win, &temp_xy[0], &temp_xy[1]);
