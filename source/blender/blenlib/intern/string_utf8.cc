@@ -1654,11 +1654,12 @@ std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensi
     }
 
     const OrderWeights *order_weights = bli_str_utf32_orderweights(wc);
-    const bool ucase = case_sensitive && ligature->lettercase;
+    const bool ucase = case_sensitive && order_weights->lettercase;
 
     wc = bli_str_utf32_weight(wc, false, false);
     if (wc) {
-      size_t utf8_buf_len = BLI_str_utf8_from_unicode(wc, utf8_buf, sizeof(utf8_buf));
+      size_t utf8_buf_len = BLI_str_utf8_from_unicode(
+          ucase ? BLI_str_utf32_char_to_upper(wc) : wc, utf8_buf, sizeof(utf8_buf));
       result.append(utf8_buf, utf8_buf_len);
     }
   }
@@ -1673,18 +1674,11 @@ std::string BLI_str_utf8_normalized(const std::string str, bool case_sensitive)
 }
 
 // could replace many usages of BLI_strcasestr
-bool BLI_str_utf8_contains(const char *s, const char *find)
+bool BLI_str_utf8_contains(const char *s, const char *find, bool case_sensitive)
 {
-  const std::string full = BLI_str_utf8_normalized(s);
-  return full.find(BLI_str_utf8_normalized(find)) != std::string::npos;
-}
-
-// could replace usages of BLI_strncasestr
-bool BLI_str_utf8_contains(const char *s, const char *find, size_t len)
-{
-  std::string full = {s, len};
-  full = BLI_str_utf8_normalized(full);
-  return full.find(BLI_str_utf8_normalized(find)) != std::string::npos;
+  const std::string full = BLI_str_utf8_normalized(s, strlen(s), case_sensitive);
+  return full.find(BLI_str_utf8_normalized(find, strlen(find), case_sensitive)) !=
+         std::string::npos;
 }
 
 // could replace BLI_strcaseeq

@@ -1001,11 +1001,8 @@ static bool outliner_filter_has_name(TreeElement *te, const char *name, int flag
   if (strchr(name, '*') || strchr(name, '?')) {
     return fnmatch(name, te->name, fn_flag) == 0;
   }
-  else if (flags & SO_FIND_CASE_SENSITIVE) {
-    return BLI_str_utf8_contains(te->name, name);
-  }
 
-  return BLI_str_utf8_contains(te->name, name);
+  return BLI_str_utf8_contains(te->name, name, flags & SO_FIND_CASE_SENSITIVE);
 }
 
 static bool outliner_element_is_collection_or_object(TreeElement *te)
