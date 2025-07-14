@@ -1723,23 +1723,25 @@ static IntersectionPoint create_intersection(const int point_a,
   return inter_point;
 }
 
-static void find_intersections_between_curves(const Span<float2> points_i,
-                                              const Span<float2> points_j,
-                                              const int curve_i,
+static void find_intersections_between_curves(const int curve_i,
                                               const int curve_j,
-                                              const bool cyclic_i,
-                                              const bool cyclic_j,
-                                              const int point_offset_i,
-                                              const int point_offset_j,
+                                              const Span<float2> screen_space_positions,
+                                              const OffsetIndices<int> points_by_curve,
+                                              const VArray<bool> &cyclic,
                                               Array<Vector<int>> &r_inters_per_curves,
                                               Vector<IntersectionPoint> &r_intersections)
 {
+  const bool cyclic_i = cyclic[curve_i];
+  const bool cyclic_j = cyclic[curve_j];
+  const IndexRange points_i = points_by_curve[curve_i];
+  const IndexRange points_j = points_by_curve[curve_j];
+
   for (const int i : points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
-    const int point_i1 = i;
-    const int point_i2 = (i + 1) % points_i.size();
+    const int point_i1 = points_i[i];
+    const int point_i2 = points_i[(i + 1) % points_i.size()];
     for (const int j : points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
-      const int point_j1 = j;
-      const int point_j2 = (j + 1) % points_j.size();
+      const int point_j1 = points_j[j];
+      const int point_j2 = points_j[(j + 1) % points_j.size()];
 
       /* Don't self check. */
       if (curve_i == curve_j && (point_i1 == point_j1 || point_i1 == point_j2 ||
@@ -1749,17 +1751,17 @@ static void find_intersections_between_curves(const Span<float2> points_i,
       }
 
       float alpha_a, alpha_b;
-      const int val = intersect(points_i[point_i1],
-                                points_i[point_i2],
-                                points_j[point_j1],
-                                points_j[point_j2],
+      const int val = intersect(screen_space_positions[point_i1],
+                                screen_space_positions[point_i2],
+                                screen_space_positions[point_j1],
+                                screen_space_positions[point_j2],
                                 &alpha_a,
                                 &alpha_b);
       if (val == ISECT_LINE_LINE_CROSS) {
         r_inters_per_curves[curve_i].append(r_intersections.size());
         r_inters_per_curves[curve_j].append(r_intersections.size());
-        r_intersections.append(create_intersection(
-            i + point_offset_i, j + point_offset_j, alpha_a, alpha_b, curve_i, curve_j));
+        r_intersections.append(
+            create_intersection(point_i1, point_j1, alpha_a, alpha_b, curve_i, curve_j));
       }
       else if (val == ISECT_LINE_LINE_EXACT) {
         /* TODO(@casey-bianco-davis): Properly handle degeneracy. */
@@ -1777,9 +1779,6 @@ static void find_intersections_between_shapes(const Span<float2> screen_space_po
                                               Vector<IntersectionPoint> &r_intersections)
 {
   for (const int curve_i : points_by_curve.index_range()) {
-    const IndexRange points_i = points_by_curve[curve_i];
-    const bool cyclic_i = cyclic[curve_i];
-
     for (const int curve_j : points_by_curve.index_range()) {
       if (curve_i > curve_j) {
         continue;
@@ -1791,17 +1790,11 @@ static void find_intersections_between_shapes(const Span<float2> screen_space_po
         continue;
       }
 
-      const IndexRange points_j = points_by_curve[curve_j];
-      const bool cyclic_j = cyclic[curve_j];
-
-      find_intersections_between_curves(screen_space_positions.slice(points_i),
-                                        screen_space_positions.slice(points_j),
-                                        curve_i,
+      find_intersections_between_curves(curve_i,
                                         curve_j,
-                                        cyclic_i,
-                                        cyclic_j,
-                                        points_i.first(),
-                                        points_j.first(),
+                                        screen_space_positions,
+                                        points_by_curve,
+                                        cyclic,
                                         r_inters_per_curves,
                                         r_intersections);
     }
