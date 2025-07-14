@@ -429,11 +429,17 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
-    if (shape_key_report_if_active_locked(ob, op->reports)) {
-      return OPERATOR_CANCELLED;
+    Key &key = *BKE_key_from_object(ob);
+    LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block)
+    {
+      if ((kb->flag & KEYBLOCK_SEL) == 0) {
+        continue;
+      }
+      if ((kb->flag & KEYBLOCK_LOCKED_SHAPE) != 0) {
+        continue;
+      }
+      changed |= BKE_object_shapekey_remove(bmain, ob, kb);
     }
-
-    changed = object_shapekey_remove(bmain, ob);
   }
 
   if (changed) {
