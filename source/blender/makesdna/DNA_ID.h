@@ -484,13 +484,13 @@ typedef struct ID {
   unsigned int session_uid;
 
   /**
-   * This is only available on embedded linked data-blocks. It is a hash of the contents the
-   * data-block including all its dependencies. It is computed when first embedding the data-block
-   * and is not changed afterwards. It can be used to detect that embedded data-blocks in two
+   * This is only available on packed linked data-blocks. It is a hash of the contents the
+   * data-block including all its dependencies. It is computed when first packing the data-block
+   * and is not changed afterwards. It can be used to detect that packed data-blocks in two
    * separate .blend files are the same.
    *
    * Two data-blocks with the same deep hash are assumed to be interchangeable, but not necessarily
-   * exactly the same. For example, it's possible to change node positions on embedded data-blocks
+   * exactly the same. For example, it's possible to change node positions on packed data-blocks
    * without changing the deep hash.
    */
   IDHash deep_hash;
@@ -563,14 +563,18 @@ typedef struct Library {
   /** Path name used for reading, can be relative and edited in the outliner. */
   char filepath[/*FILE_MAX*/ 1024];
 
-  /** Flags defining specific caracteristics of a library. See #LibraryFlag. */
+  /** Flags defining specific characteristics of a library. See #LibraryFlag. */
   uint16_t flag;
   char _pad[6];
 
   /** For archive library only (#LIBRARY_FLAG_IS_ARCHIVE): The main library owning it. */
   struct Library *archive_parent_library;
 
-  /** Packed blendfile of the library, nullptr if not packed. */
+  /**
+   * Packed blendfile of the library, nullptr if not packed.
+   *
+   * \NOTE Individual IDs may be packed even if the entire library is not packed.
+   */
   struct PackedFile *packedfile;
 
   /**
