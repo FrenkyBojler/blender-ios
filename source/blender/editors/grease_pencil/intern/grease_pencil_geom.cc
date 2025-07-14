@@ -1816,6 +1816,35 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
   });
 }
 
+void store_segment_map_on_intersections(const Span<Segment> all_segments,
+                                        MutableSpan<IntersectionPoint> intersections)
+{
+  for (const int seg_i : all_segments.index_range()) {
+    const Segment &segment = all_segments[seg_i];
+    const int curve_i = segment.curve;
+
+    if (segment.has_intersection(Side::Start)) {
+      IntersectionPoint &inter_start = intersections[segment.intersection_index[Side::Start]];
+      if (curve_i == inter_start.curve_i) {
+        inter_start.end_i = seg_i;
+      }
+      else {
+        inter_start.end_j = seg_i;
+      }
+    }
+
+    if (segment.has_intersection(Side::End)) {
+      IntersectionPoint &inter_end = intersections[segment.intersection_index[Side::End]];
+      if (curve_i == inter_end.curve_i) {
+        inter_end.start_i = seg_i;
+      }
+      else {
+        inter_end.start_j = seg_i;
+      }
+    }
+  }
+}
+
 bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
                                         const Span<float2> screen_space_positions,
                                         const Span<rcti> screen_space_curve_bounds,
@@ -1868,31 +1897,7 @@ bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
   Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
-
-  for (const int seg_i : all_segments.index_range()) {
-    const Segment &segment = all_segments[seg_i];
-    const int curve_i = segment.curve;
-
-    if (segment.has_intersection(Side::Start)) {
-      IntersectionPoint &inter_start = intersections[segment.intersection_index[Side::Start]];
-      if (curve_i == inter_start.curve_i) {
-        inter_start.end_i = seg_i;
-      }
-      else {
-        inter_start.end_j = seg_i;
-      }
-    }
-
-    if (segment.has_intersection(Side::End)) {
-      IntersectionPoint &inter_end = intersections[segment.intersection_index[Side::End]];
-      if (curve_i == inter_end.curve_i) {
-        inter_end.start_i = seg_i;
-      }
-      else {
-        inter_end.start_j = seg_i;
-      }
-    }
-  }
+  store_segment_map_on_intersections(all_segments, intersections);
 
   /* -------------------- */
 
