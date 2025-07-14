@@ -239,27 +239,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(space_clip.anim_preview_range);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 5)) {
-    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_view3d.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_file.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_graph.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_info.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_action.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_nla.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_sequencer.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_image.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_text.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_outliner.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_node.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_preferences.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_console.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_clip.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_topbar.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_statusbar.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_spreadsheet.tab_back);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 6)) {
     /* Match the selected/unselected outline colors. */
     copy_v4_v4_uchar(btheme->tui.wcol_box.outline_sel, U_theme_default.tui.wcol_box.outline);
@@ -294,12 +273,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
                      U_theme_default.tui.wcol_tooltip.outline);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 9)) {
-    FROM_DEFAULT_V4_UCHAR(tui.panel_header);
-    FROM_DEFAULT_V4_UCHAR(tui.panel_back);
-    FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 12)) {
     FROM_DEFAULT_V4_UCHAR(space_node.syntaxs);
     FROM_DEFAULT_V4_UCHAR(space_node.syntaxb);
@@ -322,27 +295,143 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     FROM_DEFAULT_V4_UCHAR(asset_shelf.back);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 18)) {
-    FROM_DEFAULT_V4_UCHAR(space_preferences.button);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 19)) {
     btheme->tui.menu_shadow_fac = U_theme_default.tui.menu_shadow_fac;
     btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
   }
 
-  if (!USER_VERSION_ATLEAST(500, 24)) {
-    FROM_DEFAULT_V4_UCHAR(tui.panel_title);
-    FROM_DEFAULT_V4_UCHAR(tui.panel_text);
-  }
-
-  if (!USER_VERSION_ATLEAST(500, 25)) {
-    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_properties.button);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 29)) {
     FROM_DEFAULT_V4_UCHAR(space_node.console_output);
+  }
+
+  if (!USER_VERSION_ATLEAST(500, 100)) {
+    /* Guess overall lightness of the theme based on Properties header color. */
+    const uchar lightness = srgb_to_grayscale_byte(btheme->space_properties.header);
+    const bool is_dark = lightness < 80;
+
+    if (is_dark) {
+      /* Use dark theme defaults. */
+      FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_view3d.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_file.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_graph.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_info.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_action.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_nla.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_sequencer.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_image.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_text.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_outliner.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_node.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_preferences.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_console.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_clip.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_topbar.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_statusbar.tab_back);
+      FROM_DEFAULT_V4_UCHAR(space_spreadsheet.tab_back);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_title);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_text);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_header);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_back);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
+      FROM_DEFAULT_V4_UCHAR(space_preferences.button);
+      FROM_DEFAULT_V4_UCHAR(space_properties.button);
+    }
+    else {
+      /* Use values from our Light theme. */
+
+      const uchar properties_tab_back[4] = {0xa6, 0xa6, 0xa6, 0xff};
+      copy_v4_v4_uchar(btheme->space_properties.tab_back, properties_tab_back);
+      const uchar generic_tab_back[4] = {0xb3, 0xb3, 0xb3, 0x00};
+      copy_v4_v4_uchar(btheme->space_view3d.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_file.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_graph.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_info.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_action.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_nla.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_sequencer.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_image.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_preferences.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_text.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_outliner.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_node.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_console.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_clip.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_topbar.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_statusbar.tab_back, generic_tab_back);
+      copy_v4_v4_uchar(btheme->space_spreadsheet.tab_back, generic_tab_back);
+
+      const uchar panel_title[4] = {0x1a, 0x1a, 0x1a, 0xff};
+      copy_v4_v4_uchar(btheme->tui.panel_title, panel_title);
+      copy_v4_v4_uchar(btheme->tui.panel_text, panel_title);
+      const uchar panel_header[4] = {0xcc, 0xcc, 0xcc, 0xff};
+      copy_v4_v4_uchar(btheme->tui.panel_header, panel_header);
+      copy_v4_v4_uchar(btheme->tui.panel_back, panel_header);
+      const uchar panel_sub_back[4] = {0x00, 0x00, 0x00, 0x1f};
+      copy_v4_v4_uchar(btheme->tui.panel_sub_back, panel_sub_back);
+
+      const uchar button_properties[4] = {0x30, 0x30, 0x30, 0xff};
+      copy_v4_v4_uchar(btheme->space_properties.button, button_properties);
+      const uchar button_preferences[4] = {0xb3, 0xb3, 0xb3, 0x00};
+      copy_v4_v4_uchar(btheme->space_preferences.button, button_preferences);
+
+      const uchar outline_1[4] = {0x4d, 0x4d, 0x4d, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_regular.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_tool.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_toolbar_item.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_radio.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_text.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_option.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_toggle.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_num.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_numslider.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_box.outline, outline_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_pulldown.outline, outline_1);
+      const uchar outline_2[4] = {0x3d, 0x3d, 0x3d, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_menu.outline, outline_2);
+      const uchar outline_3[4] = {0xa6, 0xa6, 0xa6, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_menu_back.outline, outline_3);
+      const uchar outline_4[4] = {0x33, 0x33, 0x33, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_pie_menu.outline, outline_4);
+      const uchar outline_5[4] = {0x19, 0x19, 0x1f, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_tooltip.outline, outline_5);
+      const uchar outline_6[4] = {0x00, 0x00, 0x00, 0x00};
+      copy_v4_v4_uchar(btheme->tui.wcol_menu_item.outline, outline_6);
+      const uchar outline_7[4] = {0x99, 0x99, 0x99, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_scroll.outline, outline_7);
+      const uchar outline_8[4] = {0xb3, 0xb3, 0xb3, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_progress.outline, outline_8);
+      const uchar outline_9[4] = {0xe6, 0xe6, 0xe6, 0x00};
+      copy_v4_v4_uchar(btheme->tui.wcol_list_item.outline, outline_9);
+      const uchar outline_10[4] = {0x33, 0x33, 0x33, 0x00};
+      copy_v4_v4_uchar(btheme->tui.wcol_tab.outline, outline_10);
+
+      const uchar outline_sel_1[4] = {0x3d, 0x3d, 0x3d, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_regular.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_tool.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_toolbar_item.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_radio.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_text.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_option.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_toggle.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_num.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_numslider.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_box.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_menu.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_scroll.outline_sel, outline_sel_1);
+      copy_v4_v4_uchar(btheme->tui.wcol_progress.outline_sel, outline_sel_1);
+      const uchar outline_sel_2[4] = {0x3d, 0x3d, 0x3d, 0x00};
+      copy_v4_v4_uchar(btheme->tui.wcol_pulldown.outline_sel, outline_sel_2);
+      copy_v4_v4_uchar(btheme->tui.wcol_menu_item.outline_sel, outline_sel_2);
+      const uchar outline_sel_3[4] = {0x24, 0x24, 0x24, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_menu_back.outline_sel, outline_sel_3);
+      copy_v4_v4_uchar(btheme->tui.wcol_pie_menu.outline_sel, outline_sel_3);
+      copy_v4_v4_uchar(btheme->tui.wcol_tooltip.outline_sel, outline_sel_3);
+      const uchar outline_sel_4[4] = {0x2d, 0x2d, 0x2d, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_list_item.outline_sel, outline_sel_4);
+      const uchar outline_sel_5[4] = {0x1d, 0x1d, 0x1d, 0xff};
+      copy_v4_v4_uchar(btheme->tui.wcol_tab.outline_sel, outline_sel_5);
+    }
   }
 
   /**
