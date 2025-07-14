@@ -1575,15 +1575,87 @@ static const OrderWeights OrderWeightsTable[] = {
     {0x3000, ' ', 11, 0}, /* Space Ideographic. */
     {0xFB01, 'f', 3, 0},  /* Small Ligature fi. */
     {0xFB02, 'f', 4, 0},  /* Small Ligature fl. */
+    {0xFE50, 0, 29, 0},   /* Small Form Variant Comma ignored. */
+    {0xFE52, 0, 30, 0},   /* Small Form Variant Period ignored. */
+    {0xFE54, 0, 31, 0},   /* Small Form Variant Semi-colon ignored. */
+    {0xFE55, 0, 32, 0},   /* Small Form Variant colon ignored. */
+    {0xFE56, 0, 33, 0},   /* Small Form Variant question mark ignored. */
+    {0xFE57, 0, 34, 0},   /* Small Form Variant exclamation mark ignored. */
+    {0xFE5F, '#', 0, 0},  /* Small Form Variant Number sign. */
+    {0xFE61, '*', 0, 0},  /* Small Form Variant asterisk. */
+    {0xFF01, 0, 35, 0},   /* Half width exclamation mark ignored. */
+    {0xFF02, 0, 36, 0},   /* Half width Double quotation mark ignored. */
+    {0xFF07, 0, 37, 0},   /* Half width Apostrophe ignored. */
+    {0xFF08, 0, 38, 0},   /* Half width Open parenthesis ignored. */
+    {0xFF09, 0, 39, 0},   /* Half width Close parenthesis ignored. */
+    {0xFF0A, '*', 0, 0},  /* Half width asterisk. */
+    {0xFF0B, '+', 0, 0},  /* Half width Plus sign. */
+    {0xFF0C, 0, 40, 0},   /* Half width comma ignored. */
+    {0xFF0E, 0, 41, 0},   /* Half width period ignored. */
+    {0xFF10, '0', 3, 0},  /* Full width digit 0. */
+    {0xFF11, '1', 6, 0},  /* Half width digit 1. */
+    {0xFF12, '2', 3, 0},  /* Half width digit 2. */
+    {0xFF13, '3', 5, 0},  /* Half width digit 3. */
+    {0xFF14, '4', 3, 0},  /* Half width digit 4. */
+    {0xFF15, '5', 4, 0},  /* Half width digit 5. */
+    {0xFF16, '6', 3, 0},  /* Half width digit 6. */
+    {0xFF17, '7', 4, 0},  /* Half width digit 7. */
+    {0xFF18, '8', 3, 0},  /* Half width digit 8. */
+    {0xFF19, '9', 3, 0},  /* Half width digit 9. */
+    {0xFF1D, '=', 0, 0},  /* Half width Equals sign. */
+    {0xFF21, 'a', 16, 1}, /* Half width Capital Letter A. */
+    {0xFF22, 'b', 2, 1},  /* Half width Capital Letter B. */
+    {0xFF23, 'c', 2, 1},  /* Half width Capital Letter C. */
+    {0xFF24, 'd', 5, 1},  /* Half width Capital Letter D. */
+    {0xFF25, 'e', 11, 1}, /* Half width Capital Letter E. */
+    {0xFF26, 'f', 5, 1},  /* Half width Capital Letter F. */
+    {0xFF27, 'g', 7, 1},  /* Half width Capital Letter G. */
+    {0xFF28, 'h', 4, 1},  /* Half width Capital Letter H. */
+    {0xFF29, 'i', 12, 1}, /* Half width Capital Letter I. */
+    {0xFF2A, 'j', 2, 1},  /* Half width Capital Letter J. */
+    {0xFF2B, 'k', 4, 1},  /* Half width Capital Letter K. */
+    {0xFF2C, 'l', 6, 1},  /* Half width Capital Letter L. */
+    {0xFF2D, 'm', 2, 1},  /* Half width Capital Letter M. */
+    {0xFF2E, 'n', 9, 1},  /* Half width Capital Letter N. */
+    {0xFF2F, 'o', 15, 1}, /* Half width Capital Letter O. */
+    {0xFF30, 'p', 2, 1},  /* Half width Capital Letter P. */
+    {0xFF31, 'q', 1, 1},  /* Half width Capital Letter Q. */
+    {0xFF32, 'r', 5, 1},  /* Half width Capital Letter R. */
+    {0xFF33, 's', 10, 1}, /* Half width Capital Letter S. */
+    {0xFF34, 't', 7, 1},  /* Half width Capital Letter T. */
+    {0xFF35, 'u', 11, 1}, /* Half width Capital Letter U. */
+    {0xFF36, 'v', 1, 1},  /* Half width Capital Letter V. */
+    {0xFF37, 'w', 5, 1},  /* Half width Capital Letter W. */
+    {0xFF38, 'x', 1, 1},  /* Half width Capital Letter X. */
+    {0xFF39, 'y', 5, 1},  /* Half width Capital Letter Y. */
+    {0xFF3A, 'z', 6, 1},  /* Half width Capital Letter Z. */
+    {0xFF41, 'a', 16, 0}, /* Half width Small Letter A. */
+    {0xFF42, 'b', 2, 0},  /* Half width Small Letter B. */
+    {0xFF43, 'c', 2, 0},  /* Half width Small Letter C. */
+    {0xFF44, 'd', 5, 0},  /* Half width Small Letter D. */
+    {0xFF45, 'e', 11, 0}, /* Half width Small Letter E. */
+    {0xFF46, 'f', 5, 0},  /* Half width Small Letter F. */
+    {0xFF47, 'g', 7, 0},  /* Half width Small Letter G. */
+    {0xFF48, 'h', 4, 0},  /* Half width Small Letter H. */
+    {0xFF49, 'i', 12, 0}, /* Half width Small Letter I. */
+    {0xFF4A, 'j', 2, 0},  /* Half width Small Letter J. */
+    {0xFF4B, 'k', 4, 0},  /* Half width Small Letter K. */
+    {0xFF4C, 'l', 6, 0},  /* Half width Small Letter L. */
+    {0xFF4D, 'm', 2, 0},  /* Half width Small Letter M. */
+    {0xFF4E, 'n', 9, 0},  /* Half width Small Letter N. */
+    {0xFF4F, 'o', 15, 0}, /* Half width Small Letter O. */
+    {0xFF50, 'p', 2, 0},  /* Half width Small Letter P. */
+    {0xFF51, 'q', 1, 0},  /* Half width Small Letter Q. */
+    {0xFF52, 'r', 5, 0},  /* Half width Small Letter R. */
+    {0xFF53, 's', 10, 0}, /* Half width Small Letter S. */
+    {0xFF54, 't', 7, 0},  /* Half width Small Letter T. */
+    {0xFF55, 'u', 11, 0}, /* Half width Small Letter U. */
+    {0xFF56, 'v', 1, 0},  /* Half width Small Letter V. */
+    {0xFF57, 'w', 5, 0},  /* Half width Small Letter W. */
+    {0xFF58, 'x', 1, 0},  /* Half width Small Letter X. */
+    {0xFF59, 'y', 5, 0},  /* Half width Small Letter Y. */
+    {0xFF5A, 'z', 6, 0},  /* Half width Small Letter Z. */
 };
-
-/* To do (Mostly non European)
- * Check the rest of Letterlike Symbols (U+2100..U+214F)
- * Check the rest of Number Forms (U+2150..U+218F) - missing fractions
- * Consider Common Indic Number Forms (U+A830..U+A83F)
- * Consider Small Form Variants (U+FE50..U+FE6F)
- * Should do Halfwidth and Fullwidth Forms (U+FF00..U+FFEF)
- */
 
 static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
 {
