@@ -933,19 +933,6 @@ class Segment {
     return int2(points[side], this->wrap_index(points[side] + 1));
   }
 
-  int start_point() const
-  {
-    if (!this->has_intersection(Side::Start)) {
-      return src_points.first();
-    }
-    return this->edge(Side::Start).y;
-  }
-
-  int end_point() const
-  {
-    return this->edge(Side::End).x;
-  }
-
   int wrap_index(const int i) const
   {
     return math::mod_periodic(i - src_points.first(), src_points.size()) + src_points.first();
@@ -1241,12 +1228,6 @@ struct IntersectionPoint {
   {
     BLI_assert(curve == curve_a || curve == curve_b);
     return curve == curve_a ? point_a + alpha_a : point_b + alpha_b;
-  }
-
-  int other_curve(const int curve) const
-  {
-    BLI_assert(curve == curve_a || curve == curve_b);
-    return curve == curve_a ? curve_b : curve_a;
   }
 };
 
