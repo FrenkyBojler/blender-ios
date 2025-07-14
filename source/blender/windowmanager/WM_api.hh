@@ -17,7 +17,6 @@
 #include <optional>
 #include <string>
 
-#include "DNA_screen_types.h"
 #include "DNA_windowmanager_types.h"
 
 #include "BLI_array.hh"

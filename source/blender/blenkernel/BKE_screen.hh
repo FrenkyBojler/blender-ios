@@ -16,7 +16,6 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
-#include "DNA_screen_types.h"
 #include "DNA_vec_types.h"
 
 #include "RNA_types.hh"
