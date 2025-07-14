@@ -39,7 +39,6 @@
 /* Mostly initialization functions. */
 #include "BKE_appdir.hh"
 #include "BKE_blender.hh"
-#include "BKE_blender_project.hh"
 #include "BKE_brush.hh"
 #include "BKE_callbacks.hh"
 #include "BKE_context.hh"
