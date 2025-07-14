@@ -1006,15 +1006,15 @@ bool OneapiDevice::create_queue(SyclQueue *&external_queue,
     }
 
     sycl::queue *created_queue = nullptr;
-    if (*is_several_intel_dgpu_devices_detected_pointer == false) {
+    if (devices.size() == 1) {
       created_queue = new sycl::queue(devices[device_index], sycl::property::queue::in_order());
     }
     else {
       sycl::context device_context(devices[device_index]);
       created_queue = new sycl::queue(
           device_context, devices[device_index], sycl::property::queue::in_order());
-      LOG_TRACE << "Separate context was generated for the new queue, as several available SYCL "
-                   "devices were detected";
+      VLOG_DEBUG << "Separate context was generated for the new queue, as several available SYCL "
+                    "devices were detected";
     }
     external_queue = reinterpret_cast<SyclQueue *>(created_queue);
 
