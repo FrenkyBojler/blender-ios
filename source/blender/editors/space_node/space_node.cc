@@ -1949,6 +1949,7 @@ static void node_widgets()
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_corner_pin);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_box_mask);
   WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_ellipse_mask);
+  WM_gizmogrouptype_append_and_link(gzmap_type, NODE_GGT_backdrop_split);
 }
 
 static void node_id_remap(ID *old_id, ID *new_id, SpaceNode *snode)
@@ -2263,7 +2264,7 @@ void ED_spacetype_node()
   art->cursor = node_cursor;
   art->event_cursor = true;
   art->clip_gizmo_events_by_ui = true;
-  art->lock = 1;
+  art->lock = REGION_DRAW_LOCK_ALL;
 
   BLI_addhead(&st->regiontypes, art);
 

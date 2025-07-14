@@ -1239,6 +1239,7 @@ void ED_spacetype_image()
   art->init = image_main_region_init;
   art->draw = image_main_region_draw;
   art->listener = image_main_region_listener;
+  art->lock = REGION_DRAW_LOCK_BAKING;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons/scopes */
