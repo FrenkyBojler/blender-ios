@@ -74,20 +74,13 @@ static eRedrawFlag shrinkfatten_handleEvent(TransInfo *t, const wmEvent *event)
   const wmKeyMapItem *kmi = custom_data->kmi;
 
   if (ELEM(event->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
-    if (event->val == KM_PRESS) {
-      custom_data->mode = EVEN_THICKNESS_ON;
-
-      /* WORKAROUND: We don't know whether the Alt button was initially pressed or not, so make
-       * sure not to skip the next release event, even if it's the first one. */
+    if (custom_data->skip_first_even_thickness_handle) {
+      /* Skip event. Ideally, only the release one should be skipped. */
       custom_data->skip_first_even_thickness_handle = false;
-      return TREDRAW_HARD;
-    }
-    else if (!custom_data->skip_first_even_thickness_handle) {
-      custom_data->mode = EVEN_THICKNESS_OFF;
-      return TREDRAW_HARD;
     }
     else {
-      custom_data->skip_first_even_thickness_handle = false;
+      custom_data->mode = (event->val == KM_PRESS) ? EVEN_THICKNESS_ON : EVEN_THICKNESS_OFF;
+      return TREDRAW_HARD;
     }
   }
   else if (kmi && event->type == kmi->type && event->val == kmi->val) {
