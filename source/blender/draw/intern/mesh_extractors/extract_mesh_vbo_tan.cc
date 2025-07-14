@@ -55,24 +55,23 @@ static void extract_tan_init_common(const MeshRenderData &mr,
     use_orco_tan = false;
   }
 
-  for (int i = 0; i < MAX_MTFACE; i++) {
-    const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
-    if (tan_layers.contains_as(layer_name)) {
+  for (const StringRef name : tan_layers.as_span().take_front(MAX_MTFACE)) {
+    if (tan_layers.contains(name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-      GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+      GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
       /* Tangent layer name. */
       SNPRINTF(attr_name, "t%s", attr_safe_name);
       GPU_vertformat_attr_add(format, attr_name, gpu_attr_type);
       /* Active render layer name. */
-      if (i == CustomData_get_render_layer(cd_ldata, CD_PROP_FLOAT2)) {
+      if (name == CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2)) {
         GPU_vertformat_alias_add(format, "t");
       }
       /* Active display layer name. */
-      if (i == CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2)) {
+      if (name == CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2)) {
         GPU_vertformat_alias_add(format, "at");
       }
 
-      STRNCPY(r_tangent_names[tan_len++], layer_name);
+      name.copy_utf8_truncated(r_tangent_names[tan_len++]);
     }
   }
   if (use_orco_tan && orco.is_empty()) {

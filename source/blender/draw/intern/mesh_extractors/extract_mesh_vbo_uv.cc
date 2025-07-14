@@ -74,7 +74,7 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
   }
 
   if (format->attr_len == 0) {
-    GPU_vertformat_attr_add(format, "dummy", blender::gpu::VertAttrType::SFLOAT_32);
+    GPU_vertformat_attr_add(format, "dummy", blender::gpu::VertAttrType::SFLOAT_32_32);
   }
 
   return r_uv_layers;

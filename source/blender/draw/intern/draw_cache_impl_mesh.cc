@@ -212,6 +212,17 @@ static bool attribute_exists(const Mesh &mesh, const StringRef name)
   return mesh.attributes().contains(name);
 };
 
+static std::optional<bke::AttributeMetaData> lookup_meta_data(const Mesh &mesh,
+                                                              const StringRef name)
+{
+  if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
+    if (const BMeshAttributeLookup &attr = lookup_bmesh_attribute(*em->bm, name)) {
+      return bke::AttributeMetaData{attr.domain, attr.type};
+    }
+  }
+  return mesh.attributes().lookup_meta_data(name);
+};
+
 static std::optional<StringRef> get_default_uv_name(const Mesh &mesh)
 {
   if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
@@ -219,7 +230,7 @@ static std::optional<StringRef> get_default_uv_name(const Mesh &mesh)
       return name;
     }
   }
-  if (const char *name = CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)) {
+  if (const char *name = CustomData_get_render_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)) {
     return name;
   }
   return std::nullopt;
@@ -239,6 +250,7 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
     }
     ListBase gpu_attrs = GPU_material_attributes(gpumat);
     LISTBASE_FOREACH (GPUMaterialAttribute *, gpu_attr, &gpu_attrs) {
+
       if (gpu_attr->is_default_color) {
         const StringRef default_color_name = me_final.default_color_attribute;
         if (attribute_exists(me_final, default_color_name)) {
@@ -246,11 +258,14 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         }
         continue;
       }
+
       if (gpu_attr->type == CD_ORCO) {
         r_cd_used->orco = true;
         continue;
       }
+
       const StringRef name = gpu_attr->name;
+
       if (gpu_attr->type == CD_TANGENT) {
         if (name.is_empty()) {
           if (const std::optional<StringRef> default_name = get_default_uv_name(me_final)) {
@@ -268,12 +283,21 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
         }
         continue;
       }
+
       if (name.is_empty()) {
         if (const std::optional<StringRef> default_name = get_default_uv_name(me_final)) {
-          drw_attributes_add_request(r_attributes, *default_name);
+          r_cd_used->uv.add(*default_name);
         }
+        continue;
       }
-      if (!attribute_exists(me_final, name)) {
+      const std::optional<bke::AttributeMetaData> meta_data = lookup_meta_data(mesh, name);
+      if (!meta_data) {
+        continue;
+      }
+      if (meta_data->domain == bke::AttrDomain::Corner &&
+          meta_data->data_type == bke::AttrType::Float2)
+      {
+        r_cd_used->uv.add(name);
         continue;
       }
       drw_attributes_add_request(r_attributes, name);
@@ -503,8 +527,9 @@ static void mesh_batch_cache_request_surface_batches(Mesh &mesh, MeshBatchCache 
   DRW_batch_request(&cache.batch.surface);
 
   /* If there are only a few materials at most, just request batches for everything. However, if
-   * the maximum material index is large, detect the actually used material indices first and only
-   * request those. This reduces the overhead of dealing with all these batches down the line. */
+   * the maximum material index is large, detect the actually used material indices first and
+   * only request those. This reduces the overhead of dealing with all these batches down the
+   * line. */
   if (cache.mat_len < 16) {
     for (int i = 0; i < cache.mat_len; i++) {
       DRW_batch_request(&cache.surface_per_mat[i]);
@@ -934,9 +959,6 @@ static void edituv_request_active_uv(MeshBatchCache &cache, Object &object, Mesh
   mesh_cd_calc_active_uv_layer(object, mesh, cache.cd_needed);
   mesh_cd_calc_edit_uv_layer(mesh, &cache.cd_needed);
 
-  BLI_assert(cd_needed.edit_uv != 0 &&
-             "No uv layer available in edituv, but batches requested anyway!");
-
   mesh_cd_calc_active_mask_uv_layer(object, mesh, cache.cd_needed);
 }
 
@@ -1136,6 +1158,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     const bool tan_overlap = drw_attributes_overlap(&cache.cd_used.tan, &cache.cd_needed.tan);
     const bool attr_overlap = drw_attributes_overlap(&cache.attr_used, &cache.attr_needed);
     const bool orco_overlap = cache.cd_used.orco == cache.cd_needed.orco;
+    const bool tan_orco_overlap = cache.cd_used.tan_orco == cache.cd_needed.tan_orco;
     const bool sculpt_overlap = cache.cd_used.sculpt_overlays == cache.cd_needed.sculpt_overlays;
     if (!uvs_overlap || !tan_overlap || !attr_overlap || !orco_overlap || !sculpt_overlap) {
       FOREACH_MESH_BUFFER_CACHE (cache, mbc) {
@@ -1143,7 +1166,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
           mbc->buff.vbos.remove(VBOType::UVs);
           cd_uv_update = true;
         }
-        if (!tan_overlap) {
+        if (!tan_overlap || !tan_orco_overlap) {
           mbc->buff.vbos.remove(VBOType::Tangents);
         }
         if (!orco_overlap) {
@@ -1210,11 +1233,11 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     return;
   }
 
-  /* TODO(pablodp606): This always updates the sculpt normals for regular drawing (non-pbvh::Tree).
-   * This makes tools that sample the surface per step get wrong normals until a redraw happens.
-   * Normal updates should be part of the brush loop and only run during the stroke when the
-   * brush needs to sample the surface. The drawing code should only update the normals
-   * per redraw when smooth shading is enabled. */
+  /* TODO(pablodp606): This always updates the sculpt normals for regular drawing
+   * (non-pbvh::Tree). This makes tools that sample the surface per step get wrong normals until
+   * a redraw happens. Normal updates should be part of the brush loop and only run during the
+   * stroke when the brush needs to sample the surface. The drawing code should only update the
+   * normals per redraw when smooth shading is enabled. */
   if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob)) {
     bke::pbvh::update_normals_from_eval(ob, *pbvh);
   }
@@ -1241,8 +1264,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   bool do_uvcage = false;
   if (is_editmode) {
-    /* Currently we don't extract UV data from the evaluated mesh unless it's the same mesh as the
-     * original edit mesh. */
+    /* Currently we don't extract UV data from the evaluated mesh unless it's the same mesh as
+     * the original edit mesh. */
     do_uvcage = !(mesh.runtime->is_original_bmesh &&
                   mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH);
   }
@@ -1382,10 +1405,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
   }
 
-  /* When the mesh doesn't correspond to the object's original mesh (i.e. the mesh was replaced by
-   * another with the object info node during evaluation), don't extract edit mode data for it.
-   * That data can be invalid because any original indices (#CD_ORIGINDEX) on the evaluated mesh
-   * won't correspond to the correct mesh. */
+  /* When the mesh doesn't correspond to the object's original mesh (i.e. the mesh was replaced
+   * by another with the object info node during evaluation), don't extract edit mode data for
+   * it. That data can be invalid because any original indices (#CD_ORIGINDEX) on the evaluated
+   * mesh won't correspond to the correct mesh. */
   const bool edit_mapping_valid = is_editmode && BKE_editmesh_eval_orig_map_available(
                                                      *edit_data_mesh, orig_edit_mesh);
 
@@ -1631,7 +1654,7 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     if (!cache.cd_used.uv.is_empty()) {
       vbo_requests[int(BufferList::Final)].add(VBOType::UVs);
     }
-    if (!cache.cd_used.uv.is_empty() || cache.cd_used.tan_orco) {
+    if (!cache.cd_used.tan.is_empty() || cache.cd_used.tan_orco) {
       vbo_requests[int(BufferList::Final)].add(VBOType::Tangents);
     }
     if (cache.cd_used.orco) {
@@ -1687,8 +1710,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
                            use_hide);
   }
   else {
-    /* The subsurf modifier may have been recently removed, or another modifier was added after it,
-     * so free any potential subdivision cache as it is not needed anymore. */
+    /* The subsurf modifier may have been recently removed, or another modifier was added after
+     * it, so free any potential subdivision cache as it is not needed anymore. */
     mesh_batch_cache_free_subdiv_cache(cache);
   }
 
