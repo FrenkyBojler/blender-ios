@@ -1797,6 +1797,16 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
           continue;
         }
       }
+
+      if (segment_range.size() == 1 && segment.is_loop()) {
+        const float2 pos_a = screen_space_positions[point_range.first()];
+        const float2 pos_b = screen_space_positions[point_range.last()];
+
+        if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+          segments_to_keep[segment_i] = false;
+          continue;
+        }
+      }
     }
   });
 }
