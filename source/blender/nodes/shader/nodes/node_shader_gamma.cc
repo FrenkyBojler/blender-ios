@@ -2,12 +2,20 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "node_function_util.hh"
+
+#include "BLI_math_vector.hh"
+#include "BLI_math_vector_types.hh"
+
+#include "FN_multi_function_builder.hh"
+#include "NOD_multi_function.hh"
 #include "node_shader_util.hh"
 
 namespace blender::nodes::node_shader_gamma_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.is_function_node();
   b.add_input<decl::Color>("Color")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
       .description("Color input on which correction will be applied");
@@ -30,6 +38,21 @@ static int node_shader_gpu_gamma(GPUMaterial *mat,
                                  GPUNodeStack *out)
 {
   return GPU_stack_link(mat, node, "node_gamma", in, out);
+}
+
+using namespace blender::math;
+
+static void node_build_multi_function(blender::nodes::NodeMultiFunctionBuilder &builder)
+{
+  static auto fn = mf::build::SI2_SO<ColorGeometry4f, float, ColorGeometry4f>(
+      "Gamma",
+      [](const ColorGeometry4f &color, float gamma) -> ColorGeometry4f {
+        float3 rgb = float3(color.r, color.g, color.b);
+        float3 rgb_gamma = math::safe_pow(rgb, gamma);
+        return ColorGeometry4f(rgb_gamma.x, rgb_gamma.y, rgb_gamma.z, color.a);
+      },
+      mf::build::exec_presets::AllSpanOrSingle());
+  builder.set_matching_fn(fn);
 }
 
 NODE_SHADER_MATERIALX_BEGIN
@@ -57,6 +80,7 @@ void register_node_type_sh_gamma()
   ntype.nclass = NODE_CLASS_OP_COLOR;
   ntype.declare = file_ns::node_declare;
   ntype.gpu_fn = file_ns::node_shader_gpu_gamma;
+  ntype.build_multi_function = file_ns::node_build_multi_function;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
   blender::bke::node_register_type(ntype);
