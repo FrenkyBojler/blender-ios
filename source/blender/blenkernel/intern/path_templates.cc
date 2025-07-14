@@ -246,10 +246,12 @@ std::optional<VariableMap> BKE_build_template_variables_for_prop(const bContext 
 void BKE_add_template_variables_general(VariableMap &variables, const ID *path_owner_id)
 {
   /* Project variables. */
-  const blender::bke::BlenderProject &project = BKE_blender_project();
-  if (project.data.has_value()) {
-    variables.add_string("project_name", project.data->get_name());
-    variables.add_string("project_root", project.data->get_root_path());
+  if (USER_EXPERIMENTAL_TEST(&U, use_blender_projects)) {
+    const blender::bke::BlenderProject &project = BKE_blender_project();
+    if (project.data.has_value()) {
+      variables.add_string("project_name", project.data->get_name());
+      variables.add_string("project_root", project.data->get_root_path());
+    }
   }
 
   /* Global blend filepath (a.k.a. path to the blend file that's currently

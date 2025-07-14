@@ -7597,6 +7597,9 @@ static void rna_def_userdef_experimental(BlenderRNA *brna)
       "Node Structure Types",
       "Enables new visualization of socket data compatibility in Geometry Nodes");
 
+  prop = RNA_def_property(srna, "use_blender_projects", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_ui_text(prop, "Blender Projects", "TODO: description");
+
   prop = RNA_def_property(srna, "use_extensions_debug", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_ui_text(
       prop,

@@ -111,6 +111,7 @@ endif()
 
 if(WITH_EXPERIMENTAL_FEATURES)
   add_definitions(-DWITH_SIMULATION_DATABLOCK)
+  add_definitions(-DWITH_BLENDER_PROJECTS)
 endif()
 
 set(APISRC

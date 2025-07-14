@@ -6,6 +6,8 @@
  * \ingroup bke
  */
 
+#include "DNA_userdef_types.h"
+
 #include "BKE_blender_project.hh"
 
 #include "BLI_string_ref.hh"
@@ -16,7 +18,7 @@ namespace blender::bke {
 
 bool BlenderProjectData::set_name(StringRef name)
 {
-  if (name.is_empty()) {
+  if (name.is_empty() || !USER_EXPERIMENTAL_TEST(&U, use_blender_projects)) {
     return false;
   }
 
@@ -26,7 +28,7 @@ bool BlenderProjectData::set_name(StringRef name)
 
 bool BlenderProjectData::set_root_path(StringRef root_path)
 {
-  if (root_path.is_empty()) {
+  if (root_path.is_empty() || !USER_EXPERIMENTAL_TEST(&U, use_blender_projects)) {
     return false;
   }
 
@@ -36,17 +38,26 @@ bool BlenderProjectData::set_root_path(StringRef root_path)
 
 StringRefNull BlenderProjectData::get_name() const
 {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_blender_projects)) {
+    return {};
+  }
+
   return StringRefNull(this->name_);
 }
 
 StringRefNull BlenderProjectData::get_root_path() const
 {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_blender_projects)) {
+    return {};
+  }
+
   return StringRefNull(this->root_path_);
 }
 
 bool BlenderProject::init(blender::StringRef name, blender::StringRef root_path)
 {
-  if (name.is_empty() || root_path.is_empty()) {
+  if (name.is_empty() || root_path.is_empty() || !USER_EXPERIMENTAL_TEST(&U, use_blender_projects))
+  {
     return false;
   }
 
@@ -61,6 +72,9 @@ bool BlenderProject::init(blender::StringRef name, blender::StringRef root_path)
 
 void BlenderProject::clear()
 {
+  if (!USER_EXPERIMENTAL_TEST(&U, use_blender_projects)) {
+    return;
+  }
   this->data = std::nullopt;
 }
 
