@@ -2165,82 +2165,90 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
                                     const Span<rcti> screen_space_curve_bounds,
                                     const Span<int2> mcoords,
                                     const Span<Segment_2> all_segments,
+                                    const IndexMask &curve_selection,
+                                    const Span<IndexRange> segments_by_curve,
                                     MutableSpan<bool> segments_to_keep)
 {
   rcti bbox_lasso;
   BLI_lasso_boundbox(&bbox_lasso, mcoords);
 
-  for (const int segment_i : segments_to_keep.index_range()) {
-    const Segment_2 &segment = all_segments[segment_i];
-
+  curve_selection.foreach_index([&](const int curve_i) {
     /* To speed things up: do a bounding box check on the curve and the lasso area. */
-    if (!BLI_rcti_isect(&bbox_lasso, &screen_space_curve_bounds[segment.curve], nullptr)) {
-      continue;
+    if (!BLI_rcti_isect(&bbox_lasso, &screen_space_curve_bounds[curve_i], nullptr)) {
+      return;
     }
 
-    const IndexRange point_range = segment.point_range();
+    const IndexRange &segment_range = segments_by_curve[curve_i];
+    for (const int segment_i : segment_range) {
+      const Segment_2 &segment = all_segments[segment_i];
 
-    if (point_range.is_empty()) {
-      const float start_alpha = segment.alpha[Side::Start];
-      const int2 start_edge = segment.edge(Side::Start);
-      const float end_alpha = segment.alpha[Side::End];
-      const int2 end_edge = segment.edge(Side::End);
-      const float2 pos_a = math::interpolate(
-          screen_space_positions[start_edge.x], screen_space_positions[start_edge.y], start_alpha);
-      const float2 pos_b = math::interpolate(
-          screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
+      const IndexRange point_range = segment.point_range();
 
-      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
-        segments_to_keep[segment_i] = false;
-      }
+      if (point_range.is_empty()) {
+        const float start_alpha = segment.alpha[Side::Start];
+        const int2 start_edge = segment.edge(Side::Start);
+        const float end_alpha = segment.alpha[Side::End];
+        const int2 end_edge = segment.edge(Side::End);
+        const float2 pos_a = math::interpolate(screen_space_positions[start_edge.x],
+                                               screen_space_positions[start_edge.y],
+                                               start_alpha);
+        const float2 pos_b = math::interpolate(
+            screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
 
-      continue;
-    }
+        if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+          segments_to_keep[segment_i] = false;
+        }
 
-    for (const int64_t i : point_range.drop_back(1)) {
-      const int point_i = segment.wrap_index(i);
-
-      const float2 pos_a = screen_space_positions[point_i];
-      const float2 pos_b = screen_space_positions[point_i + 1];
-
-      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
-        segments_to_keep[segment_i] = false;
         continue;
       }
-    }
 
-    if (segment.has_intersection(Side::Start)) {
-      const float start_alpha = segment.alpha[Side::Start];
-      const int2 start_edge = segment.edge(Side::Start);
-      const float2 pos_a = math::interpolate(
-          screen_space_positions[start_edge.x], screen_space_positions[start_edge.y], start_alpha);
-      const float2 pos_b = screen_space_positions[point_range.first()];
+      for (const int64_t i : point_range.drop_back(1)) {
+        const int point_i = segment.wrap_index(i);
 
-      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
-        segments_to_keep[segment_i] = false;
-        continue;
+        const float2 pos_a = screen_space_positions[point_i];
+        const float2 pos_b = screen_space_positions[point_i + 1];
+
+        if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+          segments_to_keep[segment_i] = false;
+          continue;
+        }
+      }
+
+      if (segment.has_intersection(Side::Start)) {
+        const float start_alpha = segment.alpha[Side::Start];
+        const int2 start_edge = segment.edge(Side::Start);
+        const float2 pos_a = math::interpolate(screen_space_positions[start_edge.x],
+                                               screen_space_positions[start_edge.y],
+                                               start_alpha);
+        const float2 pos_b = screen_space_positions[point_range.first()];
+
+        if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+          segments_to_keep[segment_i] = false;
+          continue;
+        }
+      }
+
+      if (segment.has_intersection(Side::End)) {
+        const float end_alpha = segment.alpha[Side::End];
+        const int2 end_edge = segment.edge(Side::End);
+        const float2 pos_a = screen_space_positions[point_range.last()];
+        const float2 pos_b = math::interpolate(
+            screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
+
+        if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
+          segments_to_keep[segment_i] = false;
+          continue;
+        }
       }
     }
-
-    if (segment.has_intersection(Side::End)) {
-      const float end_alpha = segment.alpha[Side::End];
-      const int2 end_edge = segment.edge(Side::End);
-      const float2 pos_a = screen_space_positions[point_range.last()];
-      const float2 pos_b = math::interpolate(
-          screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
-
-      if (check_line_segment_lasso_intersection(int2(pos_a), int2(pos_b), mcoords)) {
-        segments_to_keep[segment_i] = false;
-        continue;
-      }
-    }
-  }
+  });
 }
 
 bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                                           const Span<float2> screen_space_positions,
                                           const Span<rcti> screen_space_curve_bounds,
                                           const Span<int2> mcoords,
+                                          const IndexMask &curve_selection,
                                           const bool keep_caps)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
@@ -2277,6 +2285,8 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                           screen_space_curve_bounds,
                           mcoords,
                           all_segments,
+                          curve_selection,
+                          segments_by_curve,
                           segments_to_keep.as_mutable_span());
 
   /* -------------------- */

@@ -78,9 +78,13 @@ static bool execute_trim_on_drawing(const int layer_index,
     }
   });
 
+  IndexMaskMemory memory;
+  const IndexMask editable_strokes = blender::ed::greasepencil::retrieve_editable_strokes(
+      obact, drawing, layer_index, memory);
+
   /* Apply trim. */
   bke::CurvesGeometry cut_strokes = ed::greasepencil::trim::trim_curve_segments_2(
-      src, screen_space_positions, screen_space_bbox, mcoords, keep_caps);
+      src, screen_space_positions, screen_space_bbox, mcoords, editable_strokes, keep_caps);
 
   /* Set the new geometry. */
   drawing.strokes_for_write() = std::move(cut_strokes);
