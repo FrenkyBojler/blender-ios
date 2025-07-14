@@ -2031,19 +2031,10 @@ static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
 
     LISTBASE_FOREACH_MUTABLE (MaskSpline *, spline, &mask_layer->splines) {
       if (ED_mask_spline_select_check(spline)) {
-        //BLI_remlink_safe(&mask_layer->splines, spline);
-        //BLI_addtail(&selected_splines, spline);
         BKE_mask_spline_move_to_layer(spline, mask_layer, target_mask_layer);
       }
     }
   }
-
-  /* Move the splines from the list to the new layer */
-  //LISTBASE_FOREACH (MaskSpline *, spline, &selected_splines)
-  //{
-  //  BLI_addtail(&target_mask_layer->splines, spline);
-  //  //BLI_remlink_safe(&selected_splines, spline);
-  //}
 
   WM_event_add_notifier(C, NC_MASK | NA_EDITED, mask);
   DEG_id_tag_update(&mask->id, ID_RECALC_SYNC_TO_EVAL);
