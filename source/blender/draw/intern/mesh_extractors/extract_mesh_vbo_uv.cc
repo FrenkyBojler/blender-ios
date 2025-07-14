@@ -28,7 +28,7 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
 
   VectorSet<StringRef> uv_layers;
   for (const StringRef name : cache.cd_used.uv) {
-    uv_layers.add(name);
+    uv_layers.add_new(name);
   }
   /* HACK to fix #68857 */
   if (extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
@@ -156,23 +156,20 @@ gpu::VertBufPtr extract_uv_maps_subdiv(const DRWSubdivCache &subdiv_cache,
     v_len = 1;
   }
 
-  // TODO: MAP FROM UV LAYER NAME TO INDEX IN ALL UV LAYERS
-
-  const VectorSet<StringRef> all_uv_maps = all_uv_map_attributes(*coarse_mesh);
-
   gpu::VertBufPtr vbo = gpu::VertBufPtr(GPU_vertbuf_create_on_device(format, v_len));
 
   if (uv_layers.is_empty()) {
     return vbo;
   }
 
+  const VectorSet<StringRef> all_uv_maps = all_uv_map_attributes(*coarse_mesh);
+
   /* Index of the UV layer in the compact buffer. Used UV layers are stored in a single buffer. */
-  int pack_layer_index = 0;
-  for (const int i : all_uv_maps.index_range()) {
-    if (uv_layers.contains_as(all_uv_maps[i])) {
-      const int offset = int(subdiv_cache.num_subdiv_loops) * pack_layer_index++;
-      draw_subdiv_extract_uvs(subdiv_cache, vbo.get(), i, offset);
-    }
+  for (const int pack_layer_index : uv_layers.index_range()) {
+    const StringRef name = uv_layers[pack_layer_index];
+    const int i = all_uv_maps.index_of(name);
+    const int offset = int(subdiv_cache.num_subdiv_loops) * pack_layer_index;
+    draw_subdiv_extract_uvs(subdiv_cache, vbo.get(), i, offset);
   }
   return vbo;
 }

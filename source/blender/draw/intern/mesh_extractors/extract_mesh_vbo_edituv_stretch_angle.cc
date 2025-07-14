@@ -251,8 +251,7 @@ gpu::VertBufPtr extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
   VectorSet<std::string> uv_layers = cache.cd_used.uv;
   /* HACK to fix #68857 */
   if (mr.extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
-    const char *active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
-    if (active_name) {
+    if (const char *active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2)) {
       uv_layers.add_as(active_name);
     }
   }
