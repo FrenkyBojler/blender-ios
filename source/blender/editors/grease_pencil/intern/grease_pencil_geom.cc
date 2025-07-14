@@ -955,7 +955,7 @@ class Segment {
     /* If both intersection points are on the same edge, there's ether no points between or
      * all of the points are. */
     if (points[Side::Start] == points[Side::End]) {
-      if (alpha[Side::Start] > alpha[Side::End]) {
+      if (alpha[Side::Start] >= alpha[Side::End]) {
         return src_points.shift(points[Side::Start] - src_points.first() + 1);
       }
       return IndexRange(0);
@@ -1418,12 +1418,14 @@ static void add_segments(const int curve_k,
     const IntersectionPoint &inter_first = intersections[int_p_1];
     const IntersectionPoint &inter_last = intersections[int_p_2];
 
-    all_segments.append(Segment::from_intersections(curve_k,
-                                                    points_k,
-                                                    inter_first.parameter_for_curve(curve_k),
-                                                    inter_last.parameter_for_curve(curve_k),
-                                                    int_p_1,
-                                                    int_p_2));
+    if (inter_first.parameter_for_curve(curve_k) != inter_last.parameter_for_curve(curve_k)) {
+      all_segments.append(Segment::from_intersections(curve_k,
+                                                      points_k,
+                                                      inter_first.parameter_for_curve(curve_k),
+                                                      inter_last.parameter_for_curve(curve_k),
+                                                      int_p_1,
+                                                      int_p_2));
+    }
   }
 
   if (!(cyclic[curve_k])) {
