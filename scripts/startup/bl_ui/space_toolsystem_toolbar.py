@@ -3082,7 +3082,6 @@ class _defs_sequencer_select:
             widget=None,
             keymap="Preview Tool: Select Circle",
             draw_settings=draw_settings,
-            # Draw_cursor currently works only in wrong region type.
             draw_cursor=draw_cursor,
         )
 
