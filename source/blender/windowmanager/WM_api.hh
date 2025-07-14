@@ -1947,9 +1947,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain);
 
 /**
  * Lock the interface for any communication.
+ * For #WM_set_locked_interface_with_flags, #lock_flags is #ARegionDrawLockFlags
  */
 void WM_set_locked_interface(wmWindowManager *wm, bool lock);
-void WM_set_locked_interface_with_flags(wmWindowManager *wm, ARegionDrawLockFlags lock_flags);
+void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags);
 
 void WM_event_tablet_data_default_set(wmTabletData *tablet_data);
 

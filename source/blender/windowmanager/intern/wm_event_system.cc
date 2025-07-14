@@ -6450,7 +6450,7 @@ static bool wm_operator_check_locked_interface(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-void WM_set_locked_interface_with_flags(wmWindowManager *wm, ARegionDrawLockFlags lock_flags)
+void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags)
 {
   /* This will prevent events from being handled while interface is locked
    *
@@ -6461,7 +6461,7 @@ void WM_set_locked_interface_with_flags(wmWindowManager *wm, ARegionDrawLockFlag
    */
   wm->runtime->is_interface_locked = (lock_flags != 0);
 
-  BKE_spacedata_draw_locks(lock_flags);
+  BKE_spacedata_draw_locks(static_cast<ARegionDrawLockFlags>(lock_flags));
 }
 
 void WM_set_locked_interface(wmWindowManager *wm, bool lock)

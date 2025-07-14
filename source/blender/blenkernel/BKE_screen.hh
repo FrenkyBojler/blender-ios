@@ -199,6 +199,14 @@ struct RegionPollParams {
   const bContext *context;
 };
 
+/* #ARegionType::lock */
+enum ARegionDrawLockFlags {
+  REGION_DRAW_LOCK_NONE = 0,
+  REGION_DRAW_LOCK_RENDER = (1 << 0),
+  REGION_DRAW_LOCK_BAKING = (1 << 1),
+  REGION_DRAW_LOCK_ALL = (REGION_DRAW_LOCK_RENDER | REGION_DRAW_LOCK_BAKING)
+};
+
 struct ARegionType {
   ARegionType *next, *prev;
   /** Unique identifier within this space, defines `RGN_TYPE_xxxx`. */

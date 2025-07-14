@@ -414,7 +414,7 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src)
   }
 }
 
-void BKE_spacedata_draw_locks(short lock_flags)
+void BKE_spacedata_draw_locks(ARegionDrawLockFlags lock_flags)
 {
   for (std::unique_ptr<SpaceType> &st : get_space_types()) {
     LISTBASE_FOREACH (ARegionType *, art, &st->regiontypes) {
