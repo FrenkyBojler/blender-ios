@@ -242,7 +242,6 @@ enum {
 static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
 {
   Scene *scene = CTX_data_scene(C);
-  Editing *ed = scene->ed;
   Strip *active_strip = seq::select_active_get(scene);
   const int type = RNA_enum_get(op->ptr, "type");
 
@@ -283,7 +282,7 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
       }
 
       LISTBASE_FOREACH (StripModifierData *, smd, &active_strip->modifiers) {
-        StripModifierData *smd_new = seq::modifier_copy(*strip_iter, *active_strip, smd);
+        StripModifierData *smd_new = seq::modifier_copy(*strip_iter, smd);
         seq::modifier_generate_uid(*strip_iter, *smd_new);
       }
     }

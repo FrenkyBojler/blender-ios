@@ -1389,7 +1389,7 @@ void modifier_apply_stack(const RenderData *context,
   }
 }
 
-StripModifierData *modifier_copy(Strip &strip_dst, Strip &strip_src, StripModifierData *mod_src)
+StripModifierData *modifier_copy(Strip &strip_dst, StripModifierData *mod_src)
 {
   const StripModifierTypeInfo *smti = modifier_type_info_get(mod_src->type);
   StripModifierData *mod_new = static_cast<StripModifierData *>(MEM_dupallocN(mod_src));
@@ -1411,7 +1411,7 @@ StripModifierData *modifier_copy(Strip &strip_dst, Strip &strip_src, StripModifi
 void modifier_list_copy(Strip *strip_new, Strip *strip)
 {
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-    modifier_copy(*strip_new, *strip, smd);
+    modifier_copy(*strip_new, smd);
   }
 }
 
