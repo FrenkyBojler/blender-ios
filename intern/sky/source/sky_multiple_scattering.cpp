@@ -383,7 +383,7 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
   float ground_dist = ray_sphere_intersection(ray_origin, ray_dir, EARTH_RADIUS);
 
   /* Compute 2 pixels for Sun disc: one is the lowest point of the disc, one is the highest.
-   * Return black pixels if Sun is below horizon */
+   * Return black pixels if Sun is below horizon. */
   if (ground_dist < 0.0f) {
     float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_bottom);
     float3 sun_dir = sun_direction(sun_zenith_cos_angle);
