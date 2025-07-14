@@ -11,7 +11,6 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
-#include <iostream>
 
 #include "MEM_guardedalloc.h"
 
@@ -29,7 +28,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
-#include "BKE_layer.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
@@ -41,7 +39,6 @@
 #include "BKE_object_types.hh"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
-#include "BKE_scene.hh"
 #include "BKE_screen.hh"
 #include "BKE_shrinkwrap.hh"
 #include "BKE_unit.hh"
@@ -163,7 +160,7 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
 
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob);
-
+  /* Spatially organize the mesh after remesh. */
   blender::bke::mesh_apply_spatial_organization(*mesh);
 
   if (ob->mode == OB_MODE_SCULPT) {
@@ -172,6 +169,7 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
   }
   BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -928,7 +926,6 @@ static void quadriflow_end_job(void *customdata)
   QuadriFlowJob *qj = (QuadriFlowJob *)customdata;
 
   Object *ob = qj->owner;
-  Scene *scene = qj->scene;
 
   if (qj->is_nonblocking_job) {
     WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
@@ -936,13 +933,12 @@ static void quadriflow_end_job(void *customdata)
 
   ReportList *reports = qj->worker_status->reports;
   switch (qj->status) {
-    case QUADRIFLOW_STATUS_SUCCESS: {
+    case QUADRIFLOW_STATUS_SUCCESS:
+      /* Spatially organize the mesh after remesh. */
       bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
-
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       BKE_reportf(reports, RPT_INFO, "QuadriFlow: Remeshing completed");
       break;
-    }
     case QUADRIFLOW_STATUS_FAIL:
       BKE_reportf(reports, RPT_ERROR, "QuadriFlow: Remeshing failed");
       break;
