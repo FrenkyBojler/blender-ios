@@ -1814,8 +1814,8 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
   });
 }
 
-void store_segment_map_on_intersections(const Span<Segment> all_segments,
-                                        MutableSpan<IntersectionPoint> intersections)
+static void store_segment_map_on_intersections(const Span<Segment> all_segments,
+                                               MutableSpan<IntersectionPoint> intersections)
 {
   for (const int seg_i : all_segments.index_range()) {
     const Segment &segment = all_segments[seg_i];
