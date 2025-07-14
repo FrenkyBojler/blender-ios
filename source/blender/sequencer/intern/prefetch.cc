@@ -69,7 +69,6 @@ struct PrefetchJob {
   RenderData context = {};
   RenderData context_cpy = {};
   ListBase *seqbasep = nullptr;
-  ListBase *seqbasep_cpy = nullptr;
 
   /* prefetch area */
   float cfra = 0.0f;
@@ -560,6 +559,7 @@ static PrefetchJob *seq_prefetch_start_ex(const RenderData *context, float cfra)
 
     pfjob->bmain_eval = BKE_main_new();
     pfjob->scene = context->scene;
+    pfjob->seqbasep = context->scene->ed->seqbasep;
     seq_prefetch_init_depsgraph(pfjob);
   }
   pfjob->bmain = context->bmain;

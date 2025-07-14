@@ -28,19 +28,19 @@ static Mutex final_image_cache_mutex;
 
 struct FinalImageCache {
   struct Key {
-    const ListBase *seqbase;
+    const ListBase *seqbasep;
     int timeline_frame;
     int view_id;
     int display_channel;
 
     const uint64_t hash() const
     {
-      return get_default_hash(seqbase, timeline_frame, view_id, display_channel);
+      return get_default_hash(seqbasep, timeline_frame, view_id, display_channel);
     }
 
     bool operator==(const Key &other) const
     {
-      return seqbase == other.seqbase && timeline_frame == other.timeline_frame &&
+      return seqbasep == other.seqbasep && timeline_frame == other.timeline_frame &&
              view_id == other.view_id && display_channel == other.display_channel;
     }
   };
