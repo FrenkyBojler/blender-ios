@@ -7526,7 +7526,7 @@ static void rna_def_fileselect_asset_params(BlenderRNA *brna)
       {FILE_ASSET_IMPORT_PACK,
        "PACK",
        0,
-       "Pacck",
+       "Pack",
        "Import the assets as linked data-block, but also pack it in the current file to keep it "
        "working even if the source file is not available anymore"},
       {0, nullptr, 0, nullptr, nullptr},
