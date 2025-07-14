@@ -70,8 +70,8 @@ static void grease_pencil_transdata_add_fake_drawing_users(const GreasePencil &g
   }
 }
 
-/* Remove users from drawings after frame data has been restored. After this drawing data can be
- * freed and drawing indices may become invalid. */
+/* Remove fake users from drawings after frame data has been restored. After this drawing data can
+ * be freed and drawing indices may become invalid. */
 static void grease_pencil_transdata_remove_fake_drawing_users(const GreasePencil &grease_pencil)
 {
   using namespace bke::greasepencil;
@@ -99,8 +99,8 @@ static bool grease_pencil_layer_initialize_trans_data(const GreasePencil &grease
     return false;
   }
 
-  /* "Freeze" drawing indices by adding a user to each drawing. This ensures the draw_index in
-   * frame data remains valid and no data is lost if the drawing is temporarily unused during
+  /* "Freeze" drawing indices by adding a fake user to each drawing. This ensures the drawing_index
+   * in frame data remains valid and no data is lost if the drawing is temporarily unused during
    * transform. */
   grease_pencil_transdata_add_fake_drawing_users(grease_pencil);
 
