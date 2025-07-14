@@ -920,6 +920,13 @@ class Segment {
 
   bool is_loop() const
   {
+    /* If both intersection points are the same, then it's a full loop. */
+    if (points[Side::Start] == points[Side::End]) {
+      if (alpha[Side::Start] == alpha[Side::End]) {
+        return true;
+      }
+    }
+
     return alpha[Side::End] == 1.0f;
   }
 
@@ -1105,7 +1112,7 @@ static void calculate_offsets_from_segments(const Span<Segment> segments,
     for (const int seg_i : segment_range) {
       const Segment &segment = segments[seg_i];
 
-      if (segment.has_intersection(Side::Start)) {
+      if (segment.has_intersection(Side::Start) && !segment.is_loop()) {
         offset++;
       }
       offset += segment.points_num();
@@ -1175,7 +1182,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
           const bool reversed = segment_reversed[seg_i];
 
           if (reversed ? segment.has_intersection(Side::End) :
-                         segment.has_intersection(Side::Start))
+                         segment.has_intersection(Side::Start) && !segment.is_loop())
           {
             const float start_alpha = reversed ? segment.alpha[Side::End] :
                                                  segment.alpha[Side::Start];
@@ -1777,33 +1784,6 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
         }
       }
 
-      if (segment.has_intersection(Side::Start)) {
-        const float start_alpha = segment.alpha[Side::Start];
-        const int2 start_edge = segment.edge(Side::Start);
-        const float2 pos_1 = math::interpolate(screen_space_positions[start_edge.x],
-                                               screen_space_positions[start_edge.y],
-                                               start_alpha);
-        const float2 pos_2 = screen_space_positions[segment.wrap_index(point_range.first())];
-
-        if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
-          segments_to_keep[segment_i] = false;
-          continue;
-        }
-      }
-
-      if (segment.has_intersection(Side::End)) {
-        const float end_alpha = segment.alpha[Side::End];
-        const int2 end_edge = segment.edge(Side::End);
-        const float2 pos_1 = screen_space_positions[segment.wrap_index(point_range.last())];
-        const float2 pos_2 = math::interpolate(
-            screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
-
-        if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
-          segments_to_keep[segment_i] = false;
-          continue;
-        }
-      }
-
       if (segment_range.size() == 1 && segment.is_loop()) {
         const float2 pos_1 = screen_space_positions[segment.wrap_index(point_range.first())];
         const float2 pos_2 = screen_space_positions[segment.wrap_index(point_range.last())];
@@ -1811,6 +1791,34 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
         if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
           segments_to_keep[segment_i] = false;
           continue;
+        }
+      }
+      else {
+        if (segment.has_intersection(Side::Start)) {
+          const float start_alpha = segment.alpha[Side::Start];
+          const int2 start_edge = segment.edge(Side::Start);
+          const float2 pos_1 = math::interpolate(screen_space_positions[start_edge.x],
+                                                 screen_space_positions[start_edge.y],
+                                                 start_alpha);
+          const float2 pos_2 = screen_space_positions[segment.wrap_index(point_range.first())];
+
+          if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
+            segments_to_keep[segment_i] = false;
+            continue;
+          }
+        }
+
+        if (segment.has_intersection(Side::End)) {
+          const float end_alpha = segment.alpha[Side::End];
+          const int2 end_edge = segment.edge(Side::End);
+          const float2 pos_1 = screen_space_positions[segment.wrap_index(point_range.last())];
+          const float2 pos_2 = math::interpolate(
+              screen_space_positions[end_edge.x], screen_space_positions[end_edge.y], end_alpha);
+
+          if (check_line_segment_lasso_intersection(int2(pos_1), int2(pos_2), mcoords)) {
+            segments_to_keep[segment_i] = false;
+            continue;
+          }
         }
       }
     }
