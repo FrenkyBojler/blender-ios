@@ -1,1 +1,2 @@
 Referenced by issue #141819, No visible feedback in the render view with Lock Interface enabled.
+Referenced by pull request #141866, Fix #141819: Interface Use a flag for `WM_set_locked_interface`
