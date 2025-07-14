@@ -13,7 +13,6 @@
 #include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_lasso_2d.hh"
-#include "BLI_math_geom.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_rect.h"
@@ -1548,24 +1547,6 @@ class Segment_2 {
     return segment;
   }
 };
-
-static int intersect(const float2 &P1,
-                     const float2 &P2,
-                     const float2 &Q1,
-                     const float2 &Q2,
-                     float *r_alpha_P,
-                     float *r_alpha_Q)
-{
-  double r_lambda;
-  double r_mu;
-  const int val = isect_seg_seg_v2_lambda_mu_db(
-      double2(P1), double2(P2), double2(Q1), double2(Q2), &r_lambda, &r_mu);
-
-  *r_alpha_P = r_lambda;
-  *r_alpha_Q = r_mu;
-
-  return val;
-}
 
 static void calculate_offsets_from_segments(const Span<Segment_2> segments,
                                             const OffsetIndices<int> segment_offsets,
