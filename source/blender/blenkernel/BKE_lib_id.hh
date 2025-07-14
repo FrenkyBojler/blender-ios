@@ -203,8 +203,6 @@ enum {
 
   /**
    * Set #ID.newid pointer of the given source ID with the address of its new copy.
-   *
-   * See also
    */
   LIB_ID_COPY_ID_NEW_SET = 1 << 11,
 
