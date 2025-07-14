@@ -1975,6 +1975,9 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
+  store_segment_map_on_intersections(all_segments, intersections);
+
+  /* -------------------- */
 
   Vector<Segment> segments;
   Vector<int> segment_offset_data;
