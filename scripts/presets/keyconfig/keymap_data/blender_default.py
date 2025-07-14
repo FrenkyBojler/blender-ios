@@ -476,7 +476,7 @@ def _template_items_object_subdivision_set():
     return [
         ("object.subdivision_set",
          {"type": NUMBERS_0[i], "value": 'PRESS', "ctrl": True},
-         {"properties": [("level", i), ("relative", False)]})
+         {"properties": [("level", i), ("relative", False), ("ensure_modifier", True)]})
         for i in range(6)
     ]
 
@@ -1043,6 +1043,10 @@ def km_user_interface(_params):
         ("ui.view_scroll", {"type": 'WHEELDOWNMOUSE', "value": 'ANY'}, None),
         ("ui.view_scroll", {"type": 'TRACKPADPAN', "value": 'ANY'}, None),
         ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS'}, None),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "ctrl": True},
+         {"properties": [("extend", True)]}),
+        ("ui.view_item_select", {"type": 'LEFTMOUSE', "value": 'PRESS', "shift": True},
+         {"properties": [("range_select", True)]}),
     ])
 
     return keymap
