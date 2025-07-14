@@ -443,8 +443,10 @@ void BKE_mask_spline_move_to_layer(struct MaskSpline *spline,
                                    struct MaskLayer *mask_layer,
                                    struct MaskLayer *target_mask_layer)
 {
-  BLI_remlink(&mask_layer->splines, spline);
-  BLI_addtail(&target_mask_layer->splines, spline);
+  if (mask_layer != target_mask_layer) {
+    BLI_remlink(&mask_layer->splines, spline);
+    BLI_addtail(&target_mask_layer->splines, spline);
+  }
 }
 
 bool BKE_mask_spline_remove(MaskLayer *mask_layer, MaskSpline *spline)
