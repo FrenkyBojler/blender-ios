@@ -58,6 +58,7 @@ void modifier_apply_stack(const RenderData *context,
                           const Strip *strip,
                           ImBuf *ibuf,
                           int timeline_frame);
+StripModifierData *modifier_copy(Strip &strip_dst, Strip &strip_src, StripModifierData *mod_src);
 void modifier_list_copy(Strip *strip_new, Strip *strip);
 int sequence_supports_modifiers(Strip *strip);
 

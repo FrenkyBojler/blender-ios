@@ -59,6 +59,7 @@
 #include "cache/final_image_cache.hh"
 #include "cache/intra_frame_cache.hh"
 #include "cache/source_image_cache.hh"
+#include "modifier.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
 #include "utils.hh"
@@ -548,6 +549,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
 
     modifier_list_copy(strip_new, strip);
   }
+  BLI_assert(modifier_uids_are_valid(*strip));
 
   if (is_strip_connected(strip)) {
     BLI_listbase_clear(&strip_new->connections);
