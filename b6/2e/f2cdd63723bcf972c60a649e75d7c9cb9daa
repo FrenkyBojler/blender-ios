@@ -1,3 +1,4 @@
 Referenced by pull request #140359, Compositor: Remove storage of Alpha Over node
 Referenced by commit 976efdcac9cff85c5a44b36453e4b1ececf39802, Compositor: Remove storage of Alpha Over node
 Referenced by pull request #141873, Fix #141864: Crash opening files with Alpha Over node
+Referenced by commit 62e0a9105afe90a60e4324026f0987426821f4d2, Fix #141864: Crash opening files with Alpha Over node
