@@ -1739,9 +1739,16 @@ static void find_intersections_between_curves(const int curve_i,
   for (const int i : points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
     const int point_i1 = points_i[i];
     const int point_i2 = points_i[(i + 1) % points_i.size()];
+
+    const float2 co_i1 = screen_space_positions[point_i1];
+    const float2 co_i2 = screen_space_positions[point_i2];
+
     for (const int j : points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
       const int point_j1 = points_j[j];
       const int point_j2 = points_j[(j + 1) % points_j.size()];
+
+      const float2 co_j1 = screen_space_positions[point_j1];
+      const float2 co_j2 = screen_space_positions[point_j2];
 
       /* Don't self check. */
       if (curve_i == curve_j && (point_i1 == point_j1 || point_i1 == point_j2 ||
@@ -1751,12 +1758,7 @@ static void find_intersections_between_curves(const int curve_i,
       }
 
       float alpha_a, alpha_b;
-      const int val = intersect(screen_space_positions[point_i1],
-                                screen_space_positions[point_i2],
-                                screen_space_positions[point_j1],
-                                screen_space_positions[point_j2],
-                                &alpha_a,
-                                &alpha_b);
+      const int val = intersect(co_i1, co_i2, co_j1, co_j2, &alpha_a, &alpha_b);
       if (val == ISECT_LINE_LINE_CROSS) {
         r_inters_per_curves[curve_i].append(r_intersections.size());
         r_inters_per_curves[curve_j].append(r_intersections.size());
