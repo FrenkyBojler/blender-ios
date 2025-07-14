@@ -2319,6 +2319,81 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
   return dst;
 }
 
+bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
+                                            const Span<float2> screen_space_positions,
+                                            const Span<rcti> screen_space_curve_bounds,
+                                            const IndexMask &curve_selection,
+                                            const bool keep_caps)
+{
+  const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
+  const VArray<bool> is_cyclic = src.cyclic();
+
+  Vector<IntersectionPoint> intersections;
+  Array<IndexRange> segments_by_curve(src_points_by_curve.size());
+  Vector<Segment_2> all_segments;
+
+  /* -------------------- */
+
+  Array<Vector<int>> inters_per_curves(src_points_by_curve.size());
+  find_intersections_between_shapes(screen_space_positions,
+                                    screen_space_curve_bounds,
+                                    src_points_by_curve,
+                                    is_cyclic,
+                                    inters_per_curves,
+                                    intersections);
+
+  for (const int curve_i : src_points_by_curve.index_range()) {
+    add_segments(curve_i,
+                 inters_per_curves,
+                 src_points_by_curve,
+                 intersections,
+                 is_cyclic,
+                 all_segments,
+                 segments_by_curve);
+  }
+
+  /* -------------------- */
+
+  Array<bool> segments_to_keep(all_segments.size(), true);
+  for (const int curve_i : segments_by_curve.index_range()) {
+    const IndexRange segment_range = segments_by_curve[curve_i];
+
+    if (segment_range.size() > 2) {
+      segments_to_keep[segment_range.first()] = false;
+      segments_to_keep[segment_range.last()] = false;
+    }
+  }
+
+  /* -------------------- */
+
+  Array<int> segment_connections(all_segments.size(), SEGMENT_CONNECTION_NULL);
+  create_connections_from_curves(
+      segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
+
+  Vector<Segment_2> segments;
+  Vector<int> segment_offset_data;
+  follow_segment_connections(all_segments, segment_connections, segments, segment_offset_data);
+  Array<bool> segment_reversed(segments.size());
+  const OffsetIndices<int> segment_offsets = OffsetIndices<int>(segment_offset_data);
+  Array<bool> cyclic(segment_offsets.size());
+
+  /* -------------------- */
+
+  calculate_segment_directions(segments, segment_offsets, segment_reversed.as_mutable_span());
+  calculate_cyclical_curves(segments, segment_offsets, segment_reversed, cyclic.as_mutable_span());
+
+  bke::CurvesGeometry dst = create_curves_from_segments(
+      src, segments, segment_reversed, cyclic, segment_offsets);
+
+  /* -------------------- */
+
+  if (!keep_caps) {
+    cut_caps(dst, segments, segment_reversed, cyclic, segment_offsets);
+  }
+
+  return dst;
+}
+
 }  // namespace trim
 
 Curves2DBVHTree build_curves_2d_bvh_from_visible(const ViewContext &vc,
