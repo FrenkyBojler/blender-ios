@@ -1735,12 +1735,24 @@ static void find_intersections_between_curves(const Span<float2> points_i,
                                               Vector<IntersectionPoint> &r_intersections)
 {
   for (const int i : points_i.index_range().drop_back(cyclic_i ? 0 : 1)) {
+    const int point_i1 = i;
+    const int point_i2 = (i + 1) % points_i.size();
     for (const int j : points_j.index_range().drop_back(cyclic_j ? 0 : 1)) {
+      const int point_j1 = j;
+      const int point_j2 = (j + 1) % points_j.size();
+
+      /* Don't self check. */
+      if (curve_i == curve_j && (point_i1 == point_j1 || point_i1 == point_j2 ||
+                                 point_i2 == point_j1 || point_i2 == point_j2))
+      {
+        continue;
+      }
+
       float alpha_a, alpha_b;
-      const int val = intersect(points_i[i],
-                                points_i[(i + 1) % points_i.size()],
-                                points_j[j],
-                                points_j[(j + 1) % points_j.size()],
+      const int val = intersect(points_i[point_i1],
+                                points_i[point_i2],
+                                points_j[point_j1],
+                                points_j[point_j2],
                                 &alpha_a,
                                 &alpha_b);
       if (val == ISECT_LINE_LINE_CROSS) {
@@ -1769,7 +1781,7 @@ static void find_intersections_between_shapes(const Span<float2> screen_space_po
     const bool cyclic_i = cyclic[curve_i];
 
     for (const int curve_j : points_by_curve.index_range()) {
-      if (curve_i >= curve_j) {
+      if (curve_i > curve_j) {
         continue;
       }
 
