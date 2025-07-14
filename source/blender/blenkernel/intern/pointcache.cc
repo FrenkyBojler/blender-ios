@@ -89,7 +89,7 @@
 #  include "LzmaLib.h"
 #endif
 
-#include "zstd.h"
+#include <zstd.h>
 
 #define PTCACHE_DATA_FROM(data, type, from) \
   if (data[type]) { \
