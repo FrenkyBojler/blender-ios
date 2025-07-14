@@ -82,6 +82,9 @@ static eRedrawFlag shrinkfatten_handleEvent(TransInfo *t, const wmEvent *event)
     /* Allows the "Even Thickness" effect to be enabled as a toggle. */
     custom_data->mode = custom_data->mode == EVEN_THICKNESS_ON ? EVEN_THICKNESS_OFF :
                                                                  EVEN_THICKNESS_ON;
+
+    /* Also toggle the Alt press state. */
+    custom_data->use_alt_press_to_disable = !custom_data->use_alt_press_to_disable;
     return TREDRAW_HARD;
   }
   return TREDRAW_NOTHING;
@@ -196,9 +199,8 @@ static void initShrinkFatten(TransInfo *t, wmOperator *op)
   if (op) {
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_even_offset");
     if (RNA_property_is_set(op->ptr, prop) && RNA_property_boolean_get(op->ptr, prop)) {
+      /* TODO: Check if the Alt button is already pressed. */
       custom_data->mode = EVEN_THICKNESS_ON;
-
-      /* TODO: Check if the Alt button is pressed. */
       custom_data->use_alt_press_to_disable = true;
     }
   }
