@@ -2024,7 +2024,7 @@ static wmOperatorStatus mask_move_to_layer_exec(bContext *C, wmOperator *op)
   /* Create a list of selected splines to move to the new layer */
   ListBase selected_splines = {NULL, NULL};
 
-  LISTBASE_FOREACH_MUTABLE (MaskLayer *, mask_layer, &mask->masklayers) {
+  LISTBASE_FOREACH (MaskLayer *, mask_layer, &mask->masklayers) {
     if (mask_layer->visibility_flag & (MASK_HIDE_VIEW | MASK_HIDE_SELECT)) {
       continue;
     }
