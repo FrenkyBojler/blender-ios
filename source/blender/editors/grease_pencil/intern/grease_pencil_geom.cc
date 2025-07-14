@@ -934,7 +934,7 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
   return distance;
 }
 
-class Segment_2 {
+class Segment {
  public:
   /* Curve index. */
   int curve = -1;
@@ -955,7 +955,7 @@ class Segment_2 {
   int intersection_index[2] = {-1, -1};
 
  public:
-  constexpr Segment_2() = default;
+  constexpr Segment() = default;
 
   bool is_loop() const
   {
@@ -1042,11 +1042,11 @@ class Segment_2 {
     }
   }
 
-  constexpr static Segment_2 from_curve(const int curve_i,
-                                        const IndexRange points,
-                                        const bool cyclical)
+  constexpr static Segment from_curve(const int curve_i,
+                                      const IndexRange points,
+                                      const bool cyclical)
   {
-    Segment_2 segment;
+    Segment segment;
     segment.curve = curve_i;
     segment.src_points = points;
 
@@ -1059,14 +1059,14 @@ class Segment_2 {
     return segment;
   }
 
-  static Segment_2 from_intersections(const int curve_i,
-                                      const IndexRange points,
-                                      const std::optional<float> parameter_start,
-                                      const std::optional<float> parameter_end,
-                                      const std::optional<int> inter_index_start,
-                                      const std::optional<int> inter_index_end)
+  static Segment from_intersections(const int curve_i,
+                                    const IndexRange points,
+                                    const std::optional<float> parameter_start,
+                                    const std::optional<float> parameter_end,
+                                    const std::optional<int> inter_index_start,
+                                    const std::optional<int> inter_index_end)
   {
-    Segment_2 segment;
+    Segment segment;
     segment.curve = curve_i;
     segment.src_points = points;
 
@@ -1100,7 +1100,7 @@ class Segment_2 {
   }
 };
 
-static void calculate_offsets_from_segments(const Span<Segment_2> segments,
+static void calculate_offsets_from_segments(const Span<Segment> segments,
                                             const OffsetIndices<int> segment_offsets,
                                             const Span<bool> cyclic,
                                             MutableSpan<int> offsets)
@@ -1112,7 +1112,7 @@ static void calculate_offsets_from_segments(const Span<Segment_2> segments,
 
     const IndexRange segment_range = segment_offsets[curve_i];
     for (const int seg_i : segment_range) {
-      const Segment_2 &segment = segments[seg_i];
+      const Segment &segment = segments[seg_i];
 
       if (segment.has_intersection(Side::Start)) {
         offset++;
@@ -1129,7 +1129,7 @@ static void calculate_offsets_from_segments(const Span<Segment_2> segments,
 }
 
 static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry &src,
-                                                       const Span<Segment_2> segments,
+                                                       const Span<Segment> segments,
                                                        const Span<bool> segment_reversed,
                                                        const Span<bool> cyclic,
                                                        const OffsetIndices<int> segment_offsets)
@@ -1180,7 +1180,7 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
       for (const int curve_i : segment_offsets.index_range()) {
         const IndexRange segment_range = segment_offsets[curve_i];
         for (const int seg_i : segment_range) {
-          const Segment_2 &segment = segments[seg_i];
+          const Segment &segment = segments[seg_i];
           const bool reversed = segment_reversed[seg_i];
 
           if (reversed ? segment.has_intersection(Side::End) :
@@ -1373,7 +1373,7 @@ static void add_segments(const int curve_k,
                          const OffsetIndices<int> points_by_curve,
                          const Span<IntersectionPoint> &intersections,
                          const VArray<bool> &cyclic,
-                         Vector<Segment_2> &all_segments,
+                         Vector<Segment> &all_segments,
                          MutableSpan<IndexRange> all_segments_by_curve)
 {
   const IndexRange points_k = points_by_curve[curve_k];
@@ -1382,7 +1382,7 @@ static void add_segments(const int curve_k,
   const int start_size = all_segments.size();
 
   if (inters.size() == 0) {
-    all_segments.append(Segment_2::from_curve(curve_k, points_k, cyclic[curve_k]));
+    all_segments.append(Segment::from_curve(curve_k, points_k, cyclic[curve_k]));
     all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 
     return;
@@ -1404,23 +1404,23 @@ static void add_segments(const int curve_k,
     const IntersectionPoint &inter_first = intersections[int_p_1];
     const IntersectionPoint &inter_last = intersections[int_p_2];
 
-    all_segments.append(Segment_2::from_intersections(curve_k,
-                                                      points_k,
-                                                      inter_last.parameter_for_curve(curve_k),
-                                                      inter_first.parameter_for_curve(curve_k),
-                                                      int_p_2,
-                                                      int_p_1));
+    all_segments.append(Segment::from_intersections(curve_k,
+                                                    points_k,
+                                                    inter_last.parameter_for_curve(curve_k),
+                                                    inter_first.parameter_for_curve(curve_k),
+                                                    int_p_2,
+                                                    int_p_1));
   }
   else {
     const int int_p_1 = inters[inter_sorted_ids.first()];
     const IntersectionPoint &inter_first = intersections[int_p_1];
 
-    all_segments.append(Segment_2::from_intersections(curve_k,
-                                                      points_k,
-                                                      std::nullopt,
-                                                      inter_first.parameter_for_curve(curve_k),
-                                                      std::nullopt,
-                                                      int_p_1));
+    all_segments.append(Segment::from_intersections(curve_k,
+                                                    points_k,
+                                                    std::nullopt,
+                                                    inter_first.parameter_for_curve(curve_k),
+                                                    std::nullopt,
+                                                    int_p_1));
   }
 
   for (const int inter_id : inter_sorted_ids.index_range().drop_back(1)) {
@@ -1430,30 +1430,30 @@ static void add_segments(const int curve_k,
     const IntersectionPoint &inter_first = intersections[int_p_1];
     const IntersectionPoint &inter_last = intersections[int_p_2];
 
-    all_segments.append(Segment_2::from_intersections(curve_k,
-                                                      points_k,
-                                                      inter_first.parameter_for_curve(curve_k),
-                                                      inter_last.parameter_for_curve(curve_k),
-                                                      int_p_1,
-                                                      int_p_2));
+    all_segments.append(Segment::from_intersections(curve_k,
+                                                    points_k,
+                                                    inter_first.parameter_for_curve(curve_k),
+                                                    inter_last.parameter_for_curve(curve_k),
+                                                    int_p_1,
+                                                    int_p_2));
   }
 
   if (!(cyclic[curve_k])) {
     const int int_p_2 = inters[inter_sorted_ids.last()];
     const IntersectionPoint &inter_last = intersections[int_p_2];
 
-    all_segments.append(Segment_2::from_intersections(curve_k,
-                                                      points_k,
-                                                      inter_last.parameter_for_curve(curve_k),
-                                                      std::nullopt,
-                                                      int_p_2,
-                                                      std::nullopt));
+    all_segments.append(Segment::from_intersections(curve_k,
+                                                    points_k,
+                                                    inter_last.parameter_for_curve(curve_k),
+                                                    std::nullopt,
+                                                    int_p_2,
+                                                    std::nullopt));
   }
 
   all_segments_by_curve[curve_k] = all_segments.index_range().drop_front(start_size);
 }
 
-static bool check_and_join_segments(Segment_2 &first, const Segment_2 &second)
+static bool check_and_join_segments(Segment &first, const Segment &second)
 {
   if (first.curve != second.curve) {
     return false;
@@ -1481,7 +1481,7 @@ static bool check_and_join_segments(Segment_2 &first, const Segment_2 &second)
   return false;
 }
 
-static void calculate_cyclical_curves(const Span<Segment_2> segments,
+static void calculate_cyclical_curves(const Span<Segment> segments,
                                       const OffsetIndices<int> segment_offsets,
                                       const Span<bool> segment_reversed,
                                       MutableSpan<bool> cyclic)
@@ -1496,13 +1496,13 @@ static void calculate_cyclical_curves(const Span<Segment_2> segments,
 
     const int segment_index_first = segment_range.first();
     const bool reversed_first = segment_reversed[segment_index_first];
-    const Segment_2 &segment_first = segments[segment_index_first];
+    const Segment &segment_first = segments[segment_index_first];
     const Side direction_first = reversed_first ? Side::End : Side::Start;
     const int inter_index_first = segment_first.intersection_index[direction_first];
 
     const int segment_index_last = segment_range.last();
     const bool reversed_last = segment_reversed[segment_index_last];
-    const Segment_2 &segment_last = segments[segment_index_last];
+    const Segment &segment_last = segments[segment_index_last];
     const Side direction_last = reversed_last ? Side::Start : Side::End;
     const int inter_index_last = segment_last.intersection_index[direction_last];
 
@@ -1517,7 +1517,7 @@ static void calculate_cyclical_curves(const Span<Segment_2> segments,
   }
 }
 
-static void calculate_segment_directions(const Span<Segment_2> segments,
+static void calculate_segment_directions(const Span<Segment> segments,
                                          const OffsetIndices<int> segment_offsets,
                                          MutableSpan<bool> segment_reversed)
 {
@@ -1527,8 +1527,8 @@ static void calculate_segment_directions(const Span<Segment_2> segments,
     segment_reversed[segment_range.first()] = false;
     for (const int segment_i : segment_range.drop_front(1)) {
       const bool reversed_prev = segment_reversed[segment_i - 1];
-      const Segment_2 &segment_prev = segments[segment_i - 1];
-      const Segment_2 &segment = segments[segment_i];
+      const Segment &segment_prev = segments[segment_i - 1];
+      const Segment &segment = segments[segment_i];
       const Side direction_prev = reversed_prev ? Side::Start : Side::End;
       const int inter_index_prev = segment_prev.intersection_index[direction_prev];
 
@@ -1544,7 +1544,7 @@ static void calculate_segment_directions(const Span<Segment_2> segments,
 }
 
 static void cut_caps(bke::CurvesGeometry &dst,
-                     const Span<Segment_2> segments,
+                     const Span<Segment> segments,
                      const Span<bool> segment_reversed,
                      const Span<bool> cyclic,
                      const OffsetIndices<int> segment_offsets)
@@ -1566,13 +1566,13 @@ static void cut_caps(bke::CurvesGeometry &dst,
 
     const int segment_index_first = segment_range.first();
     const bool reversed_first = segment_reversed[segment_index_first];
-    const Segment_2 &segment_first = segments[segment_index_first];
+    const Segment &segment_first = segments[segment_index_first];
     const Side direction_first = reversed_first ? Side::End : Side::Start;
     const int inter_index_first = segment_first.intersection_index[direction_first];
 
     const int segment_index_last = segment_range.last();
     const bool reversed_last = segment_reversed[segment_index_last];
-    const Segment_2 &segment_last = segments[segment_index_last];
+    const Segment &segment_last = segments[segment_index_last];
     const Side direction_last = reversed_last ? Side::Start : Side::End;
     const int inter_index_last = segment_last.intersection_index[direction_last];
 
@@ -1638,9 +1638,9 @@ static void create_connections_from_curves(const Span<IndexRange> segments_by_cu
   }
 }
 
-static void follow_segment_connections(const Span<Segment_2> all_segments,
+static void follow_segment_connections(const Span<Segment> all_segments,
                                        const Span<int> segment_connections,
-                                       Vector<Segment_2> &segments,
+                                       Vector<Segment> &segments,
                                        Vector<int> &segment_offset_data)
 {
   segment_offset_data.append(0);
@@ -1667,7 +1667,7 @@ static void follow_segment_connections(const Span<Segment_2> all_segments,
         break;
       }
 
-      const Segment_2 &current_segment = all_segments[current_i];
+      const Segment &current_segment = all_segments[current_i];
       processed_segments[current_i] = true;
 
       if (segments.size() == 0) {
@@ -1736,7 +1736,7 @@ static bool check_line_segment_lasso_intersection(const int2 pos_a,
 static void check_segments_in_lasso(const Span<float2> screen_space_positions,
                                     const Span<rcti> screen_space_curve_bounds,
                                     const Span<int2> mcoords,
-                                    const Span<Segment_2> all_segments,
+                                    const Span<Segment> all_segments,
                                     const IndexMask &curve_selection,
                                     const Span<IndexRange> segments_by_curve,
                                     MutableSpan<bool> segments_to_keep)
@@ -1752,7 +1752,7 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
 
     const IndexRange &segment_range = segments_by_curve[curve_i];
     for (const int segment_i : segment_range) {
-      const Segment_2 &segment = all_segments[segment_i];
+      const Segment &segment = all_segments[segment_i];
 
       const IndexRange point_range = segment.point_range();
 
@@ -1816,20 +1816,20 @@ static void check_segments_in_lasso(const Span<float2> screen_space_positions,
   });
 }
 
-bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
-                                          const Span<float2> screen_space_positions,
-                                          const Span<rcti> screen_space_curve_bounds,
-                                          const Span<int2> mcoords,
-                                          const IndexMask &curve_selection,
-                                          const IndexMask &visible_curves,
-                                          const bool keep_caps)
+bke::CurvesGeometry trim_curve_segments(const bke::CurvesGeometry &src,
+                                        const Span<float2> screen_space_positions,
+                                        const Span<rcti> screen_space_curve_bounds,
+                                        const Span<int2> mcoords,
+                                        const IndexMask &curve_selection,
+                                        const IndexMask &visible_curves,
+                                        const bool keep_caps)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
   const VArray<bool> is_cyclic = src.cyclic();
 
   Vector<IntersectionPoint> intersections;
   Array<IndexRange> segments_by_curve(src_points_by_curve.size());
-  Vector<Segment_2> all_segments;
+  Vector<Segment> all_segments;
 
   /* -------------------- */
 
@@ -1869,7 +1869,7 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
 
-  Vector<Segment_2> segments;
+  Vector<Segment> segments;
   Vector<int> segment_offset_data;
   follow_segment_connections(all_segments, segment_connections, segments, segment_offset_data);
   Array<bool> segment_reversed(segments.size());
@@ -1905,7 +1905,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
 
   Vector<IntersectionPoint> intersections;
   Array<IndexRange> segments_by_curve(src_points_by_curve.size());
-  Vector<Segment_2> all_segments;
+  Vector<Segment> all_segments;
 
   /* -------------------- */
 
@@ -1946,7 +1946,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   create_connections_from_curves(
       segments_by_curve, segments_to_keep, is_cyclic, segment_connections.as_mutable_span());
 
-  Vector<Segment_2> segments;
+  Vector<Segment> segments;
   Vector<int> segment_offset_data;
   follow_segment_connections(all_segments, segment_connections, segments, segment_offset_data);
   Array<bool> segment_reversed(segments.size());
