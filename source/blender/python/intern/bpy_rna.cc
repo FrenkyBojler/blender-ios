@@ -7009,7 +7009,7 @@ PyTypeObject pyrna_struct_Type = {
     /*tp_basicsize*/ sizeof(BPy_StructRNA),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ pyrna_struct_dealloc,
-    /*tp_vectorcall_offset */ 0,
+    /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
@@ -8166,7 +8166,7 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
         newclass = nullptr;
       }
       else {
-        CLOG_INFO(BPY_LOG_RNA, 2, "SRNA sub-classed: '%s'", idname);
+        CLOG_TRACE(BPY_LOG_RNA, "SRNA sub-classed: '%s'", idname);
       }
     }
   }
