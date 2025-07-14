@@ -1764,9 +1764,6 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
         const int point_j1 = points_j[j];
         const int point_j2 = points_j[(j + 1) % points_j.size()];
 
-        const float2 co_j1 = screen_space_positions[point_j1];
-        const float2 co_j2 = screen_space_positions[point_j2];
-
         /* Don't self check. */
         if (curve_i == curve_j && (point_i1 == point_j1 || point_i1 == point_j2 ||
                                    point_i2 == point_j1 || point_i2 == point_j2))
@@ -1774,17 +1771,35 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
           continue;
         }
 
-        float alpha_a, alpha_b;
-        const int val = intersect(co_i1, co_i2, co_j1, co_j2, &alpha_a, &alpha_b);
-        if (val == ISECT_LINE_LINE_CROSS) {
+        const float2 co_j1 = screen_space_positions[point_j1];
+        const float2 co_j2 = screen_space_positions[point_j2];
+
+        /* Skip when bounding boxes of i1-i2 and j1-j2 don't overlap. */
+        rcti bbox_j;
+        BLI_rcti_init_minmax(&bbox_j);
+        BLI_rcti_do_minmax_v(&bbox_j, int2(co_j1));
+        BLI_rcti_do_minmax_v(&bbox_j, int2(co_j2));
+        BLI_rcti_pad(&bbox_j, BBOX_PADDING, BBOX_PADDING);
+        if (!BLI_rcti_isect(&bbox_i, &bbox_j, nullptr)) {
+          continue;
+        }
+
+        /* Add some padding to the line segment c-d, otherwise we could just miss an
+         * intersection. */
+        const float2 padding_j = math::normalize(co_j2 - co_j1);
+        const float2 padded_j1 = co_j1 - padding_j;
+        const float2 padded_j2 = co_j2 + padding_j;
+
+        /* Check for intersection. */
+        const auto isect = math::isect_seg_seg(co_i1, co_i2, padded_j1, padded_j2);
+        if (ELEM(isect.kind, isect.LINE_LINE_CROSS, isect.LINE_LINE_EXACT)) {
+          const float alpha_i = get_intersection_distance_of_segments(co_i1, co_i2, co_j1, co_j2);
+          const float alpha_j = get_intersection_distance_of_segments(co_j1, co_j2, co_i1, co_i2);
+
           r_inters_per_curves[curve_i].append(r_intersections.size());
           r_inters_per_curves[curve_j].append(r_intersections.size());
           r_intersections.append(
-              create_intersection(point_i1, point_j1, alpha_a, alpha_b, curve_i, curve_j));
-        }
-        else if (val == ISECT_LINE_LINE_EXACT) {
-          /* TODO(@casey-bianco-davis): Properly handle degeneracy. */
-          BLI_assert_unreachable();
+              create_intersection(point_i1, point_j1, alpha_i, alpha_j, curve_i, curve_j));
         }
       }
     }
