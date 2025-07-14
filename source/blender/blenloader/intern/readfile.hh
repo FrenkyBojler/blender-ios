@@ -131,7 +131,7 @@ struct FileData {
 
   OldNewMap *datamap = nullptr;
   OldNewMap *globmap = nullptr;
-  /** Used to keep track of already loaded embedded IDs to avoid loading them multiple times. */
+  /** Used to keep track of already loaded packed IDs to avoid loading them multiple times. */
   std::shared_ptr<blender::Map<IDHash, ID *>> id_by_deep_hash;
 
   /**
@@ -216,7 +216,7 @@ BHead *blo_bhead_prev(FileData *fd, BHead *thisblock) ATTR_NONNULL(1, 2);
  */
 const char *blo_bhead_id_name(FileData *fd, const BHead *bhead);
 /**
- * Warning! it's caller's responsibility to ensure that the given bhead **is** an ID one!
+ * Warning! It's the caller's responsibility to ensure that the given bhead **is** an ID one!
  *
  * Returns the ID flag value (or `0` if the blendfile is too old and the offset of the ID::flag
  * member could not be computed).

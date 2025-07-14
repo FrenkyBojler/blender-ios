@@ -2396,11 +2396,11 @@ static void rna_def_ID(BlenderRNA *brna)
       "This data-block is not an independent one, but is actually a sub-data of another ID "
       "(typical example: root node trees or master collections)");
 
-  prop = RNA_def_property(srna, "is_linked_embedded", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "is_linked_packed", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", ID_FLAG_LINKED_AND_PACKED);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
-      prop, "Linked Embedded", "This data-block is linked and embedded into the .blend file");
+      prop, "Linked Packed", "This data-block is linked and packed into the .blend file");
 
   prop = RNA_def_property(srna, "is_missing", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "tag", ID_TAG_MISSING);
@@ -2729,7 +2729,7 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(prop,
                            "Is Archive",
-                           "This library is an 'archive' storage for embedded linked IDs "
+                           "This library is an 'archive' storage for packed linked IDs "
                            "originally linked from its 'archive parent' library.");
 
   prop = RNA_def_property(srna, "archive_parent_library", PROP_POINTER, PROP_NONE);
@@ -2738,7 +2738,7 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop,
                            "Parent Archive Library",
-                           "Source library from which this archive of embedded IDs was generated");
+                           "Source library from which this archive of packed IDs was generated");
 
   prop = RNA_def_property(srna, "archive_libraries", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "Library");
@@ -2754,7 +2754,7 @@ static void rna_def_library(BlenderRNA *brna)
   RNA_def_property_override_flag(prop, PROPOVERRIDE_NO_COMPARISON);
   RNA_def_property_ui_text(prop,
                            "Parent Archive Library",
-                           "Source library from which this archive of embedded IDs was generated");
+                           "Source library from which this archive of packed IDs was generated");
 
   func = RNA_def_function(srna, "reload", "rna_Library_reload");
   RNA_def_function_flag(func, FUNC_USE_REPORTS | FUNC_USE_CONTEXT);

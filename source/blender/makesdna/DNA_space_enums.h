@@ -481,7 +481,7 @@ typedef enum eFileAssetImportMethod {
    * Link the data-block, but also pack it in the current file to keep it working even if the
    * source file is not available anymore.
    */
-  FILE_ASSET_IMPORT_PACKED = 4,
+  FILE_ASSET_IMPORT_PACK = 4,
 } eFileAssetImportMethod;
 
 typedef enum eFileAssetImportFlags {

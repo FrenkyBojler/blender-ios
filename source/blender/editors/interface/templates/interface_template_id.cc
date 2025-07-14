@@ -1132,7 +1132,7 @@ static void template_ID(const bContext *C,
                              nullptr,
                              0,
                              0,
-                             TIP_("Embedded library data-block, click to make local"));
+                             TIP_("Packed library data-block, click to make local"));
         }
         else if (id->tag & ID_TAG_INDIRECT) {
           but = uiDefIconBut(block,

@@ -89,8 +89,8 @@ static bool blendhandle_load_id_data_and_validate(FileData *fd,
     return false;
   }
   r_idflag = blo_bhead_id_flag(fd, bhead);
-  /* Do not list (and therefore allow direct linkin of) packed data.
-   *    * While supporting this is conceptually possible, it would require significant changes in
+  /* Do not list (and therefore allow direct linking of) packed data.
+   * While supporting this is conceptually possible, it would require significant changes in
    * the UI (file browser) and UX (link operation) to convey this concept and handle it
    * correctly. */
   if (r_idflag & ID_FLAG_LINKED_AND_PACKED) {

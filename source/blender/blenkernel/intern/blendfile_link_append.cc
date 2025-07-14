@@ -952,10 +952,10 @@ void BKE_blendfile_link_pack(BlendfileLinkAppendContext *lapp_context, ReportLis
     ID *id = item.new_id;
     BLI_assert(ID_IS_LINKED(id));
     if (!(ID_IS_PACKED(id) || (id->newid && ID_IS_PACKED(id->newid)))) {
-      /* No yet embedded. */
-      blender::bke::library::embed_linked_id_hierarchy(*bmain, *id);
+      /* No yet packed. */
+      blender::bke::library::pack_linked_id_hierarchy(*bmain, *id);
     }
-    /* Calling code may want to access newly linked embedded IDs from the link/append context
+    /* Calling code may want to access newly packed embedded IDs from the link/append context
      * items. */
     if (id->newid) {
       item.new_id = id->newid;

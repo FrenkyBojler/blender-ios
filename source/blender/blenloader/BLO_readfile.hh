@@ -395,9 +395,9 @@ enum eBLOLibLinkFlags {
    */
   BLO_LIBLINK_COLLECTION_NO_HIERARCHY_REBUILD = 1 << 26,
   /**
-   * Embed the linked data-blocks to keep them working even if the source file is not available.
+   * Pack the linked data-blocks to keep them working even if the source file is not available.
    */
-  BLO_LIBLINK_LINK_EMBED = 1 << 27,
+  BLO_LIBLINK_PACK = 1 << 27,
 };
 
 /**

@@ -486,16 +486,16 @@ class TestBlendLibAppendReuseID(TestBlendLibLinkHelper):
         self.assertEqual(len(bpy.data.collections), 0)  # Scene's master collection is not listed here
 
 
-class TestBlendLibEmbeddedLinkedID(TestBlendLibLinkHelper):
+class TestBlendLibPackedLinkedID(TestBlendLibLinkHelper):
 
     def __init__(self, args):
         super().__init__(args)
 
-    def test_link_embed_basic(self):
+    def test_link_pack_basic(self):
         output_dir = self.args.output_dir
         output_lib_path = self.init_lib_data_basic()
 
-        # Link of a single Object, and make it embedded.
+        # Link of a single Object, and make it packed.
         self.reset_blender()
 
         link_dir = os.path.join(output_lib_path, "Object")
@@ -506,16 +506,16 @@ class TestBlendLibEmbeddedLinkedID(TestBlendLibLinkHelper):
 
         self.assertEqual(len(bpy.data.meshes), 1)
         for me in bpy.data.meshes:
-                self.assertEqual(me.library, library)
-                self.assertEqual(me.users, 1)
+            self.assertEqual(me.library, library)
+            self.assertEqual(me.users, 1)
         self.assertEqual(len(bpy.data.objects), 1)
         for ob in bpy.data.objects:
             self.assertEqual(ob.library, library)
         self.assertEqual(len(bpy.data.collections), 0)  # Scene's master collection is not listed here
 
-        bpy.data.embed_linked_ids_hierarchy(bpy.data.objects[0]);
+        bpy.data.pack_linked_ids_hierarchy(bpy.data.objects[0])
 
-        # Need to ensure that the newly embedded linked object is used, and kept in the scene.
+        # Need to ensure that the newly packed linked object is used, and kept in the scene.
         bpy.data.scenes[0].collection.objects.link(bpy.data.objects[1])
 
         self.assertEqual(len(bpy.data.libraries), 2)
@@ -823,7 +823,7 @@ TESTS = (
     TestBlendLibAppendBasic,
     TestBlendLibAppendReuseID,
 
-    TestBlendLibEmbeddedLinkedID,
+    TestBlendLibPackedLinkedID,
 
     TestBlendLibLibraryReload,
     TestBlendLibLibraryRelocate,

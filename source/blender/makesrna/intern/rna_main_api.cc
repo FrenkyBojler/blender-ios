@@ -147,9 +147,9 @@ static void rna_Main_ID_remove(Main *bmain,
   }
 }
 
-static ID *rna_Main_embed_linked_ids_hierarchy(struct BlendData *blenddata,
-                                               ReportList *reports,
-                                               ID *root_id)
+static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
+                                              ReportList *reports,
+                                              ID *root_id)
 {
   if (!ID_IS_LINKED(root_id)) {
     BKE_reportf(reports, RPT_ERROR, "Only linked IDs can be linked-embedded");
@@ -161,12 +161,12 @@ static ID *rna_Main_embed_linked_ids_hierarchy(struct BlendData *blenddata,
   }
 
   Main *bmain = reinterpret_cast<Main *>(blenddata);
-  blender::bke::library::embed_linked_id_hierarchy(*bmain, *root_id);
+  blender::bke::library::pack_linked_id_hierarchy(*bmain, *root_id);
 
-  ID *embedded_root_id = root_id->newid;
+  ID *packed_root_id = root_id->newid;
   BKE_main_id_newptr_and_tag_clear(bmain);
 
-  return embedded_root_id;
+  return packed_root_id;
 }
 
 static Camera *rna_Main_cameras_new(Main *bmain, const char *name)
@@ -890,15 +890,13 @@ void RNA_api_main(StructRNA *srna)
   RNA_def_function_return(func, parm);
 #  endif
 
-  func = RNA_def_function(
-      srna, "embed_linked_ids_hierarchy", "rna_Main_embed_linked_ids_hierarchy");
+  func = RNA_def_function(srna, "pack_linked_ids_hierarchy", "rna_Main_pack_linked_ids_hierarchy");
   RNA_def_function_ui_description(
-      func, "Embed the given linked ID and its dependencies into current blendfile");
+      func, "Pack the given linked ID and its dependencies into current blendfile");
   RNA_def_function_flag(func, FUNC_USE_REPORTS);
-  parm = RNA_def_pointer(func, "root_id", "ID", "", "Root linked ID to embed");
+  parm = RNA_def_pointer(func, "root_id", "ID", "", "Root linked ID to pack");
   RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
-  parm = RNA_def_pointer(
-      func, "embedded_id", "ID", "", "The embedded ID matching the given root ID");
+  parm = RNA_def_pointer(func, "packed_id", "ID", "", "The packed ID matching the given root ID");
   RNA_def_function_return(func, parm);
 }
 

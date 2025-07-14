@@ -142,7 +142,7 @@
  * Generate an additional file next to every saved .blend file that contains the file content in a
  * more human readable form.
  */
-#define GENERATE_DEBUG_BLEND_FILE 1
+#define GENERATE_DEBUG_BLEND_FILE 0
 #define DEBUG_BLEND_FILE_SUFFIX ".debug.txt"
 
 /* ********* my write, buffered writing with minimum size chunks ************ */
@@ -1170,10 +1170,10 @@ static void write_libraries(WriteData *wd, Main *bmain)
       should_write_library = true;
     }
     else if (!library.runtime->archived_libraries.is_empty()) {
-      /* Reference 'real' blendfile library of archived 'copies' of it containing embedded linked
+      /* Reference 'real' blendfile library of archived 'copies' of it containing packed linked
        * IDs should always be written. */
       /* FIXME: A bit weak, as it could be that all archive libs are now empty (if all related
-       * embedded linked IDs have been deleted e.g.)...
+       * packed linked IDs have been deleted e.g.)...
        * Could be fixed by either adding more checks here, or ensuring empty archive libs are
        * deleted when no ID uses them anymore? */
       should_write_library = true;
@@ -1194,7 +1194,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     write_id(wd, &library.id);
 
-    /* Write placeholders or embedded data for linked data-blocks that are used. */
+    /* Write placeholders or packed data for linked data-blocks that are used. */
     for (ID *id : ids_used_from_library) {
       if (ID_IS_PACKED(id)) {
         write_id(wd, id);

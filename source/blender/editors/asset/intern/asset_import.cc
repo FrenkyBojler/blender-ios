@@ -39,7 +39,7 @@ ID *asset_local_id_ensure_imported(Main &bmain, const asset_system::AssetReprese
                                     asset.get_id_type(),
                                     asset.get_name().c_str(),
                                     (asset.get_use_relative_path() ? FILE_RELPATH : 0));
-    case ASSET_IMPORT_PACKED:
+    case ASSET_IMPORT_PACK:
       return WM_file_link_datablock(&bmain,
                                     nullptr,
                                     nullptr,
@@ -47,7 +47,7 @@ ID *asset_local_id_ensure_imported(Main &bmain, const asset_system::AssetReprese
                                     blend_path.c_str(),
                                     asset.get_id_type(),
                                     asset.get_name().c_str(),
-                                    BLO_LIBLINK_LINK_EMBED |
+                                    BLO_LIBLINK_PACK |
                                         (asset.get_use_relative_path() ? FILE_RELPATH : 0));
     case ASSET_IMPORT_APPEND:
       return WM_file_append_datablock(&bmain,

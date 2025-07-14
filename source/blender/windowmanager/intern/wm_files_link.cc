@@ -709,7 +709,7 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
                                             const char *id_name,
                                             const int flag)
 {
-  const bool do_embed = (flag & BLO_LIBLINK_LINK_EMBED) != 0;
+  const bool do_pack = (flag & BLO_LIBLINK_PACK) != 0;
   const bool do_append = (flag & FILE_LINK) == 0;
   /* Tag everything so we can make local only the new datablock. */
   BKE_main_id_tag_all(bmain, ID_TAG_PRE_EXISTING, true);
@@ -732,7 +732,7 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
   /* Link datablock. */
   BKE_blendfile_link(lapp_context, nullptr);
 
-  if (do_embed) {
+  if (do_pack) {
     BKE_blendfile_link_pack(lapp_context, nullptr);
   }
   else if (do_append) {

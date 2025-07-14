@@ -2734,7 +2734,7 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
 
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (libmain, id_iter) {
-    /* Embedded IDs are read from the memfile, so don't add them here already. */
+    /* Packed IDs are read from the memfile, so don't add them here already. */
     if (!ID_IS_PACKED(id_iter)) {
       BKE_main_idmap_insert_id(fd->new_idmap_uid, id_iter);
     }
@@ -2774,7 +2774,7 @@ static bool read_libblock_undo_restore_library(FileData *fd,
                  libmain->curlib ? libmain->curlib->id.name : "<none>",
                  libmain->curlib ? libmain->curlib->runtime->filepath_abs : "<none>");
 
-      /* The embedded IDs are later read again. So they shouldn't be kept in libmain here. */
+      /* The packed IDs are later read again. So they shouldn't be kept in libmain here. */
       for (ListBase *lb_array : BKE_main_lists_get(*libmain)) {
         LISTBASE_FOREACH_MUTABLE (ID *, id, lb_array) {
           if (ID_IS_PACKED(id)) {
@@ -3163,7 +3163,7 @@ static BHead *read_libblock(FileData *fd,
       BLI_assert(id->deep_hash != IDHash::get_null());
       fd->id_by_deep_hash->add_new(id->deep_hash, id);
       BLI_assert(main->curlib);
-      main->curlib->runtime->embedded_id_by_deep_hash.add_new(id->deep_hash, id);
+      main->curlib->runtime->packed_id_by_deep_hash.add_new(id->deep_hash, id);
     }
   }
 
@@ -3944,7 +3944,7 @@ BlendFileData *blo_read_file_internal(FileData *fd, const char *filepath)
     if ((fd->skip_flags & BLO_READ_SKIP_DATA) == 0) {
       for (Main *main : *fd->bmain->split_mains) {
         /* Temporarily remove placeholders from Main, because they can't be versioned yet. */
-        /* Embedded IDs are stored in the current .blend file, so they do need versioning here
+        /* Packed IDs are stored in the current .blend file, so they do need versioning here
          * already and are not removed. */
         blender::Vector<ID *> placeholders;
         MainListsArray lbarray = BKE_main_lists_get(*main);
@@ -4337,7 +4337,7 @@ struct BlendExpander {
 /* Find the existing Main matching the given blendfile library filepath, or create a new one (with
  * the matching Library ID) if needed.
  *
- * NOTE: The process is a bit more complex for embedded linked IDs and their archive libraries, as
+ * NOTE: The process is a bit more complex for packed linked IDs and their archive libraries, as
  * in this case, this function also needs to find or create a new suitable archive library, i.e.
  * one which does not contain yet the given ID (from its name & type). */
 static Main *blo_find_main_for_library_and_idname(FileData *fd,
@@ -4345,7 +4345,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
                                                   const char *relabase,
                                                   const BHead *id_bhead,
                                                   const char *id_name,
-                                                  const bool is_embedded_id)
+                                                  const bool is_packed_id)
 {
   Library *reference_lib = nullptr;
   char filepath_abs[FILE_MAX];
@@ -4364,10 +4364,10 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
       }
       /* The first library matching a given filepath should never be an archive one. */
       BLI_assert(!main_it->curlib || (main_it->curlib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0);
-      if (!is_embedded_id) {
+      if (!is_packed_id) {
         return main_it;
       }
-      /* For embedded IDs, the Main of the main owner library is not a valid one. Another loop is
+      /* For packed IDs, the Main of the main owner library is not a valid one. Another loop is
        * needed into all the Mains matching the archive libraries of this main library. */
       BLI_assert(main_it->curlib);
       reference_lib = main_it->curlib;
@@ -4375,7 +4375,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
     }
   }
 
-  if (is_embedded_id && reference_lib) {
+  if (is_packed_id && reference_lib) {
     /* Try to find an 'available' existing archive Main library, i.e. one that does not yet contain
      * an ID of the same type and name. */
     for (Main *main_it : *fd->bmain->split_mains) {
@@ -4384,11 +4384,11 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
       {
         continue;
       }
-      if (ID *embedded_id = library_id_is_yet_read_main(main_it, id_name)) {
+      if (ID *packed_id = library_id_is_yet_read_main(main_it, id_name)) {
         /* Archive Main library already contains a 'same' ID - but it should have a different
          * deep_hash. Otherwise, a previous call to `library_id_is_yet_read()` should have returned
          * this ID, and this code should not be reached. */
-        BLI_assert(embedded_id->deep_hash != *blo_bhead_id_deep_hash(fd, id_bhead));
+        BLI_assert(packed_id->deep_hash != *blo_bhead_id_deep_hash(fd, id_bhead));
         UNUSED_VARS_NDEBUG(id_bhead);
         continue;
       }
@@ -4414,7 +4414,7 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
   STRNCPY(lib->filepath, lib_filepath);
   STRNCPY(lib->runtime->filepath_abs, filepath_abs);
 
-  if (is_embedded_id) {
+  if (is_packed_id) {
     /* FIXME: This logic is very similar to the code in BKE_library dealing with archived libraries
      * (e.g. #add_archive_library). Might be good to try to factorize it. */
     lib->archive_parent_library = reference_lib;
@@ -4535,7 +4535,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
      * Blender allowing longer names). */
     return;
   }
-  const bool is_embedded_id = (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_PACKED) != 0;
+  const bool is_packed_id = (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_PACKED) != 0;
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Placeholder link to data-block in another library. */
@@ -4567,10 +4567,10 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
 
     read_id_in_lib(fd, libmain, mainvar->curlib, bhead, nullptr, {});
   }
-  else if (is_embedded_id) {
-    /* Embedded Data-block from another library. */
+  else if (is_packed_id) {
+    /* Packed data-block from another library. */
 
-    /* That exact same embedded ID may have already been read before. */
+    /* That exact same packed ID may have already been read before. */
     if (ID *existing_id = library_id_is_yet_read_deep_hash(fd, bhead)) {
       /* Ensure that the current BHead's `old` pointer will also be remapped to the found existing
        * ID. */
@@ -4592,7 +4592,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
     Library *lib = reinterpret_cast<Library *>(
         read_id_struct(fd, bheadlib, "Data for Library ID type", INDEX_ID_NULL));
     Main *libmain = blo_find_main_for_library_and_idname(
-        fd, lib->filepath, fd->relabase, bhead, id_name, is_embedded_id);
+        fd, lib->filepath, fd->relabase, bhead, id_name, is_packed_id);
     MEM_freeN(lib);
 
     if (libmain->curlib == nullptr) {
@@ -4778,7 +4778,7 @@ static Main *library_link_begin(Main *mainvar,
   blo_split_main(mainvar);
 
   /* Find or create a Main matching the current library filepath. */
-  /* Note: Direclty linking embedded IDs is not supported currently. */
+  /* Note: Directly linking packed IDs is not supported currently. */
   mainl = blo_find_main_for_library_and_idname(
       fd, filepath, BKE_main_blendfile_path(mainvar), nullptr, nullptr, false);
   if (mainl->curlib) {

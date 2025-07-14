@@ -47,11 +47,12 @@ struct LibraryRuntime {
    */
   blender::Vector<Library *> archived_libraries = {};
   /**
-   * Used to keep track of already loaded embedded IDs owned (coming from) that library.
+   * Used to keep track of already loaded packed IDs owned (coming from) that library.
    *
    * Only filled in for 'real' library IDs, archived ones are currently expected to have empty
-   * ones. */
-  blender::Map<IDHash, ID *> embedded_id_by_deep_hash = {};
+   * ones.
+   */
+  blender::Map<IDHash, ID *> packed_id_by_deep_hash = {};
 
   /** #eLibrary_Tag. */
   ushort tag = 0;
@@ -70,13 +71,13 @@ struct LibraryRuntime {
 Library *search_filepath_abs(ListBase *libraries, blender::StringRef filepath_abs);
 
 /**
- * Embed given linked ID, and all the related hierarchy.
+ * Pack given linked ID, and all the related hierarchy.
  *
  * Will set final embedded ID into each ID::newid pointers.
  *
  * TODO: WIP, does not cover all possible cases yet - by far. See note in code.
  */
-void embed_linked_id_hierarchy(Main &bmain, ID &root_id);
+void pack_linked_id_hierarchy(Main &bmain, ID &root_id);
 
 };  // namespace blender::bke::library
 

@@ -400,8 +400,8 @@ Library *blender::bke::library::search_filepath_abs(ListBase *libraries,
 }
 
 /**
- * Add a new 'archive' copy of the given reference library. It will be used to store linked
- * embedded IDs.
+ * Add a new 'archive' copy of the given reference library. It is be used to store linked
+ * packed IDs.
  */
 static Library *add_archive_library(Main &bmain, Library &reference_library)
 {
@@ -421,7 +421,7 @@ static Library *add_archive_library(Main &bmain, Library &reference_library)
   archive_library->runtime->tag = reference_library.runtime->tag &
                                   (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
                                    LIBRARY_IS_ASSET_EDIT_FILE);
-  /* By definition, the file version of an archive library containing only embedded linked data is
+  /* By definition, the file version of an archive library containing only packed linked data is
    * the same as the one of its Main container. */
   archive_library->runtime->versionfile = bmain.versionfile;
   archive_library->runtime->subversionfile = bmain.subversionfile;
@@ -445,7 +445,7 @@ static Library *get_archive_library(Main &bmain, ID *for_id)
     }
     /* Check if current archive library already contains an ID of same type and name. */
     if (BKE_main_namemap_contain_name(bmain, lib_iter, GS(for_id->name), BKE_id_name(*for_id))) {
-      // TODO: If the ID in that library has the same deep hash as the ID we want to embed, they
+      // TODO: If the ID in that library has the same deep hash as the ID we want to pack, they
       // need to be deduplicated.
       continue;
     }
@@ -460,43 +460,43 @@ static Library *get_archive_library(Main &bmain, ID *for_id)
   return archive_lib;
 }
 
-static void embed_linked_id(Main &bmain,
-                            ID *linked_id,
-                            const id_hash::ValidDeepHashes &deep_hashes,
-                            blender::VectorSet<ID *> &ids_to_remap,
-                            blender::bke::id::IDRemapper &id_remapper)
+static void pack_linked_id(Main &bmain,
+                           ID *linked_id,
+                           const id_hash::ValidDeepHashes &deep_hashes,
+                           blender::VectorSet<ID *> &ids_to_remap,
+                           blender::bke::id::IDRemapper &id_remapper)
 {
   BLI_assert(linked_id->newid == nullptr);
 
   Library *owner_lib = linked_id->lib;
 
-  ID *embedded_id = owner_lib->runtime->embedded_id_by_deep_hash.lookup_default(
+  ID *packed_id = owner_lib->runtime->packed_id_by_deep_hash.lookup_default(
       deep_hashes.hashes.lookup_default(linked_id, IDHash::get_null()), nullptr);
 
-  if (embedded_id) {
-    /* Exact same ID (and all of its dependencies) have already been linked and embedded before,
-     * re-use these embedded data. */
+  if (packed_id) {
+    /* Exact same ID (and all of its dependencies) have already been linked and packed before,
+     * re-use these packed data. */
 
-    auto existing_id_process = [&deep_hashes, &id_remapper](ID *linked_id, ID *embedded_id) {
-      BLI_assert(embedded_id);
-      BLI_assert(ID_IS_PACKED(embedded_id));
-      BLI_assert(embedded_id->lib->archive_parent_library == linked_id->lib);
-      BLI_assert(embedded_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
+    auto existing_id_process = [&deep_hashes, &id_remapper](ID *linked_id, ID *packed_id) {
+      BLI_assert(packed_id);
+      BLI_assert(ID_IS_PACKED(packed_id));
+      BLI_assert(packed_id->lib->archive_parent_library == linked_id->lib);
+      BLI_assert(packed_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
 
-      id_remapper.add(linked_id, embedded_id);
-      linked_id->newid = embedded_id;
-      /* No need to remap this embedded ID - otherwise there would be something very wrong in
-       * embedded IDs state. */
+      id_remapper.add(linked_id, packed_id);
+      linked_id->newid = packed_id;
+      /* No need to remap this packed ID - otherwise there would be something very wrong in
+       * packed IDs state. */
     };
 
-    existing_id_process(linked_id, embedded_id);
+    existing_id_process(linked_id, packed_id);
 
     /* Handle 'fake-embedded' ShapeKeys IDs. */
     Key *linked_key = BKE_key_from_id(linked_id);
     if (linked_key) {
-      Key *embedded_key = BKE_key_from_id(embedded_id);
-      BLI_assert(embedded_key);
-      existing_id_process(&linked_key->id, &embedded_key->id);
+      Key *packed_key = BKE_key_from_id(packed_id);
+      BLI_assert(packed_key);
+      existing_id_process(&linked_key->id, &packed_key->id);
     }
   }
   else {
@@ -507,31 +507,31 @@ static void embed_linked_id(Main &bmain,
     Library *archive_lib = get_archive_library(bmain, linked_id);
 
     auto copied_id_process = [&owner_lib, &archive_lib, &deep_hashes, &ids_to_remap, &id_remapper](
-                                 ID *linked_id, ID *embedded_id) {
-      BLI_assert(embedded_id);
-      BLI_assert(ID_IS_PACKED(embedded_id));
-      BLI_assert(embedded_id->lib == archive_lib);
+                                 ID *linked_id, ID *packed_id) {
+      BLI_assert(packed_id);
+      BLI_assert(ID_IS_PACKED(packed_id));
+      BLI_assert(packed_id->lib == archive_lib);
 
-      embedded_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
-      owner_lib->runtime->embedded_id_by_deep_hash.add_new(embedded_id->deep_hash, embedded_id);
-      id_remapper.add(linked_id, embedded_id);
-      ids_to_remap.add(embedded_id);
+      packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
+      owner_lib->runtime->packed_id_by_deep_hash.add_new(packed_id->deep_hash, packed_id);
+      id_remapper.add(linked_id, packed_id);
+      ids_to_remap.add(packed_id);
     };
 
-    embedded_id = BKE_id_copy_in_lib(&bmain,
-                                     archive_lib,
-                                     linked_id,
-                                     std::nullopt,
-                                     nullptr,
-                                     LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
-                                         LIB_ID_COPY_NO_ANIMDATA);
-    id_us_min(embedded_id);
-    copied_id_process(linked_id, embedded_id);
+    packed_id = BKE_id_copy_in_lib(&bmain,
+                                   archive_lib,
+                                   linked_id,
+                                   std::nullopt,
+                                   nullptr,
+                                   LIB_ID_COPY_DEFAULT | LIB_ID_COPY_ID_NEW_SET |
+                                       LIB_ID_COPY_NO_ANIMDATA);
+    id_us_min(packed_id);
+    copied_id_process(linked_id, packed_id);
 
     /* Handle 'fake-embedded' ShapeKeys IDs. */
     Key *linked_key = BKE_key_from_id(linked_id);
     if (linked_key) {
-      Key *embedded_key = BKE_key_from_id(embedded_id);
+      Key *embedded_key = BKE_key_from_id(packed_id);
       BLI_assert(embedded_key);
       copied_id_process(&linked_key->id, &embedded_key->id);
     }
@@ -539,42 +539,42 @@ static void embed_linked_id(Main &bmain,
 }
 
 /**
- * Embed given linked IDs. Low-level code, assumes all given IDs are valid and safe to embed.
+ * Pack given linked IDs. Low-level code, assumes all given IDs are valid and safe to pack.
  *
- * Will set final embedded ID into each ID::newid pointers.
+ * Will set final packed ID into each ID::newid pointers.
  */
-static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed)
+static void pack_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_pack)
 {
-  blender::VectorSet<ID *> final_ids_to_embed;
+  blender::VectorSet<ID *> final_ids_to_pack;
   blender::VectorSet<ID *> ids_to_remap;
   blender::bke::id::IDRemapper id_remapper;
 
-  for (ID *id : ids_to_embed) {
+  for (ID *id : ids_to_pack) {
     BLI_assert(ID_IS_LINKED(id));
     if (ID_IS_PACKED(id)) {
       /* Should not happen, but also not critical issue. */
       CLOG_ERROR(&LOG,
-                 "Trying to make embedded again an already linked embedded ID '%s' (from '%s')",
+                 "Trying to pack an already packed ID '%s' (from '%s')",
                  id->name,
                  id->lib->runtime->filepath_abs);
-      /* Already embedded. */
+      /* Already packed. */
       continue;
     }
-    final_ids_to_embed.add(id);
+    final_ids_to_pack.add(id);
   }
 
   const id_hash::IDHashResult hash_result = id_hash::compute_linked_id_deep_hashes(
-      bmain, final_ids_to_embed.as_span());
+      bmain, final_ids_to_pack.as_span());
   if (const auto *missing_blend_files = std::get_if<id_hash::MissingBlendFiles>(&hash_result)) {
     CLOG_ERROR(&LOG,
-               "Trying to embed IDs that depend on missing linked libraries: %s",
+               "Trying to pack IDs that depend on missing linked libraries: %s",
                missing_blend_files->paths[0].c_str());
     return;
   }
   const auto &deep_hashes = std::get<id_hash::ValidDeepHashes>(hash_result);
 
-  for (ID *linked_id : final_ids_to_embed) {
-    embed_linked_id(bmain, linked_id, deep_hashes, ids_to_remap, id_remapper);
+  for (ID *linked_id : final_ids_to_pack) {
+    pack_linked_id(bmain, linked_id, deep_hashes, ids_to_remap, id_remapper);
   }
 
   BKE_libblock_relink_multiple(
@@ -582,17 +582,17 @@ static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed
   BKE_main_ensure_invariants(bmain);
 }
 
-void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
+void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
 {
   BLI_assert(ID_IS_LINKED(&root_id));
   BLI_assert(!ID_IS_PACKED(&root_id));
 
   /* TODO: This code also needs to check upward in the hierarchy to ensure no other linked data
    * uses the root_id (or some of its dependency). Otherwise, these IDs should be duplicated before
-   * being embedded. This is likely similar process as liboverride 'make override hierarchy' code,
+   * being packed. This is likely similar process as liboverride 'make override hierarchy' code,
    * hopefully we can deduplicate some of this logic into its own utils BKE API. */
-  blender::Set<ID *> ids_to_embed;
-  ids_to_embed.add(&root_id);
+  blender::Set<ID *> ids_to_pack;
+  ids_to_pack.add(&root_id);
   BKE_library_foreach_ID_link(
       &bmain,
       &root_id,
@@ -614,30 +614,30 @@ void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
           return IDWALK_RET_NOP;
         }
         if (ID_IS_PACKED(referenced_id)) {
-          /* FIXME This is not correct, another linked data can use embedded linked data.
+          /* FIXME This is not correct, another linked data can use packed linked data.
            *
-           * Essentially, until actual lib data changes, the embedded linked ID replaces a regular
+           * Essentially, until actual lib data changes, the packed linked ID replaces a regular
            * linked ID (this is done at link time by checking deep hashes).
            *
-           * Once real lib data diverges, then new usages (including current non-embedded linked
+           * Once real lib data diverges, then new usages (including current non-packed linked
            * IDs) will switch to the 'current' version from the real library, while existing local
-           * and embedded usages will stay on the archived embedded version.
+           * and packed usages will stay on the archived packed version.
            */
-          CLOG_ERROR(
-              &LOG, "Non-embedded data-block references embedded data-block which is not allowed");
+          CLOG_ERROR(&LOG,
+                     "Non-packed data-block references packed data-block which is not allowed");
           return IDWALK_RET_NOP;
         }
         if (GS(referenced_id->name) == ID_KE) {
-          /* Shape keys cannot be directly linked, from linking code PoV they behave as embedded
+          /* Shape keys cannot be directly linked, from linking code PoV they behave as packed
            * data (i.e. their owning data is reposible to handle them). */
           return IDWALK_RET_NOP;
         }
 
-        ids_to_embed.add(referenced_id);
+        ids_to_pack.add(referenced_id);
         return IDWALK_RET_NOP;
       },
       nullptr,
       IDWALK_READONLY | IDWALK_RECURSE);
 
-  embed_linked_ids(bmain, ids_to_embed);
+  pack_linked_ids(bmain, ids_to_pack);
 }

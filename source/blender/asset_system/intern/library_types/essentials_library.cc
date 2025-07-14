@@ -20,7 +20,7 @@ EssentialsAssetLibrary::EssentialsAssetLibrary()
                          {},
                          utils::normalize_directory_path(essentials_directory_path()))
 {
-  import_method_ = ASSET_IMPORT_PACKED;
+  import_method_ = ASSET_IMPORT_PACK;
 }
 
 std::optional<AssetLibraryReference> EssentialsAssetLibrary::library_reference() const
