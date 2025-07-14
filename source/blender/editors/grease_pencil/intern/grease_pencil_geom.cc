@@ -955,7 +955,7 @@ class Segment {
     /* If both intersection points are on the same edge, there's ether no points between or
      * all of the points are. */
     if (points[Side::Start] == points[Side::End]) {
-      if (alpha[Side::Start] > alpha[Side::End]) {
+      if (alpha[Side::Start] >= alpha[Side::End]) {
         return src_points.shift(points[Side::Start] - src_points.first() + 1);
       }
       return IndexRange(0);
