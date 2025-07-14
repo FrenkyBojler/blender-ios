@@ -951,7 +951,7 @@ void BKE_blendfile_link_embed(BlendfileLinkAppendContext *lapp_context, ReportLi
   for (BlendfileLinkAppendContextItem &item : lapp_context->items) {
     ID *id = item.new_id;
     BLI_assert(ID_IS_LINKED(id));
-    if (!(ID_IS_LINKED_EMBEDDED(id) || (id->newid && ID_IS_LINKED_EMBEDDED(id->newid)))) {
+    if (!(ID_IS_PACKED(id) || (id->newid && ID_IS_PACKED(id->newid)))) {
       /* No yet embedded. */
       blender::bke::library::embed_linked_id_hierarchy(*bmain, *id);
     }

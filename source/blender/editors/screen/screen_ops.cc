@@ -6873,7 +6873,7 @@ static std::string screen_drop_scene_tooltip(bContext * /*C*/,
     switch (asset_drag->import_settings.method) {
       case ASSET_IMPORT_LINK:
         return fmt::format(fmt::runtime(TIP_("Link {}")), dragged_scene_name);
-      case ASSET_IMPORT_LINK_EMBED:
+      case ASSET_IMPORT_PACKED:
         return fmt::format(fmt::runtime(TIP_("Link Embed {}")), dragged_scene_name);
       case ASSET_IMPORT_APPEND:
         return fmt::format(fmt::runtime(TIP_("Append {}")), dragged_scene_name);

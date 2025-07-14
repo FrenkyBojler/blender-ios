@@ -1657,7 +1657,7 @@ void BKE_libblock_copy_in_lib(Main *bmain,
   }
 
   if (owner_library && *owner_library && ((*owner_library)->flag & LIBRARY_FLAG_IS_ARCHIVE) != 0) {
-    new_id->flag |= ID_FLAG_LINKED_AND_EMBEDDED;
+    new_id->flag |= ID_FLAG_LINKED_AND_PACKED;
   }
 
   if (flag & LIB_ID_COPY_ID_NEW_SET) {

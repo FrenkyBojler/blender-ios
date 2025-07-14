@@ -2397,7 +2397,7 @@ static void rna_def_ID(BlenderRNA *brna)
       "(typical example: root node trees or master collections)");
 
   prop = RNA_def_property(srna, "is_linked_embedded", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ID_FLAG_LINKED_AND_EMBEDDED);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", ID_FLAG_LINKED_AND_PACKED);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);
   RNA_def_property_ui_text(
       prop, "Linked Embedded", "This data-block is linked and embedded into the .blend file");

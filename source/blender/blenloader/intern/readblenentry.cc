@@ -93,7 +93,7 @@ static bool blendhandle_load_id_data_and_validate(FileData *fd,
    *    * While supporting this is conceptually possible, it would require significant changes in
    * the UI (file browser) and UX (link operation) to convey this concept and handle it
    * correctly. */
-  if (r_idflag & ID_FLAG_LINKED_AND_EMBEDDED) {
+  if (r_idflag & ID_FLAG_LINKED_AND_PACKED) {
     return false;
   }
   r_asset_meta_data = blo_bhead_id_asset_data_address(fd, bhead);

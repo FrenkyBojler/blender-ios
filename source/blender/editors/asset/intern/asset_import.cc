@@ -39,7 +39,7 @@ ID *asset_local_id_ensure_imported(Main &bmain, const asset_system::AssetReprese
                                     asset.get_id_type(),
                                     asset.get_name().c_str(),
                                     (asset.get_use_relative_path() ? FILE_RELPATH : 0));
-    case ASSET_IMPORT_LINK_EMBED:
+    case ASSET_IMPORT_PACKED:
       return WM_file_link_datablock(&bmain,
                                     nullptr,
                                     nullptr,

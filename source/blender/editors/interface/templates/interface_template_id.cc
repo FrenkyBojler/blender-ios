@@ -1120,7 +1120,7 @@ static void template_ID(const bContext *C,
     if (!hide_buttons && !(idfrom && ID_IS_LINKED(idfrom))) {
       if (ID_IS_LINKED(id)) {
         const bool disabled = !BKE_idtype_idcode_is_localizable(GS(id->name));
-        if (ID_IS_LINKED_EMBEDDED(id)) {
+        if (ID_IS_PACKED(id)) {
           but = uiDefIconBut(block,
                              UI_BTYPE_BUT,
                              0,

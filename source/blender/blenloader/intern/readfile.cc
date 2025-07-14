@@ -806,7 +806,7 @@ static const IDHash *blo_bhead_id_deep_hash(const FileData *fd, const BHead *bhe
     return nullptr;
   }
   const short flag = blo_bhead_id_flag(fd, bhead);
-  if (!(flag & ID_FLAG_LINKED_AND_EMBEDDED)) {
+  if (!(flag & ID_FLAG_LINKED_AND_PACKED)) {
     return nullptr;
   }
   return reinterpret_cast<const IDHash *>(
@@ -2215,7 +2215,7 @@ static void direct_link_id_common(BlendDataReader *reader,
     id->session_uid = MAIN_ID_SESSION_UID_UNSET;
   }
 
-  if (ID_IS_LINKED_EMBEDDED(id)) {
+  if (ID_IS_PACKED(id)) {
     /* TODO: This is not true currently and leads to a crash further down the line. */
     BLI_assert(current_library->flag & LIBRARY_FLAG_IS_ARCHIVE);
   }
@@ -2735,7 +2735,7 @@ static void read_undo_move_libmain_data(FileData *fd, Main *libmain, BHead *bhea
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (libmain, id_iter) {
     /* Embedded IDs are read from the memfile, so don't add them here already. */
-    if (!ID_IS_LINKED_EMBEDDED(id_iter)) {
+    if (!ID_IS_PACKED(id_iter)) {
       BKE_main_idmap_insert_id(fd->new_idmap_uid, id_iter);
     }
   }
@@ -2777,7 +2777,7 @@ static bool read_libblock_undo_restore_library(FileData *fd,
       /* The embedded IDs are later read again. So they shouldn't be kept in libmain here. */
       for (ListBase *lb_array : BKE_main_lists_get(*libmain)) {
         LISTBASE_FOREACH_MUTABLE (ID *, id, lb_array) {
-          if (ID_IS_LINKED_EMBEDDED(id)) {
+          if (ID_IS_PACKED(id)) {
             BLI_remlink(lb_array, id);
           }
         }
@@ -3159,7 +3159,7 @@ static BHead *read_libblock(FileData *fd,
     if (main->id_map != nullptr) {
       BKE_main_idmap_insert_id(main->id_map, id_target);
     }
-    if (ID_IS_LINKED_EMBEDDED(id)) {
+    if (ID_IS_PACKED(id)) {
       BLI_assert(id->deep_hash != IDHash::get_null());
       fd->id_by_deep_hash->add_new(id->deep_hash, id);
       BLI_assert(main->curlib);
@@ -4535,7 +4535,7 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
      * Blender allowing longer names). */
     return;
   }
-  const bool is_embedded_id = (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_EMBEDDED) != 0;
+  const bool is_embedded_id = (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_PACKED) != 0;
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Placeholder link to data-block in another library. */

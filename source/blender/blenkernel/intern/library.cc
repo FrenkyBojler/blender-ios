@@ -479,7 +479,7 @@ static void embed_linked_id(Main &bmain,
 
     auto existing_id_process = [&deep_hashes, &id_remapper](ID *linked_id, ID *embedded_id) {
       BLI_assert(embedded_id);
-      BLI_assert(ID_IS_LINKED_EMBEDDED(embedded_id));
+      BLI_assert(ID_IS_PACKED(embedded_id));
       BLI_assert(embedded_id->lib->archive_parent_library == linked_id->lib);
       BLI_assert(embedded_id->deep_hash == deep_hashes.hashes.lookup(linked_id));
 
@@ -509,7 +509,7 @@ static void embed_linked_id(Main &bmain,
     auto copied_id_process = [&owner_lib, &archive_lib, &deep_hashes, &ids_to_remap, &id_remapper](
                                  ID *linked_id, ID *embedded_id) {
       BLI_assert(embedded_id);
-      BLI_assert(ID_IS_LINKED_EMBEDDED(embedded_id));
+      BLI_assert(ID_IS_PACKED(embedded_id));
       BLI_assert(embedded_id->lib == archive_lib);
 
       embedded_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
@@ -551,7 +551,7 @@ static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed
 
   for (ID *id : ids_to_embed) {
     BLI_assert(ID_IS_LINKED(id));
-    if (ID_IS_LINKED_EMBEDDED(id)) {
+    if (ID_IS_PACKED(id)) {
       /* Should not happen, but also not critical issue. */
       CLOG_ERROR(&LOG,
                  "Trying to make embedded again an already linked embedded ID '%s' (from '%s')",
@@ -585,7 +585,7 @@ static void embed_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_embed
 void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
 {
   BLI_assert(ID_IS_LINKED(&root_id));
-  BLI_assert(!ID_IS_LINKED_EMBEDDED(&root_id));
+  BLI_assert(!ID_IS_PACKED(&root_id));
 
   /* TODO: This code also needs to check upward in the hierarchy to ensure no other linked data
    * uses the root_id (or some of its dependency). Otherwise, these IDs should be duplicated before
@@ -613,7 +613,7 @@ void blender::bke::library::embed_linked_id_hierarchy(Main &bmain, ID &root_id)
           CLOG_ERROR(&LOG, "Linked data-block references non-linked data-block");
           return IDWALK_RET_NOP;
         }
-        if (ID_IS_LINKED_EMBEDDED(referenced_id)) {
+        if (ID_IS_PACKED(referenced_id)) {
           /* FIXME This is not correct, another linked data can use embedded linked data.
            *
            * Essentially, until actual lib data changes, the embedded linked ID replaces a regular

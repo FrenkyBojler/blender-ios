@@ -97,8 +97,7 @@ static int memfile_undosys_step_id_reused_cb(LibraryIDLinkCallbackData *cb_data)
   ID *self_id = cb_data->self_id;
   ID **id_pointer = cb_data->id_pointer;
   /* Not quite sure if the change here makes sense. */
-  BLI_assert((self_id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) != 0 ||
-             ID_IS_LINKED_EMBEDDED(self_id));
+  BLI_assert((self_id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) != 0 || ID_IS_PACKED(self_id));
 
   ID *id = *id_pointer;
   if (id != nullptr && !ID_IS_LINKED(id) && (id->tag & ID_TAG_UNDO_OLD_ID_REUSED_UNCHANGED) == 0) {

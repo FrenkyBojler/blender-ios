@@ -690,8 +690,12 @@ typedef struct PreviewImage {
 #define ID_MISSING(_id) ((((const ID *)(_id))->tag & ID_TAG_MISSING) != 0)
 
 #define ID_IS_LINKED(_id) (((const ID *)(_id))->lib != NULL)
-#define ID_IS_LINKED_EMBEDDED(_id) \
-  (ID_IS_LINKED(_id) && ((_id)->flag & ID_FLAG_LINKED_AND_EMBEDDED))
+/**
+ * Indicates that this ID is linked but also packed into the current .blend file. Note that this
+ * just means that this specific ID and its dependencies are packed, not the entire library. So
+ * this is separate from #Library::packedfile.
+ */
+#define ID_IS_PACKED(_id) (ID_IS_LINKED(_id) && ((_id)->flag & ID_FLAG_LINKED_AND_PACKED))
 
 #define ID_TYPE_SUPPORTS_ASSET_EDITABLE(id_type) \
   ELEM(id_type, ID_BR, ID_TE, ID_NT, ID_IM, ID_PC, ID_MA)
@@ -790,9 +794,9 @@ enum {
    */
   ID_FLAG_CLIPBOARD_MARK = 1 << 14,
   /**
-   * Indicates that this linked ID is embedded into the current .blend file.
+   * Indicates that this linked ID is packed into the current .blend file.
    */
-  ID_FLAG_LINKED_AND_EMBEDDED = 1 << 15,
+  ID_FLAG_LINKED_AND_PACKED = 1 << 15,
 };
 
 /**

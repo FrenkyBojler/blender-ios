@@ -1150,7 +1150,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
       if (id->us == 0) {
         continue;
       }
-      if (ID_IS_LINKED_EMBEDDED(id)) {
+      if (ID_IS_PACKED(id)) {
         BLI_assert(library.flag & LIBRARY_FLAG_IS_ARCHIVE);
         ids_used_from_library.append(id);
         continue;
@@ -1196,7 +1196,7 @@ static void write_libraries(WriteData *wd, Main *bmain)
 
     /* Write placeholders or embedded data for linked data-blocks that are used. */
     for (ID *id : ids_used_from_library) {
-      if (ID_IS_LINKED_EMBEDDED(id)) {
+      if (ID_IS_PACKED(id)) {
         write_id(wd, id);
       }
       else {

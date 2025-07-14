@@ -1942,7 +1942,7 @@ int ui_id_icon_get(const bContext *C, ID *id, const bool big)
 int UI_icon_from_library(const ID *id)
 {
   if (ID_IS_LINKED(id)) {
-    if (ID_IS_LINKED_EMBEDDED(id)) {
+    if (ID_IS_PACKED(id)) {
       return ICON_LIBRARY_DATA_EMBEDDED;
     }
     if (id->tag & ID_TAG_MISSING) {
