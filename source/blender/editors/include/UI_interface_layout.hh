@@ -926,6 +926,12 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, blender::StringRef te
  */
 void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int icon);
 
+/** Simple button executing \a func on click. */
+uiBut *uiItemBut(uiLayout *layout,
+                 blender::StringRef name,
+                 int icon,
+                 std::function<void(bContext &)> func);
+
 /* Only for testing, inspecting layouts. */
 /**
  * Evaluate layout items as a Python dictionary.
