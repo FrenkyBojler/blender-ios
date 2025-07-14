@@ -15,6 +15,7 @@
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
+#include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
 
@@ -39,6 +40,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_pointcache.h"
 
 #include "SEQ_iterator.hh"
 #include "SEQ_modifier.hh"
@@ -619,7 +621,7 @@ static void do_version_mix_color_use_alpha(bNodeTree *node_tree, bNode *node)
   }
   else {
     /* Otherwise, the factor is unlinked and we just copy the factor value to the first input in
-     * the multiply.*/
+     * the multiply. */
     static_cast<bNodeSocketValueFloat *>(multiply_input_a->default_value)->value =
         static_cast<bNodeSocketValueFloat *>(factor_input->default_value)->value;
   }
@@ -646,7 +648,7 @@ static void do_version_mix_color_use_alpha(bNodeTree *node_tree, bNode *node)
   }
   else {
     /* Otherwise, the B input is unlinked and we just copy the alpha value to the second input in
-     * the multiply.*/
+     * the multiply. */
     static_cast<bNodeSocketValueFloat *>(multiply_input_b->default_value)->value =
         static_cast<bNodeSocketValueRGBA *>(b_input->default_value)->value[3];
   }
@@ -989,7 +991,7 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
           -math::numbers::pi_v<float> / 2.0f;
       position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = factor;
       /* The y-coordinate doesn't matter in this case, so set the value to 0.5 so that the gizmo
-       * appears nicely at the center.*/
+       * appears nicely at the center. */
       position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = 0.5f;
       break;
     }
@@ -1000,6 +1002,26 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
       break;
     }
   }
+}
+
+static void do_version_remove_lzo_and_lzma_compression(Object *object)
+{
+  constexpr int PTCACHE_COMPRESS_LZO = 1;
+  constexpr int PTCACHE_COMPRESS_LZMA = 2;
+  ListBase pidlist;
+
+  BKE_ptcache_ids_from_object(&pidlist, object, nullptr, 0);
+
+  LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
+    if (pid->cache->compression == PTCACHE_COMPRESS_LZO) {
+      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FAST;
+    }
+    else if (pid->cache->compression == PTCACHE_COMPRESS_LZMA) {
+      pid->cache->compression = PTCACHE_COMPRESS_ZSTD_SLOW;
+    }
+  }
+
+  BLI_freelistN(&pidlist);
 }
 
 void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
@@ -1019,6 +1041,12 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 37)) {
+    LISTBASE_FOREACH (Object *, object, &bmain->objects) {
+      do_version_remove_lzo_and_lzma_compression(object);
+    }
   }
 
   /**
@@ -1328,11 +1356,27 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 36)) {
+    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
+      if (ntree->type == NTREE_COMPOSIT) {
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image", "A");
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image_001", "B");
+
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z", "Depth A");
+        version_node_input_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z_001", "Depth B");
+
+        version_node_output_socket_name(ntree, CMP_NODE_ZCOMBINE, "Image", "Result");
+        version_node_output_socket_name(ntree, CMP_NODE_ZCOMBINE, "Z", "Depth");
+      }
+    }
+    FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 38)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       Editing *ed = seq::editing_get(scene);
 
       if (ed != nullptr) {
-        seq::for_each_callback(&scene->ed->seqbase, [](Strip *strip) -> bool {
+        seq::for_each_callback(&ed->seqbase, [](Strip *strip) -> bool {
           LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
             seq::modifier_generate_uid(*strip, *smd);
           }
@@ -1341,7 +1385,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
   }
-
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
