@@ -892,48 +892,9 @@ static constexpr int BBOX_PADDING = 2;
 static constexpr float DISTANCE_FACTOR_THRESHOLD = 0.01f;
 
 /**
- * Get the intersection distance of two line segments a-b and c-d.
- * The intersection distance is defined as the normalized distance (0..1)
- * from point a to the intersection point of a-b and c-d.
+ * Structure describing a curve segment (a point range in a curve) with end intersection points.
+ * A Segment can go past the end of the source curve and loop back to the start.
  */
-static float get_intersection_distance_of_segments(const float2 &co_a,
-                                                   const float2 &co_b,
-                                                   const float2 &co_c,
-                                                   const float2 &co_d)
-{
-  /* Get intersection point. */
-  const float a1 = co_b[1] - co_a[1];
-  const float b1 = co_a[0] - co_b[0];
-  const float c1 = a1 * co_a[0] + b1 * co_a[1];
-
-  const float a2 = co_d[1] - co_c[1];
-  const float b2 = co_c[0] - co_d[0];
-  const float c2 = a2 * co_c[0] + b2 * co_c[1];
-
-  const float det = (a1 * b2 - a2 * b1);
-  if (det == 0.0f) {
-    return 0.0f;
-  }
-
-  float2 isect((b2 * c1 - b1 * c2) / det, (a1 * c2 - a2 * c1) / det);
-
-  /* Get normalized distance from point a to intersection point. */
-  const float length_ab = math::length(co_b - co_a);
-  const float distance = (length_ab == 0.0f ?
-                              0.0f :
-                              math::clamp(math::length(isect - co_a) / length_ab, 0.0f, 1.0f));
-
-  /* Snap to the ends if very close. */
-  if (math::abs(distance) < 0.0001f) {
-    return 0.0f;
-  }
-  if (math::abs(distance - 1.0f) < 0.0001f) {
-    return 1.0f;
-  }
-
-  return distance;
-}
-
 class Segment {
  public:
   /* Curve index. */
@@ -1099,6 +1060,49 @@ class Segment {
     return segment;
   }
 };
+
+/**
+ * Get the intersection distance of two line segments a-b and c-d.
+ * The intersection distance is defined as the normalized distance (0..1)
+ * from point a to the intersection point of a-b and c-d.
+ */
+static float get_intersection_distance_of_segments(const float2 &co_a,
+                                                   const float2 &co_b,
+                                                   const float2 &co_c,
+                                                   const float2 &co_d)
+{
+  /* Get intersection point. */
+  const float a1 = co_b[1] - co_a[1];
+  const float b1 = co_a[0] - co_b[0];
+  const float c1 = a1 * co_a[0] + b1 * co_a[1];
+
+  const float a2 = co_d[1] - co_c[1];
+  const float b2 = co_c[0] - co_d[0];
+  const float c2 = a2 * co_c[0] + b2 * co_c[1];
+
+  const float det = (a1 * b2 - a2 * b1);
+  if (det == 0.0f) {
+    return 0.0f;
+  }
+
+  float2 isect((b2 * c1 - b1 * c2) / det, (a1 * c2 - a2 * c1) / det);
+
+  /* Get normalized distance from point a to intersection point. */
+  const float length_ab = math::length(co_b - co_a);
+  const float distance = (length_ab == 0.0f ?
+                              0.0f :
+                              math::clamp(math::length(isect - co_a) / length_ab, 0.0f, 1.0f));
+
+  /* Snap to the ends if very close. */
+  if (math::abs(distance) < 0.0001f) {
+    return 0.0f;
+  }
+  if (math::abs(distance - 1.0f) < 0.0001f) {
+    return 1.0f;
+  }
+
+  return distance;
+}
 
 static void calculate_offsets_from_segments(const Span<Segment> segments,
                                             const OffsetIndices<int> segment_offsets,
