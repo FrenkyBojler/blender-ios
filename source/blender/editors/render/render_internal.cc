@@ -882,7 +882,7 @@ static void render_drawlock(void *rjv, bool lock)
 
   /* If interface is locked, renderer callback shall do nothing. */
   if (!rj->interface_locked) {
-    BKE_spacedata_draw_locks(REGION_DRAW_LOCK_RENDER);
+    BKE_spacedata_draw_locks(lock ? REGION_DRAW_LOCK_RENDER : REGION_DRAW_LOCK_NONE);
   }
 }
 
