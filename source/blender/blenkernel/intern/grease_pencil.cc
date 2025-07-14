@@ -2273,7 +2273,10 @@ static void grease_pencil_evaluate_layers(GreasePencil &grease_pencil)
    * cache. This will only copy the pointers to the layers, not the layers themselves. */
   Array<Layer *> layers = grease_pencil.layers_for_write();
 
-  for (Layer *layer : layers) {
+  for (const int layer_i : layers.index_range()) {
+    Layer *layer = layers[layer_i];
+    /* Store the original index of the layer. */
+    layer->runtime->orig_layer_index_ = layer_i;
     /* When the visibility is animated, the layer should be retained even when it is invisible.
      * Changing the visibility through the animation system does NOT create another evaluated copy,
      * and thus the layer has to be kept for this future use. */
@@ -3776,6 +3779,10 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
   std::optional<int> duplicate_layer_idx = get_layer_index(duplicate_layer);
   BLI_assert(duplicate_layer_idx.has_value());
   const int numLayers = layers().size();
+  bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__,
+                                                                          duplicate_layer);
+  root_group().add_node(new_layer->as_node());
+
   this->attribute_storage.wrap().resize(bke::AttrDomain::Layer, numLayers + 1);
   bke::MutableAttributeAccessor attributes = this->attributes_for_write();
   attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
@@ -3783,9 +3790,7 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
     GMutableSpan span = attr.span;
     span.type().copy_assign(span[*duplicate_layer_idx], span[numLayers]);
   });
-  bke::greasepencil::Layer *new_layer = MEM_new<bke::greasepencil::Layer>(__func__,
-                                                                          duplicate_layer);
-  root_group().add_node(new_layer->as_node());
+
   this->update_drawing_users_for_layer(*new_layer);
   new_layer->set_name(unique_name);
   return *new_layer;
@@ -4179,10 +4184,9 @@ static void shrink_attribute_storage(blender::bke::AttributeStorage &storage,
 
         auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, size - 1);
         type.copy_construct_n(data.data, new_data.data, range_before.size());
-        type.copy_construct_n(
-            POINTER_OFFSET(data.data, type.size * range_after.start()),
-            POINTER_OFFSET(new_data.data, type.size * (range_before.start() - 1)),
-            range_after.size());
+        type.copy_construct_n(POINTER_OFFSET(data.data, type.size * range_after.start()),
+                              POINTER_OFFSET(new_data.data, type.size * index_to_remove),
+                              range_after.size());
 
         attr.assign_data(std::move(new_data));
       }
