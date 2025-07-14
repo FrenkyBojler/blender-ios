@@ -55,7 +55,7 @@ std::ostream &operator<<(std::ostream &stream, const ReferenceSetInfo &info)
 
 static bool socket_may_have_reference(const bNodeSocket &socket)
 {
-  return socket.may_be_field();
+  return socket.may_be_field() || ELEM(socket.type, SOCK_BUNDLE, SOCK_CLOSURE);
 }
 
 static bool or_into_each_other_masked(MutableBoundedBitSpan a,
@@ -293,6 +293,27 @@ static Vector<ReferenceSetInfo> find_reference_sets(
       }
     }
   }
+  /* Each output of the Evaluate Closure node may reference data in any other output. We can't know
+   * exactly what references what here. */
+  for (const bNode *node : tree.nodes_by_type("GeometryNodeEvaluateClosure")) {
+    const auto &storage = *static_cast<NodeGeometryEvaluateClosure *>(node->storage);
+    Vector<const bNodeSocket *> reference_outputs;
+    for (const int i : IndexRange(storage.output_items.items_num)) {
+      const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
+      if (can_contain_referenced_data(eNodeSocketDatatype(item.socket_type))) {
+        reference_outputs.append(&node->output_socket(i));
+      }
+    }
+    if (!reference_outputs.is_empty()) {
+      for (const int i : IndexRange(storage.output_items.items_num)) {
+        const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
+        if (can_contain_reference(eNodeSocketDatatype(item.socket_type))) {
+          reference_sets.append({ReferenceSetType::LocalReferenceSet, &node->output_socket(i)});
+          reference_sets.last().potential_data_origins.extend(reference_outputs);
+        }
+      }
+    }
+  }
 
   const bNodeTreeZones *zones = tree.zones();
   if (!zones) {
@@ -525,6 +546,10 @@ static bool pass_left_to_right(const bNodeTree &tree,
           r_potential_reference_by_socket[dst_index] |= r_potential_reference_by_socket[src_index];
           r_potential_reference_by_socket[dst_index] |= passed_in_references;
         }
+        break;
+      }
+      case GEO_NODE_EVALUATE_CLOSURE: {
+        /* TODO */
         break;
       }
       case GEO_NODE_REPEAT_OUTPUT: {
@@ -1001,11 +1026,12 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   required_data_by_socket.all_bits() &= potential_data_by_socket.all_bits();
 
 /* Only useful when debugging the reference lifetimes analysis. */
-#if 0
+#if 1
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
-                                bNodeTreeBitGroupVectorOptions(
-                                    {potential_reference_by_socket, required_data_by_socket}))
+                                bNodeTreeBitGroupVectorOptions({potential_data_by_socket,
+                                                                potential_reference_by_socket,
+                                                                required_data_by_socket}))
 
             << "\n\n";
 #endif
