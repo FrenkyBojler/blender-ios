@@ -1717,6 +1717,7 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
                                                         const Span<rcti> screen_space_curve_bounds,
                                                         const OffsetIndices<int> points_by_curve,
                                                         const VArray<bool> &cyclic,
+                                                        const IndexMask &visible_curves,
                                                         Array<Vector<int>> &r_inters_per_curves,
                                                         Vector<IntersectionPoint> &r_intersections)
 {
@@ -1736,14 +1737,14 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
     BLI_rcti_do_minmax_v(&bbox_i, int2(co_i2));
     BLI_rcti_pad(&bbox_i, BBOX_PADDING, BBOX_PADDING);
 
-    for (const int curve_j : points_by_curve.index_range()) {
+    visible_curves.foreach_index([&](const int curve_j) {
       if (curve_i > curve_j) {
-        continue;
+        return;
       }
 
       /* Bounding box check: skip curves that don't overlap segment i1-i2. */
       if (!BLI_rcti_isect(&bbox_i, &screen_space_curve_bounds[curve_j], nullptr)) {
-        continue;
+        return;
       }
 
       const bool cyclic_j = cyclic[curve_j];
@@ -1791,7 +1792,7 @@ static void find_intersections_between_curve_and_curves(const int curve_i,
               create_intersection(point_i1, point_j1, alpha_i, alpha_j, curve_i, curve_j));
         }
       }
-    }
+    });
   }
 }
 
@@ -1799,18 +1800,20 @@ static void find_intersections_between_all_curves(const Span<float2> screen_spac
                                                   const Span<rcti> screen_space_curve_bounds,
                                                   const OffsetIndices<int> points_by_curve,
                                                   const VArray<bool> &cyclic,
+                                                  const IndexMask &visible_curves,
                                                   Array<Vector<int>> &r_inters_per_curves,
                                                   Vector<IntersectionPoint> &r_intersections)
 {
-  for (const int curve_i : points_by_curve.index_range()) {
+  visible_curves.foreach_index([&](const int curve_i) {
     find_intersections_between_curve_and_curves(curve_i,
                                                 screen_space_positions,
                                                 screen_space_curve_bounds,
                                                 points_by_curve,
                                                 cyclic,
+                                                visible_curves,
                                                 r_inters_per_curves,
                                                 r_intersections);
-  }
+  });
 }
 
 static void add_segments(const int curve_k,
@@ -2266,6 +2269,7 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                                           const Span<rcti> screen_space_curve_bounds,
                                           const Span<int2> mcoords,
                                           const IndexMask &curve_selection,
+                                          const IndexMask &visible_curves,
                                           const bool keep_caps)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
@@ -2282,6 +2286,7 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                                         screen_space_curve_bounds,
                                         src_points_by_curve,
                                         is_cyclic,
+                                        visible_curves,
                                         inters_per_curves,
                                         intersections);
 
@@ -2340,6 +2345,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                             const Span<float2> screen_space_positions,
                                             const Span<rcti> screen_space_curve_bounds,
                                             const IndexMask &curve_selection,
+                                            const IndexMask &visible_curves,
                                             const bool keep_caps)
 {
   const OffsetIndices<int> src_points_by_curve = src.points_by_curve();
@@ -2356,6 +2362,7 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                         screen_space_curve_bounds,
                                         src_points_by_curve,
                                         is_cyclic,
+                                        visible_curves,
                                         inters_per_curves,
                                         intersections);
 

@@ -899,12 +899,14 @@ bke::CurvesGeometry trim_curve_segments_2(const bke::CurvesGeometry &src,
                                           Span<rcti> screen_space_curve_bounds,
                                           Span<int2> mcoords,
                                           const IndexMask &curve_selection,
+                                          const IndexMask &visible_curves,
                                           bool keep_caps);
 
 bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
                                             Span<float2> screen_space_positions,
                                             Span<rcti> screen_space_curve_bounds,
                                             const IndexMask &curve_selection,
+                                            const IndexMask &visible_curves,
                                             bool keep_caps);
 };  // namespace trim
 
