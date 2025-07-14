@@ -10,11 +10,11 @@
 
 #include "BLI_string_ref.hh"
 
-static std::optional<blender::bke::BlenderProject> global_blender_project_;
+static blender::bke::BlenderProject global_blender_project_;
 
 namespace blender::bke {
 
-bool BlenderProject::set_name(StringRef name)
+bool BlenderProjectData::set_name(StringRef name)
 {
   if (name.is_empty()) {
     return false;
@@ -24,7 +24,7 @@ bool BlenderProject::set_name(StringRef name)
   return true;
 }
 
-bool BlenderProject::set_root_path(StringRef root_path)
+bool BlenderProjectData::set_root_path(StringRef root_path)
 {
   if (root_path.is_empty()) {
     return false;
@@ -34,39 +34,39 @@ bool BlenderProject::set_root_path(StringRef root_path)
   return true;
 }
 
-StringRefNull BlenderProject::get_name() const
+StringRefNull BlenderProjectData::get_name() const
 {
   return StringRefNull(this->name_);
 }
 
-StringRefNull BlenderProject::get_root_path() const
+StringRefNull BlenderProjectData::get_root_path() const
 {
   return StringRefNull(this->root_path_);
 }
 
-}  // namespace blender::bke
-
-bool BKE_blender_project_init(blender::StringRef name, blender::StringRef root_path)
+bool BlenderProject::init(blender::StringRef name, blender::StringRef root_path)
 {
   if (name.is_empty() || root_path.is_empty()) {
     return false;
   }
 
-  BKE_blender_project_clear();
-  global_blender_project_ = blender::bke::BlenderProject();
+  this->clear();
+  this->data = blender::bke::BlenderProjectData();
 
-  global_blender_project_->set_name(name);
-  global_blender_project_->set_root_path(root_path);
+  this->data->set_name(name);
+  this->data->set_root_path(root_path);
 
   return true;
 }
 
-void BKE_blender_project_clear()
+void BlenderProject::clear()
 {
-  global_blender_project_ = std::nullopt;
+  this->data = std::nullopt;
 }
 
-std::optional<blender::bke::BlenderProject> &BKE_blender_project()
+}  // namespace blender::bke
+
+blender::bke::BlenderProject &BKE_blender_project()
 {
   return global_blender_project_;
 }

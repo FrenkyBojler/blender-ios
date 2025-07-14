@@ -205,12 +205,7 @@ static PointerRNA rna_Context_preferences_get(PointerRNA * /*ptr*/)
 
 static PointerRNA rna_Context_project_get(PointerRNA * /*ptr*/)
 {
-  std::optional<blender::bke::BlenderProject> &project = BKE_blender_project();
-  if (!project.has_value()) {
-    return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProject, nullptr);
-  }
-
-  return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProject, &*project);
+  return RNA_pointer_create_discrete(nullptr, &RNA_BlenderProject, &BKE_blender_project());
 }
 
 static int rna_Context_mode_get(PointerRNA *ptr)

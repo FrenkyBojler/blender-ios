@@ -301,9 +301,6 @@ int main(int argc,
 #endif
 )
 {
-  /* TEMPORARY FOR TESTING BLENDER PROJECTS. */
-  BKE_blender_project_init("Foo", "/home/me/cool_blender_project/");
-
   bContext *C;
 #ifndef WITH_PYTHON_MODULE
   bArgs *ba;
