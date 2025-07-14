@@ -76,6 +76,9 @@ static eRedrawFlag shrinkfatten_handleEvent(TransInfo *t, const wmEvent *event)
   if (ELEM(event->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
     if (event->val == KM_PRESS) {
       custom_data->mode = EVEN_THICKNESS_ON;
+
+      /* WORKAROUND: We don't know whether the Alt button was initially pressed or not, so make
+       * sure not to skip the next release event, even if it's the first one. */
       custom_data->skip_first_even_thickness_handle = false;
       return TREDRAW_HARD;
     }
@@ -198,6 +201,8 @@ static void initShrinkFatten(TransInfo *t, wmOperator *op)
     PropertyRNA *prop = RNA_struct_find_property(op->ptr, "use_even_offset");
     if (RNA_property_is_set(op->ptr, prop) && RNA_property_boolean_get(op->ptr, prop)) {
       custom_data->mode = EVEN_THICKNESS_ON;
+
+      /* TODO: Check if the Alt button is pressed. */
       custom_data->skip_first_even_thickness_handle = true;
     }
   }
