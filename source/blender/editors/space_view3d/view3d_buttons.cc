@@ -1666,7 +1666,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           but = uiDefButO_ptr(block,
                               UI_BTYPE_BUT,
                               ot,
-                              blender::wm::OperatorCallContext::ExecDefault,
+                              blender::wm::OpCallContext::ExecDefault,
                               dg->name,
                               xco,
                               yco,
@@ -1714,7 +1714,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           op_ptr = row->op("OBJECT_OT_vertex_weight_paste",
                            "",
                            icon,
-                           blender::wm::OperatorCallContext::InvokeDefault,
+                           blender::wm::OpCallContext::InvokeDefault,
                            UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
@@ -1723,7 +1723,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
           op_ptr = row->op("OBJECT_OT_vertex_weight_delete",
                            "",
                            icon,
-                           blender::wm::OperatorCallContext::InvokeDefault,
+                           blender::wm::OpCallContext::InvokeDefault,
                            UI_ITEM_NONE);
           RNA_int_set(&op_ptr, "weight_group", i);
 
@@ -1743,7 +1743,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         block,
         UI_BTYPE_BUT,
         ot,
-        blender::wm::OperatorCallContext::ExecDefault,
+        blender::wm::OpCallContext::ExecDefault,
         IFACE_("Normalize"),
         0,
         yco,
@@ -1756,7 +1756,7 @@ static void view3d_panel_vgroup(const bContext *C, Panel *panel)
         block,
         UI_BTYPE_BUT,
         ot,
-        blender::wm::OperatorCallContext::ExecDefault,
+        blender::wm::OpCallContext::ExecDefault,
         IFACE_("Copy"),
         UI_UNIT_X * 5,
         yco,

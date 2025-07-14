@@ -536,12 +536,12 @@ static wmOperatorStatus view3d_navigate_invoke(bContext *C,
   switch (mode) {
     case VIEW_NAVIGATION_FLY:
       WM_operator_name_call(
-          C, "VIEW3D_OT_fly", blender::wm::OperatorCallContext::InvokeDefault, nullptr, event);
+          C, "VIEW3D_OT_fly", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
       break;
     case VIEW_NAVIGATION_WALK:
     default:
       WM_operator_name_call(
-          C, "VIEW3D_OT_walk", blender::wm::OperatorCallContext::InvokeDefault, nullptr, event);
+          C, "VIEW3D_OT_walk", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
       break;
   }
 

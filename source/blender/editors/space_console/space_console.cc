@@ -215,7 +215,7 @@ static void console_main_region_draw(const bContext *C, ARegion *region)
   if (BLI_listbase_is_empty(&sc->scrollback)) {
     WM_operator_name_call((bContext *)C,
                           "CONSOLE_OT_banner",
-                          blender::wm::OperatorCallContext::ExecDefault,
+                          blender::wm::OpCallContext::ExecDefault,
                           nullptr,
                           nullptr);
   }

@@ -709,7 +709,7 @@ static wmOperatorStatus paintcurve_draw_exec(bContext *C, wmOperator * /*op*/)
   }
 
   return WM_operator_name_call(
-      C, name, blender::wm::OperatorCallContext::InvokeDefault, nullptr, nullptr);
+      C, name, blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
 }
 
 void PAINTCURVE_OT_draw(wmOperatorType *ot)

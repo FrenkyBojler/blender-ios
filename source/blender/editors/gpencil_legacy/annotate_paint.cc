@@ -2481,7 +2481,7 @@ static wmOperatorStatus annotation_draw_modal(bContext *C, wmOperator *op, const
        */
       WM_operator_name_call(C,
                             "GPENCIL_OT_layer_annotation_add",
-                            blender::wm::OperatorCallContext::ExecDefault,
+                            blender::wm::OpCallContext::ExecDefault,
                             nullptr,
                             event);
       estate = OPERATOR_RUNNING_MODAL;

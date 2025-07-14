@@ -366,7 +366,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
       C, WM_operatortype_name(op->type, op->ptr).c_str(), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
   wmOperatorType *ot = WM_operatortype_find("OBJECT_OT_vertex_group_set_active", false);
-  blender::wm::OperatorCallContext opcontext = blender::wm::OperatorCallContext::ExecDefault;
+  blender::wm::OpCallContext opcontext = blender::wm::OpCallContext::ExecDefault;
   layout->operator_context_set(opcontext);
   int i = 0;
   LISTBASE_FOREACH_INDEX (bDeformGroup *, dg, &mesh->vertex_group_names, i) {
@@ -374,7 +374,7 @@ static wmOperatorStatus weight_sample_group_invoke(bContext *C,
       continue;
     }
     PointerRNA op_ptr = layout->op(
-        ot, dg->name, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+        ot, dg->name, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
     RNA_property_enum_set(&op_ptr, ot->prop, i);
   }
   UI_popup_menu_end(C, pup);

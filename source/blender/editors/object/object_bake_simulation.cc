@@ -1088,11 +1088,11 @@ static wmOperatorStatus unpack_single_bake_invoke(bContext *C,
   pup = UI_popup_menu_begin(C, IFACE_("Unpack"), ICON_NONE);
   layout = UI_popup_menu_layout(pup);
 
-  layout->operator_context_set(wm::OperatorCallContext::ExecDefault);
+  layout->operator_context_set(wm::OpCallContext::ExecDefault);
   layout->op_enum(op->type->idname,
                   "method",
                   static_cast<IDProperty *>(op->ptr->data),
-                  wm::OperatorCallContext::ExecRegionWin,
+                  wm::OpCallContext::ExecRegionWin,
                   UI_ITEM_NONE);
 
   UI_popup_menu_end(C, pup);

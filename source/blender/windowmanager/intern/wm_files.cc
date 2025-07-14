@@ -2945,7 +2945,7 @@ static void wm_homefile_read_after_dialog_callback(bContext *C, void *user_data)
 {
   WM_operator_name_call_with_properties(C,
                                         "WM_OT_read_homefile",
-                                        blender::wm::OperatorCallContext::ExecDefault,
+                                        blender::wm::OpCallContext::ExecDefault,
                                         (IDProperty *)user_data,
                                         nullptr);
 }
@@ -3152,7 +3152,7 @@ static void wm_open_mainfile_after_dialog_callback(bContext *C, void *user_data)
 {
   WM_operator_name_call_with_properties(C,
                                         "WM_OT_open_mainfile",
-                                        blender::wm::OperatorCallContext::InvokeDefault,
+                                        blender::wm::OpCallContext::InvokeDefault,
                                         (IDProperty *)user_data,
                                         nullptr);
 }
@@ -3505,7 +3505,7 @@ static void wm_recover_last_session_after_dialog_callback(bContext *C, void *use
 {
   WM_operator_name_call_with_properties(C,
                                         "WM_OT_recover_last_session",
-                                        blender::wm::OperatorCallContext::ExecDefault,
+                                        blender::wm::OpCallContext::ExecDefault,
                                         (IDProperty *)user_data,
                                         nullptr);
 }
@@ -4075,7 +4075,7 @@ static void wm_block_autorun_warning_reload_with_scripts(bContext *C, uiBlock *b
   /* Save user preferences for permanent execution. */
   if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) {
     WM_operator_name_call(
-        C, "WM_OT_save_userpref", blender::wm::OperatorCallContext::ExecDefault, nullptr, nullptr);
+        C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   /* Load file again with scripts enabled.
@@ -4093,7 +4093,7 @@ static void wm_block_autorun_warning_enable_scripts(bContext *C, uiBlock *block)
   /* Save user preferences for permanent execution. */
   if ((U.flag & USER_SCRIPT_AUTOEXEC_DISABLE) == 0) {
     WM_operator_name_call(
-        C, "WM_OT_save_userpref", blender::wm::OperatorCallContext::ExecDefault, nullptr, nullptr);
+        C, "WM_OT_save_userpref", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
 
   /* Force a full refresh, but without reloading the file. */
@@ -4264,7 +4264,7 @@ void wm_test_autorun_revert_action_exec(bContext *C)
     wm_test_autorun_revert_action_set(ot, ptr);
   }
 
-  WM_operator_name_call_ptr(C, ot, blender::wm::OperatorCallContext::ExecDefault, ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, ptr, nullptr);
   wm_test_autorun_revert_action_set(nullptr, nullptr);
 }
 
@@ -4398,7 +4398,7 @@ static void save_file_overwrite_confirm(bContext *C, void *arg_block, void *arg_
 
   WM_operator_name_call(C,
                         "WM_OT_save_mainfile",
-                        blender::wm::OperatorCallContext::ExecDefault,
+                        blender::wm::OpCallContext::ExecDefault,
                         operator_propptr_p,
                         nullptr);
 
@@ -4430,11 +4430,8 @@ static void save_file_overwrite_saveas(bContext *C, void *arg_block, void * /*ar
   wmWindow *win = CTX_wm_window(C);
   UI_popup_block_close(C, win, static_cast<uiBlock *>(arg_block));
 
-  WM_operator_name_call(C,
-                        "WM_OT_save_as_mainfile",
-                        blender::wm::OperatorCallContext::InvokeDefault,
-                        nullptr,
-                        nullptr);
+  WM_operator_name_call(
+      C, "WM_OT_save_as_mainfile", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
 }
 
 static void save_file_overwrite_saveas_button(uiBlock *block, wmGenericCallback *post_action)
@@ -4617,29 +4614,22 @@ static void wm_block_file_close_save(bContext *C, void *arg_block, void *arg_dat
        * (outer `else` statement, below). */
       WM_operator_name_call(C,
                             "WM_OT_save_as_mainfile",
-                            blender::wm::OperatorCallContext::InvokeDefault,
+                            blender::wm::OpCallContext::InvokeDefault,
                             nullptr,
                             nullptr);
       execute_callback = false;
     }
     else {
       const wmOperatorStatus status = WM_operator_name_call(
-          C,
-          "WM_OT_save_mainfile",
-          blender::wm::OperatorCallContext::ExecDefault,
-          nullptr,
-          nullptr);
+          C, "WM_OT_save_mainfile", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
       if (status & OPERATOR_CANCELLED) {
         execute_callback = false;
       }
     }
   }
   else {
-    WM_operator_name_call(C,
-                          "WM_OT_save_mainfile",
-                          blender::wm::OperatorCallContext::InvokeDefault,
-                          nullptr,
-                          nullptr);
+    WM_operator_name_call(
+        C, "WM_OT_save_mainfile", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
     execute_callback = false;
   }
 

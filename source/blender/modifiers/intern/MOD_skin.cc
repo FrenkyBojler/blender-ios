@@ -2038,13 +2038,13 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Mark Loose"),
                    ICON_NONE,
-                   blender::wm::OperatorCallContext::ExecDefault,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 0); /* SKIN_LOOSE_MARK */
   op_ptr = row->op("OBJECT_OT_skin_loose_mark_clear",
                    IFACE_("Clear Loose"),
                    ICON_NONE,
-                   blender::wm::OperatorCallContext::ExecDefault,
+                   blender::wm::OpCallContext::ExecDefault,
                    UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "action", 1); /* SKIN_LOOSE_CLEAR */
 

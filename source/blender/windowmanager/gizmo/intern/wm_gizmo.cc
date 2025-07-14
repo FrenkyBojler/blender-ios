@@ -243,7 +243,7 @@ wmOperatorStatus WM_gizmo_operator_invoke(bContext *C,
     }
   }
   return WM_operator_name_call_ptr(
-      C, gzop->type, blender::wm::OperatorCallContext::InvokeDefault, &gzop->ptr, event);
+      C, gzop->type, blender::wm::OpCallContext::InvokeDefault, &gzop->ptr, event);
 }
 
 static void wm_gizmo_set_matrix_rotation_from_z_axis__internal(float matrix[4][4],
@@ -426,11 +426,8 @@ void WM_gizmo_modal_set_from_setup(
   }
   else {
     /* WEAK: but it works. */
-    WM_operator_name_call(C,
-                          "GIZMOGROUP_OT_gizmo_tweak",
-                          blender::wm::OperatorCallContext::InvokeDefault,
-                          nullptr,
-                          event);
+    WM_operator_name_call(
+        C, "GIZMOGROUP_OT_gizmo_tweak", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
   }
 }
 

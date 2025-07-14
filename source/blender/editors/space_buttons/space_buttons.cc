@@ -201,7 +201,7 @@ void ED_buttons_visible_tabs_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 void ED_buttons_navbar_menu(bContext *C, uiLayout *layout, void * /*arg*/)
 {
   ED_screens_region_flip_menu_create(C, layout, nullptr);
-  layout->operator_context_set(blender::wm::OperatorCallContext::InvokeDefault);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   layout->op("SCREEN_OT_region_toggle", IFACE_("Hide"), ICON_NONE);
 }
 
@@ -314,7 +314,7 @@ static void buttons_main_region_layout_properties(const bContext *C,
   ED_region_panels_layout_ex(C,
                              region,
                              &region->runtime->type->paneltypes,
-                             blender::wm::OperatorCallContext::InvokeRegionWin,
+                             blender::wm::OpCallContext::InvokeRegionWin,
                              contexts,
                              nullptr);
 }

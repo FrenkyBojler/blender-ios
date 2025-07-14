@@ -1672,8 +1672,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
 
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
-    WM_operator_name_call_ptr(
-        C, ot, blender::wm::OperatorCallContext::ExecDefault, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     return OPERATOR_CANCELLED;
@@ -2234,7 +2233,7 @@ static wmOperatorStatus image_save_invoke(bContext *C, wmOperator *op, const wmE
       (!BKE_image_has_filepath(ima) || !image_file_format_writable(ima, iuser)))
   {
     WM_operator_name_call(
-        C, "IMAGE_OT_save_as", blender::wm::OperatorCallContext::InvokeDefault, nullptr, event);
+        C, "IMAGE_OT_save_as", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
     return OPERATOR_CANCELLED;
   }
   return image_save_exec(C, op);

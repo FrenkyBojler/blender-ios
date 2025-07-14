@@ -127,7 +127,7 @@ static void userpref_main_region_layout(const bContext *C, ARegion *region)
   ED_region_panels_layout_ex(C,
                              region,
                              &region->runtime->type->paneltypes,
-                             blender::wm::OperatorCallContext::InvokeRegionWin,
+                             blender::wm::OpCallContext::InvokeRegionWin,
                              contexts,
                              nullptr);
 }

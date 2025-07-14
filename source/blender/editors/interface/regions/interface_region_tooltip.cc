@@ -629,7 +629,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
     if (shortcut.empty()) {
       /* Check for direct access to the tool. */
       std::optional<std::string> shortcut_toolbar = WM_key_event_operator_string(
-          C, "WM_OT_toolbar", blender::wm::OperatorCallContext::InvokeRegionWin, nullptr, true);
+          C, "WM_OT_toolbar", blender::wm::OpCallContext::InvokeRegionWin, nullptr, true);
       if (shortcut_toolbar) {
         /* Generate keymap in order to inspect it.
          * NOTE: we could make a utility to avoid the keymap generation part of this. */
@@ -729,7 +729,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
         RNA_string_set(&op_props, "name", item_step);
         shortcut = WM_key_event_operator_string(C,
                                                 but->optype->idname,
-                                                blender::wm::OperatorCallContext::InvokeRegionWin,
+                                                blender::wm::OpCallContext::InvokeRegionWin,
                                                 static_cast<IDProperty *>(op_props.data),
                                                 true);
         if (shortcut) {
@@ -1100,9 +1100,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     /* If operator poll check failed, it can give pretty precise info why. */
     if (optype) {
-      const blender::wm::OperatorCallContext opcontext = extra_icon ?
-                                                             extra_icon->optype_params->opcontext :
-                                                             but->opcontext;
+      const blender::wm::OpCallContext opcontext = extra_icon ?
+                                                       extra_icon->optype_params->opcontext :
+                                                       but->opcontext;
       wmOperatorCallParams call_params{};
       call_params.optype = optype;
       call_params.opcontext = opcontext;
@@ -1299,7 +1299,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_gizmo(bContext *C, wm
         {
           IDProperty *prop = static_cast<IDProperty *>(gzop->ptr.data);
           std::optional<std::string> shortcut_str = WM_key_event_operator_string(
-              C, gzop->type->idname, blender::wm::OperatorCallContext::InvokeDefault, prop, true);
+              C, gzop->type->idname, blender::wm::OpCallContext::InvokeDefault, prop, true);
           if (shortcut_str) {
             UI_tooltip_text_field_add(
                 *data,

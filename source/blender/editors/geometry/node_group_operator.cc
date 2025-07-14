@@ -1370,7 +1370,7 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
     PointerRNA props_ptr = layout->op(ot,
                                       IFACE_(asset->get_name()),
                                       ICON_NONE,
-                                      wm::OperatorCallContext::InvokeRegionWin,
+                                      wm::OpCallContext::InvokeRegionWin,
                                       UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
@@ -1446,7 +1446,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     PointerRNA props_ptr = layout->op(ot,
                                       IFACE_(asset->get_name()),
                                       ICON_NONE,
-                                      wm::OperatorCallContext::InvokeRegionWin,
+                                      wm::OpCallContext::InvokeRegionWin,
                                       UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
@@ -1477,7 +1477,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
 
     PointerRNA props_ptr = layout->op(
-        ot, group->id.name + 2, ICON_NONE, wm::OperatorCallContext::InvokeRegionWin, UI_ITEM_NONE);
+        ot, group->id.name + 2, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
     /* Also set the name so it can be used for #run_node_group_get_name. */
     RNA_string_set(&props_ptr, "name", group->id.name + 2);

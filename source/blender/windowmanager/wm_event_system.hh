@@ -19,7 +19,7 @@ struct wmKeyMap;
 struct wmKeyMapItem;
 
 namespace blender::wm {
-enum class OperatorCallContext : int8_t;
+enum class OpCallContext : int8_t;
 }
 
 #ifdef WITH_XR_OPENXR
@@ -207,9 +207,9 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event);
 /**
  * The operator of a dropbox should always be executed in the context determined by the mouse
  * coordinates. The dropbox poll should check the context area and region as needed.
- * So this always returns #blender::wm::OperatorCallContext::InvokeDefault.
+ * So this always returns #blender::wm::OpCallContext::InvokeDefault.
  */
-blender::wm::OperatorCallContext wm_drop_operator_context_get(const wmDropBox *drop);
+blender::wm::OpCallContext wm_drop_operator_context_get(const wmDropBox *drop);
 /**
  * Called in #wm_draw_window_onscreen.
  */

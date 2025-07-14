@@ -51,7 +51,7 @@ enum class LayoutDirection : int8_t;
 }  // namespace blender::ui
 
 namespace blender::wm {
-enum class OperatorCallContext : int8_t;
+enum class OpCallContext : int8_t;
 }
 
 struct PanelLayout {
@@ -179,9 +179,9 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
 
   [[nodiscard]] blender::ui::LayoutDirection local_direction() const;
 
-  [[nodiscard]] blender::wm::OperatorCallContext operator_context() const;
+  [[nodiscard]] blender::wm::OpCallContext operator_context() const;
   /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
-  void operator_context_set(blender::wm::OperatorCallContext opcontext);
+  void operator_context_set(blender::wm::OpCallContext opcontext);
 
   [[nodiscard]] bool red_alert() const;
   /**
@@ -421,7 +421,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   PointerRNA op(wmOperatorType *ot,
                 std::optional<blender::StringRef> name,
                 int icon,
-                blender::wm::OperatorCallContext context,
+                blender::wm::OpCallContext context,
                 eUI_Item_Flag flag);
 
   /**
@@ -452,7 +452,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   PointerRNA op(blender::StringRefNull opname,
                 std::optional<blender::StringRef> name,
                 int icon,
-                blender::wm::OperatorCallContext context,
+                blender::wm::OpCallContext context,
                 eUI_Item_Flag flag);
   /**
    * Expands and sets each enum property value as an operator button.
@@ -463,7 +463,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   void op_enum(blender::StringRefNull opname,
                blender::StringRefNull propname,
                IDProperty *properties,
-               blender::wm::OperatorCallContext context,
+               blender::wm::OpCallContext context,
                eUI_Item_Flag flag,
                const int active = -1);
 
@@ -483,7 +483,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                      const PointerRNA &ptr,
                      PropertyRNA *prop,
                      IDProperty *properties,
-                     blender::wm::OperatorCallContext context,
+                     blender::wm::OpCallContext context,
                      eUI_Item_Flag flag,
                      const EnumPropertyItem *item_array,
                      int totitem,
@@ -522,7 +522,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   PointerRNA op_menu_hold(wmOperatorType *ot,
                           std::optional<blender::StringRef> name,
                           int icon,
-                          blender::wm::OperatorCallContext context,
+                          blender::wm::OpCallContext context,
                           eUI_Item_Flag flag,
                           const char *menu_id);
 

@@ -319,7 +319,7 @@ void ui_but_anim_copy_driver(bContext *C)
   /* this operator calls UI_context_active_but_prop_get */
   WM_operator_name_call(C,
                         "ANIM_OT_copy_driver_button",
-                        blender::wm::OperatorCallContext::InvokeDefault,
+                        blender::wm::OpCallContext::InvokeDefault,
                         nullptr,
                         nullptr);
 }
@@ -329,7 +329,7 @@ void ui_but_anim_paste_driver(bContext *C)
   /* this operator calls UI_context_active_but_prop_get */
   WM_operator_name_call(C,
                         "ANIM_OT_paste_driver_button",
-                        blender::wm::OperatorCallContext::InvokeDefault,
+                        blender::wm::OpCallContext::InvokeDefault,
                         nullptr,
                         nullptr);
 }
@@ -358,7 +358,7 @@ void ui_but_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_boolean_set(&props_ptr, "all", but_anim->rnaindex == -1);
     WM_operator_name_call_ptr(
-        C, ot, blender::wm::OperatorCallContext::InvokeDefault, &props_ptr, nullptr);
+        C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
   }
   else {
@@ -367,7 +367,7 @@ void ui_but_anim_decorate_cb(bContext *C, void *arg_but, void * /*arg_dummy*/)
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_boolean_set(&props_ptr, "all", but_anim->rnaindex == -1);
     WM_operator_name_call_ptr(
-        C, ot, blender::wm::OperatorCallContext::InvokeDefault, &props_ptr, nullptr);
+        C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
   }
 

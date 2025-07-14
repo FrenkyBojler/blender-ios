@@ -68,7 +68,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
   const char *context_str = nullptr;
   PyObject *ret;
 
-  blender::wm::OperatorCallContext context = blender::wm::OperatorCallContext::ExecDefault;
+  blender::wm::OpCallContext context = blender::wm::OpCallContext::ExecDefault;
 
   /* XXX TODO: work out a better solution for passing on context,
    * could make a tuple from self and pack the name and Context into it. */
@@ -118,7 +118,7 @@ static PyObject *pyop_poll(PyObject * /*self*/, PyObject *args)
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = blender::wm::OperatorCallContext(context_int);
+    context = blender::wm::OpCallContext(context_int);
   }
 
   /* main purpose of this function */
@@ -138,7 +138,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
   const char *context_str = nullptr;
   PyObject *kw = nullptr; /* optional args */
 
-  blender::wm::OperatorCallContext context = blender::wm::OperatorCallContext::ExecDefault;
+  blender::wm::OpCallContext context = blender::wm::OpCallContext::ExecDefault;
   int is_undo = false;
 
   /* XXX TODO: work out a better solution for passing on context,
@@ -201,7 +201,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
       return nullptr;
     }
     /* Copy back to the properly typed enum. */
-    context = blender::wm::OperatorCallContext(context_int);
+    context = blender::wm::OpCallContext(context_int);
   }
 
   if (WM_operator_poll_context(C, ot, context) == false) {
@@ -285,7 +285,7 @@ static PyObject *pyop_call(PyObject * /*self*/, PyObject *args)
         return nullptr;
       }
 
-      WM_operator_name_call(C, opname, blender::wm::OperatorCallContext::ExecDefault, nullptr, nullptr);
+      WM_operator_name_call(C, opname, blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
     }
 #endif
   }

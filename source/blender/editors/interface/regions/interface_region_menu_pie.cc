@@ -253,7 +253,7 @@ struct PieMenuLevelData {
   wmOperatorType *ot;
   blender::StringRefNull propname;
   IDProperty *properties;
-  blender::wm::OperatorCallContext context;
+  blender::wm::OpCallContext context;
   eUI_Item_Flag flag;
 };
 
@@ -295,7 +295,7 @@ void ui_pie_menu_level_create(uiBlock *block,
                               IDProperty *properties,
                               const EnumPropertyItem *items,
                               int totitem,
-                              const blender::wm::OperatorCallContext context,
+                              const blender::wm::OpCallContext context,
                               const eUI_Item_Flag flag)
 {
   const int totitem_parent = PIE_MAX_ITEMS - 1;

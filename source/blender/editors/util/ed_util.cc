@@ -372,11 +372,8 @@ void unpack_menu(bContext *C,
   pup = UI_popup_menu_begin(C, IFACE_("Unpack File"), ICON_NONE);
   layout = UI_popup_menu_layout(pup);
 
-  props_ptr = layout->op(ot,
-                         IFACE_("Remove Pack"),
-                         ICON_NONE,
-                         blender::wm::OperatorCallContext::ExecDefault,
-                         UI_ITEM_NONE);
+  props_ptr = layout->op(
+      ot, IFACE_("Remove Pack"), ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
   RNA_enum_set(&props_ptr, "method", PF_REMOVE);
   RNA_string_set(&props_ptr, "id", id_name);
 
@@ -390,7 +387,7 @@ void unpack_menu(bContext *C,
         case PF_CMP_NOFILE:
           SNPRINTF(line, IFACE_("Create %s"), local_name);
           props_ptr = layout->op(
-              ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_WRITE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
 
@@ -398,7 +395,7 @@ void unpack_menu(bContext *C,
         case PF_CMP_EQUAL:
           SNPRINTF(line, IFACE_("Use %s (identical)"), local_name);
           props_ptr = layout->op(
-              ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_USE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
 
@@ -406,13 +403,13 @@ void unpack_menu(bContext *C,
         case PF_CMP_DIFFERS:
           SNPRINTF(line, IFACE_("Use %s (differs)"), local_name);
           props_ptr = layout->op(
-              ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_USE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
 
           SNPRINTF(line, IFACE_("Overwrite %s"), local_name);
           props_ptr = layout->op(
-              ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+              ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
           RNA_enum_set(&props_ptr, "method", PF_WRITE_LOCAL);
           RNA_string_set(&props_ptr, "id", id_name);
           break;
@@ -424,27 +421,27 @@ void unpack_menu(bContext *C,
     case PF_CMP_NOFILE:
       SNPRINTF(line, IFACE_("Create %s"), abs_name);
       props_ptr = layout->op(
-          ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_WRITE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
       break;
     case PF_CMP_EQUAL:
       SNPRINTF(line, IFACE_("Use %s (identical)"), abs_name);
       props_ptr = layout->op(
-          ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_USE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
       break;
     case PF_CMP_DIFFERS:
       SNPRINTF(line, IFACE_("Use %s (differs)"), abs_name);
       props_ptr = layout->op(
-          ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_USE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
 
       SNPRINTF(line, IFACE_("Overwrite %s"), abs_name);
       props_ptr = layout->op(
-          ot, line, ICON_NONE, blender::wm::OperatorCallContext::ExecDefault, UI_ITEM_NONE);
+          ot, line, ICON_NONE, blender::wm::OpCallContext::ExecDefault, UI_ITEM_NONE);
       RNA_enum_set(&props_ptr, "method", PF_WRITE_ORIGINAL);
       RNA_string_set(&props_ptr, "id", id_name);
       break;

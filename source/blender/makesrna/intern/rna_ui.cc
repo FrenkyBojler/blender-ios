@@ -27,22 +27,22 @@
 #include "WM_types.hh"
 
 /* see WM_types.hh */
-using wmOperatorCallContext = blender::wm::OperatorCallContext;
+using wmOpCallContext = blender::wm::OpCallContext;
 
 /* clang-format off */
 const EnumPropertyItem rna_enum_operator_context_items[] = {
-    {int(wmOperatorCallContext::InvokeDefault), "INVOKE_DEFAULT", 0, "Invoke Default", ""},
-    {int(wmOperatorCallContext::InvokeRegionWin), "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
-    {int(wmOperatorCallContext::InvokeRegionChannels), "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
-    {int(wmOperatorCallContext::InvokeRegionPreview), "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
-    {int(wmOperatorCallContext::InvokeArea), "INVOKE_AREA", 0, "Invoke Area", ""},
-    {int(wmOperatorCallContext::InvokeScreen), "INVOKE_SCREEN", 0, "Invoke Screen", ""},
-    {int(wmOperatorCallContext::ExecDefault), "EXEC_DEFAULT", 0, "Exec Default", ""},
-    {int(wmOperatorCallContext::ExecRegionWin), "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
-    {int(wmOperatorCallContext::ExecRegionChannels), "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
-    {int(wmOperatorCallContext::ExecRegionPreview), "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
-    {int(wmOperatorCallContext::ExecArea), "EXEC_AREA", 0, "Exec Area", ""},
-    {int(wmOperatorCallContext::ExecScreen), "EXEC_SCREEN", 0, "Exec Screen", ""},
+    {int(wmOpCallContext::InvokeDefault), "INVOKE_DEFAULT", 0, "Invoke Default", ""},
+    {int(wmOpCallContext::InvokeRegionWin), "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
+    {int(wmOpCallContext::InvokeRegionChannels), "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
+    {int(wmOpCallContext::InvokeRegionPreview), "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
+    {int(wmOpCallContext::InvokeArea), "INVOKE_AREA", 0, "Invoke Area", ""},
+    {int(wmOpCallContext::InvokeScreen), "INVOKE_SCREEN", 0, "Invoke Screen", ""},
+    {int(wmOpCallContext::ExecDefault), "EXEC_DEFAULT", 0, "Exec Default", ""},
+    {int(wmOpCallContext::ExecRegionWin), "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
+    {int(wmOpCallContext::ExecRegionChannels), "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
+    {int(wmOpCallContext::ExecRegionPreview), "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
+    {int(wmOpCallContext::ExecArea), "EXEC_AREA", 0, "Exec Area", ""},
+    {int(wmOpCallContext::ExecScreen), "EXEC_SCREEN", 0, "Exec Screen", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
 /* clang-format on */
@@ -1408,8 +1408,7 @@ static void rna_UILayout_alert_set(PointerRNA *ptr, bool value)
 
 static void rna_UILayout_op_context_set(PointerRNA *ptr, int value)
 {
-  static_cast<uiLayout *>(ptr->data)->operator_context_set(
-      blender::wm::OperatorCallContext(value));
+  static_cast<uiLayout *>(ptr->data)->operator_context_set(blender::wm::OpCallContext(value));
 }
 
 static int rna_UILayout_op_context_get(PointerRNA *ptr)

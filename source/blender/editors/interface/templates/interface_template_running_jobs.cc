@@ -47,7 +47,7 @@ static void do_running_jobs(bContext *C, void * /*arg*/, int event)
     case B_STOPANIM:
       WM_operator_name_call(C,
                             "SCREEN_OT_animation_play",
-                            blender::wm::OperatorCallContext::InvokeScreen,
+                            blender::wm::OpCallContext::InvokeScreen,
                             nullptr,
                             nullptr);
       break;
@@ -240,7 +240,7 @@ void uiTemplateRunningJobs(uiLayout *layout, bContext *C)
       uiDefIconButO(block,
                     UI_BTYPE_BUT,
                     op_name,
-                    blender::wm::OperatorCallContext::InvokeDefault,
+                    blender::wm::OpCallContext::InvokeDefault,
                     icon,
                     0,
                     0,

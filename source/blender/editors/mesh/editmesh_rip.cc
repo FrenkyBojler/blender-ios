@@ -1051,7 +1051,7 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
       /* highly nifty but hard to support since the operator can fail and we're left
        * with modified selection */
       // WM_operator_name_call(C, "MESH_OT_region_to_loop",
-      // blender::wm::OperatorCallContext::InvokeDefault, nullptr, event);
+      // blender::wm::OpCallContext::InvokeDefault, nullptr, event);
       continue;
     }
     error_face_selected = false;

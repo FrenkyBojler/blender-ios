@@ -130,7 +130,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
                                                   wmOperatorType *ot,
                                                   PointerRNA *properties,
                                                   ReportList *reports,
-                                                  const blender::wm::OperatorCallContext context,
+                                                  const blender::wm::OpCallContext context,
                                                   const bool poll_only,
                                                   const wmEvent *event);
 
@@ -1095,9 +1095,7 @@ bool WM_operator_poll(bContext *C, wmOperatorType *ot)
   return true;
 }
 
-bool WM_operator_poll_context(bContext *C,
-                              wmOperatorType *ot,
-                              blender::wm::OperatorCallContext context)
+bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context)
 {
   /* Sets up the new context and calls #wm_operator_invoke() with poll_only. */
   return wm_operator_call_internal(C, ot, nullptr, nullptr, context, true, nullptr);
@@ -1754,7 +1752,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
                                                   wmOperatorType *ot,
                                                   PointerRNA *properties,
                                                   ReportList *reports,
-                                                  const blender::wm::OperatorCallContext context,
+                                                  const blender::wm::OpCallContext context,
                                                   const bool poll_only,
                                                   const wmEvent *event)
 {
@@ -1768,12 +1766,12 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
     if (event == nullptr) {
       switch (context) {
-        case blender::wm::OperatorCallContext::InvokeDefault:
-        case blender::wm::OperatorCallContext::InvokeRegionWin:
-        case blender::wm::OperatorCallContext::InvokeRegionPreview:
-        case blender::wm::OperatorCallContext::InvokeRegionChannels:
-        case blender::wm::OperatorCallContext::InvokeArea:
-        case blender::wm::OperatorCallContext::InvokeScreen:
+        case blender::wm::OpCallContext::InvokeDefault:
+        case blender::wm::OpCallContext::InvokeRegionWin:
+        case blender::wm::OpCallContext::InvokeRegionPreview:
+        case blender::wm::OpCallContext::InvokeRegionChannels:
+        case blender::wm::OpCallContext::InvokeArea:
+        case blender::wm::OpCallContext::InvokeScreen:
           /* Window is needed for invoke and cancel operators. */
           if (window == nullptr) {
             if (poll_only) {
@@ -1792,12 +1790,12 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
     }
     else {
       switch (context) {
-        case blender::wm::OperatorCallContext::ExecDefault:
-        case blender::wm::OperatorCallContext::ExecRegionWin:
-        case blender::wm::OperatorCallContext::ExecRegionPreview:
-        case blender::wm::OperatorCallContext::ExecRegionChannels:
-        case blender::wm::OperatorCallContext::ExecArea:
-        case blender::wm::OperatorCallContext::ExecScreen:
+        case blender::wm::OpCallContext::ExecDefault:
+        case blender::wm::OpCallContext::ExecRegionWin:
+        case blender::wm::OpCallContext::ExecRegionPreview:
+        case blender::wm::OpCallContext::ExecRegionChannels:
+        case blender::wm::OpCallContext::ExecArea:
+        case blender::wm::OpCallContext::ExecScreen:
           event = nullptr;
           break;
         default:
@@ -1806,12 +1804,12 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
     }
 
     switch (context) {
-      case blender::wm::OperatorCallContext::ExecRegionWin:
-      case blender::wm::OperatorCallContext::InvokeRegionWin:
-      case blender::wm::OperatorCallContext::ExecRegionChannels:
-      case blender::wm::OperatorCallContext::InvokeRegionChannels:
-      case blender::wm::OperatorCallContext::ExecRegionPreview:
-      case blender::wm::OperatorCallContext::InvokeRegionPreview: {
+      case blender::wm::OpCallContext::ExecRegionWin:
+      case blender::wm::OpCallContext::InvokeRegionWin:
+      case blender::wm::OpCallContext::ExecRegionChannels:
+      case blender::wm::OpCallContext::InvokeRegionChannels:
+      case blender::wm::OpCallContext::ExecRegionPreview:
+      case blender::wm::OpCallContext::InvokeRegionPreview: {
         /* Forces operator to go to the region window/channels/preview, for header menus,
          * but we stay in the same region if we are already in one. */
         ARegion *region = CTX_wm_region(C);
@@ -1819,18 +1817,18 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
         int type = RGN_TYPE_WINDOW;
 
         switch (context) {
-          case blender::wm::OperatorCallContext::ExecRegionChannels:
-          case blender::wm::OperatorCallContext::InvokeRegionChannels:
+          case blender::wm::OpCallContext::ExecRegionChannels:
+          case blender::wm::OpCallContext::InvokeRegionChannels:
             type = RGN_TYPE_CHANNELS;
             break;
 
-          case blender::wm::OperatorCallContext::ExecRegionPreview:
-          case blender::wm::OperatorCallContext::InvokeRegionPreview:
+          case blender::wm::OpCallContext::ExecRegionPreview:
+          case blender::wm::OpCallContext::InvokeRegionPreview:
             type = RGN_TYPE_PREVIEW;
             break;
 
-          case blender::wm::OperatorCallContext::ExecRegionWin:
-          case blender::wm::OperatorCallContext::InvokeRegionWin:
+          case blender::wm::OpCallContext::ExecRegionWin:
+          case blender::wm::OpCallContext::InvokeRegionWin:
           default:
             type = RGN_TYPE_WINDOW;
             break;
@@ -1852,8 +1850,8 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
         return retval;
       }
-      case blender::wm::OperatorCallContext::ExecArea:
-      case blender::wm::OperatorCallContext::InvokeArea: {
+      case blender::wm::OpCallContext::ExecArea:
+      case blender::wm::OpCallContext::InvokeArea: {
         /* Remove region from context. */
         ARegion *region = CTX_wm_region(C);
 
@@ -1863,8 +1861,8 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
         return retval;
       }
-      case blender::wm::OperatorCallContext::ExecScreen:
-      case blender::wm::OperatorCallContext::InvokeScreen: {
+      case blender::wm::OpCallContext::ExecScreen:
+      case blender::wm::OpCallContext::InvokeScreen: {
         /* Remove region + area from context. */
         ARegion *region = CTX_wm_region(C);
         ScrArea *area = CTX_wm_area(C);
@@ -1877,8 +1875,8 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
         return retval;
       }
-      case blender::wm::OperatorCallContext::ExecDefault:
-      case blender::wm::OperatorCallContext::InvokeDefault:
+      case blender::wm::OpCallContext::ExecDefault:
+      case blender::wm::OpCallContext::InvokeDefault:
         return wm_operator_invoke(C, ot, event, properties, reports, poll_only, true);
     }
   }
@@ -1888,7 +1886,7 @@ static wmOperatorStatus wm_operator_call_internal(bContext *C,
 
 wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
                                            wmOperatorType *ot,
-                                           blender::wm::OperatorCallContext context,
+                                           blender::wm::OpCallContext context,
                                            PointerRNA *properties,
                                            const wmEvent *event)
 {
@@ -1897,7 +1895,7 @@ wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
 }
 wmOperatorStatus WM_operator_name_call(bContext *C,
                                        const char *opstring,
-                                       blender::wm::OperatorCallContext context,
+                                       blender::wm::OpCallContext context,
                                        PointerRNA *properties,
                                        const wmEvent *event)
 {
@@ -1921,7 +1919,7 @@ bool WM_operator_name_poll(bContext *C, const char *opstring)
 
 wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
                                                        const char *opstring,
-                                                       blender::wm::OperatorCallContext context,
+                                                       blender::wm::OpCallContext context,
                                                        IDProperty *properties,
                                                        const wmEvent *event)
 {
@@ -1931,22 +1929,20 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
   return WM_operator_name_call_ptr(C, ot, context, &props_ptr, event);
 }
 
-void WM_menu_name_call(bContext *C,
-                       const char *menu_name,
-                       blender::wm::OperatorCallContext context)
+void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context)
 {
   wmOperatorType *ot = WM_operatortype_find("WM_OT_call_menu", false);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
   RNA_string_set(&ptr, "name", menu_name);
   WM_operator_name_call_ptr(
-      C, ot, static_cast<blender::wm::OperatorCallContext>(context), &ptr, nullptr);
+      C, ot, static_cast<blender::wm::OpCallContext>(context), &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 
 wmOperatorStatus WM_operator_call_py(bContext *C,
                                      wmOperatorType *ot,
-                                     blender::wm::OperatorCallContext context,
+                                     blender::wm::OpCallContext context,
                                      PointerRNA *properties,
                                      ReportList *reports,
                                      const bool is_undo)
@@ -2073,7 +2069,7 @@ static int ui_handler_wait_for_input(bContext *C, const wmEvent *event, void *us
 
 void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
                                                       wmOperatorType *ot,
-                                                      blender::wm::OperatorCallContext opcontext,
+                                                      blender::wm::OpCallContext opcontext,
                                                       PointerRNA *properties,
                                                       const wmEvent *event,
                                                       const StringRef drawstr)
@@ -3363,7 +3359,7 @@ static eHandlerActionFlag wm_handlers_do_gizmo_handler(bContext *C,
               {
                 wmOperatorType *ot = WM_operatortype_find(kmi->idname, false);
                 const bool success = WM_operator_poll_context(
-                    C, ot, blender::wm::OperatorCallContext::InvokeDefault);
+                    C, ot, blender::wm::OpCallContext::InvokeDefault);
                 if (success) {
                   is_event_handle_all = true;
                   break;
@@ -3523,8 +3519,7 @@ static eHandlerActionFlag wm_handlers_do_intern(bContext *C,
                   BLI_addtail(&single_lb, drag);
                   event->customdata = &single_lb;
 
-                  const blender::wm::OperatorCallContext opcontext = wm_drop_operator_context_get(
-                      drop);
+                  const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
                   const wmOperatorStatus op_retval =
                       drop->ot ? wm_operator_call_internal(
                                      C, drop->ot, drop->ptr, nullptr, opcontext, false, event) :
@@ -6514,7 +6509,7 @@ wmKeyMapItem *WM_event_match_keymap_item(bContext *C, wmKeyMap *keymap, const wm
   LISTBASE_FOREACH (wmKeyMapItem *, kmi, &keymap->items) {
     if (wm_eventmatch(event, kmi)) {
       wmOperatorType *ot = WM_operatortype_find(kmi->idname, false);
-      if (WM_operator_poll_context(C, ot, blender::wm::OperatorCallContext::InvokeDefault)) {
+      if (WM_operator_poll_context(C, ot, blender::wm::OpCallContext::InvokeDefault)) {
         return kmi;
       }
     }

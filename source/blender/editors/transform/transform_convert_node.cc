@@ -319,7 +319,7 @@ static void flushTransNodes(TransInfo *t)
     }
     if (nodes_to_detach.is_empty()) {
       WM_operator_name_call(
-          t->context, "NODE_OT_attach", wm::OperatorCallContext::InvokeDefault, nullptr, nullptr);
+          t->context, "NODE_OT_attach", wm::OpCallContext::InvokeDefault, nullptr, nullptr);
     }
     else {
       for (bNode *node : nodes_to_detach) {
@@ -406,7 +406,7 @@ static void special_aftertrans_update__node(bContext *C, TransInfo *t)
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, wm::OperatorCallContext::InvokeDefault, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 

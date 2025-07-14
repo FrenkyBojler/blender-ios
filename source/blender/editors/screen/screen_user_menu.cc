@@ -92,12 +92,11 @@ bUserMenu *ED_screen_user_menu_ensure(bContext *C)
 /** \name Menu Item
  * \{ */
 
-bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(
-    ListBase *lb,
-    const wmOperatorType *ot,
-    IDProperty *prop,
-    const char *op_prop_enum,
-    blender::wm::OperatorCallContext opcontext)
+bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(ListBase *lb,
+                                                         const wmOperatorType *ot,
+                                                         IDProperty *prop,
+                                                         const char *op_prop_enum,
+                                                         blender::wm::OpCallContext opcontext)
 {
   LISTBASE_FOREACH (bUserMenuItem *, umi, lb) {
     if (umi->type == USER_MENU_TYPE_OPERATOR) {
@@ -107,7 +106,7 @@ bUserMenuItem_Op *ED_screen_user_menu_item_find_operator(
                                     STREQ(umi_op->op_prop_enum, op_prop_enum) :
                                     true;
       if (STREQ(ot->idname, umi_op->op_idname) &&
-          (opcontext == blender::wm::OperatorCallContext(umi_op->opcontext)) && ok_idprop &&
+          (opcontext == blender::wm::OpCallContext(umi_op->opcontext)) && ok_idprop &&
           ok_prop_enum)
       {
         return umi_op;
@@ -153,7 +152,7 @@ void ED_screen_user_menu_item_add_operator(ListBase *lb,
                                            const wmOperatorType *ot,
                                            const IDProperty *prop,
                                            const char *op_prop_enum,
-                                           blender::wm::OperatorCallContext opcontext)
+                                           blender::wm::OpCallContext opcontext)
 {
   bUserMenuItem_Op *umi_op = (bUserMenuItem_Op *)BKE_blender_user_menu_item_add(
       lb, USER_MENU_TYPE_OPERATOR);
@@ -231,7 +230,7 @@ static void screen_user_menu_draw(const bContext *C, Menu *menu)
             PointerRNA ptr = menu->layout->op(ot,
                                               ui_name,
                                               ICON_NONE,
-                                              blender::wm::OperatorCallContext(umi_op->opcontext),
+                                              blender::wm::OpCallContext(umi_op->opcontext),
                                               UI_ITEM_NONE);
             if (umi_op->prop) {
               IDP_CopyPropertyContent(ptr.data_as<IDProperty>(), umi_op->prop);

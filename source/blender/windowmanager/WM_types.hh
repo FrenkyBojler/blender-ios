@@ -234,7 +234,7 @@ enum eWM_CursorWrapAxis {
  * rna_ui.cc contains EnumPropertyItem's of these, keep in sync.
  */
 namespace blender::wm {
-enum class OperatorCallContext : int8_t {
+enum class OpCallContext : int8_t {
   /* If there's invoke, call it, otherwise exec. */
   InvokeDefault,
   InvokeRegionWin,
@@ -253,14 +253,11 @@ enum class OperatorCallContext : int8_t {
 }
 
 #define WM_OP_CONTEXT_HAS_AREA(type) \
-  (CHECK_TYPE_INLINE(type, blender::wm::OperatorCallContext), \
-   !ELEM(type, \
-         blender::wm::OperatorCallContext::InvokeScreen, \
-         blender::wm::OperatorCallContext::ExecScreen))
+  (CHECK_TYPE_INLINE(type, blender::wm::OpCallContext), \
+   !ELEM(type, blender::wm::OpCallContext::InvokeScreen, blender::wm::OpCallContext::ExecScreen))
 #define WM_OP_CONTEXT_HAS_REGION(type) \
-  (WM_OP_CONTEXT_HAS_AREA(type) && !ELEM(type, \
-                                         blender::wm::OperatorCallContext::InvokeArea, \
-                                         blender::wm::OperatorCallContext::ExecArea))
+  (WM_OP_CONTEXT_HAS_AREA(type) && \
+   !ELEM(type, blender::wm::OpCallContext::InvokeArea, blender::wm::OpCallContext::ExecArea))
 
 /** Property tags for #RNA_OperatorProperties. */
 enum eOperatorPropTags {
@@ -1167,7 +1164,7 @@ struct wmOperatorType {
 struct wmOperatorCallParams {
   wmOperatorType *optype;
   PointerRNA *opptr;
-  blender::wm::OperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
 };
 
 #ifdef WITH_INPUT_IME
@@ -1355,9 +1352,9 @@ struct wmDrag {
  * Allocation and free is on startup and exit.
  *
  * The operator is polled and invoked with the current context
- * (#blender::wm::OperatorCallContext::InvokeDefault), there is no way to override that (by design,
- * since drop-boxes should act on the exact mouse position). So the drop-boxes are supposed to
- * check the required area and region context in their poll.
+ * (#blender::wm::OpCallContext::InvokeDefault), there is no way to override that (by design, since
+ * drop-boxes should act on the exact mouse position). So the drop-boxes are supposed to check the
+ * required area and region context in their poll.
  */
 struct wmDropBox {
   wmDropBox *next, *prev;

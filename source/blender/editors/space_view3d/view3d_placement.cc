@@ -1189,7 +1189,7 @@ static wmOperatorStatus view3d_interactive_add_modal(bContext *C,
           }
 
           WM_operator_name_call_ptr(
-              C, ot, blender::wm::OperatorCallContext::ExecDefault, &op_props, nullptr);
+              C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
           WM_operator_properties_free(&op_props);
         }
         else {

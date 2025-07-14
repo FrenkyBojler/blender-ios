@@ -488,7 +488,7 @@ static bool ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
     props_ptr = layout->op(ot,
                            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open File Externally"),
                            ICON_NONE,
-                           blender::wm::OperatorCallContext::InvokeDefault,
+                           blender::wm::OpCallContext::InvokeDefault,
                            UI_ITEM_NONE);
     RNA_string_set(&props_ptr, "filepath", filepath);
   }
@@ -502,7 +502,7 @@ static bool ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
   props_ptr = layout->op(ot,
                          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open Location Externally"),
                          ICON_NONE,
-                         blender::wm::OperatorCallContext::InvokeDefault,
+                         blender::wm::OpCallContext::InvokeDefault,
                          UI_ITEM_NONE);
   RNA_string_set(&props_ptr, "filepath", dir);
 
@@ -535,7 +535,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     layout = UI_popup_menu_layout(pup);
 
     set_layout_context_from_button(C, layout, but);
-    layout->operator_context_set(blender::wm::OperatorCallContext::InvokeDefault);
+    layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   }
 
   const bool is_disabled = but->flag & UI_BUT_DISABLED;
@@ -670,7 +670,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             ot,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "View All in Graph Editor"),
             ICON_GRAPH,
-            blender::wm::OperatorCallContext::InvokeDefault,
+            blender::wm::OpCallContext::InvokeDefault,
             UI_ITEM_NONE);
         RNA_boolean_set(&op_ptr, "all", true);
 
@@ -678,7 +678,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             ot,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "View Single in Graph Editor"),
             ICON_NONE,
-            blender::wm::OperatorCallContext::InvokeDefault,
+            blender::wm::OpCallContext::InvokeDefault,
             UI_ITEM_NONE);
         RNA_boolean_set(&op_ptr, "all", false);
       }
@@ -690,7 +690,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         op_ptr = layout->op(ot,
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "View in Graph Editor"),
                             ICON_NONE,
-                            blender::wm::OperatorCallContext::InvokeDefault,
+                            blender::wm::OpCallContext::InvokeDefault,
                             UI_ITEM_NONE);
         RNA_boolean_set(&op_ptr, "all", false);
       }
@@ -822,9 +822,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         if (is_array_component) {
 #if 0 /* Disabled for now. */
           ot = WM_operatortype_find("UI_OT_override_type_set_button", false);
-          op_ptr = layout->op(ot, "Overrides Type", ICON_NONE, blender::wm::OperatorCallContext::InvokeDefault, 0);
+          op_ptr = layout->op(ot, "Overrides Type", ICON_NONE, blender::wm::OpCallContext::InvokeDefault, 0);
           RNA_boolean_set(&op_ptr, "all", true);
-          op_ptr = layout->op(ot, "Single Override Type", ICON_NONE, blender::wm::OperatorCallContext::InvokeDefault, 0);
+          op_ptr = layout->op(ot, "Single Override Type", ICON_NONE, blender::wm::OpCallContext::InvokeDefault, 0);
           RNA_boolean_set(&op_ptr, "all", false);
 #endif
           PointerRNA op_ptr = layout->op(
@@ -843,7 +843,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           op_ptr = layout->op("UI_OT_override_type_set_button",
                               "Override Type",
                               ICON_NONE,
-                              blender::wm::OperatorCallContext::InvokeDefault,
+                              blender::wm::OpCallContext::InvokeDefault,
                               0);
           RNA_boolean_set(&op_ptr, "all", false);
 #endif
@@ -860,14 +860,14 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           op_ptr = layout->op(ot,
                               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Overrides"),
                               ICON_NONE,
-                              blender::wm::OperatorCallContext::InvokeDefault,
+                              blender::wm::OpCallContext::InvokeDefault,
                               UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", true);
           op_ptr = layout->op(
               ot,
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Single Override"),
               ICON_NONE,
-              blender::wm::OperatorCallContext::InvokeDefault,
+              blender::wm::OpCallContext::InvokeDefault,
               UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", false);
         }
@@ -875,7 +875,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           op_ptr = layout->op("UI_OT_override_type_set_button",
                               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Override"),
                               ICON_NONE,
-                              blender::wm::OperatorCallContext::InvokeDefault,
+                              blender::wm::OpCallContext::InvokeDefault,
                               UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", false);
         }
@@ -979,7 +979,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         props_ptr = layout->op(ot,
                                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open File Location"),
                                ICON_NONE,
-                               blender::wm::OperatorCallContext::InvokeDefault,
+                               blender::wm::OpCallContext::InvokeDefault,
                                UI_ITEM_NONE);
         RNA_string_set(&props_ptr, "filepath", dir);
         layout->separator();
@@ -1243,7 +1243,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "WM_OT_doc_view",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
             ICON_NONE,
-            blender::wm::OperatorCallContext::ExecDefault,
+            blender::wm::OpCallContext::ExecDefault,
             UI_ITEM_NONE);
         RNA_string_set(&ptr_props, "doc_id", manual_id.value().c_str());
       }
@@ -1260,7 +1260,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
       layout->op("UI_OT_editsource",
                  std::nullopt,
                  ICON_NONE,
-                 blender::wm::OperatorCallContext::InvokeDefault,
+                 blender::wm::OpCallContext::InvokeDefault,
                  UI_ITEM_NONE);
     }
   }

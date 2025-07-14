@@ -573,15 +573,12 @@ static wmOperatorStatus console_indent_or_autocomplete_exec(bContext *C, wmOpera
   }
 
   if (text_before_cursor) {
-    WM_operator_name_call(C,
-                          "CONSOLE_OT_autocomplete",
-                          blender::wm::OperatorCallContext::InvokeDefault,
-                          nullptr,
-                          nullptr);
+    WM_operator_name_call(
+        C, "CONSOLE_OT_autocomplete", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
   }
   else {
     WM_operator_name_call(
-        C, "CONSOLE_OT_indent", blender::wm::OperatorCallContext::ExecDefault, nullptr, nullptr);
+        C, "CONSOLE_OT_indent", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -1185,11 +1182,8 @@ static wmOperatorStatus console_paste_exec(bContext *C, wmOperator *op)
     buf_step = (char *)BLI_strchr_or_end(buf, '\n');
     const int buf_len = buf_step - buf;
     if (buf != buf_str) {
-      WM_operator_name_call(C,
-                            "CONSOLE_OT_execute",
-                            blender::wm::OperatorCallContext::ExecDefault,
-                            nullptr,
-                            nullptr);
+      WM_operator_name_call(
+          C, "CONSOLE_OT_execute", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
       ci = console_history_verify(C);
     }
     console_delete_editable_selection(sc);
