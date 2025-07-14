@@ -1222,10 +1222,8 @@ struct IntersectionPoint {
   int curve_i = -1;
   int curve_j = -1;
 
-  int start_i = -1;
-  int start_j = -1;
-  int end_i = -1;
-  int end_j = -1;
+  int segment_index_i[2] = {-1, -1};
+  int segment_index_j[2] = {-1, -1};
 
   constexpr IntersectionPoint() = default;
 
@@ -1826,20 +1824,20 @@ void store_segment_map_on_intersections(const Span<Segment> all_segments,
     if (segment.has_intersection(Side::Start)) {
       IntersectionPoint &inter_start = intersections[segment.intersection_index[Side::Start]];
       if (curve_i == inter_start.curve_i) {
-        inter_start.end_i = seg_i;
+        inter_start.segment_index_i[Side::End] = seg_i;
       }
       else {
-        inter_start.end_j = seg_i;
+        inter_start.segment_index_j[Side::End] = seg_i;
       }
     }
 
     if (segment.has_intersection(Side::End)) {
       IntersectionPoint &inter_end = intersections[segment.intersection_index[Side::End]];
       if (curve_i == inter_end.curve_i) {
-        inter_end.start_i = seg_i;
+        inter_end.segment_index_i[Side::Start] = seg_i;
       }
       else {
-        inter_end.start_j = seg_i;
+        inter_end.segment_index_j[Side::Start] = seg_i;
       }
     }
   }
