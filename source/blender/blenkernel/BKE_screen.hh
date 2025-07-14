@@ -16,6 +16,7 @@
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_screen_types.h"
 #include "DNA_vec_types.h"
 
 #include "RNA_types.hh"
@@ -196,13 +197,6 @@ struct RegionPollParams {
 
   /** Full context, if WM context above is not enough. */
   const bContext *context;
-};
-
-enum ARegionDrawLockFlags {
-  REGION_DRAW_LOCK_NONE = 0,
-  REGION_DRAW_LOCK_RENDER = (1 << 0),
-  REGION_DRAW_LOCK_BAKING = (1 << 1),
-  REGION_DRAW_LOCK_ALL = (REGION_DRAW_LOCK_RENDER | REGION_DRAW_LOCK_BAKING)
 };
 
 struct ARegionType {

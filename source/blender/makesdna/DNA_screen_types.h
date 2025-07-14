@@ -899,3 +899,11 @@ typedef struct FileHandler {
   /** Runtime. */
   FileHandlerTypeHandle *type;
 } FileHandler;
+
+/* #ARegionType::lock */
+enum ARegionDrawLockFlags {
+  REGION_DRAW_LOCK_NONE = 0,
+  REGION_DRAW_LOCK_RENDER = (1 << 0),
+  REGION_DRAW_LOCK_BAKING = (1 << 1),
+  REGION_DRAW_LOCK_ALL = (REGION_DRAW_LOCK_RENDER | REGION_DRAW_LOCK_BAKING)
+};
