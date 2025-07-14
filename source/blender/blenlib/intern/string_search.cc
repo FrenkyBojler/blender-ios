@@ -123,7 +123,6 @@ int get_fuzzy_match_errors(StringRef query_ref, StringRef full_ref)
   uint32_t query_second_unicode = BLI_str_utf8_as_unicode_safe(
       query.data() + BLI_str_utf8_size_safe(query.data()));
 
-  const char *full_begin = &full[0];
   const char *full_end = &full[full.size()];
 
   const char *window_begin = full.c_str();
