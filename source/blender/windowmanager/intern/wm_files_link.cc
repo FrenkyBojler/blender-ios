@@ -733,7 +733,7 @@ static ID *wm_file_link_append_datablock_ex(Main *bmain,
   BKE_blendfile_link(lapp_context, nullptr);
 
   if (do_embed) {
-    BKE_blendfile_link_embed(lapp_context, nullptr);
+    BKE_blendfile_link_pack(lapp_context, nullptr);
   }
   else if (do_append) {
     BKE_blendfile_append(lapp_context, nullptr);

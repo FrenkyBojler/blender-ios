@@ -944,7 +944,7 @@ static bool foreach_libblock_link_append_common_processing(
 /** \name Library embedding code.
  * \{ */
 
-void BKE_blendfile_link_embed(BlendfileLinkAppendContext *lapp_context, ReportList * /*reports*/)
+void BKE_blendfile_link_pack(BlendfileLinkAppendContext *lapp_context, ReportList * /*reports*/)
 {
   Main *bmain = lapp_context->params->bmain;
 
