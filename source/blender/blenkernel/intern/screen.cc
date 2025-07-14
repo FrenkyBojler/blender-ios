@@ -418,7 +418,7 @@ void BKE_spacedata_draw_locks(short lock_flags)
 {
   for (std::unique_ptr<SpaceType> &st : get_space_types()) {
     LISTBASE_FOREACH (ARegionType *, art, &st->regiontypes) {
-      if (lock_flags!=0) {
+      if (lock_flags != 0) {
         art->do_lock = (art->lock & lock_flags);
       }
       else {
