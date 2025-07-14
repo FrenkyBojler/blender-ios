@@ -1577,6 +1577,14 @@ static const OrderWeights OrderWeightsTable[] = {
     {0xFB02, 'f', 4, 0},  /* Small Ligature fl. */
 };
 
+/* To do (Mostly non European)
+ * Check the rest of Letterlike Symbols (U+2100..U+214F)
+ * Check the rest of Number Forms (U+2150..U+218F) - missing fractions
+ * Consider Common Indic Number Forms (U+A830..U+A83F)
+ * Consider Small Form Variants (U+FE50..U+FE6F)
+ * Should do Halfwidth and Fullwidth Forms (U+FF00..U+FFEF)
+ */
+
 static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
 {
   size_t left = 0;
