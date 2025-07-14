@@ -8,6 +8,7 @@
 
 #include "AS_asset_representation.hh"
 
+#include "BKE_node_socket_value.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
@@ -467,6 +468,66 @@ static std::optional<const ComputeContext *> compute_context_for_tree_path(
     current = &compute_context_cache.for_group_node(current, group_node->identifier, tree);
   }
   return current;
+}
+
+static bNodeTree *build_runtime_shader_node_tree(const bNodeTree &src_tree)
+{
+  using bke::SocketValueVariant;
+  using nodes::NodeInContext;
+  using nodes::SocketInContext;
+  using nodes::SocketInterfaceKey;
+
+  src_tree.ensure_topology_cache();
+  if (src_tree.has_available_link_cycle()) {
+    return nullptr;
+  }
+
+  struct BundleSocketValue;
+  struct PrimitiveSocketValue {
+    std::variant<int, float, bool, ColorGeometry4f, float3> value;
+  };
+  struct SocketValue {
+    std::variant<bNodeSocket *, PrimitiveSocketValue, std::shared_ptr<BundleSocketValue>> value;
+  };
+  struct BundleSocketValue {
+    Map<SocketInterfaceKey, SocketValue> items;
+  };
+
+  bke::ComputeContextCache compute_context_cache;
+  const Vector<SocketInContext> final_output_sockets = {} /* TODO */;
+
+  bNodeTree *new_tree = nullptr /* TODO */;
+  Map<SocketInContext, SocketValue> value_map;
+  Set<SocketInContext> scheduled_sockets_set;
+  Stack<SocketInContext> scheduled_sockets_stack;
+
+  auto schedule_socket = [&](const SocketInContext &socket) {
+    if (scheduled_sockets_set.add(socket)) {
+      scheduled_sockets_stack.push(socket);
+    }
+  };
+
+  for (const SocketInContext socket : final_output_sockets) {
+    schedule_socket(socket);
+  }
+
+  while (!scheduled_sockets_stack.is_empty()) {
+    const SocketInContext socket = scheduled_sockets_stack.peek();
+    const int old_stack_size = scheduled_sockets_stack.size();
+    if (socket->is_input()) {
+      /* TODO */
+    }
+    else {
+      /* TODO */
+    }
+
+    if (scheduled_sockets_stack.size() == old_stack_size) {
+      BLI_assert(socket == scheduled_sockets_stack.peek());
+      scheduled_sockets_stack.pop();
+    }
+  }
+
+  return new_tree;
 }
 
 static Vector<nodes::SocketInContext> find_origin_sockets_through_contexts(
