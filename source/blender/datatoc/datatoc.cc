@@ -65,6 +65,10 @@ int main(int argc, char **argv)
   printf("Making C file <%s>\n", argv[2]);
 #endif
 
+  /* We make the required directories here rather than having the build system
+   * do the work for us, as having cmake do it leads to several thousand cmake
+   * instances being launched, leading to significant overhead, see pr #141404
+   * for details. */
   std::filesystem::path parent_dir = std::filesystem::path(argv[2]).parent_path();
   std::error_code ec;
   if (!std::filesystem::create_directories(parent_dir, ec)) {
