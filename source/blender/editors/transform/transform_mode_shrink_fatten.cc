@@ -47,7 +47,7 @@ enum eShrinkFattenMode {
 struct ShrinkFattenCustomData {
   const wmKeyMapItem *kmi;
   eShrinkFattenMode mode;
-  bool skip_first_even_thickness_handle;
+  bool use_alt_press_to_disable;
 };
 
 static void transdata_elem_shrink_fatten(const TransInfo *t,
@@ -74,14 +74,9 @@ static eRedrawFlag shrinkfatten_handleEvent(TransInfo *t, const wmEvent *event)
   const wmKeyMapItem *kmi = custom_data->kmi;
 
   if (ELEM(event->type, EVT_LEFTALTKEY, EVT_RIGHTALTKEY)) {
-    if (custom_data->skip_first_even_thickness_handle) {
-      /* Skip event. Ideally, only the release one should be skipped. */
-      custom_data->skip_first_even_thickness_handle = false;
-    }
-    else {
-      custom_data->mode = (event->val == KM_PRESS) ? EVEN_THICKNESS_ON : EVEN_THICKNESS_OFF;
-      return TREDRAW_HARD;
-    }
+    bool use_even_thickness = custom_data->use_alt_press_to_disable != (event->val == KM_PRESS);
+    custom_data->mode = use_even_thickness ? EVEN_THICKNESS_ON : EVEN_THICKNESS_OFF;
+    return TREDRAW_HARD;
   }
   else if (kmi && event->type == kmi->type && event->val == kmi->val) {
     /* Allows the "Even Thickness" effect to be enabled as a toggle. */
@@ -196,7 +191,7 @@ static void initShrinkFatten(TransInfo *t, wmOperator *op)
       custom_data->mode = EVEN_THICKNESS_ON;
 
       /* TODO: Check if the Alt button is pressed. */
-      custom_data->skip_first_even_thickness_handle = true;
+      custom_data->use_alt_press_to_disable = true;
     }
   }
 }
