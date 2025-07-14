@@ -24,6 +24,119 @@ namespace blender::geometry {
 
 using bke::CurvesGeometry;
 
+static void assign_samples_to_segments(const int num_dst_points,
+                                       const Span<float3> src_positions,
+                                       const bool cyclic,
+                                       MutableSpan<int> dst_sample_offsets)
+{
+  const IndexRange src_points = src_positions.index_range();
+  BLI_assert(dst_sample_offsets.size() == src_points.size() + 1);
+
+  if (num_dst_points == 0) {
+    dst_sample_offsets.fill(0);
+    return;
+  }
+
+  Array<float> segment_lengths(src_points.size() + 1);
+  segment_lengths[0] = 0.0f;
+  for (const int i : src_points.drop_front(1)) {
+    segment_lengths[i] = segment_lengths[i - 1] + math::distance(src_positions[src_points[i - 1]],
+                                                                 src_positions[src_points[i]]);
+  }
+  if (cyclic) {
+    const int last_i = src_points.size() - 1;
+    segment_lengths.last() = segment_lengths[last_i] +
+                             math::distance(src_positions[src_points[last_i]],
+                                            src_positions[src_points[0]]);
+  }
+  else {
+    const int last_i = src_points.size() - 1;
+    segment_lengths.last() = segment_lengths[last_i];
+  }
+  constexpr float length_epsilon = 1e-4f;
+  /* If source segment lengths are zero use uniform mapping by index as a fallback. */
+  if (segment_lengths.last() <= length_epsilon) {
+    array_utils::fill_index_range(segment_lengths.as_mutable_span());
+    if (!cyclic) {
+      /* Last segment has zero length in non-cyclic curves. */
+      segment_lengths.last() = src_points.size();
+    }
+  }
+  const float total_length = segment_lengths.last();
+
+  /* If the destination curve has equal or more points then the excess points are distributed
+   * equally over all the segments. */
+  if (num_dst_points >= src_points.size()) {
+    /* Extra points of the destination curve that need to be distributed on source segments. */
+    const int num_free_samples = num_dst_points - int(src_points.size());
+    /* Factor for computing the fraction of remaining samples in a segment. */
+    const float length_to_free_sample_count = math::safe_divide(float(num_free_samples),
+                                                                total_length);
+
+    int samples_start = 0;
+    for (const int src_point_i : src_points) {
+      dst_sample_offsets[src_point_i] = samples_start;
+
+      /* Use rounding to distribute samples equally over all segments. */
+      const int free_samples =
+          math::round(segment_lengths[src_point_i + 1] * length_to_free_sample_count) -
+          math::round(segment_lengths[src_point_i] * length_to_free_sample_count);
+      samples_start += 1 + free_samples;
+    }
+  }
+  else {
+    /* Factor for computing the segment position of a sample. */
+    const float segments_per_sample = math::safe_divide(total_length, float(num_dst_points));
+
+    IndexRange src_range = {};
+    for (const int dst_point_i : IndexRange(num_dst_points)) {
+      const int segment = math::floor(dst_point_i * segments_per_sample);
+      src_range = IndexRange::from_begin_end(src_range.one_after_last(), segment + 1);
+      dst_sample_offsets.slice(src_range).fill(dst_point_i);
+    }
+  }
+
+  /* This also assigns any remaining samples in case of rounding error. */
+  dst_sample_offsets.last() = num_dst_points;
+}
+
+void sample_curve_padded(const bke::CurvesGeometry &curves,
+                         const int curve_index,
+                         const bool cyclic,
+                         const bool reverse,
+                         MutableSpan<int> r_indices,
+                         MutableSpan<float> r_factors)
+{
+  const int num_dst_points = r_indices.size();
+  BLI_assert(r_factors.size() == num_dst_points);
+  const IndexRange src_points = curves.points_by_curve()[curve_index];
+  if (src_points.is_empty()) {
+    return;
+  }
+  if (src_points.size() == 1) {
+    r_indices.fill(0);
+    r_factors.fill(reverse ? 1.0f : 0.0f);
+    return;
+  }
+
+  /* First destination point in each source segment. */
+  Array<int> dst_sample_offsets(src_points.size() + 1);
+  assign_samples_to_segments(
+      num_dst_points, curves.positions().slice(src_points), cyclic, dst_sample_offsets);
+
+  OffsetIndices dst_samples_by_src_point = OffsetIndices<int>(dst_sample_offsets);
+  for (const int src_point_i : src_points.index_range()) {
+    const IndexRange samples = dst_samples_by_src_point[src_point_i];
+
+    r_indices.slice(samples).fill(src_point_i);
+    for (const int sample_i : samples.index_range()) {
+      const int sample = reverse ? samples[samples.size() - 1 - sample_i] : samples[sample_i];
+      const float factor = float(sample_i) / samples.size();
+      r_factors[sample] = reverse ? 1.0f - factor : factor;
+    }
+  }
+}
+
 /**
  * Return true if the attribute should be copied/interpolated to the result curves.
  * Don't output attributes that correspond to curve types that have no curves in the result.
