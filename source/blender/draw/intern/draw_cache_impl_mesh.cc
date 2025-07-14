@@ -214,11 +214,15 @@ static bool attribute_exists(const Mesh &mesh, const StringRef name)
 
 static std::optional<StringRef> get_default_uv_name(const Mesh &mesh)
 {
-  const StringRef uv_name = CustomData_get_render_layer_name(&mesh.corner_data, CD_PROP_FLOAT2);
-  if (uv_name.is_empty()) {
-    return {};
+if (BMEditMesh *em = mesh.runtime->edit_mesh.get()) {
+    if (  const char *name = CustomData_get_render_layer_name(&em->bm->ldata, CD_PROP_FLOAT2)) {
+      return name;
+    }
   }
-  return uv_name;
+  if (const char *name = CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2)) {
+    return name;
+  }
+  return std::nullopt;
 }
 
 static void mesh_cd_calc_used_gpu_layers(const Object &object,
@@ -248,14 +252,25 @@ static void mesh_cd_calc_used_gpu_layers(const Object &object,
       }
       const StringRef name = gpu_attr->name;
       if (gpu_attr->type == CD_TANGENT) {
+if (name.is_empty()) {
+          if (const std::optional<StringRef> default_name = get_default_uv_name(me_final)) {
+            r_cd_used->tan.add(*default_name);
+          }
+          else {
+            r_cd_used->tan_orco = true;
+            r_cd_used->orco = true;
+          }
+        }
+        else {
         if (attribute_exists(me_final, name)) {
           r_cd_used->tan.add(name);
+}
         }
         continue;
       }
       if (name.is_empty()) {
-        if (std::optional<StringRef> uv_name = get_default_uv_name(me_final)) {
-          drw_attributes_add_request(r_attributes, *uv_name);
+        if (const std::optional<StringRef> default_name = get_default_uv_name(me_final)) {
+          drw_attributes_add_request(r_attributes, *default_name);
         }
       }
       if (!attribute_exists(me_final, name)) {
