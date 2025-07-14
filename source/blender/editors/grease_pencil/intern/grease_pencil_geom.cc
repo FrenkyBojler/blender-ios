@@ -1215,36 +1215,36 @@ static bke::CurvesGeometry create_curves_from_segments(const bke::CurvesGeometry
 }
 
 struct IntersectionPoint {
-  int point_a = -1;
-  int point_b = -1;
-  float alpha_a = -1.0f;
-  float alpha_b = -1.0f;
-  int curve_a = -1;
-  int curve_b = -1;
+  int point_i = -1;
+  int point_j = -1;
+  float alpha_i = -1.0f;
+  float alpha_j = -1.0f;
+  int curve_i = -1;
+  int curve_j = -1;
 
   constexpr IntersectionPoint() = default;
 
   float parameter_for_curve(const int curve) const
   {
-    BLI_assert(curve == curve_a || curve == curve_b);
-    return curve == curve_a ? point_a + alpha_a : point_b + alpha_b;
+    BLI_assert(curve == curve_i || curve == curve_j);
+    return curve == curve_i ? point_i + alpha_i : point_j + alpha_j;
   }
 };
 
-static IntersectionPoint create_intersection(const int point_a,
-                                             const int point_b,
-                                             const float alpha_a,
-                                             const float alpha_b,
-                                             const int curve_a,
-                                             const int curve_b)
+static IntersectionPoint create_intersection(const int point_i,
+                                             const int point_j,
+                                             const float alpha_i,
+                                             const float alpha_j,
+                                             const int curve_i,
+                                             const int curve_j)
 {
   IntersectionPoint inter_point;
-  inter_point.point_a = point_a;
-  inter_point.point_b = point_b;
-  inter_point.alpha_a = alpha_a;
-  inter_point.alpha_b = alpha_b;
-  inter_point.curve_a = curve_a;
-  inter_point.curve_b = curve_b;
+  inter_point.point_i = point_i;
+  inter_point.point_j = point_j;
+  inter_point.alpha_i = alpha_i;
+  inter_point.alpha_j = alpha_j;
+  inter_point.curve_i = curve_i;
+  inter_point.curve_j = curve_j;
 
   return inter_point;
 }
