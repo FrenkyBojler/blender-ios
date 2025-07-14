@@ -11,6 +11,7 @@
 #include <cmath>
 #include <cstdlib>
 #include <cstring>
+#include <iostream>
 
 #include "MEM_guardedalloc.h"
 
@@ -163,17 +164,14 @@ static wmOperatorStatus voxel_remesh_exec(bContext *C, wmOperator *op)
 
   BKE_mesh_nomain_to_mesh(new_mesh, mesh, ob);
 
-  BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
-  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  /** Force update remesh changes and then spatially organize the mesh after remesh.*/
-  BKE_scene_graph_update_tagged(CTX_data_ensure_evaluated_depsgraph(C), CTX_data_main(C));
   blender::bke::mesh_apply_spatial_organization(*mesh);
+
   if (ob->mode == OB_MODE_SCULPT) {
     sculpt_paint::undo::geometry_end(*ob);
     BKE_sculptsession_free_pbvh(*ob);
   }
+  BKE_mesh_batch_cache_dirty_tag(static_cast<Mesh *>(ob->data), BKE_MESH_BATCH_DIRTY_ALL);
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, ob->data);
 
   return OPERATOR_FINISHED;
 }
@@ -939,13 +937,8 @@ static void quadriflow_end_job(void *customdata)
   ReportList *reports = qj->worker_status->reports;
   switch (qj->status) {
     case QUADRIFLOW_STATUS_SUCCESS: {
-      DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
-      /** Force update remesh changes and then spatially organize the mesh after remesh.*/
-      Main *bmain = G_MAIN;
-      ViewLayer *view_layer = BKE_view_layer_default_view(scene);
-      Depsgraph *depsgraph = BKE_scene_get_depsgraph(scene, view_layer);
-      BKE_scene_graph_update_tagged(depsgraph, bmain);
       bke::mesh_apply_spatial_organization(*static_cast<Mesh *>(ob->data));
+
       DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
       BKE_reportf(reports, RPT_INFO, "QuadriFlow: Remeshing completed");
       break;
