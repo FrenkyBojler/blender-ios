@@ -2367,14 +2367,14 @@ bke::CurvesGeometry trim_curve_segment_ends(const bke::CurvesGeometry &src,
   /* -------------------- */
 
   Array<bool> segments_to_keep(all_segments.size(), true);
-  for (const int curve_i : segments_by_curve.index_range()) {
+  curve_selection.foreach_index(GrainSize(128), [&](const int curve_i) {
     const IndexRange segment_range = segments_by_curve[curve_i];
 
     if (segment_range.size() > 2) {
       segments_to_keep[segment_range.first()] = false;
       segments_to_keep[segment_range.last()] = false;
     }
-  }
+  });
 
   /* -------------------- */
 
