@@ -7762,6 +7762,12 @@ static void rna_def_scene_render_data(BlenderRNA *brna)
                            "cache files is configured in the preferences");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
+  prop = RNA_def_property(srna, "texture_cache_size_max", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, NULL, "texture_cache_size_max");
+  RNA_def_property_range(prop, 128, 16384);
+  RNA_def_property_ui_text(prop, "Max Cache Size", "Maximum texture cache size (in MB)");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
   prop = RNA_def_property(srna, "texture_cache_size", PROP_INT, PROP_UNSIGNED);
   RNA_def_property_ui_range(prop, 512, 1048576, 512, 1);
   RNA_def_property_ui_text(prop, "Simplify Subdivision", "Global maximum subdivision level");

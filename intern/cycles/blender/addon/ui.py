@@ -885,6 +885,7 @@ class CYCLES_RENDER_PT_performance_texture_cache(CyclesButtonsPanel, Panel):
 
         col.prop(rd, "use_auto_generate_texture_cache", text="Auto Generate")
         # Not implemented yet: col.prop(rd, "texture_cache_size")
+        col.prop(rd, "texture_cache_size_max", text="Max Size")
 
 
 class CYCLES_RENDER_PT_performance_acceleration_structure(CyclesButtonsPanel, Panel):

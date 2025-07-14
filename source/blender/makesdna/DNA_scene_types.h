@@ -819,6 +819,11 @@ typedef struct RenderData {
 
   /* Texture cache */
   short texture_cache_size;
+  char _pad10[2];
+
+  /* Max size of the texture cache in Mo*/
+  int texture_cache_size_max;
+  char _pad11[2];
 
   /* Render simplify. */
   short simplify_subsurf;

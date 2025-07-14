@@ -122,6 +122,8 @@
  \
     .texture_cache_size = 8192, \
  \
+    .texture_cache_size_max = 4096, \
+\
     .border.xmin = 0.0f, \
     .border.ymin = 0.0f, \
     .border.xmax = 1.0f, \
