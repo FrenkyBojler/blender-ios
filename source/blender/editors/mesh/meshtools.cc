@@ -44,6 +44,8 @@
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
+#include "BKE_paint.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
@@ -54,10 +56,12 @@
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_sculpt.hh"
 #include "ED_view3d.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+#include "mesh_intern.hh"
 
 using blender::float3;
 using blender::int2;
@@ -734,7 +738,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
   };
 
   auto topology_count_matches = [](const Mesh &a, const Mesh &b) {
-    return a.verts_num == b.verts_num && a.edges_num == b.edges_num && a.faces_num == b.faces_num;
+    return a.verts_num == b.verts_num;
   };
 
   bool found_object = false;
@@ -774,9 +778,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
   }
 
   if (found_non_equal_count) {
-    BKE_report(reports,
-               RPT_WARNING,
-               "Selected meshes must have equal numbers of vertices, edges, and faces");
+    BKE_report(reports, RPT_WARNING, "Selected meshes must have equal numbers of vertices");
     return OPERATOR_CANCELLED;
   }
 
@@ -795,10 +797,12 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
   }
 
   int keys_changed = 0;
+  bool any_keys_added = false;
   for (const ObjectInfo &info : compatible_objects) {
     if (ensure_keys_exist) {
       KeyBlock *kb = BKE_keyblock_add(active_mesh.key, info.name.c_str());
       BKE_keyblock_convert_from_mesh(&info.mesh, active_mesh.key, kb);
+      any_keys_added = true;
     }
     else if (KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, info.name.c_str())) {
       keys_changed++;
@@ -816,6 +820,11 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
 
   DEG_id_tag_update(&active_mesh.id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, &active_mesh.id);
+
+  if (any_keys_added && bmain) {
+    /* Adding a new shape key should trigger a rebuild of relationships. */
+    DEG_relations_tag_update(bmain);
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -1543,4 +1552,58 @@ void EDBM_mesh_elem_index_ensure_multi(const Span<Object *> objects, const char 
     BMesh *bm = em->bm;
     BM_mesh_elem_index_ensure_ex(bm, htype, elem_offset);
   }
+}
+static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Scene *scene = CTX_data_scene(C);
+
+  if (ob->mode == OB_MODE_SCULPT && mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
+    /* Dyntopo not supported. */
+    BKE_report(op->reports, RPT_INFO, "Not supported in dynamic topology sculpting");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (ob->mode == OB_MODE_SCULPT) {
+    blender::ed::sculpt_paint::undo::geometry_begin(*scene, *ob, op);
+  }
+
+  blender::bke::mesh_apply_spatial_organization(*mesh);
+
+  if (ob->mode == OB_MODE_SCULPT) {
+    blender::ed::sculpt_paint::undo::geometry_end(*ob);
+  }
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+
+  BKE_report(op->reports, RPT_INFO, "Mesh faces and vertices reordered spatially");
+
+  return OPERATOR_FINISHED;
+}
+
+static bool mesh_reorder_vertices_spatial_poll(bContext *C)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+  if (!ob || ob->type != OB_MESH) {
+    return false;
+  }
+
+  return true;
+}
+
+void MESH_OT_reorder_vertices_spatial(wmOperatorType *ot)
+{
+  ot->name = "Reorder Mesh Spatially";
+  ot->idname = "MESH_OT_reorder_vertices_spatial";
+  ot->description =
+      "Reorder mesh faces and vertices based on their spatial position for better BVH building "
+      "and sculpting performance.";
+
+  ot->exec = mesh_reorder_vertices_spatial_exec;
+  ot->poll = mesh_reorder_vertices_spatial_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

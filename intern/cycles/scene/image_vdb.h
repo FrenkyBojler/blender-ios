@@ -19,14 +19,18 @@
 
 #include "scene/image.h"
 
+#include "util/transform.h"
+
 CCL_NAMESPACE_BEGIN
 
 class VDBImageLoader : public ImageLoader {
  public:
 #ifdef WITH_OPENVDB
-  VDBImageLoader(openvdb::GridBase::ConstPtr grid_, const string &grid_name);
+  VDBImageLoader(openvdb::GridBase::ConstPtr grid_,
+                 const string &grid_name,
+                 const float clipping = 0.001f);
 #endif
-  VDBImageLoader(const string &grid_name);
+  VDBImageLoader(const string &grid_name, const float clipping = 0.001f);
   ~VDBImageLoader() override;
 
   bool load_metadata(ImageMetaData &metadata) override;
@@ -46,14 +50,24 @@ class VDBImageLoader : public ImageLoader {
 #endif
 
  protected:
+  virtual void load_grid() {}
+
+  void grid_from_dense_voxels(const size_t width,
+                              const size_t height,
+                              const size_t depth,
+                              const int channels,
+                              const float *voxels,
+                              Transform transform_3d);
+
   string grid_name;
+  float clipping = 0.001f;
 #ifdef WITH_OPENVDB
   openvdb::GridBase::ConstPtr grid;
   openvdb::CoordBBox bbox;
 #endif
 #ifdef WITH_NANOVDB
   nanovdb::GridHandle<> nanogrid;
-  int precision = 0;
+  int precision = 16;
 #endif
 };
 

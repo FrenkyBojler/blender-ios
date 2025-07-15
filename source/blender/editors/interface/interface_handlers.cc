@@ -520,7 +520,7 @@ struct uiAfterFunc {
 
   wmOperator *popup_op;
   wmOperatorType *optype;
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
   PointerRNA *opptr;
 
   PointerRNA rnapoin;
@@ -834,7 +834,7 @@ static uiAfterFunc *ui_afterfunc_new()
  */
 static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
                                                 PointerRNA **properties,
-                                                wmOperatorCallContext opcontext,
+                                                blender::wm::OpCallContext opcontext,
                                                 const uiBut *context_but)
 {
   uiAfterFunc *after = ui_afterfunc_new();
@@ -855,7 +855,7 @@ static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
   }
 }
 
-void ui_handle_afterfunc_add_operator(wmOperatorType *ot, wmOperatorCallContext opcontext)
+void ui_handle_afterfunc_add_operator(wmOperatorType *ot, blender::wm::OpCallContext opcontext)
 {
   ui_handle_afterfunc_add_operator_ex(ot, nullptr, opcontext, nullptr);
 }
@@ -931,7 +931,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
     after->opptr = but->opptr;
 
     but->optype = nullptr;
-    but->opcontext = wmOperatorCallContext(0);
+    but->opcontext = blender::wm::OpCallContext(0);
     but->opptr = nullptr;
   }
 
@@ -5074,14 +5074,12 @@ static void force_activate_view_item_but(bContext *C,
                                          uiButViewItem *but,
                                          const bool close_popup = true)
 {
-  if (but->active) {
-    ui_apply_but(C, but->block, but, but->active, true);
-    ED_region_tag_redraw_no_rebuild(region);
-    ED_region_tag_refresh_ui(region);
-  }
-  else {
-    UI_but_execute(C, region, but);
-  }
+
+  /* For popups. Other abstract view instances correctly calls the select operator, see:
+   * #141235. */
+  but->view_item->activate(*C);
+  ED_region_tag_redraw_no_rebuild(region);
+  ED_region_tag_refresh_ui(region);
 
   if (close_popup && !UI_view_item_popup_keep_open(*but->view_item)) {
     UI_popup_menu_close_from_but(but);
@@ -5097,7 +5095,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
-    if (event->type == LEFTMOUSE) {
+    if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
       switch (event->val) {
         case KM_PRESS:
           /* Extra icons have priority, don't mess with them. */
@@ -6646,20 +6644,19 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
               BKE_brush_tag_unsaved_changes(brush);
             }
             else {
-              Scene *scene = CTX_data_scene(C);
               bool updated = false;
 
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
-                BKE_brush_color_set(scene, paint, brush, color);
+                BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
               else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
                 IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
-                BKE_brush_color_set(scene, paint, brush, color);
+                BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
 
@@ -9643,7 +9640,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
                 /* Cancel because this `but` handles all events and we don't want
                  * the parent button's update function to do anything.
                  *
-                 * Causes issues with buttons defined by #uiItemFullR_with_popover. */
+                 * Causes issues with buttons defined by #uiLayout::prop_with_popover. */
                 block->handle->menuretval = UI_RETURN_CANCEL;
               }
               else if (ui_but_is_editable_as_text(but)) {
@@ -10134,7 +10131,7 @@ static int ui_handle_view_item_event(bContext *C,
       }
       break;
     case LEFTMOUSE:
-      if (event->val == KM_PRESS) {
+      if ((event->val == KM_PRESS) && (event->modifier == 0)) {
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
         uiButViewItem *view_but = static_cast<uiButViewItem *>(
@@ -10620,7 +10617,7 @@ static int ui_handle_menu_letter_press_search(uiPopupBlockHandle *menu, const wm
     uiAfterFunc *after = ui_afterfunc_new();
     wmOperatorType *ot = WM_operatortype_find("WM_OT_search_single_menu", false);
     after->optype = ot;
-    after->opcontext = WM_OP_INVOKE_DEFAULT;
+    after->opcontext = blender::wm::OpCallContext::InvokeDefault;
     after->opptr = MEM_new<PointerRNA>(__func__);
     WM_operator_properties_create_ptr(after->opptr, ot);
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);

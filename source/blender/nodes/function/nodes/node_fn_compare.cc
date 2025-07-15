@@ -10,7 +10,7 @@
 
 #include "BLT_translation.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "IMB_colormanagement.hh"
@@ -197,7 +197,7 @@ static void node_label(const bNodeTree * /*tree*/,
   const char *name;
   bool enum_label = RNA_enum_name(rna_enum_node_compare_operation_items, data->operation, &name);
   if (!enum_label) {
-    name = "Unknown";
+    name = N_("Unknown");
   }
   BLI_strncpy_utf8(label, IFACE_(name), label_maxncpy);
 }

@@ -37,7 +37,7 @@ BLOCKLIST_OSL_LIMITED = []
 # So blocking these tests doesn't lose any test permutations.
 BLOCKLIST_OSL_ALL = BLOCKLIST_OSL_LIMITED + [
     # AOVs are not supported. See 73266
-    'aov_position.blend',
+    'aov_.*.blend',
     'render_passes_aov.*.blend',
     # Tests that need investigating into why they're failing:
     # Noise differences due to Principled BSDF mixing/layering used in some of these scenes
@@ -54,6 +54,8 @@ BLOCKLIST_OPTIX = [
 BLOCKLIST_OPTIX_OSL_LIMITED = [
     # OptiX OSL doesn't support the trace function
     'osl_trace_shader.blend',
+    # Noise functions do not return color with OptiX OSL
+    'osl_camera_advanced.blend',
 ]
 
 # Blocklist for SVM tests that fail when forced to run with OptiX OSL
@@ -87,7 +89,6 @@ BLOCKLIST_GPU = [
     # Uninvestigated differences with GPU.
     'glass_mix_40964.blend',
     'filter_glossy_refraction_45609.blend',
-    'smoke_color.blend',
     'bevel_mblur.blend',
     # Inconsistency between Embree and Hair primitive on GPU.
     'denoise_hair.blend',

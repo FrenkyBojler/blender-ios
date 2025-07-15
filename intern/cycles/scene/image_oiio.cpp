@@ -34,11 +34,11 @@ static bool texture_cache_file_outdated(const string &filepath, const string &tx
   /* TODO: Compare metadata? maketx:full_command_line? */
 
   if (in_time == out_time) {
-    VLOG_INFO << "Using texture cache file: " << tx_filepath;
+    LOG_INFO << "Using texture cache file: " << tx_filepath;
     return false;
   }
 
-  VLOG_INFO << "Texture cache file is outdated: " << tx_filepath;
+  LOG_INFO << "Texture cache file is outdated: " << tx_filepath;
   return true;
 }
 
@@ -100,12 +100,12 @@ bool OIIOImageLoader::resolve_texture_cache(const bool auto_generate,
   }
 
   /* Auto generate. */
-  VLOG_INFO << "Auto generating texture cache file: " << tx_filepath;
+  LOG_INFO << "Auto generating texture cache file: " << tx_filepath;
 
   /* TODO: explicitly check for write permission? And even write somewhere else? */
 
   if (!path_create_directories(tx_filepath)) {
-    VLOG_WARNING << "Failed to create directory for texture cache: " << path_dirname(tx_filepath);
+    LOG_WARNING << "Failed to create directory for texture cache: " << path_dirname(tx_filepath);
     return false;
   }
 
@@ -138,7 +138,7 @@ bool OIIOImageLoader::resolve_texture_cache(const bool auto_generate,
   if (!OIIO::ImageBufAlgo::make_texture(mode, filepath, tx_filepath, configspec, &outstream)) {
     /* TODO: this will contain non-errors as well. OIIO::geterror() gets just the errors but is not
      * thread safe. */
-    VLOG_WARNING << "Failed to generate tx file: " << outstream.str();
+    LOG_WARNING << "Failed to generate tx file: " << outstream.str();
     return false;
   }
 
@@ -195,17 +195,17 @@ bool OIIOImageLoader::load_metadata(ImageMetaData &metadata)
   /* Perform preliminary checks, with meaningful logging. */
   const string &filepath = get_filepath();
   if (!path_exists(filepath)) {
-    VLOG_WARNING << "File " << filepath << " does not exist.";
+    LOG_WARNING << "File " << filepath << " does not exist.";
     return false;
   }
   if (path_is_directory(filepath)) {
-    VLOG_WARNING << "File " << filepath << " is a directory, can't use as image.";
+    LOG_WARNING << "File " << filepath << " is a directory, can't use as image.";
     return false;
   }
 
   unique_ptr<ImageInput> in(ImageInput::create(filepath));
   if (!in) {
-    VLOG_WARNING << "File " << filepath << " failed to open.";
+    LOG_WARNING << "File " << filepath << " failed to open.";
     return false;
   }
 
@@ -216,13 +216,12 @@ bool OIIOImageLoader::load_metadata(ImageMetaData &metadata)
   config.attribute("oiio:UnassociatedAlpha", 1);
 
   if (!in->open(filepath, spec, config)) {
-    VLOG_WARNING << "File " << filepath << " failed to open.";
+    LOG_WARNING << "File " << filepath << " failed to open.";
     return false;
   }
 
   metadata.width = spec.width;
   metadata.height = spec.height;
-  metadata.depth = spec.depth;
   metadata.compress_as_srgb = false;
 
   /* Check the main format, and channel formats. */
@@ -296,34 +295,33 @@ bool OIIOImageLoader::load_metadata(ImageMetaData &metadata)
   if (spec.tile_width) {
     // TODO: only do for particular file formats?
     if (!is_power_of_two(spec.tile_width)) {
-      VLOG_DEBUG << "Image " << name() << "has tiles, but tile size not power of two ("
-                 << spec.tile_width << ")";
+      LOG_DEBUG << "Image " << name() << "has tiles, but tile size not power of two ("
+                << spec.tile_width << ")";
     }
     else if (spec.tile_width != spec.tile_height) {
-      VLOG_DEBUG << "Image " << name() << "has tiles, but tile size is not square ("
-                 << spec.tile_width << "x" << spec.tile_height << ")";
+      LOG_DEBUG << "Image " << name() << "has tiles, but tile size is not square ("
+                << spec.tile_width << "x" << spec.tile_height << ")";
     }
     else if (spec.tile_depth != 1) {
-      VLOG_DEBUG << "Image " << name() << "has tiles, but depth is not 1 (image " << metadata.depth
-                 << ", tile " << spec.tile_depth << ")";
+      LOG_DEBUG << "Image " << name() << "has tiles, but depth is not 1";
     }
     else if (spec.tile_width < KERNEL_IMAGE_TEX_PADDING * 4) {
-      VLOG_DEBUG << "Image " << name() << "has tiles, but tile size too small (found "
-                 << spec.tile_width << ", minimum " << KERNEL_IMAGE_TEX_PADDING * 4 << ")";
+      LOG_DEBUG << "Image " << name() << "has tiles, but tile size too small (found "
+                << spec.tile_width << ", minimum " << KERNEL_IMAGE_TEX_PADDING * 4 << ")";
     }
     else if (metadata.width < spec.tile_width && metadata.height < spec.tile_width) {
       // TODO: there are artifacts loading images smaller than tile size, because
       // the repeat mode is not respected for padding. Fix and and remove this exception.
-      VLOG_DEBUG << "Image " << name()
-                 << "has tiles, but image resolution is smaller than tile size";
+      LOG_DEBUG << "Image " << name()
+                << "has tiles, but image resolution is smaller than tile size";
     }
     else {
       metadata.tile_size = spec.tile_width;
     }
   }
 
-  VLOG_DEBUG << "Image " << name() << ", " << metadata.width << "x" << metadata.height << ", "
-             << (metadata.tile_size ? "tiled" : "untiled");
+  LOG_DEBUG << "Image " << name() << ", " << metadata.width << "x" << metadata.height << ", "
+            << (metadata.tile_size ? "tiled" : "untiled");
 
   return true;
 }
@@ -368,9 +366,8 @@ static bool oiio_load_pixels_full(const ImageMetaData &metadata,
 {
   const int64_t width = metadata.width;
   const int64_t height = metadata.height;
-  const int depth = (metadata.depth == 0) ? 1 : metadata.depth;
   const int channels = metadata.channels;
-  const int64_t num_pixels = width * height * depth;
+  const int64_t num_pixels = width * height;
 
   /* Read pixels through OpenImageIO. */
   StorageType *readpixels = pixels;
@@ -380,25 +377,18 @@ static bool oiio_load_pixels_full(const ImageMetaData &metadata,
     readpixels = &tmppixels[0];
   }
 
-  if (metadata.depth <= 1) {
-    const int64_t scanlinesize = width * channels * sizeof(StorageType);
-    if (!in->read_image(0,
-                        0,
-                        0,
-                        channels,
-                        FileFormat,
-                        (uchar *)readpixels + (height - 1) * scanlinesize,
-                        AutoStride,
-                        -scanlinesize,
-                        AutoStride))
-    {
-      return false;
-    }
-  }
-  else {
-    if (!in->read_image(0, 0, 0, channels, FileFormat, (uchar *)readpixels)) {
-      return false;
-    }
+  const int64_t scanlinesize = width * channels * sizeof(StorageType);
+  if (!in->read_image(0,
+                      0,
+                      0,
+                      channels,
+                      FileFormat,
+                      (uchar *)readpixels + (height - 1) * scanlinesize,
+                      AutoStride,
+                      -scanlinesize,
+                      AutoStride))
+  {
+    return false;
   }
 
   if (channels > 4) {
@@ -452,8 +442,10 @@ bool OIIOImageLoader::load_pixels_full(const ImageMetaData &metadata, uint8_t *p
       return oiio_load_pixels_full<TypeDesc::FLOAT, float>(metadata, in, (float *)pixels);
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT:
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT3:
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT4:
     case IMAGE_DATA_TYPE_NANOVDB_FPN:
     case IMAGE_DATA_TYPE_NANOVDB_FP16:
+    case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
     case IMAGE_DATA_NUM_TYPES:
       break;
   }

@@ -12,7 +12,7 @@
 #include "BLI_listbase.h"
 #include "BLT_translation.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_tree_view.hh"
 
 #include "RNA_access.hh"
@@ -169,7 +169,7 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
   {
     uiItemL_ex(&row, this->label_, ICON_SHAPEKEY_DATA, false, false);
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
     PointerRNA shapekey_ptr = RNA_pointer_create_discrete(
         &shape_key_.key->id, &RNA_ShapeKey, shape_key_.kb);
 
@@ -195,6 +195,17 @@ class ShapeKeyItem : public ui::AbstractTreeViewItem {
     RNA_property_update(&C, &object_ptr, prop);
 
     ED_undo_push(&C, "Set Active Shape Key");
+  }
+
+  std::optional<bool> should_be_selected() const override
+  {
+    return shape_key_.kb->flag & KEYBLOCK_SEL;
+  }
+
+  void set_selected(const bool select) override
+  {
+    AbstractViewItem::set_selected(select);
+    SET_FLAG_FROM_TEST(shape_key_.kb->flag, select, KEYBLOCK_SEL);
   }
 
   bool supports_renaming() const override
@@ -256,6 +267,7 @@ void template_tree(uiLayout *layout, bContext *C)
       std::make_unique<ed::object::shapekey::ShapeKeyTreeView>(*ob));
   tree_view->set_context_menu_title("Shape Key");
   tree_view->set_default_rows(4);
+  tree_view->allow_multiselect_items();
 
   ui::TreeViewBuilder::build_tree_view(*C, *tree_view, *layout);
 }

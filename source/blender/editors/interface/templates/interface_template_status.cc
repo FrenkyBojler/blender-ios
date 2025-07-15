@@ -34,7 +34,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 /* Maximum width for a Status Bar report */
@@ -126,7 +126,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
   but = uiDefIconButO(block,
                       UI_BTYPE_BUT,
                       "SCREEN_OT_info_log_show",
-                      WM_OP_INVOKE_REGION_WIN,
+                      blender::wm::OpCallContext::InvokeRegionWin,
                       UI_icon_from_report_type(report->type),
                       (3 * UI_SCALE_FAC),
                       0,
@@ -139,7 +139,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
   but = uiDefButO(block,
                   UI_BTYPE_BUT,
                   "SCREEN_OT_info_log_show",
-                  WM_OP_INVOKE_REGION_WIN,
+                  blender::wm::OpCallContext::InvokeRegionWin,
                   report->message,
                   UI_UNIT_X,
                   0,
@@ -344,7 +344,7 @@ void uiTemplateInputStatus(uiLayout *layout, bContext *C)
 
   /* Otherwise should cursor keymap status. */
   for (int i = 0; i < 3; i++) {
-    uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_LEFT);
+    row->alignment_set(blender::ui::LayoutAlign::Left);
 
     const char *msg = CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT,
                                  WM_window_cursor_keymap_status_get(win, i, 0));

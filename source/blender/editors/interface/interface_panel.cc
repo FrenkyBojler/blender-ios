@@ -40,7 +40,6 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_c.hh"
 #include "UI_interface_icons.hh"
 #include "UI_resources.hh"
@@ -1233,6 +1232,21 @@ void ui_draw_layout_panels_backdrop(const ARegion *region,
   }
 }
 
+static void panel_draw_softshadow(const rctf *box_rect,
+                                  const int roundboxalign,
+                                  const float radius,
+                                  const float shadow_width)
+{
+  const float outline = U.pixelsize;
+
+  rctf shadow_rect = *box_rect;
+  BLI_rctf_pad(&shadow_rect, -outline, -outline);
+  UI_draw_roundbox_corner_set(roundboxalign);
+
+  const float shadow_alpha = UI_GetTheme()->tui.menu_shadow_fac;
+  ui_draw_dropshadow(&shadow_rect, radius, shadow_width, 1.0f, shadow_alpha);
+}
+
 static void panel_draw_aligned_backdrop(const ARegion *region,
                                         const Panel *panel,
                                         const rcti *rect,
@@ -1241,6 +1255,7 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
   const bool is_open = !UI_panel_is_closed(panel);
   const bool is_subpanel = panel->type->parent != nullptr;
   const bool has_header = (panel->type->flag & PANEL_TYPE_NO_HEADER) == 0;
+  const bool is_dragging = UI_panel_is_dragging(panel);
 
   if (is_subpanel && !is_open) {
     return;
@@ -1252,6 +1267,22 @@ static void panel_draw_aligned_backdrop(const ARegion *region,
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   GPU_blend(GPU_BLEND_ALPHA);
+
+  /* Draw shadow on top-level panels with headers during drag or region overlap. */
+  if (!is_subpanel && has_header && (region->overlap || is_dragging)) {
+    /* Make shadow wider (at least 16px) while the panel is being dragged. */
+    const float shadow_width = is_dragging ?
+                                   max_ii(int(16.0f * UI_SCALE_FAC), UI_ThemeMenuShadowWidth()) :
+                                   UI_ThemeMenuShadowWidth();
+    const int roundboxalign = is_open ? UI_CNR_BOTTOM_RIGHT | UI_CNR_BOTTOM_LEFT : UI_CNR_ALL;
+
+    rctf box_rect;
+    box_rect.xmin = rect->xmin;
+    box_rect.xmax = rect->xmax;
+    box_rect.ymin = is_open ? rect->ymin : header_rect->ymin;
+    box_rect.ymax = header_rect->ymax;
+    panel_draw_softshadow(&box_rect, roundboxalign, radius, shadow_width);
+  }
 
   /* Panel backdrop. */
   if (is_open || !has_header) {
@@ -2860,7 +2891,7 @@ static void panel_activate_state(const bContext *C, Panel *panel, const uiHandle
 
     /* Initiate edge panning during drags for scrolling beyond the initial region view. */
     wmOperatorType *ot = WM_operatortype_find("VIEW2D_OT_edge_pan", true);
-    ui_handle_afterfunc_add_operator(ot, WM_OP_INVOKE_DEFAULT);
+    ui_handle_afterfunc_add_operator(ot, blender::wm::OpCallContext::InvokeDefault);
   }
   else if (state == PANEL_STATE_ANIMATION) {
     panel_set_flag_recursive(panel, PNL_SELECT, false);

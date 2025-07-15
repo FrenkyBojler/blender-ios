@@ -179,7 +179,7 @@ ImageMetaData::ImageMetaData() = default;
 bool ImageMetaData::operator==(const ImageMetaData &other) const
 {
   return channels == other.channels && width == other.width && height == other.height &&
-         depth == other.depth && use_transform_3d == other.use_transform_3d &&
+         use_transform_3d == other.use_transform_3d &&
          (!use_transform_3d || transform_3d == other.transform_3d) && type == other.type &&
          colorspace == other.colorspace && compress_as_srgb == other.compress_as_srgb;
 }
@@ -597,8 +597,10 @@ static bool conform_pixels_to_metadata(const ImageSingle *img,
           img, static_cast<float *>(pixels), width, height, x_stride, y_stride);
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT:
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT3:
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT4:
     case IMAGE_DATA_TYPE_NANOVDB_FPN:
     case IMAGE_DATA_TYPE_NANOVDB_FP16:
+    case IMAGE_DATA_TYPE_NANOVDB_EMPTY:
     case IMAGE_DATA_NUM_TYPES:
       break;
   }
@@ -617,13 +619,12 @@ bool ImageManager::file_load_image(Device *device, ImageSingle *img, const int t
   /* Get metadata. */
   const int width = img->metadata.width;
   const int height = img->metadata.height;
-  const int depth = img->metadata.depth;
   const int channels = img->metadata.channels;
 
   /* Read pixels. */
   vector<StorageType> pixels_storage;
   StorageType *pixels;
-  const int64_t max_size = max(max(width, height), depth);
+  const int64_t max_size = max(width, height);
   if (max_size == 0) {
     /* Don't bother with empty images. */
     return false;
@@ -631,7 +632,7 @@ bool ImageManager::file_load_image(Device *device, ImageSingle *img, const int t
 
   /* Allocate memory as needed, may be smaller to resize down. */
   if (texture_limit > 0 && max_size > texture_limit) {
-    pixels_storage.resize(((int64_t)width) * height * depth * 4);
+    pixels_storage.resize(((int64_t)width) * height * 4);
     pixels = &pixels_storage[0];
   }
   else {
@@ -663,22 +664,19 @@ bool ImageManager::file_load_image(Device *device, ImageSingle *img, const int t
     while (max_size * scale_factor > texture_limit) {
       scale_factor *= 0.5f;
     }
-    VLOG_WORK << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
-              << ".";
+    LOG_WORK << "Scaling image " << img->loader->name() << " by a factor of " << scale_factor
+             << ".";
     vector<StorageType> scaled_pixels;
     int64_t scaled_width;
     int64_t scaled_height;
-    int64_t scaled_depth;
     util_image_resize_pixels(pixels_storage,
                              width,
                              height,
-                             depth,
                              is_rgba ? 4 : 1,
                              scale_factor,
                              &scaled_pixels,
                              &scaled_width,
-                             &scaled_height,
-                             &scaled_depth);
+                             &scaled_height);
 
     StorageType *texture_pixels = image_cache
                                       .alloc_full(device,
@@ -752,8 +750,10 @@ void ImageManager::device_load_image_full(Device *device, Scene *scene, const si
       break;
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT:
     case IMAGE_DATA_TYPE_NANOVDB_FLOAT3:
+    case IMAGE_DATA_TYPE_NANOVDB_FLOAT4:
     case IMAGE_DATA_TYPE_NANOVDB_FPN:
-    case IMAGE_DATA_TYPE_NANOVDB_FP16: {
+    case IMAGE_DATA_TYPE_NANOVDB_FP16:
+    case IMAGE_DATA_TYPE_NANOVDB_EMPTY: {
 #ifdef WITH_NANOVDB
       img->vdb_memory = &image_cache.alloc_full(device,
                                                 type,
@@ -885,12 +885,12 @@ void ImageManager::device_update_image_requested(Device *device, Scene *scene, I
         scene->dscene.image_texture_tile_descriptors.tag_modified();
 
         if (ok) {
-          VLOG_DEBUG << "Load image tile: " << img->loader->name() << ", mip level " << miplevel
-                     << " (" << x << " " << y << ")";
+          LOG_DEBUG << "Load image tile: " << img->loader->name() << ", mip level " << miplevel
+                    << " (" << x << " " << y << ")";
         }
         else {
-          VLOG_WARNING << "Failed to load image tile: " << img->loader->name() << ", mip level "
-                       << miplevel << " (" << x << " " << y << ")";
+          LOG_WARNING << "Failed to load image tile: " << img->loader->name() << ", mip level "
+                      << miplevel << " (" << x << " " << y << ")";
         }
       }
     }

@@ -344,8 +344,6 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
   progress.set_status("Updating Meshes Flags");
 
   /* Update flags. */
-  bool volume_images_updated = false;
-
   for (Geometry *geom : scene->geometry) {
     geom->has_volume = false;
 
@@ -415,13 +413,6 @@ void GeometryManager::device_update_preprocess(Device *device, Scene *scene, Pro
      * should only do it in that case, otherwise the BVH and mesh can go
      * out of sync. */
     if (geom->is_modified() && geom->is_volume()) {
-      /* Create volume meshes if there is voxel data. */
-      if (!volume_images_updated) {
-        progress.set_status("Updating Meshes Volume Bounds");
-        device_update_volume_images(device, scene, progress);
-        volume_images_updated = true;
-      }
-
       Volume *volume = static_cast<Volume *>(geom);
       create_volume_mesh(scene, volume, progress);
 
@@ -638,33 +629,6 @@ void GeometryManager::device_update_displacement_images(Device *device,
   image_manager->device_load_handles(device, scene, progress, bump_images);
 }
 
-void GeometryManager::device_update_volume_images(Device *device, Scene *scene, Progress &progress)
-{
-  progress.set_status("Updating Volume Images");
-  set<const ImageHandle *> volume_images;
-
-  for (Geometry *geom : scene->geometry) {
-    if (!geom->is_modified()) {
-      continue;
-    }
-
-    for (Attribute &attr : geom->attributes.attributes) {
-      if (attr.element != ATTR_ELEMENT_VOXEL) {
-        continue;
-      }
-
-      const ImageHandle &handle = attr.data_voxel();
-      /* We can build directly from OpenVDB data structures, no need to
-       * load such images early. */
-      if (!handle.vdb_loader() && !handle.empty()) {
-        volume_images.insert(&handle);
-      }
-    }
-  }
-
-  scene->image_manager->device_load_handles(device, scene, progress, volume_images);
-}
-
 void GeometryManager::device_update(Device *device,
                                     DeviceScene *dscene,
                                     Scene *scene,
@@ -674,7 +638,7 @@ void GeometryManager::device_update(Device *device,
     return;
   }
 
-  VLOG_INFO << "Total " << scene->geometry.size() << " meshes.";
+  LOG_INFO << "Total " << scene->geometry.size() << " meshes.";
 
   bool true_displacement_used = false;
   bool curve_shadow_transparency_used = false;
@@ -958,7 +922,7 @@ void GeometryManager::device_update(Device *device,
 
     TaskPool::Summary summary;
     pool.wait_work(&summary);
-    VLOG_WORK << "Objects BVH build pool statistics:\n" << summary.full_report();
+    LOG_WORK << "Objects BVH build pool statistics:\n" << summary.full_report();
   }
 
   for (Shader *shader : scene->shaders) {

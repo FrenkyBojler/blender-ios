@@ -38,6 +38,7 @@
 #include "kernel/svm/bevel.h"
 
 #include "kernel/util/ies.h"
+#include "kernel/util/texture_3d.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -653,7 +654,7 @@ inline bool get_object_attribute_impl(const ThreadKernelGlobalsCPU *kg,
   T dy = make_zero<T>();
 #ifdef __VOLUME__
   if (primitive_is_volume_attribute(sd)) {
-    v = primitive_volume_attribute<T>(kg, sd, desc);
+    v = primitive_volume_attribute<T>(kg, sd, desc, true);
   }
   else
 #endif
@@ -1117,8 +1118,8 @@ bool OSLRenderServices::texture(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG(WARNING) << "Open Shading Langaueg texture call can not resolve " << filename.c_str()
-                   << ", filename must be a constant";
+      LOG_WARNING << "Open Shading Langaueg texture call can not resolve " << filename.c_str()
+                  << ", filename must be a constant";
     }
     return false;
   }
@@ -1228,8 +1229,8 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG(WARNING) << "Open Shading Langaueg texture3d call can not resolve " << filename.c_str()
-                   << ", filename must be a constant";
+      LOG_WARNING << "Open Shading Langaueg texture3d call can not resolve " << filename.c_str()
+                  << ", filename must be a constant";
     }
     return false;
   }
@@ -1244,7 +1245,7 @@ bool OSLRenderServices::texture3d(OSLUStringHash filename,
       /* TODO: test this case. Different handle type? */
       const float3 P_float3 = make_float3(P.x, P.y, P.z);
       float4 rgba = kernel_image_interp_3d(
-          kernel_globals, handle->id, P_float3, INTERPOLATION_NONE);
+          kernel_globals, handle->id, P_float3, INTERPOLATION_NONE, -1.0f);
 
       result[0] = rgba[0];
       if (nchannels > 1) {
@@ -1298,8 +1299,8 @@ bool OSLRenderServices::environment(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG(WARNING) << "Open Shading Langaueg environment call can not resolve " << filename.c_str()
-                   << ", filename must be a constant";
+      LOG_WARNING << "Open Shading Langaueg environment call can not resolve " << filename.c_str()
+                  << ", filename must be a constant";
     }
     return false;
   }
@@ -1334,8 +1335,8 @@ bool OSLRenderServices::get_texture_info(OSLUStringHash filename,
 {
   if (texture_handle == nullptr) {
     if (texture_filenames_seen.insert(filename).second) {
-      LOG(WARNING) << "Open Shading Langaueg gettextureinfo call can not resolve "
-                   << filename.c_str() << ", filename must be a constant";
+      LOG_WARNING << "Open Shading Langaueg gettextureinfo call can not resolve "
+                  << filename.c_str() << ", filename must be a constant";
     }
     return false;
   }

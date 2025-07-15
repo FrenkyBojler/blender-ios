@@ -26,6 +26,7 @@
 
 #include "UI_grid_view.hh"
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -198,7 +199,7 @@ static std::optional<wmOperatorCallParams> create_activate_operator_params(
   PointerRNA *op_props = MEM_new<PointerRNA>(__func__);
   WM_operator_properties_create_ptr(op_props, ot);
   asset::operator_asset_reference_props_set(asset, *op_props);
-  return wmOperatorCallParams{ot, op_props, WM_OP_INVOKE_REGION_WIN};
+  return wmOperatorCallParams{ot, op_props, wm::OpCallContext::InvokeRegionWin};
 }
 
 void AssetViewItem::build_grid_tile(const bContext & /*C*/, uiLayout &layout) const

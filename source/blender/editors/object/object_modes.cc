@@ -153,7 +153,7 @@ bool mode_compat_set(bContext *C, Object *ob, eObjectMode mode, ReportList *repo
   if (!ELEM(ob->mode, mode, OB_MODE_OBJECT)) {
     const char *opstring = object_mode_op_string(eObjectMode(ob->mode));
 
-    WM_operator_name_call(C, opstring, WM_OP_EXEC_REGION_WIN, nullptr, nullptr);
+    WM_operator_name_call(C, opstring, wm::OpCallContext::ExecRegionWin, nullptr, nullptr);
     ok = ELEM(ob->mode, mode, OB_MODE_OBJECT);
     if (!ok) {
       wmOperatorType *ot = WM_operatortype_find(opstring, false);
@@ -204,7 +204,7 @@ bool mode_set_ex(bContext *C, eObjectMode mode, bool use_undo, ReportList *repor
   if (!use_undo) {
     wm->op_undo_depth++;
   }
-  WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_REGION_WIN, nullptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecRegionWin, nullptr, nullptr);
   if (!use_undo) {
     wm->op_undo_depth--;
   }
@@ -395,14 +395,14 @@ static bool object_transfer_mode_poll(bContext *C)
 
 /* Update the viewport rotation origin to the mouse cursor. */
 static void object_transfer_mode_reposition_view_pivot(ARegion *region,
-                                                       Scene *scene,
+                                                       Paint *paint,
                                                        const int mval[2])
 {
   float global_loc[3];
   if (!ED_view3d_autodist_simple(region, mval, global_loc, 0, nullptr)) {
     return;
   }
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
   copy_v3_v3(ups->average_stroke_accum, global_loc);
   ups->average_stroke_counter = 1;
   ups->last_stroke_valid = true;
@@ -554,7 +554,8 @@ static wmOperatorStatus object_transfer_mode_invoke(bContext *C,
 
   WM_toolsystem_update_from_context_view3d(C);
   if (mode_src & OB_MODE_ALL_PAINT) {
-    object_transfer_mode_reposition_view_pivot(region, scene, event->mval);
+    Paint *paint = BKE_paint_get_active_from_context(C);
+    object_transfer_mode_reposition_view_pivot(region, paint, event->mval);
   }
 
   return OPERATOR_FINISHED;

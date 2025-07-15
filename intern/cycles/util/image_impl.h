@@ -16,15 +16,12 @@ namespace {
 template<typename T>
 const T *util_image_read(const vector<T> &pixels,
                          const int64_t width,
-                         const int64_t height,
-                         const int64_t /*depth*/,
+                         const int64_t /*height*/,
                          const int64_t components,
                          const int64_t x,
-                         const int64_t y,
-                         const int64_t z)
+                         const int64_t y)
 {
-  const int64_t index = ((int64_t)z * (width * height) + (int64_t)y * width + (int64_t)x) *
-                        components;
+  const int64_t index = ((int64_t)y * width + (int64_t)x) * components;
   return &pixels[index];
 }
 
@@ -32,36 +29,30 @@ template<typename T>
 void util_image_downscale_sample(const vector<T> &pixels,
                                  const int64_t width,
                                  const int64_t height,
-                                 const int64_t depth,
                                  const int64_t components,
                                  const int64_t kernel_size,
                                  const float x,
                                  const float y,
-                                 const float z,
                                  T *result)
 {
   assert(components <= 4);
   const int64_t ix = (int64_t)x;
   const int64_t iy = (int64_t)y;
-  const int64_t iz = (int64_t)z;
   /* TODO(sergey): Support something smarter than box filer. */
   float accum[4] = {0};
   int64_t count = 0;
-  for (int64_t dz = 0; dz < kernel_size; ++dz) {
-    for (int64_t dy = 0; dy < kernel_size; ++dy) {
-      for (int64_t dx = 0; dx < kernel_size; ++dx) {
-        const int64_t nx = ix + dx;
-        const int64_t ny = iy + dy;
-        const int64_t nz = iz + dz;
-        if (nx >= width || ny >= height || nz >= depth) {
-          continue;
-        }
-        const T *pixel = util_image_read(pixels, width, height, depth, components, nx, ny, nz);
-        for (int64_t k = 0; k < components; ++k) {
-          accum[k] += util_image_cast_to_float(pixel[k]);
-        }
-        ++count;
+  for (int64_t dy = 0; dy < kernel_size; ++dy) {
+    for (int64_t dx = 0; dx < kernel_size; ++dx) {
+      const int64_t nx = ix + dx;
+      const int64_t ny = iy + dy;
+      if (nx >= width || ny >= height) {
+        continue;
       }
+      const T *pixel = util_image_read(pixels, width, height, components, nx, ny);
+      for (size_t k = 0; k < components; ++k) {
+        accum[k] += util_image_cast_to_float(pixel[k]);
+      }
+      ++count;
     }
   }
   if (count != 0) {
@@ -81,34 +72,26 @@ template<typename T>
 void util_image_downscale_pixels(const vector<T> &input_pixels,
                                  const int64_t input_width,
                                  const int64_t input_height,
-                                 const int64_t input_depth,
                                  const int64_t components,
                                  const float inv_scale_factor,
                                  const int64_t output_width,
                                  const int64_t output_height,
-                                 const int64_t output_depth,
                                  vector<T> *output_pixels)
 {
   const int64_t kernel_size = (int64_t)(inv_scale_factor + 0.5f);
-  for (int64_t z = 0; z < output_depth; ++z) {
-    for (int64_t y = 0; y < output_height; ++y) {
-      for (int64_t x = 0; x < output_width; ++x) {
-        const float input_x = (float)x * inv_scale_factor;
-        const float input_y = (float)y * inv_scale_factor;
-        const float input_z = (float)z * inv_scale_factor;
-        const int64_t output_index = (z * output_width * output_height + y * output_width + x) *
-                                     components;
-        util_image_downscale_sample(input_pixels,
-                                    input_width,
-                                    input_height,
-                                    input_depth,
-                                    components,
-                                    kernel_size,
-                                    input_x,
-                                    input_y,
-                                    input_z,
-                                    &output_pixels->at(output_index));
-      }
+  for (int64_t y = 0; y < output_height; ++y) {
+    for (int64_t x = 0; x < output_width; ++x) {
+      const float input_x = (float)x * inv_scale_factor;
+      const float input_y = (float)y * inv_scale_factor;
+      const int64_t output_index = (y * output_width + x) * components;
+      util_image_downscale_sample(input_pixels,
+                                  input_width,
+                                  input_height,
+                                  components,
+                                  kernel_size,
+                                  input_x,
+                                  input_y,
+                                  &output_pixels->at(output_index));
     }
   }
 }
@@ -119,19 +102,16 @@ template<typename T>
 void util_image_resize_pixels(const vector<T> &input_pixels,
                               const int64_t input_width,
                               const int64_t input_height,
-                              const int64_t input_depth,
                               const int64_t components,
                               const float scale_factor,
                               vector<T> *output_pixels,
                               int64_t *output_width,
-                              int64_t *output_height,
-                              int64_t *output_depth)
+                              int64_t *output_height)
 {
   /* Early output for case when no scaling is applied. */
   if (scale_factor == 1.0f) {
     *output_width = input_width;
     *output_height = input_height;
-    *output_depth = input_depth;
     *output_pixels = input_pixels;
     return;
   }
@@ -141,22 +121,18 @@ void util_image_resize_pixels(const vector<T> &input_pixels,
    */
   *output_width = std::max((int64_t)((float)input_width * scale_factor), (int64_t)1);
   *output_height = std::max((int64_t)((float)input_height * scale_factor), (int64_t)1);
-  *output_depth = std::max((int64_t)((float)input_depth * scale_factor), (int64_t)1);
   /* Prepare pixel storage for the result. */
-  const int64_t num_output_pixels = ((*output_width) * (*output_height) * (*output_depth)) *
-                                    components;
+  const int64_t num_output_pixels = ((*output_width) * (*output_height)) * components;
   output_pixels->resize(num_output_pixels);
   if (scale_factor < 1.0f) {
     const float inv_scale_factor = 1.0f / scale_factor;
     util_image_downscale_pixels(input_pixels,
                                 input_width,
                                 input_height,
-                                input_depth,
                                 components,
                                 inv_scale_factor,
                                 *output_width,
                                 *output_height,
-                                *output_depth,
                                 output_pixels);
   }
   else {

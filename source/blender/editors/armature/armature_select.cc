@@ -661,7 +661,9 @@ static EditBone *get_nearest_editbonepoint(
    * selection. this way overlapping bones will cycle selection state as with objects. */
   Object *obedit_orig = vc->obedit;
   EditBone *ebone_active_orig = static_cast<bArmature *>(obedit_orig->data)->act_edbone;
-  if ((ebone_active_orig->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) == 0) {
+  if (ebone_active_orig &&
+      (ebone_active_orig->flag & (BONE_SELECTED | BONE_ROOTSEL | BONE_TIPSEL)) == 0)
+  {
     ebone_active_orig = nullptr;
   }
 
@@ -690,7 +692,7 @@ static EditBone *get_nearest_editbonepoint(
     rcti rect;
     BLI_rcti_init_pt_radius(&rect, vc->mval, 12);
     /* VIEW3D_SELECT_PICK_ALL needs to be used or unselectable bones can block selectability of
-     * bones further back. See #123963.  */
+     * bones further back. See #123963. */
     const int hits12 = view3d_gpu_select_with_id_filter(
         vc, &buffer, &rect, VIEW3D_SELECT_PICK_ALL, select_filter, select_id_ignore);
 

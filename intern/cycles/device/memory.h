@@ -235,7 +235,6 @@ class device_memory {
   size_t device_size;
   size_t data_width;
   size_t data_height;
-  size_t data_depth;
   MemoryType type;
   const char *name;
   string name_storage;
@@ -386,9 +385,9 @@ template<typename T> class device_vector : public device_memory {
   }
 
   /* Host memory allocation. */
-  T *alloc(const size_t width, const size_t height = 0, const size_t depth = 0)
+  T *alloc(const size_t width, const size_t height = 0)
   {
-    size_t new_size = size(width, height, depth);
+    size_t new_size = size(width, height);
 
     if (new_size != data_size) {
       host_and_device_free();
@@ -400,7 +399,6 @@ template<typename T> class device_vector : public device_memory {
     data_size = new_size;
     data_width = width;
     data_height = height;
-    data_depth = depth;
 
     return data();
   }
@@ -408,9 +406,9 @@ template<typename T> class device_vector : public device_memory {
   /* Host memory resize. Only use this if the original data needs to be
    * preserved or memory needs to be initialized, it is faster to call
    * alloc() if it can be discarded. */
-  T *resize(const size_t width, const size_t height = 0, const size_t depth = 0)
+  T *resize(const size_t width, const size_t height = 0)
   {
-    size_t new_size = size(width, height, depth);
+    size_t new_size = size(width, height);
 
     if (new_size != data_size) {
       void *new_ptr = host_alloc(sizeof(T) * new_size);
@@ -434,7 +432,6 @@ template<typename T> class device_vector : public device_memory {
     data_size = new_size;
     data_width = width;
     data_height = height;
-    data_depth = depth;
 
     return data();
   }
@@ -447,7 +444,6 @@ template<typename T> class device_vector : public device_memory {
     data_size = from.size();
     data_width = 0;
     data_height = 0;
-    data_depth = 0;
     host_pointer = from.steal_pointer();
     modified = true;
     assert(device_pointer == 0);
@@ -461,7 +457,6 @@ template<typename T> class device_vector : public device_memory {
     data_size = 0;
     data_width = 0;
     data_height = 0;
-    data_depth = 0;
     host_pointer = 0;
     modified = true;
     need_realloc_ = true;
@@ -555,9 +550,9 @@ template<typename T> class device_vector : public device_memory {
   }
 
  protected:
-  size_t size(const size_t width, const size_t height, const size_t depth)
+  size_t size(const size_t width, const size_t height)
   {
-    return width * ((height == 0) ? 1 : height) * ((depth == 0) ? 1 : depth);
+    return width * ((height == 0) ? 1 : height);
   }
 };
 
@@ -602,7 +597,7 @@ class device_image : public device_memory {
                ExtensionType extension);
   ~device_image() override;
 
-  void *alloc(const size_t width, const size_t height, const size_t depth = 0);
+  void *alloc(const size_t width, const size_t height);
 
   template<typename T = void> T *data()
   {
@@ -615,9 +610,9 @@ class device_image : public device_memory {
   KernelImageInfo info;
 
  protected:
-  size_t size(const size_t width, const size_t height, const size_t depth)
+  size_t size(const size_t width, const size_t height)
   {
-    return width * ((height == 0) ? 1 : height) * ((depth == 0) ? 1 : depth);
+    return width * ((height == 0) ? 1 : height);
   }
 };
 
