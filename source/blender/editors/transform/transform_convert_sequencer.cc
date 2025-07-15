@@ -502,28 +502,38 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
       t->modifiers &= ~MOD_STRIP_CLAMP_HOLDS;
     }
 
+    /* If both handles are selected, there must be enough underlying content to clamp holds. */
+    bool can_clamp_holds = !(left_sel && right_sel) ||
+                           (strip->len >= seq::time_right_handle_frame_get(scene, strip) -
+                                              seq::time_left_handle_frame_get(scene, strip));
+    can_clamp_holds &= !seq::transform_single_image_check(strip);
+
     /* A handle is selected. Update x-axis clamping data. */
     if (left_sel || right_sel) {
       if (left_sel) {
         /* Ensure that this strip's left handle cannot pass its right handle. */
-        int offset = (seq::time_right_handle_frame_get(scene, strip) - 1) -
-                     seq::time_left_handle_frame_get(scene, strip);
-        ts->offset_clamp.xmax = min_ii(ts->offset_clamp.xmax, offset);
+        if (!(left_sel && right_sel)) {
+          int offset = (seq::time_right_handle_frame_get(scene, strip) - 1) -
+                       seq::time_left_handle_frame_get(scene, strip);
+          ts->offset_clamp.xmax = min_ii(ts->offset_clamp.xmax, offset);
+        }
 
-        /* Ensure that the left handle's frame is greater than or equal to the content start. */
-        if (!seq::transform_single_image_check(strip)) {
-          ts->handle_xmin = max_ii(ts->handle_xmin, -strip->startofs);
+        if (can_clamp_holds) {
+          /* Ensure that the left handle's frame is greater than or equal to the content start. */
+          ts->hold_clamp_min = max_ii(ts->hold_clamp_min, -strip->startofs);
         }
       }
       if (right_sel) {
-        /* Ensure that this strip's right handle cannot pass its left handle. */
-        int offset = (seq::time_left_handle_frame_get(scene, strip) + 1) -
-                     seq::time_right_handle_frame_get(scene, strip);
-        ts->offset_clamp.xmin = max_ii(ts->offset_clamp.xmin, offset);
+        if (!(left_sel && right_sel)) {
+          /* Ensure that this strip's right handle cannot pass its left handle. */
+          int offset = (seq::time_left_handle_frame_get(scene, strip) + 1) -
+                       seq::time_right_handle_frame_get(scene, strip);
+          ts->offset_clamp.xmin = max_ii(ts->offset_clamp.xmin, offset);
+        }
 
-        /* Ensure that the right handle's frame is less than or equal to the content end. */
-        if (!seq::transform_single_image_check(strip)) {
-          ts->handle_xmax = min_ii(ts->handle_xmax, strip->endofs);
+        if (can_clamp_holds) {
+          /* Ensure that the right handle's frame is less than or equal to the content end. */
+          ts->hold_clamp_max = min_ii(ts->hold_clamp_max, strip->endofs);
         }
       }
     }
@@ -713,16 +723,14 @@ static void flushTransSeq(TransInfo *t)
         break;
       }
       case SEQ_LEFTSEL: { /* No vertical transform. */
-        /* Update right handle first if both handles are selected and the new_frame is right of
+        /* Update right handle first if both handles are selected and the `new_frame` is right of
          * the old one to avoid unexpected left handle clamping when canceling. See #126191. */
-        bool both_handles_selected = (tdsq->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) ==
-                                     (SEQ_LEFTSEL | SEQ_RIGHTSEL);
-        if (both_handles_selected && new_frame >= seq::time_left_handle_frame_get(scene, strip)) {
-          /* Increment once to get to the right handle's transform data,
-           * while keeping left handle's `new_frame`. */
-          a++, td++, td2d++;
-          const int new_frame_rh = round_fl_to_int(td->loc[0]);
-          seq::time_right_handle_frame_set(scene, strip, new_frame_rh);
+        const bool both_handles_selected = (tdsq->flag & (SEQ_LEFTSEL | SEQ_RIGHTSEL)) ==
+                                           (SEQ_LEFTSEL | SEQ_RIGHTSEL);
+        if (both_handles_selected && new_frame >= seq::time_right_handle_frame_get(scene, strip)) {
+          /* For now, move the right handle far enough to avoid the left handle getting clamped.
+           * The final, correct position will be calculated later. */
+          seq::time_right_handle_frame_set(scene, strip, new_frame + 1);
         }
 
         int old_startdisp = seq::time_left_handle_frame_get(scene, strip);
