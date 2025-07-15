@@ -27,6 +27,7 @@
 
 #include "DEG_depsgraph.hh"
 
+#include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
 #include "ED_transform_snap_object_context.hh"
@@ -126,6 +127,7 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   View3D *v3d = CTX_wm_view3d(C);
+  ARegion *rv3d = CTX_wm_region(C);
 
   /* Lazily-create XR context - tries to dynamic-link to the runtime,
    * reading `active_runtime.json`. */
@@ -134,7 +136,21 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
   }
 
   v3d->runtime.flag |= V3D_RUNTIME_XR_SESSION_ROOT;
-  wm_xr_session_toggle(wm, win, wm_xr_session_update_screen_on_exit_cb);
+  /**
+   * TODO this would be better suited of at the exit callback but we require the context for that
+   * and the context is not something that we can ingest easily into ghost, unless using a
+   * void * to our knowledge.
+   */
+  if (WM_xr_session_exists(&wm->xr)) {
+    Object *object = CTX_data_active_object(C);
+    if (object->type == OB_GREASE_PENCIL) {
+      GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+      DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+      WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+    }
+  }
+
+  wm_xr_session_toggle(wm, win, rv3d, wm_xr_session_update_screen_on_exit_cb);
   wm_xr_session_update_screen(bmain, &wm->xr);
 
   WM_event_add_notifier(C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
@@ -567,6 +583,18 @@ static wmOperatorStatus wm_xr_navigation_grab_modal(bContext *C,
    * ends when the input is "released" (state falls below the threshold). */
   switch (event->val) {
     case KM_PRESS:
+      if (do_bimanual) {
+        /**
+         * TODO find better way to check if we are on GreasePencil or not
+         */
+        /** tell greasepencil object to rescale itself with new world scale from xr */
+        Object *object = CTX_data_active_object(C);
+        if (object->type == OB_GREASE_PENCIL) {
+          GreasePencil *grease_pencil = static_cast<GreasePencil *>(object->data);
+          DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+          WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+        }
+      }
       return OPERATOR_RUNNING_MODAL;
     case KM_RELEASE:
       wm_xr_grab_uninit(op);
