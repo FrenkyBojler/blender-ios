@@ -101,6 +101,8 @@ void PinchOperation::on_stroke_extended(const bContext &C, const InputSample &ex
                 point_i,
                 (target - co_right) * (1.0f - influence_right_final));
           });
+
+          curves.calculate_bezier_auto_handles();
         }
 
         params.drawing.tag_positions_changed();

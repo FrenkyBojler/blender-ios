@@ -110,6 +110,8 @@ void TwistOperation::on_stroke_extended(const bContext &C, const InputSample &ex
                 point_i,
                 rotate_by_angle(radial_offset_right, angle_right) - radial_offset_right);
           });
+
+          curves.calculate_bezier_auto_handles();
         }
 
         params.drawing.tag_positions_changed();

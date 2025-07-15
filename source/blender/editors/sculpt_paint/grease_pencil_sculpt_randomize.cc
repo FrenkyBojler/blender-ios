@@ -117,6 +117,8 @@ void RandomizeOperation::on_stroke_extended(const bContext &C, const InputSample
               handle_positions_right[point_i] += compute_orig_delta(
                   projection_fn, deformation, point_i, sideways * influence_right * noise_right);
             });
+
+            curves.calculate_bezier_auto_handles();
           }
 
           params.drawing.tag_positions_changed();

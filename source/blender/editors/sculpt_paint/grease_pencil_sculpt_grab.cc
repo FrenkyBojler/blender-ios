@@ -267,6 +267,8 @@ void GrabOperation::on_stroke_extended(const bContext &C, const InputSample &ext
             handle_positions_right[point_i] += compute_orig_delta(
                 projection_fn, deformation, point_i, mouse_delta_win * weights_right[index]);
           });
+
+          curves.calculate_bezier_auto_handles();
         }
 
         params.drawing.tag_positions_changed();

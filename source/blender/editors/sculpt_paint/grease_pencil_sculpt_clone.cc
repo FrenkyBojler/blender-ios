@@ -108,6 +108,8 @@ void CloneOperation::on_stroke_begin(const bContext &C, const InputSample &start
                   projection_fn, deformation, point_i, mouse_delta);
             }
           });
+
+          curves.calculate_bezier_auto_handles();
         }
         params.drawing.tag_positions_changed();
 
