@@ -142,6 +142,8 @@ def main():
     parser = create_argparse()
     args = parser.parse_args()
 
+    print("Test change")
+
     from modules import render_report
     report = render_report.Report("Sculpt", args.outdir, args.oiiotool)
     report.set_pixelated(True)
