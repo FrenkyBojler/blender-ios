@@ -252,8 +252,8 @@ GHOST_WindowX11::GHOST_WindowX11(GHOST_SystemX11 *system,
     xsizehints->y = top;
     xsizehints->width = width;
     xsizehints->height = height;
-    xsizehints->min_width = 320;  /* size hints, could be made apart of the ghost api */
-    xsizehints->min_height = 240; /* limits are also arbitrary, but should not allow 1x1 window */
+    xsizehints->min_width = 320;  /* Size hints, could be made apart of the GHOST API. */
+    xsizehints->min_height = 240; /* Limits are also arbitrary, but should not allow 1x1 window. */
     xsizehints->max_width = 65535;
     xsizehints->max_height = 65535;
     XSetWMNormalHints(m_display, m_window, xsizehints);
@@ -1231,7 +1231,7 @@ GHOST_Context *GHOST_WindowX11::newDrawingContext(GHOST_TDrawingContextType type
         }
         delete context;
       }
-      /* EGL initialization failed, try to fallback to a GLX context. */
+      /* EGL initialization failed, try to fall back to a GLX context. */
 #  endif
 
       for (int minor = 6; minor >= 3; --minor) {
@@ -1454,12 +1454,10 @@ GHOST_TSuccess GHOST_WindowX11::hasCursorShape(GHOST_TStandardCursor shape)
   return getStandardCursor(shape, xcursor);
 }
 
-GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(uint8_t *bitmap,
-                                                           uint8_t *mask,
-                                                           int sizex,
-                                                           int sizey,
-                                                           int hotX,
-                                                           int hotY,
+GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                           const uint8_t *mask,
+                                                           const int size[2],
+                                                           const int hot_spot[2],
                                                            bool /*canInvertColor*/)
 {
   Colormap colormap = DefaultColormap(m_display, m_visualInfo->screen);
@@ -1477,10 +1475,11 @@ GHOST_TSuccess GHOST_WindowX11::setWindowCustomCursorShape(uint8_t *bitmap,
     XFreeCursor(m_display, m_custom_cursor);
   }
 
-  bitmap_pix = XCreateBitmapFromData(m_display, m_window, (char *)bitmap, sizex, sizey);
-  mask_pix = XCreateBitmapFromData(m_display, m_window, (char *)mask, sizex, sizey);
+  bitmap_pix = XCreateBitmapFromData(m_display, m_window, (char *)bitmap, size[0], size[1]);
+  mask_pix = XCreateBitmapFromData(m_display, m_window, (char *)mask, size[0], size[1]);
 
-  m_custom_cursor = XCreatePixmapCursor(m_display, bitmap_pix, mask_pix, &fg, &bg, hotX, hotY);
+  m_custom_cursor = XCreatePixmapCursor(
+      m_display, bitmap_pix, mask_pix, &fg, &bg, hot_spot[0], hot_spot[1]);
   XDefineCursor(m_display, m_window, m_custom_cursor);
   XFlush(m_display);
 
@@ -1520,7 +1519,7 @@ uint16_t GHOST_WindowX11::getDPIHint()
     }
   }
 
-  /* Fallback to calculating DPI using X reported DPI, set using `xrandr --dpi`. */
+  /* Fall back to calculating DPI using X reported DPI, set using `xrandr --dpi`. */
   XWindowAttributes attr;
   if (!XGetWindowAttributes(m_display, m_window, &attr)) {
     /* Failed to get window attributes, return X11 default DPI */

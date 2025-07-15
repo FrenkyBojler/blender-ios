@@ -183,7 +183,8 @@ struct Instance : public DrawEngine {
       select_id_vert_ps.init();
       select_vert = nullptr;
       if (e_data.context.select_mode & SCE_SELECT_VERTEX) {
-        const float vertex_size = blender::draw::overlay::Resources::vertex_size_get();
+        const float vertex_size = U.pixelsize *
+                                  blender::draw::overlay::Resources::vertex_size_get();
         auto &sub = select_id_vert_ps.sub("Sub");
         sub.state_set(state, clipping_plane_count);
         sub.shader_set(sh->select_id_flat);
@@ -203,7 +204,8 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges edit_mesh_sync(Object *ob,
-                                 ResourceHandle res_handle,
+                                 BMEditMesh *em,
+                                 ResourceHandleRange res_handle,
                                  short select_mode,
                                  bool draw_facedot,
                                  const uint initial_index)
@@ -211,7 +213,6 @@ struct Instance : public DrawEngine {
     using namespace blender::draw;
     using namespace blender;
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
-    BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     ElemIndexRanges ranges{};
     ranges.total = IndexRange::from_begin_size(initial_index, 0);
@@ -263,7 +264,7 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges mesh_sync(Object *ob,
-                            ResourceHandle res_handle,
+                            ResourceHandleRange res_handle,
                             short select_mode,
                             const uint initial_index)
   {
@@ -306,16 +307,22 @@ struct Instance : public DrawEngine {
   }
 
   ElemIndexRanges object_sync(
-      View3D *v3d, Object *ob, ResourceHandle res_handle, short select_mode, uint index_start)
+      View3D *v3d, Object *ob, ResourceHandleRange res_handle, short select_mode, uint index_start)
   {
     BLI_assert_msg(index_start > 0, "Index 0 is reserved for no selection");
 
     switch (ob->type) {
       case OB_MESH: {
-        const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
-        if (mesh.runtime->edit_mesh) {
+        const bool is_editmode = ob->mode == OB_MODE_EDIT;
+        /* NOTE: it's important to get the edit-mesh before modifiers have been applied
+         * because the evaluated mesh may not have an edit-mesh, see #138715.
+         * Match edit-mesh access from #mesh_render_data_create. */
+        const Mesh *orig_edit_mesh = is_editmode ? BKE_object_get_pre_modified_mesh(ob) : nullptr;
+        BMEditMesh *em = (orig_edit_mesh) ? orig_edit_mesh->runtime->edit_mesh.get() : nullptr;
+
+        if (em) {
           bool draw_facedot = check_ob_drawface_dot(select_mode, v3d, eDrawType(ob->dt));
-          return edit_mesh_sync(ob, res_handle, select_mode, draw_facedot, index_start);
+          return edit_mesh_sync(ob, em, res_handle, select_mode, draw_facedot, index_start);
         }
         return mesh_sync(ob, res_handle, select_mode, index_start);
       }
@@ -339,14 +346,14 @@ struct Instance : public DrawEngine {
       blender::gpu::Batch *geom_faces = DRW_mesh_batch_cache_get_surface(
           DRW_object_get_data_for_drawing<Mesh>(*ob));
 
-      depth_occlude->draw(geom_faces, manager.resource_handle(ob_ref));
+      depth_occlude->draw(geom_faces, manager.unique_handle(ob_ref));
       return;
     }
 
     /* Only sync selectable object once.
      * This can happen in retopology mode where there is two sync loop. */
     sel_ctx.elem_ranges.lookup_or_add_cb(ob, [&]() {
-      ResourceHandle res_handle = manager.resource_handle(ob_ref);
+      ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
       ElemIndexRanges elem_ranges = object_sync(
           draw_ctx->v3d, ob, res_handle, sel_ctx.select_mode, sel_ctx.max_index_drawn_len);
       sel_ctx.max_index_drawn_len = elem_ranges.total.one_after_last();

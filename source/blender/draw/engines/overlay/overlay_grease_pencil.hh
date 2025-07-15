@@ -236,8 +236,8 @@ class GreasePencil : Overlay {
 
       const float4x4 grid_mat = grid_matrix_get(*ob_ref.object, state.scene) * transform_mat;
 
-      grid_ps_.push_constant("x_axis", grid_mat.x_axis());
-      grid_ps_.push_constant("y_axis", grid_mat.y_axis());
+      grid_ps_.push_constant("axis_x", grid_mat.x_axis());
+      grid_ps_.push_constant("axis_y", grid_mat.y_axis());
       grid_ps_.push_constant("origin", grid_mat.location());
       grid_ps_.push_constant("half_line_count", line_count / 2);
       grid_ps_.draw_procedural(GPU_PRIM_LINES, 1, line_count * 2);
@@ -283,7 +283,7 @@ class GreasePencil : Overlay {
                                  PassMain::Sub &pass,
                                  const Scene *scene,
                                  Object *ob,
-                                 ResourceHandle res_handle,
+                                 ResourceHandleRange res_handle,
                                  select::ID select_id = select::SelectMap::select_invalid_id())
   {
     using namespace blender;
@@ -503,15 +503,16 @@ class GreasePencil : Overlay {
         }
         const int point_i = points_by_curve[stroke_i].first();
         const float3 fpt = math::transform_point(object.object_to_world(), positions[point_i]);
-        Material *ma = BKE_object_material_get_eval(&object, materials[stroke_i] + 1);
-        DRW_text_cache_add(state.dt,
-                           fpt,
-                           ma->id.name + 2,
-                           strlen(ma->id.name + 2),
-                           10,
-                           0,
-                           DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR,
-                           color);
+        if (Material *ma = BKE_object_material_get_eval(&object, materials[stroke_i] + 1)) {
+          DRW_text_cache_add(state.dt,
+                             fpt,
+                             ma->id.name + 2,
+                             strlen(ma->id.name + 2),
+                             10,
+                             0,
+                             DRW_TEXT_CACHE_GLOBALSPACE | DRW_TEXT_CACHE_STRING_PTR,
+                             color);
+        }
       }
     }
   }

@@ -743,7 +743,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   GPU_blend(GPU_BLEND_ALPHA);
 
   const uint shdr_pos_3d = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
   if (ruler_item->flag & RULERITEM_USE_ANGLE) {
     immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
@@ -841,7 +841,7 @@ static void gizmo_ruler_draw(const bContext *C, wmGizmo *gz)
   GPU_matrix_pop_projection();
 
   const uint shdr_pos_2d = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   if (ruler_item->flag & RULERITEM_USE_ANGLE) {
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -1278,7 +1278,7 @@ void VIEW3D_GT_ruler_item(wmGizmoType *gzt)
   /* identifiers */
   gzt->idname = "VIEW3D_GT_ruler_item";
 
-  /* api callbacks */
+  /* API callbacks. */
   gzt->draw = gizmo_ruler_draw;
   gzt->test_select = gizmo_ruler_test_select;
   gzt->modal = gizmo_ruler_modal;
@@ -1391,10 +1391,9 @@ static wmOperatorStatus view3d_ruler_add_invoke(bContext *C, wmOperator *op, con
 
   /* This is a little weak, but there is no real good way to tweak directly. */
   WM_gizmo_highlight_set(gzmap, &ruler_item->gz);
-  if (WM_operator_name_call(
-          C, "GIZMOGROUP_OT_gizmo_tweak", WM_OP_INVOKE_REGION_WIN, nullptr, event) ==
-      OPERATOR_RUNNING_MODAL)
-  {
+  const wmOperatorStatus status = WM_operator_name_call(
+      C, "GIZMOGROUP_OT_gizmo_tweak", blender::wm::OpCallContext::InvokeRegionWin, nullptr, event);
+  if (status == OPERATOR_RUNNING_MODAL) {
     RulerInfo *ruler_info = static_cast<RulerInfo *>(gzgroup->customdata);
     RulerInteraction *inter = static_cast<RulerInteraction *>(ruler_item->gz.interaction_data);
     Depsgraph *depsgraph = CTX_data_ensure_evaluated_depsgraph(C);

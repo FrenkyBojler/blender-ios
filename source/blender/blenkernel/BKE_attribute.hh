@@ -32,6 +32,33 @@ class GField;
 
 namespace blender::bke {
 
+/** Some storage types are only relevant for certain attribute types. */
+enum class AttrStorageType : int8_t {
+  /** #AttributeDataArray. */
+  Array,
+  /** A single value for the whole attribute. */
+  Single,
+};
+
+enum class AttrType : int16_t {
+  Bool,
+  Int8,
+  Int16_2D,
+  Int32,
+  Int32_2D,
+  Float,
+  Float2,
+  Float3,
+  Float4x4,
+  ColorByte,
+  ColorFloat,
+  Quaternion,
+  String,
+};
+
+const CPPType &attribute_type_to_cpp_type(AttrType type);
+AttrType cpp_type_to_attribute_type(const CPPType &type);
+
 enum class AttrDomain : int8_t {
   /* Used to choose automatically based on other data. */
   Auto = -1,
@@ -62,14 +89,14 @@ eCustomDataType cpp_type_to_custom_data_type(const CPPType &type);
  */
 struct AttributeMetaData {
   AttrDomain domain;
-  eCustomDataType data_type;
+  AttrType data_type;
 
   BLI_STRUCT_EQUALITY_OPERATORS_2(AttributeMetaData, domain, data_type)
 };
 
 struct AttributeDomainAndType {
   AttrDomain domain;
-  eCustomDataType data_type;
+  AttrType data_type;
   BLI_STRUCT_EQUALITY_OPERATORS_2(AttributeDomainAndType, domain, data_type)
 };
 
@@ -399,7 +426,7 @@ class AttributeIter {
  public:
   StringRefNull name;
   AttrDomain domain;
-  eCustomDataType data_type;
+  AttrType data_type;
   bool is_builtin = false;
   mutable const AttributeAccessor *accessor = nullptr;
 
@@ -410,7 +437,7 @@ class AttributeIter {
  public:
   AttributeIter(const StringRefNull name,
                 const AttrDomain domain,
-                const eCustomDataType data_type,
+                const AttrType data_type,
                 const FunctionRef<GAttributeReader()> get_fn)
       : name(name), domain(domain), data_type(data_type), get_fn_(get_fn)
   {
@@ -434,15 +461,14 @@ class AttributeIter {
   }
 
   /** Same as above, but may perform type and domain interpolation. This may return none. */
-  GAttributeReader get(std::optional<AttrDomain> domain,
-                       std::optional<eCustomDataType> data_type) const;
+  GAttributeReader get(std::optional<AttrDomain> domain, std::optional<AttrType> data_type) const;
 
   GAttributeReader get(const AttrDomain domain) const
   {
     return this->get(domain, std::nullopt);
   }
 
-  GAttributeReader get(const eCustomDataType data_type) const
+  GAttributeReader get(const AttrType data_type) const
   {
     return this->get(std::nullopt, data_type);
   }
@@ -451,7 +477,7 @@ class AttributeIter {
   AttributeReader<T> get(const std::optional<AttrDomain> domain = std::nullopt) const
   {
     const CPPType &cpp_type = CPPType::get<T>();
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(cpp_type);
+    const AttrType data_type = cpp_type_to_attribute_type(cpp_type);
     return this->get(domain, data_type).typed<T>();
   }
 };
@@ -484,7 +510,7 @@ struct AttributeAccessorFunctions {
   bool (*add)(void *owner,
               StringRef attribute_id,
               AttrDomain domain,
-              eCustomDataType data_type,
+              AttrType data_type,
               const AttributeInit &initializer);
 };
 
@@ -591,7 +617,7 @@ class AttributeAccessor {
    */
   GAttributeReader lookup(StringRef attribute_id,
                           std::optional<AttrDomain> domain,
-                          std::optional<eCustomDataType> data_type) const;
+                          std::optional<AttrType> data_type) const;
 
   /**
    * Get read-only access to the attribute whereby the attribute is interpolated to the given
@@ -606,7 +632,7 @@ class AttributeAccessor {
    * Get read-only access to the attribute whereby the attribute is converted to the given type.
    * The result may be empty.
    */
-  GAttributeReader lookup(const StringRef attribute_id, const eCustomDataType data_type) const
+  GAttributeReader lookup(const StringRef attribute_id, const AttrType data_type) const
   {
     return this->lookup(attribute_id, std::nullopt, data_type);
   }
@@ -620,7 +646,7 @@ class AttributeAccessor {
                             const std::optional<AttrDomain> domain = std::nullopt) const
   {
     const CPPType &cpp_type = CPPType::get<T>();
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(cpp_type);
+    const AttrType data_type = cpp_type_to_attribute_type(cpp_type);
     return this->lookup(attribute_id, domain, data_type).typed<T>();
   }
 
@@ -632,7 +658,7 @@ class AttributeAccessor {
    */
   GAttributeReader lookup_or_default(StringRef attribute_id,
                                      AttrDomain domain,
-                                     eCustomDataType data_type,
+                                     AttrType data_type,
                                      const void *default_value = nullptr) const;
 
   /**
@@ -757,9 +783,12 @@ class MutableAttributeAccessor : public AttributeAccessor {
    */
   bool add(const StringRef attribute_id,
            const AttrDomain domain,
-           const eCustomDataType data_type,
+           const AttrType data_type,
            const AttributeInit &initializer)
   {
+    if (!this->domain_supported(domain)) {
+      return false;
+    }
     if (this->contains(attribute_id)) {
       return false;
     }
@@ -769,7 +798,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
   bool add(const StringRef attribute_id, const AttrDomain domain, const AttributeInit &initializer)
   {
     const CPPType &cpp_type = CPPType::get<T>();
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(cpp_type);
+    const AttrType data_type = cpp_type_to_attribute_type(cpp_type);
     return this->add(attribute_id, domain, data_type, initializer);
   }
 
@@ -781,7 +810,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
   GAttributeWriter lookup_or_add_for_write(
       StringRef attribute_id,
       AttrDomain domain,
-      eCustomDataType data_type,
+      AttrType data_type,
       const AttributeInit &initializer = AttributeInitDefaultValue());
 
   /**
@@ -792,7 +821,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
   GSpanAttributeWriter lookup_or_add_for_write_span(
       StringRef attribute_id,
       AttrDomain domain,
-      eCustomDataType data_type,
+      AttrType data_type,
       const AttributeInit &initializer = AttributeInitDefaultValue());
 
   /**
@@ -805,7 +834,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
       const AttributeInit &initializer = AttributeInitDefaultValue())
   {
     const CPPType &cpp_type = CPPType::get<T>();
-    const eCustomDataType data_type = cpp_type_to_custom_data_type(cpp_type);
+    const AttrType data_type = cpp_type_to_attribute_type(cpp_type);
     return this->lookup_or_add_for_write(attribute_id, domain, data_type, initializer).typed<T>();
   }
 
@@ -838,7 +867,7 @@ class MutableAttributeAccessor : public AttributeAccessor {
    */
   GSpanAttributeWriter lookup_or_add_for_write_only_span(StringRef attribute_id,
                                                          AttrDomain domain,
-                                                         eCustomDataType data_type);
+                                                         AttrType data_type);
 
   /**
    * Same as above, but should be used when the type is known at compile time.
@@ -892,7 +921,7 @@ Vector<AttributeTransferData> retrieve_attributes_for_transfer(
 bool allow_procedural_attribute_access(StringRef attribute_name);
 extern const char *no_procedural_access_message;
 
-eCustomDataType attribute_data_type_highest_complexity(Span<eCustomDataType> data_types);
+AttrType attribute_data_type_highest_complexity(Span<AttrType> data_types);
 /**
  * Domains with a higher "information density" have a higher priority,
  * in order to choose a domain that will not lose data through domain conversion.

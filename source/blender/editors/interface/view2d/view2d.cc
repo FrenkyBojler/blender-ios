@@ -595,6 +595,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
 
   /* Step 2: apply new sizes to cur rect,
    * but need to take into account alignment settings here... */
+  const bool do_keepofs = resize || !(v2d->flag & V2D_ZOOM_IGNORE_KEEPOFS);
   if ((width != curwidth) || (height != curheight)) {
     float temp, dh;
 
@@ -603,7 +604,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
       if (v2d->keepofs & V2D_LOCKOFS_X) {
         cur->xmax += width - BLI_rctf_size_x(cur);
       }
-      else if (v2d->keepofs & V2D_KEEPOFS_X) {
+      else if ((v2d->keepofs & V2D_KEEPOFS_X) && do_keepofs) {
         if (v2d->align & V2D_ALIGN_NO_POS_X) {
           cur->xmin -= width - BLI_rctf_size_x(cur);
         }
@@ -623,7 +624,7 @@ static void ui_view2d_curRect_validate_resize(View2D *v2d, bool resize)
       if (v2d->keepofs & V2D_LOCKOFS_Y) {
         cur->ymax += height - BLI_rctf_size_y(cur);
       }
-      else if (v2d->keepofs & V2D_KEEPOFS_Y) {
+      else if ((v2d->keepofs & V2D_KEEPOFS_Y) && do_keepofs) {
         if (v2d->align & V2D_ALIGN_NO_POS_Y) {
           cur->ymin -= height - BLI_rctf_size_y(cur);
         }
@@ -1194,9 +1195,9 @@ void UI_view2d_multi_grid_draw(
   vertex_count += 2 * (int((v2d->cur.ymax - v2d->cur.ymin) / lstep) + 1);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  uint color = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 3, GPU_FETCH_INT_TO_FLOAT_UNIT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  uint color = GPU_vertformat_attr_add(format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
 
   GPU_line_width(1.0f);
 
@@ -1221,7 +1222,7 @@ void UI_view2d_multi_grid_draw(
 
       immAttrSkip(color);
       immVertex2f(pos, start, v2d->cur.ymin);
-      immAttr3ubv(color, grid_line_color);
+      immAttr4ub(color, UNPACK3(grid_line_color), 255);
       immVertex2f(pos, start, v2d->cur.ymax);
     }
 
@@ -1238,7 +1239,7 @@ void UI_view2d_multi_grid_draw(
 
       immAttrSkip(color);
       immVertex2f(pos, v2d->cur.xmin, start);
-      immAttr3ubv(color, grid_line_color);
+      immAttr4ub(color, UNPACK3(grid_line_color), 255);
       immVertex2f(pos, v2d->cur.xmax, start);
     }
 
@@ -1252,12 +1253,12 @@ void UI_view2d_multi_grid_draw(
 
   immAttrSkip(color);
   immVertex2f(pos, 0.0f, v2d->cur.ymin);
-  immAttr3ubv(color, grid_line_color);
+  immAttr4ub(color, UNPACK3(grid_line_color), 255);
   immVertex2f(pos, 0.0f, v2d->cur.ymax);
 
   immAttrSkip(color);
   immVertex2f(pos, v2d->cur.xmin, 0.0f);
-  immAttr3ubv(color, grid_line_color);
+  immAttr4ub(color, UNPACK3(grid_line_color), 255);
   immVertex2f(pos, v2d->cur.xmax, 0.0f);
 
   immEnd();
@@ -1296,7 +1297,8 @@ void UI_view2d_dot_grid_draw(const View2D *v2d,
   const float zoom_x = float(BLI_rcti_size_x(&v2d->mask) + 1) / BLI_rctf_size_x(&v2d->cur);
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_AA);
 

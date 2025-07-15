@@ -971,7 +971,7 @@ static wmOperatorStatus add_driver_button_menu_exec(bContext *C, wmOperator *op)
 
   /* XXX: We assume that it's fine to use the same set of properties,
    * since they're actually the same. */
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, op->ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, op->ptr, nullptr);
 
   return OPERATOR_FINISHED;
 }
@@ -993,7 +993,7 @@ static wmOperatorStatus add_driver_button_menu_invoke(bContext *C,
   /* Show menu */
   /* TODO: This should get filtered by the enum filter. */
   /* important to execute in the region we're currently in. */
-  return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_DEFAULT);
+  return WM_menu_invoke_ex(C, op, blender::wm::OpCallContext::InvokeDefault);
 }
 
 static void UNUSED_FUNCTION(ANIM_OT_driver_button_add_menu)(wmOperatorType *ot)
@@ -1102,6 +1102,7 @@ static wmOperatorStatus remove_driver_button_exec(bContext *C, wmOperator *op)
     /* send updates */
     UI_context_update_anim_flag(C);
     DEG_relations_tag_update(CTX_data_main(C));
+    DEG_id_tag_update(ptr.owner_id, ID_RECALC_ANIMATION);
     WM_event_add_notifier(C, NC_ANIMATION | ND_FCURVES_ORDER, nullptr); /* XXX */
   }
 

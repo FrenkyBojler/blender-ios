@@ -49,6 +49,7 @@
 #include "UI_abstract_view.hh"
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_string_search.hh"
 #include "UI_view2d.hh"
 
@@ -735,7 +736,7 @@ static int ui_but_calc_float_precision(uiBut *but, double value)
 
   /* first check for various special cases:
    * * If button is radians, we want additional precision (see #39861).
-   * * If prec is not set, we fallback to a simple default */
+   * * If prec is not set, we fall back to a simple default */
   if (ui_but_is_unit_radians(but) && prec < 5) {
     prec = 5;
   }
@@ -936,7 +937,7 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
 
   /* flags from the buttons we want to refresh, may want to add more here... */
   const int flag_copy = UI_BUT_REDALERT | UI_HAS_ICON | UI_SELECT_DRAW;
-  const int drawflag_copy = UI_BUT_HAS_TOOLTIP_LABEL;
+  const int drawflag_copy = UI_BUT_HAS_QUICK_TOOLTIP;
 
   /* still stuff needs to be copied */
   oldbut->rect = but->rect;
@@ -954,11 +955,14 @@ static void ui_but_update_old_active_from_new(uiBut *oldbut, uiBut *but)
     std::swap(oldbut->func_argN, but->func_argN);
   }
 
+  std::swap(oldbut->rename_full_func, but->rename_full_func);
+  std::swap(oldbut->pushed_state_func, but->pushed_state_func);
+
   /* Move tooltip from new to old. */
   std::swap(oldbut->tip_func, but->tip_func);
   std::swap(oldbut->tip_arg, but->tip_arg);
   std::swap(oldbut->tip_arg_free, but->tip_arg_free);
-  std::swap(oldbut->tip_label_func, but->tip_label_func);
+  std::swap(oldbut->tip_quick_func, but->tip_quick_func);
 
   oldbut->flag = (oldbut->flag & ~flag_copy) | (but->flag & flag_copy);
   oldbut->drawflag = (oldbut->drawflag & ~drawflag_copy) | (but->drawflag & drawflag_copy);
@@ -1078,7 +1082,7 @@ static bool ui_but_update_from_old_block(uiBlock *block,
     oldbut_uptr = &oldblock->buttons[**but_old_idx];
   }
   else {
-    /* Fallback to block search. */
+    /* Fall back to block search. */
     *but_old_idx = ui_but_find_old_idx(oldblock, but, matched_old_buttons);
     oldbut_uptr = but_old_idx->has_value() ? &oldblock->buttons[**but_old_idx] : nullptr;
   }
@@ -1380,7 +1384,7 @@ static std::optional<std::string> ui_but_event_operator_string_from_menu(const b
   IDP_AddToGroup(prop_menu, IDP_NewStringMaxSize(mt->idname, sizeof(mt->idname), "name"));
 
   const std::optional<std::string> result = WM_key_event_operator_string(
-      C, "WM_OT_call_menu", WM_OP_INVOKE_REGION_WIN, prop_menu, true);
+      C, "WM_OT_call_menu", blender::wm::OpCallContext::InvokeRegionWin, prop_menu, true);
 
   IDP_FreeProperty(prop_menu);
   return result;
@@ -1404,9 +1408,9 @@ static std::optional<std::string> ui_but_event_operator_string_from_panel(const 
   for (int i = 0; i < 2; i++) {
     /* FIXME(@ideasman42): We can't reasonably search all configurations - long term. */
     IDP_ReplaceInGroup(prop_panel, bke::idprop::create("keep_open", i).release());
-    if (std::optional<std::string> result = WM_key_event_operator_string(
-            C, "WM_OT_call_panel", WM_OP_INVOKE_REGION_WIN, prop_panel, true))
-    {
+    std::optional<std::string> result = WM_key_event_operator_string(
+        C, "WM_OT_call_panel", blender::wm::OpCallContext::InvokeRegionWin, prop_panel, true);
+    if (result) {
       return result;
     }
   }
@@ -1598,9 +1602,9 @@ static std::optional<std::string> ui_but_event_property_operator_string(const bC
       /* check each until one works... */
 
       for (int i = 0; (i < opnames_len) && (opnames[i]); i++) {
-        if (const std::optional<std::string> str = WM_key_event_operator_string(
-                C, opnames[i], WM_OP_INVOKE_REGION_WIN, prop_path, false))
-        {
+        const std::optional<std::string> str = WM_key_event_operator_string(
+            C, opnames[i], blender::wm::OpCallContext::InvokeRegionWin, prop_path, false);
+        if (str) {
           return str;
         }
       }
@@ -1745,7 +1749,7 @@ enum PredefinedExtraOpIconType {
 
 static PointerRNA *ui_but_extra_operator_icon_add_ptr(uiBut *but,
                                                       wmOperatorType *optype,
-                                                      wmOperatorCallContext opcontext,
+                                                      blender::wm::OpCallContext opcontext,
                                                       int icon)
 {
   uiButExtraOpIcon *extra_op_icon = MEM_callocN<uiButExtraOpIcon>(__func__);
@@ -1783,7 +1787,7 @@ void ui_but_extra_operator_icons_free(uiBut *but)
 
 PointerRNA *UI_but_extra_operator_icon_add(uiBut *but,
                                            const StringRefNull opname,
-                                           wmOperatorCallContext opcontext,
+                                           blender::wm::OpCallContext opcontext,
                                            int icon)
 {
   wmOperatorType *optype = WM_operatortype_find(opname.c_str(), false);
@@ -1940,7 +1944,8 @@ static void ui_but_predefined_extra_operator_icons_add(uiBut *but)
         return;
       }
     }
-    ui_but_extra_operator_icon_add_ptr(but, optype, WM_OP_INVOKE_DEFAULT, icon);
+    ui_but_extra_operator_icon_add_ptr(
+        but, optype, blender::wm::OpCallContext::InvokeDefault, icon);
   }
 }
 
@@ -2008,6 +2013,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
   bool result;
   int old_but_flag = 0;
 
+  const bContextStore *previous_ctx = CTX_store_get(C);
   if (but) {
     old_but_flag = but->flag;
 
@@ -2030,7 +2036,7 @@ bool ui_but_context_poll_operator_ex(bContext *C,
     const_cast<uiBut *>(but)->flag = old_but_flag;
 
     if (but->context) {
-      CTX_store_set(C, nullptr);
+      CTX_store_set(C, previous_ctx);
     }
   }
 
@@ -2039,7 +2045,8 @@ bool ui_but_context_poll_operator_ex(bContext *C,
 
 bool ui_but_context_poll_operator(bContext *C, wmOperatorType *ot, const uiBut *but)
 {
-  const wmOperatorCallContext opcontext = but ? but->opcontext : WM_OP_INVOKE_DEFAULT;
+  const blender::wm::OpCallContext opcontext = but ? but->opcontext :
+                                                     blender::wm::OpCallContext::InvokeDefault;
   wmOperatorCallParams params = {};
   params.optype = ot;
   params.opcontext = opcontext;
@@ -2086,7 +2093,7 @@ void UI_block_end_ex(const bContext *C,
     }
 
     const AnimationEvalContext anim_eval_context = BKE_animsys_eval_context_construct(
-        depsgraph, (scene) ? scene->r.cfra : 0.0f);
+        depsgraph, (scene) ? BKE_scene_frame_get(scene) : 0.0f);
     ui_but_anim_flag(but.get(), &anim_eval_context);
     ui_but_override_flag(bmain, but.get());
     if (UI_but_is_decorator(but)) {
@@ -2100,7 +2107,7 @@ void UI_block_end_ex(const bContext *C,
 
   /* handle pending stuff */
   if (block->layouts.first) {
-    UI_block_layout_resolve(block, nullptr, nullptr);
+    blender::ui::block_layout_resolve(block);
   }
   ui_block_align_calc(block, region);
   if ((block->flag & UI_BLOCK_LOOP) && (block->flag & UI_BLOCK_NUMSELECT) &&
@@ -2279,6 +2286,12 @@ void UI_block_draw(const bContext *C, uiBlock *block)
     ui_but_to_pixelrect(&rect, region, block, but.get());
     /* Optimization: Don't draw buttons that are not visible (outside view bounds). */
     if (!ui_but_pixelrect_in_view(region, &rect)) {
+      continue;
+    }
+
+    /* Don't draw buttons that are wider than available space. */
+    const int width = BLI_rcti_size_x(&rect);
+    if ((width > U.widget_unit * 2.5f / block->aspect) && width > region->winx) {
       continue;
     }
 
@@ -4170,14 +4183,14 @@ void UI_block_align_end(uiBlock *block)
   block->flag &= ~UI_BUT_ALIGN; /* all 4 flags */
 }
 
-ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block)
+const ColorManagedDisplay *ui_block_cm_display_get(uiBlock *block)
 {
   return IMB_colormanagement_display_get_named(block->display_device);
 }
 
 void ui_block_cm_to_display_space_v3(uiBlock *block, float pixel[3])
 {
-  ColorManagedDisplay *display = ui_block_cm_display_get(block);
+  const ColorManagedDisplay *display = ui_block_cm_display_get(block);
 
   IMB_colormanagement_scene_linear_to_display_v3(pixel, display);
 }
@@ -4276,7 +4289,7 @@ uiBut *ui_but_change_type(uiBut *but, eButType new_type)
     const bool found_layout = ui_layout_replace_but_ptr(but->layout, old_but_ptr.get(), but);
     BLI_assert(found_layout);
     UNUSED_VARS_NDEBUG(found_layout);
-    ui_button_group_replace_but_ptr(uiLayoutGetBlock(but->layout), old_but_ptr.get(), but);
+    ui_button_group_replace_but_ptr(but->layout->block(), old_but_ptr.get(), but);
   }
 #ifdef WITH_PYTHON
   if (UI_editsource_enable_check()) {
@@ -4463,7 +4476,7 @@ void ui_def_but_icon_clear(uiBut *but)
 
 static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   uiPopupBlockHandle *handle = block->handle;
   uiBut *but = (uiBut *)but_p;
   const int current_value = RNA_property_enum_get(&but->rnapoin, but->rnaprop);
@@ -4579,13 +4592,13 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     /* Show title when no categories and calling button has no text or prior label. */
     uiDefBut(
         block, UI_BTYPE_LABEL, 0, title, 0, 0, UI_UNIT_X * 5, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
-    uiItemS(layout);
+    layout->separator();
   }
 
   /* NOTE: `item_array[...]` is reversed on access. */
 
   /* create items */
-  uiLayout *split = uiLayoutSplit(layout, 0.0f, false);
+  uiLayout *split = &layout->split(0.0f, false);
 
   bool new_column;
 
@@ -4614,17 +4627,17 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
     const EnumPropertyItem *item = &item_array[a];
 
     if (new_column && (categories > 0) && (columns > 1) && item->identifier[0]) {
-      uiItemL(column, "", ICON_NONE);
-      uiItemS(column);
+      column->label("", ICON_NONE);
+      column->separator();
     }
 
     if (!item->identifier[0]) {
       if (item->name || columns > 1) {
         if (item->icon) {
-          uiItemL(column, item->name, item->icon);
+          column->label(item->name, item->icon);
         }
         else if (item->name) {
-          /* Do not use uiItemL here, as our root layout is a menu one,
+          /* Do not use uiLayout::label here, as our root layout is a menu one,
            * it will add a fake blank icon! */
           uiDefBut(block,
                    UI_BTYPE_LABEL,
@@ -4640,7 +4653,7 @@ static void ui_def_but_rna__menu(bContext *C, uiLayout *layout, void *but_p)
                    "");
         }
       }
-      uiItemS(column);
+      column->separator();
     }
     else {
       int icon = item->icon;
@@ -4718,7 +4731,7 @@ static void ui_def_but_rna__panel_type(bContext *C, uiLayout *layout, void *arg)
     ui_item_paneltype_func(C, layout, panel_type);
   }
   else {
-    uiItemL(layout, RPT_("Missing Panel"), ICON_NONE);
+    layout->label(RPT_("Missing Panel"), ICON_NONE);
   }
 }
 
@@ -4749,7 +4762,7 @@ static void ui_def_but_rna__menu_type(bContext *C, uiLayout *layout, void *but_p
   else {
     char msg[256];
     SNPRINTF(msg, RPT_("Missing Menu: %s"), menu_type);
-    uiItemL(layout, msg, ICON_NONE);
+    layout->label(msg, ICON_NONE);
   }
 }
 
@@ -4785,7 +4798,7 @@ static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
 static uiBut *ui_def_but_rna(uiBlock *block,
                              int type,
                              int retval,
-                             std::optional<StringRefNull> str,
+                             std::optional<StringRef> str,
                              int x,
                              int y,
                              short width,
@@ -4827,7 +4840,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
       if (!str) {
         str = item[i].name;
 #ifdef WITH_INTERNATIONAL
-        str = CTX_IFACE_(RNA_property_translation_context(prop), str->c_str());
+        str = CTX_IFACE_(RNA_property_translation_context(prop), *str);
 #endif
       }
 
@@ -4976,7 +4989,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
 static uiBut *ui_def_but_rna_propname(uiBlock *block,
                                       int type,
                                       int retval,
-                                      std::optional<StringRefNull> str,
+                                      std::optional<StringRef> str,
                                       int x,
                                       int y,
                                       short width,
@@ -5007,7 +5020,7 @@ static uiBut *ui_def_but_rna_propname(uiBlock *block,
 static uiBut *ui_def_but_operator_ptr(uiBlock *block,
                                       int type,
                                       wmOperatorType *ot,
-                                      wmOperatorCallContext opcontext,
+                                      blender::wm::OpCallContext opcontext,
                                       const StringRef str,
                                       int x,
                                       int y,
@@ -5024,7 +5037,7 @@ static uiBut *ui_def_but_operator_ptr(uiBlock *block,
 
   /* Enable quick tooltip label if this is a tool button without a label. */
   if (str.is_empty() && !ui_block_is_popover(block) && UI_but_is_tool(but)) {
-    UI_but_drawflag_enable(but, UI_BUT_HAS_TOOLTIP_LABEL);
+    UI_but_drawflag_enable(but, UI_BUT_HAS_QUICK_TOOLTIP);
   }
 
   if (!ot) {
@@ -5454,7 +5467,7 @@ uiBut *uiDefButBitC(uiBlock *block,
 uiBut *uiDefButR(uiBlock *block,
                  int type,
                  int retval,
-                 const std::optional<StringRefNull> str,
+                 const std::optional<StringRef> str,
                  int x,
                  int y,
                  short width,
@@ -5474,7 +5487,7 @@ uiBut *uiDefButR(uiBlock *block,
 uiBut *uiDefButR_prop(uiBlock *block,
                       int type,
                       int retval,
-                      const std::optional<StringRefNull> str,
+                      const std::optional<StringRef> str,
                       int x,
                       int y,
                       short width,
@@ -5495,7 +5508,7 @@ uiBut *uiDefButR_prop(uiBlock *block,
 uiBut *uiDefButO_ptr(uiBlock *block,
                      int type,
                      wmOperatorType *ot,
-                     wmOperatorCallContext opcontext,
+                     blender::wm::OpCallContext opcontext,
                      const StringRef str,
                      int x,
                      int y,
@@ -5510,7 +5523,7 @@ uiBut *uiDefButO_ptr(uiBlock *block,
 uiBut *uiDefButO(uiBlock *block,
                  int type,
                  const StringRefNull opname,
-                 wmOperatorCallContext opcontext,
+                 blender::wm::OpCallContext opcontext,
                  std::optional<StringRef> str,
                  int x,
                  int y,
@@ -5779,7 +5792,7 @@ uiBut *uiDefIconButR_prop(uiBlock *block,
 uiBut *uiDefIconButO_ptr(uiBlock *block,
                          int type,
                          wmOperatorType *ot,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          int icon,
                          int x,
                          int y,
@@ -5794,7 +5807,7 @@ uiBut *uiDefIconButO_ptr(uiBlock *block,
 uiBut *uiDefIconButO(uiBlock *block,
                      int type,
                      const StringRefNull opname,
-                     wmOperatorCallContext opcontext,
+                     blender::wm::OpCallContext opcontext,
                      int icon,
                      int x,
                      int y,
@@ -5853,6 +5866,35 @@ uiBut *uiDefIconTextButI(uiBlock *block,
                           max,
                           tip);
 }
+uiBut *uiDefIconTextButS(uiBlock *block,
+                         int type,
+                         int retval,
+                         int icon,
+                         const StringRef str,
+                         int x,
+                         int y,
+                         short width,
+                         short height,
+                         short *poin,
+                         float min,
+                         float max,
+                         const std::optional<StringRef> tip)
+{
+  return uiDefIconTextBut(block,
+                          type | UI_BUT_POIN_SHORT,
+                          retval,
+                          icon,
+                          str,
+                          x,
+                          y,
+                          width,
+                          height,
+                          (void *)poin,
+                          min,
+                          max,
+                          tip);
+}
+
 uiBut *uiDefIconTextButR(uiBlock *block,
                          int type,
                          int retval,
@@ -5879,7 +5921,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
                               int type,
                               int retval,
                               int icon,
-                              const std::optional<blender::StringRefNull> str,
+                              const std::optional<blender::StringRef> str,
                               int x,
                               int y,
                               short width,
@@ -5900,7 +5942,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
 uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              int type,
                              wmOperatorType *ot,
-                             wmOperatorCallContext opcontext,
+                             blender::wm::OpCallContext opcontext,
                              int icon,
                              const StringRef str,
                              int x,
@@ -5917,7 +5959,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
 uiBut *uiDefIconTextButO(uiBlock *block,
                          int type,
                          const StringRefNull opname,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          int icon,
                          const StringRef str,
                          int x,
@@ -5935,7 +5977,7 @@ uiBut *uiDefIconTextButO(uiBlock *block,
 
 void UI_but_operator_set(uiBut *but,
                          wmOperatorType *optype,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          const PointerRNA *opptr)
 {
   but->optype = optype;
@@ -6045,10 +6087,15 @@ void UI_but_color_set(uiBut *but, const uchar color[4])
   copy_v4_v4_uchar(but->col, color);
 }
 
-void UI_but_placeholder_set(uiBut *but, const char *placeholder_text)
+void UI_but_placeholder_set(uiBut *but, const StringRef placeholder_text)
 {
   MEM_SAFE_FREE(but->placeholder);
-  but->placeholder = BLI_strdup_null(placeholder_text);
+  if (placeholder_text.is_empty()) {
+    but->placeholder = nullptr;
+  }
+  else {
+    but->placeholder = BLI_strdupn(placeholder_text.data(), placeholder_text.size());
+  }
 }
 
 const char *ui_but_placeholder_get(uiBut *but)
@@ -6258,10 +6305,10 @@ void UI_but_menu_disable_hover_open(uiBut *but)
   but->menu_no_hover_open = true;
 }
 
-void UI_but_func_tooltip_label_set(uiBut *but, std::function<std::string(const uiBut *but)> func)
+void UI_but_func_quick_tooltip_set(uiBut *but, std::function<std::string(const uiBut *but)> func)
 {
-  but->tip_label_func = std::move(func);
-  UI_but_drawflag_enable(but, UI_BUT_HAS_TOOLTIP_LABEL);
+  but->tip_quick_func = std::move(func);
+  UI_but_drawflag_enable(but, UI_BUT_HAS_QUICK_TOOLTIP);
 }
 
 void UI_but_func_tooltip_set(uiBut *but, uiButToolTipFunc func, void *arg, uiFreeArgFunc free_arg)
@@ -6632,7 +6679,7 @@ uiBut *uiDefSearchButO_ptr(uiBlock *block,
                          nullptr);
 
   but->optype = ot;
-  but->opcontext = WM_OP_EXEC_DEFAULT;
+  but->opcontext = blender::wm::OpCallContext::ExecDefault;
 
   if (properties) {
     PointerRNA *ptr = UI_but_operator_ptr_ensure(but);
@@ -6855,10 +6902,10 @@ std::string UI_but_context_menu_title_from_button(uiBut &but)
 
 std::string UI_but_string_get_tooltip_label(const uiBut &but)
 {
-  if (!but.tip_label_func) {
+  if (!but.tip_quick_func) {
     return {};
   }
-  return but.tip_label_func(&but);
+  return but.tip_quick_func(&but);
 }
 
 std::string UI_but_string_get_rna_label(uiBut &but)

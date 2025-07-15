@@ -17,7 +17,7 @@
 #include "BKE_mesh_sample.hh"
 #include "BKE_pointcloud.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_randomize.hh"
@@ -84,12 +84,12 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "distribute_method", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "distribute_method", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "use_legacy_normal", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "use_legacy_normal", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 /**
@@ -297,7 +297,7 @@ BLI_NOINLINE static void propagate_existing_attributes(
 
   for (MapItem<StringRef, AttributeDomainAndType> entry : attributes.items()) {
     const StringRef attribute_id = entry.key;
-    const eCustomDataType output_data_type = entry.value.data_type;
+    const bke::AttrType output_data_type = entry.value.data_type;
 
     GAttributeReader src = mesh_attributes.lookup(attribute_id);
     if (!src) {

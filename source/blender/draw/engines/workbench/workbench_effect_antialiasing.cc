@@ -149,7 +149,7 @@ void AntiAliasingPass::sync(const SceneState &scene_state, SceneResources &resou
   taa_accumulation_tx_.ensure_2d(GPU_RGBA16F,
                                  scene_state.resolution,
                                  GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
-  sample0_depth_tx_.ensure_2d(GPU_DEPTH24_STENCIL8,
+  sample0_depth_tx_.ensure_2d(GPU_DEPTH32F_STENCIL8,
                               scene_state.resolution,
                               GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
@@ -260,7 +260,7 @@ void AntiAliasingPass::draw(const DRWContext *draw_ctx,
       GPU_texture_copy(sample0_depth_tx_, resources.depth_tx);
       if (resources.depth_in_front_tx.is_valid()) {
         sample0_depth_in_front_tx_.ensure_2d(
-            GPU_DEPTH24_STENCIL8, scene_state.resolution, GPU_TEXTURE_USAGE_ATTACHMENT);
+            GPU_DEPTH32F_STENCIL8, scene_state.resolution, GPU_TEXTURE_USAGE_ATTACHMENT);
         GPU_texture_copy(sample0_depth_in_front_tx_, resources.depth_in_front_tx);
       }
       else {
@@ -301,7 +301,7 @@ void AntiAliasingPass::draw(const DRWContext *draw_ctx,
                         GPU_RG8,
                         GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
-  if (!draw_ctx->is_image_render() || last_sample) {
+  if (!draw_ctx->is_image_render() || last_sample || taa_finished) {
     /* After a certain point SMAA is no longer necessary. */
     if (smaa_mix_factor_ > 0.0f) {
       smaa_edge_fb_.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(smaa_edge_tx_));

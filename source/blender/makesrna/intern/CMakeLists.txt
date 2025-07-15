@@ -226,7 +226,7 @@ set(SRC
   rna_define.cc
   ${DEFSRC}
   ${APISRC}
-  ../../../../intern/clog/clog.c
+  ../../../../intern/clog/clog.cc
   # Needed for defaults.
   ../../../../release/datafiles/userdef/userdef_default.c
   ../../../../release/datafiles/userdef/userdef_default_theme.c
@@ -253,6 +253,7 @@ set(INC
   ../../io/usd
   ../../modifiers
   ../../nodes
+  ../../nodes/function/include
   ../../nodes/geometry/include
   ../../sequencer
   ../../simulation
@@ -353,10 +354,6 @@ endif()
 
 if(WITH_WASAPI)
   add_definitions(-DWITH_WASAPI)
-endif()
-
-if(WITH_OPENCOLLADA)
-  add_definitions(-DWITH_COLLADA)
 endif()
 
 if(WITH_INTERNATIONAL)

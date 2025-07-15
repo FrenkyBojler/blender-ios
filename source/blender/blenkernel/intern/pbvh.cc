@@ -58,10 +58,10 @@ static Bounds<float3> merge_bounds(const Bounds<float3> &a, const Bounds<float3>
   return bounds::merge(a, b);
 }
 
-static int partition_along_axis(const Span<float3> face_centers,
-                                MutableSpan<int> faces,
-                                const int axis,
-                                const float middle)
+int partition_along_axis(const Span<float3> face_centers,
+                         MutableSpan<int> faces,
+                         const int axis,
+                         const float middle)
 {
   const int *split = std::partition(faces.begin(), faces.end(), [&](const int face) {
     return face_centers[face][axis] >= middle;
@@ -69,7 +69,7 @@ static int partition_along_axis(const Span<float3> face_centers,
   return split - faces.begin();
 }
 
-static int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces)
+int partition_material_indices(const Span<int> material_indices, MutableSpan<int> faces)
 {
   const int first = material_indices[faces.first()];
   const int *split = std::partition(
@@ -130,7 +130,7 @@ BLI_NOINLINE static void build_mesh_leaf_nodes(const int verts_num,
   }
 }
 
-static bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices)
+bool leaf_needs_material_split(const Span<int> faces, const Span<int> material_indices)
 {
   if (material_indices.is_empty()) {
     return false;
@@ -220,14 +220,87 @@ static void build_nodes_recursive_mesh(const Span<int> material_indices,
                              nodes);
 }
 
-inline Bounds<float3> calc_face_bounds(const Span<float3> vert_positions,
-                                       const Span<int> face_verts)
+Tree Tree::from_spatially_organized_mesh(const Mesh &mesh)
 {
-  Bounds<float3> bounds{vert_positions[face_verts.first()]};
-  for (const int vert : face_verts.slice(1, face_verts.size() - 1)) {
-    math::min_max(vert_positions[vert], bounds.min, bounds.max);
+#ifdef DEBUG_BUILD_TIME
+  SCOPED_TIMER_AVERAGED(__func__);
+#endif
+
+  Tree pbvh(Type::Mesh);
+  const Span<float3> vert_positions = mesh.vert_positions();
+
+  const Span<MeshGroup> &spatial_groups = *mesh.runtime->spatial_groups;
+
+  if (spatial_groups.is_empty()) {
+    return pbvh;
   }
-  return bounds;
+
+  Vector<MeshNode> &nodes = std::get<Vector<MeshNode>>(pbvh.nodes_);
+  nodes.resize(spatial_groups.size());
+
+  pbvh.prim_indices_.reinitialize(mesh.faces_num);
+  array_utils::fill_index_range<int>(pbvh.prim_indices_);
+
+  threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
+    for (const int node_idx : range) {
+      MeshNode &pbvh_node = nodes[node_idx];
+      pbvh_node.parent_ = spatial_groups[node_idx].parent;
+
+      if (spatial_groups[node_idx].children_offset != 0) {
+        pbvh_node.children_offset_ = spatial_groups[node_idx].children_offset;
+      }
+      else {
+        pbvh_node.children_offset_ = 0;
+        pbvh_node.flag_ = Node::Leaf;
+
+        const IndexRange face_range = spatial_groups[node_idx].faces;
+        const int face_count = face_range.size();
+
+        if (face_count > 0) {
+          pbvh_node.face_indices_ = Span<int>(&pbvh.prim_indices_[face_range.start()], face_count);
+
+          pbvh_node.corners_num_ = spatial_groups[node_idx].corners_count;
+
+          pbvh_node.unique_verts_num_ = spatial_groups[node_idx].unique_verts.size();
+
+          pbvh_node.vert_indices_.reserve(spatial_groups[node_idx].unique_verts.size() +
+                                          spatial_groups[node_idx].shared_verts.size());
+
+          for (const int i : spatial_groups[node_idx].unique_verts.index_range()) {
+            const int vert_idx = spatial_groups[node_idx].unique_verts.start() + i;
+            pbvh_node.vert_indices_.add(vert_idx);
+          }
+
+          for (const int vert_idx : spatial_groups[node_idx].shared_verts) {
+            pbvh_node.vert_indices_.add(vert_idx);
+          }
+        }
+        else {
+          pbvh_node.unique_verts_num_ = 0;
+          pbvh_node.corners_num_ = 0;
+        }
+      }
+    }
+  });
+
+  pbvh.tag_positions_changed(nodes.index_range());
+  pbvh.update_bounds_mesh(vert_positions);
+  store_bounds_orig(pbvh);
+
+  const AttributeAccessor attributes = mesh.attributes();
+  const VArraySpan hide_vert = *attributes.lookup<bool>(".hide_vert", AttrDomain::Point);
+
+  if (!hide_vert.is_empty()) {
+    threading::parallel_for(nodes.index_range(), 8, [&](const IndexRange range) {
+      for (const int i : range) {
+        node_update_visibility_mesh(hide_vert, nodes[i]);
+      }
+    });
+  }
+
+  update_mask_mesh(mesh, nodes.index_range(), pbvh);
+
+  return pbvh;
 }
 
 Tree Tree::from_mesh(const Mesh &mesh)
@@ -235,6 +308,9 @@ Tree Tree::from_mesh(const Mesh &mesh)
 #ifdef DEBUG_BUILD_TIME
   SCOPED_TIMER_AVERAGED(__func__);
 #endif
+  if (mesh.runtime->spatial_groups) {
+    return from_spatially_organized_mesh(mesh);
+  }
   Tree pbvh(Type::Mesh);
   const Span<float3> vert_positions = mesh.vert_positions();
   const OffsetIndices<int> faces = mesh.faces();
@@ -409,7 +485,11 @@ Tree Tree::from_grids(const Mesh &base_mesh, const SubdivCCG &subdiv_ccg)
     return pbvh;
   }
 
-  const int leaf_limit = std::max(2500 / key.grid_area, 1);
+  /* We use a lower value here compared to regular mesh sculpting because the number of elements is
+   * on average 4x as many due to the prim_indices_ being associated with face corners, not faces.
+   */
+  constexpr int base_limit = 800;
+  const int leaf_limit = std::max(base_limit / key.grid_area, 1);
 
   Array<float3> face_centers(faces.size());
   const Bounds<float3> bounds = threading::parallel_reduce(
@@ -633,7 +713,7 @@ static void pbvh_iter_begin(PBVHIter *iter, Tree &pbvh, FunctionRef<bool(Node &)
 static Node *pbvh_iter_next(PBVHIter *iter, Node::Flags leaf_flag)
 {
   /* purpose here is to traverse tree, visiting child nodes before their
-   * parents, this order is necessary for e.g. computing bounding boxes */
+   * parents, this order is necessary for example computing bounding boxes */
 
   while (!iter->stack.is_empty()) {
     StackItem item = iter->stack.pop();
@@ -1060,8 +1140,8 @@ void Tree::update_normals(Object &object_orig, Object &object_eval)
 
 void update_normals(const Depsgraph &depsgraph, Object &object_orig, Tree &pbvh)
 {
-  BLI_assert(DEG_is_original_object(&object_orig));
-  Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
+  BLI_assert(DEG_is_original(&object_orig));
+  Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
   pbvh.update_normals(object_orig, object_eval);
 }
 
@@ -2403,40 +2483,39 @@ static MutableSpan<float3> vert_positions_eval_for_write(Object &object_orig, Ob
 
 Span<float3> vert_positions_eval(const Depsgraph &depsgraph, const Object &object_orig)
 {
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph,
-                                                        &const_cast<Object &>(object_orig));
+  const Object &object_eval = *DEG_get_evaluated(&depsgraph, &const_cast<Object &>(object_orig));
   return vert_positions_eval(object_orig, object_eval);
 }
 
 Span<float3> vert_positions_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return vert_positions_eval(object_orig, object_eval);
 }
 
 MutableSpan<float3> vert_positions_eval_for_write(const Depsgraph &depsgraph, Object &object_orig)
 {
-  Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
+  Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
   return vert_positions_eval_for_write(object_orig, object_eval);
 }
 
 Span<float3> vert_normals_eval(const Depsgraph &depsgraph, const Object &object_orig)
 {
-  const Object &object_eval = *DEG_get_evaluated_object(&depsgraph, &object_orig);
+  const Object &object_eval = *DEG_get_evaluated(&depsgraph, &object_orig);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> vert_normals_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return vert_normals_cache_eval(object_orig, object_eval).data();
 }
 
 Span<float3> face_normals_eval_from_eval(const Object &object_eval)
 {
-  BLI_assert(!DEG_is_original_object(&object_eval));
+  BLI_assert(!DEG_is_original(&object_eval));
   const Object &object_orig = *DEG_get_original(&object_eval);
   return face_normals_cache_eval(object_orig, object_eval).data();
 }

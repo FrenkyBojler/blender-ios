@@ -40,7 +40,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_string_search.hh"
 #include "interface_intern.hh"
 #include "interface_templates_intern.hh"
@@ -298,7 +298,8 @@ static void template_id_liboverride_hierarchy_collection_root_find_recursive(
       *r_collection_parent_best = collection;
     }
   }
-  for (CollectionParent *iter = static_cast<CollectionParent *>(collection->runtime.parents.first);
+  for (CollectionParent *iter =
+           static_cast<CollectionParent *>(collection->runtime->parents.first);
        iter != nullptr;
        iter = iter->next)
   {
@@ -319,7 +320,7 @@ static void template_id_liboverride_hierarchy_collections_tag_recursive(
    * linked ones can be replaced by the local overrides in those parents too. */
   if (do_parents) {
     for (CollectionParent *iter =
-             static_cast<CollectionParent *>(root_collection->runtime.parents.first);
+             static_cast<CollectionParent *>(root_collection->runtime->parents.first);
          iter != nullptr;
          iter = iter->next)
     {
@@ -891,7 +892,7 @@ static void template_id_workspace_pin_extra_icon(const TemplateID &template_ui, 
   const WorkSpace *workspace = WM_window_get_active_workspace(win);
   UI_but_extra_operator_icon_add(but,
                                  "WORKSPACE_OT_scene_pin_toggle",
-                                 WM_OP_INVOKE_DEFAULT,
+                                 blender::wm::OpCallContext::InvokeDefault,
                                  (workspace->flags & WORKSPACE_USE_PIN_SCENE) ? ICON_PINNED :
                                                                                 ICON_UNPINNED);
 }
@@ -978,7 +979,7 @@ static uiBut *template_id_def_new_but(uiBlock *block,
     but = uiDefIconTextButO(block,
                             but_type,
                             newop,
-                            WM_OP_INVOKE_DEFAULT,
+                            blender::wm::OpCallContext::InvokeDefault,
                             icon,
                             button_text,
                             0,
@@ -1037,9 +1038,9 @@ static void template_ID(const bContext *C,
   // lb = template_ui->idlb;
 
   /* Allow operators to take the ID from context. */
-  uiLayoutSetContextPointer(layout, "id", &idptr);
+  layout->context_ptr_set("id", &idptr);
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   UI_block_align_begin(block);
 
   if (idptr.type) {
@@ -1230,7 +1231,7 @@ static void template_ID(const bContext *C,
                       /* Using `_N` version allows us to get the 'active' state by default. */
                       UI_BTYPE_ICON_TOGGLE_N,
                       "ASSET_OT_clear_single",
-                      WM_OP_INVOKE_DEFAULT,
+                      blender::wm::OpCallContext::InvokeDefault,
                       /* 'active' state of a toggle button uses icon + 1, so to get proper asset
                        * icon we need to pass its value - 1 here. */
                       ICON_ASSET_MANAGER - 1,
@@ -1271,7 +1272,7 @@ static void template_ID(const bContext *C,
     but = uiDefIconButO(block,
                         UI_BTYPE_BUT,
                         "FILE_OT_unpack_item",
-                        WM_OP_INVOKE_REGION_WIN,
+                        blender::wm::OpCallContext::InvokeRegionWin,
                         ICON_PACKAGE,
                         0,
                         0,
@@ -1300,7 +1301,7 @@ static void template_ID(const bContext *C,
       but = uiDefIconTextButO(block,
                               UI_BTYPE_BUT,
                               openop,
-                              WM_OP_INVOKE_DEFAULT,
+                              blender::wm::OpCallContext::InvokeDefault,
                               ICON_FILEBROWSER,
                               (id) ? "" : IFACE_("Open"),
                               0,
@@ -1352,7 +1353,7 @@ static void template_ID(const bContext *C,
       but = uiDefIconButO(block,
                           UI_BTYPE_BUT,
                           unlinkop,
-                          WM_OP_INVOKE_DEFAULT,
+                          blender::wm::OpCallContext::InvokeDefault,
                           ICON_X,
                           0,
                           0,
@@ -1431,10 +1432,15 @@ static void template_ID_tabs(const bContext *C,
   const PointerRNA active_ptr = RNA_property_pointer_get(&template_id.ptr, template_id.prop);
   MenuType *mt = menu ? WM_menutype_find(menu, false) : nullptr;
 
-  const int but_align = ui_but_align_opposite_to_area_align_get(region);
+  /* When horizontal show the tabs as pills, rounded on all corners. */
+  const bool horizontal =
+      (region->regiontype == RGN_TYPE_HEADER &&
+       ELEM(RGN_ALIGN_ENUM_FROM_MASK(region->alignment), RGN_ALIGN_TOP, RGN_ALIGN_BOTTOM));
+  const int but_align = horizontal ? 0 : ui_but_align_opposite_to_area_align_get(region);
+
   const int but_height = UI_UNIT_Y * 1.1;
 
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   const uiStyle *style = UI_style_get_dpi();
 
   for (ID *id : BKE_id_ordered_list(template_id.idlb)) {
@@ -1785,7 +1791,7 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Start drawing UI Elements using standard defines */
 
   /* NOTE: split amount here needs to be synced with normal labels */
-  uiLayout *split = uiLayoutSplit(layout, 0.33f, false);
+  uiLayout *split = &layout->split(0.33f, false);
 
   /* FIRST PART ................................................ */
   uiLayout *row = &split->row(false);
@@ -1793,11 +1799,11 @@ void uiTemplateAnyID(uiLayout *layout,
   /* Label - either use the provided text, or will become "ID-Block:" */
   if (text) {
     if (!text->is_empty()) {
-      uiItemL(row, *text, ICON_NONE);
+      row->label(*text, ICON_NONE);
     }
   }
   else {
-    uiItemL(row, IFACE_("ID-Block:"), ICON_NONE);
+    row->label(IFACE_("ID-Block:"), ICON_NONE);
   }
 
   /* SECOND PART ................................................ */
@@ -1808,16 +1814,16 @@ void uiTemplateAnyID(uiLayout *layout,
   /* HACK: special group just for the enum,
    * otherwise we get ugly layout with text included too... */
   uiLayout *sub = &row->row(true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_LEFT);
+  sub->alignment_set(blender::ui::LayoutAlign::Left);
 
-  uiItemFullR(sub, ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
+  sub->prop(ptr, propType, 0, 0, UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   /* ID-Block Selector - just use pointer widget... */
 
   /* HACK: special group to counteract the effects of the previous enum,
    * which now pushes everything too far right. */
   sub = &row->row(true);
-  uiLayoutSetAlignment(sub, UI_LAYOUT_ALIGN_EXPAND);
+  sub->alignment_set(blender::ui::LayoutAlign::Expand);
 
-  uiItemFullR(sub, ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
+  sub->prop(ptr, propID, 0, 0, UI_ITEM_NONE, "", ICON_NONE);
 }

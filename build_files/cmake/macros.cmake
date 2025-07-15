@@ -670,6 +670,7 @@ macro(remove_strict_flags)
       "-Wshadow"
       "-Wdouble-promotion"
       "-Wold-style-definition"
+      "-Wextra"
       "-Werror=[^ ]+"
       "-Werror"
     )
@@ -998,7 +999,6 @@ function(data_to_c
 
   add_custom_command(
     OUTPUT ${file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:datatoc>" ${file_from} ${file_to}
     DEPENDS ${file_from} datatoc)
 
@@ -1025,7 +1025,6 @@ function(data_to_c_simple
 
   add_custom_command(
     OUTPUT  ${_file_to}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_from} ${_file_to}
     DEPENDS ${_file_from} datatoc)
 
@@ -1054,7 +1053,6 @@ function(glsl_to_c
 
   add_custom_command(
     OUTPUT  ${_file_to} ${_file_meta}
-    COMMAND ${CMAKE_COMMAND} -E make_directory ${_file_to_path}
     COMMAND "$<TARGET_FILE:glsl_preprocess>" ${_file_from} ${_file_tmp} ${_file_meta}
     COMMAND "$<TARGET_FILE:datatoc>" ${_file_tmp} ${_file_to}
     DEPENDS ${_file_from} datatoc glsl_preprocess)
@@ -1513,3 +1511,15 @@ function(compile_sources_as_cpp
   target_include_directories(${executable} PUBLIC ${INC_GLSL})
   target_compile_definitions(${executable} PRIVATE ${define})
 endfunction()
+
+macro(optimize_debug_target executable)
+  if(WITH_OPTIMIZED_BUILD_TOOLS)
+    if(WIN32)
+      remove_cc_flag(${executable} "/Od" "/RTC1")
+      target_compile_options(${executable} PRIVATE "/Ox")
+      target_compile_definitions(${executable} PRIVATE "_ITERATOR_DEBUG_LEVEL=0")
+    else()
+      target_compile_options(${executable} PRIVATE "-O2")
+    endif()
+  endif()
+endmacro()
