@@ -4,6 +4,7 @@
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_node_tree_zones.hh"
 #include "BKE_type_conversions.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
@@ -268,6 +269,14 @@ class ShaderNodesInliner {
       this->handle_socket_output_group_input(socket);
       return;
     }
+    if (node->is_type("GeometryNodeRepeatOutput")) {
+      this->handle_socket_output_repeat_output(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeRepeatInput")) {
+      this->handle_socket_output_repeat_input(socket);
+      return;
+    }
     this->handle_socket_output_eval(socket);
   }
 
@@ -345,6 +354,96 @@ class ShaderNodesInliner {
       return;
     }
     this->store_socket_value_fallback(socket);
+  }
+
+  void handle_socket_output_repeat_output(const SocketInContext &socket)
+  {
+    const bNode &repeat_output_node = socket->owner_node();
+    const bNodeTree &tree = socket->owner_tree();
+
+    const bke::bNodeTreeZones *zones = tree.zones();
+    if (!zones) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const bke::bNodeTreeZone *zone = zones->get_zone_by_node(repeat_output_node.identifier);
+    if (!zone) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const NodeInContext repeat_input_node = {socket.context, zone->input_node()};
+    const SocketInContext iterations_input = repeat_input_node.input_socket(0);
+    const SocketValue *iterations_socket_value = value_by_socket_.lookup_ptr(iterations_input);
+    if (!iterations_socket_value) {
+      this->schedule_socket(iterations_input);
+      return;
+    }
+    const std::optional<PrimitiveSocketValue> iterations_value_opt =
+        iterations_socket_value->to_primitive(*iterations_input->typeinfo);
+    if (!iterations_value_opt) {
+      /* Number of iterations is not a primitive value. */
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const int iterations = std::get<int>(iterations_value_opt->value);
+    if (iterations <= 0) {
+      const SocketInContext origin_socket = repeat_input_node.input_socket(1 + socket->index());
+      if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
+        this->store_socket_value(socket, *input_value);
+        return;
+      }
+      this->schedule_socket(origin_socket);
+      return;
+    }
+    const ComputeContext &last_iteration_context = compute_context_cache_.for_repeat_zone(
+        socket.context, repeat_output_node, iterations - 1);
+    const SocketInContext origin_socket = {&last_iteration_context,
+                                           &repeat_output_node.input_socket(socket->index())};
+    if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
+      this->store_socket_value(socket, *input_value);
+      return;
+    }
+    this->schedule_socket(origin_socket);
+  }
+
+  void handle_socket_output_repeat_input(const SocketInContext &socket)
+  {
+    const bNode &repeat_input_node = socket->owner_node();
+    const auto *repeat_zone_context = dynamic_cast<const bke::RepeatZoneComputeContext *>(
+        socket.context);
+    if (!repeat_zone_context) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const int iteration = repeat_zone_context->iteration();
+
+    if (socket->index() == 0) {
+      this->store_socket_value(socket, {PrimitiveSocketValue{iteration}});
+      return;
+    }
+
+    if (iteration == 0) {
+      const SocketInContext origin_socket = {repeat_zone_context->parent(),
+                                             &repeat_input_node.input_socket(socket->index())};
+      if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
+        this->store_socket_value(socket, *input_value);
+        return;
+      }
+      this->schedule_socket(origin_socket);
+      return;
+    }
+    const bNode &repeat_output_node = *repeat_input_node.owner_tree().node_by_id(
+        repeat_zone_context->output_node_id());
+    const int previous_iteration = iteration - 1;
+    const ComputeContext &previous_iteration_context = compute_context_cache_.for_repeat_zone(
+        repeat_zone_context->parent(), repeat_output_node, previous_iteration);
+    const SocketInContext origin_socket = {&previous_iteration_context,
+                                           &repeat_output_node.input_socket(socket->index() - 1)};
+    if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
+      this->store_socket_value(socket, *input_value);
+      return;
+    }
+    this->schedule_socket(origin_socket);
   }
 
   void handle_socket_output_eval(const SocketInContext &socket)

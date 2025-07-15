@@ -425,6 +425,7 @@ class NODE_MT_shader_node_add_all(Menu):
         layout.separator()
         layout.menu("NODE_MT_category_shader_group")
         layout.menu("NODE_MT_category_layout")
+        node_add_menu.add_repeat_zone(layout, label="Repeat")
 
         node_add_menu.draw_root_assets(layout)
 
