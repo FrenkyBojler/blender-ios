@@ -1,2 +1,3 @@
 Referenced by commit b0d7e6d15fbe306a280ef55a39cd6c0f3cfb0208, Fix: EEVEE glass BSDF broken after recent thin film addition
 Referenced by pull request #141974, Fix: Use correct thin-film setup for MaterialX glass bsdf
+Referenced by commit a8668ddbd5fd38004ba20733d7d72177c80b5ecc, Fix: Use correct thin-film setup for MaterialX glass bsdf
