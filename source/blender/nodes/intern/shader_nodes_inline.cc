@@ -490,7 +490,9 @@ class ShaderNodesInliner {
     }
     const std::optional<PrimitiveSocketValue> src_primitive_value = src_value.to_primitive(
         from_socket.typeinfo->type);
-    if (from_socket.typeinfo->base_cpp_type && to_socket.typeinfo->base_cpp_type) {
+    if (src_primitive_value && from_socket.typeinfo->base_cpp_type &&
+        to_socket.typeinfo->base_cpp_type)
+    {
       if (data_type_conversions_.is_convertible(*from_socket.typeinfo->base_cpp_type,
                                                 *to_socket.typeinfo->base_cpp_type))
       {
