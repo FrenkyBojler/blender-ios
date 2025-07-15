@@ -1704,7 +1704,8 @@ wmOperatorStatus node_render_changed_exec(bContext *C, wmOperator * /*op*/)
       /* To keep keyframe positions. */
       sce->r.scemode |= R_NO_FRAME_UPDATE;
 
-      WM_operator_name_call(C, "RENDER_OT_render", WM_OP_INVOKE_DEFAULT, &op_ptr, nullptr);
+      WM_operator_name_call(
+          C, "RENDER_OT_render", wm::OpCallContext::InvokeDefault, &op_ptr, nullptr);
 
       WM_operator_properties_free(&op_ptr);
 
@@ -1905,6 +1906,7 @@ static wmOperatorStatus node_activate_viewer_exec(bContext *C, wmOperator * /*op
     return OPERATOR_CANCELLED;
   }
 
+  BKE_ntree_update_tag_active_output_changed(snode->edittree);
   BKE_main_ensure_invariants(*bmain, snode->edittree->id);
   return OPERATOR_FINISHED;
 }
