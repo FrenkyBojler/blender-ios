@@ -1,2 +1,3 @@
 Referenced by commit 0c58ad8a34c, Cleanup: remove unused common_restrict_check function
 Referenced by issue #85532, Proposal to change behavior when the active object is hidden
+Referenced by issue #141827, Blender crashes switching to sculpt mode on a hidden mesh
