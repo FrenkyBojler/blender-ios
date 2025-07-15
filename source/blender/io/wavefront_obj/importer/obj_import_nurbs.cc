@@ -7,6 +7,7 @@
  */
 
 #include "BKE_curves.hh"
+#include "BKE_idtype.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_object.hh"
 
@@ -27,7 +28,13 @@ Curve *blender::io::obj::CurveFromGeometry::create_curve(const OBJImportParams &
 {
   BLI_assert(!curve_geometry_.nurbs_element_.curv_indices.is_empty());
 
-  Curve *curve = BKE_id_new_nomain<Curve>(nullptr);
+  /* We cannot use #BKE_id_new_nomain<Curve>(nullptr), see #BKE_curve_add. */
+  Curve *curve = (Curve *)BKE_libblock_alloc(
+      nullptr,
+      ID_CU_LEGACY,
+      BKE_idtype_idcode_to_name(ID_CU_LEGACY),
+      (LIB_ID_CREATE_NO_MAIN | LIB_ID_CREATE_NO_USER_REFCOUNT | LIB_ID_CREATE_NO_DEG_TAG));
+  BKE_curve_init(curve, OB_CURVES_LEGACY);
 
   curve->flag = CU_3D;
   curve->resolu = curve->resolv = 12;

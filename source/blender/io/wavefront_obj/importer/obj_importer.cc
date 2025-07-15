@@ -99,7 +99,7 @@ static void geometry_to_blender_geometry_set(const OBJImportParams &import_param
       Curves *curves_id = bke::curve_legacy_to_curves(*curve);
       geometry_set = bke::GeometrySet::from_curves(curves_id);
 
-      /* Free tmp legacy curve object */
+      /* Free temporary legacy curve object. */
       BKE_id_free(nullptr, curve);
     }
 
