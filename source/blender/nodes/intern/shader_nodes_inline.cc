@@ -197,7 +197,10 @@ class ShaderNodesInliner {
     for (const SocketInContext &socket : final_output_sockets) {
       const NodeInContext src_node = socket.owner_node();
       bNode *copied_node = final_output_nodes.lookup_or_add_cb(src_node, [&]() {
-        return bke::node_copy(&dst_tree_, *src_node.node, this->node_copy_flag(), true);
+        bNode *copied_node = bke::node_copy(
+            &dst_tree_, *src_node.node, this->node_copy_flag(), true);
+        copied_node->parent = nullptr;
+        return copied_node;
       });
       bNodeSocket *copied_socket = static_cast<bNodeSocket *>(
           BLI_findlink(&copied_node->inputs, socket.socket->index()));
@@ -689,6 +692,7 @@ class ShaderNodesInliner {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     bNode &copied_node = *bke::node_copy_with_mapping(
         &dst_tree_, *node.node, this->node_copy_flag(), true, socket_map);
+    copied_node.parent = nullptr;
     for (const bNodeSocket *src_input_socket : node->input_sockets()) {
       if (!src_input_socket->is_available()) {
         continue;
