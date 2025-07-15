@@ -246,7 +246,6 @@ OPENAPI_SPEC = {
                 "required": [
                     "schema_version",
                     "asset_size_bytes",
-                    "assets",
                     "asset_count",
                     "file_count",
                 ],

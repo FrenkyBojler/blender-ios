@@ -164,7 +164,7 @@ components:
         "catalogs":
           type: array
           items: { $ref: "#/components/schemas/CatalogV1" }
-      required: [schema_version, asset_size_bytes, assets, asset_count, file_count]
+      required: [schema_version, asset_size_bytes, asset_count, file_count]
 
     AssetLibraryIndexPageV1:
       type: object
