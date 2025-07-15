@@ -644,16 +644,18 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
   const int type = RNA_enum_get(op->ptr, "type");
   const int totkey = key->totkey;
   int new_index = 0;
+  int8_t step = 1;
 
   if (type > 0) {
-    for (size_t act_index = totkey - 1; act_index > 0; act_index--) {
+    for (int8_t act_index = totkey - 1; act_index > 0; act_index--) {
       KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
       if (!(kb.flag & KEYBLOCK_SEL)) {
         continue;
       }
       switch (type) {
         case KB_MOVE_BOTTOM:
-          new_index = totkey - 1;
+          new_index = totkey - step;
+          step++;
           break;
         case KB_MOVE_DOWN:
           new_index = act_index + type;
@@ -663,7 +665,7 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
     }
   }
   else {
-    for (size_t act_index = 0; act_index < totkey; act_index++) {
+    for (int8_t act_index = 0; act_index < totkey; act_index++) {
       KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
       if (!(kb.flag & KEYBLOCK_SEL)) {
         continue;
@@ -671,7 +673,8 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
       switch (type) {
         case KB_MOVE_TOP:
           /* Replace the ref key only if we're at the top already (only for relative keys) */
-          new_index = (ELEM(act_index, 0, 1) || key->type == KEY_NORMAL) ? 0 : 1;
+          new_index = (ELEM(act_index, 0, 1) || key->type == KEY_NORMAL) ? 0 : step;
+          step++;
           break;
         case KB_MOVE_UP:
           new_index = act_index + type;
