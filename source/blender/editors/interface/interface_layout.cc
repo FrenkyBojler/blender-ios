@@ -2976,6 +2976,7 @@ void uiLayout::popover_group(
 static uiBut *uiItem_simple(uiLayout *layout,
                             const StringRef name,
                             int icon,
+                            std::optional<blender::StringRef> tooltip = std::nullopt,
                             const eButType but_type = UI_BTYPE_LABEL)
 {
   uiBlock *block = layout->block();
@@ -2991,14 +2992,13 @@ static uiBut *uiItem_simple(uiLayout *layout,
   uiBut *but;
   if (icon && !name.is_empty()) {
     but = uiDefIconTextBut(
-        block, but_type, 0, icon, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, std::nullopt);
+        block, but_type, 0, icon, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, tooltip);
   }
   else if (icon) {
-    but = uiDefIconBut(
-        block, but_type, 0, icon, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, std::nullopt);
+    but = uiDefIconBut(block, but_type, 0, icon, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, tooltip);
   }
   else {
-    but = uiDefBut(block, but_type, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, std::nullopt);
+    but = uiDefBut(block, but_type, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, tooltip);
   }
 
   /* to compensate for string size padding in ui_text_icon_width,
@@ -3091,13 +3091,14 @@ void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, StringRef name, int icon)
   }
 }
 
-uiBut *uiItemBut(uiLayout *layout,
-                 const StringRef name,
-                 const int icon,
-                 std::function<void(bContext &)> func)
+uiBut *uiLayout::button(uiLayout *layout,
+                        const StringRef name,
+                        const int icon,
+                        std::function<void(bContext &)> func,
+                        std::optional<blender::StringRef> tooltip)
 {
-  uiBut *but = uiItem_simple(layout, name, icon, UI_BTYPE_BUT);
-  UI_but_func_set(but, func);
+  uiBut *but = uiItem_simple(layout, name, icon, tooltip, UI_BTYPE_BUT);
+  UI_but_func_set(but, std::move(func));
   return but;
 }
 
