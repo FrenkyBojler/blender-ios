@@ -192,6 +192,7 @@ class ShaderNodesInliner {
       this->set_socket_value(*copied_node, *copied_socket, value_by_socket_.lookup(socket));
     }
 
+    this->position_nodes_in_output_tree();
     return true;
   }
 
@@ -618,6 +619,28 @@ class ShaderNodesInliner {
       return;
     }
     BLI_assert_unreachable();
+  }
+
+  void position_nodes_in_output_tree()
+  {
+    bNodeTree &tree = dst_tree_;
+    tree.ensure_topology_cache();
+
+    Map<int, int> num_by_depth;
+    Map<bNode *, int> depth_by_node;
+
+    for (bNode *node : tree.toposort_right_to_left()) {
+      int depth = 0;
+      for (bNodeSocket *socket : node->output_sockets()) {
+        for (bNodeSocket *target : socket->directly_linked_sockets()) {
+          depth = std::max(depth, depth_by_node.lookup(&target->owner_node()) + 1);
+        }
+      }
+      depth_by_node.add_new(node, depth);
+      const int index_at_depth = num_by_depth.lookup_or_add(depth, 0)++;
+      node->location[0] = 200 - depth * 200;
+      node->location[1] = -index_at_depth * 300;
+    }
   }
 
   void forward_value_or_schedule(const SocketInContext &socket, const SocketInContext &origin)
