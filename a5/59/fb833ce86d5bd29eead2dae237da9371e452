@@ -1,3 +1,4 @@
 Referenced by pull request #141534, Fix #141522: Asset shelf: Choosing brush from hotkey keeps previous highlighted
 Referenced by issue #136838, Shape Keys: multi-select & copy to selected
 Referenced by commit 36d7925a72331f23561a3ec1726347fb202a89e7, Fix #141522: Asset shelf: Choosing brush from hotkey keeps previous highlighted
+Referenced by issue #141522, Asset Shelf:  Brush highlighted as active, a second one highlighted as selected
