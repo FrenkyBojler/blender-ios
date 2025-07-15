@@ -148,16 +148,16 @@ static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * 
 
 /* Keep consistent with the is_conversion_supported function in compositor::ConversionOperation on
  * the compositor side.*/
-static bool composite_validate_link(eNodeSocketDatatype type_a, eNodeSocketDatatype type_b)
+static bool composite_validate_link(eNodeSocketDatatype from_type, eNodeSocketDatatype to_type)
 {
   /* Basic math types can be implicitly converted to each other. */
-  if (ELEM(type_a, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
-      ELEM(type_b, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
+  if (ELEM(from_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT) &&
+      ELEM(to_type, SOCK_FLOAT, SOCK_VECTOR, SOCK_RGBA, SOCK_BOOLEAN, SOCK_INT))
   {
     return true;
   }
 
-  return type_a == type_b;
+  return from_type == to_type;
 }
 
 blender::bke::bNodeTreeType *ntreeType_Composite;
