@@ -25,45 +25,70 @@ PROJECT_DIR = ".blender_project"
 PROJECT_CONFIG = "project.toml"
 
 
-def read_project(root_path: Path) -> str | None:
+def find_project_root_from_blend_file_path(blend_path: Path) -> Path | None:
+    for parent in blend_path.parents:
+        if parent.joinpath(PROJECT_DIR).is_dir():
+            return parent
+    return None
+
+
+def read_project_config(root_path: Path) -> dict | None:
     name = "My Project"
 
     config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
     try:
         with open(config_path, "rb") as f:
-            data = tomllib.load(f)
+            return tomllib.load(f)
     except FileNotFoundError:
-        return name
+        pass
 
-    if "name" in data and type(data["name"]) is str:
-        name = data["name"]
-
-    return name
+    return None
 
 
 @bpy.app.handlers.persistent
-def dummy(filepath: str) -> None:
-    if filepath == "":
-        print("Not an on-disk blend file.")
+def on_blend_load(blend_path: str) -> None:
+    bpy.context.project.clear()
+
+    if blend_path == "":
+        # Not an on-disk blend file.
         return
 
-    filepath = Path(filepath)
-    for parent in filepath.parents:
-        if parent.joinpath(PROJECT_DIR).is_dir():
-            print("Found project root: ", parent)
-            project_name = read_project(parent)
-            bpy.context.project.init(project_name, str(parent))
-            return
+    root_path = find_project_root_from_blend_file_path(Path(blend_path))
+    if root_path == None:
+        return
 
-    print("Didn't find any project root.")
-    bpy.context.project.clear()
+    config = read_project_config(root_path)
+    if config == None:
+        print("Invalid project: no 'project.toml' found.")
+        return
+
+    if "name" not in config:
+        print("Invalid project: no project name defined in 'project.toml'.")
+        return
+
+    if type(config["name"]) != str:
+        print("Invalid project: project name is not a string.")
+        return
+
+    if config["name"] == "":
+        print("Invalid project: project name is empty.")
+        return
+
+    bpy.context.project.init(config["name"], str(root_path))
+
+
+@bpy.app.handlers.persistent
+def on_blend_save(blend_path: str) -> None:
+    on_blend_load(blend_path)
 
 
 ####################
 # REGISTER
 
 def register():
-    bpy.app.handlers.load_pre.append(dummy)
+    bpy.app.handlers.load_pre.append(on_blend_load)
+    bpy.app.handlers.save_post.append(on_blend_save)
 
 def unregister():
-    bpy.app.handlers.load_pre.remove(dummy)
+    bpy.app.handlers.load_pre.remove(on_blend_load)
+    bpy.app.handlers.save_post.append(on_blend_save)
