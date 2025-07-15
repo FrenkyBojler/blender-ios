@@ -193,10 +193,6 @@ OLDER_VERION = "OLDER"
 NEWER_VERION = "NEWER"
 SAME_VERION = "SAME"
 
-dir_of_script = Path(__file__).parent.resolve()
-PATH_TO_CACHED_COMMITS = dir_of_script.joinpath('cached_commits.json')
-del dir_of_script
-
 # Add recent Blender versions to this list, including in-development versions.
 # This list is used to identify if a version number found in a report is a valid version number.
 # This is to help eliminate dates and other weird information people put
@@ -847,16 +843,16 @@ def print_release_notes(list_of_commits: list[CommitInfo]) -> None:
 # -----------------------------------------------------------------------------
 # Caching Utilities
 
-def cached_commits_load(list_of_commits: list[CommitInfo]) -> None:
-    if PATH_TO_CACHED_COMMITS.exists():
-        with open(str(PATH_TO_CACHED_COMMITS), 'r', encoding='utf-8') as file:
+def cached_commits_load(list_of_commits: list[CommitInfo], path_to_cached_commits: Path) -> None:
+    if path_to_cached_commits.exists():
+        with open(str(path_to_cached_commits), 'r', encoding='utf-8') as file:
             cached_data = json.load(file)
         for commit in list_of_commits:
             if commit.hash in cached_data:
                 commit.read_from_cache(cached_data[commit.hash])
 
 
-def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
+def cached_commits_store(list_of_commits: list[CommitInfo], path_to_cached_commits: Path) -> None:
     # Cache information for commits that have been sorted.
     # Commits that still need sorting are not cached.
     # This is done so if a user is repeatably running this script so they can sort
@@ -869,7 +865,7 @@ def cached_commits_store(list_of_commits: list[CommitInfo]) -> None:
             commit_hash, data = commit.prepare_for_cache()
             data_to_cache[commit_hash] = data
 
-    with open(str(PATH_TO_CACHED_COMMITS), 'w', encoding='utf-8') as file:
+    with open(str(path_to_cached_commits), 'w', encoding='utf-8') as file:
         json.dump(data_to_cache, file, indent=4)
 
 
@@ -1054,6 +1050,10 @@ def gather_and_sort_commits(current_release_tag: str,
                             single_thread: bool = False) -> list[CommitInfo]:
     set_crawl_delay()
 
+    dir_of_sciprt = Path(__file__).parent.resolve()
+    path_to_cached_commits = dir_of_sciprt.joinpath(
+        f'cached_commits_{previous_release_tag}..{current_release_tag}.json')
+
     list_of_commits = get_fix_commits(
         current_release_tag=current_release_tag,
         previous_release_tag=previous_release_tag,
@@ -1061,7 +1061,7 @@ def gather_and_sort_commits(current_release_tag: str,
     )
 
     if cache:
-        cached_commits_load(list_of_commits)
+        cached_commits_load(list_of_commits, path_to_cached_commits)
 
     overrides_apply(list_of_commits, silence)
 
@@ -1073,7 +1073,7 @@ def gather_and_sort_commits(current_release_tag: str,
     )
 
     if cache:
-        cached_commits_store(list_of_commits)
+        cached_commits_store(list_of_commits, path_to_cached_commits)
 
     return list_of_commits
 
