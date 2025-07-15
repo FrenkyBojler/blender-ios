@@ -25,6 +25,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
@@ -1430,41 +1431,28 @@ static wmOperatorStatus screenshot_preview_invoke(bContext *C,
   return OPERATOR_RUNNING_MODAL;
 }
 
-static ID *id_from_selected_asset(bContext *C)
-{
-  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
-  if (!asset_handle) {
-    return nullptr;
-  }
-
-  AssetWeakReference asset_reference = asset_handle->make_weak_reference();
-  Main *bmain = CTX_data_main(C);
-  return bke::asset_edit_id_from_weak_reference(
-      *bmain, asset_handle->get_id_type(), asset_reference);
-}
-
 static bool screenshot_preview_poll(bContext *C)
 {
   if (G.background) {
     return false;
   }
 
-  ID *id = id_from_selected_asset(C);
-  if (!id) {
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
     CTX_wm_operator_poll_msg_set(C, "No selected asset");
     return false;
   }
-
-  if (!ID_IS_LINKED(id)) {
+  if (asset_handle->is_local_id()) {
     return WM_operator_winactive(C);
   }
 
-  if (!bke::asset_edit_id_is_writable(*id)) {
-    CTX_wm_operator_poll_msg_set(C, "Asset cannot be overwritten");
-    return false;
+  std::string lib_path = asset_handle->full_library_path();
+  if (BLI_strn_endswith(lib_path.c_str(), ".asset.blend", lib_path.size())) {
+    return true;
   }
 
-  return WM_operator_winactive(C);
+  CTX_wm_operator_poll_msg_set(C, "Asset cannot be modified from this file");
+  return false;
 }
 
 static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
