@@ -284,11 +284,7 @@ class ShaderNodesInliner {
   {
     const NodeInContext node = socket.owner_node();
     const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
-    if (const SocketValue *value = value_by_socket_.lookup_ptr(input_socket)) {
-      this->store_socket_value(socket, *value);
-      return;
-    }
-    this->schedule_socket(input_socket);
+    this->forward_value_or_schedule(socket, input_socket);
   }
 
   void handle_socket_output_muted(const SocketInContext &socket)
@@ -329,11 +325,7 @@ class ShaderNodesInliner {
         socket.context, node->identifier, &node->owner_tree());
     const SocketInContext group_output_socket_ctx = {
         &group_compute_context, &group_output_node->input_socket(socket->index())};
-    if (const SocketValue *value = value_by_socket_.lookup_ptr(group_output_socket_ctx)) {
-      this->store_socket_value(socket, *value);
-      return;
-    }
-    this->schedule_socket(group_output_socket_ctx);
+    this->forward_value_or_schedule(socket, group_output_socket_ctx);
   }
 
   void handle_socket_output_group_input(const SocketInContext &socket)
@@ -346,11 +338,7 @@ class ShaderNodesInliner {
       BLI_assert(group_node);
       const bNodeSocket &group_node_input = group_node->input_socket(socket->index());
       const SocketInContext group_input_socket_ctx = {parent_compute_context, &group_node_input};
-      if (const SocketValue *value = value_by_socket_.lookup_ptr(group_input_socket_ctx)) {
-        this->store_socket_value(socket, *value);
-        return;
-      }
-      this->schedule_socket(group_input_socket_ctx);
+      this->forward_value_or_schedule(socket, group_input_socket_ctx);
       return;
     }
     this->store_socket_value_fallback(socket);
@@ -388,22 +376,14 @@ class ShaderNodesInliner {
     const int iterations = std::get<int>(iterations_value_opt->value);
     if (iterations <= 0) {
       const SocketInContext origin_socket = repeat_input_node.input_socket(1 + socket->index());
-      if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
-        this->store_socket_value(socket, *input_value);
-        return;
-      }
-      this->schedule_socket(origin_socket);
+      this->forward_value_or_schedule(socket, origin_socket);
       return;
     }
     const ComputeContext &last_iteration_context = compute_context_cache_.for_repeat_zone(
         socket.context, repeat_output_node, iterations - 1);
     const SocketInContext origin_socket = {&last_iteration_context,
                                            &repeat_output_node.input_socket(socket->index())};
-    if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
-      this->store_socket_value(socket, *input_value);
-      return;
-    }
-    this->schedule_socket(origin_socket);
+    this->forward_value_or_schedule(socket, origin_socket);
   }
 
   void handle_socket_output_repeat_input(const SocketInContext &socket)
@@ -425,11 +405,7 @@ class ShaderNodesInliner {
     if (iteration == 0) {
       const SocketInContext origin_socket = {repeat_zone_context->parent(),
                                              &repeat_input_node.input_socket(socket->index())};
-      if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
-        this->store_socket_value(socket, *input_value);
-        return;
-      }
-      this->schedule_socket(origin_socket);
+      this->forward_value_or_schedule(socket, origin_socket);
       return;
     }
     const bNode &repeat_output_node = *repeat_input_node.owner_tree().node_by_id(
@@ -439,11 +415,7 @@ class ShaderNodesInliner {
         repeat_zone_context->parent(), repeat_output_node, previous_iteration);
     const SocketInContext origin_socket = {&previous_iteration_context,
                                            &repeat_output_node.input_socket(socket->index() - 1)};
-    if (const SocketValue *input_value = value_by_socket_.lookup_ptr(origin_socket)) {
-      this->store_socket_value(socket, *input_value);
-      return;
-    }
-    this->schedule_socket(origin_socket);
+    this->forward_value_or_schedule(socket, origin_socket);
   }
 
   void handle_socket_output_eval(const SocketInContext &socket)
@@ -646,6 +618,15 @@ class ShaderNodesInliner {
       return;
     }
     BLI_assert_unreachable();
+  }
+
+  void forward_value_or_schedule(const SocketInContext &socket, const SocketInContext &origin)
+  {
+    if (const SocketValue *value = value_by_socket_.lookup_ptr(origin)) {
+      this->store_socket_value(socket, *value);
+      return;
+    }
+    this->schedule_socket(origin);
   }
 
   void store_socket_value(const SocketInContext &socket, SocketValue value)
