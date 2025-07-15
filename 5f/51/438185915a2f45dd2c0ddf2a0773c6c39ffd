@@ -1,2 +1,3 @@
 Referenced by issue #79597, Crash when sculpting on geometry and dyntopo enabled
 Referenced by pull request #141923, Cleanup: Remove unused `active_vert_co` from `CursorGeometryInfo`
+Referenced by commit ae9a3f28d5d37c0cb2e76f966d494f90ff53dba0, Cleanup: Remove unused `active_vert_co` from `CursorGeometryInfo`
