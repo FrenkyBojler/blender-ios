@@ -246,27 +246,10 @@ class ShaderNodesInliner {
       this->store_socket_value(socket, {InputSocketValue{socket.socket}});
       return;
     }
-    const bke::bNodeTreeZones *zones = socket->owner_tree().zones();
-    if (!zones) {
-      this->store_socket_value_fallback(socket);
-      return;
-    }
-    const bke::bNodeTreeZone *current_zone = zones->get_zone_by_socket(*socket.socket);
-    const bke::bNodeTreeZone *origin_zone = zones->get_zone_by_socket(*used_link->fromsock);
-    if (!zones->link_between_zones_is_allowed(origin_zone, current_zone)) {
-      this->store_socket_value_fallback(socket);
-      return;
-    }
-    const ComputeContext *origin_context = socket.context;
-    const Vector<const bke::bNodeTreeZone *> zones_to_enter = zones->get_zones_to_enter(
-        origin_zone, current_zone);
-    for (int i = zones_to_enter.size() - 1; i >= 0; i--) {
-      BLI_assert(origin_context);
-      /* Each zone corresponds to one compute context level. */
-      origin_context = origin_context->parent();
-    }
 
-    const SocketInContext origin_socket = {origin_context, used_link->fromsock};
+    /* TODO: Find the correct context for the origin socket. It should work fine without but
+     * results in a larger generated node tree. */
+    const SocketInContext origin_socket = {socket.context, used_link->fromsock};
     if (const auto *value = value_by_socket_.lookup_ptr(origin_socket)) {
       this->store_socket_value(socket,
                                this->handle_implicit_conversion(*value,
