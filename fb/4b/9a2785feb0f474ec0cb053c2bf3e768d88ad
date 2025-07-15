@@ -1,1 +1,1 @@
-Referenced by issue #141781, Material preview behavior changed between 4.5RC and 4.4.3 on old hardware, looks like lost scene light
+Referenced by issue #141781, Material preview lighting changed between 4.5 and 4.4.3 on old Intel hardware
