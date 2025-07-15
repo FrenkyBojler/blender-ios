@@ -126,6 +126,26 @@ bool shape_key_report_if_any_locked(Object *ob, ReportList *reports)
   return false;
 }
 
+int2 shape_key_foreach_selected_unlocked(Object *ob, FunctionRef<void(Key &, KeyBlock &)> callback)
+{
+  Key &key = *BKE_key_from_object(ob);
+  int num_selected = 0;
+  int num_locked = 0;
+  LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
+    const int cur_index = BLI_findindex(&key.block, kb);
+    if (!((kb->flag & KEYBLOCK_SEL) || (cur_index == ob->shapenr - 1))) {
+      continue;
+    }
+    num_selected++;
+    if ((kb->flag & KEYBLOCK_LOCKED_SHAPE) != 0) {
+      num_locked++;
+      continue;
+    }
+    callback(key, *kb);
+  }
+  return {num_selected, num_locked};
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -429,16 +449,12 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
-    Key &key = *BKE_key_from_object(ob);
-    LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block)
-    {
-      if ((kb->flag & KEYBLOCK_SEL) == 0) {
-        continue;
-      }
-      if ((kb->flag & KEYBLOCK_LOCKED_SHAPE) != 0) {
-        continue;
-      }
-      changed |= BKE_object_shapekey_remove(bmain, ob, kb);
+    int2 counts = shape_key_foreach_selected_unlocked(ob, [&](Key & /*key*/, KeyBlock &kb) {
+      changed |= BKE_object_shapekey_remove(bmain, ob, &kb);
+    });
+
+    if (const int8_t locked_keys = counts[1]) {
+      BKE_reportf(op->reports, RPT_ERROR, "Cannot delete %d locked shape key(s)", locked_keys);
     }
   }
 
