@@ -135,7 +135,13 @@ struct SocketValue {
 };
 
 struct BundleSocketValue {
-  Map<SocketInterfaceKey, SocketValue> items;
+  struct Item {
+    SocketInterfaceKey key;
+    SocketValue value;
+    const bke::bNodeSocketType *socket_type = nullptr;
+  };
+
+  Vector<Item> items;
 };
 
 class ShaderNodesInliner {
@@ -297,6 +303,14 @@ class ShaderNodesInliner {
     }
     if (node->is_type("GeometryNodeEvaluateClosure")) {
       this->handle_output_socket__evaluate_closure(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeCombineBundle")) {
+      this->handle_output_socket__combine_bundle(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeSeparateBundle")) {
+      this->handle_output_socket__separate_bundle(socket);
       return;
     }
     this->handle_output_socket__eval(socket);
@@ -531,6 +545,64 @@ class ShaderNodesInliner {
       }
       const SocketInContext origin_socket = closure_eval_node.input_socket(i + 1);
       this->forward_value_or_schedule(socket, origin_socket);
+      return;
+    }
+    this->store_socket_value_fallback(socket);
+  }
+
+  void handle_output_socket__combine_bundle(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const auto &storage = *static_cast<const NodeGeometryCombineBundle *>(node->storage);
+
+    bool all_inputs_available = true;
+    for (const bNodeSocket *input_socket : node->input_sockets()) {
+      const SocketInContext input_socket_ctx = {socket.context, input_socket};
+      if (!value_by_socket_.lookup_ptr(input_socket_ctx)) {
+        this->schedule_socket(input_socket_ctx);
+        all_inputs_available = false;
+      }
+    }
+    if (!all_inputs_available) {
+      return;
+    }
+    auto bundle_value = std::make_shared<BundleSocketValue>();
+    for (const int i : IndexRange(storage.items_num)) {
+      const SocketInContext input_socket = node.input_socket(i);
+      const NodeGeometryCombineBundleItem &item = storage.items[i];
+      const SocketInterfaceKey key{item.name};
+      const auto &socket_value = value_by_socket_.lookup(input_socket);
+      bundle_value->items.append({key, socket_value, input_socket->typeinfo});
+    }
+    this->store_socket_value(socket, {bundle_value});
+  }
+
+  void handle_output_socket__separate_bundle(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const auto &storage = *static_cast<const NodeGeometrySeparateBundle *>(node->storage);
+
+    const SocketInContext input_socket = node.input_socket(0);
+    const SocketValue *socket_value = value_by_socket_.lookup_ptr(input_socket);
+    if (!socket_value) {
+      this->schedule_socket(input_socket);
+      return;
+    }
+    const auto *bundle_value_ptr = std::get_if<BundleSocketValuePtr>(&socket_value->value);
+    if (!bundle_value_ptr) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const BundleSocketValue &bundle_value = **bundle_value_ptr;
+
+    const SocketInterfaceKey key{storage.items[socket->index()].name};
+    for (const BundleSocketValue::Item &item : bundle_value.items) {
+      if (!key.matches(item.key)) {
+        continue;
+      }
+      const SocketValue converted_value = this->handle_implicit_conversion(
+          item.value, *item.socket_type, *socket->typeinfo);
+      this->store_socket_value(socket, converted_value);
       return;
     }
     this->store_socket_value_fallback(socket);
