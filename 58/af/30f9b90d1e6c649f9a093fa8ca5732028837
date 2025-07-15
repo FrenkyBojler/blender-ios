@@ -2,3 +2,4 @@ Referenced by issue #141614, Crash canceling the rotation of custom normals (if 
 Referenced by commit b8458b85a52e8b3cd2b054ebf58c762fadd770a4, Fix #141614: Crash canceling 'Rotate Normal' operation
 Referenced by issue #141780, Images rotate bacwards
 Referenced by pull request #141782, Fix #141780: Images rotate bacwards in VSE
+Referenced by commit cadbf9702b95b48547a80c22adcb825bcc0c13f3, Fix #141780: Images rotate bacwards in VSE
