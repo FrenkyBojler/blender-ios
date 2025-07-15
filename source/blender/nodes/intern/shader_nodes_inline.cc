@@ -71,11 +71,17 @@ struct InputSocketValue {
   const bNodeSocket *socket = nullptr;
 };
 
+struct ClosureZoneValue {
+  const bke::bNodeTreeZone *zone = nullptr;
+  const ComputeContext *closure_creation_context = nullptr;
+};
+
 struct SocketValue {
   std::variant<FallbackValue,
                LinkedSocketValue,
                InputSocketValue,
                PrimitiveSocketValue,
+               ClosureZoneValue,
                BundleSocketValuePtr>
       value;
 
@@ -240,7 +246,27 @@ class ShaderNodesInliner {
       this->store_socket_value(socket, {InputSocketValue{socket.socket}});
       return;
     }
-    const SocketInContext origin_socket = {socket.context, used_link->fromsock};
+    const bke::bNodeTreeZones *zones = socket->owner_tree().zones();
+    if (!zones) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const bke::bNodeTreeZone *current_zone = zones->get_zone_by_socket(*socket.socket);
+    const bke::bNodeTreeZone *origin_zone = zones->get_zone_by_socket(*used_link->fromsock);
+    if (!zones->link_between_zones_is_allowed(origin_zone, current_zone)) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const ComputeContext *origin_context = socket.context;
+    const Vector<const bke::bNodeTreeZone *> zones_to_enter = zones->get_zones_to_enter(
+        origin_zone, current_zone);
+    for (int i = zones_to_enter.size() - 1; i >= 0; i--) {
+      BLI_assert(origin_context);
+      /* Each zone corresponds to one compute context level. */
+      origin_context = origin_context->parent();
+    }
+
+    const SocketInContext origin_socket = {origin_context, used_link->fromsock};
     if (const auto *value = value_by_socket_.lookup_ptr(origin_socket)) {
       this->store_socket_value(socket,
                                this->handle_implicit_conversion(*value,
@@ -276,6 +302,18 @@ class ShaderNodesInliner {
     }
     if (node->is_type("GeometryNodeRepeatInput")) {
       this->handle_socket_output_repeat_input(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeClosureOutput")) {
+      this->handle_socket_output_closure_output(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeClosureInput")) {
+      this->handle_socket_output_closure_input(socket);
+      return;
+    }
+    if (node->is_type("GeometryNodeEvaluateClosure")) {
+      this->handle_socket_output_evaluate_closure(socket);
       return;
     }
     this->handle_socket_output_eval(socket);
@@ -417,6 +455,102 @@ class ShaderNodesInliner {
     const SocketInContext origin_socket = {&previous_iteration_context,
                                            &repeat_output_node.input_socket(socket->index() - 1)};
     this->forward_value_or_schedule(socket, origin_socket);
+  }
+
+  void handle_socket_output_closure_output(const SocketInContext &socket)
+  {
+    const bNode &node = socket->owner_node();
+    const bke::bNodeTreeZones *zones = node.owner_tree().zones();
+    if (!zones) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node.identifier);
+    if (!zone) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    this->store_socket_value(socket, {ClosureZoneValue{zone, socket.context}});
+  }
+
+  void handle_socket_output_evaluate_closure(const SocketInContext &socket)
+  {
+    const NodeInContext evaluate_closure_node = socket.owner_node();
+    const SocketInContext closure_input_socket = evaluate_closure_node.input_socket(0);
+    const SocketValue *closure_input_value = value_by_socket_.lookup_ptr(closure_input_socket);
+    if (!closure_input_value) {
+      this->schedule_socket(closure_input_socket);
+      return;
+    }
+    const ClosureZoneValue *closure_zone_value = std::get_if<ClosureZoneValue>(
+        &closure_input_value->value);
+    if (!closure_zone_value) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const auto *evaluate_closure_storage = static_cast<const NodeGeometryEvaluateClosure *>(
+        evaluate_closure_node->storage);
+    const bNode &closure_output_node = *closure_zone_value->zone->output_node();
+    const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
+        closure_output_node.storage);
+    const SocketInterfaceKey key{
+        evaluate_closure_storage->output_items.items[socket->index()].name};
+
+    const ClosureSourceLocation closure_source_location{
+        &closure_output_node.owner_tree(),
+        closure_output_node.identifier,
+        closure_zone_value->closure_creation_context ?
+            closure_zone_value->closure_creation_context->hash() :
+            ComputeContextHash{}};
+    const ComputeContext &closure_eval_context = compute_context_cache_.for_evaluate_closure(
+        socket.context,
+        evaluate_closure_node->identifier,
+        &socket->owner_tree(),
+        closure_source_location);
+
+    for (const int i : IndexRange(closure_storage.output_items.items_num)) {
+      const NodeGeometryClosureOutputItem &item = closure_storage.output_items.items[i];
+      if (!key.matches(SocketInterfaceKey(item.name))) {
+        continue;
+      }
+      const SocketInContext origin_socket = {&closure_eval_context,
+                                             &closure_output_node.input_socket(i)};
+      this->forward_value_or_schedule(socket, origin_socket);
+      return;
+    }
+    this->store_socket_value_fallback(socket);
+  }
+
+  void handle_socket_output_closure_input(const SocketInContext &socket)
+  {
+    const bNode &closure_input_node = socket->owner_node();
+    const auto *closure_eval_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
+        socket.context);
+    if (!closure_eval_context) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const bNode &closure_output_node = *closure_input_node.owner_tree().node_by_id(
+        closure_eval_context->closure_source_location()->closure_output_node_id);
+    const NodeInContext closure_eval_node = {closure_eval_context->parent(),
+                                             closure_eval_context->node()};
+
+    const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
+        closure_output_node.storage);
+    const auto &eval_closure_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
+        closure_eval_node->storage);
+
+    const SocketInterfaceKey key{closure_storage.input_items.items[socket->index()].name};
+    for (const int i : IndexRange(eval_closure_storage.input_items.items_num)) {
+      const NodeGeometryEvaluateClosureInputItem &item = eval_closure_storage.input_items.items[i];
+      if (!key.matches(SocketInterfaceKey(item.name))) {
+        continue;
+      }
+      const SocketInContext origin_socket = closure_eval_node.input_socket(i + 1);
+      this->forward_value_or_schedule(socket, origin_socket);
+      return;
+    }
+    this->store_socket_value_fallback(socket);
   }
 
   void handle_socket_output_eval(const SocketInContext &socket)
@@ -613,6 +747,11 @@ class ShaderNodesInliner {
       BLI_assert_unreachable();
       return;
     }
+    if (std::get_if<ClosureZoneValue>(&value.value)) {
+      /* This type can't be assigned to a socket. One has to evaluate a closure. */
+      BLI_assert_unreachable();
+      return;
+    }
     if (const auto *src_socket_value = std::get_if<LinkedSocketValue>(&value.value)) {
       bke::node_add_link(
           dst_tree_, *src_socket_value->node, *src_socket_value->socket, dst_node, dst_socket);
@@ -646,7 +785,12 @@ class ShaderNodesInliner {
   void forward_value_or_schedule(const SocketInContext &socket, const SocketInContext &origin)
   {
     if (const SocketValue *value = value_by_socket_.lookup_ptr(origin)) {
-      this->store_socket_value(socket, *value);
+      if (socket->type == origin->type) {
+        this->store_socket_value(socket, *value);
+        return;
+      }
+      this->store_socket_value(
+          socket, this->handle_implicit_conversion(*value, *origin->typeinfo, *socket->typeinfo));
       return;
     }
     this->schedule_socket(origin);
