@@ -627,7 +627,7 @@ static wmOperatorStatus override_type_set_button_invoke(bContext *C,
                                                         const wmEvent * /*event*/)
 {
 #if 0 /* Disabled for now */
-  return WM_menu_invoke_ex(C, op, WM_OP_INVOKE_DEFAULT);
+  return WM_menu_invoke_ex(C, op, blender::wm::OpCallContext::InvokeDefault);
 #else
   RNA_enum_set(op->ptr, "type", LIBOVERRIDE_OP_REPLACE);
   return override_type_set_button_exec(C, op);
@@ -2158,7 +2158,7 @@ static wmOperatorStatus editsource_text_edit(bContext *C,
   RNA_int_set(&op_props, "column", 0);
 
   wmOperatorStatus result = WM_operator_name_call_ptr(
-      C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+      C, ot, blender::wm::OpCallContext::ExecDefault, &op_props, nullptr);
   WM_operator_properties_free(&op_props);
   return result;
 }
@@ -2502,12 +2502,9 @@ static bool drop_name_poll(bContext *C)
 static wmOperatorStatus drop_name_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
   uiBut *but = UI_but_active_drop_name_button(C);
-  char *str = RNA_string_get_alloc(op->ptr, "string", nullptr, 0, nullptr);
+  std::string str = RNA_string_get(op->ptr, "string");
 
-  if (str) {
-    ui_but_set_string_interactive(C, but, str);
-    MEM_freeN(str);
-  }
+  ui_but_set_string_interactive(C, but, str.c_str());
 
   return OPERATOR_FINISHED;
 }
