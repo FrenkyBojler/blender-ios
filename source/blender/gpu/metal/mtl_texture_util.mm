@@ -103,8 +103,6 @@ MTLPixelFormat gpu_texture_format_to_metal(eGPUTextureFormat tex_format)
       return MTLPixelFormatRGB10A2Uint;
     case GPU_R11F_G11F_B10F:
       return MTLPixelFormatRG11B10Float;
-    case GPU_DEPTH24_STENCIL8:
-      /* NOTE(fclem): DEPTH24_STENCIL8 not supported by Apple Silicon. Fallback to Depth32F8S. */
     case GPU_DEPTH32F_STENCIL8:
       return MTLPixelFormatDepth32Float_Stencil8;
     case GPU_SRGB8_A8:
@@ -178,10 +176,6 @@ MTLPixelFormat gpu_texture_format_to_metal(eGPUTextureFormat tex_format)
       return MTLPixelFormatRGB9E5Float;
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-      return MTLPixelFormatDepth32Float;
-    case GPU_DEPTH_COMPONENT24:
-      /* This formal is not supported on Metal.
-       * Use 32Float depth instead with some conversion steps for download and upload. */
       return MTLPixelFormatDepth32Float;
     case GPU_DEPTH_COMPONENT16:
       return MTLPixelFormatDepth16Unorm;
@@ -412,7 +406,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_update_impl(
   @autoreleasepool {
 
     /* Fetch active context. */
-    MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+    MTLContext *ctx = MTLContext::get();
     BLI_assert(ctx);
 
     /** SOURCE. **/
@@ -468,7 +462,6 @@ id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_update_impl(
     }
 
     /* Store PSO. */
-    [compute_pso retain];
     specialization_cache.add_new(specialization_params, compute_pso);
     return_pso = compute_pso;
   }
@@ -480,7 +473,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_update_impl(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_update_1d_get_kernel(
     TextureUpdateRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_update_impl(specialization,
                                  mtl_context->get_texture_utils().texture_1d_update_compute_psos,
@@ -490,7 +483,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_update_1d_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_update_1d_array_get_kernel(
     TextureUpdateRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_update_impl(
       specialization,
@@ -501,7 +494,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_update_1d_array_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_update_2d_get_kernel(
     TextureUpdateRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_update_impl(specialization,
                                  mtl_context->get_texture_utils().texture_2d_update_compute_psos,
@@ -511,7 +504,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_update_2d_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_update_2d_array_get_kernel(
     TextureUpdateRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_update_impl(
       specialization,
@@ -522,7 +515,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_update_2d_array_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_update_3d_get_kernel(
     TextureUpdateRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_update_impl(specialization,
                                  mtl_context->get_texture_utils().texture_3d_update_compute_psos,
@@ -537,7 +530,7 @@ GPUShader *gpu::MTLTexture::depth_2d_update_sh_get(
 {
 
   /* Check whether the Kernel exists. */
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
 
   GPUShader **result = mtl_context->get_texture_utils().depth_2d_update_shaders.lookup_ptr(
@@ -569,7 +562,7 @@ GPUShader *gpu::MTLTexture::depth_2d_update_sh_get(
 
 GPUShader *gpu::MTLTexture::fullscreen_blit_sh_get()
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   if (mtl_context->get_texture_utils().fullscreen_blit_shader == nullptr) {
     GPUShader *shader = GPU_shader_create_from_info_name("fullscreen_blit");
@@ -584,16 +577,11 @@ void gpu::MTLTexture::update_sub_depth_2d(
     int mip, int offset[3], int extent[3], eGPUDataFormat type, const void *data)
 {
   /* Verify we are in a valid configuration. */
-  BLI_assert(ELEM(format_,
-                  GPU_DEPTH_COMPONENT24,
-                  GPU_DEPTH_COMPONENT32F,
-                  GPU_DEPTH_COMPONENT16,
-                  GPU_DEPTH24_STENCIL8,
-                  GPU_DEPTH32F_STENCIL8));
+  BLI_assert(ELEM(format_, GPU_DEPTH_COMPONENT32F, GPU_DEPTH_COMPONENT16, GPU_DEPTH32F_STENCIL8));
   BLI_assert(validate_data_format(format_, type));
-  BLI_assert(ELEM(type, GPU_DATA_FLOAT, GPU_DATA_UINT_24_8, GPU_DATA_UINT));
+  BLI_assert(ELEM(type, GPU_DATA_FLOAT, GPU_DATA_UINT_24_8_DEPRECATED, GPU_DATA_UINT));
 
-  /* Determine whether we are in GPU_DATA_UINT_24_8 or GPU_DATA_FLOAT mode. */
+  /* Determine whether we are in GPU_DATA_UINT_24_8_DEPRECATED or GPU_DATA_FLOAT mode. */
   bool is_float = (type == GPU_DATA_FLOAT);
   eGPUTextureFormat format = (is_float) ? GPU_R32F : GPU_R32I;
 
@@ -604,7 +592,7 @@ void gpu::MTLTexture::update_sub_depth_2d(
       specialization.data_mode = MTL_DEPTH_UPDATE_MODE_FLOAT;
       break;
 
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
       specialization.data_mode = MTL_DEPTH_UPDATE_MODE_INT24;
       break;
 
@@ -703,7 +691,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_read_impl(
   @autoreleasepool {
 
     /* Fetch active context. */
-    MTLContext *ctx = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+    MTLContext *ctx = MTLContext::get();
     BLI_assert(ctx);
 
     /** SOURCE. **/
@@ -790,7 +778,6 @@ id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_read_impl(
     }
 
     /* Store PSO. */
-    [compute_pso retain];
     specialization_cache.add_new(specialization_params, compute_pso);
     return_pso = compute_pso;
   }
@@ -802,7 +789,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::mtl_texture_read_impl(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_read_2d_get_kernel(
     TextureReadRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_read_impl(specialization,
                                mtl_context->get_texture_utils().texture_2d_read_compute_psos,
@@ -812,7 +799,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_read_2d_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_read_2d_array_get_kernel(
     TextureReadRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_read_impl(specialization,
                                mtl_context->get_texture_utils().texture_2d_array_read_compute_psos,
@@ -822,7 +809,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_read_2d_array_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_read_1d_get_kernel(
     TextureReadRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_read_impl(specialization,
                                mtl_context->get_texture_utils().texture_1d_read_compute_psos,
@@ -832,7 +819,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_read_1d_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_read_1d_array_get_kernel(
     TextureReadRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_read_impl(specialization,
                                mtl_context->get_texture_utils().texture_1d_array_read_compute_psos,
@@ -842,7 +829,7 @@ id<MTLComputePipelineState> gpu::MTLTexture::texture_read_1d_array_get_kernel(
 id<MTLComputePipelineState> gpu::MTLTexture::texture_read_3d_get_kernel(
     TextureReadRoutineSpecialisation specialization)
 {
-  MTLContext *mtl_context = static_cast<MTLContext *>(unwrap(GPU_context_active_get()));
+  MTLContext *mtl_context = MTLContext::get();
   BLI_assert(mtl_context != nullptr);
   return mtl_texture_read_impl(specialization,
                                mtl_context->get_texture_utils().texture_3d_read_compute_psos,

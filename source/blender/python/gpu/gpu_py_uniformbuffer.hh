@@ -8,6 +8,8 @@
 
 #pragma once
 
+#include <Python.h>
+
 #include "BLI_compiler_attrs.h"
 
 struct GPUUniformBuf;
@@ -21,4 +23,4 @@ struct BPyGPUUniformBuf {
   GPUUniformBuf *ubo;
 };
 
-PyObject *BPyGPUUniformBuf_CreatePyObject(GPUUniformBuf *ubo) ATTR_NONNULL(1);
+[[nodiscard]] PyObject *BPyGPUUniformBuf_CreatePyObject(GPUUniformBuf *ubo) ATTR_NONNULL(1);

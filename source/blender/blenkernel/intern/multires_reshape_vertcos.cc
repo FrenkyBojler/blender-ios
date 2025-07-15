@@ -16,8 +16,7 @@
 struct MultiresReshapeAssignVertcosContext {
   const MultiresReshapeContext *reshape_context;
 
-  const float (*vert_coords)[3];
-  int num_vert_coords;
+  blender::Span<blender::float3> positions;
 };
 
 /**
@@ -25,24 +24,25 @@ struct MultiresReshapeAssignVertcosContext {
  * This function will be called for every side of a boundary grid points for inner coordinates.
  */
 static void multires_reshape_vertcos_foreach_single_vertex(
-    const SubdivForeachContext *foreach_context,
+    const blender::bke::subdiv::ForeachContext *foreach_context,
     const GridCoord *grid_coord,
     const int subdiv_vertex_index)
 {
   MultiresReshapeAssignVertcosContext *reshape_vertcos_context =
       static_cast<MultiresReshapeAssignVertcosContext *>(foreach_context->user_data);
-  const float *coordinate = reshape_vertcos_context->vert_coords[subdiv_vertex_index];
+  const blender::float3 &coordinate = reshape_vertcos_context->positions[subdiv_vertex_index];
 
   ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(
       reshape_vertcos_context->reshape_context, grid_coord);
   BLI_assert(grid_element.displacement != nullptr);
-  copy_v3_v3(grid_element.displacement, coordinate);
+  *grid_element.displacement = coordinate;
 }
 
 /* TODO(sergey): De-duplicate with similar function in multires_reshape_smooth.cc */
-static void multires_reshape_vertcos_foreach_vertex(const SubdivForeachContext *foreach_context,
-                                                    const PTexCoord *ptex_coord,
-                                                    const int subdiv_vertex_index)
+static void multires_reshape_vertcos_foreach_vertex(
+    const blender::bke::subdiv::ForeachContext *foreach_context,
+    const PTexCoord *ptex_coord,
+    const int subdiv_vertex_index)
 {
   const MultiresReshapeAssignVertcosContext *reshape_vertcos_context =
       static_cast<MultiresReshapeAssignVertcosContext *>(foreach_context->user_data);
@@ -90,9 +90,9 @@ static void multires_reshape_vertcos_foreach_vertex(const SubdivForeachContext *
   }
 }
 
-/* SubdivForeachContext::topology_info() */
+/* blender::bke::subdiv::ForeachContext::topology_info() */
 static bool multires_reshape_vertcos_foreach_topology_info(
-    const SubdivForeachContext *foreach_context,
+    const blender::bke::subdiv::ForeachContext *foreach_context,
     const int num_vertices,
     const int /*num_edges*/,
     const int /*num_loops*/,
@@ -101,15 +101,15 @@ static bool multires_reshape_vertcos_foreach_topology_info(
 {
   MultiresReshapeAssignVertcosContext *reshape_vertcos_context =
       static_cast<MultiresReshapeAssignVertcosContext *>(foreach_context->user_data);
-  if (num_vertices != reshape_vertcos_context->num_vert_coords) {
+  if (num_vertices != reshape_vertcos_context->positions.size()) {
     return false;
   }
   return true;
 }
 
-/* SubdivForeachContext::vertex_inner() */
+/* blender::bke::subdiv::ForeachContext::vertex_inner() */
 static void multires_reshape_vertcos_foreach_vertex_inner(
-    const SubdivForeachContext *foreach_context,
+    const blender::bke::subdiv::ForeachContext *foreach_context,
     void * /*tls_v*/,
     const int ptex_face_index,
     const float ptex_face_u,
@@ -125,9 +125,9 @@ static void multires_reshape_vertcos_foreach_vertex_inner(
   multires_reshape_vertcos_foreach_vertex(foreach_context, &ptex_coord, subdiv_vertex_index);
 }
 
-/* SubdivForeachContext::vertex_every_corner() */
+/* blender::bke::subdiv::ForeachContext::vertex_every_corner() */
 static void multires_reshape_vertcos_foreach_vertex_every_corner(
-    const SubdivForeachContext *foreach_context,
+    const blender::bke::subdiv::ForeachContext *foreach_context,
     void * /*tls_v*/,
     const int ptex_face_index,
     const float ptex_face_u,
@@ -144,9 +144,9 @@ static void multires_reshape_vertcos_foreach_vertex_every_corner(
   multires_reshape_vertcos_foreach_vertex(foreach_context, &ptex_coord, subdiv_vertex_index);
 }
 
-/* SubdivForeachContext::vertex_every_edge() */
+/* blender::bke::subdiv::ForeachContext::vertex_every_edge() */
 static void multires_reshape_vertcos_foreach_vertex_every_edge(
-    const SubdivForeachContext *foreach_context,
+    const blender::bke::subdiv::ForeachContext *foreach_context,
     void * /*tls_v*/,
     const int ptex_face_index,
     const float ptex_face_u,
@@ -164,26 +164,23 @@ static void multires_reshape_vertcos_foreach_vertex_every_edge(
 }
 
 bool multires_reshape_assign_final_coords_from_vertcos(
-    const MultiresReshapeContext *reshape_context,
-    const float (*vert_coords)[3],
-    const int num_vert_coords)
+    const MultiresReshapeContext *reshape_context, const blender::Span<blender::float3> positions)
 {
   MultiresReshapeAssignVertcosContext reshape_vertcos_context{};
   reshape_vertcos_context.reshape_context = reshape_context;
-  reshape_vertcos_context.vert_coords = vert_coords;
-  reshape_vertcos_context.num_vert_coords = num_vert_coords;
+  reshape_vertcos_context.positions = positions;
 
-  SubdivForeachContext foreach_context{};
+  blender::bke::subdiv::ForeachContext foreach_context{};
   foreach_context.topology_info = multires_reshape_vertcos_foreach_topology_info;
   foreach_context.vertex_inner = multires_reshape_vertcos_foreach_vertex_inner;
   foreach_context.vertex_every_edge = multires_reshape_vertcos_foreach_vertex_every_edge;
   foreach_context.vertex_every_corner = multires_reshape_vertcos_foreach_vertex_every_corner;
   foreach_context.user_data = &reshape_vertcos_context;
 
-  SubdivToMeshSettings mesh_settings;
+  blender::bke::subdiv::ToMeshSettings mesh_settings;
   mesh_settings.resolution = (1 << reshape_context->reshape.level) + 1;
   mesh_settings.use_optimal_display = false;
 
-  return BKE_subdiv_foreach_subdiv_geometry(
+  return blender::bke::subdiv::foreach_subdiv_geometry(
       reshape_context->subdiv, &foreach_context, &mesh_settings, reshape_context->base_mesh);
 }

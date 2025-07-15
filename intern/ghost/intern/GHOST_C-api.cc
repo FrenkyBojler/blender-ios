@@ -5,7 +5,7 @@
 /** \file
  * \ingroup GHOST
  *
- * C Api for GHOST
+ * C API for GHOST
  */
 
 #include <cstdlib>
@@ -46,11 +46,9 @@ void GHOST_SystemInitDebug(GHOST_SystemHandle systemhandle, GHOST_Debug debug)
   system->initDebug(debug);
 }
 
-GHOST_TSuccess GHOST_DisposeSystem(GHOST_SystemHandle systemhandle)
+GHOST_TSuccess GHOST_DisposeSystem(GHOST_SystemHandle /*systemhandle*/)
 {
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->disposeSystem();
+  return GHOST_ISystem::disposeSystem();
 }
 
 #if !(defined(WIN32) || defined(__APPLE__))
@@ -219,40 +217,6 @@ bool GHOST_ValidWindow(GHOST_SystemHandle systemhandle, GHOST_WindowHandle windo
   return system->validWindow(window);
 }
 
-GHOST_WindowHandle GHOST_BeginFullScreen(GHOST_SystemHandle systemhandle,
-                                         const GHOST_DisplaySetting *setting,
-                                         const bool stereoVisual)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-  GHOST_IWindow *window = nullptr;
-  bool bstereoVisual;
-
-  if (stereoVisual) {
-    bstereoVisual = true;
-  }
-  else {
-    bstereoVisual = false;
-  }
-
-  system->beginFullScreen(*setting, &window, bstereoVisual);
-
-  return (GHOST_WindowHandle)window;
-}
-
-GHOST_TSuccess GHOST_EndFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->endFullScreen();
-}
-
-bool GHOST_GetFullScreen(GHOST_SystemHandle systemhandle)
-{
-  GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-
-  return system->getFullScreen();
-}
-
 GHOST_WindowHandle GHOST_GetWindowUnderCursor(GHOST_SystemHandle systemhandle,
                                               int32_t x,
                                               int32_t y)
@@ -331,17 +295,14 @@ GHOST_TSuccess GHOST_HasCursorShape(GHOST_WindowHandle windowhandle,
 }
 
 GHOST_TSuccess GHOST_SetCustomCursorShape(GHOST_WindowHandle windowhandle,
-                                          uint8_t *bitmap,
-                                          uint8_t *mask,
-                                          int sizex,
-                                          int sizey,
-                                          int hotX,
-                                          int hotY,
+                                          const uint8_t *bitmap,
+                                          const uint8_t *mask,
+                                          const int size[2],
+                                          const int hot_spot[2],
                                           bool canInvertColor)
 {
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
-
-  return window->setCustomCursorShape(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor);
+  return window->setCustomCursorShape(bitmap, mask, size, hot_spot, canInvertColor);
 }
 
 GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
@@ -350,6 +311,13 @@ GHOST_TSuccess GHOST_GetCursorBitmap(GHOST_WindowHandle windowhandle,
   GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
 
   return window->getCursorBitmap(bitmap);
+}
+
+uint32_t GHOST_GetCursorPreferredLogicalSize(const GHOST_SystemHandle systemhandle)
+{
+  const GHOST_ISystem *system = (const GHOST_ISystem *)systemhandle;
+
+  return system->getCursorPreferredLogicalSize();
 }
 
 bool GHOST_GetCursorVisibility(GHOST_WindowHandle windowhandle)
@@ -608,6 +576,33 @@ GHOST_TSuccess GHOST_SetPath(GHOST_WindowHandle windowhandle, const char *filepa
   return window->setPath(filepath);
 }
 
+GHOST_TWindowDecorationStyleFlags GHOST_GetWindowDecorationStyleFlags(
+    GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->getWindowDecorationStyleFlags();
+}
+
+void GHOST_SetWindowDecorationStyleFlags(GHOST_WindowHandle windowhandle,
+                                         GHOST_TWindowDecorationStyleFlags styleFlags)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  window->setWindowDecorationStyleFlags(styleFlags);
+}
+
+void GHOST_SetWindowDecorationStyleSettings(GHOST_WindowHandle windowhandle,
+                                            GHOST_WindowDecorationStyleSettings decorationSettings)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  window->setWindowDecorationStyleSettings(decorationSettings);
+}
+
+GHOST_TSuccess GHOST_ApplyWindowDecorationStyle(GHOST_WindowHandle windowhandle)
+{
+  GHOST_IWindow *window = (GHOST_IWindow *)windowhandle;
+  return window->applyWindowDecorationStyle();
+}
+
 GHOST_RectangleHandle GHOST_GetWindowBounds(GHOST_WindowHandle windowhandle)
 {
   const GHOST_IWindow *window = (const GHOST_IWindow *)windowhandle;
@@ -747,6 +742,11 @@ GHOST_TSuccess GHOST_ReleaseGPUContext(GHOST_ContextHandle contexthandle)
   return context->releaseDrawingContext();
 }
 
+GHOST_ContextHandle GHOST_GetActiveGPUContext()
+{
+  return (GHOST_ContextHandle)GHOST_IContext::getActiveDrawingContext();
+}
+
 uint GHOST_GetContextDefaultGPUFramebuffer(GHOST_ContextHandle contexthandle)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
@@ -771,7 +771,7 @@ GHOST_TSuccess GHOST_InvalidateWindow(GHOST_WindowHandle windowhandle)
 void GHOST_SetMultitouchGestures(GHOST_SystemHandle systemhandle, const bool use)
 {
   GHOST_ISystem *system = (GHOST_ISystem *)systemhandle;
-  return system->setMultitouchGestures(use);
+  system->setMultitouchGestures(use);
 }
 
 void GHOST_SetTabletAPI(GHOST_SystemHandle systemhandle, GHOST_TTabletAPI api)
@@ -947,7 +947,7 @@ void GHOST_SetBacktraceHandler(GHOST_TBacktraceFn backtrace_fn)
 void GHOST_UseWindowFocus(bool use_focus)
 {
   GHOST_ISystem *system = GHOST_ISystem::getSystem();
-  return system->useWindowFocus(use_focus);
+  system->useWindowFocus(use_focus);
 }
 
 void GHOST_SetAutoFocus(bool auto_focus)
@@ -1044,6 +1044,20 @@ void GHOST_XrDrawViewFunc(GHOST_XrContextHandle xr_contexthandle, GHOST_XrDrawVi
 {
   GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
   GHOST_XR_CAPI_CALL(xr_context->setDrawViewFunc(draw_view_fn), xr_context);
+}
+
+void GHOST_XrPassthroughEnabledFunc(GHOST_XrContextHandle xr_contexthandle,
+                                    GHOST_XrPassthroughEnabledFn passthrough_enabled_fn)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->setPassthroughEnabledFunc(passthrough_enabled_fn), xr_context);
+}
+
+void GHOST_XrDisablePassthroughFunc(GHOST_XrContextHandle xr_contexthandle,
+                                    GHOST_XrDisablePassthroughFn disable_passthrough_fn)
+{
+  GHOST_IXrContext *xr_context = (GHOST_IXrContext *)xr_contexthandle;
+  GHOST_XR_CAPI_CALL(xr_context->setDisablePassthroughFunc(disable_passthrough_fn), xr_context);
 }
 
 int GHOST_XrSessionNeedsUpsideDownDrawing(const GHOST_XrContextHandle xr_contexthandle)
@@ -1237,25 +1251,24 @@ int GHOST_XrGetControllerModelData(GHOST_XrContextHandle xr_contexthandle,
 
 #ifdef WITH_VULKAN_BACKEND
 
-void GHOST_GetVulkanHandles(GHOST_ContextHandle contexthandle,
-                            void *r_instance,
-                            void *r_physical_device,
-                            void *r_device,
-                            uint32_t *r_graphic_queue_family,
-                            void *r_queue)
+void GHOST_GetVulkanHandles(GHOST_ContextHandle contexthandle, GHOST_VulkanHandles *r_handles)
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-  context->getVulkanHandles(
-      r_instance, r_physical_device, r_device, r_graphic_queue_family, r_queue);
+  context->getVulkanHandles(*r_handles);
 }
 
 void GHOST_SetVulkanSwapBuffersCallbacks(
     GHOST_ContextHandle contexthandle,
     void (*swap_buffers_pre_callback)(const GHOST_VulkanSwapChainData *),
-    void (*swap_buffers_post_callback)(void))
+    void (*swap_buffers_post_callback)(void),
+    void (*openxr_acquire_image_callback)(GHOST_VulkanOpenXRData *),
+    void (*openxr_release_image_callback)(GHOST_VulkanOpenXRData *))
 {
   GHOST_IContext *context = (GHOST_IContext *)contexthandle;
-  context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback, swap_buffers_post_callback);
+  context->setVulkanSwapBuffersCallbacks(swap_buffers_pre_callback,
+                                         swap_buffers_post_callback,
+                                         openxr_acquire_image_callback,
+                                         openxr_release_image_callback);
 }
 
 void GHOST_GetVulkanSwapChainFormat(GHOST_WindowHandle windowhandle,

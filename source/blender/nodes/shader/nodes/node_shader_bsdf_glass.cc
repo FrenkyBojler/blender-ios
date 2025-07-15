@@ -8,6 +8,10 @@ namespace blender::nodes::node_shader_bsdf_glass_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
+
+  b.add_output<decl::Shader>("BSDF");
+
   b.add_input<decl::Color>("Color").default_value({1.0f, 1.0f, 1.0f, 1.0f});
   b.add_input<decl::Float>("Roughness")
       .default_value(0.0f)
@@ -16,8 +20,20 @@ static void node_declare(NodeDeclarationBuilder &b)
       .subtype(PROP_FACTOR);
   b.add_input<decl::Float>("IOR").default_value(1.5f).min(0.0f).max(1000.0f);
   b.add_input<decl::Vector>("Normal").hide_value();
-  b.add_input<decl::Float>("Weight").unavailable();
-  b.add_output<decl::Shader>("BSDF");
+  b.add_input<decl::Float>("Weight").available(false);
+
+  PanelDeclarationBuilder &film = b.add_panel("Thin Film").default_closed(true);
+  film.add_input<decl::Float>("Thin Film Thickness")
+      .default_value(0.0)
+      .min(0.0f)
+      .max(100000.0f)
+      .subtype(PROP_WAVELENGTH)
+      .description("Thickness of the film in nanometers");
+  film.add_input<decl::Float>("Thin Film IOR")
+      .default_value(1.33f)
+      .min(1.0f)
+      .max(1000.0f)
+      .description("Index of refraction (IOR) of the thin film");
 }
 
 static void node_shader_init_glass(bNodeTree * /*ntree*/, bNode *node)
@@ -53,6 +69,8 @@ NODE_SHADER_MATERIALX_BEGIN
   NodeItem roughness = get_input_value("Roughness", NodeItem::Type::Vector2);
   NodeItem ior = get_input_value("IOR", NodeItem::Type::Float);
   NodeItem normal = get_input_link("Normal", NodeItem::Type::Vector3);
+  NodeItem thin_film_thickness = get_input_value("Thin Film Thickness", NodeItem::Type::Float);
+  NodeItem thin_film_ior = get_input_value("Thin Film IOR", NodeItem::Type::Float);
 
   return create_node("dielectric_bsdf",
                      NodeItem::Type::BSDF,
@@ -60,6 +78,8 @@ NODE_SHADER_MATERIALX_BEGIN
                       {"tint", color},
                       {"roughness", roughness},
                       {"ior", ior},
+                      {"thinfilm_thickness", thin_film_thickness},
+                      {"thinfilm_ior", thin_film_ior},
                       {"scatter_mode", val(std::string("RT"))}});
 }
 #endif
@@ -72,15 +92,19 @@ void register_node_type_sh_bsdf_glass()
 {
   namespace file_ns = blender::nodes::node_shader_bsdf_glass_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  sh_node_type_base(&ntype, SH_NODE_BSDF_GLASS, "Glass BSDF", NODE_CLASS_SHADER);
+  sh_node_type_base(&ntype, "ShaderNodeBsdfGlass", SH_NODE_BSDF_GLASS);
+  ntype.ui_name = "Glass BSDF";
+  ntype.ui_description = "Glass-like shader mixing refraction and reflection at grazing angles";
+  ntype.enum_name_legacy = "BSDF_GLASS";
+  ntype.nclass = NODE_CLASS_SHADER;
   ntype.declare = file_ns::node_declare;
   ntype.add_ui_poll = object_shader_nodes_poll;
-  blender::bke::node_type_size_preset(&ntype, blender::bke::eNodeSizePreset::MIDDLE);
+  blender::bke::node_type_size_preset(ntype, blender::bke::eNodeSizePreset::Middle);
   ntype.initfunc = file_ns::node_shader_init_glass;
   ntype.gpu_fn = file_ns::node_shader_gpu_bsdf_glass;
   ntype.materialx_fn = file_ns::node_shader_materialx;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

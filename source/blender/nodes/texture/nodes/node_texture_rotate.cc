@@ -12,14 +12,14 @@
 
 #include "node_texture_util.hh"
 
-static bNodeSocketTemplate inputs[] = {
+static blender::bke::bNodeSocketTemplate inputs[] = {
     {SOCK_RGBA, N_("Color"), 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_FLOAT, N_("Turns"), 0.0f, 0.0f, 0.0f, 0.0f, -1.0f, 1.0f, PROP_NONE},
     {SOCK_VECTOR, N_("Axis"), 0.0f, 0.0f, 1.0f, 0.0f, -1.0f, 1.0f, PROP_DIRECTION},
     {-1, ""},
 };
 
-static bNodeSocketTemplate outputs[] = {
+static blender::bke::bNodeSocketTemplate outputs[] = {
     {SOCK_RGBA, N_("Color")},
     {-1, ""},
 };
@@ -48,22 +48,16 @@ static void rotate(float new_co[3], float a, const float ax[3], const float co[3
 
 static void colorfn(float *out, TexParams *p, bNode * /*node*/, bNodeStack **in, short thread)
 {
-  float new_co[3], new_dxt[3], new_dyt[3], a, ax[3];
+  float new_co[3], a, ax[3];
 
   a = tex_input_value(in[1], p, thread);
   tex_input_vec(ax, in[2], p, thread);
 
   rotate(new_co, a, ax, p->co);
-  if (p->osatex) {
-    rotate(new_dxt, a, ax, p->dxt);
-    rotate(new_dyt, a, ax, p->dyt);
-  }
 
   {
     TexParams np = *p;
     np.co = new_co;
-    np.dxt = new_dxt;
-    np.dyt = new_dyt;
     tex_input_rgba(out, in[0], &np, thread);
   }
 }
@@ -79,11 +73,14 @@ static void exec(void *data,
 
 void register_node_type_tex_rotate()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  tex_node_type_base(&ntype, TEX_NODE_ROTATE, "Rotate", NODE_CLASS_DISTORT);
+  tex_node_type_base(&ntype, "TextureNodeRotate", TEX_NODE_ROTATE);
+  ntype.ui_name = "Rotate";
+  ntype.enum_name_legacy = "ROTATE";
+  ntype.nclass = NODE_CLASS_DISTORT;
   blender::bke::node_type_socket_templates(&ntype, inputs, outputs);
   ntype.exec_fn = exec;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }

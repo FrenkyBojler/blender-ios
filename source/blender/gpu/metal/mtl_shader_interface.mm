@@ -17,8 +17,8 @@
 #include "mtl_shader_interface.hh"
 #include "mtl_shader_interface_type.hh"
 
-#include "BLI_blenlib.h"
 #include "BLI_math_base.h"
+#include "BLI_string.h"
 #include "BLI_utildefines.h"
 #include "MEM_guardedalloc.h"
 
@@ -31,7 +31,7 @@ MTLShaderInterface::MTLShaderInterface(const char *name)
   inputs_ = nullptr;
 
   if (name != nullptr) {
-    strcpy(this->name, name);
+    STRNCPY(this->name, name);
   }
 
   /* Ensure #ShaderInterface parameters are cleared. */
@@ -282,10 +282,10 @@ void MTLShaderInterface::map_builtins()
       BLI_assert(uni->location >= 0);
       if (uni->location >= 0) {
         builtins_[u] = uni->location;
-        MTL_LOG_INFO("Mapped builtin uniform '%s' NB: '%s' to location: %d",
-                     builtin_uniform_name((GPUUniformBuiltin)u),
-                     get_name_at_offset(uni->name_offset),
-                     uni->location);
+        MTL_LOG_DEBUG("Mapped builtin uniform '%s' NB: '%s' to location: %d",
+                      builtin_uniform_name((GPUUniformBuiltin)u),
+                      get_name_at_offset(uni->name_offset),
+                      uni->location);
       }
     }
   }
@@ -298,16 +298,16 @@ void MTLShaderInterface::map_builtins()
       BLI_assert(uni->location >= 0);
       if (uni->location >= 0) {
         builtin_blocks_[u] = uni->binding;
-        MTL_LOG_INFO("Mapped builtin uniform block '%s' to location %d",
-                     builtin_uniform_block_name((GPUUniformBlockBuiltin)u),
-                     uni->location);
+        MTL_LOG_DEBUG("Mapped builtin uniform block '%s' to location %d",
+                      builtin_uniform_block_name((GPUUniformBlockBuiltin)u),
+                      uni->location);
       }
     }
   }
 }
 
 /* Populate #ShaderInput struct based on interface. */
-void MTLShaderInterface::prepare_common_shader_inputs()
+void MTLShaderInterface::prepare_common_shader_inputs(const shader::ShaderCreateInfo *info)
 {
   /* `ShaderInput inputs_` maps a uniform name to an external
    * uniform location, which is used as an array index to look-up
@@ -325,7 +325,7 @@ void MTLShaderInterface::prepare_common_shader_inputs()
   /* Calculate total inputs and allocate #ShaderInput array. */
   /* NOTE: We use the existing `name_buffer_` allocated for internal input structs. */
   int input_tot_len = attr_len_ + ubo_len_ + uniform_len_ + ssbo_len_ + constant_len_;
-  inputs_ = (ShaderInput *)MEM_callocN(sizeof(ShaderInput) * input_tot_len, __func__);
+  inputs_ = MEM_calloc_arrayN<ShaderInput>(input_tot_len, __func__);
   ShaderInput *current_input = inputs_;
 
   /* Attributes. */
@@ -416,6 +416,17 @@ void MTLShaderInterface::prepare_common_shader_inputs()
     current_input->location = shd_ssbo.location;
     current_input->binding = shd_ssbo.location;
     current_input++;
+  }
+
+  if (info != nullptr) {
+    for (const shader::ShaderCreateInfo::Resource &res : info->geometry_resources_) {
+      if (res.bind_type == shader::ShaderCreateInfo::Resource::BindType::STORAGE_BUFFER) {
+        ssbo_attr_mask_ |= (1 << res.slot);
+      }
+      else {
+        BLI_assert_msg(0, "Resource type is not supported for Geometry frequency");
+      }
+    }
   }
 
   /* Specialization Constants. */

@@ -12,7 +12,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
 #include "UI_abstract_view.hh"
@@ -29,6 +29,8 @@ void AbstractViewItem::update_from_old(const AbstractViewItem &old)
 {
   is_active_ = old.is_active_;
   is_renaming_ = old.is_renaming_;
+  is_highlighted_search_ = old.is_highlighted_search_;
+  is_selected_ = old.is_selected_;
 }
 
 /** \} */
@@ -71,11 +73,26 @@ void AbstractViewItem::activate(bContext &C)
   if (set_state_active()) {
     on_activate(C);
   }
+
+  /* Make sure active item is selected. */
+  if (is_active()) {
+    set_selected(true);
+  }
 }
 
 void AbstractViewItem::deactivate()
 {
   is_active_ = false;
+}
+
+std::optional<bool> AbstractViewItem::should_be_selected() const
+{
+  return std::nullopt;
+}
+
+void AbstractViewItem::set_selected(const bool select)
+{
+  is_selected_ = select;
 }
 
 /** \} */
@@ -86,11 +103,19 @@ void AbstractViewItem::deactivate()
 
 void AbstractViewItem::change_state_delayed()
 {
-  const std::optional<bool> should_be_active = this->should_be_active();
-  if (should_be_active.has_value() && *should_be_active) {
-    /* Don't call #activate() here, since this reflects an external state change and therefore
-     * shouldn't call #on_activate(). */
-    set_state_active();
+  if (const std::optional<bool> should_be_active = this->should_be_active()) {
+    if (*should_be_active) {
+      /* Don't call #activate() here, since this reflects an external state change and therefore
+       * shouldn't call #on_activate(). */
+      set_state_active();
+    }
+    else if (is_active_) {
+      is_active_ = false;
+      is_selected_ = false;
+    }
+  }
+  if (std::optional<bool> is_selected = should_be_selected()) {
+    set_selected(is_selected.value_or(false));
   }
 }
 
@@ -161,12 +186,12 @@ static AbstractViewItem *find_item_from_rename_button(const uiBut &rename_but)
   /* A minimal sanity check, can't do much more here. */
   BLI_assert(rename_but.type == UI_BTYPE_TEXT && rename_but.poin);
 
-  LISTBASE_FOREACH (uiBut *, but, &rename_but.block->buttons) {
+  for (const std::unique_ptr<uiBut> &but : rename_but.block->buttons) {
     if (but->type != UI_BTYPE_VIEW_ITEM) {
       continue;
     }
 
-    uiButViewItem *view_item_but = (uiButViewItem *)but;
+    uiButViewItem *view_item_but = (uiButViewItem *)but.get();
     AbstractViewItem *item = reinterpret_cast<AbstractViewItem *>(view_item_but->view_item);
     const AbstractView &view = item->get_view();
 
@@ -232,19 +257,15 @@ void AbstractViewItem::build_context_menu(bContext & /*C*/, uiLayout & /*column*
 /** \name Filtering
  * \{ */
 
-bool AbstractViewItem::is_filtered_visible() const
+bool AbstractViewItem::should_be_filtered_visible(const StringRefNull /*filter_string*/) const
 {
   return true;
 }
 
-bool AbstractViewItem::is_filtered_visible_cached() const
+bool AbstractViewItem::is_filtered_visible() const
 {
-  if (is_filtered_visible_.has_value()) {
-    return *is_filtered_visible_;
-  }
-
-  is_filtered_visible_ = is_filtered_visible();
-  return *is_filtered_visible_;
+  BLI_assert(get_view().needs_filtering_ == false);
+  return is_filtered_visible_;
 }
 
 /** \} */
@@ -263,6 +284,11 @@ std::unique_ptr<DropTargetInterface> AbstractViewItem::create_item_drop_target()
 {
   /* There's no drop target (and hence no drop support) by default. */
   return nullptr;
+}
+
+std::optional<std::string> AbstractViewItem::debug_name() const
+{
+  return {};
 }
 
 AbstractViewItemDragController::AbstractViewItemDragController(AbstractView &view) : view_(view) {}
@@ -312,6 +338,18 @@ bool AbstractViewItem::is_active() const
   BLI_assert_msg(this->get_view().is_reconstructed(),
                  "State can't be queried until reconstruction is completed");
   return is_active_;
+}
+
+bool AbstractViewItem::is_selected() const
+{
+  BLI_assert_msg(this->get_view().is_reconstructed(),
+                 "State can't be queried until reconstruction is completed");
+  return is_selected_;
+}
+
+bool AbstractViewItem::is_search_highlight() const
+{
+  return is_highlighted_search_;
 }
 
 /** \} */
@@ -373,6 +411,11 @@ void UI_view_item_begin_rename(AbstractViewItem &item)
 bool UI_view_item_supports_drag(const AbstractViewItem &item)
 {
   return item.create_drag_controller() != nullptr;
+}
+
+bool UI_view_item_popup_keep_open(const AbstractViewItem &item)
+{
+  return item.get_view().get_popup_keep_open();
 }
 
 bool UI_view_item_drag_start(bContext &C, const AbstractViewItem &item)

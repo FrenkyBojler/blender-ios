@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "BKE_curves.hh"
+#include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_geometry_set.hh"
 #include "BKE_grease_pencil.hh"
 
@@ -13,6 +14,9 @@ GeometryComponentEditData::GeometryComponentEditData() : GeometryComponent(Type:
 GeometryComponentPtr GeometryComponentEditData::copy() const
 {
   GeometryComponentEditData *new_component = new GeometryComponentEditData();
+  if (gizmo_edit_hints_) {
+    new_component->gizmo_edit_hints_ = std::make_unique<GizmoEditHints>(*gizmo_edit_hints_);
+  }
   if (curves_edit_hints_) {
     new_component->curves_edit_hints_ = std::make_unique<CurvesEditHints>(*curves_edit_hints_);
   }
@@ -38,6 +42,7 @@ void GeometryComponentEditData::clear()
   BLI_assert(this->is_mutable() || this->is_expired());
   curves_edit_hints_.reset();
   grease_pencil_edit_hints_.reset();
+  gizmo_edit_hints_.reset();
 }
 
 static ImplicitSharingPtrAndData save_shared_attribute(const GAttributeReader &attribute)
@@ -49,7 +54,7 @@ static ImplicitSharingPtrAndData save_shared_attribute(const GAttributeReader &a
   }
   auto *data = new ImplicitSharedValue<GArray<>>(attribute.varray.type(), attribute.varray.size());
   attribute.varray.materialize(data->data.data());
-  return {ImplicitSharingPtr<ImplicitSharingInfo>(data), data->data.data()};
+  return {ImplicitSharingPtr<>(data), data->data.data()};
 }
 
 static void remember_deformed_curve_positions_if_necessary(
@@ -90,25 +95,28 @@ static void remember_deformed_grease_pencil_if_necessary(const GreasePencil *gre
   const Span<const greasepencil::Layer *> layers = grease_pencil->layers();
   const Span<const greasepencil::Layer *> orig_layers = orig_grease_pencil.layers();
   const int layers_num = layers.size();
-  if (layers_num != orig_layers.size()) {
-    return;
-  }
   edit_component.grease_pencil_edit_hints_->drawing_hints.emplace(layers_num);
   MutableSpan<GreasePencilDrawingEditHints> all_hints =
       *edit_component.grease_pencil_edit_hints_->drawing_hints;
-  for (const int layer_index : layers.index_range()) {
-    const greasepencil::Drawing *drawing = greasepencil::get_eval_grease_pencil_layer_drawing(
-        *grease_pencil, layer_index);
-    const greasepencil::Layer &orig_layer = *orig_layers[layer_index];
+  for (const int eval_layer_index : layers.index_range()) {
+    const greasepencil::Layer &eval_layer = *layers[eval_layer_index];
+    const greasepencil::Drawing *drawing = grease_pencil->get_eval_drawing(eval_layer);
+    if (eval_layer.runtime->orig_layer_index_ == -1) {
+      continue;
+    }
+    const greasepencil::Layer &orig_layer = *orig_layers[eval_layer.runtime->orig_layer_index_];
     const greasepencil::Drawing *orig_drawing = orig_grease_pencil.get_drawing_at(
         orig_layer, grease_pencil->runtime->eval_frame);
-    GreasePencilDrawingEditHints &drawing_hints = all_hints[layer_index];
+    GreasePencilDrawingEditHints &drawing_hints = all_hints[eval_layer_index];
     if (!drawing || !orig_drawing) {
       continue;
     }
     drawing_hints.drawing_orig = orig_drawing;
     const CurvesGeometry &curves = drawing->strokes();
     if (curves.points_num() != orig_drawing->strokes().points_num()) {
+      continue;
+    }
+    if (curves.is_empty()) {
       continue;
     }
     drawing_hints.positions_data = save_shared_attribute(curves.attributes().lookup("position"));

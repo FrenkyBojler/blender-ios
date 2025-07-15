@@ -11,7 +11,6 @@
 #include "DNA_node_types.h"
 
 #include "BLI_any.hh"
-#include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
 
 namespace blender::bke {
@@ -82,12 +81,30 @@ class SocketValueVariant {
    * Create an empty variant. This is not valid for any socket type yet.
    */
   SocketValueVariant() = default;
+  SocketValueVariant(const SocketValueVariant &other) = default;
+  SocketValueVariant(SocketValueVariant &&other) = default;
+  SocketValueVariant &operator=(const SocketValueVariant &other) = default;
+  SocketValueVariant &operator=(SocketValueVariant &&other) = default;
+  ~SocketValueVariant() = default;
 
   /**
-   * Create a variant based on the given value. This works for primitive types, #GField and
-   * #Field<T>.
+   * Create a variant based on the given value. This works for primitive types. For more complex
+   * types use #set explicity. Alternatively, one can use the #From or #ConstructIn utilities.
    */
-  template<typename T> explicit SocketValueVariant(T &&value);
+  template<typename T,
+           /* The enable-if is necessary to avoid overridding the copy/moveconstructors. */
+           BLI_ENABLE_IF((std::is_trivial_v<std::decay_t<T>> ||
+                          is_same_any_v<std::decay_t<T>, std::string>))>
+  explicit SocketValueVariant(T &&value)
+  {
+    this->set(std::forward<T>(value));
+  }
+
+  /** Construct a #SocketValueVariant at the given pointer from the given value. */
+  template<typename T> static SocketValueVariant &ConstructIn(void *ptr, T &&value);
+
+  /** Create a new #SocketValueVariant from the given value. */
+  template<typename T> static SocketValueVariant From(T &&value);
 
   /**
    * \return True if the stored value is valid for a specific socket type. This is mainly meant to
@@ -120,6 +137,16 @@ class SocketValueVariant {
    * If true, the stored value cannot be converted to a single value without loss of information.
    */
   bool is_context_dependent_field() const;
+
+  /**
+   * The stored value is a volume grid.
+   */
+  bool is_volume_grid() const;
+
+  /**
+   * The stored value is a single value.
+   */
+  bool is_single() const;
 
   /**
    * Convert the stored value into a single value. For simple value access, this is not necessary,
@@ -165,9 +192,19 @@ class SocketValueVariant {
   template<typename T> void store_impl(T value);
 };
 
-template<typename T> inline SocketValueVariant::SocketValueVariant(T &&value)
+template<typename T>
+inline SocketValueVariant &SocketValueVariant::ConstructIn(void *ptr, T &&value)
 {
-  this->set(std::forward<T>(value));
+  SocketValueVariant *value_variant = new (ptr) SocketValueVariant();
+  value_variant->set(std::forward<T>(value));
+  return *value_variant;
+}
+
+template<typename T> inline SocketValueVariant SocketValueVariant::From(T &&value)
+{
+  SocketValueVariant value_variant;
+  value_variant.set(std::forward<T>(value));
+  return value_variant;
 }
 
 template<typename T> inline void SocketValueVariant::set(T &&value)

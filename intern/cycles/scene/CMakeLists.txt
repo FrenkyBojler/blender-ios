@@ -5,6 +5,7 @@
 set(INC
   ..
   ../../sky/include
+  ../../mikktspace
 )
 
 set(SRC
@@ -30,6 +31,7 @@ set(SRC
   integrator.cpp
   light.cpp
   light_tree.cpp
+  light_tree_debug.cpp
   mesh.cpp
   mesh_displace.cpp
   mesh_subdivision.cpp
@@ -71,6 +73,7 @@ set(SRC_HEADERS
   integrator.h
   light.h
   light_tree.h
+  light_tree_debug.h
   mesh.h
   object.h
   osl.h
@@ -125,10 +128,6 @@ if(WITH_OPENCOLORIO)
 endif()
 
 if(WITH_OPENVDB)
-  add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
-  list(APPEND INC_SYS
-    ${OPENVDB_INCLUDE_DIRS}
-  )
   list(APPEND LIB
     ${OPENVDB_LIBRARIES}
   )

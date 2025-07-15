@@ -6,12 +6,14 @@
  * \ingroup GHOST
  */
 
-#include "GHOST_WindowWin32.hh"
+#include <algorithm>
+
 #include "GHOST_ContextD3D.hh"
 #include "GHOST_ContextNone.hh"
 #include "GHOST_DropTargetWin32.hh"
 #include "GHOST_SystemWin32.hh"
 #include "GHOST_WindowManager.hh"
+#include "GHOST_WindowWin32.hh"
 #include "utf_winfunc.hh"
 #include "utfconv.hh"
 
@@ -23,7 +25,7 @@
 #endif
 
 #ifdef WIN32
-#  include "BLI_path_util.h"
+#  include "BLI_path_utils.hh"
 #endif
 
 #include <Dwmapi.h>
@@ -44,7 +46,7 @@
 const wchar_t *GHOST_WindowWin32::s_windowClassName = L"GHOST_WindowClass";
 const int GHOST_WindowWin32::s_maxTitleLength = 128;
 
-/* force NVidia Optimus to used dedicated graphics */
+/* force NVidia OPTIMUS to used dedicated graphics */
 extern "C" {
 __declspec(dllexport) DWORD NvOptimusEnablement = 0x00000001;
 }
@@ -58,10 +60,10 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
                                      GHOST_TWindowState state,
                                      GHOST_TDrawingContextType type,
                                      bool wantStereoVisual,
-                                     bool alphaBackground,
                                      GHOST_WindowWin32 *parentwindow,
                                      bool is_debug,
-                                     bool dialog)
+                                     bool dialog,
+                                     const GHOST_GPUDevice &preferred_device)
     : GHOST_Window(width, height, state, wantStereoVisual, false),
       m_mousePresent(false),
       m_inLiveResize(false),
@@ -70,11 +72,11 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
       m_hWnd(0),
       m_hDC(0),
       m_isDialog(dialog),
+      m_preferred_device(preferred_device),
       m_hasMouseCaptured(false),
       m_hasGrabMouse(false),
       m_nPressedButtons(0),
       m_customCursor(0),
-      m_wantAlphaBackground(alphaBackground),
       m_Bar(nullptr),
       m_wintab(nullptr),
       m_lastPointerTabletData(GHOST_TABLET_DATA_NONE),
@@ -133,11 +135,15 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
     const char *title = "Blender - Unsupported Graphics Card Configuration";
     const char *text = "";
 #if defined(WIN32)
-    if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0) {
+    if (strncmp(BLI_getenv("PROCESSOR_IDENTIFIER"), "ARM", 3) == 0 &&
+        strstr(BLI_getenv("PROCESSOR_IDENTIFIER"), "Qualcomm") != NULL)
+    {
       text =
           "A driver with support for OpenGL 4.3 or higher is required.\n\n"
-          "If you are on a Qualcomm 8cx Gen3 device or newer, you need to download the"
-          "\"OpenCL™, OpenGL®, and Vulkan® Compatibility Pack\" from the MS Store.";
+          "Qualcomm devices require the \"OpenCL™, OpenGL®, and Vulkan® Compatibility Pack\" "
+          "from the Microsoft Store.\n\n"
+          "Devices using processors older than a Qualcomm Snapdragon 8cx Gen3 are incompatible, "
+          "but may be able to run an emulated x64 copy of Blender, such as a 3.x LTS release.";
     }
     else
 #endif
@@ -186,6 +192,7 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
   /* Show the window. */
   int nCmdShow;
   switch (state) {
+    case GHOST_kWindowStateFullScreen:
     case GHOST_kWindowStateMaximized:
       nCmdShow = SW_SHOWMAXIMIZED;
       break;
@@ -201,25 +208,6 @@ GHOST_WindowWin32::GHOST_WindowWin32(GHOST_SystemWin32 *system,
   ThemeRefresh();
 
   ::ShowWindow(m_hWnd, nCmdShow);
-
-#ifdef WIN32_COMPOSITING
-  if (alphaBackground && parentwindowhwnd == 0) {
-
-    HRESULT hr = S_OK;
-
-    /* Create and populate the Blur Behind structure. */
-    DWM_BLURBEHIND bb = {0};
-
-    /* Enable Blur Behind and apply to the entire client area. */
-    bb.dwFlags = DWM_BB_ENABLE | DWM_BB_BLURREGION;
-    bb.fEnable = true;
-    bb.hRgnBlur = CreateRectRgn(0, 0, -1, -1);
-
-    /* Apply Blur Behind. */
-    hr = DwmEnableBlurBehindWindow(m_hWnd, &bb);
-    DeleteObject(bb.hRgnBlur);
-  }
-#endif
 
   /* Initialize WINTAB. */
   if (system->getTabletAPI() != GHOST_kTabletWinPointer) {
@@ -395,6 +383,23 @@ std::string GHOST_WindowWin32::getTitle() const
   conv_utf_16_to_8(wtitle.c_str(), &title[0], title.capacity());
 
   return title;
+}
+
+GHOST_TSuccess GHOST_WindowWin32::applyWindowDecorationStyle()
+{
+  /* DWMWINDOWATTRIBUTE::DWMWA_CAPTION_COLOR */
+  constexpr DWORD caption_color_attr = 35;
+
+  if (m_windowDecorationStyleFlags & GHOST_kDecorationColoredTitleBar) {
+    const float *color = m_windowDecorationStyleSettings.colored_titlebar_bg_color;
+    const COLORREF colorref = RGB(
+        char(color[0] * 255.0f), char(color[1] * 255.0f), char(color[2] * 255.0f));
+    if (!SUCCEEDED(DwmSetWindowAttribute(m_hWnd, caption_color_attr, &colorref, sizeof(colorref))))
+    {
+      return GHOST_kFailure;
+    }
+  }
+  return GHOST_kSuccess;
 }
 
 void GHOST_WindowWin32::getWindowBounds(GHOST_Rect &bounds) const
@@ -616,7 +621,8 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
   switch (type) {
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kDrawingContextTypeVulkan: {
-      GHOST_Context *context = new GHOST_ContextVK(false, m_hWnd, 1, 2, m_debug_context);
+      GHOST_Context *context = new GHOST_ContextVK(
+          false, m_hWnd, 1, 2, m_debug_context, m_preferred_device);
       if (context->initializeDrawingContext()) {
         return context;
       }
@@ -630,7 +636,7 @@ GHOST_Context *GHOST_WindowWin32::newDrawingContext(GHOST_TDrawingContextType ty
       for (int minor = 6; minor >= 3; --minor) {
         GHOST_Context *context = new GHOST_ContextWGL(
             m_wantStereoVisual,
-            m_wantAlphaBackground,
+            false,
             m_hWnd,
             m_hDC,
             WGL_CONTEXT_CORE_PROFILE_BIT_ARB,
@@ -711,7 +717,6 @@ HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
 {
   /* Convert GHOST cursor to Windows OEM cursor. */
   HANDLE cursor = nullptr;
-  HMODULE module = ::GetModuleHandle(0);
   uint32_t flags = LR_SHARED | LR_DEFAULTSIZE;
   int cx = 0, cy = 0;
 
@@ -723,47 +728,8 @@ HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
       else {
         return nullptr;
       }
-    case GHOST_kStandardCursorRightArrow:
-      cursor = ::LoadImage(module, "arrowright_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorLeftArrow:
-      cursor = ::LoadImage(module, "arrowleft_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorUpArrow:
-      cursor = ::LoadImage(module, "arrowup_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorDownArrow:
-      cursor = ::LoadImage(module, "arrowdown_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorVerticalSplit:
-      cursor = ::LoadImage(module, "splitv_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorHorizontalSplit:
-      cursor = ::LoadImage(module, "splith_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorKnife:
-      cursor = ::LoadImage(module, "knife_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorEyedropper:
-      cursor = ::LoadImage(module, "eyedropper_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorZoomIn:
-      cursor = ::LoadImage(module, "zoomin_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorZoomOut:
-      cursor = ::LoadImage(module, "zoomout_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
     case GHOST_kStandardCursorMove:
-      cursor = ::LoadImage(module, "handopen_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorNSEWScroll:
-      cursor = ::LoadImage(module, "scrollnsew_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorNSScroll:
-      cursor = ::LoadImage(module, "scrollns_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorEWScroll:
-      cursor = ::LoadImage(module, "scrollew_cursor", IMAGE_CURSOR, cx, cy, flags);
+      cursor = ::LoadImage(nullptr, IDC_SIZEALL, IMAGE_CURSOR, cx, cy, flags);
       break;
     case GHOST_kStandardCursorHelp:
       cursor = ::LoadImage(nullptr, IDC_HELP, IMAGE_CURSOR, cx, cy, flags);
@@ -774,26 +740,6 @@ HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
     case GHOST_kStandardCursorText:
       cursor = ::LoadImage(nullptr, IDC_IBEAM, IMAGE_CURSOR, cx, cy, flags);
       break; /* I-beam */
-    case GHOST_kStandardCursorCrosshair:
-      cursor = ::LoadImage(module, "cross_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break; /* Standard Cross */
-    case GHOST_kStandardCursorCrosshairA:
-      cursor = ::LoadImage(module, "crossA_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break; /* Crosshair A */
-    case GHOST_kStandardCursorCrosshairB:
-      cursor = ::LoadImage(module, "crossB_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break; /* Diagonal Crosshair B */
-    case GHOST_kStandardCursorCrosshairC:
-      cursor = ::LoadImage(module, "crossC_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break; /* Minimal Crosshair C */
-    case GHOST_kStandardCursorBottomSide:
-    case GHOST_kStandardCursorUpDown:
-      cursor = ::LoadImage(module, "movens_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break; /* Double-pointed arrow pointing north and south */
-    case GHOST_kStandardCursorLeftSide:
-    case GHOST_kStandardCursorLeftRight:
-      cursor = ::LoadImage(module, "moveew_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break; /* Double-pointed arrow pointing west and east */
     case GHOST_kStandardCursorTopSide:
       cursor = ::LoadImage(nullptr, IDC_UPARROW, IMAGE_CURSOR, cx, cy, flags);
       break; /* Vertical arrow */
@@ -809,16 +755,6 @@ HCURSOR GHOST_WindowWin32::getStandardCursor(GHOST_TStandardCursor shape) const
     case GHOST_kStandardCursorBottomLeftCorner:
       cursor = ::LoadImage(nullptr, IDC_SIZENESW, IMAGE_CURSOR, cx, cy, flags);
       break;
-    case GHOST_kStandardCursorPencil:
-      cursor = ::LoadImage(module, "pencil_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorEraser:
-      cursor = ::LoadImage(module, "eraser_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break;
-    case GHOST_kStandardCursorDestroy:
-    case GHOST_kStandardCursorStop:
-      cursor = ::LoadImage(module, "forbidden_cursor", IMAGE_CURSOR, cx, cy, flags);
-      break; /* Slashed circle */
     case GHOST_kStandardCursorDefault:
       cursor = nullptr;
       break;
@@ -979,11 +915,19 @@ GHOST_TSuccess GHOST_WindowWin32::getPointerInfo(
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_X) {
-      outPointerInfo[i].tabletData.Xtilt = fmin(fabs(pointerPenInfo[i].tiltX / 90.0f), 1.0f);
+      /* Input value is a range of -90 to +90, with a positive value
+       * indicating a tilt to the right. Convert to what Blender
+       * expects: -1.0f (left) to +1.0f (right). */
+      outPointerInfo[i].tabletData.Xtilt = std::clamp(
+          pointerPenInfo[i].tiltX / 90.0f, -1.0f, 1.0f);
     }
 
     if (pointerPenInfo[i].penMask & PEN_MASK_TILT_Y) {
-      outPointerInfo[i].tabletData.Ytilt = fmin(fabs(pointerPenInfo[i].tiltY / 90.0f), 1.0f);
+      /* Input value is a range of -90 to +90, with a positive value
+       * indicating a tilt toward the user. Convert to what Blender
+       * expects: -1.0f (away from user) to +1.0f (toward user). */
+      outPointerInfo[i].tabletData.Ytilt = std::clamp(
+          pointerPenInfo[i].tiltY / 90.0f, -1.0f, 1.0f);
     }
   }
 
@@ -1126,46 +1070,108 @@ static uint16_t uns16ReverseBits(uint16_t shrt)
 }
 #endif
 
-GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(uint8_t *bitmap,
-                                                             uint8_t *mask,
-                                                             int sizeX,
-                                                             int sizeY,
-                                                             int hotX,
-                                                             int hotY,
+GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitmap,
+                                                             const uint8_t *mask,
+                                                             const int size[2],
+                                                             const int hot_spot[2],
                                                              bool /*canInvertColor*/)
 {
-  uint32_t andData[32];
-  uint32_t xorData[32];
-  uint32_t fullBitRow, fullMaskRow;
-  int x, y, cols;
+  if (mask) {
+    /* Old 1bpp XBitMap bitmap and mask. */
+    uint32_t andData[32];
+    uint32_t xorData[32];
+    uint32_t fullBitRow, fullMaskRow;
+    int x, y, cols;
 
-  cols = sizeX / 8; /* Number of whole bytes per row (width of bitmap/mask). */
-  if (sizeX % 8) {
-    cols++;
-  }
-
-  if (m_customCursor) {
-    DestroyCursor(m_customCursor);
-    m_customCursor = nullptr;
-  }
-
-  memset(&andData, 0xFF, sizeof(andData));
-  memset(&xorData, 0, sizeof(xorData));
-
-  for (y = 0; y < sizeY; y++) {
-    fullBitRow = 0;
-    fullMaskRow = 0;
-    for (x = cols - 1; x >= 0; x--) {
-      fullBitRow <<= 8;
-      fullMaskRow <<= 8;
-      fullBitRow |= uns8ReverseBits(bitmap[cols * y + x]);
-      fullMaskRow |= uns8ReverseBits(mask[cols * y + x]);
+    cols = size[0] / 8; /* Number of whole bytes per row (width of bitmap/mask). */
+    if (size[0] % 8) {
+      cols++;
     }
-    xorData[y] = fullBitRow & fullMaskRow;
-    andData[y] = ~fullMaskRow;
+
+    if (m_customCursor) {
+      DestroyCursor(m_customCursor);
+      m_customCursor = nullptr;
+    }
+
+    memset(&andData, 0xFF, sizeof(andData));
+    memset(&xorData, 0, sizeof(xorData));
+
+    for (y = 0; y < size[1]; y++) {
+      fullBitRow = 0;
+      fullMaskRow = 0;
+      for (x = cols - 1; x >= 0; x--) {
+        fullBitRow <<= 8;
+        fullMaskRow <<= 8;
+        fullBitRow |= uns8ReverseBits(bitmap[cols * y + x]);
+        fullMaskRow |= uns8ReverseBits(mask[cols * y + x]);
+      }
+      xorData[y] = fullBitRow & fullMaskRow;
+      andData[y] = ~fullMaskRow;
+    }
+
+    m_customCursor = ::CreateCursor(
+        ::GetModuleHandle(0), hot_spot[0], hot_spot[1], 32, 32, andData, xorData);
+
+    if (!m_customCursor) {
+      return GHOST_kFailure;
+    }
+
+    if (::GetForegroundWindow() == m_hWnd) {
+      loadCursor(getCursorVisibility(), GHOST_kStandardCursorCustom);
+    }
+
+    return GHOST_kSuccess;
   }
 
-  m_customCursor = ::CreateCursor(::GetModuleHandle(0), hotX, hotY, 32, 32, andData, xorData);
+  /* RGBA bitmap, size up to 255x255. This limit may differ on other
+   * platforms. Requesting larger does not give an error, just results
+   * in a smaller, empty result. */
+
+  BITMAPV5HEADER header;
+  memset(&header, 0, sizeof(BITMAPV5HEADER));
+  header.bV5Size = sizeof(BITMAPV5HEADER);
+  header.bV5Width = (LONG)size[0];
+  header.bV5Height = (LONG)size[1];
+  header.bV5Planes = 1;
+  header.bV5BitCount = 32;
+  header.bV5Compression = BI_BITFIELDS;
+  header.bV5RedMask = 0x00FF0000;
+  header.bV5GreenMask = 0x0000FF00;
+  header.bV5BlueMask = 0x000000FF;
+  header.bV5AlphaMask = 0xFF000000;
+
+  HDC hdc = GetDC(m_hWnd);
+  void *bits = NULL;
+  HBITMAP bmp = CreateDIBSection(
+      hdc, (BITMAPINFO *)&header, DIB_RGB_COLORS, (void **)&bits, NULL, (DWORD)0);
+  ReleaseDC(NULL, hdc);
+
+  uint32_t *ptr = (uint32_t *)bits;
+  char w = size[0];
+  char h = size[1];
+  for (int y = h - 1; y >= 0; y--) {
+    for (int x = 0; x < w; x++) {
+      int i = (y * w * 4) + (x * 4);
+      uint32_t r = bitmap[i];
+      uint32_t g = bitmap[i + 1];
+      uint32_t b = bitmap[i + 2];
+      uint32_t a = bitmap[i + 3];
+      *ptr++ = (a << 24) | (r << 16) | (g << 8) | b;
+    }
+  }
+
+  HBITMAP empty_mask = CreateBitmap(size[0], size[1], 1, 1, NULL);
+  ICONINFO icon_info;
+  icon_info.fIcon = FALSE;
+  icon_info.xHotspot = (DWORD)hot_spot[0];
+  icon_info.yHotspot = (DWORD)hot_spot[1];
+  icon_info.hbmMask = empty_mask;
+  icon_info.hbmColor = bmp;
+
+  m_customCursor = CreateIconIndirect(&icon_info);
+  DeleteObject(bmp);
+  DeleteObject(empty_mask);
+
   if (!m_customCursor) {
     return GHOST_kFailure;
   }

@@ -9,6 +9,14 @@ from bl_ui.space_dopesheet import (
     DopesheetActionPanelBase,
     dopesheet_filter,
 )
+from bl_ui.space_time import playback_controls
+from bl_ui.utils import (
+    PlayheadSnappingPanel,
+)
+
+
+class NLA_PT_playhead_snapping(PlayheadSnappingPanel, Panel):
+    bl_space_type = 'NLA_EDITOR'
 
 
 class NLA_HT_header(Header):
@@ -39,6 +47,17 @@ class NLA_HT_header(Header):
             panel="NLA_PT_snapping",
             text="",
         )
+        layout.popover(panel="NLA_PT_playhead_snapping")
+
+
+class NLA_HT_playback_controls(Header):
+    bl_space_type = 'NLA_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+
+        playback_controls(layout, context)
 
 
 class NLA_PT_snapping(Panel):
@@ -113,10 +132,15 @@ class NLA_MT_view(Menu):
         layout.prop(st, "show_region_ui")
         layout.prop(st, "show_region_hud")
         layout.prop(st, "show_region_channels")
+        layout.prop(st, "show_region_footer")
         layout.separator()
 
         layout.operator("nla.view_selected")
         layout.operator("nla.view_all")
+        if context.scene.use_preview_range:
+            layout.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            layout.operator("anim.scene_range_frame", text="Frame Scene Range")
         layout.operator("nla.view_frame")
         layout.separator()
 
@@ -264,10 +288,14 @@ class NLA_MT_strips(Menu):
             layout.operator("nla.tweakmode_exit", text="Stop Tweaking Strip Actions")
         else:
             layout.operator("nla.tweakmode_enter", text="Start Editing Stashed Action").isolate_action = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Full Stack)").use_upper_stack_evaluation = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Lower Stack)").use_upper_stack_evaluation = False
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Full Stack)",
+            ).use_upper_stack_evaluation = True
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Lower Stack)",
+            ).use_upper_stack_evaluation = False
 
 
 class NLA_MT_strips_transform(Menu):
@@ -304,13 +332,17 @@ class NLA_MT_snap_pie(Menu):
 class NLA_MT_view_pie(Menu):
     bl_label = "View"
 
-    def draw(self, _context):
+    def draw(self, context):
         layout = self.layout
 
         pie = layout.menu_pie()
         pie.operator("nla.view_all")
         pie.operator("nla.view_selected", icon='ZOOM_SELECTED')
         pie.operator("nla.view_frame")
+        if context.scene.use_preview_range:
+            pie.operator("anim.scene_range_frame", text="Frame Preview Range")
+        else:
+            pie.operator("anim.scene_range_frame", text="Frame Scene Range")
 
 
 class NLA_MT_context_menu(Menu):
@@ -325,10 +357,14 @@ class NLA_MT_context_menu(Menu):
             layout.operator("nla.tweakmode_exit", text="Stop Tweaking Strip Actions")
         else:
             layout.operator("nla.tweakmode_enter", text="Start Editing Stashed Action").isolate_action = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Full Stack)").use_upper_stack_evaluation = True
-            layout.operator("nla.tweakmode_enter",
-                            text="Start Tweaking Strip Actions (Lower Stack)").use_upper_stack_evaluation = False
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Full Stack)",
+            ).use_upper_stack_evaluation = True
+            layout.operator(
+                "nla.tweakmode_enter",
+                text="Start Tweaking Strip Actions (Lower Stack)",
+            ).use_upper_stack_evaluation = False
 
         layout.separator()
 
@@ -376,6 +412,7 @@ class NLA_MT_channel_context_menu(Menu):
 
 classes = (
     NLA_HT_header,
+    NLA_HT_playback_controls,
     NLA_MT_editor_menus,
     NLA_MT_view,
     NLA_MT_select,
@@ -392,6 +429,7 @@ classes = (
     NLA_PT_filters,
     NLA_PT_action,
     NLA_PT_snapping,
+    NLA_PT_playhead_snapping,
 )
 
 if __name__ == "__main__":  # only for live edit.

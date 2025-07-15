@@ -9,9 +9,11 @@
 #include "BLI_utildefines.h"
 #include <Python.h>
 
-#include "bpy_app_oiio.h"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 
-#include "../generic/py_capi_utils.h"
+#include "bpy_app_oiio.hh"
+
+#include "../generic/py_capi_utils.hh"
 
 #include "openimageio_api.h"
 
@@ -25,10 +27,10 @@ static PyStructSequence_Field app_oiio_info_fields[] = {
 };
 
 static PyStructSequence_Desc app_oiio_info_desc = {
-    "bpy.app.oiio",                                                                /* name */
-    "This module contains information about OpeImageIO blender is linked against", /* doc */
-    app_oiio_info_fields,                                                          /* fields */
-    ARRAY_SIZE(app_oiio_info_fields) - 1,
+    /*name*/ "bpy.app.oiio",
+    /*doc*/ "This module contains information about OpeImageIO blender is linked against",
+    /*fields*/ app_oiio_info_fields,
+    /*n_in_sequence*/ ARRAY_SIZE(app_oiio_info_fields) - 1,
 };
 
 static PyObject *make_oiio_info()
@@ -74,7 +76,7 @@ PyObject *BPY_app_oiio_struct()
   BlenderAppOIIOType.tp_init = nullptr;
   BlenderAppOIIOType.tp_new = nullptr;
   /* Without this we can't do `set(sys.modules)` #29635. */
-  BlenderAppOIIOType.tp_hash = (hashfunc)_Py_HashPointer;
+  BlenderAppOIIOType.tp_hash = (hashfunc)Py_HashPointer;
 
   return ret;
 }
