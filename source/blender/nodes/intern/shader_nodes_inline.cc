@@ -4,6 +4,7 @@
 
 #include "BKE_compute_context_cache.hh"
 #include "BKE_lib_id.hh"
+#include "BKE_type_conversions.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
@@ -24,6 +25,38 @@ struct FallbackValue {};
 
 struct PrimitiveSocketValue {
   std::variant<int, float, bool, ColorGeometry4f, float3> value;
+
+  const void *buffer() const
+  {
+    return std::visit([](auto &&value) -> const void * { return &value; }, value);
+  }
+
+  void *buffer()
+  {
+    return const_cast<void *>(const_cast<const PrimitiveSocketValue *>(this)->buffer());
+  }
+
+  static PrimitiveSocketValue from_value(const GPointer value)
+  {
+    const CPPType &type = *value.type();
+    if (type.is<int>()) {
+      return {*static_cast<const int *>(value.get())};
+    }
+    if (type.is<float>()) {
+      return {*static_cast<const float *>(value.get())};
+    }
+    if (type.is<bool>()) {
+      return {*static_cast<const bool *>(value.get())};
+    }
+    if (type.is<ColorGeometry4f>()) {
+      return {*static_cast<const ColorGeometry4f *>(value.get())};
+    }
+    if (type.is<float3>()) {
+      return {*static_cast<const float3 *>(value.get())};
+    }
+    BLI_assert_unreachable();
+    return {};
+  }
 };
 
 /** References an output socket in the generated node tree. */
@@ -36,6 +69,11 @@ struct LinkedSocketValue {
 struct InputSocketValue {
   const bNodeSocket *socket = nullptr;
 };
+
+static bool is_supported_primitive_type(const eNodeSocketDatatype type)
+{
+  return ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA);
+}
 
 struct SocketValue {
   std::variant<FallbackValue,
@@ -110,10 +148,13 @@ class ShaderNodesInliner {
   Map<SocketInContext, SocketValue> value_by_socket_;
   Stack<SocketInContext> scheduled_sockets_stack_;
   bool use_refcounting_ = false;
+  const bke::DataTypeConversions &data_type_conversions_;
 
  public:
   ShaderNodesInliner(const bNodeTree &src_tree, bNodeTree &dst_tree)
-      : src_tree_(src_tree), dst_tree_(dst_tree)
+      : src_tree_(src_tree),
+        dst_tree_(dst_tree),
+        data_type_conversions_(bke::get_implicit_type_conversions())
   {
     if (dst_tree.id.tag & ID_TAG_NO_MAIN) {
       BLI_assert(src_tree.id.tag & ID_TAG_NO_MAIN);
@@ -447,6 +488,23 @@ class ShaderNodesInliner {
     if (from_type == to_type) {
       return src_value;
     }
+    const std::optional<PrimitiveSocketValue> src_primitive_value = src_value.to_primitive(
+        from_socket.typeinfo->type);
+    if (from_socket.typeinfo->base_cpp_type && to_socket.typeinfo->base_cpp_type) {
+      if (data_type_conversions_.is_convertible(*from_socket.typeinfo->base_cpp_type,
+                                                *to_socket.typeinfo->base_cpp_type))
+      {
+        const void *src_buffer = src_primitive_value->buffer();
+        BUFFER_FOR_CPP_TYPE_VALUE(*to_socket.typeinfo->base_cpp_type, dst_buffer);
+        data_type_conversions_.convert_to_uninitialized(*from_socket.typeinfo->base_cpp_type,
+                                                        *to_socket.typeinfo->base_cpp_type,
+                                                        src_buffer,
+                                                        dst_buffer);
+        return {PrimitiveSocketValue::from_value(
+            GPointer{to_socket.typeinfo->base_cpp_type, dst_buffer})};
+      }
+    }
+
     /* TODO */
     return SocketValue{FallbackValue{}};
   }
