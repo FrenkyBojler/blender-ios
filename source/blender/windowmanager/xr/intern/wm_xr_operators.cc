@@ -16,6 +16,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_time.h"
+#include "BLI_utildefines.h"
 
 #include "BLT_translation.hh"
 
@@ -45,6 +46,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "wm_event_system.hh"
 #include "wm_xr_intern.hh"
 
 /* -------------------------------------------------------------------- */
@@ -1548,6 +1550,235 @@ static void WM_OT_xr_navigation_reset(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Gpencil KM_CTRL KM_SHIFT KM_ALT XR Operators
+ * \{ */
+
+static void set_xr_modifier_kd(bContext *C, int type, GHOST_TKey key)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+  GHOST_TEventKeyData kdata{};
+  kdata.key = key;
+  kdata.utf8_buf[0] = '\0';
+  kdata.is_repeat = false;
+  wmWindow *win = CTX_wm_window(C);
+  wm_event_add_ghostevent(
+      wm, win, type, (void *)&kdata, 10); /* 10 is a temporary value, set average time */
+}
+
+static wmOperatorStatus wm_xr_modifier_exec(bContext * /*C*/, wmOperator * /*op*/)
+{
+  return OPERATOR_CANCELLED;
+}
+
+/** CTRL */
+
+static wmOperatorStatus wm_xr_ctrl_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  set_xr_modifier_kd(C, GHOST_kEventKeyDown, GHOST_kKeyLeftControl);
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
+    WM_event_add_modal_handler(C, op);
+  }
+
+  return retval;
+}
+
+static wmOperatorStatus wm_xr_ctrl_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  switch (event->val) {
+    case KM_PRESS:
+      return OPERATOR_RUNNING_MODAL;
+    case KM_RELEASE: {
+      set_xr_modifier_kd(C, GHOST_kEventKeyUp, GHOST_kKeyLeftControl);
+      return OPERATOR_FINISHED;
+    }
+    default:
+      /* XR events currently only support press and release. */
+      BLI_assert_unreachable();
+      return OPERATOR_CANCELLED;
+  }
+}
+
+static void WM_OT_xr_ctrl(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "XR CTRL Modifier";
+  ot->idname = "WM_OT_xr_ctrl";
+  ot->description = "CTRL Press Modifier";
+
+  /* callbacks */
+  ot->invoke = wm_xr_ctrl_invoke;
+  ot->exec = wm_xr_modifier_exec;
+  ot->modal = wm_xr_ctrl_modal;
+  ot->poll = wm_xr_operator_sessionactive;
+}
+
+/** SHIFT */
+
+static wmOperatorStatus wm_xr_shift_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  set_xr_modifier_kd(C, GHOST_kEventKeyDown, GHOST_kKeyLeftShift);
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
+    WM_event_add_modal_handler(C, op);
+  }
+
+  return retval;
+}
+
+static wmOperatorStatus wm_xr_shift_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  switch (event->val) {
+    case KM_PRESS:
+      return OPERATOR_RUNNING_MODAL;
+    case KM_RELEASE: {
+      set_xr_modifier_kd(C, GHOST_kEventKeyUp, GHOST_kKeyLeftShift);
+      return OPERATOR_FINISHED;
+    }
+    default:
+      BLI_assert_unreachable();
+      return OPERATOR_CANCELLED;
+  }
+}
+
+static void WM_OT_xr_shift(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "XR Shift Modifier";
+  ot->idname = "WM_OT_xr_shift";
+  ot->description = "Shift Press Modifier";
+
+  /* callbacks */
+  ot->invoke = wm_xr_shift_invoke;
+  ot->exec = wm_xr_modifier_exec;
+  ot->modal = wm_xr_shift_modal;
+  ot->poll = wm_xr_operator_sessionactive;
+}
+
+/** ALT */
+
+static wmOperatorStatus wm_xr_alt_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  set_xr_modifier_kd(C, GHOST_kEventKeyDown, GHOST_kKeyLeftAlt);
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
+    WM_event_add_modal_handler(C, op);
+  }
+
+  return retval;
+}
+
+static wmOperatorStatus wm_xr_alt_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  switch (event->val) {
+    case KM_PRESS:
+      return OPERATOR_RUNNING_MODAL;
+    case KM_RELEASE: {
+      set_xr_modifier_kd(C, GHOST_kEventKeyUp, GHOST_kKeyLeftAlt);
+      return OPERATOR_FINISHED;
+    }
+    default:
+      BLI_assert_unreachable();
+      return OPERATOR_CANCELLED;
+  }
+}
+
+static void WM_OT_xr_alt(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "XR ALT Modifier";
+  ot->idname = "WM_OT_xr_alt";
+  ot->description = "ALT Press Modifier";
+
+  /* callbacks */
+  ot->invoke = wm_xr_alt_invoke;
+  ot->exec = wm_xr_modifier_exec;
+  ot->modal = wm_xr_alt_modal;
+  ot->poll = wm_xr_operator_sessionactive;
+}
+
+/** TAB */
+
+static wmOperatorStatus wm_xr_tab_invoke(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return OPERATOR_PASS_THROUGH;
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  set_xr_modifier_kd(C, GHOST_kEventKeyDown, GHOST_kKeyTab);
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
+    WM_event_add_modal_handler(C, op);
+  }
+
+  return retval;
+}
+
+static wmOperatorStatus wm_xr_tab_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  return OPERATOR_PASS_THROUGH;
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  switch (event->val) {
+    case KM_PRESS:
+      return OPERATOR_RUNNING_MODAL;
+    case KM_RELEASE: {
+      set_xr_modifier_kd(C, GHOST_kEventKeyUp, GHOST_kKeyTab);
+      return OPERATOR_FINISHED;
+    }
+    default:
+      BLI_assert_unreachable();
+      return OPERATOR_CANCELLED;
+  }
+}
+
+static void WM_OT_xr_tab(wmOperatorType *ot)
+{
+  /* identifiers */
+  ot->name = "XR TAB Modifier";
+  ot->idname = "WM_OT_xr_tab";
+  ot->description = "TAB Press Modifier";
+
+  /* callbacks */
+  ot->invoke = wm_xr_tab_invoke;
+  ot->exec = wm_xr_modifier_exec;
+  ot->modal = wm_xr_tab_modal;
+  ot->poll = wm_xr_operator_sessionactive;
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Operator Registration
  * \{ */
 
@@ -1558,6 +1789,10 @@ void wm_xr_operatortypes_register()
   WM_operatortype_append(WM_OT_xr_navigation_fly);
   WM_operatortype_append(WM_OT_xr_navigation_teleport);
   WM_operatortype_append(WM_OT_xr_navigation_reset);
+  WM_operatortype_append(WM_OT_xr_ctrl);
+  WM_operatortype_append(WM_OT_xr_shift);
+  WM_operatortype_append(WM_OT_xr_alt);
+  WM_operatortype_append(WM_OT_xr_tab);
 }
 
 /** \} */
