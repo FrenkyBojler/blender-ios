@@ -1924,7 +1924,7 @@ void NODE_OT_activate_viewer(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }
 
-wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * /*op*/)
+static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * /*op*/)
 {
   SpaceNode &snode = *CTX_wm_space_node(C);
   bNodeTree &ntree = *snode.edittree;
