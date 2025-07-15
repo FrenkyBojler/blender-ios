@@ -87,7 +87,8 @@ class GreasePencilInterpolate : public testing::Test {
                          const int curve_index,
                          const bool reverse,
                          const Span<int> expected_indices,
-                         const Span<float> expected_factors)
+                         const Span<float> expected_factors,
+                         const float threshold = 1e-4f)
   {
     const int num_dst_points = expected_indices.size();
     BLI_assert(expected_factors.size() == num_dst_points);
@@ -99,7 +100,14 @@ class GreasePencilInterpolate : public testing::Test {
     geometry::sample_curve_padded(curves, curve_index, cyclic, reverse, indices, factors);
 
     EXPECT_EQ_SPAN(expected_indices, indices.as_span());
-    EXPECT_EQ_SPAN(expected_factors, factors.as_span());
+
+    EXPECT_EQ(expected_factors.size(), factors.size());
+    if (expected_factors.size() == factors.size()) {
+      for (const int i : expected_factors.index_range()) {
+        EXPECT_NEAR(expected_factors[i], factors[i], threshold)
+            << "Element mismatch at index " << i;
+      }
+    }
   }
 };
 
@@ -118,10 +126,10 @@ TEST_F(GreasePencilInterpolate, sample_curve_same_length)
       {0, 1, 3, 13, 14, 16, 26}, {false, false, false, true, true, true}, TestCurveShape::Eight);
 
   test_sample_curve(curves, 0, false, {0}, {0.0f});
-  test_sample_curve(curves, 0, true, {0}, {1.0f});
+  test_sample_curve(curves, 0, true, {0}, {0.0f});
 
   test_sample_curve(curves, 1, false, {0, 1}, {0.0f, 0.0f});
-  test_sample_curve(curves, 1, true, {0, 1}, {1.0f, 1.0f});
+  test_sample_curve(curves, 1, true, {1, 0}, {0.0f, 0.0f});
 
   test_sample_curve(curves,
                     2,
@@ -131,14 +139,14 @@ TEST_F(GreasePencilInterpolate, sample_curve_same_length)
   test_sample_curve(curves,
                     2,
                     true,
-                    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-                    {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+                    {9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+                    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
 
   test_sample_curve(curves, 3, false, {0}, {0.0f});
-  test_sample_curve(curves, 3, true, {0}, {1.0f});
+  test_sample_curve(curves, 3, true, {0}, {0.0f});
 
   test_sample_curve(curves, 4, false, {0, 1}, {0.0f, 0.0f});
-  test_sample_curve(curves, 4, true, {0, 1}, {1.0f, 1.0f});
+  test_sample_curve(curves, 4, true, {1, 0}, {0.0f, 0.0f});
 
   test_sample_curve(curves,
                     5,
@@ -148,8 +156,8 @@ TEST_F(GreasePencilInterpolate, sample_curve_same_length)
   test_sample_curve(curves,
                     5,
                     true,
-                    {0, 1, 2, 3, 4, 5, 6, 7, 8, 9},
-                    {1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f, 1.0f});
+                    {9, 8, 7, 6, 5, 4, 3, 2, 1, 0},
+                    {0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f});
 }
 
 TEST_F(GreasePencilInterpolate, sample_curve_shorter)
@@ -157,23 +165,111 @@ TEST_F(GreasePencilInterpolate, sample_curve_shorter)
   bke::CurvesGeometry curves = create_test_curves(
       {0, 1, 3, 13, 14, 16, 26}, {false, false, false, true, true, true}, TestCurveShape::Eight);
 
-  //   test_sample_curve(curves, 0, false, {}, {});
-  //   test_sample_curve(curves, 0, true, {}, {});
-
   test_sample_curve(curves, 1, false, {0}, {0.0f});
-  test_sample_curve(curves, 1, true, {0}, {1.0f});
+  test_sample_curve(curves, 1, true, {1}, {0.0f});
 
-  test_sample_curve(curves, 2, false, {0, 3, 6, 9}, {0.0f, 0.0f, 0.0f, 0.0f});
-  test_sample_curve(curves, 2, true, {0, 3, 6, 9}, {1.0f, 1.0f, 1.0f, 1.0f});
-
-  //   test_sample_curve(curves, 3, false, {}, {});
-  //   test_sample_curve(curves, 3, true, {}, {});
+  test_sample_curve(curves, 2, false, {0, 2, 5, 9}, {0.0f, 0.82178f, 0.88113f, 0.0f});
+  test_sample_curve(curves, 2, true, {9, 5, 2, 0}, {0.0f, 0.88113f, 0.82178f, 0.0f});
 
   test_sample_curve(curves, 4, false, {0}, {0.0f});
-  test_sample_curve(curves, 4, true, {0}, {1.0f});
+  test_sample_curve(curves, 4, true, {1}, {0.0f});
 
   test_sample_curve(curves, 5, false, {0, 2, 5, 7}, {0.0f, 0.5f, 0.0f, 0.5f});
-  test_sample_curve(curves, 5, true, {0, 5, 7, 9}, {1.0f, 0.5f, 1.0f, 0.5f});
+  test_sample_curve(curves, 5, true, {9, 6, 4, 1}, {0.0f, 0.50492f, 0.0f, 0.50492f});
+}
+
+TEST_F(GreasePencilInterpolate, sample_curve_longer)
+{
+  bke::CurvesGeometry curves = create_test_curves(
+      {0, 1, 3, 13, 14, 16, 26}, {false, false, false, true, true, true}, TestCurveShape::Eight);
+
+  test_sample_curve(curves,
+                    1,
+                    false,
+                    {0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1},
+                    {0.0f,
+                     0.09091f,
+                     0.18182f,
+                     0.27273f,
+                     0.36364f,
+                     0.45455f,
+                     0.54545f,
+                     0.63636f,
+                     0.72727f,
+                     0.81818f,
+                     0.90909f,
+                     0.0f});
+  test_sample_curve(curves,
+                    1,
+                    true,
+                    {1, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0},
+                    {0.0f,
+                     0.90909f,
+                     0.81818f,
+                     0.72727f,
+                     0.63636f,
+                     0.54545f,
+                     0.45455f,
+                     0.36364f,
+                     0.27273f,
+                     0.18182f,
+                     0.09091f,
+                     0.0f});
+
+  test_sample_curve(curves,
+                    2,
+                    false,
+                    {0, 1, 2, 2, 3, 4, 5, 6, 6, 7, 8, 9},
+                    {0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f});
+  test_sample_curve(curves,
+                    2,
+                    true,
+                    {9, 8, 7, 6, 6, 5, 4, 3, 2, 2, 1, 0},
+                    {0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f});
+
+  test_sample_curve(curves,
+                    4,
+                    false,
+                    {0, 0, 0, 0, 0, 0, 1, 1, 1, 1, 1, 1},
+                    {0.0f,
+                     0.16667f,
+                     0.33333f,
+                     0.5f,
+                     0.66667f,
+                     0.83333f,
+                     0.0f,
+                     0.16667f,
+                     0.33333f,
+                     0.5f,
+                     0.66667f,
+                     0.83333f});
+  test_sample_curve(curves,
+                    4,
+                    true,
+                    {1, 1, 1, 1, 1, 1, 0, 0, 0, 0, 0, 0},
+                    {0.83333f,
+                     0.66667f,
+                     0.5f,
+                     0.33333f,
+                     0.16667f,
+                     0.0f,
+                     0.83333f,
+                     0.66667f,
+                     0.5f,
+                     0.33333f,
+                     0.16667f,
+                     0.0f});
+
+  test_sample_curve(curves,
+                    5,
+                    false,
+                    {0, 1, 2, 2, 3, 4, 5, 6, 7, 7, 8, 9},
+                    {0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f});
+  test_sample_curve(curves,
+                    5,
+                    true,
+                    {9, 8, 7, 6, 6, 5, 4, 3, 2, 1, 1, 0},
+                    {0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 0.5f, 0.0f, 0.0f});
 }
 
 TEST_F(GreasePencilInterpolate, sample_zero_length_curve)

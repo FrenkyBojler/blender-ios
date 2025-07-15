@@ -9,8 +9,20 @@
 namespace blender::geometry {
 
 /**
+ * Assign source point indices and interpolation factors to target points.
+ *
+ * \param positions Source curve positions.
+ * \param cyclic True if the source curve is cyclic.
+ * \param r_indices Output array of point indices of the source curve.
+ * \param r_factors Output array of interpolation factors between a source point and the next.
+ */
+void sample_curve_padded(const Span<float3> positions,
+                         const bool cyclic,
+                         MutableSpan<int> r_indices,
+                         MutableSpan<float> r_factors);
+
+/**
  * Assign source point indices and interpolation factors to target points for a single curve.
- * The output arrays must be at least as large as the source curve.
  *
  * \param curves Source curves geometry to sample.
  * \param curve_index Index of the source curve to sample.
