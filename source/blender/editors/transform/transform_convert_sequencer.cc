@@ -837,12 +837,6 @@ static void special_aftertrans_update__sequencer(bContext * /*C*/, TransInfo *t)
   }
 }
 
-const rcti *transform_convert_sequencer_offset_clamp_get(const TransInfo *t)
-{
-  const TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
-  return &ts->offset_clamp;
-}
-
 bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
 {
   const TransSeq *ts = (TransSeq *)TRANS_DATA_CONTAINER_FIRST_SINGLE(t)->custom.type.data;
