@@ -540,6 +540,16 @@ int main(int argc,
 
   BKE_materials_init();
 
+  int *invalid_access_on_purpose = MEM_malloc_arrayN<int>(10, "invalid_access_on_purpose");
+  for (int i = 0; i < 10; i++) {
+    invalid_access_on_purpose[i] = i;
+  }
+  printf("%d, %d\n", invalid_access_on_purpose[0], invalid_access_on_purpose[9]);
+  int foo[5];
+  memcpy(foo, invalid_access_on_purpose + 11, sizeof(foo));
+  printf("%d\n", foo[4]);
+  MEM_SAFE_FREE(invalid_access_on_purpose);
+
 #ifndef WITH_PYTHON_MODULE
   if (G.background == 0) {
     BLI_args_parse(ba, ARG_PASS_SETTINGS_GUI, nullptr, nullptr);
