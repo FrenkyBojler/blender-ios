@@ -265,6 +265,7 @@ struct DRWContext {
 
     /** Render for depth picking (auto-depth). Runs on main thread. */
     DEPTH,
+    DEPTH_NO_PARTICLES,
 
     /** Render for F12 final render. Can run in any thread. */
     RENDER,
@@ -396,7 +397,11 @@ struct DRWContext {
   }
   bool is_depth() const
   {
-    return ELEM(mode, DEPTH);
+    return ELEM(mode, DEPTH, DEPTH_NO_PARTICLES);
+  }
+  bool skip_particles() const
+  {
+    return ELEM(mode, DEPTH_NO_PARTICLES);
   }
   bool is_image_render() const
   {

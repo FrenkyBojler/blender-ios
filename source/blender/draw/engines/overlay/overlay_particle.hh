@@ -119,7 +119,7 @@ class Particles : Overlay {
                         Resources & /*res*/,
                         const State &state) final
   {
-    if (!enabled_) {
+    if (!enabled_ || state.skip_particles) {
       return;
     }
 

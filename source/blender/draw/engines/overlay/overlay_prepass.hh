@@ -198,7 +198,9 @@ class Prepass : Overlay {
       return;
     }
 
-    particle_sync(manager, ob_ref, res, state);
+    if (!state.skip_particles) {
+      particle_sync(manager, ob_ref, res, state);
+    }
 
     const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d) &&
                                  !state.is_image_render;
