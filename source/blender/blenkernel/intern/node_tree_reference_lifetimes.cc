@@ -847,7 +847,7 @@ static bool pass_right_to_left(const bNodeTree &tree,
         for (const bNodeSocket *socket : node->output_sockets()) {
           required_data_on_inputs |= r_required_data_by_socket[socket->index_in_tree()];
         }
-        for (const bNodeSocket *socket : node->input_sockets().drop_front(1)) {
+        for (const bNodeSocket *socket : node->input_sockets()) {
           const int dst_index = socket->index_in_tree();
           r_required_data_by_socket[dst_index] |= required_data_on_inputs;
         }
@@ -1043,7 +1043,7 @@ static std::unique_ptr<ReferenceLifetimesInfo> make_reference_lifetimes_info(con
   required_data_by_socket.all_bits() &= potential_data_by_socket.all_bits();
 
 /* Only useful when debugging the reference lifetimes analysis. */
-#if 0
+#if 1
   std::cout << "\n\n"
             << node_tree_to_dot(tree,
                                 bNodeTreeBitGroupVectorOptions({potential_data_by_socket,
