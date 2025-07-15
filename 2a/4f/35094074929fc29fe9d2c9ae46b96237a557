@@ -1,1 +1,2 @@
 Referenced by issue #74434, Video Sequencer: Unlock icon +Alt doesn't unlock the full selection
+Referenced by pull request #141944, Fix #141940: Copy to Selected not working on Editbone "lock" unlocking
