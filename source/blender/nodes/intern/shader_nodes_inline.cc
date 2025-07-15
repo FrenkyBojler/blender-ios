@@ -243,14 +243,14 @@ class ShaderNodesInliner {
       used_link = link;
     }
     if (!used_link) {
-      value_by_socket_.add_new(socket, {InputSocketValue{socket.socket}});
+      this->store_socket_value(socket, {InputSocketValue{socket.socket}});
       return;
     }
     const SocketInContext origin_socket = {socket.context, used_link->fromsock};
     if (const auto *value = value_by_socket_.lookup_ptr(origin_socket)) {
-      SocketValue converted_value = this->handle_implicit_conversion(
-          *value, *used_link->fromsock, *used_link->tosock);
-      value_by_socket_.add_new(socket, converted_value);
+      this->store_socket_value(
+          socket,
+          this->handle_implicit_conversion(*value, *used_link->fromsock, *used_link->tosock));
       return;
     }
     this->schedule_socket(origin_socket);
@@ -262,7 +262,7 @@ class ShaderNodesInliner {
     if (node->is_reroute()) {
       const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
       if (const SocketValue *value = value_by_socket_.lookup_ptr(input_socket)) {
-        value_by_socket_.add_new(socket, *value);
+        this->store_socket_value(socket, *value);
         return;
       }
       this->schedule_socket(input_socket);
@@ -273,7 +273,7 @@ class ShaderNodesInliner {
         if (internal_link.tosock == socket.socket) {
           const SocketInContext src_socket = {socket.context, internal_link.fromsock};
           if (const SocketValue *value = value_by_socket_.lookup_ptr(src_socket)) {
-            value_by_socket_.add_new(socket,
+            this->store_socket_value(socket,
                                      this->handle_implicit_conversion(
                                          *value, *internal_link.fromsock, *internal_link.tosock));
             return;
@@ -282,19 +282,19 @@ class ShaderNodesInliner {
           return;
         }
       }
-      value_by_socket_.add_new(socket, {FallbackValue{}});
+      this->store_socket_value_fallback(socket);
       return;
     }
     if (node->is_group()) {
       const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
       if (!group || ID_MISSING(&group->id)) {
-        value_by_socket_.add_new(socket, {FallbackValue{}});
+        this->store_socket_value_fallback(socket);
         return;
       }
       group->ensure_interface_cache();
       const bNode *group_output_node = group->group_output_node();
       if (!group_output_node) {
-        value_by_socket_.add_new(socket, {FallbackValue{}});
+        this->store_socket_value_fallback(socket);
         return;
       }
       const ComputeContext &group_compute_context = compute_context_cache_.for_group_node(
@@ -302,7 +302,7 @@ class ShaderNodesInliner {
       const SocketInContext group_output_socket_ctx = {
           &group_compute_context, &group_output_node->input_socket(socket->index())};
       if (const SocketValue *value = value_by_socket_.lookup_ptr(group_output_socket_ctx)) {
-        value_by_socket_.add_new(socket, *value);
+        this->store_socket_value(socket, *value);
         return;
       }
       this->schedule_socket(group_output_socket_ctx);
@@ -318,13 +318,13 @@ class ShaderNodesInliner {
         const bNodeSocket &group_node_input = group_node->input_socket(socket->index());
         const SocketInContext group_input_socket_ctx = {parent_compute_context, &group_node_input};
         if (const SocketValue *value = value_by_socket_.lookup_ptr(group_input_socket_ctx)) {
-          value_by_socket_.add_new(socket, *value);
+          this->store_socket_value(socket, *value);
           return;
         }
         this->schedule_socket(group_input_socket_ctx);
         return;
       }
-      value_by_socket_.add_new(socket, {FallbackValue{}});
+      this->store_socket_value_fallback(socket);
       return;
     }
 
@@ -424,34 +424,9 @@ class ShaderNodesInliner {
             continue;
           }
           const void *value = output_values[current_output_i++];
-          PrimitiveSocketValue computed_value;
-          switch (output_socket->type) {
-            case SOCK_FLOAT: {
-              computed_value = {*static_cast<const float *>(value)};
-              break;
-            }
-            case SOCK_INT: {
-              computed_value = {*static_cast<const int *>(value)};
-              break;
-            }
-            case SOCK_BOOLEAN: {
-              computed_value = {*static_cast<const bool *>(value)};
-              break;
-            }
-            case SOCK_VECTOR: {
-              computed_value = {*static_cast<const float3 *>(value)};
-              break;
-            }
-            case SOCK_RGBA: {
-              computed_value = {*static_cast<const ColorGeometry4f *>(value)};
-              break;
-            }
-            default: {
-              BLI_assert_unreachable();
-              break;
-            }
-          }
-          value_by_socket_.add_new({socket.context, output_socket}, {computed_value});
+          this->store_socket_value(
+              {socket.context, output_socket},
+              {PrimitiveSocketValue::from_value({output_socket->typeinfo->base_cpp_type, value})});
         }
         return;
       }
@@ -474,7 +449,7 @@ class ShaderNodesInliner {
       }
       bNodeSocket &dst_output_socket = *socket_map.lookup(src_output_socket);
       const SocketInContext output_socket_ctx = {socket.context, src_output_socket};
-      value_by_socket_.add_new(output_socket_ctx,
+      this->store_socket_value(output_socket_ctx,
                                {LinkedSocketValue{&copied_node, &dst_output_socket}});
     }
   }
@@ -574,6 +549,16 @@ class ShaderNodesInliner {
       return;
     }
     BLI_assert_unreachable();
+  }
+
+  void store_socket_value(const SocketInContext &socket, SocketValue value)
+  {
+    value_by_socket_.add_new(socket, std::move(value));
+  }
+
+  void store_socket_value_fallback(const SocketInContext &socket)
+  {
+    value_by_socket_.add_new(socket, {FallbackValue{}});
   }
 
   void schedule_socket(const SocketInContext &socket)
