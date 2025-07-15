@@ -16,7 +16,7 @@ void main()
   out_edges = SMAALumaEdgeDetectionPS(uvs, offset, color_tx);
   /* Discard if there is no edge. */
   if (dot(out_edges, float2(1.0f, 1.0f)) == 0.0f) {
-    discard;
+    gpu_discard_fragment();
     return;
   }
 
@@ -34,7 +34,7 @@ void main()
   }
   out_color /= taa_accumulated_weight;
   /* Exit log2 space used for Anti-aliasing. */
-  out_color = exp2(out_color) - 0.5f;
+  out_color = exp2(out_color) - 1.0f;
 
   /* Avoid float precision issue. */
   if (out_color.a > 0.999f) {

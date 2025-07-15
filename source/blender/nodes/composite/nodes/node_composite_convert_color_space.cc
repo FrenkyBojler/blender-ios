@@ -8,7 +8,7 @@
 
 #include "BLI_string.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "IMB_colormanagement.hh"
@@ -29,8 +29,9 @@ static void CMP_NODE_CONVERT_COLOR_SPACE_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_convert_colorspace(bNodeTree * /*ntree*/, bNode *node)
@@ -53,12 +54,12 @@ static void node_composit_buts_convert_colorspace(uiLayout *layout,
                                                   bContext * /*C*/,
                                                   PointerRNA *ptr)
 {
-#ifndef WITH_OCIO
-  uiItemL(layout, RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
+#ifndef WITH_OPENCOLORIO
+  layout->label(RPT_("Disabled, built without OpenColorIO"), ICON_ERROR);
 #endif
 
-  uiItemR(layout, ptr, "from_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
-  uiItemR(layout, ptr, "to_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "from_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
+  layout->prop(ptr, "to_color_space", UI_ITEM_R_SPLIT_EMPTY_NAME, std::nullopt, ICON_NONE);
 }
 
 using namespace blender::compositor;
@@ -190,7 +191,7 @@ static NodeOperation *get_compositor_operation(Context &context, DNode node)
 
 }  // namespace blender::nodes::node_composite_convert_color_space_cc
 
-void register_node_type_cmp_convert_color_space()
+static void register_node_type_cmp_convert_color_space()
 {
   namespace file_ns = blender::nodes::node_composite_convert_color_space_cc;
   static blender::bke::bNodeType ntype;
@@ -207,6 +208,8 @@ void register_node_type_cmp_convert_color_space()
   blender::bke::node_type_storage(
       ntype, "NodeConvertColorSpace", node_free_standard_storage, node_copy_standard_storage);
   ntype.get_compositor_operation = file_ns::get_compositor_operation;
+  blender::bke::node_type_size(ntype, 160, 150, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }
+NOD_REGISTER_NODE(register_node_type_cmp_convert_color_space)

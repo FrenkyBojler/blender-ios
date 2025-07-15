@@ -5,7 +5,7 @@
 #include "IO_types.hh"
 #include "usd.hh"
 #include "usd_hook.hh"
-#include "usd_light_convert.hh"
+#include "usd_reader_domelight.hh"
 #include "usd_reader_geom.hh"
 #include "usd_reader_prim.hh"
 #include "usd_reader_stage.hh"
@@ -166,14 +166,11 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   *data->do_update = true;
   *data->progress = 0.1f;
 
-  std::string prim_path_mask(data->params.prim_path_mask);
   pxr::UsdStagePopulationMask pop_mask;
-  if (!prim_path_mask.empty()) {
-    for (const std::string &mask_token : pxr::TfStringTokenize(prim_path_mask, ",;")) {
-      pxr::SdfPath prim_path(mask_token);
-      if (!prim_path.IsEmpty()) {
-        pop_mask.Add(prim_path);
-      }
+  for (const std::string &mask_token : pxr::TfStringTokenize(data->params.prim_path_mask, ",;")) {
+    pxr::SdfPath prim_path(mask_token);
+    if (!prim_path.IsEmpty()) {
+      pop_mask.Add(prim_path);
     }
   }
 
@@ -236,10 +233,10 @@ static void import_startjob(void *customdata, wmJobWorkerStatus *worker_status)
   archive->collect_readers();
 
   if (data->params.import_lights && data->params.create_world_material &&
-      !archive->dome_lights().is_empty())
+      !archive->dome_light_readers().is_empty())
   {
-    dome_light_to_world_material(
-        data->params, data->scene, data->bmain, archive->dome_lights().first());
+    USDDomeLightReader *dome_light_reader = archive->dome_light_readers().first();
+    dome_light_reader->create_object(data->scene, data->bmain);
   }
 
   if (data->params.import_materials && data->params.import_all_materials) {
@@ -409,8 +406,6 @@ static void import_endjob(void *customdata)
                  "Could not open USD archive for reading, see console for detail");
       break;
   }
-
-  MEM_SAFE_FREE(data->params.prim_path_mask);
 
   WM_main_add_notifier(NC_ID | NA_ADDED, nullptr);
   report_job_duration(data);

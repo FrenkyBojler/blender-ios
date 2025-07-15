@@ -80,11 +80,11 @@ static bool seq_update_modifier_curve(Strip *strip, void *user_data)
   /* Invalidate cache of any strips that have modifiers using this
    * curve mapping. */
   SeqCurveMappingUpdateData *data = static_cast<SeqCurveMappingUpdateData *>(user_data);
-  LISTBASE_FOREACH (SequenceModifierData *, smd, &strip->modifiers) {
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
     if (smd->type == seqModifierType_Curves) {
       CurvesModifierData *cmd = reinterpret_cast<CurvesModifierData *>(smd);
       if (&cmd->curve_mapping == data->curve) {
-        blender::seq::relations_invalidate_cache_preprocessed(data->scene, strip);
+        blender::seq::relations_invalidate_cache(data->scene, strip);
       }
     }
   }
@@ -232,7 +232,7 @@ static std::optional<std::string> rna_ColorRamp_path(const PointerRNA *ptr)
         bNode *node;
 
         for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, CMP_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
+          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
             if (node->storage == ptr->data) {
               /* all node color ramp properties called 'color_ramp'
                * prepend path from ID to the node
@@ -299,7 +299,7 @@ static std::optional<std::string> rna_ColorRampElement_path(const PointerRNA *pt
         bNode *node;
 
         for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, CMP_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
+          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
             ramp_ptr = RNA_pointer_create_discrete(id, &RNA_ColorRamp, node->storage);
             COLRAMP_GETPATH;
           }
@@ -355,7 +355,7 @@ static void rna_ColorRamp_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr
         bNode *node;
 
         for (node = static_cast<bNode *>(ntree->nodes.first); node; node = node->next) {
-          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, CMP_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
+          if (ELEM(node->type_legacy, SH_NODE_VALTORGB, TEX_NODE_VALTORGB)) {
             BKE_ntree_update_tag_node_property(ntree, node);
             BKE_main_ensure_invariants(*bmain, ntree->id);
           }
@@ -496,15 +496,14 @@ static void rna_ColorManagedDisplaySettings_display_device_update(Main *bmain,
 static int rna_ColorManagedViewSettings_view_transform_get(PointerRNA *ptr)
 {
   ColorManagedViewSettings *view = (ColorManagedViewSettings *)ptr->data;
-
-  return IMB_colormanagement_view_get_named_index(view->view_transform);
+  return IMB_colormanagement_view_get_id_by_name(view->view_transform);
 }
 
 static void rna_ColorManagedViewSettings_view_transform_set(PointerRNA *ptr, int value)
 {
   ColorManagedViewSettings *view = (ColorManagedViewSettings *)ptr->data;
 
-  const char *view_name = IMB_colormanagement_view_get_indexed_name(value);
+  const char *view_name = IMB_colormanagement_view_get_name_by_id(value);
   if (!view_name) {
     return;
   }
@@ -704,7 +703,6 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
       if (&scene->sequencer_colorspace_settings == colorspace_settings) {
         /* Scene colorspace was changed. */
         blender::seq::cache_cleanup(scene);
-        blender::seq::thumbnail_cache_clear(scene);
       }
       else {
         /* Strip colorspace was likely changed. */
@@ -713,7 +711,7 @@ static void rna_ColorManagedColorspaceSettings_reload_update(Main *bmain,
         Strip *strip = cb_data.r_seq;
 
         if (strip) {
-          blender::seq::relations_sequence_free_anim(strip);
+          blender::seq::relations_strip_free_anim(strip);
 
           if (strip->data->proxy && strip->data->proxy->anim) {
             MOV_close(strip->data->proxy->anim);

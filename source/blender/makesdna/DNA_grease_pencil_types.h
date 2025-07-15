@@ -9,6 +9,7 @@
 #pragma once
 
 #include "DNA_ID.h"
+#include "DNA_attribute_types.h"
 #include "DNA_curve_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_listBase.h"
@@ -441,6 +442,11 @@ typedef struct GreasePencilOnionSkinningSettings {
  * The grease pencil data-block.
  */
 typedef struct GreasePencil {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_GP;
+#endif
+
   ID id;
   /** Animation data. */
   struct AnimData *adt;
@@ -457,10 +463,14 @@ typedef struct GreasePencil {
   /* Root group of the layer tree. */
   GreasePencilLayerTreeGroup *root_group_ptr;
 
+  /** Used only for backward compatibility with old files. */
+  CustomData layers_data_legacy;
+
   /**
-   * All attributes stored on the grease pencil layers (#AttrDomain::Layer).
+   * Layer domain attributes.
    */
-  CustomData layers_data;
+  struct AttributeStorage attribute_storage;
+
   /**
    * The index of the active attribute in the UI.
    *
@@ -733,7 +743,14 @@ typedef struct GreasePencil {
 
   void count_memory(blender::MemoryCounter &memory) const;
 
+  /**
+   * Compute the user counts of the drawings by iterating through the keyframes of all the layers
+   * and counting the number of references to each drawing.
+   */
+  blender::Array<int> count_frame_users_for_drawings() const;
+
   /* For debugging purposes. */
   void print_layer_tree();
+  void validate_drawing_user_counts();
 #endif
 } GreasePencil;

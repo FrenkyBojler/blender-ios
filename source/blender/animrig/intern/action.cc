@@ -577,9 +577,9 @@ bool Action::slot_remove(Slot &slot_to_remove)
     return false;
   }
 
-  /* Remove the slot's data from each layer. */
-  for (Layer *layer : this->layers()) {
-    layer->slot_data_remove(*this, slot_to_remove.handle);
+  /* Remove the slot's data from each keyframe strip. */
+  for (StripKeyframeData *strip_data : this->strip_keyframe_data()) {
+    strip_data->slot_data_remove(slot_to_remove.handle);
   }
 
   /* Don't bother un-assigning this slot from its users. The slot handle will
@@ -1006,13 +1006,6 @@ int64_t Layer::find_strip_index(const Strip &strip) const
   return -1;
 }
 
-void Layer::slot_data_remove(Action &owning_action, const slot_handle_t slot_handle)
-{
-  for (Strip *strip : this->strips()) {
-    strip->slot_data_remove(owning_action, slot_handle);
-  }
-}
-
 /* ----- ActionSlot implementation ----------- */
 
 Slot::Slot()
@@ -1387,7 +1380,7 @@ Slot *generic_slot_for_autoassign(const ID &animated_id,
      * the `OBSlot` should be chosen. This means that `XXSlot` NOT being auto-assigned if there is
      * an alternative. Since untyped slots are bound on assignment, this design keeps the Action
      * as-is, which means that the `XXSlot` remains untyped and thus the user is free to assign
-     * this to another ID type if desired.  */
+     * this to another ID type if desired. */
 
     const bool last_used_identifier_is_typed = last_slot_identifier.substr(0, 2) !=
                                                slot_untyped_prefix;
@@ -1693,14 +1686,6 @@ template<> StripKeyframeData &Strip::data<StripKeyframeData>(Action &owning_acti
   BLI_assert(this->type() == StripKeyframeData::TYPE);
 
   return *owning_action.strip_keyframe_data()[this->data_index];
-}
-
-void Strip::slot_data_remove(Action &owning_action, const slot_handle_t slot_handle)
-{
-  switch (this->type()) {
-    case Type::Keyframe:
-      this->data<StripKeyframeData>(owning_action).slot_data_remove(slot_handle);
-  }
 }
 
 /* ----- ActionStripKeyframeData implementation ----------- */
@@ -2110,10 +2095,10 @@ void Channelbag::fcurves_clear()
 
 static void cyclic_keying_ensure_modifier(FCurve &fcurve)
 {
-  /* BKE_fcurve_get_cycle_type() only looks at the first modifier to see if it's a Cycle modifier,
+  /* #BKE_fcurve_get_cycle_type() only looks at the first modifier to see if it's a Cycle modifier,
    * so if we're going to add one, better make sure it's the first one.
-
-   * BUT: add_fmodifier() only allows adding a Cycle modifier when there are none yet, so that's
+   *
+   * BUT: #add_fmodifier() only allows adding a Cycle modifier when there are none yet, so that's
    * all that we need to check for here.
    */
   if (!BLI_listbase_is_empty(&fcurve.modifiers)) {

@@ -233,28 +233,31 @@ enum eWM_CursorWrapAxis {
  * Context to call operator in for #WM_operator_name_call.
  * rna_ui.cc contains EnumPropertyItem's of these, keep in sync.
  */
-enum wmOperatorCallContext {
+namespace blender::wm {
+enum class OpCallContext : int8_t {
   /* If there's invoke, call it, otherwise exec. */
-  WM_OP_INVOKE_DEFAULT,
-  WM_OP_INVOKE_REGION_WIN,
-  WM_OP_INVOKE_REGION_CHANNELS,
-  WM_OP_INVOKE_REGION_PREVIEW,
-  WM_OP_INVOKE_AREA,
-  WM_OP_INVOKE_SCREEN,
+  InvokeDefault,
+  InvokeRegionWin,
+  InvokeRegionChannels,
+  InvokeRegionPreview,
+  InvokeArea,
+  InvokeScreen,
   /* Only call exec. */
-  WM_OP_EXEC_DEFAULT,
-  WM_OP_EXEC_REGION_WIN,
-  WM_OP_EXEC_REGION_CHANNELS,
-  WM_OP_EXEC_REGION_PREVIEW,
-  WM_OP_EXEC_AREA,
-  WM_OP_EXEC_SCREEN,
+  ExecDefault,
+  ExecRegionWin,
+  ExecRegionChannels,
+  ExecRegionPreview,
+  ExecArea,
+  ExecScreen,
 };
+}
 
 #define WM_OP_CONTEXT_HAS_AREA(type) \
-  (CHECK_TYPE_INLINE(type, wmOperatorCallContext), \
-   !ELEM(type, WM_OP_INVOKE_SCREEN, WM_OP_EXEC_SCREEN))
+  (CHECK_TYPE_INLINE(type, blender::wm::OpCallContext), \
+   !ELEM(type, blender::wm::OpCallContext::InvokeScreen, blender::wm::OpCallContext::ExecScreen))
 #define WM_OP_CONTEXT_HAS_REGION(type) \
-  (WM_OP_CONTEXT_HAS_AREA(type) && !ELEM(type, WM_OP_INVOKE_AREA, WM_OP_EXEC_AREA))
+  (WM_OP_CONTEXT_HAS_AREA(type) && \
+   !ELEM(type, blender::wm::OpCallContext::InvokeArea, blender::wm::OpCallContext::ExecArea))
 
 /** Property tags for #RNA_OperatorProperties. */
 enum eOperatorPropTags {
@@ -700,10 +703,11 @@ struct wmTabletData {
   int active;
   /** Range 0.0 (not touching) to 1.0 (full pressure). */
   float pressure;
-  /** range -1.0 (left) to +1.0 (right). */
-  float x_tilt;
-  /** range -1.0 (away from user) to +1.0 (toward user). */
-  float y_tilt;
+  /**
+   * X axis range: -1.0 (left) to +1.0 (right).
+   * Y axis range: -1.0 (away from user) to +1.0 (toward user).
+   */
+  blender::float2 tilt;
   /** Interpret mouse motion as absolute as typical for tablets. */
   char is_motion_absolute;
 };
@@ -874,7 +878,7 @@ struct wmNDOFMotionData {
    * This is reset when motion begins: when progress changes from #P_NOT_STARTED to #P_STARTING.
    * In this case a dummy value is used, see #GHOST_NDOF_TIME_DELTA_STARTING.
    */
-  float dt;
+  float time_delta;
   /** Is this the first event, the last, or one of many in between? */
   wmProgress progress;
 };
@@ -1160,7 +1164,7 @@ struct wmOperatorType {
 struct wmOperatorCallParams {
   wmOperatorType *optype;
   PointerRNA *opptr;
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
 };
 
 #ifdef WITH_INPUT_IME
@@ -1170,12 +1174,10 @@ struct wmOperatorCallParams {
  * All members must remain aligned and the struct size match!
  */
 struct wmIMEData {
-  size_t result_len, composite_len;
-
   /** UTF8 encoding. */
-  char *str_result;
+  std::string result;
   /** UTF8 encoding. */
-  char *str_composite;
+  std::string composite;
 
   /** Cursor position in the IME composition. */
   int cursor_pos;
@@ -1188,8 +1190,10 @@ struct wmIMEData {
 
 /* **************** Paint Cursor ******************* */
 
-using wmPaintCursorDraw =
-    void (*)(bContext *C, int x, int y, float x_tilt, float y_tilt, void *customdata);
+using wmPaintCursorDraw = void (*)(bContext *C,
+                                   const blender::int2 &xy,
+                                   const blender::float2 &tilt,
+                                   void *customdata);
 
 /* *************** Drag and drop *************** */
 
@@ -1218,6 +1222,7 @@ enum eWM_DragDataType {
   WM_DRAG_GREASE_PENCIL_GROUP,
   WM_DRAG_NODE_TREE_INTERFACE,
   WM_DRAG_BONE_COLLECTION,
+  WM_DRAG_SHAPE_KEY,
 };
 
 enum eWM_DragFlags {
@@ -1346,9 +1351,10 @@ struct wmDrag {
  * Drop-boxes are like key-maps, part of the screen/area/region definition.
  * Allocation and free is on startup and exit.
  *
- * The operator is polled and invoked with the current context (#WM_OP_INVOKE_DEFAULT), there is no
- * way to override that (by design, since drop-boxes should act on the exact mouse position).
- * So the drop-boxes are supposed to check the required area and region context in their poll.
+ * The operator is polled and invoked with the current context
+ * (#blender::wm::OpCallContext::InvokeDefault), there is no way to override that (by design, since
+ * drop-boxes should act on the exact mouse position). So the drop-boxes are supposed to check the
+ * required area and region context in their poll.
  */
 struct wmDropBox {
   wmDropBox *next, *prev;
@@ -1450,9 +1456,7 @@ struct CLG_LogRef;
 /* `wm_init_exit.cc`. */
 
 extern CLG_LogRef *WM_LOG_OPERATORS;
-extern CLG_LogRef *WM_LOG_HANDLERS;
 extern CLG_LogRef *WM_LOG_EVENTS;
-extern CLG_LogRef *WM_LOG_KEYMAPS;
-extern CLG_LogRef *WM_LOG_TOOLS;
+extern CLG_LogRef *WM_LOG_TOOL_GIZMO;
 extern CLG_LogRef *WM_LOG_MSGBUS_PUB;
 extern CLG_LogRef *WM_LOG_MSGBUS_SUB;
