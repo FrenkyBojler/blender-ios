@@ -647,9 +647,9 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
   int8_t step = 1;
 
   if (type > 0) {
-    for (int8_t act_index = totkey - 1; act_index > 0; act_index--) {
-      KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
-      if (!(kb.flag & KEYBLOCK_SEL)) {
+    for (int8_t act_index = totkey - 1; act_index >= 0; act_index--) {
+      const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
+      if (!((kb.flag & KEYBLOCK_SEL) || (act_index ==  ob->shapenr - 1))) {
         continue;
       }
       switch (type) {
@@ -666,8 +666,8 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
   }
   else {
     for (int8_t act_index = 0; act_index < totkey; act_index++) {
-      KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
-      if (!(kb.flag & KEYBLOCK_SEL)) {
+      const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
+      if (!((kb.flag & KEYBLOCK_SEL) || (act_index == ob->shapenr - 1))) {
         continue;
       }
       switch (type) {
