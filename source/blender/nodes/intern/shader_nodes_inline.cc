@@ -532,17 +532,11 @@ class ShaderNodesInliner {
       return;
     }
     if (std::get_if<InputSocketValue>(&value.value)) {
-      if (dst_socket.type == SOCK_SHADER) {
-        return;
-      }
-      /* TODO*/
+      /* Cases were the input has a primitive value are handled above. */
       return;
     }
     if (std::get_if<FallbackValue>(&value.value)) {
-      if (dst_socket.type == SOCK_SHADER) {
-        return;
-      }
-      /* TODO */
+      /* Cases were the input has a primitive fallback value are handled above. */
       return;
     }
     if (std::get_if<BundleSocketValuePtr>(&value.value)) {
