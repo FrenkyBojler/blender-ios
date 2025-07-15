@@ -908,23 +908,6 @@ static bool can_delete_scene_key(FCurve *fcu, Scene *scene, wmOperator *op)
   return true;
 }
 
-static blender::Vector<FCurve *> delete_scene_action_keyframes_legacy(AnimData *adt,
-                                                 bAction *act,
-                                                 Scene *scene,
-                                                 float cfra_unmap,
-                                                 wmOperator *op,
-                                                 blender::Vector<FCurve *> *modified_fcurves)
-{
-  LISTBASE_FOREACH_MUTABLE (FCurve *, fcu, &act->curves) {
-    if (!can_delete_scene_key(fcu, scene, op)) {
-      continue;
-    }
-    blender::animrig::delete_keyframe_fcurve_legacy(adt, fcu, cfra_unmap);
-    modified_fcurves->append(fcu);
-  }
-  return *modified_fcurves;
-}
-
 static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperator *op)
 {
   using namespace blender::animrig;
@@ -955,36 +938,28 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
 
   blender::VectorSet<std::string> modified_strips;
   blender::Vector<FCurve *> modified_fcurves;
-  bool use_legacy_report = false;
 
-  if (action.is_action_layered()) {
-    foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
-      std::string changed_strip;
-      for (const std::string &strip_path : selected_strips_rna_paths) {
-        if (fcurve_belongs_to_strip(fcurve, strip_path)) {
-          changed_strip = strip_path;
-          break;
-        }
-      }
-      if (!can_delete_scene_key(&fcurve, scene, op) || changed_strip.empty()) {
-        return;
-      }
-      if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
-        modified_fcurves.append(&fcurve);
-        modified_strips.add(changed_strip);
-      }
-    });
-
-    for (FCurve *fcurve : modified_fcurves) {
-      if (BKE_fcurve_is_empty(fcurve)) {
-        action_fcurve_remove(action, *fcurve);
+  foreach_fcurve_in_action_slot(action, adt->slot_handle, [&](FCurve &fcurve) {
+    std::string changed_strip;
+    for (const std::string &strip_path : selected_strips_rna_paths) {
+      if (fcurve_belongs_to_strip(fcurve, strip_path)) {
+        changed_strip = strip_path;
+        break;
       }
     }
-  }
-  else {
-    modified_fcurves = delete_scene_action_keyframes_legacy(
-        adt, act, scene, cfra_unmap, op, &modified_fcurves);
-    use_legacy_report = true;
+    if (!can_delete_scene_key(&fcurve, scene, op) || changed_strip.empty()) {
+      return;
+    }
+    if (blender::animrig::fcurve_delete_keyframe_at_time(&fcurve, cfra_unmap)) {
+      modified_fcurves.append(&fcurve);
+      modified_strips.add(changed_strip);
+    }
+  });
+
+  for (FCurve *fcurve : modified_fcurves) {
+    if (BKE_fcurve_is_empty(fcurve)) {
+      action_fcurve_remove(action, *fcurve);
+    }
   }
 
   if (scene->adt->action) {
@@ -1009,12 +984,6 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
                   "No keyframes removed from %ld strip(s)",
                   selected_strips_rna_paths.size());
       return OPERATOR_CANCELLED;
-    }
-
-    if (use_legacy_report) {
-      BKE_reportf(
-          op->reports, RPT_INFO, "Successfully removed %ld keyframes", modified_fcurves.size());
-      return OPERATOR_FINISHED;
     }
 
     BKE_reportf(op->reports,
