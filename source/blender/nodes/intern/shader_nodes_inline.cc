@@ -209,7 +209,7 @@ class ShaderNodesInliner {
     if (const auto *value = value_by_socket_.lookup_ptr(origin_socket)) {
       SocketValue converted_value = this->handle_implicit_conversion(
           *value, *used_link->fromsock, *used_link->tosock);
-      value_by_socket_.add_new(socket, std::move(converted_value));
+      value_by_socket_.add_new(socket, converted_value);
       return;
     }
     this->schedule_socket(origin_socket);
@@ -245,11 +245,45 @@ class ShaderNodesInliner {
       return;
     }
     if (node->is_group()) {
-      /* TODO */
+      const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
+      if (!group || ID_MISSING(&group->id)) {
+        value_by_socket_.add_new(socket, {FallbackValue{}});
+        return;
+      }
+      group->ensure_interface_cache();
+      const bNode *group_output_node = group->group_output_node();
+      if (!group_output_node) {
+        value_by_socket_.add_new(socket, {FallbackValue{}});
+        return;
+      }
+      const ComputeContext &group_compute_context = compute_context_cache_.for_group_node(
+          socket.context, node->identifier, &node->owner_tree());
+      const SocketInContext group_output_socket_ctx = {
+          &group_compute_context, &group_output_node->input_socket(socket->index())};
+      if (const SocketValue *value = value_by_socket_.lookup_ptr(group_output_socket_ctx)) {
+        value_by_socket_.add_new(socket, *value);
+        return;
+      }
+      this->schedule_socket(group_output_socket_ctx);
       return;
     }
     if (node->is_group_input()) {
-      /* TODO */
+      if (const auto *group_node_compute_context =
+              dynamic_cast<const bke::GroupNodeComputeContext *>(socket.context))
+      {
+        const ComputeContext *parent_compute_context = group_node_compute_context->parent();
+        const bNode *group_node = group_node_compute_context->node();
+        BLI_assert(group_node);
+        const bNodeSocket &group_node_input = group_node->input_socket(socket->index());
+        const SocketInContext group_input_socket_ctx = {parent_compute_context, &group_node_input};
+        if (const SocketValue *value = value_by_socket_.lookup_ptr(group_input_socket_ctx)) {
+          value_by_socket_.add_new(socket, *value);
+          return;
+        }
+        this->schedule_socket(group_input_socket_ctx);
+        return;
+      }
+      value_by_socket_.add_new(socket, {FallbackValue{}});
       return;
     }
 
