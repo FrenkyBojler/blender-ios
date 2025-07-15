@@ -167,10 +167,6 @@ bool calc_active_center(Object *ob, const bool select_only, float r_center[3])
  *
  * \{ */
 
-struct XFormObjectSkipChild_Container {
-  GHash *obchild_in_obmode_map = nullptr;
-};
-
 struct XFormObjectSkipChild {
   float obmat_orig[4][4] = {};
   float parent_obmat_orig[4][4] = {};
@@ -181,12 +177,19 @@ struct XFormObjectSkipChild {
   int mode = OB_MODE_OBJECT;
 };
 
+struct XFormObjectSkipChild_Container {
+  Map<Object *, XFormObjectSkipChild *> obchild_in_obmode_map;
+  ~XFormObjectSkipChild_Container()
+  {
+    for (XFormObjectSkipChild *xf : obchild_in_obmode_map.values()) {
+      MEM_delete(xf);
+    }
+  }
+};
+
 XFormObjectSkipChild_Container *xform_skip_child_container_create()
 {
   XFormObjectSkipChild_Container *xcs = MEM_new<XFormObjectSkipChild_Container>(__func__);
-  if (xcs->obchild_in_obmode_map == nullptr) {
-    xcs->obchild_in_obmode_map = BLI_ghash_ptr_new(__func__);
-  }
   return xcs;
 }
 
@@ -248,7 +251,6 @@ void xform_skip_child_container_item_ensure_from_array(XFormObjectSkipChild_Cont
 
 void object_xform_skip_child_container_destroy(XFormObjectSkipChild_Container *xcs)
 {
-  BLI_ghash_free(xcs->obchild_in_obmode_map, nullptr, MEM_freeN);
   MEM_delete(xcs);
 }
 
@@ -257,8 +259,7 @@ void object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Containe
                                                    Object *ob_parent_recurse,
                                                    int mode)
 {
-  void **xf_p;
-  if (!BLI_ghash_ensure_p(xcs->obchild_in_obmode_map, ob, &xf_p)) {
+  xcs->obchild_in_obmode_map.lookup_or_add_cb(ob, [&]() {
     XFormObjectSkipChild *xf = MEM_new<XFormObjectSkipChild>(__func__);
     copy_m4_m4(xf->parentinv_orig, ob->parentinv);
     copy_m4_m4(xf->obmat_orig, ob->object_to_world().ptr());
@@ -269,8 +270,8 @@ void object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Containe
     }
     xf->mode = mode;
     xf->ob_parent_recurse = ob_parent_recurse;
-    *xf_p = xf;
-  }
+    return xf;
+  });
 }
 
 void object_xform_skip_child_container_update_all(XFormObjectSkipChild_Container *xcs,
@@ -279,11 +280,9 @@ void object_xform_skip_child_container_update_all(XFormObjectSkipChild_Container
 {
   BKE_scene_graph_evaluated_ensure(depsgraph, bmain);
 
-  GHashIterator gh_iter;
-  GHASH_ITER (gh_iter, xcs->obchild_in_obmode_map) {
-    Object *ob = static_cast<Object *>(BLI_ghashIterator_getKey(&gh_iter));
-    XFormObjectSkipChild *xf = static_cast<XFormObjectSkipChild *>(
-        BLI_ghashIterator_getValue(&gh_iter));
+  for (auto item : xcs->obchild_in_obmode_map.items()) {
+    Object *ob = item.key;
+    XFormObjectSkipChild *xf = item.value;
 
     /* The following blocks below assign 'dmat'. */
     float dmat[4][4];
