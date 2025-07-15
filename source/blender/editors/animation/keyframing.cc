@@ -925,7 +925,7 @@ static wmOperatorStatus delete_key_vse_without_keying_set(bContext *C, wmOperato
   }
 
   const bool confirm = op->flag & OP_IS_INVOKE;
-  if (!((scene->adt) && (scene->adt->action))) {
+  if (!((scene->adt) && (scene->adt->action)) || (scene->adt->slot_handle == Slot::unassigned)) {
     BKE_reportf(op->reports, RPT_ERROR, "Scene has no animation data or active action");
     return OPERATOR_CANCELLED;
   }
