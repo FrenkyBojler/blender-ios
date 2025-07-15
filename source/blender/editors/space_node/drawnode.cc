@@ -56,6 +56,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
+#include "UI_interface.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -174,7 +175,6 @@ static void node_buts_texture(uiLayout *layout, bContext *C, PointerRNA *ptr)
   bNode *node = (bNode *)ptr->data;
 
   short multi = (node->id && ((Tex *)node->id)->use_nodes &&
-                 (node->type_legacy != CMP_NODE_TEXTURE) &&
                  (node->type_legacy != TEX_NODE_TEXTURE));
 
   uiTemplateID(layout, C, ptr, "texture", "texture.new", nullptr, nullptr);
@@ -231,7 +231,7 @@ NodeResizeDirection node_get_resize_direction(const SpaceNode &snode,
     return dir;
   }
 
-  if (node->flag & NODE_HIDDEN) {
+  if (node->flag & NODE_COLLAPSED) {
     /* right part of node */
     rctf bounds = node->runtime->draw_bounds;
     bounds.xmin = node->runtime->draw_bounds.xmax - 1.0f * U.widget_unit;
@@ -346,7 +346,7 @@ static void node_buts_image_user(uiLayout *layout,
 
     /* Avoid losing changes image is painted. */
     if (BKE_image_is_dirty((Image *)imaptr->data)) {
-      uiLayoutSetEnabled(split, false);
+      split->enabled_set(false);
     }
   }
 }
@@ -356,7 +356,7 @@ static void node_shader_buts_tex_image(uiLayout *layout, bContext *C, PointerRNA
   PointerRNA imaptr = RNA_pointer_get(ptr, "image");
   PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
 
-  uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
+  layout->context_ptr_set("image_user", &iuserptr);
   uiTemplateID(layout, C, ptr, "image", "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
   layout->prop(ptr, "interpolation", DEFAULT_FLAGS, "", ICON_NONE);
   layout->prop(ptr, "projection", DEFAULT_FLAGS, "", ICON_NONE);
@@ -384,7 +384,7 @@ static void node_shader_buts_tex_environment(uiLayout *layout, bContext *C, Poin
   PointerRNA imaptr = RNA_pointer_get(ptr, "image");
   PointerRNA iuserptr = RNA_pointer_get(ptr, "image_user");
 
-  uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
+  layout->context_ptr_set("image_user", &iuserptr);
   uiTemplateID(layout, C, ptr, "image", "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
 
   layout->prop(ptr, "interpolation", DEFAULT_FLAGS, "", ICON_NONE);
@@ -508,7 +508,7 @@ static void node_composit_buts_image(uiLayout *layout, bContext *C, PointerRNA *
   bNode *node = (bNode *)ptr->data;
 
   PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
-  uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
+  layout->context_ptr_set("image_user", &iuserptr);
   uiTemplateID(layout, C, ptr, "image", "IMAGE_OT_new", "IMAGE_OT_open", nullptr);
   if (!node->id) {
     return;
@@ -526,7 +526,7 @@ static void node_composit_buts_image_ex(uiLayout *layout, bContext *C, PointerRN
   bNode *node = (bNode *)ptr->data;
 
   PointerRNA iuserptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_ImageUser, node->storage);
-  uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
+  layout->context_ptr_set("image_user", &iuserptr);
   uiTemplateImage(layout, C, ptr, "image", &iuserptr, false, true);
 }
 
@@ -544,11 +544,6 @@ static void node_composit_buts_huecorrect(uiLayout *layout, bContext * /*C*/, Po
   }
 
   uiTemplateCurveMapping(layout, ptr, "mapping", 'h', false, false, false, false);
-}
-
-static void node_composit_buts_ycc(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout->prop(ptr, "mode", DEFAULT_FLAGS, "", ICON_NONE);
 }
 
 static void node_composit_buts_combsep_color(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -603,7 +598,7 @@ static void node_composit_buts_cryptomatte(uiLayout *layout, bContext *C, Pointe
     PointerRNA imaptr = RNA_pointer_get(ptr, "image");
     PointerRNA iuserptr = RNA_pointer_create_discrete(
         ptr->owner_id, &RNA_ImageUser, &crypto->iuser);
-    uiLayoutSetContextPointer(layout, "image_user", &iuserptr);
+    layout->context_ptr_set("image_user", &iuserptr);
 
     node_buts_image_user(col, C, ptr, &imaptr, &iuserptr, false, false);
     node_buts_image_views(col, C, ptr, &imaptr);
@@ -633,20 +628,8 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
     case CMP_NODE_CURVE_RGB:
       ntype->draw_buttons = node_buts_curvecol;
       break;
-    case CMP_NODE_MIX_RGB:
-      ntype->draw_buttons = node_buts_mix_rgb;
-      break;
-    case CMP_NODE_VALTORGB:
-      ntype->draw_buttons = node_buts_colorramp;
-      break;
     case CMP_NODE_TIME:
       ntype->draw_buttons = node_buts_time;
-      break;
-    case CMP_NODE_TEXTURE:
-      ntype->draw_buttons = node_buts_texture;
-      break;
-    case CMP_NODE_MATH:
-      ntype->draw_buttons = node_buts_math;
       break;
     case CMP_NODE_HUECORRECT:
       ntype->draw_buttons = node_composit_buts_huecorrect;
@@ -654,10 +637,6 @@ static void node_composit_set_butfunc(blender::bke::bNodeType *ntype)
     case CMP_NODE_COMBINE_COLOR:
     case CMP_NODE_SEPARATE_COLOR:
       ntype->draw_buttons = node_composit_buts_combsep_color;
-      break;
-    case CMP_NODE_COMBYCCA_LEGACY:
-    case CMP_NODE_SEPYCCA_LEGACY:
-      ntype->draw_buttons = node_composit_buts_ycc;
       break;
     case CMP_NODE_CRYPTOMATTE:
       ntype->draw_buttons = node_composit_buts_cryptomatte;
@@ -1068,7 +1047,7 @@ static void node_file_output_socket_draw(bContext *C,
     PropertyRNA *imtype_prop = RNA_struct_find_property(&imfptr, "file_format");
     RNA_property_enum_name(
         C, &imfptr, imtype_prop, RNA_property_enum_get(&imfptr, imtype_prop), &imtype_name);
-    block = uiLayoutGetBlock(row);
+    block = row->block();
     UI_block_emboss_set(block, blender::ui::EmbossType::Pulldown);
     row->label(imtype_name, ICON_NONE);
     UI_block_emboss_set(block, blender::ui::EmbossType::None);
@@ -1187,7 +1166,7 @@ static void std_node_socket_draw(
   if (has_gizmo) {
     if (sock->in_out == SOCK_OUT && node->is_group_input()) {
       uiLayout *row = &layout->row(false);
-      uiLayoutSetAlignment(row, UI_LAYOUT_ALIGN_RIGHT);
+      row->alignment_set(blender::ui::LayoutAlign::Right);
       node_socket_button_label(C, row, ptr, node_ptr, text);
       row->label("", ICON_GIZMO);
       return;
@@ -1425,7 +1404,11 @@ static void std_node_socket_interface_draw(ID *id,
     }
     case SOCK_VECTOR: {
       col->prop(&ptr, "subtype", DEFAULT_FLAGS, IFACE_("Subtype"), ICON_NONE);
-      col->prop(&ptr, "dimensions", DEFAULT_FLAGS, IFACE_("Dimensions"), ICON_NONE);
+      col->prop(&ptr,
+                "dimensions",
+                DEFAULT_FLAGS,
+                CTX_IFACE_(BLT_I18NCONTEXT_ID_TEXTURE, "Dimensions"),
+                ICON_NONE);
       col->prop(&ptr, "default_value", UI_ITEM_R_EXPAND, IFACE_("Default"), ICON_NONE);
       uiLayout *sub = &col->column(true);
       sub->prop(&ptr, "min_value", DEFAULT_FLAGS, IFACE_("Min"), ICON_NONE);
@@ -1642,7 +1625,7 @@ float2 socket_link_connection_location(const bNode &node,
                                        const bNodeLink &link)
 {
   const float2 socket_location = socket.runtime->location;
-  if (socket.is_multi_input() && socket.is_input() && !(node.flag & NODE_HIDDEN)) {
+  if (socket.is_multi_input() && socket.is_input() && !(node.flag & NODE_COLLAPSED)) {
     /* For internal link case, handle number of links as at least 1. */
     const int clamped_total_inputs = math::max<int>(1, socket.runtime->total_inputs);
     return node_link_calculate_multi_input_position(
@@ -2208,10 +2191,7 @@ static bool node_link_is_field_link(const SpaceNode &snode, const bNodeLink &lin
   if (tree.type != NTREE_GEOMETRY) {
     return false;
   }
-  const Span<bke::FieldSocketState> field_states = tree.runtime->field_states;
-  if (link.fromsock &&
-      field_states[link.fromsock->index_in_tree()] == bke::FieldSocketState::IsField)
-  {
+  if (link.fromsock && link.fromsock->may_be_field()) {
     return true;
   }
   return false;

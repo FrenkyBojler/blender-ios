@@ -5,7 +5,7 @@
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (5, 0, 2),
+    "version": (5, 0, 16),
     'blender': (4, 4, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
@@ -141,9 +141,8 @@ def get_format_items(scene, context):
               'Exports multiple files, with separate JSON, binary and texture data. '
               'Easiest to edit later'))
 
-    if bpy.context.preferences.addons['io_scene_gltf2'].preferences \
-            and "allow_embedded_format" in bpy.context.preferences.addons['io_scene_gltf2'].preferences \
-            and bpy.context.preferences.addons['io_scene_gltf2'].preferences['allow_embedded_format']:
+    addon_preferences = bpy.context.preferences.addons['io_scene_gltf2'].preferences
+    if addon_preferences and addon_preferences.allow_embedded_format:
         # At initialization, the preferences are not yet loaded
         # The second line check is needed until the PR is merge in Blender, for github CI tests
         items += (('GLTF_EMBEDDED', 'glTF Embedded (.gltf)',
@@ -1167,8 +1166,12 @@ class ExportGLTF2_Base(ConvertGLTF2_Base):
         else:
             export_settings['gltf_vertex_color_name'] = ""
 
-        export_settings['gltf_unused_textures'] = self.export_unused_textures
-        export_settings['gltf_unused_images'] = self.export_unused_images
+        if self.export_materials == "EXPORT":
+            export_settings['gltf_unused_textures'] = self.export_unused_textures
+            export_settings['gltf_unused_images'] = self.export_unused_images
+        else:
+            export_settings['gltf_unused_textures'] = False
+            export_settings['gltf_unused_images'] = False
 
         export_settings['gltf_visible'] = self.use_visible
         export_settings['gltf_renderable'] = self.use_renderable
@@ -1540,7 +1543,9 @@ def export_panel_data_material(layout, operator):
 
         header, sub_body = body.panel("GLTF_export_data_material_unused", default_closed=True)
         header.label(text="Unused Textures & Images")
+        header.active = operator.export_materials == "EXPORT"
         if sub_body:
+            sub_body.active = operator.export_materials == "EXPORT"
             row = sub_body.row()
             row.prop(operator, 'export_unused_images')
             row = sub_body.row()
@@ -1845,6 +1850,11 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
 
     filter_glob: StringProperty(default="*.glb;*.gltf", options={'HIDDEN'})
 
+    directory: StringProperty(
+        subtype='DIR_PATH',
+        options={'HIDDEN', 'SKIP_PRESET'},
+    )
+
     files: CollectionProperty(
         name="File Path",
         type=bpy.types.OperatorFileListElement,
@@ -1956,6 +1966,12 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
         default=True,
     )
 
+    import_merge_material_slots: BoolProperty(
+        name='Merge Material Slot when possible',
+        description='Merge material slots when possible',
+        default=True,
+    )
+
     def draw(self, context):
         operator = self
         layout = self.layout
@@ -1963,9 +1979,9 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
         layout.use_property_split = True
         layout.use_property_decorate = False  # No animation.
 
-        layout.prop(self, 'merge_vertices')
         layout.prop(self, 'import_shading')
         layout.prop(self, 'export_import_convert_lighting_mode')
+        import_mesh_panel(layout, operator)
         import_texture_panel(layout, operator)
         import_bone_panel(layout, operator)
         import_ux_panel(layout, operator)
@@ -2016,9 +2032,8 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
         if self.files:
             # Multiple file import
             ret = {'CANCELLED'}
-            dirname = os.path.dirname(self.filepath)
             for file in self.files:
-                path = os.path.join(dirname, file.name)
+                path = os.path.join(self.directory, file.name)
                 if self.unit_import(path, import_settings) == {'FINISHED'}:
                     ret = {'FINISHED'}
             return ret
@@ -2055,6 +2070,13 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
             self.report({'ERROR'}, e.args[0])
             return {'CANCELLED'}
 
+
+def import_mesh_panel(layout, operator):
+    header, body = layout.panel("GLTF_import_mesh", default_closed=False)
+    header.label(text="Mesh")
+    if body:
+        body.prop(operator, 'merge_vertices')
+        body.prop(operator, 'import_merge_material_slots')
 
 def import_bone_panel(layout, operator):
     header, body = layout.panel("GLTF_import_bone", default_closed=False)
@@ -2210,6 +2232,8 @@ def unregister():
     blender_ui.unregister()
     if bpy.context.preferences.addons['io_scene_gltf2'].preferences.KHR_materials_variants_ui is True:
         blender_ui.variant_unregister()
+    if bpy.context.preferences.addons['io_scene_gltf2'].preferences.animation_ui is True:
+        blender_ui.anim_ui_unregister()
 
     for c in classes:
         bpy.utils.unregister_class(c)

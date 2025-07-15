@@ -54,6 +54,7 @@ void VKDescriptorSetTracker::upload_descriptor_sets()
   else {
     descriptor_sets.upload_descriptor_sets();
   }
+  vk_descriptor_set_layout_ = VK_NULL_HANDLE;
 }
 
 /* -------------------------------------------------------------------- */
@@ -539,7 +540,7 @@ void VKDescriptorBufferUpdator::allocate_new_descriptor_set(
     buffer->create(default_buffer_size,
                    VK_BUFFER_USAGE_SAMPLER_DESCRIPTOR_BUFFER_BIT_EXT |
                        VK_BUFFER_USAGE_RESOURCE_DESCRIPTOR_BUFFER_BIT_EXT,
-                   VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                   VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT,
                    0,
                    VMA_ALLOCATION_CREATE_HOST_ACCESS_RANDOM_BIT);
     debug::object_label(buffer->vk_handle(), "DescriptorBuffer");

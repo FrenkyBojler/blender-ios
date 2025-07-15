@@ -91,6 +91,25 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
   }
 #endif
 
+#ifdef _WIN32
+  if (vk_physical_device_driver_properties.driverID == VK_DRIVER_ID_QUALCOMM_PROPRIETARY) {
+    /* Any Qualcomm driver older than 31.0.112.0 will not be capable of running blender due
+     * to an issue in their semaphore timeline implementation. The driver could return
+     * timelines that have not been provided by Blender. As Blender uses timelines for resource
+     * management this resulted in resources to be destroyed, that are still in use. */
+
+    /* Public version 31.0.112 uses vulkan driver version 512.827.14. */
+    const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
+    constexpr uint32_t version_31_0_112 = VK_MAKE_VERSION(512, 827, 14);
+    if (driver_version < version_31_0_112) {
+      CLOG_WARN(&LOG,
+                "Detected qualcomm driver is not supported. To run the Vulkan backend "
+                "driver 31.0.112.0 or later is required. Switching to OpenGL.");
+      return false;
+    }
+  }
+#endif
+
   return true;
 }
 
@@ -229,11 +248,11 @@ bool VKBackend::is_supported()
     /* Report result. */
     if (missing_capabilities.is_empty()) {
       /* This device meets minimum requirements. */
-      CLOG_INFO(&LOG,
-                2,
-                "Device [%s] supports minimum requirements. Skip checking other GPUs. Another GPU "
-                "can still be selected during auto-detection.",
-                vk_properties.deviceName);
+      CLOG_DEBUG(
+          &LOG,
+          "Device [%s] supports minimum requirements. Skip checking other GPUs. Another GPU "
+          "can still be selected during auto-detection.",
+          vk_properties.deviceName);
 
       vkDestroyInstance(vk_instance, nullptr);
       return true;
@@ -361,7 +380,6 @@ void VKBackend::platform_init(const VKDevice &device)
   }
 
   CLOG_INFO(&LOG,
-            0,
             "Using vendor [%s] device [%s] driver version [%s].",
             vendor_name.c_str(),
             device.vk_physical_device_properties_.deviceName,
@@ -410,6 +428,8 @@ void VKBackend::detect_workarounds(VKDevice &device)
   extensions.dynamic_rendering_unused_attachments = device.supports_extension(
       VK_EXT_DYNAMIC_RENDERING_UNUSED_ATTACHMENTS_EXTENSION_NAME);
   extensions.logic_ops = device.physical_device_features_get().logicOp;
+  extensions.descriptor_buffer = device.supports_extension(
+      VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
 #ifdef _WIN32
   extensions.external_memory = device.supports_extension(
       VK_KHR_EXTERNAL_MEMORY_WIN32_EXTENSION_NAME);
@@ -424,9 +444,22 @@ void VKBackend::detect_workarounds(VKDevice &device)
    *
    * See #140125
    */
-  if (device.vk_physical_device_driver_properties_.driverID != VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
-    extensions.descriptor_buffer = device.supports_extension(
-        VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+  if (device.vk_physical_device_driver_properties_.driverID == VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
+    extensions.descriptor_buffer = false;
+  }
+
+  /* Running render tests fails consistenly in some scenes. The cause is that too many descriptor
+   * sets are required for rendering resulting in failing allocations of the descriptor buffer. We
+   * work around this issue by not using descriptor buffers on these platforms.
+   *
+   * TODO: recheck when the backed memory gets freed and how to improve it.
+   *
+   * See #141476
+   */
+  if (device.vk_physical_device_driver_properties_.driverID ==
+      VK_DRIVER_ID_INTEL_PROPRIETARY_WINDOWS)
+  {
+    extensions.descriptor_buffer = false;
   }
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */

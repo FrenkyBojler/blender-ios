@@ -520,7 +520,7 @@ struct uiAfterFunc {
 
   wmOperator *popup_op;
   wmOperatorType *optype;
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
   PointerRNA *opptr;
 
   PointerRNA rnapoin;
@@ -834,7 +834,7 @@ static uiAfterFunc *ui_afterfunc_new()
  */
 static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
                                                 PointerRNA **properties,
-                                                wmOperatorCallContext opcontext,
+                                                blender::wm::OpCallContext opcontext,
                                                 const uiBut *context_but)
 {
   uiAfterFunc *after = ui_afterfunc_new();
@@ -855,7 +855,7 @@ static void ui_handle_afterfunc_add_operator_ex(wmOperatorType *ot,
   }
 }
 
-void ui_handle_afterfunc_add_operator(wmOperatorType *ot, wmOperatorCallContext opcontext)
+void ui_handle_afterfunc_add_operator(wmOperatorType *ot, blender::wm::OpCallContext opcontext)
 {
   ui_handle_afterfunc_add_operator_ex(ot, nullptr, opcontext, nullptr);
 }
@@ -931,7 +931,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
     after->opptr = but->opptr;
 
     but->optype = nullptr;
-    but->opcontext = wmOperatorCallContext(0);
+    but->opcontext = blender::wm::OpCallContext(0);
     but->opptr = nullptr;
   }
 
@@ -4527,7 +4527,7 @@ static uiBut *ui_but_list_row_text_activate(bContext *C,
   uiBut *labelbut = ui_but_find_mouse_over_ex(region, event->xy, true, false, nullptr, nullptr);
 
   if (labelbut && labelbut->type == UI_BTYPE_TEXT && !(labelbut->flag & UI_BUT_DISABLED)) {
-    /* exit listrow */
+    /* Exit list-row. */
     data->cancel = true;
     button_activate_exit(C, but, data, false, false);
 
@@ -5074,14 +5074,12 @@ static void force_activate_view_item_but(bContext *C,
                                          uiButViewItem *but,
                                          const bool close_popup = true)
 {
-  if (but->active) {
-    ui_apply_but(C, but->block, but, but->active, true);
-    ED_region_tag_redraw_no_rebuild(region);
-    ED_region_tag_refresh_ui(region);
-  }
-  else {
-    UI_but_execute(C, region, but);
-  }
+
+  /* For popups. Other abstract view instances correctly calls the select operator, see:
+   * #141235. */
+  but->view_item->activate(*C);
+  ED_region_tag_redraw_no_rebuild(region);
+  ED_region_tag_refresh_ui(region);
 
   if (close_popup && !UI_view_item_popup_keep_open(*but->view_item)) {
     UI_popup_menu_close_from_but(but);
@@ -5097,7 +5095,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
   BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
-    if (event->type == LEFTMOUSE) {
+    if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
       switch (event->val) {
         case KM_PRESS:
           /* Extra icons have priority, don't mess with them. */
@@ -6646,20 +6644,19 @@ static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, co
               BKE_brush_tag_unsaved_changes(brush);
             }
             else {
-              Scene *scene = CTX_data_scene(C);
               bool updated = false;
 
               if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR_GAMMA) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
-                BKE_brush_color_set(scene, paint, brush, color);
+                BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
               else if (but->rnaprop && RNA_property_subtype(but->rnaprop) == PROP_COLOR) {
                 RNA_property_float_get_array_at_most(
                     &but->rnapoin, but->rnaprop, color, ARRAY_SIZE(color));
                 IMB_colormanagement_scene_linear_to_srgb_v3(color, color);
-                BKE_brush_color_set(scene, paint, brush, color);
+                BKE_brush_color_set(paint, brush, color);
                 updated = true;
               }
 
@@ -6909,7 +6906,7 @@ static bool ui_numedit_but_HSVCUBE(uiBut *but,
 #ifdef WITH_INPUT_NDOF
 static void ui_ndofedit_but_HSVCUBE(uiButHSVCube *hsv_but,
                                     uiHandleButtonData *data,
-                                    const wmNDOFMotionData *ndof,
+                                    const wmNDOFMotionData &ndof,
                                     const enum eSnapType snap,
                                     const bool shift)
 {
@@ -6917,7 +6914,7 @@ static void ui_ndofedit_but_HSVCUBE(uiButHSVCube *hsv_but,
   float *hsv = cpicker->hsv_perceptual;
   const float hsv_v_max = max_ff(hsv[2], hsv_but->softmax);
   float rgb[3];
-  const float sensitivity = (shift ? 0.15f : 0.3f) * ndof->dt;
+  const float sensitivity = (shift ? 0.15f : 0.3f) * ndof.time_delta;
 
   ui_but_v3_get(hsv_but, rgb);
   ui_scene_linear_to_perceptual_space(hsv_but, rgb);
@@ -6925,32 +6922,32 @@ static void ui_ndofedit_but_HSVCUBE(uiButHSVCube *hsv_but,
 
   switch (hsv_but->gradient_type) {
     case UI_GRAD_SV:
-      hsv[1] += ndof->rvec[2] * sensitivity;
-      hsv[2] += ndof->rvec[0] * sensitivity;
+      hsv[1] += ndof.rvec[2] * sensitivity;
+      hsv[2] += ndof.rvec[0] * sensitivity;
       break;
     case UI_GRAD_HV:
-      hsv[0] += ndof->rvec[2] * sensitivity;
-      hsv[2] += ndof->rvec[0] * sensitivity;
+      hsv[0] += ndof.rvec[2] * sensitivity;
+      hsv[2] += ndof.rvec[0] * sensitivity;
       break;
     case UI_GRAD_HS:
-      hsv[0] += ndof->rvec[2] * sensitivity;
-      hsv[1] += ndof->rvec[0] * sensitivity;
+      hsv[0] += ndof.rvec[2] * sensitivity;
+      hsv[1] += ndof.rvec[0] * sensitivity;
       break;
     case UI_GRAD_H:
-      hsv[0] += ndof->rvec[2] * sensitivity;
+      hsv[0] += ndof.rvec[2] * sensitivity;
       break;
     case UI_GRAD_S:
-      hsv[1] += ndof->rvec[2] * sensitivity;
+      hsv[1] += ndof.rvec[2] * sensitivity;
       break;
     case UI_GRAD_V:
-      hsv[2] += ndof->rvec[2] * sensitivity;
+      hsv[2] += ndof.rvec[2] * sensitivity;
       break;
     case UI_GRAD_V_ALT:
     case UI_GRAD_L_ALT:
       /* vertical 'value' strip */
 
       /* exception only for value strip - use the range set in but->min/max */
-      hsv[2] += ndof->rvec[0] * sensitivity;
+      hsv[2] += ndof.rvec[0] * sensitivity;
 
       CLAMP(hsv[2], hsv_but->softmin, hsv_but->softmax);
       break;
@@ -7003,7 +7000,7 @@ static int ui_do_but_HSVCUBE(
     }
 #ifdef WITH_INPUT_NDOF
     if (event->type == NDOF_MOTION) {
-      const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+      const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
       const enum eSnapType snap = ui_event_to_snap(event);
 
       ui_ndofedit_but_HSVCUBE(hsv_but, data, ndof, snap, event->modifier & KM_SHIFT);
@@ -7175,7 +7172,7 @@ static bool ui_numedit_but_HSVCIRCLE(uiBut *but,
 #ifdef WITH_INPUT_NDOF
 static void ui_ndofedit_but_HSVCIRCLE(uiBut *but,
                                       uiHandleButtonData *data,
-                                      const wmNDOFMotionData *ndof,
+                                      const wmNDOFMotionData &ndof,
                                       const enum eSnapType snap,
                                       const bool shift)
 {
@@ -7183,7 +7180,7 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but,
   float *hsv = cpicker->hsv_perceptual;
   float rgb[3];
   float phi, r, v[2];
-  const float sensitivity = (shift ? 0.06f : 0.3f) * ndof->dt;
+  const float sensitivity = (shift ? 0.06f : 0.3f) * ndof.time_delta;
 
   ui_but_v3_get(but, rgb);
   ui_scene_linear_to_perceptual_space(but, rgb);
@@ -7199,14 +7196,14 @@ static void ui_ndofedit_but_HSVCIRCLE(uiBut *but,
   v[1] = r * sinf(phi);
 
   /* Use ndof device y and x rotation to move the vector in 2d space */
-  v[0] += ndof->rvec[2] * sensitivity;
-  v[1] += ndof->rvec[0] * sensitivity;
+  v[0] += ndof.rvec[2] * sensitivity;
+  v[1] += ndof.rvec[0] * sensitivity;
 
   /* convert back to polar coords on circle */
   phi = atan2f(v[0], v[1]) / (2.0f * float(M_PI)) + 0.5f;
 
   /* use ndof Y rotation to additionally rotate hue */
-  phi += ndof->rvec[1] * sensitivity * 0.5f;
+  phi += ndof.rvec[1] * sensitivity * 0.5f;
   r = len_v2(v);
 
   /* convert back to hsv values, in range [0,1] */
@@ -7278,7 +7275,7 @@ static int ui_do_but_HSVCIRCLE(
 #ifdef WITH_INPUT_NDOF
     if (event->type == NDOF_MOTION) {
       const enum eSnapType snap = ui_event_to_snap(event);
-      const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+      const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
 
       ui_ndofedit_but_HSVCIRCLE(but, data, ndof, snap, event->modifier & KM_SHIFT);
 
@@ -9643,7 +9640,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
                 /* Cancel because this `but` handles all events and we don't want
                  * the parent button's update function to do anything.
                  *
-                 * Causes issues with buttons defined by #uiItemFullR_with_popover. */
+                 * Causes issues with buttons defined by #uiLayout::prop_with_popover. */
                 block->handle->menuretval = UI_RETURN_CANCEL;
               }
               else if (ui_but_is_editable_as_text(but)) {
@@ -10134,7 +10131,7 @@ static int ui_handle_view_item_event(bContext *C,
       }
       break;
     case LEFTMOUSE:
-      if (event->val == KM_PRESS) {
+      if ((event->val == KM_PRESS) && (event->modifier == 0)) {
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
         uiButViewItem *view_but = static_cast<uiButViewItem *>(
@@ -10620,7 +10617,7 @@ static int ui_handle_menu_letter_press_search(uiPopupBlockHandle *menu, const wm
     uiAfterFunc *after = ui_afterfunc_new();
     wmOperatorType *ot = WM_operatortype_find("WM_OT_search_single_menu", false);
     after->optype = ot;
-    after->opcontext = WM_OP_INVOKE_DEFAULT;
+    after->opcontext = blender::wm::OpCallContext::InvokeDefault;
     after->opptr = MEM_new<PointerRNA>(__func__);
     WM_operator_properties_create_ptr(after->opptr, ot);
     RNA_string_set(after->opptr, "menu_idname", menu->menu_idname);

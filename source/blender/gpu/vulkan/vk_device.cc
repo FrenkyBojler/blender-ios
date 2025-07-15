@@ -32,28 +32,27 @@ namespace blender::gpu {
 
 void VKExtensions::log() const
 {
-  CLOG_INFO(&LOG,
-            2,
-            "Device features\n"
-            " - [%c] shader output viewport index\n"
-            " - [%c] shader output layer\n"
-            " - [%c] fragment shader barycentric\n"
-            "Device extensions\n"
-            " - [%c] descriptor buffer\n"
-            " - [%c] dynamic rendering\n"
-            " - [%c] dynamic rendering local read\n"
-            " - [%c] dynamic rendering unused attachments\n"
-            " - [%c] external memory\n"
-            " - [%c] shader stencil export",
-            shader_output_viewport_index ? 'X' : ' ',
-            shader_output_layer ? 'X' : ' ',
-            fragment_shader_barycentric ? 'X' : ' ',
-            descriptor_buffer ? 'X' : ' ',
-            dynamic_rendering ? 'X' : ' ',
-            dynamic_rendering_local_read ? 'X' : ' ',
-            dynamic_rendering_unused_attachments ? 'X' : ' ',
-            external_memory ? 'X' : ' ',
-            GPU_stencil_export_support() ? 'X' : ' ');
+  CLOG_DEBUG(&LOG,
+             "Device features\n"
+             " - [%c] shader output viewport index\n"
+             " - [%c] shader output layer\n"
+             " - [%c] fragment shader barycentric\n"
+             "Device extensions\n"
+             " - [%c] descriptor buffer\n"
+             " - [%c] dynamic rendering\n"
+             " - [%c] dynamic rendering local read\n"
+             " - [%c] dynamic rendering unused attachments\n"
+             " - [%c] external memory\n"
+             " - [%c] shader stencil export",
+             shader_output_viewport_index ? 'X' : ' ',
+             shader_output_layer ? 'X' : ' ',
+             fragment_shader_barycentric ? 'X' : ' ',
+             descriptor_buffer ? 'X' : ' ',
+             dynamic_rendering ? 'X' : ' ',
+             dynamic_rendering_local_read ? 'X' : ' ',
+             dynamic_rendering_unused_attachments ? 'X' : ' ',
+             external_memory ? 'X' : ' ',
+             GPU_stencil_export_support() ? 'X' : ' ');
 }
 
 void VKDevice::reinit()
@@ -67,7 +66,6 @@ void VKDevice::deinit()
   if (!is_initialized()) {
     return;
   }
-  lifetime = Lifetime::DEINITIALIZING;
 
   deinit_submission_pool();
 
@@ -108,12 +106,7 @@ void VKDevice::deinit()
   glsl_frag_patch_.clear();
   glsl_geom_patch_.clear();
   glsl_comp_patch_.clear();
-  lifetime = Lifetime::DESTROYED;
-}
-
-bool VKDevice::is_initialized() const
-{
-  return lifetime == Lifetime::RUNNING;
+  is_initialized_ = false;
 }
 
 void VKDevice::init(void *ghost_context)
@@ -152,7 +145,7 @@ void VKDevice::init(void *ghost_context)
   orphaned_data.timeline_ = 0;
 
   init_submission_pool();
-  lifetime = Lifetime::RUNNING;
+  is_initialized_ = true;
 }
 
 void VKDevice::init_functions()
@@ -551,7 +544,8 @@ void VKDevice::context_unregister(VKContext &context)
     BLI_assert_msg(render_graph.is_empty(),
                    "Unregistering a context that still has an unsubmitted render graph.");
     render_graph.reset();
-    BLI_thread_queue_push(unused_render_graphs_, &render_graph);
+    BLI_thread_queue_push(
+        unused_render_graphs_, &render_graph, BLI_THREAD_QUEUE_WORK_PRIORITY_NORMAL);
   }
   {
     std::scoped_lock lock(orphaned_data.mutex_get());

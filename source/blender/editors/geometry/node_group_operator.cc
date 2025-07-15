@@ -59,7 +59,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "ED_asset.hh"
@@ -193,8 +193,7 @@ static const ImplicitSharingInfo *get_vertex_group_sharing_info(const Mesh &mesh
  * explicitly compare it.
  */
 class MeshState {
-  VectorSet<const ImplicitSharingInfo *> sharing_infos_;
-  const ImplicitSharingInfo *vertex_group_sharing_info_ = nullptr;
+  VectorSet<ImplicitSharingPtr<>> sharing_infos_;
 
  public:
   MeshState(const Mesh &mesh)
@@ -218,18 +217,8 @@ class MeshState {
 
   void freeze_shared_state(const ImplicitSharingInfo &sharing_info)
   {
-    if (sharing_infos_.add(&sharing_info)) {
+    if (sharing_infos_.add(ImplicitSharingPtr<>{&sharing_info})) {
       sharing_info.add_user();
-    }
-  }
-
-  ~MeshState()
-  {
-    for (const ImplicitSharingInfo *sharing_info : sharing_infos_) {
-      sharing_info->remove_user_and_delete_if_last();
-    }
-    if (vertex_group_sharing_info_) {
-      vertex_group_sharing_info_->remove_user_and_delete_if_last();
     }
   }
 };
@@ -245,7 +234,7 @@ static void add_shape_keys_as_attributes(Mesh &mesh, const Key &key)
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   LISTBASE_FOREACH (const KeyBlock *, kb, &key.block) {
     if (kb == key.refkey) {
-      /* The basis key will just recieve values from the mesh positions. */
+      /* The basis key will just receive values from the mesh positions. */
       continue;
     }
     const Span<float3> key_data(static_cast<float3 *>(kb->data), kb->totelem);
@@ -427,7 +416,7 @@ static void store_result_geometry(const bContext &C,
       else {
         if (Key *key = mesh.key) {
           /* Make sure to free the attributes before converting to #BMesh for edit mode; removing
-           * attributes on #BMesh requires reallocating the dynamic AoS storage.*/
+           * attributes on #BMesh requires reallocating the dynamic AoS storage. */
           remove_shape_key_attributes(*new_mesh, *key);
         }
         if (object.mode == OB_MODE_EDIT) {
@@ -891,8 +880,8 @@ static std::string run_node_group_get_description(bContext *C,
 static void run_node_group_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
 
@@ -924,16 +913,12 @@ static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
 
 static std::string run_node_group_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
-  int len;
-  char *local_name = RNA_string_get_alloc(ptr, "name", nullptr, 0, &len);
-  BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(local_name); })
-  if (len > 0) {
-    return std::string(local_name, len);
+  std::string local_name = RNA_string_get(ptr, "name");
+  if (!local_name.empty()) {
+    return local_name;
   }
-  char *library_asset_identifier = RNA_string_get_alloc(
-      ptr, "relative_asset_identifier", nullptr, 0, &len);
-  BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(library_asset_identifier); })
-  StringRef ref(library_asset_identifier, len);
+  std::string library_asset_identifier = RNA_string_get(ptr, "relative_asset_identifier");
+  StringRef ref(library_asset_identifier);
   return ref.drop_prefix(ref.find_last_of(SEP_STR) + 1);
 }
 
@@ -1382,8 +1367,11 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-    PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+    PointerRNA props_ptr = layout->op(ot,
+                                      IFACE_(asset->get_name()),
+                                      ICON_NONE,
+                                      wm::OpCallContext::InvokeRegionWin,
+                                      UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1455,8 +1443,11 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   uiLayout *layout = menu->layout;
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+    PointerRNA props_ptr = layout->op(ot,
+                                      IFACE_(asset->get_name()),
+                                      ICON_NONE,
+                                      wm::OpCallContext::InvokeRegionWin,
+                                      UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1486,7 +1477,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
 
     PointerRNA props_ptr = layout->op(
-        ot, group->id.name + 2, ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+        ot, group->id.name + 2, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
     /* Also set the name so it can be used for #run_node_group_get_name. */
     RNA_string_set(&props_ptr, "name", group->id.name + 2);
@@ -1530,8 +1521,8 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
     return;
   }
   uiLayout *col = &layout.column(false);
-  uiLayoutSetContextString(col, "asset_catalog_path", item->catalog_path().str());
-  uiItemMContents(col, "GEO_MT_node_operator_catalog_assets");
+  col->context_string_set("asset_catalog_path", item->catalog_path().str());
+  col->menu_contents("GEO_MT_node_operator_catalog_assets");
 }
 
 void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext &C)

@@ -208,8 +208,8 @@ static void initialize_input_stack_value(const DInputSocket input, GPUNodeStack 
       break;
     }
     case SOCK_VECTOR: {
-      const float3 value = float3(input->default_value_typed<bNodeSocketValueVector>()->value);
-      copy_v3_v3(stack.vec, value);
+      const float4 value = float4(input->default_value_typed<bNodeSocketValueVector>()->value);
+      copy_v4_v4(stack.vec, value);
       break;
     }
     case SOCK_RGBA: {
@@ -281,7 +281,7 @@ void ShaderOperation::link_node_input_implicit(const DInputSocket input, const D
   input_descriptor.implicit_input = implicit_input;
 
   /* An input was already declared for that implicit input, so no need to declare it again and we
-   * just link it.  */
+   * just link it. */
   if (implicit_input_to_material_attribute_map_.contains(implicit_input)) {
     /* But first we update the domain priority of the input descriptor to be the higher priority of
      * the existing descriptor and the descriptor of the new input socket. That's because the same

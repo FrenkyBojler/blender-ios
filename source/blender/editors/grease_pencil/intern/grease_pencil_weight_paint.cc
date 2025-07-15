@@ -494,7 +494,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
           /* Get deformation by modifiers. */
           bke::crazyspace::GeometryDeformation deformation =
               bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                  ob_eval, *vc.obact, info.layer_index, info.frame_number);
+                  ob_eval, *vc.obact, info.drawing);
 
           IndexMaskMemory memory;
           const IndexMask points = retrieve_visible_points(*vc.obact, info.drawing, memory);
@@ -539,7 +539,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
   /* Set the new brush weight. */
   const ToolSettings *ts = vc.scene->toolsettings;
   Brush *brush = BKE_paint_brush(&ts->gp_weightpaint->paint);
-  BKE_brush_weight_set(vc.scene, brush, new_weight);
+  BKE_brush_weight_set(&ts->gp_weightpaint->paint, brush, new_weight);
 
   /* Update brush settings in UI. */
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, nullptr);

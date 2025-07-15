@@ -88,13 +88,12 @@ static void add_reroute_node_fn(nodes::LinkSearchOpParams &params)
 static void add_group_input_node_fn(nodes::LinkSearchOpParams &params)
 {
   /* Add a group input based on the connected socket, and add a new group input node. */
-  bNodeTreeInterfaceSocket *socket_iface = params.node_tree.tree_interface.add_socket(
-      params.socket.name,
-      params.socket.description,
+  bNodeTreeInterfaceSocket *socket_iface = bke::node_interface::add_interface_socket_from_node(
+      params.node_tree,
+      params.node,
+      params.socket,
       params.socket.typeinfo->idname,
-      NODE_INTERFACE_SOCKET_INPUT,
-      nullptr);
-  socket_iface->init_from_socket_instance(&params.socket);
+      params.socket.name);
   params.node_tree.tree_interface.active_item_set(&socket_iface->item);
 
   bNode &group_input = params.add_node("NodeGroupInput");
@@ -416,7 +415,7 @@ static void link_drag_search_exec_fn(bContext *C, void *arg1, void *arg2)
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 }
 

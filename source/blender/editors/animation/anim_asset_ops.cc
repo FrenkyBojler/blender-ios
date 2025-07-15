@@ -156,10 +156,12 @@ static blender::animrig::Action &extract_pose(Main &bmain,
   return action;
 }
 
-/* Check that the newly created asset is visible SOMEWHERE in Blender. If not already visible,
+/**
+ * Check that the newly created asset is visible SOMEWHERE in Blender. If not already visible,
  * open the asset shelf on the current 3D view. The reason for not always doing that is that it
  * might be annoying in case you have 2 3D viewports open, but you want the asset shelf on only one
- * of them, or you work out of the asset browser.*/
+ * of them, or you work out of the asset browser.
+ */
 static void ensure_asset_ui_visible(bContext &C)
 {
   ScrArea *current_area = CTX_wm_area(&C);
@@ -638,6 +640,9 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
 {
   bAction *action = get_action_of_selected_asset(C);
   BLI_assert_msg(action, "Poll should have checked action exists");
+  /* Get asset now. Asset browser might get tagged for refreshing through operations below, and not
+   * allow querying items from context until refreshed, see #140781. */
+  const asset_system::AssetRepresentation *asset = CTX_wm_asset(C);
 
   Main *bmain = CTX_data_main(C);
   Object *pose_object = CTX_data_active_object(C);
@@ -655,7 +660,7 @@ static wmOperatorStatus pose_asset_modify_exec(bContext *C, wmOperator *op)
     bke::asset_edit_id_save(*bmain, action->id, *op->reports);
   }
 
-  asset::refresh_asset_library_from_asset(C, *CTX_wm_asset(C));
+  asset::refresh_asset_library_from_asset(C, *asset);
   WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
 
   return OPERATOR_FINISHED;

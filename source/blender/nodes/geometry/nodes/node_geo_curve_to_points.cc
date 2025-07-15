@@ -16,7 +16,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -99,7 +99,7 @@ static void copy_curve_domain_attributes(const AttributeAccessor curve_attribute
     if (attribute_filter.allow_skip(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     point_attributes.add(iter.name,

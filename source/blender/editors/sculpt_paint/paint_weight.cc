@@ -18,7 +18,6 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_base.hh"
-#include "BLI_rect.h"
 #include "BLI_task.hh"
 #include "BLI_vector.hh"
 
@@ -36,9 +35,7 @@
 #include "BKE_context.hh"
 #include "BKE_deform.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_lib_id.hh"
 #include "BKE_mesh.hh"
-#include "BKE_object.hh"
 #include "BKE_object_deform.h"
 #include "BKE_paint.hh"
 #include "BKE_report.hh"
@@ -50,7 +47,6 @@
 #include "WM_toolsystem.hh"
 #include "WM_types.hh"
 
-#include "ED_image.hh"
 #include "ED_mesh.hh"
 #include "ED_object.hh"
 #include "ED_paint.hh"
@@ -1089,7 +1085,6 @@ static void filter_factors_with_selection(const Span<bool> select_vert,
 }
 
 static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
-                                 const Scene &scene,
                                  Object &ob,
                                  const Brush &brush,
                                  VPaint &vp,
@@ -1106,7 +1101,7 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
@@ -1198,7 +1193,6 @@ static void do_wpaint_brush_blur(const Depsgraph &depsgraph,
 }
 
 static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
-                                  const Scene &scene,
                                   Object &ob,
                                   const Brush &brush,
                                   VPaint &vp,
@@ -1218,7 +1212,7 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
 
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
@@ -1325,7 +1319,6 @@ static void do_wpaint_brush_smear(const Depsgraph &depsgraph,
 }
 
 static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
-                                 const Scene &scene,
                                  Object &ob,
                                  const Brush &brush,
                                  VPaint &vp,
@@ -1345,7 +1338,7 @@ static void do_wpaint_brush_draw(const Depsgraph &depsgraph,
   const float paintweight = strength;
   float brush_size_pressure, brush_alpha_value, brush_alpha_pressure;
   vwpaint::get_brush_alpha_data(
-      scene, ss, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
+      ss, vp.paint, brush, &brush_size_pressure, &brush_alpha_value, &brush_alpha_pressure);
   const bool use_normal = vwpaint::use_normal(vp);
   const bool use_face_sel = (mesh.editflag & ME_EDIT_PAINT_FACE_SEL) != 0;
   const bool use_vert_sel = (mesh.editflag & ME_EDIT_PAINT_VERT_SEL) != 0;
@@ -1506,7 +1499,6 @@ static void wpaint_paint_leaves(bContext *C,
                                 Mesh &mesh,
                                 const IndexMask &node_mask)
 {
-  const Scene &scene = *CTX_data_scene(C);
   const Brush &brush = *ob.sculpt->cache->brush;
   const Depsgraph &depsgraph = *CTX_data_depsgraph_pointer(C);
 
@@ -1514,7 +1506,6 @@ static void wpaint_paint_leaves(bContext *C,
     case WPAINT_BRUSH_TYPE_AVERAGE: {
       do_wpaint_brush_draw(
           depsgraph,
-          scene,
           ob,
           brush,
           vp,
@@ -1526,21 +1517,20 @@ static void wpaint_paint_leaves(bContext *C,
       break;
     }
     case WPAINT_BRUSH_TYPE_SMEAR:
-      do_wpaint_brush_smear(depsgraph, scene, ob, brush, vp, wpd, wpi, mesh, node_mask);
+      do_wpaint_brush_smear(depsgraph, ob, brush, vp, wpd, wpi, mesh, node_mask);
       break;
     case WPAINT_BRUSH_TYPE_BLUR:
-      do_wpaint_brush_blur(depsgraph, scene, ob, brush, vp, wpd, wpi, mesh, node_mask);
+      do_wpaint_brush_blur(depsgraph, ob, brush, vp, wpd, wpi, mesh, node_mask);
       break;
     case WPAINT_BRUSH_TYPE_DRAW:
       do_wpaint_brush_draw(depsgraph,
-                           scene,
                            ob,
                            brush,
                            vp,
                            wpd,
                            wpi,
                            mesh,
-                           BKE_brush_weight_get(&scene, &brush),
+                           BKE_brush_weight_get(&vp.paint, &brush),
                            node_mask);
       break;
   }
@@ -1725,8 +1715,8 @@ static void wpaint_do_radial_symmetry(bContext *C,
                                       const ePaintSymmetryFlags symm,
                                       const int axis)
 {
-  for (int i = 1; i < wp.radial_symm[axis - 'X']; i++) {
-    const float angle = (2.0 * M_PI) * i / wp.radial_symm[axis - 'X'];
+  for (int i = 1; i < mesh.radial_symmetry[axis - 'X']; i++) {
+    const float angle = (2.0 * M_PI) * i / mesh.radial_symmetry[axis - 'X'];
     wpaint_do_paint(C, ob, wp, wpd, wpi, mesh, brush, symm, axis, i, angle);
   }
 }
@@ -1789,7 +1779,6 @@ static void wpaint_stroke_update_step(bContext *C,
                                       PaintStroke *stroke,
                                       PointerRNA *itemptr)
 {
-  Scene &scene = *CTX_data_scene(C);
   ToolSettings &ts = *CTX_data_tool_settings(C);
   VPaint &wp = *ts.wpaint;
   const Brush &brush = *BKE_paint_brush(&wp.paint);
@@ -1803,7 +1792,7 @@ static void wpaint_stroke_update_step(bContext *C,
 
   float mat[4][4];
 
-  const float brush_alpha_value = BKE_brush_alpha_get(&scene, &brush);
+  const float brush_alpha_value = BKE_brush_alpha_get(&wp.paint, &brush);
 
   /* intentionally don't initialize as nullptr, make sure we initialize all members below */
   WeightPaintInfo wpi;
@@ -1859,7 +1848,7 @@ static void wpaint_stroke_update_step(bContext *C,
    * also needed for "Frame Selected" on last stroke. */
   float loc_world[3];
   mul_v3_m4v3(loc_world, ob->object_to_world().ptr(), ss.cache->location);
-  vwpaint::last_stroke_update(scene, loc_world);
+  vwpaint::last_stroke_update(loc_world, wp.paint);
 
   BKE_mesh_batch_cache_dirty_tag(&mesh, BKE_MESH_BATCH_DIRTY_ALL);
 
@@ -1879,7 +1868,7 @@ static void wpaint_stroke_done(const bContext *C, PaintStroke * /*stroke*/)
   if (ss.cache->alt_smooth) {
     ToolSettings &ts = *CTX_data_tool_settings(C);
     VPaint &vp = *ts.wpaint;
-    vwpaint::smooth_brush_toggle_off(C, &vp.paint, ss.cache);
+    vwpaint::smooth_brush_toggle_off(&vp.paint, ss.cache);
   }
 
   if (ob.particlesystem.first) {
