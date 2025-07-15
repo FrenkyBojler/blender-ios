@@ -8,34 +8,92 @@
 #include "BLI_math_vector.h"
 #include "BLI_stack.hh"
 #include "NOD_multi_function.hh"
+#include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
 #include "NOD_shader_nodes_inline.hh"
 #include "NOD_socket_interface_key.hh"
 #include <variant>
 
 namespace blender::nodes {
+namespace {
 
 struct BundleSocketValue;
 using BundleSocketValuePtr = std::shared_ptr<BundleSocketValue>;
 
-struct EmptySocketValue {};
+struct FallbackValue {};
 
 struct PrimitiveSocketValue {
   std::variant<int, float, bool, ColorGeometry4f, float3> value;
 };
 
-struct SourceSocketValue {
+/** References an output socket in the generated node tree. */
+struct LinkedSocketValue {
   bNode *node = nullptr;
   bNodeSocket *socket = nullptr;
 };
 
+/** References an input socket in the source node tree. */
+struct InputSocketValue {
+  const bNodeSocket *socket = nullptr;
+};
+
 struct SocketValue {
-  std::variant<EmptySocketValue, SourceSocketValue, PrimitiveSocketValue, BundleSocketValuePtr>
+  std::variant<FallbackValue,
+               LinkedSocketValue,
+               InputSocketValue,
+               PrimitiveSocketValue,
+               BundleSocketValuePtr>
       value;
 
-  bool is_primitive() const
+  std::optional<PrimitiveSocketValue> to_primitive(const eNodeSocketDatatype type) const
   {
-    return std::get_if<PrimitiveSocketValue>(&value) != nullptr;
+    if (const auto *primitive_value = std::get_if<PrimitiveSocketValue>(&this->value)) {
+      return *primitive_value;
+    }
+    if (const auto *input_socket_value = std::get_if<InputSocketValue>(&this->value)) {
+      const bNodeSocket &socket = *input_socket_value->socket;
+      BLI_assert(socket.type == type);
+      if (!socket.runtime->declaration) {
+        return std::nullopt;
+      }
+      if (socket.runtime->declaration->default_input_type != NODE_DEFAULT_INPUT_VALUE) {
+        return std::nullopt;
+      }
+      switch (socket.typeinfo->type) {
+        case SOCK_FLOAT:
+          return PrimitiveSocketValue{socket.default_value_typed<bNodeSocketValueFloat>()->value};
+        case SOCK_INT:
+          return PrimitiveSocketValue{socket.default_value_typed<bNodeSocketValueInt>()->value};
+        case SOCK_BOOLEAN:
+          return PrimitiveSocketValue{
+              socket.default_value_typed<bNodeSocketValueBoolean>()->value};
+        case SOCK_VECTOR:
+          return PrimitiveSocketValue{
+              float3(socket.default_value_typed<bNodeSocketValueVector>()->value)};
+        case SOCK_RGBA:
+          return PrimitiveSocketValue{
+              ColorGeometry4f(socket.default_value_typed<bNodeSocketValueRGBA>()->value)};
+        default:
+          return std::nullopt;
+      }
+    }
+    if (std::get_if<FallbackValue>(&this->value)) {
+      switch (type) {
+        case SOCK_FLOAT:
+          return PrimitiveSocketValue{0.0f};
+        case SOCK_INT:
+          return PrimitiveSocketValue{0};
+        case SOCK_BOOLEAN:
+          return PrimitiveSocketValue{false};
+        case SOCK_VECTOR:
+          return PrimitiveSocketValue{float3(0, 0, 0)};
+        case SOCK_RGBA:
+          return PrimitiveSocketValue{ColorGeometry4f(0, 0, 0, 1)};
+        default:
+          return std::nullopt;
+      }
+    }
+    return std::nullopt;
   }
 };
 
@@ -45,6 +103,7 @@ struct BundleSocketValue {
 
 class ShaderNodesInliner {
  private:
+  ResourceScope scope_;
   const bNodeTree &src_tree_;
   bNodeTree &dst_tree_;
   bke::ComputeContextCache compute_context_cache_;
@@ -143,7 +202,7 @@ class ShaderNodesInliner {
       used_link = link;
     }
     if (!used_link) {
-      this->handle_socket_input_unlinked(socket);
+      value_by_socket_.add_new(socket, {InputSocketValue{socket.socket}});
       return;
     }
     const SocketInContext origin_socket = {socket.context, used_link->fromsock};
@@ -156,46 +215,18 @@ class ShaderNodesInliner {
     this->schedule_socket(origin_socket);
   }
 
-  void handle_socket_input_unlinked(const SocketInContext &socket)
-  {
-    SocketValue value;
-    switch (eNodeSocketDatatype(socket->type)) {
-      case SOCK_FLOAT: {
-        value.value = PrimitiveSocketValue{
-            socket->default_value_typed<bNodeSocketValueFloat>()->value};
-        break;
-      }
-      case SOCK_INT: {
-        value.value = PrimitiveSocketValue{
-            socket->default_value_typed<bNodeSocketValueInt>()->value};
-        break;
-      }
-      case SOCK_BOOLEAN: {
-        value.value = PrimitiveSocketValue{
-            socket->default_value_typed<bNodeSocketValueBoolean>()->value};
-        break;
-      }
-      case SOCK_VECTOR: {
-        value.value = PrimitiveSocketValue{
-            float3(socket->default_value_typed<bNodeSocketValueVector>()->value)};
-        break;
-      }
-      case SOCK_RGBA: {
-        value.value = PrimitiveSocketValue{
-            ColorGeometry4f(socket->default_value_typed<bNodeSocketValueRGBA>()->value)};
-        break;
-      }
-      default: {
-        value.value = EmptySocketValue{};
-        break;
-      }
-    }
-    value_by_socket_.add_new(socket, std::move(value));
-  }
-
   void handle_socket_output(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
+    if (node->is_reroute()) {
+      const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
+      if (const SocketValue *value = value_by_socket_.lookup_ptr(input_socket)) {
+        value_by_socket_.add_new(socket, *value);
+        return;
+      }
+      this->schedule_socket(input_socket);
+      return;
+    }
     if (node->is_muted()) {
       for (const bNodeLink &internal_link : node->internal_links()) {
         if (internal_link.tosock == socket.socket) {
@@ -210,7 +241,7 @@ class ShaderNodesInliner {
           return;
         }
       }
-      value_by_socket_.add_new(socket, {EmptySocketValue{}});
+      value_by_socket_.add_new(socket, {FallbackValue{}});
       return;
     }
     if (node->is_group()) {
@@ -235,7 +266,7 @@ class ShaderNodesInliner {
         has_missing_inputs = true;
         continue;
       }
-      if (!value->is_primitive()) {
+      if (!value->to_primitive(input_socket->typeinfo->type)) {
         all_inputs_primitive = false;
       }
     }
@@ -244,11 +275,111 @@ class ShaderNodesInliner {
     }
     const bke::bNodeType &node_type = *node->typeinfo;
     if (node_type.build_multi_function && all_inputs_primitive) {
-      NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
-      node->typeinfo->build_multi_function(builder);
-      const mf::MultiFunction &fn = builder.function();
-      /* TODO */
-      return;
+      bool all_outputs_can_be_primitive = true;
+      for (const bNodeSocket *output_socket : node->output_sockets()) {
+        if (!output_socket->is_available()) {
+          continue;
+        }
+        if (!ELEM(output_socket->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA))
+        {
+          all_outputs_can_be_primitive = false;
+          break;
+        }
+      }
+      if (all_outputs_can_be_primitive) {
+        NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
+        node->typeinfo->build_multi_function(builder);
+        const mf::MultiFunction &fn = builder.function();
+        mf::ContextBuilder context;
+        IndexMask mask(1);
+        mf::ParamsBuilder params{fn, &mask};
+
+        for (const bNodeSocket *input_socket : node->input_sockets()) {
+          if (!input_socket->is_available()) {
+            continue;
+          }
+          const SocketInContext input_socket_ctx = {node.context, input_socket};
+          const PrimitiveSocketValue value = *value_by_socket_.lookup(input_socket_ctx)
+                                                  .to_primitive(input_socket->typeinfo->type);
+          switch (input_socket->type) {
+            case SOCK_FLOAT: {
+              params.add_readonly_single_input_value(std::get<float>(value.value));
+              break;
+            }
+            case SOCK_INT: {
+              params.add_readonly_single_input_value(std::get<int>(value.value));
+              break;
+            }
+            case SOCK_BOOLEAN: {
+              params.add_readonly_single_input_value(std::get<bool>(value.value));
+              break;
+            }
+            case SOCK_VECTOR: {
+              params.add_readonly_single_input_value(std::get<float3>(value.value));
+              break;
+            }
+            case SOCK_RGBA: {
+              params.add_readonly_single_input_value(
+                  ColorGeometry4f(std::get<ColorGeometry4f>(value.value)));
+              break;
+            }
+            default: {
+              BLI_assert_unreachable();
+              break;
+            }
+          }
+        }
+
+        Vector<void *> output_values;
+        for (const bNodeSocket *output_socket : node->output_sockets()) {
+          if (!output_socket->is_available()) {
+            continue;
+          }
+          void *value = scope_.allocate_owned(*output_socket->typeinfo->base_cpp_type);
+          output_values.append(value);
+          params.add_uninitialized_single_output(
+              GMutableSpan(output_socket->typeinfo->base_cpp_type, value, 1));
+        }
+
+        fn.call(mask, params, context);
+
+        int current_output_i = 0;
+        for (const bNodeSocket *output_socket : node->output_sockets()) {
+          if (!output_socket->is_available()) {
+            continue;
+          }
+          const void *value = output_values[current_output_i++];
+          PrimitiveSocketValue computed_value;
+          switch (output_socket->type) {
+            case SOCK_FLOAT: {
+              computed_value = {*static_cast<const float *>(value)};
+              break;
+            }
+            case SOCK_INT: {
+              computed_value = {*static_cast<const int *>(value)};
+              break;
+            }
+            case SOCK_BOOLEAN: {
+              computed_value = {*static_cast<const bool *>(value)};
+              break;
+            }
+            case SOCK_VECTOR: {
+              computed_value = {*static_cast<const float3 *>(value)};
+              break;
+            }
+            case SOCK_RGBA: {
+              computed_value = {*static_cast<const ColorGeometry4f *>(value)};
+              break;
+            }
+            default: {
+              BLI_assert_unreachable();
+              break;
+            }
+          }
+          value_by_socket_.add_new({socket.context, output_socket}, {computed_value});
+        }
+        return;
+      }
     }
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     bNode &copied_node = *bke::node_copy_with_mapping(
@@ -269,7 +400,7 @@ class ShaderNodesInliner {
       bNodeSocket &dst_output_socket = *socket_map.lookup(src_output_socket);
       const SocketInContext output_socket_ctx = {socket.context, src_output_socket};
       value_by_socket_.add_new(output_socket_ctx,
-                               {SourceSocketValue{&copied_node, &dst_output_socket}});
+                               {LinkedSocketValue{&copied_node, &dst_output_socket}});
     }
   }
 
@@ -283,12 +414,14 @@ class ShaderNodesInliner {
       return src_value;
     }
     /* TODO */
-    return SocketValue{EmptySocketValue{}};
+    return SocketValue{FallbackValue{}};
   }
 
   void set_socket_value(bNode &dst_node, bNodeSocket &dst_socket, const SocketValue &value)
   {
-    if (const auto *primitive_value = std::get_if<PrimitiveSocketValue>(&value.value)) {
+    if (const std::optional<PrimitiveSocketValue> primitive_value = value.to_primitive(
+            dst_socket.typeinfo->type))
+    {
       switch (dst_socket.type) {
         case SOCK_FLOAT: {
           dst_socket.default_value_typed<bNodeSocketValueFloat>()->value = std::get<float>(
@@ -322,7 +455,17 @@ class ShaderNodesInliner {
       }
       return;
     }
-    if (std::get_if<EmptySocketValue>(&value.value)) {
+    if (std::get_if<InputSocketValue>(&value.value)) {
+      if (dst_socket.type == SOCK_SHADER) {
+        return;
+      }
+      /* TODO*/
+      return;
+    }
+    if (std::get_if<FallbackValue>(&value.value)) {
+      if (dst_socket.type == SOCK_SHADER) {
+        return;
+      }
       /* TODO */
       return;
     }
@@ -331,7 +474,7 @@ class ShaderNodesInliner {
       BLI_assert_unreachable();
       return;
     }
-    if (const auto *src_socket_value = std::get_if<SourceSocketValue>(&value.value)) {
+    if (const auto *src_socket_value = std::get_if<LinkedSocketValue>(&value.value)) {
       bke::node_add_link(
           dst_tree_, *src_socket_value->node, *src_socket_value->socket, dst_node, dst_socket);
       return;
@@ -349,6 +492,8 @@ class ShaderNodesInliner {
     return use_refcounting_ ? 0 : LIB_ID_CREATE_NO_USER_REFCOUNT;
   }
 };
+
+}  // namespace
 
 bool inline_shader_node_tree(const bNodeTree &src_tree, bNodeTree &dst_tree)
 {

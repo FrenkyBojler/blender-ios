@@ -1936,6 +1936,9 @@ static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * 
   nodes::inline_shader_node_tree(ntree, *new_tree);
   bNode *group_node = bke::node_add_node(C, ntree, ntree.typeinfo->group_idname);
   group_node->id = &new_tree->id;
+  node_deselect_all(ntree);
+  bke::node_set_selected(*group_node, true);
+  bke::node_set_active(ntree, *group_node);
 
   BKE_main_ensure_invariants(bmain);
 
