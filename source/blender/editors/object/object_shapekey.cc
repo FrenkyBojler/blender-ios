@@ -702,7 +702,7 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Move Shape Key";
   ot->idname = "OBJECT_OT_shape_key_move";
-  ot->description = "Move the active shape key up/down in the list";
+  ot->description = "Move selected shape keys up/down in the list";
 
   /* API callbacks. */
   ot->poll = shape_key_move_poll;
