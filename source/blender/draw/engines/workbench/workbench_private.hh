@@ -285,7 +285,7 @@ class MeshPass : public PassMain {
 
     uint64_t hash() const
     {
-      return get_default_hash(texture, uint64_t(sampler_state), geom_type);
+      return get_default_hash(texture, sampler_state.as_uint(), geom_type);
     }
 
     bool operator==(TextureSubPassKey const &rhs) const
