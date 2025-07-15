@@ -29,8 +29,6 @@ Curve *blender::io::obj::CurveFromGeometry::create_curve(const OBJImportParams &
 
   Curve *curve = BKE_id_new_nomain<Curve>(nullptr);
 
-  BKE_curve_init(curve, OB_CURVES_LEGACY);
-
   curve->flag = CU_3D;
   curve->resolu = curve->resolv = 12;
   /* Only one NURBS spline will be created in the curve object. */
