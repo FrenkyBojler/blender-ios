@@ -6,6 +6,8 @@
  * \ingroup RNA
  */
 
+#include "BLT_translation.hh"
+
 #include "DNA_node_types.h"
 
 #include "RNA_define.hh"
@@ -693,7 +695,7 @@ static void rna_def_node_socket(BlenderRNA *brna)
   RNA_def_struct_path_func(srna, "rna_NodeSocket_path");
   RNA_def_struct_register_funcs(
       srna, "rna_NodeSocket_register", "rna_NodeSocket_unregister", nullptr);
-  RNA_def_struct_idprops_func(srna, "rna_NodeSocket_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_NodeSocket_idprops");
 
   prop = RNA_def_property(srna, "name", PROP_STRING, PROP_NONE);
   RNA_def_property_ui_text(prop, "Name", "Socket name");
@@ -1059,6 +1061,7 @@ static void rna_def_node_socket_interface_float(BlenderRNA *brna,
       prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketFloat_subtype_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
   prop = RNA_def_property(srna, "default_value", PROP_FLOAT, subtype);
@@ -1147,6 +1150,7 @@ static void rna_def_node_socket_interface_int(BlenderRNA *brna,
       prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketInt_subtype_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
   prop = RNA_def_property(srna, "default_value", PROP_INT, subtype);
@@ -1336,6 +1340,7 @@ static void rna_def_node_socket_interface_vector(BlenderRNA *brna,
       prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketVector_subtype_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
   prop = RNA_def_property(srna, "dimensions", PROP_INT, PROP_NONE);
@@ -1464,6 +1469,7 @@ static void rna_def_node_socket_interface_string(BlenderRNA *brna,
       prop, nullptr, nullptr, "rna_NodeTreeInterfaceSocketString_subtype_itemf");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Subtype", "Subtype of the default value");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_UNIT);
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_NodeTreeInterfaceSocket_value_update");
 
   prop = RNA_def_property(srna, "default_value", PROP_STRING, subtype);

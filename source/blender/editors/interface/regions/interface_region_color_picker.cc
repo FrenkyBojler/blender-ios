@@ -25,8 +25,6 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
-
 #include "BLT_translation.hh"
 
 #include "IMB_colormanagement.hh"
@@ -817,7 +815,7 @@ static void ui_block_colorpicker(uiBlock *block,
     bt = uiDefIconButO(block,
                        UI_BTYPE_BUT,
                        "UI_OT_eyedropper_color",
-                       WM_OP_INVOKE_DEFAULT,
+                       blender::wm::OpCallContext::InvokeDefault,
                        ICON_EYEDROPPER,
                        picker_width - UI_UNIT_X,
                        yco,

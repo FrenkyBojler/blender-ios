@@ -688,6 +688,7 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
         prefs = context.preferences
         system = prefs.system
         import gpu
+        import sys
 
         col = layout.column()
         col.prop(system, "gpu_backend", text="Backend")
@@ -701,9 +702,10 @@ class USERPREF_PT_system_display_graphics(SystemPanel, CenterAlignMixIn, Panel):
 
         if system.gpu_backend == 'VULKAN':
             col = layout.column()
-            col.label(text="Vulkan backend limitations:", icon='INFO')
-            col.label(text="\u2022 WoA support", icon='BLANK1')
-            col.label(text="\u2022 Low VR performance", icon='BLANK1')
+            col.label(text="Current Vulkan backend limitations:", icon='INFO')
+            col.label(text="\u2022 Low performance in VR", icon='BLANK1')
+            if sys.platform == "win32" and gpu.platform.device_type_get() == 'QUALCOMM':
+                col.label(text="\u2022 Windows on ARM requires driver 31.0.112.0 or higher", icon='BLANK1')
 
 
 class USERPREF_PT_system_os_settings(SystemPanel, CenterAlignMixIn, Panel):
@@ -963,6 +965,7 @@ class USERPREF_MT_interface_theme_presets(Menu):
         "ThemeSpaceGeneric",
         "ThemeSpaceGradient",
         "ThemeSpaceListGeneric",
+        "ThemeSpaceRegionGeneric",
         "ThemeSpreadsheet",
         "ThemeStatusBar",
         "ThemeStripColor",
@@ -1112,7 +1115,11 @@ class USERPREF_PT_theme_interface_panel(ThemePanel, CenterAlignMixIn, Panel):
         col.prop(ui, "panel_back", text="Background")
         col.prop(ui, "panel_sub_back", text="Sub-Panel")
 
-        col = flow.column()
+        col = flow.column(align=True)
+        col.prop(ui, "panel_title", text="Title")
+        col.prop(ui, "panel_text", text="Text")
+
+        col = col.column()
         col.prop(ui, "panel_outline", text="Outline")
         col.prop(ui, "panel_roundness", text="Roundness")
 

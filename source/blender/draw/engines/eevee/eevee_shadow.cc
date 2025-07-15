@@ -418,7 +418,7 @@ IndexRange ShadowDirectional::clipmap_level_range(const Camera &cam)
   max_level = max(min_level, max_level) + 1;
   IndexRange range(min_level, max_level - min_level + 1);
   /* 32 to be able to pack offset into a single int2.
-   * The maximum level count is bounded by the mantissa of a 32bit float.  */
+   * The maximum level count is bounded by the mantissa of a 32bit float. */
   const int max_tilemap_per_shadows = 24;
   /* Take top-most level to still cover the whole view. */
   range = range.take_back(max_tilemap_per_shadows);
@@ -750,7 +750,7 @@ void ShadowModule::begin_sync()
 
 void ShadowModule::sync_object(const Object *ob,
                                const ObjectHandle &handle,
-                               const ResourceHandle &resource_handle,
+                               const ResourceHandleRange &resource_handle,
                                bool is_alpha_blend,
                                bool has_transparent_shadows)
 {
@@ -761,24 +761,24 @@ void ShadowModule::sync_object(const Object *ob,
 
   ShadowObject &shadow_ob = objects_.lookup_or_add_default(handle.object_key);
   shadow_ob.used = true;
-  const bool is_initialized = shadow_ob.resource_handle.raw != 0;
+  const bool is_initialized = shadow_ob.resource_handle.is_valid();
   const bool has_jittered_transparency = has_transparent_shadows && data_.use_jitter;
   if (is_shadow_caster && (handle.recalc || !is_initialized || has_jittered_transparency)) {
     if (handle.recalc && is_initialized) {
-      past_casters_updated_.append(shadow_ob.resource_handle.raw);
+      past_casters_updated_.append(shadow_ob.resource_handle.raw());
     }
 
     if (has_jittered_transparency) {
-      jittered_transparent_casters_.append(resource_handle.raw);
+      jittered_transparent_casters_.append(resource_handle.raw());
     }
     else {
-      curr_casters_updated_.append(resource_handle.raw);
+      curr_casters_updated_.append(resource_handle.raw());
     }
   }
   shadow_ob.resource_handle = resource_handle;
 
   if (is_shadow_caster) {
-    curr_casters_.append(resource_handle.raw);
+    curr_casters_.append(resource_handle.raw());
   }
 
   if (is_alpha_blend && !inst_.is_baking()) {
@@ -827,7 +827,7 @@ void ShadowModule::end_sync()
     /* Do not discard casters in baking mode. See WORKAROUND in `surfels_create`. */
     if (!shadow_ob.used && !inst_.is_baking()) {
       /* May not be a caster, but it does not matter, be conservative. */
-      past_casters_updated_.append(shadow_ob.resource_handle.raw);
+      past_casters_updated_.append(shadow_ob.resource_handle.raw());
       objects_.remove(it);
     }
     else {

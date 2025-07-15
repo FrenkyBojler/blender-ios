@@ -94,7 +94,9 @@ class View3DPanel:
 # **************** standard tool clusters ******************
 
 # Used by vertex & weight paint
-def draw_vpaint_symmetry(layout, vpaint, obj):
+def draw_vpaint_symmetry(layout, obj):
+    mesh = obj.data
+
     col = layout.column()
     row = col.row(heading="Mirror", align=True)
     row.prop(obj, "use_mesh_mirror_x", text="X", toggle=True)
@@ -102,8 +104,8 @@ def draw_vpaint_symmetry(layout, vpaint, obj):
     row.prop(obj, "use_mesh_mirror_z", text="Z", toggle=True)
 
     col = layout.column()
-    col.active = not obj.data.use_mirror_vertex_groups
-    col.prop(vpaint, "radial_symmetry", text="Radial")
+    col.active = not mesh.use_mirror_vertex_groups
+    col.prop(mesh, "radial_symmetry", text="Radial")
 
 
 # ********** default tools for object mode ****************
@@ -1147,7 +1149,7 @@ class VIEW3D_PT_sculpt_symmetry(Panel, View3DPaintPanel):
         row.prop(sculpt, "tile_z", text="Z", toggle=True)
 
         layout.prop(sculpt, "use_symmetry_feather", text="Feather")
-        layout.prop(sculpt, "radial_symmetry", text="Radial")
+        layout.prop(mesh, "radial_symmetry", text="Radial")
         layout.prop(sculpt, "tile_offset", text="Tile Offset")
 
         layout.separator()
@@ -1218,15 +1220,12 @@ class VIEW3D_PT_tools_weightpaint_symmetry(Panel, View3DPaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        tool_settings = context.tool_settings
-        wpaint = tool_settings.weight_paint
-
         ob = context.object
         mesh = ob.data
 
         layout.prop(mesh, "use_mirror_vertex_groups")
 
-        draw_vpaint_symmetry(layout, wpaint, ob)
+        draw_vpaint_symmetry(layout, ob)
 
         row = layout.row()
         row.active = mesh.use_mirror_vertex_groups
@@ -1301,12 +1300,9 @@ class VIEW3D_PT_tools_vertexpaint_symmetry(Panel, View3DPaintPanel):
         layout.use_property_split = True
         layout.use_property_decorate = False
 
-        tool_settings = context.tool_settings
-        vpaint = tool_settings.vertex_paint
-
         ob = context.object
 
-        draw_vpaint_symmetry(layout, vpaint, ob)
+        draw_vpaint_symmetry(layout, ob)
 
 
 class VIEW3D_PT_tools_vertexpaint_symmetry_for_topbar(Panel):
@@ -2159,7 +2155,7 @@ class VIEW3D_PT_tools_grease_pencil_brush_vertex_color(View3DPanel, Panel):
         settings = tool_settings.gpencil_vertex_paint
         brush = settings.brush
         use_unified_paint = (context.object.mode != 'PAINT_GREASE_PENCIL')
-        ups = context.tool_settings.unified_paint_settings
+        ups = settings.unified_paint_settings
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 
         col = layout.column()
@@ -2719,25 +2715,25 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_random(View3DPanel, Panel):
         col1 = col.column(align=True)
         col1.enabled = mode == 'VERTEXCOLOR' and gp_settings.use_settings_random
         row = col1.row(align=True)
-        row.prop(gp_settings, "random_hue_factor", slider=True)
-        row.prop(gp_settings, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
-        row.prop(gp_settings, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
-        if gp_settings.use_random_press_hue and self.is_popover is False:
-            col1.template_curve_mapping(gp_settings, "curve_random_hue", brush=True, use_negative_slope=True)
+        row.prop(brush, "hue_jitter", slider=True)
+        row.prop(brush, "use_stroke_random_hue", text="", icon='GP_SELECT_STROKES')
+        row.prop(brush, "use_random_press_hue", text="", icon='STYLUS_PRESSURE')
+        if brush.use_random_press_hue and self.is_popover is False:
+            col1.template_curve_mapping(brush, "curve_random_hue", brush=True, use_negative_slope=True)
 
         row = col1.row(align=True)
-        row.prop(gp_settings, "random_saturation_factor", slider=True)
-        row.prop(gp_settings, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
-        row.prop(gp_settings, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
-        if gp_settings.use_random_press_sat and self.is_popover is False:
-            col1.template_curve_mapping(gp_settings, "curve_random_saturation", brush=True, use_negative_slope=True)
+        row.prop(brush, "saturation_jitter", slider=True)
+        row.prop(brush, "use_stroke_random_sat", text="", icon='GP_SELECT_STROKES')
+        row.prop(brush, "use_random_press_sat", text="", icon='STYLUS_PRESSURE')
+        if brush.use_random_press_sat and self.is_popover is False:
+            col1.template_curve_mapping(brush, "curve_random_saturation", brush=True, use_negative_slope=True)
 
         row = col1.row(align=True)
-        row.prop(gp_settings, "random_value_factor", slider=True)
-        row.prop(gp_settings, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
-        row.prop(gp_settings, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
-        if gp_settings.use_random_press_val and self.is_popover is False:
-            col1.template_curve_mapping(gp_settings, "curve_random_value", brush=True, use_negative_slope=True)
+        row.prop(brush, "value_jitter", slider=True)
+        row.prop(brush, "use_stroke_random_val", text="", icon='GP_SELECT_STROKES')
+        row.prop(brush, "use_random_press_val", text="", icon='STYLUS_PRESSURE')
+        if brush.use_random_press_val and self.is_popover is False:
+            col1.template_curve_mapping(brush, "curve_random_value", brush=True, use_negative_slope=True)
 
         col.separator()
 
@@ -2820,7 +2816,7 @@ class VIEW3D_PT_tools_grease_pencil_v3_brush_mixcolor(View3DPanel, Panel):
         brush = settings.brush
         gp_settings = brush.gpencil_settings
         use_unified_paint = (context.object.mode != 'PAINT_GREASE_PENCIL')
-        ups = context.tool_settings.unified_paint_settings
+        ups = settings.unified_paint_settings
         prop_owner = ups if use_unified_paint and ups.use_unified_color else brush
 
         row = layout.row()

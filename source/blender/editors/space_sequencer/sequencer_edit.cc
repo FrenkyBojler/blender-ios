@@ -65,7 +65,7 @@
 #include "ED_screen.hh"
 #include "ED_sequencer.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -696,7 +696,7 @@ static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, cons
   /* Only apply subframe delta if the input is not an integer. */
   if (std::trunc(delta) != delta) {
     /* Note that `subframe_delta` has opposite sign to `frame_delta`
-     * when `abs(delta)` < `abs(frame_delta)` to undo its effect.  */
+     * when `abs(delta)` < `abs(frame_delta)` to undo its effect. */
     subframe_delta = delta - frame_delta;
   }
 
@@ -1627,8 +1627,8 @@ static wmOperatorStatus sequencer_split_invoke(bContext *C, wmOperator *op, cons
 static void sequencer_split_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   uiLayout *row = &layout->row(false);
   row->prop(op->ptr, "type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
@@ -2837,9 +2837,8 @@ static wmOperatorStatus sequencer_change_path_exec(bContext *C, wmOperator *op)
     }
     else {
       RNA_BEGIN (op->ptr, itemptr, "files") {
-        char *filename = RNA_string_get_alloc(&itemptr, "name", nullptr, 0, nullptr);
-        STRNCPY(se->filename, filename);
-        MEM_freeN(filename);
+        std::string filename = RNA_string_get(&itemptr, "name");
+        STRNCPY(se->filename, filename.c_str());
         se++;
       }
       RNA_END;
@@ -3144,8 +3143,12 @@ static wmOperatorStatus sequencer_export_subtitles_exec(bContext *C, wmOperator 
         FPS,
         USER_TIMECODE_SUBRIP);
 
-    fprintf(
-        file, "%d\n%s --> %s\n%s\n\n", iter++, timecode_str_start, timecode_str_end, data->text);
+    fprintf(file,
+            "%d\n%s --> %s\n%s\n\n",
+            iter++,
+            timecode_str_start,
+            timecode_str_end,
+            data->text_ptr);
 
     strip_next = static_cast<Strip *>(strip->next);
     MEM_freeN(strip);

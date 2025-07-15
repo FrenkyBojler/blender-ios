@@ -121,7 +121,6 @@ static TransData *SeqToTransData(
     store_transform_properties(scene, strip, origin, td);
   }
 
-  td->ext = nullptr;
   td->flag |= TD_SELECTED;
   td->dist = 0.0;
 
@@ -275,7 +274,7 @@ static void image_transform_set(TransInfo *t)
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      transform->rotation = tdseq->orig_rotation - result.rotation;
+      transform->rotation = tdseq->orig_rotation + result.rotation;
     }
 
     if (t->mode == TFM_MIRROR) {
@@ -285,10 +284,10 @@ static void image_transform_set(TransInfo *t)
 
       if (t->orient_curr == O_SET) {
         if (strip == ed->act_strip) {
-          transform->rotation = -tdseq->orig_rotation;
+          transform->rotation = tdseq->orig_rotation;
         }
         else {
-          transform->rotation = tdseq->orig_rotation + (2 * -tdseq->active_seq_orig_rotation);
+          transform->rotation = tdseq->orig_rotation + (2 * tdseq->active_seq_orig_rotation);
         }
       }
       else {
@@ -333,14 +332,10 @@ static float2 calculate_new_origin_position(TransInfo *t, TransDataSeq *tdseq, T
 {
   Strip *strip = tdseq->strip;
 
-  float2 image_size(float(t->scene->r.xsch), float(t->scene->r.ysch));
-  if (ELEM(strip->type, STRIP_TYPE_MOVIE, STRIP_TYPE_IMAGE)) {
-    image_size.x = strip->data->stripdata->orig_width;
-    image_size.y = strip->data->stripdata->orig_height;
-  }
+  const float2 image_size = seq::transform_image_raw_size_get(t->scene, strip);
 
   const float2 viewport_pixel_aspect = {t->scene->r.xasp / t->scene->r.yasp, 1.0f};
-  float2 mirror = seq::image_transform_mirror_factor_get(strip);
+  const float2 mirror = seq::image_transform_mirror_factor_get(strip);
 
   const float2 origin = tdseq->orig_origin_pixelspace;
   const float2 translation = transform_result_get(t, tdseq, td2d, strip).translation;

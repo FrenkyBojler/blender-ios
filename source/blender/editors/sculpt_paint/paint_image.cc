@@ -21,8 +21,6 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.hh"
-
 #include "IMB_imbuf.hh"
 #include "IMB_imbuf_types.hh"
 
@@ -35,7 +33,6 @@
 
 #include "BKE_brush.hh"
 #include "BKE_colorband.hh"
-#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
@@ -55,7 +52,6 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "UI_interface.hh"
 #include "UI_view2d.hh"
 
 #include "ED_grease_pencil.hh"
@@ -319,7 +315,7 @@ bool ED_image_tools_paint_poll(bContext *C)
   return image_paint_poll_ex(C, true);
 }
 
-static bool image_paint_poll_ignore_tool(bContext *C)
+bool image_paint_poll_ignore_tool(bContext *C)
 {
   return image_paint_poll_ex(C, false);
 }
@@ -348,7 +344,7 @@ static bool image_paint_2d_clone_poll(bContext *C)
 /** \name Paint Operator
  * \{ */
 
-bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Brush *brush)
+bool paint_use_opacity_masking(const Paint *paint, const Brush *brush)
 {
   return ((brush->flag & BRUSH_AIRBRUSH) || (brush->flag & BRUSH_DRAG_DOT) ||
                   (brush->flag & BRUSH_ANCHORED) ||
@@ -357,7 +353,7 @@ bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Bru
                        IMAGE_PAINT_BRUSH_TYPE_SOFTEN) ||
                   (brush->image_brush_type == IMAGE_PAINT_BRUSH_TYPE_FILL) ||
                   (brush->flag & BRUSH_USE_GRADIENT) ||
-                  (BKE_brush_color_jitter_get_settings(scene, paint, brush)) ||
+                  (BKE_brush_color_jitter_get_settings(paint, brush)) ||
                   (brush->mtex.tex && !ELEM(brush->mtex.brush_map_mode,
                                             MTEX_MAP_MODE_TILED,
                                             MTEX_MAP_MODE_STENCIL,
@@ -366,8 +362,7 @@ bool paint_use_opacity_masking(const Scene *scene, const Paint *paint, const Bru
               true);
 }
 
-void paint_brush_color_get(Scene *scene,
-                           const Paint *paint,
+void paint_brush_color_get(const Paint *paint,
                            Brush *br,
                            std::optional<blender::float3> &initial_hsv_jitter,
                            bool color_correction,
@@ -378,11 +373,11 @@ void paint_brush_color_get(Scene *scene,
                            float r_color[3])
 {
   if (invert) {
-    copy_v3_v3(r_color, BKE_brush_secondary_color_get(scene, paint, br));
+    copy_v3_v3(r_color, BKE_brush_secondary_color_get(paint, br));
   }
   else {
     const std::optional<BrushColorJitterSettings> color_jitter_settings =
-        BKE_brush_color_jitter_get_settings(scene, paint, br);
+        BKE_brush_color_jitter_get_settings(paint, br);
     if (br->flag & BRUSH_USE_GRADIENT) {
       float color_gr[4];
       switch (br->gradient_stroke_mode) {
@@ -409,10 +404,10 @@ void paint_brush_color_get(Scene *scene,
                                            *initial_hsv_jitter,
                                            distance,
                                            pressure,
-                                           BKE_brush_color_get(scene, paint, br)));
+                                           BKE_brush_color_get(paint, br)));
     }
     else {
-      copy_v3_v3(r_color, BKE_brush_color_get(scene, paint, br));
+      copy_v3_v3(r_color, BKE_brush_color_get(paint, br));
     }
   }
   if (color_correction) {
@@ -641,194 +636,6 @@ void PAINT_OT_grab_clone(wmOperatorType *ot)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Sample Color Operator
- * \{ */
-
-struct SampleColorData {
-  bool show_cursor;
-  short launch_event;
-  float initcolor[3];
-  bool sample_palette;
-};
-
-static void sample_color_update_header(SampleColorData *data, bContext *C)
-{
-  char msg[UI_MAX_DRAW_STR];
-  ScrArea *area = CTX_wm_area(C);
-
-  if (area) {
-    SNPRINTF(msg,
-             IFACE_("Sample color for %s"),
-             !data->sample_palette ?
-                 IFACE_("Brush. Use Left Click to sample for palette instead") :
-                 IFACE_("Palette. Use Left Click to sample more colors"));
-    ED_workspace_status_text(C, msg);
-  }
-}
-
-static wmOperatorStatus sample_color_exec(bContext *C, wmOperator *op)
-{
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = BKE_paint_brush(paint);
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  ARegion *region = CTX_wm_region(C);
-  wmWindow *win = CTX_wm_window(C);
-  const bool show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
-  int location[2];
-  paint->flags &= ~PAINT_SHOW_BRUSH;
-
-  /* force redraw without cursor */
-  WM_paint_cursor_tag_redraw(win, region);
-  WM_redraw_windows(C);
-
-  RNA_int_get_array(op->ptr, "location", location);
-  const bool use_palette = RNA_boolean_get(op->ptr, "palette");
-  const bool use_sample_texture = (mode == PaintMode::Texture3D) &&
-                                  !RNA_boolean_get(op->ptr, "merged");
-
-  paint_sample_color(C, region, location[0], location[1], use_sample_texture, use_palette);
-
-  if (show_cursor) {
-    paint->flags |= PAINT_SHOW_BRUSH;
-  }
-
-  WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-
-  return OPERATOR_FINISHED;
-}
-
-static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  Scene *scene = CTX_data_scene(C);
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = BKE_paint_brush(paint);
-  SampleColorData *data = MEM_new<SampleColorData>("sample color custom data");
-  ARegion *region = CTX_wm_region(C);
-  wmWindow *win = CTX_wm_window(C);
-
-  data->launch_event = WM_userdef_event_type_from_keymap_type(event->type);
-  data->show_cursor = ((paint->flags & PAINT_SHOW_BRUSH) != 0);
-  copy_v3_v3(data->initcolor, BKE_brush_color_get(scene, paint, brush));
-  data->sample_palette = false;
-  op->customdata = data;
-  paint->flags &= ~PAINT_SHOW_BRUSH;
-
-  sample_color_update_header(data, C);
-
-  WM_event_add_modal_handler(C, op);
-
-  /* force redraw without cursor */
-  WM_paint_cursor_tag_redraw(win, region);
-  WM_redraw_windows(C);
-
-  RNA_int_set_array(op->ptr, "location", event->mval);
-
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  const bool use_sample_texture = (mode == PaintMode::Texture3D) &&
-                                  !RNA_boolean_get(op->ptr, "merged");
-
-  paint_sample_color(C, region, event->mval[0], event->mval[1], use_sample_texture, false);
-  WM_cursor_modal_set(win, WM_CURSOR_EYEDROPPER);
-
-  WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static wmOperatorStatus sample_color_modal(bContext *C, wmOperator *op, const wmEvent *event)
-{
-  Scene *scene = CTX_data_scene(C);
-  SampleColorData *data = static_cast<SampleColorData *>(op->customdata);
-  Paint *paint = BKE_paint_get_active_from_context(C);
-  Brush *brush = BKE_paint_brush(paint);
-
-  if ((event->type == data->launch_event) && (event->val == KM_RELEASE)) {
-    if (data->show_cursor) {
-      paint->flags |= PAINT_SHOW_BRUSH;
-    }
-
-    if (data->sample_palette) {
-      BKE_brush_color_set(scene, paint, brush, data->initcolor);
-      RNA_boolean_set(op->ptr, "palette", true);
-      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-    }
-    WM_cursor_modal_restore(CTX_wm_window(C));
-    MEM_delete(data);
-    ED_workspace_status_text(C, nullptr);
-
-    return OPERATOR_FINISHED;
-  }
-
-  PaintMode mode = BKE_paintmode_get_active_from_context(C);
-  const bool use_sample_texture = (mode == PaintMode::Texture3D) &&
-                                  !RNA_boolean_get(op->ptr, "merged");
-
-  switch (event->type) {
-    case MOUSEMOVE: {
-      ARegion *region = CTX_wm_region(C);
-      RNA_int_set_array(op->ptr, "location", event->mval);
-      paint_sample_color(C, region, event->mval[0], event->mval[1], use_sample_texture, false);
-      WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-      break;
-    }
-
-    case LEFTMOUSE:
-      if (event->val == KM_PRESS) {
-        ARegion *region = CTX_wm_region(C);
-        RNA_int_set_array(op->ptr, "location", event->mval);
-        paint_sample_color(C, region, event->mval[0], event->mval[1], use_sample_texture, true);
-        if (!data->sample_palette) {
-          data->sample_palette = true;
-          sample_color_update_header(data, C);
-          BKE_report(op->reports, RPT_INFO, "Sampling color for palette");
-        }
-        WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, brush);
-      }
-      break;
-    default: {
-      break;
-    }
-  }
-
-  return OPERATOR_RUNNING_MODAL;
-}
-
-static bool sample_color_poll(bContext *C)
-{
-  return (image_paint_poll_ignore_tool(C) || vertex_paint_poll_ignore_tool(C) ||
-          blender::ed::greasepencil::grease_pencil_painting_poll(C));
-}
-
-void PAINT_OT_sample_color(wmOperatorType *ot)
-{
-  /* identifiers */
-  ot->name = "Sample Color";
-  ot->idname = "PAINT_OT_sample_color";
-  ot->description = "Use the mouse to sample a color in the image";
-
-  /* API callbacks. */
-  ot->exec = sample_color_exec;
-  ot->invoke = sample_color_invoke;
-  ot->modal = sample_color_modal;
-  ot->poll = sample_color_poll;
-
-  /* flags */
-  ot->flag = OPTYPE_REGISTER | OPTYPE_DEPENDS_ON_CURSOR;
-
-  /* properties */
-  PropertyRNA *prop;
-
-  prop = RNA_def_int_vector(
-      ot->srna, "location", 2, nullptr, 0, INT_MAX, "Location", "", 0, 16384);
-  RNA_def_property_flag(prop, (PROP_SKIP_SAVE | PROP_HIDDEN));
-
-  RNA_def_boolean(ot->srna, "merged", false, "Sample Merged", "Sample the output display color");
-  RNA_def_boolean(ot->srna, "palette", false, "Add to Palette", "");
-}
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
 /** \name Texture Paint Toggle Operator
  * \{ */
 
@@ -870,9 +677,9 @@ static blender::float3 paint_init_pivot_grease_pencil(Object *ob, const int fram
   return float3(0.0f);
 }
 
-void paint_init_pivot(Object *ob, Scene *scene)
+void paint_init_pivot(Object *ob, Scene *scene, Paint *paint)
 {
-  UnifiedPaintSettings *ups = &scene->toolsettings->unified_paint_settings;
+  UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   blender::float3 location;
   switch (ob->type) {
@@ -951,7 +758,7 @@ void ED_object_texture_paint_mode_enter_ex(Main &bmain,
 
   /* Set pivot to bounding box center. */
   Object *ob_eval = DEG_get_evaluated(&depsgraph, &ob);
-  paint_init_pivot(ob_eval ? ob_eval : &ob, &scene);
+  paint_init_pivot(ob_eval ? ob_eval : &ob, &scene, &imapaint.paint);
 
   WM_main_add_notifier(NC_SCENE | ND_MODE, &scene);
 }
@@ -1057,13 +864,11 @@ void PAINT_OT_texture_paint_toggle(wmOperatorType *ot)
 
 static wmOperatorStatus brush_colors_flip_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene &scene = *CTX_data_scene(C);
-
   Paint *paint = BKE_paint_get_active_from_context(C);
   Brush *br = BKE_paint_brush(paint);
 
-  if (BKE_paint_use_unified_color(scene.toolsettings, paint)) {
-    UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
+  if (BKE_paint_use_unified_color(paint)) {
+    UnifiedPaintSettings &ups = paint->unified_paint_settings;
     swap_v3_v3(ups.rgb, ups.secondary_rgb);
   }
   else if (br) {

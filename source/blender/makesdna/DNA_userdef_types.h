@@ -56,7 +56,7 @@ typedef struct bUserMenuItem_Op {
   char op_idname[64];
   struct IDProperty *prop;
   char op_prop_enum[64];
-  char opcontext; /* #wmOperatorCallContext */
+  char opcontext; /* #blender::wm::OpCallContext */
   char _pad0[7];
 } bUserMenuItem_Op;
 
@@ -419,7 +419,7 @@ typedef struct UserDef {
 
   /** Index of the extension repo in the Preferences UI. */
   short active_extension_repo;
-  /** Flag for all extensions (#eUserPref_ExtensionFlag).  */
+  /** Flag for all extensions (#eUserPref_ExtensionFlag). */
   char extension_flag;
 
   /* Network settings, used by extensions but not specific to extensions. */
@@ -1015,11 +1015,11 @@ typedef enum eNdof_Flag {
   NDOF_SHOULD_ROTATE = (1 << 5),
 
   // NDOF_UNUSED_6 = (1 << 6), /* Dirty. */
-
-  /* actually... users probably don't care about what the mode
-   * is called, just that it feels right */
-  /* zoom is up/down if this flag is set (otherwise forward/backward) */
-  NDOF_PAN_YZ_SWAP_AXIS = (1 << 7),
+  /**
+   * When set translation results in zoom being up/down otherwise forward/backward
+   * This also swaps Y/Z for rotation.
+   */
+  NDOF_SWAP_YZ_AXIS = (1 << 7),
   // NDOF_UNUSED_8 = (1 << 8), /* Dirty. */
   NDOF_ROTX_INVERT_AXIS = (1 << 9),
   NDOF_ROTY_INVERT_AXIS = (1 << 10),

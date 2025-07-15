@@ -21,7 +21,7 @@
 
 #include "WM_api.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "node_geometry_util.hh"
 
@@ -53,8 +53,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
         C, panel, ntree, output_node);
     socket_items::ui::draw_active_item_props<RepeatItemsAccessor>(
         ntree, output_node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
@@ -118,7 +118,7 @@ static void node_label(const bNodeTree * /*ntree*/,
                        char *label,
                        const int label_maxncpy)
 {
-  BLI_strncpy_utf8(label, IFACE_("Repeat"), label_maxncpy);
+  BLI_strncpy_utf8(label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Repeat"), label_maxncpy);
 }
 
 static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)

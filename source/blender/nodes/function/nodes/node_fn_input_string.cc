@@ -9,6 +9,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLO_read_write.hh"
@@ -81,6 +82,9 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 {
   const eNodeSocketDatatype type = eNodeSocketDatatype(params.other_socket().type);
   if (type != SOCK_STRING) {
+    return;
+  }
+  if (params.other_socket().in_out == SOCK_OUT) {
     return;
   }
 

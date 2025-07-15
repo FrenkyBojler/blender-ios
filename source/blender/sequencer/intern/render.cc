@@ -281,7 +281,9 @@ StripScreenQuad get_strip_screen_quad(const RenderData *context, const Strip *st
   const float2 offset{x * 0.5f, y * 0.5f};
 
   Array<float2> quad = image_transform_final_quad_get(scene, strip);
-  const float scale = rendersize_to_scale_factor(context->preview_render_size);
+  const float scale = context->preview_render_size == SEQ_RENDER_SIZE_SCENE ?
+                          float(scene->r.size) / 100.0f :
+                          rendersize_to_scale_factor(context->preview_render_size);
   return StripScreenQuad{float2(quad[0] * scale + offset),
                          float2(quad[1] * scale + offset),
                          float2(quad[2] * scale + offset),
@@ -441,7 +443,8 @@ static bool seq_need_scale_to_render_size(const Strip *strip, bool is_proxy_imag
   return true;
 }
 
-static float3x3 sequencer_image_crop_transform_matrix(const Strip *strip,
+static float3x3 sequencer_image_crop_transform_matrix(const Scene *scene,
+                                                      const Strip *strip,
                                                       const ImBuf *in,
                                                       const ImBuf *out,
                                                       const float image_scale_factor,
@@ -459,7 +462,9 @@ static float3x3 sequencer_image_crop_transform_matrix(const Strip *strip,
   const float rotation = transform->rotation;
   const float2 scale(transform->scale_x * image_scale_factor,
                      transform->scale_y * image_scale_factor);
-  const float2 pivot(in->x * transform->origin[0], in->y * transform->origin[1]);
+
+  const float2 origin = image_transform_origin_get(scene, strip);
+  const float2 pivot(in->x * origin[0], in->y * origin[1]);
 
   const float3x3 matrix = math::from_loc_rot_scale<float3x3>(
       translation + float2(image_center_offs), rotation, scale);
@@ -540,7 +545,7 @@ static void sequencer_preprocess_transform_crop(
   const float image_scale_factor = do_scale_to_render_size ? preview_scale_factor : 1.0f;
 
   float3x3 matrix = sequencer_image_crop_transform_matrix(
-      strip, in, out, image_scale_factor, preview_scale_factor);
+      scene, strip, in, out, image_scale_factor, preview_scale_factor);
 
   /* Proxy image is smaller, so crop values must be corrected by proxy scale factor.
    * Proxy scale factor always matches preview_scale_factor. */
@@ -1025,7 +1030,10 @@ static ImBuf *seq_render_movie_strip_custom_file_proxy(const RenderData *context
 
   if (proxy->anim == nullptr) {
     if (seq_proxy_get_custom_file_filepath(strip, filepath, context->view_id)) {
-      proxy->anim = openanim(filepath, IB_byte_data, 0, strip->data->colorspace_settings.name);
+      /* Sequencer takes care of colorspace conversion of the result. The input is the best to be
+       * kept unchanged for the performance reasons. */
+      proxy->anim = openanim(
+          filepath, IB_byte_data, 0, true, strip->data->colorspace_settings.name);
     }
     if (proxy->anim == nullptr) {
       return nullptr;
@@ -1627,7 +1635,8 @@ static ImBuf *do_render_strip_seqbase(const RenderData *context,
       BKE_animsys_evaluate_all_animation(context->bmain, context->depsgraph, frame_index);
     }
 
-    intra_frame_cache_set_cur_frame(context->scene, frame_index, context->view_id);
+    intra_frame_cache_set_cur_frame(
+        context->scene, frame_index, context->view_id, context->rectx, context->recty);
     ibuf = seq_render_strip_stack(context,
                                   state,
                                   channels,
@@ -1989,12 +1998,13 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     channels = ed->displayed_channels;
   }
 
-  intra_frame_cache_set_cur_frame(scene, timeline_frame, context->view_id);
+  intra_frame_cache_set_cur_frame(
+      scene, timeline_frame, context->view_id, context->rectx, context->recty);
 
   Scene *orig_scene = prefetch_get_original_scene(context);
   ImBuf *out = nullptr;
   if (!context->skip_cache && !context->is_proxy_render) {
-    out = final_image_cache_get(orig_scene, timeline_frame, context->view_id);
+    out = final_image_cache_get(orig_scene, seqbasep, timeline_frame, context->view_id, chanshown);
   }
 
   Vector<Strip *> strips = seq_shown_strips_get(
@@ -2008,7 +2018,7 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
   if (!strips.is_empty() && !out) {
     std::scoped_lock lock(seq_render_mutex);
     /* Try to make space before we add any new frames to the cache if it is full.
-     * If we do this after we have added the new cache, we risk removing what we just added.*/
+     * If we do this after we have added the new cache, we risk removing what we just added. */
     evict_caches_if_full(orig_scene);
 
     out = seq_render_strip_stack(context, &state, channels, seqbasep, timeline_frame, chanshown);
@@ -2016,7 +2026,8 @@ ImBuf *render_give_ibuf(const RenderData *context, float timeline_frame, int cha
     if (out && (orig_scene->ed->cache_flag & SEQ_CACHE_STORE_FINAL_OUT) && !context->skip_cache &&
         !context->is_proxy_render)
     {
-      final_image_cache_put(orig_scene, timeline_frame, context->view_id, out);
+      final_image_cache_put(
+          orig_scene, seqbasep, timeline_frame, context->view_id, chanshown, out);
     }
   }
 
