@@ -144,6 +144,7 @@ void main()
         local_radiance[local_index] += local_radiance[local_index + stride];
       }
     }
+    barrier();
 
     if (gl_LocalInvocationIndex == 0u) {
       out_sun[work_group_index].radiance = local_radiance[0].xyz;
@@ -186,6 +187,7 @@ void main()
         local_radiance[local_index] += local_radiance[local_index + stride];
       }
     }
+    barrier();
 
     if (gl_LocalInvocationIndex == 0u) {
       /* Find the middle point of the whole thread-group. Use it as light vector.
