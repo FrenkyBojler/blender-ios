@@ -15,6 +15,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
+#include "BLI_math_vector.h"
 #include "BLI_vector.hh"
 #include "BLI_virtual_array.hh"
 
@@ -43,6 +44,8 @@
 #include "BKE_multires.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
+#include "BKE_paint.hh"
+#include "BKE_paint_bvh.hh"
 #include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
@@ -53,10 +56,12 @@
 
 #include "ED_mesh.hh"
 #include "ED_object.hh"
+#include "ED_sculpt.hh"
 #include "ED_view3d.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
+#include "mesh_intern.hh"
 
 using blender::float3;
 using blender::int2;
@@ -717,7 +722,9 @@ wmOperatorStatus ED_mesh_join_objects_exec(bContext *C, wmOperator *op)
  * Add vertex positions of selected meshes as shape keys to the active mesh.
  * \{ */
 
-wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *reports)
+wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
+                                                  const bool ensure_keys_exist,
+                                                  ReportList *reports)
 {
   using namespace blender;
   Main *bmain = CTX_data_main(C);
@@ -725,8 +732,18 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
   Depsgraph &depsgraph = *CTX_data_ensure_evaluated_depsgraph(C);
   Mesh &active_mesh = *static_cast<Mesh *>(active_object.data);
 
-  bool found_non_equal_verts_num = false;
-  Vector<Object *> compatible_objects;
+  struct ObjectInfo {
+    StringRefNull name;
+    const Mesh &mesh;
+  };
+
+  auto topology_count_matches = [](const Mesh &a, const Mesh &b) {
+    return a.verts_num == b.verts_num;
+  };
+
+  bool found_object = false;
+  bool found_non_equal_count = false;
+  Vector<ObjectInfo> compatible_objects;
   CTX_DATA_BEGIN (C, Object *, ob_iter, selected_editable_objects) {
     if (ob_iter == &active_object) {
       continue;
@@ -734,16 +751,33 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
     if (ob_iter->type != OB_MESH) {
       continue;
     }
-    const Mesh &mesh = *static_cast<Mesh *>(ob_iter->data);
-    if (mesh.verts_num != active_mesh.verts_num) {
-      found_non_equal_verts_num = true;
+    const Object *object_eval = DEG_get_evaluated(&depsgraph, ob_iter);
+    if (!object_eval) {
       continue;
     }
-    compatible_objects.append(ob_iter);
+    found_object = true;
+    if (const Mesh *mesh = BKE_object_get_evaluated_mesh(object_eval)) {
+      if (topology_count_matches(*mesh, active_mesh)) {
+        compatible_objects.append({BKE_id_name(ob_iter->id), *mesh});
+        continue;
+      }
+    }
+    /* Fall back to the original mesh. */
+    const Mesh &mesh_orig = *static_cast<const Mesh *>(ob_iter->data);
+    if (topology_count_matches(mesh_orig, active_mesh)) {
+      compatible_objects.append({BKE_id_name(ob_iter->id), mesh_orig});
+      continue;
+    }
+    found_non_equal_count = true;
   }
   CTX_DATA_END;
 
-  if (found_non_equal_verts_num) {
+  if (!found_object) {
+    BKE_report(reports, RPT_WARNING, "No source mesh objects selected");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (found_non_equal_count) {
     BKE_report(reports, RPT_WARNING, "Selected meshes must have equal numbers of vertices");
     return OPERATOR_CANCELLED;
   }
@@ -762,20 +796,35 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C, ReportList *repor
         &active_mesh, active_mesh.key, BKE_keyblock_add(active_mesh.key, nullptr));
   }
 
-  Scene *scene_eval = DEG_get_evaluated_scene(&depsgraph);
-  for (Object *object : compatible_objects) {
-    Object *object_eval = DEG_get_evaluated_object(&depsgraph, object);
-    Mesh *deformed_mesh = blender::bke::mesh_get_eval_deform(
-        &depsgraph, scene_eval, object_eval, &CD_MASK_BAREMESH);
-    if (!deformed_mesh) {
-      continue;
+  int keys_changed = 0;
+  bool any_keys_added = false;
+  for (const ObjectInfo &info : compatible_objects) {
+    if (ensure_keys_exist) {
+      KeyBlock *kb = BKE_keyblock_add(active_mesh.key, info.name.c_str());
+      BKE_keyblock_convert_from_mesh(&info.mesh, active_mesh.key, kb);
+      any_keys_added = true;
     }
-    KeyBlock *kb = BKE_keyblock_add(active_mesh.key, object->id.name + 2);
-    BKE_keyblock_convert_from_mesh(deformed_mesh, active_mesh.key, kb);
+    else if (KeyBlock *kb = BKE_keyblock_find_name(active_mesh.key, info.name.c_str())) {
+      keys_changed++;
+      BKE_keyblock_update_from_mesh(&info.mesh, kb);
+    }
+  }
+
+  if (!ensure_keys_exist) {
+    if (keys_changed == 0) {
+      BKE_report(reports, RPT_ERROR, "No name matches between selected objects and shape keys");
+      return OPERATOR_CANCELLED;
+    }
+    BKE_reportf(reports, RPT_INFO, "Updated %d shape key(s)", keys_changed);
   }
 
   DEG_id_tag_update(&active_mesh.id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, &active_mesh.id);
+
+  if (any_keys_added && bmain) {
+    /* Adding a new shape key should trigger a rebuild of relationships. */
+    DEG_relations_tag_update(bmain);
+  }
 
   return OPERATOR_FINISHED;
 }
@@ -1199,7 +1248,7 @@ bool ED_mesh_pick_face_vert(
   BLI_assert(mesh && GS(mesh->id.name) == ID_ME);
 
   if (ED_mesh_pick_face(C, ob, mval, dist_px, &face_index)) {
-    const Object *ob_eval = DEG_get_evaluated_object(depsgraph, ob);
+    const Object *ob_eval = DEG_get_evaluated(depsgraph, ob);
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
     if (!mesh_eval) {
       return false;
@@ -1377,7 +1426,7 @@ bool ED_mesh_pick_vert(
     (*r_index)--;
   }
   else {
-    const Object *ob_eval = DEG_get_evaluated_object(vc.depsgraph, ob);
+    const Object *ob_eval = DEG_get_evaluated(vc.depsgraph, ob);
     const Mesh *mesh_eval = BKE_object_get_evaluated_mesh(ob_eval);
     ARegion *region = vc.region;
     RegionView3D *rv3d = static_cast<RegionView3D *>(region->regiondata);
@@ -1503,4 +1552,58 @@ void EDBM_mesh_elem_index_ensure_multi(const Span<Object *> objects, const char 
     BMesh *bm = em->bm;
     BM_mesh_elem_index_ensure_ex(bm, htype, elem_offset);
   }
+}
+static wmOperatorStatus mesh_reorder_vertices_spatial_exec(bContext *C, wmOperator *op)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
+  Scene *scene = CTX_data_scene(C);
+
+  if (ob->mode == OB_MODE_SCULPT && mesh->flag & ME_SCULPT_DYNAMIC_TOPOLOGY) {
+    /* Dyntopo not supported. */
+    BKE_report(op->reports, RPT_INFO, "Not supported in dynamic topology sculpting");
+    return OPERATOR_CANCELLED;
+  }
+
+  if (ob->mode == OB_MODE_SCULPT) {
+    blender::ed::sculpt_paint::undo::geometry_begin(*scene, *ob, op);
+  }
+
+  blender::bke::mesh_apply_spatial_organization(*mesh);
+
+  if (ob->mode == OB_MODE_SCULPT) {
+    blender::ed::sculpt_paint::undo::geometry_end(*ob);
+  }
+
+  DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_OBJECT | ND_MODIFIER, ob);
+
+  BKE_report(op->reports, RPT_INFO, "Mesh faces and vertices reordered spatially");
+
+  return OPERATOR_FINISHED;
+}
+
+static bool mesh_reorder_vertices_spatial_poll(bContext *C)
+{
+  Object *ob = blender::ed::object::context_active_object(C);
+  if (!ob || ob->type != OB_MESH) {
+    return false;
+  }
+
+  return true;
+}
+
+void MESH_OT_reorder_vertices_spatial(wmOperatorType *ot)
+{
+  ot->name = "Reorder Mesh Spatially";
+  ot->idname = "MESH_OT_reorder_vertices_spatial";
+  ot->description =
+      "Reorder mesh faces and vertices based on their spatial position for better BVH building "
+      "and sculpting performance.";
+
+  ot->exec = mesh_reorder_vertices_spatial_exec;
+  ot->poll = mesh_reorder_vertices_spatial_poll;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

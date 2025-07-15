@@ -499,14 +499,7 @@ static inline void set_enum(PointerRNA &ptr, const char *name, const string &ide
 
 static inline string get_string(PointerRNA &ptr, const char *name)
 {
-  char cstrbuf[1024];
-  char *cstr = RNA_string_get_alloc(&ptr, name, cstrbuf, sizeof(cstrbuf), nullptr);
-  string str(cstr);
-  if (cstr != cstrbuf) {
-    MEM_freeN(cstr);
-  }
-
-  return str;
+  return RNA_string_get(&ptr, name);
 }
 
 static inline void set_string(PointerRNA &ptr, const char *name, const string &value)
@@ -768,12 +761,12 @@ static inline uint object_ray_visibility(BL::Object &b_ob)
 {
   uint flag = 0;
 
-  flag |= b_ob.visible_camera() ? PATH_RAY_CAMERA : 0;
-  flag |= b_ob.visible_diffuse() ? PATH_RAY_DIFFUSE : 0;
-  flag |= b_ob.visible_glossy() ? PATH_RAY_GLOSSY : 0;
-  flag |= b_ob.visible_transmission() ? PATH_RAY_TRANSMIT : 0;
-  flag |= b_ob.visible_shadow() ? PATH_RAY_SHADOW : 0;
-  flag |= b_ob.visible_volume_scatter() ? PATH_RAY_VOLUME_SCATTER : 0;
+  flag |= b_ob.visible_camera() ? PATH_RAY_CAMERA : PathRayFlag(0);
+  flag |= b_ob.visible_diffuse() ? PATH_RAY_DIFFUSE : PathRayFlag(0);
+  flag |= b_ob.visible_glossy() ? PATH_RAY_GLOSSY : PathRayFlag(0);
+  flag |= b_ob.visible_transmission() ? PATH_RAY_TRANSMIT : PathRayFlag(0);
+  flag |= b_ob.visible_shadow() ? PATH_RAY_SHADOW : PathRayFlag(0);
+  flag |= b_ob.visible_volume_scatter() ? PATH_RAY_VOLUME_SCATTER : PathRayFlag(0);
 
   return flag;
 }

@@ -47,7 +47,7 @@ class Background : Overlay {
       background_type = BG_CHECKER;
     }
     else if (state.v3d->shading.background_type == V3D_SHADING_BACKGROUND_WORLD &&
-             state.scene->world)
+             state.v3d->shading.type <= OB_SOLID && state.scene->world)
     {
       background_type = BG_SOLID;
       /* TODO(fclem): this is a scene referred linear color. we should convert
@@ -83,7 +83,7 @@ class Background : Overlay {
 
       bg_ps_.state_set(DRW_STATE_WRITE_COLOR | DRW_STATE_BLEND_ALPHA | DRW_STATE_CULL_BACK);
       bg_ps_.shader_set(res.shaders->background_clip_bound.get());
-      bg_ps_.push_constant("ucolor", res.theme_settings.color_clipping_border);
+      bg_ps_.push_constant("ucolor", res.theme.colors.clipping_border);
       bg_ps_.push_constant("boundbox", bbox.data(), 8);
       bg_ps_.draw(res.shapes.cube_solid.get());
     }

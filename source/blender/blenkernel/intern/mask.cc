@@ -47,7 +47,7 @@
 
 #include "BLO_read_write.hh"
 
-static CLG_LogRef LOG = {"bke.mask"};
+static CLG_LogRef LOG = {"mask"};
 
 /** Reset runtime mask fields when data-block is being initialized. */
 static void mask_runtime_reset(Mask *mask)
@@ -182,7 +182,7 @@ static void mask_blend_read_data(BlendDataReader *reader, ID *id)
 }
 
 IDTypeInfo IDType_ID_MSK = {
-    /*id_code*/ ID_MSK,
+    /*id_code*/ Mask::id_type,
     /*id_filter*/ FILTER_ID_MSK,
     /*dependencies_id_types*/ FILTER_ID_MC, /* WARNING! mask->parent.id, not typed. */
     /*main_listbase_index*/ INDEX_ID_MSK,

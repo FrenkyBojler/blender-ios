@@ -18,6 +18,11 @@ struct AnimData;
 struct Object;
 
 typedef struct LightProbe {
+#ifdef __cplusplus
+  /** See #ID_Type comment for why this is here. */
+  static constexpr ID_Type id_type = ID_LP;
+#endif
+
   ID id;
   /** Animation data (must be immediately after id for utilities to use it). */
   struct AnimData *adt;
@@ -98,6 +103,7 @@ enum {
   LIGHTPROBE_FLAG_SHOW_CLIP_DIST = (1 << 3),
   LIGHTPROBE_FLAG_SHOW_DATA = (1 << 4),
   LIGHTPROBE_FLAG_INVERT_GROUP = (1 << 5),
+  LIGHTPROBE_DS_EXPAND = (1 << 6),
 };
 
 /* Probe->grid_flag */

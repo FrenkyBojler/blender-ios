@@ -479,7 +479,7 @@ void GRAPH_OT_select_all(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_select_all";
   ot->description = "Toggle selection of all keyframes";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphkeys_deselectall_exec;
   ot->poll = graphop_visible_keyframes_poll;
 
@@ -560,12 +560,18 @@ static void initialize_box_select_key_editing_data(const bool incl_handles,
       r_ked->data = scaled_rectf;
       break;
   }
-  SpaceGraph *sipo = (SpaceGraph *)ac->sl;
-  if (sipo->flag & SIPO_SELVHANDLESONLY) {
+  SpaceGraph *sgraph = (SpaceGraph *)ac->sl;
+
+  if (sgraph->flag & SIPO_NOHANDLES) {
+    r_ked->iterflags |= KEYFRAME_ITER_HANDLES_INVISIBLE;
+  }
+
+  if (sgraph->flag & SIPO_SELVHANDLESONLY) {
     r_ked->iterflags |= KEYFRAME_ITER_HANDLES_DEFAULT_INVISIBLE;
   }
 
-  /* Enable handles selection. (used in keyframes_edit.cc > keyframe_ok_checks function) */
+  /* Consider handles selection. Used in #keyframe_ok_checks, #select_bezier_add,
+   * #select_bezier_subtract. */
   if (incl_handles) {
     r_ked->iterflags |= KEYFRAME_ITER_INCL_HANDLES;
     *r_mapping_flag = 0;
@@ -580,7 +586,7 @@ static void initialize_box_select_key_editing_data(const bool incl_handles,
 /**
  * Box Select only selects keyframes, as overshooting handles often get caught too,
  * which means that they may be inadvertently moved as well. However, incl_handles overrides
- * this, and allow handles to be considered independently too.
+ * this, and allow handles to be considered independently too (default since b037ba2665f4).
  * Also, for convenience, handles should get same status as keyframe (if it was within bounds).
  *
  * This function returns true if there was any change in the selection of a key (selecting or
@@ -620,7 +626,7 @@ static bool box_select_graphkeys(bAnimContext *ac,
      * guess when a callback might use something different.
      */
     ANIM_nla_mapping_apply_if_needed_fcurve(
-        ale, static_cast<FCurve *>(ale->key_data), false, incl_handles == 0);
+        ale, static_cast<FCurve *>(ale->key_data), false, (mapping_flag & ANIM_UNITCONV_ONLYKEYS));
 
     scaled_rectf.xmin = rectf.xmin;
     scaled_rectf.xmax = rectf.xmax;
@@ -657,7 +663,7 @@ static bool box_select_graphkeys(bAnimContext *ac,
 
     /* Un-apply NLA mapping from all the keyframes. */
     ANIM_nla_mapping_apply_if_needed_fcurve(
-        ale, static_cast<FCurve *>(ale->key_data), true, incl_handles == 0);
+        ale, static_cast<FCurve *>(ale->key_data), true, (mapping_flag & ANIM_UNITCONV_ONLYKEYS));
   }
 
   /* Cleanup. */
@@ -858,7 +864,7 @@ static wmOperatorStatus graphkeys_box_select_exec(bContext *C, wmOperator *op)
   }
 
   /* 'include_handles' from the operator specifies whether to include handles in the selection. */
-  const bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
+  bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
 
   /* Get settings from operator. */
   WM_operator_properties_border_to_rcti(op, &rect);
@@ -921,11 +927,13 @@ void GRAPH_OT_select_box(wmOperatorType *ot)
   RNA_def_property_flag(ot->prop, PROP_SKIP_SAVE);
 
   PropertyRNA *prop;
-  prop = RNA_def_boolean(ot->srna,
-                         "include_handles",
-                         true,
-                         "Include Handles",
-                         "Are handles tested individually against the selection criteria");
+  prop = RNA_def_boolean(
+      ot->srna,
+      "include_handles",
+      true,
+      "Include Handles",
+      "Are handles tested individually against the selection criteria, independently from their "
+      "keys. When unchecked, handles are (de)selected in unison with their keys");
   RNA_def_property_flag(prop, PROP_SKIP_SAVE);
 
   prop = RNA_def_boolean(
@@ -954,8 +962,6 @@ static wmOperatorStatus graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
   rcti rect;
   rctf rect_fl;
 
-  bool incl_handles;
-
   /* Get editor data. */
   if (ANIM_animdata_get_context(C, &ac) == 0) {
     return OPERATOR_CANCELLED;
@@ -973,19 +979,12 @@ static wmOperatorStatus graphkeys_lassoselect_exec(bContext *C, wmOperator *op)
     deselect_graph_keys(&ac, false, SELECT_SUBTRACT, true);
   }
 
-  {
-    SpaceGraph *sipo = (SpaceGraph *)ac.sl;
-    if (selectmode == SELECT_ADD) {
-      incl_handles = ((sipo->flag & SIPO_SELVHANDLESONLY) || (sipo->flag & SIPO_NOHANDLES)) == 0;
-    }
-    else {
-      incl_handles = (sipo->flag & SIPO_NOHANDLES) == 0;
-    }
-  }
-
   /* Get settings from operator. */
   BLI_lasso_boundbox(&rect, data_lasso.mcoords);
   BLI_rctf_rcti_copy(&rect_fl, &rect);
+
+  /* 'include_handles' from the operator specifies whether to consider handles in the selection. */
+  const bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
 
   /* Apply box_select action. */
   const bool any_key_selection_changed = box_select_graphkeys(
@@ -1022,7 +1021,18 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
   /* Properties. */
   WM_operator_properties_gesture_lasso(ot);
   WM_operator_properties_select_operation_simple(ot);
-  PropertyRNA *prop = RNA_def_boolean(
+
+  PropertyRNA *prop;
+  prop = RNA_def_boolean(
+      ot->srna,
+      "include_handles",
+      true,
+      "Include Handles",
+      "Are handles tested individually against the selection criteria, independently from their "
+      "keys. When unchecked, handles are (de)selected in unison with their keys");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
       ot->srna,
       "use_curve_selection",
       true,
@@ -1036,7 +1046,6 @@ void GRAPH_OT_select_lasso(wmOperatorType *ot)
 static wmOperatorStatus graph_circle_select_exec(bContext *C, wmOperator *op)
 {
   bAnimContext ac;
-  bool incl_handles = false;
 
   KeyframeEdit_CircleData data = {nullptr};
   rctf rect_fl;
@@ -1068,15 +1077,8 @@ static wmOperatorStatus graph_circle_select_exec(bContext *C, wmOperator *op)
   rect_fl.ymin = y - radius;
   rect_fl.ymax = y + radius;
 
-  {
-    SpaceGraph *sipo = (SpaceGraph *)ac.sl;
-    if (selectmode == SELECT_ADD) {
-      incl_handles = ((sipo->flag & SIPO_SELVHANDLESONLY) || (sipo->flag & SIPO_NOHANDLES)) == 0;
-    }
-    else {
-      incl_handles = (sipo->flag & SIPO_NOHANDLES) == 0;
-    }
-  }
+  /* 'include_handles' from the operator specifies whether to consider handles in the selection. */
+  const bool incl_handles = RNA_boolean_get(op->ptr, "include_handles");
 
   /* Apply box_select action. */
   const bool any_key_selection_changed = box_select_graphkeys(
@@ -1117,7 +1119,18 @@ void GRAPH_OT_select_circle(wmOperatorType *ot)
   /* properties */
   WM_operator_properties_gesture_circle(ot);
   WM_operator_properties_select_operation_simple(ot);
-  PropertyRNA *prop = RNA_def_boolean(
+
+  PropertyRNA *prop;
+  prop = RNA_def_boolean(
+      ot->srna,
+      "include_handles",
+      true,
+      "Include Handles",
+      "Are handles tested individually against the selection criteria, independently from their "
+      "keys. When unchecked, handles are (de)selected in unison with their keys");
+  RNA_def_property_flag(prop, PROP_SKIP_SAVE);
+
+  prop = RNA_def_boolean(
       ot->srna,
       "use_curve_selection",
       true,
@@ -1219,6 +1232,7 @@ static void columnselect_graph_keys(bAnimContext *ac, short mode)
           ac, &anim_data, eAnimFilter_Flags(filter), ac->data, eAnimCont_Types(ac->datatype));
 
       LISTBASE_FOREACH (bAnimListElem *, ale, &anim_data) {
+        ked.data = ale;
         ANIM_fcurve_keyframes_loop(
             &ked, static_cast<FCurve *>(ale->key_data), nullptr, bezt_to_cfraelem, nullptr);
       }
@@ -1308,7 +1322,7 @@ void GRAPH_OT_select_column(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_select_column";
   ot->description = "Select all keyframes on the specified frame(s)";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphkeys_columnselect_exec;
   ot->poll = graphop_visible_keyframes_poll;
 
@@ -1373,7 +1387,7 @@ void GRAPH_OT_select_linked(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_select_linked";
   ot->description = "Select keyframes occurring in the same F-Curves as selected ones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphkeys_select_linked_exec;
   ot->poll = graphop_visible_keyframes_poll;
 
@@ -1457,7 +1471,7 @@ void GRAPH_OT_select_more(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_select_more";
   ot->description = "Select keyframes beside already selected ones";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphkeys_select_more_exec;
   ot->poll = graphop_visible_keyframes_poll;
 
@@ -1492,7 +1506,7 @@ void GRAPH_OT_select_less(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_select_less";
   ot->description = "Deselect keyframes on ends of selection islands";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = graphkeys_select_less_exec;
   ot->poll = graphop_visible_keyframes_poll;
 
@@ -1648,7 +1662,7 @@ void GRAPH_OT_select_leftright(wmOperatorType *ot)
   ot->idname = "GRAPH_OT_select_leftright";
   ot->description = "Select keyframes to the left or the right of the current frame";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = graphkeys_select_leftright_invoke;
   ot->exec = graphkeys_select_leftright_exec;
   ot->poll = graphop_visible_keyframes_poll;

@@ -24,6 +24,7 @@
 #include "BKE_context.hh"
 #include "BKE_library.hh"
 #include "BKE_main.hh"
+#include "BKE_path_templates.hh"
 #include "BKE_report.hh"
 #include "BKE_screen.hh"
 
@@ -38,6 +39,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "buttons_intern.hh" /* own include */
@@ -148,7 +150,7 @@ static wmOperatorStatus context_menu_invoke(bContext *C,
   uiPopupMenu *pup = UI_popup_menu_begin(C, IFACE_("Context Menu"), ICON_NONE);
   uiLayout *layout = UI_popup_menu_layout(pup);
 
-  uiItemM(layout, "INFO_MT_area", std::nullopt, ICON_NONE);
+  layout->menu("INFO_MT_area", std::nullopt, ICON_NONE);
   UI_popup_menu_end(C, pup);
 
   return OPERATOR_INTERFACE;
@@ -177,12 +179,6 @@ struct FileBrowseOp {
   PropertyRNA *prop = nullptr;
   bool is_undo = false;
   bool is_userdef = false;
-
-  /**
-   * It would be good if this can be removed, see #UI_context_active_but_prop_get_filebrowser
-   * code comment for details.
-   */
-  bool override_path_supports_blend_relative = false;
 };
 
 static bool file_browse_operator_relative_paths_supported(wmOperator *op)
@@ -192,9 +188,6 @@ static bool file_browse_operator_relative_paths_supported(wmOperator *op)
   if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH)) {
     const int flag = RNA_property_flag(fbo->prop);
     if ((flag & PROP_PATH_SUPPORTS_BLEND_RELATIVE) == 0) {
-      if (fbo->override_path_supports_blend_relative) {
-        return true;
-      }
       return false;
     }
   }
@@ -223,7 +216,7 @@ static wmOperatorStatus file_browse_exec(bContext *C, wmOperator *op)
     /* Check relative paths are supported here as this option will be hidden
      * when it's not supported. In this case the value may have been enabled
      * by default or from the last-used setting.
-     * Either way, don't use the blend-file relative prefix when it's not supported.  */
+     * Either way, don't use the blend-file relative prefix when it's not supported. */
     const PropertySubType prop_subtype = RNA_property_subtype(fbo->prop);
     const bool is_relative = BLI_path_is_rel(path);
     const bool make_relative = RNA_boolean_get(op->ptr, "relative_path") &&
@@ -295,7 +288,6 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   PropertyRNA *prop;
   bool is_undo;
   bool is_userdef;
-  bool override_path_supports_blend_relative;
   char *path;
 
   const SpaceFile *sfile = CTX_wm_space_file(C);
@@ -304,14 +296,26 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
     return OPERATOR_CANCELLED;
   }
 
-  UI_context_active_but_prop_get_filebrowser(
-      C, &ptr, &prop, &is_undo, &is_userdef, &override_path_supports_blend_relative);
+  UI_context_active_but_prop_get_filebrowser(C, &ptr, &prop, &is_undo, &is_userdef);
 
   if (!prop) {
     return OPERATOR_CANCELLED;
   }
 
   path = RNA_property_string_get_alloc(&ptr, prop, nullptr, 0, nullptr);
+
+  if ((RNA_property_flag(prop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
+    const std::optional<blender::bke::path_templates::VariableMap> variables =
+        BKE_build_template_variables_for_prop(C, &ptr, prop);
+    BLI_assert(variables.has_value());
+
+    const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+        path, FILE_MAX, *variables);
+    if (!errors.is_empty()) {
+      BKE_report_path_template_errors(op->reports, RPT_ERROR, path, errors);
+      return OPERATOR_CANCELLED;
+    }
+  }
 
   /* Useful yet irritating feature, Shift+Click to open the file
    * Alt+Click to browse a folder in the OS's browser. */
@@ -328,7 +332,7 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
 
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_string_set(&props_ptr, "filepath", path);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     MEM_freeN(path);
@@ -357,7 +361,6 @@ static wmOperatorStatus file_browse_invoke(bContext *C, wmOperator *op, const wm
   fbo->prop = prop;
   fbo->is_undo = is_undo;
   fbo->is_userdef = is_userdef;
-  fbo->override_path_supports_blend_relative = override_path_supports_blend_relative;
 
   op->customdata = fbo;
 
@@ -486,7 +489,7 @@ void BUTTONS_OT_directory_browse(wmOperatorType *ot)
       "Open a directory browser, hold Shift to open the file, Alt to browse containing directory";
   ot->idname = "BUTTONS_OT_directory_browse";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = file_browse_invoke;
   ot->exec = file_browse_exec;
   ot->cancel = file_browse_cancel;

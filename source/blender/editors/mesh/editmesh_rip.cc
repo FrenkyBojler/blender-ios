@@ -1050,7 +1050,8 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     if (bm->totfacesel) {
       /* highly nifty but hard to support since the operator can fail and we're left
        * with modified selection */
-      // WM_operator_name_call(C, "MESH_OT_region_to_loop", WM_OP_INVOKE_DEFAULT, nullptr, event);
+      // WM_operator_name_call(C, "MESH_OT_region_to_loop",
+      // blender::wm::OpCallContext::InvokeDefault, nullptr, event);
       continue;
     }
     error_face_selected = false;
@@ -1135,7 +1136,7 @@ void MESH_OT_rip(wmOperatorType *ot)
   ot->idname = "MESH_OT_rip";
   ot->description = "Disconnect vertex or edges from connected geometry";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = edbm_rip_invoke;
   ot->poll = EDBM_view3d_poll;
 

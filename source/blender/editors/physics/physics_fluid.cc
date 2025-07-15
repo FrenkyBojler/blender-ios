@@ -329,7 +329,6 @@ static void fluid_bake_endjob(void *customdata)
   DEG_id_tag_update(&job->ob->id, ID_RECALC_GEOMETRY);
 
   G.is_rendering = false;
-  BKE_spacedata_draw_locks(false);
   WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
 
   /* Bake was successful:
@@ -367,7 +366,7 @@ static void fluid_bake_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
   G.is_break = false;
   G.is_rendering = true;
-  BKE_spacedata_draw_locks(true);
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
 
   if (fluid_is_bake_noise(job) || fluid_is_bake_all(job)) {
     BLI_path_join(temp_dir, sizeof(temp_dir), fds->cache_directory, FLUID_DOMAIN_DIR_NOISE);
@@ -436,7 +435,6 @@ static void fluid_free_endjob(void *customdata)
   FluidDomainSettings *fds = job->fmd->domain;
 
   G.is_rendering = false;
-  BKE_spacedata_draw_locks(false);
   WM_set_locked_interface(static_cast<wmWindowManager *>(G_MAIN->wm.first), false);
 
   /* Reflect the now empty cache in the viewport too. */
@@ -474,7 +472,7 @@ static void fluid_free_startjob(void *customdata, wmJobWorkerStatus *worker_stat
 
   G.is_break = false;
   G.is_rendering = true;
-  BKE_spacedata_draw_locks(true);
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
 
   int cache_map = 0;
 
@@ -571,7 +569,7 @@ static wmOperatorStatus fluid_bake_invoke(bContext *C, wmOperator *op, const wmE
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_bake_startjob, nullptr, nullptr, fluid_bake_endjob);
 
-  WM_set_locked_interface(CTX_wm_manager(C), true);
+  WM_set_locked_interface_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
   WM_jobs_start(CTX_wm_manager(C), wm_job);
   WM_event_add_modal_handler(C, op);
@@ -653,7 +651,7 @@ static wmOperatorStatus fluid_free_exec(bContext *C, wmOperator *op)
   WM_jobs_timer(wm_job, 0.01, NC_OBJECT | ND_MODIFIER, NC_OBJECT | ND_MODIFIER);
   WM_jobs_callbacks(wm_job, fluid_free_startjob, nullptr, nullptr, fluid_free_endjob);
 
-  WM_set_locked_interface(CTX_wm_manager(C), true);
+  WM_set_locked_interface_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_BAKING);
 
   /*  Free Fluid Geometry */
   WM_jobs_start(CTX_wm_manager(C), wm_job);
@@ -693,7 +691,7 @@ void FLUID_OT_bake_all(wmOperatorType *ot)
   ot->description = "Bake Entire Fluid Simulation";
   ot->idname = FLUID_JOB_BAKE_ALL;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -707,7 +705,7 @@ void FLUID_OT_free_all(wmOperatorType *ot)
   ot->description = "Free Entire Fluid Simulation";
   ot->idname = FLUID_JOB_FREE_ALL;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -719,7 +717,7 @@ void FLUID_OT_bake_data(wmOperatorType *ot)
   ot->description = "Bake Fluid Data";
   ot->idname = FLUID_JOB_BAKE_DATA;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -733,7 +731,7 @@ void FLUID_OT_free_data(wmOperatorType *ot)
   ot->description = "Free Fluid Data";
   ot->idname = FLUID_JOB_FREE_DATA;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -745,7 +743,7 @@ void FLUID_OT_bake_noise(wmOperatorType *ot)
   ot->description = "Bake Fluid Noise";
   ot->idname = FLUID_JOB_BAKE_NOISE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -759,7 +757,7 @@ void FLUID_OT_free_noise(wmOperatorType *ot)
   ot->description = "Free Fluid Noise";
   ot->idname = FLUID_JOB_FREE_NOISE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -771,7 +769,7 @@ void FLUID_OT_bake_mesh(wmOperatorType *ot)
   ot->description = "Bake Fluid Mesh";
   ot->idname = FLUID_JOB_BAKE_MESH;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -785,7 +783,7 @@ void FLUID_OT_free_mesh(wmOperatorType *ot)
   ot->description = "Free Fluid Mesh";
   ot->idname = FLUID_JOB_FREE_MESH;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -797,7 +795,7 @@ void FLUID_OT_bake_particles(wmOperatorType *ot)
   ot->description = "Bake Fluid Particles";
   ot->idname = FLUID_JOB_BAKE_PARTICLES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -811,7 +809,7 @@ void FLUID_OT_free_particles(wmOperatorType *ot)
   ot->description = "Free Fluid Particles";
   ot->idname = FLUID_JOB_FREE_PARTICLES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -823,7 +821,7 @@ void FLUID_OT_bake_guides(wmOperatorType *ot)
   ot->description = "Bake Fluid Guiding";
   ot->idname = FLUID_JOB_BAKE_GUIDES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_bake_exec;
   ot->invoke = fluid_bake_invoke;
   ot->modal = fluid_bake_modal;
@@ -837,7 +835,7 @@ void FLUID_OT_free_guides(wmOperatorType *ot)
   ot->description = "Free Fluid Guiding";
   ot->idname = FLUID_JOB_FREE_GUIDES;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_free_exec;
   ot->poll = ED_operator_object_active_editable;
 }
@@ -849,7 +847,7 @@ void FLUID_OT_pause_bake(wmOperatorType *ot)
   ot->description = "Pause Bake";
   ot->idname = FLUID_JOB_BAKE_PAUSE;
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = fluid_pause_exec;
   ot->poll = ED_operator_object_active_editable;
 }
