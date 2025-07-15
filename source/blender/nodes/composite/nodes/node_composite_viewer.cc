@@ -14,7 +14,6 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -31,7 +30,9 @@ namespace blender::nodes::node_composite_viewer_cc {
 
 static void cmp_node_viewer_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({0.0f, 0.0f, 0.0f, 1.0f});
+  b.add_input<decl::Color>("Image")
+      .default_value({0.0f, 0.0f, 0.0f, 1.0f})
+      .structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
@@ -164,7 +165,7 @@ class ViewerOperation : public NodeOperation {
 
     /* Otherwise, use the domain of the input as is. */
     const Domain domain = NodeOperation::compute_domain();
-    /* Fallback to the compositing region size in case of a single value domain. */
+    /* Fall back to the compositing region size in case of a single value domain. */
     return domain.size == int2(1) ? Domain(context().get_compositing_region_size()) : domain;
   }
 };

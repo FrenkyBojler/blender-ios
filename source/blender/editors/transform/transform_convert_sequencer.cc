@@ -19,6 +19,7 @@
 
 #include "SEQ_animation.hh"
 #include "SEQ_channels.hh"
+#include "SEQ_edit.hh"
 #include "SEQ_iterator.hh"
 #include "SEQ_relations.hh"
 #include "SEQ_sequencer.hh"
@@ -212,7 +213,6 @@ static TransData *SeqToTransData(Scene *scene,
   memset(td->axismtx, 0, sizeof(td->axismtx));
   td->axismtx[2][2] = 1.0f;
 
-  td->ext = nullptr;
   td->val = nullptr;
 
   td->flag |= TD_SELECTED;
@@ -274,6 +274,14 @@ static void free_transform_custom_data(TransCustomData *custom_data)
 static void seq_transform_cancel(TransInfo *t, Span<Strip *> transformed_strips)
 {
   ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(t->scene));
+
+  if (t->remove_on_cancel) {
+    for (Strip *strip : transformed_strips) {
+      seq::edit_flag_for_removal(t->scene, seqbase, strip);
+    }
+    seq::edit_remove_flagged_strips(t->scene, seqbase);
+    return;
+  }
 
   for (Strip *strip : transformed_strips) {
     /* Handle pre-existing overlapping strips even when operator is canceled.

@@ -9,6 +9,7 @@
 #include "WM_api.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "RNA_access.hh"
 #include "RNA_prototypes.hh"
@@ -39,7 +40,7 @@ static void draw_item_in_list(uiList * /*ui_list*/,
     RNA_float_get_array(itemptr, "color", color);
     uiTemplateNodeSocket(row, const_cast<bContext *>(C), color);
   }
-  uiLayoutSetEmboss(row, blender::ui::EmbossType::None);
+  row->emboss_set(blender::ui::EmbossType::None);
   row->prop(itemptr, "name", UI_ITEM_NONE, "", ICON_NONE);
 }
 
@@ -89,10 +90,10 @@ static void draw_items_list_with_operators(const bContext *C,
   }
   {
     uiLayout *up_down_col = &ops_col->column(true);
-    uiItemEnumO(
-        up_down_col, Accessor::operator_idnames::move_item, "", ICON_TRIA_UP, "direction", 0);
-    uiItemEnumO(
-        up_down_col, Accessor::operator_idnames::move_item, "", ICON_TRIA_DOWN, "direction", 1);
+    PointerRNA op_ptr = up_down_col->op(Accessor::operator_idnames::move_item, "", ICON_TRIA_UP);
+    RNA_enum_set(&op_ptr, "direction", 0);
+    op_ptr = up_down_col->op(Accessor::operator_idnames::move_item, "", ICON_TRIA_DOWN);
+    RNA_enum_set(&op_ptr, "direction", 1);
   }
 }
 

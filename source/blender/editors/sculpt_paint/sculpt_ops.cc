@@ -57,22 +57,20 @@
 #include "sculpt_automask.hh"
 #include "sculpt_color.hh"
 #include "sculpt_dyntopo.hh"
-#include "sculpt_face_set.hh"
 #include "sculpt_flood_fill.hh"
 #include "sculpt_intern.hh"
-#include "sculpt_islands.hh"
 #include "sculpt_undo.hh"
 
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 
 namespace blender::ed::sculpt_paint {
@@ -358,9 +356,9 @@ static void init_sculpt_mode_session(Main &bmain, Depsgraph &depsgraph, Scene &s
   }
 }
 
-void ensure_valid_pivot(const Object &ob, Scene &scene)
+void ensure_valid_pivot(const Object &ob, Paint &paint)
 {
-  UnifiedPaintSettings &ups = scene.toolsettings->unified_paint_settings;
+  UnifiedPaintSettings &ups = paint.unified_paint_settings;
   const bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob);
 
   /* Account for the case where no objects are evaluated. */
@@ -469,7 +467,7 @@ void object_sculpt_mode_enter(Main &bmain,
     }
   }
 
-  ensure_valid_pivot(ob, scene);
+  ensure_valid_pivot(ob, *paint);
 
   /* Flush object mode. */
   DEG_id_tag_update(&ob.id, ID_RECALC_SYNC_TO_EVAL);
@@ -663,7 +661,7 @@ static wmOperatorStatus sample_color_invoke(bContext *C, wmOperator *op, const w
 
   float color_srgb[3];
   IMB_colormanagement_scene_linear_to_srgb_v3(color_srgb, active_vertex_color);
-  BKE_brush_color_set(&scene, &sd.paint, &brush, color_srgb);
+  BKE_brush_color_set(&sd.paint, &brush, color_srgb);
 
   WM_event_add_notifier(C, NC_BRUSH | NA_EDITED, &brush);
 
@@ -1294,8 +1292,8 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {
@@ -1476,8 +1474,8 @@ static void mask_from_boundary_ui(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {

@@ -125,7 +125,7 @@ typedef struct RegionView3D {
 
   char ndof_flag;
   /**
-   * Rotation center used for for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
+   * Rotation center used for "Auto Orbit" (see #NDOF_ORBIT_CENTER_AUTO).
    * Any modification should be followed by adjusting #RegionView3D::dist
    * to prevent problems zooming in after navigation. See: #134732.
    */
@@ -281,7 +281,12 @@ typedef struct View3D_Runtime {
   /** Runtime only flags. */
   int flag;
 
-  char _pad1[4];
+  /**
+   * The previously calculated selection center.
+   * Only use when `flag` #V3D_RUNTIME_OFS_LAST_IS_VALID is set.
+   */
+  float ofs_last_center[3];
+
   /* Only used for overlay stats while in local-view. */
   struct SceneStats *local_stats;
 } View3D_Runtime;
@@ -422,6 +427,9 @@ enum {
   V3D_RUNTIME_DEPTHBUF_OVERRIDDEN = (1 << 1),
   /** Local view may have become empty, and may need to be exited. */
   V3D_RUNTIME_LOCAL_MAYBE_EMPTY = (1 << 2),
+  /** Last offset is valid. */
+  V3D_RUNTIME_OFS_LAST_CENTER_IS_VALID = (1 << 3),
+
 };
 
 /** #RegionView3D::persp */
@@ -509,7 +517,7 @@ enum {
    *
    * The most common case is for perspective views, where orbiting around a point behind
    * the view (while possible) often seems like a bug from a user perspective.
-   * We could consider other cases invalid too (values beyond the clipping plane for e.g.),
+   * We could consider other cases invalid too (e.g. values beyond the clipping plane),
    * although in practice these cases should be fairly rare.
    */
   RV3D_NDOF_OFS_IS_VALID = (1 << 0),

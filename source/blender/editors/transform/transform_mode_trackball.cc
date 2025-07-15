@@ -37,6 +37,7 @@ namespace blender::ed::transform {
 static void transdata_elem_trackball(const TransInfo *t,
                                      const TransDataContainer *tc,
                                      TransData *td,
+                                     TransDataExtension *td_ext,
                                      const float axis[3],
                                      const float angle,
                                      const float mat_final[3][3])
@@ -47,7 +48,7 @@ static void transdata_elem_trackball(const TransInfo *t,
     axis_angle_normalized_to_mat3(mat_buf, axis, td->factor * angle);
     mat = mat_buf;
   }
-  ElementRotation(t, tc, td, mat, t->around);
+  ElementRotation(t, tc, td, td_ext, mat, t->around);
 }
 
 static void applyTrackballValue_calc_axis_angle(const TransInfo *t,
@@ -74,10 +75,11 @@ static void applyTrackballValue(TransInfo *t, const float axis[3], const float a
     threading::parallel_for(IndexRange(tc->data_len), 1024, [&](const IndexRange range) {
       for (const int i : range) {
         TransData *td = &tc->data[i];
+        TransDataExtension *td_ext = tc->data_ext ? &tc->data_ext[i] : nullptr;
         if (td->flag & TD_SKIP) {
           continue;
         }
-        transdata_elem_trackball(t, tc, td, axis, angle, mat_final);
+        transdata_elem_trackball(t, tc, td, td_ext, axis, angle, mat_final);
       }
     });
   }
@@ -162,10 +164,10 @@ static void initTrackball(TransInfo *t, wmOperator * /*op*/)
 
   t->idx_max = 1;
   t->num.idx_max = 1;
-  t->snap[0] = DEG2RAD(5.0);
-  t->snap[1] = DEG2RAD(1.0);
+  t->increment = float3(DEG2RAD(5.0));
+  t->increment_precision = 0.2f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[1]);
+  copy_v3_fl(t->num.val_inc, t->increment[0] * t->increment_precision);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_use_radians = (t->scene->unit.system_rotation == USER_UNIT_ROT_RADIANS);
   t->num.unit_type[0] = B_UNIT_ROTATION;

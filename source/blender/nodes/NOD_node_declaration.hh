@@ -88,6 +88,20 @@ struct FieldInferencingInterface {
   BLI_STRUCT_EQUALITY_OPERATORS_2(FieldInferencingInterface, inputs, outputs)
 };
 
+struct StructureTypeInterface {
+  struct OutputDependency {
+    StructureType type;
+    Array<int> linked_inputs;
+
+    BLI_STRUCT_EQUALITY_OPERATORS_2(OutputDependency, type, linked_inputs)
+  };
+
+  Array<StructureType> inputs;
+  Array<OutputDependency> outputs;
+
+  BLI_STRUCT_EQUALITY_OPERATORS_2(StructureTypeInterface, inputs, outputs)
+};
+
 namespace anonymous_attribute_lifetime {
 
 /**
@@ -150,7 +164,7 @@ std::ostream &operator<<(std::ostream &stream, const RelationsInNode &relations)
 }  // namespace anonymous_attribute_lifetime
 namespace aal = anonymous_attribute_lifetime;
 
-/* Socket or panel declaration. */
+/** Socket or panel declaration. */
 class ItemDeclaration {
  public:
   const PanelDeclaration *parent = nullptr;
@@ -212,6 +226,8 @@ class SocketDeclaration : public ItemDeclaration {
   InputSocketFieldType input_field_type = InputSocketFieldType::None;
   OutputFieldDependency output_field_dependency;
 
+  StructureType structure_type = StructureType::Single;
+
  private:
   CompositorInputRealizationMode compositor_realization_mode_ =
       CompositorInputRealizationMode::OperationDomain;
@@ -220,10 +236,6 @@ class SocketDeclaration : public ItemDeclaration {
    * domain priority is not set and the index of the input is assumed to be the priority instead.
    * See compositor::InputDescriptor for more information. */
   int compositor_domain_priority_ = -1;
-
-  /** This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information. */
-  bool compositor_expects_single_value_ = false;
 
   /** Utility method to make the socket available if there is a straightforward way to do so. */
   std::function<void(bNode &)> make_available_fn_;
@@ -266,7 +278,6 @@ class SocketDeclaration : public ItemDeclaration {
 
   const CompositorInputRealizationMode &compositor_realization_mode() const;
   int compositor_domain_priority() const;
-  bool compositor_expects_single_value() const;
 
  protected:
   void set_common_flags(bNodeSocket &socket) const;
@@ -384,12 +395,6 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &compositor_domain_priority(int priority);
 
   /**
-   * This input expects a single value and can't operate on non-single values. See
-   * compositor::InputDescriptor for more information.
-   */
-  BaseSocketDeclarationBuilder &compositor_expects_single_value(bool value = true);
-
-  /**
    * Pass a function that sets properties on the node required to make the corresponding socket
    * available, if it is not available on the default state of the node. The function is allowed to
    * make other sockets unavailable, since it is meant to be called when the node is first added.
@@ -398,7 +403,7 @@ class BaseSocketDeclarationBuilder {
   BaseSocketDeclarationBuilder &make_available(std::function<void(bNode &)> fn);
 
   /**
-   * Provide a fully custom draw function for the socket that overrides any default behaviour.
+   * Provide a fully custom draw function for the socket that overrides any default behavior.
    */
   BaseSocketDeclarationBuilder &custom_draw(CustomSocketDrawFn fn);
 
@@ -421,6 +426,8 @@ class BaseSocketDeclarationBuilder {
    * Use the socket as a toggle in its panel.
    */
   BaseSocketDeclarationBuilder &panel_toggle(bool value = true);
+
+  BaseSocketDeclarationBuilder &structure_type(StructureType structure_type);
 
   BaseSocketDeclarationBuilder &is_layer_name(bool value = true);
 
@@ -564,11 +571,11 @@ using PanelDeclarationPtr = std::unique_ptr<PanelDeclaration>;
 
 class NodeDeclaration {
  public:
-  /* Contains all items including recursive children. */
+  /** Contains all items including recursive children. */
   Vector<ItemDeclarationPtr> all_items;
-  /* Contains only the items in the root. */
+  /** Contains only the items in the root. */
   Vector<ItemDeclaration *> root_items;
-  /* All input and output socket declarations. */
+  /** All input and output socket declarations. */
   Vector<SocketDeclaration *> inputs;
   Vector<SocketDeclaration *> outputs;
   Vector<PanelDeclaration *> panels;

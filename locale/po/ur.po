@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'ba454989554a')\n"
+"Project-Id-Version: Blender 4.5.0 Release Candidate (b'08ec4602a2f7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-26 07:36+0000\n"
+"POT-Creation-Date: 2025-07-14 09:15+0000\n"
 "PO-Revision-Date: 2025-04-14 08:53+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Urdu <https://translate.blender.org/projects/blender-ui/ui/ur/>\n"
@@ -33079,12 +33079,68 @@ msgid "Editor menu containing buttons"
 msgstr "ﻮﻨﯿﻣ ﺮﭩﯾﮉﯾﺍ ﻞﻤﺘﺸﻣ ﺮﭘ ﮞﻮﻨﭩﺑ"
 
 
-msgid "Mirror"
-msgstr "ﮧﻨﯿﺋﺁ"
+msgid "Clean Up"
+msgstr "ﯽﺋﺎﻔﺻ"
+
+
+msgid "Show/Hide"
+msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
+
+
+msgid "Special Characters"
+msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
+
+
+msgid "Kerning"
+msgstr "ﮓﻨﻧﺮﮐ"
+
+
+msgid "Text"
+msgstr "ﻦﺘﻣ"
+
+
+msgid "Metaball"
+msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
+
+
+msgid "Names"
+msgstr "ﻡﺎﻧ"
+
+
+msgid "Bone Roll"
+msgstr "ﻝﻭﺭ ﻥﻮﺑ"
+
+
+msgid "Pivot Point"
+msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
 
 
 msgid "Snap"
 msgstr "ﭗﯿﻨﺳ"
+
+
+msgid "Proportional Editing Falloff"
+msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
+
+
+msgid "Mask Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
+
+
+msgid "Automasking"
+msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
+
+
+msgid "Face Sets Edit"
+msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
+
+
+msgid "Vertex Group Locks"
+msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
+
+
+msgid "Mirror"
+msgstr "ﮧﻨﯿﺋﺁ"
 
 
 msgid "UV Mapping"
@@ -33139,10 +33195,6 @@ msgid "Assign Material"
 msgstr "ﮟﯾﺮﮐ ﺾﯾﻮﻔﺗ ﺩﺍﻮﻣ"
 
 
-msgid "Metaball"
-msgstr "ﻝﺎﺑ ﺎﭩﯿﻣ"
-
-
 msgid "Light"
 msgstr "ﯽﻨﺷﻭﺭ"
 
@@ -33175,14 +33227,6 @@ msgid "Quick Effects"
 msgstr "ﺕﺍﺮﺛﺍ ﯼﺭﻮﻓ"
 
 
-msgid "Show/Hide"
-msgstr "ﮟﯿﺋﺎﭙﮭﭼ/ﮟﯿﺋﺎﮭﮐﺩ"
-
-
-msgid "Clean Up"
-msgstr "ﯽﺋﺎﻔﺻ"
-
-
 msgid "Asset"
 msgstr "ﮧﺛﺎﺛﺍ"
 
@@ -33201,10 +33245,6 @@ msgstr "ﮟﯾﺮﮐ ﻞﻘﺘﻨﻣ/ﮏﻨﻟ ﻮﮐ ﺎﭩﯾﮈ"
 
 msgid "Hooks"
 msgstr "ﮯﭩﻧﺎﮐ"
-
-
-msgid "Vertex Group Locks"
-msgstr "ﮎﻻ﻿ ﮦﻭﺮﮔ ﺲﮑﯿﭨﺭﻭ"
 
 
 msgid "Trim/Add"
@@ -33239,10 +33279,6 @@ msgid "Bone Collections"
 msgstr "ﮧﻋﻮﻤﺠﻣ ﺎﮐ ﮞﻮﯾﮉﮨ"
 
 
-msgid "Names"
-msgstr "ﻡﺎﻧ"
-
-
 msgid "Toggle Bone Options"
 msgstr "ﮟﯾﺮﮐ ﻞﮔﻮﭨ ﻮﮐ ﺕﺍﺭﺎﯿﺘﺧﺍ ﮯﮐ ﯼﮉﮨ"
 
@@ -33273,42 +33309,6 @@ msgstr "ﮟﯾﺮﮐ ﻦﯿﻌﺗ ﺎﮐ ﺖﻗﺎﻃ ﯽﮐ ﮮﺮﮩﭼ"
 
 msgid "Merge"
 msgstr "ﺎﻧﺮﮐ ﻢﺿ"
-
-
-msgid "Special Characters"
-msgstr "ﺭﺍﺩﺮﮐ ﯽﺻﻮﺼﺧ"
-
-
-msgid "Kerning"
-msgstr "ﮓﻨﻧﺮﮐ"
-
-
-msgid "Text"
-msgstr "ﻦﺘﻣ"
-
-
-msgid "Bone Roll"
-msgstr "ﻝﻭﺭ ﻥﻮﺑ"
-
-
-msgid "Pivot Point"
-msgstr "ﭧﻨﺋﺍﻮﭘ ﭦﻮﯿﭘ"
-
-
-msgid "Proportional Editing Falloff"
-msgstr "ﻑﺁ ﻝﺎﻓ ﺮﺋﺎﻔﯾﮈﻮﻣ ﺐﺳﺎﻨﺘﻣ"
-
-
-msgid "Mask Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﮏﺳﺎﻣ"
-
-
-msgid "Automasking"
-msgstr "ﮓﻨﮑﺳﺎﻣﻮﭨﺁ"
-
-
-msgid "Face Sets Edit"
-msgstr "ﮟﯾﺮﮐ ﺮﺋﺎﻔﯾﮈﻮﻣ ﮟﯿﻣ ﭧﯿﺳ ﮯﮐ ﮮﺮﮩﭼ"
 
 
 msgid "Keyframe Insert Pie"
@@ -33484,6 +33484,11 @@ msgstr "ﯼﻭﻮﯾ"
 
 msgid "Align"
 msgstr "ﺎﻧﻻ﻿ ﮟﯿﻣ ﮪﺪﯿﺳ"
+
+
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "ﮧﻨﯿﺋﺁ"
 
 
 msgid "UV Select Mode"
@@ -42468,6 +42473,10 @@ msgid "Active track in this tracking data object. Deprecated, use objects[name].
 msgstr "tracks.active.[ﻡﺎﻧ]ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺲﭩﮑﯿﺠﺑﺁ ،ﮦﺩﻮﺳﺮﻓ ﮏﯾﺮﭨ ﻝﺎﻌﻓ ﮟﯿﻣ ﮯﺷ ﺎﭩﯾﮈ ﮓﻨﮑﯾﺮﭨ ﺱﺍ"
 
 
+msgid "Starting"
+msgstr "ﮯﮨ ﺎﮨﺭ ﻮﮨ ﻉﻭﺮﺷ"
+
+
 msgid "NLA Strip"
 msgstr "ﯽﭩﭘ ﯽﮐ ﮮﺍ ﻞﯾﺍ ﻦﯾﺍ"
 
@@ -42881,10 +42890,6 @@ msgid "Aspect Correction"
 msgstr "ﺡﻼ﻿ﺻﺍ ﯽﮐ ﻮﻠﮩﭘ"
 
 
-msgid "Type of aspect correction to use"
-msgstr "ﻢﺴﻗ ﯽﮐ ﺡﻼ﻿ﺻﺍ ﯽﮐ ﻮﻠﮩﭘ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ"
-
-
 msgid "Relative Size X"
 msgstr "X ﺰﺋﺎﺳ ﺭﺍﺩ ﮧﺘﺷﺭ"
 
@@ -42942,20 +42947,8 @@ msgid "Bokeh"
 msgstr "ﮯﮐﻮﺑ"
 
 
-msgid "Use circular filter (slower)"
-msgstr "(ﮧﺘﺴﮨﺁ) ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﭩﻠﻓ ﺮﻠﮐﺮﺳ"
-
-
 msgid "Extend Bounds"
 msgstr "ﮟﯿﺋﺎﮬﮍﺑ ﮟﯾﺪﺣ"
-
-
-msgid "Extend bounds of the input image to fully fit blurred image"
-msgstr "ﮟﯿﺋﺎﮬﮍﺑ ﻮﮐ ﺩﻭﺪﺣ ﯽﮐ ﺞﯿﻣﺍ ﭧﭘ ﻥﺍ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﭧﻓ ﺮﭘ ﺭﻮﻃ ﻞﻤﮑﻣ ﻮﮐ ﺮﯾﻮﺼﺗ ﯽﻟﺪﻨﮬﺩ"
-
-
-msgid "Use relative (percent) values to define blur radius"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺭﺍﺪﻗﺍ (ﺪﺼﯿﻓ) ﮧﻘﻠﻌﺘﻣ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﺖﺣﺎﺿﻭ ﯽﮐ ﺱﺍﺩﺭ ﻻ﻿ﺪﻨﮬﺩ"
 
 
 msgid "Variable Size"
@@ -45337,6 +45330,14 @@ msgid "Round the float to the closest integer in the direction of zero (floor if
 msgstr "(ﮯﮨ ﯽﻔﻨﻣ ﺮﮔﺍ ﺖﮭﭼ ؛ﮯﮨ ﺖﺒﺜﻣ ﺮﮔﺍ ﻝﺰﻨﻣ) ﮟﯾﺮﮐ ﻝﻮﮔ ﮏﺗ ﺩﺪﻋ ﻦﯾﺮﺗ ﺐﯾﺮﻗ ﮟﯿﻣ ﺖﻤﺳ ﯽﮐ ﺮﻔﺻ ﻮﮐ ﭦﻮﻠﻓ"
 
 
+msgid "Active Item Index"
+msgstr "ﺲﮑﯾﮉﻧﺍ ﻢﭩﺋﺁ ﻝﺎﻌﻓ"
+
+
+msgid "Index of the active item"
+msgstr "ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﮯﺷ ﻝﺎﻌﻓ"
+
+
 msgid "Hash Value"
 msgstr "Hash ﺭﺪﻗ"
 
@@ -45560,14 +45561,6 @@ msgstr "ﺎﻧﺎﮑﭘ"
 
 msgid "Cache the incoming data so that it can be used without recomputation"
 msgstr "ﯽﺘﻨﮔ ﮦﺭﺎﺑﻭﺩﮯﮑﺳ ﺎﺟ ﺎﯿﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺮﯿﻐﺑ ﮯﺳﺍ ﮧﮐﺎﺗ ﮟﯾﺮﮐ ﺶﯿﮐ ﻮﮐ ﺎﭩﯾﮈ ﮯﻟﺍﻭ ﮯﻧﺁ"
-
-
-msgid "Active Item Index"
-msgstr "ﺲﮑﯾﮉﻧﺍ ﻢﭩﺋﺁ ﻝﺎﻌﻓ"
-
-
-msgid "Index of the active item"
-msgstr "ﮧﯾﺭﺎﺷﺍ ﺎﮐ ﮯﺷ ﻝﺎﻌﻓ"
 
 
 msgid "Blur Attribute"
@@ -50394,10 +50387,6 @@ msgid "Single Value"
 msgstr "ﺭﺪﻗ ﺪﺣﺍﻭ"
 
 
-msgid "Only allow single value inputs rather than fields"
-msgstr "ﮟﯾﺩ ﺕﺯﺎﺟﺍ ﯽﮐ ﭧﭘ ﻥﺍ ﻮﯿﻠﯾﻭ ﻞﮕﻨﺳ ﻑﺮﺻ ﮯﺋﺎﺠﺑ ﮯﮐ ﺯﮉﻠﯿﻓ"
-
-
 msgid "Hide in Modifier"
 msgstr "ﮟﯿﺋﺎﭙﮭﭼ ﮟﯿﻣ ﺮﺋﺎﻔﯾﮈﻮﻣ"
 
@@ -50468,10 +50457,6 @@ msgstr "ﺭﺪﻗ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ"
 
 msgid "Minimum value"
 msgstr "ﺭﺪﻗ ﻢﮐ ﺯﺍ ﻢﮐ"
-
-
-msgid "Subtype"
-msgstr "ﻢﺴﻗ ﯽﻠﯾﺫ"
 
 
 msgid "Subtype of the default value"
@@ -59245,10 +59230,6 @@ msgid "Other geometry types, like curve, metaball, etc. (converted to meshes)"
 msgstr "(ﻞﯾﺪﺒﺗ ﮟﯿﻣ ﮞﻮﺸﯿﻣ) ﮦﺮﯿﻏﻭ ،ﻝﺎﺑ ﺎﭩﯿﻣ ،ﻢﺧ ﮯﺴﯿﺟ ،ﻡﺎﺴﻗﺍ ﺮﮕﯾﺩ ﯽﮐ ﯼﺮﭩﯿﻣﻮﯿﺟ"
 
 
-msgid "Path Mode"
-msgstr "ﮈﻮﻣ ﮫﺗﺎﭘ"
-
-
 msgid "Method used to reference paths"
 msgstr "ﮧﻘﯾﺮﻃ ﻻ﻿ﺍﻭ ﮯﻧﻮﮨ ﻝﺎﻤﻌﺘﺳﺍ ﮯﯿﻟ ﮯﮐ ﮯﻨﯾﺩ ﮧﻟﺍﻮﺣ ﺎﮐ ﮞﻮﺘﺳﺍﺭ"
 
@@ -59261,20 +59242,12 @@ msgid "Always write absolute paths"
 msgstr "ﮟﯿﮭﮑﻟ ﮯﺘﺳﺍﺭ ﻖﻠﻄﻣ ﮧﺸﯿﻤﮨ"
 
 
-msgid "Always write relative paths (where possible)"
-msgstr "(ﻮﮨ ﻦﮑﻤﻣ ﮞﺎﮩﺟ) ﮟﯿﮭﮑﻟ ﮯﺘﺳﺍﺭ ﮧﻘﻠﻌﺘﻣ ﮧﺸﯿﻤﮨ"
-
-
-msgid "Match"
-msgstr "ﭻﯿﻣ"
+msgid "Write relative paths where possible"
+msgstr "ﮟﯿﮭﮑﻟ ﮯﺘﺳﺍﺭ ﮧﻘﻠﻌﺘﻣ ﻮﮨ ﻦﮑﻤﻣ ﮞﺎﮩﺟ"
 
 
 msgid "Match absolute/relative setting with input path"
 msgstr "ﮟﯾﺮﮐ ﭻﯿﻣ ﻮﮐ ﺐﯿﺗﺮﺗ ﺭﺍﺩ ﮧﺘﺷﺭ/ﻖﻠﻄﻣ ﮫﺗﺎﺳ ﮯﮐ ﮧﺘﺳﺍﺭ ﭧﭘ ﻥﺍ"
-
-
-msgid "Strip Path"
-msgstr "ﮧﺘﺳﺍﺭ ﺎﮐ ﯽﭩﭘ"
 
 
 msgid "Filename only"
@@ -62081,10 +62054,6 @@ msgstr "ﮯﺳ ﮟﯿﺋﺍﺩ"
 
 msgid "The factor to scale keys with"
 msgstr "ﺮﺼﻨﻋ ﺎﮐ ﮯﻧﺮﮐ ﮧﻧﺎﻤﯿﭘ ﻮﮐ ﮞﻭﺪﯿﻠﮐ"
-
-
-msgid "Are handles tested individually against the selection criteria"
-msgstr "ﮯﮨ ﺎﯿﮔ ﺎﯿﮐ ﮧﺑﺮﺠﺗ ﻑﻼ﻿ﺧ ﮯﮐ ﺭﺎﯿﻌﻣ ﮯﮐ ﺏﺎﺨﺘﻧﺍ ﺮﭘ ﺭﻮﻃ ﯼﺩﺍﺮﻔﻧﺍ ﺎﮐ ﺰﻟﮉﻨﯿﮨ ﺎﯿﮐ"
 
 
 msgid "Select Curves"
@@ -65902,10 +65871,6 @@ msgstr "ﮟﯾﺮﮐ ﻢﺿ ﻮﮐ ﮞﻭﺮﮩﭼ ،ﮟﯾﺮﮐ ﻞﯿﻠﺤ�
 
 msgid "Dissolve Vertices"
 msgstr "ﮟﯾﺮﮐ ﻞﯿﻠﺤﺗ ﻮﮐ ﯼﺩﻮﻤﻋ"
-
-
-msgid "Dissolve remaining vertices"
-msgstr "ﮟﯾﺮﮐ ﻞﯿﻠﺤﺗ ﻮﮐ ﮞﻮﯿﭨﻮﭼ ﯽﻗﺎﺑ"
 
 
 msgctxt "Operator"
@@ -75099,11 +75064,6 @@ msgid "Hide selected particles"
 msgstr "ﮟﯿﺋﺎﭙﮭﭼ ﻮﮐ ﺕﺍﺭﺫ ﺐﺨﺘﻨﻣ"
 
 
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "ﮧﻨﯿﺋﺁ"
-
-
 msgid "Duplicate and mirror the selected particles along the local X axis"
 msgstr "ﮟﯿﺋﺎﻨﺑ ﺲﮑﻋ ﺎﮐ ﻥﺍ ﺭﻭﺍ ﮟﯾﺮﮐ ﻞﻘﻧ ﻮﮐ ﺕﺍﺭﺫ ﺐﺨﺘﻨﻣ ﮫﺗﺎﺳ ﮯﮐ ﺭﻮﺤﻣ X ﯽﻣﺎﻘﻣ"
 
@@ -77165,10 +77125,6 @@ msgid "Expand/Collapse Header Menus"
 msgstr "ﮟﯿﭨﺎﮑﺳ/ﮟﯿﺋﻼ﻿ﯿﮭﭘ ﻮﮐ ﺯﻮﻨﯿﻣ ﺭﮉﯿﮨ"
 
 
-msgid "Expand or collapse the header pulldown menus"
-msgstr "ﮟﯿﭩﯿﻤﺳ ﺎﯾ ﮟﯿﺋﻼ﻿ﯿﮭﭘ ﻮﮐ ﻮﻨﯿﻣ ﻥﺅﺍﮈ ﻞﭘ ﺭﮉﯿﮨ"
-
-
 msgctxt "Operator"
 msgid "Show Info Log"
 msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﮒﻻ﻿ ﻦﺸﯿﻣﺭﺎﻔﻧﺍ"
@@ -78678,11 +78634,6 @@ msgstr "ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﯼﻭﺮﯿﭘ ﯽﮐ ﯼﺮﭩﯿﻣﻮﯿ�
 
 
 msgctxt "Operator"
-msgid "Change Effect Input"
-msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﭧﭘ ﻥﺍ ﺮﺛﺍ"
-
-
-msgctxt "Operator"
 msgid "Change Effect Type"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﻢﺴﻗ ﯽﮐ ﺮﺛﺍ"
 
@@ -78692,17 +78643,9 @@ msgid "Type"
 msgstr "ﻢﺴﻗ"
 
 
-msgid "Sequencer effect type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﺮﺛﺍ ﺮﺴﻨﯾﻮﮑﯿﺳ"
-
-
 msgctxt "Sequence"
 msgid "Crossfade"
 msgstr "ﮉﯿﻓ ﺱﺍﺮﮐ"
-
-
-msgid "Crossfade effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ ﮉﯿﻓ ﺱﺍﺮﮐ"
 
 
 msgctxt "Sequence"
@@ -78710,17 +78653,9 @@ msgid "Add"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ"
 
 
-msgid "Add effect strip type"
-msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ"
-
-
 msgctxt "Sequence"
 msgid "Subtract"
 msgstr "ﮟﯿﺋﺎﭩﮭﮔ"
-
-
-msgid "Subtract effect strip type"
-msgstr "ﮟﯾﺮﮐ ﺎﮩﻨﻣ ﻮﮐ ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ"
 
 
 msgctxt "Sequence"
@@ -78728,26 +78663,9 @@ msgid "Alpha Over"
 msgstr "ﺭﻭﻭﺍ ﺎﻔﻟﺍ"
 
 
-msgid "Alpha Over effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﭧﮑﯿﻔﯾﺍ ﺭﻭﻭﺍ ﺎﻔﻟﺍ"
-
-
 msgctxt "Sequence"
 msgid "Alpha Under"
 msgstr "ﺭﮉﻧﺍ ﺎﻔﻟﺍ"
-
-
-msgid "Alpha Under effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﺮﺛﺍ ﺮﯾﺯ ﺎﻔﻟﺍ"
-
-
-msgctxt "Sequence"
-msgid "Gamma Cross"
-msgstr "ﺱﺍﺮﮐ ﺎﻣﺎﮔ"
-
-
-msgid "Gamma Cross effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ ﺱﺍﺮﮐ ﺎﻣﺎﮔ"
 
 
 msgctxt "Sequence"
@@ -78755,17 +78673,9 @@ msgid "Multiply"
 msgstr "ﺏﺮﺿ"
 
 
-msgid "Multiply effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ ﺏﺮﺿ"
-
-
 msgctxt "Sequence"
 msgid "Wipe"
 msgstr "ﺎﻧﺮﮐ ﺢﺴﻣ"
-
-
-msgid "Wipe effect strip type"
-msgstr "ﮟﯾﺮﮐ ﺢﺴﻣ ﻮﮐ ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ"
 
 
 msgctxt "Sequence"
@@ -78773,26 +78683,14 @@ msgid "Glow"
 msgstr "ﮏﻤﭼ"
 
 
-msgid "Glow effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﺮﺛﺍ ﮏﻤﭼ"
-
-
 msgctxt "Sequence"
 msgid "Transform"
 msgstr "ﯽﻠﯾﺪﺒﺗ"
 
 
-msgid "Transform effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﺮﺛﺍ ﯽﻠﯾﺪﺒﺗ"
-
-
 msgctxt "Sequence"
 msgid "Color"
 msgstr "ﮓﻧﺭ"
-
-
-msgid "Color effect strip type"
-msgstr "ﻢﺴﻗ ﯽﮐ ﯽﭩﭘ ﺮﺛﺍ ﮓﻧﺭ"
 
 
 msgctxt "Sequence"
@@ -78953,6 +78851,10 @@ msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﺏﺎﺨﺘﻧﺍ"
 
 msgid "Deselect previously selected strips"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﺮﯿﻏ ﻮﮐ ﺲﭘﺮﭩﺳ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ ﮯﺳ ﮯﻠﮩﭘ"
+
+
+msgid "Sequencer effect type"
+msgstr "ﻢﺴﻗ ﯽﮐ ﺮﺛﺍ ﺮﺴﻨﯾﻮﮑﯿﺳ"
 
 
 msgctxt "Operator"
@@ -84675,10 +84577,6 @@ msgid "Negative Z axis"
 msgstr "ﺭﻮﺤﻣ Z ﯽﻔﻨﻣ"
 
 
-msgid "Write relative paths where possible"
-msgstr "ﮟﯿﮭﮑﻟ ﮯﺘﺳﺍﺭ ﮧﻘﻠﻌﺘﻣ ﻮﮨ ﻦﮑﻤﻣ ﮞﺎﮩﺟ"
-
-
 msgid "Write filename only"
 msgstr "ﮟﯿﮭﮑﻟ ﻡﺎﻧ ﺎﮐ ﻞﺋﺎﻓ ﻑﺮﺻ"
 
@@ -87083,6 +86981,38 @@ msgid "Panel containing UI elements"
 msgstr "UI ﻞﻨﯿﭘ ﻞﻤﺘﺸﻣ ﺮﭘ ﺮﺻﺎﻨﻋ"
 
 
+msgid "Active Tool"
+msgstr "ﻝﻮﭨ ﻝﺎﻌﻓ"
+
+
+msgid "View Lock"
+msgstr "ﮟﯿﮭﮑﯾﺩ ﮎﻻ﻿"
+
+
+msgid "Selectability & Visibility"
+msgstr "ﺖﯿﺋﺮﻣ ﺭﻭﺍ ﺏﺎﺨﺘﻧﺍ"
+
+
+msgid "Shadow Settings"
+msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﻭﮉﯿﺷ"
+
+
+msgid "SSAO Settings"
+msgstr "SSAO ﺕﺎﺒﯿﺗﺮﺗ"
+
+
+msgid "Cavity"
+msgstr "ﺎﮩﮔ"
+
+
+msgid "Render Pass"
+msgstr "ﺱﺎﭘ ﺭﮉﻨﯾﺭ"
+
+
+msgid "Compositor"
+msgstr "ﺮﭩﯾﺯﻮﭙﻤﮐ"
+
+
 msgid "Overlays"
 msgstr "ﺰﯿﻟﺭﻭﻭﺍ"
 
@@ -87143,10 +87073,6 @@ msgid "Multi Frame"
 msgstr "ﻢﯾﺮﻓ ﯽﭩﻠﻣ"
 
 
-msgid "Compositor"
-msgstr "ﺮﭩﯾﺯﻮﭙﻤﮐ"
-
-
 msgid "Auto-Masking"
 msgstr "ﮓﻨﮑﺳﺎﻣ ﻮﭨﺁ"
 
@@ -87181,34 +87107,6 @@ msgstr "glTF ﮟﯿﺘﻟﺎﺣ ﻒﻠﺘﺨﻣ ﯽﮐ ﺩﺍﻮﻣ"
 
 msgid "glTF Animations"
 msgstr "glTF ﺮﯾﻭﺎﺼﺗ ﮎﺮﺤﺘﻣ"
-
-
-msgid "Active Tool"
-msgstr "ﻝﻮﭨ ﻝﺎﻌﻓ"
-
-
-msgid "View Lock"
-msgstr "ﮟﯿﮭﮑﯾﺩ ﮎﻻ﻿"
-
-
-msgid "Selectability & Visibility"
-msgstr "ﺖﯿﺋﺮﻣ ﺭﻭﺍ ﺏﺎﺨﺘﻧﺍ"
-
-
-msgid "Shadow Settings"
-msgstr "ﺕﺎﺒﯿﺗﺮﺗ ﯽﮐ ﻭﮉﯿﺷ"
-
-
-msgid "SSAO Settings"
-msgstr "SSAO ﺕﺎﺒﯿﺗﺮﺗ"
-
-
-msgid "Cavity"
-msgstr "ﺎﮩﮔ"
-
-
-msgid "Render Pass"
-msgstr "ﺱﺎﭘ ﺭﮉﻨﯾﺭ"
 
 
 msgid "Chain Scaling"
@@ -91065,20 +90963,12 @@ msgid "Device up/down directly controls the Z position of the 3D viewport"
 msgstr "ﮯﮨ ﯽﺗﺮﮐ ﻝﻭﺮﭩﻨﮐ ﺖﺳﺍﺭ ﮦﺍﺮﺑ ﻮﮐ  ﻡﺎﻘﻣ  Z ﯽﮐ ﭦﺭﻮﭘ ﻮﯾﻭ 3D ﮯﭽﯿﻧ/ﺮﭘﻭﺍ ﺲﺋﺍﻮﯾﮈ"
 
 
-msgid "Lock Camera Pan/Zoom"
-msgstr "ﮟﯾﺮﮐ ﮎﻻ﻿ ﻡﻭﺯ/ﻦﯿﭘ ﮦﺮﻤﯿﮐ"
-
-
 msgid "Pan/zoom the camera view instead of leaving the camera view when orbiting"
 msgstr "ﮟﯾﺮﮐ ﻡﻭﺯ/ﻦﯿﭘ ﻮﮐ ﻮﯾﻭ ﮦﺮﻤﯿﮐ ﮯﺋﺎﺠﺑ ﮯﮐ ﮯﻧﮌﻮﮭﭼ ﻮﯾﻭ ﮦﺮﻤﯿﮐ ﺖﻗﻭ ﮯﺗﺎﮕﻟ ﺮﮑﭼ"
 
 
-msgid "Lock Horizon"
-msgstr "ﻥﺰﺋﺍﺭﻮﮨ ﮎﻻ﻿"
-
-
-msgid "Keep horizon level while flying with 3D Mouse"
-msgstr "3D ﮟﯿﮭﮐﺭ ﺢﻄﺳ ﯽﮐ ﻖﻓﺍ ﺖﻗﻭ ﮯﺗﺮﮐ ﺯﺍﻭﺮﭘ ﮫﺗﺎﺳ ﮯﮐ ﺱﺅﺎﻣ"
+msgid "NDOF View Navigate"
+msgstr "NDOF ﮟﯾﺮﮐ ﭧﯿﮕﯾﻮﯿﻧ ﻮﯾﻭ"
 
 
 msgid "Orbit Sensitivity"
@@ -91087,14 +90977,6 @@ msgstr "ﺖﯿﺳﺎﺴﺣ ﯽﮐ ﺭﺍﺪﻣ"
 
 msgid "Overall sensitivity of the 3D Mouse for orbiting"
 msgstr "ﺖﯿﺳﺎﺴﺣ ﯽﻋﻮﻤﺠﻣ ﯽﮐ ﺱﺅﺎﻣ 3D ﮯﯿﻟ ﮯﮐ ﮯﻧﺎﮕﻟ ﺮﮑﭼ"
-
-
-msgid "Y/Z Swap Axis"
-msgstr "Y/Z ﺲﺴﮑﯾﺍ ﭗﯾﻮﺳ"
-
-
-msgid "Pan using up/down on the device (otherwise forward/backward)"
-msgstr "(ﮯﮭﭽﯿﭘ/ﮯﮔﺁ ﺮﮕﯾﺩ ﺕﺭﻮﺼﺑ) ﮟﯾﺮﮐ ﻦﯿﭘ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﮯﭽﯿﻧ/ﺮﭘﻭﺍ ﺮﭘ ﺲﺋﺍﻮﯾﮈ"
 
 
 msgid "Invert X Axis"
@@ -91127,50 +91009,6 @@ msgstr "ﺖﯿﺳﺎﺴﺣ ﯽﻋﻮﻤﺠﻣ ﯽﮐ ﺱﺅﺎﻣ 3D ﮯﯿﻟ �
 
 msgid "Display the center and axis during rotation"
 msgstr "ﮟﯿﺋﺎﮭﮐﺩ ﺭﻮﺤﻣ ﺭﻭﺍ ﺰﮐﺮﻣ ﻥﺍﺭﻭﺩ ﮯﮐ ﺵﺩﺮﮔ"
-
-
-msgid "NDOF View Navigate"
-msgstr "NDOF ﮟﯾﺮﮐ ﭧﯿﮕﯾﻮﯿﻧ ﻮﯾﻭ"
-
-
-msgid "Navigation style in the viewport"
-msgstr "ﺯﺍﺪﻧﺍ ﺎﮐ ﻦﺸﯿﮕﯾﻮﯿﻧ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Use full 6 degrees of freedom by default"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﯼﺩﺍﺯﺁ ﯼﺮﮔﮈ 6 ﻞﻤﮑﻣ ﺮﭘ ﺭﻮﻃ ﮦﺪﺷ ﮯﻃ"
-
-
-msgid "Orbit about the view center by default"
-msgstr "ﺭﺍﺪﻣ ﮟﯿﻣ ﮮﺭﺎﺑ ﮯﮐ ﺮﭩﻨﯿﺳ ﻮﯾﻭ ﺮﭘ ﺭﻮﻃ ﮦﺪﺷ ﮯﻃ"
-
-
-msgid "NDOF View Rotation"
-msgstr "NDOF ﺵﺩﺮﮔﻮﯾﻭ"
-
-
-msgid "Rotation style in the viewport"
-msgstr "ﺯﺍﺪﻧﺍ ﺎﮐ ﺵﺩﺮﮔ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Turntable"
-msgstr "ﻞﺒﯿﭩﻧﺮﭨ"
-
-
-msgid "Use turntable style rotation in the viewport"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺵﺩﺮﮔ ﯽﮐ ﺯﺮﻃ ﻞﺒﯿﭨ ﻥﺮﭨ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Use trackball style rotation in the viewport"
-msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺵﺩﺮﮔ ﯽﮐ ﺯﺮﻃ ﻝﺎﺑ ﮏﯾﺮﭨ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
-
-
-msgid "Invert Zoom"
-msgstr "ﮟﯾﺮﮐ ﺎﭩﻟﺍ ﻮﮐ ﻡﻭﺯ"
-
-
-msgid "Zoom using opposite direction"
-msgstr "ﮟﯾﺮﮐ ﻡﻭﺯ ﮯﺋﻮﮨ ﮯﺗﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﺎﮐ ﺖﻤﺳ ﻒﻟﺎﺨﻣ"
 
 
 msgid "Softness"
@@ -91327,6 +91165,10 @@ msgstr "ﮧﻘﯾﺮﻃ ﺎﮐ ﺭﺍﺪﻣ"
 
 msgid "Orbit method in the viewport"
 msgstr "ﮧﻘﯾﺮﻃ ﺎﮐ ﺭﺍﺪﻣ ﮟﯿﻣ ﭦﺭﻮﭘ ﻮﯾﻭ"
+
+
+msgid "Turntable"
+msgstr "ﻞﺒﯿﭩﻧﺮﭨ"
 
 
 msgid "Turntable keeps the Z-axis upright while orbiting"
@@ -91707,14 +91549,6 @@ msgstr "ﮓﻧﺭ ﯽﻄﯿﺤﻣ"
 
 msgid "Color of the ambient light that uniformly lit the scene"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻦﺷﻭﺭ ﻮﮐﻮﯾﻭ ﺮﭘ ﺭﻮﻃ ﮞﺎﺴﮑﯾ ﻮﺟ ﮓﻧﺭ ﺎﮐ ﯽﻨﺷﻭﺭ ﯽﻄﯿﺤﻣ"
-
-
-msgid "Max Shader Compilation Subprocesses"
-msgstr "ﺰﺴﯿﺳﻭﺮﭘ ﺐﺳ ﻦﺸﯿﻠﭙﻤﮐ ﺭﮉﯿﺷ ﺲﮑﯿﻣ"
-
-
-msgid "Max number of parallel shader compilation subprocesses, clamped at the max threads supported by the CPU (requires restarting Blender for changes to take effect). Setting it to 0 disables subprocess shader compilation."
-msgstr "ﮯﮨ ﺎﺗﺎﺟ ﻮﮨ ﻝﺎﻌﻓ ﺮﯿﻏ ﻦﺸﯿﻠﭙﻤﮐ ﺭﮉﯿﺷ ﺲﯿﺳﻭﺮﭘ ﺐﺳ ﮯﺳ ﮯﻧﺮﮐ ﭧﯿﺳ ﺮﭘ 0 ﮯﺳﺍ (ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﮯﻧﺮﮐ ﻉﻭﺮﺷ ﮦﺭﺎﺑﻭﺩ ﻮﮐ ﺭﮉﻨﯿﻠﺑ ﮯﯿﻟ ﮯﮐ ﮯﻧﺁ ﮟﯿﻣ ﺮﺛﺍ ﮯﮐ ﮞﻮﯿﻠﯾﺪﺒﺗ) ﮯﮨ ﯽﺌﮔ ﯽﮐ ﺪﻨﺑ ﺮﭘ ﺯﮉﯾﺮﮭﺗ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﮯﻌﯾﺭﺫ ﮯﮐ CPU ،ﺩﺍﺪﻌﺗ ﮦﺩﺎﯾﺯ ﮯﺳ ﮦﺩﺎﯾﺯ ﯽﮐ ﺰﺴﯿﺳﻭﺮﭘ ﺐﺳ ﻦﺸﯿﻠﺋﺎﭙﻤﮐ ﺭﮉﯿﺷ ﯼﺯﺍﻮﺘﻣ"
 
 
 msgid "Memory Cache Limit"
@@ -92109,10 +91943,6 @@ msgid "Automatic (Automatic)"
 msgstr "(ﺭﺎﮐﺩﻮﺧ) ﺭﺎﮐﺩﻮﺧ"
 
 
-msgid "Automatically choose system's defined language if available, or fall-back to English"
-msgstr "ﮟﯿﺋﺎﺟ ﺁ ﺲﭘﺍﻭ ﮟﯿﻣ ﯼﺰﯾﺮﮕﻧﺍ ﺎﯾ ،ﮟﯾﺮﮐ ﺏﺎﺨﺘﻧﺍ ﺎﮐ ﻥﺎﺑﺯ ﻦﯿﻌﺘﻣ ﯽﮐ ﻢﭩﺴﺳ ﺮﭘ ﺭﻮﻃ ﺭﺎﮐﺩﻮﺧ ﻮﺗ ﻮﮨ ﺏﺎﯿﺘﺳﺩ ﺮﮔﺍ"
-
-
 msgid "HDRI Preview Size"
 msgstr "HDRI  ﺰﺋﺎﺳ ﻮﯾﻮﯾﺮﭘ"
 
@@ -92467,10 +92297,6 @@ msgstr "ﮟﯾﺮﯿﮑﻟ ﯽﭨﻮﻣ ﮦﺩﺎﯾﺯ ﮯﺳ ﭧﻟﺎﻔﯾ�
 
 msgid "Changes the size of the fonts and widgets in the interface"
 msgstr "ﮯﮨ ﺎﺗﺮﮐ ﻞﯾﺪﺒﺗ ﺰﺋﺎﺳ ﺎﮐ ﭧﺠﯾﻭ ﺭﻭﺍ ﺲﭩﻧﻮﻓ ﮟﯿﻣ ﺲﯿﻓﺮﭩﻧﺍ"
-
-
-msgid "Open menu buttons and pulldowns automatically when the mouse is hovering"
-msgstr "ﮟﯿﻟﻮﮭﮐ ﺩﻮﺨﺑ ﺩﻮﺧ ﻥﺅﺍﮈ ﻞﭘ ﺭﻭﺍ ﻦﭩﺑ ﻮﻨﯿﻣ ﻮﺗ ﻮﮨ ﺎﮨﺭ ﻻ﻿ﮉﻨﻣ ﺱﺅﺎﻣ ﺐﺟ"
 
 
 msgid "Save Prompt"
@@ -97543,10 +97369,6 @@ msgid "Attenuation constant"
 msgstr "ﻞﺴﻠﺴﻣ ﮧﺟﻮﺗ"
 
 
-msgid "Distance of object that contribute to the Cavity/Edge effect"
-msgstr "ﮯﮨ ﺎﺘﻟﺍﮈ ﮧﺼﺣ ﮟﯿﻣ ﺮﺛﺍ ﮯﮐ ﮮﺭﺎﻨﮐ/ﺎﮩﮔ ﻮﺟ ﮧﻠﺻﺎﻓ ﺎﮐ ﺰﯿﭼ"
-
-
 msgid "Number of samples"
 msgstr "ﺩﺍﺪﻌﺗ ﯽﮐ ﮞﻮﻧﻮﻤﻧ"
 
@@ -102333,11 +102155,6 @@ msgid "Sound"
 msgstr "ﺯﺍﻭﺁ"
 
 
-msgctxt "Sequence"
-msgid "Cross"
-msgstr "ﺱﺍﺮﮐ"
-
-
 msgid "Use Default Fade"
 msgstr "ﮟﯾﺮﮐ ﻝﺎﻤﻌﺘﺳﺍ ﮉﯿﻓ ﭧﻟﺎﻔﯾﮈ"
 
@@ -102468,10 +102285,6 @@ msgstr "ﯽﭩﭘ ﯽﮐ ﺐﯿﺗﺮﺗ ﯽﮐ ﮯﻧﺎﻨﺑ ﺮﯾﻮﺼﺗ 
 
 msgid "Effect Strip color"
 msgstr "ﮓﻧﺭ ﺎﮐ ﯽﭩﭘ ﯽﮐ ﺮﺛﺍ"
-
-
-msgid "Cross Sequence"
-msgstr "ﻞﺴﻠﺴﺗ ﺱﺍﺮﮐ"
 
 
 msgid "Sequence strip creating a gaussian blur"
@@ -104043,6 +103856,14 @@ msgid "Color of path before current frame"
 msgstr "ﮓﻧﺭ ﺎﮐ ﮯﺘﺳﺍﺭ ﮯﻠﮩﭘ ﮯﺳ ﻢﯾﺮﻓ ﮦﺩﻮﺟﻮﻣ"
 
 
+msgid "Preview Range"
+msgstr "ﺪﺣ ﯽﮐ ﻮﯾﻮﯾﺮﭘ"
+
+
+msgid "Color of preview range overlay"
+msgstr "ﮓﻧﺭ ﺎﮐ ﮯﻟﺭﻭﻭﺍ ﺞﻨﯾﺭ ﻮﯾﻮﯾﺮﭘ"
+
+
 msgid "Selected Marker"
 msgstr "ﺮﮐﺭﺎﻣ ﮦﺩﺮﮐ ﺐﺨﺘﻨﻣ"
 
@@ -104269,14 +104090,6 @@ msgstr "ﯽﺑﺎﭼ ﯽﺒﻤﻟ"
 
 msgid "Long Key Selected"
 msgstr "ﯽﺌﮔ ﯽﮐ ﺐﺨﺘﻨﻣ ﺪﯿﻠﮐ ﯽﺒﻤﻟ"
-
-
-msgid "Preview Range"
-msgstr "ﺪﺣ ﯽﮐ ﻮﯾﻮﯾﺮﭘ"
-
-
-msgid "Color of preview range overlay"
-msgstr "ﮓﻧﺭ ﺎﮐ ﮯﻟﺭﻭﻭﺍ ﺞﻨﯾﺭ ﻮﯾﻮﯾﺮﭘ"
 
 
 msgid "Simulated Frames"
@@ -111697,11 +111510,6 @@ msgstr "ﮉﯿﺋﻼ﻿ﺳ ﺞﯾﺍ/ﭦﺭﻭ"
 
 
 msgctxt "WindowManager"
-msgid "TrackBall"
-msgstr "ﻝﺎﺑ ﮏﯾﺮﭨ"
-
-
-msgctxt "WindowManager"
 msgid "Resize"
 msgstr "ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﺰﺋﺎﺳ"
 
@@ -114355,12 +114163,12 @@ msgid "No animation data to convert on object: {!r}"
 msgstr "{r!} :ﮟﯿﮩﻧ ﺎﭩﯾﮈ ﺕﺎﯿﮐﺮﺣ  ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ ﺮﭘ ﭧﮑﯿﺠﺑﺁ"
 
 
-msgid "Modifiers cannot be added to object: "
-msgstr " :ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮟﯿﻣ ﺽﺍﺮﺘﻋﺍ ﻮﮐ ﮞﻮﻟﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ"
-
-
 msgid "Object: {:s}, Mesh: '{:s}' has {:d} loops (for {:d} faces), expected {:d}"
 msgstr "{d:} ﻊﻗﻮﺘﻣ ،(ﮯﯿﻟ ﮯﮐ ﮞﻭﺮﮩﭼ {d:}) ﮟﯿﮨ ﺲﭘﻮﻟ {d:} ﮟﯿﻣ '{s:}' :ﺶﯿﻣ ،{s:} :ﭧﮑﯿﺠﺑﺁ"
+
+
+msgid "Modifiers cannot be added to object: "
+msgstr " :ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮟﯿﻣ ﺽﺍﺮﺘﻋﺍ ﻮﮐ ﮞﻮﻟﺍﻭ ﮯﻧﺮﮐ ﻢﯿﻣﺮﺗ"
 
 
 msgid "Object {!r} already has {!r} F-Curve(s). Remove these before trying again"
@@ -115327,10 +115135,6 @@ msgid "Height Min"
 msgstr "Min ﯽﺋﺎﭽﻧﻭﺍ"
 
 
-msgid "Cylinder radius"
-msgstr "ﺱﺍﺩﺭ ﺭﮉﻨﻠﺳ"
-
-
 msgid "Resolution Preview U"
 msgstr "U ﻮﯾﻮﯾﺮﭘ  ﺩﺍﺩﺭﺍﺮﻗ"
 
@@ -115635,11 +115439,6 @@ msgstr "ﯽﺋﺎﭨﻮﻣ ﺲﯿﺑ"
 
 msgid "Spacing Along Stroke"
 msgstr "ﺎﻧﺮﮐ ﮧﻔﻗﻭ ﮫﺗﺎﺳ ﮯﮐ ﮎﻭﺮﭩﺳﺍ"
-
-
-msgctxt "Operator"
-msgid "Go to Linestyle Textures Properties"
-msgstr "ﮟﯿﺋﺎﺟ ﺮﭘ ﺰﯿﭨﺮﭘﺍﺮﭘ  ﺖﺧﺎﺳ ﻞﺋﺎﭩﺳﺍ ﻦﺋﻻ﻿"
 
 
 msgid "Priority"
@@ -116977,6 +116776,10 @@ msgstr "ﻦﮑﻧﺎﺸﻧﺍ"
 msgctxt "Operator"
 msgid "Prefetch"
 msgstr "ﮟﯾﺮﮐ ﺖﻓﺎﯾﺯﺎﺑ ﯽﮕﺸﯿﭘ"
+
+
+msgid "Match"
+msgstr "ﭻﯿﻣ"
 
 
 msgctxt "Operator"
@@ -118657,16 +118460,6 @@ msgstr "...ﺮﻈﻨﻣ"
 
 
 msgctxt "Operator"
-msgid "Cross"
-msgstr "ﺱﺍﺮﮐ"
-
-
-msgctxt "Operator"
-msgid "Gamma Cross"
-msgstr "ﺱﺍﺮﮐ ﺎﻣﺎﮔ"
-
-
-msgctxt "Operator"
 msgid "Wipe"
 msgstr "ﺎﻧﺮﮐ ﺢﺴﻣ"
 
@@ -119622,22 +119415,6 @@ msgid "Zoom Method"
 msgstr "ﮧﻘﯾﺮﻃ ﺎﮐ ﻡﻭﺯ"
 
 
-msgid "Pan Sensitivity"
-msgstr "ﺖﯿﺳﺎﺴﺣ ﯽﮐ ﻦﯿﭘ"
-
-
-msgid "Swap Y and Z Axes"
-msgstr "Y ﺭﻭﺍ Z ﮟﯾﺮﮐ ﻞﯾﺪﺒﺗ ﻮﮐ ﮞﻭﺭﻮﺤﻣ"
-
-
-msgid "Invert Axis Pan"
-msgstr "ﮟﯾﺩ ﭧﻟﺍ ﻮﮐ ﻦﯿﭘ ﺲﺴﮑﯾﺍ"
-
-
-msgid "Invert Pan Axis"
-msgstr "ﮟﯾﺩ ﭧﻟﺍ ﻮﮐ ﺲﺴﮑﯾﺍ ﻦﯿﭘ"
-
-
 msgctxt "Operator"
 msgid "Remove Repository"
 msgstr "ﮟﯾﺩ ﺎﭩﮨ ﻮﮐ ﯼﺮﭨﺯﻮﭙﯾﺭ"
@@ -119715,8 +119492,16 @@ msgid "Invert Wheel Zoom Direction"
 msgstr "ﮟﯾﺩ ﭧﻟﺍ ﻮﮐ ﺖﻤﺳ ﯽﮐ ﻡﻭﺯ ﻞﯿﮨﻭ"
 
 
-msgid "Fly/Walk"
-msgstr "ﺎﻨﻠﭼ/ﺎﻧﮌﺍ"
+msgid "Lock Horizon"
+msgstr "ﻥﺰﺋﺍﺭﻮﮨ ﮎﻻ﻿"
+
+
+msgid "Pan Sensitivity"
+msgstr "ﺖﯿﺳﺎﺴﺣ ﯽﮐ ﻦﯿﭘ"
+
+
+msgid "Invert Pan Axis"
+msgstr "ﮟﯾﺩ ﭧﻟﺍ ﻮﮐ ﺲﺴﮑﯾﺍ ﻦﯿﭘ"
 
 
 msgctxt "Operator"
@@ -122001,6 +121786,11 @@ msgid "Path Steps"
 msgstr "ﻞﺣﺍﺮﻣ ﮯﮐ ﮯﺘﺳﺍﺭ"
 
 
+msgctxt "GPencil"
+msgid "Boundary"
+msgstr "ﯼﺭﮉﻧﺅﺎﺑ"
+
+
 msgid "No brush selected"
 msgstr "No ﺐﺨﺘﻨﻣ ﺵﺮﺑ"
 
@@ -122040,9 +121830,8 @@ msgid "Auto-Velocity"
 msgstr "ﺭﺎﺘﻓﺭ ﻮﭨﺁ"
 
 
-msgctxt "GPencil"
-msgid "Boundary"
-msgstr "ﯼﺭﮉﻧﺅﺎﺑ"
+msgid "Ignore Transparent"
+msgstr "ﮟﯾﺮﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ ﻮﮐ ﻑﺎﻔﺷ"
 
 
 msgid "No Textures"
@@ -122052,10 +121841,6 @@ msgstr "ﮟﯿﮩﻧ ﺖﺧﺎﺳ  ﯽﺋﻮﮐ"
 msgctxt "Operator"
 msgid "Add UVs"
 msgstr "ﮟﯾﺮﮐ ﻞﻣﺎﺷ s ﯼﻭﻮﯾ"
-
-
-msgid "Ignore Transparent"
-msgstr "ﮟﯾﺮﮐ ﺯﺍﺪﻧﺍ ﺮﻈﻧ ﻮﮐ ﻑﺎﻔﺷ"
 
 
 msgid "Cannot change action, as it is still being edited in NLA"
@@ -123618,10 +123403,6 @@ msgid "Compositor node tree has undefined nodes or sockets!"
 msgstr "!ﮟﯿﮨ ﭧﮐﺎﺳ ﺎﯾ ﺱﮈﻮﻧ ﮧﻨﯿﻌﺘﻣ ﺮﯿﻏ ﮟﯿﻣ ﯼﺮﭨ ﮈﻮﻧ ﺮﭩﯾﺯﻮﭙﻤﮐ"
 
 
-msgid "Increasing Preferences > System > Max Shader Compilation Subprocesses may improve compilation time."
-msgstr "۔ﮯﮨ ﺎﺘﮑﺳ ﺎﻨﺑ ﺮﺘﮩﺑ ﻮﮐ ﺖﻗﻭ ﮯﮐ ﻒﯿﻟﺎﺗ ﻞﻤﻋ ﯽﻠﯾﺫ ﻦﺸﯿﻠﭙﻤﮐ ﺭﮉﯿﺷ ﺲﮑﯿﻣ < ﻢﭩﺴﺳ < ﮧﻓﺎﺿﺍ ﮟﯿﻣ ﺕﺎﺤﯿﺟﺮﺗ"
-
-
 msgid "Error: Too many lights in the scene."
 msgstr "۔ﮟﯿﮨ ﺲﭩﺋﻻ﻿ ﮦﺩﺎﯾﺯ ﺖﮩﺑ ﮟﯿﻣ ﺮﻈﻨﻣ :ﯽﺑﺍﺮﺧ"
 
@@ -124501,6 +124282,10 @@ msgid "Control point belongs to another spline"
 msgstr "ﮯﮨ ﮯﺳ ﻦﺋﻼ﻿ﭙﺳﺍ ﮮﺮﺳﻭﺩ ﻖﻠﻌﺗ ﺎﮐ ﭧﻨﺋﺍﻮﭘ ﻝﻭﺮﭩﻨﮐ"
 
 
+msgid "Insert"
+msgstr "Insert"
+
+
 msgid "Unicode codepoint hex value"
 msgstr "ﻮﯿﻠﯾﻭ ﺲﮑﯿﮨ ﭧﻨﺋﺍﻮﭘﮈﻮﮐ ﮈﻮﮑﯿﻧﻮﯾ"
 
@@ -125025,10 +124810,6 @@ msgstr "Esc"
 
 msgid "Pause"
 msgstr "Pause"
-
-
-msgid "Insert"
-msgstr "Insert"
 
 
 msgctxt "UI_Events_KeyMaps"
@@ -125992,6 +125773,10 @@ msgstr "ﮓﯿﻠﻓ ﭧﺑ ﮦﻭﺮﮔ ﺭﺍﻮﻤﮨ"
 
 msgid "PBR Extensions"
 msgstr "ﺰﻨﺸﻨﯿﭩﺴﮑﯾﺍ ﺭﺁ ﯽﺑ ﯽﭘ"
+
+
+msgid "Path Mode"
+msgstr "ﮈﻮﻣ ﮫﺗﺎﭘ"
 
 
 msgid "ASCII"
@@ -129845,6 +129630,10 @@ msgid "Menu Undefined"
 msgstr "ﮧﻨﯿﻌﺘﻣ ﺮﯿﻏ ﻮﻨﯿﻣ"
 
 
+msgid "Subtype"
+msgstr "ﻢﺴﻗ ﯽﻠﯾﺫ"
+
+
 msgid "Could not determine type of group node"
 msgstr "ﺎﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻦﯿﻌﺗ ﺎﮐ ﻢﺴﻗ ﯽﮐ ﮈﻮﻧ ﮦﻭﺮﮔ"
 
@@ -130171,14 +129960,6 @@ msgstr "ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻣﺎﺷ ﮧﻋﻮﻤﺠ�
 
 msgid "No active collection"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮧﻋﻮﻤﺠﻣ ﻝﺎﻌﻓ ﯽﺋﻮﮐ"
-
-
-msgid "Can't duplicate the master collection"
-msgstr "ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﻞﻘﻧ ﻮﮐ ﻦﺸﮑﯿﻠﮐ ﺮﭩﺳﺎﻣ"
-
-
-msgid "Could not find a valid parent collection for the new duplicate, it won't be linked to any view layer"
-msgstr "ﺎﮔ ﮯﺋﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﮏﻨﻟ ﮯﺳ ﺕﺮﭘ ﻮﯾﻭ ﯽﺴﮐ ﮯﺳﺍ ،ﺎﮑﺳ ﻞﻣ ﮟﯿﮩﻧ ﻦﺸﮑﯿﻠﮐ ﻦﯾﺪﻟﺍﻭ ﺖﺳﺭﺩ ﮯﯿﻟ ﮯﮐ ﻞﻘﻧ ﮯﺌﻧ"
 
 
 msgid "Cannot add a collection to a linked/override collection/scene"
@@ -130713,20 +130494,8 @@ msgid "Cannot reassign inputs: recursion detected"
 msgstr "ﻼ﻿ﭼ ﮧﺘﭘ ﺎﮐ ﺭﺍﺮﮑﺗ :ﺎﺘﮑﺳ ﺎﺟ ﺎﯿﮐ ﮟﯿﮩﻧ ﺾﯾﻮﻔﺗ ﮦﺭﺎﺑﻭﺩ ﻮﮐ ﺲﭩﭘ ﻥﺍ"
 
 
-msgid "No valid inputs to swap"
-msgstr "ﮯﮨ ﮟﯿﮩﻧ ﭧﭘ ﻥﺍ ﺖﺳﺭﺩ ﯽﺋﻮﮐ ﮯﯿﻟ ﮯﮐ ﮯﻧﺮﮐ ﻞﯾﺪﺒﺗ"
-
-
 msgid "Please select two strips"
 msgstr "ﮟﯾﺮﮐ ﺐﺨﺘﻨﻣ ﺲﭘﺮﭩﺳ ﻭﺩ ﻡﺮﮐ ﮦﺍﺮﺑ"
-
-
-msgid "One of the effect inputs is unset, cannot swap"
-msgstr "ﺎﺘﮑﺳ ﻮﮨ ﮟﯿﮩﻧ ﻞﯾﺪﺒﺗ ،ﮯﮨ ﭧﯿﺳ ﺮﯿﻏ ﮏﯾﺍ ﮯﺳ ﮟﯿﻣ ﭧﭘ ﻥﺍ ﺮﺛﺍ"
-
-
-msgid "New effect needs more input strips"
-msgstr "ﮯﮨ ﺕﺭﻭﺮﺿ ﯽﮐ ﺲﭘﺮﭩﺳ ﭧﭘ ﻥﺍ ﺪﯾﺰﻣ ﻮﮐ ﺮﺛﺍ ﮯﺌﻧ"
 
 
 msgid "Can't create subtitle file"
@@ -135038,12 +134807,12 @@ msgid "Streak fade-out factor"
 msgstr "ﺮﭩﮑﯿﻓ ﭦﺅﺁ ﮉﯿﻓ ﮏﯾﺮﭩﺳﺍ"
 
 
-msgid "ID value"
-msgstr "ID ﺭﺪﻗ"
-
-
 msgid "Viewport compositor setup not fully supported"
 msgstr "ﮯﮨ ﮟﯿﮩﻧ ﮧﺘﻓﺎﯾ ﻥﻭﺎﻌﺗ ﺮﭘ ﺭﻮﻃ ﻞﻤﮑﻣ ﭖﺍ ﭧﯿﺳ ﺮﭩﯾﺯﻮﭙﻤﮐ ﭦﺭﻮﭘ ﻮﯾﻭ"
+
+
+msgid "ID value"
+msgstr "ID ﺭﺪﻗ"
 
 
 msgid "Garbage Matte"
@@ -137583,11 +137352,6 @@ msgid "IOR Level"
 msgstr "IOR ﻝﻮﯿﻟ"
 
 
-msgctxt "NodeTree"
-msgid "Tint"
-msgstr "ﺖﮕﻧﺭ"
-
-
 msgid "Subsurface"
 msgstr "ﺢﻄﺳ ﯽﻠﯾﺫ"
 
@@ -137598,6 +137362,11 @@ msgstr "ﻦﯿﺷ"
 
 msgid "Thin Film"
 msgstr "ﻢﻠﻓ ﻼ﻿ﺘﭘ"
+
+
+msgctxt "NodeTree"
+msgid "Tint"
+msgstr "ﺖﮕﻧﺭ"
 
 
 msgid "Strength of the bump mapping effect, interpolating between no bump mapping and full bump mapping"
@@ -139709,226 +139478,6 @@ msgstr "ﻥﻮﻓﻭﺮﮑﺋﺎﻣ"
 
 msgid "network"
 msgstr "ﮎﺭﻭ ﭧﯿﻧ"
-
-
-msgid "Japanese (日本語)"
-msgstr "(日本語) ﯽﻧﺎﭘﺎﺟ"
-
-
-msgid "Dutch (Nederlands)"
-msgstr "(ﺯﮉﻨﯿﻟﺭﺪﯿﻧ) ﭺﮈ"
-
-
-msgid "Italian (Italiano)"
-msgstr "(ﯼﻮﻟﺎﻃﺍ) ﯼﻮﻟﺎﻃﺍ"
-
-
-msgid "German (Deutsch)"
-msgstr "(Deutsch) ﻦﻣﺮﺟ"
-
-
-msgid "Finnish (Suomi)"
-msgstr "(Suomi) ﺶﯿﻨﯿﻓ"
-
-
-msgid "Swedish (Svenska)"
-msgstr "(Svenska) ﺵﮉﯾﻮﺳ"
-
-
-msgid "French (Français)"
-msgstr "(FranÃ§ais) ﯽﺴﯿﺴﻧﺍﺮﻓ"
-
-
-msgid "Spanish (Español)"
-msgstr "(Español) ﯼﻮﻧﺎﭙﺴﮨ"
-
-
-msgid "Catalan (Català)"
-msgstr "Catalan (Catalan)"
-
-
-msgid "Czech (Čeština)"
-msgstr "Czech (Čeština)"
-
-
-msgid "Portuguese (Português)"
-msgstr "Portuguese (Português)"
-
-
-msgid "Simplified Chinese (简体中文)"
-msgstr "Simplified Chinese (简体中文)"
-
-
-msgid "Traditional Chinese (繁體中文)"
-msgstr "Traditional Chinese (繁體中文)"
-
-
-msgid "Russian (Русский)"
-msgstr "Russian (Русский)"
-
-
-msgid "Croatian (Hrvatski)"
-msgstr "Croatian (Hrvatski)"
-
-
-msgid "Serbian (Српски)"
-msgstr "Serbian (Српски)"
-
-
-msgid "Ukrainian (Українська)"
-msgstr "Ukrainian (Українська)"
-
-
-msgid "Polish (Polski)"
-msgstr "Polish (Polski)"
-
-
-msgid "Romanian (Român)"
-msgstr "Romanian (Român)"
-
-
-msgid "Arabic (ﺔﻴﺑﺮﻌﻟﺍ)"
-msgstr "Arabic (ﺍﻟﻌﺮﺑﻴﺔ)"
-
-
-msgid "Bulgarian (Български)"
-msgstr "Bulgarian (Български)"
-
-
-msgid "Greek (Ελληνικά)"
-msgstr "Greek (Ελληνικά)"
-
-
-msgid "Korean (한국어)"
-msgstr "Korean (한국어)"
-
-
-msgid "Nepali (नेपाली)"
-msgstr "Nepali (नेपाली)"
-
-
-msgid "Persian (ﯽﺳﺭﺎﻓ)"
-msgstr "Persian (ﻓﺎﺭﺳﯽ)"
-
-
-msgid "Indonesian (Bahasa indonesia)"
-msgstr "(ﻥﺎﺑﺯ ﻦﯿﺸﯿﻧﻭﮉﻧﺍ) ﯽﺋﺎﯿﺸﯿﻧﻭﮉﻧﺍ"
-
-
-msgid "Serbian Latin (Srpski latinica)"
-msgstr "(Srpski latinica) ﯽﻨﯿﻃﻻ﻿ ﯽﺋﺎﯿﺑﺮﺳ"
-
-
-msgid "Kyrgyz (Кыргыз тили)"
-msgstr "Kyrgyz (Кыргыз тили)"
-
-
-msgid "Turkish (Türkçe)"
-msgstr "Turkish (Türkçe)"
-
-
-msgid "Hungarian (Magyar)"
-msgstr "Hungarian (Magyar)"
-
-
-msgid "Brazilian Portuguese (Português do Brasil)"
-msgstr "Brazilian Portuguese (Português do Brasil)"
-
-
-msgid "Hebrew (תירִבְעִ)"
-msgstr "Hebrew (עִבְרִית)"
-
-
-msgid "Estonian (Eesti keel)"
-msgstr "Estonian (Eesti keel)"
-
-
-msgid "Esperanto (Esperanto)"
-msgstr "Esperanto (Esperanto)"
-
-
-msgid "Amharic (አማርኛ)"
-msgstr "Amharic (አማርኛ)"
-
-
-msgid "Uzbek (Oʻzbek)"
-msgstr "Uzbek (Oʻzbek)"
-
-
-msgid "Uzbek Cyrillic (Ўзбек)"
-msgstr "Uzbek Cyrillic (Ўзбек)"
-
-
-msgid "Hindi (हिन्दी)"
-msgstr "Hindi (हिन्दी)"
-
-
-msgid "Vietnamese (Tiếng Việt)"
-msgstr "Vietnamese (Tiếng Việt)"
-
-
-msgid "Basque (Euskara)"
-msgstr "Basque (Euskara)"
-
-
-msgid "Hausa (Hausa)"
-msgstr "Hausa (Hausa)"
-
-
-msgid "Kazakh (Қазақша)"
-msgstr "Kazakh (Қазақша)"
-
-
-msgid "Abkhaz (Аԥсуа бызшәа)"
-msgstr "Abkhaz (Аԥсуа бызшәа)"
-
-
-msgid "Thai (ภาษาไทย)"
-msgstr "Thai (ภาษาไทย)"
-
-
-msgid "Slovak (Slovenčina)"
-msgstr "Slovak (Slovenčina)"
-
-
-msgid "Georgian (ქართული)"
-msgstr "Georgian (ქართული)"
-
-
-msgid "Tamil (தமிழ்)"
-msgstr "Tamil (தமிழ்)"
-
-
-msgid "Khmer (ខ្មែរ)"
-msgstr "Khmer (ខ្មែរ)"
-
-
-msgid "Swahili (Kiswahili)"
-msgstr "Swahili (Kiswahili)"
-
-
-msgid "Belarusian (беларуску)"
-msgstr "(беларуску) ﯽﺳﻭﺭﻼ﻿ﯿﺑ"
-
-
-msgid "Danish (Dansk)"
-msgstr "(ﮏﺴﻧﺍﮈ) ﺶﻨﯾﮈ"
-
-
-msgid "Slovenian (Slovenščina)"
-msgstr "(Slovenščina) ﯽﺋﺎﯿﻨﯾﻭﻮﻠﺳ"
-
-
-msgid "Complete"
-msgstr "ﻞﻤﮑﻣ"
-
-
-msgid "In Progress"
-msgstr "ﮯﮨ ﯼﺭﺎﺟ"
-
-
-msgid "Starting"
-msgstr "ﮯﮨ ﺎﮨﺭ ﻮﮨ ﻉﻭﺮﺷ"
 
 
 msgid "Add & Subtract"

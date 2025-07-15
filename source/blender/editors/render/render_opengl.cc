@@ -334,6 +334,8 @@ static void screen_opengl_render_doit(OGLRender *oglrender, RenderResult *rr)
 
     BKE_scene_graph_evaluated_ensure(depsgraph, oglrender->bmain);
 
+    GPU_viewport_force_hdr(oglrender->viewport);
+
     if (v3d != nullptr) {
       ARegion *region = oglrender->region;
       ibuf_view = ED_view3d_draw_offscreen_imbuf(depsgraph,
@@ -417,9 +419,11 @@ static void screen_opengl_render_write(OGLRender *oglrender)
 
   rr = RE_AcquireResultRead(oglrender->re);
 
+  path_templates::VariableMap template_variables;
+  BKE_add_template_variables_general(template_variables, &scene->id);
+  BKE_add_template_variables_for_render_path(template_variables, *scene);
+
   const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-  const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                      &scene->r);
   const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
       filepath,
       scene->r.pic,
@@ -768,6 +772,7 @@ static bool screen_opengl_render_init(bContext *C, wmOperator *op)
                              true,
                              GPU_RGBA16F,
                              GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_HOST_READ,
+                             false,
                              err_out);
   DRW_gpu_context_disable();
 
@@ -1046,9 +1051,11 @@ static void write_result(TaskPool *__restrict pool, WriteTaskData *task_data)
      * calculate file name again here.
      */
     char filepath[FILE_MAX];
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &scene->id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                        &scene->r);
     const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
@@ -1147,9 +1154,11 @@ static bool screen_opengl_render_anim_step(OGLRender *oglrender)
   is_movie = BKE_imtype_is_movie(scene->r.im_format.imtype);
 
   if (!is_movie) {
+    path_templates::VariableMap template_variables;
+    BKE_add_template_variables_general(template_variables, &scene->id);
+    BKE_add_template_variables_for_render_path(template_variables, *scene);
+
     const char *relbase = BKE_main_blendfile_path(oglrender->bmain);
-    const path_templates::VariableMap template_variables = BKE_build_template_variables(relbase,
-                                                                                        &scene->r);
     const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
         filepath,
         scene->r.pic,
