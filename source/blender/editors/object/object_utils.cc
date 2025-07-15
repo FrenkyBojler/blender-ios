@@ -178,13 +178,7 @@ struct XFormObjectSkipChild {
 };
 
 struct XFormObjectSkipChild_Container {
-  Map<Object *, XFormObjectSkipChild *> obchild_in_obmode_map;
-  ~XFormObjectSkipChild_Container()
-  {
-    for (XFormObjectSkipChild *xf : obchild_in_obmode_map.values()) {
-      MEM_delete(xf);
-    }
-  }
+  Map<Object *, std::unique_ptr<XFormObjectSkipChild>> obchild_in_obmode_map;
 };
 
 XFormObjectSkipChild_Container *xform_skip_child_container_create()
@@ -260,7 +254,8 @@ void object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Containe
                                                    int mode)
 {
   xcs->obchild_in_obmode_map.lookup_or_add_cb(ob, [&]() {
-    XFormObjectSkipChild *xf = MEM_new<XFormObjectSkipChild>(__func__);
+    std::unique_ptr<XFormObjectSkipChild> xf_ptr = std::make_unique<XFormObjectSkipChild>();
+    XFormObjectSkipChild *xf = xf_ptr.get();
     copy_m4_m4(xf->parentinv_orig, ob->parentinv);
     copy_m4_m4(xf->obmat_orig, ob->object_to_world().ptr());
     copy_m4_m4(xf->parent_obmat_orig, ob->parent->object_to_world().ptr());
@@ -270,7 +265,7 @@ void object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Containe
     }
     xf->mode = mode;
     xf->ob_parent_recurse = ob_parent_recurse;
-    return xf;
+    return xf_ptr;
   });
 }
 
@@ -282,7 +277,7 @@ void object_xform_skip_child_container_update_all(XFormObjectSkipChild_Container
 
   for (auto item : xcs->obchild_in_obmode_map.items()) {
     Object *ob = item.key;
-    XFormObjectSkipChild *xf = item.value;
+    XFormObjectSkipChild *xf = item.value.get();
 
     /* The following blocks below assign 'dmat'. */
     float dmat[4][4];
