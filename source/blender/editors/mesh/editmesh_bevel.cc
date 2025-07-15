@@ -381,10 +381,9 @@ static bool edbm_bevel_calc(bContext *C, wmOperator *op)
           BM_mesh_select_mode_flush_ex(em->bm, SCE_SELECT_VERTEX, BM_SELECT_LEN_FLUSH_RECALC_EDGE);
         }
       }
-
     }
-    if(scene->toolsettings->automerge & AUTO_MERGE){
-        EDBM_automerge(obedit, true, BM_ELEM_SELECT, scene->toolsettings->doublimit);
+    if (scene->toolsettings->automerge & AUTO_MERGE) {
+      EDBM_automerge(obedit, true, BM_ELEM_SELECT, scene->toolsettings->doublimit);
     }
 
     /* no need to de-select existing geometry */
