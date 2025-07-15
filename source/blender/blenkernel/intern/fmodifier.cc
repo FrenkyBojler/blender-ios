@@ -1020,22 +1020,22 @@ static void fcm_smooth_evaluate(const FCurve *fcu,
   const float sigma = data->sigma;
   const int kernel_size = data->filter_width;
 
-  /* if sigma is negligible, don't change */
+  /* If sigma is negligible, don't change it. */
   if (sigma < 0.1f) {
     return;
   }
 
-  /* hold variables for weight, so we can compensate for the influence of the modifier */
+  /* Hold variables for weight, so we can compensate for the influence of the modifier. */
   float total_weighted_value = 0.0f;
   float total_weight = 0.0f;
 
-  /* define sampling window around the frame using the kernel size */
+  /* Define sampling window around the frame using the kernel size. */
   const int start_frame = floorf(evaltime - kernel_size / 2.0f);
   const int end_frame = ceilf(evaltime + kernel_size / 2.0f);
 
   const float two_sigma_sq = 2.0f * sigma * sigma;
 
-  /* sampling loop */
+  /* Sampling loop. */
   for (int i = start_frame; i <= end_frame; ++i) {
     const float sample_time = (float)i;
     const float sample_distance = sample_time - evaltime;
@@ -1052,7 +1052,7 @@ static void fcm_smooth_evaluate(const FCurve *fcu,
     const float smoothed = (total_weighted_value / total_weight);
     const float orig = evaluate_fcurve_unmodified(fcu, evaltime);
 
-    /* blend by factor */
+    /* Blend the influcence by the factor property. */
     *cvalue = orig * (1.0f - factor) + (smoothed * factor);
   }
 }
