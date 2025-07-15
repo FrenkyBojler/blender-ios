@@ -41,12 +41,14 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_SCULPT_FACE_SETS:
     case CD_MTFACE:
     case CD_TESSLOOPNORMAL:
+    case CD_FREESTYLE_EDGE:
+    case CD_FREESTYLE_FACE:
       /* These types are only used for versioning old files. */
       return std::nullopt;
-        case CD_SHAPEKEY:
+    case CD_SHAPEKEY:
     case CD_SHAPE_KEYINDEX:
     case CD_BM_ELEM_PYPTR:
-/* These types are only used for #BMesh. */
+      /* These types are only used for #BMesh. */
       return std::nullopt;
     case CD_MDEFORMVERT:
     case CD_MFACE:
@@ -61,8 +63,6 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_ORIGSPACE_MLOOP:
     case CD_GRID_PAINT_MASK:
     case CD_MVERT_SKIN:
-    case CD_FREESTYLE_EDGE:
-    case CD_FREESTYLE_FACE:
     case CD_MLOOPTANGENT:
       /* These types are not generic. They will either be moved to some generic data type or
        * #AttributeStorage will be extended to be able to support a similar format. */
