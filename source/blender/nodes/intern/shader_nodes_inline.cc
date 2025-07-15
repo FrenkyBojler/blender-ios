@@ -359,33 +359,8 @@ class ShaderNodesInliner {
         const SocketInContext input_socket_ctx = {node.context, input_socket};
         const PrimitiveSocketValue value =
             *value_by_socket_.lookup(input_socket_ctx).to_primitive(*input_socket->typeinfo);
-        switch (input_socket->type) {
-          case SOCK_FLOAT: {
-            params.add_readonly_single_input_value(std::get<float>(value.value));
-            break;
-          }
-          case SOCK_INT: {
-            params.add_readonly_single_input_value(std::get<int>(value.value));
-            break;
-          }
-          case SOCK_BOOLEAN: {
-            params.add_readonly_single_input_value(std::get<bool>(value.value));
-            break;
-          }
-          case SOCK_VECTOR: {
-            params.add_readonly_single_input_value(std::get<float3>(value.value));
-            break;
-          }
-          case SOCK_RGBA: {
-            params.add_readonly_single_input_value(
-                ColorGeometry4f(std::get<ColorGeometry4f>(value.value)));
-            break;
-          }
-          default: {
-            BLI_assert_unreachable();
-            break;
-          }
-        }
+        params.add_readonly_single_input(
+            GVArray::ForSingle(*input_socket->typeinfo->base_cpp_type, 1, value.buffer()));
       }
 
       Vector<void *> output_values;
