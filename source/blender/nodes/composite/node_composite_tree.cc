@@ -146,6 +146,8 @@ static bool composite_node_tree_socket_type_valid(blender::bke::bNodeTreeType * 
                                                                         SOCK_MENU);
 }
 
+/* Keep consistent with the is_conversion_supported function in compositor::ConversionOperation on
+ * the compositor side.*/
 static bool composite_validate_link(eNodeSocketDatatype type_a, eNodeSocketDatatype type_b)
 {
   /* Basic math types can be implicitly converted to each other. */
