@@ -347,86 +347,74 @@ class ShaderNodesInliner {
     }
     const bke::bNodeType &node_type = *node->typeinfo;
     if (node_type.build_multi_function && all_inputs_primitive) {
-      bool all_outputs_can_be_primitive = true;
+
+      NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
+      node->typeinfo->build_multi_function(builder);
+      const mf::MultiFunction &fn = builder.function();
+      mf::ContextBuilder context;
+      IndexMask mask(1);
+      mf::ParamsBuilder params{fn, &mask};
+
+      for (const bNodeSocket *input_socket : node->input_sockets()) {
+        if (!input_socket->is_available()) {
+          continue;
+        }
+        const SocketInContext input_socket_ctx = {node.context, input_socket};
+        const PrimitiveSocketValue value =
+            *value_by_socket_.lookup(input_socket_ctx).to_primitive(input_socket->typeinfo->type);
+        switch (input_socket->type) {
+          case SOCK_FLOAT: {
+            params.add_readonly_single_input_value(std::get<float>(value.value));
+            break;
+          }
+          case SOCK_INT: {
+            params.add_readonly_single_input_value(std::get<int>(value.value));
+            break;
+          }
+          case SOCK_BOOLEAN: {
+            params.add_readonly_single_input_value(std::get<bool>(value.value));
+            break;
+          }
+          case SOCK_VECTOR: {
+            params.add_readonly_single_input_value(std::get<float3>(value.value));
+            break;
+          }
+          case SOCK_RGBA: {
+            params.add_readonly_single_input_value(
+                ColorGeometry4f(std::get<ColorGeometry4f>(value.value)));
+            break;
+          }
+          default: {
+            BLI_assert_unreachable();
+            break;
+          }
+        }
+      }
+
+      Vector<void *> output_values;
       for (const bNodeSocket *output_socket : node->output_sockets()) {
         if (!output_socket->is_available()) {
           continue;
         }
-        if (!ELEM(output_socket->type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA))
-        {
-          all_outputs_can_be_primitive = false;
-          break;
-        }
+        void *value = scope_.allocate_owned(*output_socket->typeinfo->base_cpp_type);
+        output_values.append(value);
+        params.add_uninitialized_single_output(
+            GMutableSpan(output_socket->typeinfo->base_cpp_type, value, 1));
       }
-      if (all_outputs_can_be_primitive) {
-        NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
-        node->typeinfo->build_multi_function(builder);
-        const mf::MultiFunction &fn = builder.function();
-        mf::ContextBuilder context;
-        IndexMask mask(1);
-        mf::ParamsBuilder params{fn, &mask};
 
-        for (const bNodeSocket *input_socket : node->input_sockets()) {
-          if (!input_socket->is_available()) {
-            continue;
-          }
-          const SocketInContext input_socket_ctx = {node.context, input_socket};
-          const PrimitiveSocketValue value = *value_by_socket_.lookup(input_socket_ctx)
-                                                  .to_primitive(input_socket->typeinfo->type);
-          switch (input_socket->type) {
-            case SOCK_FLOAT: {
-              params.add_readonly_single_input_value(std::get<float>(value.value));
-              break;
-            }
-            case SOCK_INT: {
-              params.add_readonly_single_input_value(std::get<int>(value.value));
-              break;
-            }
-            case SOCK_BOOLEAN: {
-              params.add_readonly_single_input_value(std::get<bool>(value.value));
-              break;
-            }
-            case SOCK_VECTOR: {
-              params.add_readonly_single_input_value(std::get<float3>(value.value));
-              break;
-            }
-            case SOCK_RGBA: {
-              params.add_readonly_single_input_value(
-                  ColorGeometry4f(std::get<ColorGeometry4f>(value.value)));
-              break;
-            }
-            default: {
-              BLI_assert_unreachable();
-              break;
-            }
-          }
+      fn.call(mask, params, context);
+
+      int current_output_i = 0;
+      for (const bNodeSocket *output_socket : node->output_sockets()) {
+        if (!output_socket->is_available()) {
+          continue;
         }
-
-        Vector<void *> output_values;
-        for (const bNodeSocket *output_socket : node->output_sockets()) {
-          if (!output_socket->is_available()) {
-            continue;
-          }
-          void *value = scope_.allocate_owned(*output_socket->typeinfo->base_cpp_type);
-          output_values.append(value);
-          params.add_uninitialized_single_output(
-              GMutableSpan(output_socket->typeinfo->base_cpp_type, value, 1));
-        }
-
-        fn.call(mask, params, context);
-
-        int current_output_i = 0;
-        for (const bNodeSocket *output_socket : node->output_sockets()) {
-          if (!output_socket->is_available()) {
-            continue;
-          }
-          const void *value = output_values[current_output_i++];
-          this->store_socket_value(
-              {socket.context, output_socket},
-              {PrimitiveSocketValue::from_value({output_socket->typeinfo->base_cpp_type, value})});
-        }
-        return;
+        const void *value = output_values[current_output_i++];
+        this->store_socket_value(
+            {socket.context, output_socket},
+            {PrimitiveSocketValue::from_value({output_socket->typeinfo->base_cpp_type, value})});
       }
+      return;
     }
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     bNode &copied_node = *bke::node_copy_with_mapping(
