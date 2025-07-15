@@ -121,6 +121,7 @@ static void wm_xr_session_begin_info_create(wmXrData *xr_data,
 
 void wm_xr_session_toggle(wmWindowManager *wm,
                           wmWindow *session_root_win,
+                          ARegion *rv3d,
                           wmXrSessionExitFn session_exit_fn)
 {
   wmXrData *xr_data = &wm->xr;
@@ -137,6 +138,7 @@ void wm_xr_session_toggle(wmWindowManager *wm,
     xr_data->runtime->session_root_win = session_root_win;
     xr_data->runtime->session_state.is_started = true;
     xr_data->runtime->exit_fn = session_exit_fn;
+    WM_xr_set_xr_region(xr_data, rv3d);
 
     wm_xr_session_begin_info_create(xr_data, &begin_info);
     GHOST_XrSessionStart(xr_data->runtime->context, &begin_info);
@@ -146,6 +148,20 @@ void wm_xr_session_toggle(wmWindowManager *wm,
 bool WM_xr_session_exists(const wmXrData *xr)
 {
   return xr->runtime && xr->runtime->context && xr->runtime->session_state.is_started;
+}
+
+ARegion *WM_xr_get_xr_region(wmXrData *xr_data)
+{
+  if (!xr_data)
+    return NULL;
+  return xr_data->xr_region;
+}
+
+void WM_xr_set_xr_region(wmXrData *xr_data, ARegion *region)
+{
+  if (!xr_data || xr_data->xr_region)
+    return;
+  xr_data->xr_region = region;
 }
 
 void WM_xr_session_base_pose_reset(wmXrData *xr)
@@ -1106,7 +1122,8 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
                                           GHOST_XrContextHandle xr_context,
                                           wmXrActionSet *action_set,
                                           wmXrSessionState *session_state,
-                                          wmWindow *win)
+                                          wmWindow *win,
+                                          wmWindowManager *wm)
 {
   const char *action_set_name = action_set->name;
 
@@ -1175,7 +1192,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
                                                                   subaction_idx,
                                                                   subaction_idx_other,
                                                                   bimanual);
-          wm_event_add_xrevent(win, actiondata, val);
+          wm_event_add_xrevent(wm, win, actiondata, val);
         }
       }
     }
@@ -1246,7 +1263,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
       v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
       v3d->object_type_exclude_select = settings->object_type_exclude_select;
 
-      wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win);
+      wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win, wm);
     }
   }
 }

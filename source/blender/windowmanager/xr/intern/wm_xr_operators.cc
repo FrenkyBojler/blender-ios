@@ -52,13 +52,13 @@
  * \{ */
 
 /* `op->poll`. */
-static bool wm_xr_operator_sessionactive(bContext *C)
+bool wm_xr_operator_sessionactive(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   return WM_xr_session_is_ready(&wm->xr);
 }
 
-static bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event)
+bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event)
 {
   if (event->type != EVT_XR_ACTION) {
     return false;
@@ -126,6 +126,7 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
   View3D *v3d = CTX_wm_view3d(C);
+  ARegion *rv3d = CTX_wm_region(C);
 
   /* Lazily-create XR context - tries to dynamic-link to the runtime,
    * reading `active_runtime.json`. */
@@ -134,8 +135,15 @@ static wmOperatorStatus wm_xr_session_toggle_exec(bContext *C, wmOperator * /*op
   }
 
   v3d->runtime.flag |= V3D_RUNTIME_XR_SESSION_ROOT;
-  wm_xr_session_toggle(wm, win, wm_xr_session_update_screen_on_exit_cb);
+  wm_xr_session_toggle(wm, win, rv3d, wm_xr_session_update_screen_on_exit_cb);
   wm_xr_session_update_screen(bmain, &wm->xr);
+
+  wmXrData *xr_data = &wm->xr;
+  if (WM_xr_session_exists(xr_data)) {
+    if (!win) {
+      return OPERATOR_CANCELLED;
+    }
+  }
 
   WM_event_add_notifier(C, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 

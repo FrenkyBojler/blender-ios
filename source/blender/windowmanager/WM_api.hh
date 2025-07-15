@@ -2131,6 +2131,8 @@ bool WM_xr_session_exists(const wmXrData *xr);
  * Check if the session is running, according to the OpenXR definition.
  */
 bool WM_xr_session_is_ready(const wmXrData *xr);
+ARegion *WM_xr_get_xr_region(wmXrData *xr_data);
+void WM_xr_set_xr_region(wmXrData *xr_data, ARegion *region);
 wmXrSessionState *WM_xr_session_state_handle_get(const wmXrData *xr);
 ScrArea *WM_xr_session_area_get(const wmXrData *xr);
 void WM_xr_session_base_pose_reset(wmXrData *xr);
@@ -2274,4 +2276,8 @@ XrActionMapBinding *WM_xr_actionmap_binding_add_copy(XrActionMapItem *ami,
                                                      XrActionMapBinding *amb_src);
 bool WM_xr_actionmap_binding_remove(XrActionMapItem *ami, XrActionMapBinding *amb);
 XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const char *name);
+
+/* `wm_xr_operators.cc` */
+bool wm_xr_operator_sessionactive(bContext *C);
+bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event);
 #endif /* WITH_XR_OPENXR */
