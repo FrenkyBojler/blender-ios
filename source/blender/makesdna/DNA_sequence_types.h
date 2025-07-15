@@ -519,9 +519,15 @@ typedef struct ColorMixVars {
  * \{ */
 
 typedef struct StripModifierDataRuntime {
-  float *last_buf;      /* Reference for optimizing updates. */
-  void *last_sound_in;  /* Reference for optimizing updates. */
-  void *last_sound_out; /* Reference for optimizing updates. */
+  /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound
+   * inputs and outputs. When all existing parameters do match new ones, the update can be skipped
+   * and old sound handle may be returned. This is to prevent audio glitches, see #141595 */
+
+  float *last_buf; /* Equalizer frequency/volume curve buffer */
+
+  /* Reference sound handles (may be used by any sound modifier). */
+  void *last_sound_in;
+  void *last_sound_out;
 } StripModifierDataRuntime;
 
 typedef struct StripModifierData {
