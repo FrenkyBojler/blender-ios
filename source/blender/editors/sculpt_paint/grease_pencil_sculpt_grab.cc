@@ -203,6 +203,18 @@ void GrabOperation::on_stroke_extended(const bContext &C, const InputSample &ext
               projection_fn, deformation, point_i, mouse_delta_win * weights[index]);
         });
 
+        MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
+        MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
+
+        if (!handle_positions_left.is_empty()) {
+          mask.foreach_index(GrainSize(4096), [&](const int64_t point_i, const int index) {
+            handle_positions_left[point_i] += compute_orig_delta(
+                projection_fn, deformation, point_i, mouse_delta_win * weights[index]);
+            handle_positions_right[point_i] += compute_orig_delta(
+                projection_fn, deformation, point_i, mouse_delta_win * weights[index]);
+          });
+        }
+
         params.drawing.tag_positions_changed();
         return true;
       });

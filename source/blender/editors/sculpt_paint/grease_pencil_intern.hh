@@ -137,6 +137,10 @@ bke::crazyspace::GeometryDeformation get_drawing_deformation(
 /* Project points from layer space into 2D view space. */
 Array<float2> calculate_view_positions(const GreasePencilStrokeParams &params,
                                        const IndexMask &selection);
+Array<float2> calculate_view_handles_positions_left(const GreasePencilStrokeParams &params,
+                                                    const IndexMask &selection);
+Array<float2> calculate_view_handles_positions_right(const GreasePencilStrokeParams &params,
+                                                     const IndexMask &selection);
 Array<float> calculate_view_radii(const GreasePencilStrokeParams &params,
                                   const IndexMask &selection);
 

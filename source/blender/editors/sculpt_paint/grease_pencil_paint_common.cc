@@ -364,6 +364,58 @@ Array<float2> calculate_view_positions(const GreasePencilStrokeParams &params,
   return view_positions;
 }
 
+Array<float2> calculate_view_handles_positions_left(const GreasePencilStrokeParams &params,
+                                                    const IndexMask &selection)
+{
+  const Span<float3> handle_positions_left = params.drawing.strokes().handle_positions_left();
+  Array<float2> view_positions(handle_positions_left.size());
+
+  if (handle_positions_left.is_empty()) {
+    return view_positions;
+  }
+
+  /* Compute screen space positions. */
+  const float4x4 transform = params.layer.to_world_space(params.ob_eval);
+  selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
+    eV3DProjStatus result = ED_view3d_project_float_global(
+        &params.region,
+        math::transform_point(transform, handle_positions_left[point_i]),
+        view_positions[point_i],
+        V3D_PROJ_TEST_NOP);
+    if (result != V3D_PROJ_RET_OK) {
+      view_positions[point_i] = float2(0);
+    }
+  });
+
+  return view_positions;
+}
+
+Array<float2> calculate_view_handles_positions_right(const GreasePencilStrokeParams &params,
+                                                     const IndexMask &selection)
+{
+  const Span<float3> handle_positions_right = params.drawing.strokes().handle_positions_right();
+  Array<float2> view_positions(handle_positions_right.size());
+
+  if (handle_positions_right.is_empty()) {
+    return view_positions;
+  }
+
+  /* Compute screen space positions. */
+  const float4x4 transform = params.layer.to_world_space(params.ob_eval);
+  selection.foreach_index(GrainSize(4096), [&](const int64_t point_i) {
+    eV3DProjStatus result = ED_view3d_project_float_global(
+        &params.region,
+        math::transform_point(transform, handle_positions_right[point_i]),
+        view_positions[point_i],
+        V3D_PROJ_TEST_NOP);
+    if (result != V3D_PROJ_RET_OK) {
+      view_positions[point_i] = float2(0);
+    }
+  });
+
+  return view_positions;
+}
+
 Array<float> calculate_view_radii(const GreasePencilStrokeParams &params,
                                   const IndexMask &selection)
 {
