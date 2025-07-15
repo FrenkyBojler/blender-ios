@@ -472,22 +472,6 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
    * \param propname: Name of the operator's enum property.
    */
   void op_enum(blender::StringRefNull opname, blender::StringRefNull propname);
-  /**
-   * Expands and sets each enum property value as an operator button.
-   * \param prop: Operator's enum property.
-   * \param properties: Extra operator properties values to set.
-   * \param item_array: Precalculated item array, could be a subset of the enum property values.
-   * \param active: an optional item to highlight.
-   */
-  void op_enum_items(wmOperatorType *ot,
-                     const PointerRNA &ptr,
-                     PropertyRNA *prop,
-                     IDProperty *properties,
-                     blender::wm::OpCallContext context,
-                     eUI_Item_Flag flag,
-                     const EnumPropertyItem *item_array,
-                     int totitem,
-                     int active = -1);
 
   /**
    * Adds a #op_enum menu.

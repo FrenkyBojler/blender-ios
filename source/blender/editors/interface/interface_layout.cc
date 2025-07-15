@@ -1400,21 +1400,37 @@ BLI_INLINE bool ui_layout_is_radial(const uiLayout *layout)
           (layout->root_->type == blender::ui::LayoutType::PieMenu));
 }
 
-void uiLayout::op_enum_items(wmOperatorType *ot,
-                             const PointerRNA &ptr,
-                             PropertyRNA *prop,
-                             IDProperty *properties,
-                             blender::wm::OpCallContext context,
-                             eUI_Item_Flag flag,
-                             const EnumPropertyItem *item_array,
-                             int /*totitem*/,
-                             int active)
+void uiLayout::op_enum(const StringRefNull opname,
+                       const StringRefNull propname,
+                       IDProperty *properties,
+                       blender::wm::OpCallContext context,
+                       eUI_Item_Flag flag,
+                       int active)
 {
-  const StringRefNull propname = RNA_property_identifier(prop);
-  if (RNA_property_type(prop) != PROP_ENUM) {
+  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
+
+  if (!ot || !ot->srna) {
+    ui_item_disabled(this, opname.c_str());
+    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname.c_str());
+    return;
+  }
+
+  PointerRNA ptr;
+  WM_operator_properties_create_ptr(&ptr, ot);
+  /* so the context is passed to itemf functions (some need it) */
+  WM_operator_properties_sanitize(&ptr, false);
+
+  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
+  if (!prop) {
+    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
+    return;
+  }
+  else if (RNA_property_type(prop) != PROP_ENUM) {
     RNA_warning("%s.%s, not an enum type", RNA_struct_identifier(ptr.type), propname.c_str());
     return;
   }
+  /* Don't let bad properties slip through */
+  BLI_assert((prop == nullptr) || (RNA_property_type(prop) == PROP_ENUM));
 
   uiLayout *target, *split = nullptr;
   uiBlock *block = this->block();
@@ -1448,9 +1464,33 @@ void uiLayout::op_enum_items(wmOperatorType *ot,
     target = &split->column(align_);
   }
 
-  bool last_iter = false;
+  const EnumPropertyItem *item_array = nullptr;
+  int totitem;
+  bool free;
+
+  if (ui_layout_is_radial(this)) {
+    /* XXX: While "_all()" guarantees spatial stability,
+     * it's bad when an enum has > 8 items total,
+     * but only a small subset will ever be shown at once
+     * (e.g. Mode Switch menu, after the introduction of GP editing modes).
+     */
+#if 0
+      RNA_property_enum_items_gettexted_all(
+          static_cast<bContext *>(block->evil_C), &ptr, prop, &item_array, &totitem, &free);
+#else
+    RNA_property_enum_items_gettexted(
+        static_cast<bContext *>(block->evil_C), &ptr, prop, &item_array, &totitem, &free);
+#endif
+  }
+  else {
+    bContext *C = static_cast<bContext *>(block->evil_C);
+    const bContextStore *previous_ctx = CTX_store_get(C);
+    CTX_store_set(C, context_);
+    RNA_property_enum_items_gettexted(C, &ptr, prop, &item_array, &totitem, &free);
+    CTX_store_set(C, previous_ctx);
+  }
   const EnumPropertyItem *item = item_array;
-  for (int i = 1; item->identifier && !last_iter; i++, item++) {
+  for (int i = 0; item->identifier; i++, item++) {
 
     if (item->identifier[0]) {
       PointerRNA tptr = target->op(
@@ -1462,124 +1502,57 @@ void uiLayout::op_enum_items(wmOperatorType *ot,
 
       uiBut *but = block->buttons.last().get();
 
-      if (active == (i - 1)) {
+      if (active == i) {
         but->flag |= UI_SELECT_DRAW;
       }
 
       ui_but_tip_from_enum_item(but, item);
+      continue;
     }
-    else {
-      if (item->name) {
-        if (item != item_array && !radial && split != nullptr) {
-          target = &split->column(align_);
-        }
+    if (item->name) {
+      if (item != item_array && !radial && split != nullptr) {
+        target = &split->column(align_);
+      }
 
-        uiBut *but;
-        if (item->icon || radial) {
-          target->label(item->name, item->icon);
+      uiBut *but;
+      if (item->icon || radial) {
+        target->label(item->name, item->icon);
 
-          but = block->buttons.last().get();
-        }
-        else {
-          /* Do not use uiLayout::label here, as our root layout is a menu one,
-           * it will add a fake blank icon! */
-          but = uiDefBut(block,
-                         UI_BTYPE_LABEL,
-                         0,
-                         item->name,
-                         0,
-                         0,
-                         UI_UNIT_X * 5,
-                         UI_UNIT_Y,
-                         nullptr,
-                         0.0,
-                         0.0,
-                         "");
-          target->separator();
-        }
-        ui_but_tip_from_enum_item(but, item);
+        but = block->buttons.last().get();
       }
       else {
-        if (radial) {
-          /* invisible dummy button to ensure all items are
-           * always at the same position */
-          target->separator();
-        }
-        else {
-          /* XXX bug here, columns draw bottom item badly */
-          target->separator();
-        }
+        /* Do not use uiLayout::label here, as our root layout is a menu one,
+         * it will add a fake blank icon! */
+        but = uiDefBut(block,
+                       UI_BTYPE_LABEL,
+                       0,
+                       item->name,
+                       0,
+                       0,
+                       UI_UNIT_X * 5,
+                       UI_UNIT_Y,
+                       nullptr,
+                       0.0,
+                       0.0,
+                       "");
+        target->separator();
+      }
+      ui_but_tip_from_enum_item(but, item);
+    }
+    else {
+      if (radial) {
+        /* invisible dummy button to ensure all items are
+         * always at the same position */
+        target->separator();
+      }
+      else {
+        /* XXX bug here, columns draw bottom item badly */
+        target->separator();
       }
     }
   }
-}
-
-void uiLayout::op_enum(const StringRefNull opname,
-                       const StringRefNull propname,
-                       IDProperty *properties,
-                       blender::wm::OpCallContext context,
-                       eUI_Item_Flag flag,
-                       const int active)
-{
-  wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-
-  if (!ot || !ot->srna) {
-    ui_item_disabled(this, opname.c_str());
-    RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname.c_str());
-    return;
-  }
-
-  PointerRNA ptr;
-  WM_operator_properties_create_ptr(&ptr, ot);
-  /* so the context is passed to itemf functions (some need it) */
-  WM_operator_properties_sanitize(&ptr, false);
-  PropertyRNA *prop = RNA_struct_find_property(&ptr, propname.c_str());
-
-  /* don't let bad properties slip through */
-  BLI_assert((prop == nullptr) || (RNA_property_type(prop) == PROP_ENUM));
-
-  uiBlock *block = this->block();
-  if (prop && RNA_property_type(prop) == PROP_ENUM) {
-    const EnumPropertyItem *item_array = nullptr;
-    int totitem;
-    bool free;
-
-    if (ui_layout_is_radial(this)) {
-      /* XXX: While "_all()" guarantees spatial stability,
-       * it's bad when an enum has > 8 items total,
-       * but only a small subset will ever be shown at once
-       * (e.g. Mode Switch menu, after the introduction of GP editing modes).
-       */
-#if 0
-      RNA_property_enum_items_gettexted_all(
-          static_cast<bContext *>(block->evil_C), &ptr, prop, &item_array, &totitem, &free);
-#else
-      RNA_property_enum_items_gettexted(
-          static_cast<bContext *>(block->evil_C), &ptr, prop, &item_array, &totitem, &free);
-#endif
-    }
-    else {
-      bContext *C = static_cast<bContext *>(block->evil_C);
-      const bContextStore *previous_ctx = CTX_store_get(C);
-      CTX_store_set(C, context_);
-      RNA_property_enum_items_gettexted(C, &ptr, prop, &item_array, &totitem, &free);
-      CTX_store_set(C, previous_ctx);
-    }
-
-    /* add items */
-    this->op_enum_items(ot, ptr, prop, properties, context, flag, item_array, totitem, active);
-
-    if (free) {
-      MEM_freeN(item_array);
-    }
-  }
-  else if (prop && RNA_property_type(prop) != PROP_ENUM) {
-    RNA_warning("%s.%s, not an enum type", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
-  }
-  else {
-    RNA_warning("%s.%s not found", RNA_struct_identifier(ptr.type), propname.c_str());
-    return;
+  if (free) {
+    MEM_freeN(item_array);
   }
 }
 
