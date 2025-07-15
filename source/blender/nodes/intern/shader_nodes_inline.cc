@@ -78,14 +78,14 @@ struct SocketValue {
                BundleSocketValuePtr>
       value;
 
-  std::optional<PrimitiveSocketValue> to_primitive(const eNodeSocketDatatype type) const
+  std::optional<PrimitiveSocketValue> to_primitive(const bke::bNodeSocketType &type) const
   {
     if (const auto *primitive_value = std::get_if<PrimitiveSocketValue>(&this->value)) {
       return *primitive_value;
     }
     if (const auto *input_socket_value = std::get_if<InputSocketValue>(&this->value)) {
       const bNodeSocket &socket = *input_socket_value->socket;
-      BLI_assert(socket.type == type);
+      BLI_assert(socket.type == type.type);
       if (!socket.runtime->declaration) {
         return std::nullopt;
       }
@@ -111,17 +111,14 @@ struct SocketValue {
       }
     }
     if (std::get_if<FallbackValue>(&this->value)) {
-      switch (type) {
-        case SOCK_FLOAT:
-          return PrimitiveSocketValue{0.0f};
+      switch (type.type) {
         case SOCK_INT:
-          return PrimitiveSocketValue{0};
         case SOCK_BOOLEAN:
-          return PrimitiveSocketValue{false};
         case SOCK_VECTOR:
-          return PrimitiveSocketValue{float3(0, 0, 0)};
         case SOCK_RGBA:
-          return PrimitiveSocketValue{ColorGeometry4f(0, 0, 0, 1)};
+        case SOCK_FLOAT:
+          return PrimitiveSocketValue::from_value(
+              {type.base_cpp_type, type.base_cpp_type->default_value()});
         default:
           return std::nullopt;
       }
@@ -338,7 +335,7 @@ class ShaderNodesInliner {
         has_missing_inputs = true;
         continue;
       }
-      if (!value->to_primitive(input_socket->typeinfo->type)) {
+      if (!value->to_primitive(*input_socket->typeinfo)) {
         all_inputs_primitive = false;
       }
     }
@@ -361,7 +358,7 @@ class ShaderNodesInliner {
         }
         const SocketInContext input_socket_ctx = {node.context, input_socket};
         const PrimitiveSocketValue value =
-            *value_by_socket_.lookup(input_socket_ctx).to_primitive(input_socket->typeinfo->type);
+            *value_by_socket_.lookup(input_socket_ctx).to_primitive(*input_socket->typeinfo);
         switch (input_socket->type) {
           case SOCK_FLOAT: {
             params.add_readonly_single_input_value(std::get<float>(value.value));
@@ -450,7 +447,7 @@ class ShaderNodesInliner {
       return src_value;
     }
     const std::optional<PrimitiveSocketValue> src_primitive_value = src_value.to_primitive(
-        from_socket_type.type);
+        from_socket_type);
     if (src_primitive_value && to_socket_type.base_cpp_type) {
       if (data_type_conversions_.is_convertible(*from_socket_type.base_cpp_type,
                                                 *to_socket_type.base_cpp_type))
@@ -484,7 +481,7 @@ class ShaderNodesInliner {
   void set_socket_value(bNode &dst_node, bNodeSocket &dst_socket, const SocketValue &value)
   {
     if (const std::optional<PrimitiveSocketValue> primitive_value = value.to_primitive(
-            dst_socket.typeinfo->type))
+            *dst_socket.typeinfo))
     {
       switch (dst_socket.type) {
         case SOCK_FLOAT: {
