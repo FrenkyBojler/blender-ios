@@ -254,7 +254,7 @@ static bool strings_equal_after_first_lines(const std::string &a, const std::str
   const size_t a_count = a_len - a_next;
   const size_t b_count = b_len - b_next;
   if (a_count < b_count) {
-    printf("Evaluated string only contain %zu chars, while golden had %zu\n", a_count, b_count);
+    printf("Evaluated string only contains %zu chars, while golden has %zu\n", a_count, b_count);
   }
   if (a.compare(a_next, a_count, b, b_next, b_count) != 0) {
     for (int i = 0; i < std::min(b_count, a_count); ++i) {
