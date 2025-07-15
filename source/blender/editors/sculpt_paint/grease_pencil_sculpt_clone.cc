@@ -95,6 +95,20 @@ void CloneOperation::on_stroke_begin(const bContext &C, const InputSample &start
                 projection_fn, deformation, point_i, mouse_delta);
           }
         });
+
+        MutableSpan<float3> handle_positions_left = curves.handle_positions_left_for_write();
+        MutableSpan<float3> handle_positions_right = curves.handle_positions_right_for_write();
+
+        if (!handle_positions_left.is_empty()) {
+          threading::parallel_for(pasted_points, 4096, [&](const IndexRange range) {
+            for (const int point_i : range) {
+              handle_positions_left[point_i] += compute_orig_delta(
+                  projection_fn, deformation, point_i, mouse_delta);
+              handle_positions_right[point_i] += compute_orig_delta(
+                  projection_fn, deformation, point_i, mouse_delta);
+            }
+          });
+        }
         params.drawing.tag_positions_changed();
 
         return true;
