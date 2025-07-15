@@ -1427,3 +1427,31 @@ set(HIPRT_FILE hiprt-${HIPRT_VERSION}.tar.gz)
 set(HIPRT_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT)
 set(HIPRT_LICENSE SPDX:MIT)
 set(HIPRT_COPYRIGHT "Copyright (C) 2024 Advanced Micro Devices, Inc. All Rights Reserved. ")
+
+set(ABSEIL_VERSION 20250512.1) 
+set(ABSEIL_URI https://github.com/abseil/abseil-cpp/releases/download/${ABSEIL_VERSION}/abseil-cpp-${ABSEIL_VERSION}.tar.gz)
+set(ABSEIL_HASH 9b7a064305e9fd94d124ffa6cc358592eb42b5da588fb4e07d09254aa40086db)
+set(ABSEIL_HASH_TYPE SHA256)
+set(ABSEIL_FILE abseil-cpp-${ABSEIL_VERSION}.tar.gz)
+set(ABSEIL_HOMEPAGE https://abseil.io/)
+set(ABSEIL_LICENSE SPDX:Apache-2.0)
+set(ABSEIL_COPYRIGHT "Copyright 2023 The Abseil Authors.")
+
+set(EIGEN_VERSION 430e35fbd15d3c946d2d2ba19ec41c16ba217cb3) # Latest on 2025-07-15
+set(EIGEN_URI https://gitlab.com/libeigen/eigen/-/archive/${EIGEN_VERSION}/eigen-${EIGEN_VERSION}.tar.gz)
+set(EIGEN_HASH 0facaf8f690877b310ed20cc713fec2b68e9e17261b5a072c7627714a9b32470)
+set(EIGEN_HASH_TYPE SHA256)
+set(EIGEN_FILE eigen-${EIGEN_VERSION}.tar.gz)
+set(EIGEN_HOMEPAGE http://eigen.tuxfamily.org)
+set(EIGEN_LICENSE SPDX:I-Dont-know)
+set(EIGEN_COPYRIGHT "I-Dont-know")
+
+set(CERES_VERSION 8c50a34a1cac220ab2e7e2093b35b0db7e2a6e9b) # Latest main on 2025-07-15
+set(CERES_URI https://github.com/ceres-solver/ceres-solver/archive/${CERES_VERSION}.tar.gz)
+set(CERES_HASH 2b33a5823d59eecc39a219d146895a31a75b2a71660438dc55d1f87b24173209)
+set(CERES_HASH_TYPE SHA256)
+set(CERES_FILE ceres-${CERES_VERSION}.tar.gz)
+set(CERES_HOMEPAGE http://ceres-solver.org/)
+set(CERES_LICENSE SPDX:BSD-3-Clause)
+set(CERES_COPYRIGHT "Copyright 2023 Google Inc. All rights reserved.")
+
