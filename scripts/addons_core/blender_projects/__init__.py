@@ -16,25 +16,47 @@ bl_info = {
 
 from pathlib import Path
 
+import tomllib
+
 import bpy
 
+
+PROJECT_DIR = ".blender_project"
+PROJECT_CONFIG = "project.toml"
+
+
+def read_project(root_path: Path) -> str | None:
+    name = "My Project"
+
+    config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
+    try:
+        with open(config_path, "rb") as f:
+            data = tomllib.load(f)
+    except FileNotFoundError:
+        return name
+
+    if "name" in data and type(data["name"]) is str:
+        name = data["name"]
+
+    return name
+
+
 @bpy.app.handlers.persistent
-def dummy(filepath: str):
+def dummy(filepath: str) -> None:
     if filepath == "":
         print("Not an on-disk blend file.")
         return
 
     filepath = Path(filepath)
     for parent in filepath.parents:
-        project_config_path = parent.joinpath(".blender_project")
-        if project_config_path.is_dir():
+        if parent.joinpath(PROJECT_DIR).is_dir():
             print("Found project root: ", parent)
-            bpy.context.project.init("Foo", str(parent))
+            project_name = read_project(parent)
+            bpy.context.project.init(project_name, str(parent))
             return
 
     print("Didn't find any project root.")
     bpy.context.project.clear()
-
 
 
 ####################
