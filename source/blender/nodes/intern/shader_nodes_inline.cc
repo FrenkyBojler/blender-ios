@@ -248,9 +248,10 @@ class ShaderNodesInliner {
     }
     const SocketInContext origin_socket = {socket.context, used_link->fromsock};
     if (const auto *value = value_by_socket_.lookup_ptr(origin_socket)) {
-      this->store_socket_value(
-          socket,
-          this->handle_implicit_conversion(*value, *used_link->fromsock, *used_link->tosock));
+      this->store_socket_value(socket,
+                               this->handle_implicit_conversion(*value,
+                                                                *used_link->fromsock->typeinfo,
+                                                                *used_link->tosock->typeinfo));
       return;
     }
     this->schedule_socket(origin_socket);
@@ -273,9 +274,10 @@ class ShaderNodesInliner {
         if (internal_link.tosock == socket.socket) {
           const SocketInContext src_socket = {socket.context, internal_link.fromsock};
           if (const SocketValue *value = value_by_socket_.lookup_ptr(src_socket)) {
-            this->store_socket_value(socket,
-                                     this->handle_implicit_conversion(
-                                         *value, *internal_link.fromsock, *internal_link.tosock));
+            this->store_socket_value(
+                socket,
+                this->handle_implicit_conversion(
+                    *value, *internal_link.fromsock->typeinfo, *internal_link.tosock->typeinfo));
             return;
           }
           this->schedule_socket(src_socket);
@@ -455,34 +457,41 @@ class ShaderNodesInliner {
   }
 
   SocketValue handle_implicit_conversion(const SocketValue &src_value,
-                                         const bNodeSocket &from_socket,
-                                         const bNodeSocket &to_socket) const
+                                         const bke::bNodeSocketType &from_socket_type,
+                                         const bke::bNodeSocketType &to_socket_type) const
   {
-    const eNodeSocketDatatype from_type = eNodeSocketDatatype(from_socket.type);
-    const eNodeSocketDatatype to_type = eNodeSocketDatatype(to_socket.type);
-    if (from_type == to_type) {
+    if (from_socket_type.type == to_socket_type.type) {
       return src_value;
     }
     const std::optional<PrimitiveSocketValue> src_primitive_value = src_value.to_primitive(
-        from_socket.typeinfo->type);
-    if (src_primitive_value && from_socket.typeinfo->base_cpp_type &&
-        to_socket.typeinfo->base_cpp_type)
-    {
-      if (data_type_conversions_.is_convertible(*from_socket.typeinfo->base_cpp_type,
-                                                *to_socket.typeinfo->base_cpp_type))
+        from_socket_type.type);
+    if (src_primitive_value && to_socket_type.base_cpp_type) {
+      if (data_type_conversions_.is_convertible(*from_socket_type.base_cpp_type,
+                                                *to_socket_type.base_cpp_type))
       {
         const void *src_buffer = src_primitive_value->buffer();
-        BUFFER_FOR_CPP_TYPE_VALUE(*to_socket.typeinfo->base_cpp_type, dst_buffer);
-        data_type_conversions_.convert_to_uninitialized(*from_socket.typeinfo->base_cpp_type,
-                                                        *to_socket.typeinfo->base_cpp_type,
+        BUFFER_FOR_CPP_TYPE_VALUE(*to_socket_type.base_cpp_type, dst_buffer);
+        data_type_conversions_.convert_to_uninitialized(*from_socket_type.base_cpp_type,
+                                                        *to_socket_type.base_cpp_type,
                                                         src_buffer,
                                                         dst_buffer);
-        return {PrimitiveSocketValue::from_value(
-            GPointer{to_socket.typeinfo->base_cpp_type, dst_buffer})};
+        return {
+            PrimitiveSocketValue::from_value(GPointer{to_socket_type.base_cpp_type, dst_buffer})};
       }
     }
+    if (src_primitive_value && to_socket_type.type == SOCK_SHADER) {
+      bNode *color_node = bke::node_add_node(nullptr, dst_tree_, "ShaderNodeRGB");
+      const void *src_buffer = src_primitive_value->buffer();
+      ColorGeometry4f color;
+      data_type_conversions_.convert_to_uninitialized(
+          *from_socket_type.base_cpp_type, CPPType::get<ColorGeometry4f>(), src_buffer, &color);
+      bNodeSocket *output_socket = static_cast<bNodeSocket *>(color_node->outputs.first);
+      auto *socket_storage = static_cast<bNodeSocketValueRGBA *>(output_socket->default_value);
+      copy_v3_v3(socket_storage->value, color);
+      socket_storage->value[3] = 1.0f;
+      return {LinkedSocketValue{color_node, output_socket}};
+    }
 
-    /* TODO */
     return SocketValue{FallbackValue{}};
   }
 
