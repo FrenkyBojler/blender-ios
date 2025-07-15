@@ -5392,7 +5392,7 @@ static void pie_menu_add_buts_to_page(PieMenuPage &page, const uiItem *item)
 
 static void pie_menu_create_scroll_pages(uiBlock *block, uiLayout *layout)
 {
-  BLI_assert(layout->root_->type == UI_LAYOUT_PIEMENU);
+  BLI_assert(layout->root_->type == blender::ui::LayoutType::PieMenu);
   uiItem **pie_menu = std::find_if(layout->items_.begin(), layout->items_.end(), [](uiItem *item) {
     return item->type_ == uiItemType::LayoutRadial;
   });
@@ -5424,7 +5424,7 @@ static blender::int2 ui_layout_end(uiBlock *block, uiLayout *layout)
 
   ui_item_estimate(layout);
   ui_item_layout(layout);
-  if (layout->root_->type == UI_LAYOUT_PIEMENU) {
+  if (layout->root_->type == blender::ui::LayoutType::PieMenu) {
     blender::interface::internal::pie_menu_create_scroll_pages(block, layout);
   }
   return {layout->x_, layout->y_};
