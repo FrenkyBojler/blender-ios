@@ -1324,6 +1324,7 @@ if(WITH_UI_TESTS)
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
     test_sculpt.asset_shelf_brush_selection
+    test_sculpt.toggle_to_sculpt_from_hidden_edit_mode
     test_workspace.sanity_check_general
     test_workspace.sanity_check_2d_animation
     test_workspace.sanity_check_sculpting
