@@ -463,6 +463,9 @@ class ShaderNodesInliner {
     if (from_socket_type.type == to_socket_type.type) {
       return src_value;
     }
+    if (std::get_if<LinkedSocketValue>(&src_value.value)) {
+      return src_value;
+    }
     const std::optional<PrimitiveSocketValue> src_primitive_value = src_value.to_primitive(
         from_socket_type.type);
     if (src_primitive_value && to_socket_type.base_cpp_type) {
