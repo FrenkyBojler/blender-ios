@@ -559,6 +559,7 @@ class ArmatureDeformTestBase {
                                            curves.positions_for_write(),
                                            std::nullopt,
                                            deform_mats_opt,
+                                           std::nullopt,
                                            curves.deform_verts(),
                                            deform_flag,
                                            defgrp_name);
@@ -604,6 +605,7 @@ class ArmatureDeformTestBase {
                                            curves.positions_for_write(),
                                            std::nullopt,
                                            deform_mats_opt,
+                                           std::nullopt,
                                            curves.deform_verts(),
                                            deform_flag,
                                            defgrp_name);

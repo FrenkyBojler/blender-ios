@@ -147,8 +147,15 @@ static void modify_curves(ModifierData &md,
 
   const OffsetIndices<int> points_by_curve = curves.points_by_curve();
   const MutableSpan<float3> positions = curves.positions_for_write();
-  const Span<MDeformVert> dverts = curves.deform_verts();
+  bke::SpanAttributeWriter<float3> custom_normals_writer =
+      curves.attributes_for_write().lookup_for_write_span<float3>("custom_normal");
+  std::optional<MutableSpan<float3>> custom_normals;
+  /* Custom normals only supported on the point domain. */
+  if (custom_normals_writer && custom_normals_writer.domain == bke::AttrDomain::Point) {
+    custom_normals = custom_normals_writer.span;
+  }
 
+  const Span<MDeformVert> dverts = curves.deform_verts();
   if (dverts.is_empty()) {
     return;
   }
@@ -189,6 +196,7 @@ static void modify_curves(ModifierData &md,
                                                deform_positions->slice(orig_points),
                                                {},
                                                {},
+                                               custom_normals,
                                                orig_dverts.as_span().slice(orig_points),
                                                deformflag,
                                                amd.influence.vertex_group_name);
@@ -200,6 +208,7 @@ static void modify_curves(ModifierData &md,
                                                deform_positions->slice(points),
                                                old_positions_for_curve,
                                                deform_mats_for_curve,
+                                               custom_normals,
                                                dverts.slice(points),
                                                deformflag,
                                                amd.influence.vertex_group_name);
@@ -212,6 +221,7 @@ static void modify_curves(ModifierData &md,
                                              positions.slice(points),
                                              old_positions_for_curve,
                                              deform_mats_for_curve,
+                                             custom_normals,
                                              dverts.slice(points),
                                              deformflag,
                                              amd.influence.vertex_group_name);
@@ -219,6 +229,7 @@ static void modify_curves(ModifierData &md,
   });
 
   drawing.tag_positions_changed();
+  custom_normals_writer.finish();
 }
 
 static void modify_geometry_set(ModifierData *md,

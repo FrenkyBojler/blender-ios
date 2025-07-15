@@ -280,6 +280,7 @@ namespace blender::bke {
 struct ArmatureDeformParams {
   MutableSpan<float3> vert_coords;
   std::optional<MutableSpan<float3x3>> vert_deform_mats;
+  std::optional<MutableSpan<float3>> vert_custom_normals;
   std::optional<Span<float3>> vert_coords_prev;
 
   bool use_envelope;
@@ -306,6 +307,7 @@ static ArmatureDeformParams get_armature_deform_params(
     MutableSpan<float3> vert_coords,
     std::optional<Span<float3>> vert_coords_prev,
     std::optional<MutableSpan<float3x3>> vert_deform_mats,
+    std::optional<MutableSpan<float3>> vert_custom_normals,
     const int deformflag,
     blender::StringRefNull defgrp_name,
     const bool try_use_dverts)
@@ -315,6 +317,7 @@ static ArmatureDeformParams get_armature_deform_params(
   ArmatureDeformParams deform_params;
   deform_params.vert_coords = vert_coords;
   deform_params.vert_deform_mats = vert_deform_mats;
+  deform_params.vert_custom_normals = vert_custom_normals;
   deform_params.vert_coords_prev = vert_coords_prev;
   deform_params.use_envelope = bool(deformflag & ARM_DEF_ENVELOPE);
   deform_params.invert_vgroup = bool(deformflag & ARM_DEF_INVERT_VGROUP);
@@ -365,8 +368,6 @@ static void armature_vert_task_with_mixer(const ArmatureDeformParams &params,
                                           const MDeformVert *dvert,
                                           MixerT &mixer)
 {
-  const bool full_deform = params.vert_deform_mats.has_value();
-
   /* Overall influence, can change by masking with a vertex group. */
   float armature_weight = 1.0f;
   float prevco_weight = 0.0f; /* weight for optional cached vertexcos */
@@ -441,11 +442,22 @@ static void armature_vert_task_with_mixer(const ArmatureDeformParams &params,
     mixer.finalize(co, contrib, armature_weight, delta_co, local_deform_mat);
 
     co += delta_co;
-    if (full_deform) {
-      float3x3 &deform_mat = (*params.vert_deform_mats)[i];
+    if (params.vert_deform_mats || params.vert_custom_normals) {
       const float3x3 armature_to_target = params.armature_to_target.view<3, 3>();
       const float3x3 target_to_armature = params.target_to_armature.view<3, 3>();
-      deform_mat = armature_to_target * local_deform_mat * target_to_armature * deform_mat;
+      const float3x3 target_deform_mat = armature_to_target * local_deform_mat *
+                                         target_to_armature;
+
+      if (params.vert_deform_mats) {
+        float3x3 &deform_mat = (*params.vert_deform_mats)[i];
+        deform_mat = target_deform_mat * deform_mat;
+      }
+      if (params.vert_custom_normals) {
+        const float3x3 inv_transpose_deform_mat = math::invert(math::transpose(target_deform_mat));
+
+        float3 &custom_normal = (*params.vert_custom_normals)[i];
+        custom_normal = math::transform_direction(inv_transpose_deform_mat, custom_normal);
+      }
     }
   }
 
@@ -467,7 +479,9 @@ static void armature_vert_task_with_dvert(const ArmatureDeformParams &deform_par
                                           const MDeformVert *dvert,
                                           const bool use_quaternion)
 {
-  const bool full_deform = deform_params.vert_deform_mats.has_value();
+  /* Matrix is also computed for custom normals deformation. */
+  const bool full_deform = deform_params.vert_deform_mats.has_value() ||
+                           deform_params.vert_custom_normals.has_value();
   if (use_quaternion) {
     if (full_deform) {
       bke::BoneDeformDualQuaternionMixer<true> mixer;
@@ -495,6 +509,7 @@ static void armature_deform_coords(const Object &ob_arm,
                                    const ListBase *defbase,
                                    const MutableSpan<float3> vert_coords,
                                    const std::optional<MutableSpan<float3x3>> vert_deform_mats,
+                                   const std::optional<MutableSpan<float3>> vert_custom_normals,
                                    const int deformflag,
                                    const std::optional<Span<float3>> vert_coords_prev,
                                    blender::StringRefNull defgrp_name,
@@ -507,6 +522,7 @@ static void armature_deform_coords(const Object &ob_arm,
                                                                   vert_coords,
                                                                   vert_coords_prev,
                                                                   vert_deform_mats,
+                                                                  vert_custom_normals,
                                                                   deformflag,
                                                                   defgrp_name,
                                                                   dverts.has_value());
@@ -571,6 +587,7 @@ static void armature_deform_editmesh(const Object &ob_arm,
                                                                   vert_coords,
                                                                   vert_coords_prev,
                                                                   vert_deform_mats,
+                                                                  std::nullopt,
                                                                   deformflag,
                                                                   defgrp_name,
                                                                   cd_dvert_offset >= 0);
@@ -622,6 +639,7 @@ void BKE_armature_deform_coords_with_curves(
     blender::MutableSpan<blender::float3> vert_coords,
     std::optional<blender::Span<blender::float3>> vert_coords_prev,
     std::optional<blender::MutableSpan<blender::float3x3>> vert_deform_mats,
+    std::optional<blender::MutableSpan<blender::float3>> vert_custom_normals,
     blender::Span<MDeformVert> dverts,
     int deformflag,
     blender::StringRefNull defgrp_name)
@@ -641,6 +659,7 @@ void BKE_armature_deform_coords_with_curves(
                               defbase,
                               vert_coords,
                               vert_deform_mats,
+                              vert_custom_normals,
                               deformflag,
                               vert_coords_prev,
                               defgrp_name,
@@ -702,6 +721,7 @@ void BKE_armature_deform_coords_with_mesh(
                               defbase,
                               vert_coords,
                               vert_deform_mats,
+                              std::nullopt,
                               deformflag,
                               vert_coords_prev,
                               defgrp_name,
