@@ -14,7 +14,7 @@
 
 #include "NOD_multi_function.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_tex_brick_cc {
@@ -23,7 +23,7 @@ static void sh_node_tex_brick_declare(NodeDeclarationBuilder &b)
 {
   b.is_function_node();
   b.add_input<decl::Vector>("Vector").min(-10000.0f).max(10000.0f).implicit_field(
-      implicit_field_inputs::position);
+      NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Color>("Color1")
       .default_value({0.8f, 0.8f, 0.8f, 1.0f})
       .description("Color of the first reference brick");
@@ -308,6 +308,7 @@ void register_node_type_sh_tex_brick()
       ntype, "NodeTexBrick", node_free_standard_storage, node_copy_standard_storage);
   ntype.gpu_fn = file_ns::node_shader_gpu_tex_brick;
   ntype.build_multi_function = file_ns::sh_node_brick_build_multi_function;
+  blender::bke::node_type_size(ntype, 165, 140, NODE_DEFAULT_MAX_WIDTH);
 
   blender::bke::node_register_type(ntype);
 }

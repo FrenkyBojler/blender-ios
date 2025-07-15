@@ -4,7 +4,7 @@
 
 #include "BKE_mesh.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
@@ -39,7 +39,7 @@ static void node_declare(NodeDeclarationBuilder &b)
       case Mode::CornerFanSpace:
         b.add_input<decl::Vector>("Custom Normal")
             .subtype(PROP_XYZ)
-            .implicit_field(nodes::implicit_field_inputs::normal)
+            .implicit_field(NODE_DEFAULT_INPUT_NORMAL_FIELD)
             .hide_value();
         break;
     }
@@ -115,7 +115,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                     attributes.lookup_meta_data("custom_normal"))
             {
               if (meta_data->domain == bke::AttrDomain::Corner &&
-                  meta_data->data_type == CD_PROP_INT16_2D)
+                  meta_data->data_type == bke::AttrType::Int16_2D)
               {
                 add_sharpness_and_corner_fan_info = true;
               }

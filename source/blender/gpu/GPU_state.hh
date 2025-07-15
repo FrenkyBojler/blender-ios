@@ -194,6 +194,11 @@ void GPU_stencil_reference_set(uint reference);
 void GPU_stencil_write_mask_set(uint write_mask);
 void GPU_stencil_compare_mask_set(uint compare_mask);
 
+/* Sets the depth range to be 0..1. Only have effect with the OpenGL backend. Have no effect if
+ * glClipControl is not supported. Shaders used for drawing with this state must use
+ * BuiltinBits::CLIP_CONTROL for their vertex shader to be patched. */
+void GPU_clip_control_unit_range(bool enable);
+
 eGPUFaceCullTest GPU_face_culling_get();
 eGPUBlend GPU_blend_get();
 eGPUDepthTest GPU_depth_test_get();
@@ -209,14 +214,6 @@ bool GPU_line_smooth_get();
 void GPU_flush();
 void GPU_finish();
 void GPU_apply_state();
-
-void GPU_bgl_start();
-
-/**
- * Just turn off the `bgl` safeguard system. Can be called even without #GPU_bgl_start.
- */
-void GPU_bgl_end();
-bool GPU_bgl_get();
 
 /**
  * A barrier _must_ be issued _after_ a shader arbitrary write to a buffer or a

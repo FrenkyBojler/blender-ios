@@ -173,7 +173,7 @@ static constexpr auto PROP_PROPORTIONAL_DESCR = "";
 static constexpr auto PROP_TEXTEDIT_UPDATE_DESCR = "";
 static constexpr auto PROP_PATH_OUTPUT_DESCR = "";
 static constexpr auto PROP_PATH_RELATIVE_DESCR =
-    "This path supports relative prefix \"//\" which is expanded the the directory "
+    "This path supports relative prefix \"//\" which is expanded the directory "
     "where the current \".blend\" file is located.";
 static constexpr auto PROP_PATH_SUPPORTS_TEMPLATES_DESCR =
     "This path supports the \"{variable_name}\" template syntax, which substitutes the "
@@ -459,7 +459,7 @@ static void rna_Struct_properties_next(CollectionPropertyIterator *iter)
 
     /* try id properties */
     if (!iter->valid) {
-      group = RNA_struct_idprops(&iter->builtin_parent, 0);
+      group = RNA_struct_system_idprops(&iter->builtin_parent, 0);
 
       if (group) {
         rna_iterator_listbase_end(iter);
@@ -1624,11 +1624,11 @@ static void rna_property_override_diff_propptr(Main *bmain,
               /* In case one of the owner of the checked property is tagged as needing resync, do
                * not change the 'match reference' status of its ID pointer properties overrides,
                * since many non-matching ones are likely due to missing resync. */
-              CLOG_INFO(&LOG_COMPARE_OVERRIDE,
-                        4,
-                        "Not checking matching ID pointer properties, since owner %s is tagged as "
-                        "needing resync.\n",
-                        id_a->name);
+              CLOG_DEBUG(
+                  &LOG_COMPARE_OVERRIDE,
+                  "Not checking matching ID pointer properties, since owner %s is tagged as "
+                  "needing resync.\n",
+                  id_a->name);
             }
             else if (id_a->override_library != nullptr &&
                      id_a->override_library->reference == id_b)
@@ -3326,7 +3326,7 @@ static void rna_def_property(BlenderRNA *brna)
       prop,
       "Path Relative",
       "Property is a path which supports the \"//\" prefix, "
-      "signifying the location as relative to the \".blend\" files directory");
+      "signifying the location as relative to the \".blend\" file's directory");
 
   prop = RNA_def_property(srna, "is_path_supports_templates", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_clear_flag(prop, PROP_EDITABLE);

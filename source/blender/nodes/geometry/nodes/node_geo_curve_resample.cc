@@ -7,7 +7,7 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_rna_define.hh"
@@ -206,7 +206,7 @@ static void node_rna(StructRNA *srna)
   RNA_def_node_boolean(srna,
                        "keep_last_segment",
                        "Keep Last Segment",
-                       "Don't collapse a curves to single points if they are shorter than the "
+                       "Do not collapse curves to single points if they are shorter than the "
                        "given length. The collapsing behavior exists for compatibility reasons.",
                        NOD_storage_boolean_accessors(keep_last_segment, 1));
 }

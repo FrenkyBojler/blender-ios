@@ -334,12 +334,6 @@ static bool write_internal_bake_pixels(Image *image,
     ibuf->userflags |= IB_RECT_INVALID;
   }
 
-  /* force mipmap recalc */
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-    IMB_free_mipmaps(ibuf);
-  }
-
   BKE_image_release_ibuf(image, ibuf, nullptr);
 
   if (mask_buffer) {
@@ -2229,7 +2223,7 @@ void OBJECT_OT_bake(wmOperatorType *ot)
   ot->description = "Bake image textures of selected objects";
   ot->idname = "OBJECT_OT_bake";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bake_exec;
   ot->modal = bake_modal;
   ot->invoke = bake_invoke;

@@ -10,7 +10,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_join_geometries.hh"
@@ -58,8 +58,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     const auto operation = geometry::boolean::Operation(node->custom1);
     const auto solver = geometry::boolean::Solver(node->custom2);
 
-    output_edges.available(solver == geometry::boolean::Solver::MeshArr ||
-                           solver == geometry::boolean::Solver::Manifold);
+    output_edges.available(
+        ELEM(solver, geometry::boolean::Solver::MeshArr, geometry::boolean::Solver::Manifold));
     self_intersect.available(solver == geometry::boolean::Solver::MeshArr);
     hole_tolerant.available(solver == geometry::boolean::Solver::MeshArr);
 
@@ -175,6 +175,11 @@ static void node_geo_exec(GeoNodeExecParams params)
         }
       }
     }
+  }
+
+  if (solver == geometry::boolean::Solver::Manifold) {
+    /* Manifold remaps materials using realize_instances. */
+    material_remaps.resize(0);
   }
 
   AttributeOutputs attribute_outputs;

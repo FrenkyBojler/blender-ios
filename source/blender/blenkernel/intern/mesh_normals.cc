@@ -1004,7 +1004,7 @@ static void add_corner_to_edge(const Span<int> corner_edges,
   }
   else if (const EdgeOneCorner *info_one_edge = std::get_if<EdgeOneCorner>(&info)) {
     /* If the edge ends up being used by faces, we still have to check if the winding direction
-     * changes. Though it's an undesireable situation for the mesh to be in, we shouldn't propogate
+     * changes. Though it's an undesirable situation for the mesh to be in, we shouldn't propagate
      * smooth normals across edges facing opposite directions. Breaking the flow on these winding
      * direction changes also simplifies the fan traversal later on; without it the we couldn't
      * traverse by just continuing to use the next/previous corner. */
@@ -1153,7 +1153,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
 {
   if (local_corners_in_fan.size() == 1) {
     /* Logically this special case is unnecessary, but due to floating point precision it is
-     * required for the output to be the same as previous versions of the algorithm.*/
+     * required for the output to be the same as previous versions of the algorithm. */
     return face_normals[corner_infos[local_corners_in_fan.first()].face];
   }
   float3 fan_normal(0);
@@ -1167,7 +1167,7 @@ static float3 accumulate_fan_normal(const Span<VertCornerInfo> corner_infos,
   return math::normalize(fan_normal);
 }
 
-/* Don't inline this function to simplify the code path without custom normals.*/
+/** Don't inline this function to simplify the code path without custom normals. */
 BLI_NOINLINE static void handle_fan_result_and_custom_normals(
     const Span<short2> custom_normals,
     const Span<VertCornerInfo> corner_infos,
@@ -1243,7 +1243,14 @@ void normals_calc_corners(const Span<float3> vert_positions,
       r_fan_spaces->corners_by_space.reserve(corner_verts.size());
     }
   }
-  threading::parallel_for(vert_positions.index_range(), 256, [&](const IndexRange range) {
+
+  int64_t grain_size = 256;
+  /* Decrease parallelism in case where lock is used to avoid contention. */
+  if (!custom_normals.is_empty() || r_fan_spaces) {
+    grain_size = std::max(int64_t(16384), vert_positions.size() / 2);
+  }
+
+  threading::parallel_for(vert_positions.index_range(), grain_size, [&](const IndexRange range) {
     Vector<VertCornerInfo, 16> corner_infos;
     LocalEdgeVectorSet local_edge_by_vert;
     Vector<VertEdgeInfo, 16> edge_infos;

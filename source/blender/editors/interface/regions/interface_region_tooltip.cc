@@ -71,8 +71,6 @@
 #include "RNA_path.hh"
 #include "RNA_prototypes.hh"
 
-#include "UI_interface.hh"
-
 #include "BLF_api.hh"
 #include "BLT_translation.hh"
 
@@ -91,8 +89,6 @@
 #define UI_TIP_PADDING_Y 1.28f
 
 #define UI_TIP_MAXWIDTH 600
-#define UI_TIP_MAXIMAGEWIDTH 500
-#define UI_TIP_MAXIMAGEHEIGHT 300
 
 struct uiTooltipFormat {
   uiTooltipStyle style;
@@ -323,7 +319,8 @@ static void ui_tooltip_region_draw_cb(const bContext * /*C*/, ARegion *region)
       if (field->image->border) {
         GPU_blend(GPU_BLEND_ALPHA);
         GPUVertFormat *format = immVertexFormat();
-        uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        uint pos = GPU_vertformat_attr_add(
+            format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
         float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
         float bgcolor[4];
@@ -631,9 +628,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
 
     if (shortcut.empty()) {
       /* Check for direct access to the tool. */
-      if (std::optional<std::string> shortcut_toolbar = WM_key_event_operator_string(
-              C, "WM_OT_toolbar", WM_OP_INVOKE_REGION_WIN, nullptr, true))
-      {
+      std::optional<std::string> shortcut_toolbar = WM_key_event_operator_string(
+          C, "WM_OT_toolbar", blender::wm::OpCallContext::InvokeRegionWin, nullptr, true);
+      if (shortcut_toolbar) {
         /* Generate keymap in order to inspect it.
          * NOTE: we could make a utility to avoid the keymap generation part of this. */
         const char *expr_imports[] = {
@@ -732,7 +729,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_tool(bContext *C,
         RNA_string_set(&op_props, "name", item_step);
         shortcut = WM_key_event_operator_string(C,
                                                 but->optype->idname,
-                                                WM_OP_INVOKE_REGION_WIN,
+                                                blender::wm::OpCallContext::InvokeRegionWin,
                                                 static_cast<IDProperty *>(op_props.data),
                                                 true);
         if (shortcut) {
@@ -1072,17 +1069,23 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       if (ELEM(subtype, PROP_FILEPATH, PROP_DIRPATH, PROP_NONE)) {
         /* Template parse errors, for paths that support it. */
         if ((RNA_property_flag(rnaprop) & PROP_PATH_SUPPORTS_TEMPLATES) != 0) {
-          const blender::StringRef path = but->drawstr;
-          const blender::Vector<blender::bke::path_templates::Error> errors =
-              BKE_validate_template_syntax(path);
+          const std::string path = RNA_property_string_get(&but->rnapoin, rnaprop);
+          if (BKE_path_contains_template_syntax(path)) {
+            const std::optional<blender::bke::path_templates::VariableMap> variables =
+                BKE_build_template_variables_for_prop(C, &but->rnapoin, rnaprop);
+            BLI_assert(variables.has_value());
 
-          if (!errors.is_empty()) {
-            std::string error_message("Syntax error(s):");
-            for (const blender::bke::path_templates::Error &error : errors) {
-              error_message += "\n  - " + BKE_path_template_error_to_string(error, path);
+            const blender::Vector<blender::bke::path_templates::Error> errors =
+                BKE_path_validate_template(path, *variables);
+
+            if (!errors.is_empty()) {
+              std::string error_message("Path template error(s):");
+              for (const blender::bke::path_templates::Error &error : errors) {
+                error_message += "\n  - " + BKE_path_template_error_to_string(error, path);
+              }
+              UI_tooltip_text_field_add(
+                  *data, error_message, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
             }
-            UI_tooltip_text_field_add(
-                *data, error_message, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_ALERT);
           }
         }
       }
@@ -1097,8 +1100,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
 
     /* If operator poll check failed, it can give pretty precise info why. */
     if (optype) {
-      const wmOperatorCallContext opcontext = extra_icon ? extra_icon->optype_params->opcontext :
-                                                           but->opcontext;
+      const blender::wm::OpCallContext opcontext = extra_icon ?
+                                                       extra_icon->optype_params->opcontext :
+                                                       but->opcontext;
       wmOperatorCallParams call_params{};
       call_params.optype = optype;
       call_params.opcontext = opcontext;
@@ -1294,9 +1298,9 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_gizmo(bContext *C, wm
         /* Shortcut */
         {
           IDProperty *prop = static_cast<IDProperty *>(gzop->ptr.data);
-          if (std::optional<std::string> shortcut_str = WM_key_event_operator_string(
-                  C, gzop->type->idname, WM_OP_INVOKE_DEFAULT, prop, true))
-          {
+          std::optional<std::string> shortcut_str = WM_key_event_operator_string(
+              C, gzop->type->idname, blender::wm::OpCallContext::InvokeDefault, prop, true);
+          if (shortcut_str) {
             UI_tooltip_text_field_add(
                 *data,
                 fmt::format(fmt::runtime(TIP_("Shortcut: {}")), *shortcut_str),

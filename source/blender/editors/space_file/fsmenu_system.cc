@@ -58,7 +58,7 @@ struct FSMenu;
 /* -------------------------------------------------------------------- */
 /** \name XDG User Directory Support (Unix)
  *
- * Generic Unix, Use XDG when available, otherwise fallback to the home directory.
+ * Generic Unix, Use XDG when available, otherwise fall back to the home directory.
  * \{ */
 
 /**
@@ -213,7 +213,7 @@ static void fsmenu_add_windows_quick_access(FSMenu *fsmenu,
     conv_utf_16_to_8(path, utf_path, FILE_MAXDIR);
 
     /* Despite the above IsFolder check, Windows considers libraries and archives to be folders.
-     * However, as Blender does not support opening them, they must be filtered out.
+     * However, as Blender does not support opening them, they must be filtered out. #138863.
      */
     const char *ext_folderlike[] = {".library-ms",
                                     ".zip",

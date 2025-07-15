@@ -54,6 +54,7 @@
 #  include "io_utils.hh"
 
 #  include "ABC_alembic.h"
+#  include "UI_interface_layout.hh"
 
 const EnumPropertyItem rna_enum_abc_export_evaluation_mode_items[] = {
     {DAG_EVAL_RENDER,
@@ -148,8 +149,8 @@ static wmOperatorStatus wm_alembic_export_exec(bContext *C, wmOperator *op)
 
 static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "ABC_export_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);
@@ -177,7 +178,11 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
 
     sub = &col->column(true);
     sub->prop(ptr, "sh_open", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
-    sub->prop(ptr, "sh_close", UI_ITEM_R_SLIDER, IFACE_("Close"), ICON_NONE);
+    sub->prop(ptr,
+              "sh_close",
+              UI_ITEM_R_SLIDER,
+              CTX_IFACE_(BLT_I18NCONTEXT_ID_CAMERA, "Close"),
+              ICON_NONE);
 
     col->separator();
 
@@ -196,7 +201,7 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
     col->prop(ptr, "uvs", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     uiLayout *row = &col->row(false);
-    uiLayoutSetActive(row, RNA_boolean_get(ptr, "uvs"));
+    row->active_set(RNA_boolean_get(ptr, "uvs"));
     row->prop(ptr, "packuv", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
     col->prop(ptr, "normals", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -214,7 +219,7 @@ static void ui_alembic_export_settings(const bContext *C, uiLayout *layout, Poin
     col = &panel->column(false);
     col->prop(ptr, "triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
     sub = &col->column(false);
-    uiLayoutSetActive(sub, RNA_boolean_get(ptr, "triangulate"));
+    sub->active_set(RNA_boolean_get(ptr, "triangulate"));
     sub->prop(ptr, "quad_method", UI_ITEM_NONE, IFACE_("Method Quads"), ICON_NONE);
     sub->prop(ptr, "ngon_method", UI_ITEM_NONE, IFACE_("Polygons"), ICON_NONE);
   }
@@ -359,7 +364,7 @@ void WM_OT_alembic_export(wmOperatorType *ot)
                   "Flatten Hierarchy",
                   "Do not preserve objects' parent/children relationship");
 
-  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_IDPROP_NAME, "Collection", nullptr);
+  prop = RNA_def_string(ot->srna, "collection", nullptr, MAX_ID_NAME - 2, "Collection", nullptr);
   RNA_def_property_flag(prop, PROP_HIDDEN);
 
   RNA_def_boolean(ot->srna, "uvs", true, "UV Coordinates", "Export UV coordinates");
@@ -561,8 +566,8 @@ static int get_sequence_len(const char *filepath, int *ofs)
 
 static void ui_alembic_import_settings(const bContext *C, uiLayout *layout, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   if (uiLayout *panel = layout->panel(C, "ABC_import_general", false, IFACE_("General"))) {
     uiLayout *col = &panel->column(false);

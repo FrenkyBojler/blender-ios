@@ -52,6 +52,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -84,7 +85,7 @@ static void region_draw_emboss(const ARegion *region, const rcti *scirct, int si
   UI_GetThemeColor3fv(TH_EDITOR_BORDER, color);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4fv(color);
 
@@ -237,7 +238,7 @@ static void draw_azone_arrow(float x1, float y1, float x2, float y2, AZEdge edge
   }
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -548,7 +549,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
   if (G.debug_value == 888) {
     GPU_blend(GPU_BLEND_ALPHA);
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     RandomNumberGenerator rng = RandomNumberGenerator::from_random_seed();
     immUniformColor4f(rng.get_float(), rng.get_float(), rng.get_float(), 0.1f);
@@ -579,7 +580,7 @@ void ED_region_do_draw(bContext *C, ARegion *region)
       float color[4] = {0.0f, 0.0f, 0.0f, 0.8f};
       UI_GetThemeColor3fv(TH_EDITOR_BORDER, color);
       GPUVertFormat *format = immVertexFormat();
-      uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformColor4fv(color);
       GPU_line_width(1.0f);
@@ -1811,7 +1812,11 @@ static void region_rect_recursive(
 
 static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *window_rect)
 {
-  short px = short(std::max(float(U.border_width) * UI_SCALE_FAC, UI_SCALE_FAC));
+  /* Padding around each area, except at window edges. */
+  const short px = short(std::max(float(U.border_width) * UI_SCALE_FAC, UI_SCALE_FAC));
+
+  /* Padding at window edges. Cannot be less than border width. */
+  const short px_edge = short(std::min(UI_SCALE_FAC * 2.0f, float(U.border_width) * UI_SCALE_FAC));
 
   area->totrct.xmin = area->v1->vec.x;
   area->totrct.xmax = area->v4->vec.x;
@@ -1819,18 +1824,12 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
   area->totrct.ymax = area->v2->vec.y;
 
   /* Scale down totrct by the border size on all sides not at window edges. */
-  if (!ED_area_is_global(area) && screen->state != SCREENFULL &&
-      !(screen->temp && BLI_listbase_is_single(&screen->areabase)))
+  if (!ED_area_is_global(area) && screen->state != SCREENFULL && !(screen->temp) &&
+      !BLI_listbase_is_single(&screen->areabase))
   {
-    if (area->totrct.xmin > window_rect->xmin) {
-      area->totrct.xmin += px;
-    }
-    if (area->totrct.xmax < (window_rect->xmax - 1)) {
-      area->totrct.xmax -= px;
-    }
-    if (area->totrct.ymin > window_rect->ymin) {
-      area->totrct.ymin += px;
-    }
+    area->totrct.xmin += (area->totrct.xmin > window_rect->xmin) ? px : px_edge;
+    area->totrct.xmax -= (area->totrct.xmax < (window_rect->xmax - 1)) ? px : px_edge;
+    area->totrct.ymin += (area->totrct.ymin > window_rect->ymin) ? px : px_edge;
 
     if (area->totrct.ymax < (window_rect->ymax - 1)) {
       area->totrct.ymax -= px;
@@ -1838,6 +1837,9 @@ static void area_calc_totrct(const bScreen *screen, ScrArea *area, const rcti *w
     else if (!BLI_listbase_is_single(&screen->areabase) || screen->state == SCREENMAXIMIZED) {
       /* Small gap below Top Bar. */
       area->totrct.ymax -= U.pixelsize;
+    }
+    else {
+      area->totrct.ymax -= px_edge;
     }
   }
   /* Although the following asserts are correct they lead to a very unstable Blender.
@@ -2906,7 +2908,7 @@ static void ed_panel_draw(const bContext *C,
                           int em,
                           char *unique_panel_str,
                           const char *search_filter,
-                          wmOperatorCallContext op_context)
+                          blender::wm::OpCallContext op_context)
 {
   const uiStyle *style = UI_style_get_dpi();
 
@@ -2928,29 +2930,30 @@ static void ed_panel_draw(const bContext *C,
   const bool search_filter_active = search_filter != nullptr && search_filter[0] != '\0';
 
   /* bad fixed values */
-  int xco, yco, h = 0;
+  blender::int2 co = {0, 0};
+  int h = 0;
   int headerend = w - UI_UNIT_X;
 
   UI_panel_header_buttons_begin(panel);
   if (pt->draw_header_preset && !(pt->flag & PANEL_TYPE_NO_HEADER)) {
     /* for preset menu */
-    panel->layout = UI_block_layout(block,
-                                    UI_LAYOUT_HORIZONTAL,
-                                    UI_LAYOUT_HEADER,
-                                    0,
-                                    (UI_UNIT_Y * 1.1f) + style->panelspace,
-                                    UI_UNIT_Y,
-                                    1,
-                                    0,
-                                    style);
+    panel->layout = &blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Horizontal,
+                                               blender::ui::LayoutType::Header,
+                                               0,
+                                               (UI_UNIT_Y * 1.1f) + style->panelspace,
+                                               UI_UNIT_Y,
+                                               1,
+                                               0,
+                                               style);
 
-    uiLayoutSetOperatorContext(panel->layout, op_context);
+    panel->layout->operator_context_set(op_context);
 
     pt->draw_header_preset(C, panel);
 
     UI_block_apply_search_filter(block, search_filter);
-    UI_block_layout_resolve(block, &xco, &yco);
-    UI_block_translate(block, headerend - xco, 0);
+    co = blender::ui::block_layout_resolve(block);
+    UI_block_translate(block, headerend - co.x, 0);
     panel->layout = nullptr;
   }
 
@@ -2960,30 +2963,37 @@ static void ed_panel_draw(const bContext *C,
 
     /* Unusual case: Use expanding layout (buttons stretch to available width). */
     if (pt->flag & PANEL_TYPE_HEADER_EXPAND) {
-      uiLayout *layout = UI_block_layout(block,
-                                         UI_LAYOUT_VERTICAL,
-                                         UI_LAYOUT_PANEL,
-                                         labelx,
-                                         labely,
-                                         headerend - 2 * style->panelspace,
-                                         1,
-                                         0,
-                                         style);
-      panel->layout = &layout->row(false);
+      uiLayout &layout = blender::ui::block_layout(block,
+                                                   blender::ui::LayoutDirection::Vertical,
+                                                   blender::ui::LayoutType::Panel,
+                                                   labelx,
+                                                   labely,
+                                                   headerend - 2 * style->panelspace,
+                                                   1,
+                                                   0,
+                                                   style);
+      panel->layout = &layout.row(false);
     }
     /* Regular case: Normal panel with fixed size buttons. */
     else {
-      panel->layout = UI_block_layout(
-          block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, labelx, labely, UI_UNIT_Y, 1, 0, style);
+      panel->layout = &blender::ui::block_layout(block,
+                                                 blender::ui::LayoutDirection::Horizontal,
+                                                 blender::ui::LayoutType::Header,
+                                                 labelx,
+                                                 labely,
+                                                 UI_UNIT_Y,
+                                                 1,
+                                                 0,
+                                                 style);
     }
 
-    uiLayoutSetOperatorContext(panel->layout, op_context);
+    panel->layout->operator_context_set(op_context);
 
     pt->draw_header(C, panel);
 
     UI_block_apply_search_filter(block, search_filter);
-    UI_block_layout_resolve(block, &xco, &yco);
-    panel->labelofs = xco - labelx;
+    co = blender::ui::block_layout_resolve(block);
+    panel->labelofs = co.x - labelx;
     panel->layout = nullptr;
   }
   else {
@@ -2992,22 +3002,22 @@ static void ed_panel_draw(const bContext *C,
   UI_panel_header_buttons_end(panel);
 
   if (open || search_filter_active) {
-    short panelContext;
+    blender::ui::LayoutType panelContext;
 
     /* panel context can either be toolbar region or normal panels region */
     if (pt->flag & PANEL_TYPE_LAYOUT_VERT_BAR) {
-      panelContext = UI_LAYOUT_VERT_BAR;
+      panelContext = blender::ui::LayoutType::VerticalBar;
     }
     else if (region->regiontype == RGN_TYPE_TOOLS) {
-      panelContext = UI_LAYOUT_TOOLBAR;
+      panelContext = blender::ui::LayoutType::Toolbar;
     }
     else {
-      panelContext = UI_LAYOUT_PANEL;
+      panelContext = blender::ui::LayoutType::Panel;
     }
 
-    panel->layout = UI_block_layout(
+    panel->layout = &blender::ui::block_layout(
         block,
-        UI_LAYOUT_VERTICAL,
+        blender::ui::LayoutDirection::Vertical,
         panelContext,
         (pt->flag & PANEL_TYPE_LAYOUT_VERT_BAR) ? 0 : style->panelspace,
         0,
@@ -3016,18 +3026,18 @@ static void ed_panel_draw(const bContext *C,
         0,
         style);
 
-    uiLayoutSetOperatorContext(panel->layout, op_context);
+    panel->layout->operator_context_set(op_context);
 
     pt->draw(C, panel);
 
     const bool ends_with_layout_panel_header = uiLayoutEndsWithPanelHeader(*panel->layout);
 
     UI_block_apply_search_filter(block, search_filter);
-    UI_block_layout_resolve(block, &xco, &yco);
+    co = blender::ui::block_layout_resolve(block);
     panel->layout = nullptr;
 
-    if (yco != 0) {
-      h = -yco;
+    if (co.y != 0) {
+      h = -co.y;
       h += style->panelspace;
       if (!ends_with_layout_panel_header) {
         /* Last layout panel header ends together with the panel. */
@@ -3150,7 +3160,7 @@ static int panel_draw_width_from_max_width_get(const ARegion *region,
 void ED_region_panels_layout_ex(const bContext *C,
                                 ARegion *region,
                                 ListBase *paneltypes,
-                                wmOperatorCallContext op_context,
+                                blender::wm::OpCallContext op_context,
                                 const char *contexts[],
                                 const char *category_override)
 {
@@ -3329,8 +3339,12 @@ void ED_region_panels_layout_ex(const bContext *C,
 
 void ED_region_panels_layout(const bContext *C, ARegion *region)
 {
-  ED_region_panels_layout_ex(
-      C, region, &region->runtime->type->paneltypes, WM_OP_INVOKE_REGION_WIN, nullptr, nullptr);
+  ED_region_panels_layout_ex(C,
+                             region,
+                             &region->runtime->type->paneltypes,
+                             blender::wm::OpCallContext::InvokeRegionWin,
+                             nullptr,
+                             nullptr);
 }
 
 void ED_region_panels_draw(const bContext *C, ARegion *region)
@@ -3376,12 +3390,22 @@ void ED_region_panels_draw(const bContext *C, ARegion *region)
     mask.xmax -= round_fl_to_int(UI_view2d_scale_get_x(&region->v2d) *
                                  UI_PANEL_CATEGORY_MARGIN_WIDTH);
   }
+
+  /* Hide scrollbars below a threshold. */
+  const float aspect = BLI_rctf_size_y(&region->v2d.cur) /
+                       (BLI_rcti_size_y(&region->v2d.mask) + 1);
+  int min_width = UI_panel_category_is_visible(region) ? 60.0f * UI_SCALE_FAC / aspect :
+                                                         40.0f * UI_SCALE_FAC / aspect;
+  if (BLI_rcti_size_x(&region->winrct) <= min_width) {
+    v2d->scroll &= ~(V2D_SCROLL_HORIZONTAL | V2D_SCROLL_VERTICAL);
+  }
+
   UI_view2d_scrollers_draw(v2d, use_mask ? &mask : nullptr);
 }
 
 void ED_region_panels_ex(const bContext *C,
                          ARegion *region,
-                         wmOperatorCallContext op_context,
+                         blender::wm::OpCallContext op_context,
                          const char *contexts[])
 {
   /* TODO: remove? */
@@ -3445,18 +3469,39 @@ static bool panel_property_search(const bContext *C,
   /* Build the layouts. Because they are only used for search,
    * they don't need any of the proper style or layout information. */
   if (panel->type->draw_header_preset != nullptr) {
-    panel->layout = UI_block_layout(
-        block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, 0, 0, 0, 0, 0, style);
+    panel->layout = &blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Horizontal,
+                                               blender::ui::LayoutType::Header,
+                                               0,
+                                               0,
+                                               0,
+                                               0,
+                                               0,
+                                               style);
     panel_type->draw_header_preset(C, panel);
   }
   if (panel->type->draw_header != nullptr) {
-    panel->layout = UI_block_layout(
-        block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, 0, 0, 0, 0, 0, style);
+    panel->layout = &blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Horizontal,
+                                               blender::ui::LayoutType::Header,
+                                               0,
+                                               0,
+                                               0,
+                                               0,
+                                               0,
+                                               style);
     panel_type->draw_header(C, panel);
   }
   if (LIKELY(panel->type->draw != nullptr)) {
-    panel->layout = UI_block_layout(
-        block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 0, 0, 0, style);
+    panel->layout = &blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               0,
+                                               0,
+                                               0,
+                                               style);
     panel_type->draw(C, panel);
   }
 
@@ -3571,9 +3616,8 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
   const float buttony_scale = buttony / float(UI_UNIT_Y);
 
   /* Vertically center buttons. */
-  int xco = int(UI_HEADER_OFFSET);
-  int yco = buttony + (region->winy - buttony) / 2;
-  int maxco = xco;
+  blender::int2 co = {int(UI_HEADER_OFFSET), buttony + (region->winy - buttony) / 2};
+  int maxco = co.x;
 
   /* set view2d view matrix for scrolling (without scrollers) */
   UI_view2d_view_ortho(&region->v2d);
@@ -3585,31 +3629,38 @@ void ED_region_header_layout(const bContext *C, ARegion *region)
     }
 
     uiBlock *block = UI_block_begin(C, region, ht->idname, blender::ui::EmbossType::Emboss);
-    uiLayout *layout = UI_block_layout(
-        block, UI_LAYOUT_HORIZONTAL, UI_LAYOUT_HEADER, xco, yco, buttony, 1, 0, style);
+    uiLayout &layout = blender::ui::block_layout(block,
+                                                 blender::ui::LayoutDirection::Horizontal,
+                                                 blender::ui::LayoutType::Header,
+                                                 co.x,
+                                                 co.y,
+                                                 buttony,
+                                                 1,
+                                                 0,
+                                                 style);
 
     if (buttony_scale != 1.0f) {
-      uiLayoutSetScaleY(layout, buttony_scale);
+      layout.scale_y_set(buttony_scale);
     }
 
     Header header = {nullptr};
     if (ht->draw) {
       header.type = ht;
-      header.layout = layout;
+      header.layout = &layout;
       ht->draw(C, &header);
       if (ht->next) {
-        layout->separator();
+        layout.separator();
       }
 
       /* for view2d */
-      xco = uiLayoutGetWidth(layout);
-      maxco = std::max(xco, maxco);
+      co.x = layout.width();
+      maxco = std::max(co.x, maxco);
     }
 
-    UI_block_layout_resolve(block, &xco, &yco);
+    co = blender::ui::block_layout_resolve(block);
 
     /* for view2d */
-    maxco = std::max(xco, maxco);
+    maxco = std::max(co.x, maxco);
 
     int new_sizex = (maxco + UI_HEADER_OFFSET) / UI_SCALE_FAC;
 
@@ -3839,7 +3890,7 @@ void ED_region_info_draw_multiline(ARegion *region,
 
   GPU_blend(GPU_BLEND_ALPHA);
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4fv(fill_color);
   immRectf(pos, rect.xmin, rect.ymin, rect.xmax + 1, rect.ymax + 1);
@@ -3906,7 +3957,7 @@ void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, fl
   UI_view2d_view_to_region(&region->v2d, x0 + 1.0f, y0 + 1.0f, &x2, &y2);
 
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   float gridcolor[4];
   UI_GetThemeColor4fv(TH_GRID, gridcolor);
@@ -3945,8 +3996,9 @@ void ED_region_grid_draw(ARegion *region, float zoomx, float zoomy, float x0, fl
 
   if (count_fine > 0) {
     GPU_vertformat_clear(format);
-    pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    uint color = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint color = GPU_vertformat_attr_add(
+        format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
     immBegin(GPU_PRIM_LINES, 4 * count_fine + 4 * count_large);
@@ -4059,7 +4111,8 @@ void ED_region_cache_draw_background(ARegion *region)
   const rcti *rect_visible = ED_region_visible_rect(region);
   const int region_bottom = rect_visible->ymin;
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformColor4ub(128, 128, 255, 64);
   immRectf(pos, 0, region_bottom, region->winx, region_bottom + 8 * UI_SCALE_FAC);
@@ -4110,7 +4163,8 @@ void ED_region_cache_draw_cached_segments(
     const rcti *rect_visible = ED_region_visible_rect(region);
     const int region_bottom = rect_visible->ymin;
 
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ub(128, 128, 255, 128);
 

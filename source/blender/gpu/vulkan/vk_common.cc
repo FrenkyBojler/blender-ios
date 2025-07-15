@@ -56,12 +56,10 @@ VkImageAspectFlags to_vk_image_aspect_flag_bits(const eGPUTextureFormat format)
 
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return VK_IMAGE_ASPECT_DEPTH_BIT;
 
     case GPU_DEPTH32F_STENCIL8:
-    case GPU_DEPTH24_STENCIL8:
       return VK_IMAGE_ASPECT_DEPTH_BIT | VK_IMAGE_ASPECT_STENCIL_BIT;
 
     /* Texture only formats. */
@@ -121,6 +119,9 @@ eGPUTextureFormat to_gpu_format(const VkFormat format)
     case VK_FORMAT_R8G8B8A8_UNORM:
     case VK_FORMAT_B8G8R8A8_UNORM:
       return GPU_RGBA8;
+
+    case VK_FORMAT_R16G16B16A16_SFLOAT:
+      return GPU_RGBA16F;
 
     default:
       BLI_assert_unreachable();
@@ -204,14 +205,10 @@ VkFormat to_vk_format(const eGPUTextureFormat format)
       return VK_FORMAT_R8G8B8A8_SRGB;
     case GPU_DEPTH32F_STENCIL8:
       return VK_FORMAT_D32_SFLOAT_S8_UINT;
-    case GPU_DEPTH24_STENCIL8:
-      return VK_FORMAT_D24_UNORM_S8_UINT;
 
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
       return VK_FORMAT_D32_SFLOAT;
-    case GPU_DEPTH_COMPONENT24:
-      return VK_FORMAT_X8_D24_UNORM_PACK32;
     case GPU_DEPTH_COMPONENT16:
       return VK_FORMAT_D16_UNORM;
 
@@ -362,81 +359,6 @@ static VkFormat to_vk_format_norm(const GPUVertCompType type, const uint32_t siz
 static VkFormat to_vk_format_float(const GPUVertCompType type, const uint32_t size)
 {
   switch (type) {
-    case GPU_COMP_I8:
-      switch (size) {
-        case 1:
-          return VK_FORMAT_R8_SSCALED;
-        case 2:
-          return VK_FORMAT_R8G8_SSCALED;
-        case 3:
-          return VK_FORMAT_R8G8B8_SSCALED;
-        case 4:
-          return VK_FORMAT_R8G8B8A8_SSCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R8_SSCALED;
-      }
-    case GPU_COMP_U8:
-      switch (size) {
-        case 1:
-          return VK_FORMAT_R8_USCALED;
-        case 2:
-          return VK_FORMAT_R8G8_USCALED;
-        case 3:
-          return VK_FORMAT_R8G8B8_USCALED;
-        case 4:
-          return VK_FORMAT_R8G8B8A8_USCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R8_USCALED;
-      }
-    case GPU_COMP_I16:
-      switch (size) {
-        case 2:
-          return VK_FORMAT_R16_SSCALED;
-        case 4:
-          return VK_FORMAT_R16G16_SSCALED;
-        case 6:
-          return VK_FORMAT_R16G16B16_SSCALED;
-        case 8:
-          return VK_FORMAT_R16G16B16A16_SSCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R16_SSCALED;
-      }
-    case GPU_COMP_U16:
-      switch (size) {
-        case 2:
-          return VK_FORMAT_R16_USCALED;
-        case 4:
-          return VK_FORMAT_R16G16_USCALED;
-        case 6:
-          return VK_FORMAT_R16G16B16_USCALED;
-        case 8:
-          return VK_FORMAT_R16G16B16A16_USCALED;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R16_USCALED;
-      }
-
-    case GPU_COMP_I32:
-    case GPU_COMP_U32:
-      /* NOTE: GPU_COMP_I32/U32 using GPU_FETCH_INT_TO_FLOAT isn't natively supported. These
-       * are converted on host-side to signed floats. */
-      switch (size) {
-        case 4:
-          return VK_FORMAT_R32_SFLOAT;
-        case 8:
-          return VK_FORMAT_R32G32_SFLOAT;
-        case 12:
-          return VK_FORMAT_R32G32B32_SFLOAT;
-        case 16:
-          return VK_FORMAT_R32G32B32A32_SFLOAT;
-        default:
-          BLI_assert_unreachable();
-          return VK_FORMAT_R32_SFLOAT;
-      }
-
     case GPU_COMP_F32:
       switch (size) {
         case 4:
@@ -453,10 +375,6 @@ static VkFormat to_vk_format_float(const GPUVertCompType type, const uint32_t si
           BLI_assert_unreachable();
           return VK_FORMAT_R32_SFLOAT;
       }
-
-    case GPU_COMP_I10:
-      BLI_assert(size == 4);
-      return VK_FORMAT_A2B10G10R10_SSCALED_PACK32;
 
     default:
       break;
@@ -596,9 +514,7 @@ VkFormat to_vk_format(const GPUVertCompType type, const uint32_t size, GPUVertFe
 {
   switch (fetch_mode) {
     case GPU_FETCH_FLOAT:
-    case GPU_FETCH_INT_TO_FLOAT:
       return to_vk_format_float(type, size);
-      break;
     case GPU_FETCH_INT:
       return to_vk_format_int(type, size);
       break;
@@ -829,7 +745,7 @@ VkClearColorValue to_vk_clear_color_value(const eGPUDataFormat format, const voi
       copy_color<uint32_t>(result.uint32, uint_data);
       break;
     }
-    case GPU_DATA_UINT_24_8: {
+    case GPU_DATA_UINT_24_8_DEPRECATED: {
       BLI_assert_unreachable();
       break;
     }
