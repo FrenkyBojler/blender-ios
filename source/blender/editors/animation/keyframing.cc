@@ -865,7 +865,7 @@ static wmOperatorStatus clear_anim_vse_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  if (!((scene->adt) && (scene->adt->action))) {
+  if (!scene->adt || !scene->adt->action || (scene->adt->slot_handle == Slot::unassigned)) {
     BKE_reportf(op->reports, RPT_ERROR, "Scene has no animation data or active action");
     return OPERATOR_CANCELLED;
   }
