@@ -2391,7 +2391,7 @@ float evaluate_fcurve_only_curve(const FCurve *fcu, float evaltime)
 
 float evaluate_fcurve_unmodified(const FCurve *fcu, float evaltime)
 {
-  /* Evaluate the f-curve at the specified time without applying modifiers */
+  /* Evaluate the f-curve at the specified time without applying modifiers. */
 
   if (fcu->bezt) {
     return fcurve_eval_keyframes(fcu, fcu->bezt, evaltime);
@@ -2399,6 +2399,8 @@ float evaluate_fcurve_unmodified(const FCurve *fcu, float evaltime)
   else if (fcu->fpt) {
     return fcurve_eval_samples(fcu, fcu->fpt, evaltime);
   }
+
+  BLI_assert_unreachable();
 }
 
 float evaluate_fcurve_driver(PathResolvedRNA *anim_rna,

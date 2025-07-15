@@ -997,13 +997,12 @@ static FModifierTypeInfo FMI_STEPPED = {
     /*evaluate_modifier*/ nullptr,
 };
 
-/* Noise F-Curve Modifier  --------------------------- */
+/* Smooth F-Curve Modifier  --------------------------- */
 
 static void fcm_smooth_new_data(void *mdata)
 {
   FMod_Smooth *data = (FMod_Smooth *)mdata;
 
-  /* defaults */
   data->factor = 100.0f;
   data->sigma = 1.0f;
   data->filter_width = 6;
@@ -1056,8 +1055,6 @@ static void fcm_smooth_evaluate(const FCurve *fcu,
     /* blend by factor */
     *cvalue = orig * (1.0f - factor) + (smoothed * factor);
   }
-
-  return;
 }
 
 static FModifierTypeInfo FMI_SMOOTH = {
