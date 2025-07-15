@@ -253,75 +253,103 @@ class ShaderNodesInliner {
   {
     const NodeInContext node = socket.owner_node();
     if (node->is_reroute()) {
-      const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
-      if (const SocketValue *value = value_by_socket_.lookup_ptr(input_socket)) {
-        this->store_socket_value(socket, *value);
-        return;
-      }
-      this->schedule_socket(input_socket);
+      this->handle_socket_output_reroute(socket);
       return;
     }
     if (node->is_muted()) {
-      for (const bNodeLink &internal_link : node->internal_links()) {
-        if (internal_link.tosock == socket.socket) {
-          const SocketInContext src_socket = {socket.context, internal_link.fromsock};
-          if (const SocketValue *value = value_by_socket_.lookup_ptr(src_socket)) {
-            this->store_socket_value(
-                socket,
-                this->handle_implicit_conversion(
-                    *value, *internal_link.fromsock->typeinfo, *internal_link.tosock->typeinfo));
-            return;
-          }
-          this->schedule_socket(src_socket);
-          return;
-        }
-      }
-      this->store_socket_value_fallback(socket);
+      this->handle_socket_output_muted(socket);
       return;
     }
     if (node->is_group()) {
-      const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
-      if (!group || ID_MISSING(&group->id)) {
-        this->store_socket_value_fallback(socket);
-        return;
-      }
-      group->ensure_interface_cache();
-      const bNode *group_output_node = group->group_output_node();
-      if (!group_output_node) {
-        this->store_socket_value_fallback(socket);
-        return;
-      }
-      const ComputeContext &group_compute_context = compute_context_cache_.for_group_node(
-          socket.context, node->identifier, &node->owner_tree());
-      const SocketInContext group_output_socket_ctx = {
-          &group_compute_context, &group_output_node->input_socket(socket->index())};
-      if (const SocketValue *value = value_by_socket_.lookup_ptr(group_output_socket_ctx)) {
-        this->store_socket_value(socket, *value);
-        return;
-      }
-      this->schedule_socket(group_output_socket_ctx);
+      this->handle_socket_output_group(socket);
       return;
     }
     if (node->is_group_input()) {
-      if (const auto *group_node_compute_context =
-              dynamic_cast<const bke::GroupNodeComputeContext *>(socket.context))
-      {
-        const ComputeContext *parent_compute_context = group_node_compute_context->parent();
-        const bNode *group_node = group_node_compute_context->node();
-        BLI_assert(group_node);
-        const bNodeSocket &group_node_input = group_node->input_socket(socket->index());
-        const SocketInContext group_input_socket_ctx = {parent_compute_context, &group_node_input};
-        if (const SocketValue *value = value_by_socket_.lookup_ptr(group_input_socket_ctx)) {
-          this->store_socket_value(socket, *value);
+      this->handle_socket_output_group_input(socket);
+      return;
+    }
+    this->handle_socket_output_eval(socket);
+  }
+
+  void handle_socket_output_reroute(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
+    if (const SocketValue *value = value_by_socket_.lookup_ptr(input_socket)) {
+      this->store_socket_value(socket, *value);
+      return;
+    }
+    this->schedule_socket(input_socket);
+  }
+
+  void handle_socket_output_muted(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    for (const bNodeLink &internal_link : node->internal_links()) {
+      if (internal_link.tosock == socket.socket) {
+        const SocketInContext src_socket = {socket.context, internal_link.fromsock};
+        if (const SocketValue *value = value_by_socket_.lookup_ptr(src_socket)) {
+          this->store_socket_value(
+              socket,
+              this->handle_implicit_conversion(
+                  *value, *internal_link.fromsock->typeinfo, *internal_link.tosock->typeinfo));
           return;
         }
-        this->schedule_socket(group_input_socket_ctx);
+        this->schedule_socket(src_socket);
         return;
       }
+    }
+    this->store_socket_value_fallback(socket);
+  }
+
+  void handle_socket_output_group(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
+    const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
+    if (!group || ID_MISSING(&group->id)) {
       this->store_socket_value_fallback(socket);
       return;
     }
+    group->ensure_interface_cache();
+    const bNode *group_output_node = group->group_output_node();
+    if (!group_output_node) {
+      this->store_socket_value_fallback(socket);
+      return;
+    }
+    const ComputeContext &group_compute_context = compute_context_cache_.for_group_node(
+        socket.context, node->identifier, &node->owner_tree());
+    const SocketInContext group_output_socket_ctx = {
+        &group_compute_context, &group_output_node->input_socket(socket->index())};
+    if (const SocketValue *value = value_by_socket_.lookup_ptr(group_output_socket_ctx)) {
+      this->store_socket_value(socket, *value);
+      return;
+    }
+    this->schedule_socket(group_output_socket_ctx);
+  }
 
+  void handle_socket_output_group_input(const SocketInContext &socket)
+  {
+    if (const auto *group_node_compute_context =
+            dynamic_cast<const bke::GroupNodeComputeContext *>(socket.context))
+    {
+      const ComputeContext *parent_compute_context = group_node_compute_context->parent();
+      const bNode *group_node = group_node_compute_context->node();
+      BLI_assert(group_node);
+      const bNodeSocket &group_node_input = group_node->input_socket(socket->index());
+      const SocketInContext group_input_socket_ctx = {parent_compute_context, &group_node_input};
+      if (const SocketValue *value = value_by_socket_.lookup_ptr(group_input_socket_ctx)) {
+        this->store_socket_value(socket, *value);
+        return;
+      }
+      this->schedule_socket(group_input_socket_ctx);
+      return;
+    }
+    this->store_socket_value_fallback(socket);
+  }
+
+  void handle_socket_output_eval(const SocketInContext &socket)
+  {
+    const NodeInContext node = socket.owner_node();
     bool has_missing_inputs = false;
     bool all_inputs_primitive = true;
     for (const bNodeSocket *input_socket : node->input_sockets()) {
@@ -344,50 +372,59 @@ class ShaderNodesInliner {
     }
     const bke::bNodeType &node_type = *node->typeinfo;
     if (node_type.build_multi_function && all_inputs_primitive) {
-
-      NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
-      node->typeinfo->build_multi_function(builder);
-      const mf::MultiFunction &fn = builder.function();
-      mf::ContextBuilder context;
-      IndexMask mask(1);
-      mf::ParamsBuilder params{fn, &mask};
-
-      for (const bNodeSocket *input_socket : node->input_sockets()) {
-        if (!input_socket->is_available()) {
-          continue;
-        }
-        const SocketInContext input_socket_ctx = {node.context, input_socket};
-        const PrimitiveSocketValue value =
-            *value_by_socket_.lookup(input_socket_ctx).to_primitive(*input_socket->typeinfo);
-        params.add_readonly_single_input(
-            GVArray::ForSingle(*input_socket->typeinfo->base_cpp_type, 1, value.buffer()));
-      }
-
-      Vector<void *> output_values;
-      for (const bNodeSocket *output_socket : node->output_sockets()) {
-        if (!output_socket->is_available()) {
-          continue;
-        }
-        void *value = scope_.allocate_owned(*output_socket->typeinfo->base_cpp_type);
-        output_values.append(value);
-        params.add_uninitialized_single_output(
-            GMutableSpan(output_socket->typeinfo->base_cpp_type, value, 1));
-      }
-
-      fn.call(mask, params, context);
-
-      int current_output_i = 0;
-      for (const bNodeSocket *output_socket : node->output_sockets()) {
-        if (!output_socket->is_available()) {
-          continue;
-        }
-        const void *value = output_values[current_output_i++];
-        this->store_socket_value(
-            {socket.context, output_socket},
-            {PrimitiveSocketValue::from_value({output_socket->typeinfo->base_cpp_type, value})});
-      }
+      this->handle_socket_output_eval_multi_function(node);
       return;
     }
+    this->handle_socket_output_eval_copy_node(node);
+  }
+
+  void handle_socket_output_eval_multi_function(const NodeInContext &node)
+  {
+    NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
+    node->typeinfo->build_multi_function(builder);
+    const mf::MultiFunction &fn = builder.function();
+    mf::ContextBuilder context;
+    IndexMask mask(1);
+    mf::ParamsBuilder params{fn, &mask};
+
+    for (const bNodeSocket *input_socket : node->input_sockets()) {
+      if (!input_socket->is_available()) {
+        continue;
+      }
+      const SocketInContext input_socket_ctx = {node.context, input_socket};
+      const PrimitiveSocketValue value =
+          *value_by_socket_.lookup(input_socket_ctx).to_primitive(*input_socket->typeinfo);
+      params.add_readonly_single_input(
+          GVArray::ForSingle(*input_socket->typeinfo->base_cpp_type, 1, value.buffer()));
+    }
+
+    Vector<void *> output_values;
+    for (const bNodeSocket *output_socket : node->output_sockets()) {
+      if (!output_socket->is_available()) {
+        continue;
+      }
+      void *value = scope_.allocate_owned(*output_socket->typeinfo->base_cpp_type);
+      output_values.append(value);
+      params.add_uninitialized_single_output(
+          GMutableSpan(output_socket->typeinfo->base_cpp_type, value, 1));
+    }
+
+    fn.call(mask, params, context);
+
+    int current_output_i = 0;
+    for (const bNodeSocket *output_socket : node->output_sockets()) {
+      if (!output_socket->is_available()) {
+        continue;
+      }
+      const void *value = output_values[current_output_i++];
+      this->store_socket_value(
+          {node.context, output_socket},
+          {PrimitiveSocketValue::from_value({output_socket->typeinfo->base_cpp_type, value})});
+    }
+  }
+
+  void handle_socket_output_eval_copy_node(const NodeInContext &node)
+  {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     bNode &copied_node = *bke::node_copy_with_mapping(
         &dst_tree_, *node.node, this->node_copy_flag(), true, socket_map);
@@ -396,7 +433,7 @@ class ShaderNodesInliner {
         continue;
       }
       bNodeSocket &dst_input_socket = *socket_map.lookup(src_input_socket);
-      const SocketInContext input_socket_ctx = {socket.context, src_input_socket};
+      const SocketInContext input_socket_ctx = {node.context, src_input_socket};
       const SocketValue &value = value_by_socket_.lookup(input_socket_ctx);
       this->set_socket_value(copied_node, dst_input_socket, value);
     }
@@ -405,7 +442,7 @@ class ShaderNodesInliner {
         continue;
       }
       bNodeSocket &dst_output_socket = *socket_map.lookup(src_output_socket);
-      const SocketInContext output_socket_ctx = {socket.context, src_output_socket};
+      const SocketInContext output_socket_ctx = {node.context, src_output_socket};
       this->store_socket_value(output_socket_ctx,
                                {LinkedSocketValue{&copied_node, &dst_output_socket}});
     }
