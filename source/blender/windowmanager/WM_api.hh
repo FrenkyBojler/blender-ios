@@ -166,19 +166,31 @@ const char *WM_ghost_backend();
 enum eWM_CapabilitiesFlag {
   /** Ability to warp the cursor (set its location). */
   WM_CAPABILITY_CURSOR_WARP = (1 << 0),
-  /** Ability to access window positions & move them. */
+  /**
+   * Window position access, support for the following.
+   * - Getting window positions.
+   * - Setting window positions.
+   * - Setting positions for new windows.
+   *
+   * Currently there is no need to distinguish between these different cases
+   * so a single flag is used.
+   *
+   * When omitted, it isn't possible to know where windows are located in relation to each other.
+   * Operations such as applying events from one window to another or detecting the non-active
+   * window under the cursor are not supported.
+   */
   WM_CAPABILITY_WINDOW_POSITION = (1 << 1),
   /**
    * The windowing system supports a separate primary clipboard
    * (typically set when interactively selecting text).
    */
-  WM_CAPABILITY_PRIMARY_CLIPBOARD = (1 << 2),
+  WM_CAPABILITY_CLIPBOARD_PRIMARY = (1 << 2),
   /**
    * Reading from the back-buffer is supported.
    */
   WM_CAPABILITY_GPU_FRONT_BUFFER_READ = (1 << 3),
   /** Ability to copy/paste system clipboard images. */
-  WM_CAPABILITY_CLIPBOARD_IMAGES = (1 << 4),
+  WM_CAPABILITY_CLIPBOARD_IMAGE = (1 << 4),
   /** Ability to sample a color outside of Blender windows. */
   WM_CAPABILITY_DESKTOP_SAMPLE = (1 << 5),
   /** Support for IME input methods. */
@@ -189,6 +201,8 @@ enum eWM_CapabilitiesFlag {
   WM_CAPABILITY_WINDOW_DECORATION_STYLES = (1 << 8),
   /** Support for the "Hyper" modifier key. */
   WM_CAPABILITY_KEYBOARD_HYPER_KEY = (1 << 9),
+  /** Support for RGBA Cursors. */
+  WM_CAPABILITY_CURSOR_RGBA = (1 << 10),
   /** The initial value, indicates the value needs to be set by inspecting GHOST. */
   WM_CAPABILITY_INITIALIZED = (1u << 31),
 };
@@ -291,7 +305,7 @@ void WM_window_native_pixel_coords(const wmWindow *win, int *x, int *y);
 void WM_window_rect_calc(const wmWindow *win, rcti *r_rect);
 /**
  * Get boundaries usable by screen-layouts, excluding global areas.
- * \note Depends on #UI_SCALE_FAC. Should that be outdated, call #WM_window_set_dpi first.
+ * \note Depends on #UI_SCALE_FAC. Should that be outdated, call #WM_window_dpi_set_userdef first.
  */
 void WM_window_screen_rect_calc(const wmWindow *win, rcti *r_rect);
 bool WM_window_is_main_top_level(const wmWindow *win);
@@ -375,7 +389,13 @@ wmWindow *WM_window_open(bContext *C,
                          void (*area_setup_fn)(bScreen *screen, ScrArea *area, void *user_data),
                          void *area_setup_user_data) ATTR_NONNULL(1, 3);
 
-void WM_window_set_dpi(const wmWindow *win);
+void WM_window_dpi_set_userdef(const wmWindow *win);
+/**
+ * Return the windows DPI as a scale, bypassing UI scale preference.
+ *
+ * \note Use for calculating cursor size which doesn't use the UI scale.
+ */
+float WM_window_dpi_get_scale(const wmWindow *win);
 
 /**
  * Give a title to a window. With "Title" unspecified or nullptr, it is generated
@@ -512,6 +532,17 @@ void WM_paint_cursor_tag_redraw(wmWindow *win, ARegion *region);
  * before relying on this functionality.
  */
 void WM_cursor_warp(wmWindow *win, int x, int y);
+
+/**
+ * The default size of a cursor without any DPI scaling.
+ */
+#define WM_CURSOR_DEFAULT_LOGICAL_SIZE 24
+
+/**
+ * \return the preferred logical size for the cursor
+ * (before DPI/Hi-DPI scaling is applied).
+ */
+uint WM_cursor_preferred_logical_size();
 
 /* Handlers. */
 
@@ -813,12 +844,14 @@ int WM_operator_smooth_viewtx_get(const wmOperator *op);
 /**
  * Invoke callback, uses enum property named "type".
  */
-wmOperatorStatus WM_menu_invoke_ex(bContext *C, wmOperator *op, wmOperatorCallContext opcontext);
+wmOperatorStatus WM_menu_invoke_ex(bContext *C,
+                                   wmOperator *op,
+                                   blender::wm::OpCallContext opcontext);
 wmOperatorStatus WM_menu_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 /**
  * Call an existent menu. The menu can be created in C or Python.
  */
-void WM_menu_name_call(bContext *C, const char *menu_name, short context);
+void WM_menu_name_call(bContext *C, const char *menu_name, blender::wm::OpCallContext context);
 
 wmOperatorStatus WM_enum_search_invoke(bContext *C, wmOperator *op, const wmEvent *event);
 
@@ -893,7 +926,7 @@ wmOperatorStatus WM_operator_confirm_message_ex(bContext *C,
                                                 const char *title,
                                                 int icon,
                                                 const char *message,
-                                                wmOperatorCallContext opcontext);
+                                                blender::wm::OpCallContext opcontext);
 wmOperatorStatus WM_operator_confirm_message(bContext *C, wmOperator *op, const char *message);
 
 /* Operator API. */
@@ -916,7 +949,7 @@ void WM_operator_stack_clear(wmWindowManager *wm);
 void WM_operator_handlers_clear(wmWindowManager *wm, wmOperatorType *ot);
 
 bool WM_operator_poll(bContext *C, wmOperatorType *ot);
-bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, short context);
+bool WM_operator_poll_context(bContext *C, wmOperatorType *ot, blender::wm::OpCallContext context);
 /**
  * For running operators with frozen context (modal handlers, menus).
  *
@@ -959,22 +992,23 @@ bool WM_operator_name_poll(bContext *C, const char *opstring);
  */
 wmOperatorStatus WM_operator_name_call_ptr(bContext *C,
                                            wmOperatorType *ot,
-                                           wmOperatorCallContext context,
+                                           blender::wm::OpCallContext context,
                                            PointerRNA *properties,
                                            const wmEvent *event);
 /** See #WM_operator_name_call_ptr. */
 wmOperatorStatus WM_operator_name_call(bContext *C,
                                        const char *opstring,
-                                       wmOperatorCallContext context,
+                                       blender::wm::OpCallContext context,
                                        PointerRNA *properties,
                                        const wmEvent *event);
 wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
                                                        const char *opstring,
-                                                       wmOperatorCallContext context,
+                                                       blender::wm::OpCallContext context,
                                                        IDProperty *properties,
                                                        const wmEvent *event);
 /**
- * Similar to #WM_operator_name_call called with #WM_OP_EXEC_DEFAULT context.
+ * Similar to #WM_operator_name_call called with #blender::wm::OpCallContext::ExecDefault
+ * context.
  *
  * - #wmOperatorType is used instead of operator name since python already has the operator type.
  * - `poll()` must be called by python before this runs.
@@ -982,14 +1016,14 @@ wmOperatorStatus WM_operator_name_call_with_properties(bContext *C,
  */
 wmOperatorStatus WM_operator_call_py(bContext *C,
                                      wmOperatorType *ot,
-                                     wmOperatorCallContext context,
+                                     blender::wm::OpCallContext context,
                                      PointerRNA *properties,
                                      ReportList *reports,
                                      bool is_undo);
 
 void WM_operator_name_call_ptr_with_depends_on_cursor(bContext *C,
                                                       wmOperatorType *ot,
-                                                      wmOperatorCallContext opcontext,
+                                                      blender::wm::OpCallContext opcontext,
                                                       PointerRNA *properties,
                                                       const wmEvent *event,
                                                       blender::StringRef drawstr);
@@ -1847,7 +1881,7 @@ void WM_job_main_thread_lock_release(wmJob *wm_job);
 
 /**
  * Return text from the clipboard.
- * \param selection: Use the "primary" clipboard, see: #WM_CAPABILITY_PRIMARY_CLIPBOARD.
+ * \param selection: Use the "primary" clipboard, see: #WM_CAPABILITY_CLIPBOARD_PRIMARY.
  * \param ensure_utf8: Ensure the resulting string does not contain invalid UTF8 encoding.
  */
 char *WM_clipboard_text_get(bool selection, bool ensure_utf8, int *r_len);
@@ -1923,8 +1957,10 @@ void WM_autosave_write(wmWindowManager *wm, Main *bmain);
 
 /**
  * Lock the interface for any communication.
+ * For #WM_set_locked_interface_with_flags, #lock_flags is #ARegionDrawLockFlags
  */
 void WM_set_locked_interface(wmWindowManager *wm, bool lock);
+void WM_set_locked_interface_with_flags(wmWindowManager *wm, short lock_flags);
 
 void WM_event_tablet_data_default_set(wmTabletData *tablet_data);
 
@@ -2019,6 +2055,10 @@ float WM_event_ndof_rotation_get_axis_angle_for_navigation(const wmNDOFMotionDat
 blender::float3 WM_event_ndof_translation_get(const wmNDOFMotionData &ndof);
 blender::float3 WM_event_ndof_rotation_get(const wmNDOFMotionData &ndof);
 float WM_event_ndof_rotation_get_axis_angle(const wmNDOFMotionData &ndof, float axis[3]);
+
+bool WM_event_ndof_translation_has_pan(const wmNDOFMotionData &ndof);
+bool WM_event_ndof_translation_has_zoom(const wmNDOFMotionData &ndof);
+
 #endif /* WITH_INPUT_NDOF */
 
 #ifdef WITH_XR_OPENXR

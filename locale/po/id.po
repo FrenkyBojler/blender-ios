@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Beta (b'a051f87fee73')\n"
+"Project-Id-Version: Blender 4.5.0 Release Candidate (b'08ec4602a2f7')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-06-23 08:33+0000\n"
+"POT-Creation-Date: 2025-07-14 09:15+0000\n"
 "PO-Revision-Date: 2025-05-01 10:56+0000\n"
 "Last-Translator: \"Adriel Y.\" <mixnblend@users.noreply.translate.blender.org>\n"
 "Language-Team: Indonesian <https://translate.blender.org/projects/blender-ui/ui/id/>\n"
@@ -15468,6 +15468,11 @@ msgid "UV"
 msgstr "UV"
 
 
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "Cermin"
+
+
 msgid "Shape Key Specials"
 msgstr "Spesial Kunci Bentuk"
 
@@ -19006,10 +19011,6 @@ msgid "String Node Socket"
 msgstr "String Node Socket"
 
 
-msgid "Subtype"
-msgstr "Subtipe"
-
-
 msgid "Active Node"
 msgstr "Tambah Baru"
 
@@ -20341,10 +20342,6 @@ msgstr "PERHATIAN: tidak terdukung di contoh-contoh dupli/kelompok"
 
 msgid "Other"
 msgstr "Lain"
-
-
-msgid "Path Mode"
-msgstr "Mode Jalur"
 
 
 msgid "-X Axis"
@@ -23011,11 +23008,6 @@ msgstr "Penyunting Grafik"
 
 msgid "Hide selected particles"
 msgstr "Warna Standar"
-
-
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "Cermin"
 
 
 msgctxt "Operator"
@@ -31018,6 +31010,10 @@ msgid "Unable to export PDF"
 msgstr "Tidak dapat mengekspor PDF"
 
 
+msgid "Path Mode"
+msgstr "Mode Jalur"
+
+
 msgid "Rigging"
 msgstr "Menali"
 
@@ -31586,6 +31582,10 @@ msgstr "Bingkai: %d"
 
 msgid "Matte Objects:"
 msgstr "Objek Matte:"
+
+
+msgid "Subtype"
+msgstr "Subtipe"
 
 
 msgid "• Mesh: {} vertices, {} edges, {} faces"

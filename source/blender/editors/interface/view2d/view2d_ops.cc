@@ -52,7 +52,7 @@ static bool view2d_poll(bContext *C)
 static float view2d_scroll_delta_y_snap_page_size(const View2D &v2d, const float delta_y)
 {
   const float page_size = view2d_page_size_y(v2d);
-  const int delta_pages = int((delta_y - page_size * 0.5f) / page_size);
+  const int delta_pages = int(delta_y / (page_size * 0.5f));
 
   /* Apply no change, don't update last coordinates. */
   if (abs(delta_pages) < 1) {
@@ -319,7 +319,7 @@ static wmOperatorStatus view_pan_modal(bContext *C, wmOperator *op, const wmEven
 
         view_pan_exit(op);
         WM_cursor_modal_restore(CTX_wm_window(C));
-        WM_operator_name_call(C, "VIEW2D_OT_zoom", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(C, "VIEW2D_OT_zoom", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         return OPERATOR_FINISHED;
       }
 #endif
@@ -1526,10 +1526,9 @@ static wmOperatorStatus view2d_ndof_invoke(bContext *C, wmOperator *op, const wm
   /* tune these until it feels right */
   const float zoom_sensitivity = 0.5f;
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
-  const bool has_translate = !is_zero_v2(ndof.tvec) && view_pan_poll(C);
-  const bool has_zoom = (ndof.tvec[2] != 0.0f) && view_zoom_poll(C);
-
   blender::float3 pan_vec = WM_event_ndof_translation_get_for_navigation(ndof);
+  const bool has_translate = !is_zero_v2(pan_vec) && view_pan_poll(C);
+  const bool has_zoom = (pan_vec[2] != 0.0f) && view_zoom_poll(C);
 
   if (has_translate) {
     mul_v2_fl(pan_vec, ndof.time_delta * pan_speed);

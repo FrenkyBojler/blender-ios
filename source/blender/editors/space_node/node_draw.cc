@@ -428,27 +428,26 @@ static bool node_update_basis_buttons(const bContext &C,
 
   dy -= NODE_DYS / 4;
 
-  uiLayout *layout = UI_block_layout(&block,
-                                     UI_LAYOUT_VERTICAL,
-                                     UI_LAYOUT_PANEL,
-                                     loc.x + NODE_DYS,
-                                     dy,
-                                     NODE_WIDTH(node) - NODE_DY,
-                                     0,
-                                     0,
-                                     UI_style_get_dpi());
+  uiLayout &layout = blender::ui::block_layout(&block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               loc.x + NODE_DYS,
+                                               dy,
+                                               NODE_WIDTH(node) - NODE_DY,
+                                               0,
+                                               0,
+                                               UI_style_get_dpi());
 
   if (node.is_muted()) {
-    layout->active_set(false);
+    layout.active_set(false);
   }
 
-  layout->context_ptr_set("node", &nodeptr);
+  layout.context_ptr_set("node", &nodeptr);
 
-  draw_buttons(layout, (bContext *)&C, &nodeptr);
+  draw_buttons(&layout, (bContext *)&C, &nodeptr);
 
   UI_block_align_end(&block);
-  int buty;
-  UI_block_layout_resolve(&block, nullptr, &buty);
+  const int buty = blender::ui::block_layout_resolve(&block).y;
 
   dy = buty - NODE_DYS / 4;
   return true;
@@ -511,21 +510,21 @@ static bool node_update_basis_socket(const bContext &C,
                                               0.0f;
   locy -= multi_input_socket_offset * 0.5f;
 
-  uiLayout *layout = UI_block_layout(&block,
-                                     UI_LAYOUT_VERTICAL,
-                                     UI_LAYOUT_PANEL,
-                                     locx + NODE_DYS,
-                                     locy,
-                                     NODE_WIDTH(node) - NODE_DY,
-                                     NODE_DY,
-                                     0,
-                                     UI_style_get_dpi());
+  uiLayout &layout = blender::ui::block_layout(&block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               locx + NODE_DYS,
+                                               locy,
+                                               NODE_WIDTH(node) - NODE_DY,
+                                               NODE_DY,
+                                               0,
+                                               UI_style_get_dpi());
 
   if (node.is_muted()) {
-    layout->active_set(false);
+    layout.active_set(false);
   }
 
-  uiLayout *row = &layout->row(true);
+  uiLayout *row = &layout.row(true);
   PointerRNA nodeptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
   row->context_ptr_set("node", &nodeptr);
 
@@ -568,8 +567,7 @@ static bool node_update_basis_socket(const bContext &C,
 
   UI_block_align_end(&block);
 
-  int buty;
-  UI_block_layout_resolve(&block, nullptr, &buty);
+  int buty = blender::ui::block_layout_resolve(&block).y;
   /* Ensure minimum socket height in case layout is empty. */
   buty = min_ii(buty, topy - NODE_DY);
   locy = buty - multi_input_socket_offset * 0.5;
@@ -1145,38 +1143,36 @@ static void node_update_basis_from_declaration(
             const nodes::LayoutDeclaration &decl = *item.decl;
             /* Round the node origin because text contents are always pixel-aligned. */
             const float2 loc = math::round(node_to_view(node.location));
-            uiLayout *layout = UI_block_layout(&block,
-                                               UI_LAYOUT_VERTICAL,
-                                               UI_LAYOUT_PANEL,
-                                               loc.x + NODE_DYS,
-                                               locy,
-                                               NODE_WIDTH(node) - NODE_DY,
-                                               0,
-                                               0,
-                                               UI_style_get_dpi());
+            uiLayout &layout = blender::ui::block_layout(&block,
+                                                         blender::ui::LayoutDirection::Vertical,
+                                                         blender::ui::LayoutType::Panel,
+                                                         loc.x + NODE_DYS,
+                                                         locy,
+                                                         NODE_WIDTH(node) - NODE_DY,
+                                                         0,
+                                                         0,
+                                                         UI_style_get_dpi());
             if (node.is_muted()) {
-              layout->active_set(false);
+              layout.active_set(false);
             }
             PointerRNA node_ptr = RNA_pointer_create_discrete(&ntree.id, &RNA_Node, &node);
-            layout->context_ptr_set("node", &node_ptr);
-            decl.draw(layout, const_cast<bContext *>(&C), &node_ptr);
+            layout.context_ptr_set("node", &node_ptr);
+            decl.draw(&layout, const_cast<bContext *>(&C), &node_ptr);
             UI_block_align_end(&block);
-            int buty;
-            UI_block_layout_resolve(&block, nullptr, &buty);
-            locy = buty;
+            locy = blender::ui::block_layout_resolve(&block).y;
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::Separator>) {
-            uiLayout *layout = UI_block_layout(&block,
-                                               UI_LAYOUT_VERTICAL,
-                                               UI_LAYOUT_PANEL,
-                                               locx + NODE_DYS,
-                                               locy,
-                                               NODE_WIDTH(node) - NODE_DY,
-                                               NODE_DY,
-                                               0,
-                                               UI_style_get_dpi());
-            layout->separator(1.0, LayoutSeparatorType::Line);
-            UI_block_layout_resolve(&block, nullptr, nullptr);
+            uiLayout &layout = blender::ui::block_layout(&block,
+                                                         blender::ui::LayoutDirection::Vertical,
+                                                         blender::ui::LayoutType::Panel,
+                                                         locx + NODE_DYS,
+                                                         locy,
+                                                         NODE_WIDTH(node) - NODE_DY,
+                                                         NODE_DY,
+                                                         0,
+                                                         UI_style_get_dpi());
+            layout.separator(1.0, LayoutSeparatorType::Line);
+            blender::ui::block_layout_resolve(&block);
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelHeader>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
@@ -1304,7 +1300,7 @@ static void node_update_basis(const bContext &C,
 /**
  * Based on settings in node, sets drawing rect info.
  */
-static void node_update_hidden(bNode &node, uiBlock &block)
+static void node_update_collapsed(bNode &node, uiBlock &block)
 {
   int totin = 0, totout = 0;
 
@@ -1323,16 +1319,16 @@ static void node_update_hidden(bNode &node, uiBlock &block)
     }
   }
 
-  float hiddenrad = HIDDEN_RAD;
+  float collapsedrad = COLLAPSED_RAD;
   float tot = std::max(totin, totout);
   if (tot > 4) {
-    hiddenrad += 5.0f * float(tot - 4);
+    collapsedrad += 5.0f * float(tot - 4);
   }
 
   node.runtime->draw_bounds.xmin = loc.x;
-  node.runtime->draw_bounds.xmax = loc.x + max_ff(NODE_WIDTH(node), 2 * hiddenrad);
-  node.runtime->draw_bounds.ymax = loc.y + (hiddenrad - 0.5f * NODE_DY);
-  node.runtime->draw_bounds.ymin = node.runtime->draw_bounds.ymax - 2 * hiddenrad;
+  node.runtime->draw_bounds.xmax = loc.x + max_ff(NODE_WIDTH(node), 2 * collapsedrad);
+  node.runtime->draw_bounds.ymax = loc.y + (collapsedrad - 0.5f * NODE_DY);
+  node.runtime->draw_bounds.ymin = node.runtime->draw_bounds.ymax - 2 * collapsedrad;
 
   /* Output sockets. */
   float rad = float(M_PI) / (1.0f + float(totout));
@@ -1342,8 +1338,8 @@ static void node_update_hidden(bNode &node, uiBlock &block)
     if (socket->is_visible()) {
       /* Round the socket location to stop it from jiggling. */
       socket->runtime->location = {
-          round(node.runtime->draw_bounds.xmax - hiddenrad + sinf(rad) * hiddenrad),
-          round(node.runtime->draw_bounds.ymin + hiddenrad + cosf(rad) * hiddenrad)};
+          round(node.runtime->draw_bounds.xmax - collapsedrad + sinf(rad) * collapsedrad),
+          round(node.runtime->draw_bounds.ymin + collapsedrad + cosf(rad) * collapsedrad)};
       rad += drad;
     }
   }
@@ -1355,8 +1351,8 @@ static void node_update_hidden(bNode &node, uiBlock &block)
     if (socket->is_visible()) {
       /* Round the socket location to stop it from jiggling. */
       socket->runtime->location = {
-          round(node.runtime->draw_bounds.xmin + hiddenrad + sinf(rad) * hiddenrad),
-          round(node.runtime->draw_bounds.ymin + hiddenrad + cosf(rad) * hiddenrad)};
+          round(node.runtime->draw_bounds.xmin + collapsedrad + sinf(rad) * collapsedrad),
+          round(node.runtime->draw_bounds.ymin + collapsedrad + cosf(rad) * collapsedrad)};
       rad += drad;
     }
   }
@@ -2179,16 +2175,16 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
     if (socket.runtime->declaration) {
       switch (socket.runtime->declaration->structure_type) {
         case nodes::StructureType::Single:
-          inspection_strings.append("(Single Value)");
+          inspection_strings.append(TIP_("(Single Value)"));
           break;
         case nodes::StructureType::Dynamic:
-          inspection_strings.append("(Dynamic Structure Type)");
+          inspection_strings.append(TIP_("(Dynamic Structure Type)"));
           break;
         case nodes::StructureType::Field:
-          inspection_strings.append("(Field)");
+          inspection_strings.append(TIP_("(Field)"));
           break;
         case nodes::StructureType::Grid:
-          inspection_strings.append("(Volume Grid)");
+          inspection_strings.append(TIP_("(Volume Grid)"));
           break;
       }
     }
@@ -2212,7 +2208,11 @@ static std::string node_socket_get_tooltip(const SpaceNode *snode,
       output << TIP_("Connect a link to create a new socket");
     }
     else {
-      output << bke::node_socket_label(socket);
+      const StringRefNull socket_label = bke::node_socket_label(socket);
+      const char *socket_translation_context = node_socket_get_translation_context(socket);
+      const char *translated_socket_label = CTX_TIP_(socket_translation_context,
+                                                     socket_label.c_str());
+      output << translated_socket_label;
     }
 
     if (ntree.type == NTREE_GEOMETRY && !is_extend) {
@@ -2386,7 +2386,7 @@ static void node_toggle_button_cb(bContext *C, void *node_argv, void *op_argv)
   /* Select & activate only the button's node. */
   node_select_single(*C, node);
 
-  WM_operator_name_call(C, opname, WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+  WM_operator_name_call(C, opname, wm::OpCallContext::InvokeDefault, nullptr, nullptr);
 }
 
 static void node_draw_shadow(const SpaceNode &snode,
@@ -2424,7 +2424,7 @@ static void node_draw_socket(const bContext &C,
 {
   const float half_width = NODE_SOCKSIZE;
 
-  const bool multi_socket = (sock.flag & SOCK_MULTI_INPUT) && !(node.flag & NODE_HIDDEN);
+  const bool multi_socket = (sock.flag & SOCK_MULTI_INPUT) && !(node.flag & NODE_COLLAPSED);
   float half_height = multi_socket ? node_socket_calculate_height(sock) : half_width;
 
   ColorTheme4f socket_color;
@@ -2790,7 +2790,9 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
                             0,
                             nullptr);
   UI_but_func_quick_tooltip_set(
-      but, [warnings](const uiBut * /*but*/) { return node_errors_tooltip_fn(warnings); });
+      but, [warnings = Array<geo_log::NodeWarning>(warnings)](const uiBut * /*but*/) {
+        return node_errors_tooltip_fn(warnings);
+      });
   UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
 }
 
@@ -3234,7 +3236,7 @@ static void node_draw_extra_info_panel_back(const bNode &node, const rctf &extra
   const rctf &node_rect = node.runtime->draw_bounds;
   rctf panel_back_rect = extra_info_rect;
   /* Extend the panel behind hidden nodes to accommodate the large rounded corners. */
-  if (node.flag & NODE_HIDDEN) {
+  if (node.flag & NODE_COLLAPSED) {
     panel_back_rect.ymin = BLI_rctf_cent_y(&node_rect);
   }
 
@@ -3828,17 +3830,17 @@ static void node_draw_basis(const bContext &C,
   UI_block_draw(&C, &block);
 }
 
-static void node_draw_hidden(const bContext &C,
-                             TreeDrawContext &tree_draw_ctx,
-                             const View2D &v2d,
-                             const SpaceNode &snode,
-                             bNodeTree &ntree,
-                             bNode &node,
-                             uiBlock &block)
+static void node_draw_collapsed(const bContext &C,
+                                TreeDrawContext &tree_draw_ctx,
+                                const View2D &v2d,
+                                const SpaceNode &snode,
+                                bNodeTree &ntree,
+                                bNode &node,
+                                uiBlock &block)
 {
   const rctf &rct = node.runtime->draw_bounds;
   float centy = BLI_rctf_cent_y(&rct);
-  float hiddenrad = BLI_rctf_size_y(&rct) / 2.0f;
+  float collapsedrad = BLI_rctf_size_y(&rct) / 2.0f;
 
   float scale;
   UI_view2d_scale_get(&v2d, &scale, nullptr);
@@ -3848,7 +3850,7 @@ static void node_draw_hidden(const bContext &C,
   node_draw_extra_info_panel(C, tree_draw_ctx, snode, node, nullptr, block);
 
   /* Shadow. */
-  node_draw_shadow(snode, node, hiddenrad, 1.0f);
+  node_draw_shadow(snode, node, collapsedrad, 1.0f);
 
   /* Wire across the node when muted/disabled. */
   if (node.is_muted()) {
@@ -3892,7 +3894,7 @@ static void node_draw_hidden(const bContext &C,
         rct.ymax + padding,
     };
 
-    UI_draw_roundbox_4fv(&rect, true, hiddenrad + padding, color);
+    UI_draw_roundbox_4fv(&rect, true, collapsedrad + padding, color);
   }
 
   /* Title. */
@@ -3967,7 +3969,7 @@ static void node_draw_hidden(const bContext &C,
     }
 
     UI_draw_roundbox_corner_set(UI_CNR_ALL);
-    UI_draw_roundbox_4fv(&rect, false, hiddenrad + outline_width, color_outline);
+    UI_draw_roundbox_4fv(&rect, false, collapsedrad + outline_width, color_outline);
   }
 
   if (node.is_muted()) {
@@ -4227,7 +4229,7 @@ static void reroute_node_prepare_for_draw(bNode &node)
 {
   const float2 loc = node_to_view(node.location);
 
-  /* When the node is hidden, the input and output socket are both in the same place. */
+  /* When the node is collapsed, the input and output socket are both in the same place. */
   node.input_socket(0).runtime->location = loc;
   node.output_socket(0).runtime->location = loc;
 
@@ -4262,8 +4264,8 @@ static void node_update_nodetree(const bContext &C,
       reroute_node_prepare_for_draw(node);
     }
     else {
-      if (node.flag & NODE_HIDDEN) {
-        node_update_hidden(node, block);
+      if (node.flag & NODE_COLLAPSED) {
+        node_update_collapsed(node, block);
       }
       else {
         node_update_basis(C, tree_draw_ctx, ntree, node, block);
@@ -4694,8 +4696,8 @@ static void node_draw(const bContext &C,
   }
   else {
     const View2D &v2d = region.v2d;
-    if (node.flag & NODE_HIDDEN) {
-      node_draw_hidden(C, tree_draw_ctx, v2d, snode, ntree, node, block);
+    if (node.flag & NODE_COLLAPSED) {
+      node_draw_collapsed(C, tree_draw_ctx, v2d, snode, ntree, node, block);
     }
     else {
       node_draw_basis(C, tree_draw_ctx, v2d, snode, ntree, node, block, key);
@@ -5212,13 +5214,20 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   const int width = BLI_rcti_size_x(rect) - 2 * padding_x;
 
   uiBlock *block = UI_block_begin(&C, &region, __func__, blender::ui::EmbossType::None);
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, x, y, width, 1, 0, style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               x,
+                                               y,
+                                               width,
+                                               1,
+                                               0,
+                                               style);
 
   const Vector<ui::ContextPathItem> context_path = ed::space_node::context_path_for_space_node(C);
-  ui::template_breadcrumbs(*layout, context_path);
+  ui::template_breadcrumbs(layout, context_path);
 
-  UI_block_layout_resolve(block, nullptr, nullptr);
+  blender::ui::block_layout_resolve(block);
   UI_block_end(&C, block);
   UI_block_draw(&C, block);
 
@@ -5476,6 +5485,27 @@ void node_draw_space(const bContext &C, ARegion &region)
   }
 
   /* Scrollers. */
+
+  /* Hide the right scrollbar while a right-aligned region
+   * is open. Otherwise we can have two scroll bars. #141225 */
+  ScrArea *area = CTX_wm_area(&C);
+  bool sidebar = false;
+  LISTBASE_FOREACH (ARegion *, region, &area->regionbase) {
+    if (region->alignment == RGN_ALIGN_RIGHT && region->overlap &&
+        !(region->flag & RGN_FLAG_HIDDEN))
+    {
+      sidebar = true;
+      break;
+    }
+  }
+
+  if (sidebar) {
+    v2d.scroll &= ~V2D_SCROLL_RIGHT;
+  }
+  else {
+    v2d.scroll |= V2D_SCROLL_RIGHT;
+  }
+
   UI_view2d_scrollers_draw(&v2d, nullptr);
 }
 

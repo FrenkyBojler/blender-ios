@@ -57,7 +57,7 @@
 
 #include "versioning_common.hh"
 
-// static CLG_LogRef LOG = {"blo.readfile.doversion"};
+// static CLG_LogRef LOG = {"blend.doversion"};
 
 static void version_fix_fcurve_noise_offset(FCurve &fcurve)
 {
@@ -87,7 +87,7 @@ static void fix_curve_nurbs_knot_mode_custom(Main *bmain)
     }
 
     int8_t *knot_modes = static_cast<int8_t *>(CustomData_get_layer_named_for_write(
-        &curves.curve_data, CD_PROP_INT8, "knots_mode", curves.curve_num));
+        &curves.curve_data_legacy, CD_PROP_INT8, "knots_mode", curves.curve_num));
     if (knot_modes == nullptr) {
       return;
     }
@@ -3765,8 +3765,10 @@ static void do_version_replace_image_info_node_coordinates(bNodeTree *node_tree)
   }
 }
 
-/* Vector sockets can now have different dimensions, so set the dimensions for existing sockets to
- * 3.*/
+/**
+ * Vector sockets can now have different dimensions,
+ * so set the dimensions for existing sockets to 3.
+ */
 static void do_version_vector_sockets_dimensions(bNodeTree *node_tree)
 {
   node_tree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
@@ -4128,7 +4130,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
         blender::animrig::foreach_fcurve_in_action_slot(action, slot->handle, [&](FCurve &fcurve) {
           /* Loop over all slot users, because when the slot is shared, not all F-Curves may
            * resolve on all users. For example, a custom property might only exist on a subset of
-           * the users.*/
+           * the users. */
           for (ID *slot_user : slot_users) {
             PointerRNA slot_user_ptr = RNA_id_pointer_create(slot_user);
             PointerRNA ptr;
@@ -4892,7 +4894,7 @@ static void version_set_uv_face_overlay_defaults(Main *bmain)
           const char *workspace_name = screen->id.name + 2;
           /* Don't set uv_face_opacity for Texture Paint or Shading since these are workspaces
            * where it's important to have unobstructed view of the Image Editor to see Image
-           * Textures. UV Editing is the only other default workspace with an Image Editor.*/
+           * Textures. UV Editing is the only other default workspace with an Image Editor. */
           if (STREQ(workspace_name, "UV Editing")) {
             sima->uv_face_opacity = 1.0f;
           }

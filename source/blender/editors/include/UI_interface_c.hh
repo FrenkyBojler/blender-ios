@@ -789,15 +789,6 @@ void UI_popover_once_clear(uiPopover *pup);
 struct uiPieMenu;
 
 wmOperatorStatus UI_pie_menu_invoke(bContext *C, const char *idname, const wmEvent *event);
-wmOperatorStatus UI_pie_menu_invoke_from_operator_enum(bContext *C,
-                                                       blender::StringRefNull title,
-                                                       blender::StringRefNull opname,
-                                                       blender::StringRefNull propname,
-                                                       const wmEvent *event);
-wmOperatorStatus UI_pie_menu_invoke_from_rna_enum(bContext *C,
-                                                  const char *title,
-                                                  const char *path,
-                                                  const wmEvent *event);
 
 uiPieMenu *UI_pie_menu_begin(bContext *C, const char *title, int icon, const wmEvent *event)
     ATTR_NONNULL();
@@ -858,7 +849,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
 void uiPupBlockOperator(bContext *C,
                         uiBlockCreateFunc func,
                         wmOperator *op,
-                        wmOperatorCallContext opcontext);
+                        blender::wm::OpCallContext opcontext);
 #endif
 
 void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block);
@@ -954,10 +945,10 @@ void UI_block_lock_clear(uiBlock *block);
 enum class uiButtonSectionsAlign : int8_t { None = 1, Top, Bottom };
 /**
  * Draw a background with rounded corners behind each visual group of buttons. The visual groups
- * are separated by spacer buttons (#uiItemSpacer()). Button groups that are closer than
- * #UI_BUTTON_SECTION_MERGE_DISTANCE will be merged into one visual section. If the group is closer
- * than that to a region edge, it will also be extended to that, and the rounded corners will be
- * removed on that edge.
+ * are separated by spacer buttons (#uiLayout::separator_spacer()). Button groups that are closer
+ * than #UI_BUTTON_SECTION_MERGE_DISTANCE will be merged into one visual section. If the group is
+ * closer than that to a region edge, it will also be extended to that, and the rounded corners
+ * will be removed on that edge.
  *
  * \note This currently only works well for horizontal, header like regions.
  */
@@ -1217,7 +1208,7 @@ uiBut *uiDefButR_prop(uiBlock *block,
 uiBut *uiDefButO(uiBlock *block,
                  int type,
                  blender::StringRefNull opname,
-                 wmOperatorCallContext opcontext,
+                 blender::wm::OpCallContext opcontext,
                  const std::optional<blender::StringRef> str,
                  int x,
                  int y,
@@ -1227,7 +1218,7 @@ uiBut *uiDefButO(uiBlock *block,
 uiBut *uiDefButO_ptr(uiBlock *block,
                      int type,
                      wmOperatorType *ot,
-                     wmOperatorCallContext opcontext,
+                     blender::wm::OpCallContext opcontext,
                      blender::StringRef str,
                      int x,
                      int y,
@@ -1341,7 +1332,7 @@ uiBut *uiDefIconButR_prop(uiBlock *block,
 uiBut *uiDefIconButO(uiBlock *block,
                      int type,
                      blender::StringRefNull opname,
-                     wmOperatorCallContext opcontext,
+                     blender::wm::OpCallContext opcontext,
                      int icon,
                      int x,
                      int y,
@@ -1351,7 +1342,7 @@ uiBut *uiDefIconButO(uiBlock *block,
 uiBut *uiDefIconButO_ptr(uiBlock *block,
                          int type,
                          wmOperatorType *ot,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          int icon,
                          int x,
                          int y,
@@ -1446,7 +1437,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
 uiBut *uiDefIconTextButO(uiBlock *block,
                          int type,
                          blender::StringRefNull,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          int icon,
                          blender::StringRef str,
                          int x,
@@ -1457,7 +1448,7 @@ uiBut *uiDefIconTextButO(uiBlock *block,
 uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              int type,
                              wmOperatorType *ot,
-                             wmOperatorCallContext opcontext,
+                             blender::wm::OpCallContext opcontext,
                              int icon,
                              blender::StringRef str,
                              int x,
@@ -1468,7 +1459,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
 
 void UI_but_operator_set(uiBut *but,
                          wmOperatorType *optype,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          const PointerRNA *opptr = nullptr);
 /**
  * Disable calling operators from \a but in button handling. Useful to attach an operator to a
@@ -1956,7 +1947,7 @@ void UI_but_func_hold_set(uiBut *but, uiButHandleHoldFunc func, void *argN);
 
 PointerRNA *UI_but_extra_operator_icon_add(uiBut *but,
                                            blender::StringRefNull opname,
-                                           wmOperatorCallContext opcontext,
+                                           blender::wm::OpCallContext opcontext,
                                            int icon);
 wmOperatorType *UI_but_extra_operator_icon_optype_get(const uiButExtraOpIcon *extra_icon);
 PointerRNA *UI_but_extra_operator_icon_opptr_get(const uiButExtraOpIcon *extra_icon);
