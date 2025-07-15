@@ -15,6 +15,38 @@ import sys
 import time
 
 
+def is_package_in_local(package_distro_name):
+    """Check if package is installed in /usr/local (lib, header, or pkg-config)."""
+    base_name = package_distro_name.replace('-dev', '').lower()  # Lower for matching
+    # Specific mappings for known packages
+    if 'openimageio' in base_name:
+        lib_path = "/usr/local/lib/libOpenImageIO.so"
+        header_path = "/usr/local/include/OpenImageIO/version.h"  # Assuming version.h exists in subdir
+    elif 'opencolorio' in base_name:
+        lib_path = "/usr/local/lib/libOpenColorIO.so"
+        header_path = "/usr/local/include/OpenColorIO/OpenColorIO.h"
+    elif 'vulkan' in base_name:
+        lib_path = "/usr/local/lib/libvulkan.so"
+        header_path = "/usr/local/include/vulkan/vulkan.h"
+    else:
+        lib_path = f"/usr/local/lib/lib{base_name.capitalize()}.so"  # Capitalize for common cases
+        header_path = f"/usr/local/include/{base_name.capitalize()}.h"
+
+    if os.path.exists(lib_path) or os.path.exists(header_path):
+        print(f"Detected via path: {lib_path} or {header_path}")  # Debug print
+        return True
+
+    # Pkg-config check
+    env = os.environ.copy()
+    env['PKG_CONFIG_PATH'] = '/usr/local/lib/pkgconfig:' + env.get('PKG_CONFIG_PATH', '')
+    try:
+        subprocess.check_call(["pkg-config", "--exists", base_name.capitalize()], env=env)
+        print(f"Detected via pkg-config: {base_name.capitalize()}")  # Debug
+        return True
+    except subprocess.CalledProcessError:
+        print(f"pkg-config failed for {base_name.capitalize()}")  # Debug
+        return False
+
 DISTRO_ID_DEBIAN = "debian"
 DISTRO_ID_FEDORA = "fedora"
 DISTRO_ID_SUSE = "suse"
@@ -527,8 +559,7 @@ DEPS_OPTIONAL_SUBPACKAGES = (
 )
 
 
-# Python packages that should be available for Blender Pythons-scripts.
-# SUSE uses names like `python310-Cython` for its python module packages...
+# Python packages that should be available for Blender Pythons-scripts.SUSE uses names like python310-Cython for its python module packages...
 def suse_pypackages_name_gen(name):
     def _gen(package, parent_packages):
         pp = parent_packages[-1]
@@ -536,8 +567,6 @@ def suse_pypackages_name_gen(name):
             v = "".join(str(i) for i in PackageInstaller.version_tokenize(pp.version_installed)[0][:2])
             return "python" + v + "-" + name
     return _gen
-
-
 PYTHON_SUBPACKAGES = (
     Package(name="Cython",
             version="3.0.11", version_short="3.0", version_min="3.0", version_mex="4.0",
@@ -622,8 +651,7 @@ PACKAGES_BASICS_BUILD = (
 )
 
 
-# All packages, required or 'nice to have', to build Blender.
-# Also covers (as best as possible) the dependencies provided by the precompiled libraries.
+# All packages, required or 'nice to have', to build Blender.Also covers (as best as possible) the dependencies provided by the precompiled libraries.
 PACKAGES_ALL = (
     Package(name="Basics Mandatory Build", is_group=True, is_mandatory=True, sub_packages=BUILD_MANDATORY_SUBPACKAGES),
     Package(name="Basics Optional Build", is_group=True, is_mandatory=False, sub_packages=BUILD_OPTIONAL_SUBPACKAGES),
@@ -881,7 +909,6 @@ PACKAGES_ALL = (
             ),
 )
 
-
 class ProgressBar:
     """Very basic progress bar printing in the console."""
 
@@ -916,10 +943,8 @@ class ProgressBar:
             return f"[{value_str}]"
         return f">{value_str}<"
 
-
 class PackageInstaller:
-    """Parent class of all package installers, does nothing but printing list of packages and defining the 'interface'.
-    """
+    """Parent class of all package installers, does nothing but printing list of packages and defining the 'interface'."""
     _instance = None
 
     def __new__(cls, settings):
@@ -1234,6 +1259,12 @@ class PackageInstaller:
         """Install a normal, single package."""
         package_distro_name = self.package_distro_name(package, parent_packages)[0]
         package_name = self.package_find(package, package_distro_name)
+
+        if is_package_in_local(package_distro_name):
+            self.settings.logger.info(f"\tSkipping {package_distro_name} - found in /usr/local.")
+            package.version_installed = "custom /usr/local"
+            return True
+
         if package_name is None:
             if package.is_mandatory:
                 self.settings.logger.critical(
@@ -1321,7 +1352,7 @@ class PackageInstaller:
         """Return the available version of the given package."""
         return ...
 
-    def package_name_version_gen(self, package, package_distro_name, version, suffix="", do_range_version_names=False):
+    def package_name_version_gen(self, package, package_distro_name, suffix="", do_range_version_names=False):
         """Generator for all potential names for a given package 'base name'."""
         yield package_distro_name
 
@@ -1333,6 +1364,7 @@ class PackageInstallerDebian(PackageInstaller):
     def __new__(cls, settings):
         if cls._instance is None:
             cls._instance = super(PackageInstallerDebian, cls).__new__(cls, settings)
+        cls._instance.settings = settings
         return cls._instance
 
     _version_regex_base_pattern = r"(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*"
@@ -1349,17 +1381,17 @@ class PackageInstallerDebian(PackageInstaller):
         return version["version"] if version is not None else None
 
     def package_query_version_get_impl(self, package_distro_name):
-        # `apt-cache policy` will do partial matching (so e.g. `python3.11` will also match `libpython3.11-stdlib`).
-        # Use `apt show` first to ensure exact package name is available (stdout will be empty if no package of
-        # requested name is known).
-        cmd = ["apt", "show", package_distro_name]
-        result = self.run_command(cmd)
-        if not result.stdout:
-            return None
-        cmd = ["apt-cache", "policy", package_distro_name]
-        result = self.run_command(cmd)
-        version = self._re_version_candidate.search(str(result.stdout))
-        return version["version"] if version is not None else None
+            # apt-cache policy will do partial matching (so e.g. python3.11 will also match libpython3.11-stdlib).
+            # Use apt show first to ensure exact package name is available (stdout will be empty if no package of
+            # requested name is known).
+            cmd = ["apt", "show", package_distro_name]
+            result = self.run_command(cmd)
+            if not result.stdout:
+                return None
+            cmd = ["apt-cache", "policy", package_distro_name]
+            result = self.run_command(cmd)
+            version = self._re_version_candidate.search(str(result.stdout))
+            return version["version"] if version is not None else None
 
     def package_name_version_gen(
             self,
@@ -1409,6 +1441,7 @@ class PackageInstallerFedora(PackageInstaller):
     def __new__(cls, settings):
         if cls._instance is None:
             cls._instance = super(PackageInstallerFedora, cls).__new__(cls, settings)
+        cls._instance.settings = settings
         return cls._instance
 
     _re_version = re.compile(r"Version\s*:\s*(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*")
@@ -1475,6 +1508,7 @@ class PackageInstallerSuse(PackageInstaller):
     def __new__(cls, settings):
         if cls._instance is None:
             cls._instance = super(PackageInstallerSuse, cls).__new__(cls, settings)
+        cls._instance.settings = settings
         return cls._instance
 
     _re_version = re.compile(r"Version\s*:\s*(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*")
@@ -1544,6 +1578,7 @@ class PackageInstallerArch(PackageInstaller):
     def __new__(cls, settings):
         if cls._instance is None:
             cls._instance = super(PackageInstallerArch, cls).__new__(cls, settings)
+        cls._instance.settings = settings
         return cls._instance
 
     _re_version = re.compile(r"Version\s*:\s*(?:[0-9]+:)?(?P<version>([0-9]+\.?)+([0-9]+)).*")
@@ -1594,7 +1629,6 @@ class PackageInstallerArch(PackageInstaller):
             yield package_distro_name + v + suffix
             yield package_distro_name + "-" + v + suffix
 
-
 DISTRO_IDS_INSTALLERS = {
     ...: PackageInstaller,
     DISTRO_ID_DEBIAN: PackageInstallerDebian,
@@ -1602,7 +1636,6 @@ DISTRO_IDS_INSTALLERS = {
     DISTRO_ID_SUSE: PackageInstallerSuse,
     DISTRO_ID_ARCH: PackageInstallerArch,
 }
-
 
 def get_distro(settings):
     if settings.distro_id is not ...:
@@ -1631,6 +1664,9 @@ def get_distro(settings):
         distro_id = DISTRO_ID_SUSE
     elif os.path.exists("/etc/arch-release"):
         distro_id = DISTRO_ID_ARCH
+    else:
+        distro_id = None  # Or handle no match
+
     if distro_id in DISTRO_IDS_INSTALLERS:
         settings.distro_id = distro_id
         return distro_id
@@ -1638,15 +1674,13 @@ def get_distro(settings):
     settings.distro_id = ...
     return ...
 
-
 def get_distro_package_installer(settings):
     distro_id = get_distro(settings)
     if distro_id is ...:
-        settings.logger.warning("No valid distribution ID found, please try to set it using the `--distro-id` option")
+        settings.logger.warning("No valid distribution ID found, please try to set it using the --distro-id option")
     else:
         settings.logger.info(f"Distribution identified as '{distro_id}'")
-    return DISTRO_IDS_INSTALLERS[distro_id](settings)
-
+    return DISTRO_IDS_INSTALLERS[distro_id] (settings)
 
 def argparse_create():
     import argparse
@@ -1741,3 +1775,5 @@ def main():
 
 if __name__ == "__main__":
     main()
+
+
