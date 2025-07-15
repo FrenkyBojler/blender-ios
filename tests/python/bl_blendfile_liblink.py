@@ -692,6 +692,37 @@ class TestBlendLibDataLibrariesLoadLink(TestBlendLibDataLibrariesLoad):
         self.assertIsNotNone(bpy.data.collections[0].library)
 
 
+class TestBlendLibDataLibrariesLoadPack(TestBlendLibDataLibrariesLoad):
+
+    def test_libload_pack(self):
+        output_lib_path = self.do_libload_init()
+        # Cannot create overrides on packed linked data currently.
+        self.assertRaises(ValueError,
+            self.do_libload, filepath=output_lib_path, link=True, pack=True, create_liboverrides=True)
+        self.do_libload(filepath=output_lib_path, link=True, pack=True, create_liboverrides=False)
+
+        # Two copies, the original linked, and the packed linked ones.
+        self.assertEqual(len(bpy.data.meshes), 2)
+        self.assertEqual(len(bpy.data.objects), 2)  # This code does no instantiation.
+        self.assertEqual(len(bpy.data.collections), 2)
+
+        self.assertEqual(bpy.data.meshes[0].name, bpy.data.meshes[1].name)
+        self.assertEqual(bpy.data.objects[0].name, bpy.data.objects[1].name)
+        self.assertEqual(bpy.data.collections[0].name, bpy.data.collections[1].name)
+
+        # Link, so all data should have remained linked.
+        self.assertIsNotNone(bpy.data.meshes[0].library)
+        self.assertEqual(bpy.data.meshes[0].library, bpy.data.objects[0].library)
+        self.assertEqual(bpy.data.meshes[0].library, bpy.data.collections[0].library)
+
+        # Packed Linked should be owned by archive library.
+        self.assertNotEqual(bpy.data.meshes[1].library, bpy.data.meshes[0].library)
+        self.assertIsNotNone(bpy.data.meshes[1].library)
+        self.assertTrue(bpy.data.meshes[1].library.is_archive)
+        self.assertEqual(bpy.data.meshes[1].library, bpy.data.objects[1].library)
+        self.assertEqual(bpy.data.meshes[1].library, bpy.data.collections[1].library)
+
+
 class TestBlendLibDataLibrariesLoadLibOverride(TestBlendLibDataLibrariesLoad):
 
     def test_libload_liboverride(self):
@@ -830,6 +861,7 @@ TESTS = (
 
     TestBlendLibDataLibrariesLoadAppend,
     TestBlendLibDataLibrariesLoadLink,
+    TestBlendLibDataLibrariesLoadPack,
     TestBlendLibDataLibrariesLoadLibOverride,
 )
 
