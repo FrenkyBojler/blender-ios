@@ -223,14 +223,14 @@ class ShaderNodesInliner {
       return;
     }
     if (socket->is_input()) {
-      this->handle_socket_input(socket);
+      this->handle_input_socket(socket);
     }
     else {
-      this->handle_socket_output(socket);
+      this->handle_output_socket(socket);
     }
   }
 
-  void handle_socket_input(const SocketInContext &socket)
+  void handle_input_socket(const SocketInContext &socket)
   {
     /* Multi-inputs are not supported in shader nodes currently. */
     BLI_assert(!socket->is_multi_input());
@@ -260,56 +260,56 @@ class ShaderNodesInliner {
     this->schedule_socket(origin_socket);
   }
 
-  void handle_socket_output(const SocketInContext &socket)
+  void handle_output_socket(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     if (node->is_reroute()) {
-      this->handle_socket_output_reroute(socket);
+      this->handle_output_socket__reroute(socket);
       return;
     }
     if (node->is_muted()) {
-      this->handle_socket_output_muted(socket);
+      this->handle_output_socket__muted(socket);
       return;
     }
     if (node->is_group()) {
-      this->handle_socket_output_group(socket);
+      this->handle_output_socket__group(socket);
       return;
     }
     if (node->is_group_input()) {
-      this->handle_socket_output_group_input(socket);
+      this->handle_output_socket__group_input(socket);
       return;
     }
     if (node->is_type("GeometryNodeRepeatOutput")) {
-      this->handle_socket_output_repeat_output(socket);
+      this->handle_output_socket__repeat_output(socket);
       return;
     }
     if (node->is_type("GeometryNodeRepeatInput")) {
-      this->handle_socket_output_repeat_input(socket);
+      this->handle_output_socket__repeat_input(socket);
       return;
     }
     if (node->is_type("GeometryNodeClosureOutput")) {
-      this->handle_socket_output_closure_output(socket);
+      this->handle_output_socket__closure_output(socket);
       return;
     }
     if (node->is_type("GeometryNodeClosureInput")) {
-      this->handle_socket_output_closure_input(socket);
+      this->handle_output_socket__closure_input(socket);
       return;
     }
     if (node->is_type("GeometryNodeEvaluateClosure")) {
-      this->handle_socket_output_evaluate_closure(socket);
+      this->handle_output_socket__evaluate_closure(socket);
       return;
     }
-    this->handle_socket_output_eval(socket);
+    this->handle_output_socket__eval(socket);
   }
 
-  void handle_socket_output_reroute(const SocketInContext &socket)
+  void handle_output_socket__reroute(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const SocketInContext input_socket = {socket.context, &node->input_socket(0)};
     this->forward_value_or_schedule(socket, input_socket);
   }
 
-  void handle_socket_output_muted(const SocketInContext &socket)
+  void handle_output_socket__muted(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     for (const bNodeLink &internal_link : node->internal_links()) {
@@ -329,7 +329,7 @@ class ShaderNodesInliner {
     this->store_socket_value_fallback(socket);
   }
 
-  void handle_socket_output_group(const SocketInContext &socket)
+  void handle_output_socket__group(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     const bNodeTree *group = reinterpret_cast<const bNodeTree *>(node->id);
@@ -350,7 +350,7 @@ class ShaderNodesInliner {
     this->forward_value_or_schedule(socket, group_output_socket_ctx);
   }
 
-  void handle_socket_output_group_input(const SocketInContext &socket)
+  void handle_output_socket__group_input(const SocketInContext &socket)
   {
     if (const auto *group_node_compute_context =
             dynamic_cast<const bke::GroupNodeComputeContext *>(socket.context))
@@ -366,7 +366,7 @@ class ShaderNodesInliner {
     this->store_socket_value_fallback(socket);
   }
 
-  void handle_socket_output_repeat_output(const SocketInContext &socket)
+  void handle_output_socket__repeat_output(const SocketInContext &socket)
   {
     const bNode &repeat_output_node = socket->owner_node();
     const bNodeTree &tree = socket->owner_tree();
@@ -408,7 +408,7 @@ class ShaderNodesInliner {
     this->forward_value_or_schedule(socket, origin_socket);
   }
 
-  void handle_socket_output_repeat_input(const SocketInContext &socket)
+  void handle_output_socket__repeat_input(const SocketInContext &socket)
   {
     const bNode &repeat_input_node = socket->owner_node();
     const auto *repeat_zone_context = dynamic_cast<const bke::RepeatZoneComputeContext *>(
@@ -440,7 +440,7 @@ class ShaderNodesInliner {
     this->forward_value_or_schedule(socket, origin_socket);
   }
 
-  void handle_socket_output_closure_output(const SocketInContext &socket)
+  void handle_output_socket__closure_output(const SocketInContext &socket)
   {
     const bNode &node = socket->owner_node();
     const bke::bNodeTreeZones *zones = node.owner_tree().zones();
@@ -456,7 +456,7 @@ class ShaderNodesInliner {
     this->store_socket_value(socket, {ClosureZoneValue{zone, socket.context}});
   }
 
-  void handle_socket_output_evaluate_closure(const SocketInContext &socket)
+  void handle_output_socket__evaluate_closure(const SocketInContext &socket)
   {
     const NodeInContext evaluate_closure_node = socket.owner_node();
     const SocketInContext closure_input_socket = evaluate_closure_node.input_socket(0);
@@ -504,7 +504,7 @@ class ShaderNodesInliner {
     this->store_socket_value_fallback(socket);
   }
 
-  void handle_socket_output_closure_input(const SocketInContext &socket)
+  void handle_output_socket__closure_input(const SocketInContext &socket)
   {
     const bNode &closure_input_node = socket->owner_node();
     const auto *closure_eval_context = dynamic_cast<const bke::EvaluateClosureComputeContext *>(
@@ -536,7 +536,7 @@ class ShaderNodesInliner {
     this->store_socket_value_fallback(socket);
   }
 
-  void handle_socket_output_eval(const SocketInContext &socket)
+  void handle_output_socket__eval(const SocketInContext &socket)
   {
     const NodeInContext node = socket.owner_node();
     bool has_missing_inputs = false;
@@ -561,13 +561,13 @@ class ShaderNodesInliner {
     }
     const bke::bNodeType &node_type = *node->typeinfo;
     if (node_type.build_multi_function && all_inputs_primitive) {
-      this->handle_socket_output_eval_multi_function(node);
+      this->handle_output_socket__eval_multi_function(node);
       return;
     }
-    this->handle_socket_output_eval_copy_node(node);
+    this->handle_output_socket__eval_copy_node(node);
   }
 
-  void handle_socket_output_eval_multi_function(const NodeInContext &node)
+  void handle_output_socket__eval_multi_function(const NodeInContext &node)
   {
     NodeMultiFunctionBuilder builder{*node.node, node->owner_tree()};
     node->typeinfo->build_multi_function(builder);
@@ -612,7 +612,7 @@ class ShaderNodesInliner {
     }
   }
 
-  void handle_socket_output_eval_copy_node(const NodeInContext &node)
+  void handle_output_socket__eval_copy_node(const NodeInContext &node)
   {
     Map<const bNodeSocket *, bNodeSocket *> socket_map;
     bNode &copied_node = *bke::node_copy_with_mapping(
