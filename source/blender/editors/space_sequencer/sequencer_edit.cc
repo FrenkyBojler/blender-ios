@@ -704,16 +704,16 @@ static void slip_strips_delta(wmOperator *op, Scene *scene, SlipData *data, cons
     seq::time_slip_strip(scene, strip, frame_delta, subframe_delta, slip_keyframes);
     seq::relations_invalidate_cache(scene, strip);
 
-    strip->runtime.flag &= ~(STRIP_CLAMP_LH | STRIP_CLAMP_RH);
+    strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
     /* Reconstruct handle clamp state from first principles.  */
     if (data->clamp == true) {
       if (seq::time_left_handle_frame_get(scene, strip) == seq::time_start_frame_get(strip)) {
-        strip->runtime.flag |= STRIP_CLAMP_LH;
+        strip->runtime.flag |= STRIP_CLAMPED_LH;
       }
       if (seq::time_right_handle_frame_get(scene, strip) ==
           seq::time_content_end_frame_get(scene, strip))
       {
-        strip->runtime.flag |= STRIP_CLAMP_RH;
+        strip->runtime.flag |= STRIP_CLAMPED_RH;
       }
     }
   }
@@ -728,7 +728,7 @@ static void slip_cleanup(bContext *C, wmOperator *op, Scene *scene)
   SlipData *data = static_cast<SlipData *>(op->customdata);
 
   for (Strip *strip : data->strips) {
-    strip->runtime.flag &= ~(STRIP_CLAMP_LH | STRIP_CLAMP_RH);
+    strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
     strip->flag &= ~SEQ_SHOW_OFFSETS;
   }
 

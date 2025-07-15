@@ -643,8 +643,8 @@ typedef enum eSeqRetimingKeyFlag {
 
 /** #StripRuntime::flag */
 typedef enum eStripRuntimeFlag {
-  STRIP_CLAMP_LH = (1 << 0),
-  STRIP_CLAMP_RH = (1 << 1),
+  STRIP_CLAMPED_LH = (1 << 0),
+  STRIP_CLAMPED_RH = (1 << 1),
 } eStripRuntimeFlag;
 
 /* From: `DNA_object_types.h`, see it's doc-string there. */

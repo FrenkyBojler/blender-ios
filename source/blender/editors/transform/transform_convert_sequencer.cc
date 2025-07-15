@@ -61,10 +61,10 @@ struct TransDataSeq {
  */
 struct TransSeq {
   TransDataSeq *tdseq;
-  /* Maximum movement permitted in x and y directions before clamping selected strips. */
+  /* Maximum delta allowed along x and y before clamping selected strips/handles. Always active. */
   rcti offset_clamp;
-  /* Minimum and maximum movement for handle clamping, which may be disabled. */
-  int handle_xmin, handle_xmax;
+  /* Maximum delta before clamping handles to the bounds of underlying content. May be disabled. */
+  int hold_clamp_min, hold_clamp_max;
 
   /* Initial rect of the view2d, used for computing offset during edge panning. */
   rctf initial_v2d_cur;
@@ -335,7 +335,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
       t->scene, seqbase_active_get(t), transformed_strips, seq::query_strip_effect_chain);
 
   for (Strip *strip : transformed_strips) {
-    strip->runtime.flag &= ~(STRIP_CLAMP_LH | STRIP_CLAMP_RH);
+    strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
     strip->flag &= ~SEQ_IGNORE_CHANNEL_LOCK;
   }
 
@@ -486,9 +486,9 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
   }
 
   /* Try to clamp handles by default. */
-  t->modifiers |= MOD_STRIP_HANDLE_CLAMP;
-  ts->handle_xmin = -INT_MAX;
-  ts->handle_xmax = INT_MAX;
+  t->modifiers |= MOD_STRIP_CLAMP_HOLDS;
+  ts->hold_clamp_min = -INT_MAX;
+  ts->hold_clamp_max = INT_MAX;
   for (Strip *strip : strips) {
     if (seq::transform_is_locked(seq::channels_displayed_get(ed), strip)) {
       continue;
@@ -499,7 +499,7 @@ static void create_trans_seq_clamp_data(TransInfo *t, const Scene *scene)
 
     /* If any strips start out with hold offsets visible, disable handle clamping on init. */
     if ((strip->startofs < 0 || strip->endofs < 0) && !seq::transform_single_image_check(strip)) {
-      t->modifiers &= ~MOD_STRIP_HANDLE_CLAMP;
+      t->modifiers &= ~MOD_STRIP_CLAMP_HOLDS;
     }
 
     /* A handle is selected. Update x-axis clamping data. */
@@ -683,16 +683,20 @@ static void flushTransSeq(TransInfo *t)
     const int new_channel = round_fl_to_int(td->iloc[1] + offset_clamped[1]);
 
     /* Compute handle clamping state to be drawn. */
-    strip->runtime.flag &= ~STRIP_CLAMP_LH;
-    strip->runtime.flag &= ~STRIP_CLAMP_RH;
+    if (tdsq->sel_flag & SEQ_LEFTSEL) {
+      strip->runtime.flag &= ~STRIP_CLAMPED_LH;
+    }
+    if (tdsq->sel_flag & SEQ_RIGHTSEL) {
+      strip->runtime.flag &= ~STRIP_CLAMPED_RH;
+    }
     if (!seq::transform_single_image_check(strip) && !(strip->type & STRIP_TYPE_EFFECT)) {
       if (offset_clamped[0] > offset[0] && new_frame == seq::time_start_frame_get(strip)) {
-        strip->runtime.flag |= STRIP_CLAMP_LH;
+        strip->runtime.flag |= STRIP_CLAMPED_LH;
       }
       else if (offset_clamped[0] < offset[0] &&
                new_frame == seq::time_content_end_frame_get(scene, strip))
       {
-        strip->runtime.flag |= STRIP_CLAMP_RH;
+        strip->runtime.flag |= STRIP_CLAMPED_RH;
       }
     }
 
@@ -852,14 +856,14 @@ bool transform_convert_sequencer_clamp(const TransInfo *t, float r_val[2])
     clamped = true;
   }
 
-  /* Optional hold offset clamping. Can be disabled by the user. */
-  if (t->modifiers & MOD_STRIP_HANDLE_CLAMP) {
-    if (val[0] < ts->handle_xmin) {
-      r_val[0] = static_cast<float>(ts->handle_xmin);
+  /* Optional clamping of handles to underlying holds. Can be disabled by the user. */
+  if (t->modifiers & MOD_STRIP_CLAMP_HOLDS) {
+    if (val[0] < ts->hold_clamp_min) {
+      r_val[0] = static_cast<float>(ts->hold_clamp_min);
       clamped = true;
     }
-    else if (val[0] > ts->handle_xmax) {
-      r_val[0] = static_cast<float>(ts->handle_xmax);
+    else if (val[0] > ts->hold_clamp_max) {
+      r_val[0] = static_cast<float>(ts->hold_clamp_max);
       clamped = true;
     }
   }

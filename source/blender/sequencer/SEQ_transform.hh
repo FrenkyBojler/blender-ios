@@ -22,7 +22,7 @@ namespace blender::seq {
 bool transform_strip_can_be_translated(const Strip *strip);
 /**
  * Checks whether the strip functions as a single static display,
- * which means it has only one unique frame of content and does not draw hold offsets.
+ * which means it has only one unique frame of content and does not draw holds.
  * This includes non-sequence image strips and all effect strips with no inputs (e.g. color, text).
  */
 bool transform_single_image_check(const Strip *strip);

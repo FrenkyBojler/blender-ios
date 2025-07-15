@@ -1417,8 +1417,8 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
   const bool use_overwrite = overlap_mode == SEQ_OVERLAP_OVERWRITE;
   const bool overlaps = (strip.strip->flag & SEQ_OVERLAP) && translating;
 
-  const bool clamped_l = (strip.strip->runtime.flag & STRIP_CLAMP_LH);
-  const bool clamped_r = (strip.strip->runtime.flag & STRIP_CLAMP_RH);
+  const bool clamped_l = (strip.strip->runtime.flag & STRIP_CLAMPED_LH);
+  const bool clamped_r = (strip.strip->runtime.flag & STRIP_CLAMPED_RH);
 
   /* Strip outline is:
    *  - Red when overlapping with other strips or handles are clamped.
