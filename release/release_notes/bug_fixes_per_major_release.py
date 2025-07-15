@@ -30,7 +30,7 @@ some missing commits), but it's significantly better than nothing.
   - --backport-tasks (-bpt) (Optional, but recommended)
 - Here is an example if you wish to collect the list for Blender 5.0 during
 the Alpha stage of development.
-  - `python bug_fixes_per_major_release.py -cv 5.0 -pv 4.5 -ct main -pt blender-v4.5-release -bpt 124452 135860`
+  - `python bug_fixes_per_major_release.py -cv 5.0 -pv 4.5 -ct main -pt blender-v4.5-release -bpt 124452 135860 141871`
 - Here is an example if you wish to collect the list for Blender 4.5 during
 the Beta stage of development.
   - `python bug_fixes_per_major_release.py -cv 4.5 -pv 4.4 -ct blender-v4.5-release -pt blender-v4.4-release -bpt 109399 124452 135860`
