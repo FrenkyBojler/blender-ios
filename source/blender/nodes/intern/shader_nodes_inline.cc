@@ -70,11 +70,6 @@ struct InputSocketValue {
   const bNodeSocket *socket = nullptr;
 };
 
-static bool is_supported_primitive_type(const eNodeSocketDatatype type)
-{
-  return ELEM(type, SOCK_FLOAT, SOCK_INT, SOCK_BOOLEAN, SOCK_VECTOR, SOCK_RGBA);
-}
-
 struct SocketValue {
   std::variant<FallbackValue,
                LinkedSocketValue,
