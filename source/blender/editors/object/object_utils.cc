@@ -254,8 +254,7 @@ void object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Containe
                                                    int mode)
 {
   xcs->obchild_in_obmode_map.lookup_or_add_cb(ob, [&]() {
-    std::unique_ptr<XFormObjectSkipChild> xf_ptr = std::make_unique<XFormObjectSkipChild>();
-    XFormObjectSkipChild *xf = xf_ptr.get();
+    std::unique_ptr<XFormObjectSkipChild> xf = std::make_unique<XFormObjectSkipChild>();
     copy_m4_m4(xf->parentinv_orig, ob->parentinv);
     copy_m4_m4(xf->obmat_orig, ob->object_to_world().ptr());
     copy_m4_m4(xf->parent_obmat_orig, ob->parent->object_to_world().ptr());
@@ -265,7 +264,7 @@ void object_xform_skip_child_container_item_ensure(XFormObjectSkipChild_Containe
     }
     xf->mode = mode;
     xf->ob_parent_recurse = ob_parent_recurse;
-    return xf_ptr;
+    return xf;
   });
 }
 
