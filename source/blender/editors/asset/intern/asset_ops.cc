@@ -1459,7 +1459,8 @@ static bool screenshot_preview_poll(bContext *C)
     return WM_operator_winactive(C);
   }
 
-  if (!bke::asset_edit_id_is_editable(*id)) {
+  if (!bke::asset_edit_id_is_writable(*id)) {
+    CTX_wm_operator_poll_msg_set(C, "Asset cannot be overwritten");
     return false;
   }
 
