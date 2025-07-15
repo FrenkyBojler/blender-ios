@@ -329,11 +329,12 @@ static void flush_trans_object_base_deps_flag(const TransInfo *t, Object *object
     return;
   }
   object->id.tag |= ID_TAG_DOIT;
-  DEG_foreach_dependent_ID_component(t->depsgraph,
-                                     &object->id,
-                                     DEG_OB_COMP_TRANSFORM,
-                                     DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
-                                     set_trans_object_base_deps_flag_cb);
+  DEG_foreach_dependent_ID_component(
+      t->depsgraph,
+      &object->id,
+      (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ? DEG_OB_COMP_GEOMETRY : DEG_OB_COMP_TRANSFORM,
+      DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
+      set_trans_object_base_deps_flag_cb);
 }
 
 static void trans_object_base_deps_flag_finish(const TransInfo *t,
@@ -690,6 +691,7 @@ static void createTransObject(bContext *C, TransInfo *t)
                       tdo->xcs, ob, ob_parent_recurse, object::XFORM_OB_SKIP_CHILD_PARENT_APPLY);
                   BLI_ghash_insert(objects_parent_root, ob, ob_parent_recurse);
                   base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+                  base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
                 }
               }
             }
@@ -711,6 +713,7 @@ static void createTransObject(bContext *C, TransInfo *t)
             object::object_xform_skip_child_container_item_ensure(
                 tdo->xcs, ob, nullptr, object::XFORM_OB_SKIP_CHILD_PARENT_IS_XFORM);
             base->flag_legacy |= BA_TRANSFORM_LOCKED_IN_PLACE;
+            base->flag_legacy &= ~BA_SNAP_FIX_DEPS_FIASCO;
           }
           else {
             Object *ob_parent_recurse = static_cast<Object *>(
