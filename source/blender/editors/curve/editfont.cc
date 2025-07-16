@@ -464,7 +464,7 @@ static void font_select_update_primary_clipboard(Object *obedit)
     return;
   }
 
-  if ((WM_capabilities_flag() & WM_CAPABILITY_PRIMARY_CLIPBOARD) == 0) {
+  if ((WM_capabilities_flag() & WM_CAPABILITY_CLIPBOARD_PRIMARY) == 0) {
     return;
   }
   char *buf = font_select_to_buffer(obedit);
@@ -610,13 +610,8 @@ static wmOperatorStatus paste_from_file(bContext *C, ReportList *reports, const 
 
 static wmOperatorStatus paste_from_file_exec(bContext *C, wmOperator *op)
 {
-  char *filepath;
-  wmOperatorStatus retval;
-
-  filepath = RNA_string_get_alloc(op->ptr, "filepath", nullptr, 0, nullptr);
-  retval = paste_from_file(C, op->reports, filepath);
-  MEM_freeN(filepath);
-
+  std::string filepath = RNA_string_get(op->ptr, "filepath");
+  wmOperatorStatus retval = paste_from_file(C, op->reports, filepath.c_str());
   return retval;
 }
 
@@ -705,11 +700,18 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   UI_block_theme_style_set(block, UI_BLOCK_THEME_STYLE_POPUP);
   UI_block_flag_enable(block, UI_BLOCK_KEEP_OPEN | UI_BLOCK_NO_WIN_CLIP | UI_BLOCK_NUMSELECT);
   const uiStyle *style = UI_style_get_dpi();
-  uiLayout *layout = UI_block_layout(
-      block, UI_LAYOUT_VERTICAL, UI_LAYOUT_PANEL, 0, 0, 200 * UI_SCALE_FAC, UI_UNIT_Y, 0, style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               200 * UI_SCALE_FAC,
+                                               UI_UNIT_Y,
+                                               0,
+                                               style);
 
-  uiItemL_ex(layout, IFACE_("Insert Unicode Character"), ICON_NONE, true, false);
-  layout->label(RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
+  uiItemL_ex(&layout, IFACE_("Insert Unicode Character"), ICON_NONE, true, false);
+  layout.label(RPT_("Enter a Unicode codepoint hex value"), ICON_NONE);
 
   uiBut *text_but = uiDefBut(block,
                              UI_BTYPE_TEXT,
@@ -727,7 +729,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   /* Hitting Enter in the text input is treated the same as clicking the Confirm button. */
   UI_but_func_set(text_but, text_insert_unicode_confirm, block, edit_string);
 
-  layout->separator();
+  layout.separator();
 
   /* Buttons. */
 
@@ -739,22 +741,55 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
 
   uiBut *confirm = nullptr;
   uiBut *cancel = nullptr;
-  uiLayout *split = &layout->split(0.0f, true);
+  uiLayout *split = &layout.split(0.0f, true);
   split->column(false);
 
   if (windows_layout) {
-    confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+    confirm = uiDefIconTextBut(block,
+                               UI_BTYPE_BUT,
+                               0,
+                               0,
+                               IFACE_("Insert"),
+                               0,
+                               0,
+                               0,
+                               UI_UNIT_Y,
+                               nullptr,
+                               0,
+                               0,
+                               std::nullopt);
     split->column(false);
   }
 
-  cancel = uiDefIconTextBut(
-      block, UI_BTYPE_BUT, 0, 0, "Cancel", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+  cancel = uiDefIconTextBut(block,
+                            UI_BTYPE_BUT,
+                            0,
+                            0,
+                            IFACE_("Cancel"),
+                            0,
+                            0,
+                            0,
+                            UI_UNIT_Y,
+                            nullptr,
+                            0,
+                            0,
+                            std::nullopt);
 
   if (!windows_layout) {
     split->column(false);
-    confirm = uiDefIconTextBut(
-        block, UI_BTYPE_BUT, 0, 0, "Insert", 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, std::nullopt);
+    confirm = uiDefIconTextBut(block,
+                               UI_BTYPE_BUT,
+                               0,
+                               0,
+                               IFACE_("Insert"),
+                               0,
+                               0,
+                               0,
+                               UI_UNIT_Y,
+                               nullptr,
+                               0,
+                               0,
+                               std::nullopt);
   }
 
   UI_block_func_set(block, nullptr, nullptr, nullptr);
@@ -765,7 +800,7 @@ static uiBlock *wm_block_insert_unicode_create(bContext *C, ARegion *region, voi
   UI_but_flag_enable(confirm, UI_BUT_ACTIVE_DEFAULT);
 
   int bounds_offset[2];
-  bounds_offset[0] = layout->width() * -0.2f;
+  bounds_offset[0] = layout.width() * -0.2f;
   bounds_offset[1] = UI_UNIT_Y * 2.5;
   UI_block_bounds_set_popup(block, 7 * UI_SCALE_FAC, bounds_offset);
 
@@ -1873,7 +1908,6 @@ void FONT_OT_delete(wmOperatorType *ot)
 static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
 {
   Object *obedit = CTX_data_edit_object(C);
-  char *inserted_utf8;
   char32_t *inserted_text;
   int a, len;
 
@@ -1881,18 +1915,17 @@ static wmOperatorStatus insert_text_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
-  inserted_utf8 = RNA_string_get_alloc(op->ptr, "text", nullptr, 0, nullptr);
-  len = BLI_strlen_utf8(inserted_utf8);
+  std::string inserted_utf8 = RNA_string_get(op->ptr, "text");
+  len = BLI_strlen_utf8(inserted_utf8.c_str());
 
   inserted_text = MEM_calloc_arrayN<char32_t>((len + 1), "FONT_insert_text");
-  len = BLI_str_utf8_as_utf32(inserted_text, inserted_utf8, MAXTEXT);
+  len = BLI_str_utf8_as_utf32(inserted_text, inserted_utf8.c_str(), MAXTEXT);
 
   for (a = 0; a < len; a++) {
     insert_into_textbuf(obedit, inserted_text[a]);
   }
 
   MEM_freeN(inserted_text);
-  MEM_freeN(inserted_utf8);
 
   kill_selection(obedit, len);
   text_update_edited(C, obedit, FO_EDIT);

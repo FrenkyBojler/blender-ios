@@ -398,6 +398,7 @@ static void rna_PoseChannel_constraints_remove(
   con_ptr->invalidate();
 
   blender::ed::object::constraint_update(bmain, ob);
+  DEG_relations_tag_update(bmain);
 
   /* XXX(@ideasman42): is this really needed? */
   BKE_constraints_active_set(&pchan->constraints, nullptr);
@@ -650,6 +651,7 @@ void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportL
   Object *custom_shape = static_cast<Object *>(value.data);
 
   if (!custom_shape) {
+    id_us_min(reinterpret_cast<ID *>(pchan->custom));
     pchan->custom = nullptr;
     return;
   }
@@ -662,7 +664,9 @@ void rna_Pose_custom_shape_set(PointerRNA *ptr, PointerRNA value, struct ReportL
     return;
   }
 
+  id_us_min(reinterpret_cast<ID *>(pchan->custom));
   pchan->custom = custom_shape;
+  id_us_plus(reinterpret_cast<ID *>(pchan->custom));
 }
 
 bool rna_Pose_custom_shape_object_poll(PointerRNA * /*ptr*/, PointerRNA value)

@@ -21,7 +21,6 @@
 
 #include "BLT_translation.hh"
 
-#include "BLI_linear_allocator.hh"
 #include "BLI_listbase.h"
 #include "BLI_math_color.h"
 #include "BLI_path_utils.hh"
@@ -365,21 +364,15 @@ void WM_event_drag_image(wmDrag *drag, const ImBuf *imb, float scale)
 void WM_event_drag_path_override_poin_data_with_space_file_paths(const bContext *C, wmDrag *drag)
 {
   BLI_assert(drag->type == WM_DRAG_PATH);
-  if (!CTX_wm_space_file(C)) {
+  const SpaceFile *sfile = CTX_wm_space_file(C);
+  if (!sfile) {
     return;
   }
-  char dirpath[FILE_MAX];
-  BLI_path_split_dir_part(WM_drag_get_single_path(drag), dirpath, FILE_MAX);
-
-  blender::LinearAllocator<> allocator;
+  const blender::Vector<std::string> selected_paths = ED_fileselect_selected_files_full_paths(
+      sfile);
   blender::Vector<const char *> paths;
-  const blender::Vector<PointerRNA> files = CTX_data_collection_get(C, "selected_files");
-  for (const PointerRNA &file_ptr : files) {
-    const FileDirEntry *file = static_cast<const FileDirEntry *>(file_ptr.data);
-    char filepath[FILE_MAX];
-    BLI_path_join(filepath, sizeof(filepath), dirpath, file->name);
-
-    paths.append(allocator.copy_string(filepath).c_str());
+  for (const std::string &path : selected_paths) {
+    paths.append(path.c_str());
   }
   if (paths.is_empty()) {
     return;
@@ -490,7 +483,7 @@ static wmDropBox *dropbox_active(bContext *C,
             continue;
           }
 
-          const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
+          const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
           if (drop->ot && WM_operator_poll_context(C, drop->ot, opcontext)) {
             /* Get dropbox tooltip now, #wm_drag_draw_tooltip can use a different draw context. */
             drag->drop_state.tooltip = dropbox_tooltip(C, drag, event->xy, drop);
@@ -580,7 +573,7 @@ static void wm_drop_update_active(bContext *C, wmDrag *drag, const wmEvent *even
 
 void wm_drop_prepare(bContext *C, wmDrag *drag, wmDropBox *drop)
 {
-  const wmOperatorCallContext opcontext = wm_drop_operator_context_get(drop);
+  const blender::wm::OpCallContext opcontext = wm_drop_operator_context_get(drop);
 
   if (drag->drop_state.ui_context) {
     CTX_store_set(C, drag->drop_state.ui_context.get());
@@ -621,9 +614,9 @@ void wm_drags_check_ops(bContext *C, const wmEvent *event)
   }
 }
 
-wmOperatorCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
+blender::wm::OpCallContext wm_drop_operator_context_get(const wmDropBox * /*drop*/)
 {
-  return WM_OP_INVOKE_DEFAULT;
+  return blender::wm::OpCallContext::InvokeDefault;
 }
 
 /* ************** IDs ***************** */
