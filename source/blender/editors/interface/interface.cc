@@ -4320,7 +4320,8 @@ static uiBut *ui_def_but(uiBlock *block,
   /* Allow negative separators. */
   BLI_assert((width >= 0 && height >= 0) || (type_params.type == eButType::Sepr));
 
-  if (bool(type_params.pointer_type)) { /* a pointer is required */
+  if (bool(type_params.pointer_type & UI_BUT_POIN_TYPES)) {
+    /* A pointer is required. */
     if (poin == nullptr) {
       BLI_assert(0);
       return nullptr;
@@ -4330,7 +4331,7 @@ static uiBut *ui_def_but(uiBlock *block,
   block->buttons.append(ui_but_new(type_params.type));
   uiBut *but = block->buttons.last().get();
 
-  but->pointype = type_params.pointer_type;
+  but->pointype = type_params.pointer_type & UI_BUT_POIN_TYPES;
   but->bit = bool(type_params.pointer_type & eButPointerType::Bit);
   but->bitnr = type_params.bit_index;
 

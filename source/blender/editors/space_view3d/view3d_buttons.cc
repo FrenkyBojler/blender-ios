@@ -777,6 +777,7 @@ static void v3d_editvertex_buts(
       c = IFACE_("Median:");
     }
     uiDefBut(block, eButType::Label, 0, c, 0, yi -= buth, butw, buth, nullptr, 0, 0, "");
+
     UI_block_align_begin(block);
 
     /* Should be no need to translate these. */

@@ -480,12 +480,14 @@ void AbstractTreeViewItem::add_indent(uiLayout &row) const
   subrow->fixed_size_set(true);
 
   uiDefBut(block, eButType::Sepr, 0, "", 0, 0, this->indent_width(), 0, nullptr, 0.0, 0.0, "");
+
   const bool is_flat_list = root_ && root_->is_flat_;
   if (!is_flat_list && !this->is_collapsible()) {
     /* Indent items without collapsing icon some more within their parent. Makes it clear that they
      * are actually nested and not just a row at the same level without a chevron. */
     uiDefBut(block, eButType::Sepr, 0, "", 0, 0, UI_TREEVIEW_INDENT, 0, nullptr, 0.0, 0.0, "");
   }
+
   /* Restore. */
   UI_block_layout_set_current(block, &row);
 }

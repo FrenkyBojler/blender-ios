@@ -1148,7 +1148,8 @@ static uiBlock *wm_enum_search_menu(bContext *C, ARegion *region, void *arg)
 
   search[0] = '\0';
 #if 0 /* Ok, this isn't so easy. */
-  uiDefBut(block,eButType::Label,
+  uiDefBut(block,
+           eButType::Label,
            0,
            WM_operatortype_name(op->type, op->ptr),
            0,
@@ -1646,6 +1647,7 @@ static uiBlock *wm_block_dialog_create(bContext *C, ARegion *region, void *user_
 
     cancel_but = uiDefBut(
         col_block, eButType::But, 0, IFACE_("Cancel"), 0, 0, 0, UI_UNIT_Y, nullptr, 0, 0, "");
+
     if (!windows_layout) {
       col->column(false);
       confirm_but = uiDefBut(col_block,

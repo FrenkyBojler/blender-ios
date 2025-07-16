@@ -130,6 +130,7 @@ void uiTemplateMovieClip(uiLayout *layout,
     uiLayout *row = &layout->row(false);
     uiBlock *block = row->block();
     uiDefBut(block, eButType::Label, 0, IFACE_("File Path:"), 0, 19, 145, 19, nullptr, 0, 0, "");
+
     row = &layout->row(false);
     uiLayout *split = &row->split(0.0f, false);
     row = &split->row(true);
