@@ -46,7 +46,6 @@ static void world_free_data(ID *id)
 {
   World *wrld = (World *)id;
 
-  printf("Freeing world: %s\n", wrld->id.name);
   /* is no lib link block, but world extension */
   if (wrld->nodetree) {
     blender::bke::node_tree_free_embedded_tree(wrld->nodetree);

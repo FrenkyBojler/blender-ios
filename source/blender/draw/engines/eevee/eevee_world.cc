@@ -16,42 +16,6 @@
 
 namespace blender::eevee {
 
-// /* -------------------------------------------------------------------- */
-// /** \name Default Material
-//  *
-//  * \{ */
-
-// DefaultWorldNodeTree::DefaultWorldNodeTree()
-// {
-//   bNodeTree *ntree = bke::node_tree_add_tree(nullptr, "World Nodetree",
-//   ntreeType_Shader->idname); bNode *background = bke::node_add_static_node(nullptr, *ntree,
-//   SH_NODE_BACKGROUND); bNode *output = bke::node_add_static_node(nullptr, *ntree,
-//   SH_NODE_OUTPUT_WORLD); bNodeSocket *background_out = bke::node_find_socket(*background,
-//   SOCK_OUT, "Background"); bNodeSocket *output_in = bke::node_find_socket(*output, SOCK_IN,
-//   "Surface"); bke::node_add_link(*ntree, *background, *background_out, *output, *output_in);
-//   bke::node_set_active(*ntree, *output);
-
-//   color_socket_ =
-//       (bNodeSocketValueRGBA *)bke::node_find_socket(*background, SOCK_IN,
-//       "Color")->default_value;
-//   ntree_ = ntree;
-// }
-
-// DefaultWorldNodeTree::~DefaultWorldNodeTree()
-// {
-//   bke::node_tree_free_embedded_tree(ntree_);
-//   MEM_SAFE_FREE(ntree_);
-// }
-
-// bNodeTree *DefaultWorldNodeTree::nodetree_get(::World *wo)
-// {
-//   /* WARNING: This function is not thread-safe. Which is not a problem for the moment. */
-//   copy_v3_fl3(color_socket_->value, wo->horr, wo->horg, wo->horb);
-//   return ntree_;
-// }
-
-// /** \} */
-
 /* -------------------------------------------------------------------- */
 /** \name World
  *
