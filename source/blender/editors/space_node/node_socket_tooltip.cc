@@ -64,13 +64,13 @@ class SocketTooltipBuilder {
       this->build_tooltip_label();
     }
     this->build_tooltip_description();
-    this->build_tooltip_value();
     if (tree_.type == NTREE_GEOMETRY) {
       this->build_tooltip_structure_type();
       if (socket_.type == SOCK_GEOMETRY) {
         this->build_tooltip_supported_geometry_types();
       }
     }
+    this->build_tooltip_value();
     /* Extra padding at the bottom. */
     this->add_space();
   }
