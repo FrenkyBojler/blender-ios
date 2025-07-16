@@ -1926,6 +1926,15 @@ void UI_tooltip_color_field_add(uiTooltipData &data,
                                 const ColorManagedDisplay *display);
 
 /**
+ * Add Python-related information to the tooltip. The caller is responsible for checking
+ * #USER_TOOLTIPS_PYTHON.
+ */
+void UI_tooltip_uibut_python_add(uiTooltipData &data,
+                                 bContext &C,
+                                 uiBut &but,
+                                 uiButExtraOpIcon *extra_icon);
+
+/**
  * Recreate tool-tip (use to update dynamic tips)
  */
 void UI_but_tooltip_refresh(bContext *C, uiBut *but);

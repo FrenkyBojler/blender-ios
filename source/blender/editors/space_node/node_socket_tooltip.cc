@@ -37,6 +37,7 @@ class SocketTooltipBuilder {
   const bNodeTree &tree_;
   const bNode &node_;
   const bNodeSocket &socket_;
+  uiBut *but = nullptr;
   bContext &C_;
 
   enum class TooltipBlockType {
@@ -45,6 +46,7 @@ class SocketTooltipBuilder {
     StructureType,
     SupportedGeometryTypes,
     Value,
+    Python,
   };
 
   std::optional<TooltipBlockType> last_block_type_;
@@ -53,8 +55,14 @@ class SocketTooltipBuilder {
   SocketTooltipBuilder(uiTooltipData &tip_data,
                        const bNodeTree &tree,
                        const bNodeSocket &socket,
-                       bContext &C)
-      : tip_data_(tip_data), tree_(tree), node_(socket.owner_node()), socket_(socket), C_(C)
+                       bContext &C,
+                       uiBut *but)
+      : tip_data_(tip_data),
+        tree_(tree),
+        node_(socket.owner_node()),
+        socket_(socket),
+        but(but),
+        C_(C)
   {
   }
 
@@ -82,6 +90,7 @@ class SocketTooltipBuilder {
       }
     }
     this->build_tooltip_value();
+    this->build_python();
     /* Extra padding at the bottom. */
     this->add_space();
   }
@@ -857,6 +866,17 @@ class SocketTooltipBuilder {
     this->add_text_field(fmt::format(TIP_("Geometry Types: {}"), supported_types_str));
   }
 
+  void build_python()
+  {
+    if (!(U.flag & USER_TOOLTIPS_PYTHON)) {
+      return;
+    }
+    if (!but) {
+      return;
+    }
+    UI_tooltip_uibut_python_add(tip_data_, C_, *but, nullptr);
+  }
+
   void start_block(const TooltipBlockType new_block_type)
   {
     if (last_block_type_.has_value()) {
@@ -894,7 +914,7 @@ void build_socket_tooltip(uiTooltipData &tip_data,
                           const bNodeTree &tree,
                           const bNodeSocket &socket)
 {
-  SocketTooltipBuilder builder(tip_data, tree, socket, C);
+  SocketTooltipBuilder builder(tip_data, tree, socket, C, but);
   builder.build();
 }
 

@@ -901,6 +901,58 @@ void UI_tooltip_color_field_add(uiTooltipData &data,
   IMB_freeImBuf(image_data.ibuf);
 }
 
+void UI_tooltip_uibut_python_add(uiTooltipData &data,
+                                 bContext &C,
+                                 uiBut &but,
+                                 uiButExtraOpIcon *extra_icon)
+{
+  wmOperatorType *optype = extra_icon ? UI_but_extra_operator_icon_optype_get(extra_icon) :
+                                        but.optype;
+  PropertyRNA *rnaprop = extra_icon ? nullptr : but.rnaprop;
+  std::string rna_struct = UI_but_string_get_rna_struct_identifier(but);
+  std::string rna_prop = UI_but_string_get_rna_property_identifier(but);
+
+  if (optype && !rnaprop) {
+    PointerRNA *opptr = extra_icon ? UI_but_extra_operator_icon_opptr_get(extra_icon) :
+                                     /* Allocated when needed, the button owns it. */
+                                     UI_but_operator_ptr_ensure(&but);
+
+    /* So the context is passed to field functions (some Python field functions use it). */
+    WM_operator_properties_sanitize(opptr, false);
+
+    std::string str = ui_tooltip_text_python_from_op(&C, optype, opptr);
+
+    /* Operator info. */
+    UI_tooltip_text_field_add(data,
+                              fmt::format(fmt::runtime(TIP_("Python: {}")), str),
+                              {},
+                              UI_TIP_STYLE_MONO,
+                              UI_TIP_LC_PYTHON,
+                              true);
+  }
+
+  if (!optype && !rna_struct.empty()) {
+    {
+      UI_tooltip_text_field_add(
+          data,
+          rna_prop.empty() ?
+              fmt::format(fmt::runtime(TIP_("Python: {}")), rna_struct) :
+              fmt::format(fmt::runtime(TIP_("Python: {}.{}")), rna_struct, rna_prop),
+          {},
+          UI_TIP_STYLE_MONO,
+          UI_TIP_LC_PYTHON,
+          (data.fields.size() > 0));
+    }
+
+    if (but.rnapoin.owner_id) {
+      std::optional<std::string> str = rnaprop ? RNA_path_full_property_py_ex(
+                                                     &but.rnapoin, rnaprop, but.rnaindex, true) :
+                                                 RNA_path_full_struct_py(&but.rnapoin);
+      UI_tooltip_text_field_add(data, str.value_or(""), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_PYTHON);
+    }
+  }
+}
+
 static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     bContext *C, uiBut *but, uiButExtraOpIcon *extra_icon, const bool is_quick_tip)
 {
@@ -1195,44 +1247,8 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
     }
   }
 
-  if (U.flag & USER_TOOLTIPS_PYTHON && optype && !rnaprop) {
-    PointerRNA *opptr = extra_icon ? UI_but_extra_operator_icon_opptr_get(extra_icon) :
-                                     /* Allocated when needed, the button owns it. */
-                                     UI_but_operator_ptr_ensure(but);
-
-    /* So the context is passed to field functions (some Python field functions use it). */
-    WM_operator_properties_sanitize(opptr, false);
-
-    std::string str = ui_tooltip_text_python_from_op(C, optype, opptr);
-
-    /* Operator info. */
-    UI_tooltip_text_field_add(*data,
-                              fmt::format(fmt::runtime(TIP_("Python: {}")), str),
-                              {},
-                              UI_TIP_STYLE_MONO,
-                              UI_TIP_LC_PYTHON,
-                              true);
-  }
-
-  if ((U.flag & USER_TOOLTIPS_PYTHON) && !optype && !rna_struct.empty()) {
-    {
-      UI_tooltip_text_field_add(
-          *data,
-          rna_prop.empty() ?
-              fmt::format(fmt::runtime(TIP_("Python: {}")), rna_struct) :
-              fmt::format(fmt::runtime(TIP_("Python: {}.{}")), rna_struct, rna_prop),
-          {},
-          UI_TIP_STYLE_MONO,
-          UI_TIP_LC_PYTHON,
-          (data->fields.size() > 0));
-    }
-
-    if (but->rnapoin.owner_id) {
-      std::optional<std::string> str = rnaprop ? RNA_path_full_property_py_ex(
-                                                     &but->rnapoin, rnaprop, but->rnaindex, true) :
-                                                 RNA_path_full_struct_py(&but->rnapoin);
-      UI_tooltip_text_field_add(*data, str.value_or(""), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_PYTHON);
-    }
+  if (U.flag & USER_TOOLTIPS_PYTHON) {
+    UI_tooltip_uibut_python_add(*data, *C, *but, extra_icon);
   }
 
   if (but->type == UI_BTYPE_COLOR) {
