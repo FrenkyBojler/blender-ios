@@ -66,7 +66,6 @@ class NODE_HT_header(Header):
 
                 if snode_id:
                     row = layout.row()
-
                     row.prop(snode_id, "use_nodes")
 
                 layout.separator_spacer()
