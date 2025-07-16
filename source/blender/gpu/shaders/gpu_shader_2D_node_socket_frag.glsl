@@ -112,8 +112,22 @@ void main()
       break;
     }
     case SOCK_DISPLAY_SHAPE_LIST: {
-      float square_radius = square_radius - corner_rounding;
-      distance_squared = square_sdf(co, float2(square_radius * 1.4, square_radius * 0.75));
+      constexpr float bar_height = 0.45f;
+      constexpr float bar_width = 1.3f;
+      constexpr float bar_separation = 0.4f;
+
+      float2 half_size = float2(bar_width, bar_height) * 0.5f;
+
+      float2 uv_top = uv - float2(0.0f, bar_separation);
+      float2 uv_middle = uv;
+      float2 uv_bottom = uv + float2(0.0f, bar_separation);
+
+      float dist_top = square_sdf(abs(uv_top), half_size);
+      float dist_middle = square_sdf(abs(uv_middle), half_size);
+      float dist_bottom = square_sdf(abs(uv_bottom), half_size);
+
+      distance_squared = min(dist_top, min(dist_middle, dist_bottom));
+
       alpha_threshold = corner_rounding;
     }
   }
