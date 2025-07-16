@@ -3165,7 +3165,6 @@ static BHead *read_libblock(FileData *fd,
       BLI_assert(id->deep_hash != IDHash::get_null());
       fd->id_by_deep_hash->add_new(id->deep_hash, id);
       BLI_assert(main->curlib);
-      main->curlib->runtime->packed_id_by_deep_hash.add_new(id->deep_hash, id);
     }
   }
 

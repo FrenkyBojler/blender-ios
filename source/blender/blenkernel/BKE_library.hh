@@ -46,13 +46,6 @@ struct LibraryRuntime {
    * Should only contain something if this library is a regular 'real' blendfile library.
    */
   blender::Vector<Library *> archived_libraries = {};
-  /**
-   * Used to keep track of already loaded packed IDs owned (coming from) that library.
-   *
-   * Only filled in for 'real' library IDs, archived ones are currently expected to have empty
-   * ones.
-   */
-  blender::Map<IDHash, ID *> packed_id_by_deep_hash = {};
 
   /** #eLibrary_Tag. */
   ushort tag = 0;

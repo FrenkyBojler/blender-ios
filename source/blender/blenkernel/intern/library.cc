@@ -463,14 +463,13 @@ static Library *get_archive_library(Main &bmain, ID *for_id)
 static void pack_linked_id(Main &bmain,
                            ID *linked_id,
                            const id_hash::ValidDeepHashes &deep_hashes,
+                           blender::Map<IDHash, ID *> &already_packed_ids,
                            blender::VectorSet<ID *> &ids_to_remap,
                            blender::bke::id::IDRemapper &id_remapper)
 {
   BLI_assert(linked_id->newid == nullptr);
 
-  Library *owner_lib = linked_id->lib;
-
-  ID *packed_id = owner_lib->runtime->packed_id_by_deep_hash.lookup_default(
+  ID *packed_id = already_packed_ids.lookup_default(
       deep_hashes.hashes.lookup_default(linked_id, IDHash::get_null()), nullptr);
 
   if (packed_id) {
@@ -506,17 +505,18 @@ static void pack_linked_id(Main &bmain,
     /* Find an existing archive Library not containing a 'version' of this ID yet. */
     Library *archive_lib = get_archive_library(bmain, linked_id);
 
-    auto copied_id_process = [&owner_lib, &archive_lib, &deep_hashes, &ids_to_remap, &id_remapper](
-                                 ID *linked_id, ID *packed_id) {
-      BLI_assert(packed_id);
-      BLI_assert(ID_IS_PACKED(packed_id));
-      BLI_assert(packed_id->lib == archive_lib);
+    auto copied_id_process =
+        [&archive_lib, &deep_hashes, &ids_to_remap, &id_remapper, &already_packed_ids](
+            ID *linked_id, ID *packed_id) {
+          BLI_assert(packed_id);
+          BLI_assert(ID_IS_PACKED(packed_id));
+          BLI_assert(packed_id->lib == archive_lib);
 
-      packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
-      owner_lib->runtime->packed_id_by_deep_hash.add_new(packed_id->deep_hash, packed_id);
-      id_remapper.add(linked_id, packed_id);
-      ids_to_remap.add(packed_id);
-    };
+          packed_id->deep_hash = deep_hashes.hashes.lookup(linked_id);
+          id_remapper.add(linked_id, packed_id);
+          ids_to_remap.add(packed_id);
+          already_packed_ids.add(packed_id->deep_hash, packed_id);
+        };
 
     packed_id = BKE_id_copy_in_lib(&bmain,
                                    archive_lib,
@@ -573,8 +573,19 @@ static void pack_linked_ids(Main &bmain, const blender::Set<ID *> &ids_to_pack)
   }
   const auto &deep_hashes = std::get<id_hash::ValidDeepHashes>(hash_result);
 
+  blender::Map<IDHash, ID *> already_packed_ids;
+  {
+    ID *id;
+    FOREACH_MAIN_ID_BEGIN (&bmain, id) {
+      if (ID_IS_PACKED(id)) {
+        already_packed_ids.add(id->deep_hash, id);
+      }
+    }
+    FOREACH_MAIN_ID_END;
+  }
+
   for (ID *linked_id : final_ids_to_pack) {
-    pack_linked_id(bmain, linked_id, deep_hashes, ids_to_remap, id_remapper);
+    pack_linked_id(bmain, linked_id, deep_hashes, already_packed_ids, ids_to_remap, id_remapper);
   }
 
   BKE_libblock_relink_multiple(
