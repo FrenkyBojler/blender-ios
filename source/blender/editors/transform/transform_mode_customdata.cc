@@ -70,6 +70,7 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
         EditMeshSymmetryHelper::create_if_needed(tc->obedit);
 
+    /* TODO: This can be de-duplicated with the other TFM_* custom data look ups. */
     BMEditMesh *em = BKE_editmesh_from_object(tc->obedit);
     int cd_offset = -1;
 
