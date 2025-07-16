@@ -2282,111 +2282,15 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(const uint8_t *bi
                                                                const int hot_spot[2],
                                                                const bool canInvertColor)
 {
+  /* This is no longer needed as all cursors are generated on demand. */
+  GHOST_ASSERT(false, "All cursors must be generated!");
+  (void)bitmap;
+  (void)mask;
+  (void)size;
+  (void)hot_spot;
   (void)canInvertColor;
 
-  GHOST_CursorBitmapRef *user_data = (GHOST_CursorBitmapRef *)malloc(
-      sizeof(GHOST_CursorBitmapRef) + (sizeof(uint32_t) * size[0] * size[1]));
-
-  memset(user_data, 0, sizeof(GHOST_CursorBitmapRef));
-  user_data->data_size[0] = size[0];
-  user_data->data_size[1] = size[1];
-  user_data->hot_spot[0] = hot_spot[0];
-  user_data->hot_spot[1] = hot_spot[1];
-
-  uint32_t *bitmap_copy = reinterpret_cast<uint32_t *>(user_data + 1);
-
-  user_data->data = reinterpret_cast<const uint8_t *>(bitmap_copy);
-
-  if (mask) {
-    /* Monochrome & mask (expand to RGBA). */
-    static constexpr uint32_t black = 0xFF000000;
-    static constexpr uint32_t white = 0xFFFFFFFF;
-    static constexpr uint32_t transparent = 0x00000000;
-
-    uint8_t datab = 0, maskb = 0;
-    uint32_t *px_dst = bitmap_copy;
-
-    for (int y = 0; y < size[1]; y++) {
-      for (int x = 0; x < size[0]; x++) {
-        if ((x % 8) == 0) {
-          datab = *bitmap++;
-          maskb = *mask++;
-
-          /* Reverse bit order. */
-          datab = uint8_t((datab * 0x0202020202ULL & 0x010884422010ULL) % 1023);
-          maskb = uint8_t((maskb * 0x0202020202ULL & 0x010884422010ULL) % 1023);
-        }
-
-        *px_dst++ = (datab & 0x80) ? white : ((maskb & 0x80) ? black : transparent);
-        datab <<= 1;
-        maskb <<= 1;
-      }
-    }
-  }
-  else {
-    memcpy(bitmap_copy, bitmap, sizeof(uint32_t) * size[0] * size[1]);
-  }
-
-  /* This is simply a wrapper for `setWindowCustomCursorGenerator`. */
-  GHOST_CursorGenerator *cursor_generator = new GHOST_CursorGenerator{nullptr};
-  cursor_generator->generate_fn = [](const GHOST_CursorGenerator *cursor_generator,
-                                     const int cursor_size,
-                                     const int cursor_size_max,
-                                     uint8_t *(*alloc_fn)(size_t size),
-                                     int r_bitmap_size[2],
-                                     int r_hot_spot[2]) -> uint8_t * {
-    const GHOST_CursorBitmapRef *cursor_ref_source =
-        (const GHOST_CursorBitmapRef *)(cursor_generator->user_data);
-    (void)cursor_size;
-    (void)cursor_size_max;
-
-    const size_t data_alloc_size = cursor_ref_source->data_size[0] *
-                                   cursor_ref_source->data_size[1] * sizeof(uint32_t);
-
-    uint8_t *bitmap_copy = alloc_fn(data_alloc_size);
-    if (UNLIKELY(bitmap_copy == nullptr)) {
-      return nullptr;
-    }
-    memcpy(bitmap_copy, cursor_ref_source->data, data_alloc_size);
-
-    r_bitmap_size[0] = cursor_ref_source->data_size[0];
-    r_bitmap_size[1] = cursor_ref_source->data_size[1];
-
-    r_hot_spot[0] = cursor_ref_source->hot_spot[0];
-    r_hot_spot[1] = cursor_ref_source->hot_spot[1];
-
-    return bitmap_copy;
-  };
-
-  cursor_generator->user_data = user_data;
-  cursor_generator->free_fn = [](GHOST_CursorGenerator *cursor_generator) {
-    GHOST_CursorBitmapRef *cursor_ref = (GHOST_CursorBitmapRef *)(cursor_generator->user_data);
-    free(cursor_ref);
-    delete cursor_generator;
-  };
-
-  /* Before this, all logic is just setting up the cursor. */
-#ifdef USE_EVENT_BACKGROUND_THREAD
-  std::lock_guard lock_server_guard{*system_->server_mutex};
-#endif
-  m_cursorShape = GHOST_kStandardCursorCustom;
-  if (window_->cursor_generator) {
-    gwl_window_cursor_custom_free(window_->cursor_generator);
-  }
-  window_->cursor_generator = cursor_generator;
-
-  GHOST_TSuccess success = cursor_shape_refresh();
-
-  /* Let refresh handle applying the changes. */
-  if (success == GHOST_kSuccess) {
-    wl_display *display = system_->wl_display_get();
-    /* For the cursor to display when the event queue isn't being handled. */
-    wl_display_flush(display);
-#ifdef USE_CURSOR_IMMEDIATE_DISPATCH
-    wl_display_dispatch_pending(display);
-#endif
-  }
-  return success;
+  return GHOST_kFailure;
 }
 
 GHOST_TSuccess GHOST_WindowWayland::getCursorBitmap(GHOST_CursorBitmapRef *bitmap)
