@@ -6,12 +6,12 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
-int get_position(int seed, int number_of_steps)
+float get_position(int2 texel, int i, int steps, int sqrt_steps)
 {
 #if defined(JITTER)
-  return int((seed + hash_uint3_to_float(gl_GlobalInvocationID.x, gl_GlobalInvocationID.y, seed)) / sqrt(number_of_steps) * number_of_steps);
+  return int((i + hash_uint3_to_float(texel.x, texel.y, i)) / sqrt_steps * steps);
 #else
-  return seed;
+  return i;
 #endif
 }
 
@@ -37,14 +37,14 @@ void main()
   float accumulated_weight = 0.0f;
   float4 accumulated_color = float4(0.0f);
 
-  #if defined(JITTER)
-    int number_of_steps = int(sqrt(steps));
-  #else
-    int number_of_steps =  steps;
-  #endif
-  
+#if defined(JITTER)
+  int number_of_steps = int(sqrt(steps));
+#else
+  int number_of_steps = steps;
+#endif
+
   for (int i = 0; i <= number_of_steps; i++) {
-    int position_index = get_position(i, steps);
+    float position_index = get_position(texel, i, steps, number_of_steps);
     float2 position = coordinates + position_index * step_vector;
 
     /* We are already past the image boundaries, and any future steps are also past the image

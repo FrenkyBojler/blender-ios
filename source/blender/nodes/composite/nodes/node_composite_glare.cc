@@ -171,10 +171,11 @@ static void cmp_node_glare_declare(NodeDeclarationBuilder &b)
       .description(
           "The position of the source of the rays in normalized coordinates. 0 means lower left "
           "corner and 1 means upper right corner");
-  glare_panel.add_input<decl::Bool>("Jitter", "Sun beams jitter")
+  glare_panel.add_input<decl::Bool>("Jitter", "Sun Beams Jitter")
       .default_value(false)
-      .panel_toggle()
-      .description("Utalizing Monte Carlo Simulation For Optimization");
+      .description(
+          "Introduces jitter for a faster approximation at the expense a more grainy or noisy "
+          "result");
 }
 
 static void node_composit_init_glare(bNodeTree * /*ntree*/, bNode *node)
@@ -2253,7 +2254,7 @@ class GlareOperation : public NodeOperation {
 
   Result execute_sun_beams_gpu(Result &highlights, const int max_steps)
   {
-    GPUShader *shader = context().get_shader(get_compositor_sun_beams_shader());
+    GPUShader *shader = context().get_shader(this->get_compositor_sun_beams_shader());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_2fv(shader, "source", this->get_sun_position());
@@ -2313,7 +2314,8 @@ class GlareOperation : public NodeOperation {
 
       int number_of_steps = this->get_use_jitter() ? math::sqrt(steps) : steps;
       for (int i = 0; i <= number_of_steps; i++) {
-        int position_index = this->get_position(texel, i, this->get_use_jitter(), steps);
+        float position_index = this->get_position(
+            texel, i, this->get_use_jitter(), steps, number_of_steps);
         float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, and any future steps are also past the image
@@ -2337,16 +2339,17 @@ class GlareOperation : public NodeOperation {
     });
     return output;
   }
-  int get_position(const int2 texel,
-                   const int seed,
-                   const bool use_jitter,
-                   const int number_of_steps)
+
+  /* Returns a random position along the path between the texel and the source, which is
+   * essentially a random value in the [0, steps] range to perform Monte Carlo sampling. If jitter
+   * is not enabled, returns the i value instead. */
+  float get_position(
+      const int2 texel, const int i, const bool use_jitter, const int steps, const int sqrt_steps)
   {
     if (use_jitter) {
-      return (seed + noise::hash_to_float(texel.x, texel.y, seed)) / math::sqrt(number_of_steps) *
-             number_of_steps;
+      return (i + noise::hash_to_float(texel.x, texel.y, i)) / (sqrt_steps + 1) * steps;
     }
-    return seed;
+    return i;
   }
 
   /* ----------
@@ -2592,7 +2595,7 @@ class GlareOperation : public NodeOperation {
 
   bool get_use_jitter()
   {
-    return this->get_input("Sun beams jitter").get_single_value_default(false);
+    return this->get_input("Sun Beams Jitter").get_single_value_default(false);
   }
 };
 
