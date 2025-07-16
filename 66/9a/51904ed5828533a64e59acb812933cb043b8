@@ -1,2 +1,3 @@
 Referenced by issue #140801, Particle Weight Overlay Broken in 4.4
 Referenced by issue #141980, Curves in EDIT mode appear thinner than in OBJECT mode on HiDPi displays
+Referenced by pull request #142055, Fix #141980: Overlay: Curves in EDIT mode appear thinner and have no AA
