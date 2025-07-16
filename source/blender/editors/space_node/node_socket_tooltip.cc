@@ -48,6 +48,59 @@ class SocketTooltipBuilder {
   {
   }
 
+  void build()
+  {
+    const bNode &node = socket_.owner_node();
+    const bool is_extend = StringRef(socket_.idname) == "NodeSocketVirtual";
+    if (is_extend) {
+      this->build_tooltip_extend_socket();
+      return;
+    }
+    if (node.is_dangling_reroute()) {
+      this->build_tooltip_dangling_reroute();
+      return;
+    }
+    if (this->should_show_label()) {
+      this->build_tooltip_label();
+    }
+    this->build_tooltip_description();
+    this->build_tooltip_value();
+    if (tree_.type == NTREE_GEOMETRY) {
+      this->build_tooltip_structure_type();
+      if (socket_.type == SOCK_GEOMETRY) {
+        this->build_tooltip_supported_geometry_types();
+      }
+    }
+    /* Extra padding at the bottom. */
+    this->add_space();
+  }
+
+ private:
+  void build_tooltip_extend_socket()
+  {
+    this->add_text_field(TIP_("Connect a link to create a new socket."));
+  }
+
+  void build_tooltip_dangling_reroute()
+  {
+    this->add_space(2);
+    this->add_text_field(TIP_("Dangling reroute nodes are ignored."), UI_TIP_LC_ALERT);
+  }
+
+  bool should_show_label()
+  {
+    if (socket_.is_output()) {
+      return false;
+    }
+    if (socket_.type == SOCK_MENU) {
+      return true;
+    }
+    if (socket_.flag & SOCK_HIDE_LABEL) {
+      return true;
+    }
+    return false;
+  }
+
   void build_tooltip_label()
   {
     const bNode &node = socket_.owner_node();
@@ -57,30 +110,6 @@ class SocketTooltipBuilder {
     }
     const StringRefNull translated_socket_label = node_socket_get_label(&socket_, nullptr);
     this->add_text_field_header(translated_socket_label);
-  }
-
-  void add_space(const int amount = 1)
-  {
-    for ([[maybe_unused]] const int i : IndexRange(amount)) {
-      UI_tooltip_text_field_add(tip_data_, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
-    }
-  }
-
-  std::optional<std::string> get_socket_description()
-  {
-    if (socket_.runtime->declaration == nullptr) {
-      if (socket_.description[0]) {
-        return socket_.description;
-      }
-      return std::nullopt;
-    }
-    const blender::nodes::SocketDeclaration &socket_decl = *socket_.runtime->declaration;
-    blender::StringRefNull description = socket_decl.description;
-    if (description.is_empty()) {
-      return std::nullopt;
-    }
-
-    return TIP_(description);
   }
 
   void build_tooltip_description()
@@ -100,16 +129,179 @@ class SocketTooltipBuilder {
     this->add_text_field(std::move(description));
   }
 
-  void build_tooltip_value_and_type_oneline(const StringRef value, const StringRef type)
+  std::optional<std::string> get_socket_description()
   {
-    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Value"), value));
-    this->add_space();
-    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), type));
+    if (socket_.runtime->declaration == nullptr) {
+      if (socket_.description[0]) {
+        return socket_.description;
+      }
+      return std::nullopt;
+    }
+    const blender::nodes::SocketDeclaration &socket_decl = *socket_.runtime->declaration;
+    blender::StringRefNull description = socket_decl.description;
+    if (description.is_empty()) {
+      return std::nullopt;
+    }
+
+    return TIP_(description);
+  }
+
+  void build_tooltip_value()
+  {
+    SpaceNode *snode = CTX_wm_space_node(&C_);
+    const bNode &node = socket_.owner_node();
+
+    geo_log::ContextualGeoTreeLogs geo_tree_logs;
+    if (snode) {
+      geo_tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
+    }
+    geo_log::GeoTreeLog *geo_tree_log = geo_tree_logs.get_main_tree_log(socket_);
+    if (geo_tree_log && this->build_tooltip_value_from_geometry_nodes_log(*geo_tree_log)) {
+      return;
+    }
+    const bool always_show_value = socket_.owner_tree().type == NTREE_GEOMETRY;
+    if (node.is_reroute()) {
+      if (always_show_value) {
+        this->add_space(2);
+        this->build_tooltip_value_unknown();
+      }
+      return;
+    }
+    if (socket_.is_input()) {
+      if (this->is_socket_default_value_used()) {
+        this->build_tooltip_value_socket_default();
+        return;
+      }
+    }
+    if (always_show_value) {
+      this->add_space(2);
+      this->build_tooltip_value_unknown();
+    }
   }
 
   void build_tooltip_value_unknown()
   {
     this->build_tooltip_value_and_type_oneline(TIP_("Unknown"), TIP_("Unknown"));
+  }
+
+  void build_tooltip_value_socket_default()
+  {
+    if (socket_.is_multi_input()) {
+      this->add_space(2);
+      this->add_text_field_mono(TIP_("Values: None"));
+      return;
+    }
+    const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration;
+    if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
+      this->add_space(2);
+      build_tooltip_value_implicit_default(socket_decl->default_input_type);
+      return;
+    }
+    if (socket_.typeinfo->base_cpp_type == nullptr) {
+      return;
+    }
+    const CPPType &cpp_type = *socket_.typeinfo->base_cpp_type;
+    BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, socket_value);
+    socket_.typeinfo->get_base_cpp_value(socket_.default_value, socket_value);
+    BLI_SCOPED_DEFER([&]() { cpp_type.destruct(socket_value); });
+    this->add_space(2);
+    this->build_tooltip_value_generic({cpp_type, socket_value});
+  }
+
+  [[nodiscard]] bool build_tooltip_value_from_geometry_nodes_log(geo_log::GeoTreeLog &geo_tree_log)
+  {
+    if (socket_.typeinfo->base_cpp_type == nullptr) {
+      return false;
+    }
+    geo_tree_log.ensure_socket_values();
+    if (socket_.is_multi_input()) {
+      return this->build_tooltip_last_value_multi_input(geo_tree_log);
+    }
+    geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(socket_);
+    if (!value_log) {
+      return false;
+    }
+    this->add_space(2);
+    this->build_tooltip_value_geo_log(*value_log);
+    return true;
+  }
+
+  bool build_tooltip_last_value_multi_input(geo_log::GeoTreeLog &geo_tree_log)
+  {
+    const Span<const bNodeLink *> connected_links = socket_.directly_linked_links();
+
+    Vector<std::pair<int, geo_log::ValueLog *>> value_logs;
+    bool all_value_logs_missing = true;
+    for (const int i : connected_links.index_range()) {
+      const bNodeLink &link = *connected_links[i];
+      if (!link.is_used()) {
+        continue;
+      }
+      if (!(link.flag & NODE_LINK_VALID)) {
+        continue;
+      }
+      const bNodeSocket &from_socket = *link.fromsock;
+      this->add_space();
+      geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(from_socket);
+      value_logs.append({i, value_log});
+      if (value_log) {
+        all_value_logs_missing = false;
+      }
+    }
+    if (all_value_logs_missing) {
+      return false;
+    }
+
+    for (const auto &[i, value_log] : value_logs) {
+      const int connection_number = i + 1;
+      this->add_space(2);
+      this->add_text_field(fmt::format("{}:", connection_number));
+      this->add_space();
+      if (value_log) {
+        this->build_tooltip_value_geo_log(*value_log);
+      }
+      else {
+        this->build_tooltip_value_unknown();
+      }
+    }
+
+    return true;
+  }
+
+  void build_tooltip_value_geo_log(geo_log::ValueLog &value_log)
+  {
+    if (const auto *generic_value_log = dynamic_cast<const geo_log::GenericValueLog *>(&value_log))
+    {
+      this->build_tooltip_value_generic(generic_value_log->value);
+    }
+    else if (const auto *string_value_log = dynamic_cast<const geo_log::StringLog *>(&value_log)) {
+      this->build_tooltip_value_string_log(*string_value_log);
+    }
+    else if (const auto *field_value_log = dynamic_cast<const geo_log::FieldInfoLog *>(&value_log))
+    {
+      this->build_tooltip_value_field_log(*field_value_log);
+    }
+    else if (const auto *geometry_log = dynamic_cast<const geo_log::GeometryInfoLog *>(&value_log))
+    {
+      this->build_tooltip_value_geometry_log(*geometry_log);
+    }
+    else if (const auto *grid_log = dynamic_cast<const geo_log::GridInfoLog *>(&value_log)) {
+      build_tooltip_value_grid_log(*grid_log);
+    }
+    else if (const auto *bundle_log = dynamic_cast<const geo_log::BundleValueLog *>(&value_log)) {
+      this->build_tooltip_value_bundle_log(*bundle_log);
+    }
+    else if (const auto *closure_log = dynamic_cast<const geo_log::ClosureValueLog *>(&value_log))
+    {
+      this->build_tooltip_value_closure_log(*closure_log);
+    }
+  }
+
+  void build_tooltip_value_and_type_oneline(const StringRef value, const StringRef type)
+  {
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Value"), value));
+    this->add_space();
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), type));
   }
 
   template<typename T> [[nodiscard]] bool build_tooltip_value_data_block(const GPointer &value)
@@ -498,95 +690,6 @@ class SocketTooltipBuilder {
     this->add_text_field_mono(TIP_("Type: Closure"));
   }
 
-  void build_tooltip_value_geo_log(geo_log::ValueLog &value_log)
-  {
-    if (const auto *generic_value_log = dynamic_cast<const geo_log::GenericValueLog *>(&value_log))
-    {
-      this->build_tooltip_value_generic(generic_value_log->value);
-    }
-    else if (const auto *string_value_log = dynamic_cast<const geo_log::StringLog *>(&value_log)) {
-      this->build_tooltip_value_string_log(*string_value_log);
-    }
-    else if (const auto *field_value_log = dynamic_cast<const geo_log::FieldInfoLog *>(&value_log))
-    {
-      this->build_tooltip_value_field_log(*field_value_log);
-    }
-    else if (const auto *geometry_log = dynamic_cast<const geo_log::GeometryInfoLog *>(&value_log))
-    {
-      this->build_tooltip_value_geometry_log(*geometry_log);
-    }
-    else if (const auto *grid_log = dynamic_cast<const geo_log::GridInfoLog *>(&value_log)) {
-      build_tooltip_value_grid_log(*grid_log);
-    }
-    else if (const auto *bundle_log = dynamic_cast<const geo_log::BundleValueLog *>(&value_log)) {
-      this->build_tooltip_value_bundle_log(*bundle_log);
-    }
-    else if (const auto *closure_log = dynamic_cast<const geo_log::ClosureValueLog *>(&value_log))
-    {
-      this->build_tooltip_value_closure_log(*closure_log);
-    }
-  }
-
-  bool build_tooltip_last_value_multi_input(geo_log::GeoTreeLog &geo_tree_log)
-  {
-    const Span<const bNodeLink *> connected_links = socket_.directly_linked_links();
-
-    Vector<std::pair<int, geo_log::ValueLog *>> value_logs;
-    bool all_value_logs_missing = true;
-    for (const int i : connected_links.index_range()) {
-      const bNodeLink &link = *connected_links[i];
-      if (!link.is_used()) {
-        continue;
-      }
-      if (!(link.flag & NODE_LINK_VALID)) {
-        continue;
-      }
-      const bNodeSocket &from_socket = *link.fromsock;
-      this->add_space();
-      geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(from_socket);
-      value_logs.append({i, value_log});
-      if (value_log) {
-        all_value_logs_missing = false;
-      }
-    }
-    if (all_value_logs_missing) {
-      return false;
-    }
-
-    for (const auto &[i, value_log] : value_logs) {
-      const int connection_number = i + 1;
-      this->add_space(2);
-      this->add_text_field(fmt::format("{}:", connection_number));
-      this->add_space();
-      if (value_log) {
-        this->build_tooltip_value_geo_log(*value_log);
-      }
-      else {
-        this->build_tooltip_value_unknown();
-      }
-    }
-
-    return true;
-  }
-
-  [[nodiscard]] bool build_tooltip_value_from_geometry_nodes_log(geo_log::GeoTreeLog &geo_tree_log)
-  {
-    if (socket_.typeinfo->base_cpp_type == nullptr) {
-      return false;
-    }
-    geo_tree_log.ensure_socket_values();
-    if (socket_.is_multi_input()) {
-      return this->build_tooltip_last_value_multi_input(geo_tree_log);
-    }
-    geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(socket_);
-    if (!value_log) {
-      return false;
-    }
-    this->add_space(2);
-    this->build_tooltip_value_geo_log(*value_log);
-    return true;
-  }
-
   void build_tooltip_value_implicit_default(const NodeDefaultInputType &type)
   {
     switch (type) {
@@ -632,30 +735,6 @@ class SocketTooltipBuilder {
     }
   }
 
-  void build_tooltip_value_socket_default()
-  {
-    if (socket_.is_multi_input()) {
-      this->add_space(2);
-      this->add_text_field_mono(TIP_("Values: None"));
-      return;
-    }
-    const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration;
-    if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
-      this->add_space(2);
-      build_tooltip_value_implicit_default(socket_decl->default_input_type);
-      return;
-    }
-    if (socket_.typeinfo->base_cpp_type == nullptr) {
-      return;
-    }
-    const CPPType &cpp_type = *socket_.typeinfo->base_cpp_type;
-    BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, socket_value);
-    socket_.typeinfo->get_base_cpp_value(socket_.default_value, socket_value);
-    BLI_SCOPED_DEFER([&]() { cpp_type.destruct(socket_value); });
-    this->add_space(2);
-    this->build_tooltip_value_generic({cpp_type, socket_value});
-  }
-
   bool is_socket_default_value_used()
   {
     BLI_assert(socket_.is_input());
@@ -671,45 +750,6 @@ class SocketTooltipBuilder {
       return false;
     }
     return true;
-  }
-
-  void build_tooltip_value()
-  {
-    SpaceNode *snode = CTX_wm_space_node(&C_);
-    const bNode &node = socket_.owner_node();
-
-    geo_log::ContextualGeoTreeLogs geo_tree_logs;
-    if (snode) {
-      geo_tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
-    }
-    geo_log::GeoTreeLog *geo_tree_log = geo_tree_logs.get_main_tree_log(socket_);
-    if (geo_tree_log && this->build_tooltip_value_from_geometry_nodes_log(*geo_tree_log)) {
-      return;
-    }
-    const bool always_show_value = socket_.owner_tree().type == NTREE_GEOMETRY;
-    if (node.is_reroute()) {
-      if (always_show_value) {
-        this->add_space(2);
-        this->build_tooltip_value_unknown();
-      }
-      return;
-    }
-    if (socket_.is_input()) {
-      if (this->is_socket_default_value_used()) {
-        this->build_tooltip_value_socket_default();
-        return;
-      }
-    }
-    if (always_show_value) {
-      this->add_space(2);
-      this->build_tooltip_value_unknown();
-    }
-  }
-
-  void build_tooltip_dangling_reroute()
-  {
-    this->add_space(2);
-    this->add_text_field(TIP_("Dangling reroute nodes are ignored."), UI_TIP_LC_ALERT);
   }
 
   StringRef get_structure_type_tooltip(const nodes::StructureType &structure_type)
@@ -806,11 +846,6 @@ class SocketTooltipBuilder {
     this->add_text_field(fmt::format(TIP_("Geometry Types: {}"), supported_types_str));
   }
 
-  void build_tooltip_extend_socket()
-  {
-    this->add_text_field(TIP_("Connect a link to create a new socket."));
-  }
-
   void add_text_field_header(std::string text)
   {
     UI_tooltip_text_field_add(tip_data_, std::move(text), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
@@ -826,45 +861,11 @@ class SocketTooltipBuilder {
     UI_tooltip_text_field_add(tip_data_, std::move(text), {}, UI_TIP_STYLE_MONO, color_id);
   }
 
-  bool should_show_label()
+  void add_space(const int amount = 1)
   {
-    if (socket_.is_output()) {
-      return false;
+    for ([[maybe_unused]] const int i : IndexRange(amount)) {
+      UI_tooltip_text_field_add(tip_data_, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL);
     }
-    if (socket_.type == SOCK_MENU) {
-      return true;
-    }
-    if (socket_.flag & SOCK_HIDE_LABEL) {
-      return true;
-    }
-    return false;
-  }
-
-  void build()
-  {
-    const bNode &node = socket_.owner_node();
-    const bool is_extend = StringRef(socket_.idname) == "NodeSocketVirtual";
-    if (is_extend) {
-      this->build_tooltip_extend_socket();
-      return;
-    }
-    if (node.is_dangling_reroute()) {
-      this->build_tooltip_dangling_reroute();
-      return;
-    }
-    if (this->should_show_label()) {
-      this->build_tooltip_label();
-    }
-    this->build_tooltip_description();
-    this->build_tooltip_value();
-    if (tree_.type == NTREE_GEOMETRY) {
-      this->build_tooltip_structure_type();
-      if (socket_.type == SOCK_GEOMETRY) {
-        this->build_tooltip_supported_geometry_types();
-      }
-    }
-    /* Extra padding at the bottom. */
-    this->add_space();
   }
 };
 
