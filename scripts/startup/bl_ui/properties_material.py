@@ -169,8 +169,17 @@ class EEVEE_MATERIAL_PT_surface(MaterialButtonsPanel, Panel):
 
         mat = context.material
 
-        layout.use_property_split = True
-        panel_node_draw(layout, mat.node_tree, 'OUTPUT_MATERIAL', "Surface")
+        if mat.use_nodes:
+            layout.use_property_split = True
+            panel_node_draw(layout, mat.node_tree, 'OUTPUT_MATERIAL', "Surface")
+        else:
+            layout.prop(mat, "use_nodes", icon='NODETREE')
+            layout.use_property_split = True
+            layout.prop(mat, "diffuse_color", text="Base Color")
+            layout.prop(mat, "metallic")
+            layout.prop(mat, "specular_intensity", text="Specular")
+            layout.prop(mat, "roughness")
+
 
 class EEVEE_MATERIAL_PT_volume(MaterialButtonsPanel, Panel):
     bl_label = "Volume"

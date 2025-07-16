@@ -11,13 +11,11 @@
 #include <fmt/format.h>
 
 #include "DNA_ID.h"
-#include "DNA_curves_types.h"
-#include "DNA_grease_pencil_types.h"
-#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
+#include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_numbers.hh"
@@ -40,6 +38,7 @@
 #include "BKE_node.hh"
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
+#include "BKE_world.h"
 
 #include "SEQ_iterator.hh"
 
@@ -1259,115 +1258,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 32)) {
-    LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
-      mesh->radial_symmetry[0] = 1;
-      mesh->radial_symmetry[1] = 1;
-      mesh->radial_symmetry[2] = 1;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 33)) {
-    LISTBASE_FOREACH (Curves *, curves, &bmain->hair_curves) {
-      blender::bke::curves_convert_customdata_to_storage(curves->geometry.wrap());
-    }
-    LISTBASE_FOREACH (GreasePencil *, grease_pencil, &bmain->grease_pencils) {
-      blender::bke::grease_pencil_convert_customdata_to_storage(*grease_pencil);
-      for (const int i : IndexRange(grease_pencil->drawing_array_num)) {
-        GreasePencilDrawingBase *drawing_base = grease_pencil->drawing_array[i];
-        if (drawing_base->type == GP_DRAWING) {
-          GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-          blender::bke::curves_convert_customdata_to_storage(drawing->geometry.wrap());
-        }
-      }
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 34)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
-        continue;
-      }
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != CMP_NODE_SCALE) {
-          continue;
-        }
-        if (node->storage == nullptr) {
-          continue;
-        }
-        NodeScaleData *data = static_cast<NodeScaleData *>(node->storage);
-        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
-        node->storage = data;
-      }
-      FOREACH_NODETREE_END;
-    }
-  }
-
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 35)) {
-    FOREACH_NODETREE_BEGIN (bmain, ntree, id) {
-      if (ntree->type != NTREE_COMPOSIT) {
-        continue;
-      }
-      LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
-        if (node->type_legacy != CMP_NODE_TRANSFORM) {
-          continue;
-        }
-        if (node->storage != nullptr) {
-          continue;
-        }
-        NodeTransformData *data = MEM_callocN<NodeTransformData>(__func__);
-        data->interpolation = node->custom1;
-        data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
-        data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
-        node->storage = data;
-      }
-      FOREACH_NODETREE_END;
-    }
-  }
-
-   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 36)) {
-    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
-      if (material->use_nodes == false && material->nodetree) {
-        /* Preserve the current node tree. Add a new BSDF node that simulates the RGB values with
-         * use_nodes == false */
-        /* find existing active output node */
-        bNode *output = nullptr;
-        for (bNode *node : material->nodetree->all_nodes()) {
-          if (node->type_legacy == SH_NODE_OUTPUT_MATERIAL && node->flag & NODE_DO_OUTPUT) {
-            output = node;
-            bNodeSocket *in_surface = blender::bke::node_find_socket(*output, SOCK_IN, "Surface");
-            if (in_surface->link) {
-              blender::bke::node_remove_link(material->nodetree, *in_surface->link);
-            }
-            break;
-          }
-        }
-        if (output == nullptr) {
-          /* No output node found in the node tree, create one. */
-          output = blender::bke::node_add_static_node(
-              nullptr, *material->nodetree, SH_NODE_OUTPUT_MATERIAL);
-        }
-        bNode *bsdf = blender::bke::node_add_static_node(
-            nullptr, *material->nodetree, SH_NODE_BSDF_PRINCIPLED);
-        blender::bke::node_add_link(*material->nodetree,
-                                    *bsdf,
-                                    *blender::bke::node_find_socket(*bsdf, SOCK_OUT, "BSDF"),
-                                    *output,
-                                    *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
-
-        bNodeSocket *color_sock = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Color");
-        color_sock->default_value_typed<bNodeSocketValueVector>()->value[0] = material->r;
-        color_sock->default_value_typed<bNodeSocketValueVector>()->value[1] = material->g;
-        color_sock->default_value_typed<bNodeSocketValueVector>()->value[2] = material->b;
-        color_sock->default_value_typed<bNodeSocketValueVector>()->value[3] = material->a;
-        version_socket_update_is_used(material->nodetree);
-        // todo(habib): do the same for specular, roughness, metallic etc..
-
-        material->use_nodes = true;  // todo(habib): remove, should always be on.
-      }
-    }
-  }
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
