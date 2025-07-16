@@ -706,10 +706,6 @@ void GeometryManager::device_update(Device *device,
         if (geom->is_mesh() || geom->is_volume()) {
           Mesh *mesh = static_cast<Mesh *>(geom);
 
-          if (mesh->need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED)) {
-            mesh->add_undisplaced();
-          }
-
           /* Test if we need tessellation and setup normals if required. */
           if (mesh->need_tesselation()) {
             num_tessellation++;
@@ -724,6 +720,7 @@ void GeometryManager::device_update(Device *device,
           }
           else {
             mesh->add_vertex_normals();
+            mesh->add_undisplaced(scene);
           }
 
           /* Test if we need displacement. */
@@ -793,6 +790,7 @@ void GeometryManager::device_update(Device *device,
       subd_params.camera = dicing_camera;
 
       mesh->tessellate(subd_params);
+      mesh->add_undisplaced(scene);
 
       i++;
     }
