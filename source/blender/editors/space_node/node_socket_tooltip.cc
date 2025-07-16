@@ -52,13 +52,11 @@ class SocketTooltipBuilder {
   {
     const bNode &node = socket_.owner_node();
     if (node.is_reroute()) {
-      UI_tooltip_text_field_add(
-          tip_data_, TIP_("Reroute"), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
+      this->add_text_field_header(TIP_("Reroute"));
       return;
     }
     const StringRefNull translated_socket_label = node_socket_get_label(&socket_, nullptr);
-    UI_tooltip_text_field_add(
-        tip_data_, translated_socket_label, {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
+    this->add_text_field_header(translated_socket_label);
   }
 
   void add_space(const int amount = 1)
@@ -99,23 +97,14 @@ class SocketTooltipBuilder {
       description += '.';
     }
     this->add_space(2);
-    UI_tooltip_text_field_add(
-        tip_data_, std::move(description), {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_NORMAL);
+    this->add_text_field(std::move(description));
   }
 
   void build_tooltip_value_and_type_oneline(const StringRef value, const StringRef type)
   {
-    UI_tooltip_text_field_add(tip_data_,
-                              fmt::format("{}: {}", TIP_("Value"), value),
-                              {},
-                              UI_TIP_STYLE_MONO,
-                              UI_TIP_LC_VALUE);
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Value"), value));
     this->add_space();
-    UI_tooltip_text_field_add(tip_data_,
-                              fmt::format("{}: {}", TIP_("Type"), type),
-                              {},
-                              UI_TIP_STYLE_MONO,
-                              UI_TIP_LC_VALUE);
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), type));
   }
 
   void build_tooltip_value_unknown()
@@ -157,8 +146,7 @@ class SocketTooltipBuilder {
       return;
     }
     if (!enum_item->description.empty()) {
-      UI_tooltip_text_field_add(
-          tip_data_, enum_item->description, {}, UI_TIP_STYLE_NORMAL, UI_TIP_LC_VALUE);
+      this->add_text_field(enum_item->description, UI_TIP_LC_VALUE);
       this->add_space();
     }
     this->build_tooltip_value_and_type_oneline(enum_item->name, TIP_("Menu"));
@@ -194,11 +182,7 @@ class SocketTooltipBuilder {
   void build_tooltip_value_color(const ColorGeometry4f &value)
   {
     UI_tooltip_color_field_add(tip_data_, float4(value), true, false, nullptr);
-    UI_tooltip_text_field_add(tip_data_,
-                              fmt::format("{}: {}", TIP_("Type"), TIP_("Float Color")),
-                              {},
-                              UI_TIP_STYLE_MONO,
-                              UI_TIP_LC_VALUE);
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), TIP_("Float Color")));
   }
 
   void build_tooltip_value_quaternion(const math::Quaternion &value)
@@ -230,16 +214,11 @@ class SocketTooltipBuilder {
       ss << fmt::format("{:7.3} {:7.3} {:7.3} {:7.3}\n", row[0], row[1], row[2], row[3]);
     }
 
-    UI_tooltip_text_field_add(
-        tip_data_, fmt::format("{}:", TIP_("Value")), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    this->add_text_field_mono(fmt::format("{}:", TIP_("Value")));
     this->add_space();
-    UI_tooltip_text_field_add(tip_data_, ss.str(), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    this->add_text_field_mono(ss.str());
     this->add_space();
-    UI_tooltip_text_field_add(tip_data_,
-                              fmt::format("{}: {}", TIP_("Type"), TIP_("4x4 Float Matrix")),
-                              {},
-                              UI_TIP_STYLE_MONO,
-                              UI_TIP_LC_VALUE);
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), TIP_("4x4 Float Matrix")));
   }
 
   void build_tooltip_value_generic(const GPointer &value)
@@ -363,25 +342,16 @@ class SocketTooltipBuilder {
       return;
     }
 
-    UI_tooltip_text_field_add(
-        tip_data_, TIP_("Field dependending on:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    this->add_text_field_mono(TIP_("Field dependending on:"));
 
     for (const std::string &input_tooltip : input_tooltips) {
       this->add_space();
-      UI_tooltip_text_field_add(tip_data_,
-                                fmt::format("\u2022 {}", input_tooltip),
-                                {},
-                                UI_TIP_STYLE_MONO,
-                                UI_TIP_LC_VALUE);
+      this->add_text_field_mono(fmt::format("\u2022 {}", input_tooltip));
     }
 
     this->add_space();
     std::string type_str = this->get_field_type_name(socket_base_cpp_type);
-    UI_tooltip_text_field_add(tip_data_,
-                              fmt::format("{}: {}", TIP_("Type"), type_str),
-                              {},
-                              UI_TIP_STYLE_MONO,
-                              UI_TIP_LC_VALUE);
+    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), type_str));
   }
 
   std::string count_to_string(const int count)
@@ -398,8 +368,7 @@ class SocketTooltipBuilder {
       this->build_tooltip_value_and_type_oneline(TIP_("None"), TIP_("Geometry Set"));
       return;
     }
-    UI_tooltip_text_field_add(
-        tip_data_, TIP_("Geometry components:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    this->add_text_field_mono(TIP_("Geometry components:"));
     for (const bke::GeometryComponent::Type type : component_types) {
       std::string component_str;
       switch (type) {
@@ -457,16 +426,11 @@ class SocketTooltipBuilder {
       }
       if (!component_str.empty()) {
         this->add_space();
-        UI_tooltip_text_field_add(tip_data_,
-                                  fmt::format("\u2022 {}", component_str),
-                                  {},
-                                  UI_TIP_STYLE_MONO,
-                                  UI_TIP_LC_VALUE);
+        this->add_text_field_mono(fmt::format("\u2022 {}", component_str));
       }
     }
     this->add_space();
-    UI_tooltip_text_field_add(
-        tip_data_, TIP_("Type: Geometry Set"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    this->add_text_field_mono(TIP_("Type: Geometry Set"));
   }
 
   void build_tooltip_value_grid_log(const geo_log::GridInfoLog &grid_log)
@@ -484,12 +448,10 @@ class SocketTooltipBuilder {
   void build_tooltip_value_bundle_log(const geo_log::BundleValueLog &bundle_log)
   {
     if (bundle_log.items.is_empty()) {
-      UI_tooltip_text_field_add(
-          tip_data_, TIP_("Values: None"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+      this->add_text_field_mono(TIP_("Values: None"));
     }
     else {
-      UI_tooltip_text_field_add(
-          tip_data_, TIP_("Values:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+      this->add_text_field_mono(TIP_("Values:"));
       Vector<geo_log::BundleValueLog::Item> sorted_items = bundle_log.items;
       std::sort(sorted_items.begin(), sorted_items.end(), [](const auto &a, const auto &b) {
         return BLI_strcasecmp_natural(a.key.identifiers().first().c_str(),
@@ -498,62 +460,42 @@ class SocketTooltipBuilder {
       for (const geo_log::BundleValueLog::Item &item : sorted_items) {
         this->add_space();
         const std::string type_name = TIP_(item.type->label);
-        UI_tooltip_text_field_add(tip_data_,
-                                  fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"),
-                                              item.key.identifiers().first(),
-                                              type_name),
-                                  {},
-                                  UI_TIP_STYLE_MONO,
-                                  UI_TIP_LC_VALUE);
+        this->add_text_field_mono(fmt::format(
+            fmt::runtime("\u2022 \"{}\" ({})\n"), item.key.identifiers().first(), type_name));
       }
     }
     this->add_space();
-    UI_tooltip_text_field_add(
-        tip_data_, TIP_("Type: Bundle"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    this->add_text_field_mono(TIP_("Type: Bundle"));
   }
 
   void build_tooltip_value_closure_log(const geo_log::ClosureValueLog &closure_log)
   {
     if (closure_log.inputs.is_empty() && closure_log.outputs.is_empty()) {
-      UI_tooltip_text_field_add(
-          tip_data_, TIP_("Value: None"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+      this->add_text_field_mono(TIP_("Value: None"));
     }
     else {
       if (!closure_log.inputs.is_empty()) {
-        UI_tooltip_text_field_add(
-            tip_data_, TIP_("Inputs:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+        this->add_text_field_mono(TIP_("Inputs:"));
         for (const geo_log::ClosureValueLog::Item &item : closure_log.inputs) {
           this->add_space();
           const std::string type_name = TIP_(item.type->label);
-          UI_tooltip_text_field_add(tip_data_,
-                                    fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"),
-                                                item.key.identifiers().first(),
-                                                type_name),
-                                    {},
-                                    UI_TIP_STYLE_MONO,
-                                    UI_TIP_LC_VALUE);
+          this->add_text_field_mono(fmt::format(
+              fmt::runtime("\u2022 \"{}\" ({})\n"), item.key.identifiers().first(), type_name));
         }
       }
       if (!closure_log.outputs.is_empty()) {
         this->add_space();
-        UI_tooltip_text_field_add(
-            tip_data_, TIP_("Outputs:"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+        this->add_text_field_mono(TIP_("Outputs:"));
         for (const geo_log::ClosureValueLog::Item &item : closure_log.outputs) {
           this->add_space();
           const std::string type_name = TIP_(item.type->label);
-          UI_tooltip_text_field_add(tip_data_,
-                                    fmt::format(fmt::runtime("\u2022 \"{}\" ({})\n"),
-                                                item.key.identifiers().first(),
-                                                type_name),
-                                    {},
-                                    UI_TIP_STYLE_MONO,
-                                    UI_TIP_LC_VALUE);
+          this->add_text_field_mono(fmt::format(
+              fmt::runtime("\u2022 \"{}\" ({})\n"), item.key.identifiers().first(), type_name));
         }
       }
     }
     this->add_space();
-    UI_tooltip_text_field_add(
-        tip_data_, TIP_("Type: Closure"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+    this->add_text_field_mono(TIP_("Type: Closure"));
   }
 
   void build_tooltip_value_geo_log(geo_log::ValueLog &value_log)
@@ -614,11 +556,7 @@ class SocketTooltipBuilder {
     for (const auto &[i, value_log] : value_logs) {
       const int connection_number = i + 1;
       this->add_space(2);
-      UI_tooltip_text_field_add(tip_data_,
-                                fmt::format("{}:", connection_number),
-                                {},
-                                UI_TIP_STYLE_NORMAL,
-                                UI_TIP_LC_NORMAL);
+      this->add_text_field(fmt::format("{}:", connection_number));
       this->add_space();
       if (value_log) {
         this->build_tooltip_value_geo_log(*value_log);
@@ -632,7 +570,6 @@ class SocketTooltipBuilder {
   }
 
   [[nodiscard]] bool build_tooltip_value_from_geometry_nodes_log(geo_log::GeoTreeLog &geo_tree_log)
-
   {
     if (socket_.typeinfo->base_cpp_type == nullptr) {
       return false;
@@ -699,8 +636,7 @@ class SocketTooltipBuilder {
   {
     if (socket_.is_multi_input()) {
       this->add_space(2);
-      UI_tooltip_text_field_add(
-          tip_data_, TIP_("Values: None"), {}, UI_TIP_STYLE_MONO, UI_TIP_LC_VALUE);
+      this->add_text_field_mono(TIP_("Values: None"));
       return;
     }
     const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration;
@@ -773,11 +709,7 @@ class SocketTooltipBuilder {
   void build_tooltip_dangling_reroute()
   {
     this->add_space(2);
-    UI_tooltip_text_field_add(tip_data_,
-                              TIP_("Dangling reroute nodes are ignored."),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_ALERT);
+    this->add_text_field(TIP_("Dangling reroute nodes are ignored."), UI_TIP_LC_ALERT);
   }
 
   StringRef get_structure_type_tooltip(const nodes::StructureType &structure_type)
@@ -814,11 +746,7 @@ class SocketTooltipBuilder {
     }
     const StringRef structure_type_name = this->get_structure_type_tooltip(structure_type);
     this->add_space(2);
-    UI_tooltip_text_field_add(tip_data_,
-                              fmt::format(TIP_("Structure: {}"), structure_type_name),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_NORMAL);
+    this->add_text_field(fmt::format(TIP_("Structure: {}"), structure_type_name));
   }
 
   void build_tooltip_supported_geometry_types()
@@ -875,20 +803,27 @@ class SocketTooltipBuilder {
       }
     }
     this->add_space();
-    UI_tooltip_text_field_add(tip_data_,
-                              fmt::format(TIP_("Geometry Types: {}"), supported_types_str),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_NORMAL);
+    this->add_text_field(fmt::format(TIP_("Geometry Types: {}"), supported_types_str));
   }
 
   void build_tooltip_extend_socket()
   {
-    UI_tooltip_text_field_add(tip_data_,
-                              TIP_("Connect a link to create a new socket."),
-                              {},
-                              UI_TIP_STYLE_NORMAL,
-                              UI_TIP_LC_NORMAL);
+    this->add_text_field(TIP_("Connect a link to create a new socket."));
+  }
+
+  void add_text_field_header(std::string text)
+  {
+    UI_tooltip_text_field_add(tip_data_, std::move(text), {}, UI_TIP_STYLE_HEADER, UI_TIP_LC_MAIN);
+  }
+
+  void add_text_field(std::string text, const uiTooltipColorID color_id = UI_TIP_LC_NORMAL)
+  {
+    UI_tooltip_text_field_add(tip_data_, std::move(text), {}, UI_TIP_STYLE_NORMAL, color_id);
+  }
+
+  void add_text_field_mono(std::string text, const uiTooltipColorID color_id = UI_TIP_LC_VALUE)
+  {
+    UI_tooltip_text_field_add(tip_data_, std::move(text), {}, UI_TIP_STYLE_MONO, color_id);
   }
 
   bool should_show_label()
