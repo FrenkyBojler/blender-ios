@@ -3070,6 +3070,7 @@ class _defs_sequencer_select:
             row = layout.row()
             row.use_property_split = False
             row.prop(props, "mode", text="", expand=True, icon_only=True)
+            layout.prop(props, "radius")
         def draw_cursor(_context, tool, xy):
             from gpu_extras.presets import draw_circle_2d
             props = tool.operator_properties("sequencer.select_circle")
