@@ -9,7 +9,7 @@
 float get_position(int2 texel, int i, int steps, int sqrt_steps)
 {
 #if defined(JITTER)
-  return int((i + hash_uint3_to_float(texel.x, texel.y, i)) / sqrt_steps * steps);
+  return int((i + hash_uint3_to_float(texel.x, texel.y, i)) / (sqrt_steps + 1) * steps);
 #else
   return i;
 #endif
