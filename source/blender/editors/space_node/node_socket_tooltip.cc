@@ -39,6 +39,16 @@ class SocketTooltipBuilder {
   const bNodeSocket &socket_;
   bContext &C_;
 
+  enum class TooltipBlockType {
+    Label,
+    Description,
+    StructureType,
+    SupportedGeometryTypes,
+    Value,
+  };
+
+  std::optional<TooltipBlockType> last_block_type_;
+
  public:
   SocketTooltipBuilder(uiTooltipData &tip_data,
                        const bNodeTree &tree,
@@ -50,18 +60,18 @@ class SocketTooltipBuilder {
 
   void build()
   {
-    const bNode &node = socket_.owner_node();
     const bool is_extend = StringRef(socket_.idname) == "NodeSocketVirtual";
     if (is_extend) {
       this->build_tooltip_extend_socket();
       return;
     }
-    if (node.is_dangling_reroute()) {
+    if (node_.is_dangling_reroute()) {
       this->build_tooltip_dangling_reroute();
       return;
     }
     if (this->should_show_label()) {
       this->build_tooltip_label();
+      last_block_type_ = TooltipBlockType::Label;
     }
     this->build_tooltip_description();
     if (tree_.type == NTREE_GEOMETRY) {
@@ -83,7 +93,6 @@ class SocketTooltipBuilder {
 
   void build_tooltip_dangling_reroute()
   {
-    this->add_space(2);
     this->add_text_field(TIP_("Dangling reroute nodes are ignored."), UI_TIP_LC_ALERT);
   }
 
@@ -103,8 +112,8 @@ class SocketTooltipBuilder {
 
   void build_tooltip_label()
   {
-    const bNode &node = socket_.owner_node();
-    if (node.is_reroute()) {
+    this->start_block(TooltipBlockType::Label);
+    if (node_.is_reroute()) {
       this->add_text_field_header(TIP_("Reroute"));
       return;
     }
@@ -125,7 +134,7 @@ class SocketTooltipBuilder {
     if (description[description.size() - 1] != '.') {
       description += '.';
     }
-    this->add_space(2);
+    this->start_block(TooltipBlockType::Description);
     this->add_text_field(std::move(description));
   }
 
@@ -149,8 +158,6 @@ class SocketTooltipBuilder {
   void build_tooltip_value()
   {
     SpaceNode *snode = CTX_wm_space_node(&C_);
-    const bNode &node = socket_.owner_node();
-
     geo_log::ContextualGeoTreeLogs geo_tree_logs;
     if (snode) {
       geo_tree_logs = geo_log::GeoNodesLog::get_contextual_tree_logs(*snode);
@@ -160,9 +167,9 @@ class SocketTooltipBuilder {
       return;
     }
     const bool always_show_value = socket_.owner_tree().type == NTREE_GEOMETRY;
-    if (node.is_reroute()) {
+    if (node_.is_reroute()) {
       if (always_show_value) {
-        this->add_space(2);
+        this->start_block(TooltipBlockType::Value);
         this->build_tooltip_value_unknown();
       }
       return;
@@ -174,7 +181,7 @@ class SocketTooltipBuilder {
       }
     }
     if (always_show_value) {
-      this->add_space(2);
+      this->start_block(TooltipBlockType::Value);
       this->build_tooltip_value_unknown();
     }
   }
@@ -187,13 +194,13 @@ class SocketTooltipBuilder {
   void build_tooltip_value_socket_default()
   {
     if (socket_.is_multi_input()) {
-      this->add_space(2);
+      this->start_block(TooltipBlockType::Value);
       this->add_text_field_mono(TIP_("Values: None"));
       return;
     }
     const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration;
     if (socket_decl && socket_decl->input_field_type == nodes::InputSocketFieldType::Implicit) {
-      this->add_space(2);
+      this->start_block(TooltipBlockType::Value);
       build_tooltip_value_implicit_default(socket_decl->default_input_type);
       return;
     }
@@ -204,7 +211,7 @@ class SocketTooltipBuilder {
     BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, socket_value);
     socket_.typeinfo->get_base_cpp_value(socket_.default_value, socket_value);
     BLI_SCOPED_DEFER([&]() { cpp_type.destruct(socket_value); });
-    this->add_space(2);
+    this->start_block(TooltipBlockType::Value);
     this->build_tooltip_value_generic({cpp_type, socket_value});
   }
 
@@ -221,7 +228,7 @@ class SocketTooltipBuilder {
     if (!value_log) {
       return false;
     }
-    this->add_space(2);
+    this->start_block(TooltipBlockType::Value);
     this->build_tooltip_value_geo_log(*value_log);
     return true;
   }
@@ -252,9 +259,12 @@ class SocketTooltipBuilder {
       return false;
     }
 
+    this->start_block(TooltipBlockType::Value);
     for (const auto &[i, value_log] : value_logs) {
       const int connection_number = i + 1;
-      this->add_space(2);
+      if (i > 0) {
+        this->add_space(2);
+      }
       this->add_text_field(fmt::format("{}:", connection_number));
       this->add_space();
       if (value_log) {
@@ -785,7 +795,7 @@ class SocketTooltipBuilder {
       structure_type = nodes::StructureType::Dynamic;
     }
     const StringRef structure_type_name = this->get_structure_type_tooltip(structure_type);
-    this->add_space(2);
+    this->start_block(TooltipBlockType::StructureType);
     this->add_text_field(fmt::format(TIP_("Structure: {}"), structure_type_name));
   }
 
@@ -842,8 +852,16 @@ class SocketTooltipBuilder {
         }
       }
     }
-    this->add_space();
+    this->start_block(TooltipBlockType::SupportedGeometryTypes);
     this->add_text_field(fmt::format(TIP_("Geometry Types: {}"), supported_types_str));
+  }
+
+  void start_block(const TooltipBlockType new_block_type)
+  {
+    if (last_block_type_.has_value()) {
+      this->add_space(2);
+    }
+    last_block_type_ = new_block_type;
   }
 
   void add_text_field_header(std::string text)
