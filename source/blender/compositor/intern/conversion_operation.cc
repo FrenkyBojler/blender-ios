@@ -59,6 +59,7 @@ static bool is_conversion_supported(const ResultType from_type, const ResultType
         case ResultType::Menu:
           return false;
       }
+      break;
     case ResultType::Menu:
       return to_type == ResultType::Menu;
   }
