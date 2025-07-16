@@ -387,11 +387,10 @@ enum {
 
 enum class eButPointerType : uint8_t {
   None = 0,
-
-  Char = 1 << 0,
-  Short = 1 << 1,
-  Int = 1 << 2,
-  Float = 1 << 3,
+  Char,
+  Short,
+  Int,
+  Float,
   // eButPointerType::Function = 192, /* UNUSED */
   Bit = 1 << 7, /* OR'd with a bit index. */
 };
