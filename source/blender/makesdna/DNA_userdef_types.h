@@ -56,7 +56,7 @@ typedef struct bUserMenuItem_Op {
   char op_idname[64];
   struct IDProperty *prop;
   char op_prop_enum[64];
-  char opcontext; /* #wmOperatorCallContext */
+  char opcontext; /* #blender::wm::OpCallContext */
   char _pad0[7];
 } bUserMenuItem_Op;
 
@@ -228,8 +228,7 @@ typedef struct UserDef_Experimental {
   char use_bundle_and_closure_nodes;
   char use_socket_structure_type;
   char use_geometry_nodes_lists;
-  char use_vulkan_hdr;
-  char _pad[3];
+  char _pad[4];
 } UserDef_Experimental;
 
 #define USER_EXPERIMENTAL_TEST(userdef, member) \
@@ -421,7 +420,7 @@ typedef struct UserDef {
 
   /** Index of the extension repo in the Preferences UI. */
   short active_extension_repo;
-  /** Flag for all extensions (#eUserPref_ExtensionFlag).  */
+  /** Flag for all extensions (#eUserPref_ExtensionFlag). */
   char extension_flag;
 
   /* Network settings, used by extensions but not specific to extensions. */

@@ -213,8 +213,9 @@ static void ui_popup_menu_create_block(bContext *C,
    * where having invoke doesn't make sense.
    * When the menu was opened from a button, use invoke still for compatibility. This used to be
    * the default and changing now could cause issues. */
-  const wmOperatorCallContext opcontext = pup->but ? WM_OP_INVOKE_REGION_WIN :
-                                                     WM_OP_EXEC_REGION_WIN;
+  const blender::wm::OpCallContext opcontext = pup->but ?
+                                                   blender::wm::OpCallContext::InvokeRegionWin :
+                                                   blender::wm::OpCallContext::ExecRegionWin;
 
   pup->layout->operator_context_set(opcontext);
 
@@ -293,8 +294,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 
   block->direction = direction;
 
-  int width, height;
-  UI_block_layout_resolve(block, &width, &height);
+  blender::ui::block_layout_resolve(block);
 
   UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_NUMSELECT);
 
@@ -536,7 +536,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup)
     UI_popup_menu_end(C, pup);
     return true;
   }
-  UI_block_layout_resolve(pup->block, nullptr, nullptr);
+  blender::ui::block_layout_resolve(pup->block);
   MEM_delete(pup->block->handle);
   UI_block_free(C, pup->block);
   MEM_delete(pup);
@@ -857,7 +857,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
 void uiPupBlockOperator(bContext *C,
                         uiBlockCreateFunc func,
                         wmOperator *op,
-                        wmOperatorCallContext opcontext)
+                        blender::wm::OpCallContext opcontext)
 {
   wmWindow *window = CTX_wm_window(C);
 

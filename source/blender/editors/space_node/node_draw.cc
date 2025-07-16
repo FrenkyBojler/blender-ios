@@ -447,8 +447,7 @@ static bool node_update_basis_buttons(const bContext &C,
   draw_buttons(&layout, (bContext *)&C, &nodeptr);
 
   UI_block_align_end(&block);
-  int buty;
-  UI_block_layout_resolve(&block, nullptr, &buty);
+  const int buty = blender::ui::block_layout_resolve(&block).y;
 
   dy = buty - NODE_DYS / 4;
   return true;
@@ -568,8 +567,7 @@ static bool node_update_basis_socket(const bContext &C,
 
   UI_block_align_end(&block);
 
-  int buty;
-  UI_block_layout_resolve(&block, nullptr, &buty);
+  int buty = blender::ui::block_layout_resolve(&block).y;
   /* Ensure minimum socket height in case layout is empty. */
   buty = min_ii(buty, topy - NODE_DY);
   locy = buty - multi_input_socket_offset * 0.5;
@@ -1161,9 +1159,7 @@ static void node_update_basis_from_declaration(
             layout.context_ptr_set("node", &node_ptr);
             decl.draw(&layout, const_cast<bContext *>(&C), &node_ptr);
             UI_block_align_end(&block);
-            int buty;
-            UI_block_layout_resolve(&block, nullptr, &buty);
-            locy = buty;
+            locy = blender::ui::block_layout_resolve(&block).y;
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::Separator>) {
             uiLayout &layout = blender::ui::block_layout(&block,
@@ -1176,7 +1172,7 @@ static void node_update_basis_from_declaration(
                                                          0,
                                                          UI_style_get_dpi());
             layout.separator(1.0, LayoutSeparatorType::Line);
-            UI_block_layout_resolve(&block, nullptr, nullptr);
+            blender::ui::block_layout_resolve(&block);
           }
           else if constexpr (std::is_same_v<ItemT, flat_item::PanelHeader>) {
             const nodes::PanelDeclaration &node_decl = *item.decl;
@@ -2393,7 +2389,7 @@ static void node_toggle_button_cb(bContext *C, void *node_argv, void *op_argv)
   /* Select & activate only the button's node. */
   node_select_single(*C, node);
 
-  WM_operator_name_call(C, opname, WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+  WM_operator_name_call(C, opname, wm::OpCallContext::InvokeDefault, nullptr, nullptr);
 }
 
 static void node_draw_shadow(const SpaceNode &snode,
@@ -2797,7 +2793,9 @@ static void node_add_error_message_button(const TreeDrawContext &tree_draw_ctx,
                             0,
                             nullptr);
   UI_but_func_quick_tooltip_set(
-      but, [warnings](const uiBut * /*but*/) { return node_errors_tooltip_fn(warnings); });
+      but, [warnings = Array<geo_log::NodeWarning>(warnings)](const uiBut * /*but*/) {
+        return node_errors_tooltip_fn(warnings);
+      });
   UI_block_emboss_set(&block, blender::ui::EmbossType::Emboss);
 }
 
@@ -5232,7 +5230,7 @@ static void draw_tree_path(const bContext &C, ARegion &region)
   const Vector<ui::ContextPathItem> context_path = ed::space_node::context_path_for_space_node(C);
   ui::template_breadcrumbs(layout, context_path);
 
-  UI_block_layout_resolve(block, nullptr, nullptr);
+  blender::ui::block_layout_resolve(block);
   UI_block_end(&C, block);
   UI_block_draw(&C, block);
 

@@ -14,6 +14,7 @@ struct CustomData;
 struct CustomDataTransferLayerMap;
 struct ListBase;
 struct Object;
+struct Mesh;
 
 /**
  * Fake CD_LAYERS (those are actually 'real' data stored directly into elements' structs,
@@ -41,6 +42,8 @@ enum {
 
   CD_FAKE_BWEIGHT = CD_FAKE | 300,
   CD_FAKE_CREASE = CD_FAKE | 400,
+  CD_FAKE_FREESTYLE_EDGE = CD_FAKE | 500,
+  CD_FAKE_FREESTYLE_FACE = CD_FAKE | 600,
 };
 
 float data_transfer_interp_float_do(int mix_mode, float val_dst, float val_src, float mix_factor);
@@ -67,13 +70,12 @@ bool data_transfer_layersmapping_vgroups(ListBase *r_map,
                                          int mix_mode,
                                          float mix_factor,
                                          const float *mix_weights,
-                                         int num_elem_dst,
                                          bool use_create,
                                          bool use_delete,
                                          Object *ob_src,
                                          Object *ob_dst,
-                                         const CustomData *cd_src,
-                                         CustomData *cd_dst,
+                                         const Mesh &mesh_src,
+                                         Mesh &mesh_dst,
                                          bool use_dupref_dst,
                                          int fromlayers,
                                          int tolayers);
