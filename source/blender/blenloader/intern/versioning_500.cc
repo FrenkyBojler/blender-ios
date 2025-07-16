@@ -45,6 +45,7 @@
 #include "BLT_translation.hh"
 
 #include "BLO_read_write.hh"
+#include "DNA_brush_types.h"
 
 #include "SEQ_iterator.hh"
 
@@ -1127,6 +1128,22 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
   BLI_freelistN(&pidlist);
 }
 
+static void do_version_convert_gp_jitter_values(Brush *brush)
+{
+  BrushGpencilSettings *settings = brush->gpencil_settings;
+  float old_hsv_jitter[3] = { settings->random_hue, settings->random_saturation, settings->random_value };
+  copy_v3_v3(brush->hsv_jitter, old_hsv_jitter);
+  if (settings->curve_rand_hue) {
+    brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
+  }
+  if (settings->curve_rand_saturation) {
+    brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
+  }
+  if (settings->curve_rand_value) {
+    brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
+  }
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -1497,6 +1514,14 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       }
     }
     FOREACH_NODETREE_END;
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 39)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->gpencil_settings) {
+        do_version_convert_gp_jitter_values(brush);
+      }
+    }
   }
 
   /**
