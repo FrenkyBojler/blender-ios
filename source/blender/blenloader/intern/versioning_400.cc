@@ -1642,6 +1642,9 @@ void blo_do_versions_400(FileData *fd, Library * /*lib*/, Main *bmain)
       }
     }
   }
+    LISTBASE_FOREACH (wmWindowManager *, wm, &bmain->wm) {
+      wm->xr.session_settings.base_scale = 1.0f;
+    }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 400, 28)) {
     LISTBASE_FOREACH (bScreen *, screen, &bmain->screens) {
