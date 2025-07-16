@@ -11,12 +11,13 @@
 #include <fmt/format.h>
 
 #include "DNA_ID.h"
+#include "DNA_curves_types.h"
+#include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_rigidbody_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_math_numbers.hh"
@@ -40,7 +41,6 @@
 #include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
-#include "BKE_world.h"
 
 #include "BLT_translation.hh"
 
