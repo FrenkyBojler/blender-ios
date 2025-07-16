@@ -627,8 +627,6 @@ using uiButSearchTooltipFn =
     ARegion *(*)(bContext *C, ARegion *region, const rcti *item_rect, void *arg, void *active);
 using uiButSearchListenFn = void (*)(const wmRegionListenerParams *params, void *arg);
 
-using uiButToolTipCustomFunc = void (*)(bContext &C, uiTooltipData &data, void *argN);
-
 using uiBlockHandleFunc = void (*)(bContext *C, void *arg, int event);
 
 /* -------------------------------------------------------------------- */
@@ -849,7 +847,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
 void uiPupBlockOperator(bContext *C,
                         uiBlockCreateFunc func,
                         wmOperator *op,
-                        wmOperatorCallContext opcontext);
+                        blender::wm::OpCallContext opcontext);
 #endif
 
 void UI_popup_block_close(bContext *C, wmWindow *win, uiBlock *block);
@@ -1208,7 +1206,7 @@ uiBut *uiDefButR_prop(uiBlock *block,
 uiBut *uiDefButO(uiBlock *block,
                  int type,
                  blender::StringRefNull opname,
-                 wmOperatorCallContext opcontext,
+                 blender::wm::OpCallContext opcontext,
                  const std::optional<blender::StringRef> str,
                  int x,
                  int y,
@@ -1218,7 +1216,7 @@ uiBut *uiDefButO(uiBlock *block,
 uiBut *uiDefButO_ptr(uiBlock *block,
                      int type,
                      wmOperatorType *ot,
-                     wmOperatorCallContext opcontext,
+                     blender::wm::OpCallContext opcontext,
                      blender::StringRef str,
                      int x,
                      int y,
@@ -1332,7 +1330,7 @@ uiBut *uiDefIconButR_prop(uiBlock *block,
 uiBut *uiDefIconButO(uiBlock *block,
                      int type,
                      blender::StringRefNull opname,
-                     wmOperatorCallContext opcontext,
+                     blender::wm::OpCallContext opcontext,
                      int icon,
                      int x,
                      int y,
@@ -1342,7 +1340,7 @@ uiBut *uiDefIconButO(uiBlock *block,
 uiBut *uiDefIconButO_ptr(uiBlock *block,
                          int type,
                          wmOperatorType *ot,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          int icon,
                          int x,
                          int y,
@@ -1437,7 +1435,7 @@ uiBut *uiDefIconTextButR_prop(uiBlock *block,
 uiBut *uiDefIconTextButO(uiBlock *block,
                          int type,
                          blender::StringRefNull,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          int icon,
                          blender::StringRef str,
                          int x,
@@ -1448,7 +1446,7 @@ uiBut *uiDefIconTextButO(uiBlock *block,
 uiBut *uiDefIconTextButO_ptr(uiBlock *block,
                              int type,
                              wmOperatorType *ot,
-                             wmOperatorCallContext opcontext,
+                             blender::wm::OpCallContext opcontext,
                              int icon,
                              blender::StringRef str,
                              int x,
@@ -1459,7 +1457,7 @@ uiBut *uiDefIconTextButO_ptr(uiBlock *block,
 
 void UI_but_operator_set(uiBut *but,
                          wmOperatorType *optype,
-                         wmOperatorCallContext opcontext,
+                         blender::wm::OpCallContext opcontext,
                          const PointerRNA *opptr = nullptr);
 /**
  * Disable calling operators from \a but in button handling. Useful to attach an operator to a
@@ -1947,7 +1945,7 @@ void UI_but_func_hold_set(uiBut *but, uiButHandleHoldFunc func, void *argN);
 
 PointerRNA *UI_but_extra_operator_icon_add(uiBut *but,
                                            blender::StringRefNull opname,
-                                           wmOperatorCallContext opcontext,
+                                           blender::wm::OpCallContext opcontext,
                                            int icon);
 wmOperatorType *UI_but_extra_operator_icon_optype_get(const uiButExtraOpIcon *extra_icon);
 PointerRNA *UI_but_extra_operator_icon_opptr_get(const uiButExtraOpIcon *extra_icon);

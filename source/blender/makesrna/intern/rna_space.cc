@@ -6449,7 +6449,8 @@ static void rna_def_space_sequencer(BlenderRNA *brna)
   RNA_def_property_ui_text(
       prop,
       "Display Channel",
-      "The channel number shown in the image preview. 0 is the result of all strips combined");
+      "Preview all channels less than or equal to this value. 0 shows every channel, and negative "
+      "values climb that many metastrip levels if applicable, showing every channel there.");
   RNA_def_property_range(prop, -5, blender::seq::MAX_CHANNELS);
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SEQUENCER, "rna_SequenceEditor_update_cache");
 
@@ -6893,8 +6894,8 @@ static void rna_def_space_graph(BlenderRNA *brna)
        ICON_PIVOT_INDIVIDUAL,
        "Individual Centers",
        ""},
-      /*{V3D_AROUND_CENTER_MEDIAN, "MEDIAN_POINT", 0, "Median Point", ""}, */
-      /*{V3D_AROUND_ACTIVE, "ACTIVE_ELEMENT", 0, "Active Element", ""}, */
+      // {V3D_AROUND_CENTER_MEDIAN, "MEDIAN_POINT", 0, "Median Point", ""},
+      // {V3D_AROUND_ACTIVE, "ACTIVE_ELEMENT", 0, "Active Element", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 

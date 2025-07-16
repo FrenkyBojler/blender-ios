@@ -391,7 +391,7 @@ static wmOperatorStatus preferences_extension_repo_add_exec(bContext *C, wmOpera
   WM_event_add_notifier(C, NC_WINDOW, nullptr);
 
   /* Mainly useful when adding a repository from a popup since it's not as obvious
-   * the repository was added compared to the repository popover.  */
+   * the repository was added compared to the repository popover. */
   BKE_reportf(op->reports,
               RPT_INFO,
               "Added %s \"%s\"",
@@ -809,7 +809,7 @@ static wmOperatorStatus preferences_extension_url_drop_invoke(bContext *C,
     if (use_url) {
       RNA_string_set(&props_ptr, "url", url.c_str());
     }
-    WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, event);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, event);
     WM_operator_properties_free(&props_ptr);
     retval = OPERATOR_FINISHED;
   }
