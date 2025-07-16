@@ -188,7 +188,7 @@ class SocketTooltipBuilder {
 
   void build_tooltip_value_unknown()
   {
-    this->build_tooltip_value_and_type_oneline(TIP_("Unknown (not evaluated)"), TIP_("Unknown"));
+    this->add_text_field_mono(TIP_("Value: Unknown (not evaluated)"));
   }
 
   void build_tooltip_value_socket_default()
