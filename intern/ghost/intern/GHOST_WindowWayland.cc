@@ -2337,6 +2337,7 @@ GHOST_TSuccess GHOST_WindowWayland::setWindowCustomCursorShape(const uint8_t *bi
                                      int r_hot_spot[2]) -> uint8_t * {
     const GHOST_CursorBitmapRef *cursor_ref_source =
         (const GHOST_CursorBitmapRef *)(cursor_generator->user_data);
+    (void)cursor_size;
     (void)cursor_size_max;
 
     const size_t data_alloc_size = cursor_ref_source->data_size[0] *
