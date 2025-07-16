@@ -100,10 +100,11 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
     row->menu("WM_MT_operator_presets", std::nullopt, ICON_NONE);
 
     wmOperatorType *ot = WM_operatortype_find("WM_OT_operator_preset_add", false);
-    op_ptr = op_ptr = row->op(ot, "", ICON_ADD, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+    op_ptr = op_ptr = row->op(
+        ot, "", ICON_ADD, blender::wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     RNA_string_set(&op_ptr, "operator", op->type->idname);
 
-    op_ptr = row->op(ot, "", ICON_REMOVE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+    op_ptr = row->op(ot, "", ICON_REMOVE, blender::wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
     RNA_string_set(&op_ptr, "operator", op->type->idname);
     RNA_boolean_set(&op_ptr, "remove_active", true);
   }
@@ -126,8 +127,8 @@ static eAutoPropButsReturn template_operator_property_buts_draw_single(
 
     PointerRNA ptr = RNA_pointer_create_discrete(&wm->id, op->type->srna, op->properties);
 
-    uiLayoutSetPropSep(layout, use_prop_split);
-    uiLayoutSetPropDecorate(layout, false);
+    layout->use_property_split_set(use_prop_split);
+    layout->use_property_decorate_set(false);
 
     /* main draw call */
     return_info = uiDefAutoButsRNA(
@@ -301,7 +302,7 @@ void uiTemplateOperatorRedoProperties(uiLayout *layout, const bContext *C)
   layout->op("SCREEN_OT_repeat_last",
              WM_operatortype_name(op->type, op->ptr),
              ICON_NONE,
-             WM_OP_INVOKE_DEFAULT,
+             blender::wm::OpCallContext::InvokeDefault,
              0);
 #endif
 
@@ -351,7 +352,7 @@ static void draw_export_controls(
   if (valid) {
     uiLayout *row = &layout->row(false);
     row->emboss_set(blender::ui::EmbossType::None);
-    uiItemPopoverPanel(row, C, "WM_PT_operator_presets", "", ICON_PRESET);
+    row->popover(C, "WM_PT_operator_presets", "", ICON_PRESET);
     PointerRNA op_ptr = row->op("COLLECTION_OT_exporter_export", "", ICON_EXPORT);
     RNA_int_set(&op_ptr, "index", index);
   }
@@ -365,8 +366,8 @@ static void draw_export_properties(bContext *C,
 {
   uiLayout *col = &layout->column(false);
 
-  uiLayoutSetPropSep(col, true);
-  uiLayoutSetPropDecorate(col, false);
+  col->use_property_split_set(true);
+  col->use_property_decorate_set(false);
 
   /* Note this property is used as an alternative to the `filepath` property of `op->ptr`.
    * This property is a wrapper to access that property, see the `CollectionExport::filepath`
@@ -444,6 +445,12 @@ void uiTemplateCollectionExporters(uiLayout *layout, bContext *C)
   col->menu("COLLECTION_MT_exporter_add", "", ICON_ADD);
   PointerRNA op_ptr = col->op("COLLECTION_OT_exporter_remove", "", ICON_REMOVE);
   RNA_int_set(&op_ptr, "index", index);
+
+  col->separator();
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_UP);
+  RNA_enum_set(&op_ptr, "direction", -1);
+  op_ptr = col->op("COLLECTION_OT_exporter_move", "", ICON_TRIA_DOWN);
+  RNA_enum_set(&op_ptr, "direction", 1);
 
   col = &layout->column(true);
   col->op("COLLECTION_OT_export_all", std::nullopt, ICON_EXPORT);

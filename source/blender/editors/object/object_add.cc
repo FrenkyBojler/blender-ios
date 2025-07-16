@@ -64,11 +64,7 @@
 #include "BKE_effect.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -396,7 +392,7 @@ float new_primitive_matrix(bContext *C,
 
 static void view_align_update(Main * /*main*/, Scene * /*scene*/, PointerRNA *ptr)
 {
-  RNA_struct_idprops_unset(ptr, "rotation");
+  RNA_struct_system_idprops_unset(ptr, "rotation");
 }
 
 void add_unit_props_size(wmOperatorType *ot)
@@ -3251,7 +3247,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
   mesh_copied->attributes_for_write().add(
       unique_attribute_id,
       bke::AttrDomain::Point,
-      CD_PROP_FLOAT3,
+      bke::AttrType::Float3,
       bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
 
   const int edges_num = mesh_copied->edges_num;
@@ -4244,7 +4240,7 @@ static void object_convert_ui(bContext * /*C*/, wmOperator *op)
 {
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(op->ptr, "target", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   layout->prop(op->ptr, "keep_original", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4970,6 +4966,20 @@ static wmOperatorStatus update_all_shape_keys_exec(bContext *C, wmOperator *op)
   return ED_mesh_shapes_join_objects_exec(C, false, op->reports);
 }
 
+static bool object_update_shapes_poll(bContext *C)
+{
+  if (!active_shape_key_editable_poll(C)) {
+    return false;
+  }
+
+  Object *ob = CTX_data_active_object(C);
+  const Key *key = BKE_key_from_object(ob);
+  if (!key || BLI_listbase_is_empty(&key->block)) {
+    return false;
+  }
+  return true;
+}
+
 void OBJECT_OT_update_shapes(wmOperatorType *ot)
 {
   ot->name = "Update from Objects";
@@ -4979,7 +4989,7 @@ void OBJECT_OT_update_shapes(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_update_shapes";
 
   ot->exec = update_all_shape_keys_exec;
-  ot->poll = active_shape_key_editable_poll;
+  ot->poll = object_update_shapes_poll;
 
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 }

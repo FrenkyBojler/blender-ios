@@ -5,7 +5,7 @@
 bl_info = {
     'name': 'glTF 2.0 format',
     'author': 'Julien Duroure, Scurest, Norbert Nopper, Urs Hanselmann, Moritz Becher, Benjamin Schmithüsen, Jim Eckerlein, and many external contributors',
-    "version": (5, 0, 14),
+    "version": (5, 0, 16),
     'blender': (4, 4, 0),
     'location': 'File > Import-Export',
     'description': 'Import-Export as glTF 2.0',
@@ -141,9 +141,8 @@ def get_format_items(scene, context):
               'Exports multiple files, with separate JSON, binary and texture data. '
               'Easiest to edit later'))
 
-    if bpy.context.preferences.addons['io_scene_gltf2'].preferences \
-            and "allow_embedded_format" in bpy.context.preferences.addons['io_scene_gltf2'].preferences \
-            and bpy.context.preferences.addons['io_scene_gltf2'].preferences['allow_embedded_format']:
+    addon_preferences = bpy.context.preferences.addons['io_scene_gltf2'].preferences
+    if addon_preferences and addon_preferences.allow_embedded_format:
         # At initialization, the preferences are not yet loaded
         # The second line check is needed until the PR is merge in Blender, for github CI tests
         items += (('GLTF_EMBEDDED', 'glTF Embedded (.gltf)',
@@ -1851,6 +1850,11 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
 
     filter_glob: StringProperty(default="*.glb;*.gltf", options={'HIDDEN'})
 
+    directory: StringProperty(
+        subtype='DIR_PATH',
+        options={'HIDDEN', 'SKIP_PRESET'},
+    )
+
     files: CollectionProperty(
         name="File Path",
         type=bpy.types.OperatorFileListElement,
@@ -2028,9 +2032,8 @@ class ImportGLTF2(Operator, ConvertGLTF2_Base, ImportHelper):
         if self.files:
             # Multiple file import
             ret = {'CANCELLED'}
-            dirname = os.path.dirname(self.filepath)
             for file in self.files:
-                path = os.path.join(dirname, file.name)
+                path = os.path.join(self.directory, file.name)
                 if self.unit_import(path, import_settings) == {'FINISHED'}:
                     ret = {'FINISHED'}
             return ret

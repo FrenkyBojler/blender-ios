@@ -396,12 +396,12 @@ static void panel_draw(const bContext *C, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
   auto *dmd = static_cast<GreasePencilDashModifierData *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "dash_offset", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   uiLayout *row = &layout->row(false);
-  uiLayoutSetPropSep(row, false);
+  row->use_property_split_set(false);
 
   uiTemplateList(row,
                  (bContext *)C,
@@ -424,14 +424,11 @@ static void panel_draw(const bContext *C, Panel *panel)
   sub->op("OBJECT_OT_grease_pencil_dash_modifier_segment_remove", "", ICON_REMOVE);
   col->separator();
   sub = &col->column(true);
-  uiItemEnumO_string(
-      sub, "", ICON_TRIA_UP, "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "type", "UP");
-  uiItemEnumO_string(sub,
-                     "",
-                     ICON_TRIA_DOWN,
-                     "OBJECT_OT_grease_pencil_dash_modifier_segment_move",
-                     "type",
-                     "DOWN");
+  PointerRNA op_ptr = layout->op(
+      "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
+  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
+  op_ptr = layout->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
+  RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
 
   if (dmd->segment_active_index >= 0 && dmd->segment_active_index < dmd->segments_num) {
     PointerRNA ds_ptr = RNA_pointer_create_discrete(ptr->owner_id,

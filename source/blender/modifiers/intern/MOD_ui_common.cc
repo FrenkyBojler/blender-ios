@@ -65,7 +65,7 @@ static void modifier_reorder(bContext *C, Panel *panel, int new_index)
   WM_operator_properties_create_ptr(&props_ptr, ot);
   RNA_string_set(&props_ptr, "modifier", md->name);
   RNA_int_set(&props_ptr, "index", new_index);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
   WM_operator_properties_free(&props_ptr);
 }
 
@@ -133,11 +133,11 @@ void modifier_vgroup_ui(uiLayout *layout,
   bool has_vertex_group = RNA_string_length(ptr, vgroup_prop.c_str()) != 0;
 
   uiLayout *row = &layout->row(true);
-  uiItemPointerR(row, ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
+  row->prop_search(ptr, vgroup_prop, ob_ptr, "vertex_groups", text, ICON_GROUP_VERTEX);
   if (invert_vgroup_prop) {
     uiLayout *sub = &row->row(true);
     sub->active_set(has_vertex_group);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
     sub->prop(ptr, *invert_vgroup_prop, UI_ITEM_NONE, "", ICON_ARROW_LEFTRIGHT);
   }
 }
@@ -217,7 +217,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_Modifier, md);
   layout->context_ptr_set("modifier", &ptr);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   layout->ui_units_x_set(4.0f);
 
@@ -230,7 +230,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
     op_ptr = layout->op("OBJECT_OT_modifier_apply",
                         IFACE_("Apply (All Keyframes)"),
                         ICON_KEYFRAME,
-                        WM_OP_INVOKE_DEFAULT,
+                        blender::wm::OpCallContext::InvokeDefault,
                         UI_ITEM_NONE);
     RNA_boolean_set(&op_ptr, "all_keyframes", true);
   }
@@ -278,7 +278,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
                       IFACE_("Move to First"),
                       ICON_TRIA_UP,
-                      WM_OP_INVOKE_DEFAULT,
+                      blender::wm::OpCallContext::InvokeDefault,
                       UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
 
@@ -286,7 +286,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
   op_ptr = layout->op("OBJECT_OT_modifier_move_to_index",
                       IFACE_("Move to Last"),
                       ICON_TRIA_DOWN,
-                      WM_OP_INVOKE_DEFAULT,
+                      blender::wm::OpCallContext::InvokeDefault,
                       UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->modifiers) - 1);
 
@@ -299,7 +299,7 @@ static void modifier_ops_extra_draw(bContext *C, uiLayout *layout, void *md_v)
     op_ptr = layout->op("OBJECT_OT_geometry_nodes_move_to_nodes",
                         std::nullopt,
                         ICON_NONE,
-                        WM_OP_INVOKE_DEFAULT,
+                        blender::wm::OpCallContext::InvokeDefault,
                         UI_ITEM_NONE);
     layout->prop(&ptr, "show_group_selector", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }

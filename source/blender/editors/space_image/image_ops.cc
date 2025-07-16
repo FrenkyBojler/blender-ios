@@ -1672,7 +1672,7 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
 
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     return OPERATOR_CANCELLED;
@@ -2045,8 +2045,8 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Operator settings. */
   uiDefAutoButsRNA(layout,
@@ -2232,7 +2232,8 @@ static wmOperatorStatus image_save_invoke(bContext *C, wmOperator *op, const wmE
   if (!BKE_image_has_packedfile(ima) &&
       (!BKE_image_has_filepath(ima) || !image_file_format_writable(ima, iuser)))
   {
-    WM_operator_name_call(C, "IMAGE_OT_save_as", WM_OP_INVOKE_DEFAULT, nullptr, event);
+    WM_operator_name_call(
+        C, "IMAGE_OT_save_as", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
     return OPERATOR_CANCELLED;
   }
   return image_save_exec(C, op);
@@ -2699,8 +2700,8 @@ static void image_new_draw(bContext * /*C*/, wmOperator *op)
 
   /* copy of WM_operator_props_dialog_popup() layout */
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
   col->prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4236,8 +4237,8 @@ static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
 
 static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   uiLayout *col = &layout->column(false);
   col->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4320,14 +4321,14 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
   }
 
   bool fill_tile = RNA_boolean_get(op->ptr, "fill");
-  char *label = RNA_string_get_alloc(op->ptr, "label", nullptr, 0, nullptr);
+  std::string label = RNA_string_get(op->ptr, "label");
 
   /* BKE_image_add_tile assumes a pre-sorted list of tiles. */
   BKE_image_sort_tiles(ima);
 
   ImageTile *last_tile_created = nullptr;
   for (int tile_number = start_tile; tile_number <= end_tile; tile_number++) {
-    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label);
+    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label.c_str());
 
     if (tile != nullptr) {
       if (fill_tile) {
@@ -4337,7 +4338,6 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
       last_tile_created = tile;
     }
   }
-  MEM_freeN(label);
 
   if (!last_tile_created) {
     BKE_report(op->reports, RPT_WARNING, "No UDIM tiles were created");
@@ -4383,8 +4383,8 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
   uiLayout *col;
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
   col->prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);

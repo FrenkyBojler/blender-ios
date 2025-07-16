@@ -4798,6 +4798,7 @@ static void rna_generate_struct(BlenderRNA * /*brna*/, StructRNA *srna, FILE *f)
   fprintf(f, "\t%s,\n", rna_function_string(srna->unreg));
   fprintf(f, "\t%s,\n", rna_function_string(srna->instance));
   fprintf(f, "\t%s,\n", rna_function_string(srna->idproperties));
+  fprintf(f, "\t%s,\n", rna_function_string(srna->system_idproperties));
 
   if (srna->reg && !srna->refine) {
     CLOG_ERROR(
@@ -5847,7 +5848,7 @@ int main(int argc, char **argv)
 
   /* Some useful defaults since this runs standalone. */
   CLG_output_use_basename_set(true);
-  CLG_level_set(debugSRNA);
+  CLG_level_set(debugSRNA ? CLG_LEVEL_DEBUG : CLG_LEVEL_WARN);
 
   if (argc < 2) {
     fprintf(stderr, "Usage: %s outdirectory [public header outdirectory]/\n", argv[0]);

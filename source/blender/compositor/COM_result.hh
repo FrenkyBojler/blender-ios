@@ -5,11 +5,11 @@
 #pragma once
 
 #include <cstdint>
-#include <type_traits>
-#include <utility>
+#include <optional>
 #include <variant>
 
 #include "BLI_assert.h"
+#include "BLI_compiler_compat.h"
 #include "BLI_cpp_type.hh"
 #include "BLI_generic_pointer.hh"
 #include "BLI_generic_span.hh"
@@ -18,8 +18,6 @@
 #include "BLI_math_vector.h"
 #include "BLI_math_vector.hh"
 #include "BLI_math_vector_types.hh"
-#include "BLI_memory_utils.hh"
-#include "BLI_utildefines.h"
 
 #include "GPU_shader.hh"
 #include "GPU_texture.hh"
@@ -167,6 +165,9 @@ class Result {
    * fourth channel during processing. */
   static eGPUTextureFormat gpu_texture_format(ResultType type, ResultPrecision precision);
 
+  /* Returns the GPU data format that corresponds to the give result type. */
+  static eGPUDataFormat gpu_data_format(const ResultType type);
+
   /* Returns the GPU texture format that corresponds to the give one, but whose precision is the
    * given precision. */
   static eGPUTextureFormat gpu_texture_format(eGPUTextureFormat format, ResultPrecision precision);
@@ -199,18 +200,17 @@ class Result {
    * created by uploading data from CPU. */
   eGPUTextureFormat get_gpu_texture_format() const;
 
+  /* Identical to gpu_data_format but assumes the result's type. */
+  eGPUDataFormat get_gpu_data_format() const;
+
   /* Declare the result to be a texture result, allocate a texture of an appropriate type with
    * the size of the given domain, and set the domain of the result to the given domain.
    *
-   * If from_pool is true, the texture will be allocated from the texture pool of the context,
-   * otherwise, a new texture will be allocated. Pooling should not be used for persistent
-   * results that might span more than one evaluation, like cached resources. While pooling should
-   * be used for most other cases where the result will be allocated then later released in the
-   * same evaluation.
-   *
-   * If the context of the result uses GPU, then GPU allocation will be done, otherwise, CPU
-   * allocation will be done. */
-  void allocate_texture(Domain domain, bool from_pool = true);
+   * See the allocate_data method for more information on the from_pool and storage_type
+   * parameters. */
+  void allocate_texture(const Domain domain,
+                        const bool from_pool = true,
+                        const std::optional<ResultStorageType> storage_type = std::nullopt);
 
   /* Declare the result to be a single value result, allocate a texture of an appropriate type with
    * size 1x1 from the texture pool, and set the domain to be an identity domain. The value is zero
@@ -220,6 +220,11 @@ class Result {
   /* Allocate a single value result whose value is zero. This is called for results whose value
    * can't be computed and are considered invalid. */
   void allocate_invalid();
+
+  /* Creates and allocates a new result that matches the type and precision of this result and
+   * uploads the CPU data that exist in this result. The result is assumed to be allocated on the
+   * CPU. See the allocate_data method for more information on the from_pool parameters. */
+  Result upload_to_gpu(const bool from_pool);
 
   /* Bind the GPU texture of the result to the texture image unit with the given name in the
    * currently bound given shader. This also inserts a memory barrier for texture fetches to ensure
@@ -381,7 +386,7 @@ class Result {
   /* Similar to load_pixel, but can load a result whose type is not known at compile time. If the
    * number of channels in the result are less than 4, then the rest of the returned float4 will
    * have its vales initialized as follows: float4(0, 0, 0, 1). This is similar to how the
-   * texelFetch function in GLSL works.  */
+   * texelFetch function in GLSL works. */
   float4 load_pixel_generic_type(const int2 &texel) const;
 
   /* Stores the given pixel value in the pixel at the given texel coordinates. Assumes the result
@@ -393,6 +398,11 @@ class Result {
    * rest of the float4 will be ignored. This is similar to how the imageStore function in GLSL
    * works. */
   void store_pixel_generic_type(const int2 &texel, const float4 &pixel_value);
+
+  float4 sample(const float2 &coordinates,
+                const Interpolation &interpolation,
+                const ExtensionMode &extend_mode_x,
+                const ExtensionMode &extend_mode_y) const;
 
   /* Equivalent to the GLSL texture() function with nearest interpolation and zero boundary
    * condition. The coordinates are thus expected to have half-pixels offsets. A float4 is always
@@ -430,9 +440,20 @@ class Result {
                          const float2 &y_gradient) const;
 
  private:
-  /* Allocates the image data for the given size, either on the GPU or CPU based on the result's
-   * context. See the allocate_texture method for information about the from_pool argument. */
-  void allocate_data(int2 size, bool from_pool);
+  /* Allocates the image data for the given size.
+   *
+   * The data is allocated on the CPU or GPU depending on the given storage_type. A nullopt may be
+   * passed to storage_type, in which case, the data will be allocated on the device of the
+   * result's context as specified by context.use_gpu().
+   *
+   * If from_pool is true, GPU textures will be allocated from the texture pool of the context,
+   * otherwise, a new texture will be allocated. Pooling should not be used for persistent results
+   * that might span more than one evaluation, like cached resources. While pooling should be used
+   * for most other cases where the result will be allocated then later released in the same
+   * evaluation. */
+  void allocate_data(const int2 size,
+                     const bool from_pool = true,
+                     const std::optional<ResultStorageType> storage_type = std::nullopt);
 
   /* Same as get_pixel_index but can be used when the type of the result is not known at compile
    * time. */
@@ -588,6 +609,69 @@ BLI_INLINE_METHOD void Result::store_pixel_generic_type(const int2 &texel,
                                                         const float4 &pixel_value)
 {
   this->get_cpp_type().copy_assign(pixel_value, this->cpu_data()[this->get_pixel_index(texel)]);
+}
+
+BLI_INLINE_METHOD float4 Result::sample(const float2 &coordinates,
+                                        const Interpolation &interpolation,
+                                        const ExtensionMode &mode_x,
+                                        const ExtensionMode &mode_y) const
+{
+  float4 pixel_value = float4(0.0f, 0.0f, 0.0f, 1.0f);
+  if (is_single_value_) {
+    this->get_cpp_type().copy_assign(this->cpu_data().data(), pixel_value);
+    return pixel_value;
+  }
+
+  const int2 size = domain_.size;
+  const float2 texel_coordinates = (interpolation == Interpolation::Nearest) ?
+                                       coordinates * float2(size) :
+                                       (coordinates * float2(size)) - 0.5f;
+
+  const float *buffer = static_cast<const float *>(this->cpu_data().data());
+  const math::InterpWrapMode extension_mode_x = map_extension_mode_to_wrap_mode(mode_x);
+  const math::InterpWrapMode extension_mode_y = map_extension_mode_to_wrap_mode(mode_y);
+
+  switch (interpolation) {
+    case Interpolation::Nearest:
+      math::interpolate_nearest_wrapmode_fl(buffer,
+                                            pixel_value,
+                                            size.x,
+                                            size.y,
+                                            this->channels_count(),
+                                            texel_coordinates.x,
+                                            texel_coordinates.y,
+                                            extension_mode_x,
+                                            extension_mode_y);
+      break;
+    case Interpolation::Bilinear:
+      math::interpolate_bilinear_wrapmode_fl(buffer,
+                                             pixel_value,
+                                             size.x,
+                                             size.y,
+                                             this->channels_count(),
+                                             texel_coordinates.x,
+                                             texel_coordinates.y,
+                                             extension_mode_x,
+                                             extension_mode_y);
+      break;
+    /* The anisotropic sampling requires separate handling with EWA. */
+    case Interpolation::Anisotropic:
+      BLI_assert_unreachable();
+      break;
+    case Interpolation::Bicubic:
+      math::interpolate_cubic_bspline_wrapmode_fl(buffer,
+                                                  pixel_value,
+                                                  size.x,
+                                                  size.y,
+                                                  this->channels_count(),
+                                                  texel_coordinates.x,
+                                                  texel_coordinates.y,
+                                                  extension_mode_x,
+                                                  extension_mode_y);
+      break;
+  }
+
+  return pixel_value;
 }
 
 BLI_INLINE_METHOD float4 Result::sample_nearest_zero(const float2 &coordinates) const

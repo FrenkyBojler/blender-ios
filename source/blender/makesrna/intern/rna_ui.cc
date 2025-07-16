@@ -27,21 +27,25 @@
 #include "WM_types.hh"
 
 /* see WM_types.hh */
+using wmOpCallContext = blender::wm::OpCallContext;
+
+/* clang-format off */
 const EnumPropertyItem rna_enum_operator_context_items[] = {
-    {WM_OP_INVOKE_DEFAULT, "INVOKE_DEFAULT", 0, "Invoke Default", ""},
-    {WM_OP_INVOKE_REGION_WIN, "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
-    {WM_OP_INVOKE_REGION_CHANNELS, "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
-    {WM_OP_INVOKE_REGION_PREVIEW, "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
-    {WM_OP_INVOKE_AREA, "INVOKE_AREA", 0, "Invoke Area", ""},
-    {WM_OP_INVOKE_SCREEN, "INVOKE_SCREEN", 0, "Invoke Screen", ""},
-    {WM_OP_EXEC_DEFAULT, "EXEC_DEFAULT", 0, "Exec Default", ""},
-    {WM_OP_EXEC_REGION_WIN, "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
-    {WM_OP_EXEC_REGION_CHANNELS, "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
-    {WM_OP_EXEC_REGION_PREVIEW, "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
-    {WM_OP_EXEC_AREA, "EXEC_AREA", 0, "Exec Area", ""},
-    {WM_OP_EXEC_SCREEN, "EXEC_SCREEN", 0, "Exec Screen", ""},
+    {int(wmOpCallContext::InvokeDefault), "INVOKE_DEFAULT", 0, "Invoke Default", ""},
+    {int(wmOpCallContext::InvokeRegionWin), "INVOKE_REGION_WIN", 0, "Invoke Region Window", ""},
+    {int(wmOpCallContext::InvokeRegionChannels), "INVOKE_REGION_CHANNELS", 0, "Invoke Region Channels", ""},
+    {int(wmOpCallContext::InvokeRegionPreview), "INVOKE_REGION_PREVIEW", 0, "Invoke Region Preview", ""},
+    {int(wmOpCallContext::InvokeArea), "INVOKE_AREA", 0, "Invoke Area", ""},
+    {int(wmOpCallContext::InvokeScreen), "INVOKE_SCREEN", 0, "Invoke Screen", ""},
+    {int(wmOpCallContext::ExecDefault), "EXEC_DEFAULT", 0, "Exec Default", ""},
+    {int(wmOpCallContext::ExecRegionWin), "EXEC_REGION_WIN", 0, "Exec Region Window", ""},
+    {int(wmOpCallContext::ExecRegionChannels), "EXEC_REGION_CHANNELS", 0, "Exec Region Channels", ""},
+    {int(wmOpCallContext::ExecRegionPreview), "EXEC_REGION_PREVIEW", 0, "Exec Region Preview", ""},
+    {int(wmOpCallContext::ExecArea), "EXEC_AREA", 0, "Exec Area", ""},
+    {int(wmOpCallContext::ExecScreen), "EXEC_SCREEN", 0, "Exec Screen", ""},
     {0, nullptr, 0, nullptr, nullptr},
 };
+/* clang-format on */
 
 const EnumPropertyItem rna_enum_uilist_layout_type_items[] = {
     {UILST_LAYOUT_DEFAULT, "DEFAULT", 0, "Default Layout", "Use the default, multi-rows layout"},
@@ -1404,12 +1408,12 @@ static void rna_UILayout_alert_set(PointerRNA *ptr, bool value)
 
 static void rna_UILayout_op_context_set(PointerRNA *ptr, int value)
 {
-  static_cast<uiLayout *>(ptr->data)->operator_context_set(wmOperatorCallContext(value));
+  static_cast<uiLayout *>(ptr->data)->operator_context_set(blender::wm::OpCallContext(value));
 }
 
 static int rna_UILayout_op_context_get(PointerRNA *ptr)
 {
-  return static_cast<uiLayout *>(ptr->data)->operator_context();
+  return int(static_cast<uiLayout *>(ptr->data)->operator_context());
 }
 
 static bool rna_UILayout_enabled_get(PointerRNA *ptr)
@@ -1446,7 +1450,7 @@ static void rna_UILayout_alignment_set(PointerRNA *ptr, int value)
 
 static int rna_UILayout_direction_get(PointerRNA *ptr)
 {
-  return uiLayoutGetLocalDir(static_cast<uiLayout *>(ptr->data));
+  return int(ptr->data_as<uiLayout>()->local_direction());
 }
 
 static float rna_UILayout_scale_x_get(PointerRNA *ptr)
@@ -1501,22 +1505,22 @@ static void rna_UILayout_emboss_set(PointerRNA *ptr, int value)
 
 static bool rna_UILayout_property_split_get(PointerRNA *ptr)
 {
-  return uiLayoutGetPropSep(static_cast<uiLayout *>(ptr->data));
+  return static_cast<const uiLayout *>(ptr->data)->use_property_split();
 }
 
 static void rna_UILayout_property_split_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetPropSep(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->use_property_split_set(value);
 }
 
 static bool rna_UILayout_property_decorate_get(PointerRNA *ptr)
 {
-  return uiLayoutGetPropDecorate(static_cast<uiLayout *>(ptr->data));
+  return static_cast<const uiLayout *>(ptr->data)->use_property_decorate();
 }
 
 static void rna_UILayout_property_decorate_set(PointerRNA *ptr, bool value)
 {
-  uiLayoutSetPropDecorate(static_cast<uiLayout *>(ptr->data), value);
+  static_cast<uiLayout *>(ptr->data)->use_property_decorate_set(value);
 }
 
 /* File Handler */
@@ -1653,8 +1657,8 @@ static void rna_def_ui_layout(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem direction_items[] = {
-      {UI_LAYOUT_HORIZONTAL, "HORIZONTAL", 0, "Horizontal", ""},
-      {UI_LAYOUT_VERTICAL, "VERTICAL", 0, "Vertical", ""},
+      {int(blender::ui::LayoutDirection::Horizontal), "HORIZONTAL", 0, "Horizontal", ""},
+      {int(blender::ui::LayoutDirection::Vertical), "VERTICAL", 0, "Vertical", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1980,7 +1984,7 @@ static void rna_def_uilist(BlenderRNA *brna)
   RNA_def_struct_sdna(srna, "uiList");
   RNA_def_struct_refine_func(srna, "rna_UIList_refine");
   RNA_def_struct_register_funcs(srna, "rna_UIList_register", "rna_UIList_unregister", nullptr);
-  RNA_def_struct_idprops_func(srna, "rna_UIList_idprops");
+  RNA_def_struct_system_idprops_func(srna, "rna_UIList_idprops");
   RNA_def_struct_flag(srna, STRUCT_NO_DATABLOCK_IDPROPERTIES | STRUCT_PUBLIC_NAMESPACE_INHERIT);
 
   /* Registration */

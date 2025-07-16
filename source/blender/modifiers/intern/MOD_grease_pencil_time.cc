@@ -528,7 +528,7 @@ static void panel_draw(const bContext *C, Panel *panel)
       mode, MOD_GREASE_PENCIL_TIME_MODE_FIX, MOD_GREASE_PENCIL_TIME_MODE_CHAIN);
   uiLayout *row, *col;
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
@@ -547,7 +547,7 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   if (mode == MOD_GREASE_PENCIL_TIME_MODE_CHAIN) {
     row = &layout->row(false);
-    uiLayoutSetPropSep(row, false);
+    row->use_property_split_set(false);
 
     uiTemplateList(row,
                    (bContext *)C,
@@ -571,14 +571,11 @@ static void panel_draw(const bContext *C, Panel *panel)
     sub->op("OBJECT_OT_grease_pencil_time_modifier_segment_remove", "", ICON_REMOVE);
     col->separator();
     sub = &col->column(true);
-    uiItemEnumO_string(
-        sub, "", ICON_TRIA_UP, "OBJECT_OT_grease_pencil_time_modifier_segment_move", "type", "UP");
-    uiItemEnumO_string(sub,
-                       "",
-                       ICON_TRIA_DOWN,
-                       "OBJECT_OT_grease_pencil_time_modifier_segment_move",
-                       "type",
-                       "DOWN");
+    PointerRNA op_ptr = layout->op(
+        "OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_UP);
+    RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Up */ -1);
+    op_ptr = layout->op("OBJECT_OT_grease_pencil_dash_modifier_segment_move", "", ICON_TRIA_DOWN);
+    RNA_enum_set(&op_ptr, "type", /* blender::ed::object::DashSegmentMoveDirection::Down */ 1);
 
     if (tmd->segments().index_range().contains(tmd->segment_active_index)) {
       PointerRNA segment_ptr = RNA_pointer_create_discrete(
@@ -597,12 +594,12 @@ static void panel_draw(const bContext *C, Panel *panel)
 
   PanelLayout custom_range_panel_layout = layout->panel_prop(C, ptr, "open_custom_range_panel");
   if (uiLayout *header = custom_range_panel_layout.header) {
-    uiLayoutSetPropSep(header, false);
+    header->use_property_split_set(false);
     header->active_set(use_custom_range);
     header->prop(ptr, "use_custom_frame_range", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   if (uiLayout *body = custom_range_panel_layout.body) {
-    uiLayoutSetPropSep(body, true);
+    body->use_property_split_set(true);
     body->active_set(use_custom_range && RNA_boolean_get(ptr, "use_custom_frame_range"));
 
     col = &body->column(true);

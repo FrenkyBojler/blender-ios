@@ -144,14 +144,6 @@ typedef struct StripData {
   ColorManagedColorspaceSettings colorspace_settings;
 } StripData;
 
-typedef enum eSeqRetimingKeyFlag {
-  SEQ_SPEED_TRANSITION_IN = (1 << 0),
-  SEQ_SPEED_TRANSITION_OUT = (1 << 1),
-  SEQ_FREEZE_FRAME_IN = (1 << 2),
-  SEQ_FREEZE_FRAME_OUT = (1 << 3),
-  SEQ_KEY_SELECTED = (1 << 4),
-} eSeqRetimingKeyFlag;
-
 typedef struct SeqRetimingKey {
   double strip_frame_index;
   int flag; /* eSeqRetimingKeyFlag */
@@ -166,6 +158,9 @@ typedef struct SeqRetimingKey {
 
 typedef struct StripRuntime {
   SessionUID session_uid;
+  /** eStripRuntimeFlag */
+  uint32_t flag;
+  char _pad[4];
 } StripRuntime;
 
 /**
@@ -296,12 +291,7 @@ typedef struct Strip {
   struct Stereo3dFormat *stereo3d_format;
 
   struct IDProperty *prop;
-  /**
-   * System-defined custom properties storage.
-   *
-   * In Blender 4.5, only used to ensure forward compatibility with 5.x blend-files, and data
-   * management consistency.
-   */
+  /** System-defined custom properties storage. */
   struct IDProperty *system_properties;
 
   /* modifiers */
@@ -642,6 +632,21 @@ enum {
 
 #define STRIP_NAME_MAXSTR 64
 
+/** #SeqRetimingKey::flag */
+typedef enum eSeqRetimingKeyFlag {
+  SEQ_SPEED_TRANSITION_IN = (1 << 0),
+  SEQ_SPEED_TRANSITION_OUT = (1 << 1),
+  SEQ_FREEZE_FRAME_IN = (1 << 2),
+  SEQ_FREEZE_FRAME_OUT = (1 << 3),
+  SEQ_KEY_SELECTED = (1 << 4),
+} eSeqRetimingKeyFlag;
+
+/** #StripRuntime::flag */
+typedef enum eStripRuntimeFlag {
+  STRIP_CLAMPED_LH = (1 << 0),
+  STRIP_CLAMPED_RH = (1 << 1),
+} eStripRuntimeFlag;
+
 /* From: `DNA_object_types.h`, see it's doc-string there. */
 #define SELECT 1
 
@@ -698,9 +703,6 @@ enum {
 /* convenience define for all selection flags */
 #define STRIP_ALLSEL (SELECT + SEQ_LEFTSEL + SEQ_RIGHTSEL)
 
-/* Deprecated, don't use a flag anymore. */
-// #define STRIP_ACTIVE 1048576
-
 enum {
   SEQ_COLOR_BALANCE_INVERSE_GAIN = 1 << 0,
   SEQ_COLOR_BALANCE_INVERSE_GAMMA = 1 << 1,
@@ -729,7 +731,7 @@ enum {
   SEQ_PROXY_TC_RECORD_RUN_NO_GAPS = 1 << 1,
 };
 
-/** SeqProxy.build_flags */
+/** StripProxy.build_flags */
 enum {
   SEQ_PROXY_SKIP_EXISTING = 1,
 };

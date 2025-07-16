@@ -334,6 +334,30 @@ wmOperatorStatus ED_armature_join_objects_exec(bContext *C, wmOperator *op)
     return OPERATOR_CANCELLED;
   }
 
+  /* Check that there are no shared Armatures, as the code below assumes that
+   * each to-be-joined Armature is unique. */
+  {
+    blender::Set<const bArmature *> seen_armatures;
+    CTX_DATA_BEGIN (C, const Object *, ob_iter, selected_editable_objects) {
+      if (ob_iter->type != OB_ARMATURE) {
+        continue;
+      }
+
+      const bArmature *armature = static_cast<bArmature *>(ob_iter->data);
+      if (seen_armatures.add(armature)) {
+        /* Armature pointer was added to the set, which means it wasn't seen before. */
+        continue;
+      }
+
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Cannot join objects that share armature data: %s",
+                  armature->id.name + 2);
+      return OPERATOR_CANCELLED;
+    }
+    CTX_DATA_END;
+  }
+
   /* Inverse transform for all selected armatures in this object,
    * See #object_join_exec for detailed comment on why the safe version is used. */
   invert_m4_m4_safe_ortho(oimat, ob_active->object_to_world().ptr());
@@ -991,13 +1015,13 @@ static wmOperatorStatus armature_parent_set_invoke(bContext *C,
 
   uiLayout *row_offset = &layout->row(false);
   row_offset->enabled_set(enable_offset);
-  uiItemEnumO(
-      row_offset, "ARMATURE_OT_parent_set", std::nullopt, ICON_NONE, "type", ARM_PAR_OFFSET);
+  PointerRNA op_ptr = row_offset->op("ARMATURE_OT_parent_set", IFACE_("Keep Offset"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_OFFSET);
 
   uiLayout *row_connect = &layout->row(false);
   row_connect->enabled_set(enable_connect);
-  uiItemEnumO(
-      row_connect, "ARMATURE_OT_parent_set", std::nullopt, ICON_NONE, "type", ARM_PAR_CONNECT);
+  op_ptr = row_connect->op("ARMATURE_OT_parent_set", IFACE_("Connected"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_CONNECT);
 
   UI_popup_menu_end(C, pup);
 
@@ -1111,17 +1135,13 @@ static wmOperatorStatus armature_parent_clear_invoke(bContext *C,
 
   uiLayout *row_clear = &layout->row(false);
   row_clear->enabled_set(enable_clear);
-  uiItemEnumO(
-      row_clear, "ARMATURE_OT_parent_clear", std::nullopt, ICON_NONE, "type", ARM_PAR_CLEAR);
+  PointerRNA op_ptr = row_clear->op("ARMATURE_OT_parent_clear", IFACE_("Clear Parent"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR);
 
   uiLayout *row_disconnect = &layout->row(false);
   row_disconnect->enabled_set(enable_disconnect);
-  uiItemEnumO(row_disconnect,
-              "ARMATURE_OT_parent_clear",
-              std::nullopt,
-              ICON_NONE,
-              "type",
-              ARM_PAR_CLEAR_DISCONNECT);
+  op_ptr = row_clear->op("ARMATURE_OT_parent_clear", IFACE_("Disconnect Bone"), ICON_NONE);
+  RNA_enum_set(&op_ptr, "type", ARM_PAR_CLEAR_DISCONNECT);
 
   UI_popup_menu_end(C, pup);
 

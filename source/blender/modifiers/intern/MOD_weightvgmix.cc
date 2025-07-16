@@ -250,7 +250,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
   }
 
-  const bool has_mdef = CustomData_has_layer(&mesh->vert_data, CD_MDEFORMVERT);
+  const bool has_mdef = !mesh->deform_verts().is_empty();
   /* If no vertices were ever added to an object's vgroup, dvert might be nullptr. */
   if (!has_mdef) {
     /* If not affecting all vertices, just return. */
@@ -447,7 +447,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA ob_ptr;
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, &ob_ptr);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   modifier_vgroup_ui(
       layout, ptr, &ob_ptr, "vertex_group_a", "invert_vertex_group_a", std::nullopt);

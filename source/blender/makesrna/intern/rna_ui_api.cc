@@ -185,7 +185,7 @@ static void rna_uiItemR_with_popover(uiLayout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
-  uiItemFullR_with_popover(layout, ptr, prop, -1, 0, flag, text, icon, panel_type);
+  layout->prop_with_popover(ptr, prop, -1, 0, flag, text, icon, panel_type);
 }
 
 static void rna_uiItemR_with_menu(uiLayout *layout,
@@ -216,7 +216,7 @@ static void rna_uiItemR_with_menu(uiLayout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
-  uiItemFullR_with_menu(layout, ptr, prop, -1, 0, flag, text, icon, menu_type);
+  layout->prop_with_menu(ptr, prop, -1, 0, flag, text, icon, menu_type);
 }
 
 static void rna_uiItemMenuEnumR(uiLayout *layout,
@@ -237,7 +237,7 @@ static void rna_uiItemMenuEnumR(uiLayout *layout,
   /* Get translated name (label). */
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
-  uiItemMenuEnumR_prop(layout, ptr, prop, text, icon);
+  layout->prop_menu_enum(ptr, prop, text, icon);
 }
 
 static void rna_uiItemTabsEnumR(uiLayout *layout,
@@ -283,7 +283,7 @@ static void rna_uiItemTabsEnumR(uiLayout *layout,
     }
   }
 
-  uiItemTabsEnumR_prop(layout, C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
+  layout->prop_tabs_enum(C, ptr, prop, ptr_highlight, prop_highlight, icon_only);
 }
 
 static void rna_uiItemEnumR_string(uiLayout *layout,
@@ -306,7 +306,12 @@ static void rna_uiItemEnumR_string(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
 
-  uiItemEnumR_string_prop(layout, ptr, prop, value, text, icon);
+  layout->prop_enum(ptr, prop, value, text, icon);
+}
+
+static void rna_uiItemsEnumR(uiLayout *layout, PointerRNA *ptr, const char *propname)
+{
+  layout->props_enum(ptr, propname);
 }
 
 static void rna_uiItemPointerR(uiLayout *layout,
@@ -336,8 +341,12 @@ static void rna_uiItemPointerR(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, nullptr, prop, translate);
 
-  uiItemPointerR_prop(
-      layout, ptr, prop, searchptr, searchprop, text, icon, results_are_suggestions);
+  layout->prop_search(ptr, prop, searchptr, searchprop, text, icon, results_are_suggestions);
+}
+
+void rna_uiLayoutDecorator(uiLayout *layout, PointerRNA *ptr, const char *propname, int index)
+{
+  layout->decorator(ptr, propname, index);
 }
 
 static PointerRNA rna_uiItemO(uiLayout *layout,
@@ -414,9 +423,7 @@ static PointerRNA rna_uiItemOMenuHold(uiLayout *layout,
     flag |= UI_ITEM_O_DEPRESS;
   }
 
-  PointerRNA opptr;
-  uiItemFullOMenuHold_ptr(layout, ot, text, icon, layout->operator_context(), flag, menu, &opptr);
-  return opptr;
+  return layout->op_menu_hold(ot, text, icon, layout->operator_context(), flag, menu);
 }
 
 static void rna_uiItemsEnumO(uiLayout *layout,
@@ -425,7 +432,7 @@ static void rna_uiItemsEnumO(uiLayout *layout,
                              const bool icon_only)
 {
   eUI_Item_Flag flag = icon_only ? UI_ITEM_R_ICON_ONLY : UI_ITEM_NONE;
-  uiItemsFullEnumO(layout, opname, propname, nullptr, layout->operator_context(), flag);
+  layout->op_enum(opname, propname, nullptr, layout->operator_context(), flag);
 }
 
 static PointerRNA rna_uiItemMenuEnumO(uiLayout *layout,
@@ -448,9 +455,7 @@ static PointerRNA rna_uiItemMenuEnumO(uiLayout *layout,
   std::optional<StringRefNull> text = rna_translate_ui_text(
       name, text_ctxt, ot->srna, nullptr, translate);
 
-  PointerRNA opptr;
-  uiItemMenuEnumFullO_ptr(layout, C, ot, propname, text, icon, &opptr);
-  return opptr;
+  return layout->op_menu_enum(C, ot, propname, text, icon);
 }
 
 static void rna_uiItemL(uiLayout *layout,
@@ -492,7 +497,7 @@ static void rna_uiItemM(uiLayout *layout,
 
 static void rna_uiItemM_contents(uiLayout *layout, const char *menuname)
 {
-  uiItemMContents(layout, menuname);
+  layout->menu_contents(menuname);
 }
 
 static void rna_uiItemPopoverPanel(uiLayout *layout,
@@ -512,7 +517,7 @@ static void rna_uiItemPopoverPanel(uiLayout *layout,
     icon = icon_value;
   }
 
-  uiItemPopoverPanel(layout, C, panel_type, text, icon);
+  layout->popover(C, panel_type, text, icon);
 }
 
 static void rna_uiItemPopoverPanelFromGroup(uiLayout *layout,
@@ -522,7 +527,7 @@ static void rna_uiItemPopoverPanelFromGroup(uiLayout *layout,
                                             const char *context,
                                             const char *category)
 {
-  uiItemPopoverPanelFromGroup(layout, C, space_id, region_id, context, category);
+  layout->popover_group(C, space_id, region_id, context, category);
 }
 
 static void rna_uiItemProgress(uiLayout *layout,
@@ -536,7 +541,7 @@ static void rna_uiItemProgress(uiLayout *layout,
     text = BLT_pgettext((text_ctxt && text_ctxt[0]) ? text_ctxt : BLT_I18NCONTEXT_DEFAULT, text);
   }
 
-  uiItemProgressIndicator(layout, text, factor, eButProgressType(progress_type));
+  layout->progress_indicator(text, factor, blender::ui::ButProgressType(progress_type));
 }
 
 static void rna_uiItemSeparator(uiLayout *layout, float factor, int type)
@@ -552,6 +557,11 @@ static void rna_uiLayoutContextPointerSet(uiLayout *layout, const char *name, Po
 static void rna_uiLayoutContextStringSet(uiLayout *layout, const char *name, const char *value)
 {
   layout->context_string_set(name, value);
+}
+
+static void rna_uiLayoutSeparatorSpacer(uiLayout *layout)
+{
+  layout->separator_spacer();
 }
 
 static void rna_uiTemplateID(uiLayout *layout,
@@ -1180,8 +1190,8 @@ void RNA_api_ui_layout(StructRNA *srna)
   };
 
   static const EnumPropertyItem progress_type_items[] = {
-      {UI_BUT_PROGRESS_TYPE_BAR, "BAR", 0, "Bar", ""},
-      {UI_BUT_PROGRESS_TYPE_RING, "RING", 0, "Ring", ""},
+      {int(blender::ui::ButProgressType::Bar), "BAR", 0, "Bar", ""},
+      {int(blender::ui::ButProgressType::Ring), "RING", 0, "Ring", ""},
       {0, nullptr, 0, nullptr, nullptr},
   };
 
@@ -1422,7 +1432,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_property_ui_text(parm, "Icon Value", "Override automatic icon of the item");
   RNA_def_boolean(func, "invert_checkbox", false, "", "Draw checkbox value inverted");
 
-  func = RNA_def_function(srna, "props_enum", "uiItemsEnumR");
+  func = RNA_def_function(srna, "props_enum", "rna_uiItemsEnumR");
   api_ui_item_rna_common(func);
 
   func = RNA_def_function(srna, "prop_menu_enum", "rna_uiItemMenuEnumR");
@@ -1471,7 +1481,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_boolean(
       func, "results_are_suggestions", false, "", "Accept inputs that do not match any item");
 
-  func = RNA_def_function(srna, "prop_decorator", "uiItemDecoratorR");
+  func = RNA_def_function(srna, "prop_decorator", "rna_uiLayoutDecorator");
   api_ui_item_rna_common(func);
   RNA_def_int(func,
               "index",
@@ -1591,7 +1601,7 @@ void RNA_api_ui_layout(StructRNA *srna)
                "Type",
                "The type of the separator");
 
-  func = RNA_def_function(srna, "separator_spacer", "uiItemSpacer");
+  func = RNA_def_function(srna, "separator_spacer", "rna_uiLayoutSeparatorSpacer");
   RNA_def_function_ui_description(
       func, "Item. Inserts horizontal spacing empty space into the layout between items.");
 
@@ -1610,7 +1620,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_enum(func,
                "type",
                progress_type_items,
-               UI_BUT_PROGRESS_TYPE_BAR,
+               int(blender::ui::ButProgressType::Bar),
                "Type",
                "The type of progress indicator");
 

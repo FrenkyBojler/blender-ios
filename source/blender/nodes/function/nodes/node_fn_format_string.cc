@@ -98,8 +98,8 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
         C, panel, tree, node);
     socket_items::ui::draw_active_item_props<FormatStringItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          uiLayoutSetPropSep(panel, true);
-          uiLayoutSetPropDecorate(panel, false);
+          panel->use_property_split_set(true);
+          panel->use_property_decorate_set(false);
           panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
@@ -207,7 +207,7 @@ static FormatPatternInfo get_pattern_by_type_impl(const CPPType &type)
     precision_group = groups_num;
   }
   /* "L" is omitted, because we take the current locale into account in Geometry Nodes. */
-  /* Allowed type specifiers vary by data type.*/
+  /* Allowed type specifiers vary by data type. */
   if (type.is<std::string>()) {
     pattern += "[s\\?]?";
   }
@@ -299,7 +299,7 @@ class FormatInputsLookup {
         return std::nullopt;
       }
       if (res.ptr < identifier.end()) {
-        /* There are other characters after the number.*/
+        /* There are other characters after the number. */
         if (!r_error) {
           r_error = fmt::format(
               fmt::runtime(TIP_("An input name can't start with a digit: \"{}\"")), identifier);

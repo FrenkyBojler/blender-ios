@@ -25,6 +25,7 @@
 #include "UI_resources.hh"
 
 #include "RNA_prototypes.hh"
+#include "RNA_types.hh"
 
 #include "BLI_math_matrix_types.hh"
 #include "BLI_span.hh"
@@ -79,7 +80,7 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
   PointerRNA *ptr = modifier_panel_get_property_pointers(panel, nullptr);
   VolumeToMeshModifierData *vmmd = static_cast<VolumeToMeshModifierData *>(ptr->data);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   {
     uiLayout *col = &layout->column(false);

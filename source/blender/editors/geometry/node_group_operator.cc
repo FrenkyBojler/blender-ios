@@ -416,7 +416,7 @@ static void store_result_geometry(const bContext &C,
       else {
         if (Key *key = mesh.key) {
           /* Make sure to free the attributes before converting to #BMesh for edit mode; removing
-           * attributes on #BMesh requires reallocating the dynamic AoS storage.*/
+           * attributes on #BMesh requires reallocating the dynamic AoS storage. */
           remove_shape_key_attributes(*new_mesh, *key);
         }
         if (object.mode == OB_MODE_EDIT) {
@@ -880,8 +880,8 @@ static std::string run_node_group_get_description(bContext *C,
 static void run_node_group_ui(bContext *C, wmOperator *op)
 {
   uiLayout *layout = op->layout;
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   Main *bmain = CTX_data_main(C);
   PointerRNA bmain_ptr = RNA_main_pointer_create(bmain);
 
@@ -913,16 +913,12 @@ static bool run_node_ui_poll(wmOperatorType * /*ot*/, PointerRNA *ptr)
 
 static std::string run_node_group_get_name(wmOperatorType * /*ot*/, PointerRNA *ptr)
 {
-  int len;
-  char *local_name = RNA_string_get_alloc(ptr, "name", nullptr, 0, &len);
-  BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(local_name); })
-  if (len > 0) {
-    return std::string(local_name, len);
+  std::string local_name = RNA_string_get(ptr, "name");
+  if (!local_name.empty()) {
+    return local_name;
   }
-  char *library_asset_identifier = RNA_string_get_alloc(
-      ptr, "relative_asset_identifier", nullptr, 0, &len);
-  BLI_SCOPED_DEFER([&]() { MEM_SAFE_FREE(library_asset_identifier); })
-  StringRef ref(library_asset_identifier, len);
+  std::string library_asset_identifier = RNA_string_get(ptr, "relative_asset_identifier");
+  StringRef ref(library_asset_identifier);
   return ref.drop_prefix(ref.find_last_of(SEP_STR) + 1);
 }
 
@@ -1371,8 +1367,11 @@ static void catalog_assets_draw(const bContext *C, Menu *menu)
       layout->separator();
       add_separator = false;
     }
-    PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+    PointerRNA props_ptr = layout->op(ot,
+                                      IFACE_(asset->get_name()),
+                                      ICON_NONE,
+                                      wm::OpCallContext::InvokeRegionWin,
+                                      UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1444,8 +1443,11 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
   uiLayout *layout = menu->layout;
   wmOperatorType *ot = WM_operatortype_find("GEOMETRY_OT_execute_node_group", true);
   for (const asset_system::AssetRepresentation *asset : tree->unassigned_assets) {
-    PointerRNA props_ptr = layout->op(
-        ot, IFACE_(asset->get_name()), ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+    PointerRNA props_ptr = layout->op(ot,
+                                      IFACE_(asset->get_name()),
+                                      ICON_NONE,
+                                      wm::OpCallContext::InvokeRegionWin,
+                                      UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, props_ptr);
   }
 
@@ -1475,7 +1477,7 @@ static void catalog_assets_draw_unassigned(const bContext *C, Menu *menu)
     }
 
     PointerRNA props_ptr = layout->op(
-        ot, group->id.name + 2, ICON_NONE, WM_OP_INVOKE_REGION_WIN, UI_ITEM_NONE);
+        ot, group->id.name + 2, ICON_NONE, wm::OpCallContext::InvokeRegionWin, UI_ITEM_NONE);
     WM_operator_properties_id_lookup_set_from_id(&props_ptr, &group->id);
     /* Also set the name so it can be used for #run_node_group_get_name. */
     RNA_string_set(&props_ptr, "name", group->id.name + 2);
@@ -1520,7 +1522,7 @@ void ui_template_node_operator_asset_menu_items(uiLayout &layout,
   }
   uiLayout *col = &layout.column(false);
   col->context_string_set("asset_catalog_path", item->catalog_path().str());
-  uiItemMContents(col, "GEO_MT_node_operator_catalog_assets");
+  col->menu_contents("GEO_MT_node_operator_catalog_assets");
 }
 
 void ui_template_node_operator_asset_root_items(uiLayout &layout, const bContext &C)

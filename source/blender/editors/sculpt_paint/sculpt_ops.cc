@@ -57,10 +57,8 @@
 #include "sculpt_automask.hh"
 #include "sculpt_color.hh"
 #include "sculpt_dyntopo.hh"
-#include "sculpt_face_set.hh"
 #include "sculpt_flood_fill.hh"
 #include "sculpt_intern.hh"
-#include "sculpt_islands.hh"
 #include "sculpt_undo.hh"
 
 #include "RNA_access.hh"
@@ -73,7 +71,6 @@
 #include "bmesh.hh"
 
 #include <cmath>
-#include <cstdlib>
 #include <cstring>
 
 namespace blender::ed::sculpt_paint {
@@ -1295,8 +1292,8 @@ static void mask_from_cavity_ui(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {
@@ -1477,8 +1474,8 @@ static void mask_from_boundary_ui(bContext *C, wmOperator *op)
   Scene *scene = CTX_data_scene(C);
   Sculpt *sd = scene->toolsettings ? scene->toolsettings->sculpt : nullptr;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
   MaskSettingsSource source = (MaskSettingsSource)RNA_enum_get(op->ptr, "settings_source");
 
   if (!sd) {

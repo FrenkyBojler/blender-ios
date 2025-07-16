@@ -335,6 +335,13 @@ enum PropertyFlag {
   PROP_PROPORTIONAL = (1 << 26),
 
   /* pointers */
+
+  /**
+   * Automatically update the ID user count when the property changes value.
+   *
+   * This is done in the auto-generated setter function. If an RNA property has a custom setter,
+   * this flag is ignored, and the setter is responsible for correctly updating the user count.
+   */
   PROP_ID_REFCOUNT = (1 << 6),
 
   /**
@@ -437,8 +444,9 @@ enum PropertyFlag {
    * Support for templating needs to be manually implemented.
    *
    * When this is set, the property's `path_template_type` field should also be
-   * set to something other than `PROP_VARIABLES_NONE`, to indicate which
-   * template variables it supports.
+   * set.
+   *
+   * \see The top-level documentation of BKE_path_templates.hh.
    */
   PROP_PATH_SUPPORTS_TEMPLATES = (1 << 14),
 
@@ -448,13 +456,20 @@ enum PropertyFlag {
 ENUM_OPERATORS(PropertyFlag, PROP_TEXTEDIT_UPDATE)
 
 /**
- * For properties that support path templates, this indicates which variables
- * should be available to them and how those variables should be built.
+ * For properties that support path templates, this indicates which
+ * purpose-specific variables (if any) should be available to them and how those
+ * variables should be built.
  *
- * \see BKE_build_template_variables_for_prop()
+ * \see The top-level documentation of BKE_path_templates.hh.
  */
 enum PropertyPathTemplateType {
+  /* Only supports general and type-specific variables, no purpose-specific
+   * variables. */
   PROP_VARIABLES_NONE = 0,
+
+  /* Supports render output variables.
+   *
+   * \see BKE_add_template_variables_for_render_path() */
   PROP_VARIABLES_RENDER_OUTPUT,
 };
 

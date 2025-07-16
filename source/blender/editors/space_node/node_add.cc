@@ -477,7 +477,7 @@ static wmOperatorStatus node_add_group_asset_invoke(bContext *C,
   BLI_assert(ot);
   PointerRNA ptr;
   WM_operator_properties_create_ptr(&ptr, ot);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &ptr, nullptr);
   WM_operator_properties_free(&ptr);
 
   return OPERATOR_FINISHED;
@@ -1605,9 +1605,9 @@ static wmOperatorStatus new_compositing_node_group_exec(bContext *C, wmOperator 
 void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
 {
   /* identifiers */
-  ot->name = "New Compositing Node Tree";
+  ot->name = "New Compositing Node Group";
   ot->idname = "NODE_OT_new_compositing_node_group";
-  ot->description = "Create a new compositing node tree and initialize it with default nodes";
+  ot->description = "Create a new compositing node group and initialize it with default nodes";
 
   /* api callbacks */
   ot->exec = new_compositing_node_group_exec;
@@ -1615,7 +1615,7 @@ void NODE_OT_new_compositing_node_group(wmOperatorType *ot)
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
-  RNA_def_string(ot->srna, "name", DATA_("Compositing Node Tree"), MAX_ID_NAME - 2, "Name", "");
+  RNA_def_string(ot->srna, "name", DATA_("Compositor Nodes"), MAX_ID_NAME - 2, "Name", "");
 }
 
 /** \} */
