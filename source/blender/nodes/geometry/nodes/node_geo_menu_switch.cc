@@ -29,6 +29,8 @@
 #include "WM_api.hh"
 
 #include "COM_node_operation.hh"
+#include "COM_result.hh"
+#include "COM_utilities.hh"
 
 namespace blender::nodes::node_geo_menu_switch_cc {
 
@@ -45,6 +47,11 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(storage.data_type);
   const bool supports_fields = socket_type_supports_fields(data_type) &&
                                ntree->type == NTREE_GEOMETRY;
+  const bool is_single_compositor_type = compositor::Result::is_single_value_only_type(
+      compositor::socket_data_type_to_result_type(data_type));
+  const StructureType compositor_structure_type = is_single_compositor_type ?
+                                                      StructureType::Single :
+                                                      StructureType::Dynamic;
 
   auto &menu = b.add_input<decl::Menu>("Menu");
   if (supports_fields) {
@@ -61,7 +68,7 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
       input.supports_field();
     }
     if (ntree->type == NTREE_COMPOSIT) {
-      input.structure_type(StructureType::Dynamic);
+      input.structure_type(compositor_structure_type);
     }
     /* Labels are ugly in combination with data-block pickers and are usually disabled. */
     input.hide_label(ELEM(data_type, SOCK_OBJECT, SOCK_IMAGE, SOCK_COLLECTION, SOCK_MATERIAL));
@@ -75,7 +82,7 @@ static void node_declare(blender::nodes::NodeDeclarationBuilder &b)
     output.propagate_all();
   }
   if (ntree->type == NTREE_COMPOSIT) {
-    output.structure_type(StructureType::Dynamic);
+    output.structure_type(compositor_structure_type);
   }
 
   b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
