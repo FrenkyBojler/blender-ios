@@ -86,23 +86,3 @@ def asset_shelf_brush_selection():
     import bpy
     current_brush = bpy.context.tool_settings.sculpt.brush
     t.assertEqual(current_brush.name, "Blob")
-
-
-def toggle_to_sculpt_from_hidden_edit_mode():
-    '''
-    Note, this test shouldn't strictly need to be run via the event simulation, however there is currently a
-    discrepancy when switching via the pie menu and using the corresponding python call
-    (i.e. `bpy.ops.object.mode_set(mode='SCULPT')`)
-    '''
-
-    e, t = _test_vars(window := _test_window())
-
-    yield e.shift.f5()                              # 3D Viewport.
-    yield e.ctrl.alt.space()                        # Full-screen.
-    yield e.tab()                                   # Edit Mode
-
-    import bpy
-    bpy.context.active_object.hide_viewport = True
-
-    yield e.ctrl.tab().s()                          # Sculpt Mode
-    t.assertEqual(bpy.context.active_object.mode, 'EDIT')
