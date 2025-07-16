@@ -404,9 +404,10 @@ ccl_device_inline Spectrum closure_layering_weight(const Spectrum layer_albedo,
  * transform and store them as a LUT that gets looked up here.
  * In practice, using the XYZ fit and converting the result from XYZ to RGB is easier.
  */
+template<typename SpectrumOrFloat>
 ccl_device_inline Spectrum iridescence_lookup_sensitivity(KernelGlobals kg,
                                                           const float OPD,
-                                                          const Spectrum shift)
+                                                          const SpectrumOrFloat shift)
 {
   /* The LUT covers 0 to 60 um. */
   float x = M_2PI_F * OPD / 60000.0f;
@@ -424,20 +425,22 @@ ccl_device_inline Spectrum iridescence_lookup_sensitivity(KernelGlobals kg,
   return mag * cos(phase - shift);
 }
 
+template<typename SpectrumOrFloat>
 ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
-                                                    const float T121,
                                                     const float R12,
-                                                    const Spectrum R23,
+                                                    const SpectrumOrFloat R23,
                                                     const float OPD,
-                                                    const Spectrum phi)
+                                                    const SpectrumOrFloat phi)
 {
-  const Spectrum R123 = R12 * R23;
-  const Spectrum r123 = sqrt(R123);
-  const Spectrum Rs = sqr(T121) * R23 / (1.0f - R123);
+  const float T121 = 1.0f - R12;
+
+  const SpectrumOrFloat R123 = R12 * R23;
+  const SpectrumOrFloat r123 = sqrt(R123);
+  const SpectrumOrFloat Rs = sqr(T121) * R23 / (1.0f - R123);
 
   /* Perform summation over path order differences (equation 10). */
-  Spectrum R = Rs + R12; /* C0 */
-  Spectrum Cm = (Rs - T121);
+  Spectrum R = make_spectrum(Rs + R12); /* C0 */
+  SpectrumOrFloat Cm = Rs - T121;
   /* Truncate after m=3, higher differences have barely any impact. */
   for (int m = 1; m < 4; m++) {
     Cm *= r123;
@@ -447,12 +450,12 @@ ccl_device_inline float3 iridescence_airy_summation(KernelGlobals kg,
 }
 
 ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
-                                        float eta1,
+                                        const float eta1,
                                         float eta2,
-                                        Spectrum eta3,
-                                        Spectrum k3,
-                                        Spectrum R23,
-                                        float cos_theta_1,
+                                        const Spectrum eta3,
+                                        const Spectrum k3,
+                                        const Spectrum R23,
+                                        const float cos_theta_1,
                                         const float thickness,
                                         ccl_private float *r_cos_theta_3)
 {
@@ -475,12 +478,12 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
   /* Compute optical path difference inside the thin film. */
   const float OPD = -2.0f * eta2 * thickness * cos_theta_2;
 
-  Spectrum R23_s, R23_p, phi_s, phi_p;
+  Spectrum R;
 
   /* Compute reflection at the bottom interface (film to medium). */
   if (reduce_min(k3) >= 0.0f) {
     /* Material is a conductor. */
-    Spectrum phi23_s, phi23_p;
+    Spectrum R23_s, R23_p, phi23_s, phi23_p;
 
     if (reduce_min(R23) >= 0.0f) {
       /* If reflectances were provided by the caller, only calculate phase shifts. */
@@ -494,8 +497,13 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
           -cos_theta_2, eta2, eta3, k3, &R23_s, &R23_p, &phi23_s, &phi23_p);
     }
 
-    phi_s = phi23_s + (M_PI_F - phi12.x);
-    phi_p = phi23_p + (M_PI_F - phi12.y);
+    const Spectrum phi_s = phi23_s + (M_PI_F - phi12.x);
+    const Spectrum phi_p = phi23_p + (M_PI_F - phi12.y);
+
+    /* Perform Airy summation and average the polarizations. */
+    R = mix(iridescence_airy_summation(kg, R12.x, R23_s, OPD, phi_s),
+            iridescence_airy_summation(kg, R12.y, R23_p, OPD, phi_p),
+            0.5f);
   }
   else {
     /* Material is a dielectric. */
@@ -509,19 +517,13 @@ ccl_device Spectrum fresnel_iridescence(KernelGlobals kg,
       return one_spectrum();
     }
 
-    R23_s = make_spectrum(R23.x);
-    R23_p = make_spectrum(R23.y);
-    phi_s = make_spectrum(phi23.x + M_PI_F - phi12.x);
-    phi_p = make_spectrum(phi23.y + M_PI_F - phi12.y);
+    const float2 phi = phi23 + M_PI_F - phi12;
+
+    /* Perform Airy summation and average the polarizations. */
+    R = mix(iridescence_airy_summation(kg, R12.x, R23.x, OPD, phi.x),
+            iridescence_airy_summation(kg, R12.y, R23.y, OPD, phi.y),
+            0.5f);
   }
-
-  /* Compute helper parameters. */
-  const float2 T121 = one_float2() - R12;
-
-  /* Perform Airy summation and average the polarizations. */
-  float3 R = mix(iridescence_airy_summation(kg, T121.x, R12.x, R23_s, OPD, phi_s),
-                 iridescence_airy_summation(kg, T121.y, R12.y, R23_p, OPD, phi_p),
-                 0.5f);
 
   return saturate(R);
 }
