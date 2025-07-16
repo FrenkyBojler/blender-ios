@@ -23,7 +23,6 @@
 #include "NOD_geometry_nodes_log.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
-#include "NOD_socket_declarations_geometry.hh"
 
 #include "node_intern.hh"
 
@@ -43,8 +42,6 @@ class SocketTooltipBuilder {
   enum class TooltipBlockType {
     Label,
     Description,
-    StructureType,
-    SupportedGeometryTypes,
     Value,
     Python,
   };
@@ -81,16 +78,9 @@ class SocketTooltipBuilder {
       this->build_tooltip_label();
     }
     this->build_tooltip_description();
-    if (tree_.type == NTREE_GEOMETRY) {
-      if (U.experimental.use_socket_structure_type) {
-        this->build_tooltip_structure_type();
-      }
-      if (socket_.type == SOCK_GEOMETRY) {
-        this->build_tooltip_supported_geometry_types();
-      }
-    }
     this->build_tooltip_value();
     this->build_python();
+
     /* Extra padding at the bottom. */
     this->add_space();
   }
@@ -790,80 +780,6 @@ class SocketTooltipBuilder {
     }
     BLI_assert_unreachable();
     return "Unknown";
-  }
-
-  void build_tooltip_structure_type()
-  {
-    nodes::StructureType structure_type;
-    if (nodes::socket_type_always_single(socket_.typeinfo->type)) {
-      structure_type = nodes::StructureType::Single;
-    }
-    else if (const nodes::SocketDeclaration *socket_decl = socket_.runtime->declaration) {
-      structure_type = socket_decl->structure_type;
-    }
-    else {
-      structure_type = nodes::StructureType::Dynamic;
-    }
-    const StringRef structure_type_name = this->get_structure_type_tooltip(structure_type);
-    this->start_block(TooltipBlockType::StructureType);
-    this->add_text_field(fmt::format(TIP_("Structure: {}"), structure_type_name));
-  }
-
-  void build_tooltip_supported_geometry_types()
-  {
-    if (socket_.is_output()) {
-      return;
-    }
-    const nodes::decl::Geometry *socket_decl = dynamic_cast<const nodes::decl::Geometry *>(
-        socket_.runtime->declaration);
-    if (!socket_decl) {
-      return;
-    }
-    std::string supported_types_str;
-    const Span<bke::GeometryComponent::Type> supported_types = socket_decl->supported_types();
-    if (supported_types.is_empty()) {
-      supported_types_str = TIP_("All");
-    }
-    else {
-      for (bke::GeometryComponent::Type type : supported_types) {
-        StringRef component_name;
-        switch (type) {
-          case bke::GeometryComponent::Type::Mesh: {
-            component_name = TIP_("Mesh");
-            break;
-          }
-          case bke::GeometryComponent::Type::PointCloud: {
-            component_name = TIP_("Point Cloud");
-            break;
-          }
-          case bke::GeometryComponent::Type::Instance: {
-            component_name = TIP_("Instances");
-            break;
-          }
-          case bke::GeometryComponent::Type::Volume: {
-            component_name = TIP_("Volume");
-            break;
-          }
-          case bke::GeometryComponent::Type::Curve: {
-            component_name = TIP_("Curves");
-            break;
-          }
-          case bke::GeometryComponent::Type::Edit: {
-            continue;
-          }
-          case bke::GeometryComponent::Type::GreasePencil: {
-            component_name = TIP_("Grease Pencil");
-            break;
-          }
-        }
-        supported_types_str += component_name;
-        if (type != supported_types.last()) {
-          supported_types_str += ", ";
-        }
-      }
-    }
-    this->start_block(TooltipBlockType::SupportedGeometryTypes);
-    this->add_text_field(fmt::format(TIP_("Geometry Types: {}"), supported_types_str));
   }
 
   void build_python()
