@@ -329,12 +329,21 @@ static void flush_trans_object_base_deps_flag(const TransInfo *t, Object *object
     return;
   }
   object->id.tag |= ID_TAG_DOIT;
-  DEG_foreach_dependent_ID_component(
-      t->depsgraph,
-      &object->id,
-      (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ? DEG_OB_COMP_GEOMETRY : DEG_OB_COMP_TRANSFORM,
-      DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
-      set_trans_object_base_deps_flag_cb);
+
+  /* When we transform parents without children, we only traverse the GEOMETRY dependent
+   * components. This avoids marking children as not participating in snapping but still marks
+   * objects with modifier dependencies.
+   * Unfortunately, some transform-dependent objects that are not children can also be skipped,
+   * such as Constraints and Rigid Bodies.
+   * See #121378 for details. */
+  eDepsObjectComponentType source_component_type = (t->options & CTX_OBMODE_XFORM_SKIP_CHILDREN) ?
+                                                       DEG_OB_COMP_GEOMETRY :
+                                                       DEG_OB_COMP_TRANSFORM;
+  DEG_foreach_dependent_ID_component(t->depsgraph,
+                                     &object->id,
+                                     source_component_type,
+                                     DEG_FOREACH_COMPONENT_IGNORE_TRANSFORM_SOLVERS,
+                                     set_trans_object_base_deps_flag_cb);
 }
 
 static void trans_object_base_deps_flag_finish(const TransInfo *t,
