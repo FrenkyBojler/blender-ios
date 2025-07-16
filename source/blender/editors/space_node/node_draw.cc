@@ -1444,13 +1444,13 @@ static void node_socket_tooltip_set(uiBlock &block,
 
   UI_but_func_tooltip_custom_set(
       but,
-      [](bContext &C, uiTooltipData &tip, void *argN) {
+      [](bContext &C, uiTooltipData &tip, uiBut *but, void *argN) {
         const SpaceNode &snode = *CTX_wm_space_node(&C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
         ntree.ensure_topology_cache();
         const bNodeSocket &socket = *ntree.all_sockets()[index_in_tree];
-        build_socket_tooltip(tip, C, ntree, socket);
+        build_socket_tooltip(tip, C, but, ntree, socket);
       },
       POINTER_FROM_INT(socket_index_in_tree),
       nullptr);
@@ -1503,13 +1503,13 @@ static void node_socket_add_tooltip_in_node_editor(const bNodeSocket &sock, uiLa
 {
   uiLayoutSetTooltipCustomFunc(
       &layout,
-      [](bContext &C, uiTooltipData &tip, void *argN) {
+      [](bContext &C, uiTooltipData &tip, uiBut *but, void *argN) {
         const SpaceNode &snode = *CTX_wm_space_node(&C);
         const bNodeTree &ntree = *snode.edittree;
         const int index_in_tree = POINTER_AS_INT(argN);
         ntree.ensure_topology_cache();
         const bNodeSocket &socket = *ntree.all_sockets()[index_in_tree];
-        build_socket_tooltip(tip, C, ntree, socket);
+        build_socket_tooltip(tip, C, but, ntree, socket);
       },
       POINTER_FROM_INT(sock.index_in_tree()),
       nullptr,
@@ -1529,9 +1529,9 @@ void node_socket_add_tooltip(const bNodeTree &ntree, const bNodeSocket &sock, ui
 
   uiLayoutSetTooltipCustomFunc(
       &layout,
-      [](bContext &C, uiTooltipData &tip, void *argN) {
+      [](bContext &C, uiTooltipData &tip, uiBut *but, void *argN) {
         SocketTooltipData *data = static_cast<SocketTooltipData *>(argN);
-        build_socket_tooltip(tip, C, *data->ntree, *data->socket);
+        build_socket_tooltip(tip, C, but, *data->ntree, *data->socket);
       },
       data,
       MEM_dupallocN,
@@ -1930,13 +1930,13 @@ static void node_draw_panels(bNodeTree &ntree, const bNode &node, uiBlock &block
                                           "");
       UI_but_func_tooltip_custom_set(
           panel_toggle_but,
-          [](bContext &C, uiTooltipData &tip, void *argN) {
+          [](bContext &C, uiTooltipData &tip, uiBut *but, void *argN) {
             const SpaceNode &snode = *CTX_wm_space_node(&C);
             const bNodeTree &ntree = *snode.edittree;
             const int index_in_tree = POINTER_AS_INT(argN);
             ntree.ensure_topology_cache();
             const bNodeSocket &socket = *ntree.all_sockets()[index_in_tree];
-            build_socket_tooltip(tip, C, ntree, socket);
+            build_socket_tooltip(tip, C, but, ntree, socket);
           },
           POINTER_FROM_INT(input_socket->index_in_tree()),
           nullptr);

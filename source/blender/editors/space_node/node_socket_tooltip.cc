@@ -890,6 +890,7 @@ class SocketTooltipBuilder {
 
 void build_socket_tooltip(uiTooltipData &tip_data,
                           bContext &C,
+                          uiBut *but,
                           const bNodeTree &tree,
                           const bNodeSocket &socket)
 {
