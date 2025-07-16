@@ -884,6 +884,20 @@ static void build_tooltip_extend_socket(uiTooltipData &tip_data)
                             UI_TIP_LC_NORMAL);
 }
 
+static bool should_show_label(const bNodeSocket &socket)
+{
+  if (socket.is_output()) {
+    return false;
+  }
+  if (socket.type == SOCK_MENU) {
+    return true;
+  }
+  if (socket.flag & SOCK_HIDE_LABEL) {
+    return true;
+  }
+  return false;
+}
+
 void build_socket_tooltip(uiTooltipData &tip_data,
                           bContext &C,
                           const bNodeTree &tree,
@@ -895,10 +909,12 @@ void build_socket_tooltip(uiTooltipData &tip_data,
     build_tooltip_extend_socket(tip_data);
     return;
   }
-  build_tooltip_label(tip_data, socket);
   if (node.is_dangling_reroute()) {
     build_tooltip_dangling_reroute(tip_data);
     return;
+  }
+  if (should_show_label(socket)) {
+    build_tooltip_label(tip_data, socket);
   }
   build_tooltip_description(tip_data, socket);
   build_tooltip_value(tip_data, C, socket);
