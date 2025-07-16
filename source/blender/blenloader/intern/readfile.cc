@@ -4797,6 +4797,15 @@ static Main *library_link_begin(Main *mainvar,
 
   fd->bmain = mainvar;
 
+  /* Add already existing packed data-blocks to map so that they are not loaded again. */
+  ID *id;
+  FOREACH_MAIN_ID_BEGIN (mainvar, id) {
+    if (ID_IS_PACKED(id)) {
+      fd->id_by_deep_hash->add(id->deep_hash, id);
+    }
+  }
+  FOREACH_MAIN_ID_END;
+
   /* make mains */
   blo_split_main(mainvar);
 
