@@ -893,11 +893,6 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
                             void *arg,
                             uiCopyArgFunc copy_arg,
                             uiFreeArgFunc free_arg);
-void uiLayoutSetTooltipCustomFunc(uiLayout *layout,
-                                  uiButToolTipCustomFunc func,
-                                  void *arg,
-                                  uiCopyArgFunc copy_arg,
-                                  uiFreeArgFunc free_arg);
 
 /**
  * Same as above but should be used when building a fully custom tooltip instead of just
