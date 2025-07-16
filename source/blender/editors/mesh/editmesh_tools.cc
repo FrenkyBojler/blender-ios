@@ -1108,7 +1108,7 @@ static wmOperatorStatus edbm_mark_sharp_exec(bContext *C, wmOperator *op)
 {
   const bool clear = RNA_boolean_get(op->ptr, "clear");
   const bool use_verts = RNA_boolean_get(op->ptr, "use_verts");
-  Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
   const Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
