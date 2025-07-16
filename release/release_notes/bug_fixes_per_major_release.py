@@ -1052,7 +1052,7 @@ def gather_and_sort_commits(current_release_tag: str,
 
     dir_of_sciprt = Path(__file__).parent.resolve()
     path_to_cached_commits = dir_of_sciprt.joinpath(
-        f'cached_commits_{previous_release_tag}..{current_release_tag}.json')
+        f'cached_commits_{previous_release_tag.replace("/", "-")}..{current_release_tag.replace("/", "-")}.json')
 
     list_of_commits = get_fix_commits(
         current_release_tag=current_release_tag,
