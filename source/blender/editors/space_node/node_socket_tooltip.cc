@@ -71,11 +71,12 @@ class SocketTooltipBuilder {
     }
     if (this->should_show_label()) {
       this->build_tooltip_label();
-      last_block_type_ = TooltipBlockType::Label;
     }
     this->build_tooltip_description();
     if (tree_.type == NTREE_GEOMETRY) {
-      this->build_tooltip_structure_type();
+      if (U.experimental.use_socket_structure_type) {
+        this->build_tooltip_structure_type();
+      }
       if (socket_.type == SOCK_GEOMETRY) {
         this->build_tooltip_supported_geometry_types();
       }
