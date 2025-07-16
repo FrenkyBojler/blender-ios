@@ -1923,7 +1923,8 @@ void UI_tooltip_color_field_add(uiTooltipData &data,
                                 const blender::float4 &color,
                                 bool has_alpha,
                                 bool is_gamma,
-                                const ColorManagedDisplay *display);
+                                const ColorManagedDisplay *display,
+                                uiTooltipColorID color_id);
 
 /**
  * Add Python-related information to the tooltip. The caller is responsible for checking

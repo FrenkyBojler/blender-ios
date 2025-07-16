@@ -839,7 +839,8 @@ void UI_tooltip_color_field_add(uiTooltipData &data,
                                 const blender::float4 &original_color,
                                 const bool has_alpha,
                                 const bool is_gamma,
-                                const ColorManagedDisplay *display)
+                                const ColorManagedDisplay *display,
+                                const uiTooltipColorID color_id)
 {
   blender::float4 color = original_color;
   if (!is_gamma && display) {
@@ -888,14 +889,14 @@ void UI_tooltip_color_field_add(uiTooltipData &data,
         image_data.ibuf, color, 1, 1, image_data.width / 2, image_data.height, display);
   }
 
-  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
-  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
+  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
+  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
   UI_tooltip_image_field_add(data, image_data);
-  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
-  UI_tooltip_text_field_add(data, hex_st, {}, UI_TIP_STYLE_MONO, UI_TIP_LC_NORMAL, false);
-  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, UI_TIP_LC_NORMAL, false);
-  UI_tooltip_text_field_add(data, rgba_st, {}, UI_TIP_STYLE_MONO, UI_TIP_LC_NORMAL, false);
-  UI_tooltip_text_field_add(data, hsva_st, {}, UI_TIP_STYLE_MONO, UI_TIP_LC_NORMAL, false);
+  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
+  UI_tooltip_text_field_add(data, hex_st, {}, UI_TIP_STYLE_MONO, color_id, false);
+  UI_tooltip_text_field_add(data, {}, {}, UI_TIP_STYLE_SPACER, color_id, false);
+  UI_tooltip_text_field_add(data, rgba_st, {}, UI_TIP_STYLE_MONO, color_id, false);
+  UI_tooltip_text_field_add(data, hsva_st, {}, UI_TIP_STYLE_MONO, color_id, false);
 
   /* Tooltip now owns a copy of the ImBuf, so we can delete ours. */
   IMB_freeImBuf(image_data.ibuf);
@@ -1267,7 +1268,8 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
       }
     }
 
-    UI_tooltip_color_field_add(*data, color, has_alpha, ui_but_is_color_gamma(but), display);
+    UI_tooltip_color_field_add(
+        *data, color, has_alpha, ui_but_is_color_gamma(but), display, UI_TIP_LC_NORMAL);
   }
 
   /* If the last field is a spacer, remove it. */

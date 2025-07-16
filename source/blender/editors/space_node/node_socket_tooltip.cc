@@ -393,7 +393,7 @@ class SocketTooltipBuilder {
 
   void build_tooltip_value_color(const ColorGeometry4f &value)
   {
-    UI_tooltip_color_field_add(tip_data_, float4(value), true, false, nullptr);
+    UI_tooltip_color_field_add(tip_data_, float4(value), true, false, nullptr, UI_TIP_LC_VALUE);
     this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), TIP_("Float Color")));
   }
 
