@@ -227,6 +227,10 @@ static void node_update(bNodeTree *ntree, bNode *node)
   bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Sun Position");
   blender::bke::node_set_socket_availability(
       *ntree, *source_input, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
+
+  bNodeSocket *jitter = bke::node_find_socket(*node, SOCK_IN, "Sun Beams Jitter");
+  blender::bke::node_set_socket_availability(
+      *ntree, *jitter, glare_type == CMP_NODE_GLARE_SUN_BEAMS);
 }
 
 class SocketSearchOp {
