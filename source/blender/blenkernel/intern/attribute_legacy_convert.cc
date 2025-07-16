@@ -43,10 +43,10 @@ std::optional<AttrType> custom_data_type_to_attr_type(const eCustomDataType data
     case CD_TESSLOOPNORMAL:
       /* These types are only used for versioning old files. */
       return std::nullopt;
-    /* These types are only used for #BMesh. */
     case CD_SHAPEKEY:
     case CD_SHAPE_KEYINDEX:
     case CD_BM_ELEM_PYPTR:
+      /* These types are only used for #BMesh. */
       return std::nullopt;
     case CD_MDEFORMVERT:
     case CD_MFACE:
@@ -154,6 +154,7 @@ static void attribute_legacy_convert_customdata_to_storage(
     custom_data.data.totlayer = 0;
     custom_data.data.maxlayer = 0;
     if (layers_vector.is_empty()) {
+      CustomData_update_typemap(&custom_data.data);
       continue;
     }
     VectorData data = layers_vector.release();
