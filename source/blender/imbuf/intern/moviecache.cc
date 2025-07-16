@@ -413,6 +413,7 @@ ImBuf *IMB_moviecache_get(MovieCache *cache, void *userkey, bool *r_is_cached_em
   if (item) {
     if (item->ibuf) {
       std::lock_guard lock(limitor_lock);
+      /* Check again, the condition might have changed before we acquired the lock. */
       if (item->ibuf) {
         MEM_CacheLimiter_touch(item->c_handle);
         IMB_refImBuf(item->ibuf);
