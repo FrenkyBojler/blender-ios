@@ -1121,8 +1121,9 @@ static wmOperatorStatus edbm_mark_sharp_exec(bContext *C, wmOperator *op)
       continue;
     }
 
+    const uchar htype = use_verts ? (BM_VERT | BM_EDGE) : BM_EDGE;
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+        EditMeshSymmetryHelper::create_if_needed(obedit, htype);
 
     BMIter iter;
     BMEdge *eed;
@@ -1132,10 +1133,22 @@ static wmOperatorStatus edbm_mark_sharp_exec(bContext *C, wmOperator *op)
       }
 
       bool process_edge = false;
-      
-      process_edge = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
+      if (use_verts) {
+        const bool v1_in_group = BM_elem_flag_test(eed->v1, BM_ELEM_SELECT) ||
+                                 (symmetry_helper &&
+                                  symmetry_helper->is_any_mirror_vert_selected(
+                                      eed->v1, BM_ELEM_SELECT));
+        const bool v2_in_group = BM_elem_flag_test(eed->v2, BM_ELEM_SELECT) ||
+                                 (symmetry_helper &&
+                                  symmetry_helper->is_any_mirror_vert_selected(
+                                      eed->v2, BM_ELEM_SELECT));
+        process_edge = v1_in_group || v2_in_group;
+      }
+      else {
+        process_edge = BM_elem_flag_test(eed, BM_ELEM_SELECT) ||
                        (symmetry_helper &&
                         symmetry_helper->is_any_mirror_edge_selected(eed, BM_ELEM_SELECT));
+      }
 
       if (process_edge) {
         BM_elem_flag_set(eed, BM_ELEM_SMOOTH, clear);
