@@ -3869,7 +3869,7 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
 
     this->update_drawing_users_for_layer(dst_layer);
 
-    ++dst_layer_index;  // Increments only for layers.
+    ++dst_layer_index;
   }
 
   return *new_group;

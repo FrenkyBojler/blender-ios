@@ -652,9 +652,9 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
   }
 
   Vector<const Layer *> src_layers;
-  Vector<const Layer *> dst_layers;
+  Vector<Layer *> dst_layers;
 
-  /* Duplicate layer or layer group. */
+  /* Duplicate the active layer or layer group. */
   if (active_node->is_group()) {
     LayerGroup &active_group = active_node->as_group();
     LayerGroup &new_group = grease_pencil.duplicate_layer_group(active_group);
@@ -666,7 +666,7 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
     grease_pencil.set_active_node(&new_group.as_node());
 
     src_layers = active_group.layers();
-    dst_layers = new_group.layers();
+    dst_layers = new_group.layers_for_write();
 
     WM_msg_publish_rna_prop(
         CTX_wm_message_bus(C), &grease_pencil.id, &grease_pencil, GreasePencilv3LayerGroup, active);
@@ -690,7 +690,7 @@ static wmOperatorStatus grease_pencil_layer_duplicate_exec(bContext *C, wmOperat
   /* Clear source keyframes and recreate them with duplicated drawings. */
   for (const int i : src_layers.index_range()) {
     const Layer &src_layer = *src_layers[i];
-    Layer &dst_layer = *const_cast<Layer *>(dst_layers[i]);
+    Layer &dst_layer = *dst_layers[i];
 
     dst_layer.frames_for_write().clear();
     for (auto [frame_number, frame] : src_layer.frames().items()) {
@@ -724,7 +724,7 @@ static void GREASE_PENCIL_OT_layer_duplicate(wmOperatorType *ot)
 
   /* callbacks */
   ot->exec = grease_pencil_layer_duplicate_exec;
-  ot->poll = active_grease_pencil_layer_or_group_poll;
+  ot->poll = active_grease_pencil_node_poll;
 
   /* flags */
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
