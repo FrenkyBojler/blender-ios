@@ -393,7 +393,7 @@ enum class eButPointerType : uint8_t {
   Int = 1 << 2,
   Float = 1 << 3,
   // eButPointerType::Function = 192, /* UNUSED */
-  Bit = 1 << 5, /* OR'd with a bit index. */
+  Bit = 1 << 7, /* OR'd with a bit index. */
 };
 ENUM_OPERATORS(eButPointerType, eButPointerType::Bit);
 
@@ -466,16 +466,15 @@ enum class eButType : int8_t {
   ViewItem,
 };
 namespace blender::ui {
-
-inline int but_pointer_bit_max_index(eButPointerType pointer_type)
+inline char but_pointer_bit_max_index(eButPointerType pointer_type)
 {
   switch (pointer_type) {
     case eButPointerType::Char:
-      return sizeof(char) - 1;
+      return sizeof(char) * 8;
     case eButPointerType::Short:
-      return sizeof(short) - 1;
+      return sizeof(short) * 8;
     case eButPointerType::Int:
-      return sizeof(int) - 1;
+      return sizeof(int) * 8;
     default:
       break;
   }
@@ -495,7 +494,9 @@ struct uiButTypeParams {
   uiButTypeParams(eButType t, eButPointerType pt, int i)
       : type{t}, pointer_type{pt}, bit_index{char(i)}
   {
-    BLI_assert(int(bit_index) <= blender::ui::but_pointer_bit_max_index(pointer_type));
+    BLI_assert(bool(pointer_type & eButPointerType::Bit));
+    BLI_assert(bit_index <
+               blender::ui::but_pointer_bit_max_index(pointer_type & ~eButPointerType::Bit));
   }
 };
 
