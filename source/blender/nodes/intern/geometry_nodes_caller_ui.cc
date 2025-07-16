@@ -667,7 +667,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         bool skip_first = false;
         /* Check if the panel should have a toggle in the header. */
         const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
-        const StringRef name = sub_interface_panel.name;
+        const StringRef panel_name = sub_interface_panel.name;
         if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
           const StringRefNull identifier = toggle_socket->identifier;
           IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
@@ -689,12 +689,12 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                                              open_property.name,
                                                              ctx.properties_ptr,
                                                              rna_path,
-                                                             IFACE_(name));
+                                                             IFACE_(panel_name));
           skip_first = true;
         }
         else {
           panel_layout = layout->panel_prop(&ctx.C, &open_property.ptr, open_property.name);
-          panel_layout.header->label(IFACE_(name), ICON_NONE);
+          panel_layout.header->label(IFACE_(panel_name), ICON_NONE);
         }
         if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
           panel_layout.header->active_set(false);
@@ -710,7 +710,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
             nullptr);
         if (panel_layout.body) {
           draw_interface_panel_content(
-              ctx, panel_layout.body, sub_interface_panel, skip_first, name);
+              ctx, panel_layout.body, sub_interface_panel, skip_first, panel_name);
         }
         break;
       }
