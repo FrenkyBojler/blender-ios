@@ -1051,6 +1051,8 @@ def gather_and_sort_commits(current_release_tag: str,
     set_crawl_delay()
 
     dir_of_sciprt = Path(__file__).parent.resolve()
+    # Replace "/" with "-" to avoid issues with directories in case someone
+    # uses "remote/branch" as their current or previous tag.
     path_to_cached_commits = dir_of_sciprt.joinpath(
         f'cached_commits_{previous_release_tag.replace("/", "-")}..{current_release_tag.replace("/", "-")}.json')
 
