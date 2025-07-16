@@ -98,7 +98,7 @@ ShapingData::ShapingData(const char *str, size_t len)
                   (FriBidiChar *)this->visual_str.data(),
                   this->positions_L2V.data(),
                   this->positions_V2L.data(),
-                  NULL);
+                  nullptr);
 #else
   this->visual_str = this->logical_str;
 #endif
@@ -197,11 +197,17 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 
   hb_font_set_scale(this->segment.font->hb_font, int(font->size * 64.0f), int(font->size * 64.0f));
 
-  hb_shape_full(this->segment.font->hb_font, this->hb_buf, NULL, 0, NULL);
+  hb_feature_t userfeatures[1];
+  userfeatures[0].tag = HB_TAG('k', 'e', 'r', 'n');
+  userfeatures[0].value = 1;
+  userfeatures[0].start = HB_FEATURE_GLOBAL_START;
+  userfeatures[0].end = HB_FEATURE_GLOBAL_END;
+
+  hb_shape_full(this->segment.font->hb_font, this->hb_buf, userfeatures, 1, nullptr);
 
   this->segment.hb_glyph_info = hb_buffer_get_glyph_infos(this->hb_buf,
                                                           &this->segment.glyph_count);
-  this->segment.glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, NULL);
+  this->segment.glyph_pos = hb_buffer_get_glyph_positions(this->hb_buf, nullptr);
 
   bool set_mono = this->segment.font != font && font->flags & BLF_MONOSPACED &&
                   !(this->segment.font->flags & BLF_MONOSPACED);
@@ -212,7 +218,6 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
   this->segment.glyphs.resize(this->segment.glyph_count);
   this->segment.bounds.resize(this->char_count);
 
-  GlyphBLF *g_prev = NULL;
   int cwidth = std::max(gc->fixed_width, 1);
   int pen_x = this->width * 64;
   int max_width = pen_x;
@@ -231,8 +236,6 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
     GlyphBLF *g = this->segment.glyphs[i];
     rcti *bounds = &this->segment.bounds[i];
     hb_glyph_position_t *pos = &this->segment.glyph_pos[i];
-
-    pen_x += g->lsb_delta - ((g_prev) ? g_prev->rsb_delta : 0);
 
     const int advance = ((font->flags & BLF_MONOSPACED) ?
                              ft_pix_from_int(cwidth) * BLI_wcwidth_safe(codepoint) :
@@ -257,7 +260,6 @@ bool ShapingData::process(FontBLF *font, GlyphCacheBLF *gc, ResultBLF *r_info)
 
     max_width = pen_x + std::max(pos->x_advance, g->advance_x);
     pen_x += advance;
-    g_prev = this->segment.glyphs[i];
     height = std::max(this->segment.glyphs[i]->pos[1], height);
   }
 
