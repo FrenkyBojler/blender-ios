@@ -662,7 +662,7 @@ static void file_draw_preview(const FileDirEntry *file,
       imb->x, imb->y, *layout);
 
   /* Additional offset to keep the scaled image centered. Difference between maximum
-   * width/height and the actual width/height, divided by two for centering.  */
+   * width/height and the actual width/height, divided by two for centering. */
   const float ofs_x = (float(layout->prv_w) - float(scaled_width)) / 2.0f;
   const float ofs_y = (float(layout->prv_h) - float(scaled_height)) / 2.0f;
   const int xmin = tile_draw_rect->xmin + layout->prv_border_x + int(ofs_x + 0.5f);
@@ -711,7 +711,7 @@ static void file_draw_preview(const FileDirEntry *file,
     GPU_blend(GPU_BLEND_ALPHA);
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     float border_color[4] = {1.0f, 1.0f, 1.0f, 0.15f};
     float bgcolor[4];
@@ -964,7 +964,8 @@ static void draw_background(FileLayout *layout, View2D *v2d)
   int i;
   int sy;
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   float col_alternating[4];
   UI_GetThemeColor4fv(TH_ROW_ALTERNATE, col_alternating);
@@ -1011,8 +1012,9 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
     v2[1] = v2d->cur.ymin;
 
     GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-    uint color = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+    uint color = GPU_vertformat_attr_add(
+        format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_FLAT_COLOR);
     immBegin(GPU_PRIM_LINES, vertex_len);
@@ -1041,7 +1043,8 @@ static void draw_dividers(FileLayout *layout, View2D *v2d)
 
 static void draw_columnheader_background(const FileLayout *layout, const View2D *v2d)
 {
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
   immUniformThemeColorShade(TH_BACK, 11);
@@ -1093,7 +1096,7 @@ static void draw_columnheader_columns(const FileSelectParams *params,
     /* Separator line */
     if (column_type != COLUMN_NAME) {
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
       immUniformThemeColorShade(TH_BACK, -10);
@@ -1109,7 +1112,8 @@ static void draw_columnheader_columns(const FileSelectParams *params,
 
   /* Vertical separator lines line */
   {
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformThemeColorShade(TH_BACK, -10);
     immBegin(GPU_PRIM_LINES, 4);
@@ -1618,7 +1622,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     uiBut *but = uiDefIconTextButO_ptr(block,
                                        UI_BTYPE_BUT,
                                        ot,
-                                       WM_OP_INVOKE_DEFAULT,
+                                       blender::wm::OpCallContext::InvokeDefault,
                                        ICON_PREFERENCES,
                                        WM_operatortype_name(ot, nullptr),
                                        sx + UI_UNIT_X,

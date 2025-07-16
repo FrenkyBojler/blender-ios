@@ -48,6 +48,7 @@
 #include "DNA_shader_fx_types.h"
 #include "DNA_view3d_types.h"
 
+#include "BLI_bounds.hh"
 #include "BLI_kdtree.h"
 #include "BLI_linklist.h"
 #include "BLI_listbase.h"
@@ -152,7 +153,7 @@ using blender::MutableSpan;
 using blender::Span;
 using blender::Vector;
 
-static CLG_LogRef LOG = {"bke.object"};
+static CLG_LogRef LOG = {"object"};
 
 /**
  * NOTE(@sergey): Vertex parent modifies original #BMesh which is not safe for threading.
@@ -428,6 +429,12 @@ static void object_foreach_id(ID *id, LibraryForeachIDData *data)
           data, IDP_foreach_property(pchan->prop, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
             BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
           }));
+      BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
+          data,
+          IDP_foreach_property(
+              pchan->system_properties, IDP_TYPE_FILTER_ID, [&](IDProperty *prop) {
+                BKE_lib_query_idpropertiesForeachIDLink_callback(prop, data);
+              }));
 
       BKE_LIB_FOREACHID_PROCESS_IDSUPER(data, pchan->custom, IDWALK_CB_USER);
       BKE_LIB_FOREACHID_PROCESS_FUNCTION_CALL(
@@ -948,8 +955,7 @@ static void object_blend_read_after_liblink(BlendLibReader *reader, ID *id)
      * Within a file (no library linking) this should never happen.
      * see: #139133. */
 
-    const ID *ob_data_id = static_cast<ID *>(ob->data);
-    BLI_assert(GS(ob_data_id->name) == ID_CU_LEGACY);
+    BLI_assert(GS(static_cast<ID *>(ob->data)->name) == ID_CU_LEGACY);
     /* Don't recalculate any internal curve data is this is low level logic
      * intended to avoid errors when switching between font/curve types. */
     BKE_curve_type_test(ob, false);
@@ -2651,7 +2657,13 @@ Object *BKE_object_duplicate(Main *bmain,
 
   if (!is_subprocess) {
     /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-    BKE_libblock_relink_to_newid(bmain, &obn->id, 0);
+    /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if its
+     * obdata contains edit mode runtime data. This can be the case of all newly duplicated
+     * objects, as even though duplicate code move the object back in Object mode, they are still
+     * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+     * and therefore not remapping their obdata to the newly duplicated one.
+     * See #139715. */
+    BKE_libblock_relink_to_newid(bmain, &obn->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
 
 #ifndef NDEBUG
     /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those flags. */
@@ -3502,26 +3514,6 @@ void BKE_object_apply_parent_inverse(Object *ob)
 /** \name Object Bounding Box API
  * \{ */
 
-void BKE_boundbox_init_from_minmax(BoundBox *bb, const float min[3], const float max[3])
-{
-  bb->vec[0][0] = bb->vec[1][0] = bb->vec[2][0] = bb->vec[3][0] = min[0];
-  bb->vec[4][0] = bb->vec[5][0] = bb->vec[6][0] = bb->vec[7][0] = max[0];
-
-  bb->vec[0][1] = bb->vec[1][1] = bb->vec[4][1] = bb->vec[5][1] = min[1];
-  bb->vec[2][1] = bb->vec[3][1] = bb->vec[6][1] = bb->vec[7][1] = max[1];
-
-  bb->vec[0][2] = bb->vec[3][2] = bb->vec[4][2] = bb->vec[7][2] = min[2];
-  bb->vec[1][2] = bb->vec[2][2] = bb->vec[5][2] = bb->vec[6][2] = max[2];
-}
-
-void BKE_boundbox_minmax(const BoundBox &bb, const float4x4 &matrix, float3 &r_min, float3 &r_max)
-{
-  using namespace blender;
-  for (const int i : IndexRange(ARRAY_SIZE(bb.vec))) {
-    math::min_max(math::transform_point(matrix, float3(bb.vec[i])), r_min, r_max);
-  }
-}
-
 std::optional<blender::Bounds<blender::float3>> BKE_object_boundbox_get(const Object *ob)
 {
   switch (ob->type) {
@@ -3804,28 +3796,28 @@ bool BKE_object_minmax_dupli(Depsgraph *depsgraph,
     return ok;
   }
 
-  ListBase *lb = object_duplilist(depsgraph, scene, ob);
-  LISTBASE_FOREACH (DupliObject *, dob, lb) {
-    if (((use_hidden == false) && (dob->no_draw != 0)) || dob->ob_data == nullptr) {
+  DupliList duplilist;
+  object_duplilist(depsgraph, scene, ob, nullptr, duplilist);
+  for (DupliObject &dob : duplilist) {
+    if (((use_hidden == false) && (dob.no_draw != 0)) || dob.ob_data == nullptr) {
       /* pass */
     }
     else {
-      Object temp_ob = blender::dna::shallow_copy(*dob->ob);
-      blender::bke::ObjectRuntime runtime = *dob->ob->runtime;
+      Object temp_ob = blender::dna::shallow_copy(*dob.ob);
+      blender::bke::ObjectRuntime runtime = *dob.ob->runtime;
       temp_ob.runtime = &runtime;
 
       /* Do not modify the original bounding-box. */
       temp_ob.runtime->bounds_eval.reset();
-      BKE_object_replace_data_on_shallow_copy(&temp_ob, dob->ob_data);
+      BKE_object_replace_data_on_shallow_copy(&temp_ob, dob.ob_data);
       if (const std::optional<Bounds<float3>> bounds = BKE_object_boundbox_get(&temp_ob)) {
-        BoundBox bb;
-        BKE_boundbox_init_from_minmax(&bb, bounds->min, bounds->max);
-        BKE_boundbox_minmax(bb, float4x4(dob->mat), r_min, r_max);
+        const Bounds tranformed_bounds = bounds::transform_bounds(float4x4(dob.mat), *bounds);
+        r_min = math::min(tranformed_bounds.min, r_min);
+        r_max = math::max(tranformed_bounds.max, r_max);
         ok = true;
       }
     }
   }
-  free_object_duplilist(lb); /* does restore */
 
   return ok;
 }

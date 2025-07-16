@@ -73,7 +73,7 @@ class Film {
   bool use_compute_;
 
   /** Copy of v3d->shading properties used to detect viewport settings update. */
-  eViewLayerEEVEEPassType ui_render_pass_ = eViewLayerEEVEEPassType(-1);
+  eViewLayerEEVEEPassType ui_render_pass_ = eViewLayerEEVEEPassType(0);
   std::string ui_aov_name_;
 
   /**
@@ -188,7 +188,6 @@ class Film {
   }
 
   eViewLayerEEVEEPassType enabled_passes_get() const;
-  int cryptomatte_layer_max_get() const;
   int cryptomatte_layer_len_get() const;
 
   /** WARNING: Film and RenderBuffers use different storage types for AO and Shadow. */

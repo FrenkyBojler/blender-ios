@@ -9,7 +9,7 @@
 #include "node_shader_util.hh"
 #include "node_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_shader_vector_transform_cc {
@@ -99,7 +99,7 @@ static int gpu_shader_vect_transform(GPUMaterial *mat,
     inputlink = in[0].link;
   }
   else {
-    inputlink = GPU_constant(in[0].vec);
+    inputlink = GPU_uniform(in[0].vec);
   }
 
   const bool is_direction = (nodeprop->type != SHD_VECT_TRANSFORM_TYPE_POINT);
