@@ -35,6 +35,8 @@ using DeltaProjectionFunc =
 
 struct InputSample {
   float2 mouse_position;
+  float3 controller_position;
+  bool is_xr;
   float pressure;
 };
 
@@ -46,6 +48,9 @@ class GreasePencilStrokeOperation : public PaintModeData {
 };
 
 namespace greasepencil {
+
+/* Threshold to overwrite last point if it's very close in XR. */
+#define XR_POT_PX 0.001f
 
 /* Get list of drawings the tool should be operating on. */
 Vector<ed::greasepencil::MutableDrawingInfo> get_drawings_for_stroke_operation(const bContext &C);

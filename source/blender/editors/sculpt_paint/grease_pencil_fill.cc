@@ -1078,7 +1078,8 @@ static Image *render_strokes(const ViewContext &view_context,
                                                                     draw_boundary_color,
                                                                     alpha_threshold);
 
-    image_render::draw_grease_pencil_strokes(rv3d,
+    image_render::draw_grease_pencil_strokes(view_context.C,
+                                             rv3d,
                                              image_size,
                                              object,
                                              info.drawing,

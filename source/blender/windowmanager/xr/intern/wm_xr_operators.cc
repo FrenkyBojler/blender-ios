@@ -52,13 +52,13 @@
  * \{ */
 
 /* `op->poll`. */
-static bool wm_xr_operator_sessionactive(bContext *C)
+bool wm_xr_operator_sessionactive(bContext *C)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   return WM_xr_session_is_ready(&wm->xr);
 }
 
-static bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event)
+bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event)
 {
   if (event->type != EVT_XR_ACTION) {
     return false;

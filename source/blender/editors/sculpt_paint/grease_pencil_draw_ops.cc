@@ -185,14 +185,10 @@ static bool stroke_test_start(bContext *C, wmOperator *op, const float mouse[2])
 static void stroke_update_step(bContext *C,
                                wmOperator *op,
                                PaintStroke *stroke,
-                               PointerRNA *stroke_element)
+                               InputSample sample)
 {
   GreasePencilStrokeOperation *operation = static_cast<GreasePencilStrokeOperation *>(
       paint_stroke_mode_data(stroke));
-
-  InputSample sample;
-  RNA_float_get_array(stroke_element, "mouse", sample.mouse_position);
-  sample.pressure = RNA_float_get(stroke_element, "pressure");
 
   if (!operation) {
     std::unique_ptr<GreasePencilStrokeOperation> new_operation = get_stroke_operation(*C, op);
@@ -203,6 +199,34 @@ static void stroke_update_step(bContext *C,
   else {
     operation->on_stroke_extended(*C, sample);
   }
+}
+
+static void stroke_update_step_mouse(bContext *C,
+                                     wmOperator *op,
+                                     PaintStroke *stroke,
+                                     PointerRNA *stroke_element)
+{
+  InputSample sample;
+  RNA_float_get_array(stroke_element, "mouse", sample.mouse_position);
+  sample.pressure = RNA_float_get(stroke_element, "pressure");
+  sample.is_xr = false;
+  sample.controller_position = {0.0, 0.0, 0.0};
+
+  stroke_update_step(C, op, stroke, sample);
+}
+
+static void stroke_update_step_controller(bContext *C,
+                                  wmOperator *op,
+                                  PaintStroke *stroke,
+                                  PointerRNA *stroke_element)
+{
+  InputSample sample;
+  RNA_float_get_array(stroke_element, "mouse", sample.mouse_position);
+  RNA_float_get_array(stroke_element, "controller", sample.controller_position);
+  sample.pressure = RNA_float_get(stroke_element, "pressure");
+  sample.is_xr = true;
+
+  stroke_update_step(C, op, stroke, sample);
 }
 
 static void stroke_redraw(const bContext *C, PaintStroke * /*stroke*/, bool /*final*/)
@@ -278,7 +302,7 @@ static wmOperatorStatus grease_pencil_brush_stroke_invoke(bContext *C,
                                     op,
                                     stroke_get_location,
                                     stroke_test_start,
-                                    stroke_update_step,
+                                    event->type == EVT_XR_ACTION ? stroke_update_step_controller : stroke_update_step_mouse,
                                     stroke_redraw,
                                     stroke_done,
                                     event->type);
@@ -384,7 +408,7 @@ static wmOperatorStatus grease_pencil_sculpt_paint_invoke(bContext *C,
                                     op,
                                     stroke_get_location,
                                     stroke_test_start,
-                                    stroke_update_step,
+                                    stroke_update_step_mouse,
                                     stroke_redraw,
                                     stroke_done,
                                     event->type);
@@ -479,7 +503,7 @@ static wmOperatorStatus grease_pencil_weight_brush_stroke_invoke(bContext *C,
                                     op,
                                     stroke_get_location,
                                     stroke_test_start,
-                                    stroke_update_step,
+                                    stroke_update_step_mouse,
                                     stroke_redraw,
                                     stroke_done,
                                     event->type);
@@ -585,7 +609,7 @@ static wmOperatorStatus grease_pencil_vertex_brush_stroke_invoke(bContext *C,
                                     op,
                                     stroke_get_location,
                                     stroke_test_start,
-                                    stroke_update_step,
+                                    stroke_update_step_mouse,
                                     stroke_redraw,
                                     stroke_done,
                                     event->type);
@@ -1113,7 +1137,8 @@ static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*
       const bool use_xray = false;
       const float radius_scale = 1.0f;
 
-      ed::greasepencil::image_render::draw_grease_pencil_strokes(rv3d,
+      ed::greasepencil::image_render::draw_grease_pencil_strokes((bContext *)C,
+                                                                 rv3d,
                                                                  int2(region.winx, region.winy),
                                                                  object,
                                                                  info.drawing,
@@ -2052,6 +2077,132 @@ static void GREASE_PENCIL_OT_erase_box(wmOperatorType *ot)
 
 /** \} */
 
+/* -------------------------------------------------------------------- */
+/** \name Brush Stroke Operator for Gpencil Operator in XR
+ * \{ */
+
+static bool grease_pencil_xr_brush_stroke_poll(bContext *C)
+{
+  wmWindowManager *wm = CTX_wm_manager(C);
+
+  if (!WM_xr_session_is_ready(&wm->xr)) {
+    return false;
+  }
+  if (!ed::greasepencil::grease_pencil_painting_poll(C)) {
+    return false;
+  }
+  if (!WM_toolsystem_active_tool_is_brush(C)) {
+    return false;
+  }
+  return true;
+}
+
+static bool wm_xr_operator_gpencil_test_event(const wmOperator *op, const wmEvent *event)
+{
+  if (event->type != EVT_XR_ACTION) {
+    return false;
+  }
+
+  BLI_assert(event->custom == EVT_DATA_XR);
+  BLI_assert(event->customdata);
+
+  wmXrActionData *actiondata = static_cast<wmXrActionData *>(event->customdata);
+  return actiondata->ot == op->type;
+}
+
+static wmOperatorStatus grease_pencil_xr_brush_stroke_invoke(bContext *C,
+                                                             wmOperator *op,
+                                                             const wmEvent *event)
+{
+  if (!wm_xr_operator_gpencil_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  return grease_pencil_brush_stroke_invoke(C, op, event);
+}
+
+static wmOperatorStatus grease_pencil_xr_brush_stroke_modal(bContext *C,
+                                                            wmOperator *op,
+                                                            const wmEvent *event)
+{
+  if (!wm_xr_operator_gpencil_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+  return paint_stroke_modal(C, op, event, reinterpret_cast<PaintStroke **>(&op->customdata));
+}
+
+static void grease_pencil_xr_brush_stroke_cancel(bContext *C, wmOperator *op)
+{
+  paint_stroke_cancel(C, op, static_cast<PaintStroke *>(op->customdata));
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Brush Settings for Gpencil Operator in XR
+ * \{ */
+
+static wmOperatorStatus gpencil_xr_brush_settings_invoke(bContext *C,
+                                                         wmOperator *op,
+                                                         const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  BLI_assert(op->customdata == NULL);
+
+  const wmOperatorStatus retval = op->type->modal(C, op, event);
+
+  if ((retval & OPERATOR_RUNNING_MODAL) != 0) {
+    WM_event_add_modal_handler(C, op);
+  }
+
+  return retval;
+}
+
+static wmOperatorStatus gpencil_xr_brush_settings_modal(bContext *C,
+                                                        wmOperator *op,
+                                                        const wmEvent *event)
+{
+  if (!wm_xr_operator_test_event(op, event)) {
+    return OPERATOR_PASS_THROUGH;
+  }
+
+  int factor = RNA_int_get(op->ptr, "factor");
+
+  switch (event->val) {
+    case KM_PRESS: {
+      if ((event->modifier & KM_CTRL) != 0) {
+        ED_grease_pencil_xr_brush_strength_set(C, (factor / 10.0f));
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
+      }
+      else {
+        ED_grease_pencil_xr_brush_size_set(C, factor);
+        WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
+      }
+      return OPERATOR_RUNNING_MODAL;
+    }
+    case KM_RELEASE:
+    default: {
+      if (!op->customdata)
+        return OPERATOR_FINISHED;
+
+      MEM_freeN(op->customdata);
+
+      return OPERATOR_FINISHED;
+    }
+  }
+}
+
+static bool wm_xr_brush_settings_poll(bContext *C)
+{
+  return wm_xr_operator_sessionactive(C) &&
+         (blender::ed::greasepencil::grease_pencil_painting_poll(C));
+}
+
+/** \} */
+
 }  // namespace blender::ed::sculpt_paint
 
 /* -------------------------------------------------------------------- */
@@ -2106,6 +2257,45 @@ void ED_filltool_modal_keymap(wmKeyConfig *keyconf)
   keymap = WM_modalkeymap_ensure(keyconf, "Fill Tool Modal Map", modal_items);
 
   WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_fill");
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name OP Registration
+ * \{ */
+
+void GREASE_PENCIL_XR_OT_brush_stroke_xr(wmOperatorType *ot)
+{
+  using namespace blender::ed::sculpt_paint;
+  ot->name = "Grease Pencil XR Draw";
+  ot->idname = "GREASE_PENCIL_XR_OT_brush_stroke_xr";
+  ot->description = "Draw a new XR stroke in the active Grease Pencil object";
+
+  ot->poll = grease_pencil_xr_brush_stroke_poll;
+  ot->invoke = grease_pencil_xr_brush_stroke_invoke;
+  ot->modal = grease_pencil_xr_brush_stroke_modal;
+  ot->cancel = grease_pencil_xr_brush_stroke_cancel;
+
+  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
+
+  paint_stroke_operator_properties(ot);
+}
+
+void GREASE_PENCIL_XR_OT_brush_settings_xr(wmOperatorType *ot)
+{
+  using namespace blender::ed::sculpt_paint;
+  ot->name = "Change Gpencil brush strength and pressure in XR";
+  ot->idname = "GREASE_PENCIL_XR_OT_brush_settings_xr";
+  ot->description = "Change Gpencil brush strength and pressure in XR";
+
+  ot->invoke = gpencil_xr_brush_settings_invoke;
+  ot->modal = gpencil_xr_brush_settings_modal;
+  ot->poll = wm_xr_brush_settings_poll;
+  ot->flag = OPTYPE_UNDO;
+
+  /* rna */
+  RNA_def_int(ot->srna, "factor", 0, -1, 1, "Factor", "", -1, 1);
 }
 
 /** \} */

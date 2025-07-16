@@ -86,6 +86,8 @@ void ED_filltool_modal_keymap(wmKeyConfig *keyconf);
 void ED_interpolatetool_modal_keymap(wmKeyConfig *keyconf);
 
 void GREASE_PENCIL_OT_stroke_trim(wmOperatorType *ot);
+void GREASE_PENCIL_XR_OT_brush_stroke_xr(wmOperatorType *ot);
+void GREASE_PENCIL_XR_OT_brush_settings_xr(wmOperatorType *ot);
 
 void ED_undosys_type_grease_pencil(UndoType *ut);
 
@@ -108,6 +110,19 @@ bool ED_grease_pencil_sculpt_segment_selection_enabled(const ToolSettings *tool_
 bool ED_grease_pencil_vertex_segment_selection_enabled(const ToolSettings *tool_settings);
 bool ED_grease_pencil_segment_selection_enabled(const ToolSettings *tool_settings,
                                                 const Object *object);
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name GreasePencil XR Ops
+ * \{ */
+
+int ED_grease_pencil_xr_brush_size_set(bContext *C, int value);
+float ED_grease_pencil_xr_brush_strength_set(bContext *C, float value);
+/** Unused */
+int ED_grease_pencil_xr_brush_size_get(bContext *C);
+/** Unused */
+float ED_grease_pencil_xr_brush_strength_get(bContext *C);
 
 /** \} */
 
@@ -718,7 +733,8 @@ void draw_lines(const float4x4 &transform,
  * Draw curves geometry.
  * \param mode: Mode of \a eMaterialGPencilStyle_Mode.
  */
-void draw_grease_pencil_strokes(const RegionView3D &rv3d,
+void draw_grease_pencil_strokes(bContext *C,
+                                const RegionView3D &rv3d,
                                 const int2 &win_size,
                                 const Object &object,
                                 const bke::greasepencil::Drawing &drawing,

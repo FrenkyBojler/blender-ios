@@ -2274,4 +2274,8 @@ XrActionMapBinding *WM_xr_actionmap_binding_add_copy(XrActionMapItem *ami,
                                                      XrActionMapBinding *amb_src);
 bool WM_xr_actionmap_binding_remove(XrActionMapItem *ami, XrActionMapBinding *amb);
 XrActionMapBinding *WM_xr_actionmap_binding_find(XrActionMapItem *ami, const char *name);
+
+/* `wm_xr_operators.cc` */
+bool wm_xr_operator_sessionactive(bContext *C);
+bool wm_xr_operator_test_event(const wmOperator *op, const wmEvent *event);
 #endif /* WITH_XR_OPENXR */
