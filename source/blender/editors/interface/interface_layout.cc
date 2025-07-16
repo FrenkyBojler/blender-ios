@@ -535,7 +535,7 @@ static void ui_item_array(uiLayout *layout,
 
   /* create label */
   if (!name.is_empty() && show_text) {
-    uiDefBut(block, UI_BTYPE_LABEL, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
+    uiDefBut(block, eButType::Label, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
   }
 
   /* create buttons */
@@ -632,11 +632,11 @@ static void ui_item_array(uiLayout *layout,
                                  y + (dim_size[1] * UI_UNIT_Y) - (row * UI_UNIT_Y),
                                  w,
                                  UI_UNIT_Y);
-      if (slider && but->type == UI_BTYPE_NUM) {
+      if (slider && but->type == eButType::Num) {
         uiButNumber *number_but = (uiButNumber *)but;
         const float step_size = number_but->step_size;
         const float precision = number_but->precision;
-        but = ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
+        but = ui_but_change_type(but, eButType::NumSlider);
         uiButNumberSlider *slider_but = reinterpret_cast<uiButNumberSlider *>(but);
         slider_but->step_size = step_size;
         slider_but->precision = precision;
@@ -645,7 +645,7 @@ static void ui_item_array(uiLayout *layout,
   }
   else if (subtype == PROP_DIRECTION && !expand) {
     uiDefButR_prop(block,
-                   UI_BTYPE_UNITVEC,
+                   eButType::Unitvec,
                    0,
                    name,
                    x,
@@ -704,17 +704,17 @@ static void ui_item_array(uiLayout *layout,
 
         uiBut *but = uiDefAutoButR(
             block, ptr, prop, a, str_buf, icon, 0, 0, width_item, UI_UNIT_Y);
-        if (slider && but->type == UI_BTYPE_NUM) {
+        if (slider && but->type == eButType::Num) {
           uiButNumber *number_but = (uiButNumber *)but;
           const float step_size = number_but->step_size;
           const float precision = number_but->precision;
-          but = ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
+          but = ui_but_change_type(but, eButType::NumSlider);
           uiButNumberSlider *slider_but = reinterpret_cast<uiButNumberSlider *>(but);
           slider_but->step_size = step_size;
           slider_but->precision = precision;
         }
-        if ((toggle == 1) && but->type == UI_BTYPE_CHECKBOX) {
-          but->type = UI_BTYPE_TOGGLE;
+        if ((toggle == 1) && but->type == eButType::Checkbox) {
+          but->type = eButType::Toggle;
         }
         if ((a == 0) && (subtype == PROP_AXISANGLE)) {
           UI_but_unit_type_set(but, PROP_UNIT_ROTATION);
@@ -796,7 +796,7 @@ static void ui_item_enum_expand_elem_exec(uiLayout *layout,
 
   /* Allow quick, inaccurate swipe motions to switch tabs
    * (no need to keep cursor over them). */
-  if (but_type == UI_BTYPE_TAB) {
+  if (but_type == eButType::Tab) {
     but->flag |= UI_BUT_DRAG_LOCK;
   }
 }
@@ -904,7 +904,7 @@ static void ui_item_enum_expand(uiLayout *layout,
                                 const int h,
                                 const bool icon_only)
 {
-  ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, UI_BTYPE_ROW, icon_only);
+  ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, eButType::Row, icon_only);
 }
 static void ui_item_enum_expand_tabs(uiLayout *layout,
                                      bContext *C,
@@ -919,7 +919,7 @@ static void ui_item_enum_expand_tabs(uiLayout *layout,
 {
   const int start_size = block->buttons.size();
 
-  ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, UI_BTYPE_TAB, icon_only);
+  ui_item_enum_expand_exec(layout, block, ptr, prop, uiname, h, eButType::Tab, icon_only);
 
   if (block->buttons.is_empty()) {
     return;
@@ -953,7 +953,7 @@ static void ui_item_enum_expand_tabs(uiLayout *layout,
 static void ui_keymap_but_cb(bContext * /*C*/, void *but_v, void * /*key_v*/)
 {
   uiBut *but = static_cast<uiBut *>(but_v);
-  BLI_assert(but->type == UI_BTYPE_HOTKEY_EVENT);
+  BLI_assert(but->type == eButType::HotkeyEvent);
   const uiButHotkeyEvent *hotkey_but = (uiButHotkeyEvent *)but;
 
   RNA_int_set(
@@ -1038,7 +1038,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
       else {
         w_label = w_hint / 3;
       }
-      uiDefBut(block, UI_BTYPE_LABEL, 0, name, x, y, w_label, h, nullptr, 0.0, 0.0, "");
+      uiDefBut(block, eButType::Label, 0, name, x, y, w_label, h, nullptr, 0.0, 0.0, "");
     }
   }
 
@@ -1062,7 +1062,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
 
     /* #BUTTONS_OT_file_browse calls #UI_context_active_but_prop_get_filebrowser. */
     uiDefIconButO(block,
-                  UI_BTYPE_BUT,
+                  eButType::But,
                   subtype == PROP_DIRPATH ? "BUTTONS_OT_directory_browse" :
                                             "BUTTONS_OT_file_browse",
                   blender::wm::OpCallContext::InvokeDefault,
@@ -1075,7 +1075,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
   }
   else if (flag & UI_ITEM_R_EVENT) {
     but = uiDefButR_prop(block,
-                         UI_BTYPE_KEY_EVENT,
+                         eButType::KeyEvent,
                          0,
                          name,
                          x,
@@ -1094,7 +1094,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
         WM_keymap_item_to_string(static_cast<const wmKeyMapItem *>(ptr->data), false).value_or("");
 
     but = uiDefButR_prop(block,
-                         UI_BTYPE_HOTKEY_EVENT,
+                         eButType::HotkeyEvent,
                          0,
                          kmi_str,
                          x,
@@ -1117,7 +1117,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
   }
 
   /* Highlight in red on path template validity errors. */
-  if (but != nullptr && ELEM(but->type, UI_BTYPE_TEXT)) {
+  if (but != nullptr && ELEM(but->type, eButType::Text)) {
     /* We include PROP_NONE here because some plain string properties are used
      * as parts of paths. For example, the sub-paths in the compositor's File
      * Output node. */
@@ -1223,7 +1223,8 @@ static void ui_item_disabled(uiLayout *layout, const char *name)
 
   const int w = ui_text_icon_width(layout, name, 0, false);
 
-  uiBut *but = uiDefBut(block, UI_BTYPE_LABEL, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
+  uiBut *but = uiDefBut(
+      block, eButType::Label, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
   UI_but_disable(but, "");
 }
 
@@ -1273,15 +1274,16 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
   if (icon) {
     if (!name->is_empty()) {
       but = uiDefIconTextButO_ptr(
-          block, UI_BTYPE_BUT, ot, context, icon, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+          block, eButType::But, ot, context, icon, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
     }
     else {
       but = uiDefIconButO_ptr(
-          block, UI_BTYPE_BUT, ot, context, icon, 0, 0, w, UI_UNIT_Y, std::nullopt);
+          block, eButType::But, ot, context, icon, 0, 0, w, UI_UNIT_Y, std::nullopt);
     }
   }
   else {
-    but = uiDefButO_ptr(block, UI_BTYPE_BUT, ot, context, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
+    but = uiDefButO_ptr(
+        block, eButType::But, ot, context, *name, 0, 0, w, UI_UNIT_Y, std::nullopt);
   }
 
   BLI_assert(but->optype != nullptr);
@@ -1430,7 +1432,7 @@ void uiLayout::op_enum_items(wmOperatorType *ot,
 
     /* Add a blank button to the beginning of the row. */
     uiDefIconBut(block,
-                 UI_BTYPE_LABEL,
+                 eButType::Label,
                  0,
                  ICON_BLANK1,
                  0,
@@ -1508,7 +1510,7 @@ void uiLayout::op_enum_items(wmOperatorType *ot,
           /* Do not use uiLayout::label here, as our root layout is a menu one,
            * it will add a fake blank icon! */
           but = uiDefBut(block,
-                         UI_BTYPE_LABEL,
+                         eButType::Label,
                          0,
                          item->name,
                          0,
@@ -2002,7 +2004,7 @@ void uiLayout::prop(PointerRNA *ptr,
             fmt::format_to(fmt::appender(name_with_suffix), "{} {}", name, str[0]);
           }
           but = uiDefBut(block,
-                         UI_BTYPE_LABEL,
+                         eButType::Label,
                          0,
                          use_prefix ? StringRef(name_with_suffix.data(), name_with_suffix.size()) :
                                       str,
@@ -2021,7 +2023,7 @@ void uiLayout::prop(PointerRNA *ptr,
         }
       }
       else {
-        but = uiDefBut(block, UI_BTYPE_LABEL, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
+        but = uiDefBut(block, eButType::Label, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
         but->drawflag |= UI_BUT_TEXT_RIGHT;
         but->drawflag &= ~UI_BUT_TEXT_LEFT;
 
@@ -2105,15 +2107,15 @@ void uiLayout::prop(PointerRNA *ptr,
   else if (type == PROP_ENUM && index == RNA_ENUM_VALUE) {
     if (icon && !name.is_empty() && !icon_only) {
       uiDefIconTextButR_prop(
-          block, UI_BTYPE_ROW, 0, icon, name, 0, 0, w, h, ptr, prop, -1, 0, value, std::nullopt);
+          block, eButType::Row, 0, icon, name, 0, 0, w, h, ptr, prop, -1, 0, value, std::nullopt);
     }
     else if (icon) {
       uiDefIconButR_prop(
-          block, UI_BTYPE_ROW, 0, icon, 0, 0, w, h, ptr, prop, -1, 0, value, std::nullopt);
+          block, eButType::Row, 0, icon, 0, 0, w, h, ptr, prop, -1, 0, value, std::nullopt);
     }
     else {
       uiDefButR_prop(
-          block, UI_BTYPE_ROW, 0, name, 0, 0, w, h, ptr, prop, -1, 0, value, std::nullopt);
+          block, eButType::Row, 0, name, 0, 0, w, h, ptr, prop, -1, 0, value, std::nullopt);
     }
   }
   /* expanded enum */
@@ -2152,11 +2154,11 @@ void uiLayout::prop(PointerRNA *ptr,
   else {
     but = uiDefAutoButR(block, ptr, prop, index, name, icon, 0, 0, w, h);
 
-    if (slider && but->type == UI_BTYPE_NUM) {
+    if (slider && but->type == eButType::Num) {
       uiButNumber *number_but = (uiButNumber *)but;
       const float step_size = number_but->step_size;
       const float precision = number_but->precision;
-      but = ui_but_change_type(but, UI_BTYPE_NUM_SLIDER);
+      but = ui_but_change_type(but, eButType::NumSlider);
       uiButNumberSlider *slider_but = reinterpret_cast<uiButNumberSlider *>(but);
       slider_but->step_size = step_size;
       slider_but->precision = precision;
@@ -2164,17 +2166,17 @@ void uiLayout::prop(PointerRNA *ptr,
 
     if (flag & UI_ITEM_R_CHECKBOX_INVERT) {
       if (ELEM(but->type,
-               UI_BTYPE_CHECKBOX,
-               UI_BTYPE_CHECKBOX_N,
-               UI_BTYPE_ICON_TOGGLE,
-               UI_BTYPE_ICON_TOGGLE_N))
+               eButType::Checkbox,
+               eButType::CheckboxN,
+               eButType::IconToggle,
+               eButType::IconToggleN))
       {
         but->drawflag |= UI_BUT_CHECKBOX_INVERT;
       }
     }
 
-    if ((toggle == 1) && but->type == UI_BTYPE_CHECKBOX) {
-      but->type = UI_BTYPE_TOGGLE;
+    if ((toggle == 1) && but->type == eButType::Checkbox) {
+      but->type = eButType::Toggle;
     }
 
     if (layout->redalert_) {
@@ -2199,7 +2201,7 @@ void uiLayout::prop(PointerRNA *ptr,
   }
 
   /* Mark non-embossed text-fields inside a list-box. */
-  if (but && (block->flag & UI_BLOCK_LIST_ITEM) && (but->type == UI_BTYPE_TEXT) &&
+  if (but && (block->flag & UI_BLOCK_LIST_ITEM) && (but->type == eButType::Text) &&
       ELEM(but->emboss, blender::ui::EmbossType::None, blender::ui::EmbossType::NoneOrStatus))
   {
     UI_but_flag_enable(but, UI_BUT_LIST_ITEM);
@@ -2209,7 +2211,7 @@ void uiLayout::prop(PointerRNA *ptr,
     if (placeholder) {
       UI_but_placeholder_set(but, *placeholder);
     }
-    if (ELEM(but->type, UI_BTYPE_TEXT) && (flag & UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)) {
+    if (ELEM(but->type, eButType::Text) && (flag & UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)) {
       UI_but_flag2_enable(but, UI_BUT2_FORCE_SEMI_MODAL_ACTIVE);
     }
   }
@@ -2296,7 +2298,7 @@ void uiLayout::prop_with_popover(PointerRNA *ptr,
   this->prop(ptr, prop, index, value, flag, name, icon);
   for (; i < block->buttons.size(); i++) {
     uiBut *but = block->buttons[i].get();
-    if (but->rnaprop == prop && ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_COLOR)) {
+    if (but->rnaprop == prop && ELEM(but->type, eButType::Menu, eButType::Color)) {
       ui_but_rna_menu_convert_to_panel_type(but, panel_type);
       break;
     }
@@ -2325,7 +2327,7 @@ void uiLayout::prop_with_menu(PointerRNA *ptr,
   this->prop(ptr, prop, index, value, flag, name, icon);
   while (i < block->buttons.size()) {
     uiBut *but = block->buttons[i].get();
-    if (but->rnaprop == prop && but->type == UI_BTYPE_MENU) {
+    if (but->rnaprop == prop && but->type == eButType::Menu) {
       ui_but_rna_menu_convert_to_menu_type(but, menu_type);
       break;
     }
@@ -2535,7 +2537,7 @@ uiBut *ui_but_add_search(uiBut *but,
     uiRNACollectionSearch *coll_search = MEM_new<uiRNACollectionSearch>(__func__);
     uiButSearch *search_but;
 
-    but = ui_but_change_type(but, UI_BTYPE_SEARCH_MENU);
+    but = ui_but_change_type(but, eButType::SearchMenu);
     search_but = (uiButSearch *)but;
 
     if (searchptr) {
@@ -2588,7 +2590,7 @@ uiBut *ui_but_add_search(uiBut *but,
      * again. */
     but->flag &= ~UI_BUT_DISABLED;
   }
-  else if (but->type == UI_BTYPE_SEARCH_MENU) {
+  else if (but->type == eButType::SearchMenu) {
     /* In case we fail to find proper searchprop,
      * so other code might have already set but->type to search menu... */
     but->flag |= UI_BUT_DISABLED;
@@ -2827,7 +2829,7 @@ void uiLayout::decorator(PointerRNA *ptr, PropertyRNA *prop, int index)
 
   if (ELEM(nullptr, ptr, prop) || !RNA_property_animateable(ptr, prop)) {
     uiBut *but = uiDefIconBut(block,
-                              UI_BTYPE_DECORATOR,
+                              eButType::Decorator,
                               0,
                               ICON_BLANK1,
                               0,
@@ -2848,7 +2850,7 @@ void uiLayout::decorator(PointerRNA *ptr, PropertyRNA *prop, int index)
   /* Loop for the array-case, but only do in case of an expanded array. */
   for (int i = 0; i < (is_expand ? RNA_property_array_length(ptr, prop) : 1); i++) {
     uiButDecorator *but = (uiButDecorator *)uiDefIconBut(block,
-                                                         UI_BTYPE_DECORATOR,
+                                                         eButType::Decorator,
                                                          0,
                                                          ICON_DOT,
                                                          0,
@@ -2922,7 +2924,7 @@ void uiLayout::popover(const bContext *C,
 
   uiBut *but = ui_item_menu(
       layout, name, icon, ui_item_paneltype_func, pt, nullptr, TIP_(pt->description), true);
-  but->type = UI_BTYPE_POPOVER;
+  but->type = eButType::Popover;
   if (!ok) {
     but->flag |= UI_BUT_DISABLED;
   }
@@ -2977,7 +2979,7 @@ static uiBut *uiItem_simple(uiLayout *layout,
                             const StringRef name,
                             int icon,
                             std::optional<blender::StringRef> tooltip = std::nullopt,
-                            const eButType but_type = UI_BTYPE_LABEL)
+                            const eButType but_type = eButType::Label)
 {
   uiBlock *block = layout->block();
 
@@ -3097,7 +3099,7 @@ uiBut *uiLayout::button(uiLayout *layout,
                         std::function<void(bContext &)> func,
                         std::optional<blender::StringRef> tooltip)
 {
-  uiBut *but = uiItem_simple(layout, name, icon, tooltip, UI_BTYPE_BUT);
+  uiBut *but = uiItem_simple(layout, name, icon, tooltip, eButType::But);
   UI_but_func_set(but, std::move(func));
   return but;
 }
@@ -3119,16 +3121,16 @@ void uiLayout::separator(float factor, const LayoutSeparatorType type)
 
   switch (type) {
     case LayoutSeparatorType::Line:
-      but_type = UI_BTYPE_SEPR_LINE;
+      but_type = eButType::SeprLine;
       break;
     case LayoutSeparatorType::Auto:
-      but_type = (is_menu && !is_pie) ? UI_BTYPE_SEPR_LINE : UI_BTYPE_SEPR;
+      but_type = (is_menu && !is_pie) ? eButType::SeprLine : eButType::Sepr;
       break;
     default:
-      but_type = UI_BTYPE_SEPR;
+      but_type = eButType::Sepr;
   }
 
-  bool is_vertical_bar = (w_ == 0) && but_type == UI_BTYPE_SEPR_LINE;
+  bool is_vertical_bar = (w_ == 0) && but_type == eButType::SeprLine;
 
   UI_block_layout_set_current(block, this);
   uiBut *but = uiDefBut(block,
@@ -3144,7 +3146,7 @@ void uiLayout::separator(float factor, const LayoutSeparatorType type)
                         0.0,
                         "");
 
-  if (but_type == UI_BTYPE_SEPR_LINE) {
+  if (but_type == eButType::SeprLine) {
     uiButSeparatorLine *but_line = static_cast<uiButSeparatorLine *>(but);
     but_line->is_vertical = is_vertical_bar;
   }
@@ -3170,7 +3172,7 @@ void uiLayout::progress_indicator(const char *text,
 
   UI_block_layout_set_current(block, this);
   uiBut *but = uiDefBut(block,
-                        UI_BTYPE_PROGRESS,
+                        eButType::Progress,
                         0,
                         (text) ? text : "",
                         0,
@@ -3209,7 +3211,7 @@ void uiLayout::separator_spacer()
 
   UI_block_layout_set_current(block, this);
   uiDefBut(block,
-           UI_BTYPE_SEPR_SPACER,
+           eButType::SeprSpacer,
            0,
            "",
            0,
@@ -3742,7 +3744,7 @@ static bool ui_item_is_radial_displayable(uiItem *item)
 {
 
   if ((item->type_ == uiItemType::Button) &&
-      ((static_cast<uiButtonItem *>(item))->but->type == UI_BTYPE_LABEL))
+      ((static_cast<uiButtonItem *>(item))->but->type == eButType::Label))
   {
     return false;
   }
@@ -3753,7 +3755,7 @@ static bool ui_item_is_radial_displayable(uiItem *item)
 static bool ui_item_is_radial_drawable(uiButtonItem *bitem)
 {
 
-  if (ELEM(bitem->but->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE, UI_BTYPE_SEPR_SPACER)) {
+  if (ELEM(bitem->but->type, eButType::Sepr, eButType::SeprLine, eButType::SeprSpacer)) {
     return false;
   }
 
@@ -3809,7 +3811,7 @@ static void ui_litem_layout_radial(uiLayout *litem)
         bitem->but->drawflag |= UI_BUT_ICON_LEFT;
       }
 
-      if (ELEM(bitem->but->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE)) {
+      if (ELEM(bitem->but->type, eButType::Sepr, eButType::SeprLine)) {
         use_dir = false;
       }
     }
@@ -4687,7 +4689,7 @@ PanelLayout uiLayout::panel_prop(const bContext *C,
     const int icon = is_open ? ICON_DOWNARROW_HLT : ICON_RIGHTARROW;
     const int width = ui_text_icon_width(this, "", icon, false);
     uiDefIconTextBut(
-        block, UI_BTYPE_LABEL, 0, icon, "", 0, 0, width, UI_UNIT_Y, nullptr, 0.0f, 0.0f, "");
+        block, eButType::Label, 0, icon, "", 0, 0, width, UI_UNIT_Y, nullptr, 0.0f, 0.0f, "");
 
     panel_layout.header = row;
   }
@@ -4825,7 +4827,7 @@ uiLayout &uiLayout::grid_flow(
   return *flow;
 }
 
-static uiLayoutItemBx *ui_layout_box(uiLayout *layout, int type)
+static uiLayoutItemBx *ui_layout_box(uiLayout *layout, eButType type)
 {
   uiLayoutItemBx *box = MEM_new<uiLayoutItemBx>(__func__);
   ui_litem_init_from_parent(box, layout, false);
@@ -4868,7 +4870,7 @@ uiLayout &uiLayout::menu_pie()
 
 uiLayout &uiLayout::box()
 {
-  return *ui_layout_box(this, UI_BTYPE_ROUNDBOX);
+  return *ui_layout_box(this, eButType::Roundbox);
 }
 
 void ui_layout_list_set_labels_active(uiLayout *layout)
@@ -4888,7 +4890,7 @@ void ui_layout_list_set_labels_active(uiLayout *layout)
 
 uiLayout &uiLayout::list_box(uiList *ui_list, PointerRNA *actptr, PropertyRNA *actprop)
 {
-  uiLayoutItemBx *item_box = ui_layout_box(this, UI_BTYPE_LISTBOX);
+  uiLayoutItemBx *item_box = ui_layout_box(this, eButType::ListBox);
   uiBut *but = item_box->roundbox;
 
   but->custom_data = ui_list;
@@ -4999,8 +5001,18 @@ void uiLayoutListItemAddPadding(uiLayout *layout)
   uiLayout *row = &layout->row(true);
   row->fixed_size_set(true);
 
-  uiDefBut(
-      block, UI_BTYPE_SEPR, 0, "", 0, 0, uiLayoutListItemPaddingWidth(), 0, nullptr, 0.0, 0.0, "");
+  uiDefBut(block,
+           eButType::Sepr,
+           0,
+           "",
+           0,
+           0,
+           uiLayoutListItemPaddingWidth(),
+           0,
+           nullptr,
+           0.0,
+           0.0,
+           "");
 
   /* Restore. */
   UI_block_layout_set_current(block, layout);
@@ -5054,7 +5066,7 @@ static bool button_matches_search_filter(uiBut *but, const char *search_filter)
     /* Search through labels of enum property items if they are in a drop-down menu.
      * Unfortunately we have no #bContext here so we cannot search through RNA enums
      * with dynamic entries (or "itemf" functions) which require context. */
-    if (but->type == UI_BTYPE_MENU) {
+    if (but->type == eButType::Menu) {
       PointerRNA *ptr = &but->rnapoin;
       PropertyRNA *enum_prop = but->rnaprop;
       int items_len;
@@ -5422,7 +5434,7 @@ static void ui_layout_add_padding_button(uiLayoutRoot *root)
 
     block->curlayout = root->layout;
     uiDefBut(
-        block, UI_BTYPE_SEPR, 0, "", 0, 0, root->padding, root->padding, nullptr, 0.0, 0.0, "");
+        block, eButType::Sepr, 0, "", 0, 0, root->padding, root->padding, nullptr, 0.0, 0.0, "");
     block->curlayout = prev_layout;
   }
 }
@@ -5711,7 +5723,7 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
 
     if (item->type_ == uiItemType::Button) {
       uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
-      if (bitem->but->type == UI_BTYPE_DECORATOR) {
+      if (bitem->but->type == eButType::Decorator) {
         continue;
       }
       UI_but_func_tooltip_set(bitem->but, func, arg, free_arg);
@@ -5746,7 +5758,7 @@ void uiLayoutSetTooltipCustomFunc(uiLayout *layout,
 
     if (item->type_ == uiItemType::Button) {
       uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
-      if (bitem->but->type == UI_BTYPE_DECORATOR) {
+      if (bitem->but->type == eButType::Decorator) {
         continue;
       }
       UI_but_func_tooltip_custom_set(bitem->but, func, arg, free_arg);

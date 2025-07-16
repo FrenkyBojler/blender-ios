@@ -773,7 +773,7 @@ static uiBut *add_tab_button(uiBlock &block, StringRefNull name)
 
   uiBut *but = uiDefBut(
       &block,
-      UI_BTYPE_TAB,
+      eButType::Tab,
       0,
       name,
       0,

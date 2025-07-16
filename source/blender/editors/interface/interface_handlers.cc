@@ -938,7 +938,7 @@ static void ui_apply_but_func(bContext *C, uiBut *but)
   after->rnapoin = but->rnapoin;
   after->rnaprop = but->rnaprop;
 
-  if (but->type == UI_BTYPE_SEARCH_MENU) {
+  if (but->type == eButType::SearchMenu) {
     uiButSearch *search_but = (uiButSearch *)but;
     after->search_arg_free_fn = search_but->arg_free_fn;
     after->search_arg = search_but->arg;
@@ -992,7 +992,7 @@ static void ui_apply_but_undo(uiBut *but)
   bool skip_undo = false;
 
   /* define which string to use for undo */
-  if (but->type == UI_BTYPE_MENU) {
+  if (but->type == eButType::Menu) {
     if (!but->drawstr.empty()) {
       str = but->drawstr;
     }
@@ -1198,7 +1198,7 @@ static void ui_apply_but_BUTM(bContext *C, uiBut *but, uiHandleButtonData *data)
 
 static void ui_apply_but_BLOCK(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
-  if (but->type == UI_BTYPE_MENU) {
+  if (but->type == eButType::Menu) {
     ui_but_value_set(but, data->value);
   }
 
@@ -1220,7 +1220,7 @@ static void ui_apply_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data)
   }
 
   ui_but_value_set(but, double(value_toggle));
-  if (ELEM(but->type, UI_BTYPE_ICON_TOGGLE, UI_BTYPE_ICON_TOGGLE_N)) {
+  if (ELEM(but->type, eButType::IconToggle, eButType::IconToggleN)) {
     ui_but_update_edited(but);
   }
 
@@ -1238,7 +1238,8 @@ static void ui_apply_but_ROW(bContext *C, uiBlock *block, uiBut *but, uiHandleBu
 
   /* states of other row buttons */
   for (const std::unique_ptr<uiBut> &bt : block->buttons) {
-    if (bt.get() != but && bt->poin == but->poin && ELEM(bt->type, UI_BTYPE_ROW, UI_BTYPE_LISTROW))
+    if (bt.get() != but && bt->poin == but->poin &&
+        ELEM(bt->type, eButType::Row, eButType::ListRow))
     {
       ui_but_update_edited(bt.get());
     }
@@ -1287,7 +1288,7 @@ static void ui_apply_but_TEX(bContext *C, uiBut *but, uiHandleButtonData *data)
   void *orig_arg2 = but->func_arg2;
 
   /* If arg2 isn't in use already, pass the active search item through it. */
-  if ((but->func_arg2 == nullptr) && (but->type == UI_BTYPE_SEARCH_MENU)) {
+  if ((but->func_arg2 == nullptr) && (but->type == eButType::SearchMenu)) {
     uiButSearch *search_but = (uiButSearch *)but;
     but->func_arg2 = search_but->item_active;
     if ((U.flag & USER_FLAG_RECENT_SEARCHES_DISABLE) == 0) {
@@ -2174,7 +2175,7 @@ static bool ui_but_drag_init(bContext *C,
     }
     else
 #endif
-        if (but->type == UI_BTYPE_COLOR)
+        if (but->type == eButType::Color)
     {
       bool valid = false;
       uiDragColorHandle *drag_info = MEM_callocN<uiDragColorHandle>(__func__);
@@ -2192,7 +2193,7 @@ static bool ui_but_drag_init(bContext *C,
         drag_info->gamma_corrected = false;
         valid = true;
       }
-      else if (ELEM(but->pointype, UI_BUT_POIN_FLOAT, UI_BUT_POIN_CHAR)) {
+      else if (ELEM(but->pointype, eButPointerType::Float, eButPointerType::Char)) {
         ui_but_v4_get(but, drag_info->color);
         copy_v4_v4(drag_info->color, (float *)but->poin);
         drag_info->gamma_corrected = false;
@@ -2207,7 +2208,7 @@ static bool ui_but_drag_init(bContext *C,
         return false;
       }
     }
-    else if (but->type == UI_BTYPE_VIEW_ITEM) {
+    else if (but->type == eButType::ViewItem) {
       const uiButViewItem *view_item_but = (uiButViewItem *)but;
       if (view_item_but->view_item) {
         return UI_view_item_drag_start(*C, *view_item_but->view_item);
@@ -2326,76 +2327,76 @@ static void ui_apply_but(
   ColorBand *editcoba;
   CurveMapping *editcumap;
   CurveProfile *editprofile;
-  if (but_type == UI_BTYPE_COLORBAND) {
+  if (but_type == eButType::ColorBand) {
     uiButColorBand *but_coba = (uiButColorBand *)but;
     editcoba = but_coba->edit_coba;
   }
-  else if (but_type == UI_BTYPE_CURVE) {
+  else if (but_type == eButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     editcumap = but_cumap->edit_cumap;
   }
-  else if (but_type == UI_BTYPE_CURVEPROFILE) {
+  else if (but_type == eButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
     editprofile = but_profile->edit_profile;
   }
   but->editstr = nullptr;
   but->editval = nullptr;
   but->editvec = nullptr;
-  if (but_type == UI_BTYPE_COLORBAND) {
+  if (but_type == eButType::ColorBand) {
     uiButColorBand *but_coba = (uiButColorBand *)but;
     but_coba->edit_coba = nullptr;
   }
-  else if (but_type == UI_BTYPE_CURVE) {
+  else if (but_type == eButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = nullptr;
   }
-  else if (but_type == UI_BTYPE_CURVEPROFILE) {
+  else if (but_type == eButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
     but_profile->edit_profile = nullptr;
   }
 
   /* handle different types */
   switch (but_type) {
-    case UI_BTYPE_BUT:
-    case UI_BTYPE_DECORATOR:
-    case UI_BTYPE_PREVIEW_TILE:
+    case eButType::But:
+    case eButType::Decorator:
+    case eButType::PreviewTile:
       ui_apply_but_BUT(C, but, data);
       break;
-    case UI_BTYPE_TEXT:
-    case UI_BTYPE_SEARCH_MENU:
+    case eButType::Text:
+    case eButType::SearchMenu:
       ui_apply_but_TEX(C, but, data);
       break;
-    case UI_BTYPE_BUT_TOGGLE:
-    case UI_BTYPE_TOGGLE:
-    case UI_BTYPE_TOGGLE_N:
-    case UI_BTYPE_ICON_TOGGLE:
-    case UI_BTYPE_ICON_TOGGLE_N:
-    case UI_BTYPE_CHECKBOX:
-    case UI_BTYPE_CHECKBOX_N:
+    case eButType::ButToggle:
+    case eButType::Toggle:
+    case eButType::ToggleN:
+    case eButType::IconToggle:
+    case eButType::IconToggleN:
+    case eButType::Checkbox:
+    case eButType::CheckboxN:
       ui_apply_but_TOG(C, but, data);
       break;
-    case UI_BTYPE_LISTROW:
-    case UI_BTYPE_ROW:
+    case eButType::ListRow:
+    case eButType::Row:
       ui_apply_but_ROW(C, block, but, data);
       break;
-    case UI_BTYPE_VIEW_ITEM:
+    case eButType::ViewItem:
       ui_apply_but_VIEW_ITEM(C, block, but, data);
       break;
-    case UI_BTYPE_TAB:
+    case eButType::Tab:
       ui_apply_but_TAB(C, but, data);
       break;
-    case UI_BTYPE_SCROLL:
-    case UI_BTYPE_GRIP:
-    case UI_BTYPE_NUM:
-    case UI_BTYPE_NUM_SLIDER:
+    case eButType::Scroll:
+    case eButType::Grip:
+    case eButType::Num:
+    case eButType::NumSlider:
       ui_apply_but_NUM(C, but, data);
       break;
-    case UI_BTYPE_MENU:
-    case UI_BTYPE_BLOCK:
-    case UI_BTYPE_PULLDOWN:
+    case eButType::Menu:
+    case eButType::Block:
+    case eButType::Pulldown:
       ui_apply_but_BLOCK(C, but, data);
       break;
-    case UI_BTYPE_COLOR:
+    case eButType::Color:
       if (data->cancel) {
         ui_apply_but_VEC(C, but, data);
       }
@@ -2403,37 +2404,37 @@ static void ui_apply_but(
         ui_apply_but_BLOCK(C, but, data);
       }
       break;
-    case UI_BTYPE_BUT_MENU:
+    case eButType::ButMenu:
       ui_apply_but_BUTM(C, but, data);
       break;
-    case UI_BTYPE_UNITVEC:
-    case UI_BTYPE_HSVCUBE:
-    case UI_BTYPE_HSVCIRCLE:
+    case eButType::Unitvec:
+    case eButType::HsvCube:
+    case eButType::HsvCircle:
       ui_apply_but_VEC(C, but, data);
       break;
-    case UI_BTYPE_COLORBAND:
+    case eButType::ColorBand:
       ui_apply_but_COLORBAND(C, but, data);
       break;
-    case UI_BTYPE_CURVE:
+    case eButType::Curve:
       ui_apply_but_CURVE(C, but, data);
       break;
-    case UI_BTYPE_CURVEPROFILE:
+    case eButType::CurveProfile:
       ui_apply_but_CURVEPROFILE(C, but, data);
       break;
-    case UI_BTYPE_KEY_EVENT:
-    case UI_BTYPE_HOTKEY_EVENT:
+    case eButType::KeyEvent:
+    case eButType::HotkeyEvent:
       ui_apply_but_BUT(C, but, data);
       break;
-    case UI_BTYPE_IMAGE:
+    case eButType::Image:
       ui_apply_but_IMAGE(C, but, data);
       break;
-    case UI_BTYPE_HISTOGRAM:
+    case eButType::Histogram:
       ui_apply_but_HISTOGRAM(C, but, data);
       break;
-    case UI_BTYPE_WAVEFORM:
+    case eButType::Waveform:
       ui_apply_but_WAVEFORM(C, but, data);
       break;
-    case UI_BTYPE_TRACK_PREVIEW:
+    case eButType::TrackPreview:
       ui_apply_but_TRACKPREVIEW(C, but, data);
       break;
     default:
@@ -2467,15 +2468,15 @@ static void ui_apply_but(
   but->editstr = editstr;
   but->editval = editval;
   but->editvec = editvec;
-  if (but_type == UI_BTYPE_COLORBAND) {
+  if (but_type == eButType::ColorBand) {
     uiButColorBand *but_coba = (uiButColorBand *)but;
     but_coba->edit_coba = editcoba;
   }
-  else if (but_type == UI_BTYPE_CURVE) {
+  else if (but_type == eButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = editcumap;
   }
-  else if (but_type == UI_BTYPE_CURVEPROFILE) {
+  else if (but_type == eButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
     but_profile->edit_profile = editprofile;
   }
@@ -2522,7 +2523,7 @@ static void ui_but_set_float_array(
 
   RNA_property_float_set_array_at_most(&but->rnapoin, but->rnaprop, values, values_len);
   if (data) {
-    if (but->type == UI_BTYPE_UNITVEC) {
+    if (but->type == eButType::Unitvec) {
       BLI_assert(values_len == 3);
       copy_v3_v3(data->vec, values);
     }
@@ -2788,8 +2789,8 @@ static bool ui_but_copy(bContext *C, uiBut *but, const bool copy_array)
   const bool has_required_data = !(but->poin == nullptr && but->rnapoin.data == nullptr);
 
   switch (but->type) {
-    case UI_BTYPE_NUM:
-    case UI_BTYPE_NUM_SLIDER:
+    case eButType::Num:
+    case eButType::NumSlider:
       if (!has_required_data) {
         break;
       }
@@ -2802,7 +2803,7 @@ static bool ui_but_copy(bContext *C, uiBut *but, const bool copy_array)
       is_buf_set = true;
       break;
 
-    case UI_BTYPE_UNITVEC:
+    case eButType::Unitvec:
       if (!has_required_data) {
         break;
       }
@@ -2810,7 +2811,7 @@ static bool ui_but_copy(bContext *C, uiBut *but, const bool copy_array)
       is_buf_set = true;
       break;
 
-    case UI_BTYPE_COLOR:
+    case eButType::Color:
       if (!has_required_data) {
         break;
       }
@@ -2818,8 +2819,8 @@ static bool ui_but_copy(bContext *C, uiBut *but, const bool copy_array)
       is_buf_set = true;
       break;
 
-    case UI_BTYPE_TEXT:
-    case UI_BTYPE_SEARCH_MENU:
+    case eButType::Text:
+    case eButType::SearchMenu:
       if (!has_required_data) {
         break;
       }
@@ -2827,19 +2828,19 @@ static bool ui_but_copy(bContext *C, uiBut *but, const bool copy_array)
       is_buf_set = true;
       break;
 
-    case UI_BTYPE_COLORBAND:
+    case eButType::ColorBand:
       ui_but_copy_colorband(but);
       break;
 
-    case UI_BTYPE_CURVE:
+    case eButType::Curve:
       ui_but_copy_curvemapping(but);
       break;
 
-    case UI_BTYPE_CURVEPROFILE:
+    case eButType::CurveProfile:
       ui_but_copy_CurveProfile(but);
       break;
 
-    case UI_BTYPE_BUT:
+    case eButType::But:
       if (!but->optype) {
         break;
       }
@@ -2847,13 +2848,13 @@ static bool ui_but_copy(bContext *C, uiBut *but, const bool copy_array)
       is_buf_set = true;
       break;
 
-    case UI_BTYPE_MENU:
-    case UI_BTYPE_PULLDOWN:
+    case eButType::Menu:
+    case eButType::Pulldown:
       if (ui_but_copy_menu(but, buf, buf_maxncpy)) {
         is_buf_set = true;
       }
       break;
-    case UI_BTYPE_POPOVER:
+    case eButType::Popover:
       if (ui_but_copy_popover(but, buf, buf_maxncpy)) {
         is_buf_set = true;
       }
@@ -2880,8 +2881,8 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
   const bool has_required_data = !(but->poin == nullptr && but->rnapoin.data == nullptr);
 
   switch (but->type) {
-    case UI_BTYPE_NUM:
-    case UI_BTYPE_NUM_SLIDER:
+    case eButType::Num:
+    case eButType::NumSlider:
       if (!has_required_data) {
         break;
       }
@@ -2893,37 +2894,37 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
       }
       break;
 
-    case UI_BTYPE_UNITVEC:
+    case eButType::Unitvec:
       if (!has_required_data) {
         break;
       }
       ui_but_paste_normalized_vector(C, but, data, buf_paste);
       break;
 
-    case UI_BTYPE_COLOR:
+    case eButType::Color:
       if (!has_required_data) {
         break;
       }
       ui_but_paste_color(C, but, buf_paste);
       break;
 
-    case UI_BTYPE_TEXT:
-    case UI_BTYPE_SEARCH_MENU:
+    case eButType::Text:
+    case eButType::SearchMenu:
       if (!has_required_data) {
         break;
       }
       ui_but_paste_text(C, but, data, buf_paste);
       break;
 
-    case UI_BTYPE_COLORBAND:
+    case eButType::ColorBand:
       ui_but_paste_colorband(C, but, data);
       break;
 
-    case UI_BTYPE_CURVE:
+    case eButType::Curve:
       ui_but_paste_curvemapping(C, but);
       break;
 
-    case UI_BTYPE_CURVEPROFILE:
+    case eButType::CurveProfile:
       ui_but_paste_CurveProfile(C, but);
       break;
 
@@ -3026,7 +3027,7 @@ void ui_but_set_string_interactive(bContext *C, uiBut *but, const char *value)
   button_activate_state(C, but, BUTTON_STATE_TEXT_EDITING);
   ui_textedit_string_set(but, but->active->text_edit, value);
 
-  if (but->type == UI_BTYPE_SEARCH_MENU && but->active) {
+  if (but->type == eButType::SearchMenu && but->active) {
     but->changed = true;
     ui_searchbox_update(C, but->active->searchbox, but, true);
   }
@@ -3124,7 +3125,7 @@ static void ui_textedit_set_cursor_pos(uiBut *but, const ARegion *region, const 
 
   ui_but_text_password_hide(password_str, but, false);
 
-  if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
+  if (ELEM(but->type, eButType::Text, eButType::SearchMenu)) {
     if (but->flag & UI_HAS_ICON) {
       startx += UI_ICON_SIZE / aspect;
     }
@@ -3450,7 +3451,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
 {
   uiTextEdit &text_edit = data->text_edit;
   wmWindow *win = data->window;
-  const bool is_num_but = ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER);
+  const bool is_num_but = ELEM(but->type, eButType::Num, eButType::NumSlider);
   bool no_zero_strip = false;
 
   MEM_SAFE_FREE(text_edit.edit_string);
@@ -3550,7 +3551,7 @@ static void ui_textedit_begin(bContext *C, uiBut *but, uiHandleButtonData *data)
   ui_textedit_undo_push(text_edit.undo_stack_text, but->editstr, but->pos);
 
   /* optional searchbox */
-  if (but->type == UI_BTYPE_SEARCH_MENU) {
+  if (but->type == eButType::SearchMenu) {
     uiButSearch *search_but = (uiButSearch *)but;
 
     data->searchbox = search_but->popup_create_fn(C, data->region, search_but);
@@ -3612,7 +3613,7 @@ static void ui_textedit_end(bContext *C, uiBut *but, uiHandleButtonData *data)
 
     if (data->searchbox) {
       if (data->cancel == false) {
-        BLI_assert(but->type == UI_BTYPE_SEARCH_MENU);
+        BLI_assert(but->type == eButType::SearchMenu);
         uiButSearch *but_search = (uiButSearch *)but;
 
         if ((ui_searchbox_apply(but, data->searchbox) == false) &&
@@ -3667,11 +3668,11 @@ static void ui_textedit_next_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 {
   /* Label and round-box can overlap real buttons (backdrops...). */
   if (ELEM(actbut->type,
-           UI_BTYPE_LABEL,
-           UI_BTYPE_SEPR,
-           UI_BTYPE_SEPR_LINE,
-           UI_BTYPE_ROUNDBOX,
-           UI_BTYPE_LISTBOX))
+           eButType::Label,
+           eButType::Sepr,
+           eButType::SeprLine,
+           eButType::Roundbox,
+           eButType::ListBox))
   {
     return;
   }
@@ -3704,11 +3705,11 @@ static void ui_textedit_prev_but(uiBlock *block, uiBut *actbut, uiHandleButtonDa
 {
   /* Label and round-box can overlap real buttons (backdrops...). */
   if (ELEM(actbut->type,
-           UI_BTYPE_LABEL,
-           UI_BTYPE_SEPR,
-           UI_BTYPE_SEPR_LINE,
-           UI_BTYPE_ROUNDBOX,
-           UI_BTYPE_LISTBOX))
+           eButType::Label,
+           eButType::Sepr,
+           eButType::SeprLine,
+           eButType::Roundbox,
+           eButType::ListBox))
   {
     return;
   }
@@ -4069,7 +4070,7 @@ static int ui_do_but_textedit(
 
       /* Exception that's useful for number buttons, some keyboard
        * numpads have a comma instead of a period. */
-      if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER)) { /* Could use `data->min`. */
+      if (ELEM(but->type, eButType::Num, eButType::NumSlider)) { /* Could use `data->min`. */
         if ((event->type == EVT_PADPERIOD) && (utf8_buf[0] == ',')) {
           utf8_buf_override[0] = '.';
           utf8_buf = utf8_buf_override;
@@ -4100,7 +4101,7 @@ static int ui_do_but_textedit(
   else if (event->type == WM_IME_COMPOSITE_EVENT) {
     changed = true;
     if (ime_data->result.size()) {
-      if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER) &&
+      if (ELEM(but->type, eButType::Num, eButType::NumSlider) &&
           STREQ(ime_data->result.c_str(), "\xE3\x80\x82"))
       {
         /* Convert Ideographic Full Stop (U+3002) to decimal point when entering numbers. */
@@ -4198,20 +4199,24 @@ static void ui_numedit_begin_set_values(uiBut *but, uiHandleButtonData *data)
 
 static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
 {
-  if (but->type == UI_BTYPE_CURVE) {
+  if (but->type == eButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = (CurveMapping *)but->poin;
   }
-  else if (but->type == UI_BTYPE_CURVEPROFILE) {
+  else if (but->type == eButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
     but_profile->edit_profile = (CurveProfile *)but->poin;
   }
-  else if (but->type == UI_BTYPE_COLORBAND) {
+  else if (but->type == eButType::ColorBand) {
     uiButColorBand *but_coba = (uiButColorBand *)but;
     data->coba = (ColorBand *)but->poin;
     but_coba->edit_coba = data->coba;
   }
-  else if (ELEM(but->type, UI_BTYPE_UNITVEC, UI_BTYPE_HSVCUBE, UI_BTYPE_HSVCIRCLE, UI_BTYPE_COLOR))
+  else if (ELEM(but->type,
+                eButType::Unitvec,
+                eButType::HsvCube,
+                eButType::HsvCircle,
+                eButType::Color))
   {
     ui_but_v3_get(but, data->origvec);
     copy_v3_v3(data->vec, data->origvec);
@@ -4228,7 +4233,7 @@ static void ui_numedit_begin(uiBut *but, uiHandleButtonData *data)
 
     float log_min = (scale_type == PROP_SCALE_LOG) ? max_ff(softmin, UI_PROP_SCALE_LOG_MIN) : 0.0f;
 
-    if ((but->type == UI_BTYPE_NUM) && (ui_but_is_cursor_warp(but) == false)) {
+    if ((but->type == eButType::Num) && (ui_but_is_cursor_warp(but) == false)) {
       uiButNumber *number_but = (uiButNumber *)but;
 
       if (scale_type == PROP_SCALE_LOG) {
@@ -4321,15 +4326,15 @@ static void ui_numedit_end(uiBut *but, uiHandleButtonData *data)
 {
   but->editval = nullptr;
   but->editvec = nullptr;
-  if (but->type == UI_BTYPE_COLORBAND) {
+  if (but->type == eButType::ColorBand) {
     uiButColorBand *but_coba = (uiButColorBand *)but;
     but_coba->edit_coba = nullptr;
   }
-  else if (but->type == UI_BTYPE_CURVE) {
+  else if (but->type == eButType::Curve) {
     uiButCurveMapping *but_cumap = (uiButCurveMapping *)but;
     but_cumap->edit_cumap = nullptr;
   }
-  else if (but->type == UI_BTYPE_CURVEPROFILE) {
+  else if (but->type == eButType::CurveProfile) {
     uiButCurveProfile *but_profile = (uiButCurveProfile *)but;
     but_profile->edit_profile = nullptr;
   }
@@ -4388,15 +4393,15 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
   PanelType *popover_panel_type = nullptr;
   void *arg = nullptr;
 
-  if (but->type != UI_BTYPE_PULLDOWN) {
+  if (but->type != eButType::Pulldown) {
     /* Clear the status bar. */
     WorkspaceStatus status(C);
     status.item(" ", ICON_NONE);
   }
 
   switch (but->type) {
-    case UI_BTYPE_BLOCK:
-    case UI_BTYPE_PULLDOWN:
+    case eButType::Block:
+    case eButType::Pulldown:
       if (but->menu_create_func) {
         menufunc = but->menu_create_func;
         arg = but->poin;
@@ -4406,7 +4411,7 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
         arg = but->poin ? but->poin : but->func_argN;
       }
       break;
-    case UI_BTYPE_MENU:
+    case eButType::Menu:
       BLI_assert(but->menu_create_func);
       if (ui_but_menu_draw_as_popover(but)) {
         popoverfunc = but->menu_create_func;
@@ -4418,12 +4423,12 @@ static void ui_block_open_begin(bContext *C, uiBut *but, uiHandleButtonData *dat
         arg = but->poin;
       }
       break;
-    case UI_BTYPE_POPOVER:
+    case eButType::Popover:
       BLI_assert(but->menu_create_func);
       popoverfunc = but->menu_create_func;
       popover_panel_type = reinterpret_cast<PanelType *>(but->poin);
       break;
-    case UI_BTYPE_COLOR:
+    case eButType::Color:
       ui_but_v3_get(but, data->origvec);
       copy_v3_v3(data->vec, data->origvec);
       but->editvec = data->vec;
@@ -4514,7 +4519,7 @@ int ui_but_menu_direction(uiBut *but)
 }
 
 /**
- * Hack for #uiList #UI_BTYPE_LISTROW buttons to "give" events to overlaying #UI_BTYPE_TEXT
+ * Hack for #uiList #eButType::ListRow buttons to "give" events to overlaying #eButType::Text
  * buttons (Ctrl-Click rename feature & co).
  */
 static uiBut *ui_but_list_row_text_activate(bContext *C,
@@ -4526,7 +4531,7 @@ static uiBut *ui_but_list_row_text_activate(bContext *C,
   ARegion *region = data->region;
   uiBut *labelbut = ui_but_find_mouse_over_ex(region, event->xy, true, false, nullptr, nullptr);
 
-  if (labelbut && labelbut->type == UI_BTYPE_TEXT && !(labelbut->flag & UI_BUT_DISABLED)) {
+  if (labelbut && labelbut->type == eButType::Text && !(labelbut->flag & UI_BUT_DISABLED)) {
     /* Exit list-row. */
     data->cancel = true;
     button_activate_exit(C, but, data, false, false);
@@ -4705,7 +4710,7 @@ static int ui_do_but_HOTKEYEVT(bContext *C,
                                const wmEvent *event)
 {
   uiButHotkeyEvent *hotkey_but = (uiButHotkeyEvent *)but;
-  BLI_assert(but->type == UI_BTYPE_HOTKEY_EVENT);
+  BLI_assert(but->type == eButType::HotkeyEvent);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if (ELEM(event->type, LEFTMOUSE, EVT_PADENTER, EVT_RETKEY, EVT_BUT_OPEN) &&
@@ -5002,19 +5007,19 @@ static int ui_do_but_TOG(bContext *C, uiBut *but, uiHandleButtonData *data, cons
     }
     if (ELEM(event->type, MOUSEPAN, WHEELDOWNMOUSE, WHEELUPMOUSE) && (event->modifier & KM_CTRL)) {
       if (ELEM(but->type,
-               UI_BTYPE_TOGGLE,
-               UI_BTYPE_TOGGLE_N,
-               UI_BTYPE_ICON_TOGGLE,
-               UI_BTYPE_ICON_TOGGLE_N,
-               UI_BTYPE_BUT_TOGGLE,
-               UI_BTYPE_CHECKBOX,
-               UI_BTYPE_CHECKBOX_N))
+               eButType::Toggle,
+               eButType::ToggleN,
+               eButType::IconToggle,
+               eButType::IconToggleN,
+               eButType::ButToggle,
+               eButType::Checkbox,
+               eButType::CheckboxN))
       {
         /* Support Ctrl-Wheel to cycle toggles and check-boxes. */
         button_activate_state(C, but, BUTTON_STATE_EXIT);
         return WM_UI_HANDLER_BREAK;
       }
-      else if (but->type == UI_BTYPE_ROW) {
+      else if (but->type == eButType::Row) {
         /* Support Ctrl-Wheel to cycle values on expanded enum rows. */
         int type = event->type;
         int val = event->val;
@@ -5092,7 +5097,7 @@ static int ui_do_but_VIEW_ITEM(bContext *C,
                                const wmEvent *event)
 {
   uiButViewItem *view_item_but = (uiButViewItem *)but;
-  BLI_assert(view_item_but->type == UI_BTYPE_VIEW_ITEM);
+  BLI_assert(view_item_but->type == eButType::ViewItem);
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
     if ((event->type == LEFTMOUSE) && (event->modifier == 0)) {
@@ -5625,7 +5630,7 @@ static int ui_do_but_NUM(
   /* Defer evaluation as it's rarely needed. */
   auto drag_threshold_fn = [event]() -> int { return WM_event_drag_threshold(event); };
 
-  BLI_assert(but->type == UI_BTYPE_NUM);
+  BLI_assert(but->type == eButType::Num);
 
   ui_window_to_block(data->region, block, &mx, &my);
   ui_numedit_set_active(but);
@@ -5844,7 +5849,7 @@ static bool ui_numedit_but_SLI(uiBut *but,
   float mx_fl, my_fl;
 
   /* prevent unwanted drag adjustments, test motion so modifier keys refresh. */
-  if ((but->type != UI_BTYPE_SCROLL) && (is_motion || data->draglock) &&
+  if ((but->type != eButType::Scroll) && (is_motion || data->draglock) &&
       (ui_but_dragedit_update_mval(data, mx, drag_threshold_fn) == false))
   {
     return changed;
@@ -5862,10 +5867,10 @@ static bool ui_numedit_but_SLI(uiBut *but,
   /* yes, 'mx' as both x/y is intentional */
   ui_mouse_scale_warp(data, mx, mx, &mx_fl, &my_fl, shift);
 
-  if (but->type == UI_BTYPE_NUM_SLIDER) {
+  if (but->type == eButType::NumSlider) {
     cursor_x_range = BLI_rctf_size_x(&but->rect);
   }
-  else if (but->type == UI_BTYPE_SCROLL) {
+  else if (but->type == eButType::Scroll) {
     const float size = (is_horizontal) ? BLI_rctf_size_x(&but->rect) :
                                          -BLI_rctf_size_y(&but->rect);
     cursor_x_range = size * (but->softmax - but->softmin) /
@@ -6016,7 +6021,7 @@ static int ui_do_but_SLI(
         retval = WM_UI_HANDLER_BREAK;
       }
 #ifndef USE_ALLSELECT
-      /* alt-click on sides to get "arrows" like in UI_BTYPE_NUM buttons,
+      /* alt-click on sides to get "arrows" like in eButType::Num buttons,
        * and match wheel usage above */
       else if ((event->type == LEFTMOUSE) && (event->modifier & KM_ALT)) {
         int halfpos = BLI_rctf_cent_x(&but->rect);
@@ -6534,7 +6539,7 @@ static void ui_palette_set_active(uiButColor *color_but)
 
 static int ui_do_but_COLOR(bContext *C, uiBut *but, uiHandleButtonData *data, const wmEvent *event)
 {
-  BLI_assert(but->type == UI_BTYPE_COLOR);
+  BLI_assert(but->type == eButType::Color);
   uiButColor *color_but = (uiButColor *)but;
 
   if (data->state == BUTTON_STATE_HIGHLIGHT) {
@@ -8264,7 +8269,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
   const bool is_disabled = but->flag & UI_BUT_DISABLED || data->disable_force;
 
   /* if but->pointype is set, but->poin should be too */
-  BLI_assert(!but->pointype || but->poin);
+  BLI_assert(!bool(but->pointype) || but->poin);
 
   /* Only hard-coded stuff here, button interactions with configurable
    * keymaps are handled using operators (see #ED_keymap_ui). */
@@ -8279,7 +8284,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
     const bool do_paste = event->type == EVT_VKEY && is_press_ctrl_but_no_shift;
 
     /* Specific handling for list-rows, we try to find their overlapping text button. */
-    if ((do_copy || do_paste) && but->type == UI_BTYPE_LISTROW) {
+    if ((do_copy || do_paste) && but->type == eButType::ListRow) {
       uiBut *labelbut = ui_but_list_row_text_activate(C, but, data, event, BUTTON_ACTIVATE_OVER);
       if (labelbut) {
         but = labelbut;
@@ -8302,7 +8307,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
        * clear which item will be operated on. Apply the button immediately, so context menu
        * polls get the right active item. */
       uiButViewItem *clicked_view_item_but = static_cast<uiButViewItem *>(
-          but->type == UI_BTYPE_VIEW_ITEM ? but :
+          but->type == eButType::ViewItem ? but :
                                             ui_view_item_find_mouse_over(data->region, event->xy));
       if (clicked_view_item_but) {
         clicked_view_item_but->view_item->activate(*C);
@@ -8358,70 +8363,70 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
   }
 
   switch (but->type) {
-    case UI_BTYPE_BUT:
-    case UI_BTYPE_DECORATOR:
+    case eButType::But:
+    case eButType::Decorator:
       retval = ui_do_but_BUT(C, but, data, event);
       break;
-    case UI_BTYPE_KEY_EVENT:
+    case eButType::KeyEvent:
       retval = ui_do_but_KEYEVT(C, but, data, event);
       break;
-    case UI_BTYPE_HOTKEY_EVENT:
+    case eButType::HotkeyEvent:
       retval = ui_do_but_HOTKEYEVT(C, but, data, event);
       break;
-    case UI_BTYPE_TAB:
+    case eButType::Tab:
       retval = ui_do_but_TAB(C, block, but, data, event);
       break;
-    case UI_BTYPE_BUT_TOGGLE:
-    case UI_BTYPE_TOGGLE:
-    case UI_BTYPE_ICON_TOGGLE:
-    case UI_BTYPE_ICON_TOGGLE_N:
-    case UI_BTYPE_TOGGLE_N:
-    case UI_BTYPE_CHECKBOX:
-    case UI_BTYPE_CHECKBOX_N:
-    case UI_BTYPE_ROW:
+    case eButType::ButToggle:
+    case eButType::Toggle:
+    case eButType::IconToggle:
+    case eButType::IconToggleN:
+    case eButType::ToggleN:
+    case eButType::Checkbox:
+    case eButType::CheckboxN:
+    case eButType::Row:
       retval = ui_do_but_TOG(C, but, data, event);
       break;
-    case UI_BTYPE_VIEW_ITEM:
+    case eButType::ViewItem:
       retval = ui_do_but_VIEW_ITEM(C, but, data, event);
       break;
-    case UI_BTYPE_SCROLL:
+    case eButType::Scroll:
       retval = ui_do_but_SCROLL(C, block, but, data, event);
       break;
-    case UI_BTYPE_GRIP:
+    case eButType::Grip:
       retval = ui_do_but_GRIP(C, block, but, data, event);
       break;
-    case UI_BTYPE_NUM:
+    case eButType::Num:
       retval = ui_do_but_NUM(C, block, but, data, event);
       break;
-    case UI_BTYPE_NUM_SLIDER:
+    case eButType::NumSlider:
       retval = ui_do_but_SLI(C, block, but, data, event);
       break;
-    case UI_BTYPE_LISTBOX:
+    case eButType::ListBox:
       /* Nothing to do! */
       break;
-    case UI_BTYPE_LISTROW:
+    case eButType::ListRow:
       retval = ui_do_but_LISTROW(C, but, data, event);
       break;
-    case UI_BTYPE_ROUNDBOX:
-    case UI_BTYPE_LABEL:
-    case UI_BTYPE_IMAGE:
-    case UI_BTYPE_PROGRESS:
-    case UI_BTYPE_NODE_SOCKET:
-    case UI_BTYPE_PREVIEW_TILE:
+    case eButType::Roundbox:
+    case eButType::Label:
+    case eButType::Image:
+    case eButType::Progress:
+    case eButType::NodeSocket:
+    case eButType::PreviewTile:
       retval = ui_do_but_EXIT(C, but, data, event);
       break;
-    case UI_BTYPE_HISTOGRAM:
+    case eButType::Histogram:
       retval = ui_do_but_HISTOGRAM(C, block, but, data, event);
       break;
-    case UI_BTYPE_WAVEFORM:
+    case eButType::Waveform:
       retval = ui_do_but_WAVEFORM(C, block, but, data, event);
       break;
-    case UI_BTYPE_VECTORSCOPE:
+    case eButType::Vectorscope:
       /* Nothing to do! */
       break;
-    case UI_BTYPE_TEXT:
-    case UI_BTYPE_SEARCH_MENU:
-      if ((but->type == UI_BTYPE_SEARCH_MENU) && (but->flag & UI_BUT_VALUE_CLEAR)) {
+    case eButType::Text:
+    case eButType::SearchMenu:
+      if ((but->type == eButType::SearchMenu) && (but->flag & UI_BUT_VALUE_CLEAR)) {
         retval = ui_do_but_SEARCH_UNLINK(C, block, but, data, event);
         if (retval & WM_UI_HANDLER_BREAK) {
           break;
@@ -8429,45 +8434,45 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
       }
       retval = ui_do_but_TEX(C, block, but, data, event);
       break;
-    case UI_BTYPE_MENU:
-    case UI_BTYPE_POPOVER:
-    case UI_BTYPE_BLOCK:
-    case UI_BTYPE_PULLDOWN:
+    case eButType::Menu:
+    case eButType::Popover:
+    case eButType::Block:
+    case eButType::Pulldown:
       retval = ui_do_but_BLOCK(C, but, data, event);
       break;
-    case UI_BTYPE_BUT_MENU:
+    case eButType::ButMenu:
       retval = ui_do_but_BUT(C, but, data, event);
       break;
-    case UI_BTYPE_COLOR:
+    case eButType::Color:
       retval = ui_do_but_COLOR(C, but, data, event);
       break;
-    case UI_BTYPE_UNITVEC:
+    case eButType::Unitvec:
       retval = ui_do_but_UNITVEC(C, block, but, data, event);
       break;
-    case UI_BTYPE_COLORBAND:
+    case eButType::ColorBand:
       retval = ui_do_but_COLORBAND(C, block, but, data, event);
       break;
-    case UI_BTYPE_CURVE:
+    case eButType::Curve:
       retval = ui_do_but_CURVE(C, block, but, data, event);
       break;
-    case UI_BTYPE_CURVEPROFILE:
+    case eButType::CurveProfile:
       retval = ui_do_but_CURVEPROFILE(C, block, but, data, event);
       break;
-    case UI_BTYPE_HSVCUBE:
+    case eButType::HsvCube:
       retval = ui_do_but_HSVCUBE(C, block, but, data, event);
       break;
-    case UI_BTYPE_HSVCIRCLE:
+    case eButType::HsvCircle:
       retval = ui_do_but_HSVCIRCLE(C, block, but, data, event);
       break;
-    case UI_BTYPE_TRACK_PREVIEW:
+    case eButType::TrackPreview:
       retval = ui_do_but_TRACKPREVIEW(C, block, but, data, event);
       break;
 
       /* quiet warnings for unhandled types */
-    case UI_BTYPE_SEPR:
-    case UI_BTYPE_SEPR_LINE:
-    case UI_BTYPE_SEPR_SPACER:
-    case UI_BTYPE_EXTRA:
+    case eButType::Sepr:
+    case eButType::SeprLine:
+    case eButType::SeprSpacer:
+    case eButType::Extra:
       break;
   }
 
@@ -8478,7 +8483,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
         /* if we started dragging, progress on any event */
         (data->multi_data.init == uiHandleButtonMulti::INIT_SETUP))
     {
-      if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER) &&
+      if (ELEM(but->type, eButType::Num, eButType::NumSlider) &&
           ELEM(data->state, BUTTON_STATE_TEXT_EDITING, BUTTON_STATE_NUM_EDITING))
       {
         /* initialize! */
@@ -8658,10 +8663,10 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
     button_tooltip_timer_reset(C, but);
 
     /* Automatic open pull-down block timer. */
-    if (ELEM(but->type, UI_BTYPE_BLOCK, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER) ||
+    if (ELEM(but->type, eButType::Block, eButType::Pulldown, eButType::Popover) ||
         /* Menu button types may draw as popovers, check for this case
          * ignoring other kinds of menus (mainly enums). (see #66538). */
-        ((but->type == UI_BTYPE_MENU) &&
+        ((but->type == eButType::Menu) &&
          (UI_but_paneltype_get(but) || ui_but_menu_draw_as_popover(but))))
     {
       if (data->used_mouse && !data->autoopentimer) {
@@ -8670,7 +8675,7 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
         if (but->block->auto_open == true) { /* test for toolbox */
           time = 1;
         }
-        else if ((but->block->flag & UI_BLOCK_LOOP && but->type != UI_BTYPE_BLOCK) ||
+        else if ((but->block->flag & UI_BLOCK_LOOP && but->type != eButType::Block) ||
                  (but->block->auto_open == true))
         {
           time = 5 * U.menuthreshold2;
@@ -8708,7 +8713,7 @@ static void button_activate_state(bContext *C, uiBut *but, uiHandleButtonState s
   /* number editing */
   if (state == BUTTON_STATE_NUM_EDITING) {
     if (ui_but_is_cursor_warp(but)) {
-      if (ELEM(but->type, UI_BTYPE_HSVCIRCLE, UI_BTYPE_HSVCUBE)) {
+      if (ELEM(but->type, eButType::HsvCircle, eButType::HsvCube)) {
         rctf rectf;
         ui_block_to_window_rctf(data->region, but->block, &rectf, &but->rect);
         rcti bounds;
@@ -8872,7 +8877,7 @@ static void button_activate_init(bContext *C,
   copy_v2_fl(data->ungrab_mval, FLT_MAX);
 #endif
 
-  if (ELEM(but->type, UI_BTYPE_CURVE, UI_BTYPE_CURVEPROFILE, UI_BTYPE_SEARCH_MENU)) {
+  if (ELEM(but->type, eButType::Curve, eButType::CurveProfile, eButType::SearchMenu)) {
     /* XXX curve is temp */
   }
   else {
@@ -8927,11 +8932,11 @@ static void button_activate_init(bContext *C,
     button_activate_state(C, but, BUTTON_STATE_WAIT_FLASH);
   }
 
-  if (but->type == UI_BTYPE_GRIP) {
+  if (but->type == eButType::Grip) {
     const bool horizontal = (BLI_rctf_size_x(&but->rect) < BLI_rctf_size_y(&but->rect));
     WM_cursor_modal_set(data->window, horizontal ? WM_CURSOR_X_MOVE : WM_CURSOR_Y_MOVE);
   }
-  else if (but->type == UI_BTYPE_NUM) {
+  else if (but->type == eButType::Num) {
     ui_numedit_set_active(but);
   }
 
@@ -8953,7 +8958,7 @@ static void button_activate_exit(
   wmWindow *win = data->window;
   uiBlock *block = but->block;
 
-  if (but->type == UI_BTYPE_GRIP) {
+  if (but->type == eButType::Grip) {
     WM_cursor_modal_restore(win);
   }
 
@@ -9489,15 +9494,15 @@ static void ui_handle_button_activate(bContext *C,
  */
 static bool ui_handle_button_activate_by_type(bContext *C, ARegion *region, uiBut *but)
 {
-  if (ELEM(but->type, UI_BTYPE_BUT_MENU, UI_BTYPE_ROW)) {
+  if (ELEM(but->type, eButType::ButMenu, eButType::Row)) {
     /* mainly for operator buttons */
     ui_handle_button_activate(C, region, but, BUTTON_ACTIVATE_APPLY);
   }
-  else if (ELEM(but->type, UI_BTYPE_BLOCK, UI_BTYPE_PULLDOWN)) {
+  else if (ELEM(but->type, eButType::Block, eButType::Pulldown)) {
     /* open sub-menus (like right arrow key) */
     ui_handle_button_activate(C, region, but, BUTTON_ACTIVATE_OPEN);
   }
-  else if (but->type == UI_BTYPE_MENU) {
+  else if (but->type == eButType::Menu) {
     /* activate menu items */
     ui_handle_button_activate(C, region, but, BUTTON_ACTIVATE);
   }
@@ -9819,7 +9824,7 @@ static int ui_handle_button_event(bContext *C, const wmEvent *event, uiBut *but)
         bt = ui_but_find_mouse_over(region, event);
 
         if (bt && bt->active != data) {
-          if (but->type != UI_BTYPE_COLOR) { /* exception */
+          if (but->type != eButType::Color) { /* exception */
             data->cancel = true;
           }
           button_activate_state(C, but, BUTTON_STATE_EXIT);
@@ -10101,7 +10106,7 @@ static int ui_handle_viewlist_items_hover(const wmEvent *event, ARegion *region)
       if (but.get() == highlight_row_but) {
         continue;
       }
-      if (!ELEM(but->type, UI_BTYPE_VIEW_ITEM, UI_BTYPE_LISTROW)) {
+      if (!ELEM(but->type, eButType::ViewItem, eButType::ListRow)) {
         continue;
       }
 
@@ -10135,7 +10140,7 @@ static int ui_handle_view_item_event(bContext *C,
         /* Only bother finding the active view item button if the active button isn't already a
          * view item. */
         uiButViewItem *view_but = static_cast<uiButViewItem *>(
-            (active_but && active_but->type == UI_BTYPE_VIEW_ITEM) ?
+            (active_but && active_but->type == eButType::ViewItem) ?
                 active_but :
                 ui_view_item_find_mouse_over(region, event->xy));
         /* Will free active button if there already is one. */
@@ -10171,10 +10176,10 @@ static void ui_handle_button_return_submenu(bContext *C, const wmEvent *event, u
 
   /* copy over return values from the closing menu */
   if ((menu->menuretval & UI_RETURN_OK) || (menu->menuretval & UI_RETURN_UPDATE)) {
-    if (but->type == UI_BTYPE_COLOR) {
+    if (but->type == eButType::Color) {
       copy_v3_v3(data->vec, menu->retvec);
     }
-    else if (but->type == UI_BTYPE_MENU) {
+    else if (but->type == eButType::Menu) {
       data->value = menu->retvalue;
     }
   }
@@ -10537,7 +10542,7 @@ static int ui_handle_menu_button(bContext *C, const wmEvent *event, uiPopupBlock
     if (event->val == KM_RELEASE) {
       /* pass, needed so we can exit active menu-items when click-dragging out of them */
     }
-    else if (but->type == UI_BTYPE_SEARCH_MENU) {
+    else if (but->type == eButType::SearchMenu) {
       /* Pass, needed so search popup can have RMB context menu.
        * This may be useful for other interactions which happen in the search popup
        * without being directly over the search button. */
@@ -10676,7 +10681,7 @@ static int ui_handle_menu_event(bContext *C,
   wmWindow *win = CTX_wm_window(C);
 
   if (!menu->is_grab && is_floating) {
-    if (inside_title && (!but || but->type == UI_BTYPE_IMAGE)) {
+    if (inside_title && (!but || but->type == eButType::Image)) {
       if (event->type == LEFTMOUSE && event->val == KM_PRESS) {
         /* Initial press before starting to drag. */
         WM_cursor_set(win, PopupTitleDragCursor);
@@ -10808,7 +10813,7 @@ static int ui_handle_menu_event(bContext *C,
               }
             }
 
-            if (but && ELEM(but->type, UI_BTYPE_BLOCK, UI_BTYPE_PULLDOWN)) {
+            if (but && ELEM(but->type, eButType::Block, eButType::Pulldown)) {
               ui_handle_button_activate(C, region, but, BUTTON_ACTIVATE_OPEN);
             }
           }
@@ -11026,10 +11031,10 @@ static int ui_handle_menu_event(bContext *C,
               bool doit = false;
 
               if (!ELEM(but->type,
-                        UI_BTYPE_LABEL,
-                        UI_BTYPE_SEPR,
-                        UI_BTYPE_SEPR_LINE,
-                        UI_BTYPE_IMAGE))
+                        eButType::Label,
+                        eButType::Sepr,
+                        eButType::SeprLine,
+                        eButType::Image))
               {
                 count++;
               }
@@ -11043,11 +11048,11 @@ static int ui_handle_menu_event(bContext *C,
                 }
               }
               else if (ELEM(but->type,
-                            UI_BTYPE_BUT,
-                            UI_BTYPE_BUT_MENU,
-                            UI_BTYPE_MENU,
-                            UI_BTYPE_BLOCK,
-                            UI_BTYPE_PULLDOWN) &&
+                            eButType::But,
+                            eButType::ButMenu,
+                            eButType::Menu,
+                            eButType::Block,
+                            eButType::Pulldown) &&
                        count == act)
               {
                 doit = true;
@@ -11056,7 +11061,7 @@ static int ui_handle_menu_event(bContext *C,
               if (!(but->flag & UI_BUT_DISABLED) && doit) {
                 /* activate buttons but open menu's */
                 uiButtonActivateType activate;
-                if (but->type == UI_BTYPE_PULLDOWN) {
+                if (but->type == eButType::Pulldown) {
                   activate = BUTTON_ACTIVATE_OPEN;
                 }
                 else {
@@ -11131,9 +11136,9 @@ static int ui_handle_menu_event(bContext *C,
             for (const std::unique_ptr<uiBut> &but_iter : block->buttons) {
               if (!(but_iter->flag & UI_BUT_DISABLED) && but_iter->menu_key == event->type) {
                 if (ELEM(but_iter->type,
-                         UI_BTYPE_BUT,
-                         UI_BTYPE_ICON_TOGGLE,
-                         UI_BTYPE_ICON_TOGGLE_N))
+                         eButType::But,
+                         eButType::IconToggle,
+                         eButType::IconToggleN))
                 {
                   UI_but_execute(C, region, but_iter.get());
                 }
@@ -11218,7 +11223,7 @@ static int ui_handle_menu_event(bContext *C,
         uiBut *but_default = ui_region_find_first_but_test_flag(
             region, UI_BUT_ACTIVE_DEFAULT, UI_HIDDEN);
         if ((but_default != nullptr) && (but_default->active == nullptr)) {
-          if (but_default->type == UI_BTYPE_BUT) {
+          if (but_default->type == eButType::But) {
             UI_but_execute(C, region, but_default);
             retval = WM_UI_HANDLER_BREAK;
           }
@@ -11240,7 +11245,7 @@ static int ui_handle_menu_event(bContext *C,
       else if ((event->type == LEFTMOUSE) && (event->val == KM_PRESS) &&
                (inside && is_floating && inside_title))
       {
-        if (!but || but->type == UI_BTYPE_IMAGE ||
+        if (!but || but->type == eButType::Image ||
             !ui_but_contains_point_px(but, region, event->xy))
         {
           if (but) {
@@ -11387,7 +11392,7 @@ static int ui_handle_menu_return_submenu(bContext *C,
 
 static bool ui_but_pie_menu_supported_apply(uiBut *but)
 {
-  return !ELEM(but->type, UI_BTYPE_NUM_SLIDER, UI_BTYPE_NUM);
+  return !ELEM(but->type, eButType::NumSlider, eButType::Num);
 }
 
 static int ui_but_pie_menu_apply(bContext *C,
@@ -11398,7 +11403,7 @@ static int ui_but_pie_menu_apply(bContext *C,
   const int retval = WM_UI_HANDLER_BREAK;
 
   if (but && ui_but_pie_menu_supported_apply(but)) {
-    if (but->type == UI_BTYPE_MENU) {
+    if (but->type == eButType::Menu) {
       /* forcing the pie menu to close will not handle menus */
       if (!force_close) {
         uiBut *active_but = ui_region_find_active_but(menu->region);
@@ -11431,7 +11436,7 @@ static uiBut *ui_block_pie_dir_activate(uiBlock *block, const wmEvent *event, Ra
 {
   if ((block->flag & UI_BLOCK_NUMSELECT) && event->val == KM_PRESS) {
     for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (but->pie_dir == dir && !ELEM(but->type, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE)) {
+      if (but->pie_dir == dir && !ELEM(but->type, eButType::Sepr, eButType::SeprLine)) {
         return but.get();
       }
     }
@@ -11793,7 +11798,7 @@ static int ui_handle_menus_recursive(bContext *C,
   }
 
   if (retval == WM_UI_HANDLER_CONTINUE || event->type == TIMER) {
-    const bool do_but_search = (but && (but->type == UI_BTYPE_SEARCH_MENU));
+    const bool do_but_search = (but && (but->type == eButType::SearchMenu));
     if (submenu && submenu->menuretval) {
       const bool do_ret_out_parent = (submenu->menuretval & UI_RETURN_OUT_PARENT) != 0;
       retval = ui_handle_menu_return_submenu(C, event, menu);
@@ -11981,11 +11986,11 @@ static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEve
     return false;
   }
 
-  if (!ELEM(but_other->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU)) {
+  if (!ELEM(but_other->type, eButType::Pulldown, eButType::Popover, eButType::Menu)) {
     return false;
   }
 
-  if (!ELEM(but->type, UI_BTYPE_PULLDOWN, UI_BTYPE_POPOVER, UI_BTYPE_MENU)) {
+  if (!ELEM(but->type, eButType::Pulldown, eButType::Popover, eButType::Menu)) {
     return false;
   }
 
@@ -12015,7 +12020,7 @@ static bool ui_can_activate_other_menu(uiBut *but, uiBut *but_other, const wmEve
     }
     right = but->rect.xmax;
     left = but_other->rect.xmax;
-    if (ELEM(but_other->type, UI_BTYPE_POPOVER, UI_BTYPE_MENU)) {
+    if (ELEM(but_other->type, eButType::Popover, eButType::Menu)) {
       /* Skip the drop-down arrow on the right of it. */
       safety += 8.0f * UI_SCALE_FAC;
     }
@@ -12304,7 +12309,7 @@ bool UI_textbutton_activate_rna(const bContext *C,
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (but->type == UI_BTYPE_TEXT) {
+      if (but->type == eButType::Text) {
         if (but->rnaprop && but->rnapoin.data == rna_poin_data) {
           if (STREQ(RNA_property_identifier(but->rnaprop), rna_prop_id)) {
             block_text = block;
@@ -12339,7 +12344,7 @@ bool UI_textbutton_activate_but(const bContext *C, uiBut *actbut)
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     for (const std::unique_ptr<uiBut> &but : block->buttons) {
-      if (but.get() == actbut && but->type == UI_BTYPE_TEXT) {
+      if (but.get() == actbut && but->type == eButType::Text) {
         block_text = block;
         but_text = but.get();
         break;
@@ -12402,7 +12407,7 @@ uiBut *UI_but_active_drop_name_button(const bContext *C)
   uiBut *but = ui_region_find_active_but(region);
 
   if (but) {
-    if (ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
+    if (ELEM(but->type, eButType::Text, eButType::SearchMenu)) {
       return but;
     }
   }
@@ -12422,7 +12427,7 @@ bool UI_but_active_drop_color(bContext *C)
   if (region) {
     uiBut *but = ui_region_find_active_but(region);
 
-    if (but && but->type == UI_BTYPE_COLOR) {
+    if (but && but->type == eButType::Color) {
       return true;
     }
   }

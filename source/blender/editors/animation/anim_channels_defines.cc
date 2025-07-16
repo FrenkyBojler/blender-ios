@@ -5865,21 +5865,21 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 
   /* type of button */
-  short butType;
+  eButType butType;
   if (usetoggle) {
     if (negflag) {
-      butType = UI_BTYPE_ICON_TOGGLE_N;
+      butType = eButType::IconToggleN;
     }
     else {
-      butType = UI_BTYPE_ICON_TOGGLE;
+      butType = eButType::IconToggle;
     }
   }
   else {
     if (negflag) {
-      butType = UI_BTYPE_TOGGLE_N;
+      butType = eButType::ToggleN;
     }
     else {
-      butType = UI_BTYPE_TOGGLE;
+      butType = eButType::Toggle;
     }
   }
 
@@ -6167,7 +6167,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
       UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
       but = uiDefButR(block,
-                      UI_BTYPE_TEXT,
+                      eButType::Text,
                       1,
                       "",
                       offset + margin_x,
@@ -6318,7 +6318,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
         offset -= UI_UNIT_X;
         but = uiDefIconButO(block,
-                            UI_BTYPE_BUT,
+                            eButType::But,
                             "NLA_OT_action_pushdown",
                             blender::wm::OpCallContext::InvokeDefault,
                             ICON_NLA_PUSHDOWN,

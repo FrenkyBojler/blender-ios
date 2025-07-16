@@ -1323,7 +1323,7 @@ static void widget_draw_icon(
   const float height = ICON_DEFAULT_HEIGHT / aspect;
 
   /* calculate blend color */
-  if (ELEM(but->type, UI_BTYPE_TOGGLE, UI_BTYPE_ROW, UI_BTYPE_TOGGLE_N, UI_BTYPE_LISTROW)) {
+  if (ELEM(but->type, eButType::Toggle, eButType::Row, eButType::ToggleN, eButType::ListRow)) {
     if (but->flag & UI_SELECT) {
       /* pass */
     }
@@ -1334,12 +1334,12 @@ static void widget_draw_icon(
       alpha = 0.75f;
     }
   }
-  else if (but->type == UI_BTYPE_LABEL) {
+  else if (but->type == eButType::Label) {
     /* extra feature allows more alpha blending */
     const uiButLabel *but_label = reinterpret_cast<const uiButLabel *>(but);
     alpha *= but_label->alpha_factor;
   }
-  else if (ELEM(but->type, UI_BTYPE_BUT, UI_BTYPE_DECORATOR)) {
+  else if (ELEM(but->type, eButType::But, eButType::Decorator)) {
     uiWidgetStateInfo state = {0};
     state.but_flag = but->flag;
     state.but_drawflag = but->drawflag;
@@ -1359,12 +1359,12 @@ static void widget_draw_icon(
 
     if (but->drawflag & UI_BUT_ICON_LEFT) {
       /* special case - icon_only pie buttons */
-      if (ui_block_is_pie_menu(but->block) && !ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) &&
-          but->str.empty())
+      if (ui_block_is_pie_menu(but->block) &&
+          !ELEM(but->type, eButType::Menu, eButType::Popover) && but->str.empty())
       {
         xs = rect->xmin + 2.0f * ofs;
       }
-      else if (but->emboss == blender::ui::EmbossType::None || but->type == UI_BTYPE_LABEL) {
+      else if (but->emboss == blender::ui::EmbossType::None || but->type == eButType::Label) {
         xs = rect->xmin + 2.0f * ofs;
       }
       else {
@@ -1629,7 +1629,7 @@ float UI_text_clip_middle_ex(const uiFontStyle *fstyle,
 static void ui_text_clip_middle(const uiFontStyle *fstyle, uiBut *but, const rcti *rect)
 {
   /* No margin for labels! */
-  const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU, UI_BTYPE_POPOVER) ?
+  const int border = ELEM(but->type, eButType::Label, eButType::Menu, eButType::Popover) ?
                          0 :
                          int(UI_TEXT_CLIP_MARGIN + 0.5f);
   const float okwidth = float(max_ii(BLI_rcti_size_x(rect) - border, 0));
@@ -1655,7 +1655,7 @@ static void ui_text_clip_middle_protect_right(const uiFontStyle *fstyle,
                                               const char rsep)
 {
   /* No margin for labels! */
-  const int border = ELEM(but->type, UI_BTYPE_LABEL, UI_BTYPE_MENU, UI_BTYPE_POPOVER) ?
+  const int border = ELEM(but->type, eButType::Label, eButType::Menu, eButType::Popover) ?
                          0 :
                          int(UI_TEXT_CLIP_MARGIN + 0.5f);
   const float okwidth = float(max_ii(BLI_rcti_size_x(rect) - border, 0));
@@ -2045,11 +2045,11 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   /* If not editing and indeterminate, show dash. */
   if (but->drawflag & UI_BUT_INDETERMINATE && !but->editstr &&
       ELEM(but->type,
-           UI_BTYPE_MENU,
-           UI_BTYPE_NUM,
-           UI_BTYPE_NUM_SLIDER,
-           UI_BTYPE_TEXT,
-           UI_BTYPE_SEARCH_MENU))
+           eButType::Menu,
+           eButType::Num,
+           eButType::NumSlider,
+           eButType::Text,
+           eButType::SearchMenu))
   {
     drawstr = indeterminate_str;
     drawstr_left_len = strlen(drawstr);
@@ -2180,7 +2180,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
 
 #ifdef USE_NUMBUTS_LR_ALIGN
   if (!drawstr_right && (but->drawflag & UI_BUT_TEXT_LEFT) &&
-      ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER) &&
+      ELEM(but->type, eButType::Num, eButType::NumSlider) &&
       /* if we're editing or multi-drag (fake editing), then use left alignment */
       (but->editstr == nullptr) && (drawstr == but->drawstr))
   {
@@ -2258,7 +2258,7 @@ static void widget_draw_text(const uiFontStyle *fstyle,
   }
 
   /* Show placeholder text if the input is empty and not being edited. */
-  if (!drawstr[0] && !but->editstr && ELEM(but->type, UI_BTYPE_TEXT, UI_BTYPE_SEARCH_MENU)) {
+  if (!drawstr[0] && !but->editstr && ELEM(but->type, eButType::Text, eButType::SearchMenu)) {
     const char *placeholder = ui_but_placeholder_get(but);
     if (placeholder && placeholder[0]) {
       uiFontStyleDraw_Params params{};
@@ -2365,7 +2365,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   ui_but_text_password_hide(password_str, but, false);
 
   /* check for button text label */
-  if (ELEM(but->type, UI_BTYPE_MENU, UI_BTYPE_POPOVER) && (but->flag & UI_BUT_NODE_LINK)) {
+  if (ELEM(but->type, eButType::Menu, eButType::Popover) && (but->flag & UI_BUT_NODE_LINK)) {
     rcti temp = *rect;
     const int size = BLI_rcti_size_y(rect) + 1; /* Not the icon size! */
 
@@ -2525,7 +2525,7 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
     but->ofs = 0;
     but->strwidth = 0;
   }
-  else if (ELEM(but->type, UI_BTYPE_NUM, UI_BTYPE_NUM_SLIDER)) {
+  else if (ELEM(but->type, eButType::Num, eButType::NumSlider)) {
     ui_text_clip_right_label(fstyle, but, rect);
   }
   else if (but->flag & UI_BUT_HAS_SEP_CHAR) {
@@ -2725,9 +2725,9 @@ static bool draw_emboss(const uiBut *but)
     return false;
   }
   uiBut *but_next = but->block->next_but(but);
-  if (but->type == UI_BTYPE_TAB &&
+  if (but->type == eButType::Tab &&
       (BLI_rctf_size_y(&but->block->rect) > BLI_rctf_size_x(&but->block->rect)) &&
-      !(but_next == nullptr || but_next->type == UI_BTYPE_SEPR))
+      !(but_next == nullptr || but_next->type == eButType::Sepr))
   {
     /* Vertical tabs, emboss at end and before separators. */
     return false;
@@ -4101,7 +4101,7 @@ static void widget_swatch(uiBut *but,
                           int roundboxalign,
                           const float zoom)
 {
-  BLI_assert(but->type == UI_BTYPE_COLOR);
+  BLI_assert(but->type == eButType::Color);
   uiButColor *color_but = (uiButColor *)but;
   float col[4];
 
@@ -4219,12 +4219,12 @@ static void widget_icon_has_anim(uiBut *but,
     round_box_edges(&wtb, UI_CNR_ALL, rect, rad);
     widgetbase_draw(&wtb, wcol);
   }
-  else if (but->type == UI_BTYPE_NUM) {
+  else if (but->type == eButType::Num) {
     /* Draw number buttons still with left/right
      * triangles when field is not embossed */
     widget_numbut_embossn(but, wcol, rect, state, roundboxalign, zoom);
   }
-  else if (but->type == UI_BTYPE_MENU) {
+  else if (but->type == eButType::Menu) {
     /* Draw menu buttons still with down arrow. */
     widget_menubut_embossn(but, wcol, rect, state, roundboxalign);
   }
@@ -4375,7 +4375,7 @@ static void widget_list_itembut(uiBut *but,
   rcti draw_rect = *rect;
   bool is_selected = state->but_flag & UI_SELECT;
 
-  if (but->type == UI_BTYPE_VIEW_ITEM) {
+  if (but->type == eButType::ViewItem) {
     uiButViewItem *item_but = static_cast<uiButViewItem *>(but);
     blender::ui::AbstractViewItem &view_item = *item_but->view_item;
 
@@ -4905,7 +4905,7 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
   int roundbox = UI_CNR_ALL;
 
   /* alignment */
-  if ((but->drawflag & UI_BUT_ALIGN) && but->type != UI_BTYPE_PULLDOWN) {
+  if ((but->drawflag & UI_BUT_ALIGN) && but->type != eButType::Pulldown) {
 
     /* ui_popup_block_position has this correction too, keep in sync */
     if (but->drawflag & (UI_BUT_ALIGN_TOP | UI_BUT_ALIGN_STITCH_TOP)) {
@@ -4947,7 +4947,7 @@ static int widget_roundbox_set(uiBut *but, rcti *rect)
   }
 
   /* align with open menu */
-  if (but->active && (but->type != UI_BTYPE_POPOVER) && !ui_but_menu_draw_as_popover(but)) {
+  if (but->active && (but->type != eButType::Popover) && !ui_but_menu_draw_as_popover(but)) {
     const int direction = ui_but_menu_direction(but);
 
     /* Pull-down menus that open above or below a button can have more than one direction. */
@@ -4984,12 +4984,12 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
   /* handle menus separately */
   if (but->emboss == blender::ui::EmbossType::Pulldown) {
     switch (but->type) {
-      case UI_BTYPE_LABEL:
+      case eButType::Label:
         widget_draw_text_icon(&style->widget, &tui->wcol_menu_back, but, rect);
         break;
-      case UI_BTYPE_SEPR:
+      case eButType::Sepr:
         break;
-      case UI_BTYPE_SEPR_LINE:
+      case eButType::SeprLine:
         /* Add horizontal padding between the line and menu sides. */
         BLI_rcti_pad(rect, int(-7.0f * UI_SCALE_FAC), 0);
         ui_draw_separator(&tui->wcol_menu_item, but, rect);
@@ -5007,14 +5007,14 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
     /* Use the same widget types for both no emboss types. Later on,
      * #blender::ui::EmbossType::NoneOrStatus will blend state colors if they apply. */
     switch (but->type) {
-      case UI_BTYPE_LABEL:
-      case UI_BTYPE_TEXT:
+      case eButType::Label:
+      case eButType::Text:
         wt = widget_type(UI_WTYPE_ICON_LABEL);
         if (!(but->flag & UI_HAS_ICON)) {
           but->drawflag |= UI_BUT_NO_TEXT_PADDING;
         }
         break;
-      case UI_BTYPE_PREVIEW_TILE:
+      case eButType::PreviewTile:
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
       default:
@@ -5029,7 +5029,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
     BLI_assert(but->emboss == blender::ui::EmbossType::Emboss);
 
     switch (but->type) {
-      case UI_BTYPE_LABEL:
+      case eButType::Label:
         wt = widget_type(UI_WTYPE_LABEL);
         if (but->drawflag & UI_BUT_BOX_ITEM) {
           wt->wcol_theme = &tui->wcol_box;
@@ -5044,15 +5044,15 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         }
         break;
 
-      case UI_BTYPE_SEPR:
-      case UI_BTYPE_SEPR_SPACER:
+      case eButType::Sepr:
+      case eButType::SeprSpacer:
         break;
-      case UI_BTYPE_SEPR_LINE:
+      case eButType::SeprLine:
         ui_draw_separator(&tui->wcol_menu_item, but, rect);
         break;
 
-      case UI_BTYPE_BUT:
-      case UI_BTYPE_DECORATOR:
+      case eButType::But:
+      case eButType::Decorator:
 #ifdef USE_UI_TOOLBAR_HACK
         if ((but->icon != ICON_NONE) && UI_but_is_tool(but)) {
           wt = widget_type(UI_WTYPE_TOOLBAR_ITEM);
@@ -5065,42 +5065,42 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
 #endif
         break;
 
-      case UI_BTYPE_NUM:
+      case eButType::Num:
         wt = widget_type(UI_WTYPE_NUMBER);
         break;
 
-      case UI_BTYPE_NUM_SLIDER:
+      case eButType::NumSlider:
         wt = widget_type(UI_WTYPE_SLIDER);
         break;
 
-      case UI_BTYPE_ROW:
+      case eButType::Row:
         wt = widget_type(UI_WTYPE_RADIO);
         break;
 
-      case UI_BTYPE_LISTROW:
+      case eButType::ListRow:
         wt = widget_type(UI_WTYPE_LISTITEM);
         break;
 
-      case UI_BTYPE_TEXT:
+      case eButType::Text:
         wt = widget_type(UI_WTYPE_NAME);
         break;
 
-      case UI_BTYPE_SEARCH_MENU:
+      case eButType::SearchMenu:
         wt = widget_type(UI_WTYPE_NAME);
         break;
 
-      case UI_BTYPE_TAB:
+      case eButType::Tab:
         wt = widget_type(UI_WTYPE_TAB);
         break;
 
-      case UI_BTYPE_BUT_TOGGLE:
-      case UI_BTYPE_TOGGLE:
-      case UI_BTYPE_TOGGLE_N:
+      case eButType::ButToggle:
+      case eButType::Toggle:
+      case eButType::ToggleN:
         wt = widget_type(UI_WTYPE_TOGGLE);
         break;
 
-      case UI_BTYPE_CHECKBOX:
-      case UI_BTYPE_CHECKBOX_N:
+      case eButType::Checkbox:
+      case eButType::CheckboxN:
         if (!(but->flag & UI_HAS_ICON)) {
           wt = widget_type(UI_WTYPE_CHECKBOX);
 
@@ -5122,9 +5122,9 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         }
         break;
 
-      case UI_BTYPE_MENU:
-      case UI_BTYPE_BLOCK:
-      case UI_BTYPE_POPOVER:
+      case eButType::Menu:
+      case eButType::Block:
+      case eButType::Popover:
         if (but->flag & UI_BUT_NODE_LINK) {
           /* new node-link button, not active yet XXX */
           wt = widget_type(UI_WTYPE_MENU_NODE_LINK);
@@ -5148,32 +5148,32 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         }
         break;
 
-      case UI_BTYPE_PULLDOWN:
+      case eButType::Pulldown:
         wt = widget_type(UI_WTYPE_PULLDOWN);
         break;
 
-      case UI_BTYPE_BUT_MENU:
+      case eButType::ButMenu:
         wt = widget_type(UI_WTYPE_MENU_ITEM);
         break;
 
-      case UI_BTYPE_COLOR:
+      case eButType::Color:
         wt = widget_type(UI_WTYPE_SWATCH);
         break;
 
-      case UI_BTYPE_ROUNDBOX:
-      case UI_BTYPE_LISTBOX:
+      case eButType::Roundbox:
+      case eButType::ListBox:
         wt = widget_type(UI_WTYPE_BOX);
         break;
 
-      case UI_BTYPE_PREVIEW_TILE:
+      case eButType::PreviewTile:
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
 
-      case UI_BTYPE_EXTRA:
+      case eButType::Extra:
         widget_draw_extra_mask(C, but, widget_type(UI_WTYPE_BOX), rect);
         break;
 
-      case UI_BTYPE_HSVCUBE: {
+      case eButType::HsvCube: {
         const uiButHSVCube *hsv_but = (uiButHSVCube *)but;
 
         if (ELEM(hsv_but->gradient_type, UI_GRAD_V_ALT, UI_GRAD_L_ALT)) {
@@ -5186,11 +5186,11 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
       }
 
-      case UI_BTYPE_HSVCIRCLE:
+      case eButType::HsvCircle:
         ui_draw_but_HSVCIRCLE(but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_COLORBAND: {
+      case eButType::ColorBand: {
         /* Horizontal padding to make room for handles at edges. */
         const int padding = BLI_rcti_size_y(rect) / 6;
         rect->xmin += padding;
@@ -5199,55 +5199,55 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
         break;
       }
 
-      case UI_BTYPE_UNITVEC:
+      case eButType::Unitvec:
         wt = widget_type(UI_WTYPE_UNITVEC);
         break;
 
-      case UI_BTYPE_IMAGE:
+      case eButType::Image:
         ui_draw_but_IMAGE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_HISTOGRAM:
+      case eButType::Histogram:
         ui_draw_but_HISTOGRAM(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_WAVEFORM:
+      case eButType::Waveform:
         ui_draw_but_WAVEFORM(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_VECTORSCOPE:
+      case eButType::Vectorscope:
         ui_draw_but_VECTORSCOPE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_CURVE:
+      case eButType::Curve:
         ui_draw_but_CURVE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_CURVEPROFILE:
+      case eButType::CurveProfile:
         ui_draw_but_CURVEPROFILE(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_PROGRESS:
+      case eButType::Progress:
         wt = widget_type(UI_WTYPE_PROGRESS);
         break;
 
-      case UI_BTYPE_VIEW_ITEM:
+      case eButType::ViewItem:
         wt = widget_type(UI_WTYPE_VIEW_ITEM);
         break;
 
-      case UI_BTYPE_SCROLL:
+      case eButType::Scroll:
         wt = widget_type(UI_WTYPE_SCROLL);
         break;
 
-      case UI_BTYPE_GRIP:
+      case eButType::Grip:
         wt = widget_type(UI_WTYPE_ICON);
         break;
 
-      case UI_BTYPE_TRACK_PREVIEW:
+      case eButType::TrackPreview:
         ui_draw_but_TRACKPREVIEW(region, but, &tui->wcol_regular, rect);
         break;
 
-      case UI_BTYPE_NODE_SOCKET:
+      case eButType::NodeSocket:
         wt = widget_type(UI_WTYPE_NODESOCKET);
         break;
 
@@ -5321,7 +5321,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
       GPU_blend(GPU_BLEND_ALPHA);
     }
 
-    if (but->type == UI_BTYPE_LABEL && !(but->flag & UI_HAS_ICON) && but->col[3] != 0) {
+    if (but->type == eButType::Label && !(but->flag & UI_HAS_ICON) && but->col[3] != 0) {
       /* Optionally use button color for text color if label without icon.
        * For example, ensuring that the Splash version text is always white. */
       copy_v4_v4_uchar(wt->wcol.text, but->col);
