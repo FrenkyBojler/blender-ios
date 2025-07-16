@@ -373,8 +373,7 @@ void *AssetDragController::create_drag_data() const
     return static_cast<void *>(local_id);
   }
 
-  const eAssetImportMethod import_method = asset_.get_import_method().value_or(
-      ASSET_IMPORT_APPEND_REUSE);
+  const eAssetImportMethod import_method = asset_.get_import_method().value_or(ASSET_IMPORT_PACK);
   AssetImportSettings import_settings{};
   import_settings.method = import_method;
   import_settings.use_instance_collections = false;
