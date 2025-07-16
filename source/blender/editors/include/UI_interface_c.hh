@@ -406,17 +406,17 @@ enum class eButType : int8_t {
   /** Drop-down list. */
   Menu,
   ButMenu,
-  /** number button */
+  /** Number button. */
   Num,
-  /** number slider */
+  /** Number slider. */
   NumSlider,
   Toggle,
   ToggleN,
   IconToggle,
   IconToggleN,
-  /** same as regular toggle, but no on/off state displayed */
+  /** Same as regular toggle, but no on/off state displayed. */
   ButToggle,
-  /** similar to toggle, display a 'tick' */
+  /** Similar to toggle, display a 'tick'. */
   Checkbox,
   CheckboxN,
   Color,
@@ -431,10 +431,10 @@ enum class eButType : int8_t {
   Pulldown,
   Roundbox,
   ColorBand,
-  /** sphere widget (used to input a unit-vector, aka normal) */
+  /** Sphere widget (used to input a unit-vector, aka normal). */
   Unitvec,
   Curve,
-  /** Profile editing widget */
+  /** Profile editing widget. */
   CurveProfile,
   ListBox,
   ListRow,
@@ -448,7 +448,7 @@ enum class eButType : int8_t {
    * laid out in a grid, e.g. like the File Browser in thumbnail display mode. */
   PreviewTile,
   HotkeyEvent,
-  /** Non-interactive image, used for splash screen */
+  /** Non-interactive image, used for splash screen. */
   Image,
   Histogram,
   Waveform,

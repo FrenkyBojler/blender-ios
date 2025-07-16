@@ -4305,7 +4305,7 @@ uiBut *ui_but_change_type(uiBut *but, eButType new_type)
  * \param width, height: The size of the button.
  */
 static uiBut *ui_def_but(uiBlock *block,
-                         uiButTypeParams type,
+                         uiButTypeParams type_params,
                          int retval,
                          const StringRef str,
                          int x,
@@ -4318,21 +4318,21 @@ static uiBut *ui_def_but(uiBlock *block,
                          const std::optional<StringRef> tip)
 {
   /* Allow negative separators. */
-  BLI_assert((width >= 0 && height >= 0) || (type.type == eButType::Sepr));
+  BLI_assert((width >= 0 && height >= 0) || (type_params.type == eButType::Sepr));
 
-  if (bool(type.pointer_type)) { /* a pointer is required */
+  if (bool(type_params.pointer_type)) { /* a pointer is required */
     if (poin == nullptr) {
       BLI_assert(0);
       return nullptr;
     }
   }
 
-  block->buttons.append(ui_but_new(type.type));
+  block->buttons.append(ui_but_new(type_params.type));
   uiBut *but = block->buttons.last().get();
 
-  but->pointype = type.pointer_type;
-  but->bit = bool(type.pointer_type & eButPointerType::Bit);
-  but->bitnr = type.bit_index;
+  but->pointype = type_params.pointer_type;
+  but->bit = bool(type_params.pointer_type & eButPointerType::Bit);
+  but->bitnr = type_params.bit_index;
 
   but->retval = retval;
 
