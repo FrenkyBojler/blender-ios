@@ -20,10 +20,6 @@
 
 namespace blender::ed::transform {
 
-typedef struct TransEdgeMirrorData {
-  BMEdge *edge;
-} TransEdgeMirrorData;
-
 
 /* -------------------------------------------------------------------- */
 /** \name Edge (for crease) Transform Creation
@@ -112,12 +108,7 @@ static void createTransEdge(bContext * /*C*/, TransInfo *t)
         fl_ptr = static_cast<float *>(BM_ELEM_CD_GET_VOID_P(eed, cd_edge_float_offset));
         td->val = fl_ptr;
         td->ival = *fl_ptr;
-        {
-          TransEdgeMirrorData *med = static_cast<TransEdgeMirrorData *>(
-              MEM_mallocN(sizeof(TransEdgeMirrorData), "trans edge mirror data"));
-          med->edge = eed;
-          td->extra = med;
-        }
+        td->extra = eed;
         td++;
       }
     }

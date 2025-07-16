@@ -30,14 +30,6 @@
 
 namespace blender::ed::transform {
 
-typedef struct TransEdgeMirrorData {
-  BMEdge *edge;
-} TransEdgeMirrorData;
-
-typedef struct TransVertMirrorData {
-  BMVert *vert;
-} TransVertMirrorData;
-
 /* -------------------------------------------------------------------- */
 /** \name Transform Value
  * \{ */
@@ -103,15 +95,15 @@ static void apply_value_impl(TransInfo *t, const char *value_name) {
 
         if (symmetry_helper && td->extra && cd_offset != -1) {
           if (t->mode == TFM_VERT_CREASE) {
-            TransVertMirrorData *mvd = static_cast<TransVertMirrorData *>(td->extra);
-            if (mvd && mvd->vert) {
-              symmetry_helper->set_float_on_mirror_verts(mvd->vert, cd_offset, *td->val);
+            BMVert *vert = static_cast<BMVert *>(td->extra);
+            if (vert) {
+              symmetry_helper->set_float_on_mirror_verts(vert, cd_offset, *td->val);
             }
           }
           else {
-            TransEdgeMirrorData *med = static_cast<TransEdgeMirrorData *>(td->extra);
-            if (med && med->edge) {
-              symmetry_helper->set_float_on_mirror_edges(med->edge, cd_offset, *td->val);
+            BMEdge *edge = static_cast<BMEdge *>(td->extra);
+            if (edge) {
+              symmetry_helper->set_float_on_mirror_edges(edge, cd_offset, *td->val);
             }
           }
         }
