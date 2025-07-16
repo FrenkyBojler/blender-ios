@@ -10,6 +10,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string.h"
 
+#include "BKE_anonymous_attribute_id.hh"
 #include "BKE_attribute.hh"
 
 #include "draw_subdivision.hh"
@@ -30,45 +31,39 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
   for (const StringRef name : cache.cd_used.uv) {
     uv_layers.add_new(name);
   }
+
+  const StringRef active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
+  const StringRef default_name = CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2);
+
   /* HACK to fix #68857 */
   if (extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
-    int layer = CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2);
-    if (layer != -1 && !CustomData_layer_is_anonymous(cd_ldata, CD_PROP_FLOAT2, layer)) {
-      uv_layers.add(cd_ldata->layers[layer].name);
+    if (!bke::attribute_name_is_anonymous(default_name)) {
+      uv_layers.add(default_name);
     }
   }
 
   VectorSet<StringRef> r_uv_layers;
 
   for (int i = 0; i < MAX_MTFACE; i++) {
-    const char *layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
+    const StringRef layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
     if (uv_layers.contains_as(layer_name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
 
-      /* not all UV layers are guaranteed to exist, since the list of available UV
-       * layers is generated for the evaluated mesh, which is needed to show modifier
-       * results in editmode, but the actual mesh might be the base mesh.
-       */
-      if (layer_name) {
-        r_uv_layers.add(layer_name);
-        GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
-        /* UV layer name. */
-        SNPRINTF(attr_name, "a%s", attr_safe_name);
-        GPU_vertformat_attr_add(format, attr_name, blender::gpu::VertAttrType::SFLOAT_32_32);
-        /* Active render layer name. */
-        if (i == CustomData_get_render_layer(cd_ldata, CD_PROP_FLOAT2)) {
-          GPU_vertformat_alias_add(format, "a");
-        }
-        /* Active display layer name. */
-        if (i == CustomData_get_active_layer(cd_ldata, CD_PROP_FLOAT2)) {
-          GPU_vertformat_alias_add(format, "au");
-          /* Alias to `pos` for edit uvs. */
-          GPU_vertformat_alias_add(format, "pos");
-        }
-        /* Stencil mask uv layer name. */
-        if (i == CustomData_get_stencil_layer(cd_ldata, CD_PROP_FLOAT2)) {
-          GPU_vertformat_alias_add(format, "mu");
-        }
+      r_uv_layers.add(layer_name);
+      GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+      SNPRINTF(attr_name, "a%s", attr_safe_name);
+      GPU_vertformat_attr_add(format, attr_name, blender::gpu::VertAttrType::SFLOAT_32_32);
+      if (layer_name == default_name) {
+        GPU_vertformat_alias_add(format, "a");
+      }
+      if (layer_name == active_name) {
+        GPU_vertformat_alias_add(format, "au");
+        /* Alias to `pos` for edit uvs. */
+        GPU_vertformat_alias_add(format, "pos");
+      }
+      /* Stencil mask uv layer name. */
+      if (i == CustomData_get_stencil_layer(cd_ldata, CD_PROP_FLOAT2)) {
+        GPU_vertformat_alias_add(format, "mu");
       }
     }
   }

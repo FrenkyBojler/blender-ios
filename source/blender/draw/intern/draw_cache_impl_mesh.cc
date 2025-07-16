@@ -1233,11 +1233,11 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     return;
   }
 
-  /* TODO(pablodp606): This always updates the sculpt normals for regular drawing
-   * (non-pbvh::Tree). This makes tools that sample the surface per step get wrong normals until
-   * a redraw happens. Normal updates should be part of the brush loop and only run during the
-   * stroke when the brush needs to sample the surface. The drawing code should only update the
-   * normals per redraw when smooth shading is enabled. */
+  /* TODO(pablodp606): This always updates the sculpt normals for regular drawing (non-pbvh::Tree).
+   * This makes tools that sample the surface per step get wrong normals until a redraw happens.
+   * Normal updates should be part of the brush loop and only run during the stroke when the
+   * brush needs to sample the surface. The drawing code should only update the normals
+   * per redraw when smooth shading is enabled. */
   if (bke::pbvh::Tree *pbvh = bke::object::pbvh_get(ob)) {
     bke::pbvh::update_normals_from_eval(ob, *pbvh);
   }
@@ -1405,10 +1405,10 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
     }
   }
 
-  /* When the mesh doesn't correspond to the object's original mesh (i.e. the mesh was replaced
-   * by another with the object info node during evaluation), don't extract edit mode data for
-   * it. That data can be invalid because any original indices (#CD_ORIGINDEX) on the evaluated
-   * mesh won't correspond to the correct mesh. */
+  /* When the mesh doesn't correspond to the object's original mesh (i.e. the mesh was replaced by
+   * another with the object info node during evaluation), don't extract edit mode data for it.
+   * That data can be invalid because any original indices (#CD_ORIGINDEX) on the evaluated mesh
+   * won't correspond to the correct mesh. */
   const bool edit_mapping_valid = is_editmode && BKE_editmesh_eval_orig_map_available(
                                                      *edit_data_mesh, orig_edit_mesh);
 

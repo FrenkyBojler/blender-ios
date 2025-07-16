@@ -46,12 +46,15 @@ static void extract_tan_init_common(const MeshRenderData &mr,
 
   int tan_len = 0;
 
+  const StringRef active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
+  const StringRef default_name = CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2);
+
   /* FIXME(#91838): This is to avoid a crash when orco tangent was requested but there are valid
    * uv layers. It would be better to fix the root cause. */
   if (tan_layers.is_empty() && use_orco_tan &&
       CustomData_get_layer_index(cd_ldata, CD_PROP_FLOAT2) != -1)
   {
-    tan_layers.add(CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2));
+    tan_layers.add(default_name);
     use_orco_tan = false;
   }
 
@@ -63,11 +66,11 @@ static void extract_tan_init_common(const MeshRenderData &mr,
       SNPRINTF(attr_name, "t%s", attr_safe_name);
       GPU_vertformat_attr_add(format, attr_name, gpu_attr_type);
       /* Active render layer name. */
-      if (name == CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2)) {
+      if (name == default_name) {
         GPU_vertformat_alias_add(format, "t");
       }
       /* Active display layer name. */
-      if (name == CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2)) {
+      if (name == active_name) {
         GPU_vertformat_alias_add(format, "at");
       }
 
