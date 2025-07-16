@@ -16,40 +16,41 @@
 
 namespace blender::eevee {
 
-/* -------------------------------------------------------------------- */
-/** \name Default Material
- *
- * \{ */
+// /* -------------------------------------------------------------------- */
+// /** \name Default Material
+//  *
+//  * \{ */
 
-DefaultWorldNodeTree::DefaultWorldNodeTree()
-{
-  bNodeTree *ntree = bke::node_tree_add_tree(nullptr, "World Nodetree", ntreeType_Shader->idname);
-  bNode *background = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
-  bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
-  bNodeSocket *background_out = bke::node_find_socket(*background, SOCK_OUT, "Background");
-  bNodeSocket *output_in = bke::node_find_socket(*output, SOCK_IN, "Surface");
-  bke::node_add_link(*ntree, *background, *background_out, *output, *output_in);
-  bke::node_set_active(*ntree, *output);
+// DefaultWorldNodeTree::DefaultWorldNodeTree()
+// {
+//   bNodeTree *ntree = bke::node_tree_add_tree(nullptr, "World Nodetree",
+//   ntreeType_Shader->idname); bNode *background = bke::node_add_static_node(nullptr, *ntree,
+//   SH_NODE_BACKGROUND); bNode *output = bke::node_add_static_node(nullptr, *ntree,
+//   SH_NODE_OUTPUT_WORLD); bNodeSocket *background_out = bke::node_find_socket(*background,
+//   SOCK_OUT, "Background"); bNodeSocket *output_in = bke::node_find_socket(*output, SOCK_IN,
+//   "Surface"); bke::node_add_link(*ntree, *background, *background_out, *output, *output_in);
+//   bke::node_set_active(*ntree, *output);
 
-  color_socket_ =
-      (bNodeSocketValueRGBA *)bke::node_find_socket(*background, SOCK_IN, "Color")->default_value;
-  ntree_ = ntree;
-}
+//   color_socket_ =
+//       (bNodeSocketValueRGBA *)bke::node_find_socket(*background, SOCK_IN,
+//       "Color")->default_value;
+//   ntree_ = ntree;
+// }
 
-DefaultWorldNodeTree::~DefaultWorldNodeTree()
-{
-  bke::node_tree_free_embedded_tree(ntree_);
-  MEM_SAFE_FREE(ntree_);
-}
+// DefaultWorldNodeTree::~DefaultWorldNodeTree()
+// {
+//   bke::node_tree_free_embedded_tree(ntree_);
+//   MEM_SAFE_FREE(ntree_);
+// }
 
-bNodeTree *DefaultWorldNodeTree::nodetree_get(::World *wo)
-{
-  /* WARNING: This function is not thread-safe. Which is not a problem for the moment. */
-  copy_v3_fl3(color_socket_->value, wo->horr, wo->horg, wo->horb);
-  return ntree_;
-}
+// bNodeTree *DefaultWorldNodeTree::nodetree_get(::World *wo)
+// {
+//   /* WARNING: This function is not thread-safe. Which is not a problem for the moment. */
+//   copy_v3_fl3(color_socket_->value, wo->horr, wo->horg, wo->horb);
+//   return ntree_;
+// }
 
-/** \} */
+// /** \} */
 
 /* -------------------------------------------------------------------- */
 /** \name World
@@ -67,10 +68,24 @@ World::~World()
 {
   if (default_world_ == nullptr) {
     default_world_ = BKE_id_new_nomain<::World>("EEVEE default world");
-    default_world_->horr = default_world_->horg = default_world_->horb = 0.0f;
-    // default_world_->use_nodes = 0;
-    // todo(habib): create equivalent node tree
-    default_world_->nodetree = nullptr;
+
+    bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
+        nullptr, &default_world_->id, "Shader Nodetree", "ShaderNodeTree");
+    bNode *shader = blender::bke::node_add_node(
+        nullptr, *default_world_->nodetree, "ShaderNodeBackground");
+    bNode *output = blender::bke::node_add_node(
+        nullptr, *default_world_->nodetree, "ShaderNodeOutputWorld");
+    blender::bke::node_add_link(*default_world_->nodetree,
+                                *shader,
+                                *blender::bke::node_find_socket(*shader, SOCK_OUT, "Background"),
+                                *output,
+                                *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
+
+    const float3 black{0.0f, 0.0f, 0.0f};
+    bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
+    copy_v3_v3(color_sock->default_value_typed<bNodeSocketValueVector>()->value, black);
+
+    default_world_->nodetree = ntree;
     BLI_listbase_clear(&default_world_->gpumaterial);
   }
   return default_world_;
@@ -132,8 +147,7 @@ void World::sync()
     bl_world = world_override;
   }
 
-  bNodeTree *ntree = (bl_world->nodetree) ? bl_world->nodetree :
-                                            default_tree.nodetree_get(bl_world);
+  bNodeTree *ntree = (bl_world->nodetree) ? bl_world->nodetree : default_world_->nodetree;
 
   {
     if (has_volume_absorption_) {
