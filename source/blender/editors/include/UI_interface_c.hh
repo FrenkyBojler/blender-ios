@@ -388,12 +388,12 @@ enum {
 enum class eButPointerType : uint8_t {
   None = 0,
 
-  Char = 1 < 0,
-  Short = 1 < 1,
-  Int = 1 < 2,
-  Float = 1 < 3,
+  Char = 1 << 0,
+  Short = 1 << 1,
+  Int = 1 << 2,
+  Float = 1 << 3,
   // eButPointerType::Function = 192, /* UNUSED */
-  Bit = 1 < 5, /* OR'd with a bit index. */
+  Bit = 1 << 5, /* OR'd with a bit index. */
 };
 ENUM_OPERATORS(eButPointerType, eButPointerType::Bit);
 
@@ -465,19 +465,37 @@ enum class eButType : int8_t {
   /** An item a view (see #ui::AbstractViewItem). */
   ViewItem,
 };
+namespace blender::ui {
 
-struct uiButTypeInfo {
+inline int but_pointer_bit_max_index(eButPointerType pointer_type)
+{
+  switch (pointer_type) {
+    case eButPointerType::Char:
+      return sizeof(char) - 1;
+    case eButPointerType::Short:
+      return sizeof(short) - 1;
+    case eButPointerType::Int:
+      return sizeof(int) - 1;
+    default:
+      break;
+  }
+  return 0;
+}
+}  // namespace blender::ui
+
+struct uiButTypeParams {
   eButType type = eButType::But;
   eButPointerType pointer_type = eButPointerType::None;
   char bit_index = 0;
 
-  uiButTypeInfo(eButType t) : type{t} {}
+  uiButTypeParams(eButType t) : type{t} {}
 
-  uiButTypeInfo(eButType t, eButPointerType pt) : type{t}, pointer_type{pt} {}
+  uiButTypeParams(eButType t, eButPointerType pt) : type{t}, pointer_type{pt} {}
 
-  uiButTypeInfo(eButType t, eButPointerType pt, int i)
+  uiButTypeParams(eButType t, eButPointerType pt, int i)
       : type{t}, pointer_type{pt}, bit_index{char(i)}
   {
+    BLI_assert(int(bit_index) <= blender::ui::but_pointer_bit_max_index(pointer_type));
   }
 };
 
@@ -1081,7 +1099,7 @@ bool UI_but_is_userdef(const uiBut *but);
  * - O: operator */
 
 uiBut *uiDefBut(uiBlock *block,
-                uiButTypeInfo type,
+                uiButTypeParams type,
                 int retval,
                 blender::StringRef str,
                 int x,
@@ -1229,7 +1247,7 @@ uiBut *uiDefButO_ptr(uiBlock *block,
                      std::optional<blender::StringRef> tip);
 
 uiBut *uiDefIconBut(uiBlock *block,
-                    uiButTypeInfo type,
+                    uiButTypeParams type,
                     int retval,
                     int icon,
                     int x,
@@ -1368,7 +1386,7 @@ uiBut *uiDefButImage(
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);
 /** Button containing both string label and icon. */
 uiBut *uiDefIconTextBut(uiBlock *block,
-                        uiButTypeInfo type,
+                        uiButTypeParams type,
                         int retval,
                         int icon,
                         blender::StringRef str,

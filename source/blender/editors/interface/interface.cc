@@ -4305,7 +4305,7 @@ uiBut *ui_but_change_type(uiBut *but, eButType new_type)
  * \param width, height: The size of the button.
  */
 static uiBut *ui_def_but(uiBlock *block,
-                         uiButTypeInfo type,
+                         uiButTypeParams type,
                          int retval,
                          const StringRef str,
                          int x,
@@ -4330,7 +4330,7 @@ static uiBut *ui_def_but(uiBlock *block,
   block->buttons.append(ui_but_new(type.type));
   uiBut *but = block->buttons.last().get();
 
-  but->pointype = but->pointype;
+  but->pointype = type.pointer_type;
   but->bit = bool(type.pointer_type & eButPointerType::Bit);
   but->bitnr = type.bit_index;
 
@@ -4796,7 +4796,7 @@ static void ui_but_submenu_enable(uiBlock *block, uiBut *but)
  * of our UI functions take prop rather than propname.
  */
 static uiBut *ui_def_but_rna(uiBlock *block,
-                             uiButTypeInfo type_info,
+                             eButType type,
                              int retval,
                              std::optional<StringRef> str,
                              int x,
@@ -4810,7 +4810,6 @@ static uiBut *ui_def_but_rna(uiBlock *block,
                              float max,
                              std::optional<StringRef> tip)
 {
-  eButType type = type_info.type;
   const PropertyType proptype = RNA_property_type(prop);
   int icon = 0;
   uiMenuCreateFunc func = nullptr;
@@ -4910,8 +4909,7 @@ static uiBut *ui_def_but_rna(uiBlock *block,
   }
 
   /* now create button */
-  uiBut *but = ui_def_but(
-      block, type_info, retval, *str, x, y, width, height, nullptr, min, max, tip);
+  uiBut *but = ui_def_but(block, type, retval, *str, x, y, width, height, nullptr, min, max, tip);
 
   if (but->type == eButType::Num) {
     /* Set default values, can be overridden later. */
@@ -5020,7 +5018,7 @@ static uiBut *ui_def_but_rna_propname(uiBlock *block,
 }
 
 static uiBut *ui_def_but_operator_ptr(uiBlock *block,
-                                      uiButTypeInfo type,
+                                      eButType type,
                                       wmOperatorType *ot,
                                       blender::wm::OpCallContext opcontext,
                                       const StringRef str,
@@ -5050,7 +5048,7 @@ static uiBut *ui_def_but_operator_ptr(uiBlock *block,
 }
 
 uiBut *uiDefBut(uiBlock *block,
-                uiButTypeInfo type,
+                uiButTypeParams type,
                 int retval,
                 const StringRef str,
                 int x,
@@ -5248,7 +5246,7 @@ static void ui_but_update_and_icon_set(uiBut *but, int icon)
 }
 
 static uiBut *uiDefButBit(uiBlock *block,
-                          uiButTypeInfo type,
+                          uiButTypeParams type,
                           int bit,
                           int retval,
                           const StringRef str,
@@ -5541,7 +5539,7 @@ uiBut *uiDefButO(uiBlock *block,
 }
 
 uiBut *uiDefIconBut(uiBlock *block,
-                    uiButTypeInfo type,
+                    uiButTypeParams type,
                     int retval,
                     int icon,
                     int x,
@@ -5583,7 +5581,7 @@ uiBut *uiDefIconPreviewBut(uiBlock *block,
   return but;
 }
 static uiBut *uiDefIconButBit(uiBlock *block,
-                              uiButTypeInfo type,
+                              uiButTypeParams type,
                               int bit,
                               int retval,
                               int icon,
@@ -5822,7 +5820,7 @@ uiBut *uiDefIconButO(uiBlock *block,
 }
 
 uiBut *uiDefIconTextBut(uiBlock *block,
-                        uiButTypeInfo type,
+                        uiButTypeParams type,
                         int retval,
                         int icon,
                         const StringRef str,
