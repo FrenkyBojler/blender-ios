@@ -353,13 +353,24 @@ class MenuSwitchOperation : public NodeOperation {
 
   void execute() override
   {
-    const int32_t menu_index = this->get_input("Menu").get_single_value<int32_t>();
-    const NodeEnumDefinition &enum_definition = node_storage(bnode()).enum_definition;
-    const NodeEnumItem &enum_item = enum_definition.items_array[menu_index];
-    const std::string identifier = MenuSwitchItemsAccessor::socket_identifier_for_item(enum_item);
-    const Result &input = this->get_input(identifier);
     Result &output = this->get_result("Output");
-    output.share_data(input);
+    const int32_t menu_identifier = this->get_input("Menu").get_single_value<int32_t>();
+    const NodeEnumDefinition &enum_definition = node_storage(bnode()).enum_definition;
+
+    for (const int i : IndexRange(enum_definition.items_num)) {
+      const NodeEnumItem &enum_item = enum_definition.items()[i];
+      if (enum_item.identifier != menu_identifier) {
+        continue;
+      }
+      const std::string identifier = MenuSwitchItemsAccessor::socket_identifier_for_item(
+          enum_item);
+      const Result &input = this->get_input(identifier);
+      output.share_data(input);
+      return;
+    }
+
+    /* The menu identifier didn't match any item, so allocate an invalid output. */
+    output.allocate_invalid();
   }
 };
 
