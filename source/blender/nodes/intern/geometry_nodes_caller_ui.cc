@@ -394,10 +394,8 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                          attribute_search_exec_fn,
                          nullptr);
 
-  char *attribute_name = RNA_string_get_alloc(
-      ctx.properties_ptr, rna_path_attribute_name.c_str(), nullptr, 0, nullptr);
+  std::string attribute_name = RNA_string_get(ctx.properties_ptr, rna_path_attribute_name.c_str());
   const bool access_allowed = bke::allow_procedural_attribute_access(attribute_name);
-  MEM_freeN(attribute_name);
   if (!access_allowed) {
     UI_but_flag_enable(but, UI_BUT_REDALERT);
   }
@@ -711,8 +709,10 @@ static void draw_interface_panel_content(
             nullptr,
             nullptr);
         if (panel_layout.body) {
+          const StringRefNull panel_name = sub_interface_panel.name ? sub_interface_panel.name :
+                                                                      "";
           draw_interface_panel_content(
-              ctx, panel_layout.body, sub_interface_panel, skip_first, sub_interface_panel.name);
+              ctx, panel_layout.body, sub_interface_panel, skip_first, panel_name);
         }
         break;
       }
@@ -951,7 +951,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
         PointerRNA props = layout.op("object.geometry_nodes_input_attribute_toggle",
                                      "",
                                      icon,
-                                     WM_OP_INVOKE_DEFAULT,
+                                     wm::OpCallContext::InvokeDefault,
                                      UI_ITEM_NONE);
         RNA_string_set(&props, "modifier_name", nmd.modifier.name);
         RNA_string_set(&props, "input_name", io_socket.identifier);
