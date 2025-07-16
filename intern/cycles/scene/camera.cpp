@@ -551,7 +551,7 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
   if (kintegrator->use_volumes) {
     if (camera_type == CAMERA_CUSTOM) {
       kernel_camera.is_inside_volume = 1;
-      LOG_INFO << "Considering custom camera to be inside volume.";
+      VLOG_INFO << "Considering custom camera to be inside volume.";
     }
     else {
       BoundBox viewplane_boundbox = viewplane_bounds_get();
@@ -566,7 +566,7 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
                        if (object->get_geometry()->has_volume &&
                            viewplane_boundbox.intersects(object->bounds)) {
                          /* TODO(sergey): Consider adding more grained check. */
-                         LOG_INFO << "Detected camera inside volume.";
+                         VLOG_INFO << "Detected camera inside volume.";
                          kernel_camera.is_inside_volume = 1;
                          parallel_for_cancel();
                          break;
@@ -575,7 +575,7 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
                    });
 
       if (!kernel_camera.is_inside_volume) {
-        LOG_INFO << "Camera is outside of the volume.";
+        VLOG_INFO << "Camera is outside of the volume.";
       }
     }
   }
