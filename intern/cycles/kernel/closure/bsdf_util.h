@@ -59,7 +59,7 @@ ccl_device float2 fresnel_dielectric_polarized(float cos_theta_i,
   const float r_p = (cos_theta_t + eta * cos_theta_i) / (eta * cos_theta_i - cos_theta_t);
 
   if (r_phi) {
-    *r_phi = make_float2(r_s >= 0.0f, r_p < 0.0f) * M_PI_F;
+    *r_phi = make_float2(r_s < 0.0f, r_p < 0.0f) * M_PI_F;
   }
 
   /* Return squared amplitude to get the fraction of reflected energy. */
@@ -115,7 +115,9 @@ ccl_device_inline float fresnel_dielectric_Fss(const float eta)
 /* Evaluates the Fresnel equations at a dielectric-conductor interface. If requested by the caller,
  * sets r_R_s and r_R_p to the reflectances for perpendicular and parallel polarized light, and
  * sets r_phi_s and r_phi_p to the phase shifts due to reflection.
- * Based on equations from section 14.4.1 of Principles of Optics 7th ed. by Born and Wolf. */
+ * This code is based on equations from section 14.4.1 of Principles of Optics 7th ed. by Born and
+ * Wolf, but uses `n + ik` instead of `n(1 + ik)` for IOR. The phase shifts are calculated so that
+ * phi_p = phi_s at 90 degree incidence to match fresnel_dielectric_polarized. */
 ccl_device void fresnel_conductor_polarized(const float cosi,
                                             const float eta1,
                                             const Spectrum eta2,
@@ -150,11 +152,13 @@ ccl_device void fresnel_conductor_polarized(const float cosi,
   }
 
   if (r_phi_s && r_phi_p) {
-    *r_phi_s = atan2(2.0f * eta1 * cosi * v, u_sq + v_sq - sqr(eta1 * cosi));
+    const Spectrum s_numerator = 2.0f * eta1 * cosi * v;
+    const Spectrum s_denominator = u_sq + v_sq - sqr(eta1 * cosi);
+    *r_phi_s = atan2(-s_numerator, -s_denominator);
 
-    const Spectrum y = 2.0f * eta1 * cosi * (two_eta2_k2 * u - (eta2_sq - k2_sq) * v);
-    const Spectrum x = sqr((eta2_sq + k2_sq) * cosi) - eta1_sq * (u_sq + v_sq);
-    *r_phi_p = atan2(y, x);
+    const Spectrum p_numerator = 2.0f * eta1 * cosi * (two_eta2_k2 * u - (eta2_sq - k2_sq) * v);
+    const Spectrum p_denominator = sqr((eta2_sq + k2_sq) * cosi) - eta1_sq * (u_sq + v_sq);
+    *r_phi_p = atan2(p_numerator, p_denominator);
   }
 }
 
