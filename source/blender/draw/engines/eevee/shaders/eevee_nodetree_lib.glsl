@@ -608,6 +608,11 @@ float2 bsdf_lut(float cos_theta, float roughness, float ior, bool do_multiscatte
  *
  * \{ */
 
+#ifndef GPU_METAL
+/* Prototype. */
+float derivative_scale_get();
+#endif
+
 #ifdef MAT_DISPLACEMENT_BUMP
 /* Return new shading normal. */
 float3 displacement_bump()
