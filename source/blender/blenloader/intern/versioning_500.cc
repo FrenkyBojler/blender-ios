@@ -1133,10 +1133,32 @@ static void do_version_convert_gp_jitter_values(Brush *brush)
   BrushGpencilSettings *settings = brush->gpencil_settings;
   float old_hsv_jitter[3] = {
       settings->random_hue, settings->random_saturation, settings->random_value};
+  if (settings->random_hue != 0.0f || settings->random_saturation != 0.0f || settings->random_value != 0.0f) {
+    brush->flag2 |= BRUSH_JITTER_COLOR;
+  }
   copy_v3_v3(brush->hsv_jitter, old_hsv_jitter);
-  brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
-  brush->curve_rand_saturation = BKE_curvemapping_copy(settings->curve_rand_saturation);
-  brush->curve_rand_value = BKE_curvemapping_copy(settings->curve_rand_value);
+  if (brush->curve_rand_hue) {
+    BKE_curvemapping_free_data(brush->curve_rand_hue);
+    BKE_curvemapping_copy_data(brush->curve_rand_hue, settings->curve_rand_hue);
+  }
+  else {
+    brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
+  }
+  if (brush->curve_rand_saturation) {
+    BKE_curvemapping_free_data(brush->curve_rand_saturation);
+    BKE_curvemapping_copy_data(brush->curve_rand_saturation, settings->curve_rand_saturation);
+  }
+  else {
+    brush->curve_rand_saturation = BKE_curvemapping_copy(settings->curve_rand_saturation);
+  }
+  if (brush->curve_rand_value) {
+    BKE_curvemapping_free_data(brush->curve_rand_value);
+    BKE_curvemapping_copy_data(brush->curve_rand_value, settings->curve_rand_value);
+  }
+  else {
+    brush->curve_rand_value = BKE_curvemapping_copy(settings->curve_rand_value);
+  }
+
 }
 
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
