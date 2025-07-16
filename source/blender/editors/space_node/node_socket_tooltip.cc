@@ -98,6 +98,10 @@ class SocketTooltipBuilder {
 
   bool should_show_label()
   {
+    if (this->get_socket_description().value_or("").empty()) {
+      /* Show label when the description is empty so that the tooltip is never empty. */
+      return true;
+    }
     if (socket_.is_output()) {
       return false;
     }
