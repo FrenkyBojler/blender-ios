@@ -885,6 +885,8 @@ static bool read_file_dna(FileData *fd, const char **r_error_message)
         fd->id_deep_hash_offset = DNA_struct_member_offset_by_name_with_alias(
             fd->filesdna, "ID", "IDHash", "deep_hash");
 
+        fd->filesubversion = subversion;
+
         return true;
       }
 
