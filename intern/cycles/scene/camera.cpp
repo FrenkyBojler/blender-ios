@@ -551,10 +551,9 @@ void Camera::device_update_volume(Device * /*device*/, DeviceScene *dscene, Scen
   if (kintegrator->use_volumes) {
     if (camera_type == CAMERA_CUSTOM) {
       kernel_camera.is_inside_volume = 1;
-      LOG_INFO << "Detected camera inside volume.";
+      LOG_INFO << "Considering custom camera to be inside volume.";
     }
-
-    if (not kernel_camera.is_inside_volume) {
+    else {
       BoundBox viewplane_boundbox = viewplane_bounds_get();
 
       /* Parallel object update, with grain size to avoid too much threading overhead
