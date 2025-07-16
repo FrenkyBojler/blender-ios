@@ -1,3 +1,4 @@
 Referenced by commit 569003f70bb, Fix: Apply correct versioning for prior FCurve change
 Referenced by issue #131520, Fix: Apply correct versioning for prior FCurve change
 Referenced by issue #134661, Noise does not introduce animation changes if the scale is exactly 0.1
+Referenced by issue #142106, Critical error when importing animation data from previous versions
