@@ -174,7 +174,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
   uint *edge_users = nullptr;
   int *edge_order = nullptr;
 
-  float(*vert_nors)[3] = nullptr;
+  float (*vert_nors)[3] = nullptr;
   blender::Span<blender::float3> face_normals;
 
   const bool need_face_normals = (smd->flag & MOD_SOLIDIFY_NORMAL_CALC) ||
@@ -338,6 +338,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
   bke::MutableAttributeAccessor result_attributes = result->attributes_for_write();
 
   if (do_shell) {
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, int(verts_num));
     CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, int(verts_num), int(verts_num));
 
@@ -351,6 +352,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
      * If we also copy data here, then this data get overwritten
      * (and allocated memory becomes a memory leak). */
 
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->face_data, &result->face_data, 0, 0, int(faces_num));
     CustomData_copy_data(&mesh->face_data, &result->face_data, 0, int(faces_num), int(faces_num));
     face_offsets.take_front(faces_num).copy_from(mesh->face_offsets().drop_back(1));
@@ -363,6 +365,7 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
     CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, int(verts_num));
     for (i = 0, j = int(verts_num); i < verts_num; i++) {
       if (old_vert_arr[i] != INVALID_UNUSED) {
+        // TODO_MESH_ATTR
         CustomData_copy_data(&mesh->vert_data, &result->vert_data, i, j, 1);
         j++;
       }
@@ -384,7 +387,8 @@ Mesh *MOD_solidify_extrude_modifyMesh(ModifierData *md, const ModifierEvalContex
     }
 
     /* will be created later */
-    CustomData_copy_data(&mesh->corner_data, &result->corner_data, 0, 0, int(loops_num));
+        // TODO_MESH_ATTR
+ CustomData_copy_data(&mesh->corner_data, &result->corner_data, 0, 0, int(loops_num));
     CustomData_copy_data(&mesh->face_data, &result->face_data, 0, 0, int(faces_num));
     face_offsets.take_front(faces_num).copy_from(mesh->face_offsets().drop_back(1));
   }

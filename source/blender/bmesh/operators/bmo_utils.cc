@@ -60,7 +60,8 @@ void bmo_transform_exec(BMesh *bm, BMOperator *op)
     mul_m4_v3(mat, v->co);
 
     if (shape_keys_len != 0) {
-      float(*co_dst)[3] = static_cast<float(*)[3]>(BM_ELEM_CD_GET_VOID_P(v, cd_shape_key_offset));
+      float (*co_dst)[3] = static_cast<float (*)[3]>(
+          BM_ELEM_CD_GET_VOID_P(v, cd_shape_key_offset));
       for (int i = 0; i < shape_keys_len; i++, co_dst++) {
         mul_m4_v3(mat, *co_dst);
       }
@@ -402,7 +403,7 @@ void bmo_smooth_vert_exec(BMesh * /*bm*/, BMOperator *op)
   BMIter iter;
   BMVert *v;
   BMEdge *e;
-  float(*cos)[3] = static_cast<float(*)[3]>(
+  float (*cos)[3] = static_cast<float (*)[3]>(
       MEM_mallocN(sizeof(*cos) * BMO_slot_buffer_len(op->slots_in, "verts"), __func__));
   float *co, *co2, clip_dist = BMO_slot_float_get(op->slots_in, "clip_dist");
   const float fac = BMO_slot_float_get(op->slots_in, "factor");
@@ -546,7 +547,7 @@ static void bm_face_reverse_uvs(BMFace *f, const int cd_loop_uv_offset)
   BMLoop *l;
   int i;
 
-  float(*uvs)[2] = BLI_array_alloca(uvs, f->len);
+  float (*uvs)[2] = BLI_array_alloca(uvs, f->len);
 
   BM_ITER_ELEM_INDEX (l, &iter, f, BM_LOOPS_OF_FACE, i) {
     float *luv = BM_ELEM_CD_GET_FLOAT_P(l, cd_loop_uv_offset);
@@ -583,6 +584,7 @@ static void bmo_get_loop_color_ref(BMesh *bm,
                                    int *r_cd_color_type)
 {
   Mesh me_query = blender::dna::shallow_zero_initialize();
+  // TODO_MESH_ATTR
   CustomData_reset(&me_query.vert_data);
   CustomData_reset(&me_query.edge_data);
   CustomData_reset(&me_query.face_data);

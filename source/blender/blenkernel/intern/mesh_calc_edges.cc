@@ -217,6 +217,7 @@ void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new
   }
 
   /* Free old CustomData and assign new one. */
+  // TODO_MESH_ATTR
   CustomData_free(&mesh.edge_data);
   CustomData_reset(&mesh.edge_data);
   mesh.edges_num = edge_offsets.total_size();

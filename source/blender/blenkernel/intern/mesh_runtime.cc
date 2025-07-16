@@ -490,6 +490,7 @@ bool BKE_mesh_runtime_is_valid(Mesh *mesh_eval)
   Span<int> face_offsets = mesh_eval->face_offsets();
   Span<int> corner_verts = mesh_eval->corner_verts();
   MutableSpan<int> corner_edges = mesh_eval->corner_edges_for_write();
+  // TODO_MESH_ATTR
 
   is_valid &= BKE_mesh_validate_all_customdata(
       &mesh_eval->vert_data,
@@ -509,7 +510,7 @@ bool BKE_mesh_runtime_is_valid(Mesh *mesh_eval)
       CustomData_get_layer_for_write(&mesh_eval->vert_data, CD_MDEFORMVERT, mesh_eval->verts_num));
   is_valid &= BKE_mesh_validate_arrays(
       mesh_eval,
-      reinterpret_cast<float(*)[3]>(positions.data()),
+      reinterpret_cast<float (*)[3]>(positions.data()),
       positions.size(),
       edges.data(),
       edges.size(),

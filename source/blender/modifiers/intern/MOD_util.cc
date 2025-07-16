@@ -86,6 +86,7 @@ void MOD_get_texture_coords(MappingInfoModifierData *dmd,
 
   /* UVs need special handling, since they come from faces */
   if (texmapping == MOD_DISP_MAP_UV) {
+    // TODO_MESH_ATTR
     if (CustomData_has_layer(&mesh->corner_data, CD_PROP_FLOAT2)) {
       const OffsetIndices faces = mesh->faces();
       const Span<int> corner_verts = mesh->corner_verts();
@@ -144,7 +145,7 @@ void MOD_previous_vcos_store(ModifierData *md, const float (*vert_coords)[3])
   while ((md = md->next) && md->type == eModifierType_Armature) {
     ArmatureModifierData *amd = (ArmatureModifierData *)md;
     if (amd->multi && amd->vert_coords_prev == nullptr) {
-      amd->vert_coords_prev = static_cast<float(*)[3]>(MEM_dupallocN(vert_coords));
+      amd->vert_coords_prev = static_cast<float (*)[3]>(MEM_dupallocN(vert_coords));
     }
     else {
       break;

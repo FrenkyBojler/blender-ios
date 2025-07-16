@@ -89,7 +89,7 @@ static void extract_uv_stretch_angle_bm(const MeshRenderData &mr,
     do {
       const int l_index = BM_elem_index_get(l_iter);
 
-      const float(*luv)[2], (*luv_next)[2];
+      const float (*luv)[2], (*luv_next)[2];
       BMLoop *l_next = l_iter->next;
       if (l_iter == BM_FACE_FIRST_LOOP(face)) {
         /* First loop in face. */
@@ -138,7 +138,7 @@ static void extract_uv_stretch_angle_mesh(const MeshRenderData &mr,
   const Span<int> corner_verts = mr.corner_verts;
   const Mesh &mesh = *mr.mesh;
   const bke::AttributeAccessor attributes = mesh.attributes();
-  const StringRef name = CustomData_get_active_layer_name(&mesh.corner_data, CD_PROP_FLOAT2);
+  const StringRef name = mesh.active_uv_map_attribute;
   const VArraySpan uv_map = *attributes.lookup<float2>(name, bke::AttrDomain::Corner);
 
   float auv[2][2], last_auv[2];
@@ -245,6 +245,7 @@ gpu::VertBufPtr extract_edituv_stretch_angle_subdiv(const MeshRenderData &mr,
 
   /* UVs are stored contiguously so we need to compute the offset in the UVs buffer for the active
    * UV layer. */
+  // TODO_MESH_ATTR
   const CustomData *cd_ldata = (mr.extract_type == MeshExtractType::Mesh) ? &mr.mesh->corner_data :
                                                                             &mr.bm->ldata;
 

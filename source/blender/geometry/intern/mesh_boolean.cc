@@ -415,6 +415,7 @@ static void copy_vert_attributes(Mesh *dest_mesh,
     /* Not all layers were merged in target: some are marked CD_FLAG_NOCOPY
      * and some are not in the CD_MASK_MESH.vdata. */
     if (target_layer_i != -1) {
+      // TODO_MESH_ATTR
       CustomData_copy_data_layer(
           source_cd, target_cd, source_layer_i, target_layer_i, index_in_orig_me, mv_index, 1);
     }
@@ -436,6 +437,7 @@ static void copy_face_attributes(Mesh *dest_mesh,
     const char *name = source_cd->layers[source_layer_i].name;
     int target_layer_i = CustomData_get_named_layer_index(target_cd, ty, name);
     if (target_layer_i != -1) {
+      // TODO_MESH_ATTR
       CustomData_copy_data_layer(
           source_cd, target_cd, source_layer_i, target_layer_i, index_in_orig_me, face_index, 1);
     }
@@ -461,6 +463,7 @@ static void copy_edge_attributes(Mesh *dest_mesh,
                                  int medge_index,
                                  int index_in_orig_me)
 {
+  // TODO_MESH_ATTR
   CustomData *target_cd = &dest_mesh->edge_data;
   const CustomData *source_cd = &orig_me->edge_data;
   for (int source_layer_i = 0; source_layer_i < source_cd->totlayer; ++source_layer_i) {
@@ -602,7 +605,7 @@ static void copy_or_interp_loop_attributes(Mesh *dest_mesh,
   int norig = fill_orig_loops(f, orig_face, orig_me, orig_me_index, mim, orig_loops);
   /* We may need these arrays if we have to interpolate Loop attributes rather than just copy.
    * Right now, trying Array<float[2]> complains, so declare cos_2d a different way. */
-  float(*cos_2d)[2];
+  float (*cos_2d)[2];
   Array<float> weights;
   Array<const void *> src_blocks_ofs;
   float axis_mat[3][3];
@@ -612,7 +615,7 @@ static void copy_or_interp_loop_attributes(Mesh *dest_mesh,
      * At this point we cannot yet calculate the interpolation weights, as they depend on
      * the coordinate where interpolation is to happen, but we can allocate the needed arrays,
      * so they don't have to be allocated per-layer. */
-    cos_2d = (float(*)[2])BLI_array_alloca(cos_2d, orig_face.size());
+    cos_2d = (float (*)[2])BLI_array_alloca(cos_2d, orig_face.size());
     weights = Array<float>(orig_face.size());
     src_blocks_ofs = Array<const void *>(orig_face.size());
     get_poly2d_cos(orig_me, orig_face, cos_2d, mim.to_target_transform[orig_me_index], axis_mat);
@@ -643,6 +646,7 @@ static void copy_or_interp_loop_attributes(Mesh *dest_mesh,
         continue;
       }
       if (orig_loop_index != -1) {
+        // TODO_MESH_ATTR
         CustomData_copy_data_layer(
             source_cd, target_cd, source_layer_i, target_layer_i, orig_loop_index, loop_index, 1);
       }
@@ -666,6 +670,7 @@ static void copy_or_interp_loop_attributes(Mesh *dest_mesh,
         void *dst_layer = CustomData_get_layer_n_for_write(
             target_cd, ty, target_layer_type_index, dest_mesh->corners_num);
         void *dst_block_ofs = POINTER_OFFSET(dst_layer, size * loop_index);
+        // TODO_MESH_ATTR
         CustomData_bmesh_interp_n(target_cd,
                                   src_blocks_ofs.data(),
                                   weights.data(),
@@ -689,6 +694,7 @@ static void merge_vertex_loop_face_customdata_layers(Mesh *target, MeshesToIMesh
   for (int mesh_index = 1; mesh_index < mim.meshes.size(); ++mesh_index) {
     const Mesh *mesh = mim.meshes[mesh_index];
     if (mesh->verts_num) {
+      // TODO_MESH_ATTR
       CustomData_merge_layout(&mesh->vert_data,
                               &target->vert_data,
                               CD_MASK_MESH.vmask,
@@ -696,6 +702,7 @@ static void merge_vertex_loop_face_customdata_layers(Mesh *target, MeshesToIMesh
                               target->verts_num);
     }
     if (mesh->corners_num) {
+      // TODO_MESH_ATTR
       CustomData_merge_layout(&mesh->corner_data,
                               &target->corner_data,
                               CD_MASK_MESH.lmask,
@@ -703,6 +710,7 @@ static void merge_vertex_loop_face_customdata_layers(Mesh *target, MeshesToIMesh
                               target->corners_num);
     }
     if (mesh->faces_num) {
+      // TODO_MESH_ATTR
       CustomData_merge_layout(&mesh->face_data,
                               &target->face_data,
                               CD_MASK_MESH.pmask,
@@ -717,6 +725,7 @@ static void merge_edge_customdata_layers(Mesh *target, MeshesToIMeshInfo &mim)
   for (int mesh_index = 0; mesh_index < mim.meshes.size(); ++mesh_index) {
     const Mesh *mesh = mim.meshes[mesh_index];
     if (mesh->edges_num) {
+      // TODO_MESH_ATTR
       CustomData_merge_layout(&mesh->edge_data,
                               &target->edge_data,
                               CD_MASK_MESH.emask,

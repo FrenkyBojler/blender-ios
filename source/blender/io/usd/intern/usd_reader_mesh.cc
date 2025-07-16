@@ -831,6 +831,7 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
   }
 
   if (!active_uv_set_name.IsEmpty()) {
+    // TODO_MESH_ATTR
     int layer_index = CustomData_get_named_layer_index(
         &mesh->corner_data, CD_PROP_FLOAT2, active_uv_set_name.GetText());
     if (layer_index > -1) {

@@ -966,6 +966,10 @@ static bool mesh_validate_customdata(CustomData *data,
 
   return is_valid;
 }
+// TODO_MESH_ATTR
+// TODO_MESH_ATTR
+// TODO_MESH_ATTR
+// TODO_MESH_ATTR
 
 bool BKE_mesh_validate_all_customdata(CustomData *vert_data,
                                       const uint verts_num,
@@ -1050,7 +1054,7 @@ bool BKE_mesh_validate(Mesh *mesh, const bool do_verbose, const bool cddata_chec
       CustomData_get_layer_for_write(&mesh->vert_data, CD_MDEFORMVERT, mesh->verts_num));
   BKE_mesh_validate_arrays(
       mesh,
-      reinterpret_cast<float(*)[3]>(positions.data()),
+      reinterpret_cast<float (*)[3]>(positions.data()),
       positions.size(),
       edges.data(),
       edges.size(),
@@ -1107,7 +1111,7 @@ bool BKE_mesh_is_valid(Mesh *mesh)
       CustomData_get_layer_for_write(&mesh->vert_data, CD_MDEFORMVERT, mesh->verts_num));
   is_valid &= BKE_mesh_validate_arrays(
       mesh,
-      reinterpret_cast<float(*)[3]>(positions.data()),
+      reinterpret_cast<float (*)[3]>(positions.data()),
       positions.size(),
       edges.data(),
       edges.size(),
@@ -1193,6 +1197,7 @@ void strip_loose_faces_corners(Mesh *mesh, blender::BitSpan faces_to_remove)
     if (size >= 3 && !invalid) {
       if (a != b) {
         face_offsets[b] = face_offsets[a];
+        // TODO_MESH_ATTR
         CustomData_copy_data(&mesh->face_data, &mesh->face_data, a, b, 1);
       }
       b++;

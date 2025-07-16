@@ -166,6 +166,7 @@ struct NodeGeometry {
    * geometry pushes happened in the undo stack. */
   bool is_initialized;
 
+  bke::AttributeStorage attribute_storage;
   CustomData vert_data;
   CustomData edge_data;
   CustomData corner_data;
@@ -678,6 +679,7 @@ static void store_geometry_data(NodeGeometry *geometry, const Object &object)
   BLI_assert(!geometry->is_initialized);
   geometry->is_initialized = true;
 
+  geometry->attribute_storage = mesh->attribute_storage.wrap();
   CustomData_init_from(
       &mesh->vert_data, &geometry->vert_data, CD_MASK_MESH.vmask, mesh->verts_num);
   CustomData_init_from(
@@ -709,6 +711,7 @@ static void restore_geometry_data(const NodeGeometry *geometry, Mesh *mesh)
   mesh->faces_num = geometry->faces_num;
   mesh->totface_legacy = 0;
 
+  mesh->attribute_storage = geometry->attribute_storage.wrap();
   CustomData_init_from(
       &geometry->vert_data, &mesh->vert_data, CD_MASK_MESH.vmask, geometry->totvert);
   CustomData_init_from(

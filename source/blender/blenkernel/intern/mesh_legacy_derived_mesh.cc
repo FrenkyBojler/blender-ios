@@ -14,11 +14,11 @@
 
 static float *dm_getVertArray(DerivedMesh *dm)
 {
-  float(*positions)[3] = (float(*)[3])CustomData_get_layer_named_for_write(
+  float (*positions)[3] = (float (*)[3])CustomData_get_layer_named_for_write(
       &dm->vertData, CD_PROP_FLOAT3, "position", dm->getNumVerts(dm));
 
   if (!positions) {
-    positions = (float(*)[3])CustomData_add_layer_named(
+    positions = (float (*)[3])CustomData_add_layer_named(
         &dm->vertData, CD_PROP_FLOAT3, CD_SET_DEFAULT, dm->getNumVerts(dm), "position");
     CustomData_set_layer_flag(&dm->vertData, CD_PROP_FLOAT3, CD_FLAG_TEMPORARY);
     dm->copyVertArray(dm, positions);
@@ -325,6 +325,7 @@ static DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh, const CustomData_MeshMasks *ma
           mesh->corners_num,
           mesh->faces_num);
 
+  // TODO_MESH_ATTR
   CustomData_merge(&mesh->vert_data, &dm->vertData, cddata_masks.vmask, mesh->verts_num);
   CustomData_merge(&mesh->edge_data, &dm->edgeData, cddata_masks.emask, mesh->edges_num);
   CustomData_merge(&mesh->fdata_legacy,
@@ -334,7 +335,7 @@ static DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh, const CustomData_MeshMasks *ma
   CustomData_merge(&mesh->corner_data, &dm->loopData, cddata_masks.lmask, mesh->corners_num);
   CustomData_merge(&mesh->face_data, &dm->polyData, cddata_masks.pmask, mesh->faces_num);
 
-  cddm->vert_positions = static_cast<float(*)[3]>(CustomData_get_layer_named_for_write(
+  cddm->vert_positions = static_cast<float (*)[3]>(CustomData_get_layer_named_for_write(
       &dm->vertData, CD_PROP_FLOAT3, "position", mesh->verts_num));
   cddm->medge = static_cast<blender::int2 *>(CustomData_get_layer_named_for_write(
       &dm->edgeData, CD_PROP_INT32_2D, ".edge_verts", mesh->edges_num));

@@ -517,6 +517,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   wn_data.faces = faces;
   wn_data.face_normals = mesh->face_normals_true();
   wn_data.sharp_faces = *attributes.lookup<bool>("sharp_face", bke::AttrDomain::Face);
+  // TODO_MESH_ATTR
   wn_data.face_strength = static_cast<const int *>(CustomData_get_layer_named(
       &result->face_data, CD_PROP_INT32, MOD_WEIGHTEDNORMALS_FACEWEIGHT_CDLAYER_ID));
 

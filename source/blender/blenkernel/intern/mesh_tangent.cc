@@ -126,7 +126,7 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
   using namespace blender;
   using namespace blender::bke;
   if (!uvmap) {
-    uvmap = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2);
+    uvmap = mesh->active_uv_map_attribute;
   }
 
   const AttributeAccessor attributes = mesh->attributes();
@@ -140,12 +140,12 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
   }
 
   BKE_mesh_calc_loop_tangent_single_ex(
-      reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data()),
+      reinterpret_cast<const float (*)[3]>(mesh->vert_positions().data()),
       mesh->verts_num,
       mesh->corner_verts().data(),
       r_looptangents,
-      reinterpret_cast<const float(*)[3]>(mesh->corner_normals().data()),
-      reinterpret_cast<const float(*)[2]>(uv_map.data()),
+      reinterpret_cast<const float (*)[3]>(mesh->corner_normals().data()),
+      reinterpret_cast<const float (*)[2]>(uv_map.data()),
       mesh->corners_num,
       mesh->faces(),
       reports);
@@ -548,7 +548,7 @@ void BKE_mesh_calc_loop_tangent_ex(const Span<float3> vert_positions,
           tangent_mask_curr |= short(1 << (uv_ind - uv_start));
         }
 
-        mesh2tangent->tangent = static_cast<float(*)[4]>(loopdata_out->layers[index].data);
+        mesh2tangent->tangent = static_cast<float (*)[4]>(loopdata_out->layers[index].data);
         BLI_task_pool_push(task_pool, DM_calc_loop_tangents_thread, mesh2tangent, false, nullptr);
       }
 
@@ -570,6 +570,7 @@ void BKE_mesh_calc_loop_tangent_ex(const Span<float3> vert_positions,
     *tangent_mask_curr_p = tangent_mask_curr;
 
     /* Update active layer index */
+    // TODO_MESH_ATTR
     if (const char *active_uv_name = CustomData_get_active_layer_name(loopdata, CD_PROP_FLOAT2)) {
       int tan_index = CustomData_get_named_layer_index(loopdata_out, CD_TANGENT, active_uv_name);
       if (tan_index != -1) {

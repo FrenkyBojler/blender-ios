@@ -241,7 +241,7 @@ static void attr_create_uv_map(Scene *scene,
 {
   const blender::Span<blender::int3> corner_tris = b_mesh.corner_tris();
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
-  const ustring render_name(CustomData_get_render_layer_name(&b_mesh.corner_data, CD_PROP_FLOAT2));
+  const ustring render_name(b_mesh.default_uv_map_attribute);
   if (blender_uv_names.empty()) {
     return;
   }
@@ -297,7 +297,7 @@ static void attr_create_subd_uv_map(Scene *scene,
   }
 
   const blender::bke::AttributeAccessor b_attributes = b_mesh.attributes();
-  const ustring render_name(CustomData_get_render_layer_name(&b_mesh.corner_data, CD_PROP_FLOAT2));
+  const ustring render_name(b_mesh.default_uv_map_attribute);
   for (const ustring &uv_name : blender_uv_names) {
     const bool active_render = uv_name == render_name;
     const AttributeStandard uv_std = (active_render) ? ATTR_STD_UV : ATTR_STD_NONE;
@@ -630,7 +630,7 @@ static void create_mesh(Scene *scene,
   const bool need_default_tangent = (subdivision == false) && (blender_uv_names.empty()) &&
                                     (mesh->need_attribute(scene, ATTR_STD_UV_TANGENT));
   if (mesh->need_attribute(scene, ATTR_STD_GENERATED) || need_default_tangent) {
-    const float(*orco)[3] = static_cast<const float(*)[3]>(
+    const float (*orco)[3] = static_cast<const float (*)[3]>(
         CustomData_get_layer(&b_mesh.vert_data, CD_ORCO));
     Attribute *attr = attributes.add(ATTR_STD_GENERATED);
 

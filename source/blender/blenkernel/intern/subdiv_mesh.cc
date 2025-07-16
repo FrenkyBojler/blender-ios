@@ -115,9 +115,9 @@ static void subdiv_mesh_ctx_cache_custom_data_layers(SubdivMeshContext *ctx)
   /* UV layers interpolation. */
   subdiv_mesh_ctx_cache_uv_layers(ctx);
   /* Orco interpolation. */
-  ctx->orco = static_cast<float(*)[3]>(
+  ctx->orco = static_cast<float (*)[3]>(
       CustomData_get_layer_for_write(&subdiv_mesh->vert_data, CD_ORCO, subdiv_mesh->verts_num));
-  ctx->cloth_orco = static_cast<float(*)[3]>(CustomData_get_layer_for_write(
+  ctx->cloth_orco = static_cast<float (*)[3]>(CustomData_get_layer_for_write(
       &subdiv_mesh->vert_data, CD_CLOTH_ORCO, subdiv_mesh->verts_num));
 }
 
@@ -391,6 +391,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
     /* Nothing to do, all indices and data is already assigned. */
   }
   else {
+    // TODO_MESH_ATTR
     const CustomData *corner_data = &ctx->coarse_corner_data_interp;
     LoopsOfPtex loops_of_ptex;
     loops_of_ptex_get(&loops_of_ptex, coarse_face, corner);
@@ -410,6 +411,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
                                   (first_loop_index - base_loop_index + 1) % coarse_face.size();
     const int first_indices[2] = {first_loop_index, second_loop_index};
     const int last_indices[2] = {loops_of_ptex.last_loop, loops_of_ptex.first_loop};
+    // TODO_MESH_ATTR
     CustomData_interp(corner_data,
                       &loop_interpolation->corner_data_storage,
                       first_indices,
@@ -417,6 +419,7 @@ static void loop_interpolation_from_corner(const SubdivMeshContext *ctx,
                       nullptr,
                       2,
                       1);
+    // TODO_MESH_ATTR
     CustomData_interp(corner_data,
                       &loop_interpolation->corner_data_storage,
                       last_indices,
@@ -547,6 +550,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   Mesh &subdiv_mesh = *subdiv_context->subdiv_mesh;
   BKE_mesh_copy_parameters_for_eval(subdiv_context->subdiv_mesh, &coarse_mesh);
 
+  // TODO_MESH_ATTR
   CustomData_free(&subdiv_mesh.vert_data);
   CustomData_init_layout_from(
       &coarse_mesh.vert_data, &subdiv_mesh.vert_data, mask.vmask, CD_SET_DEFAULT, num_vertices);
@@ -561,6 +565,7 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   }
 
   /* Create corner data for interpolation without topology attributes. */
+  // TODO_MESH_ATTR
   CustomData_init_from(&coarse_mesh.corner_data,
                        &subdiv_context->coarse_corner_data_interp,
                        mask.lmask,
@@ -568,7 +573,8 @@ static bool subdiv_mesh_topology_info(const ForeachContext *foreach_context,
   CustomData_free_layer_named(&subdiv_context->coarse_corner_data_interp, ".corner_vert");
   CustomData_free_layer_named(&subdiv_context->coarse_corner_data_interp, ".corner_edge");
   CustomData_free(&subdiv_mesh.corner_data);
-  CustomData_init_layout_from(&subdiv_context->coarse_corner_data_interp,
+                  // TODO_MESH_ATTR
+ CustomData_init_layout_from(&subdiv_context->coarse_corner_data_interp,
                               &subdiv_mesh.corner_data,
                               mask.lmask,
                               CD_SET_DEFAULT,
@@ -599,6 +605,7 @@ static void subdiv_vertex_data_copy(const SubdivMeshContext *ctx,
                                     const int subdiv_vertex_index)
 {
   const Mesh *coarse_mesh = ctx->coarse_mesh;
+  // TODO_MESH_ATTR
   CustomData_copy_data(&coarse_mesh->vert_data,
                        &ctx->subdiv_mesh->vert_data,
                        coarse_vertex_index,
@@ -613,6 +620,7 @@ static void subdiv_vertex_data_interpolate(const SubdivMeshContext *ctx,
                                            const float v)
 {
   const float weights[4] = {(1.0f - u) * (1.0f - v), u * (1.0f - v), u * v, (1.0f - u) * v};
+  // TODO_MESH_ATTR
   CustomData_interp(vertex_interpolation->vertex_data,
                     &ctx->subdiv_mesh->vert_data,
                     vertex_interpolation->vertex_indices,
@@ -848,6 +856,7 @@ static void subdiv_copy_edge_data(SubdivMeshContext *ctx,
     }
     return;
   }
+  // TODO_MESH_ATTR
   CustomData_copy_data(&ctx->coarse_mesh->edge_data,
                        &ctx->subdiv_mesh->edge_data,
                        coarse_edge_index,
@@ -885,6 +894,7 @@ static void subdiv_interpolate_corner_data(const SubdivMeshContext *ctx,
                                            const float v)
 {
   const float weights[4] = {(1.0f - u) * (1.0f - v), u * (1.0f - v), u * v, (1.0f - u) * v};
+  // TODO_MESH_ATTR
   CustomData_interp(loop_interpolation->corner_data,
                     &ctx->subdiv_mesh->corner_data,
                     loop_interpolation->loop_indices,
@@ -1199,14 +1209,16 @@ Mesh *subdiv_to_mesh(Subdiv *subdiv, const ToMeshSettings *settings, const Mesh 
   stats_end(&subdiv->stats, SUBDIV_STATS_SUBDIV_TO_MESH_GEOMETRY);
   Mesh *result = subdiv_context.subdiv_mesh;
 
-  CustomData_add_layer_named_with_data(&result->corner_data,
+                  // TODO_MESH_ATTR
+ CustomData_add_layer_named_with_data(&result->corner_data,
                                        CD_PROP_INT32,
                                        subdiv_context.subdiv_corner_verts,
                                        result->corners_num,
                                        ".corner_vert",
                                        nullptr);
   subdiv_context.subdiv_corner_verts = nullptr;
-  CustomData_add_layer_named_with_data(&result->corner_data,
+                  // TODO_MESH_ATTR
+ CustomData_add_layer_named_with_data(&result->corner_data,
                                        CD_PROP_INT32,
                                        subdiv_context.subdiv_corner_edges,
                                        result->corners_num,

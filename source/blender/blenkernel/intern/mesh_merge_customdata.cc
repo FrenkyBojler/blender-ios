@@ -102,6 +102,7 @@ void BKE_mesh_merge_customdata_for_apply_modifier(Mesh *mesh)
   if (mesh->corners_num == 0) {
     return;
   }
+  // TODO_MESH_ATTR
   const int mloopuv_layers_num = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
   if (mloopuv_layers_num == 0) {
     return;
@@ -112,6 +113,7 @@ void BKE_mesh_merge_customdata_for_apply_modifier(Mesh *mesh)
   Vector<float2 *> mloopuv_layers;
   mloopuv_layers.reserve(mloopuv_layers_num);
   for (int a = 0; a < mloopuv_layers_num; a++) {
+    // TODO_MESH_ATTR
     float2 *mloopuv = static_cast<float2 *>(CustomData_get_layer_n_for_write(
         &mesh->corner_data, CD_PROP_FLOAT2, a, mesh->corners_num));
     mloopuv_layers.append_unchecked(mloopuv);

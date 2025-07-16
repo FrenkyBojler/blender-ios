@@ -196,8 +196,8 @@ void separate_geometry(bke::GeometrySet &geometry_set,
           *mesh, selection, domain, mode, attribute_filter);
       if (dst_mesh) {
         if (*dst_mesh) {
-          const char *active_layer = CustomData_get_active_layer_name(&mesh->corner_data,
-                                                                      CD_PROP_FLOAT2);
+          const char *active_layer = mesh->active_uv_map_attribute;
+          // TODO_MESH_ATTR
           if (active_layer != nullptr) {
             int id = CustomData_get_named_layer(
                 &((*dst_mesh)->corner_data), CD_PROP_FLOAT2, active_layer);
@@ -206,8 +206,7 @@ void separate_geometry(bke::GeometrySet &geometry_set,
             }
           }
 
-          const char *render_layer = CustomData_get_render_layer_name(&mesh->corner_data,
-                                                                      CD_PROP_FLOAT2);
+          const char *render_layer = mesh->default_uv_map_attribute;
           if (render_layer != nullptr) {
             int id = CustomData_get_named_layer(
                 &((*dst_mesh)->corner_data), CD_PROP_FLOAT2, render_layer);

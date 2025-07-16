@@ -1240,6 +1240,7 @@ void uvedit_select_prepare_custom_data(const Scene *scene, BMesh *bm)
   const ToolSettings *ts = scene->toolsettings;
   BLI_assert((ts->uv_flag & UV_FLAG_SYNC_SELECT) == 0);
   UNUSED_VARS_NDEBUG(ts);
+  // TODO_MESH_ATTR
   const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
   BM_uv_map_attr_vert_select_ensure(bm, active_uv_name);
   BM_uv_map_attr_edge_select_ensure(bm, active_uv_name);
@@ -1625,6 +1626,7 @@ static int uv_select_edgeloop(Scene *scene, Object *obedit, UvNearestHit *hit, c
   /* NOTE: this is a special case, even when sync select is enabled,
    * the flags are used then flushed to the vertices.
    * So these need to be ensured even though the layers aren't used afterwards. */
+  // TODO_MESH_ATTR
   const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
   BM_uv_map_attr_vert_select_ensure(bm, active_uv_name);
   BM_uv_map_attr_edge_select_ensure(bm, active_uv_name);
@@ -3703,6 +3705,7 @@ static wmOperatorStatus uv_box_select_exec(bContext *C, wmOperator *op)
     else {
       uvedit_select_prepare_custom_data(scene, bm);
       if (pinned) {
+        // TODO_MESH_ATTR
         const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
         BM_uv_map_attr_pin_ensure(bm, active_uv_name);
       }
@@ -4409,7 +4412,8 @@ static wmOperatorStatus uv_select_pinned_exec(bContext *C, wmOperator *op)
   for (Object *obedit : objects) {
     BMesh *bm = BKE_editmesh_from_object(obedit)->bm;
 
-    const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
+       // TODO_MESH_ATTR
+  const char *active_uv_name = CustomData_get_active_layer_name(&bm->ldata, CD_PROP_FLOAT2);
     if (!BM_uv_map_attr_pin_exists(bm, active_uv_name)) {
       continue;
     }
@@ -4578,7 +4582,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
   int data_index = 0;
 
   int face_len_alloc = 3;
-  float(*uv_verts)[2] = static_cast<float(*)[2]>(
+  float (*uv_verts)[2] = static_cast<float (*)[2]>(
       MEM_mallocN(sizeof(*uv_verts) * face_len_alloc, "UvOverlapCoords"));
   uint(*indices)[3] = static_cast<uint(*)[3]>(
       MEM_mallocN(sizeof(*indices) * (face_len_alloc - 2), "UvOverlapTris"));
@@ -4609,7 +4613,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
       if (face_len_alloc < face_len) {
         MEM_freeN(uv_verts);
         MEM_freeN(indices);
-        uv_verts = static_cast<float(*)[2]>(
+        uv_verts = static_cast<float (*)[2]>(
             MEM_mallocN(sizeof(*uv_verts) * face_len, "UvOverlapCoords"));
         indices = static_cast<uint(*)[3]>(
             MEM_mallocN(sizeof(*indices) * tri_len, "UvOverlapTris"));
@@ -4693,6 +4697,7 @@ static wmOperatorStatus uv_select_overlap(bContext *C, const bool extend)
         /* Pass. */
       }
       else {
+        // TODO_MESH_ATTR
         const char *uv_a_name = CustomData_get_active_layer_name(&bm_a->ldata, CD_PROP_FLOAT2);
         const char *uv_b_name = CustomData_get_active_layer_name(&bm_b->ldata, CD_PROP_FLOAT2);
         BM_uv_map_attr_vert_select_ensure(bm_a, uv_a_name);

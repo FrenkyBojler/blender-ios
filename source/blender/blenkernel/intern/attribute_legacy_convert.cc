@@ -238,6 +238,7 @@ static void convert_storage_to_customdata(
 
 void mesh_convert_storage_to_customdata(Mesh &mesh)
 {
+  // TODO_MESH_ATTR
   convert_storage_to_customdata(mesh.attribute_storage.wrap(),
                                 {{AttrDomain::Point, {mesh.vert_data, mesh.verts_num}},
                                  {AttrDomain::Edge, {mesh.edge_data, mesh.edges_num}},

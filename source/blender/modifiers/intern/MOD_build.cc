@@ -196,6 +196,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   GHASH_ITER (gh_iter, vertHash) {
     int oldIndex = POINTER_AS_INT(BLI_ghashIterator_getKey(&gh_iter));
     int newIndex = POINTER_AS_INT(BLI_ghashIterator_getValue(&gh_iter));
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->vert_data, &result->vert_data, oldIndex, newIndex, 1);
   }
 
@@ -211,6 +212,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     source[0] = POINTER_AS_INT(BLI_ghash_lookup(vertHash, POINTER_FROM_INT(source[0])));
     source[1] = POINTER_AS_INT(BLI_ghash_lookup(vertHash, POINTER_FROM_INT(source[1])));
 
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->edge_data, &result->edge_data, oldIndex, i, 1);
     *dest = source;
   }
@@ -221,8 +223,10 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     const blender::IndexRange src_face = faces_src[faceMap[i]];
     result_face_offsets[i] = k;
 
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->face_data, &result->face_data, faceMap[i], i, 1);
 
+    // TODO_MESH_ATTR
     CustomData_copy_data(
         &mesh->corner_data, &result->corner_data, src_face.start(), k, src_face.size());
 

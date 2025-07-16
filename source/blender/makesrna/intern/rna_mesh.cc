@@ -1641,6 +1641,7 @@ static bool get_uv_index_and_layer(const PointerRNA *ptr,
   const blender::float2 *uv_coord = static_cast<const blender::float2 *>(ptr->data);
 
   /* We don't know from which attribute the RNA pointer is from, so we need to scan them all. */
+  // TODO_MESH_ATTR
   const int uv_layers_num = CustomData_number_of_layers(&mesh->corner_data, CD_PROP_FLOAT2);
   for (int layer_i = 0; layer_i < uv_layers_num; layer_i++) {
     const blender::float2 *layer_data = static_cast<const blender::float2 *>(
@@ -1744,6 +1745,7 @@ static void rna_MeshUVLoop_uv_set(PointerRNA *ptr, const float *value)
 
 static std::optional<std::string> rna_MeshLoopColorLayer_path(const PointerRNA *ptr)
 {
+  // TODO_MESH_ATTR
   const CustomDataLayer *cdl = static_cast<const CustomDataLayer *>(ptr->data);
   char name_esc[sizeof(cdl->name) * 2];
   BLI_str_escape(name_esc, cdl->name, sizeof(name_esc));

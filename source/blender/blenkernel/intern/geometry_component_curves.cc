@@ -12,8 +12,6 @@
 #include "BKE_geometry_set.hh"
 #include "BKE_lib_id.hh"
 
-#include "attribute_access_intern.hh"
-
 namespace blender::bke {
 
 /* -------------------------------------------------------------------- */

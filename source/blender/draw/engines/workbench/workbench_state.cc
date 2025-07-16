@@ -264,6 +264,7 @@ static const CustomData *get_loop_custom_data(const Mesh *mesh)
     BLI_assert(mesh->runtime->edit_mesh->bm != nullptr);
     return &mesh->runtime->edit_mesh->bm->ldata;
   }
+  // TODO_MESH_ATTR
   return &mesh->corner_data;
 }
 
@@ -274,6 +275,7 @@ static const CustomData *get_vert_custom_data(const Mesh *mesh)
     BLI_assert(mesh->runtime->edit_mesh->bm != nullptr);
     return &mesh->runtime->edit_mesh->bm->vdata;
   }
+  // TODO_MESH_ATTR
   return &mesh->vert_data;
 }
 
@@ -299,6 +301,7 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
     const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
     const CustomData *cd_vdata = get_vert_custom_data(&mesh);
     const CustomData *cd_ldata = get_loop_custom_data(&mesh);
+    // TODO_MESH_ATTR
     return CustomData_has_layer(cd_vdata, CD_PROP_COLOR) ||
            CustomData_has_layer(cd_vdata, CD_PROP_BYTE_COLOR) ||
            CustomData_has_layer(cd_ldata, CD_PROP_COLOR) ||
@@ -311,6 +314,7 @@ ObjectState::ObjectState(const DRWContext *draw_ctx,
     }
     const Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
     const CustomData *cd_ldata = get_loop_custom_data(&mesh);
+    // TODO_MESH_ATTR
     return CustomData_has_layer(cd_ldata, CD_PROP_FLOAT2);
   };
 

@@ -75,6 +75,8 @@
 
 #include "BLO_read_write.hh"
 
+#include "attribute_storage_access.hh"
+
 /** Using STACK_FIXED_DEPTH to keep the implementation in line with `pbvh.cc`. */
 #define STACK_FIXED_DEPTH 100
 
@@ -314,23 +316,6 @@ static void mesh_blend_write(BlendWriter *writer, ID *id, const void *id_address
   mesh->mface = nullptr;
   mesh->totface_legacy = 0;
   mesh->fdata_legacy = CustomData{};
-
-  /* Convert from the format still used at runtime (flags on #CustomDataLayer) to the format
-   * reserved for future runtime use (names stored on #Mesh). */
-  if (const char *name = CustomData_get_active_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    mesh->active_uv_map_attribute = const_cast<char *>(
-        scope.allocator().copy_string(name).c_str());
-  }
-  else {
-    mesh->active_uv_map_attribute = nullptr;
-  }
-  if (const char *name = CustomData_get_render_layer_name(&mesh->corner_data, CD_PROP_FLOAT2)) {
-    mesh->default_uv_map_attribute = const_cast<char *>(
-        scope.allocator().copy_string(name).c_str());
-  }
-  else {
-    mesh->default_uv_map_attribute = nullptr;
-  }
 
   /* Do not store actual geometry data in case this is a library override ID. */
   if (ID_IS_OVERRIDE_LIBRARY(mesh) && !is_undo) {
@@ -1071,28 +1056,32 @@ void BKE_mesh_face_offsets_ensure_alloc(Mesh *mesh)
 
 Span<float3> Mesh::vert_positions() const
 {
-  return {static_cast<const float3 *>(
-              CustomData_get_layer_named(&this->vert_data, CD_PROP_FLOAT3, "position")),
-          this->verts_num};
+  return blender::bke::get_span_attribute<float3>(this->attribute_storage.wrap(),
+                                                  blender::bke::AttrDomain::Point,
+                                                  "position",
+                                                  this->verts_num);
 }
 MutableSpan<float3> Mesh::vert_positions_for_write()
 {
-  return {static_cast<float3 *>(CustomData_get_layer_named_for_write(
-              &this->vert_data, CD_PROP_FLOAT3, "position", this->verts_num)),
-          this->verts_num};
+  return blender::bke::get_mutable_attribute<float3>(this->attribute_storage.wrap(),
+                                                     blender::bke::AttrDomain::Point,
+                                                     "position",
+                                                     this->verts_num);
 }
 
 Span<int2> Mesh::edges() const
 {
-  return {static_cast<const int2 *>(
-              CustomData_get_layer_named(&this->edge_data, CD_PROP_INT32_2D, ".edge_verts")),
-          this->edges_num};
+  return blender::bke::get_span_attribute<int2>(this->attribute_storage.wrap(),
+                                                blender::bke::AttrDomain::Edge,
+                                                ".edge_verts",
+                                                this->edges_num);
 }
 MutableSpan<int2> Mesh::edges_for_write()
 {
-  return {static_cast<int2 *>(CustomData_get_layer_named_for_write(
-              &this->edge_data, CD_PROP_INT32_2D, ".edge_verts", this->edges_num)),
-          this->edges_num};
+  return blender::bke::get_mutable_attribute<int2>(this->attribute_storage.wrap(),
+                                                   blender::bke::AttrDomain::Edge,
+                                                   ".edge_verts",
+                                                   this->edges_num);
 }
 
 OffsetIndices<int> Mesh::faces() const
@@ -1118,28 +1107,32 @@ MutableSpan<int> Mesh::face_offsets_for_write()
 
 Span<int> Mesh::corner_verts() const
 {
-  return {static_cast<const int *>(
-              CustomData_get_layer_named(&this->corner_data, CD_PROP_INT32, ".corner_vert")),
-          this->corners_num};
+  return blender::bke::get_span_attribute<int>(this->attribute_storage.wrap(),
+                                               blender::bke::AttrDomain::Corner,
+                                               ".corner_vert",
+                                               this->corners_num);
 }
 MutableSpan<int> Mesh::corner_verts_for_write()
 {
-  return {static_cast<int *>(CustomData_get_layer_named_for_write(
-              &this->corner_data, CD_PROP_INT32, ".corner_vert", this->corners_num)),
-          this->corners_num};
+  return blender::bke::get_mutable_attribute<int>(this->attribute_storage.wrap(),
+                                                  blender::bke::AttrDomain::Corner,
+                                                  ".corner_vert",
+                                                  this->corners_num);
 }
 
 Span<int> Mesh::corner_edges() const
 {
-  return {static_cast<const int *>(
-              CustomData_get_layer_named(&this->corner_data, CD_PROP_INT32, ".corner_edge")),
-          this->corners_num};
+  return blender::bke::get_span_attribute<int>(this->attribute_storage.wrap(),
+                                               blender::bke::AttrDomain::Corner,
+                                               ".corner_edge",
+                                               this->corners_num);
 }
 MutableSpan<int> Mesh::corner_edges_for_write()
 {
-  return {static_cast<int *>(CustomData_get_layer_named_for_write(
-              &this->corner_data, CD_PROP_INT32, ".corner_edge", this->corners_num)),
-          this->corners_num};
+  return blender::bke::get_mutable_attribute<int>(this->attribute_storage.wrap(),
+                                                  blender::bke::AttrDomain::Corner,
+                                                  ".corner_edge",
+                                                  this->corners_num);
 }
 
 Span<MDeformVert> Mesh::deform_verts() const
@@ -1167,6 +1160,7 @@ void Mesh::count_memory(blender::MemoryCounter &memory) const
 {
   memory.add_shared(this->runtime->face_offsets_sharing_info,
                     this->face_offsets().size_in_bytes());
+  this->attribute_storage.wrap().count_memory(memory);
   CustomData_count_memory(this->vert_data, this->verts_num, memory);
   CustomData_count_memory(this->edge_data, this->edges_num, memory);
   CustomData_count_memory(this->face_data, this->faces_num, memory);

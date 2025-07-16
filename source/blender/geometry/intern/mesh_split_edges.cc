@@ -67,6 +67,7 @@ static void propagate_edge_attributes(Mesh &mesh, const Span<int> new_to_old_edg
 {
   CustomData_realloc(&mesh.edge_data, mesh.edges_num, mesh.edges_num + new_to_old_edge_map.size());
   mesh.edges_num += new_to_old_edge_map.size();
+  mesh.attribute_storage.wrap().resize(bke::AttrDomain::Edge, mesh.edges_num);
 
   bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
   for (const StringRef id : attributes.all_ids()) {

@@ -446,6 +446,7 @@ void BM_mesh_copy_init_customdata_from_mesh_array(BMesh *bm_dst,
 
   for (int i = 0; i < me_src_array_len; i++) {
     const Mesh *me_src = me_src_array[i];
+    // TODO_MESH_ATTR
     CustomData mesh_vdata = CustomData_shallow_copy_remove_non_bmesh_attributes(
         &me_src->vert_data, CD_MASK_BMESH.vmask);
     CustomData mesh_edata = CustomData_shallow_copy_remove_non_bmesh_attributes(

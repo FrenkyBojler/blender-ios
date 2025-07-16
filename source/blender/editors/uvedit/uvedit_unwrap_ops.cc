@@ -104,6 +104,7 @@ static bool uvedit_ensure_uvs(Object *obedit)
     return false;
   }
 
+  // TODO_MESH_ATTR
   const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
   BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
   BM_uv_map_attr_edge_select_ensure(em->bm, active_uv_name);
@@ -4200,7 +4201,7 @@ static wmOperatorStatus cube_project_exec(bContext *C, wmOperator *op)
     }
 
     float bounds[2][3];
-    float(*bounds_buf)[3] = nullptr;
+    float (*bounds_buf)[3] = nullptr;
 
     if (!RNA_property_is_set(op->ptr, prop_cube_size)) {
       bounds_buf = bounds;

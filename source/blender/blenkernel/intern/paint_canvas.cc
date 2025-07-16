@@ -82,6 +82,7 @@ int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Ob
         return -1;
       }
 
+      // TODO_MESH_ATTR
       const Mesh *mesh = static_cast<Mesh *>(ob->data);
       return CustomData_get_active_layer_index(&mesh->corner_data, CD_PROP_FLOAT2);
     }

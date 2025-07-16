@@ -932,6 +932,7 @@ static Mesh *subdivide_base(const Mesh *orig)
   }
 
   /* Copy original vertex data */
+  // TODO_MESH_ATTR
   CustomData_copy_data(&orig->vert_data, &result->vert_data, 0, 0, orig_vert_num);
 
   /* Subdivide edges */

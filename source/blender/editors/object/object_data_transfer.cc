@@ -188,6 +188,7 @@ static const EnumPropertyItem *dt_layers_select_src_itemf(bContext *C,
       *r_free = true;
       return item;
     }
+    // TODO_MESH_ATTR
     int data_num = CustomData_number_of_layers(&mesh_eval->corner_data, CD_PROP_FLOAT2);
 
     RNA_enum_item_add_separator(&item, &totitem);

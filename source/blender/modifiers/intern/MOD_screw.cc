@@ -81,7 +81,7 @@ struct ScrewVertIter {
 };
 
 #define SV_UNUSED (UINT_MAX)
-#define SV_INVALID ((UINT_MAX)-1)
+#define SV_INVALID ((UINT_MAX) - 1)
 #define SV_IS_VALID(v) ((v) < SV_INVALID)
 
 static void screwvert_iter_init(ScrewVertIter *iter,
@@ -396,6 +396,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       mesh, int(maxVerts), int(maxEdges), int(maxPolys), int(maxPolys) * 4);
   /* The modifier doesn't support original index mapping on the edge or face domains. Remove
    * original index layers, since otherwise edges aren't displayed at all in wireframe view. */
+  // TODO_MESH_ATTR
   CustomData_free_layers(&result->edge_data, CD_ORIGINDEX);
   CustomData_free_layers(&result->face_data, CD_ORIGINDEX);
 
@@ -421,6 +422,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
   int *origindex = static_cast<int *>(
       CustomData_get_layer_for_write(&result->face_data, CD_ORIGINDEX, result->faces_num));
 
+  // TODO_MESH_ATTR
   CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, int(totvert));
 
   if (mloopuv_layers_tot) {
@@ -890,6 +892,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
       /* Loop-Custom-Data */
       if (has_mloop_orig) {
 
+        // TODO_MESH_ATTR
         CustomData_copy_data(&mesh->corner_data,
                              &result->corner_data,
                              int(mloop_index_orig[0]),

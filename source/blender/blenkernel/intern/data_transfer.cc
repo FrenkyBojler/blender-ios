@@ -866,7 +866,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
   void *interp_data = nullptr;
 
   if (elem_type == ME_VERT) {
-    if (!(cddata_type & CD_FAKE)) {
+              // TODO_MESH_ATTR
+  if (!(cddata_type & CD_FAKE)) {
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 eCustomDataType(cddata_type),
                                                 mix_mode,
@@ -908,7 +909,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
       return false;
     }
     if (r_map && cddata_type == CD_FAKE_BWEIGHT) {
-      if (!CustomData_get_layer_named(&me_dst->vert_data, CD_PROP_FLOAT, "bevel_weight_vert")) {
+               // TODO_MESH_ATTR
+   if (!CustomData_get_layer_named(&me_dst->vert_data, CD_PROP_FLOAT, "bevel_weight_vert")) {
         CustomData_add_layer_named(&me_dst->vert_data,
                                    CD_PROP_FLOAT,
                                    CD_SET_DEFAULT,
@@ -930,7 +932,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
     }
   }
   else if (elem_type == ME_EDGE) {
-    if (!(cddata_type & CD_FAKE)) { /* Unused for edges, currently... */
+               // TODO_MESH_ATTR
+ if (!(cddata_type & CD_FAKE)) { /* Unused for edges, currently... */
       if (!data_transfer_layersmapping_cdlayers(r_map,
                                                 eCustomDataType(cddata_type),
                                                 mix_mode,
@@ -956,7 +959,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
         CustomData_add_layer_named(
             &me_dst->edge_data, CD_PROP_BOOL, CD_SET_DEFAULT, me_dst->edges_num, "uv_seam");
       }
-      data_transfer_layersmapping_add_item_cd(
+                 // TODO_MESH_ATTR
+ data_transfer_layersmapping_add_item_cd(
           r_map,
           CD_PROP_BOOL,
           mix_mode,
@@ -974,7 +978,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
         CustomData_add_layer_named(
             &me_dst->edge_data, CD_PROP_BOOL, CD_SET_DEFAULT, me_dst->edges_num, "sharp_edge");
       }
-      data_transfer_layersmapping_add_item_cd(
+                 // TODO_MESH_ATTR
+ data_transfer_layersmapping_add_item_cd(
           r_map,
           CD_PROP_BOOL,
           mix_mode,
@@ -995,7 +1000,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
                                    me_dst->edges_num,
                                    "bevel_weight_edge");
       }
-      data_transfer_layersmapping_add_item_cd(
+                 // TODO_MESH_ATTR
+ data_transfer_layersmapping_add_item_cd(
           r_map,
           CD_PROP_FLOAT,
           mix_mode,
@@ -1013,7 +1019,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
         CustomData_add_layer_named(
             &me_dst->edge_data, CD_PROP_FLOAT, CD_SET_DEFAULT, me_dst->edges_num, "crease_edge");
       }
-      data_transfer_layersmapping_add_item_cd(
+                // TODO_MESH_ATTR
+  data_transfer_layersmapping_add_item_cd(
           r_map,
           CD_PROP_FLOAT,
           mix_mode,
@@ -1031,7 +1038,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
         CustomData_add_layer_named(
             &me_dst->edge_data, CD_PROP_BOOL, CD_SET_DEFAULT, me_dst->edges_num, "freestyle_edge");
       }
-      data_transfer_layersmapping_add_item_cd(
+               // TODO_MESH_ATTR
+   data_transfer_layersmapping_add_item_cd(
           r_map,
           CD_PROP_BOOL,
           mix_mode,
@@ -1129,7 +1137,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
       return true;
     }
     if (r_map && cddata_type == CD_FAKE_SHARP) {
-      if (!CustomData_has_layer_named(&me_dst->face_data, CD_PROP_BOOL, "sharp_face")) {
+                // TODO_MESH_ATTR
+  if (!CustomData_has_layer_named(&me_dst->face_data, CD_PROP_BOOL, "sharp_face")) {
         CustomData_add_layer_named(
             &me_dst->face_data, CD_PROP_BOOL, CD_SET_DEFAULT, me_dst->faces_num, "sharp_face");
       }
@@ -1146,7 +1155,8 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
           interp_data);
       return true;
     }
-    if (r_map && cddata_type == CD_FAKE_FREESTYLE_FACE) {
+             // TODO_MESH_ATTR
+  if (r_map && cddata_type == CD_FAKE_FREESTYLE_FACE) {
       if (!CustomData_has_layer_named(&me_dst->face_data, CD_PROP_BOOL, "freestyle_face")) {
         CustomData_add_layer_named(
             &me_dst->face_data, CD_PROP_BOOL, CD_SET_DEFAULT, me_dst->faces_num, "freestyle_face");

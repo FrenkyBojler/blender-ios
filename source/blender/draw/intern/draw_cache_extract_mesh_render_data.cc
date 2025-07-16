@@ -363,6 +363,7 @@ const CustomData &mesh_cd_ldata_get_from_mesh(const Mesh &mesh)
   switch (mesh.runtime->wrapper_type) {
     case ME_WRAPPER_TYPE_SUBD:
     case ME_WRAPPER_TYPE_MDATA:
+      // TODO_MESH_ATTR
       return mesh.corner_data;
       break;
     case ME_WRAPPER_TYPE_BMESH:
@@ -379,6 +380,7 @@ const CustomData &mesh_cd_pdata_get_from_mesh(const Mesh &mesh)
   switch (mesh.runtime->wrapper_type) {
     case ME_WRAPPER_TYPE_SUBD:
     case ME_WRAPPER_TYPE_MDATA:
+      // TODO_MESH_ATTR
       return mesh.face_data;
       break;
     case ME_WRAPPER_TYPE_BMESH:
@@ -395,6 +397,7 @@ const CustomData &mesh_cd_edata_get_from_mesh(const Mesh &mesh)
   switch (mesh.runtime->wrapper_type) {
     case ME_WRAPPER_TYPE_SUBD:
     case ME_WRAPPER_TYPE_MDATA:
+      // TODO_MESH_ATTR
       return mesh.edge_data;
       break;
     case ME_WRAPPER_TYPE_BMESH:
@@ -411,6 +414,7 @@ const CustomData &mesh_cd_vdata_get_from_mesh(const Mesh &mesh)
   switch (mesh.runtime->wrapper_type) {
     case ME_WRAPPER_TYPE_SUBD:
     case ME_WRAPPER_TYPE_MDATA:
+      // TODO_MESH_ATTR
       return mesh.vert_data;
       break;
     case ME_WRAPPER_TYPE_BMESH:

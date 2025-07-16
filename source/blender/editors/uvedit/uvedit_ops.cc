@@ -1291,7 +1291,8 @@ static wmOperatorStatus uv_pin_exec(bContext *C, wmOperator *op)
 
     bool changed = false;
 
-    const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
+        // TODO_MESH_ATTR
+ const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata, CD_PROP_FLOAT2);
     if (em->bm->totvertsel == 0) {
       continue;
     }
@@ -1416,6 +1417,7 @@ static wmOperatorStatus uv_hide_exec(bContext *C, wmOperator *op)
       /* Pass. */
     }
     else {
+      // TODO_MESH_ATTR
       const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata,
                                                                     CD_PROP_FLOAT2);
       BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);
@@ -1589,6 +1591,7 @@ static wmOperatorStatus uv_reveal_exec(bContext *C, wmOperator *op)
       /* Pass. */
     }
     else {
+      // TODO_MESH_ATTR
       const char *active_uv_name = CustomData_get_active_layer_name(&em->bm->ldata,
                                                                     CD_PROP_FLOAT2);
       BM_uv_map_attr_vert_select_ensure(em->bm, active_uv_name);

@@ -384,9 +384,9 @@ static void bm_corners_to_loops_ex(ID *id,
   }
 
   if (CustomData_has_layer(fdata_legacy, CD_TESSLOOPNORMAL)) {
-    float(*loop_normals)[3] = (float(*)[3])CustomData_get_for_write(
+    float (*loop_normals)[3] = (float (*)[3])CustomData_get_for_write(
         ldata, loopstart, CD_NORMAL, totloop);
-    const short(*tessloop_normals)[3] = (short(*)[3])CustomData_get_for_write(
+    const short (*tessloop_normals)[3] = (short (*)[3])CustomData_get_for_write(
         fdata_legacy, findex, CD_TESSLOOPNORMAL, totface);
     const int max = mf->v4 ? 4 : 3;
 
@@ -399,7 +399,7 @@ static void bm_corners_to_loops_ex(ID *id,
     MDisps *ld = (MDisps *)CustomData_get_for_write(ldata, loopstart, CD_MDISPS, totloop);
     const MDisps *fd = (const MDisps *)CustomData_get_for_write(
         fdata_legacy, findex, CD_MDISPS, totface);
-    const float(*disps)[3] = fd->disps;
+    const float (*disps)[3] = fd->disps;
     int tot = mf->v4 ? 4 : 3;
     int corners;
 
@@ -906,10 +906,10 @@ static void mesh_loops_to_tessdata(CustomData *fdata_legacy,
   }
 
   if (hasLoopNormal) {
-    short(*face_normals)[4][3] = (short(*)[4][3])CustomData_get_layer(fdata_legacy,
-                                                                      CD_TESSLOOPNORMAL);
-    const float(*loop_normals)[3] = (const float(*)[3])CustomData_get_layer(corner_data,
-                                                                            CD_NORMAL);
+    short (*face_normals)[4][3] = (short (*)[4][3])CustomData_get_layer(fdata_legacy,
+                                                                        CD_TESSLOOPNORMAL);
+    const float (*loop_normals)[3] = (const float (*)[3])CustomData_get_layer(corner_data,
+                                                                              CD_NORMAL);
 
     for (findex = 0, lidx = loopindices; findex < num_faces; lidx++, findex++, face_normals++) {
       for (j = (mface ? mface[findex].v4 : (*lidx)[3]) ? 4 : 3; j--;) {
@@ -920,8 +920,9 @@ static void mesh_loops_to_tessdata(CustomData *fdata_legacy,
 
   if (hasLoopTangent) {
     /* Need to do for all UV maps at some point. */
-    float(*ftangents)[4] = (float(*)[4])CustomData_get_layer(fdata_legacy, CD_TANGENT);
-    const float(*ltangents)[4] = (const float(*)[4])CustomData_get_layer(corner_data, CD_TANGENT);
+    float (*ftangents)[4] = (float (*)[4])CustomData_get_layer(fdata_legacy, CD_TANGENT);
+    const float (*ltangents)[4] = (const float (*)[4])CustomData_get_layer(corner_data,
+                                                                           CD_TANGENT);
 
     for (findex = 0, pidx = polyindices, lidx = loopindices; findex < num_faces;
          pidx++, lidx++, findex++)
@@ -1120,7 +1121,7 @@ static int mesh_tessface_calc(Mesh &mesh,
       float normal[3];
 
       float axis_mat[3][3];
-      float(*projverts)[2];
+      float (*projverts)[2];
       uint(*tris)[3];
 
       const uint totfilltri = mp_totloop - 2;
@@ -1130,7 +1131,7 @@ static int mesh_tessface_calc(Mesh &mesh,
       }
 
       tris = (uint(*)[3])BLI_memarena_alloc(arena, sizeof(*tris) * size_t(totfilltri));
-      projverts = (float(*)[2])BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(mp_totloop));
+      projverts = (float (*)[2])BLI_memarena_alloc(arena, sizeof(*projverts) * size_t(mp_totloop));
 
       zero_v3(normal);
 
@@ -1254,7 +1255,7 @@ void BKE_mesh_tessface_calc(Mesh *mesh)
       &mesh->fdata_legacy,
       &mesh->corner_data,
       &mesh->face_data,
-      reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()),
+      reinterpret_cast<float (*)[3]>(mesh->vert_positions_for_write().data()),
       mesh->totface_legacy,
       mesh->corners_num,
       mesh->faces_num);
@@ -2570,6 +2571,7 @@ void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write
             edge_layers.begin(),
             edge_layers.end(),
             [](const CustomDataLayer &a, const CustomDataLayer &b) { return a.type < b.type; });
+        // TODO_MESH_ATTR
         edge_data.totlayer = edge_layers.size();
         edge_data.maxlayer = edge_data.totlayer;
         attrs_to_remove[i] = true;
@@ -2589,6 +2591,7 @@ void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write
             face_layers.begin(),
             face_layers.end(),
             [](const CustomDataLayer &a, const CustomDataLayer &b) { return a.type < b.type; });
+        // TODO_MESH_ATTR
         face_data.totlayer = face_layers.size();
         face_data.maxlayer = face_data.totlayer;
         attrs_to_remove[i] = true;

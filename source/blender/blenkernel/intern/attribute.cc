@@ -175,14 +175,7 @@ static std::array<DomainInfo, ATTR_DOMAIN_NUM> get_domains(const AttributeOwner 
         info[int(AttrDomain::Face)].length = bm->totface;
       }
       else {
-        info[int(AttrDomain::Point)].customdata = &mesh->vert_data;
-        info[int(AttrDomain::Point)].length = mesh->verts_num;
-        info[int(AttrDomain::Edge)].customdata = &mesh->edge_data;
-        info[int(AttrDomain::Edge)].length = mesh->edges_num;
-        info[int(AttrDomain::Corner)].customdata = &mesh->corner_data;
-        info[int(AttrDomain::Corner)].length = mesh->corners_num;
-        info[int(AttrDomain::Face)].customdata = &mesh->face_data;
-        info[int(AttrDomain::Face)].length = mesh->faces_num;
+        BLI_assert_unreachable();
       }
       break;
     }

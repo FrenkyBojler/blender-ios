@@ -737,6 +737,7 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
 
   /* copy new faces & verts (is it really this painful with custom data??) */
   for (i = 0; i < totvert; i++) {
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->vert_data, &split_m->vert_data, i, i, 1);
   }
 
@@ -755,6 +756,7 @@ static Mesh *cutEdges(ExplodeModifierData *emd, Mesh *mesh)
     const int ed_v1 = edge.v_low;
     const int ed_v2 = edge.v_high;
 
+    // TODO_MESH_ATTR
     CustomData_free_elem(&split_m->vert_data, esplit, 1);
     CustomData_copy_data(&split_m->vert_data, &split_m->vert_data, ed_v2, esplit, 1);
 
@@ -986,6 +988,7 @@ static Mesh *explodeMesh(ExplodeModifierData *emd,
 
     copy_v3_v3(explode_positions[v], positions[ed_v1]);
 
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->vert_data, &explode->vert_data, ed_v1, v, 1);
 
     copy_v3_v3(explode_positions[v], positions[ed_v1]);

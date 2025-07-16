@@ -272,6 +272,7 @@ WarnFlag check_attribute_warning(Scene &scene, Object &ob)
   BLI_assert(ss.bm == nullptr);
   UNUSED_VARS_NDEBUG(ss);
 
+  // TODO_MESH_ATTR
   if (!dyntopo_supports_customdata_layers({mesh->vert_data.layers, mesh->vert_data.totlayer})) {
     flag |= VDATA;
   }

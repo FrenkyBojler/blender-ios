@@ -469,6 +469,7 @@ static Mesh *modify_mesh(ModifierData *md, const ModifierEvalContext *ctx, Mesh 
     }
 
     /* Create edges and adjust edge vertex indices. */
+    // TODO_MESH_ATTR
     CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, p_skip * totedge, totedge);
     blender::int2 *edge = &edges[p_skip * totedge];
     for (k = 0; k < totedge; k++, edge++) {
