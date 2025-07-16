@@ -146,13 +146,31 @@ class SocketTooltipBuilder {
       }
       return std::nullopt;
     }
-    const blender::nodes::SocketDeclaration &socket_decl = *socket_.runtime->declaration;
-    blender::StringRefNull description = socket_decl.description;
-    if (description.is_empty()) {
-      return std::nullopt;
+    const nodes::SocketDeclaration &socket_decl = *socket_.runtime->declaration;
+    if (!socket_decl.description.empty()) {
+      return TIP_(socket_decl.description);
+    }
+    if (socket_decl.align_with_previous_socket) {
+      const Span<nodes::ItemDeclarationPtr> all_items = node_.runtime->declaration->all_items;
+      for (const int i : all_items.index_range()) {
+        if (&*all_items[i] != &socket_decl) {
+          continue;
+        }
+        if (i == 0) {
+          break;
+        }
+        const nodes::SocketDeclaration *previous_socket_decl =
+            dynamic_cast<const nodes::SocketDeclaration *>(all_items[i - 1].get());
+        if (!previous_socket_decl) {
+          break;
+        }
+        if (!previous_socket_decl->description.empty()) {
+          return TIP_(previous_socket_decl->description);
+        }
+      }
     }
 
-    return TIP_(description);
+    return std::nullopt;
   }
 
   void build_tooltip_value()
