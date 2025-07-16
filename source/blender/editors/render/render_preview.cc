@@ -389,7 +389,7 @@ World *ED_preview_prepare_world_simple(Main *pr_main)
   return world;
 }
 
-static void ED_preview_world_simple_set_rgb(World *world, const float color[3])
+void ED_preview_world_simple_set_rgb(World *world, const float color[3])
 {
   BLI_assert(world != nullptr);
 
