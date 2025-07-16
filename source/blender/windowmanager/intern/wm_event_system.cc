@@ -6435,10 +6435,6 @@ void wm_event_add_xrevent(wmWindowManager *wm,
   event.customdata = actiondata;
   event.customdata_free = true;
   copy_v3_v3(event.cval, actiondata->controller_loc);
-  if (wm->winactive && wm->winactive->eventstate) {
-    event.modifier = wm->winactive->eventstate->modifier;
-    event.keymodifier = wm->winactive->eventstate->keymodifier;
-  }
 
   WM_event_add(win, &event);
 }
