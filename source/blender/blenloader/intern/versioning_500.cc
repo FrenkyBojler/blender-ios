@@ -1030,40 +1030,42 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
       found_incompatible_cache = true;
     }
 
-    if (found_incompatible_cache) {
-      std::string cache_type;
-      switch (pid->type) {
-        case PTCACHE_TYPE_SOFTBODY:
-          cache_type = "Softbody";
-          break;
-        case PTCACHE_TYPE_PARTICLES:
-          cache_type = "Particle";
-          break;
-        case PTCACHE_TYPE_CLOTH:
-          cache_type = "Cloth";
-          break;
-        case PTCACHE_TYPE_SMOKE_DOMAIN:
-          cache_type = "Smoke Domain";
-          break;
-        case PTCACHE_TYPE_SMOKE_HIGHRES:
-          cache_type = "Smoke";
-          break;
-        case PTCACHE_TYPE_DYNAMICPAINT:
-          cache_type = "Dynamic Paint";
-          break;
-        case PTCACHE_TYPE_RIGIDBODY:
-          /* Rigidbody caches shouldn't have any disk caches, but keep it here just in case. */
-          cache_type = "Rigidbody";
-          break;
-      }
-      BLO_reportf_wrap(
-          fd->reports,
-          RPT_WARNING,
-          RPT_("%s Cache in object %s can not be read because it uses an "
-               "outdated compression method. You need to delete the caches and rebake.\n"),
-          cache_type.c_str(),
-          pid->owner_id->name + 2);
+    if (!found_incompatible_cache) {
+      continue;
     }
+
+    std::string cache_type;
+    switch (pid->type) {
+      case PTCACHE_TYPE_SOFTBODY:
+        cache_type = RPT_("Softbody");
+        break;
+      case PTCACHE_TYPE_PARTICLES:
+        cache_type = RPT_("Particle");
+        break;
+      case PTCACHE_TYPE_CLOTH:
+        cache_type = RPT_("Cloth");
+        break;
+      case PTCACHE_TYPE_SMOKE_DOMAIN:
+        cache_type = RPT_("Smoke Domain");
+        break;
+      case PTCACHE_TYPE_SMOKE_HIGHRES:
+        cache_type = RPT_("Smoke");
+        break;
+      case PTCACHE_TYPE_DYNAMICPAINT:
+        cache_type = RPT_("Dynamic Paint");
+        break;
+      case PTCACHE_TYPE_RIGIDBODY:
+        /* Rigidbody caches shouldn't have any disk caches, but keep it here just in case. */
+        cache_type = RPT_("Rigidbody");
+        break;
+    }
+    BLO_reportf_wrap(
+        fd->reports,
+        RPT_WARNING,
+        RPT_("%s Cache in object %s can not be read because it uses an "
+             "outdated compression method. You need to delete the caches and rebake."),
+        cache_type.c_str(),
+        pid->owner_id->name + 2);
   }
 
   BLI_freelistN(&pidlist);
