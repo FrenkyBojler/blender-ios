@@ -154,7 +154,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   UI_block_func_set(block, file_draw_check_cb, nullptr, nullptr);
 
   but = uiDefButR(block,
-                  eButType::Text,
+                  ButType::Text,
                   -1,
                   "",
                   0,

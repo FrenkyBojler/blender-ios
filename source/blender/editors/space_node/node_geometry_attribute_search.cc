@@ -232,7 +232,7 @@ void node_geometry_add_attribute_search_button(const bContext & /*C*/,
 {
   uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
-                                 eButType::SearchMenu,
+                                 ButType::SearchMenu,
                                  0,
                                  ICON_NONE,
                                  "",

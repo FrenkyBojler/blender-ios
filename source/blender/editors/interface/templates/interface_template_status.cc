@@ -88,7 +88,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 
   /* Background for icon. */
   but = uiDefBut(block,
-                 eButType::Roundbox,
+                 ButType::Roundbox,
                  0,
                  "",
                  0,
@@ -99,12 +99,12 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
                  0.0f,
                  0.0f,
                  "");
-  /* #eButType::Roundbox's background color is set in `but->col`. */
+  /* #ButType::Roundbox's background color is set in `but->col`. */
   copy_v4_v4_uchar(but->col, report_icon_color);
 
   /* Background for the rest of the message. */
   but = uiDefBut(block,
-                 eButType::Roundbox,
+                 ButType::Roundbox,
                  0,
                  "",
                  UI_UNIT_X + (6 * UI_SCALE_FAC),
@@ -124,7 +124,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 
   /* The report icon itself. */
   but = uiDefIconButO(block,
-                      eButType::But,
+                      ButType::But,
                       "SCREEN_OT_info_log_show",
                       blender::wm::OpCallContext::InvokeRegionWin,
                       UI_icon_from_report_type(report->type),
@@ -137,7 +137,7 @@ void uiTemplateReportsBanner(uiLayout *layout, bContext *C)
 
   /* The report message. */
   but = uiDefButO(block,
-                  eButType::But,
+                  ButType::But,
                   "SCREEN_OT_info_log_show",
                   blender::wm::OpCallContext::InvokeRegionWin,
                   report->message,
@@ -531,7 +531,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
 
   /* Background for icon. */
   uiBut *but = uiDefBut(block,
-                        eButType::Roundbox,
+                        ButType::Roundbox,
                         0,
                         "",
                         0,
@@ -542,13 +542,13 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
                         0.0f,
                         0.0f,
                         "");
-  /*# eButType::Roundbox's background color is set in `but->col`. */
+  /*# ButType::Roundbox's background color is set in `but->col`. */
   UI_GetThemeColor4ubv(TH_WARNING, but->col);
 
   if (!warning_message.is_empty()) {
     /* Background for the rest of the message. */
     but = uiDefBut(block,
-                   eButType::Roundbox,
+                   ButType::Roundbox,
                    0,
                    "",
                    UI_UNIT_X + (6 * UI_SCALE_FAC),
@@ -570,7 +570,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
 
   /* The warning icon itself. */
   but = uiDefIconBut(block,
-                     eButType::But,
+                     ButType::But,
                      0,
                      ICON_ERROR,
                      int(3 * UI_SCALE_FAC),
@@ -588,7 +588,7 @@ void uiTemplateStatusInfo(uiLayout *layout, bContext *C)
   /* The warning message, if any. */
   if (!warning_message.is_empty()) {
     but = uiDefBut(block,
-                   eButType::But,
+                   ButType::But,
                    0,
                    warning_message.c_str(),
                    UI_UNIT_X,
