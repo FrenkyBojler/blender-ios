@@ -30,6 +30,8 @@
 #    include "BLI_winstuff.h"
 
 #    include "GPU_platform.hh"
+
+#    include "utfconv.hh"
 #  endif
 
 #  include "BLI_fileops.h"
@@ -171,23 +173,39 @@ extern LONG WINAPI windows_exception_handler(EXCEPTION_POINTERS *ExceptionInfo)
     }
   }
   else {
-    std::string version;
-#    ifndef BUILD_DATE
-    const char *build_hash = G_MAIN ? G_MAIN->build_hash : "unknown";
-    version = std::string(BKE_blender_version_string()) + ", hash: `" + build_hash + "`";
-#    else
-    version = std::string(BKE_blender_version_string()) + ", Commit date: " + build_commit_date +
-              " " + build_commit_time + ", hash: `" + build_hash + "`";
-#    endif
+    /* Caution: this block runs inside a crash handler.
+     *
+     * Avoid operations that allocate memory, acquire locks, or invoke complex subsystems.
+     * Global state may be partially corrupted, so all accesses must be defensive. */
 
+    /* The heap may be corrupted, so use fixed-size C buffers and snprintf only. */
     char filepath_crashlog[FILE_MAX];
     BKE_blender_globals_crash_path_get(filepath_crashlog);
     crashlog_file_generate(filepath_crashlog, ExceptionInfo);
+
+    wchar_t filepath_crashlog_utf16[FILE_MAX];
+    wchar_t filepath_last_blend_utf16[FILE_MAX];
+
+    conv_utf_8_to_16(filepath_crashlog, filepath_crashlog_utf16, FILE_MAX);
+    conv_utf_8_to_16(G.filepath_last_blend, filepath_last_blend_utf16, FILE_MAX);
+
+    char version[256];
+#    ifndef BUILD_DATE
+    STRNCPY(version, BKE_blender_version_string());
+#    else
+    SNPRINTF(version,
+             "%s, Commit date: %s %s, hash: `%s`",
+             BKE_blender_version_string(),
+             build_commit_date,
+             build_commit_time,
+             build_hash);
+#    endif
+
     BLI_windows_exception_show_dialog(ExceptionInfo,
-                                      filepath_crashlog,
-                                      G.filepath_last_blend,
+                                      filepath_crashlog_utf16,
+                                      filepath_last_blend_utf16,
                                       GPU_platform_gpu_name(),
-                                      version.c_str());
+                                      version);
     sig_cleanup_and_terminate(SIGSEGV);
   }
 

@@ -7,7 +7,7 @@
 
 #include "uri_convert.hh" /* Own include. */
 
-bool url_encode(const char *str, char *dst, size_t dst_size)
+int url_encode(const char *str, char *dst, size_t dst_size)
 {
   size_t i = 0;
 
@@ -24,7 +24,7 @@ bool url_encode(const char *str, char *dst, size_t dst_size)
       if (i + 3 >= dst_size) {
         /* There is not enough space for %XX. */
         dst[i] = '\0';
-        return false;
+        return -1;
       }
       sprintf(&dst[i], "%%%02X", c);
       i += 3;
@@ -32,11 +32,11 @@ bool url_encode(const char *str, char *dst, size_t dst_size)
     ++str;
   }
 
-  dst[i] = '\0';
-
   if (*str != '\0') {
     /* Output buffer was too small. */
-    return false;
+    return -1;
   }
-  return true;
+
+  dst[i] = '\0';
+  return i;
 }

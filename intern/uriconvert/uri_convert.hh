@@ -20,6 +20,7 @@
  * \param str: The input C-string to be URL-encoded.
  * \param dst: The output buffer where the URL-encoded string will be stored.
  * \param dst_size: The size of the output buffer `dst`.
- * \return: `true` if encoding was successful, or `false` if the output buffer was insufficient.
+ * \return: The number of characters written (excluding the null terminator),
+ *          or -1 if the output buffer was insufficient.
  */
-bool url_encode(const char *str, char *dst, size_t dst_size);
+int url_encode(const char *str, char *dst, size_t dst_size);

@@ -456,24 +456,27 @@ static void bli_windows_exception_message_get(const EXCEPTION_POINTERS *exceptio
 /** \name bli_show_message_box
  * \{ */
 
-static std::string get_os_info()
+static int get_os_info(char *buffer, size_t bufferSize)
 {
   OSVERSIONINFOEX osvi;
   ZeroMemory(&osvi, sizeof(OSVERSIONINFOEX));
   osvi.dwOSVersionInfoSize = sizeof(OSVERSIONINFOEX);
   if (!GetVersionEx((OSVERSIONINFO *)&osvi)) {
-    return "Unknown System";
+    const char unknownSystem[] = "Unknown System";
+    if (bufferSize >= ARRAYSIZE(unknownSystem) + 1) {
+      strcpy(buffer, unknownSystem);
+      return ARRAYSIZE(unknownSystem);
+    }
+    else {
+      return -1; /* Buffer too small for even the error message. */
+    }
   }
-
-  std::string version = std::to_string(osvi.dwMajorVersion) + "-" +
-                        std::to_string(osvi.dwMajorVersion) + "." +
-                        std::to_string(osvi.dwMinorVersion) + "." +
-                        std::to_string(osvi.dwBuildNumber) + "-SP" +
-                        std::to_string(osvi.wServicePackMajor);
 
   SYSTEM_INFO si;
   GetSystemInfo(&si);
-  std::string architecture;
+
+  /** Determine the processor architecture string based on the SYSTEM_INFO structure. */
+  const char *architecture;
   switch (si.wProcessorArchitecture) {
     case PROCESSOR_ARCHITECTURE_AMD64:
       architecture = "64 Bits";
@@ -497,7 +500,22 @@ static std::string get_os_info()
       architecture = "Unknown Architecture";
   }
 
-  return "Windows-" + version + " " + architecture;
+  /** Format the OS information. */
+  int result = snprintf(buffer,
+                        bufferSize,
+                        "Windows-%d-%d.%d.%d-SP%d %s",
+                        osvi.dwMajorVersion,
+                        osvi.dwMajorVersion,
+                        osvi.dwMinorVersion,
+                        osvi.dwBuildNumber,
+                        osvi.wServicePackMajor,
+                        architecture);
+
+  if (result < 0 || (size_t)result >= bufferSize) {
+    return -1; /* Error: Formatting failed or buffer was too small. */
+  }
+
+  return result; /* Return the number of characters written. */
 }
 
 /**
@@ -552,49 +570,26 @@ static bool bli_executable_path_get(LPWSTR path, DWORD size)
   return true;
 }
 
-/* Wrapper function for url_encode. */
-static std::wstring url_encode_wstring(const std::string &str)
-{
-  size_t len = str.length();
-
-  /* Maximum encoded length is 3 times the original length +1 for null terminator. */
-  size_t encoded_len_max = len * 3 + 1;
-
-  char *encoded_str = new char[encoded_len_max];
-  url_encode(str.c_str(), encoded_str, encoded_len_max);
-
-  /* Convert the encoded char *to a std::wstring (assuming the encoded string is ASCII). */
-  std::wstring result(encoded_str, encoded_str + strlen(encoded_str));
-
-  delete[] encoded_str;
-
-  return result;
-}
-
 /**
  * Displays a crash report dialog with options to open the crash log, restart the application, and
  * report a bug. This is based on the `showMessageBox` function in `GHOST_SystemWin32.cc`.
  */
-static void bli_show_crash_report_dialog(const char *filepath_crashlog,
-                                         const char *filepath_relaunch,
-                                         const char *gpu_name,
+static void bli_show_crash_report_dialog(const wchar_t *filepath_crashlog,
+                                         const wchar_t *filepath_relaunch,
+                                         const char *gpu_info,
                                          const char *build_version)
 {
   /* Redundant: #InitCommonControls is already called during GHOST System initialization. */
   // InitCommonControls();
 
-  /* Convert file paths to UTF16 to handle non-ASCII characters. */
-  wchar_t *filepath_crashlog_utf16 = alloc_utf16_from_8(filepath_crashlog, 0);
-  wchar_t *filepath_relaunch_utf16 = filepath_relaunch[0] ?
-                                         alloc_utf16_from_8(filepath_relaunch, 0) :
-                                         nullptr;
+#define BASE_MESSAGE \
+  L"A problem has caused the program to stop functioning correctly. If you know the steps to " \
+  L"reproduce this issue, please submit a bug report.\n" \
+  "\n" \
+  L"The crash log can be found at:\n"
 
-  std::wstring full_message_16 =
-      L"A problem has caused the program to stop functioning correctly. If you know the steps to "
-      L"reproduce this issue, please submit a bug report.\n"
-      "\n"
-      L"The crash log can be found at:\n" +
-      std::wstring(filepath_crashlog_utf16);
+  wchar_t full_message[ARRAYSIZE(BASE_MESSAGE) - 1 + MAX_PATH] = BASE_MESSAGE;
+  wcscpy(full_message + ARRAYSIZE(BASE_MESSAGE) - 1, filepath_crashlog);
 
   TASKDIALOGCONFIG config = {0};
   const TASKDIALOG_BUTTON buttons[] = {{IDRETRY, L"Restart"},
@@ -609,17 +604,17 @@ static void bli_show_crash_report_dialog(const char *filepath_crashlog,
   config.pszMainIcon = TD_ERROR_ICON;
   config.pszWindowTitle = L"Blender";
   config.pszMainInstruction = L"Blender has stopped working";
-  config.pszContent = full_message_16.c_str();
+  config.pszContent = full_message;
   config.pButtons = buttons;
   config.cButtons = ARRAY_SIZE(buttons);
 
   /* Data passed to the callback function for handling button events. */
   const struct Data {
-    const wchar_t *filepath_crashlog_utf16;
-    const wchar_t *filepath_relaunch_utf16;
-    const char *gpu_name;
+    const wchar_t *filepath_crashlog;
+    const wchar_t *filepath_relaunch;
+    const char *gpu_info;
     const char *build_version;
-  } data = {filepath_crashlog_utf16, filepath_relaunch_utf16, gpu_name, build_version};
+  } data = {filepath_crashlog, filepath_relaunch, gpu_info, build_version};
   config.lpCallbackData = reinterpret_cast<LONG_PTR>(&data);
 
   /* Callback for handling button events. */
@@ -640,37 +635,56 @@ static void bli_show_crash_report_dialog(const char *filepath_crashlog,
         /* Relaunch the application. */
         wchar_t executable_path[MAX_PATH];
         if (bli_executable_path_get(executable_path, ARRAYSIZE(executable_path))) {
-          std::wstring parameters;
-          if (data_ptr->filepath_relaunch_utf16) {
+          wchar_t parameters[MAX_PATH];
+          if (data_ptr->filepath_relaunch) {
             /* Properly quote the argument to handle spaces and special characters. */
-            parameters = L"\"" + std::wstring(data_ptr->filepath_relaunch_utf16) + L"\"";
+            _snwprintf(parameters, ARRAYSIZE(parameters), L"\"%s\"", data_ptr->filepath_relaunch);
           }
           else {
             /* Proceeding without parameters. */
-            parameters = L"";
+            parameters[0] = L'\0';
           }
-          ShellExecuteW(
-              nullptr, L"open", executable_path, parameters.c_str(), nullptr, SW_SHOWNORMAL);
+          ShellExecuteW(nullptr, L"open", executable_path, parameters, nullptr, SW_SHOWNORMAL);
         }
         return S_OK;
       }
       case IDHELP:
         /* Open the crash log. */
         ShellExecuteW(
-            nullptr, L"open", data_ptr->filepath_crashlog_utf16, nullptr, nullptr, SW_SHOWNORMAL);
+            nullptr, L"open", data_ptr->filepath_crashlog, nullptr, nullptr, SW_SHOWNORMAL);
         return S_FALSE;
       case IDOK: {
         /* Open the bug report form with pre-filled data. */
+
+        wchar_t link[864];
+        char gpu_info_encoded[256];
+        char version_encoded[256];
+        char os_info_encoded[256];
+        if ((get_os_info(os_info_encoded, ARRAYSIZE(os_info_encoded)) < 0) ||
+            (url_encode(os_info_encoded, os_info_encoded, ARRAYSIZE(os_info_encoded)) < 0))
+        {
+          os_info_encoded[0] = '\0';
+        }
+        if ((url_encode(data_ptr->gpu_info, gpu_info_encoded, ARRAYSIZE(gpu_info_encoded)) < 0)) {
+          gpu_info_encoded[0] = '\0';
+        }
+        if ((url_encode(data_ptr->build_version, version_encoded, ARRAYSIZE(version_encoded)) < 0))
+        {
+          version_encoded[0] = '\0';
+        }
+
         /* clang-format off */
-        std::wstring link =
+        swprintf(link, ARRAYSIZE(link),
             L"https://redirect.blender.org/"
             L"?type=bug_report"
             L"&project=blender"
-            L"&os=" + url_encode_wstring(get_os_info()) +
-            L"&gpu=" + url_encode_wstring(data_ptr->gpu_name) +
-            L"&broken_version=" + url_encode_wstring(data_ptr->build_version);
+            L"&os=%S"
+            L"&gpu=%S"
+            L"&broken_version=%S",
+            os_info_encoded, gpu_info_encoded, version_encoded);
         /* clang-format on */
-        ShellExecuteW(nullptr, L"open", link.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
+
+        ShellExecuteW(nullptr, L"open", link, nullptr, nullptr, SW_SHOWNORMAL);
         return S_FALSE;
       }
       default:
@@ -679,14 +693,12 @@ static void bli_show_crash_report_dialog(const char *filepath_crashlog,
   };
 
   TaskDialogIndirect(&config, nullptr, nullptr, nullptr);
-  free((void *)filepath_crashlog_utf16);
-  free((void *)filepath_relaunch_utf16);
 }
 
 void BLI_windows_exception_show_dialog(const void *exception,
-                                       const char *filepath_crashlog,
-                                       const char *filepath_relaunch,
-                                       const char *gpu_name,
+                                       const wchar_t *filepath_crashlog,
+                                       const wchar_t *filepath_relaunch,
+                                       const char *gpu_info,
                                        const char *build_version)
 {
   char message[512];
@@ -694,7 +706,7 @@ void BLI_windows_exception_show_dialog(const void *exception,
   fprintf(stderr, message);
   fflush(stderr);
 
-  bli_show_crash_report_dialog(filepath_crashlog, filepath_relaunch, gpu_name, build_version);
+  bli_show_crash_report_dialog(filepath_crashlog, filepath_relaunch, gpu_info, build_version);
 }
 
 /** \} */

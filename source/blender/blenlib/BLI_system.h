@@ -48,9 +48,9 @@ int BLI_system_memory_max_in_megabytes_int(void);
  */
 void BLI_windows_exception_capture(void *exception);
 void BLI_windows_exception_show_dialog(const void *exception,
-                                       const char *filepath_crashlog,
-                                       const char *filepath_relaunch,
-                                       const char *gpu_name,
+                                       const wchar_t *filepath_crashlog,
+                                       const wchar_t *filepath_relaunch,
+                                       const char *gpu_info,
                                        const char *build_version);
 
 #else
