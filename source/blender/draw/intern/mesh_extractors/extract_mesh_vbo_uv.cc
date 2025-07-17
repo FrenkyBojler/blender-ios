@@ -49,27 +49,21 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
     return cd_ldata->layers[stencil_index].name;
   }();
 
-  VectorSet<StringRef> r_uv_layers;
-
   for (const StringRef name : uv_layers.as_span().take_front(MAX_MTFACE)) {
-    if (uv_layers.contains_as(name)) {
-      char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
-
-      r_uv_layers.add(name);
-      GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
-      SNPRINTF(attr_name, "a%s", attr_safe_name);
-      GPU_vertformat_attr_add(format, attr_name, blender::gpu::VertAttrType::SFLOAT_32_32);
-      if (name == default_name) {
-        GPU_vertformat_alias_add(format, "a");
-      }
-      if (name == active_name) {
-        GPU_vertformat_alias_add(format, "au");
-        /* Alias to `pos` for edit uvs. */
-        GPU_vertformat_alias_add(format, "pos");
-      }
-      if (name == stencil_name) {
-        GPU_vertformat_alias_add(format, "mu");
-      }
+    char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
+    GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+    SNPRINTF(attr_name, "a%s", attr_safe_name);
+    GPU_vertformat_attr_add(format, attr_name, blender::gpu::VertAttrType::SFLOAT_32_32);
+    if (name == default_name) {
+      GPU_vertformat_alias_add(format, "a");
+    }
+    if (name == active_name) {
+      GPU_vertformat_alias_add(format, "au");
+      /* Alias to `pos` for edit uvs. */
+      GPU_vertformat_alias_add(format, "pos");
+    }
+    if (name == stencil_name) {
+      GPU_vertformat_alias_add(format, "mu");
     }
   }
 
@@ -77,7 +71,7 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
     GPU_vertformat_attr_add(format, "dummy", blender::gpu::VertAttrType::SFLOAT_32_32);
   }
 
-  return r_uv_layers;
+  return uv_layers;
 }
 
 gpu::VertBufPtr extract_uv_maps(const MeshRenderData &mr, const MeshBatchCache &cache)
