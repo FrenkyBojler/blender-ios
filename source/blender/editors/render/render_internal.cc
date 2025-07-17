@@ -881,7 +881,7 @@ static void render_drawlock(void *rjv, bool lock)
 
   /* If interface is locked, renderer callback shall do nothing. */
   if (!rj->interface_locked) {
-    BKE_spacedata_draw_locks(REGION_DRAW_LOCK_RENDER);
+    BKE_spacedata_draw_locks(lock);
   }
 }
 
@@ -1061,7 +1061,7 @@ static wmOperatorStatus screen_render_invoke(bContext *C, wmOperator *op, const 
 
   /* Lock the user interface depending on render settings. */
   if (scene->r.use_lock_interface) {
-    WM_set_locked_interface_with_flags(CTX_wm_manager(C), REGION_DRAW_LOCK_RENDER);
+    WM_set_locked_interface(CTX_wm_manager(C), true);
 
     /* Set flag interface need to be unlocked.
      *

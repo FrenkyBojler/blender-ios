@@ -418,15 +418,15 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src)
   }
 }
 
-void BKE_spacedata_draw_locks(short lock_flags)
+void BKE_spacedata_draw_locks(bool set)
 {
   for (std::unique_ptr<SpaceType> &st : get_space_types()) {
     LISTBASE_FOREACH (ARegionType *, art, &st->regiontypes) {
-      if (lock_flags!=0) {
-        art->do_lock = (art->lock & lock_flags);
+      if (set) {
+        art->do_lock = art->lock;
       }
       else {
-        art->do_lock = 0;
+        art->do_lock = false;
       }
     }
   }

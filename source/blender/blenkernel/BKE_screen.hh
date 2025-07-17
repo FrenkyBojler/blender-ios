@@ -198,14 +198,6 @@ struct RegionPollParams {
   const bContext *context;
 };
 
-enum ARegionDrawLockFlags{
-  REGION_DRAW_LOCK_NONE = 0,
-  REGION_DRAW_LOCK_RENDER = (1<<0),
-  REGION_DRAW_LOCK_BAKING = (1<<1),
-};
-
-#define REGION_DRAW_LOCK_ALL (REGION_DRAW_LOCK_RENDER | REGION_DRAW_LOCK_BAKING)
-
 struct ARegionType {
   ARegionType *next, *prev;
   /** Unique identifier within this space, defines `RGN_TYPE_xxxx`. */
@@ -296,8 +288,7 @@ struct ARegionType {
   int keymapflag;
   /**
    * Return without drawing.
-   * lock is set by region definition, and copied to do_lock by render.
-   * Set as bitflag value in #ARegionDrawLockFlags.
+   * lock is set by region definition, and copied to do_lock by render. can become flag.
    */
   short do_lock, lock;
   /** Don't handle gizmos events behind #uiBlock's with #UI_BLOCK_CLIP_EVENTS flag set. */
@@ -704,9 +695,10 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src);
 /**
  * Facility to set locks for drawing to survive (render) threads accessing drawing data.
  *
+ * \note Lock can become bit-flag too.
  * \note Should be replaced in future by better local data handling for threads.
  */
-void BKE_spacedata_draw_locks(short lock_flags);
+void BKE_spacedata_draw_locks(bool set);
 
 /**
  * Version of #BKE_area_find_region_type that also works if \a slink
