@@ -101,8 +101,9 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
   for (const int i : input_values.index_range()) {
     SocketValueVariant &input_variant = *input_values[i];
     if (input_variant.is_list()) {
-      ListPtr list = input_variant.get<ListPtr>();
-      max_size = std::max(max_size, list->size());
+      if (ListPtr list = input_variant.get<ListPtr>()) {
+        max_size = std::max(max_size, list->size());
+      }
     }
   }
 
@@ -122,7 +123,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
     }
     else if (input_variant.is_list()) {
       ListPtr list_ptr = input_variant.get<ListPtr>();
-      if (list_ptr->size() == 0) {
+      if (!list_ptr || list_ptr->size() == 0) {
         params.add_readonly_single_input(GPointer(cpp_type, cpp_type.default_value()));
         continue;
       }
