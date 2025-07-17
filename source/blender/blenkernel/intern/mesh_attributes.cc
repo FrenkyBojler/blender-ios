@@ -90,7 +90,7 @@ static GVArray adapt_mesh_domain_corner_to_point(const Mesh &mesh, const GVArray
           mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
     }
   });
-  return GVArray::ForGArray(std::move(values));
+  return GVArray::from_garray(std::move(values));
 }
 
 /**
@@ -221,7 +221,7 @@ static GVArray adapt_mesh_domain_corner_to_edge(const Mesh &mesh, const GVArray 
           mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
     }
   });
-  return GVArray::ForGArray(std::move(values));
+  return GVArray::from_garray(std::move(values));
 }
 
 template<typename T>
@@ -271,7 +271,7 @@ static GVArray adapt_mesh_domain_face_to_point(const Mesh &mesh, const GVArray &
           mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
     }
   });
-  return GVArray::ForGArray(std::move(values));
+  return GVArray::from_garray(std::move(values));
 }
 
 /* Each corner's value is simply a copy of the value at its face. */
@@ -301,7 +301,7 @@ static GVArray adapt_mesh_domain_face_to_corner(const Mesh &mesh, const GVArray 
           mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
     }
   });
-  return GVArray::ForGArray(std::move(values));
+  return GVArray::from_garray(std::move(values));
 }
 
 template<typename T>
@@ -356,7 +356,7 @@ static GVArray adapt_mesh_domain_face_to_edge(const Mesh &mesh, const GVArray &v
           mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
     }
   });
-  return GVArray::ForGArray(std::move(values));
+  return GVArray::from_garray(std::move(values));
 }
 
 static GVArray adapt_mesh_domain_point_to_face(const Mesh &mesh, const GVArray &varray)
@@ -491,7 +491,7 @@ static GVArray adapt_mesh_domain_edge_to_corner(const Mesh &mesh, const GVArray 
           mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
     }
   });
-  return GVArray::ForGArray(std::move(values));
+  return GVArray::from_garray(std::move(values));
 }
 
 template<typename T>
@@ -547,7 +547,7 @@ static GVArray adapt_mesh_domain_edge_to_point(const Mesh &mesh, const GVArray &
           mesh, varray.typed<T>(), values.as_mutable_span().typed<T>());
     }
   });
-  return GVArray::ForGArray(std::move(values));
+  return GVArray::from_garray(std::move(values));
 }
 
 static GVArray adapt_mesh_domain_edge_to_face(const Mesh &mesh, const GVArray &varray)
@@ -644,7 +644,7 @@ static GVArray adapt_mesh_attribute_domain(const Mesh &mesh,
     if (can_simple_adapt_for_single(mesh, from_domain, to_domain)) {
       BUFFER_FOR_CPP_TYPE_VALUE(varray.type(), value);
       varray.get_internal_single(value);
-      return GVArray::ForSingle(varray.type(), mesh.attributes().domain_size(to_domain), value);
+      return GVArray::from_single(varray.type(), mesh.attributes().domain_size(to_domain), value);
     }
   }
 

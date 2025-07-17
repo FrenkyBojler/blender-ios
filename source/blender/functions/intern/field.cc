@@ -94,7 +94,7 @@ static Vector<GVArray> get_field_context_inputs(
     GVArray varray = context.get_varray_for_input(field_input, mask, scope);
     if (!varray) {
       const CPPType &type = field_input.cpp_type();
-      varray = GVArray::ForSingleDefault(type, mask.min_array_size());
+      varray = GVArray::from_single_default(type, mask.min_array_size());
     }
     field_context_inputs.append(varray);
   }
@@ -291,7 +291,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
   if (mask.is_empty()) {
     for (const int i : fields_to_evaluate.index_range()) {
       const CPPType &type = fields_to_evaluate[i].cpp_type();
-      r_varrays[i] = GVArray::ForEmpty(type);
+      r_varrays[i] = GVArray::from_empty(type);
     }
     return r_varrays;
   }
@@ -331,7 +331,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
       }
       case FieldNodeType::Constant: {
         const FieldConstant &field_constant = static_cast<const FieldConstant &>(field.node());
-        r_varrays[out_index] = GVArray::ForSingleRef(
+        r_varrays[out_index] = GVArray::from_single_ref(
             field_constant.type(), mask.min_array_size(), field_constant.value().get());
         break;
       }
@@ -444,7 +444,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
 
       /* Create virtual array that can be used after the procedure has been executed below. */
       const int out_index = constant_field_indices[i];
-      r_varrays[out_index] = GVArray::ForSingleRef(type, array_size, buffer);
+      r_varrays[out_index] = GVArray::from_single_ref(type, array_size, buffer);
     }
 
     procedure_executor.call(mask, mf_params, mf_context);

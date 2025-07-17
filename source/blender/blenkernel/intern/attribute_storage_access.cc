@@ -23,7 +23,7 @@ GAttributeReader attribute_to_reader(const Attribute &attribute,
     }
     case AttrStorageType::Single: {
       const auto &data = std::get<Attribute::SingleData>(attribute.data());
-      return GAttributeReader{GVArray::ForSingleRef(cpp_type, domain_size, data.value),
+      return GAttributeReader{GVArray::from_single_ref(cpp_type, domain_size, data.value),
                               domain,
                               data.sharing_info.get()};
     }
@@ -121,7 +121,7 @@ GVArray get_varray_attribute(const AttributeStorage &storage,
   const bke::Attribute *attr = storage.wrap().lookup(name);
 
   const auto return_default = [&]() {
-    return GVArray::ForSingle(cpp_type, domain_size, default_value);
+    return GVArray::from_single(cpp_type, domain_size, default_value);
   };
 
   if (!attr) {
@@ -141,7 +141,7 @@ GVArray get_varray_attribute(const AttributeStorage &storage,
     }
     case bke::AttrStorageType::Single: {
       const auto &data = std::get<bke::Attribute::SingleData>(attr->data());
-      return GVArray::ForSingle(cpp_type, domain_size, data.value);
+      return GVArray::from_single(cpp_type, domain_size, data.value);
     }
   }
   return return_default();

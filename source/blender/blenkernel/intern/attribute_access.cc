@@ -747,9 +747,9 @@ GAttributeReader AttributeAccessor::lookup_or_default(const StringRef attribute_
   const CPPType &type = attribute_type_to_cpp_type(data_type);
   const int64_t domain_size = this->domain_size(domain);
   if (default_value == nullptr) {
-    return {GVArray::ForSingleRef(type, domain_size, type.default_value()), domain, nullptr};
+    return {GVArray::from_single_ref(type, domain_size, type.default_value()), domain, nullptr};
   }
-  return {GVArray::ForSingle(type, domain_size, default_value), domain, nullptr};
+  return {GVArray::from_single(type, domain_size, default_value), domain, nullptr};
 }
 
 bool AttributeAccessor::contains(const StringRef attribute_id) const

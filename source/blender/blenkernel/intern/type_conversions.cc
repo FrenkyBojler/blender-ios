@@ -833,7 +833,7 @@ GVArray DataTypeConversions::try_convert(GVArray varray, const CPPType &to_type)
   if (!this->is_convertible(from_type, to_type)) {
     return {};
   }
-  return GVArray::For<GVArray_For_ConvertedGVArray>(std::move(varray), to_type, *this);
+  return GVArray::from<GVArray_For_ConvertedGVArray>(std::move(varray), to_type, *this);
 }
 
 GVMutableArray DataTypeConversions::try_convert(GVMutableArray varray,
@@ -846,7 +846,7 @@ GVMutableArray DataTypeConversions::try_convert(GVMutableArray varray,
   if (!this->is_convertible(from_type, to_type)) {
     return {};
   }
-  return GVMutableArray::For<GVMutableArray_For_ConvertedGVMutableArray>(
+  return GVMutableArray::from<GVMutableArray_For_ConvertedGVMutableArray>(
       std::move(varray), to_type, *this);
 }
 

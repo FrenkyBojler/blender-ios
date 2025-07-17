@@ -411,7 +411,7 @@ GVArray AttributeFieldInput::get_varray_for_context(const GeometryFieldContext &
         BLI_SCOPED_DEFER([&]() { cpp_type.destruct(value); });
         reader.varray.get_to_uninitialized(layer_index, value);
         const int domain_size = curves_attributes.domain_size(domain);
-        return GVArray::ForSingle(cpp_type, domain_size, value);
+        return GVArray::from_single(cpp_type, domain_size, value);
       }
     }
   }
@@ -642,7 +642,7 @@ GVArray EvaluateAtIndexInput::get_varray_for_context(const bke::GeometryFieldCon
 
   GArray<> dst_array(values.type(), mask.min_array_size());
   copy_with_checked_indices(values, indices, mask, dst_array);
-  return GVArray::ForGArray(std::move(dst_array));
+  return GVArray::from_garray(std::move(dst_array));
 }
 
 EvaluateOnDomainInput::EvaluateOnDomainInput(fn::GField field, AttrDomain domain)
@@ -677,10 +677,10 @@ GVArray EvaluateOnDomainInput::get_varray_for_context(const bke::GeometryFieldCo
       BUFFER_FOR_CPP_TYPE_VALUE(cpp_type, value);
       BLI_SCOPED_DEFER([&]() { cpp_type.destruct(value); });
       values.get_to_uninitialized(layer_index, value);
-      return GVArray::ForSingle(cpp_type, dst_domain_size, value);
+      return GVArray::from_single(cpp_type, dst_domain_size, value);
     }
     /* We don't adapt from curve to layer domain currently. */
-    return GVArray::ForSingleDefault(cpp_type, dst_domain_size);
+    return GVArray::from_single_default(cpp_type, dst_domain_size);
   }
 
   const bke::AttributeAccessor attributes = *context.attributes();
@@ -691,7 +691,7 @@ GVArray EvaluateOnDomainInput::get_varray_for_context(const bke::GeometryFieldCo
   fn::FieldEvaluator value_evaluator{other_domain_context, src_domain_size};
   value_evaluator.add_with_destination(src_field_, values.as_mutable_span());
   value_evaluator.evaluate();
-  return attributes.adapt_domain(GVArray::ForGArray(std::move(values)), src_domain_, dst_domain);
+  return attributes.adapt_domain(GVArray::from_garray(std::move(values)), src_domain_, dst_domain);
 }
 
 void EvaluateOnDomainInput::for_each_field_input_recursive(

@@ -121,7 +121,7 @@ class SculptSelectionFieldInput final : public bke::GeometryFieldInput {
       case GeometryComponent::Type::Mesh: {
         const VArraySpan<float> attribute = *attributes.lookup<float>(".sculpt_mask", domain);
         if (attribute.is_empty()) {
-          return GVArray::ForSingle(*type_, mask.min_array_size(), true_value(data_type));
+          return GVArray::from_single(*type_, mask.min_array_size(), true_value(data_type));
         }
         switch (data_type) {
           case bke::AttrType::Bool: {
