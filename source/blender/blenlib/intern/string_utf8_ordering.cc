@@ -797,7 +797,7 @@ static int bli_str_utf32_weight(const OrderWeights *weights,
 struct Ligature {
   int codepoint;
   int replace[3] = {0};
-  char lettercase;
+  char uppercase;
 };
 
 static const std::array<Ligature, 30> LigatureTable{{
@@ -858,7 +858,7 @@ std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sens
     char32_t wc = BLI_str_utf8_as_unicode_step_safe(str.data(), len, &i);
     ligature = bli_str_utf32_ligature(wc);
     if (ligature) {
-      const bool ucase = case_sensitive && ligature->lettercase;
+      const bool ucase = case_sensitive && ligature->uppercase;
       utf8_buf_len = BLI_str_utf8_from_unicode(
           ucase ? BLI_str_utf32_char_to_upper(ligature->replace[0]) : ligature->replace[0],
           utf8_buf,
