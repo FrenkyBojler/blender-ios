@@ -51,22 +51,18 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)
       .description("How to specify the amount of samples");
-  auto &count =
-      b.add_input<decl::Int>("Count").default_value(10).min(1).max(100000).field_on_all();
-  auto &length = b.add_input<decl::Float>("Length")
-                     .default_value(0.1f)
-                     .min(0.01f)
-                     .subtype(PROP_DISTANCE)
-                     .field_on_all();
-
-  const bNode *node = b.node_or_null();
-  if (node != nullptr) {
-    const NodeGeometryCurveResample &storage = node_storage(*node);
-    const GeometryNodeCurveResampleMode mode = GeometryNodeCurveResampleMode(storage.mode);
-
-    count.available(mode == GEO_NODE_CURVE_RESAMPLE_COUNT);
-    length.available(mode == GEO_NODE_CURVE_RESAMPLE_LENGTH);
-  }
+  b.add_input<decl::Int>("Count")
+      .default_value(10)
+      .min(1)
+      .max(100000)
+      .field_on_all()
+      .usage_by_single_menu(GEO_NODE_CURVE_RESAMPLE_COUNT);
+  b.add_input<decl::Float>("Length")
+      .default_value(0.1f)
+      .min(0.01f)
+      .subtype(PROP_DISTANCE)
+      .field_on_all()
+      .usage_by_single_menu(GEO_NODE_CURVE_RESAMPLE_LENGTH);
 }
 
 static void node_layout_ex(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
