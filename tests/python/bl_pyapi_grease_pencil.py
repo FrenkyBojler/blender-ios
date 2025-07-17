@@ -24,11 +24,15 @@ class TestGreasePencil(unittest.TestCase):
 
 
 class TestGreasePencilLayers(unittest.TestCase):
+    tint_factors = [0.3, 0.6, 0.9]
     def setUp(self):
         self.gp = bpy.data.grease_pencils_v3.new("test_grease_pencil")
         self.gp.layers.new("test_layer01")
         self.gp.layers.new("test_layer02")
         self.gp.layers.new("test_layer03")
+
+        for i, layer in enumerate(self.gp.layers):
+            layer.tint_factor = self.tint_factors[i]
 
     def tearDown(self):
         bpy.data.grease_pencils_v3.remove(self.gp)
@@ -62,12 +66,22 @@ class TestGreasePencilLayers(unittest.TestCase):
         self.assertEqual(self.gp.layers[1].name, "test_layer03")
         self.assertEqual(self.gp.layers[2].name, "test_layer02")
 
+        # Check layer attribute
+        self.assertEqual(round(self.gp.layers[0].tint_factor, 1), self.tint_factors[0])
+        self.assertEqual(round(self.gp.layers[1].tint_factor, 1), self.tint_factors[2])
+        self.assertEqual(round(self.gp.layers[2].tint_factor, 1), self.tint_factors[1])
+
     def test_grease_pencil_layers_move_up(self):
         # Move the bottom most layer up
         self.gp.layers.move(self.gp.layers[0], 'UP')
         self.assertEqual(self.gp.layers[0].name, "test_layer02")
         self.assertEqual(self.gp.layers[1].name, "test_layer01")
         self.assertEqual(self.gp.layers[2].name, "test_layer03")
+
+        # Check layer attribute
+        self.assertEqual(round(self.gp.layers[0].tint_factor, 1), self.tint_factors[1])
+        self.assertEqual(round(self.gp.layers[1].tint_factor, 1), self.tint_factors[0])
+        self.assertEqual(round(self.gp.layers[2].tint_factor, 1), self.tint_factors[2])
 
 
 class TestGreasePencilFrame(unittest.TestCase):
