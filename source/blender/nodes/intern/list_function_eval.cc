@@ -135,6 +135,11 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
       input_lists[i] = evaluate_field_to_list(std::move(field), max_size);
       add_list_to_params(params, param_type, *input_lists[i]);
     }
+    else {
+      /* This function should not be called when there are other types like grids in the inputs. */
+      BLI_assert_unreachable();
+      params.add_readonly_single_input(GPointer(cpp_type, cpp_type.default_value()));
+    }
   }
   for (const int i : output_values.index_range()) {
     if (output_values[i] == nullptr) {
