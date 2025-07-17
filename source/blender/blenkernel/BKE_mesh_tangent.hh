@@ -45,7 +45,7 @@ void BKE_mesh_calc_loop_tangent_single(Mesh *mesh,
 namespace blender::bke::mesh {
 
 /**
- * See: #BKE_editmesh_loop_tangent_calc (matching logic).
+ * See: #BKE_editmesh_uv_tangents_calc (matching logic).
  */
 Array<Array<float4>> calc_uv_tangents(Span<float3> vert_positions,
                                       OffsetIndices<int> faces,
