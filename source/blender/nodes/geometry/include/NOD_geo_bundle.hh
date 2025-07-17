@@ -38,6 +38,7 @@ struct CombineBundleItemsAccessor : public socket_items::SocketItemsAccessorDefa
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_name_validation = true;
+  static constexpr char unique_name_separator = '_';
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_combine_bundle_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_combine_bundle_item_remove";
@@ -113,6 +114,7 @@ struct SeparateBundleItemsAccessor : public socket_items::SocketItemsAccessorDef
   static constexpr bool has_type = true;
   static constexpr bool has_name = true;
   static constexpr bool has_name_validation = true;
+  static constexpr char unique_name_separator = '_';
   struct operator_idnames {
     static constexpr StringRefNull add_item = "NODE_OT_separate_bundle_item_add";
     static constexpr StringRefNull remove_item = "NODE_OT_separate_bundle_item_remove";
