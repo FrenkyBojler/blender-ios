@@ -1241,15 +1241,16 @@ static void screenshot_preview_draw(const wmWindow *window, void *operator_data)
 
   /* Drawing a semi-transparent mask to highlight the area that will be captured. */
   float4 mask_color = {1, 1, 1, 0.25};
-  const rctf mask_rect_bottom = {0, float(window->sizex), 0, screenshot_rect.ymin};
+  const int2 win_size = WM_window_native_pixel_size(window);
+  const rctf mask_rect_bottom = {0, float(win_size.x), 0, screenshot_rect.ymin};
   UI_draw_roundbox_aa(&mask_rect_bottom, true, 0, mask_color);
-  const rctf mask_rect_top = {0, float(window->sizex), screenshot_rect.ymax, float(window->sizey)};
+  const rctf mask_rect_top = {0, float(win_size.x), screenshot_rect.ymax, float(win_size.y)};
   UI_draw_roundbox_aa(&mask_rect_top, true, 0, mask_color);
   const rctf mask_rect_left = {
       0, screenshot_rect.xmin, screenshot_rect.ymin, screenshot_rect.ymax};
   UI_draw_roundbox_aa(&mask_rect_left, true, 0, mask_color);
   const rctf mask_rect_right = {
-      screenshot_rect.xmax, float(window->sizex), screenshot_rect.ymin, screenshot_rect.ymax};
+      screenshot_rect.xmax, float(win_size.x), screenshot_rect.ymin, screenshot_rect.ymax};
   UI_draw_roundbox_aa(&mask_rect_right, true, 0, mask_color);
 
   float4 color;
