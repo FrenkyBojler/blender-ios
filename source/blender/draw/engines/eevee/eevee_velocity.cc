@@ -432,6 +432,7 @@ bool VelocityModule::object_is_deform(const Object *ob)
   const bool has_rigidbody = (rbo && (rbo->type == RBO_TYPE_ACTIVE));
   const bool is_deform = BKE_object_is_deform_modified(inst_.scene, (Object *)ob) ||
                          (has_rigidbody && (rbo->flag & RBO_FLAG_USE_DEFORM) != 0);
+
   return is_deform;
 }
 
