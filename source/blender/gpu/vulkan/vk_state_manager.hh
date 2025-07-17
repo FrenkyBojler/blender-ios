@@ -181,9 +181,12 @@ class BindSpaceTextures {
     bound_resources[binding].sampler = sampler;
   }
 
-  const Elem &get(int binding) const
+  const Elem *get(int binding) const
   {
-    return bound_resources[binding];
+    if (binding >= bound_resources.size()) {
+      return nullptr;
+    }
+    return &bound_resources[binding];
   }
 
   void unbind(void *resource)
