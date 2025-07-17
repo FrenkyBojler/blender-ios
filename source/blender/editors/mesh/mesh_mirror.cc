@@ -216,6 +216,48 @@ bool EditMeshSymmetryHelper::is_any_mirror_face_selected(BMFace *face, char hfla
   return false;
 }
 
+void EditMeshSymmetryHelper::assign_weight_on_mirror_verts(BMVert *vert,
+                                                           int def_nr,
+                                                           float weight) const
+{
+  const int cd_dvert_offset = CustomData_get_offset(&this->em->bm->vdata, CD_MDEFORMVERT);
+  if (cd_dvert_offset == -1) {
+    return;
+  }
+
+  this->apply_on_mirror_verts(vert, [cd_dvert_offset, def_nr, weight](BMVert *v_mir) {
+    if (!BM_elem_flag_test(v_mir, BM_ELEM_HIDDEN)) {
+      MDeformVert *dv = static_cast<MDeformVert *>(
+          BM_ELEM_CD_GET_VOID_P(v_mir, cd_dvert_offset));
+      MDeformWeight *dw = BKE_defvert_ensure_index(dv, def_nr);
+      if (dw) {
+        dw->weight = weight;
+      }
+    }
+  });
+}
+
+void EditMeshSymmetryHelper::remove_weight_on_mirror_verts(BMVert *vert, int def_nr) const
+{
+  const int cd_dvert_offset = CustomData_get_offset(&this->em->bm->vdata, CD_MDEFORMVERT);
+  if (cd_dvert_offset == -1) {
+    return;
+  }
+
+  this->apply_on_mirror_verts(vert, [cd_dvert_offset, def_nr](BMVert *v_mir) {
+    if (!BM_elem_flag_test(v_mir, BM_ELEM_HIDDEN)) {
+      MDeformVert *dv = static_cast<MDeformVert *>(
+          BM_ELEM_CD_GET_VOID_P(v_mir, cd_dvert_offset));
+      MDeformWeight *dw = BKE_defvert_find_index(dv, def_nr);
+      if (dw) {
+        BKE_defvert_remove_group(dv, dw);
+      }
+    }
+  });
+}
+
+
+
 #define KD_THRESH 0.00002f
 
 static struct {

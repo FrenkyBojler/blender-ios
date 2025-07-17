@@ -69,6 +69,9 @@ public:
   void apply_on_mirror_edges(BMEdge *edge, blender::FunctionRef<void(BMEdge *)> op) const;
   void apply_on_mirror_faces(BMFace *face, blender::FunctionRef<void(BMFace *)> op) const;
 
+  void assign_weight_on_mirror_verts(BMVert *vert, int def_nr, float weight) const;
+  void remove_weight_on_mirror_verts(BMVert *vert, int def_nr) const;
+
 private:
   EditMeshSymmetryHelper(Object *ob);
 
