@@ -140,7 +140,7 @@ void WM_tooltip_refresh(bContext *C, wmWindow *win)
       screen->tool_tip->region = nullptr;
     }
     /* #ui_popup_block_refresh can disable #wmWindow::eventstate, check if we can refresh the
-     * popup. */
+     * tooltip. */
     if (win->eventstate) {
       WM_tooltip_init(C, win);
     }
