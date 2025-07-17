@@ -38,7 +38,15 @@ body:
 
                **Exact steps for others to reproduce the error**
                Based on the default startup or an attached .blend file (as simple as possible).
-
+  - type: checkboxes
+    id: filled_form
+    attributes:
+      label: "Confirmation"
+      hide_label: true
+      options:
+        - label: "I confirm that I have filled out the bug report form with a clear description of the issue, steps to reproduce, and included any relevant files, including crash logs."
+          required: true
+          visible: [form]
   - type: markdown
     attributes:
       value: |
