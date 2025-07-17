@@ -12,6 +12,6 @@ struct Strip;
 
 namespace blender::seq {
 
-bool modifier_uids_are_valid(const Strip &strip);
+bool modifier_persistent_uids_are_valid(const Strip &strip);
 
 }  // namespace blender::seq

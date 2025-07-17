@@ -64,6 +64,6 @@ int sequence_supports_modifiers(Strip *strip);
 
 void modifier_blend_write(BlendWriter *writer, ListBase *modbase);
 void modifier_blend_read_data(BlendDataReader *reader, ListBase *lb);
-void modifier_generate_uid(const Strip &strip, StripModifierData &smd);
+void modifier_persistent_uid_init(const Strip &strip, StripModifierData &smd);
 
 }  // namespace blender::seq

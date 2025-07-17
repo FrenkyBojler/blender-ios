@@ -1378,7 +1378,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (ed != nullptr) {
         seq::for_each_callback(&ed->seqbase, [](Strip *strip) -> bool {
           LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-            seq::modifier_generate_uid(*strip, *smd);
+            seq::modifier_persistent_uid_init(*strip, *smd);
           }
           return true;
         });

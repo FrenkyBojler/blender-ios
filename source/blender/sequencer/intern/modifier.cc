@@ -47,7 +47,7 @@ namespace blender::seq {
 
 /* -------------------------------------------------------------------- */
 
-static bool strip_has_modifier_uid(const Strip &strip, int uid)
+static bool modifier_has_persistent_uid(const Strip &strip, int uid)
 {
   LISTBASE_FOREACH (StripModifierData *, smd, &strip.modifiers) {
     if (smd->persistent_uid == uid) {
@@ -57,7 +57,7 @@ static bool strip_has_modifier_uid(const Strip &strip, int uid)
   return false;
 }
 
-void modifier_generate_uid(const Strip &strip, StripModifierData &smd)
+void modifier_persistent_uid_init(const Strip &strip, StripModifierData &smd)
 {
   uint64_t hash = blender::get_default_hash(blender::StringRef(smd.name));
   blender::RandomNumberGenerator rng{uint32_t(hash)};
@@ -66,7 +66,7 @@ void modifier_generate_uid(const Strip &strip, StripModifierData &smd)
     if (new_uid <= 0) {
       continue;
     }
-    if (strip_has_modifier_uid(strip, new_uid)) {
+    if (modifier_has_persistent_uid(strip, new_uid)) {
       continue;
     }
     smd.persistent_uid = new_uid;
@@ -74,7 +74,7 @@ void modifier_generate_uid(const Strip &strip, StripModifierData &smd)
   }
 }
 
-bool modifier_uids_are_valid(const Strip &strip)
+bool modifier_persistent_uids_are_valid(const Strip &strip)
 {
   Set<int> uids;
   int modifiers_num = 0;

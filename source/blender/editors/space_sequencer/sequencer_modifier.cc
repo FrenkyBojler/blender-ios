@@ -43,7 +43,7 @@ static wmOperatorStatus strip_modifier_add_exec(bContext *C, wmOperator *op)
   int type = RNA_enum_get(op->ptr, "type");
 
   StripModifierData *smd = seq::modifier_new(strip, nullptr, type);
-  seq::modifier_generate_uid(*strip, *smd);
+  seq::modifier_persistent_uid_init(*strip, *smd);
 
   seq::relations_invalidate_cache(scene, strip);
   WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, scene);
@@ -255,36 +255,31 @@ static wmOperatorStatus strip_modifier_copy_exec(bContext *C, wmOperator *op)
   selected.remove(active_strip);
 
   for (Strip *strip_iter : selected) {
-    if (strip_iter->flag & SELECT) {
-      if (strip_iter == active_strip) {
-        continue;
-      }
-      int strip_iter_is_sound = ELEM(strip_iter->type, STRIP_TYPE_SOUND_RAM);
-      /* If original is sound, only copy to "sound" strips
-       * If original is not sound, only copy to "not sound" strips
-       */
-      if (isSound != strip_iter_is_sound) {
-        continue;
-      }
+    int strip_iter_is_sound = ELEM(strip_iter->type, STRIP_TYPE_SOUND_RAM);
+    /* If original is sound, only copy to "sound" strips
+     * If original is not sound, only copy to "not sound" strips
+     */
+    if (isSound != strip_iter_is_sound) {
+      continue;
+    }
 
-      if (type == SEQ_MODIFIER_COPY_REPLACE) {
-        if (strip_iter->modifiers.first) {
-          StripModifierData *smd_tmp,
-              *smd = static_cast<StripModifierData *>(strip_iter->modifiers.first);
-          while (smd) {
-            smd_tmp = smd->next;
-            BLI_remlink(&strip_iter->modifiers, smd);
-            seq::modifier_free(smd);
-            smd = smd_tmp;
-          }
-          BLI_listbase_clear(&strip_iter->modifiers);
+    if (type == SEQ_MODIFIER_COPY_REPLACE) {
+      if (strip_iter->modifiers.first) {
+        StripModifierData *smd_tmp,
+            *smd = static_cast<StripModifierData *>(strip_iter->modifiers.first);
+        while (smd) {
+          smd_tmp = smd->next;
+          BLI_remlink(&strip_iter->modifiers, smd);
+          seq::modifier_free(smd);
+          smd = smd_tmp;
         }
+        BLI_listbase_clear(&strip_iter->modifiers);
       }
+    }
 
-      LISTBASE_FOREACH (StripModifierData *, smd, &active_strip->modifiers) {
-        StripModifierData *smd_new = seq::modifier_copy(*strip_iter, smd);
-        seq::modifier_generate_uid(*strip_iter, *smd_new);
-      }
+    LISTBASE_FOREACH (StripModifierData *, smd, &active_strip->modifiers) {
+      StripModifierData *smd_new = seq::modifier_copy(*strip_iter, smd);
+      seq::modifier_persistent_uid_init(*strip_iter, *smd_new);
     }
   }
 

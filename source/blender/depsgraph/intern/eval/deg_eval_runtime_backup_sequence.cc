@@ -72,9 +72,11 @@ void StripBackup::init_from_strip(Strip *strip)
   anims = strip->anims;
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-    StripModifierDataBackup mod;
-    mod.init_from_modifier(smd);
-    modifiers.add(smd->persistent_uid, mod);
+    StripModifierDataBackup mod_backup;
+    mod_backup.init_from_modifier(smd);
+    if (!mod_backup.isEmpty()) {
+      modifiers.add(smd->persistent_uid, mod_backup);
+    }
   }
 
   strip->scene_sound = nullptr;

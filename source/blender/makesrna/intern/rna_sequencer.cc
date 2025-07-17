@@ -1495,7 +1495,7 @@ static StripModifierData *rna_Strip_modifier_new(
     StripModifierData *smd;
 
     smd = blender::seq::modifier_new(strip, name, type);
-    blender::seq::modifier_generate_uid(*strip, *smd);
+    blender::seq::modifier_persistent_uid_init(*strip, *smd);
 
     blender::seq::relations_invalidate_cache(scene, strip);
 
