@@ -800,7 +800,7 @@ struct Ligature {
   char lettercase;
 };
 
-static const Ligature LigatureTable[] = {
+static const std::array<Ligature, 30> LigatureTable{{
     {0x00BC, {'1', '/', '4'}, 0}, /* Vulgar fraction one quarter. */
     {0x00BD, {'1', '/', '2'}, 0}, /* Vulgar fraction one half. */
     {0x00BE, {'3', '/', '4'}, 0}, /* Vulgar fraction three quarters. */
@@ -830,23 +830,16 @@ static const Ligature LigatureTable[] = {
     {0x215E, {'7', '/', '8'}, 0}, /* Vulgar fraction seven eighths. */
     {0xFB01, {'f', 'i'}, 0},      /* Latin small ligature FI. */
     {0xFB02, {'f', 'l'}, 0},      /* Latin small ligature FL. */
-};
+}};
 
 static const Ligature *bli_str_utf32_ligature(char32_t codepoint)
 {
-  size_t left = 0;
-  size_t right = sizeof(LigatureTable) / sizeof(LigatureTable[0]);
-  while (left < right) {
-    size_t mid = left + (right - left) / 2;
-    if (LigatureTable[mid].codepoint == int(codepoint)) {
-      return &LigatureTable[mid];
-    }
-    if (LigatureTable[mid].codepoint < int(codepoint)) {
-      left = mid + 1;
-    }
-    else {
-      right = mid;
-    }
+  auto ligature = std::lower_bound(LigatureTable.begin(),
+                                   LigatureTable.end(),
+                                   codepoint,
+                                   [](const Ligature &s, int val) { return s.codepoint < val; });
+  if (ligature != LigatureTable.end() && ligature->codepoint == codepoint) {
+    return &(*ligature);
   }
   return nullptr;
 }
