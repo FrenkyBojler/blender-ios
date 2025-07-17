@@ -13,10 +13,18 @@
 #include "BLI_compiler_attrs.h"
 #include "BLI_sys_types.h"
 
+/**
+ * International string language normalization. Not only lowercases regular Latin, but
+ * also Greek and Cyrillic alphabets. Accents are removed, ligatures are expanded, etc.
+ */
 std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensitive = false);
 std::string BLI_str_utf8_normalized(const std::string str, bool case_sensitive = false);
 
-// could replace many usages of BLI_strcasestr
+/**
+ * Possible replacement for BLI_strcasestr (and strcasestr) that normalizes rather than
+ * just lowercases. Will find "nœud" with "noeud", "Échelle" with "echelle", "Индекс"
+ * with "индекс", etc.
+ */
 bool BLI_str_utf8_contains(const char *s, const char *find, bool case_sensitive = false);
 
 char *BLI_strncpy_utf8(char *__restrict dst, const char *__restrict src, size_t dst_maxncpy)
@@ -226,9 +234,6 @@ char32_t BLI_str_utf32_char_to_upper(char32_t wc);
  * \note A 1:1 mapping doesn't account for multiple characters as part of conversion in some cases.
  */
 char32_t BLI_str_utf32_char_to_lower(char32_t wc);
-
-std::string BLI_str_utf8_to_upper(const std::string &str) ATTR_WARN_UNUSED_RESULT;
-std::string BLI_str_utf8_to_lower(const std::string &str) ATTR_WARN_UNUSED_RESULT;
 
 bool BLI_str_utf32_char_is_breaking_space(char32_t codepoint);
 bool BLI_str_utf32_char_is_optional_break_after(char32_t codepoint, char32_t codepoint_prev);

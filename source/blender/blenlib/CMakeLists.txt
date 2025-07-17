@@ -146,6 +146,7 @@ set(SRC
   intern/string_ref.cc
   intern/string_search.cc
   intern/string_utf8.cc
+  intern/string_utf8_ordering.cc
   intern/string_utils.cc
   intern/system.cc
   intern/task_graph.cc
