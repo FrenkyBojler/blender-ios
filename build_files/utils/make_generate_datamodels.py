@@ -133,12 +133,6 @@ def main() -> None:
     # ruff first.
     print("Formatting Python files")
     py_paths_as_str = [str(path) for path in py_paths]
-    venv_ruff = VENV_DIR / "Scripts/ruff.exe" if sys.platform == "win32" else VENV_DIR / "bin/ruff"
-    subprocess.run(
-        [venv_ruff, "format", *py_paths_as_str],
-        cwd=root_path,
-        check=True,
-    )
     subprocess.run(
         ["make", "format", "PATHS={}".format(" ".join(py_paths_as_str))],
         cwd=root_path,
@@ -195,7 +189,6 @@ import venv
 REQUIREMENTS = [
     "datamodel-code-generator ~= 0.28.2",
     "PyYAML ~= 6.0.2",
-    "ruff ~= 0.12.3",
 ]
 
 # Name of a module to import, to test whether dependencies have been installed or not.
