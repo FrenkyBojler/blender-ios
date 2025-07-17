@@ -33,13 +33,13 @@ static const EnumPropertyItem mode_items[] = {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Menu>("Mode")
-      .static_items(mode_items)
-      .default_value(GEO_NODE_CURVE_FILL_MODE_TRIANGULATED);
   b.add_input<decl::Geometry>("Curve")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description(
           "Curves to fill. All curves are treated as cyclic and projected to the XY plane");
+  b.add_input<decl::Menu>("Mode")
+      .static_items(mode_items)
+      .default_value(GEO_NODE_CURVE_FILL_MODE_TRIANGULATED);
   b.add_input<decl::Int>("Group ID")
       .field_on_all()
       .hide_value()

@@ -37,13 +37,13 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Menu>("Mode")
-      .static_items(mode_items)
-      .description("How to choose number of vertices on fillet");
   b.add_input<decl::Geometry>("Curve")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to generated rounded corners on");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
+  b.add_input<decl::Menu>("Mode")
+      .static_items(mode_items)
+      .description("How to choose number of vertices on fillet");
   auto &count_input = b.add_input<decl::Int>("Count")
                           .default_value(1)
                           .min(1)
