@@ -2719,7 +2719,7 @@ include(build_files/cmake/packaging.cmake)
 
 
 # -----------------------------------------------------------------------------
-# OpenAPI-based Python code generator for Pydantic data models
+# OpenAPI-based Python code generator for data models
 
 include(build_files/cmake/generate_datamodels.cmake)
 

@@ -3,12 +3,13 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
-"""Self-bootstrapping script to run the OpenAPI-to-Pydantic classes code generator.
+"""Self-bootstrapping script to run the OpenAPI-to-dataclasses code generator.
 
 This script creates its own virtualenv, installs its dependencies, and then runs
 the code generator. It processes OpenAPI spec files in YAML format (see
 `YAML_PATHS` below) to generate Python source files. Each `xxx.yaml` file will
-produce an `xxx.py` file in the same directory.
+produce an `xxx.py` file in the same directory. These Python files also include
+the OpenAPI spec, as a Python dict.
 
 The generated Python files are tracked by Git. This generator is NOT part of the
 regular Blender build process, and only needs to be run when any of the YAML

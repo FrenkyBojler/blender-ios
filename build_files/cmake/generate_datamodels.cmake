@@ -8,6 +8,6 @@ add_custom_target(generate_datamodels
     COMMAND ${PYTHON_EXECUTABLE} ${GENERATE_DATAMODELS_SCRIPT} ${CMAKE_SOURCE_DIR}
     DEPENDS ${GENERATE_DATAMODELS_SCRIPT}
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}
-    COMMENT "Generating Pydantic datamodels"
+    COMMENT "Generating datamodels"
     VERBATIM
 )
