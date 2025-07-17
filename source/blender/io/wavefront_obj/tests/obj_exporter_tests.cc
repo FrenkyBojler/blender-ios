@@ -251,13 +251,15 @@ static bool strings_equal_after_first_lines(const std::string &a, const std::str
     printf("No newline found in the golden string\n");
     return false;
   }
-  const size_t a_count = a_len - a_next;
-  const size_t b_count = b_len - b_next;
-  if (a_count < b_count) {
-    printf("Evaluated string only contains %zu chars, while golden has %zu\n", a_count, b_count);
+  const size_t a_sublen = a_len - a_next;
+  const size_t b_sublen = b_len - b_next;
+  if (a_sublen != b_sublen) {
+    printf("Mismatching string length, evaluated contains %zu chars, while golden has %zu\n",
+           a_sublen,
+           b_sublen);
   }
-  if (a.compare(a_next, a_count, b, b_next, b_count) != 0) {
-    for (int i = 0; i < std::min(b_count, a_count); ++i) {
+  if (a.compare(a_next, a_sublen, b, b_next, b_sublen) != 0) {
+    for (int i = 0; i < std::min(a_sublen, b_sublen); ++i) {
       if (a[a_next + i] != b[b_next + i]) {
         printf("Difference found at pos %zu of a\n", a_next + i);
         printf("a: %s ...\n", a.substr(a_next + i, 100).c_str());
@@ -267,7 +269,7 @@ static bool strings_equal_after_first_lines(const std::string &a, const std::str
     }
     return false;
   }
-  return a_count == b_count;
+  return true;
 }
 
 /* From here on, tests are whole file tests, testing for golden output. */
