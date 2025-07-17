@@ -395,7 +395,7 @@ enum class eButPointerType : uint8_t {
   Bit = 1 << 7, /* OR'd with a bit index. */
 };
 ENUM_OPERATORS(eButPointerType, eButPointerType::Bit);
-
+/** \note requires `uiBut::poin != nullptr`. */
 #define UI_BUT_POIN_TYPES (eButPointerType::Float | eButPointerType::Short | eButPointerType::Char)
 
 enum class eButType : int8_t {
