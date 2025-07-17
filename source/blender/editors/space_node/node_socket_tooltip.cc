@@ -569,7 +569,7 @@ class SocketTooltipBuilder {
 
     for (const std::string &input_tooltip : input_tooltips) {
       this->add_space();
-      this->add_text_field_mono(fmt::format("\u2022 {}", input_tooltip));
+      this->add_text_field_mono(fmt::format(" \u2022 {}", input_tooltip));
     }
 
     this->add_space();
@@ -649,7 +649,7 @@ class SocketTooltipBuilder {
       }
       if (!component_str.empty()) {
         this->add_space();
-        this->add_text_field_mono(fmt::format("\u2022 {}", component_str));
+        this->add_text_field_mono(fmt::format(" \u2022 {}", component_str));
       }
     }
     this->add_space();
