@@ -760,65 +760,6 @@ static const OrderWeights OrderWeightsTable[] = {
     {0xFF5A, 'z', 6, 0},  /* Half width Small Letter Z. */
 };
 
-struct Ligature {
-  int codepoint;
-  int replace1;
-  int replace2;
-  int replace3;
-  char lettercase;
-};
-
-static const Ligature LigatureTable[] = {
-    {0x00BC, '1', '/', '4', 0}, /* Vulgar fraction one quarter. */
-    {0x00BD, '1', '/', '2', 0}, /* Vulgar fraction one half. */
-    {0x00BE, '3', '/', '4', 0}, /* Vulgar fraction three quarters. */
-    {0x00C6, 'a', 'e', 0, 1},   /* Latin capital letter AE */
-    {0x00DF, 's', 's', 0, 0},   /* Latin small letter sharp S. */
-    {0x00E6, 'a', 'e', 0, 0},   /* Latin small letter AE */
-    {0x0132, 'i', 'j', 0, 1},   /* Latin capital ligature FL. */
-    {0x0133, 'i', 'j', 0, 0},   /* Latin small ligature FL. */
-    {0x0152, 'o', 'e', 0, 1},   /* Latin capital ligature OE. */
-    {0x0153, 'o', 'e', 0, 0},   /* Latin small ligature OE. */
-    {0x01E2, 'a', 'e', 0, 1},   /* Latin capital letter AE with macron. */
-    {0x01E3, 'a', 'e', 0, 0},   /* Latin small letter AE with macron. */
-    {0x01FC, 'a', 'e', 0, 1},   /* Latin capital letter AE with acute. */
-    {0x01FD, 'a', 'e', 0, 0},   /* Latin small letter AE with acute. */
-    {0x04A4, 'н', 'г', 0, 1},   /* Cyrillic capital ligature EN GHE. */
-    {0x04A5, 'н', 'г', 0, 0},   /* Cyrillic small ligature EN GHE. */
-    {0x04B4, 'т', 'ц', 0, 1},   /* Cyrillic capital ligature TE TSE. */
-    {0x04B5, 'т', 'ц', 0, 0},   /* Cyrillic small ligature TE TSE. */
-    {0x04D4, 'а', 'е', 0, 1},   /* Cyrillic capital ligature A IE.  */
-    {0x04D5, 'а', 'е', 0, 0},   /* Cyrillic small ligature A IE.  */
-    {0x2105, 'c', 'o', 0, 0},   /* Care of. */
-    {0x2116, 'n', 'o', 0, 0},   /* Numero sign. */
-    {0x2122, 't', 'm', 0, 0},   /* Trade mark sign. */
-    {0x215B, '1', '/', '8', 0}, /* Vulgar fraction one eighth. */
-    {0x215C, '3', '/', '8', 0}, /* Vulgar fraction three eighths. */
-    {0x215D, '3', '/', '5', 0}, /* Vulgar fraction three fifths. */
-    {0x215E, '7', '/', '8', 0}, /* Vulgar fraction seven eighths. */
-    {0xFB01, 'f', 'i', 0, 0},   /* Latin small ligature FI. */
-    {0xFB02, 'f', 'l', 0, 0},   /* Latin small ligature FL. */
-};
-
-static const Ligature *bli_str_utf32_ligature(char32_t codepoint)
-{
-  size_t left = 0;
-  size_t right = sizeof(LigatureTable) / sizeof(LigatureTable[0]);
-  while (left < right) {
-    size_t mid = left + (right - left) / 2;
-    if (LigatureTable[mid].codepoint == int(codepoint)) {
-      return &LigatureTable[mid];
-    }
-    if (LigatureTable[mid].codepoint < int(codepoint)) {
-      left = mid + 1;
-    }
-    else {
-      right = mid;
-    }
-  }
-  return nullptr;
-}
-
 static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
 {
   size_t left = 0;
@@ -861,6 +802,63 @@ static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool letter
   return weight;
 }
 
+struct Ligature {
+  int codepoint;
+  int replace[3] = {0};
+  char lettercase;
+};
+
+static const Ligature LigatureTable[] = {
+    {0x00BC, {'1', '/', '4'}, 0}, /* Vulgar fraction one quarter. */
+    {0x00BD, {'1', '/', '2'}, 0}, /* Vulgar fraction one half. */
+    {0x00BE, {'3', '/', '4'}, 0}, /* Vulgar fraction three quarters. */
+    {0x00C6, {'a', 'e'}, 1},      /* Latin capital letter AE */
+    {0x00DF, {'s', 's'}, 0},      /* Latin small letter sharp S. */
+    {0x00E6, {'a', 'e'}, 0},      /* Latin small letter AE */
+    {0x0132, {'i', 'j'}, 1},      /* Latin capital ligature FL. */
+    {0x0133, {'i', 'j'}, 0},      /* Latin small ligature FL. */
+    {0x0152, {'o', 'e'}, 1},      /* Latin capital ligature OE. */
+    {0x0153, {'o', 'e'}, 0},      /* Latin small ligature OE. */
+    {0x01E2, {'a', 'e'}, 1},      /* Latin capital letter AE with macron. */
+    {0x01E3, {'a', 'e'}, 0},      /* Latin small letter AE with macron. */
+    {0x01FC, {'a', 'e'}, 1},      /* Latin capital letter AE with acute. */
+    {0x01FD, {'a', 'e'}, 0},      /* Latin small letter AE with acute. */
+    {0x04A4, {'н', 'г'}, 1},      /* Cyrillic capital ligature EN GHE. */
+    {0x04A5, {'н', 'г'}, 0},      /* Cyrillic small ligature EN GHE. */
+    {0x04B4, {'т', 'ц'}, 1},      /* Cyrillic capital ligature TE TSE. */
+    {0x04B5, {'т', 'ц'}, 0},      /* Cyrillic small ligature TE TSE. */
+    {0x04D4, {'а', 'е'}, 1},      /* Cyrillic capital ligature A IE.  */
+    {0x04D5, {'а', 'е'}, 0},      /* Cyrillic small ligature A IE.  */
+    {0x2105, {'c', 'o'}, 0},      /* Care of. */
+    {0x2116, {'n', 'o'}, 0},      /* Numero sign. */
+    {0x2122, {'t', 'm'}, 0},      /* Trade mark sign. */
+    {0x215B, {'1', '/', '8'}, 0}, /* Vulgar fraction one eighth. */
+    {0x215C, {'3', '/', '8'}, 0}, /* Vulgar fraction three eighths. */
+    {0x215D, {'3', '/', '5'}, 0}, /* Vulgar fraction three fifths. */
+    {0x215E, {'7', '/', '8'}, 0}, /* Vulgar fraction seven eighths. */
+    {0xFB01, {'f', 'i'}, 0},      /* Latin small ligature FI. */
+    {0xFB02, {'f', 'l'}, 0},      /* Latin small ligature FL. */
+};
+
+static const Ligature *bli_str_utf32_ligature(char32_t codepoint)
+{
+  size_t left = 0;
+  size_t right = sizeof(LigatureTable) / sizeof(LigatureTable[0]);
+  while (left < right) {
+    size_t mid = left + (right - left) / 2;
+    if (LigatureTable[mid].codepoint == int(codepoint)) {
+      return &LigatureTable[mid];
+    }
+    if (LigatureTable[mid].codepoint < int(codepoint)) {
+      left = mid + 1;
+    }
+    else {
+      right = mid;
+    }
+  }
+  return nullptr;
+}
+
 std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensitive)
 {
   std::string result;
@@ -876,18 +874,18 @@ std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensi
     if (ligature) {
       const bool ucase = case_sensitive && ligature->lettercase;
       utf8_buf_len = BLI_str_utf8_from_unicode(
-          ucase ? BLI_str_utf32_char_to_upper(ligature->replace1) : ligature->replace1,
+          ucase ? BLI_str_utf32_char_to_upper(ligature->replace[0]) : ligature->replace[0],
           utf8_buf,
           sizeof(utf8_buf));
       result.append(utf8_buf, utf8_buf_len);
       utf8_buf_len = BLI_str_utf8_from_unicode(
-          ucase ? BLI_str_utf32_char_to_upper(ligature->replace2) : ligature->replace2,
+          ucase ? BLI_str_utf32_char_to_upper(ligature->replace[1]) : ligature->replace[1],
           utf8_buf,
           sizeof(utf8_buf));
       result.append(utf8_buf, utf8_buf_len);
-      if (ligature->replace3) {
+      if (ligature->replace[2]) {
         utf8_buf_len = BLI_str_utf8_from_unicode(
-            ucase ? BLI_str_utf32_char_to_upper(ligature->replace3) : ligature->replace3,
+            ucase ? BLI_str_utf32_char_to_upper(ligature->replace[2]) : ligature->replace[2],
             utf8_buf,
             sizeof(utf8_buf));
         result.append(utf8_buf, utf8_buf_len);

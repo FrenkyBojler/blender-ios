@@ -119,7 +119,6 @@ int get_fuzzy_match_errors(StringRef query_ref, StringRef full_ref)
   }
 
   uint32_t query_first_unicode = BLI_str_utf8_as_unicode_safe(query.data());
-
   uint32_t query_second_unicode = BLI_str_utf8_as_unicode_safe(
       query.data() + BLI_str_utf8_size_safe(query.data()));
 
