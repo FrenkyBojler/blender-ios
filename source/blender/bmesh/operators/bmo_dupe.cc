@@ -543,30 +543,30 @@ void bmo_spin_exec(BMesh *bm, BMOperator *op)
   do_dupli = BMO_slot_bool_get(op->slots_in, "use_duplicate");
   const bool use_normal_flip = BMO_slot_bool_get(op->slots_in, "use_normal_flip");
   /* Caller needs to perform other sanity checks (such as the spin being 360d). */
-  const bool merge_ends = BMO_slot_bool_get(op->slots_in, "merge_ends") && steps >= 3;
-  const bool automerge = BMO_slot_bool_get(op->slots_in, "automerge");
+  const bool use_merge_ends = BMO_slot_bool_get(op->slots_in, "use_merge_ends") && steps >= 3;
+  const bool use_automerge = BMO_slot_bool_get(op->slots_in, "use_automerge");
   axis_angle_normalized_to_mat3(rmat, axis, phi);
 
   BMVert **vtable = nullptr;
-  if (merge_ends || automerge) {
-    if(merge_ends){
+  if (use_merge_ends || use_automerge) {
+    if (use_merge_ends) {
       vtable = MEM_malloc_arrayN<BMVert *>(bm->totvert, __func__);
     }
     int i = 0;
     BMIter iter;
     BMVert *v;
     BM_ITER_MESH_INDEX (v, &iter, bm, BM_VERTS_OF_MESH, i) {
-      if(merge_ends){
+      if (use_merge_ends) {
         vtable[i] = v;
         /* Evil! store original index in normal,
-        * this is duplicated into every other vertex.
-        * So we can read the original from the final.
-        *
-        * The normals must be recalculated anyway. */
+         * this is duplicated into every other vertex.
+         * So we can read the original from the final.
+         *
+         * The normals must be recalculated anyway. */
         *((int *)&v->no[0]) = i;
       }
-      if(automerge){
-        if (v->head.hflag & BM_ELEM_SELECT){
+      if (use_automerge) {
+        if (v->head.hflag & BM_ELEM_SELECT) {
           BM_elem_flag_enable(v, BM_ELEM_TAG);
         }
       }
@@ -588,11 +588,11 @@ void bmo_spin_exec(BMesh *bm, BMOperator *op)
                    &dupop,
                    "geom.out");
       BMO_slot_copy(&dupop, slots_out, "geom.out", op, slots_out, "geom_last.out");
-      if (automerge){
+      if (use_automerge) {
         BMOpSlot *slot_geom_out = BMO_slot_get(dupop.slots_out, "geom.out");
         for (int i = 0; i < slot_geom_out->len; i++) {
           BMElem *elem = (BMElem *)slot_geom_out->data.buf[i];
-          if(elem->head.htype == BM_VERT){
+          if (elem->head.htype == BM_VERT) {
             BM_elem_flag_enable(elem, BM_ELEM_TAG);
           }
         }
@@ -610,11 +610,11 @@ void bmo_spin_exec(BMesh *bm, BMOperator *op)
                    "use_normal_from_adjacent=%b",
                    op,
                    "geom_last.out",
-                   merge_ends,
+                   use_merge_ends,
                    use_normal_flip && (a == 0),
                    (a != 0));
       BMO_op_exec(bm, &extop);
-      if ((merge_ends && (a == steps - 1)) == false) {
+      if (((use_merge_ends && (a == steps - 1)) == false) || use_automerge) {
         BMO_op_callf(bm,
                      op->flag,
                      "rotate cent=%v matrix=%m3 space=%s verts=%S",
@@ -672,12 +672,12 @@ void bmo_spin_exec(BMesh *bm, BMOperator *op)
         }
         slot_geom_out->len = elem_array_len;
       }
-      if (automerge){
+      if (use_automerge) {
         BMOpSlot *slot_geom_out = BMO_slot_get(extop.slots_out, "geom.out");
         for (int i = 0; i < slot_geom_out->len; i++) {
           BMElem *elem = (BMElem *)slot_geom_out->data.buf[i];
-          if(elem->head.htype == BM_VERT){
-              BM_elem_flag_enable(elem, BM_ELEM_TAG);
+          if (elem->head.htype == BM_VERT) {
+            BM_elem_flag_enable(elem, BM_ELEM_TAG);
           }
         }
       }
