@@ -21,7 +21,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_input(type, "List").structure_type(StructureType::List);
+    b.add_input(type, "List").structure_type(StructureType::List).hide_value();
   }
 
   b.add_output<decl::Int>("Length");
