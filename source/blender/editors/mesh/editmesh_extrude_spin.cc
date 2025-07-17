@@ -49,9 +49,9 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
   const float angle = RNA_float_get(op->ptr, "angle");
   const bool use_normal_flip = RNA_boolean_get(op->ptr, "use_normal_flip");
   const bool dupli = RNA_boolean_get(op->ptr, "dupli");
-  const bool use_auto_merge = (RNA_boolean_get(op->ptr, "use_auto_merge") && (dupli == false) &&
+  const bool merge_ends = (RNA_boolean_get(op->ptr, "merge_ends") && (dupli == false) &&
                                (steps >= 3) && fabsf(fabsf(angle) - float(M_PI * 2)) <= 1e-6f);
-
+  const bool automerge = (scene->toolsettings->automerge & AUTO_MERGE);
   if (is_zero_v3(axis)) {
     BKE_report(op->reports, RPT_ERROR, "Invalid/unset axis");
     return OPERATOR_CANCELLED;
@@ -70,7 +70,7 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
                       &spinop,
                       op,
                       "spin geom=%hvef cent=%v axis=%v dvec=%v steps=%i angle=%f space=%m4 "
-                      "use_normal_flip=%b use_duplicate=%b use_merge=%b",
+                      "use_normal_flip=%b use_duplicate=%b merge_ends=%b automerge=%b",
                       BM_ELEM_SELECT,
                       cent,
                       axis,
@@ -80,16 +80,22 @@ static wmOperatorStatus edbm_spin_exec(bContext *C, wmOperator *op)
                       obedit->object_to_world().ptr(),
                       use_normal_flip,
                       dupli,
-                      use_auto_merge))
+                      merge_ends,
+                      automerge))
     {
       continue;
     }
     BMO_op_exec(bm, &spinop);
-    if (use_auto_merge == false) {
+
+    if(merge_ends == false) {
       EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-      BMO_slot_buffer_hflag_enable(
-          bm, spinop.slots_out, "geom_last.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
+      BMO_slot_buffer_hflag_enable(bm, spinop.slots_out, "geom_last.out", BM_ALL_NOLOOP, BM_ELEM_SELECT, true);
     }
+    if (automerge) {
+      EDBM_automerge(obedit, false, BM_ELEM_TAG, scene->toolsettings->doublimit);
+      EDBM_flag_disable_all(em, BM_ELEM_TAG);
+    }
+
     if (!EDBM_op_finish(em, &spinop, op, true)) {
       continue;
     }
@@ -157,7 +163,7 @@ static bool edbm_spin_poll_property(const bContext * /*C*/,
   const bool dupli = RNA_boolean_get(op->ptr, "dupli");
 
   if (dupli) {
-    if (STR_ELEM(prop_id, "use_auto_merge", "use_normal_flip")) {
+    if (STR_ELEM(prop_id, "merge_ends", "use_normal_flip")) {
       return false;
     }
   }
@@ -200,9 +206,9 @@ void MESH_OT_spin(wmOperatorType *ot)
                        DEG2RADF(360.0f));
   RNA_def_property_subtype(prop, PROP_ANGLE);
   RNA_def_boolean(ot->srna,
-                  "use_auto_merge",
+                  "merge_ends",
                   true,
-                  "Auto Merge",
+                  "Merge Ends",
                   "Merge first/last when the angle is a full revolution");
   RNA_def_boolean(ot->srna, "use_normal_flip", false, "Flip Normals", "");
 

@@ -1900,11 +1900,13 @@ static BMOpDefine bmo_spin_def = {
         /* Number of steps. */
         {"steps", BMO_OP_SLOT_INT},
         /* Merge first/last when the angle is a full revolution. */
-        {"use_merge", BMO_OP_SLOT_BOOL},
+        {"merge_ends", BMO_OP_SLOT_BOOL},
         /* Create faces with reversed direction. */
         {"use_normal_flip", BMO_OP_SLOT_BOOL},
         /* Duplicate or extrude?. */
         {"use_duplicate", BMO_OP_SLOT_BOOL},
+        /* Auto Merge Vertices. */
+        {"automerge", BMO_OP_SLOT_BOOL},
         {{'\0'}},
     },
     /*slot_types_out*/
