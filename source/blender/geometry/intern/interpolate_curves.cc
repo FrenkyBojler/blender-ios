@@ -25,7 +25,7 @@ namespace blender::geometry {
 using bke::CurvesGeometry;
 
 /* Returns a map that places each point in the sample index space.
- * The map supports one additional point at the end to simplify cyclic curve mapping. */
+ * The map has one additional point at the end to simplify cyclic curve mapping. */
 static Array<float> build_point_to_sample_map(const Span<float3> positions,
                                               const bool cyclic,
                                               const int samples_num)
