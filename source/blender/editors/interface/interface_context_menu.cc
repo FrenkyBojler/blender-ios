@@ -189,18 +189,18 @@ static uiBlock *menu_change_shortcut(bContext *C, ARegion *region, void *arg)
   UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT);
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
 
-  uiLayout *layout = UI_block_layout(block,
-                                     UI_LAYOUT_VERTICAL,
-                                     UI_LAYOUT_PANEL,
-                                     0,
-                                     0,
-                                     U.widget_unit * 10,
-                                     U.widget_unit * 2,
-                                     0,
-                                     style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               U.widget_unit * 10,
+                                               U.widget_unit * 2,
+                                               0,
+                                               style);
 
-  layout->label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"), ICON_HAND);
-  layout->prop(&ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
+  layout.label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Change Shortcut"), ICON_HAND);
+  layout.prop(&ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
   const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
   UI_block_bounds_set_popup(block, 6 * UI_SCALE_FAC, bounds_offset);
@@ -249,18 +249,18 @@ static uiBlock *menu_add_shortcut(bContext *C, ARegion *region, void *arg)
   UI_block_func_handle_set(block, but_shortcut_name_func, but);
   UI_block_direction_set(block, UI_DIR_CENTER_Y);
 
-  uiLayout *layout = UI_block_layout(block,
-                                     UI_LAYOUT_VERTICAL,
-                                     UI_LAYOUT_PANEL,
-                                     0,
-                                     0,
-                                     U.widget_unit * 10,
-                                     U.widget_unit * 2,
-                                     0,
-                                     style);
+  uiLayout &layout = blender::ui::block_layout(block,
+                                               blender::ui::LayoutDirection::Vertical,
+                                               blender::ui::LayoutType::Panel,
+                                               0,
+                                               0,
+                                               U.widget_unit * 10,
+                                               U.widget_unit * 2,
+                                               0,
+                                               style);
 
-  layout->label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"), ICON_HAND);
-  layout->prop(&ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
+  layout.label(CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Assign Shortcut"), ICON_HAND);
+  layout.prop(&ptr, "type", UI_ITEM_R_FULL_EVENT | UI_ITEM_R_IMMEDIATE, "", ICON_NONE);
 
   const int bounds_offset[2] = {int(-100 * UI_SCALE_FAC), int(36 * UI_SCALE_FAC)};
   UI_block_bounds_set_popup(block, 6 * UI_SCALE_FAC, bounds_offset);
@@ -488,7 +488,7 @@ static bool ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
     props_ptr = layout->op(ot,
                            CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open File Externally"),
                            ICON_NONE,
-                           WM_OP_INVOKE_DEFAULT,
+                           blender::wm::OpCallContext::InvokeDefault,
                            UI_ITEM_NONE);
     RNA_string_set(&props_ptr, "filepath", filepath);
   }
@@ -502,7 +502,7 @@ static bool ui_but_menu_add_path_operators(uiLayout *layout, PointerRNA *ptr, Pr
   props_ptr = layout->op(ot,
                          CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open Location Externally"),
                          ICON_NONE,
-                         WM_OP_INVOKE_DEFAULT,
+                         blender::wm::OpCallContext::InvokeDefault,
                          UI_ITEM_NONE);
   RNA_string_set(&props_ptr, "filepath", dir);
 
@@ -535,7 +535,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
     layout = UI_popup_menu_layout(pup);
 
     set_layout_context_from_button(C, layout, but);
-    layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+    layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
   }
 
   const bool is_disabled = but->flag & UI_BUT_DISABLED;
@@ -670,7 +670,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             ot,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "View All in Graph Editor"),
             ICON_GRAPH,
-            WM_OP_INVOKE_DEFAULT,
+            blender::wm::OpCallContext::InvokeDefault,
             UI_ITEM_NONE);
         RNA_boolean_set(&op_ptr, "all", true);
 
@@ -678,7 +678,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             ot,
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "View Single in Graph Editor"),
             ICON_NONE,
-            WM_OP_INVOKE_DEFAULT,
+            blender::wm::OpCallContext::InvokeDefault,
             UI_ITEM_NONE);
         RNA_boolean_set(&op_ptr, "all", false);
       }
@@ -690,7 +690,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         op_ptr = layout->op(ot,
                             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "View in Graph Editor"),
                             ICON_NONE,
-                            WM_OP_INVOKE_DEFAULT,
+                            blender::wm::OpCallContext::InvokeDefault,
                             UI_ITEM_NONE);
         RNA_boolean_set(&op_ptr, "all", false);
       }
@@ -822,9 +822,9 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         if (is_array_component) {
 #if 0 /* Disabled for now. */
           ot = WM_operatortype_find("UI_OT_override_type_set_button", false);
-          op_ptr = layout->op(ot, "Overrides Type", ICON_NONE, WM_OP_INVOKE_DEFAULT, 0);
+          op_ptr = layout->op(ot, "Overrides Type", ICON_NONE, blender::wm::OpCallContext::InvokeDefault, 0);
           RNA_boolean_set(&op_ptr, "all", true);
-          op_ptr = layout->op(ot, "Single Override Type", ICON_NONE, WM_OP_INVOKE_DEFAULT, 0);
+          op_ptr = layout->op(ot, "Single Override Type", ICON_NONE, blender::wm::OpCallContext::InvokeDefault, 0);
           RNA_boolean_set(&op_ptr, "all", false);
 #endif
           PointerRNA op_ptr = layout->op(
@@ -843,7 +843,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           op_ptr = layout->op("UI_OT_override_type_set_button",
                               "Override Type",
                               ICON_NONE,
-                              WM_OP_INVOKE_DEFAULT,
+                              blender::wm::OpCallContext::InvokeDefault,
                               0);
           RNA_boolean_set(&op_ptr, "all", false);
 #endif
@@ -860,14 +860,14 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           op_ptr = layout->op(ot,
                               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Overrides"),
                               ICON_NONE,
-                              WM_OP_INVOKE_DEFAULT,
+                              blender::wm::OpCallContext::InvokeDefault,
                               UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", true);
           op_ptr = layout->op(
               ot,
               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Single Override"),
               ICON_NONE,
-              WM_OP_INVOKE_DEFAULT,
+              blender::wm::OpCallContext::InvokeDefault,
               UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", false);
         }
@@ -875,7 +875,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
           op_ptr = layout->op("UI_OT_override_type_set_button",
                               CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Define Override"),
                               ICON_NONE,
-                              WM_OP_INVOKE_DEFAULT,
+                              blender::wm::OpCallContext::InvokeDefault,
                               UI_ITEM_NONE);
           RNA_boolean_set(&op_ptr, "all", false);
         }
@@ -979,7 +979,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
         props_ptr = layout->op(ot,
                                CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Open File Location"),
                                ICON_NONE,
-                               WM_OP_INVOKE_DEFAULT,
+                               blender::wm::OpCallContext::InvokeDefault,
                                UI_ITEM_NONE);
         RNA_string_set(&props_ptr, "filepath", dir);
         layout->separator();
@@ -1243,7 +1243,7 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
             "WM_OT_doc_view",
             CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Online Python Reference"),
             ICON_NONE,
-            WM_OP_EXEC_DEFAULT,
+            blender::wm::OpCallContext::ExecDefault,
             UI_ITEM_NONE);
         RNA_string_set(&ptr_props, "doc_id", manual_id.value().c_str());
       }
@@ -1257,7 +1257,11 @@ bool ui_popup_context_menu_for_button(bContext *C, uiBut *but, const wmEvent *ev
   /* perhaps we should move this into (G.debug & G_DEBUG) - campbell */
   if (U.flag & USER_DEVELOPER_UI) {
     if (ui_block_is_menu(but->block) == false) {
-      layout->op("UI_OT_editsource", std::nullopt, ICON_NONE, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+      layout->op("UI_OT_editsource",
+                 std::nullopt,
+                 ICON_NONE,
+                 blender::wm::OpCallContext::InvokeDefault,
+                 UI_ITEM_NONE);
     }
   }
 

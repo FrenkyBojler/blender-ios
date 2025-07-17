@@ -226,7 +226,7 @@ BLI_INLINE int space_text_pixel_x_to_column(const SpaceText *st, const int x)
 
 static void text_select_update_primary_clipboard(const Text *text)
 {
-  if ((WM_capabilities_flag() & WM_CAPABILITY_PRIMARY_CLIPBOARD) == 0) {
+  if ((WM_capabilities_flag() & WM_CAPABILITY_CLIPBOARD_PRIMARY) == 0) {
     return;
   }
   if (!txt_has_sel(text)) {
@@ -759,7 +759,8 @@ static wmOperatorStatus text_save_invoke(bContext *C, wmOperator *op, const wmEv
 
   /* Internal and texts without a filepath will go to "Save As". */
   if (text->filepath == nullptr || (text->flags & TXT_ISMEM)) {
-    WM_operator_name_call(C, "TEXT_OT_save_as", WM_OP_INVOKE_DEFAULT, nullptr, event);
+    WM_operator_name_call(
+        C, "TEXT_OT_save_as", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
     return OPERATOR_CANCELLED;
   }
   return text_save_exec(C, op);
@@ -1143,10 +1144,12 @@ static wmOperatorStatus text_indent_or_autocomplete_exec(bContext *C, wmOperator
   TextLine *line = text->curl;
   bool text_before_cursor = text->curc != 0 && !ELEM(line->line[text->curc - 1], ' ', '\t');
   if (text_before_cursor && (txt_has_sel(text) == false)) {
-    WM_operator_name_call(C, "TEXT_OT_autocomplete", WM_OP_INVOKE_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "TEXT_OT_autocomplete", blender::wm::OpCallContext::InvokeDefault, nullptr, nullptr);
   }
   else {
-    WM_operator_name_call(C, "TEXT_OT_indent", WM_OP_EXEC_DEFAULT, nullptr, nullptr);
+    WM_operator_name_call(
+        C, "TEXT_OT_indent", blender::wm::OpCallContext::ExecDefault, nullptr, nullptr);
   }
   return OPERATOR_FINISHED;
 }
@@ -4117,6 +4120,7 @@ void TEXT_OT_jump_to_file_at_point(wmOperatorType *ot)
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
   prop = RNA_def_int(ot->srna, "line", 0, 0, INT_MAX, "Line", "Line to jump to", 1, 10000);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXT);
   prop = RNA_def_int(ot->srna, "column", 0, 0, INT_MAX, "Column", "Column to jump to", 1, 10000);
   RNA_def_property_flag(prop, PROP_HIDDEN | PROP_SKIP_SAVE);
 }
@@ -4182,53 +4186,34 @@ static wmOperatorStatus text_resolve_conflict_invoke(bContext *C,
         pup = UI_popup_menu_begin(
             C, IFACE_("File Modified Outside and Inside Blender"), ICON_NONE);
         layout = UI_popup_menu_layout(pup);
-        uiItemEnumO_ptr(layout,
-                        op->type,
-                        IFACE_("Reload from disk (ignore local changes)"),
-                        ICON_NONE,
-                        "resolution",
-                        RESOLVE_RELOAD);
-        uiItemEnumO_ptr(layout,
-                        op->type,
-                        IFACE_("Save to disk (ignore outside changes)"),
-                        ICON_NONE,
-                        "resolution",
-                        RESOLVE_SAVE);
-        uiItemEnumO_ptr(layout,
-                        op->type,
-                        IFACE_("Make text internal (separate copy)"),
-                        ICON_NONE,
-                        "resolution",
-                        RESOLVE_MAKE_INTERNAL);
+        PointerRNA op_ptr = layout->op(
+            op->type, IFACE_("Reload from disk (ignore local changes)"), ICON_NONE);
+        RNA_enum_set(&op_ptr, "resolution", RESOLVE_RELOAD);
+        op_ptr = layout->op(op->type, IFACE_("Save to disk (ignore outside changes)"), ICON_NONE);
+        RNA_enum_set(&op_ptr, "resolution", RESOLVE_SAVE);
+        op_ptr = layout->op(op->type, IFACE_("Make text internal (separate copy)"), ICON_NONE);
+        RNA_enum_set(&op_ptr, "resolution", RESOLVE_MAKE_INTERNAL);
         UI_popup_menu_end(C, pup);
       }
       else {
         pup = UI_popup_menu_begin(C, IFACE_("File Modified Outside Blender"), ICON_NONE);
         layout = UI_popup_menu_layout(pup);
-        uiItemEnumO_ptr(
-            layout, op->type, IFACE_("Reload from disk"), ICON_NONE, "resolution", RESOLVE_RELOAD);
-        uiItemEnumO_ptr(layout,
-                        op->type,
-                        IFACE_("Make text internal (separate copy)"),
-                        ICON_NONE,
-                        "resolution",
-                        RESOLVE_MAKE_INTERNAL);
-        uiItemEnumO_ptr(
-            layout, op->type, IFACE_("Ignore"), ICON_NONE, "resolution", RESOLVE_IGNORE);
+        PointerRNA op_ptr = layout->op(op->type, IFACE_("Reload from disk"), ICON_NONE);
+        RNA_enum_set(&op_ptr, "resolution", RESOLVE_RELOAD);
+        op_ptr = layout->op(op->type, IFACE_("Make text internal (separate copy)"), ICON_NONE);
+        RNA_enum_set(&op_ptr, "resolution", RESOLVE_MAKE_INTERNAL);
+        op_ptr = layout->op(op->type, IFACE_("Ignore"), ICON_NONE);
+        RNA_enum_set(&op_ptr, "resolution", RESOLVE_IGNORE);
         UI_popup_menu_end(C, pup);
       }
       break;
     case 2:
       pup = UI_popup_menu_begin(C, IFACE_("File Deleted Outside Blender"), ICON_NONE);
       layout = UI_popup_menu_layout(pup);
-      uiItemEnumO_ptr(layout,
-                      op->type,
-                      IFACE_("Make text internal"),
-                      ICON_NONE,
-                      "resolution",
-                      RESOLVE_MAKE_INTERNAL);
-      uiItemEnumO_ptr(
-          layout, op->type, IFACE_("Recreate file"), ICON_NONE, "resolution", RESOLVE_SAVE);
+      PointerRNA op_ptr = layout->op(op->type, IFACE_("Make text internal"), ICON_NONE);
+      RNA_enum_set(&op_ptr, "resolution", RESOLVE_MAKE_INTERNAL);
+      op_ptr = layout->op(op->type, IFACE_("Recreate file"), ICON_NONE);
+      RNA_enum_set(&op_ptr, "resolution", RESOLVE_SAVE);
       UI_popup_menu_end(C, pup);
       break;
   }
