@@ -15,7 +15,7 @@ struct OrderWeights {
   int codepoint;
   int weight;
   char alternate;
-  char lettercase;
+  char uppercase;
 };
 
 static const std::array<OrderWeights, 731> OrderWeightsTable{{
@@ -782,7 +782,7 @@ static int bli_str_utf32_weight(const OrderWeights *weights,
     weight += weights->alternate;
   }
   if (lettercase) {
-    weight += weights->lettercase;
+    weight += weights->uppercase;
   }
   return weight;
 }
@@ -873,7 +873,7 @@ std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sens
     }
 
     const OrderWeights *weights = bli_str_utf32_orderweights(wc);
-    const bool ucase = case_sensitive && weights && weights->lettercase;
+    const bool ucase = case_sensitive && weights && weights->uppercase;
     int normalized = weights ? bli_str_utf32_weight(weights, false, false) : wc;
     if (!weights && mk_wcwidth(wc) < 1) {
       normalized = 0; /* No weight for combining characters. */
