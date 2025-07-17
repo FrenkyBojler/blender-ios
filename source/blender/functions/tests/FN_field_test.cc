@@ -37,7 +37,7 @@ class IndexFieldInput final : public FieldInput {
                                  ResourceScope & /*scope*/) const final
   {
     auto index_func = [](int i) { return i; };
-    return VArray<int>::ForFunc(mask.min_array_size(), index_func);
+    return VArray<int>::from_func(mask.min_array_size(), index_func);
   }
 };
 

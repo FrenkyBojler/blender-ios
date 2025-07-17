@@ -716,7 +716,7 @@ void DataTypeConversions::convert_to_initialized_n(GSpan from_span, GMutableSpan
                                                                     DataType::ForSingle(to_type));
 
   to_type.destruct_n(to_span.data(), to_span.size());
-  call_convert_to_uninitialized_fn(GVArray::ForSpan(from_span), *fn, to_span);
+  call_convert_to_uninitialized_fn(GVArray::from_span(from_span), *fn, to_span);
 }
 
 class GVArray_For_ConvertedGVArray : public GVArrayImpl {

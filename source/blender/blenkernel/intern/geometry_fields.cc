@@ -435,17 +435,17 @@ GVArray AttributeExistsFieldInput::get_varray_for_context(const bke::GeometryFie
     if (context.domain() == AttrDomain::Layer) {
       const bool exists = layer_attributes.contains(name_);
       const int domain_size = layer_attributes.domain_size(AttrDomain::Layer);
-      return VArray<bool>::ForSingle(exists, domain_size);
+      return VArray<bool>::from_single(exists, domain_size);
     }
     const greasepencil::Drawing *drawing = context.grease_pencil_layer_drawing();
     const AttributeAccessor curve_attributes = drawing->strokes().attributes();
     const bool exists = layer_attributes.contains(name_) || curve_attributes.contains(name_);
     const int domain_size = curve_attributes.domain_size(domain);
-    return VArray<bool>::ForSingle(exists, domain_size);
+    return VArray<bool>::from_single(exists, domain_size);
   }
   const bool exists = context.attributes()->contains(name_);
   const int domain_size = context.attributes()->domain_size(domain);
-  return VArray<bool>::ForSingle(exists, domain_size);
+  return VArray<bool>::from_single(exists, domain_size);
 }
 
 std::string AttributeFieldInput::socket_inspection_name() const
@@ -553,10 +553,10 @@ GVArray NamedLayerSelectionFieldInput::get_varray_for_context(
   if (ELEM(domain, AttrDomain::Point, AttrDomain::Curve)) {
     const int layer_i = context.grease_pencil_layer_index();
     const bool selected = layer_is_selected(layer_i);
-    return VArray<bool>::ForSingle(selected, mask.min_array_size());
+    return VArray<bool>::from_single(selected, mask.min_array_size());
   }
 
-  return VArray<bool>::ForFunc(mask.min_array_size(), layer_is_selected);
+  return VArray<bool>::from_func(mask.min_array_size(), layer_is_selected);
 }
 
 uint64_t NamedLayerSelectionFieldInput::hash() const

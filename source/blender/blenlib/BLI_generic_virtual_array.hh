@@ -196,7 +196,7 @@ class GVArray : public GVArrayCommon {
   static GVArray ForSingle(const CPPType &type, int64_t size, const void *value);
   static GVArray ForSingleRef(const CPPType &type, int64_t size, const void *value);
   static GVArray ForSingleDefault(const CPPType &type, int64_t size);
-  static GVArray ForSpan(GSpan span);
+  static GVArray from_span(GSpan span);
   static GVArray ForGArray(GArray<> array);
   static GVArray ForEmpty(const CPPType &type);
 
@@ -225,7 +225,7 @@ class GVMutableArray : public GVArrayCommon {
 
   template<typename ImplT, typename... Args> static GVMutableArray For(Args &&...args);
 
-  static GVMutableArray ForSpan(GMutableSpan span);
+  static GVMutableArray from_span(GMutableSpan span);
 
   operator GVArray() const &;
   operator GVArray() && noexcept;
@@ -886,7 +886,7 @@ template<typename T> inline GVArray::GVArray(VArray<T> &&varray)
   /* Need to check for ownership, because otherwise the referenced data can be destructed when
    * #this is destructed. */
   if (info.type == CommonVArrayInfo::Type::Span && !info.may_have_ownership) {
-    *this = GVArray::ForSpan(GSpan(CPPType::get<T>(), info.data, varray.size()));
+    *this = GVArray::from_span(GSpan(CPPType::get<T>(), info.data, varray.size()));
     return;
   }
   if (varray.try_assign_GVArray(*this)) {
@@ -903,18 +903,18 @@ template<typename T> inline VArray<T> GVArray::typed() const
   BLI_assert(impl_->type().is<T>());
   const CommonVArrayInfo info = this->common_info();
   if (info.type == CommonVArrayInfo::Type::Single) {
-    return VArray<T>::ForSingle(*static_cast<const T *>(info.data), this->size());
+    return VArray<T>::from_single(*static_cast<const T *>(info.data), this->size());
   }
   /* Need to check for ownership, because otherwise the referenced data can be destructed when
    * #this is destructed. */
   if (info.type == CommonVArrayInfo::Type::Span && !info.may_have_ownership) {
-    return VArray<T>::ForSpan(Span<T>(static_cast<const T *>(info.data), this->size()));
+    return VArray<T>::from_span(Span<T>(static_cast<const T *>(info.data), this->size()));
   }
   VArray<T> varray;
   if (this->try_assign_VArray(varray)) {
     return varray;
   }
-  return VArray<T>::template For<VArrayImpl_For_GVArray<T>>(*this);
+  return VArray<T>::template from<VArrayImpl_For_GVArray<T>>(*this);
 }
 
 /** \} */
@@ -939,7 +939,7 @@ template<typename T> inline GVMutableArray::GVMutableArray(const VMutableArray<T
   }
   const CommonVArrayInfo info = varray.common_info();
   if (info.type == CommonVArrayInfo::Type::Span && !info.may_have_ownership) {
-    *this = GVMutableArray::ForSpan(
+    *this = GVMutableArray::from_span(
         GMutableSpan(CPPType::get<T>(), const_cast<void *>(info.data), varray.size()));
     return;
   }
@@ -957,14 +957,14 @@ template<typename T> inline VMutableArray<T> GVMutableArray::typed() const
   BLI_assert(this->type().is<T>());
   const CommonVArrayInfo info = this->common_info();
   if (info.type == CommonVArrayInfo::Type::Span && !info.may_have_ownership) {
-    return VMutableArray<T>::ForSpan(
+    return VMutableArray<T>::from_span(
         MutableSpan<T>(const_cast<T *>(static_cast<const T *>(info.data)), this->size()));
   }
   VMutableArray<T> varray;
   if (this->try_assign_VMutableArray(varray)) {
     return varray;
   }
-  return VMutableArray<T>::template For<VMutableArrayImpl_For_GVMutableArray<T>>(*this);
+  return VMutableArray<T>::template from<VMutableArrayImpl_For_GVMutableArray<T>>(*this);
 }
 
 /** \} */

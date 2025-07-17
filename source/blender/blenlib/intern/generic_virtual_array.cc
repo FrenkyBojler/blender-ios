@@ -710,7 +710,7 @@ GVArray GVArray::ForSingleDefault(const CPPType &type, const int64_t size)
   return GVArray::ForSingleRef(type, size, type.default_value());
 }
 
-GVArray GVArray::ForSpan(GSpan span)
+GVArray GVArray::from_span(GSpan span)
 {
   return GVArray(varray_tag::span{}, span);
 }
@@ -733,7 +733,7 @@ GVArray GVArray::ForGArray(GArray<> array)
 
 GVArray GVArray::ForEmpty(const CPPType &type)
 {
-  return GVArray::ForSpan(GSpan(type));
+  return GVArray::from_span(GSpan(type));
 }
 
 GVArray GVArray::slice(IndexRange slice) const
@@ -745,7 +745,7 @@ GVArray GVArray::slice(IndexRange slice) const
   /* Need to check for ownership, because otherwise the referenced data can be destructed when
    * #this is destructed. */
   if (info.type == CommonVArrayInfo::Type::Span && !info.may_have_ownership) {
-    return GVArray::ForSpan(GSpan(this->type(), info.data, this->size()).slice(slice));
+    return GVArray::from_span(GSpan(this->type(), info.data, this->size()).slice(slice));
   }
   return GVArray::For<GVArrayImpl_For_SlicedGVArray>(*this, slice);
 }
@@ -778,7 +778,7 @@ GVMutableArray::GVMutableArray(std::shared_ptr<GVMutableArrayImpl> impl)
 {
 }
 
-GVMutableArray GVMutableArray::ForSpan(GMutableSpan span)
+GVMutableArray GVMutableArray::from_span(GMutableSpan span)
 {
   return GVMutableArray::For<GVArrayImpl_For_GSpan_final>(span);
 }

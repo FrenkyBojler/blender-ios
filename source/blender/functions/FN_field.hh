@@ -413,7 +413,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
    */
   template<typename T> int add_with_destination(Field<T> field, MutableSpan<T> dst)
   {
-    return this->add_with_destination(std::move(field), VMutableArray<T>::ForSpan(dst));
+    return this->add_with_destination(std::move(field), VMutableArray<T>::from_span(dst));
   }
 
   int add(GField field, GVArray *varray_ptr);

@@ -399,7 +399,7 @@ Vector<GVArray> evaluate_fields(ResourceScope &scope,
               [buffer, mask, &type]() { type.destruct_indices(buffer, mask); });
         }
 
-        r_varrays[out_index] = GVArray::ForSpan({type, buffer, array_size});
+        r_varrays[out_index] = GVArray::from_span({type, buffer, array_size});
       }
       else {
         /* Write the result into the existing span. */
@@ -548,7 +548,7 @@ IndexFieldInput::IndexFieldInput() : FieldInput(CPPType::get<int>(), "Index")
 GVArray IndexFieldInput::get_index_varray(const IndexMask &mask)
 {
   auto index_func = [](int i) { return i; };
-  return VArray<int>::ForFunc(mask.min_array_size(), index_func);
+  return VArray<int>::from_func(mask.min_array_size(), index_func);
 }
 
 GVArray IndexFieldInput::get_varray_for_context(const fn::FieldContext & /*context*/,
@@ -745,7 +745,7 @@ int FieldEvaluator::add_with_destination(GField field, GVMutableArray dst)
 
 int FieldEvaluator::add_with_destination(GField field, GMutableSpan dst)
 {
-  return this->add_with_destination(std::move(field), GVMutableArray::ForSpan(dst));
+  return this->add_with_destination(std::move(field), GVMutableArray::from_span(dst));
 }
 
 int FieldEvaluator::add(GField field, GVArray *varray_ptr)
