@@ -13,7 +13,7 @@
  */
 
 /* 5.x, 6.x */
-#elif __CUDA_ARCH__ <= 699
+#if __CUDA_ARCH__ <= 699
 #  define GPU_MULTIPRESSOR_MAX_REGISTERS 65536
 #  define GPU_MULTIPROCESSOR_MAX_BLOCKS 32
 #  define GPU_BLOCK_MAX_THREADS 1024
