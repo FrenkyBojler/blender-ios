@@ -133,7 +133,10 @@ static FileTooltipData *file_tooltip_data_create(const SpaceFile *sfile, const F
   return data;
 }
 
-static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
+static void file_draw_tooltip_custom_func(bContext & /*C*/,
+                                          uiTooltipData &tip,
+                                          uiBut * /*but*/,
+                                          void *argN)
 {
   FileTooltipData *file_data = static_cast<FileTooltipData *>(argN);
   const SpaceFile *sfile = file_data->sfile;
@@ -337,7 +340,10 @@ static void file_draw_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, 
   }
 }
 
-static void file_draw_asset_tooltip_custom_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
+static void file_draw_asset_tooltip_custom_func(bContext & /*C*/,
+                                                uiTooltipData &tip,
+                                                uiBut * /*but*/,
+                                                void *argN)
 {
   const auto *asset = static_cast<blender::asset_system::AssetRepresentation *>(argN);
   blender::ed::asset::asset_tooltip(*asset, tip);
@@ -662,7 +668,7 @@ static void file_draw_preview(const FileDirEntry *file,
       imb->x, imb->y, *layout);
 
   /* Additional offset to keep the scaled image centered. Difference between maximum
-   * width/height and the actual width/height, divided by two for centering.  */
+   * width/height and the actual width/height, divided by two for centering. */
   const float ofs_x = (float(layout->prv_w) - float(scaled_width)) / 2.0f;
   const float ofs_y = (float(layout->prv_h) - float(scaled_height)) / 2.0f;
   const int xmin = tile_draw_rect->xmin + layout->prv_border_x + int(ofs_x + 0.5f);
@@ -1622,7 +1628,7 @@ static void file_draw_invalid_asset_library_hint(const bContext *C,
     uiBut *but = uiDefIconTextButO_ptr(block,
                                        UI_BTYPE_BUT,
                                        ot,
-                                       WM_OP_INVOKE_DEFAULT,
+                                       blender::wm::OpCallContext::InvokeDefault,
                                        ICON_PREFERENCES,
                                        WM_operatortype_name(ot, nullptr),
                                        sx + UI_UNIT_X,
