@@ -32,7 +32,6 @@
 #include "ED_fileselect.hh"
 #include "ED_render.hh"
 #include "ED_util.hh"
-#include "ED_view3d.hh"
 #include "ED_view3d_offscreen.hh"
 
 #include "BLT_translation.hh"
