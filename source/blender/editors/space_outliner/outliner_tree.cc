@@ -1113,6 +1113,7 @@ static void outliner_filter_tree(SpaceOutliner *space_outliner,
                                  ViewLayer *view_layer)
 {
   const char *search_string;
+
   const int exclude_filter = outliner_exclude_filter_get(space_outliner);
 
   if (exclude_filter == 0) {
