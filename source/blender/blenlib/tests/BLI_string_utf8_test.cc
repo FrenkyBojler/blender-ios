@@ -1307,4 +1307,95 @@ TEST(string, StrCursorStepPrevUtf8Invalid)
   EXPECT_FALSE(BLI_str_cursor_step_prev_utf8(invalid, len, &pos));
 }
 
+/* -------------------------------------------------------------------- */
+/** \name Test #BLI_str_utf32_char_to_upper
+ * \{ */
+
+TEST(string, BLI_str_utf32_char_to_upper)
+{
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'a') == U'A');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'z') == U'Z');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\xE0') == U'\xC0');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\xF6') == U'\xD6');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\x101') == U'\x100');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\x1E01') == U'\x1E00');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\x561') == U'\x531');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\x10D0') == U'\x10A0');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\x24D0') == U'\x24B6');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\xFF41') == U'\xFF21');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\x00FF') == U'\x0178');
+  EXPECT_TRUE(BLI_str_utf32_char_to_upper(U'\x1FE1') == U'\x1FE9');
+}
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
+/** \name Test #BLI_str_utf32_char_to_lower
+ * \{ */
+
+TEST(string, BLI_str_utf32_char_to_lower)
+{
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'A') == U'a');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'Z') == U'z');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\xC0') == U'\xE0');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\xD6') == U'\xF6');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\x100') == U'\x101');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\x1E00') == U'\x1E01');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\x531') == U'\x561');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\x10A0') == U'\x10D0');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\x24B6') == U'\x24D0');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\xFF21') == U'\xFF41');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\x00D8') == U'\x00F8');
+  EXPECT_TRUE(BLI_str_utf32_char_to_lower(U'\x1FE9') == U'\x1FE1');
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Test #BLI_str_utf8_normalized
+ * \{ */
+
+TEST(string, BLI_str_utf8_normalized)
+{
+  std::string st1 = "aAzZ";
+  std::string st2 = "aazz";
+  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
+
+  st1 = "aAzZ";
+  st2 = "aAzZ";
+  EXPECT_TRUE(BLI_str_utf8_normalized(st1, true) == st2);
+
+  st1 = "\xBC \xC6 \xC5\x92 \xEF\xAC\x82";
+  st2 = "1/4 ae oe fl";
+  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
+
+  st1 = "\xBC \xC6 \xC5\x92 \xEF\xAC\x82";
+  st2 = "1/4 AE OE fl";
+  EXPECT_TRUE(BLI_str_utf8_normalized(st1, true) == st2);
+
+  st1 = "\xC0 \xDD \xC7\xBE";
+  st2 = "a y o";
+  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
+
+  st1 = "\xC0 \xDD \xC7\xBE";
+  st2 = "A Y O";
+  EXPECT_TRUE(BLI_str_utf8_normalized(st1, true) == st2);
+
+  st1 = "\xE2\x80\x8A \xEF\xBC\x99 \xEF\xBC\xBA";
+  st2 = "  9 z";
+  EXPECT_TRUE(BLI_str_utf8_normalized(st1, false) == st2);
+}
+
+/* -------------------------------------------------------------------- */
+/** \name Test #BLI_str_utf8_contains
+ * \{ */
+
+TEST(string, BLI_str_utf8_contains)
+{
+  EXPECT_TRUE(BLI_str_utf8_contains(" aAzZ ", "aazz", false));
+  EXPECT_FALSE(BLI_str_utf8_contains(" aAzZ ", "aazz", true));
+  EXPECT_TRUE(BLI_str_utf8_contains(" \xBC \xC6 \xC5\x92 \xEF\xAC\x82 ", "1/4 ae oe fl", false));
+  EXPECT_TRUE(BLI_str_utf8_contains(" \xC0 \xDD \xC7\xBE ", "a y o", false));
+  EXPECT_TRUE(BLI_str_utf8_contains(" \xC0 \xDD \xC7\xBE ", "A Y O", true));
+  EXPECT_TRUE(BLI_str_utf8_contains(" \xEF\xBC\x99 \xEF\xBC\xBA ", "9 z", false));
+}
+
 /** \} */

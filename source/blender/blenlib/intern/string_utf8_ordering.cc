@@ -42,7 +42,7 @@ static const OrderWeights OrderWeightsTable[] = {
     {0x002C, 0, 1, 0},    /* Comma ignored. */
     {0x002D, ' ', 14, 0}, /* Hyphen treated as space. */
     {0x002E, 0, 0, 0},    /* Period (full stop) ignored. */
-    {0x002F, ' ', 22, 0}, /* Slash treated as space. */
+    {0x002F, '/', 0, 0},  /* Forward slash. */
     {0x0030, '0', 0, 0},  /* Digit 0. */
     {0x0031, '1', 0, 0},  /* Digit 1. */
     {0x0032, '2', 0, 0},  /* Digit 2. */
@@ -636,20 +636,6 @@ static const OrderWeights OrderWeightsTable[] = {
     {0x04F5, 'ч', 1, 0},  /* Cyrillic small letter che with diaeresis */
     {0x04F8, 'ы', 1, 1},  /* Cyrillic capital letter yeru with diaeresis */
     {0x04F9, 'ы', 1, 0},  /* Cyrillic small letter yeru with diaeresis */
-    {0x205F, ' ', 10, 0}, /* Space Math. */
-    {0x20A3, '$', 12, 0}, /* French Franc Sign. */
-    {0x20A4, '$', 13, 0}, /* Lira Sign. */
-    {0x20A7, '$', 14, 0}, /* Peseta Sign. */
-    {0x2105, '$', 15, 0}, /* Care of Sign. */
-    {0x2116, '$', 16, 0}, /* Numero Sign. */
-    {0x2116, 'n', 8, 0},  /* Numero Sign. */
-    {0x2122, 't', 6, 2},  /* Trade Mark Sign. */
-    {0x2126, 'ω', 1, 1},  /* Ohm sign */
-    {0x215B, '1', 5, 0},  /* 1/8 fraction. */
-    {0x215C, '3', 4, 0},  /* 3/8 fraction. */
-    {0x215D, '5', 3, 0},  /* 5/8 fraction. */
-    {0x215E, '7', 3, 0},  /* 7/8 fraction */
-    {0x2212, ' ', 21, 0}, /* Minus Sign treated as space. */
     {0x2002, ' ', 1, 0},  /* Space En. */
     {0x2003, ' ', 2, 0},  /* Space Em. */
     {0x2004, ' ', 3, 0},  /* Space Thick. */
@@ -675,6 +661,19 @@ static const OrderWeights OrderWeightsTable[] = {
     {0x2030, '$', 11, 0}, /* Per-mille Sign. */
     {0x2039, 0, 23, 0},   /* Left single angle quotation mark ignored. */
     {0x203A, 0, 24, 0},   /* right single angle quotation mark ignored. */
+    {0x205F, ' ', 10, 0}, /* Space Math. */
+    {0x20A3, '$', 12, 0}, /* French Franc Sign. */
+    {0x20A4, '$', 13, 0}, /* Lira Sign. */
+    {0x20A7, '$', 14, 0}, /* Peseta Sign. */
+    {0x2105, '$', 15, 0}, /* Care of Sign. */
+    {0x2116, 'n', 8, 0},  /* Numero Sign. */
+    {0x2122, 't', 6, 2},  /* Trade Mark Sign. */
+    {0x2126, 'ω', 1, 1},  /* Ohm sign */
+    {0x215B, '1', 5, 0},  /* 1/8 fraction. */
+    {0x215C, '3', 4, 0},  /* 3/8 fraction. */
+    {0x215D, '5', 3, 0},  /* 5/8 fraction. */
+    {0x215E, '7', 3, 0},  /* 7/8 fraction */
+    {0x2212, ' ', 21, 0}, /* Minus Sign treated as space. */
     {0x3000, ' ', 11, 0}, /* Space Ideographic. */
     {0xFB01, 'f', 3, 0},  /* Small Ligature fi. */
     {0xFB02, 'f', 4, 0},  /* Small Ligature fl. */
