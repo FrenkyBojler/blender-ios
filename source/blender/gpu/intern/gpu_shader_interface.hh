@@ -144,8 +144,7 @@ class ShaderInterface {
     return builtin_blocks_[builtin];
   }
 
-  inline uint ShaderInterface::max_binding_get(const ShaderInput *const inputs,
-                                               const uint inputs_len) const;
+  inline uint valid_bindings_get(const ShaderInput *const inputs, const uint inputs_len) const;
 
  protected:
   static inline const char *builtin_uniform_name(GPUUniformBuiltin u);
@@ -315,15 +314,17 @@ inline const ShaderInput *ShaderInterface::input_lookup(const ShaderInput *const
   return nullptr; /* not found */
 }
 
-inline uint ShaderInterface::max_binding_get(const ShaderInput *const inputs,
-                                             const uint inputs_len) const
+inline uint ShaderInterface::valid_bindings_get(const ShaderInput *const inputs,
+                                                const uint inputs_len) const
 {
   /* Simple linear search for now. */
-  int max_binding = -1;
+  int valid_bindings = 0;
   for (int i = inputs_len - 1; i >= 0; i--) {
-    max_binding = max_ii(max_binding, inputs[i].binding);
+    if (inputs[i].binding > -1) {
+      valid_bindings++;
+    }
   }
-  return max_binding;
+  return valid_bindings;
 }
 
 }  // namespace blender::gpu
