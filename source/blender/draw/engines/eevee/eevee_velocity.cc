@@ -207,7 +207,7 @@ bool VelocityModule::step_object_sync(ObjectKey &object_key,
 
     const VelocityGeometryData &data = geometry_map.lookup_or_add_cb(vel.id, add_cb);
 
-    if (!data.pos_buf_get()) {
+    if (!data.has_data()) {
       has_deform = false;
     }
   }
@@ -432,7 +432,6 @@ bool VelocityModule::object_is_deform(const Object *ob)
   const bool has_rigidbody = (rbo && (rbo->type == RBO_TYPE_ACTIVE));
   const bool is_deform = BKE_object_is_deform_modified(inst_.scene, (Object *)ob) ||
                          (has_rigidbody && (rbo->flag & RBO_FLAG_USE_DEFORM) != 0);
-
   return is_deform;
 }
 
