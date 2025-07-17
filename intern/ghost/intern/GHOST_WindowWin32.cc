@@ -1123,7 +1123,9 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
     return GHOST_kSuccess;
   }
 
-  /* New format: RGBA bitmap, size up to 128x128. */
+  /* RGBA bitmap, size up to 255x255. This limit may differ on other
+   * platforms. Requesting larger does not give an error, just results
+   * in a smaller, empty result. */
 
   BITMAPV5HEADER header;
   memset(&header, 0, sizeof(BITMAPV5HEADER));
@@ -1139,7 +1141,7 @@ GHOST_TSuccess GHOST_WindowWin32::setWindowCustomCursorShape(const uint8_t *bitm
   header.bV5AlphaMask = 0xFF000000;
 
   HDC hdc = GetDC(m_hWnd);
-  void *bits = NULL;
+  void *bits = nullptr;
   HBITMAP bmp = CreateDIBSection(
       hdc, (BITMAPINFO *)&header, DIB_RGB_COLORS, (void **)&bits, NULL, (DWORD)0);
   ReleaseDC(NULL, hdc);

@@ -170,6 +170,7 @@ if(WITH_GTESTS)
     tests/GEO_hair_constraints_test.cc
     tests/GEO_hair_solver_test.cc
     tests/GEO_merge_curves_test.cc
+    tests/GEO_interpolate_curves_test.cc
   )
   set(TEST_LIB
   )

@@ -316,7 +316,7 @@ static wmOperatorStatus geometry_attribute_add_exec(bContext *C, wmOperator *op)
         attributes.unique_name_calc(name),
         bke::AttrDomain(domain),
         *bke::custom_data_type_to_attr_type(type),
-        bke::Attribute::ArrayData::ForDefaultValue(cpp_type, domain_size));
+        bke::Attribute::ArrayData::from_default_value(cpp_type, domain_size));
 
     BKE_attributes_active_set(owner, attr.name());
 
@@ -553,7 +553,7 @@ bool convert_attribute(AttributeOwner &owner,
 
   if (was_active) {
     /* The attribute active status is stored as an index. Changing the attribute's domain will
-     * change its index, so reassign the active attribute if necessary.*/
+     * change its index, so reassign the active attribute if necessary. */
     BKE_attributes_active_set(owner, name_copy);
   }
 
