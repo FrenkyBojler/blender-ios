@@ -34,8 +34,7 @@ static Array<float> build_point_to_sample_map(const Span<float3> positions,
   Array<float> sample_by_point(points.size() + 1);
   sample_by_point[0] = 0.0f;
   for (const int i : points.drop_front(1)) {
-    sample_by_point[i] = sample_by_point[i - 1] +
-                         math::distance(positions[points[i - 1]], positions[points[i]]);
+    sample_by_point[i] = sample_by_point[i - 1] + math::distance(positions[i - 1], positions[i]);
   }
   sample_by_point.last() = cyclic ? sample_by_point[points.size() - 1] +
                                         math::distance(positions.last(), positions.first()) :
