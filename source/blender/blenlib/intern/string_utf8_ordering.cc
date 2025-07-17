@@ -18,7 +18,7 @@ struct OrderWeights {
   char lettercase;
 };
 
-static const OrderWeights OrderWeightsTable[] = {
+static const std::array<OrderWeights, 731> OrderWeightsTable{{
     /* European ordering rules  (EOR / EN 13710 NISO TR03-1999)
      * https://www.open-std.org/cen/tc304/EOR/eorhome.html
      * Three levels of weights for sort/collation. Primary considers "A" and "ã"
@@ -754,25 +754,18 @@ static const OrderWeights OrderWeightsTable[] = {
     {0xFF58, 'x', 1, 0},  /* Half width Small Letter X. */
     {0xFF59, 'y', 5, 0},  /* Half width Small Letter Y. */
     {0xFF5A, 'z', 6, 0},  /* Half width Small Letter Z. */
-};
+}};
 
 static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
 {
-  size_t left = 0;
-  size_t right = sizeof(OrderWeightsTable) / sizeof(OrderWeightsTable[0]);
-  while (left < right) {
-    size_t mid = left + (right - left) / 2;
-    if (OrderWeightsTable[mid].codepoint == int(codepoint)) {
-      return &OrderWeightsTable[mid];
-    }
-    if (OrderWeightsTable[mid].codepoint < int(codepoint)) {
-      left = mid + 1;
-    }
-    else {
-      right = mid;
-    }
+  auto weights = std::lower_bound(
+      OrderWeightsTable.begin(),
+      OrderWeightsTable.end(),
+      codepoint,
+      [](const OrderWeights &s, int val) { return s.codepoint < val; });
+  if (weights != OrderWeightsTable.end() && weights->codepoint == codepoint) {
+    return &(*weights);
   }
-
   return nullptr;
 }
 
