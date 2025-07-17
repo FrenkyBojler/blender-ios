@@ -1831,7 +1831,7 @@ Keep at '0' to automatically compute optimal values for each build."
   endif()
   set_property(
     GLOBAL APPEND PROPERTY
-    JOB_POOLS link_job_pool=${NINJA_MAX_NUM_PARALLEL_LINK_JOBS}
+    JOB_POOLS link_job_pool=${_link_jobs}
   )
   set(CMAKE_JOB_POOL_LINK link_job_pool)
 
