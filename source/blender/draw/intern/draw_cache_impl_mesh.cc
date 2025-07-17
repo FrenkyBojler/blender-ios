@@ -527,9 +527,8 @@ static void mesh_batch_cache_request_surface_batches(Mesh &mesh, MeshBatchCache 
   DRW_batch_request(&cache.batch.surface);
 
   /* If there are only a few materials at most, just request batches for everything. However, if
-   * the maximum material index is large, detect the actually used material indices first and
-   * only request those. This reduces the overhead of dealing with all these batches down the
-   * line. */
+   * the maximum material index is large, detect the actually used material indices first and only
+   * request those. This reduces the overhead of dealing with all these batches down the line. */
   if (cache.mat_len < 16) {
     for (int i = 0; i < cache.mat_len; i++) {
       DRW_batch_request(&cache.surface_per_mat[i]);
@@ -1264,8 +1263,8 @@ void DRW_mesh_batch_cache_create_requested(TaskGraph &task_graph,
 
   bool do_uvcage = false;
   if (is_editmode) {
-    /* Currently we don't extract UV data from the evaluated mesh unless it's the same mesh as
-     * the original edit mesh. */
+    /* Currently we don't extract UV data from the evaluated mesh unless it's the same mesh as the
+     * original edit mesh. */
     do_uvcage = !(mesh.runtime->is_original_bmesh &&
                   mesh.runtime->wrapper_type == ME_WRAPPER_TYPE_BMESH);
   }
