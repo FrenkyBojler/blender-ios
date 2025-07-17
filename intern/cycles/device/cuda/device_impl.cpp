@@ -147,9 +147,9 @@ bool CUDADevice::support_device(const uint /*kernel_features*/)
   cuDeviceGetAttribute(&minor, CU_DEVICE_ATTRIBUTE_COMPUTE_CAPABILITY_MINOR, cuDevId);
 
   /* We only support sm_30 and above */
-  if (major < 3) {
+  if (major < 5) {
     set_error(string_printf(
-        "CUDA backend requires compute capability 3.0 or up, but found %d.%d.", major, minor));
+        "CUDA backend requires compute capability 5.0 or up, but found %d.%d.", major, minor));
     return false;
   }
 
