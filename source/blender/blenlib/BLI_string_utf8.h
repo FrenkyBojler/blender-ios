@@ -14,16 +14,16 @@
 #include "BLI_sys_types.h"
 
 /**
- * International string language normalization. Not only lowercases regular Latin, but
- * also Greek and Cyrillic alphabets. Accents are removed, ligatures are expanded, etc.
+ * International language normalization. Not only lowercases regular Latin, but also
+ * Greek and Cyrillic alphabets. Accents are removed, ligatures are expanded, etc.
  */
 std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensitive = false);
 std::string BLI_str_utf8_normalized(const std::string str, bool case_sensitive = false);
 
 /**
  * Possible replacement for BLI_strcasestr (and strcasestr) that normalizes rather than
- * just lowercases. Will find "nœud" with "noeud", "Échelle" with "echelle", "Индекс"
- * with "индекс", etc.
+ * just lowercases. "noeud" finds "nœud", "echelle finds "Échelle",  with "echelle", "индекс"
+ * finds "Индекс", etc.
  */
 bool BLI_str_utf8_contains(const char *s, const char *find, bool case_sensitive = false);
 
