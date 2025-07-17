@@ -323,11 +323,10 @@ static bool edbm_inset_calc(wmOperator *op)
           bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
     }
     else {
-      if (hflag != BM_ELEM_SELECT) {
-        EDBM_flag_disable_all(em, BM_ELEM_SELECT);
-        BMO_slot_buffer_hflag_enable(bm, bmop.slots_in, "faces", BM_FACE, BM_ELEM_SELECT, true);
-      }
+      EDBM_flag_disable_all(em, BM_ELEM_SELECT);
+      BMO_slot_buffer_hflag_enable(bm, bmop.slots_in, "faces", BM_FACE, BM_ELEM_SELECT, true);
     }
+
 
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
