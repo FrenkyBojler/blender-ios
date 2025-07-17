@@ -1018,7 +1018,7 @@ static void mesh_build_data(Depsgraph &depsgraph,
   /* Make sure that drivers can target shapekey properties.
    * Note that this causes a potential inconsistency, as the shapekey may have a
    * different topology than the evaluated mesh. */
-  BLI_assert(mesh->key == nullptr || DEG_is_evaluated_id(&mesh->key->id));
+  BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   mesh_eval->key = mesh->key;
 
   if ((ob.mode & OB_MODE_ALL_SCULPT) && ob.sculpt) {
@@ -1043,24 +1043,13 @@ static void editbmesh_build_data(Depsgraph &depsgraph,
   editbmesh_calc_modifiers(
       depsgraph, scene, obedit, dataMask, &me_cage, &me_final, &non_mesh_components);
 
-  /* Object has edit_mesh but is not in edit mode (object shares mesh datablock with another object
-   * with is in edit mode).
-   * Convert edit mesh to mesh until the draw manager can draw mesh wrapper which is not in the
-   * edit mode. */
-  if (!(obedit.mode & OB_MODE_EDIT)) {
-    BKE_mesh_wrapper_ensure_mdata(me_final);
-    if (me_final != me_cage) {
-      BKE_mesh_wrapper_ensure_mdata(me_cage);
-    }
-  }
-
   const bool is_mesh_eval_owned = (me_final != mesh->runtime->mesh_eval);
   BKE_object_eval_assign_data(&obedit, &me_final->id, is_mesh_eval_owned);
 
   /* Make sure that drivers can target shapekey properties.
    * Note that this causes a potential inconsistency, as the shapekey may have a
    * different topology than the evaluated mesh. */
-  BLI_assert(mesh->key == nullptr || DEG_is_evaluated_id(&mesh->key->id));
+  BLI_assert(mesh->key == nullptr || DEG_is_evaluated(mesh->key));
   me_final->key = mesh->key;
 
   obedit.runtime->editmesh_eval_cage = me_cage;
@@ -1093,9 +1082,9 @@ static void object_get_datamask(const Depsgraph &depsgraph,
   BKE_view_layer_synced_ensure(scene, view_layer);
   Object *actob = BKE_view_layer_active_object_get(view_layer);
   if (actob) {
-    actob = DEG_get_original_object(actob);
+    actob = DEG_get_original(actob);
   }
-  if (DEG_get_original_object(&ob) == actob) {
+  if (DEG_get_original(&ob) == actob) {
     bool editing = BKE_paint_select_face_test(actob);
 
     /* weight paint and face select need original indices because of selection buffer drawing */
@@ -1171,7 +1160,7 @@ Mesh *mesh_get_eval_deform(Depsgraph *depsgraph,
     /* There is no such a concept as deformed mesh in edit mode.
      * Explicitly disallow this request so that the evaluated result is not modified with evaluated
      * result from the wrong mode. */
-    BLI_assert_msg(0, "Request of derformed mesh of object which is in edit mode");
+    BLI_assert_msg(0, "Request of deformed mesh of object which is in edit mode");
     return nullptr;
   }
 
@@ -1267,8 +1256,8 @@ Mesh *editbmesh_get_eval_cage_from_orig(Depsgraph *depsgraph,
                                         const CustomData_MeshMasks *dataMask)
 {
   BLI_assert((obedit->id.tag & ID_TAG_COPIED_ON_EVAL) == 0);
-  const Scene *scene_eval = (const Scene *)DEG_get_evaluated_id(depsgraph, (ID *)&scene->id);
-  Object *obedit_eval = (Object *)DEG_get_evaluated_id(depsgraph, &obedit->id);
+  const Scene *scene_eval = DEG_get_evaluated(depsgraph, scene);
+  Object *obedit_eval = DEG_get_evaluated(depsgraph, obedit);
   BMEditMesh *em_eval = BKE_editmesh_from_object(obedit_eval);
   return editbmesh_get_eval_cage(depsgraph, scene_eval, obedit_eval, em_eval, dataMask);
 }

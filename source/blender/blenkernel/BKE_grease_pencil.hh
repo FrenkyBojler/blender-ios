@@ -430,6 +430,14 @@ class LayerRuntime {
    */
   bool is_visibility_animated_;
 
+  /**
+   * For evaluated layers, the index of the corresponding original layer, or -1 if there is no
+   * original layer that could be mapped to. E.g. when the layer was created during evaluation.
+   *
+   * TODO: Find a way to store this information in #GreasePencilEditHints instead.
+   */
+  int orig_layer_index_ = -1;
+
  public:
   /** Reset all runtime data. */
   void clear();
@@ -899,6 +907,13 @@ TREENODE_COMMON_METHODS_FORWARD_IMPL(LayerGroup);
 
 const AttributeAccessorFunctions &get_attribute_accessor_functions();
 
+/**
+ * Renames layers with empty names to "Layer".
+ * \note While original data should not have layers with empty names, we allow layer names to be
+ * empty in evaluated geometry.
+ */
+void ensure_non_empty_layer_names(Main &bmain, GreasePencil &grease_pencil);
+
 }  // namespace greasepencil
 
 class GreasePencilRuntime {
@@ -961,7 +976,7 @@ class GreasePencilEditHints {
 
   /**
    * Array of #GreasePencilDrawingEditHints. There is one edit hint for each evaluated drawing.
-   * \note The index for each element is the layer index.
+   * \note The index for each element is the evaluated layer index.
    */
   std::optional<Array<GreasePencilDrawingEditHints>> drawing_hints;
 };
@@ -1104,6 +1119,10 @@ void BKE_grease_pencil_duplicate_drawing_array(const GreasePencil *grease_pencil
  * \note Used for "move only origins" in object_data_transform.cc.
  */
 int BKE_grease_pencil_stroke_point_count(const GreasePencil &grease_pencil);
+/**
+ * \note Used for "move only origins" in object_data_transform.cc.
+ */
+bool BKE_grease_pencil_has_curve_with_type(const GreasePencil &grease_pencil, CurveType type);
 /**
  * \note Used for "move only origins" in object_data_transform.cc.
  */

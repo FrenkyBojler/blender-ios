@@ -48,7 +48,7 @@
 #include "bpy_utils_units.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 /* external util modules */
@@ -625,13 +625,9 @@ static PyObject *bpy_wm_capabilities(PyObject *self)
 #define SetFlagItem(x) \
   PyDict_SetItemString(result, STRINGIFY(x), PyBool_FromLong((WM_CAPABILITY_##x) & flag));
 
-      SetFlagItem(CURSOR_WARP);
-      SetFlagItem(WINDOW_POSITION);
-      SetFlagItem(PRIMARY_CLIPBOARD);
-      SetFlagItem(GPU_FRONT_BUFFER_READ);
-      SetFlagItem(CLIPBOARD_IMAGES);
-      SetFlagItem(DESKTOP_SAMPLE);
-      SetFlagItem(INPUT_IME);
+      /* Only exposed flags which are used, by Blender's built-in scripts
+       * since this is a private API. */
+
       SetFlagItem(TRACKPAD_PHYSICAL_DIRECTION);
       SetFlagItem(KEYBOARD_HYPER_KEY);
 
@@ -709,14 +705,11 @@ static PyObject *bpy_import_test(const char *modname)
 {
   PyObject *mod = PyImport_ImportModuleLevel(modname, nullptr, nullptr, nullptr, 0);
 
-  GPU_bgl_end();
-
   if (mod) {
     Py_DECREF(mod);
   }
   else {
     PyErr_Print();
-    PyErr_Clear();
   }
 
   return mod;
@@ -770,7 +763,6 @@ void BPy_init_modules(bContext *C)
   BPY_rna_types_finalize_external_types(bpy_types);
 
   PyModule_AddObject(mod, "props", BPY_rna_props());
-  /* ops is now a python module that does the conversion from SOME_OT_foo -> some.foo */
   PyModule_AddObject(mod, "ops", BPY_operator_module());
   PyModule_AddObject(mod, "app", BPY_app_struct());
   PyModule_AddObject(mod, "_utils_units", BPY_utils_units());

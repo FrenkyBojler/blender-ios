@@ -302,6 +302,12 @@ Use pre-compiled headers to speed up compilation."
   endif()
 endif()
 
+option(WITH_OPTIMIZED_BUILD_TOOLS "\
+Enable optimizations even on Debug builds for executables used for the build process"
+  ON
+)
+mark_as_advanced(WITH_OPTIMIZED_BUILD_TOOLS)
+
 option(WITH_IK_ITASC "\
 Enable ITASC IK solver (only disable for development & for incompatible C++ compilers)"
   ON
@@ -333,6 +339,7 @@ endif()
 unset(_option_default)
 
 option(WITH_GMP "Enable features depending on GMP (Exact Boolean)" ON)
+option(WITH_MANIFOLD "Enable features depending on Manifold (Fast Robust Boolean)" ON)
 
 option(WITH_OPENIMAGEDENOISE "Enable the OpenImageDenoise compositing node" ON)
 
@@ -469,15 +476,11 @@ option(WITH_FRIBIDI "Enable features relying on fribidi" OFF)
 option(WITH_HARFBUZZ "Enable features relying on harfbuzz" OFF)
 
 # 3D format support
-# Disable opencollada when we don't have precompiled libs
-option(WITH_OPENCOLLADA "Enable OpenCollada Support (http://www.opencollada.org)" ON)
 option(WITH_IO_WAVEFRONT_OBJ "Enable Wavefront-OBJ 3D file format support (*.obj)" ON)
 option(WITH_IO_PLY "Enable PLY 3D file format support (*.ply)" ON)
 option(WITH_IO_STL "Enable STL 3D file format support (*.stl)" ON)
+option(WITH_IO_FBX "Enable FBX 3D file format support (*.fbx)" ON)
 option(WITH_IO_GREASE_PENCIL "Enable grease-pencil file format IO (*.svg, *.pdf)" ON)
-
-# Csv support
-option(WITH_IO_CSV "Enable CSV file format support (*.csv)" ON)
 
 # Sound output
 option(WITH_SDL "Enable SDL for sound" OFF)
@@ -622,7 +625,6 @@ option(WITH_CYCLES "Enable Cycles Render Engine" ON)
 option(WITH_CYCLES_OSL "Build Cycles with OpenShadingLanguage support" ON)
 option(WITH_CYCLES_PATH_GUIDING "Build Cycles with path guiding support" ON)
 option(WITH_CYCLES_EMBREE "Build Cycles with Embree support" ON)
-option(WITH_CYCLES_LOGGING "Build Cycles with logging support" ON)
 option(WITH_CYCLES_DEBUG "Build Cycles with options useful for debugging (e.g., MIS)" OFF)
 
 option(WITH_CYCLES_STANDALONE "Build Cycles standalone application" OFF)
@@ -652,7 +654,6 @@ Run additional Cycles test with OSL enabled"
   OFF
 )
 mark_as_advanced(WITH_CYCLES_KERNEL_ASAN)
-mark_as_advanced(WITH_CYCLES_LOGGING)
 mark_as_advanced(WITH_CYCLES_DEBUG_NAN)
 mark_as_advanced(WITH_CYCLES_NATIVE_ONLY)
 mark_as_advanced(WITH_CYCLES_PRECOMPUTE)
@@ -735,6 +736,8 @@ This option is only for debugging purposes."
   # https://www.intel.com/content/www/us/en/develop/documentation/oneapi-dpcpp-cpp-compiler-dev-guide-and-reference/top/compilation/ahead-of-time-compilation.html
   # The supported devices can be retrieved from `ocloc` output when running
   # `ocloc compile --help`.
+  # If you have completed optimization work and now want to enable AoT for new Intel devices,
+  # update the optimization status in OneapiDevice::architecture_information.
   set(CYCLES_ONEAPI_INTEL_BINARIES_ARCH dg2 mtl lnl bmg CACHE STRING "\
 oneAPI Intel GPU architectures to build binaries for"
   )
@@ -757,7 +760,6 @@ option(LLVM_STATIC "Link with LLVM static libraries" OFF)
 mark_as_advanced(LLVM_STATIC)
 option(WITH_CLANG "Use Clang" OFF)
 
-# disable for now, but plan to support on all platforms eventually
 option(WITH_MEM_JEMALLOC "Enable malloc replacement (http://www.canonware.com/jemalloc)" ON)
 mark_as_advanced(WITH_MEM_JEMALLOC)
 
@@ -811,11 +813,6 @@ Enable GPU render related unit testing using Vulkan"
   OFF
 )
 mark_as_advanced(WITH_GPU_RENDER_TESTS_VULKAN)
-option(WITH_GPU_RENDER_TESTS_SILENT "\
-Run GPU render tests silently (finished tests will pass). \
-Generated report will show failing tests"
-  ON
-)
 option(WITH_GPU_RENDER_TESTS_HEADED "\
 Enable GPU render related unit testing that doesn't work in background mode. \
 These tests require an environment with a display server to run. \
@@ -867,6 +864,14 @@ else()
   # TODO: We should probably add more sanity checks for Windows and Mac as well
   set(WITH_LINUX_OFFICIAL_RELEASE_TESTS OFF)
 endif()
+
+option(WITH_TESTS_EXPERIMENTAL "\
+Run tests marked as experimental. \
+These tests are labeled as such due to long runtime, flakey results,
+or other issues that make them unsuitable for blocking a build on."
+  OFF
+)
+mark_as_advanced(WITH_TESTS_EXPERIMENTAL)
 
 # Enabled by default for typical use cases to speed up development cycles. However, when looking
 # into threading or memory related issues (in dependency graph, out-of-bounds, etc) forcing single
@@ -982,7 +987,7 @@ endif()
 
 option(WITH_STRSIZE_DEBUG "\
 Ensure string operations on fixed size buffers \
-(works well with with \"WITH_COMPILER_ASAN\" & valgrind to detect incorrect buffer size arguments)"
+(works well with \"WITH_COMPILER_ASAN\" & valgrind to detect incorrect buffer size arguments)"
   OFF)
 mark_as_advanced(WITH_STRSIZE_DEBUG)
 
@@ -1023,25 +1028,50 @@ Build and link with code coverage support (only for Debug targets)."
 mark_as_advanced(WITH_COMPILER_CODE_COVERAGE)
 
 if(WITH_COMPILER_CODE_COVERAGE)
-  if(NOT CMAKE_COMPILER_IS_GNUCC)
-    message(WARNING "WITH_COMPILER_CODE_COVERAGE only works with GCC currently.")
+  if(CMAKE_COMPILER_IS_GNUCC)
+    set(_code_coverage_defaults "--coverage")
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    get_filename_component(COMPILER_DIRECTORY ${CMAKE_CXX_COMPILER} DIRECTORY)
+    find_program(LLVM_COV "llvm-cov" ${COMPILER_DIRECTORY} NO_DEFAULT_PATH)
+    find_program(LLVM_PROFDATA "llvm-profdata" ${COMPILER_DIRECTORY} NO_DEFAULT_PATH)
+    if(NOT LLVM_COV OR NOT LLVM_PROFDATA)
+      message(WARNING
+        "Could not find code coverage tools, disabling code coverage. "
+        "You may explicitly specify LLVM_COV and LLVM_PROFDATA to work around this warning."
+      )
+      set(WITH_COMPILER_CODE_COVERAGE OFF)
+    else()
+      set(_code_coverage_defaults "-fprofile-instr-generate -fcoverage-mapping")
+    endif()
+  else()
+    message(WARNING
+      "Unsupported compiler ${CMAKE_C_COMPILER_ID} for WITH_COMPILER_CODE_COVERAGE, disabling."
+    )
     set(WITH_COMPILER_CODE_COVERAGE OFF)
   endif()
-endif()
 
-if(WITH_COMPILER_CODE_COVERAGE)
-  set(_code_coverage_defaults "--coverage")
-  set(COMPILER_CODE_COVERAGE_CFLAGS
-    ${_code_coverage_defaults} CACHE STRING
-    "C flags for code coverage"
-  )
-  mark_as_advanced(COMPILER_CODE_COVERAGE_CFLAGS)
-  set(COMPILER_CODE_COVERAGE_
-    CXXFLAGS ${_code_coverage_defaults} CACHE STRING
-    "C++ flags for code coverage"
-  )
-  mark_as_advanced(COMPILER_CODE_COVERAGE_CXXFLAGS)
-  unset(_code_coverage_defaults)
+  # The code above could have disabled the feature, so check again.
+  if(WITH_COMPILER_CODE_COVERAGE)
+    set(COMPILER_CODE_COVERAGE_CFLAGS
+      ${_code_coverage_defaults} CACHE STRING
+      "C flags for code coverage"
+    )
+    mark_as_advanced(COMPILER_CODE_COVERAGE_CFLAGS)
+    set(COMPILER_CODE_COVERAGE_CXXFLAGS
+      ${_code_coverage_defaults} CACHE STRING
+      "C++ flags for code coverage"
+    )
+    mark_as_advanced(COMPILER_CODE_COVERAGE_CXXFLAGS)
+    if(CMAKE_C_COMPILER_ID MATCHES "Clang")
+      set(_code_coverage_dir_default "${CMAKE_BINARY_DIR}/coverage")
+      set(COMPILER_CODE_COVERAGE_DATA_DIR ${_code_coverage_dir_default} CACHE STRING
+        "Directory for code coverage data"
+      )
+      mark_as_advanced(COMPILER_CODE_COVERAGE_DATA_DIR)
+      unset(_code_coverage_dir_default)
+    endif()
+    unset(_code_coverage_defaults)
+  endif()
 endif()
 
 if(CMAKE_COMPILER_IS_GNUCC OR CMAKE_C_COMPILER_ID MATCHES "Clang")
@@ -1259,11 +1289,15 @@ endif()
 
 
 # Apple
-
 if(APPLE)
   include(platform_apple_xcode)
-endif()
 
+  option(WITH_LEGACY_MACOS_X64_LINKER "\
+Use legacy macOS linker on x64 platform. Minutes slower, but emits fewer warnings."
+    OFF
+  )
+  mark_as_advanced(WITH_LEGACY_MACOS_X64_LINKER)
+endif()
 
 # -----------------------------------------------------------------------------
 # Check for Conflicting/Unsupported Configurations
@@ -1449,8 +1483,15 @@ set(PLATFORM_LINKFLAGS_RELEASE "")
 set(PLATFORM_LINKFLAGS_EXECUTABLE "")
 
 if(WITH_COMPILER_CODE_COVERAGE)
-  string(APPEND CMAKE_C_FLAGS_DEBUG " ${COMPILER_CODE_COVERAGE_CFLAGS}")
-  string(APPEND CMAKE_CXX_FLAGS_DEBUG " ${COMPILER_CODE_COVERAGE_CXXFLAGS}")
+  if(CMAKE_COMPILER_IS_GNUCC)
+    # GCC only supports this on debug builds.
+    string(APPEND CMAKE_C_FLAGS_DEBUG " ${COMPILER_CODE_COVERAGE_CFLAGS}")
+    string(APPEND CMAKE_CXX_FLAGS_DEBUG " ${COMPILER_CODE_COVERAGE_CXXFLAGS}")
+  elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
+    # Clang will allow it on all builds.
+    string(APPEND CMAKE_C_FLAGS " ${COMPILER_CODE_COVERAGE_CFLAGS}")
+    string(APPEND CMAKE_CXX_FLAGS " ${COMPILER_CODE_COVERAGE_CXXFLAGS}")
+  endif()
 endif()
 
 if(NOT CMAKE_BUILD_TYPE MATCHES "Release")
@@ -1588,32 +1629,16 @@ if(FIRST_RUN)
   endif()
 endif()
 
-# set the endian define
-if(MSVC)
-  # For some reason this fails on MSVC.
-  add_definitions(-D__LITTLE_ENDIAN__)
-
-  # OSX-Note: as we do cross-compiling with specific set architecture,
-  # endianness-detection and auto-setting is counterproductive
-  # so we just set endianness according CMAKE_OSX_ARCHITECTURES
-
-elseif(CMAKE_OSX_ARCHITECTURES MATCHES i386 OR
-       CMAKE_OSX_ARCHITECTURES MATCHES x86_64 OR
-       CMAKE_OSX_ARCHITECTURES MATCHES arm64)
-  add_definitions(-D__LITTLE_ENDIAN__)
-elseif(CMAKE_OSX_ARCHITECTURES MATCHES ppc OR CMAKE_OSX_ARCHITECTURES MATCHES ppc64)
-  add_definitions(-D__BIG_ENDIAN__)
-
+# Test endianness and set the endian define.
+include(TestBigEndian)
+test_big_endian(_SYSTEM_BIG_ENDIAN)
+if(_SYSTEM_BIG_ENDIAN)
+  message(FATAL_ERROR "Blender does not support building on Big Endian systems" )
 else()
-  include(TestBigEndian)
-  test_big_endian(_SYSTEM_BIG_ENDIAN)
-  if(_SYSTEM_BIG_ENDIAN)
-    add_definitions(-D__BIG_ENDIAN__)
-  else()
-    add_definitions(-D__LITTLE_ENDIAN__)
-  endif()
-  unset(_SYSTEM_BIG_ENDIAN)
+  add_definitions(-D__LITTLE_ENDIAN__)
 endif()
+unset(_SYSTEM_BIG_ENDIAN)
+
 if(WITH_IMAGE_OPENJPEG)
   # Special handling of Windows platform where openjpeg is always static.
   if(WIN32)
@@ -1684,7 +1709,7 @@ set_and_warn_incompatible(WITH_PYTHON_MODULE WITH_GTESTS OFF)
 # -----------------------------------------------------------------------------
 # Configure `GLog/GFlags`
 
-if(WITH_LIBMV OR WITH_GTESTS OR (WITH_CYCLES AND WITH_CYCLES_LOGGING))
+if(WITH_LIBMV OR WITH_GTESTS)
   if(WITH_SYSTEM_GFLAGS)
     find_package(Gflags)
     if(NOT GFLAGS_FOUND)
@@ -1745,10 +1770,11 @@ if("${CMAKE_GENERATOR}" MATCHES "Ninja" AND WITH_NINJA_POOL_JOBS)
     # Note: this gives mem in MB.
     cmake_host_system_information(RESULT _TOT_MEM QUERY TOTAL_PHYSICAL_MEMORY)
 
-    # Heuristics: Assume 8Gb of RAM is needed per heavy compile job.
-    # Typical RAM peak usage of these is actually less than 3GB currently,
+    # Heuristics: Assume 12Gb of RAM is needed per heavy compile job.
+    # Typical RAM peak usage of these is actually around 3-4GB currently,
     # but this also accounts for the part of the physical RAM being used by other unrelated
     # processes on the system, and the part being used by the 'regular' compile and linking jobs.
+    # Further more, some cycles kernel files can require almost 12GB in debug builds.
     #
     # Also always cap heavy jobs amount to `number of available threads - 1`,
     # to ensure that even if there would be enough RAM, the machine never ends up
@@ -1764,7 +1790,7 @@ if("${CMAKE_GENERATOR}" MATCHES "Ninja" AND WITH_NINJA_POOL_JOBS)
     #   - debug with ASAN build:
     #      * RAM: typically less than 40%, with some peaks at 50%.
     #      * CPU: over 90% of usage on average over the whole build time.
-    math(EXPR _compile_heavy_jobs "${_TOT_MEM} / 8000")
+    math(EXPR _compile_heavy_jobs "${_TOT_MEM} / 12000")
     math(EXPR _compile_heavy_jobs_max "${_NUM_CORES} - 1")
     if(${_compile_heavy_jobs} GREATER ${_compile_heavy_jobs_max})
       set(_compile_heavy_jobs ${_compile_heavy_jobs_max})
@@ -1777,19 +1803,27 @@ Define the maximum number of concurrent heavy compilation jobs, for ninja build 
       FORCE
     )
     mark_as_advanced(NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
+    message(STATUS "Using NINJA_POOL_JOBS: max heavy compile jobs: ${NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS}")
     set(_compile_heavy_jobs)
     set(_compile_heavy_jobs_max)
 
-    # Heuristics: Assume 2Gb of RAM is needed per heavy compile job.
+    # Heuristics: Assume 4Gb of RAM is needed per regular compile job.
     # Typical RAM peak usage of these is actually way less than 1GB usually,
     # but this also accounts for the part of the physical RAM being used by other unrelated
     # processes on the system, and the part being used by the 'heavy' compile and linking jobs.
+    #
+    # FIXME:
+    # There are a few files in 'normal' compile job pool now that require a significant amount of RAM
+    # (e.g. `blenkernel/intern/volume.cc` can require almost 5GB of RAM in debug + ASAN builds). Until
+    # we can add individual files to the heavy compile pool job (not possible currently with CMake),
+    # this is the best that can be done. Alternative solution would be to put several whole targets
+    # (like `bf_blenkernel`) into the heavy pool, but that is likely even worse of a workaround.
     #
     # If there are 'enough' cores available, cap the maximum number of regular jobs to
     # `number of cores - 1`, otherwise allow using all cores if there is enough RAM available.
     # This allows to ensure that the heavy jobs won't get starved by too many normal jobs,
     # since the former usually take a long time to process.
-    math(EXPR _compile_jobs "${_TOT_MEM} / 2000")
+    math(EXPR _compile_jobs "${_TOT_MEM} / 4000")
     if(${_NUM_CORES} GREATER 3)
       math(EXPR _compile_jobs_max "${_NUM_CORES} - 1")
     else()
@@ -1803,6 +1837,7 @@ Define the maximum number of concurrent heavy compilation jobs, for ninja build 
     set(NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS "${_compile_jobs}" CACHE STRING
         "Define the maximum number of concurrent compilation jobs, for ninja build system." FORCE)
     mark_as_advanced(NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS)
+    message(STATUS "Using NINJA_POOL_JOBS: max regular compile jobs: ${NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS}")
     set(_compile_jobs)
     set(_compile_jobs_max)
 
@@ -1811,6 +1846,7 @@ Define the maximum number of concurrent heavy compilation jobs, for ninja build 
     set(NINJA_MAX_NUM_PARALLEL_LINK_JOBS "1" CACHE STRING
         "Define the maximum number of concurrent link jobs, for ninja build system." FORCE)
     mark_as_advanced(NINJA_MAX_NUM_PARALLEL_LINK_JOBS)
+    message(STATUS "Using NINJA_POOL_JOBS: max linking jobs: ${NINJA_MAX_NUM_PARALLEL_LINK_JOBS}")
 
     set(_NUM_CORES)
     set(_TOT_MEM)
@@ -2405,6 +2441,7 @@ elseif(CMAKE_C_COMPILER_ID MATCHES "Clang")
     CXX_WARN_NO_IMPLICIT_CONST_INT_FLOAT_CONVERSION -Wno-implicit-const-int-float-conversion
     CXX_WARN_NO_UNDEF -Wno-undef
     CXX_WARN_NO_UNDEF_PREFIX -Wno-undef-prefix
+    CXX_WARN_NO_INCONSISTENT_MISSING_OVERRIDE -Wno-inconsistent-missing-override
   )
 
 elseif(CMAKE_C_COMPILER_ID STREQUAL "Intel")
@@ -2491,7 +2528,12 @@ if(WITH_PYTHON)
     # Always use numpy bundled in precompiled libs.
   elseif((WITH_PYTHON_INSTALL AND WITH_PYTHON_INSTALL_NUMPY) OR WITH_PYTHON_NUMPY)
     if(("${PYTHON_NUMPY_PATH}" STREQUAL "") OR (${PYTHON_NUMPY_PATH} MATCHES NOTFOUND))
-      find_python_package(numpy "core/include")
+      set(_numpy_include "_core/include")
+      if(PYTHON_VERSION VERSION_LESS "3.13")
+        set(_numpy_include "core/include")
+      endif()
+      find_python_package(numpy "${_numpy_include}")
+      unset(_numpy_include)
     endif()
   endif()
 
@@ -2642,12 +2684,6 @@ elseif(WITH_CYCLES_STANDALONE OR WITH_CYCLES_HYDRA_RENDER_DELEGATE)
   add_subdirectory(intern/sky)
 
   add_subdirectory(intern/cycles)
-  if(WITH_CYCLES_LOGGING)
-    if(NOT WITH_SYSTEM_GFLAGS)
-      add_subdirectory(extern/gflags)
-    endif()
-    add_subdirectory(extern/glog)
-  endif()
   if(WITH_CUDA_DYNLOAD)
     add_subdirectory(extern/cuew)
   endif()
@@ -2727,7 +2763,7 @@ if(FIRST_RUN)
   info_cfg_option(WITH_INPUT_NDOF)
   info_cfg_option(WITH_INPUT_IME)
   info_cfg_option(WITH_INTERNATIONAL)
-  info_cfg_option(WITH_OPENCOLLADA)
+  info_cfg_option(WITH_MANIFOLD)
   info_cfg_option(WITH_OPENCOLORIO)
   info_cfg_option(WITH_OPENIMAGEDENOISE)
   info_cfg_option(WITH_OPENSUBDIV)
@@ -2742,6 +2778,7 @@ if(FIRST_RUN)
 
   info_cfg_text("Compiler Options:")
   info_cfg_option(WITH_BUILDINFO)
+  info_cfg_option(WITH_OPTIMIZED_BUILD_TOOLS)
 
   info_cfg_text("System Options:")
   info_cfg_option(WITH_INSTALL_PORTABLE)

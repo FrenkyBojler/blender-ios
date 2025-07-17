@@ -21,7 +21,7 @@ FRAGMENT_SHADER_CREATE_INFO(eevee_surf_shadow_atomic)
 #endif
 
 #include "draw_view_lib.glsl"
-#include "eevee_nodetree_lib.glsl"
+#include "eevee_nodetree_frag_lib.glsl"
 #include "eevee_sampling_lib.glsl"
 #include "eevee_shadow_tilemap_lib.glsl"
 #include "eevee_surf_lib.glsl"
@@ -43,7 +43,7 @@ void main()
     ndc_depth = 1.0f;
 #else
 #  define discard_result \
-    discard; \
+    gpu_discard_fragment(); \
     return;
 #endif
 
@@ -70,8 +70,8 @@ void main()
   int2 texel_co = int2(gl_FragCoord.xy);
 
   /* Using bitwise ops is way faster than integer ops. */
-  const int page_shift = SHADOW_PAGE_LOD;
-  const int page_mask = ~(0xFFFFFFFF << SHADOW_PAGE_LOD);
+  constexpr int page_shift = SHADOW_PAGE_LOD;
+  constexpr int page_mask = ~(0xFFFFFFFF << SHADOW_PAGE_LOD);
 
   int2 tile_co = texel_co >> page_shift;
   int2 texel_page = texel_co & page_mask;
@@ -91,6 +91,15 @@ void main()
   int3 out_texel = int3((page.xy << page_shift) | texel_page, page.z);
 
   uint u_depth = floatBitsToUint(linear_depth);
+
+  /* Bias to avoid rounding errors on very large clip values.
+   * This can happen easily after the addition of the world volume
+   * versioning script in 4.2.
+   * +1 should be enough but for some reason, some artifacts
+   * are only removed if adding 2 ULP.
+   * This is equivalent of calling `next_after`, but without the safety. */
+  u_depth += 2;
+
   imageAtomicMin(shadow_atlas_img, out_texel, u_depth);
 #endif
 

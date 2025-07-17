@@ -583,6 +583,40 @@ float maximum_float(Context &context, const Result &result)
   return maximum_float_cpu(result);
 }
 
+static float2 maximum_float2_gpu(Context &context, const Result &result)
+{
+  GPUShader *shader = context.get_shader("compositor_maximum_float2", ResultPrecision::Full);
+  GPU_shader_bind(shader);
+
+  float *reduced_value = parallel_reduction_dispatch(
+      result, shader, Result::gpu_texture_format(ResultType::Float2, ResultPrecision::Full));
+  const float2 maximum = reduced_value;
+  MEM_freeN(reduced_value);
+  GPU_shader_unbind();
+
+  return maximum;
+}
+
+static float2 maximum_float2_cpu(const Result &result)
+{
+  return parallel_reduce(
+      result.domain().size,
+      float2(std::numeric_limits<float>::lowest()),
+      [&](const int2 texel, float2 &accumulated_value) {
+        accumulated_value = math::max(accumulated_value, result.load_pixel<float2>(texel));
+      },
+      [&](const float2 &a, const float2 &b) { return math::max(a, b); });
+}
+
+float2 maximum_float2(Context &context, const Result &result)
+{
+  if (context.use_gpu()) {
+    return maximum_float2_gpu(context, result);
+  }
+
+  return maximum_float2_cpu(result);
+}
+
 static float maximum_float_in_range_gpu(Context &context,
                                         const Result &result,
                                         const float lower_bound,

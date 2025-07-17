@@ -22,7 +22,7 @@ void main()
   float sinb = (data_buf[gl_InstanceID].tail_sphere.w - data_buf[gl_InstanceID].head_sphere.w) *
                bone_lenrcp;
 #else
-  const float sinb = 0.0f;
+  constexpr float sinb = 0.0f;
 #endif
 
   float3 y_axis = bone_vec * bone_lenrcp;
@@ -43,10 +43,10 @@ void main()
   sp = bone_mat * sp.xzy + data_buf[gl_InstanceID].head_sphere.xyz;
   nor = bone_mat * nor.xzy;
 
-  normalView = to_float3x3(drw_view().viewmat) * nor;
+  view_normal = to_float3x3(drw_view().viewmat) * nor;
 
-  finalStateColor = data_buf[gl_InstanceID].state_color.xyz;
-  finalBoneColor = data_buf[gl_InstanceID].bone_color_and_wire_width.xyz;
+  final_state_color = data_buf[gl_InstanceID].state_color.xyz;
+  final_bone_color = data_buf[gl_InstanceID].bone_color_and_wire_width.xyz;
 
   view_clipping_distances(sp);
 

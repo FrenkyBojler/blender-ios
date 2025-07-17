@@ -18,6 +18,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
+#include "BKE_screen.hh"
 
 #include "DNA_curves_types.h"
 #include "DNA_modifier_types.h"
@@ -182,15 +183,20 @@ static bool bake_strokes(Object *ob,
     return false;
   }
 
-  LineartCache *local_lc = *lc;
+  LineartCache *local_lc = nullptr;
+  const bool should_compute_again = is_first || !(lmd->flags & MOD_LINEART_USE_CACHE);
   if (!(*lc)) {
     MOD_lineart_compute_feature_lines_v3(dg, *lmd, lc, !(ob->dtx & OB_DRAW_IN_FRONT));
     MOD_lineart_destroy_render_data_v3(lmd);
   }
   else {
-    if (is_first || !(lmd->flags & MOD_LINEART_USE_CACHE)) {
+    if (should_compute_again) {
       MOD_lineart_compute_feature_lines_v3(dg, *lmd, &local_lc, !(ob->dtx & OB_DRAW_IN_FRONT));
       MOD_lineart_destroy_render_data_v3(lmd);
+    }
+    else {
+      /* Use the cached result, `*lc` is already valid. */
+      local_lc = *lc;
     }
     MOD_lineart_chain_clear_picked_flag(local_lc);
     lmd->cache = local_lc;
@@ -220,11 +226,8 @@ static bool bake_strokes(Object *ob,
       lmd->flags,
       lmd->calculation_flags);
 
-  if (!(lmd->flags & MOD_LINEART_USE_CACHE)) {
-    /* Clear local cache. */
-    if (!is_first) {
-      MOD_lineart_clear_cache(&local_lc);
-    }
+  if (should_compute_again) {
+    MOD_lineart_clear_cache(&local_lc);
   }
 
   return true;
@@ -293,6 +296,8 @@ static void lineart_bake_startjob(void *customdata, wmJobWorkerStatus *worker_st
 
   guard_modifiers(*bj);
 
+  BKE_spacedata_draw_locks(REGION_DRAW_LOCK_BAKING);
+
   for (int frame = bj->frame_begin; frame <= bj->frame_end; frame += bj->frame_increment) {
 
     if (G.is_break) {
@@ -329,6 +334,7 @@ static void lineart_bake_endjob(void *customdata)
 {
   LineartBakeJob *bj = static_cast<LineartBakeJob *>(customdata);
 
+  BKE_spacedata_draw_locks(0);
   WM_set_locked_interface(CTX_wm_manager(bj->C), false);
 
   WM_main_add_notifier(NC_SCENE | ND_FRAME, bj->scene);

@@ -36,7 +36,9 @@ typedef struct IDViewerPathElem {
 
 typedef struct ModifierViewerPathElem {
   ViewerPathElem base;
-  char *modifier_name;
+  /** #ModifierData.persistent_uid. */
+  int modifier_uid;
+  char _pad[4];
 } ModifierViewerPathElem;
 
 typedef struct GroupNodeViewerPathElem {
@@ -80,9 +82,9 @@ typedef struct EvaluateClosureNodeViewerPathElem {
   /** The identifier of the node that evaluates the closure. */
   int32_t evaluate_node_id;
   /** The identifier of the output node of the closure zone that is evaluated. */
-  int32_t closure_output_node_id;
+  int32_t source_output_node_id;
   /** The node tree that contains the closure zone that is evaluated. */
-  struct bNodeTree *closure_tree;
+  struct bNodeTree *source_node_tree;
 } EvaluateClosureNodeViewerPathElem;
 
 typedef struct ViewerPath {

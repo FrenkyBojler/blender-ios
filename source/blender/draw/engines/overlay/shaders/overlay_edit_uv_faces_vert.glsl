@@ -19,9 +19,9 @@ void main()
   bool is_selected = (flag & FACE_UV_SELECT) != 0u;
   bool is_active = (flag & FACE_UV_ACTIVE) != 0u;
   eObjectInfoFlag ob_flag = drw_object_infos().flag;
-  bool is_object_active = flag_test(ob_flag, OBJECT_ACTIVE);
+  bool is_object_active = flag_test(ob_flag, OBJECT_ACTIVE_EDIT_MODE);
 
-  finalColor = (is_selected) ? colorFaceSelect : colorFace;
-  finalColor = (is_active) ? colorEditMeshActive : finalColor;
-  finalColor.a *= is_object_active ? uvOpacity : (uvOpacity * 0.25f);
+  final_color = (is_selected) ? theme.colors.face_select : theme.colors.face;
+  final_color = (is_active) ? theme.colors.edit_mesh_active : final_color;
+  final_color.a *= is_object_active ? uv_opacity : (uv_opacity * 0.25f);
 }

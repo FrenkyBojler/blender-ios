@@ -26,7 +26,7 @@
 
 #include "bmesh.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 inline namespace smooth_cc {
 
@@ -262,8 +262,7 @@ void do_smooth_brush(const Depsgraph &depsgraph,
       break;
     }
     case bke::pbvh::Type::BMesh: {
-      BM_mesh_elem_index_ensure(ss.bm, BM_VERT);
-      BM_mesh_elem_table_ensure(ss.bm, BM_VERT);
+      vert_random_access_ensure(object);
       threading::EnumerableThreadSpecific<LocalData> all_tls;
       for (const float strength : iteration_strengths(brush_strength)) {
         MutableSpan<bke::pbvh::BMeshNode> nodes = pbvh.nodes<bke::pbvh::BMeshNode>();
@@ -279,4 +278,4 @@ void do_smooth_brush(const Depsgraph &depsgraph,
   pbvh.update_bounds(depsgraph, object);
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes

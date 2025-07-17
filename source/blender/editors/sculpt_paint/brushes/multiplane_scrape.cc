@@ -33,7 +33,7 @@
 #include "editors/sculpt_paint/sculpt_automask.hh"
 #include "editors/sculpt_paint/sculpt_intern.hh"
 
-namespace blender::ed::sculpt_paint {
+namespace blender::ed::sculpt_paint::brushes {
 
 struct ScrapeSampleData {
   std::array<float3, 2> area_cos;
@@ -392,6 +392,9 @@ static void calc_faces(const Depsgraph &depsgraph,
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -451,6 +454,9 @@ static void calc_grids(const Depsgraph &depsgraph,
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -509,6 +515,9 @@ static void calc_bmesh(const Depsgraph &depsgraph,
   }
 
   calc_distances(local_positions, distances);
+  /* TODO: Using the radius for the filter here is probably too high, but due to the Y-axis
+   * deformation, a simple value of 1.0 isn't correct. */
+  filter_distances_with_radius(cache.radius, distances, factors);
 
   apply_hardness_to_distances(cache, distances);
   calc_brush_strength_factors(cache, brush, distances, factors);
@@ -795,4 +804,4 @@ void multiplane_scrape_preview_draw(const uint gpuattr,
   immEnd();
 }
 
-}  // namespace blender::ed::sculpt_paint
+}  // namespace blender::ed::sculpt_paint::brushes

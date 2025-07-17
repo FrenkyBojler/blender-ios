@@ -23,9 +23,9 @@
 
 #define GP_LIGHT
 
-#include "gpencil_defines.h"
+#include "gpencil_defines.hh"
 #include "gpencil_shader.hh"
-#include "gpencil_shader_shared.h"
+#include "gpencil_shader_shared.hh"
 
 struct GpencilBatchCache;
 struct Object;
@@ -165,6 +165,7 @@ struct Instance final : public DrawEngine {
 
   Framebuffer render_fb = {"render_fb"};
   Framebuffer gpencil_fb = {"gpencil_fb"};
+  Framebuffer gpencil_pass_fb = {"gpencil_pass_fb"};
   Framebuffer snapshot_fb = {"snapshot_fb"};
   Framebuffer layer_fb = {"layer_fb"};
   Framebuffer object_fb = {"object_fb"};
@@ -204,6 +205,9 @@ struct Instance final : public DrawEngine {
   struct {
     tObject *first, *last;
   } tobjects, tobjects_infront;
+  /* Used to record whether the `tobjects` list is sorted. Do not sort drawings again in separate
+   * pass rendering to avoid generating infinite lists. */
+  bool is_sorted;
   /* Pointer to dtxl->depth */
   GPUTexture *scene_depth_tx;
   GPUFrameBuffer *scene_fb;
@@ -251,11 +255,12 @@ struct Instance final : public DrawEngine {
   /* Batches containing the temp stroke. */
   gpu::Batch *stroke_batch;
   gpu::Batch *fill_batch;
-  bool do_fast_drawing;
   bool snapshot_buffer_dirty;
 
   /* Display onion skinning */
   bool do_onion;
+  /* Show only the onion skins of the active object. */
+  bool do_onion_only_active_object;
   /* Playing animation */
   bool playing;
   /* simplify settings */
@@ -270,6 +275,9 @@ struct Instance final : public DrawEngine {
   bool use_layer_fb;
   bool use_object_fb;
   bool use_mask_fb;
+  /* If viewport compositor is active, we need to render grease pencil onto another additional
+   * pass. */
+  bool use_separate_pass;
   /* Some blend mode needs to add negative values.
    * This is only supported if target texture is signed. */
   bool use_signed_fb;
@@ -323,7 +331,7 @@ struct Instance final : public DrawEngine {
   static float2 antialiasing_sample_get(int sample_index, int sample_count);
 
  private:
-  tObject *object_sync_do(Object *ob, ResourceHandle res_handle);
+  tObject *object_sync_do(Object *ob, ResourceHandleRange res_handle);
 
   /* Check if the passed in layer is used by any other layer as a mask (in the viewlayer). */
   bool is_used_as_layer_mask_in_viewlayer(const GreasePencil &grease_pencil,
@@ -338,9 +346,6 @@ struct Instance final : public DrawEngine {
 
   void draw_mask(View &view, tObject *ob, tLayer *layer);
   void draw_object(View &view, tObject *ob);
-
-  void fast_draw_start();
-  void fast_draw_end(View &view);
 
   void antialiasing_init();
   void antialiasing_draw(Manager &manager);

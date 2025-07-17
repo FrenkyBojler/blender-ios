@@ -13,7 +13,7 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_store_named_grid_cc {
@@ -32,7 +32,9 @@ static void node_declare(NodeDeclarationBuilder &b)
     return;
   }
 
-  b.add_input(*bke::grid_type_to_socket_type(VolumeGridType(node->custom1)), "Grid").hide_value();
+  b.add_input(*bke::grid_type_to_socket_type(VolumeGridType(node->custom1)), "Grid")
+      .hide_value()
+      .structure_type(StructureType::Grid);
 }
 
 static void search_link_ops(GatherLinkSearchOpParams &params)
@@ -67,9 +69,9 @@ static void search_link_ops(GatherLinkSearchOpParams &params)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
-  uiItemR(layout, ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
+  layout->prop(ptr, "data_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -101,7 +103,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   GeometrySet geometry_set = params.extract_input<GeometrySet>("Volume");
   Volume *volume = geometry_set.get_volume_for_write();
   if (!volume) {
-    volume = static_cast<Volume *>(BKE_id_new_nomain(ID_VO, "Store Named Grid Output"));
+    volume = BKE_id_new_nomain<Volume>("Store Named Grid Output");
     geometry_set.replace_volume(volume);
   }
 

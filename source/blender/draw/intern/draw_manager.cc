@@ -33,7 +33,7 @@ Manager::~Manager()
   }
 }
 
-void Manager::begin_sync()
+void Manager::begin_sync(Object *object_active)
 {
   /* Add 2 to always have a non-null number even in case of overflow. */
   sync_counter_ = (global_sync_counter_ += 2);
@@ -75,7 +75,7 @@ void Manager::begin_sync()
   attribute_len_ = 0;
   /* TODO(fclem): Resize buffers if too big, but with an hysteresis threshold. */
 
-  object_active = drw_get().obact;
+  this->object_active = object_active;
 
   /* Init the 0 resource. */
   resource_handle(float4x4::identity());
@@ -172,14 +172,19 @@ uint64_t Manager::fingerprint_get()
   return sync_counter_ | (uint64_t(resource_len_) << 32);
 }
 
-ResourceHandleRange Manager::resource_handle_for_sculpt(const ObjectRef &ref)
+ResourceHandleRange Manager::unique_handle_for_sculpt(const ObjectRef &ref)
 {
-  /* TODO(fclem): Deduplicate with other engine. */
+  if (ref.sculpt_handle_.is_valid()) {
+    return ref.sculpt_handle_;
+  }
   const bke::pbvh::Tree &pbvh = *bke::object::pbvh_get(*ref.object);
   const blender::Bounds<float3> bounds = bke::pbvh::bounds_get(pbvh);
   const float3 center = math::midpoint(bounds.min, bounds.max);
   const float3 half_extent = bounds.max - center;
-  return resource_handle(ref, nullptr, &center, &half_extent);
+  /* WORKAROUND: Instead of breaking const correctness everywhere, we only break it for this. */
+  const_cast<ObjectRef &>(ref).sculpt_handle_ = resource_handle(
+      ref, nullptr, &center, &half_extent);
+  return ref.sculpt_handle_;
 }
 
 void Manager::compute_visibility(View &view)
@@ -249,6 +254,24 @@ void Manager::generate_commands(PassSimple &pass)
   pass.manager_fingerprint_ = this->fingerprint_get();
 
   pass.draw_commands_buf_.generate_commands(pass.headers_, pass.commands_, pass.sub_passes_);
+}
+
+void Manager::warm_shader_specialization(PassMain &pass)
+{
+  if (pass.is_empty()) {
+    return;
+  }
+  command::RecordingState state;
+  pass.warm_shader_specialization(state);
+}
+
+void Manager::warm_shader_specialization(PassSimple &pass)
+{
+  if (pass.is_empty()) {
+    return;
+  }
+  command::RecordingState state;
+  pass.warm_shader_specialization(state);
 }
 
 void Manager::submit_only(PassMain &pass, View &view)

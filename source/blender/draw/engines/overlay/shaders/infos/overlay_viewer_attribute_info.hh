@@ -6,7 +6,6 @@
 #  pragma once
 #  include "gpu_glsl_cpp_stubs.hh"
 
-#  include "draw_common_shader_shared.hh"
 #  include "draw_object_infos_info.hh"
 #  include "draw_view_info.hh"
 #  include "overlay_common_info.hh"
@@ -21,7 +20,7 @@
 #include "overlay_common_info.hh"
 
 GPU_SHADER_INTERFACE_INFO(overlay_viewer_attribute_iface)
-SMOOTH(float4, finalColor)
+SMOOTH(float4, final_color)
 GPU_SHADER_INTERFACE_END()
 
 GPU_SHADER_CREATE_INFO(overlay_viewer_attribute_common)
@@ -33,7 +32,7 @@ DO_STATIC_COMPILATION()
 VERTEX_SOURCE("overlay_viewer_attribute_mesh_vert.glsl")
 FRAGMENT_SOURCE("overlay_viewer_attribute_frag.glsl")
 FRAGMENT_OUT(0, float4, out_color)
-FRAGMENT_OUT(1, float4, lineOutput)
+FRAGMENT_OUT(1, float4, line_output)
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float4, attribute_value)
 VERTEX_OUT(overlay_viewer_attribute_iface)
@@ -50,8 +49,8 @@ DO_STATIC_COMPILATION()
 VERTEX_SOURCE("overlay_viewer_attribute_pointcloud_vert.glsl")
 FRAGMENT_SOURCE("overlay_viewer_attribute_frag.glsl")
 FRAGMENT_OUT(0, float4, out_color)
-FRAGMENT_OUT(1, float4, lineOutput)
-SAMPLER(3, FLOAT_BUFFER, attribute_tx)
+FRAGMENT_OUT(1, float4, line_output)
+SAMPLER(3, samplerBuffer, attribute_tx)
 VERTEX_OUT(overlay_viewer_attribute_iface)
 ADDITIONAL_INFO(overlay_viewer_attribute_common)
 ADDITIONAL_INFO(draw_pointcloud)
@@ -67,7 +66,7 @@ DO_STATIC_COMPILATION()
 VERTEX_SOURCE("overlay_viewer_attribute_curve_vert.glsl")
 FRAGMENT_SOURCE("overlay_viewer_attribute_frag.glsl")
 FRAGMENT_OUT(0, float4, out_color)
-FRAGMENT_OUT(1, float4, lineOutput)
+FRAGMENT_OUT(1, float4, line_output)
 VERTEX_IN(0, float3, pos)
 VERTEX_IN(1, float4, attribute_value)
 VERTEX_OUT(overlay_viewer_attribute_iface)
@@ -84,8 +83,8 @@ DO_STATIC_COMPILATION()
 VERTEX_SOURCE("overlay_viewer_attribute_curves_vert.glsl")
 FRAGMENT_SOURCE("overlay_viewer_attribute_frag.glsl")
 FRAGMENT_OUT(0, float4, out_color)
-FRAGMENT_OUT(1, float4, lineOutput)
-SAMPLER(1, FLOAT_BUFFER, color_tx)
+FRAGMENT_OUT(1, float4, line_output)
+SAMPLER(1, samplerBuffer, color_tx)
 PUSH_CONSTANT(bool, is_point_domain)
 VERTEX_OUT(overlay_viewer_attribute_iface)
 ADDITIONAL_INFO(overlay_viewer_attribute_common)

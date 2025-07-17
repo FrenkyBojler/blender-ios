@@ -302,7 +302,7 @@ static SpaceLink *view3d_duplicate(SpaceLink *sl)
   View3D *v3do = (View3D *)sl;
   View3D *v3dn = static_cast<View3D *>(MEM_dupallocN(sl));
 
-  memset(&v3dn->runtime, 0x0, sizeof(v3dn->runtime));
+  v3dn->runtime = View3D_Runtime{};
 
   /* clear or remove stuff from old */
 
@@ -517,7 +517,7 @@ static void view3d_main_region_free(ARegion *region)
     }
 
     if (rv3d->sms) {
-      MEM_freeN(static_cast<void *>(rv3d->sms));
+      view3d_smooth_free(rv3d);
     }
 
     MEM_freeN(rv3d);
@@ -1547,7 +1547,7 @@ static void view3d_space_blend_read_data(BlendDataReader *reader, SpaceLink *sl)
 {
   View3D *v3d = (View3D *)sl;
 
-  memset(&v3d->runtime, 0x0, sizeof(v3d->runtime));
+  v3d->runtime = View3D_Runtime{};
 
   if (v3d->gpd) {
     BLO_read_struct(reader, bGPdata, &v3d->gpd);
@@ -1621,7 +1621,7 @@ void ED_spacetype_view3d()
   art->listener = view3d_main_region_listener;
   art->message_subscribe = view3d_main_region_message_subscribe;
   art->cursor = view3d_main_region_cursor;
-  art->lock = 1; /* can become flag, see BKE_spacedata_draw_locks */
+  art->lock = REGION_DRAW_LOCK_ALL;
   BLI_addhead(&st->regiontypes, art);
 
   /* regions: list-view/buttons */
@@ -1632,6 +1632,7 @@ void ED_spacetype_view3d()
   art->listener = view3d_buttons_region_listener;
   art->message_subscribe = ED_area_do_mgs_subscribe_for_tool_ui;
   art->init = view3d_buttons_region_init;
+  art->snap_size = ED_region_generic_panel_region_snap_size;
   art->layout = view3d_buttons_region_layout;
   art->draw = ED_region_panels_draw;
   BLI_addhead(&st->regiontypes, art);

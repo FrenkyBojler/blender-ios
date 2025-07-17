@@ -125,7 +125,7 @@ LightData debug_light_get()
 /** Return true if a pixel was written. */
 bool debug_tilemaps(float3 P, LightData light, bool do_debug_sample_tile)
 {
-  const int debug_tile_size_px = 4;
+  constexpr int debug_tile_size_px = 4;
   int2 px = int2(gl_FragCoord.xy) / debug_tile_size_px;
   int tilemap = px.x / SHADOW_TILEMAP_RES;
   int tilemap_index = light.tilemap_index + tilemap;
@@ -207,7 +207,7 @@ void main()
   out_color_mul = float4(1.0f);
 
   float depth = texelFetch(hiz_tx, int2(gl_FragCoord.xy), 0).r;
-  float3 P = drw_point_screen_to_world(float3(uvcoordsvar.xy, depth));
+  float3 P = drw_point_screen_to_world(float3(screen_uv, depth));
   /* Make it pass the depth test. */
   gl_FragDepth = depth - 1e-6f;
 

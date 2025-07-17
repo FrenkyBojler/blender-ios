@@ -16,6 +16,7 @@ SHADER_LIBRARY_CREATE_INFO(eevee_film)
 #include "draw_view_lib.glsl"
 #include "eevee_colorspace_lib.glsl"
 #include "eevee_cryptomatte_lib.glsl"
+#include "eevee_reverse_z_lib.glsl"
 #include "eevee_velocity_lib.glsl"
 #include "gpu_shader_math_vector_lib.glsl"
 
@@ -145,7 +146,7 @@ void film_sample_accum_mist(FilmSample samp, inout float accum)
   if (uniform_buf.film.mist_id == -1) {
     return;
   }
-  float depth = texelFetch(depth_tx, samp.texel, 0).x;
+  float depth = reverse_z::read(texelFetch(depth_tx, samp.texel, 0).x);
   float2 uv = (float2(samp.texel) + 0.5f) / float2(textureSize(depth_tx, 0).xy);
   float3 vP = drw_point_screen_to_view(float3(uv, depth));
   bool is_persp = drw_view().winmat[3][3] == 0.0f;
@@ -251,12 +252,12 @@ float2 film_pixel_history_motion_vector(int2 texel_sample)
    * Dilate velocity by using the nearest pixel in a cross pattern.
    * "High Quality Temporal Supersampling" by Brian Karis at SIGGRAPH 2014 (Slide 27)
    */
-  const int2 corners[4] = int2_array(int2(-2, -2), int2(2, -2), int2(-2, 2), int2(2, 2));
-  float min_depth = texelFetch(depth_tx, texel_sample, 0).x;
+  constexpr int2 corners[4] = int2_array(int2(-2, -2), int2(2, -2), int2(-2, 2), int2(2, 2));
+  float min_depth = reverse_z::read(texelFetch(depth_tx, texel_sample, 0).x);
   int2 nearest_texel = texel_sample;
   for (int i = 0; i < 4; i++) {
     int2 texel = clamp(texel_sample + corners[i], int2(0), textureSize(depth_tx, 0).xy - 1);
-    float depth = texelFetch(depth_tx, texel, 0).x;
+    float depth = reverse_z::read(texelFetch(depth_tx, texel, 0).x);
     if (min_depth > depth) {
       min_depth = depth;
       nearest_texel = texel;
@@ -347,11 +348,11 @@ float4 film_sample_catmull_rom(sampler2D color_tx, float2 input_texel)
 void film_combined_neighbor_boundbox(int2 texel, out float4 min_c, out float4 max_c)
 {
   /* Plus (+) shape offsets. */
-  const int2 plus_offsets[5] = int2_array(int2(0, 0), /* Center */
-                                          int2(-1, 0),
-                                          int2(0, -1),
-                                          int2(1, 0),
-                                          int2(0, 1));
+  constexpr int2 plus_offsets[5] = int2_array(int2(0, 0), /* Center */
+                                              int2(-1, 0),
+                                              int2(0, -1),
+                                              int2(1, 0),
+                                              int2(0, 1));
 #if 0
   /**
    * Compute Variance of neighborhood as described in:
@@ -372,7 +373,7 @@ void film_combined_neighbor_boundbox(int2 texel, out float4 min_c, out float4 ma
 
   /* Extent scaling. Range [0.75..1.25].
    * Balance between more flickering (0.75) or more ghosting (1.25). */
-  const float gamma = 1.25f;
+  constexpr float gamma = 1.25f;
   /* Standard deviation. */
   float4 sigma = sqrt(abs(mu2 - square(mu1)));
   /* eq. 6 in "A Survey of Temporal Anti-aliasing Techniques". */
@@ -394,7 +395,7 @@ void film_combined_neighbor_boundbox(int2 texel, out float4 min_c, out float4 ma
    * Round bbox shape by averaging 2 different min/max from 2 different neighborhood. */
   float4 min_c_3x3 = min_c;
   float4 max_c_3x3 = max_c;
-  const int2 corners[4] = int2_array(int2(-1, -1), int2(1, -1), int2(-1, 1), int2(1, 1));
+  constexpr int2 corners[4] = int2_array(int2(-1, -1), int2(1, -1), int2(-1, 1), int2(1, 1));
   for (int i = 0; i < 4; i++) {
     float4 color = film_texelfetch_as_YCoCg_opacity(combined_tx, texel + corners[i]);
     min_c_3x3 = min(min_c_3x3, color);
@@ -630,9 +631,7 @@ float film_display_depth_amend(int2 texel, float depth)
    * twice. One for X and one for Y direction. */
   /* TODO(fclem): This could be improved as it gives flickering result at depth discontinuity.
    * But this is the quickest stable result I could come with for now. */
-#ifdef GPU_FRAGMENT_SHADER
-  depth += fwidth(depth);
-#endif
+  depth += gpu_fwidth(depth);
   /* Small offset to avoid depth test lessEqual failing because of all the conversions loss. */
   depth += 2.4e-7f * 4.0f;
   return saturate(depth);
@@ -681,7 +680,7 @@ void film_process_data(int2 texel_film, out float4 out_color, out float out_dept
 
     /* Using film weight as distance to the pixel. So the check is inverted. */
     if (film_sample.weight > film_distance) {
-      float depth = texelFetch(depth_tx, film_sample.texel, 0).x;
+      float depth = reverse_z::read(texelFetch(depth_tx, film_sample.texel, 0).x);
       float4 vector = velocity_resolve(vector_tx, film_sample.texel, depth);
       /* Transform to pixel space, matching Cycles format. */
       vector *= float4(float2(uniform_buf.film.render_extent),
@@ -703,8 +702,14 @@ void film_process_data(int2 texel_film, out float4 out_color, out float out_dept
     }
     else {
       out_depth = imageLoadFast(depth_img, texel_film).r;
-      if (display_id != -1 && display_id == normal_id) {
+      if (display_id == -1) {
+        /* NOP. */
+      }
+      else if (display_id == normal_id) {
         out_color = imageLoadFast(color_accum_img, int3(texel_film, display_id));
+      }
+      else if (display_id == uniform_buf.film.position_id) {
+        out_color = imageLoadFast(color_accum_img, int3(texel_film, uniform_buf.film.position_id));
       }
     }
   }

@@ -46,7 +46,7 @@ float bxdf_ggx_smith_G1(float NX, float a2)
  *
  * \return: the sampled direction and the pdf of sampling the direction.
  */
-BsdfSample bxdf_ggx_sample_reflection(float3 rand, float3 Vt, float alpha, const bool do_clamp)
+BsdfSample bxdf_ggx_sample_reflection(float3 rand, float3 Vt, float alpha, bool do_clamp)
 {
   if (do_clamp && alpha < square(BSDF_ROUGHNESS_THRESHOLD)) {
     BsdfSample samp;
@@ -97,7 +97,7 @@ BsdfSample bxdf_ggx_sample_reflection(float3 rand, float3 Vt, float alpha, const
 
 /* Evaluate the GGX BRDF without the Fresnel term, multiplied by the cosine foreshortening term.
  * Also evaluate the probability of sampling the reflection direction. */
-BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, const bool do_clamp)
+BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, bool do_clamp)
 {
   float NV = dot(N, V);
   if (NV <= 0.0f) {
@@ -125,8 +125,9 @@ BsdfEval bxdf_ggx_eval_reflection(float3 N, float3 L, float3 V, float alpha, con
   BsdfEval eval;
 
   float NV2 = square(NV);
-  float s2 = square(1.0f + sqrt(1.0f - NV2));
-  float len_ai_sqr = a2 * (1.0f - NV2);
+  float one_minus_NV2 = saturate(1.0f - NV2);
+  float s2 = square(1.0f + sqrt(one_minus_NV2));
+  float len_ai_sqr = a2 * one_minus_NV2;
   float t = sqrt(len_ai_sqr + NV2);
   if (NV >= 0.0f) {
     float k = (1.0f - a2) * s2 / (s2 + a2 * NV2);
@@ -313,7 +314,7 @@ float bxdf_ggx_perceived_roughness_transmission(float roughness, float ior)
 {
   /* This is a very rough mapping used by manually curve fitting the apparent roughness
    * (blurriness) of GGX reflections and GGX refraction.
-   * A better fit is desirable if it is in the same order of complexity.  */
+   * A better fit is desirable if it is in the same order of complexity. */
   return roughness *
          sqrt_fast((ior > 1.0f) ? (1.0f - 1.0f / ior) : (saturate(1.0f - ior) * 0.64f));
 }

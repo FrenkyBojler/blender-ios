@@ -80,6 +80,11 @@ enum class AreaDockTarget {
 /* Less expansion needed for global edges. */
 #define BORDERPADDING_GLOBAL (3.0f * UI_SCALE_FAC)
 
+#define AREA_CLOSE_FADEOUT 0.22f /* seconds */
+#define AREA_DOCK_FADEOUT 0.20f  /* seconds */
+#define AREA_JOIN_FADEOUT 0.15f  /* seconds */
+#define AREA_SPLIT_FADEOUT 0.15f /* seconds */
+
 /* `area.cc` */
 
 /**
@@ -111,6 +116,13 @@ void screen_draw_split_preview(ScrArea *area, eScreenAxis dir_axis, float factor
 void screen_draw_move_highlight(const wmWindow *win, bScreen *screen, eScreenAxis dir_axis);
 
 void screen_draw_region_scale_highlight(ARegion *region);
+
+void screen_animate_area_highlight(wmWindow *win,
+                                   bScreen *screen,
+                                   const rcti *rect,
+                                   float inner[4],
+                                   float outline[4],
+                                   float seconds);
 
 /* `screen_edit.cc` */
 
@@ -158,6 +170,9 @@ bool screen_area_close(bContext *C, ReportList *reports, bScreen *screen, ScrAre
 void screen_area_spacelink_add(const Scene *scene, ScrArea *area, eSpace_Type space_type);
 AZone *ED_area_actionzone_find_xy(ScrArea *area, const int xy[2]);
 
+/**
+ * \return true if any region polling state changed, and an area re-init is needed.
+ */
 bool area_regions_poll(bContext *C, const bScreen *screen, ScrArea *area);
 
 /* `screen_geometry.cc` */
