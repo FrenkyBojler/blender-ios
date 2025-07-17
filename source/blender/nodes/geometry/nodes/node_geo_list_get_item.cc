@@ -87,7 +87,7 @@ class SampleIndexFunction : public mf::MultiFunction {
     const List::DataVariant &data = list_->data();
     if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&data)) {
       const GSpan span(list_->cpp_type(), array_data->data, list_->size());
-      bke::copy_with_checked_indices(GVArray::ForSpan(span), indices, mask, dst);
+      bke::copy_with_checked_indices(GVArray::from_span(span), indices, mask, dst);
     }
     else if (const auto *single_data = std::get_if<nodes::List::SingleData>(&data)) {
       list_->cpp_type().fill_construct_indices(single_data->value, dst.data(), mask);
@@ -145,7 +145,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   auto fn = std::make_shared<SampleIndexFunction>(std::move(list));
-  auto op = FieldOperation::Create(std::move(fn), {std::move(index)});
+  auto op = FieldOperation::from(std::move(fn), {std::move(index)});
 
   params.set_output("Value", GField(std::move(op)));
 }
