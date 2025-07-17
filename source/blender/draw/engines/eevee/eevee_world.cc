@@ -45,9 +45,10 @@ World::~World()
                                 *output,
                                 *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
 
-    const float3 black{0.0f, 0.0f, 0.0f};
+    const float4 black{0.0f, 0.0f, 0.0f, 1.0f};
+    // todo(habib): convert other colors to float4 as well
     bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
-    copy_v3_v3(color_sock->default_value_typed<bNodeSocketValueVector>()->value, black);
+    copy_v4_v4(color_sock->default_value_typed<bNodeSocketValueVector>()->value, black);
 
     default_world_->nodetree = ntree;
     BLI_listbase_clear(&default_world_->gpumaterial);
