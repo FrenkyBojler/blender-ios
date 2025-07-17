@@ -71,11 +71,11 @@ Attribute::DataVariant attribute_init_to_data(const bke::AttrType data_type,
   switch (initializer.type) {
     case AttributeInit::Type::Construct: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
-      return Attribute::ArrayData::ForConstructed(type, domain_size);
+      return Attribute::ArrayData::from_constructed(type, domain_size);
     }
     case AttributeInit::Type::DefaultValue: {
       const CPPType &type = bke::attribute_type_to_cpp_type(data_type);
-      return Attribute::ArrayData::ForDefaultValue(type, domain_size);
+      return Attribute::ArrayData::from_default_value(type, domain_size);
     }
     case AttributeInit::Type::VArray: {
       const auto &init = static_cast<const AttributeInitVArray &>(initializer);
@@ -184,7 +184,7 @@ GMutableSpan get_mutable_attribute(AttributeStorage &storage,
       if (const auto *single_data = std::get_if<bke::Attribute::SingleData>(&attr->data())) {
         /* Convert single value storage to array storage. */
         const GPointer g_value(cpp_type, single_data->value);
-        attr->assign_data(bke::Attribute::ArrayData::ForValue(g_value, domain_size));
+        attr->assign_data(bke::Attribute::ArrayData::from_value(g_value, domain_size));
       }
       auto &array_data = std::get<bke::Attribute::ArrayData>(attr->data_for_write());
       return GMutableSpan(cpp_type, array_data.data, domain_size);
@@ -199,7 +199,7 @@ GMutableSpan get_mutable_attribute(AttributeStorage &storage,
       name,
       domain,
       type,
-      bke::Attribute::ArrayData::ForValue({cpp_type, default_value}, domain_size));
+      bke::Attribute::ArrayData::from_value({cpp_type, default_value}, domain_size));
   auto &array_data = std::get<bke::Attribute::ArrayData>(attr.data_for_write());
   BLI_assert(array_data.size == domain_size);
   return GMutableSpan(cpp_type, array_data.data, domain_size);

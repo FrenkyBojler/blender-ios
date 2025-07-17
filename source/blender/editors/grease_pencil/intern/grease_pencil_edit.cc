@@ -4818,7 +4818,7 @@ static bke::AttributeStorage merge_attributes(const bke::AttributeAccessor &a,
   bke::AttributeStorage new_storage;
   for (const auto &[name, type] : new_types.items()) {
     const CPPType &cpp_type = bke::attribute_type_to_cpp_type(type);
-    auto new_data = bke::Attribute::ArrayData::ForUninitialized(cpp_type, dst_size);
+    auto new_data = bke::Attribute::ArrayData::from_uninitialized(cpp_type, dst_size);
 
     const GVArray data_a = *a.lookup_or_default(name, bke::AttrDomain::Layer, type);
     data_a.materialize_to_uninitialized(new_data.data);

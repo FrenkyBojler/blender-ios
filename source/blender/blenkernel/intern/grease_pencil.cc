@@ -3841,7 +3841,7 @@ static void reorder_attribute_domain(blender::bke::AttributeStorage &data,
     switch (attr.storage_type()) {
       case bke::AttrStorageType::Array: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
-        auto new_data = bke::Attribute::ArrayData::ForConstructed(type, new_by_old_map.size());
+        auto new_data = bke::Attribute::ArrayData::from_constructed(type, new_by_old_map.size());
         bke::attribute_math::gather(GSpan(type, data.data, data.size),
                                     new_by_old_map,
                                     GMutableSpan(type, new_data.data, new_data.size));
@@ -4182,7 +4182,7 @@ static void shrink_attribute_storage(blender::bke::AttributeStorage &storage,
       case bke::AttrStorageType::Array: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
 
-        auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, size - 1);
+        auto new_data = bke::Attribute::ArrayData::from_uninitialized(type, size - 1);
         type.copy_construct_n(data.data, new_data.data, range_before.size());
         type.copy_construct_n(POINTER_OFFSET(data.data, type.size * range_after.start()),
                               POINTER_OFFSET(new_data.data, type.size * index_to_remove),
