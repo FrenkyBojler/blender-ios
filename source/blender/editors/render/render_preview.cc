@@ -377,27 +377,30 @@ World *ED_preview_prepare_world_simple(Main *pr_main)
 
   bNodeTree *ntree = node_tree_add_tree_embedded(
       nullptr, &world->id, "Shader Nodetree", "ShaderNodeTree");
-  bNode *shader = node_add_node(nullptr, *world->nodetree, "ShaderNodeBackground");
-  bNode *output = node_add_node(nullptr, *world->nodetree, "ShaderNodeOutputWorld");
+  bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground");
+  bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld");
   node_add_link(*world->nodetree,
-                *shader,
-                *node_find_socket(*shader, SOCK_OUT, "Background"),
+                *background,
+                *node_find_socket(*background, SOCK_OUT, "Background"),
                 *output,
                 *node_find_socket(*output, SOCK_IN, "Surface"));
+  node_set_active(*ntree, *output);
 
   world->nodetree = ntree;
   return world;
 }
 
-void ED_preview_world_simple_set_rgb(World *world, const float color[3])
+void ED_preview_world_simple_set_rgb(World *world, const float color[4])
 {
   BLI_assert(world != nullptr);
 
-  bNode *shader = blender::bke::node_find_node_by_name(*world->nodetree, "ShaderNodeBackground");
-  BLI_assert(shader != nullptr);
+  bNode *background = blender::bke::node_find_node_by_name(*world->nodetree,
+                                                           "ShaderNodeBackground");
+  BLI_assert(background != nullptr);
 
-  bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
-  copy_v3_v3(color_sock->default_value_typed<bNodeSocketValueVector>()->value, color);
+  auto color_socket = static_cast<bNodeSocketValueRGBA *>(
+      blender::bke::node_find_socket(*background, SOCK_IN, "Color")->default_value);
+  copy_v4_v4(color_socket->value, color);
 }
 
 static ID *duplicate_ids(ID *id, const bool allow_failure)
@@ -568,11 +571,11 @@ static Scene *preview_prepare_scene(
 
           /* Use brighter world color for grease pencil. */
           if (sp->pr_main == G_pr_main_grease_pencil) {
-            const float white[3] = {1.0f, 1.0f, 1.0f};
+            const float white[4] = {1.0f, 1.0f, 1.0f, 1.0f};
             ED_preview_world_simple_set_rgb(sce->world, white);
           }
           else {
-            const float dark[3] = {0.05f, 0.05f, 0.05f};
+            const float dark[4] = {0.05f, 0.05f, 0.05f, 0.05f};
             ED_preview_world_simple_set_rgb(sce->world, dark);
           }
         }
@@ -631,7 +634,7 @@ static Scene *preview_prepare_scene(
       if (sce->world) {
         /* Only use lighting from the light. */
         sce->world = ED_preview_prepare_world_simple(pr_main);
-        const float black[3] = {0.0f, 0.0f, 0.0f};
+        const float black[4] = {0.0f, 0.0f, 0.0f, 0.0f};
         ED_preview_world_simple_set_rgb(sce->world, black);
       }
 

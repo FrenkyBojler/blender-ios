@@ -33,25 +33,23 @@ World::~World()
   if (default_world_ == nullptr) {
     default_world_ = BKE_id_new_nomain<::World>("EEVEE default world");
 
-    bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
-        nullptr, &default_world_->id, "Shader Nodetree", "ShaderNodeTree");
-    bNode *shader = blender::bke::node_add_node(
-        nullptr, *default_world_->nodetree, "ShaderNodeBackground");
-    bNode *output = blender::bke::node_add_node(
-        nullptr, *default_world_->nodetree, "ShaderNodeOutputWorld");
-    blender::bke::node_add_link(*default_world_->nodetree,
-                                *shader,
-                                *blender::bke::node_find_socket(*shader, SOCK_OUT, "Background"),
-                                *output,
-                                *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
+    bNodeTree *ntree = bke::node_tree_add_tree(
+        nullptr, "World Nodetree", ntreeType_Shader->idname);
+    bNode *background = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
+    bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
+    bNodeSocket *background_out = bke::node_find_socket(*background, SOCK_OUT, "Background");
+    bNodeSocket *output_in = bke::node_find_socket(*output, SOCK_IN, "Surface");
+    bke::node_add_link(*ntree, *background, *background_out, *output, *output_in);
+    bke::node_set_active(*ntree, *output);
 
-    const float4 black{0.0f, 0.0f, 0.0f, 1.0f};
-    // todo(habib): convert other colors to float4 as well
-    bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
-    copy_v4_v4(color_sock->default_value_typed<bNodeSocketValueVector>()->value, black);
+    auto color_socket = static_cast<bNodeSocketValueRGBA *>(
+        bke::node_find_socket(*background, SOCK_IN, "Color")->default_value);
+    copy_v4_v4(color_socket->value, float4{0.0f, 0.0f, 0.0f, 1.0f});
 
     default_world_->nodetree = ntree;
     BLI_listbase_clear(&default_world_->gpumaterial);
+
+    // todo(habib): remove use_nodes from RNA
   }
   return default_world_;
 }
@@ -112,7 +110,7 @@ void World::sync()
     bl_world = world_override;
   }
 
-  bNodeTree *ntree = (bl_world->nodetree) ? bl_world->nodetree : default_world_->nodetree;
+  bNodeTree *ntree = (bl_world->nodetree) ? bl_world->nodetree : default_world_get()->nodetree;
 
   {
     if (has_volume_absorption_) {

@@ -213,7 +213,7 @@ static Scene *preview_prepare_scene(const Main *bmain,
 
   /* Setup the world. */
   scene_preview->world = ED_preview_prepare_world_simple(pr_main);
-  ED_preview_world_simple_set_rgb(scene_preview->world, float3{0.05f, 0.05f, 0.05f});
+  ED_preview_world_simple_set_rgb(scene_preview->world, float4{0.05f, 0.05f, 0.05f, 0.05f});
 
   BLI_addtail(&pr_main->materials, mat_copy);
 
