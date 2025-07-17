@@ -35,7 +35,7 @@ class ListFieldContext : public FieldContext {
 ListPtr evaluate_field_to_list(GField field, const int64_t count)
 {
   const CPPType &cpp_type = field.cpp_type();
-  ArrayData array_data = ArrayData::ForConstructed(cpp_type, count);
+  List::ArrayData array_data = List::ArrayData::ForConstructed(cpp_type, count);
   GMutableSpan span(cpp_type, array_data.data, count);
 
   ListFieldContext context{};
@@ -51,11 +51,11 @@ static ListPtr create_repeated_list(ListPtr list, const int64_t dst_size)
   if (list->size() >= dst_size) {
     return list;
   }
-  if (const auto *data = std::get_if<nodes::ArrayData>(&list->data())) {
+  if (const auto *data = std::get_if<nodes::List::ArrayData>(&list->data())) {
     const int64_t size = list->size();
     BLI_assert(size > 0);
     const CPPType &cpp_type = list->cpp_type();
-    ArrayData new_data = ArrayData::ForUninitialized(cpp_type, dst_size);
+    List::ArrayData new_data = List::ArrayData::ForUninitialized(cpp_type, dst_size);
     const int64_t chunks = dst_size / size;
     for (const int64_t i : IndexRange(chunks)) {
       const int64_t offset = cpp_type.size * i * size;
@@ -70,7 +70,7 @@ static ListPtr create_repeated_list(ListPtr list, const int64_t dst_size)
 
     return List::create(cpp_type, std::move(new_data), dst_size);
   }
-  if (const auto *data = std::get_if<nodes::SingleData>(&list->data())) {
+  if (const auto *data = std::get_if<nodes::List::SingleData>(&list->data())) {
     const CPPType &cpp_type = list->cpp_type();
     return List::create(cpp_type, *data, dst_size);
   }
@@ -84,10 +84,10 @@ static void add_list_to_params(mf::ParamsBuilder &params,
 {
   const CPPType &cpp_type = param_type.data_type().single_type();
   BLI_assert(cpp_type == list.cpp_type());
-  if (const auto *array_data = std::get_if<nodes::ArrayData>(&list.data())) {
+  if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&list.data())) {
     params.add_readonly_single_input(GSpan(cpp_type, array_data->data, list.size()));
   }
-  else if (const auto *single_data = std::get_if<nodes::SingleData>(&list.data())) {
+  else if (const auto *single_data = std::get_if<nodes::List::SingleData>(&list.data())) {
     params.add_readonly_single_input(GPointer(cpp_type, single_data->value));
   }
 }
@@ -143,7 +143,7 @@ void execute_multi_function_on_value_variant__list(const MultiFunction &fn,
     SocketValueVariant &output_variant = *output_values[i];
     const mf::ParamType param_type = fn.param_type(params.next_param_index());
     const CPPType &cpp_type = param_type.data_type().single_type();
-    ArrayData array_data = ArrayData::ForUninitialized(cpp_type, max_size);
+    List::ArrayData array_data = List::ArrayData::ForUninitialized(cpp_type, max_size);
 
     params.add_uninitialized_single_output(GMutableSpan(cpp_type, array_data.data, max_size));
     output_variant.set(List::create(cpp_type, std::move(array_data), max_size));

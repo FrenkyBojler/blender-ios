@@ -12,26 +12,26 @@
 
 namespace blender::nodes {
 
-class ArrayData {
- public:
-  void *data;
-  ImplicitSharingPtr<> sharing_info;
-  static ArrayData ForValue(const GPointer &value, int64_t size);
-  static ArrayData ForDefaultValue(const CPPType &type, int64_t size);
-  static ArrayData ForConstructed(const CPPType &type, int64_t size);
-  static ArrayData ForUninitialized(const CPPType &type, int64_t size);
-};
-
-class SingleData {
- public:
-  void *value;
-  ImplicitSharingPtr<> sharing_info;
-  static SingleData ForValue(const GPointer &value);
-  static SingleData ForDefaultValue(const CPPType &type);
-};
-
 class List : public ImplicitSharingMixin {
  public:
+  class ArrayData {
+   public:
+    void *data;
+    ImplicitSharingPtr<> sharing_info;
+    static ArrayData ForValue(const GPointer &value, int64_t size);
+    static ArrayData ForDefaultValue(const CPPType &type, int64_t size);
+    static ArrayData ForConstructed(const CPPType &type, int64_t size);
+    static ArrayData ForUninitialized(const CPPType &type, int64_t size);
+  };
+
+  class SingleData {
+   public:
+    void *value;
+    ImplicitSharingPtr<> sharing_info;
+    static SingleData ForValue(const GPointer &value);
+    static SingleData ForDefaultValue(const CPPType &type);
+  };
+
   using DataVariant = std::variant<ArrayData, SingleData>;
 
  private:

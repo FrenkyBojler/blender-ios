@@ -85,11 +85,11 @@ class SampleIndexFunction : public mf::MultiFunction {
     const VArray<int> &indices = params.readonly_single_input<int>(0, "Index");
     GMutableSpan dst = params.uninitialized_single_output(1, "Value");
     const List::DataVariant &data = list_->data();
-    if (const auto *array_data = std::get_if<nodes::ArrayData>(&data)) {
+    if (const auto *array_data = std::get_if<nodes::List::ArrayData>(&data)) {
       const GSpan span(list_->cpp_type(), array_data->data, list_->size());
       bke::copy_with_checked_indices(GVArray::ForSpan(span), indices, mask, dst);
     }
-    else if (const auto *single_data = std::get_if<nodes::SingleData>(&data)) {
+    else if (const auto *single_data = std::get_if<nodes::List::SingleData>(&data)) {
       list_->cpp_type().fill_construct_indices(single_data->value, dst.data(), mask);
     }
   }

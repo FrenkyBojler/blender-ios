@@ -6,9 +6,9 @@
 
 namespace blender::nodes {
 
-ArrayData ArrayData::ForValue(const GPointer &value, const int64_t size)
+List::ArrayData List::ArrayData::ForValue(const GPointer &value, const int64_t size)
 {
-  ArrayData data{};
+  List::ArrayData data{};
   const CPPType &type = *value.type();
   const void *value_ptr = type.default_value();
 
@@ -26,14 +26,14 @@ ArrayData ArrayData::ForValue(const GPointer &value, const int64_t size)
   return data;
 }
 
-ArrayData ArrayData::ForDefaultValue(const CPPType &type, const int64_t size)
+List::ArrayData List::ArrayData::ForDefaultValue(const CPPType &type, const int64_t size)
 {
   return ForValue(GPointer(type, type.default_value()), size);
 }
 
-ArrayData ArrayData::ForConstructed(const CPPType &type, const int64_t size)
+List::ArrayData List::ArrayData::ForConstructed(const CPPType &type, const int64_t size)
 {
-  ArrayData data{};
+  List::ArrayData data{};
   data.data = MEM_malloc_arrayN_aligned(size, type.size, type.alignment, __func__);
   type.default_construct_n(data.data, size);
   BLI_assert(type.is_trivially_destructible);
@@ -41,18 +41,18 @@ ArrayData ArrayData::ForConstructed(const CPPType &type, const int64_t size)
   return data;
 }
 
-ArrayData ArrayData::ForUninitialized(const CPPType &type, const int64_t size)
+List::ArrayData List::ArrayData::ForUninitialized(const CPPType &type, const int64_t size)
 {
-  ArrayData data{};
+  List::ArrayData data{};
   data.data = MEM_malloc_arrayN_aligned(size, type.size, type.alignment, __func__);
   BLI_assert(type.is_trivially_destructible);
   data.sharing_info = ImplicitSharingPtr<>(implicit_sharing::info_for_mem_free(data.data));
   return data;
 }
 
-SingleData SingleData::ForValue(const GPointer &value)
+List::SingleData List::SingleData::ForValue(const GPointer &value)
 {
-  SingleData data{};
+  List::SingleData data{};
   const CPPType &type = *value.type();
   data.value = MEM_mallocN_aligned(type.size, type.alignment, __func__);
   type.copy_construct(value.get(), data.value);
@@ -61,7 +61,7 @@ SingleData SingleData::ForValue(const GPointer &value)
   return data;
 }
 
-SingleData SingleData::ForDefaultValue(const CPPType &type)
+List::SingleData List::SingleData::ForDefaultValue(const CPPType &type)
 {
   return ForValue(GPointer(type, type.default_value()));
 }
