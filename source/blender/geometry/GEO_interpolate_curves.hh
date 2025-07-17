@@ -17,7 +17,7 @@ namespace blender::geometry {
  * \param r_factors Output array of interpolation factors between a source point and the next.
  */
 void sample_curve_padded(const Span<float3> positions,
-                         const bool cyclic,
+                         bool cyclic,
                          MutableSpan<int> r_indices,
                          MutableSpan<float> r_factors);
 
@@ -32,9 +32,9 @@ void sample_curve_padded(const Span<float3> positions,
  * \param r_factors Output array of interpolation factors between a source point and the next.
  */
 void sample_curve_padded(const bke::CurvesGeometry &curves,
-                         const int curve_index,
-                         const bool cyclic,
-                         const bool reverse,
+                         int curve_index,
+                         bool cyclic,
+                         bool reverse,
                          MutableSpan<int> r_indices,
                          MutableSpan<float> r_factors);
 
