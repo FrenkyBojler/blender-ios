@@ -51,7 +51,7 @@ struct UvElementMap;
 /* `editmesh_utils.cc` */
 class EditMeshSymmetryHelper {
 public:
-  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob);
+  static std::optional<EditMeshSymmetryHelper> create_if_needed(Object *ob, uchar htype);
 
   bool is_any_mirror_edge_selected(BMEdge *edge, char hflag) const;
   bool is_any_mirror_vert_selected(BMVert *vert, char hflag) const;
@@ -66,10 +66,11 @@ public:
   void apply_on_mirror_faces(BMFace *face, blender::FunctionRef<void(BMFace *)> op) const;
 
 private:
-  EditMeshSymmetryHelper(Object *ob);
+  EditMeshSymmetryHelper(Object *ob, uchar htype);
 
   BMEditMesh *em;
   Mesh *mesh;
+  uchar htype_;
   bool use_topology_mirror;
 
   blender::Map<BMVert *, blender::Vector<BMVert *>> vert_to_mirrors_map;

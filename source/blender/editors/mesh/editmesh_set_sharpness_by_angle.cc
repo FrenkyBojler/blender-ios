@@ -42,7 +42,7 @@ static wmOperatorStatus set_sharpness_by_angle_exec(bContext *C, wmOperator *op)
     BMEditMesh *em = mesh.runtime->edit_mesh.get();
 
     std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(object);
+        EditMeshSymmetryHelper::create_if_needed(object, BM_EDGE);
 
     bool changed = false;
     BMIter iter;

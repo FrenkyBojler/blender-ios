@@ -255,8 +255,8 @@ static bool edbm_inset_calc(wmOperator *op)
       EDBM_redo_state_restore(&opdata->ob_store[ob_index].mesh_backup, em, false);
     }
 
-    std::optional<EditMeshSymmetryHelper> symmetry_helper =
-        EditMeshSymmetryHelper::create_if_needed(obedit);
+     std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_FACE);
 
     char hflag = BM_ELEM_SELECT;
 
