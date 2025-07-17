@@ -112,23 +112,15 @@ void main()
       break;
     }
     case SOCK_DISPLAY_SHAPE_LIST: {
-      constexpr float bar_height = 0.45f;
-      constexpr float bar_width = 1.3f;
-      constexpr float bar_separation = 0.4f;
-
-      float2 half_size = float2(bar_width, bar_height) * 0.5f;
-
-      float2 uv_top = uv - float2(0.0f, bar_separation);
-      float2 uv_middle = uv;
-      float2 uv_bottom = uv + float2(0.0f, bar_separation);
-
-      float dist_top = square_sdf(abs(uv_top), half_size);
-      float dist_middle = square_sdf(abs(uv_middle), half_size);
-      float dist_bottom = square_sdf(abs(uv_bottom), half_size);
-
-      distance_squared = min(dist_top, min(dist_middle, dist_bottom));
-
-      alpha_threshold = corner_rounding;
+      constexpr float2 rect_side_length = float2(0.5f, 0.25f);
+      const float2 oversize = float2(0.0f, square_radius * 1.4) / 2.5f;
+      const float2 rect_corner = max(rect_side_length, extrusion / 2.0f + oversize) +
+                                 finalOutlineThickness / 4.0f;
+      const float2 mirrored_uv = float2(
+          abs(uv.x), abs(abs(abs(uv.y) - rect_corner.y / 1.5f) - rect_corner.y / 1.5f));
+      distance_squared = square_sdf(
+          mirrored_uv, (rect_corner + finalOutlineThickness / 2.0f) / float2(1.0f, 1.5f));
+      break;
     }
   }
 
