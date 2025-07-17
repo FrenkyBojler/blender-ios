@@ -4,6 +4,7 @@
 
 #include "NOD_geometry_nodes_list.hh"
 #include "NOD_rna_define.hh"
+#include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
 
 #include "RNA_enum_types.hh"
@@ -82,31 +83,10 @@ static void node_rna(StructRNA *srna)
       SOCK_GEOMETRY,
       [](bContext * /*C*/, PointerRNA * /*ptr*/, PropertyRNA * /*prop*/, bool *r_free) {
         *r_free = true;
-        return enum_items_filter(rna_enum_node_socket_data_type_items,
-                                 [](const EnumPropertyItem &item) -> bool {
-                                   if (!U.experimental.use_bundle_and_closure_nodes) {
-                                     if (ELEM(item.value, SOCK_BUNDLE, SOCK_CLOSURE)) {
-                                       return false;
-                                     }
-                                   }
-                                   return ELEM(item.value,
-                                               SOCK_FLOAT,
-                                               SOCK_INT,
-                                               SOCK_BOOLEAN,
-                                               SOCK_ROTATION,
-                                               SOCK_MATRIX,
-                                               SOCK_VECTOR,
-                                               SOCK_STRING,
-                                               SOCK_RGBA,
-                                               SOCK_GEOMETRY,
-                                               SOCK_OBJECT,
-                                               SOCK_COLLECTION,
-                                               SOCK_MATERIAL,
-                                               SOCK_IMAGE,
-                                               SOCK_MENU,
-                                               SOCK_BUNDLE,
-                                               SOCK_CLOSURE);
-                                 });
+        return enum_items_filter(
+            rna_enum_node_socket_data_type_items, [](const EnumPropertyItem &item) -> bool {
+              return socket_type_supports_fields(eNodeSocketDatatype(item.value));
+            });
       });
 }
 
