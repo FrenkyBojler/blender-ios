@@ -1,1 +1,2 @@
 Referenced by issue #141899, Crash in 'VKResourceStateTracker::get_buffer_and_increase_stamp'
+Referenced by issue #141771, blender 4.5 release candidate Vulkan read file crash with many objects
