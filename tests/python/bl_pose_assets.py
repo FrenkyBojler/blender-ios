@@ -203,6 +203,7 @@ class CreateAssetTest(unittest.TestCase):
             self.assertAlmostEqual(fcurve.keyframe_points[0].co.y,
                                    expected_pose_values[fcurve.data_path][fcurve.array_index], 4)
 
+
 def main():
     global args
     import argparse
