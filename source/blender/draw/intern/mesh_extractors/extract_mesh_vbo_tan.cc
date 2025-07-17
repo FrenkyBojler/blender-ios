@@ -40,9 +40,7 @@ static Array<Array<float4>> extract_tan_init_common(const MeshRenderData &mr,
 
   /* FIXME(#91838): This is to avoid a crash when orco tangent was requested but there are valid
    * uv layers. It would be better to fix the root cause. */
-  if (tan_layers.is_empty() && use_orco_tan &&
-      CustomData_get_layer_index(cd_ldata, CD_PROP_FLOAT2) != -1)
-  {
+  if (tan_layers.is_empty() && use_orco_tan && !default_name.is_empty()) {
     tan_layers.add(default_name);
     use_orco_tan = false;
   }
