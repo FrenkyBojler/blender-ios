@@ -1964,7 +1964,7 @@ class NWLinkToOutputNode(Operator):
                           'LINESTYLE': 'ShaderNodeOutputLineStyle'}
         output_type = {
             'ShaderNodeTree': shader_outputs[context.space_data.shader_type],
-            'CompositorNodeTree': 'CompositorNodeComposite',
+            'CompositorNodeTree': 'NodeGroupOutput',
             'TextureNodeTree': 'TextureNodeOutput',
             'GeometryNodeTree': 'NodeGroupOutput',
         }[tree_type]
@@ -2000,6 +2000,9 @@ class NWLinkToOutputNode(Operator):
                     out_input_index = 2
             elif tree_type == 'GeometryNodeTree':
                 if active.outputs[output_index].type != 'GEOMETRY':
+                    return {'CANCELLED'}
+            elif tree_type == 'CompositorNodeTree':
+                if active.outputs[output_index].type != 'RGBA':
                     return {'CANCELLED'}
             connect_sockets(active.outputs[output_index], output_node.inputs[out_input_index])
 

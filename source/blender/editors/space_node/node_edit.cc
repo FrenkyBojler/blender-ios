@@ -668,7 +668,12 @@ void ED_node_composit_default_init(const bContext *C, bNodeTree *ntree)
   BLI_assert(ntree != nullptr && ntree->type == NTREE_COMPOSIT);
   BLI_assert(BLI_listbase_count(&ntree->nodes) == 0);
 
-  bNode *composite = blender::bke::node_add_static_node(C, *ntree, CMP_NODE_COMPOSITE);
+  ntree->tree_interface.add_socket(
+      DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+  ntree->tree_interface.add_socket(
+      DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
+  bNode *composite = blender::bke::node_add_node(C, *ntree, "NodeGroupOutput");
   composite->location[0] = 200.0f;
   composite->location[1] = 0.0f;
 
@@ -899,19 +904,6 @@ void ED_node_set_active(
 
       /* Adding a node doesn't link this yet. */
       node->id = (ID *)BKE_image_ensure_viewer(bmain, IMA_TYPE_COMPOSITE, "Viewer Node");
-    }
-    else if (node->type_legacy == CMP_NODE_COMPOSITE) {
-      if (was_output == 0) {
-        for (bNode *node_iter : ntree->all_nodes()) {
-          if (node_iter->type_legacy == CMP_NODE_COMPOSITE) {
-            node_iter->flag &= ~NODE_DO_OUTPUT;
-          }
-        }
-
-        node->flag |= NODE_DO_OUTPUT;
-        BKE_ntree_update_tag_active_output_changed(ntree);
-        BKE_main_ensure_invariants(*bmain, ntree->id);
-      }
     }
     else if (do_update) {
       BKE_main_ensure_invariants(*bmain, ntree->id);
