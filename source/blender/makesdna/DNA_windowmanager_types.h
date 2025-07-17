@@ -313,8 +313,9 @@ typedef struct wmWindow {
    * These default to the main screen size but can be overridden by the `--window-geometry`
    * command line argument.
    *
-   * \warning Using this value directly can result in errors on MacOS due to the common retina
-   * displays influencing the GHOST native pixel size. See #WM_window_native_pixel_size
+   * \warning Using these values directly can result in errors on macOS due to HiDPI displays
+   * influencing the window native pixel size. See #WM_window_native_pixel_size for a general use
+   * alternative.
    */
   short sizex, sizey;
   /** Normal, maximized, full-screen, #GHOST_TWindowState. */
