@@ -8687,8 +8687,8 @@ static wl_buffer *ghost_wl_buffer_from_cursor_generator(const GHOST_CursorGenera
       }
     }
 
-    r_bitmap_size[0] = bitmap_size_src[0];
-    r_bitmap_size[1] = bitmap_size_src[1];
+    r_bitmap_size[0] = bitmap_size_dst[0];
+    r_bitmap_size[1] = bitmap_size_dst[1];
 
     r_hot_spot[0] = hot_spot[0];
     r_hot_spot[1] = hot_spot[1];
