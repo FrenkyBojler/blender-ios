@@ -4642,6 +4642,13 @@ static void GREASE_PENCIL_OT_convert_curve_type(wmOperatorType *ot)
 /** \name Offset Operator
  * \{ */
 
+static const EnumPropertyItem prop_offset_corner_types[] = {
+    {int(geometry::OffsetCornerType::Sharp), "SHARP", 0, "Sharp", ""},
+    {int(geometry::OffsetCornerType::Miter), "MITER", 0, "Miter", ""},
+    {int(geometry::OffsetCornerType::Round), "ROUND", 0, "Round", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
 {
   using bke::greasepencil::Layer;
@@ -4652,6 +4659,8 @@ static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
 
   const float offset_distance = RNA_float_get(op->ptr, "offset_distance");
   const float miter_angle = RNA_float_get(op->ptr, "miter_angle");
+  const geometry::OffsetCornerType corner_type = geometry::OffsetCornerType(
+      RNA_enum_get(op->ptr, "corner_type"));
 
   bool changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
@@ -4665,8 +4674,12 @@ static wmOperatorStatus grease_pencil_offset_exec(bContext *C, wmOperator *op)
 
     const Span<float3> normals = info.drawing.curve_plane_normals();
 
-    info.drawing.strokes_for_write() = geometry::offset_curves(
-        info.drawing.strokes(), normals, editable_strokes, offset_distance, miter_angle);
+    info.drawing.strokes_for_write() = geometry::offset_curves(info.drawing.strokes(),
+                                                               normals,
+                                                               editable_strokes,
+                                                               corner_type,
+                                                               offset_distance,
+                                                               miter_angle);
 
     info.drawing.tag_topology_changed();
     changed = true;
@@ -4694,6 +4707,12 @@ static void GREASE_PENCIL_OT_offset(wmOperatorType *ot)
   ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO;
 
   /* Properties */
+  ot->prop = RNA_def_enum(ot->srna,
+                          "corner_type",
+                          prop_offset_corner_types,
+                          int(geometry::OffsetCornerType::Miter),
+                          "Corner Type",
+                          "");
   RNA_def_float_distance(ot->srna,
                          "offset_distance",
                          0.01f,

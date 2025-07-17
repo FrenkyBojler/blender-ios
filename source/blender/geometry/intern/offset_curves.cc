@@ -15,6 +15,7 @@ namespace blender::geometry {
 bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
                                   const Span<float3> normals,
                                   const IndexMask &curve_selection,
+                                  const OffsetCornerType corner_type,
                                   const float offset_distance,
                                   const float miter_angle)
 {
@@ -80,7 +81,7 @@ bke::CurvesGeometry offset_curves(const bke::CurvesGeometry &src_curves,
         }
       }
       else {
-        if (cos_theta < miter_limit) {
+        if (corner_type == OffsetCornerType::Miter && cos_theta < miter_limit) {
           const float sin_theta = sqrt(1 - cos_theta * cos_theta);
           const float S = (sqrt(2 * (cos_theta + 1)) - cos_theta - 1) / sin_theta;
 
