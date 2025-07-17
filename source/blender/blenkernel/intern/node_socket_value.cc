@@ -183,6 +183,9 @@ template<typename T> T SocketValueVariant::extract()
       fn::evaluate_constant_field(value_.get<fn::GField>(), &ret_value);
       return ret_value;
     }
+    if (kind_ == Kind::List) {
+      return {};
+    }
   }
   BLI_assert_unreachable();
   return T();
