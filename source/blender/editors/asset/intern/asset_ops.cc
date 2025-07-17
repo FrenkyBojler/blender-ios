@@ -32,6 +32,7 @@
 #include "ED_fileselect.hh"
 #include "ED_render.hh"
 #include "ED_util.hh"
+#include "ED_view3d.hh"
 #include "ED_view3d_offscreen.hh"
 
 #include "BLT_translation.hh"
@@ -1144,11 +1145,24 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
 
   ScrArea *area_p1 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p1);
   ScrArea *area_p2 = ED_area_find_under_cursor(C, SPACE_TYPE_ANY, p2);
+  bool render_offscreen = false;
+  if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
+    Scene *scene = CTX_data_scene(C);
+    View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
+    /* For `ED_view3d_draw_offscreen_imbuf` only EEVEE only produces a good result. See #141732. */
+    const char *engine_name = scene->r.engine;
+    if (eDrawType(v3d->shading.type) == OB_MATERIAL) {
+      engine_name = RE_engine_id_BLENDER_EEVEE;
+    }
+    render_offscreen = STREQ(engine_name, RE_engine_id_BLENDER_EEVEE) ||
+                       STREQ(engine_name, RE_engine_id_BLENDER_EEVEE_NEXT) ||
+                       STREQ(engine_name, RE_engine_id_BLENDER_WORKBENCH);
+  }
   /* Special case for taking a screenshot from a 3D viewport. In that case we do an offscreen
    * render to support transparency. Render settings are used as currently set up in the viewport
    * to comply with WYSIWYG as much as possible. One limitation is that GUI elements will not be
    * visible in the render. */
-  if (area_p1 == area_p2 && area_p1 != nullptr && area_p1->spacetype == SPACE_VIEW3D) {
+  if (render_offscreen) {
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     ARegion *region = BKE_area_find_region_type(area_p1, RGN_TYPE_WINDOW);
     if (!region) {
