@@ -56,14 +56,12 @@ void context_path_add_generic(Vector<ContextPathItem> &path,
 
 void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path)
 {
-  const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
   uiLayout *row = &layout.row(true);
   layout.alignment_set(blender::ui::LayoutAlign::Left);
 
   for (const int i : context_path.index_range()) {
     uiLayout *sub_row = &row->row(true);
     sub_row->alignment_set(blender::ui::LayoutAlign::Left);
-    sub_row->fixed_size_set(true);
 
     if (i > 0) {
       sub_row->label("", ICON_RIGHTARROW_THIN);
@@ -72,23 +70,7 @@ void template_breadcrumbs(uiLayout &layout, Span<ContextPathItem> context_path)
     int icon = context_path[i].icon;
     std::string name = context_path[i].name;
     if (context_path[i].handle_func) {
-      const float butMargin = (UI_UNIT_X * (1.50f + (icon ? 0.25f : 0.0f)));
-      float w = BLF_width(fstyle->uifont_id, name.c_str(), name.size(), nullptr) + butMargin;
-      but = uiDefIconTextBut(sub_row->block(),
-                             UI_BTYPE_BUT,
-                             0,
-                             icon,
-                             name.c_str(),
-                             0,
-                             0,
-                             w,
-                             UI_UNIT_Y,
-                             nullptr,
-                             0,
-                             0,
-                             "");
-      UI_but_drawflag_enable(but, (UI_BUT_TEXT_LEFT | UI_BUT_ICON_LEFT));
-      UI_but_func_set(but, context_path[i].handle_func);
+      but = sub_row->button(name.c_str(), icon, context_path[i].handle_func);
     }
     else {
       but = uiItemL_ex(sub_row, name.c_str(), icon, false, false);
