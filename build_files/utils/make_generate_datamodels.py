@@ -24,7 +24,6 @@ import argparse
 from pathlib import Path
 import sys
 import time
-import warnings
 
 # Paths of the OpenAPI YAML files to convert to Python code. These are relative
 # to Blender's top level source directory.
