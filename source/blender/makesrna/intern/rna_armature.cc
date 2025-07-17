@@ -804,12 +804,6 @@ static IDProperty **rna_Bone_idprops(PointerRNA *ptr)
   return &bone->prop;
 }
 
-static IDProperty **rna_Bone_system_idprops(PointerRNA *ptr)
-{
-  Bone *bone = static_cast<Bone *>(ptr->data);
-  return &bone->system_properties;
-}
-
 static std::optional<std::string> rna_EditBone_path(const PointerRNA *ptr)
 {
   EditBone *ebone = static_cast<EditBone *>(ptr->data);
