@@ -139,10 +139,8 @@ void WM_tooltip_refresh(bContext *C, wmWindow *win)
       UI_tooltip_free(C, screen, screen->tool_tip->region);
       screen->tool_tip->region = nullptr;
     }
-    /*
-     * Can't refresh tooltips in popups, wmWindow::eventstate is disabled in
-     * #ui_popup_block_refresh.
-     */
+    /* #ui_popup_block_refresh can disable #wmWindow::eventstate, check if we can refresh the
+     * popup. */
     if (win->eventstate) {
       WM_tooltip_init(C, win);
     }
