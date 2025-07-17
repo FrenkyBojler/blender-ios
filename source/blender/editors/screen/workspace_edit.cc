@@ -209,14 +209,13 @@ bool ED_workspace_change(WorkSpace *workspace_new, bContext *C, wmWindowManager 
   BLI_assert(CTX_wm_workspace(C) == workspace_new);
 
   /* Automatic mode switching. */
-
   if (workspace_new->object_mode != workspace_old->object_mode) {
     const Object *object = CTX_data_active_object(C);
     const View3D *v3d = CTX_wm_view3d(C);
     const Base* base = CTX_data_active_base(C);
     /* When attempting to switch modes automatically, if the object is not visible and is in Object
-     * Mode, prevent forcibly changing the workspace. This is consistent with both the object mode
-     * dropdown and the pie menu.
+     * Mode, prevent forcibly changing the workspace. This is consistent with both the mode
+     * dropdown and pie menu.
      */
     const bool can_switch_from_object_mode = object && object->mode == OB_MODE_OBJECT && base && BKE_base_is_visible(v3d, base);
     if (!object || object->mode != OB_MODE_OBJECT || can_switch_from_object_mode) {
