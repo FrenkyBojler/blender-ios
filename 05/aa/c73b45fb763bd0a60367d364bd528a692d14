@@ -1,3 +1,4 @@
 Referenced by issue #135860, 4.4: Candidates for corrective releases
 Referenced by issue #142106, Critical error when importing animation data from previous versions
 Referenced by pull request #142208, Fix #142106: FCurve noise modifier versioning error
+Referenced by commit d64ace779940977276c96170ec4d334379fb6450, Fix #142106: FCurve noise modifier versioning error
