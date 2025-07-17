@@ -34,7 +34,6 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
 
   const StringRef active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
   const StringRef default_name = CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2);
-
   /* HACK to fix #68857 */
   if (extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
     if (!bke::attribute_name_is_anonymous(default_name)) {
@@ -42,27 +41,33 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
     }
   }
 
+  const StringRef stencil_name = [&]() -> StringRef {
+    const int stencil_index = CustomData_get_stencil_layer_index(cd_ldata, CD_PROP_FLOAT2);
+    if (stencil_index == -1) {
+      return "";
+    }
+    return cd_ldata->layers[stencil_index].name;
+  }();
+
   VectorSet<StringRef> r_uv_layers;
 
-  for (int i = 0; i < MAX_MTFACE; i++) {
-    const StringRef layer_name = CustomData_get_layer_name(cd_ldata, CD_PROP_FLOAT2, i);
-    if (uv_layers.contains_as(layer_name)) {
+  for (const StringRef name : uv_layers.as_span().take_front(MAX_MTFACE)) {
+    if (uv_layers.contains_as(name)) {
       char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
 
-      r_uv_layers.add(layer_name);
-      GPU_vertformat_safe_attr_name(layer_name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
+      r_uv_layers.add(name);
+      GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
       SNPRINTF(attr_name, "a%s", attr_safe_name);
       GPU_vertformat_attr_add(format, attr_name, blender::gpu::VertAttrType::SFLOAT_32_32);
-      if (layer_name == default_name) {
+      if (name == default_name) {
         GPU_vertformat_alias_add(format, "a");
       }
-      if (layer_name == active_name) {
+      if (name == active_name) {
         GPU_vertformat_alias_add(format, "au");
         /* Alias to `pos` for edit uvs. */
         GPU_vertformat_alias_add(format, "pos");
       }
-      /* Stencil mask uv layer name. */
-      if (i == CustomData_get_stencil_layer(cd_ldata, CD_PROP_FLOAT2)) {
+      if (name == stencil_name) {
         GPU_vertformat_alias_add(format, "mu");
       }
     }
