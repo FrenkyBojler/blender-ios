@@ -63,15 +63,10 @@ class VKBindlessTable : NonCopyable {
   Vector<DescriptorSlot> uniform_buffer_free_slots_;
 
   Vector<DescriptorSlot> combined_image_sampler_free_slots_;
-  Map<VkDescriptorImageInfo, DescriptorSlot> bound_combined_image_samplers_;
-  Map<VkImageView, Vector<VkDescriptorImageInfo>> image_view_to_combined_image_sampler_keys_;
 
   Vector<DescriptorSlot> storage_image_free_slots_;
-  Map<VkDescriptorImageInfo, DescriptorSlot> bound_storage_images_;
-  Map<VkImageView, Vector<VkDescriptorImageInfo>> image_view_to_storage_image_keys_;
 
   Vector<DescriptorSlot> uniform_texel_buffer_free_slots_;
-  Map<VkBufferView, DescriptorSlot> bound_uniform_texel_buffers_;
 
  public:
   static constexpr uint32_t storage_buffer_binding = 0;
