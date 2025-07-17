@@ -113,37 +113,37 @@ namespace field_inputs {
 
 static Field<float3> rest_position()
 {
-  return bke::AttributeFieldInput::Create<float3>(rest_position_attr);
+  return bke::AttributeFieldInput::from<float3>(rest_position_attr);
 }
 
 static Field<math::Quaternion> rest_rotation()
 {
-  return bke::AttributeFieldInput::Create<math::Quaternion>(rest_rotation_attr);
+  return bke::AttributeFieldInput::from<math::Quaternion>(rest_rotation_attr);
 }
 
 static Field<float3> old_position()
 {
-  return bke::AttributeFieldInput::Create<float3>(old_position_attr);
+  return bke::AttributeFieldInput::from<float3>(old_position_attr);
 }
 
 static Field<math::Quaternion> old_rotation()
 {
-  return bke::AttributeFieldInput::Create<math::Quaternion>(old_rotation_attr);
+  return bke::AttributeFieldInput::from<math::Quaternion>(old_rotation_attr);
 }
 
 static Field<float> radius()
 {
-  return bke::AttributeFieldInput::Create<float>(radius_attr);
+  return bke::AttributeFieldInput::from<float>(radius_attr);
 }
 
 static Field<float> material_length()
 {
-  return bke::AttributeFieldInput::Create<float>(material_length_attr);
+  return bke::AttributeFieldInput::from<float>(material_length_attr);
 }
 
 static Field<int> UNUSED_FUNCTION(target_point)(const TargetPointAttribute target_point_attr)
 {
-  return bke::AttributeFieldInput::Create<int>(target_point_attribute(target_point_attr));
+  return bke::AttributeFieldInput::from<int>(target_point_attribute(target_point_attr));
 }
 
 }  // namespace field_inputs
@@ -1208,8 +1208,7 @@ static void store_initial_curve_rotation(CurveComponent &hair_component)
         const float3x3 rotation(x_axis, y_axis, z_axis);
         return math::to_quaternion(rotation);
       });
-  Field<math::Quaternion> rotation_field = {
-      FieldOperation::Create(rotation_fn, {tangent, normal})};
+  Field<math::Quaternion> rotation_field = {FieldOperation::from(rotation_fn, {tangent, normal})};
   bke::try_capture_field_on_geometry(
       hair_component, hairsim::attributes::rotation, AttrDomain::Point, rotation_field);
 }
@@ -1296,9 +1295,7 @@ static bool try_init_hair_from_density(GeometryComponent &component,
 
   const Field<float> material_length_field = field_inputs::material_length();
   const Field<float> point_mass_field = hairsim::field_ops::curve_point_mass(
-      material_length_field,
-      AttributeFieldInput::Create<float>(cross_section_attr),
-      density_field);
+      material_length_field, AttributeFieldInput::from<float>(cross_section_attr), density_field);
   const Field<float3> segment_inertia_field = hairsim::field_ops::curve_segment_inertia(
       material_length_field, field_inputs::radius(), density_field);
 
@@ -1441,7 +1438,7 @@ static void generate_root_attachment_constraints(BundlePtr &bundle,
       "Root Selection", [](const bool selected, const bool is_start_point) -> bool {
         return selected && is_start_point;
       });
-  Field<bool> root_selection{FieldOperation::Create(
+  Field<bool> root_selection{FieldOperation::from(
       root_selection_fn, {selection_field, hairsim::field_inputs::is_curve_start_point()})};
 
   GeometrySet position_constraints =

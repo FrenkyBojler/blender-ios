@@ -57,7 +57,7 @@ class ShiftedIndexOnCurveInput final : public bke::CurvesFieldInput {
         }
       }
     });
-    return VArray<int>::ForContainer(std::move(output));
+    return VArray<int>::from_container(std::move(output));
   }
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
@@ -93,7 +93,7 @@ class IsStartPointFieldInput final : public bke::CurvesFieldInput {
       }
     });
 
-    return VArray<bool>::ForContainer(std::move(selection));
+    return VArray<bool>::from_container(std::move(selection));
   };
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
@@ -129,7 +129,7 @@ class IsEndPointFieldInput final : public bke::CurvesFieldInput {
       }
     });
 
-    return VArray<bool>::ForContainer(std::move(selection));
+    return VArray<bool>::from_container(std::move(selection));
   };
 
   std::optional<AttrDomain> preferred_domain(const bke::CurvesGeometry & /*curves*/) const final
@@ -142,42 +142,42 @@ namespace field_inputs {
 
 Field<float3> position()
 {
-  return AttributeFieldInput::Create<float3>(attributes::position);
+  return AttributeFieldInput::from<float3>(attributes::position);
 }
 
 Field<math::Quaternion> rotation()
 {
-  return AttributeFieldInput::Create<math::Quaternion>(attributes::rotation);
+  return AttributeFieldInput::from<math::Quaternion>(attributes::rotation);
 }
 
 Field<float3> velocity()
 {
-  return AttributeFieldInput::Create<float3>(attributes::velocity);
+  return AttributeFieldInput::from<float3>(attributes::velocity);
 }
 
 Field<float3> angular_velocity()
 {
-  return AttributeFieldInput::Create<float3>(attributes::angular_velocity);
+  return AttributeFieldInput::from<float3>(attributes::angular_velocity);
 }
 
 Field<float> mass()
 {
-  return AttributeFieldInput::Create<float>(attributes::mass);
+  return AttributeFieldInput::from<float>(attributes::mass);
 }
 
 Field<float> inverse_mass()
 {
-  return AttributeFieldInput::Create<float>(attributes::inv_mass);
+  return AttributeFieldInput::from<float>(attributes::inv_mass);
 }
 
 Field<float3> inertia()
 {
-  return AttributeFieldInput::Create<float3>(attributes::inertia);
+  return AttributeFieldInput::from<float3>(attributes::inertia);
 }
 
 Field<float3> inverse_inertia()
 {
-  return AttributeFieldInput::Create<float3>(attributes::inv_inertia);
+  return AttributeFieldInput::from<float3>(attributes::inv_inertia);
 }
 
 Field<bool> is_curve_start_point()
@@ -205,7 +205,7 @@ Field<float> curve_cross_section(const Field<float> radius_field)
 {
   static const auto cross_section_fn = fn::multi_function::build::SI1_SO<float, float>(
       "Rod Cross Section", [](const float radius) -> float { return M_PI * radius * radius; });
-  return Field<float>(fn::FieldOperation::Create(cross_section_fn, {radius_field}));
+  return Field<float>(fn::FieldOperation::from(cross_section_fn, {radius_field}));
 }
 
 Field<float3> curve_area_moment(const Field<float> radius_field)
@@ -215,7 +215,7 @@ Field<float3> curve_area_moment(const Field<float> radius_field)
         const float radius_sq = radius * radius;
         return radius_sq * radius_sq * M_PI * float3(0.25f, 0.25f, 0.5f);
       });
-  return Field<float3>(fn::FieldOperation::Create(area_moment_fn, {radius_field}));
+  return Field<float3>(fn::FieldOperation::from(area_moment_fn, {radius_field}));
 }
 
 Field<float> curve_segment_length(const Field<float3> &position_field)
@@ -224,7 +224,7 @@ Field<float> curve_segment_length(const Field<float3> &position_field)
       "Segment Length", [](const float3 &pt, const float3 &pt_next) -> float {
         return math::distance(pt, pt_next);
       });
-  return Field<float>(fn::FieldOperation::Create(
+  return Field<float>(fn::FieldOperation::from(
       segment_length_fn, {position_field, field_ops::shifted_curve_value(position_field, 1)}));
 }
 
@@ -232,7 +232,7 @@ Field<float3> curve_segment(const Field<float3> &position_field)
 {
   static const auto segment_fn = fn::multi_function::build::SI2_SO<float3, float3, float3>(
       "Segment", [](const float3 &pt, const float3 &pt_next) -> float3 { return pt_next - pt; });
-  return Field<float3>(fn::FieldOperation::Create(
+  return Field<float3>(fn::FieldOperation::from(
       segment_fn, {position_field, field_ops::shifted_curve_value(position_field, 1)}));
 }
 
@@ -250,11 +250,11 @@ Field<float> staggered_curve_segment_length(const Field<float3> &position_field)
           });
   Field<float> segment_length_field = curve_segment_length(position_field);
   return Field<float>(
-      fn::FieldOperation::Create(avg_segment_length_fn,
-                                 {field_ops::shifted_curve_value(segment_length_field, -1),
-                                  segment_length_field,
-                                  field_inputs::is_curve_start_point(),
-                                  field_inputs::is_curve_end_point()}));
+      fn::FieldOperation::from(avg_segment_length_fn,
+                               {field_ops::shifted_curve_value(segment_length_field, -1),
+                                segment_length_field,
+                                field_inputs::is_curve_start_point(),
+                                field_inputs::is_curve_end_point()}));
 }
 
 Field<float> curve_point_mass(const Field<float> &segment_length_field,
@@ -266,7 +266,7 @@ Field<float> curve_point_mass(const Field<float> &segment_length_field,
       [](const float length, const float cross_section, const float density) -> float {
         return length * cross_section * density;
       });
-  return Field<float>(fn::FieldOperation::Create(
+  return Field<float>(fn::FieldOperation::from(
       point_mass_fn, {segment_length_field, cross_section_field, density_field}));
 }
 
@@ -283,7 +283,7 @@ Field<float3> curve_segment_inertia(const Field<float> &segment_length_field,
             const float Iz = mass * 0.5f * radius * radius;
             return float3(Ixy, Ixy, Iz);
           });
-  return Field<float3>(fn::FieldOperation::Create(
+  return Field<float3>(fn::FieldOperation::from(
       segment_inertia_fn, {segment_length_field, radius_field, density_field}));
 }
 
@@ -291,7 +291,7 @@ Field<float> inverse_mass(const Field<float> &mass_field)
 {
   static const auto inv_mass_fn = fn::multi_function::build::SI1_SO<float, float>(
       "Inverse Mass", [](const float mass) -> float { return math::safe_rcp(mass); });
-  return Field<float>(fn::FieldOperation::Create(inv_mass_fn, {mass_field}));
+  return Field<float>(fn::FieldOperation::from(inv_mass_fn, {mass_field}));
 }
 
 Field<float3> inverse_inertia(const Field<float3> &inertia_field)
@@ -299,7 +299,7 @@ Field<float3> inverse_inertia(const Field<float3> &inertia_field)
   static const auto inv_inertia_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Inverse Moment of Inertia",
       [](const float3 &inertia) -> float3 { return math::safe_rcp(inertia); });
-  return Field<float3>(fn::FieldOperation::Create(inv_inertia_fn, {inertia_field}));
+  return Field<float3>(fn::FieldOperation::from(inv_inertia_fn, {inertia_field}));
 }
 
 }  // namespace field_ops
@@ -315,7 +315,7 @@ bool apply_impulse(GeometryComponent &component,
           [](const float3 &velocity, const float inv_mass, const float3 &impulse) -> float3 {
             return velocity + inv_mass * impulse;
           });
-  const GField field = Field<float3>(fn::FieldOperation::Create(
+  const GField field = Field<float3>(fn::FieldOperation::from(
       apply_impulse_fn, {field_inputs::velocity(), field_inputs::inverse_mass(), impulse}));
 
   return bke::try_capture_field_on_geometry(
@@ -336,7 +336,7 @@ bool apply_angular_impulse(GeometryComponent &component,
              const float3 &angular_impulse) -> float3 {
             return angular_velocity + inv_inertia * angular_impulse;
           });
-  const GField field = Field<float3>(fn::FieldOperation::Create(
+  const GField field = Field<float3>(fn::FieldOperation::from(
       apply_angular_impulse_fn,
       {field_inputs::angular_velocity(), field_inputs::inverse_inertia(), angular_impulse}));
 
@@ -353,7 +353,7 @@ bool apply_force(GeometryComponent &component,
   const auto impulse_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Compute Impulse from Force",
       [=](const float3 &force) -> float3 { return force * delta_time; });
-  const GField field = Field<float3>(fn::FieldOperation::Create(impulse_fn, {force}));
+  const GField field = Field<float3>(fn::FieldOperation::from(impulse_fn, {force}));
 
   return apply_impulse(component, selection_field, field);
 }
@@ -367,7 +367,7 @@ bool apply_torque(GeometryComponent &component,
   const auto angular_impulse_fn = fn::multi_function::build::SI1_SO<float3, float3>(
       "Compute Angular Impulse from Torque",
       [=](const float3 &torque) -> float3 { return torque * delta_time; });
-  const GField field = Field<float3>(fn::FieldOperation::Create(angular_impulse_fn, {torque}));
+  const GField field = Field<float3>(fn::FieldOperation::from(angular_impulse_fn, {torque}));
 
   return apply_angular_impulse(component, selection_field, field);
 }
@@ -389,7 +389,7 @@ static bool integrate_velocity(GeometryComponent &component,
           [=](const float3 &velocity, const float inv_mass, const float3 &ext_force) -> float3 {
             return velocity + delta_time * linear_factor * (gravity + inv_mass * ext_force);
           });
-  const GField field = Field<float3>(fn::FieldOperation::Create(
+  const GField field = Field<float3>(fn::FieldOperation::from(
       integrate_velocity_fn,
       {field_inputs::velocity(), field_inputs::inverse_mass(), external_force}));
 
@@ -418,11 +418,11 @@ static bool integrate_angular_velocity(GeometryComponent &component,
             return angular_velocity +
                    delta_time * angular_factor * (inv_inertia * (ext_torque - precession));
           });
-  const GField field = Field<float3>(fn::FieldOperation::Create(integrate_angular_velocity_fn,
-                                                                {field_inputs::angular_velocity(),
-                                                                 field_inputs::inertia(),
-                                                                 field_inputs::inverse_inertia(),
-                                                                 external_torque}));
+  const GField field = Field<float3>(fn::FieldOperation::from(integrate_angular_velocity_fn,
+                                                              {field_inputs::angular_velocity(),
+                                                               field_inputs::inertia(),
+                                                               field_inputs::inverse_inertia(),
+                                                               external_torque}));
 
   return bke::try_capture_field_on_geometry(
       component, attributes::angular_velocity, AttrDomain::Point, selection_field, field);
@@ -441,7 +441,7 @@ static bool integrate_position(GeometryComponent &component,
       "Integrate Positions", [=](const float3 &position, const float3 &velocity) -> float3 {
         return position + linear_factor * delta_time * velocity;
       });
-  const GField field = Field<float3>(fn::FieldOperation::Create(
+  const GField field = Field<float3>(fn::FieldOperation::from(
       integrate_position_fn, {field_inputs::position(), field_inputs::velocity()}));
 
   return bke::try_capture_field_on_geometry(
@@ -468,7 +468,7 @@ static bool integrate_rotation(GeometryComponent &component,
                 math::Quaternion(rotation.w + factor * direction.w,
                                  rotation.imaginary_part() + factor * direction.imaginary_part()));
           });
-  const GField field = Field<math::Quaternion>(fn::FieldOperation::Create(
+  const GField field = Field<math::Quaternion>(fn::FieldOperation::from(
       integrate_rotation_fn, {field_inputs::rotation(), field_inputs::angular_velocity()}));
 
   return bke::try_capture_field_on_geometry(
