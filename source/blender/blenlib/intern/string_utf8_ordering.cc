@@ -775,7 +775,9 @@ static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
   return nullptr;
 }
 
-static int bli_str_utf32_weight(const OrderWeights *weights, bool alternates, bool lettercase)
+static int bli_str_utf32_weight(const OrderWeights *weights,
+                                const bool alternates,
+                                const bool lettercase)
 {
   if (!weights) {
     return 0;
