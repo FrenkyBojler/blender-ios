@@ -270,7 +270,6 @@ class SocketTooltipBuilder {
         continue;
       }
       const bNodeSocket &from_socket = *link.fromsock;
-      this->add_space();
       geo_log::ValueLog *value_log = geo_tree_log.find_socket_value_log(from_socket);
       value_logs.append({i, value_log});
       if (value_log) {
