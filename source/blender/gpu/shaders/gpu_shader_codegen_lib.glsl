@@ -42,14 +42,14 @@ float2 calc_barycentric_co(int vertid)
 #  define barycentric_get() hair_get_barycentric()
 #  define barycentric_resolve(bary) hair_resolve_barycentric(bary)
 
-float3 orco_get(float3 local_pos,
+float3 orco_get(float3 _local_pos,
                 float4x4 modelmatinv,
                 float4 orco_madd[2],
                 const samplerBuffer orco_samp)
 {
   /* TODO: fix ORCO with modifiers. */
-  float3 orco = (modelmatinv * float4(local_pos, 1.0f)).xyz;
-  return orco_madd[0].xyz + orco * orco_madd[1].xyz;
+  float3 orco_ = (modelmatinv * float4(_local_pos, 1.0f)).xyz;
+  return orco_madd[0].xyz + orco_ * orco_madd[1].xyz;
 }
 
 float hair_len_get(int id, const samplerBuffer len)
@@ -72,17 +72,17 @@ float4 tangent_get(const samplerBuffer attr, float3x3 normalmat)
 #  define barycentric_get() float2(0)
 #  define barycentric_resolve(bary) bary
 
-float3 orco_get(float3 local_pos, float4x4 modelmatinv, float4 orco_madd[2], float4 orco)
+float3 orco_get(float3 _local_pos, float4x4 modelmatinv, float4 orco_madd[2], float4 _orco)
 {
   /* If the object does not have any deformation, the orco layer calculation is done on the fly
    * using the orco_madd factors.
    * We know when there is no orco layer when orco.w is 1.0 because it uses the generic vertex
    * attribute (which is [0,0,0,1]). */
-  if (orco.w == 0.0f) {
-    return orco.xyz * 0.5f + 0.5f;
+  if (_orco.w == 0.0f) {
+    return _orco.xyz * 0.5f + 0.5f;
   }
   else {
-    return orco_madd[0].xyz + local_pos * orco_madd[1].xyz;
+    return orco_madd[0].xyz + _local_pos * orco_madd[1].xyz;
   }
 }
 
