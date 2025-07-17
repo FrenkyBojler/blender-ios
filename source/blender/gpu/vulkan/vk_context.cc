@@ -177,7 +177,9 @@ TimelineValue VKContext::flush_render_graph(RenderGraphFlushFlags flags,
   }
   VKDevice &device = VKBackend::get().device;
   descriptor_set_get().upload_descriptor_sets();
-  if (!device.extensions_get().descriptor_buffer || !device.extensions_get().descriptor_indexing) {
+  if (device.extensions_get().dynamic_rendering_local_read ||
+      !device.extensions_get().descriptor_buffer || !device.extensions_get().descriptor_indexing)
+  {
     descriptor_pools_get().discard(*this);
   }
   TimelineValue timeline = device.render_graph_submit(

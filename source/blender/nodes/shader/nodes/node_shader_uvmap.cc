@@ -63,7 +63,7 @@ static int node_shader_gpu_uvmap(GPUMaterial *mat,
   /* NOTE: using CD_AUTO_FROM_NAME instead of CD_MTFACE as geometry nodes may overwrite data which
    * will also change the eCustomDataType. This will also make EEVEE and Cycles consistent. See
    * #93179. */
-  const char * name = attr->uv_map[0] == '\0' ? "empty" : attr->uv_map;
+  const char *name = attr->uv_map[0] == '\0' ? "empty" : attr->uv_map;
   GPUNodeLink *mtface = GPU_attribute(mat, CD_AUTO_FROM_NAME, name);
 
   GPU_stack_link(mat, node, "node_uvmap", in, out, mtface);
