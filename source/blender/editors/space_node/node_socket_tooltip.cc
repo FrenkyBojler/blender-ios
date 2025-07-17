@@ -36,7 +36,7 @@ class SocketTooltipBuilder {
   const bNodeTree &tree_;
   const bNode &node_;
   const bNodeSocket &socket_;
-  uiBut *but = nullptr;
+  uiBut *but_ = nullptr;
   bContext &C_;
   int indentation_ = 0;
 
@@ -59,7 +59,7 @@ class SocketTooltipBuilder {
         tree_(tree),
         node_(socket.owner_node()),
         socket_(socket),
-        but(but),
+        but_(but),
         C_(C)
   {
   }
@@ -407,8 +407,19 @@ class SocketTooltipBuilder {
 
   void build_tooltip_value_color(const ColorGeometry4f &value)
   {
-    UI_tooltip_color_field_add(tip_data_, float4(value), true, false, nullptr, UI_TIP_LC_VALUE);
-    this->add_text_field_mono(fmt::format("{}: {}", TIP_("Type"), TIP_("Float Color")));
+    const std::string value_str = fmt::format(
+        "{} {} {} {} ({})", value.r, value.g, value.b, value.a, TIP_("Linear"));
+    this->build_tooltip_value_and_type_oneline(value_str, TIP_("Float Color"));
+    this->add_space();
+
+    this->add_text_field_mono(TIP_("Display:"), UI_TIP_LC_NORMAL);
+    bool is_gamma = false;
+    const ColorManagedDisplay *display = nullptr;
+    if (but_) {
+      is_gamma = UI_but_is_color_gamma(*but_);
+      display = UI_but_cm_display_get(*but_);
+    }
+    UI_tooltip_color_field_add(tip_data_, float4(value), true, is_gamma, display, UI_TIP_LC_VALUE);
   }
 
   void build_tooltip_value_quaternion(const math::Quaternion &value)
@@ -811,10 +822,10 @@ class SocketTooltipBuilder {
     if (!(U.flag & USER_TOOLTIPS_PYTHON)) {
       return;
     }
-    if (!but) {
+    if (!but_) {
       return;
     }
-    UI_tooltip_uibut_python_add(tip_data_, C_, *but, nullptr);
+    UI_tooltip_uibut_python_add(tip_data_, C_, *but_, nullptr);
   }
 
   void start_block(const TooltipBlockType new_block_type)

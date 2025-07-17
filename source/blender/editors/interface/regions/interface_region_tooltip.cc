@@ -1253,7 +1253,7 @@ static std::unique_ptr<uiTooltipData> ui_tooltip_data_from_button_or_extra_icon(
   }
 
   if (but->type == UI_BTYPE_COLOR) {
-    const ColorManagedDisplay *display = ui_block_cm_display_get(but->block);
+    const ColorManagedDisplay *display = UI_but_cm_display_get(*but);
 
     float color[4];
     ui_but_v3_get(but, color);

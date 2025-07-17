@@ -1035,6 +1035,9 @@ void UI_but_type_set_menu_from_pulldown(uiBut *but);
  */
 void UI_but_color_set(uiBut *but, const uchar color[4]);
 
+bool UI_but_is_color_gamma(uiBut &but);
+const ColorManagedDisplay *UI_but_cm_display_get(uiBut &but);
+
 /**
  * Set at hint that describes the expected value when empty.
  */
