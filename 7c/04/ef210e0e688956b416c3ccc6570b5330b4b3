@@ -1,2 +1,3 @@
 Referenced by issue #87263, Grease Pencil. Can't animate Factor value of Build modifier.
 Referenced by pull request #142192, Fix #142103: Animation decorator not working on Light Temperature value
+Referenced by commit 2fd36b0ab7fe9553e0950d43e73c8eba2c71034f, Fix #142103: Animation decorator not working on Light Temperature value
