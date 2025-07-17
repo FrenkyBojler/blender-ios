@@ -6,6 +6,7 @@
  * \ingroup bli
  */
 
+#include "BLI_string_ref.hh"
 #include "BLI_string_utf8.h" /* own include */
 
 #include "wcwidth.h"
@@ -850,17 +851,18 @@ static const Ligature *bli_str_utf32_ligature(char32_t codepoint)
   return nullptr;
 }
 
-std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensitive)
+std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sensitive)
 {
   std::string result;
+  const size_t len = str.size();
   result.reserve(len);
   char utf8_buf[4];
   size_t utf8_buf_len;
   const Ligature *ligature = nullptr;
 
   size_t i = 0;
-  while (str[i]) {
-    char32_t wc = BLI_str_utf8_as_unicode_step_safe(str, len, &i);
+  while (i < len && str[i]) {
+    char32_t wc = BLI_str_utf8_as_unicode_step_safe(str.data(), len, &i);
     ligature = bli_str_utf32_ligature(wc);
     if (ligature) {
       const bool ucase = case_sensitive && ligature->lettercase;
@@ -904,16 +906,10 @@ std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensi
   return result;
 }
 
-std::string BLI_str_utf8_normalized(const std::string str, bool case_sensitive)
-{
-  return BLI_str_utf8_normalized(str.c_str(), str.size(), case_sensitive);
-}
-
 bool BLI_str_utf8_contains(const char *s, const char *find, bool case_sensitive)
 {
-  const std::string full = BLI_str_utf8_normalized(s, strlen(s), case_sensitive);
-  return full.find(BLI_str_utf8_normalized(find, strlen(find), case_sensitive)) !=
-         std::string::npos;
+  const std::string full = BLI_str_utf8_normalized(s, case_sensitive);
+  return full.find(BLI_str_utf8_normalized(find, case_sensitive)) != std::string::npos;
 }
 
 /** \} */

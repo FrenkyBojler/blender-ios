@@ -11,14 +11,14 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_string_ref.hh"
 #include "BLI_sys_types.h"
 
 /**
  * International language normalization. Not only lowercases regular Latin, but also
  * Greek and Cyrillic alphabets. Accents are removed, ligatures are expanded, etc.
  */
-std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensitive = false);
-std::string BLI_str_utf8_normalized(const std::string str, bool case_sensitive = false);
+std::string BLI_str_utf8_normalized(const blender::StringRef str, bool case_sensitive = false);
 
 /**
  * Possible replacement for BLI_strcasestr (and strcasestr) that normalizes rather than
