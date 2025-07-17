@@ -780,25 +780,19 @@ static const OrderWeights *bli_str_utf32_orderweights(char32_t codepoint)
   return nullptr;
 }
 
-static int bli_str_utf32_weight(char32_t codepoint, bool alternates, bool lettercase)
+static int bli_str_utf32_weight(const OrderWeights *weights, bool alternates, bool lettercase)
 {
-  int weight = codepoint;
-
-  if (mk_wcwidth(codepoint) < 1) {
-    return 0; /* No weight for combining characters. */
+  if (!weights) {
+    return 0;
   }
 
-  const OrderWeights *order_weights = bli_str_utf32_orderweights(codepoint);
-  if (order_weights) {
-    weight = order_weights->weight;
-    if (alternates) {
-      weight += order_weights->alternate;
-    }
-    if (lettercase) {
-      weight += order_weights->lettercase;
-    }
+  int weight = weights->weight;
+  if (alternates) {
+    weight += weights->alternate;
   }
-
+  if (lettercase) {
+    weight += weights->lettercase;
+  }
   return weight;
 }
 
@@ -893,13 +887,18 @@ std::string BLI_str_utf8_normalized(const char *str, size_t len, bool case_sensi
       continue;
     }
 
-    const OrderWeights *order_weights = bli_str_utf32_orderweights(wc);
-    const bool ucase = case_sensitive && order_weights->lettercase;
+    const OrderWeights *weights = bli_str_utf32_orderweights(wc);
+    const bool ucase = case_sensitive && weights && weights->lettercase;
+    int normalized = weights ? bli_str_utf32_weight(weights, false, false) : wc;
+    if (!weights && mk_wcwidth(wc) < 1) {
+      normalized = 0; /* No weight for combining characters. */
+    }
 
-    wc = bli_str_utf32_weight(wc, false, false);
-    if (wc) {
+    if (normalized) {
       size_t utf8_buf_len = BLI_str_utf8_from_unicode(
-          ucase ? BLI_str_utf32_char_to_upper(wc) : wc, utf8_buf, sizeof(utf8_buf));
+          ucase ? BLI_str_utf32_char_to_upper(normalized) : normalized,
+          utf8_buf,
+          sizeof(utf8_buf));
       result.append(utf8_buf, utf8_buf_len);
     }
   }
