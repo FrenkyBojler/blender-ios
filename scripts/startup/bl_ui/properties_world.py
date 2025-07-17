@@ -147,7 +147,7 @@ class EEVEE_WORLD_PT_volume(WorldButtonsPanel, Panel):
     def poll(cls, context):
         engine = context.engine
         world = context.world
-        return world and world.use_nodes and (engine in cls.COMPAT_ENGINES)
+        return world and (engine in cls.COMPAT_ENGINES)
 
     def draw(self, context):
         layout = self.layout
