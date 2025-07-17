@@ -212,6 +212,9 @@ World *BKE_world_add(Main *bmain, const char *name)
   World *wrld;
 
   wrld = BKE_id_new<World>(bmain, name);
+  bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
+      bmain, &wrld->id, "World Nodetree", "ShaderNodeTree");
+  wrld->nodetree = ntree;
 
   return wrld;
 }
