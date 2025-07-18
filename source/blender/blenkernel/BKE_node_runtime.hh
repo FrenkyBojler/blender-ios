@@ -362,6 +362,9 @@ class bNodeRuntime : NonCopyable, NonMovable {
   /** Calculated bounding box of node in the view space of the node editor (including UI scale). */
   rctf draw_bounds{};
 
+  bool draw_input_sockets = true;
+  bool draw_output_sockets = true;
+
   /** Used at runtime when going through the tree. Initialize before use. */
   short tmp_flag = 0;
 
@@ -1020,7 +1023,9 @@ inline bool bNodeSocket::is_visible() const
 inline bool bNodeSocket::is_icon_visible() const
 {
   return this->is_visible() &&
-         (this->owner_node().flag & NODE_COLLAPSED || !this->is_panel_collapsed());
+         (this->owner_node().flag & NODE_COLLAPSED || !this->is_panel_collapsed()) &&
+         ((this->is_output() && this->owner_node().runtime->draw_output_sockets) ||
+          (this->is_input() && this->owner_node().runtime->draw_input_sockets));
 }
 
 inline bool bNodeSocket::may_be_field() const

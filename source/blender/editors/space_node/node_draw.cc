@@ -1273,6 +1273,9 @@ static void node_update_basis(const bContext &C,
     node_update_basis_from_socket_lists(C, ntree, node, block, loc.x, dy);
   }
 
+  node.runtime->draw_input_sockets = true;
+  node.runtime->draw_output_sockets = true;
+
   node.runtime->draw_bounds.xmin = loc.x;
   node.runtime->draw_bounds.xmax = loc.x + NODE_WIDTH(node);
   node.runtime->draw_bounds.ymax = loc.y;
@@ -1310,19 +1313,17 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
   }
 
   float collapsedrad = COLLAPSED_RAD;
-  float tot = std::max(totin, totout);
-  if (tot > 4) {
-    collapsedrad += 5.0f * float(tot - 4);
-  }
-
   node.runtime->draw_bounds.xmin = loc.x;
   node.runtime->draw_bounds.xmax = loc.x + max_ff(NODE_WIDTH(node), 2 * collapsedrad);
   node.runtime->draw_bounds.ymax = loc.y + (collapsedrad - 0.5f * NODE_DY);
   node.runtime->draw_bounds.ymin = node.runtime->draw_bounds.ymax - 2 * collapsedrad;
 
+  node.runtime->draw_output_sockets = (totout < 4);
+  node.runtime->draw_input_sockets = (totin < 4);
+
   /* Output sockets. */
-  float rad = float(M_PI) / (1.0f + float(totout));
-  float drad = rad;
+  float rad = float(M_PI) / (node.runtime->draw_output_sockets ? (1.0f + float(totout)) : 2.0f);
+  float drad = node.runtime->draw_output_sockets ? rad : 0.0f;
 
   for (bNodeSocket *socket : node.output_sockets()) {
     if (socket->is_visible()) {
@@ -1335,7 +1336,8 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
   }
 
   /* Input sockets. */
-  rad = drad = -float(M_PI) / (1.0f + float(totin));
+  rad = -float(M_PI) / (node.runtime->draw_input_sockets ? (1.0f + float(totin)) : 2.0f);
+  drad = node.runtime->draw_input_sockets ? rad : 0.0f;
 
   for (bNodeSocket *socket : node.input_sockets()) {
     if (socket->is_visible()) {
