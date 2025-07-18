@@ -33,8 +33,8 @@ World::~World()
   if (default_world_ == nullptr) {
     default_world_ = BKE_id_new_nomain<::World>("EEVEE default world");
 
-    bNodeTree *ntree = bke::node_tree_add_tree(
-        nullptr, "World Nodetree", ntreeType_Shader->idname);
+    bNodeTree *ntree = bke::node_tree_add_tree_embedded(
+        nullptr, &default_world_->id, "World Nodetree", ntreeType_Shader->idname);
     bNode *background = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
     bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
     bNodeSocket *background_out = bke::node_find_socket(*background, SOCK_OUT, "Background");

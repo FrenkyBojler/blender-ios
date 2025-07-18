@@ -790,9 +790,9 @@ void do_versions_after_setup(Main *new_bmain,
       World *legacy_world = BKE_world_add(new_bmain, "World Legacy");
       BLI_assert(legacy_world->nodetree != nullptr);
 
-      auto background = blender::bke::node_add_static_node(
+      bNode *background = blender::bke::node_add_static_node(
           nullptr, *legacy_world->nodetree, SH_NODE_BACKGROUND);
-      auto output = blender::bke::node_add_static_node(
+      bNode *output = blender::bke::node_add_static_node(
           nullptr, *legacy_world->nodetree, SH_NODE_OUTPUT_WORLD);
       blender::bke::node_add_link(
           *legacy_world->nodetree,
