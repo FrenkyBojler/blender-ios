@@ -4305,7 +4305,7 @@ uiBut *ui_but_change_type(uiBut *but, ButType new_type)
  * \param width, height: The size of the button.
  */
 static uiBut *ui_def_but(uiBlock *block,
-                         uiButTypeParams type_params,
+                         uiButTypeWithPointerType but_and_ptr_type,
                          int retval,
                          const StringRef str,
                          int x,
@@ -4318,9 +4318,9 @@ static uiBut *ui_def_but(uiBlock *block,
                          const std::optional<StringRef> tip)
 {
   /* Allow negative separators. */
-  BLI_assert((width >= 0 && height >= 0) || (type_params.type == ButType::Sepr));
+  BLI_assert((width >= 0 && height >= 0) || (but_and_ptr_type.but_type == ButType::Sepr));
 
-  if (bool(type_params.pointer_type & UI_BUT_POIN_TYPES)) {
+  if (bool(but_and_ptr_type.pointer_type & UI_BUT_POIN_TYPES)) {
     /* A pointer is required. */
     if (poin == nullptr) {
       BLI_assert(0);
@@ -4328,12 +4328,12 @@ static uiBut *ui_def_but(uiBlock *block,
     }
   }
 
-  block->buttons.append(ui_but_new(type_params.type));
+  block->buttons.append(ui_but_new(but_and_ptr_type.but_type));
   uiBut *but = block->buttons.last().get();
 
-  but->pointype = type_params.pointer_type & UI_BUT_POIN_TYPES;
-  but->bit = bool(type_params.pointer_type & ButPointerType::Bit);
-  but->bitnr = type_params.bit_index;
+  but->pointype = but_and_ptr_type.pointer_type & UI_BUT_POIN_TYPES;
+  but->bit = bool(but_and_ptr_type.pointer_type & ButPointerType::Bit);
+  but->bitnr = but_and_ptr_type.bit_index;
 
   but->retval = retval;
 
@@ -5049,7 +5049,7 @@ static uiBut *ui_def_but_operator_ptr(uiBlock *block,
 }
 
 uiBut *uiDefBut(uiBlock *block,
-                uiButTypeParams type,
+                uiButTypeWithPointerType but_and_ptr_type,
                 int retval,
                 const StringRef str,
                 int x,
@@ -5061,7 +5061,8 @@ uiBut *uiDefBut(uiBlock *block,
                 float max,
                 const std::optional<StringRef> tip)
 {
-  uiBut *but = ui_def_but(block, type, retval, str, x, y, width, height, poin, min, max, tip);
+  uiBut *but = ui_def_but(
+      block, but_and_ptr_type, retval, str, x, y, width, height, poin, min, max, tip);
 
   ui_but_update(but);
 
@@ -5247,7 +5248,7 @@ static void ui_but_update_and_icon_set(uiBut *but, int icon)
 }
 
 static uiBut *uiDefButBit(uiBlock *block,
-                          uiButTypeParams type,
+                          uiButTypeWithPointerType but_and_ptr_type,
                           int bit,
                           int retval,
                           const StringRef str,
@@ -5264,18 +5265,19 @@ static uiBut *uiDefButBit(uiBlock *block,
   if (bitIdx == -1) {
     return nullptr;
   }
-  return uiDefBut(block,
-                  {type.type, type.pointer_type | ButPointerType::Bit, bitIdx},
-                  retval,
-                  str,
-                  x,
-                  y,
-                  width,
-                  height,
-                  poin,
-                  min,
-                  max,
-                  tip);
+  return uiDefBut(
+      block,
+      {but_and_ptr_type.but_type, but_and_ptr_type.pointer_type | ButPointerType::Bit, bitIdx},
+      retval,
+      str,
+      x,
+      y,
+      width,
+      height,
+      poin,
+      min,
+      max,
+      tip);
 }
 uiBut *uiDefButF(uiBlock *block,
                  ButType type,
@@ -5540,7 +5542,7 @@ uiBut *uiDefButO(uiBlock *block,
 }
 
 uiBut *uiDefIconBut(uiBlock *block,
-                    uiButTypeParams type,
+                    uiButTypeWithPointerType but_and_ptr_type,
                     int retval,
                     int icon,
                     int x,
@@ -5552,7 +5554,8 @@ uiBut *uiDefIconBut(uiBlock *block,
                     float max,
                     const std::optional<StringRef> tip)
 {
-  uiBut *but = ui_def_but(block, type, retval, "", x, y, width, height, poin, min, max, tip);
+  uiBut *but = ui_def_but(
+      block, but_and_ptr_type, retval, "", x, y, width, height, poin, min, max, tip);
   ui_but_update_and_icon_set(but, icon);
   return but;
 }
@@ -5582,7 +5585,7 @@ uiBut *uiDefIconPreviewBut(uiBlock *block,
   return but;
 }
 static uiBut *uiDefIconButBit(uiBlock *block,
-                              uiButTypeParams type,
+                              uiButTypeWithPointerType but_and_ptr_type,
                               int bit,
                               int retval,
                               int icon,
@@ -5599,18 +5602,19 @@ static uiBut *uiDefIconButBit(uiBlock *block,
   if (bitIdx == -1) {
     return nullptr;
   }
-  return uiDefIconBut(block,
-                      {type.type, type.pointer_type | ButPointerType::Bit, bitIdx},
-                      retval,
-                      icon,
-                      x,
-                      y,
-                      width,
-                      height,
-                      poin,
-                      min,
-                      max,
-                      tip);
+  return uiDefIconBut(
+      block,
+      {but_and_ptr_type.but_type, but_and_ptr_type.pointer_type | ButPointerType::Bit, bitIdx},
+      retval,
+      icon,
+      x,
+      y,
+      width,
+      height,
+      poin,
+      min,
+      max,
+      tip);
 }
 
 uiBut *uiDefIconButI(uiBlock *block,
@@ -5821,7 +5825,7 @@ uiBut *uiDefIconButO(uiBlock *block,
 }
 
 uiBut *uiDefIconTextBut(uiBlock *block,
-                        uiButTypeParams type,
+                        uiButTypeWithPointerType but_and_ptr_type,
                         int retval,
                         int icon,
                         const StringRef str,
@@ -5834,7 +5838,8 @@ uiBut *uiDefIconTextBut(uiBlock *block,
                         float max,
                         const std::optional<StringRef> tip)
 {
-  uiBut *but = ui_def_but(block, type, retval, str, x, y, width, height, poin, min, max, tip);
+  uiBut *but = ui_def_but(
+      block, but_and_ptr_type, retval, str, x, y, width, height, poin, min, max, tip);
   ui_but_update_and_icon_set(but, icon);
   but->drawflag |= UI_BUT_ICON_LEFT;
   return but;

@@ -481,17 +481,25 @@ inline char but_pointer_bit_max_index(ButPointerType pointer_type)
 }
 }  // namespace blender::ui
 
-struct uiButTypeParams {
-  ButType type = ButType::But;
+struct uiButTypeWithPointerType {
+  ButType but_type = ButType::But;
+  /**
+   * Buttons can access source data with RNA pointers or raw pointers (#uiBut::poin), when using a
+   * raw pointer to numerical values this indicates the underlying type the source data.
+   */
   ButPointerType pointer_type = ButPointerType::None;
+  /**
+   * Indicates the bit index when the raw pointed data stores boolean bit values,
+   * which is indicated with the #ButPointerType::Bit flag.
+   */
   char bit_index = 0;
 
-  uiButTypeParams(ButType t) : type{t} {}
+  uiButTypeWithPointerType(ButType bt) : but_type{bt} {}
 
-  uiButTypeParams(ButType t, ButPointerType pt) : type{t}, pointer_type{pt} {}
+  uiButTypeWithPointerType(ButType bt, ButPointerType pt) : but_type{bt}, pointer_type{pt} {}
 
-  uiButTypeParams(ButType t, ButPointerType pt, int i)
-      : type{t}, pointer_type{pt}, bit_index{char(i)}
+  uiButTypeWithPointerType(ButType bt, ButPointerType pt, int i)
+      : but_type{bt}, pointer_type{pt}, bit_index{char(i)}
   {
     BLI_assert(bool(pointer_type & ButPointerType::Bit));
     BLI_assert(bit_index <
@@ -1100,7 +1108,7 @@ bool UI_but_is_userdef(const uiBut *but);
  * - O: operator */
 
 uiBut *uiDefBut(uiBlock *block,
-                uiButTypeParams type,
+                uiButTypeWithPointerType but_and_ptr_type,
                 int retval,
                 blender::StringRef str,
                 int x,
@@ -1248,7 +1256,7 @@ uiBut *uiDefButO_ptr(uiBlock *block,
                      std::optional<blender::StringRef> tip);
 
 uiBut *uiDefIconBut(uiBlock *block,
-                    uiButTypeParams type,
+                    uiButTypeWithPointerType but_and_ptr_type,
                     int retval,
                     int icon,
                     int x,
@@ -1387,7 +1395,7 @@ uiBut *uiDefButImage(
 uiBut *uiDefButAlert(uiBlock *block, int icon, int x, int y, short width, short height);
 /** Button containing both string label and icon. */
 uiBut *uiDefIconTextBut(uiBlock *block,
-                        uiButTypeParams type,
+                        uiButTypeWithPointerType but_and_ptr_type,
                         int retval,
                         int icon,
                         blender::StringRef str,
