@@ -502,6 +502,7 @@ struct uiButTypeWithPointerType {
       : but_type{bt}, pointer_type{pt}, bit_index{char(i)}
   {
     BLI_assert(bool(pointer_type & ButPointerType::Bit));
+    BLI_assert(bit_index >= 0);
     BLI_assert(bit_index <
                blender::ui::but_pointer_bit_max_index(pointer_type & ~ButPointerType::Bit));
   }
