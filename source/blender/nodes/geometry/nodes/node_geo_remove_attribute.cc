@@ -30,10 +30,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.allow_any_socket_order();
   b.add_input<decl::Geometry>("Geometry").description("Geometry to remove attributes from");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
   b.add_input<decl::Menu>("Pattern Mode")
       .static_items(pattern_mode_items)
       .description("How the attributes to remove are chosen");
-  b.add_input<decl::String>("Name").is_attribute_name().hide_label();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)

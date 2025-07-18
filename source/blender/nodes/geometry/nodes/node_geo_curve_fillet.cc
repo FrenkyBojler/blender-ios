@@ -36,6 +36,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to generated rounded corners on");
   b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
+  b.add_input<decl::Float>("Radius")
+      .min(0.0f)
+      .max(FLT_MAX)
+      .subtype(PropertySubType::PROP_DISTANCE)
+      .default_value(0.25f)
+      .field_on_all();
+  b.add_input<decl::Bool>("Limit Radius")
+      .description("Limit the maximum value of the radius in order to avoid overlapping fillets");
   b.add_input<decl::Menu>("Mode")
       .static_items(mode_items)
       .description("How to choose number of vertices on fillet");
@@ -45,14 +53,6 @@ static void node_declare(NodeDeclarationBuilder &b)
       .max(1000)
       .field_on_all()
       .usage_by_single_menu(GEO_NODE_CURVE_FILLET_POLY);
-  b.add_input<decl::Float>("Radius")
-      .min(0.0f)
-      .max(FLT_MAX)
-      .subtype(PropertySubType::PROP_DISTANCE)
-      .default_value(0.25f)
-      .field_on_all();
-  b.add_input<decl::Bool>("Limit Radius")
-      .description("Limit the maximum value of the radius in order to avoid overlapping fillets");
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

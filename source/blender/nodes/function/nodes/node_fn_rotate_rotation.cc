@@ -32,16 +32,16 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.is_function_node();
   b.add_input<decl::Rotation>("Rotation");
   b.add_output<decl::Rotation>("Rotation").align_with_previous();
+  b.add_input<decl::Rotation>("Rotate By");
   b.add_input<decl::Menu>("Space")
       .static_items(space_items)
       .description("Base orientation for the rotation");
-  b.add_input<decl::Rotation>("Rotate By");
 };
 
 static void node_build_multi_function(NodeMultiFunctionBuilder &builder)
 {
-  static auto fn = mf::build::SI3_SO<math::Quaternion, int, math::Quaternion, math::Quaternion>(
-      "Rotate Rotation Global", [](math::Quaternion a, int space, math::Quaternion b) {
+  static auto fn = mf::build::SI3_SO<math::Quaternion, math::Quaternion, int, math::Quaternion>(
+      "Rotate Rotation Global", [](math::Quaternion a, math::Quaternion b, int space) {
         if (RotationSpace(space) == RotationSpace::Global) {
           return b * a;
         }

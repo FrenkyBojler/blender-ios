@@ -47,14 +47,14 @@ static void node_declare(NodeDeclarationBuilder &b)
       .only_realized_data()
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Geometry to cast rays onto");
-  b.add_input<decl::Menu>("Interpolation")
-      .static_items(interpolation_items)
-      .description("Mapping from the target geometry to hit points");
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
     /* TODO: Field interfacing depends on the offset of the next declarations! */
     b.add_input(data_type, "Attribute").hide_value().field_on_all();
   }
+  b.add_input<decl::Menu>("Interpolation")
+      .static_items(interpolation_items)
+      .description("Mapping from the target geometry to hit points");
 
   b.add_input<decl::Vector>("Source Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
   b.add_input<decl::Vector>("Ray Direction").default_value({0.0f, 0.0f, -1.0f}).supports_field();
