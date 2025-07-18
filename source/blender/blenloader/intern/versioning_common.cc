@@ -772,7 +772,7 @@ void do_versions_after_setup(Main *new_bmain,
     }
   }
 
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 500, 32)) {
+  if (!blendfile_or_libraries_versions_atleast(new_bmain, 500, 40)) {
     LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
       if (scene->world == nullptr) {
         continue;
