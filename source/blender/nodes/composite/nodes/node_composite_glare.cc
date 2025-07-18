@@ -1391,7 +1391,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float(*)[4])color_modulators.data());
+                                 (const float (*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2318,8 +2318,7 @@ class GlareOperation : public NodeOperation {
 
       int number_of_steps = this->get_use_jitter() ? math::sqrt(steps) : steps;
       for (int i = 0; i <= number_of_steps; i++) {
-        float position_index = this->get_position(
-            texel, i, this->get_use_jitter(), steps, number_of_steps);
+        float position_index = this->get_position(texel, i, this->get_use_jitter(), steps);
         float2 position = coordinates + position_index * step_vector;
 
         /* We are already past the image boundaries, and any future steps are also past the image
@@ -2347,11 +2346,10 @@ class GlareOperation : public NodeOperation {
   /* Returns a random position along the path between the texel and the source, which is
    * essentially a random value in the [0, steps] range to perform Monte Carlo sampling. If jitter
    * is not enabled, returns the i value instead. */
-  float get_position(
-      const int2 texel, const int i, const bool use_jitter, const int steps, const int sqrt_steps)
+  float get_position(const int2 texel, const int i, const bool use_jitter, const int steps)
   {
     if (use_jitter) {
-      return (i + noise::hash_to_float(texel.x, texel.y, i)) / (sqrt_steps + 1) * steps;
+      return noise::hash_to_float(texel.x, texel.y, i) * steps;
     }
     return i;
   }

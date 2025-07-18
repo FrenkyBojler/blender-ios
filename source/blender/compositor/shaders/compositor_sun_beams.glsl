@@ -6,10 +6,10 @@
 #include "gpu_shader_compositor_texture_utilities.glsl"
 #include "gpu_shader_math_base_lib.glsl"
 
-float get_position(int2 texel, int i, int steps, int sqrt_steps)
+float get_position(int2 texel, int i, int steps)
 {
 #if defined(JITTER)
-  return int((i + hash_uint3_to_float(texel.x, texel.y, i)) / (sqrt_steps + 1) * steps);
+  return float (hash_uint3_to_float(texel.x, texel.y, i) * steps);
 #else
   return i;
 #endif
@@ -44,7 +44,7 @@ void main()
 #endif
 
   for (int i = 0; i <= number_of_steps; i++) {
-    float position_index = get_position(texel, i, steps, number_of_steps);
+    float position_index = get_position(texel, i, steps);
     float2 position = coordinates + position_index * step_vector;
 
     /* We are already past the image boundaries, and any future steps are also past the image
