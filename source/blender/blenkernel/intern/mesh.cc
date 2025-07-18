@@ -1228,6 +1228,14 @@ static void copy_attribute_names(const Mesh &mesh_src, Mesh &mesh_dst)
     MEM_SAFE_FREE(mesh_dst.default_color_attribute);
     mesh_dst.default_color_attribute = BLI_strdup(mesh_src.default_color_attribute);
   }
+  if (mesh_src.active_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.active_uv_map_attribute);
+    mesh_dst.active_uv_map_attribute = BLI_strdup(mesh_src.active_uv_map_attribute);
+  }
+  if (mesh_src.default_uv_map_attribute) {
+    MEM_SAFE_FREE(mesh_dst.default_uv_map_attribute);
+    mesh_dst.default_uv_map_attribute = BLI_strdup(mesh_src.default_uv_map_attribute);
+  }
 }
 
 void BKE_mesh_copy_parameters(Mesh *me_dst, const Mesh *me_src)

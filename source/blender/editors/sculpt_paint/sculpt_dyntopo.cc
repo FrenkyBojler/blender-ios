@@ -244,22 +244,12 @@ static wmOperatorStatus dyntopo_warning_popup(bContext *C, wmOperatorType *ot, e
   return OPERATOR_INTERFACE;
 }
 
-static bool dyntopo_supports_layer(const CustomDataLayer &layer)
+static bool dyntopo_supports_layer(const bke::AttributeIter &iter)
 {
-  if (layer.type == CD_PROP_FLOAT && STREQ(layer.name, ".sculpt_mask")) {
+  if (iter.data_type == bke::AttrType::Float && iter.name == ".sculpt_mask") {
     return true;
   }
-  if (CD_TYPE_AS_MASK(eCustomDataType(layer.type)) & CD_MASK_PROP_ALL) {
-    return BM_attribute_stored_in_bmesh_builtin(layer.name);
-  }
-  return ELEM(layer.type, CD_ORIGINDEX);
-}
-
-static bool dyntopo_supports_customdata_layers(const Span<CustomDataLayer> layers)
-{
-  return std::all_of(layers.begin(), layers.end(), [&](const CustomDataLayer &layer) {
-    return dyntopo_supports_layer(layer);
-  });
+  return BM_attribute_stored_in_bmesh_builtin(iter.name);
 }
 
 WarnFlag check_attribute_warning(Scene &scene, Object &ob)
@@ -267,25 +257,17 @@ WarnFlag check_attribute_warning(Scene &scene, Object &ob)
   Mesh *mesh = static_cast<Mesh *>(ob.data);
   SculptSession &ss = *ob.sculpt;
 
-  WarnFlag flag = WarnFlag(0);
+  WarnFlag flag = WarnFlag::OKAY;
 
   BLI_assert(ss.bm == nullptr);
   UNUSED_VARS_NDEBUG(ss);
 
-  // TODO_MESH_ATTR
-  if (!dyntopo_supports_customdata_layers({mesh->vert_data.layers, mesh->vert_data.totlayer})) {
-    flag |= VDATA;
-  }
-  if (!dyntopo_supports_customdata_layers({mesh->edge_data.layers, mesh->edge_data.totlayer})) {
-    flag |= EDATA;
-  }
-  if (!dyntopo_supports_customdata_layers({mesh->face_data.layers, mesh->face_data.totlayer})) {
-    flag |= LDATA;
-  }
-  if (!dyntopo_supports_customdata_layers({mesh->corner_data.layers, mesh->corner_data.totlayer}))
-  {
-    flag |= LDATA;
-  }
+  const bke::AttributeAccessor attributes = mesh->attributes();
+  attributes.foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (!dyntopo_supports_layer(iter)) {
+      flag |= ATTRIBUTES;
+    }
+  });
 
   {
     VirtualModifierData virtual_modifier_data;

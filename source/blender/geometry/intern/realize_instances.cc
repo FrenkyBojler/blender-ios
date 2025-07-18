@@ -1803,22 +1803,7 @@ static void execute_realize_mesh_tasks(const RealizeInstancesOptions &options,
     dst_attribute_writers.append(
         dst_attributes.lookup_or_add_for_write_only_span(attribute_id, domain, data_type));
   }
-  // TODO_MESH_ATTR
-  const char *active_layer = first_mesh.active_uv_map_attribute;
-  if (active_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, active_layer);
-    if (id >= 0) {
-      CustomData_set_layer_active(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
-  // TODO_MESH_ATTR
-  const char *render_layer = first_mesh.default_uv_map_attribute;
-  if (render_layer != nullptr) {
-    int id = CustomData_get_named_layer(&dst_mesh->corner_data, CD_PROP_FLOAT2, render_layer);
-    if (id >= 0) {
-      CustomData_set_layer_render(&dst_mesh->corner_data, CD_PROP_FLOAT2, id);
-    }
-  }
+
   /* Actually execute all tasks. */
   threading::parallel_for(tasks.index_range(), 100, [&](const IndexRange task_range) {
     for (const int task_index : task_range) {
