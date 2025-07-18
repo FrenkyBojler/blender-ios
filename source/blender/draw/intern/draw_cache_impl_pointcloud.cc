@@ -15,8 +15,8 @@
 #include "BLI_array_utils.hh"
 #include "BLI_color.hh"
 #include "BLI_listbase.h"
-#include "BLI_task.hh"
 #include "BLI_mutex.hh"
+#include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
