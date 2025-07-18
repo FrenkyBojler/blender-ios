@@ -1,3 +1,4 @@
 Referenced by issue #141721, Nodes: 'Set Curve Resolution' broken with particular node setup
 Referenced by pull request #141772, Fix: Grease Pencil: Problem removing last layer with attributes
 Referenced by commit 07b070404a853cb4ea1f66347043f537e338aea7, Fix: Grease Pencil: Problem removing last layer with attributes
+Referenced by pull request #142327, Fix #141887: Crash/assert hit after reading Grease Pencil
