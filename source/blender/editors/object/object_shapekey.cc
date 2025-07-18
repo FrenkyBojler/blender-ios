@@ -126,19 +126,10 @@ bool shape_key_report_if_any_locked(Object *ob, ReportList *reports)
   return false;
 }
 
-void shape_key_foreach_selected(Object *ob, FunctionRef<void(Key &, KeyBlock &)> callback)
+bool shape_key_is_selected(const Object &object, const KeyBlock &kb, const int keyblock_index)
 {
-  Key &key = *BKE_key_from_object(ob);
-  LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
-    /* Always try to find the keyblock again, as the previous one may have been deleted. For the
-     * same reason, ob->shapenr has to be re-evaluated on every loop iteration. */
-    const int cur_index = BLI_findindex(&key.block, kb);
-    const bool is_selected = (kb->flag & KEYBLOCK_SEL) || cur_index == ob->shapenr - 1;
-    if (!is_selected) {
-      continue;
-    }
-    callback(key, *kb);
-  }
+  /* The active shape key is always considered selected. */
+  return (kb.flag & KEYBLOCK_SEL) || keyblock_index == object.shapenr - 1;
 }
 
 /** \} */
@@ -427,8 +418,24 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
+
+    /* This could be moved into a function of its own at some point. Right now it's only used here,
+     * though, since its inner structure is taylored for allowing shapekey deletion. */
+    const auto visit_selected_shapekeys = [&](FunctionRef<void(KeyBlock & kb)> callback) {
+      Key &key = *BKE_key_from_object(ob);
+      LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
+        /* Always try to find the keyblock again, as the previous one may have been deleted. For
+         * the same reason, ob->shapenr has to be re-evaluated on every loop iteration. */
+        const int cur_index = BLI_findindex(&key.block, kb);
+        if (!shape_key_is_selected(*ob, *kb, cur_index)) {
+          continue;
+        }
+        callback(*kb);
+      }
+    };
+
     int num_selected_but_locked = 0;
-    shape_key_foreach_selected(ob, [&](Key & /*key*/, KeyBlock &kb) {
+    visit_selected_shapekeys([&](KeyBlock &kb) {
       if (kb.flag & KEYBLOCK_LOCKED_SHAPE) {
         num_selected_but_locked++;
         return;
