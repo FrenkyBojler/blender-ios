@@ -40,7 +40,7 @@ struct SourceImageCache {
 
   struct StripEntry {
     /** Map key is {source media frame index (i.e. movie frame), view ID}. */
-    Map<std::pair<int, int>, FrameEntry> frames;
+    Map<std::pair<float, int>, FrameEntry> frames;
   };
 
   Map<const Strip *, StripEntry> map_;
@@ -98,7 +98,7 @@ ImBuf *source_image_cache_get(const RenderData *context, const Strip *strip, flo
 
   Scene *scene = prefetch_get_original_scene_and_strip(context, strip);
   timeline_frame = math::round(timeline_frame);
-  int frame_index = give_frame_index(scene, strip, timeline_frame);
+  float frame_index = give_frame_index(scene, strip, timeline_frame);
   if (strip->type == STRIP_TYPE_MOVIE) {
     frame_index += strip->anim_startofs;
   }
@@ -153,7 +153,7 @@ void source_image_cache_put(const RenderData *context,
   Scene *scene = prefetch_get_original_scene_and_strip(context, strip);
   timeline_frame = math::round(timeline_frame);
 
-  int frame_index = give_frame_index(scene, strip, timeline_frame);
+  float frame_index = give_frame_index(scene, strip, timeline_frame);
   if (strip->type == STRIP_TYPE_MOVIE) {
     frame_index += strip->anim_startofs;
   }
