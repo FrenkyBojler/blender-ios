@@ -174,7 +174,7 @@ class BindSpaceTextures {
   void bind(Type resource_type, void *resource, GPUSamplerState sampler, int binding)
   {
     if (bound_resources.size() <= binding) {
-      bound_resources.resize(binding + 1);
+      bound_resources.resize(binding + 1, {});
     }
     bound_resources[binding].resource_type = resource_type;
     bound_resources[binding].resource = resource;
