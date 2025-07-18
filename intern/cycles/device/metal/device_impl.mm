@@ -836,6 +836,15 @@ void MetalDevice::prepare_load_kernels(Scene *scene)
   const int standard_limits_max_prim_count = (1 << 28);
   const int standard_limits_max_instance_count = (1 << 24);
 
+  /* In live viewport, use extended limits in case ongoing edits push us over the threshold.
+   * It isn't possible to render with a mix of standard and extended limit BVHs.
+   */
+  if (!scene->params.background) {
+    use_metalrt_extended_limits = true;
+    metal_printf("Enabling MetalRT extended limits (live viewport)");
+    return;
+  }
+
   /* Enable extended limits if object count exceeds max supported by standard limits. */
   if (scene->objects.size() > standard_limits_max_instance_count) {
     use_metalrt_extended_limits = true;
