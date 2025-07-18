@@ -423,10 +423,12 @@ static void WIDGETGROUP_node_crop_refresh(const bContext *C, wmGizmoGroup *gzgro
     bNode *node = bke::node_get_active(*snode->edittree);
 
     crop_group->update_data.context = (bContext *)C;
+    bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Alpha Crop");
     crop_group->update_data.ptr = RNA_pointer_create_discrete(
-        (ID *)snode->edittree, &RNA_CompositorNodeCrop, node);
+        reinterpret_cast<ID *>(snode->edittree), &RNA_NodeSocket, source_input);
     crop_group->update_data.prop = RNA_struct_find_property(&crop_group->update_data.ptr,
-                                                            "relative");
+                                                            "enabled");
+    BLI_assert(crop_group->update_data.prop != nullptr);
 
     wmGizmoPropertyFnParams params{};
     params.value_get_fn = gizmo_node_crop_prop_matrix_get;
@@ -623,9 +625,12 @@ static void WIDGETGROUP_node_mask_refresh(const bContext *C, wmGizmoGroup *gzgro
     bNode *node = bke::node_get_active(*snode->edittree);
 
     mask_group->update_data.context = (bContext *)C;
+    bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Mask");
     mask_group->update_data.ptr = RNA_pointer_create_discrete(
-        (ID *)snode->edittree, &RNA_CompositorNodeCrop, node);
-    mask_group->update_data.prop = RNA_struct_find_property(&mask_group->update_data.ptr, "x");
+        reinterpret_cast<ID *>(snode->edittree), &RNA_NodeSocket, source_input);
+    mask_group->update_data.prop = RNA_struct_find_property(&mask_group->update_data.ptr,
+                                                            "enabled");
+    BLI_assert(mask_group->update_data.prop != nullptr);
 
     wmGizmoPropertyFnParams params{};
     params.value_get_fn = gizmo_node_box_mask_prop_matrix_get;
@@ -966,7 +971,7 @@ static bool WIDGETGROUP_node_split_poll(const bContext *C, wmGizmoGroupType * /*
   if (node && node->is_type("CompositorNodeSplit")) {
     snode->edittree->ensure_topology_cache();
     LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
-      if (STR_ELEM(input->name, "Factor") && input->is_directly_linked()) {
+      if (STR_ELEM(input->name, "Position", "Rotation") && input->is_directly_linked()) {
         return false;
       }
     }
@@ -981,7 +986,9 @@ static void WIDGETGROUP_node_split_setup(const bContext * /*C*/, wmGizmoGroup *g
   NodeBBoxWidgetGroup *split_group = MEM_new<NodeBBoxWidgetGroup>(__func__);
   split_group->border = WM_gizmo_new("GIZMO_GT_cage_2d", gzgroup, nullptr);
 
-  RNA_enum_set(split_group->border->ptr, "transform", ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE);
+  RNA_enum_set(split_group->border->ptr,
+               "transform",
+               ED_GIZMO_CAGE_XFORM_FLAG_TRANSLATE | ED_GIZMO_CAGE_XFORM_FLAG_ROTATE);
   RNA_enum_set(split_group->border->ptr, "draw_options", ED_GIZMO_CAGE_DRAW_FLAG_NOP);
 
   gzgroup->customdata = split_group;
@@ -1004,25 +1011,19 @@ static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
   float loc[3], rot[3][3], size[3];
   mat4_to_loc_rot_size(loc, rot, size, matrix);
 
-  const bNodeSocket *factor_input = bke::node_find_socket(*node, SOCK_IN, "Factor");
-  const float fac = factor_input->default_value_typed<bNodeSocketValueFloat>()->value;
+  const bNodeSocket *pos_input = bke::node_find_socket(*node, SOCK_IN, "Position");
+  const float2 pos = pos_input->default_value_typed<bNodeSocketValueVector>()->value;
 
-  CMPNodeSplitAxis axis = static_cast<CMPNodeSplitAxis>(node->custom2);
-  if (axis == CMP_NODE_SPLIT_VERTICAL) {
-    matrix[3][0] = offset.x;
-    matrix[3][1] = (fac - 0.5f) * dims.y + offset.y;
+  const bNodeSocket *rotation_input = bke::node_find_socket(*node, SOCK_IN, "Rotation");
+  const float rotation = rotation_input->default_value_typed<bNodeSocketValueFloat>()->value;
 
-    matrix[0][0] = 1.0f;
-    /* Set non zero scale to silence warning "Gizmo has matrix that could not be inverted". */
-    matrix[1][1] = std::numeric_limits<float>::epsilon();
-  }
-  else if (axis == CMP_NODE_SPLIT_HORIZONTAL) {
-    matrix[3][0] = (fac - 0.5f) * dims.x + offset.x;
-    matrix[3][1] = offset.y;
-
-    matrix[0][0] = std::numeric_limits<float>::epsilon();
-    matrix[1][1] = 1.0f;
-  }
+  const float gizmo_width = 0.1f;
+  axis_angle_to_mat3_single(rot, 'Z', rotation);
+  loc_rot_size_to_mat4(
+      matrix,
+      float3{(pos.x - 0.5f) * dims.x + offset.x, (pos.y - 0.5f) * dims.y + offset.y, 0.0f},
+      rot,
+      float3{gizmo_width, std::numeric_limits<float>::epsilon(), 1.0f});
 }
 
 static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
@@ -1037,20 +1038,23 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
   const float2 offset = split_group->state.offset;
   bNode *node = reinterpret_cast<bNode *>(gz_prop->custom_func.user_data);
 
-  bNodeSocket *factor_input = bke::node_find_socket(*node, SOCK_IN, "Factor");
+  bNodeSocket *position_input = bke::node_find_socket(*node, SOCK_IN, "Position");
+  bNodeSocket *rotation_input = bke::node_find_socket(*node, SOCK_IN, "Rotation");
 
-  CMPNodeSplitAxis axis = static_cast<CMPNodeSplitAxis>(node->custom2);
-  if (axis == CMPNodeSplitAxis::CMP_NODE_SPLIT_VERTICAL) {
-    float fac = (matrix[3][1] - offset.y) / dims.y + 0.5f;
-    /* Prevent dragging the gizmo outside the image. */
-    fac = math::clamp(fac, 0.0f, 1.0f);
-    factor_input->default_value_typed<bNodeSocketValueFloat>()->value = fac;
-  }
-  else if (axis == CMP_NODE_SPLIT_HORIZONTAL) {
-    float fac = (matrix[3][0] - offset.x) / dims.x + 0.5f;
-    fac = math::clamp(fac, 0.0f, 1.0f);
-    factor_input->default_value_typed<bNodeSocketValueFloat>()->value = fac;
-  }
+  float pos_x = (matrix[3][0] - offset.x) + dims.x * 0.5;
+  float pos_y = (matrix[3][1] - offset.y) + dims.y * 0.5;
+
+  /* Prevent dragging the gizmo outside the image. */
+  pos_x = math::clamp(pos_x, 0.0f, dims.x);
+  pos_y = math::clamp(pos_y, 0.0f, dims.y);
+
+  position_input->default_value_typed<bNodeSocketValueVector>()->value[0] = pos_x / dims.x;
+  position_input->default_value_typed<bNodeSocketValueVector>()->value[1] = pos_y / dims.y;
+
+  float3 eul;
+  mat4_to_eul(eul, matrix);
+
+  rotation_input->default_value_typed<bNodeSocketValueFloat>()->value = eul[2];
 
   gizmo_node_bbox_update(split_group);
 }
@@ -1077,10 +1081,11 @@ static void WIDGETGROUP_node_split_refresh(const bContext *C, wmGizmoGroup *gzgr
     bNode *node = bke::node_get_active(*snode->edittree);
 
     split_group->update_data.context = (bContext *)C;
+    bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Position");
     split_group->update_data.ptr = RNA_pointer_create_discrete(
-        reinterpret_cast<ID *>(snode->edittree), &RNA_CompositorNodeSplit, node);
+        reinterpret_cast<ID *>(snode->edittree), &RNA_NodeSocket, source_input);
     split_group->update_data.prop = RNA_struct_find_property(&split_group->update_data.ptr,
-                                                             "axis");
+                                                             "enabled");
 
     wmGizmoPropertyFnParams params{};
     params.value_get_fn = gizmo_node_split_prop_matrix_get;

@@ -582,10 +582,11 @@ static void cmp_node_cryptomatte_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Matte");
-  b.add_output<decl::Color>("Pick");
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Pick").structure_type(StructureType::Dynamic);
 }
 
 static void node_init_cryptomatte(bNodeTree * /*ntree*/, bNode *node)
@@ -647,7 +648,7 @@ static bool node_poll_cryptomatte(const blender::bke::bNodeType * /*ntype*/,
 
     if (scene == nullptr) {
       *r_disabled_hint = RPT_(
-          "The node tree must be the compositing node tree of any scene in the file");
+          "The node tree must be the compositing node group of any scene in the file");
     }
     return scene != nullptr;
   }
@@ -761,13 +762,15 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
       return layers;
     }
 
+    RenderResult *render_result = BKE_image_acquire_renderresult(nullptr, image);
+
     /* Gather all pass names first before retrieving the images because render layers might get
      * freed when retrieving the images. */
     Vector<std::string> pass_names;
 
     int layer_index;
     const std::string type_name = this->get_type_name();
-    LISTBASE_FOREACH_INDEX (RenderLayer *, render_layer, &image->rr->layers, layer_index) {
+    LISTBASE_FOREACH_INDEX (RenderLayer *, render_layer, &render_result->layers, layer_index) {
       /* If the Cryptomatte type name doesn't start with the layer name, then it is not a
        * Cryptomatte layer. Unless it is an unnamed layer, in which case, we need to check its
        * passes. */
@@ -795,6 +798,8 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
         break;
       }
     }
+
+    BKE_image_release_renderresult(nullptr, image, render_result);
 
     image_user_for_layer.layer = layer_index;
     for (const std::string &pass_name : pass_names) {

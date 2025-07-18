@@ -30,7 +30,9 @@ namespace blender::nodes::node_composite_viewer_cc {
 
 static void cmp_node_viewer_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Color>("Image").default_value({0.0f, 0.0f, 0.0f, 1.0f});
+  b.add_input<decl::Color>("Image")
+      .default_value({0.0f, 0.0f, 0.0f, 1.0f})
+      .structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
@@ -39,8 +41,6 @@ static void node_composit_init_viewer(bNodeTree * /*ntree*/, bNode *node)
   node->storage = iuser;
   iuser->sfra = 1;
   node->custom1 = NODE_VIEWER_SHORTCUT_NONE;
-
-  node->id = (ID *)BKE_image_ensure_viewer(G.main, IMA_TYPE_COMPOSITE, "Viewer Node");
 }
 
 using namespace blender::compositor;

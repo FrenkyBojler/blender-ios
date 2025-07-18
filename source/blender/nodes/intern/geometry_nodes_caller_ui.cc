@@ -237,7 +237,7 @@ static void add_layer_name_search_button(DrawGroupInputsContext &ctx,
 
   uiBlock *block = prop_row->block();
   uiBut *but = uiDefIconTextButR(block,
-                                 UI_BTYPE_SEARCH_MENU,
+                                 ButType::SearchMenu,
                                  0,
                                  ICON_OUTLINER_DATA_GP_LAYER,
                                  "",
@@ -357,7 +357,7 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
 
   uiBlock *block = layout->block();
   uiBut *but = uiDefIconTextButR(block,
-                                 UI_BTYPE_SEARCH_MENU,
+                                 ButType::SearchMenu,
                                  0,
                                  ICON_NONE,
                                  "",
@@ -394,19 +394,19 @@ static void add_attribute_search_button(DrawGroupInputsContext &ctx,
                          attribute_search_exec_fn,
                          nullptr);
 
-  char *attribute_name = RNA_string_get_alloc(
-      ctx.properties_ptr, rna_path_attribute_name.c_str(), nullptr, 0, nullptr);
+  std::string attribute_name = RNA_string_get(ctx.properties_ptr, rna_path_attribute_name.c_str());
   const bool access_allowed = bke::allow_procedural_attribute_access(attribute_name);
-  MEM_freeN(attribute_name);
   if (!access_allowed) {
     UI_but_flag_enable(but, UI_BUT_REDALERT);
   }
 }
 
-static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
-                                                  uiLayout *layout,
-                                                  const StringRefNull rna_path,
-                                                  const bNodeTreeInterfaceSocket &socket)
+static void add_attribute_search_or_value_buttons(
+    DrawGroupInputsContext &ctx,
+    uiLayout *layout,
+    const StringRefNull rna_path,
+    const bNodeTreeInterfaceSocket &socket,
+    const std::optional<StringRefNull> use_name = std::nullopt)
 {
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
@@ -424,6 +424,9 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
 
   const std::optional<StringRef> attribute_name = nodes::input_attribute_name_get(ctx.properties,
                                                                                   socket);
+  const StringRefNull socket_name = use_name.has_value() ?
+                                        (*use_name) :
+                                        (socket.name ? IFACE_(socket.name) : "");
   if (type == SOCK_BOOLEAN && !attribute_name) {
     name_row->label("", ICON_NONE);
     prop_row = &split->row(true);
@@ -438,15 +441,15 @@ static void add_attribute_search_or_value_buttons(DrawGroupInputsContext &ctx,
   }
 
   if (attribute_name) {
-    name_row->label(socket.name ? IFACE_(socket.name) : "", ICON_NONE);
+    name_row->label(IFACE_(socket_name), ICON_NONE);
     prop_row = &split->row(true);
     add_attribute_search_button(ctx, prop_row, rna_path_attribute_name, socket);
     layout->label("", ICON_BLANK1);
   }
   else {
-    const char *name = socket.name ? IFACE_(socket.name) : "";
+    const char *name = IFACE_(socket_name.c_str());
     prop_row->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
-    uiItemDecoratorR(layout, ctx.properties_ptr, rna_path.c_str(), -1);
+    layout->decorator(ctx.properties_ptr, rna_path.c_str(), -1);
   }
 
   ctx.draw_attribute_toggle_fn(*prop_row, ICON_SPREADSHEET, socket);
@@ -467,7 +470,8 @@ static NodesModifierPanel *find_panel_by_id(NodesModifierData &nmd, const int id
  * the correct label displayed in the UI. */
 static void draw_property_for_socket(DrawGroupInputsContext &ctx,
                                      uiLayout *layout,
-                                     const bNodeTreeInterfaceSocket &socket)
+                                     const bNodeTreeInterfaceSocket &socket,
+                                     const std::optional<StringRef> parent_name = std::nullopt)
 {
   const StringRefNull identifier = socket.identifier;
   /* The property should be created in #MOD_nodes_update_interface with the correct type. */
@@ -494,36 +498,50 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
 
   const std::string rna_path = fmt::format("[\"{}\"]", BLI_str_escape(identifier.c_str()));
 
-  /* Use #uiItemPointerR to draw pointer properties because #uiLayout::prop would not have enough
-   * information about what type of ID to select for editing the values. This is because
+  /* Use #uiLayout::prop_search to draw pointer properties because #uiLayout::prop would not have
+   * enough information about what type of ID to select for editing the values. This is because
    * pointer IDProperties contain no information about their type. */
   const bke::bNodeSocketType *typeinfo = socket.socket_typeinfo();
   const eNodeSocketDatatype type = typeinfo ? typeinfo->type : SOCK_CUSTOM;
-  const char *name = socket.name ? IFACE_(socket.name) : "";
+  std::string name = socket.name ? IFACE_(socket.name) : "";
+
+  /* If the property has a prefix that's the same string as the name of the panel it's in, remove
+   * the prefix so it appears less verbose. */
+  if (parent_name.has_value()) {
+    const StringRef prefix_to_remove = *parent_name;
+    int pos = name.find(prefix_to_remove);
+    if (pos == 0 && name != prefix_to_remove) {
+      /* Needs to trim remainig space characters if any. Use the `trim()` from `StringRefNull`
+       * because std::string doesn't have a built-in `trim()` yet. If the property name is the
+       * same as parent panel's name then keep the name, otherwise the name would be an empty
+       * string which messes up the UI. */
+      name = StringRefNull(name.substr(prefix_to_remove.size())).trim();
+    }
+  }
+
   switch (type) {
     case SOCK_OBJECT: {
-      uiItemPointerR(
-          row, ctx.properties_ptr, rna_path, ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
+      row->prop_search(
+          ctx.properties_ptr, rna_path, ctx.bmain_ptr, "objects", name, ICON_OBJECT_DATA);
       break;
     }
     case SOCK_COLLECTION: {
-      uiItemPointerR(row,
-                     ctx.properties_ptr,
-                     rna_path,
-                     ctx.bmain_ptr,
-                     "collections",
-                     name,
-                     ICON_OUTLINER_COLLECTION);
+      row->prop_search(ctx.properties_ptr,
+                       rna_path,
+                       ctx.bmain_ptr,
+                       "collections",
+                       name,
+                       ICON_OUTLINER_COLLECTION);
       break;
     }
     case SOCK_MATERIAL: {
-      uiItemPointerR(
-          row, ctx.properties_ptr, rna_path, ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
+      row->prop_search(
+          ctx.properties_ptr, rna_path, ctx.bmain_ptr, "materials", name, ICON_MATERIAL);
       break;
     }
     case SOCK_TEXTURE: {
-      uiItemPointerR(
-          row, ctx.properties_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
+      row->prop_search(
+          ctx.properties_ptr, rna_path, ctx.bmain_ptr, "textures", name, ICON_TEXTURE);
       break;
     }
     case SOCK_IMAGE: {
@@ -565,7 +583,7 @@ static void draw_property_for_socket(DrawGroupInputsContext &ctx,
     }
     default: {
       if (nodes::input_has_attribute_toggle(*ctx.tree, input_index)) {
-        add_attribute_search_or_value_buttons(ctx, row, rna_path, socket);
+        add_attribute_search_or_value_buttons(ctx, row, rna_path, socket, name);
       }
       else {
         row->prop(ctx.properties_ptr, rna_path, UI_ITEM_NONE, name, ICON_NONE);
@@ -633,7 +651,8 @@ static bool interface_panel_affects_output(DrawGroupInputsContext &ctx,
 static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                          uiLayout *layout,
                                          const bNodeTreeInterfacePanel &interface_panel,
-                                         const bool skip_first = false)
+                                         const bool skip_first = false,
+                                         const std::optional<StringRef> parent_name = std::nullopt)
 {
   for (const bNodeTreeInterfaceItem *item : interface_panel.items().drop_front(skip_first ? 1 : 0))
   {
@@ -648,6 +667,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         bool skip_first = false;
         /* Check if the panel should have a toggle in the header. */
         const bNodeTreeInterfaceSocket *toggle_socket = sub_interface_panel.header_toggle_socket();
+        const StringRef panel_name = sub_interface_panel.name;
         if (toggle_socket && !(toggle_socket->flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
           const StringRefNull identifier = toggle_socket->identifier;
           IDProperty *property = ctx.properties.lookup_key_default_as(identifier, nullptr);
@@ -669,12 +689,12 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
                                                              open_property.name,
                                                              ctx.properties_ptr,
                                                              rna_path,
-                                                             IFACE_(sub_interface_panel.name));
+                                                             IFACE_(panel_name));
           skip_first = true;
         }
         else {
           panel_layout = layout->panel_prop(&ctx.C, &open_property.ptr, open_property.name);
-          panel_layout.header->label(IFACE_(sub_interface_panel.name), ICON_NONE);
+          panel_layout.header->label(IFACE_(panel_name), ICON_NONE);
         }
         if (!interface_panel_affects_output(ctx, sub_interface_panel)) {
           panel_layout.header->active_set(false);
@@ -689,7 +709,8 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
             nullptr,
             nullptr);
         if (panel_layout.body) {
-          draw_interface_panel_content(ctx, panel_layout.body, sub_interface_panel, skip_first);
+          draw_interface_panel_content(
+              ctx, panel_layout.body, sub_interface_panel, skip_first, panel_name);
         }
         break;
       }
@@ -697,7 +718,7 @@ static void draw_interface_panel_content(DrawGroupInputsContext &ctx,
         const auto &interface_socket = *reinterpret_cast<const bNodeTreeInterfaceSocket *>(item);
         if (interface_socket.flag & NODE_INTERFACE_SOCKET_INPUT) {
           if (!(interface_socket.flag & NODE_INTERFACE_SOCKET_HIDE_IN_MODIFIER)) {
-            draw_property_for_socket(ctx, layout, interface_socket);
+            draw_property_for_socket(ctx, layout, interface_socket, parent_name);
           }
         }
         break;
@@ -928,7 +949,7 @@ void draw_geometry_nodes_modifier_ui(const bContext &C, PointerRNA *modifier_ptr
         PointerRNA props = layout.op("object.geometry_nodes_input_attribute_toggle",
                                      "",
                                      icon,
-                                     WM_OP_INVOKE_DEFAULT,
+                                     wm::OpCallContext::InvokeDefault,
                                      UI_ITEM_NONE);
         RNA_string_set(&props, "modifier_name", nmd.modifier.name);
         RNA_string_set(&props, "input_name", io_socket.identifier);

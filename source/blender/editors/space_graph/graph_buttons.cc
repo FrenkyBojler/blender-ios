@@ -426,7 +426,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
     {
       uiItemL_respect_property_split(col, IFACE_("Key Frame"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_REDR,
                       "",
                       0,
@@ -443,7 +443,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_REDR,
                       "",
                       0,
@@ -466,7 +466,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       col = &layout->column(true);
       uiItemL_respect_property_split(col, IFACE_("Left Handle Type"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_MENU,
+                      ButType::Menu,
                       B_REDR,
                       std::nullopt,
                       0,
@@ -483,7 +483,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_REDR,
                       "",
                       0,
@@ -500,7 +500,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_REDR,
                       "",
                       0,
@@ -524,7 +524,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
       col = &layout->column(true);
       uiItemL_respect_property_split(col, IFACE_("Right Handle Type"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_MENU,
+                      ButType::Menu,
                       B_REDR,
                       std::nullopt,
                       0,
@@ -541,7 +541,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(col, IFACE_("Frame"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_REDR,
                       "",
                       0,
@@ -558,7 +558,7 @@ static void graph_panel_key_properties(const bContext *C, Panel *panel)
 
       uiItemL_respect_property_split(col, IFACE_("Value"), ICON_NONE);
       but = uiDefButR(block,
-                      UI_BTYPE_NUM,
+                      ButType::Num,
                       B_REDR,
                       "",
                       0,
@@ -794,7 +794,7 @@ static void graph_panel_driverVar__rotDiff(uiLayout *layout, ID *id, DriverVar *
 
   if (dtar->id && GS(dtar->id->name) == ID_OB && ob1->pose) {
     PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob1->pose);
-    uiItemPointerR(col, &dtar_ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
+    col->prop_search(&dtar_ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
   }
 
   /* Object 2 */
@@ -804,7 +804,7 @@ static void graph_panel_driverVar__rotDiff(uiLayout *layout, ID *id, DriverVar *
 
   if (dtar2->id && GS(dtar2->id->name) == ID_OB && ob2->pose) {
     PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar2->id, &RNA_Pose, ob2->pose);
-    uiItemPointerR(col, &dtar2_ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
+    col->prop_search(&dtar2_ptr, "bone_target", &tar_ptr, "bones", "", ICON_BONE_DATA);
   }
 }
 
@@ -828,8 +828,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
 
   if (dtar->id && GS(dtar->id->name) == ID_OB && ob1->pose) {
     PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob1->pose);
-    uiItemPointerR(
-        col, &dtar_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
+    col->prop_search(&dtar_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
   /* we can clear it again now - it's only needed when creating the ID/Bone fields */
@@ -844,8 +843,7 @@ static void graph_panel_driverVar__locDiff(uiLayout *layout, ID *id, DriverVar *
 
   if (dtar2->id && GS(dtar2->id->name) == ID_OB && ob2->pose) {
     PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar2->id, &RNA_Pose, ob2->pose);
-    uiItemPointerR(
-        col, &dtar2_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
+    col->prop_search(&dtar2_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
   /* we can clear it again now - it's only needed when creating the ID/Bone fields */
@@ -871,8 +869,7 @@ static void graph_panel_driverVar__transChan(uiLayout *layout, ID *id, DriverVar
 
   if (dtar->id && GS(dtar->id->name) == ID_OB && ob->pose) {
     PointerRNA tar_ptr = RNA_pointer_create_discrete(dtar->id, &RNA_Pose, ob->pose);
-    uiItemPointerR(
-        col, &dtar_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
+    col->prop_search(&dtar_ptr, "bone_target", &tar_ptr, "bones", IFACE_("Bone"), ICON_BONE_DATA);
   }
 
   sub = &layout->column(true);
@@ -932,7 +929,7 @@ static void graph_draw_driven_property_enabled_btn(uiLayout *layout,
 
   uiBlock *block = layout->block();
   uiDefButR(block,
-            UI_BTYPE_CHECKBOX_N,
+            ButType::CheckboxN,
             0,
             label,
             0,
@@ -1103,7 +1100,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
   block = row->block();
   but = uiDefIconTextBut(
       block,
-      UI_BTYPE_BUT,
+      ButType::But,
       B_IPO_DEPCHANGE,
       ICON_ADD,
       IFACE_("Add Input Variable"),
@@ -1173,7 +1170,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
 
     if (dvar->flag & DVAR_FLAG_INVALID_NAME) {
       but = uiDefIconBut(block,
-                         UI_BTYPE_BUT,
+                         ButType::But,
                          B_IPO_DEPCHANGE,
                          ICON_ERROR,
                          290,
@@ -1189,7 +1186,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
 
     /* 1.3) remove button */
     but = uiDefIconBut(block,
-                       UI_BTYPE_BUT,
+                       ButType::But,
                        B_IPO_DEPCHANGE,
                        ICON_X,
                        290,
@@ -1265,7 +1262,7 @@ static void graph_draw_driver_settings_panel(uiLayout *layout,
   block = row->block();
   but = uiDefIconTextBut(
       block,
-      UI_BTYPE_BUT,
+      ButType::But,
       B_IPO_DEPCHANGE,
       ICON_FILE_REFRESH,
       IFACE_("Update Dependencies"),
@@ -1426,7 +1423,7 @@ static void graph_panel_modifiers(const bContext *C, Panel *panel)
     /* this is an operator button which calls a 'add modifier' operator...
      * a menu might be nicer but would be tricky as we need some custom filtering
      */
-    uiItemMenuEnumO(row, C, "GRAPH_OT_fmodifier_add", "type", IFACE_("Add Modifier"), ICON_NONE);
+    row->op_menu_enum(C, "GRAPH_OT_fmodifier_add", "type", IFACE_("Add Modifier"), ICON_NONE);
 
     /* copy/paste (as sub-row) */
     row = &row->row(true);

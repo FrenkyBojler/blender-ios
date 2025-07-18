@@ -55,7 +55,6 @@
 
 #include "mesh_brush_common.hh"
 #include "paint_hide.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_boundary.hh"
 #include "sculpt_gesture.hh"
 #include "sculpt_intern.hh"
@@ -159,7 +158,7 @@ bool create_face_sets_mesh(Object &object)
   }
   attributes.add<int>(".sculpt_face_set",
                       bke::AttrDomain::Face,
-                      bke::AttributeInitVArray(VArray<int>::ForSingle(1, mesh.faces_num)));
+                      bke::AttributeInitVArray(VArray<int>::from_single(1, mesh.faces_num)));
   mesh.face_sets_color_default = 1;
   return true;
 }
@@ -170,7 +169,7 @@ bke::SpanAttributeWriter<int> ensure_face_sets_mesh(Mesh &mesh)
   if (!attributes.contains(".sculpt_face_set")) {
     attributes.add<int>(".sculpt_face_set",
                         bke::AttrDomain::Face,
-                        bke::AttributeInitVArray(VArray<int>::ForSingle(1, mesh.faces_num)));
+                        bke::AttributeInitVArray(VArray<int>::from_single(1, mesh.faces_num)));
     mesh.face_sets_color_default = 1;
   }
   return attributes.lookup_or_add_for_write_span<int>(".sculpt_face_set", bke::AttrDomain::Face);

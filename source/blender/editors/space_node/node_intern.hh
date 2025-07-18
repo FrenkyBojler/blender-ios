@@ -129,7 +129,7 @@ enum NodeResizeDirection {
 ENUM_OPERATORS(NodeResizeDirection, NODE_RESIZE_LEFT);
 
 /* Nodes draw without DPI - the view zoom is flexible. */
-#define HIDDEN_RAD (0.75f * U.widget_unit)
+#define COLLAPSED_RAD (0.75f * U.widget_unit)
 #define BASIS_RAD (0.2f * U.widget_unit)
 #define NODE_DYS (U.widget_unit / 2)
 #define NODE_DY U.widget_unit
@@ -371,7 +371,7 @@ void NODE_OT_delete_reconnect(wmOperatorType *ot);
 void NODE_OT_resize(wmOperatorType *ot);
 
 void NODE_OT_mute_toggle(wmOperatorType *ot);
-void NODE_OT_hide_toggle(wmOperatorType *ot);
+void NODE_OT_collapse_toggle(wmOperatorType *ot);
 void NODE_OT_hide_socket_toggle(wmOperatorType *ot);
 void NODE_OT_preview_toggle(wmOperatorType *ot);
 void NODE_OT_options_toggle(wmOperatorType *ot);
@@ -446,5 +446,13 @@ MenuType add_root_catalogs_menu_type();
 /* `node_sync_sockets.cc` */
 
 void NODE_OT_sockets_sync(wmOperatorType *ot);
+
+/* node_socket_tooltip.cc */
+
+void build_socket_tooltip(uiTooltipData &tip_data,
+                          bContext &C,
+                          uiBut *but,
+                          const bNodeTree &tree,
+                          const bNodeSocket &socket);
 
 }  // namespace blender::ed::space_node
