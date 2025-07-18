@@ -3794,7 +3794,8 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
     attr.finish();
   });
 
-  /* By default*/
+  /* When a layer is duplicated, the frames are shared by default. Clear the frames, to ensure a
+   * valid state. */
   new_layer->frames_for_write().clear();
   if (duplicate_frames) {
     for (auto [frame_number, frame] : duplicate_layer.frames().items()) {
