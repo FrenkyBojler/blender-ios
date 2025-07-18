@@ -114,7 +114,10 @@ bool GLTexture::init_internal(VertBuf *vbo)
   return true;
 }
 
-bool GLTexture::init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil)
+bool GLTexture::init_internal(blender::gpu::Texture *src,
+                              int mip_offset,
+                              int layer_offset,
+                              bool use_stencil)
 {
   const GLTexture *gl_src = static_cast<const GLTexture *>(unwrap(src));
   GLenum internal_format = to_gl_internal_format(format_);

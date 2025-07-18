@@ -82,7 +82,7 @@ class ShadingView {
  private:
   void render_transparent_pass(RenderBuffers &rbufs);
 
-  GPUTexture *render_postfx(GPUTexture *input_tx);
+  blender::gpu::Texture *render_postfx(blender::gpu::Texture *input_tx);
 
   void update_view();
 };

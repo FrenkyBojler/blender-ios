@@ -346,16 +346,24 @@ class PassBase {
    * \note Variations using slot will not query a shader interface and can be used before
    * binding a shader.
    */
-  void bind_image(const char *name, GPUTexture *image);
-  void bind_image(const char *name, GPUTexture **image);
-  void bind_image(int slot, GPUTexture *image);
-  void bind_image(int slot, GPUTexture **image);
-  void bind_texture(const char *name, GPUTexture *texture, GPUSamplerState state = sampler_auto);
-  void bind_texture(const char *name, GPUTexture **texture, GPUSamplerState state = sampler_auto);
+  void bind_image(const char *name, blender::gpu::Texture *image);
+  void bind_image(const char *name, blender::gpu::Texture **image);
+  void bind_image(int slot, blender::gpu::Texture *image);
+  void bind_image(int slot, blender::gpu::Texture **image);
+  void bind_texture(const char *name,
+                    blender::gpu::Texture *texture,
+                    GPUSamplerState state = sampler_auto);
+  void bind_texture(const char *name,
+                    blender::gpu::Texture **texture,
+                    GPUSamplerState state = sampler_auto);
   void bind_texture(const char *name, gpu::VertBuf *buffer);
   void bind_texture(const char *name, gpu::VertBuf **buffer);
-  void bind_texture(int slot, GPUTexture *texture, GPUSamplerState state = sampler_auto);
-  void bind_texture(int slot, GPUTexture **texture, GPUSamplerState state = sampler_auto);
+  void bind_texture(int slot,
+                    blender::gpu::Texture *texture,
+                    GPUSamplerState state = sampler_auto);
+  void bind_texture(int slot,
+                    blender::gpu::Texture **texture,
+                    GPUSamplerState state = sampler_auto);
   void bind_texture(int slot, gpu::VertBuf *buffer);
   void bind_texture(int slot, gpu::VertBuf **buffer);
   void bind_ssbo(const char *name, GPUStorageBuf *buffer);
@@ -1241,7 +1249,9 @@ template<class T> inline void PassBase<T>::bind_ubo(const char *name, GPUUniform
 }
 
 template<class T>
-inline void PassBase<T>::bind_texture(const char *name, GPUTexture *texture, GPUSamplerState state)
+inline void PassBase<T>::bind_texture(const char *name,
+                                      blender::gpu::Texture *texture,
+                                      GPUSamplerState state)
 {
   BLI_assert(texture != nullptr);
   this->bind_texture(GPU_shader_get_sampler_binding(shader_, name), texture, state);
@@ -1259,7 +1269,8 @@ template<class T> inline void PassBase<T>::bind_texture(const char *name, gpu::V
   this->bind_texture(GPU_shader_get_sampler_binding(shader_, name), buffer);
 }
 
-template<class T> inline void PassBase<T>::bind_image(const char *name, GPUTexture *image)
+template<class T>
+inline void PassBase<T>::bind_image(const char *name, blender::gpu::Texture *image)
 {
   BLI_assert(image != nullptr);
   this->bind_image(GPU_shader_get_sampler_binding(shader_, name), image);
@@ -1320,7 +1331,9 @@ template<class T> inline void PassBase<T>::bind_ubo(int slot, GPUUniformBuf *buf
 }
 
 template<class T>
-inline void PassBase<T>::bind_texture(int slot, GPUTexture *texture, GPUSamplerState state)
+inline void PassBase<T>::bind_texture(int slot,
+                                      blender::gpu::Texture *texture,
+                                      GPUSamplerState state)
 {
   BLI_assert(texture != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, texture, state};
@@ -1338,7 +1351,7 @@ template<class T> inline void PassBase<T>::bind_texture(int slot, gpu::VertBuf *
   create_command(Type::ResourceBind).resource_bind = {slot, buffer};
 }
 
-template<class T> inline void PassBase<T>::bind_image(int slot, GPUTexture *image)
+template<class T> inline void PassBase<T>::bind_image(int slot, blender::gpu::Texture *image)
 {
   BLI_assert(image != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, as_image(image)};
@@ -1358,14 +1371,15 @@ template<class T> inline void PassBase<T>::bind_ubo(const char *name, GPUUniform
 
 template<class T>
 inline void PassBase<T>::bind_texture(const char *name,
-                                      GPUTexture **texture,
+                                      blender::gpu::Texture **texture,
                                       GPUSamplerState state)
 {
   BLI_assert(texture != nullptr);
   this->bind_texture(GPU_shader_get_sampler_binding(shader_, name), texture, state);
 }
 
-template<class T> inline void PassBase<T>::bind_image(const char *name, GPUTexture **image)
+template<class T>
+inline void PassBase<T>::bind_image(const char *name, blender::gpu::Texture **image)
 {
   BLI_assert(image != nullptr);
   this->bind_image(GPU_shader_get_sampler_binding(shader_, name), image);
@@ -1385,13 +1399,15 @@ template<class T> inline void PassBase<T>::bind_ubo(int slot, GPUUniformBuf **bu
 }
 
 template<class T>
-inline void PassBase<T>::bind_texture(int slot, GPUTexture **texture, GPUSamplerState state)
+inline void PassBase<T>::bind_texture(int slot,
+                                      blender::gpu::Texture **texture,
+                                      GPUSamplerState state)
 {
   BLI_assert(texture != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, texture, state};
 }
 
-template<class T> inline void PassBase<T>::bind_image(int slot, GPUTexture **image)
+template<class T> inline void PassBase<T>::bind_image(int slot, blender::gpu::Texture **image)
 {
   BLI_assert(image != nullptr);
   create_command(Type::ResourceBind).resource_bind = {slot, as_image(image)};
