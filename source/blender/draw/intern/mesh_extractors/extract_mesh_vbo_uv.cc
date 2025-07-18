@@ -28,12 +28,13 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
   GPU_vertformat_deinterleave(format);
 
   VectorSet<StringRef> uv_layers;
-  for (const StringRef name : cache.cd_used.uv) {
+  for (const StringRef name : cache.cd_used.uv.as_span().take_front(MAX_MTFACE)) {
     uv_layers.add_new(name);
   }
 
   const StringRef active_name = CustomData_get_active_layer_name(cd_ldata, CD_PROP_FLOAT2);
   const StringRef default_name = CustomData_get_render_layer_name(cd_ldata, CD_PROP_FLOAT2);
+
   /* HACK to fix #68857 */
   if (extract_type == MeshExtractType::BMesh && cache.cd_used.edit_uv == 1) {
     if (!bke::attribute_name_is_anonymous(default_name)) {
@@ -49,7 +50,7 @@ static VectorSet<StringRef> mesh_extract_uv_format_init(GPUVertFormat *format,
     return cd_ldata->layers[stencil_index].name;
   }();
 
-  for (const StringRef name : uv_layers.as_span().take_front(MAX_MTFACE)) {
+  for (const StringRef name : uv_layers) {
     char attr_name[32], attr_safe_name[GPU_MAX_SAFE_ATTR_NAME];
     GPU_vertformat_safe_attr_name(name, attr_safe_name, GPU_MAX_SAFE_ATTR_NAME);
     SNPRINTF(attr_name, "a%s", attr_safe_name);
