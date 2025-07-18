@@ -132,7 +132,6 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
   }
 
   CustomData_reset(&pointcloud->pdata_legacy);
-  BLI_assert(pointcloud->pdata_legacy.totlayer == 0);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
