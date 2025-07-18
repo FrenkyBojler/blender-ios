@@ -11,11 +11,13 @@
 #include <string>
 
 #include "BLI_compiler_attrs.h"
+#include "BLI_function_ref.hh"
 #include "BLI_map.hh"
 #include "BLI_math_matrix_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
 
+#include "DNA_key_types.h"
 #include "DNA_object_enums.h"
 #include "DNA_userdef_enums.h"
 #include "DNA_windowmanager_types.h"
@@ -98,6 +100,15 @@ bool shape_key_report_if_active_locked(Object *ob, ReportList *reports);
  * \return true if a shape key was locked.
  */
 bool shape_key_report_if_any_locked(Object *ob, ReportList *reports);
+
+/**
+ * Visit selected, unlocked shapekeys.
+ * Returns the number of selected resp. locked shapekeys.
+ *
+ * The callback is allowed to delete shapekeys, but not add new ones.
+ */
+int2 shape_key_foreach_selected_unlocked(Object *ob,
+                                         FunctionRef<void(Key &, KeyBlock &)> callback);
 
 /* `object_utils.cc` */
 
