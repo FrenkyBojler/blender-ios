@@ -25,6 +25,7 @@ class TestGreasePencil(unittest.TestCase):
 
 class TestGreasePencilLayers(unittest.TestCase):
     tint_factors = [0.3, 0.6, 0.9]
+
     def setUp(self):
         self.gp = bpy.data.grease_pencils_v3.new("test_grease_pencil")
         self.gp.layers.new("test_layer01")
