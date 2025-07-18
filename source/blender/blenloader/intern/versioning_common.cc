@@ -783,9 +783,9 @@ void do_versions_after_setup(Main *new_bmain,
         continue;
       }
 
-      /* Users defined a world node tree, but deactivated it by disabling #use_nodes. So save the
-       * current world and create a new one with a node tree that simulates the behavior of setting
-       * #use_nodes to false. */
+      /* Users defined a world node tree, but deactivated it by disabling "Use Nodes". So save the
+       * current world and create a new one with a node tree that simulates the behavior of
+       * disabling "Use Nodes". */
       id_fake_user_set(&world->id);
       World *legacy_world = BKE_world_add(new_bmain, "World Legacy");
       BLI_assert(legacy_world->nodetree != nullptr);
