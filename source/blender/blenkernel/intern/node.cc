@@ -769,6 +769,10 @@ static void write_legacy_properties(bNodeTree &ntree)
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Method");
           storage.method = socket->default_value_typed<bNodeSocketValueMenu>()->value;
         }
+        else if (node->type_legacy == FN_NODE_ROTATE_ROTATION) {
+          const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Space");
+          node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
+        }
         else if (node->is_type("FunctionNodeMatchString")) {
           const bNodeSocket *socket = node_find_socket(*node, SOCK_IN, "Operation");
           node->custom1 = socket->default_value_typed<bNodeSocketValueMenu>()->value;
