@@ -52,6 +52,7 @@ KERNEL_STRUCT_MEMBER(path, float, min_ray_pdf, KERNEL_FEATURE_PATH_TRACING)
 KERNEL_STRUCT_MEMBER(path, float, continuation_probability, KERNEL_FEATURE_PATH_TRACING)
 /* Throughput. */
 KERNEL_STRUCT_MEMBER(path, PackedSpectrum, throughput, KERNEL_FEATURE_PATH_TRACING)
+KERNEL_STRUCT_MEMBER(path, BsdfEvalRGBE, scatter_eval, KERNEL_FEATURE_PATH_TRACING)
 /* Factor to multiple with throughput to get remove any guiding PDFS.
  * Such throughput without guiding PDFS is used for Russian roulette termination. */
 KERNEL_STRUCT_MEMBER(path, float, unguided_throughput, KERNEL_FEATURE_PATH_GUIDING)

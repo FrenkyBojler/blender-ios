@@ -12,6 +12,7 @@
 #include "kernel/film/light_passes.h"
 
 #include "kernel/light/sample.h"
+#include "kernel/light/visibility.h"
 
 #include "kernel/geom/motion_triangle.h"
 #include "kernel/geom/triangle.h"
@@ -537,6 +538,9 @@ ccl_device_forceinline int integrate_surface_bsdf_bssrdf_bounce(
   /* Update throughput. */
   const Spectrum bsdf_weight = bsdf_eval_sum(&bsdf_eval) / bsdf_pdf;
   INTEGRATOR_STATE_WRITE(state, path, throughput) *= bsdf_weight;
+
+  const BsdfEvalRGBE bsdf_eval_RGBE = BsdfEvalToBsdfEvalRGBE(&bsdf_eval);
+  INTEGRATOR_STATE_WRITE(state, path, scatter_eval) = bsdf_eval_RGBE;
 
   if (kernel_data.kernel_features & KERNEL_FEATURE_LIGHT_PASSES) {
     if (INTEGRATOR_STATE(state, path, bounce) == 0) {

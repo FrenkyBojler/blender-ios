@@ -8,6 +8,7 @@
 
 #include "kernel/light/light.h"
 #include "kernel/light/sample.h"
+#include "kernel/light/visibility.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -39,9 +40,13 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   }
 
   /* Use visibility flag to skip lights. */
+  Spectrum light_visibility = one_spectrum();
 #ifdef __PASSES__
   if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
     return;
+  }
+  if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
+    light_visibility_correction(kg, state, ls.shader, &light_visibility);
   }
 #endif
 
@@ -49,7 +54,8 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   /* TODO: does aliasing like this break automatic SoA in CUDA? */
   ShaderDataTinyStorage emission_sd_storage;
   ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-  const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+  Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+  light_eval *= light_visibility;
   if (is_zero(light_eval)) {
     return;
   }

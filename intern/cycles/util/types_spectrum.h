@@ -13,6 +13,10 @@ CCL_NAMESPACE_BEGIN
 using Spectrum = float3;
 using PackedSpectrum = packed_float3;
 
+struct SpectrumRGBE {
+  uint8_t r, g, b, e;
+};
+
 #define make_spectrum(f) make_float3(f)
 #define load_spectrum(f) load_float3(f)
 #define store_spectrum(s, f) store_float3(f)

@@ -581,6 +581,12 @@ struct BsdfEval {
   Spectrum sum;
 };
 
+typedef struct BsdfEvalRGBE {
+  SpectrumRGBE diffuse;
+  SpectrumRGBE glossy;
+  SpectrumRGBE sum;
+} BsdfEvalRGBE;
+
 /* Closure Filter */
 
 enum FilterClosures {

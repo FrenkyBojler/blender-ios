@@ -13,6 +13,7 @@
 
 #include "kernel/light/light.h"
 #include "kernel/light/sample.h"
+#include "kernel/light/visibility.h"
 
 #include "kernel/geom/shader_data.h"
 
@@ -24,16 +25,19 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
 {
   const int shader = kernel_data.background.surface_shader;
   const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
+  Spectrum light_visibility = one_spectrum();
 
   /* Use visibility flag to skip lights. */
   if (!is_light_shader_visible_to_path(shader, path_flag)) {
     return zero_spectrum();
   }
-
+  if ((shader & SHADER_EXCLUDE_ANY) != 0) {
+    light_visibility_correction(kg, state, shader, &light_visibility);
+  }
   /* Use fast constant background color if available. */
   Spectrum L = zero_spectrum();
   if (surface_shader_constant_emission(kg, shader, &L)) {
-    return L;
+    return L * light_visibility;
   }
 
   /* Evaluate background shader. */
@@ -55,7 +59,7 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
   surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_BACKGROUND>(
       kg, state, emission_sd, render_buffer, path_flag | PATH_RAY_EMISSION);
 
-  return surface_shader_background(emission_sd);
+  return light_visibility * surface_shader_background(emission_sd);
 }
 
 ccl_device_inline void integrate_background(KernelGlobals kg,
@@ -131,10 +135,14 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
   for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
     if (distant_light_sample_from_intersection(kg, ray_D, lamp, &ls)) {
       /* Use visibility flag to skip lights. */
+      Spectrum light_visibility = one_spectrum();
 #ifdef __PASSES__
       const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
       if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
         continue;
+      }
+      if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
+        light_visibility_correction(kg, state, ls.shader, &light_visibility);
       }
 #endif
 
@@ -168,7 +176,8 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       /* TODO: does aliasing like this break automatic SoA in CUDA? */
       ShaderDataTinyStorage emission_sd_storage;
       ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
-      const Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+      Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
+      light_eval *= light_visibility;
       if (is_zero(light_eval)) {
         continue;
       }
