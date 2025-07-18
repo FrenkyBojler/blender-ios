@@ -627,8 +627,6 @@ using uiButSearchTooltipFn =
     ARegion *(*)(bContext *C, ARegion *region, const rcti *item_rect, void *arg, void *active);
 using uiButSearchListenFn = void (*)(const wmRegionListenerParams *params, void *arg);
 
-using uiButToolTipCustomFunc = void (*)(bContext &C, uiTooltipData &data, void *argN);
-
 using uiBlockHandleFunc = void (*)(bContext *C, void *arg, int event);
 
 /* -------------------------------------------------------------------- */
@@ -1036,6 +1034,9 @@ void UI_but_type_set_menu_from_pulldown(uiBut *but);
  * special case of UI_BTYPE_LABEL without icon this is used as text color.
  */
 void UI_but_color_set(uiBut *but, const uchar color[4]);
+
+bool UI_but_is_color_gamma(uiBut &but);
+const ColorManagedDisplay *UI_but_cm_display_get(uiBut &but);
 
 /**
  * Set at hint that describes the expected value when empty.
@@ -1920,6 +1921,22 @@ void UI_tooltip_text_field_add(uiTooltipData &data,
  * \param image_size: Display size for the image (pixels without UI scale applied).
  */
 void UI_tooltip_image_field_add(uiTooltipData &data, const uiTooltipImage &image_data);
+
+void UI_tooltip_color_field_add(uiTooltipData &data,
+                                const blender::float4 &color,
+                                bool has_alpha,
+                                bool is_gamma,
+                                const ColorManagedDisplay *display,
+                                uiTooltipColorID color_id);
+
+/**
+ * Add Python-related information to the tooltip. The caller is responsible for checking
+ * #USER_TOOLTIPS_PYTHON.
+ */
+void UI_tooltip_uibut_python_add(uiTooltipData &data,
+                                 bContext &C,
+                                 uiBut &but,
+                                 uiButExtraOpIcon *extra_icon);
 
 /**
  * Recreate tool-tip (use to update dynamic tips)
