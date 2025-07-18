@@ -637,7 +637,7 @@ static void layerSwap_mdisps(void *data, const int *ci)
       return;
     }
 
-    float(*d)[3] = MEM_calloc_arrayN<float[3]>(s->totdisp, "mdisps swap");
+    float (*d)[3] = MEM_calloc_arrayN<float[3]>(s->totdisp, "mdisps swap");
 
     for (int S = 0; S < corners; S++) {
       memcpy(d + cornersize * S, s->disps + cornersize * ci[S], sizeof(float[3]) * cornersize);
@@ -655,7 +655,7 @@ static void layerCopy_mdisps(const void *source, void *dest, const int count)
 
   for (int i = 0; i < count; i++) {
     if (s[i].disps) {
-      d[i].disps = static_cast<float(*)[3]>(MEM_dupallocN(s[i].disps));
+      d[i].disps = static_cast<float (*)[3]>(MEM_dupallocN(s[i].disps));
       d[i].hidden = static_cast<uint *>(MEM_dupallocN(s[i].hidden));
     }
     else {
@@ -1203,7 +1203,7 @@ static void layerInterp_mvert_skin(const void **sources,
 
 static void layerSwap_flnor(void *data, const int *corner_indices)
 {
-  short(*flnors)[4][3] = static_cast<short(*)[4][3]>(data);
+  short (*flnors)[4][3] = static_cast<short (*)[4][3]>(data);
   short nors[4][3];
   int i = 4;
 
@@ -2455,30 +2455,6 @@ bool CustomData_merge_layout(const CustomData *source,
                              const int totelem)
 {
   return customdata_merge_internal(source, dest, mask, alloctype, totelem);
-}
-
-CustomData CustomData_shallow_copy_remove_non_bmesh_attributes(const CustomData *src,
-                                                               const eCustomDataMask mask)
-{
-  Vector<CustomDataLayer> dst_layers;
-  for (const CustomDataLayer &layer : Span<CustomDataLayer>{src->layers, src->totlayer}) {
-    if (BM_attribute_stored_in_bmesh_builtin(layer.name)) {
-      continue;
-    }
-    if (!(mask & CD_TYPE_AS_MASK(eCustomDataType(layer.type)))) {
-      continue;
-    }
-    dst_layers.append(layer);
-  }
-
-  CustomData dst = *src;
-  dst.layers = MEM_calloc_arrayN<CustomDataLayer>(dst_layers.size(), __func__);
-  dst.maxlayer = dst.totlayer = dst_layers.size();
-  memcpy(dst.layers, dst_layers.data(), dst_layers.as_span().size_in_bytes());
-
-  CustomData_update_typemap(&dst);
-
-  return dst;
 }
 
 /**

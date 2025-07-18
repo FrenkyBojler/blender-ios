@@ -196,15 +196,15 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
       mesh, src_verts_num * 2, src_edges_num * 2, src_faces.size() * 2, src_loops_num * 2);
 
   /* Copy custom-data to original geometry. */
-                  // TODO_MESH_ATTR
- CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, src_verts_num);
+  // TODO_MESH_ATTR
+  CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, 0, src_verts_num);
   CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, 0, src_edges_num);
   CustomData_copy_data(&mesh->face_data, &result->face_data, 0, 0, src_faces.size());
   CustomData_copy_data(&mesh->corner_data, &result->corner_data, 0, 0, src_loops_num);
 
   /* Copy custom data to mirrored geometry. Loops are copied later. */
-                  // TODO_MESH_ATTR
- CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, src_verts_num, src_verts_num);
+  // TODO_MESH_ATTR
+  CustomData_copy_data(&mesh->vert_data, &result->vert_data, 0, src_verts_num, src_verts_num);
   CustomData_copy_data(&mesh->edge_data, &result->edge_data, 0, src_edges_num, src_edges_num);
   CustomData_copy_data(
       &mesh->face_data, &result->face_data, 0, src_faces.size(), src_faces.size());
@@ -285,7 +285,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   /* handle shape keys */
   totshape = CustomData_number_of_layers(&result->vert_data, CD_SHAPEKEY);
   for (a = 0; a < totshape; a++) {
-    float(*cos)[3] = static_cast<float(*)[3]>(
+    float (*cos)[3] = static_cast<float (*)[3]>(
         CustomData_get_layer_n_for_write(&result->vert_data, CD_SHAPEKEY, a, result->verts_num));
     for (int i = src_verts_num; i < result->verts_num; i++) {
       mul_m4_v3(mtx, cos[i]);
@@ -361,7 +361,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     const int totuv = CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2);
 
     for (a = 0; a < totuv; a++) {
-      float(*dmloopuv)[2] = static_cast<float(*)[2]>(CustomData_get_layer_n_for_write(
+      float (*dmloopuv)[2] = static_cast<float (*)[2]>(CustomData_get_layer_n_for_write(
           &result->corner_data, CD_PROP_FLOAT2, a, result->corners_num));
       int j = src_loops_num;
       dmloopuv += j; /* second set of loops only */

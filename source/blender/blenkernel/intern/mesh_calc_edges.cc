@@ -216,10 +216,17 @@ void mesh_calc_edges(Mesh &mesh, bool keep_existing_edges, const bool select_new
     array_utils::copy(mesh.edges(), original_edges.as_mutable_span());
   }
 
-  /* Free old CustomData and assign new one. */
-  // TODO_MESH_ATTR
   CustomData_free(&mesh.edge_data);
   CustomData_reset(&mesh.edge_data);
+  Set<StringRef> edge_attributes;
+  mesh.attribute_storage.wrap().foreach([&](Attribute &attr) {
+    if (attr.domain() == AttrDomain::Edge) {
+      edge_attributes.add(attr.name());
+    }
+  });
+  for (const StringRef &name : edge_attributes) {
+    mesh.attribute_storage.wrap().remove(name);
+  }
   mesh.edges_num = edge_offsets.total_size();
   attributes.add<int2>(".edge_verts", AttrDomain::Edge, AttributeInitMoveArray(new_edges.data()));
 

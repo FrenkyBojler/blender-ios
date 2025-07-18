@@ -272,11 +272,6 @@ void BM_mesh_bm_from_me(BMesh *bm, const Mesh *mesh, const BMeshFromMeshParams *
     for (const std::string &name : temporary_layers_to_delete) {
       CustomData_free_layer_named(&mesh_ldata, name);
     }
-
-    MEM_SAFE_FREE(mesh_vdata.layers);
-    MEM_SAFE_FREE(mesh_edata.layers);
-    MEM_SAFE_FREE(mesh_pdata.layers);
-    MEM_SAFE_FREE(mesh_ldata.layers);
   });
 
   if (mesh->verts_num == 0) {
@@ -1303,8 +1298,8 @@ static void bm_to_mesh_edges(const BMesh &bm,
                              MutableSpan<bool> sharp_edge,
                              MutableSpan<bool> uv_seams)
 {
-                  // TODO_MESH_ATTR
- CustomData_free_layer_named(&mesh.edge_data, ".edge_verts");
+  // TODO_MESH_ATTR
+  CustomData_free_layer_named(&mesh.edge_data, ".edge_verts");
   CustomData_add_layer_named(
       &mesh.edge_data, CD_PROP_INT32_2D, CD_CONSTRUCT, mesh.edges_num, ".edge_verts");
   const Vector<BMeshToMeshLayerInfo> info = bm_to_mesh_copy_info_calc(bm.edata, mesh.edge_data);
