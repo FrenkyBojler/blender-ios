@@ -1329,7 +1329,7 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
     if (socket->is_visible()) {
       /* Round the socket location to stop it from jiggling. */
       socket->runtime->location = {
-          round(node.runtime->draw_bounds.xmax - collapsedrad + sinf(rad) * collapsedrad),
+          round(node.runtime->draw_bounds.xmax - collapsedrad + sinf(rad) * collapsedrad * 1.2f),
           round(node.runtime->draw_bounds.ymin + collapsedrad + cosf(rad) * collapsedrad)};
       rad += drad;
     }
@@ -1343,7 +1343,7 @@ static void node_update_collapsed(bNode &node, uiBlock &block)
     if (socket->is_visible()) {
       /* Round the socket location to stop it from jiggling. */
       socket->runtime->location = {
-          round(node.runtime->draw_bounds.xmin + collapsedrad + sinf(rad) * collapsedrad),
+          round(node.runtime->draw_bounds.xmin + collapsedrad + sinf(rad) * collapsedrad * 1.2f),
           round(node.runtime->draw_bounds.ymin + collapsedrad + cosf(rad) * collapsedrad)};
       rad += drad;
     }
