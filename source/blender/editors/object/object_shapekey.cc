@@ -126,24 +126,19 @@ bool shape_key_report_if_any_locked(Object *ob, ReportList *reports)
   return false;
 }
 
-int2 shape_key_foreach_selected_unlocked(Object *ob, FunctionRef<void(Key &, KeyBlock &)> callback)
+void shape_key_foreach_selected(Object *ob, FunctionRef<void(Key &, KeyBlock &)> callback)
 {
   Key &key = *BKE_key_from_object(ob);
-  int num_selected = 0;
-  int num_locked = 0;
   LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
+    /* Always try to find the keyblock again, as the previous one may have been deleted. For the
+     * same reason, ob->shapenr has to be re-evaluated on every loop iteration. */
     const int cur_index = BLI_findindex(&key.block, kb);
-    if (!((kb->flag & KEYBLOCK_SEL) || (cur_index == ob->shapenr - 1))) {
-      continue;
-    }
-    num_selected++;
-    if ((kb->flag & KEYBLOCK_LOCKED_SHAPE) != 0) {
-      num_locked++;
+    const bool is_selected = (kb->flag & KEYBLOCK_SEL) || cur_index == ob->shapenr - 1;
+    if (!is_selected) {
       continue;
     }
     callback(key, *kb);
   }
-  return {num_selected, num_locked};
 }
 
 /** \} */
@@ -432,12 +427,21 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
-    int2 counts = shape_key_foreach_selected_unlocked(ob, [&](Key & /*key*/, KeyBlock &kb) {
+    int num_selected_but_locked = 0;
+    shape_key_foreach_selected(ob, [&](Key & /*key*/, KeyBlock &kb) {
+      if (kb.flag & KEYBLOCK_LOCKED_SHAPE) {
+        num_selected_but_locked++;
+        return;
+      }
+
       changed |= BKE_object_shapekey_remove(bmain, ob, &kb);
     });
 
-    if (const int8_t locked_keys = counts[1]) {
-      BKE_reportf(op->reports, RPT_ERROR, "Cannot delete %d locked shape key(s)", locked_keys);
+    if (num_selected_but_locked) {
+      BKE_reportf(op->reports,
+                  RPT_ERROR,
+                  "Could not delete %d locked shape key(s)",
+                  num_selected_but_locked);
     }
   }
 

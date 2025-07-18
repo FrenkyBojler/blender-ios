@@ -102,13 +102,14 @@ bool shape_key_report_if_active_locked(Object *ob, ReportList *reports);
 bool shape_key_report_if_any_locked(Object *ob, ReportList *reports);
 
 /**
- * Visit selected, unlocked shapekeys.
- * Returns the number of selected resp. locked shapekeys.
+ * Visit selected shapekeys.
+ *
+ * The active shapekey is always considered 'selected', even though it may not
+ * have its selection flag set.
  *
  * The callback is allowed to delete shapekeys, but not add new ones.
  */
-int2 shape_key_foreach_selected_unlocked(Object *ob,
-                                         FunctionRef<void(Key &, KeyBlock &)> callback);
+void shape_key_foreach_selected(Object *ob, FunctionRef<void(Key &, KeyBlock &)> callback);
 
 /* `object_utils.cc` */
 
