@@ -279,7 +279,7 @@ static void image_transform_set(TransInfo *t)
 
     /* Rotation. Scaling can cause negative rotation. */
     if (t->mode == TFM_ROTATION) {
-      transform->rotation = tdseq->orig_rotation - result.rotation;
+      transform->rotation = tdseq->orig_rotation + result.rotation;
     }
 
     if (t->mode == TFM_MIRROR) {
@@ -289,10 +289,10 @@ static void image_transform_set(TransInfo *t)
 
       if (t->orient_curr == O_SET) {
         if (strip == ed->act_strip) {
-          transform->rotation = -tdseq->orig_rotation;
+          transform->rotation = tdseq->orig_rotation;
         }
         else {
-          transform->rotation = tdseq->orig_rotation + (2 * -tdseq->active_seq_orig_rotation);
+          transform->rotation = tdseq->orig_rotation + (2 * tdseq->active_seq_orig_rotation);
         }
       }
       else {
