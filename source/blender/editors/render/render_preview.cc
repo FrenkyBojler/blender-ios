@@ -375,7 +375,8 @@ World *ED_preview_prepare_world_simple(Main *pr_main)
 
   World *world = BKE_world_add(pr_main, "SimpleWorld");
   bNodeTree *ntree = world->nodetree;
-  BLI_assert(ntree != nullptr);
+  ntree = blender::bke::node_tree_add_tree_embedded(
+      nullptr, &world->id, "World Nodetree", "ShaderNodeTree");
 
   bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground");
   bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld");
@@ -394,8 +395,7 @@ void ED_preview_world_simple_set_rgb(World *world, const float color[4])
 {
   BLI_assert(world != nullptr);
 
-  bNode *background = blender::bke::node_find_node_by_name(*world->nodetree,
-                                                           "ShaderNodeBackground");
+  bNode *background = blender::bke::node_find_node_by_name(*world->nodetree, "Background");
   BLI_assert(background != nullptr);
 
   auto color_socket = static_cast<bNodeSocketValueRGBA *>(

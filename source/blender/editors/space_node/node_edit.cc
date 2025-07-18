@@ -603,7 +603,9 @@ void ED_node_shader_default(const bContext *C, ID *id)
   else if (ELEM(GS(id->name), ID_WO, ID_LA)) {
     /* Emission */
     bNode *shader, *output;
-    bNodeTree *ntree = nullptr;
+    bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
+        nullptr, id, "Shader Nodetree", ntreeType_Shader->idname);
+
     if (GS(id->name) == ID_WO) {
       World *world = (World *)id;
       ntree = world->nodetree;
@@ -620,8 +622,6 @@ void ED_node_shader_default(const bContext *C, ID *id)
       copy_v3_v3(((bNodeSocketValueRGBA *)color_sock->default_value)->value, &world->horr);
     }
     else {
-      ntree = blender::bke::node_tree_add_tree_embedded(
-          nullptr, id, "Shader Nodetree", ntreeType_Shader->idname);
       shader = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_EMISSION);
       output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_LIGHT);
       blender::bke::node_add_link(*ntree,

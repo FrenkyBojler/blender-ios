@@ -788,7 +788,8 @@ void do_versions_after_setup(Main *new_bmain,
        * disabling "Use Nodes". */
       id_fake_user_set(&world->id);
       World *legacy_world = BKE_world_add(new_bmain, "World Legacy");
-      BLI_assert(legacy_world->nodetree != nullptr);
+      legacy_world->nodetree = blender::bke::node_tree_add_tree_embedded(
+          new_bmain, &legacy_world->id, "World Node Tree", "ShaderNodeTree");
 
       bNode *background = blender::bke::node_add_static_node(
           nullptr, *legacy_world->nodetree, SH_NODE_BACKGROUND);
@@ -811,6 +812,7 @@ void do_versions_after_setup(Main *new_bmain,
       color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[1] = world->horg;
       color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[2] = world->horb;
       color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[3] = 1.0f;
+      BKE_ntree_update_after_single_tree_change(*new_bmain, *legacy_world->nodetree);
       scene->world = legacy_world;
     }
   }
