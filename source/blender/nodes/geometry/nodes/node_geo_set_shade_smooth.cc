@@ -20,10 +20,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Mesh")
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Description to set the smoothness of");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Bool>("Shade Smooth").default_value(true).field_on_all();
 }
@@ -84,7 +84,7 @@ static void set_sharp(Mesh &mesh,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Mesh");
   const AttrDomain domain = AttrDomain(params.node().custom1);
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<bool> smooth_field = params.extract_input<Field<bool>>("Shade Smooth");
@@ -98,7 +98,7 @@ static void node_geo_exec(GeoNodeExecParams params)
                 fn::invert_boolean_field(smooth_field));
     }
   });
-  params.set_output("Geometry", std::move(geometry_set));
+  params.set_output("Mesh", std::move(geometry_set));
 }
 
 static void node_rna(StructRNA *srna)

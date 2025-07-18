@@ -16,9 +16,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Geometry")
+  b.add_input<decl::Geometry>("Instances")
       .description("Geometry whose instances are (partially) realized");
-  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Instances").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
       .hide_value()
@@ -36,9 +36,9 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Instances");
   if (!geometry_set.has_instances()) {
-    params.set_output("Geometry", std::move(geometry_set));
+    params.set_output("Instances", std::move(geometry_set));
     return;
   }
 
@@ -79,12 +79,12 @@ static void node_geo_exec(GeoNodeExecParams params)
   geometry::RealizeInstancesOptions options;
   options.keep_original_ids = false;
   options.realize_instance_attributes = true;
-  const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Geometry");
+  const NodeAttributeFilter attribute_filter = params.get_attribute_filter("Instances");
   options.attribute_filter = attribute_filter;
   GeometrySet new_geometry_set = geometry::realize_instances(
       geometry_set, options, varied_depth_option);
   new_geometry_set.name = geometry_set.name;
-  params.set_output("Geometry", std::move(new_geometry_set));
+  params.set_output("Instances", std::move(new_geometry_set));
 }
 
 static void node_register()
