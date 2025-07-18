@@ -189,6 +189,13 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
   sub_ps.bind_texture("a", module.dummy_vbo);
   sub_ps.bind_texture("c", module.dummy_vbo);
   sub_ps.bind_texture("ac", module.dummy_vbo);
+  if (gpu_material) {
+    ListBase attr_list = GPU_material_attributes(gpu_material);
+    ListBaseWrapper<GPUMaterialAttribute> attrs(attr_list);
+    for (const GPUMaterialAttribute *attr : attrs) {
+      sub_ps.bind_texture(attr->input_name, module.dummy_vbo);
+    }
+  }
 
   /* TODO: optimize this. Only bind the ones #GPUMaterial needs. */
   for (int i : IndexRange(hair_cache->num_uv_layers)) {
