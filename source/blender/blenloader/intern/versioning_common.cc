@@ -772,35 +772,50 @@ void do_versions_after_setup(Main *new_bmain,
     }
   }
 
-  // todo(habib): in first versioning pass, we're not allowed to create new id data blocks. Is
-  // there a way to achieve the same versioning as below before linking?
   if (!blendfile_or_libraries_versions_atleast(new_bmain, 500, 32)) {
     LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
+      if (scene->world == nullptr) {
+        continue;
+      }
       bNodeTree *ntree = scene->world->nodetree;
       World *world = scene->world;
-      if (ntree && world->use_nodes == false) {
-        printf("World RGB: %0.1f, %0.1f, %0.1f\n", world->horr, world->horg, world->horb);
-        World *legacy_world = BKE_world_add(new_bmain, "World Legacy");
-        bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
-            nullptr, &legacy_world->id, "Shader Nodetree", "ShaderNodeTree");
-        auto shader = blender::bke::node_add_static_node(
-            nullptr, *legacy_world->nodetree, SH_NODE_BACKGROUND);
-        auto output = blender::bke::node_add_static_node(
-            nullptr, *legacy_world->nodetree, SH_NODE_OUTPUT_WORLD);
-        blender::bke::node_add_link(
-            *legacy_world->nodetree,
-            *shader,
-            *blender::bke::node_find_socket(*shader, SOCK_OUT, "Background"),
-            *output,
-            *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
-
-        bNodeSocket *color_sock = blender::bke::node_find_socket(*shader, SOCK_IN, "Color");
-        color_sock->default_value_typed<bNodeSocketValueVector>()->value[0] = world->horr;
-        color_sock->default_value_typed<bNodeSocketValueVector>()->value[1] = world->horg;
-        color_sock->default_value_typed<bNodeSocketValueVector>()->value[2] = world->horb;
-        scene->world = legacy_world;
-        scene->world->use_nodes = true;  // todo(habib): remove, should always be on
+      if (ntree == nullptr || world->use_nodes == true) {
+        continue;
       }
+
+      /* Users defined a world node tree, but deactivated it by disabling #use_nodes. So save the
+       * current world and create a new one with a node tree that simulates the behavior of setting
+       * #use_nodes to false. */
+      id_fake_user_set(&world->id);
+      printf("World RGB: %0.1f, %0.1f, %0.1f\n",
+             world->horr,
+             world->horg,
+             world->horb);  // todo(habib): remove
+      World *legacy_world = BKE_world_add(new_bmain, "World Legacy");
+      BLI_assert(legacy_world->nodetree != nullptr);
+
+      auto background = blender::bke::node_add_static_node(
+          nullptr, *legacy_world->nodetree, SH_NODE_BACKGROUND);
+      auto output = blender::bke::node_add_static_node(
+          nullptr, *legacy_world->nodetree, SH_NODE_OUTPUT_WORLD);
+      blender::bke::node_add_link(
+          *legacy_world->nodetree,
+          *background,
+          *blender::bke::node_find_socket(*background, SOCK_OUT, "Background"),
+          *output,
+          *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
+
+      background->location[0] = -200.0f;
+      background->location[1] = 100.0f;
+      output->location[0] = 200.0f;
+      output->location[1] = 100.0f;
+
+      bNodeSocket *color_sock = blender::bke::node_find_socket(*background, SOCK_IN, "Color");
+      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[0] = world->horr;
+      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[1] = world->horg;
+      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[2] = world->horb;
+      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[3] = 1.0f;
+      scene->world = legacy_world;
     }
   }
 }

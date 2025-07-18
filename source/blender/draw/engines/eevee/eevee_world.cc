@@ -48,8 +48,6 @@ World::~World()
 
     default_world_->nodetree = ntree;
     BLI_listbase_clear(&default_world_->gpumaterial);
-
-    // todo(habib): remove use_nodes from RNA
   }
   return default_world_;
 }
