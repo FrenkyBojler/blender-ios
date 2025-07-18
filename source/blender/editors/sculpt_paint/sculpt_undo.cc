@@ -26,10 +26,8 @@
 
 #include "BLI_timeit.hh"
 #include "CLG_log.h"
-#include <chrono>
 #include <future>
 #include <iostream>
-#include <mutex>
 #include <zstd.h>
 
 #include "BLI_array.hh"
