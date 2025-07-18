@@ -485,7 +485,7 @@ struct uiButTypeWithPointerType {
   ButType but_type = ButType::But;
   /**
    * Buttons can access source data with RNA pointers or raw pointers (#uiBut::poin), when using a
-   * raw pointer to numerical values this indicates the underlying type the source data.
+   * raw pointer to numerical values this indicates the underlying type of the source data.
    */
   ButPointerType pointer_type = ButPointerType::None;
   /**
