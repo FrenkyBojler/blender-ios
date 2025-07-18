@@ -12,9 +12,11 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "BLI_array_utils.hh"
 #include "BLI_color.hh"
 #include "BLI_listbase.h"
 #include "BLI_task.hh"
+#include "BLI_mutex.hh"
 #include "BLI_utildefines.h"
 
 #include "DNA_object_types.h"
@@ -228,11 +230,36 @@ static const uint half_octahedron_tris[4][3] = {
     {0, 4, 1},
 };
 
-static void pointcloud_extract_indices(const PointCloud &pointcloud, PointCloudBatchCache &cache)
+static Span<uint3> cached_half_octahedron_tris(const int64_t min_size)
 {
+  static Array<uint3, 0> cache;
+
   /* Overlap shape and point indices to avoid both having to store the indices into a separate
    * buffer and avoid rendering points as instances. */
+  constexpr uint32_t tri_count_per_point = ARRAY_SIZE(half_octahedron_tris);
+
+  if (cache.size() >= min_size * tri_count_per_point) {
+    return cache.as_span().take_front(min_size * tri_count_per_point);
+  }
+
+  cache.reinitialize(min_size * tri_count_per_point);
+
+  /* TODO(fclem): Could be build on GPU or not be built at all. */
+  threading::parallel_for(IndexRange(min_size), 1024, [&](const IndexRange range) {
+    for (int p : range) {
+      for (int i : IndexRange(tri_count_per_point)) {
+        cache[p * tri_count_per_point + i] = uint3(half_octahedron_tris[i]) | (p << 3);
+      }
+    }
+  });
+
+  return cache.as_span().take_front(min_size * tri_count_per_point);
+}
+
+static void pointcloud_extract_indices(const PointCloud &pointcloud, PointCloudBatchCache &cache)
+{
   uint32_t vertid_max = pointcloud.totpoint << 3;
+
   constexpr uint32_t tri_count_per_point = ARRAY_SIZE(half_octahedron_tris);
   uint32_t primitive_len = pointcloud.totpoint * tri_count_per_point;
 
@@ -240,17 +267,26 @@ static void pointcloud_extract_indices(const PointCloud &pointcloud, PointCloudB
   GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, primitive_len, vertid_max);
   MutableSpan<uint3> data = GPU_indexbuf_get_data(&builder).cast<uint3>();
 
-  /* TODO(fclem): Could be build on GPU or not be built at all. */
-  threading::parallel_for(IndexRange(pointcloud.totpoint), 1024, [&](const IndexRange range) {
-    for (int p : range) {
-      for (int i : IndexRange(tri_count_per_point)) {
-        data[p * tri_count_per_point + i] = uint3(half_octahedron_tris[i]) | (p << 3);
-      }
-    }
-  });
+  Mutex mutex;
+  std::lock_guard<Mutex> lock(mutex);
+  array_utils::copy<uint3>(cached_half_octahedron_tris(pointcloud.totpoint), data);
 
   GPU_indexbuf_build_in_place_ex(
       &builder, 0, primitive_len * 3, false, cache.eval_cache.geom_indices);
+
+  // cache.eval_cache.geom_indices->init(primitive_len * 3,
+  //                                     const_cast<uint32_t *>(cpu_cache.cast<uint32_t>().data()),
+  //                                     0,
+  //                                     primitive_len * 3,
+  //                                     GPU_PRIM_TRIS,
+  //                                     false);
+
+  // cache.eval_cache.geom_indices = GPU_indexbuf_build_from_memory(GPU_PRIM_TRIS,
+  //                                                                cpu_cache.cast<uint32_t>().data(),
+  //                                                                primitive_len,
+  //                                                                0,
+  //                                                                primitive_len,
+  //                                                                false);
 }
 
 static void pointcloud_extract_position_and_radius(const PointCloud &pointcloud,
