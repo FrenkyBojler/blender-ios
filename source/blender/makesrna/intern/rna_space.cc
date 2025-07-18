@@ -161,6 +161,11 @@ const EnumPropertyItem rna_enum_space_type_items[] = {
      ICON_PREFERENCES,
      "Preferences",
      "Edit persistent configuration settings"},
+    {SPACE_PROJECT,
+     "PROJECT",
+     ICON_BLENDER_PROJECT,
+     "Project",
+     "Manage the current Blender project"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
@@ -683,6 +688,8 @@ static StructRNA *rna_Space_refine(PointerRNA *ptr)
       return &RNA_SpaceClipEditor;
     case SPACE_SPREADSHEET:
       return &RNA_SpaceSpreadsheet;
+    case SPACE_PROJECT:
+      return &RNA_SpaceProject;
 
       /* Currently no type info. */
     case SPACE_SCRIPT:
@@ -9022,6 +9029,15 @@ static void rna_def_space_spreadsheet(BlenderRNA *brna)
   RNA_def_property_update(prop, NC_SPACE | ND_SPACE_SPREADSHEET, nullptr);
 }
 
+static void rna_def_space_project(BlenderRNA *brna)
+{
+  StructRNA *srna;
+
+  srna = RNA_def_struct(brna, "SpaceProject", "Space");
+  RNA_def_struct_sdna(srna, "SpaceProject");
+  RNA_def_struct_ui_text(srna, "Space Project", "TODO: description");
+}
+
 void RNA_def_space(BlenderRNA *brna)
 {
   rna_def_space(brna);
@@ -9050,6 +9066,7 @@ void RNA_def_space(BlenderRNA *brna)
   rna_def_space_node(brna);
   rna_def_space_clip(brna);
   rna_def_space_spreadsheet(brna);
+  rna_def_space_project(brna);
 }
 
 #endif

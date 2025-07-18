@@ -158,6 +158,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case SPACE_SPREADSHEET:
           ts = &btheme->space_spreadsheet;
           break;
+        case SPACE_PROJECT:
+          ts = &btheme->space_project;
+          break;
         default:
           ts = &btheme->space_view3d;
           break;
@@ -203,7 +206,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_TEXT:
           if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS) ||
-              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
+              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF, SPACE_PROJECT))
           {
             cp = btheme->tui.panel_text;
           }
@@ -238,7 +241,7 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case TH_TITLE:
           if (ELEM(g_theme_state.regionid, RGN_TYPE_UI, RGN_TYPE_TOOLS) ||
-              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF))
+              ELEM(g_theme_state.spacetype, SPACE_PROPERTIES, SPACE_USERPREF, SPACE_PROJECT))
           {
             cp = btheme->tui.panel_title;
           }

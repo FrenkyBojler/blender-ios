@@ -1245,4 +1245,18 @@ typedef struct SpreadsheetRowFilter {
   char _pad1[4];
 } SpreadsheetRowFilter;
 
+/* -------------------------------------------------------------------- */
+/** \name Blender Project
+ * \{ */
+
+typedef struct SpaceProject {
+  SpaceLink *next, *prev;
+  /** Storage of regions for inactive spaces. */
+  ListBase regionbase;
+  char spacetype;
+  char link_flag;
+  char _pad0[6];
+  /* End 'SpaceLink' header. */
+} SpaceProject;
+
 /** \} */
