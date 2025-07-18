@@ -31,6 +31,7 @@
 
 #include "BKE_context.hh"
 #include "BKE_image.hh"
+#include "BKE_layer.hh"
 #include "BKE_scene.hh"
 #include "BKE_screen.hh"
 
@@ -240,7 +241,8 @@ static void wm_software_cursor_motion_clear_with_window(const wmWindow *win)
   }
 }
 
-static void wm_software_cursor_draw_bitmap(const int event_xy[2],
+static void wm_software_cursor_draw_bitmap(const float system_scale,
+                                           const int event_xy[2],
                                            const GHOST_CursorBitmapRef *bitmap)
 {
   GPU_blend(GPU_BLEND_ALPHA);
@@ -248,14 +250,12 @@ static void wm_software_cursor_draw_bitmap(const int event_xy[2],
   float gl_matrix[4][4];
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
   GPUTexture *texture = GPU_texture_create_2d(
-      "softeare_cursor", bitmap->data_size[0], bitmap->data_size[1], 1, GPU_RGBA8, usage, nullptr);
+      "software_cursor", bitmap->data_size[0], bitmap->data_size[1], 1, GPU_RGBA8, usage, nullptr);
   GPU_texture_update(texture, GPU_DATA_UBYTE, bitmap->data);
   GPU_texture_filter_mode(texture, false);
 
   GPU_matrix_push();
 
-  /* The DPI as a scale without the UI scale preference. */
-  const float system_scale = UI_SCALE_FAC / U.ui_scale;
   /* With RGBA cursors, the cursor will have been generated at the correct size,
    * there is no need to perform additional scaling.
    *
@@ -311,14 +311,12 @@ static void wm_software_cursor_draw_bitmap(const int event_xy[2],
   GPU_blend(GPU_BLEND_NONE);
 }
 
-static void wm_software_cursor_draw_crosshair(const int event_xy[2])
+static void wm_software_cursor_draw_crosshair(const float system_scale, const int event_xy[2])
 {
   /* Draw a primitive cross-hair cursor.
    * NOTE: the `win->cursor` could be used for drawing although it's complicated as some cursors
    * are set by the operating-system, where the pixel information isn't easily available. */
 
-  /* The DPI as a scale without the UI scale preference. */
-  const float system_scale = UI_SCALE_FAC / U.ui_scale;
   /* The cursor scaled by the "default" size. */
   const float cursor_scale = float(WM_cursor_preferred_logical_size()) /
                              float(WM_CURSOR_DEFAULT_LOGICAL_SIZE);
@@ -380,14 +378,16 @@ static void wm_software_cursor_draw(wmWindow *win, const GrabState *grab_state)
     }
   }
 
+  const float system_scale = WM_window_dpi_get_scale(win);
+
   GHOST_CursorBitmapRef bitmap = {nullptr};
   if (GHOST_GetCursorBitmap(static_cast<GHOST_WindowHandle>(win->ghostwin), &bitmap) ==
       GHOST_kSuccess)
   {
-    wm_software_cursor_draw_bitmap(event_xy, &bitmap);
+    wm_software_cursor_draw_bitmap(system_scale, event_xy, &bitmap);
   }
   else {
-    wm_software_cursor_draw_crosshair(event_xy);
+    wm_software_cursor_draw_crosshair(system_scale, event_xy);
   }
 }
 
@@ -972,8 +972,15 @@ static void wm_draw_area_offscreen(bContext *C, wmWindow *win, ScrArea *area, bo
 
   if (area->flag & AREA_FLAG_ACTIVE_TOOL_UPDATE) {
     if ((1 << area->spacetype) & WM_TOOLSYSTEM_SPACE_MASK) {
-      WM_toolsystem_update_from_context(
-          C, CTX_wm_workspace(C), CTX_data_scene(C), CTX_data_view_layer(C), area);
+      if (area->spacetype == SPACE_SEQ) {
+        Scene *scene = CTX_data_sequencer_scene(C);
+        WM_toolsystem_update_from_context(
+            C, CTX_wm_workspace(C), scene, BKE_view_layer_default_render(scene), area);
+      }
+      else {
+        WM_toolsystem_update_from_context(
+            C, CTX_wm_workspace(C), CTX_data_scene(C), CTX_data_view_layer(C), area);
+      }
     }
     area->flag &= ~AREA_FLAG_ACTIVE_TOOL_UPDATE;
   }
