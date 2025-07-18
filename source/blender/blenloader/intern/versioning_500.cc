@@ -1130,11 +1130,20 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
 
 static void do_version_convert_gp_jitter_values(Brush *brush)
 {
+  /* Because this change is backported into the 4.5 branch, we need to avoid performing versioning
+   * in case the user updated their custom brush assets between using 4.5 and 5.0 to avoid
+   * overwriting their changes.
+   *
+   * See #142104
+   */
+  if ((brush->flag2 & BRUSH_JITTER_COLOR) != 0 || !is_zero_v3(brush->hsv_jitter)) {
+    return;
+  }
+
   BrushGpencilSettings *settings = brush->gpencil_settings;
   float old_hsv_jitter[3] = {
       settings->random_hue, settings->random_saturation, settings->random_value};
-  if (settings->random_hue != 0.0f || settings->random_saturation != 0.0f ||
-      settings->random_value != 0.0f)
+  if (!is_zero_v3(old_hsv_jitter))
   {
     brush->flag2 |= BRUSH_JITTER_COLOR;
   }
