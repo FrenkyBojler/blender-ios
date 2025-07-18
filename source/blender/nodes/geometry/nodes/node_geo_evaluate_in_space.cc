@@ -315,7 +315,7 @@ class SpaceValueFieldInput final : public bke::GeometryFieldInput {
       });
     }
 
-    return GVArray::ForGArray(std::move(dst_values));
+    return GVArray::from_garray(std::move(dst_values));
   }
 
  public:
