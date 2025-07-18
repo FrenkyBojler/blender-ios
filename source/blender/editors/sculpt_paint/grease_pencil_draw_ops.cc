@@ -1137,8 +1137,7 @@ static void grease_pencil_fill_overlay_cb(const bContext *C, ARegion * /*region*
       const bool use_xray = false;
       const float radius_scale = 1.0f;
 
-      ed::greasepencil::image_render::draw_grease_pencil_strokes((bContext *)C,
-                                                                 rv3d,
+      ed::greasepencil::image_render::draw_grease_pencil_strokes(rv3d,
                                                                  int2(region.winx, region.winy),
                                                                  object,
                                                                  info.drawing,

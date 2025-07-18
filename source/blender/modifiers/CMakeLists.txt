@@ -6,22 +6,8 @@ set(INC
   .
   intern
   intern/lineart
-  ../blenkernel
-  ../blenloader
-  ../blentranslation
-  ../bmesh
-  ../draw
-  ../draw/intern
   ../editors/include
-  ../functions
-  ../geometry
-  ../gpu
-  ../gpu/intern
   ../makesrna
-  ../nodes
-  ../render
-  ../render/intern
-  ../windowmanager
   ../../../intern/eigen
 
   # RNA_prototypes.hh

@@ -4,22 +4,8 @@
 
 set(INC
   ../include
-  ../../blenkernel
-  ../../blentranslation
-  ../../bmesh
-  ../../gpu
-  ../../imbuf
-  ../../blenlib
   ../../makesrna
-  ../../draw
-  ../../draw/intern
-  ../../render
-  ../../render/intern
-  ../../windowmanager
-  ../../windowmanager/xr
-  ../../windowmanager/intern
   ../../../../extern/curve_fit_nd
-  ../../geometry
   ../sculpt_paint
   ../../modifiers/intern/lineart
   # RNA_prototypes.hh
