@@ -148,3 +148,4 @@ MemFile *ED_undosys_stack_memfile_get_if_active(UndoStack *ustack);
  * (currently we only do that in #MemFileWriteData when writing a new step).
  */
 void ED_undosys_stack_memfile_id_changed_tag(UndoStack *ustack, ID *id);
+size_t get_total_undo_memory();

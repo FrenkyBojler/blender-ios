@@ -908,4 +908,22 @@ Vector<Base *> ED_undo_editmode_bases_from_view_layer(const Scene *scene, ViewLa
   return bases;
 }
 
+size_t get_total_undo_memory()
+{
+  UndoStack *ustack = ED_undo_stack_get();
+  if (!ustack) {
+    return 0;
+  }
+
+  size_t total_memory = 0;
+
+  for (UndoStep *us = static_cast<UndoStep *>(ustack->steps.first); us != nullptr; us = us->next) {
+    if (us->data_size > 0) {
+      total_memory += us->data_size;
+    }
+  }
+
+  return total_memory;
+}
+
 /** \} */

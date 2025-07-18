@@ -46,7 +46,7 @@
 
 #include "UI_interface_icons.hh"
 
-#include "ED_sculpt.hh"
+#include "ED_undo.hh"
 #include "MEM_guardedalloc.h"
 
 #include "RNA_enum_types.hh" /* For `rna_enum_wm_job_type_items`. */
@@ -652,19 +652,14 @@ PyDoc_STRVAR(
     "   Get undo memory usage information.\n"
     "\n"
     "   :return: 'total_memory'.\n"
-    "   :rtype: float\n");
+    "   :rtype: int\n");
 
 static PyObject *bpy_app_undo_memory_info(PyObject * /*self*/, PyObject * /*args*/)
 {
-  bContext *C = BPY_context_get();
-  if (!C) {
-    PyErr_SetString(PyExc_RuntimeError, "No active context available");
-    return nullptr;
-  }
 
-  size_t total_memory = blender::ed::sculpt_paint::undo::get_total_undo_memory(C);
+  size_t total_memory = get_total_undo_memory();
 
-  return PyFloat_FromDouble(total_memory);
+  return PyLong_FromSize_t(total_memory);
 }
 
 static PyMethodDef bpy_app_methods[] = {
