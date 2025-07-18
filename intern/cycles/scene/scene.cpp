@@ -633,6 +633,10 @@ bool Scene::load_kernels(Progress &progress)
     const scoped_timer timer;
 
     log_kernel_features(kernel_features);
+
+    /* Allow device to inspect scene in case any scene-specific features need enabling. */
+    device->prepare_load_kernels(this);
+
     if (!device->load_kernels(kernel_features)) {
       string message = device->error_message();
       if (message.empty()) {

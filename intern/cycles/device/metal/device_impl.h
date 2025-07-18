@@ -39,6 +39,7 @@ class MetalDevice : public Device {
 
   /* MetalRT members ----------------------------------*/
   bool use_metalrt = false;
+  bool use_metalrt_extended_limits = false;
   bool motion_blur = false;
   bool use_pcmi = false;
 
@@ -135,6 +136,8 @@ class MetalDevice : public Device {
   unique_ptr<DeviceQueue> gpu_queue_create() override;
 
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
+
+  void prepare_load_kernels(Scene *scene) override;
 
   void optimize_for_scene(Scene *scene) override;
 

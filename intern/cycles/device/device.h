@@ -169,6 +169,9 @@ class Device {
   /* constant memory */
   virtual void const_copy_to(const char *name, void *host, const size_t size) = 0;
 
+  /* prepare to load/compile kernels for a given scene, called immediately before load_kernels */
+  virtual void prepare_load_kernels(Scene * /*scene*/) {}
+
   /* load/compile kernels, must be called before adding tasks */
   virtual bool load_kernels(uint /*kernel_features*/)
   {
