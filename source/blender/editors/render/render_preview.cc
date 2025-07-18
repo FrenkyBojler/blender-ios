@@ -374,9 +374,9 @@ World *ED_preview_prepare_world_simple(Main *pr_main)
   using namespace blender::bke;
 
   World *world = BKE_world_add(pr_main, "SimpleWorld");
+  bNodeTree *ntree = world->nodetree;
+  BLI_assert(ntree != nullptr);
 
-  bNodeTree *ntree = node_tree_add_tree_embedded(
-      nullptr, &world->id, "Shader Nodetree", "ShaderNodeTree");
   bNode *background = node_add_node(nullptr, *ntree, "ShaderNodeBackground");
   bNode *output = node_add_node(nullptr, *ntree, "ShaderNodeOutputWorld");
   node_add_link(*world->nodetree,
