@@ -122,7 +122,7 @@ static wmOperatorStatus set_persistent_base_exec(bContext *C, wmOperator * /*op*
       const Span<float3> vert_normals = bke::pbvh::vert_normals_eval(*depsgraph, ob);
       attributes.add<float3>(".sculpt_persistent_no",
                              bke::AttrDomain::Point,
-                             bke::AttributeInitVArray(VArray<float3>::ForSpan(vert_normals)));
+                             bke::AttributeInitVArray(VArray<float3>::from_span(vert_normals)));
       break;
     }
     case bke::pbvh::Type::Grids: {
@@ -552,17 +552,17 @@ static wmOperatorStatus sculpt_mode_toggle_exec(bContext *C, wmOperator *op)
   const bool is_mode_set = (ob.mode & mode_flag) != 0;
 
   if (!is_mode_set) {
-    if (!object::mode_compat_set(C, &ob, eObjectMode(mode_flag), op->reports)) {
-      return OPERATOR_CANCELLED;
-    }
-
     /* Being in sculpt mode on an invisible object is a confusing state; while switching the
      * visibility of the current object shouldn't inherently change the mode, we prevent entering
      * sculpt mode on an object that is already invisible to better align with how the mode toggle
      * works currently. */
     const View3D *v3d = CTX_wm_view3d(C);
-    const Base *base = CTX_data_active_base(C);
+    const Base *base = BKE_view_layer_base_find(&view_layer, &ob);
     if (!BKE_base_is_visible(v3d, base)) {
+      return OPERATOR_CANCELLED;
+    }
+
+    if (!object::mode_compat_set(C, &ob, eObjectMode(mode_flag), op->reports)) {
       return OPERATOR_CANCELLED;
     }
   }
