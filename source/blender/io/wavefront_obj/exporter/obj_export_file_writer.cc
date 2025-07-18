@@ -498,7 +498,7 @@ void OBJWriter::write_nurbs_curve(FormatHandler &fh, const IOBJCurve &obj_nurbs_
      */
     BLI_assert(obj_nurbs_data.num_control_points_v(spline_idx) == 1);
 
-    float4x4 world_axes_transform = compute_world_axes_transform(
+    const float4x4 world_axes_transform = compute_world_axes_transform(
         export_params_, obj_nurbs_data.object_transform());
 
     const char *nurbs_name = obj_nurbs_data.get_curve_name();
