@@ -23,6 +23,25 @@ enum class ShapeMethod : int16_t {
   Concave = 2,
 };
 
+static const EnumPropertyItem shape_method_items[] = {
+    {int(ShapeMethod::Aabb),
+     "AABB",
+     0,
+     "Bounding Box",
+     "Use axis-aligned bounding boxes for packing (fastest, least space efficient)"},
+    {int(ShapeMethod::Convex),
+     "CONVEX",
+     0,
+     "Convex Hull",
+     "Use convex hull approximation of islands (good balance of speed and space efficiency)"},
+    {int(ShapeMethod::Concave),
+     "CONCAVE",
+     0,
+     "Exact Shape",
+     "Use exact geometry for most efficient packing (slowest)"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static eUVPackIsland_ShapeMethod convert_shape_method(const ShapeMethod method)
 {
   switch (method) {
@@ -41,8 +60,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_default_layout();
   b.add_input<decl::Vector>("UV").hide_value().supports_field();
+  b.add_output<decl::Vector>("UV").field_source_reference_all().align_with_previous();
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
       .hide_value()
@@ -51,12 +70,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Margin").default_value(0.001f).min(0.0f).max(1.0f).description(
       "Space between islands");
   b.add_input<decl::Bool>("Rotate").default_value(true).description("Rotate islands for best fit");
-  b.add_output<decl::Vector>("UV").field_source_reference_all();
-}
-
-static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
-{
-  layout->prop(ptr, "shape_method", UI_ITEM_NONE, "", ICON_NONE);
+  b.add_input<decl::Menu>("Shape Method")
+      .static_items(shape_method_items)
+      .default_value(int(ShapeMethod::Aabb))
+      .description("Method used for packing UV islands");
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -179,8 +196,7 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const bNode &node = params.node();
-  const ShapeMethod local_shape_method = ShapeMethod(node.custom1);
+  const ShapeMethod local_shape_method = params.get_input<ShapeMethod>("Shape Method");
   const eUVPackIsland_ShapeMethod shape_method = convert_shape_method(local_shape_method);
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
@@ -190,36 +206,6 @@ static void node_geo_exec(GeoNodeExecParams params)
   params.set_output("UV",
                     Field<float3>(std::make_shared<PackIslandsFieldInput>(
                         selection_field, uv_field, rotate, margin, shape_method)));
-}
-
-static void node_rna(StructRNA *srna)
-{
-  static const EnumPropertyItem shape_method_items[] = {
-      {int(ShapeMethod::Aabb),
-       "AABB",
-       0,
-       "Bounding Box",
-       "Use axis-aligned bounding boxes for packing (fastest, least space efficient)"},
-      {int(ShapeMethod::Convex),
-       "CONVEX",
-       0,
-       "Convex Hull",
-       "Use convex hull approximation of islands (good balance of speed and space efficiency)"},
-      {int(ShapeMethod::Concave),
-       "CONCAVE",
-       0,
-       "Exact Shape",
-       "Use exact geometry for most efficient packing (slowest)"},
-      {0, nullptr, 0, nullptr, nullptr},
-  };
-
-  RNA_def_node_enum(srna,
-                    "shape_method",
-                    "Shape Method",
-                    "Method used for packing UV islands",
-                    shape_method_items,
-                    NOD_inline_enum_accessors(custom1),
-                    int(ShapeMethod::Aabb));
 }
 
 static void node_register()
@@ -235,10 +221,7 @@ static void node_register()
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  ntype.draw_buttons = node_layout;
   blender::bke::node_register_type(ntype);
-
-  node_rna(ntype.rna_ext.srna);
 }
 NOD_REGISTER_NODE(node_register)
 
