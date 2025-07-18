@@ -171,23 +171,6 @@ static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
 /** \name Remove Shape Key Function
  * \{ */
 
-static bool object_shapekey_remove(Main *bmain, Object *ob)
-{
-  KeyBlock *kb;
-  Key *key = BKE_key_from_object(ob);
-
-  if (key == nullptr) {
-    return false;
-  }
-
-  kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, ob->shapenr - 1));
-  if (kb) {
-    return BKE_object_shapekey_remove(bmain, ob, kb);
-  }
-
-  return false;
-}
-
 static bool object_shape_key_mirror(
     bContext *C, Object *ob, int *r_totmirr, int *r_totfail, bool use_topology)
 {
