@@ -1145,8 +1145,7 @@ static void do_version_convert_gp_jitter_values(Brush *brush)
   BrushGpencilSettings *settings = brush->gpencil_settings;
   float old_hsv_jitter[3] = {
       settings->random_hue, settings->random_saturation, settings->random_value};
-  if (!is_zero_v3(old_hsv_jitter))
-  {
+  if (!is_zero_v3(old_hsv_jitter)) {
     brush->flag2 |= BRUSH_JITTER_COLOR;
   }
   copy_v3_v3(brush->hsv_jitter, old_hsv_jitter);
