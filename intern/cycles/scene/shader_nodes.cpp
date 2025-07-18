@@ -652,9 +652,14 @@ static void sky_texture_precompute(SunSky *sunsky,
   float pixel_top[3];
 
   if (multiple_scattering) {
-    SKY_multiple_scattering_precompute_transmittance(air_density, aerosol_density, ozone_density);
-    SKY_multiple_scattering_precompute_sun(
-        sun_elevation, sun_size, altitude, pixel_bottom, pixel_top);
+    SKY_multiple_scattering_precompute_sun(sun_elevation,
+                                           sun_size,
+                                           altitude,
+                                           air_density,
+                                           aerosol_density,
+                                           ozone_density,
+                                           pixel_bottom,
+                                           pixel_top);
   }
   else {
     SKY_single_scattering_precompute_sun(
@@ -690,8 +695,14 @@ float SkyTextureNode::get_sun_average_radiance()
                                          pix_top);
   }
   else {
-    SKY_multiple_scattering_precompute_sun(
-        sun_elevation, angular_diameter, altitude, pix_bottom, pix_top);
+    SKY_multiple_scattering_precompute_sun(sun_elevation,
+                                           angular_diameter,
+                                           altitude,
+                                           air_density,
+                                           aerosol_density,
+                                           ozone_density,
+                                           pix_bottom,
+                                           pix_top);
   }
 
   /* Sample center of Sun. */

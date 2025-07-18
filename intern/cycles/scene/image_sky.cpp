@@ -4,8 +4,6 @@
 
 #include "scene/image_sky.h"
 
-#include "util/tbb.h"
-
 #include "sky_model.h"
 
 CCL_NAMESPACE_BEGIN
@@ -46,37 +44,27 @@ bool SkyLoader::load_pixels(const ImageMetaData &metadata,
   int width = metadata.width;
   int height = metadata.height;
   float *pixel_data = (float *)pixels;
-  const int rows_per_task = divide_up(1024, width);
   if (multiple_scattering) {
-    parallel_for(blocked_range<size_t>(0, height, rows_per_task),
-                 [&](const blocked_range<size_t> &r) {
-                   SKY_multiple_scattering_precompute_texture(pixel_data,
-                                                              metadata.channels,
-                                                              r.begin(),
-                                                              r.end(),
-                                                              width,
-                                                              sun_elevation,
-                                                              altitude,
-                                                              air_density,
-                                                              aerosol_density,
-                                                              ozone_density);
-                 });
+    SKY_multiple_scattering_precompute_texture(pixel_data,
+                                               metadata.channels,
+                                               width,
+                                               height,
+                                               sun_elevation,
+                                               altitude,
+                                               air_density,
+                                               aerosol_density,
+                                               ozone_density);
   }
   else {
-    parallel_for(blocked_range<size_t>(0, height, rows_per_task),
-                 [&](const blocked_range<size_t> &r) {
-                   SKY_single_scattering_precompute_texture(pixel_data,
-                                                            metadata.channels,
-                                                            r.begin(),
-                                                            r.end(),
-                                                            width,
-                                                            height,
-                                                            sun_elevation,
-                                                            altitude,
-                                                            air_density,
-                                                            aerosol_density,
-                                                            ozone_density);
-                 });
+    SKY_single_scattering_precompute_texture(pixel_data,
+                                             metadata.channels,
+                                             width,
+                                             height,
+                                             sun_elevation,
+                                             altitude,
+                                             air_density,
+                                             aerosol_density,
+                                             ozone_density);
   }
 
   return true;

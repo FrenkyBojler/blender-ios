@@ -19,6 +19,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::dependencies::optional::tbb
 )
 
 blender_add_lib(bf_intern_sky "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2020-2022 Blender Authors
+/* SPDX-FileCopyrightText: 2020-2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -15,8 +15,6 @@ extern "C" {
 
 void SKY_single_scattering_precompute_texture(float *pixels,
                                               int stride,
-                                              int start_y,
-                                              int end_y,
                                               int width,
                                               int height,
                                               float sun_elevation,
@@ -35,22 +33,20 @@ void SKY_single_scattering_precompute_sun(float sun_elevation,
 
 void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 int stride,
-                                                int start_y,
-                                                int end_y,
                                                 int width,
+                                                int height,
                                                 float sun_elevation,
                                                 float altitude,
                                                 float air_density,
                                                 float aerosol_density,
                                                 float ozone_density);
 
-void SKY_multiple_scattering_precompute_transmittance(float air_density,
-                                                      float aerosol_density,
-                                                      float ozone_density);
-
 void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float angular_diameter,
                                             float altitude,
+                                            float air_density,
+                                            float aerosol_density,
+                                            float ozone_density,
                                             float r_pixel_bottom[3],
                                             float r_pixel_top[3]);
 

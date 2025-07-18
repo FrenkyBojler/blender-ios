@@ -1,4 +1,5 @@
-/* SPDX-FileCopyrightText: 2011-2020 Blender Authors
+/* SPDX-FileCopyrightText: 2022 Fernando García Liñán
+ * SPDX-FileCopyrightText: 2011-2025 Blender Authors
  *
  * SPDX-License-Identifier: MIT */
 
@@ -28,8 +29,12 @@
  * https://github.com/fgarlin/skytracer
  */
 
+#include <algorithm>
+
 #include "sky_math.h"
 #include "sky_model.h"
+
+#include <tbb/parallel_for.h>
 
 /* Earth's atmosphere parameters. */
 /* Ground reflectance */
@@ -52,7 +57,6 @@ static const int IN_SCATTERING_STEPS = 64;
 /* LUTs */
 static const int TRANSMITTANCE_RES_X = 256;
 static const int TRANSMITTANCE_RES_Y = 64;
-float transmittance_lut[TRANSMITTANCE_RES_X][TRANSMITTANCE_RES_Y][4] = {};
 static const float2 TRANSMITTANCE_RES = make_float2((float)TRANSMITTANCE_RES_X,
                                                     (float)TRANSMITTANCE_RES_Y);
 static const float2 SKY_RES = make_float2(512.0f, 256.0f);  // Same as the precomputed sky
@@ -78,7 +82,12 @@ static const float SPECTRAL_XYZ[][4] = {
     {22.981337506691024754, 71.347795700053393866, 18.422960591455485011, 2.3614213523314368527},
     {-0.0000003663162907346, 0.102506867965741307, 31.742921188390805758, 110.48009643252140334}};
 
-static float4 lut_value(float2 uv)
+/* Precomputed data. */
+struct SkyMultipleScattering {
+  float transmittance_lut[TRANSMITTANCE_RES_X][TRANSMITTANCE_RES_Y][4] = {};
+};
+
+static float4 lut_value(const SkyMultipleScattering &sms, float2 uv)
 {
   /* Bilinear interpolation */
   float posx = float(TRANSMITTANCE_RES_X - 1) * uv.x;
@@ -90,25 +99,27 @@ static float4 lut_value(float2 uv)
   float weight_x = posx - x1;
   float weight_y = posy - y1;
   float4 avg1 = make_float4(
-      mix(transmittance_lut[x1][y1][0], transmittance_lut[x2][y1][0], weight_x),
-      mix(transmittance_lut[x1][y1][1], transmittance_lut[x2][y1][1], weight_x),
-      mix(transmittance_lut[x1][y1][2], transmittance_lut[x2][y1][2], weight_x),
-      mix(transmittance_lut[x1][y1][3], transmittance_lut[x2][y1][3], weight_x));
+      mix(sms.transmittance_lut[x1][y1][0], sms.transmittance_lut[x2][y1][0], weight_x),
+      mix(sms.transmittance_lut[x1][y1][1], sms.transmittance_lut[x2][y1][1], weight_x),
+      mix(sms.transmittance_lut[x1][y1][2], sms.transmittance_lut[x2][y1][2], weight_x),
+      mix(sms.transmittance_lut[x1][y1][3], sms.transmittance_lut[x2][y1][3], weight_x));
   float4 avg2 = make_float4(
-      mix(transmittance_lut[x1][y2][0], transmittance_lut[x2][y2][0], weight_x),
-      mix(transmittance_lut[x1][y2][1], transmittance_lut[x2][y2][1], weight_x),
-      mix(transmittance_lut[x1][y2][2], transmittance_lut[x2][y2][2], weight_x),
-      mix(transmittance_lut[x1][y2][3], transmittance_lut[x2][y2][3], weight_x));
+      mix(sms.transmittance_lut[x1][y2][0], sms.transmittance_lut[x2][y2][0], weight_x),
+      mix(sms.transmittance_lut[x1][y2][1], sms.transmittance_lut[x2][y2][1], weight_x),
+      mix(sms.transmittance_lut[x1][y2][2], sms.transmittance_lut[x2][y2][2], weight_x),
+      mix(sms.transmittance_lut[x1][y2][3], sms.transmittance_lut[x2][y2][3], weight_x));
 
   return avg1 * (1.0f - weight_y) + avg2 * weight_y;
 }
 
-static float4 transmittance_from_lut(float cos_theta, float normalized_altitude)
+static float4 transmittance_from_lut(const SkyMultipleScattering &sms,
+                                     float cos_theta,
+                                     float normalized_altitude)
 {
   float u = clamp(cos_theta * 0.5f + 0.5f, 0.0f, 1.0f);
   float v = clamp(normalized_altitude, 0.0f, 1.0f);
   float2 uv = make_float2(u, v);
-  return lut_value(uv);
+  return lut_value(sms, uv);
 }
 
 static float ray_sphere_intersection(float3 ro, float3 rd, float radius)
@@ -139,13 +150,16 @@ static float aerosol_phase_function(float cos_theta)
   return INV_4PI * (1.0f - SQR_G) / (den * sqrtf(den));
 }
 
-static float4 get_multiple_scattering(float cos_theta, float normalized_height, float d)
+static float4 get_multiple_scattering(const SkyMultipleScattering &sms,
+                                      float cos_theta,
+                                      float normalized_height,
+                                      float d)
 {
   /* Solid angle subtended by the planet from a point at d distance from the planet center. */
   float omega = 2.0f * M_PI_F * (1.0f - sqrtf(d * d - EARTH_RADIUS * EARTH_RADIUS) / d);
-  float4 T_to_ground = transmittance_from_lut(cos_theta, 0.0f);
-  float4 T_ground_to_sample = transmittance_from_lut(1.0f, 0.0f) /
-                              transmittance_from_lut(1.0f, normalized_height);
+  float4 T_to_ground = transmittance_from_lut(sms, cos_theta, 0.0f);
+  float4 T_ground_to_sample = transmittance_from_lut(sms, 1.0f, 0.0f) /
+                              transmittance_from_lut(sms, 1.0f, normalized_height);
   /* 2nd order scattering from the ground. */
   float4 L_ground = PHASE_ISOTROPIC * omega * (GROUND_ALBEDO / M_PI_F) * T_to_ground *
                     T_ground_to_sample * cos_theta;
@@ -232,8 +246,12 @@ static float4 transmittance_lut_calc(float2 coordinates, float3 density_multipli
   return transmittance;
 }
 
-static float4 compute_inscattering(
-    float3 sun_dir, float3 ray_origin, float3 ray_dir, float t_d, float3 density_multipliers)
+static float4 compute_inscattering(const SkyMultipleScattering &sms,
+                                   float3 sun_dir,
+                                   float3 ray_origin,
+                                   float3 ray_dir,
+                                   float t_d,
+                                   float3 density_multipliers)
 {
   float cos_theta = dot(-ray_dir, sun_dir);
   float molecular_phase = molecular_phase_function(cos_theta);
@@ -258,9 +276,10 @@ static float4 compute_inscattering(
                                           density_multipliers);
     float4 extinction = aerosol_absorption + aerosol_scattering + molecular_absorption +
                         molecular_scattering;
-    float4 transmittance_to_sun = transmittance_from_lut(sample_cos_theta, normalized_altitude);
+    float4 transmittance_to_sun = transmittance_from_lut(
+        sms, sample_cos_theta, normalized_altitude);
     float4 ms = get_multiple_scattering(
-        sample_cos_theta, normalized_altitude, distance_to_earth_center);
+        sms, sample_cos_theta, normalized_altitude, distance_to_earth_center);
     float4 S = SUN_SPECTRAL_IRRADIANCE *
                (molecular_scattering * (molecular_phase * transmittance_to_sun + ms) +
                 aerosol_scattering * (aerosol_phase * transmittance_to_sun + ms));
@@ -282,7 +301,8 @@ static float4 compute_inscattering(
   return L_inscattering;
 }
 
-static float3 sky_lut(float3 sun_dir,
+static float3 sky_lut(const SkyMultipleScattering &sms,
+                      float3 sun_dir,
                       float2 coordinates,
                       float altitude,
                       float3 density_multipliers)
@@ -300,36 +320,41 @@ static float3 sky_lut(float3 sun_dir,
   /* If no ground collision then use the distance to the outer atmosphere, else we have a collision
    * with the ground so we use the distance to it. */
   float t_d = (ground_dist < 0.0f) ? atmos_dist : ground_dist;
-  float4 L = compute_inscattering(sun_dir, ray_origin, ray_dir, t_d, density_multipliers);
+  float4 L = compute_inscattering(sms, sun_dir, ray_origin, ray_dir, t_d, density_multipliers);
   float3 xyz = spectral_to_xyz(L);
 
   return xyz;
 }
 
-void SKY_multiple_scattering_precompute_transmittance(float air_density,
-                                                      float aerosol_density,
-                                                      float ozone_density)
+static SkyMultipleScattering sky_precompute_transmittance(float air_density,
+                                                          float aerosol_density,
+                                                          float ozone_density)
 {
   /* Calculate and store transmittance LUT. */
+  SkyMultipleScattering sms;
   float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
-  for (int x = 0; x < TRANSMITTANCE_RES_X; x++) {
-    for (int y = 0; y < TRANSMITTANCE_RES_Y; y++) {
-      float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
-      float4 lut = transmittance_lut_calc(coordinates, density_multipliers);
-      int reverse_y = TRANSMITTANCE_RES_Y - y - 1;
-      transmittance_lut[x][reverse_y][0] = lut.x;
-      transmittance_lut[x][reverse_y][1] = lut.y;
-      transmittance_lut[x][reverse_y][2] = lut.z;
-      transmittance_lut[x][reverse_y][3] = lut.w;
-    }
-  }
+
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, TRANSMITTANCE_RES_Y, 4),
+                    [&](const tbb::blocked_range<size_t> &r) {
+                      for (int x = 0; x < TRANSMITTANCE_RES_X; x++) {
+                        for (int y = r.begin(); y < r.end(); y++) {
+                          float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
+                          float4 lut = transmittance_lut_calc(coordinates, density_multipliers);
+                          int reverse_y = TRANSMITTANCE_RES_Y - y - 1;
+                          sms.transmittance_lut[x][reverse_y][0] = lut.x;
+                          sms.transmittance_lut[x][reverse_y][1] = lut.y;
+                          sms.transmittance_lut[x][reverse_y][2] = lut.z;
+                          sms.transmittance_lut[x][reverse_y][3] = lut.w;
+                        }
+                      }
+                    });
+  return sms;
 }
 
 void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 int stride,
-                                                int start_y,
-                                                int end_y,
                                                 int width,
+                                                int height,
                                                 float sun_elevation,
                                                 float altitude,
                                                 float air_density,
@@ -337,38 +362,50 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
                                                 float ozone_density)
 {
   /* Clamp altitude to avoid numerical issues */
-  altitude = clamp(altitude, 1.0f, 99999.0f);
-  float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
-  int half_width = width / 2;
-  float sun_zenith_cos_angle = cosf(M_PI_2_F - sun_elevation);
-  float3 sun_dir = sun_direction(sun_zenith_cos_angle);
+  const SkyMultipleScattering sms = sky_precompute_transmittance(
+      air_density, aerosol_density, ozone_density);
+  const float altitude_normalized = clamp(altitude, 1.0f, 99999.0f) / 1000.0f;
+  const float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
+  const int half_width = width / 2;
+  const float sun_zenith_cos_angle = cosf(M_PI_2_F - sun_elevation);
+  const float3 sun_dir = sun_direction(sun_zenith_cos_angle);
+  const int rows_per_task = std::max(1024 / width, 1);
 
-  for (int y = start_y; y < end_y; y++) {
-    float *pixel_row = pixels + (y * width * stride);
-    for (int x = 0; x < half_width; x++) {
-      float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
-      float3 sky = sky_lut(sun_dir, coordinates, altitude / 1000.0f, density_multipliers);
+  tbb::parallel_for(tbb::blocked_range<size_t>(0, height, rows_per_task),
+                    [=](const tbb::blocked_range<size_t> &r) {
+                      for (int y = r.begin(); y < r.end(); y++) {
+                        float *pixel_row = pixels + (y * width * stride);
+                        for (int x = 0; x < half_width; x++) {
+                          float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
+                          float3 sky = sky_lut(
+                              sms, sun_dir, coordinates, altitude_normalized, density_multipliers);
 
-      /* Store pixels */
-      int pos_x = x * stride;
-      pixel_row[pos_x] = sky.x;
-      pixel_row[pos_x + 1] = sky.y;
-      pixel_row[pos_x + 2] = sky.z;
-      /* Mirror pixels */
-      int mirror_x = (width - x - 1) * stride;
-      pixel_row[mirror_x] = sky.x;
-      pixel_row[mirror_x + 1] = sky.y;
-      pixel_row[mirror_x + 2] = sky.z;
-    }
-  }
+                          /* Store pixels */
+                          int pos_x = x * stride;
+                          pixel_row[pos_x] = sky.x;
+                          pixel_row[pos_x + 1] = sky.y;
+                          pixel_row[pos_x + 2] = sky.z;
+                          /* Mirror pixels */
+                          int mirror_x = (width - x - 1) * stride;
+                          pixel_row[mirror_x] = sky.x;
+                          pixel_row[mirror_x + 1] = sky.y;
+                          pixel_row[mirror_x + 2] = sky.z;
+                        }
+                      }
+                    });
 }
 
 void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float angular_diameter,
                                             float altitude,
+                                            float air_density,
+                                            float aerosol_density,
+                                            float ozone_density,
                                             float r_pixel_bottom[3],
                                             float r_pixel_top[3])
 {
+  const SkyMultipleScattering sms = sky_precompute_transmittance(
+      air_density, aerosol_density, ozone_density);
   /* Clamp altitude to avoid numerical issues */
   altitude = clamp(altitude, 1.0f, 99999.0f) / 1000.0f;
   float half_angular = angular_diameter / 2.0f;
@@ -387,14 +424,14 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
   if (ground_dist < 0.0f) {
     float sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_bottom);
     float3 sun_dir = sun_direction(sun_zenith_cos_angle);
-    float4 transmittance_to_sun = transmittance_from_lut(sun_zenith_cos_angle,
-                                                         normalized_altitude);
+    float4 transmittance_to_sun = transmittance_from_lut(
+        sms, sun_zenith_cos_angle, normalized_altitude);
     float4 spectrum = SUN_SPECTRAL_IRRADIANCE * transmittance_to_sun / solid_angle;
     pix_bottom = spectral_to_xyz(spectrum);
 
     sun_zenith_cos_angle = cosf(M_PI_2_F - elevation_top);
     sun_dir = sun_direction(sun_zenith_cos_angle);
-    transmittance_to_sun = transmittance_from_lut(sun_zenith_cos_angle, normalized_altitude);
+    transmittance_to_sun = transmittance_from_lut(sms, sun_zenith_cos_angle, normalized_altitude);
     spectrum = SUN_SPECTRAL_IRRADIANCE * transmittance_to_sun / solid_angle;
     pix_top = spectral_to_xyz(spectrum);
   }
