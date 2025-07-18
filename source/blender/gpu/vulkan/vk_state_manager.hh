@@ -184,6 +184,9 @@ class BindSpaceTextures {
   const Elem *get(int binding) const
   {
     if (binding >= bound_resources.size()) {
+      /* TODO: Check with @Jeroen-Bakker.
+       * Could we ensure state_manager adds default initialized bindings for each ShaderInterface
+       * resource? (See #142097). */
       return nullptr;
     }
     return &bound_resources[binding];
