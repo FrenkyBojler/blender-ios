@@ -64,11 +64,7 @@
 #include "BKE_effect.h"
 #include "BKE_geometry_set.hh"
 #include "BKE_geometry_set_instances.hh"
-#include "BKE_gpencil_geom_legacy.h"
-#include "BKE_gpencil_legacy.h"
-#include "BKE_gpencil_modifier_legacy.h"
 #include "BKE_grease_pencil.hh"
-#include "BKE_grease_pencil_legacy_convert.hh"
 #include "BKE_key.hh"
 #include "BKE_lattice.hh"
 #include "BKE_layer.hh"
@@ -3252,7 +3248,7 @@ static void mesh_data_to_grease_pencil(const Mesh &mesh_eval,
       unique_attribute_id,
       bke::AttrDomain::Point,
       bke::AttrType::Float3,
-      bke::AttributeInitVArray(VArray<float3>::ForSpan(normals)));
+      bke::AttributeInitVArray(VArray<float3>::from_span(normals)));
 
   const int edges_num = mesh_copied->edges_num;
   bke::CurvesGeometry curves = geometry::mesh_edges_to_curves_convert(
