@@ -272,8 +272,8 @@ struct uiBut {
   /** Affects the order if this uiBut is used in menu-search. */
   float search_weight = 0.0f;
 
-  /** so buttons can support unit systems which are not RNA */
   short iconadd = 0;
+  /** so buttons can support unit systems which are not RNA */
   uchar unit_type = 0;
 
   /** See #UI_but_menu_disable_hover_open(). */
