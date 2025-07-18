@@ -643,26 +643,45 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
   Key *key = BKE_key_from_object(ob);
   const int type = RNA_enum_get(op->ptr, "type");
   const int totkey = key->totkey;
-  const int act_index = ob->shapenr - 1;
-  int new_index;
+  int new_index = 0;
+  int8_t step = 1;
 
-  switch (type) {
-    case KB_MOVE_TOP:
-      /* Replace the ref key only if we're at the top already (only for relative keys) */
-      new_index = (ELEM(act_index, 0, 1) || key->type == KEY_NORMAL) ? 0 : 1;
-      break;
-    case KB_MOVE_BOTTOM:
-      new_index = totkey - 1;
-      break;
-    case KB_MOVE_UP:
-    case KB_MOVE_DOWN:
-    default:
-      new_index = (totkey + act_index + type) % totkey;
-      break;
+  if (type > 0) {
+    for (int8_t act_index = totkey - 1; act_index >= 0; act_index--) {
+      const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
+      if (!((kb.flag & KEYBLOCK_SEL) || (act_index == ob->shapenr - 1))) {
+        continue;
+      }
+      switch (type) {
+        case KB_MOVE_BOTTOM:
+          new_index = totkey - step;
+          step++;
+          break;
+        case KB_MOVE_DOWN:
+          new_index = act_index + type;
+          break;
+      }
+      BKE_keyblock_move(ob, act_index, new_index);
+    }
   }
-
-  if (!BKE_keyblock_move(ob, act_index, new_index)) {
-    return OPERATOR_CANCELLED;
+  else {
+    for (int8_t act_index = 0; act_index < totkey; act_index++) {
+      const KeyBlock &kb = *static_cast<KeyBlock *>(BLI_findlink(&key->block, act_index));
+      if (!((kb.flag & KEYBLOCK_SEL) || (act_index == ob->shapenr - 1))) {
+        continue;
+      }
+      switch (type) {
+        case KB_MOVE_TOP:
+          /* Replace the ref key only if we're at the top already (only for relative keys) */
+          new_index = (ELEM(act_index, 0, 1) || key->type == KEY_NORMAL) ? 0 : step;
+          step++;
+          break;
+        case KB_MOVE_UP:
+          new_index = act_index + type;
+          break;
+      }
+      BKE_keyblock_move(ob, act_index, new_index);
+    }
   }
 
   DEG_id_tag_update(&ob->id, ID_RECALC_GEOMETRY);
@@ -683,7 +702,7 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
   /* identifiers */
   ot->name = "Move Shape Key";
   ot->idname = "OBJECT_OT_shape_key_move";
-  ot->description = "Move the active shape key up/down in the list";
+  ot->description = "Move selected shape keys up/down in the list";
 
   /* API callbacks. */
   ot->poll = shape_key_move_poll;
