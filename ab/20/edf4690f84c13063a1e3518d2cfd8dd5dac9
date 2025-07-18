@@ -1,3 +1,4 @@
 Referenced by issue #137507, File path of collection exporter incorrectly says relative paths unsupported
 Referenced by pull request #138707, Geometry Nodes: don't show error when using relative path in Import Nodes
 Referenced by commit 19bfe03e54fcec19f8d4a0ea3cef8195f5fa9b05, Geometry Nodes: don't show error when using relative path in Import Nodes
+Referenced by issue #142355, Pyhton: StringProperty sup_type 'DIR_PATH' warning
