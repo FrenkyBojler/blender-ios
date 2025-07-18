@@ -120,10 +120,15 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
 
   ResourceScope scope;
   bke::AttributeStorage::BlendWriteData attribute_data{scope};
+<<<<<<< HEAD
   attribute_storage_blend_write_prepare(
       pointcloud->attribute_storage.wrap(), {{AttrDomain::Point, &point_layers}}, attribute_data);
   CustomData_blend_write_prepare(
       pointcloud->pdata, AttrDomain::Point, pointcloud->totpoint, point_layers, attribute_data);
+=======
+  attribute_storage_blend_write_prepare(pointcloud->attribute_storage.wrap(), attribute_data);
+
+>>>>>>> 11d2f488823 (Fix #141887: Crash/assert hit after reading Grease Pencil)
   if (attribute_data.attributes.is_empty()) {
     pointcloud->attribute_storage.dna_attributes = nullptr;
     pointcloud->attribute_storage.dna_attributes_num = 0;
@@ -132,6 +137,8 @@ static void pointcloud_blend_write(BlendWriter *writer, ID *id, const void *id_a
     pointcloud->attribute_storage.dna_attributes = attribute_data.attributes.data();
     pointcloud->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
   }
+
+  CustomData_reset(&pointcloud->pdata_legacy);
 
   /* Write LibData */
   BLO_write_id_struct(writer, PointCloud, id_address, &pointcloud->id);
