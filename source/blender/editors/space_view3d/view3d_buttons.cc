@@ -501,18 +501,16 @@ struct CurvesSelectionStatus {
 
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
-    CurvesSelectionStatus result;
-    result.total = a.total + b.total;
-    result.total_nurbs = a.total_nurbs + b.total_nurbs;
-    result.total_bezier = a.total_bezier + b.total_bezier;
-    result.cyclic = a.cyclic + b.cyclic;
-    result.nurbs_knot_mode_sum = a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum;
-    result.nurbs_knot_mode_max = std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max);
-    result.order_sum = a.order_sum + b.order_sum;
-    result.order_max = std::max(a.order_max, b.order_max);
-    result.resolution_sum = a.resolution_sum + b.resolution_sum;
-    result.resolution_max = std::max(a.resolution_max, b.resolution_max);
-    return result;
+    return {a.total + b.total,
+            a.total_nurbs + b.total_nurbs,
+            a.total_bezier + b.total_bezier,
+            a.cyclic + b.cyclic,
+            a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum,
+            std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max),
+            a.order_sum + b.order_sum,
+            std::max(a.order_max, b.order_max),
+            a.resolution_sum + b.resolution_sum,
+            std::max(a.resolution_max, b.resolution_max)};
   }
 };
 
