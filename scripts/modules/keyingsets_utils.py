@@ -16,6 +16,7 @@ __all__ = (
     "RKS_ITER_selected_bones",
     "RKS_ITER_selected_item",
     "RKS_GEN_available",
+    "RKS_GEN_custom_props",
     "RKS_GEN_location",
     "RKS_GEN_rotation",
     "RKS_GEN_scaling",
@@ -24,11 +25,13 @@ __all__ = (
 
 import bpy
 
+from bpy_extras import anim_utils
+
 ###########################
 # General Utilities
 
 
-# Append the specified property name on the the existing path
+# Append the specified property name on the existing path.
 def path_add_property(path, prop):
     if path:
         return path + "." + prop
@@ -41,6 +44,9 @@ def path_add_property(path, prop):
 
 # selected objects (active object must be in object mode)
 def RKS_POLL_selected_objects(_ksi, context):
+    if context.area.type == 'SEQUENCE_EDITOR':
+        return False
+
     ob = context.active_object
     if ob:
         return ob.mode == 'OBJECT'
@@ -50,6 +56,9 @@ def RKS_POLL_selected_objects(_ksi, context):
 
 # selected bones
 def RKS_POLL_selected_bones(_ksi, context):
+    if context.area.type == 'SEQUENCE_EDITOR':
+        return False
+
     # we must be in Pose Mode, and there must be some bones selected
     ob = context.active_object
     if ob and ob.mode == 'POSE':
@@ -59,9 +68,27 @@ def RKS_POLL_selected_bones(_ksi, context):
     # nothing selected
     return False
 
+# selected vse strip
+
+
+def RKS_POLL_selected_strip(_ksi, context):
+    if context.active_strip or context.selected_strips:
+        return True
+
+    # nothing selected
+    return False
+
+
+# selected bones, objects or strips
+def RKS_POLL_selected_items(ksi, context):
+    return (RKS_POLL_selected_bones(ksi, context) or
+            RKS_POLL_selected_objects(ksi, context) or
+            RKS_POLL_selected_strip(ksi, context))
 
 # selected bones or objects
-def RKS_POLL_selected_items(ksi, context):
+
+
+def RKS_POLL_selected_bones_or_objects(ksi, context):
     return (RKS_POLL_selected_bones(ksi, context) or
             RKS_POLL_selected_objects(ksi, context))
 
@@ -71,11 +98,17 @@ def RKS_POLL_selected_items(ksi, context):
 
 # All selected objects or pose bones, depending on which we've got.
 def RKS_ITER_selected_item(ksi, context, ks):
+    if context.area.type == 'SEQUENCE_EDITOR':
+        if context.selected_strips:
+            for strip in context.selected_strips:
+                ksi.generate(context, ks, strip)
+        return
+
     ob = context.active_object
     if ob and ob.mode == 'POSE':
         for bone in context.selected_pose_bones:
             ksi.generate(context, ks, bone)
-    else:
+    elif context.selected_objects:
         for ob in context.selected_objects:
             ksi.generate(context, ks, ob)
 
@@ -116,7 +149,11 @@ def RKS_GEN_available(_ksi, _context, ks, data):
 
     # for each F-Curve, include a path to key it
     # NOTE: we don't need to set the group settings here
-    for fcu in adt.action.fcurves:
+    cbag = anim_utils.action_get_channelbag_for_slot(adt.action, adt.action_slot)
+    if not cbag:
+        return
+
+    for fcu in cbag.fcurves:
         if basePath:
             if basePath in fcu.data_path:
                 ks.paths.add(id_block, fcu.data_path, index=fcu.array_index)
@@ -146,7 +183,7 @@ def get_transform_generators_base_info(data):
         path = data.path_from_id()
 
         # try to use the name of the data element to group the F-Curve
-        # else fallback on the KeyingSet name
+        # else fall back on the KeyingSet name
         grouping = getattr(data, "name", None)
 
     # return the ID-block and the path
@@ -157,6 +194,17 @@ def get_transform_generators_base_info(data):
 def RKS_GEN_location(_ksi, _context, ks, data):
     # get id-block and path info
     id_block, base_path, grouping = get_transform_generators_base_info(data)
+
+    if isinstance(data, bpy.types.Strip):
+        path_x = path_add_property(base_path, "transform.offset_x")
+        path_y = path_add_property(base_path, "transform.offset_y")
+        if grouping:
+            ks.paths.add(id_block, path_x, group_method='NAMED', group_name=grouping)
+            ks.paths.add(id_block, path_y, group_method='NAMED', group_name=grouping)
+        else:
+            ks.paths.add(id_block, path_x)
+            ks.paths.add(id_block, path_y)
+        return
 
     # add the property name to the base path
     path = path_add_property(base_path, "location")
@@ -174,6 +222,13 @@ def RKS_GEN_rotation(_ksi, _context, ks, data):
     id_block, base_path, grouping = get_transform_generators_base_info(data)
 
     # add the property name to the base path
+    if isinstance(data, bpy.types.Strip):
+        path = path_add_property(base_path, "transform.rotation")
+        if grouping:
+            ks.paths.add(id_block, path, group_method='NAMED', group_name=grouping)
+        else:
+            ks.paths.add(id_block, path)
+        return
     #   rotation mode affects the property used
     if data.rotation_mode == 'QUATERNION':
         path = path_add_property(base_path, "rotation_quaternion")
@@ -194,6 +249,16 @@ def RKS_GEN_scaling(_ksi, _context, ks, data):
     # get id-block and path info
     id_block, base_path, grouping = get_transform_generators_base_info(data)
 
+    if isinstance(data, bpy.types.Strip):
+        path_x = path_add_property(base_path, "transform.scale_x")
+        path_y = path_add_property(base_path, "transform.scale_y")
+        if grouping:
+            ks.paths.add(id_block, path_x, group_method='NAMED', group_name=grouping)
+            ks.paths.add(id_block, path_y, group_method='NAMED', group_name=grouping)
+        else:
+            ks.paths.add(id_block, path_x)
+            ks.paths.add(id_block, path_y)
+        return
     # add the property name to the base path
     path = path_add_property(base_path, "scale")
 
@@ -212,7 +277,8 @@ def RKS_GEN_custom_props(_ksi, _context, ks, data):
     # Only some RNA types can be animated.
     prop_type_compat = {bpy.types.BoolProperty,
                         bpy.types.IntProperty,
-                        bpy.types.FloatProperty}
+                        bpy.types.FloatProperty,
+                        bpy.types.EnumProperty}
 
     # When working with a pose, 'id_block' is the armature object (which should
     # get the animation data), whereas 'data' is the bone being keyed.
@@ -220,8 +286,13 @@ def RKS_GEN_custom_props(_ksi, _context, ks, data):
         # ignore special "_RNA_UI" used for UI editing
         if cprop_name == "_RNA_UI":
             continue
+        if cprop_name in data.bl_rna.properties and not data.bl_rna.properties[cprop_name].is_animatable:
+            continue
 
-        prop_path = '["%s"]' % bpy.utils.escape_identifier(cprop_name)
+        if cprop_name in data.bl_rna.properties:
+            prop_path = cprop_name
+        else:
+            prop_path = '["{:s}"]'.format(bpy.utils.escape_identifier(cprop_name))
 
         try:
             rna_property = data.path_resolve(prop_path, False)
@@ -235,7 +306,7 @@ def RKS_GEN_custom_props(_ksi, _context, ks, data):
         if rna_property.rna_type not in prop_type_compat:
             continue
 
-        path = "%s%s" % (base_path, prop_path)
+        path = "{:s}{:s}".format(base_path, prop_path)
         if grouping:
             ks.paths.add(id_block, path, group_method='NAMED', group_name=grouping)
         else:

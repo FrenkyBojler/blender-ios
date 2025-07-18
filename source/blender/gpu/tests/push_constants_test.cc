@@ -7,6 +7,7 @@
 #include "GPU_capabilities.hh"
 #include "GPU_compute.hh"
 #include "GPU_shader.hh"
+#include "GPU_state.hh"
 #include "GPU_storage_buffer.hh"
 
 #include "BLI_math_vector.hh"
@@ -133,12 +134,6 @@ struct Shader {
 /** Test the given info when doing a single call. */
 static void do_push_constants_test(const char *info_name, const int num_calls_simultaneously = 1)
 {
-  if (!GPU_compute_shader_support()) {
-    /* We can't test as a the platform does not support compute shaders. */
-    std::cout << "Skipping test: platform not supported";
-    return;
-  }
-
   static constexpr uint SIZE = 16;
 
   Shader shader;

@@ -14,17 +14,18 @@ namespace blender::nodes::node_geo_edge_paths_to_curves_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Mesh").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Mesh")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Edges to convert to curves");
   b.add_input<decl::Bool>("Start Vertices").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Int>("Next Vertex Index").default_value(-1).hide_value().field_on_all();
   b.add_output<decl::Geometry>("Curves").propagate_all();
 }
 
-static Curves *edge_paths_to_curves_convert(
-    const Mesh &mesh,
-    const IndexMask &start_verts_mask,
-    const Span<int> next_indices,
-    const AnonymousAttributePropagationInfo &propagation_info)
+static Curves *edge_paths_to_curves_convert(const Mesh &mesh,
+                                            const IndexMask &start_verts_mask,
+                                            const Span<int> next_indices,
+                                            const AttributeFilter &attribute_filter)
 {
   Vector<int> vert_indices;
   Vector<int> curve_offsets;
@@ -63,7 +64,7 @@ static Curves *edge_paths_to_curves_convert(
     return nullptr;
   }
   Curves *curves_id = bke::curves_new_nomain(geometry::create_curve_from_vert_indices(
-      mesh.attributes(), vert_indices, curve_offsets, IndexRange(0), propagation_info));
+      mesh.attributes(), vert_indices, curve_offsets, IndexRange(0), attribute_filter));
   return curves_id;
 }
 
@@ -92,7 +93,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     geometry_set.replace_curves(edge_paths_to_curves_convert(
-        *mesh, start_verts, next_vert, params.get_output_propagation_info("Curves")));
+        *mesh, start_verts, next_vert, params.get_attribute_filter("Curves")));
     geometry_set.keep_only({GeometryComponent::Type::Curve, GeometryComponent::Type::Instance});
   });
 
@@ -101,13 +102,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(
-      &ntype, GEO_NODE_EDGE_PATHS_TO_CURVES, "Edge Paths to Curves", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeEdgePathsToCurves", GEO_NODE_EDGE_PATHS_TO_CURVES);
+  ntype.ui_name = "Edge Paths to Curves";
+  ntype.ui_description = "Output curves following paths across mesh edges";
+  ntype.enum_name_legacy = "EDGE_PATHS_TO_CURVES";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

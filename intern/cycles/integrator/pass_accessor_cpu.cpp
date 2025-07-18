@@ -11,12 +11,7 @@
 #include "util/log.h"
 #include "util/tbb.h"
 
-// clang-format off
-#include "kernel/device/cpu/compat.h"
-#include "kernel/device/cpu/globals.h"
 #include "kernel/types.h"
-#include "kernel/film/read.h"
-// clang-format on
 
 CCL_NAMESPACE_BEGIN
 

@@ -39,6 +39,7 @@ GLFrameBuffer::GLFrameBuffer(
   immutable_ = true;
   fbo_id_ = fbo;
   gl_attachments_[0] = target;
+  set_color_attachment_bit(GPU_FB_COLOR_ATTACHMENT0, true);
   /* Never update an internal frame-buffer. */
   dirty_attachments_ = false;
   width_ = w;
@@ -229,11 +230,11 @@ void GLFrameBuffer::update_attachments()
 void GLFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attachment_state,
                                             Span<GPUAttachmentState> color_attachment_states)
 {
-  GPU_depth_mask(depth_attachment_state == GPU_ATTACHEMENT_WRITE);
+  GPU_depth_mask(depth_attachment_state == GPU_ATTACHMENT_WRITE);
 
   bool any_read = false;
   for (auto attachment : color_attachment_states.index_range()) {
-    if (attachment == GPU_ATTACHEMENT_READ) {
+    if (attachment == GPU_ATTACHMENT_READ) {
       any_read = true;
       break;
     }
@@ -253,14 +254,14 @@ void GLFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
     for (int i : color_attachment_states.index_range()) {
       GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
       GPUTexture *attach_tex = this->attachments_[type].tex;
-      if (color_attachment_states[i] == GPU_ATTACHEMENT_READ) {
+      if (color_attachment_states[i] == GPU_ATTACHMENT_READ) {
         tmp_detached_[type] = this->attachments_[type]; /* Bypass feedback loop check. */
         GPU_texture_bind_ex(attach_tex, GPUSamplerState::default_sampler(), i);
       }
       else {
         tmp_detached_[type] = GPU_ATTACHMENT_NONE;
       }
-      bool attach_write = color_attachment_states[i] == GPU_ATTACHEMENT_WRITE;
+      bool attach_write = color_attachment_states[i] == GPU_ATTACHMENT_WRITE;
       attachments[i] = (attach_tex && attach_write) ? to_gl(type) : GL_NONE;
     }
     /* We have to use `glDrawBuffers` instead of `glColorMaski` because the later is overwritten
@@ -277,14 +278,14 @@ void GLFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
     for (int i : color_attachment_states.index_range()) {
       GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
 
-      if (color_attachment_states[i] == GPU_ATTACHEMENT_WRITE) {
+      if (color_attachment_states[i] == GPU_ATTACHMENT_WRITE) {
         if (tmp_detached_[type].tex != nullptr) {
           /* Re-attach previous read attachments. */
           this->attachment_set(type, tmp_detached_[type]);
           tmp_detached_[type] = GPU_ATTACHMENT_NONE;
         }
       }
-      else if (color_attachment_states[i] == GPU_ATTACHEMENT_READ) {
+      else if (color_attachment_states[i] == GPU_ATTACHMENT_READ) {
         tmp_detached_[type] = this->attachments_[type];
         unwrap(tmp_detached_[type].tex)->detach_from(this);
         GPU_texture_bind_ex(tmp_detached_[type].tex, GPUSamplerState::default_sampler(), i);
@@ -384,6 +385,12 @@ void GLFrameBuffer::bind(bool enabled_srgb)
     }
   }
 
+  if (!GLContext::texture_barrier_support && !GLContext::framebuffer_fetch_support) {
+    for (int index : IndexRange(GPU_FB_MAX_ATTACHMENT)) {
+      tmp_detached_[index] = GPU_ATTACHMENT_NONE;
+    }
+  }
+
   if (dirty_attachments_) {
     this->update_attachments();
     this->viewport_reset();
@@ -471,7 +478,7 @@ void GLFrameBuffer::clear_attachment(GPUAttachmentType type,
   context_->state_manager->apply_state();
 
   if (type == GPU_FB_DEPTH_STENCIL_ATTACHMENT) {
-    BLI_assert(data_format == GPU_DATA_UINT_24_8);
+    BLI_assert(data_format == GPU_DATA_UINT_24_8_DEPRECATED);
     float depth = ((*(uint32_t *)clear_value) & 0x00FFFFFFu) / float(0x00FFFFFFu);
     int stencil = ((*(uint32_t *)clear_value) >> 24);
     glClearBufferfi(GL_DEPTH_STENCIL, 0, depth, stencil);

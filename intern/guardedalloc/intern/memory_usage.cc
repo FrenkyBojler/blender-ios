@@ -11,7 +11,7 @@
 #include <vector>
 
 #include "MEM_guardedalloc.h"
-#include "mallocn_intern.h"
+#include "mallocn_intern.hh"
 
 #include "../../source/blender/blenlib/BLI_strict_flags.h"
 
@@ -252,15 +252,6 @@ size_t memory_usage_current()
   return size_t(mem_in_use);
 }
 
-/**
- * Get the approximate peak memory usage since the last call to #memory_usage_peak_reset.
- * This is approximate, because the peak usage is not updated after every allocation (see
- * #peak_update_threshold).
- *
- * In the worst case, the peak memory usage is underestimated by
- * `peak_update_threshold * #threads`. After large allocations (larger than the threshold), the
- * peak usage is always updated so those allocations will always be taken into account.
- */
 size_t memory_usage_peak()
 {
   update_global_peak();

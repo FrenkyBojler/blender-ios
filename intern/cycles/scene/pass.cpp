@@ -4,7 +4,6 @@
 
 #include "scene/pass.h"
 
-#include "util/algorithm.h"
 #include "util/log.h"
 
 CCL_NAMESPACE_BEGIN
@@ -16,7 +15,7 @@ const char *pass_type_as_string(const PassType type)
   const NodeEnum *type_enum = Pass::get_type_enum();
 
   if (!type_enum->exists(type_int)) {
-    LOG(DFATAL) << "Unhandled pass type " << static_cast<int>(type) << ", not supposed to happen.";
+    LOG_DFATAL << "Unhandled pass type " << static_cast<int>(type) << ", not supposed to happen.";
     return "UNKNOWN";
   }
 
@@ -32,7 +31,7 @@ const char *pass_mode_as_string(PassMode mode)
       return "DENOISED";
   }
 
-  LOG(DFATAL) << "Unhandled pass mode " << static_cast<int>(mode) << ", should never happen.";
+  LOG_DFATAL << "Unhandled pass mode " << static_cast<int>(mode) << ", should never happen.";
   return "UNKNOWN";
 }
 
@@ -95,6 +94,7 @@ const NodeEnum *Pass::get_type_enum()
     pass_type_enum.insert("shadow_catcher_matte", PASS_SHADOW_CATCHER_MATTE);
 
     pass_type_enum.insert("bake_primitive", PASS_BAKE_PRIMITIVE);
+    pass_type_enum.insert("bake_seed", PASS_BAKE_SEED);
     pass_type_enum.insert("bake_differential", PASS_BAKE_DIFFERENTIAL);
 
 #ifdef WITH_CYCLES_DEBUG
@@ -328,6 +328,15 @@ PassInfo Pass::get_info(const PassType type, const bool include_albedo, const bo
       break;
 
     case PASS_BAKE_PRIMITIVE:
+      pass_info.num_components = 3;
+      pass_info.use_exposure = false;
+      pass_info.use_filter = false;
+      break;
+    case PASS_BAKE_SEED:
+      pass_info.num_components = 1;
+      pass_info.use_exposure = false;
+      pass_info.use_filter = false;
+      break;
     case PASS_BAKE_DIFFERENTIAL:
       pass_info.num_components = 4;
       pass_info.use_exposure = false;
@@ -338,7 +347,7 @@ PassInfo Pass::get_info(const PassType type, const bool include_albedo, const bo
     case PASS_CATEGORY_DATA_END:
     case PASS_CATEGORY_BAKE_END:
     case PASS_NUM:
-      LOG(DFATAL) << "Unexpected pass type is used " << type;
+      LOG_DFATAL << "Unexpected pass type is used " << type;
       pass_info.num_components = 0;
       break;
     case PASS_GUIDING_COLOR:
@@ -355,7 +364,7 @@ PassInfo Pass::get_info(const PassType type, const bool include_albedo, const bo
   return pass_info;
 }
 
-bool Pass::contains(const vector<Pass *> &passes, PassType type)
+bool Pass::contains(const unique_ptr_vector<Pass> &passes, PassType type)
 {
   for (const Pass *pass : passes) {
     if (pass->get_type() != type) {
@@ -368,7 +377,7 @@ bool Pass::contains(const vector<Pass *> &passes, PassType type)
   return false;
 }
 
-const Pass *Pass::find(const vector<Pass *> &passes, const string &name)
+const Pass *Pass::find(const unique_ptr_vector<Pass> &passes, const string &name)
 {
   for (const Pass *pass : passes) {
     if (pass->get_name() == name) {
@@ -379,7 +388,7 @@ const Pass *Pass::find(const vector<Pass *> &passes, const string &name)
   return nullptr;
 }
 
-const Pass *Pass::find(const vector<Pass *> &passes,
+const Pass *Pass::find(const unique_ptr_vector<Pass> &passes,
                        PassType type,
                        PassMode mode,
                        const ustring &lightgroup)
@@ -396,7 +405,7 @@ const Pass *Pass::find(const vector<Pass *> &passes,
   return nullptr;
 }
 
-int Pass::get_offset(const vector<Pass *> &passes, const Pass *pass)
+int Pass::get_offset(const unique_ptr_vector<Pass> &passes, const Pass *pass)
 {
   int pass_offset = 0;
 
@@ -409,9 +418,7 @@ int Pass::get_offset(const vector<Pass *> &passes, const Pass *pass)
       if (current_pass->is_written()) {
         return pass_offset;
       }
-      else {
-        return PASS_UNUSED;
-      }
+      return PASS_UNUSED;
     }
     if (current_pass->is_written()) {
       pass_offset += current_pass->get_info().num_components;

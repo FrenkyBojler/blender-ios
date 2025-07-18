@@ -8,11 +8,12 @@
  * \ingroup bke
  */
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
 #include "DNA_windowmanager_types.h"
+
+struct CLG_LogRef;
 
 /**
  * Reporting Information and Errors.
@@ -28,7 +29,7 @@
 /**
  * Initialize a #ReportList struct.
  *
- * \note: Not thread-safe, should only be called from the 'owner' thread of the report list.
+ * \note Not thread-safe, should only be called from the 'owner' thread of the report list.
  */
 void BKE_reports_init(ReportList *reports, int flag);
 /**
@@ -37,7 +38,7 @@ void BKE_reports_init(ReportList *reports, int flag);
  * Also calls #BKE_reports_clear. The given `reports` should not be used anymore unless it is
  * re-initialized first.
  *
- * \note: Not thread-safe, should only be called from the current owner of the report list, once
+ * \note Not thread-safe, should only be called from the current owner of the report list, once
  * no other concurrent access is possible.
  */
 void BKE_reports_free(ReportList *reports);
@@ -63,7 +64,8 @@ void BKE_reportf(ReportList *reports, eReportType type, const char *format, ...)
     ATTR_PRINTF_FORMAT(3, 4);
 
 void BKE_reports_prepend(ReportList *reports, const char *prepend);
-void BKE_reports_prependf(ReportList *reports, const char *prepend, ...) ATTR_PRINTF_FORMAT(2, 3);
+void BKE_reports_prependf(ReportList *reports, const char *prepend_format, ...)
+    ATTR_PRINTF_FORMAT(2, 3);
 
 eReportType BKE_report_print_level(ReportList *reports);
 void BKE_report_print_level_set(ReportList *reports, eReportType level);
@@ -78,6 +80,9 @@ char *BKE_reports_string(ReportList *reports, eReportType level);
  */
 bool BKE_reports_print_test(const ReportList *reports, eReportType type);
 void BKE_reports_print(ReportList *reports, eReportType level);
+
+void BKE_report_log(eReportType type, const char *message, CLG_LogRef *log);
+void BKE_reports_log(ReportList *reports, eReportType level, CLG_LogRef *log);
 
 Report *BKE_reports_last_displayable(ReportList *reports);
 

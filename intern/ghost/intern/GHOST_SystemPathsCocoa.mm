@@ -5,16 +5,15 @@
 #import <AppKit/NSDocumentController.h>
 #import <Foundation/Foundation.h>
 
+#include <optional>
+#include <string>
+
 #include "GHOST_Debug.hh"
 #include "GHOST_SystemPathsCocoa.hh"
 
-#pragma mark initialization/finalization
-
-GHOST_SystemPathsCocoa::GHOST_SystemPathsCocoa() {}
-
-GHOST_SystemPathsCocoa::~GHOST_SystemPathsCocoa() {}
-
-#pragma mark Base directories retrieval
+/* --------------------------------------------------------------------
+ * Base directories retrieval.
+ */
 
 static const char *GetApplicationSupportDir(const char *versionstr,
                                             const NSSearchPathDomainMask mask,
@@ -22,13 +21,12 @@ static const char *GetApplicationSupportDir(const char *versionstr,
                                             const std::size_t len_tempPath)
 {
   @autoreleasepool {
-    const NSArray *const paths = NSSearchPathForDirectoriesInDomains(
-        NSApplicationSupportDirectory, mask, YES);
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(NSApplicationSupportDirectory, mask, YES);
 
-    if ([paths count] == 0) {
+    if (paths.count == 0) {
       return nullptr;
     }
-    const NSString *const basePath = [paths objectAtIndex:0];
+    NSString *basePath = [paths objectAtIndex:0];
 
     snprintf(tempPath,
              len_tempPath,
@@ -39,21 +37,22 @@ static const char *GetApplicationSupportDir(const char *versionstr,
   return tempPath;
 }
 
-const char *GHOST_SystemPathsCocoa::getSystemDir(int, const char *versionstr) const
+const char *GHOST_SystemPathsCocoa::getSystemDir(int /* version */, const char *versionstr) const
 {
   static char tempPath[512] = "";
   return GetApplicationSupportDir(versionstr, NSLocalDomainMask, tempPath, sizeof(tempPath));
 }
 
-const char *GHOST_SystemPathsCocoa::getUserDir(int, const char *versionstr) const
+const char *GHOST_SystemPathsCocoa::getUserDir(int /* version */, const char *versionstr) const
 {
   static char tempPath[512] = "";
   return GetApplicationSupportDir(versionstr, NSUserDomainMask, tempPath, sizeof(tempPath));
 }
 
-const char *GHOST_SystemPathsCocoa::getUserSpecialDir(GHOST_TUserSpecialDirTypes type) const
+std::optional<std::string> GHOST_SystemPathsCocoa::getUserSpecialDir(
+    GHOST_TUserSpecialDirTypes type) const
 {
-  static char tempPath[512] = "";
+  char tempPath[512] = "";
   @autoreleasepool {
     NSSearchPathDirectory ns_directory;
 
@@ -83,15 +82,14 @@ const char *GHOST_SystemPathsCocoa::getUserSpecialDir(GHOST_TUserSpecialDirTypes
         GHOST_ASSERT(
             false,
             "GHOST_SystemPathsCocoa::getUserSpecialDir(): Invalid enum value for type parameter");
-        return nullptr;
+        return std::nullopt;
     }
 
-    const NSArray *const paths = NSSearchPathForDirectoriesInDomains(
-        ns_directory, NSUserDomainMask, YES);
-    if ([paths count] == 0) {
-      return nullptr;
+    NSArray *paths = NSSearchPathForDirectoriesInDomains(ns_directory, NSUserDomainMask, YES);
+    if (paths.count == 0) {
+      return std::nullopt;
     }
-    const NSString *const basePath = [paths objectAtIndex:0];
+    NSString *basePath = [paths objectAtIndex:0];
 
     const char *basePath_cstr = [basePath cStringUsingEncoding:NSASCIIStringEncoding];
     int basePath_len = strlen(basePath_cstr);
@@ -99,6 +97,9 @@ const char *GHOST_SystemPathsCocoa::getUserSpecialDir(GHOST_TUserSpecialDirTypes
     basePath_len = MIN(basePath_len, sizeof(tempPath) - 1);
     memcpy(tempPath, basePath_cstr, basePath_len);
     tempPath[basePath_len] = '\0';
+  }
+  if (!tempPath[0]) {
+    return std::nullopt;
   }
   return tempPath;
 }
@@ -108,7 +109,7 @@ const char *GHOST_SystemPathsCocoa::getBinaryDir() const
   static char tempPath[512] = "";
 
   @autoreleasepool {
-    const NSString *const basePath = [[NSBundle mainBundle] bundlePath];
+    NSString *basePath = [[NSBundle mainBundle] bundlePath];
 
     if (basePath == nil) {
       return nullptr;
@@ -127,7 +128,7 @@ const char *GHOST_SystemPathsCocoa::getBinaryDir() const
 void GHOST_SystemPathsCocoa::addToSystemRecentFiles(const char *filepath) const
 {
   @autoreleasepool {
-    NSURL *const file_url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filepath]];
+    NSURL *file_url = [NSURL fileURLWithPath:[NSString stringWithUTF8String:filepath]];
     [[NSDocumentController sharedDocumentController] noteNewRecentDocumentURL:file_url];
   }
 }
