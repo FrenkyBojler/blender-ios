@@ -1993,7 +1993,7 @@ static void rna_def_xr_session_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Display Grid Floor", "Show the ground plane grid");
   RNA_def_property_update(prop, NC_WM | ND_XR_DATA_CHANGED, nullptr);
 
-  prop = RNA_def_property(srna, "show_gpencil_onionskin", PROP_BOOLEAN, PROP_NONE);
+  prop = RNA_def_property(srna, "show_grease_pencil_onionskin", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "draw_flags", V3D_OFSDRAW_XR_SHOW_ONION_SKIN);
   RNA_def_property_ui_text(
       prop, "Show Grease Pencil Onion Skin", "Show Grease Pencil onion skin VR overlays");

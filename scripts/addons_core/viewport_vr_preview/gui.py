@@ -82,7 +82,7 @@ class VIEW3D_PT_vr_session_view(Panel):
         col.prop(session_settings, "show_controllers", text="Controllers")
         col.prop(session_settings, "show_custom_overlays", text="Custom Overlays")
         col.prop(session_settings, "show_object_extras", text="Object Extras")
-        col.prop(session_settings, "show_gpencil_onionskin", text="GreasePencil Onion Skin")
+        col.prop(session_settings, "show_grease_pencil_onionskin", text="GreasePencil Onion Skin")
 
         col = col.row(align=True, heading=" ")
         col.scale_x = 2.0
