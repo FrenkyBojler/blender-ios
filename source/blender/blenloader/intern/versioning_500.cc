@@ -48,6 +48,8 @@
 #include "BLO_read_write.hh"
 
 #include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
 
@@ -1120,7 +1122,7 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
         fd->reports,
         RPT_WARNING,
         RPT_("%s Cache in object %s can not be read because it uses an "
-             "outdated compression method. You need to delete the caches and rebake."),
+             "outdated compression method. You need to delete the caches and re-bake."),
         cache_type.c_str(),
         pid->owner_id->name + 2);
   }
@@ -1544,6 +1546,21 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
   }
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 39)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      Editing *ed = seq::editing_get(scene);
+
+      if (ed != nullptr) {
+        seq::for_each_callback(&ed->seqbase, [](Strip *strip) -> bool {
+          LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+            seq::modifier_persistent_uid_init(*strip, *smd);
+          }
+          return true;
+        });
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 40)) {
     LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
       if (brush->gpencil_settings) {
         do_version_convert_gp_jitter_values(brush);
@@ -1557,4 +1574,10 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
    *
    * \note Keep this message at the bottom of the function.
    */
+
+  /* Keep this versioning always enabled at the bottom of the function; it can only be moved behind
+   * a subversion bump when the file format is changed. */
+  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+    bke::mesh_freestyle_marks_to_generic(*mesh);
+  }
 }
