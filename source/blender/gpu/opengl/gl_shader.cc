@@ -1084,7 +1084,8 @@ static StringRefNull glsl_patch_vertex_get()
 
     /* Enable extensions for features that are not part of our base GLSL version
      * don't use an extension for something already available! */
-    if (GLContext::shader_draw_parameters_support) {
+    {
+      /* Required extension. */
       ss << "#extension GL_ARB_shader_draw_parameters : enable\n";
       ss << "#define GPU_ARB_shader_draw_parameters\n";
       ss << "#define gpu_BaseInstance gl_BaseInstanceARB\n";
@@ -1097,11 +1098,6 @@ static StringRefNull glsl_patch_vertex_get()
     }
     if (GLContext::clip_control_support) {
       ss << "#define GPU_ARB_clip_control\n";
-    }
-
-    /* Fallbacks. */
-    if (!GLContext::shader_draw_parameters_support) {
-      ss << "uniform int gpu_BaseInstance;\n";
     }
 
     /* Vulkan GLSL compatibility. */

@@ -417,11 +417,6 @@ static void detect_workarounds()
     GLContext::direct_state_access_support = false;
     /* Turn off OpenGL 4.6 features. */
     GLContext::texture_filter_anisotropic_support = false;
-    GCaps.shader_draw_parameters_support = false;
-    GLContext::shader_draw_parameters_support = false;
-    /* Although an OpenGL 4.3 feature, our implementation requires shader_draw_parameters_support.
-     * NOTE: we should untangle this by checking both features for clarity. */
-    GLContext::multi_draw_indirect_support = false;
     /* Turn off extensions. */
     GLContext::layered_rendering_support = false;
     /* Turn off vendor specific extensions. */
@@ -453,7 +448,6 @@ static void detect_workarounds()
      * And others... */
     GLContext::unused_fb_slot_workaround = true;
     GCaps.mip_render_workaround = true;
-    GCaps.shader_draw_parameters_support = false;
     GCaps.broken_amd_driver = true;
   }
   /* We have issues with this specific renderer. (see #74024) */
@@ -462,14 +456,12 @@ static void detect_workarounds()
        strstr(renderer, "AMD TAHITI")))
   {
     GLContext::unused_fb_slot_workaround = true;
-    GCaps.shader_draw_parameters_support = false;
     GCaps.broken_amd_driver = true;
   }
   /* Fix slowdown on this particular driver. (see #77641) */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_UNIX, GPU_DRIVER_OPENSOURCE) &&
       strstr(version, "Mesa 19.3.4"))
   {
-    GCaps.shader_draw_parameters_support = false;
     GCaps.broken_amd_driver = true;
   }
   /* See #82856: AMD drivers since 20.11 running on a polaris architecture doesn't support the
@@ -545,8 +537,9 @@ static void detect_workarounds()
     if (strstr(version, "Mesa 20.") || strstr(version, "Mesa 21.") ||
         strstr(version, "Mesa 22.") || strstr(version, "Mesa 23."))
     {
-      GCaps.shader_draw_parameters_support = false;
-      GLContext::shader_draw_parameters_support = false;
+      /* TODO(fclem): Maybe move this to upfront platform check on startup. */
+      std::cerr << "Unsupported driver. Requires at least Mesa 24.0.0." << std::endl;
+      exit(1);
     }
   }
 
@@ -576,10 +569,6 @@ static void detect_workarounds()
    * Also after device/driver flags to avoid the check that causes pre GCN Radeon to crash. */
   if (GCaps.mip_render_workaround == false) {
     GCaps.mip_render_workaround = detect_mip_render_workaround();
-  }
-  /* Disable multi-draw if the base instance cannot be read. */
-  if (GLContext::shader_draw_parameters_support == false) {
-    GLContext::multi_draw_indirect_support = false;
   }
   /* Enable our own incomplete debug layer if no other is available. */
   if (GLContext::debug_layer_support == false) {
@@ -629,8 +618,6 @@ bool GLContext::layered_rendering_support = false;
 bool GLContext::native_barycentric_support = false;
 bool GLContext::multi_bind_support = false;
 bool GLContext::multi_bind_image_support = false;
-bool GLContext::multi_draw_indirect_support = false;
-bool GLContext::shader_draw_parameters_support = false;
 bool GLContext::stencil_texturing_support = false;
 bool GLContext::texture_barrier_support = false;
 bool GLContext::texture_filter_anisotropic_support = false;
@@ -665,7 +652,6 @@ void GLBackend::capabilities_init()
   GCaps.max_samplers = GCaps.max_textures;
   GCaps.mem_stats_support = epoxy_has_gl_extension("GL_NVX_gpu_memory_info") ||
                             epoxy_has_gl_extension("GL_ATI_meminfo");
-  GCaps.shader_draw_parameters_support = epoxy_has_gl_extension("GL_ARB_shader_draw_parameters");
   GCaps.geometry_shader_support = true;
   GCaps.max_samplers = GCaps.max_textures;
   GCaps.hdr_viewport_support = false;
@@ -713,9 +699,6 @@ void GLBackend::capabilities_init()
       "GL_AMD_shader_explicit_vertex_parameter");
   GLContext::multi_bind_support = GLContext::multi_bind_image_support = epoxy_has_gl_extension(
       "GL_ARB_multi_bind");
-  GLContext::multi_draw_indirect_support = epoxy_has_gl_extension("GL_ARB_multi_draw_indirect");
-  GLContext::shader_draw_parameters_support = epoxy_has_gl_extension(
-      "GL_ARB_shader_draw_parameters");
   GLContext::stencil_texturing_support = epoxy_gl_version() >= 43;
   GLContext::texture_filter_anisotropic_support = epoxy_has_gl_extension(
       "GL_EXT_texture_filter_anisotropic");
