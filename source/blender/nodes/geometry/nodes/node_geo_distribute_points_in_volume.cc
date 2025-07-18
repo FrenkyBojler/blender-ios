@@ -17,11 +17,6 @@
 #include "BKE_volume.hh"
 #include "BKE_volume_grid.hh"
 
-#include "NOD_rna_define.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-
 #include "GEO_randomize.hh"
 
 #include "node_geometry_util.hh"

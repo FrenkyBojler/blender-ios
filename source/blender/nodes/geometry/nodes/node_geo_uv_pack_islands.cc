@@ -9,11 +9,6 @@
 
 #include "node_geometry_util.hh"
 
-#include "NOD_rna_define.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-
 namespace blender::nodes::node_geo_uv_pack_islands_cc {
 
 /** Local node enum that maps to eUVPackIsland_ShapeMethod in GEO_uv_pack.hh. */

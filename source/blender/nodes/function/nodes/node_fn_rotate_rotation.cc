@@ -2,11 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-
-#include "NOD_rna_define.hh"
-
 #include "node_function_util.hh"
 
 namespace blender::nodes::node_fn_rotate_rotation_cc {
@@ -19,12 +14,12 @@ enum class RotationSpace {
 static const EnumPropertyItem space_items[] = {
     {int(RotationSpace::Global),
      "GLOBAL",
-     ICON_NONE,
+     0,
      "Global",
      "Rotate the input rotation in global space"},
     {int(RotationSpace::Local),
      "LOCAL",
-     ICON_NONE,
+     0,
      "Local",
      "Rotate the input rotation in its local space"},
     {0, nullptr, 0, nullptr, nullptr},

@@ -7,9 +7,6 @@
 
 #include "BKE_node_runtime.hh"
 
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-
 #include "node_function_util.hh"
 
 #include "NOD_socket_search_link.hh"

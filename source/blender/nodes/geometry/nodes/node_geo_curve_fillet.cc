@@ -2,14 +2,9 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "NOD_rna_define.hh"
-
 #include "DNA_grease_pencil_types.h"
 
 #include "BKE_grease_pencil.hh"
-
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
 
 #include "GEO_fillet_curves.hh"
 

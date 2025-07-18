@@ -5,13 +5,6 @@
 #include "BKE_curves.hh"
 #include "BKE_grease_pencil.hh"
 
-#include "UI_interface_layout.hh"
-#include "UI_resources.hh"
-
-#include "NOD_rna_define.hh"
-
-#include "RNA_enum_types.hh"
-
 #include "node_geometry_util.hh"
 
 namespace blender::nodes::node_geo_set_grease_pencil_color_cc {
@@ -24,10 +17,10 @@ enum class Mode : int8_t {
 static const EnumPropertyItem mode_items[] = {
     {int(Mode::Stroke),
      "STROKE",
-     ICON_NONE,
+     0,
      "Stroke",
      "Set the color and opacity for the points of the stroke"},
-    {int(Mode::Fill), "FILL", ICON_NONE, "Fill", "Set the color and opacity for the stroke fills"},
+    {int(Mode::Fill), "FILL", 0, "Fill", "Set the color and opacity for the stroke fills"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
