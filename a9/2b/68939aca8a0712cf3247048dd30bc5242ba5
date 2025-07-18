@@ -1,2 +1,3 @@
 Referenced by pull request #138968, Fix: Geometry Nodes: Unnecessary "Curve to Mesh" scale input versioning
 Referenced by commit a4c91939e7034fab5a99695fd7ae4ac1f7258866, Fix: Geometry Nodes: Unnecessary "Curve to Mesh" scale input versioning
+Referenced by issue #142308, Blender 4.5 Set Curve Radius node doesn't work.
