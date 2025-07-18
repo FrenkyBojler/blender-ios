@@ -189,6 +189,7 @@ if(WITH_GTESTS)
   set(TEST_SRC
     tests/GEO_merge_curves_test.cc
     tests/GEO_abstract_kd_bucket_hierarchy_test.cc
+    tests/GEO_interpolate_curves_test.cc
   )
   set(TEST_LIB
   )
