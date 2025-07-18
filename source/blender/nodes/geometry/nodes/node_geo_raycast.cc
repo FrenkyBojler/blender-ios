@@ -25,7 +25,7 @@ using namespace blender::bke::mesh_surface_sample;
 
 NODE_STORAGE_FUNCS(NodeGeometryRaycast)
 
-static EnumPropertyItem mapping_items[] = {
+static EnumPropertyItem interpolation_items[] = {
     {GEO_NODE_RAYCAST_INTERPOLATED,
      "INTERPOLATED",
      0,
@@ -47,8 +47,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .only_realized_data()
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Geometry to cast rays onto");
-  b.add_input<decl::Menu>("Mapping")
-      .static_items(mapping_items)
+  b.add_input<decl::Menu>("Interpolation")
+      .static_items(interpolation_items)
       .description("Mapping from the target geometry to hit points");
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
@@ -220,7 +220,7 @@ class RaycastFunction : public mf::MultiFunction {
 static void node_geo_exec(GeoNodeExecParams params)
 {
   GeometrySet target = params.extract_input<GeometrySet>("Target Geometry");
-  const auto mapping = params.get_input<GeometryNodeRaycastMapMode>("Mapping");
+  const auto mapping = params.get_input<GeometryNodeRaycastMapMode>("Interpolation");
 
   if (target.is_empty()) {
     params.set_default_remaining_outputs();

@@ -46,7 +46,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   b.add_input(data_type, "Grid").hide_value().structure_type(StructureType::Grid);
   b.add_input<decl::Vector>("Position").implicit_field(NODE_DEFAULT_INPUT_POSITION_FIELD);
-  b.add_input<decl::Menu>("Interpolation Mode")
+  b.add_input<decl::Menu>("Interpolation")
       .static_items(interpolation_mode_items)
       .default_value(int(InterpolationMode::TriLinear))
       .description("How to interpolate the values between neighboring voxels");
@@ -229,7 +229,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 #ifdef WITH_OPENVDB
   const bNode &node = params.node();
   const eNodeSocketDatatype data_type = eNodeSocketDatatype(node.custom1);
-  const auto interpolation = params.get_input<InterpolationMode>("Interpolation Mode");
+  const auto interpolation = params.get_input<InterpolationMode>("Interpolation");
 
   bke::GVolumeGrid grid = params.extract_input<bke::GVolumeGrid>("Grid");
   if (!grid) {

@@ -65,7 +65,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Float>("Margin").default_value(0.001f).min(0.0f).max(1.0f).description(
       "Space between islands");
   b.add_input<decl::Bool>("Rotate").default_value(true).description("Rotate islands for best fit");
-  b.add_input<decl::Menu>("Shape Method")
+  b.add_input<decl::Menu>("Method")
       .static_items(shape_method_items)
       .default_value(int(ShapeMethod::Aabb))
       .description("Method used for packing UV islands");
@@ -191,7 +191,7 @@ class PackIslandsFieldInput final : public bke::MeshFieldInput {
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  const ShapeMethod local_shape_method = params.get_input<ShapeMethod>("Shape Method");
+  const ShapeMethod local_shape_method = params.get_input<ShapeMethod>("Method");
   const eUVPackIsland_ShapeMethod shape_method = convert_shape_method(local_shape_method);
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
