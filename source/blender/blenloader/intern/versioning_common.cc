@@ -787,10 +787,6 @@ void do_versions_after_setup(Main *new_bmain,
        * current world and create a new one with a node tree that simulates the behavior of setting
        * #use_nodes to false. */
       id_fake_user_set(&world->id);
-      printf("World RGB: %0.1f, %0.1f, %0.1f\n",
-             world->horr,
-             world->horg,
-             world->horb);  // todo(habib): remove
       World *legacy_world = BKE_world_add(new_bmain, "World Legacy");
       BLI_assert(legacy_world->nodetree != nullptr);
 
