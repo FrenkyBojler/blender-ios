@@ -439,7 +439,7 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
 
     if (num_selected_but_locked) {
       BKE_reportf(op->reports,
-                  RPT_ERROR,
+                  changed ? RPT_WARNING : RPT_ERROR,
                   "Could not delete %d locked shape key(s)",
                   num_selected_but_locked);
     }
