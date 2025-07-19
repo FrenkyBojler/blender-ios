@@ -187,9 +187,9 @@ static void WIDGETGROUP_node_transform_refresh(const bContext *C, wmGizmoGroup *
   /* Need to set property here for undo. TODO: would prefer to do this in _init. */
   SpaceNode *snode = CTX_wm_space_node(C);
 #if 0
-    PointerRNA nodeptr = RNA_pointer_create_discrete(snode->id, &RNA_SpaceNodeEditor, snode);
-    WM_gizmo_target_property_def_rna(cage, "offset", &nodeptr, "backdrop_offset", -1);
-    WM_gizmo_target_property_def_rna(cage, "scale", &nodeptr, "backdrop_zoom", -1);
+  PointerRNA nodeptr = RNA_pointer_create_discrete(snode->id, &RNA_SpaceNodeEditor, snode);
+  WM_gizmo_target_property_def_rna(cage, "offset", &nodeptr, "backdrop_offset", -1);
+  WM_gizmo_target_property_def_rna(cage, "scale", &nodeptr, "backdrop_zoom", -1);
 #endif
 
   wmGizmoPropertyFnParams params{};
