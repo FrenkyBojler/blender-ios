@@ -3814,12 +3814,12 @@ bke::greasepencil::LayerGroup &GreasePencil::add_layer_group(
 }
 
 bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
-    const bke::greasepencil::LayerGroup &duplicate_group)
+    const bke::greasepencil::LayerGroup &duplicate_group,
+    const bool duplicate_frames,
+    const bool duplicate_drawings)
 {
-  // copy group structure
-  std::string unique_name = unique_layer_group_name(*this, duplicate_group.name());
-
   const int64_t num_layers = layers().size();
+  const std::string unique_name = unique_layer_group_name(*this, duplicate_group.name());
 
   bke::greasepencil::LayerGroup *new_group = MEM_new<bke::greasepencil::LayerGroup>(
       __func__, duplicate_group);
@@ -3839,7 +3839,7 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
 
   int dst_layer_index = num_layers;
 
-  for (int i : nodes_to_copy.index_range()) {
+  for (const int i : nodes_to_copy.index_range()) {
     if (new_nodes[i]->is_group()) {
       const bke::greasepencil::LayerGroup &src_group = nodes_to_copy[i]->as_group();
       bke::greasepencil::LayerGroup &dst_group = new_nodes[i]->as_group();
@@ -3857,7 +3857,6 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
     dst_layer.set_name(layer_unique_name);
 
     std::optional<int> src_index = get_layer_index(src_layer);
-
     BLI_assert(src_index.has_value());
 
     /* Copy Attributes associated with layer. */
@@ -3865,11 +3864,35 @@ bke::greasepencil::LayerGroup &GreasePencil::duplicate_layer_group(
       bke::GSpanAttributeWriter attr = attributes.lookup_for_write_span(iter.name);
       GMutableSpan span = attr.span;
       span.type().copy_assign(span[*src_index], span[dst_layer_index]);
+      attr.finish();
     });
 
-    this->update_drawing_users_for_layer(dst_layer);
+    /* When a layer is duplicated, the frames are shared by default. Clear the frames, to ensure a
+     * valid state. */
+    dst_layer.frames_for_write().clear();
+    if (duplicate_frames) {
+      for (auto [frame_number, frame] : src_layer.frames().items()) {
+        const int duration = src_layer.get_frame_duration_at(frame_number);
+        bke::greasepencil::Drawing *dst_drawing = this->insert_frame(
+            dst_layer, frame_number, duration, eBezTriple_KeyframeType(frame.type));
+        if (duplicate_drawings) {
+          BLI_assert(dst_drawing != nullptr);
+          /* TODO: This can fail (return `nullptr`) if the drawing is a drawing reference! */
+          const bke::greasepencil::Drawing &src_drawing = *this->get_drawing_at(src_layer,
+                                                                                frame_number);
+          /* Duplicate the drawing. */
+          *dst_drawing = src_drawing;
+        }
+      }
+    }
 
     ++dst_layer_index;
+  }
+
+  for (const int i : new_nodes.index_range()) {
+    if (new_nodes[i]->is_layer()) {
+      this->update_drawing_users_for_layer(new_nodes[i]->as_layer());
+    }
   }
 
   return *new_group;
