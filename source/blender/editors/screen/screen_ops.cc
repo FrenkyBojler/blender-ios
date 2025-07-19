@@ -5219,7 +5219,7 @@ static void screen_area_menu_items(ScrArea *area, uiLayout *layout)
 
   if (area->spacetype != SPACE_FILE && !area->full) {
     ptr = layout->op("SCREEN_OT_screen_full_area",
-                     IFACE_("Full Screen Area (Clean)"),
+                     IFACE_("Maximize Area (Clean)"),
                      ICON_NONE,
                      blender::wm::OpCallContext::InvokeDefault,
                      UI_ITEM_NONE);
