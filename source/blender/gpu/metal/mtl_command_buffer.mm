@@ -10,7 +10,7 @@
 #include "mtl_debug.hh"
 #include "mtl_framebuffer.hh"
 
-#include "intern/GHOST_ContextCGL.hh"
+#include "intern/GHOST_ContextMTL.hh"
 
 #include <fstream>
 

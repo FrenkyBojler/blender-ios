@@ -18,7 +18,7 @@
 #endif
 
 #include "intern/GHOST_Context.hh"
-#include "intern/GHOST_ContextCGL.hh"
+#include "intern/GHOST_ContextMTL.hh"
 #include "intern/GHOST_Window.hh"
 
 #include "mtl_backend.hh"
