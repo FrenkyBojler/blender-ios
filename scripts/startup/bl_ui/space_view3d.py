@@ -265,7 +265,7 @@ class _draw_tool_settings_context_mode:
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
-            size = "unprojected_radius"
+            size = "unprojected_size"
 
         UnifiedPaintPanel.prop_unified(
             layout,
@@ -399,7 +399,7 @@ class _draw_tool_settings_context_mode:
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
-            size = "unprojected_radius"
+            size = "unprojected_size"
 
         UnifiedPaintPanel.prop_unified(
             layout,
@@ -8466,7 +8466,7 @@ class VIEW3D_PT_greasepencil_draw_context_menu(Panel):
                 row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
             else:
                 row = layout.row(align=True)
-                row.prop(brush, "unprojected_radius", text="Size", slider=True)
+                row.prop(brush, "unprojected_size", text="Size", slider=True)
                 row.prop(brush, "use_pressure_size", text="", icon='STYLUS_PRESSURE')
         if brush.gpencil_brush_type == 'ERASE':
             row = layout.row(align=True)
@@ -8838,7 +8838,7 @@ class VIEW3D_PT_sculpt_context_menu(Panel):
         size = "size"
         size_owner = ups if ups.use_unified_size else brush
         if size_owner.use_locked_size == 'SCENE':
-            size = "unprojected_radius"
+            size = "unprojected_size"
 
         UnifiedPaintPanel.prop_unified(
             layout,

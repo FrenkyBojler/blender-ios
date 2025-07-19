@@ -1143,7 +1143,7 @@ def brush_shared_settings(layout, context, brush, popover=False):
     size_owner = ups if ups.use_unified_size else brush
     size_prop = "size"
     if size_mode and (size_owner.use_locked_size == 'SCENE'):
-        size_prop = "unprojected_radius"
+        size_prop = "unprojected_size"
     if size or size_mode:
         if size:
             UnifiedPaintPanel.prop_unified(
@@ -1757,7 +1757,7 @@ def brush_basic_grease_pencil_paint_settings(layout, context, brush, props, *, c
             "builtin.circle",
             "builtin.polyline",
         }):
-            size = "unprojected_radius"
+            size = "unprojected_size"
         row = layout.row(align=True)
         row.prop(brush, size, slider=True, text="Radius")
         row.prop(brush, "use_pressure_size", text="")

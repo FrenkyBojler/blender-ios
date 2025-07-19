@@ -554,7 +554,7 @@ void update_modal_transform(bContext *C, Object &ob)
       float transform_radius;
 
       if (BKE_brush_use_locked_size(&sd.paint, &brush)) {
-        transform_radius = BKE_brush_unprojected_radius_get(&sd.paint, &brush);
+        transform_radius = BKE_brush_unprojected_size_get(&sd.paint, &brush);
       }
       else {
         ViewContext vc = ED_view3d_viewcontext_init(C, depsgraph);

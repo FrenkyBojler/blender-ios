@@ -1041,10 +1041,10 @@ static void paint_draw_curve_cursor(Brush *brush, ViewContext *vc)
 
 /* Special actions taken when paint cursor goes over mesh */
 /* TODO: sculpt only for now. */
-static void paint_cursor_update_unprojected_radius(Paint &paint,
-                                                   Brush &brush,
-                                                   const ViewContext &vc,
-                                                   const float location[3])
+static void paint_cursor_update_unprojected_size(Paint &paint,
+                                                 Brush &brush,
+                                                 const ViewContext &vc,
+                                                 const float location[3])
 {
   const bke::PaintRuntime &paint_runtime = *paint.runtime;
   /* Update the brush's cached 3D radius. */
@@ -1064,15 +1064,15 @@ static void paint_cursor_update_unprojected_radius(Paint &paint,
     }
 
     /* Convert brush radius from 2D to 3D. */
-    float unprojected_radius = paint_calc_object_space_radius(vc, location, projected_radius);
+    float unprojected_size = paint_calc_object_space_radius(vc, location, projected_radius);
 
     /* Scale 3D brush radius by pressure. */
     if (paint_runtime.stroke_active && BKE_brush_use_size_pressure(&brush)) {
-      unprojected_radius *= paint_runtime.size_pressure_value;
+      unprojected_size *= paint_runtime.size_pressure_value;
     }
 
     /* Set cached value in either Brush or UnifiedPaintSettings. */
-    BKE_brush_unprojected_radius_set(&paint, &brush, unprojected_radius);
+    BKE_brush_unprojected_size_set(&paint, &brush, unprojected_size);
   }
 }
 
@@ -1413,7 +1413,7 @@ static void paint_cursor_update_pixel_radius(PaintCursorContext &pcontext)
   if (pcontext.is_cursor_over_mesh) {
     Brush *brush = BKE_paint_brush(pcontext.paint);
     pcontext.pixel_radius = project_brush_radius(
-        &pcontext.vc, BKE_brush_unprojected_radius_get(pcontext.paint, brush), pcontext.location);
+        &pcontext.vc, BKE_brush_unprojected_size_get(pcontext.paint, brush), pcontext.location);
 
     if (pcontext.pixel_radius == 0) {
       pcontext.pixel_radius = BKE_brush_size_get(pcontext.paint, brush);
@@ -1473,7 +1473,7 @@ static void paint_cursor_sculpt_session_update_and_init(PaintCursorContext &pcon
   }
 
   if (pcontext.is_cursor_over_mesh) {
-    paint_cursor_update_unprojected_radius(
+    paint_cursor_update_unprojected_size(
         *pcontext.paint, brush, vc, pcontext.scene_space_location);
   }
 
@@ -1589,10 +1589,10 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
       /* If we use the eraser from the draw tool with a "scene" radius unit, we need to draw the
        * cursor with the appropriate size. */
       if (grease_pencil->runtime->temp_use_eraser && (brush->flag & BRUSH_LOCK_SIZE) != 0) {
-        pcontext.pixel_radius = int(grease_pencil->runtime->temp_eraser_size);
+        pcontext.pixel_radius = std::max(int(grease_pencil->runtime->temp_eraser_size / 2.0f), 1);
       }
       else {
-        pcontext.pixel_radius = brush->size;
+        pcontext.pixel_radius = std::max(1, int(brush->size / 2.0f));
       }
       grease_pencil_eraser_draw(pcontext);
       return;
@@ -1606,7 +1606,7 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
     }
 
     if (brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_TINT) {
-      pcontext.pixel_radius = brush->size;
+      pcontext.pixel_radius = std::max(int(brush->size / 2.0f), 1);
     }
 
     if (brush->gpencil_brush_type == GPAINT_BRUSH_TYPE_DRAW) {
@@ -1620,16 +1620,19 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
         const float3 pos = placement.project(coordinate, clipped);
         if (!clipped) {
           const float3 world_location = math::transform_point(placement.to_world_space(), pos);
-          pcontext.pixel_radius = project_brush_radius_grease_pencil(
-              &pcontext.vc, brush->unprojected_radius, world_location, placement.to_world_space());
+          pcontext.pixel_radius = project_brush_radius_grease_pencil(&pcontext.vc,
+                                                                     brush->unprojected_size /
+                                                                         2.0f,
+                                                                     world_location,
+                                                                     placement.to_world_space());
         }
         else {
           pcontext.pixel_radius = 0;
         }
-        brush->size = std::max(pcontext.pixel_radius, 1);
+        brush->size = std::max(pcontext.pixel_radius * 2, 1);
       }
       else {
-        pcontext.pixel_radius = brush->size;
+        pcontext.pixel_radius = brush->size / 2.0f;
       }
     }
 

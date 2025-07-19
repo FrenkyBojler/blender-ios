@@ -529,18 +529,18 @@ static void rna_UnifiedPaintSettings_size_set(PointerRNA *ptr, int value)
 {
   UnifiedPaintSettings *ups = static_cast<UnifiedPaintSettings *>(ptr->data);
 
-  /* scale unprojected radius so it stays consistent with brush size */
-  BKE_brush_scale_unprojected_radius(&ups->unprojected_radius, value, ups->size);
+  /* scale unprojected size so it stays consistent with brush size */
+  BKE_brush_scale_unprojected_size(&ups->unprojected_size, value, ups->size);
   ups->size = value;
 }
 
-static void rna_UnifiedPaintSettings_unprojected_radius_set(PointerRNA *ptr, float value)
+static void rna_UnifiedPaintSettings_unprojected_size_set(PointerRNA *ptr, float value)
 {
   UnifiedPaintSettings *ups = static_cast<UnifiedPaintSettings *>(ptr->data);
 
-  /* scale brush size so it stays consistent with unprojected_radius */
-  BKE_brush_scale_size(&ups->size, value, ups->unprojected_radius);
-  ups->unprojected_radius = value;
+  /* scale brush size so it stays consistent with unprojected_size */
+  BKE_brush_scale_size(&ups->size, value, ups->unprojected_size);
+  ups->unprojected_size = value;
 }
 
 static void rna_UnifiedPaintSettings_radius_update(bContext *C, PointerRNA *ptr)
@@ -816,9 +816,9 @@ static void rna_def_unified_paint_settings(BlenderRNA *brna)
   RNA_def_property_ui_text(prop, "Radius", "Radius of the brush");
   RNA_def_property_update(prop, 0, "rna_UnifiedPaintSettings_radius_update");
 
-  prop = RNA_def_property(srna, "unprojected_radius", PROP_FLOAT, PROP_DISTANCE);
+  prop = RNA_def_property(srna, "unprojected_size", PROP_FLOAT, PROP_DISTANCE);
   RNA_def_property_float_funcs(
-      prop, nullptr, "rna_UnifiedPaintSettings_unprojected_radius_set", nullptr);
+      prop, nullptr, "rna_UnifiedPaintSettings_unprojected_size_set", nullptr);
   RNA_def_property_flag(prop, PROP_CONTEXT_UPDATE);
   RNA_def_property_range(prop, 0.001, FLT_MAX);
   RNA_def_property_ui_range(prop, 0.001, 1, 1, -1);

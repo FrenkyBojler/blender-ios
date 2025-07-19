@@ -1027,11 +1027,11 @@ typedef struct TimeMarker {
  * values are used
  */
 typedef struct UnifiedPaintSettings {
-  /** Unified radius of brush in pixels. */
+  /** Unified diameter of brush in pixels. */
   int size;
 
-  /** Unified radius of brush in Blender units. */
-  float unprojected_radius;
+  /** Unified diameter of brush in Blender units. */
+  float unprojected_size;
 
   /** Unified strength of brush. */
   float alpha;
@@ -1785,7 +1785,7 @@ typedef struct ToolSettings {
    */
   short sculpt_paint_settings DNA_DEPRECATED;
   int sculpt_paint_unified_size DNA_DEPRECATED;
-  float sculpt_paint_unified_unprojected_radius DNA_DEPRECATED;
+  float sculpt_paint_unified_unprojected_size DNA_DEPRECATED;
   float sculpt_paint_unified_alpha DNA_DEPRECATED;
 
   /**

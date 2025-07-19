@@ -532,7 +532,7 @@ void update_cache_variants(bContext *C, VPaint &vp, Object &ob, PointerRNA *ptr)
   if (cache->first_time) {
     cache->initial_radius = paint_calc_object_space_radius(
         *cache->vc, cache->location, BKE_brush_size_get(&vp.paint, &brush));
-    BKE_brush_unprojected_radius_set(&vp.paint, &brush, cache->initial_radius);
+    BKE_brush_unprojected_size_set(&vp.paint, &brush, cache->initial_radius);
   }
 
   if (BKE_brush_use_size_pressure(&brush) && paint_supports_dynamic_size(brush, PaintMode::Sculpt))

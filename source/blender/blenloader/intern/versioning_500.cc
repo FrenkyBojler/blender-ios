@@ -592,7 +592,7 @@ static void apply_unified_paint_settings_to_all_modes(Scene &scene)
     UnifiedPaintSettings &ups = paint->unified_paint_settings;
 
     ups.size = scene_ups.size;
-    ups.unprojected_radius = scene_ups.unprojected_radius;
+    ups.unprojected_size = scene_ups.unprojected_size;
     ups.alpha = scene_ups.alpha;
     ups.weight = scene_ups.weight;
     copy_v3_v3(ups.rgb, scene_ups.rgb);

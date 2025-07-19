@@ -307,7 +307,7 @@
   { \
     .size = 50, \
     .input_samples = 1, \
-    .unprojected_radius = 0.29, \
+    .unprojected_size = 0.29, \
     .alpha = 0.5f, \
     .weight = 0.5f, \
     .rgb = {0.0f, 0.0f, 0.0f}, \
