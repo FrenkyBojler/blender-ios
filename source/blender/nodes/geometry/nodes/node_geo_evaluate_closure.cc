@@ -21,32 +21,37 @@ NODE_STORAGE_FUNCS(NodeGeometryEvaluateClosure)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
+  b.use_custom_socket_order();
   b.add_input<decl::Closure>("Closure");
 
   const bNode *node = b.node_or_null();
-  if (node) {
-    const auto &storage = node_storage(*node);
-    for (const int i : IndexRange(storage.input_items.items_num)) {
-      const NodeGeometryEvaluateClosureInputItem &item = storage.input_items.items[i];
-      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const std::string identifier = EvaluateClosureInputItemsAccessor::socket_identifier_for_item(
-          item);
-      b.add_input(socket_type, item.name, identifier)
-          .structure_type(StructureType(item.structure_type));
-    }
-    for (const int i : IndexRange(storage.output_items.items_num)) {
-      const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
-      const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
-      const std::string identifier =
-          EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
-      b.add_output(socket_type, item.name, identifier)
-          .structure_type(StructureType(item.structure_type));
-    }
+  if (!node) {
+    return;
   }
+  const auto &storage = node_storage(*node);
 
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__");
-}
+  // Output panel first
+  PanelDeclarationBuilder &output_panel = b.add_panel("Output Items").default_closed(true);
+  for (const int i : IndexRange(storage.output_items.items_num)) {
+    const NodeGeometryEvaluateClosureOutputItem &item = storage.output_items.items[i];
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    const std::string identifier = EvaluateClosureOutputItemsAccessor::socket_identifier_for_item(item);
+    output_panel.add_output(socket_type, item.name, identifier)
+                .structure_type(StructureType(item.structure_type));
+  }
+  output_panel.add_output<decl::Extend>("", "__extend__output");
+
+  // Input panel last
+  PanelDeclarationBuilder &input_panel = b.add_panel("Input Items").default_closed(true);
+  for (const int i : IndexRange(storage.input_items.items_num)) {
+    const NodeGeometryEvaluateClosureInputItem &item = storage.input_items.items[i];
+    const eNodeSocketDatatype socket_type = eNodeSocketDatatype(item.socket_type);
+    const std::string identifier = EvaluateClosureInputItemsAccessor::socket_identifier_for_item(item);
+    input_panel.add_input(socket_type, item.name, identifier)
+                .structure_type(StructureType(item.structure_type));
+  }
+  input_panel.add_input<decl::Extend>("", "__extend__input");
+  }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
 {
@@ -91,22 +96,25 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *ptr)
 
   layout->op("node.sockets_sync", "Sync", ICON_FILE_REFRESH);
 
-  if (uiLayout *panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
+  // Panel for dynamic input items
+  if (uiLayout *input_panel = layout->panel(C, "input_items", false, IFACE_("Input Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureInputItemsAccessor>(
-        C, panel, tree, node);
+        C, input_panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureInputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          input_panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          input_panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
-  if (uiLayout *panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
+
+  // Panel for dynamic output items
+  if (uiLayout *output_panel = layout->panel(C, "output_items", false, IFACE_("Output Items"))) {
     socket_items::ui::draw_items_list_with_operators<EvaluateClosureOutputItemsAccessor>(
-        C, panel, tree, node);
+        C, output_panel, tree, node);
     socket_items::ui::draw_active_item_props<EvaluateClosureOutputItemsAccessor>(
         tree, node, [&](PointerRNA *item_ptr) {
-          panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
-          panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          output_panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+          output_panel->prop(item_ptr, "structure_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
         });
   }
 }
