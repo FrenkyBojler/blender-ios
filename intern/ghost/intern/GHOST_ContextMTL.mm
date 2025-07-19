@@ -5,7 +5,7 @@
 /** \file
  * \ingroup GHOST
  *
- * Definition of GHOST_ContextCGL class.
+ * Definition of GHOST_ContextMTL class.
  */
 
 /* Don't generate OpenGL deprecation warning. This is a known thing, and is not something easily
@@ -284,7 +284,7 @@ void GHOST_ContextMTL::metalInit()
     id<MTLLibrary> library = [device newLibraryWithSource:source options:options error:&error];
     if (error) {
       ghost_fatal_error_dialog(
-          "GHOST_ContextCGL::metalInit: newLibraryWithSource:options:error: failed!");
+          "GHOST_ContextMTL::metalInit: newLibraryWithSource:options:error: failed!");
     }
 
     /* Create a render pipeline for blit operation. */
@@ -303,7 +303,7 @@ void GHOST_ContextMTL::metalInit()
                                        error:&error];
     if (error) {
       ghost_fatal_error_dialog(
-          "GHOST_ContextCGL::metalInit: newRenderPipelineStateWithDescriptor:error: failed!");
+          "GHOST_ContextMTL::metalInit: newRenderPipelineStateWithDescriptor:error: failed!");
     }
 
     /* Create a render pipeline to composite things rendered with Metal on top
@@ -316,7 +316,7 @@ void GHOST_ContextMTL::metalInit()
 
     if (error) {
       ghost_fatal_error_dialog(
-          "GHOST_ContextCGL::metalInit: newRenderPipelineStateWithDescriptor:error: failed (when "
+          "GHOST_ContextMTL::metalInit: newRenderPipelineStateWithDescriptor:error: failed (when "
           "creating the Metal overlay pipeline)!");
     }
 
@@ -375,7 +375,7 @@ void GHOST_ContextMTL::metalUpdateFramebuffer()
     id<MTLTexture> overlayTex = [device newTextureWithDescriptor:overlayDesc];
     if (!overlayTex) {
       ghost_fatal_error_dialog(
-          "GHOST_ContextCGL::metalUpdateFramebuffer: failed to create Metal overlay texture!");
+          "GHOST_ContextMTL::metalUpdateFramebuffer: failed to create Metal overlay texture!");
     }
     else {
       overlayTex.label = [NSString

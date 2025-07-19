@@ -143,7 +143,7 @@ bool MTLCommandBufferManager::submit(bool wait)
     wait = true;
     MTL_LOG_WARNING(
         "Maximum number of command buffers in flight. Host will wait until GPU work has "
-        "completed. Consider increasing GHOST_ContextCGL::max_command_buffer_count or reducing "
+        "completed. Consider increasing GHOST_ContextMTL::max_command_buffer_count or reducing "
         "work fragmentation to better utilize system hardware. Command buffers are flushed upon "
         "GPUContext switches, this is the most common cause of excessive command buffer "
         "generation.");
