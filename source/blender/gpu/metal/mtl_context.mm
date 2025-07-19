@@ -98,7 +98,7 @@ void MTLContext::set_ghost_context(GHOST_ContextHandle ghostCtxHandle)
   mtl_front_left->remove_all_attachments();
   mtl_back_left->remove_all_attachments();
 
-  GHOST_ContextCGL *ghost_cgl_ctx = dynamic_cast<GHOST_ContextCGL *>(ghost_ctx);
+  GHOST_ContextMTL *ghost_cgl_ctx = dynamic_cast<GHOST_ContextMTL *>(ghost_ctx);
   if (ghost_cgl_ctx != nullptr) {
     default_fbo_mtltexture_ = ghost_cgl_ctx->metalOverlayTexture();
 
@@ -213,7 +213,7 @@ MTLContext::MTLContext(void *ghost_window, void *ghost_context)
     ghost_context = (ghostWin ? ghostWin->getContext() : nullptr);
   }
   BLI_assert(ghost_context);
-  this->ghost_context_ = static_cast<GHOST_ContextCGL *>(ghost_context);
+  this->ghost_context_ = static_cast<GHOST_ContextMTL *>(ghost_context);
   this->queue = (id<MTLCommandQueue>)this->ghost_context_->metalCommandQueue();
   this->device = (id<MTLDevice>)this->ghost_context_->metalDevice();
   BLI_assert(this->queue);
