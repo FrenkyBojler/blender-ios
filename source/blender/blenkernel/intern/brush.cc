@@ -1190,6 +1190,11 @@ int BKE_brush_size_get(const Paint *paint, const Brush *brush)
   return size;
 }
 
+float BKE_brush_radius_get(const Paint *paint, const Brush *brush)
+{
+  return BKE_brush_size_get(paint, brush) / 2.0f;
+}
+
 bool BKE_brush_use_locked_size(const Paint *paint, const Brush *brush)
 {
   const short us_flag = paint->unified_paint_settings.flag;
@@ -1226,6 +1231,11 @@ float BKE_brush_unprojected_size_get(const Paint *paint, const Brush *brush)
   const UnifiedPaintSettings *ups = &paint->unified_paint_settings;
 
   return (ups->flag & UNIFIED_PAINT_SIZE) ? ups->unprojected_size : brush->unprojected_size;
+}
+
+float BKE_brush_unprojected_radius_get(const Paint *paint, const Brush *brush)
+{
+  return BKE_brush_unprojected_size_get(paint, brush) / 2.0f;
 }
 
 void BKE_brush_alpha_set(Paint *paint, Brush *brush, float alpha)
