@@ -19,8 +19,6 @@
 @class MTLDevice;
 @class MTLRenderPipelineState;
 @class MTLTexture;
-@class NSOpenGLContext;
-@class NSOpenGLView;
 @class NSView;
 
 class GHOST_ContextMTL: public GHOST_Context {
