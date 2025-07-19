@@ -21,7 +21,7 @@
 @class MTLTexture;
 @class NSView;
 
-class GHOST_ContextMTL: public GHOST_Context {
+class GHOST_ContextMTL : public GHOST_Context {
  public:
   /* Defines the number of simultaneous command buffers which can be in flight.
    * The default limit of `64` is considered to be optimal for Blender. Too many command buffers
