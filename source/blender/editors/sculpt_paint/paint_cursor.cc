@@ -288,12 +288,12 @@ static int load_tex(Brush *br, ViewContext *vc, float zoom, bool col, bool prima
     Paint *paint = BKE_paint_get_active_from_context(vc->C);
     /* Stencil is rotated later. */
     const float rotation = (mtex->brush_map_mode != MTEX_MAP_MODE_STENCIL) ? -mtex->rot : 0.0f;
-    const float radius = BKE_brush_size_get(paint, br) * zoom;
+    const float radius = BKE_brush_radius_get(paint, br) * zoom;
 
     make_tex_snap(target, vc, zoom);
 
     if (mtex->brush_map_mode == MTEX_MAP_MODE_VIEW) {
-      int s = BKE_brush_size_get(paint, br);
+      int s = BKE_brush_radius_get(paint, br);
       int r = 1;
 
       for (s >>= 1; s > 0; s >>= 1) {
@@ -437,7 +437,7 @@ static int load_tex_cursor(Brush *br, ViewContext *vc, float zoom)
 
     cursor_snap.zoom = zoom;
 
-    s = BKE_brush_size_get(paint, br);
+    s = BKE_brush_radius_get(paint, br);
     r = 1;
 
     for (s >>= 1; s > 0; s >>= 1) {
@@ -638,7 +638,7 @@ static bool paint_draw_tex_overlay(Paint *paint,
         quad.ymax = center[1] + paint_runtime->anchored_size;
       }
       else {
-        const int radius = BKE_brush_size_get(paint, brush) * zoom;
+        const int radius = BKE_brush_radius_get(paint, brush) * zoom;
         quad.xmin = center[0] - radius;
         quad.ymin = center[1] - radius;
         quad.xmax = center[0] + radius;
@@ -753,7 +753,7 @@ static bool paint_draw_cursor_overlay(
       quad.ymax = paint_runtime->anchored_initial_mouse[1] + paint_runtime->anchored_size;
     }
     else {
-      const int radius = BKE_brush_size_get(paint, brush) * zoom;
+      const int radius = BKE_brush_radius_get(paint, brush) * zoom;
       center[0] = x;
       center[1] = y;
 
@@ -1059,7 +1059,7 @@ static void paint_cursor_update_unprojected_size(Paint &paint,
         projected_radius = 8;
       }
       else {
-        projected_radius = BKE_brush_size_get(&paint, &brush);
+        projected_radius = BKE_brush_radius_get(&paint, &brush);
       }
     }
 
@@ -1373,7 +1373,7 @@ static bool paint_cursor_context_init(bContext *C,
   float zoomx, zoomy;
   get_imapaint_zoom(C, &zoomx, &zoomy);
   pcontext.zoomx = max_ff(zoomx, zoomy);
-  pcontext.final_radius = (BKE_brush_size_get(pcontext.paint, pcontext.brush) * zoomx);
+  pcontext.final_radius = (BKE_brush_radius_get(pcontext.paint, pcontext.brush) * zoomx);
 
   const bke::PaintRuntime &paint_runtime = *pcontext.paint->runtime;
   /* There is currently no way to check if the direction is inverted before starting the stroke,
@@ -1413,10 +1413,10 @@ static void paint_cursor_update_pixel_radius(PaintCursorContext &pcontext)
   if (pcontext.is_cursor_over_mesh) {
     Brush *brush = BKE_paint_brush(pcontext.paint);
     pcontext.pixel_radius = project_brush_radius(
-        &pcontext.vc, BKE_brush_unprojected_size_get(pcontext.paint, brush), pcontext.location);
+        &pcontext.vc, BKE_brush_unprojected_radius_get(pcontext.paint, brush), pcontext.location);
 
     if (pcontext.pixel_radius == 0) {
-      pcontext.pixel_radius = BKE_brush_size_get(pcontext.paint, brush);
+      pcontext.pixel_radius = BKE_brush_radius_get(pcontext.paint, brush);
     }
 
     pcontext.scene_space_location = math::transform_point(pcontext.vc.obact->object_to_world(),
@@ -1426,7 +1426,7 @@ static void paint_cursor_update_pixel_radius(PaintCursorContext &pcontext)
     Sculpt *sd = CTX_data_tool_settings(pcontext.C)->sculpt;
     Brush *brush = BKE_paint_brush(&sd->paint);
 
-    pcontext.pixel_radius = BKE_brush_size_get(pcontext.paint, brush);
+    pcontext.pixel_radius = BKE_brush_radius_get(pcontext.paint, brush);
   }
 }
 
@@ -1664,7 +1664,7 @@ static void grease_pencil_brush_cursor_draw(PaintCursorContext &pcontext)
     }
   }
   else if (pcontext.mode == PaintMode::VertexGPencil) {
-    pcontext.pixel_radius = BKE_brush_size_get(pcontext.paint, brush);
+    pcontext.pixel_radius = BKE_brush_radius_get(pcontext.paint, brush);
     color = BKE_brush_color_get(paint, brush);
   }
 

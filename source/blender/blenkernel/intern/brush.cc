@@ -1341,7 +1341,7 @@ void BKE_brush_jitter_pos(const Paint &paint,
     spread = 1.0;
   }
   else {
-    diameter = 2 * BKE_brush_size_get(&paint, &brush);
+    diameter = 2 * BKE_brush_radius_get(&paint, &brush);
     spread = brush.jitter;
   }
   /* find random position within a circle of diameter 1 */

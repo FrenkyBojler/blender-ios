@@ -191,7 +191,7 @@ float BKE_brush_radius_get(const Paint *paint, const Brush *brush);
 
 float BKE_brush_unprojected_size_get(const Paint *paint, const Brush *brush);
 void BKE_brush_unprojected_size_set(Paint *paint, Brush *brush, float unprojected_size);
-float BKE_brush_unprojected_radius_radius_get(const Paint *paint, const Brush *brush);
+float BKE_brush_unprojected_radius_get(const Paint *paint, const Brush *brush);
 
 float BKE_brush_alpha_get(const Paint *paint, const Brush *brush);
 void BKE_brush_alpha_set(Paint *paint, Brush *brush, float alpha);
