@@ -13,14 +13,14 @@
 #if defined(WITH_GHOST_X11)
 #  if defined(WITH_OPENGL_BACKEND)
 #    include "GHOST_ContextEGL.hh"
-#    include "GHOST_ContextGLX.hhA
-#  endif "
+#    include "GHOST_ContextGLX.hh"
+#  endif
 #  include "GHOST_SystemX11.hh"
 #endif
 #if defined(WITH_GHOST_WAYLAND)
 #  if defined(WITH_OPENGL_BACKEND)
-#    include "GHOST_ContextEGL.hhA
-#  endif "
+#    include "GHOST_ContextEGL.hh"
+#  endif
 #  include "GHOST_SystemWayland.hh"
 #endif
 #if defined(WIN32)
@@ -39,6 +39,7 @@
 
 #include "GHOST_IXrGraphicsBinding.hh"
 
+#if defined(WITH_OPENGL_BACKEND)
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
     const std::vector<int64_t> &gpu_binding_formats, const std::vector<int64_t> &runtime_formats)
 {
@@ -57,7 +58,6 @@ static std::optional<int64_t> choose_swapchain_format_from_candidates(
   return *res;
 }
 
-#if defined(WITH_OPENGL_BACKEND)
 class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
  public:
   ~GHOST_XrGraphicsBindingOpenGL()
@@ -219,13 +219,13 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
         GL_RGB10_A2,
         GL_RGBA16,
 #  endif
-      GL_RGBA16F,
+        GL_RGBA16F,
 #  if 1
-      GL_RGB10_A2,
-      GL_RGBA16,
+        GL_RGB10_A2,
+        GL_RGBA16,
 #  endif
-      GL_RGBA8,
-      GL_SRGB8_ALPHA8,
+        GL_RGBA8,
+        GL_SRGB8_ALPHA8,
     };
 
     std::optional result = choose_swapchain_format_from_candidates(gpu_binding_formats,
