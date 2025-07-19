@@ -66,7 +66,8 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
   }
   const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
   if (!multiple_scattering && dir.z < 0.0f) {
-    /* If Single Scattering is used, fade ground to black */
+    /* Fade ground to black for Single Scattering model and disable Sun disc below horizon */
+    rgb_sun = make_float3(0.0f, 0.0f, 0.0f);
     if (dir.z < -0.4f) {
       rgb_sky = make_float3(0.0f, 0.0f, 0.0f);
     }

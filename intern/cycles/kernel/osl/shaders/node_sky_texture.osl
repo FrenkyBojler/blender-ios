@@ -68,7 +68,8 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
     x = x - 1.0;
   }
   if (sky_type == 0 && dir[2] < 0.0) {
-    /* If Single Scattering is used, fade ground to black */
+    /* Fade ground to black for Single Scattering model and disable Sun disc below horizon */
+    rgb_sun = color(0.0, 0.0, 0.0);
     if (dir[2] < -0.4) {
       rgb_sky = color(0.0, 0.0, 0.0);
     }
