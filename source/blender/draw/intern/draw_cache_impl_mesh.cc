@@ -155,7 +155,7 @@ static void mesh_cd_calc_active_mask_uv_layer(const Object &object,
 {
   const Mesh &me_final = editmesh_final_or_this(object, mesh);
   const CustomData &cd_ldata = mesh_cd_ldata_get_from_mesh(me_final);
-  int layer = CustomData_get_stencil_layer(&cd_ldata, CD_PROP_FLOAT2);
+  int layer = CustomData_get_stencil_layer_index(&cd_ldata, CD_PROP_FLOAT2);
   if (layer != -1) {
     cd_used.uv.add_as(cd_ldata.layers[layer].name);
   }
