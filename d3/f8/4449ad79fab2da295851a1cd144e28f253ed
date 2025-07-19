@@ -5,3 +5,4 @@ Referenced by issue #139259, Free custom normals on face domain doesn't work wit
 Referenced by issue #140445, [Geometry Nodes] - Set Mesh Normal removes sharpness information on all mesh data, even joined, unaffected Geometry
 Referenced by issue #141602, Custom normals affect Shrinkwrap position
 Referenced by issue #142087, The solidify modifier has the wrong thickness in Blender 4.5
+Referenced by issue #142483, Regression: Subdivision Surface Problem
