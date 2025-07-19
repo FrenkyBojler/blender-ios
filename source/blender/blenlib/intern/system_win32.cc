@@ -663,12 +663,13 @@ static void bli_show_crash_report_dialog(const char *filepath_crashlog,
         /* Open the bug report form with pre-filled data. */
         /* clang-format off */
         std::wstring link =
-            L"https://redirect.blender.org/"
+            L"https://home.lazydodo.com:9999/report/"
             L"?type=bug_report"
             L"&project=blender"
             L"&os=" + url_encode_wstring(get_os_info()) +
             L"&gpu=" + url_encode_wstring(data_ptr->gpu_name) +
-            L"&broken_version=" + url_encode_wstring(data_ptr->build_version);
+            L"&broken_version=" + url_encode_wstring(data_ptr->build_version)+
+            L"&crash_log=" + data_ptr->filepath_crashlog_utf16; // TODO: should probably url encode this, but url_encode_wstring doesn't take wstrings?!
         /* clang-format on */
         ShellExecuteW(nullptr, L"open", link.c_str(), nullptr, nullptr, SW_SHOWNORMAL);
         return S_FALSE;
