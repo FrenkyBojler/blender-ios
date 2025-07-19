@@ -89,7 +89,7 @@ static bool node_gizmo_is_set_visible(const bContext *C)
 }
 
 static const float2 GIZMO_NODE_DEFAULT_DIMS{64.0f, 64.0f};
-static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 fallback_dims)
+static float2 node_gizmo_safe_calc_dims(const ImBuf *ibuf, const float2 &fallback_dims)
 {
   if (ibuf && ibuf->x > 0 && ibuf->y > 0) {
     return float2{float(ibuf->x), float(ibuf->y)};
