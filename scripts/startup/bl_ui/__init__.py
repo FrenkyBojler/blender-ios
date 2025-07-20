@@ -121,7 +121,6 @@ def register():
 
     # NOTE: modules imported dynamically using __import__
     space_filebrowser.register_props()
-    properties_object.register_props()
 
     from bpy.props import (
         EnumProperty,

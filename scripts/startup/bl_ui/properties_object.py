@@ -7,12 +7,9 @@ from bl_ui.properties_animviz import (
     MotionPathButtonsPanel_display,
 )
 import bpy
-from bpy.types import Panel, Menu, PropertyGroup
+from bpy.types import Panel, Menu
 from rna_prop_ui import PropertyPanel
 from bl_ui.space_properties import PropertiesAnimationMixin
-from bpy.props import FloatVectorProperty, PointerProperty, EnumProperty
-from mathutils import Vector, Quaternion, Matrix
-from typing import Tuple
 
 
 class ObjectButtonsPanel:
@@ -125,17 +122,8 @@ class OBJECT_PT_parent_inverse_transform(ObjectButtonsPanel, Panel):
         layout.use_property_split = True
 
         ob = context.object
-        inverse_matrix = ob.matrix_parent_inverse
-        inverse_props = ob.parent_inverse_transform
-
-        # Use the 3x3 matrix, as shear in the 4x4 homogeneous matrix is expected due to the translation component.
-        if not inverse_matrix.to_3x3().is_orthogonal_axis_vectors:
-            self.layout.label(text="Parent Inverse Matrix has a shear", icon="ERROR")
-
-        layout.prop(inverse_props, "location")
-        layout.prop(inverse_props, "rotation_mode", text="Mode")
-        layout.prop(inverse_props, "rotation_euler", text="Rotation")
-        layout.prop(inverse_props, "scale")
+        assert ob
+        layout.template_matrix(ob, "matrix_parent_inverse")
 
         props = layout.operator("object.parent_clear", text="Clear Parent Inverse Transform")
         props.type = "CLEAR_INVERSE"
@@ -634,53 +622,6 @@ class OBJECT_PT_custom_props(ObjectButtonsPanel, PropertyPanel, Panel):
     _property_type = bpy.types.Object
 
 
-class ReadOnlyMatrixDecomposition(PropertyGroup):
-    """Read-only utility property group for decomposing parent inverse matrices.
-
-    Provides read-only access to the for a bpy.types.Object parent inverse
-    matrix decomposition properties, such as location, rotation, and scale.
-    """
-
-    @property
-    def matrix(self) -> Matrix:
-        return self.id_data.matrix_parent_inverse
-
-    def _get_location(self):
-        return self.matrix.to_translation()
-
-    def _get_rotation_euler(self):
-        return self.matrix.to_euler(self.rotation_mode)
-
-    def _get_scale(self):
-        return self.matrix.to_scale()
-
-    # We limit implementation to only Euler rotation as it's generally easier
-    # for users to make sense of the rotation by understanding it's Euler angles.
-    rotation_mode_enum = (
-        ('XYZ', 'XYZ Euler', ''),
-        ('XZY', 'XZY Euler', ''),
-        ('YXZ', 'YXZ Euler', ''),
-        ('YZX', 'YZX Euler', ''),
-        ('ZXY', 'ZXY Euler', ''),
-        ('ZYX', 'ZYX Euler', ''),
-    )
-
-    location: FloatVectorProperty(
-        name="Location", get=_get_location, set=None, subtype="TRANSLATION", precision=5
-    )
-    rotation_euler: FloatVectorProperty(
-        name="Rotation (Euler)",
-        get=_get_rotation_euler,
-        set=None,
-        subtype="EULER",
-        precision=5,
-    )
-    rotation_mode: EnumProperty(name="Rotation Mode (Euler)", items=rotation_mode_enum, default="XYZ")
-    scale: FloatVectorProperty(
-        name="Scale", get=_get_scale, set=None, subtype="XYZ", precision=3
-    )
-
-
 classes = (
     OBJECT_PT_context_object,
     OBJECT_PT_transform,
@@ -704,13 +645,7 @@ classes = (
     OBJECT_PT_lineart,
     OBJECT_PT_animation,
     OBJECT_PT_custom_props,
-    ReadOnlyMatrixDecomposition,
 )
-
-def register_props():
-    # Property is used to present parent inverse matrix in UI as it's decomposed properties.
-    bpy.types.Object.parent_inverse_transform = PointerProperty(type=ReadOnlyMatrixDecomposition)
-
 
 if __name__ == "__main__":  # only for live edit.
     from bpy.utils import register_class

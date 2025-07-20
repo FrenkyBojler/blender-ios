@@ -1697,6 +1697,9 @@ void RNA_api_ui_layout(StructRNA *srna)
                "Optionally limit the items which can be selected");
   RNA_def_boolean(func, "hide_buttons", false, "", "Show only list, no buttons");
 
+  func = RNA_def_function(srna, "template_matrix", "uiTemplateMatrix");
+  api_ui_item_rna_common(func);
+
   func = RNA_def_function(srna, "template_any_ID", "rna_uiTemplateAnyID");
   parm = RNA_def_pointer(func, "data", "AnyType", "", "Data from which to take property");
   RNA_def_parameter_flags(parm, PROP_NEVER_NULL, PARM_REQUIRED | PARM_RNAPTR);
