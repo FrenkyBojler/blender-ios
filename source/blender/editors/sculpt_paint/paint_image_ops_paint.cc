@@ -504,13 +504,13 @@ static wmOperatorStatus paint_exec(bContext *C, wmOperator *op)
   float pressure;
   pressure = RNA_float_get(&firstpoint, "pressure");
   float mouse_out[2];
-  float cval[3] = {mouse[0], mouse[1], 0.0f};
+  float controller[3] = {mouse[0], mouse[1], 0.0f};
   bool dummy;
   float dummy_location[3];
 
   paint_stroke_jitter_pos(*stroke, mode, brush, pressure, mouse, mouse_out);
   paint_brush_update(
-      C, brush, mode, stroke, mouse, cval, mouse_out, pressure, dummy_location, &dummy);
+      C, brush, mode, stroke, mouse, controller, mouse_out, pressure, dummy_location, &dummy);
 
   /* frees op->customdata */
   return paint_stroke_exec(C, op, static_cast<PaintStroke *>(op->customdata));

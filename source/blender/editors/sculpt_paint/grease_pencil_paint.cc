@@ -1867,12 +1867,12 @@ void PaintOperation::on_stroke_done(const bContext &C)
     }
   }
   /* Remove the temporary attribute. */
-  attributes.remove(".draw_tool_screen_space_positions");
-
   if (WM_xr_session_is_ready(&wm->xr)) {
     attributes.remove(".draw_tool_xr_space_position");
   }
-
+  attributes.remove(".draw_tool_screen_space_positions");
+  
+  /** set_texture_matrices is not ready for xr */
   if (!WM_xr_session_is_ready(&wm->xr)) {
     drawing.set_texture_matrices({texture_space_}, IndexRange::from_single(active_curve));
   }
