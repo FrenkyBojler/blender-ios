@@ -37,7 +37,7 @@ static std::optional<int64_t> choose_swapchain_format_from_candidates(
 
 GHOST_XrGraphicsBindingMetal::GHOST_XrGraphicsBindingMetal(GHOST_Context &ghost_ctx)
 {
-  // TODO: Might be possible to replace by MTLContext::get() calls - remove if unused
+  /* TODO: Pass the context to submitToSwapchainImage instead of storing a reference here. */
   m_ghost_metal_ctx = dynamic_cast<GHOST_ContextCGL *>(&ghost_ctx);
 }
 
@@ -68,9 +68,10 @@ bool GHOST_XrGraphicsBindingMetal::checkVersionRequirements(GHOST_Context &ghost
 
   if (!metal_devices_match) {
     *r_requirement_info = "Metal Render Device used by Blender and OpenXR do not match";
+    return false;
   }
 
-  return metal_devices_match;
+  return true;
 }
 
 void GHOST_XrGraphicsBindingMetal::initFromGhostContext(GHOST_Context &ghost_ctx,
@@ -152,8 +153,6 @@ std::vector<XrSwapchainImageBaseHeader *> GHOST_XrGraphicsBindingMetal::createSw
   /* Keep alive. */
   m_image_cache.push_back(std::move(metal_images));
 
-  /* TODO: hello_xr has an extra map here for additional context, make sure its not needed. */
-
   return base_images;
 }
 
@@ -195,6 +194,5 @@ bool GHOST_XrGraphicsBindingMetal::needsUpsideDownDrawing(GHOST_Context &ghost_c
 {
   GHOST_ContextCGL &ghost_metal_ctx = dynamic_cast<GHOST_ContextCGL &>(ghost_ctx);
 
-  /* TODO: Figure out why this inversion is needed. Is the source correct? */
   return !ghost_metal_ctx.isUpsideDown();
 }
