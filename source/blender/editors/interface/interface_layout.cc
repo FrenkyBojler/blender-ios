@@ -62,11 +62,11 @@ using blender::StringRefNull;
 /** \name Structs and Defines
  * \{ */
 
-#define UI_OPERATOR_ERROR_RET(_ot, _opname, return_statement) \
+#define UI_OPERATOR_ERROR_RET(_ot, _opname) \
   if (ot == nullptr) { \
-    ui_item_disabled(layout, _opname); \
+    ui_item_disabled(this, _opname); \
     RNA_warning("'%s' unknown operator", _opname); \
-    return_statement; \
+    return PointerRNA_NULL; \
   } \
   (void)0
 
@@ -78,7 +78,7 @@ struct uiLayoutRoot {
   uiLayoutRoot *next, *prev;
 
   blender::ui::LayoutType type;
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
 
   int emw, emh;
   int padding;
@@ -1065,7 +1065,7 @@ static uiBut *ui_item_with_label(uiLayout *layout,
                   UI_BTYPE_BUT,
                   subtype == PROP_DIRPATH ? "BUTTONS_OT_directory_browse" :
                                             "BUTTONS_OT_file_browse",
-                  WM_OP_INVOKE_DEFAULT,
+                  blender::wm::OpCallContext::InvokeDefault,
                   ICON_FILEBROWSER,
                   x,
                   y,
@@ -1236,7 +1236,7 @@ static uiBut *uiItemFullO_ptr_ex(uiLayout *layout,
                                  wmOperatorType *ot,
                                  std::optional<StringRef> name,
                                  int icon,
-                                 const wmOperatorCallContext context,
+                                 const blender::wm::OpCallContext context,
                                  const eUI_Item_Flag flag,
                                  PointerRNA *r_opptr)
 {
@@ -1360,7 +1360,7 @@ static void ui_item_menu_hold(bContext *C, ARegion *butregion, uiBut *but)
 PointerRNA uiLayout::op(wmOperatorType *ot,
                         std::optional<StringRef> name,
                         const int icon,
-                        const wmOperatorCallContext context,
+                        const blender::wm::OpCallContext context,
                         const eUI_Item_Flag flag)
 {
   PointerRNA ptr;
@@ -1371,7 +1371,7 @@ PointerRNA uiLayout::op(wmOperatorType *ot,
 PointerRNA uiLayout::op_menu_hold(wmOperatorType *ot,
                                   std::optional<StringRef> name,
                                   int icon,
-                                  const wmOperatorCallContext context,
+                                  const blender::wm::OpCallContext context,
                                   const eUI_Item_Flag flag,
                                   const char *menu_id)
 {
@@ -1384,12 +1384,11 @@ PointerRNA uiLayout::op_menu_hold(wmOperatorType *ot,
 PointerRNA uiLayout::op(const blender::StringRefNull opname,
                         const std::optional<StringRef> name,
                         int icon,
-                        wmOperatorCallContext context,
+                        blender::wm::OpCallContext context,
                         const eUI_Item_Flag flag)
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
-  uiLayout *layout = this;
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), { return PointerRNA_NULL; });
+  UI_OPERATOR_ERROR_RET(ot, opname.c_str());
   return this->op(ot, name, icon, context, flag);
 }
 
@@ -1400,16 +1399,15 @@ BLI_INLINE bool ui_layout_is_radial(const uiLayout *layout)
           (layout->root_->type == blender::ui::LayoutType::PieMenu));
 }
 
-void uiItemsFullEnumO_items(uiLayout *layout,
-                            wmOperatorType *ot,
-                            const PointerRNA &ptr,
-                            PropertyRNA *prop,
-                            IDProperty *properties,
-                            wmOperatorCallContext context,
-                            eUI_Item_Flag flag,
-                            const EnumPropertyItem *item_array,
-                            int totitem,
-                            int active)
+void uiLayout::op_enum_items(wmOperatorType *ot,
+                             const PointerRNA &ptr,
+                             PropertyRNA *prop,
+                             IDProperty *properties,
+                             blender::wm::OpCallContext context,
+                             eUI_Item_Flag flag,
+                             const EnumPropertyItem *item_array,
+                             int totitem,
+                             int active)
 {
   const StringRefNull propname = RNA_property_identifier(prop);
   if (RNA_property_type(prop) != PROP_ENUM) {
@@ -1418,16 +1416,16 @@ void uiItemsFullEnumO_items(uiLayout *layout,
   }
 
   uiLayout *target, *split = nullptr;
-  uiBlock *block = layout->block();
-  const bool radial = ui_layout_is_radial(layout);
+  uiBlock *block = this->block();
+  const bool radial = ui_layout_is_radial(this);
 
   if (radial) {
-    target = &layout->menu_pie();
+    target = &this->menu_pie();
   }
-  else if ((layout->local_direction() == blender::ui::LayoutDirection::Horizontal) &&
+  else if ((this->local_direction() == blender::ui::LayoutDirection::Horizontal) &&
            (flag & UI_ITEM_R_ICON_ONLY))
   {
-    target = layout;
+    target = this;
     UI_block_layout_set_current(block, target);
 
     /* Add a blank button to the beginning of the row. */
@@ -1445,8 +1443,8 @@ void uiItemsFullEnumO_items(uiLayout *layout,
                  std::nullopt);
   }
   else {
-    split = &layout->split(0.0f, false);
-    target = &split->column(layout->align_);
+    split = &this->split(0.0f, false);
+    target = &split->column(align_);
   }
 
   bool last_iter = false;
@@ -1497,7 +1495,7 @@ void uiItemsFullEnumO_items(uiLayout *layout,
     else {
       if (item->name) {
         if (item != item_array && !radial && split != nullptr) {
-          target = &split->column(layout->align_);
+          target = &split->column(align_);
         }
 
         uiBut *but;
@@ -1540,18 +1538,17 @@ void uiItemsFullEnumO_items(uiLayout *layout,
   }
 }
 
-void uiItemsFullEnumO(uiLayout *layout,
-                      const StringRefNull opname,
-                      const StringRefNull propname,
-                      IDProperty *properties,
-                      wmOperatorCallContext context,
-                      eUI_Item_Flag flag,
-                      const int active)
+void uiLayout::op_enum(const StringRefNull opname,
+                       const StringRefNull propname,
+                       IDProperty *properties,
+                       blender::wm::OpCallContext context,
+                       eUI_Item_Flag flag,
+                       const int active)
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
 
   if (!ot || !ot->srna) {
-    ui_item_disabled(layout, opname.c_str());
+    ui_item_disabled(this, opname.c_str());
     RNA_warning("%s '%s'", ot ? "operator missing srna" : "unknown operator", opname.c_str());
     return;
   }
@@ -1565,13 +1562,13 @@ void uiItemsFullEnumO(uiLayout *layout,
   /* don't let bad properties slip through */
   BLI_assert((prop == nullptr) || (RNA_property_type(prop) == PROP_ENUM));
 
-  uiBlock *block = layout->block();
+  uiBlock *block = this->block();
   if (prop && RNA_property_type(prop) == PROP_ENUM) {
     const EnumPropertyItem *item_array = nullptr;
     int totitem;
     bool free;
 
-    if (ui_layout_is_radial(layout)) {
+    if (ui_layout_is_radial(this)) {
       /* XXX: While "_all()" guarantees spatial stability,
        * it's bad when an enum has > 8 items total,
        * but only a small subset will ever be shown at once
@@ -1588,14 +1585,13 @@ void uiItemsFullEnumO(uiLayout *layout,
     else {
       bContext *C = static_cast<bContext *>(block->evil_C);
       const bContextStore *previous_ctx = CTX_store_get(C);
-      CTX_store_set(C, layout->context_);
+      CTX_store_set(C, context_);
       RNA_property_enum_items_gettexted(C, &ptr, prop, &item_array, &totitem, &free);
       CTX_store_set(C, previous_ctx);
     }
 
     /* add items */
-    uiItemsFullEnumO_items(
-        layout, ot, ptr, prop, properties, context, flag, item_array, totitem, active);
+    this->op_enum_items(ot, ptr, prop, properties, context, flag, item_array, totitem, active);
 
     if (free) {
       MEM_freeN(item_array);
@@ -1611,9 +1607,9 @@ void uiItemsFullEnumO(uiLayout *layout,
   }
 }
 
-void uiItemsEnumO(uiLayout *layout, const StringRefNull opname, const StringRefNull propname)
+void uiLayout::op_enum(const StringRefNull opname, const StringRefNull propname)
 {
-  uiItemsFullEnumO(layout, opname, propname, nullptr, layout->root_->opcontext, UI_ITEM_NONE);
+  this->op_enum(opname, propname, nullptr, root_->opcontext, UI_ITEM_NONE);
 }
 
 PointerRNA uiLayout::op(wmOperatorType *ot, const std::optional<StringRef> name, int icon)
@@ -2973,8 +2969,15 @@ void uiLayout::popover_group(
   }
 }
 
-/* label item */
-static uiBut *uiItemL_(uiLayout *layout, const StringRef name, int icon)
+/**
+ * Single button with an icon and/or text, using the given button type and no further data/behavior
+ * attached.
+ */
+static uiBut *uiItem_simple(uiLayout *layout,
+                            const StringRef name,
+                            int icon,
+                            std::optional<blender::StringRef> tooltip = std::nullopt,
+                            const eButType but_type = UI_BTYPE_LABEL)
 {
   uiBlock *block = layout->block();
 
@@ -2989,15 +2992,13 @@ static uiBut *uiItemL_(uiLayout *layout, const StringRef name, int icon)
   uiBut *but;
   if (icon && !name.is_empty()) {
     but = uiDefIconTextBut(
-        block, UI_BTYPE_LABEL, 0, icon, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, std::nullopt);
+        block, but_type, 0, icon, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, tooltip);
   }
   else if (icon) {
-    but = uiDefIconBut(
-        block, UI_BTYPE_LABEL, 0, icon, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, std::nullopt);
+    but = uiDefIconBut(block, but_type, 0, icon, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, tooltip);
   }
   else {
-    but = uiDefBut(
-        block, UI_BTYPE_LABEL, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, std::nullopt);
+    but = uiDefBut(block, but_type, 0, name, 0, 0, w, UI_UNIT_Y, nullptr, 0.0, 0.0, tooltip);
   }
 
   /* to compensate for string size padding in ui_text_icon_width,
@@ -3023,7 +3024,7 @@ static uiBut *uiItemL_(uiLayout *layout, const StringRef name, int icon)
 uiBut *uiItemL_ex(
     uiLayout *layout, const StringRef name, int icon, const bool highlight, const bool redalert)
 {
-  uiBut *but = uiItemL_(layout, name, icon);
+  uiBut *but = uiItem_simple(layout, name, icon);
 
   if (highlight) {
     /* TODO: add another flag for this. */
@@ -3039,7 +3040,7 @@ uiBut *uiItemL_ex(
 
 void uiLayout::label(const StringRef name, int icon)
 {
-  uiItemL_(this, name, icon);
+  uiItem_simple(this, name, icon);
 }
 
 uiPropertySplitWrapper uiItemPropertySplitWrapperCreate(uiLayout *parent_layout)
@@ -3066,7 +3067,7 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, StringRef text, int i
     const uiPropertySplitWrapper split_wrapper = uiItemPropertySplitWrapperCreate(layout);
     /* Further items added to 'layout' will automatically be added to split_wrapper.property_row */
 
-    uiItemL_(split_wrapper.label_column, text, icon);
+    uiItem_simple(split_wrapper.label_column, text, icon);
     UI_block_layout_set_current(block, split_wrapper.property_row);
 
     return split_wrapper.decorate_column;
@@ -3074,20 +3075,31 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, StringRef text, int i
 
   char namestr[UI_MAX_NAME_STR];
   text = ui_item_name_add_colon(text, namestr);
-  uiItemL_(layout, text, icon);
+  uiItem_simple(layout, text, icon);
 
   return nullptr;
 }
 
 void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, StringRef name, int icon)
 {
-  uiBut *but = uiItemL_(layout, name, icon);
+  uiBut *but = uiItem_simple(layout, name, icon);
 
   if (ptr && ptr->type) {
     if (RNA_struct_is_ID(ptr->type)) {
       UI_but_drag_set_id(but, ptr->owner_id);
     }
   }
+}
+
+uiBut *uiLayout::button(uiLayout *layout,
+                        const StringRef name,
+                        const int icon,
+                        std::function<void(bContext &)> func,
+                        std::optional<blender::StringRef> tooltip)
+{
+  uiBut *but = uiItem_simple(layout, name, icon, tooltip, UI_BTYPE_BUT);
+  UI_but_func_set(but, std::move(func));
+  return but;
 }
 
 void uiLayout::separator(float factor, const LayoutSeparatorType type)
@@ -3233,7 +3245,7 @@ void uiLayout::menu_fn_argN_free(const StringRefNull name,
 }
 
 struct MenuItemLevel {
-  wmOperatorCallContext opcontext;
+  blender::wm::OpCallContext opcontext;
   /* don't use pointers to the strings because python can dynamically
    * allocate strings and free before the menu draws, see #27304. */
   char opname[OP_MAX_TYPENAME];
@@ -3275,27 +3287,25 @@ static void menu_item_enum_opname_menu(bContext *C, uiLayout *layout, void *arg)
   uiBut *but = static_cast<uiBut *>(arg);
   MenuItemLevel *lvl = static_cast<MenuItemLevel *>(but->func_argN);
   /* Use the operator properties from the button owning the menu. */
-  IDProperty *op_props = but->opptr ? static_cast<IDProperty *>(but->opptr->data) : nullptr;
+  BLI_assert(but->opptr);
+  IDProperty *op_props = but->opptr->data_as<IDProperty>();
 
   /* The calling but's str _probably_ contains the active
-   * menu item name, set in uiItemMenuEnumFullO_ptr. */
+   * menu item name, set in #uiLayout::op_menu_enum. */
   const int active = menu_item_enum_opname_menu_active(C, but, lvl);
 
   layout->operator_context_set(lvl->opcontext);
-  uiItemsFullEnumO(
-      layout, lvl->opname, lvl->propname, op_props, lvl->opcontext, UI_ITEM_NONE, active);
+  layout->op_enum(lvl->opname, lvl->propname, op_props, lvl->opcontext, UI_ITEM_NONE, active);
 
   /* override default, needed since this was assumed pre 2.70 */
   UI_block_direction_set(layout->block(), UI_DIR_DOWN);
 }
 
-void uiItemMenuEnumFullO_ptr(uiLayout *layout,
-                             const bContext *C,
-                             wmOperatorType *ot,
-                             const StringRefNull propname,
-                             std::optional<StringRefNull> name,
-                             int icon,
-                             PointerRNA *r_opptr)
+PointerRNA uiLayout::op_menu_enum(const bContext *C,
+                                  wmOperatorType *ot,
+                                  const StringRefNull propname,
+                                  std::optional<StringRefNull> name,
+                                  int icon)
 {
   /* Caller must check */
   BLI_assert(ot->srna != nullptr);
@@ -3306,16 +3316,16 @@ void uiItemMenuEnumFullO_ptr(uiLayout *layout,
     name = operator_name.c_str();
   }
 
-  if (layout->root_->type == blender::ui::LayoutType::Menu && !icon) {
+  if (root_->type == blender::ui::LayoutType::Menu && !icon) {
     icon = ICON_BLANK1;
   }
 
   MenuItemLevel *lvl = MEM_new<MenuItemLevel>("MenuItemLevel");
   STRNCPY(lvl->opname, ot->idname);
   STRNCPY(lvl->propname, propname.c_str());
-  lvl->opcontext = layout->root_->opcontext;
+  lvl->opcontext = root_->opcontext;
 
-  uiBut *but = ui_item_menu(layout,
+  uiBut *but = ui_item_menu(this,
                             *name,
                             icon,
                             menu_item_enum_opname_menu,
@@ -3327,53 +3337,39 @@ void uiItemMenuEnumFullO_ptr(uiLayout *layout,
                             but_func_argN_copy<MenuItemLevel>);
   /* Use the menu button as owner for the operator properties, which will then be passed to the
    * individual menu items. */
-  if (r_opptr) {
-    but->opptr = MEM_new<PointerRNA>("uiButOpPtr");
-    WM_operator_properties_create_ptr(but->opptr, ot);
-    BLI_assert(but->opptr->data == nullptr);
-    WM_operator_properties_alloc(&but->opptr, (IDProperty **)&but->opptr->data, ot->idname);
-    *r_opptr = *but->opptr;
-  }
+  but->opptr = MEM_new<PointerRNA>("uiButOpPtr");
+  WM_operator_properties_create_ptr(but->opptr, ot);
+  BLI_assert(but->opptr->data == nullptr);
+  WM_operator_properties_alloc(&but->opptr, (IDProperty **)&but->opptr->data, ot->idname);
 
   /* add hotkey here, lower UI code can't detect it */
-  if ((layout->block()->flag & UI_BLOCK_LOOP) && (ot->prop && ot->invoke)) {
+  if ((this->block()->flag & UI_BLOCK_LOOP) && (ot->prop && ot->invoke)) {
     if (std::optional<std::string> shortcut_str = WM_key_event_operator_string(
-            C, ot->idname, layout->root_->opcontext, nullptr, false))
+            C, ot->idname, root_->opcontext, nullptr, false))
     {
       ui_but_add_shortcut(but, shortcut_str->c_str(), false);
     }
   }
+  return *but->opptr;
 }
 
-void uiItemMenuEnumFullO(uiLayout *layout,
-                         const bContext *C,
-                         const StringRefNull opname,
-                         const StringRefNull propname,
-                         StringRefNull name,
-                         int icon,
-                         PointerRNA *r_opptr)
+PointerRNA uiLayout::op_menu_enum(const bContext *C,
+                                  const StringRefNull opname,
+                                  const StringRefNull propname,
+                                  StringRefNull name,
+                                  int icon)
 {
   wmOperatorType *ot = WM_operatortype_find(opname.c_str(), false); /* print error next */
 
-  UI_OPERATOR_ERROR_RET(ot, opname.c_str(), return);
+  UI_OPERATOR_ERROR_RET(ot, opname.c_str());
 
   if (!ot->srna) {
-    ui_item_disabled(layout, opname.c_str());
+    ui_item_disabled(this, opname.c_str());
     RNA_warning("operator missing srna '%s'", opname.c_str());
-    return;
+    return PointerRNA_NULL;
   }
 
-  uiItemMenuEnumFullO_ptr(layout, C, ot, propname, name, icon, r_opptr);
-}
-
-void uiItemMenuEnumO(uiLayout *layout,
-                     const bContext *C,
-                     const StringRefNull opname,
-                     const StringRefNull propname,
-                     StringRefNull name,
-                     int icon)
-{
-  uiItemMenuEnumFullO(layout, C, opname, propname, name, icon, nullptr);
+  return this->op_menu_enum(C, ot, propname, name, icon);
 }
 
 static void menu_item_enum_rna_menu(bContext * /*C*/, uiLayout *layout, void *arg)
@@ -5447,7 +5443,7 @@ uiLayout &block_layout(uiBlock *block,
   root->style = style;
   root->block = block;
   root->padding = padding;
-  root->opcontext = WM_OP_INVOKE_REGION_WIN;
+  root->opcontext = wm::OpCallContext::InvokeRegionWin;
 
   uiLayout *layout = MEM_new<uiLayout>(__func__);
   layout->type_ = (type == LayoutType::VerticalBar) ? uiItemType::LayoutColumn :
@@ -5494,7 +5490,7 @@ uiBlock *uiLayout::block() const
   return root_->block;
 }
 
-wmOperatorCallContext uiLayout::operator_context() const
+blender::wm::OpCallContext uiLayout::operator_context() const
 {
   return root_->opcontext;
 }
@@ -5603,7 +5599,7 @@ bool uiLayout::fixed_size() const
   return bool(flag_ & uiItemInternalFlag::FixedSize);
 }
 
-void uiLayout::operator_context_set(wmOperatorCallContext opcontext)
+void uiLayout::operator_context_set(blender::wm::OpCallContext opcontext)
 {
   root_->opcontext = opcontext;
 }
@@ -5725,6 +5721,40 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
       uiLayoutSetTooltipFunc(static_cast<uiLayout *>(item), func, arg, copy_arg, free_arg);
       arg_used = true;
     }
+  }
+
+  if (free_arg != nullptr && !arg_used) {
+    /* Free the original copy of arg in case the layout is empty. */
+    free_arg(arg);
+  }
+}
+
+void uiLayoutSetTooltipCustomFunc(uiLayout *layout,
+                                  uiButToolTipCustomFunc func,
+                                  void *arg,
+                                  uiCopyArgFunc copy_arg,
+                                  uiFreeArgFunc free_arg)
+{
+  bool arg_used = false;
+
+  for (uiItem *item : layout->items_) {
+    /* Each button will call free_arg for "its" argument, so we need to
+     * duplicate the allocation for each button after the first. */
+    if (copy_arg != nullptr && arg_used) {
+      arg = copy_arg(arg);
+    }
+
+    if (item->type_ == uiItemType::Button) {
+      uiButtonItem *bitem = static_cast<uiButtonItem *>(item);
+      if (bitem->but->type == UI_BTYPE_DECORATOR) {
+        continue;
+      }
+      UI_but_func_tooltip_custom_set(bitem->but, func, arg, free_arg);
+    }
+    else {
+      uiLayoutSetTooltipCustomFunc(static_cast<uiLayout *>(item), func, arg, copy_arg, free_arg);
+    }
+    arg_used = true;
   }
 
   if (free_arg != nullptr && !arg_used) {
