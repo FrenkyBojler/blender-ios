@@ -32,7 +32,6 @@
 
 #include "ED_node.hh"
 
-#include "UI_interface.hh"
 #include "UI_interface_icons.hh"
 #include "UI_view2d.hh"
 
@@ -904,6 +903,10 @@ static void shape_preset_trias_from_rect_menu(uiWidgetTrias *tria, const rcti *r
 {
   const float width = BLI_rcti_size_x(rect);
   const float height = BLI_rcti_size_y(rect);
+  if ((width / height) < 0.5f) {
+    /* Too narrow to fit. */
+    return;
+  }
   float centx, centy, size;
 
   tria->type = ROUNDBOX_TRIA_MENU;
@@ -1339,6 +1342,11 @@ static void widget_draw_icon(
     state.but_flag = but->flag;
     state.but_drawflag = but->drawflag;
     alpha *= widget_alpha_factor(&state);
+  }
+
+  /* Dim the icon as its space is reduced to zero. */
+  if (height > (rect->xmax - rect->xmin)) {
+    alpha *= std::max(float(rect->xmax - rect->xmin) / height, 0.0f);
   }
 
   GPU_blend(GPU_BLEND_ALPHA);
@@ -3915,11 +3923,11 @@ static void widget_progress_indicator(uiBut *but,
 {
   uiButProgress *but_progress = static_cast<uiButProgress *>(but);
   switch (but_progress->progress_type) {
-    case UI_BUT_PROGRESS_TYPE_BAR: {
+    case blender::ui::ButProgressType::Bar: {
       widget_progress_type_bar(but_progress, wcol, rect, roundboxalign, zoom);
       break;
     }
-    case UI_BUT_PROGRESS_TYPE_RING: {
+    case blender::ui::ButProgressType::Ring: {
       widget_progress_type_ring(but_progress, wcol, rect);
       break;
     }

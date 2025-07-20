@@ -63,8 +63,14 @@ void RE_engines_exit()
 {
   RenderEngineType *type, *next;
 
-  DRW_engines_free();
-  DRW_module_exit();
+  if (DRW_gpu_context_try_enable()) {
+    /* Clean resources if the DRW context exists.
+     * We need a context bound even when dealing with non context dependent GPU resources,
+     * since GL functions may be null otherwise (See #141233). */
+    DRW_engines_free();
+    DRW_module_exit();
+    DRW_gpu_context_disable();
+  }
 
   for (type = static_cast<RenderEngineType *>(R_engines.first); type; type = next) {
     next = type->next;
@@ -92,7 +98,7 @@ RenderEngineType *RE_engines_find(const char *idname)
       BLI_findstring(&R_engines, idname, offsetof(RenderEngineType, idname)));
   if (!type) {
     type = static_cast<RenderEngineType *>(
-        BLI_findstring(&R_engines, "BLENDER_EEVEE_NEXT", offsetof(RenderEngineType, idname)));
+        BLI_findstring(&R_engines, "BLENDER_EEVEE", offsetof(RenderEngineType, idname)));
   }
 
   return type;
@@ -856,7 +862,7 @@ static bool possibly_using_gpu_compositor(const Render *re)
   }
 
   const Scene *scene = re->pipeline_scene_eval;
-  return (scene->compositing_node_group && scene->use_nodes && (scene->r.scemode & R_DOCOMP));
+  return (scene->compositing_node_group && (scene->r.scemode & R_DOCOMP));
 }
 
 static void engine_render_view_layer(Render *re,

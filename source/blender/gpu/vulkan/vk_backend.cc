@@ -91,6 +91,25 @@ bool GPU_vulkan_is_supported_driver(VkPhysicalDevice vk_physical_device)
   }
 #endif
 
+#ifdef _WIN32
+  if (vk_physical_device_driver_properties.driverID == VK_DRIVER_ID_QUALCOMM_PROPRIETARY) {
+    /* Any Qualcomm driver older than 31.0.112.0 will not be capable of running blender due
+     * to an issue in their semaphore timeline implementation. The driver could return
+     * timelines that have not been provided by Blender. As Blender uses timelines for resource
+     * management this resulted in resources to be destroyed, that are still in use. */
+
+    /* Public version 31.0.112 uses vulkan driver version 512.827.14. */
+    const uint32_t driver_version = vk_physical_device_properties.properties.driverVersion;
+    constexpr uint32_t version_31_0_112 = VK_MAKE_VERSION(512, 827, 14);
+    if (driver_version < version_31_0_112) {
+      CLOG_WARN(&LOG,
+                "Detected qualcomm driver is not supported. To run the Vulkan backend "
+                "driver 31.0.112.0 or later is required. Switching to OpenGL.");
+      return false;
+    }
+  }
+#endif
+
   return true;
 }
 
@@ -418,8 +437,16 @@ void VKBackend::detect_workarounds(VKDevice &device)
 #else
   extensions.external_memory = false;
 #endif
-  extensions.descriptor_buffer = device.supports_extension(
-      VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+
+  /* Descriptor buffers are disabled on the NVIDIA platform due to performance regressions. Both
+   * still seem to be faster than OpenGL.
+   *
+   * See #140125
+   */
+  if (device.vk_physical_device_driver_properties_.driverID != VK_DRIVER_ID_NVIDIA_PROPRIETARY) {
+    extensions.descriptor_buffer = device.supports_extension(
+        VK_EXT_DESCRIPTOR_BUFFER_EXTENSION_NAME);
+  }
 
   /* AMD GPUs don't support texture formats that use are aligned to 24 or 48 bits. */
   if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY) ||
@@ -625,8 +652,11 @@ void VKBackend::render_end()
    * after each frame.
    */
   if (G.is_rendering && thread_data.rendering_depth == 0 && !BLI_thread_is_main()) {
-    device.orphaned_data.move_data(device.orphaned_data_render,
-                                   device.orphaned_data.timeline_ + 1);
+    {
+      std::scoped_lock lock(device.orphaned_data.mutex_get());
+      device.orphaned_data.move_data(device.orphaned_data_render,
+                                     device.orphaned_data.timeline_ + 1);
+    }
     /* Fix #139284: During rendering when main thread is blocked or all screens are minimized the
      * garbage collection will not happen resulting in crashes as resources are not freed.
      *
@@ -645,6 +675,7 @@ void VKBackend::render_end()
 void VKBackend::render_step(bool force_resource_release)
 {
   if (force_resource_release) {
+    std::scoped_lock lock(device.orphaned_data.mutex_get());
     device.orphaned_data.move_data(device.orphaned_data_render,
                                    device.orphaned_data.timeline_ + 1);
   }

@@ -28,6 +28,7 @@
 
 #include "DNA_genfile.h"
 
+#include "BLI_endian_defines.h"
 #include "BLI_fftw.hh"
 #include "BLI_string.h"
 #include "BLI_system.h"
@@ -97,6 +98,8 @@
 #endif
 
 #include "creator_intern.h" /* Own include. */
+
+BLI_STATIC_ASSERT(ENDIAN_ORDER == L_ENDIAN, "Blender only builds on little endian systems")
 
 /* -------------------------------------------------------------------- */
 /** \name Local Defines
@@ -190,6 +193,8 @@ static void callback_main_atexit(void *user_data)
 
   if (CreatorAtExitData_EarlyExit *early_exit = app_init_data->early_exit) {
     CTX_free(early_exit->C);
+
+    DEG_free_node_types();
 
     BKE_blender_globals_clear();
     BKE_appdir_exit();

@@ -324,6 +324,12 @@ bool USDMeshReader::read_faces(Mesh *mesh) const
 
   bke::mesh_calc_edges(*mesh, false, false);
 
+  /* It's possible that the number of faces, indices, and verts remain the same but the topology
+   * itself is different. Until finer-grained topology detection can be implemented, always tag the
+   * mesh as needing updated topology mappings. Without this, a time varying mesh could trigger
+   * undefined behavior. */
+  mesh->tag_topology_changed();
+
   return all_faces_ok;
 }
 
@@ -765,7 +771,7 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
     }
 
     /* Read Color primvars. */
-    if (convert_usd_type_to_blender(type) == CD_PROP_COLOR) {
+    if (convert_usd_type_to_blender(type) == bke::AttrType::ColorFloat) {
       if ((settings->read_flag & MOD_MESHSEQ_READ_COLOR) != 0) {
         /* Set the active color name to 'displayColor', if a color primvar
          * with this name exists.  Otherwise, use the name of the first
@@ -783,7 +789,7 @@ void USDMeshReader::read_custom_data(const ImportSettings *settings,
                   pxr::UsdGeomTokens->vertex,
                   pxr::UsdGeomTokens->faceVarying,
                   pxr::UsdGeomTokens->varying) &&
-             convert_usd_type_to_blender(type) == CD_PROP_FLOAT2)
+             convert_usd_type_to_blender(type) == bke::AttrType::Float2)
     {
       if ((settings->read_flag & MOD_MESHSEQ_READ_UV) != 0) {
         /* Set the active uv set name to 'st', if a uv set primvar

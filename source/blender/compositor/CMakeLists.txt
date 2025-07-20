@@ -104,7 +104,6 @@ set(SRC
   cached_resources/intern/cached_image.cc
   cached_resources/intern/cached_mask.cc
   cached_resources/intern/cached_shader.cc
-  cached_resources/intern/cached_texture.cc
   cached_resources/intern/deriche_gaussian_coefficients.cc
   cached_resources/intern/distortion_grid.cc
   cached_resources/intern/fog_glow_kernel.cc
@@ -122,7 +121,6 @@ set(SRC
   cached_resources/COM_cached_mask.hh
   cached_resources/COM_cached_resource.hh
   cached_resources/COM_cached_shader.hh
-  cached_resources/COM_cached_texture.hh
   cached_resources/COM_deriche_gaussian_coefficients.hh
   cached_resources/COM_distortion_grid.hh
   cached_resources/COM_fog_glow_kernel.hh
@@ -182,6 +180,7 @@ set(GLSL_SRC
   shaders/compositor_deriche_gaussian_blur_sum.glsl
   shaders/compositor_directional_blur.glsl
   shaders/compositor_displace.glsl
+  shaders/compositor_displace_anisotropic.glsl
   shaders/compositor_double_edge_mask_compute_boundary.glsl
   shaders/compositor_double_edge_mask_compute_gradient.glsl
   shaders/compositor_edge_filter.glsl
@@ -222,8 +221,8 @@ set(GLSL_SRC
   shaders/compositor_kuwahara_anisotropic.glsl
   shaders/compositor_kuwahara_anisotropic_compute_structure_tensor.glsl
   shaders/compositor_kuwahara_classic.glsl
+  shaders/compositor_map_uv.glsl
   shaders/compositor_map_uv_anisotropic.glsl
-  shaders/compositor_map_uv_nearest_neighbour.glsl
   shaders/compositor_morphological_blur.glsl
   shaders/compositor_morphological_distance.glsl
   shaders/compositor_morphological_distance_feather.glsl
@@ -293,7 +292,6 @@ set(GLSL_SRC
   shaders/library/gpu_shader_compositor_main.glsl
   shaders/library/gpu_shader_compositor_map_value.glsl
   shaders/library/gpu_shader_compositor_motion_blur_lib.glsl
-  shaders/library/gpu_shader_compositor_normal.glsl
   shaders/library/gpu_shader_compositor_ocio_processor.glsl
   shaders/library/gpu_shader_compositor_posterize.glsl
   shaders/library/gpu_shader_compositor_separate_combine.glsl
