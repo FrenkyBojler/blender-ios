@@ -969,15 +969,9 @@ struct GHOST_XrError;
  */
 typedef enum GHOST_TXrGraphicsBinding {
   GHOST_kXrGraphicsUnknown = 0,
-#ifdef WITH_OPENGL_BACKEND
   GHOST_kXrGraphicsOpenGL,
-#endif
-#ifdef WITH_VULKAN_BACKEND
   GHOST_kXrGraphicsVulkan,
-#endif
-#ifdef WITH_METAL_BACKEND
   GHOST_kXrGraphicsMetal,
-#endif
 #  ifdef WIN32
   GHOST_kXrGraphicsOpenGLD3D11,
   GHOST_kXrGraphicsVulkanD3D11,

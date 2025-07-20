@@ -6,8 +6,6 @@
  * \ingroup GHOST
  */
 
-#include <sstream>
-
 #include "GHOST_ContextCGL.hh"
 #include "GHOST_XrGraphicsBindingMetal.h"
 
