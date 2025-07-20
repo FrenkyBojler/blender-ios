@@ -96,9 +96,12 @@ struct PenToolOperation {
   float threshold_distance;
 
   bool extrude_point;
+  bool delete_point;
   bool insert_point;
   bool move_seg;
+  bool select_point;
   bool move_point;
+  bool toggle_vector;
   bool close_spline;
   CloseMethod close_spline_method;
   int extrude_handle;
@@ -186,9 +189,12 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
 
   ptd.extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
+  ptd.delete_point = RNA_boolean_get(op->ptr, "delete_point");
   ptd.insert_point = RNA_boolean_get(op->ptr, "insert_point");
   ptd.move_seg = RNA_boolean_get(op->ptr, "move_segment");
+  ptd.select_point = RNA_boolean_get(op->ptr, "select_point");
   ptd.move_point = RNA_boolean_get(op->ptr, "move_point");
+  ptd.toggle_vector = RNA_boolean_get(op->ptr, "toggle_vector");
   ptd.close_spline = RNA_boolean_get(op->ptr, "close_spline");
   ptd.close_spline_method = CloseMethod(RNA_enum_get(op->ptr, "close_spline_method"));
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
@@ -231,10 +237,15 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         }
       }
 
-      if () {
+      if (event->val != KM_DBL_CLICK) {
         selection.span.fill(false);
+      }
+
+      if (ptd.select_point) {
         selection.span[closest_point] = true;
       }
+
+      selection.finish();
 
       changed.store(true, std::memory_order_relaxed);
     });
