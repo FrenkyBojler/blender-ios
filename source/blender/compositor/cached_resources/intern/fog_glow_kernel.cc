@@ -60,16 +60,14 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
                                                             int kernel_size,
                                                             float glare_size)
 {
-  const int half_kernel_size = kernel_size / 2;
-  const float2 uv = float2(texel) / half_kernel_size;
-  const float r = math::length(uv);
   const float maximum_field_of_view = 180.0f;
   const float minimum_field_of_view = 6e-1f;
-  /* The field of view value is calculated based on the user's size selection. */
-  const math::AngleRadian field_of_view = math::AngleRadian::from_degree(
-      maximum_field_of_view * (1 - glare_size) + minimum_field_of_view);
-  const float half_length = math::tan(field_of_view / 2.0f);
-  const float theta_degree = math::AngleRadian(math::atan(r * half_length)).degree();
+  const float FOV = glare_size == 0 ? maximum_field_of_view : minimum_field_of_view / glare_size;
+  const int half_kernel_size = kernel_size / 2;
+  const float delta_theta = FOV / half_kernel_size;
+  const float2 uv = float2(texel);
+  const float r = math::length(uv);
+  const float theta_degree = r * delta_theta;
   const float f0 = 2.61f * 1e6f * math::exp(-math::square(theta_degree / 0.02f));
   const float f1 = 20.91f / math::cube(theta_degree + 0.02f);
   const float f2 = 72.37f / math::square(theta_degree + 0.02f);

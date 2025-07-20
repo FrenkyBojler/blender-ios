@@ -1375,7 +1375,7 @@ class GlareOperation : public NodeOperation {
     GPU_shader_uniform_4fv_array(shader,
                                  "color_modulators",
                                  color_modulators.size(),
-                                 (const float(*)[4])color_modulators.data());
+                                 (const float (*)[4])color_modulators.data());
 
     /* Zero initialize output image where ghosts will be accumulated. */
     const float4 zero_color = float4(0.0f);
@@ -2025,7 +2025,7 @@ class GlareOperation : public NodeOperation {
   {
 #if defined(WITH_FFTW3)
 
-    const int kernel_size = int(math::reduce_max(highlights.domain().size));
+    const int kernel_size = int(math::length(highlights.domain().size));
 
     /* Since we will be doing a circular convolution, we need to zero pad our input image by
      * the kernel size to avoid the kernel affecting the pixels at the other side of image.
