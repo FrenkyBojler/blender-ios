@@ -14,6 +14,7 @@
 #include <vector>
 
 #include "GHOST_Xr_openxr_includes.hh"
+#include "GHOST_Types.h"
 
 class GHOST_IXrGraphicsBinding {
  public:
@@ -30,6 +31,9 @@ class GHOST_IXrGraphicsBinding {
 #endif
 #ifdef WITH_VULKAN_BACKEND
     XrGraphicsBindingVulkanKHR vk;
+#endif
+#ifdef WITH_METAL_BACKEND
+    XrGraphicsBindingMetalKHR metal;
 #endif
   } oxr_binding;
 

@@ -24,6 +24,7 @@
 @class NSView;
 
 class GHOST_ContextCGL : public GHOST_Context {
+  friend class GHOST_XrGraphicsBindingMetal;
 
  public:
   /* Defines the number of simultaneous command buffers which can be in flight.

@@ -29,6 +29,9 @@
 #ifdef XR_USE_GRAPHICS_API_D3D12
 #  include <d3d12.h>
 #endif
+#ifdef XR_USE_GRAPHICS_API_METAL
+/* TODO: #import the Metal Objective-C header here? */
+#endif
 #ifdef WITH_GHOST_X11
 #  include <epoxy/egl.h>
 #  include <epoxy/glx.h>

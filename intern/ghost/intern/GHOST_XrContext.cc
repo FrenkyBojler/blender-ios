@@ -103,7 +103,9 @@ void GHOST_XrContext::createOpenXRInstance(
 
   std::string("Blender").copy(create_info.applicationInfo.applicationName,
                               XR_MAX_APPLICATION_NAME_SIZE);
-  create_info.applicationInfo.apiVersion = XR_CURRENT_API_VERSION;
+
+  // TODO: Apparentely, Meta XR Simulator v71 doesn't support OpenXR > 1.0, while v77 does.
+  create_info.applicationInfo.apiVersion = XR_API_VERSION_1_0;
 
   getAPILayersToEnable(m_enabled_layers);
   getExtensionsToEnable(graphics_binding_types, m_enabled_extensions);
@@ -252,12 +254,14 @@ void GHOST_XrContext::dispatchErrorMessage(const GHOST_XrException *exception) c
   error.user_message = exception->m_msg.data();
   error.customdata = s_error_handler_customdata;
 
-  if (isDebugMode()) {
-    fprintf(stderr,
-            "Error: \t%s\n\tOpenXR error value: %i\n",
-            error.user_message,
-            exception->m_result);
-  }
+  char error_string_buf[XR_MAX_RESULT_STRING_SIZE];
+  xrResultToString(getInstance(), static_cast<XrResult>(exception->m_result), error_string_buf);
+
+  fprintf(stderr,
+          "Error: \t%s\n\tOpenXR error value: %i - %s\n",
+          error.user_message,
+          exception->m_result,
+          error_string_buf);
 
   /* Potentially destroys GHOST_XrContext */
   s_error_handler(&error);
@@ -385,12 +389,19 @@ void GHOST_XrContext::getAPILayersToEnable(std::vector<const char *> &r_ext_name
 static const char *openxr_ext_name_from_wm_gpu_binding(GHOST_TXrGraphicsBinding binding)
 {
   switch (binding) {
+#ifdef WITH_OPENGL_BACKEND
     case GHOST_kXrGraphicsOpenGL:
       return XR_KHR_OPENGL_ENABLE_EXTENSION_NAME;
+#endif
 
 #ifdef WITH_VULKAN_BACKEND
     case GHOST_kXrGraphicsVulkan:
       return XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME;
+#endif
+
+#ifdef WITH_METAL_BACKEND
+    case GHOST_kXrGraphicsMetal:
+      return XR_KHR_METAL_ENABLE_EXTENSION_NAME;
 #endif
 
 #ifdef WIN32
