@@ -14,6 +14,7 @@ typedef enum eStrCursorJumpType {
   STRCUR_JUMP_NONE,
   STRCUR_JUMP_DELIM,
   STRCUR_JUMP_ALL,
+  STRCUR_JUMP_LINE,
 } eStrCursorJumpType;
 
 typedef enum eStrCursorJumpDirection {

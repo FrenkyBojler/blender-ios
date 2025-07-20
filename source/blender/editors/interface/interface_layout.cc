@@ -2597,6 +2597,81 @@ uiBut *ui_but_add_search(uiBut *but,
   return but;
 }
 
+static void resize_textbox(int resize, int &visible_lines)
+{
+  static int resize_prev = 0;
+
+  const int diff = round_fl_to_int(float(resize - resize_prev) / float(UI_UNIT_Y));
+
+  if (diff != 0) {
+    visible_lines += diff;
+    visible_lines = std::max(visible_lines, 1);
+    resize_prev += diff * UI_UNIT_Y;
+  }
+}
+
+void uiLayout::prop_text_box()
+{
+  uiLayout &col = this->column(false);
+  uiLayout &overlap = col.row(false).overlap();
+  overlap.row(false);
+
+  static char text[1000] = "aaaa\nbbbb\ncccc\ndddd\neeee\nffff\n    ";
+  static int visible_lines = 3;
+
+  uiBut *but = uiDefBut(this->block(),
+                        ButType::TextBox,
+                        0,
+                        text,
+                        0,
+                        0,
+                        25,
+                        UI_UNIT_Y * visible_lines,
+                        text,
+                        0.0,
+                        ARRAY_SIZE(text),
+                        "");
+
+  static int line_scroll = 0;
+  UI_but_text_box_line_scroll_set(but, &line_scroll);
+  UI_but_text_box_visible_lines_set(but, &visible_lines);
+
+  overlap.row(false).alignment_set(blender::ui::LayoutAlign::Right);
+  blender::StringRef text_ref = text;
+  int nlines = std::count(text_ref.begin(), text_ref.end(), '\n') + 1;
+  but = uiDefButI(this->block(),
+                  ButType::Scroll,
+                  0,
+                  "",
+                  0,
+                  0,
+                  ((0.45f * U.widget_unit) + (2.0f * U.pixelsize)) *
+                      0.75f,  //                 V2D_SCROLL_WIDTH * 3/4
+                  UI_UNIT_Y * visible_lines,
+                  &line_scroll,
+                  0,
+                  std::max<int>(nlines - visible_lines, 0),
+                  "");
+  uiButScrollBar *but_scroll = reinterpret_cast<uiButScrollBar *>(but);
+  but_scroll->visual_height = visible_lines;
+
+  col.row(false);
+  static int resize = 0;
+
+  but = uiDefIconButI(this->block(),
+                      ButType::Grip,
+                      0,
+                      ICON_GRIP,
+                      0,
+                      0,
+                      UI_UNIT_X * 10.0f,
+                      UI_UNIT_Y * 0.5f,
+                      &resize,
+                      0.0,
+                      0.0,
+                      "");
+  UI_but_func_set(but, [&](bContext & /*C*/) { resize_textbox(resize, visible_lines); });
+}
 void uiLayout::prop_search(PointerRNA *ptr,
                            PropertyRNA *prop,
                            PointerRNA *searchptr,

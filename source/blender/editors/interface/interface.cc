@@ -2891,7 +2891,7 @@ void ui_but_value_set(uiBut *but, double value)
 
 int ui_but_string_get_maxncpy(uiBut *but)
 {
-  if (ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
+  if (ELEM(but->type, ButType::Text, ButType::TextBox, ButType::SearchMenu)) {
     return but->hardmax;
   }
   return UI_MAX_DRAW_STR;
@@ -3082,7 +3082,7 @@ void ui_but_string_get_ex(uiBut *but,
       MEM_freeN(buf);
     }
   }
-  else if (ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
+  else if (ELEM(but->type, ButType::Text, ButType::TextBox, ButType::SearchMenu)) {
     /* string */
     BLI_strncpy(str, but->poin, str_maxncpy);
     return;
@@ -3391,7 +3391,7 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
       }
     }
   }
-  else if (but->type == ButType::Text) {
+  else if (ELEM(but->type, ButType::Text, ButType::TextBox)) {
     /* string */
     if (!but->poin) {
       str = "";
@@ -3402,7 +3402,6 @@ bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
     else {
       BLI_strncpy(but->poin, str, but->hardmax);
     }
-
     return true;
   }
   else if (but->type == ButType::SearchMenu) {
@@ -4094,6 +4093,7 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
       break;
 
     case ButType::Text:
+    case ButType::TextBox:
     case ButType::SearchMenu:
       if (!but->editstr) {
         char str[UI_MAX_DRAW_STR];
@@ -4203,6 +4203,9 @@ static std::unique_ptr<uiBut> ui_but_new(const ButType type)
   std::unique_ptr<uiBut> but{};
 
   switch (type) {
+    case ButType::TextBox:
+      but = std::make_unique<uiButTextBox>();
+      break;
     case ButType::Num:
       but = std::make_unique<uiButNumber>();
       break;
@@ -4390,6 +4393,7 @@ static uiBut *ui_def_but(uiBlock *block,
            ELEM(but->type,
                 ButType::Menu,
                 ButType::Text,
+                ButType::TextBox,
                 ButType::Label,
                 ButType::Block,
                 ButType::ButMenu,
@@ -6731,6 +6735,22 @@ void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_colo
   but->flag |= UI_BUT_NODE_LINK;
   but->custom_data = socket;
   rgba_float_to_uchar(but->col, draw_color);
+}
+
+void UI_but_text_box_visible_lines_set(uiBut *but, int *lines)
+{
+  uiButTextBox *but_text_box = (uiButTextBox *)but;
+  BLI_assert(but->type == ButType::TextBox);
+
+  but_text_box->visible_lines = lines;
+}
+
+void UI_but_text_box_line_scroll_set(uiBut *but, int *line)
+{
+  uiButTextBox *but_text_box = (uiButTextBox *)but;
+  BLI_assert(but->type == ButType::TextBox);
+
+  but_text_box->line_scroll = line;
 }
 
 void UI_but_number_step_size_set(uiBut *but, float step_size)

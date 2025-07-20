@@ -402,6 +402,8 @@ enum class ButType : int8_t {
   But = 1,
   Row,
   Text,
+  /** A multi-line text button */
+  TextBox,
   /** Drop-down list. */
   Menu,
   ButMenu,
@@ -1840,6 +1842,9 @@ void UI_but_number_precision_set(uiBut *but, float precision);
 
 void UI_but_number_slider_step_size_set(uiBut *but, float step_size);
 void UI_but_number_slider_precision_set(uiBut *but, float precision);
+
+void UI_but_text_box_visible_lines_set(uiBut *but, int *lines);
+void UI_but_text_box_line_scroll_set(uiBut *but, int *line);
 
 void UI_but_label_alpha_factor_set(uiBut *but, float alpha_factor);
 

@@ -2362,6 +2362,7 @@ static void ui_apply_but(
       ui_apply_but_BUT(C, but, data);
       break;
     case ButType::Text:
+    case ButType::TextBox:
     case ButType::SearchMenu:
       ui_apply_but_TEX(C, but, data);
       break;
@@ -2494,11 +2495,13 @@ static void ui_apply_but(
 
 static void ui_but_get_pasted_text_from_clipboard(const bool ensure_utf8,
                                                   char **r_buf_paste,
-                                                  int *r_buf_len)
+                                                  int *r_buf_len,
+                                                  bool first_line)
 {
   /* get only first line even if the clipboard contains multiple lines */
   int length;
-  char *text = WM_clipboard_text_get_firstline(false, ensure_utf8, &length);
+  char *text = first_line ? WM_clipboard_text_get_firstline(false, ensure_utf8, &length) :
+                            WM_clipboard_text_get(false, ensure_utf8, &length);
 
   if (text) {
     *r_buf_paste = text;
@@ -2819,6 +2822,7 @@ static bool ui_but_copy(bContext *C, uiBut *but, const bool copy_array)
       break;
 
     case ButType::Text:
+    case ButType::TextBox:
     case ButType::SearchMenu:
       if (!has_required_data) {
         break;
@@ -2875,7 +2879,8 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
 
   int buf_paste_len = 0;
   char *buf_paste;
-  ui_but_get_pasted_text_from_clipboard(UI_but_is_utf8(but), &buf_paste, &buf_paste_len);
+  ui_but_get_pasted_text_from_clipboard(
+      UI_but_is_utf8(but), &buf_paste, &buf_paste_len, but->type != ButType::TextBox);
 
   const bool has_required_data = !(but->poin == nullptr && but->rnapoin.data == nullptr);
 
@@ -2908,6 +2913,7 @@ static void ui_but_paste(bContext *C, uiBut *but, uiHandleButtonData *data, cons
       break;
 
     case ButType::Text:
+    case ButType::TextBox:
     case ButType::SearchMenu:
       if (!has_required_data) {
         break;
@@ -3232,6 +3238,35 @@ static bool ui_textedit_insert_ascii(uiBut *but, uiHandleButtonData *data, const
 }
 #endif
 
+static void ui_textbox_add_scroll(uiButTextBox *textbox, int step, int lines)
+{
+  *textbox->line_scroll = std::clamp<int>(
+      *textbox->line_scroll + step, 0, std::max(lines - *textbox->visible_lines, 0));
+}
+
+static void ui_textbox_scroll_to_cursor(uiButTextBox *textbox)
+{
+  blender::Vector<blender::StringRef> lines = ui_but_textbox_lines(textbox);
+  int line_cursor = 0;
+  const char *cursor = lines[0].begin() + textbox->pos;
+  for (blender::StringRef line : lines) {
+    if (line.begin() <= cursor && cursor < line.end()) {
+      break;
+    }
+    line_cursor++;
+  }
+  int visible_bouds[] = {*textbox->line_scroll, *textbox->line_scroll + *textbox->visible_lines};
+  if (visible_bouds[0] <= line_cursor && line_cursor < visible_bouds[1]) {
+    return;
+  }
+  if (visible_bouds[0] > line_cursor) {
+    ui_textbox_add_scroll(textbox, line_cursor - visible_bouds[0], lines.size());
+  }
+  else {
+    ui_textbox_add_scroll(textbox, line_cursor - visible_bouds[1] + 1, lines.size());
+  }
+}
+
 static void ui_textedit_move(uiBut *but,
                              uiTextEdit &text_edit,
                              eStrCursorJumpDirection direction,
@@ -3244,7 +3279,65 @@ static void ui_textedit_move(uiBut *but,
   const bool has_sel = (but->selend - but->selsta) > 0;
 
   ui_but_update(but);
+  if (jump == STRCUR_JUMP_LINE) {
 
+    if (!has_sel) {
+      but->selsta = but->selend = but->pos;
+    }
+    bool to_end = but->selend == but->pos;
+    blender::StringRef text(str, len);
+
+    int end = text.find('\n', but->pos);
+    end = end == text.not_found ? len : end;
+
+    int begin = text.rfind('\n', std::max(but->pos - 1, 0));
+    begin = begin == text.not_found ? 0 : begin + 1;
+    blender::StringRef line = text.substr(begin, end - begin);
+
+    int pos_i = BLI_str_utf8_offset_from_column(line.begin(), line.size(), but->pos - begin);
+    blender::StringRef dest_line = nullptr;
+    if (direction == STRCUR_DIR_NEXT) {
+      if (end == len) {
+        but->pos = end;
+      }
+      else {
+        begin = end + 1;
+        end = text.find('\n', begin);
+        end = end == text.not_found ? len : end;
+        dest_line = text.substr(begin, end - begin);
+      }
+    }
+    else {
+      if (begin == 0) {
+        but->pos = 0;
+      }
+      else {
+        end = begin - 1;
+        begin = text.rfind('\n', std::max(end - 1, 0));
+        begin = begin == text.not_found ? 0 : begin + 1;
+        dest_line = text.substr(begin, end - begin);
+      }
+    }
+    if (dest_line.data()) {
+      but->pos = begin + BLI_str_utf8_offset_from_index(dest_line.data(), dest_line.size(), pos_i);
+    }
+    if (!select) {
+      but->selsta = but->selend = but->pos;
+      return;
+    }
+
+    if (to_end && select) {
+      but->selend = but->pos;
+    }
+    else {
+      but->selsta = but->pos;
+    }
+    if (but->selend < but->selsta) {
+      std::swap(but->selend, but->selsta);
+    }
+
+    return;
+  }
   /* special case, quit selection and set cursor */
   if (has_sel && !select) {
     if (jump == STRCUR_JUMP_ALL) {
@@ -3370,7 +3463,9 @@ static bool ui_textedit_copypaste(uiBut *but, uiTextEdit &text_edit, const int m
   if (mode == UI_TEXTEDIT_PASTE) {
     /* extract the first line from the clipboard */
     int buf_len;
-    char *pbuf = WM_clipboard_text_get_firstline(false, UI_but_is_utf8(but), &buf_len);
+    char *pbuf = but->type != ButType::TextBox ?
+                     WM_clipboard_text_get_firstline(false, UI_but_is_utf8(but), &buf_len) :
+                     WM_clipboard_text_get(false, UI_but_is_utf8(but), &buf_len);
 
     if (pbuf) {
       ui_textedit_insert_buf(but, text_edit, pbuf, buf_len);
@@ -3772,7 +3867,12 @@ static int ui_do_but_textedit(
 #else
   const bool is_ime_composing = false;
 #endif
-
+  uiButTextBox *textbox_but = but->type == ButType::TextBox ? static_cast<uiButTextBox *>(but) :
+                                                              nullptr;
+  int old_line_count = std::count(text_edit.edit_string,
+                                  text_edit.edit_string + strlen(text_edit.edit_string),
+                                  '\n') +
+                       1;
   switch (event->type) {
     case MOUSEMOVE:
     case MOUSEPAN:
@@ -3946,7 +4046,16 @@ static int ui_do_but_textedit(
           ui_searchbox_event(C, data->searchbox, but, data->region, event);
           break;
         }
-        if (event->type == WHEELDOWNMOUSE) {
+        if (textbox_but) {
+          if (event->type == WHEELDOWNMOUSE) {
+            ui_textbox_add_scroll(textbox_but, 1, old_line_count);
+          }
+          else {
+            ui_textedit_move(
+                but, text_edit, STRCUR_DIR_NEXT, event->modifier & KM_SHIFT, STRCUR_JUMP_LINE);
+            ui_textbox_scroll_to_cursor(textbox_but);
+          }
+          retval = WM_UI_HANDLER_BREAK;
           break;
         }
         ATTR_FALLTHROUGH;
@@ -3964,6 +4073,18 @@ static int ui_do_but_textedit(
           ui_searchbox_event(C, data->searchbox, but, data->region, event);
           break;
         }
+        if (textbox_but) {
+          if (event->type == WHEELUPMOUSE) {
+            ui_textbox_add_scroll(textbox_but, -1, old_line_count);
+          }
+          else {
+            ui_textedit_move(
+                but, text_edit, STRCUR_DIR_PREV, event->modifier & KM_SHIFT, STRCUR_JUMP_LINE);
+            ui_textbox_scroll_to_cursor(textbox_but);
+          }
+          retval = WM_UI_HANDLER_BREAK;
+          break;
+        }
         if (event->type == WHEELUPMOUSE) {
           break;
         }
@@ -3975,7 +4096,15 @@ static int ui_do_but_textedit(
         break;
       case EVT_PADENTER:
       case EVT_RETKEY:
-        button_activate_state(C, but, BUTTON_STATE_EXIT);
+        if (but->type == ButType::TextBox && event->modifier & KM_SHIFT) {
+          char utf8_buf[2] = "\n";
+          ui_textedit_insert_buf(but, text_edit, utf8_buf, 1);
+          but->selsta = but->selend = but->pos;
+          changed = true;
+        }
+        else {
+          button_activate_state(C, but, BUTTON_STATE_EXIT);
+        }
         retval = WM_UI_HANDLER_BREAK;
         break;
       case EVT_DELKEY:
@@ -4117,6 +4246,9 @@ static int ui_do_but_textedit(
 #endif
 
   if (changed) {
+    if (textbox_but) {
+      ui_textbox_scroll_to_cursor(textbox_but);
+    }
     /* The undo stack may be nullptr if an event exits editing. */
     if ((skip_undo_push == false) && (text_edit.undo_stack_text != nullptr)) {
       ui_textedit_undo_push(text_edit.undo_stack_text, text_edit.edit_string, but->pos);
@@ -8420,6 +8552,7 @@ static int ui_do_button(bContext *C, uiBlock *block, uiBut *but, const wmEvent *
       /* Nothing to do! */
       break;
     case ButType::Text:
+    case ButType::TextBox:
     case ButType::SearchMenu:
       if ((but->type == ButType::SearchMenu) && (but->flag & UI_BUT_VALUE_CLEAR)) {
         retval = ui_do_but_SEARCH_UNLINK(C, block, but, data, event);

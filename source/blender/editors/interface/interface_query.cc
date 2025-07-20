@@ -49,7 +49,12 @@ bool ui_but_is_editable(const uiBut *but)
 
 bool ui_but_is_editable_as_text(const uiBut *but)
 {
-  return ELEM(but->type, ButType::Text, ButType::Num, ButType::NumSlider, ButType::SearchMenu);
+  return ELEM(but->type,
+              ButType::TextBox,
+              ButType::Text,
+              ButType::Num,
+              ButType::NumSlider,
+              ButType::SearchMenu);
 }
 
 bool ui_but_is_toggle(const uiBut *but)

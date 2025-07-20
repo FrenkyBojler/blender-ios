@@ -350,6 +350,15 @@ struct uiBut {
   virtual ~uiBut() = default;
 };
 
+/** Derived struct for #ButType::TextBox */
+struct uiButTextBox : public uiBut {
+  int *visible_lines = nullptr;
+  int *line_scroll = nullptr;
+};
+
+blender::Vector<blender::StringRef> ui_but_textbox_lines(uiBut *but);
+
+
 /** Derived struct for #ButType::Num */
 struct uiButNumber : public uiBut {
   float step_size = 0.0f;

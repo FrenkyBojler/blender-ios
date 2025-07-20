@@ -80,6 +80,7 @@ enum uiWidgetTypeEnum {
   UI_WTYPE_NAME_LINK,
   UI_WTYPE_POINTER_LINK,
   UI_WTYPE_FILENAME,
+  UI_WTYPE_TEXT_AREA,
 
   /* menus */
   UI_WTYPE_MENU_RADIO,
@@ -1076,8 +1077,10 @@ void UI_widgetbase_draw_cache_flush()
   if (g_widget_base_batch.count == 1) {
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-    GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (const float(*)[4])g_widget_base_batch.params);
+    GPU_batch_uniform_4fv_array(batch,
+                                "parameters",
+                                MAX_WIDGET_PARAMETERS,
+                                (const float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1086,7 +1089,7 @@ void UI_widgetbase_draw_cache_flush()
     GPU_batch_uniform_4fv_array(batch,
                                 "parameters",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
-                                (float(*)[4])g_widget_base_batch.params);
+                                (float (*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw_instance_range(batch, 0, g_widget_base_batch.count);
   }
@@ -1134,7 +1137,7 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
     blender::gpu::Batch *batch = ui_batch_roundbox_widget_get();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4]) & wtb->uniform_params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (float (*)[4]) & wtb->uniform_params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1973,6 +1976,266 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 }
 #endif /* WITH_INPUT_IME */
 
+blender::Vector<blender::StringRef> ui_but_textbox_lines(uiBut *but)
+{
+  blender::Vector<blender::StringRef> lines;
+
+  blender::StringRef text = but->editstr ? blender::StringRef(but->editstr) :
+                                           blender::StringRef(but->str);
+
+  int64_t prev_i = 0;
+  int64_t i = text.find('\n', prev_i);
+
+  blender::Span<char> span_text(text.begin(), text.size());
+  while (i != blender::StringRef::not_found) {
+    lines.append(span_text.slice(prev_i, i - prev_i + 1));
+    prev_i = i + 1;
+    i = text.find("\n", prev_i);
+  }
+  lines.append(span_text.slice(prev_i, text.size() - prev_i));
+  return lines;
+}
+
+static void widget_draw_textbox(const uiFontStyle *fstyle,
+                                const uiWidgetColors *wcol,
+                                uiBut *but,
+                                rcti *rect)
+{
+  BLI_assert(but->type == ButType::TextBox);
+
+  const uiButTextBox *textbox_but = static_cast<const uiButTextBox *>(but);
+  int visible_lines = *textbox_but->visible_lines;
+
+  int per_line = BLI_rcti_size_y(rect) / visible_lines;
+  int scroll = *textbox_but->line_scroll;
+
+  int drawstr_left_len = UI_MAX_DRAW_STR;
+  const char *drawstr = but->drawstr.c_str();
+  blender::Vector<blender::StringRef> lines = ui_but_textbox_lines(but);
+  const char *raw_begin = lines[0].begin();
+  // blender::StringRef line = orig;
+
+  int line_cursor = 0;
+  int line_select_start = 0;
+  int line_select_end = 0;
+
+  for (int i : lines.index_range()) {
+    const char *line_bounds[] = {lines[i].begin() - 1, lines[i].end()};
+    if (IN_RANGE(raw_begin + but->pos, line_bounds[0], line_bounds[1] + 1)) {
+      line_cursor = i;
+    }
+    if (IN_RANGE(raw_begin + but->selsta, line_bounds[0], line_bounds[1])) {
+      line_select_start = i;
+    }
+    if (IN_RANGE(raw_begin + but->selend, line_bounds[0] + 1, line_bounds[1] + 1)) {
+      line_select_end = i;
+    }
+  }
+
+#ifdef WITH_INPUT_IME
+  const wmIMEData *ime_data;
+#endif
+
+  UI_fontstyle_set(fstyle);
+
+  eFontStyle_Align align;
+  if (but->editstr || (but->drawflag & UI_BUT_TEXT_LEFT)) {
+    align = UI_STYLE_TEXT_LEFT;
+  }
+  else if (but->drawflag & UI_BUT_TEXT_RIGHT) {
+    align = UI_STYLE_TEXT_RIGHT;
+  }
+  else {
+    align = UI_STYLE_TEXT_CENTER;
+  }
+
+  /* Special case: when we're entering text for multiple buttons,
+   * don't draw the text for any of the multi-editing buttons */
+  if (UNLIKELY(but->flag & UI_BUT_DRAG_MULTI)) {
+    uiBut *but_edit = ui_but_drag_multi_edit_get(but);
+    if (but_edit) {
+      drawstr = but_edit->editstr;
+      align = UI_STYLE_TEXT_LEFT;
+    }
+  }
+  else {
+    if (but->editstr) {
+      /* The maximum length isn't used in this case,
+       * we rely on string being null terminated. */
+      drawstr_left_len = INT_MAX;
+
+#ifdef WITH_INPUT_IME
+      /* FIXME: IME is modifying `const char *drawstr`! */
+      ime_data = ui_but_ime_data_get(but);
+
+      if (ime_data && ime_data->composite.size()) {
+        /* insert composite string into cursor pos */
+        char tmp_drawstr[UI_MAX_DRAW_STR];
+        STRNCPY(tmp_drawstr, drawstr);
+        BLI_snprintf(tmp_drawstr,
+                     sizeof(tmp_drawstr),
+                     "%.*s%s%s",
+                     but->pos,
+                     but->editstr,
+                     ime_data->composite.c_str(),
+                     but->editstr + but->pos);
+        but->drawstr = tmp_drawstr;
+        drawstr = but->drawstr.c_str();
+      }
+      else
+#endif
+      {
+        drawstr = but->editstr;
+      }
+    }
+  }
+
+  /* text button selection, cursor, composite underline */
+  if (but->editstr && but->pos != -1) {
+    int but_pos_ofs;
+
+#ifdef WITH_INPUT_IME
+    bool ime_reposition_window = false;
+    int ime_win_x, ime_win_y;
+#endif
+    struct Foo {
+      int line;
+      const char *start;
+      const char *end;
+    };
+    blender::Vector<Foo> selections = {};
+    if (but->selsta != but->selend) {
+      const char *itr = raw_begin + but->selsta;
+
+      for (int i = line_select_start; i <= line_select_end; i++) {
+        const char *itr_end = std::min(raw_begin + but->selend, lines[i].end());
+        selections.append({i, itr, itr_end});
+        itr = itr_end;
+      }
+    }
+
+    /* text button selection */
+    for (auto selection : selections) {
+      if (!(scroll <= selection.line && selection.line < visible_lines + scroll)) {
+        continue;
+      }
+      /* We are drawing on top of widget bases. Flush cache. */
+      GPU_blend(GPU_BLEND_ALPHA);
+      UI_widgetbase_draw_cache_flush();
+      uint pos = GPU_vertformat_attr_add(
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+      immUniformColor4ubv(wcol->item);
+      blender::StringRef line = lines[selection.line];
+      const auto boxes = BLF_str_selection_boxes(fstyle->uifont_id,
+                                                 line.begin(),
+                                                 line.size(),
+                                                 selection.start - line.begin(),
+                                                 selection.end - selection.start);
+      for (auto bounds : boxes) {
+        int y = rect->ymax - (per_line * (selection.line - scroll));
+        immRectf(pos,
+                 rect->xmin + bounds.min,
+                 y - per_line + U.pixelsize,
+                 std::min(rect->xmin + bounds.max, rect->xmax - 2),
+                 y - U.pixelsize);
+      }
+      immUnbindProgram();
+      GPU_blend(GPU_BLEND_NONE);
+
+#ifdef WITH_INPUT_IME
+      /* IME candidate window uses selection position. */
+      if (!ime_reposition_window && boxes.size() > 0) {
+        ime_reposition_window = true;
+        ime_win_x = rect->xmin + boxes[0].min;
+        ime_win_y = rect->ymin + U.pixelsize;
+      }
+#endif
+    }
+
+    /* Text cursor position. */
+    but_pos_ofs = but->pos;
+
+#ifdef WITH_INPUT_IME
+    /* If is IME compositing, move the cursor. */
+    if (ime_data && ime_data->composite.size() && ime_data->cursor_pos != -1) {
+      but_pos_ofs += ime_data->cursor_pos;
+    }
+#endif
+
+    /* Draw text cursor (caret). */
+    if (but->pos >= but->ofs && IN_RANGE((line_cursor - scroll), -1, visible_lines)) {
+      if (but->type == ButType::TextBox) {
+      }
+      int t = BLF_str_offset_to_cursor(fstyle->uifont_id,
+                                       lines[line_cursor].begin(),
+                                       UI_MAX_DRAW_STR,
+                                       but->pos - (lines[line_cursor].begin() - raw_begin),
+                                       max_ii(1, int(U.pixelsize * 2)));
+
+      /* We are drawing on top of widget bases. Flush cache. */
+      GPU_blend(GPU_BLEND_ALPHA);
+      UI_widgetbase_draw_cache_flush();
+      GPU_blend(GPU_BLEND_NONE);
+
+      uint pos = GPU_vertformat_attr_add(
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+      immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+
+      immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
+      static int iii = 0;
+
+      int y = rect->ymax - (per_line * (line_cursor - scroll));
+      /* draw cursor */
+      immRectf(pos,
+               rect->xmin + t,
+               y - per_line + U.pixelsize,
+               rect->xmin + t + int(2.0f * U.pixelsize),
+               y - U.pixelsize);
+
+      immUnbindProgram();
+
+#ifdef WITH_INPUT_IME
+      /* IME candidate window uses cursor position. */
+      if (!ime_reposition_window) {
+        ime_reposition_window = true;
+        ime_win_x = rect->xmin + t + 5;
+        ime_win_y = rect->ymin + 3;
+      }
+#endif
+    }
+
+#ifdef WITH_INPUT_IME
+    /* IME cursor following. */
+    if (ime_reposition_window) {
+      ui_but_ime_reposition(but, ime_win_x, ime_win_y, false);
+    }
+    if (ime_data && ime_data->composite.size()) {
+      /* Composite underline. */
+      widget_draw_text_ime_underline(fstyle, wcol, but, rect, ime_data, drawstr);
+    }
+#endif
+  }
+
+  int font_xofs, font_yofs;
+
+  uiFontStyleDraw_Params params{};
+  params.align = align;
+  rect->ymin = rect->ymax - per_line;
+  for (blender::StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
+    UI_fontstyle_draw_ex(fstyle,
+                         rect,
+                         line.begin(),
+                         line.size(),
+                         wcol->text,
+                         &params,
+                         &font_xofs,
+                         &font_yofs,
+                         nullptr);
+    BLI_rcti_translate(rect, 0, -per_line);
+  }
+}
+
 static void widget_draw_text(const uiFontStyle *fstyle,
                              const uiWidgetColors *wcol,
                              uiBut *but,
@@ -2537,7 +2800,12 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   }
 
   /* Always draw text for text-button cursor. */
-  widget_draw_text(fstyle, wcol, but, rect);
+  if (but->type != ButType::TextBox) {
+    widget_draw_text(fstyle, wcol, but, rect);
+  }
+  else {
+    widget_draw_textbox(fstyle, wcol, but, rect);
+  }
 
   ui_but_text_password_hide(password_str, but, true);
 
@@ -4249,6 +4517,25 @@ static void widget_textbut(uiWidgetColors *wcol,
   widgetbase_draw(&wtb, wcol);
 }
 
+static void widget_textarea(uiWidgetColors *wcol,
+                            rcti *rect,
+                            const uiWidgetStateInfo *state,
+                            int roundboxalign,
+                            const float zoom)
+{
+  if (state->but_flag & UI_SELECT) {
+    std::swap(wcol->shadetop, wcol->shadedown);
+  }
+
+  uiWidgetBase wtb;
+  widget_init(&wtb);
+
+  const float rad = widget_radius_from_zoom(zoom, wcol);
+  round_box_edges(&wtb, roundboxalign, rect, rad);
+
+  widgetbase_draw(&wtb, wcol);
+}
+
 static void widget_menuiconbut(uiWidgetColors *wcol,
                                rcti *rect,
                                const uiWidgetStateInfo * /*state*/,
@@ -4781,6 +5068,11 @@ static uiWidgetType *widget_type(uiWidgetTypeEnum type)
       wt.wcol_theme = &btheme->tui.wcol_text;
       wt.draw = widget_textbut;
       break;
+    /* strings */
+    case UI_WTYPE_TEXT_AREA:
+      wt.wcol_theme = &btheme->tui.wcol_text;
+      wt.draw = widget_textarea;
+      break;
 
     case UI_WTYPE_NAME_LINK:
       break;
@@ -5083,6 +5375,9 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
 
       case ButType::Text:
         wt = widget_type(UI_WTYPE_NAME);
+        break;
+      case ButType::TextBox:
+        wt = widget_type(UI_WTYPE_TEXT_AREA);
         break;
 
       case ButType::SearchMenu:

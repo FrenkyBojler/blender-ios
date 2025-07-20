@@ -84,6 +84,11 @@ std::optional<StringRefNull> rna_translate_ui_text(
   return BLT_pgettext(BLT_I18NCONTEXT_DEFAULT, text);
 }
 
+static void rna_uiItemTextBox(uiLayout *layout)
+{
+  layout->prop_text_box();
+};
+
 static void rna_uiItemR(uiLayout *layout,
                         PointerRNA *ptr,
                         const char *propname,
@@ -1386,6 +1391,8 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func, "Return the icon for this enum item");
 
   /* items */
+  func = RNA_def_function(srna, "prop_text_box", "rna_uiItemTextBox");
+
   func = RNA_def_function(srna, "prop", "rna_uiItemR");
   RNA_def_function_ui_description(func,
                                   "Item. Exposes an RNA item and places it into the layout.");
