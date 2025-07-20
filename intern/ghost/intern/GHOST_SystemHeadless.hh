@@ -76,6 +76,8 @@ class GHOST_SystemHeadless : public GHOST_System {
             /* Wrap. */
             GHOST_kCapabilityCursorRGBA |
             /* Wrap. */
+            GHOST_kCapabilityCursorGenerator |
+            /* Wrap. */
             GHOST_kCapabilityMultiMonitorPlacement)
 
     );
