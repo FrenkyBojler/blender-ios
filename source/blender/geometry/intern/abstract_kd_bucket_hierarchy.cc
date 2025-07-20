@@ -2,6 +2,8 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include <execution>
+
 #include "BLI_array.hh"
 #include "BLI_array_utils.hh"
 #include "BLI_binary_search.hh"
@@ -93,6 +95,87 @@ OffsetIndices<int> fill_bucket_offsets_trivial(const int total_elements,
   return r_offsets.as_span();
 }
 
+// template<typename Func>
+// static void redix_nth_element(const int middle,
+//                               MutableSpan<int> elements,
+//                               const Func func)
+// {
+//   
+//   using CountsAndHeaders = std::pair<std::array<int, 257>, std::array<int, 256>>;
+//   
+//   constexpr int start_index = -1;
+//   
+//   CountsAndHeaders statistic;
+//   MutableSpan<int>(statistic.first).fill(0);
+//   MutableSpan<int>(statistic.second).fill(start_index);
+// 
+//   Array<int, 0> linked_list(elements.size());
+// 
+//   statistic = threading::parallel_reduce<CountsAndHeaders>(elements.index_range(),
+//                              4096 * 2,
+//                              statistic,
+//                              [&](const IndexRange range, const CountsAndHeaders &init_counts) {
+//                                CountsAndHeaders statistic = init_counts;
+//                                for (const int index : range) {
+//                                  const uint8_t radix = func(elements[index]);
+//                                  statistic.first[radix]++;
+//                                  linked_list[index] = statistic.second[radix];
+//                                  statistic.second[radix] = index;
+//                                }
+//                                return statistic;
+//                              },
+//                              [](const CountsAndHeaders &a, const CountsAndHeaders &b) {
+//                                CountsAndHeaders statistic;
+//                                for (const int i : IndexRange(257)) {
+//                                  statistic.first[i] = a.first[i] + b.first[i];
+//                                }
+//                                for (const int i : IndexRange(256)) {
+//                                  if (a.second[i] == b.second[i]) {
+//                                    BLI_assert(a.second[i] == start_index);
+//                                    statistic.second[i] = start_index;
+//                                    continue;
+//                                  }
+//                                  
+//                                  statistic.second[i] = std::max(a.second[i], b.second[i]);
+//                                  
+//                                  const int other_header = std::min(a.second[i], b.second[i]);
+//                                  if (other_header != start_index) {
+//                                    
+//                                  }
+//                                  
+//                                  statistic.second[i] = a.second[i] + b.second[i];
+//                                }
+//                              });
+//   
+//   const OffsetIndices<int> radix_sizes = offset_indices::accumulate_counts_to_offsets(statistic.first);
+//   
+//   const int radix = first_if(statistic.first, [&](const int start) { return start <= middle; });
+//   
+//   if (radix > 255) {
+//     BLI_assert(false);
+//     return;
+//   }
+// 
+//   Array<int> radix_elements(radix_sizes[radix].size());
+//   int list_iter = statistic.second[radix];
+//   radix_elements[0] = list_iter;
+//   for (const int i : radix_sizes[radix].index_range().drop_front(1)) {
+//     radix_elements[i] = list_iter;
+//     list_iter = linked_list[list_iter];
+//   }
+//   
+//   const int middle_i = *std::nth_element(radix_elements.begin(),
+//                    radix_elements.begin() + middle - radix_sizes[radix].start(),
+//                    radix_elements.end(),
+//                    [&](const int a, const int b) {
+//     return func(a) < func(b);
+//   });
+//   
+//   std::partition(elements.begin(), elements.end(), [&](const int elem) {
+//     return func(elem) < func(middle_i);
+//   });
+// }
+
 void from_positions(const Span<float3> positions,
                     const OffsetIndices<int> buckets_offsets,
                     const int total_depth,
@@ -103,10 +186,20 @@ void from_positions(const Span<float3> positions,
   for_each_to_bottom(
       buckets_offsets,
       total_depth,
-      GrainSize(4096),
+      GrainSize(4096 * 2),
       [&](const IndexRange bucket_range, const int /*joint_index*/, const int depth_i) {
         const int axis_index = math::mod_periodic(depth_i, 3);
         MutableSpan<int> segment = indices.slice(bucket_range);
+        
+        // redix_nth_element(segment.size() / 2,
+        //                   segment,
+        //                   [&](const int index) -> uint8_t {
+        //                     const float value = positions[index][axis_index];
+        //                     uint8_t top_radix;
+        //                     std::memcpy(&top_radix, &value, 1);
+        //                     return value;
+        //                   });
+        
         std::nth_element(segment.begin(),
                          segment.begin() + segment.size() / 2,
                          segment.end(),
