@@ -232,26 +232,6 @@ class VIEW3D_PT_vr_viewport_feedback(Panel):
         layout.prop(view3d, "mirror_xr_session")
 
 
-# Info.
-class VIEW3D_PT_vr_info(bpy.types.Panel):
-    bl_space_type = 'VIEW_3D'
-    bl_region_type = 'UI'
-    bl_category = "VR"
-    bl_label = "VR Info"
-
-    @classmethod
-    def poll(cls, context):
-        return not bpy.app.build_options.xr_openxr
-
-    def draw(self, context):
-        import platform
-        layout = self.layout
-        missing_support_string = "Built without VR/OpenXR features"
-        if platform.system() == "Darwin":
-            missing_support_string = "VR is not supported on macOS at the moment"
-        layout.label(icon='ERROR', text=missing_support_string)
-
-
 classes = (
     VIEW3D_PT_vr_session,
     VIEW3D_PT_vr_session_view,

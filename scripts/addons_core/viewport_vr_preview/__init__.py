@@ -25,14 +25,8 @@ if "bpy" in locals():
 else:
     from . import action_map, gui, operators, properties
 
-import bpy
-
 
 def register():
-    if not bpy.app.build_options.xr_openxr:
-        bpy.utils.register_class(gui.VIEW3D_PT_vr_info)
-        return
-
     action_map.register()
     gui.register()
     operators.register()
@@ -40,10 +34,6 @@ def register():
 
 
 def unregister():
-    if not bpy.app.build_options.xr_openxr:
-        bpy.utils.unregister_class(gui.VIEW3D_PT_vr_info)
-        return
-
     action_map.unregister()
     gui.unregister()
     operators.unregister()
