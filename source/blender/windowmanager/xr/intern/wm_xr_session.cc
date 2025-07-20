@@ -1122,8 +1122,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
                                           GHOST_XrContextHandle xr_context,
                                           wmXrActionSet *action_set,
                                           wmXrSessionState *session_state,
-                                          wmWindow *win,
-                                          wmWindowManager *wm)
+                                          wmWindow *win)
 {
   const char *action_set_name = action_set->name;
 
@@ -1192,7 +1191,7 @@ static void wm_xr_session_events_dispatch(wmXrData *xr,
                                                                   subaction_idx,
                                                                   subaction_idx_other,
                                                                   bimanual);
-          wm_event_add_xrevent(wm, win, actiondata, val);
+          wm_event_add_xrevent(win, actiondata, val);
         }
       }
     }
@@ -1263,7 +1262,7 @@ void wm_xr_session_actions_update(wmWindowManager *wm)
       v3d->object_type_exclude_viewport = settings->object_type_exclude_viewport;
       v3d->object_type_exclude_select = settings->object_type_exclude_select;
 
-      wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win, wm);
+      wm_xr_session_events_dispatch(xr, xr_context, active_action_set, state, win);
     }
   }
 }

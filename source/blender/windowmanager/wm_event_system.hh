@@ -161,7 +161,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
                              const void *customdata,
                              const uint64_t event_time_ms);
 #ifdef WITH_XR_OPENXR
-void wm_event_add_xrevent(wmWindowManager *wm, wmWindow *win, wmXrActionData *actiondata, short val);
+void wm_event_add_xrevent(wmWindow *win, wmXrActionData *actiondata, short val);
 #endif
 
 void wm_event_do_depsgraph(bContext *C, bool is_after_open_file);

@@ -6420,8 +6420,7 @@ void wm_event_add_ghostevent(wmWindowManager *wm,
 
 #ifdef WITH_XR_OPENXR
 
-void wm_event_add_xrevent(wmWindowManager *wm,
-                          wmWindow *win,
+void wm_event_add_xrevent(wmWindow *win,
                           wmXrActionData *actiondata,
                           short val)
 {
