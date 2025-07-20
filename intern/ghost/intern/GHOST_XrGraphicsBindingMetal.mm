@@ -48,8 +48,8 @@ static eGPUTextureFormat ghost_format_to_gpu_format(GHOST_TXrSwapchainFormat gho
 {
   switch (ghost_format) {
     case GHOST_kXrSwapchainFormatRGBA8:
-      /* TODO: Assume SRGB for now, storing the proper SRGB info in draw_info as bad side-effects. Will be fixed
-       *       separately after dropping the use of the GPU backend. See below in chooseSwapchainFormat. */
+      /* TODO: Assume SRGB for now, storing the proper SRGB info in draw_info has bad side-effects.
+       *       Will be fixed separately after dropping the use of the GPU backend. */
       return GPU_SRGB8_A8;
     case GHOST_kXrSwapchainFormatRGBA16:
       return GPU_RGBA16;
@@ -207,7 +207,7 @@ void GHOST_XrGraphicsBindingMetal::submitToSwapchainImage(
 
   const eGPUTextureFormat tex_format = ghost_format_to_gpu_format(draw_info.swapchain_format);
   gpu::MTLTexture metal_gpu_texture = gpu::MTLTexture(
-      "xr_swapchain_tex", tex_format , gpu::GPU_TEXTURE_2D, metal_xr_texture);
+      "xr_swapchain_tex", tex_format, gpu::GPU_TEXTURE_2D, metal_xr_texture);
 
   gpu::MTLContext *ctx = gpu::MTLContext::get();
 
