@@ -389,19 +389,25 @@ void GHOST_XrContext::getAPILayersToEnable(std::vector<const char *> &r_ext_name
 static const char *openxr_ext_name_from_wm_gpu_binding(GHOST_TXrGraphicsBinding binding)
 {
   switch (binding) {
-#ifdef WITH_OPENGL_BACKEND
     case GHOST_kXrGraphicsOpenGL:
+#ifdef WITH_OPENGL_BACKEND
       return XR_KHR_OPENGL_ENABLE_EXTENSION_NAME;
+#else
+      return nullptr;
 #endif
 
-#ifdef WITH_VULKAN_BACKEND
     case GHOST_kXrGraphicsVulkan:
+#ifdef WITH_VULKAN_BACKEND
       return XR_KHR_VULKAN_ENABLE2_EXTENSION_NAME;
+#else
+      return nullptr;
 #endif
 
-#ifdef WITH_METAL_BACKEND
     case GHOST_kXrGraphicsMetal:
+#ifdef WITH_METAL_BACKEND
       return XR_KHR_METAL_ENABLE_EXTENSION_NAME;
+#else
+      return nullptr;
 #endif
 
 #ifdef WIN32

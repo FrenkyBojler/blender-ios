@@ -3728,8 +3728,8 @@ PyDoc_STRVAR(
     "\n"
     "   Unset a property, will use default value afterward.\n"
     "\n"
-    "   :arg key: Property name.\n"
-    "   :type key: str\n");
+    "   :arg property: Property name.\n"
+    "   :type property: str\n");
 static PyObject *pyrna_struct_property_unset(BPy_StructRNA *self, PyObject *args)
 {
   PropertyRNA *prop;
@@ -7009,7 +7009,7 @@ PyTypeObject pyrna_struct_Type = {
     /*tp_basicsize*/ sizeof(BPy_StructRNA),
     /*tp_itemsize*/ 0,
     /*tp_dealloc*/ pyrna_struct_dealloc,
-    /*tp_vectorcall_offset */ 0,
+    /*tp_vectorcall_offset*/ 0,
     /*tp_getattr*/ nullptr,
     /*tp_setattr*/ nullptr,
     /*tp_as_async*/ nullptr,
@@ -8166,7 +8166,7 @@ static PyObject *pyrna_srna_ExternalType(StructRNA *srna)
         newclass = nullptr;
       }
       else {
-        CLOG_INFO(BPY_LOG_RNA, 2, "SRNA sub-classed: '%s'", idname);
+        CLOG_TRACE(BPY_LOG_RNA, "SRNA sub-classed: '%s'", idname);
       }
     }
   }
@@ -10053,7 +10053,21 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
     return nullptr;
   }
 
-  if (G.debug & G_DEBUG_PYTHON) {
+  if (!pyrna_write_check()) {
+    PyErr_Format(PyExc_RuntimeError,
+                 "%s can't run in readonly state '%.200s'",
+                 error_prefix,
+                 ((PyTypeObject *)py_class)->tp_name);
+    return nullptr;
+  }
+
+  /* WARNING: gets parent classes srna, only for the register function. */
+  srna = pyrna_struct_as_srna(py_class, true, "register_class(...):");
+  if (srna == nullptr) {
+    return nullptr;
+  }
+
+  if (UNLIKELY(G.debug & G_DEBUG_PYTHON)) {
     /* Warn if a class being registered uses an already registered base-class or sub-class,
      * both checks are needed otherwise the order of registering could suppress the warning.
      *
@@ -10079,20 +10093,21 @@ static PyObject *pyrna_register_class(PyObject * /*self*/, PyObject *py_class)
               ((PyTypeObject *)py_class)->tp_name,
               sub_cls_test->tp_name);
     }
-  }
 
-  if (!pyrna_write_check()) {
-    PyErr_Format(PyExc_RuntimeError,
-                 "%s can't run in readonly state '%.200s'",
-                 error_prefix,
-                 ((PyTypeObject *)py_class)->tp_name);
-    return nullptr;
-  }
-
-  /* WARNING: gets parent classes srna, only for the register function. */
-  srna = pyrna_struct_as_srna(py_class, true, "register_class(...):");
-  if (srna == nullptr) {
-    return nullptr;
+    /* In practice it isn't useful to manipulate Python properties for `PropertyGroup`
+     * instances since the Python objects themselves are not shared,
+     * meaning a new Python instance is returned on each attribute access.
+     * It may be useful to include other classes in this check - extend as needed.
+     * See #141948. */
+    if (RNA_struct_is_a(srna, &RNA_PropertyGroup)) {
+      if (!PyDict_GetItem(((PyTypeObject *)py_class)->tp_dict, bpy_intern_str___slots__)) {
+        fprintf(stderr,
+                "%s warning, %.200s: is expected to contain a \"__slots__\" member "
+                "to prevent arbitrary assignments.\n",
+                error_prefix,
+                ((PyTypeObject *)py_class)->tp_name);
+      }
+    }
   }
 
 /* Fails in some cases, so can't use this check, but would like to :| */

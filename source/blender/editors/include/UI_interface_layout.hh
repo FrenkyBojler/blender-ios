@@ -4,8 +4,10 @@
 
 #pragma once
 
+#include <functional>
 #include <optional>
 
+#include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
@@ -13,17 +15,22 @@
 #include "UI_interface_icons.hh" /* `eAlertIcon` */
 #include "UI_interface_types.hh"
 
-#include "WM_types.hh" /* `wmOperatorCallContext` */
-
 struct bContext;
 struct bContextStore;
+struct EnumPropertyItem;
+struct IDProperty;
 struct uiBlock;
 struct uiBut;
 struct uiLayoutRoot;
+struct uiList;
 struct uiStyle;
 struct MenuType;
 struct PanelType;
+struct Panel;
 struct PointerRNA;
+struct PropertyRNA;
+struct StructRNA;
+struct wmOperatorType;
 
 /* Layout
  *
@@ -43,6 +50,10 @@ enum class LayoutAlign : int8_t;
 enum class ButProgressType : int8_t;
 enum class LayoutDirection : int8_t;
 }  // namespace blender::ui
+
+namespace blender::wm {
+enum class OpCallContext : int8_t;
+}
 
 struct PanelLayout {
   uiLayout *header;
@@ -169,9 +180,9 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
 
   [[nodiscard]] blender::ui::LayoutDirection local_direction() const;
 
-  [[nodiscard]] wmOperatorCallContext operator_context() const;
+  [[nodiscard]] blender::wm::OpCallContext operator_context() const;
   /** Sets the default call context for new operator buttons added in any #root_ sub-layout. */
-  void operator_context_set(wmOperatorCallContext opcontext);
+  void operator_context_set(blender::wm::OpCallContext opcontext);
 
   [[nodiscard]] bool red_alert() const;
   /**
@@ -324,7 +335,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                                           blender::StringRefNull open_prop_name,
                                           PointerRNA *bool_prop_owner,
                                           blender::StringRefNull bool_prop_name,
-                                          std::optional<blender::StringRefNull> label);
+                                          std::optional<blender::StringRef> label);
   /**
    * Variant of #panel_prop that automatically stores the open-close-state in the root
    * panel. When a dynamic number of panels is required, it's recommended to use #panel_prop
@@ -411,7 +422,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   PointerRNA op(wmOperatorType *ot,
                 std::optional<blender::StringRef> name,
                 int icon,
-                wmOperatorCallContext context,
+                blender::wm::OpCallContext context,
                 eUI_Item_Flag flag);
 
   /**
@@ -442,8 +453,63 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   PointerRNA op(blender::StringRefNull opname,
                 std::optional<blender::StringRef> name,
                 int icon,
-                wmOperatorCallContext context,
+                blender::wm::OpCallContext context,
                 eUI_Item_Flag flag);
+  /**
+   * Expands and sets each enum property value as an operator button.
+   * \param propname: Name of the operator's enum property.
+   * \param properties: Extra operator properties values to set.
+   * \param active: an optional item to highlight.
+   */
+  void op_enum(blender::StringRefNull opname,
+               blender::StringRefNull propname,
+               IDProperty *properties,
+               blender::wm::OpCallContext context,
+               eUI_Item_Flag flag,
+               const int active = -1);
+
+  /**
+   * Expands and sets each enum property value as an operator button.
+   * \param propname: Name of the operator's enum property.
+   */
+  void op_enum(blender::StringRefNull opname, blender::StringRefNull propname);
+  /**
+   * Expands and sets each enum property value as an operator button.
+   * \param prop: Operator's enum property.
+   * \param properties: Extra operator properties values to set.
+   * \param item_array: Precalculated item array, could be a subset of the enum property values.
+   * \param active: an optional item to highlight.
+   */
+  void op_enum_items(wmOperatorType *ot,
+                     const PointerRNA &ptr,
+                     PropertyRNA *prop,
+                     IDProperty *properties,
+                     blender::wm::OpCallContext context,
+                     eUI_Item_Flag flag,
+                     const EnumPropertyItem *item_array,
+                     int totitem,
+                     int active = -1);
+
+  /**
+   * Adds a #op_enum menu.
+   * \returns Operator pointer to write extra properties to set when menu buttons are
+   * displayed, might be #PointerRNA_NULL if operator does not exist.
+   */
+  PointerRNA op_menu_enum(const bContext *C,
+                          wmOperatorType *ot,
+                          blender::StringRefNull propname,
+                          std::optional<blender::StringRefNull> name,
+                          int icon);
+  /**
+   * Adds a #op_enum menu.
+   * \returns Operator pointer to write extra properties to set when menu buttons are
+   * displayed, might be #PointerRNA_NULL if operator does not exist.
+   */
+  PointerRNA op_menu_enum(const bContext *C,
+                          blender::StringRefNull opname,
+                          blender::StringRefNull propname,
+                          blender::StringRefNull name,
+                          int icon);
   /**
    * Adds a operator item, places a button in the layout to call the operator, if the button is
    * held down, a menu will be displayed instead.
@@ -457,7 +523,7 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
   PointerRNA op_menu_hold(wmOperatorType *ot,
                           std::optional<blender::StringRef> name,
                           int icon,
-                          wmOperatorCallContext context,
+                          blender::wm::OpCallContext context,
                           eUI_Item_Flag flag,
                           const char *menu_id);
 
@@ -591,6 +657,12 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                       std::optional<blender::StringRefNull> name,
                       int icon,
                       const char *menu_type);
+
+  /** Simple button executing \a func on click. */
+  uiBut *button(blender::StringRef name,
+                int icon,
+                std::function<void(bContext &)> func,
+                std::optional<blender::StringRef> tooltip = std::nullopt);
 
   /** Adds a separator item, that adds empty space between items. */
   void separator(float factor = 1.0f, LayoutSeparatorType type = LayoutSeparatorType::Auto);
@@ -744,6 +816,7 @@ uiLayout &block_layout(uiBlock *block,
                        int em,
                        int padding,
                        const uiStyle *style);
+int2 block_layout_resolve(uiBlock *block);
 
 }  // namespace blender::ui
 
@@ -787,7 +860,6 @@ ENUM_OPERATORS(eUI_Item_Flag, UI_ITEM_R_TEXT_BUT_FORCE_SEMI_MODAL_ACTIVE)
 #define UI_ITEM_NONE eUI_Item_Flag(0)
 
 void UI_block_layout_set_current(uiBlock *block, uiLayout *layout);
-void UI_block_layout_resolve(uiBlock *block, int *r_x, int *r_y);
 bool UI_block_layout_needs_resolving(const uiBlock *block);
 /**
  * Used for property search when the layout process needs to be cancelled in order to avoid
@@ -822,6 +894,16 @@ void uiLayoutSetTooltipFunc(uiLayout *layout,
                             uiCopyArgFunc copy_arg,
                             uiFreeArgFunc free_arg);
 
+/**
+ * Same as above but should be used when building a fully custom tooltip instead of just
+ * generating a description.
+ */
+void uiLayoutSetTooltipCustomFunc(uiLayout *layout,
+                                  uiButToolTipCustomFunc func,
+                                  void *arg,
+                                  uiCopyArgFunc copy_arg,
+                                  uiFreeArgFunc free_arg);
+
 void UI_menutype_draw(bContext *C, MenuType *mt, uiLayout *layout);
 
 /**
@@ -835,68 +917,6 @@ void uiLayoutListItemAddPadding(uiLayout *layout);
 /* Layout create functions. */
 
 bool uiLayoutEndsWithPanelHeader(const uiLayout &layout);
-
-/* items */
-
-void uiItemEnumO_ptr(uiLayout *layout,
-                     wmOperatorType *ot,
-                     std::optional<blender::StringRef> name,
-                     int icon,
-                     blender::StringRefNull propname,
-                     int value);
-void uiItemEnumO(uiLayout *layout,
-                 blender::StringRefNull opname,
-                 std::optional<blender::StringRef> name,
-                 int icon,
-                 blender::StringRefNull propname,
-                 int value);
-/**
- * For use in cases where we have.
- */
-void uiItemEnumO_value(uiLayout *layout,
-                       blender::StringRefNull name,
-                       int icon,
-                       blender::StringRefNull opname,
-                       blender::StringRefNull propname,
-                       int value);
-void uiItemEnumO_string(uiLayout *layout,
-                        blender::StringRef name,
-                        int icon,
-                        blender::StringRefNull opname,
-                        blender::StringRefNull propname,
-                        const char *value_str);
-void uiItemsEnumO(uiLayout *layout,
-                  blender::StringRefNull opname,
-                  blender::StringRefNull propname);
-
-/**
- * Create a list of enum items.
- *
- * \param active: an optional item to highlight.
- */
-void uiItemsFullEnumO(uiLayout *layout,
-                      blender::StringRefNull opname,
-                      blender::StringRefNull propname,
-                      IDProperty *properties,
-                      wmOperatorCallContext context,
-                      eUI_Item_Flag flag,
-                      const int active = -1);
-/**
- * Create UI items for enum items in \a item_array.
- *
- * A version of #uiItemsFullEnumO that takes pre-calculated item array.
- * \param active: if not -1, will highlight that item.
- */
-void uiItemsFullEnumO_items(uiLayout *layout,
-                            wmOperatorType *ot,
-                            const PointerRNA &ptr,
-                            PropertyRNA *prop,
-                            IDProperty *properties,
-                            wmOperatorCallContext context,
-                            eUI_Item_Flag flag,
-                            const EnumPropertyItem *item_array,
-                            int totitem,
-                            int active = -1);
 
 struct uiPropertySplitWrapper {
   uiLayout *label_column;
@@ -931,30 +951,6 @@ uiLayout *uiItemL_respect_property_split(uiLayout *layout, blender::StringRef te
  * Label icon for dragging.
  */
 void uiItemLDrag(uiLayout *layout, PointerRNA *ptr, blender::StringRef name, int icon);
-
-/**
- * Level items.
- */
-void uiItemMenuEnumFullO_ptr(uiLayout *layout,
-                             const bContext *C,
-                             wmOperatorType *ot,
-                             blender::StringRefNull propname,
-                             std::optional<blender::StringRefNull> name,
-                             int icon,
-                             PointerRNA *r_opptr);
-void uiItemMenuEnumFullO(uiLayout *layout,
-                         const bContext *C,
-                         blender::StringRefNull opname,
-                         blender::StringRefNull propname,
-                         blender::StringRefNull name,
-                         int icon,
-                         PointerRNA *r_opptr);
-void uiItemMenuEnumO(uiLayout *layout,
-                     const bContext *C,
-                     blender::StringRefNull opname,
-                     blender::StringRefNull propname,
-                     blender::StringRefNull name,
-                     int icon);
 
 /* Only for testing, inspecting layouts. */
 /**

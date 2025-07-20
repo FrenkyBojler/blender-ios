@@ -11,12 +11,16 @@
 #include <sstream>
 
 #if defined(WITH_GHOST_X11)
-#  include "GHOST_ContextEGL.hh"
-#  include "GHOST_ContextGLX.hh"
+#  if defined(WITH_OPENGL_BACKEND)
+#    include "GHOST_ContextEGL.hh"
+#    include "GHOST_ContextGLX.hh"
+#  endif
 #  include "GHOST_SystemX11.hh"
 #endif
 #if defined(WITH_GHOST_WAYLAND)
-#  include "GHOST_ContextEGL.hh"
+#  if defined(WITH_OPENGL_BACKEND)
+#    include "GHOST_ContextEGL.hh"
+#  endif
 #  include "GHOST_SystemWayland.hh"
 #endif
 #if defined(WIN32)
@@ -38,7 +42,7 @@
 
 #include "GHOST_IXrGraphicsBinding.hh"
 
-#ifdef WITH_OPENGL_BACKEND
+#if defined(WITH_OPENGL_BACKEND)
 static std::optional<int64_t> choose_swapchain_format_from_candidates(
     const std::vector<int64_t> &gpu_binding_formats, const std::vector<int64_t> &runtime_formats)
 {
