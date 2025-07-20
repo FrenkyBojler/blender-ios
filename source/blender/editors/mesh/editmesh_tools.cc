@@ -5292,15 +5292,17 @@ static wmOperatorStatus edbm_quads_convert_to_tris_exec(bContext *C, wmOperator 
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMesh *bm = em->bm;
-    Mesh *mesh = static_cast<Mesh *>(obedit->data);
 
     if (bm->totfacesel == 0) {
       continue;
     }
 
+    std::optional<EditMeshSymmetryHelper> symmetry_helper =
+        EditMeshSymmetryHelper::create_if_needed(obedit, BM_FACE);
+
     char hflag = BM_ELEM_SELECT;
 
-    if (mesh->symmetry != 0) {
+    if (symmetry_helper) {
       hflag = BM_ELEM_TAG;
       EDBM_flag_disable_all(em, hflag);
 
@@ -5312,24 +5314,8 @@ static wmOperatorStatus edbm_quads_convert_to_tris_exec(bContext *C, wmOperator 
           originally_selected.append(f);
         }
       }
-
-      for (BMFace *f_orig : originally_selected) {
-        BM_elem_flag_enable(f_orig, hflag);
-      }
-
-      const bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
-      for (int axis = 0; axis < 3; ++axis) {
-        if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
-          EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology);
-          for (BMFace *f_orig : originally_selected) {
-            BMFace *f_mir = EDBM_verts_mirror_get_face(em, f_orig);
-            if (f_mir) {
-              BM_elem_flag_enable(f_mir, hflag);
-            }
-          }
-          EDBM_verts_mirror_cache_end(em);
-        }
-      }
+      
+      symmetry_helper->tag_symmetrical_group(originally_selected, hflag);
     }
 
     BMOperator bmop;

@@ -123,6 +123,31 @@ EditMeshSymmetryHelper::EditMeshSymmetryHelper(Object *ob, uchar htype)
   }
 }
 
+void EditMeshSymmetryHelper::tag_symmetrical_group(
+    const blender::Vector<BMFace *> &initial_selection, char hflag) const
+{
+  BLI_assert((this->htype_ & BM_FACE) != 0);
+
+  for (BMFace *f_orig : initial_selection) {
+    BM_elem_flag_enable(f_orig, hflag);
+  }
+
+  for (int axis = 0; axis < 3; ++axis) {
+    if (this->mesh->symmetry & (ME_SYMMETRY_X << axis)) {
+      EDBM_verts_mirror_cache_begin(this->em, axis, true, true, true, this->use_topology_mirror);
+      for (BMFace *f_orig : initial_selection) {
+        BMFace *f_mir = EDBM_verts_mirror_get_face(this->em, f_orig);
+        if (f_mir) {
+          BM_elem_flag_enable(f_mir, hflag);
+        }
+      }
+      EDBM_verts_mirror_cache_end(this->em);
+    }
+  }
+}
+
+
+
 void EditMeshSymmetryHelper::apply_on_mirror_verts(BMVert *vert,
                                                    blender::FunctionRef<void(BMVert *)> op) const {
   BLI_assert((this->htype_ & BM_VERT) != 0);
