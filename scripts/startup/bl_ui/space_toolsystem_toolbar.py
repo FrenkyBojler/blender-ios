@@ -2423,6 +2423,23 @@ class _defs_grease_pencil_edit:
         )
 
 
+    @ToolDef.from_fn
+    def pen():
+        def draw_settings(_context, layout, tool):
+            props = tool.operator_properties("grease_pencil.pen")
+            layout.prop(props, "close_spline")
+            layout.prop(props, "extrude_handle")
+        return dict(
+            idname="builtin.pen",
+            label="Pen",
+            cursor='CROSSHAIR',
+            icon="ops.curve.pen",
+            widget=None,
+            keymap=(),
+            draw_settings=draw_settings,
+        )
+
+
 class _defs_image_generic:
 
     @staticmethod
@@ -3476,6 +3493,8 @@ class VIEW3D_PT_tools_active(ToolSelectPanelHelper, Panel):
             _defs_grease_pencil_edit.interpolate,
             None,
             _defs_grease_pencil_edit.texture_gradient,
+            None,
+            _defs_grease_pencil_edit.pen,
             None,
             *_tools_annotate,
         ],

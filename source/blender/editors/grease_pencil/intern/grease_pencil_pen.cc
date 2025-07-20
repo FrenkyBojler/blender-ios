@@ -1,0 +1,320 @@
+/* SPDX-FileCopyrightText: 2025 Blender Authors
+ *
+ * SPDX-License-Identifier: GPL-2.0-or-later */
+
+/** \file
+ * \ingroup edgreasepencil
+ * Operator for creating splines in Grease Pencil.
+ */
+
+/* TODO Remove unneeded. */
+
+#include "BKE_attribute.hh"
+#include "BKE_brush.hh"
+#include "BKE_colortools.hh"
+#include "BKE_context.hh"
+#include "BKE_curves.hh"
+#include "BKE_grease_pencil.hh"
+#include "BKE_material.hh"
+#include "BKE_paint.hh"
+#include "BKE_screen.hh"
+
+#include "WM_api.hh"
+#include "WM_types.hh"
+
+#include "RNA_access.hh"
+#include "RNA_define.hh"
+#include "RNA_enum_types.hh"
+
+#include "DEG_depsgraph.hh"
+
+#include "DNA_brush_types.h"
+#include "DNA_material_types.h"
+
+#include "ED_grease_pencil.hh"
+#include "ED_screen.hh"
+#include "ED_space_api.hh"
+#include "ED_view3d.hh"
+
+#include "BLI_array_utils.hh"
+#include "BLI_math_matrix.hh"
+#include "BLI_rand.hh"
+#include "BLI_vector.hh"
+
+#include "BLT_translation.hh"
+
+#include "GPU_immediate.hh"
+#include "GPU_state.hh"
+
+#include "UI_resources.hh"
+
+namespace blender::ed::greasepencil {
+
+static const EnumPropertyItem prop_handle_types[] = {
+    {BEZIER_HANDLE_AUTO, "AUTO", 0, "Auto", ""},
+    {BEZIER_HANDLE_VECTOR, "VECTOR", 0, "Vector", ""},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+enum class eClose_opt : int8_t {
+  OFF = 0,
+  ON_PRESS = 1,
+  ON_CLICK = 2,
+};
+
+static const EnumPropertyItem prop_close_spline_method[] = {
+    {int(eClose_opt::OFF), "OFF", 0, "None", ""},
+    {int(eClose_opt::ON_PRESS),
+     "ON_PRESS",
+     0,
+     "On Press",
+     "Move handles after closing the spline"},
+    {int(eClose_opt::ON_CLICK),
+     "ON_CLICK",
+     0,
+     "On Click",
+     "Spline closes on release if not dragged"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
+struct PenToolOperation {
+  ViewContext vc;
+
+  GreasePencil *grease_pencil;
+};
+
+/* Invoke handler: Initialize the operator. */
+static wmOperatorStatus grease_pencil_pen_invoke(bContext *C,
+                                                 wmOperator *op,
+                                                 const wmEvent * /*event*/)
+{
+  // const wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
+  //     C, op, false);
+  // if (retval != OPERATOR_RUNNING_MODAL) {
+  //   return retval;
+  // }
+
+  /* If in tools region, wait till we get to the main (3D-space)
+   * region before allowing drawing to take place. */
+  op->flag |= OP_IS_MODAL_CURSOR_REGION;
+
+  wmWindow *win = CTX_wm_window(C);
+
+  /* Set cursor to indicate modal. */
+  WM_cursor_modal_set(win, WM_CURSOR_CROSS);
+
+  ViewContext vc = ED_view3d_viewcontext_init(C, CTX_data_depsgraph_pointer(C));
+
+  /* Allocate new data. */
+  PenToolOperation *ptd_pointer = MEM_new<PenToolOperation>(__func__);
+  op->customdata = ptd_pointer;
+
+  PenToolOperation &ptd = *ptd_pointer;
+
+  ptd.vc = vc;
+
+  GreasePencil *grease_pencil = static_cast<GreasePencil *>(vc.obact->data);
+
+  ptd.grease_pencil = grease_pencil;
+
+  // const Scene *scene = CTX_data_scene(C);
+  // Object *object = CTX_data_active_object(C);
+  // GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+
+  /* Add a modal handler for this operator. */
+  WM_event_add_modal_handler(C, op);
+
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
+{
+  GreasePencil *grease_pencil = ptd.grease_pencil;
+
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+
+  ED_region_tag_redraw(ptd.vc.region);
+}
+
+/* Exit and free memory. */
+static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
+{
+  PenToolOperation *ptd = static_cast<PenToolOperation *>(op->customdata);
+
+  /* Clear status message area. */
+  ED_workspace_status_text(C, nullptr);
+
+  WM_cursor_modal_restore(ptd->vc.win);
+
+  grease_pencil_pen_update_view(C, *ptd);
+
+  MEM_delete<PenToolOperation>(ptd);
+  /* Clear pointer. */
+  op->customdata = nullptr;
+}
+
+/* Modal handler: Events handling during interactive part. */
+static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
+{
+  PenToolOperation &ptd = *reinterpret_cast<PenToolOperation *>(op->customdata);
+
+  const Scene *scene = ptd.vc.scene;
+  Object *object = ptd.vc.obact;
+  GreasePencil &grease_pencil = *ptd.grease_pencil;
+
+  if (ISMOUSE_MOTION(event->type)) {
+  }
+  else {
+    grease_pencil_pen_exit(C, op);
+    return OPERATOR_FINISHED;
+  }
+
+  std::atomic<bool> changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    IndexMaskMemory memory;
+    const IndexMask selection = retrieve_editable_and_selected_points(
+        *object, info.drawing, info.layer_index, memory);
+    if (selection.is_empty()) {
+      return;
+    }
+
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+    MutableSpan<float3> positions = curves.positions_for_write();
+
+    for (const int i : positions.index_range()) {
+      positions[i] += float3(1.0f, 1.0f, 1.0f) * 0.001f;
+    }
+
+    info.drawing.tag_topology_changed();
+    changed.store(true, std::memory_order_relaxed);
+  });
+
+  if (changed) {
+    grease_pencil_pen_update_view(C, ptd);
+  }
+
+  /* Still running... */
+  return OPERATOR_RUNNING_MODAL;
+}
+
+static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
+{
+  /* Identifiers. */
+  ot->name = "Grease Pencil Pen";
+  ot->idname = "GREASE_PENCIL_OT_pen";
+  ot->description = "Construct and edit splines";
+
+  /* Callbacks. */
+  ot->invoke = grease_pencil_pen_invoke;
+  ot->modal = grease_pencil_pen_modal;
+
+  /* Flags. */
+  ot->flag = OPTYPE_UNDO;
+  // ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
+
+  /* properties */
+  WM_operator_properties_mouse_select(ot);
+
+  RNA_def_boolean(ot->srna,
+                  "extrude_point",
+                  false,
+                  "Extrude Point",
+                  "Add a point connected to the last selected point");
+  RNA_def_enum(ot->srna,
+               "extrude_handle",
+               prop_handle_types,
+               BEZIER_HANDLE_VECTOR,
+               "Extrude Handle Type",
+               "Type of the extruded handle");
+  RNA_def_boolean(ot->srna, "delete_point", false, "Delete Point", "Delete an existing point");
+  RNA_def_boolean(
+      ot->srna, "insert_point", false, "Insert Point", "Insert Point into a curve segment");
+  RNA_def_boolean(ot->srna, "move_segment", false, "Move Segment", "Delete an existing point");
+  RNA_def_boolean(
+      ot->srna, "select_point", false, "Select Point", "Select a point or its handles");
+  RNA_def_boolean(ot->srna, "move_point", false, "Move Point", "Move a point or its handles");
+  RNA_def_boolean(ot->srna,
+                  "close_spline",
+                  true,
+                  "Close Spline",
+                  "Make a spline cyclic by clicking endpoints");
+  RNA_def_enum(ot->srna,
+               "close_spline_method",
+               prop_close_spline_method,
+               int(eClose_opt::OFF),
+               "Close Spline Method",
+               "The condition for close spline to activate");
+  RNA_def_boolean(
+      ot->srna, "toggle_vector", false, "Toggle Vector", "Toggle between Vector and Auto handles");
+  RNA_def_boolean(ot->srna,
+                  "cycle_handle_type",
+                  false,
+                  "Cycle Handle Type",
+                  "Cycle between all four handle types");
+}
+
+}  // namespace blender::ed::greasepencil
+
+void ED_operatortypes_grease_pencil_pen()
+{
+  using namespace blender::ed::greasepencil;
+  WM_operatortype_append(GREASE_PENCIL_OT_pen);
+}
+
+enum class PEN_MODAL : int8_t {
+  FREE_ALIGN_TOGGLE = 0,
+  MOVE_ADJACENT = 1,
+  MOVE_ENTIRE = 2,
+  LINK_HANDLES = 3,
+  LOCK_ANGLE = 4,
+};
+
+void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
+{
+  using namespace blender::ed::greasepencil;
+
+  static const EnumPropertyItem modal_items[] = {
+      {int(PEN_MODAL::FREE_ALIGN_TOGGLE),
+       "FREE_ALIGN_TOGGLE",
+       0,
+       "Free-Align Toggle",
+       "Move handle of newly added point freely"},
+      {int(PEN_MODAL::MOVE_ADJACENT),
+       "MOVE_ADJACENT",
+       0,
+       "Move Adjacent Handle",
+       "Move the closer handle of the adjacent vertex"},
+      {int(PEN_MODAL::MOVE_ENTIRE),
+       "MOVE_ENTIRE",
+       0,
+       "Move Entire Point",
+       "Move the entire point using its handles"},
+      {int(PEN_MODAL::LINK_HANDLES),
+       "LINK_HANDLES",
+       0,
+       "Link Handles",
+       "Mirror the movement of one handle onto the other"},
+      {int(PEN_MODAL::LOCK_ANGLE),
+       "LOCK_ANGLE",
+       0,
+       "Lock Angle",
+       "Move the handle along its current angle"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  wmKeyMap *keymap = WM_modalkeymap_find(keyconf, "Grease Pencil Pen Modal Map");
+
+  /* This function is called for each space-type, only needs to add map once. */
+  if (keymap && keymap->modal_items) {
+    return;
+  }
+
+  keymap = WM_modalkeymap_ensure(keyconf, "Grease Pencil Pen Modal Map", modal_items);
+
+  WM_modalkeymap_assign(keymap, "GREASE_PENCIL_OT_pen");
+
+  return;
+}
