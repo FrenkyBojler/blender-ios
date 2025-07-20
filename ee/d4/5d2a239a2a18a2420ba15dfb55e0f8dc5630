@@ -10,3 +10,4 @@ Referenced by issue #94865, Crash when switching to texture paint workspace on m
 Referenced by issue #94671, Performance regression with subdivision modifier and enabled scene statistics
 Referenced by issue #94479, GPU Subdivision surface modifier does not apply to Cycles renders
 Referenced by issue #94433, Snapping + Sub-division surface modifier results in Blender freezing.
+Referenced by commit f8c0d504f4cbf66df593f144665294a05c1b419a, Fix #142245: Crash adding subsurf with invalid material indices
