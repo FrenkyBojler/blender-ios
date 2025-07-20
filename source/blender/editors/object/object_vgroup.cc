@@ -1752,7 +1752,7 @@ static void vgroup_smooth_subset(Object *ob,
         ".hide_vert", bke::AttrDomain::Point, false);
   }
   else {
-    hide_vert = VArray<bool>::ForSingle(false, dvert_tot);
+    hide_vert = VArray<bool>::from_single(false, dvert_tot);
   }
 
   VArray<bool> select_vert;
@@ -1761,7 +1761,7 @@ static void vgroup_smooth_subset(Object *ob,
         ".select_vert", bke::AttrDomain::Point, false);
   }
   else {
-    select_vert = VArray<bool>::ForSingle(true, dvert_tot);
+    select_vert = VArray<bool>::from_single(true, dvert_tot);
   }
 
   /* initialize used verts */

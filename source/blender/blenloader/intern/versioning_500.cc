@@ -42,7 +42,13 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_pointcache.h"
 
+#include "BLT_translation.hh"
+
+#include "BLO_read_write.hh"
+
 #include "SEQ_iterator.hh"
+#include "SEQ_modifier.hh"
+#include "SEQ_sequencer.hh"
 
 #include "readfile.hh"
 
@@ -1058,7 +1064,7 @@ static void do_version_split_node_rotation(bNodeTree *node_tree, bNode *node)
   }
 }
 
-static void do_version_remove_lzo_and_lzma_compression(Object *object)
+static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *object)
 {
   constexpr int PTCACHE_COMPRESS_LZO = 1;
   constexpr int PTCACHE_COMPRESS_LZMA = 2;
@@ -1067,18 +1073,63 @@ static void do_version_remove_lzo_and_lzma_compression(Object *object)
   BKE_ptcache_ids_from_object(&pidlist, object, nullptr, 0);
 
   LISTBASE_FOREACH (PTCacheID *, pid, &pidlist) {
+    bool found_incompatible_cache = false;
     if (pid->cache->compression == PTCACHE_COMPRESS_LZO) {
       pid->cache->compression = PTCACHE_COMPRESS_ZSTD_FAST;
+      found_incompatible_cache = true;
     }
     else if (pid->cache->compression == PTCACHE_COMPRESS_LZMA) {
       pid->cache->compression = PTCACHE_COMPRESS_ZSTD_SLOW;
+      found_incompatible_cache = true;
     }
+
+    if (pid->type == PTCACHE_TYPE_DYNAMICPAINT) {
+      /* Dynamicpaint was hardcoded to use LZO. */
+      found_incompatible_cache = true;
+    }
+
+    if (!found_incompatible_cache) {
+      continue;
+    }
+
+    std::string cache_type;
+    switch (pid->type) {
+      case PTCACHE_TYPE_SOFTBODY:
+        cache_type = RPT_("Softbody");
+        break;
+      case PTCACHE_TYPE_PARTICLES:
+        cache_type = RPT_("Particle");
+        break;
+      case PTCACHE_TYPE_CLOTH:
+        cache_type = RPT_("Cloth");
+        break;
+      case PTCACHE_TYPE_SMOKE_DOMAIN:
+        cache_type = RPT_("Smoke Domain");
+        break;
+      case PTCACHE_TYPE_SMOKE_HIGHRES:
+        cache_type = RPT_("Smoke");
+        break;
+      case PTCACHE_TYPE_DYNAMICPAINT:
+        cache_type = RPT_("Dynamic Paint");
+        break;
+      case PTCACHE_TYPE_RIGIDBODY:
+        /* Rigidbody caches shouldn't have any disk caches, but keep it here just in case. */
+        cache_type = RPT_("Rigidbody");
+        break;
+    }
+    BLO_reportf_wrap(
+        fd->reports,
+        RPT_WARNING,
+        RPT_("%s Cache in object %s can not be read because it uses an "
+             "outdated compression method. You need to delete the caches and re-bake."),
+        cache_type.c_str(),
+        pid->owner_id->name + 2);
   }
 
   BLI_freelistN(&pidlist);
 }
 
-void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
+void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
@@ -1099,7 +1150,7 @@ void do_versions_after_linking_500(FileData * /*fd*/, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 37)) {
     LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-      do_version_remove_lzo_and_lzma_compression(object);
+      do_version_remove_lzo_and_lzma_compression(fd, object);
     }
   }
 
@@ -1450,10 +1501,31 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
     FOREACH_NODETREE_END;
   }
 
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 39)) {
+    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
+      Editing *ed = seq::editing_get(scene);
+
+      if (ed != nullptr) {
+        seq::for_each_callback(&ed->seqbase, [](Strip *strip) -> bool {
+          LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+            seq::modifier_persistent_uid_init(*strip, *smd);
+          }
+          return true;
+        });
+      }
+    }
+  }
+
   /**
    * Always bump subversion in BKE_blender_version.h when adding versioning
    * code here, and wrap it inside a MAIN_VERSION_FILE_ATLEAST check.
    *
    * \note Keep this message at the bottom of the function.
    */
+
+  /* Keep this versioning always enabled at the bottom of the function; it can only be moved behind
+   * a subversion bump when the file format is changed. */
+  LISTBASE_FOREACH (Mesh *, mesh, &bmain->meshes) {
+    bke::mesh_freestyle_marks_to_generic(*mesh);
+  }
 }
