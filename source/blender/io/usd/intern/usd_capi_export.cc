@@ -258,12 +258,11 @@ static void process_usdz_textures(const ExportJobData *data, const char *path)
                        height_adjusted);
           }
           else {
-            CLOG_INFO(&LOG,
-                      2,
-                      "Downscaled '%s' to %dx%d",
-                      entries[index].path,
-                      width_adjusted,
-                      height_adjusted);
+            CLOG_DEBUG(&LOG,
+                       "Downscaled '%s' to %dx%d",
+                       entries[index].path,
+                       width_adjusted,
+                       height_adjusted);
           }
         }
 
@@ -377,7 +376,7 @@ std::string cache_image_color(const float color[4])
   ibuf->ftype = IMB_FTYPE_RADHDR;
 
   if (IMB_save_image(ibuf, file_path.c_str(), IB_float_data)) {
-    CLOG_INFO(&LOG, 1, "%s", file_path.c_str());
+    CLOG_INFO(&LOG, "%s", file_path.c_str());
   }
   else {
     CLOG_ERROR(&LOG, "Can't save %s", file_path.c_str());
@@ -396,8 +395,7 @@ static void collect_point_instancer_prototypes_and_set_extent(
 {
   /* Compute extent of the current point instancer.*/
   pxr::VtArray<pxr::GfVec3f> extent;
-  instancer.ComputeExtentAtTime(
-      &extent, pxr::UsdTimeCode().Default(), pxr::UsdTimeCode().Default());
+  instancer.ComputeExtentAtTime(&extent, pxr::UsdTimeCode::Default(), pxr::UsdTimeCode::Default());
   instancer.CreateExtentAttr().Set(extent);
 
   pxr::UsdPrim wrapper_prim = stage->GetPrimAtPath(wrapper_path);
