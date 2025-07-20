@@ -56,25 +56,33 @@ static const EnumPropertyItem prop_handle_types[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
-enum class eClose_opt : int8_t {
-  OFF = 0,
-  ON_PRESS = 1,
-  ON_CLICK = 2,
+enum class CloseMethod : int8_t {
+  Off = 0,
+  OnPress = 1,
+  OnClick = 2,
 };
 
-static const EnumPropertyItem prop_close_spline_method[] = {
-    {int(eClose_opt::OFF), "OFF", 0, "None", ""},
-    {int(eClose_opt::ON_PRESS),
+static const EnumPropertyItem prop_close_method[] = {
+    {int(CloseMethod::Off), "OFF", 0, "None", ""},
+    {int(CloseMethod::OnPress),
      "ON_PRESS",
      0,
      "On Press",
      "Move handles after closing the spline"},
-    {int(eClose_opt::ON_CLICK),
+    {int(CloseMethod::OnClick),
      "ON_CLICK",
      0,
      "On Click",
      "Spline closes on release if not dragged"},
     {0, nullptr, 0, nullptr, nullptr},
+};
+
+enum class PenModal : int8_t {
+  FreeAlignToggle = 0,
+  MoveAdjacent = 1,
+  MoveEntire = 2,
+  LinkHandles = 3,
+  LockAngle = 4,
 };
 
 struct PenToolOperation {
@@ -243,8 +251,8 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
                   "Make a spline cyclic by clicking endpoints");
   RNA_def_enum(ot->srna,
                "close_spline_method",
-               prop_close_spline_method,
-               int(eClose_opt::OFF),
+               prop_close_method,
+               int(CloseMethod::Off),
                "Close Spline Method",
                "The condition for close spline to activate");
   RNA_def_boolean(
@@ -264,40 +272,32 @@ void ED_operatortypes_grease_pencil_pen()
   WM_operatortype_append(GREASE_PENCIL_OT_pen);
 }
 
-enum class PEN_MODAL : int8_t {
-  FREE_ALIGN_TOGGLE = 0,
-  MOVE_ADJACENT = 1,
-  MOVE_ENTIRE = 2,
-  LINK_HANDLES = 3,
-  LOCK_ANGLE = 4,
-};
-
 void ED_pentool_modal_keymap(wmKeyConfig *keyconf)
 {
   using namespace blender::ed::greasepencil;
 
   static const EnumPropertyItem modal_items[] = {
-      {int(PEN_MODAL::FREE_ALIGN_TOGGLE),
+      {int(PenModal::FreeAlignToggle),
        "FREE_ALIGN_TOGGLE",
        0,
        "Free-Align Toggle",
        "Move handle of newly added point freely"},
-      {int(PEN_MODAL::MOVE_ADJACENT),
+      {int(PenModal::MoveAdjacent),
        "MOVE_ADJACENT",
        0,
        "Move Adjacent Handle",
        "Move the closer handle of the adjacent vertex"},
-      {int(PEN_MODAL::MOVE_ENTIRE),
+      {int(PenModal::MoveEntire),
        "MOVE_ENTIRE",
        0,
        "Move Entire Point",
        "Move the entire point using its handles"},
-      {int(PEN_MODAL::LINK_HANDLES),
+      {int(PenModal::LinkHandles),
        "LINK_HANDLES",
        0,
        "Link Handles",
        "Mirror the movement of one handle onto the other"},
-      {int(PEN_MODAL::LOCK_ANGLE),
+      {int(PenModal::LockAngle),
        "LOCK_ANGLE",
        0,
        "Lock Angle",
