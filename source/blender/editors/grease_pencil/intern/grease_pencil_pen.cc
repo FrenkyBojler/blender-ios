@@ -196,42 +196,51 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   const Scene *scene = ptd.vc.scene;
 
   if (ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
-    if (ptd.close_spline) {
-      std::atomic<bool> changed = false;
-      const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
-                                                                             *ptd.grease_pencil);
-      threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    std::atomic<bool> changed = false;
+    const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
+                                                                           *ptd.grease_pencil);
+    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
-        const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
+      const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
 
-        if (closest_point == -1) {
-          return;
-        }
-
-        const OffsetIndices points_by_curve = curves.points_by_curve();
-        const Array<int> point_to_curve_map = curves.point_to_curve_map();
-
-        const int curve_index = point_to_curve_map[closest_point];
-        const IndexRange points = points_by_curve[curve_index];
-
-        const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
-            ".selection", bke::AttrDomain::Point, true);
-
-        if (closest_point == points.first() && selection[points.last()]) {
-          curves.cyclic_for_write()[curve_index] = true;
-        }
-        if (closest_point == points.last() && selection[points.first()]) {
-          curves.cyclic_for_write()[curve_index] = true;
-        }
-
-        info.drawing.tag_topology_changed();
-        changed.store(true, std::memory_order_relaxed);
-      });
-
-      if (changed) {
-        grease_pencil_pen_update_view(C, ptd);
+      if (closest_point == -1) {
+        return;
       }
+
+      const OffsetIndices points_by_curve = curves.points_by_curve();
+      const Array<int> point_to_curve_map = curves.point_to_curve_map();
+
+      const int curve_index = point_to_curve_map[closest_point];
+      const IndexRange points = points_by_curve[curve_index];
+
+      bke::SpanAttributeWriter<bool> selection =
+          curves.attributes_for_write().lookup_or_add_for_write_span<bool>(
+              ".selection",
+              bke::AttrDomain::Point,
+              bke::AttributeInitVArray(VArray<bool>::from_single(true, curves.points_num())));
+
+      if (ptd.close_spline) {
+        if (closest_point == points.first() && selection.span[points.last()]) {
+          curves.cyclic_for_write()[curve_index] = true;
+          info.drawing.tag_topology_changed();
+        }
+        if (closest_point == points.last() && selection.span[points.first()]) {
+          curves.cyclic_for_write()[curve_index] = true;
+          info.drawing.tag_topology_changed();
+        }
+      }
+
+      if () {
+        selection.span.fill(false);
+        selection.span[closest_point] = true;
+      }
+
+      changed.store(true, std::memory_order_relaxed);
+    });
+
+    if (changed) {
+      grease_pencil_pen_update_view(C, ptd);
     }
   }
 
