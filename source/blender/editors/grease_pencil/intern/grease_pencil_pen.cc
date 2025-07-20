@@ -85,16 +85,37 @@ enum class PenModal : int8_t {
   LockAngle = 4,
 };
 
+/* Used to scale the default select distance. */
+constexpr float selection_distance_factor = 0.9f;
+
 struct PenToolOperation {
   ViewContext vc;
 
   GreasePencil *grease_pencil;
+
+  float threshold_distance;
+
+  bool extrude_point;
+  bool insert_point;
+  bool move_seg;
+  bool move_point;
+  bool close_spline;
+  CloseMethod close_spline_method;
+  int extrude_handle;
 };
 
+static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
+{
+  GreasePencil *grease_pencil = ptd.grease_pencil;
+
+  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
+  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
+
+  ED_region_tag_redraw(ptd.vc.region);
+}
+
 /* Invoke handler: Initialize the operator. */
-static wmOperatorStatus grease_pencil_pen_invoke(bContext *C,
-                                                 wmOperator *op,
-                                                 const wmEvent * /*event*/)
+static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   // const wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
   //     C, op, false);
@@ -125,24 +146,52 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C,
 
   ptd.grease_pencil = grease_pencil;
 
-  // const Scene *scene = CTX_data_scene(C);
-  // Object *object = CTX_data_active_object(C);
-  // GreasePencil &grease_pencil = *static_cast<GreasePencil *>(object->data);
+  /* Distance threshold for mouse clicks to affect the spline or its points */
+  const float2 mouse_co = float2(event->mval);
+  ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
+
+  ptd.extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
+  ptd.insert_point = RNA_boolean_get(op->ptr, "insert_point");
+  ptd.move_seg = RNA_boolean_get(op->ptr, "move_segment");
+  ptd.move_point = RNA_boolean_get(op->ptr, "move_point");
+  ptd.close_spline = RNA_boolean_get(op->ptr, "close_spline");
+  ptd.close_spline_method = CloseMethod(RNA_enum_get(op->ptr, "close_spline_method"));
+  ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
+
+  const Scene *scene = ptd.vc.scene;
+  Object *object = ptd.vc.obact;
+
+  if (ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
+    if (ptd.close_spline) {
+      std::atomic<bool> changed = false;
+      const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
+                                                                             *ptd.grease_pencil);
+      threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+        IndexMaskMemory memory;
+        const IndexMask selection = retrieve_editable_and_selected_points(
+            *object, info.drawing, info.layer_index, memory);
+        if (selection.is_empty()) {
+          return;
+        }
+
+        bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+        curves.cyclic_for_write().fill(true);
+
+        info.drawing.tag_topology_changed();
+        changed.store(true, std::memory_order_relaxed);
+      });
+
+      if (changed) {
+        grease_pencil_pen_update_view(C, ptd);
+      }
+    }
+  }
 
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
 
   return OPERATOR_RUNNING_MODAL;
-}
-
-static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
-{
-  GreasePencil *grease_pencil = ptd.grease_pencil;
-
-  DEG_id_tag_update(&grease_pencil->id, ID_RECALC_GEOMETRY);
-  WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
-
-  ED_region_tag_redraw(ptd.vc.region);
 }
 
 /* Exit and free memory. */
