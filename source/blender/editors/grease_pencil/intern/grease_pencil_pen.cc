@@ -194,7 +194,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
 
   const Scene *scene = ptd.vc.scene;
-  Object *object = ptd.vc.obact;
 
   if (ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
     if (ptd.close_spline) {
@@ -202,13 +201,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
                                                                              *ptd.grease_pencil);
       threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-        IndexMaskMemory memory;
-        const IndexMask selection = retrieve_editable_and_selected_points(
-            *object, info.drawing, info.layer_index, memory);
-        if (selection.is_empty()) {
-          return;
-        }
-
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
         const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
@@ -223,10 +215,13 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         const int curve_index = point_to_curve_map[closest_point];
         const IndexRange points = points_by_curve[curve_index];
 
-        if (closest_point == points.first()) {
+        const VArray<bool> selection = *curves.attributes().lookup_or_default<bool>(
+            ".selection", bke::AttrDomain::Point, true);
+
+        if (closest_point == points.first() && selection[points.last()]) {
           curves.cyclic_for_write()[curve_index] = true;
         }
-        if (closest_point == points.last()) {
+        if (closest_point == points.last() && selection[points.first()]) {
           curves.cyclic_for_write()[curve_index] = true;
         }
 
