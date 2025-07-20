@@ -102,6 +102,8 @@ struct PenToolOperation {
   bool close_spline;
   CloseMethod close_spline_method;
   int extrude_handle;
+
+  float4x4 projection;
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -112,6 +114,37 @@ static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
   WM_event_add_notifier(C, NC_GEOM | ND_DATA, grease_pencil);
 
   ED_region_tag_redraw(ptd.vc.region);
+}
+
+static float2 pen_global_to_screen(const PenToolOperation &ptd, const float3 &point)
+{
+  return ED_view3d_project_float_v2_m4(ptd.vc.region, point, ptd.projection);
+}
+
+/* Will return -1 if no points are near. */
+static int pen_find_closest_point(const PenToolOperation &ptd,
+                                  const bke::CurvesGeometry &curves,
+                                  const float2 mouse_co)
+{
+  float closest_distance_squared = std::numeric_limits<float>::max();
+  int closest_point = -1;
+
+  const Span<float3> positions = curves.positions();
+
+  for (const int i : curves.points_range()) {
+    const float2 pos_proj = pen_global_to_screen(ptd, positions[i]);
+    const float distance_squared = math::distance_squared(pos_proj, mouse_co);
+
+    /* Save the closest point. */
+    if (distance_squared < closest_distance_squared &&
+        distance_squared < ptd.threshold_distance * ptd.threshold_distance)
+    {
+      closest_point = i;
+      closest_distance_squared = distance_squared;
+    }
+  }
+
+  return closest_point;
 }
 
 /* Invoke handler: Initialize the operator. */
@@ -146,6 +179,8 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
   ptd.grease_pencil = grease_pencil;
 
+  ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
+
   /* Distance threshold for mouse clicks to affect the spline or its points */
   const float2 mouse_co = float2(event->mval);
   ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
@@ -176,7 +211,24 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
         bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
-        curves.cyclic_for_write().fill(true);
+        const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
+
+        if (closest_point == -1) {
+          return;
+        }
+
+        const OffsetIndices points_by_curve = curves.points_by_curve();
+        const Array<int> point_to_curve_map = curves.point_to_curve_map();
+
+        const int curve_index = point_to_curve_map[closest_point];
+        const IndexRange points = points_by_curve[curve_index];
+
+        if (closest_point == points.first()) {
+          curves.cyclic_for_write()[curve_index] = true;
+        }
+        if (closest_point == points.last()) {
+          curves.cyclic_for_write()[curve_index] = true;
+        }
 
         info.drawing.tag_topology_changed();
         changed.store(true, std::memory_order_relaxed);
