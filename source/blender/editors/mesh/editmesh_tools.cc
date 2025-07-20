@@ -5291,42 +5291,82 @@ static wmOperatorStatus edbm_quads_convert_to_tris_exec(bContext *C, wmOperator 
       scene, view_layer, CTX_wm_view3d(C));
   for (Object *obedit : objects) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
+    BMesh *bm = em->bm;
+    Mesh *mesh = static_cast<Mesh *>(obedit->data);
 
-    if (em->bm->totfacesel == 0) {
+    if (bm->totfacesel == 0) {
       continue;
+    }
+
+    char hflag = BM_ELEM_SELECT;
+
+    if (mesh->symmetry != 0) {
+      hflag = BM_ELEM_TAG;
+      EDBM_flag_disable_all(em, hflag);
+
+      blender::Vector<BMFace *> originally_selected;
+      BMIter f_iter;
+      BMFace *f;
+      BM_ITER_MESH (f, &f_iter, bm, BM_FACES_OF_MESH) {
+        if (BM_elem_flag_test(f, BM_ELEM_SELECT)) {
+          originally_selected.append(f);
+        }
+      }
+
+      for (BMFace *f_orig : originally_selected) {
+        BM_elem_flag_enable(f_orig, hflag);
+      }
+
+      const bool use_topology = (mesh->editflag & ME_EDIT_MIRROR_TOPO) != 0;
+      for (int axis = 0; axis < 3; ++axis) {
+        if (mesh->symmetry & (ME_SYMMETRY_X << axis)) {
+          EDBM_verts_mirror_cache_begin(em, axis, true, true, true, use_topology);
+          for (BMFace *f_orig : originally_selected) {
+            BMFace *f_mir = EDBM_verts_mirror_get_face(em, f_orig);
+            if (f_mir) {
+              BM_elem_flag_enable(f_mir, hflag);
+            }
+          }
+          EDBM_verts_mirror_cache_end(em);
+        }
+      }
     }
 
     BMOperator bmop;
     BMOIter oiter;
     BMFace *f;
 
-    BM_custom_loop_normals_to_vector_layer(em->bm);
+    BM_custom_loop_normals_to_vector_layer(bm);
 
     EDBM_op_init(em,
                  &bmop,
                  op,
                  "triangulate faces=%hf quad_method=%i ngon_method=%i",
-                 BM_ELEM_SELECT,
+                 hflag,
                  quad_method,
                  ngon_method);
-    BMO_op_exec(em->bm, &bmop);
+    BMO_op_exec(bm, &bmop);
 
     /* select the output */
     BMO_slot_buffer_hflag_enable(
-        em->bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
+        bm, bmop.slots_out, "faces.out", BM_FACE, BM_ELEM_SELECT, true);
 
     /* remove the doubles */
     BMO_ITER (f, &oiter, bmop.slots_out, "face_map_double.out", BM_FACE) {
-      BM_face_kill(em->bm, f);
+      BM_face_kill(bm, f);
     }
 
     EDBM_selectmode_flush(em);
+
+    if (hflag != BM_ELEM_SELECT) {
+      EDBM_flag_disable_all(em, hflag);
+    }
 
     if (!EDBM_op_finish(em, &bmop, op, true)) {
       continue;
     }
 
-    BM_custom_loop_normals_from_vector_layer(em->bm, false);
+    BM_custom_loop_normals_from_vector_layer(bm, false);
 
     EDBMUpdate_Params params{};
     params.calc_looptris = true;
