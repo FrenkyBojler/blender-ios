@@ -660,8 +660,8 @@ static void initialize_group_input(const bNodeTree &tree,
 
   const std::optional<StringRef> attribute_name = input_attribute_name_get(properties, io_input);
   if (attribute_name && bke::allow_procedural_attribute_access(*attribute_name)) {
-    fn::GField attribute_field = bke::AttributeFieldInput::Create(*attribute_name,
-                                                                  *typeinfo->base_cpp_type);
+    fn::GField attribute_field = bke::AttributeFieldInput::from(*attribute_name,
+                                                                *typeinfo->base_cpp_type);
     bke::SocketValueVariant::ConstructIn(r_value, std::move(attribute_field));
   }
   else if (is_layer_selection_field(io_input)) {
@@ -791,7 +791,7 @@ static void store_computed_output_attributes(
     bke::GeometryComponent &component = geometry.get_component_for_write(store.component_type);
     bke::MutableAttributeAccessor attributes = *component.attributes_for_write();
 
-    const eCustomDataType data_type = bke::cpp_type_to_custom_data_type(store.data.type());
+    const bke::AttrType data_type = bke::cpp_type_to_attribute_type(store.data.type());
     const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
         store.name);
 
@@ -807,7 +807,7 @@ static void store_computed_output_attributes(
      * attribute didn't exist before, or if it existed but was removed above. */
     if (attributes.add(store.name,
                        store.domain,
-                       bke::cpp_type_to_custom_data_type(store.data.type()),
+                       bke::cpp_type_to_attribute_type(store.data.type()),
                        bke::AttributeInitMoveArray(store.data.data())))
     {
       continue;

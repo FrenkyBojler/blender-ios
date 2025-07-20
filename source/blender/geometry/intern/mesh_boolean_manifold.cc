@@ -177,20 +177,20 @@ static void dump_mesh(const Mesh *mesh, const std::string &name)
     const char *domain = (di >= 0 && di < ATTR_DOMAIN_NUM) ? domain_names[di] : "?";
     std::string label = std::string(domain) + ": " + iter.name;
     switch (iter.data_type) {
-      case CD_PROP_FLOAT: {
+      case bke::AttrType::Float: {
         VArraySpan<float> floatspan(*attrs.lookup<float>(iter.name));
         dump_span(floatspan, label);
       } break;
-      case CD_PROP_INT32:
-      case CD_PROP_BOOL: {
+      case bke::AttrType::Int32:
+      case bke::AttrType::Bool: {
         const VArraySpan<int> intspan(*attrs.lookup<int>(iter.name));
         dump_span(intspan, label);
       } break;
-      case CD_PROP_FLOAT3: {
+      case bke::AttrType::Float3: {
         const VArraySpan<float3> float3span(*attrs.lookup<float3>(iter.name));
         dump_span(float3span, label);
       } break;
-      case CD_PROP_FLOAT2: {
+      case bke::AttrType::Float2: {
         const VArraySpan<float2> float2span(*attrs.lookup<float2>(iter.name));
         dump_span(float2span, label);
       } break;
@@ -1213,7 +1213,7 @@ static void merge_out_faces(Vector<OutFace> &faces)
 }
 
 /** Return true if the ponts p0, p1, p2 are approximately in a straight line. */
-static inline const bool approx_in_line(const float3 &p0, const float3 &p1, const float3 &p2)
+static inline bool approx_in_line(const float3 &p0, const float3 &p1, const float3 &p2)
 {
   float cos_ang = math::dot(math::normalize(p1 - p0), math::normalize(p2 - p1));
   return math::abs(cos_ang - 1.0) < 1e-4;
@@ -1240,10 +1240,7 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
   for (const int f : ma.new_faces.index_range()) {
     const OutFace &face = ma.new_faces[f];
     const int fsize = face.verts.size();
-    if (fsize <= 3) {
-      continue;
-    }
-    for (const int i : ma.new_faces[f].verts.index_range()) {
+    for (const int i : IndexRange(fsize)) {
       const int vprev = face.verts[(i - 1 + fsize) % fsize];
       const int v = face.verts[i];
       const int vnext = face.verts[(i + 1) % fsize];
@@ -1252,7 +1249,8 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
         /* First time we've seen v. Set the tentative neighbors. */
         v_nbrs.first = vprev;
         v_nbrs.second = vnext;
-        dissolve[v] = true;
+        /* Don't want to dissolve any vert of a triangle, even if triangle is degenerate. */
+        dissolve[v] = fsize <= 3 ? false : true;
       }
       else {
         /* Some previous face had v. Disable dissolve unless if neighbors are the same, reversed.
@@ -1322,9 +1320,6 @@ static void dissolve_valence2_verts(MeshAssembly &ma)
   threading::parallel_for(ma.new_faces.index_range(), 10000, [&](IndexRange range) {
     for (const int f : range) {
       OutFace &face = ma.new_faces[f];
-      if (face.verts.size() <= 3) {
-        continue;
-      }
       int i_to = 0;
       for (const int i_from : face.verts.index_range()) {
         const int mapped_v_from = ma.mapped_vert(face.verts[i_from]);
@@ -1592,6 +1587,37 @@ static inline int mesh_id_for_face(int face_id, const MeshOffsets &mesh_offsets)
 }
 
 /**
+ * The \a dst span should be the material_index property of the result.
+ * Rather than using the attribute from the joined mesh, we want to take
+ * the original face and map it using \a material_remaps.
+ */
+static void set_material_from_map(const Span<int> out_to_in_map,
+                                  const Span<Array<short>> material_remaps,
+                                  const Span<const Mesh *> meshes,
+                                  const MeshOffsets &mesh_offsets,
+                                  const MutableSpan<int> dst)
+{
+  BLI_assert(material_remaps.size() > 0);
+  Vector<VArraySpan<int>> material_varrays;
+  for (const int i : meshes.index_range()) {
+    bke::AttributeAccessor input_attrs = meshes[i]->attributes();
+    material_varrays.append(
+        *input_attrs.lookup_or_default<int>("material_index", bke::AttrDomain::Face, 0));
+  }
+  threading::parallel_for(out_to_in_map.index_range(), 8192, [&](const IndexRange range) {
+    for (const int out_f : range) {
+      const int in_f = out_to_in_map[out_f];
+      const int mesh_id = mesh_id_for_face(in_f, mesh_offsets);
+      const int in_f_local = in_f - mesh_offsets.face_start[mesh_id];
+      const int orig = material_varrays[mesh_id][in_f_local];
+      const Array<short> &map = material_remaps[mesh_id];
+      dst[out_f] = (orig >= 0 && orig < map.size()) ? map[orig] : orig;
+      ;
+    }
+  });
+}
+
+/**
  * Find the edges that are the result of intersecting one mesh with another,
  * and add their indices to \a r_intersecting_edges.
  */
@@ -1600,9 +1626,9 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
                                    OutToInMaps &out_to_in,
                                    const MeshOffsets &mesh_offsets)
 {
-  /* In a manifold mesh, every edge is adjacent to exactly two faces.
-   * Find them, and when we have a pair, check to see if those faces came
-   * from separate input meshes, and add the edge to r_intersecting_Edges if so. */
+/* In a manifold mesh, every edge is adjacent to exactly two faces.
+ * Find them, and when we have a pair, check to see if those faces came
+ * from separate input meshes, and add the edge to r_intersecting_Edges if so. */
 #  ifdef DEBUG_TIME
   timeit::ScopedTimer timer("get_intersecting_edges");
 #  endif
@@ -1635,7 +1661,10 @@ static void get_intersecting_edges(Vector<int> *r_intersecting_edges,
  * the plane's normal, and *r_origin_offset to be the vector that goes
  * from the origin to the plane in the normal direction.
  */
-static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
+static bool is_plane(const Mesh *mesh,
+                     const float4x4 &transform,
+                     float3 *r_normal,
+                     float *r_origin_offset)
 {
   if (mesh->faces_num != 1 && mesh->verts_num != 4) {
     return false;
@@ -1644,7 +1673,7 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
   const Span<float3> positions = mesh->vert_positions();
   const Span<int> f_corners = mesh->corner_verts().slice(mesh->faces()[0]);
   for (int i = 0; i < 4; i++) {
-    vpos[i] = positions[f_corners[i]];
+    mul_v3_m4v3(vpos[i], transform.ptr(), positions[f_corners[i]]);
   }
   float3 norm1 = math::normal_tri(vpos[0], vpos[1], vpos[2]);
   float3 norm2 = math::normal_tri(vpos[0], vpos[2], vpos[3]);
@@ -1660,24 +1689,41 @@ static bool is_plane(const Mesh *mesh, float3 *r_normal, float *r_origin_offset)
  * Handle special case of one manifold mesh, which has been converted to
  * \a manifold 0, and one plane, which has normalized normal \a normal
  * and distance from origin \a origin_offset.
+ * If there is an error, set *r_error appropriately.
  */
 static MeshGL mesh_trim_manifold(Manifold &manifold0,
                                  float3 normal,
                                  float origin_offset,
-                                 const MeshOffsets &mesh_offsets)
+                                 const MeshOffsets &mesh_offsets,
+                                 BooleanError *r_error)
 {
   Manifold man_result = manifold0.TrimByPlane(manifold::vec3(normal[0], normal[1], normal[2]),
                                               double(origin_offset));
   MeshGL meshgl = man_result.GetMeshGL();
+  if (man_result.Status() != Manifold::Error::NoError) {
+    if (man_result.Status() == Manifold::Error::ResultTooLarge) {
+      *r_error = BooleanError::ResultTooBig;
+    }
+    else if (man_result.Status() == Manifold::Error::NotManifold) {
+      *r_error = BooleanError::NonManifold;
+    }
+    else {
+      *r_error = BooleanError::UnknownError;
+    }
+    return meshgl;
+  }
   /* This meshgl_result has a non-standard (but non-zero) original ID for the
-   * plane faces, and faceIDs that make no sense for them. Fix this. */
-  BLI_assert(meshgl.runOriginalID.size() == 2 && meshgl.runOriginalID[1] > 0);
-  meshgl.runOriginalID[1] = 1;
-  BLI_assert(meshgl.runIndex.size() == 3);
-  int plane_face_start = meshgl.runIndex[1] / 3;
-  int plane_face_end = meshgl.runIndex[2] / 3;
-  for (int i = plane_face_start; i < plane_face_end; i++) {
-    meshgl.faceID[i] = mesh_offsets.face_offsets[1][0];
+   * plane faces, and faceIDs that make no sense for them. Fix this.
+   * But only do this if the result is not empty. */
+  if (meshgl.vertProperties.size() > 0) {
+    BLI_assert(meshgl.runOriginalID.size() == 2 && meshgl.runOriginalID[1] > 0);
+    meshgl.runOriginalID[1] = 1;
+    BLI_assert(meshgl.runIndex.size() == 3);
+    int plane_face_start = meshgl.runIndex[1] / 3;
+    int plane_face_end = meshgl.runIndex[2] / 3;
+    for (int i = plane_face_start; i < plane_face_end; i++) {
+      meshgl.faceID[i] = mesh_offsets.face_offsets[1][0];
+    }
   }
   return meshgl;
 }
@@ -1690,6 +1736,8 @@ static MeshGL mesh_trim_manifold(Manifold &manifold0,
  */
 static Mesh *meshgl_to_mesh(MeshGL &mgl,
                             const Mesh *joined_mesh,
+                            Span<const Mesh *> meshes,
+                            const Span<Array<short>> material_remaps,
                             const MeshOffsets &mesh_offsets,
                             Vector<int> *r_intersecting_edges)
 {
@@ -1791,6 +1839,7 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
       }
       Span<int> out_to_in_map;
       bool do_copy = true;
+      bool do_material_remap = false;
       switch (iter.domain) {
         case bke::AttrDomain::Point: {
           out_to_in_map = out_to_in.ensure_vertex_map();
@@ -1798,6 +1847,12 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         }
         case bke::AttrDomain::Face: {
           out_to_in_map = out_to_in.ensure_face_map();
+          /* If #material_remaps is non-empty, we need to use that map to set the
+           * face "material_index" property instead of taking it from the joined mesh.
+           * This should only happen if the user wants something other than the default
+           * "transfer the materials" mode, which has already happened in the joined mesh.
+           */
+          do_material_remap = material_remaps.size() > 0 && iter.name == "material_index";
           break;
         }
         case bke::AttrDomain::Edge: {
@@ -1821,7 +1876,13 @@ static Mesh *meshgl_to_mesh(MeshGL &mgl,
         }
         bke::GSpanAttributeWriter dst = output_attrs.lookup_or_add_for_write_span(
             iter.name, iter.domain, iter.data_type);
-        copy_attribute_using_map(GVArraySpan(*iter.get()), out_to_in_map, dst.span);
+        if (do_material_remap) {
+          set_material_from_map(
+              out_to_in_map, material_remaps, meshes, mesh_offsets, dst.span.typed<int>());
+        }
+        else {
+          copy_attribute_using_map(GVArraySpan(*iter.get()), out_to_in_map, dst.span);
+        }
         dst.finish();
       }
     });
@@ -1870,7 +1931,7 @@ static bke::GeometrySet join_meshes_with_transforms(const Span<const Mesh *> mes
 
 Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
                             const Span<float4x4> transforms,
-                            const Span<Array<short>> /*material_remaps*/,
+                            const Span<Array<short>> material_remaps,
                             const BooleanOpParameters op_params,
                             Vector<int> *r_intersecting_edges,
                             BooleanError *r_error)
@@ -1908,15 +1969,27 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
       float origin_offset;
       if (meshes_num == 2 && op == Operation::Difference &&
           manifolds[0].Status() == Manifold::Error::NoError &&
-          is_plane(meshes[1], &normal, &origin_offset))
+          is_plane(meshes[1], transforms[1], &normal, &origin_offset))
       {
 #  ifdef DEBUG_TIME
         timeit::ScopedTimer timer_trim("DOING BOOLEAN SLICE, GETTING MESH_GL RESULT");
 #  endif
-        meshgl_result = mesh_trim_manifold(manifolds[0], normal, origin_offset, mesh_offsets);
+        meshgl_result = mesh_trim_manifold(
+            manifolds[0], normal, origin_offset, mesh_offsets, r_error);
+        if (*r_error != BooleanError::NoError) {
+          return nullptr;
+        }
       }
       else {
-        *r_error = BooleanError::NonManifold;
+        if (std::any_of(manifolds.begin(), manifolds.end(), [](const Manifold &m) {
+              return m.Status() == Manifold::Error::NotManifold;
+            }))
+        {
+          *r_error = BooleanError::NonManifold;
+        }
+        else {
+          *r_error = BooleanError::UnknownError;
+        }
         return nullptr;
       }
     }
@@ -1953,7 +2026,8 @@ Mesh *mesh_boolean_manifold(Span<const Mesh *> meshes,
 #  ifdef DEBUG_TIME
       timeit::ScopedTimer timer_out("MESHGL RESULT TO MESH");
 #  endif
-      mesh_result = meshgl_to_mesh(meshgl_result, joined_mesh, mesh_offsets, r_intersecting_edges);
+      mesh_result = meshgl_to_mesh(
+          meshgl_result, joined_mesh, meshes, material_remaps, mesh_offsets, r_intersecting_edges);
     }
     return mesh_result;
   }

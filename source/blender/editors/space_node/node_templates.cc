@@ -553,7 +553,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
           /* XXX Do not use uiLayout::label here,
            * it would add an empty icon as we are in a menu! */
           uiDefBut(block,
-                   UI_BTYPE_LABEL,
+                   ButType::Label,
                    0,
                    IFACE_(cur_node_name),
                    0,
@@ -575,7 +575,7 @@ static void ui_node_menu_column(NodeLinkArg *arg, int nclass, const char *cname)
       }
 
       but = uiDefIconTextBut(block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              icon,
                              name,
@@ -635,7 +635,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
     but->drawflag = UI_BUT_TEXT_LEFT;
 
     but = uiDefBut(block,
-                   UI_BTYPE_BUT,
+                   ButType::But,
                    0,
                    CTX_IFACE_(BLT_I18NCONTEXT_OPERATOR_DEFAULT, "Remove"),
                    0,
@@ -649,7 +649,7 @@ static void ui_template_node_link_menu(bContext *C, uiLayout *layout, void *but_
     UI_but_funcN_set(but, ui_node_link, MEM_dupallocN(arg), POINTER_FROM_INT(UI_NODE_LINK_REMOVE));
 
     but = uiDefBut(block,
-                   UI_BTYPE_BUT,
+                   ButType::But,
                    0,
                    IFACE_("Disconnect"),
                    0,
@@ -918,8 +918,7 @@ static void ui_node_draw_input(uiLayout &layout,
         case SOCK_RGBA:
           sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           if (split_wrapper.decorate_column) {
-            uiItemDecoratorR(
-                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+            split_wrapper.decorate_column->decorator(&inputptr, "default_value", RNA_NO_INDEX);
           }
           break;
         case SOCK_STRING: {
@@ -934,8 +933,7 @@ static void ui_node_draw_input(uiLayout &layout,
             sub->prop(&inputptr, "default_value", UI_ITEM_NONE, "", ICON_NONE);
           }
           if (split_wrapper.decorate_column) {
-            uiItemDecoratorR(
-                split_wrapper.decorate_column, &inputptr, "default_value", RNA_NO_INDEX);
+            split_wrapper.decorate_column->decorator(&inputptr, "default_value", RNA_NO_INDEX);
           }
           break;
         }
@@ -952,7 +950,7 @@ static void ui_node_draw_input(uiLayout &layout,
   }
 
   if (add_dummy_decorator && split_wrapper.decorate_column) {
-    uiItemDecoratorR(split_wrapper.decorate_column, nullptr, std::nullopt, 0);
+    split_wrapper.decorate_column->decorator(nullptr, std::nullopt, 0);
   }
 
   node_socket_add_tooltip(ntree, input, *row);

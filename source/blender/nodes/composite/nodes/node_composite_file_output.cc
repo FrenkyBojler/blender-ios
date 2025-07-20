@@ -21,6 +21,8 @@
 #include "BLI_task.hh"
 #include "BLI_utildefines.h"
 
+#include "BLT_translation.hh"
+
 #include "MEM_guardedalloc.h"
 
 #include "DNA_node_types.h"
@@ -235,7 +237,7 @@ static void init_output_file(const bContext *C, PointerRNA *ptr)
   BKE_image_format_update_color_space_for_type(&nimf->format);
 
   /* add one socket by default */
-  ntreeCompositOutputFileAddSocket(ntree, node, "Image", format);
+  ntreeCompositOutputFileAddSocket(ntree, node, DATA_("Image"), format);
 }
 
 static void free_output_file(bNode *node)
@@ -404,9 +406,9 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
 
   col = &row->column(true);
   wmOperatorType *ot = WM_operatortype_find("NODE_OT_output_file_move_active_socket", false);
-  op_ptr = col->op(ot, "", ICON_TRIA_UP, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+  op_ptr = col->op(ot, "", ICON_TRIA_UP, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 1);
-  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+  op_ptr = col->op(ot, "", ICON_TRIA_DOWN, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_enum_set(&op_ptr, "direction", 2);
 
   if (active_input_ptr.data) {
@@ -419,7 +421,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       row->op("NODE_OT_output_file_remove_active_socket",
               "",
               ICON_X,
-              WM_OP_EXEC_DEFAULT,
+              wm::OpCallContext::ExecDefault,
               UI_ITEM_R_ICON_ONLY);
     }
     else {
@@ -431,7 +433,7 @@ static void node_composit_buts_file_output_ex(uiLayout *layout, bContext *C, Poi
       row->op("NODE_OT_output_file_remove_active_socket",
               "",
               ICON_X,
-              WM_OP_EXEC_DEFAULT,
+              wm::OpCallContext::ExecDefault,
               UI_ITEM_R_ICON_ONLY);
 
       /* format details for individual files */
@@ -715,6 +717,9 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Bool:
         file_output.add_pass(pass_name, view_name, "V", buffer);
         break;
+      case ResultType::Menu:
+        file_output.add_pass(pass_name, view_name, "V", buffer);
+        break;
     }
   }
 
@@ -750,6 +755,11 @@ class FileOutputOperation : public NodeOperation {
       }
       case ResultType::Bool: {
         const float value = float(result.get_single_value<bool>());
+        CPPType::get<float>().fill_assign_n(&value, buffer, length);
+        return buffer;
+      }
+      case ResultType::Menu: {
+        const float value = float(result.get_single_value<int32_t>());
         CPPType::get<float>().fill_assign_n(&value, buffer, length);
         return buffer;
       }
@@ -799,6 +809,7 @@ class FileOutputOperation : public NodeOperation {
       case ResultType::Int2:
       case ResultType::Int:
       case ResultType::Bool:
+      case ResultType::Menu:
         /* Not supported. */
         BLI_assert_unreachable();
         break;

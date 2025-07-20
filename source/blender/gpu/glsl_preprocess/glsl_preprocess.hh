@@ -1224,7 +1224,7 @@ class Preprocessor {
 
     int64_t line = 0;
 
-    /* Matches function definition.  */
+    /* Matches function definition. */
     regex regex_func(R"(\n((\w+)\s+(\w+)\s*\()([^{]+))");
     regex_global_search(str, regex_func, [&](const smatch &match) {
       const string prefix = match[1].str();
@@ -1354,7 +1354,7 @@ class Preprocessor {
     bool valid_match = false;
     string next_str = str;
     reference_search(next_str, [&](int parenthesis_depth, int /*bracket_depth*/, char &c) {
-      /* Check if inside a function body.  */
+      /* Check if inside a function body. */
       if (parenthesis_depth == 0) {
         valid_match = true;
         /* Modify the & into @ to make sure we only match these references in the regex
@@ -1485,7 +1485,7 @@ class Preprocessor {
       std::string args = get_content_between_balanced_pair("(" + match.suffix().str(), '(', ')');
       int arg_count = split_string_not_between_balanced_pair(args, ',', '(', ')').size();
       bool has_floating_point_arg = args.find('.') != std::string::npos;
-      /* TODO(fclem): Check if arg count matches matrix type.  */
+      /* TODO(fclem): Check if arg count matches matrix type. */
       if (arg_count != 1 || has_floating_point_arg) {
         return;
       }
