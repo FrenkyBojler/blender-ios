@@ -32,7 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_default_layout();
   b.add_input<decl::Geometry>("Mesh", "Geometry")
       .supported_type(GeometryComponent::Type::Mesh)
-      .description("Geometry to scale elements of");
+      .description("Mesh to scale elements of");
   b.add_output<decl::Geometry>("Mesh", "Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Scale", "Scale").default_value(1.0f).min(0.0f).field_on_all();
