@@ -7,7 +7,7 @@
  */
 
 #ifndef _WIN32
-#  error "GHOST_XrGraphcisBindingD3D can only be compiled on Windows platforms."
+#  error "GHOST_XrGraphicsBindingD3D can only be compiled on Windows platforms."
 #endif
 
 #include <algorithm>
@@ -83,39 +83,32 @@ bool GHOST_XrGraphicsBindingD3D::checkVersionRequirements(
     XrSystemId system_id,
     std::string *r_requirement_info) const
 {
-  static PFN_xrGetD3D11GraphicsRequirementsKHR s_xrGetD3D11GraphicsRequirementsKHR_fn = nullptr;
-  // static XrInstance s_instance = XR_NULL_HANDLE;
-  XrGraphicsRequirementsD3D11KHR gpu_requirements = {XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR};
+  XrGraphicsRequirementsD3D11KHR gpu_requirements = {};
+  gpu_requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_D3D11_KHR;
+  gpu_requirements.next = nullptr;
 
-  /* Although it would seem reasonable that the PROC address would not change if the instance was
-   * the same, in testing, repeated calls to #xrGetInstanceProcAddress() with the same instance
-   * can still result in changes so the workaround is to simply set the function pointer every
-   * time (trivializing its 'static' designation). */
-  // if (instance != s_instance) {
-  // s_instance = instance;
-  s_xrGetD3D11GraphicsRequirementsKHR_fn = nullptr;
-  //}
-  if (!s_xrGetD3D11GraphicsRequirementsKHR_fn &&
-      XR_FAILED(
+  PFN_xrGetD3D11GraphicsRequirementsKHR xrGetD3D11GraphicsRequirementsKHR_fn = nullptr;
+  if (XR_FAILED(
           xrGetInstanceProcAddr(instance,
                                 "xrGetD3D11GraphicsRequirementsKHR",
-                                (PFN_xrVoidFunction *)&s_xrGetD3D11GraphicsRequirementsKHR_fn)))
+                                (PFN_xrVoidFunction *)&xrGetD3D11GraphicsRequirementsKHR_fn)))
   {
-    s_xrGetD3D11GraphicsRequirementsKHR_fn = nullptr;
     return false;
   }
 
-  s_xrGetD3D11GraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
+  xrGetD3D11GraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
 
-  if (r_requirement_info) {
+  if (m_ghost_d3d_ctx->m_device->GetFeatureLevel() < gpu_requirements.minFeatureLevel) {
     std::ostringstream strstream;
     strstream << "Minimum DirectX 11 Feature Level " << gpu_requirements.minFeatureLevel
               << std::endl;
 
     *r_requirement_info = strstream.str();
+
+    return false;
   }
 
-  return m_ghost_d3d_ctx->m_device->GetFeatureLevel() >= gpu_requirements.minFeatureLevel;
+  return true;
 }
 
 void GHOST_XrGraphicsBindingD3D::initFromGhostContext(

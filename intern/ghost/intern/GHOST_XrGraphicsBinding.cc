@@ -91,33 +91,27 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
     }
 #    endif
 #  endif
-    static PFN_xrGetOpenGLGraphicsRequirementsKHR s_xrGetOpenGLGraphicsRequirementsKHR_fn =
-        nullptr;
-    // static XrInstance s_instance = XR_NULL_HANDLE;
-    XrGraphicsRequirementsOpenGLKHR gpu_requirements = {XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR};
+    XrGraphicsRequirementsOpenGLKHR gpu_requirements;
+    gpu_requirements.type = XR_TYPE_GRAPHICS_REQUIREMENTS_OPENGL_KHR;
+    gpu_requirements.next = nullptr;
+
     const XrVersion gl_version = XR_MAKE_VERSION(gl_major_version, gl_minor_version, 0);
 
-    /* Although it would seem reasonable that the PROC address would not change if the instance was
-     * the same, in testing, repeated calls to #xrGetInstanceProcAddress() with the same instance
-     * can still result in changes so the workaround is to simply set the function pointer every
-     * time (trivializing its 'static' designation). */
-    // if (instance != s_instance) {
-    // s_instance = instance;
-    s_xrGetOpenGLGraphicsRequirementsKHR_fn = nullptr;
-    //}
-    if (!s_xrGetOpenGLGraphicsRequirementsKHR_fn &&
-        XR_FAILED(
+    PFN_xrGetOpenGLGraphicsRequirementsKHR xrGetOpenGLGraphicsRequirementsKHR_fn = nullptr;
+    if (XR_FAILED(
             xrGetInstanceProcAddr(instance,
                                   "xrGetOpenGLGraphicsRequirementsKHR",
-                                  (PFN_xrVoidFunction *)&s_xrGetOpenGLGraphicsRequirementsKHR_fn)))
+                                  (PFN_xrVoidFunction *)&xrGetOpenGLGraphicsRequirementsKHR_fn)))
     {
-      s_xrGetOpenGLGraphicsRequirementsKHR_fn = nullptr;
       return false;
     }
 
-    s_xrGetOpenGLGraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
+    xrGetOpenGLGraphicsRequirementsKHR_fn(instance, system_id, &gpu_requirements);
 
-    if (r_requirement_info) {
+    const bool ogl_api_supported = (gl_version >= gpu_requirements.minApiVersionSupported) &&
+                                   (gl_version <= gpu_requirements.maxApiVersionSupported);
+
+    if (ogl_api_supported) {
       std::ostringstream strstream;
       strstream << "Min OpenGL version "
                 << XR_VERSION_MAJOR(gpu_requirements.minApiVersionSupported) << "."
@@ -127,10 +121,10 @@ class GHOST_XrGraphicsBindingOpenGL : public GHOST_IXrGraphicsBinding {
                 << XR_VERSION_MINOR(gpu_requirements.maxApiVersionSupported) << std::endl;
 
       *r_requirement_info = strstream.str();
+      return false;
     }
 
-    return (gl_version >= gpu_requirements.minApiVersionSupported) &&
-           (gl_version <= gpu_requirements.maxApiVersionSupported);
+    return true;
   }
 
   void initFromGhostContext(GHOST_Context &ghost_ctx,
