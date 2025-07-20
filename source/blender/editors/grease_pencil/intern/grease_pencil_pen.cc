@@ -237,7 +237,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         }
       }
 
-      if (event->val != KM_DBL_CLICK) {
+      if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
         selection.span.fill(false);
       }
 
@@ -246,6 +246,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       }
 
       selection.finish();
+
+      if (ptd.delete_point) {
+        curves.remove_points(IndexRange::from_single(closest_point), {});
+      }
 
       changed.store(true, std::memory_order_relaxed);
     });
