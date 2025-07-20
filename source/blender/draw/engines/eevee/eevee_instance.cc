@@ -699,6 +699,13 @@ void Instance::draw_viewport()
       info_append_i18n("Compiling EEVEE engine shaders");
       DRW_viewport_request_redraw();
     }
+    /* Do not swap if the velocity module didn't go through a full sync cycle. */
+    if (!is_loaded(needed_shaders)) {
+      /* The velocity module can reference some gpu::Batch. Calling this function
+       * make sure we release these references and don't de-reference them later as
+       * they might have been freed. */
+      velocity.step_swap();
+    }
     return;
   }
 
@@ -795,7 +802,7 @@ void Instance::update_passes(RenderEngine *engine, Scene *scene, ViewLayer *view
   } \
   ((void)0)
 
-  CHECK_PASS_LEGACY(Z, SOCK_FLOAT, 1, "Z");
+  CHECK_PASS_LEGACY(DEPTH, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(MIST, SOCK_FLOAT, 1, "Z");
   CHECK_PASS_LEGACY(NORMAL, SOCK_VECTOR, 3, "XYZ");
   CHECK_PASS_LEGACY(POSITION, SOCK_VECTOR, 3, "XYZ");

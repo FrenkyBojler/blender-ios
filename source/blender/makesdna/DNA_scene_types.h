@@ -44,15 +44,18 @@ struct bNodeTree;
 #ifdef __cplusplus
 namespace blender {
 namespace bke {
+struct PaintRuntime;
 class SceneRuntime;
-}
+}  // namespace bke
 namespace ocio {
 class ColorSpace;
 }
 }  // namespace blender
+using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
 using ColorSpaceHandle = blender::ocio::ColorSpace;
 #else   // __cplusplus
+typedef struct PaintRuntimeHandle PaintRuntimeHandle;
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
 typedef struct ColorSpaceHandle ColorSpaceHandle;
 #endif  // __cplusplus
@@ -286,7 +289,7 @@ enum {
 /** #SceneRenderLayer::passflag */
 typedef enum eScenePassType {
   SCE_PASS_COMBINED = (1 << 0),
-  SCE_PASS_Z = (1 << 1),
+  SCE_PASS_DEPTH = (1 << 1),
   SCE_PASS_UNUSED_1 = (1 << 2), /* RGBA */
   SCE_PASS_UNUSED_2 = (1 << 3), /* DIFFUSE */
   SCE_PASS_UNUSED_3 = (1 << 4), /* SPEC */
@@ -322,7 +325,7 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_DEPRECATED "Deprecated"
 
 #define RE_PASSNAME_COMBINED "Combined"
-#define RE_PASSNAME_Z "Depth"
+#define RE_PASSNAME_DEPTH "Depth"
 #define RE_PASSNAME_VECTOR "Vector"
 #define RE_PASSNAME_POSITION "Position"
 #define RE_PASSNAME_NORMAL "Normal"
@@ -1055,73 +1058,6 @@ typedef struct UnifiedPaintSettings {
 
   /** User preferences for sculpt and paint. */
   int flag;
-  char _pad[4];
-
-  /* TODO: Many of the following values should not be on this struct, as it causes them to be
-   * persisted. PaintRuntime may be a better choice for some of these. */
-
-  /* Rake rotation. */
-
-  /** Record movement of mouse so that rake can start at an intuitive angle. */
-  float last_rake[2];
-  float last_rake_angle;
-
-  int last_stroke_valid;
-  float average_stroke_accum[3];
-  int average_stroke_counter;
-
-  /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
-   * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
-   * mouse curve, Bezier curve, etc.) */
-  float brush_rotation;
-  float brush_rotation_sec;
-
-  /*******************************************************************************
-   * all data below are used to communicate with cursor drawing and tex sampling *
-   *******************************************************************************/
-  int anchored_size;
-
-  /**
-   * Normalization factor due to accumulated value of curve along spacing.
-   * Calculated when brush spacing changes to dampen strength of stroke
-   * if space attenuation is used.
-   */
-  float overlap_factor;
-  char draw_inverted;
-  /** Check is there an ongoing stroke right now. */
-  char stroke_active;
-
-  char draw_anchored;
-  char do_linear_conversion;
-
-  /**
-   * Store last location of stroke or whether the mesh was hit.
-   * Valid only while stroke is active.
-   */
-  float last_location[3];
-  int last_hit;
-
-  float anchored_initial_mouse[2];
-
-  /**
-   * Radius of brush, pre-multiplied with pressure.
-   * In case of anchored brushes contains the anchored radius.
-   */
-  float pixel_radius;
-  float initial_pixel_radius;
-  float start_pixel_radius;
-
-  /** Drawing pressure. */
-  float size_pressure_value;
-
-  /** Position of mouse, used to sample the texture. */
-  float tex_mouse[2];
-
-  /** Position of mouse, used to sample the mask texture. */
-  float mask_tex_mouse[2];
-
-  /** ColorSpace cache to avoid locking up during sampling. */
-  const ColorSpaceHandle *colorspace;
 } UnifiedPaintSettings;
 
 /** \} */
@@ -1131,15 +1067,6 @@ typedef struct UnifiedPaintSettings {
  * \{ */
 
 #define PAINT_MAX_INPUT_SAMPLES 64
-
-typedef struct Paint_Runtime {
-  /** Avoid having to compare with scene pointer everywhere. */
-  unsigned int initialized;
-  unsigned short ob_mode;
-  char _pad[2];
-  /** The last brush that was active. Used to support toggling. */
-  struct AssetWeakReference *previous_active_brush_reference;
-} Paint_Runtime;
 
 typedef struct NamedBrushAssetReference {
   struct NamedBrushAssetReference *next, *prev;
@@ -1220,7 +1147,7 @@ typedef struct Paint {
   char _pad2[4];
   struct UnifiedPaintSettings unified_paint_settings;
 
-  struct Paint_Runtime runtime;
+  PaintRuntimeHandle *runtime;
 } Paint;
 
 /** \} */
@@ -1340,7 +1267,7 @@ typedef struct Sculpt {
 
   // /* Control tablet input. */
   // char tablet_size, tablet_strength; XXX not used?
-  int radial_symm[3];
+  int radial_symm_legacy[3];
 
   /** Maximum edge length for dynamic topology sculpting (in pixels). */
   float detail_size;
@@ -1428,7 +1355,7 @@ typedef struct VPaint {
   char flag;
   char _pad[3];
   /** For mirrored painting. */
-  int radial_symm[3];
+  int radial_symm[3] DNA_DEPRECATED;
 } VPaint;
 
 /** #VPaint::flag */

@@ -193,7 +193,7 @@ static void node_add_catalog_assets_draw(const bContext *C, Menu *menu)
     PointerRNA op_ptr = layout->op("NODE_OT_add_group_asset",
                                    IFACE_(asset->get_name()),
                                    ICON_NONE,
-                                   WM_OP_INVOKE_REGION_WIN,
+                                   wm::OpCallContext::InvokeRegionWin,
                                    UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, op_ptr);
   }
@@ -229,7 +229,7 @@ static void node_add_unassigned_assets_draw(const bContext *C, Menu *menu)
     PointerRNA op_ptr = menu->layout->op("NODE_OT_add_group_asset",
                                          IFACE_(asset->get_name()),
                                          ICON_NONE,
-                                         WM_OP_INVOKE_REGION_WIN,
+                                         wm::OpCallContext::InvokeRegionWin,
                                          UI_ITEM_NONE);
     asset::operator_asset_reference_props_set(*asset, op_ptr);
   }
@@ -324,7 +324,7 @@ void ui_template_node_asset_menu_items(uiLayout &layout,
   }
   uiLayout *col = &layout.column(false);
   col->context_string_set("asset_catalog_path", item->catalog_path().str());
-  uiItemMContents(col, "NODE_MT_node_add_catalog_assets");
+  col->menu_contents("NODE_MT_node_add_catalog_assets");
 }
 
 }  // namespace blender::ed::space_node

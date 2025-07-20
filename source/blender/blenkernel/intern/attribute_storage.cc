@@ -21,7 +21,7 @@
 #include "BKE_attribute_storage.hh"
 #include "BKE_attribute_storage_blend_write.hh"
 
-static CLG_LogRef LOG = {"bke.attribute_storage"};
+static CLG_LogRef LOG = {"geom.attribute"};
 
 namespace blender::bke {
 
@@ -57,12 +57,12 @@ class ArrayDataImplicitSharing : public ImplicitSharingInfo {
   }
 };
 
-Attribute::ArrayData Attribute::ArrayData::ForValue(const GPointer &value,
-                                                    const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::from_value(const GPointer &value,
+                                                      const int64_t domain_size)
 {
   Attribute::ArrayData data{};
   const CPPType &type = *value.type();
-  const void *value_ptr = type.default_value();
+  const void *value_ptr = value.get();
 
   /* Prefer `calloc` to zeroing after allocation since it is faster. */
   if (BLI_memory_is_zero(value_ptr, type.size)) {
@@ -79,14 +79,14 @@ Attribute::ArrayData Attribute::ArrayData::ForValue(const GPointer &value,
   return data;
 }
 
-Attribute::ArrayData Attribute::ArrayData::ForDefaultValue(const CPPType &type,
-                                                           const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::from_default_value(const CPPType &type,
+                                                              const int64_t domain_size)
 {
-  return ForValue(GPointer(type, type.default_value()), domain_size);
+  return from_value(GPointer(type, type.default_value()), domain_size);
 }
 
-Attribute::ArrayData Attribute::ArrayData::ForUninitialized(const CPPType &type,
-                                                            const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::from_uninitialized(const CPPType &type,
+                                                              const int64_t domain_size)
 {
   Attribute::ArrayData data{};
   data.data = MEM_malloc_arrayN_aligned(domain_size, type.size, type.alignment, __func__);
@@ -96,15 +96,15 @@ Attribute::ArrayData Attribute::ArrayData::ForUninitialized(const CPPType &type,
   return data;
 }
 
-Attribute::ArrayData Attribute::ArrayData::ForConstructed(const CPPType &type,
-                                                          const int64_t domain_size)
+Attribute::ArrayData Attribute::ArrayData::from_constructed(const CPPType &type,
+                                                            const int64_t domain_size)
 {
-  Attribute::ArrayData data = Attribute::ArrayData::ForUninitialized(type, domain_size);
+  Attribute::ArrayData data = Attribute::ArrayData::from_uninitialized(type, domain_size);
   type.default_construct_n(data.data, domain_size);
   return data;
 }
 
-Attribute::SingleData Attribute::SingleData::ForValue(const GPointer &value)
+Attribute::SingleData Attribute::SingleData::from_value(const GPointer &value)
 {
   Attribute::SingleData data{};
   const CPPType &type = *value.type();
@@ -115,9 +115,9 @@ Attribute::SingleData Attribute::SingleData::ForValue(const GPointer &value)
   return data;
 }
 
-Attribute::SingleData Attribute::SingleData::ForDefaultValue(const CPPType &type)
+Attribute::SingleData Attribute::SingleData::from_default_value(const CPPType &type)
 {
-  return ForValue(GPointer(type, type.default_value()));
+  return from_value(GPointer(type, type.default_value()));
 }
 
 void AttributeStorage::foreach(FunctionRef<void(Attribute &)> fn)
@@ -165,12 +165,16 @@ AttrStorageType Attribute::storage_type() const
 Attribute::DataVariant &Attribute::data_for_write()
 {
   if (auto *data = std::get_if<Attribute::ArrayData>(&data_)) {
+    if (!data->sharing_info) {
+      BLI_assert(data->size == 0);
+      return data_;
+    }
     if (data->sharing_info->is_mutable()) {
       data->sharing_info->tag_ensured_mutable();
       return data_;
     }
     const CPPType &type = attribute_type_to_cpp_type(type_);
-    ArrayData new_data = ArrayData::ForUninitialized(type, data->size);
+    ArrayData new_data = ArrayData::from_uninitialized(type, data->size);
     type.copy_construct_n(data->data, new_data.data, data->size);
     *data = std::move(new_data);
   }
@@ -180,7 +184,7 @@ Attribute::DataVariant &Attribute::data_for_write()
       return data_;
     }
     const CPPType &type = attribute_type_to_cpp_type(type_);
-    *data = SingleData::ForValue(GPointer(type, data->value));
+    *data = SingleData::from_value(GPointer(type, data->value));
   }
   return data_;
 }
@@ -314,6 +318,34 @@ void AttributeStorage::rename(const StringRef old_name, std::string new_name)
   }
 }
 
+void AttributeStorage::resize(const AttrDomain domain, const int64_t new_size)
+{
+  this->foreach([&](Attribute &attr) {
+    if (attr.domain() != domain) {
+      return;
+    }
+    const CPPType &type = attribute_type_to_cpp_type(attr.data_type());
+    switch (attr.storage_type()) {
+      case bke::AttrStorageType::Array: {
+        const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
+        const int64_t old_size = data.size;
+
+        auto new_data = bke::Attribute::ArrayData::from_uninitialized(type, new_size);
+        type.copy_construct_n(data.data, new_data.data, std::min(old_size, new_size));
+        if (old_size < new_size) {
+          type.default_construct_n(POINTER_OFFSET(new_data.data, type.size * old_size),
+                                   new_size - old_size);
+        }
+
+        attr.assign_data(std::move(new_data));
+      }
+      case bke::AttrStorageType::Single: {
+        return;
+      }
+    }
+  });
+}
+
 static void read_array_data(BlendDataReader &reader,
                             const int8_t dna_attr_type,
                             const int64_t size,
@@ -394,7 +426,7 @@ static std::optional<Attribute::DataVariant> read_attr_data(BlendDataReader &rea
       BLO_read_struct(&reader, AttributeArray, &dna_attr.data);
       auto &data = *static_cast<::AttributeArray *>(dna_attr.data);
       read_shared_array(reader, dna_attr_type, data.size, &data.data, &data.sharing_info);
-      if (!data.data) {
+      if (data.size != 0 && !data.data) {
         return std::nullopt;
       }
       return Attribute::ArrayData{data.data, data.size, ImplicitSharingPtr<>(data.sharing_info)};

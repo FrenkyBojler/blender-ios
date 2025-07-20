@@ -48,12 +48,12 @@
  * traversing the final limit surface. */
 
 struct SurfacePoint {
-  blender::float3 P;
-  blender::float3x3 tangent_matrix;
+  blender::float3 P = blender::float3(0.0f);
+  blender::float3x3 tangent_matrix = blender::float3x3::identity();
 };
 
 struct SurfaceGrid {
-  blender::Array<SurfacePoint> points;
+  blender::Array<SurfacePoint> points = {};
 };
 
 /* Geometry elements which are used to simplify creation of topology refiner at the sculpt level.
@@ -62,34 +62,34 @@ struct SurfaceGrid {
 struct Vertex {
   /* All grid coordinates which the vertex corresponding to.
    * For a vertices which are created from inner points of grids there is always one coordinate. */
-  blender::Vector<GridCoord> grid_coords;
+  blender::Vector<GridCoord> grid_coords = {};
 
-  float sharpness;
-  bool is_infinite_sharp;
+  float sharpness = 0.0f;
+  bool is_infinite_sharp = false;
 };
 
 struct Corner {
   /* Indexes into the geometry.vertices array */
-  int vert_index;
-  int grid_index;
+  int vert_index = 0;
+  int grid_index = 0;
 };
 
 struct Edge {
-  int v1;
-  int v2;
+  int v1 = 0;
+  int v2 = 0;
 
-  float sharpness;
+  float sharpness = 0.0f;
 };
 
 /* Storage of data which is linearly interpolated from the reshape level to the top level. */
 
 struct LinearGridElement {
-  float mask;
+  float mask = 0.0f;
 };
 
 struct LinearGrid {
   /* Span pointing to section of `elements_storage` in `LinearGrids` */
-  blender::MutableSpan<LinearGridElement> elements;
+  blender::MutableSpan<LinearGridElement> elements = {};
 };
 
 struct LinearGrids {
@@ -315,23 +315,23 @@ static int get_face_grid_index(const MultiresReshapeSmoothContext *reshape_smoot
   return grid_index;
 }
 
-static const GridCoord *vertex_grid_coord_with_grid_index(const Vertex *vertex,
-                                                          const int grid_index)
+static std::optional<GridCoord> vertex_grid_coord_with_grid_index(const Vertex *vertex,
+                                                                  const int grid_index)
 {
   for (const int i : vertex->grid_coords.index_range()) {
     if (vertex->grid_coords[i].grid_index == grid_index) {
-      return &vertex->grid_coords[i];
+      return vertex->grid_coords[i];
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 /* Get grid coordinates which correspond to corners of the given face.
  * All the grid coordinates will be from the same grid index. */
-static void grid_coords_from_face_verts(MultiresReshapeSmoothContext *reshape_smooth_context,
-                                        const blender::IndexRange face,
-                                        const GridCoord *grid_coords[])
+static std::array<std::optional<GridCoord>, 4> grid_coords_from_face_verts(
+    MultiresReshapeSmoothContext *reshape_smooth_context, const blender::IndexRange face)
 {
+  std::array<std::optional<GridCoord>, 4> result;
   BLI_assert(face.size() == 4);
 
   const int grid_index = get_face_grid_index(reshape_smooth_context, face);
@@ -340,10 +340,11 @@ static void grid_coords_from_face_verts(MultiresReshapeSmoothContext *reshape_sm
   for (const int i : face.index_range()) {
     const int corner_index = face[i];
     Corner *corner = &reshape_smooth_context->geometry.corners[corner_index];
-    grid_coords[i] = vertex_grid_coord_with_grid_index(
+    result[i] = vertex_grid_coord_with_grid_index(
         &reshape_smooth_context->geometry.vertices[corner->vert_index], grid_index);
-    BLI_assert(grid_coords[i] != nullptr);
+    BLI_assert(result[i].has_value());
   }
+  return result;
 }
 
 /**
@@ -355,10 +356,9 @@ static float lerp_f(float t, float a, float b)
   return (a + t * (b - a));
 }
 
-static void interpolate_grid_coord(GridCoord *result,
-                                   const GridCoord *face_grid_coords[4],
-                                   const float u,
-                                   const float v)
+static GridCoord interpolate_grid_coord(blender::Span<std::optional<GridCoord>> face_grid_coords,
+                                        const float u,
+                                        const float v)
 {
   /*
    * v
@@ -371,6 +371,7 @@ static void interpolate_grid_coord(GridCoord *result,
    * | (0) -------- (1)
    * *--------------------------> u
    */
+  GridCoord result;
 
   const float u01 = lerp_f(u, face_grid_coords[0]->u, face_grid_coords[1]->u);
   const float u32 = lerp_f(u, face_grid_coords[3]->u, face_grid_coords[2]->u);
@@ -378,9 +379,11 @@ static void interpolate_grid_coord(GridCoord *result,
   const float v03 = lerp_f(v, face_grid_coords[0]->v, face_grid_coords[3]->v);
   const float v12 = lerp_f(v, face_grid_coords[1]->v, face_grid_coords[2]->v);
 
-  result->grid_index = face_grid_coords[0]->grid_index;
-  result->u = lerp_f(v, u01, u32);
-  result->v = lerp_f(u, v03, v12);
+  result.grid_index = face_grid_coords[0]->grid_index;
+  result.u = lerp_f(v, u01, u32);
+  result.v = lerp_f(u, v03, v12);
+
+  return result;
 }
 
 static void foreach_toplevel_grid_coord(
@@ -398,8 +401,8 @@ static void foreach_toplevel_grid_coord(
   threading::parallel_for(faces.index_range(), 1, [&](const IndexRange range) {
     for (const int face_index : range) {
       const blender::IndexRange face = faces[face_index];
-      const GridCoord *face_grid_coords[4];
-      grid_coords_from_face_verts(reshape_smooth_context, face, face_grid_coords);
+      std::array<std::optional<GridCoord>, 4> face_grid_coords = grid_coords_from_face_verts(
+          reshape_smooth_context, face);
 
       for (int y = 0; y < inner_grid_size; ++y) {
         const float ptex_v = float(y) * inner_grid_size_1_inv;
@@ -411,8 +414,8 @@ static void foreach_toplevel_grid_coord(
           ptex_coord.u = ptex_u;
           ptex_coord.v = ptex_v;
 
-          GridCoord grid_coord;
-          interpolate_grid_coord(&grid_coord, face_grid_coords, ptex_u, ptex_v);
+          const GridCoord grid_coord = interpolate_grid_coord(
+              blender::Span(face_grid_coords), ptex_u, ptex_v);
 
           callback(&ptex_coord, &grid_coord);
         }
@@ -1021,8 +1024,8 @@ static void reshape_subdiv_refine_orig_P(
   const ReshapeConstGridElement orig_grid_element =
       multires_reshape_orig_grid_element_for_grid_coord(reshape_context, grid_coord);
 
-  blender::float3 D;
-  mul_v3_m3v3(D, tangent_matrix.ptr(), orig_grid_element.displacement);
+  const blender::float3 D = blender::math::transform_direction(tangent_matrix,
+                                                               orig_grid_element.displacement);
 
   r_P = limit_P + D;
 }
@@ -1051,7 +1054,7 @@ static void reshape_subdiv_refine_final_P(
 
   /* NOTE: At this point in reshape/propagate pipeline grid displacement is actually storing object
    * vertices coordinates. */
-  copy_v3_v3(r_P, grid_element.displacement);
+  r_P = *grid_element.displacement;
 }
 static void reshape_subdiv_refine_final(const MultiresReshapeSmoothContext *reshape_smooth_context)
 {
@@ -1251,8 +1254,8 @@ static void evaluate_final_original_point(
       reshape_context, grid_coord, base_mesh_limit_P, base_mesh_tangent_matrix);
 
   /* Convert original displacement from tangent space to object space. */
-  blender::float3 orig_displacement;
-  mul_v3_m3v3(orig_displacement, base_mesh_tangent_matrix.ptr(), orig_grid_element.displacement);
+  const blender::float3 orig_displacement = blender::math::transform_direction(
+      base_mesh_tangent_matrix, orig_grid_element.displacement);
 
   /* Final point = limit surface + displacement. */
   r_orig_final_P = base_mesh_limit_P + orig_displacement;
@@ -1298,7 +1301,7 @@ static void evaluate_higher_grid_positions_with_details(
         ReshapeGridElement grid_element = multires_reshape_grid_element_for_grid_coord(
             reshape_context, grid_coord);
 
-        add_v3_v3v3(grid_element.displacement, smooth_limit_P, smooth_delta);
+        *grid_element.displacement = smooth_limit_P + smooth_delta;
 
         /* Propagate non-coordinate data. */
         propagate_linear_data_delta(reshape_smooth_context, &grid_element, grid_coord);
@@ -1320,7 +1323,7 @@ static void evaluate_higher_grid_positions(MultiresReshapeSmoothContext *reshape
         blender::bke::subdiv::eval_limit_point(
             reshape_subdiv, ptex_coord->ptex_face_index, ptex_coord->u, ptex_coord->v, P);
 
-        copy_v3_v3(grid_element.displacement, P);
+        *grid_element.displacement = P;
 
         /* Propagate non-coordinate data. */
         propagate_linear_data_delta(reshape_smooth_context, &grid_element, grid_coord);
