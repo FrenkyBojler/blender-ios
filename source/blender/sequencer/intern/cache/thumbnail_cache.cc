@@ -256,7 +256,7 @@ void ThumbGenerationJob::ensure_job(const bContext *C, ThumbnailCache *cache)
 {
   wmWindowManager *wm = CTX_wm_manager(C);
   wmWindow *win = CTX_wm_window(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   wmJob *wm_job = WM_jobs_get(
       wm, win, scene, "Strip Thumbnails", eWM_JobFlag(0), WM_JOB_TYPE_SEQ_DRAW_THUMBNAIL);
   if (!WM_jobs_is_running(wm_job)) {
@@ -359,7 +359,8 @@ void ThumbGenerationJob::run_fn(void *customdata, wmJobWorkerStatus *worker_stat
 
             cur_anim_path = request.file_path;
             cur_stream = request.stream_index;
-            cur_anim = MOV_open_file(cur_anim_path.c_str(), IB_byte_data, cur_stream, nullptr);
+            cur_anim = MOV_open_file(
+                cur_anim_path.c_str(), IB_byte_data, cur_stream, true, nullptr);
           }
 
           /* Decode the movie frame. */

@@ -99,16 +99,10 @@ void RealizeOnDomainOperation::realize_on_domain_gpu(const float3x3 &inverse_tra
       realization_options.interpolation, Interpolation::Bilinear, Interpolation::Bicubic);
   GPU_texture_filter_mode(input, use_bilinear);
 
-  /* If the input repeats, set a repeating extend mode for out-of-bound texture access. Otherwise,
-   * make out-of-bound texture access return zero by setting a clamp to border extend mode. */
   GPU_texture_extend_mode_x(input,
-                            realization_options.repeat_x ?
-                                GPU_SAMPLER_EXTEND_MODE_REPEAT :
-                                GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+                            map_extension_mode_to_extend_mode(realization_options.extension_x));
   GPU_texture_extend_mode_y(input,
-                            realization_options.repeat_y ?
-                                GPU_SAMPLER_EXTEND_MODE_REPEAT :
-                                GPU_SAMPLER_EXTEND_MODE_CLAMP_TO_BORDER);
+                            map_extension_mode_to_extend_mode(realization_options.extension_y));
 
   input.bind_as_texture(shader, "input_tx");
 
@@ -140,6 +134,10 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int2:
       case ResultType::Bool:
         /* Not supported. */
+      case ResultType::Menu:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
+        BLI_assert_unreachable();
         break;
     }
   }
@@ -157,6 +155,10 @@ const char *RealizeOnDomainOperation::get_realization_shader_name()
       case ResultType::Int2:
       case ResultType::Bool:
         /* Not supported. */
+      case ResultType::Menu:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(this->get_input().type()));
+        BLI_assert_unreachable();
         break;
     }
   }
@@ -188,22 +190,10 @@ void RealizeOnDomainOperation::realize_on_domain_cpu(const float3x3 &inverse_tra
     const int2 input_size = input.domain().size;
     float2 normalized_coordinates = coordinates / float2(input_size);
 
-    float4 sample;
-    switch (realization_options.interpolation) {
-      case Interpolation::Nearest:
-        sample = input.sample_nearest_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-      case Interpolation::Bilinear:
-        sample = input.sample_bilinear_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-      case Interpolation::Anisotropic:
-      case Interpolation::Bicubic:
-        sample = input.sample_cubic_wrap(
-            normalized_coordinates, realization_options.repeat_x, realization_options.repeat_y);
-        break;
-    }
+    float4 sample = input.sample(normalized_coordinates,
+                                 realization_options.interpolation,
+                                 realization_options.extension_x,
+                                 realization_options.extension_y);
     output.store_pixel_generic_type(texel, sample);
   });
 }

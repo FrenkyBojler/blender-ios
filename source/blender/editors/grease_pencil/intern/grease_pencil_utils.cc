@@ -1548,8 +1548,8 @@ float radius_from_input_sample(const RegionView3D *rv3d,
                                const ARegion *region,
                                const Brush *brush,
                                const float pressure,
-                               const float3 location,
-                               const float4x4 to_world,
+                               const float3 &location,
+                               const float4x4 &to_world,
                                const BrushGpencilSettings *settings)
 {
   float radius = brush_radius_at_location(rv3d, region, brush, location, to_world);
@@ -1964,7 +1964,7 @@ void apply_eval_grease_pencil_data(const GreasePencil &eval_grease_pencil,
     if (attribute_name_is_anonymous(iter.name)) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     const GVArraySpan src = *iter.get(AttrDomain::Layer);
