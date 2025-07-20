@@ -30,10 +30,10 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Mesh")
+  b.add_input<decl::Geometry>("Mesh", "Geometry")
       .supported_type(GeometryComponent::Type::Mesh)
       .description("Geometry to scale elements of");
-  b.add_output<decl::Geometry>("Mesh").propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Mesh", "Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Scale", "Scale").default_value(1.0f).min(0.0f).field_on_all();
   b.add_input<decl::Vector>("Center")
@@ -459,7 +459,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const AttrDomain domain = AttrDomain(node.custom1);
   const GeometryNodeScaleElementsMode scale_mode = GeometryNodeScaleElementsMode(node.custom2);
 
-  GeometrySet geometry = params.extract_input<GeometrySet>("Mesh");
+  GeometrySet geometry = params.extract_input<GeometrySet>("Geometry");
 
   const Field<bool> selection_field = params.extract_input<Field<bool>>("Selection");
   const Field<float> scale_field = params.extract_input<Field<float>>("Scale");
@@ -519,7 +519,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  params.set_output("Mesh", std::move(geometry));
+  params.set_output("Geometry", std::move(geometry));
 }
 
 static void node_rna(StructRNA *srna)

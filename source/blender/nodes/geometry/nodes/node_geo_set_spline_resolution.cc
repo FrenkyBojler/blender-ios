@@ -13,10 +13,10 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
   b.allow_any_socket_order();
-  b.add_input<decl::Geometry>("Curve")
+  b.add_input<decl::Geometry>("Curve", "Geometry")
       .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
       .description("Curves to change the resolution of");
-  b.add_output<decl::Geometry>("Curve").propagate_all().align_with_previous();
+  b.add_output<decl::Geometry>("Curve", "Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Int>("Resolution").min(1).default_value(12).field_on_all();
 }
@@ -55,7 +55,7 @@ static void set_grease_pencil_resolution(GreasePencil &grease_pencil,
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  GeometrySet geometry_set = params.extract_input<GeometrySet>("Curve");
+  GeometrySet geometry_set = params.extract_input<GeometrySet>("Geometry");
   const Field<bool> selection = params.extract_input<Field<bool>>("Selection");
   const Field<int> resolution = params.extract_input<Field<int>>("Resolution");
 
@@ -70,7 +70,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   });
 
-  params.set_output("Curve", std::move(geometry_set));
+  params.set_output("Geometry", std::move(geometry_set));
 }
 
 static void node_register()
