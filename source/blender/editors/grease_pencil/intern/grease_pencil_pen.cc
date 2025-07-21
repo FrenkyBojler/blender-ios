@@ -169,7 +169,7 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
   const int old_curves_num = src.curves_num();
   const int old_points_num = src.points_num();
 
-  const IndexMask &points_to_extrude = src.curves_range().take_front(1);
+  const IndexMask &points_to_extrude = src.points_range().take_back(1);
 
   Vector<int> dst_to_src_points(old_points_num);
   array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
@@ -377,10 +377,9 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
             curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
           }
           else {
-            curves = pen_extrude_curves(curves);
-
             const float3 depth_point = curves.is_empty() ? float3(0.0f) :
                                                            curves.positions().last();
+            curves = pen_extrude_curves(curves);
 
             curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
           }
