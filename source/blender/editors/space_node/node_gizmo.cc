@@ -747,10 +747,10 @@ static bool WIDGETGROUP_node_sbeam_poll(const bContext *C, wmGizmoGroupType * /*
   SpaceNode *snode = CTX_wm_space_node(C);
   bNode *node = bke::node_get_active(*snode->edittree);
 
-  if (node && node->is_type("CompositorNodeSunBeams")) {
+  if (node && node->is_type("CompositorNodeGlare")) {
     snode->edittree->ensure_topology_cache();
     LISTBASE_FOREACH (bNodeSocket *, input, &node->inputs) {
-      if (STR_ELEM(input->name, "Source") && input->is_directly_linked()) {
+      if (STR_ELEM(input->name, "Sun Position") && input->is_directly_linked()) {
         return false;
       }
     }
@@ -805,7 +805,7 @@ static void WIDGETGROUP_node_sbeam_refresh(const bContext *C, wmGizmoGroup *gzgr
     bNode *node = bke::node_get_active(*snode->edittree);
 
     /* Need to set property here for undo. TODO: would prefer to do this in _init. */
-    bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Source");
+    bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Sun Position");
     PointerRNA socket_pointer = RNA_pointer_create_discrete(
         reinterpret_cast<ID *>(snode->edittree), &RNA_NodeSocket, source_input);
     WM_gizmo_target_property_def_rna(gz, "offset", &socket_pointer, "default_value", -1);
