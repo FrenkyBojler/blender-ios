@@ -14,8 +14,7 @@
 
 namespace blender::nodes::node_geo_xpbd_solver_cc {
 
-constexpr StringRefNull prev_position_name = "prev_position";
-constexpr StringRefNull velocity_name = "velocity";
+constexpr StringRefNull prev_position_name = ".prev_position";
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -59,11 +58,24 @@ class SimAcceleration {
 struct SimGeometrySet {
   std::string path;
   GeometrySet geometry;
+  std::string mass_attribute;
+  std::string velocity_attribute;
 };
 
 struct SimGeometry {
+  using GeometryVariant = std::variant<Mesh *, PointCloud *, Curves *>;
+  GeometryVariant data;
   std::string path;
-  std::variant<Mesh *, PointCloud *, Curves *> data;
+  std::string mass_attribute;
+  std::string velocity_attribute;
+
+  SimGeometry(const SimGeometrySet &src, GeometryVariant data)
+      : data(data),
+        path(src.path),
+        mass_attribute(src.mass_attribute),
+        velocity_attribute(src.velocity_attribute)
+  {
+  }
 
   std::optional<bke::AttributeAccessor> attributes() const
   {
@@ -166,12 +178,10 @@ class XpbdContraints {
 class EdgeLengthConstraint : public XpbdContraints {
  private:
   std::string rest_length_attribute_;
-  std::string point_mass_attribute_;
 
  public:
-  EdgeLengthConstraint(std::string rest_length_attribute, std::string point_mass_attribute)
-      : rest_length_attribute_(std::move(rest_length_attribute)),
-        point_mass_attribute_(std::move(point_mass_attribute))
+  EdgeLengthConstraint(std::string rest_length_attribute)
+      : rest_length_attribute_(std::move(rest_length_attribute))
   {
   }
 
@@ -223,7 +233,7 @@ class EdgeLengthConstraint : public XpbdContraints {
         continue;
       }
       const bke::AttributeReader<float> masses = attributes.lookup_or_default<float>(
-          point_mass_attribute_, bke::AttrDomain::Point, 1.0f);
+          sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
       if (!masses) {
         continue;
       }
@@ -414,17 +424,38 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
         const std::string path = combine_bundle_path(path_stack);
         if (type == "Geometry") {
-          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+          std::optional<Bundle::Item> geometry_item = behavior_bundle.lookup(
               SocketInterfaceKey{"Geometry"});
-          if (!item) {
+          if (!geometry_item) {
             return;
           }
-          if (item->type->type != SOCK_GEOMETRY) {
+          if (geometry_item->type->type != SOCK_GEOMETRY) {
             return;
           }
           SimGeometrySet geometry;
+          geometry.mass_attribute = "mass";
+          geometry.velocity_attribute = "velocity";
           geometry.path = path;
-          geometry.geometry = *static_cast<const GeometrySet *>(item->value);
+          geometry.geometry = *static_cast<const GeometrySet *>(geometry_item->value);
+          if (std::optional<Bundle::Item> mass_item = behavior_bundle.lookup(
+                  SocketInterfaceKey{"Mass Attribute"}))
+          {
+            if (mass_item->type->type != SOCK_STRING) {
+              return;
+            }
+            geometry.mass_attribute =
+                static_cast<const bke::SocketValueVariant *>(mass_item->value)->get<std::string>();
+          }
+          if (std::optional<Bundle::Item> velocity_item = behavior_bundle.lookup(
+                  SocketInterfaceKey{"Velocity Attribute"}))
+          {
+            if (velocity_item->type->type != SOCK_STRING) {
+              return;
+            }
+            geometry.velocity_attribute = static_cast<const bke::SocketValueVariant *>(
+                                              velocity_item->value)
+                                              ->get<std::string>();
+          }
           parsed_behaviors.sim_geometry_sets.append(geometry);
           return;
         }
@@ -470,7 +501,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           std::string rest_length_attribute =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<std::string>();
           parsed_behaviors.constraints.append(
-              &scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute), "mass"));
+              &scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute)));
           return;
         }
         if (type == "Fixed Position Constraint") {
@@ -524,13 +555,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   for (SimGeometrySet &sim_geometry_set : parsed_behaviors.sim_geometry_sets) {
     if (Mesh *mesh = sim_geometry_set.geometry.get_mesh_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set.path, mesh});
+      sim_geometries.append(SimGeometry{sim_geometry_set, mesh});
     }
     if (PointCloud *pointcloud = sim_geometry_set.geometry.get_pointcloud_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set.path, pointcloud});
+      sim_geometries.append(SimGeometry{sim_geometry_set, pointcloud});
     }
     if (Curves *curves = sim_geometry_set.geometry.get_curves_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set.path, curves});
+      sim_geometries.append(SimGeometry{sim_geometry_set, curves});
     }
   }
 
@@ -595,10 +626,10 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
         }
         const VArray<float> masses = *attributes->lookup_or_default<float>(
-            "mass", bke::AttrDomain::Point, 1.0f);
+            sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
 
         bke::SpanAttributeWriter<float3> velocities =
-            attributes->lookup_or_add_for_write_span<float3>(velocity_name,
+            attributes->lookup_or_add_for_write_span<float3>(sim_geometry.velocity_attribute,
                                                              bke::AttrDomain::Point);
         bke::SpanAttributeWriter<float3> positions =
             attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
@@ -639,7 +670,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         const VArraySpan<float3> prev_positions = *attributes->lookup<float3>(prev_position_name);
         const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
         bke::SpanAttributeWriter<float3> velocities = attributes->lookup_for_write_span<float3>(
-            velocity_name);
+            sim_geometry.velocity_attribute);
         threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
           for (const int i : range) {
             velocities.span[i] = (positions[i] - prev_positions[i]) / sub_delta_time;
