@@ -30,13 +30,6 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }
 
-struct ParsedBehaviors {
-  Vector<geometry::xpbd::SimGeometrySet> sim_geometry_sets;
-  Vector<geometry::xpbd::SimForce> sim_forces;
-  Vector<geometry::xpbd::SimAcceleration> sim_accelerations;
-  Vector<geometry::xpbd::XpbdContraints *> constraints;
-};
-
 static std::string combine_bundle_path(const Span<StringRef> &path)
 {
   return fmt::format("{}", fmt::join(path, "/"));
@@ -137,12 +130,13 @@ static void foreach_behavior_recursive(
   }
 }
 
-static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, ResourceScope &scope)
+static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bundle,
+                                                 ResourceScope &scope)
 {
   if (!behaviors_bundle) {
     return {};
   }
-  ParsedBehaviors parsed_behaviors;
+  geometry::xpbd::Behaviors behaviors;
   Vector<StringRef> path_stack;
   foreach_behavior_recursive(
       *behaviors_bundle,
@@ -182,7 +176,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
                                               velocity_item->value)
                                               ->get<std::string>();
           }
-          parsed_behaviors.sim_geometry_sets.append(geometry);
+          behaviors.sim_geometry_sets.append(geometry);
           return;
         }
         if (type == "Force") {
@@ -197,7 +191,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           geometry::xpbd::SimForce force;
           force.force_field =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
-          parsed_behaviors.sim_forces.append(force);
+          behaviors.sim_forces.append(force);
           return;
         }
         if (type == "Acceleration") {
@@ -212,7 +206,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           geometry::xpbd::SimAcceleration acceleration;
           acceleration.acceleration_field =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
-          parsed_behaviors.sim_accelerations.append(acceleration);
+          behaviors.sim_accelerations.append(acceleration);
           return;
         }
         if (type == "Edge Length Constraint") {
@@ -226,7 +220,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           }
           std::string rest_length_attribute =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<std::string>();
-          parsed_behaviors.constraints.append(&geometry::xpbd::create_constraint__edge_lengths(
+          behaviors.constraints.append(&geometry::xpbd::create_constraint__edge_lengths(
               scope, std::move(rest_length_attribute)));
           return;
         }
@@ -242,7 +236,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
               positions_item->type->type != SOCK_VECTOR) {
             return;
           }
-          parsed_behaviors.constraints.append(&geometry::xpbd::create_constraint__fixed_positions(
+          behaviors.constraints.append(&geometry::xpbd::create_constraint__fixed_positions(
               scope,
               static_cast<const bke::SocketValueVariant *>(selection_item->value)
                   ->get<Field<bool>>(),
@@ -252,7 +246,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
         }
       });
 
-  return parsed_behaviors;
+  return behaviors;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -263,9 +257,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   const int substeps = std::max(0, params.extract_input<int>("Substeps"));
 
   ResourceScope scope;
-  ParsedBehaviors parsed_behaviors = parse_behaviors(behaviors_bundle, scope);
+  geometry::xpbd::Behaviors behaviors = parse_behaviors(behaviors_bundle, scope);
   if (old_data_bundle) {
-    for (geometry::xpbd::SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
+    for (geometry::xpbd::SimGeometrySet &sim_geometry : behaviors.sim_geometry_sets) {
       std::optional<Bundle::Item> item = lookup_bundle_path(*old_data_bundle,
                                                             sim_geometry.path + "/Geometry");
       if (!item) {
@@ -280,7 +274,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   Vector<geometry::xpbd::SimGeometry> sim_geometries;
 
-  for (geometry::xpbd::SimGeometrySet &sim_geometry_set : parsed_behaviors.sim_geometry_sets) {
+  for (geometry::xpbd::SimGeometrySet &sim_geometry_set : behaviors.sim_geometry_sets) {
     if (Mesh *mesh = sim_geometry_set.geometry.get_mesh_for_write()) {
       sim_geometries.append(geometry::xpbd::SimGeometry{sim_geometry_set, mesh});
     }
@@ -311,7 +305,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     /* Init constraints. */
-    for (geometry::xpbd::XpbdContraints *constraint : parsed_behaviors.constraints) {
+    for (geometry::xpbd::XpbdContraints *constraint : behaviors.constraints) {
       constraint->ensure_init(sim_geometries);
     }
 
@@ -332,24 +326,23 @@ static void node_geo_exec(GeoNodeExecParams params)
         Array<float3> force(positions_num, float3());
         Array<float3> acceleration(positions_num, float3());
         fn::FieldEvaluator field_evaluator{*field_context, positions_num};
-        for (const geometry::xpbd::SimForce &sim_force : parsed_behaviors.sim_forces) {
+        for (const geometry::xpbd::SimForce &sim_force : behaviors.sim_forces) {
           field_evaluator.add(sim_force.force_field);
         }
-        for (const geometry::xpbd::SimAcceleration &sim_acceleration :
-             parsed_behaviors.sim_accelerations)
+        for (const geometry::xpbd::SimAcceleration &sim_acceleration : behaviors.sim_accelerations)
         {
           field_evaluator.add(sim_acceleration.acceleration_field);
         }
         field_evaluator.evaluate();
-        for (const int force_i : parsed_behaviors.sim_forces.index_range()) {
+        for (const int force_i : behaviors.sim_forces.index_range()) {
           VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
           for (const int i : force_varray.index_range()) {
             force[i] += force_varray[i];
           }
         }
-        for (const int acceleration_i : parsed_behaviors.sim_accelerations.index_range()) {
+        for (const int acceleration_i : behaviors.sim_accelerations.index_range()) {
           VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
-              acceleration_i + parsed_behaviors.sim_forces.size());
+              acceleration_i + behaviors.sim_forces.size());
           for (const int i : acceleration_varray.index_range()) {
             acceleration[i] += acceleration_varray[i];
           }
@@ -374,18 +367,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
     /* Constraint solve step. */
     geometry::xpbd::XpbdConstraintCorrections corrections;
-    threading::parallel_for(
-        parsed_behaviors.constraints.index_range(), 1, [&](const IndexRange range) {
-          for (const int constraint_i : range) {
-            geometry::xpbd::XpbdContraints *constraints =
-                parsed_behaviors.constraints[constraint_i];
-            constraints->solve(sim_geometries, corrections);
-          }
-        });
+    threading::parallel_for(behaviors.constraints.index_range(), 1, [&](const IndexRange range) {
+      for (const int constraint_i : range) {
+        geometry::xpbd::XpbdContraints *constraints = behaviors.constraints[constraint_i];
+        constraints->solve(sim_geometries, corrections);
+      }
+    });
     corrections.apply(sim_geometries);
 
     /* Apply hard constraints. */
-    for (geometry::xpbd::XpbdContraints *constraint : parsed_behaviors.constraints) {
+    for (geometry::xpbd::XpbdContraints *constraint : behaviors.constraints) {
       constraint->post_solve_apply(sim_geometries);
     }
 
@@ -422,7 +413,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   BundlePtr new_data_bundle = Bundle::create();
-  for (geometry::xpbd::SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
+  for (geometry::xpbd::SimGeometrySet &sim_geometry : behaviors.sim_geometry_sets) {
     store_bundle_path(const_cast<Bundle &>(*new_data_bundle),
                       sim_geometry.path + "/Geometry",
                       *bke::node_socket_type_find_static(SOCK_GEOMETRY),

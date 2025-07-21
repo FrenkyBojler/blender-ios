@@ -93,6 +93,13 @@ class XpbdContraints {
   virtual void post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
 };
 
+struct Behaviors {
+  Vector<SimGeometrySet> sim_geometry_sets;
+  Vector<SimForce> sim_forces;
+  Vector<SimAcceleration> sim_accelerations;
+  Vector<XpbdContraints *> constraints;
+};
+
 XpbdContraints &create_constraint__edge_lengths(ResourceScope &scope,
                                                 std::string rest_length_attribute);
 
