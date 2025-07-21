@@ -330,12 +330,37 @@ class InfiniteCollisionPlaneConstraint : public ConstraintSet {
         for (const int i : range) {
           const float3 &position = positions[i];
           const float distance = math::dot(position - position_, normal_);
-          if (distance > 0.0f) {
+          if (distance >= 0.0f) {
             continue;
           }
           local_corrections.add_position_correction(geometry_i, i, normal_ * -distance);
         }
       });
+    }
+  }
+
+  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    for (const int geometry_i : sim_geometries.index_range()) {
+      SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      std::optional<bke::MutableAttributeAccessor> attributes =
+          sim_geometry.attributes_for_write();
+      if (!attributes) {
+        continue;
+      }
+      bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
+          "position");
+      threading::parallel_for(positions.span.index_range(), 512, [&](const IndexRange range) {
+        for (const int i : range) {
+          float3 &position = positions.span[i];
+          const float distance = math::dot(position - position_, normal_);
+          if (distance >= 0.0f) {
+            continue;
+          }
+          position -= normal_ * distance;
+        }
+      });
+      positions.finish();
     }
   }
 };
