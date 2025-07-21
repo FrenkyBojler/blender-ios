@@ -14,7 +14,8 @@
 
 namespace blender::nodes::node_geo_xpbd_solver_cc {
 
-constexpr StringRefNull prev_position_name = ".prev_position";
+constexpr StringRefNull prev_position_name = "prev_position";
+constexpr StringRefNull velocity_name = "velocity";
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
@@ -494,8 +495,8 @@ static void node_geo_exec(GeoNodeExecParams params)
 {
   BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
   BundlePtr behaviors_bundle = params.extract_input<BundlePtr>("Behavior");
-  const float delta_time = params.extract_input<float>("Delta Time");
-  const int substeps = params.extract_input<int>("Substeps");
+  const float delta_time = std::max(0.0f, params.extract_input<float>("Delta Time"));
+  const int substeps = std::max(0, params.extract_input<int>("Substeps"));
 
   ResourceScope scope;
   ParsedBehaviors parsed_behaviors = parse_behaviors(behaviors_bundle, scope);
@@ -527,69 +528,85 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  const int sim_steps = 1 + std::max(0, substeps);
+  const int sim_steps = 1 + substeps;
   const float sub_delta_time = delta_time / sim_steps;
   for ([[maybe_unused]] int substep : IndexRange(sim_steps)) {
+    /* Remember previous positions. */
     for (SimGeometry &sim_geometry : sim_geometries) {
       std::optional<bke::MutableAttributeAccessor> attributes =
           sim_geometry.attributes_for_write();
       if (!attributes) {
         continue;
       }
-      std::optional<bke::GeometryFieldContext> field_context;
-      sim_geometry.set_point_field_context(field_context);
-      if (!field_context) {
-        continue;
-      }
-      const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
-      Array<float3> force(positions_num, float3());
-      Array<float3> acceleration(positions_num, float3());
-      fn::FieldEvaluator field_evaluator{*field_context, positions_num};
-      for (const SimForce &sim_force : parsed_behaviors.sim_forces) {
-        field_evaluator.add(sim_force.force_field);
-      }
-      for (const SimAcceleration &sim_acceleration : parsed_behaviors.sim_accelerations) {
-        field_evaluator.add(sim_acceleration.acceleration_field);
-      }
-      field_evaluator.evaluate();
-      for (const int force_i : parsed_behaviors.sim_forces.index_range()) {
-        VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
-        for (const int i : force_varray.index_range()) {
-          force[i] += force_varray[i];
-        }
-      }
-      for (const int acceleration_i : parsed_behaviors.sim_accelerations.index_range()) {
-        VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
-            acceleration_i + parsed_behaviors.sim_forces.size());
-        for (const int i : acceleration_varray.index_range()) {
-          acceleration[i] += acceleration_varray[i];
-        }
-      }
-      const VArray<float> masses = *attributes->lookup_or_default<float>(
-          "mass", bke::AttrDomain::Point, 1.0f);
-
-      bke::SpanAttributeWriter<float3> velocities =
-          attributes->lookup_or_add_for_write_span<float3>("velocity", bke::AttrDomain::Point);
-      bke::SpanAttributeWriter<float3> positions =
-          attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
-      bke::SpanAttributeWriter<float3> old_positions =
-          attributes->lookup_or_add_for_write_span<float3>(prev_position_name,
-                                                           bke::AttrDomain::Point);
-      for (const int i : velocities.span.index_range()) {
-        velocities.span[i] += force[i] * sub_delta_time / masses[i];
-        velocities.span[i] += acceleration[i] * sub_delta_time;
-        old_positions.span[i] = positions.span[i];
-        positions.span[i] += velocities.span[i] * sub_delta_time;
-      }
-      velocities.finish();
-      positions.finish();
-      old_positions.finish();
+      const bke::AttributeReader<float3> positions = attributes->lookup<float3>("position");
+      attributes->remove(prev_position_name);
+      attributes->add<float3>(prev_position_name,
+                              AttrDomain::Point,
+                              bke::AttributeInitShared{positions.varray.get_internal_span().data(),
+                                                       *positions.sharing_info});
     }
 
+    /* Init constraints. */
     for (XpbdContraints *constraint : parsed_behaviors.constraints) {
       constraint->ensure_init(sim_geometries);
     }
 
+    /* Handle forces and accelerations. If the time step is zero, these can't have any effect. */
+    if (sub_delta_time > 0) {
+      for (SimGeometry &sim_geometry : sim_geometries) {
+        std::optional<bke::MutableAttributeAccessor> attributes =
+            sim_geometry.attributes_for_write();
+        if (!attributes) {
+          continue;
+        }
+        std::optional<bke::GeometryFieldContext> field_context;
+        sim_geometry.set_point_field_context(field_context);
+        if (!field_context) {
+          continue;
+        }
+        const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
+        Array<float3> force(positions_num, float3());
+        Array<float3> acceleration(positions_num, float3());
+        fn::FieldEvaluator field_evaluator{*field_context, positions_num};
+        for (const SimForce &sim_force : parsed_behaviors.sim_forces) {
+          field_evaluator.add(sim_force.force_field);
+        }
+        for (const SimAcceleration &sim_acceleration : parsed_behaviors.sim_accelerations) {
+          field_evaluator.add(sim_acceleration.acceleration_field);
+        }
+        field_evaluator.evaluate();
+        for (const int force_i : parsed_behaviors.sim_forces.index_range()) {
+          VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
+          for (const int i : force_varray.index_range()) {
+            force[i] += force_varray[i];
+          }
+        }
+        for (const int acceleration_i : parsed_behaviors.sim_accelerations.index_range()) {
+          VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
+              acceleration_i + parsed_behaviors.sim_forces.size());
+          for (const int i : acceleration_varray.index_range()) {
+            acceleration[i] += acceleration_varray[i];
+          }
+        }
+        const VArray<float> masses = *attributes->lookup_or_default<float>(
+            "mass", bke::AttrDomain::Point, 1.0f);
+
+        bke::SpanAttributeWriter<float3> velocities =
+            attributes->lookup_or_add_for_write_span<float3>(velocity_name,
+                                                             bke::AttrDomain::Point);
+        bke::SpanAttributeWriter<float3> positions =
+            attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
+        for (const int i : velocities.span.index_range()) {
+          velocities.span[i] += force[i] * sub_delta_time / masses[i];
+          velocities.span[i] += acceleration[i] * sub_delta_time;
+          positions.span[i] += velocities.span[i] * sub_delta_time;
+        }
+        velocities.finish();
+        positions.finish();
+      }
+    }
+
+    /* Constraint solve step. */
     XpbdConstraintCorrections corrections;
     threading::parallel_for(
         parsed_behaviors.constraints.index_range(), 1, [&](const IndexRange range) {
@@ -600,8 +617,40 @@ static void node_geo_exec(GeoNodeExecParams params)
         });
     corrections.apply(sim_geometries);
 
+    /* Apply hard constraints. */
     for (XpbdContraints *constraint : parsed_behaviors.constraints) {
       constraint->post_solve_apply(sim_geometries);
+    }
+
+    /* Write back velocities. Velocities can't be computed if the time step is zero. */
+    if (sub_delta_time > 0) {
+      for (SimGeometry &sim_geometry : sim_geometries) {
+        std::optional<bke::MutableAttributeAccessor> attributes =
+            sim_geometry.attributes_for_write();
+        if (!attributes) {
+          continue;
+        }
+        const VArraySpan<float3> prev_positions = *attributes->lookup<float3>(prev_position_name);
+        const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
+        bke::SpanAttributeWriter<float3> velocities = attributes->lookup_for_write_span<float3>(
+            velocity_name);
+        threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
+          for (const int i : range) {
+            velocities.span[i] = (positions[i] - prev_positions[i]) / sub_delta_time;
+          }
+        });
+        velocities.finish();
+      }
+    }
+
+    /* Remove temporary attributes.*/
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      std::optional<bke::MutableAttributeAccessor> attributes =
+          sim_geometry.attributes_for_write();
+      if (!attributes) {
+        continue;
+      }
+      attributes->remove(prev_position_name);
     }
   }
 
