@@ -37,7 +37,7 @@ ccl_device_inline Spectrum SpectrumRGBEToSpectrum(ccl_private const SpectrumRGBE
   Spectrum spec;
 
   if (specRGBE->e) {
-    const float f = ldexp(1.0f, specRGBE->e - (int)(128 + 8));
+    const float f = ldexpf(1.0f, specRGBE->e - (int)(128 + 8));
     spec.x = specRGBE->r * f;
     spec.y = specRGBE->g * f;
     spec.z = specRGBE->b * f;
