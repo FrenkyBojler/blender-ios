@@ -292,6 +292,7 @@ static void pen_add_single(const PenToolOperation &ptd)
 
   const int material_index = ptd.vc.obact->actcol - 1;
   material_indexes.span.last() = material_index;
+  material_indexes.finish();
 
   MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
   MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
