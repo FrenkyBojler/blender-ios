@@ -207,7 +207,6 @@ class EdgeLengthConstraint : public XpbdContraints {
   void solve(const Span<SimGeometry> sim_geometries,
              XpbdConstraintCorrections &corrections) override
   {
-    LocalXpbdConstraintCorrections &local_corrections = corrections.local();
     for (const int geometry_i : sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = sim_geometries[geometry_i];
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -229,6 +228,7 @@ class EdgeLengthConstraint : public XpbdContraints {
         continue;
       }
       threading::parallel_for(IndexRange(mesh.edges_num), 512, [&](const IndexRange range) {
+        LocalXpbdConstraintCorrections &local_corrections = corrections.local();
         for (const int edge_i : range) {
           const int2 edge = edges[edge_i];
           const int i0 = edge[0];
@@ -255,10 +255,12 @@ class EdgeLengthConstraint : public XpbdContraints {
 class FixedPositionsConstraint : public XpbdContraints {
  private:
   Field<bool> selection_field_;
+  Field<float3> fixed_positions_field_;
 
  public:
-  FixedPositionsConstraint(Field<bool> selection_field)
-      : selection_field_(std::move(selection_field))
+  FixedPositionsConstraint(Field<bool> selection_field, Field<float3> fixed_positions_field)
+      : selection_field_(std::move(selection_field)),
+        fixed_positions_field_(std::move(fixed_positions_field))
   {
   }
 
@@ -272,23 +274,21 @@ class FixedPositionsConstraint : public XpbdContraints {
       }
       fn::FieldEvaluator field_evaluator{*field_context, points_num};
       field_evaluator.set_selection(selection_field_);
+      field_evaluator.add(fixed_positions_field_);
       field_evaluator.evaluate();
       const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
       if (selection.is_empty()) {
         continue;
       }
+      const VArraySpan<float3> fixed_positions_span = field_evaluator.get_evaluated<float3>(0);
       std::optional<bke::MutableAttributeAccessor> attributes =
           sim_geometry.attributes_for_write();
       if (!attributes) {
         continue;
       }
-      const bke::AttributeReader<float3> prev_positions = attributes->lookup<float3>(
-          prev_position_name, AttrDomain::Point);
-      BLI_assert(prev_positions);
-      const VArraySpan<float3> prev_positions_span = *prev_positions;
       bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
           "position");
-      selection.foreach_index([&](const int i) { positions.span[i] = prev_positions_span[i]; });
+      selection.foreach_index([&](const int i) { positions.span[i] = fixed_positions_span[i]; });
       positions.finish();
     }
   }
@@ -474,16 +474,22 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           return;
         }
         if (type == "Fixed Position Constraint") {
-          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+          std::optional<Bundle::Item> selection_item = behavior_bundle.lookup(
               SocketInterfaceKey{"Selection"});
-          if (!item) {
+          std::optional<Bundle::Item> positions_item = behavior_bundle.lookup(
+              SocketInterfaceKey{"Position"});
+          if (!selection_item || !positions_item) {
             return;
           }
-          if (item->type->type != SOCK_BOOLEAN) {
+          if (selection_item->type->type != SOCK_BOOLEAN ||
+              positions_item->type->type != SOCK_VECTOR) {
             return;
           }
           parsed_behaviors.constraints.append(&scope.construct<FixedPositionsConstraint>(
-              static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<bool>>()));
+              static_cast<const bke::SocketValueVariant *>(selection_item->value)
+                  ->get<Field<bool>>(),
+              static_cast<const bke::SocketValueVariant *>(positions_item->value)
+                  ->get<Field<float3>>()));
           return;
         }
       });
