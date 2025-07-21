@@ -227,7 +227,9 @@ TEST(path_templates, validate_and_apply_template)
   {
     variables.add_string("hi", "hello");
     variables.add_string("bye", "goodbye");
+    variables.add_string("has_slash", "/and/or\\nor/");
     variables.add_string("long", "This string is exactly 32 bytes.");
+    variables.add_filepath("path", "/and/or\\nor/");
     variables.add_integer("the_answer", 42);
     variables.add_integer("prime", 7);
     variables.add_integer("i_negative", -7);
@@ -243,10 +245,11 @@ TEST(path_templates, validate_and_apply_template)
   const Vector<PathTemplateTestCase> test_cases = {
       /* Simple case, testing all variables. */
       {
-          "{hi}_{bye}_{the_answer}_{prime}_{i_negative}_{pi}_{e}_{ntsc}_{two}_{f_negative}_{huge}_"
-          "{tiny}",
-          "hello_goodbye_42_7_-7_3.141592653589793_2.718281828459045_29.970029970029973_2.0_-3."
-          "141592653589793_2e+32_2e-33",
+          "{hi}_{bye}_{has_slash}_{path}_{the_answer}_{prime}_{i_negative}_{pi}_{e}_{ntsc}_{two}_"
+          "{f_negative}_{huge}_{tiny}",
+          "hello_goodbye__and_or_nor__/and/or\\nor/"
+          "_42_7_-7_3.141592653589793_2.718281828459045_29.970029970029973_2.0_-3.141592653589793_"
+          "2e+32_2e-33",
           {},
       },
 

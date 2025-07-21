@@ -6,6 +6,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BLI_math_base.hh"
 #include "BLI_span.hh"
 
 #include "BKE_context.hh"
@@ -333,7 +334,7 @@ void BKE_add_template_variables_for_node(blender::bke::path_templates::VariableM
 
 /* -------------------------------------------------------------------- */
 
-#define FORMAT_BUFFER_SIZE 128
+#define FORMAT_BUFFER_SIZE 512
 
 namespace {
 
@@ -572,6 +573,27 @@ static int format_float_to_string(const FormatSpecifier &format,
           false,
           "Format specifiers with invalid syntax should have been rejected before getting here.");
       break;
+    }
+  }
+
+  return output_length;
+}
+
+/**
+ * TODO: documentation.
+ *
+ * \return length of the produced string. Zero indicates an error
+ */
+static int escape_string_for_path(const blender::StringRefNull string_value,
+                                  char r_output_string[FORMAT_BUFFER_SIZE])
+{
+  BLI_strncpy(r_output_string, string_value.c_str(), FORMAT_BUFFER_SIZE);
+
+  const int output_length = blender::math::min(string_value.size(),
+                                               int64_t(FORMAT_BUFFER_SIZE - 1));
+  for (int i = 0; i < output_length; i++) {
+    if (r_output_string[i] == '/' || r_output_string[i] == '\\') {
+      r_output_string[i] = '_';
     }
   }
 
@@ -886,14 +908,24 @@ static blender::Vector<Error> eval_template(char *out_path,
         if (std::optional<blender::StringRefNull> string_value = template_variables.get_string(
                 token.variable_name))
         {
-          /* String variable found, but we only process it if there's no format
-           * specifier: string variables do not support format specifiers. */
           if (token.format.type != FormatSpecifierType::NONE) {
             /* String variables don't take format specifiers: error. */
             errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
-          STRNCPY(replacement_string, string_value->c_str());
+          escape_string_for_path(*string_value, replacement_string);
+          break;
+        }
+
+        if (std::optional<blender::StringRefNull> path_value = template_variables.get_filepath(
+                token.variable_name))
+        {
+          if (token.format.type != FormatSpecifierType::NONE) {
+            /* Path variables don't take format specifiers: error. */
+            errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
+            continue;
+          }
+          STRNCPY(replacement_string, path_value->c_str());
           break;
         }
 
