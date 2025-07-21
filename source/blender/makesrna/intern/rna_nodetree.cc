@@ -1053,6 +1053,7 @@ static bool rna_NodeTree_valid_socket_type(blender::bke::bNodeTreeType *ntreetyp
   RNA_parameter_list_begin(&list, &iter);
   BLI_assert(iter.valid);
   const int expected_size = iter.size;
+  RNA_parameter_list_end(&iter);
   BLI_assert(expected_size >= socket_type->idname.size() + 1);
 
   blender::LinearAllocator<> allocator;
