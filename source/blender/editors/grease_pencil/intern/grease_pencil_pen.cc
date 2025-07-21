@@ -236,12 +236,16 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
 
   Span<float3> src_positions = src.positions();
   MutableSpan<float3> dst_positions = dst.positions_for_write();
+  MutableSpan<int8_t> handle_types_left = dst.handle_types_left_for_write();
+  MutableSpan<int8_t> handle_types_right = dst.handle_types_right_for_write();
   for (const int i : dst_selected.index_range()) {
     if (!dst_selected[i]) {
       continue;
     }
     const float3 depth_point = src_positions[dst_to_src_points[i]];
     dst_positions[i] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+    handle_types_left[i] = ptd.extrude_handle;
+    handle_types_right[i] = ptd.extrude_handle;
   }
 
   dst.update_curve_types();
