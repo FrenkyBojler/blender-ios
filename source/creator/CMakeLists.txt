@@ -1832,7 +1832,7 @@ install(
 # -----------------------------------------------------------------------------
 # Bundle assets
 
-set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/assets/)
+set(ASSET_BUNDLE_DIR ${CMAKE_SOURCE_DIR}/assets/publish/)
 
 if(EXISTS "${ASSET_BUNDLE_DIR}")
   install(
