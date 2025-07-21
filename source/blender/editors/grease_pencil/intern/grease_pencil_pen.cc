@@ -417,35 +417,37 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     const int curve_index = point_to_curve_map[closest_point];
     const IndexRange points = points_by_curve[curve_index];
 
-    bke::SpanAttributeWriter<bool> selection =
-        curves.attributes_for_write().lookup_or_add_for_write_span<bool>(
-            ".selection",
-            bke::AttrDomain::Point,
-            bke::AttributeInitVArray(VArray<bool>::from_single(true, curves.points_num())));
+    for (const StringRef selection_attribute_name :
+         ed::curves::get_curves_selection_attribute_names(curves))
+    {
+      bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+          curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+      MutableSpan<bool> selection = selection_writer.span.typed<bool>();
 
-    if (ptd.close_spline) {
-      if (closest_point == points.first() && selection.span[points.last()]) {
-        curves.cyclic_for_write()[curve_index] = true;
-        info.drawing.tag_topology_changed();
+      if (ptd.close_spline) {
+        if (closest_point == points.first() && selection[points.last()]) {
+          curves.cyclic_for_write()[curve_index] = true;
+          info.drawing.tag_topology_changed();
+          add_single.store(false, std::memory_order_relaxed);
+        }
+        if (closest_point == points.last() && selection[points.first()]) {
+          curves.cyclic_for_write()[curve_index] = true;
+          info.drawing.tag_topology_changed();
+          add_single.store(false, std::memory_order_relaxed);
+        }
+      }
+
+      if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
+        selection.fill(false);
+      }
+
+      if (ptd.select_point) {
+        selection[closest_point] = true;
         add_single.store(false, std::memory_order_relaxed);
       }
-      if (closest_point == points.last() && selection.span[points.first()]) {
-        curves.cyclic_for_write()[curve_index] = true;
-        info.drawing.tag_topology_changed();
-        add_single.store(false, std::memory_order_relaxed);
-      }
-    }
 
-    if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
-      selection.span.fill(false);
+      selection_writer.finish();
     }
-
-    if (ptd.select_point) {
-      selection.span[closest_point] = true;
-      add_single.store(false, std::memory_order_relaxed);
-    }
-
-    selection.finish();
 
     if (ptd.delete_point) {
       curves.remove_points(IndexRange::from_single(closest_point), {});
