@@ -91,9 +91,22 @@ namespace blender::bke::path_templates {
  * transient for collecting data that is relevant/available in a given
  * templating context.
  *
- * There are currently three supported variable types: string, integer, and
- * float. Names must be unique across all types: you can't have a string *and*
+ * There are currently four supported variable types:
+ *
+ * - String
+ * - Filepath
+ * - Integer
+ * - Float
+ *
+ * Names must be unique across all variable types: you can't have a string *and*
  * integer both with the name "bob".
+ *
+ * A filepath variable can contain either a full or partial filepath. The
+ * distinction between string and filepath variables exists because non-path
+ * strings may include phrases like "and/or" which shouldn't be interpreted as
+ * two path components. When used in path templating, path-separator characters
+ * in string variables are therefore escaped, but are left as-is in filepath
+ * variables.
  */
 class VariableMap {
   blender::Map<std::string, std::string> strings_;
