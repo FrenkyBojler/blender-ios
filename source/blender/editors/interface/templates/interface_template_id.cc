@@ -1122,7 +1122,7 @@ static void template_ID(const bContext *C,
         const bool disabled = !BKE_idtype_idcode_is_localizable(GS(id->name));
         if (ID_IS_PACKED(id)) {
           but = uiDefIconBut(block,
-                             UI_BTYPE_BUT,
+                             ButType::But,
                              0,
                              ICON_PACKAGE,
                              0,
