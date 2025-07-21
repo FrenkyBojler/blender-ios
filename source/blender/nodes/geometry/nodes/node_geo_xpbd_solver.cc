@@ -14,6 +14,8 @@
 
 namespace blender::nodes::node_geo_xpbd_solver_cc {
 
+constexpr StringRefNull prev_position_name = ".prev_position";
+
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
@@ -62,6 +64,20 @@ struct SimGeometry {
   std::string path;
   std::variant<Mesh *, PointCloud *, Curves *> data;
 
+  std::optional<bke::AttributeAccessor> attributes() const
+  {
+    if (const Mesh *const *mesh = std::get_if<Mesh *>(&data)) {
+      return (*mesh)->attributes();
+    }
+    if (const PointCloud *const *pointcloud = std::get_if<PointCloud *>(&data)) {
+      return (*pointcloud)->attributes();
+    }
+    if (const Curves *const *curves = std::get_if<Curves *>(&data)) {
+      return (*curves)->geometry.wrap().attributes();
+    }
+    return std::nullopt;
+  }
+
   std::optional<bke::MutableAttributeAccessor> attributes_for_write()
   {
     if (Mesh **mesh = std::get_if<Mesh *>(&data)) {
@@ -74,6 +90,23 @@ struct SimGeometry {
       return (*curves)->geometry.wrap().attributes_for_write();
     }
     return std::nullopt;
+  }
+
+  int set_point_field_context(std::optional<bke::GeometryFieldContext> &r_context) const
+  {
+    if (const Mesh *const *mesh = std::get_if<Mesh *>(&data)) {
+      r_context.emplace(**mesh, bke::AttrDomain::Point);
+      return (*mesh)->verts_num;
+    }
+    if (const PointCloud *const *pointcloud = std::get_if<PointCloud *>(&data)) {
+      r_context.emplace(**pointcloud, bke::AttrDomain::Point);
+      return (*pointcloud)->totpoint;
+    }
+    if (const Curves *const *curves = std::get_if<Curves *>(&data)) {
+      r_context.emplace(**curves, bke::AttrDomain::Point);
+      return (*curves)->geometry.curve_num;
+    }
+    return 0;
   }
 };
 
@@ -122,8 +155,11 @@ class XpbdConstraintCorrections {
 class XpbdContraints {
  public:
   virtual void ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
-  virtual void solve(const Span<SimGeometry> sim_geometries,
-                     XpbdConstraintCorrections &corrections) = 0;
+  virtual void solve(const Span<SimGeometry> /*sim_geometries*/,
+                     XpbdConstraintCorrections & /*corrections*/)
+  {
+  }
+  virtual void post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
 };
 
 class EdgeLengthConstraint : public XpbdContraints {
@@ -211,6 +247,48 @@ class EdgeLengthConstraint : public XpbdContraints {
           local_corrections.add_position_correction(geometry_i, i1, correction1);
         }
       });
+    }
+  }
+};
+
+class FixedPositionsConstraint : public XpbdContraints {
+ private:
+  Field<bool> selection_field_;
+
+ public:
+  FixedPositionsConstraint(Field<bool> selection_field)
+      : selection_field_(std::move(selection_field))
+  {
+  }
+
+  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      std::optional<bke::GeometryFieldContext> field_context;
+      const int points_num = sim_geometry.set_point_field_context(field_context);
+      if (!field_context) {
+        continue;
+      }
+      fn::FieldEvaluator field_evaluator{*field_context, points_num};
+      field_evaluator.set_selection(selection_field_);
+      field_evaluator.evaluate();
+      const IndexMask selection = field_evaluator.get_evaluated_selection_as_mask();
+      if (selection.is_empty()) {
+        continue;
+      }
+      std::optional<bke::MutableAttributeAccessor> attributes =
+          sim_geometry.attributes_for_write();
+      if (!attributes) {
+        continue;
+      }
+      const bke::AttributeReader<float3> prev_positions = attributes->lookup<float3>(
+          prev_position_name, AttrDomain::Point);
+      BLI_assert(prev_positions);
+      const VArraySpan<float3> prev_positions_span = *prev_positions;
+      bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
+          "position");
+      selection.foreach_index([&](const int i) { positions.span[i] = prev_positions_span[i]; });
+      positions.finish();
     }
   }
 };
@@ -394,6 +472,19 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
               &scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute), "mass"));
           return;
         }
+        if (type == "Fixed Position Constraint") {
+          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+              SocketInterfaceKey{"Selection"});
+          if (!item) {
+            return;
+          }
+          if (item->type->type != SOCK_BOOLEAN) {
+            return;
+          }
+          parsed_behaviors.constraints.append(&scope.construct<FixedPositionsConstraint>(
+              static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<bool>>()));
+          return;
+        }
       });
 
   return parsed_behaviors;
@@ -446,15 +537,7 @@ static void node_geo_exec(GeoNodeExecParams params)
         continue;
       }
       std::optional<bke::GeometryFieldContext> field_context;
-      if (Mesh **mesh = std::get_if<Mesh *>(&sim_geometry.data)) {
-        field_context.emplace(**mesh, bke::AttrDomain::Point);
-      }
-      if (PointCloud **pointcloud = std::get_if<PointCloud *>(&sim_geometry.data)) {
-        field_context.emplace(**pointcloud, bke::AttrDomain::Point);
-      }
-      if (Curves **curves = std::get_if<Curves *>(&sim_geometry.data)) {
-        field_context.emplace(**curves, bke::AttrDomain::Point);
-      }
+      sim_geometry.set_point_field_context(field_context);
       if (!field_context) {
         continue;
       }
@@ -490,7 +573,8 @@ static void node_geo_exec(GeoNodeExecParams params)
       bke::SpanAttributeWriter<float3> positions =
           attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
       bke::SpanAttributeWriter<float3> old_positions =
-          attributes->lookup_or_add_for_write_span<float3>("old_position", bke::AttrDomain::Point);
+          attributes->lookup_or_add_for_write_span<float3>(prev_position_name,
+                                                           bke::AttrDomain::Point);
       for (const int i : velocities.span.index_range()) {
         velocities.span[i] += force[i] * sub_delta_time / masses[i];
         velocities.span[i] += acceleration[i] * sub_delta_time;
@@ -515,6 +599,10 @@ static void node_geo_exec(GeoNodeExecParams params)
           }
         });
     corrections.apply(sim_geometries);
+
+    for (XpbdContraints *constraint : parsed_behaviors.constraints) {
+      constraint->post_solve_apply(sim_geometries);
+    }
   }
 
   BundlePtr new_data_bundle = Bundle::create();
