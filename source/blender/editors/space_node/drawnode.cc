@@ -1048,9 +1048,9 @@ static void node_file_output_socket_draw(bContext *C,
     RNA_property_enum_name(
         C, &imfptr, imtype_prop, RNA_property_enum_get(&imfptr, imtype_prop), &imtype_name);
     block = row->block();
-    UI_block_emboss_set(block, blender::ui::EmbossType::Pulldown);
+    UI_block_emboss_set(block, ui::EmbossType::Pulldown);
     row->label(imtype_name, ICON_NONE);
-    UI_block_emboss_set(block, blender::ui::EmbossType::None);
+    UI_block_emboss_set(block, ui::EmbossType::None);
   }
 }
 
@@ -1097,7 +1097,7 @@ static void draw_node_socket_name_editable(uiLayout *layout,
 {
   if (sock->runtime->declaration) {
     if (sock->runtime->declaration->socket_name_rna) {
-      layout->emboss_set(blender::ui::EmbossType::None);
+      layout->emboss_set(ui::EmbossType::None);
       layout->prop((&sock->runtime->declaration->socket_name_rna->owner),
                    sock->runtime->declaration->socket_name_rna->property_name,
                    UI_ITEM_NONE,
@@ -1166,7 +1166,7 @@ static void std_node_socket_draw(
   if (has_gizmo) {
     if (sock->in_out == SOCK_OUT && node->is_group_input()) {
       uiLayout *row = &layout->row(false);
-      row->alignment_set(blender::ui::LayoutAlign::Right);
+      row->alignment_set(ui::LayoutAlign::Right);
       node_socket_button_label(C, row, ptr, node_ptr, text);
       row->label("", ICON_GIZMO);
       return;
@@ -1471,7 +1471,7 @@ static void std_node_socket_interface_draw(ID *id,
     sub->active_set(!is_layer_selection_field(*interface_socket));
     sub->prop(&ptr, "hide_in_modifier", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
     if (nodes::socket_type_supports_fields(type) || nodes::socket_type_supports_grids(type)) {
-      sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, std::nullopt, ICON_NONE);
+      sub->prop(&ptr, "structure_type", DEFAULT_FLAGS, "Shape", ICON_NONE);
     }
   }
 }

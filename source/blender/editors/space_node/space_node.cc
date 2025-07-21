@@ -897,7 +897,7 @@ Vector<nodes::BundleSignature> gather_linked_target_bundle_signatures(
   Vector<nodes::BundleSignature> signatures;
   for (const nodes::SocketInContext &target_socket : target_sockets) {
     const nodes::NodeInContext &target_node = target_socket.owner_node();
-    signatures.append(nodes::BundleSignature::FromSeparateBundleNode(*target_node.node));
+    signatures.append(nodes::BundleSignature::from_separate_bundle_node(*target_node.node));
   }
   return signatures;
 }
@@ -915,7 +915,7 @@ Vector<nodes::BundleSignature> gather_linked_origin_bundle_signatures(
   Vector<nodes::BundleSignature> signatures;
   for (const nodes::SocketInContext &origin_socket : origin_sockets) {
     const nodes::NodeInContext &origin_node = origin_socket.owner_node();
-    signatures.append(nodes::BundleSignature::FromCombineBundleNode(*origin_node.node));
+    signatures.append(nodes::BundleSignature::from_combine_bundle_node(*origin_node.node));
   }
   return signatures;
 }
@@ -933,7 +933,7 @@ Vector<nodes::ClosureSignature> gather_linked_target_closure_signatures(
   Vector<nodes::ClosureSignature> signatures;
   for (const nodes::SocketInContext &target_socket : target_sockets) {
     const nodes::NodeInContext &target_node = target_socket.owner_node();
-    signatures.append(nodes::ClosureSignature::FromEvaluateClosureNode(*target_node.node));
+    signatures.append(nodes::ClosureSignature::from_evaluate_closure_node(*target_node.node));
   }
   return signatures;
 }
@@ -951,7 +951,7 @@ Vector<nodes::ClosureSignature> gather_linked_origin_closure_signatures(
   Vector<nodes::ClosureSignature> signatures;
   for (const nodes::SocketInContext &origin_socket : origin_sockets) {
     const nodes::NodeInContext &origin_node = origin_socket.owner_node();
-    signatures.append(nodes::ClosureSignature::FromClosureOutputNode(*origin_node.node));
+    signatures.append(nodes::ClosureSignature::from_closure_output_node(*origin_node.node));
   }
   return signatures;
 }
