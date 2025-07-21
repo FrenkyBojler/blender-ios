@@ -87,6 +87,8 @@ struct Behaviors {
   Vector<ConstraintSet *> constraint_sets;
 };
 
+void solve(Behaviors &behaviors, float delta_time, int substeps);
+
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
                                                std::string rest_length_attribute);
 
