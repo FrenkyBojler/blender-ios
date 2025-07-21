@@ -203,6 +203,16 @@ class PREFERENCES_OT_keyconfig_test(Operator):
         return {'FINISHED'}
 
 
+def _is_path_readonly(path):
+    from bpy.utils import (
+        is_path_builtin,
+        is_path_extension,
+    )
+    # This is to determine whether the path points to a built-in preset file,
+    # in which case we do not want to overwrite it.
+    return is_path_builtin(path) or is_path_extension(path)
+
+
 class PREFERENCES_OT_keyconfig_import(Operator):
     """Import key configuration from a Python script"""
     bl_idname = "preferences.keyconfig_import"
@@ -236,6 +246,7 @@ class PREFERENCES_OT_keyconfig_import(Operator):
     def execute(self, _context):
         import os
         from os.path import basename
+        from pathlib import Path
         import shutil
 
         if not self.filepath:
@@ -249,7 +260,14 @@ class PREFERENCES_OT_keyconfig_import(Operator):
             path=os.path.join("presets", "keyconfig"),
             create=True,
         )
-        path = os.path.join(path, config_name)
+
+        use_name = config_name
+        preset_path = bpy.utils.preset_find(Path(config_name).stem, "keyconfig", ext=".py")
+
+        if preset_path is not None and _is_path_readonly(preset_path):
+            use_name = Path(config_name).stem + " (Copy).py"
+        
+        path = os.path.join(path, use_name)
 
         try:
             if self.keep_original:
