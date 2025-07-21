@@ -334,12 +334,12 @@ static void pen_add_single(const PenToolOperation &ptd)
                                                                          "handle_right",
                                                                          "handle_type_left",
                                                                          "handle_type_right"}),
-                                    curves.curves_range().take_front(1));
+                                    curves.curves_range().take_back(1));
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Curve,
       bke::attribute_filter_from_skip_ref({"curve_type", "material_index", "cyclic", "softness"}),
-      curves.curves_range().take_front(1));
+      curves.curves_range().take_back(1));
 
   drawing->tag_topology_changed();
 }
