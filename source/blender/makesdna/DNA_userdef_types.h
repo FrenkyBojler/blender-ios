@@ -596,6 +596,8 @@ typedef struct UserDef {
 
   char render_display_type;      /* eUserpref_RenderDisplayType */
   char filebrowser_display_type; /* eUserpref_TempSpaceDisplayType */
+  char preferences_display_type; /* eUserpref_TempSpaceDisplayType */
+  char _pad18[3];
 
   short sequencer_proxy_setup; /* eUserpref_SeqProxySetup */
   short _pad1;
@@ -606,6 +608,8 @@ typedef struct UserDef {
 
   char file_preview_type; /* eUserpref_File_Preview_Type */
   char statusbar_flag;    /* eUserpref_StatusBar_Flag */
+
+  int _pad19;
 
   struct WalkNavigation walk_navigation;
 
