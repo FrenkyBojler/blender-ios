@@ -317,15 +317,20 @@ static void pen_add_single(const PenToolOperation &ptd)
   }
 
   /* Initialize the rest of the attributes with default values. */
-  bke::fill_attribute_range_default(
-      attributes,
-      bke::AttrDomain::Point,
-      bke::attribute_filter_from_skip_ref({"position", "opacity", "radius"}),
-      curves.curves_range().take_front(1));
+  bke::fill_attribute_range_default(attributes,
+                                    bke::AttrDomain::Point,
+                                    bke::attribute_filter_from_skip_ref({"position",
+                                                                         "opacity",
+                                                                         "radius",
+                                                                         "handle_left",
+                                                                         "handle_right",
+                                                                         "handle_type_left",
+                                                                         "handle_type_right"}),
+                                    curves.curves_range().take_front(1));
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Curve,
-      bke::attribute_filter_from_skip_ref({"curve_type", "material_index"}),
+      bke::attribute_filter_from_skip_ref({"curve_type", "material_index", "cyclic"}),
       curves.curves_range().take_front(1));
 
   drawing->tag_topology_changed();
