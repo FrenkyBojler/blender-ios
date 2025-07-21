@@ -309,7 +309,7 @@ class FILEBROWSER_PT_bookmarks_favorites(FileBrowserPanel, Panel):
             col = row.column(align=True)
             col.operator("file.bookmark_add", icon='ADD', text="")
             col.operator("file.bookmark_delete", icon='REMOVE', text="")
-            
+
             col.separator()
             col.menu("FILEBROWSER_MT_bookmarks_context_menu", icon='DOWNARROW_HLT', text="")
 
