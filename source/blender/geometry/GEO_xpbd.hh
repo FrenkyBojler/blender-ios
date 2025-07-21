@@ -109,6 +109,9 @@ ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                   fn::Field<bool> selection_field,
                                                   fn::Field<float3> fixed_positions_field);
+ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
+                                                           const float3 &position,
+                                                           const float3 &normal);
 
 inline void LocalConstraintCorrections::add_position_correction(const int geometry_i,
                                                                 const int position_i,

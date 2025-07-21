@@ -122,7 +122,7 @@ void ConstraintCorrections::apply()
                     continue;
                   }
                   const int3 offset_quantized = correction.offset;
-                  const float factor = 0.8f / (quantize_scale * float(correction.num_corrections));
+                  const float factor = 1.0f / (quantize_scale * float(correction.num_corrections));
                   const float3 offset = float3(offset_quantized) * factor;
                   float3 &position = positions.span[point_i];
                   position += offset;
@@ -272,6 +272,41 @@ class FixedPositionsConstraint : public ConstraintSet {
   }
 };
 
+class InfiniteCollisionPlaneConstraint : public ConstraintSet {
+ private:
+  float3 position_;
+  float3 normal_;
+
+ public:
+  InfiniteCollisionPlaneConstraint(const float3 &position, const float3 &normal)
+      : position_(position), normal_(math::normalize(normal))
+  {
+  }
+
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    for (const int geometry_i : params.sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
+      if (!attributes) {
+        continue;
+      }
+      const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
+      threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
+        LocalConstraintCorrections &local_corrections = params.corrections.local();
+        for (const int i : range) {
+          const float3 &position = positions[i];
+          const float distance = math::dot(position - position_, normal_);
+          if (distance > 0.0f) {
+            continue;
+          }
+          local_corrections.add_position_correction(geometry_i, i, normal_ * -distance);
+        }
+      });
+    }
+  }
+};
+
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
                                                std::string rest_length_attribute,
                                                const float compliance)
@@ -285,6 +320,13 @@ ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
 {
   return scope.construct<FixedPositionsConstraint>(std::move(selection_field),
                                                    std::move(fixed_positions_field));
+}
+
+ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
+                                                           const float3 &position,
+                                                           const float3 &normal)
+{
+  return scope.construct<InfiniteCollisionPlaneConstraint>(position, normal);
 }
 
 void solve(Behaviors &behaviors, const float total_delta_time, const int substeps)

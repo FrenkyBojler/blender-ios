@@ -240,6 +240,19 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
               scope, *selection_field, *positions_field));
           return;
         }
+        if (type == "Infinite Collision Plane") {
+          std::optional<float3> position = get_from_bundle__value_variant<float3>(behavior_bundle,
+                                                                                  "Position");
+          std::optional<float3> normal = get_from_bundle__value_variant<float3>(behavior_bundle,
+                                                                                "Normal");
+          if (!position || !normal) {
+            return;
+          }
+          behaviors.constraint_sets.append(
+              &geometry::xpbd::create_constraint__infinite_collision_plane(
+                  scope, *position, *normal));
+          return;
+        }
       });
 
   return behaviors;
