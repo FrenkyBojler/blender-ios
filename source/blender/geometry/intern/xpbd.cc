@@ -10,6 +10,14 @@
 
 namespace blender::geometry::xpbd {
 
+SimGeometry::SimGeometry(const SimGeometrySet &src, GeometryVariant data)
+    : data(data),
+      path(src.path),
+      mass_attribute(src.mass_attribute),
+      velocity_attribute(src.velocity_attribute)
+{
+}
+
 std::optional<bke::AttributeAccessor> SimGeometry::attributes() const
 {
   if (const Mesh *const *mesh = std::get_if<Mesh *>(&data)) {
@@ -55,11 +63,30 @@ int SimGeometry::set_point_field_context(std::optional<bke::GeometryFieldContext
   return 0;
 }
 
-void XpbdConstraintCorrections::apply(MutableSpan<SimGeometry> sim_geometries)
+void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
+
+void ConstraintSet::solve(const Span<SimGeometry> /*sim_geometries*/,
+                          ConstraintCorrections & /*corrections*/)
 {
-  Vector<bke::SpanAttributeWriter<float3>> position_attributes(sim_geometries.size());
-  for (const int geometry_i : sim_geometries.index_range()) {
-    SimGeometry &sim_geometry = sim_geometries[geometry_i];
+}
+
+void ConstraintSet::post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
+
+LocalConstraintCorrections &ConstraintCorrections::local()
+{
+  return local_corrections_.local();
+}
+
+ConstraintCorrections::ConstraintCorrections(MutableSpan<SimGeometry> sim_geometries)
+    : sim_geometries_(sim_geometries)
+{
+}
+
+void ConstraintCorrections::apply()
+{
+  Vector<bke::SpanAttributeWriter<float3>> position_attributes(sim_geometries_.size());
+  for (const int geometry_i : sim_geometries_.index_range()) {
+    SimGeometry &sim_geometry = sim_geometries_[geometry_i];
     std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
     if (!attributes) {
       continue;
@@ -67,12 +94,12 @@ void XpbdConstraintCorrections::apply(MutableSpan<SimGeometry> sim_geometries)
     position_attributes[geometry_i] = attributes->lookup_for_write_span<float3>("position");
   }
   Map<std::pair<int, int>, int> num_corrections_map;
-  for (LocalXpbdConstraintCorrections &local_corrections : local_corrections_) {
+  for (LocalConstraintCorrections &local_corrections : local_corrections_) {
     for (const PositionCorrection &correction : local_corrections.position_corrections_) {
       num_corrections_map.lookup_or_add({correction.geometry_i, correction.position_i}, 0) += 1;
     }
   }
-  for (LocalXpbdConstraintCorrections &local_corrections : local_corrections_) {
+  for (LocalConstraintCorrections &local_corrections : local_corrections_) {
     for (const PositionCorrection &correction : local_corrections.position_corrections_) {
       const int num_corrections = num_corrections_map.lookup(
           {correction.geometry_i, correction.position_i});
@@ -85,7 +112,7 @@ void XpbdConstraintCorrections::apply(MutableSpan<SimGeometry> sim_geometries)
   }
 }
 
-class EdgeLengthConstraint : public XpbdContraints {
+class EdgeLengthConstraint : public ConstraintSet {
  private:
   std::string rest_length_attribute_;
 
@@ -124,8 +151,7 @@ class EdgeLengthConstraint : public XpbdContraints {
     }
   }
 
-  void solve(const Span<SimGeometry> sim_geometries,
-             XpbdConstraintCorrections &corrections) override
+  void solve(const Span<SimGeometry> sim_geometries, ConstraintCorrections &corrections) override
   {
     for (const int geometry_i : sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = sim_geometries[geometry_i];
@@ -148,7 +174,7 @@ class EdgeLengthConstraint : public XpbdContraints {
         continue;
       }
       threading::parallel_for(IndexRange(mesh.edges_num), 512, [&](const IndexRange range) {
-        LocalXpbdConstraintCorrections &local_corrections = corrections.local();
+        LocalConstraintCorrections &local_corrections = corrections.local();
         for (const int edge_i : range) {
           const int2 edge = edges[edge_i];
           const int i0 = edge[0];
@@ -172,7 +198,7 @@ class EdgeLengthConstraint : public XpbdContraints {
   }
 };
 
-class FixedPositionsConstraint : public XpbdContraints {
+class FixedPositionsConstraint : public ConstraintSet {
  private:
   fn::Field<bool> selection_field_;
   fn::Field<float3> fixed_positions_field_;
@@ -215,15 +241,15 @@ class FixedPositionsConstraint : public XpbdContraints {
   }
 };
 
-XpbdContraints &create_constraint__edge_lengths(ResourceScope &scope,
-                                                std::string rest_length_attribute)
+ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
+                                               std::string rest_length_attribute)
 {
   return scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute));
 }
 
-XpbdContraints &create_constraint__fixed_positions(ResourceScope &scope,
-                                                   fn::Field<bool> selection_field,
-                                                   fn::Field<float3> fixed_positions_field)
+ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
+                                                  fn::Field<bool> selection_field,
+                                                  fn::Field<float3> fixed_positions_field)
 {
   return scope.construct<FixedPositionsConstraint>(std::move(selection_field),
                                                    std::move(fixed_positions_field));

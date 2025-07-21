@@ -20,24 +20,22 @@ struct PositionCorrection {
   float3 correction;
 };
 
-class LocalXpbdConstraintCorrections {
+class LocalConstraintCorrections {
  public:
   Vector<PositionCorrection> position_corrections_;
 
-  void add_position_correction(const int geometry_i,
-                               const int position_i,
-                               const float3 &correction)
+  void add_position_correction(const int geometry_i, const int position_i, const float3 &gradient)
   {
-    position_corrections_.append({geometry_i, position_i, correction});
+    position_corrections_.append({geometry_i, position_i, gradient});
   }
 };
 
-class SimForce {
+class ForceField {
  public:
   fn::Field<float3> force_field;
 };
 
-class SimAcceleration {
+class AccelerationField {
  public:
   fn::Field<float3> acceleration_field;
 };
@@ -56,13 +54,7 @@ struct SimGeometry {
   std::string mass_attribute;
   std::string velocity_attribute;
 
-  SimGeometry(const SimGeometrySet &src, GeometryVariant data)
-      : data(data),
-        path(src.path),
-        mass_attribute(src.mass_attribute),
-        velocity_attribute(src.velocity_attribute)
-  {
-  }
+  SimGeometry(const SimGeometrySet &src, GeometryVariant data);
 
   std::optional<bke::AttributeAccessor> attributes() const;
   std::optional<bke::MutableAttributeAccessor> attributes_for_write();
@@ -70,41 +62,36 @@ struct SimGeometry {
   int set_point_field_context(std::optional<bke::GeometryFieldContext> &r_context) const;
 };
 
-class XpbdConstraintCorrections {
+class ConstraintCorrections {
  private:
-  threading::EnumerableThreadSpecific<LocalXpbdConstraintCorrections> local_corrections_;
+  MutableSpan<SimGeometry> sim_geometries_;
+  threading::EnumerableThreadSpecific<LocalConstraintCorrections> local_corrections_;
 
  public:
-  LocalXpbdConstraintCorrections &local()
-  {
-    return local_corrections_.local();
-  }
-
-  void apply(MutableSpan<SimGeometry> sim_geometries);
+  ConstraintCorrections(MutableSpan<SimGeometry> sim_geometries);
+  LocalConstraintCorrections &local();
+  void apply();
 };
 
-class XpbdContraints {
+class ConstraintSet {
  public:
-  virtual void ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
-  virtual void solve(const Span<SimGeometry> /*sim_geometries*/,
-                     XpbdConstraintCorrections & /*corrections*/)
-  {
-  }
-  virtual void post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
+  virtual void ensure_init(MutableSpan<SimGeometry> sim_geometries);
+  virtual void solve(const Span<SimGeometry> sim_geometries, ConstraintCorrections &corrections);
+  virtual void post_solve_apply(MutableSpan<SimGeometry> sim_geometries);
 };
 
 struct Behaviors {
   Vector<SimGeometrySet> sim_geometry_sets;
-  Vector<SimForce> sim_forces;
-  Vector<SimAcceleration> sim_accelerations;
-  Vector<XpbdContraints *> constraints;
+  Vector<ForceField> force_fields;
+  Vector<AccelerationField> acceleration_fields;
+  Vector<ConstraintSet *> constraint_sets;
 };
 
-XpbdContraints &create_constraint__edge_lengths(ResourceScope &scope,
-                                                std::string rest_length_attribute);
+ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
+                                               std::string rest_length_attribute);
 
-XpbdContraints &create_constraint__fixed_positions(ResourceScope &scope,
-                                                   fn::Field<bool> selection_field,
-                                                   fn::Field<float3> fixed_positions_field);
+ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
+                                                  fn::Field<bool> selection_field,
+                                                  fn::Field<float3> fixed_positions_field);
 
 }  // namespace blender::geometry::xpbd

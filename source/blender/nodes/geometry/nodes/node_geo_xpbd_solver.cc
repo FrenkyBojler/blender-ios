@@ -188,10 +188,10 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           if (item->type->type != SOCK_VECTOR) {
             return;
           }
-          geometry::xpbd::SimForce force;
+          geometry::xpbd::ForceField force;
           force.force_field =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
-          behaviors.sim_forces.append(force);
+          behaviors.force_fields.append(force);
           return;
         }
         if (type == "Acceleration") {
@@ -203,10 +203,10 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           if (item->type->type != SOCK_VECTOR) {
             return;
           }
-          geometry::xpbd::SimAcceleration acceleration;
+          geometry::xpbd::AccelerationField acceleration;
           acceleration.acceleration_field =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
-          behaviors.sim_accelerations.append(acceleration);
+          behaviors.acceleration_fields.append(acceleration);
           return;
         }
         if (type == "Edge Length Constraint") {
@@ -220,7 +220,7 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           }
           std::string rest_length_attribute =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<std::string>();
-          behaviors.constraints.append(&geometry::xpbd::create_constraint__edge_lengths(
+          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__edge_lengths(
               scope, std::move(rest_length_attribute)));
           return;
         }
@@ -236,7 +236,7 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
               positions_item->type->type != SOCK_VECTOR) {
             return;
           }
-          behaviors.constraints.append(&geometry::xpbd::create_constraint__fixed_positions(
+          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__fixed_positions(
               scope,
               static_cast<const bke::SocketValueVariant *>(selection_item->value)
                   ->get<Field<bool>>(),
@@ -305,7 +305,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     /* Init constraints. */
-    for (geometry::xpbd::XpbdContraints *constraint : behaviors.constraints) {
+    for (geometry::xpbd::ConstraintSet *constraint : behaviors.constraint_sets) {
       constraint->ensure_init(sim_geometries);
     }
 
@@ -326,23 +326,24 @@ static void node_geo_exec(GeoNodeExecParams params)
         Array<float3> force(positions_num, float3());
         Array<float3> acceleration(positions_num, float3());
         fn::FieldEvaluator field_evaluator{*field_context, positions_num};
-        for (const geometry::xpbd::SimForce &sim_force : behaviors.sim_forces) {
+        for (const geometry::xpbd::ForceField &sim_force : behaviors.force_fields) {
           field_evaluator.add(sim_force.force_field);
         }
-        for (const geometry::xpbd::SimAcceleration &sim_acceleration : behaviors.sim_accelerations)
+        for (const geometry::xpbd::AccelerationField &sim_acceleration :
+             behaviors.acceleration_fields)
         {
           field_evaluator.add(sim_acceleration.acceleration_field);
         }
         field_evaluator.evaluate();
-        for (const int force_i : behaviors.sim_forces.index_range()) {
+        for (const int force_i : behaviors.force_fields.index_range()) {
           VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
           for (const int i : force_varray.index_range()) {
             force[i] += force_varray[i];
           }
         }
-        for (const int acceleration_i : behaviors.sim_accelerations.index_range()) {
+        for (const int acceleration_i : behaviors.acceleration_fields.index_range()) {
           VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
-              acceleration_i + behaviors.sim_forces.size());
+              acceleration_i + behaviors.force_fields.size());
           for (const int i : acceleration_varray.index_range()) {
             acceleration[i] += acceleration_varray[i];
           }
@@ -366,17 +367,18 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     /* Constraint solve step. */
-    geometry::xpbd::XpbdConstraintCorrections corrections;
-    threading::parallel_for(behaviors.constraints.index_range(), 1, [&](const IndexRange range) {
-      for (const int constraint_i : range) {
-        geometry::xpbd::XpbdContraints *constraints = behaviors.constraints[constraint_i];
-        constraints->solve(sim_geometries, corrections);
-      }
-    });
-    corrections.apply(sim_geometries);
+    geometry::xpbd::ConstraintCorrections corrections(sim_geometries);
+    threading::parallel_for(
+        behaviors.constraint_sets.index_range(), 1, [&](const IndexRange range) {
+          for (const int constraint_i : range) {
+            geometry::xpbd::ConstraintSet *constraints = behaviors.constraint_sets[constraint_i];
+            constraints->solve(sim_geometries, corrections);
+          }
+        });
+    corrections.apply();
 
     /* Apply hard constraints. */
-    for (geometry::xpbd::XpbdContraints *constraint : behaviors.constraints) {
+    for (geometry::xpbd::ConstraintSet *constraint : behaviors.constraint_sets) {
       constraint->post_solve_apply(sim_geometries);
     }
 
