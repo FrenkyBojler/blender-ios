@@ -39,6 +39,16 @@ class XpbdContraints {
   virtual void solve(const XpbdConstraintCorrections &corrections) = 0;
 };
 
+class SimForce {
+ public:
+  Field<float3> force_field;
+};
+
+class SimAcceleration {
+ public:
+  Field<float3> acceleration_field;
+};
+
 struct SimGeometrySet {
   std::string path;
   GeometrySet geometry;
@@ -65,6 +75,8 @@ struct SimGeometry {
 
 struct ParsedBehaviors {
   Vector<SimGeometrySet> sim_geometry_sets;
+  Vector<SimForce> sim_forces;
+  Vector<SimAcceleration> sim_accelerations;
   Vector<XpbdContraints *> constraints;
 };
 
@@ -114,7 +126,7 @@ static void store_bundle_path(Bundle &bundle,
   const StringRef first_part = path.substr(0, sep);
   BundlePtr child_bundle;
   const std::optional<Bundle::Item> item = bundle.lookup(SocketInterfaceKey{first_part});
-  if (item->type->type == SOCK_BUNDLE) {
+  if (item && item->type->type == SOCK_BUNDLE) {
     child_bundle = static_cast<const bke::SocketValueVariant *>(item->value)->get<BundlePtr>();
   }
   else {
@@ -195,6 +207,36 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle)
           parsed_behaviors.sim_geometry_sets.append(geometry);
           return;
         }
+        if (type == "Force") {
+          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+              SocketInterfaceKey{"Force Field"});
+          if (!item) {
+            return;
+          }
+          if (item->type->type != SOCK_VECTOR) {
+            return;
+          }
+          SimForce force;
+          force.force_field =
+              static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
+          parsed_behaviors.sim_forces.append(force);
+          return;
+        }
+        if (type == "Acceleration") {
+          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+              SocketInterfaceKey{"Acceleration Field"});
+          if (!item) {
+            return;
+          }
+          if (item->type->type != SOCK_VECTOR) {
+            return;
+          }
+          SimAcceleration acceleration;
+          acceleration.acceleration_field =
+              static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
+          parsed_behaviors.sim_accelerations.append(acceleration);
+          return;
+        }
       });
 
   return parsed_behaviors;
@@ -236,17 +278,71 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  for (SimGeometry &sim_geometry : sim_geometries) {
-    std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
-    if (!attributes) {
-      continue;
+  const int sim_steps = 1 + std::max(0, substeps);
+  const float sub_delta_time = delta_time / sim_steps;
+  for ([[maybe_unused]] int substep : IndexRange(sim_steps)) {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      std::optional<bke::MutableAttributeAccessor> attributes =
+          sim_geometry.attributes_for_write();
+      if (!attributes) {
+        continue;
+      }
+      std::optional<bke::GeometryFieldContext> field_context;
+      if (Mesh **mesh = std::get_if<Mesh *>(&sim_geometry.data)) {
+        field_context.emplace(**mesh, bke::AttrDomain::Point);
+      }
+      if (PointCloud **pointcloud = std::get_if<PointCloud *>(&sim_geometry.data)) {
+        field_context.emplace(**pointcloud, bke::AttrDomain::Point);
+      }
+      if (Curves **curves = std::get_if<Curves *>(&sim_geometry.data)) {
+        field_context.emplace(**curves, bke::AttrDomain::Point);
+      }
+      if (!field_context) {
+        continue;
+      }
+      const int positions_num = attributes->domain_size(bke::AttrDomain::Point);
+      Array<float3> force(positions_num, float3());
+      Array<float3> acceleration(positions_num, float3());
+      fn::FieldEvaluator field_evaluator{*field_context, positions_num};
+      for (const SimForce &sim_force : parsed_behaviors.sim_forces) {
+        field_evaluator.add(sim_force.force_field);
+      }
+      for (const SimAcceleration &sim_acceleration : parsed_behaviors.sim_accelerations) {
+        field_evaluator.add(sim_acceleration.acceleration_field);
+      }
+      field_evaluator.evaluate();
+      for (const int force_i : parsed_behaviors.sim_forces.index_range()) {
+        VArraySpan<float3> force_varray = field_evaluator.get_evaluated<float3>(force_i);
+        for (const int i : force_varray.index_range()) {
+          force[i] += force_varray[i];
+        }
+      }
+      for (const int acceleration_i : parsed_behaviors.sim_accelerations.index_range()) {
+        VArraySpan<float3> acceleration_varray = field_evaluator.get_evaluated<float3>(
+            acceleration_i + parsed_behaviors.sim_forces.size());
+        for (const int i : acceleration_varray.index_range()) {
+          acceleration[i] += acceleration_varray[i];
+        }
+      }
+      const VArray<float> masses = *attributes->lookup_or_default<float>(
+          "mass", bke::AttrDomain::Point, 1.0f);
+
+      bke::SpanAttributeWriter<float3> velocities =
+          attributes->lookup_or_add_for_write_span<float3>("velocity", bke::AttrDomain::Point);
+      bke::SpanAttributeWriter<float3> positions =
+          attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
+      bke::SpanAttributeWriter<float3> old_positions =
+          attributes->lookup_or_add_for_write_span<float3>("old_position", bke::AttrDomain::Point);
+      for (const int i : velocities.span.index_range()) {
+        velocities.span[i] += force[i] * sub_delta_time / masses[i];
+        velocities.span[i] += acceleration[i] * sub_delta_time;
+        old_positions.span[i] = positions.span[i];
+        positions.span[i] += velocities.span[i] * sub_delta_time;
+      }
+      velocities.finish();
+      positions.finish();
+      old_positions.finish();
     }
-    bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
-        "position");
-    for (const int i : positions.span.index_range()) {
-      positions.span[i].z += 2.0f * delta_time;
-    }
-    positions.finish();
   }
 
   BundlePtr new_data_bundle = Bundle::create();
