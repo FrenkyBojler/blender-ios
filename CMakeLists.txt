@@ -1760,6 +1760,8 @@ include(dependency_targets)
 # Only supported by Ninja build system currently.
 
 if("${CMAKE_GENERATOR}" MATCHES "Ninja" AND WITH_NINJA_POOL_JOBS)
+  message(STATUS "Using NINJA_POOL_JOBS:")
+
   if(NOT NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS)
     set(NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS "0" CACHE STRING "\
 Define the maximum number of concurrent regular compilation jobs, for ninja build system. \
@@ -1796,7 +1798,7 @@ Keep at '0' to automatically compute optimal values for each build."
   set(_link_jobs 0)
   if(NINJA_MAX_NUM_PARALLEL_LINK_JOBS)
     set(_link_jobs ${NINJA_MAX_NUM_PARALLEL_LINK_JOBS})
-    message(STATUS "Using NINJA_POOL_JOBS: max concurrent linking jobs (from settings): ${_link_jobs}")
+    message(STATUS "  NINJA_MAX_NUM_PARALLEL_LINK_JOBS: max concurrent linking jobs (from settings): ${_link_jobs}")
   endif()
   if (${_link_jobs} LESS 1)
     # Heuristics: Maximum amount of memory needed per linking task.
@@ -1824,7 +1826,7 @@ Keep at '0' to automatically compute optimal values for each build."
       set(_link_jobs 1)
     endif()
 
-    message(STATUS "Using NINJA_POOL_JOBS: max concurrent linking jobs (computed): ${_link_jobs}")
+    message(STATUS "  NINJA_MAX_NUM_PARALLEL_LINK_JOBS: max concurrent linking jobs (computed): ${_link_jobs}")
 
     set(_link_mem)
     set(_link_jobs_max)
@@ -1838,7 +1840,8 @@ Keep at '0' to automatically compute optimal values for each build."
   set(_compile_heavy_jobs 0)
   if(NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS)
     set(_compile_heavy_jobs ${NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS})
-    message(STATUS "Using NINJA_POOL_JOBS: max concurrent heavy compile jobs (from settings): ${_compile_heavy_jobs}")
+    message(STATUS "  NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS: \
+max concurrent heavy compile jobs (from settings): ${_compile_heavy_jobs}")
   endif()
   if (${_compile_heavy_jobs} LESS 1)
     # Heuristics: Maximum amount of memory needed per heavy compile task.
@@ -1869,7 +1872,8 @@ Keep at '0' to automatically compute optimal values for each build."
       set(_compile_heavy_jobs 1)
     endif()
 
-    message(STATUS "Using NINJA_POOL_JOBS: max concurrent heavy compile jobs (computed): ${_compile_heavy_jobs}")
+    message(STATUS "  NINJA_MAX_NUM_PARALLEL_COMPILE_HEAVY_JOBS: \
+max concurrent heavy compile jobs (computed): ${_compile_heavy_jobs}")
 
     set(_compile_heavy_mem)
     set(_compile_heavy_jobs_max)
@@ -1882,7 +1886,8 @@ Keep at '0' to automatically compute optimal values for each build."
   set(_compile_jobs 0)
   if(NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS)
     set(_compile_jobs ${NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS})
-    message(STATUS "Using NINJA_POOL_JOBS: max concurrent regular compile jobs (from settings): ${_compile_jobs}")
+    message(STATUS "  NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS: \
+max concurrent regular compile jobs (from settings): ${_compile_jobs}")
   endif()
   if (${_compile_jobs} LESS 1)
     # Heuristics: Maximum amount of memory needed per regular compile task.
@@ -1917,7 +1922,8 @@ Keep at '0' to automatically compute optimal values for each build."
       set(_compile_jobs 1)
     endif()
 
-    message(STATUS "Using NINJA_POOL_JOBS: max concurrent regular compile jobs (computed): ${_compile_jobs}")
+    message(STATUS "  NINJA_MAX_NUM_PARALLEL_COMPILE_JOBS: \
+max concurrent regular compile jobs (computed): ${_compile_jobs}")
 
     set(_compile_mem)
     set(_compile_jobs_max)
