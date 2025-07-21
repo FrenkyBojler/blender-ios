@@ -128,6 +128,27 @@ static void foreach_behavior_recursive(
   }
 }
 
+template<typename T>
+static std::optional<T> get_from_bundle__value_variant(const Bundle &bundle, const StringRef key)
+{
+  std::optional<Bundle::Item> item = bundle.lookup(SocketInterfaceKey{key});
+  if (!item) {
+    return std::nullopt;
+  }
+  if (item->type->geometry_nodes_cpp_type != &CPPType::get<bke::SocketValueVariant>()) {
+    return std::nullopt;
+  }
+  if constexpr (fn::is_field_v<T>) {
+    if (item->type->base_cpp_type != &CPPType::get<typename T::base_type>()) {
+      return std::nullopt;
+    }
+  }
+  else if (item->type->base_cpp_type != &CPPType::get<T>()) {
+    return std::nullopt;
+  }
+  return static_cast<const bke::SocketValueVariant *>(item->value)->get<T>();
+}
+
 static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bundle,
                                                  ResourceScope &scope)
 {
@@ -155,102 +176,68 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           geometry.velocity_attribute = "velocity";
           geometry.path = path;
           geometry.geometry = *static_cast<const GeometrySet *>(geometry_item->value);
-          if (std::optional<Bundle::Item> mass_item = behavior_bundle.lookup(
-                  SocketInterfaceKey{"Mass Attribute"}))
+          if (std::optional<std::string> mass_attribute =
+                  get_from_bundle__value_variant<std::string>(behavior_bundle, "Mass Attribute"))
           {
-            if (mass_item->type->type != SOCK_STRING) {
-              return;
-            }
-            geometry.mass_attribute =
-                static_cast<const bke::SocketValueVariant *>(mass_item->value)->get<std::string>();
+            geometry.mass_attribute = *mass_attribute;
           }
-          if (std::optional<Bundle::Item> velocity_item = behavior_bundle.lookup(
-                  SocketInterfaceKey{"Velocity Attribute"}))
+          if (std::optional<std::string> velocity_item =
+                  get_from_bundle__value_variant<std::string>(behavior_bundle,
+                                                              "Velocity Attribute"))
           {
-            if (velocity_item->type->type != SOCK_STRING) {
-              return;
-            }
-            geometry.velocity_attribute = static_cast<const bke::SocketValueVariant *>(
-                                              velocity_item->value)
-                                              ->get<std::string>();
+            geometry.velocity_attribute = *velocity_item;
           }
           behaviors.sim_geometry_sets.append(geometry);
           return;
         }
         if (type == "Force") {
-          std::optional<Bundle::Item> item = behavior_bundle.lookup(
-              SocketInterfaceKey{"Force Field"});
-          if (!item) {
-            return;
-          }
-          if (item->type->type != SOCK_VECTOR) {
+          std::optional<Field<float3>> force_field = get_from_bundle__value_variant<Field<float3>>(
+              behavior_bundle, "Force Field");
+          if (!force_field) {
             return;
           }
           geometry::xpbd::ForceField force;
-          force.force_field =
-              static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
+          force.force_field = *force_field;
           behaviors.force_fields.append(force);
           return;
         }
         if (type == "Acceleration") {
-          std::optional<Bundle::Item> item = behavior_bundle.lookup(
-              SocketInterfaceKey{"Acceleration Field"});
-          if (!item) {
-            return;
-          }
-          if (item->type->type != SOCK_VECTOR) {
+          std::optional<Field<float3>> acceleration_field =
+              get_from_bundle__value_variant<Field<float3>>(behavior_bundle, "Acceleration Field");
+          if (!acceleration_field) {
             return;
           }
           geometry::xpbd::AccelerationField acceleration;
-          acceleration.acceleration_field =
-              static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
+          acceleration.acceleration_field = *acceleration_field;
           behaviors.acceleration_fields.append(acceleration);
           return;
         }
         if (type == "Edge Length Constraint") {
-          std::optional<Bundle::Item> rest_length_item = behavior_bundle.lookup(
-              SocketInterfaceKey{"Rest Length Attribute"});
-          if (!rest_length_item) {
+          std::optional<std::string> rest_length_attribute =
+              get_from_bundle__value_variant<std::string>(behavior_bundle,
+                                                          "Rest Length Attribute");
+          if (!rest_length_attribute) {
             return;
           }
-          if (rest_length_item->type->type != SOCK_STRING) {
+          if (rest_length_attribute->empty()) {
             return;
           }
-          std::string rest_length_attribute = static_cast<const bke::SocketValueVariant *>(
-                                                  rest_length_item->value)
-                                                  ->get<std::string>();
-          float compliance = 0.0f;
-          if (std::optional<Bundle::Item> compliance_item = behavior_bundle.lookup(
-                  SocketInterfaceKey{"Compliance"}))
-          {
-            if (compliance_item->type->type != SOCK_FLOAT) {
-              return;
-            }
-            compliance =
-                static_cast<const bke::SocketValueVariant *>(compliance_item->value)->get<float>();
-          }
+          const float compliance =
+              get_from_bundle__value_variant<float>(behavior_bundle, "Compliance").value_or(0.0f);
           behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__edge_lengths(
-              scope, std::move(rest_length_attribute), compliance));
+              scope, std::move(*rest_length_attribute), compliance));
           return;
         }
         if (type == "Fixed Position Constraint") {
-          std::optional<Bundle::Item> selection_item = behavior_bundle.lookup(
-              SocketInterfaceKey{"Selection"});
-          std::optional<Bundle::Item> positions_item = behavior_bundle.lookup(
-              SocketInterfaceKey{"Position"});
-          if (!selection_item || !positions_item) {
-            return;
-          }
-          if (selection_item->type->type != SOCK_BOOLEAN ||
-              positions_item->type->type != SOCK_VECTOR) {
+          std::optional<Field<bool>> selection_field = get_from_bundle__value_variant<Field<bool>>(
+              behavior_bundle, "Selection");
+          std::optional<Field<float3>> positions_field =
+              get_from_bundle__value_variant<Field<float3>>(behavior_bundle, "Position");
+          if (!selection_field || !positions_field) {
             return;
           }
           behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__fixed_positions(
-              scope,
-              static_cast<const bke::SocketValueVariant *>(selection_item->value)
-                  ->get<Field<bool>>(),
-              static_cast<const bke::SocketValueVariant *>(positions_item->value)
-                  ->get<Field<float3>>()));
+              scope, *selection_field, *positions_field));
           return;
         }
       });
