@@ -25,18 +25,22 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }
 
+struct PositionCorrection {
+  int geometry_i;
+  int position_i;
+  float3 correction;
+};
+
 class LocalXpbdConstraintCorrections {
- public:
-  void add_position_correction(const int geometry_i, const int vertex_i, const float3 &correction);
-};
+  Vector<PositionCorrection> position_corrections_;
 
-class XpbdConstraintCorrections {
-  LocalXpbdConstraintCorrections &local();
-};
-
-class XpbdContraints {
  public:
-  virtual void solve(const XpbdConstraintCorrections &corrections) = 0;
+  void add_position_correction(const int geometry_i,
+                               const int position_i,
+                               const float3 &correction)
+  {
+    position_corrections_.append({geometry_i, position_i, correction});
+  }
 };
 
 class SimForce {
@@ -70,6 +74,87 @@ struct SimGeometry {
       return (*curves)->geometry.wrap().attributes_for_write();
     }
     return std::nullopt;
+  }
+};
+
+class XpbdConstraintCorrections {
+ private:
+  threading::EnumerableThreadSpecific<LocalXpbdConstraintCorrections> local_corrections_;
+
+ public:
+  LocalXpbdConstraintCorrections &local()
+  {
+    return local_corrections_.local();
+  }
+};
+
+class XpbdContraints {
+ public:
+  virtual void ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
+  virtual void solve(const Span<SimGeometry> sim_geometries,
+                     XpbdConstraintCorrections &corrections) = 0;
+};
+
+class EdgeLengthConstraint : public XpbdContraints {
+ private:
+  std::string rest_length_attribute_;
+
+ public:
+  EdgeLengthConstraint(std::string rest_length_attribute)
+      : rest_length_attribute_(std::move(rest_length_attribute))
+  {
+  }
+
+  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
+      if (!mesh_ptr) {
+        continue;
+      }
+      Mesh &mesh = **mesh_ptr;
+      bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
+      if (attributes.contains(rest_length_attribute_)) {
+        continue;
+      }
+
+      float *rest_lengths = MEM_malloc_arrayN<float>(mesh.edges_num, __func__);
+      const Span<float3> positions = mesh.vert_positions();
+      const Span<int2> edges = mesh.edges();
+      threading::parallel_for(IndexRange(mesh.edges_num), 512, [&](const IndexRange range) {
+        for (const int i : range) {
+          const int2 edge = edges[i];
+          const float length = math::distance(positions[edge[0]], positions[edge[1]]);
+          rest_lengths[i] = length;
+        }
+      });
+      attributes.add<float>(rest_length_attribute_,
+                            bke::AttrDomain::Edge,
+                            bke::AttributeInitMoveArray{rest_lengths});
+    }
+  }
+
+  void solve(const Span<SimGeometry> sim_geometries,
+             XpbdConstraintCorrections &corrections) override
+  {
+    LocalXpbdConstraintCorrections &local_corrections = corrections.local();
+    // for (const int edge_i : indices_.index_range()) {
+    //   const int i0 = indices_[edge_i][0];
+    //   const int i1 = indices_[edge_i][1];
+    //   const float3 &p0 = positions_[i0];
+    //   const float3 &p1 = positions_[i1];
+    //   const float3 p_diff = p1 - p0;
+    //   float length;
+    //   const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
+    //   float length_diff = length - rest_distances_[edge_i];
+    //   const float m0 = masses_[i0];
+    //   const float m1 = masses_[i1];
+    //   const float m_sum = m0 + m1;
+    //   const float3 correction0 = -m0 / m_sum * length_diff * normalized_dir;
+    //   const float3 correction1 = m1 / m_sum * length_diff * normalized_dir;
+    //   local_corrections.add_position_correction(geometry_i_, i0, correction0);
+    //   local_corrections.add_position_correction(geometry_i_, i1, correction1);
+    // }
   }
 };
 
@@ -180,7 +265,7 @@ static void foreach_behavior_recursive(
   }
 }
 
-static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle)
+static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, ResourceScope &scope)
 {
   if (!behaviors_bundle) {
     return {};
@@ -237,6 +322,21 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle)
           parsed_behaviors.sim_accelerations.append(acceleration);
           return;
         }
+        if (type == "Edge Length Constraint") {
+          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+              SocketInterfaceKey{"Rest Length Attribute"});
+          if (!item) {
+            return;
+          }
+          if (item->type->type != SOCK_STRING) {
+            return;
+          }
+          std::string rest_length_attribute =
+              static_cast<const bke::SocketValueVariant *>(item->value)->get<std::string>();
+          parsed_behaviors.constraints.append(
+              &scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute)));
+          return;
+        }
       });
 
   return parsed_behaviors;
@@ -249,7 +349,8 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float delta_time = params.extract_input<float>("Delta Time");
   const int substeps = params.extract_input<int>("Substeps");
 
-  ParsedBehaviors parsed_behaviors = parse_behaviors(behaviors_bundle);
+  ResourceScope scope;
+  ParsedBehaviors parsed_behaviors = parse_behaviors(behaviors_bundle, scope);
   if (old_data_bundle) {
     for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
       std::optional<Bundle::Item> item = lookup_bundle_path(*old_data_bundle,
@@ -342,6 +443,10 @@ static void node_geo_exec(GeoNodeExecParams params)
       velocities.finish();
       positions.finish();
       old_positions.finish();
+    }
+
+    for (XpbdContraints *constraint : parsed_behaviors.constraints) {
+      constraint->ensure_init(sim_geometries);
     }
   }
 
