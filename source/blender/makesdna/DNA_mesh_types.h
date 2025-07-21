@@ -315,6 +315,8 @@ typedef struct Mesh {
   /** Write access to vertex group data. */
   blender::MutableSpan<MDeformVert> deform_verts_for_write();
 
+  blender::VectorSet<blender::StringRef> uv_map_names() const;
+
   /**
    * Cached triangulation of mesh faces, depending on the face topology and the vertex positions.
    */
