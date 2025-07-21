@@ -53,7 +53,7 @@ class VideoOutputReport(render_report.Report):
     def postprocess_test(self, blender, test):
         suffix = get_movie_file_suffix(test.filepath)
 
-        video_file = f"{test.tmp_out_img_base}.{suffix}"
+        video_file = Path(f"{test.tmp_out_img_base}.{suffix}").as_posix()
 
         # If oiiotool supports the FFmpeg this could be used instead.
         """
