@@ -137,10 +137,11 @@ void ConstraintCorrections::apply()
 class EdgeLengthConstraint : public ConstraintSet {
  private:
   std::string rest_length_attribute_;
+  float compliance_;
 
  public:
-  EdgeLengthConstraint(std::string rest_length_attribute)
-      : rest_length_attribute_(std::move(rest_length_attribute))
+  EdgeLengthConstraint(std::string rest_length_attribute, const float compliance)
+      : rest_length_attribute_(std::move(rest_length_attribute)), compliance_(compliance)
   {
   }
 
@@ -175,6 +176,10 @@ class EdgeLengthConstraint : public ConstraintSet {
 
   void solve(ConstraintSetSolveParams &params) override
   {
+    float compliance_adder = 0.0f;
+    if (params.delta_time > 0.0f) {
+      compliance_adder = compliance_ / pow2f(params.delta_time);
+    }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
@@ -203,15 +208,19 @@ class EdgeLengthConstraint : public ConstraintSet {
           const int i1 = edge[1];
           const float3 &p0 = positions[i0];
           const float3 &p1 = positions[i1];
+          const float m0 = masses.varray[i0];
+          const float m1 = masses.varray[i1];
+
           const float3 p_diff = p1 - p0;
           float length;
           const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
+
           float length_diff = length - rest_lengths.varray[edge_i];
-          const float m0 = masses.varray[i0];
-          const float m1 = masses.varray[i1];
+          const float lambda = length_diff / (1.0f / m0 + 1.0f / m1 + compliance_adder);
+
           const float m_sum = m0 + m1;
-          const float3 correction0 = m0 / m_sum * length_diff * normalized_dir;
-          const float3 correction1 = -m1 / m_sum * length_diff * normalized_dir;
+          const float3 correction0 = lambda * m0 / m_sum * normalized_dir;
+          const float3 correction1 = -lambda * m1 / m_sum * normalized_dir;
           local_corrections.add_position_correction(geometry_i, i0, correction0);
           local_corrections.add_position_correction(geometry_i, i1, correction1);
         }
@@ -264,9 +273,10 @@ class FixedPositionsConstraint : public ConstraintSet {
 };
 
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
-                                               std::string rest_length_attribute)
+                                               std::string rest_length_attribute,
+                                               const float compliance)
 {
-  return scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute));
+  return scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute), compliance);
 }
 
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
@@ -277,12 +287,12 @@ ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                    std::move(fixed_positions_field));
 }
 
-void solve(Behaviors &behaviors, const float delta_time, const int substeps)
+void solve(Behaviors &behaviors, const float total_delta_time, const int substeps)
 {
-  BLI_assert(delta_time >= 0.0f);
+  BLI_assert(total_delta_time >= 0.0f);
   BLI_assert(substeps >= 0);
   const int sim_steps = 1 + substeps;
-  const float sub_delta_time = delta_time / sim_steps;
+  const float sub_delta_time = total_delta_time / sim_steps;
 
   Vector<SimGeometry> sim_geometries;
   for (SimGeometrySet &sim_geometry_set : behaviors.sim_geometry_sets) {
@@ -375,7 +385,7 @@ void solve(Behaviors &behaviors, const float delta_time, const int substeps)
 
     /* Constraint solve step. */
     ConstraintCorrections corrections(sim_geometries);
-    ConstraintSetSolveParams params{sim_geometries, corrections};
+    ConstraintSetSolveParams params{sub_delta_time, sim_geometries, corrections};
     threading::parallel_for(
         behaviors.constraint_sets.index_range(), 1, [&](const IndexRange range) {
           for (const int constraint_i : range) {

@@ -81,6 +81,7 @@ class ConstraintCorrections {
 
 class ConstraintSetSolveParams {
  public:
+  float delta_time;
   Span<SimGeometry> sim_geometries;
   ConstraintCorrections &corrections;
 };
@@ -102,7 +103,8 @@ struct Behaviors {
 void solve(Behaviors &behaviors, float delta_time, int substeps);
 
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
-                                               std::string rest_length_attribute);
+                                               std::string rest_length_attribute,
+                                               float compliance);
 
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                   fn::Field<bool> selection_field,

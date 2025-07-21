@@ -208,18 +208,29 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           return;
         }
         if (type == "Edge Length Constraint") {
-          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+          std::optional<Bundle::Item> rest_length_item = behavior_bundle.lookup(
               SocketInterfaceKey{"Rest Length Attribute"});
-          if (!item) {
+          if (!rest_length_item) {
             return;
           }
-          if (item->type->type != SOCK_STRING) {
+          if (rest_length_item->type->type != SOCK_STRING) {
             return;
           }
-          std::string rest_length_attribute =
-              static_cast<const bke::SocketValueVariant *>(item->value)->get<std::string>();
+          std::string rest_length_attribute = static_cast<const bke::SocketValueVariant *>(
+                                                  rest_length_item->value)
+                                                  ->get<std::string>();
+          float compliance = 0.0f;
+          if (std::optional<Bundle::Item> compliance_item = behavior_bundle.lookup(
+                  SocketInterfaceKey{"Compliance"}))
+          {
+            if (compliance_item->type->type != SOCK_FLOAT) {
+              return;
+            }
+            compliance =
+                static_cast<const bke::SocketValueVariant *>(compliance_item->value)->get<float>();
+          }
           behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__edge_lengths(
-              scope, std::move(rest_length_attribute)));
+              scope, std::move(rest_length_attribute), compliance));
           return;
         }
         if (type == "Fixed Position Constraint") {
