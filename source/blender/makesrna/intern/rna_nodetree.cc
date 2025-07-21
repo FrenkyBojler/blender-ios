@@ -14,6 +14,7 @@
 #include "BLI_linear_allocator.hh"
 #include "BLI_math_rotation.h"
 #include "BLI_string.h"
+#include "BLI_linear_allocator.hh"
 
 #include "BLT_translation.hh"
 
@@ -1047,7 +1048,18 @@ static bool rna_NodeTree_valid_socket_type(blender::bke::bNodeTreeType *ntreetyp
   func = &rna_NodeTree_valid_socket_type_func;
 
   RNA_parameter_list_create(&list, &ptr, func);
-  RNA_parameter_set_lookup(&list, "idname", socket_type->idname.c_str());
+  
+  ParameterIterator iter;
+  RNA_parameter_list_begin(&list, &iter);
+  BLI_assert(iter.valid);
+  const int expected_size = iter.size;
+  BLI_assert(expected_size >= socket_type->idname.size() + 1);
+
+  blender::LinearAllocator<> allocator;
+  blender::MutableSpan<char> buffer = allocator.allocate_array<char>(expected_size);
+  blender::StringRef(socket_type->idname).copy_unsafe(buffer.data());
+
+  RNA_parameter_set_lookup(&list, "idname", buffer.data());
   ntreetype->rna_ext.call(nullptr, &ptr, func, &list);
 
   RNA_parameter_get_lookup(&list, "valid", &ret);
