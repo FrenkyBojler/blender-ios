@@ -320,8 +320,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     return OPERATOR_RUNNING_MODAL;
   }
 
-  std::atomic<bool> add_single = true;
-
+  std::atomic<bool> add_single = ptd.extrude_point;
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
                                                                          *ptd.grease_pencil);
@@ -336,12 +335,13 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         const IndexMask selection = retrieve_editable_and_selected_points(
             *object, info.drawing, info.layer_index, memory);
 
-        if (!selection.is_empty()) {
-          add_single.store(false, std::memory_order_relaxed);
-
-          curves = pen_extrude_curves(ptd, curves);
+        if (selection.is_empty()) {
+          return;
         }
 
+        add_single.store(false, std::memory_order_relaxed);
+
+        curves = pen_extrude_curves(ptd, curves);
         info.drawing.tag_topology_changed();
 
         changed.store(true, std::memory_order_relaxed);
@@ -365,10 +365,12 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       if (closest_point == points.first() && selection.span[points.last()]) {
         curves.cyclic_for_write()[curve_index] = true;
         info.drawing.tag_topology_changed();
+        add_single.store(false, std::memory_order_relaxed);
       }
       if (closest_point == points.last() && selection.span[points.first()]) {
         curves.cyclic_for_write()[curve_index] = true;
         info.drawing.tag_topology_changed();
+        add_single.store(false, std::memory_order_relaxed);
       }
     }
 
@@ -378,12 +380,14 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
     if (ptd.select_point) {
       selection.span[closest_point] = true;
+      add_single.store(false, std::memory_order_relaxed);
     }
 
     selection.finish();
 
     if (ptd.delete_point) {
       curves.remove_points(IndexRange::from_single(closest_point), {});
+      add_single.store(false, std::memory_order_relaxed);
     }
 
     changed.store(true, std::memory_order_relaxed);
