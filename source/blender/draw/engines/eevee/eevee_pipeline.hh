@@ -648,7 +648,7 @@ class UtilityTexture : public Texture {
  public:
   UtilityTexture()
       : Texture("UtilityTx",
-                GPU_RGBA16F,
+                blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
                 GPU_TEXTURE_USAGE_SHADER_READ,
                 int2(lut_size),
                 layer_count,

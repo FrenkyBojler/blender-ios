@@ -25,7 +25,13 @@ static void test_compute_direct()
 
   /* Create texture to store result and attach to shader. */
   blender::gpu::Texture *texture = GPU_texture_create_2d(
-      "gpu_shader_compute_2d", SIZE, SIZE, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+      "gpu_shader_compute_2d",
+      SIZE,
+      SIZE,
+      1,
+      blender::gpu::TextureFormat::SFLOAT_32_32_32_32,
+      GPU_TEXTURE_USAGE_GENERAL,
+      nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -62,7 +68,13 @@ static void test_compute_indirect()
 
   /* Create texture to store result and attach to shader. */
   blender::gpu::Texture *texture = GPU_texture_create_2d(
-      "gpu_shader_compute_2d", SIZE, SIZE, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+      "gpu_shader_compute_2d",
+      SIZE,
+      SIZE,
+      1,
+      blender::gpu::TextureFormat::SFLOAT_32_32_32_32,
+      GPU_TEXTURE_USAGE_GENERAL,
+      nullptr);
   EXPECT_NE(texture, nullptr);
   GPU_texture_clear(texture, GPU_DATA_FLOAT, float4(0.0f));
 

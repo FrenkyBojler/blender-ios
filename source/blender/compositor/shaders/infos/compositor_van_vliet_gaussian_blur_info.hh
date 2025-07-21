@@ -17,10 +17,18 @@ PUSH_CONSTANT(float, first_non_causal_boundary_coefficient)
 PUSH_CONSTANT(float, second_causal_boundary_coefficient)
 PUSH_CONSTANT(float, second_non_causal_boundary_coefficient)
 SAMPLER(0, sampler2D, input_tx)
-IMAGE(0, GPU_RGBA16F, write, image2D, first_causal_output_img)
-IMAGE(1, GPU_RGBA16F, write, image2D, first_non_causal_output_img)
-IMAGE(2, GPU_RGBA16F, write, image2D, second_causal_output_img)
-IMAGE(3, GPU_RGBA16F, write, image2D, second_non_causal_output_img)
+IMAGE(0, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, write, image2D, first_causal_output_img)
+IMAGE(1,
+      blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+      write,
+      image2D,
+      first_non_causal_output_img)
+IMAGE(2, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, write, image2D, second_causal_output_img)
+IMAGE(3,
+      blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+      write,
+      image2D,
+      second_non_causal_output_img)
 COMPUTE_SOURCE("compositor_van_vliet_gaussian_blur.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()
@@ -31,7 +39,7 @@ SAMPLER(0, sampler2D, first_causal_input_tx)
 SAMPLER(1, sampler2D, first_non_causal_input_tx)
 SAMPLER(2, sampler2D, second_causal_input_tx)
 SAMPLER(3, sampler2D, second_non_causal_input_tx)
-IMAGE(0, GPU_RGBA16F, write, image2D, output_img)
+IMAGE(0, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, write, image2D, output_img)
 COMPUTE_SOURCE("compositor_van_vliet_gaussian_blur_sum.glsl")
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()

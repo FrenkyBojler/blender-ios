@@ -434,7 +434,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   /* TODO(fclem): Use real max closure count from shader. */
   const int closure_count = 3;
-  eGPUTextureFormat format = RAYTRACE_TILEMASK_FORMAT;
+  blender::gpu::TextureFormat format = RAYTRACE_TILEMASK_FORMAT;
   eGPUTextureUsage usage_rw = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_SHADER_WRITE;
   tile_raytrace_denoise_tx_.ensure_2d_array(format, denoise_tiles, closure_count, usage_rw);
   tile_raytrace_tracing_tx_.ensure_2d_array(format, raytrace_tiles, closure_count, usage_rw);
@@ -493,13 +493,18 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
       GPU_debug_group_begin("Horizon Scan");
 
       downsampled_in_radiance_tx_.acquire(tracing_res_horizon, RAYTRACE_RADIANCE_FORMAT, usage_rw);
-      downsampled_in_normal_tx_.acquire(tracing_res_horizon, GPU_RGB10_A2, usage_rw);
+      downsampled_in_normal_tx_.acquire(
+          tracing_res_horizon, blender::gpu::TextureFormat::UNORM_10_10_10_2, usage_rw);
 
-      horizon_radiance_tx_[0].acquire(tracing_res_horizon, GPU_RGBA16F, usage_rw);
-      horizon_radiance_denoised_tx_[0].acquire(tracing_res_horizon, GPU_RGBA16F, usage_rw);
+      horizon_radiance_tx_[0].acquire(
+          tracing_res_horizon, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, usage_rw);
+      horizon_radiance_denoised_tx_[0].acquire(
+          tracing_res_horizon, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, usage_rw);
       for (int i : IndexRange(1, 3)) {
-        horizon_radiance_tx_[i].acquire(tracing_res_horizon, GPU_RGBA8, usage_rw);
-        horizon_radiance_denoised_tx_[i].acquire(tracing_res_horizon, GPU_RGBA8, usage_rw);
+        horizon_radiance_tx_[i].acquire(
+            tracing_res_horizon, blender::gpu::TextureFormat::UNORM_8_8_8_8, usage_rw);
+        horizon_radiance_denoised_tx_[i].acquire(
+            tracing_res_horizon, blender::gpu::TextureFormat::UNORM_8_8_8_8, usage_rw);
       }
       for (int i : IndexRange(3)) {
         horizon_scan_output_tx_[i] = result.closures[i];
@@ -596,7 +601,7 @@ RayTraceResultTexture RayTraceModule::trace(
 
   {
     /* Tracing rays. */
-    ray_data_tx_.acquire(tracing_res, GPU_RGBA16F);
+    ray_data_tx_.acquire(tracing_res, blender::gpu::TextureFormat::SFLOAT_16_16_16_16);
     ray_time_tx_.acquire(tracing_res, RAYTRACE_RAYTIME_FORMAT);
     ray_radiance_tx_.acquire(tracing_res, RAYTRACE_RADIANCE_FORMAT);
 
@@ -618,7 +623,8 @@ RayTraceResultTexture RayTraceModule::trace(
   {
     denoise_buf->denoised_spatial_tx.acquire(extent, RAYTRACE_RADIANCE_FORMAT);
     hit_variance_tx_.acquire(use_temporal_denoise ? extent : int2(1), RAYTRACE_VARIANCE_FORMAT);
-    hit_depth_tx_.acquire(use_temporal_denoise ? extent : int2(1), GPU_R32F);
+    hit_depth_tx_.acquire(use_temporal_denoise ? extent : int2(1),
+                          blender::gpu::TextureFormat::SFLOAT_32);
     denoised_spatial_tx_ = denoise_buf->denoised_spatial_tx;
 
     inst_.manager->submit(denoise_spatial_ps_, render_view);

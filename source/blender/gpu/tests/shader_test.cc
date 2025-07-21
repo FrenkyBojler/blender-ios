@@ -42,7 +42,13 @@ static void test_shader_compute_2d()
 
   /* Create texture to store result and attach to shader. */
   blender::gpu::Texture *texture = GPU_texture_create_2d(
-      "gpu_shader_compute_2d", SIZE, SIZE, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+      "gpu_shader_compute_2d",
+      SIZE,
+      SIZE,
+      1,
+      blender::gpu::TextureFormat::SFLOAT_32_32_32_32,
+      GPU_TEXTURE_USAGE_GENERAL,
+      nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -81,7 +87,12 @@ static void test_shader_compute_1d()
 
   /* Construct Texture. */
   blender::gpu::Texture *texture = GPU_texture_create_1d(
-      "gpu_shader_compute_1d", SIZE, 1, GPU_RGBA32F, GPU_TEXTURE_USAGE_GENERAL, nullptr);
+      "gpu_shader_compute_1d",
+      SIZE,
+      1,
+      blender::gpu::TextureFormat::SFLOAT_32_32_32_32,
+      GPU_TEXTURE_USAGE_GENERAL,
+      nullptr);
   EXPECT_NE(texture, nullptr);
 
   GPU_shader_bind(shader);
@@ -359,8 +370,13 @@ static void gpu_shader_lib_test(const char *test_src_name, const char *additiona
   int test_output_px_len = divide_ceil_u(sizeof(TestOutput), 4 * 4);
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_ATTACHMENT | GPU_TEXTURE_USAGE_HOST_READ;
-  blender::gpu::Texture *tex = GPU_texture_create_2d(
-      "tx", test_output_px_len, test_count, 1, GPU_RGBA32UI, usage, nullptr);
+  blender::gpu::Texture *tex = GPU_texture_create_2d("tx",
+                                                     test_output_px_len,
+                                                     test_count,
+                                                     1,
+                                                     blender::gpu::TextureFormat::UINT_32_32_32_32,
+                                                     usage,
+                                                     nullptr);
   GPUFrameBuffer *fb = GPU_framebuffer_create("test_fb");
   GPU_framebuffer_ensure_config(&fb, {GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(tex)});
   GPU_framebuffer_bind(fb);

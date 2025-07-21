@@ -60,12 +60,17 @@ void Instance::init()
 
   if (!dummy_texture.is_valid()) {
     const float pixels[1][4] = {{1.0f, 0.0f, 1.0f, 1.0f}};
-    dummy_texture.ensure_2d(GPU_RGBA8, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0][0]);
+    dummy_texture.ensure_2d(blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                            int2(1),
+                            GPU_TEXTURE_USAGE_SHADER_READ,
+                            &pixels[0][0]);
   }
   if (!dummy_depth.is_valid()) {
     const float pixels[1] = {1.0f};
-    dummy_depth.ensure_2d(
-        GPU_DEPTH_COMPONENT32F, int2(1), GPU_TEXTURE_USAGE_SHADER_READ, &pixels[0]);
+    dummy_depth.ensure_2d(blender::gpu::TextureFormat::SFLOAT_32_DEPTH,
+                          int2(1),
+                          GPU_TEXTURE_USAGE_SHADER_READ,
+                          &pixels[0]);
   }
 
   /* Resize and reset memory-blocks. */
@@ -611,10 +616,14 @@ void Instance::acquire_resources()
 
   const int2 size = int2(draw_ctx->viewport_size_get());
 
-  const eGPUTextureFormat format_color = this->use_signed_fb ? GPU_RGBA16F : GPU_R11F_G11F_B10F;
-  const eGPUTextureFormat format_reveal = this->use_signed_fb ? GPU_RGBA16F : GPU_RGB10_A2;
+  const blender::gpu::TextureFormat format_color =
+      this->use_signed_fb ? blender::gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                            blender::gpu::TextureFormat::UFLOAT_11_11_10;
+  const blender::gpu::TextureFormat format_reveal =
+      this->use_signed_fb ? blender::gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                            blender::gpu::TextureFormat::UNORM_10_10_10_2;
 
-  this->depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
+  this->depth_tx.acquire(size, blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
   this->color_tx.acquire(size, format_color);
   this->reveal_tx.acquire(size, format_reveal);
 
@@ -642,11 +651,13 @@ void Instance::acquire_resources()
 
   if (this->use_mask_fb) {
     /* Use high quality format for render. */
-    const eGPUTextureFormat mask_format = this->is_render ? GPU_R16 : GPU_R8;
+    const blender::gpu::TextureFormat mask_format = this->is_render ?
+                                                        blender::gpu::TextureFormat::UNORM_16 :
+                                                        blender::gpu::TextureFormat::UNORM_8;
     /* We need an extra depth to not disturb the normal drawing. */
-    this->mask_depth_tx.acquire(size, GPU_DEPTH32F_STENCIL8);
+    this->mask_depth_tx.acquire(size, blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8);
     /* The mask_color_tx is needed for frame-buffer completeness. */
-    this->mask_color_tx.acquire(size, GPU_R8);
+    this->mask_color_tx.acquire(size, blender::gpu::TextureFormat::UNORM_8);
     this->mask_tx.acquire(size, mask_format);
 
     this->mask_fb.ensure(GPU_ATTACHMENT_TEXTURE(this->mask_depth_tx),
@@ -657,7 +668,7 @@ void Instance::acquire_resources()
   if (this->use_separate_pass) {
     const int2 size = int2(draw_ctx->viewport_size_get());
     draw::TextureFromPool &output_pass_texture = DRW_viewport_pass_texture_get("GreasePencil");
-    output_pass_texture.acquire(size, GPU_RGBA16F);
+    output_pass_texture.acquire(size, blender::gpu::TextureFormat::SFLOAT_16_16_16_16);
     this->gpencil_pass_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(output_pass_texture));
   }
 }

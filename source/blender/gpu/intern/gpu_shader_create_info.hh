@@ -812,7 +812,7 @@ struct ShaderCreateInfo {
   };
 
   struct Image {
-    eGPUTextureFormat format;
+    blender::gpu::TextureFormat format;
     ImageType type;
     Qualifier qualifiers;
     StringRefNull name;
@@ -1174,7 +1174,7 @@ struct ShaderCreateInfo {
   }
 
   Self &image(int slot,
-              eGPUTextureFormat format,
+              blender::gpu::TextureFormat format,
               Qualifier qualifiers,
               ImageReadWriteType type,
               StringRefNull name,

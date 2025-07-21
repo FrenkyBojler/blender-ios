@@ -494,11 +494,12 @@ void Film::init(const int2 &extent, const rcti *output_rect)
                              data_.extent :
                              int2(1);
 
-    eGPUTextureFormat color_format = GPU_RGBA16F;
-    eGPUTextureFormat float_format = GPU_R16F;
-    eGPUTextureFormat weight_format = GPU_R32F;
-    eGPUTextureFormat depth_format = GPU_R32F;
-    eGPUTextureFormat cryptomatte_format = GPU_RGBA32F;
+    blender::gpu::TextureFormat color_format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
+    blender::gpu::TextureFormat float_format = blender::gpu::TextureFormat::SFLOAT_16;
+    blender::gpu::TextureFormat weight_format = blender::gpu::TextureFormat::SFLOAT_32;
+    blender::gpu::TextureFormat depth_format = blender::gpu::TextureFormat::SFLOAT_32;
+    blender::gpu::TextureFormat cryptomatte_format =
+        blender::gpu::TextureFormat::SFLOAT_32_32_32_32;
 
     int reset = 0;
     reset += depth_tx_.ensure_2d(depth_format, data_.extent);

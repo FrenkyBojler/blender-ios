@@ -96,10 +96,11 @@ void WorldPipeline::sync(GPUMaterial *gpumat)
   const int2 extent(1);
   constexpr eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE |
                                      GPU_TEXTURE_USAGE_SHADER_READ;
-  dummy_cryptomatte_tx_.ensure_2d(GPU_RGBA32F, extent, usage);
-  dummy_renderpass_tx_.ensure_2d(GPU_RGBA16F, extent, usage);
-  dummy_aov_color_tx_.ensure_2d_array(GPU_RGBA16F, extent, 1, usage);
-  dummy_aov_value_tx_.ensure_2d_array(GPU_R16F, extent, 1, usage);
+  dummy_cryptomatte_tx_.ensure_2d(blender::gpu::TextureFormat::SFLOAT_32_32_32_32, extent, usage);
+  dummy_renderpass_tx_.ensure_2d(blender::gpu::TextureFormat::SFLOAT_16_16_16_16, extent, usage);
+  dummy_aov_color_tx_.ensure_2d_array(
+      blender::gpu::TextureFormat::SFLOAT_16_16_16_16, extent, 1, usage);
+  dummy_aov_value_tx_.ensure_2d_array(blender::gpu::TextureFormat::SFLOAT_16, extent, 1, usage);
 
   PassSimple &pass = cubemap_face_ps_;
   pass.init();

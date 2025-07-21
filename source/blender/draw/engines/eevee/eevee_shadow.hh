@@ -260,7 +260,7 @@ class ShadowModule {
   /** \name Page Management
    * \{ */
 
-  static constexpr eGPUTextureFormat atlas_type = GPU_R32UI;
+  static constexpr blender::gpu::TextureFormat atlas_type = blender::gpu::TextureFormat::UINT_32;
   /** Atlas containing all physical pages. */
   Texture atlas_tx_ = {"shadow_atlas_tx_"};
 

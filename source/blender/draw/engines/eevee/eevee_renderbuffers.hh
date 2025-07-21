@@ -24,8 +24,10 @@ class RenderBuffers {
  public:
   RenderBuffersInfoData &data;
 
-  static constexpr eGPUTextureFormat color_format = GPU_RGBA16F;
-  static constexpr eGPUTextureFormat float_format = GPU_R16F;
+  static constexpr blender::gpu::TextureFormat color_format =
+      blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
+  static constexpr blender::gpu::TextureFormat float_format =
+      blender::gpu::TextureFormat::SFLOAT_16;
 
   Texture depth_tx;
   TextureFromPool combined_tx;
@@ -75,7 +77,7 @@ class RenderBuffers {
     return extent_;
   }
 
-  eGPUTextureFormat vector_tx_format();
+  blender::gpu::TextureFormat vector_tx_format();
 };
 
 }  // namespace blender::eevee
