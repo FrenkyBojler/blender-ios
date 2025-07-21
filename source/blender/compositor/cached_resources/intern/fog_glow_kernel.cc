@@ -60,6 +60,9 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
                                                             int kernel_size,
                                                             float glare_size)
 {
+  const int half_kernel_size = kernel_size / 2;
+  const float2 uv = float2(texel) / half_kernel_size;
+  const float r = math::length(uv);
   const float maximum_field_of_view = 180.0f;
   const float minimum_field_of_view = 3e-1f;
   const float field_of_view = glare_size == 0 ? maximum_field_of_view :
