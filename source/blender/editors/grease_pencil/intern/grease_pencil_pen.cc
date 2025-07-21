@@ -173,7 +173,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   for (const int curve_index : src.curves_range()) {
     const IndexRange curve_points = points_by_curve[curve_index];
 
-    if (point_selection[curve_points.first()]) {
+    if (point_selection[curve_points.first()] && curve_points.size() != 1) {
       /* Start-point extruded, we insert a new point at the beginning of the curve. */
       dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
       dst_selected.insert(curve_points.first() + point_offset, true);
