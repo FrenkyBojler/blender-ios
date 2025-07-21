@@ -177,8 +177,8 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
          * NOTE: all points of a cyclic curve behave like an inner-point. */
         dst_to_src_points.insert(src_point_index + point_offset, src_point_index);
         dst_selected.insert(src_point_index + point_offset, true);
-        ++dst_curve_counts[curve_index];
-        ++point_offset;
+        dst_curve_counts[curve_index]++;
+        point_offset++;
         return;
       }
       if (!curve_cyclic && (src_point_index == curve_points.last())) {
@@ -186,27 +186,14 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
          * NOTE: all points of a cyclic curve behave like an inner-point. */
         dst_to_src_points.insert(src_point_index + point_offset + 1, src_point_index);
         dst_selected.insert(src_point_index + point_offset + 1, true);
-        ++dst_curve_counts[curve_index];
-        ++point_offset;
+        dst_curve_counts[curve_index]++;
+        point_offset++;
         return;
       }
-
-      /* Inner-point extruded: we create a new curve made of two points located at the same
-       * position. Only one of them is selected so that the other one remains stuck to the curve.
-       */
-      dst_to_src_points.append(src_point_index);
-      dst_selected.append(false);
-      dst_to_src_points.append(src_point_index);
-      dst_selected.append(true);
-      dst_to_src_curves.append(curve_index);
-      dst_curve_counts.append(2);
     });
   }
 
-  const int new_points_num = dst_to_src_points.size();
-  const int new_curves_num = dst_to_src_curves.size();
-
-  bke::CurvesGeometry dst(new_points_num, new_curves_num);
+  bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
   BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
 
   /* Setup curve offsets, based on the number of points in each curve. */
@@ -233,12 +220,8 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
     selection.finish();
   }
 
-  bke::gather_attributes(src_attributes,
-                         bke::AttrDomain::Curve,
-                         bke::AttrDomain::Curve,
-                         {},
-                         dst_to_src_curves,
-                         dst_attributes);
+  bke::copy_attributes(
+      src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
 
   /* Cyclic attribute : newly created curves cannot be cyclic. */
   dst.cyclic_for_write().drop_front(old_curves_num).fill(false);
