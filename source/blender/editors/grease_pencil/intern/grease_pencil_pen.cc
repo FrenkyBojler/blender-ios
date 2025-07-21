@@ -265,6 +265,70 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   return dst;
 }
 
+static void pen_add_single(const PenToolOperation &ptd)
+{
+  BLI_assert(ptd.grease_pencil->has_active_layer());
+  bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
+      *ptd.grease_pencil->get_active_layer(), ptd.vc.scene->r.cfra);
+
+  bke::CurvesGeometry &curves = drawing->strokes_for_write();
+
+  const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
+
+  ed::greasepencil::add_single_curve(curves, true);
+  bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+  curves.positions_for_write().last() = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+  curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
+  curves.handle_types_left_for_write().last() = ptd.extrude_handle;
+  curves.handle_types_right_for_write().last() = ptd.extrude_handle;
+  drawing->opacities_for_write().last() = 1.0f;
+  curves.update_curve_types();
+
+  bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
+      "material_index",
+      bke::AttrDomain::Curve,
+      bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
+
+  const int material_index = ptd.vc.obact->actcol - 1;
+  material_indexes.span.last() = material_index;
+
+  MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+  MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+  handles_left.last() = pen_screen_to_global(
+      ptd, ptd.mouse_co - float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
+  handles_right.last() = pen_screen_to_global(
+      ptd, ptd.mouse_co + float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
+
+  curves.radius_for_write().last() = math::distance(handles_left.last(), handles_right.last()) *
+                                     default_radius_factor;
+
+  for (const StringRef selection_attribute_name :
+       ed::curves::get_curves_selection_attribute_names(curves))
+  {
+    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+        curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+
+    ed::curves::fill_selection_true(selection.span,
+                                    IndexRange::from_single(curves.points_range().last()));
+    selection.finish();
+  }
+
+  /* Initialize the rest of the attributes with default values. */
+  bke::fill_attribute_range_default(
+      attributes,
+      bke::AttrDomain::Point,
+      bke::attribute_filter_from_skip_ref({"position", "opacity", "radius"}),
+      curves.curves_range().take_front(1));
+  bke::fill_attribute_range_default(
+      attributes,
+      bke::AttrDomain::Curve,
+      bke::attribute_filter_from_skip_ref({"curve_type", "material_index"}),
+      curves.curves_range().take_front(1));
+
+  drawing->tag_topology_changed();
+}
+
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -392,66 +456,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   });
 
   if (add_single) {
-    BLI_assert(ptd.grease_pencil->has_active_layer());
-    bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
-        *ptd.grease_pencil->get_active_layer(), vc.scene->r.cfra);
-
-    bke::CurvesGeometry &curves = drawing->strokes_for_write();
-
-    const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
-
-    ed::greasepencil::add_single_curve(curves, true);
-    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-    curves.positions_for_write().last() = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
-    curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
-    curves.handle_types_left_for_write().last() = ptd.extrude_handle;
-    curves.handle_types_right_for_write().last() = ptd.extrude_handle;
-    drawing->opacities_for_write().last() = 1.0f;
-    curves.update_curve_types();
-
-    bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
-        "material_index",
-        bke::AttrDomain::Curve,
-        bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
-
-    const int material_index = object->actcol - 1;
-    material_indexes.span.last() = material_index;
-
-    MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
-    MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
-    handles_left.last() = pen_screen_to_global(
-        ptd, ptd.mouse_co - float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
-    handles_right.last() = pen_screen_to_global(
-        ptd, ptd.mouse_co + float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
-
-    curves.radius_for_write().last() = math::distance(handles_left.last(), handles_right.last()) *
-                                       default_radius_factor;
-
-    for (const StringRef selection_attribute_name :
-         ed::curves::get_curves_selection_attribute_names(curves))
-    {
-      bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
-          curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
-
-      ed::curves::fill_selection_true(selection.span,
-                                      IndexRange::from_single(curves.points_range().last()));
-      selection.finish();
-    }
-
-    /* Initialize the rest of the attributes with default values. */
-    bke::fill_attribute_range_default(
-        attributes,
-        bke::AttrDomain::Point,
-        bke::attribute_filter_from_skip_ref({"position", "opacity", "radius"}),
-        curves.curves_range().take_front(1));
-    bke::fill_attribute_range_default(
-        attributes,
-        bke::AttrDomain::Curve,
-        bke::attribute_filter_from_skip_ref({"curve_type", "material_index"}),
-        curves.curves_range().take_front(1));
-
-    drawing->tag_topology_changed();
+    pen_add_single(ptd);
   }
 
   if (changed) {
