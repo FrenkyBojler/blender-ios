@@ -134,13 +134,13 @@ void ConstraintCorrections::apply()
       });
 }
 
-class EdgeLengthConstraint : public ConstraintSet {
+class EdgeLengthConstraintSet : public ConstraintSet {
  private:
   std::string rest_length_attribute_;
   float compliance_;
 
  public:
-  EdgeLengthConstraint(std::string rest_length_attribute, const float compliance)
+  EdgeLengthConstraintSet(std::string rest_length_attribute, const float compliance)
       : rest_length_attribute_(std::move(rest_length_attribute)), compliance_(compliance)
   {
   }
@@ -229,14 +229,14 @@ class EdgeLengthConstraint : public ConstraintSet {
   }
 };
 
-class FixedPositionsConstraint : public ConstraintSet {
+class FixedPositionsConstraintSet : public ConstraintSet {
  private:
   fn::Field<bool> selection_field_;
   fn::Field<float3> fixed_positions_field_;
 
  public:
-  FixedPositionsConstraint(fn::Field<bool> selection_field,
-                           fn::Field<float3> fixed_positions_field)
+  FixedPositionsConstraintSet(fn::Field<bool> selection_field,
+                              fn::Field<float3> fixed_positions_field)
       : selection_field_(std::move(selection_field)),
         fixed_positions_field_(std::move(fixed_positions_field))
   {
@@ -305,13 +305,13 @@ class FixedPositionsConstraint : public ConstraintSet {
   }
 };
 
-class InfiniteCollisionPlaneConstraint : public ConstraintSet {
+class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
  private:
   float3 position_;
   float3 normal_;
 
  public:
-  InfiniteCollisionPlaneConstraint(const float3 &position, const float3 &normal)
+  InfiniteCollisionPlaneConstraintSet(const float3 &position, const float3 &normal)
       : position_(position), normal_(math::normalize(normal))
   {
   }
@@ -369,22 +369,22 @@ ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
                                                std::string rest_length_attribute,
                                                const float compliance)
 {
-  return scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute), compliance);
+  return scope.construct<EdgeLengthConstraintSet>(std::move(rest_length_attribute), compliance);
 }
 
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                   fn::Field<bool> selection_field,
                                                   fn::Field<float3> fixed_positions_field)
 {
-  return scope.construct<FixedPositionsConstraint>(std::move(selection_field),
-                                                   std::move(fixed_positions_field));
+  return scope.construct<FixedPositionsConstraintSet>(std::move(selection_field),
+                                                      std::move(fixed_positions_field));
 }
 
 ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
                                                            const float3 &position,
                                                            const float3 &normal)
 {
-  return scope.construct<InfiniteCollisionPlaneConstraint>(position, normal);
+  return scope.construct<InfiniteCollisionPlaneConstraintSet>(position, normal);
 }
 
 void solve(Behaviors &behaviors, const float total_delta_time, const int substeps)
