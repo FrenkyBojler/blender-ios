@@ -659,7 +659,7 @@ class ShaderNodesInliner {
       const PrimitiveSocketValue value =
           *value_by_socket_.lookup(input_socket_ctx).to_primitive(*input_socket->typeinfo);
       params.add_readonly_single_input(
-          GVArray::ForSingle(*input_socket->typeinfo->base_cpp_type, 1, value.buffer()));
+          GVArray::from_single(*input_socket->typeinfo->base_cpp_type, 1, value.buffer()));
     }
 
     Vector<void *> output_values;
