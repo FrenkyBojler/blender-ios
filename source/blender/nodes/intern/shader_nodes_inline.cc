@@ -215,11 +215,31 @@ class ShaderNodesInliner {
   {
     /* TODO: Handle other output nodes and outputs within node groups. */
     Vector<SocketInContext> output_sockets;
-    for (const bNode *node : src_tree_.nodes_by_type("ShaderNodeOutputMaterial")) {
-      for (const bNodeSocket *socket : node->input_sockets()) {
-        output_sockets.append({nullptr, socket});
+
+    auto add_output_type = [&](const char *output_type) {
+      for (const bNode *node : src_tree_.nodes_by_type(output_type)) {
+        for (const bNodeSocket *socket : node->input_sockets()) {
+          output_sockets.append({nullptr, socket});
+        }
       }
+    };
+
+    switch (GS(src_tree_.owner_id->name)) {
+      case ID_MA:
+        add_output_type("ShaderNodeOutputMaterial");
+        add_output_type("ShaderNodeOutputAOV");
+        break;
+      case ID_WO:
+        add_output_type("ShaderNodeOutputWorld");
+        add_output_type("ShaderNodeOutputAOV");
+        break;
+      case ID_LA:
+        add_output_type("ShaderNodeOutputLight");
+        break;
+      default:
+        BLI_assert_unreachable();
     }
+
     return output_sockets;
   }
 
