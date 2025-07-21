@@ -64,39 +64,62 @@ blender::gpu::Batch *hair_sub_pass_setup_implementation(PassT &sub_ps,
 
   drw_particle_update_ptcache(object, psys);
 
-  ParticleDrawSource source = drw_particle_get_hair_source(
-      object, psys, md, nullptr, scene->r.hair_subdiv);
-
-  CurvesEvalCache &cache = hair_particle_get_eval_cache(source);
-
-  const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND)   ? 0 :
-                               (scene->r.hair_type == SCE_HAIR_SHAPE_CYLINDER) ? 3 :
-                                                                                 1;
-
-  if (source.evaluated_points_num() == 0) {
-    /* Nothing to draw. Just return an empty drawcall that will be skipped. */
-    return cache.batch_get(0, 0, face_per_segment, false);
-  }
-
   /* TODO(fclem): Remove Global access. */
   CurvesModule &module = *drw_get().data->curves_module;
 
-  cache.ensure_positions(module, source);
-  cache.ensure_attributes(module, source, gpu_material);
-
-  gpu::VertBufPtr &indirection_buf = cache.indirection_buf_get(module, source, face_per_segment);
-
-  {
-    ParticleSystemModifierData *psmd = (ParticleSystemModifierData *)source.md;
-    Mesh &mesh = *psmd->mesh_final;
-    const StringRef active_uv = CustomData_get_active_layer_name(&mesh.corner_data,
-                                                                 CD_PROP_FLOAT2);
-    curves_bind_resources(
-        sub_ps, module, cache, face_per_segment, gpu_material, indirection_buf, active_uv);
+  /* Ensure we have no unbound resources.
+   * Required for Vulkan.
+   * Fixes issues with certain GL drivers not drawing anything. */
+  sub_ps.bind_texture("u", module.dummy_vbo);
+  sub_ps.bind_texture("au", module.dummy_vbo);
+  sub_ps.bind_texture("a", module.dummy_vbo);
+  sub_ps.bind_texture("c", module.dummy_vbo);
+  sub_ps.bind_texture("ac", module.dummy_vbo);
+  if (gpu_material) {
+    ListBase attr_list = GPU_material_attributes(gpu_material);
+    ListBaseWrapper<GPUMaterialAttribute> attrs(attr_list);
+    for (const GPUMaterialAttribute *attr : attrs) {
+      sub_ps.bind_texture(attr->input_name, module.dummy_vbo);
+    }
   }
 
-  return cache.batch_get(
-      source.evaluated_points_num(), source.curves_num(), face_per_segment, false);
+  /* TODO: optimize this. Only bind the ones #GPUMaterial needs. */
+  for (int i : IndexRange(hair_cache->num_uv_layers)) {
+    for (int n = 0; n < MAX_LAYER_NAME_CT && hair_cache->uv_layer_names[i][n][0] != '\0'; n++) {
+      sub_ps.bind_texture(hair_cache->uv_layer_names[i][n], hair_cache->uv_tex[i]);
+    }
+  }
+  for (int i : IndexRange(hair_cache->num_col_layers)) {
+    for (int n = 0; n < MAX_LAYER_NAME_CT && hair_cache->col_layer_names[i][n][0] != '\0'; n++) {
+      sub_ps.bind_texture(hair_cache->col_layer_names[i][n], hair_cache->col_tex[i]);
+    }
+  }
+
+  float4x4 dupli_mat;
+  DRW_hair_duplimat_get(ob_ref, psys, md, dupli_mat.ptr());
+
+  /* Get hair shape parameters. */
+  ParticleSettings *part = psys->part;
+  float hair_rad_shape = part->shape;
+  float hair_rad_root = part->rad_root * part->rad_scale * 0.5f;
+  float hair_rad_tip = part->rad_tip * part->rad_scale * 0.5f;
+  bool hair_close_tip = (part->shape_flag & PART_SHAPE_CLOSE_TIP) != 0;
+
+  sub_ps.bind_texture("hairPointBuffer", hair_cache->final[subdiv].proc_buf);
+  if (hair_cache->proc_length_buf) {
+    sub_ps.bind_texture("l", hair_cache->proc_length_buf);
+  }
+
+  sub_ps.bind_ubo("drw_curves", module.ubo_pool.dummy_get());
+  sub_ps.push_constant("hairStrandsRes", &hair_cache->final[subdiv].strands_res, 1);
+  sub_ps.push_constant("hairThicknessRes", thickness_res);
+  sub_ps.push_constant("hairRadShape", hair_rad_shape);
+  sub_ps.push_constant("hairDupliMatrix", dupli_mat);
+  sub_ps.push_constant("hairRadRoot", hair_rad_root);
+  sub_ps.push_constant("hairRadTip", hair_rad_tip);
+  sub_ps.push_constant("hairCloseTip", hair_close_tip);
+
+  return hair_cache->final[subdiv].proc_hairs[thickness_res - 1];
 }
 
 blender::gpu::Batch *hair_sub_pass_setup(PassMain::Sub &sub_ps,

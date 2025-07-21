@@ -503,6 +503,37 @@ gpu::Batch *curves_sub_pass_setup_implementation(PassT &sub_ps,
 {
   BLI_assert(ob->type == OB_CURVES);
   Curves &curves_id = DRW_object_get_data_for_drawing<Curves>(*ob);
+
+  const int subdiv = scene->r.hair_subdiv;
+  const int thickness_res = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND) ? 1 : 2;
+
+  CurvesEvalCache *curves_cache = drw_curves_cache_get(
+      curves_id, gpu_material, subdiv, thickness_res);
+
+  /* Ensure we have no unbound resources.
+   * Required for Vulkan.
+   * Fixes issues with certain GL drivers not drawing anything. */
+  sub_ps.bind_texture("u", module.dummy_vbo);
+  sub_ps.bind_texture("au", module.dummy_vbo);
+  sub_ps.bind_texture("a", module.dummy_vbo);
+  sub_ps.bind_texture("c", module.dummy_vbo);
+  sub_ps.bind_texture("ac", module.dummy_vbo);
+  if (gpu_material) {
+    ListBase attr_list = GPU_material_attributes(gpu_material);
+    ListBaseWrapper<GPUMaterialAttribute> attrs(attr_list);
+    for (const GPUMaterialAttribute *attr : attrs) {
+      sub_ps.bind_texture(attr->input_name, module.dummy_vbo);
+    }
+  }
+
+  /* TODO: Generalize radius implementation for curves data type. */
+  float hair_rad_shape = 0.0f;
+  float hair_rad_root = 0.005f;
+  float hair_rad_tip = 0.0f;
+  bool hair_close_tip = true;
+
+  /* Use the radius of the root and tip of the first curve for now. This is a workaround that we
+   * use for now because we can't use a per-point radius yet. */
   const bke::CurvesGeometry &curves = curves_id.geometry.wrap();
 
   const int face_per_segment = (scene->r.hair_type == SCE_HAIR_SHAPE_STRAND)   ? 0 :

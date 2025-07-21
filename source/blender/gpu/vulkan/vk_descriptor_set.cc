@@ -167,6 +167,7 @@ void VKDescriptorSetUpdator::bind_input_attachment_resource(
     }
   }
   else {
+    bool supports_dynamic_rendering = device.extensions_get().dynamic_rendering;
     const BindSpaceTextures::Elem *elem_ptr = state_manager.textures_.get(
         resource_binding.binding);
     if (!elem_ptr) {
