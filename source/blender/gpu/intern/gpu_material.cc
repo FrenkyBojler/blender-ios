@@ -27,6 +27,7 @@
 #include "BKE_node.hh"
 
 #include "NOD_shader.h"
+#include "NOD_shader_nodes_inline.hh"
 
 #include "GPU_material.hh"
 #include "GPU_pass.hh"
@@ -157,7 +158,9 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   mat->name = name;
 
   /* Localize tree to create links for reroute and mute. */
-  bNodeTree *localtree = blender::bke::node_tree_localize(ntree, nullptr);
+  bNodeTree *localtree = blender::bke::node_tree_add_tree(
+      nullptr, (blender::StringRef(ntree->id.name) + " Inlined").c_str(), ntree->idname);
+  blender::nodes::inline_shader_node_tree(*ntree, *localtree);
   ntreeGPUMaterialNodes(localtree, mat);
 
   gpu_material_ramp_texture_build(mat);
