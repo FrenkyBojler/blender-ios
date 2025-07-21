@@ -5,3 +5,4 @@ Referenced by issue #135333, Node tool removes mesh if first input is not geomet
 Referenced by issue #135413, [Sculpting] [Geometry nodes] Inconsistent results when chanigng input values into a geometry node tool in sculpt mode
 Referenced by pull request #138719, Fix #138718: Node tools crash on mesh with vertex groups
 Referenced by commit 51ed527ab93443e56141ff18995b431c11826107, Fix #138718: Node tools crash on mesh with vertex groups
+Referenced by issue #142648, Crash when use geonode tool on multiple objects
