@@ -489,6 +489,11 @@ void VKBackend::detect_workarounds(VKDevice &device)
     extensions.dynamic_rendering_local_read = false;
   }
 
+  if ((G.debug & G_DEBUG_GPU_VULKAN_DISABLE_DESCRIPTOR_INDEXING) != 0) {
+    std::cout << "Disabling descriptor indexing.\n";
+    extensions.descriptor_indexing = false;
+  }
+
   VkFormatProperties format_properties = {};
   vkGetPhysicalDeviceFormatProperties(
       device.physical_device_get(), VK_FORMAT_R8G8B8_UNORM, &format_properties);

@@ -755,6 +755,7 @@ static void print_help(bArgs *ba, bool all)
   }
 #  ifdef WITH_VULKAN_BACKEND
   BLI_args_print_arg_doc(ba, "--debug-gpu-vulkan-local-read");
+  BLI_args_print_arg_doc(ba, "--debug-gpu-vulkan-disable-descriptor-indexing");
 #  endif
   BLI_args_print_arg_doc(ba, "--debug-wm");
   if (defs.with_xr_openxr) {
@@ -1387,6 +1388,9 @@ static const char arg_handle_debug_mode_generic_set_doc_gpu_force_workarounds[] 
 static const char arg_handle_debug_mode_generic_set_doc_gpu_force_vulkan_local_read[] =
     "\n\t"
     "Force Vulkan dynamic rendering local read when supported by device.";
+static const char arg_handle_debug_mode_generic_set_doc_gpu_vulkan_disable_descriptor_indexing[] =
+    "\n\t"
+    "Disable Vulkan descriptor indexing.";
 #  endif
 
 static int arg_handle_debug_mode_generic_set(int /*argc*/, const char ** /*argv*/, void *data)
@@ -2921,6 +2925,11 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
                "--debug-gpu-vulkan-local-read",
                CB_EX(arg_handle_debug_mode_generic_set, gpu_force_vulkan_local_read),
                (void *)G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ);
+  BLI_args_add(ba,
+               nullptr,
+               "--debug-gpu-vulkan-disable-descriptor-indexing",
+               CB_EX(arg_handle_debug_mode_generic_set, gpu_vulkan_disable_descriptor_indexing),
+               (void *)G_DEBUG_GPU_VULKAN_DISABLE_DESCRIPTOR_INDEXING);
 #  endif
   BLI_args_add(ba, nullptr, "--debug-exit-on-error", CB(arg_handle_debug_exit_on_error), nullptr);
 

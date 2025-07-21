@@ -91,8 +91,11 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
       VKPushConstants::Layout::determine_storage_type(info, device, bindings_table_size_);
   if (push_constants_storage_type == VKPushConstants::StorageType::UNIFORM_BUFFER) {
     ubo_len_++;
-    bindings_table_size_++;
     names_size += PUSH_CONSTANTS_FALLBACK_NAME_LEN + 1;
+
+    if (supports_descriptor_indexing) {
+      bindings_table_size_++;
+    }
   }
 
   if (supports_descriptor_indexing) {
