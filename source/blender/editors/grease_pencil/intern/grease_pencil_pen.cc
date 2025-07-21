@@ -472,6 +472,8 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   Object *object = ptd.vc.obact;
   GreasePencil &grease_pencil = *ptd.grease_pencil;
 
+  ptd.mouse_co = float2(event->mval);
+
   if (ISMOUSE_MOTION(event->type)) {
   }
   else {
@@ -491,11 +493,22 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
-    MutableSpan<float3> positions = curves.positions_for_write();
+    const Span<float3> positions = curves.positions();
 
-    for (const int i : positions.index_range()) {
-      positions[i] += float3(1.0f, 1.0f, 1.0f) * 0.001f;
-    }
+    MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
+    MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
+    MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+    MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+
+    selection.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
+      handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+      handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+      const float3 depth_point = positions[point_i];
+      handles_right[point_i] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+      handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
+    });
+
+    curves.calculate_bezier_auto_handles();
 
     info.drawing.tag_topology_changed();
     changed.store(true, std::memory_order_relaxed);
