@@ -410,6 +410,14 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     drawing->opacities_for_write().last() = 1.0f;
     curves.update_curve_types();
 
+    bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
+        "material_index",
+        bke::AttrDomain::Curve,
+        bke::AttributeInitVArray(VArray<int>::from_single(0, curves.curves_num())));
+
+    const int material_index = object->actcol - 1;
+    material_indexes.span.last() = material_index;
+
     MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
     handles_left.last() = pen_screen_to_global(
@@ -437,10 +445,11 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         bke::AttrDomain::Point,
         bke::attribute_filter_from_skip_ref({"position", "opacity", "radius"}),
         curves.curves_range().take_front(1));
-    bke::fill_attribute_range_default(attributes,
-                                      bke::AttrDomain::Curve,
-                                      bke::attribute_filter_from_skip_ref({"curve_type"}),
-                                      curves.curves_range().take_front(1));
+    bke::fill_attribute_range_default(
+        attributes,
+        bke::AttrDomain::Curve,
+        bke::attribute_filter_from_skip_ref({"curve_type", "material_index"}),
+        curves.curves_range().take_front(1));
 
     drawing->tag_topology_changed();
   }
