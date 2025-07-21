@@ -14,6 +14,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
+#include "BKE_curves_utils.hh"
 #include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.hh"
@@ -32,6 +33,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_material_types.h"
 
+#include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
 #include "ED_space_api.hh"
@@ -160,6 +162,138 @@ static int pen_find_closest_point(const PenToolOperation &ptd,
   return closest_point;
 }
 
+static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
+{
+  const OffsetIndices<int> points_by_curve = src.points_by_curve();
+
+  const int old_curves_num = src.curves_num();
+  const int old_points_num = src.points_num();
+
+  const IndexMask &points_to_extrude = src.curves_range().take_front(1);
+
+  Vector<int> dst_to_src_points(old_points_num);
+  array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
+
+  Vector<int> dst_to_src_curves(old_curves_num);
+  array_utils::fill_index_range(dst_to_src_curves.as_mutable_span());
+
+  Vector<bool> dst_selected(old_points_num, false);
+
+  Vector<int> dst_curve_counts(old_curves_num);
+  offset_indices::copy_group_sizes(
+      points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
+
+  const VArray<bool> &src_cyclic = src.cyclic();
+
+  /* Point offset keeps track of the points inserted. */
+  int point_offset = 0;
+  for (const int curve_index : src.curves_range()) {
+    const IndexRange curve_points = points_by_curve[curve_index];
+    const IndexMask curve_points_to_extrude = points_to_extrude.slice_content(curve_points);
+    const bool curve_cyclic = src_cyclic[curve_index];
+
+    curve_points_to_extrude.foreach_index([&](const int src_point_index) {
+      if (!curve_cyclic && (src_point_index == curve_points.first())) {
+        /* Start-point extruded, we insert a new point at the beginning of the curve.
+         * NOTE: all points of a cyclic curve behave like an inner-point. */
+        dst_to_src_points.insert(src_point_index + point_offset, src_point_index);
+        dst_selected.insert(src_point_index + point_offset, true);
+        ++dst_curve_counts[curve_index];
+        ++point_offset;
+        return;
+      }
+      if (!curve_cyclic && (src_point_index == curve_points.last())) {
+        /* End-point extruded, we insert a new point at the end of the curve.
+         * NOTE: all points of a cyclic curve behave like an inner-point. */
+        dst_to_src_points.insert(src_point_index + point_offset + 1, src_point_index);
+        dst_selected.insert(src_point_index + point_offset + 1, true);
+        ++dst_curve_counts[curve_index];
+        ++point_offset;
+        return;
+      }
+
+      /* Inner-point extruded: we create a new curve made of two points located at the same
+       * position. Only one of them is selected so that the other one remains stuck to the curve.
+       */
+      dst_to_src_points.append(src_point_index);
+      dst_selected.append(false);
+      dst_to_src_points.append(src_point_index);
+      dst_selected.append(true);
+      dst_to_src_curves.append(curve_index);
+      dst_curve_counts.append(2);
+    });
+  }
+
+  const int new_points_num = dst_to_src_points.size();
+  const int new_curves_num = dst_to_src_curves.size();
+
+  bke::CurvesGeometry dst(new_points_num, new_curves_num);
+  BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
+
+  /* Setup curve offsets, based on the number of points in each curve. */
+  MutableSpan<int> new_curve_offsets = dst.offsets_for_write();
+  array_utils::copy(dst_curve_counts.as_span(), new_curve_offsets.drop_back(1));
+  offset_indices::accumulate_counts_to_offsets(new_curve_offsets);
+
+  /* Attributes. */
+  const bke::AttributeAccessor src_attributes = src.attributes();
+  bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
+
+  /* Selection attribute. */
+  /* Copy the value of control point selections to all selection attributes.
+   *
+   * This will lead to the extruded control point always having both handles selected, if it's a
+   * bezier type stroke. This is to circumvent the issue of source curves handles not being
+   * deselected when the user extrudes a bezier control point with both handles selected. */
+  for (const StringRef selection_attribute_name :
+       ed::curves::get_curves_selection_attribute_names(src))
+  {
+    bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+        dst, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+    selection.span.copy_from(dst_selected.as_span());
+    selection.finish();
+  }
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Curve,
+                         bke::AttrDomain::Curve,
+                         {},
+                         dst_to_src_curves,
+                         dst_attributes);
+
+  /* Cyclic attribute : newly created curves cannot be cyclic. */
+  dst.cyclic_for_write().drop_front(old_curves_num).fill(false);
+
+  bke::gather_attributes(src_attributes,
+                         bke::AttrDomain::Point,
+                         bke::AttrDomain::Point,
+                         bke::attribute_filter_from_skip_ref(
+                             {".selection", ".selection_handle_left", ".selection_handle_right"}),
+                         dst_to_src_points,
+                         dst_attributes);
+
+  dst.update_curve_types();
+  if (src.nurbs_has_custom_knots()) {
+    IndexMaskMemory memory;
+    const VArray<int8_t> curve_types = src.curve_types();
+    const VArray<int8_t> knot_modes = dst.nurbs_knots_modes();
+    const OffsetIndices<int> dst_points_by_curve = dst.points_by_curve();
+    const IndexMask include_curves = IndexMask::from_predicate(
+        src.curves_range(), GrainSize(512), memory, [&](const int64_t curve_index) {
+          return curve_types[curve_index] == CURVE_TYPE_NURBS &&
+                 knot_modes[curve_index] == NURBS_KNOT_MODE_CUSTOM &&
+                 points_by_curve[curve_index].size() == dst_points_by_curve[curve_index].size();
+        });
+    bke::curves::nurbs::update_custom_knot_modes(
+        include_curves.complement(dst.curves_range(), memory),
+        NURBS_KNOT_MODE_ENDPOINT,
+        NURBS_KNOT_MODE_NORMAL,
+        dst);
+    bke::curves::nurbs::gather_custom_knots(src, include_curves, 0, dst);
+  }
+  return dst;
+}
+
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -243,7 +377,12 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
             curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
           }
           else {
-            // curves = pen_extrude_curves(curves);
+            curves = pen_extrude_curves(curves);
+
+            const float3 depth_point = curves.is_empty() ? float3(0.0f) :
+                                                           curves.positions().last();
+
+            curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
           }
 
           info.drawing.tag_topology_changed();
