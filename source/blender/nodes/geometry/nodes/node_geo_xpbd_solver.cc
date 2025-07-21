@@ -4,6 +4,7 @@
 
 #include <fmt/format.h>
 
+#include "DNA_mesh_types.h"
 #include "node_geometry_util.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -35,14 +36,79 @@ class XpbdContraints {
   virtual void solve(const XpbdConstraintCorrections &corrections) = 0;
 };
 
+struct SimGeometrySet {
+  std::string path;
+  GeometrySet geometry;
+};
+
 struct ParsedBehaviors {
-  Map<std::string, GeometrySet> geometries;
+  Vector<SimGeometrySet> sim_geometries;
   Vector<XpbdContraints *> constraints;
 };
 
 static std::string combine_bundle_path(const Span<StringRef> &path)
 {
   return fmt::format("{}", fmt::join(path, "/"));
+}
+
+static std::optional<Bundle::Item> lookup_bundle_path(const Bundle &bundle, const StringRef path)
+{
+  BLI_assert(!path.is_empty());
+  BLI_assert(!path.endswith("/"));
+  const int sep = path.find_first_of('/');
+  const StringRef first_part = sep == StringRef::not_found ? path : path.substr(0, sep);
+  const std::optional<Bundle::Item> item = bundle.lookup(SocketInterfaceKey{first_part});
+  if (!item) {
+    return std::nullopt;
+  }
+  if (first_part.size() == path.size()) {
+    return item;
+  }
+  if (item->type->type != SOCK_BUNDLE) {
+    return std::nullopt;
+  }
+  const BundlePtr child_bundle =
+      static_cast<const bke::SocketValueVariant *>(item->value)->get<BundlePtr>();
+  if (!child_bundle) {
+    return std::nullopt;
+  }
+  return lookup_bundle_path(*child_bundle, path.substr(sep + 1));
+}
+
+static void store_bundle_path(Bundle &bundle,
+                              const StringRef path,
+                              const bke::bNodeSocketType &type,
+                              const void *value)
+{
+  BLI_assert(!path.is_empty());
+  BLI_assert(!path.endswith("/"));
+  BLI_assert(bundle.is_mutable());
+  const int sep = path.find_first_of('/');
+  if (sep == StringRef::not_found) {
+    bundle.remove(SocketInterfaceKey{path});
+    bundle.add_new(SocketInterfaceKey{path}, type, value);
+    return;
+  }
+  const StringRef first_part = path.substr(0, sep);
+  BundlePtr child_bundle;
+  const std::optional<Bundle::Item> item = bundle.lookup(SocketInterfaceKey{first_part});
+  if (item->type->type == SOCK_BUNDLE) {
+    child_bundle = static_cast<const bke::SocketValueVariant *>(item->value)->get<BundlePtr>();
+  }
+  else {
+    child_bundle = Bundle::create();
+  }
+  bundle.remove(SocketInterfaceKey{path});
+  if (!child_bundle->is_mutable()) {
+    child_bundle = child_bundle->copy();
+  }
+  child_bundle->tag_ensured_mutable();
+  store_bundle_path(const_cast<Bundle &>(*child_bundle), path.substr(sep + 1), type, value);
+  bke::SocketValueVariant child_bundle_value = bke::SocketValueVariant::From(
+      std::move(child_bundle));
+  bundle.add(SocketInterfaceKey{first_part},
+             *bke::node_socket_type_find_static(SOCK_BUNDLE),
+             &child_bundle_value);
 }
 
 static void foreach_behavior_recursive(
@@ -85,28 +151,79 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle)
   if (!behaviors_bundle) {
     return {};
   }
+  ParsedBehaviors parsed_behaviors;
   Vector<StringRef> path_stack;
   foreach_behavior_recursive(
       *behaviors_bundle,
       path_stack,
-      [](const StringRef type, const Bundle &behavior_bundle, Span<StringRef> path) {
-        fmt::println("Found behavior of type {} at {}", type, combine_bundle_path(path));
+      [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
+        const std::string path = combine_bundle_path(path_stack);
+        if (type == "Geometry") {
+          std::optional<Bundle::Item> item = behavior_bundle.lookup(
+              SocketInterfaceKey{"Geometry"});
+          if (!item) {
+            return;
+          }
+          if (item->type->type != SOCK_GEOMETRY) {
+            return;
+          }
+          SimGeometrySet geometry;
+          geometry.path = path;
+          geometry.geometry = *static_cast<const GeometrySet *>(item->value);
+          parsed_behaviors.sim_geometries.append(geometry);
+          return;
+        }
       });
 
-  ParsedBehaviors parsed_behaviors;
   return parsed_behaviors;
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  BundlePtr data_bundle = params.extract_input<BundlePtr>("Data");
+  BundlePtr old_data_bundle = params.extract_input<BundlePtr>("Data");
   BundlePtr behaviors_bundle = params.extract_input<BundlePtr>("Behavior");
   const float delta_time = params.extract_input<float>("Delta Time");
   const int substeps = params.extract_input<int>("Substeps");
 
-  parse_behaviors(behaviors_bundle);
+  ParsedBehaviors parsed_behaviors = parse_behaviors(behaviors_bundle);
+  if (old_data_bundle) {
+    for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometries) {
+      std::optional<Bundle::Item> item = lookup_bundle_path(*old_data_bundle,
+                                                            sim_geometry.path + "/Geometry");
+      if (!item) {
+        continue;
+      }
+      if (item->type->type != SOCK_GEOMETRY) {
+        continue;
+      }
+      sim_geometry.geometry = *static_cast<const GeometrySet *>(item->value);
+    }
+  }
 
-  params.set_default_remaining_outputs();
+  for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometries) {
+    if (sim_geometry.geometry.has_mesh()) {
+      bke::MeshComponent &mesh_component =
+          sim_geometry.geometry.get_component_for_write<bke::MeshComponent>();
+      Mesh *mesh = mesh_component.get_for_write();
+      if (mesh) {
+        MutableSpan<float3> positions = mesh->vert_positions_for_write();
+        for (float3 &p : positions) {
+          p.z += 1.0f * delta_time;
+        }
+        mesh->tag_positions_changed();
+      }
+    }
+  }
+
+  BundlePtr new_data_bundle = Bundle::create();
+  for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometries) {
+    store_bundle_path(const_cast<Bundle &>(*new_data_bundle),
+                      sim_geometry.path + "/Geometry",
+                      *bke::node_socket_type_find_static(SOCK_GEOMETRY),
+                      &sim_geometry.geometry);
+  }
+
+  params.set_output("Data", new_data_bundle);
 }
 
 static void node_register()

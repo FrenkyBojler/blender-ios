@@ -165,6 +165,16 @@ std::optional<Bundle::Item> Bundle::lookup(const SocketInterfaceKey &key) const
   return std::nullopt;
 }
 
+BundlePtr Bundle::copy() const
+{
+  BundlePtr copy_ptr = Bundle::create();
+  Bundle &copy = const_cast<Bundle &>(*copy_ptr);
+  for (const StoredItem &item : items_) {
+    copy.add_new(item.key, *item.type, item.value);
+  }
+  return copy_ptr;
+}
+
 bool Bundle::remove(const SocketInterfaceKey &key)
 {
   const int removed_num = items_.remove_if([&key](StoredItem &item) {

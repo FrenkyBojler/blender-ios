@@ -60,6 +60,8 @@ class Bundle : public ImplicitSharingMixin {
     return items_;
   }
 
+  BundlePtr copy() const;
+
   void delete_self() override;
 };
 
