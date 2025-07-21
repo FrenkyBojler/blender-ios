@@ -662,6 +662,7 @@ typedef enum eSeqRetimingKeyFlag {
 typedef enum eStripRuntimeFlag {
   STRIP_CLAMPED_LH = (1 << 0),
   STRIP_CLAMPED_RH = (1 << 1),
+  STRIP_OVERLAP = (1 << 2),
 } eStripRuntimeFlag;
 
 /* From: `DNA_object_types.h`, see it's doc-string there. */
@@ -672,7 +673,7 @@ enum {
   /* `SELECT = (1 << 0)` */
   SEQ_LEFTSEL = (1 << 1),
   SEQ_RIGHTSEL = (1 << 2),
-  SEQ_OVERLAP = (1 << 3),
+  SEQ_FLAG_UNUSED_3 = (1 << 3), /* Cleared. */
   SEQ_FILTERY = (1 << 4),
   SEQ_MUTE = (1 << 5),
   SEQ_FLAG_TEXT_EDITING_ACTIVE = (1 << 6),

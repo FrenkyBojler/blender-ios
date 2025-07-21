@@ -1260,7 +1260,7 @@ static void visible_strips_ordered_get(TimelineDrawContext *timeline_ctx,
 
   for (Strip *strip : strips) {
     StripDrawContext strip_ctx = strip_draw_context_get(timeline_ctx, strip);
-    if ((strip->flag & SEQ_OVERLAP) == 0) {
+    if ((strip->runtime.flag & STRIP_OVERLAP) == 0) {
       r_bottom_layer.append(strip_ctx);
     }
     else {
@@ -1415,7 +1415,7 @@ static void strip_data_outline_params_set(const StripDrawContext &strip,
 
   const eSeqOverlapMode overlap_mode = seq::tool_settings_overlap_mode_get(timeline_ctx->scene);
   const bool use_overwrite = overlap_mode == SEQ_OVERLAP_OVERWRITE;
-  const bool overlaps = (strip.strip->flag & SEQ_OVERLAP) && translating;
+  const bool overlaps = (strip.strip->runtime.flag & STRIP_OVERLAP) && translating;
 
   const bool clamped_l = (strip.strip->runtime.flag & STRIP_CLAMPED_LH);
   const bool clamped_r = (strip.strip->runtime.flag & STRIP_CLAMPED_RH);
