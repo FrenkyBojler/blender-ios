@@ -2415,6 +2415,8 @@ static void library_filedata_release(Library *lib)
 {
   if (lib->runtime->filedata) {
     BLI_assert(lib->runtime->versionfile != 0);
+    BLI_assert_msg(!lib->runtime->is_filedata_owner || (lib->flag & LIBRARY_FLAG_IS_ARCHIVE) == 0,
+                   "Packed Archive libraries should never own their filedata");
     if (lib->runtime->is_filedata_owner) {
       blo_filedata_free(lib->runtime->filedata);
     }
@@ -2491,6 +2493,11 @@ static void direct_link_library(FileData *fd, Library *lib, Main *main)
      * fileversion as the blendfile that contains them. */
     lib->runtime->versionfile = newmain->versionfile = fd->bmain->versionfile;
     lib->runtime->subversionfile = newmain->subversionfile = fd->bmain->subversionfile;
+
+    /* The filedata of a packed archive library should always be the one of the blendfile which
+     * defines the library ID and packs its linked IDs. */
+    lib->runtime->filedata = fd;
+    lib->runtime->is_filedata_owner = false;
   }
 
   lib->runtime->parent = nullptr;
@@ -4383,6 +4390,11 @@ static Main *blo_add_main_for_library(FileData *fd,
                         (LIBRARY_TAG_RESYNC_REQUIRED | LIBRARY_ASSET_EDITABLE |
                          LIBRARY_IS_ASSET_EDIT_FILE);
 
+    /* The filedata of a packed archive library should always be the one of the blendfile which
+     * defines the library ID and packs its linked IDs. */
+    lib->runtime->filedata = fd;
+    lib->runtime->is_filedata_owner = false;
+
     reference_lib->runtime->archived_libraries.append(lib);
   }
 
@@ -4449,6 +4461,10 @@ static Main *blo_find_main_for_library_and_idname(FileData *fd,
           UNUSED_VARS_NDEBUG(id_bhead);
           continue;
         }
+        BLI_assert(ELEM(main_it->curlib->runtime->filedata, fd, nullptr));
+        main_it->curlib->runtime->filedata = fd;
+        main_it->curlib->runtime->is_filedata_owner = false;
+        BLI_assert(main_it->versionfile != 0);
         return main_it;
       }
     }
@@ -4568,6 +4584,10 @@ static void expand_doit_library(void *fdhandle, Main *mainvar, void *old)
     return;
   }
   const bool is_packed_id = (blo_bhead_id_flag(fd, bhead) & ID_FLAG_LINKED_AND_PACKED) != 0;
+
+  BLI_assert_msg(!is_packed_id || bhead->code != ID_LINK_PLACEHOLDER,
+                 "A link placeholder ID  (aka reference to some ID linked from another library) "
+                 "should never be packed.");
 
   if (bhead->code == ID_LINK_PLACEHOLDER) {
     /* Placeholder link to data-block in another library. */

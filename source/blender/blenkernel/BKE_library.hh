@@ -28,6 +28,9 @@ struct LibraryRuntime {
 
   /**
    * Filedata (i.e. opened blendfile) source of this library data.
+   *
+   * \note: This is not always the library's blendfile path. E.g. for archive packed libraries,
+   * this will be the filedat of the packing blendfile, not of the reference/source library.
    */
   FileData *filedata = nullptr;
   /**
