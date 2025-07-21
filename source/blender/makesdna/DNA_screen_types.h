@@ -303,9 +303,6 @@ typedef struct uiListDyn {
   int *items_filter_neworder;
 
   struct wmOperatorType *custom_drag_optype;
-  struct PointerRNA *custom_drag_opptr;
-  struct wmOperatorType *custom_activate_optype;
-  struct PointerRNA *custom_activate_opptr;
 } uiListDyn;
 
 typedef struct uiList { /* some list UI data need to be saved in file */
@@ -314,7 +311,7 @@ typedef struct uiList { /* some list UI data need to be saved in file */
   /** Runtime. */
   struct uiListType *type;
 
-  char list_id[/*UI_MAX_NAME_STR*/ 128];
+  char list_id[/*UI_MAX_NAME_STR*/ 256];
 
   /** How items are laid out in the list. */
   int layout_type;
@@ -327,7 +324,7 @@ typedef struct uiList { /* some list UI data need to be saved in file */
 
   /* Filtering data. */
   /** Defined as . */
-  char filter_byname[/*UI_MAX_NAME_STR*/ 128];
+  char filter_byname[/*UI_MAX_NAME_STR*/ 256];
   int filter_flag;
   int filter_sort_flag;
 

@@ -182,7 +182,7 @@ static int get_num_planes_for_pass_ibuf(const RenderPass &render_pass)
       return R_IMF_PLANES_RGBA;
   }
 
-  /* Fallback to a commonly used default value of planes for odd-ball number of channel. */
+  /* Fall back to a commonly used default value of planes for odd-ball number of channel. */
   return R_IMF_PLANES_RGBA;
 }
 
@@ -220,7 +220,7 @@ static void render_layer_allocate_pass(RenderResult *rr, RenderPass *rp)
       buffer_data[x] = PASS_VECTOR_MAX;
     }
   }
-  else if (STREQ(rp->name, RE_PASSNAME_Z)) {
+  else if (STREQ(rp->name, RE_PASSNAME_DEPTH)) {
     for (int x = rectsize - 1; x >= 0; x--) {
       buffer_data[x] = 10e10;
     }
@@ -545,7 +545,7 @@ static int passtype_from_name(const char *name)
   ((void)0)
 
   CHECK_PASS(COMBINED);
-  CHECK_PASS(Z);
+  CHECK_PASS(DEPTH);
   CHECK_PASS(VECTOR);
   CHECK_PASS(NORMAL);
   CHECK_PASS(UV);
@@ -1034,6 +1034,11 @@ static void render_result_exr_file_cache_path(Scene *sce,
     root = root_buf;
   }
 
+  /* FIXME: MAX_ID_NAME & FILE_MAXFILE
+   *
+   * If #filename is already long (it is initialized from the blend-file name itself), adding the
+   * scene name can cause the file name to be truncated.
+   */
   SNPRINTF(filename_full, "cached_RR_%s_%s_%s.exr", filename, sce->id.name + 2, path_hexdigest);
 
   BLI_path_join(r_path, FILE_CACHE_MAX, root, filename_full);

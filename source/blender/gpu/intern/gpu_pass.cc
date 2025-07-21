@@ -165,9 +165,8 @@ bool GPU_pass_should_optimize(GPUPass *pass)
   return (GPU_backend_get_type() == GPU_BACKEND_METAL) && pass->should_optimize;
 
 #if 0
-  /* Returns optimization heuristic prepared during initial codegen.
-   * NOTE: Optimization limited to parallel compilation as it causes CPU stalls otherwise. */
-  return pass->should_optimize && GPU_use_parallel_compilation();
+  /* Returns optimization heuristic prepared during initial codegen. */
+  return pass->should_optimize;
 #endif
 }
 
@@ -212,10 +211,12 @@ uint64_t GPU_pass_compilation_timestamp(GPUPass *pass)
 
 class GPUPassCache {
 
-  /* Number of seconds with 0 users required before garbage collecting a pass.*/
+  /** Number of seconds with 0 users required before garbage collecting a pass. */
   static constexpr float gc_collect_rate_ = 60.0f;
-  /* Number of seconds without base compilations required before starting to compile optimization
-   * passes.*/
+  /**
+   * Number of seconds without base compilations required before starting to compile optimization
+   * passes.
+   */
   static constexpr float optimization_delay_ = 10.0f;
 
   double last_base_compilation_timestamp_ = -1.0;

@@ -28,6 +28,7 @@
 
 #include "UI_interface.hh"
 #include "UI_interface_icons.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "WM_api.hh"
@@ -64,7 +65,7 @@ static void file_panel_operator(const bContext *C, Panel *panel)
   SpaceFile *sfile = CTX_wm_space_file(C);
   wmOperator *op = sfile->op;
 
-  UI_block_func_set(uiLayoutGetBlock(panel->layout), file_draw_check_cb, nullptr, nullptr);
+  UI_block_func_set(panel->layout->block(), file_draw_check_cb, nullptr, nullptr);
 
   /* Hack: temporary hide. */
   const char *hide[] = {"filepath", "files", "directory", "filename"};
@@ -89,7 +90,7 @@ static void file_panel_operator(const bContext *C, Panel *panel)
     }
   }
 
-  UI_block_func_set(uiLayoutGetBlock(panel->layout), nullptr, nullptr, nullptr);
+  UI_block_func_set(panel->layout->block(), nullptr, nullptr, nullptr);
 }
 
 void file_tool_props_region_panels_register(ARegionType *art)
@@ -110,18 +111,18 @@ void file_tool_props_region_panels_register(ARegionType *art)
 static void file_panel_execution_cancel_button(uiLayout *layout)
 {
   uiLayout *row = &layout->row(false);
-  uiLayoutSetScaleX(row, 0.8f);
-  uiLayoutSetFixedSize(row, true);
+  row->scale_x_set(0.8f);
+  row->fixed_size_set(true);
   row->op("FILE_OT_cancel", IFACE_("Cancel"), ICON_NONE);
 }
 
 static void file_panel_execution_execute_button(uiLayout *layout, const char *title)
 {
   uiLayout *row = &layout->row(false);
-  uiLayoutSetScaleX(row, 0.8f);
-  uiLayoutSetFixedSize(row, true);
+  row->scale_x_set(0.8f);
+  row->fixed_size_set(true);
   /* Just a display hint. */
-  uiLayoutSetActiveDefault(row, true);
+  row->active_default_set(true);
   row->op("FILE_OT_execute", title, ICON_NONE);
 }
 
@@ -130,7 +131,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
   bScreen *screen = CTX_wm_screen(C);
   SpaceFile *sfile = CTX_wm_space_file(C);
   FileSelectParams *params = ED_fileselect_get_active_params(sfile);
-  uiBlock *block = uiLayoutGetBlock(panel->layout);
+  uiBlock *block = panel->layout->block();
   uiBut *but;
   uiLayout *row;
   PointerRNA *but_extra_rna_ptr;
@@ -147,13 +148,13 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
       &screen->id, &RNA_FileSelectParams, params);
 
   row = &panel->layout->row(false);
-  uiLayoutSetScaleY(row, 1.3f);
+  row->scale_y_set(1.3f);
 
   /* callbacks for operator check functions */
   UI_block_func_set(block, file_draw_check_cb, nullptr, nullptr);
 
   but = uiDefButR(block,
-                  UI_BTYPE_TEXT,
+                  ButType::Text,
                   -1,
                   "",
                   0,
@@ -177,10 +178,10 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
 
   if (params->flag & FILE_CHECK_EXISTING) {
     but_extra_rna_ptr = UI_but_extra_operator_icon_add(
-        but, "FILE_OT_filenum", WM_OP_EXEC_REGION_WIN, ICON_REMOVE);
+        but, "FILE_OT_filenum", blender::wm::OpCallContext::ExecRegionWin, ICON_REMOVE);
     RNA_int_set(but_extra_rna_ptr, "increment", -1);
     but_extra_rna_ptr = UI_but_extra_operator_icon_add(
-        but, "FILE_OT_filenum", WM_OP_EXEC_REGION_WIN, ICON_ADD);
+        but, "FILE_OT_filenum", blender::wm::OpCallContext::ExecRegionWin, ICON_ADD);
     RNA_int_set(but_extra_rna_ptr, "increment", 1);
   }
 
@@ -192,7 +193,7 @@ static void file_panel_execution_buttons_draw(const bContext *C, Panel *panel)
 
   {
     uiLayout *sub = &row->row(false);
-    uiLayoutSetOperatorContext(sub, WM_OP_EXEC_REGION_WIN);
+    sub->operator_context_set(blender::wm::OpCallContext::ExecRegionWin);
 
     if (windows_layout) {
       file_panel_execution_execute_button(sub, params->title);
@@ -239,12 +240,11 @@ static void file_panel_asset_catalog_buttons_draw(const bContext *C, Panel *pane
     bContext *mutable_ctx = CTX_copy(C);
     if (WM_operator_name_poll(mutable_ctx, "asset.bundle_install")) {
       col->separator();
-      uiItemMenuEnumO(col,
-                      C,
-                      "asset.bundle_install",
-                      "asset_library_reference",
-                      IFACE_("Copy Bundle to Asset Library..."),
-                      ICON_IMPORT);
+      col->op_menu_enum(C,
+                        "asset.bundle_install",
+                        "asset_library_reference",
+                        IFACE_("Copy Bundle to Asset Library..."),
+                        ICON_IMPORT);
     }
     CTX_free(mutable_ctx);
   }

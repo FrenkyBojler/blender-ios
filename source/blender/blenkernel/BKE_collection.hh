@@ -25,10 +25,52 @@ struct Collection;
 struct ID;
 struct CollectionChild;
 struct CollectionExport;
+struct GHash;
 struct Main;
 struct Object;
 struct Scene;
 struct ViewLayer;
+
+/** #CollectionRuntime.tag */
+enum {
+  /**
+   * That code (#BKE_main_collections_parent_relations_rebuild and the like)
+   * is called from very low-level places, like e.g ID remapping...
+   * Using a generic tag like #ID_TAG_DOIT for this is just impossible, we need our very own.
+   */
+  COLLECTION_TAG_RELATION_REBUILD = (1 << 0),
+  /**
+   * Mark the `gobject` list and/or its `runtime.gobject_hash` mapping as dirty, i.e. that their
+   * data is not reliable and should be cleaned-up or updated.
+   *
+   * This should typically only be set by ID remapping code.
+   */
+  COLLECTION_TAG_COLLECTION_OBJECT_DIRTY = (1 << 1),
+};
+
+namespace blender::bke {
+
+struct CollectionRuntime {
+  /**
+   * Cache of objects in this collection and all its children.
+   * This is created on demand when e.g. some physics simulation needs it,
+   * we don't want to have it for every collections due to memory usage reasons.
+   */
+  ListBase object_cache = {};
+
+  /** Need this for line art sub-collection selections. */
+  ListBase object_cache_instanced = {};
+
+  /** List of collections that are a parent of this data-block. */
+  ListBase parents = {};
+
+  /** An optional map for faster lookups on #Collection.gobject */
+  GHash *gobject_hash = nullptr;
+
+  uint8_t tag = 0;
+};
+
+}  // namespace blender::bke
 
 struct CollectionParent {
   struct CollectionParent *next, *prev;
@@ -68,6 +110,21 @@ void BKE_collection_add_from_collection(Main *bmain,
  * Free (or release) any data used by this collection (does not free the collection itself).
  */
 void BKE_collection_free_data(Collection *collection);
+
+/**
+ * Add a new collection exporter to the collection.
+ */
+CollectionExport *BKE_collection_exporter_add(Collection *collection, char *idname, char *label);
+
+/**
+ * Remove a collection exporter from the collection.
+ */
+void BKE_collection_exporter_remove(Collection *collection, CollectionExport *data);
+
+/**
+ * Move a collection exporter from one position to another.
+ */
+bool BKE_collection_exporter_move(Collection *collection, const int from, const int to);
 
 /**
  * Assigns a unique name to the collection exporter.
@@ -253,11 +310,16 @@ Base *BKE_collection_or_layer_objects(const Scene *scene,
 /* Editing. */
 
 /**
- * Return Scene Collection for a given index.
- *
- * The index is calculated from top to bottom counting the children before the siblings.
+ * Return Scene Collection for a given session_uid.
  */
-Collection *BKE_collection_from_index(Scene *scene, int index);
+Collection *BKE_collection_from_session_uid(Scene *scene, uint64_t session_uid);
+/**
+ * Return Collection for a given session_uid and its owner Scene.
+ */
+Collection *BKE_collection_from_session_uid(Main *bmain,
+                                            uint64_t session_uid,
+                                            Scene **r_scene = nullptr);
+
 /**
  * The automatic/fallback name of a new collection.
  */

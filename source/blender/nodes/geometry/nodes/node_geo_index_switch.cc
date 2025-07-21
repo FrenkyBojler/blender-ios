@@ -4,7 +4,7 @@
 
 #include "node_geometry_util.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geo_index_switch.hh"
@@ -306,10 +306,10 @@ class LazyFunctionForIndexSwitchNode : public LazyFunction {
 
     std::unique_ptr<mf::MultiFunction> switch_fn = std::make_unique<IndexSwitchFunction>(
         *field_base_type_, values_num);
-    GField output_field(FieldOperation::Create(std::move(switch_fn), std::move(input_fields)));
+    GField output_field(FieldOperation::from(std::move(switch_fn), std::move(input_fields)));
 
     void *output_ptr = params.get_output_data_ptr(0);
-    new (output_ptr) SocketValueVariant(std::move(output_field));
+    SocketValueVariant::ConstructIn(output_ptr, std::move(output_field));
     params.output_set(0);
   }
 };

@@ -47,6 +47,8 @@
 #include "BKE_node_tree_zones.hh"
 #include "BKE_type_conversions.hh"
 
+#include "ED_node.hh"
+
 #include "FN_lazy_function_graph_executor.hh"
 
 #include "DEG_depsgraph_query.hh"
@@ -301,7 +303,7 @@ class LazyFunctionForGeometryNode : public LazyFunction {
         std::move(socket_inspection_name));
 
     void *r_value = params.get_output_data_ptr(lf_index);
-    new (r_value) SocketValueVariant(GField(std::move(attribute_field)));
+    SocketValueVariant::ConstructIn(r_value, GField(std::move(attribute_field)));
     params.output_set(lf_index);
   }
 
@@ -515,10 +517,10 @@ static void execute_multi_function_on_value_variant__field(
   /* Construct the new field node. */
   std::shared_ptr<fn::FieldOperation> operation;
   if (owned_fn) {
-    operation = fn::FieldOperation::Create(owned_fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(owned_fn, std::move(input_fields));
   }
   else {
-    operation = fn::FieldOperation::Create(fn, std::move(input_fields));
+    operation = fn::FieldOperation::from(fn, std::move(input_fields));
   }
 
   /* Store the new fields in the output. */
@@ -4302,38 +4304,8 @@ void GeoNodesLocalUserData::ensure_tree_logger(const GeoNodesUserData &user_data
 std::optional<FoundNestedNodeID> find_nested_node_id(const GeoNodesUserData &user_data,
                                                      const int node_id)
 {
-  FoundNestedNodeID found;
-  Vector<int> node_ids;
-  for (const ComputeContext *context = user_data.compute_context; context != nullptr;
-       context = context->parent())
-  {
-    if (const auto *node_context = dynamic_cast<const bke::GroupNodeComputeContext *>(context)) {
-      node_ids.append(node_context->node_id());
-    }
-    else if (dynamic_cast<const bke::RepeatZoneComputeContext *>(context) != nullptr) {
-      found.is_in_loop = true;
-    }
-    else if (dynamic_cast<const bke::SimulationZoneComputeContext *>(context) != nullptr) {
-      found.is_in_simulation = true;
-    }
-    else if (dynamic_cast<const bke::ForeachGeometryElementZoneComputeContext *>(context) !=
-             nullptr)
-    {
-      found.is_in_loop = true;
-    }
-    else if (dynamic_cast<const bke::EvaluateClosureComputeContext *>(context) != nullptr) {
-      found.is_in_closure = true;
-    }
-  }
-  std::reverse(node_ids.begin(), node_ids.end());
-  node_ids.append(node_id);
-  const bNestedNodeRef *nested_node_ref =
-      user_data.call_data->root_ntree->nested_node_ref_from_node_id_path(node_ids);
-  if (nested_node_ref == nullptr) {
-    return std::nullopt;
-  }
-  found.id = nested_node_ref->id;
-  return found;
+  return ed::space_node::find_nested_node_id_in_root(
+      *user_data.call_data->root_ntree, user_data.compute_context, node_id);
 }
 
 GeoNodesOperatorDepsgraphs::~GeoNodesOperatorDepsgraphs()

@@ -35,6 +35,7 @@
 #include "RNA_access.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GPU_shader.hh"
@@ -48,7 +49,7 @@
 static blender::bke::bNodeSocketTemplate cmp_node_rlayers_out[] = {
     {SOCK_RGBA, N_("Image"), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_FLOAT, N_("Alpha"), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
-    {SOCK_FLOAT, N_(RE_PASSNAME_Z), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
+    {SOCK_FLOAT, N_(RE_PASSNAME_DEPTH), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_NORMAL), 0.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_UV), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
     {SOCK_VECTOR, N_(RE_PASSNAME_VECTOR), 1.0f, 0.0f, 0.0f, 0.0f, 0.0f, 1.0f},
@@ -603,23 +604,6 @@ static bool node_composit_poll_rlayers(const blender::bke::bNodeType * /*ntype*/
     return false;
   }
 
-  Scene *scene;
-
-  /* XXX ugly: check if ntree is a local scene node tree.
-   * Render layers node can only be used in local `scene->nodetree`,
-   * since it directly links to the scene.
-   */
-  for (scene = (Scene *)G.main->scenes.first; scene; scene = (Scene *)scene->id.next) {
-    if (scene->nodetree == ntree) {
-      break;
-    }
-  }
-
-  if (scene == nullptr) {
-    *r_disabled_hint = RPT_(
-        "The node tree must be the compositing node tree of any scene in the file");
-    return false;
-  }
   return true;
 }
 
@@ -682,7 +666,7 @@ static void node_composit_buts_viewlayers(uiLayout *layout, bContext *C, Pointer
   RNA_string_get(&scn_ptr, "name", scene_name);
 
   PointerRNA op_ptr = row->op(
-      "RENDER_OT_render", "", ICON_RENDER_STILL, WM_OP_INVOKE_DEFAULT, UI_ITEM_NONE);
+      "RENDER_OT_render", "", ICON_RENDER_STILL, wm::OpCallContext::InvokeDefault, UI_ITEM_NONE);
   RNA_string_set(&op_ptr, "layer", layer_name);
   RNA_string_set(&op_ptr, "scene", scene_name);
 }
@@ -806,6 +790,11 @@ class RenderLayerOperation : public NodeOperation {
       case ResultType::Float2:
       case ResultType::Bool:
         /* Not supported. */
+        break;
+      case ResultType::Menu:
+        /* Single only types do not support GPU code path. */
+        BLI_assert(Result::is_single_value_only_type(pass.type()));
+        BLI_assert_unreachable();
         break;
     }
 

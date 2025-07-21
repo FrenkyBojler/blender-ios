@@ -56,25 +56,14 @@ enum GHOST_TVulkanPlatformType {
 
 struct GHOST_ContextVK_WindowInfo {
   int size[2];
+  bool is_color_managed;
 };
 
 struct GHOST_FrameDiscard {
   std::vector<VkSwapchainKHR> swapchains;
   std::vector<VkSemaphore> semaphores;
 
-  void destroy(VkDevice vk_device)
-  {
-    while (!swapchains.empty()) {
-      VkSwapchainKHR vk_swapchain = swapchains.back();
-      swapchains.pop_back();
-      vkDestroySwapchainKHR(vk_device, vk_swapchain, nullptr);
-    }
-    while (!semaphores.empty()) {
-      VkSemaphore vk_semaphore = semaphores.back();
-      semaphores.pop_back();
-      vkDestroySemaphore(vk_device, vk_semaphore, nullptr);
-    }
-  }
+  void destroy(VkDevice vk_device);
 };
 
 struct GHOST_SwapchainImage {
@@ -86,12 +75,7 @@ struct GHOST_SwapchainImage {
    */
   VkSemaphore present_semaphore = VK_NULL_HANDLE;
 
-  void destroy(VkDevice vk_device)
-  {
-    vkDestroySemaphore(vk_device, present_semaphore, nullptr);
-    present_semaphore = VK_NULL_HANDLE;
-    vk_image = VK_NULL_HANDLE;
-  }
+  void destroy(VkDevice vk_device);
 };
 
 struct GHOST_Frame {
@@ -105,14 +89,7 @@ struct GHOST_Frame {
 
   GHOST_FrameDiscard discard_pile;
 
-  void destroy(VkDevice vk_device)
-  {
-    vkDestroyFence(vk_device, submission_fence, nullptr);
-    submission_fence = VK_NULL_HANDLE;
-    vkDestroySemaphore(vk_device, acquire_semaphore, nullptr);
-    acquire_semaphore = VK_NULL_HANDLE;
-    discard_pile.destroy(vk_device);
-  }
+  void destroy(VkDevice vk_device);
 };
 
 /**
@@ -122,7 +99,7 @@ struct GHOST_Frame {
  * Vulkan backend. Notably, VKThreadData::resource_pools_count must
  * match this value.
  */
-constexpr static uint32_t GHOST_FRAMES_IN_FLIGHT = 4;
+constexpr static uint32_t GHOST_FRAMES_IN_FLIGHT = 5;
 
 class GHOST_ContextVK : public GHOST_Context {
   friend class GHOST_XrGraphicsBindingVulkan;
@@ -276,7 +253,7 @@ class GHOST_ContextVK : public GHOST_Context {
   std::function<void(GHOST_VulkanOpenXRData *)> openxr_release_framebuffer_image_callback_;
 
   const char *getPlatformSpecificSurfaceExtension() const;
-  GHOST_TSuccess recreateSwapchain();
+  GHOST_TSuccess recreateSwapchain(bool use_hdr_swapchain);
   GHOST_TSuccess initializeFrameData();
   GHOST_TSuccess destroySwapchain();
 };

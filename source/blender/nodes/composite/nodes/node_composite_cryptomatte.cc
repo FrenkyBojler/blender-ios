@@ -582,10 +582,11 @@ static void cmp_node_cryptomatte_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({0.0f, 0.0f, 0.0f, 1.0f})
-      .compositor_domain_priority(0);
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Matte");
-  b.add_output<decl::Color>("Pick");
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Matte").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Color>("Pick").structure_type(StructureType::Dynamic);
 }
 
 static void node_init_cryptomatte(bNodeTree * /*ntree*/, bNode *node)
@@ -640,14 +641,14 @@ static bool node_poll_cryptomatte(const blender::bke::bNodeType * /*ntype*/,
     for (scene = static_cast<Scene *>(G.main->scenes.first); scene;
          scene = static_cast<Scene *>(scene->id.next))
     {
-      if (scene->nodetree == ntree) {
+      if (scene->compositing_node_group == ntree) {
         break;
       }
     }
 
     if (scene == nullptr) {
       *r_disabled_hint = RPT_(
-          "The node tree must be the compositing node tree of any scene in the file");
+          "The node tree must be the compositing node group of any scene in the file");
     }
     return scene != nullptr;
   }
@@ -754,12 +755,14 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     /* The render result structure of the image is populated as a side effect of the acquisition of
      * an image buffer, so acquire an image buffer and immediately release it since it is not
      * actually needed. */
-    ImageUser image_user_for_layer = *this->get_image_user();
+    ImageUser image_user_for_layer = this->get_image_user();
     ImBuf *image_buffer = BKE_image_acquire_ibuf(image, &image_user_for_layer, nullptr);
     BKE_image_release_ibuf(image, image_buffer, nullptr);
     if (!image_buffer || !image->rr) {
       return layers;
     }
+
+    RenderResult *render_result = BKE_image_acquire_renderresult(nullptr, image);
 
     /* Gather all pass names first before retrieving the images because render layers might get
      * freed when retrieving the images. */
@@ -767,7 +770,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
 
     int layer_index;
     const std::string type_name = this->get_type_name();
-    LISTBASE_FOREACH_INDEX (RenderLayer *, render_layer, &image->rr->layers, layer_index) {
+    LISTBASE_FOREACH_INDEX (RenderLayer *, render_layer, &render_result->layers, layer_index) {
       /* If the Cryptomatte type name doesn't start with the layer name, then it is not a
        * Cryptomatte layer. Unless it is an unnamed layer, in which case, we need to check its
        * passes. */
@@ -795,6 +798,8 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
         break;
       }
     }
+
+    BKE_image_release_renderresult(nullptr, image, render_result);
 
     image_user_for_layer.layer = layer_index;
     for (const std::string &pass_name : pass_names) {
@@ -843,7 +848,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   }
 
   /* The domain should be centered with the same size as the source. In case of invalid source,
-   * fallback to the domain inferred from the input. */
+   * fall back to the domain inferred from the input. */
   Domain compute_domain() override
   {
     switch (get_source()) {
@@ -858,7 +863,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
   }
 
   /* In case of an image source, the domain should be centered with the same size as the source
-   * image. In case of an invalid image, fallback to the domain inferred from the input. */
+   * image. In case of an invalid image, fall back to the domain inferred from the input. */
   Domain compute_image_domain()
   {
     BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
@@ -868,7 +873,7 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
       return NodeOperation::compute_domain();
     }
 
-    ImageUser image_user = *get_image_user();
+    ImageUser image_user = this->get_image_user();
     ImBuf *image_buffer = BKE_image_acquire_ibuf(image, &image_user, nullptr);
     if (!image_buffer) {
       return NodeOperation::compute_domain();
@@ -879,10 +884,18 @@ class CryptoMatteOperation : public BaseCryptoMatteOperation {
     return Domain(image_size);
   }
 
-  const ImageUser *get_image_user()
+  ImageUser get_image_user()
   {
-    BLI_assert(get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
-    return &node_storage(bnode()).iuser;
+    BLI_assert(this->get_source() == CMP_NODE_CRYPTOMATTE_SOURCE_IMAGE);
+
+    Image *image = this->get_image();
+    BLI_assert(image);
+
+    /* Compute the effective frame number of the image if it was animated. */
+    ImageUser image_user_for_frame = node_storage(bnode()).iuser;
+    BKE_image_user_frame_calc(image, &image_user_for_frame, this->context().get_frame_number());
+
+    return image_user_for_frame;
   }
 
   Scene *get_scene()

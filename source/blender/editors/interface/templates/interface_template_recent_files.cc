@@ -27,10 +27,13 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "interface_intern.hh"
 
-static void uiTemplateRecentFiles_tooltip_func(bContext & /*C*/, uiTooltipData &tip, void *argN)
+static void uiTemplateRecentFiles_tooltip_func(bContext & /*C*/,
+                                               uiTooltipData &tip,
+                                               uiBut * /*but*/,
+                                               void *argN)
 {
   char *path = (char *)argN;
 
@@ -140,12 +143,12 @@ int uiTemplateRecentFiles(uiLayout *layout, int rows)
                                 filename,
                                 BKE_blendfile_extension_check(filename) ? ICON_FILE_BLEND :
                                                                           ICON_FILE_BACKUP,
-                                WM_OP_INVOKE_DEFAULT,
+                                blender::wm::OpCallContext::InvokeDefault,
                                 UI_ITEM_NONE);
     RNA_string_set(&ptr, "filepath", recent->filepath);
     RNA_boolean_set(&ptr, "display_file_selector", false);
 
-    uiBlock *block = uiLayoutGetBlock(layout);
+    uiBlock *block = layout->block();
     uiBut *but = ui_but_last(block);
     UI_but_func_tooltip_custom_set(
         but, uiTemplateRecentFiles_tooltip_func, BLI_strdup(recent->filepath), MEM_freeN);

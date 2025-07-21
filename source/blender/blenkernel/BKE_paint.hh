@@ -31,6 +31,7 @@ struct BMesh;
 struct BlendDataReader;
 struct BlendWriter;
 struct Brush;
+struct BrushColorJitterSettings;
 struct CurveMapping;
 struct Depsgraph;
 struct EnumPropertyItem;
@@ -199,7 +200,7 @@ Paint *BKE_paint_get_active(Scene *sce, ViewLayer *view_layer);
 Paint *BKE_paint_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_active_from_context(const bContext *C);
 PaintMode BKE_paintmode_get_from_tool(const bToolRef *tref);
-bool BKE_paint_use_unified_color(const ToolSettings *tool_settings, const Paint *paint);
+bool BKE_paint_use_unified_color(const Paint *paint);
 
 /* Paint brush retrieval and assignment. */
 
@@ -314,16 +315,24 @@ void BKE_paint_face_set_overlay_color_get(int face_set, int seed, uchar r_color[
 
 /* Stroke related. */
 
-bool paint_calculate_rake_rotation(UnifiedPaintSettings &ups,
+/* Random values are generated on each new stroke so each stroke
+ * gets a different starting point in the perlin noise. */
+blender::float3 seed_hsv_jitter();
+
+bool paint_calculate_rake_rotation(Paint &paint,
                                    const Brush &brush,
                                    const float mouse_pos[2],
                                    PaintMode paint_mode,
                                    bool stroke_has_started);
-void paint_update_brush_rake_rotation(UnifiedPaintSettings &ups,
-                                      const Brush &brush,
-                                      float rotation);
+void paint_update_brush_rake_rotation(Paint &paint, const Brush &brush, float rotation);
 
-void BKE_paint_stroke_get_average(const Scene *scene, const Object *ob, float stroke[3]);
+void BKE_paint_stroke_get_average(const Paint *paint, const Object *ob, float stroke[3]);
+
+blender::float3 BKE_paint_randomize_color(const BrushColorJitterSettings &color_jitter,
+                                          const blender::float3 &initial_hsv_jitter,
+                                          const float distance,
+                                          const float pressure,
+                                          const blender::float3 &color);
 
 /* .blend I/O */
 
@@ -585,7 +594,7 @@ void BKE_sculptsession_free(Object *ob);
 void BKE_sculptsession_free_deformMats(SculptSession *ss);
 void BKE_sculptsession_free_vwpaint_data(SculptSession *ss);
 void BKE_sculptsession_free_pbvh(Object &object);
-void BKE_sculptsession_bm_to_me(Object *ob, bool reorder);
+void BKE_sculptsession_bm_to_me(Object *ob);
 void BKE_sculptsession_bm_to_me_for_render(Object *object);
 
 /**
@@ -658,5 +667,6 @@ bool BKE_paint_canvas_image_get(PaintModeSettings *settings,
                                 Image **r_image,
                                 ImageUser **r_image_user);
 int BKE_paint_canvas_uvmap_layer_index_get(const PaintModeSettings *settings, Object *ob);
-void BKE_sculpt_check_cavity_curves(Sculpt *sd);
+void BKE_sculpt_cavity_curves_ensure(Sculpt *sd);
 CurveMapping *BKE_sculpt_default_cavity_curve();
+CurveMapping *BKE_paint_default_curve();

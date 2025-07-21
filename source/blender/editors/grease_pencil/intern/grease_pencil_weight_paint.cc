@@ -52,16 +52,17 @@ Set<std::string> get_bone_deformed_vertex_group_names(const Object &object)
   ModifierData *md = BKE_modifiers_get_virtual_modifierlist(&object, &virtual_modifier_data);
   for (; md; md = md->next) {
     if (!(md->mode & (eModifierMode_Realtime | eModifierMode_Virtual)) ||
-        md->type != eModifierType_Armature)
+        md->type != eModifierType_GreasePencilArmature)
     {
       continue;
     }
-    ArmatureModifierData *amd = reinterpret_cast<ArmatureModifierData *>(md);
-    if (!amd->object || !amd->object->pose) {
+    GreasePencilArmatureModifierData *gamd = reinterpret_cast<GreasePencilArmatureModifierData *>(
+        md);
+    if (!gamd->object || !gamd->object->pose) {
       continue;
     }
 
-    bPose *pose = amd->object->pose;
+    bPose *pose = gamd->object->pose;
     LISTBASE_FOREACH (bPoseChannel *, channel, &pose->chanbase) {
       if (channel->bone->flag & BONE_NO_DEFORM) {
         continue;
@@ -493,7 +494,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
           /* Get deformation by modifiers. */
           bke::crazyspace::GeometryDeformation deformation =
               bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-                  ob_eval, *vc.obact, info.layer_index, info.frame_number);
+                  ob_eval, *vc.obact, info.drawing);
 
           IndexMaskMemory memory;
           const IndexMask points = retrieve_visible_points(*vc.obact, info.drawing, memory);
@@ -538,7 +539,7 @@ static wmOperatorStatus weight_sample_invoke(bContext *C,
   /* Set the new brush weight. */
   const ToolSettings *ts = vc.scene->toolsettings;
   Brush *brush = BKE_paint_brush(&ts->gp_weightpaint->paint);
-  BKE_brush_weight_set(vc.scene, brush, new_weight);
+  BKE_brush_weight_set(&ts->gp_weightpaint->paint, brush, new_weight);
 
   /* Update brush settings in UI. */
   WM_main_add_notifier(NC_BRUSH | NA_EDITED, nullptr);
@@ -723,7 +724,7 @@ static wmOperatorStatus vertex_group_smooth_exec(bContext *C, wmOperator *op)
           object_defgroup->name);
       geometry::smooth_curve_attribute(curves.curves_range(),
                                        curves.points_by_curve(),
-                                       VArray<bool>::ForSingle(true, curves.points_num()),
+                                       VArray<bool>::from_single(true, curves.points_num()),
                                        curves.cyclic(),
                                        repeat,
                                        smooth_factor,

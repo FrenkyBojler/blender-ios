@@ -10,7 +10,7 @@
 #include "NOD_rna_define.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_enum_types.hh"
@@ -228,8 +228,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   auto fn = std::make_shared<SampleGridFunction>(std::move(grid), interpolation);
-  auto op = FieldOperation::Create(std::move(fn),
-                                   {params.extract_input<Field<float3>>("Position")});
+  auto op = FieldOperation::from(std::move(fn), {params.extract_input<Field<float3>>("Position")});
 
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
   const CPPType &output_type = *bke::socket_type_to_geo_nodes_base_cpp_type(data_type);

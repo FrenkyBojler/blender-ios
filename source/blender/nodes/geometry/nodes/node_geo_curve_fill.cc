@@ -16,7 +16,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "node_geometry_util.hh"
@@ -27,8 +27,10 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveFill)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(
-      {GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil});
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type({GeometryComponent::Type::Curve, GeometryComponent::Type::GreasePencil})
+      .description(
+          "Curves to fill. All curves are treated as cyclic and projected to the XY plane");
   b.add_input<decl::Int>("Group ID")
       .field_on_all()
       .hide_value()

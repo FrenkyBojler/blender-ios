@@ -85,25 +85,25 @@ void init_brush(Brush &brush)
   BKE_curvemapping_init(brush.gpencil_settings->curve_rand_value);
 }
 
-float brush_radius(const Scene &scene, const Brush &brush, const float pressure = 1.0f)
+float brush_radius(const Paint &paint, const Brush &brush, const float pressure = 1.0f)
 {
-  float radius = BKE_brush_size_get(&scene, &brush);
+  float radius = BKE_brush_size_get(&paint, &brush);
   if (BKE_brush_use_size_pressure(&brush)) {
     radius *= BKE_curvemapping_evaluateF(brush.gpencil_settings->curve_sensitivity, 0, pressure);
   }
   return radius;
 }
 
-float brush_point_influence(const Scene &scene,
+float brush_point_influence(const Paint &paint,
                             const Brush &brush,
                             const float2 &co,
                             const InputSample &sample,
                             const float multi_frame_falloff)
 {
-  const float radius = brush_radius(scene, brush, sample.pressure);
+  const float radius = brush_radius(paint, brush, sample.pressure);
   /* Basic strength factor from brush settings. */
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? sample.pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&paint, &brush) * brush_pressure *
                                multi_frame_falloff;
 
   /* Distance falloff. */
@@ -133,16 +133,16 @@ float closest_distance_to_surface_2d(const float2 pt, const Span<float2> verts)
   return isect ? 0.0f : distance;
 }
 
-float brush_fill_influence(const Scene &scene,
+float brush_fill_influence(const Paint &paint,
                            const Brush &brush,
                            const Span<float2> fill_positions,
                            const InputSample &sample,
                            const float multi_frame_falloff)
 {
-  const float radius = brush_radius(scene, brush, sample.pressure);
+  const float radius = brush_radius(paint, brush, sample.pressure);
   /* Basic strength factor from brush settings. */
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? sample.pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&paint, &brush) * brush_pressure *
                                multi_frame_falloff;
 
   /* Distance falloff. */
@@ -153,7 +153,7 @@ float brush_fill_influence(const Scene &scene,
   return influence_base * brush_falloff;
 }
 
-IndexMask brush_point_influence_mask(const Scene &scene,
+IndexMask brush_point_influence_mask(const Paint &paint,
                                      const Brush &brush,
                                      const float2 &mouse_position,
                                      const float pressure,
@@ -167,10 +167,10 @@ IndexMask brush_point_influence_mask(const Scene &scene,
     return {};
   }
 
-  const float radius = brush_radius(scene, brush, pressure);
+  const float radius = brush_radius(paint, brush, pressure);
   const float radius_squared = radius * radius;
   const float brush_pressure = BKE_brush_use_alpha_pressure(&brush) ? pressure : 1.0f;
-  const float influence_base = BKE_brush_alpha_get(&scene, &brush) * brush_pressure *
+  const float influence_base = BKE_brush_alpha_get(&paint, &brush) * brush_pressure *
                                multi_frame_falloff;
   const int2 mval_i = int2(math::round(mouse_position));
 
@@ -338,7 +338,7 @@ bke::crazyspace::GeometryDeformation get_drawing_deformation(
     const GreasePencilStrokeParams &params)
 {
   return bke::crazyspace::get_evaluated_grease_pencil_drawing_deformation(
-      &params.ob_eval, params.ob_orig, params.layer_index, params.frame_number);
+      &params.ob_eval, params.ob_orig, params.drawing);
 }
 
 Array<float2> calculate_view_positions(const GreasePencilStrokeParams &params,
