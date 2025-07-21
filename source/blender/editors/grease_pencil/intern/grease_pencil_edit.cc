@@ -2583,7 +2583,7 @@ static wmOperatorStatus grease_pencil_copy_strokes_exec(bContext *C, wmOperator 
       continue;
     }
     const Material *material = grease_pencil.material_array[material_index];
-    clipboard.materials.append({material->id.session_uid, material_index});
+    clipboard.materials.append({material ? material->id.session_uid : 0, material_index});
   }
 
   /* Report the numbers. */
