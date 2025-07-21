@@ -173,6 +173,21 @@ static void grease_pencil_set_runtime_visibilities(ID &id_dst, GreasePencil &gre
   }
 }
 
+static void grease_pencil_initialize_drawing_user_counts_after_read(GreasePencil &grease_pencil)
+{
+  using namespace blender;
+  using namespace blender::bke::greasepencil;
+  const Array<int> user_counts = grease_pencil.count_frame_users_for_drawings();
+  BLI_assert(user_counts.size() == grease_pencil.drawings().size());
+  for (const int drawing_i : grease_pencil.drawings().index_range()) {
+    GreasePencilDrawingBase *drawing_base = grease_pencil.drawing(drawing_i);
+    if (drawing_base->type != GP_DRAWING_REFERENCE) {
+      Drawing &drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base)->wrap();
+      drawing.runtime->user_count.store(user_counts[drawing_i]);
+    }
+  }
+}
+
 static void grease_pencil_copy_data(Main * /*bmain*/,
                                     std::optional<Library *> /*owner_library*/,
                                     ID *id_dst,
@@ -273,6 +288,8 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   grease_pencil->attribute_storage.dna_attributes = attribute_data.attributes.data();
   grease_pencil->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
 
+  CustomData_reset(&grease_pencil->layers_data_legacy);
+
   /* Write LibData */
   BLO_write_id_struct(writer, GreasePencil, id_address, &grease_pencil->id);
   BKE_id_blend_write(writer, &grease_pencil->id);
@@ -300,6 +317,8 @@ static void grease_pencil_blend_read_data(BlendDataReader *reader, ID *id)
   read_drawing_array(*grease_pencil, reader);
   /* Read layer tree. */
   read_layer_tree(*grease_pencil, reader);
+  /* Initialize drawing user counts */
+  grease_pencil_initialize_drawing_user_counts_after_read(*grease_pencil);
 
   CustomData_blend_read(
       reader, &grease_pencil->layers_data_legacy, grease_pencil->layers().size());
@@ -621,7 +640,7 @@ static float3x2 get_stroke_to_texture_matrix(const float uv_rotation,
   return texture_matrix;
 }
 
-static float4x3 expand_4x2_mat(float4x2 strokemat)
+static float4x3 expand_4x2_mat(const float4x2 &strokemat)
 {
   float4x3 strokemat4x3 = float4x3(strokemat);
 
@@ -687,7 +706,7 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
   SpanAttributeWriter<float2> uv_scales = attributes.lookup_or_add_for_write_span<float2>(
       "uv_scale",
       AttrDomain::Curve,
-      AttributeInitVArray(VArray<float2>::ForSingle(float2(1.0f, 1.0f), curves.curves_num())));
+      AttributeInitVArray(VArray<float2>::from_single(float2(1.0f, 1.0f), curves.curves_num())));
 
   if (!uv_rotations || !uv_translations || !uv_scales) {
     /* FIXME: It might be better to ensure the attributes exist and are on the right domain. */
@@ -3029,6 +3048,9 @@ bool GreasePencil::insert_duplicate_frame(blender::bke::greasepencil::Layer &lay
       layer.remove_frame(dst_frame_number);
       return false;
   }
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
   return true;
 }
 
@@ -3065,6 +3087,11 @@ bool GreasePencil::remove_frames(blender::bke::greasepencil::Layer &layer,
     this->remove_drawings_with_no_users();
     return true;
   }
+#ifndef NDEBUG
+  else {
+    this->validate_drawing_user_counts();
+  }
+#endif
   return false;
 }
 
@@ -3135,6 +3162,10 @@ void GreasePencil::remove_drawings_with_no_users()
   using namespace blender;
   using namespace blender::bke::greasepencil;
 
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
+
   /* Compress the drawings array by finding unused drawings.
    * In every step two indices are found:
    *   - The next unused drawing from the start
@@ -3156,7 +3187,7 @@ void GreasePencil::remove_drawings_with_no_users()
       return false;
     }
     GreasePencilDrawing *drawing = reinterpret_cast<GreasePencilDrawing *>(drawing_base);
-    return drawing->wrap().has_users();
+    return drawing->wrap().has_users() || drawing->runtime->fake_user;
   };
 
   /* Index map to remap drawing indices in frame data.
@@ -3239,12 +3270,16 @@ void GreasePencil::remove_drawings_with_no_users()
       }
     }
   }
+
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
 }
 
 void GreasePencil::update_drawing_users_for_layer(const blender::bke::greasepencil::Layer &layer)
 {
   using namespace blender;
-  for (auto [key, value] : layer.frames().items()) {
+  for (const auto &[key, value] : layer.frames().items()) {
     BLI_assert(this->drawings().index_range().contains(value.drawing_index));
     GreasePencilDrawingBase *drawing_base = this->drawing(value.drawing_index);
     if (drawing_base->type != GP_DRAWING) {
@@ -3256,6 +3291,10 @@ void GreasePencil::update_drawing_users_for_layer(const blender::bke::greasepenc
       drawing.add_user();
     }
   }
+
+#ifndef NDEBUG
+  this->validate_drawing_user_counts();
+#endif
 }
 
 void GreasePencil::move_frames(blender::bke::greasepencil::Layer &layer,
@@ -3735,7 +3774,9 @@ void GreasePencil::add_layers_for_eval(const int num_new_layers)
 }
 
 blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
-    const blender::bke::greasepencil::Layer &duplicate_layer)
+    const blender::bke::greasepencil::Layer &duplicate_layer,
+    const bool duplicate_frames,
+    const bool duplicate_drawings)
 {
   using namespace blender;
   std::string unique_name = unique_layer_name(duplicate_layer.name());
@@ -3752,7 +3793,27 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
     bke::GSpanAttributeWriter attr = attributes.lookup_for_write_span(iter.name);
     GMutableSpan span = attr.span;
     span.type().copy_assign(span[*duplicate_layer_idx], span[numLayers]);
+    attr.finish();
   });
+
+  /* When a layer is duplicated, the frames are shared by default. Clear the frames, to ensure a
+   * valid state. */
+  new_layer->frames_for_write().clear();
+  if (duplicate_frames) {
+    for (auto [frame_number, frame] : duplicate_layer.frames().items()) {
+      const int duration = duplicate_layer.get_frame_duration_at(frame_number);
+      bke::greasepencil::Drawing *dst_drawing = this->insert_frame(
+          *new_layer, frame_number, duration, eBezTriple_KeyframeType(frame.type));
+      if (duplicate_drawings) {
+        BLI_assert(dst_drawing != nullptr);
+        /* TODO: This can fail (return `nullptr`) if the drawing is a drawing reference! */
+        const bke::greasepencil::Drawing &src_drawing = *this->get_drawing_at(duplicate_layer,
+                                                                              frame_number);
+        /* Duplicate the drawing. */
+        *dst_drawing = src_drawing;
+      }
+    }
+  }
 
   this->update_drawing_users_for_layer(*new_layer);
   new_layer->set_name(unique_name);
@@ -3761,10 +3822,13 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
 
 blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
     blender::bke::greasepencil::LayerGroup &parent_group,
-    const blender::bke::greasepencil::Layer &duplicate_layer)
+    const blender::bke::greasepencil::Layer &duplicate_layer,
+    const bool duplicate_frames,
+    const bool duplicate_drawings)
 {
   using namespace blender;
-  bke::greasepencil::Layer &new_layer = this->duplicate_layer(duplicate_layer);
+  bke::greasepencil::Layer &new_layer = this->duplicate_layer(
+      duplicate_layer, duplicate_frames, duplicate_drawings);
   move_node_into(new_layer.as_node(), parent_group);
   return new_layer;
 }
@@ -3804,7 +3868,7 @@ static void reorder_attribute_domain(blender::bke::AttributeStorage &data,
     switch (attr.storage_type()) {
       case bke::AttrStorageType::Array: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
-        auto new_data = bke::Attribute::ArrayData::ForConstructed(type, new_by_old_map.size());
+        auto new_data = bke::Attribute::ArrayData::from_constructed(type, new_by_old_map.size());
         bke::attribute_math::gather(GSpan(type, data.data, data.size),
                                     new_by_old_map,
                                     GMutableSpan(type, new_data.data, new_data.size));
@@ -3841,7 +3905,7 @@ static void reorder_layer_data(GreasePencil &grease_pencil,
     const bke::greasepencil::Layer *layer = layers[layer_i_new];
     BLI_assert(old_layer_index_by_layer.contains(layer));
     const int layer_i_old = old_layer_index_by_layer.pop(layer);
-    new_by_old_map[layer_i_old] = layer_i_new;
+    new_by_old_map[layer_i_new] = layer_i_old;
   }
   BLI_assert(old_layer_index_by_layer.is_empty());
 
@@ -4145,12 +4209,11 @@ static void shrink_attribute_storage(blender::bke::AttributeStorage &storage,
       case bke::AttrStorageType::Array: {
         const auto &data = std::get<bke::Attribute::ArrayData>(attr.data());
 
-        auto new_data = bke::Attribute::ArrayData::ForUninitialized(type, size - 1);
+        auto new_data = bke::Attribute::ArrayData::from_uninitialized(type, size - 1);
         type.copy_construct_n(data.data, new_data.data, range_before.size());
-        type.copy_construct_n(
-            POINTER_OFFSET(data.data, type.size * range_after.start()),
-            POINTER_OFFSET(new_data.data, type.size * (range_before.start() - 1)),
-            range_after.size());
+        type.copy_construct_n(POINTER_OFFSET(data.data, type.size * range_after.start()),
+                              POINTER_OFFSET(new_data.data, type.size * index_to_remove),
+                              range_after.size());
 
         attr.assign_data(std::move(new_data));
       }
@@ -4259,6 +4322,36 @@ void GreasePencil::print_layer_tree()
 {
   using namespace blender::bke::greasepencil;
   this->root_group().print_nodes("Layer Tree:");
+}
+
+blender::Array<int> GreasePencil::count_frame_users_for_drawings() const
+{
+  using namespace blender;
+  using namespace blender::bke::greasepencil;
+  Array<int> user_counts(this->drawings().size(), 0);
+  for (const Layer *layer : this->layers()) {
+    for (const auto &[frame, value] : layer->frames().items()) {
+      BLI_assert(this->drawings().index_range().contains(value.drawing_index));
+      user_counts[value.drawing_index]++;
+    }
+  }
+  return user_counts;
+}
+
+void GreasePencil::validate_drawing_user_counts()
+{
+#ifndef NDEBUG
+  using namespace blender::bke::greasepencil;
+  blender::Array<int> actual_user_counts = this->count_frame_users_for_drawings();
+  for (const int drawing_i : this->drawings().index_range()) {
+    const GreasePencilDrawingBase *drawing_base = this->drawing(drawing_i);
+    if (drawing_base->type != GP_DRAWING_REFERENCE) {
+      const Drawing &drawing = reinterpret_cast<const GreasePencilDrawing *>(drawing_base)->wrap();
+      /* Ignore `fake_user` flag. */
+      BLI_assert(drawing.user_count() == actual_user_counts[drawing_i]);
+    }
+  }
+#endif
 }
 
 blender::bke::AttributeAccessor GreasePencil::attributes() const
