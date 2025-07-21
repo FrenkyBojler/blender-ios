@@ -666,6 +666,7 @@ typedef enum eStripRuntimeFlag {
   STRIP_EFFECT_NOT_LOADED = (1 << 3), /* Set when reading blend file, cleared after. */
   STRIP_MARK_FOR_DELETE = (1 << 4),
   STRIP_IGNORE_CHANNEL_LOCK = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
+  STRIP_SHOW_OFFSETS = (1 << 6),        /* Set during #SEQUENCER_OT_slip. */
 } eStripRuntimeFlag;
 
 /* From: `DNA_object_types.h`, see it's doc-string there. */
@@ -693,7 +694,7 @@ enum {
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
   SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_SHOW_RETIMING = (1 << 19),
-  SEQ_SHOW_OFFSETS = (1 << 20),
+  SEQ_FLAG_UNUSED_20 = (1 << 20),
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),

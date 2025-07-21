@@ -625,7 +625,7 @@ static SlipData *slip_data_init(const Scene *scene)
 
   data->clamp = true;
   for (Strip *strip : strips) {
-    strip->flag |= SEQ_SHOW_OFFSETS;
+    strip->runtime.flag |= STRIP_SHOW_OFFSETS;
 
     /* If any strips start out with hold offsets visible, disable clamping on initialization. */
     if (strip->startofs < 0 || strip->endofs < 0) {
@@ -729,7 +729,7 @@ static void slip_cleanup(bContext *C, wmOperator *op, Scene *scene)
 
   for (Strip *strip : data->strips) {
     strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
-    strip->flag &= ~SEQ_SHOW_OFFSETS;
+    strip->runtime.flag &= ~STRIP_SHOW_OFFSETS;
   }
 
   MEM_SAFE_DELETE(data);

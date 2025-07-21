@@ -1073,7 +1073,7 @@ static void draw_strip_offsets(TimelineDrawContext *timeline_ctx,
   }
   if ((timeline_ctx->sseq->timeline_overlay.flag & SEQ_TIMELINE_SHOW_STRIP_OFFSETS) == 0 &&
       (strip_ctx->strip != special_preview_get()) &&
-      (strip_ctx->strip->flag & SEQ_SHOW_OFFSETS) == 0)
+      (strip_ctx->strip->runtime.flag & STRIP_SHOW_OFFSETS) == 0)
   {
     return;
   }
