@@ -38,7 +38,7 @@ struct SimGeometry {
   std::string path;
   std::string mass_attribute;
   std::string velocity_attribute;
-  float quantize_scale = 10000.0f;
+  float quantize_scale = 1'000'000.0f;
 
   SimGeometry(const SimGeometrySet &src, GeometryVariant data);
 

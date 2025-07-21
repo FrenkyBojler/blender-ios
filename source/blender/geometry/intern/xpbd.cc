@@ -124,8 +124,9 @@ void ConstraintCorrections::apply()
                   if (correction.num_corrections == 0) {
                     continue;
                   }
+                  const int3 offset_quantized = correction.offset;
                   const float factor = 1.0f / (quantize_scale * float(correction.num_corrections));
-                  const float3 offset = float3(correction.offset) * factor;
+                  const float3 offset = float3(offset_quantized) * factor;
                   float3 &position = positions.span[point_i];
                   position += offset;
                 }
@@ -366,7 +367,7 @@ void solve(Behaviors &behaviors, const float delta_time, const int substeps)
         bke::SpanAttributeWriter<float3> positions =
             attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
         for (const int i : velocities.span.index_range()) {
-          velocities.span[i] += force[i] * sub_delta_time / masses[i];
+          acceleration[i] += force[i] * sub_delta_time / masses[i];
           velocities.span[i] += acceleration[i] * sub_delta_time;
           positions.span[i] += velocities.span[i] * sub_delta_time;
         }
