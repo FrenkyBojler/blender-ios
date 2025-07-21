@@ -240,6 +240,7 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   }
 
   dst.update_curve_types();
+  dst.calculate_bezier_auto_handles();
   if (src.nurbs_has_custom_knots()) {
     IndexMaskMemory memory;
     const VArray<int8_t> curve_types = src.curve_types();
