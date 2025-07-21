@@ -134,6 +134,32 @@ void ConstraintCorrections::apply()
       });
 }
 
+static void solve_distance_constraint(const int geometry0,
+                                      const int geometry1,
+                                      const int i0,
+                                      const int i1,
+                                      const float3 &p0,
+                                      const float3 &p1,
+                                      const float m0,
+                                      const float m1,
+                                      const float compliance_term,
+                                      const float rest_distance,
+                                      LocalConstraintCorrections &local_corrections)
+{
+  const float3 p_diff = p1 - p0;
+  float length;
+  const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
+
+  float length_diff = length - rest_distance;
+  const float lambda = length_diff / (1.0f / m0 + 1.0f / m1 + compliance_term);
+
+  const float m_sum = m0 + m1;
+  const float3 correction0 = lambda * m0 / m_sum * normalized_dir;
+  const float3 correction1 = -lambda * m1 / m_sum * normalized_dir;
+  local_corrections.add_position_correction(geometry0, i0, correction0);
+  local_corrections.add_position_correction(geometry1, i1, correction1);
+}
+
 class EdgeLengthConstraintSet : public ConstraintSet {
  private:
   std::string rest_length_attribute_;
@@ -176,9 +202,9 @@ class EdgeLengthConstraintSet : public ConstraintSet {
 
   void solve(ConstraintSetSolveParams &params) override
   {
-    float compliance_adder = 0.0f;
+    float compliance_term = 0.0f;
     if (params.delta_time > 0.0f) {
-      compliance_adder = compliance_ / pow2f(params.delta_time);
+      compliance_term = compliance_ / pow2f(params.delta_time);
     }
     for (const int geometry_i : params.sim_geometries.index_range()) {
       const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
@@ -206,23 +232,136 @@ class EdgeLengthConstraintSet : public ConstraintSet {
           const int2 edge = edges[edge_i];
           const int i0 = edge[0];
           const int i1 = edge[1];
-          const float3 &p0 = positions[i0];
-          const float3 &p1 = positions[i1];
-          const float m0 = masses.varray[i0];
-          const float m1 = masses.varray[i1];
+          solve_distance_constraint(geometry_i,
+                                    geometry_i,
+                                    i0,
+                                    i1,
+                                    positions[i0],
+                                    positions[i1],
+                                    masses.varray[i0],
+                                    masses.varray[i1],
+                                    compliance_term,
+                                    rest_lengths.varray[edge_i],
+                                    local_corrections);
+        }
+      });
+    }
+  }
+};
 
-          const float3 p_diff = p1 - p0;
-          float length;
-          const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
+class CurveLengthConstraintSet : public ConstraintSet {
+ private:
+  std::string rest_length_attribute_;
+  float compliance_;
 
-          float length_diff = length - rest_lengths.varray[edge_i];
-          const float lambda = length_diff / (1.0f / m0 + 1.0f / m1 + compliance_adder);
+ public:
+  CurveLengthConstraintSet(std::string rest_length_attribute, const float compliance)
+      : rest_length_attribute_(std::move(rest_length_attribute)), compliance_(compliance)
+  {
+  }
 
-          const float m_sum = m0 + m1;
-          const float3 correction0 = lambda * m0 / m_sum * normalized_dir;
-          const float3 correction1 = -lambda * m1 / m_sum * normalized_dir;
-          local_corrections.add_position_correction(geometry_i, i0, correction0);
-          local_corrections.add_position_correction(geometry_i, i1, correction1);
+  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      Curves **curves_ptr = std::get_if<Curves *>(&sim_geometry.data);
+      if (!curves_ptr) {
+        continue;
+      }
+      Curves &curves_id = **curves_ptr;
+      bke::CurvesGeometry &curves = curves_id.geometry.wrap();
+      bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+      if (attributes.contains(rest_length_attribute_)) {
+        continue;
+      }
+      float *rest_lengths = MEM_malloc_arrayN<float>(curves.points_num(), __func__);
+      const Span<float3> positions = curves.positions();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      threading::parallel_for(curves.curves_range(), 256, [&](IndexRange curves_range) {
+        for (const int curve_i : curves_range) {
+          const IndexRange points = points_by_curve[curve_i];
+          if (points.size() < 2) {
+            continue;
+          }
+          for (const int point_i : points.drop_back(1)) {
+            const int next_point_i = point_i + 1;
+            const float3 &p0 = positions[point_i];
+            const float3 &p1 = positions[next_point_i];
+            const float length = math::distance(p0, p1);
+            rest_lengths[point_i] = length;
+          }
+          /* Cyclic segment length. Not strictly necessary to compute in all cases. */
+          rest_lengths[points.last()] = math::distance(positions[points.last()], positions[0]);
+        }
+      });
+      attributes.add<float>(rest_length_attribute_,
+                            bke::AttrDomain::Point,
+                            bke::AttributeInitMoveArray{rest_lengths});
+    }
+  }
+
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    float compliance_term = 0.0f;
+    if (params.delta_time > 0.0f) {
+      compliance_term = compliance_ / pow2f(params.delta_time);
+    }
+    for (const int geometry_i : params.sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      const Curves *const *curves_id = std::get_if<Curves *>(&sim_geometry.data);
+      if (!curves_id) {
+        continue;
+      }
+      const bke::CurvesGeometry &curves = (**curves_id).geometry.wrap();
+      const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+      const Span<float3> positions = curves.positions();
+      const bke::AttributeAccessor attributes = curves.attributes();
+      const bke::AttributeReader<float> rest_lengths = attributes.lookup<float>(
+          rest_length_attribute_, bke::AttrDomain::Point);
+      if (!rest_lengths) {
+        continue;
+      }
+      const bke::AttributeReader<float> masses = attributes.lookup_or_default<float>(
+          sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
+      if (!masses) {
+        continue;
+      }
+      const VArray<bool> cyclic = curves.cyclic();
+      threading::parallel_for(curves.curves_range(), 256, [&](IndexRange curves_range) {
+        LocalConstraintCorrections &local_corrections = params.corrections.local();
+        for (const int curve_i : curves_range) {
+          const IndexRange points = points_by_curve[curve_i];
+          if (points.size() < 2) {
+            continue;
+          }
+          for (const int point_i : points.drop_back(1)) {
+            const int next_point_i = point_i + 1;
+            solve_distance_constraint(geometry_i,
+                                      geometry_i,
+                                      point_i,
+                                      next_point_i,
+                                      positions[point_i],
+                                      positions[next_point_i],
+                                      masses.varray[point_i],
+                                      masses.varray[next_point_i],
+                                      compliance_term,
+                                      rest_lengths.varray[point_i],
+                                      local_corrections);
+          }
+          if (cyclic[curve_i]) {
+            const int first_point_i = points.first();
+            const int last_point_i = points.last();
+            solve_distance_constraint(geometry_i,
+                                      geometry_i,
+                                      first_point_i,
+                                      last_point_i,
+                                      positions[first_point_i],
+                                      positions[last_point_i],
+                                      masses.varray[first_point_i],
+                                      masses.varray[last_point_i],
+                                      compliance_term,
+                                      rest_lengths.varray[last_point_i],
+                                      local_corrections);
+          }
         }
       });
     }
@@ -370,6 +509,12 @@ ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
                                                const float compliance)
 {
   return scope.construct<EdgeLengthConstraintSet>(std::move(rest_length_attribute), compliance);
+}
+ConstraintSet &create_constraint__curve_lengths(ResourceScope &scope,
+                                                std::string rest_length_attribute,
+                                                float compliance)
+{
+  return scope.construct<CurveLengthConstraintSet>(std::move(rest_length_attribute), compliance);
 }
 
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,

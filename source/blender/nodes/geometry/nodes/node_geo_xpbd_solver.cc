@@ -228,6 +228,22 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
               scope, std::move(*rest_length_attribute), compliance));
           return;
         }
+        if (type == "Curve Length Constraint") {
+          std::optional<std::string> rest_length_attribute =
+              get_from_bundle__value_variant<std::string>(behavior_bundle,
+                                                          "Rest Length Attribute");
+          if (!rest_length_attribute) {
+            return;
+          }
+          if (rest_length_attribute->empty()) {
+            return;
+          }
+          const float compliance =
+              get_from_bundle__value_variant<float>(behavior_bundle, "Compliance").value_or(0.0f);
+          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__curve_lengths(
+              scope, std::move(*rest_length_attribute), compliance));
+          return;
+        }
         if (type == "Fixed Position Constraint") {
           std::optional<Field<bool>> selection_field = get_from_bundle__value_variant<Field<bool>>(
               behavior_bundle, "Selection");
