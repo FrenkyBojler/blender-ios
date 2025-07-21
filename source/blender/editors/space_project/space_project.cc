@@ -29,7 +29,6 @@
 
 #include "BLO_read_write.hh"
 
-
 #include <sstream>
 
 static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene*/)
@@ -38,10 +37,27 @@ static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene
   project_space->spacetype = SPACE_PROJECT;
 
   {
+    /* Header. */
+    ARegion *region = BKE_area_region_new();
+
+    BLI_addtail(&project_space->regionbase, region);
+    region->regiontype = RGN_TYPE_HEADER;
+    region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
+  }
+
+  {
     /* Main region. */
     ARegion *region = BKE_area_region_new();
     BLI_addtail(&project_space->regionbase, region);
     region->regiontype = RGN_TYPE_WINDOW;
+  }
+
+  {
+    /* Navigation region. */
+    ARegion *region = BKE_area_region_new();
+    BLI_addtail(&project_space->regionbase, region);
+    region->regiontype = RGN_TYPE_NAV_BAR;
+    region->alignment = RGN_ALIGN_LEFT;
   }
 
   return (SpaceLink *)project_space;
@@ -141,6 +157,17 @@ void ED_spacetype_project()
   st->keymap = project_keymap;
   st->blend_write = project_space_blend_write;
 
+  /* regions: header */
+  art = MEM_callocN<ARegionType>("spacetype project region");
+  art->regionid = RGN_TYPE_HEADER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
+  art->init = project_header_region_init;
+  art->draw = project_header_region_draw;
+  art->listener = project_header_listener;
+
+  BLI_addhead(&st->regiontypes, art);
+
   /* regions: main window */
   art = MEM_callocN<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_WINDOW;
@@ -149,6 +176,17 @@ void ED_spacetype_project()
   art->draw = ED_region_panels_draw;
   art->listener = project_main_region_listener;
   art->keymapflag = ED_KEYMAP_UI;
+
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: navigation window */
+  art = MEM_callocN<ARegionType>("spacetype project region");
+  art->regionid = RGN_TYPE_NAV_BAR;
+  art->prefsizex = UI_NAVIGATION_REGION_WIDTH;
+  art->init = project_navigation_region_init;
+  art->draw = project_navigation_region_draw;
+  art->listener = project_navigation_region_listener;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_NAVBAR;
 
   BLI_addhead(&st->regiontypes, art);
 
