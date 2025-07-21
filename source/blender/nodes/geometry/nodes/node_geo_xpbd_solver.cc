@@ -17,8 +17,6 @@
 
 namespace blender::nodes::node_geo_xpbd_solver_cc {
 
-constexpr StringRefNull prev_position_name = ".prev_position";
-
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.use_custom_socket_order();
