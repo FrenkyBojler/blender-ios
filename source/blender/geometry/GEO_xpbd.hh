@@ -8,27 +8,12 @@
 #include "BKE_geometry_set.hh"
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_mutex.hh"
 #include "BLI_vector.hh"
 
 #include "FN_field.hh"
 
 namespace blender::geometry::xpbd {
-
-struct PositionCorrection {
-  int geometry_i;
-  int position_i;
-  float3 correction;
-};
-
-class LocalConstraintCorrections {
- public:
-  Vector<PositionCorrection> position_corrections_;
-
-  void add_position_correction(const int geometry_i, const int position_i, const float3 &gradient)
-  {
-    position_corrections_.append({geometry_i, position_i, gradient});
-  }
-};
 
 class ForceField {
  public:
@@ -53,19 +38,40 @@ struct SimGeometry {
   std::string path;
   std::string mass_attribute;
   std::string velocity_attribute;
+  float quantize_scale = 10000.0f;
 
   SimGeometry(const SimGeometrySet &src, GeometryVariant data);
 
   std::optional<bke::AttributeAccessor> attributes() const;
   std::optional<bke::MutableAttributeAccessor> attributes_for_write();
+  int points_num() const;
 
   int set_point_field_context(std::optional<bke::GeometryFieldContext> &r_context) const;
+};
+
+struct PositionCorrection {
+  Mutex mutex;
+  int3 offset = {0, 0, 0};
+  int num_corrections = 0;
+};
+
+class ConstraintCorrections;
+
+class LocalConstraintCorrections {
+  ConstraintCorrections &corrections_;
+
+ public:
+  LocalConstraintCorrections(ConstraintCorrections &corrections);
+  void add_position_correction(int geometry_i, int position_i, const float3 &offset);
 };
 
 class ConstraintCorrections {
  private:
   MutableSpan<SimGeometry> sim_geometries_;
-  threading::EnumerableThreadSpecific<LocalConstraintCorrections> local_corrections_;
+  Array<Array<PositionCorrection>> corrections_;
+  LocalConstraintCorrections local_corrections_;
+
+  friend LocalConstraintCorrections;
 
  public:
   ConstraintCorrections(MutableSpan<SimGeometry> sim_geometries);
@@ -95,5 +101,17 @@ ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
 ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
                                                   fn::Field<bool> selection_field,
                                                   fn::Field<float3> fixed_positions_field);
+
+inline void LocalConstraintCorrections::add_position_correction(const int geometry_i,
+                                                                const int position_i,
+                                                                const float3 &offset)
+{
+  const float quantize_scale = corrections_.sim_geometries_[geometry_i].quantize_scale;
+  const int3 quantized_offset = int3(offset * quantize_scale);
+  PositionCorrection &correction = corrections_.corrections_[geometry_i][position_i];
+  std::lock_guard lock(correction.mutex);
+  correction.offset += quantized_offset;
+  correction.num_corrections++;
+}
 
 }  // namespace blender::geometry::xpbd

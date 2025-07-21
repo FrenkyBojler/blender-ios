@@ -48,6 +48,14 @@ std::optional<bke::MutableAttributeAccessor> SimGeometry::attributes_for_write()
   return std::nullopt;
 }
 
+int SimGeometry::points_num() const
+{
+  if (std::optional<bke::AttributeAccessor> attributes = this->attributes()) {
+    return attributes->domain_size(bke::AttrDomain::Point);
+  }
+  return 0;
+}
+
 int SimGeometry::set_point_field_context(std::optional<bke::GeometryFieldContext> &r_context) const
 {
   if (const Mesh *const *mesh = std::get_if<Mesh *>(&data)) {
@@ -76,42 +84,56 @@ void ConstraintSet::post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/
 
 LocalConstraintCorrections &ConstraintCorrections::local()
 {
-  return local_corrections_.local();
+  return local_corrections_;
+}
+
+LocalConstraintCorrections::LocalConstraintCorrections(ConstraintCorrections &corrections)
+    : corrections_(corrections)
+{
 }
 
 ConstraintCorrections::ConstraintCorrections(MutableSpan<SimGeometry> sim_geometries)
-    : sim_geometries_(sim_geometries)
+    : sim_geometries_(sim_geometries), local_corrections_(*this)
 {
+  corrections_.reinitialize(sim_geometries.size());
+  for (const int geometry_i : sim_geometries.index_range()) {
+    corrections_[geometry_i].reinitialize(sim_geometries[geometry_i].points_num());
+  }
 }
 
 void ConstraintCorrections::apply()
 {
-  Vector<bke::SpanAttributeWriter<float3>> position_attributes(sim_geometries_.size());
-  for (const int geometry_i : sim_geometries_.index_range()) {
-    SimGeometry &sim_geometry = sim_geometries_[geometry_i];
-    std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
-    if (!attributes) {
-      continue;
-    }
-    position_attributes[geometry_i] = attributes->lookup_for_write_span<float3>("position");
-  }
-  Map<std::pair<int, int>, int> num_corrections_map;
-  for (LocalConstraintCorrections &local_corrections : local_corrections_) {
-    for (const PositionCorrection &correction : local_corrections.position_corrections_) {
-      num_corrections_map.lookup_or_add({correction.geometry_i, correction.position_i}, 0) += 1;
-    }
-  }
-  for (LocalConstraintCorrections &local_corrections : local_corrections_) {
-    for (const PositionCorrection &correction : local_corrections.position_corrections_) {
-      const int num_corrections = num_corrections_map.lookup(
-          {correction.geometry_i, correction.position_i});
-      position_attributes[correction.geometry_i].span[correction.position_i] +=
-          correction.correction / num_corrections;
-    }
-  }
-  for (bke::SpanAttributeWriter<float3> &attribute : position_attributes) {
-    attribute.finish();
-  }
+  threading::parallel_for(
+      sim_geometries_.index_range(), 1, [&](const IndexRange sim_geometries_range) {
+        for (const int geometry_i : sim_geometries_range) {
+          SimGeometry &sim_geometry = sim_geometries_[geometry_i];
+          std::optional<bke::MutableAttributeAccessor> attributes =
+              sim_geometry.attributes_for_write();
+          if (!attributes) {
+            continue;
+          }
+          MutableSpan<PositionCorrection> corrections = corrections_[geometry_i];
+          bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
+              "position");
+
+          threading::parallel_for(
+              positions.span.index_range(), 512, [&](const IndexRange points_range) {
+                const float quantize_scale = sim_geometry.quantize_scale;
+                for (const int point_i : points_range) {
+                  const PositionCorrection &correction = corrections[point_i];
+                  if (correction.num_corrections == 0) {
+                    continue;
+                  }
+                  const float factor = 1.0f / (quantize_scale * float(correction.num_corrections));
+                  const float3 offset = float3(correction.offset) * factor;
+                  float3 &position = positions.span[point_i];
+                  position += offset;
+                }
+              });
+
+          positions.finish();
+        }
+      });
 }
 
 class EdgeLengthConstraint : public ConstraintSet {
