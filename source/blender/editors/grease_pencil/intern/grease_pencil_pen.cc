@@ -431,13 +431,11 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       MutableSpan<bool> selection = selection_writer.span.typed<bool>();
 
       if (ptd.close_spline) {
-        if (closest_point == points.first() && selection[points.last()]) {
+        if ((closest_point == points.first() && selection[points.last()]) ||
+            (closest_point == points.last() && selection[points.first()]))
+        {
           curves.cyclic_for_write()[curve_index] = true;
-          info.drawing.tag_topology_changed();
-          add_single.store(false, std::memory_order_relaxed);
-        }
-        if (closest_point == points.last() && selection[points.first()]) {
-          curves.cyclic_for_write()[curve_index] = true;
+          curves.calculate_bezier_auto_handles();
           info.drawing.tag_topology_changed();
           add_single.store(false, std::memory_order_relaxed);
         }
