@@ -325,7 +325,7 @@ static void pen_add_single(const PenToolOperation &ptd)
                                                                          "handle_right",
                                                                          "handle_type_left",
                                                                          "handle_type_right"}),
-                                    curves.curves_range().take_back(1));
+                                    curves.points_range().take_back(1));
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Curve,
