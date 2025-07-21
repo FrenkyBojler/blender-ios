@@ -242,9 +242,50 @@ class FixedPositionsConstraint : public ConstraintSet {
   {
   }
 
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    this->foreach_fixed_position(
+        params.sim_geometries,
+        [&](const int geometry_i, const IndexMask &mask, const VArray<float3> &fixed_positions) {
+          const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+          std::optional<bke::AttributeAccessor> attributes = sim_geometry.attributes();
+          if (!attributes) {
+            return;
+          }
+          const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
+          LocalConstraintCorrections &local_corrections = params.corrections.local();
+          mask.foreach_index([&](const int i) {
+            const float3 offset = fixed_positions[i] - positions[i];
+            local_corrections.add_position_correction(geometry_i, i, offset);
+          });
+        });
+  }
+
   void post_solve_apply(MutableSpan<SimGeometry> sim_geometries) override
   {
-    for (SimGeometry &sim_geometry : sim_geometries) {
+    this->foreach_fixed_position(
+        sim_geometries,
+        [&](const int geometry_i, const IndexMask &mask, const VArray<float3> &fixed_positions) {
+          SimGeometry &sim_geometry = sim_geometries[geometry_i];
+          std::optional<bke::MutableAttributeAccessor> attributes =
+              sim_geometry.attributes_for_write();
+          if (!attributes) {
+            return;
+          }
+          bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
+              "position");
+          mask.foreach_index([&](const int i) { positions.span[i] = fixed_positions[i]; });
+          positions.finish();
+        });
+  }
+
+  void foreach_fixed_position(const Span<SimGeometry> sim_geometries,
+                              FunctionRef<void(const int geometry_i,
+                                               const IndexMask &mask,
+                                               const VArray<float3> &fixed_positions)> fn) const
+  {
+    for (const int geometry_i : sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = sim_geometries[geometry_i];
       std::optional<bke::GeometryFieldContext> field_context;
       const int points_num = sim_geometry.set_point_field_context(field_context);
       if (!field_context) {
@@ -258,16 +299,8 @@ class FixedPositionsConstraint : public ConstraintSet {
       if (selection.is_empty()) {
         continue;
       }
-      const VArraySpan<float3> fixed_positions_span = field_evaluator.get_evaluated<float3>(0);
-      std::optional<bke::MutableAttributeAccessor> attributes =
-          sim_geometry.attributes_for_write();
-      if (!attributes) {
-        continue;
-      }
-      bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
-          "position");
-      selection.foreach_index([&](const int i) { positions.span[i] = fixed_positions_span[i]; });
-      positions.finish();
+      const VArray<float3> fixed_positions = field_evaluator.get_evaluated<float3>(0);
+      fn(geometry_i, selection, fixed_positions);
     }
   }
 };
