@@ -97,6 +97,7 @@ namespace blender::bke::path_templates {
  */
 class VariableMap {
   blender::Map<std::string, std::string> strings_;
+  blender::Map<std::string, std::string> filepaths_;
   blender::Map<std::string, int64_t> integers_;
   blender::Map<std::string, double> floats_;
 
@@ -124,6 +125,22 @@ class VariableMap {
    * already a variable with that name.
    */
   bool add_string(blender::StringRef name, blender::StringRef value);
+
+  /**
+   * Add a filepath variable with the given name and value.
+   *
+   * If there is already a variable with that name, regardless of type, the new
+   * variable is *not* added (no overwriting).
+   *
+   * Note: the difference between string and filepath variables is that the
+   * contents of filepath variables are not escaped (e.g. substituting slashes
+   * with underscores) when used in a path template, whereas string variables
+   * are.
+   *
+   * \return True if the variable was successfully added, false if there was
+   * already a variable with that name.
+   */
+  bool add_filepath(blender::StringRef name, blender::StringRef value);
 
   /**
    * Add an integer variable with the given name and value.
@@ -154,6 +171,14 @@ class VariableMap {
    * #std::nullopt otherwise.
    */
   std::optional<blender::StringRefNull> get_string(blender::StringRef name) const;
+
+  /**
+   * Fetch the value of the filepath variable with the given name.
+   *
+   * \return The value if a filepath variable with that name exists,
+   * #std::nullopt otherwise.
+   */
+  std::optional<blender::StringRefNull> get_filepath(blender::StringRef name) const;
 
   /**
    * Fetch the value of the integer variable with the given name.
@@ -189,9 +214,9 @@ class VariableMap {
    * \return True if the variable was successfully added, false if there was
    * already a variable with that name.
    */
-  bool add_filename(blender::StringRef var_name,
-                    blender::StringRefNull full_path,
-                    blender::StringRef fallback);
+  bool add_filename_only(blender::StringRef var_name,
+                         blender::StringRefNull full_path,
+                         blender::StringRef fallback);
 
   /**
    * Add the path up-to-but-not-including the filename as a variable.

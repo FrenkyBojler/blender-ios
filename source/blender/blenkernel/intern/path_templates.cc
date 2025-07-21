@@ -27,6 +27,9 @@ bool VariableMap::contains(blender::StringRef name) const
   if (this->strings_.contains(name)) {
     return true;
   }
+  if (this->filepaths_.contains(name)) {
+    return true;
+  }
   if (this->integers_.contains(name)) {
     return true;
   }
@@ -39,6 +42,9 @@ bool VariableMap::contains(blender::StringRef name) const
 bool VariableMap::remove(blender::StringRef name)
 {
   if (this->strings_.remove(name)) {
+    return true;
+  }
+  if (this->filepaths_.remove(name)) {
     return true;
   }
   if (this->integers_.remove(name)) {
@@ -56,6 +62,15 @@ bool VariableMap::add_string(blender::StringRef name, blender::StringRef value)
     return false;
   }
   this->strings_.add_new(name, value);
+  return true;
+}
+
+bool VariableMap::add_filepath(blender::StringRef name, blender::StringRef value)
+{
+  if (this->contains(name)) {
+    return false;
+  }
+  this->filepaths_.add_new(name, value);
   return true;
 }
 
@@ -86,6 +101,15 @@ std::optional<blender::StringRefNull> VariableMap::get_string(blender::StringRef
   return blender::StringRefNull(*value);
 }
 
+std::optional<blender::StringRefNull> VariableMap::get_filepath(blender::StringRef name) const
+{
+  const std::string *value = this->filepaths_.lookup_ptr(name);
+  if (value == nullptr) {
+    return std::nullopt;
+  }
+  return blender::StringRefNull(*value);
+}
+
 std::optional<int64_t> VariableMap::get_integer(blender::StringRef name) const
 {
   const int64_t *value = this->integers_.lookup_ptr(name);
@@ -104,22 +128,24 @@ std::optional<double> VariableMap::get_float(blender::StringRef name) const
   return *value;
 }
 
-bool VariableMap::add_filename(StringRef var_name, StringRefNull full_path, StringRef fallback)
+bool VariableMap::add_filename_only(StringRef var_name,
+                                    StringRefNull full_path,
+                                    StringRef fallback)
 {
   const char *file_name = BLI_path_basename(full_path.c_str());
   const char *file_name_end = BLI_path_extension_or_end(file_name);
 
   if (file_name[0] == '\0') {
     /* If there is no file name, default to the fallback. */
-    return this->add_string(var_name, fallback);
+    return this->add_filepath(var_name, fallback);
   }
   else if (file_name_end == file_name) {
     /* When the filename has no extension, but starts with a period. */
-    return this->add_string(var_name, StringRef(file_name));
+    return this->add_filepath(var_name, StringRef(file_name));
   }
   else {
     /* Normal case. */
-    return this->add_string(var_name, StringRef(file_name, file_name_end));
+    return this->add_filepath(var_name, StringRef(file_name, file_name_end));
   }
 }
 
@@ -129,12 +155,12 @@ bool VariableMap::add_path_up_to_file(StringRef var_name,
 {
   /* Empty path. */
   if (full_path.is_empty()) {
-    return this->add_string(var_name, fallback);
+    return this->add_filepath(var_name, fallback);
   }
 
   /* No filename at the end. */
   if (BLI_path_basename(full_path.c_str()) == full_path.end()) {
-    return this->add_string(var_name, full_path);
+    return this->add_filepath(var_name, full_path);
   }
 
   Vector<char> dir_path(full_path.size() + 1);
@@ -144,10 +170,10 @@ bool VariableMap::add_path_up_to_file(StringRef var_name,
 
   if (!success || dir_path[0] == '\0') {
     /* If no path before the filename, default to the fallback. */
-    return this->add_string(var_name, fallback);
+    return this->add_filepath(var_name, fallback);
   }
 
-  return this->add_string(var_name, dir_path.data());
+  return this->add_filepath(var_name, dir_path.data());
 }
 
 bool operator==(const Error &left, const Error &right)
@@ -249,7 +275,8 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
   {
     const char *g_blend_file_path = BKE_main_blendfile_path_from_global();
 
-    variables.add_filename("blend_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
+    variables.add_filename_only(
+        "blend_name", g_blend_file_path, blender::StringRef(DATA_("Unsaved")));
 
     /* Note: fallback to "./" for unsaved files, which if used at the start of a
      * path is equivalent to the current working directory. This is consistent
@@ -260,7 +287,7 @@ void BKE_add_template_variables_general(VariableMap &variables, const ID *path_o
   /* Library blend filepath (a.k.a. path to the blend file that actually owns the ID). */
   if (path_owner_id) {
     const char *lib_blend_file_path = ID_BLEND_PATH_FROM_GLOBAL(path_owner_id);
-    variables.add_filename(
+    variables.add_filename_only(
         "blend_name_lib", lib_blend_file_path, blender::StringRef(DATA_("Unsaved")));
 
     /* Note: fallback to "./" for unsaved files, which if used at the start of a
