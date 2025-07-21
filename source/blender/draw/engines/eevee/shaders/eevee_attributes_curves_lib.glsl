@@ -7,14 +7,14 @@
 #include "draw_object_infos_info.hh"
 
 #ifdef GPU_LIBRARY_SHADER
-#  define HAIR_SHADER
+#  define CURVES_SHADER
 #  define DRW_HAIR_INFO
 #endif
 
 SHADER_LIBRARY_CREATE_INFO(draw_modelmat)
-SHADER_LIBRARY_CREATE_INFO(draw_hair)
+SHADER_LIBRARY_CREATE_INFO(draw_curves)
 
-#include "draw_curves_lib.glsl" /* TODO rename to curve. */
+#include "draw_curves_lib.glsl"
 #include "draw_model_lib.glsl"
 #include "draw_object_infos_lib.glsl"
 #include "gpu_shader_codegen_lib.glsl"
@@ -47,9 +47,7 @@ int curves_attribute_element_id()
 {
   int id = curve_interp_flat.strand_id;
   if (drw_curves.is_point_attribute[g_curves_attr_id][0] != 0u) {
-#  ifdef COMMON_HAIR_LIB
-    id = hair_get_base_id();
-#  endif
+    id = int(curve_interp.point_id);
   }
 
   g_curves_attr_id += 1;

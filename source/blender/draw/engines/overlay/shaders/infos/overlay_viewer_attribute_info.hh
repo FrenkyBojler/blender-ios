@@ -10,7 +10,7 @@
 #  include "draw_view_info.hh"
 #  include "overlay_common_info.hh"
 
-#  define HAIR_SHADER
+#  define CURVES_SHADER
 #  define DRW_HAIR_INFO
 
 #  define POINTCLOUD_SHADER
@@ -88,7 +88,7 @@ SAMPLER(1, samplerBuffer, color_tx)
 PUSH_CONSTANT(bool, is_point_domain)
 VERTEX_OUT(overlay_viewer_attribute_iface)
 ADDITIONAL_INFO(overlay_viewer_attribute_common)
-ADDITIONAL_INFO(draw_hair)
+ADDITIONAL_INFO(draw_curves)
 ADDITIONAL_INFO(draw_view)
 ADDITIONAL_INFO(draw_globals)
 ADDITIONAL_INFO(draw_modelmat)

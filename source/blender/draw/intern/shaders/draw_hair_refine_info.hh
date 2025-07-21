@@ -13,7 +13,7 @@
 #  include "draw_object_infos_info.hh"
 
 #  define HAIR_PHASE_SUBDIV
-#  define HAIR_SHADER
+#  define CURVES_SHADER
 #  define DRW_HAIR_INFO
 #endif
 
@@ -27,6 +27,5 @@ SAMPLER(1, usamplerBuffer, hairStrandBuffer)
 SAMPLER(2, usamplerBuffer, hairStrandSegBuffer)
 COMPUTE_SOURCE("draw_hair_refine_comp.glsl")
 DEFINE("HAIR_PHASE_SUBDIV")
-ADDITIONAL_INFO(draw_hair)
 DO_STATIC_COMPILATION()
 GPU_SHADER_CREATE_END()

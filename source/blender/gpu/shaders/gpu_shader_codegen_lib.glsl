@@ -33,7 +33,7 @@ float2 calc_barycentric_co(int vertid)
   return bary;
 }
 
-#ifdef HAIR_SHADER
+#ifdef CURVES_SHADER
 
 /* Hairs uv and col attributes are passed by bufferTextures. */
 #  define DEFINE_ATTR(type, attr) uniform samplerBuffer attr

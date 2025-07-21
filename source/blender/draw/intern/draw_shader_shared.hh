@@ -253,6 +253,11 @@ struct CurvesInfos {
    * \note uint as bool in GLSL is 4 bytes.
    * \note GLSL pad arrays of scalar to 16 bytes (std140). */
   uint4 is_point_attribute[DRW_ATTRIBUTE_PER_CURVES_MAX];
+
+  uint vertex_per_segment;
+  uint half_cylinder_face_count;
+  uint _pad0;
+  uint _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(CurvesInfos, 16)
 

@@ -55,33 +55,24 @@ void workbench_hair_random_material(float rand,
 
 void main()
 {
-  bool is_persp = (drw_view().winmat[3][3] == 0.0f);
-  float time = 0.0f, thick_time = 0.0f, thickness = 0.0f;
-  float3 world_pos, tangent, binor;
-  hair_get_pos_tan_binor_time(is_persp,
-                              drw_modelinv(),
-                              drw_view().viewinv[3].xyz,
-                              drw_view().viewinv[2].xyz,
-                              world_pos,
-                              tangent,
-                              binor,
-                              time,
-                              thickness,
-                              thick_time);
+  const curves::Point ls_pt = curves::point_get(uint(gl_VertexID));
+  const curves::Point ws_pt = curves::object_to_world(ls_pt, drw_modelmat());
+  float3 binor;
+  float3 world_pos = curves::shape_point_get(ws_pt, drw_world_incident_vector(ws_pt.P), binor);
 
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
-  float hair_rand = integer_noise(hair_get_strand_id());
-  float3 nor = workbench_hair_random_normal(tangent, binor, hair_rand);
+  float hair_rand = integer_noise(ws_pt.curve_id);
+  float3 nor = workbench_hair_random_normal(ws_pt.T, binor, hair_rand);
 
   view_clipping_distances(world_pos);
 
-  uv_interp = hair_get_customdata_vec2(au);
+  uv_interp = curves::get_customdata_vec2(au);
 
   normal_interp = normalize(drw_normal_world_to_view(nor));
 
   workbench_material_data_get(int(drw_custom_id()),
-                              hair_get_customdata_vec3(ac),
+                              curves::get_customdata_vec3(ac),
                               color_interp,
                               alpha_interp,
                               _roughness,
