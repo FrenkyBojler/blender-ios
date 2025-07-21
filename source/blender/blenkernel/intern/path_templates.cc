@@ -584,13 +584,9 @@ static int format_float_to_string(const FormatSpecifier &format,
  * filepath.
  *
  * This is intended to be used on the values of string variables before they get
- * substituted into a path. Without this, value like "and/or" would end up
+ * substituted into a path. Without this, values like "and/or" would end up
  * creating separate "and" and "or" path segments in the final path, rather than
  * a single path segment.
- *
- * Note: strings that intentionally contain multiple path components should be
- * added as filepath variables, not string variables. Filepath variable values
- * are not escaped like this, leaving the path separators intact.
  *
  * \return length of the produced string. Zero indicates an error
  */
