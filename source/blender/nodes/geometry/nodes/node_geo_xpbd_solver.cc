@@ -4,7 +4,10 @@
 
 #include <fmt/format.h>
 
+#include "BKE_curves.hh"
+#include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
+#include "DNA_pointcloud_types.h"
 #include "node_geometry_util.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -41,8 +44,27 @@ struct SimGeometrySet {
   GeometrySet geometry;
 };
 
+struct SimGeometry {
+  std::string path;
+  std::variant<Mesh *, PointCloud *, Curves *> data;
+
+  std::optional<bke::MutableAttributeAccessor> attributes_for_write()
+  {
+    if (Mesh **mesh = std::get_if<Mesh *>(&data)) {
+      return (*mesh)->attributes_for_write();
+    }
+    if (PointCloud **pointcloud = std::get_if<PointCloud *>(&data)) {
+      return (*pointcloud)->attributes_for_write();
+    }
+    if (Curves **curves = std::get_if<Curves *>(&data)) {
+      return (*curves)->geometry.wrap().attributes_for_write();
+    }
+    return std::nullopt;
+  }
+};
+
 struct ParsedBehaviors {
-  Vector<SimGeometrySet> sim_geometries;
+  Vector<SimGeometrySet> sim_geometry_sets;
   Vector<XpbdContraints *> constraints;
 };
 
@@ -170,7 +192,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle)
           SimGeometrySet geometry;
           geometry.path = path;
           geometry.geometry = *static_cast<const GeometrySet *>(item->value);
-          parsed_behaviors.sim_geometries.append(geometry);
+          parsed_behaviors.sim_geometry_sets.append(geometry);
           return;
         }
       });
@@ -187,7 +209,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   ParsedBehaviors parsed_behaviors = parse_behaviors(behaviors_bundle);
   if (old_data_bundle) {
-    for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometries) {
+    for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
       std::optional<Bundle::Item> item = lookup_bundle_path(*old_data_bundle,
                                                             sim_geometry.path + "/Geometry");
       if (!item) {
@@ -200,23 +222,35 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometries) {
-    if (sim_geometry.geometry.has_mesh()) {
-      bke::MeshComponent &mesh_component =
-          sim_geometry.geometry.get_component_for_write<bke::MeshComponent>();
-      Mesh *mesh = mesh_component.get_for_write();
-      if (mesh) {
-        MutableSpan<float3> positions = mesh->vert_positions_for_write();
-        for (float3 &p : positions) {
-          p.z += 1.0f * delta_time;
-        }
-        mesh->tag_positions_changed();
-      }
+  Vector<SimGeometry> sim_geometries;
+
+  for (SimGeometrySet &sim_geometry_set : parsed_behaviors.sim_geometry_sets) {
+    if (Mesh *mesh = sim_geometry_set.geometry.get_mesh_for_write()) {
+      sim_geometries.append(SimGeometry{sim_geometry_set.path, mesh});
+    }
+    if (PointCloud *pointcloud = sim_geometry_set.geometry.get_pointcloud_for_write()) {
+      sim_geometries.append(SimGeometry{sim_geometry_set.path, pointcloud});
+    }
+    if (Curves *curves = sim_geometry_set.geometry.get_curves_for_write()) {
+      sim_geometries.append(SimGeometry{sim_geometry_set.path, curves});
     }
   }
 
+  for (SimGeometry &sim_geometry : sim_geometries) {
+    std::optional<bke::MutableAttributeAccessor> attributes = sim_geometry.attributes_for_write();
+    if (!attributes) {
+      continue;
+    }
+    bke::SpanAttributeWriter<float3> positions = attributes->lookup_for_write_span<float3>(
+        "position");
+    for (const int i : positions.span.index_range()) {
+      positions.span[i].z += 2.0f * delta_time;
+    }
+    positions.finish();
+  }
+
   BundlePtr new_data_bundle = Bundle::create();
-  for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometries) {
+  for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
     store_bundle_path(const_cast<Bundle &>(*new_data_bundle),
                       sim_geometry.path + "/Geometry",
                       *bke::node_socket_type_find_static(SOCK_GEOMETRY),
