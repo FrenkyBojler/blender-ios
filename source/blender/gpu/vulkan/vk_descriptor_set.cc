@@ -771,7 +771,7 @@ void VKBindlessDescriptorPoolUpdator::bind_push_constants(
 
   // Push the bindings table into the push constants.
   if (shader_interface.bindings_table_size_get() > 0) {
-    const ShaderInput *bindings_table_description = shader_interface.uniform_get("bindings_table");
+    const ShaderInput *bindings_table_description = shader_interface.bindings_table_input_get();
     shader.push_constants.push_constant_set(
         bindings_table_description->location, 1, bindings_table.size(), bindings_table.data());
   }

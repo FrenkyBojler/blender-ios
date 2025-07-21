@@ -203,6 +203,12 @@ void VKShaderInterface::init(const shader::ShaderCreateInfo &info)
 
   sort_inputs();
 
+  // We cache the pointer to the bindings table ShaderInput to speed up
+  // fetches in descriptor binding code paths.
+  if (supports_descriptor_indexing) {
+    bindings_table_input_ = this->uniform_get(BINDINGS_TABLE_NAME);
+  }
+
   /* Builtin Uniforms */
   for (int32_t u_int = 0; u_int < GPU_NUM_UNIFORMS; u_int++) {
     GPUUniformBuiltin u = static_cast<GPUUniformBuiltin>(u_int);

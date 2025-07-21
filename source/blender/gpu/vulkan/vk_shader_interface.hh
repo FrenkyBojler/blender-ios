@@ -52,6 +52,7 @@ class VKShaderInterface : public ShaderInterface {
   /** Binding information for each shader input. */
   Array<VKResourceBinding> resource_bindings_;
   size_t bindings_table_size_;
+  const ShaderInput *bindings_table_input_;
   VKDescriptorSetLayoutInfo descriptor_set_layout_info_;
 
   VKPushConstants::Layout push_constants_layout_;
@@ -72,6 +73,12 @@ class VKShaderInterface : public ShaderInterface {
   size_t bindings_table_size_get() const
   {
     return bindings_table_size_;
+  }
+
+  const ShaderInput *bindings_table_input_get() const
+  {
+    BLI_assert(bindings_table_input_ != nullptr);
+    return bindings_table_input_;
   }
 
   /** Get the Layout of the shader. */
