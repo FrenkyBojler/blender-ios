@@ -588,7 +588,7 @@ static int format_float_to_string(const FormatSpecifier &format,
  * creating separate "and" and "or" path segments in the final path, rather than
  * a single path segment.
  *
- * \return length of the produced string. Zero indicates an error
+ * \return Length of the produced string.
  */
 static int escape_string_for_path(const blender::StringRefNull string_value,
                                   char r_output_string[FORMAT_BUFFER_SIZE])
