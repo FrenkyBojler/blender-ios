@@ -575,7 +575,7 @@ bool transform_is_locked(ListBase *channels, const Strip *strip)
 {
   const SeqTimelineChannel *channel = channel_get_by_index(channels, strip->channel);
   return strip->flag & SEQ_LOCK ||
-         (channel_is_locked(channel) && ((strip->flag & SEQ_IGNORE_CHANNEL_LOCK) == 0));
+         (channel_is_locked(channel) && ((strip->runtime.flag & STRIP_IGNORE_CHANNEL_LOCK) == 0));
 }
 
 float2 image_transform_mirror_factor_get(const Strip *strip)

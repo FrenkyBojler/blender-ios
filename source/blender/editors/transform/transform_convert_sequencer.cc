@@ -341,7 +341,7 @@ static void freeSeqData(TransInfo *t, TransDataContainer *tc, TransCustomData *c
 
   for (Strip *strip : transformed_strips) {
     strip->runtime.flag &= ~(STRIP_CLAMPED_LH | STRIP_CLAMPED_RH);
-    strip->flag &= ~SEQ_IGNORE_CHANNEL_LOCK;
+    strip->runtime.flag &= ~STRIP_IGNORE_CHANNEL_LOCK;
   }
 
   if (t->state == TRANS_CANCEL) {
