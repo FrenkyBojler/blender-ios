@@ -93,6 +93,7 @@ struct PenToolOperation {
 
   float4x4 projection;
   float2 mouse_co;
+  float2 center_of_mass_co;
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -237,7 +238,9 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
       continue;
     }
     const float3 depth_point = src_positions[dst_to_src_points[i]];
-    dst_positions[i] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+    const float2 pos = pen_global_to_screen(ptd, depth_point) - ptd.center_of_mass_co +
+                       ptd.mouse_co;
+    dst_positions[i] = pen_screen_to_global(ptd, pos, depth_point);
     handle_types_left[i] = ptd.extrude_handle;
     handle_types_right[i] = ptd.extrude_handle;
   }
@@ -339,6 +342,48 @@ static void pen_add_single(const PenToolOperation &ptd)
   drawing->tag_topology_changed();
 }
 
+static float2 calculate_center_of_mass(const PenToolOperation &ptd,
+                                       const Span<MutableDrawingInfo> &drawings)
+{
+  float2 pos = float2(0.0f, 0.0f);
+  int num = 0;
+
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    const bke::CurvesGeometry &curves = info.drawing.strokes();
+
+    const bke::AttributeAccessor attributes = curves.attributes();
+    const OffsetIndices<int> points_by_curve = curves.points_by_curve();
+
+    const VArray<bool> point_selection = *attributes.lookup_or_default<bool>(
+        ".selection", bke::AttrDomain::Point, true);
+
+    const Span<float3> positions = curves.positions();
+    const VArray<bool> &cyclic = curves.cyclic();
+
+    for (const int curve_index : curves.curves_range()) {
+      const IndexRange curve_points = points_by_curve[curve_index];
+      if (cyclic[curve_index]) {
+        continue;
+      }
+
+      if (point_selection[curve_points.first()] && curve_points.size() != 1) {
+        pos += pen_global_to_screen(ptd, positions[curve_points.first()]);
+        num++;
+      }
+
+      if (point_selection[curve_points.last()]) {
+        pos += pen_global_to_screen(ptd, positions[curve_points.last()]);
+        num++;
+      }
+    }
+  });
+
+  if (num == 0) {
+    return pos;
+  }
+  return pos / num;
+}
+
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -396,6 +441,9 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
                                                                          *ptd.grease_pencil);
+
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd, drawings);
+
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
