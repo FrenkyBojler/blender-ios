@@ -145,11 +145,6 @@ class VariableMap {
    * If there is already a variable with that name, regardless of type, the new
    * variable is *not* added (no overwriting).
    *
-   * Note: the difference between string and filepath variables is that the
-   * contents of filepath variables are not escaped (e.g. substituting slashes
-   * with underscores) when used in a path template, whereas string variables
-   * are.
-   *
    * \return True if the variable was successfully added, false if there was
    * already a variable with that name.
    */
