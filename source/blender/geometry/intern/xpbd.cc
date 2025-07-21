@@ -122,7 +122,9 @@ void ConstraintCorrections::apply()
                     continue;
                   }
                   const int3 offset_quantized = correction.offset;
-                  const float factor = 1.0f / (quantize_scale * float(correction.num_corrections));
+                  const float relaxation_factor = 1.3f;
+                  const float factor = relaxation_factor /
+                                       (quantize_scale * float(correction.num_corrections));
                   const float3 offset = float3(offset_quantized) * factor;
                   float3 &position = positions.span[point_i];
                   position += offset;
