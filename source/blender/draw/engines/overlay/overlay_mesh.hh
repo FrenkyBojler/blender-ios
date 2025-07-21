@@ -780,9 +780,13 @@ class MeshUVs : Overlay {
     Mesh &mesh = DRW_object_get_data_for_drawing<Mesh>(*ob);
 
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
-    // TODO_MESH_ATTR
-    const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
-                                                                     CD_PROP_FLOAT2) != -1;
+    const StringRef active_uv_map = mesh.active_uv_map_attribute;
+    const bke::AttributeAccessor attributes = mesh.attributes();
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+        active_uv_map);
+    const bool has_active_object_uvmap = meta_data &&
+                                         meta_data->domain == bke::AttrDomain::Corner &&
+                                         meta_data->data_type == bke::AttrType::Float2;
 
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 
@@ -811,13 +815,18 @@ class MeshUVs : Overlay {
     const SpaceImage *space_image = reinterpret_cast<const SpaceImage *>(state.space_data);
     const bool is_edit_object = DRW_object_is_in_edit_mode(&ob);
     const bool is_uv_editable = is_edit_object && space_image->mode == SI_MODE_UV;
-    // TODO_MESH_ATTR
-    const bool has_active_object_uvmap = CustomData_get_active_layer(&mesh.corner_data,
-                                                                     CD_PROP_FLOAT2) != -1;
-    // TODO_MESH_ATTR
-    const bool has_active_edit_uvmap = is_edit_object && (CustomData_get_active_layer(
-                                                              &mesh.runtime->edit_mesh->bm->ldata,
-                                                              CD_PROP_FLOAT2) != -1);
+    const StringRef active_uv_map = mesh.active_uv_map_attribute;
+    const bke::AttributeAccessor attributes = mesh.attributes();
+    const std::optional<bke::AttributeMetaData> meta_data = attributes.lookup_meta_data(
+        active_uv_map);
+    const bool has_active_object_uvmap = meta_data &&
+                                         meta_data->domain == bke::AttrDomain::Corner &&
+                                         meta_data->data_type == bke::AttrType::Float2;
+
+    const bool has_active_edit_uvmap = is_edit_object && CustomData_has_layer_named(
+                                                             &mesh.runtime->edit_mesh->bm->ldata,
+                                                             CD_PROP_FLOAT2,
+                                                             active_uv_map);
 
     ResourceHandleRange res_handle = manager.unique_handle(ob_ref);
 

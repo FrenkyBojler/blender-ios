@@ -2547,7 +2547,6 @@ void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write
             edge_layers.begin(),
             edge_layers.end(),
             [](const CustomDataLayer &a, const CustomDataLayer &b) { return a.type < b.type; });
-        // TODO_MESH_ATTR
         edge_data.totlayer = edge_layers.size();
         edge_data.maxlayer = edge_data.totlayer;
         attrs_to_remove[i] = true;
@@ -2567,7 +2566,6 @@ void mesh_freestyle_marks_to_legacy(AttributeStorage::BlendWriteData &attr_write
             face_layers.begin(),
             face_layers.end(),
             [](const CustomDataLayer &a, const CustomDataLayer &b) { return a.type < b.type; });
-        // TODO_MESH_ATTR
         face_data.totlayer = face_layers.size();
         face_data.maxlayer = face_data.totlayer;
         attrs_to_remove[i] = true;

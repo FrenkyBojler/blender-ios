@@ -696,13 +696,18 @@ static void request_active_and_default_color_attributes(const Object &object,
 
   auto request_color_attribute = [&](const StringRef name) {
     if (!name.is_empty()) {
-      int layer_index;
-      eCustomDataType type;
-      if (drw_custom_data_match_attribute(cd_vdata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name);
+      // TODO_MESH_ATTR
+      if (me_final.runtime->edit_mesh) {
       }
-      else if (drw_custom_data_match_attribute(cd_ldata, name, &layer_index, &type)) {
-        drw_attributes_add_request(&attributes, name);
+      else {
+        int layer_index;
+        eCustomDataType type;
+        if (drw_custom_data_match_attribute(cd_vdata, name, &layer_index, &type)) {
+          drw_attributes_add_request(&attributes, name);
+        }
+        else if (drw_custom_data_match_attribute(cd_ldata, name, &layer_index, &type)) {
+          drw_attributes_add_request(&attributes, name);
+        }
       }
     }
   };
