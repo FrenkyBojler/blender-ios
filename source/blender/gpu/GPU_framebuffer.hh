@@ -43,7 +43,7 @@ ENUM_OPERATORS(eGPUFrameBufferBits, GPU_STENCIL_BIT)
 constexpr static int GPU_MAX_VIEWPORTS = 16;
 
 struct GPUAttachment {
-  gpu::Texture *tex;
+  blender::gpu::Texture *tex;
   int layer, mip;
 };
 
