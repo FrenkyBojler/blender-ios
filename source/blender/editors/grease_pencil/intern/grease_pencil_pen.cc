@@ -7,19 +7,12 @@
  * Operator for creating splines in Grease Pencil.
  */
 
-/* TODO Remove unneeded. */
-
 #include "BKE_attribute.hh"
-#include "BKE_brush.hh"
-#include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
 #include "BKE_curves_utils.hh"
 #include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
-#include "BKE_material.hh"
-#include "BKE_paint.hh"
-#include "BKE_screen.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -30,26 +23,12 @@
 
 #include "DEG_depsgraph.hh"
 
-#include "DNA_brush_types.h"
-#include "DNA_material_types.h"
-
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
 #include "ED_screen.hh"
-#include "ED_space_api.hh"
 #include "ED_view3d.hh"
 
 #include "BLI_array_utils.hh"
-#include "BLI_math_matrix.hh"
-#include "BLI_rand.hh"
-#include "BLI_vector.hh"
-
-#include "BLT_translation.hh"
-
-#include "GPU_immediate.hh"
-#include "GPU_state.hh"
-
-#include "UI_resources.hh"
 
 namespace blender::ed::greasepencil {
 
@@ -297,12 +276,6 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
 /* Invoke handler: Initialize the operator. */
 static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
-  // const wmOperatorStatus retval = ed::greasepencil::grease_pencil_draw_operator_invoke(
-  //     C, op, false);
-  // if (retval != OPERATOR_RUNNING_MODAL) {
-  //   return retval;
-  // }
-
   /* If in tools region, wait till we get to the main (3D-space)
    * region before allowing drawing to take place. */
   op->flag |= OP_IS_MODAL_CURSOR_REGION;
@@ -530,7 +503,6 @@ static void GREASE_PENCIL_OT_pen(wmOperatorType *ot)
 
   /* Flags. */
   ot->flag = OPTYPE_UNDO;
-  // ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_BLOCKING;
 
   /* properties */
   WM_operator_properties_mouse_select(ot);
