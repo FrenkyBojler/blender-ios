@@ -2,11 +2,14 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BLI_listbase.h"
 #include "BLI_math_vector.h"
 
 #include "DNA_mesh_types.h"
 #include "DNA_meshdata_types.h"
+#include "DNA_object_types.h"
 
+#include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_mesh_legacy_derived_mesh.hh"
 
@@ -309,6 +312,7 @@ static CDDerivedMesh *cdDM_create(const char *desc)
 
 static DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh, const CustomData_MeshMasks *mask)
 {
+  using namespace blender;
   CDDerivedMesh *cddm = cdDM_create(__func__);
   DerivedMesh *dm = &cddm->dm;
   CustomData_MeshMasks cddata_masks = *mask;
@@ -326,6 +330,14 @@ static DerivedMesh *cdDM_from_mesh_ex(Mesh *mesh, const CustomData_MeshMasks *ma
           mesh->faces_num);
 
   // TODO_MESH_ATTR
+  Set<StringRef> vertex_group_names;
+  LISTBASE_FOREACH (bDeformGroup *, vertex_group, &mesh->vertex_group_names) {
+    vertex_group_names.add(vertex_group->name);
+  }
+  mesh->attributes().foreach_attribute([&](const bke::AttributeIter &iter) {
+    if (iter.domain == bke::AttrDomain::Point) {
+    }
+  });
   CustomData_merge(&mesh->vert_data, &dm->vertData, cddata_masks.vmask, mesh->verts_num);
   CustomData_merge(&mesh->edge_data, &dm->edgeData, cddata_masks.emask, mesh->edges_num);
   CustomData_merge(&mesh->fdata_legacy,

@@ -308,29 +308,7 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
   }
   const blender::OffsetIndices result_faces = result->faces();
 
-  /* reverse loop order (normals) */
-  for (const int i : src_faces.index_range()) {
-    const blender::IndexRange src_face = src_faces[i];
-    const int mirror_i = src_faces.size() + i;
-    const blender::IndexRange mirror_face = result_faces[mirror_i];
-
-    /* reverse the loop, but we keep the first vertex in the face the same,
-     * to ensure that quads are split the same way as on the other side */
-    CustomData_copy_data(
-        &mesh->corner_data, &result->corner_data, src_face.start(), mirror_face.start(), 1);
-
-    for (int j = 1; j < mirror_face.size(); j++) {
-      CustomData_copy_data(
-          &mesh->corner_data, &result->corner_data, src_face[j], mirror_face.last(j - 1), 1);
-    }
-
-    blender::MutableSpan<int> mirror_face_edges = result_corner_edges.slice(mirror_face);
-    const int e = mirror_face_edges.first();
-    for (int j = 0; j < mirror_face.size() - 1; j++) {
-      mirror_face_edges[j] = mirror_face_edges[j + 1];
-    }
-    mirror_face_edges.last() = e;
-  }
+  bke::mesh_flip_faces(*result, result_faces.index_range().drop_front(src_faces.size()));
 
   /* adjust mirrored loop vertex and edge indices */
   for (const int i : result_corner_verts.index_range().drop_front(src_loops_num)) {
@@ -348,6 +326,8 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     dst.take_back(src.size()).copy_from(src);
   }
 
+  bke::MutableAttributeAccessor attributes = result->attributes_for_write();
+
   /* handle uvs,
    * let tessface recalc handle updating the MTFace data */
   if (mmd->flag & (MOD_MIR_MIRROR_U | MOD_MIR_MIRROR_V) ||
@@ -358,11 +338,9 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
     /* If set, flip around center of each tile. */
     const bool do_mirr_udim = (mmd->flag & MOD_MIR_MIRROR_UDIM) != 0;
 
-    const int totuv = CustomData_number_of_layers(&result->corner_data, CD_PROP_FLOAT2);
-
-    for (a = 0; a < totuv; a++) {
-      float (*dmloopuv)[2] = static_cast<float (*)[2]>(CustomData_get_layer_n_for_write(
-          &result->corner_data, CD_PROP_FLOAT2, a, result->corners_num));
+    for (const StringRef name : result->uv_map_names()) {
+      bke::SpanAttributeWriter uv_map_attr = attributes.lookup_for_write_span<float2>(name);
+      float (*dmloopuv)[2] = reinterpret_cast<float (*)[2]>(uv_map_attr.span.data());
       int j = src_loops_num;
       dmloopuv += j; /* second set of loops only */
       for (; j-- > 0; dmloopuv++) {
@@ -387,11 +365,11 @@ Mesh *BKE_mesh_mirror_apply_mirror_on_axis_for_modifier(MirrorModifierData *mmd,
         (*dmloopuv)[0] += mmd->uv_offset_copy[0];
         (*dmloopuv)[1] += mmd->uv_offset_copy[1];
       }
+      uv_map_attr.finish();
     }
   }
 
   /* handle custom normals */
-  bke::MutableAttributeAccessor attributes = result->attributes_for_write();
   bke::GAttributeWriter custom_normals = attributes.lookup_for_write("custom_normal");
   if (ob->type == OB_MESH && custom_normals && custom_normals.domain == bke::AttrDomain::Corner &&
       custom_normals.varray.type().is<short2>() && result->faces_num > 0)
