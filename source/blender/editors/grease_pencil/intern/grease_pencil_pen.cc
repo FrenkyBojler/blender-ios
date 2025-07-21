@@ -350,8 +350,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   WM_event_add_modal_handler(C, op);
 
   if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
-    return;
+    return OPERATOR_RUNNING_MODAL;
   }
+
+  std::atomic<bool> add_single = true;
 
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
@@ -366,22 +368,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         IndexMaskMemory memory;
         const IndexMask selection = retrieve_editable_and_selected_points(
             *object, info.drawing, info.layer_index, memory);
-        if (selection.is_empty()) {
-          const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
 
-          ed::greasepencil::add_single_curve(curves, true);
-          bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+        if (!selection.is_empty()) {
+          add_single.store(false, std::memory_order_relaxed);
 
-          /* Initialize the rest of the attributes with default values. */
-          bke::fill_attribute_range_default(attributes,
-                                            bke::AttrDomain::Curve,
-                                            bke::attribute_filter_from_skip_ref({"position"}),
-                                            curves.curves_range().take_front(1));
-
-          curves.update_curve_types();
-          curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
-        }
-        else {
           const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
           curves = pen_extrude_curves(curves);
 
@@ -434,6 +424,28 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
     changed.store(true, std::memory_order_relaxed);
   });
+
+  if (add_single) {
+    BLI_assert(ptd.grease_pencil->has_active_layer());
+    bke::greasepencil::Drawing *drawing = ptd.grease_pencil->get_editable_drawing_at(
+        *ptd.grease_pencil->get_active_layer(), vc.scene->r.cfra);
+
+    bke::CurvesGeometry &curves = drawing->strokes_for_write();
+
+    const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
+
+    ed::greasepencil::add_single_curve(curves, true);
+    bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+    /* Initialize the rest of the attributes with default values. */
+    bke::fill_attribute_range_default(attributes,
+                                      bke::AttrDomain::Curve,
+                                      bke::attribute_filter_from_skip_ref({"position"}),
+                                      curves.curves_range().take_front(1));
+
+    curves.update_curve_types();
+    curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
+  }
 
   if (changed) {
     grease_pencil_pen_update_view(C, ptd);
