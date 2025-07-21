@@ -284,6 +284,7 @@ static void pen_add_single(const PenToolOperation &ptd)
   curves.handle_types_right_for_write().last() = ptd.extrude_handle;
   drawing->opacities_for_write().last() = 1.0f;
   curves.update_curve_types();
+  curves.cyclic_for_write().last() = false;
 
   bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
       "material_index",
