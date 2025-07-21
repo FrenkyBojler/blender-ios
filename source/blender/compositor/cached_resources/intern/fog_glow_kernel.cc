@@ -61,10 +61,11 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
                                                             float glare_size)
 {
   const float maximum_field_of_view = 180.0f;
-  const float minimum_field_of_view = 6e-1f;
-  const float FOV = glare_size == 0 ? maximum_field_of_view : minimum_field_of_view / glare_size;
+  const float minimum_field_of_view = 3e-1f;
+  const float field_of_view = glare_size == 0 ? maximum_field_of_view :
+                                                minimum_field_of_view / glare_size;
   const int half_kernel_size = kernel_size / 2;
-  const float delta_theta = FOV / half_kernel_size;
+  const float delta_theta = field_of_view / half_kernel_size;
   const float2 uv = float2(texel);
   const float r = math::length(uv);
   const float theta_degree = r * delta_theta;
