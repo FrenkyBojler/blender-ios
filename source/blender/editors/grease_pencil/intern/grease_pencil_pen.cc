@@ -439,7 +439,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
                                       bke::attribute_filter_from_skip_ref({"curve_type"}),
                                       curves.curves_range().take_front(1));
 
-    curves.tag_topology_changed();
+    drawing->tag_topology_changed();
   }
 
   if (changed) {
