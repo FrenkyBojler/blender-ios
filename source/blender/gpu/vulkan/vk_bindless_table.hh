@@ -52,7 +52,7 @@ struct VKGlobalDescriptorBinding {
  * Table mapping resources to descriptors in a bindless descriptor set.
  */
 class VKBindlessTable : NonCopyable {
-  static constexpr uint32_t num_descriptors_per_resource = 10000;
+  static constexpr uint32_t num_descriptors_per_resource = 32768;
 
   Mutex mutex_;
 

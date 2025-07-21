@@ -424,9 +424,9 @@ static void print_resource_bindless(std::ostream &os,
          << "_" << name_no_array << "[];\n";
 
       os << "#define " << name_no_array << " ("
-         << "_" << name_no_array << "["
+         << "_" << name_no_array << "[nonuniformEXT("
          << "bindings_table[" << bindings_table_slot << "]"
-         << "]."
+         << ")]."
          << "_" << name_no_array << ")\n";
       break;
     }
@@ -442,9 +442,9 @@ static void print_resource_bindless(std::ostream &os,
          << "_" << name_no_array << "[];\n";
 
       os << "#define " << name_no_array << " ("
-         << "_" << name_no_array << "["
+         << "_" << name_no_array << "[nonuniformEXT("
          << "bindings_table[" << bindings_table_slot << "]"
-         << "]."
+         << ")]."
          << "_" << name_no_array << ")\n";
       break;
     }
@@ -462,9 +462,9 @@ static void print_resource_bindless(std::ostream &os,
       os << "_" << res.sampler.name << "[];\n";
 
       os << "#define " << res.sampler.name << " ("
-         << "_" << res.sampler.name << "["
+         << "_" << res.sampler.name << "[nonuniformEXT("
          << "bindings_table[" << bindings_table_slot << "]"
-         << "])\n";
+         << ")])\n";
       break;
     }
     case ShaderCreateInfo::Resource::IMAGE: {
@@ -476,9 +476,9 @@ static void print_resource_bindless(std::ostream &os,
       os << "_" << res.image.name << "[];\n";
 
       os << "#define " << res.image.name << " ("
-         << "_" << res.image.name << "["
+         << "_" << res.image.name << "[nonuniformEXT("
          << "bindings_table[" << bindings_table_slot << "]"
-         << "])\n";
+         << ")])\n";
       break;
     }
   }
