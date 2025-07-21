@@ -32,9 +32,9 @@ struct PositionCorrection {
 };
 
 class LocalXpbdConstraintCorrections {
+ public:
   Vector<PositionCorrection> position_corrections_;
 
- public:
   void add_position_correction(const int geometry_i,
                                const int position_i,
                                const float3 &correction)
@@ -86,6 +86,37 @@ class XpbdConstraintCorrections {
   {
     return local_corrections_.local();
   }
+
+  void apply(MutableSpan<SimGeometry> sim_geometries)
+  {
+    Vector<bke::SpanAttributeWriter<float3>> position_attributes(sim_geometries.size());
+    for (const int geometry_i : sim_geometries.index_range()) {
+      SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      std::optional<bke::MutableAttributeAccessor> attributes =
+          sim_geometry.attributes_for_write();
+      if (!attributes) {
+        continue;
+      }
+      position_attributes[geometry_i] = attributes->lookup_for_write_span<float3>("position");
+    }
+    Map<std::pair<int, int>, int> num_corrections_map;
+    for (LocalXpbdConstraintCorrections &local_corrections : local_corrections_) {
+      for (const PositionCorrection &correction : local_corrections.position_corrections_) {
+        num_corrections_map.lookup_or_add({correction.geometry_i, correction.position_i}, 0) += 1;
+      }
+    }
+    for (LocalXpbdConstraintCorrections &local_corrections : local_corrections_) {
+      for (const PositionCorrection &correction : local_corrections.position_corrections_) {
+        const int num_corrections = num_corrections_map.lookup(
+            {correction.geometry_i, correction.position_i});
+        position_attributes[correction.geometry_i].span[correction.position_i] +=
+            correction.correction / num_corrections;
+      }
+    }
+    for (bke::SpanAttributeWriter<float3> &attribute : position_attributes) {
+      attribute.finish();
+    }
+  }
 };
 
 class XpbdContraints {
@@ -98,10 +129,12 @@ class XpbdContraints {
 class EdgeLengthConstraint : public XpbdContraints {
  private:
   std::string rest_length_attribute_;
+  std::string point_mass_attribute_;
 
  public:
-  EdgeLengthConstraint(std::string rest_length_attribute)
-      : rest_length_attribute_(std::move(rest_length_attribute))
+  EdgeLengthConstraint(std::string rest_length_attribute, std::string point_mass_attribute)
+      : rest_length_attribute_(std::move(rest_length_attribute)),
+        point_mass_attribute_(std::move(point_mass_attribute))
   {
   }
 
@@ -138,23 +171,47 @@ class EdgeLengthConstraint : public XpbdContraints {
              XpbdConstraintCorrections &corrections) override
   {
     LocalXpbdConstraintCorrections &local_corrections = corrections.local();
-    // for (const int edge_i : indices_.index_range()) {
-    //   const int i0 = indices_[edge_i][0];
-    //   const int i1 = indices_[edge_i][1];
-    //   const float3 &p0 = positions_[i0];
-    //   const float3 &p1 = positions_[i1];
-    //   const float3 p_diff = p1 - p0;
-    //   float length;
-    //   const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
-    //   float length_diff = length - rest_distances_[edge_i];
-    //   const float m0 = masses_[i0];
-    //   const float m1 = masses_[i1];
-    //   const float m_sum = m0 + m1;
-    //   const float3 correction0 = -m0 / m_sum * length_diff * normalized_dir;
-    //   const float3 correction1 = m1 / m_sum * length_diff * normalized_dir;
-    //   local_corrections.add_position_correction(geometry_i_, i0, correction0);
-    //   local_corrections.add_position_correction(geometry_i_, i1, correction1);
-    // }
+    for (const int geometry_i : sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
+      if (!mesh_ptr) {
+        continue;
+      }
+      const Mesh &mesh = **mesh_ptr;
+      const bke::AttributeAccessor attributes = mesh.attributes();
+      const Span<int2> edges = mesh.edges();
+      const Span<float3> positions = mesh.vert_positions();
+      const bke::AttributeReader<float> rest_lengths = attributes.lookup<float>(
+          rest_length_attribute_, bke::AttrDomain::Edge);
+      if (!rest_lengths) {
+        continue;
+      }
+      const bke::AttributeReader<float> masses = attributes.lookup_or_default<float>(
+          point_mass_attribute_, bke::AttrDomain::Point, 1.0f);
+      if (!masses) {
+        continue;
+      }
+      threading::parallel_for(IndexRange(mesh.edges_num), 512, [&](const IndexRange range) {
+        for (const int edge_i : range) {
+          const int2 edge = edges[edge_i];
+          const int i0 = edge[0];
+          const int i1 = edge[1];
+          const float3 &p0 = positions[i0];
+          const float3 &p1 = positions[i1];
+          const float3 p_diff = p1 - p0;
+          float length;
+          const float3 normalized_dir = math::normalize_and_get_length(p_diff, length);
+          float length_diff = length - rest_lengths.varray[edge_i];
+          const float m0 = masses.varray[i0];
+          const float m1 = masses.varray[i1];
+          const float m_sum = m0 + m1;
+          const float3 correction0 = m0 / m_sum * length_diff * normalized_dir;
+          const float3 correction1 = -m1 / m_sum * length_diff * normalized_dir;
+          local_corrections.add_position_correction(geometry_i, i0, correction0);
+          local_corrections.add_position_correction(geometry_i, i1, correction1);
+        }
+      });
+    }
   }
 };
 
@@ -334,7 +391,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           std::string rest_length_attribute =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<std::string>();
           parsed_behaviors.constraints.append(
-              &scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute)));
+              &scope.construct<EdgeLengthConstraint>(std::move(rest_length_attribute), "mass"));
           return;
         }
       });
@@ -448,6 +505,16 @@ static void node_geo_exec(GeoNodeExecParams params)
     for (XpbdContraints *constraint : parsed_behaviors.constraints) {
       constraint->ensure_init(sim_geometries);
     }
+
+    XpbdConstraintCorrections corrections;
+    threading::parallel_for(
+        parsed_behaviors.constraints.index_range(), 1, [&](const IndexRange range) {
+          for (const int constraint_i : range) {
+            XpbdContraints *constraints = parsed_behaviors.constraints[constraint_i];
+            constraints->solve(sim_geometries, corrections);
+          }
+        });
+    corrections.apply(sim_geometries);
   }
 
   BundlePtr new_data_bundle = Bundle::create();
