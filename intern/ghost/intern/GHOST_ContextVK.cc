@@ -823,6 +823,24 @@ static GHOST_TSuccess selectPresentMode(VkPhysicalDevice device,
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, nullptr);
   vector<VkPresentModeKHR> presents(present_count);
   vkGetPhysicalDeviceSurfacePresentModesKHR(device, surface, &present_count, presents.data());
+
+  /* For performance measurements with vsync disabled. */
+  const char *ghost_vsync_string = getenv("GHOST_VSYNC");
+  if (ghost_vsync_string) {
+    bool vsync_off = atoi(ghost_vsync_string) == 0;
+    if (vsync_off) {
+      for (auto present_mode : presents) {
+        if (present_mode == VK_PRESENT_MODE_IMMEDIATE_KHR) {
+          *r_presentMode = present_mode;
+          return GHOST_kSuccess;
+        }
+      }
+      fprintf(stderr,
+              "Vsync off was requested via GHOST_VSYNC, but VK_PRESENT_MODE_IMMEDIATE_KHR is not "
+              "supported.\n");
+    }
+  }
+
   /* MAILBOX is the lowest latency V-Sync enabled mode. We will use it if available as it fixes
    * some lag on NVIDIA/Intel GPUs. */
   /* TODO: select the correct presentation mode based on the actual being performed by the user.

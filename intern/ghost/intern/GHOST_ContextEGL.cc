@@ -348,6 +348,8 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 
   EGLint egl_major = 0, egl_minor = 0;
 
+  const char *ghost_vsync_string;
+
   if (!EGL_CHK((m_display = ::eglGetDisplay(m_nativeDisplay)) != EGL_NO_DISPLAY)) {
     goto error;
   }
@@ -623,6 +625,13 @@ GHOST_TSuccess GHOST_ContextEGL::initializeDrawingContext()
 
   if (!EGL_CHK(::eglMakeCurrent(m_display, m_surface, m_surface, m_context))) {
     goto error;
+  }
+
+  /* For performance measurements with vsync disabled. */
+  ghost_vsync_string = getenv("GHOST_VSYNC");
+  if (ghost_vsync_string) {
+    int swapInterval = atoi(ghost_vsync_string);
+    setSwapInterval(swapInterval);
   }
 
   if (m_nativeWindow != 0) {

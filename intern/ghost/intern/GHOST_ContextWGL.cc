@@ -507,6 +507,8 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
   HDC prevHDC = ::wglGetCurrentDC();
   WIN32_CHK(GetLastError() == NO_ERROR);
 
+  const char *ghost_vsync_string;
+
   {
     const bool needAlpha = m_alphaBackground;
     DummyContextWGL dummy(m_hDC, m_hWnd, m_stereoVisual, needAlpha);
@@ -614,6 +616,13 @@ GHOST_TSuccess GHOST_ContextWGL::initializeDrawingContext()
     if (!WIN32_CHK_SILENT(m_hGLRC != nullptr, silent)) {
       goto error;
     }
+  }
+
+  /* For performance measurements with vsync disabled. */
+  ghost_vsync_string = getenv("GHOST_VSYNC");
+  if (ghost_vsync_string) {
+    int swapInterval = atoi(ghost_vsync_string);
+    setSwapInterval(swapInterval);
   }
 
   s_sharedCount++;
