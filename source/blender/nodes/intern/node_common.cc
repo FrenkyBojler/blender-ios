@@ -901,6 +901,7 @@ bNodeSocket *node_group_output_find_socket(bNode *node, const StringRef identifi
 
 static void node_group_output_extra_info(blender::nodes::NodeExtraInfoParams &params)
 {
+  get_compositor_group_output_extra_info(params);
   const blender::Span<const bNode *> group_output_nodes = params.tree.nodes_by_type(
       "NodeGroupOutput");
   if (group_output_nodes.size() <= 1) {

@@ -624,7 +624,7 @@ void ED_node_composit_default_init(const bContext *C, bNodeTree *ntree)
 
   bNode *viewer = blender::bke::node_add_static_node(C, *ntree, CMP_NODE_VIEWER);
   viewer->location[0] = 200.0f;
-  viewer->location[1] = -60.0f;
+  viewer->location[1] = -80.0f;
 
   /* Viewer and Composite nodes are linked to Render Layer's output image socket through a reroute
    * node. */
