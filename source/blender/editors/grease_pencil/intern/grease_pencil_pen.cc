@@ -284,7 +284,6 @@ static void pen_add_single(const PenToolOperation &ptd)
   curves.handle_types_right_for_write().last() = ptd.extrude_handle;
   drawing->opacities_for_write().last() = 1.0f;
   curves.update_curve_types();
-  curves.cyclic_for_write().last() = false;
 
   bke::SpanAttributeWriter<int> material_indexes = attributes.lookup_or_add_for_write_span<int>(
       "material_index",
@@ -294,14 +293,6 @@ static void pen_add_single(const PenToolOperation &ptd)
   const int material_index = ptd.vc.obact->actcol - 1;
   material_indexes.span.last() = material_index;
   material_indexes.finish();
-
-  bke::SpanAttributeWriter<float> softness = attributes.lookup_or_add_for_write_span<float>(
-      "softness",
-      bke::AttrDomain::Curve,
-      bke::AttributeInitVArray(VArray<float>::from_single(0.0f, curves.curves_num())));
-
-  softness.span.last() = 0.0f;
-  softness.finish();
 
   MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
   MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
@@ -338,7 +329,7 @@ static void pen_add_single(const PenToolOperation &ptd)
   bke::fill_attribute_range_default(
       attributes,
       bke::AttrDomain::Curve,
-      bke::attribute_filter_from_skip_ref({"curve_type", "material_index", "cyclic", "softness"}),
+      bke::attribute_filter_from_skip_ref({"curve_type", "material_index"}),
       curves.curves_range().take_back(1));
 
   drawing->tag_topology_changed();
