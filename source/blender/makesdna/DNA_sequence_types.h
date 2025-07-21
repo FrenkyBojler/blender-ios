@@ -663,6 +663,7 @@ typedef enum eStripRuntimeFlag {
   STRIP_CLAMPED_LH = (1 << 0),
   STRIP_CLAMPED_RH = (1 << 1),
   STRIP_OVERLAP = (1 << 2),
+  STRIP_EFFECT_NOT_LOADED = (1 << 3), /* Set when reading blend file, cleared after. */
 } eStripRuntimeFlag;
 
 /* From: `DNA_object_types.h`, see it's doc-string there. */
@@ -679,7 +680,7 @@ enum {
   SEQ_FLAG_TEXT_EDITING_ACTIVE = (1 << 6),
   SEQ_REVERSE_FRAMES = (1 << 7),
   SEQ_IPO_FRAME_LOCKED = (1 << 8),
-  SEQ_EFFECT_NOT_LOADED = (1 << 9),
+  SEQ_FLAG_UNUSED_9 = (1 << 9), /* Cleared. */
   SEQ_FLAG_DELETE = (1 << 10),
   SEQ_FLIPX = (1 << 11),
   SEQ_FLIPY = (1 << 12),
