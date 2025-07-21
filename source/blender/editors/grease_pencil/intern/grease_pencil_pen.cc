@@ -393,14 +393,34 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     ed::greasepencil::add_single_curve(curves, true);
     bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
 
+    curves.positions_for_write().last() = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+    curves.curve_types_for_write().last() = CURVE_TYPE_BEZIER;
+    curves.handle_types_left_for_write().last() = ptd.extrude_handle;
+    curves.handle_types_right_for_write().last() = ptd.extrude_handle;
+    curves.update_curve_types();
+
+    for (const StringRef selection_attribute_name :
+         ed::curves::get_curves_selection_attribute_names(curves))
+    {
+      bke::GSpanAttributeWriter selection = ed::curves::ensure_selection_attribute(
+          curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+
+      ed::curves::fill_selection_true(selection.span,
+                                      IndexRange::from_single(curves.points_range().last()));
+      selection.finish();
+    }
+
     /* Initialize the rest of the attributes with default values. */
     bke::fill_attribute_range_default(attributes,
-                                      bke::AttrDomain::Curve,
+                                      bke::AttrDomain::Point,
                                       bke::attribute_filter_from_skip_ref({"position"}),
                                       curves.curves_range().take_front(1));
+    bke::fill_attribute_range_default(attributes,
+                                      bke::AttrDomain::Curve,
+                                      bke::attribute_filter_from_skip_ref({"curve_type"}),
+                                      curves.curves_range().take_front(1));
 
-    curves.update_curve_types();
-    curves.positions_for_write().last() = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+    curves.tag_topology_changed();
   }
 
   if (changed) {
