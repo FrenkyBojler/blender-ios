@@ -14,6 +14,7 @@
 #include "BKE_colortools.hh"
 #include "BKE_context.hh"
 #include "BKE_curves.hh"
+#include "BKE_deform.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_material.hh"
 #include "BKE_paint.hh"
@@ -124,6 +125,15 @@ static float2 pen_global_to_screen(const PenToolOperation &ptd, const float3 &po
   return ED_view3d_project_float_v2_m4(ptd.vc.region, point, ptd.projection);
 }
 
+static float3 pen_screen_to_global(const PenToolOperation &ptd,
+                                   const float2 screen_co,
+                                   const float3 depth_point)
+{
+  float3 proj_point;
+  ED_view3d_win_to_3d(ptd.vc.v3d, ptd.vc.region, depth_point, screen_co, proj_point);
+  return proj_point;
+}
+
 /* Will return -1 if no points are near. */
 static int pen_find_closest_point(const PenToolOperation &ptd,
                                   const bke::CurvesGeometry &curves,
@@ -200,6 +210,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
 
   const Scene *scene = ptd.vc.scene;
+  Object *object = ptd.vc.obact;
 
   if (ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
     std::atomic<bool> changed = false;
@@ -211,6 +222,34 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
 
       if (closest_point == -1) {
+        if (ptd.extrude_point) {
+          IndexMaskMemory memory;
+          const IndexMask selection = retrieve_editable_and_selected_points(
+              *object, info.drawing, info.layer_index, memory);
+          if (selection.is_empty()) {
+            const float3 depth_point = curves.is_empty() ? float3(0.0f) :
+                                                           curves.positions().last();
+
+            ed::greasepencil::add_single_curve(curves, true);
+            bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+            /* Initialize the rest of the attributes with default values. */
+            bke::fill_attribute_range_default(attributes,
+                                              bke::AttrDomain::Curve,
+                                              bke::attribute_filter_from_skip_ref({"position"}),
+                                              curves.curves_range().take_front(1));
+
+            curves.update_curve_types();
+            curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
+          }
+          else {
+            // curves = pen_extrude_curves(curves);
+          }
+
+          info.drawing.tag_topology_changed();
+
+          changed.store(true, std::memory_order_relaxed);
+        }
         return;
       }
 
