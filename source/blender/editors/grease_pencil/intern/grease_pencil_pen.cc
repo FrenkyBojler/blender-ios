@@ -168,10 +168,15 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   offset_indices::copy_group_sizes(
       points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
 
+  const VArray<bool> &src_cyclic = src.cyclic();
+
   /* Point offset keeps track of the points inserted. */
   int point_offset = 0;
   for (const int curve_index : src.curves_range()) {
     const IndexRange curve_points = points_by_curve[curve_index];
+    if (src_cyclic[curve_index]) {
+      continue;
+    }
 
     if (point_selection[curve_points.first()] && curve_points.size() != 1) {
       /* Start-point extruded, we insert a new point at the beginning of the curve. */
