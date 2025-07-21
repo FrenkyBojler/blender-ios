@@ -93,4 +93,11 @@ class XpbdContraints {
   virtual void post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
 };
 
+XpbdContraints &create_constraint__edge_lengths(ResourceScope &scope,
+                                                std::string rest_length_attribute);
+
+XpbdContraints &create_constraint__fixed_positions(ResourceScope &scope,
+                                                   fn::Field<bool> selection_field,
+                                                   fn::Field<float3> fixed_positions_field);
+
 }  // namespace blender::geometry::xpbd
