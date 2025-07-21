@@ -69,6 +69,8 @@ enum class PenModal : int8_t {
 
 /* Used to scale the default select distance. */
 constexpr float selection_distance_factor = 0.9f;
+/* Used when creating a single curve from nothing. */
+constexpr float default_handle_px_distance = 16.0f;
 
 struct PenToolOperation {
   ViewContext vc;
@@ -398,6 +400,13 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     curves.handle_types_left_for_write().last() = ptd.extrude_handle;
     curves.handle_types_right_for_write().last() = ptd.extrude_handle;
     curves.update_curve_types();
+
+    MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+    MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+    handles_left.last() = pen_screen_to_global(
+        ptd, ptd.mouse_co - float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
+    handles_right.last() = pen_screen_to_global(
+        ptd, ptd.mouse_co + float2(default_handle_px_distance / 2.0f, 0.0f), depth_point);
 
     for (const StringRef selection_attribute_name :
          ed::curves::get_curves_selection_attribute_names(curves))
