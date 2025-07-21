@@ -6,4 +6,4 @@ Referenced by issue #140998, Blender 4.5b - Grease Pencil randomize per stroke n
 Referenced by pull request #141001, Fix #140998: Grease Pencil stroke-level color jitter doesn't work
 Referenced by commit b4725708751f12089b524e475eaf91542b4903e2, Fix #140998: Grease Pencil stroke-level color jitter doesn't work
 Referenced by issue #142006, 4.5 - Grease Pencil - Color Jitter still not working
-Referenced by pull request #142642, Fix #142006: correct color jitter alpha when Material Color mode is enabled
+Referenced by pull request #142642, Fix #142006: Color Jitter produces black points in Material mode
