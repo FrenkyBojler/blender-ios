@@ -51,8 +51,8 @@ struct MaterialPool {
   /* Matching ubo. */
   GPUUniformBuf *ubo;
   /* Texture per material. NULL means none. */
-  blender::gpu::Texture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
-  blender::gpu::Texture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_fill[GPENCIL_MATERIAL_BUFFER_LEN];
+  gpu::Texture *tex_stroke[GPENCIL_MATERIAL_BUFFER_LEN];
   /* Number of material used in this pool. */
   int used_count;
 };
@@ -209,13 +209,13 @@ struct Instance final : public DrawEngine {
    * pass rendering to avoid generating infinite lists. */
   bool is_sorted;
   /* Pointer to dtxl->depth */
-  blender::gpu::Texture *scene_depth_tx;
+  gpu::Texture *scene_depth_tx;
   GPUFrameBuffer *scene_fb;
   /* Used for render accumulation antialiasing. */
   Texture accumulation_tx = {"gp_accumulation_tx"};
   Framebuffer accumulation_fb = {"gp_accumulation_fb"};
   /* Copy of txl->dummy_tx */
-  blender::gpu::Texture *dummy_tx;
+  gpu::Texture *dummy_tx;
   /* Copy of v3d->shading.single_color. */
   float v3d_single_color[3];
   /* Copy of v3d->shading.color_type or -1 to ignore. */
@@ -353,8 +353,8 @@ struct Instance final : public DrawEngine {
   struct VfxFramebufferRef {
     /* These may not be allocated yet, use address of future pointer. */
     GPUFrameBuffer **fb;
-    blender::gpu::Texture **color_tx;
-    blender::gpu::Texture **reveal_tx;
+    gpu::Texture **color_tx;
+    gpu::Texture **reveal_tx;
   };
 
   SwapChain<VfxFramebufferRef, 2> vfx_swapchain_;
@@ -425,8 +425,8 @@ MaterialPool *gpencil_material_pool_create(Instance *inst,
                                            bool is_vertex_mode);
 void gpencil_material_resources_get(MaterialPool *first_pool,
                                     int mat_id,
-                                    blender::gpu::Texture **r_tex_stroke,
-                                    blender::gpu::Texture **r_tex_fill,
+                                    gpu::Texture **r_tex_stroke,
+                                    gpu::Texture **r_tex_fill,
                                     struct GPUUniformBuf **r_ubo_mat);
 
 void gpencil_light_ambient_add(LightPool *lightpool, const float color[3]);

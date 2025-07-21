@@ -67,7 +67,7 @@ class Film {
   Instance &inst_;
 
   /** Incoming combined buffer with post FX applied (motion blur + depth of field). */
-  blender::gpu::Texture *combined_final_tx_ = nullptr;
+  gpu::Texture *combined_final_tx_ = nullptr;
 
   /** Are we using the compute shader/pipeline. */
   bool use_compute_;
@@ -121,7 +121,7 @@ class Film {
   }
 
   /** Accumulate the newly rendered sample contained in #RenderBuffers and blit to display. */
-  void accumulate(View &view, blender::gpu::Texture *combined_final_tx);
+  void accumulate(View &view, gpu::Texture *combined_final_tx);
 
   /** Sort and normalize cryptomatte samples. */
   void cryptomatte_sort();
@@ -132,8 +132,8 @@ class Film {
   float *read_pass(eViewLayerEEVEEPassType pass_type, int layer_offset);
   float *read_aov(ViewLayerAOV *aov);
 
-  blender::gpu::Texture *get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_offset);
-  blender::gpu::Texture *get_aov_texture(ViewLayerAOV *aov);
+  gpu::Texture *get_pass_texture(eViewLayerEEVEEPassType pass_type, int layer_offset);
+  gpu::Texture *get_aov_texture(ViewLayerAOV *aov);
 
   void write_viewport_compositor_passes();
 

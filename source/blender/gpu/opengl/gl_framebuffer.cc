@@ -253,7 +253,7 @@ void GLFrameBuffer::subpass_transition_impl(const GPUAttachmentState depth_attac
     GLenum attachments[GPU_FB_MAX_COLOR_ATTACHMENT] = {GL_NONE};
     for (int i : color_attachment_states.index_range()) {
       GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
-      blender::gpu::Texture *attach_tex = this->attachments_[type].tex;
+      gpu::Texture *attach_tex = this->attachments_[type].tex;
       if (color_attachment_states[i] == GPU_ATTACHMENT_READ) {
         tmp_detached_[type] = this->attachments_[type]; /* Bypass feedback loop check. */
         GPU_texture_bind_ex(attach_tex, GPUSamplerState::default_sampler(), i);

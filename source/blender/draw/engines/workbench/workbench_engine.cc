@@ -434,9 +434,9 @@ class Instance : public DrawEngine {
   }
 
   void draw(Manager &manager,
-            blender::gpu::Texture *depth_tx,
-            blender::gpu::Texture *depth_in_front_tx,
-            blender::gpu::Texture *color_tx)
+            gpu::Texture *depth_tx,
+            gpu::Texture *depth_in_front_tx,
+            gpu::Texture *color_tx)
   {
     int2 resolution = scene_state_.resolution;
 
@@ -492,9 +492,9 @@ class Instance : public DrawEngine {
   }
 
   void draw_viewport(Manager &manager,
-                     blender::gpu::Texture *depth_tx,
-                     blender::gpu::Texture *depth_in_front_tx,
-                     blender::gpu::Texture *color_tx)
+                     gpu::Texture *depth_tx,
+                     gpu::Texture *depth_in_front_tx,
+                     gpu::Texture *color_tx)
   {
     this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
 
@@ -518,9 +518,9 @@ class Instance : public DrawEngine {
   }
 
   void draw_image_render(Manager &manager,
-                         blender::gpu::Texture *depth_tx,
-                         blender::gpu::Texture *depth_in_front_tx,
-                         blender::gpu::Texture *color_tx,
+                         gpu::Texture *depth_tx,
+                         gpu::Texture *depth_in_front_tx,
+                         gpu::Texture *color_tx,
                          RenderEngine *engine = nullptr)
   {
     if (scene_state_.render_finished) {

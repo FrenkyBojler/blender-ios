@@ -113,7 +113,7 @@ void MTLContext::set_ghost_context(GHOST_ContextHandle ghostCtxHandle)
     /* Check if the GHOST Context provides a default framebuffer: */
     if (default_fbo_mtltexture_) {
 
-      /* Release old blender::gpu::Texture handle */
+      /* Release old gpu::Texture handle */
       if (default_fbo_gputexture_) {
         GPU_texture_free(default_fbo_gputexture_);
         default_fbo_gputexture_ = nullptr;
@@ -630,7 +630,7 @@ gpu::MTLTexture *MTLContext::get_dummy_texture(eGPUTextureType type,
   }
 
   /* Create dummy texture based on desired type. */
-  blender::gpu::Texture *tex = nullptr;
+  gpu::Texture *tex = nullptr;
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
   switch (type) {
     case GPU_TEXTURE_1D:
@@ -697,7 +697,7 @@ void MTLContext::free_dummy_resources()
   for (int format = 0; format < GPU_SAMPLER_TYPE_MAX; format++) {
     for (int tex = 0; tex < GPU_TEXTURE_BUFFER; tex++) {
       if (dummy_textures_[format][tex]) {
-        GPU_texture_free(reinterpret_cast<blender::gpu::Texture *>(
+        GPU_texture_free(reinterpret_cast<gpu::Texture *>(
             static_cast<Texture *>(dummy_textures_[format][tex])));
         dummy_textures_[format][tex] = nullptr;
       }

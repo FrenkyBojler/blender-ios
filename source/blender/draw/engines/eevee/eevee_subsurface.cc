@@ -68,8 +68,8 @@ void SubsurfaceModule::end_sync()
   }
 }
 
-void SubsurfaceModule::render(blender::gpu::Texture *direct_diffuse_light_tx,
-                              blender::gpu::Texture *indirect_diffuse_light_tx,
+void SubsurfaceModule::render(gpu::Texture *direct_diffuse_light_tx,
+                              gpu::Texture *indirect_diffuse_light_tx,
                               eClosureBits active_closures,
                               View &view)
 {

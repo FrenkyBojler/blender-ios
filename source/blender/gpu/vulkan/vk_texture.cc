@@ -452,7 +452,7 @@ bool VKTexture::init_internal(VertBuf *vbo)
   return true;
 }
 
-bool VKTexture::init_internal(blender::gpu::Texture *src,
+bool VKTexture::init_internal(gpu::Texture *src,
                               int mip_offset,
                               int layer_offset,
                               bool use_stencil)

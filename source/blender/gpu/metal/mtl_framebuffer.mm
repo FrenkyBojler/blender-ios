@@ -486,7 +486,7 @@ void MTLFrameBuffer::subpass_transition_impl(const GPUAttachmentState /*depth_at
      * need to avoid bind-point collisions for image/texture resources. */
     for (int i : color_attachment_states.index_range()) {
       GPUAttachmentType type = GPU_FB_COLOR_ATTACHMENT0 + i;
-      blender::gpu::Texture *attach_tex = this->attachments_[type].tex;
+      gpu::Texture *attach_tex = this->attachments_[type].tex;
       if (color_attachment_states[i] == GPU_ATTACHMENT_READ) {
         GPU_texture_image_bind(attach_tex, i);
       }

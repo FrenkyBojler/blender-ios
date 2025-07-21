@@ -41,13 +41,13 @@
  *   Data can be accessed just like a normal T object.
  *
  * `draw::Texture`
- *   A simple wrapper to #blender::gpu::Texture. A #draw::Texture can be created without
+ *   A simple wrapper to #gpu::Texture. A #draw::Texture can be created without
  * allocation. The `ensure_[1d|2d|3d|cube][_array]()` method is here to make sure the underlying
- * texture will meet the requirements and create (or recreate) the #blender::gpu::Texture if
+ * texture will meet the requirements and create (or recreate) the #gpu::Texture if
  * needed.
  *
  * `draw::TextureFromPool`
- *   A blender::gpu::Texture from the viewport texture pool. This texture can be shared with other
+ *   A gpu::Texture from the viewport texture pool. This texture can be shared with other
  * engines and its content is undefined when acquiring it. A #draw::TextureFromPool is acquired for
  * rendering using `acquire()` and released once the rendering is done using `release()`. The same
  * texture can be acquired & released multiple time in one draw loop. The `sync()` method *MUST* be
@@ -524,11 +524,11 @@ class StorageBuffer : public T, public detail::StorageCommon<T, 1, device_only> 
 
 class Texture : NonCopyable {
  protected:
-  blender::gpu::Texture *tx_ = nullptr;
-  blender::gpu::Texture *stencil_view_ = nullptr;
-  Vector<blender::gpu::Texture *, 0> mip_views_;
-  Vector<blender::gpu::Texture *, 0> layer_views_;
-  blender::gpu::Texture *layer_range_view_ = nullptr;
+  gpu::Texture *tx_ = nullptr;
+  gpu::Texture *stencil_view_ = nullptr;
+  Vector<gpu::Texture *, 0> mip_views_;
+  Vector<gpu::Texture *, 0> layer_views_;
+  gpu::Texture *layer_range_view_ = nullptr;
   const char *name_;
 
  public:
@@ -599,25 +599,25 @@ class Texture : NonCopyable {
     free();
   }
 
-  blender::gpu::Texture *gpu_texture()
+  gpu::Texture *gpu_texture()
   {
     return tx_;
   }
 
   /* To be able to use it with DRW_shgroup_uniform_texture(). */
-  operator blender::gpu::Texture *() const
+  operator gpu::Texture *() const
   {
     BLI_assert(tx_ != nullptr);
     return tx_;
   }
 
   /* To be able to use it with DRW_shgroup_uniform_texture_ref(). */
-  blender::gpu::Texture **operator&()
+  gpu::Texture **operator&()
   {
     return &tx_;
   }
 
-  /** WORKAROUND: used when needing a ref to the Texture and not the blender::gpu::Texture. */
+  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
   Texture *ptr()
   {
     return this;
@@ -749,7 +749,7 @@ class Texture : NonCopyable {
   {
     int mip_len = GPU_texture_mip_count(tx_);
     if (mip_views_.size() != mip_len) {
-      for (blender::gpu::Texture *&view : mip_views_) {
+      for (gpu::Texture *&view : mip_views_) {
         GPU_TEXTURE_FREE_SAFE(view);
       }
       eGPUTextureFormat format = GPU_texture_format(tx_);
@@ -762,7 +762,7 @@ class Texture : NonCopyable {
     return false;
   }
 
-  blender::gpu::Texture *mip_view(int miplvl)
+  gpu::Texture *mip_view(int miplvl)
   {
     BLI_assert_msg(miplvl < mip_views_.size(),
                    "Incorrect mip level requested. "
@@ -784,7 +784,7 @@ class Texture : NonCopyable {
   {
     int layer_len = GPU_texture_layer_count(tx_);
     if (layer_views_.size() != layer_len) {
-      for (blender::gpu::Texture *&view : layer_views_) {
+      for (gpu::Texture *&view : layer_views_) {
         GPU_TEXTURE_FREE_SAFE(view);
       }
       eGPUTextureFormat format = GPU_texture_format(tx_);
@@ -797,12 +797,12 @@ class Texture : NonCopyable {
     return false;
   }
 
-  blender::gpu::Texture *layer_view(int layer)
+  gpu::Texture *layer_view(int layer)
   {
     return layer_views_[layer];
   }
 
-  blender::gpu::Texture *stencil_view(bool cube_as_array = false)
+  gpu::Texture *stencil_view(bool cube_as_array = false)
   {
     if (stencil_view_ == nullptr) {
       eGPUTextureFormat format = GPU_texture_format(tx_);
@@ -821,9 +821,7 @@ class Texture : NonCopyable {
    * IMPORTANT: It is not recreated if the layer_start is different from the last call.
    * IMPORTANT: If this view is recreated any reference to it should be updated.
    */
-  blender::gpu::Texture *layer_range_view(int layer_start,
-                                          int layer_len,
-                                          bool cube_as_array = false)
+  gpu::Texture *layer_range_view(int layer_start, int layer_len, bool cube_as_array = false)
   {
     BLI_assert(this->is_valid());
     /* Make sure the range is valid as the GPU_texture_layer_count only returns the effective
@@ -988,10 +986,10 @@ class Texture : NonCopyable {
  protected:
   void free_texture_views()
   {
-    for (blender::gpu::Texture *&view : mip_views_) {
+    for (gpu::Texture *&view : mip_views_) {
       GPU_TEXTURE_FREE_SAFE(view);
     }
-    for (blender::gpu::Texture *&view : layer_views_) {
+    for (gpu::Texture *&view : layer_views_) {
       GPU_TEXTURE_FREE_SAFE(view);
     }
     GPU_TEXTURE_FREE_SAFE(stencil_view_);
@@ -1033,15 +1031,15 @@ class Texture : NonCopyable {
     return false;
   }
 
-  blender::gpu::Texture *create(int w,
-                                int h,
-                                int d,
-                                int mip_len,
-                                eGPUTextureFormat format,
-                                eGPUTextureUsage usage,
-                                const float *data,
-                                bool layered,
-                                bool cubemap)
+  gpu::Texture *create(int w,
+                       int h,
+                       int d,
+                       int mip_len,
+                       eGPUTextureFormat format,
+                       eGPUTextureUsage usage,
+                       const float *data,
+                       bool layered,
+                       bool cubemap)
   {
     if (h == 0) {
       return GPU_texture_create_1d(name_, w, mip_len, format, usage, data);
@@ -1112,7 +1110,7 @@ class TextureFromPool : public Texture, NonMovable {
     Texture::swap(a, b);
   }
 
-  /** WORKAROUND: used when needing a ref to the Texture and not the blender::gpu::Texture. */
+  /** WORKAROUND: used when needing a ref to the Texture and not the gpu::Texture. */
   TextureFromPool *ptr()
   {
     return this;
@@ -1130,9 +1128,9 @@ class TextureFromPool : public Texture, NonMovable {
       delete;
   void filter_mode(bool) = delete;
   void free() = delete;
-  blender::gpu::Texture *mip_view(int) = delete;
-  blender::gpu::Texture *layer_view(int) = delete;
-  blender::gpu::Texture *stencil_view() = delete;
+  gpu::Texture *mip_view(int) = delete;
+  gpu::Texture *layer_view(int) = delete;
+  gpu::Texture *stencil_view() = delete;
 };
 
 class TextureRef : public Texture {
@@ -1144,7 +1142,7 @@ class TextureRef : public Texture {
     this->tx_ = nullptr;
   }
 
-  void wrap(blender::gpu::Texture *tex)
+  void wrap(gpu::Texture *tex)
   {
     if (assign_if_different(this->tx_, tex)) {
       free_texture_views();
@@ -1161,35 +1159,35 @@ class TextureRef : public Texture {
   bool ensure_cube_array(int, int, int, eGPUTextureFormat, const float *) = delete;
   void filter_mode(bool) = delete;
   void free() = delete;
-  blender::gpu::Texture *mip_view(int) = delete;
-  blender::gpu::Texture *layer_view(int) = delete;
-  blender::gpu::Texture *stencil_view() = delete;
+  gpu::Texture *mip_view(int) = delete;
+  gpu::Texture *layer_view(int) = delete;
+  gpu::Texture *stencil_view() = delete;
 };
 
 /**
  * Dummy type to bind texture as image.
- * It is just a blender::gpu::Texture in disguise.
+ * It is just a gpu::Texture in disguise.
  */
 class Image {};
 
-static inline Image *as_image(blender::gpu::Texture *tex)
+static inline Image *as_image(gpu::Texture *tex)
 {
   return reinterpret_cast<Image *>(tex);
 }
 
-static inline Image **as_image(blender::gpu::Texture **tex)
+static inline Image **as_image(gpu::Texture **tex)
 {
   return reinterpret_cast<Image **>(tex);
 }
 
-static inline blender::gpu::Texture *as_texture(Image *img)
+static inline gpu::Texture *as_texture(Image *img)
 {
-  return reinterpret_cast<blender::gpu::Texture *>(img);
+  return reinterpret_cast<gpu::Texture *>(img);
 }
 
-static inline blender::gpu::Texture **as_texture(Image **img)
+static inline gpu::Texture **as_texture(Image **img)
 {
-  return reinterpret_cast<blender::gpu::Texture **>(img);
+  return reinterpret_cast<gpu::Texture **>(img);
 }
 
 /** \} */

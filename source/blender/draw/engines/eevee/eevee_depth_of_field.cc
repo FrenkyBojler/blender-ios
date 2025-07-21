@@ -505,8 +505,8 @@ void DepthOfField::update_sample_table()
 }
 
 void DepthOfField::render(View &view,
-                          blender::gpu::Texture **input_tx,
-                          blender::gpu::Texture **output_tx,
+                          gpu::Texture **input_tx,
+                          gpu::Texture **output_tx,
                           DepthOfFieldBuffer &dof_buffer)
 {
   if (fx_radius_ == 0.0f) {
@@ -613,7 +613,7 @@ void DepthOfField::render(View &view,
       /* Outputs to reduced_*_tx_ mip 0. */
       drw.submit(stabilize_ps_, view);
 
-      /* WATCH(fclem): Swap Texture an TextureFromPool internal blender::gpu::Texture in order to
+      /* WATCH(fclem): Swap Texture an TextureFromPool internal gpu::Texture in order to
        * reuse the one that we just consumed. */
       TextureFromPool::swap(stabilize_output_tx_, dof_buffer.stabilize_history_tx_);
 

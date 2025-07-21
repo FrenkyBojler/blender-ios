@@ -114,7 +114,7 @@ bool GLTexture::init_internal(VertBuf *vbo)
   return true;
 }
 
-bool GLTexture::init_internal(blender::gpu::Texture *src,
+bool GLTexture::init_internal(gpu::Texture *src,
                               int mip_offset,
                               int layer_offset,
                               bool use_stencil)

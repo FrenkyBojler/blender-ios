@@ -129,7 +129,7 @@ struct DRWVolumeGrid {
   char *name;
 
   /* 3D texture. */
-  blender::gpu::Texture *texture;
+  gpu::Texture *texture;
 
   /* Transform between 0..1 texture space and object space. */
   float4x4 texture_to_object;

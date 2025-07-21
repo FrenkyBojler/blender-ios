@@ -15,11 +15,11 @@
  * `GPU_framebuffer_check_valid` is called. This means the context the `GPUFramebuffer` is bound
  * with is the one active when `GPU_framebuffer_bind` is called.
  *
- * When a `blender::gpu::Texture` is attached to a `GPUFramebuffer` a reference is created.
+ * When a `gpu::Texture` is attached to a `GPUFramebuffer` a reference is created.
  * Deleting either does not require any unbinding.
  *
  * A `GPUOffScreen` is a convenience type that holds a `GPUFramebuffer` and its associated
- * `blender::gpu::Texture`s. It is useful for quick drawing surface configuration.
+ * `gpu::Texture`s. It is useful for quick drawing surface configuration.
  */
 
 #pragma once
@@ -43,7 +43,7 @@ ENUM_OPERATORS(eGPUFrameBufferBits, GPU_STENCIL_BIT)
 constexpr static int GPU_MAX_VIEWPORTS = 16;
 
 struct GPUAttachment {
-  blender::gpu::Texture *tex;
+  gpu::Texture *tex;
   int layer, mip;
 };
 

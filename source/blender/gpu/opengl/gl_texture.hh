@@ -115,7 +115,7 @@ class GLTexture : public Texture {
   /** Return true on success. */
   bool init_internal(VertBuf *vbo) override;
   /** Return true on success. */
-  bool init_internal(blender::gpu::Texture *src,
+  bool init_internal(gpu::Texture *src,
                      int mip_offset,
                      int layer_offset,
                      bool use_stencil) override;
