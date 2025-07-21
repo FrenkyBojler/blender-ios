@@ -150,7 +150,6 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   const bke::AttributeAccessor src_attributes = src.attributes();
   const OffsetIndices<int> points_by_curve = src.points_by_curve();
 
-  const int old_curves_num = src.curves_num();
   const int old_points_num = src.points_num();
 
   const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
@@ -159,12 +158,9 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
   Vector<int> dst_to_src_points(old_points_num);
   array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
 
-  Vector<int> dst_to_src_curves(old_curves_num);
-  array_utils::fill_index_range(dst_to_src_curves.as_mutable_span());
-
   Vector<bool> dst_selected(old_points_num, false);
 
-  Vector<int> dst_curve_counts(old_curves_num);
+  Vector<int> dst_curve_counts(src.curves_num());
   offset_indices::copy_group_sizes(
       points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
 
@@ -222,9 +218,6 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
 
   bke::copy_attributes(
       src_attributes, bke::AttrDomain::Curve, bke::AttrDomain::Curve, {}, dst_attributes);
-
-  /* Cyclic attribute : newly created curves cannot be cyclic. */
-  dst.cyclic_for_write().drop_front(old_curves_num).fill(false);
 
   bke::gather_attributes(src_attributes,
                          bke::AttrDomain::Point,
