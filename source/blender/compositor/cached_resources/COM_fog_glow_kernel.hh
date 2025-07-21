@@ -22,9 +22,9 @@ class FogGlowKernelKey {
  public:
   int kernel_size;
   int2 spatial_size;
-  float glare_size;
+  float field_of_view;
 
-  FogGlowKernelKey(int kernel_size, int2 spatial_size, float glare_size);
+  FogGlowKernelKey(int kernel_size, int2 spatial_size, float field_of_view);
 
   uint64_t hash() const;
 };
@@ -47,7 +47,7 @@ class FogGlowKernel : public CachedResource {
   std::complex<float> *frequencies_ = nullptr;
 
  public:
-  FogGlowKernel(int kernel_size, int2 spatial_size, float glare_size);
+  FogGlowKernel(int kernel_size, int2 spatial_size, float field_of_view);
 
   ~FogGlowKernel();
 
@@ -70,7 +70,7 @@ class FogGlowKernelContainer : CachedResourceContainer {
    * container, if one exists, return it, otherwise, return a newly created one and add it to the
    * container. In both cases, tag the cached resource as needed to keep it cached for the next
    * evaluation. */
-  FogGlowKernel &get(int kernel_size, int2 spatial_size, float glare_size);
+  FogGlowKernel &get(int kernel_size, int2 spatial_size, float field_of_view);
 };
 
 }  // namespace blender::compositor

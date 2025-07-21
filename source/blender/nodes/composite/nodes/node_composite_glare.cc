@@ -2102,7 +2102,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const FogGlowKernel &fog_glow_kernel = context().cache_manager().fog_glow_kernels.get(
-        kernel_size, spatial_size, this->get_size());
+        kernel_size, spatial_size, this->compute_fog_glow_field_of_view());
 
     /* Multiply the kernel and the image in the frequency domain to perform the convolution. The
      * FFT is not normalized, meaning the result of the FFT followed by an inverse FFT will result
@@ -2189,6 +2189,15 @@ class GlareOperation : public NodeOperation {
 #endif
 
     return fog_glow_result;
+  }
+
+  float compute_fog_glow_field_of_view()
+  {
+    const float maximum_field_of_view = 180.0f;
+    const float minimum_field_of_view = 5e-1f;
+    const float field_of_view = this->get_size() == 0 ? maximum_field_of_view :
+                                                        minimum_field_of_view / this->get_size();
+    return field_of_view;
   }
 
   /* ----------

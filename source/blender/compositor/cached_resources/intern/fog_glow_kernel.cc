@@ -14,7 +14,6 @@
 #include "BLI_enumerable_thread_specific.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_range.hh"
-#include "BLI_math_angle_types.hh"
 #include "BLI_math_base.h"
 #include "BLI_math_base.hh"
 #include "BLI_math_vector.hh"
@@ -29,20 +28,20 @@ namespace blender::compositor {
  * Fog Glow Kernel Key.
  */
 
-FogGlowKernelKey::FogGlowKernelKey(int kernel_size, int2 spatial_size, float glare_size)
-    : kernel_size(kernel_size), spatial_size(spatial_size), glare_size(glare_size)
+FogGlowKernelKey::FogGlowKernelKey(int kernel_size, int2 spatial_size, float field_of_view)
+    : kernel_size(kernel_size), spatial_size(spatial_size), field_of_view(field_of_view)
 {
 }
 
 uint64_t FogGlowKernelKey::hash() const
 {
-  return get_default_hash(kernel_size, spatial_size, glare_size);
+  return get_default_hash(kernel_size, spatial_size, field_of_view);
 }
 
 bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
 {
   return a.kernel_size == b.kernel_size && a.spatial_size == b.spatial_size &&
-         a.glare_size == b.glare_size;
+         a.field_of_view == b.field_of_view;
 }
 
 /* --------------------------------------------------------------------
@@ -56,19 +55,8 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
  *   Spencer, Greg, et al. "Physically-based glare effects for digital images." Proceedings of
  *   the 22nd annual conference on Computer graphics and interactive techniques. 1995. */
 
-[[maybe_unused]] static float compute_fog_glow_kernel_value(int2 texel,
-                                                            int kernel_size,
-                                                            float glare_size)
+[[maybe_unused]] static float compute_fog_glow_kernel_value(int2 texel, float delta_theta)
 {
-  const int half_kernel_size = kernel_size / 2;
-  const float2 uv = float2(texel) / half_kernel_size;
-  const float r = math::length(uv);
-  const float maximum_field_of_view = 180.0f;
-  const float minimum_field_of_view = 3e-1f;
-  const float field_of_view = glare_size == 0 ? maximum_field_of_view :
-                                                minimum_field_of_view / glare_size;
-  const int half_kernel_size = kernel_size / 2;
-  const float delta_theta = field_of_view / half_kernel_size;
   const float2 uv = float2(texel);
   const float r = math::length(uv);
   const float theta_degree = r * delta_theta;
@@ -80,7 +68,7 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
   return kernel_value;
 }
 
-FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float glare_size)
+FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float field_of_view)
 {
 #if defined(WITH_FFTW3)
 
@@ -112,9 +100,9 @@ FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float glare_siz
         const int2 texel = int2(x, y);
         const int2 center_texel = spatial_size / 2;
         const int2 kernel_texel = texel - center_texel;
+        const float delta_theta = field_of_view / kernel_size;
 
-        const float kernel_value = compute_fog_glow_kernel_value(
-            kernel_texel, kernel_size, glare_size);
+        const float kernel_value = compute_fog_glow_kernel_value(kernel_texel, delta_theta);
         sum += kernel_value;
 
         /* We offset the computed kernel with wrap around such that it is centered at the zero
@@ -138,7 +126,7 @@ FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float glare_siz
    * Fourier transform is linear. */
   normalization_factor_ = float(std::accumulate(sum_by_thread.begin(), sum_by_thread.end(), 0.0));
 #else
-  UNUSED_VARS(kernel_size, spatial_size, glare_size);
+  UNUSED_VARS(kernel_size, spatial_size, field_of_view);
 #endif
 }
 
@@ -175,12 +163,12 @@ void FogGlowKernelContainer::reset()
   }
 }
 
-FogGlowKernel &FogGlowKernelContainer::get(int kernel_size, int2 spatial_size, float glare_size)
+FogGlowKernel &FogGlowKernelContainer::get(int kernel_size, int2 spatial_size, float field_of_view)
 {
-  const FogGlowKernelKey key(kernel_size, spatial_size, glare_size);
+  const FogGlowKernelKey key(kernel_size, spatial_size, field_of_view);
 
   auto &kernel = *map_.lookup_or_add_cb(key, [&]() {
-    return std::make_unique<FogGlowKernel>(kernel_size, spatial_size, glare_size);
+    return std::make_unique<FogGlowKernel>(kernel_size, spatial_size, field_of_view);
   });
 
   kernel.needed = true;
