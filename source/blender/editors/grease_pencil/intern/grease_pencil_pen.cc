@@ -346,98 +346,98 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   const Scene *scene = ptd.vc.scene;
   Object *object = ptd.vc.obact;
 
-  if (ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK)) {
-    std::atomic<bool> changed = false;
-    const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
-                                                                           *ptd.grease_pencil);
-    threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
-      bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-
-      const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
-
-      if (closest_point == -1) {
-        if (ptd.extrude_point) {
-          IndexMaskMemory memory;
-          const IndexMask selection = retrieve_editable_and_selected_points(
-              *object, info.drawing, info.layer_index, memory);
-          if (selection.is_empty()) {
-            const float3 depth_point = curves.is_empty() ? float3(0.0f) :
-                                                           curves.positions().last();
-
-            ed::greasepencil::add_single_curve(curves, true);
-            bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
-
-            /* Initialize the rest of the attributes with default values. */
-            bke::fill_attribute_range_default(attributes,
-                                              bke::AttrDomain::Curve,
-                                              bke::attribute_filter_from_skip_ref({"position"}),
-                                              curves.curves_range().take_front(1));
-
-            curves.update_curve_types();
-            curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
-          }
-          else {
-            const float3 depth_point = curves.is_empty() ? float3(0.0f) :
-                                                           curves.positions().last();
-            curves = pen_extrude_curves(curves);
-
-            curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
-          }
-
-          info.drawing.tag_topology_changed();
-
-          changed.store(true, std::memory_order_relaxed);
-        }
-        return;
-      }
-
-      const OffsetIndices points_by_curve = curves.points_by_curve();
-      const Array<int> point_to_curve_map = curves.point_to_curve_map();
-
-      const int curve_index = point_to_curve_map[closest_point];
-      const IndexRange points = points_by_curve[curve_index];
-
-      bke::SpanAttributeWriter<bool> selection =
-          curves.attributes_for_write().lookup_or_add_for_write_span<bool>(
-              ".selection",
-              bke::AttrDomain::Point,
-              bke::AttributeInitVArray(VArray<bool>::from_single(true, curves.points_num())));
-
-      if (ptd.close_spline) {
-        if (closest_point == points.first() && selection.span[points.last()]) {
-          curves.cyclic_for_write()[curve_index] = true;
-          info.drawing.tag_topology_changed();
-        }
-        if (closest_point == points.last() && selection.span[points.first()]) {
-          curves.cyclic_for_write()[curve_index] = true;
-          info.drawing.tag_topology_changed();
-        }
-      }
-
-      if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
-        selection.span.fill(false);
-      }
-
-      if (ptd.select_point) {
-        selection.span[closest_point] = true;
-      }
-
-      selection.finish();
-
-      if (ptd.delete_point) {
-        curves.remove_points(IndexRange::from_single(closest_point), {});
-      }
-
-      changed.store(true, std::memory_order_relaxed);
-    });
-
-    if (changed) {
-      grease_pencil_pen_update_view(C, ptd);
-    }
-  }
-
   /* Add a modal handler for this operator. */
   WM_event_add_modal_handler(C, op);
+
+  if (!(ELEM(event->type, LEFTMOUSE) && ELEM(event->val, KM_PRESS, KM_DBL_CLICK))) {
+    return;
+  }
+
+  std::atomic<bool> changed = false;
+  const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
+                                                                         *ptd.grease_pencil);
+  threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+
+    const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
+
+    if (closest_point == -1) {
+      if (ptd.extrude_point) {
+        IndexMaskMemory memory;
+        const IndexMask selection = retrieve_editable_and_selected_points(
+            *object, info.drawing, info.layer_index, memory);
+        if (selection.is_empty()) {
+          const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
+
+          ed::greasepencil::add_single_curve(curves, true);
+          bke::MutableAttributeAccessor attributes = curves.attributes_for_write();
+
+          /* Initialize the rest of the attributes with default values. */
+          bke::fill_attribute_range_default(attributes,
+                                            bke::AttrDomain::Curve,
+                                            bke::attribute_filter_from_skip_ref({"position"}),
+                                            curves.curves_range().take_front(1));
+
+          curves.update_curve_types();
+          curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
+        }
+        else {
+          const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
+          curves = pen_extrude_curves(curves);
+
+          curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
+        }
+
+        info.drawing.tag_topology_changed();
+
+        changed.store(true, std::memory_order_relaxed);
+      }
+      return;
+    }
+
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+    const Array<int> point_to_curve_map = curves.point_to_curve_map();
+
+    const int curve_index = point_to_curve_map[closest_point];
+    const IndexRange points = points_by_curve[curve_index];
+
+    bke::SpanAttributeWriter<bool> selection =
+        curves.attributes_for_write().lookup_or_add_for_write_span<bool>(
+            ".selection",
+            bke::AttrDomain::Point,
+            bke::AttributeInitVArray(VArray<bool>::from_single(true, curves.points_num())));
+
+    if (ptd.close_spline) {
+      if (closest_point == points.first() && selection.span[points.last()]) {
+        curves.cyclic_for_write()[curve_index] = true;
+        info.drawing.tag_topology_changed();
+      }
+      if (closest_point == points.last() && selection.span[points.first()]) {
+        curves.cyclic_for_write()[curve_index] = true;
+        info.drawing.tag_topology_changed();
+      }
+    }
+
+    if (event->val != KM_DBL_CLICK && !ptd.delete_point) {
+      selection.span.fill(false);
+    }
+
+    if (ptd.select_point) {
+      selection.span[closest_point] = true;
+    }
+
+    selection.finish();
+
+    if (ptd.delete_point) {
+      curves.remove_points(IndexRange::from_single(closest_point), {});
+    }
+
+    changed.store(true, std::memory_order_relaxed);
+  });
+
+  if (changed) {
+    grease_pencil_pen_update_view(C, ptd);
+  }
 
   return OPERATOR_RUNNING_MODAL;
 }
