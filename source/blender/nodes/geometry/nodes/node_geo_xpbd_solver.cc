@@ -8,6 +8,9 @@
 #include "DNA_curves_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_pointcloud_types.h"
+
+#include "GEO_xpbd.hh"
+
 #include "node_geometry_util.hh"
 
 #include "NOD_geometry_nodes_bundle.hh"
@@ -27,155 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.add_input<decl::Int>("Substeps").default_value(0).min(0);
 }
 
-struct PositionCorrection {
-  int geometry_i;
-  int position_i;
-  float3 correction;
-};
-
-class LocalXpbdConstraintCorrections {
- public:
-  Vector<PositionCorrection> position_corrections_;
-
-  void add_position_correction(const int geometry_i,
-                               const int position_i,
-                               const float3 &correction)
-  {
-    position_corrections_.append({geometry_i, position_i, correction});
-  }
-};
-
-class SimForce {
- public:
-  Field<float3> force_field;
-};
-
-class SimAcceleration {
- public:
-  Field<float3> acceleration_field;
-};
-
-struct SimGeometrySet {
-  std::string path;
-  GeometrySet geometry;
-  std::string mass_attribute;
-  std::string velocity_attribute;
-};
-
-struct SimGeometry {
-  using GeometryVariant = std::variant<Mesh *, PointCloud *, Curves *>;
-  GeometryVariant data;
-  std::string path;
-  std::string mass_attribute;
-  std::string velocity_attribute;
-
-  SimGeometry(const SimGeometrySet &src, GeometryVariant data)
-      : data(data),
-        path(src.path),
-        mass_attribute(src.mass_attribute),
-        velocity_attribute(src.velocity_attribute)
-  {
-  }
-
-  std::optional<bke::AttributeAccessor> attributes() const
-  {
-    if (const Mesh *const *mesh = std::get_if<Mesh *>(&data)) {
-      return (*mesh)->attributes();
-    }
-    if (const PointCloud *const *pointcloud = std::get_if<PointCloud *>(&data)) {
-      return (*pointcloud)->attributes();
-    }
-    if (const Curves *const *curves = std::get_if<Curves *>(&data)) {
-      return (*curves)->geometry.wrap().attributes();
-    }
-    return std::nullopt;
-  }
-
-  std::optional<bke::MutableAttributeAccessor> attributes_for_write()
-  {
-    if (Mesh **mesh = std::get_if<Mesh *>(&data)) {
-      return (*mesh)->attributes_for_write();
-    }
-    if (PointCloud **pointcloud = std::get_if<PointCloud *>(&data)) {
-      return (*pointcloud)->attributes_for_write();
-    }
-    if (Curves **curves = std::get_if<Curves *>(&data)) {
-      return (*curves)->geometry.wrap().attributes_for_write();
-    }
-    return std::nullopt;
-  }
-
-  int set_point_field_context(std::optional<bke::GeometryFieldContext> &r_context) const
-  {
-    if (const Mesh *const *mesh = std::get_if<Mesh *>(&data)) {
-      r_context.emplace(**mesh, bke::AttrDomain::Point);
-      return (*mesh)->verts_num;
-    }
-    if (const PointCloud *const *pointcloud = std::get_if<PointCloud *>(&data)) {
-      r_context.emplace(**pointcloud, bke::AttrDomain::Point);
-      return (*pointcloud)->totpoint;
-    }
-    if (const Curves *const *curves = std::get_if<Curves *>(&data)) {
-      r_context.emplace(**curves, bke::AttrDomain::Point);
-      return (*curves)->geometry.curve_num;
-    }
-    return 0;
-  }
-};
-
-class XpbdConstraintCorrections {
- private:
-  threading::EnumerableThreadSpecific<LocalXpbdConstraintCorrections> local_corrections_;
-
- public:
-  LocalXpbdConstraintCorrections &local()
-  {
-    return local_corrections_.local();
-  }
-
-  void apply(MutableSpan<SimGeometry> sim_geometries)
-  {
-    Vector<bke::SpanAttributeWriter<float3>> position_attributes(sim_geometries.size());
-    for (const int geometry_i : sim_geometries.index_range()) {
-      SimGeometry &sim_geometry = sim_geometries[geometry_i];
-      std::optional<bke::MutableAttributeAccessor> attributes =
-          sim_geometry.attributes_for_write();
-      if (!attributes) {
-        continue;
-      }
-      position_attributes[geometry_i] = attributes->lookup_for_write_span<float3>("position");
-    }
-    Map<std::pair<int, int>, int> num_corrections_map;
-    for (LocalXpbdConstraintCorrections &local_corrections : local_corrections_) {
-      for (const PositionCorrection &correction : local_corrections.position_corrections_) {
-        num_corrections_map.lookup_or_add({correction.geometry_i, correction.position_i}, 0) += 1;
-      }
-    }
-    for (LocalXpbdConstraintCorrections &local_corrections : local_corrections_) {
-      for (const PositionCorrection &correction : local_corrections.position_corrections_) {
-        const int num_corrections = num_corrections_map.lookup(
-            {correction.geometry_i, correction.position_i});
-        position_attributes[correction.geometry_i].span[correction.position_i] +=
-            correction.correction / num_corrections;
-      }
-    }
-    for (bke::SpanAttributeWriter<float3> &attribute : position_attributes) {
-      attribute.finish();
-    }
-  }
-};
-
-class XpbdContraints {
- public:
-  virtual void ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
-  virtual void solve(const Span<SimGeometry> /*sim_geometries*/,
-                     XpbdConstraintCorrections & /*corrections*/)
-  {
-  }
-  virtual void post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
-};
-
-class EdgeLengthConstraint : public XpbdContraints {
+class EdgeLengthConstraint : public geometry::xpbd::XpbdContraints {
  private:
   std::string rest_length_attribute_;
 
@@ -185,9 +40,9 @@ class EdgeLengthConstraint : public XpbdContraints {
   {
   }
 
-  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  void ensure_init(MutableSpan<geometry::xpbd::SimGeometry> sim_geometries) override
   {
-    for (SimGeometry &sim_geometry : sim_geometries) {
+    for (geometry::xpbd::SimGeometry &sim_geometry : sim_geometries) {
       Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
       if (!mesh_ptr) {
         continue;
@@ -214,11 +69,11 @@ class EdgeLengthConstraint : public XpbdContraints {
     }
   }
 
-  void solve(const Span<SimGeometry> sim_geometries,
-             XpbdConstraintCorrections &corrections) override
+  void solve(const Span<geometry::xpbd::SimGeometry> sim_geometries,
+             geometry::xpbd::XpbdConstraintCorrections &corrections) override
   {
     for (const int geometry_i : sim_geometries.index_range()) {
-      const SimGeometry &sim_geometry = sim_geometries[geometry_i];
+      const geometry::xpbd::SimGeometry &sim_geometry = sim_geometries[geometry_i];
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
       if (!mesh_ptr) {
         continue;
@@ -238,7 +93,7 @@ class EdgeLengthConstraint : public XpbdContraints {
         continue;
       }
       threading::parallel_for(IndexRange(mesh.edges_num), 512, [&](const IndexRange range) {
-        LocalXpbdConstraintCorrections &local_corrections = corrections.local();
+        geometry::xpbd::LocalXpbdConstraintCorrections &local_corrections = corrections.local();
         for (const int edge_i : range) {
           const int2 edge = edges[edge_i];
           const int i0 = edge[0];
@@ -262,7 +117,7 @@ class EdgeLengthConstraint : public XpbdContraints {
   }
 };
 
-class FixedPositionsConstraint : public XpbdContraints {
+class FixedPositionsConstraint : public geometry::xpbd::XpbdContraints {
  private:
   Field<bool> selection_field_;
   Field<float3> fixed_positions_field_;
@@ -274,9 +129,9 @@ class FixedPositionsConstraint : public XpbdContraints {
   {
   }
 
-  void post_solve_apply(MutableSpan<SimGeometry> sim_geometries) override
+  void post_solve_apply(MutableSpan<geometry::xpbd::SimGeometry> sim_geometries) override
   {
-    for (SimGeometry &sim_geometry : sim_geometries) {
+    for (geometry::xpbd::SimGeometry &sim_geometry : sim_geometries) {
       std::optional<bke::GeometryFieldContext> field_context;
       const int points_num = sim_geometry.set_point_field_context(field_context);
       if (!field_context) {
@@ -305,10 +160,10 @@ class FixedPositionsConstraint : public XpbdContraints {
 };
 
 struct ParsedBehaviors {
-  Vector<SimGeometrySet> sim_geometry_sets;
-  Vector<SimForce> sim_forces;
-  Vector<SimAcceleration> sim_accelerations;
-  Vector<XpbdContraints *> constraints;
+  Vector<geometry::xpbd::SimGeometrySet> sim_geometry_sets;
+  Vector<geometry::xpbd::SimForce> sim_forces;
+  Vector<geometry::xpbd::SimAcceleration> sim_accelerations;
+  Vector<geometry::xpbd::XpbdContraints *> constraints;
 };
 
 static std::string combine_bundle_path(const Span<StringRef> &path)
@@ -432,7 +287,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           if (geometry_item->type->type != SOCK_GEOMETRY) {
             return;
           }
-          SimGeometrySet geometry;
+          geometry::xpbd::SimGeometrySet geometry;
           geometry.mass_attribute = "mass";
           geometry.velocity_attribute = "velocity";
           geometry.path = path;
@@ -468,7 +323,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           if (item->type->type != SOCK_VECTOR) {
             return;
           }
-          SimForce force;
+          geometry::xpbd::SimForce force;
           force.force_field =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
           parsed_behaviors.sim_forces.append(force);
@@ -483,7 +338,7 @@ static ParsedBehaviors parse_behaviors(const BundlePtr &behaviors_bundle, Resour
           if (item->type->type != SOCK_VECTOR) {
             return;
           }
-          SimAcceleration acceleration;
+          geometry::xpbd::SimAcceleration acceleration;
           acceleration.acceleration_field =
               static_cast<const bke::SocketValueVariant *>(item->value)->get<Field<float3>>();
           parsed_behaviors.sim_accelerations.append(acceleration);
@@ -538,7 +393,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   ResourceScope scope;
   ParsedBehaviors parsed_behaviors = parse_behaviors(behaviors_bundle, scope);
   if (old_data_bundle) {
-    for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
+    for (geometry::xpbd::SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
       std::optional<Bundle::Item> item = lookup_bundle_path(*old_data_bundle,
                                                             sim_geometry.path + "/Geometry");
       if (!item) {
@@ -551,17 +406,17 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
   }
 
-  Vector<SimGeometry> sim_geometries;
+  Vector<geometry::xpbd::SimGeometry> sim_geometries;
 
-  for (SimGeometrySet &sim_geometry_set : parsed_behaviors.sim_geometry_sets) {
+  for (geometry::xpbd::SimGeometrySet &sim_geometry_set : parsed_behaviors.sim_geometry_sets) {
     if (Mesh *mesh = sim_geometry_set.geometry.get_mesh_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set, mesh});
+      sim_geometries.append(geometry::xpbd::SimGeometry{sim_geometry_set, mesh});
     }
     if (PointCloud *pointcloud = sim_geometry_set.geometry.get_pointcloud_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set, pointcloud});
+      sim_geometries.append(geometry::xpbd::SimGeometry{sim_geometry_set, pointcloud});
     }
     if (Curves *curves = sim_geometry_set.geometry.get_curves_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set, curves});
+      sim_geometries.append(geometry::xpbd::SimGeometry{sim_geometry_set, curves});
     }
   }
 
@@ -569,7 +424,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   const float sub_delta_time = delta_time / sim_steps;
   for ([[maybe_unused]] int substep : IndexRange(sim_steps)) {
     /* Remember previous positions. */
-    for (SimGeometry &sim_geometry : sim_geometries) {
+    for (geometry::xpbd::SimGeometry &sim_geometry : sim_geometries) {
       std::optional<bke::MutableAttributeAccessor> attributes =
           sim_geometry.attributes_for_write();
       if (!attributes) {
@@ -584,13 +439,13 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     /* Init constraints. */
-    for (XpbdContraints *constraint : parsed_behaviors.constraints) {
+    for (geometry::xpbd::XpbdContraints *constraint : parsed_behaviors.constraints) {
       constraint->ensure_init(sim_geometries);
     }
 
     /* Handle forces and accelerations. If the time step is zero, these can't have any effect. */
     if (sub_delta_time > 0) {
-      for (SimGeometry &sim_geometry : sim_geometries) {
+      for (geometry::xpbd::SimGeometry &sim_geometry : sim_geometries) {
         std::optional<bke::MutableAttributeAccessor> attributes =
             sim_geometry.attributes_for_write();
         if (!attributes) {
@@ -605,10 +460,12 @@ static void node_geo_exec(GeoNodeExecParams params)
         Array<float3> force(positions_num, float3());
         Array<float3> acceleration(positions_num, float3());
         fn::FieldEvaluator field_evaluator{*field_context, positions_num};
-        for (const SimForce &sim_force : parsed_behaviors.sim_forces) {
+        for (const geometry::xpbd::SimForce &sim_force : parsed_behaviors.sim_forces) {
           field_evaluator.add(sim_force.force_field);
         }
-        for (const SimAcceleration &sim_acceleration : parsed_behaviors.sim_accelerations) {
+        for (const geometry::xpbd::SimAcceleration &sim_acceleration :
+             parsed_behaviors.sim_accelerations)
+        {
           field_evaluator.add(sim_acceleration.acceleration_field);
         }
         field_evaluator.evaluate();
@@ -644,24 +501,25 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     /* Constraint solve step. */
-    XpbdConstraintCorrections corrections;
+    geometry::xpbd::XpbdConstraintCorrections corrections;
     threading::parallel_for(
         parsed_behaviors.constraints.index_range(), 1, [&](const IndexRange range) {
           for (const int constraint_i : range) {
-            XpbdContraints *constraints = parsed_behaviors.constraints[constraint_i];
+            geometry::xpbd::XpbdContraints *constraints =
+                parsed_behaviors.constraints[constraint_i];
             constraints->solve(sim_geometries, corrections);
           }
         });
     corrections.apply(sim_geometries);
 
     /* Apply hard constraints. */
-    for (XpbdContraints *constraint : parsed_behaviors.constraints) {
+    for (geometry::xpbd::XpbdContraints *constraint : parsed_behaviors.constraints) {
       constraint->post_solve_apply(sim_geometries);
     }
 
     /* Write back velocities. Velocities can't be computed if the time step is zero. */
     if (sub_delta_time > 0) {
-      for (SimGeometry &sim_geometry : sim_geometries) {
+      for (geometry::xpbd::SimGeometry &sim_geometry : sim_geometries) {
         std::optional<bke::MutableAttributeAccessor> attributes =
             sim_geometry.attributes_for_write();
         if (!attributes) {
@@ -681,7 +539,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     }
 
     /* Remove temporary attributes.*/
-    for (SimGeometry &sim_geometry : sim_geometries) {
+    for (geometry::xpbd::SimGeometry &sim_geometry : sim_geometries) {
       std::optional<bke::MutableAttributeAccessor> attributes =
           sim_geometry.attributes_for_write();
       if (!attributes) {
@@ -692,7 +550,7 @@ static void node_geo_exec(GeoNodeExecParams params)
   }
 
   BundlePtr new_data_bundle = Bundle::create();
-  for (SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
+  for (geometry::xpbd::SimGeometrySet &sim_geometry : parsed_behaviors.sim_geometry_sets) {
     store_bundle_path(const_cast<Bundle &>(*new_data_bundle),
                       sim_geometry.path + "/Geometry",
                       *bke::node_socket_type_find_static(SOCK_GEOMETRY),
