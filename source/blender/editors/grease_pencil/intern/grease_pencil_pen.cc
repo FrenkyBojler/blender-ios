@@ -89,6 +89,7 @@ struct PenToolOperation {
   int extrude_handle;
 
   float4x4 projection;
+  float2 mouse_co;
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -141,7 +142,8 @@ static int pen_find_closest_point(const PenToolOperation &ptd,
   return closest_point;
 }
 
-static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
+static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
+                                              const bke::CurvesGeometry &src)
 {
   const bke::AttributeAccessor src_attributes = src.attributes();
   const OffsetIndices<int> points_by_curve = src.points_by_curve();
@@ -225,6 +227,16 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
                          dst_to_src_points,
                          dst_attributes);
 
+  Span<float3> src_positions = src.positions();
+  MutableSpan<float3> dst_positions = dst.positions_for_write();
+  for (const int i : dst_selected.index_range()) {
+    if (!dst_selected[i]) {
+      continue;
+    }
+    const float3 depth_point = src_positions[dst_to_src_points[i]];
+    dst_positions[i] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+  }
+
   dst.update_curve_types();
   if (src.nurbs_has_custom_knots()) {
     IndexMaskMemory memory;
@@ -276,7 +288,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.projection = ED_view3d_ob_project_mat_get(ptd.vc.rv3d, ptd.vc.obact);
 
   /* Distance threshold for mouse clicks to affect the spline or its points */
-  const float2 mouse_co = float2(event->mval);
+  ptd.mouse_co = float2(event->mval);
   ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
 
   ptd.extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
@@ -308,7 +320,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
-    const int closest_point = pen_find_closest_point(ptd, curves, mouse_co);
+    const int closest_point = pen_find_closest_point(ptd, curves, ptd.mouse_co);
 
     if (closest_point == -1) {
       if (ptd.extrude_point) {
@@ -319,10 +331,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         if (!selection.is_empty()) {
           add_single.store(false, std::memory_order_relaxed);
 
-          const float3 depth_point = curves.is_empty() ? float3(0.0f) : curves.positions().last();
-          curves = pen_extrude_curves(curves);
-
-          curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
+          curves = pen_extrude_curves(ptd, curves);
         }
 
         info.drawing.tag_topology_changed();
@@ -391,7 +400,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
                                       curves.curves_range().take_front(1));
 
     curves.update_curve_types();
-    curves.positions_for_write().last() = pen_screen_to_global(ptd, mouse_co, depth_point);
+    curves.positions_for_write().last() = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
   }
 
   if (changed) {
