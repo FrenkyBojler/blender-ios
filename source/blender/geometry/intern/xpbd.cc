@@ -68,7 +68,7 @@ int SimGeometry::set_point_field_context(std::optional<bke::GeometryFieldContext
   }
   if (const Curves *const *curves = std::get_if<Curves *>(&data)) {
     r_context.emplace(**curves, bke::AttrDomain::Point);
-    return (*curves)->geometry.curve_num;
+    return (*curves)->geometry.point_num;
   }
   return 0;
 }
