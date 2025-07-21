@@ -698,7 +698,7 @@ class TestBlendLibDataLibrariesLoadPack(TestBlendLibDataLibrariesLoad):
         output_lib_path = self.do_libload_init()
         # Cannot create overrides on packed linked data currently.
         self.assertRaises(ValueError,
-            self.do_libload, filepath=output_lib_path, link=True, pack=True, create_liboverrides=True)
+                          self.do_libload, filepath=output_lib_path, link=True, pack=True, create_liboverrides=True)
         self.do_libload(filepath=output_lib_path, link=True, pack=True, create_liboverrides=False)
 
         # Two copies, the original linked, and the packed linked ones.
