@@ -75,10 +75,7 @@ int SimGeometry::set_point_field_context(std::optional<bke::GeometryFieldContext
 
 void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
 
-void ConstraintSet::solve(const Span<SimGeometry> /*sim_geometries*/,
-                          ConstraintCorrections & /*corrections*/)
-{
-}
+void ConstraintSet::solve(ConstraintSetSolveParams & /*params*/) {}
 
 void ConstraintSet::post_solve_apply(MutableSpan<SimGeometry> /*sim_geometries*/) {}
 
@@ -125,7 +122,7 @@ void ConstraintCorrections::apply()
                     continue;
                   }
                   const int3 offset_quantized = correction.offset;
-                  const float factor = 1.0f / (quantize_scale * float(correction.num_corrections));
+                  const float factor = 0.8f / (quantize_scale * float(correction.num_corrections));
                   const float3 offset = float3(offset_quantized) * factor;
                   float3 &position = positions.span[point_i];
                   position += offset;
@@ -176,10 +173,10 @@ class EdgeLengthConstraint : public ConstraintSet {
     }
   }
 
-  void solve(const Span<SimGeometry> sim_geometries, ConstraintCorrections &corrections) override
+  void solve(ConstraintSetSolveParams &params) override
   {
-    for (const int geometry_i : sim_geometries.index_range()) {
-      const SimGeometry &sim_geometry = sim_geometries[geometry_i];
+    for (const int geometry_i : params.sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
       const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
       if (!mesh_ptr) {
         continue;
@@ -199,7 +196,7 @@ class EdgeLengthConstraint : public ConstraintSet {
         continue;
       }
       threading::parallel_for(IndexRange(mesh.edges_num), 512, [&](const IndexRange range) {
-        LocalConstraintCorrections &local_corrections = corrections.local();
+        LocalConstraintCorrections &local_corrections = params.corrections.local();
         for (const int edge_i : range) {
           const int2 edge = edges[edge_i];
           const int i0 = edge[0];
@@ -378,11 +375,12 @@ void solve(Behaviors &behaviors, const float delta_time, const int substeps)
 
     /* Constraint solve step. */
     ConstraintCorrections corrections(sim_geometries);
+    ConstraintSetSolveParams params{sim_geometries, corrections};
     threading::parallel_for(
         behaviors.constraint_sets.index_range(), 1, [&](const IndexRange range) {
           for (const int constraint_i : range) {
             ConstraintSet *constraints = behaviors.constraint_sets[constraint_i];
-            constraints->solve(sim_geometries, corrections);
+            constraints->solve(params);
           }
         });
     corrections.apply();

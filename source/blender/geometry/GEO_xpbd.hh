@@ -79,10 +79,16 @@ class ConstraintCorrections {
   void apply();
 };
 
+class ConstraintSetSolveParams {
+ public:
+  Span<SimGeometry> sim_geometries;
+  ConstraintCorrections &corrections;
+};
+
 class ConstraintSet {
  public:
   virtual void ensure_init(MutableSpan<SimGeometry> sim_geometries);
-  virtual void solve(const Span<SimGeometry> sim_geometries, ConstraintCorrections &corrections);
+  virtual void solve(ConstraintSetSolveParams &params);
   virtual void post_solve_apply(MutableSpan<SimGeometry> sim_geometries);
 };
 
