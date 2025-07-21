@@ -160,7 +160,9 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   /* Localize tree to create links for reroute and mute. */
   bNodeTree *localtree = blender::bke::node_tree_add_tree(
       nullptr, (blender::StringRef(ntree->id.name) + " Inlined").c_str(), ntree->idname);
-  blender::nodes::inline_shader_node_tree(*ntree, *localtree);
+  blender::nodes::InlineShaderNodeTreeSettings settings = {};
+  settings.unroll_loops = false;
+  blender::nodes::inline_shader_node_tree(*ntree, *localtree, settings);
   ntreeGPUMaterialNodes(localtree, mat);
 
   gpu_material_ramp_texture_build(mat);

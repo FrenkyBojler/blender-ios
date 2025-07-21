@@ -154,12 +154,16 @@ class ShaderNodesInliner {
   Stack<SocketInContext> scheduled_sockets_stack_;
   bool use_refcounting_ = false;
   const bke::DataTypeConversions &data_type_conversions_;
+  const InlineShaderNodeTreeSettings settings_;
 
  public:
-  ShaderNodesInliner(const bNodeTree &src_tree, bNodeTree &dst_tree)
+  ShaderNodesInliner(const bNodeTree &src_tree,
+                     bNodeTree &dst_tree,
+                     InlineShaderNodeTreeSettings settings)
       : src_tree_(src_tree),
         dst_tree_(dst_tree),
-        data_type_conversions_(bke::get_implicit_type_conversions())
+        data_type_conversions_(bke::get_implicit_type_conversions()),
+        settings_(settings)
   {
     if (dst_tree.id.tag & ID_TAG_NO_MAIN) {
       BLI_assert(src_tree.id.tag & ID_TAG_NO_MAIN);
@@ -405,6 +409,11 @@ class ShaderNodesInliner {
 
   void handle_output_socket__repeat_output(const SocketInContext &socket)
   {
+    if (!settings_.unroll_loops) {
+      this->handle_output_socket__eval(socket);
+      return;
+    }
+
     const bNode &repeat_output_node = socket->owner_node();
     const bNodeTree &tree = socket->owner_tree();
 
@@ -447,6 +456,11 @@ class ShaderNodesInliner {
 
   void handle_output_socket__repeat_input(const SocketInContext &socket)
   {
+    if (!settings_.unroll_loops) {
+      this->handle_output_socket__eval(socket);
+      return;
+    }
+
     const bNode &repeat_input_node = socket->owner_node();
     const auto *repeat_zone_context = dynamic_cast<const bke::RepeatZoneComputeContext *>(
         socket.context);
@@ -898,9 +912,11 @@ class ShaderNodesInliner {
 
 }  // namespace
 
-bool inline_shader_node_tree(const bNodeTree &src_tree, bNodeTree &dst_tree)
+bool inline_shader_node_tree(const bNodeTree &src_tree,
+                             bNodeTree &dst_tree,
+                             InlineShaderNodeTreeSettings settings)
 {
-  ShaderNodesInliner inliner(src_tree, dst_tree);
+  ShaderNodesInliner inliner(src_tree, dst_tree, settings);
   return inliner.do_inline();
 }
 

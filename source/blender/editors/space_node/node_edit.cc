@@ -1866,7 +1866,9 @@ static wmOperatorStatus test_inline_shader_nodes_exec(bContext *C, wmOperator * 
   bNodeTree *new_tree = bke::node_tree_add_tree(
       &bmain, (StringRef(ntree.id.name) + " Inlined").c_str(), ntree.idname);
 
-  nodes::inline_shader_node_tree(ntree, *new_tree);
+  nodes::InlineShaderNodeTreeSettings settings = {};
+  settings.unroll_loops = false;
+  nodes::inline_shader_node_tree(ntree, *new_tree, settings);
   bNode *group_node = bke::node_add_node(C, ntree, ntree.typeinfo->group_idname);
   group_node->id = &new_tree->id;
   node_deselect_all(ntree);
