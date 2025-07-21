@@ -143,12 +143,14 @@ static int pen_find_closest_point(const PenToolOperation &ptd,
 
 static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
 {
+  const bke::AttributeAccessor src_attributes = src.attributes();
   const OffsetIndices<int> points_by_curve = src.points_by_curve();
 
   const int old_curves_num = src.curves_num();
   const int old_points_num = src.points_num();
 
-  const IndexMask &points_to_extrude = src.points_range().take_back(1);
+  const VArray<bool> point_selection = *src_attributes.lookup_or_default<bool>(
+      ".selection", bke::AttrDomain::Point, true);
 
   Vector<int> dst_to_src_points(old_points_num);
   array_utils::fill_index_range(dst_to_src_points.as_mutable_span());
@@ -162,35 +164,26 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
   offset_indices::copy_group_sizes(
       points_by_curve, src.curves_range(), dst_curve_counts.as_mutable_span());
 
-  const VArray<bool> &src_cyclic = src.cyclic();
-
   /* Point offset keeps track of the points inserted. */
   int point_offset = 0;
   for (const int curve_index : src.curves_range()) {
     const IndexRange curve_points = points_by_curve[curve_index];
-    const IndexMask curve_points_to_extrude = points_to_extrude.slice_content(curve_points);
-    const bool curve_cyclic = src_cyclic[curve_index];
 
-    curve_points_to_extrude.foreach_index([&](const int src_point_index) {
-      if (!curve_cyclic && (src_point_index == curve_points.first())) {
-        /* Start-point extruded, we insert a new point at the beginning of the curve.
-         * NOTE: all points of a cyclic curve behave like an inner-point. */
-        dst_to_src_points.insert(src_point_index + point_offset, src_point_index);
-        dst_selected.insert(src_point_index + point_offset, true);
-        dst_curve_counts[curve_index]++;
-        point_offset++;
-        return;
-      }
-      if (!curve_cyclic && (src_point_index == curve_points.last())) {
-        /* End-point extruded, we insert a new point at the end of the curve.
-         * NOTE: all points of a cyclic curve behave like an inner-point. */
-        dst_to_src_points.insert(src_point_index + point_offset + 1, src_point_index);
-        dst_selected.insert(src_point_index + point_offset + 1, true);
-        dst_curve_counts[curve_index]++;
-        point_offset++;
-        return;
-      }
-    });
+    if (point_selection[curve_points.first()]) {
+      /* Start-point extruded, we insert a new point at the beginning of the curve. */
+      dst_to_src_points.insert(curve_points.first() + point_offset, curve_points.first());
+      dst_selected.insert(curve_points.first() + point_offset, true);
+      dst_curve_counts[curve_index]++;
+      point_offset++;
+    }
+
+    if (point_selection[curve_points.last()]) {
+      /* End-point extruded, we insert a new point at the end of the curve. */
+      dst_to_src_points.insert(curve_points.last() + point_offset + 1, curve_points.last());
+      dst_selected.insert(curve_points.last() + point_offset + 1, true);
+      dst_curve_counts[curve_index]++;
+      point_offset++;
+    }
   }
 
   bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
@@ -201,8 +194,6 @@ static bke::CurvesGeometry pen_extrude_curves(const bke::CurvesGeometry &src)
   array_utils::copy(dst_curve_counts.as_span(), new_curve_offsets.drop_back(1));
   offset_indices::accumulate_counts_to_offsets(new_curve_offsets);
 
-  /* Attributes. */
-  const bke::AttributeAccessor src_attributes = src.attributes();
   bke::MutableAttributeAccessor dst_attributes = dst.attributes_for_write();
 
   /* Selection attribute. */
