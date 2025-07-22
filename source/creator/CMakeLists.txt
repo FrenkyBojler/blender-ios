@@ -2005,8 +2005,7 @@ endif()
 if(WIN32)
   set_target_properties(blender PROPERTIES VS_GLOBAL_VcpkgEnabled "false")
   set_target_properties(blender PROPERTIES
-    PDB_NAME "blender_private"
-    PDB_OUTPUT_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>"
+      PDB_NAME "blender_private"
   )
   # If compiling with clang-cl we skip PDBSTRIPPED.
   # There's doesn't seem to be a switch for it currently
@@ -2020,10 +2019,16 @@ if(WIN32)
         TARGET blender APPEND_STRING PROPERTY LINK_FLAGS_RELEASE
         " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/blender_public.pdb"
       )
+      file(MAKE_DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE})
     else()
       set_property(
         TARGET blender APPEND_STRING PROPERTY LINK_FLAGS_RELEASE
         " /PDBSTRIPPED:${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}/blender_public.pdb"
+      )
+      add_custom_command(
+        TARGET blender
+        PRE_BUILD
+        COMMAND ${CMAKE_COMMAND} -E make_directory ${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_CFG_INTDIR}
       )
     endif()
   endif()
