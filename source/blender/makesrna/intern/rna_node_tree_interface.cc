@@ -421,7 +421,7 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
   /* Only basic socket types are supported. */
   blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
       socket_type->type, PROP_NONE);
-  if (socket_type != base_socket_type) {
+  if (base_socket_type && socket_type != base_socket_type) {
     return false;
   }
 
