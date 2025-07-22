@@ -153,7 +153,7 @@ void rna_def_blender_project_data(BlenderRNA *brna)
   RNA_def_struct_name_property(srna, prop);
   RNA_def_property_update(prop, 0, "rna_BlenderProject_update");
 
-  prop = RNA_def_property(srna, "root_path", PROP_STRING, PROP_NONE);
+  prop = RNA_def_property(srna, "root_path", PROP_STRING, PROP_DIRPATH);
   RNA_def_property_string_funcs(prop,
                                 "rna_BlenderProjectData_root_path_get",
                                 "rna_BlenderProjectData_root_path_length",
