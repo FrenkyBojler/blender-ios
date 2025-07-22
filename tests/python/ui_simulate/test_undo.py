@@ -297,7 +297,7 @@ def _compositor_startup_area(e):
     Set up the compositor node editor
     """
     yield e.shift.f3(2)                # Compositor
-    yield e.ctrl.alt.space()           # Full-screen.
+#    yield e.ctrl.alt.space()           # Full-screen.
 
 
 def compositor_make_group():
@@ -308,14 +308,17 @@ def compositor_make_group():
     # Create a node tree with multiple nodes and select all nodes.
     node_group = bpy.data.node_groups.new(name="comp ntree", type="CompositorNodeTree")
     window.scene.compositing_node_group = node_group
-    node_group.nodes.new("CompositorNodeComposite")
-    node_group.nodes.new("ShaderNodeMix")
-    yield e.a()
+    yield from _call_menu(e, "Add -> Color -> Alpha Convert")
+    yield e.ret() # Confirm adding node.
+    yield from _call_menu(e, "Add -> Filter -> Filter")
+    yield e.ret()
+    yield e.a() # Select all.
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
-    yield e.ctrl.g()
+    yield e.ctrl.g() # Make group.
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
     yield e.ctrl.z()
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
+    yield e.ctrl.z(5) # Revert to original state
 
 
 # -----------------------------------------------------------------------------
