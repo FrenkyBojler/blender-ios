@@ -399,10 +399,6 @@ struct DRWContext {
   {
     return ELEM(mode, DEPTH, DEPTH_ACTIVE_OBJECT);
   }
-  bool skip_particles() const
-  {
-    return ELEM(mode, DEPTH_ACTIVE_OBJECT);
-  }
   bool is_image_render() const
   {
     return ELEM(mode, VIEWPORT_RENDER, RENDER);
