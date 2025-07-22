@@ -7,3 +7,4 @@ Referenced by commit ebe7259c658cf664bc356f158286092a5efca94e, Fix #136670: Miss
 Referenced by issue #136837, Objects with a GPU subdivision surface modifier always render with smooth shading
 Referenced by pull request #137000, Fix #136837: Mesh incorrectly renders smooth with GPU subdivision in some cases
 Referenced by issue #141481, 4.5 Eevee Motion Blur Cloth Simulation inconsistency
+Referenced by issue #142772, No EEVEE Motion Blur for 1 Step
