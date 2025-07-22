@@ -672,12 +672,12 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         const float3 p2 = handles_left[point_i2];
         const float3 k2 = p1 - p2;
 
-        /*
+        /**
          * Equation of Bezier Curve
          *      => B(t) = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
          *
-         *
-         * Pm = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
+         * Mouse location (Pm) should satisfy this equation.
+         * Therefore => Pm = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
          *
          * k2 = P1 - P2
          * P2 = P1 - k2
@@ -687,12 +687,6 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
          * (Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2) / (3(1-t)^2 * t + 3(1-t) * t^2) = P1
          *
          *
-         *
-         *
-         * Mouse location (Say Pm) should satisfy this equation.
-         * Therefore => (1/t - 1) * P1 + P2 = (Pm - (1 - t)^3 * P0 - t^3 * P3) / [3 * (1 - t) *
-         * t^2] = k1 (in code)
-         *
          * Another constraint is required to identify P1 and P2.
          * The constraint used is that the vector between P1 and P2 doesn't change.
          * Therefore => P1 - P2 = k2
@@ -700,10 +694,14 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
          * From the two equations => P1 = t(k1 + k2) and P2 = P1 - K2
          */
 
+        const float denom = (3 * (1 - t) * (1 - t) * t + 3 * (1 - t) * t * t);
+        if (denom == 0.0f) {
+          return;
+        }
+
         const float3 P1 = (Pm - (1 - t) * (1 - t) * (1 - t) * P0 - t * t * t * P3 +
                            3 * (1 - t) * t * t * k2) /
-                          (3 * (1 - t) * (1 - t) * t + 3 * (1 - t) * t * t);
-
+                          denom;
         const float3 P2 = P1 - k2;
 
         handles_right[point_i1] = P1;
