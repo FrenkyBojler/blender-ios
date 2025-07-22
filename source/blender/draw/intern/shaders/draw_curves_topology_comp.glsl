@@ -67,7 +67,7 @@ float4 hair_get_weights_bspline(float t)
 void main()
 {
   uint curve_id = gl_GlobalInvocationID.x;
-  if (curve_id >= curves_count) {
+  if (curve_id >= uint(curves_count)) {
     return;
   }
   uint num_control_point = curves_offsets_buf[curve_id] - curves_offsets_buf[curve_id + 1];

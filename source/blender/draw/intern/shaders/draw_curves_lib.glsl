@@ -123,35 +123,34 @@ float3 shape_point_get(curves::Point pt, float3 V)
   return shape_point_get(pt, V, unused);
 }
 
+#  ifdef GPU_VERTEX_SHADER
 float get_customdata_float(const samplerBuffer cd_buf)
 {
-  /* TODO(fclem) */
-  return 0.0;
+  return texelFetch(cd_buf, curve_id(point_id(gl_VertexID))).x;
 }
 
 float2 get_customdata_vec2(const samplerBuffer cd_buf)
 {
-  /* TODO(fclem) */
-  return float2(0.0);
+  return texelFetch(cd_buf, curve_id(point_id(gl_VertexID))).xy;
 }
 
 float3 get_customdata_vec3(const samplerBuffer cd_buf)
 {
-  /* TODO(fclem) */
-  return float3(0.0);
+  return texelFetch(cd_buf, curve_id(point_id(gl_VertexID))).xyz;
 }
 
 float4 get_customdata_vec4(const samplerBuffer cd_buf)
 {
-  /* TODO(fclem) */
-  return float4(0.0);
+  return texelFetch(cd_buf, curve_id(point_id(gl_VertexID))).xyzw;
 }
 
-float3 get_strand_pos()
+float3 get_strand_pos(curves::Point pt)
 {
-  /* TODO(fclem) */
-  return float3(0.0);
+  uint curve_idx = curve_id(point_id(uint(gl_VertexID)));
+  uint curve_start = texelFetch(curves_offset_buf, curve_idx).x;
+  return texelFetch(curves_pos_buf, curve_start).xyz;
 }
+#  endif
 
 }  // namespace curves
 

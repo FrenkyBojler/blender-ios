@@ -30,7 +30,7 @@ STORAGE_BUF(6, write, uint, points_curve_id_buf[])
 STORAGE_BUF(7, write, uint, points_time_buf[])
 /* Buffer cleared to 0 before this dispatch. */
 STORAGE_BUF(6, read_write, uint, atomic_point_counter[])
-PUSH_CONSTANT(uint, curves_count)
+PUSH_CONSTANT(int, curves_count)
 PUSH_CONSTANT(bool, is_ribbon)
 PUSH_CONSTANT(bool, compute_length)
 COMPUTE_SOURCE("draw_curves_topology_comp.glsl")
