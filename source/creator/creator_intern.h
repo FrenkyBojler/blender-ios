@@ -54,6 +54,7 @@ struct ApplicationState {
   struct {
     bool use_crash_handler;
     bool use_abort_handler;
+    bool use_sentry;
   } signal;
 
   /* We may want to set different exit codes for other kinds of errors. */

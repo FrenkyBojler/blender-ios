@@ -1161,6 +1161,18 @@ Make paths in macros like __FILE__ relative to top level source and build direct
   mark_as_advanced(WITH_COMPILER_SHORT_FILE_MACRO)
 endif()
 
+option(WITH_SENTRY "Use sentry for crash reporting" ON)
+set(WITH_SENTRY_DSN "" CACHE STRING "sentry DSN")
+if(NOT WITH_SENTRY_DSN)
+  message(WARNING "WITH_SENTRY_DSN required when building with WITH_SENTRY=ON, disabling WITH_SENTRY")
+  set(WITH_SENTRY OFF)
+endif()
+set(WITH_SENTRY_PROJECT "" CACHE STRING "sentry project name")
+if(NOT WITH_SENTRY_DSN)
+  message(WARNING "WITH_SENTRY_PROJECT required when building with WITH_SENTRY=ON, disabling WITH_SENTRY")
+  set(WITH_SENTRY OFF)
+endif()
+
 if(WIN32)
   # Use hardcoded paths or find_package to find externals
   option(WITH_WINDOWS_FIND_MODULES "Use find_package to locate libraries" OFF)

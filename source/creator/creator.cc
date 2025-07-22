@@ -124,6 +124,7 @@ ApplicationState app_state = []() {
   ApplicationState app_state{};
   app_state.signal.use_crash_handler = true;
   app_state.signal.use_abort_handler = true;
+  app_state.signal.use_sentry = false;
   app_state.exit_code_on_error.python = 0;
   app_state.main_arg_deferred = nullptr;
   return app_state;

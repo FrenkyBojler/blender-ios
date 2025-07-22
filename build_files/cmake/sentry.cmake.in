@@ -1,0 +1,9 @@
+# SPDX-FileCopyrightText: 2025 Blender Authors
+#
+# SPDX-License-Identifier: GPL-2.0-or-later
+
+set(WITH_SENTRY = @WITH_SENTRY@)
+if(WIN32 AND WITH_SENTRY)
+  message("Uploading symbol files")
+  execute_process(COMMAND sentry-cli-Windows-x86_64.exe debug-files upload --project @WITH_SENTRY_PROJECT@ @CMAKE_INSTALL_PREFIX@ COMMAND_ERROR_IS_FATAL ANY)
+endif()

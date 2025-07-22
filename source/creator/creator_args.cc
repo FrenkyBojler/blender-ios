@@ -998,6 +998,15 @@ static int arg_handle_crash_handler_disable(int /*argc*/, const char ** /*argv*/
   return 0;
 }
 
+static const char arg_handle_sentry_enable_doc[] =
+    "\n\t"
+    "Enable automatic crash reporting.";
+static int arg_handle_sentry_enable(int /*argc*/, const char ** /*argv*/, void * /*data*/)
+{
+  app_state.signal.use_sentry = true;
+  return 0;
+}
+
 static const char arg_handle_abort_handler_disable_doc[] =
     "\n\t"
     "Disable the abort handler.";
@@ -2757,6 +2766,7 @@ void main_args_setup(bContext *C, bArgs *ba, bool all)
       ba, nullptr, "--disable-crash-handler", CB(arg_handle_crash_handler_disable), nullptr);
   BLI_args_add(
       ba, nullptr, "--disable-abort-handler", CB(arg_handle_abort_handler_disable), nullptr);
+  BLI_args_add(ba, nullptr, "--enable-crash-reporting", CB(arg_handle_sentry_enable), nullptr);
 
   BLI_args_add(ba, "-q", "--quiet", CB(arg_handle_quiet_set), nullptr);
   BLI_args_add(ba, "-b", "--background", CB(arg_handle_background_mode_set), nullptr);

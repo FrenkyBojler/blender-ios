@@ -48,6 +48,10 @@
 
 #  include <csignal>
 
+#  ifdef WITH_SENTRY
+#    include "sentry.h"
+#  endif  //  WITH_SENTRY
+
 #  ifdef WITH_PYTHON
 #    include "BPY_extern_python.hh" /* #BPY_python_backtrace. */
 #  endif
@@ -206,23 +210,44 @@ static void sig_handle_abort(int /*signum*/)
 
 void main_signal_setup()
 {
-  if (app_state.signal.use_crash_handler) {
-#  ifdef WIN32
-    SetUnhandledExceptionFilter(windows_exception_handler);
-#  else
-    /* After parsing arguments. */
-    signal(SIGSEGV, sig_handle_crash_fn);
-#  endif
+#  ifdef WITH_SENTRY
+  if (app_state.signal.use_sentry) {
+    sentry_options_t *options = sentry_options_new();
+    sentry_options_set_dsn(options, WITH_SENTRY_DSN);
+    // TODO: This can't stay like this as we won't have permissions to write in program files for
+    // release builds this will need to be in the user profile folder somewhere.
+    sentry_options_set_database_path(options, ".sentry-native");
+    // TODO: No hardcode 5.0.0
+    // TODO: Include hash for daylies?
+    sentry_options_set_release(options, "Blender@5.0.0");
+    // TODO: too noisy for end users, should be 0, or perhaps triggerd with an env var
+    sentry_options_set_debug(options, 1);
+    // TODO: Too intrusive, and likely contains things the user doesn't want to share, we could
+    // offer it as an option perhaps?
+    sentry_options_set_attach_screenshot(options, 0);
+    sentry_init(options);
   }
+  else
+#  endif
+  {
+    if (app_state.signal.use_crash_handler) {
+#  ifdef WIN32
+      SetUnhandledExceptionFilter(windows_exception_handler);
+#  else
+      /* After parsing arguments. */
+      signal(SIGSEGV, sig_handle_crash_fn);
+#  endif
+    }
 
 #  ifdef WIN32
-  /* Prevent any error mode dialogs from hanging the application. */
-  SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT | SEM_NOGPFAULTERRORBOX |
-               SEM_NOOPENFILEERRORBOX);
+    /* Prevent any error mode dialogs from hanging the application. */
+    SetErrorMode(SEM_FAILCRITICALERRORS | SEM_NOALIGNMENTFAULTEXCEPT | SEM_NOGPFAULTERRORBOX |
+                 SEM_NOOPENFILEERRORBOX);
 #  endif
 
-  if (app_state.signal.use_abort_handler) {
-    signal(SIGABRT, sig_handle_abort);
+    if (app_state.signal.use_abort_handler) {
+      signal(SIGABRT, sig_handle_abort);
+    }
   }
 }
 

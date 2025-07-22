@@ -24,6 +24,11 @@ set(LIB
   PRIVATE bf::dependencies::optional::opencolorio
 )
 
+if(WITH_SENTRY)
+  add_definitions(-DWITH_SENTRY)
+  add_definitions(-DWITH_SENTRY_DSN="${WITH_SENTRY_DSN}")
+endif()
+
 if(HAVE_FEENABLEEXCEPT)
   add_definitions(-DHAVE_FEENABLEEXCEPT)
 endif()
@@ -1490,6 +1495,18 @@ elseif(WIN32)
       DEBUG
     )
     list(APPEND LIB ${TBB_MALLOC_LIBRARIES})
+  endif()
+
+  if(WITH_SENTRY)
+    list(APPEND LIB PRIVATE sentry::sentry)
+    install(IMPORTED_RUNTIME_ARTIFACTS sentry::sentry DESTINATION ${TARGETDIR_EXE})
+    install(IMPORTED_RUNTIME_ARTIFACTS sentry_crashpad::crashpad_handler DESTINATION ${TARGETDIR_EXE})
+    install(IMPORTED_RUNTIME_ARTIFACTS sentry_crashpad::crashpad_wer DESTINATION ${TARGETDIR_EXE})
+    configure_file(
+      "${CMAKE_SOURCE_DIR}/build_files/cmake/sentry.cmake.in"
+      "${CMAKE_CURRENT_BINARY_DIR}/sentry.cmake"
+    )
+    install(SCRIPT ${CMAKE_CURRENT_BINARY_DIR}/sentry.cmake)
   endif()
 
   if(EXISTS ${LIBDIR}/sndfile/lib/sndfile.dll)
