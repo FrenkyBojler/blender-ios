@@ -66,8 +66,13 @@ ccl_device_inline BsdfEval BsdfEvalRGBEToBsdfEval(ccl_private const BsdfEvalRGBE
   return bsdfEval;
 }
 
+/* Path tracing: When a light is hit by a forward path the path throughput weight already contains
+  the product with the BSDF evaluation of all BSDF components (e.g., diffuse, glossy,
+  transmission). To consider the light visibility correctly we need to calculate a correction
+  factor that removes the contributions from invisible BSDF components from the paths throughput
+  weight. Alternatively this factor can be multiplied to the light contribution. */
 ccl_device_inline Spectrum light_visibility_correction(IntegratorState state,
-                                                      ccl_private const int shader)
+                                                       ccl_private const int shader)
 {
   Spectrum visible_components = zero_spectrum();
   const BsdfEvalRGBE scatter_eval_rgbe = INTEGRATOR_STATE(state, path, scatter_eval);
