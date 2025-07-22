@@ -472,7 +472,8 @@ static void copy_transformed_normals(const Span<float3> src,
                                      const float4x4 &transform,
                                      MutableSpan<float3> dst)
 {
-  const float3x3 normal_transform = math::transpose(math::invert(float3x3(transform)));
+  const float3x3 normal_transform = math::normalize(
+      math::transpose(math::invert(float3x3(transform))));
   if (math::is_equal(normal_transform, float3x3::identity(), 1e-6f)) {
     dst.copy_from(src);
   }
