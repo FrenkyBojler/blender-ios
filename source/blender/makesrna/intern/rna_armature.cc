@@ -720,27 +720,7 @@ static void rna_Bone_hide_update(Main *bmain, Scene * /* scene */, PointerRNA *p
 {
   bArmature *arm = (bArmature *)ptr->owner_id;
   Bone *bone = (Bone *)ptr->data;
-  const bool bone_is_visible = !(bone->flag & BONE_HIDDEN_P);
-  /* Since the visibility flag is now stored on the pose bone, to ensure backwards compatibility we
-   * need to find all users of the armature and set the flag on the corresponding pose bone. */
-  LISTBASE_FOREACH (Object *, object, &bmain->objects) {
-    if (object->data != arm) {
-      continue;
-    }
-    BLI_assert(object->pose);
-    LISTBASE_FOREACH (bPoseChannel *, pose_bone, &object->pose->chanbase) {
-      if (pose_bone->bone != bone) {
-        continue;
-      }
-      if (bone_is_visible) {
-        pose_bone->drawflag &= ~PCHAN_DRAW_HIDDEN;
-      }
-      else {
-        pose_bone->drawflag |= PCHAN_DRAW_HIDDEN;
-      }
-      break;
-    }
-  }
+
   if (bone->flag & (BONE_HIDDEN_P | BONE_UNSELECTABLE)) {
     bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
   }
