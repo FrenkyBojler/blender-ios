@@ -54,7 +54,7 @@ Texture::~Texture()
 #endif
 }
 
-bool Texture::init_1D(int w, int layers, int mip_len, blender::gpu::TextureFormat format)
+bool Texture::init_1D(int w, int layers, int mip_len, TextureFormat format)
 {
   w_ = w;
   h_ = layers;
@@ -70,7 +70,7 @@ bool Texture::init_1D(int w, int layers, int mip_len, blender::gpu::TextureForma
   return this->init_internal();
 }
 
-bool Texture::init_2D(int w, int h, int layers, int mip_len, blender::gpu::TextureFormat format)
+bool Texture::init_2D(int w, int h, int layers, int mip_len, TextureFormat format)
 {
   w_ = w;
   h_ = h;
@@ -86,7 +86,7 @@ bool Texture::init_2D(int w, int h, int layers, int mip_len, blender::gpu::Textu
   return this->init_internal();
 }
 
-bool Texture::init_3D(int w, int h, int d, int mip_len, blender::gpu::TextureFormat format)
+bool Texture::init_3D(int w, int h, int d, int mip_len, TextureFormat format)
 {
   w_ = w;
   h_ = h;
@@ -102,7 +102,7 @@ bool Texture::init_3D(int w, int h, int d, int mip_len, blender::gpu::TextureFor
   return this->init_internal();
 }
 
-bool Texture::init_cubemap(int w, int layers, int mip_len, blender::gpu::TextureFormat format)
+bool Texture::init_cubemap(int w, int layers, int mip_len, TextureFormat format)
 {
   w_ = w;
   h_ = w;
@@ -118,7 +118,7 @@ bool Texture::init_cubemap(int w, int layers, int mip_len, blender::gpu::Texture
   return this->init_internal();
 }
 
-bool Texture::init_buffer(VertBuf *vbo, blender::gpu::TextureFormat format)
+bool Texture::init_buffer(VertBuf *vbo, TextureFormat format)
 {
   /* See to_texture_format(). */
   w_ = GPU_vertbuf_get_vertex_len(vbo);
@@ -131,7 +131,7 @@ bool Texture::init_buffer(VertBuf *vbo, blender::gpu::TextureFormat format)
 }
 
 bool Texture::init_view(Texture *src,
-                        blender::gpu::TextureFormat format,
+                        TextureFormat format,
                         eGPUTextureType type,
                         int mip_start,
                         int mip_len,
@@ -255,7 +255,7 @@ static inline gpu::Texture *gpu_texture_create(const char *name,
                                                const int d,
                                                const eGPUTextureType type,
                                                int mip_len,
-                                               blender::gpu::TextureFormat tex_format,
+                                               TextureFormat tex_format,
                                                eGPUTextureUsage usage,
                                                const void *pixels,
                                                eGPUDataFormat data_format = GPU_DATA_FLOAT)
@@ -298,7 +298,7 @@ static inline gpu::Texture *gpu_texture_create(const char *name,
 gpu::Texture *GPU_texture_create_1d(const char *name,
                                     int width,
                                     int mip_len,
-                                    blender::gpu::TextureFormat format,
+                                    TextureFormat format,
                                     eGPUTextureUsage usage,
                                     const float *data)
 {
@@ -309,7 +309,7 @@ gpu::Texture *GPU_texture_create_1d_array(const char *name,
                                           int width,
                                           int layer_len,
                                           int mip_len,
-                                          blender::gpu::TextureFormat format,
+                                          TextureFormat format,
                                           eGPUTextureUsage usage,
                                           const float *data)
 {
@@ -321,7 +321,7 @@ gpu::Texture *GPU_texture_create_2d(const char *name,
                                     int width,
                                     int height,
                                     int mip_len,
-                                    blender::gpu::TextureFormat format,
+                                    TextureFormat format,
                                     eGPUTextureUsage usage,
                                     const float *data)
 {
@@ -333,7 +333,7 @@ gpu::Texture *GPU_texture_create_2d_array(const char *name,
                                           int height,
                                           int layer_len,
                                           int mip_len,
-                                          blender::gpu::TextureFormat format,
+                                          TextureFormat format,
                                           eGPUTextureUsage usage,
                                           const float *data)
 {
@@ -346,7 +346,7 @@ gpu::Texture *GPU_texture_create_3d(const char *name,
                                     int height,
                                     int depth,
                                     int mip_len,
-                                    blender::gpu::TextureFormat texture_format,
+                                    TextureFormat texture_format,
                                     eGPUTextureUsage usage,
                                     const void *data)
 {
@@ -357,7 +357,7 @@ gpu::Texture *GPU_texture_create_3d(const char *name,
 gpu::Texture *GPU_texture_create_cube(const char *name,
                                       int width,
                                       int mip_len,
-                                      blender::gpu::TextureFormat format,
+                                      TextureFormat format,
                                       eGPUTextureUsage usage,
                                       const float *data)
 {
@@ -368,7 +368,7 @@ gpu::Texture *GPU_texture_create_cube_array(const char *name,
                                             int width,
                                             int layer_len,
                                             int mip_len,
-                                            blender::gpu::TextureFormat format,
+                                            TextureFormat format,
                                             eGPUTextureUsage usage,
                                             const float *data)
 {
@@ -380,7 +380,7 @@ gpu::Texture *GPU_texture_create_compressed_2d(const char *name,
                                                int width,
                                                int height,
                                                int mip_len,
-                                               blender::gpu::TextureFormat tex_format,
+                                               TextureFormat tex_format,
                                                eGPUTextureUsage usage,
                                                const void *data)
 {
@@ -417,7 +417,7 @@ gpu::Texture *GPU_texture_create_from_vertbuf(const char *name, gpu::VertBuf *ve
                  "Vertex Buffers used for textures should have usage flag "
                  "GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY.");
 #endif
-  blender::gpu::TextureFormat tex_format = to_texture_format(GPU_vertbuf_get_format(vert));
+  TextureFormat tex_format = to_texture_format(GPU_vertbuf_get_format(vert));
   Texture *tex = GPUBackend::get()->texture_alloc(name);
 
   bool success = tex->init_buffer(vert, tex_format);
@@ -445,14 +445,14 @@ gpu::Texture *GPU_texture_create_error(int dimension, bool is_array)
                             d,
                             type,
                             1,
-                            blender::gpu::TextureFormat::UNORM_8_8_8_8,
+                            TextureFormat::UNORM_8_8_8_8,
                             GPU_TEXTURE_USAGE_GENERAL,
                             pixel);
 }
 
 gpu::Texture *GPU_texture_create_view(const char *name,
                                       gpu::Texture *source_texture,
-                                      blender::gpu::TextureFormat view_format,
+                                      TextureFormat view_format,
                                       int mip_start,
                                       int mip_len,
                                       int layer_start,
@@ -749,145 +749,148 @@ void GPU_texture_original_size_set(gpu::Texture *texture, int w, int h)
   texture->src_h = h;
 }
 
-blender::gpu::TextureFormat GPU_texture_format(const gpu::Texture *texture)
+TextureFormat GPU_texture_format(const gpu::Texture *texture)
 {
   return texture->format_get();
 }
 
-const char *GPU_texture_format_name(blender::gpu::TextureFormat texture_format)
+const char *GPU_texture_format_name(TextureFormat texture_format)
 {
   switch (texture_format) {
     /* Formats texture & render-buffer */
-    case blender::gpu::TextureFormat::UINT_8_8_8_8:
+    case TextureFormat::UINT_8_8_8_8:
       return "RGBA8UI";
-    case blender::gpu::TextureFormat::SINT_8_8_8_8:
+    case TextureFormat::SINT_8_8_8_8:
       return "RGBA8I";
-    case blender::gpu::TextureFormat::UNORM_8_8_8_8:
+    case TextureFormat::UNORM_8_8_8_8:
       return "RGBA8";
-    case blender::gpu::TextureFormat::UINT_32_32_32_32:
+    case TextureFormat::UINT_32_32_32_32:
       return "RGBA32UI";
-    case blender::gpu::TextureFormat::SINT_32_32_32_32:
+    case TextureFormat::SINT_32_32_32_32:
       return "RGBA32I";
-    case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
+    case TextureFormat::SFLOAT_32_32_32_32:
       return "RGBA32F";
-    case blender::gpu::TextureFormat::UINT_16_16_16_16:
+    case TextureFormat::UINT_16_16_16_16:
       return "RGBA16UI";
-    case blender::gpu::TextureFormat::SINT_16_16_16_16:
+    case TextureFormat::SINT_16_16_16_16:
       return "RGBA16I";
-    case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
+    case TextureFormat::SFLOAT_16_16_16_16:
       return "RGBA16F";
-    case blender::gpu::TextureFormat::UNORM_16_16_16_16:
+    case TextureFormat::UNORM_16_16_16_16:
       return "RGBA16";
-    case blender::gpu::TextureFormat::UINT_8_8:
+    case TextureFormat::UINT_8_8:
       return "RG8UI";
-    case blender::gpu::TextureFormat::SINT_8_8:
+    case TextureFormat::SINT_8_8:
       return "RG8I";
-    case blender::gpu::TextureFormat::UNORM_8_8:
+    case TextureFormat::UNORM_8_8:
       return "RG8";
-    case blender::gpu::TextureFormat::UINT_32_32:
+    case TextureFormat::UINT_32_32:
       return "RG32UI";
-    case blender::gpu::TextureFormat::SINT_32_32:
+    case TextureFormat::SINT_32_32:
       return "RG32I";
-    case blender::gpu::TextureFormat::SFLOAT_32_32:
+    case TextureFormat::SFLOAT_32_32:
       return "RG32F";
-    case blender::gpu::TextureFormat::UINT_16_16:
+    case TextureFormat::UINT_16_16:
       return "RG16UI";
-    case blender::gpu::TextureFormat::SINT_16_16:
+    case TextureFormat::SINT_16_16:
       return "RG16I";
-    case blender::gpu::TextureFormat::SFLOAT_16_16:
+    case TextureFormat::SFLOAT_16_16:
       return "RG16F";
-    case blender::gpu::TextureFormat::UNORM_16_16:
+    case TextureFormat::UNORM_16_16:
       return "RG16";
-    case blender::gpu::TextureFormat::UINT_8:
+    case TextureFormat::UINT_8:
       return "R8UI";
-    case blender::gpu::TextureFormat::SINT_8:
+    case TextureFormat::SINT_8:
       return "R8I";
-    case blender::gpu::TextureFormat::UNORM_8:
+    case TextureFormat::UNORM_8:
       return "R8";
-    case blender::gpu::TextureFormat::UINT_32:
+    case TextureFormat::UINT_32:
       return "R32UI";
-    case blender::gpu::TextureFormat::SINT_32:
+    case TextureFormat::SINT_32:
       return "R32I";
-    case blender::gpu::TextureFormat::SFLOAT_32:
+    case TextureFormat::SFLOAT_32:
       return "R32F";
-    case blender::gpu::TextureFormat::UINT_16:
+    case TextureFormat::UINT_16:
       return "R16UI";
-    case blender::gpu::TextureFormat::SINT_16:
+    case TextureFormat::SINT_16:
       return "R16I";
-    case blender::gpu::TextureFormat::SFLOAT_16:
+    case TextureFormat::SFLOAT_16:
       return "R16F";
-    case blender::gpu::TextureFormat::UNORM_16:
+    case TextureFormat::UNORM_16:
       return "R16";
     /* Special formats texture & render-buffer */
-    case blender::gpu::TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_10_10_10_2:
       return "RGB10_A2";
-    case blender::gpu::TextureFormat::UINT_10_10_10_2:
+    case TextureFormat::UINT_10_10_10_2:
       return "RGB10_A2UI";
-    case blender::gpu::TextureFormat::UFLOAT_11_11_10:
+    case TextureFormat::UFLOAT_11_11_10:
       return "R11F_G11F_B10F";
-    case blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8:
+    case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
       return "DEPTH32F_STENCIL8";
-    case blender::gpu::TextureFormat::SRGBA_8_8_8_8:
+    case TextureFormat::SRGBA_8_8_8_8:
       return "SRGB8_A8";
     /* Texture only formats. */
-    case blender::gpu::TextureFormat::SFLOAT_16_16_16:
+    case TextureFormat::SFLOAT_16_16_16:
       return "RGB16F";
-    case blender::gpu::TextureFormat::SNORM_16_16_16:
+    case TextureFormat::SNORM_16_16_16:
       return "RGB16_SNORM";
-    case blender::gpu::TextureFormat::SINT_16_16_16:
+    case TextureFormat::SINT_16_16_16:
       return "RGB16I";
-    case blender::gpu::TextureFormat::UINT_16_16_16:
+    case TextureFormat::UINT_16_16_16:
       return "RGB16UI";
-    case blender::gpu::TextureFormat::UNORM_16_16_16:
+    case TextureFormat::UNORM_16_16_16:
       return "RGB16";
-    case blender::gpu::TextureFormat::SNORM_16_16_16_16:
+    case TextureFormat::SNORM_16_16_16_16:
       return "RGBA16_SNORM";
-    case blender::gpu::TextureFormat::SNORM_8_8_8_8:
+    case TextureFormat::SNORM_8_8_8_8:
       return "RGBA8_SNORM";
-    case blender::gpu::TextureFormat::SFLOAT_32_32_32:
+    case TextureFormat::SFLOAT_32_32_32:
       return "RGB32F";
-    case blender::gpu::TextureFormat::SINT_32_32_32:
+    case TextureFormat::SINT_32_32_32:
       return "RGB32I";
-    case blender::gpu::TextureFormat::UINT_32_32_32:
+    case TextureFormat::UINT_32_32_32:
       return "RGB32UI";
-    case blender::gpu::TextureFormat::SNORM_8_8_8:
+    case TextureFormat::SNORM_8_8_8:
       return "RGB8_SNORM";
-    case blender::gpu::TextureFormat::UNORM_8_8_8:
+    case TextureFormat::UNORM_8_8_8:
       return "RGB8";
-    case blender::gpu::TextureFormat::SINT_8_8_8:
+    case TextureFormat::SINT_8_8_8:
       return "RGB8I";
-    case blender::gpu::TextureFormat::UINT_8_8_8:
+    case TextureFormat::UINT_8_8_8:
       return "RGB8UI";
-    case blender::gpu::TextureFormat::SNORM_16_16:
+    case TextureFormat::SNORM_16_16:
       return "RG16_SNORM";
-    case blender::gpu::TextureFormat::SNORM_8_8:
+    case TextureFormat::SNORM_8_8:
       return "RG8_SNORM";
-    case blender::gpu::TextureFormat::SNORM_16:
+    case TextureFormat::SNORM_16:
       return "R16_SNORM";
-    case blender::gpu::TextureFormat::SNORM_8:
+    case TextureFormat::SNORM_8:
       return "R8_SNORM";
     /* Special formats, texture only. */
-    case blender::gpu::TextureFormat::SRGB_DXT1:
+    case TextureFormat::SRGB_DXT1:
       return "SRGB8_A8_DXT1";
-    case blender::gpu::TextureFormat::SRGB_DXT3:
+    case TextureFormat::SRGB_DXT3:
       return "SRGB8_A8_DXT3";
-    case blender::gpu::TextureFormat::SRGB_DXT5:
+    case TextureFormat::SRGB_DXT5:
       return "SRGB8_A8_DXT5";
-    case blender::gpu::TextureFormat::SNORM_DXT1:
+    case TextureFormat::SNORM_DXT1:
       return "RGBA8_DXT1";
-    case blender::gpu::TextureFormat::SNORM_DXT3:
+    case TextureFormat::SNORM_DXT3:
       return "RGBA8_DXT3";
-    case blender::gpu::TextureFormat::SNORM_DXT5:
+    case TextureFormat::SNORM_DXT5:
       return "RGBA8_DXT5";
-    case blender::gpu::TextureFormat::SRGBA_8_8_8:
+    case TextureFormat::SRGBA_8_8_8:
       return "SRGB8";
-    case blender::gpu::TextureFormat::UFLOAT_9_9_9_EXP_5:
+    case TextureFormat::UFLOAT_9_9_9_EXP_5:
       return "RGB9_E5";
     /* Depth Formats. */
-    case blender::gpu::TextureFormat::SFLOAT_32_DEPTH:
+    case TextureFormat::SFLOAT_32_DEPTH:
       return "DEPTH_COMPONENT32F";
-    case blender::gpu::TextureFormat::UNORM_16_DEPTH:
+    case TextureFormat::UNORM_16_DEPTH:
       return "DEPTH_COMPONENT16";
+
+    case TextureFormat::Invalid:
+      BLI_assert_unreachable();
   }
   BLI_assert_unreachable();
   return "";
@@ -1022,7 +1025,7 @@ void GPU_samplers_update()
 /** \name GPU texture utilities
  * \{ */
 
-size_t GPU_texture_component_len(blender::gpu::TextureFormat tex_format)
+size_t GPU_texture_component_len(TextureFormat tex_format)
 {
   return to_component_len(tex_format);
 }

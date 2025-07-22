@@ -65,7 +65,7 @@ void GLUniformBuf::clear_to_zero()
   }
 
   uint32_t data = 0;
-  blender::gpu::TextureFormat internal_format = blender::gpu::TextureFormat::UINT_32;
+  TextureFormat internal_format = TextureFormat::UINT_32;
   eGPUDataFormat data_format = GPU_DATA_UINT;
 
   if (GLContext::direct_state_access_support) {

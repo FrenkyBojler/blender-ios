@@ -86,72 +86,72 @@ static const char *to_string(const Type &type)
   }
 }
 
-static const char *to_string(const blender::gpu::TextureFormat &type)
+static const char *to_string(const TextureFormat &type)
 {
   switch (type) {
-    case blender::gpu::TextureFormat::UINT_8_8_8_8:
+    case TextureFormat::UINT_8_8_8_8:
       return "rgba8ui";
-    case blender::gpu::TextureFormat::SINT_8_8_8_8:
+    case TextureFormat::SINT_8_8_8_8:
       return "rgba8i";
-    case blender::gpu::TextureFormat::UNORM_8_8_8_8:
+    case TextureFormat::UNORM_8_8_8_8:
       return "rgba8";
-    case blender::gpu::TextureFormat::UINT_32_32_32_32:
+    case TextureFormat::UINT_32_32_32_32:
       return "rgba32ui";
-    case blender::gpu::TextureFormat::SINT_32_32_32_32:
+    case TextureFormat::SINT_32_32_32_32:
       return "rgba32i";
-    case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
+    case TextureFormat::SFLOAT_32_32_32_32:
       return "rgba32f";
-    case blender::gpu::TextureFormat::UINT_16_16_16_16:
+    case TextureFormat::UINT_16_16_16_16:
       return "rgba16ui";
-    case blender::gpu::TextureFormat::SINT_16_16_16_16:
+    case TextureFormat::SINT_16_16_16_16:
       return "rgba16i";
-    case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
+    case TextureFormat::SFLOAT_16_16_16_16:
       return "rgba16f";
-    case blender::gpu::TextureFormat::UNORM_16_16_16_16:
+    case TextureFormat::UNORM_16_16_16_16:
       return "rgba16";
-    case blender::gpu::TextureFormat::UINT_8_8:
+    case TextureFormat::UINT_8_8:
       return "rg8ui";
-    case blender::gpu::TextureFormat::SINT_8_8:
+    case TextureFormat::SINT_8_8:
       return "rg8i";
-    case blender::gpu::TextureFormat::UNORM_8_8:
+    case TextureFormat::UNORM_8_8:
       return "rg8";
-    case blender::gpu::TextureFormat::UINT_32_32:
+    case TextureFormat::UINT_32_32:
       return "rg32ui";
-    case blender::gpu::TextureFormat::SINT_32_32:
+    case TextureFormat::SINT_32_32:
       return "rg32i";
-    case blender::gpu::TextureFormat::SFLOAT_32_32:
+    case TextureFormat::SFLOAT_32_32:
       return "rg32f";
-    case blender::gpu::TextureFormat::UINT_16_16:
+    case TextureFormat::UINT_16_16:
       return "rg16ui";
-    case blender::gpu::TextureFormat::SINT_16_16:
+    case TextureFormat::SINT_16_16:
       return "rg16i";
-    case blender::gpu::TextureFormat::SFLOAT_16_16:
+    case TextureFormat::SFLOAT_16_16:
       return "rg16f";
-    case blender::gpu::TextureFormat::UNORM_16_16:
+    case TextureFormat::UNORM_16_16:
       return "rg16";
-    case blender::gpu::TextureFormat::UINT_8:
+    case TextureFormat::UINT_8:
       return "r8ui";
-    case blender::gpu::TextureFormat::SINT_8:
+    case TextureFormat::SINT_8:
       return "r8i";
-    case blender::gpu::TextureFormat::UNORM_8:
+    case TextureFormat::UNORM_8:
       return "r8";
-    case blender::gpu::TextureFormat::UINT_32:
+    case TextureFormat::UINT_32:
       return "r32ui";
-    case blender::gpu::TextureFormat::SINT_32:
+    case TextureFormat::SINT_32:
       return "r32i";
-    case blender::gpu::TextureFormat::SFLOAT_32:
+    case TextureFormat::SFLOAT_32:
       return "r32f";
-    case blender::gpu::TextureFormat::UINT_16:
+    case TextureFormat::UINT_16:
       return "r16ui";
-    case blender::gpu::TextureFormat::SINT_16:
+    case TextureFormat::SINT_16:
       return "r16i";
-    case blender::gpu::TextureFormat::SFLOAT_16:
+    case TextureFormat::SFLOAT_16:
       return "r16f";
-    case blender::gpu::TextureFormat::UNORM_16:
+    case TextureFormat::UNORM_16:
       return "r16";
-    case blender::gpu::TextureFormat::UFLOAT_11_11_10:
+    case TextureFormat::UFLOAT_11_11_10:
       return "r11f_g11f_b10f";
-    case blender::gpu::TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_10_10_10_2:
       return "rgb10_a2";
     default:
       return "unknown";

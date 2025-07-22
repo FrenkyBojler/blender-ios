@@ -131,8 +131,7 @@ void Instance::init()
 
   {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
-    if (resources.dummy_depth_tx.ensure_2d(
-            blender::gpu::TextureFormat::SFLOAT_32_DEPTH, int2(1, 1), usage))
+    if (resources.dummy_depth_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH, int2(1, 1), usage))
     {
       float data = 1.0f;
       GPU_texture_update_sub(resources.dummy_depth_tx, GPU_DATA_FLOAT, &data, 0, 0, 0, 1, 1, 1);
@@ -213,7 +212,7 @@ void Instance::ensure_weight_ramp_texture()
   }
 
   resources.weight_ramp_tx.ensure_1d(
-      blender::gpu::TextureFormat::SRGBA_8_8_8_8, res, GPU_TEXTURE_USAGE_SHADER_READ);
+      gpu::TextureFormat::SRGBA_8_8_8_8, res, GPU_TEXTURE_USAGE_SHADER_READ);
   GPU_texture_update(resources.weight_ramp_tx, GPU_DATA_UBYTE, pixels_ubyte);
 }
 
@@ -685,14 +684,13 @@ void Instance::end_sync()
     if (dtxl->depth_in_front == nullptr) {
       int2 size = int2(draw_ctx->viewport_size_get());
 
-      dtxl->depth_in_front = GPU_texture_create_2d(
-          "txl.depth_in_front",
-          size.x,
-          size.y,
-          1,
-          blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
-          GPU_TEXTURE_USAGE_GENERAL,
-          nullptr);
+      dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
+                                                   size.x,
+                                                   size.y,
+                                                   1,
+                                                   gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                                   GPU_TEXTURE_USAGE_GENERAL,
+                                                   nullptr);
     }
 
     GPU_framebuffer_ensure_config(

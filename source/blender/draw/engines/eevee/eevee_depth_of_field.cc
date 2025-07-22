@@ -166,9 +166,9 @@ void DepthOfField::sync()
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
                            GPU_TEXTURE_USAGE_SHADER_WRITE;
   reduced_color_tx_.ensure_2d(
-      blender::gpu::TextureFormat::SFLOAT_16_16_16_16, reduce_size, usage, nullptr, DOF_MIP_COUNT);
+      gpu::TextureFormat::SFLOAT_16_16_16_16, reduce_size, usage, nullptr, DOF_MIP_COUNT);
   reduced_coc_tx_.ensure_2d(
-      blender::gpu::TextureFormat::SFLOAT_16, reduce_size, usage, nullptr, DOF_MIP_COUNT);
+      gpu::TextureFormat::SFLOAT_16, reduce_size, usage, nullptr, DOF_MIP_COUNT);
   reduced_color_tx_.ensure_mip_views();
   reduced_coc_tx_.ensure_mip_views();
 
@@ -587,28 +587,25 @@ void DepthOfField::render(View &view,
   {
     GPU_debug_group_begin("Setup");
     {
-      bokeh_gather_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE),
-                                   blender::gpu::TextureFormat::SFLOAT_16_16);
-      bokeh_scatter_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE),
-                                    blender::gpu::TextureFormat::SFLOAT_16);
+      bokeh_gather_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), gpu::TextureFormat::SFLOAT_16_16);
+      bokeh_scatter_lut_tx_.acquire(int2(DOF_BOKEH_LUT_SIZE), gpu::TextureFormat::SFLOAT_16);
       bokeh_resolve_lut_tx_.acquire(int2(DOF_MAX_SLIGHT_FOCUS_RADIUS * 2 + 1),
-                                    blender::gpu::TextureFormat::SFLOAT_16);
+                                    gpu::TextureFormat::SFLOAT_16);
 
       if (use_bokeh_lut_) {
         drw.submit(bokeh_lut_ps_, view);
       }
     }
     {
-      setup_color_tx_.acquire(
-          half_res, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite);
-      setup_coc_tx_.acquire(half_res, blender::gpu::TextureFormat::SFLOAT_16);
+      setup_color_tx_.acquire(half_res, gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite);
+      setup_coc_tx_.acquire(half_res, gpu::TextureFormat::SFLOAT_16);
 
       drw.submit(setup_ps_, view);
     }
     {
-      stabilize_output_tx_.acquire(half_res, blender::gpu::TextureFormat::SFLOAT_16_16_16_16);
+      stabilize_output_tx_.acquire(half_res, gpu::TextureFormat::SFLOAT_16_16_16_16);
       stabilize_valid_history_ = !dof_buffer.stabilize_history_tx_.ensure_2d(
-          blender::gpu::TextureFormat::SFLOAT_16_16_16_16, half_res);
+          gpu::TextureFormat::SFLOAT_16_16_16_16, half_res);
 
       if (stabilize_valid_history_ == false) {
         /* Avoid uninitialized memory that can contain NaNs. */
@@ -632,13 +629,13 @@ void DepthOfField::render(View &view,
 
       /* WARNING: If format changes, make sure dof_tile_* GLSL constants are properly encoded. */
       tiles_fg_tx_.previous().acquire(
-          tile_res, blender::gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
+          tile_res, gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
       tiles_bg_tx_.previous().acquire(
-          tile_res, blender::gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
+          tile_res, gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
       tiles_fg_tx_.current().acquire(
-          tile_res, blender::gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
+          tile_res, gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
       tiles_bg_tx_.current().acquire(
-          tile_res, blender::gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
+          tile_res, gpu::TextureFormat::UFLOAT_11_11_10, usage_readwrite);
 
       drw.submit(tiles_flatten_ps_, view);
 
@@ -679,8 +676,7 @@ void DepthOfField::render(View &view,
       GPU_debug_group_end();
     }
 
-    downsample_tx_.acquire(
-        quarter_res, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite);
+    downsample_tx_.acquire(quarter_res, gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite);
 
     drw.submit(downsample_ps_, view);
 
@@ -706,9 +702,9 @@ void DepthOfField::render(View &view,
     PassSimple &scatter_ps = is_background ? scatter_bg_ps_ : scatter_fg_ps_;
 
     color_tx.current().acquire(
-        half_res, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite_attach);
-    weight_tx.current().acquire(half_res, blender::gpu::TextureFormat::SFLOAT_16, usage_readwrite);
-    occlusion_tx_.acquire(half_res, blender::gpu::TextureFormat::SFLOAT_16_16);
+        half_res, gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite_attach);
+    weight_tx.current().acquire(half_res, gpu::TextureFormat::SFLOAT_16, usage_readwrite);
+    occlusion_tx_.acquire(half_res, gpu::TextureFormat::SFLOAT_16_16);
 
     drw.submit(gather_ps, view);
 
@@ -718,9 +714,8 @@ void DepthOfField::render(View &view,
       weight_tx.swap();
 
       color_tx.current().acquire(
-          half_res, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite_attach);
-      weight_tx.current().acquire(
-          half_res, blender::gpu::TextureFormat::SFLOAT_16, usage_readwrite);
+          half_res, gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite_attach);
+      weight_tx.current().acquire(half_res, gpu::TextureFormat::SFLOAT_16, usage_readwrite);
 
       drw.submit(filter_ps, view);
 
@@ -746,10 +741,8 @@ void DepthOfField::render(View &view,
     bokeh_gather_lut_tx_.release();
     bokeh_scatter_lut_tx_.release();
 
-    hole_fill_color_tx_.acquire(
-        half_res, blender::gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite);
-    hole_fill_weight_tx_.acquire(
-        half_res, blender::gpu::TextureFormat::SFLOAT_16, usage_readwrite);
+    hole_fill_color_tx_.acquire(half_res, gpu::TextureFormat::SFLOAT_16_16_16_16, usage_readwrite);
+    hole_fill_weight_tx_.acquire(half_res, gpu::TextureFormat::SFLOAT_16, usage_readwrite);
 
     drw.submit(hole_fill_ps_, view);
 

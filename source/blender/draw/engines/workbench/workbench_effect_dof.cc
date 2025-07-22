@@ -109,11 +109,10 @@ void DofPass::init(const SceneState &scene_state, const DRWContext *draw_ctx)
   half_res = {max_ii(half_res.x, 1), max_ii(half_res.y, 1)};
 
   eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-  source_tx_.ensure_2d(
-      blender::gpu::TextureFormat::SFLOAT_16_16_16_16, half_res, usage, nullptr, 3);
+  source_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_16_16_16_16, half_res, usage, nullptr, 3);
   source_tx_.ensure_mip_views();
   source_tx_.filter_mode(true);
-  coc_halfres_tx_.ensure_2d(blender::gpu::TextureFormat::UNORM_8_8, half_res, usage, nullptr, 3);
+  coc_halfres_tx_.ensure_2d(gpu::TextureFormat::UNORM_8_8, half_res, usage, nullptr, 3);
   coc_halfres_tx_.ensure_mip_views();
   coc_halfres_tx_.filter_mode(true);
 
@@ -222,7 +221,7 @@ void DofPass::draw(Manager &manager, View &view, SceneResources &resources, int2
 
   int2 half_res = {max_ii(resolution.x / 2, 1), max_ii(resolution.y / 2, 1)};
   blur_tx_.acquire(half_res,
-                   blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+                   gpu::TextureFormat::SFLOAT_16_16_16_16,
                    GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
   downsample_fb_.ensure(GPU_ATTACHMENT_NONE,

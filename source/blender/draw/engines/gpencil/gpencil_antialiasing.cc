@@ -41,11 +41,11 @@ void Instance::antialiasing_init()
   if (!this->smaa_search_tx.is_valid()) {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ;
     this->smaa_search_tx.ensure_2d(
-        blender::gpu::TextureFormat::UNORM_8, int2(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT), usage);
+        gpu::TextureFormat::UNORM_8, int2(SEARCHTEX_WIDTH, SEARCHTEX_HEIGHT), usage);
     GPU_texture_update(this->smaa_search_tx, GPU_DATA_UBYTE, searchTexBytes);
 
     this->smaa_area_tx.ensure_2d(
-        blender::gpu::TextureFormat::UNORM_8_8, int2(AREATEX_WIDTH, AREATEX_HEIGHT), usage);
+        gpu::TextureFormat::UNORM_8_8, int2(AREATEX_WIDTH, AREATEX_HEIGHT), usage);
     GPU_texture_update(this->smaa_area_tx, GPU_DATA_UBYTE, areaTexBytes);
 
     GPU_texture_filter_mode(this->smaa_search_tx, true);
@@ -54,8 +54,8 @@ void Instance::antialiasing_init()
 
   {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-    this->smaa_edge_tx.acquire(size, blender::gpu::TextureFormat::UNORM_8_8, usage);
-    this->smaa_weight_tx.acquire(size, blender::gpu::TextureFormat::UNORM_8_8_8_8, usage);
+    this->smaa_edge_tx.acquire(size, gpu::TextureFormat::UNORM_8_8, usage);
+    this->smaa_weight_tx.acquire(size, gpu::TextureFormat::UNORM_8_8_8_8, usage);
 
     this->smaa_edge_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(this->smaa_edge_tx));
     this->smaa_weight_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(this->smaa_weight_tx));
@@ -195,7 +195,7 @@ void Instance::antialiasing_accumulate(Manager &manager, const float alpha)
 
   const eGPUTextureUsage usage = GPU_TEXTURE_USAGE_HOST_READ | GPU_TEXTURE_USAGE_SHADER_READ |
                                  GPU_TEXTURE_USAGE_SHADER_WRITE | GPU_TEXTURE_USAGE_ATTACHMENT;
-  accumulation_tx.ensure_2d(GPENCIL_ACCUM_FORMAT, size, usage);
+  accumulation_tx.ensure_2d(gpu::TextureFormat::GPENCIL_ACCUM_FORMAT, size, usage);
 
   {
     PassSimple &pass = this->accumulate_ps;

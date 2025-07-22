@@ -149,8 +149,8 @@ void MotionBlurModule::sync()
   {
     /* Create max velocity tiles. */
     PassSimple::Sub &sub = motion_blur_ps_.sub("TilesFlatten");
-    blender::gpu::TextureFormat vector_tx_format = inst_.render_buffers.vector_tx_format();
-    eShaderType shader = vector_tx_format == blender::gpu::TextureFormat::SFLOAT_16_16 ?
+    gpu::TextureFormat vector_tx_format = inst_.render_buffers.vector_tx_format();
+    eShaderType shader = vector_tx_format == gpu::TextureFormat::SFLOAT_16_16 ?
                              MOTION_BLUR_TILE_FLATTEN_RG :
                              MOTION_BLUR_TILE_FLATTEN_RGBA;
     sub.shader_set(inst_.shaders.static_shader_get(shader));
@@ -238,7 +238,7 @@ void MotionBlurModule::render(View &view, gpu::Texture **input_tx, gpu::Texture 
 
   GPU_debug_group_begin("Motion Blur");
 
-  tiles_tx_.acquire(tiles_extent, blender::gpu::TextureFormat::SFLOAT_16_16_16_16);
+  tiles_tx_.acquire(tiles_extent, gpu::TextureFormat::SFLOAT_16_16_16_16);
 
   tile_indirection_buf_.clear_to_zero();
 

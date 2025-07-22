@@ -135,7 +135,7 @@ bool GLTexture::init_internal(gpu::Texture *src,
   debug::object_label(GL_TEXTURE, tex_id_, name_);
 
   /* Stencil view support. */
-  if (ELEM(format_, blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8)) {
+  if (ELEM(format_, TextureFormat::SFLOAT_32_DEPTH_UINT_8)) {
     stencil_texture_mode_set(use_stencil);
   }
 
@@ -379,9 +379,7 @@ void *GLTexture::read(int mip, eGPUDataFormat type)
   void *data = MEM_mallocN(texture_size + 8, "GPU_texture_read");
 
   GLenum gl_format = to_gl_data_format(
-      format_ == blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8 ?
-          blender::gpu::TextureFormat::SFLOAT_32_DEPTH :
-          format_);
+      format_ == TextureFormat::SFLOAT_32_DEPTH_UINT_8 ? TextureFormat::SFLOAT_32_DEPTH : format_);
   GLenum gl_type = to_gl(type);
 
   if (GLContext::direct_state_access_support) {

@@ -220,12 +220,10 @@ void LookdevModule::init(const rcti *visible_rect)
     const int2 extent_dummy(1);
     constexpr eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_WRITE |
                                        GPU_TEXTURE_USAGE_SHADER_READ;
-    dummy_cryptomatte_tx_.ensure_2d(
-        blender::gpu::TextureFormat::SFLOAT_32_32_32_32, extent_dummy, usage);
+    dummy_cryptomatte_tx_.ensure_2d(gpu::TextureFormat::SFLOAT_32_32_32_32, extent_dummy, usage);
     dummy_aov_color_tx_.ensure_2d_array(
-        blender::gpu::TextureFormat::SFLOAT_16_16_16_16, extent_dummy, 1, usage);
-    dummy_aov_value_tx_.ensure_2d_array(
-        blender::gpu::TextureFormat::SFLOAT_16, extent_dummy, 1, usage);
+        gpu::TextureFormat::SFLOAT_16_16_16_16, extent_dummy, 1, usage);
+    dummy_aov_value_tx_.ensure_2d_array(gpu::TextureFormat::SFLOAT_16, extent_dummy, 1, usage);
   }
 }
 
@@ -264,7 +262,7 @@ void LookdevModule::sync()
   const float viewport_scale = calc_viewport_scale();
   const int2 extent = int2(calc_sphere_extent(viewport_scale));
 
-  const blender::gpu::TextureFormat color_format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
+  const gpu::TextureFormat color_format = gpu::TextureFormat::SFLOAT_16_16_16_16;
 
   for (int index : IndexRange(num_spheres)) {
     if (spheres_[index].color_tx_.ensure_2d(color_format, extent)) {

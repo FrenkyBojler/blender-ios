@@ -71,7 +71,7 @@ gpu::MTLTexture::MTLTexture(const char *name) : Texture(name)
 }
 
 gpu::MTLTexture::MTLTexture(const char *name,
-                            blender::gpu::TextureFormat format,
+                            TextureFormat format,
                             eGPUTextureType type,
                             id<MTLTexture> metal_texture)
     : Texture(name)
@@ -616,7 +616,7 @@ void gpu::MTLTexture::update_sub(
       }
     }
 
-    if (format_ == blender::gpu::TextureFormat::SRGBA_8_8_8_8 && !can_use_direct_blit) {
+    if (format_ == TextureFormat::SRGBA_8_8_8_8 && !can_use_direct_blit) {
       MTL_LOG_WARNING(
           "SRGB data upload does not work correctly using compute upload. "
           "texname '%s'",
@@ -1253,9 +1253,8 @@ void gpu::MTLTexture::generate_mipmap()
   }
 
   /* Verify if we can perform mipmap generation. */
-  if (format_ == blender::gpu::TextureFormat::SFLOAT_32_DEPTH ||
-      format_ == blender::gpu::TextureFormat::UNORM_16_DEPTH ||
-      format_ == blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8)
+  if (format_ == TextureFormat::SFLOAT_32_DEPTH || format_ == TextureFormat::UNORM_16_DEPTH ||
+      format_ == TextureFormat::SFLOAT_32_DEPTH_UINT_8)
   {
     MTL_LOG_WARNING("Cannot generate mipmaps for textures using DEPTH formats");
     return;
@@ -1622,15 +1621,15 @@ void gpu::MTLTexture::read_internal(int mip,
     BLI_assert(validate_data_format(format_, data_format));
   }
 
-  /* SPECIAL Workaround for R11G11B10, blender::gpu::TextureFormat::UNORM_10_10_10_2,
-   * blender::gpu::TextureFormat::UINT_10_10_10_2 textures requesting a read using:
+  /* SPECIAL Workaround for R11G11B10, TextureFormat::UNORM_10_10_10_2,
+   * TextureFormat::UINT_10_10_10_2 textures requesting a read using:
    * GPU_DATA_10_11_11_REV. */
   if (desired_output_format == GPU_DATA_10_11_11_REV ||
       desired_output_format == GPU_DATA_2_10_10_10_REV)
   {
-    BLI_assert(format_ == blender::gpu::TextureFormat::UFLOAT_11_11_10 ||
-               format_ == blender::gpu::TextureFormat::UNORM_10_10_10_2 ||
-               format_ == blender::gpu::TextureFormat::UINT_10_10_10_2);
+    BLI_assert(format_ == TextureFormat::UFLOAT_11_11_10 ||
+               format_ == TextureFormat::UNORM_10_10_10_2 ||
+               format_ == TextureFormat::UINT_10_10_10_2);
 
     /* override parameters - we'll be able to use simple copy, as bpp will match at 4 bytes. */
     image_bpp = sizeof(int);
@@ -1710,7 +1709,7 @@ void gpu::MTLTexture::read_internal(int mip,
       read_texture = this->get_metal_handle();
     }
     /* Create Texture View for SRGB special case to bypass internal type conversion. */
-    if (format_ == blender::gpu::TextureFormat::SRGBA_8_8_8_8) {
+    if (format_ == TextureFormat::SRGBA_8_8_8_8) {
       BLI_assert(internal_gpu_image_usage_flags_ & GPU_TEXTURE_USAGE_FORMAT_VIEW);
       read_texture = [read_texture newTextureViewWithPixelFormat:MTLPixelFormatRGBA8Unorm];
     }
@@ -2185,7 +2184,7 @@ bool gpu::MTLTexture::init_internal(gpu::Texture *src,
   /* Stencil view support. */
   texture_view_stencil_ = false;
   if (use_stencil) {
-    BLI_assert(ELEM(format_, blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8));
+    BLI_assert(ELEM(format_, TextureFormat::SFLOAT_32_DEPTH_UINT_8));
     texture_view_stencil_ = true;
   }
 
@@ -2266,7 +2265,7 @@ void gpu::MTLTexture::ensure_baked()
     /* SRGB textures require a texture view for reading data and when rendering with SRGB
      * disabled. Enabling the texture_view or texture_read usage flags disables lossless
      * compression, so the situations in which it is used should be limited. */
-    if (format_ == blender::gpu::TextureFormat::SRGBA_8_8_8_8) {
+    if (format_ == TextureFormat::SRGBA_8_8_8_8) {
       internal_gpu_image_usage_flags_ |= GPU_TEXTURE_USAGE_FORMAT_VIEW;
     }
 
@@ -2574,7 +2573,7 @@ MTLStorageBuf *gpu::MTLTexture::get_storagebuf()
  * \{ */
 bool MTLTexture::is_format_srgb()
 {
-  return (format_ == blender::gpu::TextureFormat::SRGBA_8_8_8_8);
+  return (format_ == TextureFormat::SRGBA_8_8_8_8);
 }
 
 id<MTLTexture> MTLTexture::get_non_srgb_handle()

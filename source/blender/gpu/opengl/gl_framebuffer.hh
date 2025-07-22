@@ -39,7 +39,7 @@ class GLFrameBuffer : public FrameBuffer {
   /** Internal frame-buffers are immutable. */
   bool immutable_ = false;
   /** True is the frame-buffer has its first color target using the
-   * blender::gpu::TextureFormat::SRGBA_8_8_8_8 format. */
+   * TextureFormat::SRGBA_8_8_8_8 format. */
   bool srgb_ = false;
   /** True is the frame-buffer has been bound using the GL_FRAMEBUFFER_SRGB feature. */
   bool enabled_srgb_ = false;

@@ -152,10 +152,10 @@ void OpaquePass::draw(Manager &manager,
     return;
   }
   gbuffer_material_tx.acquire(resolution,
-                              blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+                              gpu::TextureFormat::SFLOAT_16_16_16_16,
                               GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
   gbuffer_normal_tx.acquire(resolution,
-                            blender::gpu::TextureFormat::SFLOAT_16_16,
+                            gpu::TextureFormat::SFLOAT_16_16,
                             GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
   GPUAttachment object_id_attachment = GPU_ATTACHMENT_NONE;
@@ -188,7 +188,7 @@ void OpaquePass::draw(Manager &manager,
   }
 
   if (shadow_pass) {
-    shadow_depth_stencil_tx.ensure_2d(blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+    shadow_depth_stencil_tx.ensure_2d(gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                       resolution,
                                       GPU_TEXTURE_USAGE_SHADER_READ |
                                           GPU_TEXTURE_USAGE_ATTACHMENT |
@@ -266,10 +266,10 @@ void TransparentPass::draw(Manager &manager,
     return;
   }
   accumulation_tx.acquire(resolution,
-                          blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+                          gpu::TextureFormat::SFLOAT_16_16_16_16,
                           GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
   reveal_tx.acquire(resolution,
-                    blender::gpu::TextureFormat::SFLOAT_16,
+                    gpu::TextureFormat::SFLOAT_16,
                     GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT);
 
   resolve_fb.ensure(GPU_ATTACHMENT_NONE, GPU_ATTACHMENT_TEXTURE(resources.color_tx));

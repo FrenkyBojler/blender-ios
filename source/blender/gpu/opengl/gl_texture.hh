@@ -146,139 +146,139 @@ class GLPixelBuffer : public PixelBuffer {
   MEM_CXX_CLASS_ALLOC_FUNCS("GLPixelBuffer")
 };
 
-inline GLenum to_gl_internal_format(blender::gpu::TextureFormat format)
+inline GLenum to_gl_internal_format(TextureFormat format)
 {
   switch (format) {
     /* Texture & Render-Buffer Formats. */
-    case blender::gpu::TextureFormat::UINT_8_8_8_8:
+    case TextureFormat::UINT_8_8_8_8:
       return GL_RGBA8UI;
-    case blender::gpu::TextureFormat::SINT_8_8_8_8:
+    case TextureFormat::SINT_8_8_8_8:
       return GL_RGBA8I;
-    case blender::gpu::TextureFormat::UNORM_8_8_8_8:
+    case TextureFormat::UNORM_8_8_8_8:
       return GL_RGBA8;
-    case blender::gpu::TextureFormat::UINT_32_32_32_32:
+    case TextureFormat::UINT_32_32_32_32:
       return GL_RGBA32UI;
-    case blender::gpu::TextureFormat::SINT_32_32_32_32:
+    case TextureFormat::SINT_32_32_32_32:
       return GL_RGBA32I;
-    case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
+    case TextureFormat::SFLOAT_32_32_32_32:
       return GL_RGBA32F;
-    case blender::gpu::TextureFormat::UINT_16_16_16_16:
+    case TextureFormat::UINT_16_16_16_16:
       return GL_RGBA16UI;
-    case blender::gpu::TextureFormat::SINT_16_16_16_16:
+    case TextureFormat::SINT_16_16_16_16:
       return GL_RGBA16I;
-    case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
+    case TextureFormat::SFLOAT_16_16_16_16:
       return GL_RGBA16F;
-    case blender::gpu::TextureFormat::UNORM_16_16_16_16:
+    case TextureFormat::UNORM_16_16_16_16:
       return GL_RGBA16;
-    case blender::gpu::TextureFormat::UINT_8_8:
+    case TextureFormat::UINT_8_8:
       return GL_RG8UI;
-    case blender::gpu::TextureFormat::SINT_8_8:
+    case TextureFormat::SINT_8_8:
       return GL_RG8I;
-    case blender::gpu::TextureFormat::UNORM_8_8:
+    case TextureFormat::UNORM_8_8:
       return GL_RG8;
-    case blender::gpu::TextureFormat::UINT_32_32:
+    case TextureFormat::UINT_32_32:
       return GL_RG32UI;
-    case blender::gpu::TextureFormat::SINT_32_32:
+    case TextureFormat::SINT_32_32:
       return GL_RG32I;
-    case blender::gpu::TextureFormat::SFLOAT_32_32:
+    case TextureFormat::SFLOAT_32_32:
       return GL_RG32F;
-    case blender::gpu::TextureFormat::UINT_16_16:
+    case TextureFormat::UINT_16_16:
       return GL_RG16UI;
-    case blender::gpu::TextureFormat::SINT_16_16:
+    case TextureFormat::SINT_16_16:
       return GL_RG16I;
-    case blender::gpu::TextureFormat::SFLOAT_16_16:
+    case TextureFormat::SFLOAT_16_16:
       return GL_RG16F;
-    case blender::gpu::TextureFormat::UNORM_16_16:
+    case TextureFormat::UNORM_16_16:
       return GL_RG16;
-    case blender::gpu::TextureFormat::UINT_8:
+    case TextureFormat::UINT_8:
       return GL_R8UI;
-    case blender::gpu::TextureFormat::SINT_8:
+    case TextureFormat::SINT_8:
       return GL_R8I;
-    case blender::gpu::TextureFormat::UNORM_8:
+    case TextureFormat::UNORM_8:
       return GL_R8;
-    case blender::gpu::TextureFormat::UINT_32:
+    case TextureFormat::UINT_32:
       return GL_R32UI;
-    case blender::gpu::TextureFormat::SINT_32:
+    case TextureFormat::SINT_32:
       return GL_R32I;
-    case blender::gpu::TextureFormat::SFLOAT_32:
+    case TextureFormat::SFLOAT_32:
       return GL_R32F;
-    case blender::gpu::TextureFormat::UINT_16:
+    case TextureFormat::UINT_16:
       return GL_R16UI;
-    case blender::gpu::TextureFormat::SINT_16:
+    case TextureFormat::SINT_16:
       return GL_R16I;
-    case blender::gpu::TextureFormat::SFLOAT_16:
+    case TextureFormat::SFLOAT_16:
       return GL_R16F;
-    case blender::gpu::TextureFormat::UNORM_16:
+    case TextureFormat::UNORM_16:
       return GL_R16;
     /* Special formats texture & render-buffer. */
-    case blender::gpu::TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::UNORM_10_10_10_2:
       return GL_RGB10_A2;
-    case blender::gpu::TextureFormat::UINT_10_10_10_2:
+    case TextureFormat::UINT_10_10_10_2:
       return GL_RGB10_A2UI;
-    case blender::gpu::TextureFormat::UFLOAT_11_11_10:
+    case TextureFormat::UFLOAT_11_11_10:
       return GL_R11F_G11F_B10F;
-    case blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8:
+    case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
       return GL_DEPTH32F_STENCIL8;
-    case blender::gpu::TextureFormat::SRGBA_8_8_8_8:
+    case TextureFormat::SRGBA_8_8_8_8:
       return GL_SRGB8_ALPHA8;
     /* Texture only formats. */
-    case blender::gpu::TextureFormat::SFLOAT_16_16_16:
+    case TextureFormat::SFLOAT_16_16_16:
       return GL_RGB16F;
-    case blender::gpu::TextureFormat::SNORM_16_16_16_16:
+    case TextureFormat::SNORM_16_16_16_16:
       return GL_RGBA16_SNORM;
-    case blender::gpu::TextureFormat::SNORM_8_8_8_8:
+    case TextureFormat::SNORM_8_8_8_8:
       return GL_RGBA8_SNORM;
-    case blender::gpu::TextureFormat::SFLOAT_32_32_32:
+    case TextureFormat::SFLOAT_32_32_32:
       return GL_RGB32F;
-    case blender::gpu::TextureFormat::SINT_32_32_32:
+    case TextureFormat::SINT_32_32_32:
       return GL_RGB32I;
-    case blender::gpu::TextureFormat::UINT_32_32_32:
+    case TextureFormat::UINT_32_32_32:
       return GL_RGB32UI;
-    case blender::gpu::TextureFormat::SNORM_16_16_16:
+    case TextureFormat::SNORM_16_16_16:
       return GL_RGB16_SNORM;
-    case blender::gpu::TextureFormat::SINT_16_16_16:
+    case TextureFormat::SINT_16_16_16:
       return GL_RGB16I;
-    case blender::gpu::TextureFormat::UINT_16_16_16:
+    case TextureFormat::UINT_16_16_16:
       return GL_RGB16UI;
-    case blender::gpu::TextureFormat::UNORM_16_16_16:
+    case TextureFormat::UNORM_16_16_16:
       return GL_RGB16;
-    case blender::gpu::TextureFormat::SNORM_8_8_8:
+    case TextureFormat::SNORM_8_8_8:
       return GL_RGB8_SNORM;
-    case blender::gpu::TextureFormat::UNORM_8_8_8:
+    case TextureFormat::UNORM_8_8_8:
       return GL_RGB8;
-    case blender::gpu::TextureFormat::SINT_8_8_8:
+    case TextureFormat::SINT_8_8_8:
       return GL_RGB8I;
-    case blender::gpu::TextureFormat::UINT_8_8_8:
+    case TextureFormat::UINT_8_8_8:
       return GL_RGB8UI;
-    case blender::gpu::TextureFormat::SNORM_16_16:
+    case TextureFormat::SNORM_16_16:
       return GL_RG16_SNORM;
-    case blender::gpu::TextureFormat::SNORM_8_8:
+    case TextureFormat::SNORM_8_8:
       return GL_RG8_SNORM;
-    case blender::gpu::TextureFormat::SNORM_16:
+    case TextureFormat::SNORM_16:
       return GL_R16_SNORM;
-    case blender::gpu::TextureFormat::SNORM_8:
+    case TextureFormat::SNORM_8:
       return GL_R8_SNORM;
     /* Special formats, texture only. */
-    case blender::gpu::TextureFormat::SRGB_DXT1:
+    case TextureFormat::SRGB_DXT1:
       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
-    case blender::gpu::TextureFormat::SRGB_DXT3:
+    case TextureFormat::SRGB_DXT3:
       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
-    case blender::gpu::TextureFormat::SRGB_DXT5:
+    case TextureFormat::SRGB_DXT5:
       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
-    case blender::gpu::TextureFormat::SNORM_DXT1:
+    case TextureFormat::SNORM_DXT1:
       return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-    case blender::gpu::TextureFormat::SNORM_DXT3:
+    case TextureFormat::SNORM_DXT3:
       return GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-    case blender::gpu::TextureFormat::SNORM_DXT5:
+    case TextureFormat::SNORM_DXT5:
       return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-    case blender::gpu::TextureFormat::SRGBA_8_8_8:
+    case TextureFormat::SRGBA_8_8_8:
       return GL_SRGB8;
-    case blender::gpu::TextureFormat::UFLOAT_9_9_9_EXP_5:
+    case TextureFormat::UFLOAT_9_9_9_EXP_5:
       return GL_RGB9_E5;
     /* Depth Formats. */
-    case blender::gpu::TextureFormat::SFLOAT_32_DEPTH:
+    case TextureFormat::SFLOAT_32_DEPTH:
       return GL_DEPTH_COMPONENT32F;
-    case blender::gpu::TextureFormat::UNORM_16_DEPTH:
+    case TextureFormat::UNORM_16_DEPTH:
       return GL_DEPTH_COMPONENT16;
   }
   BLI_assert_msg(0, "Texture format incorrect or unsupported");
@@ -382,97 +382,97 @@ inline GLenum to_gl(eGPUDataFormat format)
   }
 }
 
-inline GLenum to_gl_data_format(blender::gpu::TextureFormat format)
+inline GLenum to_gl_data_format(TextureFormat format)
 {
   switch (format) {
     /* Texture & Render-Buffer Formats. */
-    case blender::gpu::TextureFormat::UNORM_8_8_8_8:
-    case blender::gpu::TextureFormat::SFLOAT_32_32_32_32:
-    case blender::gpu::TextureFormat::SFLOAT_16_16_16_16:
-    case blender::gpu::TextureFormat::UNORM_16_16_16_16:
+    case TextureFormat::UNORM_8_8_8_8:
+    case TextureFormat::SFLOAT_32_32_32_32:
+    case TextureFormat::SFLOAT_16_16_16_16:
+    case TextureFormat::UNORM_16_16_16_16:
       return GL_RGBA;
-    case blender::gpu::TextureFormat::UINT_8_8_8_8:
-    case blender::gpu::TextureFormat::SINT_8_8_8_8:
-    case blender::gpu::TextureFormat::SINT_32_32_32_32:
-    case blender::gpu::TextureFormat::UINT_32_32_32_32:
-    case blender::gpu::TextureFormat::UINT_16_16_16_16:
-    case blender::gpu::TextureFormat::SINT_16_16_16_16:
+    case TextureFormat::UINT_8_8_8_8:
+    case TextureFormat::SINT_8_8_8_8:
+    case TextureFormat::SINT_32_32_32_32:
+    case TextureFormat::UINT_32_32_32_32:
+    case TextureFormat::UINT_16_16_16_16:
+    case TextureFormat::SINT_16_16_16_16:
       return GL_RGBA_INTEGER;
-    case blender::gpu::TextureFormat::UNORM_8_8:
-    case blender::gpu::TextureFormat::SFLOAT_32_32:
-    case blender::gpu::TextureFormat::SFLOAT_16_16:
-    case blender::gpu::TextureFormat::UNORM_16_16:
+    case TextureFormat::UNORM_8_8:
+    case TextureFormat::SFLOAT_32_32:
+    case TextureFormat::SFLOAT_16_16:
+    case TextureFormat::UNORM_16_16:
       return GL_RG;
-    case blender::gpu::TextureFormat::UINT_8_8:
-    case blender::gpu::TextureFormat::SINT_8_8:
-    case blender::gpu::TextureFormat::UINT_32_32:
-    case blender::gpu::TextureFormat::SINT_32_32:
-    case blender::gpu::TextureFormat::SINT_16_16:
-    case blender::gpu::TextureFormat::UINT_16_16:
+    case TextureFormat::UINT_8_8:
+    case TextureFormat::SINT_8_8:
+    case TextureFormat::UINT_32_32:
+    case TextureFormat::SINT_32_32:
+    case TextureFormat::SINT_16_16:
+    case TextureFormat::UINT_16_16:
       return GL_RG_INTEGER;
-    case blender::gpu::TextureFormat::UNORM_8:
-    case blender::gpu::TextureFormat::SFLOAT_32:
-    case blender::gpu::TextureFormat::SFLOAT_16:
-    case blender::gpu::TextureFormat::UNORM_16:
+    case TextureFormat::UNORM_8:
+    case TextureFormat::SFLOAT_32:
+    case TextureFormat::SFLOAT_16:
+    case TextureFormat::UNORM_16:
       return GL_RED;
-    case blender::gpu::TextureFormat::UINT_8:
-    case blender::gpu::TextureFormat::SINT_8:
-    case blender::gpu::TextureFormat::UINT_32:
-    case blender::gpu::TextureFormat::SINT_32:
-    case blender::gpu::TextureFormat::UINT_16:
-    case blender::gpu::TextureFormat::SINT_16:
+    case TextureFormat::UINT_8:
+    case TextureFormat::SINT_8:
+    case TextureFormat::UINT_32:
+    case TextureFormat::SINT_32:
+    case TextureFormat::UINT_16:
+    case TextureFormat::SINT_16:
       return GL_RED_INTEGER;
     /* Special formats texture & render-buffer. */
-    case blender::gpu::TextureFormat::UINT_10_10_10_2:
-    case blender::gpu::TextureFormat::UNORM_10_10_10_2:
-    case blender::gpu::TextureFormat::SRGBA_8_8_8_8:
+    case TextureFormat::UINT_10_10_10_2:
+    case TextureFormat::UNORM_10_10_10_2:
+    case TextureFormat::SRGBA_8_8_8_8:
       return GL_RGBA;
-    case blender::gpu::TextureFormat::UFLOAT_11_11_10:
+    case TextureFormat::UFLOAT_11_11_10:
       return GL_RGB;
-    case blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8:
+    case TextureFormat::SFLOAT_32_DEPTH_UINT_8:
       return GL_DEPTH_STENCIL;
     /* Texture only formats. */
-    case blender::gpu::TextureFormat::SNORM_16_16_16_16:
-    case blender::gpu::TextureFormat::SNORM_8_8_8_8:
+    case TextureFormat::SNORM_16_16_16_16:
+    case TextureFormat::SNORM_8_8_8_8:
       return GL_RGBA;
-    case blender::gpu::TextureFormat::SFLOAT_16_16_16:
-    case blender::gpu::TextureFormat::SFLOAT_32_32_32:
-    case blender::gpu::TextureFormat::SINT_32_32_32:
-    case blender::gpu::TextureFormat::UINT_32_32_32:
-    case blender::gpu::TextureFormat::SNORM_16_16_16:
-    case blender::gpu::TextureFormat::SINT_16_16_16:
-    case blender::gpu::TextureFormat::UINT_16_16_16:
-    case blender::gpu::TextureFormat::UNORM_16_16_16:
-    case blender::gpu::TextureFormat::SNORM_8_8_8:
-    case blender::gpu::TextureFormat::UNORM_8_8_8:
-    case blender::gpu::TextureFormat::SINT_8_8_8:
-    case blender::gpu::TextureFormat::UINT_8_8_8:
+    case TextureFormat::SFLOAT_16_16_16:
+    case TextureFormat::SFLOAT_32_32_32:
+    case TextureFormat::SINT_32_32_32:
+    case TextureFormat::UINT_32_32_32:
+    case TextureFormat::SNORM_16_16_16:
+    case TextureFormat::SINT_16_16_16:
+    case TextureFormat::UINT_16_16_16:
+    case TextureFormat::UNORM_16_16_16:
+    case TextureFormat::SNORM_8_8_8:
+    case TextureFormat::UNORM_8_8_8:
+    case TextureFormat::SINT_8_8_8:
+    case TextureFormat::UINT_8_8_8:
       return GL_RGB;
-    case blender::gpu::TextureFormat::SNORM_16_16:
-    case blender::gpu::TextureFormat::SNORM_8_8:
+    case TextureFormat::SNORM_16_16:
+    case TextureFormat::SNORM_8_8:
       return GL_RG;
-    case blender::gpu::TextureFormat::SNORM_16:
-    case blender::gpu::TextureFormat::SNORM_8:
+    case TextureFormat::SNORM_16:
+    case TextureFormat::SNORM_8:
       return GL_RED;
       /* Special formats, texture only. */
-    case blender::gpu::TextureFormat::SRGB_DXT1:
+    case TextureFormat::SRGB_DXT1:
       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT1_EXT;
-    case blender::gpu::TextureFormat::SRGB_DXT3:
+    case TextureFormat::SRGB_DXT3:
       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT3_EXT;
-    case blender::gpu::TextureFormat::SRGB_DXT5:
+    case TextureFormat::SRGB_DXT5:
       return GL_COMPRESSED_SRGB_ALPHA_S3TC_DXT5_EXT;
-    case blender::gpu::TextureFormat::SNORM_DXT1:
+    case TextureFormat::SNORM_DXT1:
       return GL_COMPRESSED_RGBA_S3TC_DXT1_EXT;
-    case blender::gpu::TextureFormat::SNORM_DXT3:
+    case TextureFormat::SNORM_DXT3:
       return GL_COMPRESSED_RGBA_S3TC_DXT3_EXT;
-    case blender::gpu::TextureFormat::SNORM_DXT5:
+    case TextureFormat::SNORM_DXT5:
       return GL_COMPRESSED_RGBA_S3TC_DXT5_EXT;
-    case blender::gpu::TextureFormat::SRGBA_8_8_8:
-    case blender::gpu::TextureFormat::UFLOAT_9_9_9_EXP_5:
+    case TextureFormat::SRGBA_8_8_8:
+    case TextureFormat::UFLOAT_9_9_9_EXP_5:
       return GL_RGB;
     /* Depth Formats. */
-    case blender::gpu::TextureFormat::SFLOAT_32_DEPTH:
-    case blender::gpu::TextureFormat::UNORM_16_DEPTH:
+    case TextureFormat::SFLOAT_32_DEPTH:
+    case TextureFormat::UNORM_16_DEPTH:
       return GL_DEPTH_COMPONENT;
   }
   BLI_assert_msg(0, "Texture format incorrect or unsupported\n");

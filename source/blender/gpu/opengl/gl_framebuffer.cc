@@ -210,7 +210,7 @@ void GLFrameBuffer::update_attachments()
     int size[3];
     GPU_texture_get_mipmap_size(attach.tex, attach.mip, size);
     this->size_set(size[0], size[1]);
-    srgb_ = (GPU_texture_format(attach.tex) == blender::gpu::TextureFormat::SRGBA_8_8_8_8);
+    srgb_ = (GPU_texture_format(attach.tex) == TextureFormat::SRGBA_8_8_8_8);
   }
   else {
     /* Empty frame-buffer. */

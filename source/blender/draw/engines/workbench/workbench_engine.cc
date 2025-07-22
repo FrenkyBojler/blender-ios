@@ -467,7 +467,7 @@ class Instance : public DrawEngine {
     GPUAttachment id_attachment = GPU_ATTACHMENT_NONE;
     if (scene_state_.draw_object_id) {
       resources_.object_id_tx.acquire(resolution,
-                                      blender::gpu::TextureFormat::UINT_16,
+                                      gpu::TextureFormat::UINT_16,
                                       GPU_TEXTURE_USAGE_SHADER_READ |
                                           GPU_TEXTURE_USAGE_ATTACHMENT);
       id_attachment = GPU_ATTACHMENT_TEXTURE(resources_.object_id_tx);
@@ -588,28 +588,22 @@ static bool workbench_render_framebuffers_init(const DRWContext *draw_ctx)
   if (dtxl->color == nullptr) {
     BLI_assert(dtxl->depth == nullptr);
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_GENERAL;
-    dtxl->color = GPU_texture_create_2d("txl.color",
-                                        size.x,
-                                        size.y,
-                                        1,
-                                        blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
-                                        usage,
-                                        nullptr);
+    dtxl->color = GPU_texture_create_2d(
+        "txl.color", size.x, size.y, 1, gpu::TextureFormat::SFLOAT_16_16_16_16, usage, nullptr);
     dtxl->depth = GPU_texture_create_2d("txl.depth",
                                         size.x,
                                         size.y,
                                         1,
-                                        blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                        gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
                                         usage,
                                         nullptr);
-    dtxl->depth_in_front = GPU_texture_create_2d(
-        "txl.depth_in_front",
-        size.x,
-        size.y,
-        1,
-        blender::gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
-        usage,
-        nullptr);
+    dtxl->depth_in_front = GPU_texture_create_2d("txl.depth_in_front",
+                                                 size.x,
+                                                 size.y,
+                                                 1,
+                                                 gpu::TextureFormat::SFLOAT_32_DEPTH_UINT_8,
+                                                 usage,
+                                                 nullptr);
   }
 
   if (!(dtxl->depth && dtxl->color && dtxl->depth_in_front)) {

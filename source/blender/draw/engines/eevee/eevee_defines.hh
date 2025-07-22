@@ -57,7 +57,7 @@
 #define SPHERE_PROBE_MAX 128
 
 /** NOTE: Runtime format only. */
-#define VOLUME_PROBE_FORMAT blender::gpu::TextureFormat::SFLOAT_16_16_16_16
+#define VOLUME_PROBE_FORMAT SFLOAT_16_16_16_16
 
 /**
  * Limited by the performance impact it can cause.
@@ -131,21 +131,21 @@
 #define GBUF_NORMAL_FB_LAYER_COUNT 1
 
 /* Deferred Lighting. */
-#define DEFERRED_RADIANCE_FORMAT blender::gpu::TextureFormat::UINT_32
+#define DEFERRED_RADIANCE_FORMAT UINT_32
 #define DEFERRED_GBUFFER_ROG_ID 0
 
 /* Ray-tracing. */
 #define RAYTRACE_GROUP_SIZE 8
 /* Keep this as a define to avoid shader variations. */
-#define RAYTRACE_RADIANCE_FORMAT blender::gpu::TextureFormat::UFLOAT_11_11_10
-#define RAYTRACE_RAYTIME_FORMAT blender::gpu::TextureFormat::SFLOAT_32
-#define RAYTRACE_VARIANCE_FORMAT blender::gpu::TextureFormat::SFLOAT_16
-#define RAYTRACE_TILEMASK_FORMAT blender::gpu::TextureFormat::UINT_8
+#define RAYTRACE_RADIANCE_FORMAT UFLOAT_11_11_10
+#define RAYTRACE_RAYTIME_FORMAT SFLOAT_32
+#define RAYTRACE_VARIANCE_FORMAT SFLOAT_16
+#define RAYTRACE_TILEMASK_FORMAT UINT_8
 
 /* Sub-Surface Scattering. */
 #define SUBSURFACE_GROUP_SIZE RAYTRACE_GROUP_SIZE
-#define SUBSURFACE_RADIANCE_FORMAT blender::gpu::TextureFormat::UFLOAT_11_11_10
-#define SUBSURFACE_OBJECT_ID_FORMAT blender::gpu::TextureFormat::UINT_16
+#define SUBSURFACE_RADIANCE_FORMAT UFLOAT_11_11_10
+#define SUBSURFACE_OBJECT_ID_FORMAT UINT_16
 
 /* Film. */
 #define FILM_GROUP_SIZE 16
