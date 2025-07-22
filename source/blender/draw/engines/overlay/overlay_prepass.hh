@@ -130,6 +130,10 @@ class Prepass : Overlay {
 
   void particle_sync(Manager &manager, const ObjectRef &ob_ref, Resources &res, const State &state)
   {
+    if (state.skip_particles) {
+      return;
+    }
+
     Object *ob = ob_ref.object;
 
     ResourceHandleRange handle = {};
@@ -198,9 +202,7 @@ class Prepass : Overlay {
       return;
     }
 
-    if (!state.skip_particles) {
-      particle_sync(manager, ob_ref, res, state);
-    }
+    particle_sync(manager, ob_ref, res, state);
 
     const bool use_sculpt_pbvh = BKE_sculptsession_use_pbvh_draw(ob_ref.object, state.rv3d) &&
                                  !state.is_image_render;
