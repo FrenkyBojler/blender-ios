@@ -178,6 +178,7 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
 
   const OffsetIndices points_by_curve = curves.points_by_curve();
   const OffsetIndices evaluated_points_by_curve = curves.evaluated_points_by_curve();
+  const Span<float3> positions = curves.positions();
   const Span<float3> evaluated_positions = curves.evaluated_positions();
   const VArray<bool> curve_cyclic = curves.cyclic();
   const VArray<int8_t> types = curves.curve_types();
@@ -186,29 +187,20 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
     const IndexRange src_points = points_by_curve[curve_i];
     const IndexRange eval_points = evaluated_points_by_curve[curve_i];
 
-    if (types[curve_i] != CURVE_TYPE_BEZIER) {
-      continue;
-    }
-
     const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
     const bool cyclic = curve_cyclic[curve_i];
     for (const int src_i : src_points.index_range().drop_back(cyclic ? 0 : 1)) {
-      const IndexRange eval_range = IndexRange::from_begin_end(offsets[src_i], offsets[src_i + 1])
-                                        .shift(eval_points.first());
-
-      const int point_num = eval_range.size() - 1;
-
-      for (const int eval_i : IndexRange(point_num)) {
-        const int eval_point_i_1 = eval_range[eval_i];
-        const int eval_point_i_2 = eval_range[(eval_i + 1) % eval_range.size()];
-        const float2 pos_1_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_1]);
-        const float2 pos_2_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_2]);
+      if (types[curve_i] != CURVE_TYPE_BEZIER) {
+        const int src_i_2 = (src_i + 1 - src_points.first()) % src_points.size() +
+                            src_points.first();
+        const float2 pos_1_proj = pen_global_to_screen(ptd, positions[src_i]);
+        const float2 pos_2_proj = pen_global_to_screen(ptd, positions[src_i_2]);
         float local_t;
         const float2 closest_pos = line_segment_closest_point(
             pos_1_proj, pos_2_proj, mouse_co, &local_t);
 
         const float distance_squared = math::distance_squared(closest_pos, mouse_co);
-        const float t = (eval_i + local_t) / float(point_num);
+        const float t = local_t;
 
         /* Save the closest point. */
         if (distance_squared < closest_distance_squared &&
@@ -218,6 +210,36 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
           *r_closest_t = t;
           *r_closest_curve = curve_i;
           closest_distance_squared = distance_squared;
+        }
+      }
+      else {
+        const IndexRange eval_range = IndexRange::from_begin_end(offsets[src_i],
+                                                                 offsets[src_i + 1])
+                                          .shift(eval_points.first());
+
+        const int point_num = eval_range.size() - 1;
+
+        for (const int eval_i : IndexRange(point_num)) {
+          const int eval_point_i_1 = eval_range[eval_i];
+          const int eval_point_i_2 = eval_range[(eval_i + 1) % eval_range.size()];
+          const float2 pos_1_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_1]);
+          const float2 pos_2_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_2]);
+          float local_t;
+          const float2 closest_pos = line_segment_closest_point(
+              pos_1_proj, pos_2_proj, mouse_co, &local_t);
+
+          const float distance_squared = math::distance_squared(closest_pos, mouse_co);
+          const float t = (eval_i + local_t) / float(point_num);
+
+          /* Save the closest point. */
+          if (distance_squared < closest_distance_squared &&
+              distance_squared < ptd.threshold_distance_edge * ptd.threshold_distance_edge)
+          {
+            closest_point = src_points.first() + src_i;
+            *r_closest_t = t;
+            *r_closest_curve = curve_i;
+            closest_distance_squared = distance_squared;
+          }
         }
       }
     }
