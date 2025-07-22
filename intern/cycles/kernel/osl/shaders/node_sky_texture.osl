@@ -33,7 +33,7 @@ float signx(float x)
   }
 }
 
-color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type)
+color sky_radiance(vector dir, float sky_data[11], string filename, int sky_type)
 {
   /* Get 2 pixels data */
   color pixel_bottom = color(sky_data[0], sky_data[1], sky_data[2]);
@@ -42,6 +42,7 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   float sun_rotation = sky_data[7];
   float angular_diameter = sky_data[8];
   float sun_intensity = sky_data[9];
+  float earth_intersection_angle = sky_data[10];
   int sun_disc = angular_diameter > 0;
   vector sun_dir = spherical_to_direction(sun_elevation, sun_rotation + M_PI_2);
   float sun_dir_angle = precise_angle(dir, sun_dir);
@@ -51,11 +52,10 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   vector direction = sky_spherical_coordinates(dir);
   float dir_elevation = M_PI_2 - direction[0];
 
-  /* If the ray is inside the sun disc, render it, otherwise render the sky.
-   * Alternatively, ignore the sun if we're evaluating the background texture.
-   * The sun disc is also disabled below the horizon. */
+  /* If the ray is inside the Sun disc and is not occluded by Earth's surface, render it, otherwise
+   * render the sky. Alternatively, ignore the Sun if we're evaluating the background texture. */
   if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1 &&
-      dir[2] >= 0)
+      dir_elevation > earth_intersection_angle)
   {
     float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
     color xyz = mix(pixel_bottom, pixel_top, y);
@@ -70,7 +70,8 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   }
   color rgb_sky;
   if (sky_type == 0 && dir[2] < 0.0) {
-    /* Fade ground to black for Single Scattering model. */
+    /* Fade ground to black for Single Scattering model and disable Sun disc below horizon */
+    rgb_sun = color(0.0, 0.0, 0.0);
     if (dir[2] < -0.4) {
       rgb_sky = color(0.0, 0.0, 0.0);
     }
@@ -93,13 +94,14 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   return rgb_sun * sun_intensity + rgb_sky;
 }
 
-shader node_sky_texture(int use_mapping = 0,
-                        matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
-                        vector Vector = P,
-                        int sky_type = 1,
-                        string filename = "",
-                        float sky_data[10] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
-                        output color Color = color(0.0, 0.0, 0.0))
+shader node_sky_texture(
+    int use_mapping = 0,
+    matrix mapping = matrix(0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0),
+    vector Vector = P,
+    int sky_type = 1,
+    string filename = "",
+    float sky_data[11] = {0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0, 0.0},
+    output color Color = color(0.0, 0.0, 0.0))
 {
   vector p = Vector;
 

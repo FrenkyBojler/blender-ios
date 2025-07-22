@@ -632,7 +632,7 @@ void EnvironmentTextureNode::compile(OSLCompiler &compiler)
 /* Sky Texture */
 
 struct SunSky {
-  float sky_data[10];
+  float sky_data[11];
 };
 
 static void sky_texture_precompute(SunSky *sunsky,
@@ -666,7 +666,9 @@ static void sky_texture_precompute(SunSky *sunsky,
         sun_elevation, sun_size, altitude, air_density, aerosol_density, pixel_bottom, pixel_top);
   }
 
-  /* Send data to svm_sky */
+  float earth_intersection_angle = SKY_earth_intersection_angle(altitude);
+
+  /* Send data to sky.h */
   sunsky->sky_data[0] = pixel_bottom[0];
   sunsky->sky_data[1] = pixel_bottom[1];
   sunsky->sky_data[2] = pixel_bottom[2];
@@ -677,6 +679,7 @@ static void sky_texture_precompute(SunSky *sunsky,
   sunsky->sky_data[7] = sun_rotation;
   sunsky->sky_data[8] = sun_disc ? sun_size : -1.0f;
   sunsky->sky_data[9] = sun_intensity;
+  sunsky->sky_data[10] = -earth_intersection_angle;
 }
 
 float SkyTextureNode::get_sun_average_radiance()
@@ -835,8 +838,8 @@ void SkyTextureNode::compile(SVMCompiler &compiler)
                     __float_as_uint(sunsky.sky_data[7]));
   compiler.add_node(__float_as_uint(sunsky.sky_data[8]),
                     __float_as_uint(sunsky.sky_data[9]),
-                    handle.svm_slot(),
-                    0);
+                    __float_as_uint(sunsky.sky_data[10]),
+                    handle.svm_slot());
 
   tex_mapping.compile_end(compiler, vector_in, vector_offset);
 }
@@ -873,7 +876,7 @@ void SkyTextureNode::compile(OSLCompiler &compiler)
   }
 
   compiler.parameter("sky_type", sky_model);
-  compiler.parameter_array("sky_data", sunsky.sky_data, 10);
+  compiler.parameter_array("sky_data", sunsky.sky_data, 11);
   compiler.parameter_texture("filename", handle);
   compiler.add(this, "node_sky_texture");
 }

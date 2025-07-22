@@ -50,6 +50,8 @@ void SKY_multiple_scattering_precompute_sun(float sun_elevation,
                                             float r_pixel_bottom[3],
                                             float r_pixel_top[3]);
 
+float SKY_earth_intersection_angle(float altitude);
+
 #ifdef __cplusplus
 }
 #endif
