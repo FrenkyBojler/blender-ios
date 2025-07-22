@@ -397,7 +397,7 @@ static void add_pose_transdata(
   float cmat[3][3], tmat[3][3];
 
   const bArmature *arm = static_cast<bArmature *>(ob->data);
-  BKE_pose_channel_gizmo_get_pose_pivot(arm, pchan, td->center);
+  BKE_pose_channel_gizmo_location(arm, pchan, td->center);
 
   td->flag = TD_SELECTED;
   if (bone->flag & BONE_HINGE_CHILD_TRANSFORM) {
@@ -453,7 +453,7 @@ static void add_pose_transdata(
     BoneParentTransform bpt;
     float rpmat[3][3];
 
-    BKE_pose_channel_gizmo_get_bone_parent_transform(arm, pchan, &bpt);
+    BKE_pose_channel_gizmo_parent_transform(arm, pchan, &bpt);
     if (t->mode == TFM_TRANSLATION) {
       copy_m3_m4(pmat, bpt.loc_mat);
     }
@@ -497,7 +497,7 @@ static void add_pose_transdata(
   }
 
   /* For `axismtx` we use the bone's own transform. */
-  BKE_pose_channel_gizmo_get_pose_orientation(arm, pchan, pmat);
+  BKE_pose_channel_gizmo_orientation(arm, pchan, pmat);
   mul_m3_m3m3(td->axismtx, omat, pmat);
   normalize_m3(td->axismtx);
 
