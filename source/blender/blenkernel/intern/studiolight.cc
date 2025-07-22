@@ -245,7 +245,7 @@ static void studiolight_write_solid_light(StudioLight *sl)
   if (fp) {
     DynStr *str = BLI_dynstr_new();
 
-    /* Very dumb ascii format. One value per line separated by a space. */
+    /* Very dumb ASCII format. One value per line separated by a space. */
     WRITE_IVAL(str, "version", STUDIOLIGHT_FILE_VERSION);
     WRITE_VEC3(str, "light_ambient", sl->light_ambient);
     WRITE_SOLIDLIGHT(str, sl->light, 0);
@@ -442,7 +442,7 @@ static void studiolight_create_equirect_radiance_gputexture(StudioLight *sl)
                                                              GPU_RGBA16F,
                                                              GPU_TEXTURE_USAGE_SHADER_READ,
                                                              ibuf->float_buffer.data);
-    GPUTexture *tex = sl->equirect_radiance_gputexture;
+    blender::gpu::Texture *tex = sl->equirect_radiance_gputexture;
     GPU_texture_filter_mode(tex, true);
     GPU_texture_extend_mode(tex, GPU_SAMPLER_EXTEND_MODE_REPEAT);
   }

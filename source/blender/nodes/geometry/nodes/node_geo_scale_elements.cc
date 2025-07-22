@@ -14,7 +14,7 @@
 
 #include "DNA_mesh_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_mesh_selection.hh"
@@ -30,13 +30,15 @@ static void node_declare(NodeDeclarationBuilder &b)
   b.use_custom_socket_order();
   b.allow_any_socket_order();
   b.add_default_layout();
-  b.add_input<decl::Geometry>("Geometry").supported_type(GeometryComponent::Type::Mesh);
+  b.add_input<decl::Geometry>("Geometry")
+      .supported_type(GeometryComponent::Type::Mesh)
+      .description("Geometry to scale elements of");
   b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_input<decl::Float>("Scale", "Scale").default_value(1.0f).min(0.0f).field_on_all();
   b.add_input<decl::Vector>("Center")
       .subtype(PROP_TRANSLATION)
-      .implicit_field_on_all(implicit_field_inputs::position)
+      .implicit_field_on_all(NODE_DEFAULT_INPUT_POSITION_FIELD)
       .description(
           "Origin of the scaling for each element. If multiple elements are connected, their "
           "center is averaged");
@@ -56,8 +58,8 @@ static void node_declare(NodeDeclarationBuilder &b)
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
-  uiItemR(layout, ptr, "scale_mode", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "scale_mode", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

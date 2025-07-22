@@ -28,9 +28,10 @@
 static void immDrawPixelsTexSetupAttributes(IMMDrawPixelsTexState *state)
 {
   GPUVertFormat *vert_format = immVertexFormat();
-  state->pos = GPU_vertformat_attr_add(vert_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  state->pos = GPU_vertformat_attr_add(
+      vert_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   state->texco = GPU_vertformat_attr_add(
-      vert_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      vert_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 }
 
 IMMDrawPixelsTexState immDrawPixelsTexSetup(int builtin)
@@ -70,7 +71,7 @@ void immDrawPixelsTexScaledFullSize(const IMMDrawPixelsTexState *state,
   const bool use_mipmap = use_filter && ((draw_width < img_w) || (draw_height < img_h));
   const int mip_len = use_mipmap ? 9999 : 1;
 
-  GPUTexture *tex = GPU_texture_create_2d(
+  blender::gpu::Texture *tex = GPU_texture_create_2d(
       "immDrawPixels", img_w, img_h, mip_len, gpu_format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
 
   const bool use_float_data = ELEM(gpu_format, GPU_RGBA16F, GPU_RGB16F, GPU_R16F);
@@ -171,7 +172,7 @@ void immDrawPixelsTexTiled_scaling_clipping(IMMDrawPixelsTexState *state,
   eGPUDataFormat gpu_data = (use_float_data) ? GPU_DATA_FLOAT : GPU_DATA_UBYTE;
   size_t stride = components * ((use_float_data) ? sizeof(float) : sizeof(uchar));
 
-  GPUTexture *tex = GPU_texture_create_2d(
+  blender::gpu::Texture *tex = GPU_texture_create_2d(
       "immDrawPixels", tex_w, tex_h, 1, gpu_format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
 
   GPU_texture_filter_mode(tex, use_filter);

@@ -6,7 +6,7 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "GEO_set_curve_type.hh"
@@ -21,14 +21,16 @@ NODE_STORAGE_FUNCS(NodeGeometryCurveSplineType)
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Curve").supported_type(GeometryComponent::Type::Curve);
+  b.add_input<decl::Geometry>("Curve")
+      .supported_type(GeometryComponent::Type::Curve)
+      .description("Curves to change the type of");
   b.add_input<decl::Bool>("Selection").default_value(true).hide_value().field_on_all();
   b.add_output<decl::Geometry>("Curve").propagate_all();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
 {
-  uiItemR(layout, ptr, "spline_type", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(ptr, "spline_type", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)

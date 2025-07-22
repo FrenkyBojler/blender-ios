@@ -13,11 +13,12 @@
 
 #include "NOD_geo_foreach_geometry_element.hh"
 #include "NOD_node_extra_info.hh"
+#include "NOD_socket_items_blend.hh"
 #include "NOD_socket_items_ops.hh"
 #include "NOD_socket_items_ui.hh"
 #include "NOD_socket_search_link.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BKE_library.hh"
@@ -41,12 +42,12 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
   if (!zone) {
     return;
   }
-  if (!zone->output_node) {
+  if (!zone->output_node_id) {
     return;
   }
   const bool is_zone_input_node = current_node->type_legacy ==
                                   GEO_NODE_FOREACH_GEOMETRY_ELEMENT_INPUT;
-  bNode &output_node = const_cast<bNode &>(*zone->output_node);
+  bNode &output_node = const_cast<bNode &>(*zone->output_node());
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(
       current_node_ptr->owner_id, &RNA_Node, &output_node);
   auto &storage = *static_cast<NodeGeometryForeachGeometryElementOutput *>(output_node.storage);
@@ -57,9 +58,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementInputItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
-            uiLayoutSetPropSep(panel, true);
-            uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
   }
@@ -69,9 +70,9 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           C, panel, ntree, output_node);
       socket_items::ui::draw_active_item_props<ForeachGeometryElementMainItemsAccessor>(
           ntree, output_node, [&](PointerRNA *item_ptr) {
-            uiLayoutSetPropSep(panel, true);
-            uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
           });
     }
     if (uiLayout *panel = layout->panel(
@@ -83,17 +84,17 @@ static void node_layout_ex(uiLayout *layout, bContext *C, PointerRNA *current_no
           ntree, output_node, [&](PointerRNA *item_ptr) {
             NodeForeachGeometryElementGenerationItem &active_item =
                 storage.generation_items.items[storage.generation_items.active_index];
-            uiLayoutSetPropSep(panel, true);
-            uiLayoutSetPropDecorate(panel, false);
-            uiItemR(panel, item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+            panel->use_property_split_set(true);
+            panel->use_property_decorate_set(false);
+            panel->prop(item_ptr, "socket_type", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             if (active_item.socket_type != SOCK_GEOMETRY) {
-              uiItemR(panel, item_ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+              panel->prop(item_ptr, "domain", UI_ITEM_NONE, std::nullopt, ICON_NONE);
             }
           });
     }
   }
 
-  uiItemR(layout, &output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+  layout->prop(&output_node_ptr, "inspection_index", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 }
 
 namespace input_node {
@@ -157,8 +158,10 @@ static void node_declare(NodeDeclarationBuilder &b)
     }
   }
 
-  b.add_input<decl::Extend>("", "__extend__");
-  b.add_output<decl::Extend>("", "__extend__").align_with_previous();
+  b.add_input<decl::Extend>("", "__extend__").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Extend>("", "__extend__")
+      .structure_type(StructureType::Dynamic)
+      .align_with_previous();
 }
 
 static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
@@ -169,7 +172,7 @@ static void node_layout(uiLayout *layout, bContext * /*C*/, PointerRNA *ptr)
   bNode *output_node = tree.node_by_id(storage.output_node_id);
 
   PointerRNA output_node_ptr = RNA_pointer_create_discrete(ptr->owner_id, &RNA_Node, output_node);
-  uiItemR(layout, &output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
+  layout->prop(&output_node_ptr, "domain", UI_ITEM_NONE, "", ICON_NONE);
 }
 
 static void node_init(bNodeTree * /*tree*/, bNode *node)
@@ -186,7 +189,8 @@ static void node_label(const bNodeTree * /*ntree*/,
                        char *label,
                        const int label_maxncpy)
 {
-  BLI_strncpy_utf8(label, IFACE_("For Each Element"), label_maxncpy);
+  BLI_strncpy_utf8(
+      label, CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "For Each Element"), label_maxncpy);
 }
 
 static bool node_insert_link(bNodeTree *ntree, bNode *node, bNodeLink *link)
@@ -420,6 +424,20 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
   }
 }
 
+static void node_blend_write(const bNodeTree & /*tree*/, const bNode &node, BlendWriter &writer)
+{
+  socket_items::blend_write<ForeachGeometryElementInputItemsAccessor>(&writer, node);
+  socket_items::blend_write<ForeachGeometryElementGenerationItemsAccessor>(&writer, node);
+  socket_items::blend_write<ForeachGeometryElementMainItemsAccessor>(&writer, node);
+}
+
+static void node_blend_read(bNodeTree & /*tree*/, bNode &node, BlendDataReader &reader)
+{
+  socket_items::blend_read_data<ForeachGeometryElementInputItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ForeachGeometryElementMainItemsAccessor>(&reader, node);
+  socket_items::blend_read_data<ForeachGeometryElementGenerationItemsAccessor>(&reader, node);
+}
+
 static void node_register()
 {
   static blender::bke::bNodeType ntype;
@@ -438,6 +456,8 @@ static void node_register()
   ntype.gather_link_search_ops = node_gather_link_searches;
   ntype.get_extra_info = node_extra_info;
   ntype.no_muting = true;
+  ntype.blend_write_storage_content = node_blend_write;
+  ntype.blend_data_read_storage_content = node_blend_read;
   blender::bke::node_type_storage(
       ntype, "NodeGeometryForeachGeometryElementOutput", node_free_storage, node_copy_storage);
   blender::bke::node_register_type(ntype);
@@ -452,9 +472,6 @@ namespace blender::nodes {
 
 StructRNA *ForeachGeometryElementInputItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementInputItem;
-int ForeachGeometryElementInputItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
-int ForeachGeometryElementInputItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeForeachGeometryElementInputItem);
 
 void ForeachGeometryElementInputItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                 const ItemT &item)
@@ -470,9 +487,6 @@ void ForeachGeometryElementInputItemsAccessor::blend_read_data_item(BlendDataRea
 
 StructRNA *ForeachGeometryElementMainItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementMainItem;
-int ForeachGeometryElementMainItemsAccessor::node_type = GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
-int ForeachGeometryElementMainItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeForeachGeometryElementMainItem);
 
 void ForeachGeometryElementMainItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                const ItemT &item)
@@ -488,10 +502,6 @@ void ForeachGeometryElementMainItemsAccessor::blend_read_data_item(BlendDataRead
 
 StructRNA *ForeachGeometryElementGenerationItemsAccessor::item_srna =
     &RNA_ForeachGeometryElementGenerationItem;
-int ForeachGeometryElementGenerationItemsAccessor::node_type =
-    GEO_NODE_FOREACH_GEOMETRY_ELEMENT_OUTPUT;
-int ForeachGeometryElementGenerationItemsAccessor::item_dna_type = SDNA_TYPE_FROM_STRUCT(
-    NodeForeachGeometryElementGenerationItem);
 
 void ForeachGeometryElementGenerationItemsAccessor::blend_write_item(BlendWriter *writer,
                                                                      const ItemT &item)

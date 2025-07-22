@@ -1,9 +1,9 @@
 
 msgid ""
 msgstr ""
-"Project-Id-Version: Blender 4.5.0 Alpha (b'a7d2b7850ef2')\n"
+"Project-Id-Version: Blender 5.0.0 Alpha (b'a775d58b2e0e')\n"
 "Report-Msgid-Bugs-To: \n"
-"POT-Creation-Date: 2025-05-05 08:47+0000\n"
+"POT-Creation-Date: 2025-07-21 08:48+0000\n"
 "PO-Revision-Date: 2025-04-14 08:15+0000\n"
 "Last-Translator: Anonymous <noreply@weblate.org>\n"
 "Language-Team: Greek <https://translate.blender.org/projects/blender-ui/ui/el/>\n"
@@ -71,12 +71,16 @@ msgid "Start Frame"
 msgstr "Καρέ εκκίνησης"
 
 
-msgid "Empty"
-msgstr "Κενό"
+msgid "Hide"
+msgstr "Απόκρυψη"
 
 
 msgid "Info"
 msgstr "Πληροφ"
+
+
+msgid "Empty"
+msgstr "Κενό"
 
 
 msgid "Active Bone"
@@ -115,10 +119,6 @@ msgid "Clear"
 msgstr "Καθαρισμός"
 
 
-msgid "Hide"
-msgstr "Απόκρυψη"
-
-
 msgid "Speed"
 msgstr "Ταχύτητα"
 
@@ -129,6 +129,10 @@ msgstr "Γραμμή"
 
 msgid "Random"
 msgstr "Random"
+
+
+msgid "Wire"
+msgstr "Πλέγμα"
 
 
 msgid "Parent"
@@ -355,10 +359,6 @@ msgid "Library"
 msgstr "Βιβλιοθήκη"
 
 
-msgid "Wire"
-msgstr "Πλέγμα"
-
-
 msgid "Dynamic"
 msgstr "Δυναμικό"
 
@@ -483,10 +483,6 @@ msgid "Hard"
 msgstr "Σκληρό"
 
 
-msgid "Area"
-msgstr "Περιοχή"
-
-
 msgid "Themes"
 msgstr "Θέματα"
 
@@ -517,6 +513,14 @@ msgstr "Κωδικοποιητής"
 
 msgid "Keyboard"
 msgstr "Πληκτρολόγιο"
+
+
+msgid "Snap"
+msgstr "Προσκόλληση"
+
+
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
 
 
 msgid "Select Linked"
@@ -555,24 +559,21 @@ msgid "Text"
 msgstr "Κείμενο"
 
 
-msgid "Snap"
-msgstr "Προσκόλληση"
-
-
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
+msgid "Cache"
+msgstr "Προσωρινή μνήμη"
 
 
 msgid "Key"
 msgstr "Κλειδί"
 
 
+msgctxt "Operator"
+msgid "Mirror"
+msgstr "Καθρέφτισμα"
+
+
 msgid "Import"
 msgstr "Εισαγωγή"
-
-
-msgid "Cache"
-msgstr "Προσωρινή μνήμη"
 
 
 msgid "System"
@@ -641,10 +642,6 @@ msgstr "Μετα"
 
 msgid "Alpha Over"
 msgstr "Επικάλυψη βάσει διαφάνειας"
-
-
-msgid "Spin"
-msgstr "Περιστροφή"
 
 
 msgid "Shadow"
@@ -810,11 +807,6 @@ msgstr "Ορισμός Ενός Χρήστη"
 
 
 msgctxt "Operator"
-msgid "Hide"
-msgstr "Απόκρυψη"
-
-
-msgctxt "Operator"
 msgid "Bake"
 msgstr "Φτιάξε"
 
@@ -834,6 +826,11 @@ msgstr "Δημιουργία Διαδρομής"
 
 
 msgctxt "Operator"
+msgid "Hide"
+msgstr "Απόκρυψη"
+
+
+msgctxt "Operator"
 msgid "Vertex Paint"
 msgstr "Χρωματισμός κορυφών"
 
@@ -841,11 +838,6 @@ msgstr "Χρωματισμός κορυφών"
 msgctxt "Operator"
 msgid "Weight Paint"
 msgstr "Χρωματισμός Βάρους"
-
-
-msgctxt "Operator"
-msgid "Mirror"
-msgstr "Καθρέφτισμα"
 
 
 msgctxt "Operator"

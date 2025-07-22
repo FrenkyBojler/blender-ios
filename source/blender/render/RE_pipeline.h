@@ -12,7 +12,9 @@
 #include "DNA_listBase.h"
 #include "DNA_vec_types.h"
 
-struct GPUTexture;
+namespace blender::gpu {
+class Texture;
+}
 struct ImBuf;
 struct Image;
 struct ImageFormatData;
@@ -154,7 +156,7 @@ struct RenderStats {
   double starttime, lastframetime;
   const char *infostr, *statstr;
   char scene_name[MAX_ID_NAME - 2];
-  float mem_used, mem_peak;
+  int mem_used, mem_peak;
 };
 
 /* *********************** API ******************** */
@@ -268,6 +270,8 @@ struct RenderStats *RE_GetStats(struct Render *re);
 void RE_ResultGet32(struct Render *re, unsigned int *rect);
 void RE_ResultGetFloat(struct Render *re, float *rect);
 
+bool RE_ResultIsMultiView(struct RenderResult *rr);
+
 void RE_render_result_full_channel_name(char *fullname,
                                         const char *layname,
                                         const char *passname,
@@ -358,7 +362,7 @@ bool RE_WriteRenderViewsMovie(struct ReportList *reports,
  * \note Only #RE_NewRender() needed, main Blender render calls.
  *
  * \param write_still: Saves frames to disk (typically disabled). Useful for batch-operations
- * (rendering from Python for e.g.) when an additional save action for is inconvenient.
+ * (e.g. rendering from Python) when an additional save action for is inconvenient.
  * This is the default behavior for #RE_RenderAnim.
  */
 void RE_RenderFrame(struct Render *re,
@@ -476,7 +480,8 @@ void RE_pass_set_buffer_data(struct RenderPass *pass, float *data);
 /**
  * Ensure a GPU texture corresponding to the render buffer data exists.
  */
-struct GPUTexture *RE_pass_ensure_gpu_texture_cache(struct Render *re, struct RenderPass *rpass);
+blender::gpu::Texture *RE_pass_ensure_gpu_texture_cache(struct Render *re,
+                                                        struct RenderPass *rpass);
 
 /* shaded view or baking options */
 #define RE_BAKE_NORMALS 0

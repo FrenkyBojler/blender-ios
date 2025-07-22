@@ -334,12 +334,6 @@ static bool write_internal_bake_pixels(Image *image,
     ibuf->userflags |= IB_RECT_INVALID;
   }
 
-  /* force mipmap recalc */
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-    IMB_free_mipmaps(ibuf);
-  }
-
   BKE_image_release_ibuf(image, ibuf, nullptr);
 
   if (mask_buffer) {
@@ -460,7 +454,7 @@ static bool write_external_bake_pixels(const char *filepath,
 static bool is_noncolor_pass(eScenePassType pass_type)
 {
   return ELEM(pass_type,
-              SCE_PASS_Z,
+              SCE_PASS_DEPTH,
               SCE_PASS_POSITION,
               SCE_PASS_NORMAL,
               SCE_PASS_VECTOR,
@@ -924,14 +918,19 @@ static bool bake_targets_output_external(const BakeAPIRender *bkr,
     BakeData *bake = &bkr->scene->r.bake;
     char filepath[FILE_MAX];
 
-    BKE_image_path_from_imtype(filepath,
-                               bkr->filepath,
-                               BKE_main_blendfile_path(bkr->main),
-                               0,
-                               bake->im_format.imtype,
-                               true,
-                               false,
-                               nullptr);
+    const blender::Vector<bke::path_templates::Error> errors = BKE_image_path_from_imtype(
+        filepath,
+        bkr->filepath,
+        BKE_main_blendfile_path(bkr->main),
+        nullptr,
+        0,
+        bake->im_format.imtype,
+        true,
+        false,
+        nullptr);
+    BLI_assert_msg(errors.is_empty(),
+                   "Path parsing errors should only occur when a variable map is provided.");
+    UNUSED_VARS_NDEBUG(errors);
 
     if (bkr->is_automatic_name) {
       BLI_path_suffix(filepath, FILE_MAX, ob->id.name + 2, "_");
@@ -2224,7 +2223,7 @@ void OBJECT_OT_bake(wmOperatorType *ot)
   ot->description = "Bake image textures of selected objects";
   ot->idname = "OBJECT_OT_bake";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = bake_exec;
   ot->modal = bake_modal;
   ot->invoke = bake_invoke;

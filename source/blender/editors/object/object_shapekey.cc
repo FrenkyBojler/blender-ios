@@ -126,6 +126,12 @@ bool shape_key_report_if_any_locked(Object *ob, ReportList *reports)
   return false;
 }
 
+bool shape_key_is_selected(const Object &object, const KeyBlock &kb, const int keyblock_index)
+{
+  /* The active shape key is always considered selected. */
+  return (kb.flag & KEYBLOCK_SEL) || keyblock_index == object.shapenr - 1;
+}
+
 /** \} */
 
 /* -------------------------------------------------------------------- */
@@ -150,23 +156,6 @@ static void object_shape_key_add(bContext *C, Object *ob, const bool from_mix)
 /* -------------------------------------------------------------------- */
 /** \name Remove Shape Key Function
  * \{ */
-
-static bool object_shapekey_remove(Main *bmain, Object *ob)
-{
-  KeyBlock *kb;
-  Key *key = BKE_key_from_object(ob);
-
-  if (key == nullptr) {
-    return false;
-  }
-
-  kb = static_cast<KeyBlock *>(BLI_findlink(&key->block, ob->shapenr - 1));
-  if (kb) {
-    return BKE_object_shapekey_remove(bmain, ob, kb);
-  }
-
-  return false;
-}
 
 static bool object_shape_key_mirror(
     bContext *C, Object *ob, int *r_totmirr, int *r_totfail, bool use_topology)
@@ -358,7 +347,7 @@ void OBJECT_OT_shape_key_add(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_shape_key_add";
   ot->description = "Add shape key to the object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shape_key_mode_poll;
   ot->exec = shape_key_add_exec;
 
@@ -396,7 +385,7 @@ void OBJECT_OT_shape_key_copy(wmOperatorType *ot)
 {
   ot->name = "Duplicate Shape Key";
   ot->idname = "OBJECT_OT_shape_key_copy";
-  ot->description = "Duplicate the acive shape key";
+  ot->description = "Duplicate the active shape key";
 
   ot->poll = shape_key_mode_exists_poll;
   ot->exec = shape_key_copy_exec;
@@ -429,11 +418,38 @@ static wmOperatorStatus shape_key_remove_exec(bContext *C, wmOperator *op)
     changed = BKE_object_shapekey_free(bmain, ob);
   }
   else {
-    if (shape_key_report_if_active_locked(ob, op->reports)) {
-      return OPERATOR_CANCELLED;
-    }
 
-    changed = object_shapekey_remove(bmain, ob);
+    /* This could be moved into a function of its own at some point. Right now it's only used here,
+     * though, since its inner structure is taylored for allowing shapekey deletion. */
+    const auto visit_selected_shapekeys = [&](FunctionRef<void(KeyBlock & kb)> callback) {
+      Key &key = *BKE_key_from_object(ob);
+      LISTBASE_FOREACH_MUTABLE (KeyBlock *, kb, &key.block) {
+        /* Always try to find the keyblock again, as the previous one may have been deleted. For
+         * the same reason, ob->shapenr has to be re-evaluated on every loop iteration. */
+        const int cur_index = BLI_findindex(&key.block, kb);
+        if (!shape_key_is_selected(*ob, *kb, cur_index)) {
+          continue;
+        }
+        callback(*kb);
+      }
+    };
+
+    int num_selected_but_locked = 0;
+    visit_selected_shapekeys([&](KeyBlock &kb) {
+      if (kb.flag & KEYBLOCK_LOCKED_SHAPE) {
+        num_selected_but_locked++;
+        return;
+      }
+
+      changed |= BKE_object_shapekey_remove(bmain, ob, &kb);
+    });
+
+    if (num_selected_but_locked) {
+      BKE_reportf(op->reports,
+                  changed ? RPT_WARNING : RPT_ERROR,
+                  "Could not delete %d locked shape key(s)",
+                  num_selected_but_locked);
+    }
   }
 
   if (changed) {
@@ -479,7 +495,7 @@ void OBJECT_OT_shape_key_remove(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_shape_key_remove";
   ot->description = "Remove shape key from the object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shape_key_mode_exists_poll;
   ot->exec = shape_key_remove_exec;
   ot->poll_property = shape_key_remove_poll_property;
@@ -530,7 +546,7 @@ void OBJECT_OT_shape_key_clear(wmOperatorType *ot)
       "Reset the weights of all shape keys to 0 or to the closest value respecting the limits";
   ot->idname = "OBJECT_OT_shape_key_clear";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shape_key_poll;
   ot->exec = shape_key_clear_exec;
 
@@ -567,7 +583,7 @@ void OBJECT_OT_shape_key_retime(wmOperatorType *ot)
   ot->description = "Resets the timing for absolute shape keys";
   ot->idname = "OBJECT_OT_shape_key_retime";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shape_key_poll;
   ot->exec = shape_key_retime_exec;
 
@@ -607,8 +623,8 @@ void OBJECT_OT_shape_key_mirror(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_shape_key_mirror";
   ot->description = "Mirror the current shape key along the local X axis";
 
-  /* api callbacks */
-  ot->poll = shape_key_mode_poll;
+  /* API callbacks. */
+  ot->poll = shape_key_mode_exists_poll;
   ot->exec = shape_key_mirror_exec;
 
   /* flags */
@@ -685,7 +701,7 @@ void OBJECT_OT_shape_key_move(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_shape_key_move";
   ot->description = "Move the active shape key up/down in the list";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shape_key_move_poll;
   ot->exec = shape_key_move_exec;
 
@@ -765,7 +781,7 @@ void OBJECT_OT_shape_key_lock(wmOperatorType *ot)
   ot->idname = "OBJECT_OT_shape_key_lock";
   ot->description = "Change the lock state of all shape keys of active object";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->poll = shape_key_exists_poll;
   ot->exec = shape_key_lock_exec;
   ot->get_description = shape_key_lock_get_description;

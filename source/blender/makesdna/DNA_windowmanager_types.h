@@ -165,7 +165,7 @@ typedef struct wmWindowManager {
   /**
    * \note `CTX_wm_window(C)` is usually preferred.
    * Avoid relying on this where possible as this may become NULL during when handling
-   * events that close or replace windows (opening a file for e.g.).
+   * events that close or replace windows (e.g. opening a file).
    * While this happens rarely in practice, it can cause difficult to reproduce bugs.
    */
   struct wmWindow *winactive;
@@ -286,7 +286,7 @@ typedef struct wmWindow {
   /** Temporary when switching. */
   struct Scene *new_scene;
   /** Active view layer displayed in this window. */
-  char view_layer_name[64];
+  char view_layer_name[/*MAX_NAME*/ 64];
   /** The workspace may temporarily override the window's scene with scene pinning. This is the
    * "overridden" or "default" scene to restore when entering a workspace with no scene pinned. */
   struct Scene *unpinned_scene;
@@ -312,6 +312,10 @@ typedef struct wmWindow {
    * it causes the window size to be initialized to `wm_init_state.size`.
    * These default to the main screen size but can be overridden by the `--window-geometry`
    * command line argument.
+   *
+   * \warning Using these values directly can result in errors on macOS due to HiDPI displays
+   * influencing the window native pixel size. See #WM_window_native_pixel_size for a general use
+   * alternative.
    */
   short sizex, sizey;
   /** Normal, maximized, full-screen, #GHOST_TWindowState. */
@@ -386,18 +390,11 @@ typedef struct wmWindow {
   struct wmEvent *event_last_handled;
 
   /**
-   * Input Method Editor data - complex character input (especially for Asian character input)
-   * Only used when `WITH_INPUT_IME` is defined, runtime-only data.
-   */
-  const struct wmIMEData *ime_data;
-  char ime_data_is_composing;
-  char _pad1[6];
-
-  /**
    * Internal: tag this for extra mouse-move event,
    * makes cursors/buttons active on UI switching.
    */
   char addmousemove;
+  char _pad1[7];
 
   /** Window+screen handlers, handled last. */
   ListBase handlers;
@@ -420,10 +417,11 @@ typedef struct wmWindow {
    * The time when the key is pressed in milliseconds (see #GHOST_GetEventTime).
    * Used to detect double-click events.
    */
+  void *_pad2;
   uint64_t eventstate_prev_press_time_ms;
 
-  void *_pad2;
   WindowRuntimeHandle *runtime;
+  void *_pad3;
 } wmWindow;
 
 #ifdef ime_data
@@ -439,7 +437,7 @@ typedef struct wmOperatorTypeMacro {
   struct wmOperatorTypeMacro *next, *prev;
 
   /* operator id */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[/*OP_MAX_TYPENAME*/ 64];
   /* rna pointer to access properties, like keymap */
   /** Operator properties, assigned to ptr->data and can be written to a file. */
   struct IDProperty *properties;
@@ -644,7 +642,7 @@ typedef struct wmOperator {
 
   /* saved */
   /** Used to retrieve type pointer. */
-  char idname[64]; /* OP_MAX_TYPENAME */
+  char idname[/*OP_MAX_TYPENAME*/ 64];
   /** Saved, user-settable properties. */
   IDProperty *properties;
 

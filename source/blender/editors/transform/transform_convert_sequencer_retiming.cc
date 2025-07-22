@@ -59,7 +59,6 @@ static TransData *SeqToTransData(const Scene *scene,
   tdseq->key_index = seq::retiming_key_index_get(strip, key);
 
   td->extra = static_cast<void *>(tdseq);
-  td->ext = nullptr;
   td->flag |= TD_SELECTED;
   td->dist = 0.0;
 
@@ -154,7 +153,7 @@ static void recalcData_sequencer_retiming(TransInfo *t)
       seq::retiming_key_timeline_frame_set(t->scene, strip, key, td2d->loc[0]);
     }
 
-    seq::relations_invalidate_cache_preprocessed(t->scene, strip);
+    seq::relations_invalidate_cache(t->scene, strip);
   }
 
   /* Test overlap, displays red outline. */

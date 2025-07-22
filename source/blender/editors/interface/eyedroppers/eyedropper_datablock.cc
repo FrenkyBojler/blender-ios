@@ -29,8 +29,6 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
-
 #include "WM_api.hh"
 #include "WM_types.hh"
 
@@ -336,7 +334,7 @@ static bool datadropper_poll(bContext *C)
   /* data dropper only supports object data */
   if ((CTX_wm_window(C) != nullptr) &&
       (but = UI_context_active_but_prop_get(C, &ptr, &prop, &index_dummy)) &&
-      (but->type == UI_BTYPE_SEARCH_MENU) && (but->flag & UI_BUT_VALUE_CLEAR))
+      (but->type == ButType::SearchMenu) && (but->flag & UI_BUT_VALUE_CLEAR))
   {
     if (prop && RNA_property_type(prop) == PROP_POINTER) {
       StructRNA *type = RNA_property_pointer_type(&ptr, prop);
@@ -357,7 +355,7 @@ void UI_OT_eyedropper_id(wmOperatorType *ot)
   ot->idname = "UI_OT_eyedropper_id";
   ot->description = "Sample a data-block from the 3D View to store in a property";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->invoke = datadropper_invoke;
   ot->modal = datadropper_modal;
   ot->cancel = datadropper_cancel;

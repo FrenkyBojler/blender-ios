@@ -8,9 +8,12 @@
 
 #pragma once
 
+#include "BKE_attribute.hh"
+
 #include "BLI_compiler_attrs.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_span.hh"
+#include "BLI_virtual_array.hh"
 
 #include "DNA_windowmanager_enums.h"
 
@@ -273,7 +276,7 @@ bool EDBM_select_pick(bContext *C, const int mval[2], const SelectPick_Params &p
  * When switching select mode, makes sure selection is consistent for editing
  * also for paranoia checks to make sure edge or face mode works.
  */
-void EDBM_selectmode_set(BMEditMesh *em);
+void EDBM_selectmode_set(BMEditMesh *em, short selectmode);
 /**
  * Expand & Contract the Selection
  * (used when changing modes and Ctrl key held)
@@ -303,10 +306,12 @@ bool EDBM_selectmode_set_multi_ex(Scene *scene,
  */
 bool EDBM_selectmode_set_multi(bContext *C, short selectmode);
 /**
- * User facing function, does notification.
+ * User facing function, handles notification.
+ *
+ * \param selectmode_toggle: The mode to adjust based on `action`, must not contain mixed flags.
  */
 bool EDBM_selectmode_toggle_multi(
-    bContext *C, short selectmode_new, int action, bool use_extend, bool use_expand);
+    bContext *C, short selectmode_toggle, int action, bool use_extend, bool use_expand);
 
 /**
  * Use to disable a select-mode if its enabled, Using another mode as a fallback
@@ -466,12 +471,14 @@ void ED_mesh_faces_remove(Mesh *mesh, ReportList *reports, int count);
 
 void ED_mesh_geometry_clear(Mesh *mesh);
 
-bool *ED_mesh_uv_map_vert_select_layer_ensure(Mesh *mesh, int uv_index);
-bool *ED_mesh_uv_map_edge_select_layer_ensure(Mesh *mesh, int uv_index);
-bool *ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, int uv_index);
-const bool *ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh, int uv_index);
-const bool *ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh, int uv_index);
-const bool *ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, int uv_index);
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_vert_select_layer_ensure(Mesh *mesh,
+                                                                            int uv_index);
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_edge_select_layer_ensure(Mesh *mesh,
+                                                                            int uv_index);
+blender::bke::AttributeWriter<bool> ED_mesh_uv_map_pin_layer_ensure(Mesh *mesh, int uv_index);
+blender::VArray<bool> ED_mesh_uv_map_vert_select_layer_get(const Mesh *mesh, int uv_index);
+blender::VArray<bool> ED_mesh_uv_map_edge_select_layer_get(const Mesh *mesh, int uv_index);
+blender::VArray<bool> ED_mesh_uv_map_pin_layer_get(const Mesh *mesh, int uv_index);
 
 void ED_mesh_uv_ensure(Mesh *mesh, const char *name);
 int ED_mesh_uv_add(
@@ -530,7 +537,7 @@ wmOperatorStatus ED_mesh_shapes_join_objects_exec(bContext *C,
                                                   bool ensure_keys_exist,
                                                   ReportList *reports);
 
-/* mirror lookup api */
+/* Mirror lookup API. */
 
 /* Spatial Mirror */
 void ED_mesh_mirror_spatial_table_begin(Object *ob, BMEditMesh *em, Mesh *mesh_eval);

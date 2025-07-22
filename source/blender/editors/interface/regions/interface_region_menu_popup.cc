@@ -34,7 +34,7 @@
 
 #include "RNA_access.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "BLT_translation.hh"
 
@@ -52,7 +52,7 @@ using blender::StringRefNull;
 
 bool ui_but_menu_step_poll(const uiBut *but)
 {
-  BLI_assert(but->type == UI_BTYPE_MENU);
+  BLI_assert(but->type == ButType::Menu);
 
   /* currently only RNA buttons */
   return ((but->menu_step_func != nullptr) ||
@@ -131,7 +131,7 @@ static uiBut *ui_popup_menu_memory__internal(uiBlock *block, uiBut *but)
     /* Prevent labels (typically headings), from being returned in the case the text
      * happens to matches one of the menu items.
      * Skip separators too as checking them is redundant. */
-    if (ELEM(but_iter->type, UI_BTYPE_LABEL, UI_BTYPE_SEPR, UI_BTYPE_SEPR_LINE)) {
+    if (ELEM(but_iter->type, ButType::Label, ButType::Sepr, ButType::SeprLine)) {
       continue;
     }
     if (mem[hash_mod] == ui_popup_string_hash(but_iter->str, but_iter->flag & UI_BUT_HAS_SEP_CHAR))
@@ -198,22 +198,30 @@ static void ui_popup_menu_create_block(bContext *C,
   if (!title.is_empty()) {
     pup->block->puphash = ui_popup_menu_hash(title);
   }
-  pup->layout = UI_block_layout(
-      pup->block, UI_LAYOUT_VERTICAL, UI_LAYOUT_MENU, 0, 0, 200, 0, UI_MENU_PADDING, style);
+  pup->layout = &blender::ui::block_layout(pup->block,
+                                           blender::ui::LayoutDirection::Vertical,
+                                           blender::ui::LayoutType::Menu,
+                                           0,
+                                           0,
+                                           200,
+                                           0,
+                                           UI_MENU_PADDING,
+                                           style);
 
   /* NOTE: this intentionally differs from the menu & sub-menu default because many operators
    * use popups like this to select one of their options -
    * where having invoke doesn't make sense.
    * When the menu was opened from a button, use invoke still for compatibility. This used to be
    * the default and changing now could cause issues. */
-  const wmOperatorCallContext opcontext = pup->but ? WM_OP_INVOKE_REGION_WIN :
-                                                     WM_OP_EXEC_REGION_WIN;
+  const blender::wm::OpCallContext opcontext = pup->but ?
+                                                   blender::wm::OpCallContext::InvokeRegionWin :
+                                                   blender::wm::OpCallContext::ExecRegionWin;
 
-  uiLayoutSetOperatorContext(pup->layout, opcontext);
+  pup->layout->operator_context_set(opcontext);
 
   if (pup->but) {
     if (pup->but->context) {
-      uiLayoutContextCopy(pup->layout, pup->but->context);
+      pup->layout->context_copy(pup->but->context);
     }
   }
 }
@@ -233,9 +241,9 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
       pup->block->handle = nullptr;
     }
 
-    if (uiLayoutGetUnitsX(pup->layout) != 0.0f) {
+    if (pup->layout->ui_units_x() != 0.0f) {
       /* Use the minimum width from the layout if it's set. */
-      minwidth = uiLayoutGetUnitsX(pup->layout) * UI_UNIT_X;
+      minwidth = pup->layout->ui_units_x() * UI_UNIT_X;
     }
 
     pup->layout = nullptr;
@@ -286,8 +294,7 @@ static uiBlock *ui_block_func_POPUP(bContext *C, uiPopupBlockHandle *handle, voi
 
   block->direction = direction;
 
-  int width, height;
-  UI_block_layout_resolve(block, &width, &height);
+  blender::ui::block_layout_resolve(block);
 
   UI_block_flag_enable(block, UI_BLOCK_MOVEMOUSE_QUIT | UI_BLOCK_NUMSELECT);
 
@@ -404,7 +411,7 @@ static uiPopupBlockHandle *ui_popup_menu_create_impl(
     pup->slideout = ui_block_is_menu(but->block);
     pup->but = but;
 
-    if (but->type == UI_BTYPE_PULLDOWN) {
+    if (but->type == ButType::Pulldown) {
       WorkspaceStatus status(C);
       status.item(IFACE_("Search"), ICON_EVENT_SPACEKEY);
     }
@@ -449,21 +456,21 @@ uiPopupBlockHandle *ui_popup_menu_create(
 
 static void create_title_button(uiLayout *layout, const char *title, int icon)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
   char titlestr[256];
 
   if (icon) {
     SNPRINTF(titlestr, " %s", title);
     uiDefIconTextBut(
-        block, UI_BTYPE_LABEL, 0, icon, titlestr, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
+        block, ButType::Label, 0, icon, titlestr, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
   }
   else {
     uiBut *but = uiDefBut(
-        block, UI_BTYPE_LABEL, 0, title, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
+        block, ButType::Label, 0, title, 0, 0, 200, UI_UNIT_Y, nullptr, 0.0, 0.0, "");
     but->drawflag = UI_BUT_TEXT_LEFT;
   }
 
-  uiItemS(layout);
+  layout->separator();
 }
 
 uiPopupMenu *UI_popup_menu_begin_ex(bContext *C,
@@ -529,7 +536,7 @@ bool UI_popup_menu_end_or_cancel(bContext *C, uiPopupMenu *pup)
     UI_popup_menu_end(C, pup);
     return true;
   }
-  UI_block_layout_resolve(pup->block, nullptr, nullptr);
+  blender::ui::block_layout_resolve(pup->block);
   MEM_delete(pup->block->handle);
   UI_block_free(C, pup->block);
   MEM_delete(pup);
@@ -574,7 +581,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
       layout = UI_popup_menu_layout(pup);
     }
     else {
-      uiItemS(layout);
+      layout->separator();
     }
 
     /* split each newline into a label */
@@ -588,7 +595,7 @@ void UI_popup_menu_reports(bContext *C, ReportList *reports)
         BLI_strncpy(buf, msg, std::min(sizeof(buf), size_t(msg_next - msg)));
         msg = buf;
       }
-      uiItemL(layout, msg, icon);
+      layout->label(msg, icon);
       icon = ICON_NONE;
     } while ((msg = msg_next) && *msg);
   }
@@ -792,7 +799,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
                                         bool cancel_default,
                                         PointerRNA *r_ptr)
 {
-  uiBlock *block = uiLayoutGetBlock(layout);
+  uiBlock *block = layout->block();
 
   const StringRef confirm_text = confirm_text_opt.value_or(IFACE_("OK"));
   const StringRef cancel_text = cancel_text_opt.value_or(IFACE_("Cancel"));
@@ -811,16 +818,9 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
     if (!show_confirm) {
       return nullptr;
     }
-    uiBlock *block = uiLayoutGetBlock(row);
+    uiBlock *block = row->block();
     const uiBut *but_ref = block->last_but();
-    uiItemFullO_ptr(row,
-                    ot,
-                    confirm_text,
-                    icon,
-                    nullptr,
-                    uiLayoutGetOperatorContext(row),
-                    UI_ITEM_NONE,
-                    r_ptr);
+    *r_ptr = row->op(ot, confirm_text, icon, row->operator_context(), UI_ITEM_NONE);
 
     if (block->buttons.is_empty() || but_ref == block->buttons.last().get()) {
       return nullptr;
@@ -832,9 +832,9 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
     if (!show_cancel) {
       return nullptr;
     }
-    uiBlock *block = uiLayoutGetBlock(row);
+    uiBlock *block = row->block();
     uiBut *but = uiDefIconTextBut(block,
-                                  UI_BTYPE_BUT,
+                                  ButType::But,
                                   1,
                                   ICON_NONE,
                                   cancel_text,
@@ -857,7 +857,7 @@ void UI_popup_block_template_confirm_op(uiLayout *layout,
 void uiPupBlockOperator(bContext *C,
                         uiBlockCreateFunc func,
                         wmOperator *op,
-                        wmOperatorCallContext opcontext)
+                        blender::wm::OpCallContext opcontext)
 {
   wmWindow *window = CTX_wm_window(C);
 

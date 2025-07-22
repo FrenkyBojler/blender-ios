@@ -17,6 +17,7 @@
 #include "BLI_math_rotation.h"
 #include "BLI_mempool.h"
 #include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
 /* Define macros in `DNA_genfile.h`. */
@@ -737,7 +738,7 @@ static void do_versions_material_convert_legacy_blend_mode(bNodeTree *ntree, cha
 
 static void do_versions_local_collection_bits_set(LayerCollection *layer_collection)
 {
-  layer_collection->local_collections_bits = ~(0);
+  layer_collection->local_collections_bits = ~0;
   LISTBASE_FOREACH (LayerCollection *, child, &layer_collection->layer_collections) {
     do_versions_local_collection_bits_set(child);
   }
@@ -821,7 +822,7 @@ static void do_version_curvemapping_walker(Main *bmain, void (*callback)(CurveMa
       if (ELEM(node->type_legacy,
                SH_NODE_CURVE_VEC,
                SH_NODE_CURVE_RGB,
-               CMP_NODE_CURVE_VEC,
+               CMP_NODE_CURVE_VEC_DEPRECATED,
                CMP_NODE_CURVE_RGB,
                CMP_NODE_TIME,
                CMP_NODE_HUECORRECT,
@@ -2160,7 +2161,7 @@ static void update_noise_and_wave_distortion(bNodeTree *ntree)
         mulNode->custom1 = NODE_MATH_MULTIPLY;
         mulNode->locx_legacy = node->locx_legacy;
         mulNode->locy_legacy = node->locy_legacy - 240.0f;
-        mulNode->flag |= NODE_HIDDEN;
+        mulNode->flag |= NODE_COLLAPSED;
         bNodeSocket *mulSockA = static_cast<bNodeSocket *>(BLI_findlink(&mulNode->inputs, 0));
         bNodeSocket *mulSockB = static_cast<bNodeSocket *>(BLI_findlink(&mulNode->inputs, 1));
         *version_cycles_node_socket_float_value(mulSockB) = 0.5f;
@@ -3016,7 +3017,6 @@ static void do_versions_seq_unique_name_all_strips(Scene *sce, ListBase *seqbase
 static void do_versions_seq_set_cache_defaults(Editing *ed)
 {
   ed->cache_flag = SEQ_CACHE_STORE_FINAL_OUT;
-  ed->recycle_max_cost = 10.0f;
 }
 
 static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
@@ -3024,7 +3024,7 @@ static bool strip_update_flags_cb(Strip *strip, void * /*user_data*/)
   strip->flag &= ~((1 << 6) | (1 << 18) | (1 << 19) | (1 << 21));
   if (strip->type == STRIP_TYPE_SPEED) {
     SpeedControlVars *s = (SpeedControlVars *)strip->effectdata;
-    s->flags &= ~(SEQ_SPEED_UNUSED_1);
+    s->flags &= ~SEQ_SPEED_UNUSED_1;
   }
   return true;
 }
@@ -3771,7 +3771,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
         if (ima->type == IMA_TYPE_R_RESULT) {
           for (int i = 0; i < 8; i++) {
             RenderSlot *slot = MEM_callocN<RenderSlot>("Image Render Slot Init");
-            SNPRINTF(slot->name, "Slot %d", i + 1);
+            SNPRINTF_UTF8(slot->name, "Slot %d", i + 1);
             BLI_addtail(&ima->renderslots, slot);
           }
         }
@@ -4593,7 +4593,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
               SpaceOutliner *space_outliner = (SpaceOutliner *)sl;
               space_outliner->filter &= ~(SO_FILTER_CLEARED_1 | SO_FILTER_UNUSED_5 |
                                           SO_FILTER_OB_STATE_SELECTABLE);
-              space_outliner->storeflag &= ~(SO_TREESTORE_UNUSED_1);
+              space_outliner->storeflag &= ~SO_TREESTORE_UNUSED_1;
               break;
             }
             case SPACE_FILE: {
@@ -5315,7 +5315,7 @@ void blo_do_versions_280(FileData *fd, Library * /*lib*/, Main *bmain)
     }
 
     LISTBASE_FOREACH (bArmature *, arm, &bmain->armatures) {
-      arm->flag &= ~(ARM_BCOLL_SOLO_ACTIVE);
+      arm->flag &= ~ARM_BCOLL_SOLO_ACTIVE;
     }
   }
 

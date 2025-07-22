@@ -41,6 +41,7 @@
 #include "SEQ_iterator.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -141,7 +142,7 @@ static void SOUND_OT_open(wmOperatorType *ot)
   ot->description = "Load a sound file";
   ot->idname = "SOUND_OT_open";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_open_exec;
   ot->invoke = sound_open_invoke;
   ot->cancel = sound_open_cancel;
@@ -168,7 +169,7 @@ static void SOUND_OT_open_mono(wmOperatorType *ot)
   ot->description = "Load a sound file as mono";
   ot->idname = "SOUND_OT_open_mono";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_open_exec;
   ot->invoke = sound_open_invoke;
   ot->cancel = sound_open_cancel;
@@ -279,7 +280,7 @@ static void SOUND_OT_update_animation_flags(wmOperatorType *ot)
   ot->description = "Update animation flags";
   ot->idname = "SOUND_OT_update_animation_flags";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_update_animation_flags_exec;
 
   /* flags */
@@ -319,7 +320,7 @@ static void SOUND_OT_bake_animation(wmOperatorType *ot)
   ot->description = "Update the audio animation cache";
   ot->idname = "SOUND_OT_bake_animation";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_bake_animation_exec;
 
   /* flags */
@@ -560,8 +561,8 @@ static void sound_mixdown_draw(bContext *C, wmOperator *op)
   PropertyRNA *prop_codec;
   PropertyRNA *prop_bitrate;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   AUD_Container container = AUD_Container(RNA_enum_get(op->ptr, "container"));
   AUD_Codec codec = AUD_Codec(RNA_enum_get(op->ptr, "codec"));
@@ -717,7 +718,7 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
   ot->description = "Mix the scene's audio to a sound file";
   ot->idname = "SOUND_OT_mixdown";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_mixdown_exec;
   ot->invoke = sound_mixdown_invoke;
 
@@ -775,7 +776,7 @@ static void SOUND_OT_mixdown(wmOperatorType *ot)
 
 static bool sound_poll(bContext *C)
 {
-  Editing *ed = CTX_data_scene(C)->ed;
+  Editing *ed = CTX_data_sequencer_scene(C)->ed;
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
     return false;
@@ -788,7 +789,7 @@ static bool sound_poll(bContext *C)
 static wmOperatorStatus sound_pack_exec(bContext *C, wmOperator *op)
 {
   Main *bmain = CTX_data_main(C);
-  Editing *ed = CTX_data_scene(C)->ed;
+  Editing *ed = CTX_data_sequencer_scene(C)->ed;
   bSound *sound;
 
   if (!ed || !ed->act_strip || ed->act_strip->type != STRIP_TYPE_SOUND_RAM) {
@@ -816,7 +817,7 @@ static void SOUND_OT_pack(wmOperatorType *ot)
   ot->description = "Pack the sound into the current blend file";
   ot->idname = "SOUND_OT_pack";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_pack_exec;
   ot->poll = sound_poll;
 
@@ -861,7 +862,7 @@ static wmOperatorStatus sound_unpack_exec(bContext *C, wmOperator *op)
 
 static wmOperatorStatus sound_unpack_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
-  Editing *ed = CTX_data_scene(C)->ed;
+  Editing *ed = CTX_data_sequencer_scene(C)->ed;
   bSound *sound;
 
   if (RNA_struct_property_is_set(op->ptr, "id")) {
@@ -902,7 +903,7 @@ static void SOUND_OT_unpack(wmOperatorType *ot)
   ot->description = "Unpack the sound to the samples filename";
   ot->idname = "SOUND_OT_unpack";
 
-  /* api callbacks */
+  /* API callbacks. */
   ot->exec = sound_unpack_exec;
   ot->invoke = sound_unpack_invoke;
   ot->poll = sound_poll;

@@ -48,7 +48,10 @@ void DepthOfField::init()
   const ::Camera *camera = (camera_object_eval && camera_object_eval->type == OB_CAMERA) ?
                                reinterpret_cast<const ::Camera *>(camera_object_eval->data) :
                                nullptr;
-  if (camera == nullptr) {
+
+  enabled_ = camera && (camera->dof.flag & CAM_DOF_ENABLED) != 0;
+
+  if (enabled_ == false) {
     /* Set to invalid value for update detection */
     data_.scatter_color_threshold = -1.0f;
     return;
@@ -82,7 +85,7 @@ void DepthOfField::sync()
         " - Green: Foreground\n");
   }
 
-  if (camera_data == nullptr || (camera_data->dof.flag & CAM_DOF_ENABLED) == 0) {
+  if (enabled_ == false) {
     jitter_radius_ = 0.0f;
     fx_radius_ = 0.0f;
     return;
@@ -502,8 +505,8 @@ void DepthOfField::update_sample_table()
 }
 
 void DepthOfField::render(View &view,
-                          GPUTexture **input_tx,
-                          GPUTexture **output_tx,
+                          gpu::Texture **input_tx,
+                          gpu::Texture **output_tx,
                           DepthOfFieldBuffer &dof_buffer)
 {
   if (fx_radius_ == 0.0f) {
@@ -610,8 +613,8 @@ void DepthOfField::render(View &view,
       /* Outputs to reduced_*_tx_ mip 0. */
       drw.submit(stabilize_ps_, view);
 
-      /* WATCH(fclem): Swap Texture an TextureFromPool internal GPUTexture in order to reuse
-       * the one that we just consumed. */
+      /* WATCH(fclem): Swap Texture an TextureFromPool internal gpu::Texture in order to
+       * reuse the one that we just consumed. */
       TextureFromPool::swap(stabilize_output_tx_, dof_buffer.stabilize_history_tx_);
 
       /* Used by stabilize pass. */

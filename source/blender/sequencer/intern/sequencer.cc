@@ -25,6 +25,7 @@
 
 #include "BLI_listbase.h"
 #include "BLI_path_utils.hh"
+#include "BLI_string_utf8.h"
 
 #include "BKE_fcurve.hh"
 #include "BKE_idprop.hh"
@@ -55,7 +56,10 @@
 
 #include "BLO_read_write.hh"
 
-#include "image_cache.hh"
+#include "cache/final_image_cache.hh"
+#include "cache/intra_frame_cache.hh"
+#include "cache/source_image_cache.hh"
+#include "modifier.hh"
 #include "prefetch.hh"
 #include "sequencer.hh"
 #include "utils.hh"
@@ -125,7 +129,7 @@ static void seq_free_strip(StripData *data)
   MEM_freeN(data);
 }
 
-Strip *strip_alloc(ListBase *lb, int timeline_frame, int machine, int type)
+Strip *strip_alloc(ListBase *lb, int timeline_frame, int channel, int type)
 {
   Strip *strip;
 
@@ -137,7 +141,7 @@ Strip *strip_alloc(ListBase *lb, int timeline_frame, int machine, int type)
 
   strip->flag = SELECT;
   strip->start = timeline_frame;
-  strip_channel_set(strip, machine);
+  strip_channel_set(strip, channel);
   strip->sat = 1.0;
   strip->mul = 1.0;
   strip->blend_opacity = 100.0;
@@ -181,7 +185,7 @@ static void seq_strip_free_ex(Scene *scene,
   relations_strip_free_anim(strip);
 
   if (strip->type & STRIP_TYPE_EFFECT) {
-    EffectHandle sh = effect_handle_get(strip);
+    EffectHandle sh = strip_effect_handle_get(strip);
     sh.free(strip, do_id_user);
   }
 
@@ -211,6 +215,10 @@ static void seq_strip_free_ex(Scene *scene,
   if (strip->prop) {
     IDP_FreePropertyContent_ex(strip->prop, do_id_user);
     MEM_freeN(strip->prop);
+  }
+  if (strip->system_properties) {
+    IDP_FreePropertyContent_ex(strip->system_properties, do_id_user);
+    MEM_freeN(strip->system_properties);
   }
 
   /* free modifiers */
@@ -275,8 +283,7 @@ Editing *editing_ensure(Scene *scene)
 
     ed = scene->ed = MEM_callocN<Editing>("addseq");
     ed->seqbasep = &ed->seqbase;
-    ed->cache = nullptr;
-    ed->cache_flag = (SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
+    ed->cache_flag = (SEQ_CACHE_PREFETCH_ENABLE | SEQ_CACHE_STORE_FINAL_OUT | SEQ_CACHE_STORE_RAW);
     ed->show_missing_media_flag = SEQ_EDIT_SHOW_MISSING_MEDIA;
     ed->displayed_channels = &ed->channels;
     channels_ensure(ed->displayed_channels);
@@ -294,7 +301,6 @@ void editing_free(Scene *scene, const bool do_id_user)
   }
 
   seq_prefetch_free(scene);
-  seq_cache_destruct(scene);
 
   /* handle cache freeing above */
   LISTBASE_FOREACH_MUTABLE (Strip *, strip, &ed->seqbase) {
@@ -305,6 +311,9 @@ void editing_free(Scene *scene, const bool do_id_user)
   strip_lookup_free(ed);
   blender::seq::media_presence_free(scene);
   blender::seq::thumbnail_cache_destroy(scene);
+  blender::seq::intra_frame_cache_destroy(scene);
+  blender::seq::source_image_cache_destroy(scene);
+  blender::seq::final_image_cache_destroy(scene);
   channels_free(&ed->channels);
 
   MEM_freeN(ed);
@@ -315,8 +324,8 @@ void editing_free(Scene *scene, const bool do_id_user)
 static void seq_new_fix_links_recursive(Strip *strip, blender::Map<Strip *, Strip *> strip_map)
 {
   if (strip->type & STRIP_TYPE_EFFECT) {
-    strip->seq1 = strip_map.lookup_default(strip->seq1, strip->seq1);
-    strip->seq2 = strip_map.lookup_default(strip->seq2, strip->seq2);
+    strip->input1 = strip_map.lookup_default(strip->input1, strip->input1);
+    strip->input2 = strip_map.lookup_default(strip->input2, strip->input2);
   }
 
   LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
@@ -531,12 +540,16 @@ static Strip *strip_duplicate(const Scene *scene_src,
   if (strip->prop) {
     strip_new->prop = IDP_CopyProperty_ex(strip->prop, flag);
   }
+  if (strip->system_properties) {
+    strip_new->system_properties = IDP_CopyProperty_ex(strip->system_properties, flag);
+  }
 
   if (strip_new->modifiers.first) {
     BLI_listbase_clear(&strip_new->modifiers);
 
     modifier_list_copy(strip_new, strip);
   }
+  BLI_assert(modifier_persistent_uids_are_valid(*strip));
 
   if (is_strip_connected(strip)) {
     BLI_listbase_clear(&strip_new->connections);
@@ -578,7 +591,7 @@ static Strip *strip_duplicate(const Scene *scene_src,
   }
   else if (strip->type & STRIP_TYPE_EFFECT) {
     EffectHandle sh;
-    sh = effect_handle_get(strip);
+    sh = strip_effect_handle_get(strip);
     if (sh.copy) {
       sh.copy(strip_new, strip, flag);
     }
@@ -704,7 +717,7 @@ void seqbase_duplicate_recursive(const Scene *scene_src,
 
 bool is_valid_strip_channel(const Strip *strip)
 {
-  return strip->machine >= 1 && strip->machine <= MAX_CHANNELS;
+  return strip->channel >= 1 && strip->channel <= MAX_CHANNELS;
 }
 
 SequencerToolSettings *tool_settings_copy(SequencerToolSettings *tool_settings)
@@ -752,9 +765,15 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
         case STRIP_TYPE_GAUSSIAN_BLUR:
           BLO_write_struct(writer, GaussianBlurVars, strip->effectdata);
           break;
-        case STRIP_TYPE_TEXT:
-          BLO_write_struct(writer, TextVars, strip->effectdata);
-          break;
+        case STRIP_TYPE_TEXT: {
+          TextVars *text = static_cast<TextVars *>(strip->effectdata);
+          if (!BLO_write_is_undo(writer)) {
+            /* Copy current text into legacy buffer. */
+            STRNCPY_UTF8(text->text_legacy, text->text_ptr);
+          }
+          BLO_write_struct(writer, TextVars, text);
+          BLO_write_string(writer, text->text_ptr);
+        } break;
         case STRIP_TYPE_COLORMIX:
           BLO_write_struct(writer, ColorMixVars, strip->effectdata);
           break;
@@ -787,6 +806,9 @@ static bool strip_write_data_cb(Strip *strip, void *userdata)
 
   if (strip->prop) {
     IDP_BlendWrite(writer, strip->prop);
+  }
+  if (strip->system_properties) {
+    IDP_BlendWrite(writer, strip->system_properties);
   }
 
   modifier_blend_write(writer, &strip->modifiers);
@@ -826,8 +848,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
   /* Do as early as possible, so that other parts of reading can rely on valid session UID. */
   relations_session_uid_generate(strip);
 
-  BLO_read_struct(reader, Strip, &strip->seq1);
-  BLO_read_struct(reader, Strip, &strip->seq2);
+  BLO_read_struct(reader, Strip, &strip->input1);
+  BLO_read_struct(reader, Strip, &strip->input2);
 
   if (strip->effectdata) {
     switch (strip->type) {
@@ -849,9 +871,12 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
       case STRIP_TYPE_GAUSSIAN_BLUR:
         BLO_read_struct(reader, GaussianBlurVars, &strip->effectdata);
         break;
-      case STRIP_TYPE_TEXT:
+      case STRIP_TYPE_TEXT: {
         BLO_read_struct(reader, TextVars, &strip->effectdata);
-        break;
+        TextVars *text = static_cast<TextVars *>(strip->effectdata);
+        BLO_read_string(reader, &text->text_ptr);
+        text->text_len_bytes = text->text_ptr ? strlen(text->text_ptr) : 0;
+      } break;
       case STRIP_TYPE_COLORMIX:
         BLO_read_struct(reader, ColorMixVars, &strip->effectdata);
         break;
@@ -876,6 +901,8 @@ static bool strip_read_data_cb(Strip *strip, void *user_data)
 
   BLO_read_struct(reader, IDProperty, &strip->prop);
   IDP_BlendDataRead(reader, &strip->prop);
+  BLO_read_struct(reader, IDProperty, &strip->system_properties);
+  IDP_BlendDataRead(reader, &strip->system_properties);
 
   BLO_read_struct(reader, StripData, &strip->data);
   if (strip->data && strip->data->done == 0) {
@@ -1001,14 +1028,16 @@ static void strip_update_sound_properties(const Scene *scene, const Strip *strip
 static void strip_update_sound_modifiers(Strip *strip)
 {
   void *sound_handle = strip->sound->playback_handle;
-  if (!BLI_listbase_is_empty(&strip->modifiers)) {
-    LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
-      sound_handle = sound_modifier_recreator(strip, smd, sound_handle);
-    }
+  bool needs_update = false;
+
+  LISTBASE_FOREACH (StripModifierData *, smd, &strip->modifiers) {
+    sound_handle = sound_modifier_recreator(strip, smd, sound_handle, needs_update);
   }
 
-  /* Assign modified sound back to `strip`. */
-  BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
+  if (needs_update) {
+    /* Assign modified sound back to `strip`. */
+    BKE_sound_update_sequence_handle(strip->scene_sound, sound_handle);
+  }
 }
 
 static bool must_update_strip_sound(Scene *scene, Strip *strip)
@@ -1022,9 +1051,16 @@ static void seq_update_sound_strips(Scene *scene, Strip *strip)
   if (strip->sound == nullptr || !must_update_strip_sound(scene, strip)) {
     return;
   }
+
   /* Ensure strip is playing correct sound. */
-  BKE_sound_update_scene_sound(strip->scene_sound, strip->sound);
-  strip_update_sound_modifiers(strip);
+  if (BLI_listbase_is_empty(&strip->modifiers)) {
+    /* Just use playback handle from sound ID. */
+    BKE_sound_update_scene_sound(strip->scene_sound, strip->sound);
+  }
+  else {
+    /* Use Playback handle from sound ID as input for modifier stack. */
+    strip_update_sound_modifiers(strip);
+  }
 }
 
 static bool scene_sequencer_is_used(const Scene *scene, ListBase *seqbase)

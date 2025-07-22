@@ -91,7 +91,7 @@ Strip *special_preview_get()
 
 void special_preview_set(bContext *C, const int mval[2])
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   ARegion *region = CTX_wm_region(C);
   Strip *strip = strip_under_mouse_get(scene, &region->v2d, mval);
   if (strip != nullptr && strip->type != STRIP_TYPE_SOUND_RAM) {
@@ -109,7 +109,7 @@ ImBuf *sequencer_ibuf_get(const bContext *C, const int timeline_frame, const cha
   Main *bmain = CTX_data_main(C);
   ARegion *region = CTX_wm_region(C);
   Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   SpaceSeq *sseq = CTX_wm_space_seq(C);
   bScreen *screen = CTX_wm_screen(C);
 
@@ -231,7 +231,7 @@ static void sequencer_draw_borders_overlay(const SpaceSeq &sseq,
 
   /* Draw border. */
   const uint shdr_pos = GPU_vertformat_attr_add(
-      immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
 
@@ -281,7 +281,7 @@ void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *region, S
       float aspx = 1.0f, aspy = 1.0f;
       // ED_mask_get_size(C, &width, &height);
 
-      // Scene *scene = CTX_data_scene(C);
+      // Scene *scene = CTX_data_sequencer_scene(C);
       BKE_render_resolution(&scene->r, false, &width, &height);
 
       ED_mask_draw_region(mask,
@@ -505,9 +505,9 @@ static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const
   for (int i = 0; i < 3; i++) {
     const float y = area.ymin + (area.ymax - area.ymin) * lines[i];
     char buf[10];
-    SNPRINTF(buf, "%.1f", lines[i]);
+    const size_t buf_len = SNPRINTF_RLEN(buf, "%.1f", lines[i]);
     quads.add_line(x0, y, x1, y, col_grid);
-    UI_view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, strlen(buf), col_grid);
+    UI_view2d_text_cache_add(&region->v2d, x0 + 8, y + 8, buf, buf_len, col_grid);
   }
   /* Border. */
   uchar col_border[4] = {64, 64, 64, 128};
@@ -703,7 +703,8 @@ static void sequencer_draw_scopes(const SpaceSeq &space_sequencer, ARegion &regi
   /* Draw black rectangle over scopes area. */
   if (space_sequencer.mainb != SEQ_DRAW_IMG_IMBUF) {
     GPU_blend(GPU_BLEND_NONE);
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     uchar black[4] = {0, 0, 0, 255};
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
     immUniformColor4ubv(black);
@@ -738,7 +739,7 @@ static void sequencer_draw_scopes(const SpaceSeq &space_sequencer, ARegion &regi
     eGPUTextureFormat format = GPU_RGBA8;
     eGPUDataFormat data = GPU_DATA_UBYTE;
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT;
-    GPUTexture *texture = GPU_texture_create_2d(
+    blender::gpu::Texture *texture = GPU_texture_create_2d(
         "seq_display_buf", scope_image->x, scope_image->y, 1, format, usage, nullptr);
     GPU_texture_update(texture, data, scope_image->byte_buffer.data);
     GPU_texture_filter_mode(texture, false);
@@ -747,9 +748,10 @@ static void sequencer_draw_scopes(const SpaceSeq &space_sequencer, ARegion &regi
     GPU_texture_bind(texture, 0);
 
     GPUVertFormat *imm_format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(imm_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        imm_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
     uint texCoord = GPU_vertformat_attr_add(
-        imm_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+        imm_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
     immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
     immUniformColor3f(1.0f, 1.0f, 1.0f);
 
@@ -915,11 +917,11 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
   }
 
   const blender::float2 origin = seq::image_transform_origin_offset_pixelspace_get(
-      CTX_data_scene(C), strip);
+      CTX_data_sequencer_scene(C), strip);
 
   /* Origin. */
   GPUVertFormat *format = immVertexFormat();
-  uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   immBindBuiltinProgram(GPU_SHADER_2D_POINT_UNIFORM_SIZE_UNIFORM_COLOR_OUTLINE_AA);
   immUniform1f("outlineWidth", 1.5f);
   immUniformColor3f(1.0f, 1.0f, 1.0f);
@@ -932,7 +934,7 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
 
   /* Outline. */
   const blender::Array<blender::float2> strip_image_quad = seq::image_transform_final_quad_get(
-      CTX_data_scene(C), strip);
+      CTX_data_sequencer_scene(C), strip);
 
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
@@ -947,7 +949,6 @@ static void strip_draw_image_origin_and_outline(const bContext *C,
     UI_GetThemeColor3fv(TH_SEQ_SELECTED, col);
   }
   immUniformColor3fv(col);
-  immUniform1f("lineWidth", U.pixelsize);
   immBegin(GPU_PRIM_LINE_LOOP, 4);
   immVertex2f(pos, strip_image_quad[0].x, strip_image_quad[0].y);
   immVertex2f(pos, strip_image_quad[1].x, strip_image_quad[1].y);
@@ -964,7 +965,7 @@ static void text_selection_draw(const bContext *C, const Strip *strip, uint pos)
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
 
   if (data->selection_start_offset == -1 || strip_text_selection_range_get(data).is_empty()) {
     return;
@@ -1033,7 +1034,7 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
 {
   const TextVars *data = static_cast<TextVars *>(strip->effectdata);
   const TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
 
   const blender::float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
   const float view_aspect = scene->r.xasp / scene->r.yasp;
@@ -1045,12 +1046,12 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
       text->lines[cursor_position.y].characters[cursor_position.x].position;
   /* Clamp cursor coords to be inside of text boundbox. Compensate for cursor width, but also line
    * width hardcoded in shader. */
-  rcti text_boundbox = text->text_boundbox;
-  text_boundbox.xmax -= cursor_width + U.pixelsize;
-  text_boundbox.xmin += U.pixelsize;
+  const float bound_left = float(text->text_boundbox.xmin) + U.pixelsize;
+  const float bound_right = float(text->text_boundbox.xmax) - (cursor_width + U.pixelsize);
+  /* Note: do not use std::clamp since due to math above left can become larger than right. */
+  cursor_coords.x = std::max(cursor_coords.x, bound_left);
+  cursor_coords.x = std::min(cursor_coords.x, bound_right);
 
-  cursor_coords.x = std::clamp(
-      cursor_coords.x, float(text_boundbox.xmin), float(text_boundbox.xmax));
   cursor_coords = coords_region_view_align(UI_view2d_fromcontext(C), cursor_coords);
 
   blender::float4x2 cursor_quad{
@@ -1076,54 +1077,19 @@ static void text_edit_draw_cursor(const bContext *C, const Strip *strip, uint po
   immEnd();
 }
 
-static void text_edit_draw_box(const bContext *C, const Strip *strip, uint pos)
-{
-  const TextVars *data = static_cast<TextVars *>(strip->effectdata);
-  const TextVarsRuntime *text = data->runtime;
-  const Scene *scene = CTX_data_scene(C);
-
-  const blender::float2 view_offs{-scene->r.xsch / 2.0f, -scene->r.ysch / 2.0f};
-  const float view_aspect = scene->r.xasp / scene->r.yasp;
-  blender::float3x3 transform_mat = seq::image_transform_matrix_get(CTX_data_scene(C), strip);
-  blender::float4x2 box_quad{
-      {float(text->text_boundbox.xmin), float(text->text_boundbox.ymin)},
-      {float(text->text_boundbox.xmin), float(text->text_boundbox.ymax)},
-      {float(text->text_boundbox.xmax), float(text->text_boundbox.ymax)},
-      {float(text->text_boundbox.xmax), float(text->text_boundbox.ymin)},
-  };
-
-  GPU_blend(GPU_BLEND_NONE);
-  immBindBuiltinProgram(GPU_SHADER_3D_LINE_DASHED_UNIFORM_COLOR);
-  blender::float3 col;
-  UI_GetThemeColorShade3fv(TH_SEQ_ACTIVE, -50, col);
-  immUniformColor3fv(col);
-  immUniform1f("lineWidth", U.pixelsize);
-  immUniform1f("dash_width", 10.0f);
-  immBegin(GPU_PRIM_LINE_LOOP, 4);
-
-  for (int i : blender::IndexRange(0, 4)) {
-    box_quad[i] += view_offs;
-    box_quad[i] = blender::math::transform_point(transform_mat, box_quad[i]);
-    box_quad[i].x *= view_aspect;
-    immVertex2f(pos, box_quad[i][0], box_quad[i][1]);
-  }
-
-  immEnd();
-  immUnbindProgram();
-}
-
 static void text_edit_draw(const bContext *C)
 {
   if (!sequencer_text_editing_active_poll(const_cast<bContext *>(C))) {
     return;
   }
-  const Strip *strip = seq::select_active_get(CTX_data_scene(C));
+  const Strip *strip = seq::select_active_get(CTX_data_sequencer_scene(C));
   if (!seq::effects_can_render_text(strip)) {
     return;
   }
 
   GPUVertFormat *format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   GPU_line_smooth(true);
   GPU_blend(GPU_BLEND_ALPHA);
   immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
@@ -1134,8 +1100,6 @@ static void text_edit_draw(const bContext *C)
   immUnbindProgram();
   GPU_blend(GPU_BLEND_NONE);
   GPU_line_smooth(false);
-
-  text_edit_draw_box(C, strip, pos);
 }
 
 /* Draw empty preview region.
@@ -1166,7 +1130,7 @@ static bool preview_draw_begin(const bContext *C,
                                const ColorManagedDisplaySettings &display_settings,
                                ARegion &region)
 {
-  sequencer_stop_running_jobs(C, CTX_data_scene(C));
+  sequencer_stop_running_jobs(C, CTX_data_sequencer_scene(C));
   if (G.is_rendering) {
     return false;
   }
@@ -1195,7 +1159,7 @@ static bool preview_draw_begin(const bContext *C,
 static void preview_draw_end(const bContext *C)
 {
   UI_view2d_view_restore(C);
-  seq_prefetch_wm_notify(C, CTX_data_scene(C));
+  seq_prefetch_wm_notify(C, CTX_data_sequencer_scene(C));
 }
 
 /* Configure current GPU state to draw on the color render frame-buffer of the viewport. */
@@ -1229,14 +1193,15 @@ static void preview_draw_overlay_begin(ARegion &region)
  * The position denotes coordinates of a rectangle used to display the texture.
  * The texture_coord contains UV coordinates of the input texture which are mapped to the corners
  * of the rectangle. */
-static void preview_draw_texture_simple(GPUTexture &texture,
+static void preview_draw_texture_simple(blender::gpu::Texture &texture,
                                         const rctf &position,
                                         const rctf &texture_coord)
 {
   GPUVertFormat *imm_format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(imm_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      imm_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   const uint tex_coord = GPU_vertformat_attr_add(
-      imm_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      imm_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   immBindBuiltinProgram(GPU_SHADER_3D_IMAGE_COLOR);
   immUniformColor3f(1.0f, 1.0f, 1.0f);
@@ -1255,16 +1220,17 @@ static void preview_draw_texture_simple(GPUTexture &texture,
  * The position denotes coordinates of a rectangle used to display the texture.
  * The texture_coord contains UV coordinates of the input texture which are mapped to the corners
  * of the rectangle. */
-static void preview_draw_texture_to_linear(GPUTexture &texture,
+static void preview_draw_texture_to_linear(blender::gpu::Texture &texture,
                                            const char *texture_colorspace_name,
                                            const bool predivide,
                                            const rctf &position,
                                            const rctf &texture_coord)
 {
   GPUVertFormat *imm_format = immVertexFormat();
-  const uint pos = GPU_vertformat_attr_add(imm_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  const uint pos = GPU_vertformat_attr_add(
+      imm_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
   const uint tex_coord = GPU_vertformat_attr_add(
-      imm_format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+      imm_format, "texCoord", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   if (!IMB_colormanagement_setup_glsl_draw_to_scene_linear(texture_colorspace_name, predivide)) {
     /* An error happened when configuring GPU side color space conversion. Return and allow the
@@ -1341,8 +1307,9 @@ static void draw_cursor_2d(const ARegion *region, const blender::float2 &cursor)
   struct {
     uint pos, col;
   } attr_id{};
-  attr_id.pos = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  attr_id.col = GPU_vertformat_attr_add(format, "color", GPU_COMP_F32, 3, GPU_FETCH_FLOAT);
+  attr_id.pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  attr_id.col = GPU_vertformat_attr_add(
+      format, "color", blender::gpu::VertAttrType::SFLOAT_32_32_32);
   immBindBuiltinProgram(GPU_SHADER_3D_POLYLINE_FLAT_COLOR);
   immUniform2fv("viewportSize", &viewport[2]);
   immUniform1f("lineWidth", U.pixelsize);
@@ -1408,19 +1375,19 @@ static int get_reference_frame_offset(const Editing &editing, const RenderData &
   return editing.overlay_frame_ofs;
 }
 
-/* Create GPUTexture from the given image buffer for drawing rendered sequencer frame on the
- * color render frame buffer.
+/* Create blender::gpu::Texture from the given image buffer for drawing rendered sequencer frame on
+ * the color render frame buffer.
  *
  * The texture format and color space matches the CPU-side buffer.
  *
  * If both float and byte buffers are missing nullptr is returned.
  * If channel configuration is incompatible with the texture nullptr is returned. */
-static GPUTexture *create_texture(const ImBuf &ibuf)
+static blender::gpu::Texture *create_texture(const ImBuf &ibuf)
 {
   const eGPUTextureUsage texture_usage = GPU_TEXTURE_USAGE_SHADER_READ |
                                          GPU_TEXTURE_USAGE_ATTACHMENT;
 
-  GPUTexture *texture = nullptr;
+  blender::gpu::Texture *texture = nullptr;
 
   if (ibuf.float_buffer.data) {
     eGPUTextureFormat texture_format;
@@ -1489,9 +1456,9 @@ static void sequencer_preview_draw_color_render(const SpaceSeq &space_sequencer,
                                                 const Editing &editing,
                                                 ARegion &region,
                                                 const ImBuf *current_ibuf,
-                                                GPUTexture *current_texture,
+                                                blender::gpu::Texture *current_texture,
                                                 const ImBuf *reference_ibuf,
-                                                GPUTexture *reference_texture)
+                                                blender::gpu::Texture *reference_texture)
 {
   preview_draw_color_render_begin(region);
 
@@ -1538,8 +1505,8 @@ static void sequencer_preview_draw_overlays(const bContext *C,
                                             const ColorManagedViewSettings &view_settings,
                                             const ColorManagedDisplaySettings &display_settings,
                                             ARegion &region,
-                                            GPUTexture *current_texture,
-                                            GPUTexture *reference_texture,
+                                            blender::gpu::Texture *current_texture,
+                                            blender::gpu::Texture *reference_texture,
                                             const ImBuf *overlay_ibuf,
                                             const int timeline_frame)
 {
@@ -1583,7 +1550,8 @@ static void sequencer_preview_draw_overlays(const bContext *C,
     const rctf position = preview_get_full_position(region);
 
     GPUVertFormat *imm_format = immVertexFormat();
-    const uint pos = GPU_vertformat_attr_add(imm_format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    const uint pos = GPU_vertformat_attr_add(
+        imm_format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     GPU_blend(GPU_BLEND_OVERLAY_MASK_FROM_ALPHA);
 
@@ -1608,7 +1576,7 @@ static void sequencer_preview_draw_overlays(const bContext *C,
   if (show_imbuf && (space_sequencer.flag & SEQ_SHOW_OVERLAY)) {
     sequencer_draw_borders_overlay(space_sequencer, region.v2d, scene);
 
-    /* Various overlays like stirp selection and text editing. */
+    /* Various overlays like strip selection and text editing. */
     preview_draw_all_image_overlays(C, scene, editing, timeline_frame);
 
     if ((space_sequencer.preview_overlay.flag & SEQ_PREVIEW_SHOW_GPENCIL) && space_sequencer.gpd) {
@@ -1664,7 +1632,7 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
 
   const ScrArea *area = CTX_wm_area(C);
   const SpaceSeq &space_sequencer = *static_cast<const SpaceSeq *>(area->spacedata.first);
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
 
   if (!scene->ed || space_sequencer.render_size == SEQ_RENDER_SIZE_NONE) {
     sequencer_preview_draw_empty(*region);
@@ -1699,8 +1667,8 @@ void sequencer_preview_region_draw(const bContext *C, ARegion *region)
    *
    * When non-nullptr they are to be drawn (in other words, when they are non-nullptr the
    * corresponding draw_current_frame and draw_reference_frame is true). */
-  GPUTexture *current_texture = nullptr;
-  GPUTexture *reference_texture = nullptr;
+  blender::gpu::Texture *current_texture = nullptr;
+  blender::gpu::Texture *reference_texture = nullptr;
 
   /* Get image buffers before setting up GPU state for drawing.  This is because
    * sequencer_ibuf_get() might not properly restore the state.

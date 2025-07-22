@@ -115,7 +115,10 @@ class GLTexture : public Texture {
   /** Return true on success. */
   bool init_internal(VertBuf *vbo) override;
   /** Return true on success. */
-  bool init_internal(GPUTexture *src, int mip_offset, int layer_offset, bool use_stencil) override;
+  bool init_internal(gpu::Texture *src,
+                     int mip_offset,
+                     int layer_offset,
+                     bool use_stencil) override;
 
  private:
   bool proxy_check(int mip);
@@ -216,8 +219,6 @@ inline GLenum to_gl_internal_format(eGPUTextureFormat format)
       return GL_R11F_G11F_B10F;
     case GPU_DEPTH32F_STENCIL8:
       return GL_DEPTH32F_STENCIL8;
-    case GPU_DEPTH24_STENCIL8:
-      return GL_DEPTH24_STENCIL8;
     case GPU_SRGB8_A8:
       return GL_SRGB8_ALPHA8;
     /* Texture only formats. */
@@ -277,8 +278,6 @@ inline GLenum to_gl_internal_format(eGPUTextureFormat format)
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
       return GL_DEPTH_COMPONENT32F;
-    case GPU_DEPTH_COMPONENT24:
-      return GL_DEPTH_COMPONENT24;
     case GPU_DEPTH_COMPONENT16:
       return GL_DEPTH_COMPONENT16;
   }
@@ -369,7 +368,7 @@ inline GLenum to_gl(eGPUDataFormat format)
       return GL_UNSIGNED_INT;
     case GPU_DATA_UBYTE:
       return GL_UNSIGNED_BYTE;
-    case GPU_DATA_UINT_24_8:
+    case GPU_DATA_UINT_24_8_DEPRECATED:
       return GL_UNSIGNED_INT_24_8;
     case GPU_DATA_2_10_10_10_REV:
       return GL_UNSIGNED_INT_2_10_10_10_REV;
@@ -401,7 +400,6 @@ inline GLenum to_gl_data_format(eGPUTextureFormat format)
       return GL_RGBA_INTEGER;
     case GPU_RG8:
     case GPU_RG32F:
-    case GPU_RG16I:
     case GPU_RG16F:
     case GPU_RG16:
       return GL_RG;
@@ -409,6 +407,7 @@ inline GLenum to_gl_data_format(eGPUTextureFormat format)
     case GPU_RG8I:
     case GPU_RG32UI:
     case GPU_RG32I:
+    case GPU_RG16I:
     case GPU_RG16UI:
       return GL_RG_INTEGER;
     case GPU_R8:
@@ -431,7 +430,6 @@ inline GLenum to_gl_data_format(eGPUTextureFormat format)
     case GPU_R11F_G11F_B10F:
       return GL_RGB;
     case GPU_DEPTH32F_STENCIL8:
-    case GPU_DEPTH24_STENCIL8:
       return GL_DEPTH_STENCIL;
     /* Texture only formats. */
     case GPU_RGBA16_SNORM:
@@ -474,7 +472,6 @@ inline GLenum to_gl_data_format(eGPUTextureFormat format)
       return GL_RGB;
     /* Depth Formats. */
     case GPU_DEPTH_COMPONENT32F:
-    case GPU_DEPTH_COMPONENT24:
     case GPU_DEPTH_COMPONENT16:
       return GL_DEPTH_COMPONENT;
   }

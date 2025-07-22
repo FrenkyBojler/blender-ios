@@ -59,7 +59,6 @@ using fn::FieldInput;
 using fn::FieldOperation;
 using fn::GField;
 using geo_eval_log::NamedAttributeUsage;
-using geo_eval_log::NodeWarningType;
 
 class NodeAttributeFilter : public AttributeFilter {
  private:
@@ -120,7 +119,10 @@ class GeoNodeExecParams {
    */
   template<typename T> T extract_input(StringRef identifier)
   {
-    if constexpr (stored_as_SocketValueVariant_v<T>) {
+    if constexpr (std::is_enum_v<T>) {
+      return T(this->extract_input<int>(identifier));
+    }
+    else if constexpr (stored_as_SocketValueVariant_v<T>) {
       SocketValueVariant value_variant = this->extract_input<SocketValueVariant>(identifier);
       return value_variant.extract<T>();
     }
@@ -149,7 +151,10 @@ class GeoNodeExecParams {
    */
   template<typename T> T get_input(StringRef identifier) const
   {
-    if constexpr (stored_as_SocketValueVariant_v<T>) {
+    if constexpr (std::is_enum_v<T>) {
+      return T(this->get_input<int>(identifier));
+    }
+    else if constexpr (stored_as_SocketValueVariant_v<T>) {
       auto value_variant = this->get_input<SocketValueVariant>(identifier);
       return value_variant.extract<T>();
     }
@@ -187,8 +192,7 @@ class GeoNodeExecParams {
   {
     using StoredT = std::decay_t<T>;
     if constexpr (stored_as_SocketValueVariant_v<StoredT>) {
-      SocketValueVariant value_variant(std::forward<T>(value));
-      this->set_output(identifier, std::move(value_variant));
+      this->set_output(identifier, SocketValueVariant::From(std::forward<T>(value)));
     }
     else {
 #ifndef NDEBUG
@@ -261,14 +265,14 @@ class GeoNodeExecParams {
 
   Main *bmain() const;
 
-  GeoNodesLFUserData *user_data() const
+  GeoNodesUserData *user_data() const
   {
-    return static_cast<GeoNodesLFUserData *>(lf_context_.user_data);
+    return static_cast<GeoNodesUserData *>(lf_context_.user_data);
   }
 
-  GeoNodesLFLocalUserData *local_user_data() const
+  GeoNodesLocalUserData *local_user_data() const
   {
-    return static_cast<GeoNodesLFLocalUserData *>(lf_context_.local_user_data);
+    return static_cast<GeoNodesLocalUserData *>(lf_context_.local_user_data);
   }
 
   /**

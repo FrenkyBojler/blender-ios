@@ -33,6 +33,7 @@
 #include "DNA_key_types.h"
 #include "DNA_lattice_types.h"
 #include "DNA_light_types.h"
+#include "DNA_lightprobe_types.h"
 #include "DNA_linestyle_types.h"
 #include "DNA_mask_types.h"
 #include "DNA_material_types.h"
@@ -158,7 +159,8 @@ static void acf_generic_dataexpand_backdrop(bAnimContext *ac,
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* set backdrop drawing color */
   acf->get_backdrop_color(ac, ale, color);
@@ -201,7 +203,8 @@ static void acf_generic_channel_backdrop(bAnimContext *ac,
   short offset = (acf->get_offset) ? acf->get_offset(ac, ale) : 0;
   float color[3];
 
-  uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  uint pos = GPU_vertformat_attr_add(
+      immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
   /* set backdrop drawing color */
   acf->get_backdrop_color(ac, ale, color);
@@ -755,7 +758,7 @@ static int acf_object_setting_flag(bAnimContext * /*ac*/,
       *r_neg = true;
       return ADT_CURVES_NOT_VISIBLE;
 
-    case ACHANNEL_SETTING_ALWAYS_VISIBLE:
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       return ADT_CURVES_ALWAYS_VISIBLE;
 
     default: /* unsupported */
@@ -781,9 +784,9 @@ static void *acf_object_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND:                   /* expanded */
       return GET_ACF_FLAG_PTR(ob->nlaflag, r_type); /* XXX */
 
-    case ACHANNEL_SETTING_MUTE:    /* mute (only in NLA) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
-    case ACHANNEL_SETTING_ALWAYS_VISIBLE:
+    case ACHANNEL_SETTING_MUTE:           /* mute (only in NLA) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (ob->adt) {
         return GET_ACF_FLAG_PTR(ob->adt->flag, r_type);
       }
@@ -887,7 +890,7 @@ static bool acf_group_setting_valid(bAnimContext *ac,
     case ACHANNEL_SETTING_VISIBLE: /* Only available in Graph Editor */
       return (ac->spacetype == SPACE_GRAPH);
 
-    case ACHANNEL_SETTING_ALWAYS_VISIBLE:
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       return ELEM(ac->spacetype, SPACE_ACTION, SPACE_GRAPH);
 
     default: /* always supported */
@@ -929,7 +932,7 @@ static int acf_group_setting_flag(bAnimContext *ac, eAnimChannel_Settings settin
       *r_neg = true;
       return AGRP_NOTVISIBLE;
 
-    case ACHANNEL_SETTING_ALWAYS_VISIBLE:
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       return ADT_CURVES_ALWAYS_VISIBLE;
 
     default:
@@ -1812,6 +1815,9 @@ static int acf_dslight_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -1831,9 +1837,10 @@ static void *acf_dslight_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(la->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (la->adt) {
         return GET_ACF_FLAG_PTR(la->adt->flag, r_type);
       }
@@ -2072,7 +2079,7 @@ static int acf_dscam_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
-    case ACHANNEL_SETTING_ALWAYS_VISIBLE:
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       return ADT_CURVES_ALWAYS_VISIBLE;
 
     default: /* unsupported */
@@ -2094,10 +2101,10 @@ static void *acf_dscam_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(ca->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
-    case ACHANNEL_SETTING_ALWAYS_VISIBLE:
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (ca->adt) {
         return GET_ACF_FLAG_PTR(ca->adt->flag, r_type);
       }
@@ -2135,9 +2142,7 @@ static bAnimChannelType ACF_DSCAM = {
 static int acf_dscur_icon(bAnimListElem *ale)
 {
   Curve *cu = static_cast<Curve *>(ale->data);
-  short obtype = BKE_curve_type_get(cu);
-
-  switch (obtype) {
+  switch (cu->ob_type) {
     case OB_FONT:
       return ICON_FONT_DATA;
     case OB_SURF:
@@ -2169,6 +2174,9 @@ static int acf_dscur_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -2188,9 +2196,10 @@ static void *acf_dscur_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(cu->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (cu->adt) {
         return GET_ACF_FLAG_PTR(cu->adt->flag, r_type);
       }
@@ -2520,6 +2529,9 @@ static int acf_dsmball_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -2539,9 +2551,10 @@ static void *acf_dsmball_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(mb->flag2, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (mb->adt) {
         return GET_ACF_FLAG_PTR(mb->adt->flag, r_type);
       }
@@ -2603,6 +2616,9 @@ static int acf_dsarm_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -2622,9 +2638,10 @@ static void *acf_dsarm_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(arm->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (arm->adt) {
         return GET_ACF_FLAG_PTR(arm->adt->flag, r_type);
       }
@@ -2863,6 +2880,9 @@ static int acf_dsmesh_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -2882,9 +2902,10 @@ static void *acf_dsmesh_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(mesh->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (mesh->adt) {
         return GET_ACF_FLAG_PTR(mesh->adt->flag, r_type);
       }
@@ -2947,6 +2968,9 @@ static int acf_dslat_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -2966,9 +2990,10 @@ static void *acf_dslat_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(lt->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (lt->adt) {
         return GET_ACF_FLAG_PTR(lt->adt->flag, r_type);
       }
@@ -3114,6 +3139,9 @@ static int acf_dscurves_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -3133,9 +3161,10 @@ static void *acf_dscurves_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(curves->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (curves->adt) {
         return GET_ACF_FLAG_PTR(curves->adt->flag, r_type);
       }
@@ -3197,6 +3226,9 @@ static int acf_dspointcloud_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -3216,9 +3248,10 @@ static void *acf_dspointcloud_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(pointcloud->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (pointcloud->adt) {
         return GET_ACF_FLAG_PTR(pointcloud->adt->flag, r_type);
       }
@@ -3280,6 +3313,9 @@ static int acf_dsvolume_setting_flag(bAnimContext * /*ac*/,
     case ACHANNEL_SETTING_SELECT: /* selected */
       return ADT_UI_SELECTED;
 
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
     default: /* unsupported */
       return 0;
   }
@@ -3299,9 +3335,10 @@ static void *acf_dsvolume_setting_ptr(bAnimListElem *ale,
     case ACHANNEL_SETTING_EXPAND: /* expanded */
       return GET_ACF_FLAG_PTR(volume->flag, r_type);
 
-    case ACHANNEL_SETTING_SELECT:  /* selected */
-    case ACHANNEL_SETTING_MUTE:    /* muted (for NLA only) */
-    case ACHANNEL_SETTING_VISIBLE: /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
       if (volume->adt) {
         return GET_ACF_FLAG_PTR(volume->adt->flag, r_type);
       }
@@ -3330,6 +3367,103 @@ static bAnimChannelType ACF_DSVOLUME = {
     /*has_setting*/ acf_generic_dataexpand_setting_valid,
     /*setting_flag*/ acf_dsvolume_setting_flag,
     /*setting_ptr*/ acf_dsvolume_setting_ptr,
+    /*setting_post_update*/ nullptr,
+};
+
+/* LightProbe Expander  ------------------------------------------- */
+
+/* TODO: just get this from RNA? */
+static int acf_dslightprobe_icon(bAnimListElem *ale)
+{
+  const LightProbe *probe = static_cast<LightProbe *>(ale->data);
+  switch (probe->type) {
+    case LIGHTPROBE_TYPE_SPHERE:
+      return ICON_LIGHTPROBE_SPHERE;
+    case LIGHTPROBE_TYPE_PLANE:
+      return ICON_LIGHTPROBE_PLANE;
+    case LIGHTPROBE_TYPE_VOLUME:
+      return ICON_LIGHTPROBE_VOLUME;
+    default:
+      return ICON_LIGHTPROBE_SPHERE;
+  }
+}
+
+/* Get the appropriate flag(s) for the setting when it is valid. */
+static int acf_dslightprobe_setting_flag(bAnimContext * /*ac*/,
+                                         eAnimChannel_Settings setting,
+                                         bool *r_neg)
+{
+  /* Clear extra return data first. */
+  *r_neg = false;
+
+  switch (setting) {
+    case ACHANNEL_SETTING_EXPAND: /* expanded */
+      return LIGHTPROBE_DS_EXPAND;
+
+    case ACHANNEL_SETTING_MUTE: /* mute (only in NLA) */
+      return ADT_NLA_EVAL_OFF;
+
+    case ACHANNEL_SETTING_VISIBLE: /* visible (only in Graph Editor) */
+      *r_neg = true;
+      return ADT_CURVES_NOT_VISIBLE;
+
+    case ACHANNEL_SETTING_SELECT: /* selected */
+      return ADT_UI_SELECTED;
+
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      return ADT_CURVES_ALWAYS_VISIBLE;
+
+    default: /* unsupported */
+      return 0;
+  }
+}
+
+/* get pointer to the setting */
+static void *acf_dslightprobe_setting_ptr(bAnimListElem *ale,
+                                          eAnimChannel_Settings setting,
+                                          short *r_type)
+{
+  LightProbe *probe = static_cast<LightProbe *>(ale->data);
+
+  /* Clear extra return data first. */
+  *r_type = 0;
+
+  switch (setting) {
+    case ACHANNEL_SETTING_EXPAND: /* expanded */
+      return GET_ACF_FLAG_PTR(probe->flag, r_type);
+
+    case ACHANNEL_SETTING_SELECT:         /* selected */
+    case ACHANNEL_SETTING_MUTE:           /* muted (for NLA only) */
+    case ACHANNEL_SETTING_VISIBLE:        /* visible (for Graph Editor only) */
+    case ACHANNEL_SETTING_ALWAYS_VISIBLE: /* pin */
+      if (probe->adt) {
+        return GET_ACF_FLAG_PTR(probe->adt->flag, r_type);
+      }
+      return nullptr;
+
+    default: /* unsupported */
+      return nullptr;
+  }
+}
+
+/** Light Probe expander type define. */
+static bAnimChannelType ACF_DSLIGHTPROBE = {
+    /*channel_type_name*/ "LightProbe Expander",
+    /*channel_role*/ ACHANNEL_ROLE_EXPANDER,
+
+    /*get_backdrop_color*/ acf_generic_dataexpand_color,
+    /*get_channel_color*/ nullptr,
+    /*draw_backdrop*/ acf_generic_dataexpand_backdrop,
+    /*get_indent_level*/ acf_generic_indentation_1,
+    /*get_offset*/ acf_generic_basic_offset,
+
+    /*name*/ acf_generic_idblock_name,
+    /*name_prop*/ acf_generic_idblock_name_prop,
+    /*icon*/ acf_dslightprobe_icon,
+
+    /*has_setting*/ acf_generic_dataexpand_setting_valid,
+    /*setting_flag*/ acf_dslightprobe_setting_flag,
+    /*setting_ptr*/ acf_dslightprobe_setting_ptr,
     /*setting_post_update*/ nullptr,
 };
 
@@ -3656,7 +3790,7 @@ static void acf_gpl_name_legacy(bAnimListElem *ale, char *name)
 static bool acf_gpl_name_prop_legacy(bAnimListElem *ale, PointerRNA *r_ptr, PropertyRNA **r_prop)
 {
   if (ale->data) {
-    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
+    *r_ptr = RNA_pointer_create_discrete(ale->id, &RNA_AnnotationLayer, ale->data);
     *r_prop = RNA_struct_name_property(r_ptr->type);
 
     return (*r_prop != nullptr);
@@ -4599,6 +4733,7 @@ static void ANIM_init_channel_typeinfo_data()
     animchannelTypeInfo[type++] = &ACF_DSCURVES;     /* Curves Channel */
     animchannelTypeInfo[type++] = &ACF_DSPOINTCLOUD; /* PointCloud Channel */
     animchannelTypeInfo[type++] = &ACF_DSVOLUME;     /* Volume Channel */
+    animchannelTypeInfo[type++] = &ACF_DSLIGHTPROBE; /* Light Probe */
 
     animchannelTypeInfo[type++] = &ACF_SHAPEKEY; /* ShapeKey */
 
@@ -5115,7 +5250,7 @@ void ANIM_channel_draw(
       if (ELEM(ale->type, ANIMTYPE_FCURVE, ANIMTYPE_NLACURVE)) {
         FCurve *fcu = static_cast<FCurve *>(ale->data);
         uint pos = GPU_vertformat_attr_add(
-            immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+            immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
         immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -5180,7 +5315,7 @@ void ANIM_channel_draw(
     /* draw red underline if channel is disabled */
     if (achannel_is_broken(ale)) {
       uint pos = GPU_vertformat_attr_add(
-          immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+          immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
       immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -5217,7 +5352,8 @@ void ANIM_channel_draw(
     short draw_sliders = 0;
     float ymin_ofs = 0.0f;
     float color[3];
-    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uint pos = GPU_vertformat_attr_add(
+        immVertexFormat(), "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
 
     immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
 
@@ -5729,21 +5865,21 @@ static void draw_setting_widget(bAnimContext *ac,
   }
 
   /* type of button */
-  short butType;
+  ButType butType;
   if (usetoggle) {
     if (negflag) {
-      butType = UI_BTYPE_ICON_TOGGLE_N;
+      butType = ButType::IconToggleN;
     }
     else {
-      butType = UI_BTYPE_ICON_TOGGLE;
+      butType = ButType::IconToggle;
     }
   }
   else {
     if (negflag) {
-      butType = UI_BTYPE_TOGGLE_N;
+      butType = ButType::ToggleN;
     }
     else {
-      butType = UI_BTYPE_TOGGLE;
+      butType = ButType::Toggle;
     }
   }
 
@@ -6031,7 +6167,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
       UI_block_emboss_set(block, blender::ui::EmbossType::Emboss);
 
       but = uiDefButR(block,
-                      UI_BTYPE_TEXT,
+                      ButType::Text,
                       1,
                       "",
                       offset + margin_x,
@@ -6107,7 +6243,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
           immUniformColor3ubv(color);
 
           GPUVertFormat format = {0};
-          uint pos = GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+          uint pos = GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32);
           immRectf(pos,
                    rect->xmax - rect_width - rect_margin,
                    rect->ymin + rect_margin,
@@ -6182,9 +6318,9 @@ void ANIM_channel_draw_widgets(const bContext *C,
 
         offset -= UI_UNIT_X;
         but = uiDefIconButO(block,
-                            UI_BTYPE_BUT,
+                            ButType::But,
                             "NLA_OT_action_pushdown",
-                            WM_OP_INVOKE_DEFAULT,
+                            blender::wm::OpCallContext::InvokeDefault,
                             ICON_NLA_PUSHDOWN,
                             offset,
                             ymid,
@@ -6293,7 +6429,7 @@ void ANIM_channel_draw_widgets(const bContext *C,
             bGPDlayer *gpl = static_cast<bGPDlayer *>(ale->data);
 
             /* Create the RNA pointers. */
-            ptr = RNA_pointer_create_discrete(ale->id, &RNA_GPencilLayer, ale->data);
+            ptr = RNA_pointer_create_discrete(ale->id, &RNA_AnnotationLayer, ale->data);
             PointerRNA id_ptr = RNA_id_pointer_create(ale->id);
             int icon;
 

@@ -28,7 +28,6 @@
 struct AnimData;
 struct Brush;
 struct Collection;
-struct ColorSpace;
 struct CurveMapping;
 struct CurveProfile;
 struct CustomData_MeshMasks;
@@ -43,12 +42,22 @@ struct bNodeTree;
 
 /** Workaround to forward-declare C++ type in C header. */
 #ifdef __cplusplus
-namespace blender::bke {
+namespace blender {
+namespace bke {
+struct PaintRuntime;
 class SceneRuntime;
+}  // namespace bke
+namespace ocio {
+class ColorSpace;
 }
+}  // namespace blender
+using PaintRuntimeHandle = blender::bke::PaintRuntime;
 using SceneRuntimeHandle = blender::bke::SceneRuntime;
+using ColorSpaceHandle = blender::ocio::ColorSpace;
 #else   // __cplusplus
+typedef struct PaintRuntimeHandle PaintRuntimeHandle;
 typedef struct SceneRuntimeHandle SceneRuntimeHandle;
+typedef struct ColorSpaceHandle ColorSpaceHandle;
 #endif  // __cplusplus
 
 /* -------------------------------------------------------------------- */
@@ -116,10 +125,46 @@ typedef enum eFFMpegProresProfile {
   FFM_PRORES_PROFILE_4444_XQ = 5,   /* FF_PROFILE_PRORES_XQ */
 } eFFMpegProresProfile;
 
+/* Note: These used to match `AVCodecID` enum values. Kept old values to keep file compatibility.
+ * Use `MOV_av_codec_id_get()` to get `AVCodecID` value. */
+typedef enum IMB_Ffmpeg_Codec_ID {
+  FFMPEG_CODEC_ID_NONE = 0,
+  FFMPEG_CODEC_ID_MPEG1VIDEO = 1,
+  FFMPEG_CODEC_ID_MPEG2VIDEO = 2,
+  FFMPEG_CODEC_ID_MPEG4 = 12,
+  FFMPEG_CODEC_ID_FLV1 = 21,
+  FFMPEG_CODEC_ID_DVVIDEO = 24,
+  FFMPEG_CODEC_ID_HUFFYUV = 25,
+  FFMPEG_CODEC_ID_H264 = 27,
+  FFMPEG_CODEC_ID_THEORA = 30,
+  FFMPEG_CODEC_ID_FFV1 = 33,
+  FFMPEG_CODEC_ID_QTRLE = 55,
+  FFMPEG_CODEC_ID_PNG = 61,
+  FFMPEG_CODEC_ID_DNXHD = 99,
+  FFMPEG_CODEC_ID_VP9 = 167,
+  FFMPEG_CODEC_ID_H265 = 173,
+  FFMPEG_CODEC_ID_AV1 = 226,
+  FFMPEG_CODEC_ID_PRORES = 147,
+  FFMPEG_CODEC_ID_PCM_S16LE = 65536,
+  FFMPEG_CODEC_ID_MP2 = 86016,
+  FFMPEG_CODEC_ID_MP3 = 86017,
+  FFMPEG_CODEC_ID_AAC = 86018,
+  FFMPEG_CODEC_ID_AC3 = 86019,
+  FFMPEG_CODEC_ID_VORBIS = 86021,
+  FFMPEG_CODEC_ID_FLAC = 86028,
+  FFMPEG_CODEC_ID_OPUS = 86076,
+} IMB_Ffmpeg_Codec_ID;
+
+typedef enum eFFMpegVideoHdr {
+  FFM_VIDEO_HDR_NONE = 0,
+  FFM_VIDEO_HDR_REC2100_HLG = 1,
+  FFM_VIDEO_HDR_REC2100_PQ = 2,
+} eFFMpegVideoHdr;
+
 typedef struct FFMpegCodecData {
   int type;
-  int codec;
-  int audio_codec;
+  int codec;       /* Use `codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
+  int audio_codec; /* Use `audio_codec_id_get()` instead! IMB_Ffmpeg_Codec_ID */
   int video_bitrate;
   int audio_bitrate;
   int audio_mixrate;
@@ -139,7 +184,27 @@ typedef struct FFMpegCodecData {
   int rc_buffer_size;
   int mux_packet_size;
   int mux_rate;
-  char _pad0[4];
+  int video_hdr; /* eFFMpegVideoHdr */
+
+#ifdef __cplusplus
+  IMB_Ffmpeg_Codec_ID codec_id_get() const
+  {
+    return IMB_Ffmpeg_Codec_ID(codec);
+  }
+  IMB_Ffmpeg_Codec_ID audio_codec_id_get() const
+  {
+    return IMB_Ffmpeg_Codec_ID(audio_codec);
+  }
+  void codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    codec = codec_id;
+  }
+  void audio_codec_id_set(IMB_Ffmpeg_Codec_ID codec_id)
+  {
+    audio_codec = codec_id;
+  }
+
+#endif
 } FFMpegCodecData;
 
 /** \} */
@@ -170,8 +235,7 @@ typedef struct AudioData {
 typedef struct SceneRenderLayer {
   struct SceneRenderLayer *next, *prev;
 
-  /** MAX_NAME. */
-  char name[64] DNA_DEPRECATED;
+  char name[/*MAX_NAME*/ 64] DNA_DEPRECATED;
 
   /** Converted to ViewLayer setting. */
   struct Material *mat_override DNA_DEPRECATED;
@@ -231,7 +295,7 @@ enum {
 /** #SceneRenderLayer::passflag */
 typedef enum eScenePassType {
   SCE_PASS_COMBINED = (1 << 0),
-  SCE_PASS_Z = (1 << 1),
+  SCE_PASS_DEPTH = (1 << 1),
   SCE_PASS_UNUSED_1 = (1 << 2), /* RGBA */
   SCE_PASS_UNUSED_2 = (1 << 3), /* DIFFUSE */
   SCE_PASS_UNUSED_3 = (1 << 4), /* SPEC */
@@ -267,7 +331,7 @@ typedef enum eScenePassType {
 #define RE_PASSNAME_DEPRECATED "Deprecated"
 
 #define RE_PASSNAME_COMBINED "Combined"
-#define RE_PASSNAME_Z "Depth"
+#define RE_PASSNAME_DEPTH "Depth"
 #define RE_PASSNAME_VECTOR "Vector"
 #define RE_PASSNAME_POSITION "Position"
 #define RE_PASSNAME_NORMAL "Normal"
@@ -316,10 +380,8 @@ typedef enum eScenePassType {
 typedef struct SceneRenderView {
   struct SceneRenderView *next, *prev;
 
-  /** MAX_NAME. */
-  char name[64];
-  /** MAX_NAME. */
-  char suffix[64];
+  char name[/*MAX_NAME*/ 64];
+  char suffix[/*MAX_NAME*/ 64];
 
   int viewflag;
   char _pad2[4];
@@ -582,8 +644,7 @@ enum {
 typedef struct BakeData {
   struct ImageFormatData im_format;
 
-  /** FILE_MAX. */
-  char filepath[1024];
+  char filepath[/*FILE_MAX*/ 1024];
 
   short width, height;
   short margin, flag;
@@ -788,10 +849,11 @@ typedef struct RenderData {
   char _pad9[6];
   float bake_biasdist, bake_user_scale;
 
-  /* Path to render output. */
-  /** 1024 = FILE_MAX. */
-  /* NOTE: Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code. */
-  char pic[1024];
+  /**
+   *  Path to render output.
+   * \note  Excluded from `BKE_bpath_foreach_path_` / `scene_foreach_path` code.
+   */
+  char pic[/*FILE_MAX*/ 1024];
 
   /** Stamps flags. */
   int stamp;
@@ -962,17 +1024,55 @@ typedef struct TimeMarker {
 /** \} */
 
 /* -------------------------------------------------------------------- */
+/** \name Unified Paint Settings
+ * \{ */
+
+/**
+ * These settings can override the equivalent fields in the active
+ * Brush for any paint mode; the flag field controls whether these
+ * values are used
+ */
+typedef struct UnifiedPaintSettings {
+  /** Unified radius of brush in pixels. */
+  int size;
+
+  /** Unified radius of brush in Blender units. */
+  float unprojected_radius;
+
+  /** Unified strength of brush. */
+  float alpha;
+
+  /** Unified brush weight, [0, 1]. */
+  float weight;
+
+  /** Unified brush color. */
+  float rgb[3];
+  /** Unified brush secondary color. */
+  float secondary_rgb[3];
+
+  /** Unified color jitter settings */
+  int color_jitter_flag;
+  float hsv_jitter[3];
+
+  /** Color jitter pressure curves. */
+  struct CurveMapping *curve_rand_hue;
+  struct CurveMapping *curve_rand_saturation;
+  struct CurveMapping *curve_rand_value;
+
+  /** Unified brush stroke input samples. */
+  int input_samples;
+
+  /** User preferences for sculpt and paint. */
+  int flag;
+} UnifiedPaintSettings;
+
+/** \} */
+
+/* -------------------------------------------------------------------- */
 /** \name Paint Mode/Tool Data
  * \{ */
 
 #define PAINT_MAX_INPUT_SAMPLES 64
-
-typedef struct Paint_Runtime {
-  /** Avoid having to compare with scene pointer everywhere. */
-  unsigned int initialized;
-  unsigned short ob_mode;
-  char _pad[2];
-} Paint_Runtime;
 
 typedef struct NamedBrushAssetReference {
   struct NamedBrushAssetReference *next, *prev;
@@ -980,6 +1080,8 @@ typedef struct NamedBrushAssetReference {
   const char *name;
   struct AssetWeakReference *brush_asset_reference;
 } NamedBrushAssetReference;
+
+/** \} */
 
 /**
  * For the tool system: Storage to remember the last active brush for specific tools.
@@ -1049,8 +1151,9 @@ typedef struct Paint {
 
   float tile_offset[3];
   char _pad2[4];
+  struct UnifiedPaintSettings unified_paint_settings;
 
-  struct Paint_Runtime runtime;
+  PaintRuntimeHandle *runtime;
 } Paint;
 
 /** \} */
@@ -1170,7 +1273,7 @@ typedef struct Sculpt {
 
   // /* Control tablet input. */
   // char tablet_size, tablet_strength; XXX not used?
-  int radial_symm[3];
+  int radial_symm_legacy[3];
 
   /** Maximum edge length for dynamic topology sculpting (in pixels). */
   float detail_size;
@@ -1258,7 +1361,7 @@ typedef struct VPaint {
   char flag;
   char _pad[3];
   /** For mirrored painting. */
-  int radial_symm[3];
+  int radial_symm[3] DNA_DEPRECATED;
 } VPaint;
 
 /** #VPaint::flag */
@@ -1391,120 +1494,6 @@ typedef enum eGP_Interpolate_Type {
   GP_IPO_QUINT = 11,
   GP_IPO_SINE = 12,
 } eGP_Interpolate_Type;
-
-/** \} */
-
-/* -------------------------------------------------------------------- */
-/** \name Unified Paint Settings
- * \{ */
-
-/**
- * These settings can override the equivalent fields in the active
- * Brush for any paint mode; the flag field controls whether these
- * values are used
- */
-typedef struct UnifiedPaintSettings {
-  /** Unified radius of brush in pixels. */
-  int size;
-
-  /** Unified radius of brush in Blender units. */
-  float unprojected_radius;
-
-  /** Unified strength of brush. */
-  float alpha;
-
-  /** Unified brush weight, [0, 1]. */
-  float weight;
-
-  /** Unified brush color. */
-  float rgb[3];
-  /** Unified brush secondary color. */
-  float secondary_rgb[3];
-
-  /** Unified brush stroke input samples. */
-  int input_samples;
-
-  /** User preferences for sculpt and paint. */
-  int flag;
-  char _pad[4];
-
-  /* Rake rotation. */
-
-  /** Record movement of mouse so that rake can start at an intuitive angle. */
-  float last_rake[2];
-  float last_rake_angle;
-
-  int last_stroke_valid;
-  float average_stroke_accum[3];
-  int average_stroke_counter;
-
-  /* How much brush should be rotated in the view plane, 0 means x points right, y points up.
-   * The convention is that the brush's _negative_ Y axis points in the tangent direction (of the
-   * mouse curve, Bezier curve, etc.) */
-  float brush_rotation;
-  float brush_rotation_sec;
-
-  /*******************************************************************************
-   * all data below are used to communicate with cursor drawing and tex sampling *
-   *******************************************************************************/
-  int anchored_size;
-
-  /**
-   * Normalization factor due to accumulated value of curve along spacing.
-   * Calculated when brush spacing changes to dampen strength of stroke
-   * if space attenuation is used.
-   */
-  float overlap_factor;
-  char draw_inverted;
-  /** Check is there an ongoing stroke right now. */
-  char stroke_active;
-
-  char draw_anchored;
-  char do_linear_conversion;
-
-  /**
-   * Store last location of stroke or whether the mesh was hit.
-   * Valid only while stroke is active.
-   */
-  float last_location[3];
-  int last_hit;
-
-  float anchored_initial_mouse[2];
-
-  /**
-   * Radius of brush, pre-multiplied with pressure.
-   * In case of anchored brushes contains the anchored radius.
-   */
-  float pixel_radius;
-  float initial_pixel_radius;
-  float start_pixel_radius;
-
-  /** Drawing pressure. */
-  float size_pressure_value;
-
-  /** Position of mouse, used to sample the texture. */
-  float tex_mouse[2];
-
-  /** Position of mouse, used to sample the mask texture. */
-  float mask_tex_mouse[2];
-
-  /** ColorSpace cache to avoid locking up during sampling. */
-  struct ColorSpace *colorspace;
-} UnifiedPaintSettings;
-
-/** #UnifiedPaintSettings::flag */
-typedef enum {
-  UNIFIED_PAINT_SIZE = (1 << 0),
-  UNIFIED_PAINT_ALPHA = (1 << 1),
-  /** Only used if unified size is enabled, mirrors the brush flag #BRUSH_LOCK_SIZE. */
-  UNIFIED_PAINT_BRUSH_LOCK_SIZE = (1 << 2),
-  UNIFIED_PAINT_FLAG_UNUSED_0 = (1 << 3),
-  UNIFIED_PAINT_FLAG_UNUSED_1 = (1 << 4),
-  UNIFIED_PAINT_WEIGHT = (1 << 5),
-  UNIFIED_PAINT_COLOR = (1 << 6),
-  UNIFIED_PAINT_INPUT_SAMPLES = (1 << 7),
-
-} eUnifiedPaintSettingsFlags;
 
 typedef struct CurvePaintSettings {
   char curve_type;
@@ -1667,7 +1656,7 @@ typedef struct ToolSettings {
    * This isn't all that useful in practice, so use a "default" name instead.
    * This approach may be reworked after gathering feedback from users.
    */
-  char uvcalc_weight_group[64]; /* MAX_VGROUP_NAME */
+  char uvcalc_weight_group[/*MAX_VGROUP_NAME*/ 64];
 
   /* Auto-IK. */
   /** Runtime only. */
@@ -1742,14 +1731,15 @@ typedef struct ToolSettings {
   short snap_mode;
   short snap_uv_mode;
   short snap_anim_mode;
+  short snap_playhead_mode;
   /** Generic flags (per space-type), #eSnapFlag. */
   short snap_flag;
   short snap_flag_node;
   short snap_flag_seq;
   short snap_flag_anim;
   short snap_flag_driver;
+  short snap_flag_playhead;
   short snap_uv_flag;
-  char _pad[2];
   /** Default snap source, #eSnapSourceOP. */
   /**
    * TODO(@gfxcoder): Rename `snap_target` to `snap_source` to avoid previous ambiguity of
@@ -1793,7 +1783,7 @@ typedef struct ToolSettings {
 
   char workspace_tool_type;
 
-  char _pad5[1];
+  char _pad5[7];
 
   /**
    * XXX: these `sculpt_paint_*` fields are deprecated, use the
@@ -1804,8 +1794,11 @@ typedef struct ToolSettings {
   float sculpt_paint_unified_unprojected_radius DNA_DEPRECATED;
   float sculpt_paint_unified_alpha DNA_DEPRECATED;
 
-  /** Unified Paint Settings. */
-  struct UnifiedPaintSettings unified_paint_settings;
+  /**
+   * Unified Paint Settings.
+   * \warning Deprecated, see the per-paint mode values on the `Paint` struct.
+   */
+  struct UnifiedPaintSettings unified_paint_settings DNA_DEPRECATED;
 
   struct CurvePaintSettings curve_paint_settings;
 
@@ -1836,6 +1829,11 @@ typedef struct ToolSettings {
   float snap_angle_increment_2d_precision;
   float snap_angle_increment_3d;
   float snap_angle_increment_3d_precision;
+
+  int16_t snap_step_seconds;
+  int16_t snap_step_frames;
+  /* Pixel threshold that needs to be crossed before the playhead is snapped to a point. */
+  int playhead_snap_distance;
 
 } ToolSettings;
 
@@ -1962,11 +1960,11 @@ typedef struct SceneEEVEE {
   int volumetric_shadow_samples;
   int volumetric_ray_depth;
 
-  float gtao_distance;
-  float gtao_thickness;
-  float gtao_focus;
-  int gtao_resolution;
+  float gtao_distance DNA_DEPRECATED;
+  float gtao_thickness DNA_DEPRECATED;
 
+  float fast_gi_bias;
+  int fast_gi_resolution;
   int fast_gi_step_count;
   int fast_gi_ray_count;
   float fast_gi_quality;
@@ -2012,7 +2010,7 @@ typedef struct SceneGpencil {
   float smaa_threshold;
   float smaa_threshold_render;
   int aa_samples;
-  char _pad0[4];
+  int motion_blur_steps;
 } SceneGpencil;
 
 typedef struct SceneHydra {
@@ -2079,10 +2077,11 @@ typedef struct Scene {
   /** Various settings. */
   short flag;
 
-  char use_nodes;
+  char use_nodes DNA_DEPRECATED;
   char _pad3[1];
 
-  struct bNodeTree *nodetree;
+  struct bNodeTree *nodetree DNA_DEPRECATED;
+  struct bNodeTree *compositing_node_group;
 
   /** Sequence editor data is allocated here. */
   struct Editing *ed;
@@ -2177,7 +2176,6 @@ typedef struct Scene {
   struct SceneHydra hydra;
 
   SceneRuntimeHandle *runtime;
-  void *_pad9;
 } Scene;
 
 /** \} */
@@ -2353,9 +2351,10 @@ enum {
 
 /** #RenderData::engine (scene.cc) */
 extern const char *RE_engine_id_BLENDER_EEVEE;
-extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 extern const char *RE_engine_id_BLENDER_WORKBENCH;
 extern const char *RE_engine_id_CYCLES;
+/** Only used for versioning. Was used during the transition period between 4.2 and 5.0. */
+extern const char *RE_engine_id_BLENDER_EEVEE_NEXT;
 
 /** \} */
 
@@ -2489,10 +2488,12 @@ ENUM_OPERATORS(eSnapTargetOP, SCE_SNAP_TARGET_NOT_NONEDITED)
 typedef enum eSnapMode {
   SCE_SNAP_TO_NONE = 0,
 
-  /** #ToolSettings::snap_anim_mode */
+  /** #ToolSettings::snap_anim_mode and #ToolSettings::snap_playhead_mode. */
   SCE_SNAP_TO_FRAME = (1 << 0),
   SCE_SNAP_TO_SECOND = (1 << 1),
   SCE_SNAP_TO_MARKERS = (1 << 2),
+  SCE_SNAP_TO_KEYS = (1 << 3),
+  SCE_SNAP_TO_STRIPS = (1 << 4),
 
   /** #ToolSettings::snap_mode and #ToolSettings::snap_node_mode and #ToolSettings.snap_uv_mode */
   SCE_SNAP_TO_POINT = (1 << 0),
@@ -2771,8 +2772,13 @@ enum {
 
 /** #ToolSettings::uv_flag */
 enum {
-  UV_SYNC_SELECTION = 1,
-  UV_SHOW_SAME_IMAGE = 2,
+  UV_FLAG_SYNC_SELECT = 1 << 0,
+  UV_FLAG_SHOW_SAME_IMAGE = 1 << 1,
+  /**
+   * \note In most cases #ED_uvedit_select_island_check should be used to check if island
+   * selection should be used - since not all combinations of options support it.
+   */
+  UV_FLAG_ISLAND_SELECT = 1 << 2,
 };
 
 /** #ToolSettings::uv_selectmode */
@@ -2780,7 +2786,6 @@ enum {
   UV_SELECT_VERTEX = 1 << 0,
   UV_SELECT_EDGE = 1 << 1,
   UV_SELECT_FACE = 1 << 2,
-  UV_SELECT_ISLAND = 1 << 3,
 };
 
 /** #ToolSettings::uv_sticky */

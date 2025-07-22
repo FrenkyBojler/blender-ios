@@ -21,9 +21,9 @@
 
 #  include "MEM_guardedalloc.h"
 
-#  include "BLI_endian_defines.h"
 #  include "BLI_fileops.h"
 #  include "BLI_math_base.h"
+#  include "BLI_math_color.h"
 #  include "BLI_path_utils.hh"
 #  include "BLI_string.h"
 #  include "BLI_threads.h"
@@ -32,11 +32,14 @@
 #  include "BKE_global.hh"
 #  include "BKE_image.hh"
 #  include "BKE_main.hh"
+#  include "BKE_path_templates.hh"
 
 #  include "IMB_imbuf.hh"
 
 #  include "MOV_enums.hh"
 #  include "MOV_util.hh"
+
+#  include "IMB_colormanagement.hh"
 
 #  include "ffmpeg_swscale.hh"
 #  include "movie_util.hh"
@@ -53,11 +56,13 @@ static void ffmpeg_dict_set_int(AVDictionary **dict, const char *key, int value)
 }
 
 static void ffmpeg_movie_close(MovieWriter *context);
-static void ffmpeg_filepath_get(MovieWriter *context,
+static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
+                                const Scene *scene,
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix);
+                                const char *suffix,
+                                ReportList *reports);
 
 static AVFrame *alloc_frame(AVPixelFormat pix_fmt, int width, int height)
 {
@@ -197,15 +202,167 @@ static bool write_video_frame(MovieWriter *context, AVFrame *frame, ReportList *
   return success;
 }
 
-/* read and encode a frame of video from the buffer */
-static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
+/* Allocate new ImBuf of the size of the given input which only contains float buffer with pixels
+ * from the input.
+ *
+ * For the float image buffers it is similar to IMB_dupImBuf() but it ensures that the byte buffer
+ * is not allocated.
+ *
+ * For the byte image buffers it is similar to IMB_dupImBuf() followed by IMB_float_from_byte(),
+ * but without temporary allocation, and result containing only single float buffer.
+ *
+ * No color space conversion is performed. The result float buffer might be in a non-linear space
+ * denoted by the float_buffer.colorspace. */
+static ImBuf *alloc_imbuf_for_hdr_transform(const ImBuf *input_ibuf)
 {
+  if (!input_ibuf) {
+    return nullptr;
+  }
+
+  /* Allocate new image buffer without float buffer just yet.
+   * This allows to properly initialize the number of channels used in the buffer. */
+  /* TODO(sergey): Make it a reusable function.
+   * This is a common pattern used in few areas with the goal to bypass the hardcoded number of
+   * channels used by IMB_allocImBuf(). */
+  ImBuf *result_ibuf = IMB_allocImBuf(input_ibuf->x, input_ibuf->y, input_ibuf->planes, 0);
+  result_ibuf->channels = input_ibuf->float_buffer.data ? input_ibuf->channels : 4;
+
+  /* Allocate float buffer with the proper number of channels. */
+  const size_t num_pixels = IMB_get_pixel_count(input_ibuf);
+  float *buffer = MEM_malloc_arrayN<float>(num_pixels * result_ibuf->channels, "movie hdr image");
+  IMB_assign_float_buffer(result_ibuf, buffer, IB_TAKE_OWNERSHIP);
+
+  /* Transfer flags related to color space conversion from the original image buffer. */
+  result_ibuf->flags |= (input_ibuf->flags & IB_alphamode_channel_packed);
+
+  if (input_ibuf->float_buffer.data) {
+    /* Simple case: copy pixels from the source image as-is, without any conversion.
+     * The result has the same colorspace as the input. */
+    memcpy(result_ibuf->float_buffer.data,
+           input_ibuf->float_buffer.data,
+           num_pixels * input_ibuf->channels * sizeof(float));
+    result_ibuf->float_buffer.colorspace = input_ibuf->float_buffer.colorspace;
+  }
+  else {
+    /* Convert byte buffer to float buffer.
+     * The exact profile is not important here: it should match for the source and destination so
+     * that the function only does alpha and byte->float conversions. */
+    const bool predivide = IMB_alpha_affects_rgb(input_ibuf);
+    IMB_buffer_float_from_byte(buffer,
+                               input_ibuf->byte_buffer.data,
+                               IB_PROFILE_SRGB,
+                               IB_PROFILE_SRGB,
+                               predivide,
+                               input_ibuf->x,
+                               input_ibuf->y,
+                               result_ibuf->x,
+                               input_ibuf->x);
+  }
+
+  return result_ibuf;
+}
+
+static ImBuf *do_pq_transform(const ImBuf *input_ibuf)
+{
+  ImBuf *ibuf = alloc_imbuf_for_hdr_transform(input_ibuf);
+  if (!ibuf) {
+    /* Error in input or allocation has failed. */
+    return nullptr;
+  }
+
+  /* Get `Rec.2100-PQ Display` or its alias from the OpenColorIO configuration. */
+  const char *rec2100_pq_colorspace = IMB_colormanagement_get_rec2100_pq_display_colorspace();
+  if (!rec2100_pq_colorspace) {
+    /* TODO(sergey): Error reporting if the colorspace is not found. */
+    return ibuf;
+  }
+
+  /* Convert from the current floating point buffer colorspace to Rec.2100-PQ. */
+  IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+                                      ibuf->x,
+                                      ibuf->y,
+                                      ibuf->channels,
+                                      IMB_colormanagement_get_float_colorspace(input_ibuf),
+                                      rec2100_pq_colorspace,
+                                      IMB_alpha_affects_rgb(ibuf));
+
+  return ibuf;
+}
+
+static ImBuf *do_hlg_transform(const ImBuf *input_ibuf)
+{
+  ImBuf *ibuf = alloc_imbuf_for_hdr_transform(input_ibuf);
+  if (!ibuf) {
+    /* Error in input or allocation has failed. */
+    return nullptr;
+  }
+
+  /* Get `Rec.2100-HLG Display` or its alias from the OpenColorIO configuration.
+   * The color space is supposed to be Rec.2100-HLG, 1000 nit. */
+  const char *rec2100_hlg_colorspace = IMB_colormanagement_get_rec2100_hlg_display_colorspace();
+  if (!rec2100_hlg_colorspace) {
+    /* TODO(sergey): Error reporting if the colorspace is not found. */
+    return ibuf;
+  }
+
+  /* Convert from the current floating point buffer colorspace to Rec.2100-HLG, 1000 nit. */
+  IMB_colormanagement_transform_float(ibuf->float_buffer.data,
+                                      ibuf->x,
+                                      ibuf->y,
+                                      ibuf->channels,
+                                      IMB_colormanagement_get_float_colorspace(input_ibuf),
+                                      rec2100_hlg_colorspace,
+                                      IMB_alpha_affects_rgb(ibuf));
+
+  return ibuf;
+}
+
+static const ImBuf *do_hdr_transform_if_needed(MovieWriter *context, const ImBuf *input_ibuf)
+{
+  if (!input_ibuf) {
+    return nullptr;
+  }
+
+  if (!context || !context->video_codec) {
+    return input_ibuf;
+  }
+
+  const AVCodecContext &codec = *context->video_codec;
+
+  const AVColorTransferCharacteristic color_trc = codec.color_trc;
+  const AVColorSpace colorspace = codec.colorspace;
+  const AVColorPrimaries color_primaries = codec.color_primaries;
+
+  if (color_trc == AVCOL_TRC_SMPTEST2084 && color_primaries == AVCOL_PRI_BT2020 &&
+      colorspace == AVCOL_SPC_BT2020_NCL)
+  {
+    return do_pq_transform(input_ibuf);
+  }
+
+  if (color_trc == AVCOL_TRC_ARIB_STD_B67 && color_primaries == AVCOL_PRI_BT2020 &&
+      colorspace == AVCOL_SPC_BT2020_NCL)
+  {
+    return do_hlg_transform(input_ibuf);
+  }
+
+  return input_ibuf;
+}
+
+/* read and encode a frame of video from the buffer */
+static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *input_ibuf)
+{
+  const ImBuf *image = do_hdr_transform_if_needed(context, input_ibuf);
+
   const uint8_t *pixels = image->byte_buffer.data;
   const float *pixels_fl = image->float_buffer.data;
+
   /* Use float input if needed. */
   const bool use_float = context->img_convert_frame != nullptr &&
                          context->img_convert_frame->format != AV_PIX_FMT_RGBA;
   if ((!use_float && (pixels == nullptr)) || (use_float && (pixels_fl == nullptr))) {
+    if (image != input_ibuf) {
+      IMB_freeImBuf(const_cast<ImBuf *>(image));
+    }
     return nullptr;
   }
 
@@ -230,7 +387,9 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
   if (use_float) {
     /* Float image: need to split up the image into a planar format,
      * because `libswscale` does not support RGBA->YUV conversions from
-     * packed float formats. */
+     * packed float formats.
+     * Un-premultiply the image if the output format supports alpha, to
+     * match the format of the byte image. */
     BLI_assert_msg(rgb_frame->linesize[1] == linesize_dst &&
                        rgb_frame->linesize[2] == linesize_dst &&
                        rgb_frame->linesize[3] == linesize_dst,
@@ -242,40 +401,39 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
       float *dst_r = reinterpret_cast<float *>(rgb_frame->data[2] + dst_offset);
       float *dst_a = reinterpret_cast<float *>(rgb_frame->data[3] + dst_offset);
       const float *src = pixels_fl + image->x * y * 4;
-      for (int x = 0; x < image->x; x++) {
-        *dst_r++ = src[0];
-        *dst_g++ = src[1];
-        *dst_b++ = src[2];
-        *dst_a++ = src[3];
-        src += 4;
+
+      if (MOV_codec_supports_alpha(context->ffmpeg_codec, context->ffmpeg_profile)) {
+        for (int x = 0; x < image->x; x++) {
+          float tmp[4];
+          premul_to_straight_v4_v4(tmp, src);
+          *dst_r++ = tmp[0];
+          *dst_g++ = tmp[1];
+          *dst_b++ = tmp[2];
+          *dst_a++ = tmp[3];
+          src += 4;
+        }
+      }
+      else {
+        for (int x = 0; x < image->x; x++) {
+          *dst_r++ = src[0];
+          *dst_g++ = src[1];
+          *dst_b++ = src[2];
+          *dst_a++ = src[3];
+          src += 4;
+        }
       }
     }
   }
   else {
-    /* Byte image: flip the image vertically, possibly with endian
-     * conversion. */
+    /* Byte image: flip the image vertically. */
     const size_t linesize_src = rgb_frame->width * 4;
     for (int y = 0; y < height; y++) {
       uint8_t *target = rgb_frame->data[0] + linesize_dst * (height - y - 1);
       const uint8_t *src = pixels + linesize_src * y;
 
-#  if ENDIAN_ORDER == L_ENDIAN
+      /* NOTE: this is endianness-sensitive. */
+      /* The target buffer is always expected to contain little-endian RGBA values. */
       memcpy(target, src, linesize_src);
-
-#  elif ENDIAN_ORDER == B_ENDIAN
-      const uint8_t *end = src + linesize_src;
-      while (src != end) {
-        target[3] = src[0];
-        target[2] = src[1];
-        target[1] = src[2];
-        target[0] = src[3];
-
-        target += 4;
-        src += 4;
-      }
-#  else
-#    error ENDIAN_ORDER should either be L_ENDIAN or B_ENDIAN.
-#  endif
     }
   }
 
@@ -287,10 +445,14 @@ static AVFrame *generate_video_frame(MovieWriter *context, const ImBuf *image)
     ffmpeg_sws_scale_frame(context->img_convert_ctx, context->current_frame, rgb_frame);
   }
 
+  if (image != input_ibuf) {
+    IMB_freeImBuf(const_cast<ImBuf *>(image));
+  }
+
   return context->current_frame;
 }
 
-static AVRational calc_time_base(uint den, double num, int codec_id)
+static AVRational calc_time_base(uint den, double num, AVCodecID codec_id)
 {
   /* Convert the input 'num' to an integer. Simply shift the decimal places until we get an integer
    * (within a floating point error range).
@@ -333,7 +495,7 @@ static AVRational calc_time_base(uint den, double num, int codec_id)
 }
 
 static const AVCodec *get_av1_encoder(
-    MovieWriter *context, RenderData *rd, AVDictionary **opts, int rectx, int recty)
+    MovieWriter *context, const RenderData *rd, AVDictionary **opts, int rectx, int recty)
 {
   /* There are three possible encoders for AV1: `libaom-av1`, librav1e, and `libsvtav1`. librav1e
    * tends to give the best compression quality while `libsvtav1` tends to be the fastest encoder.
@@ -346,7 +508,7 @@ static const AVCodec *get_av1_encoder(
        * where using a different encoder is desirable, such as in #103849. */
       codec = avcodec_find_encoder_by_name("librav1e");
       if (!codec) {
-        /* Fallback to `libaom-av1` if librav1e is not found. */
+        /* Fall back to `libaom-av1` if librav1e is not found. */
         codec = avcodec_find_encoder_by_name("libaom-av1");
       }
       break;
@@ -537,7 +699,7 @@ static int remap_crf_to_h265_crf(int crf, bool is_10_or_12_bpp)
   return crf;
 }
 
-static const AVCodec *get_prores_encoder(RenderData *rd, int rectx, int recty)
+static const AVCodec *get_prores_encoder(const RenderData *rd, int rectx, int recty)
 {
   /* The prores_aw encoder currently (April 2025) has issues when encoding alpha with high
    * resolution but is faster in most cases for similar quality. Use it instead of prores_ks
@@ -637,7 +799,7 @@ static void set_quality_rate_options(const MovieWriter *context,
 }
 
 static AVStream *alloc_video_stream(MovieWriter *context,
-                                    RenderData *rd,
+                                    const RenderData *rd,
                                     AVCodecID codec_id,
                                     AVFormatContext *of,
                                     int rectx,
@@ -754,8 +916,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   /* Be sure to use the correct pixel format(e.g. RGB, YUV) */
 
-  if (codec->pix_fmts) {
-    c->pix_fmt = codec->pix_fmts[0];
+  const enum AVPixelFormat *pix_fmts = ffmpeg_get_pix_fmts(c, codec);
+  if (pix_fmts) {
+    c->pix_fmt = pix_fmts[0];
   }
   else {
     /* makes HuffYUV happy ... */
@@ -764,6 +927,16 @@ static AVStream *alloc_video_stream(MovieWriter *context,
 
   const bool is_10_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_10;
   const bool is_12_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_12;
+  const bool is_16_bpp = rd->im_format.depth == R_IMF_CHAN_DEPTH_16;
+
+  eFFMpegVideoHdr hdr = eFFMpegVideoHdr(rd->ffcodecdata.video_hdr);
+  /* Never use HDR for non-10/12 bpp or grayscale outputs. */
+  if ((!is_10_bpp && !is_12_bpp) || rd->im_format.planes == R_IMF_PLANES_BW) {
+    hdr = FFM_VIDEO_HDR_NONE;
+  }
+  const bool is_hdr_pq = hdr == FFM_VIDEO_HDR_REC2100_PQ;
+  const bool is_hdr_hlg = hdr == FFM_VIDEO_HDR_REC2100_HLG;
+
   if (is_10_bpp) {
     c->pix_fmt = AV_PIX_FMT_YUV420P10LE;
   }
@@ -811,6 +984,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       else if (is_12_bpp) {
         c->pix_fmt = AV_PIX_FMT_GRAY12;
       }
+      else if (is_16_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GRAY16;
+      }
     }
     else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
       c->pix_fmt = AV_PIX_FMT_RGB32;
@@ -819,6 +995,9 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       }
       else if (is_12_bpp) {
         c->pix_fmt = AV_PIX_FMT_GBRAP12;
+      }
+      else if (is_16_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRAP16;
       }
     }
     else { /* RGB */
@@ -829,12 +1008,21 @@ static AVStream *alloc_video_stream(MovieWriter *context,
       else if (is_12_bpp) {
         c->pix_fmt = AV_PIX_FMT_GBRP12;
       }
+      else if (is_16_bpp) {
+        c->pix_fmt = AV_PIX_FMT_GBRP16;
+      }
     }
   }
 
   if (codec_id == AV_CODEC_ID_QTRLE) {
-    if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+    if (rd->im_format.planes == R_IMF_PLANES_BW) {
+      c->pix_fmt = AV_PIX_FMT_GRAY8;
+    }
+    else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
       c->pix_fmt = AV_PIX_FMT_ARGB;
+    }
+    else { /* RGB */
+      c->pix_fmt = AV_PIX_FMT_RGB24;
     }
   }
 
@@ -855,8 +1043,14 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   }
 
   if (codec_id == AV_CODEC_ID_PNG) {
-    if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
+    if (rd->im_format.planes == R_IMF_PLANES_BW) {
+      c->pix_fmt = AV_PIX_FMT_GRAY8;
+    }
+    else if (rd->im_format.planes == R_IMF_PLANES_RGBA) {
       c->pix_fmt = AV_PIX_FMT_RGBA;
+    }
+    else { /* RGB */
+      c->pix_fmt = AV_PIX_FMT_RGB24;
     }
   }
   if (codec_id == AV_CODEC_ID_PRORES) {
@@ -889,7 +1083,21 @@ static AVStream *alloc_video_stream(MovieWriter *context,
   /* If output pixel format is not RGB(A), setup colorspace metadata. */
   const AVPixFmtDescriptor *pix_fmt_desc = av_pix_fmt_desc_get(c->pix_fmt);
   const bool set_bt709 = (pix_fmt_desc->flags & AV_PIX_FMT_FLAG_RGB) == 0;
-  if (set_bt709) {
+  if (is_hdr_pq) {
+    /* TODO(sergey): Consider making the range an option to cover more use-cases. */
+    c->color_range = AVCOL_RANGE_JPEG;
+    c->color_primaries = AVCOL_PRI_BT2020;
+    c->color_trc = AVCOL_TRC_SMPTEST2084;
+    c->colorspace = AVCOL_SPC_BT2020_NCL;
+  }
+  else if (is_hdr_hlg) {
+    /* TODO(sergey): Consider making the range an option to cover more use-cases. */
+    c->color_range = AVCOL_RANGE_JPEG;
+    c->color_primaries = AVCOL_PRI_BT2020;
+    c->color_trc = AVCOL_TRC_ARIB_STD_B67;
+    c->colorspace = AVCOL_SPC_BT2020_NCL;
+  }
+  else if (set_bt709) {
     c->color_range = AVCOL_RANGE_MPEG;
     c->color_primaries = AVCOL_PRI_BT709;
     c->color_trc = AVCOL_TRC_BT709;
@@ -939,33 +1147,39 @@ static AVStream *alloc_video_stream(MovieWriter *context,
     context->img_convert_ctx = nullptr;
   }
   else {
-    /* Output pixel format is different, allocate frame for conversion. */
-    AVPixelFormat src_format = is_10_bpp || is_12_bpp ? AV_PIX_FMT_GBRAPF32LE : AV_PIX_FMT_RGBA;
+    /* Output pixel format is different, allocate frame for conversion.
+     * Setup RGB->YUV conversion with proper coefficients (depending on whether it is SDR BT.709,
+     * or HDR BT.2020). */
+    const AVPixelFormat src_format = is_10_bpp || is_12_bpp || is_16_bpp ? AV_PIX_FMT_GBRAPF32LE :
+                                                                           AV_PIX_FMT_RGBA;
     context->img_convert_frame = alloc_frame(src_format, c->width, c->height);
-    context->img_convert_ctx = ffmpeg_sws_get_context(
-        c->width, c->height, src_format, c->width, c->height, c->pix_fmt, SWS_BICUBIC);
-
-    /* Setup BT.709 coefficients for RGB->YUV conversion, if needed. */
-    if (set_bt709) {
-      int *inv_table = nullptr, *table = nullptr;
-      int src_range = 0, dst_range = 0, brightness = 0, contrast = 0, saturation = 0;
-      sws_getColorspaceDetails(context->img_convert_ctx,
-                               &inv_table,
-                               &src_range,
-                               &table,
-                               &dst_range,
-                               &brightness,
-                               &contrast,
-                               &saturation);
-      const int *new_table = sws_getCoefficients(AVCOL_SPC_BT709);
-      sws_setColorspaceDetails(context->img_convert_ctx,
-                               inv_table,
-                               src_range,
-                               new_table,
-                               dst_range,
-                               brightness,
-                               contrast,
-                               saturation);
+    if (is_hdr_pq || is_hdr_hlg) {
+      /* Special conversion for the Rec.2100 PQ and HLG output: the result color space is BT.2020,
+       * and also use full range. */
+      context->img_convert_ctx = ffmpeg_sws_get_context(c->width,
+                                                        c->height,
+                                                        src_format,
+                                                        true,
+                                                        -1,
+                                                        c->width,
+                                                        c->height,
+                                                        c->pix_fmt,
+                                                        true,
+                                                        AVCOL_SPC_BT2020_NCL,
+                                                        SWS_BICUBIC);
+    }
+    else {
+      context->img_convert_ctx = ffmpeg_sws_get_context(c->width,
+                                                        c->height,
+                                                        src_format,
+                                                        false,
+                                                        -1,
+                                                        c->width,
+                                                        c->height,
+                                                        c->pix_fmt,
+                                                        false,
+                                                        set_bt709 ? AVCOL_SPC_BT709 : -1,
+                                                        SWS_BICUBIC);
     }
   }
 
@@ -986,7 +1200,8 @@ static void ffmpeg_add_metadata_callback(void *data,
 }
 
 static bool start_ffmpeg_impl(MovieWriter *context,
-                              RenderData *rd,
+                              const Scene *scene,
+                              const RenderData *rd,
                               int rectx,
                               int recty,
                               const char *suffix,
@@ -1000,8 +1215,8 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   int ret = 0;
 
   context->ffmpeg_type = rd->ffcodecdata.type;
-  context->ffmpeg_codec = AVCodecID(rd->ffcodecdata.codec);
-  context->ffmpeg_audio_codec = AVCodecID(rd->ffcodecdata.audio_codec);
+  context->ffmpeg_codec = mov_av_codec_id_get(rd->ffcodecdata.codec_id_get());
+  context->ffmpeg_audio_codec = mov_av_codec_id_get(rd->ffcodecdata.audio_codec_id_get());
   context->ffmpeg_video_bitrate = rd->ffcodecdata.video_bitrate;
   context->ffmpeg_audio_bitrate = rd->ffcodecdata.audio_bitrate;
   context->ffmpeg_gop_size = rd->ffcodecdata.gop_size;
@@ -1015,7 +1230,10 @@ static bool start_ffmpeg_impl(MovieWriter *context,
   }
 
   /* Determine the correct filename */
-  ffmpeg_filepath_get(context, filepath, rd, context->ffmpeg_preview, suffix);
+  if (!ffmpeg_filepath_get(context, filepath, scene, rd, context->ffmpeg_preview, suffix, reports))
+  {
+    return false;
+  }
   FF_DEBUG_PRINT(
       "ffmpeg: starting output to %s:\n"
       "  type=%d, codec=%d, audio_codec=%d,\n"
@@ -1248,12 +1466,20 @@ static void flush_delayed_frames(AVCodecContext *c, AVStream *stream, AVFormatCo
   av_packet_free(&packet);
 }
 
-/* Get the output filename-- similar to the other output formats */
-static void ffmpeg_filepath_get(MovieWriter *context,
+/**
+ * Get the output filename-- similar to the other output formats.
+ *
+ * \param reports If non-null, will report errors with `RPT_ERROR` level reports.
+ *
+ * \return true on success, false on failure due to errors.
+ */
+static bool ffmpeg_filepath_get(MovieWriter *context,
                                 char filepath[FILE_MAX],
+                                const Scene *scene,
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
   char autosplit[20];
 
@@ -1262,7 +1488,7 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   int sfra, efra;
 
   if (!filepath || !exts) {
-    return;
+    return false;
   }
 
   if (preview) {
@@ -1275,6 +1501,18 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   }
 
   BLI_strncpy(filepath, rd->pic, FILE_MAX);
+
+  blender::bke::path_templates::VariableMap template_variables;
+  BKE_add_template_variables_general(template_variables, &scene->id);
+  BKE_add_template_variables_for_render_path(template_variables, *scene);
+
+  const blender::Vector<blender::bke::path_templates::Error> errors = BKE_path_apply_template(
+      filepath, FILE_MAX, template_variables);
+  if (!errors.is_empty()) {
+    BKE_report_path_template_errors(reports, RPT_ERROR, filepath, errors);
+    return false;
+  }
+
   BLI_path_abs(filepath, BKE_main_blendfile_path_from_global());
 
   BLI_file_ensure_parent_dir_exists(filepath);
@@ -1316,18 +1554,22 @@ static void ffmpeg_filepath_get(MovieWriter *context,
   }
 
   BLI_path_suffix(filepath, FILE_MAX, suffix, "");
+
+  return true;
 }
 
 static void ffmpeg_get_filepath(char filepath[/*FILE_MAX*/ 1024],
+                                const Scene *scene,
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
-  ffmpeg_filepath_get(nullptr, filepath, rd, preview, suffix);
+  ffmpeg_filepath_get(nullptr, filepath, scene, rd, preview, suffix, reports);
 }
 
 static MovieWriter *ffmpeg_movie_open(const Scene *scene,
-                                      RenderData *rd,
+                                      const RenderData *rd,
                                       int rectx,
                                       int recty,
                                       ReportList *reports,
@@ -1349,7 +1591,7 @@ static MovieWriter *ffmpeg_movie_open(const Scene *scene,
   context->ffmpeg_preview = preview;
   context->stamp_data = BKE_stamp_info_from_scene_static(scene);
 
-  bool success = start_ffmpeg_impl(context, rd, rectx, recty, suffix, reports);
+  bool success = start_ffmpeg_impl(context, scene, rd, rectx, recty, suffix, reports);
 
   if (success) {
     success = movie_audio_open(context,
@@ -1370,7 +1612,8 @@ static MovieWriter *ffmpeg_movie_open(const Scene *scene,
 static void end_ffmpeg_impl(MovieWriter *context, bool is_autosplit);
 
 static bool ffmpeg_movie_append(MovieWriter *context,
-                                RenderData *rd,
+                                const Scene *scene,
+                                const RenderData *rd,
                                 int start_frame,
                                 int frame,
                                 const ImBuf *image,
@@ -1398,7 +1641,7 @@ static bool ffmpeg_movie_append(MovieWriter *context,
       end_ffmpeg_impl(context, true);
       context->ffmpeg_autosplit_count++;
 
-      success &= start_ffmpeg_impl(context, rd, image->x, image->y, suffix, reports);
+      success &= start_ffmpeg_impl(context, scene, rd, image->x, image->y, suffix, reports);
     }
   }
 
@@ -1496,7 +1739,7 @@ static bool is_imtype_ffmpeg(const char imtype)
 
 MovieWriter *MOV_write_begin(const char imtype,
                              const Scene *scene,
-                             RenderData *rd,
+                             const RenderData *rd,
                              int rectx,
                              int recty,
                              ReportList *reports,
@@ -1518,7 +1761,8 @@ MovieWriter *MOV_write_begin(const char imtype,
 }
 
 bool MOV_write_append(MovieWriter *writer,
-                      RenderData *rd,
+                      const Scene *scene,
+                      const RenderData *rd,
                       int start_frame,
                       int frame,
                       const ImBuf *image,
@@ -1530,10 +1774,10 @@ bool MOV_write_append(MovieWriter *writer,
   }
 
 #ifdef WITH_FFMPEG
-  bool ok = ffmpeg_movie_append(writer, rd, start_frame, frame, image, suffix, reports);
+  bool ok = ffmpeg_movie_append(writer, scene, rd, start_frame, frame, image, suffix, reports);
   return ok;
 #else
-  UNUSED_VARS(rd, start_frame, frame, image, suffix, reports);
+  UNUSED_VARS(scene, rd, start_frame, frame, image, suffix, reports);
   return false;
 #endif
 }
@@ -1550,17 +1794,19 @@ void MOV_write_end(MovieWriter *writer)
 }
 
 void MOV_filepath_from_settings(char filepath[/*FILE_MAX*/ 1024],
+                                const Scene *scene,
                                 const RenderData *rd,
                                 bool preview,
-                                const char *suffix)
+                                const char *suffix,
+                                ReportList *reports)
 {
 #ifdef WITH_FFMPEG
   if (is_imtype_ffmpeg(rd->im_format.imtype)) {
-    ffmpeg_get_filepath(filepath, rd, preview, suffix);
+    ffmpeg_get_filepath(filepath, scene, rd, preview, suffix, reports);
     return;
   }
 #else
-  UNUSED_VARS(rd, preview, suffix);
+  UNUSED_VARS(scene, rd, preview, suffix, reports);
 #endif
   filepath[0] = '\0';
 }
