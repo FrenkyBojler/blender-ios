@@ -6,10 +6,10 @@
  * \ingroup intern_sky_modal
  */
 
+#include <algorithm>
+
 #include "sky_math.h"
 #include "sky_model.h"
-
-#include <tbb/parallel_for.h>
 
 /* Constants */
 static const float RAYLEIGH_SCALE = 8e3f;       /* Rayleigh scale height (m). */
@@ -308,42 +308,39 @@ void SKY_single_scattering_precompute_texture(float *pixels,
   const float longitude_step = M_2PI_F / width;
   const int rows_per_task = std::max(1024 / width, 1);
 
-  tbb::parallel_for(
-      tbb::blocked_range<size_t>(0, height, rows_per_task),
-      [=](const tbb::blocked_range<size_t> &r) {
-        float spectrum[NUM_WAVELENGTHS];
+  SKY_parallel_for(0, height, rows_per_task, [=](const size_t begin, const size_t end) {
+    for (int y = begin; y < end; y++) {
+      /* Sample more pixels toward the horizon */
+      float latitude = M_PI_2_F * sqr(float(y) / half_height - 1.0f);
+      float *pixel_row = pixels + (y * width * stride);
 
-        for (int y = r.begin(); y < r.end(); y++) {
-          /* Sample more pixels toward the horizon */
-          float latitude = M_PI_2_F * sqr(float(y) / half_height - 1.0f);
-          float *pixel_row = pixels + (y * width * stride);
-
-          for (int x = 0; x < half_width; x++) {
-            float3 xyz;
-            if (y > half_height) {
-              float longitude = longitude_step * x - M_PI_F;
-              float3 dir = geographical_to_direction(latitude, longitude);
-              single_scattering(
-                  dir, sun_dir, cam_pos, air_density, aerosol_density, ozone_density, spectrum);
-              xyz = spec_to_xyz(spectrum);
-            }
-            else {
-              xyz = make_float3(0.0f, 0.0f, 0.0f);
-            }
-
-            /* Store pixels */
-            int pos_x = x * stride;
-            pixel_row[pos_x] = xyz.x;
-            pixel_row[pos_x + 1] = xyz.y;
-            pixel_row[pos_x + 2] = xyz.z;
-            /* Mirror sky */
-            int mirror_x = (width - x - 1) * stride;
-            pixel_row[mirror_x] = xyz.x;
-            pixel_row[mirror_x + 1] = xyz.y;
-            pixel_row[mirror_x + 2] = xyz.z;
-          }
+      for (int x = 0; x < half_width; x++) {
+        float3 xyz;
+        if (y > half_height) {
+          float longitude = longitude_step * x - M_PI_F;
+          float3 dir = geographical_to_direction(latitude, longitude);
+          float spectrum[NUM_WAVELENGTHS];
+          single_scattering(
+              dir, sun_dir, cam_pos, air_density, aerosol_density, ozone_density, spectrum);
+          xyz = spec_to_xyz(spectrum);
         }
-      });
+        else {
+          xyz = make_float3(0.0f, 0.0f, 0.0f);
+        }
+
+        /* Store pixels */
+        int pos_x = x * stride;
+        pixel_row[pos_x] = xyz.x;
+        pixel_row[pos_x + 1] = xyz.y;
+        pixel_row[pos_x + 2] = xyz.z;
+        /* Mirror sky */
+        int mirror_x = (width - x - 1) * stride;
+        pixel_row[mirror_x] = xyz.x;
+        pixel_row[mirror_x + 1] = xyz.y;
+        pixel_row[mirror_x + 2] = xyz.z;
+      }
+    }
+  });
 }
 
 /*********** Sun ***********/

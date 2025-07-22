@@ -34,8 +34,6 @@
 #include "sky_math.h"
 #include "sky_model.h"
 
-#include <tbb/parallel_for.h>
-
 /* Earth's atmosphere parameters. */
 /* Ground reflectance */
 static const float4 GROUND_ALBEDO = make_float4(0.3f, 0.3f, 0.3f, 0.3f);
@@ -334,20 +332,20 @@ static SkyMultipleScattering sky_precompute_transmittance(float air_density,
   SkyMultipleScattering sms;
   float3 density_multipliers = make_float3(air_density, aerosol_density, ozone_density);
 
-  tbb::parallel_for(tbb::blocked_range<size_t>(0, TRANSMITTANCE_RES_Y, 4),
-                    [&](const tbb::blocked_range<size_t> &r) {
-                      for (int x = 0; x < TRANSMITTANCE_RES_X; x++) {
-                        for (int y = r.begin(); y < r.end(); y++) {
-                          float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
-                          float4 lut = transmittance_lut_calc(coordinates, density_multipliers);
-                          int reverse_y = TRANSMITTANCE_RES_Y - y - 1;
-                          sms.transmittance_lut[x][reverse_y][0] = lut.x;
-                          sms.transmittance_lut[x][reverse_y][1] = lut.y;
-                          sms.transmittance_lut[x][reverse_y][2] = lut.z;
-                          sms.transmittance_lut[x][reverse_y][3] = lut.w;
-                        }
-                      }
-                    });
+  SKY_parallel_for(0, TRANSMITTANCE_RES_Y, 4, [&](const size_t begin, const size_t end) {
+    for (int y = begin; y < end; y++) {
+      for (int x = 0; x < TRANSMITTANCE_RES_X; x++) {
+        float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
+        float4 lut = transmittance_lut_calc(coordinates, density_multipliers);
+        int reverse_y = TRANSMITTANCE_RES_Y - y - 1;
+        sms.transmittance_lut[x][reverse_y][0] = lut.x;
+        sms.transmittance_lut[x][reverse_y][1] = lut.y;
+        sms.transmittance_lut[x][reverse_y][2] = lut.z;
+        sms.transmittance_lut[x][reverse_y][3] = lut.w;
+      }
+    }
+  });
+
   return sms;
 }
 
@@ -371,28 +369,26 @@ void SKY_multiple_scattering_precompute_texture(float *pixels,
   const float3 sun_dir = sun_direction(sun_zenith_cos_angle);
   const int rows_per_task = std::max(1024 / width, 1);
 
-  tbb::parallel_for(tbb::blocked_range<size_t>(0, height, rows_per_task),
-                    [=](const tbb::blocked_range<size_t> &r) {
-                      for (int y = r.begin(); y < r.end(); y++) {
-                        float *pixel_row = pixels + (y * width * stride);
-                        for (int x = 0; x < half_width; x++) {
-                          float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
-                          float3 sky = sky_lut(
-                              sms, sun_dir, coordinates, altitude_normalized, density_multipliers);
+  SKY_parallel_for(0, height, rows_per_task, [=](const size_t begin, const size_t end) {
+    for (int y = begin; y < end; y++) {
+      float *pixel_row = pixels + (y * width * stride);
+      for (int x = 0; x < half_width; x++) {
+        float2 coordinates = make_float2(x + 0.5f, y + 0.5f);
+        float3 sky = sky_lut(sms, sun_dir, coordinates, altitude_normalized, density_multipliers);
 
-                          /* Store pixels */
-                          int pos_x = x * stride;
-                          pixel_row[pos_x] = sky.x;
-                          pixel_row[pos_x + 1] = sky.y;
-                          pixel_row[pos_x + 2] = sky.z;
-                          /* Mirror pixels */
-                          int mirror_x = (width - x - 1) * stride;
-                          pixel_row[mirror_x] = sky.x;
-                          pixel_row[mirror_x + 1] = sky.y;
-                          pixel_row[mirror_x + 2] = sky.z;
-                        }
-                      }
-                    });
+        /* Store pixels */
+        int pos_x = x * stride;
+        pixel_row[pos_x] = sky.x;
+        pixel_row[pos_x + 1] = sky.y;
+        pixel_row[pos_x + 2] = sky.z;
+        /* Mirror pixels */
+        int mirror_x = (width - x - 1) * stride;
+        pixel_row[mirror_x] = sky.x;
+        pixel_row[mirror_x + 1] = sky.y;
+        pixel_row[mirror_x + 2] = sky.z;
+      }
+    }
+  });
 }
 
 void SKY_multiple_scattering_precompute_sun(float sun_elevation,

@@ -9,7 +9,13 @@
 #ifndef __SKY_MATH_H__
 #define __SKY_MATH_H__
 
-// minimal math implementation for sky model
+#ifdef WITH_TBB
+#  include <tbb/parallel_for.h>
+#else
+#  include <algorithm>
+#endif
+
+/* Minimal math implementation for sky model. */
 
 #include <cmath>
 
@@ -411,12 +417,10 @@ inline float clamp(float x, float min, float max)
   if (x < min) {
     return min;
   }
-  else if (x > max) {
+  if (x > max) {
     return max;
   }
-  else {
-    return x;
-  }
+  return x;
 }
 
 inline float sign(float x)
@@ -424,12 +428,10 @@ inline float sign(float x)
   if (x < 0.0f) {
     return -1.0f;
   }
-  else if (x == 0.0f) {
+  if (x == 0.0f) {
     return 0.0f;
   }
-  else {
-    return 1.0f;
-  }
+  return 1.0f;
 }
 
 inline float mix(float x, float y, float a)
@@ -440,6 +442,26 @@ inline float mix(float x, float y, float a)
 inline float3 sun_direction(float sun_cos_theta)
 {
   return make_float3(-sqrtf(1.0f - sun_cos_theta * sun_cos_theta), 0.0f, sun_cos_theta);
+}
+
+/* Minimal parallel for implementation. */
+
+template<typename Function>
+inline void SKY_parallel_for(const size_t begin,
+                             const size_t end,
+                             const size_t grainsize,
+                             const Function &function)
+{
+#ifdef WITH_TBB
+  tbb::parallel_for(
+      tbb::blocked_range<size_t>(begin, end, grainsize),
+      [function](const tbb::blocked_range<size_t> &r) { function(r.begin(), r.end()); });
+#else
+  for (size_t i = begin; i < end; i += grainsize) {
+    function(i, std::min(i + grainsize, end));
+  }
+  (void)grainsize;
+#endif
 }
 
 #endif /* __SKY_MATH_H__ */
