@@ -110,7 +110,7 @@ static void gizmo_node_backdrop_prop_matrix_get(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float (*matrix)[4] = (float (*)[4])value_p;
+  float(*matrix)[4] = (float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   const SpaceNode *snode = (const SpaceNode *)gz_prop->custom_func.user_data;
   matrix[0][0] = snode->zoom;
@@ -123,7 +123,7 @@ static void gizmo_node_backdrop_prop_matrix_set(const wmGizmo * /*gz*/,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float (*matrix)[4] = (const float (*)[4])value_p;
+  const float(*matrix)[4] = (const float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   SpaceNode *snode = (SpaceNode *)gz_prop->custom_func.user_data;
   snode->zoom = matrix[0][0];
@@ -311,7 +311,7 @@ static void gizmo_node_crop_prop_matrix_get(const wmGizmo *gz,
                                             wmGizmoProperty *gz_prop,
                                             void *value_p)
 {
-  float (*matrix)[4] = (float (*)[4])value_p;
+  float(*matrix)[4] = (float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *crop_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = crop_group->state.dims;
@@ -331,7 +331,7 @@ static void gizmo_node_crop_prop_matrix_set(const wmGizmo *gz,
                                             wmGizmoProperty *gz_prop,
                                             const void *value_p)
 {
-  const float (*matrix)[4] = (const float (*)[4])value_p;
+  const float(*matrix)[4] = (const float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *crop_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = crop_group->state.dims;
@@ -477,7 +477,7 @@ static void gizmo_node_box_mask_prop_matrix_get(const wmGizmo *gz,
                                                 wmGizmoProperty *gz_prop,
                                                 void *value_p)
 {
-  float (*matrix)[4] = (float (*)[4])value_p;
+  float(*matrix)[4] = (float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *mask_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = mask_group->state.dims;
@@ -511,7 +511,7 @@ static void gizmo_node_box_mask_prop_matrix_set(const wmGizmo *gz,
                                                 wmGizmoProperty *gz_prop,
                                                 const void *value_p)
 {
-  const float (*matrix)[4] = (const float (*)[4])value_p;
+  const float(*matrix)[4] = (const float(*)[4])value_p;
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *mask_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = mask_group->state.dims;
@@ -817,7 +817,7 @@ static void WIDGETGROUP_node_sbeam_refresh(const bContext *C, wmGizmoGroup *gzgr
   bNode *node = bke::node_get_active(*snode->edittree);
 
   /* Need to set property here for undo. TODO: would prefer to do this in _init. */
-  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Source");
+  bNodeSocket *source_input = bke::node_find_socket(*node, SOCK_IN, "Sun Position");
   PointerRNA socket_pointer = RNA_pointer_create_discrete(
       reinterpret_cast<ID *>(snode->edittree), &RNA_NodeSocket, source_input);
   WM_gizmo_target_property_def_rna(gz, "offset", &socket_pointer, "default_value", -1);
@@ -1009,7 +1009,7 @@ static void gizmo_node_split_prop_matrix_get(const wmGizmo *gz,
                                              wmGizmoProperty *gz_prop,
                                              void *value_p)
 {
-  float (*matrix)[4] = reinterpret_cast<float (*)[4]>(value_p);
+  float(*matrix)[4] = reinterpret_cast<float(*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *split_group = (NodeBBoxWidgetGroup *)gz->parent_gzgroup->customdata;
   const float2 dims = split_group->state.dims;
@@ -1038,7 +1038,7 @@ static void gizmo_node_split_prop_matrix_set(const wmGizmo *gz,
                                              wmGizmoProperty *gz_prop,
                                              const void *value_p)
 {
-  const float (*matrix)[4] = reinterpret_cast<const float (*)[4]>(value_p);
+  const float(*matrix)[4] = reinterpret_cast<const float(*)[4]>(value_p);
   BLI_assert(gz_prop->type->array_length == 16);
   NodeBBoxWidgetGroup *split_group = reinterpret_cast<NodeBBoxWidgetGroup *>(
       gz->parent_gzgroup->customdata);
