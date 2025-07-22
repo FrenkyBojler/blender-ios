@@ -6108,7 +6108,7 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
 
   /* changes context! */
   if (ScrArea *area = ED_screen_temp_space_open(C,
-                                                IFACE_("Preferences"),
+                                                nullptr,
                                                 &window_rect,
                                                 SPACE_USERPREF,
                                                 U.preferences_display_type,
