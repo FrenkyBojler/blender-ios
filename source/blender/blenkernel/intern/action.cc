@@ -1534,9 +1534,7 @@ void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
 }
 
 const bPoseChannel *BKE_pose_channel_gizmo_get_gimbal_pchan(const bArmature *arm,
-                                                            const bPoseChannel *pose_bone
-
-                                                            ,
+                                                            const bPoseChannel *pose_bone,
                                                             float r_modified_local_mat[3][3])
 {
   if (!pose_channel_gizmo_use_localized_transform(arm, pose_bone)) {
