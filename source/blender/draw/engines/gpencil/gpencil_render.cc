@@ -77,7 +77,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
 
   /* Create depth texture & color texture from render result. */
   const char *viewname = RE_GetActiveRenderView(engine->re);
-  RenderPass *rpass_z_src = RE_pass_find_by_name(render_layer, RE_PASSNAME_Z, viewname);
+  RenderPass *rpass_z_src = RE_pass_find_by_name(render_layer, RE_PASSNAME_DEPTH, viewname);
   RenderPass *rpass_col_src = RE_pass_find_by_name(render_layer, RE_PASSNAME_COMBINED, viewname);
 
   float *pix_z = (rpass_z_src) ? rpass_z_src->ibuf->float_buffer.data : nullptr;
@@ -110,7 +110,7 @@ static void render_init_buffers(const DRWContext *draw_ctx,
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
                              GPU_TEXTURE_USAGE_HOST_READ;
     inst.render_depth_tx.ensure_2d(
-        GPU_DEPTH_COMPONENT24, int2(size), usage, do_region ? nullptr : pix_z);
+        gpu::TextureFormat::SFLOAT_32_DEPTH, int2(size), usage, do_region ? nullptr : pix_z);
   }
   if (inst.render_color_tx.is_valid() && !do_clear_col) {
     GPU_texture_update(inst.render_color_tx, GPU_DATA_FLOAT, pix_col);
@@ -118,7 +118,8 @@ static void render_init_buffers(const DRWContext *draw_ctx,
   else {
     eGPUTextureUsage usage = GPU_TEXTURE_USAGE_SHADER_READ | GPU_TEXTURE_USAGE_ATTACHMENT |
                              GPU_TEXTURE_USAGE_HOST_READ;
-    inst.render_color_tx.ensure_2d(GPU_RGBA16F, int2(size), usage, do_region ? nullptr : pix_col);
+    inst.render_color_tx.ensure_2d(
+        gpu::TextureFormat::SFLOAT_16_16_16_16, int2(size), usage, do_region ? nullptr : pix_col);
   }
 
   inst.render_fb.ensure(GPU_ATTACHMENT_TEXTURE(inst.render_depth_tx),
@@ -159,10 +160,10 @@ static void render_result_z(const DRWContext *draw_ctx,
                             const rcti *rect)
 {
   ViewLayer *view_layer = draw_ctx->view_layer;
-  if ((view_layer->passflag & SCE_PASS_Z) == 0) {
+  if ((view_layer->passflag & SCE_PASS_DEPTH) == 0) {
     return;
   }
-  RenderPass *rp = RE_pass_find_by_name(rl, RE_PASSNAME_Z, viewname);
+  RenderPass *rp = RE_pass_find_by_name(rl, RE_PASSNAME_DEPTH, viewname);
   if (rp == nullptr) {
     return;
   }

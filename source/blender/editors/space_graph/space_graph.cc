@@ -79,6 +79,14 @@ static SpaceLink *graph_create(const ScrArea * /*area*/, const Scene *scene)
   region->regiontype = RGN_TYPE_HEADER;
   region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_BOTTOM : RGN_ALIGN_TOP;
 
+  /* footer */
+  region = BKE_area_region_new();
+
+  BLI_addtail(&sipo->regionbase, region);
+  region->regiontype = RGN_TYPE_FOOTER;
+  region->alignment = (U.uiflag & USER_HEADER_BOTTOM) ? RGN_ALIGN_TOP : RGN_ALIGN_BOTTOM;
+  region->flag = RGN_FLAG_HIDDEN;
+
   /* channels */
   region = BKE_area_region_new();
 
@@ -219,7 +227,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   const int min_height = UI_ANIM_MINY;
 
   /* clear and setup matrix */
-  UI_ThemeClearColor(region->winy > min_height ? TH_BACK : TH_TIME_SCRUB_BACKGROUND);
+  UI_ThemeClearColor(TH_BACK);
 
   UI_view2d_view_ortho(v2d);
 
@@ -252,7 +260,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
 
     /* XXX(ton): the slow way to set tot rect... but for nice sliders needed. */
     /* Excluding handles from the calculation to save performance. This cuts the time it takes for
-     * this function to run in half which is a major performance bottleneck on heavy scenes.  */
+     * this function to run in half which is a major performance bottleneck on heavy scenes. */
     get_graph_keyframe_extents(
         &ac, &v2d->tot.xmin, &v2d->tot.xmax, &v2d->tot.ymin, &v2d->tot.ymax, false, false);
     /* extra offset so that these items are visible */
@@ -307,7 +315,7 @@ static void graph_main_region_draw(const bContext *C, ARegion *region)
   if (sipo->mode != SIPO_MODE_DRIVERS) {
     UI_view2d_view_orthoSpecial(region, v2d, true);
     int marker_draw_flag = DRAW_MARKERS_MARGIN;
-    if (sipo->flag & SIPO_SHOW_MARKERS) {
+    if (sipo->flag & SIPO_SHOW_MARKERS && region->winy > (UI_ANIM_MINY + UI_MARKER_MARGIN_Y)) {
       ED_markers_draw(C, marker_draw_flag);
     }
   }
@@ -971,6 +979,16 @@ void ED_spacetype_ipo()
   art->prefsizey = HEADERY;
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FRAMES | ED_KEYMAP_HEADER;
   art->listener = graph_region_listener;
+  art->init = graph_header_region_init;
+  art->draw = graph_header_region_draw;
+
+  BLI_addhead(&st->regiontypes, art);
+
+  /* regions: footer */
+  art = static_cast<ARegionType *>(MEM_callocN(sizeof(ARegionType), "spacetype graphedit region"));
+  art->regionid = RGN_TYPE_FOOTER;
+  art->prefsizey = HEADERY;
+  art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_FOOTER;
   art->init = graph_header_region_init;
   art->draw = graph_header_region_draw;
 

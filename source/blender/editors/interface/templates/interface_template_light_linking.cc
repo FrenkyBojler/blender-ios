@@ -25,6 +25,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_tree_view.hh"
 
@@ -238,14 +239,14 @@ class CollectionViewItem : public BasicTreeViewItem {
       PointerRNA id_ptr = RNA_id_pointer_create(&id_);
       PointerRNA collection_ptr = RNA_id_pointer_create(&collection_.id);
 
-      uiLayoutSetContextPointer(&context_layout_, "id", &id_ptr);
-      uiLayoutSetContextPointer(&context_layout_, "collection", &collection_ptr);
+      context_layout_.context_ptr_set("id", &id_ptr);
+      context_layout_.context_ptr_set("collection", &collection_ptr);
     }
 
     add_label(row);
 
     uiLayout *sub = &row.row(true);
-    uiLayoutSetPropDecorate(sub, false);
+    sub->use_property_decorate_set(false);
 
     build_state_button(*sub);
   }
@@ -296,7 +297,7 @@ class CollectionViewItem : public BasicTreeViewItem {
         &collection_.id, &RNA_CollectionLightLinking, &collection_light_linking_);
 
     uiBut *button = uiDefIconButR(block,
-                                  UI_BTYPE_BUT,
+                                  ButType::But,
                                   0,
                                   icon,
                                   0,

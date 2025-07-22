@@ -26,7 +26,7 @@
 #include "WM_api.hh"
 #include "WM_types.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "BLT_translation.hh"
@@ -309,7 +309,7 @@ ARegionType *ED_area_type_hud(int space_type)
 
   hud_panels_register(art, space_type, art->regionid);
 
-  art->lock = 1; /* can become flag, see BKE_spacedata_draw_locks */
+  art->lock = REGION_DRAW_LOCK_ALL;
   return art;
 }
 

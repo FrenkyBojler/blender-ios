@@ -22,7 +22,7 @@
 #include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -230,19 +230,19 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   layout->prop(ptr, "decimate_type", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
   if (decimate_type == MOD_DECIM_MODE_COLLAPSE) {
     layout->prop(ptr, "ratio", UI_ITEM_R_SLIDER, std::nullopt, ICON_NONE);
 
     row = &layout->row(true, IFACE_("Symmetry"));
-    uiLayoutSetPropDecorate(row, false);
+    row->use_property_decorate_set(false);
     sub = &row->row(true);
     sub->prop(ptr, "use_symmetry", UI_ITEM_NONE, "", ICON_NONE);
     sub = &sub->row(true);
     sub->active_set(RNA_boolean_get(ptr, "use_symmetry"));
     sub->prop(ptr, "symmetry_axis", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
-    uiItemDecoratorR(row, ptr, "symmetry_axis", 0);
+    row->decorator(ptr, "symmetry_axis", 0);
 
     layout->prop(ptr, "use_collapse_triangulate", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 

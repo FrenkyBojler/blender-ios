@@ -56,6 +56,10 @@
 
 #include "WM_types.hh"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG_BLEND_DOVERSION = {"blend.doversion"};
+
 using blender::Span;
 using blender::StringRef;
 using blender::Vector;
@@ -414,15 +418,15 @@ void BKE_spacedata_copylist(ListBase *lb_dst, ListBase *lb_src)
   }
 }
 
-void BKE_spacedata_draw_locks(bool set)
+void BKE_spacedata_draw_locks(ARegionDrawLockFlags lock_flags)
 {
   for (std::unique_ptr<SpaceType> &st : get_space_types()) {
     LISTBASE_FOREACH (ARegionType *, art, &st->regiontypes) {
-      if (set) {
-        art->do_lock = art->lock;
+      if (lock_flags != 0) {
+        art->do_lock = (art->lock & lock_flags);
       }
       else {
-        art->do_lock = false;
+        art->do_lock = 0;
       }
     }
   }
@@ -1445,10 +1449,11 @@ static void regions_remove_invalid(SpaceType *space_type, ListBase *regionbase)
       continue;
     }
 
-    printf("Warning: region type %d missing in space type \"%s\" (id: %d) - removing region\n",
-           region->regiontype,
-           space_type->name,
-           space_type->spaceid);
+    CLOG_WARN(&LOG_BLEND_DOVERSION,
+              "Region type %d missing in space type \"%s\" (id: %d) - removing region",
+              region->regiontype,
+              space_type->name,
+              space_type->spaceid);
 
     BKE_area_region_free(space_type, region);
     BLI_freelinkN(regionbase, region);

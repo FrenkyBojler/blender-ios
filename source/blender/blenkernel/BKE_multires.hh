@@ -39,10 +39,6 @@ void multires_flush_sculpt_updates(Object *object);
 void multires_force_sculpt_rebuild(Object *object);
 void multires_force_external_reload(Object *object);
 
-/* internal, only called in subsurf_ccg.cc */
-void multires_modifier_update_mdisps(DerivedMesh *dm, Scene *scene);
-void multires_modifier_update_hidden(DerivedMesh *dm);
-
 /**
  * Reset the multi-res levels to match the number of mdisps.
  */
@@ -136,12 +132,6 @@ void old_mdisps_bilinear(float out[3], float (*disps)[3], int st, float u, float
 int mdisp_rot_face_to_crn(int face_size, int face_side, float u, float v, float *x, float *y);
 
 /* Reshaping, define in multires_reshape.cc */
-
-bool multiresModifier_reshapeFromVertcos(Depsgraph *depsgraph,
-                                         Object *object,
-                                         MultiresModifierData *mmd,
-                                         const float (*vert_coords)[3],
-                                         int num_vert_coords);
 /**
  * Returns truth on success, false otherwise.
  *

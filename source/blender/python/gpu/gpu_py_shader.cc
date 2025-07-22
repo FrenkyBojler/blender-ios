@@ -19,7 +19,7 @@
 #include "GPU_uniform_buffer.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 #include "../mathutils/mathutils.hh"
@@ -63,7 +63,7 @@
   "``POINT_FLAT_COLOR``\n" \
   "   :Attributes: vec3 pos, vec4 color\n" \
   "   :Uniforms: float size\n" \
-  "``POLYLINE_UNIFORM_COLOR``\n" \
+  "``POINT_UNIFORM_COLOR``\n" \
   "   :Attributes: vec3 pos\n" \
   "   :Uniforms: vec4 color, float size\n"
 
@@ -505,7 +505,7 @@ PyDoc_STRVAR(
     "   :arg name: name of the uniform variable whose texture is to be specified.\n"
     "   :type name: str\n"
     "   :arg texture: Texture to attach.\n"
-    "   :type texture: :class:`gpu.types.GPUTexture`\n");
+    "   :type texture: :class:`gpu.types.blender::gpu::Texture`\n");
 static PyObject *pygpu_shader_uniform_sampler(BPyGPUShader *self, PyObject *args)
 {
   const char *name;
@@ -534,7 +534,7 @@ PyDoc_STRVAR(
     "   :arg name: Name of the image variable to which the texture is to be bound.\n"
     "   :type name: str\n"
     "   :arg texture: Texture to attach.\n"
-    "   :type texture: :class:`gpu.types.GPUTexture`\n");
+    "   :type texture: :class:`gpu.types.blender::gpu::Texture`\n");
 static PyObject *pygpu_shader_image(BPyGPUShader *self, PyObject *args)
 {
   const char *name;
@@ -980,7 +980,7 @@ PyDoc_STRVAR(
     "   Create shader from a GPUShaderCreateInfo.\n"
     "\n"
     "   :arg shader_info: GPUShaderCreateInfo\n"
-    "   :type shader_info: :class:`bpy.types.GPUShaderCreateInfo`\n"
+    "   :type shader_info: :class:`gpu.types.GPUShaderCreateInfo`\n"
     "   :return: Shader object corresponding to the given name.\n"
     "   :rtype: :class:`gpu.types.GPUShader`\n");
 static PyObject *pygpu_shader_create_from_info(BPyGPUShader * /*self*/, BPyGPUShaderCreateInfo *o)

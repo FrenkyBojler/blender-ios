@@ -17,6 +17,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "BLT_translation.hh"
@@ -149,7 +150,7 @@ static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel
   }
 
   uiLayout *row = &layout->row(true);
-  row->emboss_set(blender::ui::EmbossType::None);
+  row->emboss_set(ui::EmbossType::None);
   row->prop(filter_ptr, "enabled", UI_ITEM_R_ICON_ONLY, "", ICON_NONE);
 
   if (column_name.is_empty()) {
@@ -170,7 +171,7 @@ static void spreadsheet_filter_panel_draw_header(const bContext *C, Panel *panel
   }
 
   row = &layout->row(true);
-  row->emboss_set(blender::ui::EmbossType::None);
+  row->emboss_set(ui::EmbossType::None);
   const int current_index = BLI_findindex(&sspreadsheet->row_filters, filter);
   PointerRNA op_ptr = row->op("SPREADSHEET_OT_remove_row_filter_rule", "", ICON_X);
   RNA_int_set(&op_ptr, "index", current_index);
@@ -195,8 +196,8 @@ static void spreadsheet_filter_panel_draw(const bContext *C, Panel *panel)
     layout->active_set(false);
   }
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   layout->prop(filter_ptr, "column_name", UI_ITEM_NONE, IFACE_("Column"), ICON_NONE);
 

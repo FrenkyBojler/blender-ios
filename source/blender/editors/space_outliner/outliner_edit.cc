@@ -60,6 +60,7 @@
 #include "WM_types.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_view2d.hh"
 
 #include "RNA_access.hh"
@@ -791,7 +792,7 @@ void id_remap_fn(bContext *C,
   RNA_enum_set(&op_props, "id_type", GS(tselem->id->name));
   RNA_enum_set_identifier(C, &op_props, "old_id", tselem->id->name + 2);
 
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+  WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
 
   WM_operator_properties_free(&op_props);
 }
@@ -949,7 +950,7 @@ static wmOperatorStatus outliner_id_relocate_invoke(bContext *C,
   RNA_int_set(&op_props, "id_session_uid", *reinterpret_cast<int *>(&id_linked->session_uid));
 
   const wmOperatorStatus ret = WM_operator_name_call_ptr(
-      C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+      C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
 
   WM_operator_properties_free(&op_props);
 
@@ -1009,10 +1010,10 @@ static wmOperatorStatus lib_relocate(
     RNA_string_set(&op_props, "directory", dir);
     RNA_string_set(&op_props, "filename", filename);
 
-    ret = WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &op_props, nullptr);
+    ret = WM_operator_name_call_ptr(C, ot, wm::OpCallContext::ExecDefault, &op_props, nullptr);
   }
   else {
-    ret = WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &op_props, nullptr);
+    ret = WM_operator_name_call_ptr(C, ot, wm::OpCallContext::InvokeDefault, &op_props, nullptr);
   }
 
   WM_operator_properties_free(&op_props);
