@@ -25,6 +25,7 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
+#include "BLI_string.h"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
@@ -1153,13 +1154,16 @@ static wmOperatorStatus screenshot_preview_exec(bContext *C, wmOperator *op)
     Scene *scene = CTX_data_scene(C);
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
     /* For `ED_view3d_draw_offscreen_imbuf` only EEVEE only produces a good result. See #141732. */
-    const char *engine_name = scene->r.engine;
-    if (eDrawType(v3d->shading.type) == OB_MATERIAL) {
-      engine_name = RE_engine_id_BLENDER_EEVEE;
+    if (eDrawType(v3d->shading.type) == OB_RENDER) {
+      const char *engine_name = scene->r.engine;
+      render_offscreen = STR_ELEM(engine_name,
+                                  RE_engine_id_BLENDER_EEVEE,
+                                  RE_engine_id_BLENDER_EEVEE_NEXT,
+                                  RE_engine_id_BLENDER_WORKBENCH);
     }
-    render_offscreen = STREQ(engine_name, RE_engine_id_BLENDER_EEVEE) ||
-                       STREQ(engine_name, RE_engine_id_BLENDER_EEVEE_NEXT) ||
-                       STREQ(engine_name, RE_engine_id_BLENDER_WORKBENCH);
+    else {
+      render_offscreen = true;
+    }
   }
   if (render_offscreen) {
     View3D *v3d = static_cast<View3D *>(area_p1->spacedata.first);
