@@ -7,6 +7,7 @@
 #include "BLT_translation.hh"
 
 #include "BLI_math_base.hh"
+#include "BLI_path_utils.hh"
 #include "BLI_span.hh"
 
 #include "BKE_context.hh"
@@ -580,33 +581,6 @@ static int format_float_to_string(const FormatSpecifier &format,
 }
 
 /**
- * Escape path-separator characters in a string, in preparation for use in a
- * filepath.
- *
- * This is intended to be used on the values of string variables before they get
- * substituted into a path. Without this, values like "and/or" would end up
- * creating separate "and" and "or" path segments in the final path, rather than
- * a single path segment.
- *
- * \return Length of the produced string.
- */
-static int escape_string_for_path(const blender::StringRefNull string_value,
-                                  char r_output_string[FORMAT_BUFFER_SIZE])
-{
-  BLI_strncpy(r_output_string, string_value.c_str(), FORMAT_BUFFER_SIZE);
-
-  const int output_length = blender::math::min(string_value.size(),
-                                               int64_t(FORMAT_BUFFER_SIZE - 1));
-  for (int i = 0; i < output_length; i++) {
-    if (r_output_string[i] == '/' || r_output_string[i] == '\\') {
-      r_output_string[i] = '_';
-    }
-  }
-
-  return output_length;
-}
-
-/**
  * Parse the "format specifier" part of a variable expression.
  *
  * The format specifier is e.g. the "##.###" in "{name:##.###}". The specifier
@@ -919,7 +893,8 @@ static blender::Vector<Error> eval_template(char *out_path,
             errors.append({ErrorType::FORMAT_SPECIFIER, token.byte_range});
             continue;
           }
-          escape_string_for_path(*string_value, replacement_string);
+          STRNCPY(replacement_string, string_value->c_str());
+          BLI_path_make_safe_filename(replacement_string);
           break;
         }
 

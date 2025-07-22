@@ -103,10 +103,10 @@ namespace blender::bke::path_templates {
  *
  * A filepath variable can contain either a full or partial filepath. The
  * distinction between string and filepath variables exists because non-path
- * strings may include phrases like "and/or" which shouldn't be interpreted as
- * two path components. When used in path templating, path-separator characters
- * in string variables are therefore escaped, but are left as-is in filepath
- * variables.
+ * strings may include phrases like "and/or" or "A:Left", which shouldn't be
+ * interpreted with path semantics. When used in path templating, the contents
+ * of string variables are therefore sanitized (replacing "/", etc.), but the
+ * contents of filepath variables are left as-is.
  */
 class VariableMap {
   blender::Map<std::string, std::string> strings_;
