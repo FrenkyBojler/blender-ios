@@ -1427,3 +1427,13 @@ set(HIPRT_FILE hiprt-${HIPRT_VERSION}.tar.gz)
 set(HIPRT_HOMEPAGE https://github.com/GPUOpen-LibrariesAndSDKs/HIPRT)
 set(HIPRT_LICENSE SPDX:MIT)
 set(HIPRT_COPYRIGHT "Copyright (C) 2024 Advanced Micro Devices, Inc. All Rights Reserved. ")
+
+set(SENTRY_SDK_VERSION 0.9.1)
+set(SENTRY_SDK_URI https://github.com/getsentry/sentry-native/releases/download/0.9.1/sentry-native.zip)
+set(SENTRY_SDK_HASH e5349b1a233ac52291e54cba3a6d028781d8173e8b3cd759f17cd27769f02eab)
+set(SENTRY_SDK_HASH_TYPE SHA256)
+set(SENTRY_SDK_FILE sentry-native-v${SENTRY_SDK_VERSION}.zip)
+set(SENTRY_SDK_HOMEPAGE https://github.com/getsentry/sentry-native)
+set(SENTRY_SDK_LICENSE SPDX:MIT)
+set(SENTRY_SDK_COPYRIGHT "?")
+
