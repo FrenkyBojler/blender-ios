@@ -617,6 +617,7 @@ void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
           return IDWALK_RET_NOP;
         }
 
+        ID *self_id = cb_data->self_id;
         ID *referenced_id = *cb_data->id_pointer;
         if (!referenced_id) {
           return IDWALK_RET_NOP;
@@ -626,22 +627,19 @@ void blender::bke::library::pack_linked_id_hierarchy(Main &bmain, ID &root_id)
           return IDWALK_RET_NOP;
         }
         if (ID_IS_PACKED(referenced_id)) {
-          /* FIXME This is not correct, another linked data can use packed linked data.
-           *
-           * Essentially, until actual lib data changes, the packed linked ID replaces a regular
-           * linked ID (this is done at link time by checking deep hashes).
-           *
-           * Once real lib data diverges, then new usages (including current non-packed linked
-           * IDs) will switch to the 'current' version from the real library, while existing local
-           * and packed usages will stay on the archived packed version.
-           */
-          CLOG_ERROR(&LOG,
-                     "Non-packed data-block references packed data-block which is not allowed");
+          /* A linked ID can use another packed linked ID, as long as it is not from the same
+           * library. */
+          BLI_assert(referenced_id->lib && referenced_id->lib->archive_parent_library);
+          if (referenced_id->lib->archive_parent_library == self_id->lib) {
+            CLOG_ERROR(&LOG,
+                       "Non-packed data-block references packed data-block from the same library, "
+                       "which is not allowed");
+          }
           return IDWALK_RET_NOP;
         }
         if (GS(referenced_id->name) == ID_KE) {
-          /* Shape keys cannot be directly linked, from linking code PoV they behave as packed
-           * data (i.e. their owning data is reposible to handle them). */
+          /* Shape keys cannot be directly linked, from linking code PoV they behave as embedded
+           * data (i.e. their owning data is responsible to handle them). */
           return IDWALK_RET_NOP;
         }
 

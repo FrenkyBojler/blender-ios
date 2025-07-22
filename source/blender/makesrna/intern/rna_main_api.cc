@@ -152,7 +152,7 @@ static ID *rna_Main_pack_linked_ids_hierarchy(struct BlendData *blenddata,
                                               ID *root_id)
 {
   if (!ID_IS_LINKED(root_id)) {
-    BKE_reportf(reports, RPT_ERROR, "Only linked IDs can be linked-embedded");
+    BKE_reportf(reports, RPT_ERROR, "Only linked IDs can be packed");
     return nullptr;
   }
   if (ID_IS_PACKED(root_id)) {
