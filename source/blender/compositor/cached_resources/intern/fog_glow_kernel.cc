@@ -48,18 +48,19 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
  * Fog Glow Kernel.
  */
 
-/* Given the x and y location in the range from 0 to kernel_size - 1, where kernel_size is odd,
- * compute the fog glow kernel value, the kernel value is calculated based on Equation (5) of
- * the paper:
+/* Given the texel coordinates and the constant field-of-view-per-pixel value, under the assumption
+ * of a relatively small field of view as discussed in Section 3.2, this function computes the
+ * fog glow kernel value. The kernel value is derived from Equation (5) of the following paper:
  *
- *   Spencer, Greg, et al. "Physically-based glare effects for digital images." Proceedings of
- *   the 22nd annual conference on Computer graphics and interactive techniques. 1995. */
+ *   Spencer, Greg, et al. "Physically-Based Glare Effects for Digital Images."
+ *   Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques,
+ *   1995.
+ */
 
-[[maybe_unused]] static float compute_fog_glow_kernel_value(int2 texel, float delta_theta)
+[[maybe_unused]] static float compute_fog_glow_kernel_value(int2 texel,
+                                                            float field_of_view_per_pixel)
 {
-  const float2 uv = float2(texel);
-  const float r = math::length(uv);
-  const float theta_degree = r * delta_theta;
+  const float theta_degree = math::length(texel) * field_of_view_per_pixel;
   const float f0 = 2.61f * 1e6f * math::exp(-math::square(theta_degree / 0.02f));
   const float f1 = 20.91f / math::cube(theta_degree + 0.02f);
   const float f2 = 72.37f / math::square(theta_degree + 0.02f);
@@ -100,9 +101,10 @@ FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float field_of_
         const int2 texel = int2(x, y);
         const int2 center_texel = spatial_size / 2;
         const int2 kernel_texel = texel - center_texel;
-        const float delta_theta = field_of_view / kernel_size;
+        const float field_of_view_per_pixel = field_of_view / kernel_size;
 
-        const float kernel_value = compute_fog_glow_kernel_value(kernel_texel, delta_theta);
+        const float kernel_value = compute_fog_glow_kernel_value(kernel_texel,
+                                                                 field_of_view_per_pixel);
         sum += kernel_value;
 
         /* We offset the computed kernel with wrap around such that it is centered at the zero

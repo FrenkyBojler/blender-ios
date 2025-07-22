@@ -2191,12 +2191,12 @@ class GlareOperation : public NodeOperation {
     return fog_glow_result;
   }
 
+  /* compute_fog_glow_field_of_view returns the field of view in degrees, based on the user size
+   * input. */
   float compute_fog_glow_field_of_view()
   {
-    const float maximum_field_of_view = 180.0f;
     const float minimum_field_of_view = 5e-1f;
-    const float field_of_view = this->get_size() == 0 ? maximum_field_of_view :
-                                                        minimum_field_of_view / this->get_size();
+    const float field_of_view = minimum_field_of_view / math::max(this->get_size(), 1e-9f);
     return field_of_view;
   }
 
