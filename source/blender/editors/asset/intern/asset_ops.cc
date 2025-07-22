@@ -10,6 +10,7 @@
 #include "AS_asset_representation.hh"
 
 #include "BKE_asset_edit.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -25,7 +26,6 @@
 #include "BLI_path_utils.hh"
 #include "BLI_rect.h"
 #include "BLI_set.hh"
-#include "BLI_string.h"
 
 #include "ED_asset.hh"
 #include "ED_screen.hh"
@@ -1447,7 +1447,7 @@ static bool screenshot_preview_poll(bContext *C)
   }
 
   std::string lib_path = asset_handle->full_library_path();
-  if (BLI_strn_endswith(lib_path.c_str(), ".asset.blend", lib_path.size())) {
+  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
     return true;
   }
 
