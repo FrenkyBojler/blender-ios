@@ -69,6 +69,7 @@ enum class PenModal : int8_t {
 
 /* Used to scale the default select distance. */
 constexpr float selection_distance_factor = 0.9f;
+constexpr float selection_distance_factor_edge = 0.7f;
 /* Used when creating a single curve from nothing. */
 constexpr float default_handle_px_distance = 16.0f;
 constexpr float default_radius_factor = 0.25f;
@@ -79,6 +80,7 @@ struct PenToolOperation {
   GreasePencil *grease_pencil;
 
   float threshold_distance;
+  float threshold_distance_edge;
 
   bool extrude_point;
   bool delete_point;
@@ -140,6 +142,68 @@ static int pen_find_closest_point(const PenToolOperation &ptd,
     {
       closest_point = i;
       closest_distance_squared = distance_squared;
+    }
+  }
+
+  return closest_point;
+}
+
+/* Will return -1 if no points are near. */
+static int pen_find_closest_edge_point(const PenToolOperation &ptd,
+                                       const bke::CurvesGeometry &curves,
+                                       const float2 mouse_co,
+                                       float *r_closest_t)
+{
+  float closest_distance_squared = std::numeric_limits<float>::max();
+  int closest_point = -1;
+
+  const OffsetIndices points_by_curve = curves.points_by_curve();
+  const OffsetIndices evaluated_points_by_curve = curves.evaluated_points_by_curve();
+  const Span<float3> evaluated_positions = curves.evaluated_positions();
+  const VArray<bool> curve_cyclic = curves.cyclic();
+  const VArray<int8_t> types = curves.curve_types();
+
+  for (const int curve_i : curves.curves_range()) {
+    const IndexRange src_points = points_by_curve[curve_i];
+    const IndexRange eval_points = evaluated_points_by_curve[curve_i];
+
+    if (types[curve_i] != CURVE_TYPE_BEZIER) {
+      continue;
+    }
+
+    const Span<int> offsets = curves.bezier_evaluated_offsets_for_curve(curve_i);
+    const bool cyclic = curve_cyclic[curve_i];
+    for (const int src_i : src_points.index_range().drop_back(cyclic ? 0 : 1)) {
+      const IndexRange eval_range = IndexRange::from_begin_end(offsets[src_i], offsets[src_i + 1])
+                                        .shift(eval_points.first());
+
+      const int point_num = eval_range.size() - 1;
+
+      for (const int eval_i : IndexRange(point_num)) {
+        const int eval_point_i_1 = eval_range[eval_i];
+        const int eval_point_i_2 = eval_range[(eval_i + 1) % eval_range.size()];
+        const float2 pos_1_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_1]);
+        const float2 pos_2_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_2]);
+        const float2 dif_m = mouse_co - pos_1_proj;
+        const float2 dif_l = pos_2_proj - pos_1_proj;
+        const float d = math::dot(dif_m, dif_l);
+        const float l2 = math::dot(dif_l, dif_l);
+        const float local_t = math::clamp(d / l2, 0.0f, 1.0f);
+        const float2 closest_pos = dif_l * local_t + pos_1_proj;
+
+        const float distance_squared = math::distance_squared(closest_pos, mouse_co);
+
+        const float t = (eval_i + local_t) / float(point_num);
+
+        /* Save the closest point. */
+        if (distance_squared < closest_distance_squared &&
+            distance_squared < ptd.threshold_distance_edge * ptd.threshold_distance_edge)
+        {
+          closest_point = src_i;
+          *r_closest_t = t;
+          closest_distance_squared = distance_squared;
+        }
+      }
     }
   }
 
@@ -415,6 +479,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   /* Distance threshold for mouse clicks to affect the spline or its points */
   ptd.mouse_co = float2(event->mval);
   ptd.threshold_distance = ED_view3d_select_dist_px() * selection_distance_factor;
+  ptd.threshold_distance_edge = ED_view3d_select_dist_px() * selection_distance_factor_edge;
 
   ptd.extrude_point = RNA_boolean_get(op->ptr, "extrude_point");
   ptd.delete_point = RNA_boolean_get(op->ptr, "delete_point");
@@ -465,7 +530,15 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         info.drawing.tag_topology_changed();
 
         changed.store(true, std::memory_order_relaxed);
+        return;
       }
+
+      if (ptd.move_seg || ptd.insert_point) {
+        float closest_t;
+        const int closest_edge_point = pen_find_closest_edge_point(
+            ptd, curves, ptd.mouse_co, &closest_t);
+      }
+
       return;
     }
 
