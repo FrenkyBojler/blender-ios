@@ -153,6 +153,19 @@ static int pen_find_closest_point(const PenToolOperation &ptd,
   return closest_point;
 }
 
+static float2 line_segment_closest_point(const float2 pos_1,
+                                         const float2 pos_2,
+                                         const float2 pos,
+                                         float *r_local_t)
+{
+  const float2 dif_m = pos - pos_1;
+  const float2 dif_l = pos_2 - pos_1;
+  const float d = math::dot(dif_m, dif_l);
+  const float l2 = math::dot(dif_l, dif_l);
+  *r_local_t = math::clamp(d / l2, 0.0f, 1.0f);
+  return dif_l * (*r_local_t) + pos_1;
+}
+
 /* Will return -1 if no points are near. */
 static int pen_find_closest_edge_point(const PenToolOperation &ptd,
                                        const bke::CurvesGeometry &curves,
@@ -190,15 +203,11 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
         const int eval_point_i_2 = eval_range[(eval_i + 1) % eval_range.size()];
         const float2 pos_1_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_1]);
         const float2 pos_2_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_2]);
-        const float2 dif_m = mouse_co - pos_1_proj;
-        const float2 dif_l = pos_2_proj - pos_1_proj;
-        const float d = math::dot(dif_m, dif_l);
-        const float l2 = math::dot(dif_l, dif_l);
-        const float local_t = math::clamp(d / l2, 0.0f, 1.0f);
-        const float2 closest_pos = dif_l * local_t + pos_1_proj;
+        float local_t;
+        const float2 closest_pos = line_segment_closest_point(
+            pos_1_proj, pos_2_proj, mouse_co, &local_t);
 
         const float distance_squared = math::distance_squared(closest_pos, mouse_co);
-
         const float t = (eval_i + local_t) / float(point_num);
 
         /* Save the closest point. */
