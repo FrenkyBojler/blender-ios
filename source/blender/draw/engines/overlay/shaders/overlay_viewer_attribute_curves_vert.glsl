@@ -21,9 +21,9 @@ void main()
   gl_Position = drw_point_world_to_homogenous(world_pos);
 
   if (is_point_domain) {
-    final_color = texelFetch(color_tx, ws_pt.point_id);
+    final_color = texelFetch(color_tx, int(ws_pt.point_id));
   }
   else {
-    final_color = texelFetch(color_tx, ws_pt.curve_id);
+    final_color = texelFetch(color_tx, int(ws_pt.curve_id));
   }
 }

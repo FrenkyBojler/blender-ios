@@ -256,7 +256,7 @@ struct CurvesInfos {
 
   uint vertex_per_segment;
   uint half_cylinder_face_count;
-  uint _pad0;
+  uint point_per_segment_max;
   uint _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(CurvesInfos, 16)

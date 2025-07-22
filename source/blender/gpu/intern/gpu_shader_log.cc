@@ -252,6 +252,7 @@ void Shader::print_log(Span<StringRefNull> sources,
     if (DEBUG_LOG_SHADER_SRC_ON_ERROR && error) {
       CLG_log_str(LOG.type, level, this->name, stage, sources_combined.c_str());
     }
+    std::cout << this->name << std::endl;
     const char *_str = BLI_dynstr_get_cstring(dynstr);
     CLG_log_str(LOG.type, level, this->name, stage, _str);
     MEM_freeN(_str);

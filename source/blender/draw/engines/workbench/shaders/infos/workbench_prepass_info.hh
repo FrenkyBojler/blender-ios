@@ -50,6 +50,7 @@ PUSH_CONSTANT(int, emitter_object_id)
 VERTEX_SOURCE("workbench_prepass_hair_vert.glsl")
 ADDITIONAL_INFO(draw_modelmat_with_custom_id)
 ADDITIONAL_INFO(draw_curves)
+ADDITIONAL_INFO(draw_curves_infos)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(workbench_pointcloud)
