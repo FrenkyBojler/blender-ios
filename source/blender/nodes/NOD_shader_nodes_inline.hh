@@ -8,12 +8,6 @@ struct bNodeTree;
 
 namespace blender::nodes {
 
-struct InlineShaderNodeTreeSettings {
-  bool unroll_loops;
-};
+bool inline_shader_node_tree(const bNodeTree &src_tree, bNodeTree &dst_tree);
 
-bool inline_shader_node_tree(const bNodeTree &src_tree,
-                             bNodeTree &dst_tree,
-                             InlineShaderNodeTreeSettings settings);
-
-}  // namespace blender::nodes
+}
