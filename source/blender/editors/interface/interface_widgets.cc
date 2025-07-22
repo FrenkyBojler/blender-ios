@@ -5017,7 +5017,7 @@ void ui_draw_but(const bContext *C, ARegion *region, uiStyle *style, uiBut *but,
       case ButType::PreviewTile:
         wt = widget_type(UI_WTYPE_PREVIEW_TILE);
         break;
-      case UI_BTYPE_NODE_SOCKET:
+      case ButType::NodeSocket:
         wt = widget_type(UI_WTYPE_NODESOCKET);
         break;
       default:
