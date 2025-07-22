@@ -516,9 +516,8 @@ typedef enum ePchanGizmoMode {
    */
   PCHAN_GIZMO_MODE_CUSTOM_LOCATION,
   /**
-   * Follow the Custom Transform's parent. This also implicitly
-   * enables the behavior of PCHAN_GIZMO_MODE_CUSTOM_LOCATION so
-   * location follows the Custom Transform.
+   * Follow the Custom Transform's parent. This includes the functionality of
+   *  PCHAN_GIZMO_MODE_CUSTOM_LOCATION so the location follows the Custom Transform.
    */
   PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM,
 } ePchanGizmoMode;
