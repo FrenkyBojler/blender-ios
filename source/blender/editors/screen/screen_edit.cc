@@ -1832,12 +1832,21 @@ ScrArea *ED_screen_temp_space_open(bContext *C,
       ScrArea *ctx_area = CTX_wm_area(C);
 
       if (ctx_area != nullptr && ctx_area->full) {
+        /* The current area is already fullscreen, stack the new area on top of it. */
         area = ctx_area;
+
+        if (area->spacetype == space_type) {
+          /* Prevent stacking two fullscreen area of the same type on top of each others, which
+           * would make the "Back to Previous" button seem ineffective. */
+          break;
+        }
+
         ED_area_newspace(C, ctx_area, space_type, true);
         area->flag |= AREA_FLAG_STACKED_FULLSCREEN;
         ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       }
       else {
+        /* Create a new fullscreen area. */
         area = ED_screen_full_newspace(C, ctx_area, int(space_type));
         ((SpaceLink *)area->spacedata.first)->link_flag |= SPACE_FLAG_TYPE_TEMPORARY;
       }
