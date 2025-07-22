@@ -96,6 +96,11 @@ struct PenToolOperation {
   float4x4 projection;
   float2 mouse_co;
   float2 center_of_mass_co;
+
+  int closest_edge_point = -1;
+  int closest_curve = -1;
+  float closest_edge_t = -1.0f;
+  int layer_index = -1;
 };
 
 static void grease_pencil_pen_update_view(bContext *C, PenToolOperation &ptd)
@@ -152,6 +157,7 @@ static int pen_find_closest_point(const PenToolOperation &ptd,
 static int pen_find_closest_edge_point(const PenToolOperation &ptd,
                                        const bke::CurvesGeometry &curves,
                                        const float2 mouse_co,
+                                       int *r_closest_curve,
                                        float *r_closest_t)
 {
   float closest_distance_squared = std::numeric_limits<float>::max();
@@ -199,8 +205,9 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
         if (distance_squared < closest_distance_squared &&
             distance_squared < ptd.threshold_distance_edge * ptd.threshold_distance_edge)
         {
-          closest_point = src_i;
+          closest_point = src_points.first() + src_i;
           *r_closest_t = t;
+          *r_closest_curve = curve_i;
           closest_distance_squared = distance_squared;
         }
       }
@@ -534,9 +541,9 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       }
 
       if (ptd.move_seg || ptd.insert_point) {
-        float closest_t;
-        const int closest_edge_point = pen_find_closest_edge_point(
-            ptd, curves, ptd.mouse_co, &closest_t);
+        ptd.closest_edge_point = pen_find_closest_edge_point(
+            ptd, curves, ptd.mouse_co, &ptd.closest_curve, &ptd.closest_edge_t);
+        ptd.layer_index = info.layer_index;
       }
 
       return;
@@ -635,21 +642,42 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
+    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
+    const Span<float3> positions = curves.positions();
+    const OffsetIndices points_by_curve = curves.points_by_curve();
+
+    MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
+    MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
+    MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
+    MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
+
+    if (ptd.move_seg || ptd.insert_point) {
+      if (ptd.closest_edge_point != -1 && ptd.layer_index == info.layer_index) {
+        const int curve_i = ptd.closest_curve;
+        const IndexRange points = points_by_curve[curve_i];
+        const int point_i1 = ptd.closest_edge_point;
+        const int point_i2 = (ptd.closest_edge_point + 1 - points.first()) % points.size() +
+                             points.first();
+
+        const float3 depth_point = positions[point_i1];
+        handles_right[point_i1] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+        handles_left[point_i2] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+
+        curves.calculate_bezier_auto_handles();
+
+        info.drawing.tag_topology_changed();
+        changed.store(true, std::memory_order_relaxed);
+
+        return;
+      }
+    }
+
     IndexMaskMemory memory;
     const IndexMask selection = retrieve_editable_and_selected_points(
         *object, info.drawing, info.layer_index, memory);
     if (selection.is_empty()) {
       return;
     }
-
-    bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-
-    const Span<float3> positions = curves.positions();
-
-    MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
-    MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
-    MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
-    MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
 
     selection.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
       handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
