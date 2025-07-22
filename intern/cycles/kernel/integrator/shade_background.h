@@ -32,7 +32,7 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
     return zero_spectrum();
   }
   if ((shader & SHADER_EXCLUDE_ANY) != 0) {
-    light_visibility_correction(kg, state, shader, &light_visibility);
+    light_visibility = light_visibility_correction(state, shader);
   }
   /* Use fast constant background color if available. */
   Spectrum L = zero_spectrum();
@@ -142,7 +142,7 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
         continue;
       }
       if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
-        light_visibility_correction(kg, state, ls.shader, &light_visibility);
+        light_visibility = light_visibility_correction(state, ls.shader);
       }
 #endif
 

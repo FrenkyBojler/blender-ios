@@ -91,7 +91,6 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
     return false;
   }
 
-  Spectrum light_visibility = one_spectrum();
   Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray.time);
   if (is_zero(light_eval)) {
     return false;
@@ -100,10 +99,10 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
   if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
     return false;
   }
+
   if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
-    light_visibility_correction(kg, state, ls.shader, &light_visibility);
+    light_eval *= light_visibility_correction(state, ls.shader);
   }
-  light_eval *= light_visibility;
 
   /* MIS weighting. */
   mis_weight = shadow_linking_light_sample_mis_weight(kg, state, path_flag, &ls, ray.P);

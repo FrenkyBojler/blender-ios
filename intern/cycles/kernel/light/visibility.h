@@ -66,10 +66,8 @@ ccl_device_inline BsdfEval BsdfEvalRGBEToBsdfEval(ccl_private const BsdfEvalRGBE
   return bsdfEval;
 }
 
-ccl_device_inline void light_visibility_correction(KernelGlobals kg,
-                                                   IntegratorState state,
-                                                   ccl_private const int shader,
-                                                   ccl_private Spectrum *light_visibility)
+ccl_device_inline Spectrum light_visibility_correction(IntegratorState state,
+                                                      ccl_private const int shader)
 {
   Spectrum visible_components = zero_spectrum();
   const BsdfEvalRGBE scatter_eval_rgbe = INTEGRATOR_STATE(state, path, scatter_eval);
@@ -87,7 +85,7 @@ ccl_device_inline void light_visibility_correction(KernelGlobals kg,
     visible_components += transmission;
   }
 
-  *light_visibility = safe_divide(visible_components, scatter_eval.sum);
+  return safe_divide(visible_components, scatter_eval.sum);
 }
 
 CCL_NAMESPACE_END
