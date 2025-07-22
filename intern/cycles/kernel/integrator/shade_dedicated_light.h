@@ -101,7 +101,7 @@ ccl_device bool shadow_linking_shade_light(KernelGlobals kg,
   }
 
   if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
-    light_eval *= light_visibility_correction(state, ls.shader);
+    light_eval *= light_visibility_correction(state, ls.shader, path_flag);
   }
 
   /* MIS weighting. */

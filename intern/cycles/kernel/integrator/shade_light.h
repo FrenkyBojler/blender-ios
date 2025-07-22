@@ -46,7 +46,7 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
     return;
   }
   if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
-    light_visibility = light_visibility_correction(state, ls.shader);
+    light_visibility = light_visibility_correction(state, ls.shader, path_flag);
   }
 #endif
 

@@ -72,8 +72,14 @@ ccl_device_inline BsdfEval BsdfEvalRGBEToBsdfEval(ccl_private const BsdfEvalRGBE
   factor that removes the contributions from invisible BSDF components from the paths throughput
   weight. Alternatively this factor can be multiplied to the light contribution. */
 ccl_device_inline Spectrum light_visibility_correction(IntegratorState state,
-                                                       ccl_private const int shader)
+                                                       ccl_private const int shader,
+                                                       const uint32_t path_flag)
 {
+  // We do not need to correct the light visibility for volume scattering events or camera rays
+  if ((path_flag & PATH_RAY_VOLUME_SCATTER) || (path_flag & PATH_RAY_CAMERA)) {
+    return one_spectrum();
+  }
+
   Spectrum visible_components = zero_spectrum();
   const BsdfEvalRGBE scatter_eval_rgbe = INTEGRATOR_STATE(state, path, scatter_eval);
   const BsdfEval scatter_eval = BsdfEvalRGBEToBsdfEval(&scatter_eval_rgbe);
