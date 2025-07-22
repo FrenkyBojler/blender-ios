@@ -34,10 +34,6 @@ typedef struct PreviewImageRuntimeHandle PreviewImageRuntimeHandle;
 typedef struct LibraryRuntimeHandle LibraryRuntimeHandle;
 #endif
 
-#ifdef __cplusplus
-extern "C" {
-#endif
-
 struct FileData;
 struct GHash;
 struct ID;
@@ -1358,10 +1354,6 @@ typedef enum eID_Index {
 } eID_Index;
 
 #define INDEX_ID_MAX (INDEX_ID_NULL + 1)
-
-#ifdef __cplusplus
-}
-#endif
 
 #ifdef __cplusplus
 namespace blender::dna {
