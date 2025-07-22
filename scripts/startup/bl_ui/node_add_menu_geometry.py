@@ -715,7 +715,11 @@ class NODE_MT_category_GEO_UTILITIES_ROTATION(Menu):
         node_add_menu.add_node_type(layout, "FunctionNodeAxesToRotation")
         node_add_menu.add_node_type(layout, "FunctionNodeAxisAngleToRotation")
         node_add_menu.add_node_type(layout, "FunctionNodeEulerToRotation")
-        node_add_menu.add_node_type(layout, "FunctionNodeInvertRotation")
+        node_add_menu.add_node_type(layout, "FunctionNodeInvertRotation")        
+        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label="Mix Rotation")
+        ops = props.settings.add()
+        ops.name = "data_type"
+        ops.value = "'ROTATION'"
         node_add_menu.add_node_type(layout, "FunctionNodeRotateRotation")
         node_add_menu.add_node_type(layout, "FunctionNodeRotateVector")
         node_add_menu.add_node_type(layout, "FunctionNodeRotationToAxisAngle")
