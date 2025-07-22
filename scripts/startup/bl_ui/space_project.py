@@ -2,8 +2,15 @@
 #
 # SPDX-License-Identifier: GPL-2.0-or-later
 
+from pathlib import Path
+
 import bpy
 from bpy.types import Header, Menu, Panel
+
+# TODO: move most of this stuff to the Blender Projects add-on.
+
+PROJECT_DIR = ".blender_project"
+PROJECT_CONFIG = "project.toml"
 
 
 class PROJECT_OP_NewProject(bpy.types.Operator):
@@ -30,7 +37,25 @@ class PROJECT_OP_WriteProject(bpy.types.Operator):
         return context.project.data is not None
 
     def execute(self, context):
-        # TODO
+        # TODO: this is just a quick-and-dirty version of this. No proper error
+        # handling, etc.
+
+        data = context.project.data
+        root_path = Path(data.root_path)
+
+        if not root_path.is_absolute():
+            print("Can't write project to non-absolute path.")
+            return {'CANCELLED'}
+
+        root_path.mkdir(parents=True, exist_ok=True)
+
+        config_dir_path = root_path.joinpath(PROJECT_DIR)
+        config_dir_path.mkdir(parents=True, exist_ok=True)
+
+        config_path = root_path.joinpath(PROJECT_DIR, PROJECT_CONFIG)
+        with config_path.open(mode='w', encoding='utf-8') as f:
+            f.write("name = \"{}\"\n".format(data.name))
+
         return {'FINISHED'}
 
 
