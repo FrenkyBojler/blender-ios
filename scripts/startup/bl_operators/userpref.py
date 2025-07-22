@@ -237,7 +237,8 @@ class PREFERENCES_OT_keyconfig_import(Operator):
     # "Blender" or "Industry Compatible"), we need to rename the imported ones
     # so those entries can be properly removed (built-in ones can't be removed).
     # See #118035.
-    def _preset_prevent_name_collision(self, config_name):
+    @classmethod
+    def _preset_prevent_name_collision(cls, config_name):
         import os
         from bpy.utils import is_path_builtin
         path = bpy.utils.user_resource(
@@ -246,15 +247,14 @@ class PREFERENCES_OT_keyconfig_import(Operator):
             create=True,
         )
 
-        use_name = config_name
+        config_name_final = config_name
         config_name_noext, config_name_ext = os.path.splitext(config_name)
         preset_path = bpy.utils.preset_find(config_name_noext, "keyconfig", ext=".py")
 
         if preset_path is not None and is_path_builtin(preset_path):
-            use_name = "{:s} (User){:s}".format(config_name_noext, config_name_ext)
+            config_name_final = "{:s} (User){:s}".format(config_name_noext, config_name_ext)
 
-        path = os.path.join(path, use_name)
-        return path
+        return os.path.join(path, config_name_final)
 
     def execute(self, _context):
         import shutil
