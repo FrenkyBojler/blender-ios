@@ -46,19 +46,19 @@ static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene
   }
 
   {
+    /* Navigation region. */
+    ARegion *region = BKE_area_region_new();
+    BLI_addtail(&project_space->regionbase, region);
+    region->regiontype = RGN_TYPE_NAV_BAR;
+    region->alignment = RGN_ALIGN_LEFT;
+  }
+
+  {
     /* Main region. */
     ARegion *region = BKE_area_region_new();
     BLI_addtail(&project_space->regionbase, region);
     region->regiontype = RGN_TYPE_WINDOW;
   }
-
-  // {
-  //   /* Navigation region. */
-  //   ARegion *region = BKE_area_region_new();
-  //   BLI_addtail(&project_space->regionbase, region);
-  //   region->regiontype = RGN_TYPE_NAV_BAR;
-  //   region->alignment = RGN_ALIGN_LEFT;
-  // }
 
   return (SpaceLink *)project_space;
 }
