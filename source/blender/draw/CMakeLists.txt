@@ -48,8 +48,8 @@ set(SRC
   intern/mesh_extractors/extract_mesh_vbo_lnor.cc
   intern/mesh_extractors/extract_mesh_vbo_mesh_analysis.cc
   intern/mesh_extractors/extract_mesh_vbo_orco.cc
-  intern/mesh_extractors/extract_mesh_vbo_pos.cc
   intern/mesh_extractors/extract_mesh_vbo_paint_overlay_flag.cc
+  intern/mesh_extractors/extract_mesh_vbo_pos.cc
   intern/mesh_extractors/extract_mesh_vbo_sculpt_data.cc
   intern/mesh_extractors/extract_mesh_vbo_select_idx.cc
   intern/mesh_extractors/extract_mesh_vbo_skin_roots.cc
@@ -146,6 +146,7 @@ set(SRC
   engines/overlay/overlay_armature.cc
   engines/overlay/overlay_engine.cc
   engines/overlay/overlay_instance.cc
+  engines/overlay/overlay_mode_transfer.cc
   engines/overlay/overlay_shader.cc
   engines/overlay/overlay_shape.cc
 

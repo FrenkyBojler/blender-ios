@@ -24,7 +24,6 @@
 #include "mesh_brush_common.hh"
 #include "paint_intern.hh"
 #include "paint_mask.hh"
-#include "sculpt_automask.hh"
 #include "sculpt_hide.hh"
 #include "sculpt_intern.hh"
 #include "sculpt_smooth.hh"
@@ -140,7 +139,7 @@ static void apply_new_mask_mesh(const Depsgraph &depsgraph,
   node_mask.foreach_index(GrainSize(1), [&](const int i, const int pos) {
     const Span<int> verts = nodes[i].verts();
     const Span<float> new_node_mask = new_mask.slice(node_verts[pos]);
-    if (array_utils::indexed_data_equal<float>(mask, verts, new_mask)) {
+    if (array_utils::indexed_data_equal<float>(mask, verts, new_node_mask)) {
       return;
     }
     undo::push_node(depsgraph, object, &nodes[i], undo::Type::Mask);

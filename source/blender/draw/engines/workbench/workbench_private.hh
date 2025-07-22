@@ -5,6 +5,7 @@
 #include "BKE_context.hh"
 
 #include "DNA_camera_types.h"
+#include "DNA_material_types.h"
 #include "DRW_render.hh"
 #include "GPU_shader.hh"
 #include "draw_manager.hh"
@@ -110,15 +111,35 @@ struct Material {
   /* Packed data into a int. Decoded in the shader. */
   uint packed_data = 0;
 
-  Material();
-  Material(float3 color);
+  Material() = default;
+  Material(float3 color) : base_color(color), packed_data(Material::pack_data(0.0f, 0.4f, 1.0f)) {}
+
   Material(::Object &ob, bool random = false);
-  Material(::Material &mat);
+  Material(::Material &mat)
+      : base_color(&mat.r), packed_data(Material::pack_data(mat.metallic, mat.roughness, mat.a))
+  {
+  }
 
   static uint32_t pack_data(float metallic, float roughness, float alpha);
 
   bool is_transparent();
 };
+
+inline bool Material::is_transparent()
+{
+  uint32_t full_alpha_ref = 0x00ff0000;
+  return (packed_data & full_alpha_ref) != full_alpha_ref;
+}
+
+inline uint32_t Material::pack_data(float metallic, float roughness, float alpha)
+{
+  /* Remap to Disney roughness. */
+  roughness = sqrtf(roughness);
+  uint32_t packed_roughness = unit_float_to_uchar_clamp(roughness);
+  uint32_t packed_metallic = unit_float_to_uchar_clamp(metallic);
+  uint32_t packed_alpha = unit_float_to_uchar_clamp(alpha);
+  return (packed_alpha << 16u) | (packed_roughness << 8u) | packed_metallic;
+}
 
 ImageGPUTextures get_material_texture(GPUSamplerState &sampler_state);
 
@@ -257,7 +278,22 @@ struct SceneResources {
 
 class MeshPass : public PassMain {
  private:
-  using TextureSubPassKey = std::pair<GPUTexture *, eGeometryType>;
+  struct TextureSubPassKey {
+    gpu::Texture *texture;
+    GPUSamplerState sampler_state;
+    eGeometryType geom_type;
+
+    uint64_t hash() const
+    {
+      return get_default_hash(texture, sampler_state.as_uint(), geom_type);
+    }
+
+    bool operator==(TextureSubPassKey const &rhs) const
+    {
+      return this->texture == rhs.texture && this->sampler_state == rhs.sampler_state &&
+             this->geom_type == rhs.geom_type;
+    }
+  };
 
   Map<TextureSubPassKey, PassMain::Sub *> texture_subpass_map_;
 
@@ -296,7 +332,7 @@ class OpaquePass {
   TextureFromPool gbuffer_material_tx = {"gbuffer_material_tx"};
 
   Texture shadow_depth_stencil_tx = {"shadow_depth_stencil_tx"};
-  GPUTexture *deferred_ps_stencil_tx = nullptr;
+  gpu::Texture *deferred_ps_stencil_tx = nullptr;
 
   MeshPass gbuffer_ps_ = {"Opaque.Gbuffer"};
   MeshPass gbuffer_in_front_ps_ = {"Opaque.GbufferInFront"};
@@ -400,12 +436,12 @@ class ShadowPass {
   void sync();
   void object_sync(SceneState &scene_state,
                    ObjectRef &ob_ref,
-                   ResourceHandle handle,
+                   ResourceHandleRange handle,
                    const bool has_transp_mat);
   void draw(Manager &manager,
             View &view,
             SceneResources &resources,
-            GPUTexture &depth_stencil_tx,
+            gpu::Texture &depth_stencil_tx,
             /* Needed when there are opaque "In Front" objects in the scene */
             bool force_fail_method);
 
@@ -422,7 +458,7 @@ class VolumePass {
   Texture dummy_volume_tx_ = {"Volume.Dummy Volume Tx"};
   Texture dummy_coba_tx_ = {"Volume.Dummy Coba Tx"};
 
-  GPUTexture *stencil_tx_ = nullptr;
+  gpu::Texture *stencil_tx_ = nullptr;
 
  public:
   void sync(SceneResources &resources);
@@ -564,7 +600,7 @@ class AntiAliasingPass {
       SceneResources &resources,
       /** Passed directly since we may need to copy back the results from the first sample,
        * and resources.depth_in_front_tx is only valid when mesh passes have to draw to it. */
-      GPUTexture *depth_in_front_tx);
+      gpu::Texture *depth_in_front_tx);
 };
 
 }  // namespace blender::workbench

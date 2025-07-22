@@ -100,6 +100,10 @@
 #include "render_result.h"
 #include "render_types.h"
 
+#include "CLG_log.h"
+
+static CLG_LogRef LOG = {"render"};
+
 namespace path_templates = blender::bke::path_templates;
 
 /* render flow
@@ -133,11 +137,13 @@ namespace path_templates = blender::bke::path_templates;
 /* here we store all renders */
 static struct {
   std::forward_list<Render *> render_list;
-  /* Special renders that can be used for interactive compositing, each scene has its own render,
-   * keyed with the scene name returned from scene_render_name_get and matches the same name in
+  /**
+   * Special renders that can be used for interactive compositing, each scene has its own render,
+   * keyed with the scene name returned from #scene_render_name_get and matches the same name in
    * render_list. Those renders are separate from standard renders because the GPU context can't be
    * bound for compositing and rendering at the same time, so those renders are essentially used to
-   * get a persistent dedicated GPU context to interactive compositor execution. */
+   * get a persistent dedicated GPU context to interactive compositor execution.
+   */
   blender::Map<std::string, Render *> interactive_compositor_renders;
 } RenderGlobal;
 
@@ -195,47 +201,24 @@ static void stats_background(void * /*arg*/, RenderStats *rs)
     return;
   }
 
-  uintptr_t mem_in_use, peak_memory;
-  float megs_used_memory, megs_peak_memory;
-  char info_time_str[32];
-
-  mem_in_use = MEM_get_memory_in_use();
-  peak_memory = MEM_get_peak_memory();
-
-  megs_used_memory = (mem_in_use) / (1024.0 * 1024.0);
-  megs_peak_memory = (peak_memory) / (1024.0 * 1024.0);
-
-  BLI_timecode_string_from_time_simple(
-      info_time_str, sizeof(info_time_str), BLI_time_now_seconds() - rs->starttime);
-
   /* Compositor calls this from multiple threads, mutex lock to ensure we don't
    * get garbled output. */
   static blender::Mutex mutex;
   std::scoped_lock lock(mutex);
 
-  char *message = BLI_sprintfN(RPT_("Fra:%d Mem:%.2fM (Peak %.2fM) | Time:%s | %s"),
-                               rs->cfra,
-                               megs_used_memory,
-                               megs_peak_memory,
-                               info_time_str,
-                               rs->infostr);
-
   if (!G.quiet) {
-    fprintf(stdout, "%s\n", message);
-
+    CLOG_STR_INFO(&LOG, rs->infostr);
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
     fflush(stdout);
   }
 
   /* NOTE: using G_MAIN seems valid here???
    * Not sure it's actually even used anyway, we could as well pass nullptr? */
-  BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, message);
+  BKE_callback_exec_string(G_MAIN, BKE_CB_EVT_RENDER_STATS, rs->infostr);
 
   if (!G.quiet) {
     fflush(stdout);
   }
-
-  MEM_freeN(message);
 }
 
 void RE_ReferenceRenderResult(RenderResult *rr)
@@ -548,34 +531,37 @@ ViewRender *RE_NewViewRender(RenderEngineType *engine_type)
 /* MAX_ID_NAME + sizeof(Library->name) + space + null-terminator. */
 #define MAX_SCENE_RENDER_NAME (MAX_ID_NAME + 1024 + 2)
 
-static void scene_render_name_get(const Scene *scene, const size_t max_size, char *render_name)
+static void scene_render_name_get(const Scene *scene,
+                                  char *render_name,
+                                  const size_t render_name_maxncpy)
 {
   if (ID_IS_LINKED(scene)) {
-    BLI_snprintf(render_name, max_size, "%s %s", scene->id.lib->id.name, scene->id.name);
+    BLI_snprintf(
+        render_name, render_name_maxncpy, "%s %s", scene->id.lib->id.name, scene->id.name);
   }
   else {
-    BLI_snprintf(render_name, max_size, "%s", scene->id.name);
+    BLI_strncpy(render_name, scene->id.name, render_name_maxncpy);
   }
 }
 
 Render *RE_GetSceneRender(const Scene *scene)
 {
   char render_name[MAX_SCENE_RENDER_NAME];
-  scene_render_name_get(scene, sizeof(render_name), render_name);
+  scene_render_name_get(scene, render_name, sizeof(render_name));
   return RE_GetRender(render_name);
 }
 
 Render *RE_NewSceneRender(const Scene *scene)
 {
   char render_name[MAX_SCENE_RENDER_NAME];
-  scene_render_name_get(scene, sizeof(render_name), render_name);
+  scene_render_name_get(scene, render_name, sizeof(render_name));
   return RE_NewRender(render_name);
 }
 
 Render *RE_NewInteractiveCompositorRender(const Scene *scene)
 {
   char render_name[MAX_SCENE_RENDER_NAME];
-  scene_render_name_get(scene, sizeof(render_name), render_name);
+  scene_render_name_get(scene, render_name, sizeof(render_name));
 
   return RenderGlobal.interactive_compositor_renders.lookup_or_add_cb(render_name, [&]() {
     Render *render = MEM_new<Render>("New Interactive Compositor Render");
@@ -715,7 +701,7 @@ void RE_FreeUnusedGPUResources()
 
       /* Detect if scene is using GPU compositing, and if either a node editor is
        * showing the nodes, or an image editor is showing the render result or viewer. */
-      if (!(scene->use_nodes && scene->compositing_node_group &&
+      if (!(scene->compositing_node_group &&
             scene->r.compositor_device == SCE_COMPOSITOR_DEVICE_GPU))
       {
         continue;
@@ -1222,9 +1208,6 @@ static bool compositor_needs_render(Scene *scene)
   if (ntree == nullptr) {
     return true;
   }
-  if (scene->use_nodes == false) {
-    return true;
-  }
   if ((scene->r.scemode & R_DOCOMP) == 0) {
     return true;
   }
@@ -1360,7 +1343,7 @@ static void do_render_compositor(Render *re)
   }
 
   if (!re->test_break()) {
-    if (ntree && re->scene->use_nodes && re->r.scemode & R_DOCOMP) {
+    if (ntree && re->r.scemode & R_DOCOMP) {
       /* checks if there are render-result nodes that need scene */
       if ((re->r.scemode & R_SINGLE_LAYER) == 0) {
         do_render_compositor_scenes(re);
@@ -1386,6 +1369,7 @@ static void do_render_compositor(Render *re)
                             blender::compositor::OutputTypes::Previews;
         }
 
+        CLOG_STR_INFO(&LOG, "Executing compositor");
         blender::compositor::RenderContext compositor_render_context;
         LISTBASE_FOREACH (RenderView *, rv, &re->result->views) {
           COM_execute(re,
@@ -1527,6 +1511,8 @@ static void do_render_sequencer(Render *re)
   blender::seq::RenderData context;
   int view_id, tot_views;
   int re_x, re_y;
+
+  CLOG_STR_INFO(&LOG, "Executing sequencer");
 
   re->i.cfra = cfra;
 
@@ -1678,7 +1664,7 @@ static bool check_valid_compositing_camera(Scene *scene,
                                            Object *camera_override,
                                            ReportList *reports)
 {
-  if (scene->r.scemode & R_DOCOMP && scene->use_nodes) {
+  if (scene->r.scemode & R_DOCOMP && scene->compositing_node_group) {
     for (bNode *node : scene->compositing_node_group->all_nodes()) {
       if (node->type_legacy == CMP_NODE_R_LAYERS && !node->is_muted()) {
         Scene *sce = node->id ? (Scene *)node->id : scene;
@@ -1859,13 +1845,8 @@ bool RE_is_rendering_allowed(Scene *scene,
       return false;
     }
   }
-  else if ((scemode & R_DOCOMP) && scene->use_nodes) {
+  else if (scemode & R_DOCOMP && scene->compositing_node_group) {
     /* Compositor */
-    if (!scene->compositing_node_group) {
-      BKE_report(reports, RPT_ERROR, "No node tree in scene");
-      return false;
-    }
-
     if (!check_compositor_output(scene)) {
       BKE_report(reports, RPT_ERROR, "No render output node in scene");
       return false;
@@ -2095,8 +2076,10 @@ void RE_RenderFrame(Render *re,
       else {
         char filepath_override[FILE_MAX];
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const path_templates::VariableMap template_variables =
-            BKE_build_template_variables_for_render_path(relbase, &scene->r);
+        path_templates::VariableMap template_variables;
+        BKE_add_template_variables_general(template_variables, &scene->id);
+        BKE_add_template_variables_for_render_path(template_variables, *scene);
+
         const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath_override,
             rd.pic,
@@ -2236,6 +2219,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
 
       BLI_assert(movie_writers[view_id] != nullptr);
       if (!MOV_write_append(movie_writers[view_id],
+                            scene,
                             rd,
                             preview ? scene->r.psfra : scene->r.sfra,
                             scene->r.cfra,
@@ -2272,6 +2256,7 @@ bool RE_WriteRenderViewsMovie(ReportList *reports,
     if (ibuf_arr[2]) {
       BLI_assert(movie_writers[0] != nullptr);
       if (!MOV_write_append(movie_writers[0],
+                            scene,
                             rd,
                             preview ? scene->r.psfra : scene->r.sfra,
                             scene->r.cfra,
@@ -2327,8 +2312,10 @@ static bool do_write_image_or_movie(
       }
       else {
         const char *relbase = BKE_main_blendfile_path(bmain);
-        const path_templates::VariableMap template_variables =
-            BKE_build_template_variables_for_render_path(relbase, &scene->r);
+        path_templates::VariableMap template_variables;
+        BKE_add_template_variables_general(template_variables, &scene->id);
+        BKE_add_template_variables_for_render_path(template_variables, *scene);
+
         const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
             filepath,
             scene->r.pic,
@@ -2367,7 +2354,7 @@ static bool do_write_image_or_movie(
   }
 
   if (!G.quiet) {
-    printf("%s\n", message.c_str());
+    CLOG_STR_INFO(&LOG, message.c_str());
     /* Flush stdout to be sure python callbacks are printing stuff after blender. */
     fflush(stdout);
   }
@@ -2377,7 +2364,6 @@ static bool do_write_image_or_movie(
   render_callback_exec_string(re, G_MAIN, BKE_CB_EVT_RENDER_STATS, message.c_str());
 
   if (!G.quiet) {
-    fputc('\n', stdout);
     fflush(stdout);
   }
 
@@ -2425,6 +2411,13 @@ void RE_RenderAnim(Render *re,
                    int efra,
                    int tfra)
 {
+  if (sfra == efra) {
+    CLOG_INFO(&LOG, "Rendering single frame (frame %d)", sfra);
+  }
+  else {
+    CLOG_INFO(&LOG, "Rendering animation (frames %d..%d)", sfra, efra);
+  }
+
   /* Call hooks before taking a copy of scene->r, so user can alter the render settings prior to
    * copying (e.g. alter the output path). */
   render_callback_exec_id(re, re->main, &scene->id, BKE_CB_EVT_RENDER_INIT);
@@ -2529,9 +2522,10 @@ void RE_RenderAnim(Render *re,
 
     /* Touch/NoOverwrite options are only valid for image's */
     if (is_movie == false && do_write_file) {
-      const char *relbase = BKE_main_blendfile_path(bmain);
-      const path_templates::VariableMap template_variables =
-          BKE_build_template_variables_for_render_path(relbase, &rd);
+      path_templates::VariableMap template_variables;
+      BKE_add_template_variables_general(template_variables, &scene->id);
+      BKE_add_template_variables_for_render_path(template_variables, *scene);
+
       const blender::Vector<path_templates::Error> errors = BKE_image_path_from_imformat(
           filepath,
           rd.pic,
@@ -2913,7 +2907,7 @@ RenderPass *RE_pass_find_by_type(RenderLayer *rl, int passtype, const char *view
   ((void)0)
 
   CHECK_PASS(COMBINED);
-  CHECK_PASS(Z);
+  CHECK_PASS(DEPTH);
   CHECK_PASS(VECTOR);
   CHECK_PASS(NORMAL);
   CHECK_PASS(UV);

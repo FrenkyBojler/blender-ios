@@ -16,7 +16,8 @@
 
 #include "BKE_tracking.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 #include "COM_algorithm_smaa.hh"
 #include "COM_node_operation.hh"
@@ -30,38 +31,34 @@ static void cmp_node_cornerpin_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Upper Left")
       .subtype(PROP_FACTOR)
       .dimensions(2)
       .default_value({0.0f, 1.0f})
       .min(0.0f)
-      .max(1.0f)
-      .compositor_expects_single_value();
+      .max(1.0f);
   b.add_input<decl::Vector>("Upper Right")
       .subtype(PROP_FACTOR)
       .dimensions(2)
       .default_value({1.0f, 1.0f})
       .min(0.0f)
-      .max(1.0f)
-      .compositor_expects_single_value();
+      .max(1.0f);
   b.add_input<decl::Vector>("Lower Left")
       .subtype(PROP_FACTOR)
       .dimensions(2)
       .default_value({0.0f, 0.0f})
       .min(0.0f)
-      .max(1.0f)
-      .compositor_expects_single_value();
+      .max(1.0f);
   b.add_input<decl::Vector>("Lower Right")
       .subtype(PROP_FACTOR)
       .dimensions(2)
       .default_value({1.0f, 0.0f})
       .min(0.0f)
-      .max(1.0f)
-      .compositor_expects_single_value();
+      .max(1.0f);
 
-  b.add_output<decl::Color>("Image");
-  b.add_output<decl::Float>("Plane");
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
+  b.add_output<decl::Float>("Plane").structure_type(StructureType::Dynamic);
 }
 
 static void node_composit_init_cornerpin(bNodeTree * /*ntree*/, bNode *node)
@@ -127,7 +124,7 @@ class CornerPinOperation : public NodeOperation {
 
   void compute_plane_gpu(const float3x3 &homography_matrix, Result &plane_mask)
   {
-    GPUShader *shader = this->context().get_shader(this->get_realization_shader_name());
+    GPUShader *shader = this->context().get_shader(this->get_shader_name());
     GPU_shader_bind(shader);
 
     GPU_shader_uniform_mat3_as_mat4(shader, "homography_matrix", homography_matrix.ptr());
@@ -270,10 +267,10 @@ class CornerPinOperation : public NodeOperation {
 
   float3x3 compute_homography_matrix()
   {
-    float2 lower_left = get_input("Lower Left").get_single_value_default(float3(0.0f)).xy();
-    float2 lower_right = get_input("Lower Right").get_single_value_default(float3(0.0f)).xy();
-    float2 upper_right = get_input("Upper Right").get_single_value_default(float3(0.0f)).xy();
-    float2 upper_left = get_input("Upper Left").get_single_value_default(float3(0.0f)).xy();
+    float2 lower_left = get_input("Lower Left").get_single_value_default(float2(0.0f));
+    float2 lower_right = get_input("Lower Right").get_single_value_default(float2(0.0f));
+    float2 upper_right = get_input("Upper Right").get_single_value_default(float2(0.0f));
+    float2 upper_left = get_input("Upper Left").get_single_value_default(float2(0.0f));
 
     /* The inputs are invalid because the plane is not convex, fall back to an identity operation
      * in that case. */
@@ -293,7 +290,7 @@ class CornerPinOperation : public NodeOperation {
     return homography_matrix;
   }
 
-  const char *get_realization_shader_name() const
+  const char *get_shader_name() const
   {
     switch (this->get_interpolation()) {
       case CMP_NODE_INTERPOLATION_NEAREST:

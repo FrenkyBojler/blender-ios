@@ -38,25 +38,26 @@ static void cmp_node_displace_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Color>("Image")
       .default_value({1.0f, 1.0f, 1.0f, 1.0f})
-      .compositor_domain_priority(0);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Vector>("Vector")
       .dimensions(2)
       .default_value({1.0f, 1.0f})
       .min(0.0f)
       .max(1.0f)
       .subtype(PROP_TRANSLATION)
-      .compositor_domain_priority(1);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("X Scale")
       .default_value(0.0f)
       .min(-1000.0f)
       .max(1000.0f)
-      .compositor_domain_priority(2);
+      .structure_type(StructureType::Dynamic);
   b.add_input<decl::Float>("Y Scale")
       .default_value(0.0f)
       .min(-1000.0f)
       .max(1000.0f)
-      .compositor_domain_priority(3);
-  b.add_output<decl::Color>("Image");
+      .structure_type(StructureType::Dynamic);
+
+  b.add_output<decl::Color>("Image").structure_type(StructureType::Dynamic);
 }
 
 static void cmp_node_init_displace(bNodeTree * /*ntree*/, bNode *node)
@@ -96,11 +97,11 @@ class DisplaceOperation : public NodeOperation {
 
   void execute_gpu()
   {
-    GPUShader *shader = context().get_shader(this->get_shader_name());
+    const Interpolation interpolation = this->get_interpolation();
+    GPUShader *shader = context().get_shader(this->get_shader_name(interpolation));
     GPU_shader_bind(shader);
 
     const Result &input_image = get_input("Image");
-    const Interpolation interpolation = this->get_interpolation();
     if (interpolation == Interpolation::Anisotropic) {
       GPU_texture_anisotropic_filter(input_image, true);
       GPU_texture_mipmap_mode(input_image, true, true);
@@ -269,16 +270,23 @@ class DisplaceOperation : public NodeOperation {
      * transform it into the normalized sampler space. */
     float2 scale = float2(x_scale.load_pixel_extended<float, true>(texel),
                           y_scale.load_pixel_extended<float, true>(texel));
-    float2 displacement = input_displacement.load_pixel_extended<float3, true>(texel).xy() *
-                          scale / float2(size);
+    float2 displacement = input_displacement.load_pixel_extended<float2, true>(texel) * scale /
+                          float2(size);
     return coordinates - displacement;
   }
 
-  const char *get_shader_name() const
+  const char *get_shader_name(const Interpolation &interpolation) const
   {
-    if (this->get_interpolation() == Interpolation::Anisotropic) {
-      return "compositor_displace_anisotropic";
+    switch (interpolation) {
+      case Interpolation::Anisotropic:
+        return "compositor_displace_anisotropic";
+      case Interpolation::Bicubic:
+        return "compositor_displace_bicubic";
+      case Interpolation::Bilinear:
+      case Interpolation::Nearest:
+        return "compositor_displace";
     }
+    BLI_assert_unreachable();
     return "compositor_displace";
   }
 
@@ -308,7 +316,7 @@ class DisplaceOperation : public NodeOperation {
 
     const Result &input_displacement = get_input("Vector");
     if (input_displacement.is_single_value() &&
-        math::is_zero(input_displacement.get_single_value<float3>().xy()))
+        math::is_zero(input_displacement.get_single_value<float2>()))
     {
       return true;
     }

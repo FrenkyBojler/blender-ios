@@ -2334,6 +2334,9 @@ NODE_DEFINE(GlassBsdfNode)
   SOCKET_IN_FLOAT(roughness, "Roughness", 0.0f);
   SOCKET_IN_FLOAT(IOR, "IOR", 1.5f);
 
+  SOCKET_IN_FLOAT(thin_film_thickness, "Thin Film Thickness", 0.0f);
+  SOCKET_IN_FLOAT(thin_film_ior, "Thin Film IOR", 1.3f);
+
   SOCKET_OUT_CLOSURE(BSDF, "BSDF");
 
   return type;
@@ -2347,7 +2350,12 @@ GlassBsdfNode::GlassBsdfNode() : BsdfNode(get_node_type())
 void GlassBsdfNode::compile(SVMCompiler &compiler)
 {
   closure = distribution;
-  BsdfNode::compile(compiler, input("Roughness"), input("IOR"), input("Color"));
+  BsdfNode::compile(compiler,
+                    input("Roughness"),
+                    input("IOR"),
+                    input("Color"),
+                    input("Thin Film Thickness"),
+                    input("Thin Film IOR"));
 }
 
 void GlassBsdfNode::compile(OSLCompiler &compiler)
@@ -2542,7 +2550,7 @@ NODE_DEFINE(PrincipledBsdfNode)
   SOCKET_IN_FLOAT(subsurface_ior, "Subsurface IOR", 1.4f);
   SOCKET_IN_FLOAT(subsurface_anisotropy, "Subsurface Anisotropy", 0.0f);
 
-  SOCKET_IN_FLOAT(specular_ior_level, "Specular IOR Level", 0.0f);
+  SOCKET_IN_FLOAT(specular_ior_level, "Specular IOR Level", 0.5f);
   SOCKET_IN_COLOR(specular_tint, "Specular Tint", one_float3());
   SOCKET_IN_FLOAT(anisotropic, "Anisotropic", 0.0f);
   SOCKET_IN_FLOAT(anisotropic_rotation, "Anisotropic Rotation", 0.0f);
@@ -5063,6 +5071,20 @@ void MixNode::constant_fold(const ConstantFolder &folder)
   }
 }
 
+bool MixNode::is_linear_operation()
+{
+  switch (mix_type) {
+    case NODE_MIX_BLEND:
+    case NODE_MIX_ADD:
+    case NODE_MIX_MUL:
+    case NODE_MIX_SUB:
+      break;
+    default:
+      return false;
+  }
+  return use_clamp == false && input("Factor")->link == nullptr;
+}
+
 /* Mix Color */
 
 NODE_DEFINE(MixColorNode)
@@ -5143,6 +5165,20 @@ void MixColorNode::constant_fold(const ConstantFolder &folder)
   }
 }
 
+bool MixColorNode::is_linear_operation()
+{
+  switch (blend_type) {
+    case NODE_MIX_BLEND:
+    case NODE_MIX_ADD:
+    case NODE_MIX_MUL:
+    case NODE_MIX_SUB:
+      break;
+    default:
+      return false;
+  }
+  return use_clamp == false && use_clamp_result == false && input("Factor")->link == nullptr;
+}
+
 /* Mix Float */
 
 NODE_DEFINE(MixFloatNode)
@@ -5195,6 +5231,11 @@ void MixFloatNode::constant_fold(const ConstantFolder &folder)
   else {
     folder.fold_mix_float(use_clamp, false);
   }
+}
+
+bool MixFloatNode::is_linear_operation()
+{
+  return use_clamp == false && input("Factor")->link == nullptr;
 }
 
 /* Mix Vector */
@@ -5251,6 +5292,11 @@ void MixVectorNode::constant_fold(const ConstantFolder &folder)
   }
 }
 
+bool MixVectorNode::is_linear_operation()
+{
+  return use_clamp == false && input("Factor")->link == nullptr;
+}
+
 /* Mix Vector Non Uniform */
 
 NODE_DEFINE(MixVectorNonUniformNode)
@@ -5300,6 +5346,11 @@ void MixVectorNonUniformNode::constant_fold(const ConstantFolder &folder)
     }
     folder.make_constant(a * (one_float3() - fac) + b * fac);
   }
+}
+
+bool MixVectorNonUniformNode::is_linear_operation()
+{
+  return use_clamp == false && input("Factor")->link == nullptr;
 }
 
 /* Combine Color */
@@ -5357,52 +5408,6 @@ void CombineColorNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_combine_color");
 }
 
-/* Combine RGB */
-
-NODE_DEFINE(CombineRGBNode)
-{
-  NodeType *type = NodeType::add("combine_rgb", create, NodeType::SHADER);
-
-  SOCKET_IN_FLOAT(r, "R", 0.0f);
-  SOCKET_IN_FLOAT(g, "G", 0.0f);
-  SOCKET_IN_FLOAT(b, "B", 0.0f);
-
-  SOCKET_OUT_COLOR(image, "Image");
-
-  return type;
-}
-
-CombineRGBNode::CombineRGBNode() : ShaderNode(get_node_type()) {}
-
-void CombineRGBNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    folder.make_constant(make_float3(r, g, b));
-  }
-}
-
-void CombineRGBNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *red_in = input("R");
-  ShaderInput *green_in = input("G");
-  ShaderInput *blue_in = input("B");
-  ShaderOutput *color_out = output("Image");
-
-  compiler.add_node(
-      NODE_COMBINE_VECTOR, compiler.stack_assign(red_in), 0, compiler.stack_assign(color_out));
-
-  compiler.add_node(
-      NODE_COMBINE_VECTOR, compiler.stack_assign(green_in), 1, compiler.stack_assign(color_out));
-
-  compiler.add_node(
-      NODE_COMBINE_VECTOR, compiler.stack_assign(blue_in), 2, compiler.stack_assign(color_out));
-}
-
-void CombineRGBNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_combine_rgb");
-}
-
 /* Combine XYZ */
 
 NODE_DEFINE(CombineXYZNode)
@@ -5447,49 +5452,6 @@ void CombineXYZNode::compile(SVMCompiler &compiler)
 void CombineXYZNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_combine_xyz");
-}
-
-/* Combine HSV */
-
-NODE_DEFINE(CombineHSVNode)
-{
-  NodeType *type = NodeType::add("combine_hsv", create, NodeType::SHADER);
-
-  SOCKET_IN_FLOAT(h, "H", 0.0f);
-  SOCKET_IN_FLOAT(s, "S", 0.0f);
-  SOCKET_IN_FLOAT(v, "V", 0.0f);
-
-  SOCKET_OUT_COLOR(color, "Color");
-
-  return type;
-}
-
-CombineHSVNode::CombineHSVNode() : ShaderNode(get_node_type()) {}
-
-void CombineHSVNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    folder.make_constant(hsv_to_rgb(make_float3(h, s, v)));
-  }
-}
-
-void CombineHSVNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *hue_in = input("H");
-  ShaderInput *saturation_in = input("S");
-  ShaderInput *value_in = input("V");
-  ShaderOutput *color_out = output("Color");
-
-  compiler.add_node(NODE_COMBINE_HSV,
-                    compiler.stack_assign(hue_in),
-                    compiler.stack_assign(saturation_in),
-                    compiler.stack_assign(value_in));
-  compiler.add_node(NODE_COMBINE_HSV, compiler.stack_assign(color_out));
-}
-
-void CombineHSVNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_combine_hsv");
 }
 
 /* Gamma */
@@ -5649,57 +5611,6 @@ void SeparateColorNode::compile(OSLCompiler &compiler)
   compiler.add(this, "node_separate_color");
 }
 
-/* Separate RGB */
-
-NODE_DEFINE(SeparateRGBNode)
-{
-  NodeType *type = NodeType::add("separate_rgb", create, NodeType::SHADER);
-
-  SOCKET_IN_COLOR(color, "Image", zero_float3());
-
-  SOCKET_OUT_FLOAT(r, "R");
-  SOCKET_OUT_FLOAT(g, "G");
-  SOCKET_OUT_FLOAT(b, "B");
-
-  return type;
-}
-
-SeparateRGBNode::SeparateRGBNode() : ShaderNode(get_node_type()) {}
-
-void SeparateRGBNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    for (int channel = 0; channel < 3; channel++) {
-      if (outputs[channel] == folder.output) {
-        folder.make_constant(color[channel]);
-        return;
-      }
-    }
-  }
-}
-
-void SeparateRGBNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *color_in = input("Image");
-  ShaderOutput *red_out = output("R");
-  ShaderOutput *green_out = output("G");
-  ShaderOutput *blue_out = output("B");
-
-  compiler.add_node(
-      NODE_SEPARATE_VECTOR, compiler.stack_assign(color_in), 0, compiler.stack_assign(red_out));
-
-  compiler.add_node(
-      NODE_SEPARATE_VECTOR, compiler.stack_assign(color_in), 1, compiler.stack_assign(green_out));
-
-  compiler.add_node(
-      NODE_SEPARATE_VECTOR, compiler.stack_assign(color_in), 2, compiler.stack_assign(blue_out));
-}
-
-void SeparateRGBNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_separate_rgb");
-}
-
 /* Separate XYZ */
 
 NODE_DEFINE(SeparateXYZNode)
@@ -5749,56 +5660,6 @@ void SeparateXYZNode::compile(SVMCompiler &compiler)
 void SeparateXYZNode::compile(OSLCompiler &compiler)
 {
   compiler.add(this, "node_separate_xyz");
-}
-
-/* Separate HSV */
-
-NODE_DEFINE(SeparateHSVNode)
-{
-  NodeType *type = NodeType::add("separate_hsv", create, NodeType::SHADER);
-
-  SOCKET_IN_COLOR(color, "Color", zero_float3());
-
-  SOCKET_OUT_FLOAT(h, "H");
-  SOCKET_OUT_FLOAT(s, "S");
-  SOCKET_OUT_FLOAT(v, "V");
-
-  return type;
-}
-
-SeparateHSVNode::SeparateHSVNode() : ShaderNode(get_node_type()) {}
-
-void SeparateHSVNode::constant_fold(const ConstantFolder &folder)
-{
-  if (folder.all_inputs_constant()) {
-    float3 hsv = rgb_to_hsv(color);
-
-    for (int channel = 0; channel < 3; channel++) {
-      if (outputs[channel] == folder.output) {
-        folder.make_constant(hsv[channel]);
-        return;
-      }
-    }
-  }
-}
-
-void SeparateHSVNode::compile(SVMCompiler &compiler)
-{
-  ShaderInput *color_in = input("Color");
-  ShaderOutput *hue_out = output("H");
-  ShaderOutput *saturation_out = output("S");
-  ShaderOutput *value_out = output("V");
-
-  compiler.add_node(NODE_SEPARATE_HSV,
-                    compiler.stack_assign(color_in),
-                    compiler.stack_assign(hue_out),
-                    compiler.stack_assign(saturation_out));
-  compiler.add_node(NODE_SEPARATE_HSV, compiler.stack_assign(value_out));
-}
-
-void SeparateHSVNode::compile(OSLCompiler &compiler)
-{
-  compiler.add(this, "node_separate_hsv");
 }
 
 /* Hue/Saturation/Value */
@@ -5889,6 +5750,9 @@ void AttributeNode::compile(SVMCompiler &compiler)
   ShaderOutput *alpha_out = output("Alpha");
   ShaderNodeType attr_node = NODE_ATTR;
   const int attr = compiler.attribute_standard(attribute);
+  const uint bump_filter_or_stochastic = (compiler.output_type() == SHADER_TYPE_VOLUME) ?
+                                             stochastic_sample :
+                                             __float_as_uint(bump_filter_width);
 
   if (bump == SHADER_BUMP_DX) {
     attr_node = NODE_ATTR_BUMP_DX;
@@ -5903,14 +5767,14 @@ void AttributeNode::compile(SVMCompiler &compiler)
           attr_node,
           attr,
           compiler.encode_uchar4(compiler.stack_assign(color_out), NODE_ATTR_OUTPUT_FLOAT3),
-          __float_as_uint(bump_filter_width));
+          bump_filter_or_stochastic);
     }
     if (!vector_out->links.empty()) {
       compiler.add_node(
           attr_node,
           attr,
           compiler.encode_uchar4(compiler.stack_assign(vector_out), NODE_ATTR_OUTPUT_FLOAT3),
-          __float_as_uint(bump_filter_width));
+          bump_filter_or_stochastic);
     }
   }
 
@@ -5919,7 +5783,7 @@ void AttributeNode::compile(SVMCompiler &compiler)
         attr_node,
         attr,
         compiler.encode_uchar4(compiler.stack_assign(fac_out), NODE_ATTR_OUTPUT_FLOAT),
-        __float_as_uint(bump_filter_width));
+        bump_filter_or_stochastic);
   }
 
   if (!alpha_out->links.empty()) {
@@ -5927,7 +5791,7 @@ void AttributeNode::compile(SVMCompiler &compiler)
         attr_node,
         attr,
         compiler.encode_uchar4(compiler.stack_assign(alpha_out), NODE_ATTR_OUTPUT_FLOAT_ALPHA),
-        __float_as_uint(bump_filter_width));
+        bump_filter_or_stochastic);
   }
 }
 
@@ -6281,6 +6145,20 @@ void MapRangeNode::expand(ShaderGraph *graph)
   }
 }
 
+bool MapRangeNode::is_linear_operation()
+{
+  if (range_type != NODE_MAP_RANGE_LINEAR) {
+    return false;
+  }
+
+  ShaderInput *from_min_in = input("To Min");
+  ShaderInput *from_max_in = input("To Max");
+  ShaderInput *to_min_in = input("To Min");
+  ShaderInput *to_max_in = input("To Max");
+  return from_min_in->link == nullptr && from_max_in->link == nullptr &&
+         to_min_in->link == nullptr && to_max_in->link == nullptr;
+}
+
 void MapRangeNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *value_in = input("Value");
@@ -6348,6 +6226,20 @@ NODE_DEFINE(VectorMapRangeNode)
 VectorMapRangeNode::VectorMapRangeNode() : ShaderNode(get_node_type()) {}
 
 void VectorMapRangeNode::expand(ShaderGraph * /*graph*/) {}
+
+bool VectorMapRangeNode::is_linear_operation()
+{
+  if (range_type != NODE_MAP_RANGE_LINEAR) {
+    return false;
+  }
+
+  ShaderInput *from_min_in = input("From_Min_FLOAT3");
+  ShaderInput *from_max_in = input("From_Max_FLOAT3");
+  ShaderInput *to_min_in = input("To_Min_FLOAT3");
+  ShaderInput *to_max_in = input("To_Max_FLOAT3");
+  return from_min_in->link == nullptr && from_max_in->link == nullptr &&
+         to_min_in->link == nullptr && to_max_in->link == nullptr;
+}
 
 void VectorMapRangeNode::compile(SVMCompiler &compiler)
 {
@@ -6581,6 +6473,27 @@ void MathNode::constant_fold(const ConstantFolder &folder)
   }
 }
 
+bool MathNode::is_linear_operation()
+{
+  switch (math_type) {
+    case NODE_MATH_ADD:
+    case NODE_MATH_SUBTRACT:
+    case NODE_MATH_MULTIPLY:
+    case NODE_MATH_MULTIPLY_ADD:
+      break;
+    case NODE_MATH_DIVIDE:
+      return input("Value2")->link == nullptr;
+    default:
+      return false;
+  }
+
+  int num_variable_inputs = 0;
+  for (ShaderInput *input : inputs) {
+    num_variable_inputs += (input->link) ? 1 : 0;
+  }
+  return num_variable_inputs <= 1;
+}
+
 void MathNode::compile(SVMCompiler &compiler)
 {
   ShaderInput *value1_in = input("Value1");
@@ -6679,6 +6592,27 @@ void VectorMathNode::constant_fold(const ConstantFolder &folder)
   else {
     folder.fold_vector_math(math_type);
   }
+}
+
+bool VectorMathNode::is_linear_operation()
+{
+  switch (math_type) {
+    case NODE_VECTOR_MATH_ADD:
+    case NODE_VECTOR_MATH_SUBTRACT:
+    case NODE_VECTOR_MATH_MULTIPLY:
+    case NODE_VECTOR_MATH_MULTIPLY_ADD:
+      break;
+    case NODE_VECTOR_MATH_DIVIDE:
+      return input("Vector2")->link == nullptr;
+    default:
+      return false;
+  }
+
+  int num_variable_inputs = 0;
+  for (ShaderInput *input : inputs) {
+    num_variable_inputs += (input->link) ? 1 : 0;
+  }
+  return num_variable_inputs <= 1;
 }
 
 void VectorMathNode::compile(SVMCompiler &compiler)

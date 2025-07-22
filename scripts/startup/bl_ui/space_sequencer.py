@@ -10,6 +10,7 @@ from bpy.types import (
 )
 from bpy.app.translations import (
     contexts as i18n_contexts,
+    pgettext_iface as iface_,
     pgettext_rpt as rpt_,
 )
 from bl_ui.properties_grease_pencil_common import (
@@ -24,6 +25,7 @@ from bl_ui.utils import (
 )
 
 from rna_prop_ui import PropertyPanel
+from bl_ui.space_time import playback_controls
 
 
 def _space_view_types(st):
@@ -213,6 +215,16 @@ class SEQUENCER_HT_header(Header):
         sub = row.row(align=True)
         sub.popover(panel="SEQUENCER_PT_overlay", text="")
         sub.active = st.show_overlays
+
+
+class SEQUENCER_HT_playback_controls(Header):
+    bl_space_type = 'SEQUENCE_EDITOR'
+    bl_region_type = 'FOOTER'
+
+    def draw(self, context):
+        layout = self.layout
+
+        playback_controls(layout, context)
 
 
 class SEQUENCER_MT_editor_menus(Menu):
@@ -468,6 +480,7 @@ class SEQUENCER_MT_view(Menu):
             layout.prop(st, "show_region_hud")
         if is_sequencer_only:
             layout.prop(st, "show_region_channels")
+        layout.prop(st, "show_region_footer")
         layout.separator()
 
         if is_preview:
@@ -660,8 +673,14 @@ class SEQUENCER_MT_change(Menu):
             del bpy_data_scenes_len
 
         layout.operator_context = 'INVOKE_DEFAULT'
-        layout.menu("SEQUENCER_MT_strip_effect_change")
-        layout.operator("sequencer.swap_inputs")
+        if strip and strip.type in {
+            'CROSS', 'ADD', 'SUBTRACT', 'ALPHA_OVER', 'ALPHA_UNDER',
+            'GAMMA_CROSS', 'MULTIPLY', 'WIPE', 'GLOW',
+            'TRANSFORM', 'SPEED', 'MULTICAM', 'ADJUSTMENT',
+            'GAUSSIAN_BLUR',
+        }:
+            layout.menu("SEQUENCER_MT_strip_effect_change")
+            layout.operator("sequencer.swap_inputs")
         props = layout.operator("sequencer.change_path", text="Path/Files")
 
         if strip:
@@ -792,7 +811,7 @@ class SEQUENCER_MT_add_scene(Menu):
                     continue
 
                 layout.operator_context = 'INVOKE_REGION_WIN'
-                layout.operator("sequencer.scene_strip_add", text=sc_item.name).scene = sc_item.name
+                layout.operator("sequencer.scene_strip_add", text=sc_item.name, translate=False).scene = sc_item.name
 
         del bpy_data_scenes_len
 
@@ -957,6 +976,17 @@ class SEQUENCER_MT_strip_show_hide(Menu):
         layout.operator("sequencer.mute", text="Hide Unselected").unselected = True
 
 
+class SEQUENCER_MT_strip_animation(Menu):
+    bl_label = "Animation"
+
+    def draw(self, _context):
+        layout = self.layout
+
+        layout.operator("anim.keyframe_insert", text="Insert Keyframe")
+        layout.operator("anim.keyframe_insert_menu", text="Insert Keyframe with Keying Set").always_prompt = True
+        layout.operator("anim.keying_set_active_set", text="Change Keying Set...")
+
+
 class SEQUENCER_MT_strip_input(Menu):
     bl_label = "Inputs"
 
@@ -1112,6 +1142,8 @@ class SEQUENCER_MT_strip(Menu):
         if has_preview:
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
+            layout.separator()
+            layout.menu("SEQUENCER_MT_strip_animation")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_show_hide")
             layout.separator()
@@ -2477,7 +2509,7 @@ class SEQUENCER_PT_adjust_transform(SequencerButtonsPanel, Panel):
         col = layout.column(align=True)
         col.prop(strip.transform, "origin")
 
-        col = layout.column(heading="Mirror", align=True)
+        col = layout.column(heading="Mirror", align=True, heading_ctxt=i18n_contexts.id_image)
         col.prop(strip, "use_flip_x", text="X", toggle=True)
         col.prop(strip, "use_flip_y", text="Y", toggle=True)
 
@@ -2623,19 +2655,19 @@ class SEQUENCER_PT_cache_view_settings(SequencerButtonsPanel, Panel):
             split.alignment = 'RIGHT'
             split.label(text="Current Cache Size")
             split.alignment = 'LEFT'
-            split.label(text="{:d} MB".format(cache_raw_size + cache_final_size), translate=False)
+            split.label(text=iface_("{:d} MB").format(cache_raw_size + cache_final_size), translate=False)
 
             split = col.split(factor=0.4, align=True)
             split.alignment = 'RIGHT'
             split.label(text="Raw")
             split.alignment = 'LEFT'
-            split.label(text="{:d} MB".format(cache_raw_size), translate=False)
+            split.label(text=iface_("{:d} MB").format(cache_raw_size), translate=False)
 
             split = col.split(factor=0.4, align=True)
             split.alignment = 'RIGHT'
             split.label(text="Final")
             split.alignment = 'LEFT'
-            split.label(text="{:d} MB".format(cache_final_size), translate=False)
+            split.label(text=iface_("{:d} MB").format(cache_final_size), translate=False)
 
 
 class SEQUENCER_PT_proxy_settings(SequencerButtonsPanel, Panel):
@@ -3135,6 +3167,7 @@ classes = (
     SEQUENCER_MT_change,
     SEQUENCER_HT_tool_header,
     SEQUENCER_HT_header,
+    SEQUENCER_HT_playback_controls,
     SEQUENCER_MT_editor_menus,
     SEQUENCER_MT_range,
     SEQUENCER_MT_view,
@@ -3158,6 +3191,7 @@ classes = (
     SEQUENCER_MT_strip_retiming,
     SEQUENCER_MT_strip_text,
     SEQUENCER_MT_strip_show_hide,
+    SEQUENCER_MT_strip_animation,
     SEQUENCER_MT_strip_input,
     SEQUENCER_MT_strip_lock_mute,
     SEQUENCER_MT_image,

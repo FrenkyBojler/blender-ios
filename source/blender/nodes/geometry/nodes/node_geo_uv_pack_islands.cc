@@ -11,7 +11,8 @@
 
 #include "NOD_rna_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
+#include "UI_resources.hh"
 
 namespace blender::nodes::node_geo_uv_pack_islands_cc {
 
@@ -129,7 +130,7 @@ static VArray<float3> construct_uv_gvarray(const Mesh &mesh,
   delete (handle);
 
   return mesh.attributes().adapt_domain<float3>(
-      VArray<float3>::ForContainer(std::move(uv)), AttrDomain::Corner, domain);
+      VArray<float3>::from_container(std::move(uv)), AttrDomain::Corner, domain);
 }
 
 class PackIslandsFieldInput final : public bke::MeshFieldInput {

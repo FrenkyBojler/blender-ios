@@ -90,7 +90,7 @@ static struct {
 #  define PLAY_FRAME_CACHE_MAX 30
 #endif
 
-static CLG_LogRef LOG = {"wm.playanim"};
+static CLG_LogRef LOG = {"image"};
 
 /** Used in user viable messages. */
 static const char *message_prefix = "Animation Player";
@@ -507,7 +507,7 @@ static int pupdate_time()
 static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
                                  ImBuf *ibuf,
                                  bool *r_glsl_used,
-                                 eGPUTextureFormat *r_format,
+                                 blender::gpu::TextureFormat *r_format,
                                  eGPUDataFormat *r_data,
                                  void **r_buffer_cache_handle)
 {
@@ -518,7 +518,7 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
   force_fallback |= (ibuf->dither != 0.0f);
 
   /* Default. */
-  *r_format = GPU_RGBA8;
+  *r_format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
   *r_data = GPU_DATA_UBYTE;
 
   /* Fallback to CPU based color space conversion. */
@@ -531,11 +531,11 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
 
     *r_data = GPU_DATA_FLOAT;
     if (ibuf->channels == 4) {
-      *r_format = GPU_RGBA16F;
+      *r_format = blender::gpu::TextureFormat::SFLOAT_16_16_16_16;
     }
     else if (ibuf->channels == 3) {
       /* Alpha is implicitly 1. */
-      *r_format = GPU_RGB16F;
+      *r_format = blender::gpu::TextureFormat::SFLOAT_16_16_16;
     }
 
     if (ibuf->float_buffer.colorspace) {
@@ -569,7 +569,7 @@ static void *ocio_transform_ibuf(const PlayDisplayContext &display_ctx,
   if ((ibuf->byte_buffer.data || ibuf->float_buffer.data) && !*r_glsl_used) {
     display_buffer = IMB_display_buffer_acquire(
         ibuf, &display_ctx.view_settings, &display_ctx.display_settings, r_buffer_cache_handle);
-    *r_format = GPU_RGBA8;
+    *r_format = blender::gpu::TextureFormat::UNORM_8_8_8_8;
     *r_data = GPU_DATA_UBYTE;
   }
 
@@ -583,7 +583,7 @@ static void draw_display_buffer(const PlayDisplayContext &display_ctx,
 {
   /* Format needs to be created prior to any #immBindShader call.
    * Do it here because OCIO binds its own shader. */
-  eGPUTextureFormat format;
+  blender::gpu::TextureFormat format;
   eGPUDataFormat data;
   bool glsl_used = false;
   GPUVertFormat *imm_format = immVertexFormat();
@@ -597,7 +597,7 @@ static void draw_display_buffer(const PlayDisplayContext &display_ctx,
 
   /* NOTE: This may fail, especially for large images that exceed the GPU's texture size limit.
    * Large images could be supported although this isn't so common for animation playback. */
-  GPUTexture *texture = GPU_texture_create_2d(
+  blender::gpu::Texture *texture = GPU_texture_create_2d(
       "display_buf", ibuf->x, ibuf->y, 1, format, GPU_TEXTURE_USAGE_SHADER_READ, nullptr);
 
   if (texture) {
@@ -677,6 +677,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
 
   GPUContext *restore_context = GPU_context_active_get();
   GPU_context_active_set(ghost_data.gpu_context);
+  GPU_context_begin_frame(ghost_data.gpu_context);
 
   GPU_clear_color(0.1f, 0.1f, 0.1f, 0.0f);
 
@@ -784,6 +785,7 @@ static void playanim_toscreen_ex(GhostData &ghost_data,
     GPU_flush();
   }
 
+  GPU_context_end_frame(ghost_data.gpu_context);
   GHOST_SwapWindowBuffers(ghost_data.window);
   GPU_context_active_set(restore_context);
   GPU_render_end();
@@ -853,7 +855,7 @@ static void build_pict_list_from_anim(ListBase &picsbase,
                                       const int frame_offset)
 {
   /* OCIO_TODO: support different input color space. */
-  MovieReader *anim = MOV_open_file(filepath_first, IB_byte_data, 0, nullptr);
+  MovieReader *anim = MOV_open_file(filepath_first, IB_byte_data, 0, false, nullptr);
   if (anim == nullptr) {
     CLOG_WARN(&LOG, "couldn't open anim '%s'", filepath_first);
     return;
@@ -1821,7 +1823,9 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
       filepath = argv[0];
       if (MOV_is_movie_file(filepath)) {
         /* OCIO_TODO: support different input color spaces. */
-        MovieReader *anim = MOV_open_file(filepath, IB_byte_data, 0, nullptr);
+        /* Image buffer is used for display, which does support displaying any buffer from any
+         * colorspace. Skip colorspace conversions in the movie module to improve performance. */
+        MovieReader *anim = MOV_open_file(filepath, IB_byte_data, 0, true, nullptr);
         if (anim) {
           ibuf = MOV_decode_frame(anim, 0, IMB_TC_NONE, IMB_PROXY_NONE);
           MOV_close(anim);
@@ -2041,6 +2045,7 @@ static std::optional<int> wm_main_playanim_intern(int argc, const char **argv, P
 #endif /* USE_FRAME_CACHE_LIMIT */
 
           STRNCPY(ibuf->filepath, ps.picture->filepath);
+          ibuf->fileframe = ps.picture->frame;
         }
 
         while (pupdate_time()) {

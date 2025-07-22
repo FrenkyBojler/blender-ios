@@ -16,7 +16,8 @@
 #include "DNA_space_types.h"
 #include "DNA_windowmanager_types.h"
 
-#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
+#include "UI_interface_types.hh"
 
 #include "wm_cursors.hh"
 #include "wm_event_types.hh"
@@ -588,7 +589,7 @@ static PointerRNA rna_KeyConfig_find_item_from_operator(wmWindowManager *wm,
   wmKeyMap *km = nullptr;
   wmKeyMapItem *kmi = WM_key_event_operator(C,
                                             idname_bl,
-                                            wmOperatorCallContext(opcontext),
+                                            blender::wm::OpCallContext(opcontext),
                                             static_cast<IDProperty *>(properties->data),
                                             include_mask,
                                             exclude_mask,
