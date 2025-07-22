@@ -522,6 +522,16 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     const int closest_point = pen_find_closest_point(ptd, curves, ptd.mouse_co);
 
     if (closest_point == -1) {
+      if (ptd.move_seg || ptd.insert_point) {
+        ptd.closest_edge_point = pen_find_closest_edge_point(
+            ptd, curves, ptd.mouse_co, &ptd.closest_curve, &ptd.closest_edge_t);
+        if (ptd.closest_edge_point != -1) {
+          ptd.layer_index = info.layer_index;
+          add_single.store(false, std::memory_order_relaxed);
+          return;
+        }
+      }
+
       if (ptd.extrude_point) {
         IndexMaskMemory memory;
         const IndexMask selection = retrieve_editable_and_selected_points(
@@ -538,12 +548,6 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
         changed.store(true, std::memory_order_relaxed);
         return;
-      }
-
-      if (ptd.move_seg || ptd.insert_point) {
-        ptd.closest_edge_point = pen_find_closest_edge_point(
-            ptd, curves, ptd.mouse_co, &ptd.closest_curve, &ptd.closest_edge_t);
-        ptd.layer_index = info.layer_index;
       }
 
       return;
@@ -651,7 +655,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     MutableSpan<float3> handles_left = curves.handle_positions_left_for_write();
     MutableSpan<float3> handles_right = curves.handle_positions_right_for_write();
 
-    if (ptd.move_seg || ptd.insert_point) {
+    if (ptd.move_seg) {
       if (ptd.closest_edge_point != -1 && ptd.layer_index == info.layer_index) {
         const int curve_i = ptd.closest_curve;
         const IndexRange points = points_by_curve[curve_i];
