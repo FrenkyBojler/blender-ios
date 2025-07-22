@@ -197,7 +197,7 @@ Vector<const GeometryComponent *> GeometrySet::get_components() const
 }
 
 std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances(
-    const bool use_radius) const
+    const bool use_radius, const bool use_subdiv) const
 {
   std::optional<Bounds<float3>> bounds;
   if (const PointCloud *pointcloud = this->get_pointcloud()) {
@@ -205,7 +205,7 @@ std::optional<Bounds<float3>> GeometrySet::compute_boundbox_without_instances(
   }
   if (const Mesh *mesh = this->get_mesh()) {
     /* Use tessellated subdivision mesh if it exists. */
-    if (mesh->runtime->mesh_eval) {
+    if (use_subdiv && mesh->runtime->mesh_eval) {
       bounds = bounds::merge(bounds, mesh->runtime->mesh_eval->bounds_min_max());
     }
     else {
