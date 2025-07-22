@@ -184,16 +184,16 @@ void OBJECT_OT_volume_import(wmOperatorType *ot)
 static wmOperatorStatus volume_reload_exec(bContext *C, wmOperator *op)
 {
   Object *ob = CTX_data_active_object(C);
-  if (ob == NULL || ob->type != OB_VOLUME) {
+  if (ob == nullptr || ob->type != OB_VOLUME) {
     return OPERATOR_CANCELLED;
   }
   Volume *volume = (Volume *)ob->data;
-  if (BKE_volume_reload(volume)) {
-    WM_event_add_notifier(C, NC_OBJECT | ND_DATA | NC_GEOM, ob);
-    return OPERATOR_FINISHED;
+  if (!BKE_volume_reload(volume)) {
+    BKE_report(op->reports, RPT_ERROR, "VDB file not found");
+    return OPERATOR_CANCELLED;
   }
-  BKE_report(op->reports, RPT_ERROR, "Could not reload vdb file");
-  return OPERATOR_CANCELLED;
+  WM_event_add_notifier(C, NC_OBJECT | ND_DATA | NC_GEOM, ob);
+  return OPERATOR_FINISHED;
 }
 
 static bool volume_reload_poll(bContext *C)

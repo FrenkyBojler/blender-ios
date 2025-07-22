@@ -422,14 +422,17 @@ bool BKE_volume_is_loaded(const Volume *volume)
 bool BKE_volume_reload(Volume *volume)
 {
 #ifdef WITH_OPENVDB
-  if (BKE_volume_is_loaded(volume)) {
-    if (!BLI_is_file(volume->filepath))
-      return false;
-    /* Clear the caches so that when the file is accessed again it will load new data. */
-    blender::bke::volume_grid::file_cache::clear_file_cache(volume->filepath);
-    DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
-    return true;
+  /* Ensure the file path is absolute. */
+  char abs_path[PATH_MAX];
+  BLI_strncpy(abs_path, volume->filepath, PATH_MAX);
+  BLI_path_abs(abs_path, G.main->filepath);
+  if (!BLI_is_file(abs_path)) {
+    return false;
   }
+  /* Clear the caches so that when the file is accessed again it will load new data. */
+  blender::bke::volume_grid::file_cache::clear_file_cache(abs_path);
+  DEG_id_tag_update(&volume->id, ID_RECALC_SYNC_TO_EVAL);
+  return true;
 #endif
   return false;
 }

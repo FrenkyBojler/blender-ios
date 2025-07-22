@@ -171,6 +171,7 @@ class DATA_PT_volume_viewport_display(DataButtonsPanel, Panel):
         col.prop(display, "density")
         col.prop(display, "interpolation_method")
 
+
 class DATA_PT_volume_viewport_display_slicing(DataButtonsPanel, Panel):
     bl_label = ""
     bl_parent_id = "DATA_PT_volume_viewport_display"
