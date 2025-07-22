@@ -191,9 +191,9 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
     const bool cyclic = curve_cyclic[curve_i];
     for (const int src_i : src_points.index_range().drop_back(cyclic ? 0 : 1)) {
       if (types[curve_i] != CURVE_TYPE_BEZIER) {
-        const int src_i_2 = (src_i + 1 - src_points.first()) % src_points.size() +
-                            src_points.first();
-        const float2 pos_1_proj = pen_global_to_screen(ptd, positions[src_i]);
+        const int src_i_1 = src_i + src_points.first();
+        const int src_i_2 = (src_i + 1) % src_points.size() + src_points.first();
+        const float2 pos_1_proj = pen_global_to_screen(ptd, positions[src_i_1]);
         const float2 pos_2_proj = pen_global_to_screen(ptd, positions[src_i_2]);
         float local_t;
         const float2 closest_pos = line_segment_closest_point(
