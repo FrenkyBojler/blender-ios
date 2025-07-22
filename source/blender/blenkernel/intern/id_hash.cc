@@ -49,7 +49,7 @@ static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
 
   std::lock_guard<std::mutex> lock(mutex);
   if (const CachedFileHash *cached_hash = cache.lookup_ptr_as(path)) {
-    if (cached_hash->last_modified == stat.st_mtim.tv_sec) {
+    if (cached_hash->last_modified == stat.st_mtime) {
       return cached_hash->hash;
     }
   }
@@ -58,7 +58,7 @@ static std::optional<XXH128_hash_t> get_file_hash(const StringRefNull path)
     return std::nullopt;
   }
   const XXH128_hash_t hash = XXH3_128bits(buffer->data(), buffer->size());
-  cache.add(path, CachedFileHash{stat.st_mtim.tv_sec, hash});
+  cache.add(path, CachedFileHash{stat.st_mtime, hash});
   return hash;
 }
 
