@@ -19,7 +19,7 @@
 #include "GPU_init_exit.hh"
 
 #include "../generic/py_capi_utils.hh"
-#include "../generic/python_compat.hh"
+#include "../generic/python_compat.hh" /* IWYU pragma: keep. */
 #include "../generic/python_utildefines.hh"
 
 #include "../mathutils/mathutils.hh"
@@ -550,6 +550,7 @@ PyDoc_STRVAR(
     "   :type slot: int\n"
     "   :arg format: The format that describes the content of a single channel.\n"
     "      Possible values are `FLOAT`, `INT`, `UINT`, `UBYTE`, `UINT_24_8` and `10_11_11_REV`.\n"
+    "      `UINT_24_8` is deprecated, use `FLOAT` instead.\n"
     "   :type format: str\n"
     "   :arg data: Optional Buffer object to fill with the pixels values.\n"
     "   :type data: :class:`gpu.types.Buffer`\n"
@@ -597,6 +598,10 @@ static PyObject *pygpu_framebuffer_read_color(BPyGPUFrameBuffer *self,
                                         &py_buffer))
   {
     return nullptr;
+  }
+
+  if (pygpu_dataformat.value_found == GPU_DATA_UINT_24_8_DEPRECATED) {
+    PyErr_WarnEx(PyExc_DeprecationWarning, "`UINT_24_8` is deprecated, use `FLOAT` instead", 1);
   }
 
   if (!IN_RANGE_INCL(channels, 1, 4)) {
@@ -792,8 +797,8 @@ static PyMethodDef pygpu_framebuffer__tp_methods[] = {
 #  endif
 #endif
 
-/* Ideally type aliases would de-duplicate: `GPUTexture | dict[str, int | GPUTexture]`
- * in this doc-string. */
+/* Ideally type aliases would de-duplicate: `blender::gpu::Texture | dict[str, int |
+ * blender::gpu::Texture]` in this doc-string. */
 PyDoc_STRVAR(
     /* Wrap. */
     pygpu_framebuffer__tp_doc,
@@ -804,14 +809,15 @@ PyDoc_STRVAR(
     "texture is attached to the frame-buffer.\n"
     "   For cube map textures, layer is translated into a cube map face.\n"
     "\n"
-    "   :arg depth_slot: GPUTexture to attach or a `dict` containing keywords: "
+    "   :arg depth_slot: blender::gpu::Texture to attach or a `dict` containing keywords: "
     "'texture', 'layer' and 'mip'.\n"
-    "   :type depth_slot: :class:`gpu.types.GPUTexture` | dict[] | None\n"
-    "   :arg color_slots: Tuple where each item can be a GPUTexture or a `dict` "
+    "   :type depth_slot: :class:`gpu.types.blender::gpu::Texture` | dict[] | None\n"
+    "   :arg color_slots: Tuple where each item can be a blender::gpu::Texture or a `dict` "
     "containing keywords: 'texture', 'layer' and 'mip'.\n"
-    "   :type color_slots: :class:`gpu.types.GPUTexture` | "
-    "dict[str, int | :class:`gpu.types.GPUTexture`] | "
-    "Sequence[:class:`gpu.types.GPUTexture` | dict[str, int | :class:`gpu.types.GPUTexture`]] | "
+    "   :type color_slots: :class:`gpu.types.blender::gpu::Texture` | "
+    "dict[str, int | :class:`gpu.types.blender::gpu::Texture`] | "
+    "Sequence[:class:`gpu.types.blender::gpu::Texture` | dict[str, int | "
+    ":class:`gpu.types.blender::gpu::Texture`]] | "
     "None\n");
 PyTypeObject BPyGPUFrameBuffer_Type = {
     /*ob_base*/ PyVarObject_HEAD_INIT(nullptr, 0)

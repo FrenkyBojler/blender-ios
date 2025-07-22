@@ -109,7 +109,7 @@ rctf strip_retiming_keys_box_get(const Scene *scene, const View2D *v2d, const St
 
 int left_fake_key_frame_get(const bContext *C, const Strip *strip)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = seq::time_get_rounded_sound_offset(strip, scene_fps);
   const int content_start = seq::time_start_frame_get(strip) + sound_offset;
@@ -118,7 +118,7 @@ int left_fake_key_frame_get(const bContext *C, const Strip *strip)
 
 int right_fake_key_frame_get(const bContext *C, const Strip *strip)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const float scene_fps = float(scene->r.frs_sec) / float(scene->r.frs_sec_base);
   const int sound_offset = seq::time_get_rounded_sound_offset(strip, scene_fps);
   const int content_end = seq::time_content_end_frame_get(scene, strip) - 1 + sound_offset;
@@ -130,7 +130,7 @@ static bool retiming_fake_key_frame_clicked(const bContext *C,
                                             const int mval[2],
                                             int &r_frame)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
 
   rctf box = strip_retiming_keys_box_get(scene, v2d, strip);
@@ -167,7 +167,7 @@ void realize_fake_keys(const Scene *scene, Strip *strip)
 
 SeqRetimingKey *try_to_realize_fake_keys(const bContext *C, Strip *strip, const int mval[2])
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   SeqRetimingKey *key = nullptr;
 
   int key_frame;
@@ -182,7 +182,7 @@ static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
                                                      const Strip *strip,
                                                      const int mval[2])
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
 
   int best_distance = INT_MAX;
@@ -210,7 +210,7 @@ static SeqRetimingKey *mouse_over_key_get_from_strip(const bContext *C,
 
 SeqRetimingKey *retiming_mouseover_key_get(const bContext *C, const int mval[2], Strip **r_strip)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
   for (Strip *strip : sequencer_visible_strips_get(C)) {
     rctf box = strip_retiming_keys_box_get(scene, v2d, strip);
@@ -423,13 +423,16 @@ void sequencer_retiming_keys_draw(const TimelineDrawContext *timeline_ctx,
 
   GPUVertFormat *format = immVertexFormat();
   KeyframeShaderBindings sh_bindings;
-  sh_bindings.pos_id = GPU_vertformat_attr_add(format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  sh_bindings.size_id = GPU_vertformat_attr_add(format, "size", GPU_COMP_F32, 1, GPU_FETCH_FLOAT);
+  sh_bindings.pos_id = GPU_vertformat_attr_add(
+      format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
+  sh_bindings.size_id = GPU_vertformat_attr_add(
+      format, "size", blender::gpu::VertAttrType::SFLOAT_32);
   sh_bindings.color_id = GPU_vertformat_attr_add(
-      format, "color", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
+      format, "color", blender::gpu::VertAttrType::UNORM_8_8_8_8);
   sh_bindings.outline_color_id = GPU_vertformat_attr_add(
-      format, "outlineColor", GPU_COMP_U8, 4, GPU_FETCH_INT_TO_FLOAT_UNIT);
-  sh_bindings.flags_id = GPU_vertformat_attr_add(format, "flags", GPU_COMP_U32, 1, GPU_FETCH_INT);
+      format, "outlineColor", blender::gpu::VertAttrType::UNORM_8_8_8_8);
+  sh_bindings.flags_id = GPU_vertformat_attr_add(
+      format, "flags", blender::gpu::VertAttrType::UINT_32);
 
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);

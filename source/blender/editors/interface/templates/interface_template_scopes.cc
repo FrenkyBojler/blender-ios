@@ -12,6 +12,7 @@
 #include "RNA_prototypes.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 using blender::StringRefNull;
 
@@ -41,13 +42,13 @@ void uiTemplateHistogram(uiLayout *layout, PointerRNA *ptr, const StringRefNull 
   }
 
   uiLayout *col = &layout->column(true);
-  uiBlock *block = uiLayoutGetBlock(col);
+  uiBlock *block = col->block();
 
-  uiDefBut(block, UI_BTYPE_HISTOGRAM, 0, "", 0, 0, UI_UNIT_X * 10, hist->height, hist, 0, 0, "");
+  uiDefBut(block, ButType::Histogram, 0, "", 0, 0, UI_UNIT_X * 10, hist->height, hist, 0, 0, "");
 
   /* Resize grip. */
   uiDefIconButI(block,
-                UI_BTYPE_GRIP,
+                ButType::Grip,
                 0,
                 ICON_GRIP,
                 0,
@@ -81,7 +82,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull p
   Scopes *scopes = (Scopes *)cptr.data;
 
   uiLayout *col = &layout->column(true);
-  uiBlock *block = uiLayoutGetBlock(col);
+  uiBlock *block = col->block();
 
   if (scopes->wavefrm_height < UI_UNIT_Y) {
     scopes->wavefrm_height = UI_UNIT_Y;
@@ -91,7 +92,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull p
   }
 
   uiDefBut(block,
-           UI_BTYPE_WAVEFORM,
+           ButType::Waveform,
            0,
            "",
            0,
@@ -105,7 +106,7 @@ void uiTemplateWaveform(uiLayout *layout, PointerRNA *ptr, const StringRefNull p
 
   /* Resize grip. */
   uiDefIconButI(block,
-                UI_BTYPE_GRIP,
+                ButType::Grip,
                 0,
                 ICON_GRIP,
                 0,
@@ -146,10 +147,10 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const StringRefNul
   }
 
   uiLayout *col = &layout->column(true);
-  uiBlock *block = uiLayoutGetBlock(col);
+  uiBlock *block = col->block();
 
   uiDefBut(block,
-           UI_BTYPE_VECTORSCOPE,
+           ButType::Vectorscope,
            0,
            "",
            0,
@@ -163,7 +164,7 @@ void uiTemplateVectorscope(uiLayout *layout, PointerRNA *ptr, const StringRefNul
 
   /* Resize grip. */
   uiDefIconButI(block,
-                UI_BTYPE_GRIP,
+                ButType::Grip,
                 0,
                 ICON_GRIP,
                 0,

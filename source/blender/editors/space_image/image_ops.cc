@@ -79,6 +79,7 @@
 #include "ED_uvedit.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 #include "UI_view2d.hh"
 
@@ -790,14 +791,12 @@ static wmOperatorStatus image_view_ndof_invoke(bContext *C,
 
   SpaceImage *sima = CTX_wm_space_image(C);
   ARegion *region = CTX_wm_region(C);
-  float pan_vec[3];
 
-  const wmNDOFMotionData *ndof = static_cast<const wmNDOFMotionData *>(event->customdata);
+  const wmNDOFMotionData &ndof = *static_cast<const wmNDOFMotionData *>(event->customdata);
   const float pan_speed = NDOF_PIXELS_PER_SECOND;
 
-  WM_event_ndof_pan_get(ndof, pan_vec, true);
+  blender::float3 pan_vec = ndof.time_delta * WM_event_ndof_translation_get_for_navigation(ndof);
 
-  mul_v3_fl(pan_vec, ndof->dt);
   mul_v2_fl(pan_vec, pan_speed / sima->zoom);
 
   sima_zoom_set_factor(sima, region, max_ff(0.0f, 1.0f - pan_vec[2]), nullptr, false);
@@ -1673,15 +1672,16 @@ static wmOperatorStatus image_file_browse_invoke(bContext *C, wmOperator *op, co
 
     WM_operator_properties_create_ptr(&props_ptr, ot);
     RNA_string_set(&props_ptr, "filepath", filepath);
-    WM_operator_name_call_ptr(C, ot, WM_OP_EXEC_DEFAULT, &props_ptr, nullptr);
+    WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::ExecDefault, &props_ptr, nullptr);
     WM_operator_properties_free(&props_ptr);
 
     return OPERATOR_CANCELLED;
   }
 
   /* The image is typically passed to the operator via layout/button context (e.g.
-   * #uiLayoutSetContextPointer()). The File Browser doesn't support restoring this context
-   * when calling `exec()` though, so we have to pass it the image via custom data. */
+   * #uiLayout::context_ptr_set. The File Browser doesn't support
+   * restoring this context when calling `exec()` though, so we have to pass it the image via
+   * custom data. */
   op->customdata = ima;
 
   image_filesel(C, op, filepath);
@@ -2045,8 +2045,8 @@ static void image_save_as_draw(bContext * /*C*/, wmOperator *op)
   const bool is_multiview = RNA_boolean_get(op->ptr, "show_multiview");
   const bool save_as_render = RNA_boolean_get(op->ptr, "save_as_render");
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   /* Operator settings. */
   uiDefAutoButsRNA(layout,
@@ -2232,7 +2232,8 @@ static wmOperatorStatus image_save_invoke(bContext *C, wmOperator *op, const wmE
   if (!BKE_image_has_packedfile(ima) &&
       (!BKE_image_has_filepath(ima) || !image_file_format_writable(ima, iuser)))
   {
-    WM_operator_name_call(C, "IMAGE_OT_save_as", WM_OP_INVOKE_DEFAULT, nullptr, event);
+    WM_operator_name_call(
+        C, "IMAGE_OT_save_as", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
     return OPERATOR_CANCELLED;
   }
   return image_save_exec(C, op);
@@ -2699,8 +2700,8 @@ static void image_new_draw(bContext * /*C*/, wmOperator *op)
 
   /* copy of WM_operator_props_dialog_popup() layout */
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
   col->prop(op->ptr, "name", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -2860,10 +2861,6 @@ static wmOperatorStatus image_flip_exec(bContext *C, wmOperator *op)
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
   BKE_image_mark_dirty(ima, ibuf);
 
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-  }
-
   ED_image_undo_push_end();
 
   BKE_image_partial_update_mark_full_update(ima);
@@ -2933,10 +2930,6 @@ static wmOperatorStatus image_rotate_orthogonal_exec(bContext *C, wmOperator *op
 
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
   BKE_image_mark_dirty(ima, ibuf);
-
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-  }
 
   ED_image_undo_push_end();
 
@@ -3200,10 +3193,6 @@ static wmOperatorStatus image_invert_exec(bContext *C, wmOperator *op)
 
   ibuf->userflags |= IB_DISPLAY_BUFFER_INVALID;
   BKE_image_mark_dirty(ima, ibuf);
-
-  if (ibuf->mipmap[0]) {
-    ibuf->userflags |= IB_MIPMAP_INVALID;
-  }
 
   ED_image_undo_push_end();
 
@@ -4248,8 +4237,8 @@ static bool do_fill_tile(PointerRNA *ptr, Image *ima, ImageTile *tile)
 
 static void draw_fill_tile(PointerRNA *ptr, uiLayout *layout)
 {
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   uiLayout *col = &layout->column(false);
   col->prop(ptr, "color", UI_ITEM_NONE, std::nullopt, ICON_NONE);
@@ -4332,14 +4321,14 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
   }
 
   bool fill_tile = RNA_boolean_get(op->ptr, "fill");
-  char *label = RNA_string_get_alloc(op->ptr, "label", nullptr, 0, nullptr);
+  std::string label = RNA_string_get(op->ptr, "label");
 
   /* BKE_image_add_tile assumes a pre-sorted list of tiles. */
   BKE_image_sort_tiles(ima);
 
   ImageTile *last_tile_created = nullptr;
   for (int tile_number = start_tile; tile_number <= end_tile; tile_number++) {
-    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label);
+    ImageTile *tile = BKE_image_add_tile(ima, tile_number, label.c_str());
 
     if (tile != nullptr) {
       if (fill_tile) {
@@ -4349,7 +4338,6 @@ static wmOperatorStatus tile_add_exec(bContext *C, wmOperator *op)
       last_tile_created = tile;
     }
   }
-  MEM_freeN(label);
 
   if (!last_tile_created) {
     BKE_report(op->reports, RPT_WARNING, "No UDIM tiles were created");
@@ -4395,8 +4383,8 @@ static void tile_add_draw(bContext * /*C*/, wmOperator *op)
   uiLayout *col;
   uiLayout *layout = op->layout;
 
-  uiLayoutSetPropSep(layout, true);
-  uiLayoutSetPropDecorate(layout, false);
+  layout->use_property_split_set(true);
+  layout->use_property_decorate_set(false);
 
   col = &layout->column(false);
   col->prop(op->ptr, "number", UI_ITEM_NONE, std::nullopt, ICON_NONE);

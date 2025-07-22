@@ -139,8 +139,8 @@ DrawTexture::DrawTexture()
   float coords[8] = {0.0, 0.0, 1.0, 0.0, 1.0, 1.0, 0.0, 1.0};
 
   GPUVertFormat format = {0};
-  GPU_vertformat_attr_add(&format, "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
-  GPU_vertformat_attr_add(&format, "texCoord", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+  GPU_vertformat_attr_add(&format, "pos", gpu::VertAttrType::SFLOAT_32_32);
+  GPU_vertformat_attr_add(&format, "texCoord", gpu::VertAttrType::SFLOAT_32_32);
   gpu::VertBuf *vbo = GPU_vertbuf_create_with_format(format);
   GPU_vertbuf_data_alloc(*vbo, 4);
   GPU_vertbuf_attr_fill(vbo, 0, coords);
@@ -198,7 +198,7 @@ void DrawTexture::create_from_buffer(pxr::HdRenderBuffer *buffer)
   buffer->Unmap();
 }
 
-void DrawTexture::draw(GPUShader *shader, const pxr::GfVec4d &viewport, GPUTexture *tex)
+void DrawTexture::draw(GPUShader *shader, const pxr::GfVec4d &viewport, blender::gpu::Texture *tex)
 {
   if (!tex) {
     tex = texture_;
@@ -215,7 +215,7 @@ void DrawTexture::draw(GPUShader *shader, const pxr::GfVec4d &viewport, GPUTextu
   GPU_matrix_pop();
 }
 
-GPUTexture *DrawTexture::texture() const
+blender::gpu::Texture *DrawTexture::texture() const
 {
   return texture_;
 }

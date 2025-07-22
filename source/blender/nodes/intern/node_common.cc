@@ -32,6 +32,7 @@
 #include "MEM_guardedalloc.h"
 
 #include "NOD_common.hh"
+#include "NOD_composite.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_node_extra_info.hh"
 #include "NOD_register.hh"
@@ -82,8 +83,10 @@ void node_group_label(const bNodeTree * /*ntree*/,
                       char *label,
                       int label_maxncpy)
 {
-  BLI_strncpy(
-      label, (node->id) ? node->id->name + 2 : IFACE_("Missing Data-Block"), label_maxncpy);
+  BLI_strncpy(label,
+              (node->id) ? node->id->name + 2 :
+                           CTX_IFACE_(BLT_I18NCONTEXT_ID_NODETREE, "Missing Data-Block"),
+              label_maxncpy);
 }
 
 int node_group_ui_class(const bNode *node)
@@ -267,7 +270,7 @@ static BaseSocketDeclarationBuilder &build_interface_socket_declaration(
 
   BaseSocketDeclarationBuilder *decl = nullptr;
   if (base_typeinfo) {
-    datatype = eNodeSocketDatatype(base_typeinfo->type);
+    datatype = base_typeinfo->type;
     switch (datatype) {
       case SOCK_FLOAT: {
         const auto &value = node_interface::get_socket_data_as<bNodeSocketValueFloat>(io_socket);
@@ -783,7 +786,7 @@ static void group_input_declare(NodeDeclarationBuilder &b)
            * "dependency cycle" between this and the structure type inferencing which uses node
            * declarations. The compromise is to not use the proper structure type in the group
            * input/output declarations and instead use a special case for the choice of socket
-           * shapes.*/
+           * shapes. */
           build_interface_socket_declaration(*node_tree, socket, std::nullopt, SOCK_OUT, b);
         }
         break;
@@ -881,6 +884,7 @@ void register_node_type_group_input()
   blender::bke::node_type_size(*ntype, 140, 80, 400);
   ntype->declare = blender::nodes::group_input_declare;
   ntype->insert_link = blender::nodes::group_input_insert_link;
+  ntype->get_compositor_operation = blender::nodes::get_group_input_compositor_operation;
 
   blender::bke::node_register_type(*ntype);
 }

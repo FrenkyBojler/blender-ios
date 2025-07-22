@@ -144,14 +144,6 @@ typedef struct StripData {
   ColorManagedColorspaceSettings colorspace_settings;
 } StripData;
 
-typedef enum eSeqRetimingKeyFlag {
-  SEQ_SPEED_TRANSITION_IN = (1 << 0),
-  SEQ_SPEED_TRANSITION_OUT = (1 << 1),
-  SEQ_FREEZE_FRAME_IN = (1 << 2),
-  SEQ_FREEZE_FRAME_OUT = (1 << 3),
-  SEQ_KEY_SELECTED = (1 << 4),
-} eSeqRetimingKeyFlag;
-
 typedef struct SeqRetimingKey {
   double strip_frame_index;
   int flag; /* eSeqRetimingKeyFlag */
@@ -166,6 +158,9 @@ typedef struct SeqRetimingKey {
 
 typedef struct StripRuntime {
   SessionUID session_uid;
+  /** eStripRuntimeFlag */
+  uint32_t flag;
+  char _pad[4];
 } StripRuntime;
 
 /**
@@ -296,6 +291,8 @@ typedef struct Strip {
   struct Stereo3dFormat *stereo3d_format;
 
   struct IDProperty *prop;
+  /** System-defined custom properties storage. */
+  struct IDProperty *system_properties;
 
   /* modifiers */
   ListBase modifiers;
@@ -305,7 +302,6 @@ typedef struct Strip {
   float speed_factor;
 
   struct SeqRetimingKey *retiming_keys;
-  void *_pad5;
   int retiming_keys_num;
   char _pad6[4];
 
@@ -440,7 +436,14 @@ typedef struct GaussianBlurVars {
 } GaussianBlurVars;
 
 typedef struct TextVars {
-  char text[512];
+  char *text_ptr;
+  /**
+   * Text length in bytes, not including terminating zero
+   * (The `strlen` of text).
+   */
+  int text_len_bytes;
+  char _pad2[4];
+
   struct VFont *text_font;
   int text_blf_id;
   float text_size;
@@ -457,7 +460,7 @@ typedef struct TextVars {
   char align;
   char _pad[2];
 
-  /** Offsets in characters (unicode code-points) for #TextVars::text. */
+  /** Offsets in characters (unicode code-points) for #TextVars::text_ptr. */
   int cursor_offset;
   int selection_start_offset;
   int selection_end_offset;
@@ -466,6 +469,10 @@ typedef struct TextVars {
   char anchor_x, anchor_y;
   char _pad1;
   TextVarsRuntime *runtime;
+
+  /* Fixed size text buffer, only exists for forward/backward compatibility.
+   * #TextVars::text_ptr and #TextVars::text_len_bytes are used for full text. */
+  char text_legacy[512];
 } TextVars;
 
 /** #TextVars.flag */
@@ -506,6 +513,18 @@ typedef struct ColorMixVars {
 /** \name Strip Modifiers
  * \{ */
 
+typedef struct StripModifierDataRuntime {
+  /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound
+   * inputs and outputs. When all existing parameters do match new ones, the update can be skipped
+   * and old sound handle may be returned. This is to prevent audio glitches, see #141595 */
+
+  float *last_buf; /* Equalizer frequency/volume curve buffer */
+
+  /* Reference sound handles (may be used by any sound modifier). */
+  void *last_sound_in;
+  void *last_sound_out;
+} StripModifierDataRuntime;
+
 typedef struct StripModifierData {
   struct StripModifierData *next, *prev;
   int type, flag;
@@ -517,6 +536,11 @@ typedef struct StripModifierData {
 
   struct Strip *mask_strip;
   struct Mask *mask_id;
+
+  int persistent_uid;
+  char _pad[4];
+
+  StripModifierDataRuntime runtime;
 } StripModifierData;
 
 typedef struct ColorBalanceModifierData {
@@ -625,6 +649,21 @@ enum {
 
 #define STRIP_NAME_MAXSTR 64
 
+/** #SeqRetimingKey::flag */
+typedef enum eSeqRetimingKeyFlag {
+  SEQ_SPEED_TRANSITION_IN = (1 << 0),
+  SEQ_SPEED_TRANSITION_OUT = (1 << 1),
+  SEQ_FREEZE_FRAME_IN = (1 << 2),
+  SEQ_FREEZE_FRAME_OUT = (1 << 3),
+  SEQ_KEY_SELECTED = (1 << 4),
+} eSeqRetimingKeyFlag;
+
+/** #StripRuntime::flag */
+typedef enum eStripRuntimeFlag {
+  STRIP_CLAMPED_LH = (1 << 0),
+  STRIP_CLAMPED_RH = (1 << 1),
+} eStripRuntimeFlag;
+
 /* From: `DNA_object_types.h`, see it's doc-string there. */
 #define SELECT 1
 
@@ -681,9 +720,6 @@ enum {
 /* convenience define for all selection flags */
 #define STRIP_ALLSEL (SELECT + SEQ_LEFTSEL + SEQ_RIGHTSEL)
 
-/* Deprecated, don't use a flag anymore. */
-// #define STRIP_ACTIVE 1048576
-
 enum {
   SEQ_COLOR_BALANCE_INVERSE_GAIN = 1 << 0,
   SEQ_COLOR_BALANCE_INVERSE_GAMMA = 1 << 1,
@@ -712,7 +748,7 @@ enum {
   SEQ_PROXY_TC_RECORD_RUN_NO_GAPS = 1 << 1,
 };
 
-/** SeqProxy.build_flags */
+/** StripProxy.build_flags */
 enum {
   SEQ_PROXY_SKIP_EXISTING = 1,
 };

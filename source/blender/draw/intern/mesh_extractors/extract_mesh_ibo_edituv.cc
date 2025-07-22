@@ -71,7 +71,7 @@ static void extract_edituv_tris_mesh(const MeshRenderData &mr,
 
 gpu::IndexBufPtr extract_edituv_tris(const MeshRenderData &mr)
 {
-  const bool sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
   GPU_indexbuf_init(&builder, GPU_PRIM_TRIS, mr.corner_tris_num, mr.corners_num);
@@ -130,7 +130,7 @@ static void extract_edituv_tris_subdiv_mesh(const MeshRenderData &mr,
 gpu::IndexBufPtr extract_edituv_tris_subdiv(const MeshRenderData &mr,
                                             const DRWSubdivCache &subdiv_cache)
 {
-  const bool sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
   GPU_indexbuf_init(
@@ -155,8 +155,6 @@ static gpu::IndexBufPtr extract_edituv_lines_bm(const MeshRenderData &mr,
                                                 const bool sync_selection)
 {
   GPUIndexBufBuilder builder;
-  /* The entire data array might not be used. It might be beneficial to count the number of visible
-   * edges first, especially if that allows parallelizing filling the data array. */
   GPU_indexbuf_init(&builder, GPU_PRIM_LINES, mr.corners_num, mr.corners_num);
   MutableSpan<uint2> data = GPU_indexbuf_get_data(&builder).cast<uint2>();
   int line_index = 0;
@@ -174,7 +172,16 @@ static gpu::IndexBufPtr extract_edituv_lines_bm(const MeshRenderData &mr,
     }
   }
 
-  return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, mr.corners_num, false));
+  /* Only upload the part of the index buffer that is used. Alternatively it might be beneficial to
+   * count the number of visible edges first, especially if that allows parallelizing filling the
+   * data array. */
+  builder.index_len = line_index * 2;
+  builder.index_min = 0;
+  builder.index_max = mr.corners_num;
+  builder.uses_restart_indices = false;
+  gpu::IndexBufPtr result = gpu::IndexBufPtr(GPU_indexbuf_calloc());
+  GPU_indexbuf_build_in_place(&builder, result.get());
+  return result;
 }
 
 static gpu::IndexBufPtr extract_edituv_lines_mesh(const MeshRenderData &mr,
@@ -236,12 +243,21 @@ static gpu::IndexBufPtr extract_edituv_lines_mesh(const MeshRenderData &mr,
     });
   }
 
-  return gpu::IndexBufPtr(GPU_indexbuf_build_ex(&builder, 0, mr.corners_num, false));
+  /* Only upload the part of the index buffer that is used. Alternatively it might be beneficial to
+   * count the number of visible edges first, especially if that allows parallelizing filling the
+   * data array. */
+  builder.index_len = line_index;
+  builder.index_min = 0;
+  builder.index_max = mr.corners_num;
+  builder.uses_restart_indices = false;
+  gpu::IndexBufPtr result = gpu::IndexBufPtr(GPU_indexbuf_calloc());
+  GPU_indexbuf_build_in_place(&builder, result.get());
+  return result;
 }
 
 gpu::IndexBufPtr extract_edituv_lines(const MeshRenderData &mr, bool edit_uvs)
 {
-  const bool sync_selection = ((mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0) || !edit_uvs;
+  const bool sync_selection = ((mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0) || !edit_uvs;
 
   if (mr.extract_type == MeshExtractType::BMesh) {
     return extract_edituv_lines_bm(mr, sync_selection);
@@ -337,7 +353,7 @@ gpu::IndexBufPtr extract_edituv_lines_subdiv(const MeshRenderData &mr,
                                              const DRWSubdivCache &subdiv_cache,
                                              bool edit_uvs)
 {
-  const bool sync_selection = ((mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0) || !edit_uvs;
+  const bool sync_selection = ((mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0) || !edit_uvs;
 
   if (mr.extract_type == MeshExtractType::BMesh) {
     return extract_edituv_lines_subdiv_bm(mr, subdiv_cache, sync_selection);
@@ -399,7 +415,7 @@ static void extract_edituv_points_mesh(const MeshRenderData &mr,
 
 gpu::IndexBufPtr extract_edituv_points(const MeshRenderData &mr)
 {
-  const bool sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
   GPU_indexbuf_init(&builder, GPU_PRIM_POINTS, mr.corners_num, mr.corners_num);
@@ -469,7 +485,7 @@ static void extract_edituv_points_subdiv_mesh(const MeshRenderData &mr,
 gpu::IndexBufPtr extract_edituv_points_subdiv(const MeshRenderData &mr,
                                               const DRWSubdivCache &subdiv_cache)
 {
-  const bool sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
 
   GPUIndexBufBuilder builder;
   GPU_indexbuf_init(
@@ -540,7 +556,7 @@ static gpu::IndexBufPtr extract_edituv_face_dots_mesh(const MeshRenderData &mr,
 
 gpu::IndexBufPtr extract_edituv_face_dots(const MeshRenderData &mr)
 {
-  const bool sync_selection = (mr.toolsettings->uv_flag & UV_SYNC_SELECTION) != 0;
+  const bool sync_selection = (mr.toolsettings->uv_flag & UV_FLAG_SYNC_SELECT) != 0;
   if (mr.extract_type == MeshExtractType::BMesh) {
     return extract_edituv_face_dots_bm(mr, sync_selection);
   }

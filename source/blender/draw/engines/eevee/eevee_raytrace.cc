@@ -349,6 +349,8 @@ void RayTraceModule::sync()
                                        use_temporal_denoise;
 
     data_.closure_index = i;
+    data_.resolution_scale = max_ii(1, power_of_2_max_i(ray_tracing_options_.resolution_scale));
+    data_.skip_denoise = !use_spatial_denoise;
     inst_.manager->warm_shader_specialization(tile_classify_ps_);
     inst_.manager->warm_shader_specialization(tile_compact_ps_);
     inst_.manager->warm_shader_specialization(generate_ps_);
@@ -389,7 +391,7 @@ void RayTraceModule::debug_pass_sync() {}
 void RayTraceModule::debug_draw(View & /*view*/, GPUFrameBuffer * /*view_fb*/) {}
 
 RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
-                                      GPUTexture *screen_radiance_back_tx,
+                                      gpu::Texture *screen_radiance_back_tx,
                                       eClosureBits active_closures,
                                       /* TODO(fclem): Maybe wrap these two in some other class. */
                                       View &main_view,
@@ -410,7 +412,7 @@ RayTraceResult RayTraceModule::render(RayTraceBuffer &rt_buffer,
 
   const int resolution_scale = max_ii(1, power_of_2_max_i(options.resolution_scale));
   const int horizon_resolution_scale = max_ii(
-      1, power_of_2_max_i(inst_.scene->eevee.gtao_resolution));
+      1, power_of_2_max_i(inst_.scene->eevee.fast_gi_resolution));
 
   const int2 extent = inst_.film.render_extent_get();
   const int2 tracing_res = math::divide_ceil(extent, int2(resolution_scale));

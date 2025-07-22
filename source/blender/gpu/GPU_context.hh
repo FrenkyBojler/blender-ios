@@ -20,6 +20,7 @@ bool GPU_backend_supported();
 void GPU_backend_type_selection_set(const eGPUBackendType backend);
 eGPUBackendType GPU_backend_type_selection_get();
 eGPUBackendType GPU_backend_get_type();
+const char *GPU_backend_get_name();
 
 /**
  * Detect the most suited eGPUBackendType.
@@ -27,7 +28,7 @@ eGPUBackendType GPU_backend_get_type();
  * - The detected backend will be set in `GPU_backend_type_selection_set`.
  * - When GPU_backend_type_selection_is_overridden it checks the overridden backend.
  *   When not overridden it checks a default list.
- * - OpenGL backend will be checked as fallback for Metal.
+ * - OpenGL backend will be checked as a fallback for Metal.
  *
  * Returns true when detection found a supported backend, otherwise returns false.
  * When no supported backend is found GPU_backend_type_selection_set is called with
