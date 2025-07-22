@@ -30,7 +30,7 @@ void VolumeProbeModule::init()
   /* This might become an option in the future. */
   bool use_l2_band = false;
   int sh_coef_len = use_l2_band ? 9 : 4;
-  BLI_assert(VOLUME_PROBE_FORMAT == gpu::TextureFormat::SFLOAT_16_16_16_16);
+  BLI_assert(gpu::TextureFormat::VOLUME_PROBE_FORMAT == gpu::TextureFormat::SFLOAT_16_16_16_16);
   int texel_byte_size = 8; /* Assumes gpu::TextureFormat::SFLOAT_16_16_16_16. */
   uint atlas_col_count = 0;
   uint atlas_row_count = 0;
