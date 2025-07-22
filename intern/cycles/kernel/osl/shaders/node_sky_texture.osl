@@ -47,17 +47,18 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   float sun_dir_angle = precise_angle(dir, sun_dir);
   float half_angular = angular_diameter * 0.5;
   float alpha = 1.0;
-  color xyz, rgb_sky;
-  color rgb_sun = (0.0, 0.0, 0.0);
+  color rgb_sun = color(0.0, 0.0, 0.0);
   vector direction = sky_spherical_coordinates(dir);
   float dir_elevation = M_PI_2 - direction[0];
-  float y;
 
   /* If the ray is inside the sun disc, render it, otherwise render the sky.
-   * Alternatively, ignore the sun if we're evaluating the background texture. */
-  if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1) {
-    y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
-    xyz = mix(pixel_bottom, pixel_top, y);
+   * Alternatively, ignore the sun if we're evaluating the background texture.
+   * The sun disc is also disabled below the horizon. */
+  if (sun_dir_angle < half_angular && sun_disc == 1 && raytype("importance_bake") != 1 &&
+      dir[2] >= 0)
+  {
+    float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5;
+    color xyz = mix(pixel_bottom, pixel_top, y);
     /* Limb darkening, coefficient is 0.6 */
     float angle_fraction = sun_dir_angle / half_angular;
     float limb_darkening = (1.0 - 0.6 * (1.0 - sqrt(1.0 - angle_fraction * angle_fraction)));
@@ -67,15 +68,15 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
   if (x > 1.0) {
     x = x - 1.0;
   }
+  color rgb_sky;
   if (sky_type == 0 && dir[2] < 0.0) {
-    /* Fade ground to black for Single Scattering model and disable Sun disc below horizon */
-    rgb_sun = color(0.0, 0.0, 0.0);
+    /* Fade ground to black for Single Scattering model. */
     if (dir[2] < -0.4) {
       rgb_sky = color(0.0, 0.0, 0.0);
     }
     else {
       float fade = pow(1.0 + dir[2] * 2.5, 3.0);
-      xyz = (color)texture(
+      color xyz = (color)texture(
           filename, x, 0.492, "wrap", "periodic", "interp", "linear", "alpha", alpha);
       rgb_sky = xyz_to_rgb(xyz[0], xyz[1], xyz[2]) * fade;
     }
@@ -84,7 +85,8 @@ color sky_radiance(vector dir, float sky_data[10], string filename, int sky_type
     /* Undo the non-linear transformation from the sky LUT */
     float dir_elevation_abs = (dir_elevation < 0.0) ? -dir_elevation : dir_elevation;
     float y = 1.0 - (sqrt(dir_elevation_abs / M_PI_2) * signx(dir_elevation) * 0.5 + 0.5);
-    xyz = (color)texture(filename, x, y, "wrap", "clamp", "interp", "linear", "alpha", alpha);
+    color xyz = (color)texture(
+        filename, x, y, "wrap", "clamp", "interp", "linear", "alpha", alpha);
     rgb_sky = xyz_to_rgb(xyz[0], xyz[1], xyz[2]);
   }
 

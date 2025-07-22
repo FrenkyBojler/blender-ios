@@ -10,24 +10,9 @@
 
 #include "kernel/util/colorspace.h"
 
-#include "util/color.h"
-
 CCL_NAMESPACE_BEGIN
 
 /* Sky texture */
-
-ccl_device float sign(float x)
-{
-  if (x < 0.0f) {
-    return -1.0f;
-  }
-  else if (x > 0.0f) {
-    return 1.0f;
-  }
-  else {
-    return 0.0f;
-  }
-}
 
 ccl_device float3 sky_radiance(KernelGlobals kg,
                                const bool multiple_scattering,
@@ -49,39 +34,39 @@ ccl_device float3 sky_radiance(KernelGlobals kg,
   const float half_angular = angular_diameter * 0.5f;
   const float dir_elevation = M_PI_2_F - direction.x;
   float3 rgb_sun = make_float3(0.0f, 0.0f, 0.0f);
-  float3 xyz, rgb_sky;
-  float y;
 
   /* If the ray is inside the sun disc, render it, otherwise render the sky.
    * Alternatively, ignore the sun if we're evaluating the background texture. */
   if (sun_disc && sun_dir_angle < half_angular &&
-      !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding))
+      !((path_flag & PATH_RAY_IMPORTANCE_BAKE) && kernel_data.background.use_sun_guiding) &&
+      dir.z >= 0.0f)
   {
-    y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
-    xyz = interp(pixel_bottom, pixel_top, y);
+    const float y = ((dir_elevation - sun_elevation) / angular_diameter) + 0.5f;
+    const float3 xyz = interp(pixel_bottom, pixel_top, y);
     /* Limb darkening, coefficient is 0.6 */
     const float limb_darkening = (1.0f -
                                   0.6f * (1.0f - sqrtf(1.0f - sqr(sun_dir_angle / half_angular))));
     rgb_sun = xyz_to_rgb_clamped(kg, xyz) * limb_darkening;
   }
   const float x = fractf((-direction.y - M_PI_2_F + sun_rotation) / M_2PI_F);
+  float3 rgb_sky;
   if (!multiple_scattering && dir.z < 0.0f) {
-    /* Fade ground to black for Single Scattering model and disable Sun disc below horizon */
-    rgb_sun = make_float3(0.0f, 0.0f, 0.0f);
+    /* Fade ground to black for Single Scattering model. */
     if (dir.z < -0.4f) {
       rgb_sky = make_float3(0.0f, 0.0f, 0.0f);
     }
     else {
       float fade = powf(1.0f + dir.z * 2.5f, 3.0f);
-      xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f));
+      const float3 xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, 0.508f));
       rgb_sky = xyz_to_rgb_clamped(kg, xyz) * fade;
     }
   }
   else {
     /* Undo the non-linear transformation from the sky LUT */
     const float dir_elevation_abs = (dir_elevation < 0.0f) ? -dir_elevation : dir_elevation;
-    y = sqrtf(dir_elevation_abs / M_PI_2_F) * sign(dir_elevation) * 0.5f + 0.5f;
-    xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
+    const float y = sqrtf(dir_elevation_abs / M_PI_2_F) * copysignf(1.0f, dir_elevation) * 0.5f +
+                    0.5f;
+    const float3 xyz = make_float3(kernel_tex_image_interp(kg, texture_id, x, y));
     rgb_sky = xyz_to_rgb_clamped(kg, xyz);
   }
 
