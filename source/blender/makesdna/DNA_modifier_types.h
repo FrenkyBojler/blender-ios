@@ -2312,6 +2312,9 @@ typedef enum {
 
   /* Read animated custom attributes from point cache files. */
   MOD_MESHSEQ_READ_ATTRIBUTES = (1 << 5),
+  
+  /* Skip topology check when reading meshes. */
+  MOD_MESHSEQ_SKIP_TOPOLOGY_CHECK = (1 << 6),
 } MeshSeqCacheModifierReadFlag;
 
 typedef struct SDefBind {

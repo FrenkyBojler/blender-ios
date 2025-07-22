@@ -784,8 +784,9 @@ Mesh *AbcMeshReader::read_mesh(Mesh *existing_mesh,
   settings.read_flag |= read_flag;
   settings.velocity_name = velocity_name;
   settings.velocity_scale = velocity_scale;
-
-  if (topology_changed(existing_mesh, sample_sel)) {
+  
+  const bool skip_topology_check = read_flag & MOD_MESHSEQ_SKIP_TOPOLOGY_CHECK;
+  if (!skip_topology_check && topology_changed(existing_mesh, sample_sel)) {
     new_mesh = BKE_mesh_new_nomain_from_template(
         existing_mesh, positions->size(), 0, face_counts->size(), face_indices->size());
 

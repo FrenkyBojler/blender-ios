@@ -393,6 +393,7 @@ static void panel_draw(const bContext *C, Panel *panel)
   if (RNA_enum_get(&ob_ptr, "type") == OB_MESH) {
     layout->prop(ptr, "read_data", UI_ITEM_R_EXPAND, std::nullopt, ICON_NONE);
     layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "skip_topology_check", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (RNA_enum_get(&ob_ptr, "type") == OB_CURVES) {
     layout->prop(ptr, "use_vertex_interpolation", UI_ITEM_NONE, std::nullopt, ICON_NONE);
