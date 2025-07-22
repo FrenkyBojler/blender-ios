@@ -373,6 +373,10 @@ class NODE_MT_category_shader_vector(Menu):
         node_add_menu.add_node_type(layout, "ShaderNodeBump")
         node_add_menu.add_node_type(layout, "ShaderNodeDisplacement")
         node_add_menu.add_node_type(layout, "ShaderNodeMapping")
+        props = node_add_menu.add_node_type(layout, "ShaderNodeMix", label="Mix Vector")
+        ops = props.settings.add()
+        ops.name = "data_type"
+        ops.value = "'VECTOR'"
         node_add_menu.add_node_type(layout, "ShaderNodeNormal")
         node_add_menu.add_node_type(layout, "ShaderNodeNormalMap")
         node_add_menu.add_node_type(layout, "ShaderNodeVectorCurve")
