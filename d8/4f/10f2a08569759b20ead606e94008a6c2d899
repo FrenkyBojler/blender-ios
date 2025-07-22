@@ -1,1 +1,2 @@
 Referenced by commit beb062949be38355c6a978aad4c4f6f3a07fb16c, Fix #142814: Incorrect object mode UV overlay with GPU subdivision
+Referenced by pull request #142891, Fix #142785: Sculpt mode multires fast navigate artifacts
