@@ -664,8 +664,50 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
                              points.first();
 
         const float3 depth_point = positions[point_i1];
-        handles_right[point_i1] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
-        handles_left[point_i2] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+        const float t = ptd.closest_edge_t;
+        const float3 Pm = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+        const float3 P0 = positions[point_i1];
+        const float3 P3 = positions[point_i2];
+        const float3 p1 = handles_right[point_i1];
+        const float3 p2 = handles_left[point_i2];
+        const float3 k2 = p1 - p2;
+
+        /*
+         * Equation of Bezier Curve
+         *      => B(t) = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
+         *
+         *
+         * Pm = (1-t)^3 * P0 + 3(1-t)^2 * t * P1 + 3(1-t) * t^2 * P2 + t^3 * P3
+         *
+         * k2 = P1 - P2
+         * P2 = P1 - k2
+         *
+         * Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2 = (3(1-t)^2 * t + 3(1-t) * t^2) * P1
+         *
+         * (Pm - (1-t)^3 * P0 - t^3 * P3 + 3(1-t) * t^2 * k2) / (3(1-t)^2 * t + 3(1-t) * t^2) = P1
+         *
+         *
+         *
+         *
+         * Mouse location (Say Pm) should satisfy this equation.
+         * Therefore => (1/t - 1) * P1 + P2 = (Pm - (1 - t)^3 * P0 - t^3 * P3) / [3 * (1 - t) *
+         * t^2] = k1 (in code)
+         *
+         * Another constraint is required to identify P1 and P2.
+         * The constraint used is that the vector between P1 and P2 doesn't change.
+         * Therefore => P1 - P2 = k2
+         *
+         * From the two equations => P1 = t(k1 + k2) and P2 = P1 - K2
+         */
+
+        const float3 P1 = (Pm - (1 - t) * (1 - t) * (1 - t) * P0 - t * t * t * P3 +
+                           3 * (1 - t) * t * t * k2) /
+                          (3 * (1 - t) * (1 - t) * t + 3 * (1 - t) * t * t);
+
+        const float3 P2 = P1 - k2;
+
+        handles_right[point_i1] = P1;
+        handles_left[point_i2] = P2;
 
         curves.calculate_bezier_auto_handles();
 
