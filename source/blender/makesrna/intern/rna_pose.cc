@@ -717,6 +717,21 @@ static const EnumPropertyItem prop_solver_items[] = {
     {0, nullptr, 0, nullptr, nullptr},
 };
 
+static const EnumPropertyItem pose_bone_gizmo_mode[] = {
+    {0, "OFF", 0, "Off", "The Gizmo will stay with the bone"},
+    {PCHAN_GIZMO_MODE_CUSTOM_LOCATION,
+     "LOCATION",
+     0,
+     "Location",
+     "The Gizmo will follow the location of the Override Transform"},
+    {PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM,
+     "TRANSFORM",
+     0,
+     "Full Transform",
+     "The Gizmo will follow the full transform of the Override Transform, including rotation"},
+    {0, nullptr, 0, nullptr, nullptr},
+};
+
 static void rna_def_pose_channel_constraints(BlenderRNA *brna, PropertyRNA *cprop)
 {
   StructRNA *srna;
@@ -1162,32 +1177,17 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 100, RNA_TRANSLATION_PREC_DEFAULT);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
+  prop = RNA_def_property(srna, "gizmo_mode", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "gizmo_mode");
+  RNA_def_property_enum_items(prop, pose_bone_gizmo_mode);
+  RNA_def_property_ui_text(prop, "Gizmo Mode", nullptr);
+  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
+
   prop = RNA_def_property(srna, "use_custom_shape_bone_size", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_negative_sdna(
       prop, nullptr, "drawflag", PCHAN_DRAW_NO_CUSTOM_BONE_SIZE);
   RNA_def_property_ui_text(
       prop, "Scale to Bone Length", "Scale the custom object by the bone length");
-  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
-
-  prop = RNA_def_property(
-      srna, "do_custom_shape_gizmo_override_location", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "drawflag", PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Custom Location",
-      "Places the gizmo at the Custom Shape Transform Location, and uses that as the origin for "
-      "manipulating rotation and scale. This decouples the location of the gizmo from the actual "
-      "location of the bone");
-  RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
-
-  prop = RNA_def_property(srna, "do_custom_shape_gizmo_localized", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(
-      prop, nullptr, "drawflag", PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM);
-  RNA_def_property_ui_text(
-      prop,
-      "Use Localized Transform",
-      "Follow the Custom Shape Transform's parent. However, this also implicitly enables the "
-      "behavior of [Use Custom Location] so location follows the Custom Shape Transform");
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_Pose_update");
 
   prop = RNA_def_property(srna, "custom_shape_transform", PROP_POINTER, PROP_NONE);

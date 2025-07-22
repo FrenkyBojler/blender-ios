@@ -1437,12 +1437,11 @@ static bool pose_channel_gizmo_use_custom_pivot(const bArmature *arm, const bPos
   }
 
   /* Either of these flags should activate the custom pivot behaviour. */
-  return pchan->drawflag &
-         (PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION | PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM);
+  return pchan->gizmo_mode > PCHAN_GIZMO_MODE_NORMAL;
 }
 
 /**
- * Whether PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM affects the gizmos pose orientation and
+ * Whether PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM affects the gizmos pose orientation and
  * location.
  */
 static bool pose_channel_gizmo_use_localized_transform(const bArmature *arm,
@@ -1452,7 +1451,7 @@ static bool pose_channel_gizmo_use_localized_transform(const bArmature *arm,
     return false;
   }
 
-  return pose_bone->drawflag & PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM;
+  return pose_bone->gizmo_mode == PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM;
 }
 
 /**

@@ -310,8 +310,8 @@ void BKE_pose_itasc_init(bItasc *itasc);
 bool BKE_pose_channel_in_IK_chain(Object *ob, bPoseChannel *pchan);
 
 /**
- * Get the effective gizmo location, accounting for PCHAN_DRAW_GIZMO_USE_CUSTOM_LOCATION
- * and PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM
+ * Get the effective gizmo location, accounting for PCHAN_GIZMO_MODE_CUSTOM_LOCATION
+ * and PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM
  */
 void BKE_pose_channel_gizmo_location(const bArmature *arm,
                                      const bPoseChannel *pose_bone,
@@ -319,7 +319,7 @@ void BKE_pose_channel_gizmo_location(const bArmature *arm,
 
 /**
  * Get the effective gizmo pose orientation, accounting for
- * PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM.
+ * PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM.
  */
 void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
                                         const bPoseChannel *pose_bone,
@@ -327,14 +327,14 @@ void BKE_pose_channel_gizmo_orientation(const bArmature *arm,
 
 /**
  * Get the effective BoneParentTransform to use for gizmos, accounting for
- * PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM.
+ * PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM.
  */
 void BKE_pose_channel_gizmo_parent_transform(const bArmature *arm,
                                              const bPoseChannel *pose_bone,
                                              BoneParentTransform *r_bpt);
 
 /**
- * This accounts for PCHAN_DRAW_GIZMO_USE_LOCALIZED_TRANSFORM.
+ * This accounts for PCHAN_GIZMO_MODE_LOCALIZED_TRANSFORM.
  * If enabled, we calculate r_modified_local_mat relative to pchan's custom_tx then return
  * custom_tx. If disabled, this is a noop.
  */
