@@ -1093,10 +1093,10 @@ static void ui_context_fcurve_modifiers_via_fcurve(bContext *C,
 
 static void ui_context_selected_key_blocks(ID *owner_id_key, blender::Vector<PointerRNA> *r_lb)
 {
-  /* This function chooses to return selected keyblocks of containing Key ID.
+  /* This function chooses to return the selected keyblocks of the owning Key ID.
    * The other option would be to return identically named keyblocks from selected objects. I
    * (christoph) think that the first case is more useful which is why the function works as it
-   * works. */
+   * does. */
   Key *containing_key = reinterpret_cast<Key *>(owner_id_key);
   LISTBASE_FOREACH (KeyBlock *, key_block, &containing_key->block) {
     if (key_block->flag & KEYBLOCK_SEL) {
