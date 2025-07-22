@@ -728,7 +728,7 @@ static const EnumPropertyItem pose_bone_gizmo_mode[] = {
      "TRANSFORM",
      0,
      "Full Transform",
-     "The Gizmo will follow the full transform of the Override Transform, including rotation"},
+     "The Gizmo will be placed into the parent space of the bone specified in Override Transform"},
     {0, nullptr, 0, nullptr, nullptr},
 };
 
