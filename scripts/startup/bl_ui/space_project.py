@@ -19,6 +19,7 @@ class PROJECT_OP_NewProject(bpy.types.Operator):
         context.project.init("New Project", "/my_project")
         return {'FINISHED'}
 
+
 class PROJECT_OP_WriteProject(bpy.types.Operator):
     """Write the current project to disk"""
     bl_idname = "project.write_project"
@@ -46,6 +47,7 @@ class PROJECT_HT_header(Header):
         PROJECT_MT_editor_menus.draw_collapsible(context, layout)
         layout.separator_spacer()
 
+
 class PROJECT_MT_editor_menus(bpy.types.Menu):
     bl_idname = "PROJECT_MT_editor_menus"
     bl_label = ""
@@ -54,6 +56,7 @@ class PROJECT_MT_editor_menus(bpy.types.Menu):
         del context
         layout = self.layout
         layout.menu("PROJECT_MT_view")
+
 
 class PROJECT_MT_view(bpy.types.Menu):
     bl_label = "View"
@@ -76,6 +79,7 @@ class PROJECT_MT_view(bpy.types.Menu):
 # -----------------------------------------------------------------------------
 # Navigation Bar
 
+
 class PROJECT_PT_navigation_bar(Panel):
     bl_label = "Project Navigation"
     bl_space_type = 'PROJECT'
@@ -95,6 +99,7 @@ class PROJECT_PT_navigation_bar(Panel):
 # -----------------------------------------------------------------------------
 # Main Area
 
+
 class PROJECT_PT_main(Panel):
     bl_label = "Project"
     bl_space_type = 'PROJECT'
@@ -111,7 +116,7 @@ class PROJECT_PT_main(Panel):
 
         col = layout.column()
 
-        if context.project.data == None:
+        if context.project.data is None:
             col.label(text="No project!", icon='INFO')
             col.operator("project.new_project")
         else:
