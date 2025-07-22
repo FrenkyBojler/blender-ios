@@ -7,3 +7,4 @@ Referenced by issue #139884, Blender 4.5b - Customized filtering of UIList in Py
 Referenced by issue #140001, When loading or updating a texture, the model displays blank until you interact with the viewport
 Referenced by issue #142285, 3D cursor placement ignores objects, which have their selection restricted
 Referenced by issue #142399, When Subdiv is enabled, the size in dimension remain the same (GPU Subdiv off)
+Referenced by issue #142738, WORKBENCH with MATCAPS Rendering Issues in Blender 4.5 and 5.0 Alpha
