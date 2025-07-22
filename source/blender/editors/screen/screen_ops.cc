@@ -6107,8 +6107,12 @@ static wmOperatorStatus userpref_show_exec(bContext *C, wmOperator *op)
   };
 
   /* changes context! */
-  if (ScrArea *area = ED_screen_temp_space_open(
-          C, "Preferences", &window_rect, SPACE_USERPREF, U.preferences_display_type, false))
+  if (ScrArea *area = ED_screen_temp_space_open(C,
+                                                IFACE_("Preferences"),
+                                                &window_rect,
+                                                SPACE_USERPREF,
+                                                U.preferences_display_type,
+                                                false))
   {
     /* The header only contains the editor switcher and looks empty.
      * So hiding in the temp window makes sense. */
