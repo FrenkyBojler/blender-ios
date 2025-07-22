@@ -716,7 +716,7 @@ static void rna_EditBone_hide_update(Main * /*bmain*/, Scene * /*scene*/, Pointe
 }
 
 /* Unselect bones when hidden or not selectable. */
-static void rna_Bone_hide_update(Main *bmain, Scene * /* scene */, PointerRNA *ptr)
+static void rna_Bone_hide_update(Main * /* bmain */, Scene * /* scene */, PointerRNA *ptr)
 {
   bArmature *arm = (bArmature *)ptr->owner_id;
   Bone *bone = (Bone *)ptr->data;
