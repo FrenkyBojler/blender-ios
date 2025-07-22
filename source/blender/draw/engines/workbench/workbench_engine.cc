@@ -434,9 +434,9 @@ class Instance : public DrawEngine {
   }
 
   void draw(Manager &manager,
-            GPUTexture *depth_tx,
-            GPUTexture *depth_in_front_tx,
-            GPUTexture *color_tx)
+            gpu::Texture *depth_tx,
+            gpu::Texture *depth_in_front_tx,
+            gpu::Texture *color_tx)
   {
     int2 resolution = scene_state_.resolution;
 
@@ -492,9 +492,9 @@ class Instance : public DrawEngine {
   }
 
   void draw_viewport(Manager &manager,
-                     GPUTexture *depth_tx,
-                     GPUTexture *depth_in_front_tx,
-                     GPUTexture *color_tx)
+                     gpu::Texture *depth_tx,
+                     gpu::Texture *depth_in_front_tx,
+                     gpu::Texture *color_tx)
   {
     this->draw(manager, depth_tx, depth_in_front_tx, color_tx);
 
@@ -518,9 +518,9 @@ class Instance : public DrawEngine {
   }
 
   void draw_image_render(Manager &manager,
-                         GPUTexture *depth_tx,
-                         GPUTexture *depth_in_front_tx,
-                         GPUTexture *color_tx,
+                         gpu::Texture *depth_tx,
+                         gpu::Texture *depth_in_front_tx,
+                         gpu::Texture *color_tx,
                          RenderEngine *engine = nullptr)
   {
     if (scene_state_.render_finished) {
@@ -641,7 +641,7 @@ static void write_render_z_output(RenderLayer *layer,
                                   const rcti *rect,
                                   const float4x4 &winmat)
 {
-  RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_Z, viewname);
+  RenderPass *rp = RE_pass_find_by_name(layer, RE_PASSNAME_DEPTH, viewname);
   if (rp) {
     GPU_framebuffer_bind(fb);
     GPU_framebuffer_read_depth(fb,
@@ -750,8 +750,8 @@ static void workbench_render_update_passes(RenderEngine *engine,
   if (view_layer->passflag & SCE_PASS_COMBINED) {
     RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_COMBINED, 4, "RGBA", SOCK_RGBA);
   }
-  if (view_layer->passflag & SCE_PASS_Z) {
-    RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_Z, 1, "Z", SOCK_FLOAT);
+  if (view_layer->passflag & SCE_PASS_DEPTH) {
+    RE_engine_register_pass(engine, scene, view_layer, RE_PASSNAME_DEPTH, 1, "Z", SOCK_FLOAT);
   }
 }
 

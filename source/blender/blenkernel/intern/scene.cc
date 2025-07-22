@@ -46,7 +46,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -1248,12 +1248,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_struct(reader, ToolSettings, &sce->toolsettings);
   if (sce->toolsettings) {
-
-    /* Reset last_location and last_hit, so they are not remembered across sessions. In some files
-     * these are also NaN, which could lead to crashes in painting. */
     UnifiedPaintSettings *ups = &sce->toolsettings->unified_paint_settings;
-    zero_v3(ups->last_location);
-    ups->last_hit = 0;
 
     /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To
      * ensure correct behavior, convert this when reading newer files. */
@@ -2744,7 +2739,7 @@ SceneRenderView *BKE_scene_add_render_view(Scene *sce, const char *name)
   }
 
   SceneRenderView *srv = MEM_callocN<SceneRenderView>(__func__);
-  STRNCPY(srv->name, name);
+  STRNCPY_UTF8(srv->name, name);
   BLI_uniquename(&sce->r.views,
                  srv,
                  DATA_("RenderView"),

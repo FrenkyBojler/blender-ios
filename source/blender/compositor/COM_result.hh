@@ -40,6 +40,9 @@ enum class ResultType : uint8_t {
   Int2,
   Color,
   Bool,
+
+  /* Single value only types. See Result::is_single_value_only_type. */
+  Menu,
 };
 
 /* The precision of the data. CPU data is always stored using full precision at the moment. */
@@ -50,7 +53,7 @@ enum class ResultPrecision : uint8_t {
 
 /* The type of storage used to hold the result data. */
 enum class ResultStorageType : uint8_t {
-  /* Stored as a GPUTexture on the GPU. */
+  /* Stored as a blender::gpu::Texture on the GPU. */
   GPU,
   /* Stored as a buffer on the CPU and wrapped in a GMutableSpan. */
   CPU,
@@ -109,7 +112,7 @@ class Result {
    * value of which will be identical to that of the value member. See class description for more
    * information. */
   union {
-    GPUTexture *gpu_texture_ = nullptr;
+    blender::gpu::Texture *gpu_texture_ = nullptr;
     GMutableSpan cpu_data_;
   };
   /* The number of users that currently needs this result. Operations initializes this by calling
@@ -159,6 +162,10 @@ class Result {
    * within the given context. */
   Result(Context &context, eGPUTextureFormat format);
 
+  /* Returns true if the given type can only be used with single value results. Consequently, it is
+   * always allocated on the CPU and GPU code paths needn't support the type. */
+  static bool is_single_value_only_type(ResultType type);
+
   /* Returns the appropriate GPU texture format based on the given result type and precision. A
    * special case is given to ResultType::Float3, because 3-component textures can't be used as
    * write targets in shaders, so we need to allocate 4-component textures for them, and ignore the
@@ -188,7 +195,7 @@ class Result {
   static const char *type_name(const ResultType type);
 
   /* Implicit conversion to the internal GPU texture. */
-  operator GPUTexture *() const;
+  operator blender::gpu::Texture *() const;
 
   /* Returns the CPP type of the result. */
   const CPPType &get_cpp_type() const;
@@ -264,7 +271,7 @@ class Result {
    * size as the texture, and the texture will be set to the given texture. See the is_external_
    * member for more information. The given texture should have the same format as the result and
    * is assumed to have a lifetime that covers the evaluation of the compositor. */
-  void wrap_external(GPUTexture *texture);
+  void wrap_external(blender::gpu::Texture *texture);
 
   /* Identical to GPU variant of wrap_external but wraps a CPU buffer instead. */
   void wrap_external(void *data, int2 size);
@@ -337,7 +344,7 @@ class Result {
   /* Computes the number of channels of the result based on its type. */
   int64_t channels_count() const;
 
-  GPUTexture *gpu_texture() const;
+  blender::gpu::Texture *gpu_texture() const;
 
   GSpan cpu_data() const;
   GMutableSpan cpu_data();
@@ -484,11 +491,18 @@ BLI_INLINE_METHOD int64_t Result::channels_count() const
     case ResultType::Color:
     case ResultType::Float4:
       return 4;
+    case ResultType::Menu:
+      /* Single only types do not have channels. */
+      BLI_assert(Result::is_single_value_only_type(type_));
+      BLI_assert_unreachable();
+      break;
   }
+
+  BLI_assert_unreachable();
   return 4;
 }
 
-BLI_INLINE_METHOD GPUTexture *Result::gpu_texture() const
+BLI_INLINE_METHOD blender::gpu::Texture *Result::gpu_texture() const
 {
   BLI_assert(storage_type_ == ResultStorageType::GPU);
   return gpu_texture_;

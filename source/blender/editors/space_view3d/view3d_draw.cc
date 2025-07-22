@@ -1558,7 +1558,10 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
   BLF_batch_draw_begin();
 
-  if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) {
+  bScreen *screen = CTX_wm_screen(C);
+  if ((v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) ||
+      screen->state == SCREENFULL)
+  {
     /* pass */
   }
   else {
@@ -1573,7 +1576,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     }
   }
 
-  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
+  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 && screen->state != SCREENFULL) {
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
     int yoffset = rect->ymax - (0.1f * U.widget_unit);
 
@@ -2350,7 +2353,7 @@ static void validate_object_select_id(Depsgraph *depsgraph,
  * synchronization (which can be very slow). */
 static void view3d_gpu_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *data)
 {
-  GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
+  blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
 
   GPUFrameBuffer *depth_read_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_read_fb,
@@ -2435,7 +2438,7 @@ static ViewDepths *view3d_depths_create(ARegion *region)
   ViewDepths *d = MEM_callocN<ViewDepths>("ViewDepths");
 
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
-  GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
+  blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
   d->w = GPU_texture_width(depth_tx);
   d->h = GPU_texture_height(depth_tx);
   d->depths = static_cast<float *>(GPU_texture_read(depth_tx, GPU_DATA_FLOAT, 0));
@@ -2839,7 +2842,7 @@ bool ViewportColorSampleSession::init(ARegion *region)
     return false;
   }
 
-  GPUTexture *color_tex = GPU_viewport_color_texture(viewport, 0);
+  blender::gpu::Texture *color_tex = GPU_viewport_color_texture(viewport, 0);
   if (color_tex == nullptr) {
     return false;
   }

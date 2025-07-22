@@ -5031,8 +5031,8 @@ void rna_def_view_layer_common(BlenderRNA *brna, StructRNA *srna, const bool sce
   }
 
   prop = RNA_def_property(srna, "use_pass_z", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_Z);
-  RNA_def_property_ui_text(prop, "Z", "Deliver Z values pass");
+  RNA_def_property_boolean_sdna(prop, nullptr, "passflag", SCE_PASS_DEPTH);
+  RNA_def_property_ui_text(prop, "Depth", "Deliver depth values pass");
   if (scene) {
     RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, "rna_ViewLayer_pass_update");
   }
@@ -6481,6 +6481,21 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
       {0, nullptr, 0, nullptr, nullptr},
   };
 
+  static const EnumPropertyItem ffmpeg_hdr_items[] = {
+      {FFM_VIDEO_HDR_NONE, "NONE", 0, "None", "No High Dynamic Range"},
+      {FFM_VIDEO_HDR_REC2100_PQ,
+       "REQ2100_PQ",
+       0,
+       "Rec.2100 PQ",
+       "Rec.2100 color space with Perceptual Quantizer HDR encoding"},
+      {FFM_VIDEO_HDR_REC2100_HLG,
+       "REQ2100_HLG",
+       0,
+       "Rec.2100 HLG",
+       "Rec.2100 color space with Hybrid-Log Gamma HDR encoding"},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
   static const EnumPropertyItem ffmpeg_audio_codec_items[] = {
       {FFMPEG_CODEC_ID_NONE,
        "NONE",
@@ -6541,6 +6556,14 @@ static void rna_def_scene_ffmpeg_settings(BlenderRNA *brna)
   RNA_def_property_int_sdna(prop, nullptr, "video_bitrate");
   RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
   RNA_def_property_ui_text(prop, "Bitrate", "Video bitrate (kbit/s)");
+  RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
+
+  prop = RNA_def_property(srna, "video_hdr", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "video_hdr");
+  RNA_def_property_clear_flag(prop, PROP_ANIMATABLE);
+  RNA_def_property_enum_items(prop, ffmpeg_hdr_items);
+  RNA_def_property_enum_default(prop, FFM_VIDEO_HDR_NONE);
+  RNA_def_property_ui_text(prop, "HDR", "High Dynamic Range options");
   RNA_def_property_update(prop, NC_SCENE | ND_RENDER_OPTIONS, nullptr);
 
   prop = RNA_def_property(srna, "minrate", PROP_INT, PROP_NONE);
@@ -9019,15 +9042,14 @@ void RNA_def_scene(BlenderRNA *brna)
   RNA_def_function_return(func, parm);
 
   /* Grease Pencil */
-  prop = RNA_def_property(srna, "grease_pencil", PROP_POINTER, PROP_NONE);
+  prop = RNA_def_property(srna, "annotation", PROP_POINTER, PROP_NONE);
   RNA_def_property_pointer_sdna(prop, nullptr, "gpd");
-  RNA_def_property_struct_type(prop, "GreasePencil");
+  RNA_def_property_struct_type(prop, "Annotation");
   RNA_def_property_pointer_funcs(
       prop, nullptr, nullptr, nullptr, "rna_GPencil_datablocks_annotations_poll");
   RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
-  RNA_def_property_ui_text(
-      prop, "Annotations", "Grease Pencil data-block used for annotations in the 3D view");
+  RNA_def_property_ui_text(prop, "Annotations", "Data-block used for annotations in the 3D view");
   RNA_def_property_update(prop, NC_GPENCIL | ND_DATA | NA_EDITED, nullptr);
 
   /* active MovieClip */

@@ -40,6 +40,26 @@ Result::Result(Context &context, eGPUTextureFormat format)
 {
 }
 
+bool Result::is_single_value_only_type(ResultType type)
+{
+  switch (type) {
+    case ResultType::Float:
+    case ResultType::Color:
+    case ResultType::Float4:
+    case ResultType::Float3:
+    case ResultType::Float2:
+    case ResultType::Int:
+    case ResultType::Int2:
+    case ResultType::Bool:
+      return false;
+    case ResultType::Menu:
+      return true;
+  }
+
+  BLI_assert_unreachable();
+  return true;
+}
+
 eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision precision)
 {
   switch (precision) {
@@ -63,6 +83,11 @@ eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision pr
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
           return GPU_R8I;
+        case ResultType::Menu:
+          /* Single only types do not support GPU code path. */
+          BLI_assert(Result::is_single_value_only_type(type));
+          BLI_assert_unreachable();
+          break;
       }
       break;
     case ResultPrecision::Full:
@@ -85,6 +110,11 @@ eGPUTextureFormat Result::gpu_texture_format(ResultType type, ResultPrecision pr
         case ResultType::Bool:
           /* No bool texture formats, so we store in an 8-bit integer. Precision doesn't matter. */
           return GPU_R8I;
+        case ResultType::Menu:
+          /* Single only types do not support GPU storage. */
+          BLI_assert(Result::is_single_value_only_type(type));
+          BLI_assert_unreachable();
+          break;
       }
       break;
   }
@@ -106,6 +136,11 @@ eGPUDataFormat Result::gpu_data_format(ResultType type)
     case ResultType::Int2:
     case ResultType::Bool:
       return GPU_DATA_INT;
+    case ResultType::Menu:
+      /* Single only types do not support GPU storage. */
+      BLI_assert(Result::is_single_value_only_type(type));
+      BLI_assert_unreachable();
+      break;
   }
 
   BLI_assert_unreachable();
@@ -280,6 +315,8 @@ const CPPType &Result::cpp_type(const ResultType type)
       return CPPType::get<int2>();
     case ResultType::Bool:
       return CPPType::get<bool>();
+    case ResultType::Menu:
+      return CPPType::get<int32_t>();
   }
 
   BLI_assert_unreachable();
@@ -305,13 +342,15 @@ const char *Result::type_name(const ResultType type)
       return "int";
     case ResultType::Bool:
       return "bool";
+    case ResultType::Menu:
+      return "menu";
   }
 
   BLI_assert_unreachable();
   return "";
 }
 
-Result::operator GPUTexture *() const
+Result::operator blender::gpu::Texture *() const
 {
   return this->gpu_texture();
 }
@@ -337,6 +376,7 @@ void Result::allocate_texture(const Domain domain,
 {
   /* Make sure we are not allocating a result that should not be computed. */
   BLI_assert(this->should_compute());
+  BLI_assert(!Result::is_single_value_only_type(this->type()));
 
   is_single_value_ = false;
   this->allocate_data(domain.size, from_pool, storage_type);
@@ -348,10 +388,18 @@ void Result::allocate_single_value()
   /* Make sure we are not allocating a result that should not be computed. */
   BLI_assert(this->should_compute());
 
-  /* Single values are stored in 1x1 image as well as the single value members. Further, they
-   * are always allocated from the pool. */
   is_single_value_ = true;
-  this->allocate_data(int2(1), true);
+
+  /* Single values are stored in 1x1 image as well as the single value members. Further, they are
+   * always allocated from the pool. Finally, single value only types do not support GPU code
+   * paths, so we always allocate on CPU. */
+  if (Result::is_single_value_only_type(this->type())) {
+    this->allocate_data(int2(1), true, ResultStorageType::CPU);
+  }
+  else {
+    this->allocate_data(int2(1), true);
+  }
+
   domain_ = Domain::identity();
 
   /* It is important that we initialize single values because the variant member that stores single
@@ -380,6 +428,9 @@ void Result::allocate_single_value()
       break;
     case ResultType::Bool:
       this->set_single_value(false);
+      break;
+    case ResultType::Menu:
+      this->set_single_value(0);
       break;
   }
 }
@@ -470,7 +521,8 @@ void Result::steal_data(Result &source)
 
 /* Returns true if the given GPU texture is compatible with the type and precision of the given
  * result. */
-[[maybe_unused]] static bool is_compatible_texture(const GPUTexture *texture, const Result &result)
+[[maybe_unused]] static bool is_compatible_texture(const blender::gpu::Texture *texture,
+                                                   const Result &result)
 {
   /* Float3 types are an exception, see the documentation on the get_gpu_texture_format method for
    * more information. */
@@ -484,7 +536,7 @@ void Result::steal_data(Result &source)
   return GPU_texture_format(texture) == result.get_gpu_texture_format();
 }
 
-void Result::wrap_external(GPUTexture *texture)
+void Result::wrap_external(blender::gpu::Texture *texture)
 {
   BLI_assert(is_compatible_texture(texture, *this));
   BLI_assert(!this->is_allocated());
@@ -715,6 +767,11 @@ void Result::update_single_value_data()
           GPU_texture_update(this->gpu_texture(), GPU_DATA_FLOAT, vector_value);
           break;
         }
+        case ResultType::Menu:
+          /* Single only types do not support GPU storage. */
+          BLI_assert(Result::is_single_value_only_type(this->type()));
+          BLI_assert_unreachable();
+          break;
       }
       break;
     case ResultStorageType::CPU:
