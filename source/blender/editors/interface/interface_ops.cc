@@ -1099,6 +1099,8 @@ static void ui_context_selected_key_blocks(ID *owner_id_key, blender::Vector<Poi
    * does. */
   Key *containing_key = reinterpret_cast<Key *>(owner_id_key);
   LISTBASE_FOREACH (KeyBlock *, key_block, &containing_key->block) {
+    /* This does not use the function `shape_key_is_selected` since that would include the active
+     * shapekey which is not required for this function to work. */
     if (key_block->flag & KEYBLOCK_SEL) {
       r_lb->append(RNA_pointer_create_discrete(owner_id_key, &RNA_ShapeKey, key_block));
     }
