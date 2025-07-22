@@ -241,9 +241,7 @@ def report_personal_weekly_get(
                         # PRs related to a single repository together, regardless of who happens to own them.
                         #
                         # So the following adds branches and PRs to a "target" repository, not the owning one.
-                        target_repo_json = repo
-                        if "parent" in repo:
-                            target_repo_json = repo["parent"]
+                        target_repo_json = repo.get("parent", repo)
                         target_repo_fullname = target_repo_json["full_name"] if target_repo_json else repo_fullname
 
                         # Substitute occurrences of "#\d+" with "repo#\d+"
