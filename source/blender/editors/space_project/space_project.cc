@@ -52,13 +52,13 @@ static SpaceLink *project_create(const ScrArea * /*area*/, const Scene * /*scene
     region->regiontype = RGN_TYPE_WINDOW;
   }
 
-  {
-    /* Navigation region. */
-    ARegion *region = BKE_area_region_new();
-    BLI_addtail(&project_space->regionbase, region);
-    region->regiontype = RGN_TYPE_NAV_BAR;
-    region->alignment = RGN_ALIGN_LEFT;
-  }
+  // {
+  //   /* Navigation region. */
+  //   ARegion *region = BKE_area_region_new();
+  //   BLI_addtail(&project_space->regionbase, region);
+  //   region->regiontype = RGN_TYPE_NAV_BAR;
+  //   region->alignment = RGN_ALIGN_LEFT;
+  // }
 
   return (SpaceLink *)project_space;
 }
@@ -77,7 +77,17 @@ static SpaceLink *project_duplicate(SpaceLink *sl)
   return (SpaceLink *)space_project;
 }
 
-/* add handlers, stuff you only do once or on area/region changes */
+static void project_space_blend_write(BlendWriter *writer, SpaceLink *sl)
+{
+  BLO_write_struct(writer, SpaceProject, sl);
+}
+
+static void project_operatortypes() {}
+
+static void project_keymap(wmKeyConfig * /*keyconf*/) {}
+
+/* --------------------------------------------------------- */
+
 static void project_main_region_init(wmWindowManager *wm, ARegion *region)
 {
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
@@ -85,13 +95,20 @@ static void project_main_region_init(wmWindowManager *wm, ARegion *region)
   ED_region_panels_init(wm, region);
 }
 
-/* static void project_main_region_layout(const bContext *C, ARegion *region) {} */
+static void project_main_region_layout(const bContext *C, ARegion *region)
+{
+  ED_region_panels_layout(C, region);
+}
 
-static void project_operatortypes() {}
+static void project_main_region_draw(const bContext *C, ARegion *region)
+{
+  ED_region_panels(C, region);
+}
 
-static void project_keymap(wmKeyConfig * /*keyconf*/) {}
+static void project_main_region_listener(const wmRegionListenerParams * /*params*/) {}
 
-/* add handlers, stuff you only do once or on area/region changes */
+/* --------------------------------------------------------- */
+
 static void project_header_region_init(wmWindowManager * /*wm*/, ARegion *region)
 {
   ED_region_header_init(region);
@@ -102,7 +119,10 @@ static void project_header_region_draw(const bContext *C, ARegion *region)
   ED_region_header(C, region);
 }
 
-/* add handlers, stuff you only do once or on area/region changes */
+static void project_header_region_listener(const wmRegionListenerParams * /*params*/) {}
+
+/* --------------------------------------------------------- */
+
 static void project_navigation_region_init(wmWindowManager *wm, ARegion *region)
 {
   region->v2d.scroll = V2D_SCROLL_RIGHT | V2D_SCROLL_VERTICAL_HIDE;
@@ -115,31 +135,9 @@ static void project_navigation_region_draw(const bContext *C, ARegion *region)
   ED_region_panels(C, region);
 }
 
-static bool project_execute_region_poll(const RegionPollParams *params)
-{
-  const ARegion *region_header = BKE_area_find_region_type(params->area, RGN_TYPE_HEADER);
-  return !region_header->runtime->visible;
-}
-
-/* add handlers, stuff you only do once or on area/region changes */
-static void project_execute_region_init(wmWindowManager *wm, ARegion *region)
-{
-  ED_region_panels_init(wm, region);
-  region->v2d.keepzoom |= V2D_LOCKZOOM_X | V2D_LOCKZOOM_Y;
-}
-
-static void project_main_region_listener(const wmRegionListenerParams * /*params*/) {}
-
-static void project_header_listener(const wmRegionListenerParams * /*params*/) {}
-
 static void project_navigation_region_listener(const wmRegionListenerParams * /*params*/) {}
 
-static void project_execute_region_listener(const wmRegionListenerParams * /*params*/) {}
-
-static void project_space_blend_write(BlendWriter *writer, SpaceLink *sl)
-{
-  BLO_write_struct(writer, SpaceProject, sl);
-}
+/* --------------------------------------------------------- */
 
 void ED_spacetype_project()
 {
@@ -157,6 +155,17 @@ void ED_spacetype_project()
   st->keymap = project_keymap;
   st->blend_write = project_space_blend_write;
 
+  /* regions: main window */
+  art = MEM_callocN<ARegionType>("spacetype project region");
+  art->regionid = RGN_TYPE_WINDOW;
+  art->init = project_main_region_init;
+  art->layout = project_main_region_layout;
+  art->draw = project_main_region_draw;
+  art->listener = project_main_region_listener;
+  art->keymapflag = ED_KEYMAP_UI;
+
+  BLI_addhead(&st->regiontypes, art);
+
   /* regions: header */
   art = MEM_callocN<ARegionType>("spacetype project region");
   art->regionid = RGN_TYPE_HEADER;
@@ -164,18 +173,7 @@ void ED_spacetype_project()
   art->keymapflag = ED_KEYMAP_UI | ED_KEYMAP_VIEW2D | ED_KEYMAP_HEADER;
   art->init = project_header_region_init;
   art->draw = project_header_region_draw;
-  art->listener = project_header_listener;
-
-  BLI_addhead(&st->regiontypes, art);
-
-  /* regions: main window */
-  art = MEM_callocN<ARegionType>("spacetype project region");
-  art->regionid = RGN_TYPE_WINDOW;
-  art->init = project_main_region_init;
-  /* art->layout = project_main_region_layout; */
-  art->draw = ED_region_panels_draw;
-  art->listener = project_main_region_listener;
-  art->keymapflag = ED_KEYMAP_UI;
+  art->listener = project_header_region_listener;
 
   BLI_addhead(&st->regiontypes, art);
 
