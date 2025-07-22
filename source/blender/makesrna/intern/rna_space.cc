@@ -582,6 +582,12 @@ static const EnumPropertyItem spreadsheet_table_id_type_items[] = {
 
 };
 
+const EnumPropertyItem rna_enum_project_section_items[] = {
+    {PROJECT_SECTION_GENERAL, "GENERAL", 0, "General", ""},
+    {PROJECT_SECTION_VARIABLES, "VARIABLES", 0, "Variables", ""},
+    {0, NULL, 0, NULL, NULL},
+};
+
 #ifdef RNA_RUNTIME
 
 #  include <algorithm>
@@ -9036,6 +9042,12 @@ static void rna_def_space_project(BlenderRNA *brna)
   srna = RNA_def_struct(brna, "SpaceProject", "Space");
   RNA_def_struct_sdna(srna, "SpaceProject");
   RNA_def_struct_ui_text(srna, "Space Project", "TODO: description");
+
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "active_section", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_items(prop, rna_enum_project_section_items);
+  RNA_def_property_ui_text(prop, "Active Section", "Choose the category of options to display");
 }
 
 void RNA_def_space(BlenderRNA *brna)

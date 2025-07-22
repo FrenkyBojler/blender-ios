@@ -89,12 +89,13 @@ class PROJECT_PT_navigation_bar(Panel):
     def draw(self, context):
         layout = self.layout
 
-        row = layout.row()
+        space_data = context.space_data
 
-        row.label("Hello!")
-        row.label("Hello again!")
-        row.label("Hello yet again!")
-        row.label("Goodbye!")
+        col = layout.column()
+
+        col.scale_x = 1.3
+        col.scale_y = 1.3
+        col.prop(space_data, "active_section", expand=True)
 
 # -----------------------------------------------------------------------------
 # Main Area

@@ -1257,6 +1257,14 @@ typedef struct SpaceProject {
   char link_flag;
   char _pad0[6];
   /* End 'SpaceLink' header. */
+
+  char active_section; /* eSpaceProject_Section */
+  char _pad1[7];
 } SpaceProject;
+
+typedef enum eSpaceProject_Section {
+  PROJECT_SECTION_GENERAL = 0,
+  PROJECT_SECTION_VARIABLES = 1,
+} eSpaceProjectSettings_Section;
 
 /** \} */
