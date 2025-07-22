@@ -1149,7 +1149,11 @@ static void panel_draw_aligned_widgets(const uiStyle *style,
   if (panel->drawname && panel->drawname[0] != '\0') {
     rcti title_rect;
     title_rect.xmin = widget_rect.xmin + (panel->labelofs / aspect) + scaled_unit * 1.1f;
-    title_rect.xmax = widget_rect.xmax - scaled_unit;
+    title_rect.xmax = widget_rect.xmax;
+    if (!is_subpanel && show_background) {
+      /* Don't draw over the drag widget. */
+      title_rect.xmax -= scaled_unit;
+    }
     title_rect.ymin = widget_rect.ymin - 2.0f / aspect;
     title_rect.ymax = widget_rect.ymax;
 
@@ -2663,7 +2667,7 @@ int ui_handler_panel_region(bContext *C,
 
   const uiBut *region_active_but = ui_region_find_active_but(region);
   const bool region_has_active_button = region_active_but &&
-                                        region_active_but->type != UI_BTYPE_LABEL;
+                                        region_active_but->type != ButType::Label;
 
   LISTBASE_FOREACH (uiBlock *, block, &region->runtime->uiblocks) {
     Panel *panel = block->panel;
