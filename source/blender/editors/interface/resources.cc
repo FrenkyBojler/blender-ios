@@ -140,6 +140,9 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
         case SPACE_USERPREF:
           ts = &btheme->space_preferences;
           break;
+        case SPACE_PROJECT:
+          ts = &btheme->space_project;
+          break;
         case SPACE_CONSOLE:
           ts = &btheme->space_console;
           break;
@@ -157,9 +160,6 @@ const uchar *UI_ThemeGetColorPtr(bTheme *btheme, int spacetype, int colorid)
           break;
         case SPACE_SPREADSHEET:
           ts = &btheme->space_spreadsheet;
-          break;
-        case SPACE_PROJECT:
-          ts = &btheme->space_project;
           break;
         default:
           ts = &btheme->space_view3d;

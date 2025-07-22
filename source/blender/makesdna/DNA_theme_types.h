@@ -508,12 +508,12 @@ typedef struct bTheme {
   ThemeSpace space_outliner;
   ThemeSpace space_node;
   ThemeSpace space_preferences;
+  ThemeSpace space_project;
   ThemeSpace space_console;
   ThemeSpace space_clip;
   ThemeSpace space_topbar;
   ThemeSpace space_statusbar;
   ThemeSpace space_spreadsheet;
-  ThemeSpace space_project;
 
   ThemeAssetShelf asset_shelf;
 
