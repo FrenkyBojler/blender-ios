@@ -63,7 +63,7 @@ class NodeTreeSearchResult:
 
 # TODO: cache these searches
 def from_socket(start_socket: NodeTreeSearchResult,
-                shader_node_filter: typing.Union[Filter, typing.Callable]) -> typing.List[NodeTreeSearchResult]:
+                shader_node_filter):
     """
     Find shader nodes where the filter expression is true.
 
@@ -336,12 +336,30 @@ class NodeNav:
 
         # Check for a constant in the next node
         nav = self.peek_back()
-        if nav.moved:
+        # Dev warning: because of loopbacks, this can be an infinite loop if not careful
+        # Please check all branches of your if statements
+        while True:
+            if not nav.moved:
+                break
+
             if self.in_socket.type == 'RGBA':
+
+                # RGB node
                 if nav.node.type == 'RGB':
                     color = list(nav.out_socket.default_value)
                     color = color[:3]  # drop unused alpha component (assumes shader tree)
                     return color, "node_tree." + nav.out_socket.path_from_id() + ".default_value"
+                # Ambient Occlusion node, not linked
+                elif nav.node.type == 'AMBIENT_OCCLUSION' and not nav.node.inputs['Color'].is_linked:
+                    color = list(nav.node.inputs['Color'].default_value)
+                    color = color[:3] # drop unused alpha component (assumes shader tree)
+                    return color, "node_tree." + nav.node.inputs['Color'].path_from_id() + ".default_value"
+                # Ambient Occlusion node, linked, so check the next node
+                elif nav.node.type == "AMBIENT_OCCLUSION" and nav.node.inputs['Color'].is_linked:
+                    nav.move_back('Color')
+                    continue
+                else:
+                    break
 
             elif self.in_socket.type == 'SHADER':
                 # Historicaly, we manage RGB node plugged into a shader socket (output node)
@@ -349,10 +367,25 @@ class NodeNav:
                     color = list(nav.out_socket.default_value)
                     color = color[:3]
                     return color, "node_tree." + nav.out_socket.path_from_id() + ".default_value"
+                # Ambient Occlusion node, not linked
+                elif nav.node.type == 'AMBIENT_OCCLUSION' and not nav.node.inputs['Color'].is_linked:
+                    color = list(nav.node.inputs['Color'].default_value)
+                    color = color[:3] # drop unused alpha component (assumes shader tree)
+                    return color, "node_tree." + nav.node.inputs['Color'].path_from_id() + ".default_value"
+                # Ambient Occlusion node, linked, so check the next node
+                elif nav.node.type == "AMBIENT_OCCLUSION" and nav.node.inputs['Color'].is_linked:
+                    nav.move_back('Color')
+                    continue
+                else:
+                    break
 
             elif self.in_socket.type == 'VALUE':
                 if nav.node.type == 'VALUE':
                     return nav.out_socket.default_value, "node_tree." + nav.out_socket.path_from_id() + ".default_value"
+                else:
+                    break
+            else:
+                break
 
         return None, None
 
@@ -734,8 +767,8 @@ def get_socket(blender_material_nodetree, use_nodes: bool, name: str, volume=Fal
     :return: a blender NodeSocket
     """
     if blender_material_nodetree and use_nodes:
-        #i = [input for input in blender_material.node_tree.inputs]
-        #o = [output for output in blender_material.node_tree.outputs]
+        # i = [input for input in blender_material.node_tree.inputs]
+        # o = [output for output in blender_material.node_tree.outputs]
         if name == "Emissive":
             # Check for a dedicated Emission node first, it must supersede the newer built-in one
             # because the newer one is always present in all Principled BSDF materials.
@@ -854,11 +887,11 @@ def get_texture_transform_from_mapping_node(mapping_node, export_settings):
     texture_transform = texture_transform_blender_to_gltf(mapping_transform)
 
     if all([component == 0 for component in texture_transform["offset"]]):
-        del(texture_transform["offset"])
+        del (texture_transform["offset"])
     if all([component == 1 for component in texture_transform["scale"]]):
-        del(texture_transform["scale"])
+        del (texture_transform["scale"])
     if texture_transform["rotation"] == 0:
-        del(texture_transform["rotation"])
+        del (texture_transform["rotation"])
 
     # glTF Offset needs: offset, rotation, scale (note that Offset is not used for Vector mapping)
     # glTF Rotation needs: rotation
@@ -869,27 +902,30 @@ def get_texture_transform_from_mapping_node(mapping_node, export_settings):
         path_['length'] = 2
         path_['path'] = "/materials/XXX/YYY/KHR_texture_transform/offset"
         path_['vector_type'] = mapping_node.node.vector_type
-        export_settings['current_texture_transform']["node_tree." + \
-            mapping_node.node.inputs['Location'].path_from_id() + ".default_value"] = path_
+        export_settings['current_texture_transform']["node_tree." +
+                                                     mapping_node.node.inputs['Location'].path_from_id() + ".default_value"] = path_
 
     path_ = {}
     path_['length'] = 2
     path_['path'] = "/materials/XXX/YYY/KHR_texture_transform/scale"
     path_['vector_type'] = mapping_node.node.vector_type
-    export_settings['current_texture_transform']["node_tree." + \
-        mapping_node.node.inputs['Scale'].path_from_id() + ".default_value"] = path_
+    export_settings['current_texture_transform']["node_tree." +
+                                                 mapping_node.node.inputs['Scale'].path_from_id() + ".default_value"] = path_
 
     path_ = {}
     path_['length'] = 1
     path_['path'] = "/materials/XXX/YYY/KHR_texture_transform/rotation"
     path_['vector_type'] = mapping_node.node.vector_type
-    export_settings['current_texture_transform']["node_tree." + \
-        mapping_node.node.inputs['Rotation'].path_from_id() + ".default_value[2]"] = path_
+    export_settings['current_texture_transform']["node_tree." +
+                                                 mapping_node.node.inputs['Rotation'].path_from_id() + ".default_value[2]"] = path_
 
     return texture_transform
 
 
 def check_if_is_linked_to_active_output(shader_socket, group_path):
+
+    # Here, group_path must be copyed, because if there are muliply link that enter/exit a group node
+    # This will modify it, and we don't want to modify the original group_path (from the parameter) inside the loop
     for link in shader_socket.links:
 
         # If we are entering a node group
@@ -897,10 +933,11 @@ def check_if_is_linked_to_active_output(shader_socket, group_path):
             socket_name = link.to_socket.name
             sockets = [n for n in link.to_node.node_tree.nodes if n.type == "GROUP_INPUT"][0].outputs
             socket = [s for s in sockets if s.name == socket_name][0]
-            group_path.append(link.to_node)
+            new_group_path = group_path.copy()
+            new_group_path.append(link.to_node)
             # TODOSNode : Why checking outputs[0] ? What about alpha for texture node, that is outputs[1] ????
             # recursive until find an output material node
-            ret = check_if_is_linked_to_active_output(socket, group_path)
+            ret = check_if_is_linked_to_active_output(socket, new_group_path)
             if ret is True:
                 return True
             continue
@@ -910,10 +947,10 @@ def check_if_is_linked_to_active_output(shader_socket, group_path):
             socket_name = link.to_socket.name
             sockets = group_path[-1].outputs
             socket = [s for s in sockets if s.name == socket_name][0]
-            group_path = group_path[:-1]
+            new_group_path = group_path[:-1]
             # TODOSNode : Why checking outputs[0] ? What about alpha for texture node, that is outputs[1] ????
             # recursive until find an output material node
-            ret = check_if_is_linked_to_active_output(socket, group_path)
+            ret = check_if_is_linked_to_active_output(socket, new_group_path)
             if ret is True:
                 return True
             continue
@@ -930,56 +967,6 @@ def check_if_is_linked_to_active_output(shader_socket, group_path):
                 return True
 
     return False
-
-
-def get_vertex_color_info(color_socket, alpha_socket, export_settings):
-
-    attribute_color = None
-    attribute_alpha = None
-    attribute_color_type = None
-    attribute_alpha_type = None
-    alpha_mode = "OPAQUE"
-
-    # Retrieve Attribute used as vertex color for Color
-    if color_socket is not None and color_socket.socket is not None:
-        node = previous_node(color_socket)
-        if node.node is not None:
-            if node.node.type == 'MIX' and node.node.data_type == "RGBA" and node.node.blend_type == 'MULTIPLY':
-                use_vc, attribute_color, use_active = get_attribute_name(
-                    NodeSocket(node.node.inputs[6], node.group_path), export_settings)
-                if use_vc is False:
-                    use_vc, attribute_color, use_active = get_attribute_name(
-                        NodeSocket(node.node.inputs[7], node.group_path), export_settings)
-                if use_vc is True and use_active is True:
-                    attribute_color_type = "active"
-                elif use_vc is True and use_active is None and attribute_color is not None:
-                    attribute_color_type = "name"
-            elif node.node.type in ["ATTRIBUTE", "VERTEX_COLOR"]:
-                use_vc, attribute_color, use_active = get_attribute_name(
-                    NodeSocket(node.node.outputs[0], node.group_path), export_settings)
-                if use_vc is True and use_active is True:
-                    attribute_color_type = "active"
-                elif use_vc is True and use_active is None and attribute_color is not None:
-                    attribute_color_type = "name"
-
-    if alpha_socket is not None and alpha_socket.socket is not None:
-        alpha_info = gather_alpha_info(alpha_socket.to_node_nav())
-
-        if alpha_info['alphaColorAttrib'] == '':
-            attribute_alpha = None
-            attribute_alpha_type = 'active'
-        elif alpha_info['alphaColorAttrib'] is not None:
-            attribute_alpha = alpha_info['alphaColorAttrib']
-            attribute_alpha_type = 'name'
-        alpha_mode = alpha_info['alphaMode']
-
-    return {
-        "color": attribute_color,
-        "alpha": attribute_alpha,
-        "color_type": attribute_color_type,
-        "alpha_type": attribute_alpha_type,
-        'alpha_mode': alpha_mode}
-
 
 def get_attribute_name(socket, export_settings):
     node = previous_node(socket)

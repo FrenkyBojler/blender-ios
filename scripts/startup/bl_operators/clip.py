@@ -27,12 +27,20 @@ def CLIP_set_viewport_background(context, clip, clip_user):
 
     def check_camera_has_distortion(tracking_camera):
         if tracking_camera.distortion_model == 'POLYNOMIAL':
-            return not all(k == 0 for k in (tracking_camera.k1,
-                                            tracking_camera.k2,
-                                            tracking_camera.k3))
+            return not all(
+                k == 0 for k in (
+                    tracking_camera.k1,
+                    tracking_camera.k2,
+                    tracking_camera.k3,
+                )
+            )
         elif tracking_camera.distortion_model == 'DIVISION':
-            return not all(k == 0 for k in (tracking_camera.division_k1,
-                                            tracking_camera.division_k2))
+            return not all(
+                k == 0 for k in (
+                    tracking_camera.division_k1,
+                    tracking_camera.division_k2,
+                )
+            )
         return False
 
     def set_background(cam, clip, user):
@@ -402,7 +410,7 @@ class CLIP_OT_set_viewport_background(Operator):
 
     bl_idname = "clip.set_viewport_background"
     bl_label = "Set as Background"
-    bl_options = {'REGISTER'}
+    bl_options = {'UNDO', 'REGISTER'}
 
     @classmethod
     def poll(cls, context):
@@ -700,12 +708,13 @@ class CLIP_OT_setup_tracking_scene(Operator):
 
     @staticmethod
     def _wipeDefaultNodes(tree):
-        if len(tree.nodes) != 2:
+        if len(tree.nodes) != 4:
             return False
         types = [node.type for node in tree.nodes]
         types.sort()
 
-        if types[0] == 'COMPOSITE' and types[1] == 'R_LAYERS':
+        if (types[0] == 'COMPOSITE' and types[1] == 'REROUTE'
+                and types[2] == 'R_LAYERS' and types[3] == 'VIEWER'):
             while tree.nodes:
                 tree.nodes.remove(tree.nodes[0])
 
@@ -926,12 +935,14 @@ class CLIP_OT_setup_tracking_scene(Operator):
     def _createSampleObject(self, collection):
         vertices = self._getPlaneVertices(1.0, -1.0) + \
             self._getPlaneVertices(1.0, 1.0)
-        faces = (0, 1, 2, 3,
-                 4, 7, 6, 5,
-                 0, 4, 5, 1,
-                 1, 5, 6, 2,
-                 2, 6, 7, 3,
-                 3, 7, 4, 0)
+        faces = (
+            0, 1, 2, 3,
+            4, 7, 6, 5,
+            0, 4, 5, 1,
+            1, 5, 6, 2,
+            2, 6, 7, 3,
+            3, 7, 4, 0,
+        )
 
         return self._createMesh(collection, "Cube", vertices, faces)
 

@@ -9,6 +9,7 @@ from bpy.types import (
 )
 
 from rna_prop_ui import PropertyPanel
+from bl_ui.space_properties import PropertiesAnimationMixin
 
 from bl_ui.properties_physics_common import (
     point_cache_ui,
@@ -23,12 +24,8 @@ class SCENE_UL_keying_set_paths(UIList):
         # assert(isinstance(item, bpy.types.KeyingSetPath)
         kspath = item
         icon = layout.enum_item_icon(kspath, "id_type", kspath.id_type)
-        if self.layout_type in {'DEFAULT', 'COMPACT'}:
-            # Do not make this one editable in uiList for now...
-            layout.label(text=kspath.data_path, translate=False, icon_value=icon)
-        elif self.layout_type == 'GRID':
-            layout.alignment = 'CENTER'
-            layout.label(text="", icon_value=icon)
+        # Do not make this one editable in uiList for now...
+        layout.label(text=kspath.data_path, translate=False, icon_value=icon)
 
 
 class SceneButtonsPanel:
@@ -413,10 +410,10 @@ class SCENE_PT_rigid_body_field_weights(RigidBodySubPanel, Panel):
         effector_weights_ui(self, rbw.effector_weights, 'RIGID_BODY')
 
 
-class SCENE_PT_eevee_next_light_probes(SceneButtonsPanel, Panel):
+class SCENE_PT_eevee_light_probes(SceneButtonsPanel, Panel):
     bl_label = "Light Probes"
     bl_options = {'DEFAULT_CLOSED'}
-    COMPAT_ENGINES = {'BLENDER_EEVEE_NEXT'}
+    COMPAT_ENGINES = {'BLENDER_EEVEE'}
 
     @classmethod
     def poll(cls, context):
@@ -440,6 +437,21 @@ class SCENE_PT_eevee_next_light_probes(SceneButtonsPanel, Panel):
         row.operator("object.lightprobe_cache_free", text="", icon='TRASH').subset = 'ALL'
 
 
+class SCENE_PT_animation(SceneButtonsPanel, PropertiesAnimationMixin, PropertyPanel, Panel):
+    _animated_id_context_property = "scene"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        layout.use_property_decorate = False
+
+        scene = context.scene
+
+        col = layout.column(align=True)
+        col.label(text="Scene")
+        self.draw_action_and_slot_selector(context, col, scene)
+
+
 class SCENE_PT_custom_props(SceneButtonsPanel, PropertyPanel, Panel):
     _context_path = "scene"
     _property_type = bpy.types.Scene
@@ -459,7 +471,8 @@ classes = (
     SCENE_PT_rigid_body_world_settings,
     SCENE_PT_rigid_body_cache,
     SCENE_PT_rigid_body_field_weights,
-    SCENE_PT_eevee_next_light_probes,
+    SCENE_PT_eevee_light_probes,
+    SCENE_PT_animation,
     SCENE_PT_custom_props,
 )
 

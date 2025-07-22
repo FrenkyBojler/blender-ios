@@ -2,16 +2,13 @@
  *
  * SPDX-License-Identifier: Apache-2.0 */
 
-#include <stdlib.h>
+#include <cstdlib>
 
 #include "device/device.h"
+
 #include "session/buffers.h"
 
-#include "util/foreach.h"
-#include "util/hash.h"
-#include "util/math.h"
-#include "util/time.h"
-#include "util/types.h"
+#include "util/log.h"
 
 CCL_NAMESPACE_BEGIN
 
@@ -75,7 +72,7 @@ PassInfo BufferPass::get_info() const
 }
 
 /* --------------------------------------------------------------------
- * Buffer Params.
+ * Buffer Parameters.
  */
 
 NODE_DEFINE(BufferParams)
@@ -135,7 +132,7 @@ void BufferParams::update_passes()
   }
 }
 
-void BufferParams::update_passes(const vector<Pass *> &scene_passes)
+void BufferParams::update_passes(const unique_ptr_vector<Pass> &scene_passes)
 {
   passes.clear();
 

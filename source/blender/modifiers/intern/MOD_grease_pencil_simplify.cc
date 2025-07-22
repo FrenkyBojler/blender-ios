@@ -26,7 +26,7 @@
 #include "GEO_resample_curves.hh"
 #include "GEO_simplify_curves.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "MOD_grease_pencil_util.hh"
@@ -100,8 +100,10 @@ static void simplify_drawing(const GreasePencilSimplifyModifierData &mmd,
                              const Object &ob,
                              bke::greasepencil::Drawing &drawing)
 {
-  IndexMaskMemory memory;
+  modifier::greasepencil::ensure_no_bezier_curves(drawing);
   const bke::CurvesGeometry &curves = drawing.strokes();
+
+  IndexMaskMemory memory;
   const IndexMask strokes = modifier::greasepencil::get_filtered_stroke_mask(
       &ob, curves, mmd.influence, memory);
   if (strokes.is_empty()) {
@@ -192,7 +194,7 @@ static void foreach_ID_link(ModifierData *md, Object *ob, IDWalkFunc walk, void 
   modifier::greasepencil::foreach_influence_ID_link(&mmd->influence, ob, walk, user_data);
 }
 
-static void panel_draw(const bContext * /*C*/, Panel *panel)
+static void panel_draw(const bContext *C, Panel *panel)
 {
   uiLayout *layout = panel->layout;
 
@@ -200,25 +202,32 @@ static void panel_draw(const bContext * /*C*/, Panel *panel)
 
   int mode = RNA_enum_get(ptr, "mode");
 
-  uiLayoutSetPropSep(layout, true);
+  layout->use_property_split_set(true);
 
-  uiItemR(layout, ptr, "mode", UI_ITEM_NONE, nullptr, ICON_NONE);
+  layout->prop(ptr, "mode", UI_ITEM_NONE, std::nullopt, ICON_NONE);
 
   if (mode == MOD_GREASE_PENCIL_SIMPLIFY_FIXED) {
-    uiItemR(layout, ptr, "step", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout->prop(ptr, "step", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (mode == MOD_GREASE_PENCIL_SIMPLIFY_ADAPTIVE) {
-    uiItemR(layout, ptr, "factor", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout->prop(ptr, "factor", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (mode == MOD_GREASE_PENCIL_SIMPLIFY_SAMPLE) {
-    uiItemR(layout, ptr, "length", UI_ITEM_NONE, nullptr, ICON_NONE);
-    uiItemR(layout, ptr, "sharp_threshold", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout->prop(ptr, "length", UI_ITEM_NONE, std::nullopt, ICON_NONE);
+    layout->prop(ptr, "sharp_threshold", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
   else if (mode == MOD_GREASE_PENCIL_SIMPLIFY_MERGE) {
-    uiItemR(layout, ptr, "distance", UI_ITEM_NONE, nullptr, ICON_NONE);
+    layout->prop(ptr, "distance", UI_ITEM_NONE, std::nullopt, ICON_NONE);
   }
 
-  modifier_panel_end(layout, ptr);
+  if (uiLayout *influence_panel = layout->panel_prop(
+          C, ptr, "open_influence_panel", IFACE_("Influence")))
+  {
+    modifier::greasepencil::draw_layer_filter_settings(C, influence_panel, ptr);
+    modifier::greasepencil::draw_material_filter_settings(C, influence_panel, ptr);
+  }
+
+  modifier_error_message_draw(layout, ptr);
 }
 
 static void panel_register(ARegionType *region_type)

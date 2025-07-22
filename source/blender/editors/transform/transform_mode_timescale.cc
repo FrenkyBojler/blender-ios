@@ -11,20 +11,22 @@
 #include "BLI_math_vector.h"
 #include "BLI_string.h"
 
-#include "BKE_nla.h"
+#include "BKE_nla.hh"
 #include "BKE_unit.hh"
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
-
 #include "BLT_translation.hh"
+
+#include "UI_interface_types.hh"
 
 #include "transform.hh"
 #include "transform_convert.hh"
 #include "transform_snap.hh"
 
 #include "transform_mode.hh"
+
+namespace blender::ed::transform {
 
 /* -------------------------------------------------------------------- */
 /** \name Transform (Animation Time Scale)
@@ -44,7 +46,7 @@ static void headerTimeScale(TransInfo *t, char str[UI_MAX_DRAW_STR])
   char tvec[NUM_STR_REP_LEN * 3];
 
   if (hasNumInput(&t->num)) {
-    outputNumInput(&(t->num), tvec, &t->scene->unit);
+    outputNumInput(&(t->num), tvec, t->scene->unit);
   }
   else {
     BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", t->values_final[0]);
@@ -144,9 +146,10 @@ static void initTimeScale(TransInfo *t, wmOperator * /*op*/)
   t->num.idx_max = t->idx_max;
 
   /* Initialize snap like for everything else. */
-  t->snap[0] = t->snap[1] = 1.0f;
+  t->increment[0] = 1.0f;
+  t->increment_precision = 1.0f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_NONE;
 }
@@ -163,3 +166,5 @@ TransModeInfo TransMode_timescale = {
     /*snap_apply_fn*/ timescale_snap_apply_fn,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform

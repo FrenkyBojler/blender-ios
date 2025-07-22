@@ -32,6 +32,8 @@ GHOST_Window::GHOST_Window(uint32_t width,
       m_progressBarVisible(false),
       m_canAcceptDragOperation(false),
       m_isUnsavedChanges(false),
+      m_windowDecorationStyleFlags(GHOST_kDecorationNone),
+      m_windowDecorationStyleSettings(),
       m_wantStereoVisual(wantStereoVisual),
       m_nativePixelSize(1.0f),
       m_context(new GHOST_ContextNone(false))
@@ -53,6 +55,22 @@ GHOST_Window::~GHOST_Window()
 void *GHOST_Window::getOSWindow() const
 {
   return nullptr;
+}
+
+GHOST_TWindowDecorationStyleFlags GHOST_Window::getWindowDecorationStyleFlags()
+{
+  return m_windowDecorationStyleFlags;
+}
+
+void GHOST_Window::setWindowDecorationStyleFlags(GHOST_TWindowDecorationStyleFlags styleFlags)
+{
+  m_windowDecorationStyleFlags = styleFlags;
+}
+
+void GHOST_Window::setWindowDecorationStyleSettings(
+    GHOST_WindowDecorationStyleSettings decorationSettings)
+{
+  m_windowDecorationStyleSettings = decorationSettings;
 }
 
 GHOST_TSuccess GHOST_Window::setDrawingContextType(GHOST_TDrawingContextType type)
@@ -216,10 +234,13 @@ GHOST_TSuccess GHOST_Window::setCursorShape(GHOST_TStandardCursor cursorShape)
   return GHOST_kFailure;
 }
 
-GHOST_TSuccess GHOST_Window::setCustomCursorShape(
-    uint8_t *bitmap, uint8_t *mask, int sizex, int sizey, int hotX, int hotY, bool canInvertColor)
+GHOST_TSuccess GHOST_Window::setCustomCursorShape(const uint8_t *bitmap,
+                                                  const uint8_t *mask,
+                                                  const int size[2],
+                                                  const int hot_spot[2],
+                                                  bool canInvertColor)
 {
-  if (setWindowCustomCursorShape(bitmap, mask, sizex, sizey, hotX, hotY, canInvertColor)) {
+  if (setWindowCustomCursorShape(bitmap, mask, size, hot_spot, canInvertColor)) {
     m_cursorShape = GHOST_kStandardCursorCustom;
     return GHOST_kSuccess;
   }

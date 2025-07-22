@@ -31,6 +31,7 @@
 #include "BLI_string_ref.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 #include "WM_types.hh"
 
@@ -39,13 +40,17 @@ struct uiBlock;
 struct uiButViewItem;
 struct uiLayout;
 struct ViewLink;
-struct wmDrag;
 struct wmNotifier;
 
 namespace blender::ui {
 
 class AbstractViewItem;
 class AbstractViewItemDragController;
+
+enum class ViewScrollDirection {
+  UP,
+  DOWN,
+};
 
 class AbstractView {
   friend class AbstractViewItem;
@@ -71,6 +76,7 @@ class AbstractView {
   std::string context_menu_title;
   /** See #set_popup_keep_open(). */
   bool popup_keep_open_ = false;
+  bool is_multiselect_supported_ = false;
 
  public:
   virtual ~AbstractView() = default;
@@ -93,9 +99,32 @@ class AbstractView {
    */
   virtual bool begin_filtering(const bContext &C) const;
 
-  virtual void draw_overlays(const ARegion &region) const;
+  virtual void draw_overlays(const ARegion &region, const uiBlock &block) const;
 
   virtual void foreach_view_item(FunctionRef<void(AbstractViewItem &)> iter_fn) const = 0;
+
+  virtual bool supports_scrolling() const;
+
+  /**
+   * \return True when everything in this view is visible, i.e. no scrolling is needed.
+   */
+  virtual bool is_fully_visible() const;
+
+  virtual void scroll(ViewScrollDirection direction);
+
+  /**
+   * From the current view state, return certain state that will be written to files (stored in
+   * #ARegion.view_states) to preserve it over UI changes and file loading. The state can be
+   * restored using #persistent_state_apply().
+   *
+   * Return an empty value if there's no state to preserve (default implementation).
+   */
+  virtual std::optional<uiViewState> persistent_state() const;
+  /**
+   * Restore a view state given in \a state, which was created by #persistent_state() for saving in
+   * files, and potentially loaded from a file.
+   */
+  virtual void persistent_state_apply(const uiViewState &state);
 
   /**
    * Makes \a item valid for display in this view. Behavior is undefined for items not registered
@@ -124,6 +153,8 @@ class AbstractView {
   void set_popup_keep_open();
 
   void clear_search_highlight();
+  void allow_multiselect_items();
+  bool is_multiselect_supported() const;
 
  protected:
   AbstractView() = default;
@@ -171,12 +202,20 @@ class AbstractViewItem {
   bool is_activatable_ = true;
   bool is_interactive_ = true;
   bool is_active_ = false;
+  bool is_selected_ = false;
   bool is_renaming_ = false;
   /** See #is_search_highlight(). */
   bool is_highlighted_search_ = false;
 
   /** Cache filtered state here to avoid having to re-query. */
   bool is_filtered_visible_ = true;
+
+  /**
+   * Typically, only items with children can be collapsed. However, in some cases it's important
+   * to draw collapsible items differently from non-collapsible ones, even if they don't have
+   * children currently.
+   */
+  bool is_always_collapsible_ = false;
 
  public:
   virtual ~AbstractViewItem() = default;
@@ -197,6 +236,8 @@ class AbstractViewItem {
    */
   virtual std::optional<bool> should_be_active() const;
 
+  virtual std::optional<bool> should_be_selected() const;
+  virtual void set_selected(const bool select);
   /**
    * Queries if the view item supports renaming in principle. Renaming may still fail, e.g. if
    * another item is already being renamed.
@@ -261,6 +302,8 @@ class AbstractViewItem {
    * click), not if the view reflects an external change (e.g.
    * #AbstractViewItem::should_be_active() changes from returning false to returning true).
    *
+   * Also ensures the item is selected if it's active.
+   *
    * Requires the view to have completed reconstruction, see #is_reconstructed(). Otherwise the
    * actual item state is unknown, possibly calling state-change update functions incorrectly.
    */
@@ -271,6 +314,7 @@ class AbstractViewItem {
    * can't be sure about the item state.
    */
   bool is_active() const;
+  bool is_selected() const;
   /**
    * Should this item be highlighted as matching search result? Only one item should be highlighted
    * this way at a time. Pressing enter will activate it.
@@ -358,7 +402,7 @@ class AbstractViewItemDragController {
 
 template<class ViewType> ViewType &AbstractViewItemDragController::get_view() const
 {
-  static_assert(std::is_base_of<AbstractView, ViewType>::value,
+  static_assert(std::is_base_of_v<AbstractView, ViewType>,
                 "Type must derive from and implement the ui::AbstractView interface");
   return dynamic_cast<ViewType &>(view_);
 }

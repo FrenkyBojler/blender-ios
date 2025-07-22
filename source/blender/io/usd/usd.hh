@@ -37,6 +37,15 @@ enum eUSDMtlNameCollisionMode {
   USD_MTL_NAME_COLLISION_REFERENCE_EXISTING = 1,
 };
 
+/* Enums specifying the USD material purpose,
+ * corresponding to #pxr::UsdShadeTokens 'allPurpose',
+ * 'preview', and 'render', respectively. */
+enum eUSDMtlPurpose {
+  USD_MTL_PURPOSE_ALL = 0,
+  USD_MTL_PURPOSE_PREVIEW = 1,
+  USD_MTL_PURPOSE_FULL = 2
+};
+
 /**
  *  Behavior for importing of custom
  *  attributes / properties outside
@@ -104,6 +113,17 @@ enum eUSDTexExportMode {
   USD_TEX_EXPORT_NEW_PATH,
 };
 
+enum eUSDSceneUnits {
+  USD_SCENE_UNITS_CUSTOM = -1,
+  USD_SCENE_UNITS_METERS = 0,
+  USD_SCENE_UNITS_KILOMETERS = 1,
+  USD_SCENE_UNITS_CENTIMETERS = 2,
+  USD_SCENE_UNITS_MILLIMETERS = 3,
+  USD_SCENE_UNITS_INCHES = 4,
+  USD_SCENE_UNITS_FEET = 5,
+  USD_SCENE_UNITS_YARDS = 6,
+};
+
 struct USDExportParams {
   bool export_animation = false;
   bool selected_objects_only = false;
@@ -113,6 +133,7 @@ struct USDExportParams {
   bool export_lights = true;
   bool export_cameras = true;
   bool export_curves = true;
+  bool export_points = true;
   bool export_volumes = true;
   bool export_hair = true;
   bool export_uvmaps = true;
@@ -126,6 +147,7 @@ struct USDExportParams {
   bool only_deform_bones = false;
 
   bool convert_world_material = true;
+  bool merge_parent_xform = false;
 
   bool use_instancing = false;
   bool export_custom_properties = true;
@@ -154,9 +176,12 @@ struct USDExportParams {
   eUSDZTextureDownscaleSize usdz_downscale_size = eUSDZTextureDownscaleSize::USD_TEXTURE_SIZE_KEEP;
   int usdz_downscale_custom_size = 128;
 
-  char root_prim_path[1024] = ""; /* FILE_MAX */
-  char collection[MAX_IDPROP_NAME] = "";
+  std::string root_prim_path = "";
+  char collection[MAX_ID_NAME - 2] = "";
   char custom_properties_namespace[MAX_IDPROP_NAME] = "";
+
+  eUSDSceneUnits convert_scene_units = eUSDSceneUnits::USD_SCENE_UNITS_METERS;
+  float custom_meters_per_unit = 1.0f;
 
   /** Communication structure between the wmJob management code and the worker code. Currently used
    * to generate safely reports from the worker thread. */
@@ -164,9 +189,9 @@ struct USDExportParams {
 };
 
 struct USDImportParams {
-  char *prim_path_mask;
   float scale;
   float light_intensity_scale;
+  bool apply_unit_conversion_scale;
 
   char mesh_read_flag;
   bool set_frame_range;
@@ -202,11 +227,14 @@ struct USDImportParams {
   bool set_material_blend;
 
   bool validate_meshes;
+  bool merge_parent_xform;
 
+  eUSDMtlPurpose mtl_purpose;
   eUSDMtlNameCollisionMode mtl_name_collision_mode;
   eUSDTexImportMode import_textures_mode;
 
-  char import_textures_dir[768]; /* FILE_MAXDIR */
+  std::string prim_path_mask;
+  char import_textures_dir[/*FILE_MAXDIR*/ 768];
   eUSDTexNameCollisionMode tex_name_collision_mode;
   eUSDAttrImportMode attr_import_mode;
 
@@ -283,7 +311,6 @@ CacheReader *CacheReader_open_usd_object(CacheArchiveHandle *handle,
                                          Object *object,
                                          const char *object_path);
 
-void USD_CacheReader_incref(CacheReader *reader);
 void USD_CacheReader_free(CacheReader *reader);
 
 /** Data for registering USD IO hooks. */
@@ -305,7 +332,9 @@ void USD_register_hook(std::unique_ptr<USDHook> hook);
  * Remove the given entry from the list of registered hooks and
  * free the allocated memory for the hook instance.
  */
-void USD_unregister_hook(USDHook *hook);
+void USD_unregister_hook(const USDHook *hook);
 USDHook *USD_find_hook_name(const char idname[]);
+
+double get_meters_per_unit(const USDExportParams &params);
 
 };  // namespace blender::io::usd

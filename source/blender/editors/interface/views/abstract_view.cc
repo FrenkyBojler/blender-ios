@@ -121,10 +121,32 @@ bool AbstractView::begin_filtering(const bContext & /*C*/) const
   return false;
 }
 
-void AbstractView::draw_overlays(const ARegion & /*region*/) const
+void AbstractView::draw_overlays(const ARegion & /*region*/, const uiBlock & /*block*/) const
 {
   /* Nothing by default. */
 }
+
+bool AbstractView::supports_scrolling() const
+{
+  return false;
+}
+
+bool AbstractView::is_fully_visible() const
+{
+  return false;
+}
+
+void AbstractView::scroll(ViewScrollDirection /*direction*/)
+{
+  BLI_assert_msg(false, "Unsupported for this view type");
+}
+
+std::optional<uiViewState> AbstractView::persistent_state() const
+{
+  return {};
+}
+
+void AbstractView::persistent_state_apply(const uiViewState & /*state*/) {}
 
 /** \} */
 
@@ -223,6 +245,16 @@ void AbstractView::set_popup_keep_open()
 void AbstractView::clear_search_highlight()
 {
   this->foreach_view_item([](AbstractViewItem &item) { item.is_highlighted_search_ = false; });
+}
+
+void AbstractView::allow_multiselect_items()
+{
+  is_multiselect_supported_ = true;
+}
+
+bool AbstractView::is_multiselect_supported() const
+{
+  return is_multiselect_supported_;
 }
 /** \} */
 

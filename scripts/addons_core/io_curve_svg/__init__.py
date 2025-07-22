@@ -23,9 +23,16 @@ if "bpy" in locals():
         importlib.reload(import_svg)
 
 
+import os
 import bpy
-from bpy.props import StringProperty
-from bpy_extras.io_utils import ImportHelper
+from bpy.props import (
+    StringProperty,
+    CollectionProperty
+)
+from bpy_extras.io_utils import (
+    ImportHelper,
+    poll_file_object_drop,
+)
 
 
 class ImportSVG(bpy.types.Operator, ImportHelper):
@@ -37,10 +44,41 @@ class ImportSVG(bpy.types.Operator, ImportHelper):
     filename_ext = ".svg"
     filter_glob: StringProperty(default="*.svg", options={'HIDDEN'})
 
+    directory: StringProperty(subtype='DIR_PATH', options={'SKIP_SAVE', 'HIDDEN'})
+    files: CollectionProperty(
+        name="File Path",
+        type=bpy.types.OperatorFileListElement,
+    )
+
+    def invoke(self, context, event):
+        if self.properties.is_property_set("filepath"):
+            return self.execute(context)
+        context.window_manager.fileselect_add(self)
+        return {'RUNNING_MODAL'}
+
     def execute(self, context):
         from . import import_svg
 
-        return import_svg.load(self, context, filepath=self.filepath)
+        if self.files:
+            ret = {'CANCELLED'}
+            for file in self.files:
+                path = os.path.join(self.directory, file.name)
+                if import_svg.load(self, context, filepath=path) == {'FINISHED'}:
+                    ret = {'FINISHED'}
+            return ret
+        else:
+            return import_svg.load(self, context, filepath=self.filepath)
+
+
+class IO_FH_svg_as_curves(bpy.types.FileHandler):
+    bl_idname = "IO_FH_svg_as_curves"
+    bl_label = "SVG as Curves"
+    bl_import_operator = "import_curve.svg"
+    bl_file_extensions = ".svg"
+
+    @classmethod
+    def poll_drop(cls, context):
+        return poll_file_object_drop(context)
 
 
 def menu_func_import(self, context):
@@ -48,14 +86,22 @@ def menu_func_import(self, context):
                          text="Scalable Vector Graphics (.svg)")
 
 
+classes = [
+    ImportSVG,
+    IO_FH_svg_as_curves,
+]
+
+
 def register():
-    bpy.utils.register_class(ImportSVG)
+    for cls in classes:
+        bpy.utils.register_class(cls)
 
     bpy.types.TOPBAR_MT_file_import.append(menu_func_import)
 
 
 def unregister():
-    bpy.utils.unregister_class(ImportSVG)
+    for cls in classes:
+        bpy.utils.unregister_class(cls)
 
     bpy.types.TOPBAR_MT_file_import.remove(menu_func_import)
 

@@ -31,12 +31,12 @@
 #include "BLI_vector.hh"
 #include "BLI_virtual_array_fwd.hh"
 
-#include "DNA_customdata_types.h"
+#include "BKE_attribute_filter.hh"
+#include "BKE_attribute_storage.hh"
 
 struct Object;
 struct Collection;
 namespace blender::bke {
-class AnonymousAttributePropagationInfo;
 class AttributeAccessor;
 class MutableAttributeAccessor;
 }  // namespace blender::bke
@@ -44,6 +44,7 @@ class MutableAttributeAccessor;
 namespace blender::bke {
 
 struct GeometrySet;
+struct AttributeAccessorFunctions;
 
 /**
  * Holds a reference to conceptually unique geometry or a pointer to object/collection data
@@ -104,6 +105,8 @@ class InstanceReference {
   void count_memory(MemoryCounter &memory) const;
 
   friend bool operator==(const InstanceReference &a, const InstanceReference &b);
+
+  uint64_t hash() const;
 };
 
 class Instances {
@@ -116,7 +119,7 @@ class Instances {
 
   int instances_num_ = 0;
 
-  CustomData attributes_;
+  bke::AttributeStorage attributes_;
 
   /**
    * Caches how often each reference is used.
@@ -192,9 +195,9 @@ class Instances {
    * Remove the indices that are not contained in the mask input, and remove unused instance
    * references afterwards.
    */
-  void remove(const IndexMask &mask, const AnonymousAttributePropagationInfo &propagation_info);
+  void remove(const IndexMask &mask, const AttributeFilter &attribute_filter);
   /**
-   * Get an id for every instance. These can be used for e.g. motion blur.
+   * Get an id for every instance. These can be used e.g. motion blur.
    */
   Span<int> almost_unique_ids() const;
 
@@ -206,8 +209,8 @@ class Instances {
   bke::AttributeAccessor attributes() const;
   bke::MutableAttributeAccessor attributes_for_write();
 
-  CustomData &custom_data_attributes();
-  const CustomData &custom_data_attributes() const;
+  bke::AttributeStorage &attribute_storage();
+  const bke::AttributeStorage &attribute_storage() const;
 
   void foreach_referenced_geometry(
       FunctionRef<void(const GeometrySet &geometry_set)> callback) const;
@@ -226,13 +229,14 @@ class Instances {
 
 VArray<float3> instance_position_varray(const Instances &instances);
 VMutableArray<float3> instance_position_varray_for_write(Instances &instances);
+const AttributeAccessorFunctions &instance_attribute_accessor_functions();
 
 /* -------------------------------------------------------------------- */
 /** \name #InstanceReference Inline Methods
  * \{ */
 
 inline InstanceReference::InstanceReference(std::unique_ptr<GeometrySet> geometry_set)
-    : type_(Type::GeometrySet), data_(nullptr), geometry_set_(std::move(geometry_set))
+    : type_(Type::GeometrySet), geometry_set_(std::move(geometry_set))
 {
 }
 
@@ -301,12 +305,12 @@ inline const GeometrySet &InstanceReference::geometry_set() const
   return *geometry_set_;
 }
 
-inline CustomData &Instances::custom_data_attributes()
+inline AttributeStorage &Instances::attribute_storage()
 {
   return attributes_;
 }
 
-inline const CustomData &Instances::custom_data_attributes() const
+inline const AttributeStorage &Instances::attribute_storage() const
 {
   return attributes_;
 }

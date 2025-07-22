@@ -7,7 +7,6 @@ import bpy
 from ....io.com import gltf2_io
 from ....io.exp.user_extensions import export_user_extensions
 from ..cache import cached
-from .search_node_tree import get_vertex_color_info
 from .texture_info import gather_texture_info
 from .search_node_tree import \
     get_socket_from_gltf_material_node, \
@@ -81,8 +80,6 @@ def __gather_base_color_factor(blender_material, export_settings):
         path_alpha = alpha_info['alphaPath']
 
     base_color_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, "Base Color")
-    if base_color_socket.socket is None:
-        base_color_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, "BaseColor")
     if base_color_socket.socket is None:
         base_color_socket = get_socket(blender_material.node_tree, blender_material.use_nodes, "BaseColor")
     if base_color_socket.socket is None:

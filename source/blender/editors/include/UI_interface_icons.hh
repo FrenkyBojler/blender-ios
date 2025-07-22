@@ -16,7 +16,6 @@
 struct Collection;
 struct ID;
 struct ImBuf;
-struct ListBase;
 struct PointerRNA;
 struct PreviewImage;
 struct Scene;
@@ -38,6 +37,8 @@ struct IconTextOverlay {
 #define ICON_DEFAULT_WIDTH_SCALE ((int)(UI_UNIT_X * 0.8f))
 
 #define PREVIEW_DEFAULT_HEIGHT 128
+
+#define PREVIEW_DRAG_DRAW_SIZE 96.0f
 
 enum eAlertIcon {
   ALERT_ICON_NONE = -1,

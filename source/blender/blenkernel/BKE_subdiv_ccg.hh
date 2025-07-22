@@ -16,7 +16,6 @@
 #include "BLI_index_mask_fwd.hh"
 #include "BLI_offset_indices.hh"
 #include "BLI_span.hh"
-#include "BLI_sys_types.h"
 #include "BLI_utility_mixins.hh"
 #include "BLI_vector.hh"
 
@@ -72,7 +71,7 @@ struct SubdivCCGCoord {
 
   /* Returns the coordinate for the index in an array sized to contain all grid vertices (including
    * duplicates). */
-  inline static SubdivCCGCoord from_index(const CCGKey &key, int index)
+  static SubdivCCGCoord from_index(const CCGKey &key, int index)
   {
     const int grid_index = index / key.grid_area;
     const int index_in_grid = index - grid_index * key.grid_area;
@@ -96,17 +95,15 @@ struct SubdivCCGCoord {
 
 /* Definition of an edge which is adjacent to at least one of the faces. */
 struct SubdivCCGAdjacentEdge {
-  int num_adjacent_faces;
   /* Indexed by adjacent face index, then by point index on the edge.
    * points to a coordinate into the grids. */
-  SubdivCCGCoord **boundary_coords;
+  blender::Vector<blender::Array<SubdivCCGCoord>> boundary_coords;
 };
 
 /* Definition of a vertex which is adjacent to at least one of the faces. */
 struct SubdivCCGAdjacentVertex {
-  int num_adjacent_faces;
   /* Indexed by adjacent face index, points to a coordinate in the grids. */
-  SubdivCCGCoord *corner_coords;
+  blender::Vector<SubdivCCGCoord> corner_coords;
 };
 
 /* Representation of subdivision surface which uses CCG grids. */
@@ -122,37 +119,19 @@ struct SubdivCCG : blender::NonCopyable {
   /* Resolution of grid. All grids have matching resolution, and resolution
    * is same as ptex created for non-quad faces. */
   int grid_size = -1;
-  /* Size of a single element of a grid (including coordinate and all the other layers).
-   * Measured in bytes. */
-  int grid_element_size = -1;
-  /* Grids represent limit surface, with displacement applied. Grids are
-   * corresponding to face-corners of coarse mesh, each grid has
-   * grid_size^2 elements.
+  /** The number of vertices in each grid (grid_size ^2). */
+  int grid_area = -1;
+  /** The number of grids (face corners) in the geometry (#faces.total_size()). */
+  int grids_num = -1;
+  /**
+   * Positions represent limit surface, with displacement applied. The vertices in each grid are
+   * stored in contiguous chunks of size #grid_area in the same order.
    */
-  /* Indexed by a grid index, points to a grid data which is stored in
-   * grids_storage. */
-  blender::Array<CCGElem *> grids;
-  /* Flat array of all grids' data. */
-  blender::Array<uchar> grids_storage;
-  /* Loose edges, each array element contains grid_size elements
-   * corresponding to vertices created by subdividing coarse edges. */
-  CCGElem **edges = nullptr;
-  int num_edges = -1;
-  /* Loose vertices. Every element corresponds to a loose vertex from a coarse
-   * mesh, every coarse loose vertex corresponds to a single subdivided
-   * element. */
-  CCGElem *vertices = nullptr;
-  int num_vertices = -1;
-  /* Denotes which layers present in the elements.
-   *
-   * Grids always has coordinates, followed by extra layers which are set to
-   * truth here.
-   */
-  bool has_normal = false;
-  bool has_mask = false;
-  /* Offsets of corresponding data layers in the elements. */
-  int normal_offset = -1;
-  int mask_offset = -1;
+  blender::Array<blender::float3> positions;
+  /** Vertex normals with the same indexing as #positions. */
+  blender::Array<blender::float3> normals;
+  /** Optional mask values with the same indexing as #positions. */
+  blender::Array<float> masks;
 
   /* Faces from which grids are emitted. Owned by base mesh. */
   blender::OffsetIndices<int> faces;
@@ -160,11 +139,18 @@ struct SubdivCCG : blender::NonCopyable {
   blender::Span<int> grid_to_face_map;
 
   /* Edges which are adjacent to faces.
+   *
+   * Maps from coarse edge to a directional `grid_size` * 2 map of indices to `SubdivCCGCoord`,
+   * indexed by OpenSubdiv base mesh edge.
+   *
    * Used for faster grid stitching, at the cost of extra memory.
    */
   blender::Array<SubdivCCGAdjacentEdge> adjacent_edges;
 
-  /* Vertices which are adjacent to faces
+  /* Vertices which are adjacent to faces.
+   *
+   * Maps from coarse vertex to `SubdivCCGCoord`, indexed by OpenSubdiv base mesh vertex.
+   *
    * Used for faster grid stitching, at the cost of extra memory.
    */
   blender::Array<SubdivCCGAdjacentVertex> adjacent_verts;
@@ -246,8 +232,9 @@ void BKE_subdiv_ccg_topology_counters(const SubdivCCG &subdiv_ccg,
                                       int &r_num_faces,
                                       int &r_num_loops);
 
+using SubdivCCGNeighborCoords = blender::Vector<SubdivCCGCoord, 256>;
 struct SubdivCCGNeighbors {
-  blender::Vector<SubdivCCGCoord, 256> coords;
+  SubdivCCGNeighborCoords coords;
   int num_duplicates;
 
   blender::Span<SubdivCCGCoord> unique() const
@@ -293,16 +280,16 @@ inline int BKE_subdiv_ccg_grid_to_face_index(const SubdivCCG &subdiv_ccg, const 
 
 void BKE_subdiv_ccg_eval_limit_point(const SubdivCCG &subdiv_ccg,
                                      const SubdivCCGCoord &coord,
-                                     float r_point[3]);
+                                     blender::float3 &r_point);
 void BKE_subdiv_ccg_eval_limit_positions(const SubdivCCG &subdiv_ccg,
                                          const CCGKey &key,
                                          int grid_index,
                                          blender::MutableSpan<blender::float3> r_limit_positions);
 
-enum SubdivCCGAdjacencyType {
-  SUBDIV_CCG_ADJACENT_NONE,
-  SUBDIV_CCG_ADJACENT_VERTEX,
-  SUBDIV_CCG_ADJACENT_EDGE,
+enum class SubdivCCGAdjacencyType : int8_t {
+  None,
+  Vertex,
+  Edge,
 };
 
 /* Returns if a grid coordinates is adjacent to a coarse mesh edge, vertex or nothing. If it is
@@ -350,3 +337,34 @@ inline void BKE_subdiv_ccg_foreach_visible_grid_vert(const CCGKey &key,
     blender::bits::foreach_0_index(grid_hidden[grid], fn);
   }
 }
+
+namespace blender::bke::ccg {
+
+/** Find the range of vertices in the entire geometry that are part of a single grid. */
+inline IndexRange grid_range(const int grid_area, const int grid)
+{
+  return IndexRange(grid * grid_area, grid_area);
+}
+inline IndexRange grid_range(const CCGKey &key, const int grid)
+{
+  return grid_range(key.grid_area, grid);
+}
+
+/** Find the range of vertices in the entire geometry that are part of a single face. */
+inline IndexRange face_range(const OffsetIndices<int> faces, const int grid_area, const int face)
+{
+  const IndexRange corners = faces[face];
+  return IndexRange(corners.start() * grid_area, corners.size() * grid_area);
+}
+inline IndexRange face_range(const OffsetIndices<int> faces, const CCGKey &key, const int face)
+{
+  return face_range(faces, key.grid_area, face);
+}
+
+/** Find the vertex index in the entire geometry at a specific coordinate in a specific grid. */
+inline int grid_xy_to_vert(const CCGKey &key, const int grid, const int x, const int y)
+{
+  return key.grid_area * grid + CCG_grid_xy_to_index(key.grid_size, x, y);
+}
+
+}  // namespace blender::bke::ccg

@@ -9,11 +9,9 @@
 #pragma once
 
 #include "BLI_array.hh"
+#include "BLI_math_vector_types.hh"
+#include "BLI_offset_indices.hh"
 #include "BLI_set.hh"
-
-struct Depsgraph;
-struct Object;
-struct PBVHVertRef;
 
 namespace blender::ed::sculpt_paint::geodesic {
 

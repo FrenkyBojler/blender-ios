@@ -10,10 +10,9 @@
 
 #include <Python.h>
 
-#include "mathutils.h"
+#include "mathutils.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
@@ -40,11 +39,8 @@ short euler_order_from_string(const char *str, const char *error_prefix)
 {
   if (str[0] && str[1] && str[2] && str[3] == '\0') {
 
-#ifdef __LITTLE_ENDIAN__
-#  define MAKE_ID3(a, b, c) ((a) | ((b) << 8) | ((c) << 16))
-#else
-#  define MAKE_ID3(a, b, c) (((a) << 24) | ((b) << 16) | ((c) << 8))
-#endif
+/* NOTE: this is endianness-sensitive. */
+#define MAKE_ID3(a, b, c) ((a) | ((b) << 8) | ((c) << 16))
 
     switch (*((const PY_INT32_T *)str)) {
       case MAKE_ID3('X', 'Y', 'Z'):
@@ -214,7 +210,7 @@ PyDoc_STRVAR(
     "   (no 720 degree pitches).\n"
     "\n"
     "   :arg axis: single character in ['X, 'Y', 'Z'].\n"
-    "   :type axis: string\n"
+    "   :type axis: str\n"
     "   :arg angle: angle in radians.\n"
     "   :type angle: float\n");
 static PyObject *Euler_rotate_axis(EulerObject *self, PyObject *args)
@@ -255,7 +251,7 @@ PyDoc_STRVAR(
     "   Rotates the euler by another mathutils value.\n"
     "\n"
     "   :arg other: rotation component of mathutils value\n"
-    "   :type other: :class:`Euler`, :class:`Quaternion` or :class:`Matrix`\n");
+    "   :type other: :class:`Euler` | :class:`Quaternion` | :class:`Matrix`\n");
 static PyObject *Euler_rotate(EulerObject *self, PyObject *value)
 {
   float self_rmat[3][3], other_rmat[3][3], rmat[3][3];
@@ -426,7 +422,7 @@ static PyObject *Euler_richcmpr(PyObject *a, PyObject *b, int op)
       return nullptr;
   }
 
-  return Py_INCREF_RET(res);
+  return Py_NewRef(res);
 }
 
 /** \} */
@@ -707,7 +703,7 @@ PyDoc_STRVAR(
     Euler_order_doc,
     "Euler rotation order.\n"
     "\n"
-    ":type: string in ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']");
+    ":type: str in ['XYZ', 'XZY', 'YXZ', 'YZX', 'ZXY', 'ZYX']");
 static PyObject *Euler_order_get(EulerObject *self, void * /*closure*/)
 {
   if (BaseMath_ReadCallback(self) == -1) {
@@ -779,9 +775,14 @@ static PyGetSetDef Euler_getseters[] = {
 /** \name Euler Type: Method Definitions
  * \{ */
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic push
-#  pragma GCC diagnostic ignored "-Wcast-function-type"
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic push
+#    pragma clang diagnostic ignored "-Wcast-function-type"
+#  else
+#    pragma GCC diagnostic push
+#    pragma GCC diagnostic ignored "-Wcast-function-type"
+#  endif
 #endif
 
 static PyMethodDef Euler_methods[] = {
@@ -800,8 +801,12 @@ static PyMethodDef Euler_methods[] = {
     {nullptr, nullptr, 0, nullptr},
 };
 
-#if (defined(__GNUC__) && !defined(__clang__))
-#  pragma GCC diagnostic pop
+#ifdef __GNUC__
+#  ifdef __clang__
+#    pragma clang diagnostic pop
+#  else
+#    pragma GCC diagnostic pop
+#  endif
 #endif
 
 /** \} */
@@ -823,8 +828,8 @@ PyDoc_STRVAR(
     "\n"
     "   .. seealso:: `Euler angles <https://en.wikipedia.org/wiki/Euler_angles>`__ on Wikipedia.\n"
     "\n"
-    "   :arg angles: Three angles, in radians.\n"
-    "   :type angles: 3d vector\n"
+    "   :arg angles: (X, Y, Z) angles in radians.\n"
+    "   :type angles: Sequence[float]\n"
     "   :arg order: Optional order of the angles, a permutation of ``XYZ``.\n"
     "   :type order: str\n");
 PyTypeObject euler_Type = {

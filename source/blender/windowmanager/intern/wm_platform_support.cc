@@ -13,7 +13,7 @@
 #include "BLI_dynstr.h"
 #include "BLI_fileops.h"
 #include "BLI_linklist.h"
-#include "BLI_path_util.h"
+#include "BLI_path_utils.hh"
 #include "BLI_string.h"
 
 #include "BLT_translation.hh"
@@ -21,9 +21,14 @@
 #include "BKE_appdir.hh"
 #include "BKE_global.hh"
 
+#include "GPU_context.hh"
 #include "GPU_platform.hh"
 
+#include "CLG_log.h"
+
 #define WM_PLATFORM_SUPPORT_TEXT_SIZE 1024
+
+static CLG_LogRef LOG = {"gpu.platform"};
 
 /**
  * Check if user has already approved the given `platform_support_key`.
@@ -104,6 +109,9 @@ bool WM_platform_support_perform_checks()
   eGPUSupportLevel support_level = GPU_platform_support_level();
   const char *platform_key = GPU_platform_support_level_key();
 
+  CLOG_INFO(&LOG, "Using GPU \"%s\"", GPU_platform_gpu_name());
+  CLOG_INFO(&LOG, "Using Backend \"%s\"", GPU_backend_get_name());
+
   /* Check if previous check matches the current check. Don't update the approval when running in
    * `background`. this could have been triggered by installing add-ons via installers. */
   if (support_level != GPU_SUPPORT_LEVEL_UNSUPPORTED && !G.factory_startup &&
@@ -158,15 +166,25 @@ bool WM_platform_support_perform_checks()
       slen = 0;
 
 #ifdef __APPLE__
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Your graphics card or macOS version is not supported"));
-      STR_CONCAT(message, slen, "\n \n");
-      STR_CONCAT(message,
-                 slen,
-                 CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                            "Upgrading to the latest macOS version may improve Blender support"));
+      if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+        STR_CONCAT(
+            message,
+            slen,
+            CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Your graphics card is not supported"));
+      }
+      else {
+        STR_CONCAT(message,
+                   slen,
+                   CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+                              "Your graphics card or macOS version is not supported"));
+        STR_CONCAT(message, slen, "\n \n");
+
+        STR_CONCAT(
+            message,
+            slen,
+            CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+                       "Upgrading to the latest macOS version may improve Blender support"));
+      }
 #else
       STR_CONCAT(message,
                  slen,
@@ -204,9 +222,14 @@ bool WM_platform_support_perform_checks()
     wm_platform_support_create_link(link);
   }
 
-  /* We are running in the background print the message in the console. */
-  if ((G.background || G.debug & G_DEBUG) && show_message) {
-    printf("%s\n\n%s\n%s\n", title, message, link);
+  if (show_message) {
+    /* Always print when in background mode or using debug argument. */
+    if (G.background || G.debug & G_DEBUG) {
+      CLOG_INFO_NOCHECK(&LOG, "%s\n\n%s\n%s\n", title, message, link);
+    }
+    else {
+      CLOG_INFO(&LOG, "%s\n\n%s\n%s\n", title, message, link);
+    }
   }
   if (G.background) {
     /* Don't show the message-box when running in background mode.
