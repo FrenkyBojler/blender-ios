@@ -70,7 +70,7 @@ ccl_device_inline bool is_light_shader_visible_to_path(const int shader, const u
     return true;
   }
 
-  if (((shader & SHADER_EXCLUDE_SCATTER) && (path_flag & PATH_RAY_VOLUME_SCATTER))) {
+  if (((shader & SHADER_EXCLUDE_CAMERA) && (path_flag & PATH_RAY_CAMERA)) || ((shader & SHADER_EXCLUDE_SCATTER) && (path_flag & PATH_RAY_VOLUME_SCATTER))) {
     return false;
   }
   return true;
