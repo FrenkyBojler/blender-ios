@@ -469,7 +469,7 @@ void node_group_declare(NodeDeclarationBuilder &b)
   group->ensure_interface_cache();
 
   Map<const bNodeTreeInterfaceSocket *, StructureType> structure_type_by_socket;
-  if (group->type == NTREE_GEOMETRY) {
+  if (ELEM(group->type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
     structure_type_by_socket.reserve(group->interface_items().size());
 
     const Span<const bNodeTreeInterfaceSocket *> inputs = group->interface_inputs();

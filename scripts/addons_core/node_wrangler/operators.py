@@ -2001,9 +2001,6 @@ class NWLinkToOutputNode(Operator):
             elif tree_type == 'GeometryNodeTree':
                 if active.outputs[output_index].type != 'GEOMETRY':
                     return {'CANCELLED'}
-            elif tree_type == 'CompositorNodeTree':
-                if active.outputs[output_index].type != 'RGBA':
-                    return {'CANCELLED'}
             connect_sockets(active.outputs[output_index], output_node.inputs[out_input_index])
 
         force_update(context)  # viewport render does not update

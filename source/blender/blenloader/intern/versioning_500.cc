@@ -1130,20 +1130,13 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
 }
 
 /* The Composite node was removed and a Group Output node should be used instead, so we need to
- * make the replacement. But first, the Group Output node relies on the node tree interface, so we
- * add a default interface with a single input and output. This is only for root trees used as
- * scene compositing node groups, for other node trees, we remove all composite nodes since they
- * are no longer supported inside groups. */
+ * make the replacement. But first note that the Group Output node relies on the node tree
+ * interface, so we ensure a default interface with a single input and output. This is only for
+ * root trees used as scene compositing node groups, for other node trees, we remove all composite
+ * nodes since they are no longer supported inside groups. */
 static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode &node)
 {
   blender::bke::node_tree_set_type(node_tree);
-
-  /* Add a default interface for the node tree. */
-  node_tree.tree_interface.clear_items();
-  node_tree.tree_interface.add_socket(
-      DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
-  node_tree.tree_interface.add_socket(
-      DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
 
   /* Remove inactive nodes. */
   if (!(node.flag & NODE_DO_OUTPUT)) {
@@ -1166,7 +1159,8 @@ static void do_version_composite_node_in_scene_tree(bNodeTree &node_tree, bNode 
   group_output_node->location[0] = node.location[0];
   group_output_node->location[1] = node.location[1];
 
-  bNodeSocket *image_input = blender::bke::node_find_socket(*group_output_node, SOCK_IN, "Image");
+  bNodeSocket *image_input = static_cast<bNodeSocket *>(group_output_node->inputs.first);
+  BLI_assert(blender::StringRef(image_input->name) == "Image");
   copy_v4_v4(image_input->default_value_typed<bNodeSocketValueRGBA>()->value,
              old_image_input->default_value_typed<bNodeSocketValueRGBA>()->value);
 
@@ -1206,8 +1200,16 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 40)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      bNodeTree *node_tree = scene->compositing_node_group;
+      bNodeTree *node_tree = scene->nodetree;
       if (node_tree) {
+        /* Add a default interface for the node tree. See the versioning function below for more
+         * details. */
+        node_tree->tree_interface.clear_items();
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_INPUT, nullptr);
+        node_tree->tree_interface.add_socket(
+            DATA_("Image"), "", "NodeSocketColor", NODE_INTERFACE_SOCKET_OUTPUT, nullptr);
+
         LISTBASE_FOREACH_BACKWARD_MUTABLE (bNode *, node, &node_tree->nodes) {
           if (node->type_legacy == CMP_NODE_COMPOSITE_DEPRECATED) {
             do_version_composite_node_in_scene_tree(*node_tree, *node);

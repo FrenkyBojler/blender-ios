@@ -15,7 +15,7 @@ namespace blender::nodes::node_composite_group_input_cc {
 
 using namespace blender::compositor;
 
-class GroupOutputOperation : public NodeOperation {
+class GroupInputOperation : public NodeOperation {
  public:
   using NodeOperation::NodeOperation;
 
@@ -137,7 +137,7 @@ namespace blender::nodes {
 compositor::NodeOperation *get_group_input_compositor_operation(compositor::Context &context,
                                                                 DNode node)
 {
-  return new node_composite_group_input_cc::GroupOutputOperation(context, node);
+  return new node_composite_group_input_cc::GroupInputOperation(context, node);
 }
 
 }  // namespace blender::nodes

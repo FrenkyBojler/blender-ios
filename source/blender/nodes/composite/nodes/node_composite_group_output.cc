@@ -27,7 +27,19 @@ using namespace blender::compositor;
 
 class GroupOutputOperation : public NodeOperation {
  public:
-  using NodeOperation::NodeOperation;
+  GroupOutputOperation(Context &context, DNode node) : NodeOperation(context, node)
+  {
+    for (const bNodeSocket *input : node->input_sockets()) {
+      if (!is_socket_available(input)) {
+        continue;
+      }
+
+      /* The structure type of the inputs of Group Output nodes are inferred, so we need to
+       * manually specify this here. */
+      InputDescriptor &descriptor = this->get_input_descriptor(input->identifier);
+      descriptor.expects_single_value = false;
+    }
+  }
 
   void execute() override
   {
@@ -174,7 +186,7 @@ void get_compositor_group_output_extra_info(blender::nodes::NodeExtraInfoParams 
     blender::nodes::NodeExtraInfoRow row;
     row.text = IFACE_("Ignored Outputs");
     row.icon = ICON_WARNING_LARGE;
-    row.tooltip = TIP_("Only the first output is considered");
+    row.tooltip = TIP_("Only the first output is considered while the rest are ignored");
     parameters.rows.append(std::move(row));
     return;
   }
