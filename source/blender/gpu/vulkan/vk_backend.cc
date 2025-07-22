@@ -490,7 +490,6 @@ void VKBackend::detect_workarounds(VKDevice &device)
   }
 
   if ((G.debug & G_DEBUG_GPU_VULKAN_DISABLE_DESCRIPTOR_INDEXING) != 0) {
-    std::cout << "Disabling descriptor indexing.\n";
     extensions.descriptor_indexing = false;
   }
 

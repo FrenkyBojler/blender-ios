@@ -266,10 +266,10 @@ enum {
   G_DEBUG_GPU_FORCE_WORKAROUNDS = (1 << 18),       /* Force GPU workarounds bypassing detection. */
   G_DEBUG_GPU_FORCE_VULKAN_LOCAL_READ = (1 << 19), /* Force GPU dynamic rendering local read. */
   G_DEBUG_GPU_VULKAN_DISABLE_DESCRIPTOR_INDEXING = (1 << 20),
-  G_DEBUG_GPU_COMPILE_SHADERS = (1 << 21),         /* Compile all statically defined shaders. . */
-  G_DEBUG_GPU_RENDERDOC = (1 << 22),               /* Enable RenderDoc integration. */
-  G_DEBUG_XR = (1 << 23),                          /* XR/OpenXR messages */
-  G_DEBUG_XR_TIME = (1 << 24),                     /* XR/OpenXR timing messages */
+  G_DEBUG_GPU_COMPILE_SHADERS = (1 << 21), /* Compile all statically defined shaders. . */
+  G_DEBUG_GPU_RENDERDOC = (1 << 22),       /* Enable RenderDoc integration. */
+  G_DEBUG_XR = (1 << 23),                  /* XR/OpenXR messages */
+  G_DEBUG_XR_TIME = (1 << 24),             /* XR/OpenXR timing messages */
 
   G_DEBUG_GHOST = (1 << 25),  /* Debug GHOST module. */
   G_DEBUG_WINTAB = (1 << 26), /* Debug Wintab. */
