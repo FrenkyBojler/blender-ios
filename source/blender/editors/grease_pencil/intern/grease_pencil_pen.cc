@@ -664,13 +664,19 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
                              points.first();
 
         const float3 depth_point = positions[point_i1];
-        const float t = ptd.closest_edge_t;
         const float3 Pm = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
         const float3 P0 = positions[point_i1];
         const float3 P3 = positions[point_i2];
         const float3 p1 = handles_right[point_i1];
         const float3 p2 = handles_left[point_i2];
         const float3 k2 = p1 - p2;
+
+        const float t = ptd.closest_edge_t;
+        const float t_sq = t * t;
+        const float t_cu = t_sq * t;
+        const float one_minus_t = 1.0f - t;
+        const float one_minus_t_sq = one_minus_t * one_minus_t;
+        const float one_minus_t_cu = one_minus_t_sq * one_minus_t;
 
         /**
          * Equation of Bezier Curve
@@ -694,13 +700,12 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
          * From the two equations => P1 = t(k1 + k2) and P2 = P1 - K2
          */
 
-        const float denom = (3 * (1 - t) * (1 - t) * t + 3 * (1 - t) * t * t);
+        const float denom = 3.0f * one_minus_t * t;
         if (denom == 0.0f) {
           return;
         }
 
-        const float3 P1 = (Pm - (1 - t) * (1 - t) * (1 - t) * P0 - t * t * t * P3 +
-                           3 * (1 - t) * t * t * k2) /
+        const float3 P1 = (Pm - one_minus_t_cu * P0 - t_cu * P3 + 3.0f * one_minus_t * t_sq * k2) /
                           denom;
         const float3 P2 = P1 - k2;
 
