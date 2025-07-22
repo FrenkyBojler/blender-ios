@@ -1502,6 +1502,7 @@ elseif(WIN32)
     install(IMPORTED_RUNTIME_ARTIFACTS sentry::sentry DESTINATION ${TARGETDIR_EXE})
     install(IMPORTED_RUNTIME_ARTIFACTS sentry_crashpad::crashpad_handler DESTINATION ${TARGETDIR_EXE})
     install(IMPORTED_RUNTIME_ARTIFACTS sentry_crashpad::crashpad_wer DESTINATION ${TARGETDIR_EXE})
+    set(PDB_NAME "${CMAKE_INSTALL_PREFIX}/blender_private.pdb")
     configure_file(
       "${CMAKE_SOURCE_DIR}/build_files/cmake/sentry.cmake.in"
       "${CMAKE_CURRENT_BINARY_DIR}/sentry.cmake"
