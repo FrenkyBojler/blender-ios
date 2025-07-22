@@ -203,16 +203,6 @@ class PREFERENCES_OT_keyconfig_test(Operator):
         return {'FINISHED'}
 
 
-def _is_path_readonly(path):
-    from bpy.utils import (
-        is_path_builtin,
-        is_path_extension,
-    )
-    # This is to determine whether the path points to a built-in preset file,
-    # in which case we do not want to overwrite it.
-    return is_path_builtin(path) or is_path_extension(path)
-
-
 class PREFERENCES_OT_keyconfig_import(Operator):
     """Import key configuration from a Python script"""
     bl_idname = "preferences.keyconfig_import"
@@ -243,18 +233,13 @@ class PREFERENCES_OT_keyconfig_import(Operator):
         default=True,
     )
 
-    def execute(self, _context):
+    # When importing keymap files with the same name with built-in presets (like
+    # "Blender" or "Industry Compatible"), we need to rename the imported ones
+    # so those entries can be properly removed (built-in ones can't be removed).
+    # See #118035.
+    def _preset_prevent_name_collision(self, config_name):
         import os
-        from os.path import basename
-        from pathlib import Path
-        import shutil
-
-        if not self.filepath:
-            self.report({'ERROR'}, "Filepath not set")
-            return {'CANCELLED'}
-
-        config_name = basename(self.filepath)
-
+        from bpy.utils import is_path_builtin
         path = bpy.utils.user_resource(
             'SCRIPTS',
             path=os.path.join("presets", "keyconfig"),
@@ -262,12 +247,26 @@ class PREFERENCES_OT_keyconfig_import(Operator):
         )
 
         use_name = config_name
-        preset_path = bpy.utils.preset_find(Path(config_name).stem, "keyconfig", ext=".py")
+        config_name_noext, config_name_ext = os.path.splitext(config_name)
+        preset_path = bpy.utils.preset_find(config_name_noext, "keyconfig", ext=".py")
 
-        if preset_path is not None and _is_path_readonly(preset_path):
-            use_name = Path(config_name).stem + " (Copy).py"
-        
+        if preset_path is not None and is_path_builtin(preset_path):
+            use_name = "{:s} (User){:s}".format(config_name_noext, config_name_ext)
+
         path = os.path.join(path, use_name)
+        return path
+
+    def execute(self, _context):
+        import shutil
+        from os.path import basename
+
+        if not self.filepath:
+            self.report({'ERROR'}, "Filepath not set")
+            return {'CANCELLED'}
+
+        config_name = basename(self.filepath)
+
+        path = self._preset_prevent_name_collision(config_name)
 
         try:
             if self.keep_original:
