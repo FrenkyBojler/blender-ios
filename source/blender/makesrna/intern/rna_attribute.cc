@@ -2137,34 +2137,20 @@ void rna_def_attributes_common(StructRNA *srna, const AttributeOwnerType type)
       break;
   }
 
-  prop = RNA_def_property(srna, "color_attributes", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_funcs(prop,
-                                    "rna_AttributeGroup_color_iterator_begin",
-                                    "rna_AttributeGroup_color_iterator_next",
-                                    "rna_iterator_array_end",
-                                    "rna_AttributeGroup_color_iterator_get",
-                                    "rna_AttributeGroup_color_length",
-                                    nullptr,
-                                    nullptr,
-                                    nullptr);
-  RNA_def_property_struct_type(prop, "Attribute");
-  RNA_def_property_ui_text(prop, "Color Attributes", "Geometry color attributes");
-  switch (type) {
-    case AttributeOwnerType::Mesh:
-      RNA_def_property_srna(prop, "AttributeGroupMesh");
-      break;
-    case AttributeOwnerType::PointCloud:
-      RNA_def_property_srna(prop, "AttributeGroupPointCloud");
-      break;
-    case AttributeOwnerType::Curves:
-      RNA_def_property_srna(prop, "AttributeGroupCurves");
-      break;
-    case AttributeOwnerType::GreasePencil:
-      RNA_def_property_srna(prop, "AttributeGroupGreasePencil");
-      break;
-    case AttributeOwnerType::GreasePencilDrawing:
-      RNA_def_property_srna(prop, "AttributeGroupGreasePencilDrawing");
-      break;
+  if (type == AttributeOwnerType::Mesh) {
+    prop = RNA_def_property(srna, "color_attributes", PROP_COLLECTION, PROP_NONE);
+    RNA_def_property_collection_funcs(prop,
+                                      "rna_AttributeGroup_color_iterator_begin",
+                                      "rna_AttributeGroup_color_iterator_next",
+                                      "rna_iterator_array_end",
+                                      "rna_AttributeGroup_color_iterator_get",
+                                      "rna_AttributeGroup_color_length",
+                                      nullptr,
+                                      nullptr,
+                                      nullptr);
+    RNA_def_property_struct_type(prop, "Attribute");
+    RNA_def_property_ui_text(prop, "Color Attributes", "Geometry color attributes");
+    RNA_def_property_srna(prop, "AttributeGroupMesh");
   }
 }
 
