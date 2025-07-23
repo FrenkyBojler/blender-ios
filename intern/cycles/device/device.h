@@ -169,9 +169,6 @@ class Device {
   /* constant memory */
   virtual void const_copy_to(const char *name, void *host, const size_t size) = 0;
 
-  /* prepare to load/compile kernels for a given scene, called immediately before load_kernels */
-  virtual void prepare_load_kernels(Scene * /*scene*/) {}
-
   /* load/compile kernels, must be called before adding tasks */
   virtual bool load_kernels(uint /*kernel_features*/)
   {
@@ -213,6 +210,12 @@ class Device {
   virtual void build_bvh(BVH *bvh, Progress &progress, bool refit);
   /* Used by Metal and OptiX. */
   virtual void release_bvh(BVH * /*bvh*/) {}
+
+  /* Inform of BVH limits, return true to force-rebuild all BVHs and kernels. */
+  virtual bool set_bvh_limits(size_t /*instance_count*/, size_t /*max_prim_count*/)
+  {
+    return false;
+  }
 
   /* multi device */
   virtual int device_number(Device * /*sub_device*/)

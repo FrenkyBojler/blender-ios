@@ -137,7 +137,7 @@ class MetalDevice : public Device {
 
   void build_bvh(BVH *bvh, Progress &progress, bool refit) override;
 
-  void prepare_load_kernels(Scene *scene) override;
+  bool set_bvh_limits(size_t instance_count, size_t max_prim_count) override;
 
   void optimize_for_scene(Scene *scene) override;
 

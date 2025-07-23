@@ -10,10 +10,6 @@
 #  include "device/metal/device.h"
 #  include "device/metal/device_impl.h"
 
-#  include "scene/hair.h"
-#  include "scene/mesh.h"
-#  include "scene/object.h"
-#  include "scene/pointcloud.h"
 #  include "scene/scene.h"
 
 #  include "session/display_driver.h"
@@ -825,7 +821,7 @@ bool MetalDevice::is_ready(string &status) const
   return true;
 }
 
-void MetalDevice::prepare_load_kernels(Scene *scene)
+bool MetalDevice::set_bvh_limits(size_t instance_count, size_t max_prim_count)
 {
   /* For object & primitive counts above a certain limit, MetalRT requires extended limits to be
    * built into the kernels, and when building BVHs. Following best practices, this should only
@@ -836,42 +832,29 @@ void MetalDevice::prepare_load_kernels(Scene *scene)
   const int standard_limits_max_prim_count = (1 << 28);
   const int standard_limits_max_instance_count = (1 << 24);
 
-  /* In live viewport, use extended limits in case ongoing edits push us over the threshold.
-   * It isn't possible to render with a mix of standard and extended limit BVHs.
-   */
-  if (!scene->params.background) {
+  bool using_metalrt_extended_limits_before = use_metalrt_extended_limits;
+
+  /* Enable extended limits if object count exceeds max supported by standard limits.
+   * Once enabled, it remains enabled for the lifetime of the device. */
+  if (instance_count > standard_limits_max_instance_count ||
+      max_prim_count > standard_limits_max_prim_count)
+  {
     use_metalrt_extended_limits = true;
-    metal_printf("Enabling MetalRT extended limits (live viewport)");
-    return;
+    metal_printf("Enabling MetalRT extended limits (max_prim_count = %zu, instance_count = %zu)",
+                 max_prim_count,
+                 instance_count);
   }
 
-  /* Enable extended limits if object count exceeds max supported by standard limits. */
-  if (scene->objects.size() > standard_limits_max_instance_count) {
-    use_metalrt_extended_limits = true;
-    metal_printf("Enabling MetalRT extended limits (objects.size() = %zu)", scene->objects.size());
-    return;
+  /* Crude runtime switch for debugging forced rebuilds. */
+#  if 0
+  std::string str;
+  if (path_read_text(path_cache_get("ExtendedLimitsOverride.txt", str)) {
+    use_metalrt_extended_limits = atoi(str.c_str()) != 0;
   }
+#  endif
 
-  /* Enable extended limits if any prim counts exceeds max supported by standard limits. */
-  for (Object *object : scene->objects) {
-    Geometry *geom = object->get_geometry();
-    size_t prim_count = 0;
-    if (geom->is_mesh()) {
-      prim_count = static_cast<Mesh *>(geom)->num_triangles();
-    }
-    else if (geom->is_hair()) {
-      prim_count = static_cast<Hair *>(geom)->num_segments();
-    }
-    else if (geom->is_pointcloud()) {
-      prim_count = static_cast<PointCloud *>(geom)->num_points();
-    }
-
-    if (prim_count > standard_limits_max_prim_count) {
-      use_metalrt_extended_limits = true;
-      metal_printf("Enabling MetalRT extended limits (%zu prims)", prim_count);
-      return;
-    }
-  }
+  /* All BVHs need to be rebuilt if the extended limits state changes. */
+  return using_metalrt_extended_limits_before != use_metalrt_extended_limits;
 }
 
 void MetalDevice::optimize_for_scene(Scene *scene)
