@@ -15,16 +15,11 @@ static void foreach_behavior_recursive(
     const FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)>
         fn)
 {
-  if (std::optional<const Bundle::Item> type_item = behaviors_bundle.lookup("Type")) {
-    if (type_item->type->type != SOCK_STRING) {
+  if (const std::optional<std::string> type = behaviors_bundle.lookup<std::string>("Type")) {
+    if (type->empty()) {
       return;
     }
-    const std::string type =
-        static_cast<const bke::SocketValueVariant *>(type_item->value)->get<std::string>();
-    if (type.empty()) {
-      return;
-    }
-    fn(type, behaviors_bundle, path_stack);
+    fn(*type, behaviors_bundle, path_stack);
     return;
   }
   for (const Bundle::StoredItem &item : behaviors_bundle.items()) {
