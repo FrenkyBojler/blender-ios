@@ -8,3 +8,4 @@ Referenced by issue #142087, The solidify modifier has the wrong thickness in Bl
 Referenced by issue #142483, Regression: Incorrect subdivision surface interpolation with custom normals
 Referenced by issue #142485, Regression: Shading Issue transforming a object with custom normals
 Referenced by pull request #142892, Fix #142087: Use true normals in solidify modifier
+Referenced by commit 9ea9d3b7777798b0b4af0ca03176999ec28e4305, Fix #142087: Use true normals in solidify modifier
