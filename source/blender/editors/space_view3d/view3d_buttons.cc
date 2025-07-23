@@ -541,7 +541,6 @@ static CurvesSelectionStatus init_curves_selection_status(
         CurvesSelectionStatus value = acc;
 
         selection.slice_content(range).foreach_index([&](const int curve) {
-          const IndexRange points = points_by_curve[curve];
           const CurveType curve_type = CurveType(curve_types[curve]);
           const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
           const bool is_bezier = curve_type == CURVE_TYPE_BEZIER;
@@ -627,7 +626,6 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
                                                            MutableSpan<int>();
 
   selection.foreach_index(GrainSize(512), [&](const int curve) {
-    const IndexRange points = points_by_curve[curve];
     const CurveType curve_type = CurveType(curve_types[curve]);
     const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
 
