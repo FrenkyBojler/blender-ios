@@ -10,9 +10,6 @@
 #include <memory>
 #include <system_error>
 
-#include "DNA_curve_enums.h"
-#include "DNA_curve_types.h"
-
 #include "BKE_context.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_report.hh"
