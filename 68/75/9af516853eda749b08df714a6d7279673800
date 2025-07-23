@@ -3,3 +3,4 @@ Referenced by pull request #141772, Fix: Grease Pencil: Problem removing last la
 Referenced by commit 07b070404a853cb4ea1f66347043f537e338aea7, Fix: Grease Pencil: Problem removing last layer with attributes
 Referenced by pull request #142327, Fix #141887: Crash/assert hit after reading Grease Pencil
 Referenced by commit 11d2f488823a31d829148ae5aef9d4aa348558da, Fix #141887: Crash/assert hit after reading Grease Pencil
+Referenced by issue #141871, Blender LTS: Maintenance Task 4.5
