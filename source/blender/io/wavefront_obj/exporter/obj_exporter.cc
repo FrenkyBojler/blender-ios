@@ -269,25 +269,6 @@ static void write_nurbs_curve_objects(const Span<std::unique_ptr<OBJCurve>> expo
   fh.write_to_file(obj_writer.get_outfile());
 }
 
-static void write_materials(MTLWriter *mtl_writer, const OBJExportParams &export_params)
-{
-  BLI_assert(mtl_writer);
-  mtl_writer->write_header(export_params.blen_filepath);
-  char dest_dir[FILE_MAX];
-  if (export_params.file_base_for_tests[0] == '\0') {
-    BLI_path_split_dir_part(export_params.filepath, dest_dir, sizeof(dest_dir));
-  }
-  else {
-    STRNCPY(dest_dir, export_params.file_base_for_tests);
-  }
-  BLI_path_slash_native(dest_dir);
-  BLI_path_normalize(dest_dir);
-  mtl_writer->write_materials(export_params.blen_filepath,
-                              export_params.path_mode,
-                              dest_dir,
-                              export_params.export_pbr_extensions);
-}
-
 static bool open_stream_writers(const OBJExportParams &export_params,
                                 const char *filepath,
                                 std::unique_ptr<OBJWriter> &r_frame_writer,
@@ -318,6 +299,25 @@ static bool open_stream_writers(const OBJExportParams &export_params,
     }
   }
   return true;
+}
+
+static void write_materials(MTLWriter *mtl_writer, const OBJExportParams &export_params)
+{
+  BLI_assert(mtl_writer);
+  mtl_writer->write_header(export_params.blen_filepath);
+  char dest_dir[FILE_MAX];
+  if (export_params.file_base_for_tests[0] == '\0') {
+    BLI_path_split_dir_part(export_params.filepath, dest_dir, sizeof(dest_dir));
+  }
+  else {
+    STRNCPY(dest_dir, export_params.file_base_for_tests);
+  }
+  BLI_path_slash_native(dest_dir);
+  BLI_path_normalize(dest_dir);
+  mtl_writer->write_materials(export_params.blen_filepath,
+                              export_params.path_mode,
+                              dest_dir,
+                              export_params.export_pbr_extensions);
 }
 
 void export_objects(const OBJExportParams &export_params,
