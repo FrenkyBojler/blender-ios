@@ -1586,7 +1586,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
                   regionbase,
                   RGN_TYPE_ASSET_SHELF,
                   "Asset shelf for compositing (versioning)",
-                  RGN_TYPE_TOOL_HEADER))
+                  RGN_TYPE_HEADER))
           {
             new_shelf_region->alignment = RGN_ALIGN_BOTTOM;
           }
