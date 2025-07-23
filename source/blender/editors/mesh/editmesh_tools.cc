@@ -4809,25 +4809,31 @@ static FillGridSplitJoin *edbm_fill_grid_split_join_init(BMEditMesh *em)
   BMEdge *e;
   BMO_ITER (e, &siter, split_op.slots_out, "boundary_map.out", 0) {
     BMEdge *e_dst = static_cast<BMEdge *>(BMO_iter_map_value_ptr(&siter));
-
     BLI_assert(e_dst);
 
+    if (e == e_dst) {
+      e = nullptr;
+    }
     /* For edges, flip the selection from the edge of the hole to the edge of the island. */
-    BM_elem_flag_disable(e, BM_ELEM_SELECT);
     BM_elem_flag_enable(e_dst, BM_ELEM_SELECT);
 
-    /* For verts, flip the selection from the edge of the hole to the edge of the island.
-     * Also add it to the weld map. But check selection first. Don't try to add the same vert to
-     * the map more than once. If the selection was changed false, it's already been processed. */
-    if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
-    }
-    if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
-      BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
-      BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
-      BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+    if (e) {
+      BM_elem_flag_disable(e, BM_ELEM_SELECT);
+
+      /* For verts, flip the selection from the edge of the hole to the edge of the island.
+       * Also add it to the weld map. But check selection first. Don't try to add the same vert to
+       * the map more than once. If the selection was changed false, it's already been processed.
+       */
+      if (BM_elem_flag_test(e->v1, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v1, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v1, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v1, e_dst->v1);
+      }
+      if (BM_elem_flag_test(e->v2, BM_ELEM_SELECT)) {
+        BM_elem_flag_disable(e->v2, BM_ELEM_SELECT);
+        BM_elem_flag_enable(e_dst->v2, BM_ELEM_SELECT);
+        BMO_slot_map_elem_insert(&split_join->weld_op, weld_target_map, e->v2, e_dst->v2);
+      }
     }
   }
 
