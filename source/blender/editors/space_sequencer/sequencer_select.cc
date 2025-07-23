@@ -893,8 +893,10 @@ static void sequencer_copy_handles_to_selected_strips(const Scene *scene,
   Strip *source = selection.strip1;
   /* Test for neighboring strips in the `copy_to` list. If any border one another, remove them,
    * since we don't want to mess with dual handles. */
-  for (Strip *strip_a : copy_to) {
-    for (Strip *strip_b : copy_to) {
+  blender::VectorSet<Strip *> test(copy_to);
+  test.add(source);
+  for (Strip *strip_a : test) {
+    for (Strip *strip_b : test) {
       if (strip_a == strip_b || strip_a->channel != strip_b->channel) {
         continue;
       }
@@ -914,7 +916,6 @@ static void sequencer_copy_handles_to_selected_strips(const Scene *scene,
     }
   }
 
-  copy_to.remove(source);
   for (Strip *strip : copy_to) {
     /* NOTE that this can be `ALLSEL` since `prev_selection` was deselected earlier. */
     strip->flag &= ~STRIP_ALLSEL;
@@ -1354,6 +1355,7 @@ wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 
   if (copy_handles_to_sel) {
     copy_to = seq::query_selected_strips(seq::active_seqbase_get(scene->ed));
+    copy_to.remove(selection.strip1);
     copy_to.remove_if([](Strip *strip) { return (strip->type & STRIP_TYPE_EFFECT); });
   }
 
