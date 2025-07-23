@@ -115,6 +115,9 @@ ConstraintSet &create_constraint__fixed_positions(ResourceScope &scope,
 ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
                                                            const float3 &position,
                                                            const float3 &normal);
+ConstraintSet &create_constraint__global_volume(ResourceScope &scope,
+                                                std::string rest_volume_name,
+                                                float overpressure = 1.0f);
 
 inline void LocalConstraintCorrections::add_position_correction(const int geometry_i,
                                                                 const int position_i,

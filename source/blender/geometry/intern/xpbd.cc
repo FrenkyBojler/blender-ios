@@ -506,6 +506,129 @@ class InfiniteCollisionPlaneConstraintSet : public ConstraintSet {
   }
 };
 
+class GlobalVolumeConstraintSet : public ConstraintSet {
+ private:
+  std::string rest_volume_name_;
+  float overpressure_;
+
+ public:
+  GlobalVolumeConstraintSet(std::string rest_volume_name, const float overpressure = 1.0f)
+      : rest_volume_name_(std::move(rest_volume_name)), overpressure_(overpressure)
+  {
+  }
+
+  void ensure_init(MutableSpan<SimGeometry> sim_geometries) override
+  {
+    for (SimGeometry &sim_geometry : sim_geometries) {
+      Mesh **mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
+      if (!mesh_ptr) {
+        continue;
+      }
+      Mesh &mesh = **mesh_ptr;
+      bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
+      if (attributes.contains(rest_volume_name_)) {
+        continue;
+      }
+      const float volume = this->compute_volume(mesh);
+      attributes.add<float>(
+          rest_volume_name_,
+          bke::AttrDomain::Point,
+          bke::AttributeInitVArray{VArray<float>::from_single(volume, mesh.verts_num)});
+    }
+  }
+
+  void solve(ConstraintSetSolveParams &params) override
+  {
+    for (const int geometry_i : params.sim_geometries.index_range()) {
+      const SimGeometry &sim_geometry = params.sim_geometries[geometry_i];
+      const Mesh *const *mesh_ptr = std::get_if<Mesh *>(&sim_geometry.data);
+      if (!mesh_ptr) {
+        continue;
+      }
+      const Mesh &mesh = **mesh_ptr;
+      if (mesh.verts_num == 0) {
+        continue;
+      }
+      const bke::AttributeAccessor attributes = mesh.attributes();
+      const bke::AttributeReader<float> rest_volume_attribute = attributes.lookup<float>(
+          rest_volume_name_, bke::AttrDomain::Point);
+      if (!rest_volume_attribute) {
+        continue;
+      }
+      const VArray<float> masses = *attributes.lookup_or_default<float>(
+          sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
+
+      const float rest_volume = rest_volume_attribute.varray[0];
+      const float current_volume = this->compute_volume(mesh);
+      const float volume_diff = current_volume - overpressure_ * rest_volume;
+
+      Array<float3> gradients(mesh.verts_num, float3());
+      const Span<int3> tris = mesh.corner_tris();
+      const Span<float3> positions = mesh.vert_positions();
+      const Span<int> corner_verts = mesh.corner_verts();
+      threading::parallel_for(tris.index_range(), 512, [&](const IndexRange range) {
+        for (const int tri_i : range) {
+          const int3 &tri = tris[tri_i];
+          const int v0 = corner_verts[tri[0]];
+          const int v1 = corner_verts[tri[1]];
+          const int v2 = corner_verts[tri[2]];
+          const float3 &p0 = positions[v0];
+          const float3 &p1 = positions[v1];
+          const float3 &p2 = positions[v2];
+          const float3 c_1_2 = math::cross(p1, p2);
+          const float3 c_2_0 = math::cross(p2, p0);
+          const float3 c_0_1 = math::cross(p0, p1);
+          const float3 c = c_1_2 + c_2_0 + c_0_1;
+          gradients[v0] += c;
+          gradients[v1] += c;
+          gradients[v2] += c;
+        }
+      });
+
+      float lambda_divisor = 0.0f;
+      for (const int i : IndexRange(mesh.verts_num)) {
+        lambda_divisor += math::length_squared(gradients[i]) / masses[i];
+      }
+      const float lambda = math::safe_divide(volume_diff, lambda_divisor);
+
+      threading::parallel_for(IndexRange(mesh.verts_num), 512, [&](const IndexRange range) {
+        LocalConstraintCorrections &local_corrections = params.corrections.local();
+        for (const int i : range) {
+          const float3 offset = -lambda / masses[i] * gradients[i];
+          local_corrections.add_position_correction(geometry_i, i, offset);
+        }
+      });
+    }
+  }
+
+  float compute_volume(const Mesh &mesh) const
+  {
+    const Span<int3> tris = mesh.corner_tris();
+    const Span<int> corner_verts = mesh.corner_verts();
+    const Span<float3> positions = mesh.vert_positions();
+
+    const float volume = threading::parallel_deterministic_reduce<float>(
+        tris.index_range(),
+        512,
+        0.0f,
+        [&](const IndexRange range, float volume) {
+          for (const int tri_i : range) {
+            const int3 &tri = tris[tri_i];
+            const int v0 = corner_verts[tri[0]];
+            const int v1 = corner_verts[tri[1]];
+            const int v2 = corner_verts[tri[2]];
+            const float3 &p0 = positions[v0];
+            const float3 &p1 = positions[v1];
+            const float3 &p2 = positions[v2];
+            volume += math::dot(math::cross(p0, p1), p2);
+          }
+          return volume;
+        },
+        [&](const float a, const float b) { return a + b; });
+    return volume / 6.0f;
+  }
+};
+
 ConstraintSet &create_constraint__edge_lengths(ResourceScope &scope,
                                                std::string rest_length_attribute,
                                                const float compliance)
@@ -532,6 +655,13 @@ ConstraintSet &create_constraint__infinite_collision_plane(ResourceScope &scope,
                                                            const float3 &normal)
 {
   return scope.construct<InfiniteCollisionPlaneConstraintSet>(position, normal);
+}
+
+ConstraintSet &create_constraint__global_volume(ResourceScope &scope,
+                                                std::string rest_volume_name,
+                                                const float overpressure)
+{
+  return scope.construct<GlobalVolumeConstraintSet>(std::move(rest_volume_name), overpressure);
 }
 
 void solve(Behaviors &behaviors, const float total_delta_time, const int substeps)

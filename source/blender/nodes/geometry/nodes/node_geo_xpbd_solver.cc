@@ -269,6 +269,19 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
                   scope, *position, *normal));
           return;
         }
+        if (type == "Global Volume Constraint") {
+          std::optional<std::string> rest_volume_name =
+              get_from_bundle__value_variant<std::string>(behavior_bundle, "Rest Volume Name");
+          if (!rest_volume_name || rest_volume_name->empty()) {
+            return;
+          }
+          const float overpressure = get_from_bundle__value_variant<float>(behavior_bundle,
+                                                                           "Overpressure")
+                                         .value_or(1.0f);
+          behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__global_volume(
+              scope, std::move(*rest_volume_name), overpressure));
+          return;
+        }
       });
 
   return behaviors;
