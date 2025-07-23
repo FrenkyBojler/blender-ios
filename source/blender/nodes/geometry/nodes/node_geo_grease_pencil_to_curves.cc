@@ -17,7 +17,8 @@ namespace blender::nodes::node_geo_grease_pencil_to_curves_cc {
 static void node_declare(NodeDeclarationBuilder &b)
 {
   b.add_input<decl::Geometry>("Grease Pencil")
-      .supported_type(bke::GeometryComponent::Type::GreasePencil);
+      .supported_type(bke::GeometryComponent::Type::GreasePencil)
+      .description("Grease pencil data to convert to curves");
   b.add_input<decl::Bool>("Selection")
       .default_value(true)
       .hide_value()
@@ -84,7 +85,7 @@ static void node_geo_exec(GeoNodeExecParams params)
     if (ELEM(iter.name, "opacity")) {
       return;
     }
-    if (iter.data_type == CD_PROP_STRING) {
+    if (iter.data_type == bke::AttrType::String) {
       return;
     }
     const GAttributeReader src_attribute = iter.get();

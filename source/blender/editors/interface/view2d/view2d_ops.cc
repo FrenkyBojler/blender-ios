@@ -52,7 +52,7 @@ static bool view2d_poll(bContext *C)
 static float view2d_scroll_delta_y_snap_page_size(const View2D &v2d, const float delta_y)
 {
   const float page_size = view2d_page_size_y(v2d);
-  const int delta_pages = int((delta_y - page_size * 0.5f) / page_size);
+  const int delta_pages = int(delta_y / (page_size * 0.5f));
 
   /* Apply no change, don't update last coordinates. */
   if (abs(delta_pages) < 1) {
@@ -319,7 +319,7 @@ static wmOperatorStatus view_pan_modal(bContext *C, wmOperator *op, const wmEven
 
         view_pan_exit(op);
         WM_cursor_modal_restore(CTX_wm_window(C));
-        WM_operator_name_call(C, "VIEW2D_OT_zoom", WM_OP_INVOKE_DEFAULT, nullptr, event);
+        WM_operator_name_call(C, "VIEW2D_OT_zoom", blender::wm::OpCallContext::InvokeDefault, nullptr, event);
         return OPERATOR_FINISHED;
       }
 #endif

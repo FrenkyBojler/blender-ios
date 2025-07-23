@@ -118,7 +118,7 @@ Strip *strip_under_mouse_get(const Scene *scene, const View2D *v2d, const int mv
 
 blender::VectorSet<Strip *> all_strips_from_context(bContext *C)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBase *seqbase = seq::active_seqbase_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
@@ -133,7 +133,7 @@ blender::VectorSet<Strip *> all_strips_from_context(bContext *C)
 
 blender::VectorSet<Strip *> selected_strips_from_context(bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBase *seqbase = seq::active_seqbase_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
@@ -152,7 +152,7 @@ blender::VectorSet<Strip *> selected_strips_from_context(bContext *C)
 
 Strip *active_strip_from_context(bContext *C)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   const Editing *ed = seq::editing_get(scene);
 
   Strip *strip = seq::select_active_get(scene);
@@ -178,7 +178,7 @@ Strip *active_strip_from_context(bContext *C)
 
 bool active_strip_pair_from_context(bContext *C, Strip **r_strip_act, Strip **r_strip_other)
 {
-  const Scene *scene = CTX_data_scene(C);
+  const Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
   *r_strip_act = active_strip_from_context(C);
@@ -341,24 +341,12 @@ void select_surround_from_last(Scene *scene)
 
 void select_strip_single(Scene *scene, Strip *strip, bool deselect_all)
 {
-  Editing *ed = seq::editing_get(scene);
-
   if (deselect_all) {
     deselect_all_strips(scene);
   }
 
   seq::select_active_set(scene, strip);
 
-  if (ELEM(strip->type, STRIP_TYPE_IMAGE, STRIP_TYPE_MOVIE)) {
-    if (strip->data) {
-      BLI_strncpy(ed->act_imagedir, strip->data->dirpath, FILE_MAXDIR);
-    }
-  }
-  else if (strip->type == STRIP_TYPE_SOUND_RAM) {
-    if (strip->data) {
-      BLI_strncpy(ed->act_sounddir, strip->data->dirpath, FILE_MAXDIR);
-    }
-  }
   strip->flag |= SELECT;
   recurs_sel_strip(strip);
 }
@@ -493,7 +481,7 @@ void sequencer_select_do_updates(const bContext *C, Scene *scene)
 static wmOperatorStatus sequencer_de_select_all_exec(bContext *C, wmOperator *op)
 {
   int action = RNA_enum_get(op->ptr, "action");
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
     return OPERATOR_CANCELLED;
@@ -569,7 +557,7 @@ void SEQUENCER_OT_select_all(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_inverse_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (sequencer_view_has_preview_poll(C) && !sequencer_view_preview_only_poll(C)) {
     return OPERATOR_CANCELLED;
@@ -616,20 +604,7 @@ void SEQUENCER_OT_select_inverse(wmOperatorType *ot)
 
 static void sequencer_select_set_active(Scene *scene, Strip *strip)
 {
-  Editing *ed = seq::editing_get(scene);
-
   seq::select_active_set(scene, strip);
-
-  if (ELEM(strip->type, STRIP_TYPE_IMAGE, STRIP_TYPE_MOVIE)) {
-    if (strip->data) {
-      BLI_strncpy(ed->act_imagedir, strip->data->dirpath, FILE_MAXDIR);
-    }
-  }
-  else if (strip->type == STRIP_TYPE_SOUND_RAM) {
-    if (strip->data) {
-      BLI_strncpy(ed->act_sounddir, strip->data->dirpath, FILE_MAXDIR);
-    }
-  }
   recurs_sel_strip(strip);
 }
 
@@ -675,7 +650,7 @@ static void sequencer_select_linked_handle(const bContext *C,
                                            Strip *strip,
                                            const eStripHandle handle_clicked)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   if (!ELEM(handle_clicked, STRIP_HANDLE_LEFT, STRIP_HANDLE_RIGHT)) {
     /* First click selects the strip and its adjacent handles (if valid).
@@ -792,7 +767,7 @@ static int strip_sort_for_center_select(const void *a, const void *b)
 static Strip *strip_select_from_preview(
     const bContext *C, const int mval[2], const bool toggle, const bool extend, const bool center)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBase *seqbase = seq::active_seqbase_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
@@ -1028,8 +1003,8 @@ static void select_linked_time(const Scene *scene,
  * Similar to `strip_handle_draw_size_get()`, but returns a larger clickable area that is
  * the same for a given zoom level no matter whether "simplified tweaking" is turned off or on.
  * `strip_clickable_areas_get` will pad this past strip bounds by 1/3 of the inner handle size,
- * making the full handle size either 15 + 5 = 20px or 1/4 + 1/12 = 1/3 of the strip size.
- */
+ * making the full size 15 + 5 = 20px in frames for large strips, 1/4 + 1/12 = 1/3 of the strip
+ * size for small ones. */
 static float inner_clickable_handle_size_get(const Scene *scene,
                                              const Strip *strip,
                                              const View2D *v2d)
@@ -1237,7 +1212,7 @@ StripSelection pick_strip_and_handle(const Scene *scene, const View2D *v2d, floa
 wmOperatorStatus sequencer_select_exec(bContext *C, wmOperator *op)
 {
   const View2D *v2d = UI_view2d_fromcontext(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ARegion *region = CTX_wm_region(C);
   ScrArea *area = CTX_wm_area(C);
@@ -1530,7 +1505,7 @@ void SEQUENCER_OT_select(wmOperatorType *ot)
 static wmOperatorStatus sequencer_select_handle_exec(bContext *C, wmOperator *op)
 {
   const View2D *v2d = UI_view2d_fromcontext(C);
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
   if (ed == nullptr) {
@@ -1712,7 +1687,7 @@ static bool select_more_less_impl(Scene *scene, bool select_more)
 
 static wmOperatorStatus sequencer_select_more_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (!select_more_less_impl(scene, true)) {
     return OPERATOR_CANCELLED;
@@ -1748,7 +1723,7 @@ void SEQUENCER_OT_select_more(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_less_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
 
   if (!select_more_less_impl(scene, false)) {
     return OPERATOR_CANCELLED;
@@ -1786,7 +1761,7 @@ static wmOperatorStatus sequencer_select_linked_pick_invoke(bContext *C,
                                                             wmOperator *op,
                                                             const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
 
   bool extend = RNA_boolean_get(op->ptr, "extend");
@@ -1847,7 +1822,7 @@ void SEQUENCER_OT_select_linked_pick(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_linked_exec(bContext *C, wmOperator * /*op*/)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   bool selected;
 
   selected = true;
@@ -1904,7 +1879,7 @@ static const EnumPropertyItem prop_select_handles_side_types[] = {
 
 static wmOperatorStatus sequencer_select_handles_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   int sel_side = RNA_enum_get(op->ptr, "side");
   LISTBASE_FOREACH (Strip *, strip, ed->seqbasep) {
@@ -2001,7 +1976,7 @@ void SEQUENCER_OT_select_handles(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_side_of_frame_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   const bool extend = RNA_boolean_get(op->ptr, "extend");
   const int side = RNA_enum_get(op->ptr, "side");
@@ -2076,7 +2051,7 @@ void SEQUENCER_OT_select_side_of_frame(wmOperatorType *ot)
 
 static wmOperatorStatus sequencer_select_side_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
 
   const int sel_side = RNA_enum_get(op->ptr, "side");
@@ -2173,7 +2148,7 @@ static void seq_box_select_strip_from_preview(const bContext *C,
                                               const rctf *rect,
                                               const eSelectOp mode)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   Editing *ed = seq::editing_get(scene);
   ListBase *seqbase = seq::active_seqbase_get(ed);
   ListBase *channels = seq::channels_displayed_get(ed);
@@ -2198,7 +2173,7 @@ static void seq_box_select_strip_from_preview(const bContext *C,
 
 static wmOperatorStatus sequencer_box_select_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   View2D *v2d = UI_view2d_fromcontext(C);
   Editing *ed = seq::editing_get(scene);
 
@@ -2305,7 +2280,7 @@ static wmOperatorStatus sequencer_box_select_invoke(bContext *C,
                                                     wmOperator *op,
                                                     const wmEvent *event)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   const View2D *v2d = UI_view2d_fromcontext(C);
   ARegion *region = CTX_wm_region(C);
 
@@ -2653,7 +2628,7 @@ static bool select_grouped_effect_link(const Scene *scene,
 
 static wmOperatorStatus sequencer_select_grouped_exec(bContext *C, wmOperator *op)
 {
-  Scene *scene = CTX_data_scene(C);
+  Scene *scene = CTX_data_sequencer_scene(C);
   ListBase *seqbase = seq::active_seqbase_get(seq::editing_get(scene));
   Strip *act_strip = active_strip_from_context(C);
 
