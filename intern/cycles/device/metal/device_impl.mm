@@ -845,14 +845,6 @@ bool MetalDevice::set_bvh_limits(size_t instance_count, size_t max_prim_count)
                  instance_count);
   }
 
-  /* Crude runtime switch for debugging forced rebuilds. */
-#  if 0
-  std::string str;
-  if (path_read_text(path_cache_get("ExtendedLimitsOverride.txt", str)) {
-    use_metalrt_extended_limits = atoi(str.c_str()) != 0;
-  }
-#  endif
-
   /* All BVHs need to be rebuilt if the extended limits state changes. */
   return using_metalrt_extended_limits_before != use_metalrt_extended_limits;
 }

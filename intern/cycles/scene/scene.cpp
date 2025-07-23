@@ -656,7 +656,6 @@ bool Scene::load_kernels(Progress &progress)
     const scoped_timer timer;
 
     log_kernel_features(kernel_features);
-
     if (!device->load_kernels(kernel_features)) {
       string message = device->error_message();
       if (message.empty()) {
