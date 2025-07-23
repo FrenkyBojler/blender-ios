@@ -2402,7 +2402,7 @@ void view3d_buttons_register(ARegionType *art)
 
   pt = MEM_callocN<PanelType>("spacetype view3d panel curves");
   STRNCPY(pt->idname, "VIEW3D_PT_curves");
-  STRNCPY(pt->label, N_("Spline Data")); /* XXX C panels unavailable through RNA bpy.types! */
+  STRNCPY(pt->label, N_("Curve Data")); /* XXX C panels unavailable through RNA bpy.types! */
   STRNCPY(pt->category, "Item");
   STRNCPY(pt->translation_context, BLT_I18NCONTEXT_DEFAULT_BPYRNA);
   pt->draw = view3d_panel_curves_data;
