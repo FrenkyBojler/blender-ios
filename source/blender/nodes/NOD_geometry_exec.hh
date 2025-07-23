@@ -25,6 +25,7 @@
 
 #include "NOD_derived_node_tree.hh"
 #include "NOD_geometry_nodes_lazy_function.hh"
+#include "NOD_geometry_nodes_values.hh"
 
 namespace blender::nodes {
 
@@ -97,28 +98,6 @@ class GeoNodeExecParams {
   {
   }
 
-  template<typename T>
-  static constexpr bool is_field_base_type_v = is_same_any_v<T,
-                                                             float,
-                                                             int,
-                                                             bool,
-                                                             ColorGeometry4f,
-                                                             float3,
-                                                             std::string,
-                                                             math::Quaternion,
-                                                             float4x4>;
-
-  template<typename T>
-  static constexpr bool stored_as_SocketValueVariant_v = is_field_base_type_v<T> ||
-                                                         fn::is_field_v<T> ||
-                                                         bke::is_VolumeGrid_v<T> ||
-                                                         is_same_any_v<T,
-                                                                       GField,
-                                                                       bke::GVolumeGrid,
-                                                                       nodes::BundlePtr,
-                                                                       nodes::ClosurePtr,
-                                                                       nodes::ListPtr>;
-
   /**
    * Get the input value for the input socket with the given identifier.
    *
@@ -129,7 +108,7 @@ class GeoNodeExecParams {
     if constexpr (std::is_enum_v<T>) {
       return T(this->extract_input<int>(identifier));
     }
-    else if constexpr (stored_as_SocketValueVariant_v<T>) {
+    else if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<T>) {
       SocketValueVariant value_variant = this->extract_input<SocketValueVariant>(identifier);
       return value_variant.extract<T>();
     }
@@ -161,7 +140,7 @@ class GeoNodeExecParams {
     if constexpr (std::is_enum_v<T>) {
       return T(this->get_input<int>(identifier));
     }
-    else if constexpr (stored_as_SocketValueVariant_v<T>) {
+    else if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<T>) {
       auto value_variant = this->get_input<SocketValueVariant>(identifier);
       return value_variant.extract<T>();
     }
@@ -198,7 +177,7 @@ class GeoNodeExecParams {
   template<typename T> void set_output(StringRef identifier, T &&value)
   {
     using StoredT = std::decay_t<T>;
-    if constexpr (stored_as_SocketValueVariant_v<StoredT>) {
+    if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<StoredT>) {
       this->set_output(identifier, SocketValueVariant::From(std::forward<T>(value)));
     }
     else {

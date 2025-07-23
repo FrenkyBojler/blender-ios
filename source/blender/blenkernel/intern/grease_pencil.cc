@@ -288,6 +288,8 @@ static void grease_pencil_blend_write(BlendWriter *writer, ID *id, const void *i
   grease_pencil->attribute_storage.dna_attributes = attribute_data.attributes.data();
   grease_pencil->attribute_storage.dna_attributes_num = attribute_data.attributes.size();
 
+  CustomData_reset(&grease_pencil->layers_data_legacy);
+
   /* Write LibData */
   BLO_write_id_struct(writer, GreasePencil, id_address, &grease_pencil->id);
   BKE_id_blend_write(writer, &grease_pencil->id);
@@ -638,7 +640,7 @@ static float3x2 get_stroke_to_texture_matrix(const float uv_rotation,
   return texture_matrix;
 }
 
-static float4x3 expand_4x2_mat(float4x2 strokemat)
+static float4x3 expand_4x2_mat(const float4x2 &strokemat)
 {
   float4x3 strokemat4x3 = float4x3(strokemat);
 
@@ -725,8 +727,9 @@ void Drawing::set_texture_matrices(Span<float4x2> matrices, const IndexMask &sel
     const double4x3 strokemat4x3 = double4x3(expand_4x2_mat(strokemat));
 
     /*
-     * We want to solve for `texture_matrix` in the equation: `texspace = texture_matrix *
-     * strokemat4x3` Because these matrices are not square we can not use a standard inverse.
+     * We want to solve for `texture_matrix` in the equation:
+     * `texspace = texture_matrix * strokemat4x3`
+     * Because these matrices are not square we can not use a standard inverse.
      *
      * Our problem has the form of: `X = A * Y`
      * We can solve for `A` using: `A = X * B`
@@ -3772,7 +3775,9 @@ void GreasePencil::add_layers_for_eval(const int num_new_layers)
 }
 
 blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
-    const blender::bke::greasepencil::Layer &duplicate_layer)
+    const blender::bke::greasepencil::Layer &duplicate_layer,
+    const bool duplicate_frames,
+    const bool duplicate_drawings)
 {
   using namespace blender;
   std::string unique_name = unique_layer_name(duplicate_layer.name());
@@ -3792,6 +3797,25 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
     attr.finish();
   });
 
+  /* When a layer is duplicated, the frames are shared by default. Clear the frames, to ensure a
+   * valid state. */
+  new_layer->frames_for_write().clear();
+  if (duplicate_frames) {
+    for (auto [frame_number, frame] : duplicate_layer.frames().items()) {
+      const int duration = duplicate_layer.get_frame_duration_at(frame_number);
+      bke::greasepencil::Drawing *dst_drawing = this->insert_frame(
+          *new_layer, frame_number, duration, eBezTriple_KeyframeType(frame.type));
+      if (duplicate_drawings) {
+        BLI_assert(dst_drawing != nullptr);
+        /* TODO: This can fail (return `nullptr`) if the drawing is a drawing reference! */
+        const bke::greasepencil::Drawing &src_drawing = *this->get_drawing_at(duplicate_layer,
+                                                                              frame_number);
+        /* Duplicate the drawing. */
+        *dst_drawing = src_drawing;
+      }
+    }
+  }
+
   this->update_drawing_users_for_layer(*new_layer);
   new_layer->set_name(unique_name);
   return *new_layer;
@@ -3799,10 +3823,13 @@ blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
 
 blender::bke::greasepencil::Layer &GreasePencil::duplicate_layer(
     blender::bke::greasepencil::LayerGroup &parent_group,
-    const blender::bke::greasepencil::Layer &duplicate_layer)
+    const blender::bke::greasepencil::Layer &duplicate_layer,
+    const bool duplicate_frames,
+    const bool duplicate_drawings)
 {
   using namespace blender;
-  bke::greasepencil::Layer &new_layer = this->duplicate_layer(duplicate_layer);
+  bke::greasepencil::Layer &new_layer = this->duplicate_layer(
+      duplicate_layer, duplicate_frames, duplicate_drawings);
   move_node_into(new_layer.as_node(), parent_group);
   return new_layer;
 }
@@ -3879,7 +3906,7 @@ static void reorder_layer_data(GreasePencil &grease_pencil,
     const bke::greasepencil::Layer *layer = layers[layer_i_new];
     BLI_assert(old_layer_index_by_layer.contains(layer));
     const int layer_i_old = old_layer_index_by_layer.pop(layer);
-    new_by_old_map[layer_i_old] = layer_i_new;
+    new_by_old_map[layer_i_new] = layer_i_old;
   }
   BLI_assert(old_layer_index_by_layer.is_empty());
 
