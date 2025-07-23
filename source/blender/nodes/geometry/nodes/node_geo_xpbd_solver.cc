@@ -34,27 +34,6 @@ static std::string combine_bundle_path(const Span<StringRef> &path)
   return fmt::format("{}", fmt::join(path, "/"));
 }
 
-template<typename T>
-static std::optional<T> get_from_bundle__value_variant(const Bundle &bundle, const StringRef key)
-{
-  std::optional<Bundle::Item> item = bundle.lookup(SocketInterfaceKey{key});
-  if (!item) {
-    return std::nullopt;
-  }
-  if (item->type->geometry_nodes_cpp_type != &CPPType::get<bke::SocketValueVariant>()) {
-    return std::nullopt;
-  }
-  if constexpr (fn::is_field_v<T>) {
-    if (item->type->base_cpp_type != &CPPType::get<typename T::base_type>()) {
-      return std::nullopt;
-    }
-  }
-  else if (item->type->base_cpp_type != &CPPType::get<T>()) {
-    return std::nullopt;
-  }
-  return static_cast<const bke::SocketValueVariant *>(item->value)->get<T>();
-}
-
 static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bundle,
                                                  ResourceScope &scope)
 {
@@ -67,36 +46,28 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
         const std::string path = combine_bundle_path(path_stack);
         if (type == "Geometry") {
-          std::optional<Bundle::Item> geometry_item = behavior_bundle.lookup(
+          std::optional<GeometrySet> geometry = behavior_bundle.lookup<GeometrySet>(
               SocketInterfaceKey{"Geometry"});
-          if (!geometry_item) {
+          if (!geometry) {
             return;
           }
-          if (geometry_item->type->type != SOCK_GEOMETRY) {
-            return;
-          }
-          geometry::xpbd::SimGeometrySet geometry;
-          geometry.mass_attribute = "mass";
-          geometry.velocity_attribute = "velocity";
-          geometry.path = path;
-          geometry.geometry = *static_cast<const GeometrySet *>(geometry_item->value);
-          if (std::optional<std::string> mass_attribute =
-                  get_from_bundle__value_variant<std::string>(behavior_bundle, "Mass Attribute"))
-          {
-            geometry.mass_attribute = *mass_attribute;
-          }
-          if (std::optional<std::string> velocity_item =
-                  get_from_bundle__value_variant<std::string>(behavior_bundle,
-                                                              "Velocity Attribute"))
-          {
-            geometry.velocity_attribute = *velocity_item;
-          }
-          behaviors.sim_geometry_sets.append(geometry);
+          geometry::xpbd::SimGeometrySet sim_geometry_set;
+          sim_geometry_set.path = path;
+          sim_geometry_set.geometry = *geometry;
+          sim_geometry_set.mass_attribute = behavior_bundle
+                                                .lookup<std::string>(
+                                                    SocketInterfaceKey{"Mass Attribute"})
+                                                .value_or("mass");
+          sim_geometry_set.velocity_attribute = behavior_bundle
+                                                    .lookup<std::string>(
+                                                        SocketInterfaceKey{"Velocity"})
+                                                    .value_or("velocity");
+          behaviors.sim_geometry_sets.append(sim_geometry_set);
           return;
         }
         if (type == "Force") {
-          std::optional<Field<float3>> force_field = get_from_bundle__value_variant<Field<float3>>(
-              behavior_bundle, "Force Field");
+          std::optional<Field<float3>> force_field = behavior_bundle.lookup<Field<float3>>(
+              SocketInterfaceKey{"Force Field"});
           if (!force_field) {
             return;
           }
@@ -106,8 +77,8 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           return;
         }
         if (type == "Acceleration") {
-          std::optional<Field<float3>> acceleration_field =
-              get_from_bundle__value_variant<Field<float3>>(behavior_bundle, "Acceleration Field");
+          std::optional<Field<float3>> acceleration_field = behavior_bundle.lookup<Field<float3>>(
+              SocketInterfaceKey{"Acceleration Field"});
           if (!acceleration_field) {
             return;
           }
@@ -117,9 +88,8 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           return;
         }
         if (type == "Edge Length Constraint") {
-          std::optional<std::string> rest_length_attribute =
-              get_from_bundle__value_variant<std::string>(behavior_bundle,
-                                                          "Rest Length Attribute");
+          std::optional<std::string> rest_length_attribute = behavior_bundle.lookup<std::string>(
+              SocketInterfaceKey{"Rest Length Attribute"});
           if (!rest_length_attribute) {
             return;
           }
@@ -127,15 +97,14 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
             return;
           }
           const float compliance =
-              get_from_bundle__value_variant<float>(behavior_bundle, "Compliance").value_or(0.0f);
+              behavior_bundle.lookup<float>(SocketInterfaceKey{"Compliance"}).value_or(0.0f);
           behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__edge_lengths(
               scope, std::move(*rest_length_attribute), compliance));
           return;
         }
         if (type == "Curve Length Constraint") {
-          std::optional<std::string> rest_length_attribute =
-              get_from_bundle__value_variant<std::string>(behavior_bundle,
-                                                          "Rest Length Attribute");
+          std::optional<std::string> rest_length_attribute = behavior_bundle.lookup<std::string>(
+              SocketInterfaceKey{"Rest Length Attribute"});
           if (!rest_length_attribute) {
             return;
           }
@@ -143,16 +112,16 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
             return;
           }
           const float compliance =
-              get_from_bundle__value_variant<float>(behavior_bundle, "Compliance").value_or(0.0f);
+              behavior_bundle.lookup<float>(SocketInterfaceKey{"Compliance"}).value_or(0.0f);
           behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__curve_lengths(
               scope, std::move(*rest_length_attribute), compliance));
           return;
         }
         if (type == "Fixed Position Constraint") {
-          std::optional<Field<bool>> selection_field = get_from_bundle__value_variant<Field<bool>>(
-              behavior_bundle, "Selection");
-          std::optional<Field<float3>> positions_field =
-              get_from_bundle__value_variant<Field<float3>>(behavior_bundle, "Position");
+          std::optional<Field<bool>> selection_field = behavior_bundle.lookup<Field<bool>>(
+              SocketInterfaceKey{"Selection"});
+          std::optional<Field<float3>> positions_field = behavior_bundle.lookup<Field<float3>>(
+              SocketInterfaceKey{"Position"});
           if (!selection_field || !positions_field) {
             return;
           }
@@ -161,10 +130,10 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           return;
         }
         if (type == "Infinite Collision Plane") {
-          std::optional<float3> position = get_from_bundle__value_variant<float3>(behavior_bundle,
-                                                                                  "Position");
-          std::optional<float3> normal = get_from_bundle__value_variant<float3>(behavior_bundle,
-                                                                                "Normal");
+          std::optional<float3> position = behavior_bundle.lookup<float3>(
+              SocketInterfaceKey{"Position"});
+          std::optional<float3> normal = behavior_bundle.lookup<float3>(
+              SocketInterfaceKey{"Normal"});
           if (!position || !normal) {
             return;
           }
@@ -174,14 +143,13 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           return;
         }
         if (type == "Global Volume Constraint") {
-          std::optional<std::string> rest_volume_name =
-              get_from_bundle__value_variant<std::string>(behavior_bundle, "Rest Volume Name");
+          std::optional<std::string> rest_volume_name = behavior_bundle.lookup<std::string>(
+              SocketInterfaceKey{"Rest Volume Name"});
           if (!rest_volume_name || rest_volume_name->empty()) {
             return;
           }
-          const float overpressure = get_from_bundle__value_variant<float>(behavior_bundle,
-                                                                           "Overpressure")
-                                         .value_or(1.0f);
+          const float overpressure =
+              behavior_bundle.lookup<float>(SocketInterfaceKey{"Overpressure"}).value_or(1.0f);
           behaviors.constraint_sets.append(&geometry::xpbd::create_constraint__global_volume(
               scope, std::move(*rest_volume_name), overpressure));
           return;
