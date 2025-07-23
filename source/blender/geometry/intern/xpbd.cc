@@ -87,7 +87,7 @@ template<typename T> void SimGeometrySet::set_extra(const StringRef key, T value
 {
   std::scoped_lock lock(this->extra_mutex);
   nodes::Bundle &extra = this->extra_for_write();
-  extra.add_override<std::decay_t<T>>(nodes::SocketInterfaceKey{key}, std::move(value));
+  extra.add_override<std::decay_t<T>>(key, std::move(value));
 }
 
 template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef key) const
@@ -96,7 +96,7 @@ template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef 
   if (!this->extra) {
     return std::nullopt;
   }
-  return this->extra->lookup<T>(nodes::SocketInterfaceKey{key});
+  return this->extra->lookup<T>(key);
 }
 
 void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}

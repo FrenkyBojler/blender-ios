@@ -15,9 +15,7 @@ static void foreach_behavior_recursive(
     const FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)>
         fn)
 {
-  if (std::optional<const Bundle::Item> type_item = behaviors_bundle.lookup(
-          SocketInterfaceKey{"Type"}))
-  {
+  if (std::optional<const Bundle::Item> type_item = behaviors_bundle.lookup("Type")) {
     if (type_item->type->type != SOCK_STRING) {
       return;
     }
@@ -37,8 +35,7 @@ static void foreach_behavior_recursive(
     if (!child_bundle) {
       continue;
     }
-    const StringRefNull key = item.key.identifiers()[0];
-    path_stack.append(key);
+    path_stack.append(item.key);
     foreach_behavior_recursive(*child_bundle, path_stack, fn);
     path_stack.pop_last();
   }
