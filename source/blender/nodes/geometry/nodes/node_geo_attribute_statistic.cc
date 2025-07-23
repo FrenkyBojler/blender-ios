@@ -24,7 +24,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 {
   const bNode *node = b.node_or_null();
 
-  b.add_input<decl::Geometry>("Geometry");
+  b.add_input<decl::Geometry>("Geometry").description("Geometry to get the statistics from");
   b.add_input<decl::Bool>("Selection").default_value(true).field_on_all().hide_value();
 
   if (node != nullptr) {
@@ -32,7 +32,8 @@ static void node_declare(NodeDeclarationBuilder &b)
     b.add_input(data_type, "Attribute").hide_value().field_on_all();
 
     b.add_output(data_type, N_("Mean"));
-    b.add_output(data_type, N_("Median"));
+    b.add_output(data_type, CTX_N_(BLT_I18NCONTEXT_ID_NODETREE, "Median"))
+        .translation_context(BLT_I18NCONTEXT_ID_NODETREE);
     b.add_output(data_type, N_("Sum"));
     b.add_output(data_type, N_("Min"));
     b.add_output(data_type, N_("Max"));

@@ -1345,6 +1345,8 @@ void BKE_blendfile_read_setup_undo(bContext *C,
   BKE_blendfile_read_setup_readfile(C, bfd, params, nullptr, reports, false, nullptr);
 }
 
+static CLG_LogRef LOG_BLEND = {"blend"};
+
 BlendFileData *BKE_blendfile_read(const char *filepath,
                                   const BlendFileReadParams *params,
                                   BlendFileReadReport *reports)
@@ -1352,7 +1354,7 @@ BlendFileData *BKE_blendfile_read(const char *filepath,
   /* Don't print startup file loading. */
   if (params->is_startup == false) {
     if (!G.quiet) {
-      printf("Read blend: \"%s\"\n", filepath);
+      CLOG_INFO_NOCHECK(&LOG_BLEND, "Read blend: \"%s\"", filepath);
     }
   }
 
@@ -1586,7 +1588,7 @@ UserDef *BKE_blendfile_userdef_from_defaults()
 
 bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
 {
-  Main *mainb = MEM_callocN<Main>("empty main");
+  Main *mainb = MEM_new<Main>(__func__);
   bool ok = false;
 
   BlendFileWriteParams params{};
@@ -1596,7 +1598,7 @@ bool BKE_blendfile_userdef_write(const char *filepath, ReportList *reports)
     ok = true;
   }
 
-  MEM_freeN(mainb);
+  MEM_delete(mainb);
 
   return ok;
 }
@@ -1744,14 +1746,13 @@ void BKE_blendfile_workspace_config_data_free(WorkspaceConfigFileData *workspace
 /** \name Blend File Write (Partial)
  * \{ */
 
-static CLG_LogRef LOG_PARTIALWRITE = {"bke.blendfile.partial_write"};
+static CLG_LogRef LOG_PARTIALWRITE = {"blend.partial_write"};
 
 namespace blender::bke::blendfile {
 
 PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
     : reference_root_filepath_(reference_root_filepath)
 {
-  BKE_main_init(this->bmain);
   if (!reference_root_filepath_.empty()) {
     STRNCPY(this->bmain.filepath, reference_root_filepath_.c_str());
   }
@@ -1765,9 +1766,6 @@ PartialWriteContext::PartialWriteContext(StringRefNull reference_root_filepath)
 PartialWriteContext::~PartialWriteContext()
 {
   BKE_main_idmap_destroy(matching_uid_map_);
-
-  BLI_assert(this->bmain.next == nullptr);
-  BKE_main_destroy(this->bmain);
 };
 
 void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
@@ -1796,9 +1794,8 @@ void PartialWriteContext::preempt_session_uid(ID *ctx_id, uint session_uid)
   matching_ctx_id = BKE_main_idmap_lookup_uid(this->bmain.id_map, session_uid);
   BLI_assert(matching_ctx_id != ctx_id);
   if (matching_ctx_id) {
-    CLOG_INFO(&LOG_PARTIALWRITE,
-              3,
-              "Non-matching IDs sharing the same session UID in the partial write context.");
+    CLOG_DEBUG(&LOG_PARTIALWRITE,
+               "Non-matching IDs sharing the same session UID in the partial write context.");
     BKE_main_idmap_remove_id(this->bmain.id_map, matching_ctx_id);
     /* FIXME: Allow #BKE_lib_libblock_session_uid_renew to work with temp IDs? */
     matching_ctx_id->tag &= ~ID_TAG_TEMP_MAIN;
@@ -2114,10 +2111,9 @@ void PartialWriteContext::remove_unused(const bool clear_extra_user)
   }
   BKE_lib_query_unused_ids_tag(&this->bmain, ID_TAG_DOIT, parameters);
 
-  CLOG_INFO(&LOG_PARTIALWRITE,
-            3,
-            "Removing %d unused IDs from current partial write context",
-            parameters.num_total[INDEX_ID_NULL]);
+  CLOG_DEBUG(&LOG_PARTIALWRITE,
+             "Removing %d unused IDs from current partial write context",
+             parameters.num_total[INDEX_ID_NULL]);
   ID *id_iter;
   FOREACH_MAIN_ID_BEGIN (&this->bmain, id_iter) {
     if ((id_iter->tag & ID_TAG_DOIT) != 0) {

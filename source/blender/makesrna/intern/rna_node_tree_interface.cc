@@ -32,11 +32,6 @@ const EnumPropertyItem rna_enum_node_socket_structure_type_items[] = {
      0,
      "Auto",
      "Automatically detect a good structure type based on how the socket is used"},
-    {NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
-     "SINGLE",
-     0,
-     "Single",
-     "Socket expects a single value"},
     {NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_DYNAMIC,
      "DYNAMIC",
      0,
@@ -44,6 +39,11 @@ const EnumPropertyItem rna_enum_node_socket_structure_type_items[] = {
      "Socket can work with different kinds of structures"},
     {NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_FIELD, "FIELD", 0, "Field", "Socket expects a field"},
     {NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_GRID, "GRID", 0, "Grid", "Socket expects a grid"},
+    {NODE_INTERFACE_SOCKET_STRUCTURE_TYPE_SINGLE,
+     "SINGLE",
+     0,
+     "Single",
+     "Socket expects a single value"},
     {0, nullptr, 0, nullptr, nullptr}};
 
 static const EnumPropertyItem node_default_input_items[] = {
@@ -418,11 +418,14 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
     return false;
   }
 
-  /* Only basic socket types are supported. */
-  blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
-      socket_type->type, PROP_NONE);
-  if (socket_type != base_socket_type) {
-    return false;
+  /* Only basic socket types are supported. Custom sockets don't have a base type. */
+  if (socket_type->type != SOCK_CUSTOM) {
+    blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
+        socket_type->type, PROP_NONE);
+    BLI_assert(base_socket_type != nullptr);
+    if (socket_type != base_socket_type) {
+      return false;
+    }
   }
 
   if (!U.experimental.use_bundle_and_closure_nodes) {
@@ -922,7 +925,7 @@ static void rna_NodeTreeInterfaceSocketVector_dimensions_update(Main *bmain,
   bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
 
   /* Store a copy of the existing default value since it will be freed when setting the socket type
-   * below.*/
+   * below. */
   const bNodeSocketValueVector default_value = *static_cast<bNodeSocketValueVector *>(
       socket->socket_data);
 
