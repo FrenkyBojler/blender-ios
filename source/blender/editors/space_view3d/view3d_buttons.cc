@@ -2346,9 +2346,9 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
   UI_block_func_handle_set(block, do_view3d_curves_data_buttons, nullptr);
 
   current.cyclic = status.cyclic > 0;
-  current.nurbs_knot_mode = status.nurbs_knot_mode_sum / status.total_nurbs;
-  current.order = status.order_sum / status.total_nurbs;
-  current.resolution = status.resolution_sum / status.total;
+  current.nurbs_knot_mode = math::safe_divide(status.nurbs_knot_mode_sum, status.total_nurbs);
+  current.order = math::safe_divide(status.order_sum, status.total_nurbs);
+  current.resolution = math::safe_divide(status.resolution_sum, status.total);
 
   modified = current;
 
