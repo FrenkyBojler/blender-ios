@@ -90,6 +90,7 @@ struct PenToolOperation {
   bool move_point;
   bool toggle_vector;
   bool close_spline;
+  bool cycle_handle_type;
   CloseMethod close_spline_method;
   int extrude_handle;
 
@@ -526,6 +527,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   ptd.move_point = RNA_boolean_get(op->ptr, "move_point");
   ptd.toggle_vector = RNA_boolean_get(op->ptr, "toggle_vector");
   ptd.close_spline = RNA_boolean_get(op->ptr, "close_spline");
+  ptd.cycle_handle_type = RNA_boolean_get(op->ptr, "cycle_handle_type");
   ptd.close_spline_method = CloseMethod(RNA_enum_get(op->ptr, "close_spline_method"));
   ptd.extrude_handle = RNA_enum_get(op->ptr, "extrude_handle");
 
@@ -588,6 +590,19 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
     const int curve_index = point_to_curve_map[closest_point];
     const IndexRange points = points_by_curve[curve_index];
+
+    if (event->val == KM_DBL_CLICK && ptd.cycle_handle_type) {
+      const int8_t handle_type = curves.handle_types_right_for_write()[closest_point];
+      /* Cycle to the next type. */
+      const int8_t new_handle_type = (handle_type + 1) % 4;
+
+      curves.handle_types_left_for_write()[closest_point] = new_handle_type;
+      curves.handle_types_right_for_write()[closest_point] = new_handle_type;
+      curves.update_curve_types();
+      curves.calculate_bezier_auto_handles();
+      curves.tag_topology_changed();
+      add_single.store(false, std::memory_order_relaxed);
+    }
 
     for (const StringRef selection_attribute_name :
          ed::curves::get_curves_selection_attribute_names(curves))
