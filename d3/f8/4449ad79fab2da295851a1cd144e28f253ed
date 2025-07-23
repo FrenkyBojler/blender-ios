@@ -7,3 +7,4 @@ Referenced by issue #141602, Custom normals affect Shrinkwrap position
 Referenced by issue #142087, The solidify modifier has the wrong thickness in Blender 4.5
 Referenced by issue #142483, Regression: Incorrect subdivision surface interpolation with custom normals
 Referenced by issue #142485, Regression: Shading Issue transforming a object with custom normals
+Referenced by pull request #142892, Fix #142087: Use true normals in solidify modifier
