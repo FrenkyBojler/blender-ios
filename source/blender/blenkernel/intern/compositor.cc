@@ -14,6 +14,7 @@
 #include "BKE_compositor.hh"
 #include "BKE_cryptomatte.hh"
 #include "BKE_node.hh"
+#include "BKE_node_legacy_types.hh"
 #include "BKE_node_runtime.hh"
 
 #include "DNA_layer_types.h"
@@ -63,8 +64,8 @@ static void add_passes_used_by_cryptomatte_node(const bNode *node,
     return;
   }
 
-  /* If the stored layer name doesn't corresponds to an existing Cryptomatte layer, fallback to the
-   * name of the first layer. */
+  /* If the stored layer name doesn't corresponds to an existing Cryptomatte layer, fall back to
+   * the name of the first layer. */
   const NodeCryptomatte *data = static_cast<NodeCryptomatte *>(node->storage);
   const std::string layer_name = layer_names.contains(data->layer_name) ? data->layer_name :
                                                                           layer_names[0];
@@ -121,7 +122,7 @@ static void add_used_passes_recursive(const bNodeTree *node_tree,
       continue;
     }
 
-    switch (node->type) {
+    switch (node->type_legacy) {
       case NODE_GROUP:
       case NODE_CUSTOM_GROUP: {
         const bNodeTree *node_group_tree = reinterpret_cast<const bNodeTree *>(node->id);
@@ -147,7 +148,8 @@ Set<std::string> get_used_passes(const Scene &scene, const ViewLayer *view_layer
 {
   Set<std::string> used_passes;
   Set<const bNodeTree *> node_trees_already_searched;
-  add_used_passes_recursive(scene.nodetree, view_layer, node_trees_already_searched, used_passes);
+  add_used_passes_recursive(
+      scene.compositing_node_group, view_layer, node_trees_already_searched, used_passes);
   return used_passes;
 }
 

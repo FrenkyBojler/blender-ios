@@ -34,7 +34,6 @@ class VKImmediate : public Immediate {
 
   VkDeviceSize buffer_offset_ = 0;
   VkDeviceSize current_subbuffer_len_ = 0;
-  VertexFormatConverter vertex_format_converter;
 
   Vector<std::unique_ptr<VKBuffer>> active_buffers_;
   Vector<std::unique_ptr<VKBuffer>> recycling_buffers_;
@@ -55,7 +54,7 @@ class VKImmediate : public Immediate {
   VKBufferWithOffset active_buffer() const;
   VkDeviceSize buffer_bytes_free();
 
-  VKBuffer &ensure_space(size_t bytes_needed);
+  VKBuffer &ensure_space(VkDeviceSize bytes_needed, VkDeviceSize offset_allignment);
 };
 
 }  // namespace blender::gpu

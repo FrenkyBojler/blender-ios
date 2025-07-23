@@ -8,11 +8,12 @@
  * \ingroup bke
  */
 
-#include <stdio.h>
+#include <cstdio>
 
 #include "BLI_compiler_attrs.h"
-#include "BLI_utildefines.h"
 #include "DNA_windowmanager_types.h"
+
+struct CLG_LogRef;
 
 /**
  * Reporting Information and Errors.
@@ -79,6 +80,9 @@ char *BKE_reports_string(ReportList *reports, eReportType level);
  */
 bool BKE_reports_print_test(const ReportList *reports, eReportType type);
 void BKE_reports_print(ReportList *reports, eReportType level);
+
+void BKE_report_log(eReportType type, const char *message, CLG_LogRef *log);
+void BKE_reports_log(ReportList *reports, eReportType level, CLG_LogRef *log);
 
 Report *BKE_reports_last_displayable(ReportList *reports);
 

@@ -7,11 +7,10 @@
  */
 
 #include <algorithm>
-#include <limits>
 
 #include "BLI_array_utils.hh"
 #include "BLI_enumerable_thread_specific.hh"
-#include "BLI_kdopbvh.h"
+#include "BLI_kdopbvh.hh"
 #include "BLI_kdtree.h"
 #include "BLI_math_vector.hh"
 #include "BLI_offset_indices.hh"
@@ -25,6 +24,7 @@
 #include "BKE_grease_pencil.hh"
 
 #include "DNA_curves_types.h"
+#include "DNA_gpencil_legacy_types.h"
 
 #include "ED_curves.hh"
 #include "ED_grease_pencil.hh"
@@ -208,12 +208,13 @@ int curve_merge_by_distance(const IndexRange points,
   return duplicate_count;
 }
 
-/* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
 blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry &src_curves,
                                                       const float merge_distance,
                                                       const IndexMask &selection,
                                                       const bke::AttributeFilter &attribute_filter)
 {
+  /* NOTE: The code here is an adapted version of #blender::geometry::point_merge_by_distance. */
+
   const int src_point_size = src_curves.points_num();
   if (src_point_size == 0) {
     return {};
@@ -232,7 +233,7 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
       const IndexRange points = points_by_curve[curve_i];
       merge_indices_per_curve[curve_i].reinitialize(points.size());
 
-      Array<float> distances_along_curve(points.size());
+      Array<float> distances_along_curve(points.size() + int(cyclic[curve_i]));
       distances_along_curve.first() = 0.0f;
       const Span<float> lengths = src_curves.evaluated_lengths_for_curve(curve_i, cyclic[curve_i]);
       distances_along_curve.as_mutable_span().drop_front(1).copy_from(lengths);
@@ -316,6 +317,7 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
       if constexpr (!std::is_void_v<bke::attribute_math::DefaultMixer<T>>) {
         bke::SpanAttributeWriter<T> dst_attribute =
             dst_attributes.lookup_or_add_for_write_only_span<T>(iter.name, bke::AttrDomain::Point);
+        BLI_assert(dst_attribute);
         VArraySpan<T> src = src_attribute.varray.typed<T>();
 
         threading::parallel_for(dst_curves.points_range(), 1024, [&](IndexRange range) {
@@ -339,6 +341,10 @@ blender::bke::CurvesGeometry curves_merge_by_distance(const bke::CurvesGeometry 
     });
   });
 
+  if (dst_curves.nurbs_has_custom_knots()) {
+    bke::curves::nurbs::update_custom_knot_modes(
+        dst_curves.curves_range(), NURBS_KNOT_MODE_NORMAL, NURBS_KNOT_MODE_NORMAL, dst_curves);
+  }
   return dst_curves;
 }
 
@@ -356,6 +362,8 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
   Array<float2> screen_start_points(src_curves.curves_num());
   Array<float2> screen_end_points(src_curves.curves_num());
+  const VArray<bool> cyclic = *src_curves.attributes().lookup_or_default<bool>(
+      "cyclic", bke::AttrDomain::Curve, false);
   /* For comparing screen space positions use a 2D KDTree. Each curve adds 2 points. */
   KDTree_2d *tree = BLI_kdtree_2d_new(2 * src_curves.curves_num());
 
@@ -375,6 +383,9 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
   });
   /* Note: KDTree insertion is not thread-safe, don't parallelize this. */
   for (const int src_i : src_curves.curves_range()) {
+    if (cyclic[src_i] == true) {
+      continue;
+    }
     BLI_kdtree_2d_insert(tree, src_i * 2, screen_start_points[src_i]);
     BLI_kdtree_2d_insert(tree, src_i * 2 + 1, screen_end_points[src_i]);
   }
@@ -432,6 +443,32 @@ bke::CurvesGeometry curves_merge_endpoints_by_distance(
 
   return geometry::curves_merge_endpoints(
       src_curves, connect_to_curve, flip_direction, attribute_filter);
+}
+
+/* Generate a full circle around a point. */
+static void generate_circle_from_point(const float3 &pt,
+                                       const float radius,
+                                       const int corner_subdivisions,
+                                       const int src_point_index,
+                                       Vector<float3> &r_perimeter,
+                                       Vector<int> &r_src_indices)
+{
+  /* Number of points is 2^(n+2) on a full circle (n=corner_subdivisions). */
+  BLI_assert(corner_subdivisions >= 0);
+  const int num_points = 1 << (corner_subdivisions + 2);
+  const float delta_angle = 2 * M_PI / float(num_points);
+  const float delta_cos = math::cos(delta_angle);
+  const float delta_sin = math::sin(delta_angle);
+
+  float3 vec = float3(radius, 0, 0);
+  for ([[maybe_unused]] const int i : IndexRange(num_points)) {
+    r_perimeter.append(pt + vec);
+    r_src_indices.append(src_point_index);
+
+    const float x = delta_cos * vec.x - delta_sin * vec.y;
+    const float y = delta_sin * vec.x + delta_cos * vec.y;
+    vec = float3(x, y, 0.0f);
+  }
 }
 
 /* Generate points in an counter-clockwise arc between two directions. */
@@ -503,6 +540,8 @@ static void generate_cap(const float3 &point,
                                        r_src_indices);
       break;
     case GP_STROKE_CAP_FLAT:
+      r_perimeter.append(point - normal * radius);
+      r_src_indices.append(src_point_index);
       r_perimeter.append(point + normal * radius);
       r_src_indices.append(src_point_index);
       break;
@@ -575,7 +614,20 @@ static void generate_stroke_perimeter(const Span<float3> all_positions,
 {
   const Span<float3> positions = all_positions.slice(points);
   const int point_num = points.size();
-  if (point_num < 2) {
+  if (point_num == 0) {
+    return;
+  }
+  if (point_num == 1) {
+    /* Generate a circle for a single point. */
+    const int perimeter_start = r_perimeter.size();
+    const int point = points.first();
+    const float radius = std::max(all_radii[point] + outline_offset, 0.0f);
+    generate_circle_from_point(
+        positions.first(), radius, corner_subdivisions, point, r_perimeter, r_point_indices);
+    const int perimeter_count = r_perimeter.size() - perimeter_start;
+    if (perimeter_count > 0) {
+      r_point_counts.append(perimeter_count);
+    }
     return;
   }
 
@@ -951,7 +1003,7 @@ static float get_intersection_distance_of_segments(const float2 &co_a,
   const float b2 = co_c[0] - co_d[0];
   const float c2 = a2 * co_c[0] + b2 * co_c[1];
 
-  const float det = float(a1 * b2 - a2 * b1);
+  const float det = (a1 * b2 - a2 * b1);
   if (det == 0.0f) {
     return 0.0f;
   }

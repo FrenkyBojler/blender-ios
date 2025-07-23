@@ -98,6 +98,11 @@ const char *BLI_path_parent_dir_end(const char *path, size_t path_len)
  * https://en.wikipedia.org/wiki/Filename#Reserved_characters_and_words )
  * by underscores ('_').
  *
+ * \note This should only be used when creating new paths from user-input or
+ * to sanitize a file-names initialized from non-path text such as the name of a data-block.
+ * It must never be used on references to existing paths since this function
+ * will change the paths causing them to become invalid.
+ *
  * \note Space case ' ' is a bit of an edge case here - in theory it is allowed,
  * but again can be an issue in some cases, so we simply replace it by an underscore too
  * (good practice anyway).
@@ -118,6 +123,10 @@ bool BLI_path_make_safe_filename(char *filename) ATTR_NONNULL(1);
  * Make given path OS-safe.
  *
  * \return true if \a path was changed, false otherwise.
+ *
+ * \note When the file-name component of the path may not use safe characters,
+ * #BLI_path_make_safe_filename should be used on the file-name part,
+ * so slashes are replaced, treating the text as a single file-name.
  */
 bool BLI_path_make_safe(char *path) ATTR_NONNULL(1);
 
@@ -764,7 +773,7 @@ void BLI_setenv_if_new(const char *env, const char *val) ATTR_NONNULL(1);
  * On windows #getenv gets its variables from a static copy of the environment variables taken at
  * process start-up, causing it to not pick up on environment variables created during runtime.
  * This function uses an alternative method to get environment variables that does pick up on
- * runtime environment variables. The result will be UTF-8 encoded.
+ * runtime environment variables. The result will be UTF8 encoded.
  */
 const char *BLI_getenv(const char *env) ATTR_NONNULL(1) ATTR_WARN_UNUSED_RESULT;
 

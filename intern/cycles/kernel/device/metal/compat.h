@@ -44,6 +44,7 @@ using namespace metal::raytracing;
 #define ccl_device_extern extern "C"
 #define ccl_device_noinline_cpu ccl_device
 #define ccl_device_inline_method ccl_device
+#define ccl_device_template_spec template<> ccl_device_inline
 #define ccl_global device
 #define ccl_inline_constant static constant constexpr
 #define ccl_device_constant constant
@@ -58,7 +59,6 @@ using namespace metal::raytracing;
 #endif
 #define ccl_may_alias
 #define ccl_restrict __restrict
-#define ccl_loop_no_unroll
 #define ccl_align(n) alignas(n)
 #define ccl_optional_struct_init
 
@@ -312,8 +312,6 @@ ccl_device_forceinline uchar4 make_uchar4(const uchar x,
 #define sqrtf(x) trigmode::sqrt(float(x))
 #define logf(x) trigmode::log(float(x))
 
-#define NULL 0
-
 #define __device__
 
 #ifdef __METALRT__
@@ -350,15 +348,12 @@ typedef metal::raytracing::intersector<triangle_data, curve_data, extended_limit
 
 /* texture bindings and sampler setup */
 
-struct Buffer1DParamsMetal {
-  device float *buf;
+/* TextureParamsMetal is reinterpreted as Texture2DParamsMetal. */
+struct TextureParamsMetal {
+  uint64_t tex;
 };
-
 struct Texture2DParamsMetal {
   texture2d<float, access::sample> tex;
-};
-struct Texture3DParamsMetal {
-  texture3d<float, access::sample> tex;
 };
 
 #ifdef __METALRT__
@@ -367,13 +362,15 @@ struct MetalRTBlasWrapper {
 };
 #endif
 
+/* Additional Metal-specific resources which aren't encoded in KernelData.
+ * IMPORTANT: If this layout changes, ANCILLARY_SLOT_COUNT and the host-side encoding must change
+ * to match. */
 struct MetalAncillaries {
-  device Texture2DParamsMetal *textures_2d;
-  device Texture3DParamsMetal *textures_3d;
-  device Buffer1DParamsMetal *buffers;
+  device TextureParamsMetal *textures;
 
 #ifdef __METALRT__
   metalrt_as_type accel_struct;
+  constant MetalRTBlasWrapper *blas_accel_structs;
   metalrt_ift_type ift_default;
   metalrt_ift_type ift_shadow;
   metalrt_ift_type ift_shadow_all;
@@ -382,7 +379,6 @@ struct MetalAncillaries {
   metalrt_ift_type ift_local_mblur;
   metalrt_blas_ift_type ift_local_single_hit;
   metalrt_ift_type ift_local_single_hit_mblur;
-  constant MetalRTBlasWrapper *blas_accel_structs;
 #endif
 };
 
@@ -403,7 +399,7 @@ enum SamplerType {
   SamplerCount
 };
 
-constant constexpr array<sampler, SamplerCount> metal_samplers = {
+constexpr constant array<sampler, SamplerCount> metal_samplers = {
     sampler(address::repeat, filter::nearest),
     sampler(address::clamp_to_edge, filter::nearest),
     sampler(address::clamp_to_zero, filter::nearest),

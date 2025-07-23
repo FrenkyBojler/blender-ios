@@ -115,20 +115,23 @@ class BindSpaceStorageBuffers {
     VertexBuffer,
     IndexBuffer,
     StorageBuffer,
+    Buffer,
   };
   struct Elem {
     Type resource_type;
     void *resource;
+    VkDeviceSize offset;
   };
   Vector<Elem> bound_resources;
 
-  void bind(Type resource_type, void *resource, int binding)
+  void bind(Type resource_type, void *resource, int binding, VkDeviceSize offset)
   {
     if (bound_resources.size() <= binding) {
       bound_resources.resize(binding + 1);
     }
     bound_resources[binding].resource_type = resource_type;
     bound_resources[binding].resource = resource;
+    bound_resources[binding].offset = offset;
   }
 
   const Elem &get(int binding) const
@@ -142,6 +145,7 @@ class BindSpaceStorageBuffers {
       if (bound_resources[index].resource == resource) {
         bound_resources[index].resource = nullptr;
         bound_resources[index].resource_type = Type::Unused;
+        bound_resources[index].offset = 0u;
       }
     }
   }
@@ -170,16 +174,22 @@ class BindSpaceTextures {
   void bind(Type resource_type, void *resource, GPUSamplerState sampler, int binding)
   {
     if (bound_resources.size() <= binding) {
-      bound_resources.resize(binding + 1);
+      bound_resources.resize(binding + 1, {});
     }
     bound_resources[binding].resource_type = resource_type;
     bound_resources[binding].resource = resource;
     bound_resources[binding].sampler = sampler;
   }
 
-  const Elem &get(int binding) const
+  const Elem *get(int binding) const
   {
-    return bound_resources[binding];
+    if (binding >= bound_resources.size()) {
+      /* TODO: Check with @Jeroen-Bakker.
+       * Could we ensure state_manager adds default initialized bindings for each ShaderInterface
+       * resource? (See #142097). */
+      return nullptr;
+    }
+    return &bound_resources[binding];
   }
 
   void unbind(void *resource)
@@ -200,7 +210,7 @@ class BindSpaceTextures {
 };
 
 class VKStateManager : public StateManager {
-  friend class VKDescriptorSetTracker;
+  friend class VKDescriptorSetUpdator;
 
   uint texture_unpack_row_length_ = 0;
 
@@ -234,7 +244,14 @@ class VKStateManager : public StateManager {
 
   void storage_buffer_bind(BindSpaceStorageBuffers::Type resource_type,
                            void *resource,
-                           int binding);
+                           int binding)
+  {
+    storage_buffer_bind(resource_type, resource, binding, 0u);
+  }
+  void storage_buffer_bind(BindSpaceStorageBuffers::Type resource_type,
+                           void *resource,
+                           int binding,
+                           VkDeviceSize offset);
   void storage_buffer_unbind(void *resource);
   void storage_buffer_unbind_all();
 

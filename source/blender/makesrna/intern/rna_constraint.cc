@@ -8,16 +8,12 @@
 
 #include <cstdlib>
 
-#include "MEM_guardedalloc.h"
-
 #include "BLI_math_rotation.h"
 
 #include "BLT_translation.hh"
 
-#include "DNA_action_types.h"
 #include "DNA_constraint_types.h"
 #include "DNA_modifier_types.h"
-#include "DNA_object_types.h"
 #include "DNA_scene_types.h"
 
 #include "RNA_define.hh"
@@ -28,9 +24,6 @@
 #include "WM_types.hh"
 
 #include "ED_object.hh"
-
-#include "ANIM_action.hh"
-#include "rna_action_tools.hh"
 
 /* Please keep the names in sync with `constraint.cc`. */
 const EnumPropertyItem rna_enum_constraint_type_items[] = {
@@ -167,18 +160,6 @@ const EnumPropertyItem rna_enum_constraint_type_items[] = {
      ICON_CON_PIVOT,
      "Pivot",
      "Change pivot point for transforms (buggy)"},
-#if 0
-    {CONSTRAINT_TYPE_RIGIDBODYJOINT,
-     "RIGID_BODY_JOINT",
-     ICON_CONSTRAINT_DATA,
-     "Rigid Body Joint",
-     "Use to define a Rigid Body Constraint (for Game Engine use only)"},
-    {CONSTRAINT_TYPE_PYTHON,
-     "SCRIPT",
-     ICON_CONSTRAINT_DATA,
-     "Script",
-     "Custom constraint(s) written in Python (Not yet implemented)"},
-#endif
     {CONSTRAINT_TYPE_SHRINKWRAP,
      "SHRINKWRAP",
      ICON_CON_SHRINKWRAP,
@@ -336,6 +317,9 @@ static const EnumPropertyItem target_space_object_items[] = {
 #    include "ABC_alembic.h"
 #  endif
 
+#  include "ANIM_action.hh"
+#  include "rna_action_tools.hh"
+
 static StructRNA *rna_ConstraintType_refine(PointerRNA *ptr)
 {
   bConstraint *con = (bConstraint *)ptr->data;
@@ -357,8 +341,6 @@ static StructRNA *rna_ConstraintType_refine(PointerRNA *ptr)
       return &RNA_CopyScaleConstraint;
     case CONSTRAINT_TYPE_SAMEVOL:
       return &RNA_MaintainVolumeConstraint;
-    case CONSTRAINT_TYPE_PYTHON:
-      return &RNA_PythonConstraint;
     case CONSTRAINT_TYPE_ARMATURE:
       return &RNA_ArmatureConstraint;
     case CONSTRAINT_TYPE_ACTION:
@@ -494,10 +476,6 @@ static std::optional<std::string> rna_ConstraintTarget_path(const PointerRNA *pt
     if (con->type == CONSTRAINT_TYPE_ARMATURE) {
       bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
       index = BLI_findindex(&acon->targets, tgt);
-    }
-    else if (con->type == CONSTRAINT_TYPE_PYTHON) {
-      bPythonConstraint *pcon = static_cast<bPythonConstraint *>(con->data);
-      index = BLI_findindex(&pcon->targets, tgt);
     }
   }
 
@@ -641,8 +619,7 @@ static const EnumPropertyItem *rna_Constraint_target_space_itemf(bContext * /*C*
 static bConstraintTarget *rna_ArmatureConstraint_target_new(ID *id, bConstraint *con, Main *bmain)
 {
   bArmatureConstraint *acon = static_cast<bArmatureConstraint *>(con->data);
-  bConstraintTarget *tgt = static_cast<bConstraintTarget *>(
-      MEM_callocN(sizeof(bConstraintTarget), "Constraint Target"));
+  bConstraintTarget *tgt = MEM_callocN<bConstraintTarget>("Constraint Target");
 
   tgt->weight = 1.0f;
   BLI_addtail(&acon->targets, tgt);
@@ -724,14 +701,14 @@ static void rna_ActionConstraint_action_set(PointerRNA *ptr, PointerRNA value, R
 
   if (!action) {
     const bool ok = generic_assign_action(
-        animated_id, nullptr, acon->act, acon->action_slot_handle, acon->action_slot_name);
+        animated_id, nullptr, acon->act, acon->action_slot_handle, acon->last_slot_identifier);
     BLI_assert_msg(ok, "Un-assigning an Action from an Action Constraint should always work.");
     UNUSED_VARS_NDEBUG(ok);
     return;
   }
 
   const bool ok = generic_assign_action(
-      animated_id, action, acon->act, acon->action_slot_handle, acon->action_slot_name);
+      animated_id, action, acon->act, acon->action_slot_handle, acon->last_slot_identifier);
   if (!ok) {
     BKE_reportf(reports,
                 RPT_ERROR,
@@ -755,7 +732,7 @@ static void rna_ActionConstraint_action_set(PointerRNA *ptr, PointerRNA value, R
    * `OBSlot`. The assignment to the Action Constraint would not see a 'virgin' slot, and thus not
    * auto-select `OBSlot`. This behavior makes sense when assigning Actions in the Action editor
    * (it shouldn't automatically pick the first slot of matching ID type), but for the Action
-   * Constraint I (Sybren) feel that it could be a bit more 'enthousiastic' in auto-picking a slot.
+   * Constraint I (Sybren) feel that it could be a bit more 'enthusiastic' in auto-picking a slot.
    *
    * Note that this is the same behavior as for NLA strips, albeit for a slightly different
    * reason. Because of that it's not sharing code with the NLA.
@@ -764,7 +741,11 @@ static void rna_ActionConstraint_action_set(PointerRNA *ptr, PointerRNA value, R
     Slot *first_slot = action->slot(0);
     if (first_slot->is_suitable_for(animated_id)) {
       const ActionSlotAssignmentResult result = generic_assign_action_slot(
-          first_slot, animated_id, acon->act, acon->action_slot_handle, acon->action_slot_name);
+          first_slot,
+          animated_id,
+          acon->act,
+          acon->action_slot_handle,
+          acon->last_slot_identifier);
       BLI_assert(result == ActionSlotAssignmentResult::OK);
       UNUSED_VARS_NDEBUG(result);
     }
@@ -781,7 +762,24 @@ static void rna_ActionConstraint_action_slot_handle_set(
                                      *ptr->owner_id,
                                      acon->act,
                                      acon->action_slot_handle,
-                                     acon->action_slot_name);
+                                     acon->last_slot_identifier);
+}
+
+/**
+ * Emit a 'diff' for the .action_slot_handle property whenever the .action property differs.
+ *
+ * \see rna_generic_action_slot_handle_override_diff()
+ */
+static void rna_ActionConstraint_action_slot_handle_override_diff(
+    Main *bmain, RNAPropertyOverrideDiffContext &rnadiff_ctx)
+{
+  const bConstraint *con_a = static_cast<bConstraint *>(rnadiff_ctx.prop_a->ptr->data);
+  const bConstraint *con_b = static_cast<bConstraint *>(rnadiff_ctx.prop_b->ptr->data);
+
+  const bActionConstraint *act_con_a = static_cast<bActionConstraint *>(con_a->data);
+  const bActionConstraint *act_con_b = static_cast<bActionConstraint *>(con_b->data);
+
+  rna_generic_action_slot_handle_override_diff(bmain, rnadiff_ctx, act_con_a->act, act_con_b->act);
 }
 
 static PointerRNA rna_ActionConstraint_action_slot_get(PointerRNA *ptr)
@@ -799,17 +797,21 @@ static void rna_ActionConstraint_action_slot_set(PointerRNA *ptr,
   bConstraint *con = (bConstraint *)ptr->data;
   bActionConstraint *acon = (bActionConstraint *)con->data;
 
-  rna_generic_action_slot_set(
-      value, *ptr->owner_id, acon->act, acon->action_slot_handle, acon->action_slot_name, reports);
+  rna_generic_action_slot_set(value,
+                              *ptr->owner_id,
+                              acon->act,
+                              acon->action_slot_handle,
+                              acon->last_slot_identifier,
+                              reports);
 }
 
-static void rna_iterator_ActionConstraint_action_slots_begin(CollectionPropertyIterator *iter,
-                                                             PointerRNA *ptr)
+static void rna_iterator_ActionConstraint_action_suitable_slots_begin(
+    CollectionPropertyIterator *iter, PointerRNA *ptr)
 {
   bConstraint *con = (bConstraint *)ptr->data;
   bActionConstraint *acon = (bActionConstraint *)con->data;
 
-  rna_iterator_generic_action_slots_begin(iter, acon->act);
+  rna_iterator_generic_action_suitable_slots_begin(iter, ptr, acon->act);
 }
 
 static int rna_SplineIKConstraint_joint_bindings_get_length(const PointerRNA *ptr,
@@ -1150,46 +1152,6 @@ static void rna_def_constraint_childof(BlenderRNA *brna)
   RNA_define_lib_overridable(false);
 }
 
-static void rna_def_constraint_python(BlenderRNA *brna)
-{
-  StructRNA *srna;
-  PropertyRNA *prop;
-
-  srna = RNA_def_struct(brna, "PythonConstraint", "Constraint");
-  RNA_def_struct_ui_text(srna, "Python Constraint", "Use Python script for constraint evaluation");
-  RNA_def_struct_sdna_from(srna, "bPythonConstraint", "data");
-
-  RNA_define_lib_overridable(true);
-
-  prop = RNA_def_property(srna, "targets", PROP_COLLECTION, PROP_NONE);
-  RNA_def_property_collection_sdna(prop, nullptr, "targets", nullptr);
-  RNA_def_property_struct_type(prop, "ConstraintTarget");
-  RNA_def_property_ui_text(prop, "Targets", "Target Objects");
-
-  prop = RNA_def_property(srna, "target_count", PROP_INT, PROP_NONE);
-  RNA_def_property_int_sdna(prop, nullptr, "tarnum");
-  RNA_def_property_ui_text(prop, "Number of Targets", "Usually only 1 to 3 are needed");
-  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_dependency_update");
-
-  prop = RNA_def_property(srna, "text", PROP_POINTER, PROP_NONE);
-  RNA_def_property_ui_text(prop, "Script", "The text object that contains the Python script");
-  RNA_def_property_flag(prop, PROP_EDITABLE | PROP_ID_REFCOUNT);
-  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
-
-  prop = RNA_def_property(srna, "use_targets", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", PYCON_USETARGETS);
-  RNA_def_property_ui_text(
-      prop, "Use Targets", "Use the targets indicated in the constraint panel");
-  RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_dependency_update");
-
-  prop = RNA_def_property(srna, "has_script_error", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", PYCON_SCRIPTERROR);
-  RNA_def_property_clear_flag(prop, PROP_EDITABLE);
-  RNA_def_property_ui_text(prop, "Script Error", "The linked Python script has thrown an error");
-
-  RNA_define_lib_overridable(false);
-}
-
 static void rna_def_constraint_armature_deform_targets(BlenderRNA *brna, PropertyRNA *cprop)
 {
   StructRNA *srna;
@@ -1459,7 +1421,7 @@ static void rna_def_constraint_track_to(BlenderRNA *brna)
   prop = RNA_def_property(srna, "use_target_z", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flags", TARGET_Z_UP);
   RNA_def_property_ui_text(
-      prop, "Target Z", "Target's Z axis, not World Z axis, will constraint the Up direction");
+      prop, "Target Z", "Target's Z axis, not World Z axis, will constrain the Up direction");
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   RNA_define_lib_overridable(false);
@@ -1644,6 +1606,7 @@ static void rna_def_constraint_size_like(BlenderRNA *brna)
   RNA_def_property_float_default(prop, 1.0f);
   RNA_def_property_ui_range(prop, -FLT_MAX, FLT_MAX, 1, 3);
   RNA_def_property_ui_text(prop, "Power", "Raise the target's scale to the specified power");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_CONSTRAINT);
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   prop = RNA_def_property(srna, "use_make_uniform", PROP_BOOLEAN, PROP_NONE);
@@ -1665,6 +1628,7 @@ static void rna_def_constraint_size_like(BlenderRNA *brna)
       prop,
       "Additive",
       "Use addition instead of multiplication to combine scale (2.7 compatibility)");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_CONSTRAINT);
   RNA_def_property_update(prop, NC_OBJECT | ND_CONSTRAINT, "rna_Constraint_update");
 
   RNA_define_lib_overridable(false);
@@ -1884,6 +1848,12 @@ static void rna_def_constraint_action(BlenderRNA *brna)
   };
 
   static const EnumPropertyItem mix_mode_items[] = {
+      {ACTCON_MIX_REPLACE,
+       "REPLACE",
+       0,
+       "Replace",
+       "Replace the original transformation with the action channels"},
+      RNA_ENUM_ITEM_SEPR,
       {ACTCON_MIX_BEFORE_FULL,
        "BEFORE_FULL",
        0,
@@ -1977,16 +1947,18 @@ static void rna_def_constraint_action(BlenderRNA *brna)
                            "A number that identifies which sub-set of the Action is considered "
                            "to be for this Action Constraint");
   RNA_def_property_override_flag(prop, PROPOVERRIDE_OVERRIDABLE_LIBRARY);
+  RNA_def_property_override_funcs(
+      prop, "rna_ActionConstraint_action_slot_handle_override_diff", nullptr, nullptr);
   RNA_def_property_update(prop, NC_ANIMATION | ND_NLA_ACTCHANGE, "rna_Constraint_update");
 
-  prop = RNA_def_property(srna, "action_slot_name", PROP_STRING, PROP_NONE);
-  RNA_def_property_string_sdna(prop, nullptr, "action_slot_name");
+  prop = RNA_def_property(srna, "last_slot_identifier", PROP_STRING, PROP_NONE);
+  RNA_def_property_string_sdna(prop, nullptr, "last_slot_identifier");
   RNA_def_property_ui_text(
       prop,
-      "Action Slot Name",
-      "The name of the action slot. The slot identifies which sub-set of the Action "
-      "is considered to be for this constraint, and its name is used to find the right slot "
-      "when assigning an Action.");
+      "Last Action Slot Identifier",
+      "The identifier of the most recently assigned action slot. The slot identifies which "
+      "sub-set of the Action is considered to be for this constraint, and its identifier is used "
+      "to find the right slot when assigning an Action.");
 
   prop = RNA_def_property(srna, "action_slot", PROP_POINTER, PROP_NONE);
   RNA_def_property_struct_type(prop, "ActionSlot");
@@ -2014,10 +1986,10 @@ static void rna_def_constraint_action(BlenderRNA *brna)
    * and that's enough. */
   RNA_def_property_override_flag(prop, PROPOVERRIDE_IGNORE);
 
-  prop = RNA_def_property(srna, "action_slots", PROP_COLLECTION, PROP_NONE);
+  prop = RNA_def_property(srna, "action_suitable_slots", PROP_COLLECTION, PROP_NONE);
   RNA_def_property_struct_type(prop, "ActionSlot");
   RNA_def_property_collection_funcs(prop,
-                                    "rna_iterator_ActionConstraint_action_slots_begin",
+                                    "rna_iterator_ActionConstraint_action_suitable_slots_begin",
                                     "rna_iterator_array_next",
                                     "rna_iterator_array_end",
                                     "rna_iterator_array_dereference_get",
@@ -3769,7 +3741,6 @@ void RNA_def_constraint(BlenderRNA *brna)
   rna_def_constrainttarget_bone(brna);
 
   rna_def_constraint_childof(brna);
-  rna_def_constraint_python(brna);
   rna_def_constraint_armature_deform(brna);
   rna_def_constraint_stretch_to(brna);
   rna_def_constraint_follow_path(brna);

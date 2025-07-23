@@ -16,8 +16,8 @@
 #  endif
 #endif
 
+#include <cstdio> /* For `printf()`. */
 #include <iostream>
-#include <stdio.h> /* For `printf()`. */
 
 #if defined(WITH_GHOST_DEBUG)
 #  define GHOST_PRINT(x) \
@@ -51,7 +51,7 @@
 #endif /* `!defined(WITH_GHOST_DEBUG)` */
 
 #ifdef WITH_ASSERT_ABORT
-#  include <stdlib.h>  //for abort()
+#  include <cstdlib>  //for abort()
 #  define GHOST_ASSERT(x, info) \
     { \
       if (!(x)) { \
@@ -62,8 +62,8 @@
       } \
     } \
     ((void)0)
-/* Assert in non-release builds too. */
-#elif defined(WITH_GHOST_DEBUG) || (!defined(NDEBUG))
+/* Show the failure in non-release builds too. */
+#elif !defined(NDEBUG)
 #  define GHOST_ASSERT(x, info) \
     { \
       if (!(x)) { \

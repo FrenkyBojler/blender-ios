@@ -16,12 +16,14 @@ class Volume : public Mesh {
 
   Volume();
 
-  NODE_SOCKET_API(float, clipping)
   NODE_SOCKET_API(float, step_size)
   NODE_SOCKET_API(bool, object_space)
   NODE_SOCKET_API(float, velocity_scale)
 
-  virtual void clear(bool preserve_shaders = false) override;
+  /* Merge attributes for efficiency, call right after creating them. */
+  void merge_grids(const Scene *scene);
+
+  void clear(bool preserve_shaders = false) override;
 };
 
 CCL_NAMESPACE_END

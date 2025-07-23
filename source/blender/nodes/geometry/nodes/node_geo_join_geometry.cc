@@ -10,8 +10,12 @@ namespace blender::nodes::node_geo_join_geometry_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
 {
-  b.add_input<decl::Geometry>("Geometry").multi_input();
-  b.add_output<decl::Geometry>("Geometry").propagate_all();
+  b.use_custom_socket_order();
+  b.allow_any_socket_order();
+  b.add_input<decl::Geometry>("Geometry")
+      .multi_input()
+      .description("Geometries to merge together by concatenating their elements");
+  b.add_output<decl::Geometry>("Geometry").propagate_all().align_with_previous();
 }
 
 static void node_geo_exec(GeoNodeExecParams params)
@@ -33,10 +37,14 @@ static void node_register()
 {
   static blender::bke::bNodeType ntype;
 
-  geo_node_type_base(&ntype, GEO_NODE_JOIN_GEOMETRY, "Join Geometry", NODE_CLASS_GEOMETRY);
+  geo_node_type_base(&ntype, "GeometryNodeJoinGeometry", GEO_NODE_JOIN_GEOMETRY);
+  ntype.ui_name = "Join Geometry";
+  ntype.ui_description = "Merge separately generated geometries into a single one";
+  ntype.enum_name_legacy = "JOIN_GEOMETRY";
+  ntype.nclass = NODE_CLASS_GEOMETRY;
   ntype.geometry_node_execute = node_geo_exec;
   ntype.declare = node_declare;
-  blender::bke::node_register_type(&ntype);
+  blender::bke::node_register_type(ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

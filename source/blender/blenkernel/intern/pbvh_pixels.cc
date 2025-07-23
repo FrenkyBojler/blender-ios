@@ -14,9 +14,7 @@
 #include "BLI_listbase.h"
 #include "BLI_math_geom.h"
 #include "BLI_math_vector.h"
-#include "BLI_task.h"
 
-#include "BKE_global.hh"
 #include "BKE_image_wrappers.hh"
 #include "BKE_paint.hh"
 
@@ -130,12 +128,8 @@ struct UVPrimitiveLookup {
 
     uint64_t uv_island_index = 0;
     for (uv_islands::UVIsland &uv_island : uv_islands.islands) {
-      for (VectorList<uv_islands::UVPrimitive>::UsedVector &uv_primitives :
-           uv_island.uv_primitives)
-      {
-        for (uv_islands::UVPrimitive &uv_primitive : uv_primitives) {
-          lookup[uv_primitive.primitive_i].append_as(Entry(&uv_primitive, uv_island_index));
-        }
+      for (uv_islands::UVPrimitive &uv_primitive : uv_island.uv_primitives) {
+        lookup[uv_primitive.primitive_i].append_as(Entry(&uv_primitive, uv_island_index));
       }
       uv_island_index++;
     }
@@ -277,7 +271,7 @@ static bool find_nodes_to_update(Tree &pbvh, Vector<MeshNode *> &r_nodes_to_upda
       continue;
     }
     r_nodes_to_update.append(&node);
-    node.flag_ = static_cast<Node::Flags>(node.flag_ | Node::RebuildPixels);
+    node.flag_ = (node.flag_ | Node::RebuildPixels);
 
     if (node.pixels_ == nullptr) {
       NodeData *node_data = MEM_new<NodeData>(__func__);
@@ -321,7 +315,7 @@ static void apply_watertight_check(Tree &pbvh, Image &image, ImageUser &image_us
           }
           if (image_buffer->byte_buffer.data) {
             uint8_t *dest = &image_buffer->byte_buffer.data[pixel_offset * 4];
-            copy_v4_uchar(dest, 255);
+            dest[0] = dest[1] = dest[2] = dest[3] = 255;
           }
           pixel_offset += 1;
         }

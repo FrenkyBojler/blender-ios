@@ -16,7 +16,7 @@
 
 #include "ED_screen.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_types.hh"
 
 #include "BLT_translation.hh"
 
@@ -27,6 +27,8 @@
 
 #include "transform_mode.hh"
 
+namespace blender::ed::transform {
+
 /* -------------------------------------------------------------------- */
 /** \name Transform (EditBone B-Bone width scaling)
  * \{ */
@@ -35,7 +37,7 @@ static void headerBoneSize(TransInfo *t, const float vec[3], char str[UI_MAX_DRA
 {
   char tvec[NUM_STR_REP_LEN * 3];
   if (hasNumInput(&t->num)) {
-    outputNumInput(&(t->num), tvec, &t->scene->unit);
+    outputNumInput(&(t->num), tvec, t->scene->unit);
   }
   else {
     BLI_snprintf(&tvec[0], NUM_STR_REP_LEN, "%.4f", vec[0]);
@@ -160,10 +162,10 @@ static void initBoneSize(TransInfo *t, wmOperator * /*op*/)
   t->num.val_flag[1] |= NUM_NULL_ONE;
   t->num.val_flag[2] |= NUM_NULL_ONE;
   t->num.flag |= NUM_AFFECT_ALL;
-  t->snap[0] = 0.1f;
-  t->snap[1] = t->snap[0] * 0.1f;
+  t->increment = float3(0.1f);
+  t->increment_precision = 0.1f;
 
-  copy_v3_fl(t->num.val_inc, t->snap[0]);
+  copy_v3_fl(t->num.val_inc, t->increment[0]);
   t->num.unit_sys = t->scene->unit.system;
   t->num.unit_type[0] = B_UNIT_NONE;
   t->num.unit_type[1] = B_UNIT_NONE;
@@ -182,3 +184,5 @@ TransModeInfo TransMode_bboneresize = {
     /*snap_apply_fn*/ nullptr,
     /*draw_fn*/ nullptr,
 };
+
+}  // namespace blender::ed::transform
