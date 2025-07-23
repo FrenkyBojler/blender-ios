@@ -13,3 +13,4 @@ Referenced by issue #136531, Cycles: Light not updating in viewport when emissio
 Referenced by issue #139670, Regression: Cycles CPU+GPU Crash rendering hair
 Referenced by commit bc543ec5312d56550604f7c1122df79b8d81b318, Fix #139670: Cycles crash with persistent data and light geometry
 Referenced by issue #135194, MetalRT Deleting the last object in a scene leaves it visible in the viewport
+Referenced by issue #142953, Cycles: Lightgroup passes for environment shaders are incorrect
