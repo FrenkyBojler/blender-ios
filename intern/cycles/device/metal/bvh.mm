@@ -1004,8 +1004,8 @@ bool BVHMetal::build_TLAS(Progress &progress,
 
   if (@available(macos 12.0, *)) {
     /* Defined inside available check, for return type to be available. */
-    auto make_null_BLAS = [&](id<MTLDevice> mtl_device,
-                              id<MTLCommandQueue> queue) -> id<MTLAccelerationStructure> {
+    auto make_null_BLAS = [this](id<MTLDevice> mtl_device,
+                                 id<MTLCommandQueue> queue) -> id<MTLAccelerationStructure> {
       id<MTLBuffer> nullBuf = [mtl_device newBufferWithLength:sizeof(float3)
                                                       options:MTLResourceStorageModeShared];
 
