@@ -592,7 +592,17 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
     return false;
   }
 
-  const OffsetIndices points_by_curve = curves.points_by_curve();
+  if (cyclic_changed) {
+    index_mask::masked_fill(curves.cyclic_for_write(), bool(modified.cyclic), selection);
+  }
+
+  if (resolution_changed) {
+    index_mask::masked_fill(curves.resolution_for_write(), modified.resolution, selection);
+  }
+
+  if (!(nurbs_knot_mode_changed || order_changed)) {
+    return false;
+  }
 
   const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
   /* Ensure `src_knot_offsets` will not get deleted. */
@@ -612,9 +622,6 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
     curves.nurbs_knots_modes().materialize(src_knot_modes);
   }
 
-  const VArray<int8_t> curve_types = curves.curve_types();
-  const MutableSpan<bool> cyclic = cyclic_changed ? curves.cyclic_for_write() :
-                                                    MutableSpan<bool>();
   const MutableSpan<int8_t> nurbs_knot_modes = nurbs_knot_mode_changed ?
                                                    curves.nurbs_knots_modes_for_write() :
                                                    MutableSpan<int8_t>();
@@ -622,26 +629,13 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
                                                      MutableSpan<int8_t>();
   const MutableSpan<int8_t> knots_modes = order_changed ? curves.nurbs_knots_modes_for_write() :
                                                           MutableSpan<int8_t>();
-  const MutableSpan<int> resolution = resolution_changed ? curves.resolution_for_write() :
-                                                           MutableSpan<int>();
 
   selection.foreach_index(GrainSize(512), [&](const int curve) {
-    const CurveType curve_type = CurveType(curve_types[curve]);
-    const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
-
-    if (cyclic_changed) {
-      cyclic[curve] = modified.cyclic;
-    }
-
     if (nurbs_knot_mode_changed) {
       nurbs_knot_modes[curve] = modified.nurbs_knot_mode;
     }
 
-    if (resolution_changed) {
-      resolution[curve] = modified.resolution;
-    }
-
-    if (is_nurbs && order_changed) {
+    if (order_changed) {
       orders[curve] = modified.order;
       if (knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
         knots_modes[curve] = NURBS_KNOT_MODE_NORMAL;
@@ -653,6 +647,7 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
     curves.nurbs_custom_knots_update_size();
     const IndexMask custom_knot_curves = curves.nurbs_custom_knot_curves(memory);
     if (!custom_knot_curves.is_empty()) {
+      const OffsetIndices points_by_curve = curves.points_by_curve();
       const OffsetIndices<int> custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
       const VArray<int8_t> orders = curves.nurbs_orders();
       const VArray<bool> cyclic = curves.cyclic();
