@@ -53,7 +53,13 @@ class Bundle : public ImplicitSharingMixin {
   bool remove(const SocketInterfaceKey &key);
   bool contains(const SocketInterfaceKey &key) const;
 
+  void add_override_path(const StringRef path,
+                         const bke::bNodeSocketType &type,
+                         const void *value);
+
   std::optional<Item> lookup(const SocketInterfaceKey &key) const;
+  std::optional<Item> lookup_path(const Span<StringRef> path) const;
+  std::optional<Item> lookup_path(const StringRef path) const;
 
   Span<StoredItem> items() const
   {

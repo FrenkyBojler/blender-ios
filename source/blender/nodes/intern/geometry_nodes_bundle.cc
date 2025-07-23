@@ -2,6 +2,7 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
+#include "BKE_node_socket_value.hh"
 #include "BLI_cpp_type.hh"
 
 #include "BKE_node_runtime.hh"
@@ -155,6 +156,41 @@ bool Bundle::add(SocketInterfaceKey &&key, const bke::bNodeSocketType &type, con
   return true;
 }
 
+void Bundle::add_override_path(const StringRef path,
+                               const bke::bNodeSocketType &type,
+                               const void *value)
+{
+  BLI_assert(!path.is_empty());
+  BLI_assert(!path.endswith("/"));
+  BLI_assert(this->is_mutable());
+  const int sep = path.find_first_of('/');
+  if (sep == StringRef::not_found) {
+    this->remove(SocketInterfaceKey{path});
+    this->add_new(SocketInterfaceKey{path}, type, value);
+    return;
+  }
+  const StringRef first_part = path.substr(0, sep);
+  BundlePtr child_bundle;
+  const std::optional<Bundle::Item> item = this->lookup(SocketInterfaceKey{first_part});
+  if (item && item->type->type == SOCK_BUNDLE) {
+    child_bundle = static_cast<const bke::SocketValueVariant *>(item->value)->get<BundlePtr>();
+  }
+  else {
+    child_bundle = Bundle::create();
+  }
+  this->remove(SocketInterfaceKey{path});
+  if (!child_bundle->is_mutable()) {
+    child_bundle = child_bundle->copy();
+  }
+  child_bundle->tag_ensured_mutable();
+  const_cast<Bundle &>(*child_bundle).add_override_path(path.substr(sep + 1), type, value);
+  bke::SocketValueVariant child_bundle_value = bke::SocketValueVariant::From(
+      std::move(child_bundle));
+  this->add(SocketInterfaceKey{first_part},
+            *bke::node_socket_type_find_static(SOCK_BUNDLE),
+            &child_bundle_value);
+}
+
 std::optional<Bundle::Item> Bundle::lookup(const SocketInterfaceKey &key) const
 {
   for (const StoredItem &item : items_) {
@@ -163,6 +199,50 @@ std::optional<Bundle::Item> Bundle::lookup(const SocketInterfaceKey &key) const
     }
   }
   return std::nullopt;
+}
+
+std::optional<Bundle::Item> Bundle::lookup_path(const Span<StringRef> path) const
+{
+  BLI_assert(!path.is_empty());
+  const StringRef first_elem = path[0];
+  const std::optional<Bundle::Item> item = this->lookup(SocketInterfaceKey(first_elem));
+  if (!item) {
+    return std::nullopt;
+  }
+  if (path.size() == 1) {
+    return item;
+  }
+  if (item->type->type != SOCK_BUNDLE) {
+    return std::nullopt;
+  }
+  const BundlePtr child_bundle =
+      static_cast<const bke::SocketValueVariant *>(item->value)->get<BundlePtr>();
+  if (!child_bundle) {
+    return std::nullopt;
+  }
+  return child_bundle->lookup_path(path.drop_front(1));
+}
+
+static Vector<StringRef> split_path(const StringRef path)
+{
+  Vector<StringRef> path_elems;
+  StringRef remaining = path;
+  while (!remaining.is_empty()) {
+    const int sep = remaining.find_first_of('/');
+    if (sep == StringRef::not_found) {
+      path_elems.append(remaining);
+      break;
+    }
+    path_elems.append(remaining.substr(0, sep));
+    remaining = remaining.substr(sep + 1);
+  }
+  return path_elems;
+}
+
+std::optional<Bundle::Item> Bundle::lookup_path(const StringRef path) const
+{
+  const Vector<StringRef> path_elems = split_path(path);
+  return this->lookup_path(path_elems);
 }
 
 BundlePtr Bundle::copy() const
