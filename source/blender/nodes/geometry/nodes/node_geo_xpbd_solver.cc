@@ -192,14 +192,9 @@ static void node_geo_exec(GeoNodeExecParams params)
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
   for (geometry::xpbd::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
-    new_data_bundle.add_override_path(sim_geometry->path + "/Geometry",
-                                      *bke::node_socket_type_find_static(SOCK_GEOMETRY),
-                                      &sim_geometry->geometry);
+    new_data_bundle.add_path_override(sim_geometry->path + "/Geometry", sim_geometry->geometry);
     if (sim_geometry->extra && !sim_geometry->extra->items().is_empty()) {
-      bke::SocketValueVariant extra_value = bke::SocketValueVariant::From(sim_geometry->extra);
-      new_data_bundle.add_override_path(sim_geometry->path + "/Extra",
-                                        *bke::node_socket_type_find_static(SOCK_BUNDLE),
-                                        &extra_value);
+      new_data_bundle.add_path_override(sim_geometry->path + "/Extra", sim_geometry->extra);
     }
   }
 

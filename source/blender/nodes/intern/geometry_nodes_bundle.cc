@@ -105,6 +105,11 @@ Bundle::Bundle(Bundle &&other) noexcept
 {
 }
 
+BundlePtr Bundle::create()
+{
+  return BundlePtr(MEM_new<Bundle>(__func__));
+}
+
 Bundle &Bundle::operator=(const Bundle &other)
 {
   if (this == &other) {
@@ -155,16 +160,7 @@ bool Bundle::add(const SocketInterfaceKey &key,
   return true;
 }
 
-bool Bundle::add(SocketInterfaceKey &&key, const bke::bNodeSocketType &type, const void *value)
-{
-  if (this->contains(key)) {
-    return false;
-  }
-  this->add_new(std::move(key), type, value);
-  return true;
-}
-
-void Bundle::add_override_path(const StringRef path,
+void Bundle::add_path_override(const StringRef path,
                                const bke::bNodeSocketType &type,
                                const void *value)
 {
@@ -191,7 +187,7 @@ void Bundle::add_override_path(const StringRef path,
     child_bundle = child_bundle->copy();
   }
   child_bundle->tag_ensured_mutable();
-  const_cast<Bundle &>(*child_bundle).add_override_path(path.substr(sep + 1), type, value);
+  const_cast<Bundle &>(*child_bundle).add_path_override(path.substr(sep + 1), type, value);
   bke::SocketValueVariant child_bundle_value = bke::SocketValueVariant::From(
       std::move(child_bundle));
   this->add(SocketInterfaceKey{first_part},
