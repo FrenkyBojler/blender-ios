@@ -992,11 +992,12 @@ class SEQUENCER_MT_strip_mirror(Menu):
     def draw(self, _context):
         layout = self.layout
 
+        # Operator only used in Preview.
+        layout.operator_context = 'INVOKE_REGION_PREVIEW'
+
         layout.operator("transform.mirror", text="Interactive Mirror")
 
         layout.separator()
-
-        layout.operator_context = 'EXEC_REGION_WIN'
 
         for (space_name, space_id) in (("Global", 'GLOBAL'), ("Local", 'LOCAL')):
             for axis_index, axis_name in enumerate("XY"):
