@@ -294,12 +294,6 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
                      U_theme_default.tui.wcol_tooltip.outline);
   }
 
-  if (!USER_VERSION_ATLEAST(500, 9)) {
-    FROM_DEFAULT_V4_UCHAR(tui.panel_header);
-    FROM_DEFAULT_V4_UCHAR(tui.panel_back);
-    FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
-  }
-
   if (!USER_VERSION_ATLEAST(500, 12)) {
     FROM_DEFAULT_V4_UCHAR(space_node.syntaxs);
     FROM_DEFAULT_V4_UCHAR(space_node.syntaxb);
@@ -331,15 +325,40 @@ static void do_versions_theme(const UserDef *userdef, bTheme *btheme)
     btheme->tui.menu_shadow_width = U_theme_default.tui.menu_shadow_width;
   }
 
+  if (!USER_VERSION_ATLEAST(500, 25)) {
+    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
+    FROM_DEFAULT_V4_UCHAR(space_properties.button);
+  }
+
   if (!USER_VERSION_ATLEAST(500, 29)) {
     FROM_DEFAULT_V4_UCHAR(space_node.console_output);
   }
 
   if (!USER_VERSION_ATLEAST(500, 41)) {
-    FROM_DEFAULT_V4_UCHAR(tui.panel_title);
-    FROM_DEFAULT_V4_UCHAR(tui.panel_text);
-    FROM_DEFAULT_V4_UCHAR(space_properties.tab_back);
-    FROM_DEFAULT_V4_UCHAR(space_properties.button);
+    /* Guess overall lightness of the theme based on Properties header color. */
+    const uchar lightness = srgb_to_grayscale_byte(btheme->space_properties.header);
+    if (lightness < 80) {
+      /* Use dark theme defaults. */
+      FROM_DEFAULT_V4_UCHAR(tui.panel_title);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_text);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_header);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_back);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_sub_back);
+      FROM_DEFAULT_V4_UCHAR(tui.panel_outline);
+    }
+    else {
+      /* Values from Light theme. */
+      const uchar panel_text[4] = {0x1a, 0x1a, 0x1a, 0xff};
+      copy_v4_v4_uchar(btheme->tui.panel_title, panel_text);
+      copy_v4_v4_uchar(btheme->tui.panel_text, panel_text);
+      const uchar panel_header[4] = {0xff, 0xff, 0xff, 0x52};
+      copy_v4_v4_uchar(btheme->tui.panel_header, panel_header);
+      copy_v4_v4_uchar(btheme->tui.panel_back, panel_header);
+      const uchar panel_sub_back[4] = {0x00, 0x00, 0x00, 0x1f};
+      copy_v4_v4_uchar(btheme->tui.panel_sub_back, panel_sub_back);
+      const uchar panel_outline[4] = {0x00, 0x00, 0x00, 0x22};
+      copy_v4_v4_uchar(btheme->tui.panel_outline, panel_outline);
+    }
   }
 
   /**
