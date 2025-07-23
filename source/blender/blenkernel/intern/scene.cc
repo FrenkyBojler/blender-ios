@@ -1372,6 +1372,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
           reader, "Strip", "ListBase", "seqbase");
       const int channels_offset_file = BLO_read_struct_member_offset(
           reader, "Strip", "ListBase", "channels");
+      const size_t seqbase_offset_mem = offsetof(Strip, seqbase);
+      const size_t channels_offset_mem = offsetof(Strip, channels);
 
       /* seqbase root pointer */
       if (ed->seqbasep == old_seqbasep || seqbase_offset_file < 0) {
@@ -1383,7 +1385,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         seqbase_poin = BLO_read_get_new_data_address_no_us(reader, seqbase_poin, sizeof(Strip));
 
         if (seqbase_poin) {
-          ed->seqbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, offsetof(Strip, seqbase));
+          ed->seqbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_mem);
         }
         else {
           ed->seqbasep = &ed->seqbase;
@@ -1402,8 +1404,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
             reader, channels_poin, sizeof(SeqTimelineChannel));
 
         if (channels_poin) {
-          ed->displayed_channels = (ListBase *)POINTER_OFFSET(channels_poin,
-                                                              offsetof(Strip, channels));
+          ed->displayed_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_mem);
         }
         else {
           ed->displayed_channels = &ed->channels;
@@ -1423,7 +1424,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
           void *seqbase_poin = POINTER_OFFSET(ms->oldbasep, -seqbase_offset_file);
           seqbase_poin = BLO_read_get_new_data_address_no_us(reader, seqbase_poin, sizeof(Strip));
           if (seqbase_poin) {
-            ms->oldbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_file);
+            ms->oldbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_mem);
           }
           else {
             ms->oldbasep = &ed->seqbase;
@@ -1439,7 +1440,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
               reader, channels_poin, sizeof(SeqTimelineChannel));
 
           if (channels_poin) {
-            ms->old_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_file);
+            ms->old_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_mem);
           }
           else {
             ms->old_channels = &ed->channels;

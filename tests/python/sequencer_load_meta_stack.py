@@ -11,6 +11,7 @@ import argparse
 import sys
 import unittest
 
+
 class SequencerLoadMetastaskTest(unittest.TestCase):
     def get_sequence_editor(self):
         return bpy.context.scene.sequence_editor
@@ -19,13 +20,14 @@ class SequencerLoadMetastaskTest(unittest.TestCase):
         sequence_editor = self.get_sequence_editor()
 
         meta_stack = sequence_editor.meta_stack
-        self.assertEqual(len(meta_stack) ,1)
-        self.assertEqual(meta_stack[0].name,"MetaStrip")
+        self.assertEqual(len(meta_stack), 1)
+        self.assertEqual(meta_stack[0].name, "MetaStrip")
 
-        self.assertEqual(len(meta_stack[0].sequences),1)
-        self.assertEqual(meta_stack[0].sequences[0].name,"Color")
+        self.assertEqual(len(meta_stack[0].sequences), 1)
+        self.assertEqual(meta_stack[0].sequences[0].name, "Color")
 
-    # TODO(sergey): Find a way to test ed->seqbasp and ed->displayed_channels
+        # accesses ed->seqbasep through screen_ctx_selected_editable_sequences
+        bpy.context.copy()
 
 
 def main():
@@ -38,6 +40,7 @@ def main():
     args, remaining = parser.parse_known_args(argv)
 
     unittest.main(argv=remaining)
+
 
 if __name__ == "__main__":
     main()
