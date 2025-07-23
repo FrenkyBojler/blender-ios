@@ -1383,7 +1383,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
         seqbase_poin = BLO_read_get_new_data_address_no_us(reader, seqbase_poin, sizeof(Strip));
 
         if (seqbase_poin) {
-          ed->seqbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, seqbase_offset_file);
+          ed->seqbasep = (ListBase *)POINTER_OFFSET(seqbase_poin, offsetof(Strip, seqbase));
         }
         else {
           ed->seqbasep = &ed->seqbase;
@@ -1402,7 +1402,8 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
             reader, channels_poin, sizeof(SeqTimelineChannel));
 
         if (channels_poin) {
-          ed->displayed_channels = (ListBase *)POINTER_OFFSET(channels_poin, channels_offset_file);
+          ed->displayed_channels = (ListBase *)POINTER_OFFSET(channels_poin,
+                                                              offsetof(Strip, channels));
         }
         else {
           ed->displayed_channels = &ed->channels;
