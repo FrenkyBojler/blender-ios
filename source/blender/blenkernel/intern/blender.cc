@@ -178,6 +178,11 @@ bool BKE_blender_version_is_alpha()
   return is_alpha;
 }
 
+bool BKE_blender_version_is_release()
+{
+  return STREQ(STRINGIFY(BLENDER_VERSION_CYCLE), "release");
+}
+
 bool BKE_blender_version_is_lts()
 {
   return STREQ(STRINGIFY(BLENDER_VERSION_SUFFIX), "LTS");

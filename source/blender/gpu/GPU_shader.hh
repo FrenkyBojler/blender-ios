@@ -18,6 +18,7 @@
 #include "BLI_vector.hh"
 
 #include "GPU_common_types.hh"
+#include "GPU_platform.hh"
 #include "GPU_shader_builtin.hh"
 
 namespace blender::gpu {
@@ -530,6 +531,14 @@ class StaticShader : NonCopyable {
         shader_ = GPU_shader_create_from_info_name(info_name_.c_str());
       }
       failed_ = shader_ == nullptr;
+    }
+
+    if (failed_) {
+      /*
+       * This should never happen on a release build. Assume it's a driver issue and tell the user
+       * to update their drivers, so the triaging team doesn't get drowned in low quality reports.
+       */
+      GPU_platform_show_driver_error_popup();
     }
 
     return shader_;

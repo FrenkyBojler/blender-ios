@@ -67,42 +67,10 @@ static bool wm_platform_support_check_approval(const char *platform_support_key,
   return result;
 }
 
-static void wm_platform_support_create_link(char *link)
-{
-  DynStr *ds = BLI_dynstr_new();
-
-  BLI_dynstr_append(ds, "https://docs.blender.org/manual/en/dev/troubleshooting/gpu/");
-#if defined(_WIN32)
-  BLI_dynstr_append(ds, "windows/");
-#elif defined(__APPLE__)
-  BLI_dynstr_append(ds, "apple/");
-#else /* UNIX. */
-  BLI_dynstr_append(ds, "linux/");
-#endif
-
-  if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    BLI_dynstr_append(ds, "intel.html");
-  }
-  else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    BLI_dynstr_append(ds, "nvidia.html");
-  }
-  else if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
-    BLI_dynstr_append(ds, "amd.html");
-  }
-  else {
-    BLI_dynstr_append(ds, "unknown.html");
-  }
-
-  BLI_assert(BLI_dynstr_get_len(ds) < WM_PLATFORM_SUPPORT_TEXT_SIZE);
-  BLI_dynstr_get_cstring_ex(ds, link);
-  BLI_dynstr_free(ds);
-}
-
 bool WM_platform_support_perform_checks()
 {
   char title[WM_PLATFORM_SUPPORT_TEXT_SIZE];
   char message[WM_PLATFORM_SUPPORT_TEXT_SIZE];
-  char link[WM_PLATFORM_SUPPORT_TEXT_SIZE];
 
   bool result = true;
 
@@ -217,10 +185,7 @@ bool WM_platform_support_perform_checks()
       support_level, GPU_SUPPORT_LEVEL_LIMITED, GPU_SUPPORT_LEVEL_UNSUPPORTED);
   bool show_continue = backend_detected;
   bool show_link = backend_detected;
-  link[0] = '\0';
-  if (show_link) {
-    wm_platform_support_create_link(link);
-  }
+  const char *link = show_link ? GPU_platform_support_link() : "";
 
   if (show_message) {
     /* Always print when in background mode or using debug argument. */

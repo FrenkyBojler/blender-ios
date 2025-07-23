@@ -13,11 +13,18 @@
 
 #include "MEM_guardedalloc.h"
 
+#include "GHOST_C-api.h"
+
 #include "BLI_dynstr.h"
 #include "BLI_string.h"
 #include "BLI_string_utils.hh"
+#include "BLI_system.h"
 #include "BLI_vector.hh"
 
+#include "BKE_blender_version.h"
+#include "BKE_global.hh"
+
+#include "GPU_context.hh"
 #include "GPU_platform.hh"
 
 #include "gpu_platform_private.hh"
@@ -197,6 +204,54 @@ blender::Span<uint8_t> GPU_platform_luid()
 uint32_t GPU_platform_luid_node_mask()
 {
   return GPG.device_luid_node_mask;
+}
+
+void GPU_platform_show_driver_error_popup()
+{
+  if (BKE_blender_version_is_release() && !G.background) {
+
+    GHOST_ShowMessageBox(
+        (GHOST_SystemHandle)GPU_backend_ghost_system_get(),
+        "Blender - Driver Error",
+        "Blender has detected an error that may be caused by an old/broken GPU driver.\n"
+        "Updating your drivers may fix the issue.",
+        "Find Latest Drivers",
+        "Exit",
+        GPU_platform_support_link(),
+        GHOST_DialogError);
+  }
+
+  BLI_system_backtrace(stderr);
+  abort();
+}
+
+const char *GPU_platform_support_link()
+{
+  static std::string link = []() {
+    std::string result = "https://docs.blender.org/manual/en/dev/troubleshooting/gpu/";
+#if defined(_WIN32)
+    result += "windows/";
+#elif defined(__APPLE__)
+    result += "apple/";
+#else /* UNIX. */
+    result += "linux/";
+#endif
+    if (GPU_type_matches(GPU_DEVICE_INTEL, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+      result += "intel.html";
+    }
+    else if (GPU_type_matches(GPU_DEVICE_NVIDIA, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+      result += "nvidia.html";
+    }
+    else if (GPU_type_matches(GPU_DEVICE_ATI, GPU_OS_ANY, GPU_DRIVER_ANY)) {
+      result += "amd.html";
+    }
+    else {
+      result += "unknown.html";
+    }
+    return result;
+  }();
+
+  return link.c_str();
 }
 
 /** \} */

@@ -47,6 +47,8 @@ const char *BKE_blender_version_string_compact(void);
 
 /** Returns true when version cycle is alpha, otherwise (beta, rc) returns false. */
 bool BKE_blender_version_is_alpha(void);
+/** Returns true when version cycle is release, otherwise (beta, rc) returns false. */
+bool BKE_blender_version_is_release(void);
 
 /** Returns true when version suffix is LTS, otherwise returns false. */
 bool BKE_blender_version_is_lts(void);
