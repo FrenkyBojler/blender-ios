@@ -531,7 +531,7 @@ static CurvesSelectionStatus init_curves_selection_status(
   const VArray<int> resolution = curves.resolution();
 
   IndexMaskMemory memory;
-  const IndexMask selection = retrieve_all_selected_points(curves, memory);
+  const IndexMask selection = retrieve_selected_curves(curves, memory);
 
   return threading::parallel_reduce(
       curves.curves_range(),
@@ -540,12 +540,8 @@ static CurvesSelectionStatus init_curves_selection_status(
       [&](const IndexRange range, const CurvesSelectionStatus &acc) {
         CurvesSelectionStatus value = acc;
 
-        for (const int curve : range) {
+        selection.slice_content(range).foreach_index([&](const int curve) {
           const IndexRange points = points_by_curve[curve];
-          const IndexMask curve_selection = selection.slice_content(points);
-          if (curve_selection.is_empty()) {
-            continue;
-          }
           const CurveType curve_type = CurveType(curve_types[curve]);
           const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
           const bool is_bezier = curve_type == CURVE_TYPE_BEZIER;
@@ -567,7 +563,7 @@ static CurvesSelectionStatus init_curves_selection_status(
           const int res = resolution[curve];
           value.resolution_sum += res;
           value.resolution_max = std::max(value.resolution_max, res);
-        }
+        });
         return value;
       },
       CurvesSelectionStatus::sum);
@@ -592,7 +588,7 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
   }
 
   IndexMaskMemory memory;
-  const IndexMask selection = retrieve_all_selected_points(curves, memory);
+  const IndexMask selection = retrieve_selected_curves(curves, memory);
   if (selection.is_empty()) {
     return false;
   }
@@ -630,34 +626,27 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
   const MutableSpan<int> resolution = resolution_changed ? curves.resolution_for_write() :
                                                            MutableSpan<int>();
 
-  threading::parallel_for(curves.curves_range(), 512, [&](const IndexRange range) {
-    for (const int curve : range) {
-      const IndexRange points = points_by_curve[curve];
-      const CurveType curve_type = CurveType(curve_types[curve]);
-      const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
-      const IndexMask curve_selection = selection.slice_content(points);
+  selection.foreach_index(GrainSize(512), [&](const int curve) {
+    const IndexRange points = points_by_curve[curve];
+    const CurveType curve_type = CurveType(curve_types[curve]);
+    const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
 
-      if (curve_selection.is_empty()) {
-        continue;
-      }
+    if (cyclic_changed) {
+      cyclic[curve] = modified.cyclic;
+    }
 
-      if (cyclic_changed) {
-        cyclic[curve] = modified.cyclic;
-      }
+    if (nurbs_knot_mode_changed) {
+      nurbs_knot_modes[curve] = modified.nurbs_knot_mode;
+    }
 
-      if (nurbs_knot_mode_changed) {
-        nurbs_knot_modes[curve] = modified.nurbs_knot_mode;
-      }
+    if (resolution_changed) {
+      resolution[curve] = modified.resolution;
+    }
 
-      if (resolution_changed) {
-        resolution[curve] = modified.resolution;
-      }
-
-      if (is_nurbs && order_changed) {
-        orders[curve] = modified.order;
-        if (knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
-          knots_modes[curve] = NURBS_KNOT_MODE_NORMAL;
-        }
+    if (is_nurbs && order_changed) {
+      orders[curve] = modified.order;
+      if (knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
+        knots_modes[curve] = NURBS_KNOT_MODE_NORMAL;
       }
     }
   });
