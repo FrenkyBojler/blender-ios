@@ -523,7 +523,6 @@ static CurvesSelectionStatus init_curves_selection_status(
   if (curves.is_empty()) {
     return CurvesSelectionStatus();
   }
-  const OffsetIndices points_by_curve = curves.points_by_curve();
   const VArray<int8_t> curve_types = curves.curve_types();
   const VArray<bool> cyclic = curves.cyclic();
   const VArray<int8_t> nurbs_knot_modes = curves.nurbs_knots_modes();
@@ -601,7 +600,7 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
   }
 
   if (!(nurbs_knot_mode_changed || order_changed)) {
-    return false;
+    return true;
   }
 
   const OffsetIndices<int> src_custom_knots_by_curve = curves.nurbs_custom_knots_by_curve();
@@ -627,21 +626,19 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
                                                    MutableSpan<int8_t>();
   const MutableSpan<int8_t> orders = order_changed ? curves.nurbs_orders_for_write() :
                                                      MutableSpan<int8_t>();
-  const MutableSpan<int8_t> knots_modes = order_changed ? curves.nurbs_knots_modes_for_write() :
-                                                          MutableSpan<int8_t>();
 
-  selection.foreach_index(GrainSize(512), [&](const int curve) {
-    if (nurbs_knot_mode_changed) {
-      nurbs_knot_modes[curve] = modified.nurbs_knot_mode;
-    }
+  if (nurbs_knot_mode_changed) {
+    index_mask::masked_fill(nurbs_knot_modes, int8_t(modified.nurbs_knot_mode), selection);
+  }
 
-    if (order_changed) {
+  if (order_changed) {
+    selection.foreach_index(GrainSize(512), [&](const int curve) {
       orders[curve] = modified.order;
-      if (knots_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
-        knots_modes[curve] = NURBS_KNOT_MODE_NORMAL;
+      if (nurbs_knot_modes[curve] == NURBS_KNOT_MODE_CUSTOM) {
+        nurbs_knot_modes[curve] = NURBS_KNOT_MODE_NORMAL;
       }
-    }
-  });
+    });
+  }
 
   if (nurbs_knot_mode_changed) {
     curves.nurbs_custom_knots_update_size();
