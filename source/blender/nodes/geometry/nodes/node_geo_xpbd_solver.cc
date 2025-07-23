@@ -13,6 +13,7 @@
 
 #include "node_geometry_util.hh"
 
+#include "NOD_geometry_nodes_behaviors_bundle.hh"
 #include "NOD_geometry_nodes_bundle.hh"
 
 namespace blender::nodes::node_geo_xpbd_solver_cc {
@@ -93,41 +94,6 @@ static void store_bundle_path(Bundle &bundle,
              &child_bundle_value);
 }
 
-static void foreach_behavior_recursive(
-    const Bundle &behaviors_bundle,
-    Vector<StringRef> &path_stack,
-    const FunctionRef<void(StringRef type, const Bundle &behavior_bundle, Span<StringRef> path)>
-        fn)
-{
-  if (std::optional<const Bundle::Item> type_item = behaviors_bundle.lookup(
-          SocketInterfaceKey{"Type"}))
-  {
-    if (type_item->type->type != SOCK_STRING) {
-      return;
-    }
-    const std::string type =
-        static_cast<const bke::SocketValueVariant *>(type_item->value)->get<std::string>();
-    if (type.empty()) {
-      return;
-    }
-    fn(type, behaviors_bundle, path_stack);
-    return;
-  }
-  for (const Bundle::StoredItem &item : behaviors_bundle.items()) {
-    if (item.type->type != SOCK_BUNDLE) {
-      continue;
-    }
-    BundlePtr child_bundle = static_cast<bke::SocketValueVariant *>(item.value)->get<BundlePtr>();
-    if (!child_bundle) {
-      continue;
-    }
-    const StringRef key = item.key.identifiers()[0];
-    path_stack.append(key);
-    foreach_behavior_recursive(*child_bundle, path_stack, fn);
-    path_stack.pop_last();
-  }
-}
-
 template<typename T>
 static std::optional<T> get_from_bundle__value_variant(const Bundle &bundle, const StringRef key)
 {
@@ -156,10 +122,8 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
     return {};
   }
   geometry::xpbd::Behaviors behaviors;
-  Vector<StringRef> path_stack;
-  foreach_behavior_recursive(
+  foreach_behavior_in_bundle(
       *behaviors_bundle,
-      path_stack,
       [&](const StringRef type, const Bundle &behavior_bundle, const Span<StringRef> path_stack) {
         const std::string path = combine_bundle_path(path_stack);
         if (type == "Geometry") {
