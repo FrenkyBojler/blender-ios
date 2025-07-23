@@ -14,10 +14,20 @@
 
 #include "FN_field.hh"
 #include "FN_lazy_function.hh"
+#include "FN_multi_function.hh"
 
 #include "NOD_geometry_nodes_bundle_fwd.hh"
 #include "NOD_geometry_nodes_closure_fwd.hh"
 #include "NOD_geometry_nodes_list_fwd.hh"
+
+namespace blender {
+namespace bke {
+class SocketValueVariant;
+}
+namespace nodes {
+struct GeoNodesUserData;
+}
+}  // namespace blender
 
 namespace blender::nodes {
 
@@ -45,6 +55,14 @@ static constexpr bool geo_nodes_type_stored_as_SocketValueVariant_v =
                   nodes::BundlePtr,
                   nodes::ClosurePtr,
                   nodes::ListPtr>;
+
+[[nodiscard]] bool execute_multi_function_on_value_variant(
+    const mf::MultiFunction &fn,
+    const std::shared_ptr<mf::MultiFunction> &owned_fn,
+    const Span<bke::SocketValueVariant *> input_values,
+    const Span<bke::SocketValueVariant *> output_values,
+    GeoNodesUserData *user_data,
+    std::string &r_error_message);
 
 /**
  * Performs implicit conversion between socket types. Returns false if the conversion is not

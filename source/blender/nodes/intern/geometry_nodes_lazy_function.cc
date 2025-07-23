@@ -538,7 +538,7 @@ static void execute_multi_function_on_value_variant__field(
  * Executes a multi-function. If all inputs are single values, the results will also be single
  * values. If any input is a field, the outputs will also be fields.
  */
-[[nodiscard]] static bool execute_multi_function_on_value_variant(
+[[nodiscard]] bool execute_multi_function_on_value_variant(
     const MultiFunction &fn,
     const std::shared_ptr<MultiFunction> &owned_fn,
     const Span<SocketValueVariant *> input_values,

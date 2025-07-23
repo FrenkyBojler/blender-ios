@@ -3,6 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
 #include "NOD_geometry_nodes_list.hh"
+#include "NOD_geometry_nodes_values.hh"
 #include "NOD_rna_define.hh"
 #include "NOD_socket.hh"
 #include "NOD_socket_search_link.hh"
@@ -69,7 +70,6 @@ static void node_gather_link_searches(GatherLinkSearchOpParams &params)
 
 class SampleIndexFunction : public mf::MultiFunction {
   ListPtr list_;
-
   mf::Signature signature_;
 
  public:
@@ -117,17 +117,27 @@ static void node_rna(StructRNA *srna)
 
 static void node_geo_exec(GeoNodeExecParams params)
 {
-  Field<int> index = params.extract_input<Field<int>>("Index");
+  bke::SocketValueVariant index = params.extract_input<bke::SocketValueVariant>("Index");
   ListPtr list = params.extract_input<ListPtr>("List");
   if (!list) {
     params.set_default_remaining_outputs();
     return;
   }
 
-  auto fn = std::make_shared<SampleIndexFunction>(std::move(list));
-  auto op = FieldOperation::from(std::move(fn), {std::move(index)});
+  auto fn_ptr = std::make_shared<SampleIndexFunction>(std::move(list));
+  const mf::MultiFunction &fn = *fn_ptr;
 
-  params.set_output("Value", GField(std::move(op)));
+  bke::SocketValueVariant output_value;
+  std::string error_message;
+  const bool success = execute_multi_function_on_value_variant(
+      fn, std::move(fn_ptr), {&index}, {&output_value}, params.user_data(), error_message);
+  if (!success) {
+    params.set_default_remaining_outputs();
+    params.error_message_add(NodeWarningType::Error, std::move(error_message));
+    return;
+  }
+
+  params.set_output("Value", std::move(output_value));
 }
 
 static void node_register()
