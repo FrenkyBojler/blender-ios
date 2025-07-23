@@ -31,13 +31,14 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
   if (!is_light_shader_visible_to_path(shader, path_flag)) {
     return zero_spectrum();
   }
-  if ((shader & SHADER_EXCLUDE_ANY) != 0) {
-    light_visibility = light_visibility_correction(state, shader, path_flag);
-  }
+
   /* Use fast constant background color if available. */
   Spectrum L = zero_spectrum();
   if (surface_shader_constant_emission(kg, shader, &L)) {
-    return L * light_visibility;
+    if ((shader & SHADER_EXCLUDE_ANY) != 0) {
+      L *= light_visibility_correction(state, shader, path_flag);
+    } 
+    return L;
   }
 
   /* Evaluate background shader. */
@@ -59,7 +60,11 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
   surface_shader_eval<KERNEL_FEATURE_NODE_MASK_SURFACE_BACKGROUND>(
       kg, state, emission_sd, render_buffer, path_flag | PATH_RAY_EMISSION);
 
-  return light_visibility * surface_shader_background(emission_sd);
+  L = surface_shader_background(emission_sd);
+  if ((shader & SHADER_EXCLUDE_ANY) != 0) {
+    L *= light_visibility_correction(state, shader, path_flag);
+  } 
+  return L; 
 }
 
 ccl_device_inline void integrate_background(KernelGlobals kg,
@@ -135,14 +140,10 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
   for (int lamp = 0; lamp < kernel_data.integrator.num_lights; lamp++) {
     if (distant_light_sample_from_intersection(kg, ray_D, lamp, &ls)) {
       /* Use visibility flag to skip lights. */
-      Spectrum light_visibility = one_spectrum();
 #ifdef __PASSES__
       const uint32_t path_flag = INTEGRATOR_STATE(state, path, flag);
       if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
         continue;
-      }
-      if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
-        light_visibility = light_visibility_correction(state, ls.shader, path_flag);
       }
 #endif
 
@@ -177,10 +178,14 @@ ccl_device_inline void integrate_distant_lights(KernelGlobals kg,
       ShaderDataTinyStorage emission_sd_storage;
       ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
       Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
-      light_eval *= light_visibility;
       if (is_zero(light_eval)) {
         continue;
       }
+#ifdef __PASSES__
+      if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
+        light_eval *= light_visibility_correction(state, ls.shader, path_flag);
+      }
+#endif
 
       /* MIS weighting. */
       const float mis_weight = light_sample_mis_weight_forward_distant(kg, state, path_flag, &ls);

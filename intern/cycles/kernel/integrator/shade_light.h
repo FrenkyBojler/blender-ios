@@ -40,13 +40,9 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   }
 
   /* Use visibility flag to skip lights. */
-  Spectrum light_visibility = one_spectrum();
 #ifdef __PASSES__
   if (!is_light_shader_visible_to_path(ls.shader, path_flag)) {
     return;
-  }
-  if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
-    light_visibility = light_visibility_correction(state, ls.shader, path_flag);
   }
 #endif
 
@@ -55,10 +51,14 @@ ccl_device_inline void integrate_light(KernelGlobals kg,
   ShaderDataTinyStorage emission_sd_storage;
   ccl_private ShaderData *emission_sd = AS_SHADER_DATA(&emission_sd_storage);
   Spectrum light_eval = light_sample_shader_eval(kg, state, emission_sd, &ls, ray_time);
-  light_eval *= light_visibility;
   if (is_zero(light_eval)) {
     return;
   }
+#ifdef __PASSES__
+  if ((ls.shader & SHADER_EXCLUDE_ANY) != 0) {
+    light_eval *= light_visibility_correction(state, ls.shader, path_flag);
+  }
+#endif
 
   /* MIS weighting. */
   const float mis_weight = light_sample_mis_weight_forward_lamp(kg, state, path_flag, &ls, ray_P);
