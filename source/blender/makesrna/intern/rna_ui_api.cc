@@ -86,7 +86,7 @@ std::optional<StringRefNull> rna_translate_ui_text(
 
 static void rna_uiItemTextBox(uiLayout *layout)
 {
-  layout->prop_text_box();
+  layout->prop_textbox();
 };
 
 static void rna_uiItemR(uiLayout *layout,
@@ -1391,7 +1391,7 @@ void RNA_api_ui_layout(StructRNA *srna)
   RNA_def_function_ui_description(func, "Return the icon for this enum item");
 
   /* items */
-  func = RNA_def_function(srna, "prop_text_box", "rna_uiItemTextBox");
+  func = RNA_def_function(srna, "prop_textbox", "rna_uiItemTextBox");
 
   func = RNA_def_function(srna, "prop", "rna_uiItemR");
   RNA_def_function_ui_description(func,

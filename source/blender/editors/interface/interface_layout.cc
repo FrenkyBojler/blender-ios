@@ -2610,7 +2610,7 @@ static void resize_textbox(int resize, int &visible_lines)
   }
 }
 
-void uiLayout::prop_text_box()
+void uiLayout::prop_textbox()
 {
   uiLayout &col = this->column(false);
   uiLayout &overlap = col.row(false).overlap();
@@ -2638,6 +2638,7 @@ void uiLayout::prop_text_box()
 
   overlap.row(false).alignment_set(blender::ui::LayoutAlign::Right);
   blender::StringRef text_ref = text;
+  /* Currenlty this is bad guess, word wrap may add more lines. */
   int nlines = std::count(text_ref.begin(), text_ref.end(), '\n') + 1;
   but = uiDefButI(this->block(),
                   ButType::Scroll,

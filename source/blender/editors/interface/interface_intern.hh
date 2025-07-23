@@ -356,8 +356,7 @@ struct uiButTextBox : public uiBut {
   int *line_scroll = nullptr;
 };
 
-blender::Vector<blender::StringRef> ui_but_textbox_lines(uiBut *but);
-
+blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiBut *but, int width);
 
 /** Derived struct for #ButType::Num */
 struct uiButNumber : public uiBut {

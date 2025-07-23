@@ -1077,10 +1077,8 @@ void UI_widgetbase_draw_cache_flush()
   if (g_widget_base_batch.count == 1) {
     /* draw single */
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
-    GPU_batch_uniform_4fv_array(batch,
-                                "parameters",
-                                MAX_WIDGET_PARAMETERS,
-                                (const float (*)[4])g_widget_base_batch.params);
+    GPU_batch_uniform_4fv_array(
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (const float(*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1089,7 +1087,7 @@ void UI_widgetbase_draw_cache_flush()
     GPU_batch_uniform_4fv_array(batch,
                                 "parameters",
                                 MAX_WIDGET_PARAMETERS * MAX_WIDGET_BASE_BATCH,
-                                (float (*)[4])g_widget_base_batch.params);
+                                (float(*)[4])g_widget_base_batch.params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw_instance_range(batch, 0, g_widget_base_batch.count);
   }
@@ -1137,7 +1135,7 @@ static void draw_widgetbase_batch(uiWidgetBase *wtb)
     blender::gpu::Batch *batch = ui_batch_roundbox_widget_get();
     GPU_batch_program_set_builtin(batch, GPU_SHADER_2D_WIDGET_BASE);
     GPU_batch_uniform_4fv_array(
-        batch, "parameters", MAX_WIDGET_PARAMETERS, (float (*)[4]) & wtb->uniform_params);
+        batch, "parameters", MAX_WIDGET_PARAMETERS, (float(*)[4]) & wtb->uniform_params);
     GPU_batch_uniform_3fv(batch, "checkerColorAndSize", checker_params);
     GPU_batch_draw(batch);
   }
@@ -1976,24 +1974,33 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 }
 #endif /* WITH_INPUT_IME */
 
-blender::Vector<blender::StringRef> ui_but_textbox_lines(uiBut *but)
+blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiBut *but, int width)
 {
-  blender::Vector<blender::StringRef> lines;
-
+  uiFontStyle fstyle = UI_style_get()->widget;
+  if (but->str.empty() && (!but->editstr || but->editstr[0] == 0)) {
+    return {but->editstr ? blender::StringRef(but->editstr) : blender::StringRef(but->str)};
+  }
   blender::StringRef text = but->editstr ? blender::StringRef(but->editstr) :
                                            blender::StringRef(but->str);
-
-  int64_t prev_i = 0;
-  int64_t i = text.find('\n', prev_i);
-
-  blender::Span<char> span_text(text.begin(), text.size());
-  while (i != blender::StringRef::not_found) {
-    lines.append(span_text.slice(prev_i, i - prev_i + 1));
-    prev_i = i + 1;
-    i = text.find("\n", prev_i);
+  blender::Vector<blender::StringRef> lines = BLF_string_wrap(
+      fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
+  if (lines.is_empty()) {
+    lines.append(text);
   }
-  lines.append(span_text.slice(prev_i, text.size() - prev_i));
+  /** Add empty trailing line to put cursor in a new line. */
+  if (lines.last().endswith("\n")) {
+    lines.append(blender::StringRef(text.end(), text.end()));
+  }
   return lines;
+}
+
+/** This should handled in UI_block_update_from_old. */
+static void ui_textbox_edittext_scroll_hack(const uiButTextBox *textbox_but,
+                                            int total_lines,
+                                            int visible_lines)
+{
+  auto scroll_but = static_cast<uiButScrollBar *>(textbox_but->block->next_but(textbox_but));
+  scroll_but->softmax = std::max<int>(total_lines - visible_lines, 0);
 }
 
 static void widget_draw_textbox(const uiFontStyle *fstyle,
@@ -2011,23 +2018,28 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   int drawstr_left_len = UI_MAX_DRAW_STR;
   const char *drawstr = but->drawstr.c_str();
-  blender::Vector<blender::StringRef> lines = ui_but_textbox_lines(but);
+  blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(but,
+                                                                        BLI_rcti_size_x(rect));
   const char *raw_begin = lines[0].begin();
-  // blender::StringRef line = orig;
+
+  ui_textbox_edittext_scroll_hack(textbox_but, lines.size(), visible_lines);
 
   int line_cursor = 0;
   int line_select_start = 0;
   int line_select_end = 0;
 
   for (int i : lines.index_range()) {
-    const char *line_bounds[] = {lines[i].begin() - 1, lines[i].end()};
-    if (IN_RANGE(raw_begin + but->pos, line_bounds[0], line_bounds[1] + 1)) {
+    const char *line_bounds[] = {
+        lines[i].begin(), i != lines.size() - 1 ? lines[i + 1].begin() : lines.last().end()};
+    if (line_bounds[0] <= (raw_begin + but->pos) && (raw_begin + but->pos) <= line_bounds[1]) {
       line_cursor = i;
     }
-    if (IN_RANGE(raw_begin + but->selsta, line_bounds[0], line_bounds[1])) {
+    if (line_bounds[0] <= (raw_begin + but->selsta) && (raw_begin + but->selsta) <= line_bounds[1])
+    {
       line_select_start = i;
     }
-    if (IN_RANGE(raw_begin + but->selend, line_bounds[0] + 1, line_bounds[1] + 1)) {
+    if (line_bounds[0] <= (raw_begin + but->selend) && (raw_begin + but->selend) <= line_bounds[1])
+    {
       line_select_end = i;
     }
   }
@@ -2098,24 +2110,26 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
     bool ime_reposition_window = false;
     int ime_win_x, ime_win_y;
 #endif
-    struct Foo {
+    struct LineSelection {
       int line;
       const char *start;
       const char *end;
     };
-    blender::Vector<Foo> selections = {};
+    blender::Vector<LineSelection> selections = {};
     if (but->selsta != but->selend) {
       const char *itr = raw_begin + but->selsta;
-
       for (int i = line_select_start; i <= line_select_end; i++) {
-        const char *itr_end = std::min(raw_begin + but->selend, lines[i].end());
+        /* Include line feed in selection draw. */
+        const char *itr_end = std::min(raw_begin + but->selend,
+                                       i != lines.size() - 1 ? lines[i + 1].begin() :
+                                                               lines.last().end());
         selections.append({i, itr, itr_end});
         itr = itr_end;
       }
     }
 
     /* text button selection */
-    for (auto selection : selections) {
+    for (LineSelection &selection : selections) {
       if (!(scroll <= selection.line && selection.line < visible_lines + scroll)) {
         continue;
       }
@@ -2130,7 +2144,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       const auto boxes = BLF_str_selection_boxes(fstyle->uifont_id,
                                                  line.begin(),
                                                  line.size(),
-                                                 selection.start - line.begin(),
+                                                 std::max<int>(0, selection.start - line.begin()),
                                                  selection.end - selection.start);
       for (auto bounds : boxes) {
         int y = rect->ymax - (per_line * (selection.line - scroll));
