@@ -19,6 +19,8 @@ namespace blender::nodes {
 /**
  * A bundle is a map containing keys and their corresponding values. Values are stored as the type
  * they have in Geometry Nodes (#bNodeSocketType::geometry_nodes_cpp_type).
+ *
+ * The API also supports working with paths in nested bundles like `root/child/data`.
  */
 class Bundle : public ImplicitSharingMixin {
  public:
@@ -37,6 +39,9 @@ class Bundle : public ImplicitSharingMixin {
     const bke::bNodeSocketType *type;
     const void *value;
 
+    /**
+     * Attempts to cast the stored value to the given type. This may do implicit conversions.
+     */
     template<typename T> std::optional<T> as(const bke::bNodeSocketType &socket_type) const;
     template<typename T> std::optional<T> as() const;
   };
@@ -55,20 +60,27 @@ class Bundle : public ImplicitSharingMixin {
   void add_override(const SocketInterfaceKey &key,
                     const bke::bNodeSocketType &type,
                     const void *value);
-  void add_path_override(const StringRef path,
-                         const bke::bNodeSocketType &type,
-                         const void *value);
+  bool add_path(StringRef path, const bke::bNodeSocketType &type, const void *value);
+  void add_path_new(StringRef path, const bke::bNodeSocketType &type, const void *value);
+  void add_path_override(StringRef path, const bke::bNodeSocketType &type, const void *value);
+
+  template<typename T> void add(const SocketInterfaceKey &key, T value);
   template<typename T> void add_override(const SocketInterfaceKey &key, T value);
-  template<typename T> void add_path_override(const StringRef path, T value);
+  template<typename T> void add_path(StringRef path, T value);
+  template<typename T> void add_path_override(StringRef path, T value);
 
   bool remove(const SocketInterfaceKey &key);
   bool contains(const SocketInterfaceKey &key) const;
+  bool contains_path(StringRef path) const;
 
   std::optional<Item> lookup(const SocketInterfaceKey &key) const;
-  std::optional<Item> lookup_path(const Span<StringRef> path) const;
-  std::optional<Item> lookup_path(const StringRef path) const;
+  std::optional<Item> lookup_path(Span<StringRef> path) const;
+  std::optional<Item> lookup_path(StringRef path) const;
   template<typename T> std::optional<T> lookup(const SocketInterfaceKey &key) const;
-  template<typename T> std::optional<T> lookup_path(const StringRef path) const;
+  template<typename T> std::optional<T> lookup_path(StringRef path) const;
+
+  bool is_empty() const;
+  int64_t size() const;
 
   Span<StoredItem> items() const;
 
@@ -162,41 +174,62 @@ template<typename T> inline std::optional<T> Bundle::lookup_path(const StringRef
   return item->as<T>();
 }
 
-template<typename T> void Bundle::add_override(const SocketInterfaceKey &key, T value)
+template<typename T, typename Fn> inline void to_stored_type(T &&value, Fn &&fn)
 {
   using DecayT = std::decay_t<T>;
   static_assert(is_valid_static_bundle_item_type<DecayT>());
-  if (const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<DecayT>()) {
-    if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<DecayT>) {
-      auto value_variant = bke::SocketValueVariant::From(std::forward<T>(value));
-      this->add_override(key, *socket_type, &value_variant);
-      return;
-    }
-    this->add_override(key, *socket_type, &value);
-    return;
+  const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<DecayT>();
+  BLI_assert(socket_type);
+  if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<DecayT>) {
+    auto value_variant = bke::SocketValueVariant::From(std::forward<T>(value));
+    fn(*socket_type, &value_variant);
   }
-  BLI_assert_unreachable();
+  else {
+    fn(*socket_type, &value);
+  }
 }
 
-template<typename T> void Bundle::add_path_override(const StringRef path, T value)
+template<typename T> inline void Bundle::add(const SocketInterfaceKey &key, T value)
 {
-  using DecayT = std::decay_t<T>;
-  static_assert(is_valid_static_bundle_item_type<DecayT>());
-  if (const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<DecayT>()) {
-    if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<DecayT>) {
-      auto value_variant = bke::SocketValueVariant::From(std::forward<T>(value));
-      this->add_path_override(path, *socket_type, &value_variant);
-      return;
-    }
-    this->add_path_override(path, *socket_type, &value);
-    return;
-  }
-  BLI_assert_unreachable();
+  to_stored_type(value, [&](const bke::bNodeSocketType &type, const void *value) {
+    this->add(key, type, value);
+  });
+}
+
+template<typename T> inline void Bundle::add_path(const StringRef path, T value)
+{
+  to_stored_type(value, [&](const bke::bNodeSocketType &type, const void *value) {
+    this->add_path(path, type, value);
+  });
+}
+
+template<typename T> inline void Bundle::add_override(const SocketInterfaceKey &key, T value)
+{
+  to_stored_type(value, [&](const bke::bNodeSocketType &type, const void *value) {
+    this->add_override(key, type, value);
+  });
+}
+
+template<typename T> inline void Bundle::add_path_override(const StringRef path, T value)
+{
+  to_stored_type(value, [&](const bke::bNodeSocketType &type, const void *value) {
+    this->add_path_override(path, type, value);
+  });
 }
 
 inline Span<Bundle::StoredItem> Bundle::items() const
 {
   return items_;
+}
+
+inline bool Bundle::is_empty() const
+{
+  return items_.is_empty();
+}
+
+inline int64_t Bundle::size() const
+{
+  return items_.size();
 }
 
 }  // namespace blender::nodes

@@ -195,6 +195,21 @@ void Bundle::add_path_override(const StringRef path,
             &child_bundle_value);
 }
 
+bool Bundle::add_path(StringRef path, const bke::bNodeSocketType &type, const void *value)
+{
+  if (this->contains_path(path)) {
+    return false;
+  }
+  this->add_path_new(path, type, value);
+  return true;
+}
+
+void Bundle::add_path_new(StringRef path, const bke::bNodeSocketType &type, const void *value)
+{
+  BLI_assert(!this->contains_path(path));
+  this->add_path_override(path, type, value);
+}
+
 std::optional<Bundle::Item> Bundle::lookup(const SocketInterfaceKey &key) const
 {
   for (const StoredItem &item : items_) {
@@ -279,6 +294,11 @@ bool Bundle::contains(const SocketInterfaceKey &key) const
     }
   }
   return false;
+}
+
+bool Bundle::contains_path(const StringRef path) const
+{
+  return this->lookup_path(path).has_value();
 }
 
 void Bundle::delete_self()
