@@ -657,7 +657,7 @@ static wmOperatorStatus shape_key_move_exec(bContext *C, wmOperator *op)
   Object *ob = context_object(C);
 
   const Key &key = *BKE_key_from_object(ob);
-  const KeyBlockMove type = static_cast<KeyBlockMove>(RNA_enum_get(op->ptr, "type"));
+  const KeyBlockMove type = KeyBlockMove(RNA_enum_get(op->ptr, "type"));
   const int totkey = key.totkey;
   int new_index = 0;
   bool changed = false;
