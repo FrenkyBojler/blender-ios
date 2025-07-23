@@ -32,21 +32,9 @@ World::~World()
 {
   if (default_world_ == nullptr) {
     default_world_ = BKE_id_new_nomain<::World>("EEVEE default world");
-
-    bNodeTree *ntree = bke::node_tree_add_tree_embedded(
+    default_world_->nodetree = bke::node_tree_add_tree_embedded(
         nullptr, &default_world_->id, "World Nodetree", ntreeType_Shader->idname);
-    bNode *background = bke::node_add_static_node(nullptr, *ntree, SH_NODE_BACKGROUND);
-    bNode *output = bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_WORLD);
-    bNodeSocket *background_out = bke::node_find_socket(*background, SOCK_OUT, "Background");
-    bNodeSocket *output_in = bke::node_find_socket(*output, SOCK_IN, "Surface");
-    bke::node_add_link(*ntree, *background, *background_out, *output, *output_in);
-    bke::node_set_active(*ntree, *output);
 
-    auto color_socket = static_cast<bNodeSocketValueRGBA *>(
-        bke::node_find_socket(*background, SOCK_IN, "Color")->default_value);
-    copy_v4_v4(color_socket->value, float4{0.0f, 0.0f, 0.0f, 1.0f});
-
-    default_world_->nodetree = ntree;
     BLI_listbase_clear(&default_world_->gpumaterial);
   }
   return default_world_;

@@ -11,10 +11,8 @@
 #include <cstring>
 
 #include "DNA_node_types.h"
-#include "DNA_scene_types.h"
 #include "DNA_screen_types.h"
 #include "DNA_sequence_types.h"
-#include "DNA_world_types.h"
 
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
@@ -37,7 +35,6 @@
 #include "BKE_node_runtime.hh"
 #include "BKE_node_tree_update.hh"
 #include "BKE_screen.hh"
-#include "BKE_world.h"
 
 #include "ANIM_versioning.hh"
 
@@ -769,51 +766,6 @@ void do_versions_after_setup(Main *new_bmain,
 
       /* NOTE: The user count remains zero at this point. It will get automatically updated after
        * blend file reading is done. */
-    }
-  }
-
-  if (!blendfile_or_libraries_versions_atleast(new_bmain, 500, 40)) {
-    LISTBASE_FOREACH (Scene *, scene, &new_bmain->scenes) {
-      if (scene->world == nullptr) {
-        continue;
-      }
-      bNodeTree *ntree = scene->world->nodetree;
-      World *world = scene->world;
-      if (ntree == nullptr || world->use_nodes == true) {
-        continue;
-      }
-
-      /* Users defined a world node tree, but deactivated it by disabling "Use Nodes". So save the
-       * current world and create a new one with a node tree that simulates the behavior of
-       * disabling "Use Nodes". */
-      id_fake_user_set(&world->id);
-      World *legacy_world = BKE_world_add(new_bmain, "World Legacy");
-      legacy_world->nodetree = blender::bke::node_tree_add_tree_embedded(
-          new_bmain, &legacy_world->id, "World Node Tree", "ShaderNodeTree");
-
-      bNode *background = blender::bke::node_add_static_node(
-          nullptr, *legacy_world->nodetree, SH_NODE_BACKGROUND);
-      bNode *output = blender::bke::node_add_static_node(
-          nullptr, *legacy_world->nodetree, SH_NODE_OUTPUT_WORLD);
-      blender::bke::node_add_link(
-          *legacy_world->nodetree,
-          *background,
-          *blender::bke::node_find_socket(*background, SOCK_OUT, "Background"),
-          *output,
-          *blender::bke::node_find_socket(*output, SOCK_IN, "Surface"));
-
-      background->location[0] = -200.0f;
-      background->location[1] = 100.0f;
-      output->location[0] = 200.0f;
-      output->location[1] = 100.0f;
-
-      bNodeSocket *color_sock = blender::bke::node_find_socket(*background, SOCK_IN, "Color");
-      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[0] = world->horr;
-      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[1] = world->horg;
-      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[2] = world->horb;
-      color_sock->default_value_typed<bNodeSocketValueRGBA>()->value[3] = 1.0f;
-      BKE_ntree_update_after_single_tree_change(*new_bmain, *legacy_world->nodetree);
-      scene->world = legacy_world;
     }
   }
 }
