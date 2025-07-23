@@ -604,7 +604,7 @@ static bool apply_to_curves_selection(const CurvesDataPanelState &current,
     knots_sharing_info->add_weak_user();
   }
 
-  Array<int8_t> src_knot_modes(0);
+  Array<int8_t> src_knot_modes;
   if (nurbs_knot_mode_changed &&
       (!src_custom_knots.is_empty() || modified.nurbs_knot_mode == NURBS_KNOT_MODE_CUSTOM))
   {
