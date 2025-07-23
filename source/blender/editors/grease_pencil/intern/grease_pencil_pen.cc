@@ -701,6 +701,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     const Span<float3> positions = curves.positions();
     const OffsetIndices points_by_curve = curves.points_by_curve();
+    const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
     MutableSpan<int8_t> handle_types_left = curves.handle_types_left_for_write();
     MutableSpan<int8_t> handle_types_right = curves.handle_types_right_for_write();
@@ -781,18 +782,37 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
     }
 
     selection.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
-      handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
-      handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
       const float3 depth_point = positions[point_i];
-      const float2 center_point = pen_global_to_screen(ptd, depth_point);
-      float2 offset = ptd.mouse_co - center_point;
+      if (event->modifier & KM_CTRL) {
+        const float2 offset = float2(event->xy) - float2(event->prev_xy);
 
-      if (event->modifier & KM_SHIFT) {
-        offset = snap_8_angles(offset);
+        handle_types_left[point_i] = BEZIER_HANDLE_FREE;
+        handle_types_right[point_i] = BEZIER_HANDLE_FREE;
+        handles_left[point_i] = pen_screen_to_global(
+            ptd, pen_global_to_screen(ptd, handles_left[point_i]) + offset, depth_point);
+
+        const int curve_i = point_to_curve_map[point_i];
+        const IndexRange points = points_by_curve[curve_i];
+        if (point_i != points.first()) {
+          handle_types_left[point_i - 1] = BEZIER_HANDLE_FREE;
+          handle_types_right[point_i - 1] = BEZIER_HANDLE_FREE;
+          handles_right[point_i - 1] = pen_screen_to_global(
+              ptd, pen_global_to_screen(ptd, handles_right[point_i - 1]) + offset, depth_point);
+        }
       }
+      else {
+        handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
+        handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
+        const float2 center_point = pen_global_to_screen(ptd, depth_point);
+        float2 offset = ptd.mouse_co - center_point;
 
-      handles_right[point_i] = pen_screen_to_global(ptd, center_point + offset, depth_point);
-      handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
+        if (event->modifier & KM_SHIFT) {
+          offset = snap_8_angles(offset);
+        }
+
+        handles_right[point_i] = pen_screen_to_global(ptd, center_point + offset, depth_point);
+        handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
+      }
     });
 
     curves.calculate_bezier_auto_handles();
