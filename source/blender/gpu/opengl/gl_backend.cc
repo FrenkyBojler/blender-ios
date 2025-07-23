@@ -265,6 +265,23 @@ void GLBackend::platform_init()
       }
     }
 
+    if ((device & GPU_DEVICE_ATI) && (os & GPU_OS_WIN)) {
+      /* Drivers known to crash on startup. */
+      for (const char *bad_version : {"Context 20.10.35.02",
+                                      "Context 20.40.32.09",
+                                      "Context FireGL 21.09.04.01",
+                                      "Context 21.30.40.09",
+                                      "Context 21.30.44.13",
+                                      "Context 26.20.12071.1002",
+                                      "Driver 26.20.15029.27017"})
+      {
+        if (strstr(version, bad_version)) {
+          support_level = GPU_SUPPORT_LEVEL_UNSUPPORTED;
+          break;
+        }
+      }
+    }
+
     /* Check SSBO bindings requirement. */
     GLint max_ssbo_binds_vertex;
     GLint max_ssbo_binds_fragment;
