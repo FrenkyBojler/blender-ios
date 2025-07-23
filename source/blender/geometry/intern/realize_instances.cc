@@ -15,7 +15,6 @@
 #include "BKE_attribute.hh"
 #include "BKE_curves.hh"
 #include "BKE_customdata.hh"
-#include "BKE_deform.hh"
 #include "BKE_geometry_nodes_gizmos_transforms.hh"
 #include "BKE_grease_pencil.hh"
 #include "BKE_instances.hh"
@@ -2075,6 +2074,38 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
       dst_attribute_writers);
 }
 
+static void copy_vertex_group_names(CurvesGeometry &dst_curve,
+                                    const OrderedAttributes &ordered_attributes,
+                                    const Span<const CurvesGeometry *> src_curves)
+{
+  Set<StringRef> existing_names;
+  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_curve.vertex_group_names) {
+    existing_names.add(defgroup->name);
+  }
+  for (const CurvesGeometry *src_curve : src_curves) {
+    LISTBASE_FOREACH (const bDeformGroup *, src, &src_curve->vertex_group_names) {
+      const StringRef src_name = src->name;
+      const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
+      if (attribute_index == -1) {
+        /* The attribute is not propagated to the result (possibly because the mesh isn't included
+         * in the realized output because of the #VariedDepthOptions input). */
+        continue;
+      }
+      const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
+      if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
+        /* Prefer using the highest priority domain and type from all input meshes. */
+        continue;
+      }
+      if (existing_names.contains(src_name)) {
+        continue;
+      }
+      bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+      src_name.copy_utf8_truncated(dst->name);
+      BLI_addtail(&dst_curve.vertex_group_names, dst);
+    }
+  }
+}
+
 static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
                                         const AllCurvesInfo &all_curves_info,
                                         const Span<RealizeCurveTask> tasks,
@@ -2119,8 +2150,13 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   const RealizeCurveTask &first_task = tasks.first();
   const Curves &first_curves_id = *first_task.curve_info->curves;
   bke::curves_copy_parameters(first_curves_id, *dst_curves_id);
-  BKE_defgroup_copy_list(&dst_curves.vertex_group_names,
-                         &first_curves_id.geometry.vertex_group_names);
+
+  Span<const Curves *> src_curves = all_curves_info.order.as_span().drop_front(1);
+  Vector<const CurvesGeometry *> src_curves_geom;
+  for (const Curves* curve : src_curves){
+    src_curves_geom.append(&curve->geometry);
+  }
+  copy_vertex_group_names(dst_curves, ordered_attributes, src_curves_geom.as_span());
 
   /* Prepare id attribute. */
   SpanAttributeWriter<int> point_ids;
