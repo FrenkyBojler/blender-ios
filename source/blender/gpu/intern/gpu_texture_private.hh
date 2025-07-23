@@ -10,14 +10,13 @@
 
 #include "BLI_assert.h"
 
-#include "GPU_vertex_buffer.h"
+#include "GPU_vertex_buffer.hh"
 
 #include "gpu_framebuffer_private.hh"
 
-namespace blender {
-namespace gpu {
+namespace blender::gpu {
 
-typedef enum eGPUTextureFormatFlag {
+enum eGPUTextureFormatFlag {
   /* The format has a depth component and can be used as depth attachment. */
   GPU_FORMAT_DEPTH = (1 << 0),
   /* The format has a stencil component and can be used as stencil attachment. */
@@ -36,7 +35,7 @@ typedef enum eGPUTextureFormatFlag {
   GPU_FORMAT_SIGNED = (1 << 7),
 
   GPU_FORMAT_DEPTH_STENCIL = (GPU_FORMAT_DEPTH | GPU_FORMAT_STENCIL),
-} eGPUTextureFormatFlag;
+};
 
 ENUM_OPERATORS(eGPUTextureFormatFlag, GPU_FORMAT_SIGNED)
 
@@ -132,7 +131,7 @@ class Texture {
   bool init_2D(int w, int h, int layers, int mip_len, eGPUTextureFormat format);
   bool init_3D(int w, int h, int d, int mip_len, eGPUTextureFormat format);
   bool init_cubemap(int w, int layers, int mip_len, eGPUTextureFormat format);
-  bool init_buffer(GPUVertBuf *vbo, eGPUTextureFormat format);
+  bool init_buffer(VertBuf *vbo, eGPUTextureFormat format);
   bool init_view(GPUTexture *src,
                  eGPUTextureFormat format,
                  eGPUTextureType type,
@@ -313,7 +312,7 @@ class Texture {
 
  protected:
   virtual bool init_internal() = 0;
-  virtual bool init_internal(GPUVertBuf *vbo) = 0;
+  virtual bool init_internal(VertBuf *vbo) = 0;
   virtual bool init_internal(GPUTexture *src,
                              int mip_offset,
                              int layer_offset,
@@ -341,7 +340,7 @@ class PixelBuffer {
 
  public:
   PixelBuffer(size_t size) : size_(size){};
-  virtual ~PixelBuffer(){};
+  virtual ~PixelBuffer() = default;
 
   virtual void *map() = 0;
   virtual void unmap() = 0;
@@ -1170,5 +1169,4 @@ static inline eGPUTextureFormat to_texture_format(const GPUVertFormat *format)
   return GPU_DEPTH_COMPONENT24;
 }
 
-}  // namespace gpu
-}  // namespace blender
+}  // namespace blender::gpu

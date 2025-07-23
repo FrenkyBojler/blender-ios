@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: GPL-2.0-or-later */
 #include "BKE_cryptomatte.hh"
 
-#include "GPU_material.h"
+#include "GPU_material.hh"
 
 #include "eevee_cryptomatte.hh"
 #include "eevee_instance.hh"
@@ -16,7 +16,7 @@ void Cryptomatte::begin_sync()
   const eViewLayerEEVEEPassType enabled_passes = static_cast<eViewLayerEEVEEPassType>(
       inst_.film.enabled_passes_get() &
       (EEVEE_RENDER_PASS_CRYPTOMATTE_OBJECT | EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET |
-       EEVEE_RENDER_PASS_CRYPTOMATTE_ASSET));
+       EEVEE_RENDER_PASS_CRYPTOMATTE_MATERIAL));
 
   session_.reset();
   object_layer_ = nullptr;
@@ -130,7 +130,7 @@ float Cryptomatte::register_id(const eViewLayerEEVEEPassType layer, const ID &id
 void Cryptomatte::store_metadata(RenderResult *render_result)
 {
   if (session_) {
-    BKE_cryptomatte_store_metadata(&*session_, render_result, inst_.view_layer);
+    BKE_cryptomatte_store_metadata(&*session_, render_result);
   }
 }
 

@@ -11,8 +11,8 @@
 
 #pragma once
 
+#include "GPU_batch.hh"
 #include "MEM_guardedalloc.h"
-#include "gpu_batch_private.hh"
 #include "mtl_index_buffer.hh"
 #include "mtl_primitive.hh"
 #include "mtl_shader.hh"
@@ -78,8 +78,8 @@ class MTLBatch : public Batch {
   uint32_t topology_buffer_output_v_count_ = 0;
 
  public:
-  MTLBatch(){};
-  ~MTLBatch(){};
+  MTLBatch() = default;
+  ~MTLBatch() override = default;
 
   void draw(int v_first, int v_count, int i_first, int i_count) override;
   void draw_indirect(GPUStorageBuf *indirect_buf, intptr_t offset) override;
@@ -99,15 +99,15 @@ class MTLBatch : public Batch {
   /* Convenience getters. */
   MTLIndexBuf *elem_() const
   {
-    return static_cast<MTLIndexBuf *>(unwrap(elem));
+    return static_cast<MTLIndexBuf *>(elem);
   }
   MTLVertBuf *verts_(const int index) const
   {
-    return static_cast<MTLVertBuf *>(unwrap(verts[index]));
+    return static_cast<MTLVertBuf *>(verts[index]);
   }
   MTLVertBuf *inst_(const int index) const
   {
-    return static_cast<MTLVertBuf *>(unwrap(inst[index]));
+    return static_cast<MTLVertBuf *>(inst[index]);
   }
   MTLShader *active_shader_get() const
   {

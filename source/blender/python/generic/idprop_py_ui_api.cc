@@ -13,9 +13,9 @@
 #include "BLI_string.h"
 #include "BLI_utildefines.h"
 
-#include "idprop_py_ui_api.h"
+#include "idprop_py_ui_api.hh"
 
-#include "BKE_idprop.h"
+#include "BKE_idprop.hh"
 
 #include "DNA_ID.h"
 
@@ -25,11 +25,11 @@
 #define USE_STRING_COERCE
 
 #ifdef USE_STRING_COERCE
-#  include "py_capi_utils.h"
+#  include "py_capi_utils.hh"
 #endif
-#include "py_capi_rna.h"
+#include "py_capi_rna.hh"
 
-#include "python_utildefines.h"
+#include "python_utildefines.hh"
 
 /* -------------------------------------------------------------------- */
 /** \name UI Data Update
@@ -198,6 +198,11 @@ static bool idprop_ui_data_update_int_default(IDProperty *idprop,
       PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
       return false;
     }
+
+    /* Use the non-array default, even for arrays, also prevent dangling pointer, see #127952. */
+    ui_data->default_array = nullptr;
+    ui_data->default_array_len = 0;
+
     ui_data->default_value = value;
   }
 
@@ -309,6 +314,10 @@ static bool idprop_ui_data_update_int(IDProperty *idprop, PyObject *args, PyObje
     ui_data.enum_items = idprop_items;
     ui_data.enum_items_num = idprop_items_num;
   }
+  else {
+    ui_data.enum_items = nullptr;
+    ui_data.enum_items_num = 0;
+  }
 
   /* Write back to the property's UI data. */
   IDP_ui_data_free_unique_contents(&ui_data_orig->base, IDP_ui_data_type(idprop), &ui_data.base);
@@ -352,6 +361,11 @@ static bool idprop_ui_data_update_bool_default(IDProperty *idprop,
       PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to integer");
       return false;
     }
+
+    /* Use the non-array default, even for arrays, also prevent dangling pointer, see #127952. */
+    ui_data->default_array_len = 0;
+    ui_data->default_array = nullptr;
+
     ui_data->default_value = (value != 0);
   }
 
@@ -437,6 +451,11 @@ static bool idprop_ui_data_update_float_default(IDProperty *idprop,
       PyErr_SetString(PyExc_ValueError, "Error converting \"default\" argument to double");
       return false;
     }
+
+    /* Use the non-array default, even for arrays, also prevent dangling pointer, see #127952. */
+    ui_data->default_array_len = 0;
+    ui_data->default_array = nullptr;
+
     ui_data->default_value = value;
   }
 
@@ -501,12 +520,12 @@ static bool idprop_ui_data_update_float(IDProperty *idprop, PyObject *args, PyOb
   }
   if (args_contain_key(kwargs, "soft_min")) {
     ui_data.soft_min = soft_min;
-    ui_data.soft_min = MAX2(ui_data.soft_min, ui_data.min);
+    ui_data.soft_min = std::max(ui_data.soft_min, ui_data.min);
     ui_data.soft_max = std::max(ui_data.soft_min, ui_data.soft_max);
   }
   if (args_contain_key(kwargs, "soft_max")) {
     ui_data.soft_max = soft_max;
-    ui_data.soft_max = MIN2(ui_data.soft_max, ui_data.max);
+    ui_data.soft_max = std::min(ui_data.soft_max, ui_data.max);
     ui_data.soft_min = std::min(ui_data.soft_min, ui_data.soft_max);
   }
   if (args_contain_key(kwargs, "step")) {
@@ -593,14 +612,16 @@ static bool idprop_ui_data_update_id(IDProperty *idprop, PyObject *args, PyObjec
     return false;
   }
 
-  int id_type_tmp;
-  if (pyrna_enum_value_from_id(
-          rna_enum_id_type_items, id_type, &id_type_tmp, "IDPropertyUIManager.update") == -1)
-  {
-    return false;
-  }
+  if (id_type != nullptr) {
+    int id_type_tmp;
+    if (pyrna_enum_value_from_id(
+            rna_enum_id_type_items, id_type, &id_type_tmp, "IDPropertyUIManager.update") == -1)
+    {
+      return false;
+    }
 
-  ui_data.id_type = short(id_type_tmp);
+    ui_data.id_type = short(id_type_tmp);
+  }
 
   /* Write back to the property's UI data. */
   IDP_ui_data_free_unique_contents(&ui_data_orig->base, IDP_ui_data_type(idprop), &ui_data.base);
@@ -608,23 +629,25 @@ static bool idprop_ui_data_update_id(IDProperty *idprop, PyObject *args, PyObjec
   return true;
 }
 
-PyDoc_STRVAR(BPy_IDPropertyUIManager_update_doc,
-             ".. method:: update( "
-             "subtype=None, "
-             "min=None, "
-             "max=None, "
-             "soft_min=None, "
-             "soft_max=None, "
-             "precision=None, "
-             "step=None, "
-             "default=None, "
-             "id_type=None, "
-             "items=None, "
-             "description=None)\n"
-             "\n"
-             "   Update the RNA information of the IDProperty used for interaction and\n"
-             "   display in the user interface. The required types for many of the keyword\n"
-             "   arguments depend on the type of the property.\n ");
+PyDoc_STRVAR(
+    /* Wrap. */
+    BPy_IDPropertyUIManager_update_doc,
+    ".. method:: update( "
+    "subtype=None, "
+    "min=None, "
+    "max=None, "
+    "soft_min=None, "
+    "soft_max=None, "
+    "precision=None, "
+    "step=None, "
+    "default=None, "
+    "id_type=None, "
+    "items=None, "
+    "description=None)\n"
+    "\n"
+    "   Update the RNA information of the IDProperty used for interaction and\n"
+    "   display in the user interface. The required types for many of the keyword\n"
+    "   arguments depend on the type of the property.\n ");
 static PyObject *BPy_IDPropertyUIManager_update(BPy_IDPropertyUIManager *self,
                                                 PyObject *args,
                                                 PyObject *kwargs)
@@ -693,7 +716,7 @@ static void idprop_ui_data_to_dict_int(IDProperty *property, PyObject *dict)
   Py_DECREF(item);
   PyDict_SetItemString(dict, "step", item = PyLong_FromLong(ui_data->step));
   Py_DECREF(item);
-  if (property->type == IDP_ARRAY) {
+  if ((property->type == IDP_ARRAY) && ui_data->default_array) {
     PyObject *list = PyList_New(ui_data->default_array_len);
     for (int i = 0; i < ui_data->default_array_len; i++) {
       PyList_SET_ITEM(list, i, PyLong_FromLong(ui_data->default_array[i]));
@@ -733,7 +756,7 @@ static void idprop_ui_data_to_dict_bool(IDProperty *property, PyObject *dict)
   IDPropertyUIDataBool *ui_data = (IDPropertyUIDataBool *)property->ui_data;
   PyObject *item;
 
-  if (property->type == IDP_ARRAY) {
+  if ((property->type == IDP_ARRAY) && ui_data->default_array) {
     PyObject *list = PyList_New(ui_data->default_array_len);
     for (int i = 0; i < ui_data->default_array_len; i++) {
       PyList_SET_ITEM(list, i, PyBool_FromLong(ui_data->default_array[i]));
@@ -764,7 +787,7 @@ static void idprop_ui_data_to_dict_float(IDProperty *property, PyObject *dict)
   Py_DECREF(item);
   PyDict_SetItemString(dict, "precision", item = PyLong_FromDouble(double(ui_data->precision)));
   Py_DECREF(item);
-  if (property->type == IDP_ARRAY) {
+  if ((property->type == IDP_ARRAY) && ui_data->default_array) {
     PyObject *list = PyList_New(ui_data->default_array_len);
     for (int i = 0; i < ui_data->default_array_len; i++) {
       PyList_SET_ITEM(list, i, PyFloat_FromDouble(ui_data->default_array[i]));
@@ -813,11 +836,13 @@ static void idprop_ui_data_to_dict_id(IDProperty *property, PyObject *dict)
   Py_DECREF(item);
 }
 
-PyDoc_STRVAR(BPy_IDPropertyUIManager_as_dict_doc,
-             ".. method:: as_dict()\n"
-             "\n"
-             "   Return a dictionary of the property's RNA UI data. The fields in the\n"
-             "   returned dictionary and their types will depend on the property's type.\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    BPy_IDPropertyUIManager_as_dict_doc,
+    ".. method:: as_dict()\n"
+    "\n"
+    "   Return a dictionary of the property's RNA UI data. The fields in the\n"
+    "   returned dictionary and their types will depend on the property's type.\n");
 static PyObject *BPy_IDIDPropertyUIManager_as_dict(BPy_IDPropertyUIManager *self)
 {
   IDProperty *property = self->property;
@@ -874,10 +899,12 @@ static PyObject *BPy_IDIDPropertyUIManager_as_dict(BPy_IDPropertyUIManager *self
 /** \name UI Data Clear
  * \{ */
 
-PyDoc_STRVAR(BPy_IDPropertyUIManager_clear_doc,
-             ".. method:: clear()\n"
-             "\n"
-             "   Remove the RNA UI data from this IDProperty.\n");
+PyDoc_STRVAR(
+    /* Wrap. */
+    BPy_IDPropertyUIManager_clear_doc,
+    ".. method:: clear()\n"
+    "\n"
+    "   Remove the RNA UI data from this IDProperty.\n");
 static PyObject *BPy_IDPropertyUIManager_clear(BPy_IDPropertyUIManager *self)
 {
   IDProperty *property = self->property;
@@ -903,6 +930,7 @@ static PyObject *BPy_IDPropertyUIManager_clear(BPy_IDPropertyUIManager *self)
  * \{ */
 
 PyDoc_STRVAR(
+    /* Wrap. */
     BPy_IDPropertyUIManager_update_from_doc,
     ".. method:: update_from(ui_manager_source)\n"
     "\n"

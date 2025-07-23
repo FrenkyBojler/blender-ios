@@ -28,6 +28,7 @@ struct DeviceKernelArguments {
     INT32,
     FLOAT32,
     KERNEL_FILM_CONVERT,
+    HIPRT_GLOBAL_STACK,
   };
 
   static const int MAX_ARGS = 18;
@@ -156,6 +157,11 @@ class DeviceQueue {
 
   /* Device this queue has been created for. */
   Device *device;
+
+  virtual void *native_queue()
+  {
+    return nullptr;
+  }
 
  protected:
   /* Hide construction so that allocation via `Device` API is enforced. */

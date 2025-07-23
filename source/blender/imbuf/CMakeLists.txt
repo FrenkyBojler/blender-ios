@@ -36,6 +36,7 @@ set(SRC
   intern/format_tiff.cc
   intern/imageprocess.cc
   intern/indexer.cc
+  intern/interp.cc
   intern/iris.cc
   intern/jpeg.cc
   intern/metadata.cc
@@ -58,6 +59,7 @@ set(SRC
   IMB_imbuf.hh
   IMB_imbuf_enums.h
   IMB_imbuf_types.hh
+  IMB_interp.hh
   IMB_metadata.hh
   IMB_moviecache.hh
   IMB_openexr.hh
@@ -89,15 +91,6 @@ set(LIB
 )
 
 if(WITH_IMAGE_OPENEXR)
-  # Keep until APPLE/ARM libraries are updated.
-  if(APPLE)
-    if(CMAKE_OSX_ARCHITECTURES MATCHES arm64)
-      list(APPEND INC_SYS
-        ${IMATH_INCLUDE_DIRS}
-      )
-    endif()
-  endif()
-
   list(APPEND LIB
     bf_imbuf_openexr
   )
@@ -105,6 +98,14 @@ if(WITH_IMAGE_OPENEXR)
 else()
   list(APPEND SRC
     intern/openexr/openexr_stub.cpp
+  )
+endif()
+
+# Keep until APPLE/ARM libraries are updated.
+if((APPLE AND CMAKE_OSX_ARCHITECTURES MATCHES arm64) OR
+   (CMAKE_SYSTEM_PROCESSOR MATCHES "ARM64|aarch64"))
+  list(APPEND INC_SYS
+    ${IMATH_INCLUDE_DIRS}
   )
 endif()
 
@@ -120,16 +121,6 @@ if(WITH_IMAGE_OPENJPEG)
   )
 
   add_definitions(-DWITH_OPENJPEG ${OPENJPEG_DEFINES})
-endif()
-
-if(WITH_CODEC_AVI)
-  list(APPEND INC
-    ../io/avi
-  )
-  list(APPEND LIB
-    bf_avi
-  )
-  add_definitions(-DWITH_AVI)
 endif()
 
 if(WITH_CODEC_FFMPEG)
@@ -169,18 +160,6 @@ if(WITH_IMAGE_WEBP)
   add_definitions(-DWITH_WEBP)
 endif()
 
-if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
-
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
-endif()
-
 list(APPEND INC
   ../../../intern/opencolorio
 )
@@ -189,6 +168,10 @@ if(WIN32)
   list(APPEND INC
     ../../../intern/utfconv
   )
+endif()
+
+if(WIN32)
+  add_definitions(-DNOMINMAX)
 endif()
 
 # no need to compile object files for inline headers.
@@ -201,7 +184,9 @@ blender_add_lib(bf_imbuf "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
 if(WITH_GTESTS)
   set(TEST_SRC
-    intern/transform_test.cc
+    tests/IMB_scaling_test.cc
+    tests/IMB_transform_test.cc
   )
   blender_add_test_suite_lib(imbuf "${TEST_SRC}" "${INC}" "${INC_SYS}" "${LIB}")
+  add_subdirectory(tests/performance)
 endif()

@@ -9,6 +9,7 @@
 #include "BKE_crazyspace.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
+#include "BKE_paint.hh"
 
 #include "ED_screen.hh"
 #include "ED_view3d.hh"
@@ -87,7 +88,7 @@ struct PuffOperationExecutor {
     object_ = CTX_data_active_object(&C);
     curves_id_ = static_cast<Curves *>(object_->data);
     curves_ = &curves_id_->geometry.wrap();
-    if (curves_->curves_num() == 0) {
+    if (curves_->is_empty()) {
       return;
     }
     if (curves_id_->surface == nullptr || curves_id_->surface->type != OB_MESH) {
@@ -135,7 +136,7 @@ struct PuffOperationExecutor {
           *curves_, curve_selection_, curves_id_->flag & CV_SCULPT_COLLISION_ENABLED);
     }
 
-    Array<float> curve_weights(curves_->curves_num());
+    Array<float> curve_weights(curves_->curves_num(), 0.0f);
 
     if (falloff_shape == PAINT_FALLOFF_SHAPE_TUBE) {
       this->find_curve_weights_projected_with_symmetry(curve_weights);
@@ -260,7 +261,7 @@ struct PuffOperationExecutor {
             brush_, dist_to_brush_cu, brush_radius_cu);
         math::max_inplace(max_weight, radius_falloff);
       }
-      r_curve_weights[curve_i] = max_weight;
+      math::max_inplace(r_curve_weights[curve_i], max_weight);
     });
   }
 
@@ -300,7 +301,7 @@ struct PuffOperationExecutor {
         const float3 normal_cu = math::normalize(
             math::transform_direction(transforms_.surface_to_curves_normal, normal_su));
 
-        accumulated_lengths_cu.reinitialize(points.size() - 1);
+        accumulated_lengths_cu.resize(points.size() - 1);
         length_parameterize::accumulate_lengths<float3>(
             positions_cu.slice(points), false, accumulated_lengths_cu);
 

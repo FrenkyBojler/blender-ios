@@ -21,7 +21,7 @@
 #include "BKE_attribute.hh"
 #include "BKE_customdata.hh"
 #include "BKE_data_transfer.h"
-#include "BKE_deform.h"
+#include "BKE_deform.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
 #include "BKE_mesh_remap.hh"
@@ -30,7 +30,7 @@
 #include "BKE_modifier.hh"
 #include "BKE_object.hh"
 #include "BKE_object_deform.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -260,39 +260,39 @@ static void data_transfer_mesh_attributes_transfer_active_color_string(
     return;
   }
 
+  const AttributeOwner owner_src = AttributeOwner::from_id(const_cast<ID *>(&mesh_src->id));
+  AttributeOwner owner_dst = AttributeOwner::from_id(&mesh_dst->id);
+
   const char *active_color_src = BKE_id_attributes_active_color_name(&mesh_src->id);
 
-  if ((data_type == CD_PROP_COLOR) && !BKE_id_attribute_search(&const_cast<ID &>(mesh_src->id),
-                                                               active_color_src,
-                                                               CD_MASK_PROP_COLOR,
-                                                               ATTR_DOMAIN_MASK_COLOR))
+  if ((data_type == CD_PROP_COLOR) &&
+      !BKE_attribute_search(
+          owner_src, active_color_src, CD_MASK_PROP_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     return;
   }
   if ((data_type == CD_PROP_BYTE_COLOR) &&
-      !BKE_id_attribute_search(&const_cast<ID &>(mesh_src->id),
-                               active_color_src,
-                               CD_MASK_PROP_BYTE_COLOR,
-                               ATTR_DOMAIN_MASK_COLOR))
+      !BKE_attribute_search(
+          owner_src, active_color_src, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     return;
   }
 
   if ((data_type == CD_PROP_COLOR) &&
-      BKE_id_attribute_search(
-          &mesh_dst->id, active_color_src, CD_MASK_PROP_COLOR, ATTR_DOMAIN_MASK_COLOR))
+      BKE_attribute_search(
+          owner_dst, active_color_src, CD_MASK_PROP_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     mesh_dst->active_color_attribute = BLI_strdup(active_color_src);
   }
   else if ((data_type == CD_PROP_BYTE_COLOR) &&
-           BKE_id_attribute_search(
-               &mesh_dst->id, active_color_src, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_COLOR))
+           BKE_attribute_search(
+               owner_dst, active_color_src, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     mesh_dst->active_color_attribute = BLI_strdup(active_color_src);
   }
   else {
-    CustomDataLayer *first_color_layer = BKE_id_attribute_from_index(
-        &mesh_dst->id, 0, mask_domain, CD_MASK_COLOR_ALL);
+    CustomDataLayer *first_color_layer = BKE_attribute_from_index(
+        owner_dst, 0, mask_domain, CD_MASK_COLOR_ALL);
     if (first_color_layer != nullptr) {
       mesh_dst->active_color_attribute = BLI_strdup(first_color_layer->name);
     }
@@ -311,39 +311,39 @@ static void data_transfer_mesh_attributes_transfer_default_color_string(
     return;
   }
 
+  const AttributeOwner owner_src = AttributeOwner::from_id(const_cast<ID *>(&mesh_src->id));
+  AttributeOwner owner_dst = AttributeOwner::from_id(&mesh_dst->id);
+
   const char *default_color_src = BKE_id_attributes_default_color_name(&mesh_src->id);
 
-  if ((data_type == CD_PROP_COLOR) && !BKE_id_attribute_search(&const_cast<ID &>(mesh_src->id),
-                                                               default_color_src,
-                                                               CD_MASK_PROP_COLOR,
-                                                               ATTR_DOMAIN_MASK_COLOR))
+  if ((data_type == CD_PROP_COLOR) &&
+      !BKE_attribute_search(
+          owner_src, default_color_src, CD_MASK_PROP_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     return;
   }
   if ((data_type == CD_PROP_BYTE_COLOR) &&
-      !BKE_id_attribute_search(&const_cast<ID &>(mesh_src->id),
-                               default_color_src,
-                               CD_MASK_PROP_BYTE_COLOR,
-                               ATTR_DOMAIN_MASK_COLOR))
+      !BKE_attribute_search(
+          owner_src, default_color_src, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     return;
   }
 
   if ((data_type == CD_PROP_COLOR) &&
-      BKE_id_attribute_search(
-          &mesh_dst->id, default_color_src, CD_MASK_PROP_COLOR, ATTR_DOMAIN_MASK_COLOR))
+      BKE_attribute_search(
+          owner_dst, default_color_src, CD_MASK_PROP_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     mesh_dst->default_color_attribute = BLI_strdup(default_color_src);
   }
   else if ((data_type == CD_PROP_BYTE_COLOR) &&
-           BKE_id_attribute_search(
-               &mesh_dst->id, default_color_src, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_COLOR))
+           BKE_attribute_search(
+               owner_dst, default_color_src, CD_MASK_PROP_BYTE_COLOR, ATTR_DOMAIN_MASK_COLOR))
   {
     mesh_dst->default_color_attribute = BLI_strdup(default_color_src);
   }
   else {
-    CustomDataLayer *first_color_layer = BKE_id_attribute_from_index(
-        &mesh_dst->id, 0, mask_domain, CD_MASK_COLOR_ALL);
+    CustomDataLayer *first_color_layer = BKE_attribute_from_index(
+        owner_dst, 0, mask_domain, CD_MASK_COLOR_ALL);
     if (first_color_layer != nullptr) {
       mesh_dst->default_color_attribute = BLI_strdup(first_color_layer->name);
     }
@@ -464,7 +464,7 @@ void data_transfer_layersmapping_add_item(ListBase *r_map,
                                           cd_datatransfer_interp interp,
                                           void *interp_data)
 {
-  CustomDataTransferLayerMap *item = MEM_new<CustomDataTransferLayerMap>(__func__);
+  CustomDataTransferLayerMap *item = MEM_cnew<CustomDataTransferLayerMap>(__func__);
 
   BLI_assert(data_dst != nullptr);
 
@@ -1052,25 +1052,29 @@ static bool data_transfer_layersmapping_generate(ListBase *r_map,
       cddata_type = CD_PROP_FLOAT2;
     }
     else if (cddata_type == CD_FAKE_LNOR) {
-      /* Use #CD_NORMAL as a temporary storage for custom normals in 3D vector form.
-       * A post-process step will convert this layer to #CD_CUSTOMLOOPNORMAL. */
-      float3 *dst_data = static_cast<float3 *>(
-          CustomData_get_layer_for_write(&me_dst->corner_data, CD_NORMAL, me_dst->corners_num));
-      if (!dst_data) {
-        dst_data = static_cast<float3 *>(CustomData_add_layer(
-            &me_dst->corner_data, CD_NORMAL, CD_SET_DEFAULT, me_dst->corners_num));
+      if (r_map) {
+        /* Use #CD_NORMAL as a temporary storage for custom normals in 3D vector form.
+         * A post-process step will convert this layer to #CD_CUSTOMLOOPNORMAL. */
+        float3 *dst_data = static_cast<float3 *>(
+            CustomData_get_layer_for_write(&me_dst->corner_data, CD_NORMAL, me_dst->corners_num));
+        if (!dst_data) {
+          dst_data = static_cast<float3 *>(CustomData_add_layer(
+              &me_dst->corner_data, CD_NORMAL, CD_SET_DEFAULT, me_dst->corners_num));
+        }
+        if (mix_factor != 1.0f || mix_weights) {
+          MutableSpan(dst_data, me_dst->corners_num).copy_from(me_dst->corner_normals());
+        }
+        /* Post-process will convert it back to CD_CUSTOMLOOPNORMAL. */
+        data_transfer_layersmapping_add_item_cd(r_map,
+                                                CD_NORMAL,
+                                                mix_mode,
+                                                mix_factor,
+                                                mix_weights,
+                                                me_src->corner_normals().data(),
+                                                dst_data,
+                                                customdata_data_transfer_interp_normal_normals,
+                                                space_transform);
       }
-      MutableSpan(dst_data, me_dst->corners_num).copy_from(me_dst->corner_normals());
-      /* Post-process will convert it back to CD_CUSTOMLOOPNORMAL. */
-      data_transfer_layersmapping_add_item_cd(r_map,
-                                              CD_NORMAL,
-                                              mix_mode,
-                                              mix_factor,
-                                              mix_weights,
-                                              me_src->corner_normals().data(),
-                                              dst_data,
-                                              customdata_data_transfer_interp_normal_normals,
-                                              space_transform);
       return true;
     }
 

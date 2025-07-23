@@ -20,7 +20,7 @@ parser.add_argument(
     help="Version string in the form of {major}.{minor}.{patch} (e.g. 3.3.2)")
 parser.add_argument(
     "--issue",
-    help="Task that is contains the release notes information (e.g. #77348)")
+    help="Task that contains the release notes information (e.g. #77348)")
 parser.add_argument(
     "--format",
     help="Format the result in `text`, `steam`, `markdown` or `html`",
@@ -39,6 +39,8 @@ if not issue:
         issue = "#100749"
     elif version.startswith("3.6."):
         issue = "#109399"
+    elif version.startswith("4.2."):
+        issue = "#124452"
     else:
         raise ValueError("Specify --issue or update script to include issue number for this version")
 

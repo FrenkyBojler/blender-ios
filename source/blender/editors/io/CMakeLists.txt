@@ -10,7 +10,7 @@ set(INC
   ../../io/alembic
   ../../io/collada
   ../../io/common
-  ../../io/gpencil
+  ../../io/grease_pencil
   ../../io/ply
   ../../io/stl
   ../../io/usd
@@ -29,25 +29,25 @@ set(SRC
   io_cache.cc
   io_collada.cc
   io_drop_import_file.cc
-  io_gpencil_export.cc
-  io_gpencil_import.cc
-  io_gpencil_utils.cc
+  io_grease_pencil.cc
   io_obj.cc
   io_ops.cc
   io_ply_ops.cc
   io_stl_ops.cc
   io_usd.cc
+  io_utils.cc
 
   io_alembic.hh
   io_cache.hh
   io_collada.hh
   io_drop_import_file.hh
-  io_gpencil.hh
+  io_grease_pencil.hh
   io_obj.hh
   io_ops.hh
   io_ply_ops.hh
   io_stl_ops.hh
   io_usd.hh
+  io_utils.hh
 )
 
 set(LIB
@@ -55,6 +55,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::guardedalloc
   PRIVATE bf::intern::clog
 )
@@ -87,11 +88,11 @@ if(WITH_IO_STL)
   add_definitions(-DWITH_IO_STL)
 endif()
 
-if(WITH_IO_GPENCIL)
+if(WITH_IO_GREASE_PENCIL)
   list(APPEND LIB
-    bf_gpencil
+    bf_io_grease_pencil
   )
-  add_definitions(-DWITH_IO_GPENCIL)
+  add_definitions(-DWITH_IO_GREASE_PENCIL)
 endif()
 
 if(WITH_ALEMBIC)
@@ -102,6 +103,9 @@ if(WITH_ALEMBIC)
 endif()
 
 if(WITH_USD)
+  list(APPEND INC_SYS
+    ${USD_INCLUDE_DIRS}
+  )
   list(APPEND LIB
     bf_io_usd
   )

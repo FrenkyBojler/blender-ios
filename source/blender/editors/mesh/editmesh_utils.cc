@@ -13,23 +13,19 @@
 #include "DNA_object_types.h"
 
 #include "BLI_array.hh"
-#include "BLI_buffer.h"
 #include "BLI_kdtree.h"
 #include "BLI_listbase.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BKE_DerivedMesh.hh"
 #include "BKE_context.hh"
 #include "BKE_customdata.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_editmesh_bvh.h"
-#include "BKE_global.h"
-#include "BKE_layer.h"
-#include "BKE_main.hh"
+#include "BKE_editmesh_bvh.hh"
+#include "BKE_layer.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_mapping.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "DEG_depsgraph.hh"
 
@@ -42,7 +38,9 @@
 #include "ED_uvedit.hh"
 #include "ED_view3d.hh"
 
-#include "mesh_intern.h" /* own include */
+#include "mesh_intern.hh" /* own include */
+
+using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name Redo API
@@ -265,31 +263,41 @@ bool EDBM_op_call_silentf(BMEditMesh *em, const char *fmt, ...)
 void EDBM_mesh_make(Object *ob, const int select_mode, const bool add_key_index)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
+  EDBM_mesh_make_from_mesh(ob, mesh, select_mode, add_key_index);
+}
+
+void EDBM_mesh_make_from_mesh(Object *ob,
+                              Mesh *src_mesh,
+                              const int select_mode,
+                              const bool add_key_index)
+{
+  Mesh *mesh = static_cast<Mesh *>(ob->data);
   BMeshCreateParams create_params{};
   create_params.use_toolflags = true;
-  BMesh *bm = BKE_mesh_to_bmesh(mesh, ob, add_key_index, &create_params);
+  BMesh *bm = BKE_mesh_to_bmesh(src_mesh, ob, add_key_index, &create_params);
 
-  if (mesh->edit_mesh) {
+  if (mesh->runtime->edit_mesh) {
     /* this happens when switching shape keys */
-    EDBM_mesh_free_data(mesh->edit_mesh);
-    MEM_freeN(mesh->edit_mesh);
+    EDBM_mesh_free_data(mesh->runtime->edit_mesh.get());
+    mesh->runtime->edit_mesh.reset();
   }
 
   /* Executing operators re-tessellates,
    * so we can avoid doing here but at some point it may need to be added back. */
-  mesh->edit_mesh = BKE_editmesh_create(bm);
+  mesh->runtime->edit_mesh = std::make_shared<BMEditMesh>();
+  mesh->runtime->edit_mesh->bm = bm;
 
-  mesh->edit_mesh->selectmode = mesh->edit_mesh->bm->selectmode = select_mode;
-  mesh->edit_mesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
+  mesh->runtime->edit_mesh->selectmode = mesh->runtime->edit_mesh->bm->selectmode = select_mode;
+  mesh->runtime->edit_mesh->mat_nr = (ob->actcol > 0) ? ob->actcol - 1 : 0;
 
   /* we need to flush selection because the mode may have changed from when last in editmode */
-  EDBM_selectmode_flush(mesh->edit_mesh);
+  EDBM_selectmode_flush(mesh->runtime->edit_mesh.get());
 }
 
 void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)
 {
   Mesh *mesh = static_cast<Mesh *>(ob->data);
-  BMesh *bm = mesh->edit_mesh->bm;
+  BMesh *bm = mesh->runtime->edit_mesh->bm;
 
   /* Workaround for #42360, 'ob->shapenr' should be 1 in this case.
    * however this isn't synchronized between objects at the moment. */
@@ -301,16 +309,6 @@ void EDBM_mesh_load_ex(Main *bmain, Object *ob, bool free_data)
   params.calc_object_remap = true;
   params.update_shapekey_indices = !free_data;
   BM_mesh_bm_to_me(bmain, bm, mesh, &params);
-}
-
-void EDBM_mesh_clear(BMEditMesh *em)
-{
-  /* clear bmesh */
-  BM_mesh_clear(em->bm);
-
-  /* free tessellation data */
-  em->tottri = 0;
-  MEM_SAFE_FREE(em->looptris);
 }
 
 void EDBM_mesh_load(Main *bmain, Object *ob)
@@ -1656,7 +1654,7 @@ void EDBM_stats_update(BMEditMesh *em)
 
 void EDBM_update(Mesh *mesh, const EDBMUpdate_Params *params)
 {
-  BMEditMesh *em = mesh->edit_mesh;
+  BMEditMesh *em = mesh->runtime->edit_mesh.get();
   /* Order of calling isn't important. */
   DEG_id_tag_update(&mesh->id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_GEOM | ND_DATA, &mesh->id);
@@ -1786,12 +1784,10 @@ BMElem *EDBM_elem_from_index_any(BMEditMesh *em, uint index)
 int EDBM_elem_to_index_any_multi(
     const Scene *scene, ViewLayer *view_layer, BMEditMesh *em, BMElem *ele, int *r_object_index)
 {
-  uint bases_len;
   int elem_index = -1;
   *r_object_index = -1;
-  Base **bases = BKE_view_layer_array_from_bases_in_edit_mode(
-      scene, view_layer, nullptr, &bases_len);
-  for (uint base_index = 0; base_index < bases_len; base_index++) {
+  Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(scene, view_layer, nullptr);
+  for (const int base_index : bases.index_range()) {
     Base *base_iter = bases[base_index];
     if (BKE_editmesh_from_object(base_iter->object) == em) {
       *r_object_index = base_index;
@@ -1799,7 +1795,6 @@ int EDBM_elem_to_index_any_multi(
       break;
     }
   }
-  MEM_freeN(bases);
   return elem_index;
 }
 
@@ -1809,12 +1804,9 @@ BMElem *EDBM_elem_from_index_any_multi(const Scene *scene,
                                        uint elem_index,
                                        Object **r_obedit)
 {
-  uint bases_len;
-  Base **bases = BKE_view_layer_array_from_bases_in_edit_mode(
-      scene, view_layer, nullptr, &bases_len);
+  Vector<Base *> bases = BKE_view_layer_array_from_bases_in_edit_mode(scene, view_layer, nullptr);
   *r_obedit = nullptr;
-  Object *obedit = (object_index < bases_len) ? bases[object_index]->object : nullptr;
-  MEM_freeN(bases);
+  Object *obedit = (object_index < bases.size()) ? bases[object_index]->object : nullptr;
   if (obedit != nullptr) {
     BMEditMesh *em = BKE_editmesh_from_object(obedit);
     BMElem *ele = EDBM_elem_from_index_any(em, elem_index);
@@ -1833,7 +1825,7 @@ BMElem *EDBM_elem_from_index_any_multi(const Scene *scene,
  * \{ */
 
 static BMFace *edge_ray_cast(
-    BMBVHTree *tree, const float co[3], const float dir[3], float *r_hitout, BMEdge *e)
+    const BMBVHTree *tree, const float co[3], const float dir[3], float *r_hitout, const BMEdge *e)
 {
   BMFace *f = BKE_bmbvh_ray_cast(tree, co, dir, 0.0f, nullptr, r_hitout, nullptr);
 
@@ -1851,8 +1843,12 @@ static void scale_point(float c1[3], const float p[3], const float s)
   add_v3_v3(c1, p);
 }
 
-bool BMBVH_EdgeVisible(
-    BMBVHTree *tree, BMEdge *e, Depsgraph *depsgraph, ARegion *region, View3D *v3d, Object *obedit)
+bool BMBVH_EdgeVisible(const BMBVHTree *tree,
+                       const BMEdge *e,
+                       const Depsgraph *depsgraph,
+                       const ARegion *region,
+                       const View3D *v3d,
+                       const Object *obedit)
 {
   BMFace *f;
   float co1[3], co2[3], co3[3], dir1[3], dir2[3], dir3[3];
@@ -1866,7 +1862,7 @@ bool BMBVH_EdgeVisible(
 
   ED_view3d_win_to_segment_clipped(depsgraph, region, v3d, mval_f, origin, end, false);
 
-  invert_m4_m4(invmat, obedit->object_to_world);
+  invert_m4_m4(invmat, obedit->object_to_world().ptr());
   mul_m4_v3(invmat, origin);
 
   copy_v3_v3(co1, e->v1->co);
@@ -1947,7 +1943,7 @@ void EDBM_project_snap_verts(
         SnapObjectParams params{};
         params.snap_target_select = target_op;
         params.edit_mode_type = SNAP_GEOM_FINAL;
-        params.use_occlusion_test = true;
+        params.occlusion_test = SNAP_OCCLUSION_AS_SEEM;
         if (ED_transform_snap_object_project_view3d(snap_context,
                                                     depsgraph,
                                                     region,
@@ -1961,7 +1957,7 @@ void EDBM_project_snap_verts(
                                                     co_proj,
                                                     nullptr))
         {
-          mul_v3_m4v3(eve->co, obedit->world_to_object, co_proj);
+          mul_v3_m4v3(eve->co, obedit->world_to_object().ptr(), co_proj);
         }
       }
     }

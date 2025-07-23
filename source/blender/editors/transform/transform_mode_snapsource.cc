@@ -115,6 +115,11 @@ static void snapsource_confirm(TransInfo *t)
 
 static eRedrawFlag snapsource_handle_event_fn(TransInfo *t, const wmEvent *event)
 {
+  if (t->redraw) {
+    /* Event already handled. */
+    return TREDRAW_NOTHING;
+  }
+
   if (event->type == EVT_MODAL_MAP) {
     switch (event->val) {
       case TFM_MODAL_CONFIRM:
@@ -124,9 +129,6 @@ static eRedrawFlag snapsource_handle_event_fn(TransInfo *t, const wmEvent *event
           snapsource_confirm(t);
 
           BLI_assert(t->state != TRANS_CONFIRM);
-        }
-        else {
-          t->modifiers |= MOD_EDIT_SNAP_SOURCE;
         }
         break;
       case TFM_MODAL_CANCEL:
@@ -172,7 +174,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   }
 
   if (ELEM(t->mode, TFM_INIT, TFM_DUMMY)) {
-    /* Fallback */
+    /* Fallback. */
     transform_mode_init(t, nullptr, TFM_TRANSLATION);
   }
 
@@ -194,17 +196,20 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   }
 
   t->mode_info = &TransMode_snapsource;
-  t->flag |= T_DRAW_SNAP_SOURCE;
   t->tsnap.target_operation = SCE_SNAP_TARGET_ALL;
   t->tsnap.status &= ~SNAP_SOURCE_FOUND;
+
+  if (t->spacetype == SPACE_VIEW3D) {
+    t->flag |= T_DRAW_SNAP_SOURCE;
+  }
 
   customdata->snap_mode_confirm = t->tsnap.mode;
   t->tsnap.mode &= ~(SCE_SNAP_TO_EDGE_PERPENDICULAR | SCE_SNAP_INDIVIDUAL_PROJECT |
                      SCE_SNAP_INDIVIDUAL_NEAREST);
 
-  if ((t->tsnap.mode & ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID)) == 0) {
+  if ((t->tsnap.mode & ~SCE_SNAP_TO_INCREMENT) == 0) {
     /* Initialize snap modes for geometry. */
-    t->tsnap.mode &= ~(SCE_SNAP_TO_INCREMENT | SCE_SNAP_TO_GRID);
+    t->tsnap.mode &= ~SCE_SNAP_TO_INCREMENT;
     t->tsnap.mode |= SCE_SNAP_TO_GEOM & ~SCE_SNAP_TO_EDGE_PERPENDICULAR;
 
     if (!(customdata->snap_mode_confirm & SCE_SNAP_TO_EDGE_PERPENDICULAR)) {
@@ -249,6 +254,7 @@ void transform_mode_snap_source_init(TransInfo *t, wmOperator * /*op*/)
   t->mouse.apply = nullptr;
   t->mouse.post = nullptr;
   t->mouse.use_virtual_mval = false;
+  t->modifiers |= MOD_EDIT_SNAP_SOURCE;
 }
 
 /** \} */

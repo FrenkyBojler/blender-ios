@@ -8,10 +8,11 @@
 #include "BLI_array.hh"
 #include "BLI_hash.hh"
 #include "BLI_index_range.hh"
+#include "BLI_math_vector.h"
 #include "BLI_math_vector_types.hh"
 #include "BLI_task.hh"
 
-#include "GPU_texture.h"
+#include "GPU_texture.hh"
 
 #include "BKE_image.h"
 #include "BKE_texture.h"
@@ -25,6 +26,7 @@
 #include "COM_cached_texture.hh"
 #include "COM_context.hh"
 #include "COM_result.hh"
+#include "COM_utilities.hh"
 
 namespace blender::realtime_compositor {
 
@@ -39,7 +41,7 @@ CachedTextureKey::CachedTextureKey(int2 size, float3 offset, float3 scale)
 
 uint64_t CachedTextureKey::hash() const
 {
-  return get_default_hash_3(size, offset, scale);
+  return get_default_hash(size, offset, scale);
 }
 
 bool operator==(const CachedTextureKey &a, const CachedTextureKey &b)
@@ -57,12 +59,14 @@ CachedTexture::CachedTexture(Context &context,
                              int2 size,
                              float3 offset,
                              float3 scale)
+    : color_result(context.create_result(ResultType::Color)),
+      value_result(context.create_result(ResultType::Float))
 {
   ImagePool *image_pool = BKE_image_pool_new();
   BKE_texture_fetch_images_for_pool(texture, image_pool);
 
-  Array<float4> color_pixels(size.x * size.y);
-  Array<float> value_pixels(size.x * size.y);
+  color_pixels_ = Array<float4>(size.x * size.y);
+  value_pixels_ = Array<float>(size.x * size.y);
   threading::parallel_for(IndexRange(size.y), 1, [&](const IndexRange sub_y_range) {
     for (const int64_t y : sub_y_range) {
       for (const int64_t x : IndexRange(size.x)) {
@@ -71,60 +75,45 @@ CachedTexture::CachedTexture(Context &context,
         const float2 pixel_coordinates = ((float2(x, y) + 0.5f) / float2(size)) * 2.0f - 1.0f;
         /* Note that it is expected that the offset is scaled by the scale. */
         const float3 coordinates = (float3(pixel_coordinates, 0.0f) + offset) * scale;
+
         TexResult texture_result;
-        BKE_texture_get_value_ex(
-            texture, coordinates, &texture_result, image_pool, use_color_management);
+        const int result_type = multitex_ext_safe(
+            texture, coordinates, &texture_result, image_pool, use_color_management, false);
 
         float4 color = float4(texture_result.trgba);
-        float value = texture_result.tin;
-        if (texture_result.talpha) {
-          value = texture_result.trgba[3];
-        }
-        else {
-          color.w = 1.0f;
+        color.w = texture_result.talpha ? color.w : texture_result.tin;
+        if (!(result_type & TEX_RGB)) {
+          copy_v3_fl(color, color.w);
         }
 
-        color_pixels[y * size.x + x] = color;
-        value_pixels[y * size.x + x] = value;
+        color_pixels_[y * size.x + x] = color;
+        value_pixels_[y * size.x + x] = color.w;
       }
     }
   });
 
   BKE_image_pool_free(image_pool);
 
-  color_texture_ = GPU_texture_create_2d(
-      "Cached Color Texture",
-      size.x,
-      size.y,
-      1,
-      Result::texture_format(ResultType::Color, context.get_precision()),
-      GPU_TEXTURE_USAGE_SHADER_READ,
-      *color_pixels.data());
+  if (context.use_gpu()) {
+    this->color_result.allocate_texture(Domain(size), false);
+    this->value_result.allocate_texture(Domain(size), false);
+    GPU_texture_update(this->color_result, GPU_DATA_FLOAT, color_pixels_.data());
+    GPU_texture_update(this->value_result, GPU_DATA_FLOAT, value_pixels_.data());
 
-  value_texture_ = GPU_texture_create_2d(
-      "Cached Value Texture",
-      size.x,
-      size.y,
-      1,
-      Result::texture_format(ResultType::Float, context.get_precision()),
-      GPU_TEXTURE_USAGE_SHADER_READ,
-      value_pixels.data());
+    /* CPU-side data no longer needed, so free it. */
+    color_pixels_ = Array<float4>();
+    value_pixels_ = Array<float>();
+  }
+  else {
+    this->color_result.wrap_external(&color_pixels_.data()[0].x, size);
+    this->value_result.wrap_external(value_pixels_.data(), size);
+  }
 }
 
 CachedTexture::~CachedTexture()
 {
-  GPU_texture_free(color_texture_);
-  GPU_texture_free(value_texture_);
-}
-
-GPUTexture *CachedTexture::color_texture()
-{
-  return color_texture_;
-}
-
-GPUTexture *CachedTexture::value_texture()
-{
-  return value_texture_;
+  this->color_result.release();
+  this->value_result.release();
 }
 
 /* --------------------------------------------------------------------
@@ -157,7 +146,9 @@ CachedTexture &CachedTextureContainer::get(Context &context,
 {
   const CachedTextureKey key(size, offset, scale);
 
-  auto &cached_textures_for_id = map_.lookup_or_add_default(texture->id.name);
+  const std::string library_key = texture->id.lib ? texture->id.lib->id.name : "";
+  const std::string id_key = std::string(texture->id.name) + library_key;
+  auto &cached_textures_for_id = map_.lookup_or_add_default(id_key);
 
   /* Invalidate the cache for that texture ID if it was changed and reset the recalculate flag. */
   if (context.query_id_recalc_flag(reinterpret_cast<ID *>(texture)) & ID_RECALC_ALL) {

@@ -32,9 +32,9 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_vector.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "rna_internal.h"
+#include "rna_internal.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"
@@ -136,13 +136,15 @@ static const EnumPropertyItem part_fluid_type_items[] = {
 
 #ifdef RNA_RUNTIME
 
+#  include <fmt/format.h>
+
 #  include "BLI_string_utils.hh"
 
 #  include "BKE_boids.h"
 #  include "BKE_cloth.hh"
 #  include "BKE_context.hh"
 #  include "BKE_customdata.hh"
-#  include "BKE_deform.h"
+#  include "BKE_deform.hh"
 #  include "BKE_effect.h"
 #  include "BKE_material.h"
 #  include "BKE_modifier.hh"
@@ -472,25 +474,54 @@ static void rna_ParticleSystem_co_hair(
   if (step >= 0 && step <= max_k) {
     copy_v3_v3(n_co, (cache + step)->co);
     mul_m4_v3(particlesystem->imat, n_co);
-    mul_m4_v3(object->object_to_world, n_co);
+    mul_m4_v3(object->object_to_world().ptr(), n_co);
   }
 }
 
 static const EnumPropertyItem *rna_Particle_Material_itemf(bContext *C,
-                                                           PointerRNA * /*ptr*/,
+                                                           PointerRNA *ptr,
                                                            PropertyRNA * /*prop*/,
                                                            bool *r_free)
 {
-  Object *ob = static_cast<Object *>(CTX_data_pointer_get(C, "object").data);
+
+  ParticleSettings *part = reinterpret_cast<ParticleSettings *>(ptr->owner_id);
+
+  /* The context object might not be what we want when doing this from python. */
+  Object *ob_found = nullptr;
+
+  if (Object *ob_context = static_cast<Object *>(CTX_data_pointer_get(C, "object").data)) {
+    LISTBASE_FOREACH (ParticleSystem *, psys, &ob_context->particlesystem) {
+      if (psys->part == part) {
+        ob_found = ob_context;
+        break;
+      }
+    }
+  }
+
+  if (ob_found == nullptr) {
+    /* Iterating over all object is slow, but no better solution exists at the moment. */
+    for (Object *ob = static_cast<Object *>(CTX_data_main(C)->objects.first);
+         ob && (ob_found == nullptr);
+         ob = static_cast<Object *>(ob->id.next))
+    {
+      LISTBASE_FOREACH (ParticleSystem *, psys, &ob->particlesystem) {
+        if (psys->part == part) {
+          ob_found = ob;
+          break;
+        }
+      }
+    }
+  }
+
   Material *ma;
   EnumPropertyItem *item = nullptr;
   EnumPropertyItem tmp = {0, "", 0, "", ""};
   int totitem = 0;
   int i;
 
-  if (ob && ob->totcol > 0) {
-    for (i = 1; i <= ob->totcol; i++) {
-      ma = BKE_object_material_get(ob, i);
+  if (ob_found && ob_found->totcol > 0) {
+    for (i = 1; i <= ob_found->totcol; i++) {
+      ma = BKE_object_material_get(ob_found, i);
       tmp.value = i;
       tmp.icon = ICON_MATERIAL_DATA;
       if (ma) {
@@ -1230,7 +1261,7 @@ static int particle_id_check(const PointerRNA *ptr)
   return (GS(id->name) == ID_PA);
 }
 
-static char *rna_SPHFluidSettings_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_SPHFluidSettings_path(const PointerRNA *ptr)
 {
   const SPHFluidSettings *fluid = (SPHFluidSettings *)ptr->data;
 
@@ -1238,10 +1269,10 @@ static char *rna_SPHFluidSettings_path(const PointerRNA *ptr)
     const ParticleSettings *part = (ParticleSettings *)ptr->owner_id;
 
     if (part->fluid == fluid) {
-      return BLI_strdup("fluid");
+      return "fluid";
     }
   }
-  return nullptr;
+  return std::nullopt;
 }
 
 static bool rna_ParticleSystem_multiple_caches_get(PointerRNA *ptr)
@@ -1486,13 +1517,13 @@ static void psys_vg_name_set__internal(PointerRNA *ptr, const char *value, int i
   }
 }
 
-static char *rna_ParticleSystem_path(const PointerRNA *ptr)
+static std::optional<std::string> rna_ParticleSystem_path(const PointerRNA *ptr)
 {
   const ParticleSystem *psys = (ParticleSystem *)ptr->data;
   char name_esc[sizeof(psys->name) * 2];
 
   BLI_str_escape(name_esc, psys->name, sizeof(name_esc));
-  return BLI_sprintfN("particle_systems[\"%s\"]", name_esc);
+  return fmt::format("particle_systems[\"{}\"]", name_esc);
 }
 
 static void rna_ParticleSettings_mtex_begin(CollectionPropertyIterator *iter, PointerRNA *ptr)
@@ -2181,6 +2212,7 @@ static void rna_def_particle_settings_mtex(BlenderRNA *brna)
   prop = RNA_def_property(srna, "texture_coords", PROP_ENUM, PROP_NONE);
   RNA_def_property_enum_sdna(prop, nullptr, "texco");
   RNA_def_property_enum_items(prop, texco_items);
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_TEXTURE);
   RNA_def_property_ui_text(prop,
                            "Texture Coordinates",
                            "Texture coordinates used to map the texture onto the background");

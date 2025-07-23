@@ -24,18 +24,17 @@
 
 #include "BKE_bvhutils.hh"
 
-#include "../generic/py_capi_utils.h"
-#include "../generic/python_utildefines.h"
+#include "../generic/py_capi_utils.hh"
+#include "../generic/python_utildefines.hh"
 
-#include "mathutils.h"
-#include "mathutils_bvhtree.h" /* own include */
+#include "mathutils.hh"
+#include "mathutils_bvhtree.hh" /* own include */
 
 #ifndef MATH_STANDALONE
 #  include "DNA_mesh_types.h"
 #  include "DNA_object_types.h"
 
 #  include "BKE_customdata.hh"
-#  include "BKE_editmesh_bvh.h"
 #  include "BKE_lib_id.hh"
 #  include "BKE_mesh.hh"
 #  include "BKE_mesh_runtime.hh"
@@ -45,10 +44,10 @@
 
 #  include "bmesh.hh"
 
-#  include "../bmesh/bmesh_py_types.h"
+#  include "../bmesh/bmesh_py_types.hh"
 #endif /* MATH_STANDALONE */
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /* -------------------------------------------------------------------- */
 /** \name Documentation String (snippets)
@@ -59,15 +58,13 @@
   "   :type distance: float\n"
 
 #define PYBVH_FIND_GENERIC_RETURN_DOC \
-  "   :return: Returns a tuple\n" \
-  "      (:class:`Vector` location, :class:`Vector` normal, int index, float distance),\n" \
+  "   :return: Returns a tuple: (position, normal, index, distance),\n" \
   "      Values will all be None if no hit is found.\n" \
-  "   :rtype: :class:`tuple`\n"
+  "   :rtype: tuple[:class:`Vector` | None, :class:`Vector` | None, int | None, float | None]\n"
 
 #define PYBVH_FIND_GENERIC_RETURN_LIST_DOC \
-  "   :return: Returns a list of tuples\n" \
-  "      (:class:`Vector` location, :class:`Vector` normal, int index, float distance),\n" \
-  "   :rtype: :class:`list`\n"
+  "   :return: Returns a list of tuples (position, normal, index, distance)\n" \
+  "   :rtype: list[tuple[:class:`Vector`, :class:`Vector`, int, float]]\n"
 
 #define PYBVH_FROM_GENERIC_EPSILON_DOC \
   "   :arg epsilon: Increase the threshold for detecting overlap and raycast hits.\n" \
@@ -319,16 +316,18 @@ static void py_bvhtree_nearest_point_cb(void *userdata,
   }
 }
 
-PyDoc_STRVAR(py_bvhtree_ray_cast_doc,
-             ".. method:: ray_cast(origin, direction, distance=sys.float_info.max)\n"
-             "\n"
-             "   Cast a ray onto the mesh.\n"
-             "\n"
-             "   :arg origin: Start location of the ray in object space.\n"
-             "   :type origin: :class:`Vector`\n"
-             "   :arg direction: Direction of the ray in object space.\n"
-             "   :type direction: :class:`Vector`\n" PYBVH_FIND_GENERIC_DISTANCE_DOC
-                 PYBVH_FIND_GENERIC_RETURN_DOC);
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_bvhtree_ray_cast_doc,
+    ".. method:: ray_cast(origin, direction, distance=sys.float_info.max)\n"
+    "\n"
+    "   Cast a ray onto the mesh.\n"
+    "\n"
+    "   :arg origin: Start location of the ray in object space.\n"
+    "   :type origin: :class:`Vector`\n"
+    "   :arg direction: Direction of the ray in object space.\n"
+    "   :type direction: :class:`Vector`\n" PYBVH_FIND_GENERIC_DISTANCE_DOC
+        PYBVH_FIND_GENERIC_RETURN_DOC);
 static PyObject *py_bvhtree_ray_cast(PyBVHTree *self, PyObject *args)
 {
   const char *error_prefix = "ray_cast";
@@ -368,15 +367,17 @@ static PyObject *py_bvhtree_ray_cast(PyBVHTree *self, PyObject *args)
   return py_bvhtree_raycast_to_py_none();
 }
 
-PyDoc_STRVAR(py_bvhtree_find_nearest_doc,
-             ".. method:: find_nearest(origin, distance=" PYBVH_MAX_DIST_STR
-             ")\n"
-             "\n"
-             "   Find the nearest element (typically face index) to a point.\n"
-             "\n"
-             "   :arg co: Find nearest element to this point.\n"
-             "   :type co: :class:`Vector`\n" PYBVH_FIND_GENERIC_DISTANCE_DOC
-                 PYBVH_FIND_GENERIC_RETURN_DOC);
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_bvhtree_find_nearest_doc,
+    ".. method:: find_nearest(origin, distance=" PYBVH_MAX_DIST_STR
+    ")\n"
+    "\n"
+    "   Find the nearest element (typically face index) to a point.\n"
+    "\n"
+    "   :arg co: Find nearest element to this point.\n"
+    "   :type co: :class:`Vector`\n" PYBVH_FIND_GENERIC_DISTANCE_DOC
+        PYBVH_FIND_GENERIC_RETURN_DOC);
 static PyObject *py_bvhtree_find_nearest(PyBVHTree *self, PyObject *args)
 {
   const char *error_prefix = "find_nearest";
@@ -452,6 +453,7 @@ static void py_bvhtree_nearest_point_range_cb(void *userdata,
 }
 
 PyDoc_STRVAR(
+    /* Wrap. */
     py_bvhtree_find_nearest_range_doc,
     ".. method:: find_nearest_range(origin, distance=" PYBVH_MAX_DIST_STR
     ")\n"
@@ -545,6 +547,7 @@ static bool py_bvhtree_overlap_cb(void *userdata, int index_a, int index_b, int 
 }
 
 PyDoc_STRVAR(
+    /* Wrap. */
     py_bvhtree_overlap_doc,
     ".. method:: overlap(other_tree)\n"
     "\n"
@@ -554,7 +557,7 @@ PyDoc_STRVAR(
     "   :type other_tree: :class:`BVHTree`\n"
     "   :return: Returns a list of unique index pairs,"
     "      the first index referencing this tree, the second referencing the **other_tree**.\n"
-    "   :rtype: :class:`list`\n");
+    "   :rtype: list[tuple[int, int]]\n");
 static PyObject *py_bvhtree_overlap(PyBVHTree *self, PyBVHTree *other)
 {
   PyBVHTree_OverlapData data;
@@ -630,15 +633,16 @@ static PyObject *py_bvhtree_overlap(PyBVHTree *self, PyBVHTree *other)
  * \{ */
 
 PyDoc_STRVAR(
+    /* Wrap. */
     C_BVHTree_FromPolygons_doc,
     ".. classmethod:: FromPolygons(vertices, polygons, all_triangles=False, epsilon=0.0)\n"
     "\n"
     "   BVH tree constructed geometry passed in as arguments.\n"
     "\n"
     "   :arg vertices: float triplets each representing ``(x, y, z)``\n"
-    "   :type vertices: float triplet sequence\n"
-    "   :arg polygons: Sequence of polyugons, each containing indices to the vertices argument.\n"
-    "   :type polygons: Sequence of sequences containing ints\n"
+    "   :type vertices: Sequence[Sequence[float]]\n"
+    "   :arg polygons: Sequence of polygons, each containing indices to the vertices argument.\n"
+    "   :type polygons: Sequence[Sequence[int]]\n"
     "   :arg all_triangles: Use when all **polygons** are triangles for more efficient "
     "conversion.\n"
     "   :type all_triangles: bool\n" PYBVH_FROM_GENERIC_EPSILON_DOC);
@@ -921,13 +925,15 @@ static PyObject *C_BVHTree_FromPolygons(PyObject * /*cls*/, PyObject *args, PyOb
 
 #ifndef MATH_STANDALONE
 
-PyDoc_STRVAR(C_BVHTree_FromBMesh_doc,
-             ".. classmethod:: FromBMesh(bmesh, epsilon=0.0)\n"
-             "\n"
-             "   BVH tree based on :class:`BMesh` data.\n"
-             "\n"
-             "   :arg bmesh: BMesh data.\n"
-             "   :type bmesh: :class:`BMesh`\n" PYBVH_FROM_GENERIC_EPSILON_DOC);
+PyDoc_STRVAR(
+    /* Wrap. */
+    C_BVHTree_FromBMesh_doc,
+    ".. classmethod:: FromBMesh(bmesh, epsilon=0.0)\n"
+    "\n"
+    "   BVH tree based on :class:`BMesh` data.\n"
+    "\n"
+    "   :arg bmesh: BMesh data.\n"
+    "   :type bmesh: :class:`BMesh`\n" PYBVH_FROM_GENERIC_EPSILON_DOC);
 static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObject *kwargs)
 {
   const char *keywords[] = {"bmesh", "epsilon", nullptr};
@@ -940,7 +946,6 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
   float epsilon = 0.0f;
 
   BMesh *bm;
-  BMLoop *(*corner_tris)[3];
 
   if (!PyArg_ParseTupleAndKeywords(args,
                                    kwargs,
@@ -956,18 +961,15 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
   bm = py_bm->bm;
 
   /* Get data for tessellation */
-  {
-    coords_len = uint(bm->totvert);
-    tris_len = uint(poly_to_tri_count(bm->totface, bm->totloop));
 
-    coords = static_cast<float(*)[3]>(MEM_mallocN(sizeof(*coords) * size_t(coords_len), __func__));
-    tris = static_cast<uint(*)[3]>(MEM_mallocN(sizeof(*tris) * size_t(tris_len), __func__));
+  coords_len = uint(bm->totvert);
+  tris_len = uint(poly_to_tri_count(bm->totface, bm->totloop));
 
-    corner_tris = static_cast<BMLoop *(*)[3]>(
-        MEM_mallocN(sizeof(*corner_tris) * size_t(tris_len), __func__));
+  coords = static_cast<float(*)[3]>(MEM_mallocN(sizeof(*coords) * size_t(coords_len), __func__));
+  tris = static_cast<uint(*)[3]>(MEM_mallocN(sizeof(*tris) * size_t(tris_len), __func__));
 
-    BM_mesh_calc_tessellation(bm, corner_tris);
-  }
+  blender::Array<std::array<BMLoop *, 3>> corner_tris(tris_len);
+  BM_mesh_calc_tessellation(bm, corner_tris);
 
   {
     BMIter iter;
@@ -1015,14 +1017,12 @@ static PyObject *C_BVHTree_FromBMesh(PyObject * /*cls*/, PyObject *args, PyObjec
       BLI_bvhtree_balance(tree);
     }
 
-    MEM_freeN(corner_tris);
-
     return bvhtree_CreatePyObject(
         tree, epsilon, coords, coords_len, tris, tris_len, orig_index, orig_normal);
   }
 }
 
-/* return various derived meshes based on requested settings */
+/** Return various evaluated meshes based on requested settings. */
 static const Mesh *bvh_get_mesh(const char *funcname,
                                 Depsgraph *depsgraph,
                                 Scene *scene,
@@ -1049,11 +1049,11 @@ static const Mesh *bvh_get_mesh(const char *funcname,
       }
 
       *r_free_mesh = true;
-      return mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
+      return blender::bke::mesh_create_eval_final(depsgraph, scene, ob, &data_masks);
     }
     if (ob_eval != nullptr) {
       if (use_cage) {
-        return mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
+        return blender::bke::mesh_get_eval_deform(depsgraph, scene, ob_eval, &data_masks);
       }
 
       return BKE_object_get_evaluated_mesh(ob_eval);
@@ -1076,7 +1076,7 @@ static const Mesh *bvh_get_mesh(const char *funcname,
     }
 
     *r_free_mesh = true;
-    return mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
+    return blender::bke::mesh_create_eval_no_deform_render(depsgraph, scene, ob, &data_masks);
   }
 
   if (use_cage) {
@@ -1088,23 +1088,25 @@ static const Mesh *bvh_get_mesh(const char *funcname,
   }
 
   *r_free_mesh = true;
-  return mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
+  return blender::bke::mesh_create_eval_no_deform(depsgraph, scene, ob, &data_masks);
 }
 
-PyDoc_STRVAR(C_BVHTree_FromObject_doc,
-             ".. classmethod:: FromObject(object, depsgraph, deform=True, render=False, "
-             "cage=False, epsilon=0.0)\n"
-             "\n"
-             "   BVH tree based on :class:`Object` data.\n"
-             "\n"
-             "   :arg object: Object data.\n"
-             "   :type object: :class:`Object`\n"
-             "   :arg depsgraph: Depsgraph to use for evaluating the mesh.\n"
-             "   :type depsgraph: :class:`Depsgraph`\n"
-             "   :arg deform: Use mesh with deformations.\n"
-             "   :type deform: bool\n"
-             "   :arg cage: Use modifiers cage.\n"
-             "   :type cage: bool\n" PYBVH_FROM_GENERIC_EPSILON_DOC);
+PyDoc_STRVAR(
+    /* Wrap. */
+    C_BVHTree_FromObject_doc,
+    ".. classmethod:: FromObject(object, depsgraph, deform=True, render=False, "
+    "cage=False, epsilon=0.0)\n"
+    "\n"
+    "   BVH tree based on :class:`Object` data.\n"
+    "\n"
+    "   :arg object: Object data.\n"
+    "   :type object: :class:`Object`\n"
+    "   :arg depsgraph: Depsgraph to use for evaluating the mesh.\n"
+    "   :type depsgraph: :class:`Depsgraph`\n"
+    "   :arg deform: Use mesh with deformations.\n"
+    "   :type deform: bool\n"
+    "   :arg cage: Use modifiers cage.\n"
+    "   :type cage: bool\n" PYBVH_FROM_GENERIC_EPSILON_DOC);
 static PyObject *C_BVHTree_FromObject(PyObject * /*cls*/, PyObject *args, PyObject *kwargs)
 {
   /* NOTE: options here match #bpy_bmesh_from_object. */
@@ -1313,8 +1315,10 @@ PyTypeObject PyBVHTree_Type = {
 /* -------------------------------------------------------------------- */
 /* Module definition */
 
-PyDoc_STRVAR(py_bvhtree_doc,
-             "BVH tree structures for proximity searches and ray casts on geometry.");
+PyDoc_STRVAR(
+    /* Wrap. */
+    py_bvhtree_doc,
+    "BVH tree structures for proximity searches and ray casts on geometry.");
 static PyModuleDef bvhtree_moduledef = {
     /*m_base*/ PyModuleDef_HEAD_INIT,
     /*m_name*/ "mathutils.bvhtree",

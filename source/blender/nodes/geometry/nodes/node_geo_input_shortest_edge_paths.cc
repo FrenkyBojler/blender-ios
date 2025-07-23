@@ -146,8 +146,7 @@ class ShortestEdgePathsNextVertFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    /* Some random constant hash. */
-    return 8466507837;
+    return get_default_hash(end_selection_, cost_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
@@ -230,7 +229,7 @@ class ShortestEdgePathsCostFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash_2(end_selection_, cost_);
+    return get_default_hash(end_selection_, cost_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
@@ -263,13 +262,13 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_INPUT_SHORTEST_EDGE_PATHS, "Shortest Edge Paths", NODE_CLASS_INPUT);
   ntype.declare = node_declare;
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

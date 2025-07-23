@@ -9,18 +9,17 @@
 #include "DRW_pbvh.hh"
 
 #include "draw_attributes.hh"
-#include "draw_manager.h"
-#include "draw_pbvh.hh"
+#include "draw_manager_c.hh"
 
 #include "BKE_attribute.hh"
 #include "BKE_curve.hh"
-#include "BKE_duplilist.h"
-#include "BKE_global.h"
+#include "BKE_customdata.hh"
+#include "BKE_duplilist.hh"
+#include "BKE_global.hh"
 #include "BKE_image.h"
 #include "BKE_mesh.hh"
 #include "BKE_object.hh"
 #include "BKE_paint.hh"
-#include "BKE_pbvh_api.hh"
 #include "BKE_volume.hh"
 
 /* For debug cursor position. */
@@ -44,11 +43,11 @@
 #  include "BLI_math_bits.h"
 #endif
 
-#include "GPU_capabilities.h"
-#include "GPU_material.h"
-#include "GPU_uniform_buffer.h"
+#include "GPU_capabilities.hh"
+#include "GPU_material.hh"
+#include "GPU_uniform_buffer.hh"
 
-#include "intern/gpu_codegen.h"
+#include "intern/gpu_codegen.hh"
 
 /**
  * IMPORTANT:
@@ -71,7 +70,7 @@ static void draw_call_sort(DRWCommand *array, DRWCommand *array_tmp, int array_l
    * the sorting benefit will be negligible.
    * So at least sort fast! */
   uchar idx[128] = {0};
-  /* Shift by 6 positions knowing each GPUBatch is > 64 bytes */
+  /* Shift by 6 positions knowing each blender::gpu::Batch is > 64 bytes */
 #define KEY(a) ((size_t((a).draw.batch) >> 6) % ARRAY_SIZE(idx))
   BLI_assert(array_len <= ARRAY_SIZE(idx));
 
@@ -546,7 +545,7 @@ void DRW_shgroup_uniform_mat4_copy(DRWShadingGroup *shgroup,
 
 void DRW_shgroup_vertex_buffer_ex(DRWShadingGroup *shgroup,
                                   const char *name,
-                                  GPUVertBuf *vertex_buffer DRW_DEBUG_FILE_LINE_ARGS)
+                                  blender::gpu::VertBuf *vertex_buffer DRW_DEBUG_FILE_LINE_ARGS)
 {
   int location = GPU_shader_get_ssbo_binding(shgroup->shader, name);
   if (location == -1) {
@@ -571,7 +570,8 @@ void DRW_shgroup_vertex_buffer_ex(DRWShadingGroup *shgroup,
 
 void DRW_shgroup_vertex_buffer_ref_ex(DRWShadingGroup *shgroup,
                                       const char *name,
-                                      GPUVertBuf **vertex_buffer DRW_DEBUG_FILE_LINE_ARGS)
+                                      blender::gpu::VertBuf **vertex_buffer
+                                          DRW_DEBUG_FILE_LINE_ARGS)
 {
   int location = GPU_shader_get_ssbo_binding(shgroup->shader, name);
   if (location == -1) {
@@ -596,7 +596,7 @@ void DRW_shgroup_vertex_buffer_ref_ex(DRWShadingGroup *shgroup,
 
 void DRW_shgroup_buffer_texture(DRWShadingGroup *shgroup,
                                 const char *name,
-                                GPUVertBuf *vertex_buffer)
+                                blender::gpu::VertBuf *vertex_buffer)
 {
   int location = GPU_shader_get_sampler_binding(shgroup->shader, name);
   if (location == -1) {
@@ -613,7 +613,7 @@ void DRW_shgroup_buffer_texture(DRWShadingGroup *shgroup,
 
 void DRW_shgroup_buffer_texture_ref(DRWShadingGroup *shgroup,
                                     const char *name,
-                                    GPUVertBuf **vertex_buffer)
+                                    blender::gpu::VertBuf **vertex_buffer)
 {
   int location = GPU_shader_get_sampler_binding(shgroup->shader, name);
   if (location == -1) {
@@ -647,13 +647,14 @@ static void drw_call_calc_orco(const Object *ob, float (*r_orcofacs)[4])
         const Volume &volume = *reinterpret_cast<const Volume *>(ob_data);
         const std::optional<blender::Bounds<blender::float3>> bounds = BKE_volume_min_max(&volume);
         if (bounds) {
-          mid_v3_v3v3(static_buf.texspace_location, bounds->max, bounds->min);
-          sub_v3_v3v3(static_buf.texspace_size, bounds->max, bounds->min);
+          texspace_location = static_buf.texspace_location;
+          texspace_size = static_buf.texspace_size;
+          mid_v3_v3v3(texspace_location, bounds->max, bounds->min);
+          sub_v3_v3v3(texspace_size, bounds->max, bounds->min);
+          texspace_size[0] = std::max(texspace_size[0], 0.001f);
+          texspace_size[1] = std::max(texspace_size[1], 0.001f);
+          texspace_size[2] = std::max(texspace_size[2], 0.001f);
         }
-        static_buf.texspace_size[0] = std::max(static_buf.texspace_size[0], 0.001f);
-        static_buf.texspace_size[1] = std::max(static_buf.texspace_size[1], 0.001f);
-        static_buf.texspace_size[2] = std::max(static_buf.texspace_size[2], 0.001f);
-        texspace_location = static_buf.texspace_location;
         break;
       }
       case ID_ME:
@@ -697,7 +698,7 @@ BLI_INLINE void drw_call_matrix_init(DRWObjectMatrix *ob_mats,
 {
   copy_m4_m4(ob_mats->model, obmat);
   if (ob) {
-    copy_m4_m4(ob_mats->modelinverse, ob->world_to_object);
+    copy_m4_m4(ob_mats->modelinverse, ob->world_to_object().ptr());
   }
   else {
     /* WATCH: Can be costly. */
@@ -744,8 +745,8 @@ static void drw_call_culling_init(DRWCullingState *cull, const Object *ob)
     float corner[3];
     /* Get BoundSphere center and radius from the BoundBox. */
     mid_v3_v3v3(cull->bsphere.center, bounds->max, bounds->min);
-    mul_v3_m4v3(corner, ob->object_to_world, bounds->max);
-    mul_m4_v3(ob->object_to_world, cull->bsphere.center);
+    mul_v3_m4v3(corner, ob->object_to_world().ptr(), bounds->max);
+    mul_m4_v3(ob->object_to_world().ptr(), cull->bsphere.center);
     cull->bsphere.radius = len_v3v3(cull->bsphere.center, corner);
 
     /* Bypass test for very large objects (see #67319). */
@@ -873,15 +874,20 @@ static void *drw_command_create(DRWShadingGroup *shgroup, eDRWCommandType type)
   return chunk->commands + chunk->command_used++;
 }
 
-static void drw_command_draw(DRWShadingGroup *shgroup, GPUBatch *batch, DRWResourceHandle handle)
+static void drw_command_draw(DRWShadingGroup *shgroup,
+                             blender::gpu::Batch *batch,
+                             DRWResourceHandle handle)
 {
   DRWCommandDraw *cmd = static_cast<DRWCommandDraw *>(drw_command_create(shgroup, DRW_CMD_DRAW));
   cmd->batch = batch;
   cmd->handle = handle;
 }
 
-static void drw_command_draw_range(
-    DRWShadingGroup *shgroup, GPUBatch *batch, DRWResourceHandle handle, uint start, uint count)
+static void drw_command_draw_range(DRWShadingGroup *shgroup,
+                                   blender::gpu::Batch *batch,
+                                   DRWResourceHandle handle,
+                                   uint start,
+                                   uint count)
 {
   DRWCommandDrawRange *cmd = static_cast<DRWCommandDrawRange *>(
       drw_command_create(shgroup, DRW_CMD_DRAW_RANGE));
@@ -891,8 +897,11 @@ static void drw_command_draw_range(
   cmd->vert_count = count;
 }
 
-static void drw_command_draw_instance(
-    DRWShadingGroup *shgroup, GPUBatch *batch, DRWResourceHandle handle, uint count, bool use_attr)
+static void drw_command_draw_instance(DRWShadingGroup *shgroup,
+                                      blender::gpu::Batch *batch,
+                                      DRWResourceHandle handle,
+                                      uint count,
+                                      bool use_attr)
 {
   DRWCommandDrawInstance *cmd = static_cast<DRWCommandDrawInstance *>(
       drw_command_create(shgroup, DRW_CMD_DRAW_INSTANCE));
@@ -902,8 +911,11 @@ static void drw_command_draw_instance(
   cmd->use_attrs = use_attr;
 }
 
-static void drw_command_draw_intance_range(
-    DRWShadingGroup *shgroup, GPUBatch *batch, DRWResourceHandle handle, uint start, uint count)
+static void drw_command_draw_intance_range(DRWShadingGroup *shgroup,
+                                           blender::gpu::Batch *batch,
+                                           DRWResourceHandle handle,
+                                           uint start,
+                                           uint count)
 {
   DRWCommandDrawInstanceRange *cmd = static_cast<DRWCommandDrawInstanceRange *>(
       drw_command_create(shgroup, DRW_CMD_DRAW_INSTANCE_RANGE));
@@ -947,7 +959,7 @@ static void drw_command_barrier(DRWShadingGroup *shgroup, eGPUBarrier type)
 }
 
 static void drw_command_draw_procedural(DRWShadingGroup *shgroup,
-                                        GPUBatch *batch,
+                                        blender::gpu::Batch *batch,
                                         DRWResourceHandle handle,
                                         uint vert_count)
 {
@@ -959,7 +971,7 @@ static void drw_command_draw_procedural(DRWShadingGroup *shgroup,
 }
 
 static void drw_command_draw_indirect(DRWShadingGroup *shgroup,
-                                      GPUBatch *batch,
+                                      blender::gpu::Batch *batch,
                                       DRWResourceHandle handle,
                                       GPUStorageBuf *indirect_buf)
 {
@@ -970,7 +982,9 @@ static void drw_command_draw_indirect(DRWShadingGroup *shgroup,
   cmd->indirect_buf = indirect_buf;
 }
 
-static void drw_command_set_select_id(DRWShadingGroup *shgroup, GPUVertBuf *buf, uint select_id)
+static void drw_command_set_select_id(DRWShadingGroup *shgroup,
+                                      blender::gpu::VertBuf *buf,
+                                      uint select_id)
 {
   /* Only one can be valid. */
   BLI_assert(buf == nullptr || select_id == -1);
@@ -1029,7 +1043,7 @@ static void drw_command_set_mutable_state(DRWShadingGroup *shgroup,
 void DRW_shgroup_call_ex(DRWShadingGroup *shgroup,
                          const Object *ob,
                          const float (*obmat)[4],
-                         GPUBatch *geom,
+                         blender::gpu::Batch *geom,
                          bool bypass_culling,
                          void *user_data)
 {
@@ -1037,7 +1051,8 @@ void DRW_shgroup_call_ex(DRWShadingGroup *shgroup,
   if (G.f & G_FLAG_PICKSEL) {
     drw_command_set_select_id(shgroup, nullptr, DST.select_id);
   }
-  DRWResourceHandle handle = drw_resource_handle(shgroup, ob ? ob->object_to_world : obmat, ob);
+  DRWResourceHandle handle = drw_resource_handle(
+      shgroup, ob ? ob->object_to_world().ptr() : obmat, ob);
   drw_command_draw(shgroup, geom, handle);
 
   /* Culling data. */
@@ -1056,24 +1071,26 @@ void DRW_shgroup_call_ex(DRWShadingGroup *shgroup,
 }
 
 void DRW_shgroup_call_range(
-    DRWShadingGroup *shgroup, const Object *ob, GPUBatch *geom, uint v_sta, uint v_num)
+    DRWShadingGroup *shgroup, const Object *ob, blender::gpu::Batch *geom, uint v_sta, uint v_num)
 {
   BLI_assert(geom != nullptr);
   if (G.f & G_FLAG_PICKSEL) {
     drw_command_set_select_id(shgroup, nullptr, DST.select_id);
   }
-  DRWResourceHandle handle = drw_resource_handle(shgroup, ob ? ob->object_to_world : nullptr, ob);
+  DRWResourceHandle handle = drw_resource_handle(
+      shgroup, ob ? ob->object_to_world().ptr() : nullptr, ob);
   drw_command_draw_range(shgroup, geom, handle, v_sta, v_num);
 }
 
 void DRW_shgroup_call_instance_range(
-    DRWShadingGroup *shgroup, const Object *ob, GPUBatch *geom, uint i_sta, uint i_num)
+    DRWShadingGroup *shgroup, const Object *ob, blender::gpu::Batch *geom, uint i_sta, uint i_num)
 {
   BLI_assert(geom != nullptr);
   if (G.f & G_FLAG_PICKSEL) {
     drw_command_set_select_id(shgroup, nullptr, DST.select_id);
   }
-  DRWResourceHandle handle = drw_resource_handle(shgroup, ob ? ob->object_to_world : nullptr, ob);
+  DRWResourceHandle handle = drw_resource_handle(
+      shgroup, ob ? ob->object_to_world().ptr() : nullptr, ob);
   drw_command_draw_intance_range(shgroup, geom, handle, i_sta, i_num);
 }
 
@@ -1083,34 +1100,26 @@ void DRW_shgroup_call_compute(DRWShadingGroup *shgroup,
                               int groups_z_len)
 {
   BLI_assert(groups_x_len > 0 && groups_y_len > 0 && groups_z_len > 0);
-  BLI_assert(GPU_compute_shader_support());
-
   drw_command_compute(shgroup, groups_x_len, groups_y_len, groups_z_len);
 }
 
 void DRW_shgroup_call_compute_ref(DRWShadingGroup *shgroup, int groups_ref[3])
 {
-  BLI_assert(GPU_compute_shader_support());
-
   drw_command_compute_ref(shgroup, groups_ref);
 }
 
 void DRW_shgroup_call_compute_indirect(DRWShadingGroup *shgroup, GPUStorageBuf *indirect_buf)
 {
-  BLI_assert(GPU_compute_shader_support());
-
   drw_command_compute_indirect(shgroup, indirect_buf);
 }
 
 void DRW_shgroup_barrier(DRWShadingGroup *shgroup, eGPUBarrier type)
 {
-  BLI_assert(GPU_compute_shader_support());
-
   drw_command_barrier(shgroup, type);
 }
 
 static void drw_shgroup_call_procedural_add_ex(DRWShadingGroup *shgroup,
-                                               GPUBatch *geom,
+                                               blender::gpu::Batch *geom,
                                                const Object *ob,
                                                uint vert_count)
 {
@@ -1119,7 +1128,8 @@ static void drw_shgroup_call_procedural_add_ex(DRWShadingGroup *shgroup,
   if (G.f & G_FLAG_PICKSEL) {
     drw_command_set_select_id(shgroup, nullptr, DST.select_id);
   }
-  DRWResourceHandle handle = drw_resource_handle(shgroup, ob ? ob->object_to_world : nullptr, ob);
+  DRWResourceHandle handle = drw_resource_handle(
+      shgroup, ob ? ob->object_to_world().ptr() : nullptr, ob);
   drw_command_draw_procedural(shgroup, geom, handle, vert_count);
 }
 
@@ -1127,13 +1137,13 @@ void DRW_shgroup_call_procedural_points(DRWShadingGroup *shgroup,
                                         const Object *ob,
                                         uint point_count)
 {
-  GPUBatch *geom = drw_cache_procedural_points_get();
+  blender::gpu::Batch *geom = drw_cache_procedural_points_get();
   drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, point_count);
 }
 
 void DRW_shgroup_call_procedural_lines(DRWShadingGroup *shgroup, const Object *ob, uint line_count)
 {
-  GPUBatch *geom = drw_cache_procedural_lines_get();
+  blender::gpu::Batch *geom = drw_cache_procedural_lines_get();
   drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, line_count * 2);
 }
 
@@ -1141,7 +1151,7 @@ void DRW_shgroup_call_procedural_triangles(DRWShadingGroup *shgroup,
                                            const Object *ob,
                                            uint tri_count)
 {
-  GPUBatch *geom = drw_cache_procedural_triangles_get();
+  blender::gpu::Batch *geom = drw_cache_procedural_triangles_get();
   drw_shgroup_call_procedural_add_ex(shgroup, geom, ob, tri_count * 3);
 }
 
@@ -1150,7 +1160,7 @@ void DRW_shgroup_call_procedural_indirect(DRWShadingGroup *shgroup,
                                           Object *ob,
                                           GPUStorageBuf *indirect_buf)
 {
-  GPUBatch *geom = nullptr;
+  blender::gpu::Batch *geom = nullptr;
   switch (primitive_type) {
     case GPU_PRIM_POINTS:
       geom = drw_cache_procedural_points_get();
@@ -1173,35 +1183,38 @@ void DRW_shgroup_call_procedural_indirect(DRWShadingGroup *shgroup,
   if (G.f & G_FLAG_PICKSEL) {
     drw_command_set_select_id(shgroup, nullptr, DST.select_id);
   }
-  DRWResourceHandle handle = drw_resource_handle(shgroup, ob ? ob->object_to_world : nullptr, ob);
+  DRWResourceHandle handle = drw_resource_handle(
+      shgroup, ob ? ob->object_to_world().ptr() : nullptr, ob);
   drw_command_draw_indirect(shgroup, geom, handle, indirect_buf);
 }
 
 void DRW_shgroup_call_instances(DRWShadingGroup *shgroup,
                                 const Object *ob,
-                                GPUBatch *geom,
+                                blender::gpu::Batch *geom,
                                 uint count)
 {
   BLI_assert(geom != nullptr);
   if (G.f & G_FLAG_PICKSEL) {
     drw_command_set_select_id(shgroup, nullptr, DST.select_id);
   }
-  DRWResourceHandle handle = drw_resource_handle(shgroup, ob ? ob->object_to_world : nullptr, ob);
+  DRWResourceHandle handle = drw_resource_handle(
+      shgroup, ob ? ob->object_to_world().ptr() : nullptr, ob);
   drw_command_draw_instance(shgroup, geom, handle, count, false);
 }
 
 void DRW_shgroup_call_instances_with_attrs(DRWShadingGroup *shgroup,
                                            const Object *ob,
-                                           GPUBatch *geom,
-                                           GPUBatch *inst_attributes)
+                                           blender::gpu::Batch *geom,
+                                           blender::gpu::Batch *inst_attributes)
 {
   BLI_assert(geom != nullptr);
   BLI_assert(inst_attributes != nullptr);
   if (G.f & G_FLAG_PICKSEL) {
     drw_command_set_select_id(shgroup, nullptr, DST.select_id);
   }
-  DRWResourceHandle handle = drw_resource_handle(shgroup, ob ? ob->object_to_world : nullptr, ob);
-  GPUBatch *batch = DRW_temp_batch_instance_request(
+  DRWResourceHandle handle = drw_resource_handle(
+      shgroup, ob ? ob->object_to_world().ptr() : nullptr, ob);
+  blender::gpu::Batch *batch = DRW_temp_batch_instance_request(
       DST.vmempool->idatalist, nullptr, inst_attributes, geom);
   drw_command_draw_instance(shgroup, batch, handle, 0, true);
 }
@@ -1234,160 +1247,141 @@ static float sculpt_debug_colors[9][4] = {
     {0.7f, 0.2f, 1.0f, 1.0f},
 };
 
-static void sculpt_draw_cb(DRWSculptCallbackData *scd,
-                           blender::draw::pbvh::PBVHBatches *batches,
-                           const blender::draw::pbvh::PBVH_GPU_Args &pbvh_draw_args)
+static void draw_pbvh_nodes(const Object &object,
+                            const blender::Span<blender::gpu::Batch *> batches,
+                            const blender::Span<int> material_indices,
+                            const blender::Span<DRWShadingGroup *> shading_groups,
+                            const blender::IndexMask &nodes_to_draw)
 {
-  using namespace blender::draw;
-  GPUBatch *geom;
-
-  if (!scd->use_wire) {
-    geom = pbvh::tris_get(batches, scd->attrs, pbvh_draw_args, scd->fast_mode);
-  }
-  else {
-    geom = pbvh::lines_get(batches, scd->attrs, pbvh_draw_args, scd->fast_mode);
-  }
-
-  short index = 0;
-
-  if (scd->use_mats) {
-    index = pbvh::material_index_get(batches);
-    index = clamp_i(index, 0, scd->num_shading_groups - 1);
-  }
-
-  DRWShadingGroup *shgrp = scd->shading_groups[index];
-  if (geom != nullptr && shgrp != nullptr) {
+  nodes_to_draw.foreach_index([&](const int i) {
+    if (!batches[i]) {
+      return;
+    }
+    const int material_index = material_indices.is_empty() ? 0 : material_indices[i];
+    DRWShadingGroup *shgrp = shading_groups[material_index];
+    if (!shgrp) {
+      return;
+    }
     if (SCULPT_DEBUG_BUFFERS) {
       /* Color each buffers in different colors. Only work in solid/X-ray mode. */
       shgrp = DRW_shgroup_create_sub(shgrp);
-      DRW_shgroup_uniform_vec3(
-          shgrp, "materialDiffuseColor", SCULPT_DEBUG_COLOR(scd->debug_node_nr++), 1);
+      DRW_shgroup_uniform_vec3(shgrp, "materialDiffuseColor", SCULPT_DEBUG_COLOR(i), 1);
     }
 
     /* DRW_shgroup_call_no_cull reuses matrices calculations for all the drawcalls of this
      * object. */
-    DRW_shgroup_call_no_cull(shgrp, geom, scd->ob);
-  }
+    DRW_shgroup_call_no_cull(shgrp, batches[i], &object);
+  });
 }
 
-void DRW_sculpt_debug_cb(
-    PBVHNode *node, void *user_data, const float bmin[3], const float bmax[3], PBVHNodeFlags flag)
+void DRW_sculpt_debug_cb(blender::bke::pbvh::Node *node, void *user_data)
 {
   int *debug_node_nr = (int *)user_data;
   BoundBox bb;
-  BKE_boundbox_init_from_minmax(&bb, bmin, bmax);
+  BKE_boundbox_init_from_minmax(&bb, node->bounds_.min, node->bounds_.max);
 
 #if 0 /* Nodes hierarchy. */
-  if (flag & PBVH_Leaf) {
     DRW_debug_bbox(&bb, blender::float4{0.0f, 1.0f, 0.0f, 1.0f});
-  }
-  else {
-    DRW_debug_bbox(&bb, blender::float4{0.5f, 0.5f, 0.5f, 0.6f});
-  }
-#else /* Color coded leaf bounds. */
-  if (flag & (PBVH_Leaf | PBVH_TexLeaf)) {
-    DRW_debug_bbox(&bb, SCULPT_DEBUG_COLOR((*debug_node_nr)++));
-    int color = (*debug_node_nr)++;
-    color += BKE_pbvh_debug_draw_gen_get(node);
 
-    DRW_debug_bbox(&bb, SCULPT_DEBUG_COLOR(color));
-  }
+#else /* Color coded leaf bounds. */
+  DRW_debug_bbox(&bb, SCULPT_DEBUG_COLOR((*debug_node_nr)++));
+  int color = (*debug_node_nr)++;
+  color += BKE_pbvh_debug_draw_gen_get(*node);
+
+  DRW_debug_bbox(&bb, SCULPT_DEBUG_COLOR(color));
 #endif
 }
 
-static void drw_sculpt_get_frustum_planes(const Object *ob, float planes[6][4])
+static std::array<float4, 6> drw_sculpt_get_frustum_planes(const Object *ob)
 {
   /* TODO: take into account partial redraw for clipping planes. */
-  DRW_view_frustum_planes_get(DRW_view_default_get(), planes);
+  std::array<float4, 6> planes = DRW_view_frustum_planes_get(DRW_view_default_get());
 
   /* Transform clipping planes to object space. Transforming a plane with a
    * 4x4 matrix is done by multiplying with the transpose inverse.
    * The inverse cancels out here since we transform by inverse(obmat). */
   float tmat[4][4];
-  transpose_m4_m4(tmat, ob->object_to_world);
-  for (int i = 0; i < 6; i++) {
+  transpose_m4_m4(tmat, ob->object_to_world().ptr());
+  for (const int i : blender::IndexRange(planes.size())) {
     mul_m4_v4(tmat, planes[i]);
   }
+  return planes;
 }
 
 static void drw_sculpt_generate_calls(DRWSculptCallbackData *scd)
 {
   using namespace blender;
-  /* PBVH should always exist for non-empty meshes, created by depsgraph eval. */
-  PBVH *pbvh = (scd->ob->sculpt) ? scd->ob->sculpt->pbvh : nullptr;
+  /* pbvh::Tree should always exist for non-empty meshes, created by depsgraph eval. */
+  const Object &object = *scd->ob;
+  bke::pbvh::Tree *pbvh = (object.sculpt) ?
+                              const_cast<bke::pbvh::Tree *>(bke::object::pbvh_get(object)) :
+                              nullptr;
   if (!pbvh) {
     return;
   }
 
   const DRWContextState *drwctx = DRW_context_state_get();
   RegionView3D *rv3d = drwctx->rv3d;
-  const bool navigating = rv3d && (rv3d->rflag & RV3D_NAVIGATING);
 
-  Paint *p = nullptr;
+  Paint *paint = nullptr;
   if (drwctx->evil_C != nullptr) {
-    p = BKE_paint_get_active_from_context(drwctx->evil_C);
+    paint = BKE_paint_get_active_from_context(drwctx->evil_C);
   }
 
-  /* Frustum planes to show only visible PBVH nodes. */
-  float update_planes[6][4];
-  float draw_planes[6][4];
-  PBVHFrustumPlanes update_frustum;
-  PBVHFrustumPlanes draw_frustum;
-
-  if (p && (p->flags & PAINT_SCULPT_DELAY_UPDATES)) {
-    update_frustum.planes = update_planes;
-    update_frustum.num_planes = 6;
-    bke::pbvh::get_frustum_planes(pbvh, &update_frustum);
-    if (!navigating) {
-      drw_sculpt_get_frustum_planes(scd->ob, update_planes);
-      update_frustum.planes = update_planes;
-      update_frustum.num_planes = 6;
-      bke::pbvh::set_frustum_planes(pbvh, &update_frustum);
-    }
-  }
-  else {
-    drw_sculpt_get_frustum_planes(scd->ob, update_planes);
-    update_frustum.planes = update_planes;
-    update_frustum.num_planes = 6;
-  }
-
-  drw_sculpt_get_frustum_planes(scd->ob, draw_planes);
-  draw_frustum.planes = draw_planes;
-  draw_frustum.num_planes = 6;
+  /* Frustum planes to show only visible pbvh::Tree nodes. */
+  const std::array<float4, 6> draw_frustum_planes = drw_sculpt_get_frustum_planes(scd->ob);
 
   /* Fast mode to show low poly multires while navigating. */
   scd->fast_mode = false;
-  if (p && (p->flags & PAINT_FAST_NAVIGATE)) {
+  if (paint && (paint->flags & PAINT_FAST_NAVIGATE)) {
     scd->fast_mode = rv3d && (rv3d->rflag & RV3D_NAVIGATING);
   }
 
   /* Update draw buffers only for visible nodes while painting.
    * But do update them otherwise so navigating stays smooth. */
   bool update_only_visible = rv3d && !(rv3d->rflag & RV3D_PAINTING);
-  if (p && (p->flags & PAINT_SCULPT_DELAY_UPDATES)) {
+  if (paint && (paint->flags & PAINT_SCULPT_DELAY_UPDATES)) {
     update_only_visible = true;
   }
 
-  Mesh *mesh = static_cast<Mesh *>(scd->ob->data);
-  bke::pbvh::update_normals(*pbvh, mesh->runtime->subdiv_ccg.get());
+  bke::pbvh::update_normals_from_eval(*const_cast<Object *>(scd->ob), *pbvh);
 
-  bke::pbvh::draw_cb(
-      *mesh,
-      pbvh,
-      update_only_visible,
-      update_frustum,
-      draw_frustum,
-      [&](blender::draw::pbvh::PBVHBatches *batches,
-          const blender::draw::pbvh::PBVH_GPU_Args &args) { sculpt_draw_cb(scd, batches, args); });
+  draw::pbvh::DrawCache &draw_data = draw::pbvh::ensure_draw_data(pbvh->draw_data);
+
+  IndexMaskMemory memory;
+  const IndexMask visible_nodes = bke::pbvh::search_nodes(
+      *pbvh, memory, [&](const bke::pbvh::Node &node) {
+        return !BKE_pbvh_node_fully_hidden_get(node) &&
+               bke::pbvh::node_frustum_contain_aabb(node, draw_frustum_planes);
+      });
+
+  const IndexMask nodes_to_update = update_only_visible ? visible_nodes :
+                                                          bke::pbvh::all_leaf_nodes(*pbvh, memory);
+
+  const draw::pbvh::ViewportRequest request{scd->attrs, scd->fast_mode};
+  Span<gpu::Batch *> batches;
+  if (scd->use_wire) {
+    batches = draw_data.ensure_lines_batches(object, request, nodes_to_update);
+  }
+  else {
+    batches = draw_data.ensure_tris_batches(object, request, nodes_to_update);
+  }
+
+  Span<int> material_indices;
+  if (scd->use_mats) {
+    material_indices = draw_data.ensure_material_indices(object);
+  }
+
+  draw_pbvh_nodes(object,
+                  batches,
+                  material_indices,
+                  {scd->shading_groups, scd->num_shading_groups},
+                  visible_nodes);
 
   if (SCULPT_DEBUG_BUFFERS) {
     int debug_node_nr = 0;
-    DRW_debug_modelmat(scd->ob->object_to_world);
-    BKE_pbvh_draw_debug_cb(
-        pbvh,
-        (void (*)(PBVHNode *n, void *d, const float min[3], const float max[3], PBVHNodeFlags f))
-            DRW_sculpt_debug_cb,
-        &debug_node_nr);
+    DRW_debug_modelmat(object.object_to_world().ptr());
+    BKE_pbvh_draw_debug_cb(*pbvh, DRW_sculpt_debug_cb, &debug_node_nr);
   }
 }
 
@@ -1457,7 +1451,7 @@ void DRW_shgroup_call_sculpt_with_materials(DRWShadingGroup **shgroups,
   const Mesh *mesh = static_cast<const Mesh *>(ob->data);
 
   if (gpumats) {
-    DRW_mesh_get_attributes(ob, mesh, gpumats, num_shgroups, &draw_attrs, &cd_needed);
+    DRW_mesh_get_attributes(*ob, *mesh, gpumats, num_shgroups, &draw_attrs, &cd_needed);
   }
   else {
     memset(&draw_attrs, 0, sizeof(draw_attrs));
@@ -1492,7 +1486,7 @@ void DRW_shgroup_call_sculpt_with_materials(DRWShadingGroup **shgroups,
   scd.use_wire = false;
   scd.use_mats = true;
   scd.use_mask = false;
-  scd.attrs = attrs;
+  scd.attrs = std::move(attrs);
 
   drw_sculpt_generate_calls(&scd);
 }
@@ -1523,7 +1517,8 @@ DRWCallBuffer *DRW_shgroup_call_buffer(DRWShadingGroup *shgroup,
   }
 
   DRWResourceHandle handle = drw_resource_handle(shgroup, nullptr, nullptr);
-  GPUBatch *batch = DRW_temp_batch_request(DST.vmempool->idatalist, callbuf->buf, prim_type);
+  blender::gpu::Batch *batch = DRW_temp_batch_request(
+      DST.vmempool->idatalist, callbuf->buf, prim_type);
   drw_command_draw(shgroup, batch, handle);
 
   return callbuf;
@@ -1531,7 +1526,7 @@ DRWCallBuffer *DRW_shgroup_call_buffer(DRWShadingGroup *shgroup,
 
 DRWCallBuffer *DRW_shgroup_call_buffer_instance(DRWShadingGroup *shgroup,
                                                 GPUVertFormat *format,
-                                                GPUBatch *geom)
+                                                blender::gpu::Batch *geom)
 {
   BLI_assert(geom != nullptr);
   BLI_assert(format != nullptr);
@@ -1553,7 +1548,7 @@ DRWCallBuffer *DRW_shgroup_call_buffer_instance(DRWShadingGroup *shgroup,
   }
 
   DRWResourceHandle handle = drw_resource_handle(shgroup, nullptr, nullptr);
-  GPUBatch *batch = DRW_temp_batch_instance_request(
+  blender::gpu::Batch *batch = DRW_temp_batch_instance_request(
       DST.vmempool->idatalist, callbuf->buf, nullptr, geom);
   drw_command_draw(shgroup, batch, handle);
 
@@ -1562,18 +1557,18 @@ DRWCallBuffer *DRW_shgroup_call_buffer_instance(DRWShadingGroup *shgroup,
 
 void DRW_buffer_add_entry_struct(DRWCallBuffer *callbuf, const void *data)
 {
-  GPUVertBuf *buf = callbuf->buf;
+  blender::gpu::VertBuf *buf = callbuf->buf;
   const bool resize = (callbuf->count == GPU_vertbuf_get_vertex_alloc(buf));
 
   if (UNLIKELY(resize)) {
-    GPU_vertbuf_data_resize(buf, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
+    GPU_vertbuf_data_resize(*buf, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
   }
 
   GPU_vertbuf_vert_set(buf, callbuf->count, data);
 
   if (G.f & G_FLAG_PICKSEL) {
     if (UNLIKELY(resize)) {
-      GPU_vertbuf_data_resize(callbuf->buf_select, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
+      GPU_vertbuf_data_resize(*callbuf->buf_select, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
     }
     GPU_vertbuf_attr_set(callbuf->buf_select, 0, callbuf->count, &DST.select_id);
   }
@@ -1583,14 +1578,14 @@ void DRW_buffer_add_entry_struct(DRWCallBuffer *callbuf, const void *data)
 
 void DRW_buffer_add_entry_array(DRWCallBuffer *callbuf, const void *attr[], uint attr_len)
 {
-  GPUVertBuf *buf = callbuf->buf;
+  blender::gpu::VertBuf *buf = callbuf->buf;
   const bool resize = (callbuf->count == GPU_vertbuf_get_vertex_alloc(buf));
 
   BLI_assert(attr_len == GPU_vertbuf_get_format(buf)->attr_len);
   UNUSED_VARS_NDEBUG(attr_len);
 
   if (UNLIKELY(resize)) {
-    GPU_vertbuf_data_resize(buf, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
+    GPU_vertbuf_data_resize(*buf, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
   }
 
   for (int i = 0; i < attr_len; i++) {
@@ -1599,7 +1594,7 @@ void DRW_buffer_add_entry_array(DRWCallBuffer *callbuf, const void *attr[], uint
 
   if (G.f & G_FLAG_PICKSEL) {
     if (UNLIKELY(resize)) {
-      GPU_vertbuf_data_resize(callbuf->buf_select, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
+      GPU_vertbuf_data_resize(*callbuf->buf_select, callbuf->count + DRW_BUFFER_VERTS_CHUNK);
     }
     GPU_vertbuf_attr_set(callbuf->buf_select, 0, callbuf->count, &DST.select_id);
   }
@@ -1803,18 +1798,15 @@ void DRW_shgroup_add_material_resources(DRWShadingGroup *grp, GPUMaterial *mater
   /* Bind all textures needed by the material. */
   LISTBASE_FOREACH (GPUMaterialTexture *, tex, &textures) {
     if (tex->ima) {
-      /* Image */
-      GPUTexture *gputex;
+      const bool use_tile_mapping = tex->tiled_mapping_name[0];
       ImageUser *iuser = tex->iuser_available ? &tex->iuser : nullptr;
-      if (tex->tiled_mapping_name[0]) {
-        gputex = BKE_image_get_gpu_tiles(tex->ima, iuser, nullptr);
-        drw_shgroup_material_texture(grp, gputex, tex->sampler_name, tex->sampler_state);
-        gputex = BKE_image_get_gpu_tilemap(tex->ima, iuser, nullptr);
-        drw_shgroup_material_texture(grp, gputex, tex->tiled_mapping_name, tex->sampler_state);
-      }
-      else {
-        gputex = BKE_image_get_gpu_texture(tex->ima, iuser, nullptr);
-        drw_shgroup_material_texture(grp, gputex, tex->sampler_name, tex->sampler_state);
+      ImageGPUTextures gputex = BKE_image_get_gpu_material_texture(
+          tex->ima, iuser, use_tile_mapping);
+
+      drw_shgroup_material_texture(grp, gputex.texture, tex->sampler_name, tex->sampler_state);
+      if (gputex.tile_mapping) {
+        drw_shgroup_material_texture(
+            grp, gputex.tile_mapping, tex->tiled_mapping_name, tex->sampler_state);
       }
     }
     else if (tex->colorband) {
@@ -1883,7 +1875,7 @@ DRWShadingGroup *DRW_shgroup_create(GPUShader *shader, DRWPass *pass)
 
 DRWShadingGroup *DRW_shgroup_transform_feedback_create(GPUShader *shader,
                                                        DRWPass *pass,
-                                                       GPUVertBuf *tf_target)
+                                                       blender::gpu::VertBuf *tf_target)
 {
   BLI_assert(tf_target != nullptr);
   DRWShadingGroup *shgroup = drw_shgroup_create_ex(shader, pass);
@@ -2326,9 +2318,13 @@ void DRW_view_frustum_corners_get(const DRWView *view, BoundBox *corners)
   memcpy(corners, &view->frustum_corners, sizeof(view->frustum_corners));
 }
 
-void DRW_view_frustum_planes_get(const DRWView *view, float planes[6][4])
+std::array<float4, 6> DRW_view_frustum_planes_get(const DRWView *view)
 {
-  memcpy(planes, &view->frustum_planes, sizeof(view->frustum_planes));
+  std::array<float4, 6> planes;
+  const blender::Span<float4> view_planes(reinterpret_cast<const float4 *>(&view->frustum_planes),
+                                          6);
+  std::copy(view_planes.begin(), view_planes.end(), planes.begin());
+  return planes;
 }
 
 bool DRW_view_is_persp_get(const DRWView *view)

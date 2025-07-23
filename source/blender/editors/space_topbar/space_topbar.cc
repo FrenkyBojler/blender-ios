@@ -14,11 +14,9 @@
 #include "BLI_blenlib.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
-#include "BKE_blendfile.hh"
 #include "BKE_context.hh"
-#include "BKE_global.h"
 #include "BKE_screen.hh"
 #include "BKE_undo_system.hh"
 
@@ -192,7 +190,7 @@ static void recent_files_menu_draw(const bContext * /*C*/, Menu *menu)
   uiLayoutSetOperatorContext(layout, WM_OP_INVOKE_DEFAULT);
   if (uiTemplateRecentFiles(layout, U.recent_files) != 0) {
     uiItemS(layout);
-    uiItemO(layout, nullptr, ICON_TRASH, "WM_OT_clear_recent_files");
+    uiItemO(layout, IFACE_("Clear Recent Files List..."), ICON_TRASH, "WM_OT_clear_recent_files");
   }
   else {
     uiItemL(layout, IFACE_("No Recent Files"), ICON_NONE);
@@ -277,7 +275,7 @@ static void topbar_space_blend_write(BlendWriter *writer, SpaceLink *sl)
 
 void ED_spacetype_topbar()
 {
-  SpaceType *st = static_cast<SpaceType *>(MEM_callocN(sizeof(SpaceType), "spacetype topbar"));
+  std::unique_ptr<SpaceType> st = std::make_unique<SpaceType>();
   ARegionType *art;
 
   st->spaceid = SPACE_TOPBAR;
@@ -322,5 +320,5 @@ void ED_spacetype_topbar()
   recent_files_menu_register();
   undo_history_menu_register();
 
-  BKE_spacetype_register(st);
+  BKE_spacetype_register(std::move(st));
 }

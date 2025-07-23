@@ -12,7 +12,7 @@ set(INC
   ../../makesrna
   ../../windowmanager
   ../../../../intern/eigen
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -38,7 +38,7 @@ set(SRC
   pose_transform.cc
   pose_utils.cc
 
-  armature_intern.h
+  armature_intern.hh
   meshlaplacian.h
 )
 
@@ -49,6 +49,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
 )
@@ -56,5 +57,5 @@ set(LIB
 
 blender_add_lib(bf_editor_armature "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_armature bf_rna)

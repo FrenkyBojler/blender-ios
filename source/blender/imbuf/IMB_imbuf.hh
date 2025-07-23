@@ -40,7 +40,7 @@
 
 #pragma once
 
-#include "../gpu/GPU_texture.h"
+#include "../gpu/GPU_texture.hh"
 
 #include "BLI_utildefines.h"
 
@@ -52,7 +52,7 @@ struct ImBuf;
 struct rctf;
 struct rcti;
 
-struct anim;
+struct ImBufAnim;
 
 struct ColorManagedDisplay;
 
@@ -60,8 +60,8 @@ struct GSet;
 struct ImageFormatData;
 struct Stereo3dFormat;
 
-void IMB_init(void);
-void IMB_exit(void);
+void IMB_init();
+void IMB_exit();
 
 ImBuf *IMB_ibImageFromMemory(const unsigned char *mem,
                              size_t size,
@@ -73,9 +73,18 @@ ImBuf *IMB_testiffname(const char *filepath, int flags);
 
 ImBuf *IMB_loadiffname(const char *filepath, int flags, char colorspace[IM_MAX_SPACE]);
 
+enum class IMBThumbLoadFlags {
+  Zero = 0,
+  /** Normally files larger than 100MB are not loaded for thumbnails, except when this flag is set.
+   */
+  LoadLargeFiles = (1 << 0),
+};
+ENUM_OPERATORS(IMBThumbLoadFlags, IMBThumbLoadFlags::LoadLargeFiles);
+
 ImBuf *IMB_thumb_load_image(const char *filepath,
                             const size_t max_thumb_size,
-                            char colorspace[IM_MAX_SPACE]);
+                            char colorspace[IM_MAX_SPACE],
+                            IMBThumbLoadFlags load_flags = IMBThumbLoadFlags::Zero);
 
 void IMB_freeImBuf(ImBuf *ibuf);
 
@@ -117,6 +126,21 @@ ImBuf *IMB_allocFromBuffer(const uint8_t *byte_buffer,
  */
 void IMB_assign_byte_buffer(ImBuf *ibuf, uint8_t *buffer_data, ImBufOwnership ownership);
 void IMB_assign_float_buffer(ImBuf *ibuf, float *buffer_data, ImBufOwnership ownership);
+
+/**
+ * Assign the content and the color space of the corresponding buffer the data from the given
+ * buffer.
+ *
+ * \note Does not modify the topology (width, height, number of channels)
+ * or the mipmaps in any way.
+ *
+ * \note The ownership of the data in the source buffer is ignored.
+ */
+void IMB_assign_byte_buffer(ImBuf *ibuf, const ImBufByteBuffer &buffer, ImBufOwnership ownership);
+void IMB_assign_float_buffer(ImBuf *ibuf,
+                             const ImBufFloatBuffer &buffer,
+                             ImBufOwnership ownership);
+void IMB_assign_dds_data(ImBuf *ibuf, const DDSData &data, ImBufOwnership ownership);
 
 /**
  * Make corresponding buffers available for modification.
@@ -264,25 +288,27 @@ void IMB_rectblend_threaded(ImBuf *dbuf,
 enum eIMBInterpolationFilterMode {
   IMB_FILTER_NEAREST,
   IMB_FILTER_BILINEAR,
-  IMB_FILTER_BICUBIC,
+  IMB_FILTER_CUBIC_BSPLINE,
+  IMB_FILTER_CUBIC_MITCHELL,
+  IMB_FILTER_BOX,
 };
 
 /**
  * Defaults to BL_proxy within the directory of the animation.
  */
-void IMB_anim_set_index_dir(anim *anim, const char *dir);
-void IMB_anim_get_filename(anim *anim, char *filename, int filename_maxncpy);
+void IMB_anim_set_index_dir(ImBufAnim *anim, const char *dir);
+void IMB_anim_get_filename(ImBufAnim *anim, char *filename, int filename_maxncpy);
 
-int IMB_anim_index_get_frame_index(anim *anim, IMB_Timecode_Type tc, int position);
+int IMB_anim_index_get_frame_index(ImBufAnim *anim, IMB_Timecode_Type tc, int position);
 
-int IMB_anim_proxy_get_existing(anim *anim);
+int IMB_anim_proxy_get_existing(ImBufAnim *anim);
 
 struct IndexBuildContext;
 
 /**
  * Prepare context for proxies/time-codes builder
  */
-IndexBuildContext *IMB_anim_index_rebuild_context(anim *anim,
+IndexBuildContext *IMB_anim_index_rebuild_context(ImBufAnim *anim,
                                                   IMB_Timecode_Type tcs_in_use,
                                                   int proxy_sizes_in_use,
                                                   int quality,
@@ -306,34 +332,36 @@ void IMB_anim_index_rebuild_finish(IndexBuildContext *context, bool stop);
 /**
  * Return the length (in frames) of the given \a anim.
  */
-int IMB_anim_get_duration(anim *anim, IMB_Timecode_Type tc);
+int IMB_anim_get_duration(ImBufAnim *anim, IMB_Timecode_Type tc);
 
 /**
  * Return the encoded start offset (in seconds) of the given \a anim.
  */
-double IMD_anim_get_offset(anim *anim);
+double IMD_anim_get_offset(ImBufAnim *anim);
 
 /**
  * Return the fps contained in movie files (function rval is false,
  * and frs_sec and frs_sec_base untouched if none available!)
  */
-bool IMB_anim_get_fps(const anim *anim, bool no_av_base, short *r_frs_sec, float *r_frs_sec_base);
+bool IMB_anim_get_fps(const ImBufAnim *anim,
+                      bool no_av_base,
+                      short *r_frs_sec,
+                      float *r_frs_sec_base);
 
-anim *IMB_open_anim(const char *filepath,
-                    int ib_flags,
-                    int streamindex,
-                    char colorspace[IM_MAX_SPACE]);
-void IMB_suffix_anim(anim *anim, const char *suffix);
-void IMB_close_anim(anim *anim);
-void IMB_close_anim_proxies(anim *anim);
-bool IMB_anim_can_produce_frames(const anim *anim);
+ImBufAnim *IMB_open_anim(const char *filepath,
+                         int ib_flags,
+                         int streamindex,
+                         char colorspace[IM_MAX_SPACE]);
+void IMB_suffix_anim(ImBufAnim *anim, const char *suffix);
+void IMB_close_anim(ImBufAnim *anim);
+void IMB_close_anim_proxies(ImBufAnim *anim);
+bool IMB_anim_can_produce_frames(const ImBufAnim *anim);
 
-int ismovie(const char *filepath);
-int IMB_anim_get_image_width(anim *anim);
-int IMB_anim_get_image_height(anim *anim);
-bool IMB_get_gop_decode_time(anim *anim);
+int IMB_anim_get_image_width(ImBufAnim *anim);
+int IMB_anim_get_image_height(ImBufAnim *anim);
+bool IMB_get_gop_decode_time(ImBufAnim *anim);
 
-ImBuf *IMB_anim_absolute(anim *anim,
+ImBuf *IMB_anim_absolute(ImBufAnim *anim,
                          int position,
                          IMB_Timecode_Type tc /* = 1 = IMB_TC_RECORD_RUN */,
                          IMB_Proxy_Size preview_size /* = 0 = IMB_PROXY_NONE */);
@@ -341,15 +369,14 @@ ImBuf *IMB_anim_absolute(anim *anim,
 /**
  * fetches a define preview-frame, usually half way into the movie.
  */
-ImBuf *IMB_anim_previewframe(anim *anim);
+ImBuf *IMB_anim_previewframe(ImBufAnim *anim);
 
-void IMB_free_anim(anim *anim);
+void IMB_free_anim(ImBufAnim *anim);
 
 #define FILTER_MASK_NULL 0
 #define FILTER_MASK_MARGIN 1
 #define FILTER_MASK_USED 2
 
-void IMB_filter(ImBuf *ibuf);
 void IMB_mask_filter_extend(char *mask, int width, int height);
 void IMB_mask_clear(ImBuf *ibuf, const char *mask, int val);
 /**
@@ -373,17 +400,40 @@ void IMB_filtery(ImBuf *ibuf);
 
 ImBuf *IMB_onehalf(ImBuf *ibuf1);
 
-/**
- * Return true if \a ibuf is modified.
- */
-bool IMB_scaleImBuf(ImBuf *ibuf, unsigned int newx, unsigned int newy);
+/** Interpolation filter used by `IMB_scale`. */
+enum class IMBScaleFilter {
+  /** No filtering (point sampling). This is fastest but lowest quality. */
+  Nearest,
+  /**
+   * Bilinear filter: each pixel in result image interpolates between 2x2 pixels of source image.
+   */
+  Bilinear,
+  /**
+   * Box filter. Behaves exactly like Bilinear when scaling up,
+   * better results when scaling down by more than 2x.
+   */
+  Box,
+};
 
 /**
+ * Scale/resize image to new dimensions.
  * Return true if \a ibuf is modified.
  */
-bool IMB_scalefastImBuf(ImBuf *ibuf, unsigned int newx, unsigned int newy);
+bool IMB_scale(ImBuf *ibuf,
+               unsigned int newx,
+               unsigned int newy,
+               IMBScaleFilter filter,
+               bool threaded = true);
 
-void IMB_scaleImBuf_threaded(ImBuf *ibuf, unsigned int newx, unsigned int newy);
+/**
+ * Scale/resize image to new dimensions, into a newly created result image.
+ * Metadata of input image (if any) is copied into the result image.
+ */
+ImBuf *IMB_scale_into_new(const ImBuf *ibuf,
+                          unsigned int newx,
+                          unsigned int newy,
+                          IMBScaleFilter filter,
+                          bool threaded = true);
 
 bool IMB_saveiff(ImBuf *ibuf, const char *filepath, int flags);
 
@@ -392,9 +442,11 @@ bool IMB_ispic_type_matches(const char *filepath, int filetype);
 int IMB_ispic_type_from_memory(const unsigned char *buf, size_t buf_size);
 int IMB_ispic_type(const char *filepath);
 
+/**
+ * Test if the file is a video file (known format, has a video stream and
+ * supported video codec).
+ */
 bool IMB_isanim(const char *filepath);
-
-int imb_get_anim_type(const char *filepath);
 
 /**
  * Test if color-space conversions of pixels in buffer need to take into account alpha.
@@ -509,58 +561,19 @@ void IMB_buffer_byte_from_byte(unsigned char *rect_to,
  */
 void IMB_convert_rgba_to_abgr(ImBuf *ibuf);
 
-void bicubic_interpolation(const ImBuf *in, ImBuf *out, float u, float v, int xout, int yout);
-void nearest_interpolation(const ImBuf *in, ImBuf *out, float u, float v, int xout, int yout);
-void bilinear_interpolation(const ImBuf *in, ImBuf *out, float u, float v, int xout, int yout);
-
-typedef void (*InterpolationColorFunction)(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-void bicubic_interpolation_color(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-
-/* Functions assumes out to be zeroed, only does RGBA. */
-
-void nearest_interpolation_color_char(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-void nearest_interpolation_color_fl(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-void nearest_interpolation_color(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-void nearest_interpolation_color_wrap(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-void bilinear_interpolation_color(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-void bilinear_interpolation_color_char(const ImBuf *in, unsigned char outI[4], float u, float v);
-void bilinear_interpolation_color_fl(const ImBuf *in, float outF[4], float u, float v);
-/**
- * Note about wrapping, the u/v still needs to be within the image bounds,
- * just the interpolation is wrapped.
- * This the same as bilinear_interpolation_color except it wraps
- * rather than using empty and emptyI.
- */
-void bilinear_interpolation_color_wrap(
-    const ImBuf *in, unsigned char outI[4], float outF[4], float u, float v);
-
 void IMB_alpha_under_color_float(float *rect_float, int x, int y, float backcol[3]);
 void IMB_alpha_under_color_byte(unsigned char *rect, int x, int y, const float backcol[3]);
-
-/**
- * Sample pixel of image using NEAREST method.
- */
-void IMB_sampleImageAtLocation(
-    ImBuf *ibuf, float x, float y, bool make_linear_rgb, float color[4]);
 
 ImBuf *IMB_loadifffile(int file, int flags, char colorspace[IM_MAX_SPACE], const char *descr);
 
 ImBuf *IMB_half_x(ImBuf *ibuf1);
-ImBuf *IMB_double_fast_x(ImBuf *ibuf1);
-ImBuf *IMB_double_x(ImBuf *ibuf1);
 ImBuf *IMB_half_y(ImBuf *ibuf1);
-ImBuf *IMB_double_fast_y(ImBuf *ibuf1);
-ImBuf *IMB_double_y(ImBuf *ibuf1);
 
 void IMB_flipx(ImBuf *ibuf);
 void IMB_flipy(ImBuf *ibuf);
+
+/* Rotate by 90 degree increments. Returns true if the ImBuf is altered. */
+bool IMB_rotate_orthogonal(ImBuf *ibuf, int degrees);
 
 /* Pre-multiply alpha. */
 
@@ -625,15 +638,18 @@ void *imb_alloc_pixels(unsigned int x,
                        unsigned int y,
                        unsigned int channels,
                        size_t typesize,
+                       bool initialize_pixels,
                        const char *alloc_name);
 
-bool imb_addrectImBuf(ImBuf *ibuf);
+bool imb_addrectImBuf(ImBuf *ibuf, bool initialize_pixels = true);
 /**
  * Any free `ibuf->rect` frees mipmaps to be sure, creation is in render on first request.
  */
 void imb_freerectImBuf(ImBuf *ibuf);
 
-bool imb_addrectfloatImBuf(ImBuf *ibuf, const unsigned int channels);
+bool imb_addrectfloatImBuf(ImBuf *ibuf,
+                           const unsigned int channels,
+                           bool initialize_pixels = true);
 /**
  * Any free `ibuf->rect` frees mipmaps to be sure, creation is in render on first request.
  */
@@ -657,7 +673,7 @@ void IMB_processor_apply_threaded(
     void(init_handle)(void *handle, int start_line, int tot_line, void *customdata),
     void *(do_thread)(void *));
 
-typedef void (*ScanlineThreadFunc)(void *custom_data, int scanline);
+using ScanlineThreadFunc = void (*)(void *custom_data, int scanline);
 void IMB_processor_apply_threaded_scanlines(int total_scanlines,
                                             ScanlineThreadFunc do_thread,
                                             void *custom_data);
@@ -685,8 +701,6 @@ enum eIMBTransformMode {
  * - Only one data type buffer will be used (rect_float has priority over rect)
  * \param mode: Cropping/Wrap repeat effect to apply during transformation.
  * \param filter: Interpolation to use during sampling.
- * \param num_subsamples: Number of subsamples to use. Increasing this would improve the quality,
- * but reduces the performance.
  * \param transform_matrix: Transformation matrix to use.
  * The given matrix should transform between dst pixel space to src pixel space.
  * One unit is one pixel.
@@ -701,14 +715,13 @@ void IMB_transform(const ImBuf *src,
                    ImBuf *dst,
                    eIMBTransformMode mode,
                    eIMBInterpolationFilterMode filter,
-                   const int num_subsamples,
                    const float transform_matrix[4][4],
                    const rctf *src_crop);
 
 /* FFMPEG */
 
-void IMB_ffmpeg_init(void);
-const char *IMB_ffmpeg_last_error(void);
+void IMB_ffmpeg_init();
+const char *IMB_ffmpeg_last_error();
 
 GPUTexture *IMB_create_gpu_texture(const char *name,
                                    ImBuf *ibuf,
@@ -778,6 +791,6 @@ ImBuf *IMB_stereo3d_ImBuf(const ImageFormatData *im_format, ImBuf *ibuf_left, Im
  * Reading a stereo encoded ibuf (*left) and generating two ibufs from it (*left and *right).
  */
 void IMB_ImBufFromStereo3d(const Stereo3dFormat *s3d,
-                           ImBuf *ibuf_stereo,
+                           ImBuf *ibuf_stereo3d,
                            ImBuf **r_ibuf_left,
                            ImBuf **r_ibuf_right);

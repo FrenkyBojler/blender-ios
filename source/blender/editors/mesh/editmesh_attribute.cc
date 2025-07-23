@@ -13,9 +13,9 @@
 #include "BKE_attribute.hh"
 #include "BKE_context.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_layer.h"
+#include "BKE_layer.hh"
 #include "BKE_mesh.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_type_conversions.hh"
 
 #include "WM_api.hh"
@@ -32,7 +32,7 @@
 #include "ED_transform.hh"
 #include "ED_view3d.hh"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "DNA_object_types.h"
 
@@ -44,7 +44,9 @@
 #include "DEG_depsgraph.hh"
 #include "DEG_depsgraph_query.hh"
 
-#include "mesh_intern.h"
+#include "mesh_intern.hh"
+
+using blender::Vector;
 
 /* -------------------------------------------------------------------- */
 /** \name Delete Operator
@@ -75,13 +77,7 @@ static bool mesh_active_attribute_poll(bContext *C)
     return false;
   }
   const Mesh *mesh = ED_mesh_context(C);
-  const CustomDataLayer *layer = BKE_id_attributes_active_get(&const_cast<ID &>(mesh->id));
-  if (!layer) {
-    CTX_wm_operator_poll_msg_set(C, "No active attribute");
-    return false;
-  }
-  if (layer->type == CD_PROP_STRING) {
-    CTX_wm_operator_poll_msg_set(C, "Active string attribute not supported");
+  if (!geometry::attribute_set_poll(*C, mesh->id)) {
     return false;
   }
   return true;
@@ -149,12 +145,12 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
   const Scene *scene = CTX_data_scene(C);
   ViewLayer *view_layer = CTX_data_view_layer(C);
 
-  uint objects_len = 0;
-  Object **objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
-      scene, view_layer, CTX_wm_view3d(C), &objects_len);
+  Vector<Object *> objects = BKE_view_layer_array_from_objects_in_edit_mode_unique_data(
+      scene, view_layer, CTX_wm_view3d(C));
 
   Mesh *mesh = ED_mesh_context(C);
-  CustomDataLayer *active_attribute = BKE_id_attributes_active_get(&mesh->id);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
   const eCustomDataType active_type = eCustomDataType(active_attribute->type);
   const CPPType &type = *bke::custom_data_type_to_cpp_type(active_type);
 
@@ -166,13 +162,12 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
   const bke::DataTypeConversions &conversions = bke::get_implicit_type_conversions();
 
   bool changed = false;
-  for (const int i : IndexRange(objects_len)) {
-    Object *object = objects[i];
+  for (Object *object : objects) {
     Mesh *mesh = static_cast<Mesh *>(object->data);
     BMEditMesh *em = BKE_editmesh_from_object(object);
     BMesh *bm = em->bm;
 
-    CustomDataLayer *layer = BKE_id_attributes_active_get(&mesh->id);
+    CustomDataLayer *layer = BKE_attributes_active_get(owner);
     if (!layer) {
       continue;
     }
@@ -187,7 +182,7 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
     BLI_SCOPED_DEFER([&]() { dst_type.destruct(dst_buffer); });
     conversions.convert_to_uninitialized(type, dst_type, value.get(), dst_buffer);
     const GPointer dst_value(dst_type, dst_buffer);
-    switch (BKE_id_attribute_domain(&mesh->id, layer)) {
+    switch (BKE_attribute_domain(owner, layer)) {
       case bke::AttrDomain::Point:
         bmesh_vert_edge_face_layer_selected_values_set(
             *bm, BM_VERTS_OF_MESH, dst_value, layer->offset);
@@ -216,19 +211,18 @@ static int mesh_set_attribute_exec(bContext *C, wmOperator *op)
     EDBM_update(mesh, &update);
   }
 
-  MEM_freeN(objects);
-
   return changed ? OPERATOR_FINISHED : OPERATOR_CANCELLED;
 }
 
 static int mesh_set_attribute_invoke(bContext *C, wmOperator *op, const wmEvent *event)
 {
   Mesh *mesh = ED_mesh_context(C);
-  BMesh *bm = mesh->edit_mesh->bm;
+  BMesh *bm = mesh->runtime->edit_mesh->bm;
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
 
-  const CustomDataLayer *layer = BKE_id_attributes_active_get(&mesh->id);
+  const CustomDataLayer *layer = BKE_attributes_active_get(owner);
   const eCustomDataType data_type = eCustomDataType(layer->type);
-  const bke::AttrDomain domain = BKE_id_attribute_domain(&mesh->id, layer);
+  const bke::AttrDomain domain = BKE_attribute_domain(owner, layer);
   const BMElem *active_elem = BM_mesh_active_elem_get(bm);
   if (!active_elem) {
     return WM_operator_props_popup(C, op, event);
@@ -258,7 +252,8 @@ static void mesh_set_attribute_ui(bContext *C, wmOperator *op)
   uiLayoutSetPropDecorate(layout, false);
 
   Mesh *mesh = ED_mesh_context(C);
-  CustomDataLayer *active_attribute = BKE_id_attributes_active_get(&mesh->id);
+  AttributeOwner owner = AttributeOwner::from_id(&mesh->id);
+  CustomDataLayer *active_attribute = BKE_attributes_active_get(owner);
   const eCustomDataType active_type = eCustomDataType(active_attribute->type);
   const StringRefNull prop_name = geometry::rna_property_name_for_type(active_type);
   const char *name = active_attribute->name;

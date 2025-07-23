@@ -11,14 +11,13 @@
 #include "BLI_math_base.hh"
 #include "BLI_math_geom.h"
 
-#include "BLI_math_base_safe.h"
 #include "BLI_math_bits.h"
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
 #include "BLI_utildefines.h"
 
-#include "BLI_strict_flags.h"
+#include "BLI_strict_flags.h" /* Keep last. */
 
 /********************************** Polygons *********************************/
 
@@ -156,7 +155,7 @@ float cross_poly_v2(const float verts[][2], uint nr)
   co_curr = verts[0];
   cross = 0.0f;
   for (a = 0; a < nr; a++) {
-    cross += (co_curr[0] - co_prev[0]) * (co_curr[1] + co_prev[1]);
+    cross += (co_prev[0] - co_curr[0]) * (co_curr[1] + co_prev[1]);
     co_prev = co_curr;
     co_curr += 2;
   }
@@ -405,6 +404,32 @@ float closest_to_line_segment_v3(float r_close[3],
   return lambda;
 }
 
+float closest_ray_to_segment_v3(const float ray_origin[3],
+                                const float ray_direction[3],
+                                const float v0[3],
+                                const float v1[3],
+                                float r_close[3])
+{
+  float lambda;
+  if (!isect_ray_line_v3(ray_origin, ray_direction, v0, v1, &lambda)) {
+    copy_v3_v3(r_close, v0);
+    return 0.0f;
+  }
+
+  if (lambda <= 0.0f) {
+    copy_v3_v3(r_close, v0);
+    return 0.0f;
+  }
+
+  if (lambda >= 1.0f) {
+    copy_v3_v3(r_close, v1);
+    return 1.0f;
+  }
+
+  interp_v3_v3v3(r_close, v0, v1, lambda);
+  return lambda;
+}
+
 void closest_to_plane_v3(float r_close[3], const float plane[4], const float pt[3])
 {
   const float len_sq = len_squared_v3(plane);
@@ -433,60 +458,60 @@ void closest_to_plane3_normalized_v3(float r_close[3], const float plane[3], con
   madd_v3_v3v3fl(r_close, pt, plane, -side);
 }
 
-float dist_signed_squared_to_plane_v3(const float pt[3], const float plane[4])
+float dist_signed_squared_to_plane_v3(const float p[3], const float plane[4])
 {
   const float len_sq = len_squared_v3(plane);
-  const float side = plane_point_side_v3(plane, pt);
+  const float side = plane_point_side_v3(plane, p);
   const float fac = side / len_sq;
   return copysignf(len_sq * (fac * fac), side);
 }
-float dist_squared_to_plane_v3(const float pt[3], const float plane[4])
+float dist_squared_to_plane_v3(const float p[3], const float plane[4])
 {
   const float len_sq = len_squared_v3(plane);
-  const float side = plane_point_side_v3(plane, pt);
+  const float side = plane_point_side_v3(plane, p);
   const float fac = side / len_sq;
   /* only difference to code above - no 'copysignf' */
   return len_sq * (fac * fac);
 }
 
-float dist_signed_squared_to_plane3_v3(const float pt[3], const float plane[3])
+float dist_signed_squared_to_plane3_v3(const float p[3], const float plane[3])
 {
   const float len_sq = len_squared_v3(plane);
-  const float side = dot_v3v3(plane, pt); /* only difference with 'plane[4]' version */
+  const float side = dot_v3v3(plane, p); /* only difference with 'plane[4]' version */
   const float fac = side / len_sq;
   return copysignf(len_sq * (fac * fac), side);
 }
-float dist_squared_to_plane3_v3(const float pt[3], const float plane[3])
+float dist_squared_to_plane3_v3(const float p[3], const float plane[3])
 {
   const float len_sq = len_squared_v3(plane);
-  const float side = dot_v3v3(plane, pt); /* only difference with 'plane[4]' version */
+  const float side = dot_v3v3(plane, p); /* only difference with 'plane[4]' version */
   const float fac = side / len_sq;
   /* only difference to code above - no 'copysignf' */
   return len_sq * (fac * fac);
 }
 
-float dist_signed_to_plane_v3(const float pt[3], const float plane[4])
+float dist_signed_to_plane_v3(const float p[3], const float plane[4])
 {
   const float len_sq = len_squared_v3(plane);
-  const float side = plane_point_side_v3(plane, pt);
+  const float side = plane_point_side_v3(plane, p);
   const float fac = side / len_sq;
   return sqrtf(len_sq) * fac;
 }
-float dist_to_plane_v3(const float pt[3], const float plane[4])
+float dist_to_plane_v3(const float p[3], const float plane[4])
 {
-  return fabsf(dist_signed_to_plane_v3(pt, plane));
+  return fabsf(dist_signed_to_plane_v3(p, plane));
 }
 
-float dist_signed_to_plane3_v3(const float pt[3], const float plane[3])
+float dist_signed_to_plane3_v3(const float p[3], const float plane[3])
 {
   const float len_sq = len_squared_v3(plane);
-  const float side = dot_v3v3(plane, pt); /* only difference with 'plane[4]' version */
+  const float side = dot_v3v3(plane, p); /* only difference with 'plane[4]' version */
   const float fac = side / len_sq;
   return sqrtf(len_sq) * fac;
 }
-float dist_to_plane3_v3(const float pt[3], const float plane[3])
+float dist_to_plane3_v3(const float p[3], const float plane[3])
 {
-  return fabsf(dist_signed_to_plane3_v3(pt, plane));
+  return fabsf(dist_signed_to_plane3_v3(p, plane));
 }
 
 float dist_squared_to_line_segment_v3(const float p[3], const float l1[3], const float l2[3])
@@ -1260,8 +1285,8 @@ int isect_seg_seg_v2_point_ex(const float v0[2],
     if (equals_v2v2(v0, v1)) {
       if (len_squared_v2v2(v2, v3) > square_f(eps)) {
         /* use non-point segment as basis */
-        SWAP(const float *, v0, v2);
-        SWAP(const float *, v1, v3);
+        std::swap(v0, v2);
+        std::swap(v1, v3);
 
         sub_v2_v2v2(s10, v1, v0);
         sub_v2_v2v2(s30, v3, v0);
@@ -1283,7 +1308,7 @@ int isect_seg_seg_v2_point_ex(const float v0[2],
     u_b = dot_v2v2(s30, s10) / dot_v2v2(s10, s10);
 
     if (u_a > u_b) {
-      SWAP(float, u_a, u_b);
+      std::swap(u_a, u_b);
     }
 
     if (u_a > endpoint_max || u_b < endpoint_min) {
@@ -1517,46 +1542,32 @@ bool isect_point_tri_v2_cw(const float pt[2],
 
 int isect_point_tri_v2(const float pt[2], const float v1[2], const float v2[2], const float v3[2])
 {
-  if (line_point_side_v2(v1, v2, pt) >= 0.0f) {
-    if (line_point_side_v2(v2, v3, pt) >= 0.0f) {
-      if (line_point_side_v2(v3, v1, pt) >= 0.0f) {
-        return 1;
-      }
-    }
+  float side12 = line_point_side_v2(v1, v2, pt);
+  float side23 = line_point_side_v2(v2, v3, pt);
+  float side31 = line_point_side_v2(v3, v1, pt);
+  if (side12 >= 0.0f && side23 >= 0.0f && side31 >= 0.0f) {
+    return 1;
   }
-  else {
-    if (!(line_point_side_v2(v2, v3, pt) >= 0.0f)) {
-      if (!(line_point_side_v2(v3, v1, pt) >= 0.0f)) {
-        return -1;
-      }
-    }
+  if (side12 <= 0.0f && side23 <= 0.0f && side31 <= 0.0f) {
+    return -1;
   }
 
   return 0;
 }
 
 int isect_point_quad_v2(
-    const float pt[2], const float v1[2], const float v2[2], const float v3[2], const float v4[2])
+    const float p[2], const float v1[2], const float v2[2], const float v3[2], const float v4[2])
 {
-  if (line_point_side_v2(v1, v2, pt) >= 0.0f) {
-    if (line_point_side_v2(v2, v3, pt) >= 0.0f) {
-      if (line_point_side_v2(v3, v4, pt) >= 0.0f) {
-        if (line_point_side_v2(v4, v1, pt) >= 0.0f) {
-          return 1;
-        }
-      }
-    }
+  float side12 = line_point_side_v2(v1, v2, p);
+  float side23 = line_point_side_v2(v2, v3, p);
+  float side34 = line_point_side_v2(v3, v4, p);
+  float side41 = line_point_side_v2(v4, v1, p);
+  if (side12 >= 0.0f && side23 >= 0.0f && side34 >= 0.0f && side41 >= 0.0f) {
+    return 1;
   }
-  else {
-    if (!(line_point_side_v2(v2, v3, pt) >= 0.0f)) {
-      if (!(line_point_side_v2(v3, v4, pt) >= 0.0f)) {
-        if (!(line_point_side_v2(v4, v1, pt) >= 0.0f)) {
-          return -1;
-        }
-      }
-    }
+  if (side12 <= 0.0f && side23 <= 0.0f && side34 <= 0.0f && side41 <= 0.0f) {
+    return -1;
   }
-
   return 0;
 }
 
@@ -1712,22 +1723,33 @@ bool isect_ray_tri_v3(const float ray_origin[3],
   return true;
 }
 
+bool isect_ray_plane_v3_factor(const float ray_origin[3],
+                               const float ray_direction[3],
+                               const float plane_co[3],
+                               const float plane_no[3],
+                               float *r_lambda)
+{
+  float h[3];
+  float dot = dot_v3v3(plane_no, ray_direction);
+  if (dot == 0.0f) {
+    return false;
+  }
+  sub_v3_v3v3(h, ray_origin, plane_co);
+  *r_lambda = -dot_v3v3(plane_no, h) / dot;
+  return true;
+}
+
 bool isect_ray_plane_v3(const float ray_origin[3],
                         const float ray_direction[3],
                         const float plane[4],
                         float *r_lambda,
                         const bool clip)
 {
-  float h[3], plane_co[3];
-  float dot;
-
-  dot = dot_v3v3(plane, ray_direction);
-  if (dot == 0.0f) {
+  float plane_co[3], plane_no[3];
+  plane_to_point_vector_v3(plane, plane_co, plane_no);
+  if (!isect_ray_plane_v3_factor(ray_origin, ray_direction, plane_co, plane_no, r_lambda)) {
     return false;
   }
-  mul_v3_v3fl(plane_co, plane, (-plane[3] / len_squared_v3(plane)));
-  sub_v3_v3v3(h, ray_origin, plane_co);
-  *r_lambda = -dot_v3v3(plane, h) / dot;
   if (clip && (*r_lambda < 0.0f)) {
     return false;
   }
@@ -1795,7 +1817,7 @@ void isect_ray_tri_watertight_v3_precalc(IsectRayPrecalc *isect_precalc,
 
   /* Swap kx and ky dimensions to preserve winding direction of triangles. */
   if (ray_direction[kz] < 0.0f) {
-    SWAP(int, kx, ky);
+    std::swap(kx, ky);
   }
 
   /* Calculate the shear constants. */
@@ -2320,9 +2342,9 @@ bool isect_tri_tri_v3_ex(const float tri_a[3][3],
       double offset1 = fac1 * (dot_c - dot_b);
       if (offset0 > offset1) {
         /* Sort min max. */
-        SWAP(double, offset0, offset1);
-        SWAP(float, fac0, fac1);
-        SWAP(int, tri_i[0], tri_i[2]);
+        std::swap(offset0, offset1);
+        std::swap(fac0, fac1);
+        std::swap(tri_i[0], tri_i[2]);
       }
 
       range[i].min = float(dot_b + offset0);
@@ -2586,7 +2608,7 @@ static bool getLowestRoot(
 
     /* Sort so x1 <= x2 */
     if (r1 > r2) {
-      SWAP(float, r1, r2);
+      std::swap(r1, r2);
     }
 
     /* Get lowest root: */
@@ -2669,7 +2691,7 @@ bool isect_sweeping_sphere_tri_v3(const float p1[3],
     float t1 = (-a - radius) / nordotv;
 
     if (t0 > t1) {
-      SWAP(float, t0, t1);
+      std::swap(t0, t1);
     }
 
     if (t0 > 1.0f || t1 < 0.0f) {
@@ -2678,7 +2700,7 @@ bool isect_sweeping_sphere_tri_v3(const float p1[3],
 
     /* clamp to [0, 1] */
     CLAMP(t0, 0.0f, 1.0f);
-    CLAMP(t1, 0.0f, 1.0f);
+    // CLAMP(t1, 0.0f, 1.0f); /* UNUSED. */
 
     /*---test inside of tri---*/
     /* plane intersection point */
@@ -3077,7 +3099,7 @@ void isect_ray_aabb_v3_precalc(IsectRayAABB_Precalc *data,
 bool isect_ray_aabb_v3(const IsectRayAABB_Precalc *data,
                        const float bb_min[3],
                        const float bb_max[3],
-                       float *tmin_out)
+                       float *r_tmin)
 {
   /* Adapted from http://www.gamedev.net/community/forums/topic.asp?topic_id=459973 */
 
@@ -3119,8 +3141,8 @@ bool isect_ray_aabb_v3(const IsectRayAABB_Precalc *data,
    * keeping this here for future reference. */
   // if (tzmax < tmax) tmax = tzmax;
 
-  if (tmin_out) {
-    (*tmin_out) = tmin;
+  if (r_tmin) {
+    (*r_tmin) = tmin;
   }
 
   return true;
@@ -3646,7 +3668,7 @@ void interp_weights_quad_v3(float w[4],
     cross_v3_v3v3(n, n1, n2);
 
     ok = barycentric_weights(v1, v2, v4, co, n, w);
-    SWAP(float, w[2], w[3]);
+    std::swap(w[2], w[3]);
 
     if (!ok || (w[0] < 0.0f)) {
       /* if w[1] is negative, co is on the other side of the v1-v3 edge,
@@ -4507,7 +4529,7 @@ void interp_barycentric_tri_v3(float data[3][3], float u, float v, float res[3])
 
 /***************************** View & Projection *****************************/
 
-void orthographic_m4(float matrix[4][4],
+void orthographic_m4(float mat[4][4],
                      const float left,
                      const float right,
                      const float bottom,
@@ -4523,13 +4545,13 @@ void orthographic_m4(float matrix[4][4],
   if (Xdelta == 0.0f || Ydelta == 0.0f || Zdelta == 0.0f) {
     return;
   }
-  unit_m4(matrix);
-  matrix[0][0] = 2.0f / Xdelta;
-  matrix[3][0] = -(right + left) / Xdelta;
-  matrix[1][1] = 2.0f / Ydelta;
-  matrix[3][1] = -(top + bottom) / Ydelta;
-  matrix[2][2] = -2.0f / Zdelta; /* NOTE: negate Z. */
-  matrix[3][2] = -(farClip + nearClip) / Zdelta;
+  unit_m4(mat);
+  mat[0][0] = 2.0f / Xdelta;
+  mat[3][0] = -(right + left) / Xdelta;
+  mat[1][1] = 2.0f / Ydelta;
+  mat[3][1] = -(top + bottom) / Ydelta;
+  mat[2][2] = -2.0f / Zdelta; /* NOTE: negate Z. */
+  mat[3][2] = -(farClip + nearClip) / Zdelta;
 }
 
 void perspective_m4(float mat[4][4],
@@ -4804,8 +4826,9 @@ void lookat_m4(
 
   i_multmatrix(mat1, mat);
 
-  mat1[1][1] = mat1[2][2] = 1.0f; /* be careful here to reinit */
-  mat1[1][2] = mat1[2][1] = 0.0f; /* those modified by the last */
+  /* Be careful here to reinitialize those modified by the last. */
+  mat1[1][1] = mat1[2][2] = 1.0f;
+  mat1[1][2] = mat1[2][1] = 0.0f;
 
   /* paragraph */
   if (hyp != 0.0f) { /* rotate Y */

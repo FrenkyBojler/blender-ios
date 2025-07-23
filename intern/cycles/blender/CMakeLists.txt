@@ -115,7 +115,7 @@ endif()
 if(WITH_OPENVDB)
   add_definitions(-DWITH_OPENVDB ${OPENVDB_DEFINITIONS})
   list(APPEND INC
-    ../../../intern/openvdb
+    ../../openvdb
   )
   list(APPEND INC_SYS
     ${OPENVDB_INCLUDE_DIRS}
@@ -139,6 +139,12 @@ if(WITH_OPENIMAGEDENOISE)
   add_definitions(-DWITH_OPENIMAGEDENOISE)
   list(APPEND INC_SYS
     ${OPENIMAGEDENOISE_INCLUDE_DIRS}
+  )
+endif()
+
+if(WITH_CYCLES_OSL)
+  list(APPEND LIB
+    ${OSL_LIBRARIES}
   )
 endif()
 

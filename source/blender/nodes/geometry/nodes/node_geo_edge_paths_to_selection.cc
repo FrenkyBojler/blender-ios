@@ -2,7 +2,6 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "BKE_attribute_math.hh"
 #include "BKE_mesh.hh"
 
 #include "BLI_map.hh"
@@ -100,7 +99,7 @@ class PathToEdgeSelectionFieldInput final : public bke::MeshFieldInput {
 
   uint64_t hash() const override
   {
-    return get_default_hash_2(start_vertices_, next_vertex_);
+    return get_default_hash(start_vertices_, next_vertex_);
   }
 
   bool is_equal_to(const fn::FieldNode &other) const override
@@ -131,14 +130,14 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(
       &ntype, GEO_NODE_EDGE_PATHS_TO_SELECTION, "Edge Paths to Selection", NODE_CLASS_INPUT);
   ntype.declare = node_declare;
   blender::bke::node_type_size(&ntype, 150, 100, 300);
   ntype.geometry_node_execute = node_geo_exec;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

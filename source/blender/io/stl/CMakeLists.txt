@@ -6,19 +6,17 @@ set(INC
   .
   exporter
   importer
+  intern
   ../common
   ../../blenkernel
   ../../bmesh
-  ../../bmesh/intern
   ../../editors/include
   ../../makesrna
-  ../../nodes
   ../../windowmanager
 )
 
 set(INC_SYS
   ../../../../extern/fast_float
-  ../../../../extern/fmtlib/include
 )
 
 set(SRC
@@ -29,6 +27,8 @@ set(SRC
   importer/stl_import_mesh.cc
   exporter/stl_export.cc
   exporter/stl_export_writer.cc
+
+  intern/stl_data.hh
 
   IO_stl.hh
   importer/stl_import.hh
@@ -46,7 +46,7 @@ set(LIB
   PRIVATE bf::dna
   PRIVATE bf::intern::guardedalloc
   bf_io_common
-  extern_fmtlib
+  PRIVATE bf::extern::fmtlib
 )
 
 blender_add_lib(bf_io_stl "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")

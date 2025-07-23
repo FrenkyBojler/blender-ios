@@ -126,7 +126,7 @@ template<typename NodePtr> class GFieldBase {
 
   uint64_t hash() const
   {
-    return get_default_hash_2(*node_, node_output_index_);
+    return get_default_hash(*node_, node_output_index_);
   }
 
   const CPPType &cpp_type() const
@@ -458,7 +458,7 @@ class FieldEvaluator : NonMovable, NonCopyable {
     return this->get_evaluated(field_index).typed<T>();
   }
 
-  IndexMask get_evaluated_selection_as_mask();
+  IndexMask get_evaluated_selection_as_mask() const;
 
   /**
    * Retrieve the output of an evaluated boolean field and convert it to a mask, which can be used

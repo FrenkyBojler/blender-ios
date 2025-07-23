@@ -13,8 +13,20 @@
 #include "BLI_listbase.h"
 #include "BLI_map.hh"
 
+namespace blender {
+class ImplicitSharingInfo;
+}
 struct Main;
 struct Scene;
+
+struct MemFileSharedStorage {
+  /**
+   * Maps the data pointer to the sharing info that it is owned by.
+   */
+  blender::Map<const void *, const blender::ImplicitSharingInfo *> map;
+
+  ~MemFileSharedStorage();
+};
 
 struct MemFileChunk {
   void *next, *prev;
@@ -27,25 +39,30 @@ struct MemFileChunk {
    * detect unchanged IDs).
    * Defined when writing the next step (i.e. last undo step has those always false). */
   bool is_identical_future;
-  /** Session UUID of the ID being currently written (MAIN_ID_SESSION_UUID_UNSET when not writing
+  /** Session UID of the ID being currently written (MAIN_ID_SESSION_UID_UNSET when not writing
    * ID-related data). Used to find matching chunks in previous memundo step. */
-  uint id_session_uuid;
+  uint id_session_uid;
 };
 
 struct MemFile {
   ListBase chunks;
   size_t size;
+  /**
+   * Some data is not serialized into a new buffer because the undo-step can take ownership of it
+   * without making a copy. This is faster and requires less memory.
+   */
+  MemFileSharedStorage *shared_storage;
 };
 
 struct MemFileWriteData {
   MemFile *written_memfile;
   MemFile *reference_memfile;
 
-  uint current_id_session_uuid;
+  uint current_id_session_uid;
   MemFileChunk *reference_current_chunk;
 
-  /** Maps an ID session uuid to its first reference MemFileChunk, if existing. */
-  blender::Map<uint, MemFileChunk *> id_session_uuid_mapping;
+  /** Maps an ID session uid to its first reference MemFileChunk, if existing. */
+  blender::Map<uint, MemFileChunk *> id_session_uid_mapping;
 };
 
 struct MemFileUndoData {
@@ -94,11 +111,5 @@ void BLO_memfile_clear_future(MemFile *memfile);
 /* Utilities. */
 
 Main *BLO_memfile_main_get(MemFile *memfile, Main *bmain, Scene **r_scene);
-/**
- * Saves .blend using undo buffer.
- *
- * \return success.
- */
-bool BLO_memfile_write_file(MemFile *memfile, const char *filepath);
 
 FileReader *BLO_memfile_new_filereader(MemFile *memfile, int undo_direction);

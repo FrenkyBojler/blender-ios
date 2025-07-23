@@ -16,7 +16,7 @@ set(INC
   ../../makesrna
   ../../render
   ../../windowmanager
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -49,6 +49,7 @@ set(SRC
   editmesh_rip_edge.cc
   editmesh_select.cc
   editmesh_select_similar.cc
+  editmesh_set_sharpness_by_angle.cc
   editmesh_tools.cc
   editmesh_undo.cc
   editmesh_utils.cc
@@ -57,7 +58,7 @@ set(SRC
   mesh_ops.cc
   meshtools.cc
 
-  mesh_intern.h
+  mesh_intern.hh
 )
 
 set(LIB
@@ -66,6 +67,7 @@ set(LIB
   PRIVATE bf::blenlib
   PRIVATE bf::depsgraph
   PRIVATE bf::dna
+  PRIVATE bf::extern::fmtlib
   PRIVATE bf::intern::clog
   PRIVATE bf::intern::guardedalloc
   bf_windowmanager
@@ -83,19 +85,7 @@ if(WITH_GMP)
   add_definitions(-DWITH_GMP)
 endif()
 
-if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
-
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
-endif()
-
 blender_add_lib(bf_editor_mesh "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h
+# RNA_prototypes.hh
 add_dependencies(bf_editor_mesh bf_rna)

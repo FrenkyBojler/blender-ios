@@ -74,13 +74,13 @@ int ED_curve_join_objects_exec(bContext *C, wmOperator *op);
 
 bool ED_curve_select_check(const View3D *v3d, const EditNurb *editnurb);
 bool ED_curve_deselect_all(EditNurb *editnurb);
-bool ED_curve_deselect_all_multi_ex(Base **bases, int bases_len);
+bool ED_curve_deselect_all_multi_ex(blender::Span<Base *> bases);
 bool ED_curve_deselect_all_multi(bContext *C);
 bool ED_curve_select_all(EditNurb *editnurb);
 bool ED_curve_select_swap(EditNurb *editnurb, bool hide_handles);
 int ED_curve_select_count(const View3D *v3d, const EditNurb *editnurb);
 
-/* editcurve_undo.cc */
+/* `editcurve_undo.cc` */
 
 /** Export for ED_undo_sys */
 void ED_curve_undosys_type(UndoType *ut);

@@ -8,20 +8,21 @@
 #ifdef WITH_COLLADA
 #  include "DNA_space_types.h"
 
-#  include "BLT_translation.h"
+#  include "BLT_translation.hh"
 
 #  include "BLI_blenlib.h"
+#  include "BLI_string.h"
 #  include "BLI_utildefines.h"
 
 #  include "BKE_context.hh"
-#  include "BKE_main.hh"
-#  include "BKE_object.hh"
-#  include "BKE_report.h"
+#  include "BKE_file_handler.hh"
+#  include "BKE_report.hh"
 
 #  include "DEG_depsgraph.hh"
 
 #  include "ED_fileselect.hh"
 #  include "ED_object.hh"
+#  include "ED_outliner.hh"
 
 #  include "RNA_access.hh"
 #  include "RNA_define.hh"
@@ -35,6 +36,7 @@
 #  include "collada.h"
 
 #  include "io_collada.hh"
+#  include "io_utils.hh"
 
 static int wm_collada_export_invoke(bContext *C, wmOperator *op, const wmEvent * /*event*/)
 {
@@ -152,7 +154,7 @@ static int wm_collada_export_exec(bContext *C, wmOperator *op)
   Main *bmain = CTX_data_main(C);
 
   /* get editmode results */
-  ED_object_editmode_load(bmain, CTX_data_edit_object(C));
+  blender::ed::object::editmode_load(bmain, CTX_data_edit_object(C));
 
   // Scene *scene = CTX_data_scene(C);
 
@@ -461,7 +463,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
       {BC_UI_SECTION_COLLADA, "collada", 0, "Extra", "Collada export section"},
       {0, nullptr, 0, nullptr, nullptr}};
 
-  ot->name = "Export COLLADA";
+  ot->name = "Export COLLADA (Legacy)";
   ot->description = "Save a Collada file";
   ot->idname = "WM_OT_collada_export";
 
@@ -568,7 +570,7 @@ void WM_OT_collada_export(wmOperatorType *ot)
       true,
       "Include Animations",
       "Export animations if available (exporting animations will enforce the decomposition of "
-      "node transforms into  <translation> <rotation> and <scale> components)");
+      "node transforms into <translation> <rotation> and <scale> components)");
 
   RNA_def_boolean(ot->srna,
                   "include_all_actions",
@@ -750,6 +752,11 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
 
   if (collada_import(C, &import_settings)) {
     DEG_id_tag_update(&CTX_data_scene(C)->id, ID_RECALC_BASE_FLAGS);
+    Scene *scene = CTX_data_scene(C);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_SELECT, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_OB_ACTIVE, scene);
+    WM_event_add_notifier(C, NC_SCENE | ND_LAYER_CONTENT, scene);
+    ED_outliner_select_sync_from_object_tag(C);
     return OPERATOR_FINISHED;
   }
 
@@ -757,7 +764,7 @@ static int wm_collada_import_exec(bContext *C, wmOperator *op)
   return OPERATOR_CANCELLED;
 }
 
-static void uiCollada_importSettings(uiLayout *layout, PointerRNA *imfptr)
+static void wm_collada_import_settings(uiLayout *layout, PointerRNA *imfptr)
 {
   uiLayout *box, *col;
 
@@ -787,17 +794,17 @@ static void uiCollada_importSettings(uiLayout *layout, PointerRNA *imfptr)
 
 static void wm_collada_import_draw(bContext * /*C*/, wmOperator *op)
 {
-  uiCollada_importSettings(op->layout, op->ptr);
+  wm_collada_import_settings(op->layout, op->ptr);
 }
 
 void WM_OT_collada_import(wmOperatorType *ot)
 {
-  ot->name = "Import COLLADA";
+  ot->name = "Import COLLADA (Legacy)";
   ot->description = "Load a Collada file";
   ot->idname = "WM_OT_collada_import";
-  ot->flag = OPTYPE_REGISTER | OPTYPE_UNDO | OPTYPE_PRESET;
+  ot->flag = OPTYPE_UNDO | OPTYPE_PRESET;
 
-  ot->invoke = WM_operator_filesel;
+  ot->invoke = blender::ed::io::filesel_drop_import_invoke;
   ot->exec = wm_collada_import_exec;
   ot->poll = WM_operator_winactive;
 
@@ -862,4 +869,18 @@ void WM_OT_collada_import(wmOperatorType *ot)
       "Keep Bind Info",
       "Store Bindpose information in custom bone properties for later use during Collada export");
 }
+
+namespace blender::ed::io {
+void collada_file_handler_add()
+{
+  auto fh = std::make_unique<blender::bke::FileHandlerType>();
+  STRNCPY(fh->idname, "IO_FH_collada");
+  STRNCPY(fh->import_operator, "WM_OT_collada_import");
+  STRNCPY(fh->label, "Collada");
+  STRNCPY(fh->file_extensions_str, ".dae");
+  fh->poll_drop = poll_file_object_drop;
+  bke::file_handler_add(std::move(fh));
+}
+}  // namespace blender::ed::io
+
 #endif

@@ -14,7 +14,6 @@
 #include "BLI_math_matrix.h"
 #include "BLI_math_rotation.h"
 #include "BLI_math_vector.h"
-#include "BLI_set.hh"
 
 #include "DNA_object_types.h"
 
@@ -22,9 +21,11 @@
 
 #include "importer_mesh_utils.hh"
 
+#include <numeric>
+
 namespace blender::io::obj {
 
-Vector<Vector<int>> fixup_invalid_polygon(Span<float3> vert_positions, Span<int> face_verts)
+Vector<Vector<int>> fixup_invalid_face(Span<float3> vert_positions, Span<int> face_verts)
 {
   using namespace blender::meshintersect;
   if (face_verts.size() < 3) {
@@ -61,27 +62,25 @@ Vector<Vector<int>> fixup_invalid_polygon(Span<float3> vert_positions, Span<int>
   /* Emit new face information from CDT result. */
   Vector<Vector<int>> faces;
   faces.reserve(res.face.size());
-  for (const auto &f : res.face) {
-    Vector<int> face_verts;
-    face_verts.reserve(f.size());
-    for (int64_t i = 0; i < f.size(); ++i) {
-      int idx = f[i];
+  for (const auto &res_face : res.face) {
+    Vector<int> res_face_verts;
+    res_face_verts.reserve(res_face.size());
+    for (int64_t i = 0; i < res_face.size(); ++i) {
+      int idx = res_face[i];
       BLI_assert(idx >= 0 && idx < res.vert_orig.size());
       if (res.vert_orig[idx].is_empty()) {
-        /* If we have a whole new vertex in the tessellated result,
-         * we won't quite know what to do with it (how to create normal/UV
-         * for it, for example). Such vertices are often due to
-         * self-intersecting polygons. Just skip them from the output
-         * face. */
+        /* If we have a whole new vertex in the tessellated result, we won't quite know what to do
+         * with it (how to create normal/UV for it, for example). Such vertices are often due to
+         * self-intersecting faces. Just skip them from the output face. */
       }
       else {
         /* Vertex corresponds to one or more of the input vertices, use it. */
         idx = res.vert_orig[idx][0];
         BLI_assert(idx >= 0 && idx < face_verts.size());
-        face_verts.append(idx);
+        res_face_verts.append(idx);
       }
     }
-    faces.append(face_verts);
+    faces.append(res_face_verts);
   }
   return faces;
 }

@@ -8,7 +8,7 @@
 
 #include "BLI_string_ref.hh"
 
-#include "GPU_platform.h"
+#include "GPU_platform.hh"
 
 #include "mtl_shader_log.hh"
 
@@ -67,8 +67,6 @@ const char *MTLLogParser::parse_line(const char *source_combined,
             log_item.cursor.row++;
           }
         }
-        /* Count the needle end of line too. */
-        log_item.cursor.row++;
         parsed_error_ = true;
       }
     }

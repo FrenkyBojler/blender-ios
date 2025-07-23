@@ -32,7 +32,7 @@ static void node_declare(NodeDeclarationBuilder &b)
     const eCustomDataType data_type = eCustomDataType(node->custom1);
     b.add_input(data_type, "Value").hide_value().field_on_all();
   }
-  b.add_input<decl::Vector>("Source UV Map")
+  b.add_input<decl::Vector>("UV Map", "Source UV Map")
       .hide_value()
       .field_on_all()
       .description("The mesh UV map to sample. Should not have overlapping faces");
@@ -172,7 +172,7 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   /* Use the output of the UV sampling to interpolate the mesh attribute. */
   GField field = params.extract_input<GField>("Value");
-  ;
+
   auto sample_op = FieldOperation::Create(
       std::make_shared<bke::mesh_surface_sample::BaryWeightSampleFn>(std::move(geometry),
                                                                      std::move(field)),
@@ -194,7 +194,7 @@ static void node_rna(StructRNA *srna)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SAMPLE_UV_SURFACE, "Sample UV Surface", NODE_CLASS_GEOMETRY);
   ntype.initfunc = node_init;
@@ -202,7 +202,7 @@ static void node_register()
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 
   node_rna(ntype.rna_ext.srna);
 }

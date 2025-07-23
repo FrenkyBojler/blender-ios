@@ -15,37 +15,6 @@
 
 namespace blender::nodes {
 
-template<typename T>
-void copy_with_checked_indices(const VArray<T> &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               MutableSpan<T> dst)
-{
-  const IndexRange src_range = src.index_range();
-  devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-    mask.foreach_index(GrainSize(4096), [&](const int i) {
-      const int index = indices[i];
-      if (src_range.contains(index)) {
-        dst[i] = src[index];
-      }
-      else {
-        dst[i] = {};
-      }
-    });
-  });
-}
-
-void copy_with_checked_indices(const GVArray &src,
-                               const VArray<int> &indices,
-                               const IndexMask &mask,
-                               GMutableSpan dst)
-{
-  bke::attribute_math::convert_to_static_type(src.type(), [&](auto dummy) {
-    using T = decltype(dummy);
-    copy_with_checked_indices(src.typed<T>(), indices, mask, dst.typed<T>());
-  });
-}
-
 }  // namespace blender::nodes
 
 namespace blender::nodes::node_geo_sample_index_cc {
@@ -59,7 +28,8 @@ static void node_declare(NodeDeclarationBuilder &b)
       .supported_type({GeometryComponent::Type::Mesh,
                        GeometryComponent::Type::PointCloud,
                        GeometryComponent::Type::Curve,
-                       GeometryComponent::Type::Instance});
+                       GeometryComponent::Type::Instance,
+                       GeometryComponent::Type::GreasePencil});
   if (node != nullptr) {
     const eCustomDataType data_type = eCustomDataType(node_storage(*node).data_type);
     b.add_input(data_type, "Value").hide_value().field_on_all();
@@ -126,7 +96,8 @@ static const GeometryComponent *find_source_component(const GeometrySet &geometr
       GeometryComponent::Type::Mesh,
       GeometryComponent::Type::PointCloud,
       GeometryComponent::Type::Curve,
-      GeometryComponent::Type::Instance};
+      GeometryComponent::Type::Instance,
+      GeometryComponent::Type::GreasePencil};
   for (const GeometryComponent::Type src_type : supported_types) {
     if (component_is_available(geometry, src_type, domain)) {
       return geometry.get_component(src_type);
@@ -220,7 +191,7 @@ class SampleIndexFunction : public mf::MultiFunction {
       });
     }
     else {
-      copy_with_checked_indices(*src_data_, indices, mask, dst);
+      bke::copy_with_checked_indices(*src_data_, indices, mask, dst);
     }
   }
 };
@@ -275,17 +246,17 @@ static void node_geo_exec(GeoNodeExecParams params)
 
 static void node_register()
 {
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   geo_node_type_base(&ntype, GEO_NODE_SAMPLE_INDEX, "Sample Index", NODE_CLASS_GEOMETRY);
   ntype.initfunc = node_init;
   ntype.declare = node_declare;
-  node_type_storage(
+  blender::bke::node_type_storage(
       &ntype, "NodeGeometrySampleIndex", node_free_standard_storage, node_copy_standard_storage);
   ntype.geometry_node_execute = node_geo_exec;
   ntype.draw_buttons = node_layout;
   ntype.gather_link_search_ops = node_gather_link_searches;
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }
 NOD_REGISTER_NODE(node_register)
 

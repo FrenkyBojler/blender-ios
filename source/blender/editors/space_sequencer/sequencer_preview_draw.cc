@@ -9,7 +9,7 @@
 #include <cmath>
 #include <cstring>
 
-#include "BLF_api.h"
+#include "BLF_api.hh"
 
 #include "BLI_blenlib.h"
 #include "BLI_math_rotation.h"
@@ -22,17 +22,17 @@
 #include "DNA_space_types.h"
 
 #include "BKE_context.hh"
-#include "BKE_global.h"
-#include "BKE_scene.h"
+#include "BKE_global.hh"
+#include "BKE_scene.hh"
 
 #include "IMB_colormanagement.hh"
 #include "IMB_imbuf.hh"
 
-#include "GPU_framebuffer.h"
-#include "GPU_immediate.h"
-#include "GPU_immediate_util.h"
-#include "GPU_matrix.h"
-#include "GPU_viewport.h"
+#include "GPU_framebuffer.hh"
+#include "GPU_immediate.hh"
+#include "GPU_immediate_util.hh"
+#include "GPU_matrix.hh"
+#include "GPU_viewport.hh"
 
 #include "ED_gpencil_legacy.hh"
 #include "ED_screen.hh"
@@ -79,7 +79,7 @@ void ED_sequencer_special_preview_set(bContext *C, const int mval[2])
 {
   Scene *scene = CTX_data_scene(C);
   ARegion *region = CTX_wm_region(C);
-  int hand_dummy;
+  eSeqHandle hand_dummy;
   Sequence *seq = find_nearest_seq(scene, &region->v2d, mval, &hand_dummy);
   sequencer_special_update_set(seq);
 }
@@ -89,15 +89,18 @@ void ED_sequencer_special_preview_clear()
   sequencer_special_update_set(nullptr);
 }
 
-ImBuf *sequencer_ibuf_get(Main *bmain,
-                          ARegion *region,
-                          Depsgraph *depsgraph,
-                          Scene *scene,
-                          SpaceSeq *sseq,
+ImBuf *sequencer_ibuf_get(const bContext *C,
                           int timeline_frame,
                           int frame_ofs,
                           const char *viewname)
 {
+  Main *bmain = CTX_data_main(C);
+  ARegion *region = CTX_wm_region(C);
+  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
+  Scene *scene = CTX_data_scene(C);
+  SpaceSeq *sseq = CTX_wm_space_seq(C);
+  bScreen *screen = CTX_wm_screen(C);
+
   SeqRenderData context = {nullptr};
   ImBuf *ibuf;
   int rectx, recty;
@@ -122,9 +125,11 @@ ImBuf *sequencer_ibuf_get(Main *bmain,
       bmain, depsgraph, scene, rectx, recty, sseq->render_size, false, &context);
   context.view_id = BKE_scene_multiview_view_id_get(&scene->r, viewname);
   context.use_proxies = (sseq->flag & SEQ_USE_PROXIES) != 0;
+  context.is_playing = screen->animtimer != nullptr;
+  context.is_scrubbing = screen->scrubbing;
 
-  /* Sequencer could start rendering, in this case we need to be sure it wouldn't be canceled
-   * by Escape pressed somewhere in the past. */
+  /* Sequencer could start rendering, in this case we need to be sure it wouldn't be
+   * canceled by Escape pressed somewhere in the past. */
   G.is_break = false;
 
   GPUViewport *viewport = WM_draw_region_get_bound_viewport(region);
@@ -290,7 +295,7 @@ void sequencer_draw_maskedit(const bContext *C, Scene *scene, ARegion *region, S
 /* Force redraw, when prefetching and using cache view. */
 static void seq_prefetch_wm_notify(const bContext *C, Scene *scene)
 {
-  if (SEQ_prefetch_need_redraw(CTX_data_main(C), scene)) {
+  if (SEQ_prefetch_need_redraw(C, scene)) {
     WM_event_add_notifier(C, NC_SCENE | ND_SEQUENCER, nullptr);
   }
 }
@@ -322,15 +327,15 @@ static void *sequencer_OCIO_transform_ibuf(const bContext *C,
 
     *r_data = GPU_DATA_FLOAT;
     if (ibuf->channels == 4) {
-      *r_format = GPU_RGBA16F;
+      *r_format = GPU_RGBA32F;
     }
     else if (ibuf->channels == 3) {
       /* Alpha is implicitly 1. */
-      *r_format = GPU_RGB16F;
+      *r_format = GPU_RGB32F;
     }
     else {
       BLI_assert_msg(0, "Incompatible number of channels for float buffer in sequencer");
-      *r_format = GPU_RGBA16F;
+      *r_format = GPU_RGBA32F;
       display_buffer = nullptr;
     }
 
@@ -352,8 +357,7 @@ static void *sequencer_OCIO_transform_ibuf(const bContext *C,
     display_buffer = nullptr;
   }
 
-  /* There is data to be displayed, but GLSL is not initialized
-   * properly, in this case we fallback to CPU-based display transform. */
+  /* If we need to fallback to CPU based display transform, do that here. */
   if ((ibuf->byte_buffer.data || ibuf->float_buffer.data) && !*r_glsl_used) {
     display_buffer = IMB_display_buffer_acquire_ctx(C, ibuf, r_buffer_cache_handle);
     *r_format = GPU_RGBA8;
@@ -529,10 +533,6 @@ static void draw_histogram(ARegion *region,
     return;
   }
 
-  /* Background. */
-  uchar col_bg[4] = {0, 0, 0, 255};
-  quads.add_quad(area.xmin, area.ymin, area.xmax, area.ymax, col_bg);
-
   /* Grid lines and labels. */
   uchar col_grid[4] = {128, 128, 128, 128};
   float grid_x_0 = area.xmin;
@@ -556,8 +556,7 @@ static void draw_histogram(ARegion *region,
 
     /* Label. */
     char buf[10];
-    BLI_snprintf(buf, sizeof(buf), "%.2f", val);
-    size_t buf_len = strlen(buf);
+    const size_t buf_len = SNPRINTF_RLEN(buf, "%.2f", val);
 
     float text_width, text_height;
     BLF_width_and_height(BLF_default(), buf, buf_len, &text_width, &text_height);
@@ -631,28 +630,116 @@ static void draw_waveform_graticule(ARegion *region, SeqQuadsBatch &quads, const
   UI_view2d_text_cache_draw(region);
 }
 
-static void draw_vectorscope_graticule(SeqQuadsBatch &quads, const rctf &area)
+static void draw_vectorscope_graticule(ARegion *region, SeqQuadsBatch &quads, const rctf &area)
 {
   using namespace blender;
-  GPU_blend(GPU_BLEND_ALPHA);
 
   const float skin_rad = DEG2RADF(123.0f); /* angle in radians of the skin tone line */
 
   const float w = BLI_rctf_size_x(&area);
   const float h = BLI_rctf_size_y(&area);
-  const float centerx = BLI_rctf_cent_x(&area);
-  const float centery = BLI_rctf_cent_y(&area);
-  const float rad_base = ((w < h) ? w : h) * 0.5f;
-  /* vectorscope image is scaled over YUV range, +/- (0.436, 0.615) */
-  const float rad_x = rad_base * (0.5f / 0.436f);
-  const float rad_y = rad_base * (0.5f / 0.615f);
+  const float2 center{BLI_rctf_cent_x(&area), BLI_rctf_cent_y(&area)};
+  /* Vector-scope image is scaled over UV range (+/-0.615). */
+  const float radius = ((w < h) ? w : h) * 0.5f * (0.5f / 0.615f);
 
-  /* center cross */
-  uchar col_grid[4] = {128, 128, 128, 96};
-  quads.add_line(centerx - rad_base * 0.1f, centery, centerx + rad_base * 0.1f, centery, col_grid);
-  quads.add_line(centerx, centery - rad_base * 0.1f, centerx, centery + rad_base * 0.1f, col_grid);
+  /* Precalculate circle points/colors. */
+  constexpr int circle_delta = 6;
+  constexpr int num_circle_points = 360 / circle_delta;
+  float2 circle_pos[num_circle_points];
+  float3 circle_col[num_circle_points];
+  for (int i = 0; i < num_circle_points; i++) {
+    float a = DEG2RADF(i * circle_delta);
+    float u = cosf(a);
+    float v = sinf(a);
+    circle_pos[i] = float2(u, v);
 
-  /* fully saturated vs "safe" (0.75) colored areas */
+    float3 col;
+    yuv_to_rgb(0.5f, u, v, &col.x, &col.y, &col.z, BLI_YUV_ITU_BT709);
+    circle_col[i] = col;
+  }
+
+  /* Draw colored background and outer ring, additively blended
+   * since vectorscope image is already drawn. */
+  GPU_blend(GPU_BLEND_ADDITIVE);
+
+  constexpr float alpha_f = 0.8f;
+  constexpr uchar alpha_b = uchar(alpha_f * 255.0f);
+  const uchar4 col_center(50, 50, 50, alpha_b);
+
+  uchar4 col1(0, 0, 0, alpha_b);
+  uchar4 col2(0, 0, 0, alpha_b);
+  uchar4 col3(0, 0, 0, alpha_b);
+
+  /* Background: since the quads batch utility draws quads, draw two
+   * segments of the circle (two triangles) in one iteration. */
+  constexpr float mul_background = 0.2f;
+  for (int i = 0; i < num_circle_points; i += 2) {
+    int idx1 = i;
+    int idx2 = (i + 1) % num_circle_points;
+    int idx3 = (i + 2) % num_circle_points;
+    float2 pt1 = center + circle_pos[idx1] * radius;
+    float2 pt2 = center + circle_pos[idx2] * radius;
+    float2 pt3 = center + circle_pos[idx3] * radius;
+    float3 rgb1 = circle_col[idx1] * mul_background;
+    float3 rgb2 = circle_col[idx2] * mul_background;
+    float3 rgb3 = circle_col[idx3] * mul_background;
+    rgb_float_to_uchar(col1, rgb1);
+    rgb_float_to_uchar(col2, rgb2);
+    rgb_float_to_uchar(col3, rgb3);
+    quads.add_quad(pt1.x,
+                   pt1.y,
+                   pt2.x,
+                   pt2.y,
+                   center.x,
+                   center.y,
+                   pt3.x,
+                   pt3.y,
+                   col1,
+                   col2,
+                   col_center,
+                   col3);
+  }
+
+  /* Outer ring. */
+  const float outer_radius = radius * 1.02f;
+  for (int i = 0; i < num_circle_points; i++) {
+    int idx1 = i;
+    int idx2 = (i + 1) % num_circle_points;
+    float2 pt1a = center + circle_pos[idx1] * radius;
+    float2 pt2a = center + circle_pos[idx2] * radius;
+    float2 pt1b = center + circle_pos[idx1] * outer_radius;
+    float2 pt2b = center + circle_pos[idx2] * outer_radius;
+    float3 rgb1 = circle_col[idx1];
+    float3 rgb2 = circle_col[idx2];
+    rgb_float_to_uchar(col1, rgb1);
+    rgb_float_to_uchar(col2, rgb2);
+    quads.add_quad(
+        pt1a.x, pt1a.y, pt1b.x, pt1b.y, pt2a.x, pt2a.y, pt2b.x, pt2b.y, col1, col1, col2, col2);
+  }
+
+  quads.draw();
+
+  /* Draw grid and other labels using regular alpha blending. */
+  GPU_blend(GPU_BLEND_ALPHA);
+  const uchar4 col_grid(128, 128, 128, 128);
+
+  /* Cross. */
+  quads.add_line(center.x - radius, center.y, center.x + radius, center.y, col_grid);
+  quads.add_line(center.x, center.y - radius, center.x, center.y + radius, col_grid);
+
+  /* Inner circles. */
+  for (int j = 1; j < 5; j++) {
+    float r = radius * j * 0.2f;
+    for (int i = 0; i < num_circle_points; i++) {
+      int idx1 = i;
+      int idx2 = (i + 1) % num_circle_points;
+      float2 pt1 = center + circle_pos[idx1] * r;
+      float2 pt2 = center + circle_pos[idx2] * r;
+      quads.add_line(pt1.x, pt1.y, pt2.x, pt2.y, col_grid);
+    }
+  }
+
+  /* "Safe" (0.75 saturation) primary color locations and labels. */
   const float3 primaries[6] = {
       {1, 0, 0},
       {1, 1, 0},
@@ -661,35 +748,43 @@ static void draw_vectorscope_graticule(SeqQuadsBatch &quads, const rctf &area)
       {0, 0, 1},
       {1, 0, 1},
   };
-  float2 center{centerx, centery};
-  float2 rad_scale{rad_x * 2, rad_y * 2};
+  const char *names = "RYGCBM";
+
+  /* Calculate size of single text letter. */
+  char buf[2] = {'M', 0};
+  float text_scale_x, text_scale_y;
+  UI_view2d_scale_get_inverse(&region->v2d, &text_scale_x, &text_scale_y);
+  float text_width, text_height;
+  BLF_width_and_height(BLF_default(), buf, 1, &text_width, &text_height);
+  text_width *= text_scale_x;
+  text_height *= text_scale_y;
+
+  const uchar4 col_target(128, 128, 128, 192);
+  const float delta = radius * 0.01f;
   for (int i = 0; i < 6; i++) {
-    float3 prim0 = primaries[i];
-    float3 prim1 = primaries[(i + 1) % 6];
-    float3 safe0 = prim0 * 0.75f;
-    float3 safe1 = prim1 * 0.75f;
-    float2 uv0 = center + rgb_to_uv(prim0) * rad_scale;
-    float2 uv1 = center + rgb_to_uv(prim1) * rad_scale;
-    float2 uv2 = center + rgb_to_uv(safe0) * rad_scale;
-    float2 uv3 = center + rgb_to_uv(safe1) * rad_scale;
-    uchar col0[4] = {uchar(prim0.x * 255), uchar(prim0.y * 255), uchar(prim0.z * 255), 64};
-    uchar col1[4] = {uchar(prim1.x * 255), uchar(prim1.y * 255), uchar(prim1.z * 255), 64};
-    uchar col2[4] = {uchar(safe0.x * 255), uchar(safe0.y * 255), uchar(safe0.z * 255), 64};
-    uchar col3[4] = {uchar(safe1.x * 255), uchar(safe1.y * 255), uchar(safe1.z * 255), 64};
-    quads.add_quad(uv0.x, uv0.y, uv1.x, uv1.y, uv2.x, uv2.y, uv3.x, uv3.y, col0, col1, col2, col3);
-    col0[3] = col1[3] = col2[3] = col3[3] = 192;
-    quads.add_line(uv0.x, uv0.y, uv1.x, uv1.y, col0, col1);
-    quads.add_line(uv2.x, uv2.y, uv3.x, uv3.y, col2, col3);
+    float3 safe = primaries[i] * 0.75f;
+    float2 pos = center + rgb_to_uv(safe) * (radius * 2);
+    quads.add_wire_quad(pos.x - delta, pos.y - delta, pos.x + delta, pos.y + delta, col_target);
+
+    buf[0] = names[i];
+    UI_view2d_text_cache_add(&region->v2d,
+                             pos.x + delta * 1.2f + text_width / 4,
+                             pos.y - text_height / 2,
+                             buf,
+                             1,
+                             col_target);
   }
 
-  /* skin tone line */
-  uchar col_tone[4] = {255, 102, 0, 128};
-  const float tone_line_len = 0.895f; /* makes it end at outer edge of saturation ring. */
-  quads.add_line(centerx,
-                 centery,
-                 centerx + cosf(skin_rad) * rad_x * tone_line_len,
-                 centery + sinf(skin_rad) * rad_y * tone_line_len,
+  /* Skin tone line. */
+  const uchar4 col_tone(255, 102, 0, 128);
+  quads.add_line(center.x,
+                 center.y,
+                 center.x + cosf(skin_rad) * radius,
+                 center.y + sinf(skin_rad) * radius,
                  col_tone);
+
+  quads.draw();
+  UI_view2d_text_cache_draw(region);
 }
 
 static void sequencer_draw_scopes(Scene *scene, ARegion *region, SpaceSeq *sseq)
@@ -719,21 +814,37 @@ static void sequencer_draw_scopes(Scene *scene, ARegion *region, SpaceSeq *sseq)
   SeqQuadsBatch quads;
   SeqScopes *scopes = &sseq->runtime->scopes;
 
-  /* Draw scope image if there is one. */
   bool use_blend = sseq->mainb == SEQ_DRAW_IMG_IMBUF && sseq->flag & SEQ_USE_ALPHA;
+
+  /* Draw opaque black rectangle over whole preview area. The scope texture
+   * with clamp to border extend mode should be enough, but results in
+   * garbage pixels around the actual scope on some GPUs/drivers (#119505).
+   * To fix that, background must be drawn, and then the scopes texture be
+   * blended on top. */
+  if (sseq->mainb != SEQ_DRAW_IMG_IMBUF) {
+    GPU_blend(GPU_BLEND_NONE);
+    uint pos = GPU_vertformat_attr_add(immVertexFormat(), "pos", GPU_COMP_F32, 2, GPU_FETCH_FLOAT);
+    uchar black[4] = {0, 0, 0, 255};
+    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
+    immUniformColor4ubv(black);
+    immRectf(pos, preview.xmin, preview.ymin, preview.xmax, preview.ymax);
+    immUnbindProgram();
+    use_blend = true;
+  }
+
+  /* Draw scope image if there is one. */
   ImBuf *scope_image = nullptr;
   if (sseq->mainb == SEQ_DRAW_IMG_IMBUF) {
     scope_image = scopes->zebra_ibuf;
   }
   else if (sseq->mainb == SEQ_DRAW_IMG_WAVEFORM) {
-    scope_image = (sseq->flag & SEQ_DRAW_COLOR_SEPARATED) != 0 ? scopes->sep_waveform_ibuf :
-                                                                 scopes->waveform_ibuf;
+    scope_image = scopes->waveform_ibuf;
   }
   else if (sseq->mainb == SEQ_DRAW_IMG_VECTORSCOPE) {
     scope_image = scopes->vector_ibuf;
   }
-  else if (sseq->mainb == SEQ_DRAW_IMG_HISTOGRAM) {
-    use_blend = true;
+  else if (sseq->mainb == SEQ_DRAW_IMG_RGBPARADE) {
+    scope_image = scopes->sep_waveform_ibuf;
   }
 
   if (use_blend) {
@@ -788,13 +899,13 @@ static void sequencer_draw_scopes(Scene *scene, ARegion *region, SpaceSeq *sseq)
   if (sseq->mainb == SEQ_DRAW_IMG_HISTOGRAM) {
     draw_histogram(region, scopes->histogram, quads, preview);
   }
-  if (sseq->mainb == SEQ_DRAW_IMG_WAVEFORM) {
+  if (ELEM(sseq->mainb, SEQ_DRAW_IMG_WAVEFORM, SEQ_DRAW_IMG_RGBPARADE)) {
     use_blend = true;
     draw_waveform_graticule(region, quads, preview);
   }
   if (sseq->mainb == SEQ_DRAW_IMG_VECTORSCOPE) {
     use_blend = true;
-    draw_vectorscope_graticule(quads, preview);
+    draw_vectorscope_graticule(region, quads, preview);
   }
 
   quads.draw();
@@ -834,16 +945,8 @@ static bool sequencer_calc_scopes(Scene *scene, SpaceSeq *sseq, ImBuf *ibuf, boo
       }
       break;
     case SEQ_DRAW_IMG_WAVEFORM:
-      if ((sseq->flag & SEQ_DRAW_COLOR_SEPARATED) != 0) {
-        if (!scopes->sep_waveform_ibuf) {
-          scopes->sep_waveform_ibuf = sequencer_make_scope(
-              scene, ibuf, make_sep_waveform_view_from_ibuf);
-        }
-      }
-      else {
-        if (!scopes->waveform_ibuf) {
-          scopes->waveform_ibuf = sequencer_make_scope(scene, ibuf, make_waveform_view_from_ibuf);
-        }
+      if (!scopes->waveform_ibuf) {
+        scopes->waveform_ibuf = sequencer_make_scope(scene, ibuf, make_waveform_view_from_ibuf);
       }
       break;
     case SEQ_DRAW_IMG_VECTORSCOPE:
@@ -858,6 +961,12 @@ static bool sequencer_calc_scopes(Scene *scene, SpaceSeq *sseq, ImBuf *ibuf, boo
       scopes->histogram.calc_from_ibuf(display_ibuf);
       IMB_freeImBuf(display_ibuf);
     } break;
+    case SEQ_DRAW_IMG_RGBPARADE:
+      if (!scopes->sep_waveform_ibuf) {
+        scopes->sep_waveform_ibuf = sequencer_make_scope(
+            scene, ibuf, make_sep_waveform_view_from_ibuf);
+      }
+      break;
     default: /* Future files might have scopes we don't know about. */
       return false;
   }
@@ -912,7 +1021,12 @@ static void seq_draw_image_origin_and_outline(const bContext *C, Sequence *seq, 
   {
     return;
   }
-  if (ELEM(sseq->mainb, SEQ_DRAW_IMG_WAVEFORM, SEQ_DRAW_IMG_VECTORSCOPE, SEQ_DRAW_IMG_HISTOGRAM)) {
+  if (ELEM(sseq->mainb,
+           SEQ_DRAW_IMG_WAVEFORM,
+           SEQ_DRAW_IMG_RGBPARADE,
+           SEQ_DRAW_IMG_VECTORSCOPE,
+           SEQ_DRAW_IMG_HISTOGRAM))
+  {
     return;
   }
 
@@ -971,8 +1085,6 @@ void sequencer_draw_preview(const bContext *C,
                             bool draw_overlay,
                             bool draw_backdrop)
 {
-  Main *bmain = CTX_data_main(C);
-  Depsgraph *depsgraph = CTX_data_expect_evaluated_depsgraph(C);
   View2D *v2d = &region->v2d;
   ImBuf *ibuf = nullptr;
   float viewrect[2];
@@ -991,8 +1103,7 @@ void sequencer_draw_preview(const bContext *C,
   }
 
   /* Get image. */
-  ibuf = sequencer_ibuf_get(
-      bmain, region, depsgraph, scene, sseq, preview_frame, offset, names[sseq->multiview_eye]);
+  ibuf = sequencer_ibuf_get(C, preview_frame, offset, names[sseq->multiview_eye]);
 
   /* Setup off-screen buffers. */
   GPUViewport *viewport = WM_draw_region_get_viewport(region);
@@ -1007,7 +1118,7 @@ void sequencer_draw_preview(const bContext *C,
 
   /* Setup view. */
   sequencer_display_size(scene, viewrect);
-  UI_view2d_totRect_set(v2d, roundf(viewrect[0] + 0.5f), roundf(viewrect[1] + 0.5f));
+  UI_view2d_totRect_set(v2d, roundf(viewrect[0]), roundf(viewrect[1]));
   UI_view2d_curRect_validate(v2d);
   UI_view2d_view_ortho(v2d);
 

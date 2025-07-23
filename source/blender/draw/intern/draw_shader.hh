@@ -9,29 +9,20 @@
 #pragma once
 
 #include "draw_curves_private.hh"
-#include "draw_hair_private.h"
+#include "draw_hair_private.hh"
 
 struct GPUShader;
 
-enum eParticleRefineShaderType {
-  PART_REFINE_SHADER_TRANSFORM_FEEDBACK,
-  PART_REFINE_SHADER_TRANSFORM_FEEDBACK_WORKAROUND,
-  PART_REFINE_SHADER_COMPUTE,
-};
-
 /* draw_shader.cc */
 
-GPUShader *DRW_shader_hair_refine_get(ParticleRefineShader refinement,
-                                      eParticleRefineShaderType sh_type);
+GPUShader *DRW_shader_hair_refine_get(ParticleRefineShader refinement);
 
-GPUShader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader type,
-                                        eParticleRefineShaderType sh_type);
+GPUShader *DRW_shader_curves_refine_get(blender::draw::CurvesEvalShader type);
 
-GPUShader *DRW_shader_debug_print_display_get();
 GPUShader *DRW_shader_debug_draw_display_get();
 GPUShader *DRW_shader_draw_visibility_compute_get();
 GPUShader *DRW_shader_draw_view_finalize_get();
 GPUShader *DRW_shader_draw_resource_finalize_get();
 GPUShader *DRW_shader_draw_command_generate_get();
 
-void DRW_shaders_free(void);
+void DRW_shaders_free();

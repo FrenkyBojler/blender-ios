@@ -7,6 +7,7 @@
  * \brief Blender-side interface and methods for dealing with Rigid Body simulations
  */
 
+#include <algorithm>
 #include <cfloat>
 #include <climits>
 #include <cmath>
@@ -35,19 +36,18 @@
 #include "DNA_rigidbody_types.h"
 #include "DNA_scene_types.h"
 
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_effect.h"
-#include "BKE_global.h"
-#include "BKE_layer.h"
+#include "BKE_global.hh"
+#include "BKE_layer.hh"
 #include "BKE_main.hh"
 #include "BKE_mesh.hh"
 #include "BKE_mesh_runtime.hh"
 #include "BKE_object.hh"
-#include "BKE_object_types.hh"
 #include "BKE_pointcache.h"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 #include "BKE_rigidbody.h"
-#include "BKE_scene.h"
+#include "BKE_scene.hh"
 #ifdef WITH_BULLET
 #  include "BKE_lib_id.hh"
 #  include "BKE_lib_query.hh"
@@ -88,7 +88,7 @@ static void RB_constraint_delete(void * /*con*/) {}
 
 void BKE_rigidbody_free_world(Scene *scene)
 {
-  bool is_orig = (scene->id.tag & LIB_TAG_COPIED_ON_WRITE) == 0;
+  bool is_orig = (scene->id.tag & ID_TAG_COPIED_ON_EVAL) == 0;
   RigidBodyWorld *rbw = scene->rigidbody_world;
   scene->rigidbody_world = nullptr;
 
@@ -145,7 +145,7 @@ void BKE_rigidbody_free_world(Scene *scene)
 
 void BKE_rigidbody_free_object(Object *ob, RigidBodyWorld *rbw)
 {
-  bool is_orig = (ob->id.tag & LIB_TAG_COPIED_ON_WRITE) == 0;
+  bool is_orig = (ob->id.tag & ID_TAG_COPIED_ON_EVAL) == 0;
   RigidBodyOb *rbo = ob->rigidbody_object;
 
   /* sanity check */
@@ -252,7 +252,7 @@ static RigidBodyOb *rigidbody_copy_object(const Object *ob, const int flag)
     rboN = static_cast<RigidBodyOb *>(MEM_dupallocN(ob->rigidbody_object));
 
     if (is_orig) {
-      /* This is a regular copy, and not a CoW copy for depsgraph evaluation */
+      /* This is a regular copy, and not an evaluated copy for depsgraph evaluation */
       rboN->shared = static_cast<RigidBodyOb_Shared *>(
           MEM_callocN(sizeof(*rboN->shared), "RigidBodyOb_Shared"));
     }
@@ -322,10 +322,10 @@ void BKE_rigidbody_object_copy(Main *bmain, Object *ob_dst, const Object *ob_src
 
         DEG_relations_tag_update(bmain);
         if (need_objects_update) {
-          DEG_id_tag_update(&rigidbody_world->group->id, ID_RECALC_COPY_ON_WRITE);
+          DEG_id_tag_update(&rigidbody_world->group->id, ID_RECALC_SYNC_TO_EVAL);
         }
         if (need_constraints_update) {
-          DEG_id_tag_update(&rigidbody_world->constraints->id, ID_RECALC_COPY_ON_WRITE);
+          DEG_id_tag_update(&rigidbody_world->constraints->id, ID_RECALC_SYNC_TO_EVAL);
         }
         DEG_id_tag_update(&ob_dst->id, ID_RECALC_TRANSFORM);
       }
@@ -337,18 +337,18 @@ void BKE_rigidbody_object_copy(Main *bmain, Object *ob_dst, const Object *ob_src
 /* Setup Utilities - Validate Sim Instances */
 
 /* get the appropriate evaluated mesh based on rigid body mesh source */
-static Mesh *rigidbody_get_mesh(Object *ob)
+static const Mesh *rigidbody_get_mesh(Object *ob)
 {
   BLI_assert(ob->type == OB_MESH);
 
   switch (ob->rigidbody_object->mesh_source) {
     case RBO_MESH_DEFORM:
-      return ob->runtime->mesh_deform_eval;
+      return BKE_object_get_mesh_deform_eval(ob);
     case RBO_MESH_FINAL:
       return BKE_object_get_evaluated_mesh(ob);
     case RBO_MESH_BASE:
       /* This mesh may be used for computing corner_tris, which should be done
-       * on the original; otherwise every time the CoW is recreated it will
+       * on the original; otherwise every time the evaluated copy is recreated it will
        * have to be recomputed. */
       BLI_assert(ob->rigidbody_object->mesh_source == RBO_MESH_BASE);
       return (Mesh *)ob->runtime->data_orig;
@@ -365,13 +365,13 @@ static rbCollisionShape *rigidbody_get_shape_convexhull_from_mesh(Object *ob,
                                                                   bool *can_embed)
 {
   rbCollisionShape *shape = nullptr;
-  Mesh *mesh = nullptr;
-  float(*positions)[3] = nullptr;
+  const Mesh *mesh = nullptr;
+  const float(*positions)[3] = nullptr;
   int totvert = 0;
 
   if (ob->type == OB_MESH && ob->data) {
     mesh = rigidbody_get_mesh(ob);
-    positions = (mesh) ? reinterpret_cast<float(*)[3]>(mesh->vert_positions_for_write().data()) :
+    positions = (mesh) ? reinterpret_cast<const float(*)[3]>(mesh->vert_positions().data()) :
                          nullptr;
     totvert = (mesh) ? mesh->verts_num : 0;
   }
@@ -398,7 +398,7 @@ static rbCollisionShape *rigidbody_get_shape_trimesh_from_mesh(Object *ob)
   rbCollisionShape *shape = nullptr;
 
   if (ob->type == OB_MESH) {
-    Mesh *mesh = rigidbody_get_mesh(ob);
+    const Mesh *mesh = rigidbody_get_mesh(ob);
     if (mesh == nullptr) {
       return nullptr;
     }
@@ -505,7 +505,7 @@ static rbCollisionShape *rigidbody_validate_sim_shape_helper(RigidBodyWorld *rbw
   }
   else if (rbo->shape == RB_SHAPE_SPHERE) {
     /* take radius to the largest dimension to try and encompass everything */
-    radius = MAX3(size[0], size[1], size[2]);
+    radius = std::max({size[0], size[1], size[2]});
   }
 
   /* create new shape */
@@ -531,7 +531,7 @@ static rbCollisionShape *rigidbody_validate_sim_shape_helper(RigidBodyWorld *rbw
 
     case RB_SHAPE_CONVEXH:
       /* try to embed collision margin */
-      has_volume = (MIN3(size[0], size[1], size[2]) > 0.0f);
+      has_volume = (std::min({size[0], size[1], size[2]}) > 0.0f);
 
       if (!(rbo->flag & RBO_FLAG_USE_MARGIN) && has_volume) {
         hull_margin = 0.04f;
@@ -636,7 +636,7 @@ void BKE_rigidbody_calc_volume(Object *ob, float *r_vol)
 
   if (ELEM(rbo->shape, RB_SHAPE_CAPSULE, RB_SHAPE_CYLINDER, RB_SHAPE_CONE)) {
     /* take radius as largest x/y dimension, and height as z-dimension */
-    radius = MAX2(size[0], size[1]) * 0.5f;
+    radius = std::max(size[0], size[1]) * 0.5f;
     height = size[2];
   }
   else if (rbo->shape == RB_SHAPE_SPHERE) {
@@ -667,7 +667,7 @@ void BKE_rigidbody_calc_volume(Object *ob, float *r_vol)
     case RB_SHAPE_CONVEXH:
     case RB_SHAPE_TRIMESH: {
       if (ob->type == OB_MESH) {
-        Mesh *mesh = rigidbody_get_mesh(ob);
+        const Mesh *mesh = rigidbody_get_mesh(ob);
         if (mesh == nullptr) {
           return;
         }
@@ -684,7 +684,7 @@ void BKE_rigidbody_calc_volume(Object *ob, float *r_vol)
                                corner_verts.data(),
                                &volume,
                                nullptr);
-          const float volume_scale = mat4_to_volume_scale(ob->object_to_world);
+          const float volume_scale = mat4_to_volume_scale(ob->object_to_world().ptr());
           volume *= fabsf(volume_scale);
         }
       }
@@ -741,7 +741,7 @@ void BKE_rigidbody_calc_center_of_mass(Object *ob, float r_center[3])
     case RB_SHAPE_CONVEXH:
     case RB_SHAPE_TRIMESH: {
       if (ob->type == OB_MESH) {
-        Mesh *mesh = rigidbody_get_mesh(ob);
+        const Mesh *mesh = rigidbody_get_mesh(ob);
         if (mesh == nullptr) {
           return;
         }
@@ -810,7 +810,7 @@ static void rigidbody_validate_sim_object(RigidBodyWorld *rbw, Object *ob, bool 
       return;
     }
 
-    mat4_to_loc_quat(loc, rot, ob->object_to_world);
+    mat4_to_loc_quat(loc, rot, ob->object_to_world().ptr());
 
     rbo->shared->physics_object = RB_body_new(
         static_cast<rbCollisionShape *>(rbo->shared->physics_shape), loc, rot);
@@ -1031,7 +1031,7 @@ static void rigidbody_validate_sim_constraint(RigidBodyWorld *rbw, Object *ob, b
       rbc->physics_constraint = nullptr;
     }
 
-    mat4_to_loc_quat(loc, rot, ob->object_to_world);
+    mat4_to_loc_quat(loc, rot, ob->object_to_world().ptr());
 
     if (rb1 && rb2) {
       switch (rbc->type) {
@@ -1256,7 +1256,7 @@ RigidBodyWorld *BKE_rigidbody_world_copy(RigidBodyWorld *rbw, const int flag)
   }
 
   if ((flag & LIB_ID_COPY_SET_COPIED_ON_WRITE) == 0) {
-    /* This is a regular copy, and not a CoW copy for depsgraph evaluation. */
+    /* This is a regular copy, and not an evaluated copy for depsgraph evaluation. */
     rbw_copy->shared = static_cast<RigidBodyWorld_Shared *>(
         MEM_callocN(sizeof(*rbw_copy->shared), "RigidBodyWorld_Shared"));
     BKE_ptcache_copy_list(&rbw_copy->shared->ptcaches, &rbw->shared->ptcaches, LIB_ID_COPY_CACHES);
@@ -1344,7 +1344,7 @@ RigidBodyOb *BKE_rigidbody_create_object(Scene *scene, Object *ob, short type)
   rbo->mesh_source = RBO_MESH_DEFORM;
 
   /* set initial transform */
-  mat4_to_loc_quat(rbo->pos, rbo->orn, ob->object_to_world);
+  mat4_to_loc_quat(rbo->pos, rbo->orn, ob->object_to_world().ptr());
 
   /* flag cache as outdated */
   BKE_rigidbody_cache_reset(rbw);
@@ -1512,7 +1512,7 @@ static bool rigidbody_add_object_to_scene(Main *bmain, Scene *scene, Object *ob)
   BKE_rigidbody_cache_reset(rbw);
 
   DEG_relations_tag_update(bmain);
-  DEG_id_tag_update(&rbw->group->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&rbw->group->id, ID_RECALC_SYNC_TO_EVAL);
 
   return true;
 }
@@ -1541,7 +1541,7 @@ static bool rigidbody_add_constraint_to_scene(Main *bmain, Scene *scene, Object 
   BKE_rigidbody_cache_reset(rbw);
 
   DEG_relations_tag_update(bmain);
-  DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_COPY_ON_WRITE);
+  DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_SYNC_TO_EVAL);
 
   return true;
 }
@@ -1621,11 +1621,11 @@ void BKE_rigidbody_remove_object(Main *bmain, Scene *scene, Object *ob, const bo
           rbc = obt->rigidbody_constraint;
           if (rbc->ob1 == ob) {
             rbc->ob1 = nullptr;
-            DEG_id_tag_update(&obt->id, ID_RECALC_COPY_ON_WRITE);
+            DEG_id_tag_update(&obt->id, ID_RECALC_SYNC_TO_EVAL);
           }
           if (rbc->ob2 == ob) {
             rbc->ob2 = nullptr;
-            DEG_id_tag_update(&obt->id, ID_RECALC_COPY_ON_WRITE);
+            DEG_id_tag_update(&obt->id, ID_RECALC_SYNC_TO_EVAL);
           }
         }
       }
@@ -1640,7 +1640,10 @@ void BKE_rigidbody_remove_object(Main *bmain, Scene *scene, Object *ob, const bo
        * when we remove them from RB simulation. */
       BKE_collection_object_add(bmain, scene->master_collection, ob);
     }
-    BKE_collection_object_remove(bmain, rbw->group, ob, free_us);
+    if (rbw->group) {
+      BKE_collection_object_remove(bmain, rbw->group, ob, free_us);
+      DEG_id_tag_update(&rbw->group->id, ID_RECALC_SYNC_TO_EVAL);
+    }
 
     /* flag cache as outdated */
     BKE_rigidbody_cache_reset(rbw);
@@ -1667,7 +1670,7 @@ void BKE_rigidbody_remove_constraint(Main *bmain, Scene *scene, Object *ob, cons
     /* Remove from RBW constraints collection. */
     if (rbw->constraints != nullptr) {
       BKE_collection_object_remove(bmain, rbw->constraints, ob, free_us);
-      DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_COPY_ON_WRITE);
+      DEG_id_tag_update(&rbw->constraints->id, ID_RECALC_SYNC_TO_EVAL);
     }
 
     /* remove from rigidbody world, free object won't do this */
@@ -1762,10 +1765,10 @@ static void rigidbody_update_sim_ob(Depsgraph *depsgraph, Object *ob, RigidBodyO
   const bool is_selected = base ? (base->flag & BASE_SELECTED) != 0 : false;
 
   if (rbo->shape == RB_SHAPE_TRIMESH && rbo->flag & RBO_FLAG_USE_DEFORM) {
-    Mesh *mesh = ob->runtime->mesh_deform_eval;
+    const Mesh *mesh = BKE_object_get_mesh_deform_eval(ob);
     if (mesh) {
-      float(*positions)[3] = reinterpret_cast<float(*)[3]>(
-          mesh->vert_positions_for_write().data());
+      const float(*positions)[3] = reinterpret_cast<const float(*)[3]>(
+          mesh->vert_positions().data());
       int totvert = mesh->verts_num;
       const std::optional<blender::Bounds<blender::float3>> bounds = BKE_object_boundbox_get(ob);
 
@@ -1781,7 +1784,7 @@ static void rigidbody_update_sim_ob(Depsgraph *depsgraph, Object *ob, RigidBodyO
   if (!(rbo->flag & RBO_FLAG_KINEMATIC)) {
     /* update scale for all non kinematic objects */
     float new_scale[3], old_scale[3];
-    mat4_to_size(new_scale, ob->object_to_world);
+    mat4_to_size(new_scale, ob->object_to_world().ptr());
     RB_body_get_scale(static_cast<rbRigidBody *>(rbo->shared->physics_object), old_scale);
 
     /* Avoid updating collision shape AABBs if scale didn't change. */
@@ -1790,7 +1793,8 @@ static void rigidbody_update_sim_ob(Depsgraph *depsgraph, Object *ob, RigidBodyO
       /* compensate for embedded convex hull collision margin */
       if (!(rbo->flag & RBO_FLAG_USE_MARGIN) && rbo->shape == RB_SHAPE_CONVEXH) {
         RB_shape_set_margin(static_cast<rbCollisionShape *>(rbo->shared->physics_shape),
-                            RBO_GET_MARGIN(rbo) * MIN3(new_scale[0], new_scale[1], new_scale[2]));
+                            RBO_GET_MARGIN(rbo) *
+                                std::min({new_scale[0], new_scale[1], new_scale[2]}));
       }
     }
   }
@@ -1854,10 +1858,10 @@ static void rigidbody_update_simulation(Depsgraph *depsgraph,
       RigidBodyOb *rbo = ob->rigidbody_object;
 
       /* TODO: remove this whole block once we are sure we never get nullptr rbo here anymore. */
-      /* This cannot be done in CoW evaluation context anymore... */
+      /* This cannot be done in copy-on-eval evaluation context anymore... */
       if (rbo == nullptr) {
         BLI_assert_msg(0,
-                       "CoW object part of RBW object collection without RB object data, "
+                       "Evaluated object part of RBW object collection without RB object data, "
                        "should not happen.\n");
         /* Since this object is included in the sim group but doesn't have
          * rigid body settings (perhaps it was added manually), add!
@@ -1914,11 +1918,12 @@ static void rigidbody_update_simulation(Depsgraph *depsgraph,
     RigidBodyCon *rbc = ob->rigidbody_constraint;
 
     /* TODO: remove this whole block once we are sure we never get nullptr rbo here anymore. */
-    /* This cannot be done in CoW evaluation context anymore... */
+    /* This cannot be done in copy-on-eval evaluation context anymore... */
     if (rbc == nullptr) {
-      BLI_assert_msg(0,
-                     "CoW object part of RBW constraints collection without RB constraint data, "
-                     "should not happen.\n");
+      BLI_assert_msg(
+          0,
+          "Evaluated object part of RBW constraints collection without RB constraint data, "
+          "should not happen.\n");
       /* Since this object is included in the group but doesn't have
        * constraint settings (perhaps it was added manually), add!
        */
@@ -1981,7 +1986,7 @@ static ListBase rigidbody_create_substep_data(RigidBodyWorld *rbw)
       copy_v4_v4(data->old_rot, rot);
       copy_v3_v3(data->old_scale, scale);
 
-      mat4_decompose(loc, rot, scale, ob->object_to_world);
+      mat4_decompose(loc, rot, scale, ob->object_to_world().ptr());
 
       copy_v3_v3(data->new_pos, loc);
       copy_v4_v4(data->new_rot, rot);
@@ -2026,7 +2031,7 @@ static void rigidbody_update_kinematic_obj_substep(ListBase *substep_targets, fl
     /* compensate for embedded convex hull collision margin */
     if (!(rbo->flag & RBO_FLAG_USE_MARGIN) && rbo->shape == RB_SHAPE_CONVEXH) {
       RB_shape_set_margin(static_cast<rbCollisionShape *>(rbo->shared->physics_shape),
-                          RBO_GET_MARGIN(rbo) * MIN3(scale[0], scale[1], scale[2]));
+                          RBO_GET_MARGIN(rbo) * std::min({scale[0], scale[1], scale[2]}));
     }
   }
 }
@@ -2156,15 +2161,15 @@ void BKE_rigidbody_sync_transforms(RigidBodyWorld *rbw, Object *ob, float ctime)
     quat_to_mat4(mat, rbo->orn);
     copy_v3_v3(mat[3], rbo->pos);
 
-    mat4_to_size(size, ob->object_to_world);
+    mat4_to_size(size, ob->object_to_world().ptr());
     size_to_mat4(size_mat, size);
     mul_m4_m4m4(mat, mat, size_mat);
 
-    copy_m4_m4(ob->object_to_world, mat);
+    copy_m4_m4(ob->runtime->object_to_world.ptr(), mat);
   }
   /* otherwise set rigid body transform to current obmat */
   else {
-    mat4_to_loc_quat(rbo->pos, rbo->orn, ob->object_to_world);
+    mat4_to_loc_quat(rbo->pos, rbo->orn, ob->object_to_world().ptr());
   }
 }
 

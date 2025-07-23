@@ -8,12 +8,12 @@
  * Mimics old style opengl immediate mode drawing.
  */
 
-#include "BKE_global.h"
+#include "BKE_global.hh"
 
-#include "GPU_vertex_format.h"
+#include "GPU_vertex_format.hh"
 #include "gpu_context_private.hh"
 #include "gpu_shader_private.hh"
-#include "gpu_vertex_format_private.h"
+#include "gpu_vertex_format_private.hh"
 
 #include "mtl_context.hh"
 #include "mtl_debug.hh"
@@ -27,8 +27,6 @@ MTLImmediate::MTLImmediate(MTLContext *ctx)
 {
   context_ = ctx;
 }
-
-MTLImmediate::~MTLImmediate() {}
 
 uchar *MTLImmediate::begin()
 {
@@ -71,12 +69,12 @@ void MTLImmediate::end()
         active_mtl_shader->get_interface() == nullptr)
     {
 
-      const char *ptr = (active_mtl_shader) ? active_mtl_shader->name_get() : nullptr;
+      const StringRefNull ptr = (active_mtl_shader) ? active_mtl_shader->name_get() : "";
       MTL_LOG_WARNING(
           "MTLImmediate::end -- cannot perform draw as active shader is NULL or invalid (likely "
           "unimplemented) (shader %p '%s')",
           active_mtl_shader,
-          ptr);
+          ptr.c_str());
       return;
     }
 
@@ -184,7 +182,7 @@ void MTLImmediate::end()
          * - Converting from a normalized short2 format to float2
          * - Type truncation e.g. Float4 to Float2.
          * - Type expansion from Float3 to Float4.
-         * - Note: extra components are filled with the corresponding components of (0,0,0,1).
+         * - NOTE: extra components are filled with the corresponding components of (0,0,0,1).
          * (See
          * https://developer.apple.com/documentation/metal/mtlvertexattributedescriptor/1516081-format)
          */
@@ -203,11 +201,9 @@ void MTLImmediate::end()
          *   and will generate an appropriate conversion function when reading the vertex attribute
          *   value into local shader storage.
          *   (If no explicit conversion is needed, the function specialize to a pass-through). */
-        MTLVertexFormat converted_format;
-        bool can_convert = mtl_vertex_format_resize(
-            mtl_shader_attribute.format, attr->comp_len, &converted_format);
-        desc.vertex_descriptor.attributes[i].format = (can_convert) ? converted_format :
-                                                                      mtl_shader_attribute.format;
+        MTLVertexFormat converted_format = format_resize_comp(mtl_shader_attribute.format,
+                                                              attr->comp_len);
+        desc.vertex_descriptor.attributes[i].format = converted_format;
         desc.vertex_descriptor.attributes[i].format_conversion_mode = (GPUVertFetchMode)
                                                                           attr->fetch_mode;
         BLI_assert(desc.vertex_descriptor.attributes[i].format != MTLVertexFormatInvalid);

@@ -13,11 +13,11 @@
 /* Define the accessors for a basic CustomDataLayer collection, skipping anonymous layers */
 #define DEFINE_CUSTOMDATA_LAYER_COLLECTION(collection_name, customdata_type, layer_type) \
   /* check */ \
-  [[maybe_unused]] static int rna_##collection_name##_check(CollectionPropertyIterator *, \
-                                                            void *data) \
+  [[maybe_unused]] static bool rna_##collection_name##_check(CollectionPropertyIterator *, \
+                                                             void *data) \
   { \
     CustomDataLayer *layer = (CustomDataLayer *)data; \
-    return (layer->anonymous_id != NULL || layer->type != layer_type); \
+    return (blender::bke::attribute_name_is_anonymous(layer->name) || layer->type != layer_type); \
   } \
   /* begin */ \
   [[maybe_unused]] static void rna_Mesh_##collection_name##s_begin( \
@@ -53,7 +53,7 @@
     *max = data ? CustomData_number_of_layers(data, layer_type) - \
                       CustomData_number_of_anonymous_layers(data, layer_type) - 1 : \
                   0; \
-    *max = MAX2(0, *max); \
+    *max = std::max(0, *max); \
   }
 
 /* Define the accessors for special CustomDataLayers in the collection

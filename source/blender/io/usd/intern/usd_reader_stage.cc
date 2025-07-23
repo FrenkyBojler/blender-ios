@@ -2,61 +2,73 @@
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
-#include "usd_reader_stage.h"
-#include "usd_reader_camera.h"
-#include "usd_reader_curve.h"
-#include "usd_reader_instance.h"
-#include "usd_reader_light.h"
-#include "usd_reader_material.h"
-#include "usd_reader_mesh.h"
-#include "usd_reader_nurbs.h"
-#include "usd_reader_prim.h"
-#include "usd_reader_shape.h"
-#include "usd_reader_skeleton.h"
-#include "usd_reader_volume.h"
-#include "usd_reader_xform.h"
+#include "usd_reader_stage.hh"
+#include "usd_reader_camera.hh"
+#include "usd_reader_curve.hh"
+#include "usd_reader_instance.hh"
+#include "usd_reader_light.hh"
+#include "usd_reader_material.hh"
+#include "usd_reader_mesh.hh"
+#include "usd_reader_nurbs.hh"
+#include "usd_reader_pointinstancer.hh"
+#include "usd_reader_points.hh"
+#include "usd_reader_prim.hh"
+#include "usd_reader_shape.hh"
+#include "usd_reader_skeleton.hh"
+#include "usd_reader_volume.hh"
+#include "usd_reader_xform.hh"
+#include "usd_utils.hh"
 
 #include <pxr/pxr.h>
-#include <pxr/usd/usd/primRange.h>
 #include <pxr/usd/usdGeom/camera.h>
 #include <pxr/usd/usdGeom/capsule.h>
 #include <pxr/usd/usdGeom/cone.h>
 #include <pxr/usd/usdGeom/cube.h>
-#include <pxr/usd/usdGeom/curves.h>
 #include <pxr/usd/usdGeom/cylinder.h>
 #include <pxr/usd/usdGeom/mesh.h>
 #include <pxr/usd/usdGeom/nurbsCurves.h>
+#include <pxr/usd/usdGeom/pointInstancer.h>
+#include <pxr/usd/usdGeom/points.h>
 #include <pxr/usd/usdGeom/scope.h>
 #include <pxr/usd/usdGeom/sphere.h>
 #include <pxr/usd/usdGeom/xform.h>
+#include <pxr/usd/usdLux/boundableLightBase.h>
+#include <pxr/usd/usdLux/nonboundableLightBase.h>
 #include <pxr/usd/usdShade/material.h>
 
-#if PXR_VERSION >= 2111
-#  include <pxr/usd/usdLux/boundableLightBase.h>
-#  include <pxr/usd/usdLux/nonboundableLightBase.h>
-#else
-#  include <pxr/usd/usdLux/light.h>
-#endif
-
 #include "BLI_map.hh"
+#include "BLI_math_base.h"
 #include "BLI_sort.hh"
 #include "BLI_string.h"
 
-#include "BKE_collection.h"
+#include "BKE_collection.hh"
 #include "BKE_lib_id.hh"
 #include "BKE_modifier.hh"
-#include "BKE_report.h"
+#include "BKE_report.hh"
 
 #include "CLG_log.h"
 
 #include "DNA_collection_types.h"
 #include "DNA_material_types.h"
 
-#include "WM_api.hh"
+#include <fmt/format.h>
 
 static CLG_LogRef LOG = {"io.usd"};
 
 namespace blender::io::usd {
+
+static void decref(USDPrimReader *reader)
+{
+  if (!reader) {
+    return;
+  }
+
+  reader->decref();
+
+  if (reader->refcount() == 0) {
+    delete reader;
+  }
+}
 
 /**
  * Create a collection with the given parent and name.
@@ -104,7 +116,6 @@ USDStageReader::USDStageReader(pxr::UsdStageRefPtr stage,
 
 USDStageReader::~USDStageReader()
 {
-  clear_proto_readers();
   clear_readers();
 }
 
@@ -128,6 +139,9 @@ USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim
   if (params_.import_shapes && is_primitive_prim(prim)) {
     return new USDShapeReader(prim, params_, settings_);
   }
+  if (prim.IsA<pxr::UsdGeomPointInstancer>()) {
+    return new USDPointInstancerReader(prim, params_, settings_);
+  }
   if (params_.import_cameras && prim.IsA<pxr::UsdGeomCamera>()) {
     return new USDCameraReader(prim, params_, settings_);
   }
@@ -140,13 +154,13 @@ USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim
   if (params_.import_meshes && prim.IsA<pxr::UsdGeomMesh>()) {
     return new USDMeshReader(prim, params_, settings_);
   }
-#if PXR_VERSION >= 2111
+  if (params_.import_lights && prim.IsA<pxr::UsdLuxDomeLight>()) {
+    /* Dome lights are handled elsewhere. */
+    return nullptr;
+  }
   if (params_.import_lights &&
       (prim.IsA<pxr::UsdLuxBoundableLightBase>() || prim.IsA<pxr::UsdLuxNonboundableLightBase>()))
   {
-#else
-  if (params_.import_lights && prim.IsA<pxr::UsdLuxLight>()) {
-#endif
     return new USDLightReader(prim, params_, settings_);
   }
   if (params_.import_volumes && prim.IsA<pxr::UsdVolVolume>()) {
@@ -154,6 +168,9 @@ USDPrimReader *USDStageReader::create_reader_if_allowed(const pxr::UsdPrim &prim
   }
   if (params_.import_skeletons && prim.IsA<pxr::UsdSkelSkeleton>()) {
     return new USDSkeletonReader(prim, params_, settings_);
+  }
+  if (params_.import_points && prim.IsA<pxr::UsdGeomPoints>()) {
+    return new USDPointsReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdGeomImageable>()) {
     return new USDXformReader(prim, params_, settings_);
@@ -182,11 +199,11 @@ USDPrimReader *USDStageReader::create_reader(const pxr::UsdPrim &prim)
   if (prim.IsA<pxr::UsdGeomMesh>()) {
     return new USDMeshReader(prim, params_, settings_);
   }
-#if PXR_VERSION >= 2111
+  if (prim.IsA<pxr::UsdLuxDomeLight>()) {
+    /* We don't handle dome lights. */
+    return nullptr;
+  }
   if (prim.IsA<pxr::UsdLuxBoundableLightBase>() || prim.IsA<pxr::UsdLuxNonboundableLightBase>()) {
-#else
-  if (prim.IsA<pxr::UsdLuxLight>()) {
-#endif
     return new USDLightReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdVolVolume>()) {
@@ -194,6 +211,9 @@ USDPrimReader *USDStageReader::create_reader(const pxr::UsdPrim &prim)
   }
   if (prim.IsA<pxr::UsdSkelSkeleton>()) {
     return new USDSkeletonReader(prim, params_, settings_);
+  }
+  if (prim.IsA<pxr::UsdGeomPoints>()) {
+    return new USDPointsReader(prim, params_, settings_);
   }
   if (prim.IsA<pxr::UsdGeomImageable>()) {
     return new USDXformReader(prim, params_, settings_);
@@ -300,8 +320,9 @@ static bool merge_with_parent(USDPrimReader *reader)
   return true;
 }
 
-USDPrimReader *USDStageReader::collect_readers(Main *bmain,
-                                               const pxr::UsdPrim &prim,
+USDPrimReader *USDStageReader::collect_readers(const pxr::UsdPrim &prim,
+                                               const UsdPathSet &pruned_prims,
+                                               const bool defined_prims_only,
                                                blender::Vector<USDPrimReader *> &r_readers)
 {
   if (prim.IsA<pxr::UsdGeomImageable>()) {
@@ -316,18 +337,33 @@ USDPrimReader *USDStageReader::collect_readers(Main *bmain,
     }
   }
 
-  pxr::Usd_PrimFlagsPredicate filter_predicate = pxr::UsdPrimDefaultPredicate;
+  if (prim.IsA<pxr::UsdLuxDomeLight>()) {
+    dome_lights_.append(pxr::UsdLuxDomeLight(prim));
+  }
 
+  pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
+                                               !pxr::UsdPrimIsAbstract;
+
+  if (defined_prims_only) {
+    filter_flags &= pxr::UsdPrimIsDefined;
+  }
+
+  pxr::Usd_PrimFlagsPredicate filter_predicate(filter_flags);
   if (!params_.support_scene_instancing) {
     filter_predicate = pxr::UsdTraverseInstanceProxies(filter_predicate);
   }
 
-  pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_predicate);
-
   blender::Vector<USDPrimReader *> child_readers;
 
-  for (const auto &childPrim : children) {
-    if (USDPrimReader *child_reader = collect_readers(bmain, childPrim, r_readers)) {
+  pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_predicate);
+
+  for (const auto &child_prim : children) {
+    if (pruned_prims.contains(child_prim.GetPath())) {
+      continue;
+    }
+    if (USDPrimReader *child_reader = collect_readers(
+            child_prim, pruned_prims, defined_prims_only, r_readers))
+    {
       child_readers.append(child_reader);
     }
   }
@@ -368,6 +404,9 @@ USDPrimReader *USDStageReader::collect_readers(Main *bmain,
   if (!reader) {
     return nullptr;
   }
+  if (!reader->valid()) {
+    return nullptr;
+  }
 
   r_readers.append(reader);
   reader->incref();
@@ -380,20 +419,26 @@ USDPrimReader *USDStageReader::collect_readers(Main *bmain,
   return reader;
 }
 
-void USDStageReader::collect_readers(Main *bmain)
+void USDStageReader::collect_readers()
 {
   if (!valid()) {
     return;
   }
 
   clear_readers();
-  clear_proto_readers();
+  dome_lights_.clear();
+
+  /* Identify paths to point instancer prototypes, as these will be converted
+   * in a separate pass over the stage. */
+  UsdPathSet instancer_proto_paths = collect_point_instancer_proto_paths();
 
   /* Iterate through the stage. */
   pxr::UsdPrim root = stage_->GetPseudoRoot();
 
   stage_->SetInterpolationType(pxr::UsdInterpolationType::UsdInterpolationTypeHeld);
-  collect_readers(bmain, root, readers_);
+
+  /* Create readers, skipping over prototype prims in this pass. */
+  collect_readers(root, instancer_proto_paths, params_.import_defined_only, readers_);
 
   if (params_.support_scene_instancing) {
     /* Collect the scene-graph instance prototypes. */
@@ -401,7 +446,7 @@ void USDStageReader::collect_readers(Main *bmain)
 
     for (const pxr::UsdPrim &proto_prim : protos) {
       blender::Vector<USDPrimReader *> proto_readers;
-      collect_readers(bmain, proto_prim, proto_readers);
+      collect_readers(proto_prim, instancer_proto_paths, true, proto_readers);
       proto_readers_.add(proto_prim.GetPath(), proto_readers);
 
       for (USDPrimReader *reader : proto_readers) {
@@ -409,6 +454,10 @@ void USDStageReader::collect_readers(Main *bmain)
         reader->incref();
       }
     }
+  }
+
+  if (!instancer_proto_paths.is_empty()) {
+    create_point_instancer_proto_readers(instancer_proto_paths);
   }
 }
 
@@ -485,7 +534,7 @@ void USDStageReader::import_all_materials(Main *bmain)
     Material *new_mtl = mtl_reader.add_material(usd_mtl);
     BLI_assert_msg(new_mtl, "Failed to create material");
 
-    const std::string mtl_name = pxr::TfMakeValidIdentifier(new_mtl->id.name + 2);
+    const std::string mtl_name = make_safe_name(new_mtl->id.name + 2, true);
     settings_.mat_name_to_mat.lookup_or_add_default(mtl_name) = new_mtl;
 
     if (params_.mtl_name_collision_mode == USD_MTL_NAME_COLLISION_MAKE_UNIQUE) {
@@ -517,39 +566,23 @@ void USDStageReader::fake_users_for_unused_materials()
 void USDStageReader::clear_readers()
 {
   for (USDPrimReader *reader : readers_) {
-    if (!reader) {
-      continue;
-    }
-
-    reader->decref();
-
-    if (reader->refcount() == 0) {
-      delete reader;
-    }
+    decref(reader);
   }
-
   readers_.clear();
-}
 
-void USDStageReader::clear_proto_readers()
-{
   for (const auto item : proto_readers_.items()) {
-
     for (USDPrimReader *reader : item.value) {
-
-      if (!reader) {
-        continue;
-      }
-
-      reader->decref();
-
-      if (reader->refcount() == 0) {
-        delete reader;
-      }
+      decref(reader);
     }
   }
-
   proto_readers_.clear();
+
+  for (const auto item : instancer_proto_readers_.items()) {
+    for (USDPrimReader *reader : item.value) {
+      decref(reader);
+    }
+  }
+  instancer_proto_readers_.clear();
 }
 
 void USDStageReader::sort_readers()
@@ -564,7 +597,7 @@ void USDStageReader::sort_readers()
 
 void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_collection)
 {
-  if (proto_readers_.is_empty()) {
+  if (proto_readers_.is_empty() && instancer_proto_readers_.is_empty()) {
     return;
   }
 
@@ -615,6 +648,143 @@ void USDStageReader::create_proto_collections(Main *bmain, Collection *parent_co
       BKE_collection_object_add(bmain, collection, ob);
     }
   }
+
+  /* Create collections for the point instancer prototypes. */
+
+  /* For every point instancer reader, create a "prototypes" collection and set it
+   * on the Collection Info node referenced by the geometry nodes modifier created by
+   * the reader.  We also create collections containing prototype geometry as children
+   * of the "prototypes" collection.  These child collections will be indexed for
+   * instancing by the Instance on Points geometry node.
+   *
+   * Note that the prototype collections will be ordered alphabetically by the Collection
+   * Info node.  We must therefore take care to generate collection names that will maintain
+   * the original prototype order, so that the prototype indices will remain valid.  We use
+   * the naming convention proto_<index>, where the index suffix may be zero padded (e.g.,
+   * "proto_00", "proto_01", "proto_02", etc.).
+   */
+
+  for (USDPrimReader *reader : readers_) {
+    USDPointInstancerReader *instancer_reader = dynamic_cast<USDPointInstancerReader *>(reader);
+    if (!instancer_reader) {
+      continue;
+    }
+
+    pxr::SdfPathVector proto_paths = instancer_reader->proto_paths();
+    const pxr::SdfPath &instancer_path = reader->prim().GetPath();
+    Collection *instancer_protos_coll = create_collection(
+        bmain, all_protos_collection, instancer_path.GetName().c_str());
+
+    /* Determine the max number of digits we will need for the possibly zero-padded
+     * string representing the prototype index. */
+    const int max_index_digits = integer_digits_i(proto_paths.size());
+
+    int proto_index = 0;
+
+    for (const pxr::SdfPath &proto_path : proto_paths) {
+      BLI_assert(max_index_digits > 0);
+
+      /* Format the collection name to follow the proto_<index> pattern. */
+      std::string coll_name = fmt::format("proto_{0:0{1}}", proto_index, max_index_digits);
+
+      /* Create the collection and populate it with the prototype objects. */
+      Collection *proto_coll = create_collection(bmain, instancer_protos_coll, coll_name.c_str());
+      blender::Vector<USDPrimReader *> proto_readers = instancer_proto_readers_.lookup_default(
+          proto_path, {});
+      for (const USDPrimReader *proto : proto_readers) {
+        Object *ob = proto->object();
+        if (!ob) {
+          continue;
+        }
+        BKE_collection_object_add(bmain, proto_coll, ob);
+      }
+      ++proto_index;
+    }
+
+    instancer_reader->set_collection(bmain, *instancer_protos_coll);
+  }
 }
 
-}  // Namespace blender::io::usd
+void USDStageReader::create_point_instancer_proto_readers(const UsdPathSet &proto_paths)
+{
+  if (proto_paths.is_empty()) {
+    return;
+  }
+
+  for (const pxr::SdfPath &path : proto_paths) {
+
+    pxr::UsdPrim proto_prim = stage_->GetPrimAtPath(path);
+
+    if (!proto_prim) {
+      continue;
+    }
+
+    Vector<USDPrimReader *> proto_readers;
+
+    /* Note that point instancer prototypes may be defined as overs, so
+     * we must call collect readers with argument defined_prims_only = false. */
+    collect_readers(proto_prim, proto_paths, false /* include undefined prims */, proto_readers);
+
+    instancer_proto_readers_.add(path, proto_readers);
+
+    for (USDPrimReader *reader : proto_readers) {
+      reader->set_is_in_instancer_proto(true);
+      readers_.append(reader);
+      reader->incref();
+    }
+  }
+}
+
+void USDStageReader::collect_point_instancer_proto_paths(const pxr::UsdPrim &prim,
+                                                         UsdPathSet &r_paths) const
+{
+  /* Note that we use custom filter flags to allow traversing undefined prims,
+   * because prototype prims may be defined as overs which are skipped by the
+   * default predicate. */
+  pxr::Usd_PrimFlagsConjunction filter_flags = pxr::UsdPrimIsActive && pxr::UsdPrimIsLoaded &&
+                                               !pxr::UsdPrimIsAbstract;
+
+  pxr::UsdPrimSiblingRange children = prim.GetFilteredChildren(filter_flags);
+
+  for (const auto &child_prim : children) {
+    if (pxr::UsdGeomPointInstancer instancer = pxr::UsdGeomPointInstancer(child_prim)) {
+      /* We should only collect the prototype paths from this instancer if it would be included
+       * by our purpose and visibility checks, matching what is inside #collect_readers. */
+      if (!include_by_purpose(instancer)) {
+        continue;
+      }
+      if (!include_by_visibility(instancer)) {
+        continue;
+      }
+
+      pxr::SdfPathVector paths;
+      instancer.GetPrototypesRel().GetTargets(&paths);
+      for (const pxr::SdfPath &path : paths) {
+        r_paths.add(path);
+      }
+    }
+
+    collect_point_instancer_proto_paths(child_prim, r_paths);
+  }
+}
+
+UsdPathSet USDStageReader::collect_point_instancer_proto_paths() const
+{
+  UsdPathSet result;
+
+  if (!stage_) {
+    return result;
+  }
+
+  collect_point_instancer_proto_paths(stage_->GetPseudoRoot(), result);
+
+  std::vector<pxr::UsdPrim> protos = stage_->GetPrototypes();
+
+  for (const pxr::UsdPrim &proto_prim : protos) {
+    collect_point_instancer_proto_paths(proto_prim, result);
+  }
+
+  return result;
+}
+
+}  // namespace blender::io::usd

@@ -15,11 +15,11 @@
 #include "BLI_string_utf8.h"
 #include "BLI_utildefines.h"
 
-#include "BLT_translation.h"
+#include "BLT_translation.hh"
 
 #include "BKE_context.hh"
-#include "BKE_report.h"
-#include "BKE_scene.h"
+#include "BKE_report.hh"
+#include "BKE_scene.hh"
 #include "BKE_unit.hh"
 
 #include "DNA_scene_types.h"
@@ -28,7 +28,7 @@
 #include "WM_types.hh"
 
 #ifdef WITH_PYTHON
-#  include "BPY_extern_run.h"
+#  include "BPY_extern_run.hh"
 #endif
 
 #include "ED_numinput.hh"
@@ -85,7 +85,7 @@ void initNumInput(NumInput *n)
   n->str_cur = 0;
 }
 
-void outputNumInput(NumInput *n, char *str, UnitSettings *unit_settings)
+void outputNumInput(NumInput *n, char *str, const UnitSettings *unit_settings)
 {
   short j;
   const int ln = NUM_STR_REP_LEN;
@@ -286,7 +286,7 @@ bool user_string_to_number(bContext *C,
     return BPY_run_string_as_number(C, nullptr, str_unit_convert, &err_info, r_value);
   }
 
-  int success = BPY_run_string_as_number(C, nullptr, str, &err_info, r_value);
+  bool success = BPY_run_string_as_number(C, nullptr, str, &err_info, r_value);
   *r_value = BKE_unit_apply_preferred_unit(unit, type, *r_value);
   *r_value /= unit_scale;
   return success;
@@ -404,7 +404,7 @@ bool handleNumInput(bContext *C, NumInput *n, const wmEvent *event)
                                  true);
         if (t_cur != cur) {
           if (t_cur < cur) {
-            SWAP(int, t_cur, cur);
+            std::swap(t_cur, cur);
             n->str_cur = cur;
           }
           /* +1 for trailing '\0'. */

@@ -4,11 +4,13 @@
 
 set(INC
   ../include
+  ../io
   ../../asset_system
   ../../blenkernel
   ../../blenloader
   ../../blentranslation
   ../../compositor
+  ../../compositor/realtime_compositor
   ../../draw
   ../../functions
   ../../geometry
@@ -18,9 +20,8 @@ set(INC
   ../../nodes
   ../../render
   ../../windowmanager
-  ../../../../extern/fmtlib/include
 
-  # RNA_prototypes.h
+  # RNA_prototypes.hh
   ${CMAKE_BINARY_DIR}/source/blender/makesrna
 )
 
@@ -51,6 +52,7 @@ set(SRC
 )
 
 set(LIB
+  PRIVATE bf::animrig
   PRIVATE bf::blenfont
   bf_blenkernel
   PRIVATE bf::blenlib
@@ -58,7 +60,8 @@ set(LIB
   PRIVATE bf::dna
   bf_editor_screen
   PRIVATE bf::intern::guardedalloc
-  extern_fmtlib
+  bf_realtime_compositor
+  PRIVATE bf::extern::fmtlib
 )
 
 if(WITH_COMPOSITOR_CPU)
@@ -88,22 +91,14 @@ if(WITH_OPENVDB)
 endif()
 
 if(WITH_TBB)
-  add_definitions(-DWITH_TBB)
   if(WIN32)
-    # TBB includes Windows.h which will define min/max macros
-    # that will collide with the stl versions.
+    # TBB includes `Windows.h` which will define min/max macros
+    # that will collide with the STL versions.
     add_definitions(-DNOMINMAX)
   endif()
-  list(APPEND INC_SYS
-    ${TBB_INCLUDE_DIRS}
-  )
-
-  list(APPEND LIB
-    ${TBB_LIBRARIES}
-  )
 endif()
 
 blender_add_lib(bf_editor_space_node "${SRC}" "${INC}" "${INC_SYS}" "${LIB}")
 
-# RNA_prototypes.h dna_type_offsets.h
+# RNA_prototypes.hh dna_type_offsets.h
 add_dependencies(bf_editor_space_node bf_rna)

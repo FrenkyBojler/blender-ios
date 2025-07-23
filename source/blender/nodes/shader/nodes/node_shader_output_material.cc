@@ -4,8 +4,6 @@
 
 #include "node_shader_util.hh"
 
-#include "BKE_scene.h"
-
 namespace blender::nodes::node_shader_output_material_cc {
 
 static void node_declare(NodeDeclarationBuilder &b)
@@ -57,6 +55,15 @@ NODE_SHADER_MATERIALX_BEGIN
                             {{"bsdf", bsdf}, {"edf", edf}, {"opacity", opacity}});
     }
   }
+
+  /* Displacement cannot be enabled just yet.
+   * - Verify coordinate system for Tangent Space displacement maps
+   * - Wait on fix for scalar displacement (present in USD 2408+)
+   */
+  // NodeItem displacement = get_input_link("Displacement", NodeItem::Type::DisplacementShader);
+  // return create_node("surfacematerial",
+  //                    NodeItem::Type::Material,
+  //                    {{"surfaceshader", surface}, {"displacementshader", displacement}});
   return create_node("surfacematerial", NodeItem::Type::Material, {{"surfaceshader", surface}});
 }
 #endif
@@ -69,7 +76,7 @@ void register_node_type_sh_output_material()
 {
   namespace file_ns = blender::nodes::node_shader_output_material_cc;
 
-  static bNodeType ntype;
+  static blender::bke::bNodeType ntype;
 
   sh_node_type_base(&ntype, SH_NODE_OUTPUT_MATERIAL, "Material Output", NODE_CLASS_OUTPUT);
   ntype.declare = file_ns::node_declare;
@@ -79,5 +86,5 @@ void register_node_type_sh_output_material()
 
   ntype.no_muting = true;
 
-  nodeRegisterType(&ntype);
+  blender::bke::node_register_type(&ntype);
 }

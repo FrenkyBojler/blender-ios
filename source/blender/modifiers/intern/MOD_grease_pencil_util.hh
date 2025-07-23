@@ -13,13 +13,9 @@
 
 #include "BKE_modifier.hh"
 
-struct ARegionType;
 struct bContext;
 struct GreasePencil;
 struct GreasePencilModifierInfluenceData;
-struct GreasePencilModifierLayerFilter;
-struct GreasePencilModifierMaterialFilter;
-struct PanelType;
 struct PointerRNA;
 struct uiLayout;
 namespace blender::bke {
@@ -59,18 +55,33 @@ IndexMask get_filtered_stroke_mask(const Object *ob,
                                    const GreasePencilModifierInfluenceData &influence_data,
                                    IndexMaskMemory &memory);
 
+VArray<float> get_influence_vertex_weights(
+    const bke::CurvesGeometry &curves, const GreasePencilModifierInfluenceData &influence_data);
+
 Vector<bke::greasepencil::Drawing *> get_drawings_for_write(GreasePencil &grease_pencil,
                                                             const IndexMask &layer_mask,
                                                             int frame);
 
-struct DrawingInfo {
+struct LayerDrawingInfo {
+  bke::greasepencil::Drawing *drawing;
+  /* Layer containing the drawing. */
+  int layer_index;
+};
+
+Vector<LayerDrawingInfo> get_drawing_infos_by_layer(GreasePencil &grease_pencil,
+                                                    const IndexMask &layer_mask,
+                                                    int frame);
+
+struct FrameDrawingInfo {
   bke::greasepencil::Drawing *drawing;
   /* Frame on which this drawing starts. */
   int start_frame_number;
 };
 
-Vector<DrawingInfo> get_drawing_infos_for_write(GreasePencil &grease_pencil,
-                                                const IndexMask &layer_mask,
-                                                int frame);
+Vector<FrameDrawingInfo> get_drawing_infos_by_frame(GreasePencil &grease_pencil,
+                                                    const IndexMask &layer_mask,
+                                                    int frame);
+
+void ensure_no_bezier_curves(bke::greasepencil::Drawing &drawing);
 
 }  // namespace blender::modifier::greasepencil

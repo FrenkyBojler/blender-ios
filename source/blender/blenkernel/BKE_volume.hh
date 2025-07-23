@@ -9,10 +9,12 @@
  * \brief Volume data-block.
  */
 
+#include <memory>
 #include <optional>
 
 #include "BLI_bounds_types.hh"
 #include "BLI_math_vector_types.hh"
+#include "BLI_memory_counter_fwd.hh"
 
 #include "BKE_volume_grid_fwd.hh"
 
@@ -24,6 +26,10 @@ struct Scene;
 struct Volume;
 struct VolumeGridVector;
 
+namespace blender::bke::bake {
+struct BakeMaterialsList;
+}
+
 /* Module */
 
 void BKE_volumes_init();
@@ -31,7 +37,7 @@ void BKE_volumes_init();
 /* Data-block Management */
 
 void BKE_volume_init_grids(Volume *volume);
-void *BKE_volume_add(Main *bmain, const char *name);
+Volume *BKE_volume_add(Main *bmain, const char *name);
 
 bool BKE_volume_is_y_up(const Volume *volume);
 bool BKE_volume_is_points_only(const Volume *volume);
@@ -118,6 +124,8 @@ bool BKE_volume_save(const Volume *volume,
                      ReportList *reports,
                      const char *filepath);
 
+void BKE_volume_count_memory(const Volume &volume, blender::MemoryCounter &memory);
+
 std::optional<blender::Bounds<blender::float3>> BKE_volume_min_max(const Volume *volume);
 
 namespace blender::bke {
@@ -133,6 +141,8 @@ struct VolumeRuntime {
   char velocity_x_grid[64] = "";
   char velocity_y_grid[64] = "";
   char velocity_z_grid[64] = "";
+
+  std::unique_ptr<bake::BakeMaterialsList> bake_materials;
 };
 
 }  // namespace blender::bke

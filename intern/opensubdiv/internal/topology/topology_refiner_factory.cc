@@ -8,22 +8,16 @@
 #  include <iso646.h>
 #endif
 
-#include "internal/topology/topology_refiner_impl.h"
-
 #include <cassert>
 #include <cstdio>
 
 #include <opensubdiv/far/topologyRefinerFactory.h>
 
-#include "internal/base/type.h"
 #include "internal/base/type_convert.h"
 #include "internal/topology/mesh_topology.h"
 
 #include "opensubdiv_converter_capi.hh"
-
-using blender::opensubdiv::min;
-using blender::opensubdiv::stack;
-using blender::opensubdiv::vector;
+#include "opensubdiv_topology_refiner.hh"
 
 struct TopologyRefinerData {
   const OpenSubdiv_Converter *converter;
@@ -138,7 +132,7 @@ inline bool TopologyRefinerFactory<TopologyRefinerData>::assignComponentTopology
 
   // Vertex relations.
   const int num_vertices = converter->getNumVertices(converter);
-  vector<int> vertex_faces, vertex_edges;
+  std::vector<int> vertex_faces, vertex_edges;
   for (int vertex_index = 0; vertex_index < num_vertices; ++vertex_index) {
     // Vertex-faces.
     IndexArray dst_vertex_faces = getBaseVertexFaces(refiner, vertex_index);
@@ -247,8 +241,8 @@ inline bool TopologyRefinerFactory<TopologyRefinerData>::assignComponentTags(
       const float sharpness0 = refiner._levels[0]->getEdgeSharpness(edge0);
       const float sharpness1 = refiner._levels[0]->getEdgeSharpness(edge1);
       // TODO(sergey): Find a better mixing between edge and vertex sharpness.
-      sharpness += min(sharpness0, sharpness1);
-      sharpness = min(sharpness, 10.0f);
+      sharpness += std::min(sharpness0, sharpness1);
+      sharpness = std::min(sharpness, 10.0f);
     }
 
     setBaseVertexSharpness(refiner, vertex_index, sharpness);
@@ -304,12 +298,9 @@ inline void TopologyRefinerFactory<TopologyRefinerData>::reportInvalidTopology(
 } /* namespace OPENSUBDIV_VERSION */
 } /* namespace OpenSubdiv */
 
-namespace blender {
-namespace opensubdiv {
+namespace blender::opensubdiv {
 
-namespace {
-
-OpenSubdiv::Sdc::Options getSDCOptions(OpenSubdiv_Converter *converter)
+static OpenSubdiv::Sdc::Options getSDCOptions(OpenSubdiv_Converter *converter)
 {
   using OpenSubdiv::Sdc::Options;
 
@@ -325,7 +316,8 @@ OpenSubdiv::Sdc::Options getSDCOptions(OpenSubdiv_Converter *converter)
   return options;
 }
 
-TopologyRefinerFactoryType::Options getTopologyRefinerOptions(OpenSubdiv_Converter *converter)
+static TopologyRefinerFactoryType::Options getTopologyRefinerOptions(
+    OpenSubdiv_Converter *converter)
 {
   using OpenSubdiv::Sdc::SchemeType;
 
@@ -341,8 +333,6 @@ TopologyRefinerFactoryType::Options getTopologyRefinerOptions(OpenSubdiv_Convert
 
   return topology_options;
 }
-
-}  // namespace
 
 TopologyRefinerImpl *TopologyRefinerImpl::createFromConverter(
     OpenSubdiv_Converter *converter, const OpenSubdiv_TopologyRefinerSettings &settings)
@@ -373,5 +363,4 @@ TopologyRefinerImpl *TopologyRefinerImpl::createFromConverter(
   return topology_refiner_impl;
 }
 
-}  // namespace opensubdiv
-}  // namespace blender
+}  // namespace blender::opensubdiv
