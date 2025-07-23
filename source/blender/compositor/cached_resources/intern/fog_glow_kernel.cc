@@ -60,7 +60,7 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
 [[maybe_unused]] static float compute_fog_glow_kernel_value(int2 texel,
                                                             float field_of_view_per_pixel)
 {
-  const float theta_degree = math::length(texel) * field_of_view_per_pixel;
+  const float theta_degree = math::length(float2(texel)) * field_of_view_per_pixel;
   const float f0 = 2.61f * 1e6f * math::exp(-math::square(theta_degree / 0.02f));
   const float f1 = 20.91f / math::cube(theta_degree + 0.02f);
   const float f2 = 72.37f / math::square(theta_degree + 0.02f);

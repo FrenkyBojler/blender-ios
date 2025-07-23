@@ -11,6 +11,7 @@
 #include <complex>
 #include <limits>
 
+#include "BLI_math_angle_types.hh"
 #include "MEM_guardedalloc.h"
 
 #if defined(WITH_FFTW3)
@@ -2102,7 +2103,7 @@ class GlareOperation : public NodeOperation {
     });
 
     const FogGlowKernel &fog_glow_kernel = context().cache_manager().fog_glow_kernels.get(
-        kernel_size, spatial_size, this->compute_fog_glow_field_of_view());
+        kernel_size, spatial_size, this->compute_fog_glow_field_of_view().degree());
 
     /* Multiply the kernel and the image in the frequency domain to perform the convolution. The
      * FFT is not normalized, meaning the result of the FFT followed by an inverse FFT will result
@@ -2193,10 +2194,15 @@ class GlareOperation : public NodeOperation {
 
   /* compute_fog_glow_field_of_view returns the field of view in degrees, based on the user size
    * input. */
-  float compute_fog_glow_field_of_view()
+  math::AngleRadian compute_fog_glow_field_of_view()
   {
-    const float minimum_field_of_view = 5e-1f;
-    const float field_of_view = minimum_field_of_view / math::max(this->get_size(), 1e-9f);
+    /* The minimum_field_of_view is determined based on visual perception.
+     * Reducing this value results in a more spread-out effect when size = 1 (i.e., when the field
+     * of view equals minimum_field_of_view), and also expands the effective range of the size
+     * input. */
+    const math::AngleRadian minimum_field_of_view = math::AngleRadian::from_degree(5e-1f);
+    const math::AngleRadian field_of_view = minimum_field_of_view /
+                                            math::max(this->get_size(), 1e-9f);
     return field_of_view;
   }
 
