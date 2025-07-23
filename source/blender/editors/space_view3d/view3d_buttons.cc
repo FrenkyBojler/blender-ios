@@ -487,11 +487,11 @@ static bool apply_to_curves_point_selection(const int tot,
 }
 
 struct CurvesSelectionStatus {
-  int total = 0;
-  int total_nurbs = 0;
-  int total_bezier = 0;
+  int curve_count = 0;
+  int nurbs_count = 0;
+  int bezier_count = 0;
 
-  int cyclic = 0;
+  int cyclic_count = 0;
   int nurbs_knot_mode_sum = 0;
   int nurbs_knot_mode_max = 0;
   int order_sum = 0;
@@ -501,10 +501,10 @@ struct CurvesSelectionStatus {
 
   static CurvesSelectionStatus sum(const CurvesSelectionStatus &a, const CurvesSelectionStatus &b)
   {
-    return {a.total + b.total,
-            a.total_nurbs + b.total_nurbs,
-            a.total_bezier + b.total_bezier,
-            a.cyclic + b.cyclic,
+    return {a.curve_count + b.curve_count,
+            a.nurbs_count + b.nurbs_count,
+            a.bezier_count + b.bezier_count,
+            a.cyclic_count + b.cyclic_count,
             a.nurbs_knot_mode_sum + b.nurbs_knot_mode_sum,
             std::max(a.nurbs_knot_mode_max, b.nurbs_knot_mode_max),
             a.order_sum + b.order_sum,
@@ -546,11 +546,11 @@ static CurvesSelectionStatus init_curves_selection_status(
           const bool is_nurbs = curve_type == CURVE_TYPE_NURBS;
           const bool is_bezier = curve_type == CURVE_TYPE_BEZIER;
 
-          value.total++;
-          value.total_nurbs += is_nurbs;
-          value.total_bezier += is_bezier;
+          value.curve_count++;
+          value.nurbs_count += is_nurbs;
+          value.bezier_count += is_bezier;
 
-          value.cyclic += cyclic[curve];
+          value.cyclic_count += cyclic[curve];
 
           const int order = is_nurbs ? orders[curve] : 0;
           value.order_sum += order;
@@ -2332,7 +2332,7 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
     status = init_curves_selection_status(curves_id.geometry.wrap());
   }
 
-  if (status.total == 0) {
+  if (status.curve_count == 0) {
     uiDefBut(
         block, UI_BTYPE_LABEL, 0, IFACE_("Nothing selected"), 0, 130, 200, 20, nullptr, 0, 0, "");
     return;
@@ -2345,10 +2345,10 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
 
   UI_block_func_handle_set(block, do_view3d_curves_data_buttons, nullptr);
 
-  current.cyclic = status.cyclic > 0;
-  current.nurbs_knot_mode = math::safe_divide(status.nurbs_knot_mode_sum, status.total_nurbs);
-  current.order = math::safe_divide(status.order_sum, status.total_nurbs);
-  current.resolution = math::safe_divide(status.resolution_sum, status.total);
+  current.cyclic = status.cyclic_count > 0;
+  current.nurbs_knot_mode = math::safe_divide(status.nurbs_knot_mode_sum, status.nurbs_count);
+  current.order = math::safe_divide(status.order_sum, status.nurbs_count);
+  current.resolution = math::safe_divide(status.resolution_sum, status.curve_count);
 
   modified = current;
 
@@ -2360,22 +2360,22 @@ static void view3d_panel_curves_data(const bContext *C, Panel *panel)
 
   uiLayout &cyclic_prop = bcol.column(true, "Cyclic");
   cyclic_prop.prop(&data_ptr, "cyclic", UI_ITEM_NONE, "", ICON_NONE);
-  cyclic_prop.active_set(status.cyclic == 0 || status.cyclic == status.total);
+  cyclic_prop.active_set(status.cyclic_count == 0 || status.cyclic_count == status.curve_count);
 
-  if (status.total_nurbs == status.total) {
+  if (status.nurbs_count == status.curve_count) {
     uiLayout &knot_mode_prop = bcol.column(true);
     knot_mode_prop.prop(&data_ptr, "nurbs_knot_mode", UI_ITEM_NONE, "Knot Mode", ICON_NONE);
-    knot_mode_prop.active_set(status.nurbs_knot_mode_max * status.total_nurbs ==
+    knot_mode_prop.active_set(status.nurbs_knot_mode_max * status.nurbs_count ==
                               status.nurbs_knot_mode_sum);
 
     uiLayout &resolution_prop = bcol.column(true);
     resolution_prop.prop(&data_ptr, "order", UI_ITEM_NONE, "Order", ICON_NONE);
-    resolution_prop.active_set(status.order_max * status.total_nurbs == status.order_sum);
+    resolution_prop.active_set(status.order_max * status.nurbs_count == status.order_sum);
   }
 
   uiLayout &resolution_prop = bcol.column(true);
   resolution_prop.prop(&data_ptr, "resolution", UI_ITEM_NONE, "Resolution", ICON_NONE);
-  resolution_prop.active_set(status.resolution_max * status.total == status.resolution_sum);
+  resolution_prop.active_set(status.resolution_max * status.curve_count == status.resolution_sum);
 }
 
 void view3d_buttons_register(ARegionType *art)
