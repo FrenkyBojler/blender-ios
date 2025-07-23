@@ -670,6 +670,15 @@ static void grease_pencil_pen_exit(bContext *C, wmOperator *op)
   op->customdata = nullptr;
 }
 
+/* Snaps to the closest diagonal, horizontal or vertical. */
+static float2 snap_8_angles(float2 p)
+{
+  using namespace math;
+  /* sin(pi/8) or sin of 22.5 degrees. */
+  const float sin225 = 0.3826834323650897717284599840304f;
+  return sign(p) * length(p) * normalize(sign(normalize(abs(p)) - sin225) + 1.0f);
+}
+
 /* Modal handler: Events handling during interactive part. */
 static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, const wmEvent *event)
 {
@@ -681,9 +690,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
   ptd.mouse_co = float2(event->mval);
 
-  if (ISMOUSE_MOTION(event->type)) {
-  }
-  else {
+  if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
     grease_pencil_pen_exit(C, op);
     return OPERATOR_FINISHED;
   }
@@ -777,7 +784,14 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
       handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
       handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
       const float3 depth_point = positions[point_i];
-      handles_right[point_i] = pen_screen_to_global(ptd, ptd.mouse_co, depth_point);
+      const float2 center_point = pen_global_to_screen(ptd, depth_point);
+      float2 offset = ptd.mouse_co - center_point;
+
+      if (event->modifier & KM_SHIFT) {
+        offset = snap_8_angles(offset);
+      }
+
+      handles_right[point_i] = pen_screen_to_global(ptd, center_point + offset, depth_point);
       handles_left[point_i] = depth_point - (handles_right[point_i] - depth_point);
     });
 
