@@ -38,6 +38,7 @@
 #include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_node_declaration.hh"
 #include "NOD_socket.hh"
+#include "NOD_socket_declarations.hh"
 #include "NOD_texture.h"
 
 #include "DEG_depsgraph_build.hh"
@@ -511,24 +512,39 @@ class NodeTreeMainUpdater {
     this->make_node_previews_dirty(ntree);
 
     this->propagate_runtime_flags(ntree);
-    if (ntree.type == NTREE_GEOMETRY) {
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
       if (this->propagate_enum_definitions(ntree)) {
         result.interface_changed = true;
       }
+    }
+
+    if (ntree.type == NTREE_GEOMETRY) {
       if (node_field_inferencing::update_field_inferencing(ntree)) {
         result.interface_changed = true;
       }
+    }
+
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
       if (node_structure_type_inferencing::update_structure_type_interface(ntree)) {
         result.interface_changed = true;
       }
+    }
+
+    if (ntree.type == NTREE_GEOMETRY) {
       this->update_from_field_inference(ntree);
       if (node_tree_reference_lifetimes::analyse_reference_lifetimes(ntree)) {
         result.interface_changed = true;
       }
-      if (nodes::gizmos::update_tree_gizmo_propagation(ntree)) {
+      if (gizmos::update_tree_gizmo_propagation(ntree)) {
         result.interface_changed = true;
       }
+    }
+
+    if (ELEM(ntree.type, NTREE_GEOMETRY, NTREE_COMPOSIT)) {
       this->update_socket_shapes(ntree);
+    }
+
+    if (ntree.type == NTREE_GEOMETRY) {
       this->update_eval_dependencies(ntree);
     }
 
@@ -954,18 +970,25 @@ class NodeTreeMainUpdater {
       }
     }
     else {
-      const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
-      for (bNodeSocket *socket : ntree.all_sockets()) {
-        switch (field_states[socket->index_in_tree()]) {
-          case bke::FieldSocketState::RequiresSingle:
-            socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
-            break;
-          case bke::FieldSocketState::CanBeField:
-            socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
-            break;
-          case bke::FieldSocketState::IsField:
-            socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND;
-            break;
+      if (ntree.type == NTREE_GEOMETRY) {
+        const Span<bke::FieldSocketState> field_states = ntree.runtime->field_states;
+        for (bNodeSocket *socket : ntree.all_sockets()) {
+          switch (field_states[socket->index_in_tree()]) {
+            case bke::FieldSocketState::RequiresSingle:
+              socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
+              break;
+            case bke::FieldSocketState::CanBeField:
+              socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND_DOT;
+              break;
+            case bke::FieldSocketState::IsField:
+              socket->display_shape = SOCK_DISPLAY_SHAPE_DIAMOND;
+              break;
+          }
+        }
+      }
+      else if (ntree.type == NTREE_COMPOSIT) {
+        for (bNodeSocket *socket : ntree.all_sockets()) {
+          socket->display_shape = SOCK_DISPLAY_SHAPE_CIRCLE;
         }
       }
     }
@@ -1011,6 +1034,24 @@ class NodeTreeMainUpdater {
           enum_items->remove_user_and_delete_if_last();
         }
         locally_defined_enums.append(&enum_input);
+      }
+      else {
+        for (bNodeSocket *input_socket : node->input_sockets()) {
+          if (!input_socket->is_available()) {
+            continue;
+          }
+          if (input_socket->type != SOCK_MENU) {
+            continue;
+          }
+          const auto *socket_decl = dynamic_cast<const nodes::decl::Menu *>(
+              input_socket->runtime->declaration);
+          if (!socket_decl) {
+            continue;
+          }
+          this->set_enum_ptr(*input_socket->default_value_typed<bNodeSocketValueMenu>(),
+                             socket_decl->items.get());
+          locally_defined_enums.append(input_socket);
+        }
       }
 
       /* Clear current enum references. */

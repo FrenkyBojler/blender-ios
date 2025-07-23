@@ -46,7 +46,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -516,9 +516,11 @@ static void scene_foreach_toolsettings_id_pointer_process(
   }
 }
 
-/* Special handling is needed here, as `scene_foreach_toolsettings` (and its dependency
- * `scene_foreach_paint`) are also used by `scene_undo_preserve`, where `LibraryForeachIDData
- * *data` is nullptr. */
+/**
+ * Special handling is needed here, as `scene_foreach_toolsettings` (and its dependency
+ * `scene_foreach_paint`) are also used by `scene_undo_preserve`,
+ * where `LibraryForeachIDData *data` is nullptr.
+ */
 #define BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P( \
     _data, _id_p, _do_undo_restore, _action, _reader, _id_old_p, _cb_flag) \
   { \
@@ -1001,11 +1003,11 @@ static void scene_blend_write(BlendWriter *writer, ID *id, const void *id_addres
   /* Todo(#140111): Forward compatibility support will be removed in 6.0. Do not initialize the
    * address of `scene->nodetree` anymore. */
   if (sce->compositing_node_group && !is_write_undo) {
-    /* Scene->nodetree is written for forward compatibility. The pointer must be valid before
-     * writing the scene.*/
+    /* #Scene::nodetree is written for forward compatibility.
+     * The pointer must be valid before writing the scene. */
     /* We need a valid, unique (within that Scene ID) memory address as 'UID' of the written
      * embedded node tree. The simplest and safest solution to obtain this is to actually allocate
-     * a dummy byte.*/
+     * a dummy byte. */
     sce->nodetree = reinterpret_cast<bNodeTree *>(MEM_mallocN(1, "dummy pointer"));
   }
 
@@ -1248,12 +1250,7 @@ static void scene_blend_read_data(BlendDataReader *reader, ID *id)
 
   BLO_read_struct(reader, ToolSettings, &sce->toolsettings);
   if (sce->toolsettings) {
-
-    /* Reset last_location and last_hit, so they are not remembered across sessions. In some files
-     * these are also NaN, which could lead to crashes in painting. */
     UnifiedPaintSettings *ups = &sce->toolsettings->unified_paint_settings;
-    zero_v3(ups->last_location);
-    ups->last_hit = 0;
 
     /* Prior to 5.0, the brush->size value is expected to be the radius, not the diameter. To
      * ensure correct behavior, convert this when reading newer files. */
@@ -1975,7 +1972,13 @@ Scene *BKE_scene_duplicate(Main *bmain, Scene *sce, eSceneCopyMethod type)
 
     if (!is_subprocess) {
       /* This code will follow into all ID links using an ID tagged with ID_TAG_NEW. */
-      BKE_libblock_relink_to_newid(bmain, &sce_copy->id, 0);
+      /* Unfortunate, but with some types (e.g. meshes), an object is considered in Edit mode if
+       * its obdata contains edit mode runtime data. This can be the case of all newly duplicated
+       * objects, as even though duplicate code move the object back in Object mode, they are still
+       * using the original obdata ID, leading to them being falsly detected as being in Edit mode,
+       * and therefore not remapping their obdata to the newly duplicated one.
+       * See #139715. */
+      BKE_libblock_relink_to_newid(bmain, &sce_copy->id, ID_REMAP_FORCE_OBDATA_IN_EDITMODE);
 
 #ifndef NDEBUG
       /* Call to `BKE_libblock_relink_to_newid` above is supposed to have cleared all those
@@ -2738,7 +2741,7 @@ SceneRenderView *BKE_scene_add_render_view(Scene *sce, const char *name)
   }
 
   SceneRenderView *srv = MEM_callocN<SceneRenderView>(__func__);
-  STRNCPY(srv->name, name);
+  STRNCPY_UTF8(srv->name, name);
   BLI_uniquename(&sce->r.views,
                  srv,
                  DATA_("RenderView"),

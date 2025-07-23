@@ -102,7 +102,7 @@
 
 #include "versioning_common.hh"
 
-static CLG_LogRef LOG = {"blo.readfile.doversion"};
+static CLG_LogRef LOG = {"blend.doversion"};
 
 static IDProperty *idproperty_find_ui_container(IDProperty *idprop_group)
 {
@@ -1746,12 +1746,6 @@ static bool version_merge_still_offsets(Strip *strip, void * /*user_data*/)
   strip->endofs -= strip->endstill;
   strip->startstill = 0;
   strip->endstill = 0;
-  return true;
-}
-
-static bool version_fix_delete_flag(Strip *strip, void * /*user_data*/)
-{
-  strip->flag &= ~SEQ_FLAG_DELETE;
   return true;
 }
 
@@ -4075,14 +4069,6 @@ void blo_do_versions_300(FileData *fd, Library * /*lib*/, Main *bmain)
             v3d->overlay.sculpt_curves_cage_opacity = 0.5f;
           }
         }
-      }
-    }
-
-    /* Fix possible uncleared `SEQ_FLAG_DELETE` flag */
-    LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      Editing *ed = blender::seq::editing_get(scene);
-      if (ed != nullptr) {
-        blender::seq::for_each_callback(&ed->seqbase, version_fix_delete_flag, nullptr);
       }
     }
 
