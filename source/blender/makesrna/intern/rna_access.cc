@@ -5486,11 +5486,11 @@ void rna_iterator_array_begin(CollectionPropertyIterator *iter,
   if (data == nullptr) {
     length = 0;
   }
-  else if (length <= 0) {
+  else if (length == 0) {
     data = nullptr;
     itemsize = 0;
   }
-  else if (length > std::numeric_limits<uint64_t>::max() / itemsize) {
+  else if (length < 0 || length > std::numeric_limits<uint64_t>::max() / itemsize) {
     /* This path is never expected to execute. Assert and trace if it ever does. */
     BLI_assert_unreachable();
     data = nullptr;
