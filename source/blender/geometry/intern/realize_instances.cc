@@ -2114,15 +2114,13 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   dst_curves.offsets_for_write().last() = points_num;
   r_realized_geometry.replace_curves(dst_curves_id);
   bke::MutableAttributeAccessor dst_attributes = dst_curves.attributes_for_write();
-  for (const RealizeCurveTask &task : tasks) {
-    BKE_defgroup_copy_list(&dst_curves.vertex_group_names,
-                           &task.curve_info->curves->geometry.wrap().vertex_group_names);
-  }
 
   /* Copy settings from the first input geometry set with curves. */
   const RealizeCurveTask &first_task = tasks.first();
   const Curves &first_curves_id = *first_task.curve_info->curves;
   bke::curves_copy_parameters(first_curves_id, *dst_curves_id);
+  BKE_defgroup_copy_list(&dst_curves.vertex_group_names,
+                         &first_curves_id.geometry.vertex_group_names);
 
   /* Prepare id attribute. */
   SpanAttributeWriter<int> point_ids;
