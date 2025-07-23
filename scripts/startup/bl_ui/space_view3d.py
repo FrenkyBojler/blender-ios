@@ -6745,7 +6745,7 @@ class VIEW3D_PT_shading_options(Panel):
             sub.active = shading.show_object_outline
             sub.prop(shading, "object_outline_color", text="")
 
-        if shading.type == 'SOLID' and shading.light == 'STUDIO':
+        if shading.type == 'SOLID' and shading.light in {'STUDIO', 'MATCAP'}:
             sub = col.row()
             studio_light = shading.selected_studio_light
             sub.active = (studio_light is not None) and studio_light.has_specular_highlight_pass
