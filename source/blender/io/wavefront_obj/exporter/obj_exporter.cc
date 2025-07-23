@@ -130,15 +130,14 @@ filter_supported_objects(Depsgraph *depsgraph, const OBJExportParams &export_par
         if (!nurb) {
           /* An empty curve. Not yet supported to export these as meshes. */
           if (export_params.export_curves_as_nurbs) {
-            OBJCurve *obj_curve = new OBJCurve(depsgraph, export_params, object);
-            r_exportable_nurbs.append(std::unique_ptr<OBJCurve>(obj_curve));
+            r_exportable_nurbs.append(
+                std::make_unique<OBJCurve>(depsgraph, export_params, object));
           }
           break;
         }
         if (export_params.export_curves_as_nurbs && is_curve_nurbs_compatible(nurb)) {
           /* Export in parameter form: control points. */
-          OBJCurve *obj_curve = new OBJCurve(depsgraph, export_params, object);
-          r_exportable_nurbs.append(std::unique_ptr<OBJCurve>(obj_curve));
+          r_exportable_nurbs.append(std::make_unique<OBJCurve>(depsgraph, export_params, object));
         }
         else {
           /* Export in mesh form: edges and vertices. */
