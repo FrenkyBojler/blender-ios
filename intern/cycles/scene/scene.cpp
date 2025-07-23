@@ -590,8 +590,7 @@ void Scene::update_kernel_features()
    * and kernels need to be rebuilt. */
   if (device->set_bvh_limits(objects.size(), kernel_max_prim_count)) {
     kernels_loaded = false;
-    for (Object *object : objects) {
-      Geometry *geom = object->get_geometry();
+    for (Geometry *geom : geometry) {
       geom->need_update_rebuild = true;
       geom->tag_modified();
     }
