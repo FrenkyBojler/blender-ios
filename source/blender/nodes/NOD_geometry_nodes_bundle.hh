@@ -55,21 +55,18 @@ class Bundle : public ImplicitSharingMixin {
   void add_override(const SocketInterfaceKey &key,
                     const bke::bNodeSocketType &type,
                     const void *value);
+  void add_path_override(const StringRef path,
+                         const bke::bNodeSocketType &type,
+                         const void *value);
+  template<typename T> void add_override(const SocketInterfaceKey &key, T value);
+  template<typename T> void add_path_override(const StringRef path, T value);
 
   bool remove(const SocketInterfaceKey &key);
   bool contains(const SocketInterfaceKey &key) const;
 
-  void add_path_override(const StringRef path,
-                         const bke::bNodeSocketType &type,
-                         const void *value);
-
   std::optional<Item> lookup(const SocketInterfaceKey &key) const;
   std::optional<Item> lookup_path(const Span<StringRef> path) const;
   std::optional<Item> lookup_path(const StringRef path) const;
-
-  template<typename T> void add_override(const SocketInterfaceKey &key, T value);
-  template<typename T> void add_path_override(const StringRef path, T value);
-
   template<typename T> std::optional<T> lookup(const SocketInterfaceKey &key) const;
   template<typename T> std::optional<T> lookup_path(const StringRef path) const;
 
