@@ -8,17 +8,13 @@
 #include "DNA_pointcloud_types.h"
 #include "GEO_xpbd.hh"
 
+#include "NOD_geometry_nodes_bundle.hh"
+
 namespace blender::geometry::xpbd {
 
 constexpr StringRefNull prev_position_name = ".prev_position";
 
-SimGeometry::SimGeometry(const SimGeometrySet &src, GeometryVariant data)
-    : data(data),
-      path(src.path),
-      mass_attribute(src.mass_attribute),
-      velocity_attribute(src.velocity_attribute)
-{
-}
+SimGeometry::SimGeometry(SimGeometrySet &src, GeometryVariant data) : data(data), src(src) {}
 
 std::optional<bke::AttributeAccessor> SimGeometry::attributes() const
 {
@@ -71,6 +67,36 @@ int SimGeometry::set_point_field_context(std::optional<bke::GeometryFieldContext
     return (*curves)->geometry.point_num;
   }
   return 0;
+}
+
+nodes::Bundle &SimGeometrySet::extra_for_write()
+{
+  /* Ensure the caller locked it already. */
+  BLI_assert(!this->extra_mutex.try_lock());
+  if (!this->extra) {
+    this->extra = nodes::Bundle::create();
+  }
+  else if (!this->extra->is_mutable()) {
+    this->extra = this->extra->copy();
+    this->extra->tag_ensured_mutable();
+  }
+  return const_cast<nodes::Bundle &>(*this->extra);
+}
+
+template<typename T> void SimGeometrySet::set_extra(const StringRef key, T value)
+{
+  std::scoped_lock lock(this->extra_mutex);
+  nodes::Bundle &extra = this->extra_for_write();
+  extra.add_override<std::decay_t<T>>(nodes::SocketInterfaceKey{key}, std::move(value));
+}
+
+template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef key) const
+{
+  std::scoped_lock lock(this->extra_mutex);
+  if (!this->extra) {
+    return std::nullopt;
+  }
+  return this->extra->lookup<T>(nodes::SocketInterfaceKey{key});
 }
 
 void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
@@ -224,7 +250,7 @@ class EdgeLengthConstraintSet : public ConstraintSet {
         continue;
       }
       const bke::AttributeReader<float> masses = attributes.lookup_or_default<float>(
-          sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
+          sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
       if (!masses) {
         continue;
       }
@@ -323,7 +349,7 @@ class CurveLengthConstraintSet : public ConstraintSet {
         continue;
       }
       const bke::AttributeReader<float> masses = attributes.lookup_or_default<float>(
-          sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
+          sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
       if (!masses) {
         continue;
       }
@@ -524,16 +550,12 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
       if (!mesh_ptr) {
         continue;
       }
-      Mesh &mesh = **mesh_ptr;
-      bke::MutableAttributeAccessor attributes = mesh.attributes_for_write();
-      if (attributes.contains(rest_volume_name_)) {
+      const Mesh &mesh = **mesh_ptr;
+      if (sim_geometry.src.get_extra<float>(rest_volume_name_)) {
         continue;
       }
       const float volume = this->compute_volume(mesh);
-      attributes.add<float>(
-          rest_volume_name_,
-          bke::AttrDomain::Point,
-          bke::AttributeInitVArray{VArray<float>::from_single(volume, mesh.verts_num)});
+      sim_geometry.src.set_extra<float>(rest_volume_name_, volume);
     }
   }
 
@@ -549,18 +571,17 @@ class GlobalVolumeConstraintSet : public ConstraintSet {
       if (mesh.verts_num == 0) {
         continue;
       }
-      const bke::AttributeAccessor attributes = mesh.attributes();
-      const bke::AttributeReader<float> rest_volume_attribute = attributes.lookup<float>(
-          rest_volume_name_, bke::AttrDomain::Point);
-      if (!rest_volume_attribute) {
+      const std::optional<float> rest_volume = sim_geometry.src.get_extra<float>(
+          rest_volume_name_);
+      if (!rest_volume) {
         continue;
       }
+      const bke::AttributeAccessor attributes = mesh.attributes();
       const VArray<float> masses = *attributes.lookup_or_default<float>(
-          sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
+          sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
 
-      const float rest_volume = rest_volume_attribute.varray[0];
       const float current_volume = this->compute_volume(mesh);
-      const float volume_diff = current_volume - overpressure_ * rest_volume;
+      const float volume_diff = current_volume - overpressure_ * *rest_volume;
 
       Array<float3> gradients(mesh.verts_num, float3());
       const Span<int3> tris = mesh.corner_tris();
@@ -672,15 +693,15 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
   const float sub_delta_time = total_delta_time / sim_steps;
 
   Vector<SimGeometry> sim_geometries;
-  for (SimGeometrySet &sim_geometry_set : behaviors.sim_geometry_sets) {
-    if (Mesh *mesh = sim_geometry_set.geometry.get_mesh_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set, mesh});
+  for (SimGeometrySet *sim_geometry_set : behaviors.sim_geometry_sets) {
+    if (Mesh *mesh = sim_geometry_set->geometry.get_mesh_for_write()) {
+      sim_geometries.append(SimGeometry{*sim_geometry_set, mesh});
     }
-    if (PointCloud *pointcloud = sim_geometry_set.geometry.get_pointcloud_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set, pointcloud});
+    if (PointCloud *pointcloud = sim_geometry_set->geometry.get_pointcloud_for_write()) {
+      sim_geometries.append(SimGeometry{*sim_geometry_set, pointcloud});
     }
-    if (Curves *curves = sim_geometry_set.geometry.get_curves_for_write()) {
-      sim_geometries.append(SimGeometry{sim_geometry_set, curves});
+    if (Curves *curves = sim_geometry_set->geometry.get_curves_for_write()) {
+      sim_geometries.append(SimGeometry{*sim_geometry_set, curves});
     }
   }
 
@@ -743,10 +764,10 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
           }
         }
         const VArray<float> masses = *attributes->lookup_or_default<float>(
-            sim_geometry.mass_attribute, bke::AttrDomain::Point, 1.0f);
+            sim_geometry.src.mass_attribute, bke::AttrDomain::Point, 1.0f);
 
         bke::SpanAttributeWriter<float3> velocities =
-            attributes->lookup_or_add_for_write_span<float3>(sim_geometry.velocity_attribute,
+            attributes->lookup_or_add_for_write_span<float3>(sim_geometry.src.velocity_attribute,
                                                              bke::AttrDomain::Point);
         bke::SpanAttributeWriter<float3> positions =
             attributes->lookup_or_add_for_write_span<float3>("position", bke::AttrDomain::Point);
@@ -788,7 +809,7 @@ void solve(Behaviors &behaviors, const float total_delta_time, const int substep
         const VArraySpan<float3> prev_positions = *attributes->lookup<float3>(prev_position_name);
         const VArraySpan<float3> positions = *attributes->lookup<float3>("position");
         bke::SpanAttributeWriter<float3> velocities = attributes->lookup_for_write_span<float3>(
-            sim_geometry.velocity_attribute);
+            sim_geometry.src.velocity_attribute);
         threading::parallel_for(positions.index_range(), 512, [&](const IndexRange range) {
           for (const int i : range) {
             velocities.span[i] = (positions[i] - prev_positions[i]) / sub_delta_time;

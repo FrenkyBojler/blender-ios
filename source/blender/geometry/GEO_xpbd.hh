@@ -11,6 +11,8 @@
 #include "BLI_mutex.hh"
 #include "BLI_vector.hh"
 
+#include "NOD_geometry_nodes_bundle_fwd.hh"
+
 #include "FN_field.hh"
 
 namespace blender::geometry::xpbd {
@@ -30,17 +32,22 @@ struct SimGeometrySet {
   bke::GeometrySet geometry;
   std::string mass_attribute;
   std::string velocity_attribute;
+  mutable Mutex extra_mutex;
+  nodes::BundlePtr extra;
+
+  nodes::Bundle &extra_for_write();
+
+  template<typename T> void set_extra(const StringRef key, T value);
+  template<typename T> std::optional<T> get_extra(const StringRef key) const;
 };
 
 struct SimGeometry {
   using GeometryVariant = std::variant<Mesh *, PointCloud *, Curves *>;
   GeometryVariant data;
-  std::string path;
-  std::string mass_attribute;
-  std::string velocity_attribute;
+  SimGeometrySet &src;
   float quantize_scale = 1'000'000.0f;
 
-  SimGeometry(const SimGeometrySet &src, GeometryVariant data);
+  SimGeometry(SimGeometrySet &src, GeometryVariant data);
 
   std::optional<bke::AttributeAccessor> attributes() const;
   std::optional<bke::MutableAttributeAccessor> attributes_for_write();
@@ -94,7 +101,7 @@ class ConstraintSet {
 };
 
 struct Behaviors {
-  Vector<SimGeometrySet> sim_geometry_sets;
+  Vector<SimGeometrySet *> sim_geometry_sets;
   Vector<ForceField> force_fields;
   Vector<AccelerationField> acceleration_fields;
   Vector<ConstraintSet *> constraint_sets;

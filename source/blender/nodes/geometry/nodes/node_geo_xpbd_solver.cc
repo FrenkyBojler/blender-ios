@@ -51,7 +51,7 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
           if (!geometry) {
             return;
           }
-          geometry::xpbd::SimGeometrySet sim_geometry_set;
+          auto &sim_geometry_set = scope.construct<geometry::xpbd::SimGeometrySet>();
           sim_geometry_set.path = path;
           sim_geometry_set.geometry = *geometry;
           sim_geometry_set.mass_attribute = behavior_bundle
@@ -62,7 +62,7 @@ static geometry::xpbd::Behaviors parse_behaviors(const BundlePtr &behaviors_bund
                                                     .lookup<std::string>(
                                                         SocketInterfaceKey{"Velocity"})
                                                     .value_or("velocity");
-          behaviors.sim_geometry_sets.append(sim_geometry_set);
+          behaviors.sim_geometry_sets.append(&sim_geometry_set);
           return;
         }
         if (type == "Force") {
@@ -169,16 +169,21 @@ static void node_geo_exec(GeoNodeExecParams params)
   ResourceScope scope;
   geometry::xpbd::Behaviors behaviors = parse_behaviors(behaviors_bundle, scope);
   if (old_data_bundle) {
-    for (geometry::xpbd::SimGeometrySet &sim_geometry : behaviors.sim_geometry_sets) {
-      std::optional<Bundle::Item> item = old_data_bundle->lookup_path(sim_geometry.path +
-                                                                      "/Geometry");
-      if (!item) {
+    for (geometry::xpbd::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
+      std::optional<BundlePtr> item_ptr = old_data_bundle->lookup_path<BundlePtr>(
+          sim_geometry->path);
+      if (!item_ptr || !*item_ptr) {
         continue;
       }
-      if (item->type->type != SOCK_GEOMETRY) {
-        continue;
+      const Bundle &item = **item_ptr;
+      if (std::optional<GeometrySet> geometry = item.lookup<GeometrySet>(
+              SocketInterfaceKey{"Geometry"}))
+      {
+        sim_geometry->geometry = std::move(*geometry);
       }
-      sim_geometry.geometry = *static_cast<const GeometrySet *>(item->value);
+      if (std::optional<BundlePtr> extra = item.lookup<BundlePtr>(SocketInterfaceKey{"Extra"})) {
+        sim_geometry->extra = std::move(*extra);
+      }
     }
   }
 
@@ -186,10 +191,16 @@ static void node_geo_exec(GeoNodeExecParams params)
 
   BundlePtr new_data_bundle_ptr = Bundle::create();
   Bundle &new_data_bundle = const_cast<Bundle &>(*new_data_bundle_ptr);
-  for (geometry::xpbd::SimGeometrySet &sim_geometry : behaviors.sim_geometry_sets) {
-    new_data_bundle.add_override_path(sim_geometry.path + "/Geometry",
+  for (geometry::xpbd::SimGeometrySet *sim_geometry : behaviors.sim_geometry_sets) {
+    new_data_bundle.add_override_path(sim_geometry->path + "/Geometry",
                                       *bke::node_socket_type_find_static(SOCK_GEOMETRY),
-                                      &sim_geometry.geometry);
+                                      &sim_geometry->geometry);
+    if (sim_geometry->extra && !sim_geometry->extra->items().is_empty()) {
+      bke::SocketValueVariant extra_value = bke::SocketValueVariant::From(sim_geometry->extra);
+      new_data_bundle.add_override_path(sim_geometry->path + "/Extra",
+                                        *bke::node_socket_type_find_static(SOCK_BUNDLE),
+                                        &extra_value);
+    }
   }
 
   params.set_output("Data", new_data_bundle_ptr);

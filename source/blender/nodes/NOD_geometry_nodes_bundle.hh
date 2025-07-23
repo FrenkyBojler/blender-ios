@@ -38,6 +38,7 @@ class Bundle : public ImplicitSharingMixin {
     const void *value;
 
     template<typename T> std::optional<T> as(const bke::bNodeSocketType &socket_type) const;
+    template<typename T> std::optional<T> as() const;
   };
 
   Bundle();
@@ -53,6 +54,9 @@ class Bundle : public ImplicitSharingMixin {
   }
 
   void add_new(SocketInterfaceKey key, const bke::bNodeSocketType &type, const void *value);
+  void add_override(const SocketInterfaceKey &key,
+                    const bke::bNodeSocketType &type,
+                    const void *value);
   bool add(const SocketInterfaceKey &key, const bke::bNodeSocketType &type, const void *value);
   bool add(SocketInterfaceKey &&key, const bke::bNodeSocketType &type, const void *value);
   bool remove(const SocketInterfaceKey &key);
@@ -66,7 +70,10 @@ class Bundle : public ImplicitSharingMixin {
   std::optional<Item> lookup_path(const Span<StringRef> path) const;
   std::optional<Item> lookup_path(const StringRef path) const;
 
+  template<typename T> void add_override(const SocketInterfaceKey &key, T value);
+
   template<typename T> std::optional<T> lookup(const SocketInterfaceKey &key) const;
+  template<typename T> std::optional<T> lookup_path(const StringRef path) const;
 
   Span<StoredItem> items() const
   {
@@ -99,7 +106,7 @@ inline std::optional<T> Bundle::Item::as(const bke::bNodeSocketType &socket_type
   return *static_cast<const T *>(converted_value);
 }
 
-template<typename T> constexpr bool is_valid_bundle_lookup_type()
+template<typename T> constexpr bool is_valid_static_bundle_item_type()
 {
   if (geo_nodes_is_field_base_type_v<T>) {
     return true;
@@ -107,25 +114,15 @@ template<typename T> constexpr bool is_valid_bundle_lookup_type()
   if constexpr (fn::is_field_v<T>) {
     return geo_nodes_is_field_base_type_v<typename T::base_type>;
   }
+  if constexpr (is_same_any_v<T, BundlePtr, ClosurePtr>) {
+    return true;
+  }
   return !geo_nodes_type_stored_as_SocketValueVariant_v<T>;
 }
 
-template<typename T> std::optional<T> Bundle::lookup(const SocketInterfaceKey &key) const
+template<typename T> inline const bke::bNodeSocketType *socket_type_info_by_static_type()
 {
-  const std::optional<Item> item = this->lookup(key);
-  if (!item) {
-    return std::nullopt;
-  }
-  static_assert(is_valid_bundle_lookup_type<T>());
-  if constexpr (geo_nodes_is_field_base_type_v<T>) {
-    const std::optional<eNodeSocketDatatype> socket_type =
-        bke::geo_nodes_base_cpp_type_to_socket_type(CPPType::get<T>());
-    BLI_assert(socket_type);
-    const bke::bNodeSocketType *socket_type_info = bke::node_socket_type_find_static(*socket_type);
-    BLI_assert(socket_type_info);
-    return item->as<T>(*socket_type_info);
-  }
-  else if constexpr (fn::is_field_v<T>) {
+  if constexpr (fn::is_field_v<T>) {
     if constexpr (geo_nodes_is_field_base_type_v<typename T::base_type>) {
       const std::optional<eNodeSocketDatatype> socket_type =
           bke::geo_nodes_base_cpp_type_to_socket_type(CPPType::get<typename T::base_type>());
@@ -133,20 +130,60 @@ template<typename T> std::optional<T> Bundle::lookup(const SocketInterfaceKey &k
       const bke::bNodeSocketType *socket_type_info = bke::node_socket_type_find_static(
           *socket_type);
       BLI_assert(socket_type_info);
-      return item->as<T>(*socket_type_info);
+      return socket_type_info;
     }
   }
-  else if (!geo_nodes_type_stored_as_SocketValueVariant_v<T>) {
-    if (!item->type->geometry_nodes_cpp_type->is<T>()) {
-      return std::nullopt;
-    }
-    return item->as<T>(*item->type);
+  const std::optional<eNodeSocketDatatype> socket_type =
+      bke::geo_nodes_base_cpp_type_to_socket_type(CPPType::get<T>());
+  if (!socket_type) {
+    return nullptr;
   }
-  else {
-    /* Can't lookup this type directly currently. */
-    BLI_assert_unreachable();
+  return bke::node_socket_type_find_static(*socket_type);
+}
+
+template<typename T> inline std::optional<T> Bundle::Item::as() const
+{
+  static_assert(is_valid_static_bundle_item_type<T>());
+  if (const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<T>()) {
+    return this->as<T>(*socket_type);
+  }
+  /* Can't lookup this type directly currently. */
+  BLI_assert_unreachable();
+  return std::nullopt;
+}
+
+template<typename T> inline std::optional<T> Bundle::lookup(const SocketInterfaceKey &key) const
+{
+  const std::optional<Item> item = this->lookup(key);
+  if (!item) {
     return std::nullopt;
   }
+  return item->as<T>();
+}
+
+template<typename T> inline std::optional<T> Bundle::lookup_path(const StringRef path) const
+{
+  const std::optional<Item> item = this->lookup_path(path);
+  if (!item) {
+    return std::nullopt;
+  }
+  return item->as<T>();
+}
+
+template<typename T> void Bundle::add_override(const SocketInterfaceKey &key, T value)
+{
+  using DecayT = std::decay_t<T>;
+  static_assert(is_valid_static_bundle_item_type<DecayT>());
+  if (const bke::bNodeSocketType *socket_type = socket_type_info_by_static_type<DecayT>()) {
+    if constexpr (geo_nodes_type_stored_as_SocketValueVariant_v<DecayT>) {
+      auto value_variant = bke::SocketValueVariant::From(std::forward<T>(value));
+      this->add_override(key, *socket_type, &value_variant);
+      return;
+    }
+    this->add_override(key, *socket_type, &value);
+    return;
+  }
+  BLI_assert_unreachable();
 }
 
 }  // namespace blender::nodes

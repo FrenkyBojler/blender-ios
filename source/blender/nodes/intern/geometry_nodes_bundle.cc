@@ -136,6 +136,14 @@ void Bundle::add_new(SocketInterfaceKey key, const bke::bNodeSocketType &type, c
   buffers_.append(buffer);
 }
 
+void Bundle::add_override(const SocketInterfaceKey &key,
+                          const bke::bNodeSocketType &type,
+                          const void *value)
+{
+  this->remove(key);
+  this->add_new(key, type, value);
+}
+
 bool Bundle::add(const SocketInterfaceKey &key,
                  const bke::bNodeSocketType &type,
                  const void *value)
@@ -175,10 +183,10 @@ void Bundle::add_override_path(const StringRef path,
   if (item && item->type->type == SOCK_BUNDLE) {
     child_bundle = static_cast<const bke::SocketValueVariant *>(item->value)->get<BundlePtr>();
   }
-  else {
+  if (!child_bundle) {
     child_bundle = Bundle::create();
   }
-  this->remove(SocketInterfaceKey{path});
+  this->remove(SocketInterfaceKey{first_part});
   if (!child_bundle->is_mutable()) {
     child_bundle = child_bundle->copy();
   }
