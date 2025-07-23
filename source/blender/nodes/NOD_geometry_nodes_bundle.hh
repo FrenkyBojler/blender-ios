@@ -8,7 +8,6 @@
 
 #include "BKE_node_socket_value.hh"
 #include "NOD_geometry_nodes_bundle_fwd.hh"
-#include "NOD_geometry_nodes_lazy_function.hh"
 #include "NOD_geometry_nodes_values.hh"
 #include "NOD_socket_interface_key.hh"
 
