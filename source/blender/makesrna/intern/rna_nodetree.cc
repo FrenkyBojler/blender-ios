@@ -6286,6 +6286,252 @@ static void def_sh_script(BlenderRNA * /*brna*/, StructRNA *srna)
 
 /* -- Compositor Nodes ------------------------------------------------------ */
 
+static void def_cmp_alpha_over(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "use_premultiply", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_node_property_to_input_getter<bool, node_input_straight_alpha>",
+      "rna_node_property_to_input_setter<bool, node_input_straight_alpha>");
+  RNA_def_property_ui_text(
+      prop, "Convert Premultiplied", "(Deprecated: Use Straight Alpha input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "premul", PROP_FLOAT, PROP_FACTOR);
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Premultiplied", "Mix Factor. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_blur(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  static const EnumPropertyItem filter_type_items[] = {
+      {R_FILTER_BOX, "FLAT", 0, "Flat", ""},
+      {R_FILTER_TENT, "TENT", 0, "Tent", ""},
+      {R_FILTER_QUAD, "QUAD", 0, "Quadratic", ""},
+      {R_FILTER_CUBIC, "CUBIC", 0, "Cubic", ""},
+      {R_FILTER_GAUSS, "GAUSS", 0, "Gaussian", ""},
+      {R_FILTER_FAST_GAUSS, "FAST_GAUSS", 0, "Fast Gaussian", ""},
+      {R_FILTER_CATROM, "CATROM", 0, "Catrom", ""},
+      {R_FILTER_MITCH, "MITCH", 0, "Mitch", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  static const EnumPropertyItem aspect_correction_type_items[] = {
+      {CMP_NODE_BLUR_ASPECT_NONE, "NONE", 0, "None", ""},
+      {CMP_NODE_BLUR_ASPECT_Y, "Y", 0, "Y", ""},
+      {CMP_NODE_BLUR_ASPECT_X, "X", 0, "X", ""},
+      {0, nullptr, 0, nullptr, nullptr},
+  };
+
+  /* duplicated in def_cmp_bokehblur */
+  prop = RNA_def_property(srna, "use_variable_size", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Variable Size",
+      "Support variable blur per pixel when using an image for size input. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_extended_bounds", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_node_property_to_input_getter<bool, node_input_extend_bounds>",
+      "rna_node_property_to_input_setter<bool, node_input_extend_bounds>");
+  RNA_def_property_ui_text(prop,
+                           "Extend Bounds",
+                           "Extend bounds of the input image to fully fit blurred image. "
+                           "(Deprecated: Use Extend Bounds input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  RNA_def_struct_sdna_from(srna, "NodeBlurData", "storage");
+
+  prop = RNA_def_property(srna, "size_x", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_NodeBlur_size_x_get", "rna_NodeCrop_size_x_set", nullptr);
+  RNA_def_property_range(prop, 0, 2048);
+  RNA_def_property_ui_text(prop, "Size X", "(Deprecated: Use Size input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "size_y", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_NodeBlur_size_y_get", "rna_NodeCrop_size_y_set", nullptr);
+  RNA_def_property_range(prop, 0, 2048);
+  RNA_def_property_ui_text(prop, "Size Y", "(Deprecated: Use Size input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_relative", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "relative", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Relative",
+      "Use relative (percent) values to define blur radius. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "aspect_correction", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "aspect");
+  RNA_def_property_enum_items(prop, aspect_correction_type_items);
+  RNA_def_property_ui_text(
+      prop, "Aspect Correction", "Type of aspect correction to use. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "fac");
+  RNA_def_property_range(prop, 0.0f, 2.0f);
+  RNA_def_property_ui_text(prop, "Factor", "(Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "factor_x", PROP_FLOAT, PROP_PERCENTAGE);
+  RNA_def_property_float_sdna(prop, nullptr, "percentx");
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_text(prop, "Relative Size X", "(Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "factor_y", PROP_FLOAT, PROP_PERCENTAGE);
+  RNA_def_property_float_sdna(prop, nullptr, "percenty");
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_text(prop, "Relative Size Y", "(Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "filtertype");
+  RNA_def_property_enum_items(prop, filter_type_items);
+  RNA_def_property_ui_text(prop, "Filter Type", "");
+  RNA_def_property_translation_context(prop, BLT_I18NCONTEXT_ID_NODETREE);
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_bokeh", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(prop, "rna_NodeBlur_use_bokeh_get", "rna_NodeCrop_use_bokeh_set");
+  RNA_def_property_ui_text(
+      prop, "Bokeh", "Use circular filter (slower). (Deprecated: Use Separable input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_gamma_correction", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "gamma", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Gamma",
+      "Apply filter on gamma corrected values. (Deprecated: Unused. Use Gamma node instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_filter(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "filter_type", PROP_ENUM, PROP_NONE);
+  RNA_def_property_enum_sdna(prop, nullptr, "custom1");
+  RNA_def_property_enum_items(prop, rna_enum_node_filter_items);
+  RNA_def_property_ui_text(prop, "Filter Type", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_map_value(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  RNA_def_struct_sdna_from(srna, "TexMapping", "storage");
+
+  prop = RNA_def_property(srna, "offset", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "loc");
+  RNA_def_property_array(prop, 1);
+  RNA_def_property_range(prop, -1000.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Offset", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "size", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "size");
+  RNA_def_property_array(prop, 1);
+  RNA_def_property_range(prop, -1000.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Size", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_min", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", TEXMAP_CLIP_MIN);
+  RNA_def_property_ui_text(prop, "Use Minimum", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_max", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "flag", TEXMAP_CLIP_MAX);
+  RNA_def_property_ui_text(prop, "Use Maximum", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "min", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "min");
+  RNA_def_property_array(prop, 1);
+  RNA_def_property_range(prop, -1000.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Minimum", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "max", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "max");
+  RNA_def_property_array(prop, 1);
+  RNA_def_property_range(prop, -1000.0f, 1000.0f);
+  RNA_def_property_ui_text(prop, "Maximum", "");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_map_range(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "use_clamp", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom1", 1);
+  RNA_def_property_ui_text(prop, "Clamp", "Clamp the result of the node to the target range");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_vector_blur(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "samples", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_node_property_to_input_getter<int, node_input_samples>",
+                             "rna_node_property_to_input_setter<int, node_input_samples>",
+                             nullptr);
+  RNA_def_property_range(prop, 1, 256);
+  RNA_def_property_ui_text(prop, "Samples", "(Deprecated: Use Samples input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "speed_min", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom1");
+  RNA_def_property_range(prop, 0, 1024);
+  RNA_def_property_ui_text(prop,
+                           "Min Speed",
+                           "Minimum speed for a pixel to be blurred (used to separate background "
+                           "from foreground). (Deprecated.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "speed_max", PROP_INT, PROP_NONE);
+  RNA_def_property_int_sdna(prop, nullptr, "custom2");
+  RNA_def_property_range(prop, 0, 1024);
+  RNA_def_property_ui_text(prop, "Max Speed", "Maximum speed, or zero for none. (Deprecated.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "factor", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(
+      prop, "rna_NodeVectorBlur_shutter_get", "rna_NodeVectorBlur_shutter_set", nullptr);
+  RNA_def_property_range(prop, 0.0, 20.0);
+  RNA_def_property_ui_range(prop, 0.0, 2.0, 1.0, 2);
+  RNA_def_property_ui_text(prop,
+                           "Blur Factor",
+                           "Scaling factor for motion vectors (actually, 'shutter speed', in "
+                           "frames). (Deprecated: Use Shutter input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "use_curved", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(
+      prop,
+      "Curved",
+      "Interpolate between frames in a Bézier curve, rather than linearly. (Deprecated.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
 static void def_cmp_set_alpha(BlenderRNA * /*brna*/, StructRNA *srna)
 {
   PropertyRNA *prop;
@@ -6768,6 +7014,208 @@ static void def_cmp_defocus(BlenderRNA * /*brna*/, StructRNA *srna)
       "Z-Scale",
       "Scale the Z input when not using a z-buffer, controls maximum blur designated "
       "by the color white or input value 1");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_invert(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "invert_rgb", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_node_property_to_input_getter<bool, node_input_invert_color>",
+      "rna_node_property_to_input_setter<bool, node_input_invert_color>");
+  RNA_def_property_ui_text(prop, "RGB", "(Deprecated: Use Invert Color input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "invert_alpha", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop,
+      "rna_node_property_to_input_getter<bool, node_input_invert_alpha>",
+      "rna_node_property_to_input_setter<bool, node_input_invert_alpha>");
+  RNA_def_property_ui_text(prop, "Alpha", "(Deprecated: Use Invert Alpha input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_crop(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "use_crop_size", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_funcs(
+      prop, "rna_NodeCrop_use_crop_size_get", "rna_NodeCrop_use_crop_size_set");
+  RNA_def_property_ui_text(prop, "Crop Image Size", "Whether to crop the size of the input image");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "relative", PROP_BOOLEAN, PROP_NONE);
+  RNA_def_property_boolean_sdna(prop, nullptr, "custom2", 1);
+  RNA_def_property_ui_text(
+      prop, "Relative", "Use relative values to crop image. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "min_x", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_node_property_to_input_getter<int, node_input_x>",
+                             "rna_node_property_to_input_setter<int, node_input_x>",
+                             nullptr);
+  RNA_def_property_range(prop, 0, 10000);
+  RNA_def_property_ui_text(
+      prop, "X1", "Left edge of the cropping rectangle. (Deprecated: Use X input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "max_x", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_NodeCrop_max_x_get", "rna_NodeCrop_max_x_set", nullptr);
+  RNA_def_property_range(prop, 0, 10000);
+  RNA_def_property_ui_text(
+      prop, "X2", "Right edge of the cropping rectangle. (Deprecated: Use Width input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "min_y", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop, "rna_NodeCrop_min_y_get", "rna_NodeCrop_min_y_set", nullptr);
+  RNA_def_property_range(prop, 0, 10000);
+  RNA_def_property_ui_text(
+      prop, "Y1", "Top edge of the cropping rectangle. (Deprecated: Use Y input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "max_y", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_node_property_to_input_getter<int, node_input_y>",
+                             "rna_node_property_to_input_setter<int, node_input_y>",
+                             nullptr);
+  RNA_def_property_range(prop, 0, 10000);
+  RNA_def_property_ui_text(
+      prop,
+      "Y2",
+      "Bottom edge of the cropping rectangle. (Deprecated: Use Height input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "rel_min_x", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
+  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_ui_text(
+      prop, "X1", "Left edge of the cropping rectangle. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "rel_max_x", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
+  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_ui_text(
+      prop, "X2", "Right edge of the cropping rectangle. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "rel_min_y", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
+  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_ui_text(
+      prop, "Y1", "Top edge of the cropping rectangle. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "rel_max_y", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_sdna(prop, nullptr, "custom3");
+  RNA_def_property_range(prop, 0.0, 1.0);
+  RNA_def_property_ui_text(
+      prop, "Y2", "Bottom edge of the cropping rectangle. (Deprecated: Unused.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_dblur(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_node_property_to_input_getter<int, node_input_samples>",
+                             "rna_node_property_to_input_setter<int, node_input_samples>",
+                             nullptr);
+  RNA_def_property_range(prop, 1, 32);
+  RNA_def_property_ui_text(prop, "Iterations", "(Deprecated: Use Samples input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "center_x", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_node_property_to_vector_input_getter<node_input_center, 0>",
+                               "rna_node_property_to_vector_input_setter<node_input_center, 0>",
+                               nullptr);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Center X", "(Deprecated: Use Center input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "center_y", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_node_property_to_vector_input_getter<node_input_center, 1>",
+                               "rna_node_property_to_vector_input_setter<node_input_center, 1>",
+                               nullptr);
+  RNA_def_property_range(prop, 0.0f, 1.0f);
+  RNA_def_property_ui_text(prop, "Center Y", "(Deprecated: Use Center input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "distance", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_property_to_input_getter<float, node_input_translation_amount>",
+      "rna_node_property_to_input_setter<float, node_input_translation_amount>",
+      nullptr);
+  RNA_def_property_range(prop, -1.0f, 1.0f);
+  RNA_def_property_ui_text(
+      prop, "Distance", "(Deprecated: Use Translation Amount input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "angle", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_funcs(
+      prop,
+      "rna_node_property_to_input_getter<float, node_input_translation_direction>",
+      "rna_node_property_to_input_setter<float, node_input_translation_direction>",
+      nullptr);
+  RNA_def_property_range(prop, 0.0f, DEG2RADF(360.0f));
+  RNA_def_property_ui_text(
+      prop, "Angle", "(Deprecated: Use Translation Direction input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "spin", PROP_FLOAT, PROP_ANGLE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_node_property_to_input_getter<float, node_input_rotation>",
+                               "rna_node_property_to_input_setter<float, node_input_rotation>",
+                               nullptr);
+  RNA_def_property_range(prop, DEG2RADF(-360.0f), DEG2RADF(360.0f));
+  RNA_def_property_ui_text(prop, "Spin", "(Deprecated: Use Rotation input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "zoom", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(
+      prop, "rna_NodeDirectionalBlur_scale_get", "rna_NodeDirectionalBlur_scale_set", nullptr);
+  RNA_def_property_range(prop, 0.0f, 100.0f);
+  RNA_def_property_ui_text(prop, "Zoom", "(Deprecated: Use Scale input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+}
+
+static void def_cmp_bilateral_blur(BlenderRNA * /*brna*/, StructRNA *srna)
+{
+  PropertyRNA *prop;
+
+  prop = RNA_def_property(srna, "iterations", PROP_INT, PROP_NONE);
+  RNA_def_property_int_funcs(prop,
+                             "rna_node_property_to_input_getter<int, node_input_size>",
+                             "rna_node_property_to_input_setter<int, node_input_size>",
+                             nullptr);
+  RNA_def_property_range(prop, 1, 128);
+  RNA_def_property_ui_text(prop, "Iterations", "(Deprecated: Use Size input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "sigma_color", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(
+      prop, "rna_NodeBilateralBlur_threshold_get", "rna_NodeBilateralBlur_threshold_set", nullptr);
+  RNA_def_property_range(prop, 0.01f, 3.0f);
+  RNA_def_property_ui_text(prop, "Color Sigma", "(Deprecated: Use Threshold input instead.)");
+  RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
+
+  prop = RNA_def_property(srna, "sigma_space", PROP_FLOAT, PROP_NONE);
+  RNA_def_property_float_funcs(prop,
+                               "rna_NodeBilateralBlur_sigma_space_get",
+                               "rna_NodeBilateralBlur_sigma_space_set",
+                               nullptr);
+  RNA_def_property_range(prop, 0.01f, 30.0f);
+  RNA_def_property_ui_text(prop, "Space Sigma", "(Deprecated: Use Size input instead.)");
   RNA_def_property_update(prop, NC_NODE | NA_EDITED, "rna_Node_update");
 }
 
