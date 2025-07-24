@@ -74,7 +74,6 @@ class NODE_MT_category_compositor_output(Menu):
         layout.separator()
         node_add_menu.add_node_type(layout, "CompositorNodeOutputFile")
 
-
         node_add_menu.draw_assets_for_catalog(layout, self.bl_label)
 
 
