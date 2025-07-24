@@ -257,7 +257,7 @@ const EnumPropertyItem rna_enum_curve_fit_method_items[] = {
 
 #define MEDIA_TYPE_ENUM_IMAGE {MEDIA_TYPE_IMAGE, "IMAGE", ICON_NONE, "Image", ""}
 #define MEDIA_TYPE_ENUM_MULTI_LAYER_IMAGE \
-  {MEDIA_TYPE_MULTI_LAYER_IMAGE, "MULTI_LAYER_IMAGE", ICON_NONE, "Multi-Layer Image", ""}
+  {MEDIA_TYPE_MULTI_LAYER_IMAGE, "MULTI_LAYER_IMAGE", ICON_NONE, "Multi-Layer EXR", ""}
 #define MEDIA_TYPE_ENUM_VIDEO {MEDIA_TYPE_VIDEO, "VIDEO", ICON_NONE, "Video", ""}
 
 static const EnumPropertyItem rna_enum_media_type_all_items[] = {
@@ -1445,24 +1445,7 @@ static const EnumPropertyItem *rna_ImageFormatSettings_media_type_itemf(bContext
 static void rna_ImageFormatSettings_media_type_set(PointerRNA *ptr, int value)
 {
   ImageFormatData *format = ptr->data_as<ImageFormatData>();
-  format->media_type = value;
-  switch (static_cast<MediaType>(value)) {
-    case MEDIA_TYPE_IMAGE:
-      if (RNA_enum_from_value(image_type_items, format->imtype) == -1) {
-        BKE_image_format_set(format, ptr->owner_id, R_IMF_IMTYPE_PNG);
-      }
-      break;
-    case MEDIA_TYPE_MULTI_LAYER_IMAGE:
-      if (RNA_enum_from_value(multi_layer_image_type_items, format->imtype) == -1) {
-        BKE_image_format_set(format, ptr->owner_id, R_IMF_IMTYPE_MULTILAYER);
-      }
-      break;
-    case MEDIA_TYPE_VIDEO:
-      if (RNA_enum_from_value(video_image_type_items, format->imtype) == -1) {
-        BKE_image_format_set(format, ptr->owner_id, R_IMF_IMTYPE_FFMPEG);
-      }
-      break;
-  }
+  BKE_image_format_media_type_set(format, ptr->owner_id, static_cast<MediaType>(value));
 }
 
 static void rna_ImageFormatSettings_file_format_set(PointerRNA *ptr, int value)
