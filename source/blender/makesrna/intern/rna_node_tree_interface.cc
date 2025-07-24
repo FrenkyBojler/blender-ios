@@ -418,11 +418,14 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
     return false;
   }
 
-  /* Only basic socket types are supported. */
-  blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
-      socket_type->type, PROP_NONE);
-  if (socket_type != base_socket_type) {
-    return false;
+  /* Only basic socket types are supported. Custom sockets don't have a base type. */
+  if (socket_type->type != SOCK_CUSTOM) {
+    blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
+        socket_type->type, PROP_NONE);
+    BLI_assert(base_socket_type != nullptr);
+    if (socket_type != base_socket_type) {
+      return false;
+    }
   }
 
   if (!U.experimental.use_bundle_and_closure_nodes) {
@@ -1000,6 +1003,20 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
   }
 
   ntree->ensure_interface_cache();
+  for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
+    switch (NodeTreeInterfaceItemType(item->item_type)) {
+      case NODE_INTERFACE_SOCKET: {
+        bNodeTreeInterfaceSocket *socket = reinterpret_cast<bNodeTreeInterfaceSocket *>(item);
+        if (STREQ(socket->identifier, key)) {
+          rna_pointer_create_with_ancestors(*ptr, &RNA_NodeTreeInterfaceSocket, socket, *r_ptr);
+          return true;
+        }
+        break;
+      }
+      default:
+        break;
+    }
+  }
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
     switch (NodeTreeInterfaceItemType(item->item_type)) {
       case NODE_INTERFACE_SOCKET: {
