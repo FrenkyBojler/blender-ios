@@ -258,7 +258,8 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
 }
 
 static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
-                                              const bke::CurvesGeometry &src)
+                                              const bke::CurvesGeometry &src,
+                                              bool *r_extruded)
 {
   const bke::AttributeAccessor src_attributes = src.attributes();
   const OffsetIndices<int> points_by_curve = src.points_by_curve();
@@ -303,6 +304,12 @@ static bke::CurvesGeometry pen_extrude_curves(const PenToolOperation &ptd,
       point_offset++;
     }
   }
+
+  if (point_offset == 0) {
+    *r_extruded = false;
+    return src;
+  }
+  *r_extruded = true;
 
   bke::CurvesGeometry dst(dst_to_src_points.size(), src.curves_num());
   BKE_defgroup_copy_list(&dst.vertex_group_names, &src.vertex_group_names);
@@ -590,17 +597,12 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
       }
 
       if (ptd.extrude_point) {
-        IndexMaskMemory memory;
-        const IndexMask selection = retrieve_editable_and_selected_points(
-            *object, info.drawing, info.layer_index, memory);
-
-        if (selection.is_empty()) {
+        bool extruded = false;
+        curves = pen_extrude_curves(ptd, curves, &extruded);
+        if (!extruded) {
           return;
         }
-
         add_single.store(false, std::memory_order_relaxed);
-
-        curves = pen_extrude_curves(ptd, curves);
         info.drawing.tag_topology_changed();
 
         changed.store(true, std::memory_order_relaxed);
