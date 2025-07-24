@@ -520,7 +520,7 @@ static bool bake_object_check(const Scene *scene,
 
       /* Don't bake to unselected images */
       if (node && !(node->flag & NODE_SELECT)) {
-        image = NULL;
+        image = nullptr;
       }
 
       if (image) {
@@ -764,9 +764,9 @@ static bool bake_targets_init_image_textures(const BakeAPIRender *bkr,
     const bNode *node = nullptr;
     ED_object_get_active_image(ob, i + 1, &image, nullptr, &node, nullptr);
 
-    /* Don't bake to unselected images */
+    /* Don't bake to unselected images. */
     if (node && !(node->flag & NODE_SELECT)) {
-      image = NULL;
+      image = nullptr;
     }
 
     targets->material_to_image[i] = image;
