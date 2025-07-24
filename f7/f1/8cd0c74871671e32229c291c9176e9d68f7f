@@ -1,2 +1,3 @@
 Referenced by issue #142828, Geometry Nodes: Dynamic sockets input fields are always visible
 Referenced by pull request #143026, Fix #142828: broken socket usage inference for some nodes
+Referenced by commit a57709ca253bb7a20fa24f2ab3e1b2486601de1d, Fix #142828: broken socket usage inference for some nodes
