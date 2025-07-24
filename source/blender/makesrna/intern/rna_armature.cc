@@ -715,20 +715,6 @@ static void rna_EditBone_hide_update(Main * /*bmain*/, Scene * /*scene*/, Pointe
   DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
 }
 
-/* Unselect bones when hidden or not selectable. */
-static void rna_Bone_hide_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
-{
-  bArmature *arm = (bArmature *)ptr->owner_id;
-  Bone *bone = (Bone *)ptr->data;
-
-  if (bone->flag & (BONE_HIDDEN_P | BONE_UNSELECTABLE)) {
-    bone->flag &= ~(BONE_SELECTED | BONE_TIPSEL | BONE_ROOTSEL);
-  }
-
-  WM_main_add_notifier(NC_OBJECT | ND_POSE, arm);
-  DEG_id_tag_update(&arm->id, ID_RECALC_SYNC_TO_EVAL);
-}
-
 /* called whenever a bone is renamed */
 static void rna_Bone_update_renamed(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr)
 {
@@ -1522,9 +1508,6 @@ static void rna_def_bone_common(StructRNA *srna, int editbone)
   if (editbone) {
     RNA_def_property_update(prop, 0, "rna_EditBone_hide_update");
   }
-  else {
-    RNA_def_property_update(prop, 0, "rna_Bone_hide_update");
-  }
 
   /* Number values */
   /* envelope deform settings */
@@ -1778,18 +1761,6 @@ static void rna_def_bone(BlenderRNA *brna)
   rna_def_bone_curved_common(srna, false, false);
 
   RNA_define_lib_overridable(true);
-
-  /* Deprecated, but keeping for API backwards compatibility. Use the "hide" property on the pose
-   * bone instead. */
-  prop = RNA_def_property(srna, "hide", PROP_BOOLEAN, PROP_NONE);
-  RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_HIDDEN_P);
-  RNA_def_property_ui_text(
-      prop,
-      "Hide",
-      "Deprecated: Use the `hide` property on the pose bone instead. Bone is not visible when it "
-      "is not in Edit Mode (i.e. in Object or Pose Modes)");
-  RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
-  RNA_def_property_update(prop, 0, "rna_Bone_hide_update");
 
   prop = RNA_def_property(srna, "select", PROP_BOOLEAN, PROP_NONE);
   RNA_def_property_boolean_sdna(prop, nullptr, "flag", BONE_SELECTED);
