@@ -1023,6 +1023,52 @@ class DOPESHEET_PT_grease_pencil_layer_display(
     bl_options = {'DEFAULT_CLOSED'}
 
 
+class DOPESHEET_PT_ShapeKey(Panel):
+    bl_space_type = 'DOPESHEET_EDITOR'
+    bl_region_type = 'UI'
+    bl_category = "Shape Key"
+    bl_label = "Shape Key"
+
+    @classmethod
+    def poll(cls, context):
+        st = context.space_data
+        if st.mode != 'SHAPEKEY':
+            return False
+
+        object = context.object
+        if object is None or object.active_shape_key is None:
+            return False
+
+        return object.active_shape_key_index > 0
+
+    def draw(self, context):
+        layout = self.layout
+        layout.use_property_split = True
+        ob = context.object
+        key = ob.data.shape_keys
+        kb = ob.active_shape_key
+
+        col = layout.column()
+        if key.use_relative:
+            if ob.active_shape_key_index != 0:
+                col.active = ob.mode != 'EDIT'
+                col.prop(kb, "value")
+
+                col.active = True
+                col.prop(kb, "slider_min", text="Range Min")
+                col.prop(kb, "slider_max", text="Max")
+
+                col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="Vertex Group")
+                col.prop_search(kb, "relative_key", key, "key_blocks", text="Relative To")
+        else:
+            col.prop(kb, "interpolation")
+            col = layout.column()
+            col.prop(key, "eval_time")
+
+        if ob.type == 'MESH':
+            col.prop(ob, "add_rest_position_attribute")
+
+
 classes = (
     DOPESHEET_HT_header,
     DOPESHEET_HT_playback_controls,
@@ -1054,6 +1100,7 @@ classes = (
     DOPESHEET_PT_grease_pencil_layer_relations,
     DOPESHEET_PT_grease_pencil_layer_display,
     DOPESHEET_PT_playhead_snapping,
+    DOPESHEET_PT_ShapeKey,
 )
 
 if __name__ == "__main__":  # only for live edit.
