@@ -5494,7 +5494,7 @@ void rna_iterator_array_begin(CollectionPropertyIterator *iter,
     /* This path is never expected to execute. Assert and trace if it ever does. */
     BLI_assert_unreachable();
     data = nullptr;
-    itemsize = 0;
+    length = 0;
   }
 
   internal = &iter->internal.array;
