@@ -154,6 +154,18 @@ struct TreeDrawContext {
    * during drawing. The array is indexed by `bNode::index()`.
    */
   Array<Vector<NodeExtraInfoRow>> extra_info_rows_per_node;
+
+  ~TreeDrawContext()
+  {
+    for (MutableSpan<NodeExtraInfoRow> rows : this->extra_info_rows_per_node) {
+      for (NodeExtraInfoRow &row : rows) {
+        if (row.tooltip_fn_free_arg) {
+          BLI_assert(row.tooltip_fn_copy_arg);
+          row.tooltip_fn_free_arg(row.tooltip_fn_arg);
+        }
+      }
+    }
+  }
 };
 
 float grid_size_get()
@@ -1462,8 +1474,11 @@ static void node_socket_outline_color_get(const bool selected,
                                           const int socket_type,
                                           float r_outline_color[4])
 {
+  /* Explicitly use the node editor theme for the outline color to ensure consistency even when
+   * sockets are drawn in other editors.
+   */
   if (selected) {
-    UI_GetThemeColor4fv(TH_ACTIVE, r_outline_color);
+    UI_GetThemeColorType4fv(TH_ACTIVE, SPACE_NODE, r_outline_color);
   }
   else if (socket_type == SOCK_CUSTOM) {
     /* Until there is a better place for per socket color,
@@ -1471,7 +1486,7 @@ static void node_socket_outline_color_get(const bool selected,
     copy_v4_v4(r_outline_color, virtual_node_socket_outline_color);
   }
   else {
-    UI_GetThemeColor4fv(TH_WIRE, r_outline_color);
+    UI_GetThemeColorType4fv(TH_WIRE, SPACE_NODE, r_outline_color);
     r_outline_color[3] = 1.0f;
   }
 }
@@ -2318,6 +2333,9 @@ static NodeExtraInfoRow row_from_used_named_attribute(
   row.tooltip_fn = named_attribute_tooltip;
   row.tooltip_fn_arg = new NamedAttributeTooltipArg{usage_by_attribute_name};
   row.tooltip_fn_free_arg = [](void *arg) { delete static_cast<NamedAttributeTooltipArg *>(arg); };
+  row.tooltip_fn_copy_arg = [](void *arg) -> void * {
+    return new NamedAttributeTooltipArg(*static_cast<NamedAttributeTooltipArg *>(arg));
+  };
   return row;
 }
 
@@ -2466,6 +2484,12 @@ static void node_draw_extra_info_row(const bNode &node,
   const float but_icon_width = NODE_HEADER_ICON_SIZE * 0.8f;
   const float but_icon_right = but_icon_left + but_icon_width;
 
+  void *tooltip_arg = extra_info_row.tooltip_fn_arg;
+  if (tooltip_arg && extra_info_row.tooltip_fn_free_arg) {
+    BLI_assert(extra_info_row.tooltip_fn_copy_arg);
+    tooltip_arg = extra_info_row.tooltip_fn_copy_arg(tooltip_arg);
+  }
+
   UI_block_emboss_set(&block, ui::EmbossType::None);
   uiBut *but_icon = uiDefIconBut(&block,
                                  ButType::But,
@@ -2480,10 +2504,8 @@ static void node_draw_extra_info_row(const bNode &node,
                                  0,
                                  extra_info_row.tooltip);
   if (extra_info_row.tooltip_fn != nullptr) {
-    UI_but_func_tooltip_set(but_icon,
-                            extra_info_row.tooltip_fn,
-                            extra_info_row.tooltip_fn_arg,
-                            extra_info_row.tooltip_fn_free_arg);
+    UI_but_func_tooltip_set(
+        but_icon, extra_info_row.tooltip_fn, tooltip_arg, extra_info_row.tooltip_fn_free_arg);
   }
   UI_block_emboss_set(&block, ui::EmbossType::Emboss);
 
@@ -2506,8 +2528,7 @@ static void node_draw_extra_info_row(const bNode &node,
 
   if (extra_info_row.tooltip_fn != nullptr) {
     /* Don't pass tooltip free function because it's already used on the uiBut above. */
-    UI_but_func_tooltip_set(
-        but_text, extra_info_row.tooltip_fn, extra_info_row.tooltip_fn_arg, nullptr);
+    UI_but_func_tooltip_set(but_text, extra_info_row.tooltip_fn, tooltip_arg, nullptr);
   }
 
   if (node.is_muted()) {
@@ -4315,8 +4336,8 @@ static std::optional<float2> find_visible_center_of_link(const View2D &v2d,
       return 1e5f + distance_to_center;
     }
     return
-        /* The larger the distance to the link center, the higher the cost. The importance of this
-           distance decreases the further the center is away. */
+        /* The larger the distance to the link center, the higher the cost.
+         * The importance of this distance decreases the further the center is away. */
         std::sqrt(distance_to_center)
         /* The larger the distance to the inner rectangle, the higher the cost. Apply an additional
          * factor because it's more important that the position stays visible than that it is at
