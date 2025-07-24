@@ -2192,16 +2192,21 @@ class GlareOperation : public NodeOperation {
     return fog_glow_result;
   }
 
-  /* Returns the field of view (in radians), based on the user size input. The
-   * minimum_field_of_view is determined based on visual perception. Reducing this value results in
-   * a more spread-out effect when size = 1 (i.e., when the field of view equals
-   * minimum_field_of_view), and also expands the effective range of the size input.*/
+  /* Computes the field of view of the glare based on the give size as per:
+   *
+   *   Spencer, Greg, et al. "Physically-Based Glare Effects for Digital Images."
+   *   Proceedings of the 22nd Annual Conference on Computer Graphics and Interactive Techniques,
+   *   1995.
+   *
+   * We choose a minimum field of view of 10 degrees using visual judgement on typical setups,
+   * otherwise, a too small field of view would make the evaluation domain of the glare lie almost
+   * entirely in the central Gaussian of the function, losing the exponential characteristic of the
+   * function. Additionally, we take the power of the size with 1/3 to adjust the rate of change of
+   * the size to make the apparent size of the glare more linear with respect to the size input. */
   math::AngleRadian compute_fog_glow_field_of_view()
   {
-    const math::AngleRadian minimum_field_of_view = math::AngleRadian::from_degree(10);
-    const math::AngleRadian field_of_view = minimum_field_of_view /
-                                            math::max(this->get_size(), 1e-9f);
-    return field_of_view;
+    return math::AngleRadian::from_degree(
+        math::interpolate(180.0f, 10.0f, math::pow(this->get_size(), 1.0f / 3.0f)));
   }
 
   /* ----------
