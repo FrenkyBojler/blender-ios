@@ -15,6 +15,8 @@
 namespace blender::io::hydra {
 
 class WorldData : public LightData {
+ pxr::GfVec3f mapping_rot_;
+
  public:
   WorldData(HydraSceneDelegate *scene_delegate, pxr::SdfPath const &prim_id);
 

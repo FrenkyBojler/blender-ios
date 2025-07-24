@@ -17,6 +17,7 @@
 #include "DNA_scene_types.h"
 #include "DNA_world_types.h"
 
+#include "BLI_math_vector.h"
 #include "BLI_math_rotation.h"
 
 #include "BKE_node.hh"
@@ -34,6 +35,26 @@
 /* NOTE: opacity and blur aren't supported by USD */
 
 namespace blender::io::hydra {
+
+namespace {
+
+pxr::GfVec3f get_rotation_from_mapping(const bNode& color_input_node)
+{
+  pxr::GfVec3f mapping_rot{};
+  const bNodeSocket &vector_input = color_input_node.input_by_identifier("Vector");
+  if (!vector_input.directly_linked_links().is_empty()) {
+    const bNode *vector_input_node = vector_input.directly_linked_links()[0]->fromnode;
+    if (const bNodeSocket *socket = bke::node_find_socket(*vector_input_node, SOCK_IN, "Rotation")) {
+      const bNodeSocketValueVector *rot_value = static_cast<bNodeSocketValueVector *>(
+          socket->default_value);
+      copy_v3_v3(mapping_rot.data(), rot_value->value);
+      mul_v3_fl(mapping_rot.data(), 180.0f / M_PI);
+    }
+  }
+  return mapping_rot;
+}
+
+}  // namespace
 
 WorldData::WorldData(HydraSceneDelegate *scene_delegate, pxr::SdfPath const &prim_id)
     : LightData(scene_delegate, nullptr, prim_id)
@@ -100,6 +121,7 @@ void WorldData::init()
                 scene_delegate_->bmain, scene_delegate_->scene, image, &tex->iuser);
             if (!image_path.empty()) {
               texture_file = pxr::SdfAssetPath(image_path, image_path);
+              mapping_rot_ = get_rotation_from_mapping(*color_input_node);
             }
           }
         }
@@ -160,8 +182,15 @@ void WorldData::update()
 
 void WorldData::write_transform()
 {
-  transform = pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
-              pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0));
+  transform =
+      pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), 90.0)) *
+      pxr::GfMatrix4d().SetRotate(pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), 90.0)) *
+      pxr::GfMatrix4d().SetRotate(
+          pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, 1.0), -mapping_rot_[2])) *
+      pxr::GfMatrix4d().SetRotate(
+          pxr::GfRotation(pxr::GfVec3d(0.0, 1.0, 0.0), -mapping_rot_[1])) *
+      pxr::GfMatrix4d().SetRotate(
+          pxr::GfRotation(pxr::GfVec3d(1.0, 0.0, 0.0), -mapping_rot_[0]));
   if (!scene_delegate_->shading_settings.use_scene_world) {
     transform *= pxr::GfMatrix4d().SetRotate(
         pxr::GfRotation(pxr::GfVec3d(0.0, 0.0, -1.0),
