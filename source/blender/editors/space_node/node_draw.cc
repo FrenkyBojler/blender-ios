@@ -160,6 +160,7 @@ struct TreeDrawContext {
     for (MutableSpan<NodeExtraInfoRow> rows : this->extra_info_rows_per_node) {
       for (NodeExtraInfoRow &row : rows) {
         if (row.tooltip_fn_free_arg) {
+          BLI_assert(row.tooltip_fn_copy_arg);
           row.tooltip_fn_free_arg(row.tooltip_fn_arg);
         }
       }
