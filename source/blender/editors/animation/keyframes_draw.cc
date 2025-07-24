@@ -631,7 +631,7 @@ static void channel_list_draw_keys(ChannelDrawList *channel_list, View2D *v2d)
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
   immUniform1f("outline_scale", 1.0f);
-  immUniform2f("ViewportSize", BLI_rcti_size_x(&v2d->mask) + 1, BLI_rcti_size_y(&v2d->mask) + 1);
+  immUniform2f("ViewportSize", -1.0f, -1.0f);
   immBegin(GPU_PRIM_POINTS, visible_key_len);
 
   LISTBASE_FOREACH (ChannelListElement *, elem, &channel_list->channels) {

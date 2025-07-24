@@ -1691,7 +1691,7 @@ void UI_view2d_region_to_view_rctf(const View2D *v2d, const rctf *rect_src, rctf
 float UI_view2d_view_to_region_x(const View2D *v2d, float x)
 {
   return (v2d->mask.xmin +
-          (((x - v2d->cur.xmin) / BLI_rctf_size_x(&v2d->cur)) * BLI_rcti_size_x(&v2d->mask)));
+          (((x - v2d->cur.xmin) / BLI_rctf_size_x(&v2d->cur)) * float(BLI_rcti_size_x(&v2d->mask) + 1)));
 }
 float UI_view2d_view_to_region_y(const View2D *v2d, float y)
 {

@@ -437,7 +437,7 @@ void sequencer_retiming_keys_draw(const TimelineDrawContext *timeline_ctx,
   GPU_program_point_size(true);
   immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
   immUniform1f("outline_scale", 1.0f);
-  immUniform2f("ViewportSize", BLI_rcti_size_x(&v2d->mask) + 1, BLI_rcti_size_y(&v2d->mask) + 1);
+  immUniform2f("ViewportSize", -1.0f, -1.0f);
 
   constexpr int MAX_KEYS_IN_BATCH = 1024;
   int point_counter = 0;

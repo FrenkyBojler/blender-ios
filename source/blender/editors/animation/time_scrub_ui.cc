@@ -83,65 +83,49 @@ static void draw_current_frame(const Scene *scene,
                                bool display_stalk = true)
 {
   const uiFontStyle *fstyle = UI_FSTYLE_WIDGET;
-  int frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
+  float frame_x = UI_view2d_view_to_region_x(v2d, current_frame);
 
   char frame_str[64];
   get_current_time_str(scene, display_seconds, current_frame, frame_str, sizeof(frame_str));
   float text_width = UI_fontstyle_string_width(fstyle, frame_str);
   float box_width = std::max(text_width + 8 * UI_SCALE_FAC, 24 * UI_SCALE_FAC);
   float box_padding = 3 * UI_SCALE_FAC;
-  const int line_outline = max_ii(1, round_fl_to_int(1 * UI_SCALE_FAC));
-
-  float bg_color[4];
-  UI_GetThemeColorShade4fv(TH_CFRAME, -5, bg_color);
-
-  if (display_stalk) {
-    /* Draw vertical line from the bottom of the current frame box to the bottom of the screen. */
-    const float subframe_x = UI_view2d_view_to_region_x(v2d, BKE_scene_ctime_get(scene));
-    GPUVertFormat *format = immVertexFormat();
-    uint pos = GPU_vertformat_attr_add(format, "pos", blender::gpu::VertAttrType::SFLOAT_32_32);
-    GPU_blend(GPU_BLEND_ALPHA);
-    immBindBuiltinProgram(GPU_SHADER_3D_UNIFORM_COLOR);
-
-    /* Outline. */
-    immUniformThemeColorShadeAlpha(TH_BACK, -25, -100);
-    immRectf(pos,
-             subframe_x - (line_outline + U.pixelsize),
-             scrub_region_rect->ymax - box_padding,
-             subframe_x + (line_outline + U.pixelsize),
-             0.0f);
-
-    /* Line. */
-    immUniformThemeColor(TH_CFRAME);
-    immRectf(pos,
-             subframe_x - U.pixelsize,
-             scrub_region_rect->ymax - box_padding,
-             subframe_x + U.pixelsize,
-             0.0f);
-    immUnbindProgram();
-    GPU_blend(GPU_BLEND_NONE);
-  }
+  const float outline_width = UI_SCALE_FAC;
+  const float line_half_width = U.pixelsize;
 
   UI_draw_roundbox_corner_set(UI_CNR_ALL);
 
+  if (display_stalk) {
+    /* Draw vertical line from the bottom of the current frame box to the bottom of the screen. */
+    rctf line_rect{frame_x - (outline_width + line_half_width),
+                   frame_x + (outline_width + line_half_width),
+                   0.0f, scrub_region_rect->ymax - box_padding};
+
+    float outline_color[4] = {0.0f, 0.0f, 0.0f, 0.35f};
+    float line_color[4];
+    UI_GetThemeColor4fv(TH_CFRAME, line_color);
+    UI_draw_roundbox_4fv_ex(
+        &line_rect, line_color, nullptr, 1.0f, outline_color, outline_width, line_half_width);
+  }
+
+  float bg_color[4];
+  UI_GetThemeColor4fv(TH_CFRAME, bg_color);
   float outline_color[4];
   UI_GetThemeColorShade4fv(TH_CFRAME, 5, outline_color);
 
   rctf rect{};
-  rect.xmin = frame_x - box_width / 2 + U.pixelsize / 2;
-  rect.xmax = frame_x + box_width / 2 + U.pixelsize / 2;
-  rect.ymin = scrub_region_rect->ymin + box_padding;
-  rect.ymax = scrub_region_rect->ymax - box_padding;
+  rect.xmin = frame_x - (box_width / 2.0f) + (U.pixelsize / 2.0f);
+  rect.xmax = frame_x + (box_width / 2.0f) + (U.pixelsize / 2.0f);
+  rect.ymin = float(scrub_region_rect->ymin) + box_padding;
+  rect.ymax = float(scrub_region_rect->ymax) - box_padding;
   UI_draw_roundbox_4fv_ex(
       &rect, bg_color, nullptr, 1.0f, outline_color, U.pixelsize, 4 * UI_SCALE_FAC);
 
   uchar text_color[4];
   UI_GetThemeColor4ubv(TH_HEADER_TEXT_HI, text_color);
-
   const int y = BLI_rcti_cent_y(scrub_region_rect) - int(fstyle->points * UI_SCALE_FAC * 0.35f);
-
   UI_fontstyle_draw_simple(
-      +fstyle, frame_x - text_width / 2 + U.pixelsize / 2, y, frame_str, text_color);
+      fstyle, frame_x - text_width / 2 + U.pixelsize / 2, y, frame_str, text_color);
 }
 
 void ED_time_scrub_draw_current_frame(const ARegion *region,

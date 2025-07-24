@@ -136,7 +136,7 @@ static void nla_action_draw_keyframes(
     GPU_program_point_size(true);
     immBindBuiltinProgram(GPU_SHADER_KEYFRAME_SHAPE);
     immUniform1f("outline_scale", 1.0f);
-    immUniform2f("ViewportSize", BLI_rcti_size_x(&v2d->mask) + 1, BLI_rcti_size_y(&v2d->mask) + 1);
+    immUniform2f("ViewportSize", -1.0f, -1.0f);
     immBegin(GPU_PRIM_POINTS, key_len);
 
     /* - disregard the selection status of keyframes so they draw a certain way
