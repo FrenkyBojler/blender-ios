@@ -1039,6 +1039,9 @@ class DOPESHEET_PT_ShapeKey(Panel):
         if object is None or object.active_shape_key is None:
             return False
 
+        if object.data.shape_keys.use_relative == False:
+            return False
+
         return object.active_shape_key_index > 0
 
     def draw(self, context):
@@ -1047,23 +1050,19 @@ class DOPESHEET_PT_ShapeKey(Panel):
         ob = context.object
         key = ob.data.shape_keys
         kb = ob.active_shape_key
+        use_in_edit_mode = ob.mode != 'EDIT' or ob.use_shape_key_edit_mode
 
         col = layout.column()
-        if key.use_relative:
-            if ob.active_shape_key_index != 0:
-                col.active = ob.mode != 'EDIT'
-                col.prop(kb, "value")
+        if ob.active_shape_key_index != 0:
+            row = col.row()
+            row.active = use_in_edit_mode
+            row.prop(kb, "value")
 
-                col.active = True
-                col.prop(kb, "slider_min", text="Range Min")
-                col.prop(kb, "slider_max", text="Max")
+            col.prop(kb, "slider_min", text="Range Min")
+            col.prop(kb, "slider_max", text="Max")
 
-                col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="Vertex Group")
-                col.prop_search(kb, "relative_key", key, "key_blocks", text="Relative To")
-        else:
-            col.prop(kb, "interpolation")
-            col = layout.column()
-            col.prop(key, "eval_time")
+            col.prop_search(kb, "vertex_group", ob, "vertex_groups", text="Vertex Group")
+            col.prop_search(kb, "relative_key", key, "key_blocks", text="Relative To")
 
         if ob.type == 'MESH':
             col.prop(ob, "add_rest_position_attribute")
