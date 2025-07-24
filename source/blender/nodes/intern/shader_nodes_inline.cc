@@ -13,7 +13,6 @@
 #include "NOD_node_declaration.hh"
 #include "NOD_node_in_compute_context.hh"
 #include "NOD_shader_nodes_inline.hh"
-#include "NOD_socket_interface_key.hh"
 #include <variant>
 
 namespace blender::nodes {
@@ -136,7 +135,7 @@ struct SocketValue {
 
 struct BundleSocketValue {
   struct Item {
-    SocketInterfaceKey key;
+    std::string key;
     SocketValue value;
     const bke::bNodeSocketType *socket_type = nullptr;
   };
@@ -513,8 +512,7 @@ class ShaderNodesInliner {
     const bNode &closure_output_node = *closure_zone_value->zone->output_node();
     const auto &closure_storage = *static_cast<const NodeGeometryClosureOutput *>(
         closure_output_node.storage);
-    const SocketInterfaceKey key{
-        evaluate_closure_storage->output_items.items[socket->index()].name};
+    const StringRef key = evaluate_closure_storage->output_items.items[socket->index()].name;
 
     const ClosureSourceLocation closure_source_location{
         &closure_output_node.owner_tree(),
@@ -530,7 +528,7 @@ class ShaderNodesInliner {
 
     for (const int i : IndexRange(closure_storage.output_items.items_num)) {
       const NodeGeometryClosureOutputItem &item = closure_storage.output_items.items[i];
-      if (!key.matches(SocketInterfaceKey(item.name))) {
+      if (key != item.name) {
         continue;
       }
       const SocketInContext origin_socket = {&closure_eval_context,
@@ -560,10 +558,10 @@ class ShaderNodesInliner {
     const auto &eval_closure_storage = *static_cast<const NodeGeometryEvaluateClosure *>(
         closure_eval_node->storage);
 
-    const SocketInterfaceKey key{closure_storage.input_items.items[socket->index()].name};
+    const StringRef key = closure_storage.input_items.items[socket->index()].name;
     for (const int i : IndexRange(eval_closure_storage.input_items.items_num)) {
       const NodeGeometryEvaluateClosureInputItem &item = eval_closure_storage.input_items.items[i];
-      if (!key.matches(SocketInterfaceKey(item.name))) {
+      if (key != item.name) {
         continue;
       }
       const SocketInContext origin_socket = closure_eval_node.input_socket(i + 1);
@@ -593,7 +591,7 @@ class ShaderNodesInliner {
     for (const int i : IndexRange(storage.items_num)) {
       const SocketInContext input_socket = node.input_socket(i);
       const NodeGeometryCombineBundleItem &item = storage.items[i];
-      const SocketInterfaceKey key{item.name};
+      const StringRef key = item.name;
       const auto &socket_value = value_by_socket_.lookup(input_socket);
       bundle_value->items.append({key, socket_value, input_socket->typeinfo});
     }
@@ -618,9 +616,9 @@ class ShaderNodesInliner {
     }
     const BundleSocketValue &bundle_value = **bundle_value_ptr;
 
-    const SocketInterfaceKey key{storage.items[socket->index()].name};
+    const StringRef key = storage.items[socket->index()].name;
     for (const BundleSocketValue::Item &item : bundle_value.items) {
-      if (!key.matches(item.key)) {
+      if (key != item.key) {
         continue;
       }
       const SocketValue converted_value = this->handle_implicit_conversion(
