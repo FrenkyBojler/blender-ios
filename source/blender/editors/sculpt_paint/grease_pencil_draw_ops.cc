@@ -2167,7 +2167,9 @@ static wmOperatorStatus gpencil_xr_brush_settings_modal(bContext *C,
   if (!wm_xr_operator_test_event(op, event)) {
     return OPERATOR_PASS_THROUGH;
   }
-
+  ToolSettings *ts = CTX_data_tool_settings(C);
+  Paint *paint = &ts->gp_paint->paint;
+  Brush *brush = paint->brush;
   int factor = RNA_int_get(op->ptr, "factor");
 
   switch (event->val) {
@@ -2177,7 +2179,16 @@ static wmOperatorStatus gpencil_xr_brush_settings_modal(bContext *C,
         WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
       }
       else {
-        ED_grease_pencil_xr_brush_size_set(C, factor);
+        const bool use_unified_size = !(brush && brush->gpencil_settings &&
+                                        brush->ob_mode == OB_MODE_PAINT_GREASE_PENCIL);
+        int old_brush_size = ((use_unified_size) ? paint->unified_paint_settings.size :
+                                                   brush->size);
+        int new_brush_size = old_brush_size + (int)factor;
+        CLAMP(new_brush_size, 1, MAX_BRUSH_PIXEL_RADIUS);
+        BKE_brush_size_set(paint, brush, new_brush_size);
+        /* scale unprojected radius so it stays consistent with brush size */
+        BKE_brush_scale_unprojected_radius(
+            &brush->unprojected_radius, new_brush_size, old_brush_size);
         WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
       }
       return OPERATOR_RUNNING_MODAL;
