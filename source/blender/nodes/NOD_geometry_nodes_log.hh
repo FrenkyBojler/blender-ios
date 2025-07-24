@@ -43,7 +43,6 @@
 
 #include "NOD_geometry_nodes_closure_location.hh"
 #include "NOD_geometry_nodes_warning.hh"
-#include "NOD_socket_interface_key.hh"
 
 #include "FN_field.hh"
 
@@ -168,9 +167,6 @@ class GeometryInfoLog : public ValueLog {
   struct VolumeInfo {
     int grids_num;
   };
-  struct GridInfo {
-    bool is_empty;
-  };
 
   std::optional<MeshInfo> mesh_info;
   std::optional<CurveInfo> curve_info;
@@ -179,16 +175,21 @@ class GeometryInfoLog : public ValueLog {
   std::optional<InstancesInfo> instances_info;
   std::optional<EditDataInfo> edit_data_info;
   std::optional<VolumeInfo> volume_info;
-  std::optional<GridInfo> grid_info;
 
   GeometryInfoLog(const bke::GeometrySet &geometry_set);
-  GeometryInfoLog(const bke::GVolumeGrid &grid);
+};
+
+class GridInfoLog : public ValueLog {
+ public:
+  bool is_empty = false;
+
+  GridInfoLog(const bke::GVolumeGrid &grid);
 };
 
 class BundleValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type;
   };
 
@@ -200,7 +201,7 @@ class BundleValueLog : public ValueLog {
 class ClosureValueLog : public ValueLog {
  public:
   struct Item {
-    SocketInterfaceKey key;
+    std::string key;
     const bke::bNodeSocketType *type;
   };
 

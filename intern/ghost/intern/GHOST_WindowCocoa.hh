@@ -184,10 +184,18 @@ class GHOST_WindowCocoa : public GHOST_Window {
   void screenToClientIntern(int32_t inX, int32_t inY, int32_t &outX, int32_t &outY) const;
 
   /**
-   * Gets the screen the window is displayed in
-   * \return The NSScreen object
+   * Return the screen the window is displayed in.
+   * \return The current screen NSScreen object
    */
-  NSScreen *getScreen();
+  NSScreen *getScreen() const;
+
+  /**
+   * Return the primary screen, the screen defined as "Main Display" in macOS Settings, source of
+   * all screen coordinates.
+   * \note This function is placed in WindowCocoa since SystemCocoa cannot include Obj-C types.
+   * \return The primary screen NSScreen object
+   */
+  static NSScreen *getPrimaryScreen();
 
   /**
    * Sets the state of the window (normal, minimized, maximized).
@@ -287,7 +295,7 @@ class GHOST_WindowCocoa : public GHOST_Window {
                                             const uint8_t *mask,
                                             const int size[2],
                                             const int hot_spot[2],
-                                            bool canInvertColor) override;
+                                            bool can_invert_color) override;
 
   /** The window containing the view */
   BlenderWindow *m_window;
