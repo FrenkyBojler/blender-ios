@@ -159,8 +159,9 @@ bool WM_platform_support_perform_checks()
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Newer graphics drivers might be available with better Blender compatibility."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Newer graphics drivers might be available with better Blender compatibility."));
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(message, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Graphics card:\n"));
       STR_CONCAT(message, slen, GPU_platform_gpu_name());
@@ -205,8 +206,9 @@ bool WM_platform_support_perform_checks()
       STR_CONCAT(
           message,
           slen,
-          CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER,
-                     "Newer graphics drivers might be available with better Blender compatibility."));
+          CTX_IFACE_(
+              BLT_I18NCONTEXT_ID_WINDOWMANAGER,
+              "Newer graphics drivers might be available with better Blender compatibility."));
 
       STR_CONCAT(message, slen, "\n \n");
       STR_CONCAT(message, slen, CTX_IFACE_(BLT_I18NCONTEXT_ID_WINDOWMANAGER, "Graphics card:\n"));
