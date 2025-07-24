@@ -1,1 +1,2 @@
 Referenced by pull request #141597, Wayland: Hi-DPI dynamically resizing vector cursor support
+Referenced by commit c3b8702466e6a66103d2d8e4ec8f1b109f471926, GHOST: ignore GHOST_ASSERT in release builds
