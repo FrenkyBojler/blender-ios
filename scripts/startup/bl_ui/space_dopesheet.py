@@ -1039,7 +1039,7 @@ class DOPESHEET_PT_ShapeKey(Panel):
         if object is None or object.active_shape_key is None:
             return False
 
-        if object.data.shape_keys.use_relative == False:
+        if not object.data.shape_keys.use_relative:
             return False
 
         return object.active_shape_key_index > 0
