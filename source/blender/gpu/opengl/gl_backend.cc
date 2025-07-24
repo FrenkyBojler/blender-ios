@@ -88,7 +88,7 @@ static bool parse_version(const std::string &version,
 }
 
 /* Try to check if the driver is older than 22.6.1, preferring false positives.  */
-static bool is_bad_AMD_driver(const char *version_cstr)
+static bool is_bad_AMD_driver(const char *version_cstr, bool print = false)
 {
   std::string version_str = version_cstr;
   /* Allow matches when the version number is at the string end. */
@@ -96,25 +96,17 @@ static bool is_bad_AMD_driver(const char *version_cstr)
 
   Vector<int> version;
 
-  if (parse_version(version_str, " 00.00.00 ", version)) {
+  if (parse_version(version_str, " 00.00.00 ", version) ||
+      parse_version(version_str, " 00.Q0.00 ", version) ||
+      parse_version(version_str, " 00.00.00.00 ", version))
+  {
     return version[0] < 23;
   }
-  if (parse_version(version_str, " 00.Q0.00 ", version)) {
-    return version[0] < 23;
-  }
-  if (parse_version(version_str, " 00.00.00.00 ", version)) {
-    return version[0] < 23;
-  }
-  if (parse_version(version_str, " 00.00.00000.00000 ", version)) {
-    /* Some drivers only expose the Windows version https://gpuopen.com/version-table/ */
-    return version[0] < 31 || (version[0] == 31 && version[2] < 21001);
-  }
-  if (parse_version(version_str, " 00.00.00000.0000 ", version)) {
-    /* Some drivers only expose the Windows version https://gpuopen.com/version-table/ */
-    return version[0] < 31 || (version[0] == 31 && version[2] < 21001);
-  }
-  if (parse_version(version_str, " 00.00.0000.00000 ", version)) {
-    /* Some drivers only expose the Windows version https://gpuopen.com/version-table/ */
+  /* Some drivers only expose the Windows version https://gpuopen.com/version-table/ */
+  if (parse_version(version_str, " 00.00.00000.00000 ", version) ||
+      parse_version(version_str, " 00.00.00000.0000 ", version) ||
+      parse_version(version_str, " 00.00.0000.00000 ", version))
+  {
     return version[0] < 31 || (version[0] == 31 && version[2] < 21001);
   }
 
