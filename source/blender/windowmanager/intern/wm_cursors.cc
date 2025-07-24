@@ -931,18 +931,14 @@ static void wm_cursor_number_impl(wmWindow *win, int nr, bool is_percentage)
    * which *can't* be negated. */
   const uint32_t nr_abs = nr >= 0 ? uint32_t(nr) : -uint32_t(nr);
 
-  if (WM_capabilities_flag() & WM_CAPABILITY_CURSOR_RGBA) {
-    char text[CURSOR_TEXT_BUFFER_SIZE];
-    if (is_percentage) {
-      /* Left pad to avoid resizing text between 9% & 10%. */
-      SNPRINTF_UTF8(text, "%2u.%02u", nr_abs / 100, nr_abs % 100);
-    }
-    else {
-      SNPRINTF_UTF8(text, "%u", nr_abs);
-    }
-    wm_cursor_text(win, text, blf_mono_font);
-  }
-  else if (wm_cursor_size(win) < 24 || !wm_cursor_time_large(win, nr_abs)) {
+  /* Negative numbers not supported by #wm_cursor_time_large & #wm_cursor_time_small.
+   * Make absolute to show *something* although in typical usage this shouldn't be negative.
+   * NOTE: Use of unsigned here to allow negation when `nr` is `std::numeric_limits<int>::min()`
+   * which *can't* be negated. */
+  const uint32_t nr_abs = nr >= 0 ? uint32_t(nr) : -uint32_t(nr);
+
+  /* Use `U.ui_scale` instead of `UI_SCALE_FAC` here to ignore HiDPI/Retina scaling. */
+  if (U.ui_scale < 1.45f || !wm_cursor_time_large(win, nr_abs)) {
     wm_cursor_time_small(win, nr_abs);
   }
 
