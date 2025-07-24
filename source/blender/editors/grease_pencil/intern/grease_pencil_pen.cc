@@ -585,6 +585,10 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
 
+    if (curves.is_empty()) {
+      return;
+    }
+
     const int closest_point = pen_find_closest_point(ptd, curves, ptd.mouse_co);
 
     if (closest_point == -1) {
@@ -602,6 +606,14 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
         bool extruded = false;
         curves = pen_extrude_curves(ptd, curves, &extruded);
         if (!extruded) {
+          for (const StringRef selection_attribute_name :
+               ed::curves::get_curves_selection_attribute_names(curves))
+          {
+            bke::GSpanAttributeWriter selection_writer = ed::curves::ensure_selection_attribute(
+                curves, bke::AttrDomain::Point, bke::AttrType::Bool, selection_attribute_name);
+            MutableSpan<bool> selection = selection_writer.span.typed<bool>();
+            selection.fill(false);
+          }
           return;
         }
         add_single.store(false, std::memory_order_relaxed);
