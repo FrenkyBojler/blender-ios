@@ -605,7 +605,7 @@ void WM_window_title(wmWindowManager *wm, wmWindow *win, const char *title)
   GHOST_SetWindowModifiedState(handle, !wm->file_saved);
 }
 
-void WM_window_set_dpi(const wmWindow *win)
+void WM_window_dpi_set_userdef(const wmWindow *win)
 {
   float auto_dpi = GHOST_GetDPIHint(static_cast<GHOST_WindowHandle>(win->ghostwin));
 
@@ -649,6 +649,18 @@ void WM_window_set_dpi(const wmWindow *win)
   /* Widget unit is 20 pixels at 1X scale. This consists of 18 user-scaled units plus
    * left and right borders of line-width (pixel-size). */
   U.widget_unit = int(roundf(18.0f * U.scale_factor)) + (2 * pixelsize);
+}
+
+float WM_window_dpi_get_scale(const wmWindow *win)
+{
+  GHOST_WindowHandle win_handle = static_cast<GHOST_WindowHandle>(win->ghostwin);
+  const uint16_t dpi_base = 96;
+  const uint16_t dpi_fixed = std::max<uint16_t>(dpi_base, GHOST_GetDPIHint(win_handle));
+  float dpi = float(dpi_fixed);
+  if (OS_MAC) {
+    dpi *= GHOST_GetNativePixelSize(win_handle);
+  }
+  return dpi / float(dpi_base);
 }
 
 /** \} */
@@ -935,7 +947,7 @@ static void wm_window_ghostwindow_add(wmWindowManager *wm,
     GPU_clear_color(window_bg_color[0], window_bg_color[1], window_bg_color[2], 1.0f);
 
     /* Needed here, because it's used before it reads #UserDef. */
-    WM_window_set_dpi(win);
+    WM_window_dpi_set_userdef(win);
 
     wm_window_swap_buffers(win);
 
@@ -987,7 +999,7 @@ static void wm_window_ghostwindow_ensure(wmWindowManager *wm, wmWindow *win, boo
     /* Happens after file-read. */
     wm_window_ensure_eventstate(win);
 
-    WM_window_set_dpi(win);
+    WM_window_dpi_set_userdef(win);
 
     if (WM_capabilities_flag() & WM_CAPABILITY_WINDOW_DECORATION_STYLES) {
       /* Only decoration style we have for now. */
@@ -1429,7 +1441,7 @@ void wm_window_make_drawable(wmWindowManager *wm, wmWindow *win)
 
   if (win->ghostwin) {
     /* This can change per window. */
-    WM_window_set_dpi(win);
+    WM_window_dpi_set_userdef(win);
   }
 }
 
@@ -1669,7 +1681,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
           static_cast<GHOST_WindowHandle>(win->ghostwin));
       win->windowstate = state;
 
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
 
       /* WIN32: gives undefined window size when minimized. */
       if (state != GHOST_kWindowStateMinimized) {
@@ -1734,7 +1746,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
     }
 
     case GHOST_kEventWindowDPIHintChanged: {
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
       /* Font's are stored at each DPI level, without this we can easy load 100's of fonts. */
       BLF_cache_clear();
 
@@ -1755,7 +1767,8 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
         WM_operator_properties_create_ptr(&props_ptr, ot);
         RNA_string_set(&props_ptr, "filepath", path);
         RNA_boolean_set(&props_ptr, "display_file_selector", false);
-        WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, nullptr);
+        WM_operator_name_call_ptr(
+            C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
         WM_operator_properties_free(&props_ptr);
 
         CTX_wm_window_set(C, nullptr);
@@ -1833,7 +1846,7 @@ static bool ghost_event_proc(GHOST_EventHandle ghost_event, GHOST_TUserDataPtr C
     case GHOST_kEventNativeResolutionChange: {
       /* Only update if the actual pixel size changes. */
       float prev_pixelsize = U.pixelsize;
-      WM_window_set_dpi(win);
+      WM_window_dpi_set_userdef(win);
 
       if (U.pixelsize != prev_pixelsize) {
         BKE_icon_changed(WM_window_get_active_screen(win)->id.icon_id);
@@ -1990,21 +2003,7 @@ void wm_window_events_process(const bContext *C)
   /* Skip sleeping when simulating events so tests don't idle unnecessarily as simulated
    * events are typically generated from a timer that runs in the main loop. */
   if ((has_event == false) && (sleep_us != 0) && !(G.f & G_FLAG_EVENT_SIMULATE)) {
-    if (sleep_us == sleep_us_default) {
-      /* NOTE(@ideasman42): prefer #BLI_time_sleep_ms over `sleep_for(..)` in the common case
-       * because this function uses lower resolution (millisecond) resolution sleep timers
-       * which are tried & true for the idle loop. We could move to C++ `sleep_for(..)`
-       * if this works well on all platforms but this needs further testing. */
-      BLI_time_sleep_ms(sleep_us_default / 1000);
-    }
-    else {
-      /* The time was shortened to resume for the upcoming timer, use a high resolution sleep.
-       * Mainly happens during animation playback but could happen immediately before any timer.
-       *
-       * NOTE(@ideasman42): At time of writing Windows-10-22H2 doesn't give higher precision sleep.
-       * Keep the functionality as it doesn't have noticeable down sides either. */
-      std::this_thread::sleep_for(std::chrono::microseconds(sleep_us));
-    }
+    BLI_time_sleep_precise_us(sleep_us);
   }
 }
 
@@ -2235,6 +2234,9 @@ eWM_CapabilitiesFlag WM_capabilities_flag()
   }
   if (ghost_flag & GHOST_kCapabilityCursorRGBA) {
     flag |= WM_CAPABILITY_CURSOR_RGBA;
+  }
+  if (ghost_flag & GHOST_kCapabilityCursorGenerator) {
+    flag |= WM_CAPABILITY_CURSOR_GENERATOR;
   }
 
   return flag;

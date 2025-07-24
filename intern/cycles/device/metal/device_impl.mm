@@ -60,9 +60,8 @@ void MetalDevice::set_error(const string &error)
   Device::set_error(error);
 
   if (!has_error) {
-    fprintf(stderr, "\nRefer to the Cycles GPU rendering documentation for possible solutions:\n");
-    fprintf(stderr,
-            "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n\n");
+    LOG_ERROR << "Refer to the Cycles GPU rendering documentation for possible solutions:\n"
+                 "https://docs.blender.org/manual/en/latest/render/cycles/gpu_rendering.html\n";
     has_error = true;
   }
 }
@@ -310,6 +309,10 @@ string MetalDevice::preprocess_source(MetalPipelineType pso_type,
 #  undef KERNEL_STRUCT_MEMBER_DONT_SPECIALIZE
 #  undef KERNEL_STRUCT_BEGIN
 
+      /* Replace "kernel_data.kernel_features" memory fetches with a function constant. */
+      string_replace_same_length(
+          *source, "kernel_data.kernel_features", "kernel_data_kernel_features");
+
       metal_printf("KernelData patching took %.1f ms", (time_dt() - starttime) * 1000.0);
     }
 
@@ -502,8 +505,8 @@ void MetalDevice::compile_and_load(const int device_id, MetalPipelineType pso_ty
       if (MetalDevice *instance = get_device_by_ID(device_id, lock)) {
         if (mtlLibrary) {
           if (error && [error localizedDescription]) {
-            LOG(WARNING) << "MSL compilation messages: "
-                         << [[error localizedDescription] UTF8String];
+            LOG_WARNING << "MSL compilation messages: "
+                        << [[error localizedDescription] UTF8String];
           }
 
           instance->mtlLibrary[pso_type] = mtlLibrary;
@@ -586,9 +589,9 @@ MetalDevice::MetalMem *MetalDevice::generic_alloc(device_memory &mem)
     }
 
     if (mem.name) {
-      LOG(WORK) << "Buffer allocate: " << mem.name << ", "
-                << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                << string_human_readable_size(mem.memory_size()) << ")";
+      LOG_WORK << "Buffer allocate: " << mem.name << ", "
+               << string_human_readable_number(mem.memory_size()) << " bytes. ("
+               << string_human_readable_size(mem.memory_size()) << ")";
     }
 
     mem.device_size = metal_buffer.allocatedSize;
@@ -1034,9 +1037,9 @@ void MetalDevice::tex_alloc(device_texture &mem)
       desc.storageMode = MTLStorageModeShared;
       desc.usage = MTLTextureUsageShaderRead;
 
-      LOG(WORK) << "Texture 2D allocate: " << mem.name << ", "
-                << string_human_readable_number(mem.memory_size()) << " bytes. ("
-                << string_human_readable_size(mem.memory_size()) << ")";
+      LOG_WORK << "Texture 2D allocate: " << mem.name << ", "
+               << string_human_readable_number(mem.memory_size()) << " bytes. ("
+               << string_human_readable_size(mem.memory_size()) << ")";
 
       mtlTexture = [mtlDevice newTextureWithDescriptor:desc];
       if (!mtlTexture) {

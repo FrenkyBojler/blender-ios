@@ -1116,14 +1116,25 @@ void RNA_struct_blender_type_set(StructRNA *srna, void *blender_type)
   srna->blender_type = blender_type;
 }
 
+char *RNA_struct_name_get_alloc_ex(
+    PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len, PropertyRNA **r_nameprop)
+{
+  if (ptr->data) {
+    if (PropertyRNA *nameprop = RNA_struct_name_property(ptr->type)) {
+      *r_nameprop = nameprop;
+      return RNA_property_string_get_alloc(ptr, nameprop, fixedbuf, fixedlen, r_len);
+    }
+  }
+  return nullptr;
+}
+
 char *RNA_struct_name_get_alloc(PointerRNA *ptr, char *fixedbuf, int fixedlen, int *r_len)
 {
-  PropertyRNA *nameprop;
-
-  if (ptr->data && (nameprop = RNA_struct_name_property(ptr->type))) {
-    return RNA_property_string_get_alloc(ptr, nameprop, fixedbuf, fixedlen, r_len);
+  if (ptr->data) {
+    if (PropertyRNA *nameprop = RNA_struct_name_property(ptr->type)) {
+      return RNA_property_string_get_alloc(ptr, nameprop, fixedbuf, fixedlen, r_len);
+    }
   }
-
   return nullptr;
 }
 
@@ -3747,9 +3758,9 @@ std::string RNA_property_string_get(PointerRNA *ptr, PropertyRNA *prop)
   }
 
   std::string string_ret{};
-  /* Note: after `resize()` the underlying buffer is actually at least `length +
-   * 1` bytes long, because (since C++11) `std::string` guarantees a terminating
-   * null byte, but that is not considered part of the length. */
+  /* Note: after `resize()` the underlying buffer is actually at least
+   * `length + 1` bytes long, because (since C++11) `std::string` guarantees
+   * a terminating null byte, but that is not considered part of the length. */
   string_ret.resize(length);
 
   if (sprop->get) {
@@ -5796,6 +5807,16 @@ bool RNA_enum_name_from_value(const EnumPropertyItem *item, int value, const cha
     return true;
   }
   return false;
+}
+
+std::string RNA_string_get(PointerRNA *ptr, const char *name)
+{
+  PropertyRNA *prop = RNA_struct_find_property(ptr, name);
+  if (!prop) {
+    printf("%s: %s.%s not found.\n", __func__, ptr->type->identifier, name);
+    return {};
+  }
+  return RNA_property_string_get(ptr, prop);
 }
 
 void RNA_string_get(PointerRNA *ptr, const char *name, char *value)

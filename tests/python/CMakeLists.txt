@@ -1261,6 +1261,10 @@ if(TEST_SRC_DIR_EXISTS)
     ffmpeg
   )
 
+  set(video_output_tests
+    video_output
+  )
+
   foreach(render_test ${render_tests})
     add_render_test(
       sequencer_render_${render_test}
@@ -1269,6 +1273,22 @@ if(TEST_SRC_DIR_EXISTS)
       --outdir "${TEST_OUT_DIR}/sequence_editing"
     )
   endforeach()
+
+  foreach(video_output_test ${video_output_tests})
+    add_render_test(
+      sequencer_render_${video_output_test}
+      ${CMAKE_CURRENT_LIST_DIR}/sequencer_video_output_tests.py
+      --testdir "${TEST_SRC_DIR}/sequence_editing/${video_output_test}"
+      --outdir "${TEST_OUT_DIR}/sequence_editing"
+    )
+  endforeach()
+
+  add_blender_test(
+    sequencer_input_colorspace
+    --python ${CMAKE_CURRENT_LIST_DIR}/sequencer_input_colorspace.py
+    --
+    --testdir "${TEST_SRC_DIR}/sequence_editing"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1323,6 +1343,7 @@ if(WITH_UI_TESTS)
   # `"${TEST_PYTHON_EXE}" "${CMAKE_CURRENT_LIST_DIR}/ui_simulate/run.py" --list-tests`
   # list explicitly so changes bisecting/updated are sure to re-run CMake.
   set(_ui_tests
+    test_sculpt.asset_shelf_brush_selection
     test_workspace.sanity_check_general
     test_workspace.sanity_check_2d_animation
     test_workspace.sanity_check_sculpting

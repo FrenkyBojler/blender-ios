@@ -264,7 +264,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
         }
 
         sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
-            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(
+                queue->get_context(), {queue->get_device()}, {kernel_id});
 
         const RTCFeatureFlags embree_features = oneapi_embree_features_from_kernel_features(
             kernel_features);
@@ -303,7 +304,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
 #  ifdef WITH_EMBREE_GPU
       if (oneapi_kernel_has_intersections(kernel_name)) {
         sycl::kernel_bundle<sycl::bundle_state::input> one_kernel_bundle_input =
-            sycl::get_kernel_bundle<sycl::bundle_state::input>(queue->get_context(), {kernel_id});
+            sycl::get_kernel_bundle<sycl::bundle_state::input>(
+                queue->get_context(), {queue->get_device()}, {kernel_id});
         one_kernel_bundle_input
             .set_specialization_constant<ONEAPIKernelContext::oneapi_embree_features>(
                 RTC_FEATURE_FLAG_NONE);
@@ -313,8 +315,8 @@ bool oneapi_load_kernels(SyclQueue *queue_,
 #  endif
       /* This call will ensure that AoT or cached JIT binaries are available
        * for execution. It will trigger compilation if it is not already the case. */
-      (void)sycl::get_kernel_bundle<sycl::bundle_state::executable>(queue->get_context(),
-                                                                    {kernel_id});
+      (void)sycl::get_kernel_bundle<sycl::bundle_state::executable>(
+          queue->get_context(), {queue->get_device()}, {kernel_id});
     }
   }
   catch (const sycl::exception &e) {
