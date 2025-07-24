@@ -774,7 +774,9 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
                 col.prop(asset.local_id.asset_data, "catalog_id", text="UUID")
                 col.prop(asset.local_id.asset_data, "catalog_simple_name", text="Simple Name")
         else:
-            layout.prop(asset, "name")
+            row = layout.row(align=True)
+            row.prop(asset, "name")
+            row.menu("ASSETBROWSER_MT_metadata_edit", text="", icon='DOWNARROW_HLT')
 
             if show_asset_debug_info:
                 col = layout.column(align=True)
@@ -792,6 +794,14 @@ class ASSETBROWSER_PT_metadata(asset_utils.AssetBrowserPanel, Panel):
         self.metadata_prop(layout, metadata, "license")
         self.metadata_prop(layout, metadata, "copyright")
         self.metadata_prop(layout, metadata, "author")
+
+
+class ASSETBROWSER_MT_metadata_edit(Menu):
+    bl_label = "Metadata"
+
+    def draw(self, context):
+        layout = self.layout
+        layout.operator("asset.asset_edit_metadata")
 
 
 class ASSETBROWSER_PT_metadata_preview(asset_utils.AssetMetaDataPanel, Panel):
@@ -821,7 +831,6 @@ class ASSETBROWSER_MT_metadata_preview_menu(Menu):
         layout.separator()
         layout.operator("ed.lib_id_remove_preview")
         layout.operator("asset.screenshot_preview")
-        layout.operator("asset.asset_edit_metadata")
 
 
 class ASSETBROWSER_PT_metadata_tags(asset_utils.AssetMetaDataPanel, Panel):
@@ -908,6 +917,7 @@ classes = (
     ASSETBROWSER_MT_select,
     ASSETBROWSER_MT_catalog,
     ASSETBROWSER_PT_import_settings,
+    ASSETBROWSER_MT_metadata_edit,
     ASSETBROWSER_MT_metadata_preview_menu,
     ASSETBROWSER_PT_metadata,
     ASSETBROWSER_PT_metadata_preview,
