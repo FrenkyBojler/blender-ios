@@ -135,6 +135,10 @@ void CLG_logref_init(CLG_LogRef *clg_ref);
 
 int CLG_color_support_get(CLG_LogRef *clg_ref);
 
+/* Suppress NOCHECK logging to be extra quiet. */
+void CLG_quiet_set(bool quiet);
+bool CLG_quiet_get();
+
 /** Declare outside function, declare as extern in header. */
 #define CLG_LOGREF_DECLARE_GLOBAL(var, id) \
   static CLG_LogRef _static_##var = {id}; \
@@ -159,7 +163,9 @@ int CLG_color_support_get(CLG_LogRef *clg_ref);
 #define CLOG_AT_LEVEL_NOCHECK(clg_ref, verbose_level, ...) \
   { \
     const CLG_LogType *_lg_ty = CLOG_ENSURE(clg_ref); \
-    CLG_logf(_lg_ty, verbose_level, __FILE__ ":" STRINGIFY(__LINE__), __func__, __VA_ARGS__); \
+    if (!CLG_quiet_get() || _lg_ty->level >= verbose_level) { \
+      CLG_logf(_lg_ty, verbose_level, __FILE__ ":" STRINGIFY(__LINE__), __func__, __VA_ARGS__); \
+    } \
   } \
   ((void)0)
 
@@ -175,7 +181,9 @@ int CLG_color_support_get(CLG_LogRef *clg_ref);
 #define CLOG_STR_AT_LEVEL_NOCHECK(clg_ref, verbose_level, str) \
   { \
     const CLG_LogType *_lg_ty = CLOG_ENSURE(clg_ref); \
-    CLG_log_str(_lg_ty, verbose_level, __FILE__ ":" STRINGIFY(__LINE__), __func__, str); \
+    if (!CLG_quiet_get() || _lg_ty->level >= verbose_level) { \
+      CLG_log_str(_lg_ty, verbose_level, __FILE__ ":" STRINGIFY(__LINE__), __func__, str); \
+    } \
   } \
   ((void)0)
 
