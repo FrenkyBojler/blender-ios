@@ -306,6 +306,7 @@ def compositor_make_group():
     yield from _compositor_startup_area(e)
 
     # Create a node tree with multiple nodes and select all nodes.
+    # TODO: Node tree should be created through the UI
     node_group = bpy.data.node_groups.new(name="comp ntree", type="CompositorNodeTree")
     window.scene.compositing_node_group = node_group
     yield from _call_menu(e, "Add -> Color -> Alpha Convert")
