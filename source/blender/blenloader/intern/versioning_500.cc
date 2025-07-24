@@ -1243,7 +1243,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
 
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 41)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
-      bNodeTree *node_tree = scene->nodetree;
+      bNodeTree *node_tree = version_get_scene_compositor_node_tree(bmain, scene);
       if (node_tree) {
         /* Add a default interface for the node tree. See the versioning function below for more
          * details. */
