@@ -721,7 +721,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
-    const Span<float3> positions = curves.positions();
+    MutableSpan<float3> positions = curves.positions_for_write();
     const OffsetIndices points_by_curve = curves.points_by_curve();
     const Array<int> point_to_curve_map = curves.point_to_curve_map();
 
@@ -805,9 +805,19 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
     selection.foreach_index(GrainSize(2048), [&](const int64_t point_i) {
       const float3 depth_point = positions[point_i];
-      if (event->modifier & KM_CTRL) {
-        const float2 offset = float2(event->xy) - float2(event->prev_xy);
+      float2 offset = float2(event->xy) - float2(event->prev_xy);
 
+      if (ptd.move_point) {
+        positions[point_i] = pen_screen_to_global(
+            ptd, pen_global_to_screen(ptd, positions[point_i]) + offset, depth_point);
+        handles_left[point_i] = pen_screen_to_global(
+            ptd, pen_global_to_screen(ptd, handles_left[point_i]) + offset, depth_point);
+        handles_right[point_i] = pen_screen_to_global(
+            ptd, pen_global_to_screen(ptd, handles_right[point_i]) + offset, depth_point);
+        return;
+      }
+
+      if (event->modifier & KM_CTRL) {
         handle_types_left[point_i] = BEZIER_HANDLE_FREE;
         handle_types_right[point_i] = BEZIER_HANDLE_FREE;
         handles_left[point_i] = pen_screen_to_global(
@@ -826,7 +836,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
         handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
         const float2 center_point = pen_global_to_screen(ptd, depth_point);
-        float2 offset = ptd.mouse_co - center_point;
+        offset = ptd.mouse_co - center_point;
 
         if (event->modifier & KM_SHIFT) {
           offset = snap_8_angles(offset);
