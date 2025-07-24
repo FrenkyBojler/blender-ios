@@ -1678,6 +1678,26 @@ static void execute_realize_mesh_task(const RealizeInstancesOptions &options,
                                     domain_to_range,
                                     dst_attribute_writers);
 }
+static void copy_vertex_group_name(ListBase *dst_deform_group,
+                                   const OrderedAttributes &ordered_attributes,
+                                   const bDeformGroup *src_deform_group)
+{
+  const StringRef src_name = src_deform_group->name;
+  const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
+  if (attribute_index == -1) {
+    /* The attribute is not propagated to the result (possibly because the mesh isn't included
+     * in the realized output because of the #VariedDepthOptions input). */
+    return;
+  }
+  const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
+  if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
+    /* Prefer using the highest priority domain and type from all input meshes. */
+    return;
+  }
+  bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
+  src_name.copy_utf8_truncated(dst->name);
+  BLI_addtail(dst_deform_group, dst);
+}
 
 static void copy_vertex_group_names(Mesh &dst_mesh,
                                     const OrderedAttributes &ordered_attributes,
@@ -1689,24 +1709,10 @@ static void copy_vertex_group_names(Mesh &dst_mesh,
   }
   for (const Mesh *mesh : src_meshes) {
     LISTBASE_FOREACH (const bDeformGroup *, src, &mesh->vertex_group_names) {
-      const StringRef src_name = src->name;
-      const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
-      if (attribute_index == -1) {
-        /* The attribute is not propagated to the result (possibly because the mesh isn't included
-         * in the realized output because of the #VariedDepthOptions input). */
+      if (existing_names.contains(src->name)) {
         continue;
       }
-      const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
-      if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
-        /* Prefer using the highest priority domain and type from all input meshes. */
-        continue;
-      }
-      if (existing_names.contains(src_name)) {
-        continue;
-      }
-      bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
-      src_name.copy_utf8_truncated(dst->name);
-      BLI_addtail(&dst_mesh.vertex_group_names, dst);
+      copy_vertex_group_name(&dst_mesh.vertex_group_names, ordered_attributes, src);
     }
   }
 }
@@ -2076,32 +2082,11 @@ static void execute_realize_curve_task(const RealizeInstancesOptions &options,
 
 static void copy_vertex_group_names(CurvesGeometry &dst_curve,
                                     const OrderedAttributes &ordered_attributes,
-                                    const Span<const CurvesGeometry *> src_curves)
+                                    const Span<const Curves *> src_curves)
 {
-  Set<StringRef> existing_names;
-  LISTBASE_FOREACH (const bDeformGroup *, defgroup, &dst_curve.vertex_group_names) {
-    existing_names.add(defgroup->name);
-  }
-  for (const CurvesGeometry *src_curve : src_curves) {
-    LISTBASE_FOREACH (const bDeformGroup *, src, &src_curve->vertex_group_names) {
-      const StringRef src_name = src->name;
-      const int attribute_index = ordered_attributes.ids.index_of_try(src_name);
-      if (attribute_index == -1) {
-        /* The attribute is not propagated to the result (possibly because the mesh isn't included
-         * in the realized output because of the #VariedDepthOptions input). */
-        continue;
-      }
-      const bke::AttributeDomainAndType kind = ordered_attributes.kinds[attribute_index];
-      if (kind.domain != bke::AttrDomain::Point || kind.data_type != bke::AttrType::Float) {
-        /* Prefer using the highest priority domain and type from all input meshes. */
-        continue;
-      }
-      if (existing_names.contains(src_name)) {
-        continue;
-      }
-      bDeformGroup *dst = MEM_callocN<bDeformGroup>(__func__);
-      src_name.copy_utf8_truncated(dst->name);
-      BLI_addtail(&dst_curve.vertex_group_names, dst);
+  for (const Curves *src_curve : src_curves) {
+    LISTBASE_FOREACH (const bDeformGroup *, src, &src_curve->geometry.vertex_group_names) {
+      copy_vertex_group_name(&dst_curve.vertex_group_names, ordered_attributes, src);
     }
   }
 }
@@ -2152,11 +2137,7 @@ static void execute_realize_curve_tasks(const RealizeInstancesOptions &options,
   bke::curves_copy_parameters(first_curves_id, *dst_curves_id);
 
   Span<const Curves *> src_curves = all_curves_info.order.as_span().drop_front(1);
-  Vector<const CurvesGeometry *> src_curves_geom;
-  for (const Curves* curve : src_curves){
-    src_curves_geom.append(&curve->geometry);
-  }
-  copy_vertex_group_names(dst_curves, ordered_attributes, src_curves_geom.as_span());
+  copy_vertex_group_names(dst_curves, ordered_attributes, src_curves);
 
   /* Prepare id attribute. */
   SpanAttributeWriter<int> point_ids;
