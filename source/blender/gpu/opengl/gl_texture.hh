@@ -152,7 +152,7 @@ inline GLenum to_gl_internal_format(TextureFormat format)
   case TextureFormat::blender_enum: \
     return GL_##gl_pixel_enum;
 
-  switch (tex_format) {
+  switch (format) {
     GPU_TEXTURE_FORMAT_EXPAND(CASE)
     case TextureFormat::Invalid:
       break;
