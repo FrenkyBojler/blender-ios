@@ -4937,6 +4937,13 @@ static void version_convert_sculpt_planar_brushes(Main *bmain)
         brush->plane_inversion_mode = brush->flag & BRUSH_INVERT_TO_SCRAPE_FILL ?
                                           BRUSH_PLANE_SWAP_HEIGHT_AND_DEPTH :
                                           BRUSH_PLANE_INVERT_DISPLACEMENT;
+
+        /* Note, this fix was committed after some users had already run the versioning after
+         * 4.5 was released. Since 4.5 is an LTS and will be used for the foreseeable future to
+         * transition between 4.x and 5.x, and there being no easy way to version this field
+         * correctly with a new version bump, the fix has been added here, even though that does
+         * not fix the issue for some users currently experiencing this issue. */
+        brush->plane_offset *= -1.0f;
       }
 
       if (brush->flag & BRUSH_PLANE_TRIM) {
