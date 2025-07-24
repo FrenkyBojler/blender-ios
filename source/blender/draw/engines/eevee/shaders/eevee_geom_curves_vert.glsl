@@ -32,7 +32,7 @@ void main()
   curve_interp.tangent = ws_pt.T;
   curve_interp.time = 0.0; /* TODO */
   curve_interp.thickness = ws_pt.radius;
-  curve_interp.time_width = ws_pt.cylinder_time;
+  curve_interp.time_width = ws_pt.azimuthal_offset;
   curve_interp.point_id = ws_pt.point_id;
   curve_interp_flat.strand_id = ws_pt.curve_id;
 

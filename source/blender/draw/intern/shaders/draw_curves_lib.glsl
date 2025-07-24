@@ -71,12 +71,19 @@ int point_id_get(int segment_id, int curve_id)
   return segment_id + (is_ribbon ? -curve_id : curve_id);
 }
 
-float cylinder_time_get(uint vertex_id)
+float azimuthal_offset_get(uint vertex_id)
 {
-  uint seg_vert_id = vertex_id % drw_curves.vertex_per_segment;
-  /* Face count for the visible half cylinder [1..max]. Is 1 for ribbon. */
-  uint face_count = drw_curves.half_cylinder_face_count;
-  float time = float((seg_vert_id >> 1) & face_count) / float(face_count);
+  float time;
+  const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
+  if (is_cylinder) {
+    uint seg_vert_id = vertex_id % drw_curves.vertex_per_segment;
+    /* Face count for the visible half cylinder [1..max]. Is 1 for ribbon. */
+    uint face_count = drw_curves.half_cylinder_face_count;
+    time = float((seg_vert_id >> 1) & face_count) / float(face_count);
+  }
+  else {
+    time = vertex_id & 1u;
+  }
   return time * 2.0f - 1.0f;
 }
 
@@ -97,8 +104,8 @@ struct Point {
   float3 T;
 
   float radius;
-  /* Where the vertex is placed on the cross section of the segment cylinder. Range [-1..1]. */
-  float cylinder_time;
+  /* Lateral/Azimuthal offset from the center of the curve's width. Range [-1..1]. */
+  float azimuthal_offset;
 
   int point_id;
   int curve_id;
@@ -118,7 +125,7 @@ Point point_get(uint vertex_id)
 
   pt.P = (pt.curve_id == END_OF_CURVE) ? float3(NAN_FLT) : point_position_get(pt.point_id);
   pt.radius = point_radius(pt.point_id);
-  pt.cylinder_time = cylinder_time_get(vertex_id);
+  pt.azimuthal_offset = azimuthal_offset_get(vertex_id);
 
   if (pt.curve_segment == 0) {
     /* Hair root. */
@@ -146,7 +153,7 @@ Point object_to_world(Point pt, float4x4 object_to_world)
 float3 shape_point_get(Point pt, float3 V, out float3 B)
 {
   B = normalize(cross(V, pt.T));
-  return pt.P + B * pt.cylinder_time * pt.radius;
+  return pt.P + B * pt.azimuthal_offset * pt.radius;
 }
 float3 shape_point_get(Point pt, float3 V)
 {
