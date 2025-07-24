@@ -28,14 +28,16 @@ namespace blender::compositor {
  * Fog Glow Kernel Key.
  */
 
-FogGlowKernelKey::FogGlowKernelKey(int kernel_size, int2 spatial_size, float field_of_view)
+FogGlowKernelKey::FogGlowKernelKey(int kernel_size,
+                                   int2 spatial_size,
+                                   math::AngleRadian field_of_view)
     : kernel_size(kernel_size), spatial_size(spatial_size), field_of_view(field_of_view)
 {
 }
 
 uint64_t FogGlowKernelKey::hash() const
 {
-  return get_default_hash(kernel_size, spatial_size, field_of_view);
+  return get_default_hash(kernel_size, spatial_size, field_of_view.degree());
 }
 
 bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
@@ -57,10 +59,10 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
  *   1995.
  */
 
-[[maybe_unused]] static float compute_fog_glow_kernel_value(int2 texel,
-                                                            float field_of_view_per_pixel)
+[[maybe_unused]] static float compute_fog_glow_kernel_value(
+    int2 texel, math::AngleRadian field_of_view_per_pixel)
 {
-  const float theta_degree = math::length(float2(texel)) * field_of_view_per_pixel;
+  const float theta_degree = math::length(float2(texel)) * field_of_view_per_pixel.degree();
   const float f0 = 2.61f * 1e6f * math::exp(-math::square(theta_degree / 0.02f));
   const float f1 = 20.91f / math::cube(theta_degree + 0.02f);
   const float f2 = 72.37f / math::square(theta_degree + 0.02f);
@@ -69,7 +71,7 @@ bool operator==(const FogGlowKernelKey &a, const FogGlowKernelKey &b)
   return kernel_value;
 }
 
-FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float field_of_view)
+FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, math::AngleRadian field_of_view)
 {
 #if defined(WITH_FFTW3)
 
@@ -93,7 +95,7 @@ FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float field_of_
   /* Use a double to sum the kernel since floats are not stable with threaded summation. */
   threading::EnumerableThreadSpecific<double> sum_by_thread([]() { return 0.0; });
 
-  /* Initializing the entire kernel's spatial space using compute_fog_glow_kernel_value. */
+  /* Compute the entire kernel's spatial space using compute_fog_glow_kernel_value. */
   threading::parallel_for(IndexRange(spatial_size.y), 1, [&](const IndexRange sub_y_range) {
     double &sum = sum_by_thread.local();
     for (const int64_t y : sub_y_range) {
@@ -101,7 +103,7 @@ FogGlowKernel::FogGlowKernel(int kernel_size, int2 spatial_size, float field_of_
         const int2 texel = int2(x, y);
         const int2 center_texel = spatial_size / 2;
         const int2 kernel_texel = texel - center_texel;
-        const float field_of_view_per_pixel = field_of_view / kernel_size;
+        const math::AngleRadian field_of_view_per_pixel = field_of_view / kernel_size;
 
         const float kernel_value = compute_fog_glow_kernel_value(kernel_texel,
                                                                  field_of_view_per_pixel);
@@ -165,7 +167,9 @@ void FogGlowKernelContainer::reset()
   }
 }
 
-FogGlowKernel &FogGlowKernelContainer::get(int kernel_size, int2 spatial_size, float field_of_view)
+FogGlowKernel &FogGlowKernelContainer::get(int kernel_size,
+                                           int2 spatial_size,
+                                           math::AngleRadian field_of_view)
 {
   const FogGlowKernelKey key(kernel_size, spatial_size, field_of_view);
 
