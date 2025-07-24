@@ -94,7 +94,7 @@ static blender::float2 imapaint_pick_uv(const Mesh *mesh_eval,
     ma = BKE_object_material_get(ob_eval, material_indices[face_i] + 1);
     slot = &ma->texpaintslot[ma->paint_active_slot];
     if (slot && slot->uvname) {
-      uv_map = *attributes.lookup<float2>(slot->uvname, bke::AttrDomain::Face);
+      uv_map = *attributes.lookup<float2>(slot->uvname, bke::AttrDomain::Corner);
     }
   }
 
