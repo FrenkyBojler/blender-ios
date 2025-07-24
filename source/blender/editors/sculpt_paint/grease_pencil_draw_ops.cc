@@ -2170,12 +2170,19 @@ static wmOperatorStatus gpencil_xr_brush_settings_modal(bContext *C,
   ToolSettings *ts = CTX_data_tool_settings(C);
   Paint *paint = &ts->gp_paint->paint;
   Brush *brush = paint->brush;
+  BrushGpencilSettings *brush_settings = brush->gpencil_settings;
   int factor = RNA_int_get(op->ptr, "factor");
 
   switch (event->val) {
     case KM_PRESS: {
       if ((event->modifier & KM_CTRL) != 0) {
-        ED_grease_pencil_xr_brush_strength_set(C, (factor / 10.0f));
+        float new_brush_strength = brush_settings->draw_strength + (factor / 10.0f);
+        float new_brush_alpha = brush->alpha + (factor / 10.0f);
+        CLAMP(new_brush_strength, 0.1f, 1.0f);
+        CLAMP(new_brush_alpha, 0.1f, 1.0f);
+
+        BKE_brush_alpha_set(paint, brush, new_brush_alpha);
+        brush_settings->draw_strength = new_brush_strength;
         WM_event_add_notifier(C, NC_GPENCIL | NA_EDITED, NULL);
       }
       else {

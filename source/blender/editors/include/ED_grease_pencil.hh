@@ -122,7 +122,6 @@ bool ED_grease_pencil_segment_selection_enabled(const ToolSettings *tool_setting
 /** \name GreasePencil XR Ops
  * \{ */
 
-float ED_grease_pencil_xr_brush_strength_set(bContext *C, float value);
 /** Unused */
 int ED_grease_pencil_xr_brush_size_get(bContext *C);
 /** Unused */
