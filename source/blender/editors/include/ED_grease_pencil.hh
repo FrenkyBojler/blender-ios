@@ -118,17 +118,6 @@ bool ED_grease_pencil_segment_selection_enabled(const ToolSettings *tool_setting
 
 /** \} */
 
-/* -------------------------------------------------------------------- */
-/** \name GreasePencil XR Ops
- * \{ */
-
-/** Unused */
-int ED_grease_pencil_xr_brush_size_get(bContext *C);
-/** Unused */
-float ED_grease_pencil_xr_brush_strength_get(bContext *C);
-
-/** \} */
-
 namespace blender::ed::greasepencil {
 
 enum class ReprojectMode : int8_t { Front, Side, Top, View, Cursor, Surface, Keep };
