@@ -1112,7 +1112,7 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     return OPERATOR_CANCELLED;
   }
   if (error_face_selected) {
-    BKE_report(op->reports, RPT_ERROR, "Cannot rip selected faces");
+    BKE_report(op->reports, RPT_ERROR, "Cannot perform ripping with faces selected this way");
     return OPERATOR_CANCELLED;
   }
   if (error_disconnected_vertices) {
@@ -1120,7 +1120,7 @@ static wmOperatorStatus edbm_rip_invoke(bContext *C, wmOperator *op, const wmEve
     return OPERATOR_CANCELLED;
   }
   if (error_rip_failed) {
-    BKE_report(op->reports, RPT_ERROR, "Rip failed");
+    BKE_report(op->reports, RPT_ERROR, "No proper selection or faces included");
     return OPERATOR_CANCELLED;
   }
   /* No errors, everything went fine. */
