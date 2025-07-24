@@ -25,6 +25,7 @@
 #include "BLT_translation.hh"
 
 #include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "RNA_access.hh"
@@ -52,7 +53,7 @@ static void shaderfx_reorder(bContext *C, Panel *panel, int new_index)
   WM_operator_properties_create_ptr(&props_ptr, ot);
   RNA_string_set(&props_ptr, "shaderfx", fx->name);
   RNA_int_set(&props_ptr, "index", new_index);
-  WM_operator_name_call_ptr(C, ot, WM_OP_INVOKE_DEFAULT, &props_ptr, nullptr);
+  WM_operator_name_call_ptr(C, ot, blender::wm::OpCallContext::InvokeDefault, &props_ptr, nullptr);
   WM_operator_properties_free(&props_ptr);
 }
 
@@ -116,7 +117,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   Object *ob = blender::ed::object::context_active_object(C);
   PointerRNA ptr = RNA_pointer_create_discrete(&ob->id, &RNA_ShaderFx, fx);
   layout->context_ptr_set("shaderfx", &ptr);
-  layout->operator_context_set(WM_OP_INVOKE_DEFAULT);
+  layout->operator_context_set(blender::wm::OpCallContext::InvokeDefault);
 
   layout->ui_units_x_set(4.0f);
 
@@ -132,7 +133,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   op_ptr = row->op("OBJECT_OT_shaderfx_move_to_index",
                    IFACE_("Move to First"),
                    ICON_TRIA_UP,
-                   WM_OP_INVOKE_DEFAULT,
+                   blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", 0);
   if (!fx->prev) {
@@ -144,7 +145,7 @@ static void gpencil_shaderfx_ops_extra_draw(bContext *C, uiLayout *layout, void 
   op_ptr = row->op("OBJECT_OT_shaderfx_move_to_index",
                    IFACE_("Move to Last"),
                    ICON_TRIA_DOWN,
-                   WM_OP_INVOKE_DEFAULT,
+                   blender::wm::OpCallContext::InvokeDefault,
                    UI_ITEM_NONE);
   RNA_int_set(&op_ptr, "index", BLI_listbase_count(&ob->shader_fx) - 1);
   if (!fx->next) {
@@ -168,7 +169,7 @@ static void shaderfx_panel_header(const bContext * /*C*/, Panel *panel)
   /* Effect type icon. */
   uiLayout *row = &layout->row(false);
   if (fxti->is_disabled && fxti->is_disabled(fx, false)) {
-    uiLayoutSetRedAlert(row, true);
+    row->red_alert_set(true);
   }
   row->label("", RNA_struct_ui_icon(ptr->type));
 

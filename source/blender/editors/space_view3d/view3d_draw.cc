@@ -1364,6 +1364,17 @@ static void draw_selected_name(
     char frame[16];
   } info_buffers;
 
+  /* Info can contain:
+   * - 1 frame number `(7 + 2)`.
+   * - 1 collection name `(MAX_ID_NAME - 2 + 3)`.
+   * - 1 object name `(MAX_ID_NAME - 2)`.
+   * - 1 object data name `(MAX_ID_NAME - 2)`.
+   * - 2 non-ID data names (bones, shape-keys...) `(MAX_NAME * 2)`.
+   * - 2 BREAD_CRUMB_SEPARATOR(s) `(6)`.
+   * - 1 SHAPE_KEY_PINNED marker and a trailing '\0' `(9+1)` - translated, so give some room!
+   * - 1 marker name `(MAX_NAME + 3)`.
+   */
+
   SNPRINTF(info_buffers.frame, "(%d)", cfra);
   info_array[i++] = info_buffers.frame;
 
@@ -1376,15 +1387,6 @@ static void draw_selected_name(
       info_array[i++] = " |";
     }
   }
-
-  /* Info can contain:
-   * - A frame `(7 + 2)`.
-   * - A collection name `(MAX_NAME + 3)`.
-   * - 3 object names `(MAX_NAME)`.
-   * - 2 BREAD_CRUMB_SEPARATOR(s) `(6)`.
-   * - A SHAPE_KEY_PINNED marker and a trailing '\0' `(9+1)` - translated, so give some room!
-   * - A marker name `(MAX_NAME + 3)`.
-   */
 
   /* get name of marker on current frame (if available) */
   const char *markern = BKE_scene_find_marker_name(scene, cfra);
@@ -1477,9 +1479,12 @@ static void draw_selected_name(
   }
 
   BLI_assert(i < int(ARRAY_SIZE(info_array)));
-  char info[300];
-  /* It's expected there will be enough room for the buffer (if not, increase it). */
+
+  char info[MAX_ID_NAME * 4];
+  /* It's expected there will be enough room for the whole string in the buffer.
+   * If not, increase it. */
   BLI_assert(BLI_string_len_array(info_array, i) < sizeof(info));
+
   BLI_string_join_array(info, sizeof(info), info_array, i);
 
   *yoffset -= VIEW3D_OVERLAY_LINEHEIGHT;
@@ -1553,7 +1558,10 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
 
   BLF_batch_draw_begin();
 
-  if (v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) {
+  bScreen *screen = CTX_wm_screen(C);
+  if ((v3d->gizmo_flag & (V3D_GIZMO_HIDE | V3D_GIZMO_HIDE_NAVIGATE)) ||
+      screen->state == SCREENFULL)
+  {
     /* pass */
   }
   else {
@@ -1568,7 +1576,7 @@ void view3d_draw_region_info(const bContext *C, ARegion *region)
     }
   }
 
-  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0) {
+  if ((v3d->flag2 & V3D_HIDE_OVERLAYS) == 0 && screen->state != SCREENFULL) {
     int xoffset = rect->xmin + (0.5f * U.widget_unit);
     int yoffset = rect->ymax - (0.1f * U.widget_unit);
 
@@ -2006,7 +2014,9 @@ ImBuf *ED_view3d_draw_offscreen_imbuf(Depsgraph *depsgraph,
   float winmat[4][4];
 
   /* Guess format based on output buffer. */
-  eGPUTextureFormat desired_format = (imbuf_flag & IB_float_data) ? GPU_RGBA16F : GPU_RGBA8;
+  blender::gpu::TextureFormat desired_format =
+      (imbuf_flag & IB_float_data) ? blender::gpu::TextureFormat::SFLOAT_16_16_16_16 :
+                                     blender::gpu::TextureFormat::UNORM_8_8_8_8;
 
   if (ofs && ((GPU_offscreen_width(ofs) != sizex) || (GPU_offscreen_height(ofs) != sizey))) {
     /* If offscreen has already been created, recreate with the same format. */
@@ -2345,7 +2355,7 @@ static void validate_object_select_id(Depsgraph *depsgraph,
  * synchronization (which can be very slow). */
 static void view3d_gpu_read_Z_pixels(GPUViewport *viewport, rcti *rect, void *data)
 {
-  GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
+  blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
 
   GPUFrameBuffer *depth_read_fb = nullptr;
   GPU_framebuffer_ensure_config(&depth_read_fb,
@@ -2429,23 +2439,15 @@ static ViewDepths *view3d_depths_create(ARegion *region)
 {
   ViewDepths *d = MEM_callocN<ViewDepths>("ViewDepths");
 
-  {
-    GPUViewport *viewport = WM_draw_region_get_viewport(region);
-    GPUTexture *depth_tx = GPU_viewport_depth_texture(viewport);
-    uint32_t *int_depths = static_cast<uint32_t *>(
-        GPU_texture_read(depth_tx, GPU_DATA_UINT_24_8, 0));
-    d->w = GPU_texture_width(depth_tx);
-    d->h = GPU_texture_height(depth_tx);
-    d->depths = (float *)int_depths;
-    /* Convert in-place. */
-    int pixel_count = d->w * d->h;
-    for (int i = 0; i < pixel_count; i++) {
-      d->depths[i] = (int_depths[i] >> 8u) / float(0xFFFFFF);
-    }
-    /* Assumed to be this as they are never changed. */
-    d->depth_range[0] = 0.0;
-    d->depth_range[1] = 1.0;
-  }
+  GPUViewport *viewport = WM_draw_region_get_viewport(region);
+  blender::gpu::Texture *depth_tx = GPU_viewport_depth_texture(viewport);
+  d->w = GPU_texture_width(depth_tx);
+  d->h = GPU_texture_height(depth_tx);
+  d->depths = static_cast<float *>(GPU_texture_read(depth_tx, GPU_DATA_FLOAT, 0));
+  /* Assumed to be this as they are never changed. */
+  d->depth_range[0] = 0.0;
+  d->depth_range[1] = 1.0;
+
   return d;
 }
 
@@ -2842,7 +2844,7 @@ bool ViewportColorSampleSession::init(ARegion *region)
     return false;
   }
 
-  GPUTexture *color_tex = GPU_viewport_color_texture(viewport, 0);
+  blender::gpu::Texture *color_tex = GPU_viewport_color_texture(viewport, 0);
   if (color_tex == nullptr) {
     return false;
   }
@@ -2857,8 +2859,13 @@ bool ViewportColorSampleSession::init(ARegion *region)
    * copy that back to the host.
    * Since color picking is a fairly rare operation, the inefficiency here doesn't really
    * matter, and it means the viewport doesn't need HOST_READ. */
-  tex = GPU_texture_create_2d(
-      "copy_tex", tex_w, tex_h, 1, GPU_RGBA16F, GPU_TEXTURE_USAGE_HOST_READ, nullptr);
+  tex = GPU_texture_create_2d("copy_tex",
+                              tex_w,
+                              tex_h,
+                              1,
+                              blender::gpu::TextureFormat::SFLOAT_16_16_16_16,
+                              GPU_TEXTURE_USAGE_HOST_READ,
+                              nullptr);
   if (tex == nullptr) {
     return false;
   }

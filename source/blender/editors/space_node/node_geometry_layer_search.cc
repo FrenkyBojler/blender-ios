@@ -24,7 +24,7 @@
 #include "ED_screen.hh"
 #include "ED_undo.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
 #include "NOD_geometry_nodes_log.hh"
@@ -183,7 +183,7 @@ void node_geometry_add_layer_search_button(const bContext & /*C*/,
 {
   uiBlock *block = layout.block();
   uiBut *but = uiDefIconTextButR(block,
-                                 UI_BTYPE_SEARCH_MENU,
+                                 ButType::SearchMenu,
                                  0,
                                  ICON_OUTLINER_DATA_GP_LAYER,
                                  "",

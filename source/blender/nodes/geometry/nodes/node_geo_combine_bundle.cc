@@ -14,7 +14,7 @@
 
 #include "NOD_geometry_nodes_bundle.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_layout.hh"
 
 namespace blender::nodes::node_geo_combine_bundle_cc {
 
@@ -187,6 +187,28 @@ void CombineBundleItemsAccessor::blend_write_item(BlendWriter *writer, const Ite
 void CombineBundleItemsAccessor::blend_read_data_item(BlendDataReader *reader, ItemT &item)
 {
   BLO_read_string(reader, &item.name);
+}
+
+std::string CombineBundleItemsAccessor::validate_name(const StringRef name)
+{
+  std::string result;
+  if (name.is_empty()) {
+    return result;
+  }
+  /* Disallow certain characters so that we can use them to e.g. build a bundle path or
+   * expressions referencing multiple bundle items. We might not need all of them in the future,
+   * but better reserve them now while we still can. */
+  constexpr StringRefNull forbidden_chars_str = "/*&|\"^~!,{}()+$#@[];:?<>.-%\\=";
+  const Span<char> forbidden_chars = forbidden_chars_str;
+  for (const char c : name) {
+    if (forbidden_chars.contains(c)) {
+      result += '_';
+    }
+    else {
+      result += c;
+    }
+  }
+  return result;
 }
 
 }  // namespace blender::nodes

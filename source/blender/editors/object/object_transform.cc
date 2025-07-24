@@ -37,7 +37,6 @@
 #include "BKE_curve.hh"
 #include "BKE_curves.hh"
 #include "BKE_editmesh.hh"
-#include "BKE_gpencil_legacy.h"
 #include "BKE_grease_pencil.hh"
 #include "BKE_idtype.hh"
 #include "BKE_lattice.hh"
@@ -61,7 +60,7 @@
 #include "RNA_access.hh"
 #include "RNA_define.hh"
 
-#include "UI_interface.hh"
+#include "UI_interface_icons.hh"
 
 #include "WM_api.hh"
 #include "WM_types.hh"

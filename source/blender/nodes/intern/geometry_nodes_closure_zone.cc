@@ -15,6 +15,7 @@
 
 #include "NOD_geo_closure.hh"
 #include "NOD_geometry_nodes_closure.hh"
+#include "NOD_geometry_nodes_values.hh"
 
 #include "DEG_depsgraph_query.hh"
 
@@ -139,7 +140,8 @@ class LazyFunctionForClosureZone : public LazyFunction {
       params.set_output(zone_info_.indices.outputs.border_link_usages[i], true);
     }
     if (!U.experimental.use_bundle_and_closure_nodes) {
-      params.set_output(zone_info_.indices.outputs.main[0], bke::SocketValueVariant(ClosurePtr()));
+      params.set_output(zone_info_.indices.outputs.main[0],
+                        bke::SocketValueVariant::From(ClosurePtr()));
       return;
     }
 
@@ -256,7 +258,7 @@ class LazyFunctionForClosureZone : public LazyFunction {
                                         std::make_shared<ClosureEvalLog>())};
 
     params.set_output(zone_info_.indices.outputs.main[0],
-                      bke::SocketValueVariant(std::move(closure)));
+                      bke::SocketValueVariant::From(std::move(closure)));
   }
 };
 
