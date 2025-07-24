@@ -748,6 +748,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
 
   std::atomic<bool> changed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene, grease_pencil);
+  ptd.center_of_mass_co = calculate_center_of_mass(ptd, drawings);
   threading::parallel_for_each(drawings, [&](const MutableDrawingInfo &info) {
     bke::CurvesGeometry &curves = info.drawing.strokes_for_write();
     MutableSpan<float3> positions = curves.positions_for_write();
@@ -865,7 +866,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
         handle_types_left[point_i] = BEZIER_HANDLE_ALIGN;
         handle_types_right[point_i] = BEZIER_HANDLE_ALIGN;
         const float2 center_point = pen_global_to_screen(ptd, depth_point);
-        offset = ptd.mouse_co - center_point;
+        offset = ptd.mouse_co - ptd.center_of_mass_co;
 
         if (event->modifier & KM_SHIFT) {
           offset = snap_8_angles(offset);
