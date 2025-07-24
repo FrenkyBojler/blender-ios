@@ -821,6 +821,7 @@ class ASSETBROWSER_MT_metadata_preview_menu(Menu):
         layout.separator()
         layout.operator("ed.lib_id_remove_preview")
         layout.operator("asset.screenshot_preview")
+        layout.operator("asset.asset_edit_metadata")
 
 
 class ASSETBROWSER_PT_metadata_tags(asset_utils.AssetMetaDataPanel, Panel):

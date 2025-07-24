@@ -9,7 +9,9 @@
 #include "AS_asset_library.hh"
 #include "AS_asset_representation.hh"
 
+#include "BKE_asset.hh"
 #include "BKE_asset_edit.hh"
+#include "BKE_blendfile.hh"
 #include "BKE_bpath.hh"
 #include "BKE_context.hh"
 #include "BKE_global.hh"
@@ -1510,6 +1512,138 @@ static void ASSET_OT_screenshot_preview(wmOperatorType *ot)
                   "If enabled, the screenshot will have the same height as width");
 }
 
+static wmOperatorStatus asset_edit_metadata_exec(bContext *C, wmOperator *op)
+{
+  Main *bmain = CTX_data_main(C);
+  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
+  if (!asset) {
+    return OPERATOR_CANCELLED;
+  }
+  asset_system::AssetLibrary &library = asset->owner_asset_library();
+
+  char catalog_path_c[MAX_NAME];
+  RNA_string_get(op->ptr, "catalog_path", catalog_path_c);
+
+  AssetWeakReference asset_reference = asset->make_weak_reference();
+  ID *asset_id = bke::asset_edit_id_from_weak_reference(
+      *bmain, asset->get_id_type(), asset_reference);
+  AssetMetaData &meta_data = *asset_id->asset_data;
+  MEM_SAFE_FREE(meta_data.author);
+  meta_data.author = RNA_string_get_alloc(op->ptr, "author", nullptr, 0, nullptr);
+  MEM_SAFE_FREE(meta_data.description);
+  meta_data.description = RNA_string_get_alloc(op->ptr, "description", nullptr, 0, nullptr);
+
+  if (catalog_path_c[0]) {
+    const asset_system::AssetCatalogPath catalog_path(catalog_path_c);
+    const asset_system::AssetCatalog &catalog = asset::library_ensure_catalogs_in_path(
+        library, catalog_path);
+    BKE_asset_metadata_catalog_id_set(&meta_data, catalog.catalog_id, catalog.simple_name.c_str());
+  }
+
+  if (!bke::asset_edit_id_save(*bmain, *asset_id, *op->reports)) {
+    return OPERATOR_CANCELLED;
+  }
+
+  asset::catalogs_save_from_asset_reference(library, asset_reference);
+
+  asset::refresh_asset_library_from_asset(C, *asset);
+  WM_main_add_notifier(NC_ASSET | ND_ASSET_LIST | NA_EDITED, nullptr);
+
+  return OPERATOR_FINISHED;
+}
+
+static wmOperatorStatus asset_edit_metadata_invoke(bContext *C,
+                                                   wmOperator *op,
+                                                   const wmEvent * /*event*/)
+{
+  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
+  if (!asset) {
+    return OPERATOR_CANCELLED;
+  }
+  const asset_system::AssetLibrary &library = asset->owner_asset_library();
+  const AssetMetaData &meta_data = asset->get_metadata();
+
+  if (!RNA_struct_property_is_set(op->ptr, "catalog_path")) {
+    const asset_system::CatalogID &id = meta_data.catalog_id;
+    if (const asset_system::AssetCatalog *catalog = library.catalog_service().find_catalog(id)) {
+      RNA_string_set(op->ptr, "catalog_path", catalog->path.c_str());
+    }
+  }
+  if (!RNA_struct_property_is_set(op->ptr, "author")) {
+    RNA_string_set(op->ptr, "author", meta_data.author ? meta_data.author : "");
+  }
+  if (!RNA_struct_property_is_set(op->ptr, "description")) {
+    RNA_string_set(op->ptr, "description", meta_data.description ? meta_data.description : "");
+  }
+
+  return WM_operator_props_dialog_popup(C, op, 400, std::nullopt, IFACE_("Edit Metadata"));
+}
+
+static void visit_active_library_catalogs_catalog_for_search_fn(
+    const bContext *C,
+    PointerRNA * /*ptr*/,
+    PropertyRNA * /*prop*/,
+    const char *edit_text,
+    FunctionRef<void(StringPropertySearchVisitParams)> visit_fn)
+{
+  const AssetRepresentationHandle *asset = CTX_wm_asset(C);
+  if (!asset) {
+    return;
+  }
+
+  const asset_system::AssetLibrary &library = asset->owner_asset_library();
+
+  /* NOTE: Using the all library would also be a valid choice. */
+  asset::visit_library_catalogs_catalog_for_search(
+      *CTX_data_main(C), *library.library_reference(), edit_text, visit_fn);
+}
+
+static bool asset_edit_metadata_poll(bContext *C)
+{
+  const AssetRepresentationHandle *asset_handle = CTX_wm_asset(C);
+  if (!asset_handle) {
+    CTX_wm_operator_poll_msg_set(C, "No selected asset");
+    return false;
+  }
+  if (asset_handle->is_local_id()) {
+    return WM_operator_winactive(C);
+  }
+
+  const std::optional<AssetLibraryReference> library_ref =
+      asset_handle->owner_asset_library().library_reference();
+  if (!library_ref) {
+    BLI_assert_unreachable();
+    return false;
+  }
+  if (library_ref.value().type == ASSET_LIBRARY_ESSENTIALS) {
+    CTX_wm_operator_poll_msg_set(C, "Asset library is not editable");
+    return false;
+  }
+  std::string lib_path = asset_handle->full_library_path();
+  if (StringRef(lib_path).endswith(BLENDER_ASSET_FILE_SUFFIX)) {
+    return true;
+  }
+  return true;
+}
+
+static void ASSET_OT_asset_edit_metadata(wmOperatorType *ot)
+{
+  ot->name = "Edit Metadata";
+  ot->description = "Edit asset information like the catalog, preview image, tags, or author";
+  ot->idname = "ASSET_OT_asset_edit_metadata";
+
+  ot->exec = asset_edit_metadata_exec;
+  ot->invoke = asset_edit_metadata_invoke;
+  ot->poll = asset_edit_metadata_poll;
+
+  PropertyRNA *prop = RNA_def_string(
+      ot->srna, "catalog_path", nullptr, MAX_NAME, "Catalog", "The asset's catalog path");
+  RNA_def_property_string_search_func_runtime(
+      prop, visit_active_library_catalogs_catalog_for_search_fn, PROP_STRING_SEARCH_SUGGESTION);
+  RNA_def_string(ot->srna, "author", nullptr, 0, "Author", "");
+  RNA_def_string(ot->srna, "description", nullptr, 0, "Description", "");
+}
+
 /* -------------------------------------------------------------------- */
 
 void operatortypes_asset()
@@ -1530,6 +1664,7 @@ void operatortypes_asset()
   WM_operatortype_append(ASSET_OT_library_refresh);
 
   WM_operatortype_append(ASSET_OT_screenshot_preview);
+  WM_operatortype_append(ASSET_OT_asset_edit_metadata);
 }
 
 }  // namespace blender::ed::asset
