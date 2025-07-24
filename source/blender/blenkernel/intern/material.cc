@@ -2048,7 +2048,6 @@ static void material_default_surface_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
   bNodeSocket *base_color = blender::bke::node_find_socket(*principled, SOCK_IN, "Base Color");
@@ -2076,7 +2075,6 @@ static void material_default_volume_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *principled = blender::bke::node_add_static_node(
       nullptr, *ntree, SH_NODE_VOLUME_PRINCIPLED);
@@ -2102,7 +2100,6 @@ static void material_default_holdout_init(Material **ma_p)
 
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &ma->id, "Shader Nodetree", ntreeType_Shader->idname);
-  ma->use_nodes = true;
 
   bNode *holdout = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_HOLDOUT);
   bNode *output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);

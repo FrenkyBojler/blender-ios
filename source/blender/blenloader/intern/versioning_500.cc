@@ -14,6 +14,7 @@
 #include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
+#include "DNA_material_types.h"
 #include "DNA_mesh_types.h"
 #include "DNA_node_types.h"
 #include "DNA_rigidbody_types.h"
@@ -1172,6 +1173,61 @@ static void do_version_convert_gp_jitter_values(Brush *brush)
   }
 }
 
+static void do_version_material_remove_use_nodes(Material *material)
+{
+  bNodeTree *ntree = material->nodetree;
+  if (ntree == nullptr || material->use_nodes == true) {
+    return;
+  }
+
+  /* Users defined a material node tree, but deactivated it by disabling "Use Nodes". So we create
+   * a new Principled BSDF node to simulate an equivalent material. */
+
+  bNode *old_output = nullptr;
+  LISTBASE_FOREACH (bNode *, node, &ntree->nodes) {
+    if (STREQ(node->idname, "ShaderNodeOutputMaterial") && (node->flag & NODE_ACTIVE)) {
+      old_output = node;
+      old_output->flag &= ~NODE_DO_OUTPUT;
+    }
+  }
+
+  bNode *new_output = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_OUTPUT_MATERIAL);
+  new_output->flag |= NODE_DO_OUTPUT;
+  bNode *bsdf = blender::bke::node_add_static_node(nullptr, *ntree, SH_NODE_BSDF_PRINCIPLED);
+  version_node_add_link(*ntree,
+                        *bsdf,
+                        *blender::bke::node_find_socket(*bsdf, SOCK_OUT, "BSDF"),
+                        *new_output,
+                        *blender::bke::node_find_socket(*new_output, SOCK_IN, "Surface"));
+  bNodeSocket *diffuse_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Base Color");
+  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[0] = material->r;
+  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[1] = material->g;
+  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[2] = material->b;
+  diffuse_socket->default_value_typed<bNodeSocketValueRGBA>()->value[3] = material->a;
+
+  bNodeSocket *metallic_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Metallic");
+  metallic_socket->default_value_typed<bNodeSocketValueFloat>()->value = material->metallic;
+
+  bNodeSocket *ior_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "IOR");
+  ior_socket->default_value_typed<bNodeSocketValueFloat>()->value = material->spec;
+
+  bNodeSocket *roughness_socket = blender::bke::node_find_socket(*bsdf, SOCK_IN, "Roughness");
+  roughness_socket->default_value_typed<bNodeSocketValueFloat>()->value = material->roughness;
+
+  if (old_output != nullptr) {
+    /* Position the newly created node after the old output. Assume the old output node is at
+     * the far right of the node tree. */
+    bsdf->location[0] = old_output->location[0] + 1.5f * old_output->width;
+    bsdf->location[1] = old_output->location[1];
+  }
+
+  new_output->location[0] = bsdf->location[0] + 2.0f * bsdf->width;
+  new_output->location[1] = bsdf->location[1];
+  bNode *frame = blender::bke::node_add_static_node(nullptr, *ntree, NODE_FRAME);
+  bsdf->parent = frame;
+  new_output->parent = frame;
+}
+
 void do_versions_after_linking_500(FileData *fd, Main *bmain)
 {
   if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 9)) {
@@ -1562,6 +1618,12 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
       if (brush->gpencil_settings) {
         do_version_convert_gp_jitter_values(brush);
       }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 41)) {
+    LISTBASE_FOREACH (Material *, material, &bmain->materials) {
+      do_version_material_remove_use_nodes(material);
     }
   }
 

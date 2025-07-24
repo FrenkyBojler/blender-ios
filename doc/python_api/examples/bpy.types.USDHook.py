@@ -321,6 +321,7 @@ class USDHookExample(bpy.types.USDHook):
 
         # Create the node tree
         bl_material.use_nodes = True
+        # Todo(habib): create a default node tree without Use Nodes = True
         node_tree = bl_material.node_tree
         nodes = node_tree.nodes
         bsdf = nodes.get("Principled BSDF")

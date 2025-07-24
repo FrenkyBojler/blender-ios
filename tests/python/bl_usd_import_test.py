@@ -1937,7 +1937,6 @@ class USDImportTest(AbstractUSDTest):
         # Check that a Principled BSDF shader with the expected Base Color input.
         # was created.
         mtl = bpy.data.materials["Material"]
-        self.assertTrue(mtl.use_nodes)
         bsdf = mtl.node_tree.nodes.get("Principled BSDF")
         self.assertIsNotNone(bsdf)
         base_color_input = bsdf.inputs['Base Color']
@@ -2063,11 +2062,11 @@ class ImportMtlxColorUSDHook(bpy.types.USDHook):
 
         # Add a Principled BSDF shader and set its 'Base Color' input to
         # the color we read from mtlx.
-        bl_material.use_nodes = True
         node_tree = bl_material.node_tree
         nodes = node_tree.nodes
-        bsdf = nodes.get("Principled BSDF")
-        assert bsdf
+        bsdf = nodes.new("ShaderNodeBsdfPrincipled")
+        output = nodes.new("ShaderNodeOutputMaterial")
+        node_tree.links.new(bsdf.outputs["BSDF"], output.inputs["Surface"])
         color4 = [color[0], color[1], color[2], 1]
         ImportMtlxColorUSDHook.imported_color = color4
         bsdf.inputs['Base Color'].default_value = color4

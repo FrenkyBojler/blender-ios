@@ -384,7 +384,6 @@ class ShaderNodeGroupInterfaceTest(AbstractNodeGroupInterfaceTest, NodeGroupInte
     def setUp(self):
         super().setUp()
         self.material = bpy.data.materials.new("test")
-        self.material.use_nodes = True
         self.main_tree = self.material.node_tree
 
     def test_invalid_socket_type(self):
@@ -430,7 +429,6 @@ class CompositorNodeGroupInterfaceTest(AbstractNodeGroupInterfaceTest, NodeGroup
     def setUp(self):
         super().setUp()
         self.scene = bpy.data.scenes.new("test")
-        self.scene.use_nodes = True
         self.main_tree = self.scene.node_tree
 
     def test_invalid_socket_type(self):

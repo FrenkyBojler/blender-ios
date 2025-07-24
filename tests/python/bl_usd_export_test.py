@@ -1253,7 +1253,6 @@ class USDExportTest(AbstractUSDTest):
         # Create a simple scene with 1 object and 1 material
         bpy.ops.wm.open_mainfile(filepath=str(self.testdir / "empty.blend"))
         material = bpy.data.materials.new(name="test_material")
-        material.use_nodes = True
         bpy.ops.mesh.primitive_plane_add()
         bpy.data.objects[0].data.materials.append(material)
 

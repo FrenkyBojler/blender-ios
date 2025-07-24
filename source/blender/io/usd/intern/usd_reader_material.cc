@@ -496,7 +496,6 @@ void USDMaterialReader::import_usd_preview_nodes(Material *mtl,
   /* Add the node tree. */
   bNodeTree *ntree = blender::bke::node_tree_add_tree_embedded(
       nullptr, &mtl->id, "Shader Nodetree", "ShaderNodeTree");
-  mtl->use_nodes = true;
 
   /* Create the Principled BSDF shader node. */
   bNode *principled = add_node(ntree, SH_NODE_BSDF_PRINCIPLED, {0.0f, 300.0f});

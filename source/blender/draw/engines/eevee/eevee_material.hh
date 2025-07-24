@@ -296,7 +296,7 @@ struct ShaderKey {
  * it does not use the same nodetree.
  *
  * \{ */
-
+// todo(habib): remove. No need to support materials without a node tree anymore.
 class DefaultSurfaceNodeTree {
  private:
   bNodeTree *ntree_;
