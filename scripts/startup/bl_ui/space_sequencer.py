@@ -1166,12 +1166,11 @@ class SEQUENCER_MT_strip(Menu):
         strip = context.active_strip
 
         if has_preview:
+            layout.menu("SEQUENCER_MT_strip_mirror")
             layout.separator()
             layout.operator("sequencer.preview_duplicate_move", text="Duplicate")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_animation")
-            layout.separator()
-            layout.menu("SEQUENCER_MT_strip_mirror")
             layout.separator()
             layout.menu("SEQUENCER_MT_strip_show_hide")
             layout.separator()
