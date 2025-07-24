@@ -78,9 +78,10 @@ void add_load_data_init(LoadData *load_data,
 static void strip_add_generic_update(Scene *scene, Strip *strip)
 {
   strip_unique_name_set(scene, &scene->ed->seqbase, strip);
+  /* Set effect time range values before cache invalidation. */
+  strip_time_effect_range_set(scene, strip);
   relations_invalidate_cache(scene, strip);
   strip_lookup_invalidate(scene->ed);
-  strip_time_effect_range_set(scene, strip);
   time_update_meta_strip_range(scene, lookup_meta_by_strip(scene->ed, strip));
 }
 
@@ -276,8 +277,6 @@ Strip *add_image_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     IMB_freeImBuf(ibuf);
   }
 
-  /* Set Last active directory. */
-  STRNCPY(scene->ed->act_imagedir, strip->data->dirpath);
   strip_add_set_view_transform(scene, strip, load_data);
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
@@ -350,8 +349,6 @@ Strip *add_sound_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
     strip->flag |= SEQ_AUDIO_DRAW_WAVEFORM;
   }
 
-  /* Set Last active directory. */
-  BLI_strncpy(scene->ed->act_sounddir, data->dirpath, FILE_MAXDIR);
   strip_add_set_name(scene, strip, load_data);
   strip_add_generic_update(scene, strip);
 
@@ -400,7 +397,7 @@ Strip *add_movie_strip(Main *bmain, Scene *scene, ListBase *seqbase, LoadData *l
   STRNCPY(filepath, load_data->path);
   BLI_path_abs(filepath, BKE_main_blendfile_path(bmain));
 
-  char colorspace[64] = "\0"; /* MAX_COLORSPACE_NAME */
+  char colorspace[/*MAX_COLORSPACE_NAME*/ 64] = "\0";
   bool is_multiview_loaded = false;
   const int totfiles = seq_num_files(scene, load_data->views_format, load_data->use_multiview);
   MovieReader **anim_arr = MEM_calloc_arrayN<MovieReader *>(totfiles, "Video files");
