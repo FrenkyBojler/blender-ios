@@ -101,6 +101,15 @@ static void rna_bone_vis_update(Main * /* bmain */, Scene * /* scene */, Pointer
   WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
 }
 
+static void rna_bone_vis_getset_message(PointerRNA * /* ptr */,
+                                        PointerRNA /* value */,
+                                        ReportList *reports)
+{
+  BKE_report(reports,
+             RPT_ERROR,
+             "Bone visibility is no longer used. Modify the Pose Bone or Edit Bone instead")
+}
+
 static void rna_Pose_dependency_update(Main *bmain, Scene * /*scene*/, PointerRNA *ptr)
 {
   DEG_relations_tag_update(bmain);
@@ -1180,6 +1189,8 @@ static void rna_def_pose_channel(BlenderRNA *brna)
   RNA_def_property_boolean_sdna(prop, nullptr, "drawflag", PCHAN_DRAW_HIDDEN);
   RNA_def_property_ui_text(prop, "Hide", "Bone is not visible when in Pose Mode");
   RNA_def_property_ui_icon(prop, ICON_RESTRICT_VIEW_OFF, -1);
+  RNA_def_property_pointer_funcs(
+      prop, "rna_bone_vis_getset_message", "rna_bone_vis_getset_message", nullptr, nullptr);
   RNA_def_property_update(prop, NC_OBJECT | ND_POSE, "rna_bone_vis_update");
 
   prop = RNA_def_property(srna, "custom_shape_transform", PROP_POINTER, PROP_NONE);
