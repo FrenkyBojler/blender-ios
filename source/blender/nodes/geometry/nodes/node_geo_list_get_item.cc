@@ -30,7 +30,7 @@ static void node_declare(NodeDeclarationBuilder &b)
 
   if (node != nullptr) {
     const eNodeSocketDatatype type = eNodeSocketDatatype(node->custom1);
-    b.add_output(type, "Value").dependent_field({0});
+    b.add_output(type, "Value").dependent_field({1});
   }
 }
 
