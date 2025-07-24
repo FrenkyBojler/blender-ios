@@ -607,6 +607,13 @@ if(TEST_SRC_DIR_EXISTS)
   )
 
   add_blender_test(
+    bl_node_socket_usage_inference
+    --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_socket_usage_inference.py
+    --
+    --testdir "${TEST_SRC_DIR}/node_group"
+  )
+
+  add_blender_test(
     bl_node_group_compat
     --python ${CMAKE_CURRENT_LIST_DIR}/bl_node_group_compat.py
     --
@@ -1261,6 +1268,10 @@ if(TEST_SRC_DIR_EXISTS)
     ffmpeg
   )
 
+  set(video_output_tests
+    video_output
+  )
+
   foreach(render_test ${render_tests})
     add_render_test(
       sequencer_render_${render_test}
@@ -1269,6 +1280,22 @@ if(TEST_SRC_DIR_EXISTS)
       --outdir "${TEST_OUT_DIR}/sequence_editing"
     )
   endforeach()
+
+  foreach(video_output_test ${video_output_tests})
+    add_render_test(
+      sequencer_render_${video_output_test}
+      ${CMAKE_CURRENT_LIST_DIR}/sequencer_video_output_tests.py
+      --testdir "${TEST_SRC_DIR}/sequence_editing/${video_output_test}"
+      --outdir "${TEST_OUT_DIR}/sequence_editing"
+    )
+  endforeach()
+
+  add_blender_test(
+    sequencer_input_colorspace
+    --python ${CMAKE_CURRENT_LIST_DIR}/sequencer_input_colorspace.py
+    --
+    --testdir "${TEST_SRC_DIR}/sequence_editing"
+  )
 endif()
 
 # ------------------------------------------------------------------------------
@@ -1329,6 +1356,7 @@ if(WITH_UI_TESTS)
     test_workspace.sanity_check_sculpting
     test_workspace.sanity_check_vfx
     test_workspace.sanity_check_video_editing
+    test_undo.compositor_make_group
     test_undo.text_editor_edit_mode_mix
     test_undo.text_editor_simple
     test_undo.view3d_edit_mode_multi_window

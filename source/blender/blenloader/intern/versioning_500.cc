@@ -11,6 +11,7 @@
 #include <fmt/format.h>
 
 #include "DNA_ID.h"
+#include "DNA_brush_types.h"
 #include "DNA_curves_types.h"
 #include "DNA_grease_pencil_types.h"
 #include "DNA_mesh_types.h"
@@ -1129,6 +1130,48 @@ static void do_version_remove_lzo_and_lzma_compression(FileData *fd, Object *obj
   BLI_freelistN(&pidlist);
 }
 
+static void do_version_convert_gp_jitter_values(Brush *brush)
+{
+  /* Because this change is backported into the 4.5 branch, we need to avoid performing versioning
+   * in case the user updated their custom brush assets between using 4.5 and 5.0 to avoid
+   * overwriting their changes.
+   *
+   * See #142104
+   */
+  if ((brush->flag2 & BRUSH_JITTER_COLOR) != 0 || !is_zero_v3(brush->hsv_jitter)) {
+    return;
+  }
+
+  BrushGpencilSettings *settings = brush->gpencil_settings;
+  float old_hsv_jitter[3] = {
+      settings->random_hue, settings->random_saturation, settings->random_value};
+  if (!is_zero_v3(old_hsv_jitter)) {
+    brush->flag2 |= BRUSH_JITTER_COLOR;
+  }
+  copy_v3_v3(brush->hsv_jitter, old_hsv_jitter);
+  if (brush->curve_rand_hue) {
+    BKE_curvemapping_free_data(brush->curve_rand_hue);
+    BKE_curvemapping_copy_data(brush->curve_rand_hue, settings->curve_rand_hue);
+  }
+  else {
+    brush->curve_rand_hue = BKE_curvemapping_copy(settings->curve_rand_hue);
+  }
+  if (brush->curve_rand_saturation) {
+    BKE_curvemapping_free_data(brush->curve_rand_saturation);
+    BKE_curvemapping_copy_data(brush->curve_rand_saturation, settings->curve_rand_saturation);
+  }
+  else {
+    brush->curve_rand_saturation = BKE_curvemapping_copy(settings->curve_rand_saturation);
+  }
+  if (brush->curve_rand_value) {
+    BKE_curvemapping_free_data(brush->curve_rand_value);
+    BKE_curvemapping_copy_data(brush->curve_rand_value, settings->curve_rand_value);
+  }
+  else {
+    brush->curve_rand_value = BKE_curvemapping_copy(settings->curve_rand_value);
+  }
+}
+
 /* The Composite node was removed and a Group Output node should be used instead, so we need to
  * make the replacement. But first note that the Group Output node relies on the node tree
  * interface, so we ensure a default interface with a single input and output. This is only for
@@ -1198,7 +1241,7 @@ void do_versions_after_linking_500(FileData *fd, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 40)) {
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 41)) {
     LISTBASE_FOREACH (Scene *, scene, &bmain->scenes) {
       bNodeTree *node_tree = scene->nodetree;
       if (node_tree) {
@@ -1441,7 +1484,7 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         if (node->type_legacy != CMP_NODE_TRANSLATE) {
           continue;
         }
-        if (node->storage != nullptr) {
+        if (node->storage == nullptr) {
           continue;
         }
         NodeTranslateData *data = static_cast<NodeTranslateData *>(node->storage);
@@ -1464,7 +1507,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
             data->extension_y = CMP_NODE_EXTENSION_MODE_REPEAT;
             break;
         }
-        node->storage = data;
       }
       FOREACH_NODETREE_END;
     }
@@ -1509,7 +1551,6 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
         NodeScaleData *data = static_cast<NodeScaleData *>(node->storage);
         data->extension_x = CMP_NODE_EXTENSION_MODE_ZERO;
         data->extension_y = CMP_NODE_EXTENSION_MODE_ZERO;
-        node->storage = data;
       }
       FOREACH_NODETREE_END;
     }
@@ -1589,6 +1630,14 @@ void blo_do_versions_500(FileData * /*fd*/, Library * /*lib*/, Main *bmain)
           }
           return true;
         });
+      }
+    }
+  }
+
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 500, 40)) {
+    LISTBASE_FOREACH (Brush *, brush, &bmain->brushes) {
+      if (brush->gpencil_settings) {
+        do_version_convert_gp_jitter_values(brush);
       }
     }
   }

@@ -46,7 +46,7 @@
 #include "BLI_math_base.h"
 #include "BLI_math_rotation.h"
 #include "BLI_path_utils.hh"
-#include "BLI_string.h"
+#include "BLI_string_utf8.h"
 #include "BLI_string_utils.hh"
 #include "BLI_threads.h"
 #include "BLI_utildefines.h"
@@ -516,9 +516,11 @@ static void scene_foreach_toolsettings_id_pointer_process(
   }
 }
 
-/* Special handling is needed here, as `scene_foreach_toolsettings` (and its dependency
- * `scene_foreach_paint`) are also used by `scene_undo_preserve`, where `LibraryForeachIDData
- * *data` is nullptr. */
+/**
+ * Special handling is needed here, as `scene_foreach_toolsettings` (and its dependency
+ * `scene_foreach_paint`) are also used by `scene_undo_preserve`,
+ * where `LibraryForeachIDData *data` is nullptr.
+ */
 #define BKE_LIB_FOREACHID_UNDO_PRESERVE_PROCESS_IDSUPER_P( \
     _data, _id_p, _do_undo_restore, _action, _reader, _id_old_p, _cb_flag) \
   { \
@@ -2739,7 +2741,7 @@ SceneRenderView *BKE_scene_add_render_view(Scene *sce, const char *name)
   }
 
   SceneRenderView *srv = MEM_callocN<SceneRenderView>(__func__);
-  STRNCPY(srv->name, name);
+  STRNCPY_UTF8(srv->name, name);
   BLI_uniquename(&sce->r.views,
                  srv,
                  DATA_("RenderView"),
