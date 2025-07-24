@@ -734,7 +734,7 @@ void NODE_GGT_backdrop_ellipse_mask(wmGizmoGroupType *gzgt)
 /** \} */
 
 /* -------------------------------------------------------------------- */
-/** \name Glare's Sun Beams
+/** \name Glare
  * \{ */
 
 struct NodeGlareWidgetGroup {
