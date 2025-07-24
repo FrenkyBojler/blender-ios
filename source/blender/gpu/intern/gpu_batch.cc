@@ -357,7 +357,12 @@ void GPU_batch_draw_parameter_get(Batch *batch,
                                   int *r_base_index,
                                   int *r_instance_count)
 {
-  if (batch->elem) {
+  if (batch->procedural_vertices > 0) {
+    *r_vertex_count = batch->procedural_vertices;
+    *r_vertex_first = 0;
+    *r_base_index = -1;
+  }
+  else if (batch->elem) {
     *r_vertex_count = batch->elem_()->index_len_get();
     *r_vertex_first = batch->elem_()->index_start_get();
     *r_base_index = batch->elem_()->index_base_get();
