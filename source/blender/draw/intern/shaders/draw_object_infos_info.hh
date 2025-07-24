@@ -65,7 +65,7 @@ DEFINE("DRW_HAIR_INFO")
 SAMPLER_FREQ(0, samplerBuffer, curves_pos_buf, BATCH)
 SAMPLER_FREQ(1, samplerBuffer, curves_rad_buf, BATCH)
 /* TODO(fclem): Find a nicer way. Maybe promote to SSBO. */
-SAMPLER_FREQ(12, usamplerBuffer, curves_offset_buf, BATCH)
+SAMPLER_FREQ(12, isamplerBuffer, curves_indirection_buf, BATCH)
 GPU_SHADER_CREATE_END()
 
 GPU_SHADER_CREATE_INFO(draw_pointcloud)

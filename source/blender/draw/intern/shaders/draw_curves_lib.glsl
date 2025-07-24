@@ -29,23 +29,46 @@ SHADER_LIBRARY_CREATE_INFO(draw_curves)
 
 namespace curves {
 
-uint curve_id_get(uint point_id)
+/* Indirection buffer indexing. */
+int segment_id_get(uint vertex_id)
 {
-  return point_id / drw_curves.point_per_segment_max;
+  uint id = vertex_id / drw_curves.vertex_per_segment;
+  const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
+  if (is_cylinder) {
+    id += vertex_id & 1u;
+  }
+  return int(id);
 }
 
-uint point_id_get(uint vertex_id)
+#  define END_OF_CURVE 0x7FFFFFFF
+
+struct Indirection {
+  /* Can be equal to END_OF_CURVE with ribbon draw type. */
+  int curve_id;
+  /* Segment ID starting at 0 at curve start. */
+  int curve_segment;
+};
+
+Indirection indirection_get(int segment_id)
 {
-  uint point = vertex_id / drw_curves.vertex_per_segment;
+  Indirection res;
+  res.curve_id = texelFetch(curves_indirection_buf, segment_id).r;
 
-  const bool is_ribbon = drw_curves.half_cylinder_face_count == 1u;
-  if (is_ribbon) {
-    point += vertex_id & 1u;
+  if (res.curve_id > 0) {
+    /* This is start or end of curve. */
+    res.curve_segment = 0;
   }
+  else {
+    res.curve_segment = -res.curve_id;
+    res.curve_id = texelFetch(curves_indirection_buf, segment_id + res.curve_id).r;
+  }
+  return res;
+}
 
-  uint curve = curve_id_get(point);
-  uint end_point = texelFetch(curves_offset_buf, int(curve + 1)).r - 1;
-  return min(point % drw_curves.point_per_segment_max, end_point);
+int point_id_get(int segment_id, int curve_id)
+{
+  const bool is_ribbon = drw_curves.half_cylinder_face_count == 1u;
+  return segment_id + (is_ribbon ? -curve_id : curve_id);
 }
 
 float cylinder_time_get(uint vertex_id)
@@ -72,28 +95,32 @@ struct Point {
   float3 P;
   /* Tangent vector going from the root to the tip of the curve. */
   float3 T;
+
   float radius;
   /* Where the vertex is placed on the cross section of the segment cylinder. Range [-1..1]. */
   float cylinder_time;
 
-  uint point_id;
-  uint curve_id;
+  int point_id;
+  int curve_id;
+  int curve_segment;
 };
 
 /* Return data about the curve point. */
 Point point_get(uint vertex_id)
 {
+  int segment_id = segment_id_get(vertex_id);
+  Indirection indirection = indirection_get(segment_id);
+
   Point pt;
-  pt.curve_id = curve_id_get(vertex_id);
-  pt.point_id = point_id_get(vertex_id);
+  pt.curve_id = indirection.curve_id;
+  pt.curve_segment = indirection.curve_segment;
+  pt.point_id = point_id_get(segment_id, indirection.curve_id);
 
-  uint start_point = texelFetch(curves_offset_buf, int(pt.curve_id)).r;
-
-  pt.P = point_position_get(pt.point_id);
+  pt.P = (pt.curve_id == END_OF_CURVE) ? float3(NAN_FLT) : point_position_get(pt.point_id);
   pt.radius = point_radius(pt.point_id);
   pt.cylinder_time = cylinder_time_get(vertex_id);
 
-  if (pt.point_id == start_point) {
+  if (pt.curve_segment == 0) {
     /* Hair root. */
     pt.T = point_position_get(pt.point_id + 1) - pt.P;
   }
@@ -130,28 +157,34 @@ float3 shape_point_get(Point pt, float3 V)
 #  ifdef GPU_VERTEX_SHADER
 float get_customdata_float(const samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, int(curve_id_get(point_id_get(gl_VertexID)))).x;
+  /* TODO(fclem): Pass curve_id to this function. */
+  return texelFetch(cd_buf, int(0)).x;
 }
 
 float2 get_customdata_vec2(const samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, int(curve_id_get(point_id_get(gl_VertexID)))).xy;
+  /* TODO(fclem): Pass curve_id to this function. */
+  return texelFetch(cd_buf, int(0)).xy;
 }
 
 float3 get_customdata_vec3(const samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, int(curve_id_get(point_id_get(gl_VertexID)))).xyz;
+  /* TODO(fclem): Pass curve_id to this function. */
+  return texelFetch(cd_buf, int(0)).xyz;
 }
 
 float4 get_customdata_vec4(const samplerBuffer cd_buf)
 {
-  return texelFetch(cd_buf, int(curve_id_get(point_id_get(gl_VertexID)))).xyzw;
+  /* TODO(fclem): Pass curve_id to this function. */
+  return texelFetch(cd_buf, int(0)).xyzw;
 }
 
 float3 get_strand_root_pos()
 {
-  uint curve_id = curve_id_get(point_id_get(uint(gl_VertexID)));
-  uint start_point = texelFetch(curves_offset_buf, int(curve_id)).r;
+  /* TODO(fclem): Pass point_id and curve_segment to this function. */
+  uint point_id = 0;
+  uint curve_segment = 0;
+  uint start_point = point_id - curve_segment;
   return texelFetch(curves_pos_buf, int(start_point)).xyz;
 }
 #  endif
