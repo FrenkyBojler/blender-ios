@@ -143,21 +143,31 @@ struct BundleSocketValue {
   Vector<Item> items;
 };
 
+struct PreservedZone {
+  bNode *input_node = nullptr;
+  bNode *output_node = nullptr;
+};
+
 class ShaderNodesInliner {
  private:
   ResourceScope scope_;
   const bNodeTree &src_tree_;
   bNodeTree &dst_tree_;
+  const InlineShaderNodeTreeParams &params_;
   bke::ComputeContextCache compute_context_cache_;
   Map<SocketInContext, SocketValue> value_by_socket_;
+  Map<NodeInContext, PreservedZone> copied_zone_by_zone_output_node_;
   Stack<SocketInContext> scheduled_sockets_stack_;
   bool use_refcounting_ = false;
   const bke::DataTypeConversions &data_type_conversions_;
 
  public:
-  ShaderNodesInliner(const bNodeTree &src_tree, bNodeTree &dst_tree)
+  ShaderNodesInliner(const bNodeTree &src_tree,
+                     bNodeTree &dst_tree,
+                     const InlineShaderNodeTreeParams &params)
       : src_tree_(src_tree),
         dst_tree_(dst_tree),
+        params_(params),
         data_type_conversions_(bke::get_implicit_type_conversions())
   {
     if (dst_tree.id.tag & ID_TAG_NO_MAIN) {
@@ -206,6 +216,7 @@ class ShaderNodesInliner {
       this->set_socket_value(*copied_node, *copied_socket, value_by_socket_.lookup(socket));
     }
 
+    this->restore_zones_in_output_tree();
     this->position_nodes_in_output_tree();
     return true;
   }
@@ -308,12 +319,16 @@ class ShaderNodesInliner {
       return;
     }
     if (node->is_type("GeometryNodeRepeatOutput")) {
-      this->handle_output_socket__repeat_output(socket);
-      return;
+      if (!this->should_preserve_repeat_zone_node(*node)) {
+        this->handle_output_socket__repeat_output(socket);
+        return;
+      }
     }
     if (node->is_type("GeometryNodeRepeatInput")) {
-      this->handle_output_socket__repeat_input(socket);
-      return;
+      if (!this->should_preserve_repeat_zone_node(*node)) {
+        this->handle_output_socket__repeat_input(socket);
+        return;
+      }
     }
     if (node->is_type("GeometryNodeClosureOutput")) {
       this->handle_output_socket__closure_output(socket);
@@ -400,6 +415,38 @@ class ShaderNodesInliner {
       return;
     }
     this->store_socket_value_fallback(socket);
+  }
+
+  bool should_preserve_repeat_zone_node(const bNode &repeat_zone_node) const
+  {
+    BLI_assert(repeat_zone_node.is_type("GeometryNodeRepeatOutput") ||
+               repeat_zone_node.is_type("GeometryNodeRepeatInput"));
+    if (!params_.allow_preserving_repeat_zones) {
+      return false;
+    }
+    const bNodeTree &tree = repeat_zone_node.owner_tree();
+    const bke::bNodeTreeZones *zones = tree.zones();
+    if (!zones) {
+      return false;
+    }
+    const bke::bNodeTreeZone *zone = zones->get_zone_by_node(repeat_zone_node.identifier);
+    if (!zone) {
+      return false;
+    }
+    const bNode *repeat_zone_output_node = zone->output_node();
+    if (!repeat_zone_output_node) {
+      return false;
+    }
+    const auto &storage = *static_cast<const NodeGeometryRepeatOutput *>(
+        repeat_zone_output_node->storage);
+    for (const int i : IndexRange(storage.items_num)) {
+      const NodeRepeatItem &item = storage.items[i];
+      if (!ELEM(item.socket_type, SOCK_INT, SOCK_FLOAT, SOCK_BOOLEAN, SOCK_RGBA, SOCK_VECTOR)) {
+        /* Repeat zones with more special types have to be inlined. */
+        return false;
+      }
+    }
+    return true;
   }
 
   void handle_output_socket__repeat_output(const SocketInContext &socket)
@@ -729,6 +776,32 @@ class ShaderNodesInliner {
       this->store_socket_value(output_socket_ctx,
                                {LinkedSocketValue{&copied_node, &dst_output_socket}});
     }
+    this->remember_copied_zone_node_if_necessary(node, copied_node);
+  }
+
+  void remember_copied_zone_node_if_necessary(const NodeInContext &node, bNode &copied_node)
+  {
+    const bNodeTree &tree = node->owner_tree();
+    const bke::bNodeTreeZones *zones = tree.zones();
+    if (!zones) {
+      return;
+    }
+    const bke::bNodeTreeZone *zone = zones->get_zone_by_node(node->identifier);
+    if (!zone) {
+      return;
+    }
+    if (!ELEM(node->identifier, zone->input_node_id, zone->output_node_id)) {
+      return;
+    }
+    const NodeInContext zone_output_node = {node.context, zone->output_node()};
+    PreservedZone &copied_zone = copied_zone_by_zone_output_node_.lookup_or_add_default(
+        zone_output_node);
+    if (node == zone_output_node) {
+      copied_zone.output_node = &copied_node;
+    }
+    else {
+      copied_zone.input_node = &copied_node;
+    }
   }
 
   SocketValue handle_implicit_conversion(const SocketValue &src_value,
@@ -837,6 +910,22 @@ class ShaderNodesInliner {
     BLI_assert_unreachable();
   }
 
+  void restore_zones_in_output_tree()
+  {
+    for (const PreservedZone &copied_zone : copied_zone_by_zone_output_node_.values()) {
+      if (!copied_zone.input_node || !copied_zone.output_node) {
+        continue;
+      }
+      const bke::bNodeZoneType *zone_type = bke::zone_type_by_node_type(
+          copied_zone.input_node->type_legacy);
+      if (!zone_type) {
+        continue;
+      }
+      int &output_id = zone_type->get_corresponding_output_id(*copied_zone.input_node);
+      output_id = copied_zone.output_node->identifier;
+    }
+  }
+
   void position_nodes_in_output_tree()
   {
     bNodeTree &tree = dst_tree_;
@@ -896,9 +985,11 @@ class ShaderNodesInliner {
 
 }  // namespace
 
-bool inline_shader_node_tree(const bNodeTree &src_tree, bNodeTree &dst_tree)
+bool inline_shader_node_tree(const bNodeTree &src_tree,
+                             bNodeTree &dst_tree,
+                             const InlineShaderNodeTreeParams &params)
 {
-  ShaderNodesInliner inliner(src_tree, dst_tree);
+  ShaderNodesInliner inliner(src_tree, dst_tree, params);
   return inliner.do_inline();
 }
 

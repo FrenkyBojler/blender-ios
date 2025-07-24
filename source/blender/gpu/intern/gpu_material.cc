@@ -160,7 +160,9 @@ GPUMaterial *GPU_material_from_nodetree(Material *ma,
   /* Localize tree to create links for reroute and mute. */
   bNodeTree *localtree = blender::bke::node_tree_add_tree(
       nullptr, (blender::StringRef(ntree->id.name) + " Inlined").c_str(), ntree->idname);
-  blender::nodes::inline_shader_node_tree(*ntree, *localtree);
+  blender::nodes::InlineShaderNodeTreeParams inline_params;
+  inline_params.allow_preserving_repeat_zones = false;
+  blender::nodes::inline_shader_node_tree(*ntree, *localtree, inline_params);
 
   /* Update deprecated bNodeSocket.link pointers because some still depends on it. */
   LISTBASE_FOREACH (bNodeLink *, link, &localtree->links) {

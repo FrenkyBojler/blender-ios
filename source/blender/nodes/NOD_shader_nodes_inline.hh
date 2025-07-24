@@ -8,6 +8,12 @@ struct bNodeTree;
 
 namespace blender::nodes {
 
-bool inline_shader_node_tree(const bNodeTree &src_tree, bNodeTree &dst_tree);
+struct InlineShaderNodeTreeParams {
+  bool allow_preserving_repeat_zones = false;
+};
 
-}
+bool inline_shader_node_tree(const bNodeTree &src_tree,
+                             bNodeTree &dst_tree,
+                             const InlineShaderNodeTreeParams &params = {});
+
+}  // namespace blender::nodes
