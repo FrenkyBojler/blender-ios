@@ -256,6 +256,7 @@ struct CurvesInfos {
   uint4 is_point_attribute[DRW_ATTRIBUTE_PER_CURVES_MAX];
 
   uint vertex_per_segment;
+  /* Edge count for the visible half cylinder. Equal to face count + 1. */
   uint half_cylinder_face_count;
   uint _pad0;
   uint _pad1;

@@ -113,7 +113,7 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_pos[17], 2.0f);
 
     result_idx.read();
-    /* x: point_id, y: curve_id, z: curve_segment, w: unused */
+    /* x: point_id, y: curve_id, z: curve_segment, w: azimuthal_offset */
     EXPECT_EQ(result_idx[0], int4(0, 0, 0, -1));
     EXPECT_EQ(result_idx[1], int4(0, 0, 0, 1));
     EXPECT_EQ(result_idx[2], int4(1, 0, 1, -1));
@@ -132,6 +132,123 @@ static void test_draw_curves_lib()
     EXPECT_EQ(result_idx[15], int4(6, 1, 1, 1));
     EXPECT_EQ(result_idx[16], int4(7, 1, 2, -1));
     EXPECT_EQ(result_idx[17], int4(7, 1, 2, 1));
+  }
+
+  /* Cylinder. */
+  curves_info_buf.vertex_per_segment = 7;
+  curves_info_buf.half_cylinder_face_count = 2;
+  curves_info_buf.push_update();
+
+  {
+    StorageArrayBuffer<float, 512> result_pos;
+    StorageArrayBuffer<int4, 512> result_idx;
+    result_pos.clear_to_zero();
+    result_idx.clear_to_zero();
+
+    PassSimple pass("Cylinder Curves");
+    pass.framebuffer_set(&fb);
+    pass.shader_set(sh);
+    pass.bind_ubo("drw_curves", curves_info_buf);
+    pass.bind_texture("curves_pos_buf", pos_buf);
+    pass.bind_texture("curves_rad_buf", rad_buf);
+    pass.bind_texture("curves_indirection_buf", indirection_cylinder_buf);
+    pass.bind_ssbo("result_pos_buf", result_pos);
+    pass.bind_ssbo("result_indices_buf", result_idx);
+    pass.draw(batch_cylinder);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    /* Note: Expected values follows diagram shown in #142969. */
+
+    result_pos.read();
+    EXPECT_EQ(result_pos[0], 1.0f);
+    EXPECT_EQ(result_pos[1], 0.75f);
+    EXPECT_EQ(result_pos[2], 1.0f);
+    EXPECT_EQ(result_pos[3], 0.75f);
+    EXPECT_EQ(result_pos[4], 1.0f);
+    EXPECT_EQ(result_pos[5], 0.75f);
+    EXPECT_TRUE(isnan(result_pos[6]));
+    EXPECT_EQ(result_pos[7], 0.75f);
+    EXPECT_EQ(result_pos[8], 0.5f);
+    EXPECT_EQ(result_pos[9], 0.75f);
+    EXPECT_EQ(result_pos[10], 0.5f);
+    EXPECT_EQ(result_pos[11], 0.75f);
+    EXPECT_EQ(result_pos[12], 0.5f);
+    EXPECT_TRUE(isnan(result_pos[13]));
+    EXPECT_EQ(result_pos[14], 0.5f);
+    EXPECT_EQ(result_pos[15], 0.25f);
+    EXPECT_EQ(result_pos[16], 0.5f);
+    EXPECT_EQ(result_pos[17], 0.25f);
+    EXPECT_EQ(result_pos[18], 0.5f);
+    EXPECT_EQ(result_pos[19], 0.25f);
+    EXPECT_TRUE(isnan(result_pos[20]));
+    EXPECT_EQ(result_pos[21], 0.25f);
+    EXPECT_EQ(result_pos[22], 0.0f);
+    EXPECT_EQ(result_pos[23], 0.25f);
+    EXPECT_EQ(result_pos[24], 0.0f);
+    EXPECT_EQ(result_pos[25], 0.25f);
+    EXPECT_EQ(result_pos[26], 0.0f);
+    EXPECT_TRUE(isnan(result_pos[27]));
+    EXPECT_EQ(result_pos[28], 0.0f);
+    EXPECT_EQ(result_pos[29], 1.0f);
+    EXPECT_EQ(result_pos[30], 0.0f);
+    EXPECT_EQ(result_pos[31], 1.0f);
+    EXPECT_EQ(result_pos[32], 0.0f);
+    EXPECT_EQ(result_pos[33], 1.0f);
+    EXPECT_TRUE(isnan(result_pos[34]));
+    EXPECT_EQ(result_pos[35], 1.0f);
+    EXPECT_EQ(result_pos[36], 2.0f);
+    EXPECT_EQ(result_pos[37], 1.0f);
+    EXPECT_EQ(result_pos[38], 2.0f);
+    EXPECT_EQ(result_pos[39], 1.0f);
+    EXPECT_EQ(result_pos[40], 2.0f);
+    EXPECT_TRUE(isnan(result_pos[41]));
+
+    result_idx.read();
+    /* x: point_id, y: curve_id, z: curve_segment, w: azimuthal_offset */
+    EXPECT_EQ(result_idx[0], int4(0, 0, 0, -1));
+    EXPECT_EQ(result_idx[1], int4(1, 0, 1, -1));
+    EXPECT_EQ(result_idx[2], int4(0, 0, 0, 0));
+    EXPECT_EQ(result_idx[3], int4(1, 0, 1, 0));
+    EXPECT_EQ(result_idx[4], int4(0, 0, 0, 1));
+    EXPECT_EQ(result_idx[5], int4(1, 0, 1, 1));
+    EXPECT_EQ(result_idx[6], int4(0, 0, 0, 2));
+    EXPECT_EQ(result_idx[7], int4(1, 0, 1, -1));
+    EXPECT_EQ(result_idx[8], int4(2, 0, 2, -1));
+    EXPECT_EQ(result_idx[9], int4(1, 0, 1, 0));
+    EXPECT_EQ(result_idx[10], int4(2, 0, 2, 0));
+    EXPECT_EQ(result_idx[11], int4(1, 0, 1, 1));
+    EXPECT_EQ(result_idx[12], int4(2, 0, 2, 1));
+    EXPECT_EQ(result_idx[13], int4(1, 0, 1, 2));
+    EXPECT_EQ(result_idx[14], int4(2, 0, 2, -1));
+    EXPECT_EQ(result_idx[15], int4(3, 0, 3, -1));
+    EXPECT_EQ(result_idx[16], int4(2, 0, 2, 0));
+    EXPECT_EQ(result_idx[17], int4(3, 0, 3, 0));
+    EXPECT_EQ(result_idx[18], int4(2, 0, 2, 1));
+    EXPECT_EQ(result_idx[19], int4(3, 0, 3, 1));
+    EXPECT_EQ(result_idx[20], int4(2, 0, 2, 2));
+    EXPECT_EQ(result_idx[21], int4(3, 0, 3, -1));
+    EXPECT_EQ(result_idx[22], int4(4, 0, 4, -1));
+    EXPECT_EQ(result_idx[23], int4(3, 0, 3, 0));
+    EXPECT_EQ(result_idx[24], int4(4, 0, 4, 0));
+    EXPECT_EQ(result_idx[25], int4(3, 0, 3, 1));
+    EXPECT_EQ(result_idx[26], int4(4, 0, 4, 1));
+    EXPECT_EQ(result_idx[27], int4(3, 0, 3, 2));
+    EXPECT_EQ(result_idx[28], int4(5, 1, 5, -1));
+    EXPECT_EQ(result_idx[29], int4(6, 1, 6, -1));
+    EXPECT_EQ(result_idx[30], int4(5, 1, 5, 0));
+    EXPECT_EQ(result_idx[31], int4(6, 1, 6, 0));
+    EXPECT_EQ(result_idx[32], int4(5, 1, 5, 1));
+    EXPECT_EQ(result_idx[33], int4(6, 1, 6, 1));
+    EXPECT_EQ(result_idx[34], int4(5, 1, 5, 2));
+    EXPECT_EQ(result_idx[35], int4(6, 1, 6, -1));
+    EXPECT_EQ(result_idx[36], int4(7, 1, 7, -1));
+    EXPECT_EQ(result_idx[37], int4(6, 1, 6, 0));
+    EXPECT_EQ(result_idx[38], int4(7, 1, 7, 0));
+    EXPECT_EQ(result_idx[39], int4(6, 1, 6, 1));
+    EXPECT_EQ(result_idx[40], int4(7, 1, 7, 1));
+    EXPECT_EQ(result_idx[41], int4(6, 1, 6, 2));
   }
 
   GPU_shader_unbind();

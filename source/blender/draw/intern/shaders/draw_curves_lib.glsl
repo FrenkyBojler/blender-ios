@@ -76,10 +76,8 @@ float azimuthal_offset_get(uint vertex_id)
   float time;
   const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
   if (is_cylinder) {
-    uint seg_vert_id = vertex_id % drw_curves.vertex_per_segment;
-    /* Face count for the visible half cylinder [1..max]. Is 1 for ribbon. */
-    uint face_count = drw_curves.half_cylinder_face_count;
-    time = float((seg_vert_id >> 1) & face_count) / float(face_count);
+    uint cylinder_vert_id = vertex_id % drw_curves.vertex_per_segment;
+    time = float(cylinder_vert_id >> 1) / float(drw_curves.half_cylinder_face_count);
   }
   else {
     time = vertex_id & 1u;
@@ -118,12 +116,16 @@ Point point_get(uint vertex_id)
   int segment_id = segment_id_get(vertex_id);
   Indirection indirection = indirection_get(segment_id);
 
+  const bool is_cylinder = drw_curves.half_cylinder_face_count > 1u;
+  bool restart_strip = (indirection.curve_id == END_OF_CURVE) ||
+                       (is_cylinder && ((vertex_id + 1u) % drw_curves.vertex_per_segment) == 0u);
+
   Point pt;
   pt.curve_id = indirection.curve_id;
   pt.curve_segment = indirection.curve_segment;
   pt.point_id = point_id_get(segment_id, indirection.curve_id);
 
-  pt.P = (pt.curve_id == END_OF_CURVE) ? float3(NAN_FLT) : point_position_get(pt.point_id);
+  pt.P = (restart_strip) ? float3(NAN_FLT) : point_position_get(pt.point_id);
   pt.radius = point_radius(pt.point_id);
   pt.azimuthal_offset = azimuthal_offset_get(vertex_id);
 
