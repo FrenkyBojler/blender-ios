@@ -76,11 +76,17 @@ static int bone_skinnable_cb(Object * /*ob*/, Bone *bone, void *datap)
     bool is_weight_paint;
   } *data = static_cast<Arg *>(datap);
 
-  if (!(data->is_weight_paint) || !(bone->flag & BONE_HIDDEN_P)) {
+  bArmature *arm = static_cast<bArmature *>(data->armob->data);
+  /* Ensures that pose bones are available. */
+  if (!data->armob->pose) {
+    BKE_pose_rebuild(nullptr, data->armob, arm, false);
+  }
+  bPoseChannel *pose_bone = BKE_pose_channel_find_name(data->armob->pose, bone->name);
+  BLI_assert(pose_bone != nullptr);
+
+  if (!(data->is_weight_paint) || !(pose_bone->drawflag & PCHAN_DRAW_HIDDEN)) {
     if (!(bone->flag & BONE_NO_DEFORM)) {
-      if (data->heat && data->armob->pose &&
-          BKE_pose_channel_find_name(data->armob->pose, bone->name))
-      {
+      if (data->heat && data->armob->pose && pose_bone) {
         segments = bone->segments;
       }
       else {
@@ -151,11 +157,16 @@ static int dgroup_skinnable_cb(Object *ob, Bone *bone, void *datap)
   } *data = static_cast<Arg *>(datap);
   bArmature *arm = static_cast<bArmature *>(data->armob->data);
 
-  if (!data->is_weight_paint || !(bone->flag & BONE_HIDDEN_P)) {
+  /* Ensures that pose bones are available. */
+  if (!data->armob->pose) {
+    BKE_pose_rebuild(nullptr, data->armob, arm, false);
+  }
+  const bPoseChannel *pose_bone = BKE_pose_channel_find_name(data->armob->pose, bone->name);
+  BLI_assert(pose_bone != nullptr);
+
+  if (!data->is_weight_paint || !(pose_bone->drawflag & PCHAN_DRAW_HIDDEN)) {
     if (!(bone->flag & BONE_NO_DEFORM)) {
-      if (data->heat && data->armob->pose &&
-          BKE_pose_channel_find_name(data->armob->pose, bone->name))
-      {
+      if (data->heat) {
         segments = bone->segments;
       }
       else {

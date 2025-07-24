@@ -97,14 +97,6 @@ static void rna_Pose_update(Main * /*bmain*/, Scene * /*scene*/, PointerRNA *ptr
 
 static void rna_bone_vis_update(Main * /* bmain */, Scene * /* scene */, PointerRNA *ptr)
 {
-  bPoseChannel *pose_bone = (bPoseChannel *)ptr->data;
-  /* Keep flag on bone in sync for backwards and forwards compatibility. */
-  if (pose_bone->drawflag & PCHAN_DRAW_HIDDEN) {
-    pose_bone->bone->flag |= BONE_HIDDEN_P;
-  }
-  else {
-    pose_bone->bone->flag &= ~BONE_HIDDEN_P;
-  }
   DEG_id_tag_update(ptr->owner_id, ID_RECALC_GEOMETRY);
   WM_main_add_notifier(NC_OBJECT | ND_POSE, ptr->owner_id);
 }
