@@ -98,7 +98,6 @@ class ShapeKeyDropTarget : public ui::TreeViewItemDropTarget {
     if (drag_shapekey->index == drop_index_) {
       return false;
     }
-
     return true;
   }
 
