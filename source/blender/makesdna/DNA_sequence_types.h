@@ -237,6 +237,11 @@ typedef struct Strip {
   /** Effect strip inputs (`nullptr` if not an effect strip). */
   struct Strip *input1, *input2;
 
+  /* This strange padding is needed for compatibility with older versions
+   * that assumed `seqbasep` is at fixed offset. */
+  void *_pad7;
+  int _pad8[2];
+
   /** List of strips for meta-strips. */
   ListBase seqbase;
   /** List of channels for meta-strips. */
@@ -301,7 +306,6 @@ typedef struct Strip {
   char _pad6[4];
 
   StripRuntime runtime;
-  void *_pad7;
 } Strip;
 
 typedef struct MetaStack {
