@@ -94,6 +94,7 @@ struct PenToolOperation {
   CloseMethod close_spline_method;
   int extrude_handle;
 
+  bool point_added;
   bool point_removed;
 
   float4x4 projection;
@@ -574,6 +575,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
   std::atomic<bool> add_single = ptd.extrude_point;
   std::atomic<bool> changed = false;
+  std::atomic<bool> point_added = false;
   std::atomic<bool> point_removed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
                                                                          *ptd.grease_pencil);
@@ -603,6 +605,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
           return;
         }
         add_single.store(false, std::memory_order_relaxed);
+        point_added.store(true, std::memory_order_relaxed);
         info.drawing.tag_topology_changed();
 
         changed.store(true, std::memory_order_relaxed);
@@ -672,12 +675,14 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
   if (add_single) {
     pen_add_single(ptd);
+    point_added = true;
   }
 
   if (changed) {
     grease_pencil_pen_update_view(C, ptd);
   }
 
+  ptd.point_added = point_added;
   ptd.point_removed = point_removed;
 
   return OPERATOR_RUNNING_MODAL;
@@ -819,7 +824,7 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
       const float3 depth_point = positions[point_i];
       float2 offset = float2(event->xy) - float2(event->prev_xy);
 
-      if (ptd.move_point) {
+      if (ptd.move_point && !ptd.point_added) {
         positions[point_i] = pen_screen_to_global(
             ptd, pen_global_to_screen(ptd, positions[point_i]) + offset, depth_point);
         handles_left[point_i] = pen_screen_to_global(
