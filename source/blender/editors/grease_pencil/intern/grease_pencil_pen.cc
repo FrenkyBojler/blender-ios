@@ -214,14 +214,16 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
         }
       }
       else {
-        const IndexRange eval_range = IndexRange::from_begin_end(offsets[src_i],
-                                                                 offsets[src_i + 1])
+        const IndexRange eval_range = IndexRange::from_begin_end_inclusive(offsets[src_i],
+                                                                           offsets[src_i + 1])
                                           .shift(eval_points.first());
-        const int point_num = eval_range.size();
+        const int point_num = eval_range.size() - 1;
 
         for (const int eval_i : IndexRange(point_num)) {
           const int eval_point_i_1 = eval_range.first() + eval_i;
-          const int eval_point_i_2 = eval_range.first() + eval_i + 1;
+          const int eval_point_i_2 = (eval_range.first() + eval_i + 1 - eval_points.first()) %
+                                         eval_points.size() +
+                                     eval_points.first();
           const float2 pos_1_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_1]);
           const float2 pos_2_proj = pen_global_to_screen(ptd, evaluated_positions[eval_point_i_2]);
           float local_t;
@@ -243,6 +245,11 @@ static int pen_find_closest_edge_point(const PenToolOperation &ptd,
         }
       }
     }
+  }
+
+  if (closest_point == -1) {
+    *r_closest_t = -1.0f;
+    *r_closest_curve = -1;
   }
 
   return closest_point;
