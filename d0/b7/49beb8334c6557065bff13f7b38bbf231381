@@ -1,1 +1,2 @@
 Referenced by issue #142963, Image Texture painting 3D color sampling broken + Crash
+Referenced by pull request #143015, Fix #142963: Crash when using Texture Paint sample color
