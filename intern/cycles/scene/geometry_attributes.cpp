@@ -549,7 +549,7 @@ void GeometryManager::device_update_attributes(Device *device,
       Attribute *attr = geom->attributes.find(req);
 
       /* Keep "N" attribute undisplaced for backwareds compatibility in Blender 4.5. */
-      if (attr->std == ATTR_STD_VERTEX_NORMAL) {
+      if (attr && attr->std == ATTR_STD_VERTEX_NORMAL) {
         if (Attribute *undisplaced_attr = geom->attributes.find(ATTR_STD_NORMAL_UNDISPLACED)) {
           attr = undisplaced_attr;
         }
