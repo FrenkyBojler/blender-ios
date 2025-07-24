@@ -2198,7 +2198,7 @@ class GlareOperation : public NodeOperation {
    * minimum_field_of_view), and also expands the effective range of the size input.*/
   math::AngleRadian compute_fog_glow_field_of_view()
   {
-    const math::AngleRadian minimum_field_of_view = math::AngleRadian::from_degree(5e-1f);
+    const math::AngleRadian minimum_field_of_view = math::AngleRadian::from_degree(10);
     const math::AngleRadian field_of_view = minimum_field_of_view /
                                             math::max(this->get_size(), 1e-9f);
     return field_of_view;
