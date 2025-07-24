@@ -1,4 +1,4 @@
-/* SPDX-FileCopyrightText: 2023 Blender Authors
+/* SPDX-FileCopyrightText: 2025 Blender Authors
  *
  * SPDX-License-Identifier: GPL-2.0-or-later */
 
@@ -12,6 +12,7 @@
 namespace blender::compositor {
 
 /* Samples a pixel from a GPU texture. */
-float sample_gpu_texture(Context &context, const Result &result, const int2 texel);
+template<typename T>
+T sample_gpu_texture(Context &context, const Result &result, const int2 texel);
 
 }  // namespace blender::compositor

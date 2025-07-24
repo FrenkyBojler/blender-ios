@@ -106,7 +106,12 @@ class MapUVOperation : public NodeOperation {
 
     const Domain domain = compute_domain();
     Result &output_image = get_result("Image");
-    output_image.allocate_texture(domain);
+    if (input_uv.is_single_value()) {
+      output_image.allocate_single_value();
+    }
+    else {
+      output_image.allocate_texture(domain);
+    }
     output_image.bind_as_image(shader, "output_img");
 
     compute_dispatch_threads_at_least(shader, domain.size);
@@ -117,9 +122,7 @@ class MapUVOperation : public NodeOperation {
     GPU_shader_unbind();
 
     if (input_uv.is_single_value()) {
-      float output_single_value = sample_gpu_texture(context(), input_image, int2(0, 0));
-      output_image.release();
-      output_image.allocate_single_value();
+      float4 output_single_value = sample_gpu_texture<float4>(context(), output_image, int2(0, 0));
       output_image.set_single_value(output_single_value);
     }
   }
