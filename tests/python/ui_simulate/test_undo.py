@@ -310,16 +310,16 @@ def compositor_make_group():
     node_group = bpy.data.node_groups.new(name="comp ntree", type="CompositorNodeTree")
     window.scene.compositing_node_group = node_group
     yield from _call_menu(e, "Add -> Color -> Alpha Convert")
-    yield e.ret() # Confirm adding node.
+    yield e.ret()  # Confirm adding node.
     yield from _call_menu(e, "Add -> Filter -> Filter")
     yield e.ret()
-    yield e.a() # Select all.
+    yield e.a()  # Select all.
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
-    yield e.ctrl.g() # Make group.
+    yield e.ctrl.g()  # Make group.
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 1)
     yield e.ctrl.z()
     t.assertEqual(len(window.scene.compositing_node_group.nodes), 2)
-    yield e.ctrl.z(5) # Revert to original state
+    yield e.ctrl.z(5)  # Revert to original state
 
 
 # -----------------------------------------------------------------------------
