@@ -1011,7 +1011,10 @@ static bool rna_NodeTreeInterface_items_lookup_string(PointerRNA *ptr,
           rna_pointer_create_with_ancestors(*ptr, &RNA_NodeTreeInterfaceSocket, socket, *r_ptr);
           return true;
         }
+        break;
       }
+      default:
+        break;
     }
   }
   for (bNodeTreeInterfaceItem *item : ntree->interface_items()) {
