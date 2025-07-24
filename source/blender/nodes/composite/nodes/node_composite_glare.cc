@@ -11,7 +11,6 @@
 #include <complex>
 #include <limits>
 
-#include "BLI_math_angle_types.hh"
 #include "MEM_guardedalloc.h"
 
 #if defined(WITH_FFTW3)
@@ -22,6 +21,7 @@
 #include "BLI_assert.h"
 #include "BLI_fftw.hh"
 #include "BLI_index_range.hh"
+#include "BLI_math_angle_types.hh"
 #include "BLI_math_base.hh"
 #include "BLI_math_color.h"
 #include "BLI_math_vector.hh"
