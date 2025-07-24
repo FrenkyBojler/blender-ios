@@ -1629,7 +1629,7 @@ static bool asset_edit_metadata_poll(bContext *C)
 static void ASSET_OT_asset_edit_metadata(wmOperatorType *ot)
 {
   ot->name = "Edit Metadata";
-  ot->description = "Edit asset information like the catalog, preview image, tags, or author";
+  ot->description = "Edit asset information like the catalog, author or description";
   ot->idname = "ASSET_OT_asset_edit_metadata";
 
   ot->exec = asset_edit_metadata_exec;
