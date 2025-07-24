@@ -94,6 +94,8 @@ struct PenToolOperation {
   CloseMethod close_spline_method;
   int extrude_handle;
 
+  bool point_removed;
+
   float4x4 projection;
   float2 mouse_co;
   float2 center_of_mass_co;
@@ -565,6 +567,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
 
   std::atomic<bool> add_single = ptd.extrude_point;
   std::atomic<bool> changed = false;
+  std::atomic<bool> point_removed = false;
   const Vector<MutableDrawingInfo> drawings = retrieve_editable_drawings(*scene,
                                                                          *ptd.grease_pencil);
 
@@ -659,6 +662,7 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
     if (ptd.delete_point) {
       curves.remove_points(IndexRange::from_single(closest_point), {});
       add_single.store(false, std::memory_order_relaxed);
+      point_removed.store(true, std::memory_order_relaxed);
     }
 
     changed.store(true, std::memory_order_relaxed);
@@ -671,6 +675,8 @@ static wmOperatorStatus grease_pencil_pen_invoke(bContext *C, wmOperator *op, co
   if (changed) {
     grease_pencil_pen_update_view(C, ptd);
   }
+
+  ptd.point_removed = point_removed;
 
   return OPERATOR_RUNNING_MODAL;
 }
@@ -713,6 +719,10 @@ static wmOperatorStatus grease_pencil_pen_modal(bContext *C, wmOperator *op, con
   ptd.mouse_co = float2(event->mval);
 
   if (event->type == LEFTMOUSE && event->val == KM_RELEASE) {
+    grease_pencil_pen_exit(C, op);
+    return OPERATOR_FINISHED;
+  }
+  if (ptd.point_removed) {
     grease_pencil_pen_exit(C, op);
     return OPERATOR_FINISHED;
   }
