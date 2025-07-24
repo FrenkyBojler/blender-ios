@@ -32,7 +32,7 @@ float sample_gpu_texture(Context &context, const Result &result, const int2 texe
   BLI_assert((texel.x >= 0) && (texel.y >= 0) && (texel.x < result.domain().size.x) &&
              (texel.y < result.domain().size.y));
 
-  GPUShader *shader = context.get_shader("sample_gpu_texture");
+  GPUShader *shader = context.get_shader("compositor_sample_gpu_texture");
   GPU_shader_bind(shader);
 
   GPU_shader_uniform_2iv(shader, "texel", texel);

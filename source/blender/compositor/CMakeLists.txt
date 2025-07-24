@@ -78,6 +78,7 @@ set(SRC
   algorithms/intern/pad.cc
   algorithms/intern/parallel_reduction.cc
   algorithms/intern/recursive_gaussian_blur.cc
+  algorithms/intern/sample_gpu_texture.cc
   algorithms/intern/smaa.cc
   algorithms/intern/summed_area_table.cc
   algorithms/intern/symmetric_separable_blur.cc
@@ -244,6 +245,7 @@ set(GLSL_SRC
   shaders/compositor_radial_lens_distortion.glsl
   shaders/compositor_read_input.glsl
   shaders/compositor_realize_on_domain.glsl
+  shaders/compositor_sample_gpu_texture.glsl
   shaders/compositor_scale_variable.glsl
   shaders/compositor_smaa_blending_weight_calculation.glsl
   shaders/compositor_smaa_edge_detection.glsl

@@ -18,11 +18,11 @@
 #include "UI_interface_layout.hh"
 #include "UI_resources.hh"
 
+#include "COM_algorithm_sample_gpu_texture.hh"
 #include "COM_domain.hh"
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
-#include "COM_algorithm_sample_gpu_texture.hh"
 #include "node_composite_util.hh"
 
 /* **************** Map UV  ******************** */
@@ -115,6 +115,13 @@ class MapUVOperation : public NodeOperation {
     input_uv.unbind_as_texture();
     output_image.unbind_as_image();
     GPU_shader_unbind();
+
+    if (input_uv.is_single_value()) {
+      float output_single_value = sample_gpu_texture(context(), input_image, int2(0, 0));
+      output_image.release();
+      output_image.allocate_single_value();
+      output_image.set_single_value(output_single_value);
+    }
   }
 
   char const *get_shader_name(const Interpolation &interpolation)
