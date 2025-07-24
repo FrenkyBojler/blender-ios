@@ -1,0 +1,99 @@
+/* SPDX-FileCopyrightText: 2023 Blender Authors
+ *
+ * SPDX-License-Identifier: Apache-2.0 */
+
+#include "draw_manager.hh"
+#include "draw_pass.hh"
+#include "draw_testing.hh"
+
+#include "draw_shader_shared.hh"
+
+#include "GPU_batch.hh"
+#include "GPU_shader.hh"
+
+namespace blender::draw {
+
+static void test_draw_curves_lib()
+{
+  Manager manager;
+
+  GPUShader *sh = GPU_shader_create_from_info_name("draw_curves_test");
+
+  struct Indirection {
+    int index;
+    GPU_VERTEX_FORMAT_FUNC(Indirection, index);
+  };
+  gpu::VertBuf *indirection_ribbon_buf = GPU_vertbuf_create_with_format_ex(
+      Indirection::format(), GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  indirection_ribbon_buf->allocate(10);
+  indirection_ribbon_buf->data<int>().copy_from(
+      {0, -1, -2, -3, -4, 0x7FFFFFFF, 1, -1, -2, 0x7FFFFFFF});
+
+  struct Position {
+    float3 pos;
+    GPU_VERTEX_FORMAT_FUNC(Position, pos);
+  };
+  gpu::VertBuf *pos_buf = GPU_vertbuf_create_with_format_ex(Position::format(),
+                                                            GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  pos_buf->allocate(8);
+  pos_buf->data<float3>().copy_from({float3{1.0f},
+                                     float3{0.75f},
+                                     float3{0.5f},
+                                     float3{0.25f},
+                                     float3{0.0f},
+                                     float3{0.0f},
+                                     float3{1.0f},
+                                     float3{2.0f}});
+  struct Radius {
+    float rad;
+    GPU_VERTEX_FORMAT_FUNC(Radius, rad);
+  };
+  gpu::VertBuf *rad_buf = GPU_vertbuf_create_with_format_ex(Radius::format(),
+                                                            GPU_USAGE_FLAG_BUFFER_TEXTURE_ONLY);
+  rad_buf->allocate(8);
+  rad_buf->data<float>().copy_from({1.0f, 0.75f, 0.5f, 0.25f, 0.0f, 0.0f, 1.0f, 2.0f});
+
+  gpu::Batch *batch = GPU_batch_create_procedural(GPU_PRIM_TRI_STRIP, 2 * 9);
+
+  UniformBuffer<CurvesInfos> curves_info_buf;
+  curves_info_buf.is_point_attribute[0].x = 0;
+  curves_info_buf.is_point_attribute[1].x = 1;
+  /* Ribbon. */
+  curves_info_buf.vertex_per_segment = 2;
+  curves_info_buf.half_cylinder_face_count = 1;
+  curves_info_buf.push_update();
+
+  Framebuffer fb;
+  fb.ensure(int2(1, 1));
+
+  {
+    StorageArrayBuffer<uint, 512> result;
+    result.clear_to_zero();
+
+    PassSimple pass("Ribbon Curves");
+    pass.framebuffer_set(&fb);
+    pass.shader_set(sh);
+    pass.bind_ubo("drw_curves", curves_info_buf);
+    pass.bind_texture("curves_pos_buf", pos_buf);
+    pass.bind_texture("curves_rad_buf", rad_buf);
+    pass.bind_texture("curves_offset_buf", indirection_ribbon_buf);
+    pass.bind_ssbo("result_buf", result);
+    pass.draw(batch);
+    pass.barrier(GPU_BARRIER_BUFFER_UPDATE);
+
+    manager.submit(pass);
+
+    result.read();
+
+    EXPECT_EQ(result[0], 0);
+    EXPECT_EQ(result[1], 1);
+    EXPECT_EQ(result[2], 2);
+  }
+
+  GPU_SHADER_FREE_SAFE(sh);
+  GPU_BATCH_DISCARD_SAFE(batch);
+  GPU_VERTBUF_DISCARD_SAFE(pos_buf);
+}
+DRAW_TEST(draw_curves_lib)
+
+}  // namespace blender::draw

@@ -556,6 +556,7 @@ set(GLSL_SRC
   intern/shaders/draw_debug_shape_lib.glsl
   intern/shaders/draw_fxaa_lib.glsl
   intern/shaders/draw_curves_lib.glsl
+  intern/shaders/draw_curves_test.glsl
   intern/shaders/draw_curves_topology_comp.glsl
   intern/shaders/draw_hair_refine_comp.glsl
   intern/shaders/draw_shape_lib.glsl
@@ -849,6 +850,7 @@ if(WITH_GTESTS)
   if(WITH_GPU_DRAW_TESTS)
     set(TEST_SRC
       tests/draw_pass_test.cc
+      tests/draw_curves_test.cc
       tests/draw_testing.cc
       tests/eevee_test.cc
 

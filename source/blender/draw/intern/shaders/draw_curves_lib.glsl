@@ -36,7 +36,13 @@ uint curve_id_get(uint point_id)
 
 uint point_id_get(uint vertex_id)
 {
-  uint point = ((vertex_id / drw_curves.vertex_per_segment) + (vertex_id & 1u));
+  uint point = vertex_id / drw_curves.vertex_per_segment;
+
+  const bool is_ribbon = drw_curves.half_cylinder_face_count == 1u;
+  if (is_ribbon) {
+    point += vertex_id & 1u;
+  }
+
   uint curve = curve_id_get(point);
   uint end_point = texelFetch(curves_offset_buf, int(curve + 1)).r - 1;
   return min(point % drw_curves.point_per_segment_max, end_point);

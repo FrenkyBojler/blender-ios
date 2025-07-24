@@ -249,6 +249,7 @@ struct VolumeInfos {
 BLI_STATIC_ASSERT_ALIGN(VolumeInfos, 16)
 
 struct CurvesInfos {
+  /* TODO(fclem): Make it a single uint. */
   /** Per attribute scope, follows loading order.
    * \note uint as bool in GLSL is 4 bytes.
    * \note GLSL pad arrays of scalar to 16 bytes (std140). */
@@ -256,7 +257,7 @@ struct CurvesInfos {
 
   uint vertex_per_segment;
   uint half_cylinder_face_count;
-  uint point_per_segment_max;
+  uint _pad0;
   uint _pad1;
 };
 BLI_STATIC_ASSERT_ALIGN(CurvesInfos, 16)
