@@ -1245,9 +1245,9 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
   bNodeTreeExec *exec;
 
   ntree_shader_unlink_script_nodes(localtree);
-  ntree_shader_groups_remove_muted_links(localtree);
-  ntree_shader_groups_expand_inputs(localtree);
-  ntree_shader_groups_flatten(localtree);
+  // ntree_shader_groups_remove_muted_links(localtree);
+  // ntree_shader_groups_expand_inputs(localtree);
+  // ntree_shader_groups_flatten(localtree);
 
   bNode *output = ntreeShaderOutputNode(localtree, SHD_OUTPUT_EEVEE);
 
@@ -1255,7 +1255,7 @@ void ntreeGPUMaterialNodes(bNodeTree *localtree, GPUMaterial *mat)
   bool valid_tree = ntree_shader_implicit_closure_cast(localtree);
 
   if (valid_tree) {
-    ntree_shader_pruned_unused(localtree, output);
+    // ntree_shader_pruned_unused(localtree, output);
     if (output != nullptr) {
       ntree_shader_shader_to_rgba_branches(localtree);
       ntree_shader_weight_tree_invert(localtree, output);
