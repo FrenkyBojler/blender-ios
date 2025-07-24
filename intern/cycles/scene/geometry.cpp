@@ -720,7 +720,6 @@ void GeometryManager::device_update(Device *device,
           }
           else {
             mesh->add_vertex_normals();
-            mesh->add_undisplaced(scene);
           }
 
           /* Test if we need displacement. */
@@ -790,7 +789,6 @@ void GeometryManager::device_update(Device *device,
       subd_params.camera = dicing_camera;
 
       mesh->tessellate(subd_params);
-      mesh->add_undisplaced(scene);
 
       i++;
     }

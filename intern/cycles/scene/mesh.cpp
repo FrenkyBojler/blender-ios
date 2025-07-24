@@ -754,13 +754,15 @@ void Mesh::add_undisplaced(Scene *scene)
     std::copy_n(verts.data(), size, attr->data_float3());
   }
 
-  if (need_attribute(scene, ATTR_STD_POSITION_UNDISPLACED_NORMAL) &&
-      !attributes.find(ATTR_STD_POSITION_UNDISPLACED_NORMAL))
+  /* Keep "N" attribute undisplaced for backwards compatibility in Blender 4.5. */
+  if (((need_attribute(scene, ATTR_STD_VERTEX_NORMAL) && has_true_displacement()) ||
+       need_attribute(scene, ATTR_STD_NORMAL_UNDISPLACED)) &&
+      !attributes.find(ATTR_STD_NORMAL_UNDISPLACED))
   {
     /* Copy vertex normal to attribute */
     Attribute *attr_N = attributes.find(ATTR_STD_VERTEX_NORMAL);
     if (attr_N) {
-      Attribute *attr = attributes.add(ATTR_STD_POSITION_UNDISPLACED_NORMAL);
+      Attribute *attr = attributes.add(ATTR_STD_NORMAL_UNDISPLACED);
 
       size_t size = attr->buffer_size(this, ATTR_PRIM_GEOMETRY) / sizeof(float3);
       std::copy_n(attr_N->data_float3(), size, attr->data_float3());

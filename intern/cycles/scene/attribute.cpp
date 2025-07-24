@@ -326,7 +326,7 @@ const char *Attribute::standard_name(AttributeStandard std)
       return "undeformed";
     case ATTR_STD_POSITION_UNDISPLACED:
       return "undisplaced";
-    case ATTR_STD_POSITION_UNDISPLACED_NORMAL:
+    case ATTR_STD_NORMAL_UNDISPLACED:
       return "undisplaced_N";
     case ATTR_STD_MOTION_VERTEX_POSITION:
       return "motion_P";
@@ -513,7 +513,7 @@ Attribute *AttributeSet::add(AttributeStandard std, ustring name)
   if (geometry->is_mesh()) {
     switch (std) {
       case ATTR_STD_VERTEX_NORMAL:
-      case ATTR_STD_POSITION_UNDISPLACED_NORMAL:
+      case ATTR_STD_NORMAL_UNDISPLACED:
         attr = add(name, TypeNormal, ATTR_ELEMENT_VERTEX);
         break;
       case ATTR_STD_UV:
