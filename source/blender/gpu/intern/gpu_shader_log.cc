@@ -253,7 +253,7 @@ void Shader::print_log(Span<StringRefNull> sources,
       CLG_log_raw(LOG.type, sources_combined.c_str());
     }
     const char *_str = BLI_dynstr_get_cstring(dynstr);
-    CLOG_AT_LEVEL(&LOG, level, "%s (at %s %s)", _str, this->name, stage);
+    CLOG_AT_LEVEL(&LOG, level, "%s %s: %s", this->name, stage, _str);
     MEM_freeN(_str);
   }
 
