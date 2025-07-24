@@ -2559,7 +2559,6 @@ bool RNA_property_boolean_get(PointerRNA *ptr, PropertyRNA *prop)
    * further complications.
    * `bprop->property` should be used when access to an actual RNA property is required.
    */
-  IDProperty *idprop = prop_rna_or_id.idprop;
   BoolPropertyRNA *bprop = reinterpret_cast<BoolPropertyRNA *>(prop_rna_or_id.rnaprop);
 
   bool value = property_boolean_get(ptr, prop_rna_or_id);
