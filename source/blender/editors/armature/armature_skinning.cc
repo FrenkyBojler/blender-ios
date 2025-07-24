@@ -77,12 +77,8 @@ static int bone_skinnable_cb(Object * /*ob*/, Bone *bone, void *datap)
   } *data = static_cast<Arg *>(datap);
 
   bArmature *arm = static_cast<bArmature *>(data->armob->data);
-  /* Ensures that pose bones are available. */
-  if (!data->armob->pose) {
-    BKE_pose_rebuild(nullptr, data->armob, arm, false);
-  }
   bPoseChannel *pose_bone = BKE_pose_channel_find_name(data->armob->pose, bone->name);
-  BLI_assert(pose_bone != nullptr);
+  BLI_assert_msg(pose_bone != nullptr, bone->name);
 
   if (!(data->is_weight_paint) || !(pose_bone->drawflag & PCHAN_DRAW_HIDDEN)) {
     if (!(bone->flag & BONE_NO_DEFORM)) {
@@ -155,14 +151,10 @@ static int dgroup_skinnable_cb(Object *ob, Bone *bone, void *datap)
     int heat;
     bool is_weight_paint;
   } *data = static_cast<Arg *>(datap);
-  bArmature *arm = static_cast<bArmature *>(data->armob->data);
 
-  /* Ensures that pose bones are available. */
-  if (!data->armob->pose) {
-    BKE_pose_rebuild(nullptr, data->armob, arm, false);
-  }
+  bArmature *arm = static_cast<bArmature *>(data->armob->data);
   const bPoseChannel *pose_bone = BKE_pose_channel_find_name(data->armob->pose, bone->name);
-  BLI_assert(pose_bone != nullptr);
+  BLI_assert_msg(pose_bone != nullptr, bone->name);
 
   if (!data->is_weight_paint || !(pose_bone->drawflag & PCHAN_DRAW_HIDDEN)) {
     if (!(bone->flag & BONE_NO_DEFORM)) {
@@ -316,6 +308,10 @@ static void add_verts_to_dgroups(ReportList *reports,
   looper_data.list = nullptr;
   looper_data.is_weight_paint = wpmode;
 
+  if (!par->pose) {
+    BKE_pose_rebuild(nullptr, par, arm, false);
+  }
+  BKE_pose_channels_hash_ensure(par->pose);
   /* count the number of skinnable bones */
   numbones = bone_looper(
       ob, static_cast<Bone *>(arm->bonebase.first), &looper_data, bone_skinnable_cb);

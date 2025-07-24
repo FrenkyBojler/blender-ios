@@ -28,6 +28,7 @@
 
 #include "BLT_translation.hh"
 
+#include "BKE_action.hh"
 #include "BKE_armature.hh"
 #include "BKE_context.hh"
 #include "BKE_curve.hh"
@@ -48,6 +49,7 @@
 #include "BKE_report.hh"
 #include "BKE_scene.hh"
 
+#include "ANIM_armature.hh"
 #include "ANIM_bone_collections.hh"
 #include "ANIM_keyframing.hh"
 
@@ -176,7 +178,7 @@ static void restrictbutton_r_lay_fn(bContext *C, void *poin, void * /*poin2*/)
   WM_event_add_notifier(C, NC_SCENE | ND_RENDER_OPTIONS, poin);
 }
 
-static bool pose_bone_is_child_of(bPoseChannel *pchan, const bPoseChannel *potential_parent)
+static bool pose_bone_is_descendant_of(bPoseChannel *pchan, const bPoseChannel *potential_parent)
 {
   while (pchan) {
     if (pchan == potential_parent) {
@@ -190,18 +192,17 @@ static bool pose_bone_is_child_of(bPoseChannel *pchan, const bPoseChannel *poten
 static void restrictbutton_bone_visibility_fn(bContext *C, void *poin, void *poin2)
 {
   const Object *ob = (Object *)poin;
-  const bPoseChannel *pchan = (bPoseChannel *)poin2;
+  bPoseChannel *pchan = (bPoseChannel *)poin2;
   if (CTX_wm_window(C)->eventstate->modifier & KM_SHIFT) {
-    LISTBASE_FOREACH (bPoseChannel *, potential_child, &ob->pose->chanbase) {
-      if (pose_bone_is_child_of(potential_child, pchan)) {
-        if (pchan->drawflag & PCHAN_DRAW_HIDDEN) {
-          potential_child->drawflag |= PCHAN_DRAW_HIDDEN;
-        }
-        else {
-          potential_child->drawflag &= ~PCHAN_DRAW_HIDDEN;
-        }
-      }
-    }
+    blender::animrig::pose_bone_descendent_iterator(
+        *ob->pose, *pchan, [&](bPoseChannel &descendent) {
+          if (pchan->drawflag & PCHAN_DRAW_HIDDEN) {
+            descendent.drawflag |= PCHAN_DRAW_HIDDEN;
+          }
+          else {
+            descendent.drawflag &= ~PCHAN_DRAW_HIDDEN;
+          }
+        });
   }
 }
 

@@ -37,4 +37,12 @@ inline bool bone_is_visible_editbone(const bArmature *armature, const EditBone *
   return bone_itself_visible && ANIM_bonecoll_is_visible_editbone(armature, ebone);
 }
 
+/**
+ * Iterates all descendents of the given pose bone including the bone itself. Iterates breadth
+ * first.
+ */
+void pose_bone_descendent_iterator(bPose &pose,
+                                   bPoseChannel &pose_bone,
+                                   FunctionRef<void(bPoseChannel &child_bone)> callback);
+
 }  // namespace blender::animrig
