@@ -418,11 +418,14 @@ static bool is_socket_type_supported(blender::bke::bNodeTreeType *ntreetype,
     return false;
   }
 
-  /* Only basic socket types are supported. */
-  blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
-      socket_type->type, PROP_NONE);
-  if (socket_type != base_socket_type) {
-    return false;
+  /* Only basic socket types are supported. Custom sockets don't have a base type. */
+  if (socket_type->type != SOCK_CUSTOM) {
+    blender::bke::bNodeSocketType *base_socket_type = blender::bke::node_socket_type_find_static(
+        socket_type->type, PROP_NONE);
+    BLI_assert(base_socket_type != nullptr);
+    if (socket_type != base_socket_type) {
+      return false;
+    }
   }
 
   if (!U.experimental.use_bundle_and_closure_nodes) {
@@ -922,7 +925,7 @@ static void rna_NodeTreeInterfaceSocketVector_dimensions_update(Main *bmain,
   bNodeTreeInterfaceSocket *socket = static_cast<bNodeTreeInterfaceSocket *>(ptr->data);
 
   /* Store a copy of the existing default value since it will be freed when setting the socket type
-   * below.*/
+   * below. */
   const bNodeSocketValueVector default_value = *static_cast<bNodeSocketValueVector *>(
       socket->socket_data);
 

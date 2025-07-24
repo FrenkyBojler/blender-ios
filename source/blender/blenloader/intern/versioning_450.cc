@@ -3765,8 +3765,10 @@ static void do_version_replace_image_info_node_coordinates(bNodeTree *node_tree)
   }
 }
 
-/* Vector sockets can now have different dimensions, so set the dimensions for existing sockets to
- * 3.*/
+/**
+ * Vector sockets can now have different dimensions,
+ * so set the dimensions for existing sockets to 3.
+ */
 static void do_version_vector_sockets_dimensions(bNodeTree *node_tree)
 {
   node_tree->tree_interface.foreach_item([&](bNodeTreeInterfaceItem &item) {
@@ -4128,7 +4130,7 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
         blender::animrig::foreach_fcurve_in_action_slot(action, slot->handle, [&](FCurve &fcurve) {
           /* Loop over all slot users, because when the slot is shared, not all F-Curves may
            * resolve on all users. For example, a custom property might only exist on a subset of
-           * the users.*/
+           * the users. */
           for (ID *slot_user : slot_users) {
             PointerRNA slot_user_ptr = RNA_id_pointer_create(slot_user);
             PointerRNA ptr;
@@ -4145,7 +4147,11 @@ void do_versions_after_linking_450(FileData * /*fd*/, Main *bmain)
     }
   }
 
-  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14)) {
+  /* Because this was backported to 4.4 (f1e829a459) we need to exclude anything that was already
+   * saved with that version otherwise we would apply the fix twice. */
+  if (!MAIN_VERSION_FILE_ATLEAST(bmain, 404, 32) ||
+      (!MAIN_VERSION_FILE_ATLEAST(bmain, 405, 14) && bmain->versionfile >= 405))
+  {
     LISTBASE_FOREACH (bAction *, dna_action, &bmain->actions) {
       blender::animrig::Action &action = dna_action->wrap();
       blender::animrig::foreach_fcurve_in_action(
@@ -4892,7 +4898,7 @@ static void version_set_uv_face_overlay_defaults(Main *bmain)
           const char *workspace_name = screen->id.name + 2;
           /* Don't set uv_face_opacity for Texture Paint or Shading since these are workspaces
            * where it's important to have unobstructed view of the Image Editor to see Image
-           * Textures. UV Editing is the only other default workspace with an Image Editor.*/
+           * Textures. UV Editing is the only other default workspace with an Image Editor. */
           if (STREQ(workspace_name, "UV Editing")) {
             sima->uv_face_opacity = 1.0f;
           }

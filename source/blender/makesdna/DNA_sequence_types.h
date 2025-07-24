@@ -144,14 +144,6 @@ typedef struct StripData {
   ColorManagedColorspaceSettings colorspace_settings;
 } StripData;
 
-typedef enum eSeqRetimingKeyFlag {
-  SEQ_SPEED_TRANSITION_IN = (1 << 0),
-  SEQ_SPEED_TRANSITION_OUT = (1 << 1),
-  SEQ_FREEZE_FRAME_IN = (1 << 2),
-  SEQ_FREEZE_FRAME_OUT = (1 << 3),
-  SEQ_KEY_SELECTED = (1 << 4),
-} eSeqRetimingKeyFlag;
-
 typedef struct SeqRetimingKey {
   double strip_frame_index;
   int flag; /* eSeqRetimingKeyFlag */
@@ -166,6 +158,9 @@ typedef struct SeqRetimingKey {
 
 typedef struct StripRuntime {
   SessionUID session_uid;
+  /** eStripRuntimeFlag */
+  uint32_t flag;
+  char _pad[4];
 } StripRuntime;
 
 /**
@@ -353,10 +348,7 @@ typedef struct Editing {
   ListBase metastack;
   ListBase channels; /* SeqTimelineChannel */
 
-  /* Context vars, used to be static */
   Strip *act_strip;
-  char act_imagedir[/*FILE_MAX*/ 1024];
-  char act_sounddir[/*FILE_MAX*/ 1024];
   char proxy_dir[/*FILE_MAX*/ 1024];
 
   int proxy_storage;
@@ -518,6 +510,18 @@ typedef struct ColorMixVars {
 /** \name Strip Modifiers
  * \{ */
 
+typedef struct StripModifierDataRuntime {
+  /* Reference parameters for optimizing updates. Sound modifiers can store parameters, sound
+   * inputs and outputs. When all existing parameters do match new ones, the update can be skipped
+   * and old sound handle may be returned. This is to prevent audio glitches, see #141595 */
+
+  float *last_buf; /* Equalizer frequency/volume curve buffer */
+
+  /* Reference sound handles (may be used by any sound modifier). */
+  void *last_sound_in;
+  void *last_sound_out;
+} StripModifierDataRuntime;
+
 typedef struct StripModifierData {
   struct StripModifierData *next, *prev;
   int type, flag;
@@ -529,6 +533,11 @@ typedef struct StripModifierData {
 
   struct Strip *mask_strip;
   struct Mask *mask_id;
+
+  int persistent_uid;
+  char _pad[4];
+
+  StripModifierDataRuntime runtime;
 } StripModifierData;
 
 typedef struct ColorBalanceModifierData {
@@ -637,6 +646,26 @@ enum {
 
 #define STRIP_NAME_MAXSTR 64
 
+/** #SeqRetimingKey::flag */
+typedef enum eSeqRetimingKeyFlag {
+  SEQ_SPEED_TRANSITION_IN = (1 << 0),
+  SEQ_SPEED_TRANSITION_OUT = (1 << 1),
+  SEQ_FREEZE_FRAME_IN = (1 << 2),
+  SEQ_FREEZE_FRAME_OUT = (1 << 3),
+  SEQ_KEY_SELECTED = (1 << 4),
+} eSeqRetimingKeyFlag;
+
+/** #StripRuntime::flag */
+typedef enum eStripRuntimeFlag {
+  STRIP_CLAMPED_LH = (1 << 0),
+  STRIP_CLAMPED_RH = (1 << 1),
+  STRIP_OVERLAP = (1 << 2),
+  STRIP_EFFECT_NOT_LOADED = (1 << 3), /* Set when reading blend file, cleared after. */
+  STRIP_MARK_FOR_DELETE = (1 << 4),
+  STRIP_IGNORE_CHANNEL_LOCK = (1 << 5), /* For #SEQUENCER_OT_duplicate_move macro. */
+  STRIP_SHOW_OFFSETS = (1 << 6),        /* Set during #SEQUENCER_OT_slip. */
+} eStripRuntimeFlag;
+
 /* From: `DNA_object_types.h`, see it's doc-string there. */
 #define SELECT 1
 
@@ -645,24 +674,24 @@ enum {
   /* `SELECT = (1 << 0)` */
   SEQ_LEFTSEL = (1 << 1),
   SEQ_RIGHTSEL = (1 << 2),
-  SEQ_OVERLAP = (1 << 3),
+  SEQ_FLAG_UNUSED_3 = (1 << 3), /* Cleared. */
   SEQ_FILTERY = (1 << 4),
   SEQ_MUTE = (1 << 5),
   SEQ_FLAG_TEXT_EDITING_ACTIVE = (1 << 6),
   SEQ_REVERSE_FRAMES = (1 << 7),
   SEQ_IPO_FRAME_LOCKED = (1 << 8),
-  SEQ_EFFECT_NOT_LOADED = (1 << 9),
-  SEQ_FLAG_DELETE = (1 << 10),
+  SEQ_FLAG_UNUSED_9 = (1 << 9),   /* Cleared. */
+  SEQ_FLAG_UNUSED_10 = (1 << 10), /* Potentially dirty, see #84057. */
   SEQ_FLIPX = (1 << 11),
   SEQ_FLIPY = (1 << 12),
   SEQ_MAKE_FLOAT = (1 << 13),
   SEQ_LOCK = (1 << 14),
   SEQ_USE_PROXY = (1 << 15),
-  SEQ_IGNORE_CHANNEL_LOCK = (1 << 16),
+  SEQ_FLAG_UNUSED_16 = (1 << 16), /* Cleared. */
   SEQ_AUTO_PLAYBACK_RATE = (1 << 17),
   SEQ_SINGLE_FRAME_CONTENT = (1 << 18),
   SEQ_SHOW_RETIMING = (1 << 19),
-  SEQ_SHOW_OFFSETS = (1 << 20),
+  SEQ_FLAG_UNUSED_20 = (1 << 20),
   SEQ_MULTIPLY_ALPHA = (1 << 21),
 
   SEQ_USE_EFFECT_DEFAULT_FADE = (1 << 22),
@@ -681,7 +710,7 @@ enum {
   /* Access scene strips directly (like a meta-strip). */
   SEQ_SCENE_STRIPS = (1 << 30),
 
-  SEQ_INVALID_EFFECT = (1u << 31),
+  SEQ_UNUSED_31 = (1u << 31),
 };
 
 /** #StripProxy.storage */
@@ -692,9 +721,6 @@ enum {
 
 /* convenience define for all selection flags */
 #define STRIP_ALLSEL (SELECT + SEQ_LEFTSEL + SEQ_RIGHTSEL)
-
-/* Deprecated, don't use a flag anymore. */
-// #define STRIP_ACTIVE 1048576
 
 enum {
   SEQ_COLOR_BALANCE_INVERSE_GAIN = 1 << 0,
@@ -724,7 +750,7 @@ enum {
   SEQ_PROXY_TC_RECORD_RUN_NO_GAPS = 1 << 1,
 };
 
-/** SeqProxy.build_flags */
+/** StripProxy.build_flags */
 enum {
   SEQ_PROXY_SKIP_EXISTING = 1,
 };

@@ -515,7 +515,11 @@ static void copy_generic_attributes_to_result(
           const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
           const IndexRange element_slice = range_fn(domain);
 
-          GMutableSpan dst_span = dst_attribute_writers[attribute_index].span.slice(element_slice);
+          GSpanAttributeWriter &writer = dst_attribute_writers[attribute_index];
+          if (!writer) {
+            continue;
+          }
+          GMutableSpan dst_span = writer.span.slice(element_slice);
           if (src_attributes[attribute_index].has_value()) {
             threaded_copy(*src_attributes[attribute_index], dst_span);
           }
@@ -1284,7 +1288,7 @@ static void add_instance_attributes_to_single_geometry(
     const bke::AttrDomain domain = ordered_attributes.kinds[attribute_index].domain;
     const bke::AttrType data_type = ordered_attributes.kinds[attribute_index].data_type;
     const CPPType &cpp_type = bke::attribute_type_to_cpp_type(data_type);
-    GVArray gvaray(GVArray::ForSingle(cpp_type, attributes.domain_size(domain), value));
+    GVArray gvaray(GVArray::from_single(cpp_type, attributes.domain_size(domain), value));
     attributes.add(ordered_attributes.ids[attribute_index],
                    domain,
                    data_type,
@@ -1510,13 +1514,13 @@ static AllMeshesInfo preprocess_meshes(const bke::GeometrySet &geometry_set,
       case MeshNormalInfo::Output::Free: {
         switch (*info.custom_normal_info.result_domain) {
           case bke::AttrDomain::Point:
-            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->vert_normals());
+            mesh_info.custom_normal = VArray<float3>::from_span(mesh->vert_normals());
             break;
           case bke::AttrDomain::Face:
-            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->face_normals());
+            mesh_info.custom_normal = VArray<float3>::from_span(mesh->face_normals());
             break;
           case bke::AttrDomain::Corner:
-            mesh_info.custom_normal = VArray<float3>::ForSpan(mesh->corner_normals());
+            mesh_info.custom_normal = VArray<float3>::from_span(mesh->corner_normals());
             break;
           default:
             BLI_assert_unreachable();
@@ -2476,8 +2480,8 @@ bke::GeometrySet realize_instances(bke::GeometrySet geometry_set,
   }
 
   VariedDepthOptions all_instances;
-  all_instances.depths = VArray<int>::ForSingle(VariedDepthOptions::MAX_DEPTH,
-                                                geometry_set.get_instances()->instances_num());
+  all_instances.depths = VArray<int>::from_single(VariedDepthOptions::MAX_DEPTH,
+                                                  geometry_set.get_instances()->instances_num());
   all_instances.selection = IndexMask(geometry_set.get_instances()->instances_num());
   return realize_instances(geometry_set, options, all_instances);
 }

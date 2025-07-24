@@ -629,11 +629,6 @@ enum {
    * until the node type is registered.
    */
   NODE_INIT = 1 << 16,
-  /**
-   * Do recalculation of output, used to skip recalculation of unwanted
-   * composite out nodes when editing tree
-   */
-  NODE_DO_OUTPUT_RECALC = 1 << 17,
   /** A preview for the data in this node can be displayed in the spreadsheet editor. */
   // NODE_ACTIVE_PREVIEW = 1 << 18, /* deprecated */
   /** Active node that is used to paint on. */
@@ -1757,8 +1752,6 @@ typedef struct NodeGeometryObjectInfo {
 typedef struct NodeGeometryPointsToVolume {
   /** #GeometryNodePointsToVolumeResolutionMode */
   uint8_t resolution_mode;
-  /** #GeometryNodeAttributeInputMode */
-  uint8_t input_type_radius;
 } NodeGeometryPointsToVolume;
 
 typedef struct NodeGeometryCollectionInfo {
@@ -2201,7 +2194,7 @@ typedef struct NodeGeometryClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype. */
   short socket_type;
-  /** #NodeSocketInterfaceStructureType.  */
+  /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
   char _pad[1];
   int identifier;
@@ -2240,7 +2233,7 @@ typedef struct NodeGeometryEvaluateClosureInputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  /** #NodeSocketInterfaceStructureType.  */
+  /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
   char _pad[1];
   int identifier;
@@ -2250,7 +2243,7 @@ typedef struct NodeGeometryEvaluateClosureOutputItem {
   char *name;
   /** #eNodeSocketDatatype */
   short socket_type;
-  /** #NodeSocketInterfaceStructureType.  */
+  /** #NodeSocketInterfaceStructureType. */
   int8_t structure_type;
   char _pad[1];
   int identifier;
@@ -2342,7 +2335,7 @@ typedef struct NodeGeometryDialGizmo {
 } NodeGeometryDialGizmo;
 
 typedef struct NodeGeometryTransformGizmo {
-  /** #NodeGeometryTransformGizmoFlag.  */
+  /** #NodeGeometryTransformGizmoFlag. */
   uint32_t flag;
 } NodeGeometryTransformGizmo;
 

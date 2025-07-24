@@ -355,7 +355,8 @@ void dome_light_to_world_material(const USDImportParams &params,
   }
 
   if (!scene->world->nodetree) {
-    scene->world->nodetree = bke::node_tree_add_tree(nullptr, "Shader Nodetree", "ShaderNodeTree");
+    scene->world->nodetree = bke::node_tree_add_tree_embedded(
+        nullptr, &scene->world->id, "Shader Nodetree", "ShaderNodeTree");
   }
 
   bNodeTree *ntree = scene->world->nodetree;
@@ -490,7 +491,7 @@ void dome_light_to_world_material(const USDImportParams &params,
 
   /* Note: This logic tries to produce identical results to `usdview` as of USD 25.05.
    * However, `usdview` seems to handle Y-Up stages differently; some scenes match while others
-   * do not unless we keep the second conditional below (+90 on x-axis).  */
+   * do not unless we keep the second conditional below (+90 on x-axis). */
   const pxr::TfToken stage_up = pxr::UsdGeomGetStageUpAxis(stage);
   const bool needs_stage_z_adjust = stage_up == pxr::UsdGeomTokens->z &&
                                     ELEM(dome_light_data.pole_axis,
