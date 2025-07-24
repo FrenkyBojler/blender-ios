@@ -93,6 +93,10 @@ VkImageAspectFlags to_vk_image_aspect_flag_bits(const TextureFormat format)
     case TextureFormat::SRGBA_8_8_8:
     case TextureFormat::UFLOAT_9_9_9_EXP_5:
       return VK_IMAGE_ASPECT_COLOR_BIT;
+
+    case TextureFormat::Invalid:
+      BLI_assert_unreachable();
+      break;
   }
   BLI_assert_unreachable();
   return 0;
