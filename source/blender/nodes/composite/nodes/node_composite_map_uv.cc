@@ -22,6 +22,7 @@
 #include "COM_node_operation.hh"
 #include "COM_utilities.hh"
 
+#include "COM_algorithm_sample_gpu_texture.hh"
 #include "node_composite_util.hh"
 
 /* **************** Map UV  ******************** */
