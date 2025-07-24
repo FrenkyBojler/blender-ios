@@ -37,7 +37,7 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
   if (surface_shader_constant_emission(kg, shader, &L)) {
     if ((shader & SHADER_EXCLUDE_ANY) != 0) {
       L *= light_visibility_correction(state, shader, path_flag);
-    } 
+    }
     return L;
   }
 
@@ -63,8 +63,8 @@ ccl_device Spectrum integrator_eval_background_shader(KernelGlobals kg,
   L = surface_shader_background(emission_sd);
   if ((shader & SHADER_EXCLUDE_ANY) != 0) {
     L *= light_visibility_correction(state, shader, path_flag);
-  } 
-  return L; 
+  }
+  return L;
 }
 
 ccl_device_inline void integrate_background(KernelGlobals kg,
