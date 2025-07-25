@@ -99,7 +99,7 @@ template<typename T> std::optional<T> SimGeometrySet::get_extra(const StringRef 
   return this->extra->lookup<T>(key);
 }
 
-static bool is_path_selected(const StringRef base_path,
+static bool is_path_selected(const StringRef self_path,
                              const StringRef filter,
                              const StringRef other)
 {
@@ -108,6 +108,14 @@ static bool is_path_selected(const StringRef base_path,
   }
   std::string absolute_filter;
   if (filter.startswith("./")) {
+    const int sep = self_path.find_last_of('/');
+    StringRef base_path;
+    if (sep == StringRef::not_found) {
+      base_path = "";
+    }
+    else {
+      base_path = self_path.drop_suffix(self_path.size() - sep - 1);
+    }
     absolute_filter = base_path + filter.drop_known_prefix("./");
   }
   else {
@@ -117,7 +125,8 @@ static bool is_path_selected(const StringRef base_path,
     return false;
   }
   const StringRef remaining_other = other.drop_known_prefix(absolute_filter);
-  return remaining_other.is_empty() || remaining_other.startswith("/");
+  return remaining_other.is_empty() || StringRef(absolute_filter).endswith("/") ||
+         remaining_other.startswith("/");
 }
 
 void ConstraintSet::ensure_init(MutableSpan<SimGeometry> /*sim_geometries*/) {}
