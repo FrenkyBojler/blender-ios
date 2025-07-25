@@ -588,6 +588,8 @@ void copy_with_checked_indices(const VArray<T> &src,
                                const IndexMask &mask,
                                MutableSpan<T> dst)
 {
+  const VArraySpan<T> src_span = src;
+
   const IndexRange src_range = src.index_range();
   const GVArray src_indices = indices;
   mask.foreach_segment([&](const IndexMaskSegment &segment) {
@@ -595,9 +597,9 @@ void copy_with_checked_indices(const VArray<T> &src,
         TypeSequence<mf::ParamTag<mf::ParamCategory::SingleInput, int>,
                      mf::ParamTag<mf::ParamCategory::SingleOutput, T>>(),
         std::make_index_sequence<2>(),
-        [src_range, &src](const int64_t src_index, T &dst) {
+        [src_range, src_span = Span(src_span)](const int64_t src_index, T &dst) {
           if (src_range.contains(src_index)) {
-            dst = src[src_index];
+            dst = src_span[src_index];
           }
           else {
             dst = {};
@@ -606,18 +608,6 @@ void copy_with_checked_indices(const VArray<T> &src,
         segment,
         std::make_tuple(src_indices.get_implementation(), dst.data()));
   });
-
-  // devirtualize_varray2(src, indices, [&](const auto src, const auto indices) {
-  //   mask.foreach_index(GrainSize(4096), [&](const int i) {
-  //     const int index = indices[i];
-  //     if (src_range.contains(index)) {
-  //       dst[i] = src[index];
-  //     }
-  //     else {
-  //       dst[i] = {};
-  //     }
-  //   });
-  // });
 }
 
 void copy_with_checked_indices(const GVArray &src,
