@@ -633,7 +633,9 @@ struct uiLayout : uiItem, blender::NonCopyable, blender::NonMovable {
                    blender::StringRefNull searchpropname,
                    std::optional<blender::StringRefNull> name,
                    int icon);
-  void prop_textbox();
+  void prop_textbox(PointerRNA *ptr,
+                    blender::StringRefNull propname,
+                    blender::StringRefNull idname);
 
   /**
    * Adds a RNA property item, and sets a custom popover to expose its value.

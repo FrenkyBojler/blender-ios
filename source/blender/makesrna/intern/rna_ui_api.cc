@@ -84,9 +84,12 @@ std::optional<StringRefNull> rna_translate_ui_text(
   return BLT_pgettext(BLT_I18NCONTEXT_DEFAULT, text);
 }
 
-static void rna_uiItemTextBox(uiLayout *layout)
+static void rna_uiItemTextBox(uiLayout *layout,
+                              PointerRNA *ptr,
+                              const char *propname,
+                              const char *textboxid)
 {
-  layout->prop_textbox();
+  layout->prop_textbox(ptr, propname, textboxid);
 };
 
 static void rna_uiItemR(uiLayout *layout,
@@ -1392,6 +1395,10 @@ void RNA_api_ui_layout(StructRNA *srna)
 
   /* items */
   func = RNA_def_function(srna, "prop_textbox", "rna_uiItemTextBox");
+  api_ui_item_rna_common(func);
+  parm = RNA_def_string(
+      func, "textboxid", nullptr, 0, "", "Identifier of textbox to store persistent status.");
+  RNA_def_parameter_flags(parm, PropertyFlag(0), PARM_REQUIRED);
 
   func = RNA_def_function(srna, "prop", "rna_uiItemR");
   RNA_def_function_ui_description(func,

@@ -3106,17 +3106,18 @@ static bool ui_textedit_delete_selection(uiBut *but, uiTextEdit &text_edit)
 }
 
 blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const ARegion *region,
-                                                              const uiBut *but)
+                                                              const uiButTextBox *textbox)
 {
   rcti rect;
-  ui_but_to_pixelrect(&rect, region, but->block, but);
-  return ui_but_textbox_wrap_lines(but, BLI_rcti_size_x(&rect));
+  ui_but_to_pixelrect(&rect, region, textbox->block, textbox);
+  return ui_but_textbox_wrap_lines(textbox, BLI_rcti_size_x(&rect));
 }
 
-static void ui_textbox_add_scroll(uiButTextBox *textbox, int step, int lines)
+static void ui_textbox_add_scroll(const ARegion *region, uiButTextBox *textbox, int step)
 {
-  *textbox->line_scroll = std::clamp<int>(
-      *textbox->line_scroll + step, 0, std::max(lines - *textbox->visible_lines, 0));
+
+  textbox->status->total_lines = ui_but_textbox_wrap_lines(region, textbox).size();
+  textbox->line_scroll_set(textbox->line_scroll() + step);
 }
 
 static void ui_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox *textbox)
@@ -3132,15 +3133,17 @@ static void ui_textbox_scroll_to_cursor(const ARegion *region, uiButTextBox *tex
     }
     line_cursor++;
   }
-  int visible_bouds[] = {*textbox->line_scroll, *textbox->line_scroll + *textbox->visible_lines};
+  textbox->status->total_lines = lines.size();
+  int visible_bouds[] = {textbox->line_scroll(),
+                         textbox->line_scroll() + textbox->visible_lines()};
   if (visible_bouds[0] <= line_cursor && line_cursor < visible_bouds[1]) {
     return;
   }
   if (visible_bouds[0] > line_cursor) {
-    ui_textbox_add_scroll(textbox, line_cursor - visible_bouds[0], lines.size());
+    ui_textbox_add_scroll(region, textbox, line_cursor - visible_bouds[0]);
   }
   else {
-    ui_textbox_add_scroll(textbox, line_cursor - visible_bouds[1] + 1, lines.size());
+    ui_textbox_add_scroll(region, textbox, line_cursor - visible_bouds[1] + 1);
   }
 }
 
@@ -3161,12 +3164,12 @@ static void ui_textbox_textedit_set_cursor_pos(uiBut *but,
   ui_block_to_window_fl(region, but->block, &end.x, &end.y);
 
   blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(region, textbox);
-  int line_under_mouse = *textbox->line_scroll +
-                         (end.y - xy.y) / (end.y - start.y) * (*textbox->visible_lines);
+  int line_under_mouse = textbox->line_scroll() +
+                         (end.y - xy.y) / (end.y - start.y) * (textbox->visible_lines());
   line_under_mouse = std::clamp<int>(
       line_under_mouse,
-      std::max<int>(0, *textbox->line_scroll - 1),
-      std::min<int>(*textbox->line_scroll + *textbox->visible_lines, lines.size() - 1));
+      std::max<int>(0, textbox->line_scroll() - 1),
+      std::min<int>(textbox->line_scroll() + textbox->visible_lines(), lines.size() - 1));
 
   blender::StringRef line = lines[line_under_mouse];
 
@@ -3322,12 +3325,6 @@ static bool ui_textedit_insert_ascii(uiBut *but, uiHandleButtonData *data, const
   return ui_textedit_insert_buf(but, data->text_edit, buf, sizeof(buf) - 1);
 }
 #endif
-blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(ARegion *region, uiBut *but)
-{
-  rcti rect;
-  ui_but_to_pixelrect(&rect, region, but->block, but);
-  return ui_but_textbox_wrap_lines(but, BLI_rcti_size_x(&rect));
-}
 
 static void ui_textedit_move(ARegion *region,
                              uiBut *but,
@@ -3346,7 +3343,8 @@ static void ui_textedit_move(ARegion *region,
     if (!has_sel) {
       but->selsta = but->selend = but->pos;
     }
-    auto lines = ui_but_textbox_wrap_lines(region, but);
+    blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(
+        region, static_cast<uiButTextBox *>(but));
     const bool append_selection = but->selend == but->pos;
     const char *cursor = str + but->pos;
     int line_cursor = 0;
@@ -3931,10 +3929,6 @@ static int ui_do_but_textedit(
 #endif
   uiButTextBox *textbox_but = but->type == ButType::TextBox ? static_cast<uiButTextBox *>(but) :
                                                               nullptr;
-  int old_line_count = std::count(text_edit.edit_string,
-                                  text_edit.edit_string + strlen(text_edit.edit_string),
-                                  '\n') +
-                       1;
   switch (event->type) {
     case MOUSEMOVE:
     case MOUSEPAN:
@@ -4111,7 +4105,7 @@ static int ui_do_but_textedit(
         }
         if (textbox_but) {
           if (event->type == WHEELDOWNMOUSE) {
-            ui_textbox_add_scroll(textbox_but, 1, old_line_count);
+            ui_textbox_add_scroll(data->region, textbox_but, 1);
           }
           else {
             ui_textedit_move(data->region,
@@ -4146,7 +4140,7 @@ static int ui_do_but_textedit(
         }
         if (textbox_but) {
           if (event->type == WHEELUPMOUSE) {
-            ui_textbox_add_scroll(textbox_but, -1, old_line_count);
+            ui_textbox_add_scroll(data->region, textbox_but, -1);
           }
           else {
             ui_textedit_move(data->region,

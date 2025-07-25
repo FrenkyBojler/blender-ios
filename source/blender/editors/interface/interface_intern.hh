@@ -14,6 +14,7 @@
 #include "BLI_math_vector_types.hh"
 #include "BLI_string_ref.hh"
 #include "BLI_vector.hh"
+#include "BLI_vector_set.hh"
 
 #include "BKE_fcurve.hh"
 
@@ -351,12 +352,30 @@ struct uiBut {
 };
 
 /** Derived struct for #ButType::TextBox */
+struct TextboxStatus {
+
+  static constexpr int minimum_lines = 3;
+  std::string idname;
+  int line_scroll = 0;
+  int total_lines = 0;
+  int visible_height = 3;
+
+  int visible_lines_get()
+  {
+    return std::max(visible_height / UI_UNIT_Y, minimum_lines);
+  }
+};
 struct uiButTextBox : public uiBut {
-  int *visible_lines = nullptr;
-  int *line_scroll = nullptr;
+  TextboxStatus *status;
+  int visible_lines();
+  int line_scroll();
+
+  void visible_lines_set(int visible_lines);
+  void line_scroll_set(int line_scroll);
+  void total_lines_set(int line_scroll);
 };
 
-blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiBut *but, int width);
+blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox *but, int width);
 
 /** Derived struct for #ButType::Num */
 struct uiButNumber : public uiBut {
@@ -580,6 +599,13 @@ struct uiBlockDynamicListener {
   void (*listener_func)(const wmRegionListenerParams *params);
 };
 
+struct TextboxStatusIdentifierGetter {
+  blender::StringRef operator()(const std::shared_ptr<TextboxStatus> &status) const
+  {
+    return status->idname;
+  }
+};
+
 struct uiBlock {
   uiBlock *next, *prev;
 
@@ -601,6 +627,8 @@ struct uiBlock {
    * Others are imaginable, e.g. table-views, grid-views, etc. These are stored here to support
    * state that is persistent over redraws (e.g. collapsed tree-view items). */
   ListBase views;
+  blender::CustomIDVectorSet<std::shared_ptr<TextboxStatus>, TextboxStatusIdentifierGetter>
+      textbox_status;
 
   ListBase dynamic_listeners; /* #uiBlockDynamicListener */
 

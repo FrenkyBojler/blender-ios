@@ -57,6 +57,7 @@ struct bScreen;
 struct MenuType;
 struct rctf;
 struct rcti;
+struct TextboxStatus;
 struct uiButSearch;
 struct uiFontStyle;
 struct uiList;
@@ -1843,8 +1844,7 @@ void UI_but_number_precision_set(uiBut *but, float precision);
 void UI_but_number_slider_step_size_set(uiBut *but, float step_size);
 void UI_but_number_slider_precision_set(uiBut *but, float precision);
 
-void UI_but_text_box_visible_lines_set(uiBut *but, int *lines);
-void UI_but_text_box_line_scroll_set(uiBut *but, int *line);
+void UI_but_textbox_status_set(uiBut *but, TextboxStatus *status);
 
 void UI_but_label_alpha_factor_set(uiBut *but, float alpha_factor);
 

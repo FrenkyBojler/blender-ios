@@ -1974,14 +1974,17 @@ static void widget_draw_text_ime_underline(const uiFontStyle *fstyle,
 }
 #endif /* WITH_INPUT_IME */
 
-blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiBut *but, int width)
+blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiButTextBox *textbox,
+                                                              int width)
 {
   uiFontStyle fstyle = UI_style_get()->widget;
-  if (but->str.empty() && (!but->editstr || but->editstr[0] == 0)) {
-    return {but->editstr ? blender::StringRef(but->editstr) : blender::StringRef(but->str)};
+  if (textbox->drawstr.empty() && (!textbox->editstr || textbox->editstr[0] == 0)) {
+    textbox->status->total_lines = 1;
+    return {textbox->editstr ? blender::StringRef(textbox->editstr) :
+                               blender::StringRef(textbox->drawstr)};
   }
-  blender::StringRef text = but->editstr ? blender::StringRef(but->editstr) :
-                                           blender::StringRef(but->str);
+  blender::StringRef text = textbox->editstr ? blender::StringRef(textbox->editstr) :
+                                               blender::StringRef(textbox->drawstr);
   blender::Vector<blender::StringRef> lines = BLF_string_wrap(
       fstyle.uifont_id, text, width, BLFWrapMode::HardLimit);
   if (lines.is_empty()) {
@@ -1991,16 +1994,8 @@ blender::Vector<blender::StringRef> ui_but_textbox_wrap_lines(const uiBut *but, 
   if (lines.last().endswith("\n")) {
     lines.append(blender::StringRef(text.end(), text.end()));
   }
+  textbox->status->total_lines = lines.size();
   return lines;
-}
-
-/** This should handled in UI_block_update_from_old. */
-static void ui_textbox_edittext_scroll_hack(const uiButTextBox *textbox_but,
-                                            int total_lines,
-                                            int visible_lines)
-{
-  auto scroll_but = static_cast<uiButScrollBar *>(textbox_but->block->next_but(textbox_but));
-  scroll_but->softmax = std::max<int>(total_lines - visible_lines, 0);
 }
 
 static void widget_draw_textbox(const uiFontStyle *fstyle,
@@ -2010,19 +2005,19 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 {
   BLI_assert(but->type == ButType::TextBox);
 
-  const uiButTextBox *textbox_but = static_cast<const uiButTextBox *>(but);
-  int visible_lines = *textbox_but->visible_lines;
-
-  int per_line = BLI_rcti_size_y(rect) / visible_lines;
-  int scroll = *textbox_but->line_scroll;
+  uiButTextBox *textbox_but = static_cast<uiButTextBox *>(but);
+  int visible_lines = textbox_but->visible_lines();
 
   int drawstr_left_len = UI_MAX_DRAW_STR;
   const char *drawstr = but->drawstr.c_str();
-  blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(but,
+  blender::Vector<blender::StringRef> lines = ui_but_textbox_wrap_lines(textbox_but,
                                                                         BLI_rcti_size_x(rect));
-  const char *raw_begin = lines[0].begin();
+  textbox_but->status->total_lines = lines.size();
 
-  ui_textbox_edittext_scroll_hack(textbox_but, lines.size(), visible_lines);
+  int line_height = BLI_rcti_size_y(rect) / visible_lines;
+
+  int scroll = textbox_but->line_scroll();
+  const char *raw_begin = lines[0].begin();
 
   int line_cursor = 0;
   int line_select_start = 0;
@@ -2147,10 +2142,10 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                                                  std::max<int>(0, selection.start - line.begin()),
                                                  selection.end - selection.start);
       for (auto bounds : boxes) {
-        int y = rect->ymax - (per_line * (selection.line - scroll));
+        int y = rect->ymax - (line_height * (selection.line - scroll));
         immRectf(pos,
                  rect->xmin + bounds.min,
-                 y - per_line + U.pixelsize,
+                 y - line_height + U.pixelsize,
                  std::min(rect->xmin + bounds.max, rect->xmax - 2),
                  y - U.pixelsize);
       }
@@ -2199,11 +2194,11 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
       immUniformThemeColor(TH_WIDGET_TEXT_CURSOR);
       static int iii = 0;
 
-      int y = rect->ymax - (per_line * (line_cursor - scroll));
+      int y = rect->ymax - (line_height * (line_cursor - scroll));
       /* draw cursor */
       immRectf(pos,
                rect->xmin + t,
-               y - per_line + U.pixelsize,
+               y - line_height + U.pixelsize,
                rect->xmin + t + int(2.0f * U.pixelsize),
                y - U.pixelsize);
 
@@ -2235,7 +2230,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
 
   uiFontStyleDraw_Params params{};
   params.align = align;
-  rect->ymin = rect->ymax - per_line;
+  rect->ymin = rect->ymax - line_height;
   for (blender::StringRef line : lines.as_span().slice_safe(scroll, visible_lines)) {
     UI_fontstyle_draw_ex(fstyle,
                          rect,
@@ -2246,7 +2241,7 @@ static void widget_draw_textbox(const uiFontStyle *fstyle,
                          &font_xofs,
                          &font_yofs,
                          nullptr);
-    BLI_rcti_translate(rect, 0, -per_line);
+    BLI_rcti_translate(rect, 0, -line_height);
   }
 }
 
@@ -2793,8 +2788,11 @@ static void widget_draw_text_icon(const uiFontStyle *fstyle,
   /* extra icons, e.g. 'x' icon to clear text or icon for eyedropper */
   widget_draw_extra_icons(wcol, but, rect, alpha);
 
-  /* clip but->drawstr to fit in available space */
-  if (but->editstr && but->pos >= 0) {
+  /** Textbox wraps content in lines, skip clipping text.  */
+  if (but->type == ButType::TextBox) {
+  }
+  else if (but->editstr && but->pos >= 0) {
+    /* clip but->drawstr to fit in available space */
     ui_text_clip_cursor(fstyle, but, rect);
   }
   else if (but->drawstr[0] == '\0') {

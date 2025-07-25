@@ -3082,7 +3082,12 @@ void ui_but_string_get_ex(uiBut *but,
       MEM_freeN(buf);
     }
   }
-  else if (ELEM(but->type, ButType::Text, ButType::TextBox, ButType::SearchMenu)) {
+  else if (but->rnaprop && but->type == ButType::TextBox) {
+    BLI_assert(RNA_property_type(but->rnaprop) == PROP_STRING);
+    std::string buf = RNA_property_string_get(&but->rnapoin, but->rnaprop);
+    BLI_strncpy_utf8(str, buf.data(), str_maxncpy);
+  }
+  else if (ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
     /* string */
     BLI_strncpy(str, but->poin, str_maxncpy);
     return;
@@ -3190,6 +3195,11 @@ char *ui_but_string_get_dynamic(uiBut *but, int *r_str_size)
     else {
       BLI_assert(0);
     }
+  }
+  else if (but->rnaprop && but->type == ButType::TextBox) {
+    BLI_assert(RNA_property_type(but->rnaprop) == PROP_STRING);
+    str = RNA_property_string_get_alloc(&but->rnapoin, but->rnaprop, nullptr, 0, r_str_size);
+    *r_str_size += 1;
   }
   else {
     BLI_assert(0);
@@ -3310,7 +3320,9 @@ bool ui_but_string_eval_number(bContext *C, const uiBut *but, const char *str, d
 
 bool ui_but_string_set(bContext *C, uiBut *but, const char *str)
 {
-  if (but->rnaprop && but->rnapoin.data && ELEM(but->type, ButType::Text, ButType::SearchMenu)) {
+  if (but->rnaprop && but->rnapoin.data &&
+      ELEM(but->type, ButType::Text, ButType::TextBox, ButType::SearchMenu))
+  {
     if (RNA_property_editable(&but->rnapoin, but->rnaprop)) {
       const PropertyType type = RNA_property_type(but->rnaprop);
 
@@ -4092,8 +4104,14 @@ static void ui_but_update_ex(uiBut *but, const bool validate)
 
       break;
 
-    case ButType::Text:
     case ButType::TextBox:
+      if (!but->editstr) {
+        char str[UI_MAX_DRAW_STR];
+        ui_but_string_get(but, str, UI_MAX_DRAW_STR);
+        but->drawstr = str;
+      }
+      break;
+    case ButType::Text:
     case ButType::SearchMenu:
       if (!but->editstr) {
         char str[UI_MAX_DRAW_STR];
@@ -6737,20 +6755,36 @@ void UI_but_node_link_set(uiBut *but, bNodeSocket *socket, const float draw_colo
   rgba_float_to_uchar(but->col, draw_color);
 }
 
-void UI_but_text_box_visible_lines_set(uiBut *but, int *lines)
+void UI_but_textbox_status_set(uiBut *but, TextboxStatus *status)
+
 {
   uiButTextBox *but_text_box = (uiButTextBox *)but;
   BLI_assert(but->type == ButType::TextBox);
 
-  but_text_box->visible_lines = lines;
+  but_text_box->status = status;
 }
 
-void UI_but_text_box_line_scroll_set(uiBut *but, int *line)
+int uiButTextBox::visible_lines()
 {
-  uiButTextBox *but_text_box = (uiButTextBox *)but;
-  BLI_assert(but->type == ButType::TextBox);
+  return this->status->visible_lines_get();
+}
+int uiButTextBox::line_scroll()
+{
+  return std::clamp<int>(this->status->line_scroll,
+                         0,
+                         std::max<int>(this->status->total_lines - this->visible_lines(), 0));
+}
 
-  but_text_box->line_scroll = line;
+void uiButTextBox::visible_lines_set(int visible_lines)
+{
+  this->status->visible_height = std::max(this->status->minimum_lines, visible_lines);
+}
+
+void uiButTextBox::line_scroll_set(int line_scroll)
+{
+  this->status->line_scroll = line_scroll;
+  /* Clamp line scroll. */
+  this->status->line_scroll = this->line_scroll();
 }
 
 void UI_but_number_step_size_set(uiBut *but, float step_size)
