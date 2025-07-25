@@ -72,6 +72,8 @@ void main()
   const uint evaluated_start = curves_evaluated_offsets_buf[curve_id];
   const uint evaluated_end = curves_evaluated_offsets_buf[curve_id + 1];
 
+  float3 last_lP = float3(0.0f);
+  float distance_along_curve = 0.0f;
   for (uint i = 0; i < evaluated_end - evaluated_start; i++) {
     const uint out_id = evaluated_start + i;
     const uint segment_id = i / curve_resolution;
@@ -93,6 +95,18 @@ void main()
     const float radius = mix4(rad_0, rad_1, rad_2, rad_3, weights);
 
     points_pos_rad_buf[out_id] = float4(lP, radius);
-    // points_time_buf[out_id] = 0.0f;
+
+    if (true /* TODO(fclem) Make it optional. */) {
+      distance_along_curve += (i == 0) ? 0.0f : distance(last_lP, lP);
+      last_lP = lP;
+      points_time_buf[out_id] = distance_along_curve;
+    }
+  }
+
+  if (true /* TODO(fclem) Make it optional. */) {
+    curves_length_buf[curve_id] = distance_along_curve;
+    for (uint i = evaluated_start; i < evaluated_end; i++) {
+      points_time_buf[i] /= distance_along_curve;
+    }
   }
 }

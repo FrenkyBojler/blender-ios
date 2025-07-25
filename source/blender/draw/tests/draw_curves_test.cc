@@ -464,6 +464,20 @@ static void test_draw_curves_interpolation()
     EXPECT_EQ(points_pos_rad_buf[7], float4(interp_data[7]));
     /* Ensure the rest of the buffer is untouched. */
     EXPECT_EQ(points_pos_rad_buf[8], float4(0.0));
+
+    EXPECT_FLOAT_EQ(curves_length_buf[0], numbers::sqrt3);
+    EXPECT_FLOAT_EQ(curves_length_buf[1], 2.0f * numbers::sqrt3);
+
+    EXPECT_FLOAT_EQ(points_time_buf[0], 0.0f);
+    EXPECT_FLOAT_EQ(points_time_buf[1], 0.218749985f);
+    EXPECT_FLOAT_EQ(points_time_buf[2], 0.5f);
+    EXPECT_FLOAT_EQ(points_time_buf[3], 0.78125f);
+    EXPECT_FLOAT_EQ(points_time_buf[4], 1.0f);
+    EXPECT_FLOAT_EQ(points_time_buf[5], 0.0f);
+    EXPECT_FLOAT_EQ(points_time_buf[6], 0.5f);
+    EXPECT_FLOAT_EQ(points_time_buf[7], 1.0f);
+    /* Ensure the rest of the buffer is untouched. */
+    EXPECT_EQ(points_time_buf[8], 0.0f);
   }
 
   GPU_shader_unbind();
